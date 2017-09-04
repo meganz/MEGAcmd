@@ -1,0 +1,33 @@
+Source: megacmd
+Section: Tools
+Priority: normal
+Maintainer: MEGA Linux Team <linux@mega.co.nz>
+Build-Depends:  debhelper,
+                libcrypto++-dev,
+                libc-ares-dev,
+                libssl-dev,
+                libsqlite3-dev,
+                zlib1g-dev,
+                wget,
+                libtool,
+                dh-autoreconf,
+                cdbs
+
+Package: megacmd
+Architecture: any
+Depends: ${shlibs:Depends}, libc-ares2, apt-transport-https
+Description: MEGA Command Line Interactive and Scriptable Application
+ MEGAcmd provides non UI access to MEGA services. 
+ It intends to offer all the functionality 
+ with your MEGA account via shell interaction. 
+ It features 2 modes of interaction
+  - interactive. A shell to query your actions
+  - scriptable. A way to execute commands from a shell/a script/another program.
+
+Package: megacmd-dbg
+Architecture: any
+Section: debug
+Priority: extra
+Depends:
+    megacmd
+Description: debugging symbols for megacmd

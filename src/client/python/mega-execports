@@ -1,0 +1,101 @@
+#!/usr/bin/python
+
+import socket, sys, struct, os
+
+localpathcommands=["lcd"]
+
+def parseArgs(argsin):
+	itochange = None
+	totalRealArgs = 0
+	realargs = []
+	if argsin[0] in ["sync"]:
+		#get first argument (local path) and append fullpath
+		for i in range(1,len(argsin)):
+			if not argsin[i].startswith("-"):
+				if (itochange is None): itochange = i;
+				totalRealArgs+=1
+	
+	if argsin[0] in ["sync"]:
+		if (itochange is not None and totalRealArgs>=2):
+			argsin[itochange]=os.path.abspath(argsin[itochange])
+
+	if argsin[0] in localpathcommands:
+		#get first argument (local path) and append fullpath
+		for i in range(1,len(argsin)):
+			if not argsin[i].startswith("-"):
+				argsin[i]=os.path.abspath(argsin[i])		
+
+	if argsin[0] in ["get", "preview", "thumbnail"]:
+		#get second argument (local path) and append fullpath
+		for i in range(1,len(argsin)):
+			if not argsin[i].startswith("-"):
+				totalRealArgs+=1
+				if (totalRealArgs>1): argsin[i]=os.path.abspath(argsin[i])		
+				
+	if argsin[0] in ["put"]:
+		for i in range(1,len(argsin)):
+			if not argsin[i].startswith("-"):
+				totalRealArgs+=1
+				realargs.append(argsin[i])
+		
+		totalRealArgs=0
+		for i in range(1,len(argsin)):
+			if not argsin[i].startswith("-"):
+				totalRealArgs+=1			
+				if ((totalRealArgs == 1) or (totalRealArgs < (len(realargs))) ): 
+					argsin[i]=os.path.abspath(argsin[i])						
+				
+
+	for i in range(1,len(argsin)):
+		if " " in argsin[i]:
+			argsin[i]='"'+argsin[i]+'"'
+                        
+	for i in range(1,len(argsin)):
+		if "" == argsin[i]:
+			argsin[i]='"'+argsin[i]+'"'
+
+	return argsin;
+
+sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+try:
+	sock.connect(('127.0.0.1',12300))
+
+	commandArgs=parseArgs(sys.argv[1:])
+
+
+	if (sys.version_info[0] == 3):
+		sock.send(" ".join(commandArgs).encode(sys.stdin.encoding))
+	else:
+		sock.send(" ".join(commandArgs))
+
+	data = sock.recv(100);
+	sockOutId, = struct.unpack('H', data[:2])
+
+	sock.close()
+
+	sockout =  socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+	sockout.connect(('127.0.0.1',12300+sockOutId))
+
+	outCode, = struct.unpack('i', sockout.recv(4))#get out code
+
+	data = sockout.recv(100);
+	commandOutput=""
+	while (len(data)):
+		if (sys.version_info[0] == 3):
+			commandOutput+=data.decode(sys.stdout.encoding)
+		else:
+			commandOutput+=data
+		data = sockout.recv(100);
+
+	sockout.close()
+
+	if "" != commandOutput:
+		sys.stdout.write(commandOutput)
+		sys.stdout.flush()
+
+	if (outCode <0): exit(-outCode)
+	exit(outCode)
+except Exception as ex:
+	sys.stderr.write("Unable to connect to service"+" "+str(ex)+"\n")
+	sys.stderr.write("Please ensure MEGAcmd is running\n")
+	exit(1)

@@ -1,0 +1,4 @@
+#!/bin/bash
+# kill running megacmd instance
+killall mega-cmd 2> /dev/null || true
+killall mega-cmd-server 2> /dev/null || true

@@ -1,0 +1,41 @@
+megacmd (0.9.4) stable; urgency=low
+
+  * Separated MEGAcmd into interactive shell (MEGAcmdShell) and server(MEGAcmdServer)
+  * Added transfers management with "transfer" command
+  * Uploads and downloads now support background mode with "-q"
+  * Added confirmation on folder removal (interactive & non-interactive modes)
+  * PCRE are now optional if available in all the commands with "--use-pcre"
+  * Server initiated automatically in interactive and non-interactive mode
+  * Added unicode support for Windows
+  * Refurbished communications and secured non-interactive mode in Windows
+  * Implemented copy (cp) to user's inbox
+  * Several fixes and commands improvements
+
+ -- MEGA Team <linux@mega.co.nz>  Mon, 28 Aug 2017 18:06:34 +0200
+
+megacmd (0.9.3) stable; urgency=low
+
+  * fixed mkdir in MacOS
+  * added command "https" to force HTTPS for file transfers
+  * added -n to "users" to show users names
+  * modified greeting
+  * fixed "clear" for Windows
+  * fixed download >4GB files
+  * fixed bug in asynchronous transfers
+
+ -- MEGA Team <linux@mega.co.nz>  Thu, 02 Feb 2017 11:32:38 +0100
+
+megacmd (0.9.1) stable; urgency=low
+
+  * Initial version of megacmd
+  * Features:
+  * Interactive shell
+  * Non interactive mode
+  * Regular expresions
+  * Contacts management
+  * Public folders management
+  * Files management
+  * Synching
+
+ -- MEGA Team <linux@mega.co.nz>  Tue, 17 Jan 2017 14:22:10 +0100
+
