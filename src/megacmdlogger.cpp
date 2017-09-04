@@ -1,5 +1,5 @@
 /**
- * @file examples/megacmd/megacmdlogger.cpp
+ * @file src/megacmdlogger.cpp
  * @brief MEGAcmd: Controls message logging
  *
  * (c) 2013-2016 by Mega Limited, Auckland, New Zealand

@@ -1,0 +1,92 @@
+##
+ # @file build/megacmd/megacmd/PKGBUILD
+ # @brief script to generate package megacmd for ArchLinux
+ #
+ # (c) 2013-2016 by Mega Limited, Auckland, New Zealand
+ #
+ # This file is part of the MEGA SDK - Client Access Engine.
+ #
+ # Applications using the MEGA API must present a valid application key
+ # and comply with the the rules set forth in the Terms of Service.
+ #
+ # The MEGA SDK is distributed in the hope that it will be useful,
+ # but WITHOUT ANY WARRANTY; without even the implied warranty of
+ # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ #
+ # @copyright Simplified (2-clause) BSD License.
+ #
+ # You should have received a copy of the license along with this
+ # program.
+##
+
+# Maintainer: Pablo Martin <pm@mega.nz>
+pkgname=megacmd
+pkgver=megacmd_VERSION
+pkgrel=1
+epoch=
+pkgdesc="MEGA Command Line Interactive and Scriptable Application"
+arch=('i686' 'x86_64')
+url="http://mega.nz/cmd"
+license=("https://github.com/meganz/sdk/blob/megacmd/LICENSE")
+groups=()
+depends=('glibc' 'gcc-libs' 'sqlite' 'openssl' 'zlib' 'libpsl' 'icu' 'bash-completion' 'pcre')
+makedepends=('unzip' 'wget' 'ca-certificates')
+checkdepends=()
+optdepends=()
+provides=("megacmd=${pkgver}")
+replaces=()
+backup=()
+options=()
+install=megacmd.install
+changelog= #TODO
+source=("./${pkgname}_$pkgver.tar.gz"
+)
+noextract=()
+md5sums=('MD5SUM') # generated with makepkg -g
+validpgpkeys=()
+
+prepare() {
+	cd "$pkgname-$pkgver"
+}
+
+build() {
+	cd "$pkgname-$pkgver"
+	./autogen.sh
+
+	#build dependencies into folder deps
+	mkdir deps
+	bash -x ./contrib/build_sdk.sh -o archives \
+	  -e -g -b -l -c -s -u -a -q -p deps/
+
+	./configure --disable-shared --enable-static --disable-silent-rules \
+	  --disable-curl-checks --with-sodium=deps --with-cryptopp=deps\
+	  --with-curl=deps --with-freeimage=deps --with-readline=deps \
+	  --with-cares=deps \
+	  --with-termcap=deps --prefix=$PWD/deps --disable-examples
+
+	make
+
+	touch build-stamp
+}
+
+check() {
+	cd "$pkgname-$pkgver"
+#	make -k check  DESTDIR=$_bindir THE_RPM_BUILD_ROOT=$pkgdir
+}
+
+package() {
+	_bindir=$pkgdir/usr/bin
+	mkdir -p $_bindir
+	_confdir=$pkgdir/etc
+	mkdir -p $_confdir
+
+	cd "$pkgname-$pkgver"
+	make install TARGET=$_bindir/megacmd INSTALL_ROOT=$pkgdir
+	
+	for i in src/client/mega-*; do install -D $i $_bindir/${i/examples\/megacmd\/client\//}; done
+	install -D src/client/megacmd_completion.sh $_confdir/bash_completion.d/megacmd_completion.sh
+	install -D examples/mega-cmd $_bindir/mega-cmd
+	install -D examples/mega-cmd-server $_bindir/mega-cmd-server
+	install -D examples/mega-exec $_bindir/mega-exec
+
+}

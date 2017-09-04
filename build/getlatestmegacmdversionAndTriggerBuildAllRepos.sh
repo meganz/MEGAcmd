@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ##
- # @file examples/megacmd/build/getlatestmegacmdversionAndTriggerBuildAllRepos.sh
+ # @file src/build/getlatestmegacmdversionAndTriggerBuildAllRepos.sh
  # @brief Gets the project cloning git project and creates tarball, then
  #     Triggers OBS compilation for configured repositories          
  #     It stores the project files at                                
@@ -73,7 +73,7 @@ fi
 echo git clone $tagtodl --depth 1 --recursive https://github.com/meganz/sdk $PROJECT_PATH
 if ! git clone $tagtodl --depth 1 --recursive https://github.com/meganz/sdk $PROJECT_PATH; then exit 1;fi
 pushd $PROJECT_PATH
-pushd examples/megacmd/build
+pushd src/build
 ./create_tarball.sh
 popd
 popd
@@ -86,4 +86,4 @@ fi
 
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-$DIR/triggermegacmdBuild.sh $onlyhomeproject $remote $PROJECT_PATH/examples/megacmd $NEWOSCFOLDER_PATH
+$DIR/triggermegacmdBuild.sh $onlyhomeproject $remote $PROJECT_PATH/src $NEWOSCFOLDER_PATH

@@ -1,5 +1,5 @@
 /**
- * @file examples/megacmd/megacmdshellcommunications.cpp
+ * @file src/megacmdshellcommunications.cpp
  * @brief MEGAcmd: Communications module to connect to server
  *
  * (c) 2013-2017 by Mega Limited, Auckland, New Zealand

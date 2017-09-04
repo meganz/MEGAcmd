@@ -1,5 +1,5 @@
 /**
- * @file examples/megacmd/comunicationsmanagerfilesockets.h
+ * @file src/comunicationsmanagerfilesockets.h
  * @brief MEGAcmd: Communications manager using Network Sockets
  *
  * (c) 2013-2016 by Mega Limited, Auckland, New Zealand

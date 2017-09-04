@@ -1,5 +1,5 @@
 /**
- * @file examples/megacmd/megacmdshellcommunicationsnamedpipes.cpp
+ * @file src/megacmdshellcommunicationsnamedpipes.cpp
  * @brief MEGAcmd: Communications module to connect to server using NamedPipes
  *
  * (c) 2013-2017 by Mega Limited, Auckland, New Zealand

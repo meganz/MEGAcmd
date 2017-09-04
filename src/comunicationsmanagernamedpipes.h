@@ -1,5 +1,5 @@
 /**
- * @file examples/megacmd/comunicationsmanagerportnamedPipes.h
+ * @file src/comunicationsmanagerportnamedPipes.h
  * @brief MegaCMD: Communications manager using Network NamedPipes
  *
  * (c) 2013-2016 by Mega Limited, Auckland, New Zealand

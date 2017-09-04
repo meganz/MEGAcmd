@@ -21,7 +21,7 @@
 
 # Maintainer: Pablo Martin <pm@mega.nz>
 pkgname=megacmd
-pkgver=megacmd_VERSION
+pkgver=0.9.4
 pkgrel=1
 epoch=
 pkgdesc="MEGA Command Line Interactive and Scriptable Application"
@@ -83,8 +83,8 @@ package() {
 	cd "$pkgname-$pkgver"
 	make install TARGET=$_bindir/megacmd INSTALL_ROOT=$pkgdir
 	
-	for i in examples/megacmd/client/mega-*; do install -D $i $_bindir/${i/examples\/megacmd\/client\//}; done
-	install -D examples/megacmd/client/megacmd_completion.sh $_confdir/bash_completion.d/megacmd_completion.sh
+	for i in src/client/mega-*; do install -D $i $_bindir/${i/examples\/megacmd\/client\//}; done
+	install -D src/client/megacmd_completion.sh $_confdir/bash_completion.d/megacmd_completion.sh
 	install -D examples/mega-cmd $_bindir/mega-cmd
 	install -D examples/mega-cmd-server $_bindir/mega-cmd-server
 	install -D examples/mega-exec $_bindir/mega-exec

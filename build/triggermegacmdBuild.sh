@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ##
- # @file examples/megacmd/build/triggermegacmdBuild.sh
+ # @file src/build/triggermegacmdBuild.sh
  # @brief Triggers OBS compilation for configured repositories 
  #     suppossing project with tarball built at $PROJECT_PATH/    
  #     suposing oscrc configured with apiurl correctly:           

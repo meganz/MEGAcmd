@@ -1,7 +1,7 @@
 #!/bin/bash -x
 
 ##
- # @file examples/megacmd/build/create_tarball.sh
+ # @file src/build/create_tarball.sh
  # @brief Generates megacmd tarballs and compilation scripts
  #
  # (c) 2013-2014 by Mega Limited, Auckland, New Zealand
@@ -26,8 +26,8 @@ IFS=$'\n\t'
 
 # make sure the source tree is in "clean" state
 cwd=$(pwd)
-BASEPATH=$(pwd)/../../../
-cd ../../../src
+BASEPATH=$(pwd)/../
+cd ../src
 make clean 2> /dev/null || true
 
 #~ make distclean 2> /dev/null || true
@@ -43,10 +43,10 @@ cd $cwd
 archives=$cwd/archives
 rm -fr $archives
 mkdir $archives
-$BASEPATH/contrib/build_sdk.sh -q -e -g -w -s -v -u -o $archives
+$BASEPATH/sdk/contrib/build_sdk.sh -q -e -g -w -s -v -u -o $archives
 
 # get current version
-megacmd_VERSION=$(cat $BASEPATH/examples/megacmd/megacmdversion.h  | grep define | grep _VERSION | grep -v CODE | head -n 3 | awk 'BEGIN{ORS=""; first=1}{if(first){first=0;}else{print ".";}print $3}')
+megacmd_VERSION=$(cat $BASEPATH/src/megacmdversion.h  | grep define | grep _VERSION | grep -v CODE | head -n 3 | awk 'BEGIN{ORS=""; first=1}{if(first){first=0;}else{print ".";}print $3}')
 export megacmd_NAME=megacmd-$megacmd_VERSION
 rm -rf $megacmd_NAME.tar.gz
 rm -rf $megacmd_NAME
@@ -77,7 +77,7 @@ if [ "$last_version" != "$megacmd_VERSION" ]; then
     if [ -f $changelog ]; then
         mv $changelog $changelogold
     fi
-    ./generate_rpm_changelog_entry.sh $megacmd_VERSION $BASEPATH/examples/megacmd/megacmdversion.h > $changelog #TODO: read this from somewhere
+    ./generate_rpm_changelog_entry.sh $megacmd_VERSION $BASEPATH/src/megacmdversion.h > $changelog #TODO: read this from somewhere
     if [ -f $changelogold ]; then
         cat $changelogold >> $changelog
         rm $changelogold
@@ -89,7 +89,7 @@ if [ "$last_version" != "$megacmd_VERSION" ]; then
     if [ -f $changelog ]; then
         mv $changelog $changelogold
     fi
-    ./generate_deb_changelog_entry.sh $megacmd_VERSION $BASEPATH/examples/megacmd/megacmdversion.h > $changelog #TODO: read this from somewhere
+    ./generate_deb_changelog_entry.sh $megacmd_VERSION $BASEPATH/src/megacmdversion.h > $changelog #TODO: read this from somewhere
     if [ -f $changelogold ]; then
         cat $changelogold >> $changelog
         rm $changelogold
@@ -110,17 +110,13 @@ ln -s ../megacmd/debian.copyright $megacmd_NAME/debian.copyright
 for i in $BASEPATH/{autogen.sh,m4,configure.ac,include,Makefile.am,src,tests,bindings,libmega.pc.in,doc}; do
 	ln -s $i $megacmd_NAME/
 done
-mkdir -p $megacmd_NAME/examples/megacmd
-for i in $BASEPATH/examples/{include.am,megacli.*,megasimple*}; do 
-    ln -s $i $megacmd_NAME/examples/
-done    
-for i in $BASEPATH/examples/megacmd/{*cpp,*.h,client,megacmdshell}; do
-	ln -s $i $megacmd_NAME/examples/megacmd/
+mkdir -p $megacmd_NAME/src
+for i in $BASEPATH/src/{include.am,*cpp,*.h,client,megacmdshell}; do
+	ln -s $i $megacmd_NAME/src/
 done
 
-
 mkdir -p $megacmd_NAME/contrib/
-ln -s $BASEPATH/contrib/build_sdk.sh $megacmd_NAME/contrib/
+ln -s $BASEPATH/sdk/contrib/build_sdk.sh $megacmd_NAME/contrib/
 
 ln -s $archives $megacmd_NAME/archives
 tar czfh $megacmd_NAME.tar.gz $megacmd_NAME

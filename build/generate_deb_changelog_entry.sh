@@ -1,8 +1,8 @@
 #!/bin/bash
 
 ##
- # @file examples/megacmd/build/generate_changelog_entry.sh
- # @brief Processes the input file and prints RPM ChangeLog entry
+ # @file src/build/generate_changelog_entry.sh
+ # @brief Processes the input file and prints DEB ChangeLog entry
  #
  # (c) 2013-2014 by Mega Limited, Auckland, New Zealand
  #
@@ -29,10 +29,12 @@ fi
 in_file="$2"
 out1=$(awk -NF '"$| "|""\\\\n' ' /megacmdchangelog/ {flag=1;next} /;/{flag=0} flag { print "  * "$2 }' $in_file)
 
+
 # print ChangeLog entry
-NOW=$(LANG=en_us_8859_1;date)
-echo $NOW - linux@mega.co.nz
-echo "- Update to version $1:"
+NOW=$(LANG=C date -R)
+echo "megacmd ($1) stable; urgency=low"
+echo ""
 echo "$out1" | sed 's#\\"#"#g'
 echo ""
-echo "-------------------------------------------------------------------"
+echo " -- MEGA Team <linux@mega.co.nz>  $NOW"
+echo ""

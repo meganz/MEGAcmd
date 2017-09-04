@@ -1,5 +1,5 @@
 /**
- * @file examples/megacmd/megacmdexecuter.cpp
+ * @file src/megacmdexecuter.cpp
  * @brief MEGAcmd: Executer of the commands
  *
  * (c) 2013-2016 by Mega Limited, Auckland, New Zealand

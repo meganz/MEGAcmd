@@ -1,5 +1,5 @@
 /**
- * @file examples/megacmd/listeners.cpp
+ * @file src/listeners.cpp
  * @brief MEGAcmd: Listeners
  *
  * (c) 2013-2016 by Mega Limited, Auckland, New Zealand

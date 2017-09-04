@@ -1,5 +1,5 @@
 /**
- * @file examples/megacmd/megacmd.h
+ * @file src/megacmd.h
  * @brief MEGAcmd: Interactive CLI and service application
  *
  * (c) 2013-2016 by Mega Limited, Auckland, New Zealand

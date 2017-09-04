@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ##
- # @file examples/megacmd/contrib/check_packages/check_megacmd_package.sh
+ # @file src/contrib/check_packages/check_megacmd_package.sh
  # @brief checks the correctness of all packages using virtual machines
  #
  # (c) 2013-2016 by Mega Limited, Auckland, New Zealand

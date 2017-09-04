@@ -26,11 +26,11 @@ clean:
 
 install: build
 	###dh_auto_install --destdir=megacmd/megacmd
-	dh_install examples/megacmd/client/mega-* /usr/bin/
+	dh_install src/client/mega-* /usr/bin/
 	dh_install examples/mega-cmd /usr/bin/
 	dh_install examples/mega-cmd-server /usr/bin/
 	dh_install examples/mega-exec /usr/bin/
-	dh_install examples/megacmd/client/megacmd_completion.sh /etc/bash_completion.d/
+	dh_install src/client/megacmd_completion.sh /etc/bash_completion.d/
 	lsb_release -ds > distro
 	lsb_release -rs > version	
 	dh_install distro /usr/share/doc/megacmd/

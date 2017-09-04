@@ -1,5 +1,5 @@
 /**
- * @file examples/megacmd/megacmdshell.cpp
+ * @file src/megacmdshell.cpp
  * @brief MEGAcmd: Interactive CLI and service application
  * This is the shell application
  *

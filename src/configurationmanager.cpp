@@ -1,5 +1,5 @@
 /**
- * @file examples/megacmd/configurationmanager.cpp
+ * @file src/configurationmanager.cpp
  * @brief MEGAcmd: configuration manager
  *
  * (c) 2013-2016 by Mega Limited, Auckland, New Zealand

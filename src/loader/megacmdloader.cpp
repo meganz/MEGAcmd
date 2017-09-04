@@ -1,5 +1,5 @@
 /**
- * @file examples/megacmd/loader/megacmdloader.cpp
+ * @file src/loader/megacmdloader.cpp
  * @brief MEGAcmdClient: Loader application of MEGAcmd for MAC
  *
  * (c) 2013-2016 by Mega Limited, Auckland, New Zealand

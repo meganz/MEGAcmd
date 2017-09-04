@@ -1,5 +1,5 @@
 /**
- * @file examples/megacmd/megacmdsandbox.h
+ * @file src/megacmdsandbox.h
  * @brief MegaCMD: A sandbox class to store status variables
  *
  * (c) 2013-2016 by Mega Limited, Auckland, New Zealand

@@ -1,5 +1,5 @@
 Name:		megacmd
-Version:	megacmd_VERSION
+Version:	0.9.4
 Release:	1%{?dist}
 Summary:	MEGA Command Line Interactive and Scriptable Application
 License:	https://github.com/meganz/sdk/blob/megacmd/LICENSE
@@ -96,8 +96,8 @@ make
 
 %install
 
-for i in examples/megacmd/client/mega-*; do install -D $i %{buildroot}%{_bindir}/${i/examples\/megacmd\/client\//}; done
-install -D examples/megacmd/client/megacmd_completion.sh %{buildroot}%{_sysconfdir}/bash_completion.d/megacmd_completion.sh
+for i in src/client/mega-*; do install -D $i %{buildroot}%{_bindir}/${i/examples\/megacmd\/client\//}; done
+install -D src/client/megacmd_completion.sh %{buildroot}%{_sysconfdir}/bash_completion.d/megacmd_completion.sh
 install -D examples/mega-cmd %{buildroot}%{_bindir}/mega-cmd
 install -D examples/mega-cmd-server %{buildroot}%{_bindir}/mega-cmd-server
 install -D examples/mega-exec %{buildroot}%{_bindir}/mega-exec

@@ -93,3 +93,6 @@ MEGAcmdServer.pro.user
 /contrib/QtCreator/build-*
 
 
+#built stufrf
+build/archives
+build/megacmd-*

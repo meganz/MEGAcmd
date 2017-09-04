@@ -1,5 +1,5 @@
 /**
- * @file examples/megacmd/client/megacmdclient.cpp
+ * @file src/client/megacmdclient.cpp
  * @brief MEGAcmdClient: Client application of MEGAcmd
  *
  * (c) 2013-2016 by Mega Limited, Auckland, New Zealand
