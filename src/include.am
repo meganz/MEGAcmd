@@ -1,0 +1,80 @@
+
+# applications
+bin_PROGRAMS = 
+
+# rules
+noinst_HEADERS=
+
+MEGACMD = mega-cmd mega-exec mega-cmd-server
+bin_PROGRAMS += $(MEGACMD)
+$(MEGACMD): $(top_builddir)/sdk/src/libmega.la
+noinst_HEADERS += src/comunicationsmanager.h src/configurationmanager.h src/megacmd.h src/megacmdlogger.h src/megacmdsandbox.h src/megacmdutils.h src/listeners.h src/megacmdexecuter.h src/megacmdversion.h src/megacmdplatform.h src/comunicationsmanagerportsockets.h
+megacmdcompletiondir = $(sysconfdir)/bash_completion.d/
+megacmdcompletion_DATA = src/client/mega_completion.sh
+megacmdscripts_bindir = $(bindir)
+megacmdscripts_bin_SCRIPTS = src/client/mega-attr src/client/mega-cd src/client/mega-confirm src/client/mega-cp src/client/mega-debug src/client/mega-du src/client/mega-export src/client/mega-find src/client/mega-get src/client/mega-help src/client/mega-https src/client/mega-transfers src/client/mega-import src/client/mega-invite src/client/mega-ipc src/client/mega-killsession src/client/mega-lcd src/client/mega-log src/client/mega-login src/client/mega-logout src/client/mega-lpwd src/client/mega-ls src/client/mega-mkdir src/client/mega-mount src/client/mega-mv src/client/mega-passwd src/client/mega-preview src/client/mega-put src/client/mega-speedlimit src/client/mega-pwd src/client/mega-quit src/client/mega-reload src/client/mega-rm src/client/mega-session src/client/mega-share src/client/mega-showpcr src/client/mega-signup src/client/mega-sync src/client/mega-thumbnail src/client/mega-userattr src/client/mega-users src/client/mega-version src/client/mega-whoami
+mega_cmd_server_SOURCES = src/megacmd.cpp src/comunicationsmanager.cpp src/megacmdutils.cpp src/configurationmanager.cpp src/megacmdlogger.cpp src/megacmdsandbox.cpp src/listeners.cpp src/megacmdexecuter.cpp src/comunicationsmanagerportsockets.cpp  
+
+mega_cmddir=examples
+
+#CMDCLIENT
+noinst_HEADERS += src/megacmdshell/megacmdshellcommunications.h src/megacmdshell/megacmdshell.h include/mega/thread.h
+
+mega_exec_SOURCES = src/client/megacmdclient.cpp src/megacmdshell/megacmdshellcommunications.cpp
+mega_execdir=examples
+#mega_exec_CXXFLAGS = -std=c++11 -DUSE_CPPTHREAD=1 -Iinclude/
+mega_exec_CXXFLAGS =  -Iinclude/
+
+#CMDSHELL
+noinst_HEADERS += src/megacmdshell/megacmdshellcommunications.h src/megacmdshell/megacmdshell.h include/mega/thread.h
+mega_cmd_SOURCES = src/megacmdshell/megacmdshellcommunications.cpp src/megacmdshell/megacmdshell.cpp 
+
+mega_cmd_CXXFLAGS = $(RL_CXXFLAGS) -Iinclude/
+#mega_cmd_CXXFLAGS = -std=c++11 -DUSE_CPPTHREAD=1 $(RL_CXXFLAGS) -Iinclude/
+mega_cmd_LDADD = $(RL_LDFLAGS) $(RL_LIBS) $(TERMCAP_LDFLAGS) $(TERMCAP_LIBS) 
+
+#TODO: do windows stuff
+#~ if WIN32
+#~ noinst_HEADERS += src/megacmdshell/megacmdshellcommunicationsnamedpipes.h include/mega/thread.h include/mega/thread/win32thread.h include/mega/logging.h
+#~ mega_cmd_SOURCES += src/megacmdshell/megacmdshellcommunicationsnamedpipes.cpp sdk/src/thread/win32thread.cpp sdk/src/logging.cpp
+#~ mega_exec_SOURCES += src/megacmdshell/megacmdshellcommunicationsnamedpipes.cpp sdk/src/thread/win32thread.cpp sdk/src/logging.cpp
+#~ mega_cmd_server_SOURCES += src/comunicationsmanagernamedpipes.cpp
+
+#~ mega_cmd_server_CXXFLAGS = -D_WIN32=1 -Iinclude/ -Iinclude/mega/win32 $(FI_CXXFLAGS) $(ZLIB_CXXFLAGS) $(LIBUV_CXXFLAGS) $(LIBCURL_FLAGS) $(CRYPTO_CXXFLAGS) $(DB_CXXFLAGS) $(WINHTTP_CXXFLAGS) $(SODIUM_CXXFLAGS)
+#~ mega_cmd_server_LDADD = $(LIBS_EXTRA) $(FI_LDFLAGS) $(FI_LIBS) $(ZLIB_LDFLAGS) $(ZLIB_LIBS) $(LIBUV_LDFLAGS) $(LIBUV_LIBS) $(CRYPTO_LDFLAGS) $(CRYPTO_LIBS) $(DB_LDFLAGS) $(DB_LIBS) $(WINHTTP_LDFLAGS) $(WINHTTP_LIBS)  $(SODIUM_LDFLAGS) $(SODIUM_LIBS) $(top_builddir)/src/libmega.la $(LIBS_EXTRA)
+
+#~ mega_exec_CXXFLAGS += -D_WIN32=1
+#~ mega_exec_LDADD = $(LIBS_EXTRA)
+#~ mega_cmd_LDADD += $(LIBS_EXTRA)
+
+
+#~ else
+
+mega_cmd_server_CXXFLAGS=$(FI_CXXFLAGS) $(PCRE_CXXFLAGS) $(ZLIB_CXXFLAGS) $(LIBUV_CXXFLAGS) $(CARES_FLAGS) $(LIBCURL_FLAGS) $(CRYPTO_CXXFLAGS) $(DB_CXXFLAGS) $(SODIUM_CXXFLAGS) $(LIBSSL_FLAGS)
+mega_cmd_server_LDADD=$(FI_LDFLAGS) $(FI_LIBS) $(PCRE_LDFLAGS) $(PCRE_LIBS) $(ZLIB_LDFLAGS) $(ZLIB_LIBS) $(LIBUV_LDFLAGS) $(LIBUV_LIBS) $(CRYPTO_LDFLAGS) $(CRYPTO_LIBS) $(CARES_LDFLAGS) $(CARES_LIBS) $(LIBCURL_LIBS) $(DB_LDFLAGS) $(DB_LIBS) $(SODIUM_LDFLAGS) $(SODIUM_LIBS) $(LIBSSL_LDFLAGS) $(LIBSSL_LIBS) $(top_builddir)/sdk/src/libmega.la
+
+mega_cmd_server_SOURCES += src/comunicationsmanagerfilesockets.cpp
+noinst_HEADERS += src/comunicationsmanagerfilesockets.h include/mega/thread/posixthread.h include/mega/logging.h
+mega_cmd_SOURCES += sdk/src/thread/posixthread.cpp sdk/src/logging.cpp
+mega_exec_SOURCES += sdk/src/thread/posixthread.cpp sdk/src/logging.cpp
+
+#mega_cmd_CXXFLAGS += -DUSE_PTHREAD=1
+#mega_exec_CXXFLAGS += -DUSE_PTHREAD=1
+
+#~ endif
+
+
+#~ if DARWIN
+#~ mega_cmd_server_SOURCES += src/megacmdplatform.mm
+#~ mega_cmd_server_LDFLAGS = -framework Cocoa -framework Security
+#~ else
+
+#~ if ENABLE_STATIC
+#~ #mega_cmd_server_LDFLAGS = -Wl,-static -all-static
+#~ mega_cmd_server_LDFLAGS = -pthread
+#~ mega_exec_LDFLAGS = -pthread
+#~ mega_cmd_LDFLAGS = -pthread
+#~ endif
+
+#~ endif
+
