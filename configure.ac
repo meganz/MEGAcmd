@@ -39,8 +39,9 @@ AC_CONFIG_SUBDIRS(sdk)
 AC_USE_SYSTEM_EXTENSIONS
 
 AM_INIT_AUTOMAKE([1.11 foreign silent-rules])
+#AC_CONFIG_HEADERS([megacmdconfig.h])
 #~ AC_CONFIG_HEADERS([include/mega/config.h])
-#~ LT_INIT([shared disable-static win32-dll])
+LT_INIT([shared disable-static win32-dll])
 #~ AC_CONFIG_MACRO_DIR([m4])
 
 # enable silent build
@@ -85,6 +86,7 @@ fi
 AC_PROG_LIBTOOL
 AM_SANITY_CHECK
 
+
 # Check for cppcheck
 AC_CHECK_PROG(HAVE_CPPCHECK, cppcheck, yes)
 AM_CONDITIONAL(CPPCHECK, test -n "$HAVE_CPPCHECK")
@@ -98,6 +100,48 @@ AC_HEADER_STDC
 AC_HEADER_STDBOOL
 AC_HEADER_DIRENT
 
+AC_DEFINE(__STDC_CONSTANT_MACROS, [], [Force definition of constant macros for C++])
+AC_DEFINE(__STDC_FORMAT_MACROS, [], [Force definition of format macros for C++])
+AC_DEFINE(__STDC_LIMIT_MACROS, [], [Force definition of limit macros for C++])
+
+# Add 64-bits file support on some hosts
+AC_SYS_LARGEFILE
+# use new interfaces
+AC_FUNC_FSEEKO
+AC_TYPE_OFF_T
+
+# Checks for typedefs, structures, and compiler characteristics.
+AC_CHECK_SIZEOF([uint64_t])
+AC_STRUCT_TM
+AC_TYPE_OFF_T
+AC_TYPE_SIZE_T
+
+AC_CHECK_HEADERS([arpa/inet.h netdb.h netinet/in.h stddef.h stdint.h stdlib.h sys/socket.h sys/timeb.h htonl glob.h malloc.h sys/malloc.h malloc/malloc.h])
+
+# Debug
+AC_ARG_ENABLE(debug,
+    AS_HELP_STRING([--enable-debug], [enable support for running in debug mode]),
+    [], [enable_debug=no])
+
+# Enable debug flags / build
+if test "x$enable_debug" = "xyes" ; then
+    AM_CXXFLAGS="-Wall -g -ggdb3 -O0"
+    CXXFLAGS="-Wall -g -ggdb3 -O0"
+    AC_SUBST([AM_CXXFLAGS])
+    AC_DEFINE(DEBUG, 1, [Define to enable debug logging])
+else
+    CXXFLAGS="$CXXFLAGS -DNDEBUG=1"
+fi
+
+#~ # Check if we can use -fPIC flag
+#~ AX_CHECK_COMPILE_FLAG([-fPIC], [
+  #~ AX_CHECK_LINK_FLAG([-fPIC],
+    #~ [CXXFLAGS="$CXXFLAGS -fPIC"]
+  #~ )
+#~ ])
+
+AM_CONDITIONAL(ENABLE_STATIC, test x$enable_static = xyes)
+AC_SUBST(ENABLE_STATIC)
 
 #termcap
 AC_MSG_CHECKING(for termcap)
