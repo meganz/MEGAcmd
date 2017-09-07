@@ -30,8 +30,13 @@ noinst_HEADERS += src/megacmdshell/megacmdshellcommunications.h src/megacmdshell
 mega_cmd_SOURCES = src/megacmdshell/megacmdshellcommunications.cpp src/megacmdshell/megacmdshell.cpp 
 
 mega_cmd_CXXFLAGS = $(RL_CXXFLAGS) -Iinclude/
-#mega_cmd_CXXFLAGS = -std=c++11 -DUSE_CPPTHREAD=1 $(RL_CXXFLAGS) -Iinclude/
 mega_cmd_LDADD = $(RL_LDFLAGS) $(RL_LIBS) $(TERMCAP_LDFLAGS) $(TERMCAP_LIBS) 
+
+mega_cmd_server_CXXFLAGS=
+if USE_PCRE
+mega_cmd_server_CXXFLAGS+=-DUSE_PCRE=1
+endif
+
 
 #TODO: do windows stuff
 #~ if WIN32
@@ -50,8 +55,7 @@ mega_cmd_LDADD = $(RL_LDFLAGS) $(RL_LIBS) $(TERMCAP_LDFLAGS) $(TERMCAP_LIBS)
 
 #~ else
 
-mega_cmd_server_CXXFLAGS=$(FI_CXXFLAGS) $(PCRE_CXXFLAGS) $(ZLIB_CXXFLAGS) $(LIBUV_CXXFLAGS) $(CARES_FLAGS) $(LIBCURL_FLAGS) $(CRYPTO_CXXFLAGS) $(DB_CXXFLAGS) $(SODIUM_CXXFLAGS) $(LIBSSL_FLAGS)
-mega_cmd_server_LDADD=$(FI_LDFLAGS) $(FI_LIBS) $(PCRE_LDFLAGS) $(PCRE_LIBS) $(ZLIB_LDFLAGS) $(ZLIB_LIBS) $(LIBUV_LDFLAGS) $(LIBUV_LIBS) $(CRYPTO_LDFLAGS) $(CRYPTO_LIBS) $(CARES_LDFLAGS) $(CARES_LIBS) $(LIBCURL_LIBS) $(DB_LDFLAGS) $(DB_LIBS) $(SODIUM_LDFLAGS) $(SODIUM_LIBS) $(LIBSSL_LDFLAGS) $(LIBSSL_LIBS) $(top_builddir)/sdk/src/libmega.la
+mega_cmd_server_LDADD=$(PCRE_LIBS) $(top_builddir)/sdk/src/libmega.la
 
 mega_cmd_server_SOURCES += src/comunicationsmanagerfilesockets.cpp
 noinst_HEADERS += src/comunicationsmanagerfilesockets.h sdk/include/mega/thread/posixthread.h sdk/include/mega/logging.h
@@ -63,7 +67,7 @@ mega_exec_SOURCES += sdk/src/thread/posixthread.cpp sdk/src/logging.cpp
 
 #~ endif
 
-
+#TODO: do macos stuff
 #~ if DARWIN
 #~ mega_cmd_server_SOURCES += src/megacmdplatform.mm
 #~ mega_cmd_server_LDFLAGS = -framework Cocoa -framework Security

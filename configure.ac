@@ -39,8 +39,8 @@ AC_CONFIG_SUBDIRS(sdk)
 AC_USE_SYSTEM_EXTENSIONS
 
 AM_INIT_AUTOMAKE([1.11 foreign silent-rules])
-#AC_CONFIG_HEADERS([megacmdconfig.h])
-#~ AC_CONFIG_HEADERS([include/mega/config.h])
+AC_CONFIG_HEADERS([src/megacmdconfig.h]) #this avoids inline definitions of stuff already defined in sdk's config.h (e.g: -DPACKAGE_NAME)
+
 LT_INIT([shared disable-static win32-dll])
 #~ AC_CONFIG_MACRO_DIR([m4])
 
@@ -74,7 +74,6 @@ AH_VERBATIM([__STDC_FORMAT_MACROS],
 AC_CHECK_TYPES([ssize_t])
 
 AC_CANONICAL_HOST
-AC_DEFINE_UNQUOTED(OS, "${host}", [cpu-machine-OS])
 
 # Check programs
 AC_PROG_OBJCXX
@@ -85,7 +84,6 @@ fi
 
 AC_PROG_LIBTOOL
 AM_SANITY_CHECK
-
 
 # Check for cppcheck
 AC_CHECK_PROG(HAVE_CPPCHECK, cppcheck, yes)
@@ -100,9 +98,6 @@ AC_HEADER_STDC
 AC_HEADER_STDBOOL
 AC_HEADER_DIRENT
 
-AC_DEFINE(__STDC_CONSTANT_MACROS, [], [Force definition of constant macros for C++])
-AC_DEFINE(__STDC_FORMAT_MACROS, [], [Force definition of format macros for C++])
-AC_DEFINE(__STDC_LIMIT_MACROS, [], [Force definition of limit macros for C++])
 
 # Add 64-bits file support on some hosts
 AC_SYS_LARGEFILE
@@ -143,6 +138,100 @@ fi
 AM_CONDITIONAL(ENABLE_STATIC, test x$enable_static = xyes)
 AC_SUBST(ENABLE_STATIC)
 
+
+
+
+#
+# PCRE
+#
+#with megacmd 0.9.4 & sdk 3.2.0, libpcrecpp is no linked in megasdk even when compiled with --with-pcre. Hence we need to check here
+#Plus, contrary to what the sdk will do, if non-specified and available we default it to true
+
+#libpcre
+AC_MSG_CHECKING(for libpcrecpp)
+pcre=false
+AC_ARG_WITH(pcre,
+  AS_HELP_STRING(--with-pcre=PATH, base of libpcrecpp installation),
+  [
+   case $with_pcre in
+   no)
+    pcre=false
+     ;;
+   yes)
+    AC_CHECK_HEADERS([pcrecpp.h],, [
+        AC_MSG_ERROR([pcrecpp.h header not found or not usable])
+    ])
+    AC_CHECK_LIB(pcrecpp, [main], [PCRE_LIBS="-lpcrecpp"],[
+            AC_MSG_ERROR([Could not find libpcrecpp])
+    ])
+    AC_CHECK_LIB(pcre, [pcre_compile], [PCRE_LIBS="$PCRE_LIBS -lpcre"],[
+            AC_MSG_ERROR([Could not find libpcre])
+    ])
+    pcre=true
+     ;;
+   *)
+
+    # determine if library is installed
+    if test -d "$with_pcre/lib64"; then
+        LDFLAGS="-L$with_pcre/lib64 $LDFLAGS"
+        CXXFLAGS="-I$with_pcre/include $CXXFLAGS"
+        CPPFLAGS="-I$with_pcre/include $CPPFLAGS"
+
+        AC_CHECK_HEADERS(pcrecpp.h,
+         PCRE_CXXFLAGS="-I$with_pcre/include"
+         PCRE_CPPFLAGS="-I$with_pcre/include"
+         PCRE_LDFLAGS="-L$with_pcre/lib64",
+         AC_MSG_ERROR([pcrecpp.h header not found or not usable])
+         )
+    else
+        LDFLAGS="-L$with_pcre/lib32 $LDFLAGS"
+        CXXFLAGS="-I$with_pcre/include $CXXFLAGS"
+        CPPFLAGS="-I$with_pcre/include $CPPFLAGS"
+
+        AC_CHECK_HEADERS(pcrecpp.h,
+         PCRE_CXXFLAGS="-I$with_pcre/include"
+         PCRE_CPPFLAGS="-I$with_pcre/include"
+         PCRE_LDFLAGS="-L$with_pcre/lib32",
+         AC_MSG_ERROR([pcrecpp.h header not found or not usable])
+         )
+    fi
+
+    AC_CHECK_LIB(pcrecpp, [main], [PCRE_LIBS="-lpcrecpp"],[
+            AC_MSG_ERROR([Could not find libpcrecpp])
+    ])
+    AC_CHECK_LIB(pcre, [pcre_compile], [PCRE_LIBS="$PCRE_LIBS -lpcre"],[
+            AC_MSG_ERROR([Could not find libpcre])
+    ])
+
+    pcre=true
+
+    #restore
+    LDFLAGS=$SAVE_LDFLAGS
+    CXXFLAGS=$SAVE_CXXFLAGS
+    CPPFLAGS=$SAVE_CPPFLAGS
+    ;;
+   esac
+  ],
+  [AC_MSG_RESULT([--with-pcre not specified])
+      AC_CHECK_HEADERS([pcrecpp.h], [pcre=true], [])
+    AC_CHECK_LIB(pcrecpp, [main], [PCRE_LIBS="-lpcrecpp"],[])
+    AC_CHECK_LIB(pcre, [pcre_compile], [PCRE_LIBS="$PCRE_LIBS -lpcre"],[])
+  ])
+
+if test "x$pcre" = "xtrue" ; then
+    AC_DEFINE(USE_PCRE, [1], [Define to use libpcre])
+fi
+AM_CONDITIONAL([USE_PCRE], [test "x$pcre" = "xtrue"])
+
+AC_SUBST(PCRE_CXXFLAGS)
+AC_SUBST(PCRE_CPPFLAGS)
+AC_SUBST(PCRE_LDFLAGS)
+AC_SUBST(PCRE_LIBS)
+
+
+#################################################
+###      CLIENTS SPECIFIC DEPENDENCIES        ###
+#################################################
 #termcap
 AC_MSG_CHECKING(for termcap)
 AC_ARG_WITH(termcap,
@@ -278,92 +367,6 @@ AC_SUBST(RL_LDFLAGS)
 AC_SUBST(RL_LIBS)
 AC_SUBST(RL_CXXFLAGS)
 
-
-#
-# PCRE
-#
-
-#libpcre
-AC_MSG_CHECKING(for libpcrecpp)
-pcre=false
-AC_ARG_WITH(pcre,
-  AS_HELP_STRING(--with-pcre=PATH, base of libpcrecpp installation),
-  [
-   case $with_pcre in
-   no)
-    pcre=false
-     ;;
-   yes)
-    AC_CHECK_HEADERS([pcrecpp.h],, [
-        AC_MSG_ERROR([pcrecpp.h header not found or not usable])
-    ])
-    AC_CHECK_LIB(pcrecpp, [main], [PCRE_LIBS="-lpcrecpp"],[
-            AC_MSG_ERROR([Could not find libpcrecpp])
-    ])
-    AC_CHECK_LIB(pcre, [pcre_compile], [PCRE_LIBS="$PCRE_LIBS -lpcre"],[
-            AC_MSG_ERROR([Could not find libpcre])
-    ])
-    pcre=true
-     ;;
-   *)
-
-    # determine if library is installed
-    if test -d "$with_pcre/lib64"; then
-        LDFLAGS="-L$with_pcre/lib64 $LDFLAGS"
-        CXXFLAGS="-I$with_pcre/include $CXXFLAGS"
-        CPPFLAGS="-I$with_pcre/include $CPPFLAGS"
-
-        AC_CHECK_HEADERS(pcrecpp.h,
-         PCRE_CXXFLAGS="-I$with_pcre/include"
-         PCRE_CPPFLAGS="-I$with_pcre/include"
-         PCRE_LDFLAGS="-L$with_pcre/lib64",
-         AC_MSG_ERROR([pcrecpp.h header not found or not usable])
-         )
-    else
-        LDFLAGS="-L$with_pcre/lib32 $LDFLAGS"
-        CXXFLAGS="-I$with_pcre/include $CXXFLAGS"
-        CPPFLAGS="-I$with_pcre/include $CPPFLAGS"
-
-        AC_CHECK_HEADERS(pcrecpp.h,
-         PCRE_CXXFLAGS="-I$with_pcre/include"
-         PCRE_CPPFLAGS="-I$with_pcre/include"
-         PCRE_LDFLAGS="-L$with_pcre/lib32",
-         AC_MSG_ERROR([pcrecpp.h header not found or not usable])
-         )
-    fi
-
-    AC_CHECK_LIB(pcrecpp, [main], [PCRE_LIBS="-lpcrecpp"],[
-            AC_MSG_ERROR([Could not find libpcrecpp])
-    ])
-    AC_CHECK_LIB(pcre, [pcre_compile], [PCRE_LIBS="$PCRE_LIBS -lpcre"],[
-            AC_MSG_ERROR([Could not find libpcre])
-    ])
-
-    pcre=true
-
-    #restore
-    LDFLAGS=$SAVE_LDFLAGS
-    CXXFLAGS=$SAVE_CXXFLAGS
-    CPPFLAGS=$SAVE_CPPFLAGS
-    ;;
-   esac
-  ],
-  [AC_MSG_RESULT([--with-pcre not specified])
-      AC_CHECK_HEADERS([pcrecpp.h], [pcre=true], [])
-    AC_CHECK_LIB(pcrecpp, [main], [PCRE_LIBS="-lpcrecpp"],[])
-    AC_CHECK_LIB(pcre, [pcre_compile], [PCRE_LIBS="$PCRE_LIBS -lpcre"],[])
-  ])
-AC_SUBST(PCRE_CXXFLAGS)
-AC_SUBST(PCRE_CPPFLAGS)
-AC_SUBST(PCRE_LDFLAGS)
-AC_SUBST(PCRE_LIBS)
-
-if test "x$pcre" = "xtrue" ; then
-    AC_DEFINE(USE_PCRE, [1], [Define to use libpcre])
-fi
-AM_CONDITIONAL([USE_PCRE], [test "x$pcre" = "xtrue"])
-
-
 #PTHREAD
 
 # check for Pthreads
@@ -393,43 +396,18 @@ AM_CONDITIONAL([HAVE_PTHREAD], [test "${HAVE_PTHREAD}" = "yes"])
 AC_OUTPUT
 #~ AC_OUTPUT([sdk/Makefile])
 
-AC_MSG_NOTICE([Configured to build MEGAcmd:
+AC_MSG_NOTICE([MEGAcmd configuration:
 
-  SDK version:      megacmd_version
-  Host setup:       ${host}
+  MEGACMD version:      megacmd_version
   Install prefix:   $prefix
   Compiler:         $CXX
   CXXFLAGS:         $CXXFLAGS
   LDFLAGS:          $LDFLAGS
-  gcc hardening:    $enable_gcc_hardening
   debug:            $enable_debug
   static:           $enable_static
-  sync subsystem:   $enable_sync
-  chat:             $enable_chat
-  MEGA API          $enable_megaapi
-  example apps:     $enable_examples
-  megacmd app:      $enable_megacmd
-
-  inotify:          $enable_inotify
   posix threads:    $enable_posix_threads
 
-  Python bindings:  $enable_python
-  Python3 bindings: $USE_PYTHON3
-  PHP bindings:     $enable_php
-  SWIG_FLAGS_PHP:   $SWIG_FLAGS_PHP
-  
-  Java bindings:    $enable_java
-
-  OpenSSL:          $LIBSSL_FLAGS $LIBSSL_LDFLAGS $LIBSSL_LIBS
-  Crypto++:         $CRYPTO_CXXFLAGS $CRYPTO_LDFLAGS $CRYPTO_LIBS
-  Sodium:           $SODIUM_CXXFLAGS $SODIUM_LDFLAGS $SODIUM_LIBS
-  Zlib:             $ZLIB_CXXFLAGS $ZLIB_LDFLAGS $ZLIB_LIBS
-  SQLite3:          $DB_CXXFLAGS $DB_LDFLAGS $DB_LIBS
-  c-ares:           $CARES_FLAGS $CARES_LDFLAGS $CARES_LIBS
-  cURL:             $LIBCURL_FLAGS $LIBCURL_LIBS
-  FreeImage:        $FI_CXXFLAGS $FI_LDFLAGS $FI_LIBS
   Readline:         $RL_CXXFLAGS $RL_LDFLAGS $RL_LIBS
   Termcap:          $TERMCAP_CXXFLAGS $TERMCAP_LDFLAGS $TERMCAP_LIBS
   PCRE:             $PCRE_CXXFLAGS $PCRE_LDFLAGS $PCRE_LIBS
-  LIBUV:            $LIBUV_CXXFLAGS $LIBUV_LDFLAGS $LIBUV_LIBS
 ])
