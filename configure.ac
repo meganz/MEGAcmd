@@ -42,7 +42,7 @@ AM_INIT_AUTOMAKE([1.11 foreign silent-rules])
 AC_CONFIG_HEADERS([src/megacmdconfig.h]) #this avoids inline definitions of stuff already defined in sdk's config.h (e.g: -DPACKAGE_NAME)
 
 LT_INIT([shared disable-static win32-dll])
-#~ AC_CONFIG_MACRO_DIR([m4])
+AC_CONFIG_MACRO_DIR([m4])
 
 # enable silent build
 m4_ifndef([AM_SILENT_RULES], [m4_define([AM_SILENT_RULES],[])])
@@ -139,6 +139,37 @@ AM_CONDITIONAL(ENABLE_STATIC, test x$enable_static = xyes)
 AC_SUBST(ENABLE_STATIC)
 
 
+# TARGET OS:
+WIN32=no
+DARWIN=no
+ANDROID=no
+AC_MSG_CHECKING([if building for Win32 platform])
+case $host in
+  *-*-cygwin*)
+    LIBS_EXTRA="-luser32 -lkernel32"
+    WIN32=yes
+    ;;
+  *-*-mingw*)
+    LIBS_EXTRA="-lws2_32 -lcrypt32 -lole32 -lwinmm -lshlwapi -lshell32"
+    CXXFLAGS="$CXXFLAGS -DUNICODE -DWINVER=0x0501 -DHAVE_STRUCT_TIMESPEC"
+    WIN32=yes
+    ;;
+  *-apple-darwin*)
+    AC_DEFINE([_XOPEN_SOURCE], [500], [Define _XOPEN_SOURCE])
+    AC_DEFINE([_DARWIN_C_SOURCE], [1], [Define _DARWIN_C_SOURCE])
+    DARWIN=yes
+    ;;
+  *-android*)
+    ANDROID=yes
+    ;;    
+  *)
+    LIBS_EXTRA=""
+    ;;
+esac
+AC_MSG_RESULT([${WIN32}])
+AM_CONDITIONAL([WIN32], [test "${WIN32}" = "yes"])
+AM_CONDITIONAL([DARWIN], [test "${DARWIN}" = "yes"])
+AM_CONDITIONAL([ANDROID], [test "${ANDROID}" = "yes"])
 
 
 #

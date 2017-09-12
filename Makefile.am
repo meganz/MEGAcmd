@@ -11,16 +11,15 @@ AM_CPPFLAGS = \
 
 AM_CPPFLAGS+=-I$(top_srcdir)/src -I$(top_srcdir)/sdk/include
 
-#~ if WIN32
-#~ AM_CPPFLAGS+=-I$(top_srcdir)/sdk/include/mega/win32
-#~ else
+if WIN32
+AM_CPPFLAGS+=-I$(top_srcdir)/sdk/include/mega/win32
+else
 AM_CPPFLAGS+=-I$(top_srcdir)/sdk/include/mega/posix
-#~ endif
+endif
 
-
-#if ANDROID
-#AM_LIBTOOLFLAGS="--tag=CXX"
-#endif
+if ANDROID
+AM_LIBTOOLFLAGS="--tag=CXX"
+endif
 
 VERSION_INFO=$(LT_CURRENT):$(LT_REVISION):$(LT_AGE)
 
@@ -31,9 +30,6 @@ noinst_PROGRAMS=
 
 SUBDIRS = sdk
 include src/include.am
-
-
-#SUBDIRS = include
 
 #EXTRA_DIST += autogen.sh
 #EXTRA_DIST += libmega.pc.in
