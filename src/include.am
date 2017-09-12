@@ -23,7 +23,7 @@ noinst_HEADERS += src/megacmdshell/megacmdshellcommunications.h src/megacmdshell
 mega_exec_SOURCES = src/client/megacmdclient.cpp src/megacmdshell/megacmdshellcommunications.cpp
 mega_execdir=examples
 #mega_exec_CXXFLAGS = -std=c++11 -DUSE_CPPTHREAD=1 -Iinclude/
-mega_exec_CXXFLAGS =  -Iinclude/
+mega_exec_CXXFLAGS = -Iinclude/
 
 #CMDSHELL
 noinst_HEADERS += src/megacmdshell/megacmdshellcommunications.h src/megacmdshell/megacmdshell.h sdk/include/mega/thread.h
@@ -32,9 +32,9 @@ mega_cmd_SOURCES = src/megacmdshell/megacmdshellcommunications.cpp src/megacmdsh
 mega_cmd_CXXFLAGS = $(RL_CXXFLAGS) -Iinclude/
 mega_cmd_LDADD = $(RL_LDFLAGS) $(RL_LIBS) $(TERMCAP_LDFLAGS) $(TERMCAP_LIBS) 
 
-mega_cmd_server_CXXFLAGS=
+mega_cmd_server_CXXFLAGS = $(LIBMEGASDK_INCLUDES)
 if USE_PCRE
-mega_cmd_server_CXXFLAGS+=-DUSE_PCRE=1
+mega_cmd_server_CXXFLAGS += -DUSE_PCRE=1
 endif
 
 if WIN32

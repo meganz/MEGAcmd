@@ -419,6 +419,10 @@ if test "$HAVE_PTHREAD" = "yes"; then
 fi
 AM_CONDITIONAL([HAVE_PTHREAD], [test "${HAVE_PTHREAD}" = "yes"])
 
+#This will simulate compilation of sdk and extract the includes defined for it. Thus we can
+# take care of the configuration done for the subproject withtout having to recheck here
+LIBMEGASDK_INCLUDES=$(cd sdk; for i in $(make -n 2>/dev/null | grep "\-I" | grep megaapi ); do echo $i; done | grep "\-I" | sort | uniq | awk '{printf $0" "}')
+AC_SUBST(LIBMEGASDK_INCLUDES)
 
 # Output
 #AC_CONFIG_FILES([
@@ -441,4 +445,5 @@ AC_MSG_NOTICE([MEGAcmd configuration:
   Readline:         $RL_CXXFLAGS $RL_LDFLAGS $RL_LIBS
   Termcap:          $TERMCAP_CXXFLAGS $TERMCAP_LDFLAGS $TERMCAP_LIBS
   PCRE:             $PCRE_CXXFLAGS $PCRE_LDFLAGS $PCRE_LIBS
+  SDK includes:     $LIBMEGASDK_INCLUDES
 ])
