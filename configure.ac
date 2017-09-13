@@ -1,15 +1,25 @@
 ##
-# @file configure.ac
-# @brief an input file for autoconf tool
-#
-# (c) 2013- by Mega Limited, Auckland, New Zealand
-#
-# TODO: license
+ # @file configure.ac
+ # @brief an input file for autoconf tool
+ # (c) 2013 by Mega Limited, Auckland, New Zealand
+ #
+ # This file is part of the MEGAcmd.
+ #
+ # MEGAcmd is distributed in the hope that it will be useful,
+ # but WITHOUT ANY WARRANTY; without even the implied warranty of
+ # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ #
+ # @copyright Simplified (2-clause) BSD License.
+ #
+ # You should have received a copy of the license along with this
+ # program.
 ##
 
 #                                               -*- Autoconf -*-
 # Process this file with autoconf to produce a configure script.
 
+m4_include([sdk/m4/ax_check_compile_flag.m4])
+m4_include([sdk/m4/ax_check_link_flag.m4])
 
 m4_define([megacmd_major_version], [$(cat src/megacmdversion.h | grep "define MEGACMD_MAJOR" | cut -d" " -f 3)])
 m4_define([megacmd_minor_version], [$(cat src/megacmdversion.h | grep "define MEGACMD_MINOR" | cut -d" " -f 3)])
@@ -128,12 +138,12 @@ else
     CXXFLAGS="$CXXFLAGS -DNDEBUG=1"
 fi
 
-#~ # Check if we can use -fPIC flag
-#~ AX_CHECK_COMPILE_FLAG([-fPIC], [
-  #~ AX_CHECK_LINK_FLAG([-fPIC],
-    #~ [CXXFLAGS="$CXXFLAGS -fPIC"]
-  #~ )
-#~ ])
+# Check if we can use -fPIC flag
+AX_CHECK_COMPILE_FLAG([-fPIC], [
+  AX_CHECK_LINK_FLAG([-fPIC],
+    [CXXFLAGS="$CXXFLAGS -fPIC"]
+  )
+])
 
 AM_CONDITIONAL(ENABLE_STATIC, test x$enable_static = xyes)
 AC_SUBST(ENABLE_STATIC)
@@ -171,6 +181,12 @@ AM_CONDITIONAL([WIN32], [test "${WIN32}" = "yes"])
 AM_CONDITIONAL([DARWIN], [test "${DARWIN}" = "yes"])
 AM_CONDITIONAL([ANDROID], [test "${ANDROID}" = "yes"])
 
+
+
+
+SAVE_LDFLAGS=$LDFLAGS
+SAVE_CXXFLAGS=$CXXFLAGS
+SAVE_CPPFLAGS=$CPPFLAGS
 
 #
 # PCRE
@@ -421,8 +437,9 @@ AM_CONDITIONAL([HAVE_PTHREAD], [test "${HAVE_PTHREAD}" = "yes"])
 
 #This will simulate compilation of sdk and extract the includes defined for it. Thus we can
 # take care of the configuration done for the subproject withtout having to recheck here
-LIBMEGASDK_INCLUDES=$(cd sdk; for i in $(make -n 2>/dev/null | grep "\-I" | grep megaapi ); do echo $i; done | grep "\-I" | sort | uniq | awk '{printf $0" "}')
-AC_SUBST(LIBMEGASDK_INCLUDES)
+AC_OUTPUT
+LMEGAINC=$(cd sdk; for i in $(make -n 2>/dev/null | grep "\-I" | grep megaapi ); do echo $i; done | grep "\-I" | sort | uniq | awk '{printf $0" "}')
+AC_SUBST(LMEGAINC)
 
 # Output
 #AC_CONFIG_FILES([
@@ -430,6 +447,7 @@ AC_SUBST(LIBMEGASDK_INCLUDES)
 #])
 AC_OUTPUT
 #~ AC_OUTPUT([sdk/Makefile])
+
 
 AC_MSG_NOTICE([MEGAcmd configuration:
 
@@ -445,5 +463,5 @@ AC_MSG_NOTICE([MEGAcmd configuration:
   Readline:         $RL_CXXFLAGS $RL_LDFLAGS $RL_LIBS
   Termcap:          $TERMCAP_CXXFLAGS $TERMCAP_LDFLAGS $TERMCAP_LIBS
   PCRE:             $PCRE_CXXFLAGS $PCRE_LDFLAGS $PCRE_LIBS
-  SDK includes:     $LIBMEGASDK_INCLUDES
+  SDK includes:     $LMEGAINC
 ])

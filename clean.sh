@@ -1,9 +1,20 @@
 #!/bin/sh
 ##
-# @file clean.sh
-# @brief removes all temporary, generated files
+ # @file clean.sh
+ # @brief removes all temporary, generated files
 #
-# TODO: license
+ # (c) 2013 by Mega Limited, Auckland, New Zealand
+ #
+ # This file is part of the MEGAcmd.
+ #
+ # MEGAcmd is distributed in the hope that it will be useful,
+ # but WITHOUT ANY WARRANTY; without even the implied warranty of
+ # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ #
+ # @copyright Simplified (2-clause) BSD License.
+ #
+ # You should have received a copy of the license along with this
+ # program.
 ##
 TARGETS="aclocal.m4 autom4te.cache config.guess config.log config.status config.sub configure depcomp install-sh libmega.pc libtool ltmain.sh Makefile Makefile.in missing stamp-h1 test-driver texput.log .deps clean compile
 examples/.deps examples/.dirstamp examples/linux/.deps examples/linux/.dirstamp examples/linux/.libs examples/linux/megafuse examples/linux/*.o examples/*.o

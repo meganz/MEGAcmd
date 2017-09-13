@@ -52,22 +52,22 @@ It features 2 modes of interaction:
 
 %if 0%{?centos_version} || 0%{?scientificlinux_version}
 %define flag_cryptopp -q
-%define with_cryptopp --with-cryptopp=deps
+%define with_cryptopp --with-cryptopp=$PWD/deps
 %endif
 
 %if 0%{?rhel_version}
 %define flag_cryptopp -q
-%define with_cryptopp --with-cryptopp=deps
+%define with_cryptopp --with-cryptopp=$PWD/deps
 %endif
 
 %if 0%{?suse_version} > 1320
 %define flag_cryptopp -q
-%define with_cryptopp --with-cryptopp=deps
+%define with_cryptopp --with-cryptopp=$PWD/deps
 %endif
 
 
 %define flag_disablezlib %{nil}
-%define with_zlib --with-zlib=deps
+%define with_zlib --with-zlib=$PWD/deps
 
 %if 0%{?fedora_version} == 23
 %define flag_disablezlib -z
@@ -87,20 +87,20 @@ bash -x ./contrib/build_sdk.sh %{flag_cryptopp} -o archives \
   -g %{flag_disablezlib} -b -l -c -s -u -a -p deps/
 
 ./configure --disable-shared --enable-static --disable-silent-rules \
-  --disable-curl-checks %{with_cryptopp} --with-sodium=deps \
-  %{with_zlib} --with-sqlite=deps --with-cares=deps \
-  --with-curl=deps --with-freeimage=deps --with-readline=deps \
-  --with-termcap=deps --prefix=$PWD/deps --disable-examples
+  --disable-curl-checks %{with_cryptopp} --with-sodium=$PWD/deps \
+  %{with_zlib} --with-sqlite=$PWD/deps --with-cares=$PWD/deps \
+  --with-curl=$PWD/deps --with-freeimage=$PWD/deps --with-readline=$PWD/deps \
+  --with-termcap=$PWD/deps --prefix=$PWD/deps --disable-examples
 
 make
 
 %install
 
-for i in src/client/mega-*; do install -D $i %{buildroot}%{_bindir}/${i/examples\/megacmd\/client\//}; done
+for i in src/client/mega-*; do install -D $i %{buildroot}%{_bindir}/${i/src\/client\//}; done
 install -D src/client/megacmd_completion.sh %{buildroot}%{_sysconfdir}/bash_completion.d/megacmd_completion.sh
-install -D examples/mega-cmd %{buildroot}%{_bindir}/mega-cmd
-install -D examples/mega-cmd-server %{buildroot}%{_bindir}/mega-cmd-server
-install -D examples/mega-exec %{buildroot}%{_bindir}/mega-exec
+install -D mega-cmd %{buildroot}%{_bindir}/mega-cmd
+install -D mega-cmd-server %{buildroot}%{_bindir}/mega-cmd-server
+install -D mega-exec %{buildroot}%{_bindir}/mega-exec
 
 
 %post

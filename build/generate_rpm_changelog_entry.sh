@@ -6,12 +6,9 @@
  #
  # (c) 2013-2014 by Mega Limited, Auckland, New Zealand
  #
- # This file is part of the MEGA SDK - Client Access Engine.
+ # This file is part of the MEGAcmd.
  #
- # Applications using the MEGA API must present a valid application key
- # and comply with the the rules set forth in the Terms of Service.
- #
- # The MEGA SDK is distributed in the hope that it will be useful,
+ # MEGAcmd is distributed in the hope that it will be useful,
  # but WITHOUT ANY WARRANTY; without even the implied warranty of
  # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  #

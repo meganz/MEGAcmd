@@ -11,12 +11,9 @@
  #
  # (c) 2013-2016 by Mega Limited, Auckland, New Zealand
  #
- # This file is part of the MEGA SDK - Client Access Engine.
+ # This file is part of the MEGAcmd.
  #
- # Applications using the MEGA API must present a valid application key
- # and comply with the the rules set forth in the Terms of Service.
- #
- # The MEGA SDK is distributed in the hope that it will be useful,
+ # MEGAcmd is distributed in the hope that it will be useful,
  # but WITHOUT ANY WARRANTY; without even the implied warranty of
  # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  #
@@ -70,8 +67,8 @@ if [ -z "$PROJECT_PATH" ]; then
 fi
 
 #checkout master project and submodules
-echo git clone $tagtodl --depth 1 --recursive https://github.com/meganz/sdk $PROJECT_PATH
-if ! git clone $tagtodl --depth 1 --recursive https://github.com/meganz/sdk $PROJECT_PATH; then exit 1;fi
+echo git clone $tagtodl --depth 1 --recursive https://github.com/meganz/megacmd $PROJECT_PATH
+if ! git clone $tagtodl --depth 1 --recursive https://github.com/meganz/megacmd $PROJECT_PATH; then exit 1;fi
 pushd $PROJECT_PATH
 pushd src/build
 ./create_tarball.sh

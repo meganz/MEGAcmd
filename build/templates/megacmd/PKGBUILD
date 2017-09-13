@@ -4,12 +4,9 @@
  #
  # (c) 2013-2016 by Mega Limited, Auckland, New Zealand
  #
- # This file is part of the MEGA SDK - Client Access Engine.
+ # This file is part of the MEGAcmd.
  #
- # Applications using the MEGA API must present a valid application key
- # and comply with the the rules set forth in the Terms of Service.
- #
- # The MEGA SDK is distributed in the hope that it will be useful,
+ # MEGAcmd is distributed in the hope that it will be useful,
  # but WITHOUT ANY WARRANTY; without even the implied warranty of
  # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  #
@@ -59,10 +56,10 @@ build() {
 	  -e -g -b -l -c -s -u -a -q -p deps/
 
 	./configure --disable-shared --enable-static --disable-silent-rules \
-	  --disable-curl-checks --with-sodium=deps --with-cryptopp=deps\
-	  --with-curl=deps --with-freeimage=deps --with-readline=deps \
-	  --with-cares=deps \
-	  --with-termcap=deps --prefix=$PWD/deps --disable-examples
+	  --disable-curl-checks --with-sodium=$PWD/deps --with-cryptopp=$PWD/deps\
+	  --with-curl=$PWD/deps --with-freeimage=$PWD/deps --with-readline=$PWD/deps \
+	  --with-cares=$PWD/deps \
+	  --with-termcap=$PWD/deps --prefix=$PWD/deps --disable-examples
 
 	make
 
@@ -83,10 +80,10 @@ package() {
 	cd "$pkgname-$pkgver"
 	make install TARGET=$_bindir/megacmd INSTALL_ROOT=$pkgdir
 	
-	for i in src/client/mega-*; do install -D $i $_bindir/${i/examples\/megacmd\/client\//}; done
+	for i in src/client/mega-*; do install -D $i $_bindir/${i/src\/client\//}; done
 	install -D src/client/megacmd_completion.sh $_confdir/bash_completion.d/megacmd_completion.sh
-	install -D examples/mega-cmd $_bindir/mega-cmd
-	install -D examples/mega-cmd-server $_bindir/mega-cmd-server
-	install -D examples/mega-exec $_bindir/mega-exec
+	install -D mega-cmd $_bindir/mega-cmd
+	install -D mega-cmd-server $_bindir/mega-cmd-server
+	install -D mega-exec $_bindir/mega-exec
 
 }

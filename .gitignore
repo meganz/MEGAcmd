@@ -96,3 +96,5 @@ MEGAcmdServer.pro.user
 #built stufrf
 build/archives
 build/megacmd-*
+megacmdconfig.h
+megacmdconfig.h.in

@@ -6,16 +6,15 @@ build-stamp:
 
 	#build dependencies into folder deps
 	mkdir deps
-	bash -x ./contrib/build_sdk.sh -o archives \
+	bash -x ./sdk/contrib/build_sdk.sh -o archives \
 	  -g -b -l -c -s -u -a -z -p deps/
 
 	./configure --disable-shared --enable-static --disable-silent-rules \
-	  --disable-curl-checks --with-sodium=deps --with-pcre \
-	  --with-curl=deps --without-freeimage --with-readline=deps \
-	  --with-termcap=deps --prefix=$(CURDIR)/deps --disable-examples
+	  --disable-curl-checks --with-sodium=$(CURDIR)/deps --with-pcre \
+	  --with-curl=$(CURDIR)/deps --without-freeimage --with-readline=$(CURDIR)/deps \
+	  --with-termcap=$(CURDIR)/deps --prefix=$(CURDIR)/deps --disable-examples
 
 	make
-
 
 	touch build-stamp
 
@@ -27,9 +26,9 @@ clean:
 install: build
 	###dh_auto_install --destdir=megacmd/megacmd
 	dh_install src/client/mega-* /usr/bin/
-	dh_install examples/mega-cmd /usr/bin/
-	dh_install examples/mega-cmd-server /usr/bin/
-	dh_install examples/mega-exec /usr/bin/
+	dh_install mega-cmd /usr/bin/
+	dh_install mega-cmd-server /usr/bin/
+	dh_install mega-exec /usr/bin/
 	dh_install src/client/megacmd_completion.sh /etc/bash_completion.d/
 	lsb_release -ds > distro
 	lsb_release -rs > version	

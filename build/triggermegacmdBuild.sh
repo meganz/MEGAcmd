@@ -10,12 +10,9 @@
  #
  # (c) 2013 by Mega Limited, Auckland, New Zealand
  #
- # This file is part of the MEGA SDK - Client Access Engine.
+ # This file is part of the MEGAcmd.
  #
- # Applications using the MEGA API must present a valid application key
- # and comply with the the rules set forth in the Terms of Service.
- #
- # The MEGA SDK is distributed in the hope that it will be useful,
+ # MEGAcmd is distributed in the hope that it will be useful,
  # but WITHOUT ANY WARRANTY; without even the implied warranty of
  # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  #
@@ -90,8 +87,9 @@ else
 fi
 
 for package in megacmd; do
-	oldver=`$sshpasscommand cat $NEWOSCFOLDER_PATH/DEB/megacmd/PKGBUILD | grep  pkgver= | cut -d "=" -f2`
-	oldrelease=`$sshpasscommand cat $NEWOSCFOLDER_PATH/DEB/megacmd/PKGBUILD | grep pkgrel= | cut -d "=" -f2`
+#for package in megacmd2; do
+	oldver=`$sshpasscommand cat $NEWOSCFOLDER_PATH/DEB/$package/PKGBUILD | grep  pkgver= | cut -d "=" -f2`
+	oldrelease=`$sshpasscommand cat $NEWOSCFOLDER_PATH/DEB/$package/PKGBUILD | grep pkgrel= | cut -d "=" -f2`
 	
 	echo "deleting old files for package $package ... "
 	
@@ -101,13 +99,13 @@ for package in megacmd; do
 	$sshpasscommand cp $NEWOSCFOLDER_PATH/DEB/$package/{,old}PKGBUILD || :
 
 	echo "replacing files with newly generated  (tarball, specs, dsc and so on) for package $package ..."
-	copy $PROJECT_PATH/build/$package/*.spec $NEWOSCFOLDER_PATH/RPM/$package/
-	copy $PROJECT_PATH/build/$package/*tar.gz $NEWOSCFOLDER_PATH/RPM/$package/
+	copy $PROJECT_PATH/build/megacmd/*.spec $NEWOSCFOLDER_PATH/RPM/$package/
+	copy $PROJECT_PATH/build/megacmd/*tar.gz $NEWOSCFOLDER_PATH/RPM/$package/
 
-	if ls $PROJECT_PATH/build/$package/*changes 2>&1 > /dev/null ; then 
-		copy $PROJECT_PATH/build/$package/*changes $NEWOSCFOLDER_PATH/RPM/$package/; 
+	if ls $PROJECT_PATH/build/megacmd/*changes 2>&1 > /dev/null ; then 
+		copy $PROJECT_PATH/build/megacmd/*changes $NEWOSCFOLDER_PATH/RPM/$package/; 
 	fi
-	for i in $PROJECT_PATH/build/$package/{PKGBUILD,megacmd.install,*.dsc,*.tar.gz,debian.changelog,debian.control,debian.postinst,debian.postrm,debian.rules,debian.compat,debian.copyright} ; do 
+	for i in $PROJECT_PATH/build/megacmd/{PKGBUILD,megacmd.install,*.dsc,*.tar.gz,debian.changelog,debian.control,debian.postinst,debian.postrm,debian.rules,debian.compat,debian.copyright} ; do 
 		if [ -e $i ]; then
 			copy $i $NEWOSCFOLDER_PATH/DEB/$package/; 
 		fi
@@ -116,8 +114,8 @@ for package in megacmd; do
 	$sshpasscommand ln -sf $NEWOSCFOLDER_PATH/RPM/$package/*tar.gz $NEWOSCFOLDER_PATH/DEB/$package/
 	
 	
-	newver=`$sshpasscommand cat $NEWOSCFOLDER_PATH/DEB/megacmd/PKGBUILD | grep  pkgver= | cut -d "=" -f2`
-	fixedrelease=`$sshpasscommand cat $NEWOSCFOLDER_PATH/DEB/megacmd/PKGBUILD | grep pkgrel= | cut -d "=" -f2`
+	newver=`$sshpasscommand cat $NEWOSCFOLDER_PATH/DEB/$package/PKGBUILD | grep  pkgver= | cut -d "=" -f2`
+	fixedrelease=`$sshpasscommand cat $NEWOSCFOLDER_PATH/DEB/$package/PKGBUILD | grep pkgrel= | cut -d "=" -f2`
 	if [ "$newver" = "$oldver" ]; then
 		((newrelease=oldrelease+1))
 	else
@@ -125,10 +123,10 @@ for package in megacmd; do
 	fi
 	
 	echo testing difference in PKGBUILD
-	if ! $sshpasscommand cmp $NEWOSCFOLDER_PATH/DEB/megacmd/{,old}PKGBUILD >/dev/null 2>&1; then
-		$sshpasscommand sed -i "s#pkgrel=$fixedrelease#pkgrel=$newrelease#g" $NEWOSCFOLDER_PATH/DEB/megacmd/PKGBUILD
+	if ! $sshpasscommand cmp $NEWOSCFOLDER_PATH/DEB/$package/{,old}PKGBUILD >/dev/null 2>&1; then
+		$sshpasscommand sed -i "s#pkgrel=$fixedrelease#pkgrel=$newrelease#g" $NEWOSCFOLDER_PATH/DEB/$package/PKGBUILD
 	fi
-	$sshpasscommand rm $NEWOSCFOLDER_PATH/DEB/megacmd/oldPKGBUILD || :
+	$sshpasscommand rm $NEWOSCFOLDER_PATH/DEB/$package/oldPKGBUILD || :
 
 	#link everything on RPM & DEB projects into home:Admin project
 	$sshpasscommand ln -sf $NEWOSCFOLDER_PATH/{RPM,DEB}/$package/* $NEWOSCFOLDER_PATH/home:Admin/$package/

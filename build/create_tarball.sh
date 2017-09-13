@@ -6,12 +6,9 @@
  #
  # (c) 2013-2014 by Mega Limited, Auckland, New Zealand
  #
- # This file is part of the MEGA SDK - Client Access Engine.
+ # This file is part of the MEGAcmd.
  #
- # Applications using the MEGA API must present a valid application key
- # and comply with the the rules set forth in the Terms of Service.
- #
- # The MEGA SDK is distributed in the hope that it will be useful,
+ # MEGAcmd is distributed in the hope that it will be useful,
  # but WITHOUT ANY WARRANTY; without even the implied warranty of
  # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  #
@@ -106,13 +103,8 @@ ln -s ../megacmd/debian.postinst $megacmd_NAME/debian.postinst
 ln -s ../megacmd/debian.postrm $megacmd_NAME/debian.postrm
 ln -s ../megacmd/debian.copyright $megacmd_NAME/debian.copyright
 
-#for i in $BASEPATH/{aclocal.m4,autogen.sh,autom4te.cache,bindings,clean.sh,config.guess,config.log,config.status,config.sub,configure,configure.ac,contrib,depcomp,doc,examples,include,install-sh,libmega.pc,libmega.pc.in,libtool,LICENSE,logo.png,ltmain.sh,m4,Makefile,Makefile.am,Makefile.in,Makefile.win32,missing,py-compile,README.md,src,test-driver,tests,third_party}; do
-for i in $BASEPATH/{autogen.sh,m4,configure.ac,include,Makefile.am,src,tests,bindings,libmega.pc.in,doc}; do
+for i in $BASEPATH/{autogen.sh,m4,configure.ac,src,Makefile.am,sdk}; do
 	ln -s $i $megacmd_NAME/
-done
-mkdir -p $megacmd_NAME/src
-for i in $BASEPATH/src/{include.am,*cpp,*.h,client,megacmdshell}; do
-	ln -s $i $megacmd_NAME/src/
 done
 
 mkdir -p $megacmd_NAME/contrib/
