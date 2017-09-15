@@ -98,3 +98,7 @@ build/archives
 build/megacmd-*
 megacmdconfig.h
 megacmdconfig.h.in
+/build/megacmd/PKGBUILD
+/build/megacmd/megacmd.dsc
+/build/megacmd/megacmd.spec
+/build/megacmd/megacmd_*.tar.gz

@@ -263,17 +263,36 @@ bool MegaCmdShellCommunicationsNamedPipes::isFileOwnerCurrentUser(HANDLE hFile)
 
     wchar_t username[UNLEN+1];
     DWORD username_len = UNLEN+1;
+
     GetUserNameW(username, &username_len);
 
-    if (wcscmp(username, AcctName) )
+
+    LPWSTR stringSIDOwner;
+    if (ConvertSidToStringSidW(pSidOwner, &stringSIDOwner))
     {
-        wcerr << L"Unmatched owner - current user" << AcctName << L" - " << username << endl;
-        return false;
+        if (!wcscmp(username, AcctName) || ( 
+#ifndef __MINGW32__
+            IsUserAnAdmin() && 
+#endif
+            !wcscmp(stringSIDOwner, L"S-1-5-32-544"))) // owner == user  or   owner == administrators and current process running as admin
+        {
+            return true;
+        }
+        else
+        {
+            wcerr << L"Unmatched owner - current user -> " << AcctName << L" - " << username;
+#ifndef __MINGW32__
+            wcerr << L" IsUserAdmin=" << IsUserAnAdmin();
+#endif
+            wcerr << L" SIDOwner=" << stringSIDOwner << endl;
+            return false;
+        }
+
+        LocalFree(stringSIDOwner);
     }
-    else
-    {
-        return true;
-    }
+    return false;
+
+
 }
 
 HANDLE MegaCmdShellCommunicationsNamedPipes::doOpenPipe(wstring nameOfPipe)
@@ -462,7 +481,7 @@ HANDLE MegaCmdShellCommunicationsNamedPipes::createNamedPipe(int number, bool in
 MegaCmdShellCommunicationsNamedPipes::MegaCmdShellCommunicationsNamedPipes()
 {
 #ifdef _WIN32
-    setlocale(LC_ALL, ""); // en_US.utf8 could do?
+    setlocale(LC_ALL, "en-US");
 #endif
 
     serverinitiatedfromshell = false;

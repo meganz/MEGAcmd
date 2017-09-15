@@ -1802,7 +1802,7 @@ int main(int argc, char* argv[])
 {
 #ifdef _WIN32
     // Set Environment's default locale
-    setlocale(LC_ALL, "");
+    setlocale(LC_ALL, "en-US");
     rl_completion_display_matches_hook = mycompletefunct;
 #endif
 

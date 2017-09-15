@@ -87,7 +87,7 @@ bash -x ./contrib/build_sdk.sh %{flag_cryptopp} -o archives \
   -g %{flag_disablezlib} -b -l -c -s -u -a -p deps/
 
 ./configure --disable-shared --enable-static --disable-silent-rules \
-  --disable-curl-checks %{with_cryptopp} --with-sodium=$PWD/deps \
+  --disable-curl-checks %{with_cryptopp} --with-sodium=$PWD/deps --with-pcre \
   %{with_zlib} --with-sqlite=$PWD/deps --with-cares=$PWD/deps \
   --with-curl=$PWD/deps --with-freeimage=$PWD/deps --with-readline=$PWD/deps \
   --with-termcap=$PWD/deps --prefix=$PWD/deps --disable-examples
@@ -151,7 +151,7 @@ YUM_FILE="/etc/yum.repos.d/megasync.repo"
 cat > "$YUM_FILE" << DATA
 [MEGAsync]
 name=MEGAsync
-baseurl=http://mega.nz/linux/MEGAsync/Fedora_26/
+baseurl=https://mega.nz/linux/MEGAsync/Fedora_26/
 gpgkey=https://mega.nz/linux/MEGAsync/Fedora_26/repodata/repomd.xml.key
 gpgcheck=1
 enabled=1
@@ -258,10 +258,10 @@ cat > "$ZYPP_FILE" << DATA
 [MEGAsync]
 name=MEGAsync
 type=rpm-md
-baseurl=http://mega.nz/linux/MEGAsync/openSUSE_Leap_42.3/
+baseurl=https://mega.nz/linux/MEGAsync/openSUSE_Leap_42.3/
 gpgcheck=1
 autorefresh=1
-gpgkey=http://mega.nz/linux/MEGAsync/openSUSE_Leap_42.3/repodata/repomd.xml.key
+gpgkey=https://mega.nz/linux/MEGAsync/openSUSE_Leap_42.3/repodata/repomd.xml.key
 enabled=1
 DATA
 fi

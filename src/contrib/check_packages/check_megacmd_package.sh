@@ -155,6 +155,7 @@ echo " checking existing mega-cmd running ..."
 $sshpasscommand ssh root@$IP_GUEST ps aux | grep megacmd
 echo " killing mega-cmd ..."
 $sshpasscommand ssh root@$IP_GUEST killall mega-cmd
+$sshpasscommand ssh root@$IP_GUEST killall mega-cmd-server
 
 
 #DEPENDENT ON SYSTEM
@@ -450,7 +451,7 @@ else
 		echo " reinstalling/updating megacmd ... attempts left="$attempts
 		BEFOREINSTALL=`$sshpasscommand ssh root@$IP_GUEST rpm -q megacmd`
 		$sshpasscommand ssh root@$IP_GUEST $YUM -y --disableplugin=refresh-packagekit $nogpgchecksYUM install megacmd  2> tmp$VMNAME
-		resultINSTALL=$(($? + 0$resultINSTALL)) #TODO: yum might fail and still say "IT IS OK!"
+		resultINSTALL=$(expr $? + 0$resultINSTALL) #TODO: yum might fail and still say "IT IS OK!"
 		#Doing simple stderr checking will give false FAILS, since yum outputs non failure stuff in stderr
 		if cat tmp$VMNAME | grep $REPO; then
 		 resultINSTALL=$(expr 1000 + 0$resultINSTALL); cat tmp$VMNAME; 
@@ -476,7 +477,7 @@ theDisplay="DISPLAY=:0.0"
 
 echo " relaunching megacmd as user ..."
 
-$sshpasscommand ssh -oStrictHostKeyChecking=no  mega@$IP_GUEST $theDisplay mega-cmd &
+$sshpasscommand ssh -oStrictHostKeyChecking=no  mega@$IP_GUEST $theDisplay mega-cmd 2>/dev/null &
 
 sleep 5 #TODO: sleep longer?
 

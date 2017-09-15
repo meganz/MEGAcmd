@@ -531,7 +531,7 @@ bool readconfirmationloop(const char *question)
 int main(int argc, char* argv[])
 {
 #ifdef _WIN32
-    setlocale(LC_ALL, ""); // en_US.utf8 could do?
+    setlocale(LC_ALL, "en-US");
 
     //Redirect stdout to a file
     for (int i=1;i<argc;i++)
