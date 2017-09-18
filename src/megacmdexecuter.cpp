@@ -5983,8 +5983,9 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         {
             OUTSTREAM << "MEGA SDK version: " << MEGA_MAJOR_VERSION << "." << MEGA_MINOR_VERSION << "." << MEGA_MICRO_VERSION << endl;
 
-            OUTSTREAM << "Credits: https://github.com/meganz/sdk/blob/master/CREDITS.md" << endl;
-            OUTSTREAM << "License: https://github.com/meganz/sdk/blob/megacmd/LICENSE" << endl;
+            OUTSTREAM << "MEGA SDK Credits: https://github.com/meganz/sdk/blob/master/CREDITS.md" << endl;
+            OUTSTREAM << "MEGA SDK License: https://github.com/meganz/sdk/blob/master/LICENSE" << endl;
+            OUTSTREAM << "MEGAcmd License: https://github.com/meganz/megacmd/blob/master/LICENSE" << endl;
 
             OUTSTREAM << "Features enabled:" << endl;
 

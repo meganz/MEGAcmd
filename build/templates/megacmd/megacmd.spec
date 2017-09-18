@@ -2,7 +2,7 @@ Name:		megacmd
 Version:	megacmd_VERSION
 Release:	1%{?dist}
 Summary:	MEGA Command Line Interactive and Scriptable Application
-License:	https://github.com/meganz/sdk/blob/megacmd/LICENSE
+License:	https://github.com/meganz/meganz/blob/master/LICENSE
 Group:		Applications/Others
 Url:		https://mega.nz
 Source0:	megacmd_%{version}.tar.gz
