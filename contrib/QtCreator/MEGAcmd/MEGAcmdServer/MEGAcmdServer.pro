@@ -94,8 +94,8 @@ SOURCES -= bindings/qt/QTMegaListener.cpp
 SOURCES -= bindings/qt/QTMegaEvent.cpp
 
 macx {
-    HEADERS += ../../../../sdk/src/megacmdplatform.h
-    OBJECTIVE_SOURCES += ../../../../sdk/src/megacmdplatform.mm
+    HEADERS += ../../../../src/megacmdplatform.h
+    OBJECTIVE_SOURCES += ../../../../src/megacmdplatform.mm
     ICON = app.icns
     QMAKE_INFO_PLIST = Info_MEGA.plist
     DEFINES += USE_PTHREAD
