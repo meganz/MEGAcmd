@@ -14,4 +14,5 @@ SUBDIRS =  MEGAcmdShell MEGAcmdClient \
 
 macx {
     SUBDIRS += MEGAcmdLoader
+    QMAKE_INFO_PLIST = Info_MEGA.plist
 }

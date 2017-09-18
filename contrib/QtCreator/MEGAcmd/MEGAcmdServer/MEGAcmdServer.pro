@@ -97,7 +97,7 @@ macx {
     HEADERS += ../../../../src/megacmdplatform.h
     OBJECTIVE_SOURCES += ../../../../src/megacmdplatform.mm
     ICON = app.icns
-    QMAKE_INFO_PLIST = Info_MEGA.plist
+#    QMAKE_INFO_PLIST = Info_MEGA.plist
     DEFINES += USE_PTHREAD
     INCLUDEPATH += ../../../../sdk/bindings/qt/3rdparty/include/FreeImage/Source
     LIBS += $$PWD/../../../../sdk/bindings/qt/3rdparty/libs/libfreeimage.a
