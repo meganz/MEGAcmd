@@ -30,7 +30,7 @@ done
 rm -rf Release_x64
 mkdir Release_x64
 cd Release_x64
-$QTBASE/bin/qmake -r ../contrib/QtCreator/MEGAcmd/ -spec macx-g++ CONFIG+=release CONFIG+=x86_64 -nocache
+$QTBASE/bin/qmake -r ../../contrib/QtCreator/MEGAcmd/ -spec macx-g++ CONFIG+=release CONFIG+=x86_64 -nocache
 make -j4
 
 #After building, we will have 4 folders (one per project: MEGAcmdServer, MEGAcmdClient, MEGAcmdLoader & MEGAcmdShell)
@@ -59,8 +59,8 @@ dsymutil MEGAcmdLoader/MEGAcmdLoader.app/Contents/MacOS/MEGAcmdLoader -o MEGAcmd
 strip MEGAcmdLoader/MEGAcmdLoader.app/Contents/MacOS/MEGAcmdLoader
 
 #copy client scripts and completion into package contents
-cp ../src/client/mega-* MEGAcmdServer/MEGAcmd.app/Contents/MacOS/
-cp ../src/client/megacmd_completion.sh  MEGAcmdServer/MEGAcmd.app/Contents/MacOS/
+cp ../../src/client/mega-* MEGAcmdServer/MEGAcmd.app/Contents/MacOS/
+cp ../../src/client/megacmd_completion.sh  MEGAcmdServer/MEGAcmd.app/Contents/MacOS/
 
 #rename exec MEGAcmd (aka: MEGAcmdServer) to mega-cmd and add it to package contents
 mv MEGAcmdServer/MEGAcmd.app/Contents/MacOS/MEGAcmd MEGAcmdServer/MEGAcmd.app/Contents/MacOS/mega-cmd
