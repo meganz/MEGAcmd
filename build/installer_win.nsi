@@ -21,10 +21,10 @@ VIAddVersionKey "LegalCopyright" "MEGA Limited 2017"
 VIAddVersionKey "ProductName" "MEGAcmd"
 
 ; Version info
-VIProductVersion "0.9.4.0"
-VIAddVersionKey "FileVersion" "0.9.4.0"
-VIAddVersionKey "ProductVersion" "0.9.4.0"
-!define PRODUCT_VERSION "0.9.4"
+VIProductVersion "0.9.5.0"
+VIAddVersionKey "FileVersion" "0.9.5.0"
+VIAddVersionKey "ProductVersion" "0.9.5.0"
+!define PRODUCT_VERSION "0.9.5"
 
 !define PRODUCT_PUBLISHER "Mega Limited"
 !define PRODUCT_WEB_SITE "http://www.mega.nz"
@@ -40,12 +40,12 @@ VIAddVersionKey "ProductVersion" "0.9.4.0"
 !define BUILDFOLDER_X64 "Release_x64"
 
 !ifdef BUILD_X64_VERSION
-!define SRCDIR_MEGACMD "..\..\..\contrib\QtCreator\${BUILDFOLDER_X64}\MEGAcmdServer\release"
+!define SRCDIR_MEGACMD "..\contrib\QtCreator\${BUILDFOLDER_X64}\MEGAcmdServer\release"
 !else
-!define SRCDIR_MEGACMD "..\..\..\contrib\QtCreator\${BUILDFOLDER_X86}\MEGAcmdServer\release"
+!define SRCDIR_MEGACMD "..\contrib\QtCreator\${BUILDFOLDER_X86}\MEGAcmdServer\release"
 !endif
 
-!define SRCDIR_BATFILES "..\client\win"
+!define SRCDIR_BATFILES "..\src\client\win"
 
 !define MULTIUSER_MUI
 !define MULTIUSER_INSTALLMODE_COMMANDLINE
