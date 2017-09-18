@@ -102,3 +102,8 @@ megacmdconfig.h.in
 /build/megacmd/megacmd.dsc
 /build/megacmd/megacmd.spec
 /build/megacmd/megacmd_*.tar.gz
+contrib/QtCreator/MEGAcmd/MEGAcmdServer/Makefile.Debug
+contrib/QtCreator/MEGAcmd/.qmake.stash
+contrib/QtCreator/MEGAcmd/MEGAcmdClient/Makefile.Debug
+contrib/QtCreator/MEGAcmd/MEGAcmdClient/Makefile.Release
+contrib/QtCreator/MEGAcmd/MEGAcmdServer/Makefile.Release
