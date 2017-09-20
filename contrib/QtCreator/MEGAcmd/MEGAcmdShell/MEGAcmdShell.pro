@@ -45,6 +45,7 @@ else{
     #CONFIG += c++11
 
     DEFINES+=USE_PTHREAD
+    LIBS += -lpthread
 
     LIBS += -lpcre
 }

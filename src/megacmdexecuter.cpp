@@ -5030,6 +5030,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 string next = rest.substr(0, possep);
                 if (next == ".")
                 {
+                    rest = rest.substr(possep + 1);
                     continue;
                 }
                 else if(next == "..")
