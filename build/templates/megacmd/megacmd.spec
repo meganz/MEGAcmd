@@ -79,6 +79,11 @@ It features 2 modes of interaction:
 rm -fr bindings/qt/3rdparty/include/cryptopp
 %endif
 
+%if 0%{?centos_version} == 600
+sed -i "s#AC_INIT#m4_pattern_allow(AC_PROG_OBJCXX)\nAC_INIT#g" configure.ac
+sed -i "s#AC_INIT#m4_pattern_allow(AC_PROG_OBJCXX)\nAC_INIT#g" sdk/configure.ac
+%endif
+
 ./autogen.sh
 
 #build dependencies into folder deps
@@ -127,6 +132,19 @@ cat > "$YUM_FILE" << DATA
 name=MEGAsync
 baseurl=https://mega.nz/linux/MEGAsync/ScientificLinux_7/
 gpgkey=https://mega.nz/linux/MEGAsync/ScientificLinux_7/repodata/repomd.xml.key
+gpgcheck=1
+enabled=1
+DATA
+%endif
+
+%if 0%{?centos_version} == 600
+# CentOS 6
+YUM_FILE="/etc/yum.repos.d/megasync.repo"
+cat > "$YUM_FILE" << DATA
+[MEGAsync]
+name=MEGAsync
+baseurl=https://mega.nz/linux/MEGAsync/CentOS_6/
+gpgkey=https://mega.nz/linux/MEGAsync/CentOS_6/repodata/repomd.xml.key
 gpgcheck=1
 enabled=1
 DATA
