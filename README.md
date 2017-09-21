@@ -31,6 +31,14 @@ have support for regular expressions.
 g++ libcrypto++-dev libz-dev sqlite3-dev libsqlite3-dev libssl-dev libcurl4-openssl-dev 
 libreadline-dev libpcre++-dev libsodium-dev`
 
+## Getting the source
+
+Ensure you obtain the repository recursively.
+```
+git clone https://github.com/meganz/MEGAsync.git
+git submodule update --init --recursive
+```
+
 ## Building and installing
 
 For platforms with Autotools, MEGAcmd is included in the generic compilation 
@@ -49,7 +57,7 @@ of the sdk. To build and install:
 won't work. You would need to `source /YOUR/PREFIX/etc/bash_completion.d/megacmd_completion.sh` 
 (or link it at /etc/bash_completion.d)
 
-## Usage
+# Usage
 
 Before explaining the two ways of interaction, it is important to understand how 
 MEGAcmd works. When you login with MEGAcmd, your session, the list of synced folders,
@@ -64,7 +72,7 @@ MEGAcmdServer is running. You can manually launch it. Fortunately, you can also
 open the interactive shell or execute any command and the server will start
 automatically.
 
-### Interactively:
+## Interactively:
 
 Execute MEGAcmd shell. [`Platform`](#platforms) section explains how to do that in the different 
 supported systems.
@@ -78,7 +86,7 @@ Again: notice that doing this stores the session and other stuff in your home fo
 A complete logout is required if you want to end you session permanently 
 and clean any traces (see `logout --help` for further info).
 
-### Non-interactively:
+## Non-interactively:
 
 When MEGAcmd server is running, it will be listening for client commands.
 Use the different `mega-*` commands available.
