@@ -104,6 +104,8 @@ public:
     std::vector<std::string> getUserAttrs();
     std::vector<std::string> getsessions();
 
+    void restartsyncs();
+
     void executecommand(std::vector<std::string> words, std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions);
 
     bool checkNoErrors(mega::MegaError *error, std::string message = "");
@@ -127,6 +129,9 @@ public:
 
     void printTransfersHeader(const unsigned int PATHSIZE, bool printstate=true);
     void printTransfer(mega::MegaTransfer *transfer, const unsigned int PATHSIZE, bool printstate=true);
+    void printSyncHeader();
+    void printSync(int i, std::string key, const char *nodepath, sync_struct * thesync, mega::MegaNode *n, int nfiles, int nfolders);
+
     void doFind(mega::MegaNode* nodeBase, std::string word, int printfileinfo, std::string pattern, bool usepcre);
 
     void move(mega::MegaNode *n, std::string destiny);

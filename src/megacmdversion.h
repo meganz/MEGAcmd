@@ -16,16 +16,9 @@
 #endif
 
 const char * const megacmdchangelog =
-        "Separated MEGAcmd into interactive shell (MEGAcmdShell) and server(MEGAcmdServer)""\n"
-        "Added transfers management with \"transfer\" command""\n"
-        "Uploads and downloads now support background mode with \"-q\"""\n"
-        "Added confirmation on folder removal (interactive & non-interactive modes)""\n"
-        "PCRE are now optional if available in all the commands with \"--use-pcre\"""\n"
-        "Server initiated automatically in interactive and non-interactive mode""\n"
-        "Added unicode support for Windows""\n"
-        "Refurbished communications and secured non-interactive mode in Windows""\n"
-        "Implemented copy (cp) to user's inbox""\n"
-        "Several fixes and commands improvements"
+        "Fix mkdir""\n"
+        "Added transfer resumption""\n"
+        "Added exclusions to syncs. Default: .* ~* desktop.ini Thumbs.db"
         ;
 
 

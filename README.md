@@ -110,8 +110,9 @@ If you are using bash, you should also have autocompletion for client commands w
 If that is not you case, include the location for the binaries in your path.
 
 ## Windows
-Once you have MEGAcmd installed, you just need to execute the main executable to open the shell. 
-This shall open a second window with MEGAcmdServer. Notice that this window will start minimized.
+Once you have MEGAcmd installed, you just need to execute it (via Desktop icon or Start Menu) to open the shell. 
+This shall open MEGAcmdServer in the background (a process named MEGAcmd.exe).
+
 For a better user experience (specially in WINDOWS 7) we recommend executing MEGAcmd from PowerShell:
 Open PowerShell and execute:
 ```

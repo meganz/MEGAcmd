@@ -196,7 +196,7 @@ vector<string> emailpatterncommands(aemailpatterncommands, aemailpatterncommands
 string avalidCommands [] = { "login", "signup", "confirm", "session", "mount", "ls", "cd", "log", "debug", "pwd", "lcd", "lpwd", "import",
                              "put", "get", "attr", "userattr", "mkdir", "rm", "du", "mv", "cp", "sync", "export", "share", "invite", "ipc",
                              "showpcr", "users", "speedlimit", "killsession", "whoami", "help", "passwd", "reload", "logout", "version", "quit",
-                             "thumbnail", "preview", "find", "completion", "clear", "https", "transfers", "exit"
+                             "thumbnail", "preview", "find", "completion", "clear", "https", "transfers", "exclude", "exit"
 #ifdef _WIN32
                              ,"unicode"
 #endif
@@ -400,10 +400,17 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validParams->insert("c");
         validParams->insert("s");
     }
+    else if ("exclude" == thecommand)
+    {
+        validParams->insert("a");
+        validParams->insert("d");
+        validParams->insert("restart-syncs");
+    }
     else if ("sync" == thecommand)
     {
         validParams->insert("d");
         validParams->insert("s");
+        validParams->insert("r");
     }
     else if ("export" == thecommand)
     {
@@ -1284,9 +1291,13 @@ const char * getUsageStr(const char *command)
     {
         return "cp srcremotepath dstremotepath|dstemail:";
     }
+    if (!strcmp(command, "exclude"))
+    {
+        return "exclude [(-a|-d) pattern1 pattern2 pattern3 [--restart-syncs]]";
+    }
     if (!strcmp(command, "sync"))
     {
-        return "sync [localpath dstremotepath| [-ds] [ID|localpath]";
+        return "sync [localpath dstremotepath| [-dsr] [ID|localpath]";
     }
     if (!strcmp(command, "https"))
     {
@@ -1711,6 +1722,26 @@ string getHelpStr(const char *command)
         os << endl;
         os << "Notice that this setting is ephemeral: it will reset for the next time you open MEGAcmd" << endl;
     }
+    else if (!strcmp(command, "exclude"))
+    {
+        os << "Manages exclusions in syncs." << endl;
+        os << endl;
+        os << "Options:" << endl;
+        os << " -a pattern1 pattern2 ..." << "\t" << "adds pattern(s) to the exclusion list" << endl;
+        os << "                         " << "\t" << "          (* and ? wildcards allowed)" << endl;
+        os << " -d pattern1 pattern2 ..." << "\t" << "deletes pattern(s) from the exclusion list" << endl;
+        os << " --restart-syncs" << "\t" << "Try to restart synchronizations." << endl;
+
+        os << endl;
+        os << "Changes will not be applied inmediately to actions being performed in active syncs. " << endl;
+        os << "After adding/deleting patterns, you might want to: " << endl;
+        os << " a) disable/reenable synchronizations manually" << endl;
+        os << " b) restart MEGAcmd server" << endl;
+        os << " c) use --restart-syncs flag. Caveats:" << endl;
+        os << "  This will cause active transfers to be restarted" << endl;
+        os << "  In certain cases --restart-syncs might be unable to re-enable a synchronization. " << endl;
+        os << "  In such case, you will need to manually resume it or restart MEGAcmd server." << endl;
+    }
     else if (!strcmp(command, "sync"))
     {
         os << "Controls synchronizations" << endl;
@@ -1725,7 +1756,8 @@ string getHelpStr(const char *command)
         os << endl;
         os << "Options:" << endl;
         os << "-d" << " " << "ID|localpath" << "\t" << "deletes a synchronization" << endl;
-        os << "-s" << " " << "ID|localpath" << "\t" << "stops(pauses) or resumes a synchronization" << endl;
+        os << "-s" << " " << "ID|localpath" << "\t" << "stops(pauses) a synchronization" << endl;
+        os << "-r" << " " << "ID|localpath" << "\t" << "resumes a synchronization" << endl;
     }
     else if (!strcmp(command, "export"))
     {
@@ -2749,6 +2781,7 @@ int main(int argc, char* argv[])
 
     loggerCMD->setApiLoggerLevel(MegaApi::LOG_LEVEL_ERROR);
     loggerCMD->setCmdLoggerLevel(MegaApi::LOG_LEVEL_INFO);
+    loggerCMD->setCmdLoggerLevel(MegaApi::LOG_LEVEL_DEBUG);
 
     string loglevelenv;
 #ifndef _WIN32

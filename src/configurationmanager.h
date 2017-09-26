@@ -21,6 +21,7 @@
 
 #include "megacmd.h"
 #include <map>
+#include <set>
 
 class ConfigurationManager
 {
@@ -35,10 +36,21 @@ public:
     static std::map<std::string, sync_struct *> loadedSyncs;
     static std::string session;
 
+    static std::set<std::string> excludedNames;
+
     static void loadConfiguration(bool debug);
     static void loadsyncs();
 
     static void saveSyncs(std::map<std::string, sync_struct *> *syncsmap);
+
+    static void addExcludedName(std::string excludedName);
+    static void removeExcludedName(std::string excludedName);
+    static void saveExcludedNames();
+    /**
+     * @brief loadExcludedNames
+     * if called for the first time, it will add default excluded names if no sync has been loaded previously
+     */
+    static void loadExcludedNames();
 
     static void saveSession(const char*session);
     static std::string getConfigFolder();

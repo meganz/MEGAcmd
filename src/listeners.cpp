@@ -250,7 +250,7 @@ void MegaCmdListener::doOnRequestFinish(MegaApi* api, MegaRequest *request, Mega
                 MegaNode * node = api->getNodeByHandle(thesync->handle);
                 api->resumeSync(thesync->localpath.c_str(), node, thesync->fingerprint, megaCmdListener);
                 megaCmdListener->wait();
-                if (megaCmdListener->getError() && ( megaCmdListener->getError()->getErrorCode() == MegaError::API_OK ))
+                if ( megaCmdListener->getError()->getErrorCode() == MegaError::API_OK )
                 {
                     thesync->fingerprint = megaCmdListener->getRequest()->getNumber();
                     thesync->active = true;
@@ -266,6 +266,9 @@ void MegaCmdListener::doOnRequestFinish(MegaApi* api, MegaRequest *request, Mega
                 }
                 else
                 {
+                    char *nodepath = api->getNodePath(node);
+                    LOG_err << "Failed to resume sync: " << thesync->localpath << " to " << nodepath;
+                    delete []nodepath;
                     delete thesync;
                 }
 

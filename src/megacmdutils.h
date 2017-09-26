@@ -42,6 +42,8 @@ int getAttrNum(const char* attr);
 
 const char* getAccessLevelStr(int level);
 
+const char* getSyncPathStateStr(int state);
+
 const char* getSyncStateStr(int state);
 
 std::string visibilityToString(int visibility);

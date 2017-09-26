@@ -30,6 +30,8 @@
 #include <string>
 #include <ctime>
 
+#include <set>
+
 #include <signal.h>
 
 using namespace mega;
@@ -1270,6 +1272,7 @@ void MegaCmdExecuter::dumpNode(MegaNode* n, int extended_info, int depth, const 
     OUTSTREAM << title;
     if (extended_info)
     {
+        //OUTSTREAM << "<" << api->handleToBase64(n->getHandle()) << ">";
         OUTSTREAM << " (";
         switch (n->getType())
         {
@@ -1944,6 +1947,7 @@ bool MegaCmdExecuter::actUponFetchNodes(MegaApi *api, SynchronousRequestListener
     if (checkNoErrors(srl->getError(), "fetch nodes"))
     {
         LOG_verbose << "actUponFetchNodes ok";
+        api->enableTransferResumption();
 
         MegaNode *cwdNode = ( cwd == UNDEF ) ? NULL : api->getNodeByHandle(cwd);
         if (( cwd == UNDEF ) || !cwdNode)
@@ -2000,6 +2004,10 @@ void MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
         session = srl->getApi()->dumpSession();
         ConfigurationManager::saveSession(session);
         ConfigurationManager::loadsyncs();
+        ConfigurationManager::loadExcludedNames();
+        std::vector<string> vexcludednames(ConfigurationManager::excludedNames.begin(), ConfigurationManager::excludedNames.end());
+        api->setExcludedNames(&vexcludednames);
+
         LOG_info << "Fetching nodes ... ";
         srl->getApi()->fetchNodes(srl);
         actUponFetchNodes(api, srl, timeout);
@@ -2913,6 +2921,58 @@ void MegaCmdExecuter::printTransfer(MegaTransfer *transfer, const unsigned int P
     OUTSTREAM << endl;
 }
 
+void MegaCmdExecuter::printSyncHeader()
+{
+    OUTSTREAM << "ID: LOCALPATH to REMOTEPATH - ActiveState - SyncState?, SIZE" << endl;
+}
+
+void MegaCmdExecuter::printSync(int i, string key, const char *nodepath, sync_struct * thesync, MegaNode *n, int nfiles, int nfolders)
+{
+    OUTSTREAM << i << ": " << key << " to " << nodepath;
+    string sstate(key);
+    sstate = rtrim(sstate, '/');
+#ifdef _WIN32
+    sstate = rtrim(sstate, '\\');
+#endif
+    string psstate;
+    fsAccessCMD->path2local(&sstate,&psstate);
+    int statepath = api->syncPathState(&psstate);
+
+//    MegaSync *msync = api->getSyncByPath(psstate.c_str());
+    MegaSync *msync = api->getSyncByNode(n);
+    string syncstate = "REMOVED";
+    if (msync)
+    {
+        syncstate = getSyncStateStr(msync->getState());
+    }
+
+    string statetoprint;
+    if (thesync->active)
+    {
+        statetoprint = syncstate;
+    }
+    else
+    {
+        if (msync)
+        {
+            statetoprint = "Disabling:";
+            statetoprint+=syncstate;
+        }
+        else
+        {
+            statetoprint = "Disabled";
+        }
+    }
+    delete msync;
+
+    OUTSTREAM << " - " << statetoprint
+              << " - " << getSyncPathStateStr(statepath);
+    OUTSTREAM << ", " << sizeToText(api->getSize(n), false) << "yte(s) in ";
+
+    OUTSTREAM << nfiles << " file(s) and " << nfolders << " folder(s)" << endl;
+
+}
+
 void MegaCmdExecuter::doFind(MegaNode* nodeBase, string word, int printfileinfo, string pattern, bool usepcre)
 {
     struct patternNodeVector pnv;
@@ -3125,6 +3185,63 @@ bool MegaCmdExecuter::isValidFolder(string destiny)
     return isdestinyavalidfolder;
 }
 
+void MegaCmdExecuter::restartsyncs()
+{
+    map<string, sync_struct *>::iterator itr;
+    for (itr = ConfigurationManager::loadedSyncs.begin(); itr != ConfigurationManager::loadedSyncs.end(); ++itr)
+    {
+        string key = ( *itr ).first;
+        sync_struct *thesync = ((sync_struct*)( *itr ).second );
+        if (thesync->active)
+        {
+            MegaNode * n = api->getNodeByHandle(thesync->handle);
+            if (n)
+            {
+                char * nodepath = api->getNodePath(n);
+                LOG_info << "Restarting sync "<< key << ": " << nodepath;
+                delete []nodepath;
+                MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
+                api->disableSync(n, megaCmdListener);
+                megaCmdListener->wait();
+
+                if (checkNoErrors(megaCmdListener->getError(), "stop sync"))
+                {
+                    thesync->active = false;
+
+                    MegaSync *msync = api->getSyncByNode(n);
+                    if (!msync)
+                    {
+                        MegaCmdListener *megaCmdListener2 = new MegaCmdListener(NULL);
+                        api->syncFolder(thesync->localpath.c_str(), n, megaCmdListener2);
+                        megaCmdListener2->wait();
+
+                        if (checkNoErrors(megaCmdListener2->getError(), "resume sync"))
+                        {
+                            thesync->active = true;
+
+                            if (megaCmdListener2->getRequest()->getNumber())
+                            {
+                                thesync->fingerprint = megaCmdListener2->getRequest()->getNumber();
+                            }
+                        }
+                        delete megaCmdListener2;
+                        delete msync;
+                    }
+                    else
+                    {
+                        setCurrentOutCode(MCMD_INVALIDSTATE);
+                        LOG_err << "Failed to restart sync: " << key << ". You will need to manually reenable or restart MEGAcmd";
+                    }
+                }
+                delete megaCmdListener;
+                delete n;
+            }
+        }
+    }
+
+
+}
+
 void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clflags, map<string, string> *cloptions)
 {
     MegaNode* n = NULL;
@@ -3141,7 +3258,6 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
         if ((int)words.size() > 1)
         {
-
             unescapeifRequired(words[1]);
 
             string rNpath = "NULL";
@@ -4322,6 +4438,69 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         return;
     }
 #ifdef ENABLE_SYNC
+    else if (words[0] == "exclude")
+    {
+        api->enableTransferResumption();
+
+        if (getFlag(clflags, "a"))
+        {
+            for (unsigned int i=1;i<words.size(); i++)
+            {
+                ConfigurationManager::addExcludedName(words[i]);
+            }
+            if (words.size()>1)
+            {
+                std::vector<string> vexcludednames(ConfigurationManager::excludedNames.begin(), ConfigurationManager::excludedNames.end());
+                api->setExcludedNames(&vexcludednames);
+                if (getFlag(clflags, "restart-syncs"))
+                {
+                    restartsyncs();
+                }
+            }
+            else
+            {
+                setCurrentOutCode(MCMD_EARGS);
+                LOG_err << "      " << getUsageStr("exclude");
+                return;
+            }
+        }
+        else if (getFlag(clflags, "d"))
+        {
+            for (int i=1;i<words.size(); i++)
+            {
+                ConfigurationManager::removeExcludedName(words[i]);
+            }
+            if (words.size()>1)
+            {
+                std::vector<string> vexcludednames(ConfigurationManager::excludedNames.begin(), ConfigurationManager::excludedNames.end());
+                api->setExcludedNames(&vexcludednames);
+                if (getFlag(clflags, "restart-syncs"))
+                {
+                    restartsyncs();
+                }
+            }
+            else
+            {
+                setCurrentOutCode(MCMD_EARGS);
+                LOG_err << "      " << getUsageStr("exclude");
+                return;
+            }
+        }
+
+
+        OUTSTREAM << "List of excluded names:" << endl;
+
+        for (set<string>::iterator it=ConfigurationManager::excludedNames.begin(); it!=ConfigurationManager::excludedNames.end(); ++it)
+        {
+            OUTSTREAM << *it << endl;
+        }
+
+        if ( !getFlag(clflags, "restart-syncs") && (getFlag(clflags, "a") || getFlag(clflags, "d")) )
+        {
+            OUTSTREAM << endl <<  "Changes will not be applied inmediately to operations being performed in active syncs."
+                      << " See \"exclude --help\" for further info" << endl;
+        }
+    }
     else if (words[0] == "sync")
     {
         if (!api->isFilesystemAvailable())
@@ -4419,16 +4598,17 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         int nfiles = 0;
                         int nfolders = 0;
                         nfolders++; //add the share itself
-                        int *nFolderFiles = getNumFolderFiles(n, api);
+                        int *nFolderFiles = getNumFolderFiles(n, api); //TODO: use long long for all those accountings
                         nfolders += nFolderFiles[0];
                         nfiles += nFolderFiles[1];
                         delete []nFolderFiles;
 
-                        if (getFlag(clflags, "s"))
+                        if (getFlag(clflags, "s") || getFlag(clflags, "r"))
                         {
-                            LOG_info << (thesync->active?"Stopping (disabling) ":"Resuming sync ") << key << ": " << nodepath;
+                            bool stopping = getFlag(clflags, "s");
+                            LOG_info << (stopping?"Stopping (disabling) sync ":"Resuming sync ") << key << ": " << nodepath;
                             MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
-                            if (thesync->active)
+                            if (stopping)
                             {
                                 api->disableSync(n, megaCmdListener);
                             }
@@ -4439,10 +4619,10 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
                             megaCmdListener->wait();
 
-                            if (checkNoErrors(megaCmdListener->getError(), thesync->active?"Stopping (disabling)":"Resuming sync"))
+                            if (checkNoErrors(megaCmdListener->getError(), stopping?"stop sync":"resume sync"))
                             {
-                                thesync->active = !thesync->active;
-                                if (thesync->active) //syncFolder
+                                thesync->active = !stopping;
+                                if (!stopping) //syncFolder
                                 {
                                     if (megaCmdListener->getRequest()->getNumber())
                                     {
@@ -4481,28 +4661,15 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                             }
                             delete megaCmdListener;
                         }
-                        else
+
+                        if (!headershown)
                         {
-                            if (!headershown)
-                            {
-                                headershown = true;
-                                OUTSTREAM << "ID: LOCALPATH to REMOTEPATH - ACTIVE/DISABLED - STATE, SIZE" << endl;
-                            }
-
-                            OUTSTREAM << i << ": " << key << " to " << nodepath;
-                            string sstate(key);
-                            sstate = rtrim(sstate, '/');
-#ifdef _WIN32
-                            sstate = rtrim(sstate, '\\');
-#endif
-                            string psstate;
-                            fsAccessCMD->path2local(&sstate,&psstate);
-                            int state = api->syncPathState(&psstate);
-
-                            OUTSTREAM << " - " << ( thesync->active ? "Active" : "Disabled" ) << " - " << getSyncStateStr(state);
-                            OUTSTREAM << ", " << sizeToText(api->getSize(n), false) << "yte(s) in ";
-                            OUTSTREAM << nfiles << " file(s) and " << nfolders << " folder(s)" << endl;
+                            headershown = true;
+                            printSyncHeader();
                         }
+
+                        printSync(i, key, nodepath, thesync, n, nfiles, nfolders);
+
                     }
                     delete n;
                     delete []nodepath;
@@ -4537,7 +4704,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     if (!headershown)
                     {
                         headershown = true;
-                        OUTSTREAM << "ID: LOCALPATH to REMOTEPATH - ACTIVE/DISABLED - STATE, SIZE" << endl;
+                        printSyncHeader();
                     }
                     int nfiles = 0;
                     int nfolders = 0;
@@ -4548,22 +4715,10 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     delete []nFolderFiles;
 
                     char * nodepath = api->getNodePath(n);
-                    OUTSTREAM << i++ << ": " << ( *itr ).first << " to " << nodepath;
-                    delete []nodepath;
+                    printSync(i++, ( *itr ).first, nodepath, thesync, n, nfiles, nfolders);
 
-                    string sstate(( *itr ).first);
-                    sstate = rtrim(sstate, '/');
-#ifdef _WIN32
-                    sstate = rtrim(sstate, '\\');
-#endif
-                    string psstate;
-                    fsAccessCMD->path2local(&sstate,&psstate);
-                    int state = api->syncPathState(&psstate);
-
-                    OUTSTREAM << " - " << (( thesync->active ) ? "Active" : "Disabled" ) << " - " << getSyncStateStr(state); // << "Active";
-                    OUTSTREAM << ", " << sizeToText(api->getSize(n), false) << "yte(s) in ";
-                    OUTSTREAM << nfiles << " file(s) and " << nfolders << " folder(s)" << endl;
                     delete n;
+                    delete []nodepath;
                 }
                 else
                 {

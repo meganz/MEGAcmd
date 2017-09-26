@@ -208,11 +208,11 @@ int getAttrNum(const char* attr)
     return atoi(attr);
 }
 
-const char* getSyncStateStr(int state)
+const char* getSyncPathStateStr(int state)
 {
     switch (state)
     {
-        case 0:
+        case MegaApi::STATE_NONE:
             return "NONE";
 
             break;
@@ -234,6 +234,33 @@ const char* getSyncStateStr(int state)
 
         case MegaApi::STATE_IGNORED:
             return "Ignored";
+
+            break;
+    }
+    return "undefined";
+}
+
+const char* getSyncStateStr(int state)
+{
+    switch (state)
+    {
+        case MegaSync::SYNC_FAILED:
+            return "Failed";
+
+            break;
+
+        case MegaSync::SYNC_CANCELED:
+            return "Canceled";
+
+            break;
+
+        case MegaSync::SYNC_INITIALSCAN:
+            return "Initial Scan";
+
+            break;
+
+        case MegaSync::SYNC_ACTIVE:
+            return "Active";
 
             break;
     }

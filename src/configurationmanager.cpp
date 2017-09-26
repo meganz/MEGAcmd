@@ -40,7 +40,7 @@ string ConfigurationManager::configFolder;
 map<string, sync_struct *> ConfigurationManager::configuredSyncs;
 string ConfigurationManager::session;
 map<string, sync_struct *> ConfigurationManager::loadedSyncs;
-
+std::set<std::string> ConfigurationManager::excludedNames;
 
 std::string ConfigurationManager::getConfigFolder()
 {
@@ -174,6 +174,96 @@ void ConfigurationManager::saveSyncs(map<string, sync_struct *> *syncsmap)
     }
 }
 
+void ConfigurationManager::addExcludedName(string excludedName)
+{
+    LOG_verbose << "Adding: " << excludedName << " to exclusion list";
+    excludedNames.insert(excludedName);
+    saveExcludedNames();
+}
+
+void ConfigurationManager::removeExcludedName(string excludedName)
+{
+    LOG_verbose << "Removing: " << excludedName << " from exclusion list";
+    excludedNames.erase(excludedName);
+    saveExcludedNames();
+}
+
+void ConfigurationManager::saveExcludedNames()
+{
+    stringstream excludedNamesFile;
+    if (!configFolder.size())
+    {
+        loadConfigDir();
+    }
+    if (configFolder.size())
+    {
+        excludedNamesFile << configFolder << "/" << "excluded";
+        LOG_debug << "Exclusion file: " << excludedNamesFile.str();
+
+        ofstream fo(excludedNamesFile.str().c_str(), ios::out | ios::binary);
+
+        if (fo.is_open())
+        {
+            for (set<string>::iterator it=ConfigurationManager::excludedNames.begin(); it!=ConfigurationManager::excludedNames.end(); ++it)
+            {
+                fo << *it << endl;
+            }
+            fo.close();
+        }
+    }
+    else
+    {
+        LOG_err << "Couldnt access configuration folder ";
+    }
+}
+
+void ConfigurationManager::loadExcludedNames()
+{
+    stringstream excludedNamesFile;
+    if (!configFolder.size())
+    {
+        loadConfigDir();
+    }
+    if (configFolder.size())
+    {
+        excludedNamesFile << configFolder << "/" << "excluded";
+        LOG_debug << "Excluded file: " << excludedNamesFile.str();
+
+        if (!is_file_exist(excludedNamesFile.str().c_str()) && !configuredSyncs.size()) //do not add defaults if syncs already configured
+        {
+            excludedNames.insert(".*");
+            excludedNames.insert("desktop.ini");
+            excludedNames.insert("Thumbs.db");
+            excludedNames.insert("~*");
+            saveExcludedNames();
+        }
+
+        ifstream fi(excludedNamesFile.str().c_str(), ios::in | ios::binary);
+
+        if (fi.is_open())
+        {
+            if (fi.fail())
+            {
+                LOG_err << "fail with sync file";
+            }
+
+            if (fi.bad())
+            {
+                LOG_err << "fail with sync file  at the end";
+            }
+
+            string excludedName;
+            while (std::getline(fi, excludedName))
+            {
+                excludedNames.insert(excludedName);
+            }
+
+            fi.close();
+        }
+    }
+}
+
+
 void ConfigurationManager::unloadConfiguration()
 {
     map<string, sync_struct *>::iterator itr;
@@ -191,7 +281,6 @@ void ConfigurationManager::unloadConfiguration()
         delete thesync;
     }
 }
-
 
 void ConfigurationManager::loadsyncs()
 {
