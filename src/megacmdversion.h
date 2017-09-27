@@ -18,6 +18,7 @@
 const char * const megacmdchangelog =
         "Fix mkdir""\n"
         "Added transfer resumption""\n"
+        "Added time constrains for find""\n"
         "Added exclusions to syncs. Default: .* ~* desktop.ini Thumbs.db"
         ;
 

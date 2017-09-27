@@ -2579,7 +2579,7 @@ int MegaCmdExecuter::makedir(string remotepath, bool recursive, MegaNode *parent
 
                 if (lastleave && existing_node)
                 {
-                    LOG_err << "Folder already exists: " << remotepath;
+                    LOG_err << ((existing_node->getType() == MegaNode::TYPE_FILE)?"File":"Folder") << " already exists: " << remotepath;
                     if (currentnode != parentnode)
                         delete currentnode;
                     return MCMD_INVALIDSTATE;
@@ -2973,7 +2973,7 @@ void MegaCmdExecuter::printSync(int i, string key, const char *nodepath, sync_st
 
 }
 
-void MegaCmdExecuter::doFind(MegaNode* nodeBase, string word, int printfileinfo, string pattern, bool usepcre)
+void MegaCmdExecuter::doFind(MegaNode* nodeBase, string word, int printfileinfo, string pattern, bool usepcre, time_t minTime, time_t maxTime)
 {
     struct patternNodeVector pnv;
     pnv.pattern = pattern;
@@ -2988,6 +2988,18 @@ void MegaCmdExecuter::doFind(MegaNode* nodeBase, string word, int printfileinfo,
         MegaNode * n = *it;
         if (n)
         {
+            if ( minTime != -1 && (n->getModificationTime() >= maxTime) )
+            {
+                delete n;
+                continue;
+            }
+            if ( maxTime != -1 && (n->getModificationTime() <= minTime) )
+            {
+                delete n;
+                continue;
+            }
+
+
             string pathToShow;
 
             if ( word.size() > 0 && ( (word.find("/") == 0) || (word.find("..") != string::npos)) )
@@ -3357,10 +3369,22 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             LOG_err << "Not logged in.";
             return;
         }
+
+        time_t minTime = -1;
+        time_t maxTime = -1;
+        string mtimestring = getOption(cloptions, "mtime", "");
+
+        if ("" != mtimestring && !getMinAndMaxTime(mtimestring, &minTime, &maxTime))
+        {
+            setCurrentOutCode(MCMD_EARGS);
+            LOG_err << "Invalid time " << mtimestring;
+            return;
+        }
+
         if (words.size() <= 1)
         {
             n = api->getNodeByHandle(cwd);
-            doFind(n, "", printfileinfo, pattern, getFlag(clflags,"use-pcre"));
+            doFind(n, "", printfileinfo, pattern, getFlag(clflags,"use-pcre"), minTime, maxTime);
             delete n;
         }
         for (int i = 1; i < (int)words.size(); i++)
@@ -3375,7 +3399,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         MegaNode * nodeToFind = *it;
                         if (nodeToFind)
                         {
-                            doFind(nodeToFind, words[i], printfileinfo, pattern, getFlag(clflags,"use-pcre"));
+                            doFind(nodeToFind, words[i], printfileinfo, pattern, getFlag(clflags,"use-pcre"), minTime, maxTime);
                             delete nodeToFind;
                         }
                     }
@@ -3398,7 +3422,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 }
                 else
                 {
-                    doFind(n, words[i], printfileinfo, pattern, getFlag(clflags,"use-pcre"));
+                    doFind(n, words[i], printfileinfo, pattern, getFlag(clflags,"use-pcre"), minTime, maxTime);
                     delete n;
                 }
             }

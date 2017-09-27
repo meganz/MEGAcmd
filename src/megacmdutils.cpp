@@ -605,6 +605,157 @@ time_t getTimeStampAfter(string timestring)
     return getTimeStampAfter(initial, timestring);
 }
 
+time_t getTimeStampBefore(time_t initial, string timestring)
+{
+    char *buffer = new char[timestring.size() + 1];
+    strcpy(buffer, timestring.c_str());
+
+    time_t days = 0, hours = 0, minutes = 0, seconds = 0, months = 0, years = 0;
+
+    char * ptr = buffer;
+    char * last = buffer;
+    while (*ptr != '\0')
+    {
+        if (( *ptr < '0' ) || ( *ptr > '9' ))
+        {
+            switch (*ptr)
+            {
+                case 'd':
+                    *ptr = '\0';
+                    days = atoi(last);
+                    break;
+
+                case 'h':
+                    *ptr = '\0';
+                    hours = atoi(last);
+                    break;
+
+                case 'M':
+                    *ptr = '\0';
+                    minutes = atoi(last);
+                    break;
+
+                case 's':
+                    *ptr = '\0';
+                    seconds = atoi(last);
+                    break;
+
+                case 'm':
+                    *ptr = '\0';
+                    months = atoi(last);
+                    break;
+
+                case 'y':
+                    *ptr = '\0';
+                    years = atoi(last);
+                    break;
+
+                default:
+                {
+                    delete[] buffer;
+                    return -1;
+                }
+            }
+            last = ptr + 1;
+        }
+        char *prev = ptr;
+        ptr++;
+        if (*ptr == '\0' && ( *prev >= '0' ) && ( *prev <= '9' )) //reach the end with a number
+        {
+            delete[] buffer;
+            return -1;
+        }
+    }
+
+    struct tm * dt;
+    dt = localtime(&initial);
+
+    dt->tm_mday -= days;
+    dt->tm_hour -= hours;
+    dt->tm_min -= minutes;
+    dt->tm_sec -= seconds;
+    dt->tm_mon -= months;
+    dt->tm_year -= years;
+
+    delete [] buffer;
+    return mktime(dt);
+}
+
+time_t getTimeStampBefore(string timestring)
+{
+    time_t initial = time(NULL);
+    return getTimeStampBefore(initial, timestring);
+}
+
+bool getMinAndMaxTime(string timestring, time_t *minTime, time_t *maxTime)
+{
+    time_t initial = time(NULL);
+    return getMinAndMaxTime(initial, timestring, minTime, maxTime);
+}
+
+bool getMinAndMaxTime(time_t initial, string timestring, time_t *minTime, time_t *maxTime)
+{
+
+    *minTime = -1;
+    *maxTime = -1;
+    if (!timestring.size())
+    {
+        return false;
+    }
+
+    if (timestring.at(0) == '+')
+    {
+        size_t posmin = timestring.find("-");
+        string maxTimestring = timestring.substr(1,posmin-1);
+        *maxTime = getTimeStampBefore(initial,maxTimestring);
+        if (*maxTime == -1)
+        {
+            return false;
+        }
+        if (posmin == string::npos)
+        {
+            *minTime = 0;
+            return true;
+        }
+
+        string minTimestring = timestring.substr(posmin+1);
+        *minTime = getTimeStampBefore(initial,minTimestring);
+        if (*minTime == -1)
+        {
+            return false;
+        }
+    }
+    else if (timestring.at(0) == '-')
+    {
+        size_t posmax = timestring.find("+");
+        string minTimestring = timestring.substr(1,posmax-1);
+        *minTime = getTimeStampBefore(initial,minTimestring);
+        if (*minTime == -1)
+        {
+            return false;
+        }
+        if (posmax == string::npos)
+        {
+            *maxTime = initial;
+            return true;
+        }
+
+        string maxTimestring = timestring.substr(posmax+1);
+        *maxTime = getTimeStampBefore(initial,maxTimestring);
+        if (*maxTime == -1)
+        {
+            return false;
+        }
+    }
+    else
+    {
+        return false;
+    }
+
+    return true;
+}
+
+
 std::string &ltrim(std::string &s, const char &c)
 {
     size_t pos = s.find_first_not_of(c);

@@ -132,7 +132,7 @@ public:
     void printSyncHeader();
     void printSync(int i, std::string key, const char *nodepath, sync_struct * thesync, mega::MegaNode *n, int nfiles, int nfolders);
 
-    void doFind(mega::MegaNode* nodeBase, std::string word, int printfileinfo, std::string pattern, bool usepcre);
+    void doFind(mega::MegaNode* nodeBase, std::string word, int printfileinfo, std::string pattern, bool usepcre, time_t minTime, time_t maxTime);
 
     void move(mega::MegaNode *n, std::string destiny);
     std::string getLPWD();

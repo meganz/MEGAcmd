@@ -440,6 +440,7 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
 #ifdef USE_PCRE
         validParams->insert("use-pcre");
 #endif
+        validOptValues->insert("mtime");
     }
     else if ("mkdir" == thecommand)
     {
@@ -1438,9 +1439,9 @@ const char * getUsageStr(const char *command)
     if (!strcmp(command, "find"))
     {
 #ifdef USE_PCRE
-        return "find [remotepath] [-l] [--pattern=PATTERN] [--use-pcre]";
+        return "find [remotepath] [-l] [--pattern=PATTERN] [--mtime=TIMECONSTRAIN] [--use-pcre]";
 #else
-        return "find [remotepath] [-l] [--pattern=PATTERN]";
+        return "find [remotepath] [-l] [--pattern=PATTERN] [--mtime=TIMECONSTRAIN]";
 #endif
     }
     if (!strcmp(command, "help"))
@@ -1924,6 +1925,15 @@ string getHelpStr(const char *command)
         os << "Options:" << endl;
         os << " --pattern=PATTERN" << "\t" << "Pattern to match";
         os << " (" << getsupportedregexps() << ") " << endl;
+        os << " --mtime=TIMECONSTRAIN" << "\t" << "Determines time constrains, in the form: [+-]TIMEVALUE" << endl;
+        os << "                      " << "\t" << "  TIMEVALUE may include hours(h), days(d), minutes(M)," << endl;
+        os << "                      " << "\t" << "   seconds(s), months(m) or years(y)" << endl;
+        os << "                      " << "\t" << "  Examples:" << endl;
+        os << "                      " << "\t" << "   \"+1m12d3h\" shows files modified before 1 month, " << endl;
+        os << "                      " << "\t" << "    12 days and 3 hours the current moment" << endl;
+        os << "                      " << "\t" << "   \"-3h\" shows files modified within the last 3 hours" << endl;
+        os << "                      " << "\t" << "   \"-3d+1h\" shows files modified in the last 3 days prior to the last hour" << endl;
+
 #ifdef USE_PCRE
         os << " --use-pcre" << "\t" << "use PCRE expressions" << endl;
 #endif

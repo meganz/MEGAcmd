@@ -80,6 +80,14 @@ time_t getTimeStampAfter(time_t initial, std::string timestring);
 
 time_t getTimeStampAfter(std::string timestring);
 
+time_t getTimeStampBefore(time_t initial, std::string timestring);
+
+time_t getTimeStampBefore(std::string timestring);
+
+bool getMinAndMaxTime(std::string timestring, time_t *minTime, time_t *maxTime);
+
+bool getMinAndMaxTime(time_t initial, std::string timestring, time_t *minTime, time_t *maxTime);
+
 
 /* Strings related */
 
