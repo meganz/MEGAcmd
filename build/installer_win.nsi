@@ -624,6 +624,10 @@ modeselected:
   AccessControl::SetFileOwner "$INSTDIR\mega-sync.bat" "$USERNAME"
   AccessControl::GrantOnFile "$INSTDIR\mega-sync.bat" "$USERNAME" "GenericRead + GenericWrite"
 
+  File "${SRCDIR_BATFILES}\mega-exclude.bat"
+  AccessControl::SetFileOwner "$INSTDIR\mega-exclude.bat" "$USERNAME"
+  AccessControl::GrantOnFile "$INSTDIR\mega-exclude.bat" "$USERNAME" "GenericRead + GenericWrite"
+
   File "${SRCDIR_BATFILES}\mega-thumbnail.bat"
   AccessControl::SetFileOwner "$INSTDIR\mega-thumbnail.bat" "$USERNAME"
   AccessControl::GrantOnFile "$INSTDIR\mega-thumbnail.bat" "$USERNAME" "GenericRead + GenericWrite"
@@ -820,6 +824,7 @@ Section Uninstall
   Delete "$INSTDIR\mega-signup.bat"
   Delete "$INSTDIR\mega-speedlimit.bat"
   Delete "$INSTDIR\mega-sync.bat"
+  Delete "$INSTDIR\mega-exclude.bat"
   Delete "$INSTDIR\mega-thumbnail.bat"
   Delete "$INSTDIR\mega-userattr.bat"
   Delete "$INSTDIR\mega-users.bat"

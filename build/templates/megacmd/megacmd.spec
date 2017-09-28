@@ -506,6 +506,7 @@ killall mega-cmd-server 2> /dev/null || true
 %{_bindir}/mega-signup
 %{_bindir}/mega-speedlimit
 %{_bindir}/mega-sync
+%{_bindir}/mega-exclude
 %{_bindir}/mega-thumbnail
 %{_bindir}/mega-userattr
 %{_bindir}/mega-users
