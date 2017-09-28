@@ -64,6 +64,8 @@ public:
     static bool includeIfIsPendingOutShare(mega::MegaApi* api, mega::MegaNode * n, void *arg);
     static bool includeIfIsSharedOrPendingOutShare(mega::MegaApi* api, mega::MegaNode * n, void *arg);
     static bool includeIfMatchesPattern(mega::MegaApi* api, mega::MegaNode * n, void *arg);
+    static bool includeIfMatchesCriteria(mega::MegaApi* api, mega::MegaNode * n, void *arg);
+
     bool processTree(mega::MegaNode * n, bool(mega::MegaApi *, mega::MegaNode *, void *), void *( arg ));
     mega::MegaNode* nodebypath(const char* ptr, std::string* user = NULL, std::string* namepart = NULL);
     void getPathsMatching(mega::MegaNode *parentNode, std::deque<std::string> pathParts, std::vector<std::string> *pathsMatching, bool usepcre, std::string pathPrefix = "");
@@ -132,7 +134,7 @@ public:
     void printSyncHeader();
     void printSync(int i, std::string key, const char *nodepath, sync_struct * thesync, mega::MegaNode *n, int nfiles, int nfolders);
 
-    void doFind(mega::MegaNode* nodeBase, std::string word, int printfileinfo, std::string pattern, bool usepcre, time_t minTime, time_t maxTime);
+    void doFind(mega::MegaNode* nodeBase, std::string word, int printfileinfo, std::string pattern, bool usepcre, time_t minTime, time_t maxTime, int64_t minSize, int64_t maxSize);
 
     void move(mega::MegaNode *n, std::string destiny);
     std::string getLPWD();

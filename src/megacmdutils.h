@@ -133,8 +133,12 @@ int getintOption(std::map<std::string, std::string> *cloptions, const char * opt
 bool setOptionsAndFlags(std::map<std::string, std::string> *opts, std::map<std::string, int> *flags, std::vector<std::string> *ws,
                         std::set<std::string> vvalidOptions, bool global = false);
 
+bool getMinAndMaxSize(std::string sizestring, int64_t *minSize, int64_t *maxSize);
+
 /* Others */
 std::string sizeToText(long long totalSize, bool equalizeUnitsLength = true, bool humanreadable = true);
+
+int64_t textToSize(const char *text);
 
 std::string secondsToText(time_t seconds, bool humanreadable = true);
 

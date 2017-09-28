@@ -582,7 +582,13 @@ time_t getTimeStampAfter(time_t initial, string timestring)
             }
             last = ptr + 1;
         }
+        char *prev = ptr;
         ptr++;
+        if (*ptr == '\0' && ( *prev >= '0' ) && ( *prev <= '9' )) //reach the end with a number
+        {
+            delete[] buffer;
+            return -1;
+        }
     }
 
     struct tm * dt;
@@ -755,7 +761,67 @@ bool getMinAndMaxTime(time_t initial, string timestring, time_t *minTime, time_t
     return true;
 }
 
+bool getMinAndMaxSize(string sizestring, int64_t *minSize, int64_t *maxSize)
+{
 
+    *minSize = -1;
+    *maxSize = -1;
+    if (!sizestring.size())
+    {
+        return false;
+    }
+
+    if (sizestring.at(0) == '+')
+    {
+        size_t posmax = sizestring.find("-");
+        string minSizestring = sizestring.substr(1,posmax-1);
+        *minSize = textToSize(minSizestring.c_str());
+        if (*minSize == -1)
+        {
+            return false;
+        }
+        if (posmax == string::npos)
+        {
+            *maxSize = -1;
+            return true;
+        }
+
+        string maxSizestring = sizestring.substr(posmax+1);
+        *maxSize = textToSize(maxSizestring.c_str());
+        if (*maxSize == -1)
+        {
+            return false;
+        }
+    }
+    else if (sizestring.at(0) == '-')
+    {
+        size_t posmin = sizestring.find("+");
+        string maxSizestring = sizestring.substr(1,posmin-1);
+        *maxSize = textToSize(maxSizestring.c_str());
+        if (*maxSize == -1)
+        {
+            return false;
+        }
+        if (posmin == string::npos)
+        {
+            *minSize = -1;
+            return true;
+        }
+
+        string minSizestring = sizestring.substr(posmin+1);
+        *minSize = textToSize(minSizestring.c_str());
+        if (*minSize == -1)
+        {
+            return false;
+        }
+    }
+    else
+    {
+        return false;
+    }
+
+    return true;
+}
 std::string &ltrim(std::string &s, const char &c)
 {
     size_t pos = s.find_first_not_of(c);
@@ -1297,6 +1363,67 @@ string sizeToText(long long totalSize, bool equalizeUnitsLength, bool humanreada
 
     return os.str();
 }
+
+int64_t textToSize(const char *text)
+{
+    int64_t sizeinbytes = 0;
+
+    char * ptr = (char *)text;
+    char * last = (char *)text;
+    while (*ptr != '\0')
+    {
+        if (( *ptr < '0' ) || ( *ptr > '9' ) || ( *ptr == '.' ) )
+        {
+            switch (*ptr)
+            {
+                case 'b': //Bytes
+                case 'B':
+                    *ptr = '\0';
+                    sizeinbytes += atof(last);
+                    break;
+
+                case 'k': //KiloBytes
+                case 'K':
+                    *ptr = '\0';
+                    sizeinbytes += 1024.0 * atof(last);
+                    break;
+
+                case 'm': //MegaBytes
+                case 'M':
+                    *ptr = '\0';
+                    sizeinbytes += 1048576.0 * atof(last);
+                    break;
+
+                case 'g': //GigaBytes
+                case 'G':
+                    *ptr = '\0';
+                    sizeinbytes += 1073741824.0 * atof(last);
+                    break;
+
+                case 't': //TeraBytes
+                case 'T':
+                    *ptr = '\0';
+                    sizeinbytes += 1125899906842624.0 * atof(last);
+                    break;
+
+                default:
+                {
+                    return -1;
+                }
+            }
+            last = ptr + 1;
+        }
+        char *prev = ptr;
+        ptr++;
+        if (*ptr == '\0' && ( ( *prev == '.' ) || ( ( *prev >= '0' ) && ( *prev <= '9' ) ) ) ) //reach the end with a number or dot
+        {
+            return -1;
+        }
+    }
+    return sizeinbytes;
+
+}
+
 
 string secondsToText(time_t seconds, bool humanreadable)
 {

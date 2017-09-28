@@ -441,6 +441,7 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validParams->insert("use-pcre");
 #endif
         validOptValues->insert("mtime");
+        validOptValues->insert("size");
     }
     else if ("mkdir" == thecommand)
     {
@@ -1439,9 +1440,9 @@ const char * getUsageStr(const char *command)
     if (!strcmp(command, "find"))
     {
 #ifdef USE_PCRE
-        return "find [remotepath] [-l] [--pattern=PATTERN] [--mtime=TIMECONSTRAIN] [--use-pcre]";
+        return "find [remotepath] [-l] [--pattern=PATTERN] [--mtime=TIMECONSTRAIN] [--size=SIZECONSTRAIN] [--use-pcre]";
 #else
-        return "find [remotepath] [-l] [--pattern=PATTERN] [--mtime=TIMECONSTRAIN]";
+        return "find [remotepath] [-l] [--pattern=PATTERN] [--mtime=TIMECONSTRAIN] [--size=SIZECONSTRAIN]";
 #endif
     }
     if (!strcmp(command, "help"))
@@ -1933,7 +1934,12 @@ string getHelpStr(const char *command)
         os << "                      " << "\t" << "    12 days and 3 hours the current moment" << endl;
         os << "                      " << "\t" << "   \"-3h\" shows files modified within the last 3 hours" << endl;
         os << "                      " << "\t" << "   \"-3d+1h\" shows files modified in the last 3 days prior to the last hour" << endl;
-
+        os << " --size=SIZECONSTRAIN" << "\t" << "Determines size constrains, in the form: [+-]TIMEVALUE" << endl;
+        os << "                      " << "\t" << "  TIMEVALUE may include (B)ytes, (K)ilobytes, (M)egabytes, (G)igabytes & (T)erabytes" << endl;
+        os << "                      " << "\t" << "  Examples:" << endl;
+        os << "                      " << "\t" << "   \"+1m12k3B\" shows files bigger than 1 Mega, 12 Kbytes and 3Bytes" << endl;
+        os << "                      " << "\t" << "   \"-3M\" shows files smaller than 3 Megabytes" << endl;
+        os << "                      " << "\t" << "   \"-4M+100K\" shows files smaller than 4 Mbytes and bigger than 100 Kbytes" << endl;
 #ifdef USE_PCRE
         os << " --use-pcre" << "\t" << "use PCRE expressions" << endl;
 #endif

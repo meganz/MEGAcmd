@@ -210,6 +210,18 @@ struct patternNodeVector
     vector<MegaNode*> *nodesMatching;
 };
 
+struct criteriaNodeVector
+{
+    string pattern;
+    bool usepcre;
+    time_t minTime;
+    time_t maxTime;
+
+    int64_t maxSize;
+    int64_t minSize;
+
+    vector<MegaNode*> *nodesMatching;
+};
 
 bool MegaCmdExecuter::includeIfMatchesPattern(MegaApi *api, MegaNode * n, void *arg)
 {
@@ -220,6 +232,39 @@ bool MegaCmdExecuter::includeIfMatchesPattern(MegaApi *api, MegaNode * n, void *
         return true;
     }
     return false;
+}
+
+
+bool MegaCmdExecuter::includeIfMatchesCriteria(MegaApi *api, MegaNode * n, void *arg)
+{
+    struct criteriaNodeVector *pnv = (struct criteriaNodeVector*)arg;
+
+    if ( pnv->maxTime != -1 && (n->getModificationTime() >= pnv->maxTime) )
+    {
+        return false;
+    }
+    if ( pnv->minTime != -1 && (n->getModificationTime() <= pnv->minTime) )
+    {
+        return false;
+    }
+
+    if ( pnv->maxSize != -1 && (n->getSize() > pnv->maxSize) )
+    {
+        return false;
+    }
+
+    if ( pnv->minSize != -1 && (n->getSize() < pnv->minSize) )
+    {
+        return false;
+    }
+
+    if (!patternMatches(n->getName(), pnv->pattern.c_str(), pnv->usepcre))
+    {
+        return false;
+    }
+
+    pnv->nodesMatching->push_back(n->copy());
+    return true;
 }
 
 bool MegaCmdExecuter::processTree(MegaNode *n, bool processor(MegaApi *, MegaNode *, void *), void *( arg ))
@@ -2973,33 +3018,29 @@ void MegaCmdExecuter::printSync(int i, string key, const char *nodepath, sync_st
 
 }
 
-void MegaCmdExecuter::doFind(MegaNode* nodeBase, string word, int printfileinfo, string pattern, bool usepcre, time_t minTime, time_t maxTime)
+void MegaCmdExecuter::doFind(MegaNode* nodeBase, string word, int printfileinfo, string pattern, bool usepcre, time_t minTime, time_t maxTime, int64_t minSize, int64_t maxSize)
 {
-    struct patternNodeVector pnv;
+    struct criteriaNodeVector pnv;
     pnv.pattern = pattern;
 
     vector<MegaNode *> listOfMatches;
     pnv.nodesMatching = &listOfMatches;
     pnv.usepcre = usepcre;
 
-    processTree(nodeBase, includeIfMatchesPattern, (void*)&pnv);
+    pnv.minTime = minTime;
+    pnv.maxTime = maxTime;
+    pnv.minSize = minSize;
+    pnv.maxSize = maxSize;
+
+
+    processTree(nodeBase, includeIfMatchesCriteria, (void*)&pnv);
+
+
     for (std::vector< MegaNode * >::iterator it = listOfMatches.begin(); it != listOfMatches.end(); ++it)
     {
         MegaNode * n = *it;
         if (n)
         {
-            if ( minTime != -1 && (n->getModificationTime() >= maxTime) )
-            {
-                delete n;
-                continue;
-            }
-            if ( maxTime != -1 && (n->getModificationTime() <= minTime) )
-            {
-                delete n;
-                continue;
-            }
-
-
             string pathToShow;
 
             if ( word.size() > 0 && ( (word.find("/") == 0) || (word.find("..") != string::npos)) )
@@ -3373,7 +3414,6 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         time_t minTime = -1;
         time_t maxTime = -1;
         string mtimestring = getOption(cloptions, "mtime", "");
-
         if ("" != mtimestring && !getMinAndMaxTime(mtimestring, &minTime, &maxTime))
         {
             setCurrentOutCode(MCMD_EARGS);
@@ -3381,10 +3421,22 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             return;
         }
 
+        int64_t minSize = -1;
+        int64_t maxSize = -1;
+        //TODO: read
+        string sizestring = getOption(cloptions, "size", "");
+        if ("" != sizestring && !getMinAndMaxSize(sizestring, &minSize, &maxSize))
+        {
+            setCurrentOutCode(MCMD_EARGS);
+            LOG_err << "Invalid time " << sizestring;
+            return;
+        }
+
+
         if (words.size() <= 1)
         {
             n = api->getNodeByHandle(cwd);
-            doFind(n, "", printfileinfo, pattern, getFlag(clflags,"use-pcre"), minTime, maxTime);
+            doFind(n, "", printfileinfo, pattern, getFlag(clflags,"use-pcre"), minTime, maxTime, minSize, maxSize);
             delete n;
         }
         for (int i = 1; i < (int)words.size(); i++)
@@ -3399,7 +3451,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         MegaNode * nodeToFind = *it;
                         if (nodeToFind)
                         {
-                            doFind(nodeToFind, words[i], printfileinfo, pattern, getFlag(clflags,"use-pcre"), minTime, maxTime);
+                            doFind(nodeToFind, words[i], printfileinfo, pattern, getFlag(clflags,"use-pcre"), minTime, maxTime, minSize, maxSize);
                             delete nodeToFind;
                         }
                     }
@@ -3422,7 +3474,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 }
                 else
                 {
-                    doFind(n, words[i], printfileinfo, pattern, getFlag(clflags,"use-pcre"), minTime, maxTime);
+                    doFind(n, words[i], printfileinfo, pattern, getFlag(clflags,"use-pcre"), minTime, maxTime, minSize, maxSize);
                     delete n;
                 }
             }
