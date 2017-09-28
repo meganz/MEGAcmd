@@ -131,8 +131,8 @@ public:
 
     void printTransfersHeader(const unsigned int PATHSIZE, bool printstate=true);
     void printTransfer(mega::MegaTransfer *transfer, const unsigned int PATHSIZE, bool printstate=true);
-    void printSyncHeader();
-    void printSync(int i, std::string key, const char *nodepath, sync_struct * thesync, mega::MegaNode *n, int nfiles, int nfolders);
+    void printSyncHeader(const unsigned int PATHSIZE);
+    void printSync(int i, std::string key, const char *nodepath, sync_struct * thesync, mega::MegaNode *n, int nfiles, int nfolders, const unsigned int PATHSIZE);
 
     void doFind(mega::MegaNode* nodeBase, std::string word, int printfileinfo, std::string pattern, bool usepcre, time_t minTime, time_t maxTime, int64_t minSize, int64_t maxSize);
 

@@ -255,7 +255,7 @@ const char* getSyncStateStr(int state)
             break;
 
         case MegaSync::SYNC_INITIALSCAN:
-            return "Initial Scan";
+            return "InitScan";
 
             break;
 

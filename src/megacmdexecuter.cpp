@@ -2966,14 +2966,30 @@ void MegaCmdExecuter::printTransfer(MegaTransfer *transfer, const unsigned int P
     OUTSTREAM << endl;
 }
 
-void MegaCmdExecuter::printSyncHeader()
+void MegaCmdExecuter::printSyncHeader(const unsigned int PATHSIZE)
 {
-    OUTSTREAM << "ID: LOCALPATH to REMOTEPATH - ActiveState - SyncState?, SIZE" << endl;
+    OUTSTREAM << "ID ";
+    OUTSTREAM << getFixLengthString("LOCALPATH ", PATHSIZE) << " ";
+    OUTSTREAM << getFixLengthString("REMOTEPATH ", PATHSIZE) << " ";
+
+    OUTSTREAM << getFixLengthString("ActState", 10) << " ";
+    OUTSTREAM << getFixLengthString("SyncState", 9) << " ";
+    OUTSTREAM << getRightAlignedString("SIZE", 8) << " ";
+    OUTSTREAM << getRightAlignedString("FILES", 6) << " ";
+    OUTSTREAM << getRightAlignedString("DIRS", 6);
+    OUTSTREAM << endl;
+
 }
 
-void MegaCmdExecuter::printSync(int i, string key, const char *nodepath, sync_struct * thesync, MegaNode *n, int nfiles, int nfolders)
+void MegaCmdExecuter::printSync(int i, string key, const char *nodepath, sync_struct * thesync, MegaNode *n, int nfiles, int nfolders, const unsigned int PATHSIZE)
 {
-    OUTSTREAM << i << ": " << key << " to " << nodepath;
+    //tag
+    OUTSTREAM << getRightAlignedString(SSTR(i),2) << " ";
+
+    OUTSTREAM << getFixLengthString(key,PATHSIZE) << " ";
+
+    OUTSTREAM << getFixLengthString(nodepath,PATHSIZE) << " ";
+
     string sstate(key);
     sstate = rtrim(sstate, '/');
 #ifdef _WIN32
@@ -2983,7 +2999,6 @@ void MegaCmdExecuter::printSync(int i, string key, const char *nodepath, sync_st
     fsAccessCMD->path2local(&sstate,&psstate);
     int statepath = api->syncPathState(&psstate);
 
-//    MegaSync *msync = api->getSyncByPath(psstate.c_str());
     MegaSync *msync = api->getSyncByNode(n);
     string syncstate = "REMOVED";
     if (msync)
@@ -3010,11 +3025,15 @@ void MegaCmdExecuter::printSync(int i, string key, const char *nodepath, sync_st
     }
     delete msync;
 
-    OUTSTREAM << " - " << statetoprint
-              << " - " << getSyncPathStateStr(statepath);
-    OUTSTREAM << ", " << sizeToText(api->getSize(n), false) << "yte(s) in ";
+    OUTSTREAM << getFixLengthString(statetoprint,10) << " ";
+    OUTSTREAM << getFixLengthString(getSyncPathStateStr(statepath),9) << " ";
 
-    OUTSTREAM << nfiles << " file(s) and " << nfolders << " folder(s)" << endl;
+    OUTSTREAM << getRightAlignedString(sizeToText(api->getSize(n), false),8) << " ";
+
+    OUTSTREAM << getRightAlignedString(SSTR(nfiles),6) << " ";
+    OUTSTREAM << getRightAlignedString(SSTR(nfolders),6) << " ";
+
+    OUTSTREAM << endl;
 
 }
 
@@ -4591,6 +4610,18 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             setCurrentOutCode(MCMD_NOTLOGGEDIN);
             return;
         }
+
+
+
+        int PATHSIZE = getintOption(cloptions,"path-display-size");
+        if (!PATHSIZE)
+        {
+            // get screen size for output purposes
+            unsigned int width = getNumberOfCols(75);
+            PATHSIZE = min(60,int((width-46)/2));
+        }
+
+
         bool headershown = false;
         bool modifiedsyncs = false;
         mtxSyncMap.lock();
@@ -4741,10 +4772,10 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         if (!headershown)
                         {
                             headershown = true;
-                            printSyncHeader();
+                            printSyncHeader(PATHSIZE);
                         }
 
-                        printSync(i, key, nodepath, thesync, n, nfiles, nfolders);
+                        printSync(i, key, nodepath, thesync, n, nfiles, nfolders, PATHSIZE);
 
                     }
                     delete n;
@@ -4780,7 +4811,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     if (!headershown)
                     {
                         headershown = true;
-                        printSyncHeader();
+                        printSyncHeader(PATHSIZE);
                     }
                     int nfiles = 0;
                     int nfolders = 0;
@@ -4791,7 +4822,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     delete []nFolderFiles;
 
                     char * nodepath = api->getNodePath(n);
-                    printSync(i++, ( *itr ).first, nodepath, thesync, n, nfiles, nfolders);
+                    printSync(i++, ( *itr ).first, nodepath, thesync, n, nfiles, nfolders, PATHSIZE);
 
                     delete n;
                     delete []nodepath;

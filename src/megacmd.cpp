@@ -411,6 +411,7 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validParams->insert("d");
         validParams->insert("s");
         validParams->insert("r");
+        validOptValues->insert("path-display-size");
     }
     else if ("export" == thecommand)
     {
@@ -1760,6 +1761,7 @@ string getHelpStr(const char *command)
         os << "-d" << " " << "ID|localpath" << "\t" << "deletes a synchronization" << endl;
         os << "-s" << " " << "ID|localpath" << "\t" << "stops(pauses) a synchronization" << endl;
         os << "-r" << " " << "ID|localpath" << "\t" << "resumes a synchronization" << endl;
+        os << " --path-display-size=N" << "\t" << "Use a fixed size of N characters for paths" << endl;
     }
     else if (!strcmp(command, "export"))
     {
