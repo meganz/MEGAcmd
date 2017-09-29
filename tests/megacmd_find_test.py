@@ -33,6 +33,8 @@ try:
 except:
     VERBOSE=False
 
+#VERBOSE=True
+
 try:
     MEGACMDSHELL=os.environ['MEGACMDSHELL']
     CMDSHELL=True
@@ -47,8 +49,11 @@ def ec(what):
         print "Executing "+what
     process = subprocess.Popen(what, shell=True, stdout=subprocess.PIPE)
     stdoutdata, stderrdata = process.communicate()
+
+    stdoutdata=stdoutdata.replace('\r\n','\n')
     if VERBOSE:
         print stdoutdata.strip()
+
     return stdoutdata,process.returncode
 
 #execute and return only stdout contents
@@ -116,9 +121,9 @@ def sort(what):
     return "\n".join(sorted(what.split("\n")))
 
 def initialize_contents():
-    ef(PUT+" localtmp/* /")
-    makedir("localUPs") #TODO: remove all mkdirs by python
-    ef("cp -r localtmp/* localUPs/") #do this in python
+    contents=" localtmp/"+" localtmp/".join(['"'+x+'"' for x in os.listdir('localtmp/')])
+    ef(PUT+" "+contents+" /")
+    shutil.copytree('localtmp', 'localUPs')
 
 def clean_all(): 
     
