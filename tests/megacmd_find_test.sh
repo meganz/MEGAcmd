@@ -274,7 +274,7 @@ popd > /dev/null
 #Test 07 #. global
 compare_find .
 
-#Test 08 #. global
+#Test 08 # spaced
 find_remote "ls\ 01"
 find_local ls\ 01
 compare_remote_local
