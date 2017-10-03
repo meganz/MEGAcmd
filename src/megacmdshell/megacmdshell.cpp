@@ -26,6 +26,7 @@
 
 #include <iomanip>
 #include <string>
+#include <cstring>
 #include <set>
 #include <map>
 #include <vector>
