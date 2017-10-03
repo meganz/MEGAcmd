@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 #better run in an empty folder
 
-import sys, os, subprocess, shutil, distutils, distutils.dir_util
+import sys, os, subprocess, shutil, distutils, distutils.dir_util, platform
 from megacmd_tests_common import *
 
 GET="mega-get"
@@ -180,7 +180,8 @@ def initialize():
 
 
 def initialize_contents():
-    ef(PUT+' '+'localtmp/* /')
+    contents=" localtmp/"+" localtmp/".join(['"'+x+'"' for x in os.listdir('localtmp/')])
+    ef(PUT+" "+contents+" /")
     makedir('localUPs')
     copybypattern('localtmp/','*','localUPs')
 
@@ -269,12 +270,15 @@ rmfolderifexisting('localUPs/ls 01/../le01/les01')
 compare_and_clear()
 
 #Test 15 #complex stuff with PCRE exp
-ef(RM+' '+'-rf --use-pcre "ls\ 01/../le01/les0[12]" "lf01/../ls.*/ls\ s0[12]"')
-rmfolderifexisting('localUPs/ls 01/../le01/les01')
-rmfolderifexisting('localUPs/ls 01/../le01/les02')
-[rmfolderifexisting('localUPs/lf01/../'+f+'/ls s01') for f in os.listdir('localUPs/lf01/..') if f.startswith('ls')] 
-[rmfolderifexisting('localUPs/lf01/../'+f+'/ls s02') for f in os.listdir('localUPs/lf01/..') if f.startswith('ls')] 
-compare_and_clear()
+if (platform.system() != "Windows"):
+    ef(RM+' '+'-rf --use-pcre "ls\ 01/../le01/les0[12]" "lf01/../ls.*/ls\ s0[12]"')
+    rmfolderifexisting('localUPs/ls 01/../le01/les01')
+    rmfolderifexisting('localUPs/ls 01/../le01/les02')
+    [rmfolderifexisting('localUPs/lf01/../'+f+'/ls s01') for f in os.listdir('localUPs/lf01/..') if f.startswith('ls')] 
+    [rmfolderifexisting('localUPs/lf01/../'+f+'/ls s02') for f in os.listdir('localUPs/lf01/..') if f.startswith('ls')] 
+    compare_and_clear()
+
+currentTest=16
 
 ###TODO: do stuff in shared folders...
 

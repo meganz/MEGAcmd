@@ -1522,6 +1522,9 @@ void MegaCmdExecuter::dumptree(MegaNode* n, int recurse, int extended_info, int 
  */
 bool MegaCmdExecuter::TestCanWriteOnContainingFolder(string *path)
 {
+#ifdef _WIN32
+    replaceAll(*path,"/","\\");
+#endif
     string localpath;
     fsAccessCMD->path2local(path, &localpath);
     int lastpart = fsAccessCMD->lastpartlocal(&localpath);
@@ -2851,6 +2854,9 @@ void MegaCmdExecuter::confirmWithPassword(string passwd)
 
 bool MegaCmdExecuter::IsFolder(string path)
 {
+#ifdef _WIN32
+    replaceAll(path,"/","\\");
+#endif
     string localpath;
     fsAccessCMD->path2local(&path, &localpath);
     FileAccess *fa = fsAccessCMD->newfileaccess();

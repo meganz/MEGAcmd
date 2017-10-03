@@ -50,8 +50,7 @@ function clean_all() {
 function clear_local_and_remote() {
 	rm -r localUPs/* 2>/dev/null
 	$RM -rf "/*" 2>/dev/null || :
-	initialize_contents
-
+	initialize_contents()
 }
 
 ABSPWD=`pwd`
