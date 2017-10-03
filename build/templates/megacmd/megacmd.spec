@@ -163,106 +163,13 @@ enabled=1
 DATA
 %endif
 
-%if 0%{?fedora_version} == 26
-# Fedora 26
+%if 0%{?fedora}
 YUM_FILE="/etc/yum.repos.d/megasync.repo"
 cat > "$YUM_FILE" << DATA
 [MEGAsync]
 name=MEGAsync
-baseurl=https://mega.nz/linux/MEGAsync/Fedora_26/
-gpgkey=https://mega.nz/linux/MEGAsync/Fedora_26/repodata/repomd.xml.key
-gpgcheck=1
-enabled=1
-DATA
-%endif
-
-
-%if 0%{?fedora_version} == 25
-# Fedora 25
-YUM_FILE="/etc/yum.repos.d/megasync.repo"
-cat > "$YUM_FILE" << DATA
-[MEGAsync]
-name=MEGAsync
-baseurl=https://mega.nz/linux/MEGAsync/Fedora_25/
-gpgkey=https://mega.nz/linux/MEGAsync/Fedora_25/repodata/repomd.xml.key
-gpgcheck=1
-enabled=1
-DATA
-%endif
-
-%if 0%{?fedora_version} == 24
-# Fedora 24
-YUM_FILE="/etc/yum.repos.d/megasync.repo"
-cat > "$YUM_FILE" << DATA
-[MEGAsync]
-name=MEGAsync
-baseurl=https://mega.nz/linux/MEGAsync/Fedora_24/
-gpgkey=https://mega.nz/linux/MEGAsync/Fedora_24/repodata/repomd.xml.key
-gpgcheck=1
-enabled=1
-DATA
-%endif
-
-%if 0%{?fedora_version} == 23
-# Fedora 23
-YUM_FILE="/etc/yum.repos.d/megasync.repo"
-cat > "$YUM_FILE" << DATA
-[MEGAsync]
-name=MEGAsync
-baseurl=https://mega.nz/linux/MEGAsync/Fedora_23/
-gpgkey=https://mega.nz/linux/MEGAsync/Fedora_23/repodata/repomd.xml.key
-gpgcheck=1
-enabled=1
-DATA
-%endif
-
-%if 0%{?fedora_version} == 22
-# Fedora 22
-YUM_FILE="/etc/yum.repos.d/megasync.repo"
-cat > "$YUM_FILE" << DATA
-[MEGAsync]
-name=MEGAsync
-baseurl=https://mega.nz/linux/MEGAsync/Fedora_22/
-gpgkey=https://mega.nz/linux/MEGAsync/Fedora_22/repodata/repomd.xml.key
-gpgcheck=1
-enabled=1
-DATA
-%endif
-
-%if 0%{?fedora_version} == 21
-# Fedora 21
-YUM_FILE="/etc/yum.repos.d/megasync.repo"
-cat > "$YUM_FILE" << DATA
-[MEGAsync]
-name=MEGAsync
-baseurl=https://mega.nz/linux/MEGAsync/Fedora_21/
-gpgkey=https://mega.nz/linux/MEGAsync/Fedora_21/repodata/repomd.xml.key
-gpgcheck=1
-enabled=1
-DATA
-%endif
-
-%if 0%{?fedora_version} == 20
-# Fedora 20
-YUM_FILE="/etc/yum.repos.d/megasync.repo"
-cat > "$YUM_FILE" << DATA
-[MEGAsync]
-name=MEGAsync
-baseurl=https://mega.nz/linux/MEGAsync/Fedora_20/
-gpgkey=https://mega.nz/linux/MEGAsync/Fedora_20/repodata/repomd.xml.key
-gpgcheck=1
-enabled=1
-DATA
-%endif
-
-%if 0%{?fedora_version} == 19
-# Fedora 19
-YUM_FILE="/etc/yum.repos.d/megasync.repo"
-cat > "$YUM_FILE" << DATA
-[MEGAsync]
-name=MEGAsync
-baseurl=https://mega.nz/linux/MEGAsync/Fedora_19
-gpgkey=https://mega.nz/linux/MEGAsync/Fedora_19/repodata/repomd.xml.key
+baseurl=https://mega.nz/linux/MEGAsync/Fedora_$releasever/
+gpgkey=https://mega.nz/linux/MEGAsync/Fedora_$releasever/repodata/repomd.xml.key
 gpgcheck=1
 enabled=1
 DATA
