@@ -83,10 +83,16 @@ def rmcontentsifexisting(what):
 def copybyfilepattern(origin,pattern,destiny):
     for f in fnmatch.filter(os.listdir(origin),pattern):
         shutil.copy2(origin+'/'+f,destiny)
-
+        
 def copyfolder(origin,destiny):
     shutil.copytree(origin,destiny+'/'+origin.split('/')[-1])
 
+def copybypattern(origin,pattern,destiny):
+    for f in fnmatch.filter(os.listdir(origin),pattern):
+        if (os.path.isdir(origin+'/'+f)):
+            copyfolder(origin+'/'+f,destiny)
+        else:
+            shutil.copy2(origin+'/'+f,destiny)
         
 def makedir(what):
     if (not os.path.exists(what)):
