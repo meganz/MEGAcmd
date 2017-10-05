@@ -107,7 +107,7 @@ def cmdshell_ef(what):
         print >>sys.stderr, "FALLO en "+str(what) #TODO: stderr?
         print >>sys.stderr, out #TODO: stderr?
         
-        cmdshell_et(code)
+        exit(code)
     return out
     
 def cmd_ec(what):
