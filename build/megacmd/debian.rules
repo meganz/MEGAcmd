@@ -5,7 +5,7 @@ build-stamp:
 	./autogen.sh
 
 	#build dependencies into folder deps
-	mkdir deps
+	mkdir deps || :
 	bash -x ./sdk/contrib/build_sdk.sh -o archives \
 	  -g -b -l -c -s -u -a -z -p deps/
 

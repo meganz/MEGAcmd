@@ -87,7 +87,7 @@ sed -i "s#AC_INIT#m4_pattern_allow(AC_PROG_OBJCXX)\nAC_INIT#g" sdk/configure.ac
 ./autogen.sh
 
 #build dependencies into folder deps
-mkdir deps
+mkdir deps || :
 bash -x ./contrib/build_sdk.sh %{flag_cryptopp} -o archives \
   -g %{flag_disablezlib} -b -l -c -s -u -a -p deps/
 

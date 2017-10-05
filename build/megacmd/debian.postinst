@@ -8,6 +8,8 @@ ver=$(cat /usr/share/doc/megacmd/version)
 if [[ $distro = "Raspbian GNU/Linux 8.0 (jessie)" ]]; then
     str="Raspbian_8.0"
 # Ubuntu
+elif [[ $ver = "17.10" ]]; then
+    str="xUbuntu_17.10"
 elif [[ $ver = "17.04" ]]; then
     str="xUbuntu_17.04"
 elif [[ $ver = "16.10" ]]; then
