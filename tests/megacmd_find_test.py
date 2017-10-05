@@ -45,20 +45,20 @@ except:
     CMDSHELL=False
 
 def initialize_contents():
-    contents=" localtmp/"+" localtmp/".join(['"'+x+'"' for x in os.listdir('localtmp/')])
-    ef(PUT+" "+contents+" /")
+    contents=" ".join(['"localtmp/'+x+'"' for x in os.listdir('localtmp/')])
+    cmd_ef(PUT+" "+contents+" /")
     shutil.copytree('localtmp', 'localUPs')
 
 def clean_all(): 
     
-    if es(WHOAMI) != osvar("MEGA_EMAIL"):
-        ef(LOGOUT)
-        ef(LOGIN+" " +osvar("MEGA_EMAIL")+" "+osvar("MEGA_PWD"))
+    if cmd_es(WHOAMI) != osvar("MEGA_EMAIL"):
+        cmd_ef(LOGOUT)
+        cmd_ef(LOGIN+" " +osvar("MEGA_EMAIL")+" "+osvar("MEGA_PWD"))
         
     #~ rm pipe > /dev/null 2>/dev/null || :
 
-    ec(RM+' -rf "*"')
-    ec(RM+' -rf "//bin/*"')
+    cmd_ec(RM+' -rf "*"')
+    cmd_ec(RM+' -rf "//bin/*"')
     
     rmfolderifexisting("localUPs")
     rmfolderifexisting("localtmp")
@@ -70,7 +70,7 @@ def clean_all():
 
 def clear_local_and_remote():
     rmfolderifexisting("localUPs")
-    ec(RM+' -rf "/*"')
+    cmd_ec(RM+' -rf "/*"')
     initialize_contents()
 
 def compare_and_clear() :
@@ -78,7 +78,7 @@ def compare_and_clear() :
     if VERBOSE:
         print "test $currentTest"
     
-    megafind=sort(ef(FIND))
+    megafind=sort(cmd_ef(FIND))
     localfind=sort(find('localUPs'))
     
     #~ if diff --side-by-side megafind.txt localfind.txt 2>/dev/null >/dev/null; then
@@ -105,20 +105,20 @@ def compare_and_clear() :
 
     clear_local_and_remote()
     currentTest+=1
-    ef(CD+" /")
+    cmd_ef(CD+" /")
 
 def initialize():
      
-    if es(WHOAMI) != osvar("MEGA_EMAIL"):
-        es(LOGOUT)
-        ef(LOGIN+" " +osvar("MEGA_EMAIL")+" "+osvar("MEGA_PWD"))
+    if cmd_es(WHOAMI) != osvar("MEGA_EMAIL"):
+        cmd_es(LOGOUT)
+        cmd_ef(LOGIN+" " +osvar("MEGA_EMAIL")+" "+osvar("MEGA_PWD"))
 
     if len(os.listdir(".")):
         print >>sys.stderr, "initialization folder not empty!"
         #~ cd $ABSPWD
         exit(1)
 
-    if es(FIND+" /") != "/":
+    if cmd_es(FIND+" /") != "/":
         print >>sys.stderr, "REMOTE Not empty, please clear it before starting!"
         #~ cd $ABSPWD
         exit(1)
@@ -179,7 +179,7 @@ def compare_find(what, localFindPrefix='localUPs'):
     megafind=""
     localfind=""
     for w in what:
-        megafind+=ef(FIND+" "+w)+"\n"
+        megafind+=cmd_ef(FIND+" "+w)+"\n"
         localfind+=find(localFindPrefix+'/'+w,w)+"\n"
     
     megafind=sort(megafind).strip()
@@ -257,46 +257,46 @@ compare_find('lf01')
 compare_find(['lf01','le01/les01'])
 
 #Test 06 #.
-ef(CD+" le01")
+cmd_ef(CD+" le01")
 compare_find('.','localUPs/le01')
-ef(CD+" /")
+cmd_ef(CD+" /")
 
 #Test 07 #. global
 compare_find('.')
 
 #Test 08 #spaced
-megafind=sort(ef(FIND+" "+"ls\ 01"))
+megafind=sort(cmd_ef(FIND+" "+"ls\ 01"))
 localfind=sort(find('localUPs/ls 01',"ls 01"))
 compare_remote_local(megafind,localfind)
 
 #Test 09 #XX/..
 currentTest=9
-megafind=sort(ef(FIND+" "+"ls\ 01/.."))
+megafind=sort(cmd_ef(FIND+" "+"ls\ 01/.."))
 localfind=sort(find('localUPs/',"/"))
 compare_remote_local(megafind,localfind)
 
 #Test 10 #..
-ef(CD+' le01')
-megafind=sort(ef(FIND+" "+".."))
-ef(CD+' /')
+cmd_ef(CD+' le01')
+megafind=sort(cmd_ef(FIND+" "+".."))
+cmd_ef(CD+' /')
 localfind=sort(find('localUPs/',"/"))
 compare_remote_local(megafind,localfind)
 
 #Test 11 #complex stuff
-megafind=sort(ef(FIND+" "+"ls\ 01/../le01/les01" +" " +"lf01/../ls\ *01/ls\ s02"))
+megafind=sort(cmd_ef(FIND+" "+"ls\ 01/../le01/les01" +" " +"lf01/../ls\ *01/ls\ s02"))
 localfind=sort(find('localUPs/le01/les01',"/le01/les01"))
 localfind+="\n"+sort(find('localUPs/ls 01/ls s02',"/ls 01/ls s02"))
 compare_remote_local(megafind,localfind)
 
 #Test 12 #folder/
-megafind=sort(ef(FIND+" "+"le01/"))
+megafind=sort(cmd_ef(FIND+" "+"le01/"))
 localfind=sort(find('localUPs/le01',"le01"))
 compare_remote_local(megafind,localfind)
 
 if not CMDSHELL: #TODO: currently there is no way to know last CMSHELL status code
 
     #Test 13 #file01.txt/non-existent
-    megafind,status=ec(FIND+" "+"file01.txt/non-existent")
+    megafind,status=cmd_ec(FIND+" "+"file01.txt/non-existent")
     if status == 0: 
         print "test "+str(currentTest)+" failed!"
         exit(1)

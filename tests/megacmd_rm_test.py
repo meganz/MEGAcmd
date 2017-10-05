@@ -47,12 +47,12 @@ except:
 
 def clean_all():
 
-    if es(WHOAMI) != osvar("MEGA_EMAIL"):
-        ef(LOGOUT)
-        ef(LOGIN+" " +osvar("MEGA_EMAIL")+" "+osvar("MEGA_PWD"))
+    if cmd_es(WHOAMI) != osvar("MEGA_EMAIL"):
+        cmd_ef(LOGOUT)
+        cmd_ef(LOGIN+" " +osvar("MEGA_EMAIL")+" "+osvar("MEGA_PWD"))
     
-    ec(RM+' -rf "*"')
-    ec(RM+' -rf "//bin/*"')
+    cmd_ec(RM+' -rf "*"')
+    cmd_ec(RM+' -rf "//bin/*"')
     
     rmfolderifexisting("localUPs")
     rmfolderifexisting("localtmp")
@@ -63,7 +63,7 @@ def clean_all():
 
 def clear_local_and_remote():
     rmfolderifexisting("localUPs")
-    ec(RM+' -rf "/*"')
+    cmd_ec(RM+' -rf "/*"')
     initialize_contents()
 
 currentTest=1
@@ -73,7 +73,7 @@ def compare_and_clear() :
     if VERBOSE:
         print "test $currentTest"
     
-    megafind=sort(ef(FIND))
+    megafind=sort(cmd_ef(FIND))
     localfind=sort(find('localUPs','.'))
     
     #~ if diff --side-by-side megafind.txt localfind.txt 2>/dev/null >/dev/null; then
@@ -100,7 +100,7 @@ def compare_and_clear() :
 
     clear_local_and_remote()
     currentTest+=1
-    ef(CD+" /")
+    cmd_ef(CD+" /")
 
 
 def check_failed_and_clear(o,status):
@@ -115,12 +115,12 @@ def check_failed_and_clear(o,status):
 
     clear_local_and_remote()
     currentTest+=1
-    ef(CD+" /")
+    cmd_ef(CD+" /")
 
 def initialize():
-    if es(WHOAMI) != osvar("MEGA_EMAIL"):
-        ef(LOGOUT)
-        ef(LOGIN+" " +osvar("MEGA_EMAIL")+" "+osvar("MEGA_PWD"))
+    if cmd_es(WHOAMI) != osvar("MEGA_EMAIL"):
+        cmd_ef(LOGOUT)
+        cmd_ef(LOGIN+" " +osvar("MEGA_EMAIL")+" "+osvar("MEGA_PWD"))
         
 
     if len(os.listdir(".")):
@@ -128,7 +128,7 @@ def initialize():
         #~ cd $ABSPWD
         exit(1)
 
-    if es(FIND+" /") != "/":
+    if cmd_es(FIND+" /") != "/":
         print >>sys.stderr, "REMOTE Not empty, please clear it before starting!"
         #~ cd $ABSPWD
         exit(1)
@@ -180,8 +180,8 @@ def initialize():
 
 
 def initialize_contents():
-    contents=" localtmp/"+" localtmp/".join(['"'+x+'"' for x in os.listdir('localtmp/')])
-    ef(PUT+" "+contents+" /")
+    contents=" ".join(['"localtmp/'+x+'"' for x in os.listdir('localtmp/')])
+    cmd_ef(PUT+" "+contents+" /")
     makedir('localUPs')
     copybypattern('localtmp/','*','localUPs')
 
@@ -197,81 +197,81 @@ clear_local_and_remote()
 compare_and_clear()
 
 #Test 02 #destiny empty file
-ef(RM+' '+'file01.txt')
+cmd_ef(RM+' '+'file01.txt')
 rmfileifexisting('localUPs/file01.txt')
 compare_and_clear()
 
 #Test 03 #/ destiny empty file upload
-ef(PUT+' '+'localtmp/file01.txt /')
+cmd_ef(PUT+' '+'localtmp/file01.txt /')
 shutil.copy2('localtmp/file01.txt','localUPs')
 compare_and_clear()
 
 #Test 04 #no destiny nont empty file upload
-ef(RM+' '+'file01nonempty.txt')
+cmd_ef(RM+' '+'file01nonempty.txt')
 rmfileifexisting('localUPs/file01nonempty.txt')
 compare_and_clear()
 
 #Test 05 #empty folder
-ef(RM+' '+'-rf le01/les01/less01')
+cmd_ef(RM+' '+'-rf le01/les01/less01')
 rmfolderifexisting('localUPs/le01/les01/less01')
 compare_and_clear()
 
 #Test 06 #1 file folder
-ef(RM+' '+'-rf lf01/lfs01/lfss01')
+cmd_ef(RM+' '+'-rf lf01/lfs01/lfss01')
 rmfolderifexisting('localUPs/lf01/lfs01/lfss01')
 compare_and_clear()
 
 #Test 07 #entire empty folders structure
-ef(RM+' '+'-rf le01')
+cmd_ef(RM+' '+'-rf le01')
 rmfolderifexisting('localUPs/le01')
 compare_and_clear()
 
 #Test 08 #entire non empty folders structure
-ef(RM+' '+'-rf lf01')
+cmd_ef(RM+' '+'-rf lf01')
 rmfolderifexisting('localUPs/lf01')
 compare_and_clear()
 
 #Test 09 #multiple
-ef(RM+' '+'-rf lf01 le01/les01')
+cmd_ef(RM+' '+'-rf lf01 le01/les01')
 rmfolderifexisting('localUPs/lf01')
 rmfolderifexisting('localUPs/le01/les01')
 compare_and_clear()
 
 #Test 10 #.
-ef(CD+' '+'le01')
-ef(RM+' '+'-rf .')
-ef(CD+' '+'/')
+cmd_ef(CD+' '+'le01')
+cmd_ef(RM+' '+'-rf .')
+cmd_ef(CD+' '+'/')
 rmfolderifexisting('localUPs/le01')
 compare_and_clear()
 
 #Test 11 #..
-ef(CD+' '+'le01/les01')
-ef(RM+' '+'-rf ..')
-ef(CD+' '+'/')
+cmd_ef(CD+' '+'le01/les01')
+cmd_ef(RM+' '+'-rf ..')
+cmd_ef(CD+' '+'/')
 rmfolderifexisting('localUPs/le01')
 compare_and_clear()
 
 #Test 12 #../XX
-ef(CD+' '+'le01/les01')
-ef(RM+' '+'-rf ../les01')
-ef(CD+' '+'/')
+cmd_ef(CD+' '+'le01/les01')
+cmd_ef(RM+' '+'-rf ../les01')
+cmd_ef(CD+' '+'/')
 rmfolderifexisting('localUPs/le01/les01')
 compare_and_clear()
 
 #Test 13 #spaced stuff
-ef(RM+' '+'-rf "ls\ 01"')
+cmd_ef(RM+' '+'-rf "ls\ 01"')
 rmfolderifexisting('localUPs/ls 01')
 compare_and_clear()
 
 #Test 14 #complex stuff
-ef(RM+' '+'-rf "ls\ 01/../le01/les01" "lf01/../ls*/ls\ s02"')
+cmd_ef(RM+' '+'-rf "ls\ 01/../le01/les01" "lf01/../ls*/ls\ s02"')
 rmfolderifexisting('localUPs/ls 01/../le01/les01')
 [rmfolderifexisting('localUPs/lf01/../'+f+'/ls s02') for f in os.listdir('localUPs/lf01/..') if f.startswith('ls')] 
 compare_and_clear()
 
 #Test 15 #complex stuff with PCRE exp
 if (platform.system() != "Windows"):
-    ef(RM+' '+'-rf --use-pcre "ls\ 01/../le01/les0[12]" "lf01/../ls.*/ls\ s0[12]"')
+    cmd_ef(RM+' '+'-rf --use-pcre "ls\ 01/../le01/les0[12]" "lf01/../ls.*/ls\ s0[12]"')
     rmfolderifexisting('localUPs/ls 01/../le01/les01')
     rmfolderifexisting('localUPs/ls 01/../le01/les02')
     [rmfolderifexisting('localUPs/lf01/../'+f+'/ls s01') for f in os.listdir('localUPs/lf01/..') if f.startswith('ls')] 
@@ -285,7 +285,7 @@ currentTest=16
 ########
 
 #~ #Test XX #regexp #yet unsupported
-#~ ef(RM+' '+'-rf "le01/les*"')
+#~ cmd_ef(RM+' '+'-rf "le01/les*"')
 #~ rmfolderifexisting('localUPs/le01/les*')
 #~ compare_and_clear()
 

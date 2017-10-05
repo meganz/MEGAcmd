@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-import sys, os, subprocess, shutil
+import sys, os, subprocess, shutil, re
 import fnmatch
 
 try:
@@ -10,8 +10,14 @@ try:
 except:
     VERBOSE=False
 
+try:
+    MEGACMDSHELL=os.environ['MEGACMDSHELL']
+    CMDSHELL=True
+    #~ FIND="executeinMEGASHELL find" #TODO
+except:
+    CMDSHELL=False
 
-#execute
+#execute command
 def ec(what):
     if VERBOSE:
         print "Executing "+what
@@ -46,26 +52,83 @@ def ef(what):
         print >>sys.stderr, out #TODO: stderr?
         
         exit(code)
+    return out    
+
+def cmdshell_ec(what):
+    what=re.sub("^mega-","",what)
+    if VERBOSE:
+        print "Executing in cmdshell: "+what
+    towrite="lcd "+os.getcwd()+"\n"+what
+    out(towrite+"\n",'/tmp/shellin')
+    with open('/tmp/shellin') as shellin:
+        if VERBOSE:
+            print "Launching in cmdshell ... " + MEGACMDSHELL
+        process = subprocess.Popen(MEGACMDSHELL, shell=True, stdin=shellin, stdout=subprocess.PIPE)
+        stdoutdata, stderrdata = process.communicate()
+        realout =[]
+        equallines=0
+        afterwelcomemsg=False
+        afterorder=False
+        for l in stdoutdata.split('\n'):
+            l=re.sub(".*\x1b\[K","",l) #replace non printable stuff(erase line controls)
+            if afterorder:
+                if "Exiting ..." in l: break
+                realout+=[l]
+            elif afterwelcomemsg:
+                if what in l: afterorder = True
+            elif "="*20 in l:
+                equallines+=1
+                if equallines==2: afterwelcomemsg = True
+        
+        realout="\n".join(realout)
+        if VERBOSE:
+            print realout.strip()
+
+        return realout,process.returncode
+
+#execute and return only stdout contents
+def cmdshell_ex(what):
+    return cmdshell_ec(what)[0]
+    #return subprocess.Popen(what, shell=True, stdout=subprocess.PIPE).stdout.read()
+
+#Execute and strip, return only stdout
+def cmdshell_es(what):
+    return cmdshell_ec(what)[0].strip()
+
+#Execute and strip with status code
+def cmdshell_esc(what):
+    ret=cmdshell_ec(what)
+    return ret[0].strip(),ret[1]
+    
+#exit if failed
+def cmdshell_ef(what):
+    out,code=cmdshell_ec(what)
+    if code != 0:
+        print >>sys.stderr, "FALLO en "+str(what) #TODO: stderr?
+        print >>sys.stderr, out #TODO: stderr?
+        
+        cmdshell_et(code)
     return out
-
-#~ def executeinMEGASHELL()
-#~ {
-    #~ command=$1
-    #~ shift;
-    #~ echo $command "$@" > /tmp/shellin
-
-    #~ $MEGACMDSHELL < /tmp/shellin  | sed "s#^.*\[K##g" | grep $MEGA_EMAIL -A 1000 | grep -v $MEGA_EMAIL
     
-    
-    #~ from subprocess import Popen, PIPE, STDOUT
-
-    #~ p = Popen(['grep', 'f'], stdout=PIPE, stdin=PIPE, stderr=STDOUT)    
-    #~ grep_stdout = p.communicate(input=b'one\ntwo\nthree\nfour\nfive\nsix\n')[0]
-    #~ print(grep_stdout.decode())
-
-
-#~ }
-
+def cmd_ec(what):
+    if CMDSHELL: return cmdshell_ec(what)
+    else: return ec(what)
+#execute and return only stdout contents
+def cmd_ex(what):
+    if CMDSHELL: return cmdshell_ex(what)
+    else: return ex(what)
+#Execute and strip, return only stdout
+def cmd_es(what):
+    if CMDSHELL: return cmdshell_es(what)
+    else: return es(what)
+#Execute and strip with status code
+def cmd_esc(what):
+    if CMDSHELL: return cmdshell_esc(what)
+    else: return esc(what)
+#exit if failed
+def cmd_ef(what):
+    if CMDSHELL: return cmdshell_ef(what)
+    else: return ef(what)
 
 def rmfolderifexisting(what):
     if os.path.exists(what):

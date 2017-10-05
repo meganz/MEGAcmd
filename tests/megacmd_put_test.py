@@ -50,12 +50,12 @@ except:
 
 def clean_all():
 
-    if es(WHOAMI) != osvar("MEGA_EMAIL"):
-        ef(LOGOUT)
-        ef(LOGIN+" " +osvar("MEGA_EMAIL")+" "+osvar("MEGA_PWD"))
+    if cmd_es(WHOAMI) != osvar("MEGA_EMAIL"):
+        cmd_ef(LOGOUT)
+        cmd_ef(LOGIN+" " +osvar("MEGA_EMAIL")+" "+osvar("MEGA_PWD"))
     
-    ec(RM+' -rf "*"')
-    ec(RM+' -rf "//bin/*"')
+    cmd_ec(RM+' -rf "*"')
+    cmd_ec(RM+' -rf "//bin/*"')
     
     rmfolderifexisting("localUPs")
     rmfolderifexisting("localtmp")
@@ -66,7 +66,7 @@ def clean_all():
 
 def clear_local_and_remote():
     rmfolderifexisting("localUPs")
-    ec(RM+' -rf "/*"')
+    cmd_ec(RM+' -rf "/*"')
     initialize_contents()
 
 currentTest=1
@@ -76,7 +76,7 @@ def compare_and_clear() :
     if VERBOSE:
         print "test $currentTest"
     
-    megafind=sort(ef(FIND))
+    megafind=sort(cmd_ef(FIND))
     localfind=sort(find('localUPs','.'))
     
     #~ if diff --side-by-side megafind.txt localfind.txt 2>/dev/null >/dev/null; then
@@ -103,7 +103,7 @@ def compare_and_clear() :
 
     clear_local_and_remote()
     currentTest+=1
-    ef(CD+" /")
+    cmd_ef(CD+" /")
 
 def check_failed_and_clear(o,status):
     global currentTest
@@ -117,7 +117,7 @@ def check_failed_and_clear(o,status):
 
     clear_dls()
     currentTest+=1
-    ef(CD+" /")
+    cmd_ef(CD+" /")
 
 
 
@@ -133,12 +133,12 @@ def check_failed_and_clear(o,status):
 
     clear_local_and_remote()
     currentTest+=1
-    ef(CD+" /")
+    cmd_ef(CD+" /")
 
 def initialize():
-    if es(WHOAMI) != osvar("MEGA_EMAIL"):
-        ef(LOGOUT)
-        ef(LOGIN+" " +osvar("MEGA_EMAIL")+" "+osvar("MEGA_PWD"))
+    if cmd_es(WHOAMI) != osvar("MEGA_EMAIL"):
+        cmd_ef(LOGOUT)
+        cmd_ef(LOGIN+" " +osvar("MEGA_EMAIL")+" "+osvar("MEGA_PWD"))
         
 
     if len(os.listdir(".")):
@@ -146,7 +146,7 @@ def initialize():
         #~ cd $ABSPWD
         exit(1)
 
-    if es(FIND+" /") != "/":
+    if cmd_es(FIND+" /") != "/":
         print >>sys.stderr, "REMOTE Not empty, please clear it before starting!"
         #~ cd $ABSPWD
         exit(1)
@@ -198,7 +198,7 @@ def initialize():
 
 def initialize_contents():
     remotefolders=['01/'+a for a in ['s01/ss01']+ ['s02/ss0'+z for z in ['1','2']] ]
-    ef(MKDIR+" -p "+" ".join(remotefolders))
+    cmd_ef(MKDIR+" -p "+" ".join(remotefolders))
     for f in ['localUPs/01/'+a for a in ['s01/ss01']+ ['s02/ss0'+z for z in ['1','2']] ]: makedir(f)
 
 #INITIALIZATION
@@ -213,49 +213,49 @@ clear_local_and_remote()
 compare_and_clear()
 
 #Test 02 #no destiny empty file upload
-ef(PUT+' '+'localtmp/file01.txt')
+cmd_ef(PUT+' '+'localtmp/file01.txt')
 shutil.copy2('localtmp/file01.txt','localUPs/')
 compare_and_clear()
 
 #Test 03 #/ destiny empty file upload
-ef(PUT+' '+'localtmp/file01.txt /')
+cmd_ef(PUT+' '+'localtmp/file01.txt /')
 shutil.copy2('localtmp/file01.txt','localUPs/')
 compare_and_clear()
 
 #Test 04 #no destiny nont empty file upload
-ef(PUT+' '+'localtmp/file01nonempty.txt')
+cmd_ef(PUT+' '+'localtmp/file01nonempty.txt')
 shutil.copy2('localtmp/file01nonempty.txt','localUPs/')
 compare_and_clear()
 
 #Test 05 #empty folder
-ef(PUT+' '+'localtmp/le01/les01/less01')
+cmd_ef(PUT+' '+'localtmp/le01/les01/less01')
 copyfolder('localtmp/le01/les01/less01','localUPs/')
 compare_and_clear()
 
 #Test 06 #1 file folder
-ef(PUT+' '+'localtmp/lf01/lfs01/lfss01')
+cmd_ef(PUT+' '+'localtmp/lf01/lfs01/lfss01')
 copyfolder('localtmp/lf01/lfs01/lfss01','localUPs/')
 compare_and_clear()
 
 #Test 07 #entire empty folders structure
-ef(PUT+' '+'localtmp/le01')
+cmd_ef(PUT+' '+'localtmp/le01')
 copyfolder('localtmp/le01','localUPs/')
 compare_and_clear()
 
 #Test 08 #entire non empty folders structure
-ef(PUT+' '+'localtmp/lf01')
+cmd_ef(PUT+' '+'localtmp/lf01')
 copyfolder('localtmp/lf01','localUPs/')
 compare_and_clear()
 
 #Test 09 #copy structure into subfolder
-ef(PUT+' '+'localtmp/le01 /01/s01')
+cmd_ef(PUT+' '+'localtmp/le01 /01/s01')
 copyfolder('localtmp/le01','localUPs/01/s01')
 compare_and_clear()
 
 #~ #Test 10 #copy exact structure
 makedir('auxx')
 copyfolder('localUPs/01','auxx')
-ef(PUT+' '+'auxx/01/s01 /01/s01')
+cmd_ef(PUT+' '+'auxx/01/s01 /01/s01')
 copyfolder('auxx/01/s01','localUPs/01/s01')
 rmfolderifexisting("auxx")
 compare_and_clear()
@@ -264,28 +264,29 @@ compare_and_clear()
 makedir('auxx')
 copyfolder('localUPs/01','auxx')
 touch('auxx/01/s01/another.txt')
-ef(PUT+' '+'auxx/01/s01 /01/')
+cmd_ef(PUT+' '+'auxx/01/s01 /01/')
 shutil.copy2('auxx/01/s01/another.txt','localUPs/01/s01')
 compare_and_clear()
 rmfolderifexisting("auxx")
 
 #Test 12 #multiple upload
-ef(PUT+' '+'localtmp/le01 localtmp/lf01 /01/s01')
+cmd_ef(PUT+' '+'localtmp/le01 localtmp/lf01 /01/s01')
 copyfolder('localtmp/le01','localUPs/01/s01')
 copyfolder('localtmp/lf01','localUPs/01/s01')
 compare_and_clear()
 
+currentTest=13
 #Test 13 #local regexp
-if (platform.system() != "Windows"):
-    ef(PUT+' '+'localtmp/*txt /01/s01')
+if (platform.system() != "Windows" and not CMDSHELL):
+    cmd_ef(PUT+' '+'localtmp/*txt /01/s01')
     copybyfilepattern('localtmp/','*.txt','localUPs/01/s01')
     compare_and_clear()
 
 currentTest=14
 #Test 14 #../
-ef(CD+' 01')
-ef(PUT+' '+'localtmp/le01 ../01/s01')
-ef(CD+' /')
+cmd_ef(CD+' 01')
+cmd_ef(PUT+' '+'localtmp/le01 ../01/s01')
+cmd_ef(CD+' /')
 copyfolder('localtmp/le01','localUPs/01/s01')
 compare_and_clear()
 
@@ -293,9 +294,9 @@ currentTest=15
 
 #Test 15 #spaced stuff
 if CMDSHELL: #TODO: think about this again
-    ef(PUT+' '+'localtmp/ls\ 01')
+    cmd_ef(PUT+' '+'localtmp/ls\ 01')
 else:
-    ef(PUT+' '+'"localtmp/ls 01"')
+    cmd_ef(PUT+' '+'"localtmp/ls 01"')
 
 copyfolder('localtmp/ls 01','localUPs')
 compare_and_clear()
@@ -311,10 +312,10 @@ compare_and_clear()
 #mkdir aux
 #shutil.copy2('-pr localUPs/01','aux')
 #touch aux/01/s01/another.txt
-#ef(PUT+' '+'aux/01/s01 /01/')
+#cmd_ef(PUT+' '+'aux/01/s01 /01/')
 #rsync -aLp aux/01/s01/ localUPs/01/s01/
 #echo "newcontents" > aux/01/s01/another.txt 
-#ef(PUT+' '+'aux/01/s01 /01/')
+#cmd_ef(PUT+' '+'aux/01/s01 /01/')
 #rsync -aLp aux/01/s01/ localUPs/01/s01/
 #rm -r aux
 #compare_and_clear()
