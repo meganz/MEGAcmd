@@ -94,7 +94,7 @@ Use the different `mega-*` commands available.
 the commands listed there). To obtain further info use `mega-command --help`
 
 Those commands will have an output value != 0 in case of failure. 
-See [megacmd.h](megacmd.h) to view the existing error codes.
+See [megacmd.h](https://github.com/meganz/MEGAcmd/blob/master/src/megacmd.h) to view the existing error codes.
 
 Ideally, you would like to have these commands in your PATH 
 (See [`Platform`](#platforms) for more info). For further info use `mega-help --non-interactive`.
