@@ -4273,6 +4273,33 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
         return;
     }
+    else if (words[0] == "backup")
+    {
+        if (words.size() > 2)
+        {
+            string local = words.at(1);
+            string remote = words.at(2);
+
+            MegaNode *n = api->getNodeByPath(remote.c_str());
+            if (n)
+            {
+                MegaCmdListener *megaCmdListener = new MegaCmdListener(api, NULL);
+                api->startBackup(local.c_str(),n,megaCmdListener);
+                megaCmdListener->wait();
+                if (checkNoErrors(megaCmdListener->getError(), "create backup"))
+                {
+                    OUTSTREAM << " All good " << endl;
+                }
+
+                delete n;
+            }
+        }
+        else
+        {
+            setCurrentOutCode(MCMD_EARGS);
+            LOG_err << "      " << getUsageStr("get");
+        }
+    }
     else if (words[0] == "put")
     {
         int clientID = getintOption(cloptions, "clientID", -1);

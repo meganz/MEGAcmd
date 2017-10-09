@@ -196,7 +196,7 @@ vector<string> emailpatterncommands(aemailpatterncommands, aemailpatterncommands
 string avalidCommands [] = { "login", "signup", "confirm", "session", "mount", "ls", "cd", "log", "debug", "pwd", "lcd", "lpwd", "import",
                              "put", "get", "attr", "userattr", "mkdir", "rm", "du", "mv", "cp", "sync", "export", "share", "invite", "ipc",
                              "showpcr", "users", "speedlimit", "killsession", "whoami", "help", "passwd", "reload", "logout", "version", "quit",
-                             "thumbnail", "preview", "find", "completion", "clear", "https", "transfers", "exclude", "exit"
+                             "thumbnail", "preview", "find", "completion", "clear", "https", "transfers", "exclude", "exit", "backup"
 #ifdef _WIN32
                              ,"unicode"
 #endif
@@ -973,7 +973,7 @@ completionfunction_t *getCompletionFunction(vector<string> words)
             return remotefolders_completion;
         }
     }
-    else if (thecommand == "put")
+    else if (thecommand == "put" || thecommand == "backup")
     {
         if (currentparameter == 1)
         {
