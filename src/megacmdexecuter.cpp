@@ -4290,7 +4290,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 {
                     OUTSTREAM << " All good " << endl;
                 }
-
+                delete megaCmdListener;
                 delete n;
             }
         }
