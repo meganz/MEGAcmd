@@ -406,6 +406,11 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validParams->insert("d");
         validParams->insert("restart-syncs");
     }
+    else if ("backup" == thecommand)
+    {
+        validOptValues->insert("period");
+        validOptValues->insert("num-backups");
+    }
     else if ("sync" == thecommand)
     {
         validParams->insert("d");

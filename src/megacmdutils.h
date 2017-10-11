@@ -73,8 +73,9 @@ bool hasWildCards(std::string &what);
 
 
 /* Time related */
-
 std::string getReadableTime(const time_t rawtime);
+
+std::string getReadablePeriod(const time_t rawtime);
 
 time_t getTimeStampAfter(time_t initial, std::string timestring);
 

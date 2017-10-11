@@ -4280,18 +4280,37 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             string local = words.at(1);
             string remote = words.at(2);
 
+            int64_t period = 10 * getTimeStampAfter(0,getOption(cloptions, "period", "1h"));
+            //TODO: actually period is not enough. This should be a string like crontab's or jenkins' . And the next moment should be calculated depending on such string.
+            // Not a fixed time. since months are not equal, and we might want to do backups the first day of each month and the sort...
+            int64_t numBackups = getintOption(cloptions, "num-backups", 10);
+
+
             MegaNode *n = api->getNodeByPath(remote.c_str());
             if (n)
             {
-                MegaCmdListener *megaCmdListener = new MegaCmdListener(api, NULL);
-                api->startBackup(local.c_str(),n,megaCmdListener);
-                megaCmdListener->wait();
-                if (checkNoErrors(megaCmdListener->getError(), "create backup"))
+                if (n->getType() != MegaNode::TYPE_FOLDER)
                 {
-                    OUTSTREAM << " All good " << endl;
+                    setCurrentOutCode(MCMD_INVALIDTYPE);
+                    LOG_err << remote << " must be a valid folder";
                 }
-                delete megaCmdListener;
+                else
+                {
+                    MegaCmdListener *megaCmdListener = new MegaCmdListener(api, NULL);
+                    api->startBackup(local.c_str(), n, period, numBackups, megaCmdListener);
+                    megaCmdListener->wait();
+                    if (checkNoErrors(megaCmdListener->getError(), "create backup"))
+                    {
+                        OUTSTREAM << "Backup stablished: " << local << " into " << remote << " period=" << getReadablePeriod(period/10) << " Number-of-Backups=" << numBackups << endl;
+                    }
+                    delete megaCmdListener;
+                }
                 delete n;
+            }
+            else
+            {
+                setCurrentOutCode(MCMD_NOTFOUND);
+                LOG_err << remote << " not found";
             }
         }
         else

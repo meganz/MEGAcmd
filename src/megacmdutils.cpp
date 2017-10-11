@@ -508,7 +508,7 @@ int getLinkType(string link)
 
 bool isPublicLink(string link)
 {
-    if (( link.find_first_of("http") == 0 ) && ( link.find_first_of("#") != string::npos ))
+    if (( link.find("http") == 0 ) && ( link.find("#") != string::npos ))
     {
         return true;
     }
@@ -527,6 +527,33 @@ std::string getReadableTime(const time_t rawtime)
     dt = localtime(&rawtime);
     strftime(buffer, sizeof( buffer ), "%a, %d %b %Y %T %z", dt); // Following RFC 2822 (as in date -R)
     return std::string(buffer);
+}
+
+std::string getReadablePeriod(const time_t rawtime)
+{
+
+    long long rest = rawtime;
+    long long years = rest/31557600; //365.25 days
+    rest = rest%31557600;
+    long long months = rest/2629800; // average month 365.25/12 days
+    rest = rest%2629800;
+    long long days = rest/86400;
+    rest = rest%86400;
+    long long hours = rest/3600;
+    rest = rest%3600;
+    long long minutes = rest/60;
+    long long seconds = rest%60;
+
+    ostringstream ostoret;
+    if (years) ostoret << years << "y";
+    if (months) ostoret << months << "m";
+    if (days) ostoret << days << "d";
+    if (hours) ostoret << hours << "h";
+    if (minutes) ostoret << minutes << "M";
+    if (seconds) ostoret << seconds << "s";
+
+    string toret = ostoret.str();
+    return toret.size()?toret:"0s";
 }
 
 time_t getTimeStampAfter(time_t initial, string timestring)
