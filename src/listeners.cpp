@@ -708,6 +708,7 @@ void MegaCmdGlobalTransferListener::onTransferFinish(MegaApi* api, MegaTransfer 
         char * nodepath = api->getNodePath(node);
         completedPathsByHandle[transfer->getNodeHandle()]=nodepath;
         delete []nodepath;
+        delete node;
     }
 
     if (completedTransfers.size()>MAXCOMPLETEDTRANSFERSBUFFER)
