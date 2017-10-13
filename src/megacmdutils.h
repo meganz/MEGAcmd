@@ -149,4 +149,6 @@ unsigned int getNumberOfCols(unsigned int defaultwidth = 90);
 void sleepSeconds(int seconds);
 void sleepMicroSeconds(long microseconds);
 
+bool isValidEmail(std::string email);
+
 #endif // MEGACMDUTILS_H

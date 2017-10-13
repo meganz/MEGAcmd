@@ -1501,3 +1501,10 @@ void sleepMicroSeconds(long microseconds)
 #endif
 }
 
+bool isValidEmail(string email)
+{
+    return !( (email.find("@") == string::npos)
+                    || (email.find_last_of(".") == string::npos)
+                    || (email.find("@") > email.find_last_of(".")));
+}
+
