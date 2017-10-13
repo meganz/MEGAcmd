@@ -39,8 +39,10 @@ bool is_file_exist(const char *fileName)
 string ConfigurationManager::configFolder;
 map<string, sync_struct *> ConfigurationManager::configuredSyncs;
 string ConfigurationManager::session;
-map<string, sync_struct *> ConfigurationManager::loadedSyncs;
+map<string, sync_struct *> ConfigurationManager::loadedSyncs; //TODO: delete this!! only use configuredSyncs
 std::set<std::string> ConfigurationManager::excludedNames;
+
+map<std::string, backup_struct *> ConfigurationManager::configuredBackups;
 
 std::string ConfigurationManager::getConfigFolder()
 {
@@ -174,6 +176,51 @@ void ConfigurationManager::saveSyncs(map<string, sync_struct *> *syncsmap)
     }
 }
 
+void ConfigurationManager::saveBackups(map<string, backup_struct *> *backupsmap)
+{
+    stringstream backupsfile;
+    if (!configFolder.size())
+    {
+        loadConfigDir();
+    }
+    if (configFolder.size())
+    {
+        backupsfile << configFolder << "/" << "backups";
+        LOG_debug << "Backups file: " << backupsfile.str();
+
+        ofstream fo(backupsfile.str().c_str(), ios::out | ios::binary);
+
+        if (fo.is_open())
+        {
+            map<string, backup_struct *>::iterator itr;
+            int i = 0;
+            if (backupsmap)
+            {
+                for (itr = backupsmap->begin(); itr != backupsmap->end(); ++itr, i++)
+                {
+                    backup_struct *thebackup = ((backup_struct*)( *itr ).second );
+
+                    fo.write((char*)&thebackup->handle, sizeof( MegaHandle ));
+                    const char * localPath = thebackup->localpath.c_str();
+                    size_t lengthLocalPath = thebackup->localpath.size();
+                    fo.write((char*)&lengthLocalPath, sizeof( size_t ));
+                    fo.write((char*)localPath, sizeof( char ) * lengthLocalPath);
+
+                    fo.write((char*)&thebackup->numBackups, sizeof( int ));
+                    fo.write((char*)&thebackup->period, sizeof( int64_t ));
+
+                }
+            }
+
+            fo.close();
+        }
+    }
+    else
+    {
+        LOG_err << "Couldnt access configuration folder ";
+    }
+}
+
 void ConfigurationManager::addExcludedName(string excludedName)
 {
     LOG_verbose << "Adding: " << excludedName << " to exclusion list";
@@ -263,22 +310,27 @@ void ConfigurationManager::loadExcludedNames()
     }
 }
 
-
 void ConfigurationManager::unloadConfiguration()
 {
-    map<string, sync_struct *>::iterator itr;
-    for (itr = configuredSyncs.begin(); itr != configuredSyncs.end(); )
+    for (map<string, sync_struct *>::iterator itr = configuredSyncs.begin(); itr != configuredSyncs.end(); )
     {
         sync_struct *thesync = ((sync_struct*)( *itr ).second );
         configuredSyncs.erase(itr++);
         delete thesync;
     }
 
-    for (itr = loadedSyncs.begin(); itr != loadedSyncs.end(); )
+    for (map<string, sync_struct *>::iterator itr = loadedSyncs.begin(); itr != loadedSyncs.end(); )
     {
         sync_struct *thesync = ((sync_struct*)( *itr ).second );
         loadedSyncs.erase(itr++);
         delete thesync;
+    }
+
+    for (map<string, backup_struct *>::iterator itr = configuredBackups.begin(); itr != configuredBackups.end(); )
+    {
+        backup_struct *thebackup = ((backup_struct*)( *itr ).second );
+        configuredBackups.erase(itr++);
+        delete thebackup;
     }
 }
 
@@ -324,6 +376,65 @@ void ConfigurationManager::loadsyncs()
             if (fi.bad())
             {
                 LOG_err << "fail with sync file  at the end";
+            }
+
+            fi.close();
+        }
+    }
+}
+
+
+void ConfigurationManager::loadbackups()
+{
+    stringstream backupsfile;
+    if (!configFolder.size())
+    {
+        loadConfigDir();
+    }
+    if (configFolder.size())
+    {
+        backupsfile << configFolder << "/" << "backups";
+        LOG_debug << "Backups file: " << backupsfile.str();
+
+        ifstream fi(backupsfile.str().c_str(), ios::in | ios::binary);
+
+        if (fi.is_open())
+        {
+            if (fi.fail())
+            {
+                LOG_err << "fail with backup file";
+            }
+
+            while (!( fi.peek() == EOF ))
+            {
+                backup_struct *thebackup = new backup_struct;
+                //Load backups
+                fi.read((char*)&thebackup->handle, sizeof( MegaHandle ));
+                size_t lengthLocalPath;
+                fi.read((char*)&lengthLocalPath, sizeof( size_t ));
+                if (lengthLocalPath && lengthLocalPath <= PATH_MAX)
+                {
+                    thebackup->localpath.resize(lengthLocalPath);
+                    fi.read((char*)thebackup->localpath.c_str(), sizeof( char ) * lengthLocalPath);
+
+                    fi.read((char*)&thebackup->numBackups, sizeof( int ));
+                    fi.read((char*)&thebackup->period, sizeof( int64_t ));
+
+                    if (configuredBackups.find(thebackup->localpath) != configuredBackups.end())
+                    {
+                        delete configuredBackups[thebackup->localpath];
+                    }
+                    configuredBackups[thebackup->localpath] = thebackup;
+                }
+                else
+                {
+                    LOG_err << " Failed to restore backup info";
+                }
+            }
+
+            if (fi.bad())
+            {
+                LOG_err << "fail with backup file  at the end";
             }
 
             fi.close();

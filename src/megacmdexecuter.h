@@ -34,6 +34,7 @@ private:
     MegaCmdSandbox *sandboxCMD;
     MegaCmdGlobalTransferListener *globalTransferListener;
     mega::MegaMutex mtxSyncMap;
+    mega::MegaMutex mtxBackupMap;
 
     // login/signup e-mail address
     std::string login;
@@ -133,12 +134,18 @@ public:
     void printTransfer(mega::MegaTransfer *transfer, const unsigned int PATHSIZE, bool printstate=true);
     void printSyncHeader(const unsigned int PATHSIZE);
     void printSync(int i, std::string key, const char *nodepath, sync_struct * thesync, mega::MegaNode *n, int nfiles, int nfolders, const unsigned int PATHSIZE);
+    void printBackup(std::string localfolder, std::__cxx11::string remoteparentfolder, int64_t period, int masBackup, std::string status);
+    void printBackup(std::string backupPath);
+    void printBackup(int tag);
+    void printBackup(backup_struct *backupstruct);
+    void printBackup(mega::MegaBackup *backup, mega::MegaNode *parentnode = NULL);
 
     void doFind(mega::MegaNode* nodeBase, std::string word, int printfileinfo, std::string pattern, bool usepcre, time_t minTime, time_t maxTime, int64_t minSize, int64_t maxSize);
 
     void move(mega::MegaNode *n, std::string destiny);
     std::string getLPWD();
     bool isValidFolder(std::string destiny);
+    bool stablishBackup(std::string local, mega::MegaNode *n, int64_t period, int numBackups);
 };
 
 #endif // MEGACMDEXECUTER_H

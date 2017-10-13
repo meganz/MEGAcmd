@@ -1307,6 +1307,10 @@ const char * getUsageStr(const char *command)
     {
         return "sync [localpath dstremotepath| [-dsr] [ID|localpath]";
     }
+    if (!strcmp(command, "backup"))
+    {
+        return "backup localpath [dstremotepath [--period=PERIOD] [--num-backups=BACKUPS]]";
+    }
     if (!strcmp(command, "https"))
     {
         return "https [on|off]";
