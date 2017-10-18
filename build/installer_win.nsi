@@ -559,6 +559,10 @@ modeselected:
   File "${SRCDIR_BATFILES}\mega-ls.bat"
   AccessControl::SetFileOwner "$INSTDIR\mega-ls.bat" "$USERNAME"
   AccessControl::GrantOnFile "$INSTDIR\mega-ls.bat" "$USERNAME" "GenericRead + GenericWrite"
+  
+  File "${SRCDIR_BATFILES}\mega-backup.bat"
+  AccessControl::SetFileOwner "$INSTDIR\mega-backup.bat" "$USERNAME"
+  AccessControl::GrantOnFile "$INSTDIR\mega-backup.bat" "$USERNAME" "GenericRead + GenericWrite"
 
   File "${SRCDIR_BATFILES}\mega-mkdir.bat"
   AccessControl::SetFileOwner "$INSTDIR\mega-mkdir.bat" "$USERNAME"
@@ -808,6 +812,7 @@ Section Uninstall
   Delete "$INSTDIR\mega-logout.bat"
   Delete "$INSTDIR\mega-lpwd.bat"
   Delete "$INSTDIR\mega-ls.bat"
+  Delete "$INSTDIR\mega-backup.bat"
   Delete "$INSTDIR\mega-mkdir.bat"
   Delete "$INSTDIR\mega-mount.bat"
   Delete "$INSTDIR\mega-mv.bat"
