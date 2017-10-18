@@ -424,6 +424,9 @@ void ConfigurationManager::loadbackups()
                     {
                         delete configuredBackups[thebackup->localpath];
                     }
+
+                    thebackup->id = -1; //id will be set upon resumption
+
                     configuredBackups[thebackup->localpath] = thebackup;
                 }
                 else

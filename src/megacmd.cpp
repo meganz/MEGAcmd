@@ -410,6 +410,12 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     {
         validOptValues->insert("period");
         validOptValues->insert("num-backups");
+        validParams->insert("d");
+        validParams->insert("s");
+        validParams->insert("r");
+        validParams->insert("a");
+        validParams->insert("i");
+        validParams->insert("l");
     }
     else if ("sync" == thecommand)
     {

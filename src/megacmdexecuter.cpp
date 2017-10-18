@@ -3029,56 +3029,29 @@ void MegaCmdExecuter::printSyncHeader(const unsigned int PATHSIZE)
 
 }
 
-void MegaCmdExecuter::printBackup(string localfolder, string remoteparentfolder, int64_t period, int masBackup, string status)
+void MegaCmdExecuter::doPrintBackup(int id, string localfolder, string remoteparentfolder, int64_t period, int masBackup, string status)
 {
-    OUTSTREAM << localfolder
+    OUTSTREAM << id << ": " << localfolder
               << " to: " << remoteparentfolder
               << " PERIOD=" << getReadablePeriod(period/10)
               << " NBACKUPS=" << masBackup
               << " " << status << endl;
 }
 
-void MegaCmdExecuter::printBackup(string backupPath)
-{
-    MegaBackup *backup = api->getBackupByPath(backupPath.c_str()); //TODO: this is hazardous: 2 backups can have the same local path!!
-    if (backup)
-    {
-        printBackup(backup);
-        delete backup;
-    }
-    else
-    {
-        OUTSTREAM << "BACKUP not found: " << backupPath << endl;
-    }
-}
-
-void MegaCmdExecuter::printBackup(int tag)
-{
-    MegaBackup *backup = api->getBackupByTag(tag);
-    if (backup)
-    {
-        printBackup(backup);
-        delete backup;
-    }
-    else
-    {
-        OUTSTREAM << "BACKUP not found: " << tag << endl;
-    }
-}
-
-void MegaCmdExecuter::printBackup(MegaBackup *backup, MegaNode *parentnode)
+void MegaCmdExecuter::printBackup(int id, MegaBackup *backup, bool extendedinfo, MegaNode *parentnode)
 {
     if (backup)
     {
         const char *nodepath = NULL;
+        bool deleteparentnode = false;
 
         if (!parentnode)
         {
-            MegaNode *parentnode = api->getNodeByHandle(backup->getMegaHandle());
+            parentnode = api->getNodeByHandle(backup->getMegaHandle());
             if (parentnode)
             {
                 nodepath = api->getNodePath(parentnode);
-                delete parentnode;
+                deleteparentnode = true;
             }
         }
         else
@@ -3088,12 +3061,36 @@ void MegaCmdExecuter::printBackup(MegaBackup *backup, MegaNode *parentnode)
 
         if (nodepath)
         {
-            printBackup(backup->getLocalFolder(),nodepath,backup->getPeriod(),backup->getMaxBackups()," ACTIVE");
+            doPrintBackup(id, backup->getLocalFolder(),nodepath,backup->getPeriod(),backup->getMaxBackups()," ACTIVE");
             delete []nodepath;
         }
         else
         {
-            printBackup(backup->getLocalFolder(),"INVALIDPATH",backup->getPeriod(),backup->getMaxBackups()," ACTIVE");
+            doPrintBackup(id, backup->getLocalFolder(),"INVALIDPATH",backup->getPeriod(),backup->getMaxBackups()," ACTIVE");
+        }
+        if (extendedinfo && parentnode)
+        {
+            MegaStringList *msl = backup->getBackupFolders();
+            if (msl)
+            {
+                for (int i = 0; i < msl->size(); i++)
+                {
+                    string bpath = msl->get(i);
+                    size_t pos = bpath.find("_bk_");
+                    string btime = "";
+                    if (pos != string::npos)
+                    {
+                        btime = bpath.substr(pos+4);
+                    }
+
+                    OUTSTREAM << "  " << msl->get(i) << " time=" << string(btime.size()?getReadableTime(atol(btime.c_str())/10):"UNKNOWN") << endl;
+                }
+                delete msl;
+            }
+        }
+        if (deleteparentnode)
+        {
+            delete parentnode;
         }
     }
     else
@@ -3102,17 +3099,31 @@ void MegaCmdExecuter::printBackup(MegaBackup *backup, MegaNode *parentnode)
     }
 }
 
-void MegaCmdExecuter::printBackup(backup_struct *backupstruct)
+void MegaCmdExecuter::printBackup(int id, int tag, bool extendedinfo)
+{
+    MegaBackup *backup = api->getBackupByTag(tag);
+    if (backup)
+    {
+        printBackup(id, backup, extendedinfo);
+        delete backup;
+    }
+    else
+    {
+        OUTSTREAM << "BACKUP not found: " << tag << endl;
+    }
+}
+
+void MegaCmdExecuter::printBackup(backup_struct *backupstruct, bool extendedinfo)
 {
     if (!backupstruct->failed)
     {
 //        printBackup(backupstruct->localpath);
-        printBackup(backupstruct->tag);
+        printBackup(backupstruct->id, backupstruct->tag, extendedinfo);
     }
     else
     {
-        printBackup(backupstruct->localpath,"UNKOWN",backupstruct->period,backupstruct->numBackups," FAILED");
-
+        doPrintBackup(backupstruct->id, backupstruct->localpath,"UNKOWN",backupstruct->period,backupstruct->numBackups," FAILED");
+        //notice, we probably won't won't have extended info here
     }
 }
 
@@ -3450,6 +3461,7 @@ void MegaCmdExecuter::restartsyncs()
 
 bool MegaCmdExecuter::stablishBackup(string pathToBackup, MegaNode *n, int64_t period, int numBackups)
 {
+    static int backupcounter = 0;
     string path;
     string localrelativepath;
     string localabsolutepath;
@@ -3468,10 +3480,15 @@ bool MegaCmdExecuter::stablishBackup(string pathToBackup, MegaNode *n, int64_t p
         if (ConfigurationManager::configuredBackups.find(megaCmdListener->getRequest()->getFile()) != ConfigurationManager::configuredBackups.end())
         {
             thebackup = ConfigurationManager::configuredBackups[megaCmdListener->getRequest()->getFile()];
+            if (thebackup->id == -1)
+            {
+                thebackup->id = backupcounter++;
+            }
         }
         else
         {
             thebackup = new backup_struct;
+            thebackup->id = backupcounter++;
             ConfigurationManager::configuredBackups[megaCmdListener->getRequest()->getFile()] = thebackup;
         }
         thebackup->active = true;
@@ -3480,14 +3497,12 @@ bool MegaCmdExecuter::stablishBackup(string pathToBackup, MegaNode *n, int64_t p
         thebackup->numBackups = numBackups;
         thebackup->period = period;
         thebackup->failed = false;
-        thebackup->tag = megaCmdListener->getRequest()->getTag(); //TODO: document this tag is backup tag
+        thebackup->tag = megaCmdListener->getRequest()->getTag(); //TODO: either document this or use another atribute
 
         char * nodepath = api->getNodePath(n);
         LOG_info << "Added backup: " << megaCmdListener->getRequest()->getFile() << " to " << nodepath;
-        delete []nodepath;
-
-
         mtxBackupMap.unlock();
+        delete []nodepath;
         delete megaCmdListener;
 
         return true;
@@ -3498,6 +3513,7 @@ bool MegaCmdExecuter::stablishBackup(string pathToBackup, MegaNode *n, int64_t p
         if ( itr != ConfigurationManager::configuredBackups.end())
         {
             itr->second->failed = true;
+            itr->second->id = backupcounter++;
         }
     }
     delete megaCmdListener;
@@ -4460,6 +4476,13 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
     else if (words[0] == "backup")
     {
         //TODO: add delete functionality, maybe based on tag/another id?
+        bool dodelete = getFlag(clflags,"d");
+        bool stop = getFlag(clflags,"s");
+        bool resume = getFlag(clflags,"r");
+        bool abort = getFlag(clflags,"a");
+        bool initiatenow = getFlag(clflags,"i");
+        bool listinfo = getFlag(clflags,"l");
+
 
         if (words.size() == 3)
         {
@@ -4501,9 +4524,44 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         else if (words.size() == 2)
         {
             MegaBackup *backup = api->getBackupByPath(words[1].c_str());
+            map<string, backup_struct *>::iterator itr;
             if (backup)
             {
-                printBackup(backup);
+                int backupid = -1;
+                for ( itr = ConfigurationManager::configuredBackups.begin(); itr != ConfigurationManager::configuredBackups.end(); itr++ )
+                {
+                    if (itr->second->tag == backup->getTag())
+                    {
+                        backupid = itr->second->id;
+                        break;
+                    }
+                }
+                if (backupid == -1)
+                {
+                    LOG_err << " Requesting info of unregistered backup: " << words[1];
+                }
+
+                if (dodelete)
+                {
+                    MegaCmdListener *megaCmdListener = new MegaCmdListener(api, NULL);
+                    api->removeBackup(backup->getTag(), megaCmdListener);
+                    megaCmdListener->wait();
+                    if (checkNoErrors(megaCmdListener->getError(), "remove backup"))
+                    {
+                        if (backupid != -1)
+                        {
+                          ConfigurationManager::configuredBackups.erase(itr);
+                        }
+                        mtxBackupMap.lock();
+                        ConfigurationManager::saveBackups(&ConfigurationManager::configuredBackups);
+                        mtxBackupMap.unlock();
+                        OUTSTREAM << " Backup removed succesffuly: " << words[1] << endl;
+                    }
+                }
+                else
+                {
+                    printBackup(backupid, backup, listinfo);
+                }
                 delete backup;
             }
         }
@@ -4513,7 +4571,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
             for (map<string, backup_struct *>::iterator itr = ConfigurationManager::configuredBackups.begin(); itr != ConfigurationManager::configuredBackups.end(); itr++ )
             {
-                printBackup(itr->second);
+                printBackup(itr->second, listinfo);
             }
             mtxBackupMap.unlock();
 

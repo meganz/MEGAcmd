@@ -62,6 +62,7 @@ typedef struct backup_struct
     int numBackups;
     bool failed; //This should mark the failure upon resuming. It shall not be persisted
     int tag; //This is depends on execution. should not be persisted
+    int id; //Internal id for megacmd. Depends on execution should not be persisted
 } backup_istruct;
 
 
