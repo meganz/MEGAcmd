@@ -5523,7 +5523,15 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 string svalue;
                 try
                 {
-                    svalue = string(value);
+                    if (value)
+                    {
+                        svalue = string(value);
+                    }
+                    else
+                    {
+                        svalue = "NOT PRINTABLE";
+                    }
+
                 }
                 catch (exception e)
                 {
