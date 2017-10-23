@@ -3497,7 +3497,7 @@ bool MegaCmdExecuter::stablishBackup(string pathToBackup, MegaNode *n, int64_t p
         thebackup->numBackups = numBackups;
         thebackup->period = period;
         thebackup->failed = false;
-        thebackup->tag = megaCmdListener->getRequest()->getTag(); //TODO: either document this or use another atribute
+        thebackup->tag = megaCmdListener->getRequest()->getTransferTag();
 
         char * nodepath = api->getNodePath(n);
         LOG_info << "Added backup: " << megaCmdListener->getRequest()->getFile() << " to " << nodepath;
@@ -3509,10 +3509,14 @@ bool MegaCmdExecuter::stablishBackup(string pathToBackup, MegaNode *n, int64_t p
     }
     else
     {
+
         std::map<std::string, backup_struct *>::iterator itr = ConfigurationManager::configuredBackups.find(megaCmdListener->getRequest()->getFile());
         if ( itr != ConfigurationManager::configuredBackups.end())
         {
-            itr->second->failed = true;
+            if (megaCmdListener->getError()->getErrorCode() != MegaError::API_EEXIST)
+            {
+                itr->second->failed = true;
+            }
             itr->second->id = backupcounter++;
         }
     }
@@ -4556,6 +4560,16 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         ConfigurationManager::saveBackups(&ConfigurationManager::configuredBackups);
                         mtxBackupMap.unlock();
                         OUTSTREAM << " Backup removed succesffuly: " << words[1] << endl;
+                    }
+                }
+                else if (abort)
+                {
+                    MegaCmdListener *megaCmdListener = new MegaCmdListener(api, NULL);
+                    api->abortCurrentBackup(backup->getTag(), megaCmdListener);
+                    megaCmdListener->wait();
+                    if (checkNoErrors(megaCmdListener->getError(), "abort backup"))
+                    {
+                        OUTSTREAM << " Backup aborted succesffuly: " << words[1] << endl;
                     }
                 }
                 else
