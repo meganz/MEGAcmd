@@ -489,6 +489,11 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validParams->insert("d");
         validParams->insert("i");
     }
+    else if ("showpcr" == thecommand)
+    {
+        validParams->insert("in");
+        validParams->insert("out");
+    }
     else if ("thumbnail" == thecommand)
     {
         validParams->insert("s");
@@ -1332,7 +1337,7 @@ const char * getUsageStr(const char *command)
     }
     if (!strcmp(command, "showpcr"))
     {
-        return "showpcr";
+        return "showpcr [--in | --out]";
     }
     if (!strcmp(command, "users"))
     {
@@ -1840,6 +1845,10 @@ string getHelpStr(const char *command)
     if (!strcmp(command, "showpcr"))
     {
         os << "Shows incoming and outgoing contact requests." << endl;
+        os << endl;
+        os << "Options:" << endl;
+        os << " --in" << "\t" << "Shows incoming requests" << endl;
+        os << " --out" << "\t" << "Shows outgoing invitations" << endl;
         os << endl;
         os << "Use \"ipc\" to manage invitations received" << endl;
         os << "Use \"users\" to see contacts" << endl;

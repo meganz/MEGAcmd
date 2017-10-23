@@ -6314,57 +6314,73 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             LOG_err << "Not logged in.";
             return;
         }
-        MegaContactRequestList *ocrl = api->getOutgoingContactRequests();
-        if (ocrl)
+        bool incoming = getFlag(clflags, "in");
+        bool outgoing = getFlag(clflags, "out");
+
+        if (!incoming && !outgoing)
         {
-            if (ocrl->size())
-            {
-                OUTSTREAM << "Outgoing PCRs:" << endl;
-            }
-            for (int i = 0; i < ocrl->size(); i++)
-            {
-                MegaContactRequest * cr = ocrl->get(i);
-                OUTSTREAM << " " << setw(22) << cr->getTargetEmail();
-
-                char * sid = api->userHandleToBase64(cr->getHandle());
-
-                OUTSTREAM << "\t (id: " << sid << ", creation: " << getReadableTime(cr->getCreationTime())
-                          << ", modification: " << getReadableTime(cr->getModificationTime()) << ")";
-
-                delete[] sid;
-                OUTSTREAM << endl;
-            }
-
-            delete ocrl;
+            incoming = true;
+            outgoing = true;
         }
-        MegaContactRequestList *icrl = api->getIncomingContactRequests();
-        if (icrl)
+
+        if (outgoing)
         {
-            if (icrl->size())
+            MegaContactRequestList *ocrl = api->getOutgoingContactRequests();
+            if (ocrl)
             {
-                OUTSTREAM << "Incoming PCRs:" << endl;
-            }
-
-            for (int i = 0; i < icrl->size(); i++)
-            {
-                MegaContactRequest * cr = icrl->get(i);
-                OUTSTREAM << " " << setw(22) << cr->getSourceEmail();
-
-                MegaHandle id = cr->getHandle();
-                char sid[12];
-                Base64::btoa((byte*)&( id ), sizeof( id ), sid);
-
-                OUTSTREAM << "\t (id: " << sid << ", creation: " << getReadableTime(cr->getCreationTime())
-                          << ", modification: " << getReadableTime(cr->getModificationTime()) << ")";
-                if (cr->getSourceMessage())
+                if (ocrl->size())
                 {
-                    OUTSTREAM << endl << "\t" << "Invitation message: " << cr->getSourceMessage();
+                    OUTSTREAM << "Outgoing PCRs:" << endl;
+                }
+                for (int i = 0; i < ocrl->size(); i++)
+                {
+                    MegaContactRequest * cr = ocrl->get(i);
+                    OUTSTREAM << " " << setw(22) << cr->getTargetEmail();
+
+                    char * sid = api->userHandleToBase64(cr->getHandle());
+
+                    OUTSTREAM << "\t (id: " << sid << ", creation: " << getReadableTime(cr->getCreationTime())
+                              << ", modification: " << getReadableTime(cr->getModificationTime()) << ")";
+
+                    delete[] sid;
+                    OUTSTREAM << endl;
                 }
 
-                OUTSTREAM << endl;
+                delete ocrl;
             }
+        }
 
-            delete icrl;
+        if (incoming)
+        {
+            MegaContactRequestList *icrl = api->getIncomingContactRequests();
+            if (icrl)
+            {
+                if (icrl->size())
+                {
+                    OUTSTREAM << "Incoming PCRs:" << endl;
+                }
+
+                for (int i = 0; i < icrl->size(); i++)
+                {
+                    MegaContactRequest * cr = icrl->get(i);
+                    OUTSTREAM << " " << setw(22) << cr->getSourceEmail();
+
+                    MegaHandle id = cr->getHandle();
+                    char sid[12];
+                    Base64::btoa((byte*)&( id ), sizeof( id ), sid);
+
+                    OUTSTREAM << "\t (id: " << sid << ", creation: " << getReadableTime(cr->getCreationTime())
+                              << ", modification: " << getReadableTime(cr->getModificationTime()) << ")";
+                    if (cr->getSourceMessage())
+                    {
+                        OUTSTREAM << endl << "\t" << "Invitation message: " << cr->getSourceMessage();
+                    }
+
+                    OUTSTREAM << endl;
+                }
+
+                delete icrl;
+            }
         }
         return;
     }
