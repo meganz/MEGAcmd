@@ -82,6 +82,14 @@ enum
 };
 
 
+enum confirmresponse
+{
+    MCMDCONFIRM_NO=0,
+    MCMDCONFIRM_YES,
+    MCMDCONFIRM_ALL,
+    MCMDCONFIRM_NONE
+};
+
 void changeprompt(const char *newprompt);
 
 mega::MegaApi* getFreeApiFolder();
@@ -97,7 +105,7 @@ prompttype getprompt();
 
 void printHistory();
 
-bool askforConfirmation(std::string message);
+int askforConfirmation(std::string message);
 
 void informTransferUpdate(mega::MegaTransfer *transfer, int clientID);
 

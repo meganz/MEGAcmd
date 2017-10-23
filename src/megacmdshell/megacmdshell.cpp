@@ -34,24 +34,6 @@
 #include <algorithm>
 #include <stdio.h>
 
-enum
-{
-    MCMD_OK = 0,              ///< Everything OK
-
-    MCMD_EARGS = -51,         ///< Wrong arguments
-    MCMD_INVALIDEMAIL = -52,  ///< Invalid email
-    MCMD_NOTFOUND = -53,      ///< Resource not found
-    MCMD_INVALIDSTATE = -54,  ///< Invalid state
-    MCMD_INVALIDTYPE = -55,   ///< Invalid type
-    MCMD_NOTPERMITTED = -56,  ///< Operation not allowed
-    MCMD_NOTLOGGEDIN = -57,   ///< Needs loging in
-    MCMD_NOFETCH = -58,       ///< Nodes not fetched
-    MCMD_EUNEXPECTED = -59,   ///< Unexpected failure
-
-    MCMD_REQCONFIRM = -60,     ///< Confirmation required
-
-};
-
 #define PROGRESS_COMPLETE -2
 #define SPROGRESS_COMPLETE "-2"
 #define PROMPT_MAX_SIZE 128
@@ -1789,7 +1771,7 @@ void mycompletefunct(char **c, int num_matches, int max_length)
 }
 #endif
 
-bool readconfirmationloop(const char *question)
+int readconfirmationloop(const char *question)
 {
     bool firstime = true;
     for (;; )
@@ -1803,21 +1785,26 @@ bool readconfirmationloop(const char *question)
         }
         else
         {
-            response = readline("Please enter [y]es/[n]o:");
-
+            response = readline("Please enter [y]es/[n]o/[a]ll/none:");
         }
 
         firstime = false;
 
         if (response == "yes" || response == "y" || response == "YES" || response == "Y")
         {
-            rl_callback_handler_remove();
-            return true;
+            return MCMDCONFIRM_YES;
         }
         if (response == "no" || response == "n" || response == "NO" || response == "N")
         {
-            rl_callback_handler_remove();
-            return false;
+            return MCMDCONFIRM_NO;
+        }
+        if (response == "All" || response == "ALL" || response == "a" || response == "A" || response == "all")
+        {
+            return MCMDCONFIRM_ALL;
+        }
+        if (response == "none" || response == "NONE" || response == "None")
+        {
+            return MCMDCONFIRM_NONE;
         }
     }
 }

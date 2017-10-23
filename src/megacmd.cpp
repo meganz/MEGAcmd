@@ -2304,10 +2304,18 @@ static bool process_line(char* l)
             {
                 cmdexecuter->discardDelete();
             }
+            else if (!strcmp(l,"All") || !strcmp(l,"ALL") || !strcmp(l,"a") || !strcmp(l,"A") || !strcmp(l,"all"))
+            {
+                cmdexecuter->confirmDeleteAll();
+            }
+            else if (!strcmp(l,"None") || !strcmp(l,"NONE") || !strcmp(l,"none"))
+            {
+                cmdexecuter->discardDeleteAll();
+            }
             else
             {
                 //Do nth, ask again
-                OUTSTREAM << "Please enter [y]es/[n]o: " << flush;
+                OUTSTREAM << "Please enter [y]es/[n]o/[a]ll/none: " << flush;
             }
         break;
         case LOGINPASSWORD:
@@ -2454,7 +2462,7 @@ void * doProcessLine(void *pointer)
 }
 
 
-bool askforConfirmation(string message)
+int askforConfirmation(string message)
 {
     CmdPetition *inf = getCurrentPetition();
     if (inf)
@@ -2466,7 +2474,7 @@ bool askforConfirmation(string message)
         LOG_err << "Unable to get current petition to ask for confirmation";
     }
 
-    return false;
+    return MCMDCONFIRM_NO;
 }
 
 

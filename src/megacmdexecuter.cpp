@@ -2153,10 +2153,6 @@ int MegaCmdExecuter::actUponCreateFolder(SynchronousRequestListener *srl, int ti
     return 2;
 }
 
-/**
- * @brief MegaCmdExecuter::confirmDelete
- * @return number of elements to confirm/discard left
- */
 void MegaCmdExecuter::confirmDelete()
 {
     if (nodesToConfirmDelete.size())
@@ -2171,7 +2167,7 @@ void MegaCmdExecuter::confirmDelete()
     {
         string newprompt("Are you sure to delete ");
         newprompt+=nodesToConfirmDelete.front()->getName();
-        newprompt+=" ? (Yes/No): ";
+        newprompt+=" ? (Yes/No/All/None): ";
         setprompt(AREYOUSURETODELETE,newprompt);
     }
     else
@@ -2181,10 +2177,6 @@ void MegaCmdExecuter::confirmDelete()
 
 }
 
-/**
- * @brief MegaCmdExecuter::discardDelete
- * @return number of elements to confirm/discard left
- */
 void MegaCmdExecuter::discardDelete()
 {
     if (nodesToConfirmDelete.size()){
@@ -2195,7 +2187,7 @@ void MegaCmdExecuter::discardDelete()
     {
         string newprompt("Are you sure to delete ");
         newprompt+=nodesToConfirmDelete.front()->getName();
-        newprompt+=" ? (Yes/No): ";
+        newprompt+=" ? (Yes/No/All/None): ";
         setprompt(AREYOUSURETODELETE,newprompt);
     }
     else
@@ -2203,6 +2195,30 @@ void MegaCmdExecuter::discardDelete()
         setprompt(COMMAND);
     }
 }
+
+
+void MegaCmdExecuter::confirmDeleteAll()
+{
+
+    while (nodesToConfirmDelete.size())
+    {
+        MegaNode * nodeToConfirmDelete = nodesToConfirmDelete.front();
+        nodesToConfirmDelete.erase(nodesToConfirmDelete.begin());
+        doDeleteNode(nodeToConfirmDelete,api);
+    }
+
+    setprompt(COMMAND);
+}
+
+void MegaCmdExecuter::discardDeleteAll()
+{
+    while (nodesToConfirmDelete.size()){
+        delete nodesToConfirmDelete.front();
+        nodesToConfirmDelete.erase(nodesToConfirmDelete.begin());
+    }
+    setprompt(COMMAND);
+}
+
 
 void MegaCmdExecuter::doDeleteNode(MegaNode *nodeToDelete,MegaApi* api)
 {
@@ -2240,8 +2256,9 @@ void MegaCmdExecuter::doDeleteNode(MegaNode *nodeToDelete,MegaApi* api)
  * @param api
  * @param recursive
  * @param force
+ * @return confirmation code
  */
-void MegaCmdExecuter::deleteNode(MegaNode *nodeToDelete, MegaApi* api, int recursive, int force)
+int MegaCmdExecuter::deleteNode(MegaNode *nodeToDelete, MegaApi* api, int recursive, int force)
 {
     if (( nodeToDelete->getType() != MegaNode::TYPE_FILE ) && !recursive)
     {
@@ -2270,7 +2287,7 @@ void MegaCmdExecuter::deleteNode(MegaNode *nodeToDelete, MegaApi* api, int recur
                 {
                     string newprompt("Are you sure to delete ");
                     newprompt+=nodeToDelete->getName();
-                    newprompt+=" ? (Yes/No): ";
+                    newprompt+=" ? (Yes/No/All/None): ";
                     setprompt(AREYOUSURETODELETE,newprompt);
                 }
             }
@@ -2279,16 +2296,17 @@ void MegaCmdExecuter::deleteNode(MegaNode *nodeToDelete, MegaApi* api, int recur
                 delete nodeToDelete;
             }
 
-            return;
+            return MCMDCONFIRM_NO; //default return
         }
         else if (!force && nodeToDelete->getType() != MegaNode::TYPE_FILE)
         {
-
             string confirmationQuery("Are you sure to delete ");
             confirmationQuery+=nodeToDelete->getName();
-            confirmationQuery+=" ? (Yes/No): ";
+            confirmationQuery+=" ? (Yes/No/All/None): ";
 
-            if (askforConfirmation(confirmationQuery))
+            int confirmationResponse = askforConfirmation(confirmationQuery);
+
+            if (confirmationResponse == MCMDCONFIRM_YES || confirmationResponse == MCMDCONFIRM_ALL)
             {
                 LOG_debug << "confirmation received";
                 doDeleteNode(nodeToDelete, api);
@@ -2298,13 +2316,16 @@ void MegaCmdExecuter::deleteNode(MegaNode *nodeToDelete, MegaApi* api, int recur
                 delete nodeToDelete;
                 LOG_debug << "confirmation denied";
             }
+            return confirmationResponse;
         }
-        else
+        else //force
         {
             doDeleteNode(nodeToDelete, api);
+            return MCMDCONFIRM_ALL;
         }
-
     }
+
+    return MCMDCONFIRM_NO; //default return
 }
 
 void MegaCmdExecuter::downloadNode(string path, MegaApi* api, MegaNode *node, bool background, bool ignorequotawarn, int clientID)
@@ -3575,6 +3596,9 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 nodesToConfirmDelete.clear();
             }
 
+            bool force = getFlag(clflags, "f");
+            bool none = false;
+
             for (unsigned int i = 1; i < words.size(); i++)
             {
                 unescapeifRequired(words[i]);
@@ -3583,12 +3607,21 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     vector<MegaNode *> *nodesToDelete = nodesbypath(words[i].c_str(), getFlag(clflags,"use-pcre"));
                     if (nodesToDelete->size())
                     {
-                        for (std::vector< MegaNode * >::iterator it = nodesToDelete->begin(); it != nodesToDelete->end(); ++it)
+                        for (std::vector< MegaNode * >::iterator it = nodesToDelete->begin(); !none && it != nodesToDelete->end(); ++it)
                         {
                             MegaNode * nodeToDelete = *it;
                             if (nodeToDelete)
                             {
-                                deleteNode(nodeToDelete, api, getFlag(clflags, "r"), getFlag(clflags, "f"));
+                                int confirmationCode = deleteNode(nodeToDelete, api, getFlag(clflags, "r"), force);
+                                if (confirmationCode == MCMDCONFIRM_ALL)
+                                {
+                                    force = true;
+                                }
+                                else if (confirmationCode == MCMDCONFIRM_NONE)
+                                {
+                                    none = true;
+                                }
+
                             }
                         }
                         nodesToDelete->clear();
@@ -3600,12 +3633,20 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     }
                     delete nodesToDelete;
                 }
-                else
+                else if (!none)
                 {
                     MegaNode * nodeToDelete = nodebypath(words[i].c_str());
                     if (nodeToDelete)
                     {
-                        deleteNode(nodeToDelete, api, getFlag(clflags, "r"), getFlag(clflags, "f"));
+                        int confirmationCode = deleteNode(nodeToDelete, api, getFlag(clflags, "r"), force);
+                        if (confirmationCode == MCMDCONFIRM_ALL)
+                        {
+                            force = true;
+                        }
+                        else if (confirmationCode == MCMDCONFIRM_NONE)
+                        {
+                            none = true;
+                        }
                     }
                     else
                     {

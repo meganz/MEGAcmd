@@ -53,25 +53,6 @@ class MegaThread : public mega::CppThread {};
 class MegaThread : public mega::PosixThread {};
 #endif
 
-
-enum
-{
-    MCMD_OK = 0,              ///< Everything OK
-
-    MCMD_EARGS = -51,         ///< Wrong arguments
-    MCMD_INVALIDEMAIL = -52,  ///< Invalid email
-    MCMD_NOTFOUND = -53,      ///< Resource not found
-    MCMD_INVALIDSTATE = -54,  ///< Invalid state
-    MCMD_INVALIDTYPE = -55,   ///< Invalid type
-    MCMD_NOTPERMITTED = -56,  ///< Operation not allowed
-    MCMD_NOTLOGGEDIN = -57,   ///< Needs loging in
-    MCMD_NOFETCH = -58,       ///< Nodes not fetched
-    MCMD_EUNEXPECTED = -59,   ///< Unexpected failure
-
-    MCMD_REQCONFIRM = -60,     ///< Confirmation required
-
-};
-
 bool MegaCmdShellCommunicationsNamedPipes::confirmResponse; //TODO: do all this only in parent class
 bool MegaCmdShellCommunicationsNamedPipes::stopListener;
 mega::Thread *MegaCmdShellCommunicationsNamedPipes::listenerThread;
@@ -491,7 +472,7 @@ MegaCmdShellCommunicationsNamedPipes::MegaCmdShellCommunicationsNamedPipes()
     listenerThread = NULL;
 }
 
-int MegaCmdShellCommunicationsNamedPipes::executeCommandW(wstring wcommand, bool (*readconfirmationloop)(const char *), OUTSTREAMTYPE &output, bool interactiveshell)
+int MegaCmdShellCommunicationsNamedPipes::executeCommandW(wstring wcommand, int (*readconfirmationloop)(const char *), OUTSTREAMTYPE &output, bool interactiveshell)
 {
     return executeCommand("", readconfirmationloop, output, interactiveshell, wcommand);
 }
@@ -531,7 +512,7 @@ bool outputtobinaryorconsole(void)
     return false;
 }
 
-int MegaCmdShellCommunicationsNamedPipes::executeCommand(string command, bool (*readconfirmationloop)(const char *), OUTSTREAMTYPE &output, bool interactiveshell, wstring wcommand)
+int MegaCmdShellCommunicationsNamedPipes::executeCommand(string command, int (*readconfirmationloop)(const char *), OUTSTREAMTYPE &output, bool interactiveshell, wstring wcommand)
 {
     HANDLE theNamedPipe = createNamedPipe(0,command.compare(0,4,"exit")
                                           && command.compare(0,4,"quit")
@@ -604,7 +585,7 @@ int MegaCmdShellCommunicationsNamedPipes::executeCommand(string command, bool (*
             cerr << "ERROR reading confirm question: " << ERRNO << endl;
         }
 
-        bool response = false;
+        int response = MCMDCONFIRM_NO;
 
         if (readconfirmationloop != NULL)
         {

@@ -496,7 +496,7 @@ wstring parsewArgs(int argc, wchar_t* argv[])
 }
 #endif
 
-bool readconfirmationloop(const char *question)
+int readconfirmationloop(const char *question)
 {
     bool firstime = true;
     for (;; )
@@ -510,7 +510,7 @@ bool readconfirmationloop(const char *question)
         }
         else
         {
-            cout << "Please enter [y]es/[n]o:" << " " << flush;
+            cout << "Please enter [y]es/[n]o/[a]ll/none:" << " " << flush;
             getline(cin, response);
         }
 
@@ -518,11 +518,19 @@ bool readconfirmationloop(const char *question)
 
         if (response == "yes" || response == "y" || response == "YES" || response == "Y")
         {
-            return true;
+            return MCMDCONFIRM_YES;
         }
         if (response == "no" || response == "n" || response == "NO" || response == "N")
         {
-            return false;
+            return MCMDCONFIRM_NO;
+        }
+        if (response == "All" || response == "ALL" || response == "a" || response == "A" || response == "all")
+        {
+            return MCMDCONFIRM_ALL;
+        }
+        if (response == "none" || response == "NONE" || response == "None")
+        {
+            return MCMDCONFIRM_NONE;
         }
     }
 }
