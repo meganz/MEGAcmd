@@ -6306,6 +6306,17 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         }
         return;
     }
+    else if (words[0] == "masterkey")
+    {
+        if (!api->isFilesystemAvailable())
+        {
+            setCurrentOutCode(MCMD_NOTLOGGEDIN);
+            LOG_err << "Not logged in.";
+            return;
+        }
+        OUTSTREAM << api->exportMasterKey() << endl;
+        api->masterKeyExported(); //we do not wait for this to end
+    }
     else if (words[0] == "showpcr")
     {
         if (!api->isFilesystemAvailable())

@@ -193,7 +193,7 @@ vector<string> localpatterncommands(alocalpatterncommands, alocalpatterncommands
 string aemailpatterncommands [] = {"invite", "signup", "ipc", "users"};
 vector<string> emailpatterncommands(aemailpatterncommands, aemailpatterncommands + sizeof aemailpatterncommands / sizeof aemailpatterncommands[0]);
 
-string avalidCommands [] = { "login", "signup", "confirm", "session", "mount", "ls", "cd", "log", "debug", "pwd", "lcd", "lpwd", "import",
+string avalidCommands [] = { "login", "signup", "confirm", "session", "mount", "ls", "cd", "log", "debug", "pwd", "lcd", "lpwd", "import", "masterkey",
                              "put", "get", "attr", "userattr", "mkdir", "rm", "du", "mv", "cp", "sync", "export", "share", "invite", "ipc",
                              "showpcr", "users", "speedlimit", "killsession", "whoami", "help", "passwd", "reload", "logout", "version", "quit",
                              "thumbnail", "preview", "find", "completion", "clear", "https", "transfers", "exclude", "exit"
@@ -1339,6 +1339,10 @@ const char * getUsageStr(const char *command)
     {
         return "showpcr [--in | --out]";
     }
+    if (!strcmp(command, "masterkey"))
+    {
+        return "masterkey pathtosave";
+    }
     if (!strcmp(command, "users"))
     {
         return "users [-s] [-h] [-n] [-d contact@email]";
@@ -1841,6 +1845,14 @@ string getHelpStr(const char *command)
         os << "Use \"invite\" to send/remove invitations to other users" << endl;
         os << "Use \"showpcr\" to browse incoming/outgoing invitations" << endl;
         os << "Use \"users\" to see contacts" << endl;
+    }
+    if (!strcmp(command, "masterkey"))
+    {
+        os << "Shows your master key." << endl;
+        os << "Getting the master key and keeping it in a secure location enables you " << endl;
+        os << " to set a new password without data loss." << endl;
+        os << "Always keep physical control of your master key " << endl;
+        os << " (e.g. on a client device, external storage, or print)" << endl;
     }
     if (!strcmp(command, "showpcr"))
     {
