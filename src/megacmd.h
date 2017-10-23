@@ -44,6 +44,8 @@ void localwtostring(const std::wstring* wide, std::string *multibyte);
 
 #include "megaapi_impl.h"
 
+#define PROGRESS_COMPLETE -2
+
 typedef struct sync_struct
 {
     mega::MegaHandle handle;

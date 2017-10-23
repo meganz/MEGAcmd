@@ -68,6 +68,45 @@ protected:
 };
 
 
+class MegaCmdMultiTransferListener : public mega::SynchronousTransferListener
+{
+private:
+    mega::MegaSemaphore* multisemaphore;
+
+    MegaCmdSandbox * sandboxCMD;
+    float percentDowloaded;
+    bool alreadyFinished;
+    int clientID;
+    int started;
+    int finished;
+    int completed;
+    long long transferredbytes;
+    long long totalbytes;
+    int finalerror;
+
+public:
+    MegaCmdMultiTransferListener(mega::MegaApi *megaApi, MegaCmdSandbox * sandboxCMD, mega::MegaTransferListener *listener = NULL, int clientID=-1);
+    virtual ~MegaCmdMultiTransferListener();
+
+    //Transfer callbacks
+    virtual void onTransferStart(mega::MegaApi* api, mega::MegaTransfer *transfer);
+    virtual void doOnTransferFinish(mega::MegaApi* api, mega::MegaTransfer *transfer, mega::MegaError* e);
+    virtual void onTransferUpdate(mega::MegaApi* api, mega::MegaTransfer *transfer);
+    virtual void onTransferTemporaryError(mega::MegaApi *api, mega::MegaTransfer *transfer, mega::MegaError* e);
+    virtual bool onTransferData(mega::MegaApi *api, mega::MegaTransfer *transfer, char *buffer, size_t size);
+
+    void onNewTransfer();
+
+    void waitMultiEnd();
+
+    int getFinalerror() const;
+
+    long long getTotalbytes() const;
+
+protected:
+    mega::MegaTransferListener *listener;
+};
+
 class MegaCmdGlobalListener : public mega::MegaGlobalListener
 {
 private:

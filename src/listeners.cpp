@@ -20,8 +20,6 @@
 #include "configurationmanager.h"
 #include "megacmdutils.h"
 
-#define PROGRESS_COMPLETE -2
-
 using namespace mega;
 
 #ifdef ENABLE_CHAT
@@ -383,23 +381,31 @@ MegaCmdListener::MegaCmdListener(MegaApi *megaApi, MegaRequestListener *listener
 }
 
 
-////////////////////////////////////////
-///      MegaCmdListener methods     ///
-////////////////////////////////////////
+////////////////////////////////////////////////
+///      MegaCmdTransferListener methods     ///
+////////////////////////////////////////////////
 
-void MegaCmdTransferListener::onTransferStart(MegaApi* api, MegaTransfer *Transfer)
+void MegaCmdTransferListener::onTransferStart(MegaApi* api, MegaTransfer *transfer)
 {
-    if (!Transfer)
+    if (listener)
+    {
+        listener->onTransferStart(api,transfer);
+    }
+    if (!transfer)
     {
         LOG_err << " onTransferStart for undefined Transfer ";
         return;
     }
 
-    LOG_verbose << "onTransferStart Transfer->getType(): " << Transfer->getType();
+    LOG_verbose << "onTransferStart Transfer->getType(): " << transfer->getType();
 }
 
 void MegaCmdTransferListener::doOnTransferFinish(MegaApi* api, MegaTransfer *transfer, MegaError* e)
 {
+    if (listener)
+    {
+        listener->onTransferFinish(api,transfer,e);
+    }
     if (!transfer)
     {
         LOG_err << " onTransferFinish for undefined transfer ";
@@ -414,6 +420,11 @@ void MegaCmdTransferListener::doOnTransferFinish(MegaApi* api, MegaTransfer *tra
 
 void MegaCmdTransferListener::onTransferUpdate(MegaApi* api, MegaTransfer *transfer)
 {
+    if (listener)
+    {
+        listener->onTransferUpdate(api,transfer);
+    }
+
     if (!transfer)
     {
         LOG_err << " onTransferUpdate for undefined Transfer ";
@@ -481,6 +492,10 @@ void MegaCmdTransferListener::onTransferUpdate(MegaApi* api, MegaTransfer *trans
 
 void MegaCmdTransferListener::onTransferTemporaryError(MegaApi *api, MegaTransfer *transfer, MegaError* e)
 {
+    if (listener)
+    {
+        listener->onTransferTemporaryError(api,transfer,e);
+    }
 }
 
 
@@ -504,6 +519,169 @@ bool MegaCmdTransferListener::onTransferData(MegaApi *api, MegaTransfer *transfe
     return true;
 }
 
+
+/////////////////////////////////////////////////////
+///      MegaCmdMultiTransferListener methods     ///
+/////////////////////////////////////////////////////
+
+void MegaCmdMultiTransferListener::onTransferStart(MegaApi* api, MegaTransfer *transfer)
+{
+    if (!transfer)
+    {
+        LOG_err << " onTransferStart for undefined Transfer ";
+        return;
+    }
+    totalbytes+=transfer->getTotalBytes(); //TODO: do rethink all this
+    alreadyFinished = false;
+    percentDowloaded = transferredbytes * 1.0 / totalbytes * 1.0;
+
+    onTransferUpdate(api,transfer);
+
+    LOG_verbose << "onTransferStart Transfer->getType(): " << transfer->getType();
+}
+
+void MegaCmdMultiTransferListener::doOnTransferFinish(MegaApi* api, MegaTransfer *transfer, MegaError* e)
+{
+    finished++;
+    finalerror = (finalerror!=API_OK)?finalerror:e->getErrorCode();
+    multisemaphore->release();
+
+    if (!transfer)
+    {
+        LOG_err << " onTransferFinish for undefined transfer ";
+        return;
+    }
+
+    LOG_verbose << "onTransferFinish Transfer->getType(): " << transfer->getType();
+    completed++;
+    transferredbytes+=transfer->getTotalBytes(); //TODO: do rethink all this
+}
+
+void MegaCmdMultiTransferListener::waitMultiEnd()
+{
+    for (int i=0; i < started; i++)
+    {
+        multisemaphore->wait();
+    }
+}
+
+
+void MegaCmdMultiTransferListener::onTransferUpdate(MegaApi* api, MegaTransfer *transfer)
+{
+    if (!transfer)
+    {
+        LOG_err << " onTransferUpdate for undefined Transfer ";
+        return;
+    }
+
+    unsigned int cols = getNumberOfCols(80);
+
+    string outputString;
+    outputString.resize(cols + 1);
+    for (unsigned int i = 0; i < cols; i++)
+    {
+        outputString[i] = '.';
+    }
+
+    outputString[cols] = '\0';
+    char *ptr = (char *)outputString.c_str();
+    sprintf(ptr, "%s", "TRANSFERING ||");
+    ptr += strlen("TRANSFERING ||");
+    *ptr = '.'; //replace \0 char
+
+
+    float oldpercent = percentDowloaded;
+    percentDowloaded = (transferredbytes + transfer->getTransferredBytes()) * 1.0 / totalbytes * 100.0;
+    if (alreadyFinished || ( ( percentDowloaded == oldpercent ) && ( oldpercent != 0 ) ) )
+    {
+        return;
+    }
+    if (percentDowloaded < 0)
+    {
+        percentDowloaded = 0;
+    }
+
+    char aux[40];
+    if (transfer->getTotalBytes() < 0)
+    {
+        return; // after a 100% this happens
+    }
+    if (transfer->getTransferredBytes() < 0.001 * transfer->getTotalBytes())
+    {
+        return; // after a 100% this happens
+    }
+    sprintf(aux,"||(%lld/%lld MB: %.2f %%) ", (transferredbytes + transfer->getTransferredBytes()) / 1024 / 1024, totalbytes / 1024 / 1024, percentDowloaded);
+    sprintf((char *)outputString.c_str() + cols - strlen(aux), "%s",                         aux);
+    for (int i = 0; i <= ( cols - strlen("TRANSFERING ||") - strlen(aux)) * 1.0 * percentDowloaded / 100.0; i++)
+    {
+        *ptr++ = '#';
+    }
+
+    if (percentDowloaded == 100 && !alreadyFinished)
+    {
+        alreadyFinished = true;
+        cout << outputString << endl;
+    }
+    else
+    {
+        cout << outputString << '\r' << flush;
+    }
+
+    LOG_verbose << "onTransferUpdate transfer->getType(): " << transfer->getType() << " clientID=" << this->clientID;
+
+    informProgressUpdate(transferredbytes + transfer->getTransferredBytes(),totalbytes, clientID);
+}
+
+
+void MegaCmdMultiTransferListener::onTransferTemporaryError(MegaApi *api, MegaTransfer *transfer, MegaError* e)
+{
+}
+
+
+MegaCmdMultiTransferListener::~MegaCmdMultiTransferListener()
+{
+    delete multisemaphore;
+}
+
+int MegaCmdMultiTransferListener::getFinalerror() const
+{
+    return finalerror;
+}
+
+long long MegaCmdMultiTransferListener::getTotalbytes() const
+{
+    return totalbytes;
+}
+
+MegaCmdMultiTransferListener::MegaCmdMultiTransferListener(MegaApi *megaApi, MegaCmdSandbox *sandboxCMD, MegaTransferListener *listener, int clientID)
+{
+    this->megaApi = megaApi;
+    this->sandboxCMD = sandboxCMD;
+    this->listener = listener;
+    percentDowloaded = 0.0f;
+    alreadyFinished = false;
+    this->clientID = clientID;
+
+    started = 0;
+    finished = 0;
+    completed = 0;
+    totalbytes = 0;
+    transferredbytes = 0;
+
+    multisemaphore = new MegaSemaphore();
+    finalerror = MegaError::API_OK;
+
+}
+
+bool MegaCmdMultiTransferListener::onTransferData(MegaApi *api, MegaTransfer *transfer, char *buffer, size_t size)
+{
+    return true;
+}
+
+void MegaCmdMultiTransferListener::onNewTransfer()
+{
+    started ++;
+}
 
 ////////////////////////////////////////
 ///  MegaCmdGlobalTransferListener   ///
