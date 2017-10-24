@@ -3990,7 +3990,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
     else if (words[0] == "get")
     {
         int clientID = getintOption(cloptions, "clientID", -1);
-        if (words.size() > 1)
+        if (words.size() > 1 && words.size() < 4)
         {
             string path = "./";
             bool background = getFlag(clflags,"q");
