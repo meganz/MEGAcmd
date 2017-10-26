@@ -2084,7 +2084,7 @@ void MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
                 backup_struct *thebackup = itr->second;
 
                 MegaNode * node = api->getNodeByHandle(thebackup->handle);
-                if (stablishBackup(thebackup->localpath, node, thebackup->period, thebackup->numBackups))
+                if (stablishBackup(thebackup->localpath, node, thebackup->period, thebackup->speriod, thebackup->numBackups)) //TODO: use crontab like period
                 {
                     thebackup->failed = false;
                     const char *nodepath = api->getNodePath(node);
@@ -3029,11 +3029,11 @@ void MegaCmdExecuter::printSyncHeader(const unsigned int PATHSIZE)
 
 }
 
-void MegaCmdExecuter::doPrintBackup(int id, string localfolder, string remoteparentfolder, int64_t period, int masBackup, string status)
+void MegaCmdExecuter::doPrintBackup(int id, string localfolder, string remoteparentfolder, string period, int masBackup, string status)
 {
     OUTSTREAM << id << ": " << localfolder
               << " to: " << remoteparentfolder
-              << " PERIOD=" << getReadablePeriod(period/10)
+              << " PERIOD=" << period
               << " NBACKUPS=" << masBackup
               << " " << status << endl;
 }
@@ -3061,16 +3061,16 @@ void MegaCmdExecuter::printBackup(int id, MegaBackup *backup, bool extendedinfo,
 
         if (nodepath)
         {
-            doPrintBackup(id, backup->getLocalFolder(),nodepath,backup->getPeriod(),backup->getMaxBackups()," ACTIVE");
+            doPrintBackup(id, backup->getLocalFolder(),nodepath,(backup->getPeriod() == -1)?backup->getPeriodString():getReadablePeriod(backup->getPeriod()/10),backup->getMaxBackups()," ACTIVE");
             delete []nodepath;
         }
         else
         {
-            doPrintBackup(id, backup->getLocalFolder(),"INVALIDPATH",backup->getPeriod(),backup->getMaxBackups()," ACTIVE");
+            doPrintBackup(id, backup->getLocalFolder(),"INVALIDPATH",(backup->getPeriod() == -1)?backup->getPeriodString():getReadablePeriod(backup->getPeriod()/10),backup->getMaxBackups()," ACTIVE");
         }
         if (extendedinfo && parentnode)
         {
-            MegaStringList *msl = backup->getBackupFolders();
+            MegaStringList *msl = api->getBackupFolders(backup->getTag());
             if (msl)
             {
                 for (int i = 0; i < msl->size(); i++)
@@ -3083,7 +3083,15 @@ void MegaCmdExecuter::printBackup(int id, MegaBackup *backup, bool extendedinfo,
                         btime = bpath.substr(pos+4);
                     }
 
-                    OUTSTREAM << "  " << msl->get(i) << " time=" << string(btime.size()?getReadableTime(atol(btime.c_str())/10):"UNKNOWN") << endl;
+                    string printableString = "UNKNOWN";
+                    if (btime.size())
+                    {
+                        struct tm dt;
+                        strptime(btime.c_str(), "%Y%m%d%H%M%S", &dt);
+                        printableString = getReadableTime(mktime(&dt));
+                    }
+
+                    OUTSTREAM << "  " << msl->get(i) << " time=" << printableString << endl;
                 }
                 delete msl;
             }
@@ -3122,7 +3130,7 @@ void MegaCmdExecuter::printBackup(backup_struct *backupstruct, bool extendedinfo
     }
     else
     {
-        doPrintBackup(backupstruct->id, backupstruct->localpath,"UNKOWN",backupstruct->period,backupstruct->numBackups," FAILED");
+        doPrintBackup(backupstruct->id, backupstruct->localpath,"UNKOWN",(backupstruct->period == -1)?backupstruct->speriod:getReadablePeriod(backupstruct->period/10),backupstruct->numBackups," FAILED"); //TODO: use periodstring if period == -1
         //notice, we probably won't won't have extended info here
     }
 }
@@ -3459,7 +3467,7 @@ void MegaCmdExecuter::restartsyncs()
     }
 }
 
-bool MegaCmdExecuter::stablishBackup(string pathToBackup, MegaNode *n, int64_t period, int numBackups)
+bool MegaCmdExecuter::stablishBackup(string pathToBackup, MegaNode *n, int64_t period, string speriod,  int numBackups)
 {
     static int backupcounter = 0;
     string path;
@@ -3470,7 +3478,7 @@ bool MegaCmdExecuter::stablishBackup(string pathToBackup, MegaNode *n, int64_t p
     fsAccessCMD->local2path(&localabsolutepath, &path);
 
     MegaCmdListener *megaCmdListener = new MegaCmdListener(api, NULL);
-    api->startBackup(path.c_str(), n, period, numBackups, megaCmdListener);
+    api->startBackup(path.c_str(), n, period, speriod, numBackups, megaCmdListener);
     megaCmdListener->wait();
     if (checkNoErrors(megaCmdListener->getError(), "stablish backup"))
     {
@@ -3496,6 +3504,7 @@ bool MegaCmdExecuter::stablishBackup(string pathToBackup, MegaNode *n, int64_t p
         thebackup->localpath = string(megaCmdListener->getRequest()->getFile());
         thebackup->numBackups = numBackups;
         thebackup->period = period;
+        thebackup->speriod = speriod;
         thebackup->failed = false;
         thebackup->tag = megaCmdListener->getRequest()->getTransferTag();
 
@@ -4493,9 +4502,14 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             string local = words.at(1);
             string remote = words.at(2);
 
-            int64_t period = 10 * getTimeStampAfter(0,getOption(cloptions, "period", "1h"));
-            //TODO: actually period is not enough. This should be a string like crontab's or jenkins' . And the next moment should be calculated depending on such string.
-            // Not a fixed time. since months are not equal, and we might want to do backups the first day of each month and the sort...
+            string speriod=getOption(cloptions, "period", "1h");
+            int64_t period = -1;
+            if (speriod.find(" ") == string::npos)
+            {
+                period = 10 * getTimeStampAfter(0,speriod);
+                speriod = "";
+            }
+
             int64_t numBackups = getintOption(cloptions, "num-backups", 10);
 
 
@@ -4509,7 +4523,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 }
                 else
                 {
-                    if (stablishBackup(local, n, period, numBackups) )
+                    if (stablishBackup(local, n, period, speriod, numBackups) )
                     {
                         mtxBackupMap.lock();
                         ConfigurationManager::saveBackups(&ConfigurationManager::configuredBackups);

@@ -59,6 +59,7 @@ typedef struct backup_struct
     bool active;
     std::string localpath; //TODO: review wether this is local or utf-8 representation and be consistent
     int64_t period;
+    std::string speriod;
     int numBackups;
     bool failed; //This should mark the failure upon resuming. It shall not be persisted
     int tag; //This is depends on execution. should not be persisted

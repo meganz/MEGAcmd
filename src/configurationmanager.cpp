@@ -209,6 +209,12 @@ void ConfigurationManager::saveBackups(map<string, backup_struct *> *backupsmap)
                     fo.write((char*)&thebackup->numBackups, sizeof( int ));
                     fo.write((char*)&thebackup->period, sizeof( int64_t ));
 
+                    const char * speriod = thebackup->speriod.c_str();
+                    size_t lengthLocalPeriod = thebackup->speriod.size();
+                    fo.write((char*)&lengthLocalPeriod, sizeof( size_t ));
+                    fo.write((char*)speriod, sizeof( char ) * lengthLocalPeriod);
+
+
                 }
             }
 
@@ -420,14 +426,24 @@ void ConfigurationManager::loadbackups()
                     fi.read((char*)&thebackup->numBackups, sizeof( int ));
                     fi.read((char*)&thebackup->period, sizeof( int64_t ));
 
-                    if (configuredBackups.find(thebackup->localpath) != configuredBackups.end())
+                    size_t lengthLocalPeriod;
+                    fi.read((char*)&lengthLocalPeriod, sizeof( size_t ));
+                    if (lengthLocalPeriod && lengthLocalPeriod <= PATH_MAX)
                     {
-                        delete configuredBackups[thebackup->localpath];
+                        thebackup->speriod.resize(lengthLocalPeriod);
+                        fi.read((char*)thebackup->speriod.c_str(), sizeof( char ) * lengthLocalPeriod);
+
+                        if (configuredBackups.find(thebackup->localpath) != configuredBackups.end())
+                        {
+                            delete configuredBackups[thebackup->localpath];
+                        }
+
+                        thebackup->id = -1; //id will be set upon resumption
+
+                        configuredBackups[thebackup->localpath] = thebackup;
+
                     }
 
-                    thebackup->id = -1; //id will be set upon resumption
-
-                    configuredBackups[thebackup->localpath] = thebackup;
                 }
                 else
                 {
