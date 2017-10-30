@@ -34,7 +34,7 @@ private:
     MegaCmdSandbox *sandboxCMD;
     MegaCmdGlobalTransferListener *globalTransferListener;
     mega::MegaMutex mtxSyncMap;
-    mega::MegaMutex mtxBackupMap;
+    mega::MegaMutex mtxBackupsMap;
 
     // login/signup e-mail address
     std::string login;
@@ -134,7 +134,7 @@ public:
     void printTransfer(mega::MegaTransfer *transfer, const unsigned int PATHSIZE, bool printstate=true);
     void printSyncHeader(const unsigned int PATHSIZE);
     void printSync(int i, std::string key, const char *nodepath, sync_struct * thesync, mega::MegaNode *n, int nfiles, int nfolders, const unsigned int PATHSIZE);
-    void doPrintBackup(int id, std::string localfolder, std::__cxx11::string remoteparentfolder, std::__cxx11::string period, int masBackup, std::string status);
+    void doPrintBackup(int id, std::string localfolder, std::__cxx11::string remoteparentfolder, std::__cxx11::string period, int masBackup, std::string status, mega::MegaBackup *backup = NULL);
     void printBackup(int id, mega::MegaBackup *backup, bool extendedinfo = false, mega::MegaNode *parentnode = NULL);
     void printBackup(int id, int tag, bool extendedinfo = false);
     void printBackup(backup_struct *backupstruct, bool extendedinfo = false);

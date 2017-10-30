@@ -472,6 +472,35 @@ const char * getTransferStateStr(int transferState)
 
 }
 
+string backupSatetStr(int backupstate)
+{
+    if (backupstate == MegaBackup::BACKUP_FAILED)
+    {
+        return "FAILED";
+    }
+    if (backupstate == MegaBackup::BACKUP_CANCELED)
+    {
+        return "CANCELED";
+    }
+    if (backupstate == MegaBackup::BACKUP_INITIALSCAN)
+    {
+        return "INITIALSCAN";
+    }
+    if (backupstate == MegaBackup::BACKUP_ACTIVE)
+    {
+        return "ACTIVE";
+    }
+    if (backupstate == MegaBackup::BACKUP_ONGOING)
+    {
+        return "ONGOING";
+    }
+    if (backupstate == MegaBackup::BACKUP_REMOVING_EXCEEDING)
+    {
+        return "REMOVING_EXCEEDING";
+    }
+
+    return "UNDEFINED";
+}
 
 /**
  * @brief tests if a path is writable

@@ -60,6 +60,9 @@ int getShareLevelNum(const char* level);
 
 const char * getTransferStateStr(int transferState);
 
+std::string backupSatetStr(int backupstate);
+
+
 
 /* Files and folders */
 

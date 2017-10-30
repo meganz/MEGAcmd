@@ -107,7 +107,7 @@ MegaCmdExecuter::MegaCmdExecuter(MegaApi *api, MegaCMDLogger *loggerCMD, MegaCmd
     cwd = UNDEF;
     fsAccessCMD = new MegaFileSystemAccess();
     mtxSyncMap.init(false);
-    mtxBackupMap.init(true);
+    mtxBackupsMap.init(true);
     session = NULL;
 }
 
@@ -2055,9 +2055,9 @@ void MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
         mtxSyncMap.lock();
         ConfigurationManager::loadsyncs();
         mtxSyncMap.unlock();
-        mtxBackupMap.lock();
+        mtxBackupsMap.lock();
         ConfigurationManager::loadbackups();
-        mtxBackupMap.unlock();
+        mtxBackupsMap.unlock();
         ConfigurationManager::loadExcludedNames();
         std::vector<string> vexcludednames(ConfigurationManager::excludedNames.begin(), ConfigurationManager::excludedNames.end());
         api->setExcludedNames(&vexcludednames);
@@ -2073,7 +2073,7 @@ void MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
         }
 
 
-        mtxBackupMap.lock();
+        mtxBackupsMap.lock();
         if (ConfigurationManager::configuredBackups.size())
         {
             LOG_info << "Restablishing backups ... ";
@@ -2105,7 +2105,7 @@ void MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
 
             ConfigurationManager::saveBackups(&ConfigurationManager::configuredBackups);
         }
-        mtxBackupMap.unlock();
+        mtxBackupsMap.unlock();
     }
 
 #if defined(_WIN32) || defined(__APPLE__)
@@ -3029,13 +3029,21 @@ void MegaCmdExecuter::printSyncHeader(const unsigned int PATHSIZE)
 
 }
 
-void MegaCmdExecuter::doPrintBackup(int id, string localfolder, string remoteparentfolder, string period, int masBackup, string status)
+void MegaCmdExecuter::doPrintBackup(int id, string localfolder, string remoteparentfolder, string period, int masBackup, string status, MegaBackup *backup)
 {
     OUTSTREAM << id << ": " << localfolder
               << " to: " << remoteparentfolder
               << " PERIOD=" << period
               << " NBACKUPS=" << masBackup
-              << " " << status << endl;
+              << " " << status;
+    if (backup /*&& backup->getState() == MegaBackup::BACKUP_ONGOING*/)
+    {
+        OUTSTREAM << " files=" << backup->getNumberFiles() << "/" << backup->getTotalFiles();
+        OUTSTREAM << " folders=" << backup->getNumberFolders();
+        OUTSTREAM << " bytes=" << backup->getTransferredBytes() << "/" << backup->getTotalBytes();
+    }
+
+    OUTSTREAM << endl;
 }
 
 void MegaCmdExecuter::printBackup(int id, MegaBackup *backup, bool extendedinfo, MegaNode *parentnode)
@@ -3061,12 +3069,12 @@ void MegaCmdExecuter::printBackup(int id, MegaBackup *backup, bool extendedinfo,
 
         if (nodepath)
         {
-            doPrintBackup(id, backup->getLocalFolder(),nodepath,(backup->getPeriod() == -1)?backup->getPeriodString():getReadablePeriod(backup->getPeriod()/10),backup->getMaxBackups()," ACTIVE");
+            doPrintBackup(id, backup->getLocalFolder(),nodepath,(backup->getPeriod() == -1)?backup->getPeriodString():getReadablePeriod(backup->getPeriod()/10),backup->getMaxBackups()," ACTIVE", backup);
             delete []nodepath;
         }
         else
         {
-            doPrintBackup(id, backup->getLocalFolder(),"INVALIDPATH",(backup->getPeriod() == -1)?backup->getPeriodString():getReadablePeriod(backup->getPeriod()/10),backup->getMaxBackups()," ACTIVE");
+            doPrintBackup(id, backup->getLocalFolder(),"INVALIDPATH",(backup->getPeriod() == -1)?backup->getPeriodString():getReadablePeriod(backup->getPeriod()/10),backup->getMaxBackups()," ACTIVE", backup);
         }
         if (extendedinfo && parentnode)
         {
@@ -3482,7 +3490,7 @@ bool MegaCmdExecuter::stablishBackup(string pathToBackup, MegaNode *n, int64_t p
     megaCmdListener->wait();
     if (checkNoErrors(megaCmdListener->getError(), "stablish backup"))
     {
-        mtxBackupMap.lock();
+        mtxBackupsMap.lock();
 
         backup_struct *thebackup = NULL;
         if (ConfigurationManager::configuredBackups.find(megaCmdListener->getRequest()->getFile()) != ConfigurationManager::configuredBackups.end())
@@ -3510,7 +3518,7 @@ bool MegaCmdExecuter::stablishBackup(string pathToBackup, MegaNode *n, int64_t p
 
         char * nodepath = api->getNodePath(n);
         LOG_info << "Added backup: " << megaCmdListener->getRequest()->getFile() << " to " << nodepath;
-        mtxBackupMap.unlock();
+        mtxBackupsMap.unlock();
         delete []nodepath;
         delete megaCmdListener;
 
@@ -4525,9 +4533,9 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 {
                     if (stablishBackup(local, n, period, speriod, numBackups) )
                     {
-                        mtxBackupMap.lock();
+                        mtxBackupsMap.lock();
                         ConfigurationManager::saveBackups(&ConfigurationManager::configuredBackups);
-                        mtxBackupMap.unlock();
+                        mtxBackupsMap.unlock();
                         OUTSTREAM << "Backup stablished: " << local << " into " << remote << " period=" << getReadablePeriod(period/10) << " Number-of-Backups=" << numBackups << endl;
                     }
                 }
@@ -4570,9 +4578,9 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         {
                           ConfigurationManager::configuredBackups.erase(itr);
                         }
-                        mtxBackupMap.lock();
+                        mtxBackupsMap.lock();
                         ConfigurationManager::saveBackups(&ConfigurationManager::configuredBackups);
-                        mtxBackupMap.unlock();
+                        mtxBackupsMap.unlock();
                         OUTSTREAM << " Backup removed succesffuly: " << words[1] << endl;
                     }
                 }
@@ -4595,13 +4603,13 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         }
         else if (words.size() == 1) //list backups
         {
-            mtxBackupMap.lock();
+            mtxBackupsMap.lock();
 
             for (map<string, backup_struct *>::iterator itr = ConfigurationManager::configuredBackups.begin(); itr != ConfigurationManager::configuredBackups.end(); itr++ )
             {
                 printBackup(itr->second, listinfo);
             }
-            mtxBackupMap.unlock();
+            mtxBackupsMap.unlock();
 
         }
         else
