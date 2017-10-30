@@ -2097,7 +2097,6 @@ void MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
                     char *nodepath = api->getNodePath(node);
                     LOG_err << "Failed to resume backup: " << thebackup->localpath << " to " << nodepath;
                     delete []nodepath;
-                    delete thebackup;
                 }
 
                 delete node;
@@ -3041,6 +3040,7 @@ void MegaCmdExecuter::doPrintBackup(int id, string localfolder, string remotepar
         OUTSTREAM << " files=" << backup->getNumberFiles() << "/" << backup->getTotalFiles();
         OUTSTREAM << " folders=" << backup->getNumberFolders();
         OUTSTREAM << " bytes=" << backup->getTransferredBytes() << "/" << backup->getTotalBytes();
+        OUTSTREAM << " next = " << getReadableTime(backup->getNextStartTime());
     }
 
     OUTSTREAM << endl;
@@ -3069,12 +3069,12 @@ void MegaCmdExecuter::printBackup(int id, MegaBackup *backup, bool extendedinfo,
 
         if (nodepath)
         {
-            doPrintBackup(id, backup->getLocalFolder(),nodepath,(backup->getPeriod() == -1)?backup->getPeriodString():getReadablePeriod(backup->getPeriod()/10),backup->getMaxBackups()," ACTIVE", backup);
+            doPrintBackup(id, backup->getLocalFolder(),nodepath,(backup->getPeriod() == -1)?backup->getPeriodString():getReadablePeriod(backup->getPeriod()/10),backup->getMaxBackups(),backupSatetStr(backup->getState()), backup);
             delete []nodepath;
         }
         else
         {
-            doPrintBackup(id, backup->getLocalFolder(),"INVALIDPATH",(backup->getPeriod() == -1)?backup->getPeriodString():getReadablePeriod(backup->getPeriod()/10),backup->getMaxBackups()," ACTIVE", backup);
+            doPrintBackup(id, backup->getLocalFolder(),"INVALIDPATH",(backup->getPeriod() == -1)?backup->getPeriodString():getReadablePeriod(backup->getPeriod()/10),backup->getMaxBackups(),backupSatetStr(backup->getState()), backup);
         }
         if (extendedinfo && parentnode)
         {
@@ -3131,15 +3131,13 @@ void MegaCmdExecuter::printBackup(int id, int tag, bool extendedinfo)
 
 void MegaCmdExecuter::printBackup(backup_struct *backupstruct, bool extendedinfo)
 {
-    if (!backupstruct->failed)
+    if (backupstruct->tag >= 0)
     {
-//        printBackup(backupstruct->localpath);
         printBackup(backupstruct->id, backupstruct->tag, extendedinfo);
     }
     else
     {
         doPrintBackup(backupstruct->id, backupstruct->localpath,"UNKOWN",(backupstruct->period == -1)?backupstruct->speriod:getReadablePeriod(backupstruct->period/10),backupstruct->numBackups," FAILED"); //TODO: use periodstring if period == -1
-        //notice, we probably won't won't have extended info here
     }
 }
 
@@ -3526,15 +3524,37 @@ bool MegaCmdExecuter::stablishBackup(string pathToBackup, MegaNode *n, int64_t p
     }
     else
     {
-
-        std::map<std::string, backup_struct *>::iterator itr = ConfigurationManager::configuredBackups.find(megaCmdListener->getRequest()->getFile());
-        if ( itr != ConfigurationManager::configuredBackups.end())
+        bool foundbytag = false;
+        // find by tag in configured (modification failed)
+        for (std::map<std::string, backup_struct *>::iterator itr = ConfigurationManager::configuredBackups.begin();
+             itr != ConfigurationManager::configuredBackups.end(); itr++)
         {
-            if (megaCmdListener->getError()->getErrorCode() != MegaError::API_EEXIST)
+            if (itr->second->tag == megaCmdListener->getRequest()->getTransferTag())
             {
-                itr->second->failed = true;
+                backup_struct *thebackup = itr->second;
+
+                foundbytag = true;
+                thebackup->handle = megaCmdListener->getRequest()->getNodeHandle();
+                thebackup->localpath = string(megaCmdListener->getRequest()->getFile());
+                thebackup->numBackups = megaCmdListener->getRequest()->getNumRetry();
+                thebackup->period = megaCmdListener->getRequest()->getNumber();
+                thebackup->speriod = string(megaCmdListener->getRequest()->getText());;
+                thebackup->failed = true;
             }
-            itr->second->id = backupcounter++;
+        }
+
+
+        if (!foundbytag)
+        {
+            std::map<std::string, backup_struct *>::iterator itr = ConfigurationManager::configuredBackups.find(megaCmdListener->getRequest()->getFile());
+            if ( itr != ConfigurationManager::configuredBackups.end())
+            {
+                if (megaCmdListener->getError()->getErrorCode() != MegaError::API_EEXIST)
+                {
+                    itr->second->failed = true;
+                }
+                itr->second->id = backupcounter++;
+            }
         }
     }
     delete megaCmdListener;

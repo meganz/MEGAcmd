@@ -439,6 +439,7 @@ void ConfigurationManager::loadbackups()
                         }
 
                         thebackup->id = -1; //id will be set upon resumption
+                        thebackup->tag = -1; //tag will be set upon resumption
 
                         configuredBackups[thebackup->localpath] = thebackup;
 
