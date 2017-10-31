@@ -3035,7 +3035,7 @@ void MegaCmdExecuter::doPrintBackup(int id, string localfolder, string remotepar
               << " PERIOD=" << period
               << " NBACKUPS=" << masBackup
               << " " << status;
-    if (backup /*&& backup->getState() == MegaBackup::BACKUP_ONGOING*/)
+    if (backup)
     {
         OUTSTREAM << " files=" << backup->getNumberFiles() << "/" << backup->getTotalFiles();
         OUTSTREAM << " folders=" << backup->getNumberFolders();
@@ -3095,11 +3095,12 @@ void MegaCmdExecuter::printBackup(int id, MegaBackup *backup, bool extendedinfo,
                     if (btime.size())
                     {
                         struct tm dt;
+                        memset(&dt, 0, sizeof(struct tm));
                         strptime(btime.c_str(), "%Y%m%d%H%M%S", &dt);
                         printableString = getReadableTime(mktime(&dt));
                     }
 
-                    OUTSTREAM << "  " << msl->get(i) << " time=" << printableString << endl;
+                    OUTSTREAM << "  " << bpath << " time=" << printableString << endl;
                 }
                 delete msl;
             }
@@ -3475,6 +3476,7 @@ void MegaCmdExecuter::restartsyncs()
 
 bool MegaCmdExecuter::stablishBackup(string pathToBackup, MegaNode *n, int64_t period, string speriod,  int numBackups)
 {
+    bool attendpastbackups = true; //TODO: receive as parameter
     static int backupcounter = 0;
     string path;
     string localrelativepath;
@@ -3484,7 +3486,7 @@ bool MegaCmdExecuter::stablishBackup(string pathToBackup, MegaNode *n, int64_t p
     fsAccessCMD->local2path(&localabsolutepath, &path);
 
     MegaCmdListener *megaCmdListener = new MegaCmdListener(api, NULL);
-    api->startBackup(path.c_str(), n, period, speriod, numBackups, megaCmdListener);
+    api->setBackup(path.c_str(), n, attendpastbackups, period, speriod, numBackups, megaCmdListener);
     megaCmdListener->wait();
     if (checkNoErrors(megaCmdListener->getError(), "stablish backup"))
     {

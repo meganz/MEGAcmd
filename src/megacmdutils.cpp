@@ -494,6 +494,10 @@ string backupSatetStr(int backupstate)
     {
         return "ONGOING";
     }
+    if (backupstate == MegaBackup::BACKUP_SKIPPING)
+    {
+        return "SKIPPING";
+    }
     if (backupstate == MegaBackup::BACKUP_REMOVING_EXCEEDING)
     {
         return "REMOVING_EXCEEDING";
@@ -549,12 +553,35 @@ bool hasWildCards(string &what)
     return what.find('*') != string::npos || what.find('?') != string::npos;
 }
 
+void fillLocalTimeStruct(const time_t *ttime, struct tm *dt)
+{
+#if __cplusplus >= 201103L
+    localtime_s(ttime, dt);
+#elif _MSC_VER >= 1400 // MSVCRT (2005+): std::localtime is threadsafe
+    *dt = *localtime_r(&ttime);
+#elif _WIN32
+    static MegaMutex * mtx = new MegaMutex();
+    static bool initiated = false;
+    if (!initiated)
+    {
+        mtx->init(true);
+        initiated = true;
+    }
+    mtx->lock();
+    struct tm *newtm = localtime(ttime);
+    *dt = *newtm;
+    mtx->unlock();
+#else //POSIX
+    localtime_r(ttime, dt);
+#endif
+}
+
 std::string getReadableTime(const time_t rawtime)
 {
-    struct tm * dt;
+    struct tm dt;
     char buffer [40];
-    dt = localtime(&rawtime);
-    strftime(buffer, sizeof( buffer ), "%a, %d %b %Y %T %z", dt); // Following RFC 2822 (as in date -R)
+    fillLocalTimeStruct(&rawtime, &dt);
+    strftime(buffer, sizeof( buffer ), "%a, %d %b %Y %T %z", &dt); // Following RFC 2822 (as in date -R)
     return std::string(buffer);
 }
 
@@ -647,18 +674,18 @@ time_t getTimeStampAfter(time_t initial, string timestring)
         }
     }
 
-    struct tm * dt;
-    dt = localtime(&initial);
+    struct tm dt;
+    fillLocalTimeStruct(&initial, &dt);
 
-    dt->tm_mday += days;
-    dt->tm_hour += hours;
-    dt->tm_min += minutes;
-    dt->tm_sec += seconds;
-    dt->tm_mon += months;
-    dt->tm_year += years;
+    dt.tm_mday += days;
+    dt.tm_hour += hours;
+    dt.tm_min += minutes;
+    dt.tm_sec += seconds;
+    dt.tm_mon += months;
+    dt.tm_year += years;
 
     delete [] buffer;
-    return mktime(dt);
+    return mktime(&dt);
 }
 
 time_t getTimeStampAfter(string timestring)
@@ -729,18 +756,18 @@ time_t getTimeStampBefore(time_t initial, string timestring)
         }
     }
 
-    struct tm * dt;
-    dt = localtime(&initial);
+    struct tm dt;
+    fillLocalTimeStruct(&initial, &dt);
 
-    dt->tm_mday -= days;
-    dt->tm_hour -= hours;
-    dt->tm_min -= minutes;
-    dt->tm_sec -= seconds;
-    dt->tm_mon -= months;
-    dt->tm_year -= years;
+    dt.tm_mday += days;
+    dt.tm_hour += hours;
+    dt.tm_min += minutes;
+    dt.tm_sec += seconds;
+    dt.tm_mon += months;
+    dt.tm_year += years;
 
     delete [] buffer;
-    return mktime(dt);
+    return mktime(&dt);
 }
 
 time_t getTimeStampBefore(string timestring)
