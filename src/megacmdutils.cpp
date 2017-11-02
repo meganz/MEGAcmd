@@ -34,34 +34,22 @@
 using namespace std;
 using namespace mega;
 
-int * getNumFolderFiles(MegaNode *n, MegaApi *api)
+void getNumFolderFiles(MegaNode *n, MegaApi *api, long long *nfiles, long long *nfolders)
 {
-    int * nFolderFiles = new int[2]();
     MegaNodeList *totalnodes = api->getChildren(n);
-    for (int i = 0; i < totalnodes->size(); i++)
+    for (long long i = 0; i < totalnodes->size(); i++)
     {
         if (totalnodes->get(i)->getType() == MegaNode::TYPE_FILE)
         {
-            nFolderFiles[1]++;
+            (*nfiles)++;
         }
         else
         {
-            nFolderFiles[0]++; //folder
+            (*nfolders)++;
+            getNumFolderFiles(totalnodes->get(i), api, nfiles, nfolders);
         }
     }
-
-    int nfolders = nFolderFiles[0];
-    for (int i = 0; i < nfolders; i++)
-    {
-        int * nFolderFilesSub = getNumFolderFiles(totalnodes->get(i), api);
-
-        nFolderFiles[0] += nFolderFilesSub[0];
-        nFolderFiles[1] += nFolderFilesSub[1];
-        delete []nFolderFilesSub;
-    }
-
     delete totalnodes;
-    return nFolderFiles;
 }
 
 string getUserInSharedNode(MegaNode *n, MegaApi *api)

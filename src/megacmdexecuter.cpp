@@ -3034,7 +3034,7 @@ void MegaCmdExecuter::printSyncHeader(const unsigned int PATHSIZE)
 
 }
 
-void MegaCmdExecuter::printSync(int i, string key, const char *nodepath, sync_struct * thesync, MegaNode *n, int nfiles, int nfolders, const unsigned int PATHSIZE)
+void MegaCmdExecuter::printSync(int i, string key, const char *nodepath, sync_struct * thesync, MegaNode *n, long long nfiles, long long nfolders, const unsigned int PATHSIZE)
 {
     //tag
     OUTSTREAM << getRightAlignedString(SSTR(i),2) << " ";
@@ -3495,7 +3495,6 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
         int64_t minSize = -1;
         int64_t maxSize = -1;
-        //TODO: read
         string sizestring = getOption(cloptions, "size", "");
         if ("" != sizestring && !getMinAndMaxSize(sizestring, &minSize, &maxSize))
         {
@@ -4813,13 +4812,10 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     if (( id == i ) || (( id == -1 ) && ( words[1] == thesync->localpath )))
                     {
                         foundsync = true;
-                        int nfiles = 0;
-                        int nfolders = 0;
+                        long long nfiles = 0;
+                        long long nfolders = 0;
                         nfolders++; //add the share itself
-                        int *nFolderFiles = getNumFolderFiles(n, api); //TODO: use long long for all those accountings
-                        nfolders += nFolderFiles[0];
-                        nfiles += nFolderFiles[1];
-                        delete []nFolderFiles;
+                        getNumFolderFiles(n, api, &nfiles, &nfolders);
 
                         if (getFlag(clflags, "s") || getFlag(clflags, "r"))
                         {
@@ -4924,13 +4920,10 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         headershown = true;
                         printSyncHeader(PATHSIZE);
                     }
-                    int nfiles = 0;
-                    int nfolders = 0;
+                    long long nfiles = 0;
+                    long long nfolders = 0;
                     nfolders++; //add the share itself
-                    int *nFolderFiles = getNumFolderFiles(n, api);
-                    nfolders += nFolderFiles[0];
-                    nfiles += nFolderFiles[1];
-                    delete []nFolderFiles;
+                    getNumFolderFiles(n, api, &nfiles, &nfolders);
 
                     char * nodepath = api->getNodePath(n);
                     printSync(i++, ( *itr ).first, nodepath, thesync, n, nfiles, nfolders, PATHSIZE);

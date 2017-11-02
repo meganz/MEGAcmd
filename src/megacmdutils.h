@@ -22,15 +22,7 @@
 #include "megacmd.h"
 
 /* mega::MegaNode info extracting*/
-/**
- * @brief getNumFolderFiles
- *
- * Ownership of returned value belongs to the caller
- * @param n
- * @param api
- * @return
- */
-int * getNumFolderFiles(mega::MegaNode *, mega::MegaApi *);
+void getNumFolderFiles(mega::MegaNode *, mega::MegaApi *, long long *nfiles, long long *nfolders);
 
 std::string getUserInSharedNode(mega::MegaNode *n, mega::MegaApi *api);
 

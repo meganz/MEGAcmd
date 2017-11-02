@@ -70,10 +70,10 @@ MegaCmdGlobalListener::MegaCmdGlobalListener(MegaCMDLogger *logger, MegaCmdSandb
 
 void MegaCmdGlobalListener::onNodesUpdate(MegaApi *api, MegaNodeList *nodes)
 {
-    int nfolders = 0;
-    int nfiles = 0;
-    int rfolders = 0;
-    int rfiles = 0;
+    long long nfolders = 0;
+    long long nfiles = 0;
+    long long rfolders = 0;
+    long long rfiles = 0;
     if (nodes)
     {
         for (int i = 0; i < nodes->size(); i++)
@@ -108,24 +108,15 @@ void MegaCmdGlobalListener::onNodesUpdate(MegaApi *api, MegaNodeList *nodes)
         if (loggerCMD->getMaxLogLevel() >= logInfo)
         {
             MegaNode * nodeRoot = api->getRootNode();
-            int * nFolderFiles = getNumFolderFiles(nodeRoot, api);
-            nfolders += nFolderFiles[0];
-            nfiles += nFolderFiles[1];
-            delete []nFolderFiles;
+            getNumFolderFiles(nodeRoot, api, &nfiles, &nfolders);
             delete nodeRoot;
 
             MegaNode * inboxNode = api->getInboxNode();
-            nFolderFiles = getNumFolderFiles(inboxNode, api);
-            nfolders += nFolderFiles[0];
-            nfiles += nFolderFiles[1];
-            delete []nFolderFiles;
+            getNumFolderFiles(inboxNode, api, &nfiles, &nfolders);
             delete inboxNode;
 
             MegaNode * rubbishNode = api->getRubbishNode();
-            nFolderFiles = getNumFolderFiles(rubbishNode, api);
-            nfolders += nFolderFiles[0];
-            nfiles += nFolderFiles[1];
-            delete []nFolderFiles;
+            getNumFolderFiles(rubbishNode, api, &nfiles, &nfolders);
             delete rubbishNode;
 
             MegaNodeList *inshares = api->getInShares();
@@ -134,10 +125,7 @@ void MegaCmdGlobalListener::onNodesUpdate(MegaApi *api, MegaNodeList *nodes)
                 for (int i = 0; i < inshares->size(); i++)
                 {
                     nfolders++; //add the share itself
-                    nFolderFiles = getNumFolderFiles(inshares->get(i), api);
-                    nfolders += nFolderFiles[0];
-                    nfiles += nFolderFiles[1];
-                    delete []nFolderFiles;
+                    getNumFolderFiles(inshares->get(i), api, &nfiles, &nfolders);
                 }
             }
             delete inshares;
@@ -531,9 +519,9 @@ void MegaCmdMultiTransferListener::onTransferStart(MegaApi* api, MegaTransfer *t
         LOG_err << " onTransferStart for undefined Transfer ";
         return;
     }
-    totalbytes+=transfer->getTotalBytes(); //TODO: do rethink all this
+    totalbytes+=transfer->getTotalBytes();
     alreadyFinished = false;
-    percentDowloaded = transferredbytes * 1.0 / totalbytes * 1.0;
+    percentDowloaded = (transferredbytes + getOngoingTransferredBytes()) * 1.0 / totalbytes * 1.0;
 
     onTransferUpdate(api,transfer);
 
@@ -554,7 +542,15 @@ void MegaCmdMultiTransferListener::doOnTransferFinish(MegaApi* api, MegaTransfer
 
     LOG_verbose << "onTransferFinish Transfer->getType(): " << transfer->getType();
     completed++;
-    transferredbytes+=transfer->getTotalBytes(); //TODO: do rethink all this
+
+    map<int, long long>::iterator itr = ongoingtransferredbytes.find(transfer->getTag());
+    if ( itr!= ongoingtransferredbytes.end())
+    {
+        ongoingtransferredbytes.erase(itr);
+    }
+
+    transferredbytes+=transfer->getTransferredBytes();
+
 }
 
 void MegaCmdMultiTransferListener::waitMultiEnd()
@@ -573,6 +569,7 @@ void MegaCmdMultiTransferListener::onTransferUpdate(MegaApi* api, MegaTransfer *
         LOG_err << " onTransferUpdate for undefined Transfer ";
         return;
     }
+    ongoingtransferredbytes[transfer->getTag()] = transfer->getTransferredBytes();
 
     unsigned int cols = getNumberOfCols(80);
 
@@ -591,7 +588,7 @@ void MegaCmdMultiTransferListener::onTransferUpdate(MegaApi* api, MegaTransfer *
 
 
     float oldpercent = percentDowloaded;
-    percentDowloaded = (transferredbytes + transfer->getTransferredBytes()) * 1.0 / totalbytes * 100.0;
+    percentDowloaded = (transferredbytes + getOngoingTransferredBytes()) * 1.0 / totalbytes * 100.0;
     if (alreadyFinished || ( ( percentDowloaded == oldpercent ) && ( oldpercent != 0 ) ) )
     {
         return;
@@ -600,6 +597,7 @@ void MegaCmdMultiTransferListener::onTransferUpdate(MegaApi* api, MegaTransfer *
     {
         percentDowloaded = 0;
     }
+    assert(percentDowloaded <=100);
 
     char aux[40];
     if (transfer->getTotalBytes() < 0)
@@ -610,9 +608,9 @@ void MegaCmdMultiTransferListener::onTransferUpdate(MegaApi* api, MegaTransfer *
     {
         return; // after a 100% this happens
     }
-    sprintf(aux,"||(%lld/%lld MB: %.2f %%) ", (transferredbytes + transfer->getTransferredBytes()) / 1024 / 1024, totalbytes / 1024 / 1024, percentDowloaded);
+    sprintf(aux,"||(%lld/%lld MB: %.2f %%) ", (transferredbytes + getOngoingTransferredBytes()) / 1024 / 1024, totalbytes / 1024 / 1024, percentDowloaded);
     sprintf((char *)outputString.c_str() + cols - strlen(aux), "%s",                         aux);
-    for (int i = 0; i <= ( cols - strlen("TRANSFERING ||") - strlen(aux)) * 1.0 * percentDowloaded / 100.0; i++)
+    for (int i = 0; i <= ( cols - strlen("TRANSFERING ||") - strlen(aux)) * 1.0 * min (100.0f,percentDowloaded) / 100.0; i++)
     {
         *ptr++ = '#';
     }
@@ -629,7 +627,9 @@ void MegaCmdMultiTransferListener::onTransferUpdate(MegaApi* api, MegaTransfer *
 
     LOG_verbose << "onTransferUpdate transfer->getType(): " << transfer->getType() << " clientID=" << this->clientID;
 
-    informProgressUpdate(transferredbytes + transfer->getTransferredBytes(),totalbytes, clientID);
+    informProgressUpdate((transferredbytes + getOngoingTransferredBytes()),totalbytes, clientID);
+
+
 }
 
 
@@ -651,6 +651,16 @@ int MegaCmdMultiTransferListener::getFinalerror() const
 long long MegaCmdMultiTransferListener::getTotalbytes() const
 {
     return totalbytes;
+}
+
+long long MegaCmdMultiTransferListener::getOngoingTransferredBytes()
+{
+    long long total = 0;
+    for (map<int, long long>::iterator itr = ongoingtransferredbytes.begin(); itr!= ongoingtransferredbytes.end(); itr++)
+    {
+        total += itr->second;
+    }
+    return total;
 }
 
 MegaCmdMultiTransferListener::MegaCmdMultiTransferListener(MegaApi *megaApi, MegaCmdSandbox *sandboxCMD, MegaTransferListener *listener, int clientID)

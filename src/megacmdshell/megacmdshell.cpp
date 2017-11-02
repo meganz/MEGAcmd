@@ -451,7 +451,7 @@ void printprogress(long long completed, long long total, const char *title)
     }
     sprintf(aux,"||(%lld/%lld MB: %.2f %%) ", completed / 1024 / 1024, total / 1024 / 1024, percentDowloaded);
     sprintf((char *)outputString.c_str() + cols - strlen(aux), "%s",                         aux);
-    for (int i = 0; i <= ( cols - (strlen(title) + strlen(" ||")) - strlen(aux)) * 1.0 * percentDowloaded / 100.0; i++)
+    for (int i = 0; i <= ( cols - (strlen(title) + strlen(" ||")) - strlen(aux)) * 1.0 * min(100.0f,percentDowloaded) / 100.0; i++)
     {
         *ptr++ = '#';
     }
