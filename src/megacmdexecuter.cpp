@@ -5053,7 +5053,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         if (getFlag(clflags, "a") && ( "" == with ))
         {
             setCurrentOutCode(MCMD_EARGS);
-            LOG_err << " Required --with destiny";
+            LOG_err << " Required --with=user";
             LOG_err <<  "      " << getUsageStr("share");
             return;
         }
@@ -5093,7 +5093,14 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     if (!nodes->size())
                     {
                         setCurrentOutCode(MCMD_NOTFOUND);
-                        LOG_err << "Nodes not found: " << words[i];
+                        if (words[i].find("@") != string::npos)
+                        {
+                            LOG_err << "Could not find " << words[i] << ". Use --with=" << words[i] << " to specify the user to share with";
+                        }
+                        else
+                        {
+                            LOG_err << "Node not found: " << words[i];
+                        }
                     }
                     for (std::vector< MegaNode * >::iterator it = nodes->begin(); it != nodes->end(); ++it)
                     {
@@ -5107,7 +5114,16 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                                 {
                                     level = MegaShare::ACCESS_READ;
                                 }
-                                shareNode(n, with, level);
+
+                                if (n->getType() == MegaNode::TYPE_FILE)
+                                {
+                                    setCurrentOutCode(MCMD_INVALIDTYPE);
+                                    LOG_err << "Cannot share file: " << n->getName() << ". Only folders allowed. You can send file to user's inbox with cp (see \"cp --help\")";
+                                }
+                                else
+                                {
+                                    shareNode(n, with, level);
+                                }
                             }
                             else if (getFlag(clflags, "d"))
                             {

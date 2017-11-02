@@ -155,7 +155,7 @@ MegaCMDLogger *loggerCMD;
 MegaMutex mutexEndedPetitionThreads;
 std::vector<MegaThread *> petitionThreads;
 std::vector<MegaThread *> endedPetitionThreads;
-
+MegaThread *threadRetryConnections;
 
 //Comunications Manager
 ComunicationsManager * cm;
@@ -1723,7 +1723,8 @@ string getHelpStr(const char *command)
         os << "If the location doesn't exits, the file/folder will be renamed to the defined destiny" << endl;
         os << endl;
         os << "If \"dstemail:\" provided, the file/folder will be sent to that user's inbox (//in)" << endl;
-        os << " Remember the trailing \":\", otherwise a file with the name of that user will be created" << endl;
+        os << " e.g: cp /path/to/file user@doma.in:" << endl;
+        os << " Remember the trailing \":\", otherwise a file with the name of that user (\"user@doma.in\") will be created" << endl;
     }
     else if (!strcmp(command, "https"))
     {
@@ -1813,7 +1814,7 @@ string getHelpStr(const char *command)
         os << " of no option selected, it will display all the shares existing " << endl;
         os << " in the tree of that path" << endl;
         os << endl;
-        os << "When sharing a folder with a user that is not a contact (see \"users\" help)" << endl;
+        os << "When sharing a folder with a user that is not a contact (see \"users --help\")" << endl;
         os << "  the share will be in a pending state. You can list pending shares with" << endl;
         os << " \"share -p\". He would need to accept your invitation (see \"ipc\")" << endl;
         os << endl;
@@ -2520,6 +2521,8 @@ void finalize()
     }
 
     delete megaCmdMegaListener;
+    threadRetryConnections->join();
+    delete threadRetryConnections;
     delete api;
 
     while (!apiFolders.empty())
@@ -2546,9 +2549,24 @@ void finalize()
 
 int currentclientID = 1;
 
+void * retryConnections(void *pointer)
+{
+    while(!doExit)
+    {
+        LOG_verbose << "Calling recurrent retryPendingConnections";
+        api->retryPendingConnections();
+        sleepSeconds(30);
+    }
+}
+
+
 // main loop
 void megacmd()
 {
+    threadRetryConnections = new MegaThread();
+    threadRetryConnections->start(retryConnections, NULL);
+
+
     LOG_info << "Listening to petitions ... ";
 
     for (;; )
