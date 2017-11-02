@@ -424,7 +424,14 @@ void printprogress(long long completed, long long total, const char *title)
     *ptr = '.'; //replace \0 char
 
     float oldpercent = percentDowloaded;
-    percentDowloaded = completed * 1.0 / total * 100.0;
+    if (total == 0)
+    {
+        percentDowloaded = 0;
+    }
+    else
+    {
+        percentDowloaded = completed * 1.0 / total * 100.0;
+    }
     if (completed != PROGRESS_COMPLETE && (alreadyFinished || ( ( percentDowloaded == oldpercent ) && ( oldpercent != 0 ) ) ))
     {
         return;
@@ -434,7 +441,7 @@ void printprogress(long long completed, long long total, const char *title)
         percentDowloaded = 0;
     }
 
-    char aux[40];
+    char aux[41];
     if (total < 0)
     {
         return; // after a 100% this happens
@@ -449,9 +456,9 @@ void printprogress(long long completed, long long total, const char *title)
         completed = total;
         percentDowloaded = 100;
     }
-    sprintf(aux,"||(%lld/%lld MB: %.2f %%) ", completed / 1024 / 1024, total / 1024 / 1024, percentDowloaded);
+    sprintf(aux,"||(%lld/%lld MB: %6.2f %%) ", completed / 1024 / 1024, total / 1024 / 1024, percentDowloaded);
     sprintf((char *)outputString.c_str() + cols - strlen(aux), "%s",                         aux);
-    for (int i = 0; i <= ( cols - (strlen(title) + strlen(" ||")) - strlen(aux)) * 1.0 * min(100.0f,percentDowloaded) / 100.0; i++)
+    for (int i = 0; i < ( cols - (strlen(title) + strlen(" ||")) - strlen(aux)) * 1.0 * min(100.0f,percentDowloaded) / 100.0; i++)
     {
         *ptr++ = '#';
     }

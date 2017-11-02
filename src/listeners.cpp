@@ -302,7 +302,14 @@ void MegaCmdListener::onRequestUpdate(MegaApi* api, MegaRequest *request)
 
 
             float oldpercent = percentFetchnodes;
-            percentFetchnodes = request->getTransferredBytes() * 1.0 / request->getTotalBytes() * 100.0;
+            if (request->getTotalBytes() == 0)
+            {
+                percentFetchnodes = 0;
+            }
+            else
+            {
+                percentFetchnodes = request->getTransferredBytes() * 1.0 / request->getTotalBytes() * 100.0;
+            }
             if (alreadyFinished || ( ( percentFetchnodes == oldpercent ) && ( oldpercent != 0 )) )
             {
                 return;
@@ -436,7 +443,14 @@ void MegaCmdTransferListener::onTransferUpdate(MegaApi* api, MegaTransfer *trans
 
 
     float oldpercent = percentDowloaded;
-    percentDowloaded = transfer->getTransferredBytes() * 1.0 / transfer->getTotalBytes() * 100.0;
+    if (transfer->getTotalBytes() == 0)
+    {
+        percentDowloaded = 0;
+    }
+    else
+    {
+        percentDowloaded = transfer->getTransferredBytes() * 1.0 / transfer->getTotalBytes() * 100.0;
+    }
     if (alreadyFinished || ( ( percentDowloaded == oldpercent ) && ( oldpercent != 0 ) ) )
     {
         return;
@@ -519,9 +533,15 @@ void MegaCmdMultiTransferListener::onTransferStart(MegaApi* api, MegaTransfer *t
         LOG_err << " onTransferStart for undefined Transfer ";
         return;
     }
-    totalbytes+=transfer->getTotalBytes();
     alreadyFinished = false;
-    percentDowloaded = (transferredbytes + getOngoingTransferredBytes()) * 1.0 / totalbytes * 1.0;
+    if (totalbytes == 0)
+    {
+        percentDowloaded = 0;
+    }
+    else
+    {
+        percentDowloaded = (transferredbytes + getOngoingTransferredBytes()) * 1.0 / totalbytes * 1.0;
+    }
 
     onTransferUpdate(api,transfer);
 
@@ -549,8 +569,14 @@ void MegaCmdMultiTransferListener::doOnTransferFinish(MegaApi* api, MegaTransfer
         ongoingtransferredbytes.erase(itr);
     }
 
-    transferredbytes+=transfer->getTransferredBytes();
+    itr = ongoingtotalbytes.find(transfer->getTag());
+    if ( itr!= ongoingtotalbytes.end())
+    {
+        ongoingtotalbytes.erase(itr);
+    }
 
+    transferredbytes+=transfer->getTransferredBytes();
+    totalbytes+=transfer->getTotalBytes();
 }
 
 void MegaCmdMultiTransferListener::waitMultiEnd()
@@ -570,6 +596,7 @@ void MegaCmdMultiTransferListener::onTransferUpdate(MegaApi* api, MegaTransfer *
         return;
     }
     ongoingtransferredbytes[transfer->getTag()] = transfer->getTransferredBytes();
+    ongoingtotalbytes[transfer->getTag()] = transfer->getTotalBytes();
 
     unsigned int cols = getNumberOfCols(80);
 
@@ -588,7 +615,14 @@ void MegaCmdMultiTransferListener::onTransferUpdate(MegaApi* api, MegaTransfer *
 
 
     float oldpercent = percentDowloaded;
-    percentDowloaded = (transferredbytes + getOngoingTransferredBytes()) * 1.0 / totalbytes * 100.0;
+    if ((totalbytes + getOngoingTotalBytes() ) == 0)
+    {
+        percentDowloaded = 0;
+    }
+    else
+    {
+        percentDowloaded = (transferredbytes + getOngoingTransferredBytes()) * 1.0 / (totalbytes + getOngoingTotalBytes() ) * 100.0;
+    }
     if (alreadyFinished || ( ( percentDowloaded == oldpercent ) && ( oldpercent != 0 ) ) )
     {
         return;
@@ -608,7 +642,7 @@ void MegaCmdMultiTransferListener::onTransferUpdate(MegaApi* api, MegaTransfer *
     {
         return; // after a 100% this happens
     }
-    sprintf(aux,"||(%lld/%lld MB: %.2f %%) ", (transferredbytes + getOngoingTransferredBytes()) / 1024 / 1024, totalbytes / 1024 / 1024, percentDowloaded);
+    sprintf(aux,"||(%lld/%lld MB: %.2f %%) ", (transferredbytes + getOngoingTransferredBytes()) / 1024 / 1024, (totalbytes + getOngoingTotalBytes() ) / 1024 / 1024, percentDowloaded);
     sprintf((char *)outputString.c_str() + cols - strlen(aux), "%s",                         aux);
     for (int i = 0; i <= ( cols - strlen("TRANSFERING ||") - strlen(aux)) * 1.0 * min (100.0f,percentDowloaded) / 100.0; i++)
     {
@@ -627,7 +661,7 @@ void MegaCmdMultiTransferListener::onTransferUpdate(MegaApi* api, MegaTransfer *
 
     LOG_verbose << "onTransferUpdate transfer->getType(): " << transfer->getType() << " clientID=" << this->clientID;
 
-    informProgressUpdate((transferredbytes + getOngoingTransferredBytes()),totalbytes, clientID);
+    informProgressUpdate((transferredbytes + getOngoingTransferredBytes()),(totalbytes + getOngoingTotalBytes() ), clientID);
 
 
 }
@@ -657,6 +691,16 @@ long long MegaCmdMultiTransferListener::getOngoingTransferredBytes()
 {
     long long total = 0;
     for (map<int, long long>::iterator itr = ongoingtransferredbytes.begin(); itr!= ongoingtransferredbytes.end(); itr++)
+    {
+        total += itr->second;
+    }
+    return total;
+}
+
+long long MegaCmdMultiTransferListener::getOngoingTotalBytes()
+{
+    long long total = 0;
+    for (map<int, long long>::iterator itr = ongoingtotalbytes.begin(); itr!= ongoingtotalbytes.end(); itr++)
     {
         total += itr->second;
     }

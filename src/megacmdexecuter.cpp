@@ -3007,7 +3007,16 @@ void MegaCmdExecuter::printTransfer(MegaTransfer *transfer, const unsigned int P
     }
 
     //progress
-    OUTSTREAM << "  " << getFixLengthString(percentageToText(transfer->getTransferredBytes()*1.0/transfer->getTotalBytes()),7,' ',true)
+    float percent;
+    if (transfer->getTotalBytes() == 0)
+    {
+        percent = 0;
+    }
+    else
+    {
+        percent =transfer->getTransferredBytes()*1.0/transfer->getTotalBytes();
+    }
+    OUTSTREAM << "  " << getFixLengthString(percentageToText(percent),7,' ',true)
               << " of " << getFixLengthString(sizeToText(transfer->getTotalBytes()),10,' ',true);
 
     //state
@@ -4418,6 +4427,10 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 {
                     for (int i = 1; i < max(1, (int)words.size() - 1); i++)
                     {
+                        if (words[i] == ".")
+                        {
+                            words[i] = getLPWD();
+                        }
                         uploadNode(words[i], api, n, newname, background, ignorequotawarn, clientID, megaCmdMultiTransferListener);
                     }
                 }

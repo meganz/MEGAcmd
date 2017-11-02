@@ -82,10 +82,12 @@ private:
     int completed;
     long long transferredbytes;
     std::map<int, long long> ongoingtransferredbytes;
+    std::map<int, long long> ongoingtotalbytes;
     long long totalbytes;
     int finalerror;
 
     long long getOngoingTransferredBytes();
+    long long getOngoingTotalBytes();
 
 public:
     MegaCmdMultiTransferListener(mega::MegaApi *megaApi, MegaCmdSandbox * sandboxCMD, mega::MegaTransferListener *listener = NULL, int clientID=-1);
