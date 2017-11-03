@@ -6094,7 +6094,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             return;
         }
         string remotePath = "";
-        MegaNode *dstFolder;
+        MegaNode *dstFolder = NULL;
         if (words.size() > 1) //link
         {
             if (isPublicLink(words[1]))
@@ -6185,7 +6185,6 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         }
                         delete megaCmdListener;
                         freeApiFolder(apiFolder);
-                        delete dstFolder;
                     }
                     else
                     {
@@ -6199,6 +6198,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     setCurrentOutCode(MCMD_INVALIDTYPE);
                     LOG_err << "Invalid destiny: " << remotePath;
                 }
+                delete dstFolder;
             }
             else
             {
