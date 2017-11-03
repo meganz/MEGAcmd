@@ -2555,8 +2555,14 @@ void * retryConnections(void *pointer)
     {
         LOG_verbose << "Calling recurrent retryPendingConnections";
         api->retryPendingConnections();
-        sleepSeconds(30);
+
+        int count = 100;
+        while (!doExit && --count)
+        {
+            sleepMicroSeconds(300);
+        }
     }
+    return NULL;
 }
 
 
@@ -2565,7 +2571,6 @@ void megacmd()
 {
     threadRetryConnections = new MegaThread();
     threadRetryConnections->start(retryConnections, NULL);
-
 
     LOG_info << "Listening to petitions ... ";
 
