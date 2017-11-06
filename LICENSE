@@ -29,6 +29,6 @@ The previous applies to all sources and binaries save
 those explicitly distributed under the terms of the GNU General Public
 License (see http://www.gnu.org/copyleft/gpl.txt for details), and the
 interactive MEGAcmdShell executables (mega-cmd in linux, MEGAcmdShell
-in MAC and MEGAcmd.exe in Windows), distributed under the aforementioned
-GNU General Public License.
+in MAC and MEGAcmdShell.exe in Windows), distributed under the 
+aforementioned GNU General Public License.
 
