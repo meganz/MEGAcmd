@@ -4358,7 +4358,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             if (megaCmdMultiTransferListener->getFinalerror() != MegaError::API_OK)
             {
                 setCurrentOutCode(megaCmdMultiTransferListener->getFinalerror());
-                LOG_err << "Download failed. error code:" << megaCmdMultiTransferListener->getFinalerror();
+                LOG_err << "Download failed. error code:" << MegaError::getErrorString(megaCmdMultiTransferListener->getFinalerror());
             }
 
             informProgressUpdate(PROGRESS_COMPLETE, megaCmdMultiTransferListener->getTotalbytes(), clientID);
@@ -4446,7 +4446,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 if (megaCmdMultiTransferListener->getFinalerror() != MegaError::API_OK)
                 {
                     setCurrentOutCode(megaCmdMultiTransferListener->getFinalerror());
-                    LOG_err << "Download failed. error code:" << megaCmdMultiTransferListener->getFinalerror();
+                    LOG_err << "Upload failed. error code:" << MegaError::getErrorString(megaCmdMultiTransferListener->getFinalerror());
                 }
 
                 informProgressUpdate(PROGRESS_COMPLETE, megaCmdMultiTransferListener->getTotalbytes(), clientID);

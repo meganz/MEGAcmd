@@ -111,7 +111,7 @@ If that is not you case, include the location for the binaries in your path.
 
 ## Windows
 Once you have MEGAcmd installed, you just need to execute it (via Desktop icon or Start Menu) to open the shell. 
-This shall open MEGAcmdServer in the background (a process named MEGAcmd.exe).
+This shall open MEGAcmdServer in the background (a process named MEGAcmdServer.exe).
 
 For a better user experience (specially in WINDOWS 7) we recommend executing MEGAcmd from PowerShell:
 Open PowerShell and execute:

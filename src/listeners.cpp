@@ -552,17 +552,15 @@ void MegaCmdMultiTransferListener::doOnTransferFinish(MegaApi* api, MegaTransfer
 {
     finished++;
     finalerror = (finalerror!=API_OK)?finalerror:e->getErrorCode();
-    multisemaphore->release();
 
     if (!transfer)
     {
         LOG_err << " onTransferFinish for undefined transfer ";
+        multisemaphore->release();
         return;
     }
 
     LOG_verbose << "onTransferFinish Transfer->getType(): " << transfer->getType();
-    completed++;
-
     map<int, long long>::iterator itr = ongoingtransferredbytes.find(transfer->getTag());
     if ( itr!= ongoingtransferredbytes.end())
     {
@@ -577,6 +575,8 @@ void MegaCmdMultiTransferListener::doOnTransferFinish(MegaApi* api, MegaTransfer
 
     transferredbytes+=transfer->getTransferredBytes();
     totalbytes+=transfer->getTotalBytes();
+    multisemaphore->release();
+
 }
 
 void MegaCmdMultiTransferListener::waitMultiEnd()
@@ -718,7 +718,6 @@ MegaCmdMultiTransferListener::MegaCmdMultiTransferListener(MegaApi *megaApi, Meg
 
     started = 0;
     finished = 0;
-    completed = 0;
     totalbytes = 0;
     transferredbytes = 0;
 

@@ -10,7 +10,12 @@ CONFIG(release, debug|release) {
 
 CONFIG -= qt
 
+win32 {
+TARGET = MEGAcmdServer
+}
+else {
 TARGET = MEGAcmd
+}
 TEMPLATE = app
 CONFIG += console
 CONFIG += USE_MEGAAPI
