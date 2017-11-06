@@ -2557,6 +2557,7 @@ void * retryConnections(void *pointer)
         api->retryPendingConnections();
         sleepSeconds(30);
     }
+    return NULL;
 }
 
 

@@ -79,7 +79,6 @@ private:
     int clientID;
     int started;
     int finished;
-    int completed;
     long long transferredbytes;
     std::map<int, long long> ongoingtransferredbytes;
     std::map<int, long long> ongoingtotalbytes;
