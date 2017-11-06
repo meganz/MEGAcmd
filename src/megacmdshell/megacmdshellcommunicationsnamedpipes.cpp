@@ -379,7 +379,7 @@ HANDLE MegaCmdShellCommunicationsNamedPipes::createNamedPipe(int number, bool in
                 ZeroMemory( &pi, sizeof(pi) );
 
 #ifndef NDEBUG
-                LPCWSTR t = TEXT("..\\MEGAcmdServer\\debug\\MEGAcmd.exe");
+                LPCWSTR t = TEXT("..\\MEGAcmdServer\\debug\\MEGAcmdServer.exe");
                 if (true)
                 {
 #else
@@ -405,7 +405,7 @@ HANDLE MegaCmdShellCommunicationsNamedPipes::createNamedPipe(int number, bool in
                 if (okgetcontaningfolder)
                 {
                     wstring fullpathtoexec(foldercontainingexec);
-                    fullpathtoexec+=L"\\MEGAcmd\\MEGAcmd.exe";
+                    fullpathtoexec+=L"\\MEGAcmd\\MEGAcmdServer.exe";
 
                     LPCWSTR t = fullpathtoexec.c_str();
 #endif
