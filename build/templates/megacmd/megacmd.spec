@@ -60,6 +60,12 @@ It features 2 modes of interaction:
 %define with_cryptopp --with-cryptopp=$PWD/deps
 %endif
 
+%define flag_cares %{nil}
+%if 0%{?rhel_version}
+%define flag_cares -e
+%define with_cares --with-cares=$PWD/deps
+%endif
+
 %if 0%{?suse_version} > 1320
 %define flag_cryptopp -q
 %define with_cryptopp --with-cryptopp=$PWD/deps
@@ -88,7 +94,7 @@ sed -i "s#AC_INIT#m4_pattern_allow(AC_PROG_OBJCXX)\nAC_INIT#g" sdk/configure.ac
 
 #build dependencies into folder deps
 mkdir deps || :
-bash -x ./contrib/build_sdk.sh %{flag_cryptopp} -o archives \
+bash -x ./contrib/build_sdk.sh %{flag_cryptopp} %{flag_cares} -o archives \
   -g %{flag_disablezlib} -b -l -c -s -u -a -p deps/
 
 ./configure --disable-shared --enable-static --disable-silent-rules \
@@ -168,8 +174,8 @@ YUM_FILE="/etc/yum.repos.d/megasync.repo"
 cat > "$YUM_FILE" << DATA
 [MEGAsync]
 name=MEGAsync
-baseurl=https://mega.nz/linux/MEGAsync/Fedora_$releasever/
-gpgkey=https://mega.nz/linux/MEGAsync/Fedora_$releasever/repodata/repomd.xml.key
+baseurl=https://mega.nz/linux/MEGAsync/Fedora_\$releasever/
+gpgkey=https://mega.nz/linux/MEGAsync/Fedora_\$releasever/repodata/repomd.xml.key
 gpgcheck=1
 enabled=1
 DATA

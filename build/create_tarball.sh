@@ -103,9 +103,10 @@ ln -s ../megacmd/debian.postinst $megacmd_NAME/debian.postinst
 ln -s ../megacmd/debian.postrm $megacmd_NAME/debian.postrm
 ln -s ../megacmd/debian.copyright $megacmd_NAME/debian.copyright
 
-for i in $BASEPATH/{autogen.sh,m4,configure.ac,src,Makefile.am,sdk}; do
+for i in $BASEPATH/{autogen.sh,configure.ac,src,Makefile.am,sdk}; do
 	ln -s $i $megacmd_NAME/
 done
+mkdir $megacmd_NAME/m4 #create m4 empty folder required in older autotools
 
 mkdir -p $megacmd_NAME/contrib/
 ln -s $BASEPATH/sdk/contrib/build_sdk.sh $megacmd_NAME/contrib/

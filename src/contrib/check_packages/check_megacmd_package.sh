@@ -22,7 +22,7 @@ display_help() {
     local app=$(basename "$0")
     echo ""
     echo "Usage:"
-    echo " $app [-c] [-i] [-k] [-p pass] VMNAME URL_REPO"
+    echo " $app [-c] [-i] [-k] [-n] [-p pass] VMNAME URL_REPO"
     echo ""
     echo "This script will check the correctness of a package using a virtual machine."
     echo " It sill receive the machine name and the repository that will be used to download" 
@@ -50,7 +50,7 @@ remove_megacmd=0
 quit_machine=1
 require_change=0
 
-while getopts ":ikcp:" opt; do
+while getopts ":ikcnp:" opt; do
   case $opt in
     i)
 		remove_megacmd=1
@@ -325,9 +325,13 @@ elif [[ $VMNAME == *"ARCHLINUX"* ]]; then
 	$sshpasscommand ssh root@$IP_GUEST sed -n "'1h;1!H;\${g;s/###REPO for MEGA###\n.*###END REPO for MEGA###//;p;}'" -i /etc/pacman.conf 
 
 	#include repo
+	archreponame="DEB_Arch_Extra"
+	if [[ $REPO == *"home:"* ]]; then
+		archreponame="home_Admin_Arch_Extra"
+	fi
 	$sshpasscommand ssh root@$IP_GUEST "cat >> /etc/pacman.conf" <<-EOF
 ###REPO for MEGA###
-[DEB_Arch_Extra]
+[$archreponame]
 SigLevel = Optional TrustAll
 Server = $REPO/\$arch
 ###END REPO for MEGA###
@@ -564,6 +568,8 @@ else #FEDORA | CENTOS...
 	if [[ $distroDir == "Scientific"* ]]; then distroDir="ScientificLinux"; fi
 	ver=$($sshpasscommand ssh root@$IP_GUEST cat /etc/system-release | awk -F"release "  '{print $2}' | awk '{print $1}')
 	if [[ x$ver == "x7"* ]]; then ver="7"; fi #centos7
+	if [[ $distroDir == "Fedora"* ]]; then ver="\$releasever"; fi
+
 
 	expected="baseurl=https://mega.nz/linux/MEGAsync/${distroDir}_$ver"
 	resultRepoConfiguredOk=0
