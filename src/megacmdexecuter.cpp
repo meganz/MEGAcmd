@@ -1831,30 +1831,43 @@ void MegaCmdExecuter::actUponGetExtendedAccountDetails(SynchronousRequestListene
         MegaAccountDetails *details = srl->getRequest()->getMegaAccountDetails();
         if (details)
         {
-            OUTSTREAM << "\tAvailable storage: " << details->getStorageMax() << " byte(s)" << endl;
+            OUTSTREAM << "    Available storage:"
+                      << getFixLengthString(sizeToText(details->getStorageMax()), 9, ' ', true)
+                      << "ytes" << endl;
             MegaNode *n = api->getRootNode();
             if (n)
             {
-                OUTSTREAM << "\t\tIn ROOT: " << details->getStorageUsed(n->getHandle()) << " byte(s) in "
-                          << details->getNumFiles(n->getHandle()) << " file(s) and " << details->getNumFolders(n->getHandle()) << " folder(s)" << endl;
+                OUTSTREAM << "        In ROOT:      "
+                          << getFixLengthString(sizeToText(details->getStorageUsed(n->getHandle())), 9, ' ', true) << "ytes in "
+                          << getFixLengthString(SSTR(details->getNumFiles(n->getHandle())),5,' ',true) << " file(s) and "
+                          << getFixLengthString(SSTR(details->getNumFolders(n->getHandle())),5,' ',true) << " folder(s)" << endl;
                 delete n;
             }
 
             n = api->getInboxNode();
             if (n)
             {
-                OUTSTREAM << "\t\tIn INBOX: " << details->getStorageUsed(n->getHandle()) << " byte(s) in "
-                          << details->getNumFiles(n->getHandle()) << " file(s) and " << details->getNumFolders(n->getHandle()) << " folder(s)" << endl;
+                OUTSTREAM << "        In INBOX:     "
+                          << getFixLengthString( sizeToText(details->getStorageUsed(n->getHandle())), 9, ' ', true ) << "ytes in "
+                          << getFixLengthString(SSTR(details->getNumFiles(n->getHandle())),5,' ',true) << " file(s) and "
+                          << getFixLengthString(SSTR(details->getNumFolders(n->getHandle())),5,' ',true) << " folder(s)" << endl;
                 delete n;
             }
 
             n = api->getRubbishNode();
             if (n)
             {
-                OUTSTREAM << "\t\tIn RUBBISH: " << details->getStorageUsed(n->getHandle()) << " byte(s) in "
-                          << details->getNumFiles(n->getHandle()) << " file(s) and " << details->getNumFolders(n->getHandle()) << " folder(s)" << endl;
+                OUTSTREAM << "        In RUBBISH:   "
+                          << getFixLengthString(sizeToText(details->getStorageUsed(n->getHandle())), 9, ' ', true) << "ytes in "
+                          << getFixLengthString(SSTR(details->getNumFiles(n->getHandle())),5,' ',true) << " file(s) and "
+                          << getFixLengthString(SSTR(details->getNumFolders(n->getHandle())),5,' ',true) << " folder(s)" << endl;
                 delete n;
             }
+
+            long long usedinVersions = details->getVersionStorageUsed();
+
+            OUTSTREAM << "        Total size taken up by file versions: "
+                      << getFixLengthString(sizeToText(usedinVersions), 12, ' ', true) << "ytes"<< endl;
 
 
             MegaNodeList *inshares = api->getInShares();
@@ -1863,32 +1876,32 @@ void MegaCmdExecuter::actUponGetExtendedAccountDetails(SynchronousRequestListene
                 for (int i = 0; i < inshares->size(); i++)
                 {
                     n = inshares->get(i);
-                    OUTSTREAM << "\t\tIn INSHARE " << n->getName() << ": " << details->getStorageUsed(n->getHandle()) << " byte(s) in "
+                    OUTSTREAM << "        In INSHARE " << n->getName() << ": " << details->getStorageUsed(n->getHandle()) << " byte(s) in "
                               << details->getNumFiles(n->getHandle()) << " file(s) and " << details->getNumFolders(n->getHandle()) << " folder(s)" << endl;
                 }
             }
             delete inshares;
 
-            OUTSTREAM << "\tPro level: " << details->getProLevel() << endl;
+            OUTSTREAM << "    Pro level: " << details->getProLevel() << endl;
             if (details->getProLevel())
             {
                 if (details->getProExpiration())
                 {
                     time_t ts = details->getProExpiration();
                     strftime(timebuf, sizeof timebuf, "%c", localtime(&ts));
-                    OUTSTREAM << "\t\t" << "Pro expiration date: " << timebuf << endl;
+                    OUTSTREAM << "        " << "Pro expiration date: " << timebuf << endl;
                 }
             }
             char * subscriptionMethod = details->getSubscriptionMethod();
-            OUTSTREAM << "\tSubscription type: " << subscriptionMethod << endl;
+            OUTSTREAM << "    Subscription type: " << subscriptionMethod << endl;
             delete []subscriptionMethod;
-            OUTSTREAM << "\tAccount balance:" << endl;
+            OUTSTREAM << "    Account balance:" << endl;
             for (int i = 0; i < details->getNumBalances(); i++)
             {
                 MegaAccountBalance * balance = details->getBalance(i);
                 char sbalance[50];
-                sprintf(sbalance, "\tBalance: %.3s %.02f", balance->getCurrency(), balance->getAmount());
-                OUTSTREAM << "\t" << "Balance: " << sbalance << endl;
+                sprintf(sbalance, "    Balance: %.3s %.02f", balance->getCurrency(), balance->getAmount());
+                OUTSTREAM << "    " << "Balance: " << sbalance << endl;
             }
 
             if (details->getNumPurchases())
@@ -1904,7 +1917,7 @@ void MegaCmdExecuter::actUponGetExtendedAccountDetails(SynchronousRequestListene
                     strftime(timebuf, sizeof timebuf, "%c", localtime(&ts));
                     sprintf(spurchase, "ID: %.11s Time: %s Amount: %.3s %.02f Payment method: %d\n",
                         purchase->getHandle(), timebuf, purchase->getCurrency(), purchase->getAmount(), purchase->getMethod());
-                    OUTSTREAM << "\t" << spurchase << endl;
+                    OUTSTREAM << "    " << spurchase << endl;
                 }
             }
 
@@ -1919,7 +1932,7 @@ void MegaCmdExecuter::actUponGetExtendedAccountDetails(SynchronousRequestListene
                     strftime(timebuf, sizeof timebuf, "%c", localtime(&ts));
                     sprintf(stransaction, "ID: %.11s Time: %s Amount: %.3s %.02f\n",
                         transaction->getHandle(), timebuf, transaction->getCurrency(), transaction->getAmount());
-                    OUTSTREAM << "\t" << stransaction << endl;
+                    OUTSTREAM << "    " << stransaction << endl;
                 }
             }
 
@@ -1941,14 +1954,14 @@ void MegaCmdExecuter::actUponGetExtendedAccountDetails(SynchronousRequestListene
 
                     if (session->isCurrent())
                     {
-                        sprintf(sdetails, "\t* Current Session\n");
+                        sprintf(sdetails, "    * Current Session\n");
                     }
 
                     char * userAgent = session->getUserAgent();
                     char * country = session->getCountry();
                     char * ip = session->getIP();
 
-                    sprintf(sdetails, "%s\tSession ID: %s\n\tSession start: %s\n\tMost recent activity: %s\n\tIP: %s\n\tCountry: %.2s\n\tUser-Agent: %s\n\t-----\n",
+                    sprintf(sdetails, "%s    Session ID: %s\n    Session start: %s\n    Most recent activity: %s\n    IP: %s\n    Country: %.2s\n    User-Agent: %s\n    -----\n",
                     sdetails,
                     sid,
                     timebuf,

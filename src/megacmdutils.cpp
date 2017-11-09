@@ -1340,9 +1340,32 @@ string sizeToText(long long totalSize, bool equalizeUnitsLength, bool humanreada
     os.precision(2);
     if (humanreadable)
     {
-        double reducedSize = ( totalSize > 1048576 * 2 ? totalSize / 1048576.0 : ( totalSize > 1024 * 2 ? totalSize / 1024.0 : totalSize ));
+        string unit;
+        unit = ( equalizeUnitsLength ? " B" : "B" );
+        double reducedSize = totalSize;
+
+        if ( totalSize > 1099511627776L *2 )
+        {
+            reducedSize = totalSize / 1099511627776L;
+            unit = "TB";
+        }
+        else if ( totalSize > 1073741824L *2 )
+        {
+            reducedSize = totalSize / 1073741824L;
+            unit = "GB";
+        }
+        else if (totalSize > 1048576 * 2)
+        {
+            reducedSize = totalSize / 1048576;
+            unit = "MB";
+        }
+        else if (totalSize > 1024 * 2)
+        {
+            reducedSize = totalSize / 1024;
+            unit = "KB";
+        }
         os << fixed << reducedSize;
-        os << ( totalSize > 1048576 * 2 ? " MB" : ( totalSize > 1024 * 2 ? " KB" : ( equalizeUnitsLength ? "  B" : " B" )));
+        os << " " << unit;
     }
     else
     {
