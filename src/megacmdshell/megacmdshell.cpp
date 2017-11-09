@@ -1417,9 +1417,9 @@ void process_line(char * line)
                         toexec+="transfers --path-display-size=";
                         toexec+=SSTR(pathSize);
                         toexec+=" ";
-                        if (strlen(line)>10)
+                        if (strlen(line)>strlen("transfers "))
                         {
-                            toexec+=line+10;
+                            toexec+=line+strlen("transfers ");
                         }
                     }
                     else
@@ -1441,9 +1441,9 @@ void process_line(char * line)
                         toexec+="sync --path-display-size=";
                         toexec+=SSTR(pathSize);
                         toexec+=" ";
-                        if (strlen(line)>10)
+                        if (strlen(line)>strlen("sync "))
                         {
-                            toexec+=line+10;
+                            toexec+=line+strlen("sync ");
                         }
                     }
                     else
