@@ -34,7 +34,8 @@ m4_define([megacmd_lt_revision], [0])
 m4_define([megacmd_lt_current], [$(grep define <src/megacmdversion.h | awk '{print @S|@3}' | awk 'BEGIN { RS = "" ; FS = "\n" } {printf @S|@1*10000+@S|@2*100+@S|@3}')])
 m4_define([megacmd_lt_age], [0])
 
-AC_INIT([MEGAcmd], 0.9.4)
+AC_INIT([MEGAcmd], m4_esyscmd([ grep define < src/megacmdversion.h | awk '{print $3}' | awk 'BEGIN { RS = "" ; FS = "\n" } {printf $1"."$2"."$3}']), [https://github.com/meganz/megacmd])
+
 AM_INIT_AUTOMAKE
 
 AC_PROG_CC
