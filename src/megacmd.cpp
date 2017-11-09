@@ -2813,6 +2813,21 @@ void initializeMacOSStuff(int argc, char* argv[])
 
 #endif
 
+string getLocaleCode()
+{
+    locale l("");
+    string ls = l.name();
+    size_t posequal = ls.find("=");
+    size_t possemicolon = ls.find_first_of(";.");
+
+    if (posequal != string::npos && possemicolon != string::npos && posequal < possemicolon)
+    {
+        return ls.substr(posequal+1,possemicolon-posequal-1);
+    }
+    return string();
+
+}
+
 bool runningInBackground()
 {
 #ifndef _WIN32
@@ -2833,6 +2848,7 @@ bool runningInBackground()
 
 int main(int argc, char* argv[])
 {
+    string localecode = getLocaleCode();
 #ifdef _WIN32
     // Set Environment's default locale
     setlocale(LC_ALL, "en-US");
@@ -2900,9 +2916,13 @@ int main(int argc, char* argv[])
     api = new MegaApi("BdARkQSQ", ConfigurationManager::getConfigFolder().c_str(), userAgent);
 #endif
 
+
+    api->setLanguage(localecode.c_str());
+
     for (int i = 0; i < 5; i++)
     {
         MegaApi *apiFolder = new MegaApi("BdARkQSQ", (const char*)NULL, userAgent);
+        apiFolder->setLanguage(localecode.c_str());
         apiFolders.push(apiFolder);
         apiFolder->addLoggerObject(loggerCMD);
         apiFolder->setLogLevel(MegaApi::LOG_LEVEL_MAX);
@@ -2918,6 +2938,8 @@ int main(int argc, char* argv[])
 
     api->addLoggerObject(loggerCMD);
     api->setLogLevel(MegaApi::LOG_LEVEL_MAX);
+
+    LOG_debug << "Language set to: " << localecode;
 
     sandboxCMD = new MegaCmdSandbox();
     cmdexecuter = new MegaCmdExecuter(api, loggerCMD, sandboxCMD);
