@@ -2815,6 +2815,37 @@ void initializeMacOSStuff(int argc, char* argv[])
 
 string getLocaleCode()
 {
+#if defined(_WIN32) && defined(LOCALE_SISO639LANGNAME)
+    LCID lcidLocaleId;
+    LCTYPE lctyLocaleInfo;
+    PWSTR pstr;
+    INT iBuffSize;
+
+    lcidLocaleId = LOCALE_USER_DEFAULT;
+    lctyLocaleInfo = LOCALE_SISO639LANGNAME;
+
+    // Determine the size
+    iBuffSize = GetLocaleInfo( lcidLocaleId, lctyLocaleInfo, NULL, 0 );
+
+    if(iBuffSize > 0)
+    {
+        pstr = (WCHAR *) malloc( iBuffSize * sizeof(WCHAR) );
+        if(pstr != NULL)
+        {
+            if(GetLocaleInfoW( lcidLocaleId, lctyLocaleInfo, pstr, iBuffSize ))
+            {
+                string toret;
+                wstring ws(pstr);
+                localwtostring(&ws,&toret);
+                free(pstr); //free locale info string
+                return toret;
+            }
+            free(pstr); //free locale info string
+        }
+    }
+
+#else
+
     locale l("");
     string ls = l.name();
     size_t posequal = ls.find("=");
@@ -2824,6 +2855,8 @@ string getLocaleCode()
     {
         return ls.substr(posequal+1,possemicolon-posequal-1);
     }
+
+#endif
     return string();
 
 }
