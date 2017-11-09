@@ -229,33 +229,28 @@ void MegaCmdListener::doOnRequestFinish(MegaApi* api, MegaRequest *request, Mega
             for (itr = ConfigurationManager::configuredSyncs.begin(); itr != ConfigurationManager::configuredSyncs.end(); ++itr, i++)
             {
                 sync_struct *oldsync = ((sync_struct*)( *itr ).second );
-                sync_struct *thesync = new sync_struct;
-                *thesync = *oldsync;
 
                 MegaCmdListener *megaCmdListener = new MegaCmdListener(api, NULL);
-                MegaNode * node = api->getNodeByHandle(thesync->handle);
-                api->resumeSync(thesync->localpath.c_str(), node, thesync->fingerprint, megaCmdListener);
+                MegaNode * node = api->getNodeByHandle(oldsync->handle);
+                api->resumeSync(oldsync->localpath.c_str(), node, oldsync->fingerprint, megaCmdListener);
                 megaCmdListener->wait();
                 if ( megaCmdListener->getError()->getErrorCode() == MegaError::API_OK )
                 {
-                    thesync->fingerprint = megaCmdListener->getRequest()->getNumber();
-                    thesync->active = true;
+                    oldsync->fingerprint = megaCmdListener->getRequest()->getNumber();
+                    oldsync->active = true;
+                    oldsync->loadedok = true;
 
-                    if (ConfigurationManager::loadedSyncs.find(thesync->localpath) != ConfigurationManager::loadedSyncs.end())
-                    {
-                        delete ConfigurationManager::loadedSyncs[thesync->localpath];
-                    }
-                    ConfigurationManager::loadedSyncs[thesync->localpath] = thesync;
                     char *nodepath = api->getNodePath(node);
-                    LOG_info << "Loaded sync: " << thesync->localpath << " to " << nodepath;
+                    LOG_info << "Loaded sync: " << oldsync->localpath << " to " << nodepath;
                     delete []nodepath;
                 }
                 else
                 {
+                    oldsync->loadedok = false;
+
                     char *nodepath = api->getNodePath(node);
-                    LOG_err << "Failed to resume sync: " << thesync->localpath << " to " << nodepath;
+                    LOG_err << "Failed to resume sync: " << oldsync->localpath << " to " << nodepath;
                     delete []nodepath;
-                    delete thesync;
                 }
 
                 delete megaCmdListener;

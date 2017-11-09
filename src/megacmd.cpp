@@ -1918,6 +1918,7 @@ string getHelpStr(const char *command)
     else if (!strcmp(command, "reload"))
     {
         os << "Forces a reload of the remote files of the user" << endl;
+        os << "It will also resume synchronizations." << endl;
     }
     else if (!strcmp(command, "version"))
     {

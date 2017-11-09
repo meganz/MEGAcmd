@@ -2140,7 +2140,7 @@ void MegaCmdExecuter::actUponLogout(SynchronousRequestListener *srl, bool keptSe
         if (!keptSession)
         {
             ConfigurationManager::saveSession("");
-            ConfigurationManager::saveSyncs(&ConfigurationManager::loadedSyncs);
+            ConfigurationManager::saveSyncs(&ConfigurationManager::configuredSyncs);
         }
         mtxSyncMap.unlock();
     }
@@ -3340,7 +3340,7 @@ bool MegaCmdExecuter::isValidFolder(string destiny)
 void MegaCmdExecuter::restartsyncs()
 {
     map<string, sync_struct *>::iterator itr;
-    for (itr = ConfigurationManager::loadedSyncs.begin(); itr != ConfigurationManager::loadedSyncs.end(); ++itr)
+    for (itr = ConfigurationManager::configuredSyncs.begin(); itr != ConfigurationManager::configuredSyncs.end(); ++itr)
     {
         string key = ( *itr ).first;
         sync_struct *thesync = ((sync_struct*)( *itr ).second );
@@ -3370,11 +3370,16 @@ void MegaCmdExecuter::restartsyncs()
                         if (checkNoErrors(megaCmdListener2->getError(), "resume sync"))
                         {
                             thesync->active = true;
+                            thesync->loadedok = true;
 
                             if (megaCmdListener2->getRequest()->getNumber())
                             {
                                 thesync->fingerprint = megaCmdListener2->getRequest()->getNumber();
                             }
+                        }
+                        else
+                        {
+                            thesync->loadedok = false;
                         }
                         delete megaCmdListener2;
                         delete msync;
@@ -4795,13 +4800,6 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         thesync->localpath = string(megaCmdListener->getRequest()->getFile());
                         thesync->fingerprint = megaCmdListener->getRequest()->getNumber();
 
-
-                        if (ConfigurationManager::loadedSyncs.find(megaCmdListener->getRequest()->getFile()) != ConfigurationManager::loadedSyncs.end())
-                        {
-                            delete ConfigurationManager::loadedSyncs[megaCmdListener->getRequest()->getFile()];
-                        }
-                        ConfigurationManager::loadedSyncs[megaCmdListener->getRequest()->getFile()] = thesync;
-
                         char * nodepath = api->getNodePath(n);
                         LOG_info << "Added sync: " << megaCmdListener->getRequest()->getFile() << " to " << nodepath;
                         modifiedsyncs=true;
@@ -4829,7 +4827,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             map<string, sync_struct *>::iterator itr;
             int i = 0;
             bool foundsync = false;
-            for (itr = ConfigurationManager::loadedSyncs.begin(); itr != ConfigurationManager::loadedSyncs.end(); i++)
+            for (itr = ConfigurationManager::configuredSyncs.begin(); itr != ConfigurationManager::configuredSyncs.end(); i++)
             {
                 string key = ( *itr ).first;
                 sync_struct *thesync = ((sync_struct*)( *itr ).second );
@@ -4867,6 +4865,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                             if (checkNoErrors(megaCmdListener->getError(), stopping?"stop sync":"resume sync"))
                             {
                                 thesync->active = !stopping;
+                                thesync->loadedok = true;
                                 if (!stopping) //syncFolder
                                 {
                                     if (megaCmdListener->getRequest()->getNumber())
@@ -4875,6 +4874,10 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                                     }
                                 }
                                 modifiedsyncs=true;
+                            }
+                            else
+                            {
+                                thesync->loadedok = false;
                             }
                             delete megaCmdListener;
                         }
@@ -4888,7 +4891,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                                 megaCmdListener->wait();
                                 if (checkNoErrors(megaCmdListener->getError(), "remove sync"))
                                 {
-                                    ConfigurationManager::loadedSyncs.erase(itr++);
+                                    ConfigurationManager::configuredSyncs.erase(itr++); //TODO: should protect with mutex!
                                     erased = true;
                                     delete ( thesync );
                                     LOG_info << "Removed sync " << key << " to " << nodepath;
@@ -4898,7 +4901,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                             else //if !active simply remove
                             {
                                 //TODO: if the sdk ever provides a way to clean cache, call it
-                                ConfigurationManager::loadedSyncs.erase(itr++);
+                                ConfigurationManager::configuredSyncs.erase(itr++);
                                 erased = true;
                                 delete ( thesync );
                                 LOG_info << "Removed sync " << key << " to " << nodepath;
@@ -4939,7 +4942,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         {
             map<string, sync_struct *>::const_iterator itr;
             int i = 0;
-            for (itr = ConfigurationManager::loadedSyncs.begin(); itr != ConfigurationManager::loadedSyncs.end(); ++itr)
+            for (itr = ConfigurationManager::configuredSyncs.begin(); itr != ConfigurationManager::configuredSyncs.end(); ++itr)
             {
                 sync_struct *thesync = ((sync_struct*)( *itr ).second );
                 MegaNode * n = api->getNodeByHandle(thesync->handle);
@@ -4978,7 +4981,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         }
         if (modifiedsyncs)
         {
-            ConfigurationManager::saveSyncs(&ConfigurationManager::loadedSyncs);
+            ConfigurationManager::saveSyncs(&ConfigurationManager::configuredSyncs);
         }
         mtxSyncMap.unlock();
         return;

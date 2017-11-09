@@ -17,7 +17,7 @@
  */
 
 #include "configurationmanager.h"
-
+#include "megacmdversion.h"
 #include <fstream>
 
 #ifdef _WIN32
@@ -39,7 +39,6 @@ bool is_file_exist(const char *fileName)
 string ConfigurationManager::configFolder;
 map<string, sync_struct *> ConfigurationManager::configuredSyncs;
 string ConfigurationManager::session;
-map<string, sync_struct *> ConfigurationManager::loadedSyncs;
 std::set<std::string> ConfigurationManager::excludedNames;
 
 std::string ConfigurationManager::getConfigFolder()
@@ -155,6 +154,11 @@ void ConfigurationManager::saveSyncs(map<string, sync_struct *> *syncsmap)
                 for (itr = syncsmap->begin(); itr != syncsmap->end(); ++itr, i++)
                 {
                     sync_struct *thesync = ((sync_struct*)( *itr ).second );
+
+                    long long controlvalue = CONFIGURATIONSTOREDBYVERSION;
+                    fo.write((char*)&controlvalue, sizeof( long long ));
+                    int versionmcmd = MEGACMD_CODE_VERSION;
+                    fo.write((char*)&versionmcmd, sizeof( int ));
 
                     fo.write((char*)&thesync->fingerprint, sizeof( long long ));
                     fo.write((char*)&thesync->handle, sizeof( MegaHandle ));
@@ -273,13 +277,6 @@ void ConfigurationManager::unloadConfiguration()
         configuredSyncs.erase(itr++);
         delete thesync;
     }
-
-    for (itr = loadedSyncs.begin(); itr != loadedSyncs.end(); )
-    {
-        sync_struct *thesync = ((sync_struct*)( *itr ).second );
-        loadedSyncs.erase(itr++);
-        delete thesync;
-    }
 }
 
 void ConfigurationManager::loadsyncs()
@@ -303,11 +300,28 @@ void ConfigurationManager::loadsyncs()
                 LOG_err << "fail with sync file";
             }
 
+            bool updateSavedFormatRequired = false;
             while (!( fi.peek() == EOF ))
             {
+                int versioncodeStoredValues;
+
                 sync_struct *thesync = new sync_struct;
                 //Load syncs
                 fi.read((char*)&thesync->fingerprint, sizeof( long long ));
+                if (thesync->fingerprint == CONFIGURATIONSTOREDBYVERSION)
+                {
+                    fi.read((char*)&versioncodeStoredValues, sizeof(int));
+                }
+                else
+                {
+                    versioncodeStoredValues = 90500;
+                }
+
+                if (versioncodeStoredValues > 90500)
+                {
+                    fi.read((char*)&thesync->fingerprint, sizeof( long long ));
+                }
+
                 fi.read((char*)&thesync->handle, sizeof( MegaHandle ));
                 size_t lengthLocalPath;
                 fi.read((char*)&lengthLocalPath, sizeof( size_t ));
@@ -319,6 +333,15 @@ void ConfigurationManager::loadsyncs()
                     delete configuredSyncs[thesync->localpath];
                 }
                 configuredSyncs[thesync->localpath] = thesync;
+
+                if (versioncodeStoredValues != MEGACMD_CODE_VERSION)
+                {
+                    updateSavedFormatRequired = true;
+                }
+            }
+            if (updateSavedFormatRequired)
+            {
+                ConfigurationManager::saveSyncs(&ConfigurationManager::configuredSyncs);
             }
 
             if (fi.bad())

@@ -52,6 +52,7 @@ typedef struct sync_struct
     bool active;
     std::string localpath;
     long long fingerprint;
+    bool loadedok; //ephimeral data
 } sync_struct;
 
 
