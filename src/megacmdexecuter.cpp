@@ -1723,6 +1723,11 @@ void MegaCmdExecuter::dumpListOfShared(MegaNode* n, string givenPath)
 {
     vector<MegaNode *> listOfShared;
     processTree(n, includeIfIsShared, (void*)&listOfShared);
+    if (!listOfShared.size())
+    {
+        setCurrentOutCode(MCMD_NOTFOUND);
+        LOG_err << "No shared found for given path: " << givenPath;
+    }
     for (std::vector< MegaNode * >::iterator it = listOfShared.begin(); it != listOfShared.end(); ++it)
     {
         MegaNode * n = *it;

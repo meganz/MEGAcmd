@@ -32,6 +32,7 @@ const char * const megacmdchangelog =
         "Added multi-transfer progress (one single progress bar)""\n"
         "Fix mkdir loop""\n"
         "Minor fixes and improvements in error management""\n"
+        "beautify whoami -l and added storage used by versions""\n"
         "Changed name for server in windows to MEGAcmdServer.exe"
         ;
 
