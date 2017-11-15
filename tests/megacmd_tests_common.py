@@ -71,6 +71,7 @@ def cmdshell_ec(what):
         afterorder=False
         for l in stdoutdata.split('\n'):
             l=re.sub(".*\x1b\[K","",l) #replace non printable stuff(erase line controls)
+            l=re.sub(".*\r","",l) #replace non printable stuff
             if afterorder:
                 if "Exiting ..." in l: break
                 realout+=[l]

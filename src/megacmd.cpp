@@ -2847,15 +2847,23 @@ string getLocaleCode()
 
 #else
 
-    locale l("");
-    string ls = l.name();
-    size_t posequal = ls.find("=");
-    size_t possemicolon = ls.find_first_of(";.");
+    try
+     {
+        locale l("");
 
-    if (posequal != string::npos && possemicolon != string::npos && posequal < possemicolon)
-    {
-        return ls.substr(posequal+1,possemicolon-posequal-1);
-    }
+        string ls = l.name();
+        size_t posequal = ls.find("=");
+        size_t possemicolon = ls.find_first_of(";.");
+
+        if (posequal != string::npos && possemicolon != string::npos && posequal < possemicolon)
+        {
+            return ls.substr(posequal+1,possemicolon-posequal-1);
+        }
+     }
+     catch (const std::exception& e)
+     {
+        std::cerr << "Warning: unable to get locale " << std::endl;
+     }
 
 #endif
     return string();
