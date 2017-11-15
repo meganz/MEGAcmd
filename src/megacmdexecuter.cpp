@@ -3379,6 +3379,7 @@ void MegaCmdExecuter::restartsyncs()
                         }
                         else
                         {
+                            thesync->active = false;
                             thesync->loadedok = false;
                         }
                         delete megaCmdListener2;
@@ -4881,6 +4882,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                             }
                             else
                             {
+                                thesync->active = false;
                                 thesync->loadedok = false;
                             }
                             delete megaCmdListener;

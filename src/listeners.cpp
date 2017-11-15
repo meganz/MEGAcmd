@@ -247,6 +247,7 @@ void MegaCmdListener::doOnRequestFinish(MegaApi* api, MegaRequest *request, Mega
                 else
                 {
                     oldsync->loadedok = false;
+                    oldsync->active = false;
 
                     char *nodepath = api->getNodePath(node);
                     LOG_err << "Failed to resume sync: " << oldsync->localpath << " to " << nodepath;
