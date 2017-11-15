@@ -248,12 +248,12 @@ bool MegaCmdExecuter::includeIfMatchesCriteria(MegaApi *api, MegaNode * n, void 
         return false;
     }
 
-    if ( pnv->maxSize != -1 && (n->getSize() > pnv->maxSize) )
+    if ( pnv->maxSize != -1 && (n->getType() != MegaNode::TYPE_FILE || (n->getSize() > pnv->maxSize) ) )
     {
         return false;
     }
 
-    if ( pnv->minSize != -1 && (n->getSize() < pnv->minSize) )
+    if ( pnv->minSize != -1 && (n->getType() != MegaNode::TYPE_FILE || (n->getSize() < pnv->minSize) ) )
     {
         return false;
     }
@@ -4757,8 +4757,6 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             return;
         }
 
-
-
         int PATHSIZE = getintOption(cloptions,"path-display-size");
         if (!PATHSIZE)
         {
@@ -4766,7 +4764,6 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             unsigned int width = getNumberOfCols(75);
             PATHSIZE = min(60,int((width-46)/2));
         }
-
 
         bool headershown = false;
         bool modifiedsyncs = false;
@@ -4800,8 +4797,15 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         thesync->localpath = string(megaCmdListener->getRequest()->getFile());
                         thesync->fingerprint = megaCmdListener->getRequest()->getNumber();
 
+                        if (ConfigurationManager::configuredSyncs.find(megaCmdListener->getRequest()->getFile()) != ConfigurationManager::configuredSyncs.end())
+                        {
+                            delete ConfigurationManager::configuredSyncs[megaCmdListener->getRequest()->getFile()];
+                        }
+                        ConfigurationManager::configuredSyncs[megaCmdListener->getRequest()->getFile()] = thesync;
+
                         char * nodepath = api->getNodePath(n);
                         LOG_info << "Added sync: " << megaCmdListener->getRequest()->getFile() << " to " << nodepath;
+
                         modifiedsyncs=true;
                         delete []nodepath;
                     }
@@ -6570,7 +6574,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         megaCmdListener->wait();
         if (checkNoErrors(megaCmdListener->getError(), "kill session " + thesession + ". Maybe the session was not valid."))
         {
-            if (getFlag(clflags, "a"))
+            if (!getFlag(clflags, "a"))
             {
                OUTSTREAM << "Session " << thesession << " killed successfully" << endl;
             }
