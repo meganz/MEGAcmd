@@ -11,7 +11,7 @@ build-stamp:
 
 	./configure --disable-shared --enable-static --disable-silent-rules \
 	  --disable-curl-checks --with-sodium=$(CURDIR)/deps --with-pcre \
-	  --with-curl=$(CURDIR)/deps --without-freeimage --with-readline=$(CURDIR)/deps \
+	  --with-curl=$(CURDIR)/deps --with-freeimage=$(CURDIR)/deps --with-readline=$(CURDIR)/deps \
 	  --with-termcap=$(CURDIR)/deps --prefix=$(CURDIR)/deps --disable-examples
 
 	make
