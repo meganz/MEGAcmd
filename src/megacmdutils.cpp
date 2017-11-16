@@ -1344,12 +1344,12 @@ string sizeToText(long long totalSize, bool equalizeUnitsLength, bool humanreada
         unit = ( equalizeUnitsLength ? " B" : "B" );
         double reducedSize = totalSize;
 
-        if ( totalSize > 1099511627776L *2 )
+        if ( totalSize > 1099511627776LL *2 )
         {
             reducedSize = totalSize / 1099511627776L;
             unit = "TB";
         }
-        else if ( totalSize > 1073741824L *2 )
+        else if ( totalSize > 1073741824LL *2 )
         {
             reducedSize = totalSize / 1073741824L;
             unit = "GB";
