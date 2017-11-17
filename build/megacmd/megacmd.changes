@@ -1,3 +1,25 @@
+Fri Nov 10 14:36:44 CET 2017 - linux@mega.co.nz
+- Update to version 0.9.6:
+  * Added transfer resumption
+  * Added file versioning for modified files(webclient can browse them)
+  * Added time and size constrains for find
+  * Reformated sync output
+  * Added exclusions to syncs. Default: .* ~* desktop.ini Thumbs.db
+  * Fixed detection of invalid TIMEVAL when no unit specified
+  * Improved sync display format
+  * Fix some "get" cases with "/" involved in Windows
+  * Fix in email validation
+  * Fix segfault in userattr
+  * Added "--in" & "--out" to showpcr
+  * Added masterkey command to show master key
+  * All/None options in confirmation for deletion
+  * Added multi-transfer progress (one single progress bar)
+  * Fix mkdir loop
+  * Minor fixes and improvements in error management
+  * beautify whoami -l and added storage used by versions
+  * Changed name for server in windows to MEGAcmdServer.exe
+
+-------------------------------------------------------------------
 Mon Aug 28 18:06:34 CEST 2017 - linux@mega.co.nz
 - Update to version 0.9.4:
   * Separated MEGAcmd into interactive shell (MEGAcmdShell) and server(MEGAcmdServer)
