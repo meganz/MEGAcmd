@@ -155,7 +155,7 @@ MegaCMDLogger *loggerCMD;
 MegaMutex mutexEndedPetitionThreads;
 std::vector<MegaThread *> petitionThreads;
 std::vector<MegaThread *> endedPetitionThreads;
-
+MegaThread *threadRetryConnections;
 
 //Comunications Manager
 ComunicationsManager * cm;
@@ -193,10 +193,10 @@ vector<string> localpatterncommands(alocalpatterncommands, alocalpatterncommands
 string aemailpatterncommands [] = {"invite", "signup", "ipc", "users"};
 vector<string> emailpatterncommands(aemailpatterncommands, aemailpatterncommands + sizeof aemailpatterncommands / sizeof aemailpatterncommands[0]);
 
-string avalidCommands [] = { "login", "signup", "confirm", "session", "mount", "ls", "cd", "log", "debug", "pwd", "lcd", "lpwd", "import",
+string avalidCommands [] = { "login", "signup", "confirm", "session", "mount", "ls", "cd", "log", "debug", "pwd", "lcd", "lpwd", "import", "masterkey",
                              "put", "get", "attr", "userattr", "mkdir", "rm", "du", "mv", "cp", "sync", "export", "share", "invite", "ipc",
                              "showpcr", "users", "speedlimit", "killsession", "whoami", "help", "passwd", "reload", "logout", "version", "quit",
-                             "thumbnail", "preview", "find", "completion", "clear", "https", "transfers", "exit"
+                             "thumbnail", "preview", "find", "completion", "clear", "https", "transfers", "exclude", "exit"
 #ifdef _WIN32
                              ,"unicode"
 #endif
@@ -400,10 +400,18 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validParams->insert("c");
         validParams->insert("s");
     }
+    else if ("exclude" == thecommand)
+    {
+        validParams->insert("a");
+        validParams->insert("d");
+        validParams->insert("restart-syncs");
+    }
     else if ("sync" == thecommand)
     {
         validParams->insert("d");
         validParams->insert("s");
+        validParams->insert("r");
+        validOptValues->insert("path-display-size");
     }
     else if ("export" == thecommand)
     {
@@ -433,6 +441,8 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
 #ifdef USE_PCRE
         validParams->insert("use-pcre");
 #endif
+        validOptValues->insert("mtime");
+        validOptValues->insert("size");
     }
     else if ("mkdir" == thecommand)
     {
@@ -478,6 +488,11 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validParams->insert("a");
         validParams->insert("d");
         validParams->insert("i");
+    }
+    else if ("showpcr" == thecommand)
+    {
+        validParams->insert("in");
+        validParams->insert("out");
     }
     else if ("thumbnail" == thecommand)
     {
@@ -1284,9 +1299,13 @@ const char * getUsageStr(const char *command)
     {
         return "cp srcremotepath dstremotepath|dstemail:";
     }
+    if (!strcmp(command, "exclude"))
+    {
+        return "exclude [(-a|-d) pattern1 pattern2 pattern3 [--restart-syncs]]";
+    }
     if (!strcmp(command, "sync"))
     {
-        return "sync [localpath dstremotepath| [-ds] [ID|localpath]";
+        return "sync [localpath dstremotepath| [-dsr] [ID|localpath]";
     }
     if (!strcmp(command, "https"))
     {
@@ -1318,7 +1337,11 @@ const char * getUsageStr(const char *command)
     }
     if (!strcmp(command, "showpcr"))
     {
-        return "showpcr";
+        return "showpcr [--in | --out]";
+    }
+    if (!strcmp(command, "masterkey"))
+    {
+        return "masterkey pathtosave";
     }
     if (!strcmp(command, "users"))
     {
@@ -1427,9 +1450,9 @@ const char * getUsageStr(const char *command)
     if (!strcmp(command, "find"))
     {
 #ifdef USE_PCRE
-        return "find [remotepath] [-l] [--pattern=PATTERN] [--use-pcre]";
+        return "find [remotepath] [-l] [--pattern=PATTERN] [--mtime=TIMECONSTRAIN] [--size=SIZECONSTRAIN] [--use-pcre]";
 #else
-        return "find [remotepath] [-l] [--pattern=PATTERN]";
+        return "find [remotepath] [-l] [--pattern=PATTERN] [--mtime=TIMECONSTRAIN] [--size=SIZECONSTRAIN]";
 #endif
     }
     if (!strcmp(command, "help"))
@@ -1700,7 +1723,8 @@ string getHelpStr(const char *command)
         os << "If the location doesn't exits, the file/folder will be renamed to the defined destiny" << endl;
         os << endl;
         os << "If \"dstemail:\" provided, the file/folder will be sent to that user's inbox (//in)" << endl;
-        os << " Remember the trailing \":\", otherwise a file with the name of that user will be created" << endl;
+        os << " e.g: cp /path/to/file user@doma.in:" << endl;
+        os << " Remember the trailing \":\", otherwise a file with the name of that user (\"user@doma.in\") will be created" << endl;
     }
     else if (!strcmp(command, "https"))
     {
@@ -1710,6 +1734,26 @@ string getHelpStr(const char *command)
         os << "Enabling it will increase CPU usage and add network overhead." << endl;
         os << endl;
         os << "Notice that this setting is ephemeral: it will reset for the next time you open MEGAcmd" << endl;
+    }
+    else if (!strcmp(command, "exclude"))
+    {
+        os << "Manages exclusions in syncs." << endl;
+        os << endl;
+        os << "Options:" << endl;
+        os << " -a pattern1 pattern2 ..." << "\t" << "adds pattern(s) to the exclusion list" << endl;
+        os << "                         " << "\t" << "          (* and ? wildcards allowed)" << endl;
+        os << " -d pattern1 pattern2 ..." << "\t" << "deletes pattern(s) from the exclusion list" << endl;
+        os << " --restart-syncs" << "\t" << "Try to restart synchronizations." << endl;
+
+        os << endl;
+        os << "Changes will not be applied inmediately to actions being performed in active syncs. " << endl;
+        os << "After adding/deleting patterns, you might want to: " << endl;
+        os << " a) disable/reenable synchronizations manually" << endl;
+        os << " b) restart MEGAcmd server" << endl;
+        os << " c) use --restart-syncs flag. Caveats:" << endl;
+        os << "  This will cause active transfers to be restarted" << endl;
+        os << "  In certain cases --restart-syncs might be unable to re-enable a synchronization. " << endl;
+        os << "  In such case, you will need to manually resume it or restart MEGAcmd server." << endl;
     }
     else if (!strcmp(command, "sync"))
     {
@@ -1725,7 +1769,9 @@ string getHelpStr(const char *command)
         os << endl;
         os << "Options:" << endl;
         os << "-d" << " " << "ID|localpath" << "\t" << "deletes a synchronization" << endl;
-        os << "-s" << " " << "ID|localpath" << "\t" << "stops(pauses) or resumes a synchronization" << endl;
+        os << "-s" << " " << "ID|localpath" << "\t" << "stops(pauses) a synchronization" << endl;
+        os << "-r" << " " << "ID|localpath" << "\t" << "resumes a synchronization" << endl;
+        os << " --path-display-size=N" << "\t" << "Use a fixed size of N characters for paths" << endl;
     }
     else if (!strcmp(command, "export"))
     {
@@ -1768,7 +1814,7 @@ string getHelpStr(const char *command)
         os << " of no option selected, it will display all the shares existing " << endl;
         os << " in the tree of that path" << endl;
         os << endl;
-        os << "When sharing a folder with a user that is not a contact (see \"users\" help)" << endl;
+        os << "When sharing a folder with a user that is not a contact (see \"users --help\")" << endl;
         os << "  the share will be in a pending state. You can list pending shares with" << endl;
         os << " \"share -p\". He would need to accept your invitation (see \"ipc\")" << endl;
         os << endl;
@@ -1801,9 +1847,21 @@ string getHelpStr(const char *command)
         os << "Use \"showpcr\" to browse incoming/outgoing invitations" << endl;
         os << "Use \"users\" to see contacts" << endl;
     }
+    if (!strcmp(command, "masterkey"))
+    {
+        os << "Shows your master key." << endl;
+        os << "Getting the master key and keeping it in a secure location enables you " << endl;
+        os << " to set a new password without data loss." << endl;
+        os << "Always keep physical control of your master key " << endl;
+        os << " (e.g. on a client device, external storage, or print)" << endl;
+    }
     if (!strcmp(command, "showpcr"))
     {
         os << "Shows incoming and outgoing contact requests." << endl;
+        os << endl;
+        os << "Options:" << endl;
+        os << " --in" << "\t" << "Shows incoming requests" << endl;
+        os << " --out" << "\t" << "Shows outgoing invitations" << endl;
         os << endl;
         os << "Use \"ipc\" to manage invitations received" << endl;
         os << "Use \"users\" to see contacts" << endl;
@@ -1860,6 +1918,7 @@ string getHelpStr(const char *command)
     else if (!strcmp(command, "reload"))
     {
         os << "Forces a reload of the remote files of the user" << endl;
+        os << "It will also resume synchronizations." << endl;
     }
     else if (!strcmp(command, "version"))
     {
@@ -1892,6 +1951,20 @@ string getHelpStr(const char *command)
         os << "Options:" << endl;
         os << " --pattern=PATTERN" << "\t" << "Pattern to match";
         os << " (" << getsupportedregexps() << ") " << endl;
+        os << " --mtime=TIMECONSTRAIN" << "\t" << "Determines time constrains, in the form: [+-]TIMEVALUE" << endl;
+        os << "                      " << "\t" << "  TIMEVALUE may include hours(h), days(d), minutes(M)," << endl;
+        os << "                      " << "\t" << "   seconds(s), months(m) or years(y)" << endl;
+        os << "                      " << "\t" << "  Examples:" << endl;
+        os << "                      " << "\t" << "   \"+1m12d3h\" shows files modified before 1 month, " << endl;
+        os << "                      " << "\t" << "    12 days and 3 hours the current moment" << endl;
+        os << "                      " << "\t" << "   \"-3h\" shows files modified within the last 3 hours" << endl;
+        os << "                      " << "\t" << "   \"-3d+1h\" shows files modified in the last 3 days prior to the last hour" << endl;
+        os << " --size=SIZECONSTRAIN" << "\t" << "Determines size constrains, in the form: [+-]TIMEVALUE" << endl;
+        os << "                      " << "\t" << "  TIMEVALUE may include (B)ytes, (K)ilobytes, (M)egabytes, (G)igabytes & (T)erabytes" << endl;
+        os << "                      " << "\t" << "  Examples:" << endl;
+        os << "                      " << "\t" << "   \"+1m12k3B\" shows files bigger than 1 Mega, 12 Kbytes and 3Bytes" << endl;
+        os << "                      " << "\t" << "   \"-3M\" shows files smaller than 3 Megabytes" << endl;
+        os << "                      " << "\t" << "   \"-4M+100K\" shows files smaller than 4 Mbytes and bigger than 100 Kbytes" << endl;
 #ifdef USE_PCRE
         os << " --use-pcre" << "\t" << "use PCRE expressions" << endl;
 #endif
@@ -2233,10 +2306,18 @@ static bool process_line(char* l)
             {
                 cmdexecuter->discardDelete();
             }
+            else if (!strcmp(l,"All") || !strcmp(l,"ALL") || !strcmp(l,"a") || !strcmp(l,"A") || !strcmp(l,"all"))
+            {
+                cmdexecuter->confirmDeleteAll();
+            }
+            else if (!strcmp(l,"None") || !strcmp(l,"NONE") || !strcmp(l,"none"))
+            {
+                cmdexecuter->discardDeleteAll();
+            }
             else
             {
                 //Do nth, ask again
-                OUTSTREAM << "Please enter [y]es/[n]o: " << flush;
+                OUTSTREAM << "Please enter [y]es/[n]o/[a]ll/none: " << flush;
             }
         break;
         case LOGINPASSWORD:
@@ -2383,7 +2464,7 @@ void * doProcessLine(void *pointer)
 }
 
 
-bool askforConfirmation(string message)
+int askforConfirmation(string message)
 {
     CmdPetition *inf = getCurrentPetition();
     if (inf)
@@ -2395,7 +2476,7 @@ bool askforConfirmation(string message)
         LOG_err << "Unable to get current petition to ask for confirmation";
     }
 
-    return false;
+    return MCMDCONFIRM_NO;
 }
 
 
@@ -2441,6 +2522,8 @@ void finalize()
     }
 
     delete megaCmdMegaListener;
+    threadRetryConnections->join();
+    delete threadRetryConnections;
     delete api;
 
     while (!apiFolders.empty())
@@ -2467,9 +2550,29 @@ void finalize()
 
 int currentclientID = 1;
 
+void * retryConnections(void *pointer)
+{
+    while(!doExit)
+    {
+        LOG_verbose << "Calling recurrent retryPendingConnections";
+        api->retryPendingConnections();
+
+        int count = 100;
+        while (!doExit && --count)
+        {
+            sleepMicroSeconds(300);
+        }
+    }
+    return NULL;
+}
+
+
 // main loop
 void megacmd()
 {
+    threadRetryConnections = new MegaThread();
+    threadRetryConnections->start(retryConnections, NULL);
+
     LOG_info << "Listening to petitions ... ";
 
     for (;; )
@@ -2711,6 +2814,62 @@ void initializeMacOSStuff(int argc, char* argv[])
 
 #endif
 
+string getLocaleCode()
+{
+#if defined(_WIN32) && defined(LOCALE_SISO639LANGNAME)
+    LCID lcidLocaleId;
+    LCTYPE lctyLocaleInfo;
+    PWSTR pstr;
+    INT iBuffSize;
+
+    lcidLocaleId = LOCALE_USER_DEFAULT;
+    lctyLocaleInfo = LOCALE_SISO639LANGNAME;
+
+    // Determine the size
+    iBuffSize = GetLocaleInfo( lcidLocaleId, lctyLocaleInfo, NULL, 0 );
+
+    if(iBuffSize > 0)
+    {
+        pstr = (WCHAR *) malloc( iBuffSize * sizeof(WCHAR) );
+        if(pstr != NULL)
+        {
+            if(GetLocaleInfoW( lcidLocaleId, lctyLocaleInfo, pstr, iBuffSize ))
+            {
+                string toret;
+                wstring ws(pstr);
+                localwtostring(&ws,&toret);
+                free(pstr); //free locale info string
+                return toret;
+            }
+            free(pstr); //free locale info string
+        }
+    }
+
+#else
+
+    try
+     {
+        locale l("");
+
+        string ls = l.name();
+        size_t posequal = ls.find("=");
+        size_t possemicolon = ls.find_first_of(";.");
+
+        if (posequal != string::npos && possemicolon != string::npos && posequal < possemicolon)
+        {
+            return ls.substr(posequal+1,possemicolon-posequal-1);
+        }
+     }
+     catch (const std::exception& e)
+     {
+        std::cerr << "Warning: unable to get locale " << std::endl;
+     }
+
+#endif
+    return string();
+
+}
+
 bool runningInBackground()
 {
 #ifndef _WIN32
@@ -2731,6 +2890,7 @@ bool runningInBackground()
 
 int main(int argc, char* argv[])
 {
+    string localecode = getLocaleCode();
 #ifdef _WIN32
     // Set Environment's default locale
     setlocale(LC_ALL, "en-US");
@@ -2749,6 +2909,7 @@ int main(int argc, char* argv[])
 
     loggerCMD->setApiLoggerLevel(MegaApi::LOG_LEVEL_ERROR);
     loggerCMD->setCmdLoggerLevel(MegaApi::LOG_LEVEL_INFO);
+    loggerCMD->setCmdLoggerLevel(MegaApi::LOG_LEVEL_DEBUG);
 
     string loglevelenv;
 #ifndef _WIN32
@@ -2797,9 +2958,13 @@ int main(int argc, char* argv[])
     api = new MegaApi("BdARkQSQ", ConfigurationManager::getConfigFolder().c_str(), userAgent);
 #endif
 
+
+    api->setLanguage(localecode.c_str());
+
     for (int i = 0; i < 5; i++)
     {
         MegaApi *apiFolder = new MegaApi("BdARkQSQ", (const char*)NULL, userAgent);
+        apiFolder->setLanguage(localecode.c_str());
         apiFolders.push(apiFolder);
         apiFolder->addLoggerObject(loggerCMD);
         apiFolder->setLogLevel(MegaApi::LOG_LEVEL_MAX);
@@ -2815,6 +2980,8 @@ int main(int argc, char* argv[])
 
     api->addLoggerObject(loggerCMD);
     api->setLogLevel(MegaApi::LOG_LEVEL_MAX);
+
+    LOG_debug << "Language set to: " << localecode;
 
     sandboxCMD = new MegaCmdSandbox();
     cmdexecuter = new MegaCmdExecuter(api, loggerCMD, sandboxCMD);

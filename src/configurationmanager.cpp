@@ -17,7 +17,7 @@
  */
 
 #include "configurationmanager.h"
-
+#include "megacmdversion.h"
 #include <fstream>
 
 #ifdef _WIN32
@@ -39,8 +39,7 @@ bool is_file_exist(const char *fileName)
 string ConfigurationManager::configFolder;
 map<string, sync_struct *> ConfigurationManager::configuredSyncs;
 string ConfigurationManager::session;
-map<string, sync_struct *> ConfigurationManager::loadedSyncs;
-
+std::set<std::string> ConfigurationManager::excludedNames;
 
 std::string ConfigurationManager::getConfigFolder()
 {
@@ -156,6 +155,11 @@ void ConfigurationManager::saveSyncs(map<string, sync_struct *> *syncsmap)
                 {
                     sync_struct *thesync = ((sync_struct*)( *itr ).second );
 
+                    long long controlvalue = CONFIGURATIONSTOREDBYVERSION;
+                    fo.write((char*)&controlvalue, sizeof( long long ));
+                    int versionmcmd = MEGACMD_CODE_VERSION;
+                    fo.write((char*)&versionmcmd, sizeof( int ));
+
                     fo.write((char*)&thesync->fingerprint, sizeof( long long ));
                     fo.write((char*)&thesync->handle, sizeof( MegaHandle ));
                     const char * localPath = thesync->localpath.c_str();
@@ -174,6 +178,96 @@ void ConfigurationManager::saveSyncs(map<string, sync_struct *> *syncsmap)
     }
 }
 
+void ConfigurationManager::addExcludedName(string excludedName)
+{
+    LOG_verbose << "Adding: " << excludedName << " to exclusion list";
+    excludedNames.insert(excludedName);
+    saveExcludedNames();
+}
+
+void ConfigurationManager::removeExcludedName(string excludedName)
+{
+    LOG_verbose << "Removing: " << excludedName << " from exclusion list";
+    excludedNames.erase(excludedName);
+    saveExcludedNames();
+}
+
+void ConfigurationManager::saveExcludedNames()
+{
+    stringstream excludedNamesFile;
+    if (!configFolder.size())
+    {
+        loadConfigDir();
+    }
+    if (configFolder.size())
+    {
+        excludedNamesFile << configFolder << "/" << "excluded";
+        LOG_debug << "Exclusion file: " << excludedNamesFile.str();
+
+        ofstream fo(excludedNamesFile.str().c_str(), ios::out | ios::binary);
+
+        if (fo.is_open())
+        {
+            for (set<string>::iterator it=ConfigurationManager::excludedNames.begin(); it!=ConfigurationManager::excludedNames.end(); ++it)
+            {
+                fo << *it << endl;
+            }
+            fo.close();
+        }
+    }
+    else
+    {
+        LOG_err << "Couldnt access configuration folder ";
+    }
+}
+
+void ConfigurationManager::loadExcludedNames()
+{
+    stringstream excludedNamesFile;
+    if (!configFolder.size())
+    {
+        loadConfigDir();
+    }
+    if (configFolder.size())
+    {
+        excludedNamesFile << configFolder << "/" << "excluded";
+        LOG_debug << "Excluded file: " << excludedNamesFile.str();
+
+        if (!is_file_exist(excludedNamesFile.str().c_str()) && !configuredSyncs.size()) //do not add defaults if syncs already configured
+        {
+            excludedNames.insert(".*");
+            excludedNames.insert("desktop.ini");
+            excludedNames.insert("Thumbs.db");
+            excludedNames.insert("~*");
+            saveExcludedNames();
+        }
+
+        ifstream fi(excludedNamesFile.str().c_str(), ios::in | ios::binary);
+
+        if (fi.is_open())
+        {
+            if (fi.fail())
+            {
+                LOG_err << "fail with sync file";
+            }
+
+            if (fi.bad())
+            {
+                LOG_err << "fail with sync file  at the end";
+            }
+
+            string excludedName;
+            while (std::getline(fi, excludedName))
+            {
+                excludedNames.insert(excludedName);
+            }
+
+            fi.close();
+        }
+    }
+}
+
+
 void ConfigurationManager::unloadConfiguration()
 {
     map<string, sync_struct *>::iterator itr;
@@ -183,15 +277,7 @@ void ConfigurationManager::unloadConfiguration()
         configuredSyncs.erase(itr++);
         delete thesync;
     }
-
-    for (itr = loadedSyncs.begin(); itr != loadedSyncs.end(); )
-    {
-        sync_struct *thesync = ((sync_struct*)( *itr ).second );
-        loadedSyncs.erase(itr++);
-        delete thesync;
-    }
 }
-
 
 void ConfigurationManager::loadsyncs()
 {
@@ -214,11 +300,28 @@ void ConfigurationManager::loadsyncs()
                 LOG_err << "fail with sync file";
             }
 
+            bool updateSavedFormatRequired = false;
             while (!( fi.peek() == EOF ))
             {
+                int versioncodeStoredValues;
+
                 sync_struct *thesync = new sync_struct;
                 //Load syncs
                 fi.read((char*)&thesync->fingerprint, sizeof( long long ));
+                if (thesync->fingerprint == CONFIGURATIONSTOREDBYVERSION)
+                {
+                    fi.read((char*)&versioncodeStoredValues, sizeof(int));
+                }
+                else
+                {
+                    versioncodeStoredValues = 90500;
+                }
+
+                if (versioncodeStoredValues > 90500)
+                {
+                    fi.read((char*)&thesync->fingerprint, sizeof( long long ));
+                }
+
                 fi.read((char*)&thesync->handle, sizeof( MegaHandle ));
                 size_t lengthLocalPath;
                 fi.read((char*)&lengthLocalPath, sizeof( size_t ));
@@ -230,6 +333,15 @@ void ConfigurationManager::loadsyncs()
                     delete configuredSyncs[thesync->localpath];
                 }
                 configuredSyncs[thesync->localpath] = thesync;
+
+                if (versioncodeStoredValues != MEGACMD_CODE_VERSION)
+                {
+                    updateSavedFormatRequired = true;
+                }
+            }
+            if (updateSavedFormatRequired)
+            {
+                ConfigurationManager::saveSyncs(&ConfigurationManager::configuredSyncs);
             }
 
             if (fi.bad())

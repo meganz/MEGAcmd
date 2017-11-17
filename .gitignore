@@ -107,3 +107,4 @@ contrib/QtCreator/MEGAcmd/.qmake.stash
 contrib/QtCreator/MEGAcmd/MEGAcmdClient/Makefile.Debug
 contrib/QtCreator/MEGAcmd/MEGAcmdClient/Makefile.Release
 contrib/QtCreator/MEGAcmd/MEGAcmdServer/Makefile.Release
+build/Release_x64

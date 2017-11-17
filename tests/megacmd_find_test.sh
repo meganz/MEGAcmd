@@ -50,8 +50,7 @@ function clean_all() {
 function clear_local_and_remote() {
 	rm -r localUPs/* 2>/dev/null
 	$RM -rf "/*" 2>/dev/null || :
-	initialize_contents
-
+	initialize_contents()
 }
 
 ABSPWD=`pwd`
@@ -274,7 +273,7 @@ popd > /dev/null
 #Test 07 #. global
 compare_find .
 
-#Test 08 #. global
+#Test 08 # spaced
 find_remote "ls\ 01"
 find_local ls\ 01
 compare_remote_local

@@ -51,7 +51,7 @@ build() {
 	./autogen.sh
 
 	#build dependencies into folder deps
-	mkdir deps
+	mkdir deps || :
 	bash -x ./contrib/build_sdk.sh -o archives \
 	  -e -g -b -l -c -s -u -a -q -p deps/
 

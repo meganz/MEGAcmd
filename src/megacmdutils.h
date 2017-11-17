@@ -22,15 +22,7 @@
 #include "megacmd.h"
 
 /* mega::MegaNode info extracting*/
-/**
- * @brief getNumFolderFiles
- *
- * Ownership of returned value belongs to the caller
- * @param n
- * @param api
- * @return
- */
-int * getNumFolderFiles(mega::MegaNode *, mega::MegaApi *);
+void getNumFolderFiles(mega::MegaNode *, mega::MegaApi *, long long *nfiles, long long *nfolders);
 
 std::string getUserInSharedNode(mega::MegaNode *n, mega::MegaApi *api);
 
@@ -41,6 +33,8 @@ const char* getAttrStr(int attr);
 int getAttrNum(const char* attr);
 
 const char* getAccessLevelStr(int level);
+
+const char* getSyncPathStateStr(int state);
 
 const char* getSyncStateStr(int state);
 
@@ -77,6 +71,14 @@ std::string getReadableTime(const time_t rawtime);
 time_t getTimeStampAfter(time_t initial, std::string timestring);
 
 time_t getTimeStampAfter(std::string timestring);
+
+time_t getTimeStampBefore(time_t initial, std::string timestring);
+
+time_t getTimeStampBefore(std::string timestring);
+
+bool getMinAndMaxTime(std::string timestring, time_t *minTime, time_t *maxTime);
+
+bool getMinAndMaxTime(time_t initial, std::string timestring, time_t *minTime, time_t *maxTime);
 
 
 /* Strings related */
@@ -123,8 +125,12 @@ int getintOption(std::map<std::string, std::string> *cloptions, const char * opt
 bool setOptionsAndFlags(std::map<std::string, std::string> *opts, std::map<std::string, int> *flags, std::vector<std::string> *ws,
                         std::set<std::string> vvalidOptions, bool global = false);
 
+bool getMinAndMaxSize(std::string sizestring, int64_t *minSize, int64_t *maxSize);
+
 /* Others */
 std::string sizeToText(long long totalSize, bool equalizeUnitsLength = true, bool humanreadable = true);
+
+int64_t textToSize(const char *text);
 
 std::string secondsToText(time_t seconds, bool humanreadable = true);
 
@@ -134,5 +140,7 @@ unsigned int getNumberOfCols(unsigned int defaultwidth = 90);
 
 void sleepSeconds(int seconds);
 void sleepMicroSeconds(long microseconds);
+
+bool isValidEmail(std::string email);
 
 #endif // MEGACMDUTILS_H

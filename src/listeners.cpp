@@ -20,8 +20,6 @@
 #include "configurationmanager.h"
 #include "megacmdutils.h"
 
-#define PROGRESS_COMPLETE -2
-
 using namespace mega;
 
 #ifdef ENABLE_CHAT
@@ -72,10 +70,10 @@ MegaCmdGlobalListener::MegaCmdGlobalListener(MegaCMDLogger *logger, MegaCmdSandb
 
 void MegaCmdGlobalListener::onNodesUpdate(MegaApi *api, MegaNodeList *nodes)
 {
-    int nfolders = 0;
-    int nfiles = 0;
-    int rfolders = 0;
-    int rfiles = 0;
+    long long nfolders = 0;
+    long long nfiles = 0;
+    long long rfolders = 0;
+    long long rfiles = 0;
     if (nodes)
     {
         for (int i = 0; i < nodes->size(); i++)
@@ -110,24 +108,15 @@ void MegaCmdGlobalListener::onNodesUpdate(MegaApi *api, MegaNodeList *nodes)
         if (loggerCMD->getMaxLogLevel() >= logInfo)
         {
             MegaNode * nodeRoot = api->getRootNode();
-            int * nFolderFiles = getNumFolderFiles(nodeRoot, api);
-            nfolders += nFolderFiles[0];
-            nfiles += nFolderFiles[1];
-            delete []nFolderFiles;
+            getNumFolderFiles(nodeRoot, api, &nfiles, &nfolders);
             delete nodeRoot;
 
             MegaNode * inboxNode = api->getInboxNode();
-            nFolderFiles = getNumFolderFiles(inboxNode, api);
-            nfolders += nFolderFiles[0];
-            nfiles += nFolderFiles[1];
-            delete []nFolderFiles;
+            getNumFolderFiles(inboxNode, api, &nfiles, &nfolders);
             delete inboxNode;
 
             MegaNode * rubbishNode = api->getRubbishNode();
-            nFolderFiles = getNumFolderFiles(rubbishNode, api);
-            nfolders += nFolderFiles[0];
-            nfiles += nFolderFiles[1];
-            delete []nFolderFiles;
+            getNumFolderFiles(rubbishNode, api, &nfiles, &nfolders);
             delete rubbishNode;
 
             MegaNodeList *inshares = api->getInShares();
@@ -136,10 +125,7 @@ void MegaCmdGlobalListener::onNodesUpdate(MegaApi *api, MegaNodeList *nodes)
                 for (int i = 0; i < inshares->size(); i++)
                 {
                     nfolders++; //add the share itself
-                    nFolderFiles = getNumFolderFiles(inshares->get(i), api);
-                    nfolders += nFolderFiles[0];
-                    nfiles += nFolderFiles[1];
-                    delete []nFolderFiles;
+                    getNumFolderFiles(inshares->get(i), api, &nfiles, &nfolders);
                 }
             }
             delete inshares;
@@ -243,30 +229,29 @@ void MegaCmdListener::doOnRequestFinish(MegaApi* api, MegaRequest *request, Mega
             for (itr = ConfigurationManager::configuredSyncs.begin(); itr != ConfigurationManager::configuredSyncs.end(); ++itr, i++)
             {
                 sync_struct *oldsync = ((sync_struct*)( *itr ).second );
-                sync_struct *thesync = new sync_struct;
-                *thesync = *oldsync;
 
                 MegaCmdListener *megaCmdListener = new MegaCmdListener(api, NULL);
-                MegaNode * node = api->getNodeByHandle(thesync->handle);
-                api->resumeSync(thesync->localpath.c_str(), node, thesync->fingerprint, megaCmdListener);
+                MegaNode * node = api->getNodeByHandle(oldsync->handle);
+                api->resumeSync(oldsync->localpath.c_str(), node, oldsync->fingerprint, megaCmdListener);
                 megaCmdListener->wait();
-                if (megaCmdListener->getError() && ( megaCmdListener->getError()->getErrorCode() == MegaError::API_OK ))
+                if ( megaCmdListener->getError()->getErrorCode() == MegaError::API_OK )
                 {
-                    thesync->fingerprint = megaCmdListener->getRequest()->getNumber();
-                    thesync->active = true;
+                    oldsync->fingerprint = megaCmdListener->getRequest()->getNumber();
+                    oldsync->active = true;
+                    oldsync->loadedok = true;
 
-                    if (ConfigurationManager::loadedSyncs.find(thesync->localpath) != ConfigurationManager::loadedSyncs.end())
-                    {
-                        delete ConfigurationManager::loadedSyncs[thesync->localpath];
-                    }
-                    ConfigurationManager::loadedSyncs[thesync->localpath] = thesync;
                     char *nodepath = api->getNodePath(node);
-                    LOG_info << "Loaded sync: " << thesync->localpath << " to " << nodepath;
+                    LOG_info << "Loaded sync: " << oldsync->localpath << " to " << nodepath;
                     delete []nodepath;
                 }
                 else
                 {
-                    delete thesync;
+                    oldsync->loadedok = false;
+                    oldsync->active = false;
+
+                    char *nodepath = api->getNodePath(node);
+                    LOG_err << "Failed to resume sync: " << oldsync->localpath << " to " << nodepath;
+                    delete []nodepath;
                 }
 
                 delete megaCmdListener;
@@ -313,7 +298,14 @@ void MegaCmdListener::onRequestUpdate(MegaApi* api, MegaRequest *request)
 
 
             float oldpercent = percentFetchnodes;
-            percentFetchnodes = request->getTransferredBytes() * 1.0 / request->getTotalBytes() * 100.0;
+            if (request->getTotalBytes() == 0)
+            {
+                percentFetchnodes = 0;
+            }
+            else
+            {
+                percentFetchnodes = request->getTransferredBytes() * 1.0 / request->getTotalBytes() * 100.0;
+            }
             if (alreadyFinished || ( ( percentFetchnodes == oldpercent ) && ( oldpercent != 0 )) )
             {
                 return;
@@ -380,23 +372,31 @@ MegaCmdListener::MegaCmdListener(MegaApi *megaApi, MegaRequestListener *listener
 }
 
 
-////////////////////////////////////////
-///      MegaCmdListener methods     ///
-////////////////////////////////////////
+////////////////////////////////////////////////
+///      MegaCmdTransferListener methods     ///
+////////////////////////////////////////////////
 
-void MegaCmdTransferListener::onTransferStart(MegaApi* api, MegaTransfer *Transfer)
+void MegaCmdTransferListener::onTransferStart(MegaApi* api, MegaTransfer *transfer)
 {
-    if (!Transfer)
+    if (listener)
+    {
+        listener->onTransferStart(api,transfer);
+    }
+    if (!transfer)
     {
         LOG_err << " onTransferStart for undefined Transfer ";
         return;
     }
 
-    LOG_verbose << "onTransferStart Transfer->getType(): " << Transfer->getType();
+    LOG_verbose << "onTransferStart Transfer->getType(): " << transfer->getType();
 }
 
 void MegaCmdTransferListener::doOnTransferFinish(MegaApi* api, MegaTransfer *transfer, MegaError* e)
 {
+    if (listener)
+    {
+        listener->onTransferFinish(api,transfer,e);
+    }
     if (!transfer)
     {
         LOG_err << " onTransferFinish for undefined transfer ";
@@ -411,6 +411,11 @@ void MegaCmdTransferListener::doOnTransferFinish(MegaApi* api, MegaTransfer *tra
 
 void MegaCmdTransferListener::onTransferUpdate(MegaApi* api, MegaTransfer *transfer)
 {
+    if (listener)
+    {
+        listener->onTransferUpdate(api,transfer);
+    }
+
     if (!transfer)
     {
         LOG_err << " onTransferUpdate for undefined Transfer ";
@@ -434,7 +439,14 @@ void MegaCmdTransferListener::onTransferUpdate(MegaApi* api, MegaTransfer *trans
 
 
     float oldpercent = percentDowloaded;
-    percentDowloaded = transfer->getTransferredBytes() * 1.0 / transfer->getTotalBytes() * 100.0;
+    if (transfer->getTotalBytes() == 0)
+    {
+        percentDowloaded = 0;
+    }
+    else
+    {
+        percentDowloaded = transfer->getTransferredBytes() * 1.0 / transfer->getTotalBytes() * 100.0;
+    }
     if (alreadyFinished || ( ( percentDowloaded == oldpercent ) && ( oldpercent != 0 ) ) )
     {
         return;
@@ -478,6 +490,10 @@ void MegaCmdTransferListener::onTransferUpdate(MegaApi* api, MegaTransfer *trans
 
 void MegaCmdTransferListener::onTransferTemporaryError(MegaApi *api, MegaTransfer *transfer, MegaError* e)
 {
+    if (listener)
+    {
+        listener->onTransferTemporaryError(api,transfer,e);
+    }
 }
 
 
@@ -501,6 +517,220 @@ bool MegaCmdTransferListener::onTransferData(MegaApi *api, MegaTransfer *transfe
     return true;
 }
 
+
+/////////////////////////////////////////////////////
+///      MegaCmdMultiTransferListener methods     ///
+/////////////////////////////////////////////////////
+
+void MegaCmdMultiTransferListener::onTransferStart(MegaApi* api, MegaTransfer *transfer)
+{
+    if (!transfer)
+    {
+        LOG_err << " onTransferStart for undefined Transfer ";
+        return;
+    }
+    alreadyFinished = false;
+    if (totalbytes == 0)
+    {
+        percentDowloaded = 0;
+    }
+    else
+    {
+        percentDowloaded = (transferredbytes + getOngoingTransferredBytes()) * 1.0 / totalbytes * 1.0;
+    }
+
+    onTransferUpdate(api,transfer);
+
+    LOG_verbose << "onTransferStart Transfer->getType(): " << transfer->getType();
+}
+
+void MegaCmdMultiTransferListener::doOnTransferFinish(MegaApi* api, MegaTransfer *transfer, MegaError* e)
+{
+    finished++;
+    finalerror = (finalerror!=API_OK)?finalerror:e->getErrorCode();
+
+    if (!transfer)
+    {
+        LOG_err << " onTransferFinish for undefined transfer ";
+        multisemaphore->release();
+        return;
+    }
+
+    LOG_verbose << "onTransferFinish Transfer->getType(): " << transfer->getType();
+    map<int, long long>::iterator itr = ongoingtransferredbytes.find(transfer->getTag());
+    if ( itr!= ongoingtransferredbytes.end())
+    {
+        ongoingtransferredbytes.erase(itr);
+    }
+
+    itr = ongoingtotalbytes.find(transfer->getTag());
+    if ( itr!= ongoingtotalbytes.end())
+    {
+        ongoingtotalbytes.erase(itr);
+    }
+
+    transferredbytes+=transfer->getTransferredBytes();
+    totalbytes+=transfer->getTotalBytes();
+    multisemaphore->release();
+
+}
+
+void MegaCmdMultiTransferListener::waitMultiEnd()
+{
+    for (int i=0; i < started; i++)
+    {
+        multisemaphore->wait();
+    }
+}
+
+
+void MegaCmdMultiTransferListener::onTransferUpdate(MegaApi* api, MegaTransfer *transfer)
+{
+    if (!transfer)
+    {
+        LOG_err << " onTransferUpdate for undefined Transfer ";
+        return;
+    }
+    ongoingtransferredbytes[transfer->getTag()] = transfer->getTransferredBytes();
+    ongoingtotalbytes[transfer->getTag()] = transfer->getTotalBytes();
+
+    unsigned int cols = getNumberOfCols(80);
+
+    string outputString;
+    outputString.resize(cols + 1);
+    for (unsigned int i = 0; i < cols; i++)
+    {
+        outputString[i] = '.';
+    }
+
+    outputString[cols] = '\0';
+    char *ptr = (char *)outputString.c_str();
+    sprintf(ptr, "%s", "TRANSFERING ||");
+    ptr += strlen("TRANSFERING ||");
+    *ptr = '.'; //replace \0 char
+
+
+    float oldpercent = percentDowloaded;
+    if ((totalbytes + getOngoingTotalBytes() ) == 0)
+    {
+        percentDowloaded = 0;
+    }
+    else
+    {
+        percentDowloaded = (transferredbytes + getOngoingTransferredBytes()) * 1.0 / (totalbytes + getOngoingTotalBytes() ) * 100.0;
+    }
+    if (alreadyFinished || ( ( percentDowloaded == oldpercent ) && ( oldpercent != 0 ) ) )
+    {
+        return;
+    }
+    if (percentDowloaded < 0)
+    {
+        percentDowloaded = 0;
+    }
+    assert(percentDowloaded <=100);
+
+    char aux[40];
+    if (transfer->getTotalBytes() < 0)
+    {
+        return; // after a 100% this happens
+    }
+    if (transfer->getTransferredBytes() < 0.001 * transfer->getTotalBytes())
+    {
+        return; // after a 100% this happens
+    }
+    sprintf(aux,"||(%lld/%lld MB: %.2f %%) ", (transferredbytes + getOngoingTransferredBytes()) / 1024 / 1024, (totalbytes + getOngoingTotalBytes() ) / 1024 / 1024, percentDowloaded);
+    sprintf((char *)outputString.c_str() + cols - strlen(aux), "%s",                         aux);
+    for (int i = 0; i <= ( cols - strlen("TRANSFERING ||") - strlen(aux)) * 1.0 * min (100.0f,percentDowloaded) / 100.0; i++)
+    {
+        *ptr++ = '#';
+    }
+
+    if (percentDowloaded == 100 && !alreadyFinished)
+    {
+        alreadyFinished = true;
+        cout << outputString << endl;
+    }
+    else
+    {
+        cout << outputString << '\r' << flush;
+    }
+
+    LOG_verbose << "onTransferUpdate transfer->getType(): " << transfer->getType() << " clientID=" << this->clientID;
+
+    informProgressUpdate((transferredbytes + getOngoingTransferredBytes()),(totalbytes + getOngoingTotalBytes() ), clientID);
+
+
+}
+
+
+void MegaCmdMultiTransferListener::onTransferTemporaryError(MegaApi *api, MegaTransfer *transfer, MegaError* e)
+{
+}
+
+
+MegaCmdMultiTransferListener::~MegaCmdMultiTransferListener()
+{
+    delete multisemaphore;
+}
+
+int MegaCmdMultiTransferListener::getFinalerror() const
+{
+    return finalerror;
+}
+
+long long MegaCmdMultiTransferListener::getTotalbytes() const
+{
+    return totalbytes;
+}
+
+long long MegaCmdMultiTransferListener::getOngoingTransferredBytes()
+{
+    long long total = 0;
+    for (map<int, long long>::iterator itr = ongoingtransferredbytes.begin(); itr!= ongoingtransferredbytes.end(); itr++)
+    {
+        total += itr->second;
+    }
+    return total;
+}
+
+long long MegaCmdMultiTransferListener::getOngoingTotalBytes()
+{
+    long long total = 0;
+    for (map<int, long long>::iterator itr = ongoingtotalbytes.begin(); itr!= ongoingtotalbytes.end(); itr++)
+    {
+        total += itr->second;
+    }
+    return total;
+}
+
+MegaCmdMultiTransferListener::MegaCmdMultiTransferListener(MegaApi *megaApi, MegaCmdSandbox *sandboxCMD, MegaTransferListener *listener, int clientID)
+{
+    this->megaApi = megaApi;
+    this->sandboxCMD = sandboxCMD;
+    this->listener = listener;
+    percentDowloaded = 0.0f;
+    alreadyFinished = false;
+    this->clientID = clientID;
+
+    started = 0;
+    finished = 0;
+    totalbytes = 0;
+    transferredbytes = 0;
+
+    multisemaphore = new MegaSemaphore();
+    finalerror = MegaError::API_OK;
+
+}
+
+bool MegaCmdMultiTransferListener::onTransferData(MegaApi *api, MegaTransfer *transfer, char *buffer, size_t size)
+{
+    return true;
+}
+
+void MegaCmdMultiTransferListener::onNewTransfer()
+{
+    started ++;
+}
 
 ////////////////////////////////////////
 ///  MegaCmdGlobalTransferListener   ///
@@ -527,6 +757,7 @@ void MegaCmdGlobalTransferListener::onTransferFinish(MegaApi* api, MegaTransfer 
         char * nodepath = api->getNodePath(node);
         completedPathsByHandle[transfer->getNodeHandle()]=nodepath;
         delete []nodepath;
+        delete node;
     }
 
     if (completedTransfers.size()>MAXCOMPLETEDTRANSFERSBUFFER)

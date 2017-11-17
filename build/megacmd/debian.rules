@@ -5,13 +5,13 @@ build-stamp:
 	./autogen.sh
 
 	#build dependencies into folder deps
-	mkdir deps
+	mkdir deps || :
 	bash -x ./sdk/contrib/build_sdk.sh -o archives \
 	  -g -b -l -c -s -u -a -z -p deps/
 
 	./configure --disable-shared --enable-static --disable-silent-rules \
 	  --disable-curl-checks --with-sodium=$(CURDIR)/deps --with-pcre \
-	  --with-curl=$(CURDIR)/deps --without-freeimage --with-readline=$(CURDIR)/deps \
+	  --with-curl=$(CURDIR)/deps --with-freeimage=$(CURDIR)/deps --with-readline=$(CURDIR)/deps \
 	  --with-termcap=$(CURDIR)/deps --prefix=$(CURDIR)/deps --disable-examples
 
 	make

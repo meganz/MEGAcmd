@@ -44,12 +44,15 @@ void localwtostring(const std::wstring* wide, std::string *multibyte);
 
 #include "megaapi_impl.h"
 
+#define PROGRESS_COMPLETE -2
+
 typedef struct sync_struct
 {
     mega::MegaHandle handle;
     bool active;
     std::string localpath;
     long long fingerprint;
+    bool loadedok; //ephimeral data
 } sync_struct;
 
 
@@ -82,6 +85,14 @@ enum
 };
 
 
+enum confirmresponse
+{
+    MCMDCONFIRM_NO=0,
+    MCMDCONFIRM_YES,
+    MCMDCONFIRM_ALL,
+    MCMDCONFIRM_NONE
+};
+
 void changeprompt(const char *newprompt);
 
 mega::MegaApi* getFreeApiFolder();
@@ -97,7 +108,7 @@ prompttype getprompt();
 
 void printHistory();
 
-bool askforConfirmation(std::string message);
+int askforConfirmation(std::string message);
 
 void informTransferUpdate(mega::MegaTransfer *transfer, int clientID);
 

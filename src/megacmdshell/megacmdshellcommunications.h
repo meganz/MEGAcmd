@@ -85,6 +85,32 @@ void utf16ToUtf8(const wchar_t* utf16data, int utf16size, std::string* utf8strin
 
 #define MEGACMDINITIALPORTNUMBER 12300
 
+enum
+{
+    MCMD_OK = 0,              ///< Everything OK
+
+    MCMD_EARGS = -51,         ///< Wrong arguments
+    MCMD_INVALIDEMAIL = -52,  ///< Invalid email
+    MCMD_NOTFOUND = -53,      ///< Resource not found
+    MCMD_INVALIDSTATE = -54,  ///< Invalid state
+    MCMD_INVALIDTYPE = -55,   ///< Invalid type
+    MCMD_NOTPERMITTED = -56,  ///< Operation not allowed
+    MCMD_NOTLOGGEDIN = -57,   ///< Needs loging in
+    MCMD_NOFETCH = -58,       ///< Nodes not fetched
+    MCMD_EUNEXPECTED = -59,   ///< Unexpected failure
+
+    MCMD_REQCONFIRM = -60,     ///< Confirmation required
+
+};
+
+enum confirmresponse
+{
+    MCMDCONFIRM_NO=0,
+    MCMDCONFIRM_YES,
+    MCMDCONFIRM_ALL,
+    MCMDCONFIRM_NONE
+};
+
 typedef struct structListenStateChanges{
     int receiveSocket;
     void (*statechangehandle)(std::string);
@@ -96,8 +122,8 @@ public:
     MegaCmdShellCommunications();
     virtual ~MegaCmdShellCommunications();
 
-    virtual int executeCommand(std::string command, bool (*readconfirmationloop)(const char *) = NULL, OUTSTREAMTYPE &output = COUT, bool interactiveshell = true, std::wstring = L"");
-    virtual int executeCommandW(std::wstring command, bool (*readconfirmationloop)(const char *) = NULL, OUTSTREAMTYPE &output = COUT, bool interactiveshell = true);
+    virtual int executeCommand(std::string command, int (*readconfirmationloop)(const char *) = NULL, OUTSTREAMTYPE &output = COUT, bool interactiveshell = true, std::wstring = L"");
+    virtual int executeCommandW(std::wstring command, int (*readconfirmationloop)(const char *) = NULL, OUTSTREAMTYPE &output = COUT, bool interactiveshell = true);
 
     virtual int registerForStateChanges(void (*statechangehandle)(std::string) = NULL);
 

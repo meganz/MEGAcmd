@@ -388,7 +388,7 @@ CmdPetition * ComunicationsManagerNamedPipes::getPetition()
     return inf;
 }
 
-bool ComunicationsManagerNamedPipes::getConfirmation(CmdPetition *inf, string message)
+int ComunicationsManagerNamedPipes::getConfirmation(CmdPetition *inf, string message)
 {
     HANDLE outNamedPipe = ((CmdPetitionNamedPipes *)inf)->outNamedPipe;
 
@@ -404,7 +404,7 @@ bool ComunicationsManagerNamedPipes::getConfirmation(CmdPetition *inf, string me
         LOG_err << "ERROR writing to namedPipe: " << ERRNO;
     }
 
-    bool response = false;
+    int response = MCMDCONFIRM_NO;
     if (!ReadFile(outNamedPipe,(char *)&response, sizeof(response), &n, NULL))
     {
         LOG_err << "ERROR receiving confirmation response: " << ERRNO;

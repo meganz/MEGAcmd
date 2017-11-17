@@ -97,7 +97,7 @@ public:
      */
     CmdPetition *getPetition();
 
-    virtual bool getConfirmation(CmdPetition *inf, std::string message);
+    virtual int getConfirmation(CmdPetition *inf, std::string message);
 
     /**
      * @brief get_petition_details

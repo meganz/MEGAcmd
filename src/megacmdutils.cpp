@@ -34,34 +34,22 @@
 using namespace std;
 using namespace mega;
 
-int * getNumFolderFiles(MegaNode *n, MegaApi *api)
+void getNumFolderFiles(MegaNode *n, MegaApi *api, long long *nfiles, long long *nfolders)
 {
-    int * nFolderFiles = new int[2]();
     MegaNodeList *totalnodes = api->getChildren(n);
-    for (int i = 0; i < totalnodes->size(); i++)
+    for (long long i = 0; i < totalnodes->size(); i++)
     {
         if (totalnodes->get(i)->getType() == MegaNode::TYPE_FILE)
         {
-            nFolderFiles[1]++;
+            (*nfiles)++;
         }
         else
         {
-            nFolderFiles[0]++; //folder
+            (*nfolders)++;
+            getNumFolderFiles(totalnodes->get(i), api, nfiles, nfolders);
         }
     }
-
-    int nfolders = nFolderFiles[0];
-    for (int i = 0; i < nfolders; i++)
-    {
-        int * nFolderFilesSub = getNumFolderFiles(totalnodes->get(i), api);
-
-        nFolderFiles[0] += nFolderFilesSub[0];
-        nFolderFiles[1] += nFolderFilesSub[1];
-        delete []nFolderFilesSub;
-    }
-
     delete totalnodes;
-    return nFolderFiles;
 }
 
 string getUserInSharedNode(MegaNode *n, MegaApi *api)
@@ -208,11 +196,11 @@ int getAttrNum(const char* attr)
     return atoi(attr);
 }
 
-const char* getSyncStateStr(int state)
+const char* getSyncPathStateStr(int state)
 {
     switch (state)
     {
-        case 0:
+        case MegaApi::STATE_NONE:
             return "NONE";
 
             break;
@@ -234,6 +222,33 @@ const char* getSyncStateStr(int state)
 
         case MegaApi::STATE_IGNORED:
             return "Ignored";
+
+            break;
+    }
+    return "undefined";
+}
+
+const char* getSyncStateStr(int state)
+{
+    switch (state)
+    {
+        case MegaSync::SYNC_FAILED:
+            return "Failed";
+
+            break;
+
+        case MegaSync::SYNC_CANCELED:
+            return "Canceled";
+
+            break;
+
+        case MegaSync::SYNC_INITIALSCAN:
+            return "InitScan";
+
+            break;
+
+        case MegaSync::SYNC_ACTIVE:
+            return "Active";
 
             break;
     }
@@ -555,7 +570,13 @@ time_t getTimeStampAfter(time_t initial, string timestring)
             }
             last = ptr + 1;
         }
+        char *prev = ptr;
         ptr++;
+        if (*ptr == '\0' && ( *prev >= '0' ) && ( *prev <= '9' )) //reach the end with a number
+        {
+            delete[] buffer;
+            return -1;
+        }
     }
 
     struct tm * dt;
@@ -578,6 +599,217 @@ time_t getTimeStampAfter(string timestring)
     return getTimeStampAfter(initial, timestring);
 }
 
+time_t getTimeStampBefore(time_t initial, string timestring)
+{
+    char *buffer = new char[timestring.size() + 1];
+    strcpy(buffer, timestring.c_str());
+
+    time_t days = 0, hours = 0, minutes = 0, seconds = 0, months = 0, years = 0;
+
+    char * ptr = buffer;
+    char * last = buffer;
+    while (*ptr != '\0')
+    {
+        if (( *ptr < '0' ) || ( *ptr > '9' ))
+        {
+            switch (*ptr)
+            {
+                case 'd':
+                    *ptr = '\0';
+                    days = atoi(last);
+                    break;
+
+                case 'h':
+                    *ptr = '\0';
+                    hours = atoi(last);
+                    break;
+
+                case 'M':
+                    *ptr = '\0';
+                    minutes = atoi(last);
+                    break;
+
+                case 's':
+                    *ptr = '\0';
+                    seconds = atoi(last);
+                    break;
+
+                case 'm':
+                    *ptr = '\0';
+                    months = atoi(last);
+                    break;
+
+                case 'y':
+                    *ptr = '\0';
+                    years = atoi(last);
+                    break;
+
+                default:
+                {
+                    delete[] buffer;
+                    return -1;
+                }
+            }
+            last = ptr + 1;
+        }
+        char *prev = ptr;
+        ptr++;
+        if (*ptr == '\0' && ( *prev >= '0' ) && ( *prev <= '9' )) //reach the end with a number
+        {
+            delete[] buffer;
+            return -1;
+        }
+    }
+
+    struct tm * dt;
+    dt = localtime(&initial);
+
+    dt->tm_mday -= days;
+    dt->tm_hour -= hours;
+    dt->tm_min -= minutes;
+    dt->tm_sec -= seconds;
+    dt->tm_mon -= months;
+    dt->tm_year -= years;
+
+    delete [] buffer;
+    return mktime(dt);
+}
+
+time_t getTimeStampBefore(string timestring)
+{
+    time_t initial = time(NULL);
+    return getTimeStampBefore(initial, timestring);
+}
+
+bool getMinAndMaxTime(string timestring, time_t *minTime, time_t *maxTime)
+{
+    time_t initial = time(NULL);
+    return getMinAndMaxTime(initial, timestring, minTime, maxTime);
+}
+
+bool getMinAndMaxTime(time_t initial, string timestring, time_t *minTime, time_t *maxTime)
+{
+
+    *minTime = -1;
+    *maxTime = -1;
+    if (!timestring.size())
+    {
+        return false;
+    }
+
+    if (timestring.at(0) == '+')
+    {
+        size_t posmin = timestring.find("-");
+        string maxTimestring = timestring.substr(1,posmin-1);
+        *maxTime = getTimeStampBefore(initial,maxTimestring);
+        if (*maxTime == -1)
+        {
+            return false;
+        }
+        if (posmin == string::npos)
+        {
+            *minTime = 0;
+            return true;
+        }
+
+        string minTimestring = timestring.substr(posmin+1);
+        *minTime = getTimeStampBefore(initial,minTimestring);
+        if (*minTime == -1)
+        {
+            return false;
+        }
+    }
+    else if (timestring.at(0) == '-')
+    {
+        size_t posmax = timestring.find("+");
+        string minTimestring = timestring.substr(1,posmax-1);
+        *minTime = getTimeStampBefore(initial,minTimestring);
+        if (*minTime == -1)
+        {
+            return false;
+        }
+        if (posmax == string::npos)
+        {
+            *maxTime = initial;
+            return true;
+        }
+
+        string maxTimestring = timestring.substr(posmax+1);
+        *maxTime = getTimeStampBefore(initial,maxTimestring);
+        if (*maxTime == -1)
+        {
+            return false;
+        }
+    }
+    else
+    {
+        return false;
+    }
+
+    return true;
+}
+
+bool getMinAndMaxSize(string sizestring, int64_t *minSize, int64_t *maxSize)
+{
+
+    *minSize = -1;
+    *maxSize = -1;
+    if (!sizestring.size())
+    {
+        return false;
+    }
+
+    if (sizestring.at(0) == '+')
+    {
+        size_t posmax = sizestring.find("-");
+        string minSizestring = sizestring.substr(1,posmax-1);
+        *minSize = textToSize(minSizestring.c_str());
+        if (*minSize == -1)
+        {
+            return false;
+        }
+        if (posmax == string::npos)
+        {
+            *maxSize = -1;
+            return true;
+        }
+
+        string maxSizestring = sizestring.substr(posmax+1);
+        *maxSize = textToSize(maxSizestring.c_str());
+        if (*maxSize == -1)
+        {
+            return false;
+        }
+    }
+    else if (sizestring.at(0) == '-')
+    {
+        size_t posmin = sizestring.find("+");
+        string maxSizestring = sizestring.substr(1,posmin-1);
+        *maxSize = textToSize(maxSizestring.c_str());
+        if (*maxSize == -1)
+        {
+            return false;
+        }
+        if (posmin == string::npos)
+        {
+            *minSize = -1;
+            return true;
+        }
+
+        string minSizestring = sizestring.substr(posmin+1);
+        *minSize = textToSize(minSizestring.c_str());
+        if (*minSize == -1)
+        {
+            return false;
+        }
+    }
+    else
+    {
+        return false;
+    }
+
+    return true;
+}
 std::string &ltrim(std::string &s, const char &c)
 {
     size_t pos = s.find_first_not_of(c);
@@ -1108,9 +1340,32 @@ string sizeToText(long long totalSize, bool equalizeUnitsLength, bool humanreada
     os.precision(2);
     if (humanreadable)
     {
-        double reducedSize = ( totalSize > 1048576 * 2 ? totalSize / 1048576.0 : ( totalSize > 1024 * 2 ? totalSize / 1024.0 : totalSize ));
+        string unit;
+        unit = ( equalizeUnitsLength ? " B" : "B" );
+        double reducedSize = totalSize;
+
+        if ( totalSize > 1099511627776LL *2 )
+        {
+            reducedSize = totalSize / 1099511627776L;
+            unit = "TB";
+        }
+        else if ( totalSize > 1073741824LL *2 )
+        {
+            reducedSize = totalSize / 1073741824L;
+            unit = "GB";
+        }
+        else if (totalSize > 1048576 * 2)
+        {
+            reducedSize = totalSize / 1048576;
+            unit = "MB";
+        }
+        else if (totalSize > 1024 * 2)
+        {
+            reducedSize = totalSize / 1024;
+            unit = "KB";
+        }
         os << fixed << reducedSize;
-        os << ( totalSize > 1048576 * 2 ? " MB" : ( totalSize > 1024 * 2 ? " KB" : ( equalizeUnitsLength ? "  B" : " B" )));
+        os << " " << unit;
     }
     else
     {
@@ -1119,6 +1374,67 @@ string sizeToText(long long totalSize, bool equalizeUnitsLength, bool humanreada
 
     return os.str();
 }
+
+int64_t textToSize(const char *text)
+{
+    int64_t sizeinbytes = 0;
+
+    char * ptr = (char *)text;
+    char * last = (char *)text;
+    while (*ptr != '\0')
+    {
+        if (( *ptr < '0' ) || ( *ptr > '9' ) || ( *ptr == '.' ) )
+        {
+            switch (*ptr)
+            {
+                case 'b': //Bytes
+                case 'B':
+                    *ptr = '\0';
+                    sizeinbytes += atof(last);
+                    break;
+
+                case 'k': //KiloBytes
+                case 'K':
+                    *ptr = '\0';
+                    sizeinbytes += 1024.0 * atof(last);
+                    break;
+
+                case 'm': //MegaBytes
+                case 'M':
+                    *ptr = '\0';
+                    sizeinbytes += 1048576.0 * atof(last);
+                    break;
+
+                case 'g': //GigaBytes
+                case 'G':
+                    *ptr = '\0';
+                    sizeinbytes += 1073741824.0 * atof(last);
+                    break;
+
+                case 't': //TeraBytes
+                case 'T':
+                    *ptr = '\0';
+                    sizeinbytes += 1125899906842624.0 * atof(last);
+                    break;
+
+                default:
+                {
+                    return -1;
+                }
+            }
+            last = ptr + 1;
+        }
+        char *prev = ptr;
+        ptr++;
+        if (*ptr == '\0' && ( ( *prev == '.' ) || ( ( *prev >= '0' ) && ( *prev <= '9' ) ) ) ) //reach the end with a number or dot
+        {
+            return -1;
+        }
+    }
+    return sizeinbytes;
+
+}
+
 
 string secondsToText(time_t seconds, bool humanreadable)
 {
@@ -1194,5 +1510,12 @@ void sleepMicroSeconds(long microseconds)
 #else
     usleep(microseconds*1000);
 #endif
+}
+
+bool isValidEmail(string email)
+{
+    return !( (email.find("@") == string::npos)
+                    || (email.find_last_of(".") == string::npos)
+                    || (email.find("@") > email.find_last_of(".")));
 }
 

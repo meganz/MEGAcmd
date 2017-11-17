@@ -5,9 +5,13 @@ distro=$(cat /usr/share/doc/megacmd/distro)
 #ver=$(lsb_release -rs)
 ver=$(cat /usr/share/doc/megacmd/version)
 
-if [[ $distro = "Raspbian GNU/Linux 8.0 (jessie)" ]]; then
+if [[ $distro = "Raspbian GNU/Linux 9.1 (stretch)" ]]; then
+    str="Raspbian_9.0"
+elif [[ $distro = "Raspbian GNU/Linux 8.0 (jessie)" ]]; then
     str="Raspbian_8.0"
 # Ubuntu
+elif [[ $ver = "17.10" ]]; then
+    str="xUbuntu_17.10"
 elif [[ $ver = "17.04" ]]; then
     str="xUbuntu_17.04"
 elif [[ $ver = "16.10" ]]; then

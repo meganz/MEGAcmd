@@ -64,6 +64,8 @@ public:
     static bool includeIfIsPendingOutShare(mega::MegaApi* api, mega::MegaNode * n, void *arg);
     static bool includeIfIsSharedOrPendingOutShare(mega::MegaApi* api, mega::MegaNode * n, void *arg);
     static bool includeIfMatchesPattern(mega::MegaApi* api, mega::MegaNode * n, void *arg);
+    static bool includeIfMatchesCriteria(mega::MegaApi* api, mega::MegaNode * n, void *arg);
+
     bool processTree(mega::MegaNode * n, bool(mega::MegaApi *, mega::MegaNode *, void *), void *( arg ));
     mega::MegaNode* nodebypath(const char* ptr, std::string* user = NULL, std::string* namepart = NULL);
     void getPathsMatching(mega::MegaNode *parentNode, std::deque<std::string> pathParts, std::vector<std::string> *pathsMatching, bool usepcre, std::string pathPrefix = "");
@@ -91,9 +93,9 @@ public:
     void actUponLogin(mega::SynchronousRequestListener  *srl, int timeout = -1);
     void actUponLogout(mega::SynchronousRequestListener  *srl, bool deletedSession, int timeout = 0);
     int actUponCreateFolder(mega::SynchronousRequestListener  *srl, int timeout = 0);
-    void deleteNode(mega::MegaNode *nodeToDelete, mega::MegaApi* api, int recursive, int force = 0);
-    void downloadNode(std::string localPath, mega::MegaApi* api, mega::MegaNode *node, bool background, bool ignorequotawar, int clientID);
-    void uploadNode(std::string localPath, mega::MegaApi* api, mega::MegaNode *node, std::string newname, bool background, bool ignorequotawarn, int clientID);
+    int deleteNode(mega::MegaNode *nodeToDelete, mega::MegaApi* api, int recursive, int force = 0);
+    void downloadNode(std::string localPath, mega::MegaApi* api, mega::MegaNode *node, bool background, bool ignorequotawar, int clientID, MegaCmdMultiTransferListener *listener = NULL);
+    void uploadNode(std::string localPath, mega::MegaApi* api, mega::MegaNode *node, std::string newname, bool background, bool ignorequotawarn, int clientID, MegaCmdMultiTransferListener *multiTransferListener = NULL);
     void exportNode(mega::MegaNode *n, int expireTime);
     void disableExport(mega::MegaNode *n);
     void shareNode(mega::MegaNode *n, std::string with, int level = mega::MegaShare::ACCESS_READ);
@@ -103,6 +105,8 @@ public:
     std::vector<std::string> getNodeAttrs(std::string nodePath);
     std::vector<std::string> getUserAttrs();
     std::vector<std::string> getsessions();
+
+    void restartsyncs();
 
     void executecommand(std::vector<std::string> words, std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions);
 
@@ -124,10 +128,15 @@ public:
 
     void confirmDelete();
     void discardDelete();
+    void confirmDeleteAll();
+    void discardDeleteAll();
 
     void printTransfersHeader(const unsigned int PATHSIZE, bool printstate=true);
     void printTransfer(mega::MegaTransfer *transfer, const unsigned int PATHSIZE, bool printstate=true);
-    void doFind(mega::MegaNode* nodeBase, std::string word, int printfileinfo, std::string pattern, bool usepcre);
+    void printSyncHeader(const unsigned int PATHSIZE);
+    void printSync(int i, std::string key, const char *nodepath, sync_struct * thesync, mega::MegaNode *n, long long nfiles, long long nfolders, const unsigned int PATHSIZE);
+
+    void doFind(mega::MegaNode* nodeBase, std::string word, int printfileinfo, std::string pattern, bool usepcre, time_t minTime, time_t maxTime, int64_t minSize, int64_t maxSize);
 
     void move(mega::MegaNode *n, std::string destiny);
     std::string getLPWD();
