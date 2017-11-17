@@ -71,7 +71,6 @@ win32 {
 DEFINES += USE_READLINE_STATIC
 }
 
-LIBS += -lreadline
 
 DEFINES -= USE_QT
 
@@ -81,6 +80,10 @@ macx {
     LIBS += -framework Cocoa -framework SystemConfiguration -framework CoreFoundation -framework Foundation -framework Security
     LIBS += -lncurses
     QMAKE_CXXFLAGS += -g
+}
+else
+{
+    LIBS += -lreadline
 }
 
 win32 {
