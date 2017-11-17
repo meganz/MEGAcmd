@@ -81,8 +81,7 @@ macx {
     LIBS += -lncurses
     QMAKE_CXXFLAGS += -g
 }
-else
-{
+else {
     LIBS += -lreadline
 }
 
