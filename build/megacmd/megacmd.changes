@@ -1,3 +1,10 @@
+Mon Dec 11 18:43:46 CET 2017 - linux@mega.co.nz
+- Update to version 0.9.7:
+  * Faster scanning of files
+  * Improved the management of deleted files
+  * Bug fixes and other minor improvements
+
+-------------------------------------------------------------------
 Fri Nov 10 14:36:44 CET 2017 - linux@mega.co.nz
 - Update to version 0.9.6:
   * Added transfer resumption

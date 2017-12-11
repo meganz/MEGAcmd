@@ -1,3 +1,11 @@
+megacmd (0.9.7) stable; urgency=low
+
+  * Faster scanning of files
+  * Improved the management of deleted files
+  * Bug fixes and other minor improvements
+
+ -- MEGA Team <linux@mega.co.nz>  Mon, 11 Dec 2017 18:43:46 +0100
+
 megacmd (0.9.6) stable; urgency=low
 
   * Added transfer resumption
