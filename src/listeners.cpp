@@ -576,7 +576,7 @@ void MegaCmdMultiTransferListener::waitMultiEnd()
 {
     for (int i=0; i < started; i++)
     {
-        semaphore->wait();
+        wait();
     }
 }
 
