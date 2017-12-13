@@ -71,7 +71,6 @@ protected:
 class MegaCmdMultiTransferListener : public mega::SynchronousTransferListener
 {
 private:
-    mega::MegaSemaphore* multisemaphore;
 
     MegaCmdSandbox * sandboxCMD;
     float percentDowloaded;

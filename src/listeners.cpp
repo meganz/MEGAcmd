@@ -403,7 +403,7 @@ void MegaCmdTransferListener::doOnTransferFinish(MegaApi* api, MegaTransfer *tra
         return;
     }
 
-    LOG_verbose << "onTransferFinish Transfer->getType(): " << transfer->getType();
+    LOG_verbose << "doOnTransferFinish Transfer->getType(): " << transfer->getType();
     informProgressUpdate(PROGRESS_COMPLETE, transfer->getTotalBytes(), clientID);
 
 }
@@ -552,11 +552,10 @@ void MegaCmdMultiTransferListener::doOnTransferFinish(MegaApi* api, MegaTransfer
     if (!transfer)
     {
         LOG_err << " onTransferFinish for undefined transfer ";
-        multisemaphore->release();
         return;
     }
 
-    LOG_verbose << "onTransferFinish Transfer->getType(): " << transfer->getType();
+    LOG_verbose << "doOnTransferFinish MegaCmdMultiTransferListener Transfer->getType(): " << transfer->getType() << " transfering " << transfer->getFileName();
     map<int, long long>::iterator itr = ongoingtransferredbytes.find(transfer->getTag());
     if ( itr!= ongoingtransferredbytes.end())
     {
@@ -571,15 +570,13 @@ void MegaCmdMultiTransferListener::doOnTransferFinish(MegaApi* api, MegaTransfer
 
     transferredbytes+=transfer->getTransferredBytes();
     totalbytes+=transfer->getTotalBytes();
-    multisemaphore->release();
-
 }
 
 void MegaCmdMultiTransferListener::waitMultiEnd()
 {
     for (int i=0; i < started; i++)
     {
-        multisemaphore->wait();
+        semaphore->wait();
     }
 }
 
@@ -670,7 +667,6 @@ void MegaCmdMultiTransferListener::onTransferTemporaryError(MegaApi *api, MegaTr
 
 MegaCmdMultiTransferListener::~MegaCmdMultiTransferListener()
 {
-    delete multisemaphore;
 }
 
 int MegaCmdMultiTransferListener::getFinalerror() const
@@ -717,7 +713,6 @@ MegaCmdMultiTransferListener::MegaCmdMultiTransferListener(MegaApi *megaApi, Meg
     totalbytes = 0;
     transferredbytes = 0;
 
-    multisemaphore = new MegaSemaphore();
     finalerror = MegaError::API_OK;
 
 }
