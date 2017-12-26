@@ -2810,6 +2810,33 @@ string MegaCmdExecuter::getCurrentPath()
     return toret;
 }
 
+long long MegaCmdExecuter::getVersionsSize(MegaNode *n)
+{
+    long long toret = 0;
+
+    MegaNodeList *versionNodes = api->getVersions(n);
+    if (versionNodes)
+    {
+        for (int i = 0; i < versionNodes->size(); i++)
+        {
+            MegaNode *versionNode = versionNodes->get(i);
+            toret += api->getSize(versionNode);
+        }
+    }
+
+    MegaNodeList *children = api->getChildren(n);
+    if (children)
+    {
+        for (int i = 0; i < children->size(); i++)
+        {
+            MegaNode *child = children->get(i);
+            toret += getVersionsSize(child);
+        }
+        delete children;
+    }
+    return toret;
+}
+
 vector<string> MegaCmdExecuter::listpaths(bool usepcre, string askedPath, bool discardFiles)
 {
     vector<string> paths;
@@ -4030,6 +4057,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         }
         long long totalSize = 0;
         long long currentSize = 0;
+        long long totalVersionsSize = 0;
         string dpath;
         if (words.size() == 1)
         {
@@ -4037,6 +4065,8 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         }
 
         bool humanreadable = getFlag(clflags, "h");
+        bool show_versions_size = getFlag(clflags, "v");
+        bool firstone = true;
 
         for (unsigned int i = 1; i < words.size(); i++)
         {
@@ -4051,10 +4081,29 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         MegaNode * n = *it;
                         if (n)
                         {
+                            if (firstone)//print header
+                            {
+                                OUTSTREAM << getFixLengthString("FILENAME",40) << getFixLengthString("SIZE", 12, ' ', true);
+                                if (show_versions_size)
+                                {
+                                    OUTSTREAM << getFixLengthString("S.WITH VERS", 12, ' ', true);;
+                                }
+                                OUTSTREAM << endl;
+                                firstone = false;
+                            }
                             currentSize = api->getSize(n);
                             totalSize += currentSize;
+
                             dpath = getDisplayPath(words[i], n);
-                            OUTSTREAM << dpath << ": " << setw(max(10, (int)( 40 - dpath.size()))) << sizeToText(currentSize, true, humanreadable) << endl;
+                            OUTSTREAM << getFixLengthString(dpath+":",40) << getFixLengthString(sizeToText(currentSize, true, humanreadable), 12, ' ', true);
+                            if (show_versions_size)
+                            {
+                                long long sizeWithVersions = getVersionsSize(n);
+                                OUTSTREAM << getFixLengthString(sizeToText(sizeWithVersions, true, humanreadable), 12, ' ', true);
+                                totalVersionsSize += sizeWithVersions;
+                            }
+
+                            OUTSTREAM << endl;
                             delete n;
                         }
                     }
@@ -4077,21 +4126,43 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 dpath = getDisplayPath(words[i], n);
                 if (dpath.size())
                 {
-                    OUTSTREAM << dpath << ": " << setw(max(10, (int)( 40 - dpath.size()))) << sizeToText(currentSize, true, humanreadable) << endl;
+                    if (firstone)//print header
+                    {
+                        OUTSTREAM << getFixLengthString("FILENAME",40) << getFixLengthString("SIZE", 12, ' ', true);
+                        if (show_versions_size)
+                        {
+                            OUTSTREAM << getFixLengthString("S.WITH VERS", 12, ' ', true);;
+                        }
+                        OUTSTREAM << endl;
+                        firstone = false;
+                    }
+
+                    OUTSTREAM << getFixLengthString(dpath+":",40) << getFixLengthString(sizeToText(currentSize, true, humanreadable), 12, ' ', true);
+                    if (show_versions_size)
+                    {
+                        long long sizeWithVersions = getVersionsSize(n);
+                        OUTSTREAM << getFixLengthString(sizeToText(sizeWithVersions, true, humanreadable), 12, ' ', true);
+                        totalVersionsSize += sizeWithVersions;
+                    }
+                    OUTSTREAM << endl;
+
                 }
                 delete n;
             }
         }
 
-        if (dpath.size())
+        if (!firstone)
         {
-            OUTSTREAM << "---------------------------------------------" << endl;
+            OUTSTREAM << "----------------------------------------------------------------" << endl;
+
+            OUTSTREAM << getFixLengthString("Total storage used:",40) << getFixLengthString(sizeToText(totalSize, true, humanreadable), 12, ' ', true);
+            //OUTSTREAM << "Total storage used: " << setw(22) << sizeToText(totalSize, true, humanreadable);
+            if (show_versions_size)
+            {
+                OUTSTREAM << getFixLengthString(sizeToText(totalVersionsSize, true, humanreadable), 12, ' ', true);
+            }
+            OUTSTREAM << endl;
         }
-
-        OUTSTREAM << "Total storage used: " << setw(22) << sizeToText(totalSize, true, humanreadable) << endl;
-        //            OUTSTREAM << "Total # of files: " << du.numfiles << endl;
-        //            OUTSTREAM << "Total # of folders: " << du.numfolders << endl;
-
         return;
     }
     else if (words[0] == "get")

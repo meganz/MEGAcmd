@@ -353,6 +353,7 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     else if ("du" == thecommand)
     {
         validParams->insert("h");
+        validParams->insert("v");
 #ifdef USE_PCRE
         validParams->insert("use-pcre");
 #endif
@@ -1228,9 +1229,9 @@ const char * getUsageStr(const char *command)
     if (!strcmp(command, "du"))
     {
 #ifdef USE_PCRE
-        return "du [-h] [remotepath remotepath2 remotepath3 ... ] [--use-pcre]";
+        return "du [-hv] [remotepath remotepath2 remotepath3 ... ] [--use-pcre]";
 #else
-        return "du [-h] [remotepath remotepath2 remotepath3 ... ]";
+        return "du [-hv] [remotepath remotepath2 remotepath3 ... ]";
 #endif
     }
     if (!strcmp(command, "pwd"))
@@ -1607,6 +1608,7 @@ string getHelpStr(const char *command)
         os << endl;
         os << "Options:" << endl;
         os << " -h" << "\t" << "Human readable" << endl;
+        os << " -v" << "\t" << "Calculate size including all versions. You can remove all versions with \"deleteversions\"" << endl;
 #ifdef USE_PCRE
         os << " --use-pcre" << "\t" << "use PCRE expressions" << endl;
 #endif
@@ -1764,6 +1766,8 @@ string getHelpStr(const char *command)
 #ifdef USE_PCRE
         os << " --use-pcre" << "\t" << "use PCRE expressions" << endl;
 #endif
+        os << endl;
+        os << "To see space occupied by sessions use \"du\" with \"-v\"" << endl;
     }
     else if (!strcmp(command, "exclude"))
     {

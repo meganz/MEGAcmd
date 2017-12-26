@@ -84,7 +84,7 @@ public:
     void dumpListOfAllShared(mega::MegaNode* n, std::string givenPath);
     void dumpListOfPendingShares(mega::MegaNode* n, std::string givenPath);
     std::string getCurrentPath();
-
+    long long getVersionsSize(mega::MegaNode* n);
     //acting
     void loginWithPassword(char *password);
     void changePassword(const char *oldpassword, const char *newpassword);

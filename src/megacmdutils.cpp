@@ -1201,31 +1201,50 @@ string joinStrings(const vector<string>& vec, const char* delim, bool quoted)
         return toret.substr(0,toret.size()-strlen(delim));
     }
     return res.str();
+}
 
+unsigned int getstringutf8size(const string &str) {
+    int c,i,ix,q;
+    for (q=0, i=0, ix=str.length(); i < ix; i++, q++)
+    {
+        c = (unsigned char) str[i];
+
+        if (c>=0 && c<=127) i+=0;
+        else if ((c & 0xE0) == 0xC0) i+=1;
+#ifdef _WIN32
+        else if ((c & 0xF0) == 0xE0) i+=2;
+#else
+        else if ((c & 0xF0) == 0xE0) {i+=2;q++;} //these gliphs may occupy 2 characters! Problem: not always. Let's assume the worse
+#endif
+        else if ((c & 0xF8) == 0xF0) i+=3;
+        else return 0;//invalid utf8
+    }
+    return q;
 }
 
 string getFixLengthString(const string origin, unsigned int size, const char delim, bool alignedright)
 {
     string toret;
-    unsigned int origsize = origin.size();
-    if (origsize <= size){
+    unsigned int printableSize = getstringutf8size(origin);
+    unsigned int bytesSize = origin.size();
+    if (printableSize <= size){
         if (alignedright)
         {
-            toret.insert(0,size-origsize,delim);
-            toret.insert(size-origsize,origin,0,origsize);
+            toret.insert(0,size-printableSize,delim);
+            toret.insert(size-bytesSize,origin,0,bytesSize);
 
         }
         else
         {
-            toret.insert(0,origin,0,origsize);
-            toret.insert(origsize,size-origsize,delim);
+            toret.insert(0,origin,0,bytesSize);
+            toret.insert(bytesSize,size-printableSize,delim);
         }
     }
     else
     {
         toret.insert(0,origin,0,(size+1)/2-2);
         toret.insert((size+1)/2-2,3,'.');
-        toret.insert((size+1)/2+1,origin,origsize-(size)/2+1,(size)/2-1);
+        toret.insert((size+1)/2+1,origin,bytesSize-(size)/2+1,(size)/2-1); //TODO: This could break characters if multibyte!  //alternative: separate in multibyte strings and print one by one?
     }
 
     return toret;
