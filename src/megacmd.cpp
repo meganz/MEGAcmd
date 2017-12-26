@@ -178,7 +178,7 @@ vector<string> remotepatterncommands(aremotepatterncommands, aremotepatterncomma
 string aremotefolderspatterncommands[] = {"cd", "share"};
 vector<string> remotefolderspatterncommands(aremotefolderspatterncommands, aremotefolderspatterncommands + sizeof aremotefolderspatterncommands / sizeof aremotefolderspatterncommands[0]);
 
-string amultipleremotepatterncommands[] = {"ls", "mkdir", "rm", "du", "find", "mv"};
+string amultipleremotepatterncommands[] = {"ls", "mkdir", "rm", "du", "find", "mv", "deleteversions"};
 vector<string> multipleremotepatterncommands(amultipleremotepatterncommands, amultipleremotepatterncommands + sizeof amultipleremotepatterncommands / sizeof amultipleremotepatterncommands[0]);
 
 string aremoteremotepatterncommands[] = {"cp"};
@@ -196,7 +196,7 @@ vector<string> emailpatterncommands(aemailpatterncommands, aemailpatterncommands
 string avalidCommands [] = { "login", "signup", "confirm", "session", "mount", "ls", "cd", "log", "debug", "pwd", "lcd", "lpwd", "import", "masterkey",
                              "put", "get", "attr", "userattr", "mkdir", "rm", "du", "mv", "cp", "sync", "export", "share", "invite", "ipc",
                              "showpcr", "users", "speedlimit", "killsession", "whoami", "help", "passwd", "reload", "logout", "version", "quit",
-                             "thumbnail", "preview", "find", "completion", "clear", "https", "transfers", "exclude", "exit"
+                             "thumbnail", "preview", "find", "completion", "clear", "https", "transfers", "exclude", "exit", "deleteversions"
 #ifdef _WIN32
                              ,"unicode"
 #endif
@@ -399,6 +399,12 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     {
         validParams->insert("c");
         validParams->insert("s");
+    }
+    else if ("deleteversions" == thecommand)
+    {
+        validParams->insert("all");
+        validParams->insert("f");
+        validParams->insert("use-pcre");
     }
     else if ("exclude" == thecommand)
     {
@@ -1299,6 +1305,15 @@ const char * getUsageStr(const char *command)
     {
         return "cp srcremotepath dstremotepath|dstemail:";
     }
+    if (!strcmp(command, "deleteversions"))
+    {
+#ifdef USE_PCRE
+        return "deleteversions [-f] (--all | remotepath1 remotepath2 ...)  [--use-pcre]";
+#else
+        return "deleteversions [-f] (--all | remotepath1 remotepath2 ...)";
+#endif
+
+    }
     if (!strcmp(command, "exclude"))
     {
         return "exclude [(-a|-d) pattern1 pattern2 pattern3 [--restart-syncs]]";
@@ -1734,6 +1749,21 @@ string getHelpStr(const char *command)
         os << "Enabling it will increase CPU usage and add network overhead." << endl;
         os << endl;
         os << "Notice that this setting is ephemeral: it will reset for the next time you open MEGAcmd" << endl;
+    }
+    else if (!strcmp(command, "deleteversions"))
+    {
+        os << "Deletes previous versions." << endl;
+        os << "This will permanently delete all historical versions of a file. " << endl;
+        os << "The current version of the file will remain." << endl;
+        os << "Note: any file version shared to you from a contact will need to be deleted by them." << endl;
+
+        os << endl;
+        os << "Options:" << endl;
+        os << " -f" << "\t" << "Force (no asking)" << endl;
+        os << " --all" << "\t" << "Delete versions of all nodes. This will delete the version histories of all files (not current files)." << endl;
+#ifdef USE_PCRE
+        os << " --use-pcre" << "\t" << "use PCRE expressions" << endl;
+#endif
     }
     else if (!strcmp(command, "exclude"))
     {

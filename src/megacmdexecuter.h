@@ -94,6 +94,7 @@ public:
     void actUponLogout(mega::SynchronousRequestListener  *srl, bool deletedSession, int timeout = 0);
     int actUponCreateFolder(mega::SynchronousRequestListener  *srl, int timeout = 0);
     int deleteNode(mega::MegaNode *nodeToDelete, mega::MegaApi* api, int recursive, int force = 0);
+    int deleteNodeVersions(mega::MegaNode *nodeToDelete, mega::MegaApi* api, int force = 0);
     void downloadNode(std::string localPath, mega::MegaApi* api, mega::MegaNode *node, bool background, bool ignorequotawar, int clientID, MegaCmdMultiTransferListener *listener = NULL);
     void uploadNode(std::string localPath, mega::MegaApi* api, mega::MegaNode *node, std::string newname, bool background, bool ignorequotawarn, int clientID, MegaCmdMultiTransferListener *multiTransferListener = NULL);
     void exportNode(mega::MegaNode *n, int expireTime);

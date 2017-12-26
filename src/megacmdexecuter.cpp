@@ -2268,6 +2268,81 @@ void MegaCmdExecuter::doDeleteNode(MegaNode *nodeToDelete,MegaApi* api)
 
 }
 
+int MegaCmdExecuter::deleteNodeVersions(MegaNode *nodeToDelete, MegaApi* api, int force)
+{
+    if (nodeToDelete->getType() == MegaNode::TYPE_FILE && api->getNumVersions(nodeToDelete) < 2)
+    {
+        if (!force)
+        {
+            LOG_err << "No versions found for " << nodeToDelete->getName();
+        }
+        return MCMDCONFIRM_YES; //nothing to do, no sense asking
+    }
+
+    if (nodeToDelete->getType() != MegaNode::TYPE_FILE)
+    {
+        string confirmationQuery("Are you sure todelete the version histories of files within ");
+        confirmationQuery += nodeToDelete->getName();
+        confirmationQuery += "? (Yes/No): ";
+
+        int confirmationResponse = force?MCMDCONFIRM_ALL:askforConfirmation(confirmationQuery);
+
+        if (confirmationResponse == MCMDCONFIRM_YES || confirmationResponse == MCMDCONFIRM_ALL)
+        {
+            MegaNodeList *children = api->getChildren(nodeToDelete);
+            if (children)
+            {
+                for (int i = 0; i < children->size(); i++)
+                {
+                    MegaNode *child = children->get(i);
+                    deleteNodeVersions(child, api, true);
+                }
+                delete children;
+            }
+        }
+        return confirmationResponse;
+    }
+    else
+    {
+
+        string confirmationQuery("Are you sure todelete the version histories of ");
+        confirmationQuery += nodeToDelete->getName();
+        confirmationQuery += "? (Yes/No): ";
+        int confirmationResponse = force?MCMDCONFIRM_ALL:askforConfirmation(confirmationQuery);
+
+        if (confirmationResponse == MCMDCONFIRM_YES || confirmationResponse == MCMDCONFIRM_ALL)
+        {
+
+            MegaNodeList *versionsToDelete = api->getVersions(nodeToDelete);
+            if (versionsToDelete)
+            {
+                for (int i = 0; i < versionsToDelete->size(); i++)
+                {
+                    MegaNode *versionNode = versionsToDelete->get(i);
+
+                    if (versionNode->getHandle() != nodeToDelete->getHandle())
+                    {
+                        MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
+                        api->removeVersion(versionNode,megaCmdListener);
+                        megaCmdListener->wait();
+                        string fullname(versionNode->getName()?versionNode->getName():"NO_NAME");
+                        fullname += "##";
+                        fullname += getReadableTime(versionNode->getCreationTime());
+                        if (checkNoErrors(megaCmdListener->getError(), "remove version: "+fullname))
+                        {
+                            LOG_verbose << " Succesfully removed " << fullname;
+                        }
+                        delete megaCmdListener;
+                    }
+                }
+                delete versionsToDelete;
+            }
+            return confirmationResponse;
+
+        }
+    }
+}
+
 /**
  * @brief MegaCmdExecuter::deleteNode
  * @param nodeToDelete this function will delete this accordingly
@@ -4679,6 +4754,83 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         }
         return;
     }
+    else if (words[0] == "deleteversions")
+    {
+        bool deleteall = getFlag(clflags, "all");
+        bool forcedelete = getFlag(clflags, "f");
+        if (deleteall && words.size()>1)
+        {
+            setCurrentOutCode(MCMD_EARGS);
+            LOG_err << "      " << getUsageStr("deleteversions");
+            return;
+        }
+        if (deleteall)
+        {
+            string confirmationQuery("Are you sure todelete the version histories of all files? (Yes/No): ");
+
+            int confirmationResponse = forcedelete?MCMDCONFIRM_YES:askforConfirmation(confirmationQuery);
+
+            while ( (confirmationResponse != MCMDCONFIRM_YES) && (confirmationResponse != MCMDCONFIRM_NO) )
+            {
+                confirmationResponse = askforConfirmation(confirmationQuery);
+            }
+            if (confirmationResponse == MCMDCONFIRM_YES)
+            {
+
+                MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
+                api->removeVersions(megaCmdListener);
+                megaCmdListener->wait();
+                if (checkNoErrors(megaCmdListener->getError(), "remove all versions"))
+                {
+                    OUTSTREAM << "File versions deleted succesfully. Please note that the current files were not deleted, just their history." << endl;
+                }
+                delete megaCmdListener;
+            }
+        }
+        else
+        {
+            for (unsigned int i = 1; i < words.size(); i++)
+            {
+                if (isRegExp(words[i]))
+                {
+                    vector<MegaNode *> *nodesToDeleteVersions = nodesbypath(words[i].c_str(), getFlag(clflags,"use-pcre"));
+                    if (nodesToDeleteVersions && nodesToDeleteVersions->size())
+                    {
+                        for (std::vector< MegaNode * >::iterator it = nodesToDeleteVersions->begin(); it != nodesToDeleteVersions->end(); ++it)
+                        {
+                            MegaNode * nodeToDeleteVersions = *it;
+                            if (nodeToDeleteVersions)
+                            {
+                                int ret = deleteNodeVersions(nodeToDeleteVersions, api, forcedelete);
+                                forcedelete = forcedelete || (ret == MCMDCONFIRM_ALL);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        setCurrentOutCode(MCMD_NOTFOUND);
+                        LOG_err << "No node found: " << words[i];
+                    }
+                    delete nodesToDeleteVersions;
+                }
+                else // non-regexp
+                {
+                    MegaNode *n = nodebypath(words[i].c_str());
+                    if (n)
+                    {
+                        int ret = deleteNodeVersions(n, api, forcedelete);
+                        forcedelete = forcedelete || (ret == MCMDCONFIRM_ALL);
+                    }
+                    else
+                    {
+                        setCurrentOutCode(MCMD_NOTFOUND);
+                        LOG_err << "Node not found: " << words[i];
+                    }
+                    delete n;
+                }
+            }
+        }
+    }
 #ifdef ENABLE_SYNC
     else if (words[0] == "exclude")
     {
@@ -4708,7 +4860,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         }
         else if (getFlag(clflags, "d"))
         {
-            for (int i=1;i<words.size(); i++)
+            for (unsigned int i=1;i<words.size(); i++)
             {
                 ConfigurationManager::removeExcludedName(words[i]);
             }
