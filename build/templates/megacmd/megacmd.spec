@@ -392,6 +392,7 @@ killall mega-cmd-server 2> /dev/null || true
 %{_bindir}/mega-get
 %{_bindir}/mega-help
 %{_bindir}/mega-https
+%{_bindir}/mega-deleteversions
 %{_bindir}/mega-transfers
 %{_bindir}/mega-import
 %{_bindir}/mega-invite
