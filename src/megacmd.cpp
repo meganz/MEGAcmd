@@ -346,6 +346,8 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validParams->insert("R");
         validParams->insert("r");
         validParams->insert("l");
+        validParams->insert("v");
+
 #ifdef USE_PCRE
         validParams->insert("use-pcre");
 #endif
@@ -1213,9 +1215,9 @@ const char * getUsageStr(const char *command)
     if (!strcmp(command, "ls"))
     {
 #ifdef USE_PCRE
-        return "ls [-lRr] [remotepath] [--use-pcre]";
+        return "ls [-lRrv] [remotepath] [--use-pcre]";
 #else
-        return "ls [-lRr] [remotepath]";
+        return "ls [-lRrv] [remotepath]";
 #endif
     }
     if (!strcmp(command, "cd"))
@@ -1574,6 +1576,8 @@ string getHelpStr(const char *command)
         os << "Options:" << endl;
         os << " -R|-r" << "\t" << "list folders recursively" << endl;
         os << " -l" << "\t" << "include extra information" << endl;
+        os << " -v" << "\t" << "show historical versions" << endl;
+        os << "   " << "\t" << "You can delete all versions of a file with \"deleteversions\"" << endl;
 #ifdef USE_PCRE
         os << " --use-pcre" << "\t" << "use PCRE expressions" << endl;
 #endif
@@ -1608,7 +1612,8 @@ string getHelpStr(const char *command)
         os << endl;
         os << "Options:" << endl;
         os << " -h" << "\t" << "Human readable" << endl;
-        os << " -v" << "\t" << "Calculate size including all versions. You can remove all versions with \"deleteversions\"" << endl;
+        os << " -v" << "\t" << "Calculate size including all versions." << endl;
+        os << "   " << "\t" << "You can remove all versions with \"deleteversions\" and list them with \"ls -v\"" << endl;
 #ifdef USE_PCRE
         os << " --use-pcre" << "\t" << "use PCRE expressions" << endl;
 #endif
@@ -1767,7 +1772,8 @@ string getHelpStr(const char *command)
         os << " --use-pcre" << "\t" << "use PCRE expressions" << endl;
 #endif
         os << endl;
-        os << "To see space occupied by sessions use \"du\" with \"-v\"" << endl;
+        os << "To see versions of a file use \"ls -v\"." << endl;
+        os << "To see space occupied by sessions use \"du\" with \"-v\"." << endl;
     }
     else if (!strcmp(command, "exclude"))
     {
