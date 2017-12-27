@@ -199,6 +199,8 @@ string avalidCommands [] = { "login", "signup", "confirm", "session", "mount", "
                              "thumbnail", "preview", "find", "completion", "clear", "https", "transfers", "exclude", "exit", "deleteversions"
 #ifdef _WIN32
                              ,"unicode"
+#else
+                             , "permissions"
 #endif
                            };
 vector<string> validCommands(avalidCommands, avalidCommands + sizeof avalidCommands / sizeof avalidCommands[0]);
@@ -403,6 +405,14 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validParams->insert("c");
         validParams->insert("s");
     }
+#ifndef _WIN32
+    else if ("permissions" == thecommand)
+    {
+        validParams->insert("s");
+        validParams->insert("files");
+        validParams->insert("folders");
+    }
+#endif
     else if ("deleteversions" == thecommand)
     {
         validParams->insert("all");
@@ -1329,6 +1339,12 @@ const char * getUsageStr(const char *command)
     {
         return "https [on|off]";
     }
+#ifndef _WIN32
+    if (!strcmp(command, "permissions"))
+    {
+        return "permissions [(--files|--folders) [-s XXX]]";
+    }
+#endif
     if (!strcmp(command, "export"))
     {
 #ifdef USE_PCRE
@@ -1748,6 +1764,22 @@ string getHelpStr(const char *command)
         os << " e.g: cp /path/to/file user@doma.in:" << endl;
         os << " Remember the trailing \":\", otherwise a file with the name of that user (\"user@doma.in\") will be created" << endl;
     }
+#ifndef _WIN32
+    else if (!strcmp(command, "permissions"))
+    {
+        os << "Shows/stablish default permissions for files and folders created by MEGAcmd." << endl;
+        os << endl;
+        os << "Permissions are unix-like permissions, with 3 numbers: one for owner, one for group and one for others" << endl;
+        os << "Options:" << endl;
+        os << " --files" << "\t" << "To show/set files default permissions." << endl;
+        os << " --folders" << "\t" << "To show/set folders default permissions." << endl;
+        os << " --s XXX" << "\t" << "To set new permissions for newly created files/folder. " << endl;
+        os << "        " << "\t" << " Notice that for files minimum permissions is 600," << endl;
+        os << "        " << "\t" << " for folders minimum permissions is 700." << endl;
+        os << "        " << "\t" << " Further restrictions to owner are not allowed (to avoid missfunctioning)." << endl;
+        os << "        " << "\t" << " Notice that permissions of already existing files/folders will not change." << endl;
+    }
+#endif
     else if (!strcmp(command, "https"))
     {
         os << "Shows if HTTPS is used for transfers. Use \"https on\" to enable it." << endl;
@@ -1760,6 +1792,7 @@ string getHelpStr(const char *command)
     else if (!strcmp(command, "deleteversions"))
     {
         os << "Deletes previous versions." << endl;
+        os << endl;
         os << "This will permanently delete all historical versions of a file. " << endl;
         os << "The current version of the file will remain." << endl;
         os << "Note: any file version shared to you from a contact will need to be deleted by them." << endl;
@@ -1890,6 +1923,7 @@ string getHelpStr(const char *command)
     if (!strcmp(command, "masterkey"))
     {
         os << "Shows your master key." << endl;
+        os << endl;
         os << "Getting the master key and keeping it in a secure location enables you " << endl;
         os << " to set a new password without data loss." << endl;
         os << "Always keep physical control of your master key " << endl;
@@ -2033,6 +2067,7 @@ string getHelpStr(const char *command)
     else if (!strcmp(command, "transfers"))
     {
         os << "List or operate with transfers" << endl;
+        os << endl;
         os << "If executed without option it will list the first 10 tranfers" << endl;
         os << "Options:" << endl;
         os << " -c (TAG|-a)" << "\t" << "Cancel transfer with TAG (or all with -a)" << endl;

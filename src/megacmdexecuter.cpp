@@ -4851,6 +4851,76 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         }
         return;
     }
+#ifndef _WIN32
+    else if (words[0] == "permissions")
+    {
+        bool filesflagread = getFlag(clflags, "files");
+        bool foldersflagread = getFlag(clflags, "folders");
+
+        bool filesflag = filesflagread || (!filesflagread && !foldersflagread);
+        bool foldersflag = foldersflagread || (!filesflagread && !foldersflagread);
+
+        bool setperms = getFlag(clflags, "s");
+
+        if ( (setperms && words.size() != 2) || ( setperms && filesflagread  && foldersflagread ) || (setperms && !filesflagread && !foldersflagread))
+        {
+            setCurrentOutCode(MCMD_EARGS);
+            LOG_err << "      " << getUsageStr("permissions");
+            return;
+        }
+
+        int permvalue = -1;
+        if (setperms)
+        {
+             if (words[1].size() != 3)
+             {
+                 setCurrentOutCode(MCMD_EARGS);
+                 LOG_err << "Invalid permissions value: " << words[1];
+             }
+             else
+             {
+                 int owner = words[1].at(0) - '0';
+                 int group = words[1].at(1) - '0';
+                 int others = words[1].at(2) - '0';
+                 if ( (owner < 6) || (owner == 6 && foldersflag) || (owner > 7) || (group < 0) || (group > 7) || (others < 0) || (others > 7) )
+                 {
+                     setCurrentOutCode(MCMD_EARGS);
+                     LOG_err << "Invalid permissions value: " << words[1];
+                 }
+                 else
+                 {
+                     permvalue = (owner << 6) + ( group << 3) + others;
+                 }
+             }
+        }
+
+        if (filesflag)
+        {
+            if (setperms && permvalue != -1)
+            {
+                api->setDefaultFilePermissions(permvalue);
+            }
+            int filepermissions = api->getDefaultFilePermissions();
+            int owner  = (filepermissions >> 6) & 0x07;
+            int group  = (filepermissions >> 3) & 0x07;
+            int others = filepermissions & 0x07;
+
+            OUTSTREAM << "Default files permissions: " << owner << group << others << endl;
+        }
+        if (foldersflag)
+        {
+            if (setperms && permvalue != -1)
+            {
+                api->setDefaultFolderPermissions(permvalue);
+            }
+            int folderpermissions = api->getDefaultFolderPermissions();
+            int owner  = (folderpermissions >> 6) & 0x07;
+            int group  = (folderpermissions >> 3) & 0x07;
+            int others = folderpermissions & 0x07;
+            OUTSTREAM << "Default folders permissions: " << owner << group << others << endl;
+        }
+    }
+#endif
     else if (words[0] == "deleteversions")
     {
         bool deleteall = getFlag(clflags, "all");
