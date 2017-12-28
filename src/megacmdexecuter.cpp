@@ -1671,6 +1671,7 @@ string MegaCmdExecuter::getDisplayPath(string givenPath, MegaNode* n)
 
     if (( "" == givenPath ) && !strcmp(pathToNode, cwpath.c_str()))
     {
+        assert(strlen(pathToNode)>0);
         pathToNode[0] = '.';
         pathToNode[1] = '\0';
     }
@@ -1682,7 +1683,10 @@ string MegaCmdExecuter::getDisplayPath(string givenPath, MegaNode* n)
 
     if (pathToShow == pathToNode)     //found at beginning
     {
-        pathToShow += pathRelativeTo.size();
+        if (strcmp(pathToNode, "/"))
+        {
+            pathToShow += pathRelativeTo.size();
+        }
     }
     else
     {
