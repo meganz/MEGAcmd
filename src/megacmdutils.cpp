@@ -1538,3 +1538,98 @@ bool isValidEmail(string email)
                     || (email.find("@") > email.find_last_of(".")));
 }
 
+string &ltrimProperty(string &s, const char &c)
+{
+    size_t pos = s.find_first_not_of(c);
+    s = s.substr(pos == string::npos ? s.length() : pos, s.length());
+    return s;
+}
+
+string &rtrimProperty(string &s, const char &c)
+{
+    size_t pos = s.find_last_not_of(c);
+    if (pos != string::npos)
+    {
+        pos++;
+    }
+    s = s.substr(0, pos);
+    return s;
+}
+
+string &trimProperty(string &what)
+{
+    rtrimProperty(what,' ');
+    ltrimProperty(what,' ');
+    if (what.size() > 1)
+    {
+        if (what[0] == '\'' || what[0] == '"')
+        {
+            rtrimProperty(what, what[0]);
+            ltrimProperty(what, what[0]);
+        }
+    }
+    return what;
+}
+
+string getPropertyFromFile(const char *configFile, const char *propertyName)
+{
+    ifstream infile(configFile);
+    string line;
+
+    while (getline(infile, line))
+    {
+        if (line.length() > 0 && line[0] != '#')
+        {
+            if (!strlen(propertyName)) //if empty return first line
+            {
+                return trimProperty(line);
+            }
+            string key, value;
+            size_t pos = line.find("=");
+            if (pos != string::npos && ((pos + 1) < line.size()))
+            {
+                key = line.substr(0, pos);
+                rtrimProperty(key, ' ');
+
+                if (!strcmp(key.c_str(), propertyName))
+                {
+                    value = line.substr(pos + 1);
+                    return trimProperty(value);
+                }
+            }
+        }
+    }
+
+    return string();
+}
+
+#ifndef _WIN32
+string readablePermissions(int permvalue)
+{
+    stringstream os;
+    int owner  = (permvalue >> 6) & 0x07;
+    int group  = (permvalue >> 3) & 0x07;
+    int others = permvalue & 0x07;
+
+    os << owner << group << others;
+    return os.str();
+}
+
+int permissionsFromReadable(string permissions)
+{
+    if (permissions.size()==3)
+    {
+        int owner = permissions.at(0) - '0';
+        int group = permissions.at(1) - '0';
+        int others = permissions.at(2) - '0';
+        if ( (owner < 0) || (owner > 7) || (group < 0) || (group > 7) || (others < 0) || (others > 7) )
+        {
+            LOG_err << "Invalid permissions value: " << permissions;
+            return -1;
+        }
+
+        return  (owner << 6) + ( group << 3) + others;
+    }
+    return -1;
+}
+#endif

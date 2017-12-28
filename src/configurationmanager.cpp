@@ -18,6 +18,7 @@
 
 #include "configurationmanager.h"
 #include "megacmdversion.h"
+#include "megacmdutils.h"
 #include <fstream>
 
 #ifdef _WIN32
@@ -40,6 +41,12 @@ string ConfigurationManager::configFolder;
 map<string, sync_struct *> ConfigurationManager::configuredSyncs;
 string ConfigurationManager::session;
 std::set<std::string> ConfigurationManager::excludedNames;
+long long ConfigurationManager::maxspeedupload = -1;
+long long ConfigurationManager::maxspeeddownload = -1;
+#ifndef _WIN32
+std::string ConfigurationManager::permissionsFiles;
+std::string ConfigurationManager::permissionsFolders;
+#endif
 
 std::string ConfigurationManager::getConfigFolder()
 {
@@ -128,6 +135,67 @@ void ConfigurationManager::saveSession(const char*session)
     else
     {
         LOG_err << "Couldnt access configuration folder ";
+    }
+}
+
+void ConfigurationManager::saveProperty(const char *property, const char *value)
+{
+    if (!configFolder.size())
+    {
+        loadConfigDir();
+    }
+    if (configFolder.size())
+    {
+        bool found = false;
+        stringstream configFile;
+        configFile << configFolder << "/" << "megacmd.cfg";
+
+        stringstream formerlines;
+        ifstream infile(configFile.str().c_str());
+        string line;
+        while (getline(infile, line))
+        {
+            if (line.length() > 0 && line[0] != '#')
+            {
+                string key;
+                size_t pos = line.find("=");
+                if (pos != string::npos && ((pos + 1) < line.size()))
+                {
+                    key = line.substr(0, pos);
+                    rtrimProperty(key, ' ');
+
+                    if (!strcmp(key.c_str(), property))
+                    {
+                        if (!found)
+                        {
+                            formerlines << property << "=" << value << endl;
+                        }
+                        found = true;
+                    }
+                    else
+                    {
+                        formerlines << line << endl;
+                    }
+                }
+                else
+                {
+                    formerlines << line << endl;
+                }
+            }
+        }
+        ofstream fo(configFile.str().c_str());
+
+        if (fo.is_open())
+        {
+            fo << formerlines.str();
+            if (!found)
+            {
+                fo << property << "=" << value << endl;
+            }
+            fo.close();
+        }
+
+
     }
 }
 
@@ -277,6 +345,13 @@ void ConfigurationManager::unloadConfiguration()
         configuredSyncs.erase(itr++);
         delete thesync;
     }
+
+    ConfigurationManager::session = string();
+    ConfigurationManager::excludedNames.clear();
+    ConfigurationManager::maxspeedupload = -1;
+    ConfigurationManager::maxspeeddownload = -1;
+    ConfigurationManager::permissionsFiles = string();
+    ConfigurationManager::permissionsFolders = string();
 }
 
 void ConfigurationManager::loadsyncs()
@@ -356,13 +431,14 @@ void ConfigurationManager::loadsyncs()
 
 void ConfigurationManager::loadConfiguration(bool debug)
 {
-    stringstream sessionfile;
     if (!configFolder.size())
     {
         loadConfigDir();
     }
     if (configFolder.size())
     {
+        //SESSION
+        stringstream sessionfile;
         sessionfile << configFolder << "/" << "session";
 
         if (debug)
@@ -380,10 +456,41 @@ void ConfigurationManager::loadConfiguration(bool debug)
             }
             fi.close();
         }
+
+        //OTHERS
+        stringstream configFile;
+        configFile << configFolder << "/" << "megacmd.cfg";
+        maxspeedupload = getValueFromFile(configFile.str().c_str(),"maxspeedupload", (long long)-1);
+        maxspeeddownload = getValueFromFile(configFile.str().c_str(),"maxspeeddownload", (long long)-1);
+#ifndef _WIN32
+        permissionsFiles = getValueFromFile(configFile.str().c_str(),"permissionsFiles", string());
+        permissionsFolders = getValueFromFile(configFile.str().c_str(),"permissionsFolders", string());
+#endif
     }
     else
     {
         if (debug)
             cout  << "Couldnt access configuration folder " << endl;
     }
+}
+
+void ConfigurationManager::clearConfigurationFile()
+{
+    if (!configFolder.size())
+    {
+        loadConfigDir();
+    }
+    if (configFolder.size())
+    {
+        stringstream configFile;
+        configFile << configFolder << "/" << "megacmd.cfg";
+        ofstream fo(configFile.str().c_str());
+
+        if (fo.is_open())
+        {
+            fo << "";
+            fo.close();
+        }
+    }
+
 }

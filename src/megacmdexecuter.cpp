@@ -2096,12 +2096,35 @@ void MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
     else if (checkNoErrors(srl->getError(), "Login")) //login success:
     {
         LOG_debug << "Login correct ... " << (srl->getRequest()->getEmail()?srl->getRequest()->getEmail():"");
+        /* Restoring configured values */
         session = srl->getApi()->dumpSession();
         ConfigurationManager::saveSession(session);
         ConfigurationManager::loadsyncs();
         ConfigurationManager::loadExcludedNames();
+        ConfigurationManager::loadConfiguration(false);
         std::vector<string> vexcludednames(ConfigurationManager::excludedNames.begin(), ConfigurationManager::excludedNames.end());
         api->setExcludedNames(&vexcludednames);
+        if (ConfigurationManager::maxspeeddownload != -1) api->setMaxDownloadSpeed(ConfigurationManager::maxspeeddownload);
+        if (ConfigurationManager::maxspeedupload != -1) api->setMaxUploadSpeed(ConfigurationManager::maxspeedupload);
+
+#ifndef _WIN32
+        if (ConfigurationManager::permissionsFiles.size())
+        {
+            int perms = permissionsFromReadable(ConfigurationManager::permissionsFiles);
+            if (perms != -1)
+            {
+                api->setDefaultFilePermissions(perms);
+            }
+        }
+        if (ConfigurationManager::permissionsFolders.size())
+        {
+            int perms = permissionsFromReadable(ConfigurationManager::permissionsFolders);
+            if (perms != -1)
+            {
+                api->setDefaultFolderPermissions(perms);
+            }
+        }
+#endif
 
         LOG_info << "Fetching nodes ... ";
         srl->getApi()->fetchNodes(srl);
@@ -2171,6 +2194,7 @@ void MegaCmdExecuter::actUponLogout(SynchronousRequestListener *srl, bool keptSe
             ConfigurationManager::saveSession("");
             ConfigurationManager::saveSyncs(&ConfigurationManager::configuredSyncs);
         }
+        ConfigurationManager::clearConfigurationFile();
         mtxSyncMap.unlock();
     }
     updateprompt(api, cwd);
@@ -4866,7 +4890,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
         bool setperms = getFlag(clflags, "s");
 
-        if ( (setperms && words.size() != 2) || ( setperms && filesflagread  && foldersflagread ) || (setperms && !filesflagread && !foldersflagread))
+        if ( (!setperms && words.size() > 1) || (setperms && words.size() != 2) || ( setperms && filesflagread  && foldersflagread ) || (setperms && !filesflagread && !foldersflagread))
         {
             setCurrentOutCode(MCMD_EARGS);
             LOG_err << "      " << getUsageStr("permissions");
@@ -4903,6 +4927,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             if (setperms && permvalue != -1)
             {
                 api->setDefaultFilePermissions(permvalue);
+                ConfigurationManager::savePropertyValue("permissionsFiles", readablePermissions(permvalue));
             }
             int filepermissions = api->getDefaultFilePermissions();
             int owner  = (filepermissions >> 6) & 0x07;
@@ -4916,6 +4941,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             if (setperms && permvalue != -1)
             {
                 api->setDefaultFolderPermissions(permvalue);
+                ConfigurationManager::savePropertyValue("permissionsFolders", readablePermissions(permvalue));
             }
             int folderpermissions = api->getDefaultFolderPermissions();
             int owner  = (folderpermissions >> 6) & 0x07;
@@ -6157,14 +6183,18 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             {
                 api->setMaxDownloadSpeed(maxspeed);
                 api->setMaxUploadSpeed(maxspeed);
+                ConfigurationManager::savePropertyValue("maxspeedupload", maxspeed);
+                ConfigurationManager::savePropertyValue("maxspeeddownload", maxspeed);
             }
             else if (getFlag(clflags, "u"))
             {
                 api->setMaxUploadSpeed(maxspeed);
+                ConfigurationManager::savePropertyValue("maxspeedupload", maxspeed);
             }
             else if (getFlag(clflags, "d"))
             {
                 api->setMaxDownloadSpeed(maxspeed);
+                ConfigurationManager::savePropertyValue("maxspeeddownload", maxspeed);
             }
         }
 

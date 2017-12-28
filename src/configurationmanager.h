@@ -36,9 +36,18 @@ public:
     static std::map<std::string, sync_struct *> configuredSyncs;
     static std::string session;
 
+    static long long maxspeedupload;
+    static long long maxspeeddownload;
+#ifndef _WIN32
+    static std::string permissionsFiles;
+    static std::string permissionsFolders;
+#endif
+
+
     static std::set<std::string> excludedNames;
 
     static void loadConfiguration(bool debug);
+    static void clearConfigurationFile();
     static void loadsyncs();
 
     static void saveSyncs(std::map<std::string, sync_struct *> *syncsmap);
@@ -53,6 +62,17 @@ public:
     static void loadExcludedNames();
 
     static void saveSession(const char*session);
+
+    static void saveProperty(const char* property, const char* value);
+
+    template<typename T>
+    static void savePropertyValue(const char* property, T value)
+    {
+        std::ostringstream os;
+        os << value;
+        saveProperty(property,os.str().c_str());
+    }
+
     static std::string getConfigFolder();
 
     static void unloadConfiguration();

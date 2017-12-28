@@ -136,11 +136,32 @@ std::string secondsToText(time_t seconds, bool humanreadable = true);
 
 std::string percentageToText(float percentage);
 
+std::string readablePermissions(int permvalue);
+int permissionsFromReadable(std::string permissions);
+
 unsigned int getNumberOfCols(unsigned int defaultwidth = 90);
 
 void sleepSeconds(int seconds);
 void sleepMicroSeconds(long microseconds);
 
 bool isValidEmail(std::string email);
+
+/* Properties */
+std::string &ltrimProperty(std::string &s, const char &c);
+std::string &rtrimProperty(std::string &s, const char &c);
+std::string &trimProperty(std::string &what);
+std::string getPropertyFromFile(const char *configFile, const char *propertyName);
+template <typename T>
+T getValueFromFile(const char *configFile, const char *propertyName, T defaultValue)
+{
+    std::string propValue = getPropertyFromFile(configFile, propertyName);
+    if (!propValue.size()) return defaultValue;
+
+    T i;
+    std::istringstream is(propValue);
+    is >> i;
+    return i;
+
+}
 
 #endif // MEGACMDUTILS_H

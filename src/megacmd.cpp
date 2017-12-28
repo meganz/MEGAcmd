@@ -1778,6 +1778,10 @@ string getHelpStr(const char *command)
         os << "        " << "\t" << " for folders minimum permissions is 700." << endl;
         os << "        " << "\t" << " Further restrictions to owner are not allowed (to avoid missfunctioning)." << endl;
         os << "        " << "\t" << " Notice that permissions of already existing files/folders will not change." << endl;
+        os << "        " << "\t" << " Notice that permissions of already existing files/folders will not change." << endl;
+        os << endl;
+        os << "Notice: this permissions will be saved for the next time you execute MEGAcmd server. They will be removed if you logout." << endl;
+
     }
 #endif
     else if (!strcmp(command, "https"))
@@ -1965,8 +1969,7 @@ string getHelpStr(const char *command)
         os << " -u" << "\t" << "Upload speed limit" << endl;
         os << " -h" << "\t" << "Human readable" << endl;
         os << endl;
-        os << "Notice that this limit won't be saved for the next time you execute MEGAcmd server" << endl;
-
+        os << "Notice: this limit will be saved for the next time you execute MEGAcmd server. They will be removed if you logout." << endl;
     }
     else if (!strcmp(command, "killsession"))
     {
