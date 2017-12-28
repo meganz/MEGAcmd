@@ -36,14 +36,6 @@ public:
     static std::map<std::string, sync_struct *> configuredSyncs;
     static std::string session;
 
-    static long long maxspeedupload;
-    static long long maxspeeddownload;
-#ifndef _WIN32
-    static std::string permissionsFiles;
-    static std::string permissionsFolders;
-#endif
-
-
     static std::set<std::string> excludedNames;
 
     static void loadConfiguration(bool debug);
@@ -71,6 +63,19 @@ public:
         std::ostringstream os;
         os << value;
         saveProperty(property,os.str().c_str());
+    }
+
+    static std::string getConfigurationSValue(std::string propertyName);
+    template <typename T>
+    static T getConfigurationValue(std::string propertyName, T defaultValue)
+    {
+        std::string propValue = getConfigurationSValue(propertyName);
+        if (!propValue.size()) return defaultValue;
+
+        T i;
+        std::istringstream is(propValue);
+        is >> i;
+        return i;
     }
 
     static std::string getConfigFolder();

@@ -2104,21 +2104,28 @@ void MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
         ConfigurationManager::loadConfiguration(false);
         std::vector<string> vexcludednames(ConfigurationManager::excludedNames.begin(), ConfigurationManager::excludedNames.end());
         api->setExcludedNames(&vexcludednames);
-        if (ConfigurationManager::maxspeeddownload != -1) api->setMaxDownloadSpeed(ConfigurationManager::maxspeeddownload);
-        if (ConfigurationManager::maxspeedupload != -1) api->setMaxUploadSpeed(ConfigurationManager::maxspeedupload);
+
+        long long maxspeeddownload = ConfigurationManager::getConfigurationValue("maxspeeddownload", -1);
+        if (maxspeeddownload != -1) api->setMaxDownloadSpeed(maxspeeddownload);
+        long long maxspeedupload = ConfigurationManager::getConfigurationValue("maxspeedupload", -1);
+        if (maxspeedupload != -1) api->setMaxUploadSpeed(maxspeedupload);
+
+        api->useHttpsOnly(ConfigurationManager::getConfigurationValue("https", false));
 
 #ifndef _WIN32
-        if (ConfigurationManager::permissionsFiles.size())
+        string permissionsFiles = ConfigurationManager::getConfigurationSValue("permissionsFiles");
+        if (permissionsFiles.size())
         {
-            int perms = permissionsFromReadable(ConfigurationManager::permissionsFiles);
+            int perms = permissionsFromReadable(permissionsFiles);
             if (perms != -1)
             {
                 api->setDefaultFilePermissions(perms);
             }
         }
-        if (ConfigurationManager::permissionsFolders.size())
+        string permissionsFolders = ConfigurationManager::getConfigurationSValue("permissionsFolders");
+        if (permissionsFolders.size())
         {
-            int perms = permissionsFromReadable(ConfigurationManager::permissionsFolders);
+            int perms = permissionsFromReadable(permissionsFolders);
             if (perms != -1)
             {
                 api->setDefaultFolderPermissions(perms);
@@ -4863,6 +4870,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             if (checkNoErrors(megaCmdListener->getError(), "change https"))
             {
                 OUTSTREAM << "File transfer now uses " << (api->usingHttpsOnly()?"HTTPS":"HTTP") << endl;
+                ConfigurationManager::savePropertyValue("https", api->usingHttpsOnly());
             }
             delete megaCmdListener;
             return;
