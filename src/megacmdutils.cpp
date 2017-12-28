@@ -30,6 +30,7 @@
 #endif
 
 #include <iomanip>
+#include <fstream>
 
 using namespace std;
 using namespace mega;
