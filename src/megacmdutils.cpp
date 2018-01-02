@@ -1366,22 +1366,22 @@ string sizeToText(long long totalSize, bool equalizeUnitsLength, bool humanreada
 
         if ( totalSize > 1099511627776LL *2 )
         {
-            reducedSize = totalSize / 1099511627776L;
+            reducedSize = totalSize / (double) 1099511627776L;
             unit = "TB";
         }
         else if ( totalSize > 1073741824LL *2 )
         {
-            reducedSize = totalSize / 1073741824L;
+            reducedSize = totalSize / (double) 1073741824L;
             unit = "GB";
         }
         else if (totalSize > 1048576 * 2)
         {
-            reducedSize = totalSize / 1048576;
+            reducedSize = totalSize / (double) 1048576;
             unit = "MB";
         }
         else if (totalSize > 1024 * 2)
         {
-            reducedSize = totalSize / 1024;
+            reducedSize = totalSize / (double) 1024;
             unit = "KB";
         }
         os << fixed << reducedSize;

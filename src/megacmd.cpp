@@ -1962,7 +1962,9 @@ string getHelpStr(const char *command)
     else if (!strcmp(command, "speedlimit"))
     {
         os << "Displays/modifies upload/download rate limits" << endl;
-        os << " NEWLIMIT stablish the new limit in B/s (0 = no limit)" << endl;
+        os << " NEWLIMIT stablish the new limit in size per second (0 = no limit)" << endl;
+        os << " NEWLIMIT may include (B)ytes, (K)ilobytes, (M)egabytes, (G)igabytes & (T)erabytes." << endl;
+        os << "  Examples: \"1m12k3B\" \"3M\". If no unit given, it'll use Bytes" << endl;
         os << endl;
         os << "Options:" << endl;
         os << " -d" << "\t" << "Download speed limit" << endl;

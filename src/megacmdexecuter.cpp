@@ -6184,9 +6184,20 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
     }
     else if (words[0] == "speedlimit")
     {
-        if (words.size()>1)
+        if (words.size() > 2)
         {
-            long long maxspeed = atol(words[1].c_str());
+            setCurrentOutCode(MCMD_EARGS);
+            LOG_err << "      " << getUsageStr("speedlimit");
+            return;
+        }
+        if (words.size() > 1)
+        {
+            long long maxspeed = textToSize(words[1].c_str());
+            if (maxspeed == -1)
+            {
+                string s = words[1] + "B";
+                maxspeed = textToSize(s.c_str());
+            }
             if (!getFlag(clflags, "u") && !getFlag(clflags, "d"))
             {
                 api->setMaxDownloadSpeed(maxspeed);
