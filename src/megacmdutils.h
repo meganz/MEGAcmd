@@ -113,7 +113,7 @@ std::string getFixLengthString(const std::string origin, unsigned int size, cons
 
 std::string getRightAlignedString(const std::string origin, unsigned int minsize);
 
-
+bool nodeNameIsVersion(std::string &nodeName);
 
 /* Flags and Options */
 int getFlag(std::map<std::string, int> *flags, const char * optname);

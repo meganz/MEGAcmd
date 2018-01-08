@@ -1634,3 +1634,21 @@ int permissionsFromReadable(string permissions)
     return -1;
 }
 #endif
+
+bool nodeNameIsVersion(string &nodeName)
+{
+    bool isversion = false;
+    if (nodeName.size() > 12 && nodeName.at(nodeName.size()-11) =='#') //TODO: def version separator elswhere
+    {
+        for (int i = nodeName.size()-10; i < nodeName.size() ; i++)
+        {
+            if (nodeName.at(i) > '9' || nodeName.at(i) < '0')
+                break;
+            if (i == (nodeName.size() - 1))
+            {
+                isversion = true;
+            }
+        }
+    }
+    return isversion;
+}

@@ -497,7 +497,33 @@ MegaNode* MegaCmdExecuter::nodebypath(const char* ptr, string* user, string* nam
                 // locate child node (explicit ambiguity resolution: not implemented)
                 if (c[l].size())
                 {
-                    nn = api->getChildNode(n, c[l].c_str());
+                    bool isversion = nodeNameIsVersion(c[l]);
+                    if (isversion)
+                    {
+                        MegaNode *baseNode = api->getChildNode(n, c[l].substr(0,c[l].size()-11).c_str());
+                        if (baseNode)
+                        {
+                            MegaNodeList *versionNodes = api->getVersions(baseNode);
+                            if (versionNodes)
+                            {
+                                for (int i = 0; i < versionNodes->size(); i++)
+                                {
+                                    MegaNode *versionNode = versionNodes->get(i);
+                                    if ( c[l].substr(c[l].size()-10) == SSTR(versionNode->getModificationTime()) )
+                                    {
+                                        nn = versionNode->copy();
+                                        break;
+                                    }
+                                }
+                                delete versionNodes;
+                            }
+                            delete baseNode;
+                        }
+                    }
+                    else
+                    {
+                        nn = api->getChildNode(n, c[l].c_str());
+                    }
 
                     if (!nn) //NOT FOUND
                     {
@@ -578,6 +604,8 @@ void MegaCmdExecuter::getPathsMatching(MegaNode *parentNode, deque<string> pathP
     MegaNodeList* children = api->getChildren(parentNode);
     if (children)
     {
+        bool isversion = nodeNameIsVersion(currentPart);
+
         for (int i = 0; i < children->size(); i++)
         {
             MegaNode *childNode = children->get(i);
@@ -593,17 +621,52 @@ void MegaCmdExecuter::getPathsMatching(MegaNode *parentNode, deque<string> pathP
             string childname(aux);
             delete []childNodePath;
 
-            if (patternMatches(childname.c_str(), currentPart.c_str(), usepcre))
+            if (isversion)
             {
-                if (pathParts.size() == 0) //last leave
+
+                if (childNode && patternMatches(childname.c_str(), currentPart.substr(0,currentPart.size()-11).c_str(), usepcre))
                 {
-                    pathsMatching->push_back(pathPrefix+childname);
-                }
-                else
-                {
-                    getPathsMatching(childNode, pathParts, pathsMatching, usepcre,pathPrefix+childname+"/");
+                    MegaNodeList *versionNodes = api->getVersions(childNode);
+                    if (versionNodes)
+                    {
+                        for (int i = 0; i < versionNodes->size(); i++)
+                        {
+                            MegaNode *versionNode = versionNodes->get(i);
+                            if ( currentPart.substr(currentPart.size()-10) == SSTR(versionNode->getModificationTime()) )
+                            {
+                                if (pathParts.size() == 0) //last leave
+                                {
+                                    pathsMatching->push_back(pathPrefix+childname+"#"+SSTR(versionNode->getModificationTime())); //TODO: def version separator elswhere
+                                }
+                                else
+                                {
+                                    getPathsMatching(versionNode, pathParts, pathsMatching, usepcre,pathPrefix+childname+"#"+SSTR(versionNode->getModificationTime())+"/");
+                                }
+
+                                break;
+                            }
+                        }
+                        delete versionNodes;
+                    }
                 }
             }
+            else
+            {
+                if (patternMatches(childname.c_str(), currentPart.c_str(), usepcre))
+                {
+                    if (pathParts.size() == 0) //last leave
+                    {
+                        pathsMatching->push_back(pathPrefix+childname);
+                    }
+                    else
+                    {
+                        getPathsMatching(childNode, pathParts, pathsMatching, usepcre,pathPrefix+childname+"/");
+                    }
+                }
+
+
+            }
+
         }
 
         delete children;
@@ -912,18 +975,54 @@ void MegaCmdExecuter::getNodesMatching(MegaNode *parentNode, queue<string> pathP
     MegaNodeList* children = api->getChildren(parentNode);
     if (children)
     {
+        bool isversion = nodeNameIsVersion(currentPart);
+
         for (int i = 0; i < children->size(); i++)
         {
             MegaNode *childNode = children->get(i);
-            if (patternMatches(childNode->getName(), currentPart.c_str(), usepcre))
+            if (isversion)
             {
-                if (pathParts.size() == 0) //last leave
+
+                if (childNode && patternMatches(childNode->getName(), currentPart.substr(0,currentPart.size()-11).c_str(), usepcre))
                 {
-                    nodesMatching->push_back(childNode->copy());
+                    MegaNodeList *versionNodes = api->getVersions(childNode);
+                    if (versionNodes)
+                    {
+                        for (int i = 0; i < versionNodes->size(); i++)
+                        {
+                            MegaNode *versionNode = versionNodes->get(i);
+                            if ( currentPart.substr(currentPart.size()-10) == SSTR(versionNode->getModificationTime()) )
+                            {
+                                if (pathParts.size() == 0) //last leave
+                                {
+                                    nodesMatching->push_back(versionNode->copy());
+                                }
+                                else
+                                {
+                                    getNodesMatching(versionNode, pathParts, nodesMatching, usepcre);
+                                }
+
+                                break;
+                            }
+                        }
+                        delete versionNodes;
+                    }
                 }
-                else
+            }
+            else
+            {
+
+                if (patternMatches(childNode->getName(), currentPart.c_str(), usepcre))
                 {
-                    getNodesMatching(childNode, pathParts, nodesMatching, usepcre);
+                    if (pathParts.size() == 0) //last leave
+                    {
+                        nodesMatching->push_back(childNode->copy());
+                    }
+                    else
+                    {
+                        getNodesMatching(childNode, pathParts, nodesMatching, usepcre);
+                    }
+
                 }
             }
         }
@@ -1460,10 +1559,15 @@ void MegaCmdExecuter::dumpNode(MegaNode* n, int extended_info, bool showversions
 
                 if (versionNode->getHandle() != n->getHandle())
                 {
-                    string fullname(versionNode->getName()?versionNode->getName():"NO_NAME");
+                    string fullname(n->getName()?n->getName():"NO_NAME");
                     fullname += "#";
                     fullname += SSTR(versionNode->getModificationTime());
-                    OUTSTREAM << "  " << fullname << " (" << getReadableTime(versionNode->getModificationTime()) << ")";
+                    OUTSTREAM << "  " << fullname;
+                    if (versionNode->getName() && !strcmp(versionNode->getName(),n->getName()) )
+                    {
+                        OUTSTREAM << "[" << (versionNode->getName()?versionNode->getName():"NO_NAME") << "]";
+                    }
+                    OUTSTREAM << " (" << getReadableTime(versionNode->getModificationTime()) << ")";
                     if (extended_info)
                     {
                         OUTSTREAM << " (" << sizeToText(versionNode->getSize(), false) << ")";
@@ -2310,7 +2414,15 @@ void MegaCmdExecuter::doDeleteNode(MegaNode *nodeToDelete,MegaApi* api)
         LOG_warn << "Deleting node whose path could not be found " << nodeToDelete->getName();
     }
     MegaCmdListener *megaCmdListener = new MegaCmdListener(api, NULL);
-    api->remove(nodeToDelete, megaCmdListener);
+    MegaNode *parent = api->getParentNode(nodeToDelete);
+    if (parent && parent->getType() == MegaNode::TYPE_FILE)
+    {
+        api->removeVersion(nodeToDelete, megaCmdListener);
+    }
+    else
+    {
+        api->remove(nodeToDelete, megaCmdListener);
+    }
     megaCmdListener->wait();
     string msj = "delete node ";
     if (nodePath)
@@ -2938,7 +3050,7 @@ vector<string> MegaCmdExecuter::listpaths(bool usepcre, string askedPath, bool d
                 MegaNode *ncwd = api->getNodeByHandle(cwd);
                 if (ncwd)
                 {
-                    MegaNode * n = api->getNodeByPath(nodepath.c_str(),ncwd);
+                    MegaNode * n = nodebypath(nodepath.c_str());
                     if (n)
                     {
                         if (n->getType() != MegaNode::TYPE_FILE)
@@ -3508,9 +3620,7 @@ void MegaCmdExecuter::move(MegaNode * n, string destiny)
 bool MegaCmdExecuter::isValidFolder(string destiny)
 {
     bool isdestinyavalidfolder = true;
-    MegaNode *ncwd = api->getNodeByHandle(cwd);
-    MegaNode *ndestiny = api->getNodeByPath(destiny.c_str(),ncwd);
-    delete ncwd;
+    MegaNode *ndestiny = nodebypath(destiny.c_str());;
     if (ndestiny)
     {
         if (ndestiny->getType() == MegaNode::TYPE_FILE)
@@ -3633,7 +3743,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         MegaNode *ncwd = api->getNodeByHandle(cwd);
                         if (ncwd)
                         {
-                            MegaNode * n = api->getNodeByPath(nodepath.c_str(),ncwd);
+                            MegaNode * n = nodebypath(nodepath.c_str());
                             if (n)
                             {
                                 if (!n->getType() == MegaNode::TYPE_FILE)
@@ -4670,7 +4780,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     newname=string(destination,destination.find_last_of("/")+1,destination.size());
                     MegaNode *cwdNode = api->getNodeByHandle(cwd);
                     makedir(destinationfolder,true,cwdNode);
-                    n = api->getNodeByPath(destinationfolder.c_str(),cwdNode);
+                    n = nodebypath(destinationfolder.c_str());
                     delete cwdNode;
                 }
             }
