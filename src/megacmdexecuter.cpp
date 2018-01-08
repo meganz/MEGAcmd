@@ -2657,36 +2657,63 @@ void MegaCmdExecuter::uploadNode(string path, MegaApi* api, MegaNode *node, stri
 }
 
 
-void MegaCmdExecuter::exportNode(MegaNode *n, int expireTime)
+void MegaCmdExecuter::exportNode(MegaNode *n, int expireTime, bool force)
 {
-    MegaCmdListener *megaCmdListener = new MegaCmdListener(api, NULL);
+    bool copyrightAccepted = false;
 
-    api->exportNode(n, expireTime, megaCmdListener);
-    megaCmdListener->wait();
-    if (checkNoErrors(megaCmdListener->getError(), "export node"))
+    copyrightAccepted = ConfigurationManager::getConfigurationValue("copyrightAccepted", false) || force;
+    if (!copyrightAccepted)
     {
-        MegaNode *nexported = api->getNodeByHandle(megaCmdListener->getRequest()->getNodeHandle());
-        if (nexported)
-        {
-            char *nodepath = api->getNodePath(nexported);
-            char *publiclink = nexported->getPublicLink();
-            OUTSTREAM << "Exported " << nodepath << ": " << publiclink;
-            if (nexported->getExpirationTime())
-            {
-                OUTSTREAM << " expires at " << getReadableTime(nexported->getExpirationTime());
-            }
-            OUTSTREAM << endl;
-            delete[] nodepath;
-            delete[] publiclink;
-            delete nexported;
-        }
-        else
-        {
-            setCurrentOutCode(MCMD_NOTFOUND);
-            LOG_err << "Exported node not found!";
-        }
+        MegaNodeList * mnl = api->getPublicLinks();
+        copyrightAccepted = mnl->size();
+        delete mnl;
     }
-    delete megaCmdListener;
+
+    int confirmationResponse = copyrightAccepted?MCMDCONFIRM_YES:MCMDCONFIRM_NO;
+    if (!copyrightAccepted)
+    {
+        string confirmationQuery("MEGA respects the copyrights of others and requires that users of the MEGA cloud service comply with the laws of copyright.\n"
+                                 "You are strictly prohibited from using the MEGA cloud service to infringe copyrights.\n"
+                                 "You may not upload, download, store, share, display, stream, distribute, email, link to, "
+                                 "transmit or otherwise make available any files, data or content that infringes any copyright "
+                                 "or other proprietary rights of any person or entity.");
+
+        confirmationQuery+=" Do you accept this terms? (Yes/No): ";
+
+        confirmationResponse = askforConfirmation(confirmationQuery);
+    }
+
+    if (confirmationResponse == MCMDCONFIRM_YES || confirmationResponse == MCMDCONFIRM_ALL)
+    {
+        ConfigurationManager::savePropertyValue("copyrightAccepted",true);
+        MegaCmdListener *megaCmdListener = new MegaCmdListener(api, NULL);
+        api->exportNode(n, expireTime, megaCmdListener);
+        megaCmdListener->wait();
+        if (checkNoErrors(megaCmdListener->getError(), "export node"))
+        {
+            MegaNode *nexported = api->getNodeByHandle(megaCmdListener->getRequest()->getNodeHandle());
+            if (nexported)
+            {
+                char *nodepath = api->getNodePath(nexported);
+                char *publiclink = nexported->getPublicLink();
+                OUTSTREAM << "Exported " << nodepath << ": " << publiclink;
+                if (nexported->getExpirationTime())
+                {
+                    OUTSTREAM << " expires at " << getReadableTime(nexported->getExpirationTime());
+                }
+                OUTSTREAM << endl;
+                delete[] nodepath;
+                delete[] publiclink;
+                delete nexported;
+            }
+            else
+            {
+                setCurrentOutCode(MCMD_NOTFOUND);
+                LOG_err << "Exported node not found!";
+            }
+        }
+        delete megaCmdListener;
+    }
 }
 
 void MegaCmdExecuter::disableExport(MegaNode *n)
@@ -2707,7 +2734,7 @@ void MegaCmdExecuter::disableExport(MegaNode *n)
         if (nexported)
         {
             char *nodepath = api->getNodePath(nexported);
-            OUTSTREAM << "Disabled export " << nodepath << " : " << nexported->getPublicLink() << endl;
+            OUTSTREAM << "Disabled export: " << nodepath << endl;
             delete[] nodepath;
             delete nexported;
         }
@@ -6412,7 +6439,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                             if (getFlag(clflags, "a"))
                             {
                                 LOG_debug << " exporting ... " << n->getName() << " expireTime=" << expireTime;
-                                exportNode(n, expireTime);
+                                exportNode(n, expireTime, getFlag(clflags,"f"));
                             }
                             else if (getFlag(clflags, "d"))
                             {
@@ -6447,7 +6474,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     if (getFlag(clflags, "a"))
                     {
                         LOG_debug << " exporting ... " << n->getName();
-                        exportNode(n, expireTime);
+                        exportNode(n, expireTime, getFlag(clflags,"f"));
                     }
                     else if (getFlag(clflags, "d"))
                     {

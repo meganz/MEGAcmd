@@ -436,6 +436,7 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     {
         validParams->insert("a");
         validParams->insert("d");
+        validParams->insert("f");
         validOptValues->insert("expire");
 #ifdef USE_PCRE
         validParams->insert("use-pcre");
@@ -1348,9 +1349,9 @@ const char * getUsageStr(const char *command)
     if (!strcmp(command, "export"))
     {
 #ifdef USE_PCRE
-        return "export [-d|-a [--expire=TIMEDELAY]] [remotepath] [--use-pcre]";
+        return "export [-d|-a [--expire=TIMEDELAY] [-f]] [remotepath] [--use-pcre]";
 #else
-        return "export [-d|-a [--expire=TIMEDELAY]] [remotepath]";
+        return "export [-d|-a [--expire=TIMEDELAY] [-f]] [remotepath]";
 #endif
     }
     if (!strcmp(command, "share"))
@@ -1864,6 +1865,13 @@ string getHelpStr(const char *command)
         os << "                   " << "\t"  << "   minutes(M), seconds(s), months(m) or years(y)" << endl;
         os << "                   " << "\t" << "   e.g. \"1m12d3h\" stablish an expiration time 1 month, " << endl;
         os << "                   " << "\t"  << "   12 days and 3 hours after the current moment" << endl;
+        os << " -f" << "\t" << "Implicitly accept copyright terms (only shown the first time an export is made)" << endl;
+        os << "   " << "\t" << "MEGA respects the copyrights of others and requires that users of the MEGA cloud service " << endl;
+        os << "   " << "\t" << "comply with the laws of copyright." << endl;
+        os << "   " << "\t" << "You are strictly prohibited from using the MEGA cloud service to infringe copyrights." << endl;
+        os << "   " << "\t" << "You may not upload, download, store, share, display, stream, distribute, email, link to, " << endl;
+        os << "   " << "\t" << "transmit or otherwise make available any files, data or content that infringes any copyright " << endl;
+        os << "   " << "\t" << "or other proprietary rights of any person or entity." << endl;
         os << " -d" << "\t" << "Deletes an export" << endl;
         os << endl;
         os << "If a remote path is given it'll be used to add/delete or in case of no option selected," << endl;
