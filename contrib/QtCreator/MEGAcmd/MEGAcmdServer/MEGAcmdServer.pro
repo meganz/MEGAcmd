@@ -26,6 +26,8 @@ LIBS += -lpcrecpp
 CONFIG += USE_PCRE
 }
 
+CONFIG += USE_MEDIAINFO
+
 win32 {
     SOURCES += ../../../../sdk/src/wincurl/console.cpp
     SOURCES += ../../../../sdk/src/wincurl/consolewaiter.cpp
