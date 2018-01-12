@@ -391,13 +391,6 @@ void ConfigurationManager::unloadConfiguration()
         delete thesync;
     }
 
-    for (map<string, sync_struct *>::iterator itr = loadedSyncs.begin(); itr != loadedSyncs.end(); )
-    {
-        sync_struct *thesync = ((sync_struct*)( *itr ).second );
-        loadedSyncs.erase(itr++);
-        delete thesync;
-    }
-
     for (map<string, backup_struct *>::iterator itr = configuredBackups.begin(); itr != configuredBackups.end(); )
     {
         backup_struct *thebackup = ((backup_struct*)( *itr ).second );
