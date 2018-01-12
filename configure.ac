@@ -34,7 +34,8 @@ m4_define([megacmd_lt_revision], [0])
 m4_define([megacmd_lt_current], [$(grep define <src/megacmdversion.h | awk '{print @S|@3}' | awk 'BEGIN { RS = "" ; FS = "\n" } {printf @S|@1*10000+@S|@2*100+@S|@3}')])
 m4_define([megacmd_lt_age], [0])
 
-AC_INIT([MEGAcmd], 0.9.4)
+AC_INIT([MEGAcmd], m4_esyscmd([ grep define < src/megacmdversion.h | awk '{print $3}' | awk 'BEGIN { RS = "" ; FS = "\n" } {printf $1"."$2"."$3}']), [https://github.com/meganz/megacmd])
+
 AM_INIT_AUTOMAKE
 
 AC_PROG_CC
@@ -52,7 +53,7 @@ AM_INIT_AUTOMAKE([1.11 foreign silent-rules])
 AC_CONFIG_HEADERS([src/megacmdconfig.h]) #this avoids inline definitions of stuff already defined in sdk's config.h (e.g: -DPACKAGE_NAME)
 
 LT_INIT([shared disable-static win32-dll])
-AC_CONFIG_MACRO_DIR([m4])
+#AC_CONFIG_MACRO_DIR([m4])
 
 # enable silent build
 m4_ifndef([AM_SILENT_RULES], [m4_define([AM_SILENT_RULES],[])])

@@ -143,8 +143,11 @@ void setCurrentPetition(CmdPetition *petition)
 
 void MegaCMDLogger::log(const char *time, int loglevel, const char *source, const char *message)
 {
-//    if (strstr(source, "megacmd") != NULL) // all sources within the megacmd folder
-    if (strstr(source, "sdk") == NULL) // all sources not within the sdk folder
+    if ( (strstr(source, "src/megacmd") != NULL)
+         || (strstr(source, "src/listeners.cpp") != NULL)
+         || (strstr(source, "src/configurationmanager.cpp") != NULL)
+         || (strstr(source, "src/comunicationsmanager") != NULL)
+         )
     {
         if (loglevel <= cmdLoggerLevel)
         {

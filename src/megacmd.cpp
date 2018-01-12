@@ -155,7 +155,7 @@ MegaCMDLogger *loggerCMD;
 MegaMutex mutexEndedPetitionThreads;
 std::vector<MegaThread *> petitionThreads;
 std::vector<MegaThread *> endedPetitionThreads;
-
+MegaThread *threadRetryConnections;
 
 //Comunications Manager
 ComunicationsManager * cm;
@@ -178,7 +178,7 @@ vector<string> remotepatterncommands(aremotepatterncommands, aremotepatterncomma
 string aremotefolderspatterncommands[] = {"cd", "share"};
 vector<string> remotefolderspatterncommands(aremotefolderspatterncommands, aremotefolderspatterncommands + sizeof aremotefolderspatterncommands / sizeof aremotefolderspatterncommands[0]);
 
-string amultipleremotepatterncommands[] = {"ls", "mkdir", "rm", "du", "find", "mv"};
+string amultipleremotepatterncommands[] = {"ls", "mkdir", "rm", "du", "find", "mv", "deleteversions"};
 vector<string> multipleremotepatterncommands(amultipleremotepatterncommands, amultipleremotepatterncommands + sizeof amultipleremotepatterncommands / sizeof amultipleremotepatterncommands[0]);
 
 string aremoteremotepatterncommands[] = {"cp"};
@@ -193,12 +193,14 @@ vector<string> localpatterncommands(alocalpatterncommands, alocalpatterncommands
 string aemailpatterncommands [] = {"invite", "signup", "ipc", "users"};
 vector<string> emailpatterncommands(aemailpatterncommands, aemailpatterncommands + sizeof aemailpatterncommands / sizeof aemailpatterncommands[0]);
 
-string avalidCommands [] = { "login", "signup", "confirm", "session", "mount", "ls", "cd", "log", "debug", "pwd", "lcd", "lpwd", "import",
+string avalidCommands [] = { "login", "signup", "confirm", "session", "mount", "ls", "cd", "log", "debug", "pwd", "lcd", "lpwd", "import", "masterkey",
                              "put", "get", "attr", "userattr", "mkdir", "rm", "du", "mv", "cp", "sync", "export", "share", "invite", "ipc",
                              "showpcr", "users", "speedlimit", "killsession", "whoami", "help", "passwd", "reload", "logout", "version", "quit",
-                             "thumbnail", "preview", "find", "completion", "clear", "https", "transfers", "exclude", "exit", "backup"
+                             "thumbnail", "preview", "find", "completion", "clear", "https", "transfers", "exclude", "exit", "backup", "deleteversions"
 #ifdef _WIN32
                              ,"unicode"
+#else
+                             , "permissions"
 #endif
                            };
 vector<string> validCommands(avalidCommands, avalidCommands + sizeof avalidCommands / sizeof avalidCommands[0]);
@@ -346,6 +348,8 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validParams->insert("R");
         validParams->insert("r");
         validParams->insert("l");
+        validParams->insert("v");
+
 #ifdef USE_PCRE
         validParams->insert("use-pcre");
 #endif
@@ -353,6 +357,7 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     else if ("du" == thecommand)
     {
         validParams->insert("h");
+        validParams->insert("v");
 #ifdef USE_PCRE
         validParams->insert("use-pcre");
 #endif
@@ -400,6 +405,20 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validParams->insert("c");
         validParams->insert("s");
     }
+#ifndef _WIN32
+    else if ("permissions" == thecommand)
+    {
+        validParams->insert("s");
+        validParams->insert("files");
+        validParams->insert("folders");
+    }
+#endif
+    else if ("deleteversions" == thecommand)
+    {
+        validParams->insert("all");
+        validParams->insert("f");
+        validParams->insert("use-pcre");
+    }
     else if ("exclude" == thecommand)
     {
         validParams->insert("a");
@@ -428,6 +447,7 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     {
         validParams->insert("a");
         validParams->insert("d");
+        validParams->insert("f");
         validOptValues->insert("expire");
 #ifdef USE_PCRE
         validParams->insert("use-pcre");
@@ -499,6 +519,11 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validParams->insert("a");
         validParams->insert("d");
         validParams->insert("i");
+    }
+    else if ("showpcr" == thecommand)
+    {
+        validParams->insert("in");
+        validParams->insert("out");
     }
     else if ("thumbnail" == thecommand)
     {
@@ -1212,9 +1237,9 @@ const char * getUsageStr(const char *command)
     if (!strcmp(command, "ls"))
     {
 #ifdef USE_PCRE
-        return "ls [-lRr] [remotepath] [--use-pcre]";
+        return "ls [-lRrv] [remotepath] [--use-pcre]";
 #else
-        return "ls [-lRr] [remotepath]";
+        return "ls [-lRrv] [remotepath]";
 #endif
     }
     if (!strcmp(command, "cd"))
@@ -1228,9 +1253,9 @@ const char * getUsageStr(const char *command)
     if (!strcmp(command, "du"))
     {
 #ifdef USE_PCRE
-        return "du [-h] [remotepath remotepath2 remotepath3 ... ] [--use-pcre]";
+        return "du [-hv] [remotepath remotepath2 remotepath3 ... ] [--use-pcre]";
 #else
-        return "du [-h] [remotepath remotepath2 remotepath3 ... ]";
+        return "du [-hv] [remotepath remotepath2 remotepath3 ... ]";
 #endif
     }
     if (!strcmp(command, "pwd"))
@@ -1305,6 +1330,15 @@ const char * getUsageStr(const char *command)
     {
         return "cp srcremotepath dstremotepath|dstemail:";
     }
+    if (!strcmp(command, "deleteversions"))
+    {
+#ifdef USE_PCRE
+        return "deleteversions [-f] (--all | remotepath1 remotepath2 ...)  [--use-pcre]";
+#else
+        return "deleteversions [-f] (--all | remotepath1 remotepath2 ...)";
+#endif
+
+    }
     if (!strcmp(command, "exclude"))
     {
         return "exclude [(-a|-d) pattern1 pattern2 pattern3 [--restart-syncs]]";
@@ -1321,12 +1355,18 @@ const char * getUsageStr(const char *command)
     {
         return "https [on|off]";
     }
+#ifndef _WIN32
+    if (!strcmp(command, "permissions"))
+    {
+        return "permissions [(--files|--folders) [-s XXX]]";
+    }
+#endif
     if (!strcmp(command, "export"))
     {
 #ifdef USE_PCRE
-        return "export [-d|-a [--expire=TIMEDELAY]] [remotepath] [--use-pcre]";
+        return "export [-d|-a [--expire=TIMEDELAY] [-f]] [remotepath] [--use-pcre]";
 #else
-        return "export [-d|-a [--expire=TIMEDELAY]] [remotepath]";
+        return "export [-d|-a [--expire=TIMEDELAY] [-f]] [remotepath]";
 #endif
     }
     if (!strcmp(command, "share"))
@@ -1347,7 +1387,11 @@ const char * getUsageStr(const char *command)
     }
     if (!strcmp(command, "showpcr"))
     {
-        return "showpcr";
+        return "showpcr [--in | --out]";
+    }
+    if (!strcmp(command, "masterkey"))
+    {
+        return "masterkey pathtosave";
     }
     if (!strcmp(command, "users"))
     {
@@ -1564,6 +1608,8 @@ string getHelpStr(const char *command)
         os << "Options:" << endl;
         os << " -R|-r" << "\t" << "list folders recursively" << endl;
         os << " -l" << "\t" << "include extra information" << endl;
+        os << " -v" << "\t" << "show historical versions" << endl;
+        os << "   " << "\t" << "You can delete all versions of a file with \"deleteversions\"" << endl;
 #ifdef USE_PCRE
         os << " --use-pcre" << "\t" << "use PCRE expressions" << endl;
 #endif
@@ -1598,6 +1644,8 @@ string getHelpStr(const char *command)
         os << endl;
         os << "Options:" << endl;
         os << " -h" << "\t" << "Human readable" << endl;
+        os << " -v" << "\t" << "Calculate size including all versions." << endl;
+        os << "   " << "\t" << "You can remove all versions with \"deleteversions\" and list them with \"ls -v\"" << endl;
 #ifdef USE_PCRE
         os << " --use-pcre" << "\t" << "use PCRE expressions" << endl;
 #endif
@@ -1729,8 +1777,29 @@ string getHelpStr(const char *command)
         os << "If the location doesn't exits, the file/folder will be renamed to the defined destiny" << endl;
         os << endl;
         os << "If \"dstemail:\" provided, the file/folder will be sent to that user's inbox (//in)" << endl;
-        os << " Remember the trailing \":\", otherwise a file with the name of that user will be created" << endl;
+        os << " e.g: cp /path/to/file user@doma.in:" << endl;
+        os << " Remember the trailing \":\", otherwise a file with the name of that user (\"user@doma.in\") will be created" << endl;
     }
+#ifndef _WIN32
+    else if (!strcmp(command, "permissions"))
+    {
+        os << "Shows/stablish default permissions for files and folders created by MEGAcmd." << endl;
+        os << endl;
+        os << "Permissions are unix-like permissions, with 3 numbers: one for owner, one for group and one for others" << endl;
+        os << "Options:" << endl;
+        os << " --files" << "\t" << "To show/set files default permissions." << endl;
+        os << " --folders" << "\t" << "To show/set folders default permissions." << endl;
+        os << " --s XXX" << "\t" << "To set new permissions for newly created files/folder. " << endl;
+        os << "        " << "\t" << " Notice that for files minimum permissions is 600," << endl;
+        os << "        " << "\t" << " for folders minimum permissions is 700." << endl;
+        os << "        " << "\t" << " Further restrictions to owner are not allowed (to avoid missfunctioning)." << endl;
+        os << "        " << "\t" << " Notice that permissions of already existing files/folders will not change." << endl;
+        os << "        " << "\t" << " Notice that permissions of already existing files/folders will not change." << endl;
+        os << endl;
+        os << "Notice: this permissions will be saved for the next time you execute MEGAcmd server. They will be removed if you logout." << endl;
+
+    }
+#endif
     else if (!strcmp(command, "https"))
     {
         os << "Shows if HTTPS is used for transfers. Use \"https on\" to enable it." << endl;
@@ -1739,6 +1808,25 @@ string getHelpStr(const char *command)
         os << "Enabling it will increase CPU usage and add network overhead." << endl;
         os << endl;
         os << "Notice that this setting is ephemeral: it will reset for the next time you open MEGAcmd" << endl;
+    }
+    else if (!strcmp(command, "deleteversions"))
+    {
+        os << "Deletes previous versions." << endl;
+        os << endl;
+        os << "This will permanently delete all historical versions of a file. " << endl;
+        os << "The current version of the file will remain." << endl;
+        os << "Note: any file version shared to you from a contact will need to be deleted by them." << endl;
+
+        os << endl;
+        os << "Options:" << endl;
+        os << " -f" << "\t" << "Force (no asking)" << endl;
+        os << " --all" << "\t" << "Delete versions of all nodes. This will delete the version histories of all files (not current files)." << endl;
+#ifdef USE_PCRE
+        os << " --use-pcre" << "\t" << "use PCRE expressions" << endl;
+#endif
+        os << endl;
+        os << "To see versions of a file use \"ls -v\"." << endl;
+        os << "To see space occupied by sessions use \"du\" with \"-v\"." << endl;
     }
     else if (!strcmp(command, "exclude"))
     {
@@ -1792,6 +1880,13 @@ string getHelpStr(const char *command)
         os << "                   " << "\t"  << "   minutes(M), seconds(s), months(m) or years(y)" << endl;
         os << "                   " << "\t" << "   e.g. \"1m12d3h\" stablish an expiration time 1 month, " << endl;
         os << "                   " << "\t"  << "   12 days and 3 hours after the current moment" << endl;
+        os << " -f" << "\t" << "Implicitly accept copyright terms (only shown the first time an export is made)" << endl;
+        os << "   " << "\t" << "MEGA respects the copyrights of others and requires that users of the MEGA cloud service " << endl;
+        os << "   " << "\t" << "comply with the laws of copyright." << endl;
+        os << "   " << "\t" << "You are strictly prohibited from using the MEGA cloud service to infringe copyrights." << endl;
+        os << "   " << "\t" << "You may not upload, download, store, share, display, stream, distribute, email, link to, " << endl;
+        os << "   " << "\t" << "transmit or otherwise make available any files, data or content that infringes any copyright " << endl;
+        os << "   " << "\t" << "or other proprietary rights of any person or entity." << endl;
         os << " -d" << "\t" << "Deletes an export" << endl;
         os << endl;
         os << "If a remote path is given it'll be used to add/delete or in case of no option selected," << endl;
@@ -1819,7 +1914,7 @@ string getHelpStr(const char *command)
         os << " of no option selected, it will display all the shares existing " << endl;
         os << " in the tree of that path" << endl;
         os << endl;
-        os << "When sharing a folder with a user that is not a contact (see \"users\" help)" << endl;
+        os << "When sharing a folder with a user that is not a contact (see \"users --help\")" << endl;
         os << "  the share will be in a pending state. You can list pending shares with" << endl;
         os << " \"share -p\". He would need to accept your invitation (see \"ipc\")" << endl;
         os << endl;
@@ -1852,9 +1947,22 @@ string getHelpStr(const char *command)
         os << "Use \"showpcr\" to browse incoming/outgoing invitations" << endl;
         os << "Use \"users\" to see contacts" << endl;
     }
+    if (!strcmp(command, "masterkey"))
+    {
+        os << "Shows your master key." << endl;
+        os << endl;
+        os << "Getting the master key and keeping it in a secure location enables you " << endl;
+        os << " to set a new password without data loss." << endl;
+        os << "Always keep physical control of your master key " << endl;
+        os << " (e.g. on a client device, external storage, or print)" << endl;
+    }
     if (!strcmp(command, "showpcr"))
     {
         os << "Shows incoming and outgoing contact requests." << endl;
+        os << endl;
+        os << "Options:" << endl;
+        os << " --in" << "\t" << "Shows incoming requests" << endl;
+        os << " --out" << "\t" << "Shows outgoing invitations" << endl;
         os << endl;
         os << "Use \"ipc\" to manage invitations received" << endl;
         os << "Use \"users\" to see contacts" << endl;
@@ -1877,15 +1985,16 @@ string getHelpStr(const char *command)
     else if (!strcmp(command, "speedlimit"))
     {
         os << "Displays/modifies upload/download rate limits" << endl;
-        os << " NEWLIMIT stablish the new limit in B/s (0 = no limit)" << endl;
+        os << " NEWLIMIT stablish the new limit in size per second (0 = no limit)" << endl;
+        os << " NEWLIMIT may include (B)ytes, (K)ilobytes, (M)egabytes, (G)igabytes & (T)erabytes." << endl;
+        os << "  Examples: \"1m12k3B\" \"3M\". If no unit given, it'll use Bytes" << endl;
         os << endl;
         os << "Options:" << endl;
         os << " -d" << "\t" << "Download speed limit" << endl;
         os << " -u" << "\t" << "Upload speed limit" << endl;
         os << " -h" << "\t" << "Human readable" << endl;
         os << endl;
-        os << "Notice that this limit won't be saved for the next time you execute MEGAcmd server" << endl;
-
+        os << "Notice: this limit will be saved for the next time you execute MEGAcmd server. They will be removed if you logout." << endl;
     }
     else if (!strcmp(command, "killsession"))
     {
@@ -1911,6 +2020,7 @@ string getHelpStr(const char *command)
     else if (!strcmp(command, "reload"))
     {
         os << "Forces a reload of the remote files of the user" << endl;
+        os << "It will also resume synchronizations." << endl;
     }
     else if (!strcmp(command, "version"))
     {
@@ -1985,6 +2095,7 @@ string getHelpStr(const char *command)
     else if (!strcmp(command, "transfers"))
     {
         os << "List or operate with transfers" << endl;
+        os << endl;
         os << "If executed without option it will list the first 10 tranfers" << endl;
         os << "Options:" << endl;
         os << " -c (TAG|-a)" << "\t" << "Cancel transfer with TAG (or all with -a)" << endl;
@@ -2298,10 +2409,18 @@ static bool process_line(char* l)
             {
                 cmdexecuter->discardDelete();
             }
+            else if (!strcmp(l,"All") || !strcmp(l,"ALL") || !strcmp(l,"a") || !strcmp(l,"A") || !strcmp(l,"all"))
+            {
+                cmdexecuter->confirmDeleteAll();
+            }
+            else if (!strcmp(l,"None") || !strcmp(l,"NONE") || !strcmp(l,"none"))
+            {
+                cmdexecuter->discardDeleteAll();
+            }
             else
             {
                 //Do nth, ask again
-                OUTSTREAM << "Please enter [y]es/[n]o: " << flush;
+                OUTSTREAM << "Please enter [y]es/[n]o/[a]ll/none: " << flush;
             }
         break;
         case LOGINPASSWORD:
@@ -2448,7 +2567,7 @@ void * doProcessLine(void *pointer)
 }
 
 
-bool askforConfirmation(string message)
+int askforConfirmation(string message)
 {
     CmdPetition *inf = getCurrentPetition();
     if (inf)
@@ -2460,7 +2579,7 @@ bool askforConfirmation(string message)
         LOG_err << "Unable to get current petition to ask for confirmation";
     }
 
-    return false;
+    return MCMDCONFIRM_NO;
 }
 
 
@@ -2506,6 +2625,8 @@ void finalize()
     }
 
     delete megaCmdMegaListener;
+    threadRetryConnections->join();
+    delete threadRetryConnections;
     delete api;
 
     while (!apiFolders.empty())
@@ -2532,9 +2653,29 @@ void finalize()
 
 int currentclientID = 1;
 
+void * retryConnections(void *pointer)
+{
+    while(!doExit)
+    {
+        LOG_verbose << "Calling recurrent retryPendingConnections";
+        api->retryPendingConnections();
+
+        int count = 100;
+        while (!doExit && --count)
+        {
+            sleepMicroSeconds(300);
+        }
+    }
+    return NULL;
+}
+
+
 // main loop
 void megacmd()
 {
+    threadRetryConnections = new MegaThread();
+    threadRetryConnections->start(retryConnections, NULL);
+
     LOG_info << "Listening to petitions ... ";
 
     for (;; )
@@ -2776,6 +2917,62 @@ void initializeMacOSStuff(int argc, char* argv[])
 
 #endif
 
+string getLocaleCode()
+{
+#if defined(_WIN32) && defined(LOCALE_SISO639LANGNAME)
+    LCID lcidLocaleId;
+    LCTYPE lctyLocaleInfo;
+    PWSTR pstr;
+    INT iBuffSize;
+
+    lcidLocaleId = LOCALE_USER_DEFAULT;
+    lctyLocaleInfo = LOCALE_SISO639LANGNAME;
+
+    // Determine the size
+    iBuffSize = GetLocaleInfo( lcidLocaleId, lctyLocaleInfo, NULL, 0 );
+
+    if(iBuffSize > 0)
+    {
+        pstr = (WCHAR *) malloc( iBuffSize * sizeof(WCHAR) );
+        if(pstr != NULL)
+        {
+            if(GetLocaleInfoW( lcidLocaleId, lctyLocaleInfo, pstr, iBuffSize ))
+            {
+                string toret;
+                wstring ws(pstr);
+                localwtostring(&ws,&toret);
+                free(pstr); //free locale info string
+                return toret;
+            }
+            free(pstr); //free locale info string
+        }
+    }
+
+#else
+
+    try
+     {
+        locale l("");
+
+        string ls = l.name();
+        size_t posequal = ls.find("=");
+        size_t possemicolon = ls.find_first_of(";.");
+
+        if (posequal != string::npos && possemicolon != string::npos && posequal < possemicolon)
+        {
+            return ls.substr(posequal+1,possemicolon-posequal-1);
+        }
+     }
+     catch (const std::exception& e)
+     {
+        std::cerr << "Warning: unable to get locale " << std::endl;
+     }
+
+#endif
+    return string();
+
+}
+
 bool runningInBackground()
 {
 #ifndef _WIN32
@@ -2796,6 +2993,7 @@ bool runningInBackground()
 
 int main(int argc, char* argv[])
 {
+    string localecode = getLocaleCode();
 #ifdef _WIN32
     // Set Environment's default locale
     setlocale(LC_ALL, "en-US");
@@ -2863,9 +3061,13 @@ int main(int argc, char* argv[])
     api = new MegaApi("BdARkQSQ", ConfigurationManager::getConfigFolder().c_str(), userAgent);
 #endif
 
+
+    api->setLanguage(localecode.c_str());
+
     for (int i = 0; i < 5; i++)
     {
         MegaApi *apiFolder = new MegaApi("BdARkQSQ", (const char*)NULL, userAgent);
+        apiFolder->setLanguage(localecode.c_str());
         apiFolders.push(apiFolder);
         apiFolder->addLoggerObject(loggerCMD);
         apiFolder->setLogLevel(MegaApi::LOG_LEVEL_MAX);
@@ -2881,6 +3083,8 @@ int main(int argc, char* argv[])
 
     api->addLoggerObject(loggerCMD);
     api->setLogLevel(MegaApi::LOG_LEVEL_MAX);
+
+    LOG_debug << "Language set to: " << localecode;
 
     sandboxCMD = new MegaCmdSandbox();
     cmdexecuter = new MegaCmdExecuter(api, loggerCMD, sandboxCMD);

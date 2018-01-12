@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ##
- # @file src/build/getlatestmegacmdversionAndTriggerBuildAllRepos.sh
+ # @file build/getlatestmegacmdversionAndTriggerBuildAllRepos.sh
  # @brief Gets the project cloning git project and creates tarball, then
  #     Triggers OBS compilation for configured repositories          
  #     It stores the project files at                                
@@ -42,10 +42,14 @@ if [[ $1 == "--home" ]]; then
 	shift
 fi
 
-
+sshpasscommand=""
 if [[ $1 == *@* ]]; then
 remote=$1
 shift
+echo -n $remote Password: 
+read -s password
+sshpasscommand="sshpass -p $password ssh $remote"
+echo
 fi
 
 while getopts ":t:" opt; do
@@ -66,12 +70,26 @@ if [ -z "$PROJECT_PATH" ]; then
 	echo "using default PROJECT_PATH: $PROJECT_PATH"
 fi
 
+
+function copy
+{
+	if [ "$sshpasscommand" ]; then
+		sshpass -p $password scp $1 $remote:$2
+	else #linking will be enough
+		ln -sf $1 $2
+	fi
+}
+
 #checkout master project and submodules
 echo git clone $tagtodl --depth 1 --recursive https://github.com/meganz/megacmd $PROJECT_PATH
 if ! git clone $tagtodl --depth 1 --recursive https://github.com/meganz/megacmd $PROJECT_PATH; then exit 1;fi
 pushd $PROJECT_PATH
-pushd src/build
+pushd build
+
 ./create_tarball.sh
+ver=`cat version`
+copy ./megacmd/debian.changelog /assets/changelogs/megacmd/megacmd_${ver}.changelog
+
 popd
 popd
 
@@ -83,4 +101,4 @@ fi
 
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-$DIR/triggermegacmdBuild.sh $onlyhomeproject $remote $PROJECT_PATH/src $NEWOSCFOLDER_PATH
+REMOTEP=$password $DIR/triggermegacmdBuild.sh $onlyhomeproject $remote $PROJECT_PATH $NEWOSCFOLDER_PATH

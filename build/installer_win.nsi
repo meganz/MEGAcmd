@@ -21,10 +21,10 @@ VIAddVersionKey "LegalCopyright" "MEGA Limited 2017"
 VIAddVersionKey "ProductName" "MEGAcmd"
 
 ; Version info
-VIProductVersion "0.9.5.0"
-VIAddVersionKey "FileVersion" "0.9.5.0"
-VIAddVersionKey "ProductVersion" "0.9.5.0"
-!define PRODUCT_VERSION "0.9.5"
+VIProductVersion "0.9.6.0"
+VIAddVersionKey "FileVersion" "0.9.6.0"
+VIAddVersionKey "ProductVersion" "0.9.6.0"
+!define PRODUCT_VERSION "0.9.6"
 
 !define PRODUCT_PUBLISHER "Mega Limited"
 !define PRODUCT_WEB_SITE "http://www.mega.nz"
@@ -426,17 +426,22 @@ modeselected:
   !insertmacro DEBUG_MSG "Closing MEGAcmd"
   ExecDos::exec /DETAILED /DISABLEFSR "taskkill /f /IM MEGAcmdShell.exe"
   ExecDos::exec /DETAILED /DISABLEFSR "taskkill /f /IM MEGAcmd.exe"
+  ExecDos::exec /DETAILED /DISABLEFSR "taskkill /f /IM MEGAcmdServer.exe"
   ExecDos::exec /DETAILED /DISABLEFSR "taskkill /f /IM MEGAclient.exe"
   
   !insertmacro DEBUG_MSG "Installing files"  
 
 !ifndef BUILD_UNINSTALLER  ; if building uninstaller, skip files below        
+
+  Delete "$INSTDIR\MEGAcmd.exe" ; delete older name of server
+  Delete "$INSTDIR\mega-history.bat" ; delete older bat
+
   SetOutPath "$INSTDIR"
   SetOverwrite on
   AllowSkipFiles off
-  File "${SRCDIR_MEGACMD}\MEGAcmd.exe"
-  AccessControl::SetFileOwner "$INSTDIR\MEGAcmd.exe" "$USERNAME"
-  AccessControl::GrantOnFile "$INSTDIR\MEGAcmd.exe" "$USERNAME" "GenericRead + GenericWrite"
+  File "${SRCDIR_MEGACMD}\MEGAcmdServer.exe"
+  AccessControl::SetFileOwner "$INSTDIR\MEGAcmdServer.exe" "$USERNAME"
+  AccessControl::GrantOnFile "$INSTDIR\MEGAcmdServer.exe" "$USERNAME" "GenericRead + GenericWrite"
 
   File "${SRCDIR_MEGACMD}\..\..\MEGAcmdClient\release\MEGAclient.exe"
   AccessControl::SetFileOwner "$INSTDIR\MEGAclient.exe" "$USERNAME"
@@ -515,6 +520,10 @@ modeselected:
   File "${SRCDIR_BATFILES}\mega-https.bat"
   AccessControl::SetFileOwner "$INSTDIR\mega-https.bat" "$USERNAME"
   AccessControl::GrantOnFile "$INSTDIR\mega-https.bat" "$USERNAME" "GenericRead + GenericWrite"
+  
+  File "${SRCDIR_BATFILES}\mega-deleteversions.bat"
+  AccessControl::SetFileOwner "$INSTDIR\mega-deleteversions.bat" "$USERNAME"
+  AccessControl::GrantOnFile "$INSTDIR\mega-deleteversions.bat" "$USERNAME" "GenericRead + GenericWrite"
  
   File "${SRCDIR_BATFILES}\mega-transfers.bat"
   AccessControl::SetFileOwner "$INSTDIR\mega-transfers.bat" "$USERNAME"
@@ -666,6 +675,7 @@ modeselected:
   !insertmacro MUI_STARTMENU_WRITE_BEGIN Application
   CreateDirectory "$SMPROGRAMS\$ICONS_GROUP"
   CreateShortCut "$SMPROGRAMS\$ICONS_GROUP\MEGAcmd.lnk" "$INSTDIR\MEGAcmdShell.exe"
+  CreateShortCut "$SMPROGRAMS\$ICONS_GROUP\MEGAcmdServer.lnk" "$INSTDIR\MEGAcmdServer.exe"
   CreateShortCut "$DESKTOP\MEGAcmd.lnk" "$INSTDIR\MEGAcmdShell.exe"
   WriteIniStr "$INSTDIR\MEGA Website.url" "InternetShortcut" "URL" "${PRODUCT_WEB_SITE}"
   CreateShortCut "$SMPROGRAMS\$ICONS_GROUP\MEGA Website.lnk" "$INSTDIR\MEGA Website.url" "" "$INSTDIR\MEGAcmdShell.exe" 1
@@ -677,6 +687,7 @@ currentuser2:
   !insertmacro MUI_STARTMENU_WRITE_BEGIN Application
   CreateDirectory "$SMPROGRAMS\$ICONS_GROUP"
   CreateShortCut "$SMPROGRAMS\$ICONS_GROUP\MEGAcmd.lnk" "$INSTDIR\MEGAcmdShell.exe"
+  CreateShortCut "$SMPROGRAMS\$ICONS_GROUP\MEGAcmdServer.lnk" "$INSTDIR\MEGAcmdServer.exe"
   CreateShortCut "$DESKTOP\MEGAcmd.lnk" "$INSTDIR\MEGAcmdShell.exe"
 
   WriteIniStr "$INSTDIR\MEGA Website.url" "InternetShortcut" "URL" "${PRODUCT_WEB_SITE}"
@@ -726,6 +737,7 @@ Section Uninstall
   ExecDos::exec /DETAILED "taskkill /f /IM MEGAcmdShell.exe"
   ExecDos::exec /DETAILED "taskkill /f /IM MEGAclient.exe"
   ExecDos::exec /DETAILED "taskkill /f /IM MEGAcmd.exe"
+  ExecDos::exec /DETAILED "taskkill /f /IM MEGAcmdServer.exe"
 
   !insertmacro MUI_STARTMENU_GETFOLDER "Application" $ICONS_GROUP
   Delete "$INSTDIR\${PRODUCT_NAME}.url"
@@ -779,6 +791,7 @@ Section Uninstall
   Delete "$INSTDIR\api-ms-win-core-console-l1-1-0.dll"
   
   ;Common files
+  Delete "$INSTDIR\MEGAcmdServer.exe"
   Delete "$INSTDIR\MEGAcmd.exe"
   Delete "$INSTDIR\MEGAcmdShell.exe"
   Delete "$INSTDIR\MEGAclient.exe"
@@ -800,7 +813,9 @@ Section Uninstall
   Delete "$INSTDIR\mega-find.bat"
   Delete "$INSTDIR\mega-get.bat"
   Delete "$INSTDIR\mega-help.bat"
+  Delete "$INSTDIR\mega-history.bat"
   Delete "$INSTDIR\mega-https.bat"
+  Delete "$INSTDIR\mega-deleteversions.bat"
   Delete "$INSTDIR\mega-transfers.bat"
   Delete "$INSTDIR\mega-import.bat"
   Delete "$INSTDIR\mega-invite.bat"
@@ -845,6 +860,7 @@ Section Uninstall
   Delete "$INSTDIR\MEGA Website.url"
   Delete "$DESKTOP\MEGAcmd.lnk"
   Delete "$SMPROGRAMS\$ICONS_GROUP\MEGAcmd.lnk"
+  Delete "$SMPROGRAMS\$ICONS_GROUP\MEGAcmdServer.lnk"
   System::Call 'shell32::SHGetSpecialFolderPath(i $HWNDPARENT, t .r1, i ${CSIDL_STARTUP}, i0)i.r0'
   Delete "$1\MEGAcmd.lnk"
   RMDir "$SMPROGRAMS\$ICONS_GROUP"
@@ -856,6 +872,7 @@ Section Uninstall
   Delete "$INSTDIR\MEGA Website.url"
   Delete "$DESKTOP\MEGAcmd.lnk"
   Delete "$SMPROGRAMS\$ICONS_GROUP\MEGAcmd.lnk"
+  Delete "$SMPROGRAMS\$ICONS_GROUP\MEGAcmdServer.lnk"
   System::Call 'shell32::SHGetSpecialFolderPath(i $HWNDPARENT, t .r1, i ${CSIDL_STARTUP}, i0)i.r0'
   Delete "$1\MEGAcmd.lnk"
   RMDir "$SMPROGRAMS\$ICONS_GROUP"

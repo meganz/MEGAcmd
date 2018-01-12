@@ -22,15 +22,7 @@
 #include "megacmd.h"
 
 /* mega::MegaNode info extracting*/
-/**
- * @brief getNumFolderFiles
- *
- * Ownership of returned value belongs to the caller
- * @param n
- * @param api
- * @return
- */
-int * getNumFolderFiles(mega::MegaNode *, mega::MegaApi *);
+void getNumFolderFiles(mega::MegaNode *, mega::MegaApi *, long long *nfiles, long long *nfolders);
 
 std::string getUserInSharedNode(mega::MegaNode *n, mega::MegaApi *api);
 
@@ -125,7 +117,7 @@ std::string getFixLengthString(const std::string origin, unsigned int size, cons
 
 std::string getRightAlignedString(const std::string origin, unsigned int minsize);
 
-
+bool nodeNameIsVersion(std::string &nodeName);
 
 /* Flags and Options */
 int getFlag(std::map<std::string, int> *flags, const char * optname);
@@ -148,9 +140,32 @@ std::string secondsToText(time_t seconds, bool humanreadable = true);
 
 std::string percentageToText(float percentage);
 
+std::string readablePermissions(int permvalue);
+int permissionsFromReadable(std::string permissions);
+
 unsigned int getNumberOfCols(unsigned int defaultwidth = 90);
 
 void sleepSeconds(int seconds);
 void sleepMicroSeconds(long microseconds);
+
+bool isValidEmail(std::string email);
+
+/* Properties */
+std::string &ltrimProperty(std::string &s, const char &c);
+std::string &rtrimProperty(std::string &s, const char &c);
+std::string &trimProperty(std::string &what);
+std::string getPropertyFromFile(const char *configFile, const char *propertyName);
+template <typename T>
+T getValueFromFile(const char *configFile, const char *propertyName, T defaultValue)
+{
+    std::string propValue = getPropertyFromFile(configFile, propertyName);
+    if (!propValue.size()) return defaultValue;
+
+    T i;
+    std::istringstream is(propValue);
+    is >> i;
+    return i;
+
+}
 
 #endif // MEGACMDUTILS_H

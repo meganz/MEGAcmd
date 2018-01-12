@@ -125,9 +125,9 @@ CmdPetition * ComunicationsManager::getPetition()
     return inf;
 }
 
-bool ComunicationsManager::getConfirmation(CmdPetition *inf, string message)
+int ComunicationsManager::getConfirmation(CmdPetition *inf, string message)
 {
-    return false;
+    return MCMDCONFIRM_NO;
 }
 
 string ComunicationsManager::get_petition_details(CmdPetition *inf)

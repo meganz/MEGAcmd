@@ -8,7 +8,7 @@
 #define MEGACMD_MINOR_VERSION 9
 #endif
 #ifndef MEGACMD_MICRO_VERSION
-#define MEGACMD_MICRO_VERSION 4
+#define MEGACMD_MICRO_VERSION 7
 #endif
 
 #ifndef MEGACMD_CODE_VERSION
@@ -16,12 +16,12 @@
 #endif
 
 const char * const megacmdchangelog =
-        "Fix mkdir loop""\n"
-        "Added transfer resumption""\n"
-        "Added time and size constrains for find""\n"
-        "Reformated sync output""\n"
-        "Added exclusions to syncs. Default: .* ~* desktop.ini Thumbs.db"
+        "Faster scanning of files""\n"
+        "Improved the management of deleted files""\n"
+        "Bug fixes and other minor improvements"
         ;
 
 
 #endif // VERSION_H
+
+

@@ -71,6 +71,7 @@ def cmdshell_ec(what):
         afterorder=False
         for l in stdoutdata.split('\n'):
             l=re.sub(".*\x1b\[K","",l) #replace non printable stuff(erase line controls)
+            l=re.sub(".*\r","",l) #replace non printable stuff
             if afterorder:
                 if "Exiting ..." in l: break
                 realout+=[l]
@@ -107,7 +108,7 @@ def cmdshell_ef(what):
         print >>sys.stderr, "FALLO en "+str(what) #TODO: stderr?
         print >>sys.stderr, out #TODO: stderr?
         
-        cmdshell_et(code)
+        exit(code)
     return out
     
 def cmd_ec(what):

@@ -17,7 +17,8 @@
  */
 
 #include "configurationmanager.h"
-
+#include "megacmdversion.h"
+#include "megacmdutils.h"
 #include <fstream>
 
 #ifdef _WIN32
@@ -39,7 +40,6 @@ bool is_file_exist(const char *fileName)
 string ConfigurationManager::configFolder;
 map<string, sync_struct *> ConfigurationManager::configuredSyncs;
 string ConfigurationManager::session;
-map<string, sync_struct *> ConfigurationManager::loadedSyncs; //TODO: delete this!! only use configuredSyncs
 std::set<std::string> ConfigurationManager::excludedNames;
 
 map<std::string, backup_struct *> ConfigurationManager::configuredBackups;
@@ -134,6 +134,67 @@ void ConfigurationManager::saveSession(const char*session)
     }
 }
 
+void ConfigurationManager::saveProperty(const char *property, const char *value)
+{
+    if (!configFolder.size())
+    {
+        loadConfigDir();
+    }
+    if (configFolder.size())
+    {
+        bool found = false;
+        stringstream configFile;
+        configFile << configFolder << "/" << "megacmd.cfg";
+
+        stringstream formerlines;
+        ifstream infile(configFile.str().c_str());
+        string line;
+        while (getline(infile, line))
+        {
+            if (line.length() > 0 && line[0] != '#')
+            {
+                string key;
+                size_t pos = line.find("=");
+                if (pos != string::npos && ((pos + 1) < line.size()))
+                {
+                    key = line.substr(0, pos);
+                    rtrimProperty(key, ' ');
+
+                    if (!strcmp(key.c_str(), property))
+                    {
+                        if (!found)
+                        {
+                            formerlines << property << "=" << value << endl;
+                        }
+                        found = true;
+                    }
+                    else
+                    {
+                        formerlines << line << endl;
+                    }
+                }
+                else
+                {
+                    formerlines << line << endl;
+                }
+            }
+        }
+        ofstream fo(configFile.str().c_str());
+
+        if (fo.is_open())
+        {
+            fo << formerlines.str();
+            if (!found)
+            {
+                fo << property << "=" << value << endl;
+            }
+            fo.close();
+        }
+
+
+    }
+}
+
 void ConfigurationManager::saveSyncs(map<string, sync_struct *> *syncsmap)
 {
     stringstream syncsfile;
@@ -157,6 +218,11 @@ void ConfigurationManager::saveSyncs(map<string, sync_struct *> *syncsmap)
                 for (itr = syncsmap->begin(); itr != syncsmap->end(); ++itr, i++)
                 {
                     sync_struct *thesync = ((sync_struct*)( *itr ).second );
+
+                    long long controlvalue = CONFIGURATIONSTOREDBYVERSION;
+                    fo.write((char*)&controlvalue, sizeof( long long ));
+                    int versionmcmd = MEGACMD_CODE_VERSION;
+                    fo.write((char*)&versionmcmd, sizeof( int ));
 
                     fo.write((char*)&thesync->fingerprint, sizeof( long long ));
                     fo.write((char*)&thesync->handle, sizeof( MegaHandle ));
@@ -338,6 +404,8 @@ void ConfigurationManager::unloadConfiguration()
         configuredBackups.erase(itr++);
         delete thebackup;
     }
+    ConfigurationManager::session = string();
+    ConfigurationManager::excludedNames.clear();
 }
 
 void ConfigurationManager::loadsyncs()
@@ -361,11 +429,28 @@ void ConfigurationManager::loadsyncs()
                 LOG_err << "fail with sync file";
             }
 
+            bool updateSavedFormatRequired = false;
             while (!( fi.peek() == EOF ))
             {
+                int versioncodeStoredValues;
+
                 sync_struct *thesync = new sync_struct;
                 //Load syncs
                 fi.read((char*)&thesync->fingerprint, sizeof( long long ));
+                if (thesync->fingerprint == CONFIGURATIONSTOREDBYVERSION)
+                {
+                    fi.read((char*)&versioncodeStoredValues, sizeof(int));
+                }
+                else
+                {
+                    versioncodeStoredValues = 90500;
+                }
+
+                if (versioncodeStoredValues > 90500)
+                {
+                    fi.read((char*)&thesync->fingerprint, sizeof( long long ));
+                }
+
                 fi.read((char*)&thesync->handle, sizeof( MegaHandle ));
                 size_t lengthLocalPath;
                 fi.read((char*)&lengthLocalPath, sizeof( size_t ));
@@ -377,6 +462,15 @@ void ConfigurationManager::loadsyncs()
                     delete configuredSyncs[thesync->localpath];
                 }
                 configuredSyncs[thesync->localpath] = thesync;
+
+                if (versioncodeStoredValues != MEGACMD_CODE_VERSION)
+                {
+                    updateSavedFormatRequired = true;
+                }
+            }
+            if (updateSavedFormatRequired)
+            {
+                ConfigurationManager::saveSyncs(&ConfigurationManager::configuredSyncs);
             }
 
             if (fi.bad())
@@ -464,13 +558,14 @@ void ConfigurationManager::loadbackups()
 
 void ConfigurationManager::loadConfiguration(bool debug)
 {
-    stringstream sessionfile;
     if (!configFolder.size())
     {
         loadConfigDir();
     }
     if (configFolder.size())
     {
+        //SESSION
+        stringstream sessionfile;
         sessionfile << configFolder << "/" << "session";
 
         if (debug)
@@ -494,4 +589,39 @@ void ConfigurationManager::loadConfiguration(bool debug)
         if (debug)
             cout  << "Couldnt access configuration folder " << endl;
     }
+}
+
+string ConfigurationManager::getConfigurationSValue(string propertyName)
+{
+    if (!configFolder.size())
+    {
+        loadConfigDir();
+    }
+    if (configFolder.size())
+    {
+        stringstream configFile;
+        configFile << configFolder << "/" << "megacmd.cfg";
+        return getPropertyFromFile(configFile.str().c_str(),propertyName.c_str());
+    }
+}
+
+void ConfigurationManager::clearConfigurationFile()
+{
+    if (!configFolder.size())
+    {
+        loadConfigDir();
+    }
+    if (configFolder.size())
+    {
+        stringstream configFile;
+        configFile << configFolder << "/" << "megacmd.cfg";
+        ofstream fo(configFile.str().c_str());
+
+        if (fo.is_open())
+        {
+            fo << "";
+            fo.close();
+        }
+    }
+
 }

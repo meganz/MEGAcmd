@@ -1,8 +1,8 @@
 #include <windows.h>
  
 VS_VERSION_INFO     VERSIONINFO
-FILEVERSION         0, 9, 4, 0
-PRODUCTVERSION      0, 9, 4, 0
+FILEVERSION         0, 9, 6, 0
+PRODUCTVERSION      0, 9, 6, 0
 FILEFLAGSMASK       0x3fL
 FILEFLAGS           0
 FILEOS              VOS_NT_WINDOWS32
@@ -18,12 +18,12 @@ BEGIN
         BLOCK   "040904b0"
         BEGIN
             VALUE   "CompanyName",      "Mega Limited\0"
-            VALUE   "FileDescription",  "MEGAcmd\0"
-            VALUE   "InternalName",     "MEGAcmd.exe\0"
+            VALUE   "FileDescription",  "MEGAcmdServer\0"
+            VALUE   "InternalName",     "MEGAcmdServer.exe\0"
             VALUE   "LegalCopyright",   "Mega Limited 2017\0"
-            VALUE   "OriginalFilename", "MEGAcmd.exe\0"
-            VALUE   "ProductName",      "MEGAcmd\0"
-            VALUE   "ProductVersion",   "0.9.4.0\0"
+            VALUE   "OriginalFilename", "MEGAcmdServer.exe\0"
+            VALUE   "ProductName",      "MEGAcmdServer\0"
+            VALUE   "ProductVersion",   "0.9.6.0\0"
         END
     END
 END

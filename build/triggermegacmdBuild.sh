@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ##
- # @file src/build/triggermegacmdBuild.sh
+ # @file build/triggermegacmdBuild.sh
  # @brief Triggers OBS compilation for configured repositories 
  #     suppossing project with tarball built at $PROJECT_PATH/    
  #     suposing oscrc configured with apiurl correctly:           
@@ -45,8 +45,12 @@ sshpasscommand=""
 if [[ $1 == *@* ]]; then
 remote=$1
 shift
+if [[ "x$REMOTEP" != "x" ]]; then
+password=$REMOTEP
+else
 echo -n $remote Password: 
 read -s password
+fi
 sshpasscommand="sshpass -p $password ssh $remote"
 echo
 fi

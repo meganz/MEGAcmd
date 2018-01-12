@@ -34,5 +34,5 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 The previous applies to all sources and binaries within the SDK save
 those explicitly distributed under the terms of the GNU General Public
 License (see http://www.gnu.org/copyleft/gpl.txt for details), and the
-interactive MEGAcmdShell executables (mega-cmd and MEGAcmd.exe),
+interactive MEGAcmdShell executables (mega-cmd and MEGAcmdShell.exe),
 distributed under the aforementioned GNU General Public License.

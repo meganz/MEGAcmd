@@ -480,7 +480,7 @@ CmdPetition * ComunicationsManagerFileSockets::getPetition()
     return inf;
 }
 
-bool ComunicationsManagerFileSockets::getConfirmation(CmdPetition *inf, string message)
+int ComunicationsManagerFileSockets::getConfirmation(CmdPetition *inf, string message)
 {
     sockaddr_in cliAddr;
     socklen_t cliLength = sizeof( cliAddr );
@@ -507,7 +507,7 @@ bool ComunicationsManagerFileSockets::getConfirmation(CmdPetition *inf, string m
         LOG_err << "ERROR writing to socket: " << errno;
     }
 
-    bool response;
+    int response;
     n = recv(connectedsocket,&response, sizeof(response), MSG_NOSIGNAL);
 
     return response;
