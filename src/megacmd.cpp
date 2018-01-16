@@ -1011,7 +1011,7 @@ completionfunction_t *getCompletionFunction(vector<string> words)
             return remotefolders_completion;
         }
     }
-    else if (thecommand == "put" || thecommand == "backup")
+    else if (thecommand == "put")
     {
         if (currentparameter == 1)
         {
@@ -1020,6 +1020,17 @@ completionfunction_t *getCompletionFunction(vector<string> words)
         else
         {
             return remotepaths_completion;
+        }
+    }
+    else if (thecommand == "backup") //TODO: offer local folder completion
+    {
+        if (currentparameter == 1)
+        {
+            return local_completion;
+        }
+        else
+        {
+            return remotefolders_completion;
         }
     }
     else if (stringcontained(thecommand.c_str(), remotepatterncommands))

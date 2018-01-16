@@ -544,7 +544,7 @@ bool hasWildCards(string &what)
 
 void fillLocalTimeStruct(const time_t *ttime, struct tm *dt)
 {
-#if __cplusplus >= 201103L
+#if (__cplusplus >= 201103L) && defined(__STDC_WANT_LIB_EXT1__)
     localtime_s(ttime, dt);
 #elif _MSC_VER >= 1400 // MSVCRT (2005+): std::localtime is threadsafe
     *dt = *localtime_r(&ttime);
