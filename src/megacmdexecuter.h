@@ -141,10 +141,12 @@ public:
     void printTransfer(mega::MegaTransfer *transfer, const unsigned int PATHSIZE, bool printstate=true);
     void printSyncHeader(const unsigned int PATHSIZE);
 
-    void doPrintBackup(int id, std::string localfolder, std::__cxx11::string remoteparentfolder, std::__cxx11::string period, int masBackup, std::string status, mega::MegaBackup *backup = NULL);
-    void printBackup(int id, mega::MegaBackup *backup, bool extendedinfo = false, mega::MegaNode *parentnode = NULL);
-    void printBackup(int id, int tag, bool extendedinfo = false);
-    void printBackup(backup_struct *backupstruct, bool extendedinfo = false);
+    void printBackupHeader(const unsigned int PATHSIZE);
+    void printBackupSummary(int tag, const char *localfolder, const char *remoteparentfolder, std::string status, const unsigned int PATHSIZE);
+    void printBackupHistory(mega::MegaBackup *backup, mega::MegaNode *parentnode, const unsigned int PATHSIZE);
+    void printBackupDetails(mega::MegaBackup *backup);
+    void printBackup(int tag, mega::MegaBackup *backup, const unsigned int PATHSIZE, bool extendedinfo = false, bool showhistory = false, mega::MegaNode *parentnode = NULL);
+    void printBackup(backup_struct *backupstruct, const unsigned int PATHSIZE, bool extendedinfo = false, bool showhistory = false);
     void printSync(int i, std::string key, const char *nodepath, sync_struct * thesync, mega::MegaNode *n, long long nfiles, long long nfolders, const unsigned int PATHSIZE);
 
     void doFind(mega::MegaNode* nodeBase, std::string word, int printfileinfo, std::string pattern, bool usepcre, time_t minTime, time_t maxTime, int64_t minSize, int64_t maxSize);

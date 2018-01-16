@@ -69,6 +69,7 @@ bool hasWildCards(std::string &what);
 
 /* Time related */
 std::string getReadableTime(const time_t rawtime);
+std::string getReadableShortTime(const time_t rawtime, bool showUTCDeviation = false);
 
 std::string getReadablePeriod(const time_t rawtime);
 
@@ -133,6 +134,7 @@ bool getMinAndMaxSize(std::string sizestring, int64_t *minSize, int64_t *maxSize
 
 /* Others */
 std::string sizeToText(long long totalSize, bool equalizeUnitsLength = true, bool humanreadable = true);
+std::string sizeProgressToText(long long partialSize, long long totalSize, bool equalizeUnitsLength = true, bool humanreadable = true);
 
 int64_t textToSize(const char *text);
 

@@ -3403,25 +3403,132 @@ void MegaCmdExecuter::printSyncHeader(const unsigned int PATHSIZE)
 
 }
 
-void MegaCmdExecuter::doPrintBackup(int id, string localfolder, string remoteparentfolder, string period, int masBackup, string status, MegaBackup *backup)
+void MegaCmdExecuter::printBackupHeader(const unsigned int PATHSIZE)
 {
-    OUTSTREAM << id << ": " << localfolder
-              << " to: " << remoteparentfolder
-              << " PERIOD=" << period
-              << " NBACKUPS=" << masBackup
-              << " " << status;
-    if (backup)
-    {
-        OUTSTREAM << " files=" << backup->getNumberFiles() << "/" << backup->getTotalFiles();
-        OUTSTREAM << " folders=" << backup->getNumberFolders();
-        OUTSTREAM << " bytes=" << backup->getTransferredBytes() << "/" << backup->getTotalBytes();
-        OUTSTREAM << " next = " << getReadableTime(backup->getNextStartTime());
-    }
-
+    OUTSTREAM << "TAG  " << " ";
+    OUTSTREAM << getFixLengthString("LOCALPATH ", PATHSIZE) << " ";
+    OUTSTREAM << getFixLengthString("REMOTEPARENTPATH ", PATHSIZE) << " ";
+    OUTSTREAM << getRightAlignedString("STATUS", 14);
     OUTSTREAM << endl;
 }
 
-void MegaCmdExecuter::printBackup(int id, MegaBackup *backup, bool extendedinfo, MegaNode *parentnode)
+
+void MegaCmdExecuter::printBackupSummary(int tag, const char * localfolder, const char *remoteparentfolder, string status, const unsigned int PATHSIZE)
+{
+    OUTSTREAM << getFixLengthString(SSTR(tag),5) << " "
+              << getFixLengthString(localfolder, PATHSIZE) << " "
+              << getFixLengthString((remoteparentfolder?remoteparentfolder:"INVALIDPATH"), PATHSIZE) << " "
+              << getRightAlignedString(status, 14)
+              << endl;
+}
+
+void MegaCmdExecuter::printBackupDetails(MegaBackup *backup)
+{
+    if (backup)
+    {
+        string speriod = (backup->getPeriod() == -1)?backup->getPeriodString():getReadablePeriod(backup->getPeriod()/10);
+        OUTSTREAM << "  Max Backups:   " << backup->getMaxBackups() << endl;
+        OUTSTREAM << "  Period:         " << "\"" << speriod << "\"" << endl;
+        OUTSTREAM << "  Next backup scheduled for: " << getReadableTime(backup->getNextStartTime());
+
+        OUTSTREAM << endl;
+        OUTSTREAM << "  " << " -- CURRENT/LAST BACKUP --" << endl;
+        OUTSTREAM << "  " << getFixLengthString("FILES UP/TOT", 15);
+        OUTSTREAM << "  " << getFixLengthString("FOLDERS CREATED", 15);
+        OUTSTREAM << "  " << getRightAlignedString("PROGRESS", 10);
+        OUTSTREAM << endl;
+
+        string sfiles = SSTR(backup->getNumberFiles()) + "/" + SSTR(backup->getTotalFiles());
+        OUTSTREAM << "  " << getRightAlignedString(sfiles, 8) << "       ";
+        OUTSTREAM << "  " << getRightAlignedString(SSTR(backup->getNumberFolders()), 8) << "       ";
+        long long trabytes = backup->getTransferredBytes();
+        long long totbytes = backup->getTotalBytes();
+        double percent = totbytes?double(trabytes)/double(totbytes):0;
+
+        string sprogress = sizeProgressToText(trabytes, totbytes) + "  " + percentageToText(percent);
+        OUTSTREAM << "  " << getRightAlignedString(sprogress,10);
+        OUTSTREAM << endl;
+    }
+}
+
+void MegaCmdExecuter::printBackupHistory(MegaBackup *backup, MegaNode *parentnode, const unsigned int PATHSIZE)
+{
+    bool firstinhistory = true;
+    MegaStringList *msl = api->getBackupFolders(backup->getTag());
+    if (msl)
+    {
+        for (int i = 0; i < msl->size(); i++)
+        {
+            if (firstinhistory)
+            {
+                OUTSTREAM << "  " << " -- SAVED BACKUPS --" << endl;
+
+                // print header
+                OUTSTREAM << "  " << getFixLengthString("NAME", PATHSIZE) << " ";
+                OUTSTREAM << getFixLengthString("DATE", 18) << " ";
+                OUTSTREAM << getRightAlignedString("STATUS", 11)<< " ";
+                OUTSTREAM << getRightAlignedString("FILES", 6)<< " ";
+                OUTSTREAM << getRightAlignedString("FOLDERS", 7);
+                OUTSTREAM << endl;
+
+                firstinhistory = false;
+            }
+
+            string bpath = msl->get(i);
+            size_t pos = bpath.find("_bk_");
+            string btime = "";
+            if (pos != string::npos)
+            {
+                btime = bpath.substr(pos+4);
+            }
+
+            pos = bpath.find_last_of("/");
+            string backupInstanceName = bpath;
+            if (pos != string::npos)
+            {
+                backupInstanceName = bpath.substr(pos+1);
+            }
+
+            string printableDate = "UNKNOWN";
+            if (btime.size())
+            {
+                struct tm dt;
+                memset(&dt, 0, sizeof(struct tm));
+                strptime(btime.c_str(), "%Y%m%d%H%M%S", &dt);
+                printableDate = getReadableShortTime(mktime(&dt));
+            }
+
+            string backupInstanceStatus="NOT_FOUND";
+            long long nfiles = 0;
+            long long nfolders = 0;
+            if (parentnode)
+            {
+                MegaNode *backupInstanceNode = api->getNodeByPath(msl->get(i));
+                if (backupInstanceNode)
+                {
+                    backupInstanceStatus = backupInstanceNode->getCustomAttr("BACKST");
+
+                    getNumFolderFiles(backupInstanceNode, api, &nfiles, &nfolders);
+
+                }
+
+                delete backupInstanceNode;
+            }
+
+            OUTSTREAM << "  " << getFixLengthString(backupInstanceName, PATHSIZE) << " ";
+            OUTSTREAM << getFixLengthString(printableDate, 18) << " ";
+            OUTSTREAM << getRightAlignedString(backupInstanceStatus, 11) << " ";
+            OUTSTREAM << getRightAlignedString(SSTR(nfiles), 6)<< " ";
+            OUTSTREAM << getRightAlignedString(SSTR(nfolders), 7);
+            //OUTSTREAM << getRightAlignedString("PROGRESS", 10);// some info regarding progress or the like in case of failure could be interesting. Although we don't know total files/folders/bytes
+            OUTSTREAM << endl;
+
+        }
+        delete msl;
+    }
+}
+
+void MegaCmdExecuter::printBackup(int tag, MegaBackup *backup, const unsigned int PATHSIZE, bool extendedinfo, bool showhistory, MegaNode *parentnode)
 {
     if (backup)
     {
@@ -3442,44 +3549,18 @@ void MegaCmdExecuter::printBackup(int id, MegaBackup *backup, bool extendedinfo,
             nodepath = api->getNodePath(parentnode);
         }
 
-        if (nodepath)
+        printBackupSummary(tag, backup->getLocalFolder(),nodepath,backupSatetStr(backup->getState()), PATHSIZE);
+        if (extendedinfo)
         {
-            doPrintBackup(id, backup->getLocalFolder(),nodepath,(backup->getPeriod() == -1)?backup->getPeriodString():getReadablePeriod(backup->getPeriod()/10),backup->getMaxBackups(),backupSatetStr(backup->getState()), backup);
-            delete []nodepath;
+            printBackupDetails(backup);
         }
-        else
-        {
-            doPrintBackup(id, backup->getLocalFolder(),"INVALIDPATH",(backup->getPeriod() == -1)?backup->getPeriodString():getReadablePeriod(backup->getPeriod()/10),backup->getMaxBackups(),backupSatetStr(backup->getState()), backup);
-        }
-        if (extendedinfo && parentnode)
-        {
-            MegaStringList *msl = api->getBackupFolders(backup->getTag());
-            if (msl)
-            {
-                for (int i = 0; i < msl->size(); i++)
-                {
-                    string bpath = msl->get(i);
-                    size_t pos = bpath.find("_bk_");
-                    string btime = "";
-                    if (pos != string::npos)
-                    {
-                        btime = bpath.substr(pos+4);
-                    }
+        delete []nodepath;
 
-                    string printableString = "UNKNOWN";
-                    if (btime.size())
-                    {
-                        struct tm dt;
-                        memset(&dt, 0, sizeof(struct tm));
-                        strptime(btime.c_str(), "%Y%m%d%H%M%S", &dt);
-                        printableString = getReadableTime(mktime(&dt));
-                    }
-
-                    OUTSTREAM << "  " << bpath << " time=" << printableString << endl;
-                }
-                delete msl;
-            }
+        if (showhistory && parentnode)
+        {
+            printBackupHistory(backup, parentnode, PATHSIZE);
         }
+
         if (deleteparentnode)
         {
             delete parentnode;
@@ -3491,29 +3572,30 @@ void MegaCmdExecuter::printBackup(int id, MegaBackup *backup, bool extendedinfo,
     }
 }
 
-void MegaCmdExecuter::printBackup(int id, int tag, bool extendedinfo)
-{
-    MegaBackup *backup = api->getBackupByTag(tag);
-    if (backup)
-    {
-        printBackup(id, backup, extendedinfo);
-        delete backup;
-    }
-    else
-    {
-        OUTSTREAM << "BACKUP not found: " << tag << endl;
-    }
-}
-
-void MegaCmdExecuter::printBackup(backup_struct *backupstruct, bool extendedinfo)
+void MegaCmdExecuter::printBackup(backup_struct *backupstruct, const unsigned int PATHSIZE, bool extendedinfo, bool showhistory)
 {
     if (backupstruct->tag >= 0)
     {
-        printBackup(backupstruct->id, backupstruct->tag, extendedinfo);
+        MegaBackup *backup = api->getBackupByTag(backupstruct->tag);
+        if (backup)
+        {
+            printBackup(backupstruct->tag, backup, PATHSIZE, extendedinfo, showhistory);
+            delete backup;
+        }
+        else
+        {
+            OUTSTREAM << "BACKUP not found: " << backupstruct->tag << endl;
+        }
     }
     else
-    {
-        doPrintBackup(backupstruct->id, backupstruct->localpath,"UNKOWN",(backupstruct->period == -1)?backupstruct->speriod:getReadablePeriod(backupstruct->period/10),backupstruct->numBackups," FAILED"); //TODO: use periodstring if period == -1
+    { //merely print configuration
+        printBackupSummary(backupstruct->tag, backupstruct->localpath.c_str(),"UNKOWN"," FAILED", PATHSIZE);
+        if (extendedinfo)
+        {
+            string speriod = (backupstruct->period == -1)?backupstruct->speriod:getReadablePeriod(backupstruct->period/10);
+            OUTSTREAM << "         Period: " << "\"" << speriod << "\"" << endl;
+            OUTSTREAM << "   Max. Backups: " << backupstruct->numBackups << endl;
+        }
     }
 }
 
@@ -4985,30 +5067,83 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
     }
     else if (words[0] == "backup")
     {
-        //TODO: add delete functionality, maybe based on tag/another id?
         bool dodelete = getFlag(clflags,"d");
-        bool stop = getFlag(clflags,"s");
-        bool resume = getFlag(clflags,"r");
         bool abort = getFlag(clflags,"a");
-        bool initiatenow = getFlag(clflags,"i");
         bool listinfo = getFlag(clflags,"l");
+        bool listhistory = getFlag(clflags,"h");
 
+//        //TODO: do the following functionality
+//        bool stop = getFlag(clflags,"s");
+//        bool resume = getFlag(clflags,"r");
+//        bool initiatenow = getFlag(clflags,"i");
+
+        int PATHSIZE = getintOption(cloptions,"path-display-size");
+        if (!PATHSIZE)
+        {
+            // get screen size for output purposes
+            unsigned int width = getNumberOfCols(75);
+            PATHSIZE = min(60,int((width-46)/2));
+        }
+
+        bool firstbackup = true;
 
         if (words.size() == 3)
         {
             string local = words.at(1);
             string remote = words.at(2);
 
-            string speriod=getOption(cloptions, "period", "1h");
+            string speriod=getOption(cloptions, "period");
             int64_t period = -1;
-            if (speriod.find(" ") == string::npos)
+
+            if (!speriod.size())
+            {
+                MegaBackup *backup = api->getBackupByPath(words[1].c_str());
+                if (!backup)
+                {
+                    backup = api->getBackupByTag(toInteger(words[1], -1));
+                }
+                if (backup)
+                {
+                    speriod = backup->getPeriodString();
+                    if (!speriod.size())
+                    {
+                        period = backup->getPeriod();
+                    }
+                    delete backup;
+                }
+                else
+                {
+                    setCurrentOutCode(MCMD_EARGS);
+                    LOG_err << "      " << getUsageStr("backup");
+                    return;
+                }
+            }
+            if (speriod.find(" ") == string::npos && period == -1)
             {
                 period = 10 * getTimeStampAfter(0,speriod);
                 speriod = "";
             }
 
-            int64_t numBackups = getintOption(cloptions, "num-backups", 10);
-
+            int64_t numBackups = getintOption(cloptions, "num-backups", -1);
+            if (numBackups == -1)
+            {
+                MegaBackup *backup = api->getBackupByPath(words[1].c_str());
+                if (!backup)
+                {
+                    backup = api->getBackupByTag(toInteger(words[1], -1));
+                }
+                if (backup)
+                {
+                    numBackups = backup->getMaxBackups();
+                    delete backup;
+                }
+            }
+            if (numBackups == -1)
+            {
+                setCurrentOutCode(MCMD_EARGS);
+                LOG_err << "      " << getUsageStr("backup");
+                return;
+            }
 
             MegaNode *n = api->getNodeByPath(remote.c_str());
             if (n)
@@ -5039,6 +5174,10 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         else if (words.size() == 2)
         {
             MegaBackup *backup = api->getBackupByPath(words[1].c_str());
+            if (!backup)
+            {
+                backup = api->getBackupByTag(toInteger(words[1], -1));
+            }
             map<string, backup_struct *>::iterator itr;
             if (backup)
             {
@@ -5085,18 +5224,38 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 }
                 else
                 {
-                    printBackup(backupid, backup, listinfo);
+                    if(firstbackup)
+                    {
+                        printBackupHeader(PATHSIZE);
+                        firstbackup = false;
+                    }
+
+                    printBackup(backup->getTag(), backup, PATHSIZE, listinfo, listhistory);
                 }
                 delete backup;
+            }
+            else
+            {
+                setCurrentOutCode(MCMD_NOTFOUND);
+                LOG_err << "Backup not found: " << words[1];
             }
         }
         else if (words.size() == 1) //list backups
         {
             mtxBackupsMap.lock();
-
             for (map<string, backup_struct *>::iterator itr = ConfigurationManager::configuredBackups.begin(); itr != ConfigurationManager::configuredBackups.end(); itr++ )
             {
-                printBackup(itr->second, listinfo);
+                if(firstbackup)
+                {
+                    printBackupHeader(PATHSIZE);
+                    firstbackup = false;
+                }
+                printBackup(itr->second, PATHSIZE, listinfo, listhistory);
+            }
+            if (!ConfigurationManager::configuredBackups.size())
+            {
+                setCurrentOutCode(MCMD_NOTFOUND);
+                OUTSTREAM << "No backup configured. " << endl << " Usage: " << getUsageStr("backup") << endl;
             }
             mtxBackupsMap.unlock();
 

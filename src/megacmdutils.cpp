@@ -489,7 +489,7 @@ string backupSatetStr(int backupstate)
     }
     if (backupstate == MegaBackup::BACKUP_REMOVING_EXCEEDING)
     {
-        return "REMOVING_EXCEEDING";
+        return "EXCEEDREMOVAL";
     }
 
     return "UNDEFINED";
@@ -571,6 +571,23 @@ std::string getReadableTime(const time_t rawtime)
     char buffer [40];
     fillLocalTimeStruct(&rawtime, &dt);
     strftime(buffer, sizeof( buffer ), "%a, %d %b %Y %T %z", &dt); // Following RFC 2822 (as in date -R)
+    return std::string(buffer);
+}
+
+std::string getReadableShortTime(const time_t rawtime, bool showUTCDeviation)
+{
+    struct tm dt;
+    char buffer [40];
+    fillLocalTimeStruct(&rawtime, &dt);
+    if (showUTCDeviation)
+    {
+        strftime(buffer, sizeof( buffer ), "%d%b%Y %T %z", &dt); // Following RFC 2822 (as in date -R)
+    }
+    else
+    {
+        strftime(buffer, sizeof( buffer ), "%d%b%Y %T", &dt); // Following RFC 2822 (as in date -R)
+
+    }
     return std::string(buffer);
 }
 
@@ -1355,7 +1372,7 @@ int getintOption(map<string, string> *cloptions, const char * optname, int defau
 {
     if (cloptions->count(optname))
     {
-        int i;
+        int i = defaultValue;
         istringstream is(( *cloptions )[optname]);
         is >> i;
         return i;
@@ -1435,6 +1452,53 @@ bool setOptionsAndFlags(map<string, string> *opts, map<string, int> *flags, vect
     }
 
     return discarded;
+}
+
+
+string sizeProgressToText(long long partialSize, long long totalSize, bool equalizeUnitsLength, bool humanreadable)
+{
+    ostringstream os;
+    os.precision(2);
+    if (humanreadable)
+    {
+        string unit;
+        unit = ( equalizeUnitsLength ? " B" : "B" );
+        double reducedPartSize = totalSize;
+        double reducedSize = totalSize;
+
+        if ( totalSize > 1099511627776LL *2 )
+        {
+            reducedPartSize = totalSize / (double) 1099511627776L;
+            reducedSize = totalSize / (double) 1099511627776L;
+            unit = "TB";
+        }
+        else if ( totalSize > 1073741824LL *2 )
+        {
+            reducedPartSize = totalSize / (double) 1073741824L;
+            reducedSize = totalSize / (double) 1073741824L;
+            unit = "GB";
+        }
+        else if (totalSize > 1048576 * 2)
+        {
+            reducedPartSize = totalSize / (double) 1048576;
+            reducedSize = totalSize / (double) 1048576;
+            unit = "MB";
+        }
+        else if (totalSize > 1024 * 2)
+        {
+            reducedPartSize = totalSize / (double) 1024;
+            reducedSize = totalSize / (double) 1024;
+            unit = "KB";
+        }
+        os << fixed << reducedPartSize << "/" << reducedSize;
+        os << " " << unit;
+    }
+    else
+    {
+        os << partialSize << "/" << totalSize;
+    }
+
+    return os.str();
 }
 
 string sizeToText(long long totalSize, bool equalizeUnitsLength, bool humanreadable)
@@ -1556,7 +1620,6 @@ string secondsToText(time_t seconds, bool humanreadable)
 
     return os.str();
 }
-
 
 string percentageToText(float percentage)
 {
