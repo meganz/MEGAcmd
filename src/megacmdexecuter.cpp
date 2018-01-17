@@ -3482,7 +3482,7 @@ void MegaCmdExecuter::printBackupHistory(MegaBackup *backup, MegaNode *parentnod
                 btime = bpath.substr(pos+4);
             }
 
-            pos = bpath.find_last_of("/");
+            pos = bpath.find_last_of("/\\");
             string backupInstanceName = bpath;
             if (pos != string::npos)
             {
