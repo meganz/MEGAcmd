@@ -1883,11 +1883,12 @@ string getHelpStr(const char *command)
     {
         os << "Controls backups" << endl;
         os << endl;
+        //TODO: explain what happens in case of still going on
         os << "If no argument is given it will list the configured backups" << endl;
         os << " To get extra info on backups use -l or -h (see Options below)" << endl;
         os << endl;
         os << "When a backup of a folder (localfolder) is stablished in a remote folder (remotepath)" << endl;
-        os << " MEGAcmd will create subfolder within the remote path with names like: \"localfoldername_TIMESTAMP\"" << endl;
+        os << " MEGAcmd will create subfolder within the remote path with names like: \"localfoldername_bk_TIME\"" << endl;
         os << " which shall contain a backup of the local folder at that specific time" << endl;
         os << "In order to configure a backup you need to specify the local and remote paths, " << endl;
         os << "the period and max number of backups to store (see Configuration Options below)." << endl;

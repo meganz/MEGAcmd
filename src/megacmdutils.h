@@ -68,6 +68,8 @@ bool hasWildCards(std::string &what);
 
 
 /* Time related */
+const char *fillStructWithSYYmdHMS(std::string &stime, struct tm &dt);
+
 std::string getReadableTime(const time_t rawtime);
 std::string getReadableShortTime(const time_t rawtime, bool showUTCDeviation = false);
 

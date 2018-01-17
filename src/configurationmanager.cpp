@@ -28,6 +28,12 @@
 #include <pwd.h>  //getpwuid_r
 #endif
 
+#ifdef _WIN32
+#define PATH_MAX_LOCAL_BACKUP MAX_PATH
+#else
+#define PATH_MAX_LOCAL_BACKUP PATH_MAX
+#endif
+
 using namespace std;
 using namespace mega;
 
@@ -505,7 +511,7 @@ void ConfigurationManager::loadbackups()
                 fi.read((char*)&thebackup->handle, sizeof( MegaHandle ));
                 size_t lengthLocalPath;
                 fi.read((char*)&lengthLocalPath, sizeof( size_t ));
-                if (lengthLocalPath && lengthLocalPath <= PATH_MAX)
+                if (lengthLocalPath && lengthLocalPath <= PATH_MAX_LOCAL_BACKUP)
                 {
                     thebackup->localpath.resize(lengthLocalPath);
                     fi.read((char*)thebackup->localpath.c_str(), sizeof( char ) * lengthLocalPath);
@@ -515,7 +521,7 @@ void ConfigurationManager::loadbackups()
 
                     size_t lengthLocalPeriod;
                     fi.read((char*)&lengthLocalPeriod, sizeof( size_t ));
-                    if (lengthLocalPeriod && lengthLocalPeriod <= PATH_MAX)
+                    if (lengthLocalPeriod && lengthLocalPeriod <= PATH_MAX_LOCAL_BACKUP)
                     {
                         thebackup->speriod.resize(lengthLocalPeriod);
                         fi.read((char*)thebackup->speriod.c_str(), sizeof( char ) * lengthLocalPeriod);

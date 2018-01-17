@@ -3493,8 +3493,7 @@ void MegaCmdExecuter::printBackupHistory(MegaBackup *backup, MegaNode *parentnod
             if (btime.size())
             {
                 struct tm dt;
-                memset(&dt, 0, sizeof(struct tm));
-                strptime(btime.c_str(), "%Y%m%d%H%M%S", &dt);
+                fillStructWithSYYmdHMS(btime,dt);
                 printableDate = getReadableShortTime(mktime(&dt));
             }
 

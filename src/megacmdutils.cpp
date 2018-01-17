@@ -31,6 +31,7 @@
 
 #include <iomanip>
 #include <fstream>
+#include <time.h>
 
 using namespace std;
 using namespace mega;
@@ -542,12 +543,49 @@ bool hasWildCards(string &what)
     return what.find('*') != string::npos || what.find('?') != string::npos;
 }
 
-void fillLocalTimeStruct(const time_t *ttime, struct tm *dt)
+const char *fillStructWithSYYmdHMS(string &stime, struct tm &dt)
+{
+    memset(&dt, 0, sizeof(struct tm));
+#ifdef _WIN32
+    if (stime.size() != 14)
+    {
+        return NULL;
+    }
+    for(int i=0;i<14;i++)
+    {
+        if ( (stime.at(i) < '0') || (stime.at(i) > '9') )
+        {
+            return NULL;
+        }
+    }
+
+    dt.tm_year = atoi(stime.substr(0,4).c_str()) - 1900;
+    dt.tm_mon = atoi(stime.substr(4,2).c_str()) - 1;
+    dt.tm_mday = atoi(stime.substr(6,2).c_str());
+    dt.tm_hour = atoi(stime.substr(8,2).c_str());
+    dt.tm_min = atoi(stime.substr(10,2).c_str());
+    dt.tm_sec = atoi(stime.substr(12,2).c_str());
+    return stime.c_str();
+#else
+    return strptime(stime.c_str(), "%Y%m%d%H%M%S", &dt);
+#endif
+}
+
+void fillLocalTimeStruct(const time_t *ttime, struct tm *dt) //TODO: copy this to megaapiimpl
 {
 #if (__cplusplus >= 201103L) && defined(__STDC_WANT_LIB_EXT1__)
     localtime_s(ttime, dt);
 #elif _MSC_VER >= 1400 // MSVCRT (2005+): std::localtime is threadsafe
-    *dt = *localtime_r(&ttime);
+    struct tm *newtm = localtime(ttime);
+    if (newtm)
+    {
+        memcpy(dt,newtm,sizeof(struct tm));
+    }
+    else
+    {
+        memset(dt,0,sizeof(struct tm));
+    }
+
 #elif _WIN32
     static MegaMutex * mtx = new MegaMutex();
     static bool initiated = false;
@@ -558,7 +596,14 @@ void fillLocalTimeStruct(const time_t *ttime, struct tm *dt)
     }
     mtx->lock();
     struct tm *newtm = localtime(ttime);
-    *dt = *newtm;
+    if (newtm)
+    {
+        memcpy(dt,newtm,sizeof(struct tm));
+    }
+    else
+    {
+        memset(dt,0,sizeof(struct tm));
+    }
     mtx->unlock();
 #else //POSIX
     localtime_r(ttime, dt);
@@ -577,16 +622,23 @@ std::string getReadableTime(const time_t rawtime)
 std::string getReadableShortTime(const time_t rawtime, bool showUTCDeviation)
 {
     struct tm dt;
+    memset(&dt, 0, sizeof(struct tm));
     char buffer [40];
-    fillLocalTimeStruct(&rawtime, &dt);
-    if (showUTCDeviation)
+    if (rawtime != -1)
     {
-        strftime(buffer, sizeof( buffer ), "%d%b%Y %T %z", &dt); // Following RFC 2822 (as in date -R)
+        fillLocalTimeStruct(&rawtime, &dt);
+        if (showUTCDeviation)
+        {
+            strftime(buffer, sizeof( buffer ), "%d%b%Y %T %z", &dt); // Following RFC 2822 (as in date -R)
+        }
+        else
+        {
+            strftime(buffer, sizeof( buffer ), "%d%b%Y %T", &dt); // Following RFC 2822 (as in date -R)
+        }
     }
     else
     {
-        strftime(buffer, sizeof( buffer ), "%d%b%Y %T", &dt); // Following RFC 2822 (as in date -R)
-
+        sprintf(buffer,"INVALID_TIME %d", rawtime);
     }
     return std::string(buffer);
 }
