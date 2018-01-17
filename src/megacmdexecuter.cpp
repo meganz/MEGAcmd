@@ -2265,7 +2265,7 @@ void MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
                 backup_struct *thebackup = itr->second;
 
                 MegaNode * node = api->getNodeByHandle(thebackup->handle);
-                if (stablishBackup(thebackup->localpath, node, thebackup->period, thebackup->speriod, thebackup->numBackups)) //TODO: use crontab like period
+                if (stablishBackup(thebackup->localpath, node, thebackup->period, thebackup->speriod, thebackup->numBackups))
                 {
                     thebackup->failed = false;
                     const char *nodepath = api->getNodePath(node);
@@ -4036,7 +4036,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         }
         int recursive = getFlag(clflags, "R") + getFlag(clflags, "r");
         int extended_info = getFlag(clflags, "l");
-        int show_versions = getFlag(clflags, "v");//TODO: add flag
+        int show_versions = getFlag(clflags, "v");
 
         if ((int)words.size() > 1)
         {

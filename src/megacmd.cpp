@@ -1883,7 +1883,6 @@ string getHelpStr(const char *command)
     {
         os << "Controls backups" << endl;
         os << endl;
-        //TODO: explain what happens in case of still going on
         os << "If no argument is given it will list the configured backups" << endl;
         os << " To get extra info on backups use -l or -h (see Options below)" << endl;
         os << endl;
@@ -1908,6 +1907,9 @@ string getHelpStr(const char *command)
         os << "  \t"  << "  will be carried out nevertheless." << endl;
         os << "  \t"  << "If MEGAcmd server is not running when a backup is scheduled and the time for the next one has already arrived,"
               " an empty BACKUP will be created with state SKIPPED" << endl;
+        os << "  \t"  << "If a backup(1) is ONGOING and the time for the next backup(2) arrives, it won't start untill the previous one(1) " << endl;
+        os << "  \t"  << " is completed, and if by the time the first one(1) ends the time for the next one(3) has already arrived," << endl;
+        os << "  \t"  << " an empty BACKUP(2) will be created with state SKIPPED" << endl;
         os << " --path-display-size=N" << "\t" << "Use a fixed size of N characters for paths" << endl;
         os << endl;
         os << "Configuration Options:" << endl;
@@ -1944,6 +1946,8 @@ string getHelpStr(const char *command)
         os << "-d TAG|localpath\t" << "Removes a backup by its TAG or local path" << endl;
         os << "                \t" << " Folders created by backup won't be deleted" << endl;
         os << "-a TAG|localpath\t" << "Aborts ongoing backup" << endl;
+        os << endl;
+        os << "Caveat: This functionality is in BETA state. If you experience any issue with this, please contact: support@mega.nz" << endl;
         os << endl;
     }
     else if (!strcmp(command, "export"))
