@@ -5091,6 +5091,18 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             string local = words.at(1);
             string remote = words.at(2);
 
+            string locallocal;
+            fsAccessCMD->path2local(&local, &locallocal);
+            FileAccess *fa = fsAccessCMD->newfileaccess();
+            if (!fa->isfolder(&locallocal))
+            {
+                setCurrentOutCode(MCMD_NOTFOUND);
+                LOG_err << "Local path must be an existing folder: " << local;
+                delete fa;
+                return;
+            }
+            delete fa;
+
             string speriod=getOption(cloptions, "period");
             int64_t period = -1;
 
@@ -5159,7 +5171,9 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         mtxBackupsMap.lock();
                         ConfigurationManager::saveBackups(&ConfigurationManager::configuredBackups);
                         mtxBackupsMap.unlock();
-                        OUTSTREAM << "Backup stablished: " << local << " into " << remote << " period=" << getReadablePeriod(period/10) << " Number-of-Backups=" << numBackups << endl;
+                        OUTSTREAM << "Backup stablished: " << local << " into " << remote << " period="
+                                  << ((period != -1)?getReadablePeriod(period/10):"\""+speriod+"\"")
+                                  << " Number-of-Backups=" << numBackups << endl;
                     }
                 }
                 delete n;
