@@ -52,6 +52,9 @@ int getShareLevelNum(const char* level);
 
 const char * getTransferStateStr(int transferState);
 
+std::string backupSatetStr(int backupstate);
+
+
 
 /* Files and folders */
 
@@ -65,8 +68,12 @@ bool hasWildCards(std::string &what);
 
 
 /* Time related */
+const char *fillStructWithSYYmdHMS(std::string &stime, struct tm &dt);
 
 std::string getReadableTime(const time_t rawtime);
+std::string getReadableShortTime(const time_t rawtime, bool showUTCDeviation = false);
+
+std::string getReadablePeriod(const time_t rawtime);
 
 time_t getTimeStampAfter(time_t initial, std::string timestring);
 
@@ -129,6 +136,7 @@ bool getMinAndMaxSize(std::string sizestring, int64_t *minSize, int64_t *maxSize
 
 /* Others */
 std::string sizeToText(long long totalSize, bool equalizeUnitsLength = true, bool humanreadable = true);
+std::string sizeProgressToText(long long partialSize, long long totalSize, bool equalizeUnitsLength = true, bool humanreadable = true);
 
 int64_t textToSize(const char *text);
 

@@ -193,6 +193,32 @@ void MegaCmdMegaListener::onChatsUpdate(MegaApi *api, MegaTextChatList *chats)
 {}
 #endif
 
+//backup callbacks:
+void MegaCmdMegaListener::onBackupStateChanged(MegaApi *api,  MegaBackup *backup)
+{
+    LOG_verbose << " At onBackupStateChanged: " << backupSatetStr(backup->getState());
+}
+
+void MegaCmdMegaListener::onBackupStart(MegaApi *api, MegaBackup *backup)
+{
+    LOG_verbose << " At onBackupStart";
+}
+
+void MegaCmdMegaListener::onBackupFinish(MegaApi* api, MegaBackup *backup, MegaError* error)
+{
+    LOG_verbose << " At onBackupFinish";
+}
+
+void MegaCmdMegaListener::onBackupUpdate(MegaApi *api, MegaBackup *backup)
+{
+    LOG_verbose << " At onBackupUpdate";
+}
+
+void MegaCmdMegaListener::onBackupTemporaryError(MegaApi *api, MegaBackup *backup, MegaError* error)
+{
+    LOG_verbose << " At onBackupTemporaryError";
+}
+
 ////////////////////////////////////////
 ///      MegaCmdListener methods     ///
 ////////////////////////////////////////
@@ -798,4 +824,3 @@ MegaCmdGlobalTransferListener::~MegaCmdGlobalTransferListener()
     }
     completedTransfersMutex.unlock();
 }
-

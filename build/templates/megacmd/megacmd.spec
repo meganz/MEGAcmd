@@ -417,6 +417,7 @@ killall mega-cmd-server 2> /dev/null || true
 %{_bindir}/mega-logout
 %{_bindir}/mega-lpwd
 %{_bindir}/mega-ls
+%{_bindir}/mega-backup
 %{_bindir}/mega-mkdir
 %{_bindir}/mega-mount
 %{_bindir}/mega-mv

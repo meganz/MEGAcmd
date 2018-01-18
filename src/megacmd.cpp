@@ -196,7 +196,7 @@ vector<string> emailpatterncommands(aemailpatterncommands, aemailpatterncommands
 string avalidCommands [] = { "login", "signup", "confirm", "session", "mount", "ls", "cd", "log", "debug", "pwd", "lcd", "lpwd", "import", "masterkey",
                              "put", "get", "attr", "userattr", "mkdir", "rm", "du", "mv", "cp", "sync", "export", "share", "invite", "ipc",
                              "showpcr", "users", "speedlimit", "killsession", "whoami", "help", "passwd", "reload", "logout", "version", "quit",
-                             "thumbnail", "preview", "find", "completion", "clear", "https", "transfers", "exclude", "exit", "deleteversions"
+                             "thumbnail", "preview", "find", "completion", "clear", "https", "transfers", "exclude", "exit", "backup", "deleteversions"
 #ifdef _WIN32
                              ,"unicode"
 #else
@@ -424,6 +424,19 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validParams->insert("a");
         validParams->insert("d");
         validParams->insert("restart-syncs");
+    }
+    else if ("backup" == thecommand)
+    {
+        validOptValues->insert("period");
+        validOptValues->insert("num-backups");
+        validParams->insert("d");
+//        validParams->insert("s");
+//        validParams->insert("r");
+        validParams->insert("a");
+//        validParams->insert("i");
+        validParams->insert("l");
+        validParams->insert("h");
+        validOptValues->insert("path-display-size");
     }
     else if ("sync" == thecommand)
     {
@@ -1009,6 +1022,17 @@ completionfunction_t *getCompletionFunction(vector<string> words)
             return remotepaths_completion;
         }
     }
+    else if (thecommand == "backup") //TODO: offer local folder completion
+    {
+        if (currentparameter == 1)
+        {
+            return local_completion;
+        }
+        else
+        {
+            return remotefolders_completion;
+        }
+    }
     else if (stringcontained(thecommand.c_str(), remotepatterncommands))
     {
         if (currentparameter == 1)
@@ -1335,6 +1359,10 @@ const char * getUsageStr(const char *command)
     if (!strcmp(command, "sync"))
     {
         return "sync [localpath dstremotepath| [-dsr] [ID|localpath]";
+    }
+    if (!strcmp(command, "backup"))
+    {
+        return "backup (localpath remotepath --period=\"PERIODSTRING\" --num-backups=N  | [-lhda] [TAG|localpath] [--period=\"PERIODSTRING\"] [--num-backups=N])";
     }
     if (!strcmp(command, "https"))
     {
@@ -1850,6 +1878,80 @@ string getHelpStr(const char *command)
         os << "-s" << " " << "ID|localpath" << "\t" << "stops(pauses) a synchronization" << endl;
         os << "-r" << " " << "ID|localpath" << "\t" << "resumes a synchronization" << endl;
         os << " --path-display-size=N" << "\t" << "Use a fixed size of N characters for paths" << endl;
+    }
+    else if (!strcmp(command, "backup"))
+    {
+        os << "Controls backups" << endl;
+        os << endl;
+        os << "This command can be used to configure and control backups. " << endl;
+        os << "A tutorial can be found here: https://github.com/meganz/MEGAcmd/blob/master/contrib/docs/BACKUPS.md" << endl;
+        os << endl;
+        os << "If no argument is given it will list the configured backups" << endl;
+        os << " To get extra info on backups use -l or -h (see Options below)" << endl;
+        os << endl;
+        os << "When a backup of a folder (localfolder) is stablished in a remote folder (remotepath)" << endl;
+        os << " MEGAcmd will create subfolder within the remote path with names like: \"localfoldername_bk_TIME\"" << endl;
+        os << " which shall contain a backup of the local folder at that specific time" << endl;
+        os << "In order to configure a backup you need to specify the local and remote paths, " << endl;
+        os << "the period and max number of backups to store (see Configuration Options below)." << endl;
+        os << "Once configured, you can see extended info asociated to the backup (See Display Options)" << endl;
+        os << "Notice that MEGAcmd server need to be running for backups to be created." << endl;
+        os << endl;
+        os << "Display Options:" << endl;
+        os << "-l\t" << "Show extended info: period, max number, next scheduled backup" << endl;
+        os << "  \t" << " or the status of current/last backup" << endl;
+        os << "-h\t" << "Show history of created backups" << endl;
+        os << "  \t" << "Backup states:" << endl;
+        os << "  \t"  << "While a backup is being performed, the backup will be considered and labeled as ONGOING" << endl;
+        os << "  \t"  << "If a transfer is cancelled or fails, the backup will be considered INCOMPLETE" << endl;
+        os << "  \t"  << "If a backup is aborted (see -a), all the transfers will be canceled and the backup be ABORTED" << endl;
+        os << "  \t"  << "If MEGAcmd server stops during a transfer, it will be considered MISCARRIED" << endl;
+        os << "  \t"  << "  Notice that currently when MEGAcmd server is restarted, ongoing and scheduled transfers " << endl;
+        os << "  \t"  << "  will be carried out nevertheless." << endl;
+        os << "  \t"  << "If MEGAcmd server is not running when a backup is scheduled and the time for the next one has already arrived,"
+              " an empty BACKUP will be created with state SKIPPED" << endl;
+        os << "  \t"  << "If a backup(1) is ONGOING and the time for the next backup(2) arrives, it won't start untill the previous one(1) " << endl;
+        os << "  \t"  << " is completed, and if by the time the first one(1) ends the time for the next one(3) has already arrived," << endl;
+        os << "  \t"  << " an empty BACKUP(2) will be created with state SKIPPED" << endl;
+        os << " --path-display-size=N" << "\t" << "Use a fixed size of N characters for paths" << endl;
+        os << endl;
+        os << "Configuration Options:" << endl;
+        os << "--period=\"PERIODSTRING\"\t" << "Period: either time in TIMEFORMAT (see below) or a cron like expresisions" << endl;
+        os << "                       \t" << " Cron like period is formatted as follows" << endl;
+        os << "                       \t" << "  - - - - - -" << endl;
+        os << "                       \t" << "  | | | | | |" << endl;
+        os << "                       \t" << "  | | | | | |" << endl;
+        os << "                       \t" << "  | | | | | +---- Day of the Week   (range: 1-7, 1 standing for Monday)" << endl;
+        os << "                       \t" << "  | | | | +------ Month of the Year (range: 1-12)" << endl;
+        os << "                       \t" << "  | | | +-------- Day of the Month  (range: 1-31)" << endl;
+        os << "                       \t" << "  | | +---------- Hour              (range: 0-23)" << endl;
+        os << "                       \t" << "  | +------------ Minute            (range: 0-59)" << endl;
+        os << "                       \t" << "  +-------------- Second            (range: 0-59)" << endl;
+        os << "                       \t" << " examples:" << endl;
+        os << "                       \t" << "  - daily at 04:00:00 (UTC): \"0 0 4 * * *\"" << endl;
+        os << "                       \t" << "  - every 15th day at 00:00:00 (UTC) \"0 0 0 15 * *\"" << endl;
+        os << "                       \t" << "  - mondays at 04.30.00 (UTC): \"0 30 4 * * 1\"" << endl;
+        os << "                       \t" << " TIMEFORMAT can be expressed in hours(h), days(d), " << endl;
+        os << "                       \t"  << "   minutes(M), seconds(s), months(m) or years(y)" << endl;
+        os << "                       \t" << "   e.g. \"1m12d3h\" indicates 1 month, 12 days and 3 hours" << endl;
+        os << "                       \t" << "  Notice that this is an uncertain measure since not all months" << endl;
+        os << "                       \t" << "  last the same and Daylight saving time changes are not considered" << endl;
+        os << "                       \t" << "  If possible use a cron like expresion" << endl;
+        os << "                       \t" << "Notice: regardless of the period expresion, the first time you stablish a backup," << endl;
+        os << "                       \t" << " it will be created inmediately" << endl;
+        os << "--num-backups=N\t" << "Maximum number of backups to store" << endl;
+        os << "                 \t" << " After creating the backup (N+1) the oldest one will be deleted" << endl;
+        os << "                 \t" << "  That might not be true in case there are incomplete backups:" << endl;
+        os << "                 \t" << "   in order not to lose data, at least one COMPLETE backup will be kept" << endl;
+        os << "Use backup TAG|localpath --option=VALUE to modify existing backups" << endl;
+        os << endl;
+        os << "Management Options:" << endl;
+        os << "-d TAG|localpath\t" << "Removes a backup by its TAG or local path" << endl;
+        os << "                \t" << " Folders created by backup won't be deleted" << endl;
+        os << "-a TAG|localpath\t" << "Aborts ongoing backup" << endl;
+        os << endl;
+        os << "Caveat: This functionality is in BETA state. If you experience any issue with this, please contact: support@mega.nz" << endl;
+        os << endl;
     }
     else if (!strcmp(command, "export"))
     {

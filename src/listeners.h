@@ -140,6 +140,12 @@ public:
     void onChatsUpdate(mega::MegaApi *api, mega::MegaTextChatList *chats);
 #endif
 
+    virtual void onBackupStateChanged(mega::MegaApi *api,  mega::MegaBackup *backup);
+    virtual void onBackupStart(mega::MegaApi *api, mega::MegaBackup *backup);
+    virtual void onBackupFinish(mega::MegaApi* api, mega::MegaBackup *backup, mega::MegaError* error);
+    virtual void onBackupUpdate(mega::MegaApi *api, mega::MegaBackup *backup);
+    virtual void onBackupTemporaryError(mega::MegaApi *api, mega::MegaBackup *backup, mega::MegaError* error);
+
 
 protected:
     mega::MegaApi *megaApi;
@@ -167,6 +173,7 @@ public:
     void onTransferUpdate(mega::MegaApi* api, mega::MegaTransfer *transfer);
     void onTransferTemporaryError(mega::MegaApi *api, mega::MegaTransfer *transfer, mega::MegaError* e);
     bool onTransferData(mega::MegaApi *api, mega::MegaTransfer *transfer, char *buffer, size_t size);
+
 
 protected:
     mega::MegaApi *megaApi;

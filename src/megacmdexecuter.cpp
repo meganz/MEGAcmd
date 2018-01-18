@@ -107,6 +107,7 @@ MegaCmdExecuter::MegaCmdExecuter(MegaApi *api, MegaCMDLogger *loggerCMD, MegaCmd
     cwd = UNDEF;
     fsAccessCMD = new MegaFileSystemAccess();
     mtxSyncMap.init(false);
+    mtxBackupsMap.init(true);
     session = NULL;
 }
 
@@ -1579,6 +1580,119 @@ void MegaCmdExecuter::dumpNode(MegaNode* n, int extended_info, bool showversions
     }
 }
 
+void MegaCmdExecuter::createOrModifyBackup(string local, string remote, string speriod, int numBackups)
+{
+    string locallocal;
+    fsAccessCMD->path2local(&local, &locallocal);
+    FileAccess *fa = fsAccessCMD->newfileaccess();
+    if (!fa->isfolder(&locallocal))
+    {
+        setCurrentOutCode(MCMD_NOTFOUND);
+        LOG_err << "Local path must be an existing folder: " << local;
+        delete fa;
+        return;
+    }
+    delete fa;
+
+
+    int64_t period = -1;
+
+    if (!speriod.size())
+    {
+        MegaBackup *backup = api->getBackupByPath(local.c_str());
+        if (!backup)
+        {
+            backup = api->getBackupByTag(toInteger(local, -1));
+        }
+        if (backup)
+        {
+            speriod = backup->getPeriodString();
+            if (!speriod.size())
+            {
+                period = backup->getPeriod();
+            }
+            delete backup;
+        }
+        else
+        {
+            setCurrentOutCode(MCMD_EARGS);
+            LOG_err << "      " << getUsageStr("backup");
+            return;
+        }
+    }
+    if (speriod.find(" ") == string::npos && period == -1)
+    {
+        period = 10 * getTimeStampAfter(0,speriod);
+        speriod = "";
+    }
+
+    if (numBackups == -1)
+    {
+        MegaBackup *backup = api->getBackupByPath(local.c_str());
+        if (!backup)
+        {
+            backup = api->getBackupByTag(toInteger(local, -1));
+        }
+        if (backup)
+        {
+            numBackups = backup->getMaxBackups();
+            delete backup;
+        }
+    }
+    if (numBackups == -1)
+    {
+        setCurrentOutCode(MCMD_EARGS);
+        LOG_err << "      " << getUsageStr("backup");
+        return;
+    }
+
+    MegaNode *n = NULL;
+    if (remote.size())
+    {
+        n = api->getNodeByPath(remote.c_str());
+    }
+    else
+    {
+        MegaBackup *backup = api->getBackupByPath(local.c_str());
+        if (!backup)
+        {
+            backup = api->getBackupByTag(toInteger(local, -1));
+        }
+        if (backup)
+        {
+            n = api->getNodeByHandle(backup->getMegaHandle());
+            delete backup;
+        }
+    }
+
+    if (n)
+    {
+        if (n->getType() != MegaNode::TYPE_FOLDER)
+        {
+            setCurrentOutCode(MCMD_INVALIDTYPE);
+            LOG_err << remote << " must be a valid folder";
+        }
+        else
+        {
+            if (stablishBackup(local, n, period, speriod, numBackups) )
+            {
+                mtxBackupsMap.lock();
+                ConfigurationManager::saveBackups(&ConfigurationManager::configuredBackups);
+                mtxBackupsMap.unlock();
+                OUTSTREAM << "Backup stablished: " << local << " into " << remote << " period="
+                          << ((period != -1)?getReadablePeriod(period/10):"\""+speriod+"\"")
+                          << " Number-of-Backups=" << numBackups << endl;
+            }
+        }
+        delete n;
+    }
+    else
+    {
+        setCurrentOutCode(MCMD_NOTFOUND);
+        LOG_err << remote << " not found";
+    }
+}
+
 void MegaCmdExecuter::dumptree(MegaNode* n, int recurse, int extended_info, bool showversions, int depth, string pathRelativeTo)
 {
     if (depth || ( n->getType() == MegaNode::TYPE_FILE ))
@@ -2203,7 +2317,12 @@ void MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
         /* Restoring configured values */
         session = srl->getApi()->dumpSession();
         ConfigurationManager::saveSession(session);
+        mtxSyncMap.lock();
         ConfigurationManager::loadsyncs();
+        mtxSyncMap.unlock();
+        mtxBackupsMap.lock();
+        ConfigurationManager::loadbackups();
+        mtxBackupsMap.unlock();
         ConfigurationManager::loadExcludedNames();
         ConfigurationManager::loadConfiguration(false);
         std::vector<string> vexcludednames(ConfigurationManager::excludedNames.begin(), ConfigurationManager::excludedNames.end());
@@ -2246,6 +2365,40 @@ void MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
             LOG_info << "Login complete as " << u->getEmail();
             delete u;
         }
+
+
+        mtxBackupsMap.lock();
+        if (ConfigurationManager::configuredBackups.size())
+        {
+            LOG_info << "Restablishing backups ... ";
+            unsigned int i=0;
+            for (map<string, backup_struct *>::iterator itr = ConfigurationManager::configuredBackups.begin();
+                 itr != ConfigurationManager::configuredBackups.end(); ++itr, i++)
+            {
+                backup_struct *thebackup = itr->second;
+
+                MegaNode * node = api->getNodeByHandle(thebackup->handle);
+                if (stablishBackup(thebackup->localpath, node, thebackup->period, thebackup->speriod, thebackup->numBackups))
+                {
+                    thebackup->failed = false;
+                    const char *nodepath = api->getNodePath(node);
+                    LOG_debug << "Succesfully resumed backup: " << thebackup->localpath << " to " << nodepath;
+                    delete []nodepath;
+                }
+                else
+                {
+                    thebackup->failed = true;
+                    char *nodepath = api->getNodePath(node);
+                    LOG_err << "Failed to resume backup: " << thebackup->localpath << " to " << nodepath;
+                    delete []nodepath;
+                }
+
+                delete node;
+            }
+
+            ConfigurationManager::saveBackups(&ConfigurationManager::configuredBackups);
+        }
+        mtxBackupsMap.unlock();
     }
 
 #if defined(_WIN32) || defined(__APPLE__)
@@ -2303,6 +2456,7 @@ void MegaCmdExecuter::actUponLogout(SynchronousRequestListener *srl, bool keptSe
         if (!keptSession)
         {
             ConfigurationManager::saveSession("");
+            ConfigurationManager::saveBackups(&ConfigurationManager::configuredBackups);
             ConfigurationManager::saveSyncs(&ConfigurationManager::configuredSyncs);
         }
         ConfigurationManager::clearConfigurationFile();
@@ -3362,6 +3516,202 @@ void MegaCmdExecuter::printSyncHeader(const unsigned int PATHSIZE)
 
 }
 
+void MegaCmdExecuter::printBackupHeader(const unsigned int PATHSIZE)
+{
+    OUTSTREAM << "TAG  " << " ";
+    OUTSTREAM << getFixLengthString("LOCALPATH ", PATHSIZE) << " ";
+    OUTSTREAM << getFixLengthString("REMOTEPARENTPATH ", PATHSIZE) << " ";
+    OUTSTREAM << getRightAlignedString("STATUS", 14);
+    OUTSTREAM << endl;
+}
+
+
+void MegaCmdExecuter::printBackupSummary(int tag, const char * localfolder, const char *remoteparentfolder, string status, const unsigned int PATHSIZE)
+{
+    OUTSTREAM << getFixLengthString(SSTR(tag),5) << " "
+              << getFixLengthString(localfolder, PATHSIZE) << " "
+              << getFixLengthString((remoteparentfolder?remoteparentfolder:"INVALIDPATH"), PATHSIZE) << " "
+              << getRightAlignedString(status, 14)
+              << endl;
+}
+
+void MegaCmdExecuter::printBackupDetails(MegaBackup *backup)
+{
+    if (backup)
+    {
+        string speriod = (backup->getPeriod() == -1)?backup->getPeriodString():getReadablePeriod(backup->getPeriod()/10);
+        OUTSTREAM << "  Max Backups:   " << backup->getMaxBackups() << endl;
+        OUTSTREAM << "  Period:         " << "\"" << speriod << "\"" << endl;
+        OUTSTREAM << "  Next backup scheduled for: " << getReadableTime(backup->getNextStartTime());
+
+        OUTSTREAM << endl;
+        OUTSTREAM << "  " << " -- CURRENT/LAST BACKUP --" << endl;
+        OUTSTREAM << "  " << getFixLengthString("FILES UP/TOT", 15);
+        OUTSTREAM << "  " << getFixLengthString("FOLDERS CREATED", 15);
+        OUTSTREAM << "  " << getRightAlignedString("PROGRESS", 10);
+        OUTSTREAM << endl;
+
+        string sfiles = SSTR(backup->getNumberFiles()) + "/" + SSTR(backup->getTotalFiles());
+        OUTSTREAM << "  " << getRightAlignedString(sfiles, 8) << "       ";
+        OUTSTREAM << "  " << getRightAlignedString(SSTR(backup->getNumberFolders()), 8) << "       ";
+        long long trabytes = backup->getTransferredBytes();
+        long long totbytes = backup->getTotalBytes();
+        double percent = totbytes?double(trabytes)/double(totbytes):0;
+
+        string sprogress = sizeProgressToText(trabytes, totbytes) + "  " + percentageToText(percent);
+        OUTSTREAM << "  " << getRightAlignedString(sprogress,10);
+        OUTSTREAM << endl;
+    }
+}
+
+void MegaCmdExecuter::printBackupHistory(MegaBackup *backup, MegaNode *parentnode, const unsigned int PATHSIZE)
+{
+    bool firstinhistory = true;
+    MegaStringList *msl = api->getBackupFolders(backup->getTag());
+    if (msl)
+    {
+        for (int i = 0; i < msl->size(); i++)
+        {
+            if (firstinhistory)
+            {
+                OUTSTREAM << "  " << " -- SAVED BACKUPS --" << endl;
+
+                // print header
+                OUTSTREAM << "  " << getFixLengthString("NAME", PATHSIZE) << " ";
+                OUTSTREAM << getFixLengthString("DATE", 18) << " ";
+                OUTSTREAM << getRightAlignedString("STATUS", 11)<< " ";
+                OUTSTREAM << getRightAlignedString("FILES", 6)<< " ";
+                OUTSTREAM << getRightAlignedString("FOLDERS", 7);
+                OUTSTREAM << endl;
+
+                firstinhistory = false;
+            }
+
+            string bpath = msl->get(i);
+            size_t pos = bpath.find("_bk_");
+            string btime = "";
+            if (pos != string::npos)
+            {
+                btime = bpath.substr(pos+4);
+            }
+
+            pos = bpath.find_last_of("/\\");
+            string backupInstanceName = bpath;
+            if (pos != string::npos)
+            {
+                backupInstanceName = bpath.substr(pos+1);
+            }
+
+            string printableDate = "UNKNOWN";
+            if (btime.size())
+            {
+                struct tm dt;
+                fillStructWithSYYmdHMS(btime,dt);
+                printableDate = getReadableShortTime(mktime(&dt));
+            }
+
+            string backupInstanceStatus="NOT_FOUND";
+            long long nfiles = 0;
+            long long nfolders = 0;
+            if (parentnode)
+            {
+                MegaNode *backupInstanceNode = api->getNodeByPath(msl->get(i));
+                if (backupInstanceNode)
+                {
+                    backupInstanceStatus = backupInstanceNode->getCustomAttr("BACKST");
+
+                    getNumFolderFiles(backupInstanceNode, api, &nfiles, &nfolders);
+
+                }
+
+                delete backupInstanceNode;
+            }
+
+            OUTSTREAM << "  " << getFixLengthString(backupInstanceName, PATHSIZE) << " ";
+            OUTSTREAM << getFixLengthString(printableDate, 18) << " ";
+            OUTSTREAM << getRightAlignedString(backupInstanceStatus, 11) << " ";
+            OUTSTREAM << getRightAlignedString(SSTR(nfiles), 6)<< " ";
+            OUTSTREAM << getRightAlignedString(SSTR(nfolders), 7);
+            //OUTSTREAM << getRightAlignedString("PROGRESS", 10);// some info regarding progress or the like in case of failure could be interesting. Although we don't know total files/folders/bytes
+            OUTSTREAM << endl;
+
+        }
+        delete msl;
+    }
+}
+
+void MegaCmdExecuter::printBackup(int tag, MegaBackup *backup, const unsigned int PATHSIZE, bool extendedinfo, bool showhistory, MegaNode *parentnode)
+{
+    if (backup)
+    {
+        const char *nodepath = NULL;
+        bool deleteparentnode = false;
+
+        if (!parentnode)
+        {
+            parentnode = api->getNodeByHandle(backup->getMegaHandle());
+            if (parentnode)
+            {
+                nodepath = api->getNodePath(parentnode);
+                deleteparentnode = true;
+            }
+        }
+        else
+        {
+            nodepath = api->getNodePath(parentnode);
+        }
+
+        printBackupSummary(tag, backup->getLocalFolder(),nodepath,backupSatetStr(backup->getState()), PATHSIZE);
+        if (extendedinfo)
+        {
+            printBackupDetails(backup);
+        }
+        delete []nodepath;
+
+        if (showhistory && parentnode)
+        {
+            printBackupHistory(backup, parentnode, PATHSIZE);
+        }
+
+        if (deleteparentnode)
+        {
+            delete parentnode;
+        }
+    }
+    else
+    {
+        OUTSTREAM << "BACKUP not found " << endl;
+    }
+}
+
+void MegaCmdExecuter::printBackup(backup_struct *backupstruct, const unsigned int PATHSIZE, bool extendedinfo, bool showhistory)
+{
+    if (backupstruct->tag >= 0)
+    {
+        MegaBackup *backup = api->getBackupByTag(backupstruct->tag);
+        if (backup)
+        {
+            printBackup(backupstruct->tag, backup, PATHSIZE, extendedinfo, showhistory);
+            delete backup;
+        }
+        else
+        {
+            OUTSTREAM << "BACKUP not found: " << backupstruct->tag << endl;
+        }
+    }
+    else
+    { //merely print configuration
+        printBackupSummary(backupstruct->tag, backupstruct->localpath.c_str(),"UNKOWN"," FAILED", PATHSIZE);
+        if (extendedinfo)
+        {
+            string speriod = (backupstruct->period == -1)?backupstruct->speriod:getReadablePeriod(backupstruct->period/10);
+            OUTSTREAM << "         Period: " << "\"" << speriod << "\"" << endl;
+            OUTSTREAM << "   Max. Backups: " << backupstruct->numBackups << endl;
+        }
+    }
+}
+
+
 void MegaCmdExecuter::printSync(int i, string key, const char *nodepath, sync_struct * thesync, MegaNode *n, long long nfiles, long long nfolders, const unsigned int PATHSIZE)
 {
     //tag
@@ -3695,8 +4045,95 @@ void MegaCmdExecuter::restartsyncs()
             }
         }
     }
+}
+
+bool MegaCmdExecuter::stablishBackup(string pathToBackup, MegaNode *n, int64_t period, string speriod,  int numBackups)
+{
+    bool attendpastbackups = true; //TODO: receive as parameter
+    static int backupcounter = 0;
+    string path;
+    string localrelativepath;
+    string localabsolutepath;
+    fsAccessCMD->path2local(&pathToBackup, &localrelativepath);
+    fsAccessCMD->expanselocalpath(&localrelativepath, &localabsolutepath);
+    fsAccessCMD->local2path(&localabsolutepath, &path);
+
+    MegaCmdListener *megaCmdListener = new MegaCmdListener(api, NULL);
+    api->setBackup(path.c_str(), n, attendpastbackups, period, speriod, numBackups, megaCmdListener);
+    megaCmdListener->wait();
+    if (checkNoErrors(megaCmdListener->getError(), "stablish backup"))
+    {
+        mtxBackupsMap.lock();
+
+        backup_struct *thebackup = NULL;
+        if (ConfigurationManager::configuredBackups.find(megaCmdListener->getRequest()->getFile()) != ConfigurationManager::configuredBackups.end())
+        {
+            thebackup = ConfigurationManager::configuredBackups[megaCmdListener->getRequest()->getFile()];
+            if (thebackup->id == -1)
+            {
+                thebackup->id = backupcounter++;
+            }
+        }
+        else
+        {
+            thebackup = new backup_struct;
+            thebackup->id = backupcounter++;
+            ConfigurationManager::configuredBackups[megaCmdListener->getRequest()->getFile()] = thebackup;
+        }
+        thebackup->active = true;
+        thebackup->handle = megaCmdListener->getRequest()->getNodeHandle();
+        thebackup->localpath = string(megaCmdListener->getRequest()->getFile());
+        thebackup->numBackups = numBackups;
+        thebackup->period = period;
+        thebackup->speriod = speriod;
+        thebackup->failed = false;
+        thebackup->tag = megaCmdListener->getRequest()->getTransferTag();
+
+        char * nodepath = api->getNodePath(n);
+        LOG_info << "Added backup: " << megaCmdListener->getRequest()->getFile() << " to " << nodepath;
+        mtxBackupsMap.unlock();
+        delete []nodepath;
+        delete megaCmdListener;
+
+        return true;
+    }
+    else
+    {
+        bool foundbytag = false;
+        // find by tag in configured (modification failed)
+        for (std::map<std::string, backup_struct *>::iterator itr = ConfigurationManager::configuredBackups.begin();
+             itr != ConfigurationManager::configuredBackups.end(); itr++)
+        {
+            if (itr->second->tag == megaCmdListener->getRequest()->getTransferTag())
+            {
+                backup_struct *thebackup = itr->second;
+
+                foundbytag = true;
+                thebackup->handle = megaCmdListener->getRequest()->getNodeHandle();
+                thebackup->localpath = string(megaCmdListener->getRequest()->getFile());
+                thebackup->numBackups = megaCmdListener->getRequest()->getNumRetry();
+                thebackup->period = megaCmdListener->getRequest()->getNumber();
+                thebackup->speriod = string(megaCmdListener->getRequest()->getText());;
+                thebackup->failed = true;
+            }
+        }
 
 
+        if (!foundbytag)
+        {
+            std::map<std::string, backup_struct *>::iterator itr = ConfigurationManager::configuredBackups.find(megaCmdListener->getRequest()->getFile());
+            if ( itr != ConfigurationManager::configuredBackups.end())
+            {
+                if (megaCmdListener->getError()->getErrorCode() != MegaError::API_EEXIST)
+                {
+                    itr->second->failed = true;
+                }
+                itr->second->id = backupcounter++;
+            }
+        }
+    }
+    delete megaCmdListener;
+    return false;
 }
 
 void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clflags, map<string, string> *cloptions)
@@ -3712,7 +4149,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         }
         int recursive = getFlag(clflags, "R") + getFlag(clflags, "r");
         int extended_info = getFlag(clflags, "l");
-        int show_versions = getFlag(clflags, "v");//TODO: add flag
+        int show_versions = getFlag(clflags, "v");
 
         if ((int)words.size() > 1)
         {
@@ -4739,6 +5176,141 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         }
 
         return;
+    }
+    else if (words[0] == "backup")
+    {
+        bool dodelete = getFlag(clflags,"d");
+        bool abort = getFlag(clflags,"a");
+        bool listinfo = getFlag(clflags,"l");
+        bool listhistory = getFlag(clflags,"h");
+
+//        //TODO: do the following functionality
+//        bool stop = getFlag(clflags,"s");
+//        bool resume = getFlag(clflags,"r");
+//        bool initiatenow = getFlag(clflags,"i");
+
+        int PATHSIZE = getintOption(cloptions,"path-display-size");
+        if (!PATHSIZE)
+        {
+            // get screen size for output purposes
+            unsigned int width = getNumberOfCols(75);
+            PATHSIZE = min(60,int((width-46)/2));
+        }
+
+        bool firstbackup = true;
+        string speriod=getOption(cloptions, "period");
+        int64_t numBackups = getintOption(cloptions, "num-backups", -1);
+
+        if (words.size() == 3)
+        {
+            string local = words.at(1);
+            string remote = words.at(2);
+
+            createOrModifyBackup(local, remote, speriod, numBackups);
+        }
+        else if (words.size() == 2)
+        {
+            string local = words.at(1);
+
+            MegaBackup *backup = api->getBackupByPath(local.c_str());
+            if (!backup)
+            {
+                backup = api->getBackupByTag(toInteger(local, -1));
+            }
+            map<string, backup_struct *>::iterator itr;
+            if (backup)
+            {
+                int backupid = -1;
+                for ( itr = ConfigurationManager::configuredBackups.begin(); itr != ConfigurationManager::configuredBackups.end(); itr++ )
+                {
+                    if (itr->second->tag == backup->getTag())
+                    {
+                        backupid = itr->second->id;
+                        break;
+                    }
+                }
+                if (backupid == -1)
+                {
+                    LOG_err << " Requesting info of unregistered backup: " << local;
+                }
+
+                if (dodelete)
+                {
+                    MegaCmdListener *megaCmdListener = new MegaCmdListener(api, NULL);
+                    api->removeBackup(backup->getTag(), megaCmdListener);
+                    megaCmdListener->wait();
+                    if (checkNoErrors(megaCmdListener->getError(), "remove backup"))
+                    {
+                        if (backupid != -1)
+                        {
+                          ConfigurationManager::configuredBackups.erase(itr);
+                        }
+                        mtxBackupsMap.lock();
+                        ConfigurationManager::saveBackups(&ConfigurationManager::configuredBackups);
+                        mtxBackupsMap.unlock();
+                        OUTSTREAM << " Backup removed succesffuly: " << local << endl;
+                    }
+                }
+                else if (abort)
+                {
+                    MegaCmdListener *megaCmdListener = new MegaCmdListener(api, NULL);
+                    api->abortCurrentBackup(backup->getTag(), megaCmdListener);
+                    megaCmdListener->wait();
+                    if (checkNoErrors(megaCmdListener->getError(), "abort backup"))
+                    {
+                        OUTSTREAM << " Backup aborted succesffuly: " << local << endl;
+                    }
+                }
+                else
+                {
+                    if (speriod.size() || numBackups != -1)
+                    {
+                        createOrModifyBackup(backup->getLocalFolder(), "", speriod, numBackups);
+                    }
+                    else
+                    {
+                        if(firstbackup)
+                        {
+                            printBackupHeader(PATHSIZE);
+                            firstbackup = false;
+                        }
+
+                        printBackup(backup->getTag(), backup, PATHSIZE, listinfo, listhistory);
+                    }
+                }
+                delete backup;
+            }
+            else
+            {
+                setCurrentOutCode(MCMD_NOTFOUND);
+                LOG_err << "Backup not found: " << local;
+            }
+        }
+        else if (words.size() == 1) //list backups
+        {
+            mtxBackupsMap.lock();
+            for (map<string, backup_struct *>::iterator itr = ConfigurationManager::configuredBackups.begin(); itr != ConfigurationManager::configuredBackups.end(); itr++ )
+            {
+                if(firstbackup)
+                {
+                    printBackupHeader(PATHSIZE);
+                    firstbackup = false;
+                }
+                printBackup(itr->second, PATHSIZE, listinfo, listhistory);
+            }
+            if (!ConfigurationManager::configuredBackups.size())
+            {
+                setCurrentOutCode(MCMD_NOTFOUND);
+                OUTSTREAM << "No backup configured. " << endl << " Usage: " << getUsageStr("backup") << endl;
+            }
+            mtxBackupsMap.unlock();
+
+        }
+        else
+        {
+            setCurrentOutCode(MCMD_EARGS);
+            LOG_err << "      " << getUsageStr("backup");
+        }
     }
     else if (words[0] == "put")
     {
@@ -6373,7 +6945,6 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             long long ds = api->getMaxDownloadSpeed();
             OUTSTREAM << "Download speed limit = " << (ds?sizeToText(ds,false,hr):"unlimited") << ((ds && hr)?"/s":(ds?" B/s":"")) << endl;
         }
-
 
         return;
     }

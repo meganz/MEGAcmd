@@ -31,6 +31,7 @@
 
 #include <iomanip>
 #include <fstream>
+#include <time.h>
 
 using namespace std;
 using namespace mega;
@@ -461,6 +462,39 @@ const char * getTransferStateStr(int transferState)
 
 }
 
+string backupSatetStr(int backupstate)
+{
+    if (backupstate == MegaBackup::BACKUP_FAILED)
+    {
+        return "FAILED";
+    }
+    if (backupstate == MegaBackup::BACKUP_CANCELED)
+    {
+        return "CANCELED";
+    }
+    if (backupstate == MegaBackup::BACKUP_INITIALSCAN)
+    {
+        return "INITIALSCAN";
+    }
+    if (backupstate == MegaBackup::BACKUP_ACTIVE)
+    {
+        return "ACTIVE";
+    }
+    if (backupstate == MegaBackup::BACKUP_ONGOING)
+    {
+        return "ONGOING";
+    }
+    if (backupstate == MegaBackup::BACKUP_SKIPPING)
+    {
+        return "SKIPPING";
+    }
+    if (backupstate == MegaBackup::BACKUP_REMOVING_EXCEEDING)
+    {
+        return "EXCEEDREMOVAL";
+    }
+
+    return "UNDEFINED";
+}
 
 /**
  * @brief tests if a path is writable
@@ -497,7 +531,7 @@ int getLinkType(string link)
 
 bool isPublicLink(string link)
 {
-    if (( link.find_first_of("http") == 0 ) && ( link.find_first_of("#") != string::npos ))
+    if (( link.find("http") == 0 ) && ( link.find("#") != string::npos ))
     {
         return true;
     }
@@ -509,13 +543,131 @@ bool hasWildCards(string &what)
     return what.find('*') != string::npos || what.find('?') != string::npos;
 }
 
+const char *fillStructWithSYYmdHMS(string &stime, struct tm &dt)
+{
+    memset(&dt, 0, sizeof(struct tm));
+#ifdef _WIN32
+    if (stime.size() != 14)
+    {
+        return NULL;
+    }
+    for(int i=0;i<14;i++)
+    {
+        if ( (stime.at(i) < '0') || (stime.at(i) > '9') )
+        {
+            return NULL;
+        }
+    }
+
+    dt.tm_year = atoi(stime.substr(0,4).c_str()) - 1900;
+    dt.tm_mon = atoi(stime.substr(4,2).c_str()) - 1;
+    dt.tm_mday = atoi(stime.substr(6,2).c_str());
+    dt.tm_hour = atoi(stime.substr(8,2).c_str());
+    dt.tm_min = atoi(stime.substr(10,2).c_str());
+    dt.tm_sec = atoi(stime.substr(12,2).c_str());
+    return stime.c_str();
+#else
+    return strptime(stime.c_str(), "%Y%m%d%H%M%S", &dt);
+#endif
+}
+
+void fillLocalTimeStruct(const time_t *ttime, struct tm *dt) //TODO: copy this to megaapiimpl
+{
+#if (__cplusplus >= 201103L) && defined(__STDC_WANT_LIB_EXT1__)
+    localtime_s(ttime, dt);
+#elif _MSC_VER >= 1400 // MSVCRT (2005+): std::localtime is threadsafe
+    struct tm *newtm = localtime(ttime);
+    if (newtm)
+    {
+        memcpy(dt,newtm,sizeof(struct tm));
+    }
+    else
+    {
+        memset(dt,0,sizeof(struct tm));
+    }
+
+#elif _WIN32
+    static MegaMutex * mtx = new MegaMutex();
+    static bool initiated = false;
+    if (!initiated)
+    {
+        mtx->init(true);
+        initiated = true;
+    }
+    mtx->lock();
+    struct tm *newtm = localtime(ttime);
+    if (newtm)
+    {
+        memcpy(dt,newtm,sizeof(struct tm));
+    }
+    else
+    {
+        memset(dt,0,sizeof(struct tm));
+    }
+    mtx->unlock();
+#else //POSIX
+    localtime_r(ttime, dt);
+#endif
+}
+
 std::string getReadableTime(const time_t rawtime)
 {
-    struct tm * dt;
+    struct tm dt;
     char buffer [40];
-    dt = localtime(&rawtime);
-    strftime(buffer, sizeof( buffer ), "%a, %d %b %Y %T %z", dt); // Following RFC 2822 (as in date -R)
+    fillLocalTimeStruct(&rawtime, &dt);
+    strftime(buffer, sizeof( buffer ), "%a, %d %b %Y %T %z", &dt); // Following RFC 2822 (as in date -R)
     return std::string(buffer);
+}
+
+std::string getReadableShortTime(const time_t rawtime, bool showUTCDeviation)
+{
+    struct tm dt;
+    memset(&dt, 0, sizeof(struct tm));
+    char buffer [40];
+    if (rawtime != -1)
+    {
+        fillLocalTimeStruct(&rawtime, &dt);
+        if (showUTCDeviation)
+        {
+            strftime(buffer, sizeof( buffer ), "%d%b%Y %T %z", &dt); // Following RFC 2822 (as in date -R)
+        }
+        else
+        {
+            strftime(buffer, sizeof( buffer ), "%d%b%Y %T", &dt); // Following RFC 2822 (as in date -R)
+        }
+    }
+    else
+    {
+        sprintf(buffer,"INVALID_TIME %d", rawtime);
+    }
+    return std::string(buffer);
+}
+
+std::string getReadablePeriod(const time_t rawtime)
+{
+
+    long long rest = rawtime;
+    long long years = rest/31557600; //365.25 days
+    rest = rest%31557600;
+    long long months = rest/2629800; // average month 365.25/12 days
+    rest = rest%2629800;
+    long long days = rest/86400;
+    rest = rest%86400;
+    long long hours = rest/3600;
+    rest = rest%3600;
+    long long minutes = rest/60;
+    long long seconds = rest%60;
+
+    ostringstream ostoret;
+    if (years) ostoret << years << "y";
+    if (months) ostoret << months << "m";
+    if (days) ostoret << days << "d";
+    if (hours) ostoret << hours << "h";
+    if (minutes) ostoret << minutes << "M";
+    if (seconds) ostoret << seconds << "s";
+
+    string toret = ostoret.str();
+    return toret.size()?toret:"0s";
 }
 
 time_t getTimeStampAfter(time_t initial, string timestring)
@@ -580,18 +732,18 @@ time_t getTimeStampAfter(time_t initial, string timestring)
         }
     }
 
-    struct tm * dt;
-    dt = localtime(&initial);
+    struct tm dt;
+    fillLocalTimeStruct(&initial, &dt);
 
-    dt->tm_mday += days;
-    dt->tm_hour += hours;
-    dt->tm_min += minutes;
-    dt->tm_sec += seconds;
-    dt->tm_mon += months;
-    dt->tm_year += years;
+    dt.tm_mday += days;
+    dt.tm_hour += hours;
+    dt.tm_min += minutes;
+    dt.tm_sec += seconds;
+    dt.tm_mon += months;
+    dt.tm_year += years;
 
     delete [] buffer;
-    return mktime(dt);
+    return mktime(&dt);
 }
 
 time_t getTimeStampAfter(string timestring)
@@ -662,18 +814,18 @@ time_t getTimeStampBefore(time_t initial, string timestring)
         }
     }
 
-    struct tm * dt;
-    dt = localtime(&initial);
+    struct tm dt;
+    fillLocalTimeStruct(&initial, &dt);
 
-    dt->tm_mday -= days;
-    dt->tm_hour -= hours;
-    dt->tm_min -= minutes;
-    dt->tm_sec -= seconds;
-    dt->tm_mon -= months;
-    dt->tm_year -= years;
+    dt.tm_mday += days;
+    dt.tm_hour += hours;
+    dt.tm_min += minutes;
+    dt.tm_sec += seconds;
+    dt.tm_mon += months;
+    dt.tm_year += years;
 
     delete [] buffer;
-    return mktime(dt);
+    return mktime(&dt);
 }
 
 time_t getTimeStampBefore(string timestring)
@@ -1272,7 +1424,7 @@ int getintOption(map<string, string> *cloptions, const char * optname, int defau
 {
     if (cloptions->count(optname))
     {
-        int i;
+        int i = defaultValue;
         istringstream is(( *cloptions )[optname]);
         is >> i;
         return i;
@@ -1352,6 +1504,53 @@ bool setOptionsAndFlags(map<string, string> *opts, map<string, int> *flags, vect
     }
 
     return discarded;
+}
+
+
+string sizeProgressToText(long long partialSize, long long totalSize, bool equalizeUnitsLength, bool humanreadable)
+{
+    ostringstream os;
+    os.precision(2);
+    if (humanreadable)
+    {
+        string unit;
+        unit = ( equalizeUnitsLength ? " B" : "B" );
+        double reducedPartSize = totalSize;
+        double reducedSize = totalSize;
+
+        if ( totalSize > 1099511627776LL *2 )
+        {
+            reducedPartSize = totalSize / (double) 1099511627776L;
+            reducedSize = totalSize / (double) 1099511627776L;
+            unit = "TB";
+        }
+        else if ( totalSize > 1073741824LL *2 )
+        {
+            reducedPartSize = totalSize / (double) 1073741824L;
+            reducedSize = totalSize / (double) 1073741824L;
+            unit = "GB";
+        }
+        else if (totalSize > 1048576 * 2)
+        {
+            reducedPartSize = totalSize / (double) 1048576;
+            reducedSize = totalSize / (double) 1048576;
+            unit = "MB";
+        }
+        else if (totalSize > 1024 * 2)
+        {
+            reducedPartSize = totalSize / (double) 1024;
+            reducedSize = totalSize / (double) 1024;
+            unit = "KB";
+        }
+        os << fixed << reducedPartSize << "/" << reducedSize;
+        os << " " << unit;
+    }
+    else
+    {
+        os << partialSize << "/" << totalSize;
+    }
+
+    return os.str();
 }
 
 string sizeToText(long long totalSize, bool equalizeUnitsLength, bool humanreadable)
@@ -1473,7 +1672,6 @@ string secondsToText(time_t seconds, bool humanreadable)
 
     return os.str();
 }
-
 
 string percentageToText(float percentage)
 {
