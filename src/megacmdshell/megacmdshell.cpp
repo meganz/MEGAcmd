@@ -1460,7 +1460,7 @@ void process_line(char * line)
                     if (!strstr (line,"path-display-size"))
                     {
                         unsigned int width = getNumberOfCols(75);
-                        int pathSize = int((width-18)/2);
+                        int pathSize = int((width-21)/2);
 
                         toexec+="backup --path-display-size=";
                         toexec+=SSTR(pathSize);

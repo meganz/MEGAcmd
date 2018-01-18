@@ -272,6 +272,9 @@ void ConfigurationManager::saveBackups(map<string, backup_struct *> *backupsmap)
                 {
                     backup_struct *thebackup = ((backup_struct*)( *itr ).second );
 
+                    int versionmcmd = MEGACMD_CODE_VERSION;
+                    fo.write((char*)&versionmcmd, sizeof( int ));
+
                     fo.write((char*)&thebackup->handle, sizeof( MegaHandle ));
                     const char * localPath = thebackup->localpath.c_str();
                     size_t lengthLocalPath = thebackup->localpath.size();
@@ -508,6 +511,9 @@ void ConfigurationManager::loadbackups()
             {
                 backup_struct *thebackup = new backup_struct;
                 //Load backups
+                int versionmcmd;
+                fi.read((char*)&versionmcmd, sizeof( int ));
+
                 fi.read((char*)&thebackup->handle, sizeof( MegaHandle ));
                 size_t lengthLocalPath;
                 fi.read((char*)&lengthLocalPath, sizeof( size_t ));
@@ -526,18 +532,16 @@ void ConfigurationManager::loadbackups()
                         thebackup->speriod.resize(lengthLocalPeriod);
                         fi.read((char*)thebackup->speriod.c_str(), sizeof( char ) * lengthLocalPeriod);
 
-                        if (configuredBackups.find(thebackup->localpath) != configuredBackups.end())
-                        {
-                            delete configuredBackups[thebackup->localpath];
-                        }
-
-                        thebackup->id = -1; //id will be set upon resumption
-                        thebackup->tag = -1; //tag will be set upon resumption
-
-                        configuredBackups[thebackup->localpath] = thebackup;
-
+                    }
+                    if (configuredBackups.find(thebackup->localpath) != configuredBackups.end())
+                    {
+                        delete configuredBackups[thebackup->localpath];
                     }
 
+                    thebackup->id = -1; //id will be set upon resumption
+                    thebackup->tag = -1; //tag will be set upon resumption
+
+                    configuredBackups[thebackup->localpath] = thebackup;
                 }
                 else
                 {
