@@ -1362,7 +1362,7 @@ const char * getUsageStr(const char *command)
     }
     if (!strcmp(command, "backup"))
     {
-        return "backup ([-lhda] [TAG|localpath] | localpath [remotepath] --period=\"PERIODSTRING\" --num-backups=N )";
+        return "backup (localpath remotepath --period=\"PERIODSTRING\" --num-backups=N  | [-lhda] [TAG|localpath] [--period=\"PERIODSTRING\"] [--num-backups=N])";
     }
     if (!strcmp(command, "https"))
     {
@@ -1882,6 +1882,9 @@ string getHelpStr(const char *command)
     else if (!strcmp(command, "backup"))
     {
         os << "Controls backups" << endl;
+        os << endl;
+        os << "This command can be used to configure and control backups. " << endl;
+        os << "A tutorial can be found here: https://github.com/meganz/MEGAcmd/blob/master/contrib/docs/BACKUPS.md" << endl;
         os << endl;
         os << "If no argument is given it will list the configured backups" << endl;
         os << " To get extra info on backups use -l or -h (see Options below)" << endl;
