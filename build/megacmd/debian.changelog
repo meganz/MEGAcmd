@@ -1,3 +1,16 @@
+megacmd (0.9.8) stable; urgency=low
+
+  * Backups: added the possibility to configure periodic backups
+  * Full version support: listing, see space ocupied, accessing, copying, removing, ...
+  * Added "deleteversions" command to remove versions (all or by path)
+  * Permissions: you can change default permission for files and folders
+  * Persistence of settings: speedlimit, permissions, https
+  * Speedlimit takes units and allows human-readable output
+  * Support for video metadata
+  * Minor fixes and doc improvements
+
+ -- MEGA Team <linux@mega.co.nz>  Thu, 18 Jan 2018 19:15:35 +0100
+
 megacmd (0.9.7) stable; urgency=low
 
   * Faster scanning of files
