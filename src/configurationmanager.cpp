@@ -18,6 +18,7 @@
 
 #include "configurationmanager.h"
 #include "megacmdversion.h"
+#include "megacmdutils.h"
 #include <fstream>
 
 #ifdef _WIN32
@@ -25,6 +26,12 @@
 #include <Shlwapi.h> //PathAppend
 #else
 #include <pwd.h>  //getpwuid_r
+#endif
+
+#ifdef _WIN32
+#define PATH_MAX_LOCAL_BACKUP MAX_PATH
+#else
+#define PATH_MAX_LOCAL_BACKUP PATH_MAX
 #endif
 
 using namespace std;
@@ -40,6 +47,8 @@ string ConfigurationManager::configFolder;
 map<string, sync_struct *> ConfigurationManager::configuredSyncs;
 string ConfigurationManager::session;
 std::set<std::string> ConfigurationManager::excludedNames;
+
+map<std::string, backup_struct *> ConfigurationManager::configuredBackups;
 
 std::string ConfigurationManager::getConfigFolder()
 {
@@ -131,6 +140,67 @@ void ConfigurationManager::saveSession(const char*session)
     }
 }
 
+void ConfigurationManager::saveProperty(const char *property, const char *value)
+{
+    if (!configFolder.size())
+    {
+        loadConfigDir();
+    }
+    if (configFolder.size())
+    {
+        bool found = false;
+        stringstream configFile;
+        configFile << configFolder << "/" << "megacmd.cfg";
+
+        stringstream formerlines;
+        ifstream infile(configFile.str().c_str());
+        string line;
+        while (getline(infile, line))
+        {
+            if (line.length() > 0 && line[0] != '#')
+            {
+                string key;
+                size_t pos = line.find("=");
+                if (pos != string::npos && ((pos + 1) < line.size()))
+                {
+                    key = line.substr(0, pos);
+                    rtrimProperty(key, ' ');
+
+                    if (!strcmp(key.c_str(), property))
+                    {
+                        if (!found)
+                        {
+                            formerlines << property << "=" << value << endl;
+                        }
+                        found = true;
+                    }
+                    else
+                    {
+                        formerlines << line << endl;
+                    }
+                }
+                else
+                {
+                    formerlines << line << endl;
+                }
+            }
+        }
+        ofstream fo(configFile.str().c_str());
+
+        if (fo.is_open())
+        {
+            fo << formerlines.str();
+            if (!found)
+            {
+                fo << property << "=" << value << endl;
+            }
+            fo.close();
+        }
+
+
+    }
+}
+
 void ConfigurationManager::saveSyncs(map<string, sync_struct *> *syncsmap)
 {
     stringstream syncsfile;
@@ -166,6 +236,60 @@ void ConfigurationManager::saveSyncs(map<string, sync_struct *> *syncsmap)
                     size_t lengthLocalPath = thesync->localpath.size();
                     fo.write((char*)&lengthLocalPath, sizeof( size_t ));
                     fo.write((char*)localPath, sizeof( char ) * lengthLocalPath);
+                }
+            }
+
+            fo.close();
+        }
+    }
+    else
+    {
+        LOG_err << "Couldnt access configuration folder ";
+    }
+}
+
+void ConfigurationManager::saveBackups(map<string, backup_struct *> *backupsmap)
+{
+    stringstream backupsfile;
+    if (!configFolder.size())
+    {
+        loadConfigDir();
+    }
+    if (configFolder.size())
+    {
+        backupsfile << configFolder << "/" << "backups";
+        LOG_debug << "Backups file: " << backupsfile.str();
+
+        ofstream fo(backupsfile.str().c_str(), ios::out | ios::binary);
+
+        if (fo.is_open())
+        {
+            map<string, backup_struct *>::iterator itr;
+            int i = 0;
+            if (backupsmap)
+            {
+                for (itr = backupsmap->begin(); itr != backupsmap->end(); ++itr, i++)
+                {
+                    backup_struct *thebackup = ((backup_struct*)( *itr ).second );
+
+                    int versionmcmd = MEGACMD_CODE_VERSION;
+                    fo.write((char*)&versionmcmd, sizeof( int ));
+
+                    fo.write((char*)&thebackup->handle, sizeof( MegaHandle ));
+                    const char * localPath = thebackup->localpath.c_str();
+                    size_t lengthLocalPath = thebackup->localpath.size();
+                    fo.write((char*)&lengthLocalPath, sizeof( size_t ));
+                    fo.write((char*)localPath, sizeof( char ) * lengthLocalPath);
+
+                    fo.write((char*)&thebackup->numBackups, sizeof( int ));
+                    fo.write((char*)&thebackup->period, sizeof( int64_t ));
+
+                    const char * speriod = thebackup->speriod.c_str();
+                    size_t lengthLocalPeriod = thebackup->speriod.size();
+                    fo.write((char*)&lengthLocalPeriod, sizeof( size_t ));
+                    fo.write((char*)speriod, sizeof( char ) * lengthLocalPeriod);
+
+
                 }
             }
 
@@ -267,16 +391,23 @@ void ConfigurationManager::loadExcludedNames()
     }
 }
 
-
 void ConfigurationManager::unloadConfiguration()
 {
-    map<string, sync_struct *>::iterator itr;
-    for (itr = configuredSyncs.begin(); itr != configuredSyncs.end(); )
+    for (map<string, sync_struct *>::iterator itr = configuredSyncs.begin(); itr != configuredSyncs.end(); )
     {
         sync_struct *thesync = ((sync_struct*)( *itr ).second );
         configuredSyncs.erase(itr++);
         delete thesync;
     }
+
+    for (map<string, backup_struct *>::iterator itr = configuredBackups.begin(); itr != configuredBackups.end(); )
+    {
+        backup_struct *thebackup = ((backup_struct*)( *itr ).second );
+        configuredBackups.erase(itr++);
+        delete thebackup;
+    }
+    ConfigurationManager::session = string();
+    ConfigurationManager::excludedNames.clear();
 }
 
 void ConfigurationManager::loadsyncs()
@@ -354,15 +485,90 @@ void ConfigurationManager::loadsyncs()
     }
 }
 
-void ConfigurationManager::loadConfiguration(bool debug)
+
+void ConfigurationManager::loadbackups()
 {
-    stringstream sessionfile;
+    stringstream backupsfile;
     if (!configFolder.size())
     {
         loadConfigDir();
     }
     if (configFolder.size())
     {
+        backupsfile << configFolder << "/" << "backups";
+        LOG_debug << "Backups file: " << backupsfile.str();
+
+        ifstream fi(backupsfile.str().c_str(), ios::in | ios::binary);
+
+        if (fi.is_open())
+        {
+            if (fi.fail())
+            {
+                LOG_err << "fail with backup file";
+            }
+
+            while (!( fi.peek() == EOF ))
+            {
+                backup_struct *thebackup = new backup_struct;
+                //Load backups
+                int versionmcmd;
+                fi.read((char*)&versionmcmd, sizeof( int ));
+
+                fi.read((char*)&thebackup->handle, sizeof( MegaHandle ));
+                size_t lengthLocalPath;
+                fi.read((char*)&lengthLocalPath, sizeof( size_t ));
+                if (lengthLocalPath && lengthLocalPath <= PATH_MAX_LOCAL_BACKUP)
+                {
+                    thebackup->localpath.resize(lengthLocalPath);
+                    fi.read((char*)thebackup->localpath.c_str(), sizeof( char ) * lengthLocalPath);
+
+                    fi.read((char*)&thebackup->numBackups, sizeof( int ));
+                    fi.read((char*)&thebackup->period, sizeof( int64_t ));
+
+                    size_t lengthLocalPeriod;
+                    fi.read((char*)&lengthLocalPeriod, sizeof( size_t ));
+                    if (lengthLocalPeriod && lengthLocalPeriod <= PATH_MAX_LOCAL_BACKUP)
+                    {
+                        thebackup->speriod.resize(lengthLocalPeriod);
+                        fi.read((char*)thebackup->speriod.c_str(), sizeof( char ) * lengthLocalPeriod);
+
+                    }
+                    if (configuredBackups.find(thebackup->localpath) != configuredBackups.end())
+                    {
+                        delete configuredBackups[thebackup->localpath];
+                    }
+
+                    thebackup->id = -1; //id will be set upon resumption
+                    thebackup->tag = -1; //tag will be set upon resumption
+
+                    configuredBackups[thebackup->localpath] = thebackup;
+                }
+                else
+                {
+                    LOG_err << " Failed to restore backup info";
+                }
+            }
+
+            if (fi.bad())
+            {
+                LOG_err << "fail with backup file  at the end";
+            }
+
+            fi.close();
+        }
+    }
+}
+
+void ConfigurationManager::loadConfiguration(bool debug)
+{
+    if (!configFolder.size())
+    {
+        loadConfigDir();
+    }
+    if (configFolder.size())
+    {
+        //SESSION
+        stringstream sessionfile;
         sessionfile << configFolder << "/" << "session";
 
         if (debug)
@@ -386,4 +592,39 @@ void ConfigurationManager::loadConfiguration(bool debug)
         if (debug)
             cout  << "Couldnt access configuration folder " << endl;
     }
+}
+
+string ConfigurationManager::getConfigurationSValue(string propertyName)
+{
+    if (!configFolder.size())
+    {
+        loadConfigDir();
+    }
+    if (configFolder.size())
+    {
+        stringstream configFile;
+        configFile << configFolder << "/" << "megacmd.cfg";
+        return getPropertyFromFile(configFile.str().c_str(),propertyName.c_str());
+    }
+}
+
+void ConfigurationManager::clearConfigurationFile()
+{
+    if (!configFolder.size())
+    {
+        loadConfigDir();
+    }
+    if (configFolder.size())
+    {
+        stringstream configFile;
+        configFile << configFolder << "/" << "megacmd.cfg";
+        ofstream fo(configFile.str().c_str());
+
+        if (fo.is_open())
+        {
+            fo << "";
+            fo.close();
+        }
+    }
+
 }

@@ -21,10 +21,10 @@ VIAddVersionKey "LegalCopyright" "MEGA Limited 2017"
 VIAddVersionKey "ProductName" "MEGAcmd"
 
 ; Version info
-VIProductVersion "0.9.6.0"
-VIAddVersionKey "FileVersion" "0.9.6.0"
-VIAddVersionKey "ProductVersion" "0.9.6.0"
-!define PRODUCT_VERSION "0.9.6"
+VIProductVersion "0.9.8.0"
+VIAddVersionKey "FileVersion" "0.9.8.0"
+VIAddVersionKey "ProductVersion" "0.9.8.0"
+!define PRODUCT_VERSION "0.9.8"
 
 !define PRODUCT_PUBLISHER "Mega Limited"
 !define PRODUCT_WEB_SITE "http://www.mega.nz"
@@ -520,6 +520,10 @@ modeselected:
   File "${SRCDIR_BATFILES}\mega-https.bat"
   AccessControl::SetFileOwner "$INSTDIR\mega-https.bat" "$USERNAME"
   AccessControl::GrantOnFile "$INSTDIR\mega-https.bat" "$USERNAME" "GenericRead + GenericWrite"
+  
+  File "${SRCDIR_BATFILES}\mega-deleteversions.bat"
+  AccessControl::SetFileOwner "$INSTDIR\mega-deleteversions.bat" "$USERNAME"
+  AccessControl::GrantOnFile "$INSTDIR\mega-deleteversions.bat" "$USERNAME" "GenericRead + GenericWrite"
  
   File "${SRCDIR_BATFILES}\mega-transfers.bat"
   AccessControl::SetFileOwner "$INSTDIR\mega-transfers.bat" "$USERNAME"
@@ -564,6 +568,10 @@ modeselected:
   File "${SRCDIR_BATFILES}\mega-ls.bat"
   AccessControl::SetFileOwner "$INSTDIR\mega-ls.bat" "$USERNAME"
   AccessControl::GrantOnFile "$INSTDIR\mega-ls.bat" "$USERNAME" "GenericRead + GenericWrite"
+  
+  File "${SRCDIR_BATFILES}\mega-backup.bat"
+  AccessControl::SetFileOwner "$INSTDIR\mega-backup.bat" "$USERNAME"
+  AccessControl::GrantOnFile "$INSTDIR\mega-backup.bat" "$USERNAME" "GenericRead + GenericWrite"
 
   File "${SRCDIR_BATFILES}\mega-mkdir.bat"
   AccessControl::SetFileOwner "$INSTDIR\mega-mkdir.bat" "$USERNAME"
@@ -807,6 +815,7 @@ Section Uninstall
   Delete "$INSTDIR\mega-help.bat"
   Delete "$INSTDIR\mega-history.bat"
   Delete "$INSTDIR\mega-https.bat"
+  Delete "$INSTDIR\mega-deleteversions.bat"
   Delete "$INSTDIR\mega-transfers.bat"
   Delete "$INSTDIR\mega-import.bat"
   Delete "$INSTDIR\mega-invite.bat"
@@ -818,6 +827,7 @@ Section Uninstall
   Delete "$INSTDIR\mega-logout.bat"
   Delete "$INSTDIR\mega-lpwd.bat"
   Delete "$INSTDIR\mega-ls.bat"
+  Delete "$INSTDIR\mega-backup.bat"
   Delete "$INSTDIR\mega-mkdir.bat"
   Delete "$INSTDIR\mega-mount.bat"
   Delete "$INSTDIR\mega-mv.bat"

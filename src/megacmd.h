@@ -56,6 +56,20 @@ typedef struct sync_struct
 } sync_struct;
 
 
+typedef struct backup_struct
+{
+    mega::MegaHandle handle;
+    bool active;
+    std::string localpath; //TODO: review wether this is local or utf-8 representation and be consistent
+    int64_t period;
+    std::string speriod;
+    int numBackups;
+    bool failed; //This should mark the failure upon resuming. It shall not be persisted
+    int tag; //This is depends on execution. should not be persisted
+    int id; //Internal id for megacmd. Depends on execution should not be persisted
+} backup_istruct;
+
+
 enum prompttype
 {
     COMMAND, LOGINPASSWORD, OLDPASSWORD, NEWPASSWORD, PASSWORDCONFIRM, AREYOUSURETODELETE

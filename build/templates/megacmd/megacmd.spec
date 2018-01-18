@@ -13,7 +13,7 @@ BuildRequires: openssl-devel, sqlite-devel, zlib-devel, autoconf, automake, libt
 BuildRequires: hicolor-icon-theme, unzip, wget
 
 %if 0%{?suse_version}
-BuildRequires: libcares-devel
+BuildRequires: libcares-devel, pkg-config
  
 # disabling post-build-checks that ocassionally prevent opensuse rpms from being generated
 # plus it speeds up building process
@@ -28,6 +28,11 @@ BuildRequires: libcryptopp-devel
 %if 0%{?fedora}
 BuildRequires: c-ares-devel, cryptopp-devel
 %endif
+
+%if 0%{?fedora_version}==21 || 0%{?fedora_version}==22 || 0%{?fedora_version}>=25 || 0%{?sle_version} == 120300
+BuildRequires: libzen-devel, libmediainfo-devel
+%endif
+
 
 %if 0%{?centos_version} || 0%{?scientificlinux_version}
 BuildRequires: c-ares-devel,
@@ -49,6 +54,13 @@ It features 2 modes of interaction:
 
 %define flag_cryptopp %{nil}
 %define with_cryptopp %{nil}
+%define flag_disablemediainfo -i
+%define with_mediainfo %{nil}
+
+%if 0%{?fedora_version}==19 || 0%{?fedora_version}==20 || 0%{?fedora_version}==23 || 0%{?fedora_version}==24 || 0%{?centos_version} || 0%{?scientificlinux_version} || 0%{?rhel_version} || ( 0%{?suse_version} && 0%{?sle_version} != 120300)
+%define flag_disablemediainfo %{nil}
+%define with_mediainfo --with-libmediainfo=$PWD/deps --with-libzen=$PWD/deps
+%endif
 
 %if 0%{?centos_version} || 0%{?scientificlinux_version}
 %define flag_cryptopp -q
@@ -95,13 +107,13 @@ sed -i "s#AC_INIT#m4_pattern_allow(AC_PROG_OBJCXX)\nAC_INIT#g" sdk/configure.ac
 #build dependencies into folder deps
 mkdir deps || :
 bash -x ./contrib/build_sdk.sh %{flag_cryptopp} %{flag_cares} -o archives \
-  -g %{flag_disablezlib} -b -l -c -s -u -a -p deps/
+  -g %{flag_disablezlib} %{flag_disablemediainfo} -b -l -c -s -u -a -p deps/
 
 ./configure --disable-shared --enable-static --disable-silent-rules \
   --disable-curl-checks %{with_cryptopp} --with-sodium=$PWD/deps --with-pcre \
   %{with_zlib} --with-sqlite=$PWD/deps --with-cares=$PWD/deps \
   --with-curl=$PWD/deps --with-freeimage=$PWD/deps --with-readline=$PWD/deps \
-  --with-termcap=$PWD/deps --prefix=$PWD/deps --disable-examples
+  --with-termcap=$PWD/deps --prefix=$PWD/deps --disable-examples %{with_mediainfo}
 
 make
 
@@ -392,6 +404,8 @@ killall mega-cmd-server 2> /dev/null || true
 %{_bindir}/mega-get
 %{_bindir}/mega-help
 %{_bindir}/mega-https
+%{_bindir}/mega-permissions
+%{_bindir}/mega-deleteversions
 %{_bindir}/mega-transfers
 %{_bindir}/mega-import
 %{_bindir}/mega-invite
@@ -403,6 +417,7 @@ killall mega-cmd-server 2> /dev/null || true
 %{_bindir}/mega-logout
 %{_bindir}/mega-lpwd
 %{_bindir}/mega-ls
+%{_bindir}/mega-backup
 %{_bindir}/mega-mkdir
 %{_bindir}/mega-mount
 %{_bindir}/mega-mv

@@ -52,6 +52,9 @@ int getShareLevelNum(const char* level);
 
 const char * getTransferStateStr(int transferState);
 
+std::string backupSatetStr(int backupstate);
+
+
 
 /* Files and folders */
 
@@ -65,8 +68,12 @@ bool hasWildCards(std::string &what);
 
 
 /* Time related */
+const char *fillStructWithSYYmdHMS(std::string &stime, struct tm &dt);
 
 std::string getReadableTime(const time_t rawtime);
+std::string getReadableShortTime(const time_t rawtime, bool showUTCDeviation = false);
+
+std::string getReadablePeriod(const time_t rawtime);
 
 time_t getTimeStampAfter(time_t initial, std::string timestring);
 
@@ -113,7 +120,7 @@ std::string getFixLengthString(const std::string origin, unsigned int size, cons
 
 std::string getRightAlignedString(const std::string origin, unsigned int minsize);
 
-
+bool nodeNameIsVersion(std::string &nodeName);
 
 /* Flags and Options */
 int getFlag(std::map<std::string, int> *flags, const char * optname);
@@ -129,6 +136,7 @@ bool getMinAndMaxSize(std::string sizestring, int64_t *minSize, int64_t *maxSize
 
 /* Others */
 std::string sizeToText(long long totalSize, bool equalizeUnitsLength = true, bool humanreadable = true);
+std::string sizeProgressToText(long long partialSize, long long totalSize, bool equalizeUnitsLength = true, bool humanreadable = true);
 
 int64_t textToSize(const char *text);
 
@@ -136,11 +144,32 @@ std::string secondsToText(time_t seconds, bool humanreadable = true);
 
 std::string percentageToText(float percentage);
 
+std::string readablePermissions(int permvalue);
+int permissionsFromReadable(std::string permissions);
+
 unsigned int getNumberOfCols(unsigned int defaultwidth = 90);
 
 void sleepSeconds(int seconds);
 void sleepMicroSeconds(long microseconds);
 
 bool isValidEmail(std::string email);
+
+/* Properties */
+std::string &ltrimProperty(std::string &s, const char &c);
+std::string &rtrimProperty(std::string &s, const char &c);
+std::string &trimProperty(std::string &what);
+std::string getPropertyFromFile(const char *configFile, const char *propertyName);
+template <typename T>
+T getValueFromFile(const char *configFile, const char *propertyName, T defaultValue)
+{
+    std::string propValue = getPropertyFromFile(configFile, propertyName);
+    if (!propValue.size()) return defaultValue;
+
+    T i;
+    std::istringstream is(propValue);
+    is >> i;
+    return i;
+
+}
 
 #endif // MEGACMDUTILS_H

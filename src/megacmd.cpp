@@ -178,7 +178,7 @@ vector<string> remotepatterncommands(aremotepatterncommands, aremotepatterncomma
 string aremotefolderspatterncommands[] = {"cd", "share"};
 vector<string> remotefolderspatterncommands(aremotefolderspatterncommands, aremotefolderspatterncommands + sizeof aremotefolderspatterncommands / sizeof aremotefolderspatterncommands[0]);
 
-string amultipleremotepatterncommands[] = {"ls", "mkdir", "rm", "du", "find", "mv"};
+string amultipleremotepatterncommands[] = {"ls", "mkdir", "rm", "du", "find", "mv", "deleteversions"};
 vector<string> multipleremotepatterncommands(amultipleremotepatterncommands, amultipleremotepatterncommands + sizeof amultipleremotepatterncommands / sizeof amultipleremotepatterncommands[0]);
 
 string aremoteremotepatterncommands[] = {"cp"};
@@ -196,9 +196,11 @@ vector<string> emailpatterncommands(aemailpatterncommands, aemailpatterncommands
 string avalidCommands [] = { "login", "signup", "confirm", "session", "mount", "ls", "cd", "log", "debug", "pwd", "lcd", "lpwd", "import", "masterkey",
                              "put", "get", "attr", "userattr", "mkdir", "rm", "du", "mv", "cp", "sync", "export", "share", "invite", "ipc",
                              "showpcr", "users", "speedlimit", "killsession", "whoami", "help", "passwd", "reload", "logout", "version", "quit",
-                             "thumbnail", "preview", "find", "completion", "clear", "https", "transfers", "exclude", "exit"
+                             "thumbnail", "preview", "find", "completion", "clear", "https", "transfers", "exclude", "exit", "backup", "deleteversions"
 #ifdef _WIN32
                              ,"unicode"
+#else
+                             , "permissions"
 #endif
                            };
 vector<string> validCommands(avalidCommands, avalidCommands + sizeof avalidCommands / sizeof avalidCommands[0]);
@@ -346,6 +348,8 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validParams->insert("R");
         validParams->insert("r");
         validParams->insert("l");
+        validParams->insert("v");
+
 #ifdef USE_PCRE
         validParams->insert("use-pcre");
 #endif
@@ -353,6 +357,7 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     else if ("du" == thecommand)
     {
         validParams->insert("h");
+        validParams->insert("v");
 #ifdef USE_PCRE
         validParams->insert("use-pcre");
 #endif
@@ -400,11 +405,38 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validParams->insert("c");
         validParams->insert("s");
     }
+#ifndef _WIN32
+    else if ("permissions" == thecommand)
+    {
+        validParams->insert("s");
+        validParams->insert("files");
+        validParams->insert("folders");
+    }
+#endif
+    else if ("deleteversions" == thecommand)
+    {
+        validParams->insert("all");
+        validParams->insert("f");
+        validParams->insert("use-pcre");
+    }
     else if ("exclude" == thecommand)
     {
         validParams->insert("a");
         validParams->insert("d");
         validParams->insert("restart-syncs");
+    }
+    else if ("backup" == thecommand)
+    {
+        validOptValues->insert("period");
+        validOptValues->insert("num-backups");
+        validParams->insert("d");
+//        validParams->insert("s");
+//        validParams->insert("r");
+        validParams->insert("a");
+//        validParams->insert("i");
+        validParams->insert("l");
+        validParams->insert("h");
+        validOptValues->insert("path-display-size");
     }
     else if ("sync" == thecommand)
     {
@@ -417,6 +449,7 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     {
         validParams->insert("a");
         validParams->insert("d");
+        validParams->insert("f");
         validOptValues->insert("expire");
 #ifdef USE_PCRE
         validParams->insert("use-pcre");
@@ -989,6 +1022,17 @@ completionfunction_t *getCompletionFunction(vector<string> words)
             return remotepaths_completion;
         }
     }
+    else if (thecommand == "backup") //TODO: offer local folder completion
+    {
+        if (currentparameter == 1)
+        {
+            return local_completion;
+        }
+        else
+        {
+            return remotefolders_completion;
+        }
+    }
     else if (stringcontained(thecommand.c_str(), remotepatterncommands))
     {
         if (currentparameter == 1)
@@ -1206,9 +1250,9 @@ const char * getUsageStr(const char *command)
     if (!strcmp(command, "ls"))
     {
 #ifdef USE_PCRE
-        return "ls [-lRr] [remotepath] [--use-pcre]";
+        return "ls [-lRrv] [remotepath] [--use-pcre]";
 #else
-        return "ls [-lRr] [remotepath]";
+        return "ls [-lRrv] [remotepath]";
 #endif
     }
     if (!strcmp(command, "cd"))
@@ -1222,9 +1266,9 @@ const char * getUsageStr(const char *command)
     if (!strcmp(command, "du"))
     {
 #ifdef USE_PCRE
-        return "du [-h] [remotepath remotepath2 remotepath3 ... ] [--use-pcre]";
+        return "du [-hv] [remotepath remotepath2 remotepath3 ... ] [--use-pcre]";
 #else
-        return "du [-h] [remotepath remotepath2 remotepath3 ... ]";
+        return "du [-hv] [remotepath remotepath2 remotepath3 ... ]";
 #endif
     }
     if (!strcmp(command, "pwd"))
@@ -1299,6 +1343,15 @@ const char * getUsageStr(const char *command)
     {
         return "cp srcremotepath dstremotepath|dstemail:";
     }
+    if (!strcmp(command, "deleteversions"))
+    {
+#ifdef USE_PCRE
+        return "deleteversions [-f] (--all | remotepath1 remotepath2 ...)  [--use-pcre]";
+#else
+        return "deleteversions [-f] (--all | remotepath1 remotepath2 ...)";
+#endif
+
+    }
     if (!strcmp(command, "exclude"))
     {
         return "exclude [(-a|-d) pattern1 pattern2 pattern3 [--restart-syncs]]";
@@ -1307,16 +1360,26 @@ const char * getUsageStr(const char *command)
     {
         return "sync [localpath dstremotepath| [-dsr] [ID|localpath]";
     }
+    if (!strcmp(command, "backup"))
+    {
+        return "backup (localpath remotepath --period=\"PERIODSTRING\" --num-backups=N  | [-lhda] [TAG|localpath] [--period=\"PERIODSTRING\"] [--num-backups=N])";
+    }
     if (!strcmp(command, "https"))
     {
         return "https [on|off]";
     }
+#ifndef _WIN32
+    if (!strcmp(command, "permissions"))
+    {
+        return "permissions [(--files|--folders) [-s XXX]]";
+    }
+#endif
     if (!strcmp(command, "export"))
     {
 #ifdef USE_PCRE
-        return "export [-d|-a [--expire=TIMEDELAY]] [remotepath] [--use-pcre]";
+        return "export [-d|-a [--expire=TIMEDELAY] [-f]] [remotepath] [--use-pcre]";
 #else
-        return "export [-d|-a [--expire=TIMEDELAY]] [remotepath]";
+        return "export [-d|-a [--expire=TIMEDELAY] [-f]] [remotepath]";
 #endif
     }
     if (!strcmp(command, "share"))
@@ -1558,6 +1621,8 @@ string getHelpStr(const char *command)
         os << "Options:" << endl;
         os << " -R|-r" << "\t" << "list folders recursively" << endl;
         os << " -l" << "\t" << "include extra information" << endl;
+        os << " -v" << "\t" << "show historical versions" << endl;
+        os << "   " << "\t" << "You can delete all versions of a file with \"deleteversions\"" << endl;
 #ifdef USE_PCRE
         os << " --use-pcre" << "\t" << "use PCRE expressions" << endl;
 #endif
@@ -1592,6 +1657,8 @@ string getHelpStr(const char *command)
         os << endl;
         os << "Options:" << endl;
         os << " -h" << "\t" << "Human readable" << endl;
+        os << " -v" << "\t" << "Calculate size including all versions." << endl;
+        os << "   " << "\t" << "You can remove all versions with \"deleteversions\" and list them with \"ls -v\"" << endl;
 #ifdef USE_PCRE
         os << " --use-pcre" << "\t" << "use PCRE expressions" << endl;
 #endif
@@ -1726,6 +1793,26 @@ string getHelpStr(const char *command)
         os << " e.g: cp /path/to/file user@doma.in:" << endl;
         os << " Remember the trailing \":\", otherwise a file with the name of that user (\"user@doma.in\") will be created" << endl;
     }
+#ifndef _WIN32
+    else if (!strcmp(command, "permissions"))
+    {
+        os << "Shows/stablish default permissions for files and folders created by MEGAcmd." << endl;
+        os << endl;
+        os << "Permissions are unix-like permissions, with 3 numbers: one for owner, one for group and one for others" << endl;
+        os << "Options:" << endl;
+        os << " --files" << "\t" << "To show/set files default permissions." << endl;
+        os << " --folders" << "\t" << "To show/set folders default permissions." << endl;
+        os << " --s XXX" << "\t" << "To set new permissions for newly created files/folder. " << endl;
+        os << "        " << "\t" << " Notice that for files minimum permissions is 600," << endl;
+        os << "        " << "\t" << " for folders minimum permissions is 700." << endl;
+        os << "        " << "\t" << " Further restrictions to owner are not allowed (to avoid missfunctioning)." << endl;
+        os << "        " << "\t" << " Notice that permissions of already existing files/folders will not change." << endl;
+        os << "        " << "\t" << " Notice that permissions of already existing files/folders will not change." << endl;
+        os << endl;
+        os << "Notice: this permissions will be saved for the next time you execute MEGAcmd server. They will be removed if you logout." << endl;
+
+    }
+#endif
     else if (!strcmp(command, "https"))
     {
         os << "Shows if HTTPS is used for transfers. Use \"https on\" to enable it." << endl;
@@ -1734,6 +1821,25 @@ string getHelpStr(const char *command)
         os << "Enabling it will increase CPU usage and add network overhead." << endl;
         os << endl;
         os << "Notice that this setting is ephemeral: it will reset for the next time you open MEGAcmd" << endl;
+    }
+    else if (!strcmp(command, "deleteversions"))
+    {
+        os << "Deletes previous versions." << endl;
+        os << endl;
+        os << "This will permanently delete all historical versions of a file. " << endl;
+        os << "The current version of the file will remain." << endl;
+        os << "Note: any file version shared to you from a contact will need to be deleted by them." << endl;
+
+        os << endl;
+        os << "Options:" << endl;
+        os << " -f" << "\t" << "Force (no asking)" << endl;
+        os << " --all" << "\t" << "Delete versions of all nodes. This will delete the version histories of all files (not current files)." << endl;
+#ifdef USE_PCRE
+        os << " --use-pcre" << "\t" << "use PCRE expressions" << endl;
+#endif
+        os << endl;
+        os << "To see versions of a file use \"ls -v\"." << endl;
+        os << "To see space occupied by sessions use \"du\" with \"-v\"." << endl;
     }
     else if (!strcmp(command, "exclude"))
     {
@@ -1773,6 +1879,80 @@ string getHelpStr(const char *command)
         os << "-r" << " " << "ID|localpath" << "\t" << "resumes a synchronization" << endl;
         os << " --path-display-size=N" << "\t" << "Use a fixed size of N characters for paths" << endl;
     }
+    else if (!strcmp(command, "backup"))
+    {
+        os << "Controls backups" << endl;
+        os << endl;
+        os << "This command can be used to configure and control backups. " << endl;
+        os << "A tutorial can be found here: https://github.com/meganz/MEGAcmd/blob/master/contrib/docs/BACKUPS.md" << endl;
+        os << endl;
+        os << "If no argument is given it will list the configured backups" << endl;
+        os << " To get extra info on backups use -l or -h (see Options below)" << endl;
+        os << endl;
+        os << "When a backup of a folder (localfolder) is stablished in a remote folder (remotepath)" << endl;
+        os << " MEGAcmd will create subfolder within the remote path with names like: \"localfoldername_bk_TIME\"" << endl;
+        os << " which shall contain a backup of the local folder at that specific time" << endl;
+        os << "In order to configure a backup you need to specify the local and remote paths, " << endl;
+        os << "the period and max number of backups to store (see Configuration Options below)." << endl;
+        os << "Once configured, you can see extended info asociated to the backup (See Display Options)" << endl;
+        os << "Notice that MEGAcmd server need to be running for backups to be created." << endl;
+        os << endl;
+        os << "Display Options:" << endl;
+        os << "-l\t" << "Show extended info: period, max number, next scheduled backup" << endl;
+        os << "  \t" << " or the status of current/last backup" << endl;
+        os << "-h\t" << "Show history of created backups" << endl;
+        os << "  \t" << "Backup states:" << endl;
+        os << "  \t"  << "While a backup is being performed, the backup will be considered and labeled as ONGOING" << endl;
+        os << "  \t"  << "If a transfer is cancelled or fails, the backup will be considered INCOMPLETE" << endl;
+        os << "  \t"  << "If a backup is aborted (see -a), all the transfers will be canceled and the backup be ABORTED" << endl;
+        os << "  \t"  << "If MEGAcmd server stops during a transfer, it will be considered MISCARRIED" << endl;
+        os << "  \t"  << "  Notice that currently when MEGAcmd server is restarted, ongoing and scheduled transfers " << endl;
+        os << "  \t"  << "  will be carried out nevertheless." << endl;
+        os << "  \t"  << "If MEGAcmd server is not running when a backup is scheduled and the time for the next one has already arrived,"
+              " an empty BACKUP will be created with state SKIPPED" << endl;
+        os << "  \t"  << "If a backup(1) is ONGOING and the time for the next backup(2) arrives, it won't start untill the previous one(1) " << endl;
+        os << "  \t"  << " is completed, and if by the time the first one(1) ends the time for the next one(3) has already arrived," << endl;
+        os << "  \t"  << " an empty BACKUP(2) will be created with state SKIPPED" << endl;
+        os << " --path-display-size=N" << "\t" << "Use a fixed size of N characters for paths" << endl;
+        os << endl;
+        os << "Configuration Options:" << endl;
+        os << "--period=\"PERIODSTRING\"\t" << "Period: either time in TIMEFORMAT (see below) or a cron like expresisions" << endl;
+        os << "                       \t" << " Cron like period is formatted as follows" << endl;
+        os << "                       \t" << "  - - - - - -" << endl;
+        os << "                       \t" << "  | | | | | |" << endl;
+        os << "                       \t" << "  | | | | | |" << endl;
+        os << "                       \t" << "  | | | | | +---- Day of the Week   (range: 1-7, 1 standing for Monday)" << endl;
+        os << "                       \t" << "  | | | | +------ Month of the Year (range: 1-12)" << endl;
+        os << "                       \t" << "  | | | +-------- Day of the Month  (range: 1-31)" << endl;
+        os << "                       \t" << "  | | +---------- Hour              (range: 0-23)" << endl;
+        os << "                       \t" << "  | +------------ Minute            (range: 0-59)" << endl;
+        os << "                       \t" << "  +-------------- Second            (range: 0-59)" << endl;
+        os << "                       \t" << " examples:" << endl;
+        os << "                       \t" << "  - daily at 04:00:00 (UTC): \"0 0 4 * * *\"" << endl;
+        os << "                       \t" << "  - every 15th day at 00:00:00 (UTC) \"0 0 0 15 * *\"" << endl;
+        os << "                       \t" << "  - mondays at 04.30.00 (UTC): \"0 30 4 * * 1\"" << endl;
+        os << "                       \t" << " TIMEFORMAT can be expressed in hours(h), days(d), " << endl;
+        os << "                       \t"  << "   minutes(M), seconds(s), months(m) or years(y)" << endl;
+        os << "                       \t" << "   e.g. \"1m12d3h\" indicates 1 month, 12 days and 3 hours" << endl;
+        os << "                       \t" << "  Notice that this is an uncertain measure since not all months" << endl;
+        os << "                       \t" << "  last the same and Daylight saving time changes are not considered" << endl;
+        os << "                       \t" << "  If possible use a cron like expresion" << endl;
+        os << "                       \t" << "Notice: regardless of the period expresion, the first time you stablish a backup," << endl;
+        os << "                       \t" << " it will be created inmediately" << endl;
+        os << "--num-backups=N\t" << "Maximum number of backups to store" << endl;
+        os << "                 \t" << " After creating the backup (N+1) the oldest one will be deleted" << endl;
+        os << "                 \t" << "  That might not be true in case there are incomplete backups:" << endl;
+        os << "                 \t" << "   in order not to lose data, at least one COMPLETE backup will be kept" << endl;
+        os << "Use backup TAG|localpath --option=VALUE to modify existing backups" << endl;
+        os << endl;
+        os << "Management Options:" << endl;
+        os << "-d TAG|localpath\t" << "Removes a backup by its TAG or local path" << endl;
+        os << "                \t" << " Folders created by backup won't be deleted" << endl;
+        os << "-a TAG|localpath\t" << "Aborts ongoing backup" << endl;
+        os << endl;
+        os << "Caveat: This functionality is in BETA state. If you experience any issue with this, please contact: support@mega.nz" << endl;
+        os << endl;
+    }
     else if (!strcmp(command, "export"))
     {
         os << "Prints/Modifies the status of current exports" << endl;
@@ -1787,6 +1967,13 @@ string getHelpStr(const char *command)
         os << "                   " << "\t"  << "   minutes(M), seconds(s), months(m) or years(y)" << endl;
         os << "                   " << "\t" << "   e.g. \"1m12d3h\" stablish an expiration time 1 month, " << endl;
         os << "                   " << "\t"  << "   12 days and 3 hours after the current moment" << endl;
+        os << " -f" << "\t" << "Implicitly accept copyright terms (only shown the first time an export is made)" << endl;
+        os << "   " << "\t" << "MEGA respects the copyrights of others and requires that users of the MEGA cloud service " << endl;
+        os << "   " << "\t" << "comply with the laws of copyright." << endl;
+        os << "   " << "\t" << "You are strictly prohibited from using the MEGA cloud service to infringe copyrights." << endl;
+        os << "   " << "\t" << "You may not upload, download, store, share, display, stream, distribute, email, link to, " << endl;
+        os << "   " << "\t" << "transmit or otherwise make available any files, data or content that infringes any copyright " << endl;
+        os << "   " << "\t" << "or other proprietary rights of any person or entity." << endl;
         os << " -d" << "\t" << "Deletes an export" << endl;
         os << endl;
         os << "If a remote path is given it'll be used to add/delete or in case of no option selected," << endl;
@@ -1850,6 +2037,7 @@ string getHelpStr(const char *command)
     if (!strcmp(command, "masterkey"))
     {
         os << "Shows your master key." << endl;
+        os << endl;
         os << "Getting the master key and keeping it in a secure location enables you " << endl;
         os << " to set a new password without data loss." << endl;
         os << "Always keep physical control of your master key " << endl;
@@ -1884,15 +2072,16 @@ string getHelpStr(const char *command)
     else if (!strcmp(command, "speedlimit"))
     {
         os << "Displays/modifies upload/download rate limits" << endl;
-        os << " NEWLIMIT stablish the new limit in B/s (0 = no limit)" << endl;
+        os << " NEWLIMIT stablish the new limit in size per second (0 = no limit)" << endl;
+        os << " NEWLIMIT may include (B)ytes, (K)ilobytes, (M)egabytes, (G)igabytes & (T)erabytes." << endl;
+        os << "  Examples: \"1m12k3B\" \"3M\". If no unit given, it'll use Bytes" << endl;
         os << endl;
         os << "Options:" << endl;
         os << " -d" << "\t" << "Download speed limit" << endl;
         os << " -u" << "\t" << "Upload speed limit" << endl;
         os << " -h" << "\t" << "Human readable" << endl;
         os << endl;
-        os << "Notice that this limit won't be saved for the next time you execute MEGAcmd server" << endl;
-
+        os << "Notice: this limit will be saved for the next time you execute MEGAcmd server. They will be removed if you logout." << endl;
     }
     else if (!strcmp(command, "killsession"))
     {
@@ -1993,6 +2182,7 @@ string getHelpStr(const char *command)
     else if (!strcmp(command, "transfers"))
     {
         os << "List or operate with transfers" << endl;
+        os << endl;
         os << "If executed without option it will list the first 10 tranfers" << endl;
         os << "Options:" << endl;
         os << " -c (TAG|-a)" << "\t" << "Cancel transfer with TAG (or all with -a)" << endl;

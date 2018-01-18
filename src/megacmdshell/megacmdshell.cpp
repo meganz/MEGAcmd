@@ -1453,6 +1453,30 @@ void process_line(char * line)
 
                     comms->executeCommand(toexec.c_str(), readconfirmationloop);
                 }
+                else if (words[0] == "backup")
+                {
+                    string toexec;
+
+                    if (!strstr (line,"path-display-size"))
+                    {
+                        unsigned int width = getNumberOfCols(75);
+                        int pathSize = int((width-21)/2);
+
+                        toexec+="backup --path-display-size=";
+                        toexec+=SSTR(pathSize);
+                        toexec+=" ";
+                        if (strlen(line)>strlen("backup "))
+                        {
+                            toexec+=line+strlen("backup ");
+                        }
+                    }
+                    else
+                    {
+                        toexec+=line;
+                    }
+
+                    comms->executeCommand(toexec.c_str(), readconfirmationloop);
+                }
                 else
                 {
                     if ( words[0] == "get" || words[0] == "put" || words[0] == "reload")

@@ -1,3 +1,22 @@
+Thu Jan 18 19:15:35 CET 2018 - linux@mega.co.nz
+- Update to version 0.9.8:
+  * Backups: added the possibility to configure periodic backups
+  * Full version support: listing, see space ocupied, accessing, copying, removing, ...
+  * Added "deleteversions" command to remove versions (all or by path)
+  * Permissions: you can change default permission for files and folders
+  * Persistence of settings: speedlimit, permissions, https
+  * Speedlimit takes units and allows human-readable output
+  * Support for video metadata
+  * Minor fixes and doc improvements
+
+-------------------------------------------------------------------
+Mon Dec 11 18:43:46 CET 2017 - linux@mega.co.nz
+- Update to version 0.9.7:
+  * Faster scanning of files
+  * Improved the management of deleted files
+  * Bug fixes and other minor improvements
+
+-------------------------------------------------------------------
 Fri Nov 10 14:36:44 CET 2017 - linux@mega.co.nz
 - Update to version 0.9.6:
   * Added transfer resumption

@@ -59,7 +59,8 @@ build() {
 	  --disable-curl-checks --with-sodium=$PWD/deps --with-pcre --with-cryptopp=$PWD/deps\
 	  --with-curl=$PWD/deps --with-freeimage=$PWD/deps --with-readline=$PWD/deps \
 	  --with-cares=$PWD/deps \
-	  --with-termcap=$PWD/deps --prefix=$PWD/deps --disable-examples
+	  --with-termcap=$PWD/deps --prefix=$PWD/deps --disable-examples \
+	  --with-libmediainfo=$PWD/deps --with-libzen=$PWD/deps
 
 	make
 

@@ -1,5 +1,6 @@
 #!/usr/bin/make -f
-
+FMEDIAINFO := $(shell dpkg -l | grep mediainfo >/dev/null && echo "-i" || echo " ")
+WMEDIAINFO := $(shell dpkg -l | grep mediainfo >/dev/null && echo " " || echo "--with-libmediainfo=$(CURDIR)/deps --with-libzen=$(CURDIR)/deps")
 build: build-stamp
 build-stamp:
 	./autogen.sh
@@ -7,12 +8,12 @@ build-stamp:
 	#build dependencies into folder deps
 	mkdir deps || :
 	bash -x ./sdk/contrib/build_sdk.sh -o archives \
-	  -g -b -l -c -s -u -a -z -p deps/
+	  -g -b $(FMEDIAINFO) -l -c -s -u -a -z -p deps/
 
 	./configure --disable-shared --enable-static --disable-silent-rules \
 	  --disable-curl-checks --with-sodium=$(CURDIR)/deps --with-pcre \
 	  --with-curl=$(CURDIR)/deps --with-freeimage=$(CURDIR)/deps --with-readline=$(CURDIR)/deps \
-	  --with-termcap=$(CURDIR)/deps --prefix=$(CURDIR)/deps --disable-examples
+	  --with-termcap=$(CURDIR)/deps --prefix=$(CURDIR)/deps --disable-examples $(WMEDIAINFO)
 
 	make
 

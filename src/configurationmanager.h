@@ -34,14 +34,19 @@ private:
 
 public:
     static std::map<std::string, sync_struct *> configuredSyncs;
+    static std::map<std::string, backup_struct *> configuredBackups;
+
     static std::string session;
 
     static std::set<std::string> excludedNames;
 
     static void loadConfiguration(bool debug);
+    static void clearConfigurationFile();
     static void loadsyncs();
+    static void loadbackups();
 
     static void saveSyncs(std::map<std::string, sync_struct *> *syncsmap);
+    static void saveBackups(std::map<std::string, backup_struct *> *backupsmap);
 
     static void addExcludedName(std::string excludedName);
     static void removeExcludedName(std::string excludedName);
@@ -53,6 +58,30 @@ public:
     static void loadExcludedNames();
 
     static void saveSession(const char*session);
+
+    static void saveProperty(const char* property, const char* value);
+
+    template<typename T>
+    static void savePropertyValue(const char* property, T value)
+    {
+        std::ostringstream os;
+        os << value;
+        saveProperty(property,os.str().c_str());
+    }
+
+    static std::string getConfigurationSValue(std::string propertyName);
+    template <typename T>
+    static T getConfigurationValue(std::string propertyName, T defaultValue)
+    {
+        std::string propValue = getConfigurationSValue(propertyName);
+        if (!propValue.size()) return defaultValue;
+
+        T i;
+        std::istringstream is(propValue);
+        is >> i;
+        return i;
+    }
+
     static std::string getConfigFolder();
 
     static void unloadConfiguration();

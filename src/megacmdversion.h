@@ -8,7 +8,7 @@
 #define MEGACMD_MINOR_VERSION 9
 #endif
 #ifndef MEGACMD_MICRO_VERSION
-#define MEGACMD_MICRO_VERSION 6
+#define MEGACMD_MICRO_VERSION 8
 #endif
 
 #ifndef MEGACMD_CODE_VERSION
@@ -16,24 +16,14 @@
 #endif
 
 const char * const megacmdchangelog =
-        "Added transfer resumption""\n"
-        "Added file versioning for modified files(webclient can browse them)""\n"
-        "Added time and size constrains for find""\n"
-        "Reformated sync output""\n"
-        "Added exclusions to syncs. Default: .* ~* desktop.ini Thumbs.db""\n"
-        "Fixed detection of invalid TIMEVAL when no unit specified""\n"
-        "Improved sync display format""\n"
-        "Fix some \"get\" cases with \"/\" involved in Windows""\n"
-        "Fix in email validation""\n"
-        "Fix segfault in userattr""\n"
-        "Added \"--in\" & \"--out\" to showpcr""\n"
-        "Added masterkey command to show master key""\n"
-        "All/None options in confirmation for deletion""\n"
-        "Added multi-transfer progress (one single progress bar)""\n"
-        "Fix mkdir loop""\n"
-        "Minor fixes and improvements in error management""\n"
-        "beautify whoami -l and added storage used by versions""\n"
-        "Changed name for server in windows to MEGAcmdServer.exe"
+        "Backups: added the possibility to configure periodic backups""\n"
+        "Full version support: listing, see space ocupied, accessing, copying, removing, ...""\n"
+        "Added \"deleteversions\" command to remove versions (all or by path)""\n"
+        "Permissions: you can change default permission for files and folders""\n"
+        "Persistence of settings: speedlimit, permissions, https""\n"
+        "Speedlimit takes units and allows human-readable output""\n"
+        "Support for video metadata""\n"
+        "Minor fixes and doc improvements"
         ;
 
 

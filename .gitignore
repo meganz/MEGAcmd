@@ -93,7 +93,7 @@ MEGAcmdServer.pro.user
 /contrib/QtCreator/build-*
 
 
-#built stufrf
+#built stuff
 build/archives
 build/megacmd-*
 megacmdconfig.h
@@ -108,3 +108,10 @@ contrib/QtCreator/MEGAcmd/MEGAcmdClient/Makefile.Debug
 contrib/QtCreator/MEGAcmd/MEGAcmdClient/Makefile.Release
 contrib/QtCreator/MEGAcmd/MEGAcmdServer/Makefile.Release
 build/Release_x64
+/build/megacmd/megacmd*.dsc
+
+#git stuff
+*_BACKUP_*
+*_BASE_*
+*_LOCAL_*
+*_REMOTE_*

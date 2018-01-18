@@ -30,6 +30,8 @@
 #endif
 
 #include <iomanip>
+#include <fstream>
+#include <time.h>
 
 using namespace std;
 using namespace mega;
@@ -460,6 +462,39 @@ const char * getTransferStateStr(int transferState)
 
 }
 
+string backupSatetStr(int backupstate)
+{
+    if (backupstate == MegaBackup::BACKUP_FAILED)
+    {
+        return "FAILED";
+    }
+    if (backupstate == MegaBackup::BACKUP_CANCELED)
+    {
+        return "CANCELED";
+    }
+    if (backupstate == MegaBackup::BACKUP_INITIALSCAN)
+    {
+        return "INITIALSCAN";
+    }
+    if (backupstate == MegaBackup::BACKUP_ACTIVE)
+    {
+        return "ACTIVE";
+    }
+    if (backupstate == MegaBackup::BACKUP_ONGOING)
+    {
+        return "ONGOING";
+    }
+    if (backupstate == MegaBackup::BACKUP_SKIPPING)
+    {
+        return "SKIPPING";
+    }
+    if (backupstate == MegaBackup::BACKUP_REMOVING_EXCEEDING)
+    {
+        return "EXCEEDREMOVAL";
+    }
+
+    return "UNDEFINED";
+}
 
 /**
  * @brief tests if a path is writable
@@ -496,7 +531,7 @@ int getLinkType(string link)
 
 bool isPublicLink(string link)
 {
-    if (( link.find_first_of("http") == 0 ) && ( link.find_first_of("#") != string::npos ))
+    if (( link.find("http") == 0 ) && ( link.find("#") != string::npos ))
     {
         return true;
     }
@@ -508,13 +543,131 @@ bool hasWildCards(string &what)
     return what.find('*') != string::npos || what.find('?') != string::npos;
 }
 
+const char *fillStructWithSYYmdHMS(string &stime, struct tm &dt)
+{
+    memset(&dt, 0, sizeof(struct tm));
+#ifdef _WIN32
+    if (stime.size() != 14)
+    {
+        return NULL;
+    }
+    for(int i=0;i<14;i++)
+    {
+        if ( (stime.at(i) < '0') || (stime.at(i) > '9') )
+        {
+            return NULL;
+        }
+    }
+
+    dt.tm_year = atoi(stime.substr(0,4).c_str()) - 1900;
+    dt.tm_mon = atoi(stime.substr(4,2).c_str()) - 1;
+    dt.tm_mday = atoi(stime.substr(6,2).c_str());
+    dt.tm_hour = atoi(stime.substr(8,2).c_str());
+    dt.tm_min = atoi(stime.substr(10,2).c_str());
+    dt.tm_sec = atoi(stime.substr(12,2).c_str());
+    return stime.c_str();
+#else
+    return strptime(stime.c_str(), "%Y%m%d%H%M%S", &dt);
+#endif
+}
+
+void fillLocalTimeStruct(const time_t *ttime, struct tm *dt) //TODO: copy this to megaapiimpl
+{
+#if (__cplusplus >= 201103L) && defined(__STDC_WANT_LIB_EXT1__)
+    localtime_s(ttime, dt);
+#elif _MSC_VER >= 1400 // MSVCRT (2005+): std::localtime is threadsafe
+    struct tm *newtm = localtime(ttime);
+    if (newtm)
+    {
+        memcpy(dt,newtm,sizeof(struct tm));
+    }
+    else
+    {
+        memset(dt,0,sizeof(struct tm));
+    }
+
+#elif _WIN32
+    static MegaMutex * mtx = new MegaMutex();
+    static bool initiated = false;
+    if (!initiated)
+    {
+        mtx->init(true);
+        initiated = true;
+    }
+    mtx->lock();
+    struct tm *newtm = localtime(ttime);
+    if (newtm)
+    {
+        memcpy(dt,newtm,sizeof(struct tm));
+    }
+    else
+    {
+        memset(dt,0,sizeof(struct tm));
+    }
+    mtx->unlock();
+#else //POSIX
+    localtime_r(ttime, dt);
+#endif
+}
+
 std::string getReadableTime(const time_t rawtime)
 {
-    struct tm * dt;
+    struct tm dt;
     char buffer [40];
-    dt = localtime(&rawtime);
-    strftime(buffer, sizeof( buffer ), "%a, %d %b %Y %T %z", dt); // Following RFC 2822 (as in date -R)
+    fillLocalTimeStruct(&rawtime, &dt);
+    strftime(buffer, sizeof( buffer ), "%a, %d %b %Y %T %z", &dt); // Following RFC 2822 (as in date -R)
     return std::string(buffer);
+}
+
+std::string getReadableShortTime(const time_t rawtime, bool showUTCDeviation)
+{
+    struct tm dt;
+    memset(&dt, 0, sizeof(struct tm));
+    char buffer [40];
+    if (rawtime != -1)
+    {
+        fillLocalTimeStruct(&rawtime, &dt);
+        if (showUTCDeviation)
+        {
+            strftime(buffer, sizeof( buffer ), "%d%b%Y %T %z", &dt); // Following RFC 2822 (as in date -R)
+        }
+        else
+        {
+            strftime(buffer, sizeof( buffer ), "%d%b%Y %T", &dt); // Following RFC 2822 (as in date -R)
+        }
+    }
+    else
+    {
+        sprintf(buffer,"INVALID_TIME %d", rawtime);
+    }
+    return std::string(buffer);
+}
+
+std::string getReadablePeriod(const time_t rawtime)
+{
+
+    long long rest = rawtime;
+    long long years = rest/31557600; //365.25 days
+    rest = rest%31557600;
+    long long months = rest/2629800; // average month 365.25/12 days
+    rest = rest%2629800;
+    long long days = rest/86400;
+    rest = rest%86400;
+    long long hours = rest/3600;
+    rest = rest%3600;
+    long long minutes = rest/60;
+    long long seconds = rest%60;
+
+    ostringstream ostoret;
+    if (years) ostoret << years << "y";
+    if (months) ostoret << months << "m";
+    if (days) ostoret << days << "d";
+    if (hours) ostoret << hours << "h";
+    if (minutes) ostoret << minutes << "M";
+    if (seconds) ostoret << seconds << "s";
+
+    string toret = ostoret.str();
+    return toret.size()?toret:"0s";
 }
 
 time_t getTimeStampAfter(time_t initial, string timestring)
@@ -579,18 +732,18 @@ time_t getTimeStampAfter(time_t initial, string timestring)
         }
     }
 
-    struct tm * dt;
-    dt = localtime(&initial);
+    struct tm dt;
+    fillLocalTimeStruct(&initial, &dt);
 
-    dt->tm_mday += days;
-    dt->tm_hour += hours;
-    dt->tm_min += minutes;
-    dt->tm_sec += seconds;
-    dt->tm_mon += months;
-    dt->tm_year += years;
+    dt.tm_mday += days;
+    dt.tm_hour += hours;
+    dt.tm_min += minutes;
+    dt.tm_sec += seconds;
+    dt.tm_mon += months;
+    dt.tm_year += years;
 
     delete [] buffer;
-    return mktime(dt);
+    return mktime(&dt);
 }
 
 time_t getTimeStampAfter(string timestring)
@@ -661,18 +814,18 @@ time_t getTimeStampBefore(time_t initial, string timestring)
         }
     }
 
-    struct tm * dt;
-    dt = localtime(&initial);
+    struct tm dt;
+    fillLocalTimeStruct(&initial, &dt);
 
-    dt->tm_mday -= days;
-    dt->tm_hour -= hours;
-    dt->tm_min -= minutes;
-    dt->tm_sec -= seconds;
-    dt->tm_mon -= months;
-    dt->tm_year -= years;
+    dt.tm_mday += days;
+    dt.tm_hour += hours;
+    dt.tm_min += minutes;
+    dt.tm_sec += seconds;
+    dt.tm_mon += months;
+    dt.tm_year += years;
 
     delete [] buffer;
-    return mktime(dt);
+    return mktime(&dt);
 }
 
 time_t getTimeStampBefore(string timestring)
@@ -1201,31 +1354,50 @@ string joinStrings(const vector<string>& vec, const char* delim, bool quoted)
         return toret.substr(0,toret.size()-strlen(delim));
     }
     return res.str();
+}
 
+unsigned int getstringutf8size(const string &str) {
+    int c,i,ix,q;
+    for (q=0, i=0, ix=str.length(); i < ix; i++, q++)
+    {
+        c = (unsigned char) str[i];
+
+        if (c>=0 && c<=127) i+=0;
+        else if ((c & 0xE0) == 0xC0) i+=1;
+#ifdef _WIN32
+        else if ((c & 0xF0) == 0xE0) i+=2;
+#else
+        else if ((c & 0xF0) == 0xE0) {i+=2;q++;} //these gliphs may occupy 2 characters! Problem: not always. Let's assume the worse
+#endif
+        else if ((c & 0xF8) == 0xF0) i+=3;
+        else return 0;//invalid utf8
+    }
+    return q;
 }
 
 string getFixLengthString(const string origin, unsigned int size, const char delim, bool alignedright)
 {
     string toret;
-    unsigned int origsize = origin.size();
-    if (origsize <= size){
+    unsigned int printableSize = getstringutf8size(origin);
+    unsigned int bytesSize = origin.size();
+    if (printableSize <= size){
         if (alignedright)
         {
-            toret.insert(0,size-origsize,delim);
-            toret.insert(size-origsize,origin,0,origsize);
+            toret.insert(0,size-printableSize,delim);
+            toret.insert(size-bytesSize,origin,0,bytesSize);
 
         }
         else
         {
-            toret.insert(0,origin,0,origsize);
-            toret.insert(origsize,size-origsize,delim);
+            toret.insert(0,origin,0,bytesSize);
+            toret.insert(bytesSize,size-printableSize,delim);
         }
     }
     else
     {
         toret.insert(0,origin,0,(size+1)/2-2);
         toret.insert((size+1)/2-2,3,'.');
-        toret.insert((size+1)/2+1,origin,origsize-(size)/2+1,(size)/2-1);
+        toret.insert((size+1)/2+1,origin,bytesSize-(size)/2+1,(size)/2-1); //TODO: This could break characters if multibyte!  //alternative: separate in multibyte strings and print one by one?
     }
 
     return toret;
@@ -1252,7 +1424,7 @@ int getintOption(map<string, string> *cloptions, const char * optname, int defau
 {
     if (cloptions->count(optname))
     {
-        int i;
+        int i = defaultValue;
         istringstream is(( *cloptions )[optname]);
         is >> i;
         return i;
@@ -1334,6 +1506,53 @@ bool setOptionsAndFlags(map<string, string> *opts, map<string, int> *flags, vect
     return discarded;
 }
 
+
+string sizeProgressToText(long long partialSize, long long totalSize, bool equalizeUnitsLength, bool humanreadable)
+{
+    ostringstream os;
+    os.precision(2);
+    if (humanreadable)
+    {
+        string unit;
+        unit = ( equalizeUnitsLength ? " B" : "B" );
+        double reducedPartSize = totalSize;
+        double reducedSize = totalSize;
+
+        if ( totalSize > 1099511627776LL *2 )
+        {
+            reducedPartSize = totalSize / (double) 1099511627776L;
+            reducedSize = totalSize / (double) 1099511627776L;
+            unit = "TB";
+        }
+        else if ( totalSize > 1073741824LL *2 )
+        {
+            reducedPartSize = totalSize / (double) 1073741824L;
+            reducedSize = totalSize / (double) 1073741824L;
+            unit = "GB";
+        }
+        else if (totalSize > 1048576 * 2)
+        {
+            reducedPartSize = totalSize / (double) 1048576;
+            reducedSize = totalSize / (double) 1048576;
+            unit = "MB";
+        }
+        else if (totalSize > 1024 * 2)
+        {
+            reducedPartSize = totalSize / (double) 1024;
+            reducedSize = totalSize / (double) 1024;
+            unit = "KB";
+        }
+        os << fixed << reducedPartSize << "/" << reducedSize;
+        os << " " << unit;
+    }
+    else
+    {
+        os << partialSize << "/" << totalSize;
+    }
+
+    return os.str();
+}
+
 string sizeToText(long long totalSize, bool equalizeUnitsLength, bool humanreadable)
 {
     ostringstream os;
@@ -1346,22 +1565,22 @@ string sizeToText(long long totalSize, bool equalizeUnitsLength, bool humanreada
 
         if ( totalSize > 1099511627776LL *2 )
         {
-            reducedSize = totalSize / 1099511627776L;
+            reducedSize = totalSize / (double) 1099511627776L;
             unit = "TB";
         }
         else if ( totalSize > 1073741824LL *2 )
         {
-            reducedSize = totalSize / 1073741824L;
+            reducedSize = totalSize / (double) 1073741824L;
             unit = "GB";
         }
         else if (totalSize > 1048576 * 2)
         {
-            reducedSize = totalSize / 1048576;
+            reducedSize = totalSize / (double) 1048576;
             unit = "MB";
         }
         else if (totalSize > 1024 * 2)
         {
-            reducedSize = totalSize / 1024;
+            reducedSize = totalSize / (double) 1024;
             unit = "KB";
         }
         os << fixed << reducedSize;
@@ -1454,7 +1673,6 @@ string secondsToText(time_t seconds, bool humanreadable)
     return os.str();
 }
 
-
 string percentageToText(float percentage)
 {
     ostringstream os;
@@ -1519,3 +1737,116 @@ bool isValidEmail(string email)
                     || (email.find("@") > email.find_last_of(".")));
 }
 
+string &ltrimProperty(string &s, const char &c)
+{
+    size_t pos = s.find_first_not_of(c);
+    s = s.substr(pos == string::npos ? s.length() : pos, s.length());
+    return s;
+}
+
+string &rtrimProperty(string &s, const char &c)
+{
+    size_t pos = s.find_last_not_of(c);
+    if (pos != string::npos)
+    {
+        pos++;
+    }
+    s = s.substr(0, pos);
+    return s;
+}
+
+string &trimProperty(string &what)
+{
+    rtrimProperty(what,' ');
+    ltrimProperty(what,' ');
+    if (what.size() > 1)
+    {
+        if (what[0] == '\'' || what[0] == '"')
+        {
+            rtrimProperty(what, what[0]);
+            ltrimProperty(what, what[0]);
+        }
+    }
+    return what;
+}
+
+string getPropertyFromFile(const char *configFile, const char *propertyName)
+{
+    ifstream infile(configFile);
+    string line;
+
+    while (getline(infile, line))
+    {
+        if (line.length() > 0 && line[0] != '#')
+        {
+            if (!strlen(propertyName)) //if empty return first line
+            {
+                return trimProperty(line);
+            }
+            string key, value;
+            size_t pos = line.find("=");
+            if (pos != string::npos && ((pos + 1) < line.size()))
+            {
+                key = line.substr(0, pos);
+                rtrimProperty(key, ' ');
+
+                if (!strcmp(key.c_str(), propertyName))
+                {
+                    value = line.substr(pos + 1);
+                    return trimProperty(value);
+                }
+            }
+        }
+    }
+
+    return string();
+}
+
+#ifndef _WIN32
+string readablePermissions(int permvalue)
+{
+    stringstream os;
+    int owner  = (permvalue >> 6) & 0x07;
+    int group  = (permvalue >> 3) & 0x07;
+    int others = permvalue & 0x07;
+
+    os << owner << group << others;
+    return os.str();
+}
+
+int permissionsFromReadable(string permissions)
+{
+    if (permissions.size()==3)
+    {
+        int owner = permissions.at(0) - '0';
+        int group = permissions.at(1) - '0';
+        int others = permissions.at(2) - '0';
+        if ( (owner < 0) || (owner > 7) || (group < 0) || (group > 7) || (others < 0) || (others > 7) )
+        {
+            LOG_err << "Invalid permissions value: " << permissions;
+            return -1;
+        }
+
+        return  (owner << 6) + ( group << 3) + others;
+    }
+    return -1;
+}
+#endif
+
+bool nodeNameIsVersion(string &nodeName)
+{
+    bool isversion = false;
+    if (nodeName.size() > 12 && nodeName.at(nodeName.size()-11) =='#') //TODO: def version separator elswhere
+    {
+        for (int i = nodeName.size()-10; i < nodeName.size() ; i++)
+        {
+            if (nodeName.at(i) > '9' || nodeName.at(i) < '0')
+                break;
+            if (i == (nodeName.size() - 1))
+            {
+                isversion = true;
+            }
+        }
+    }
+    return isversion;
+}
