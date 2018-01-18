@@ -1580,6 +1580,119 @@ void MegaCmdExecuter::dumpNode(MegaNode* n, int extended_info, bool showversions
     }
 }
 
+void MegaCmdExecuter::createOrModifyBackup(string local, string remote, string speriod, int numBackups)
+{
+    string locallocal;
+    fsAccessCMD->path2local(&local, &locallocal);
+    FileAccess *fa = fsAccessCMD->newfileaccess();
+    if (!fa->isfolder(&locallocal))
+    {
+        setCurrentOutCode(MCMD_NOTFOUND);
+        LOG_err << "Local path must be an existing folder: " << local;
+        delete fa;
+        return;
+    }
+    delete fa;
+
+
+    int64_t period = -1;
+
+    if (!speriod.size())
+    {
+        MegaBackup *backup = api->getBackupByPath(local.c_str());
+        if (!backup)
+        {
+            backup = api->getBackupByTag(toInteger(local, -1));
+        }
+        if (backup)
+        {
+            speriod = backup->getPeriodString();
+            if (!speriod.size())
+            {
+                period = backup->getPeriod();
+            }
+            delete backup;
+        }
+        else
+        {
+            setCurrentOutCode(MCMD_EARGS);
+            LOG_err << "      " << getUsageStr("backup");
+            return;
+        }
+    }
+    if (speriod.find(" ") == string::npos && period == -1)
+    {
+        period = 10 * getTimeStampAfter(0,speriod);
+        speriod = "";
+    }
+
+    if (numBackups == -1)
+    {
+        MegaBackup *backup = api->getBackupByPath(local.c_str());
+        if (!backup)
+        {
+            backup = api->getBackupByTag(toInteger(local, -1));
+        }
+        if (backup)
+        {
+            numBackups = backup->getMaxBackups();
+            delete backup;
+        }
+    }
+    if (numBackups == -1)
+    {
+        setCurrentOutCode(MCMD_EARGS);
+        LOG_err << "      " << getUsageStr("backup");
+        return;
+    }
+
+    MegaNode *n = NULL;
+    if (remote.size())
+    {
+        n = api->getNodeByPath(remote.c_str());
+    }
+    else
+    {
+        MegaBackup *backup = api->getBackupByPath(local.c_str());
+        if (!backup)
+        {
+            backup = api->getBackupByTag(toInteger(local, -1));
+        }
+        if (backup)
+        {
+            n = api->getNodeByHandle(backup->getMegaHandle());
+            delete backup;
+        }
+    }
+
+    if (n)
+    {
+        if (n->getType() != MegaNode::TYPE_FOLDER)
+        {
+            setCurrentOutCode(MCMD_INVALIDTYPE);
+            LOG_err << remote << " must be a valid folder";
+        }
+        else
+        {
+            if (stablishBackup(local, n, period, speriod, numBackups) )
+            {
+                mtxBackupsMap.lock();
+                ConfigurationManager::saveBackups(&ConfigurationManager::configuredBackups);
+                mtxBackupsMap.unlock();
+                OUTSTREAM << "Backup stablished: " << local << " into " << remote << " period="
+                          << ((period != -1)?getReadablePeriod(period/10):"\""+speriod+"\"")
+                          << " Number-of-Backups=" << numBackups << endl;
+            }
+        }
+        delete n;
+    }
+    else
+    {
+        setCurrentOutCode(MCMD_NOTFOUND);
+        LOG_err << remote << " not found";
+    }
+}
+
 void MegaCmdExecuter::dumptree(MegaNode* n, int recurse, int extended_info, bool showversions, int depth, string pathRelativeTo)
 {
     if (depth || ( n->getType() == MegaNode::TYPE_FILE ))
@@ -5085,111 +5198,24 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         }
 
         bool firstbackup = true;
+        string speriod=getOption(cloptions, "period");
+        int64_t numBackups = getintOption(cloptions, "num-backups", -1);
 
         if (words.size() == 3)
         {
             string local = words.at(1);
             string remote = words.at(2);
 
-            string locallocal;
-            fsAccessCMD->path2local(&local, &locallocal);
-            FileAccess *fa = fsAccessCMD->newfileaccess();
-            if (!fa->isfolder(&locallocal))
-            {
-                setCurrentOutCode(MCMD_NOTFOUND);
-                LOG_err << "Local path must be an existing folder: " << local;
-                delete fa;
-                return;
-            }
-            delete fa;
-
-            string speriod=getOption(cloptions, "period");
-            int64_t period = -1;
-
-            if (!speriod.size())
-            {
-                MegaBackup *backup = api->getBackupByPath(words[1].c_str());
-                if (!backup)
-                {
-                    backup = api->getBackupByTag(toInteger(words[1], -1));
-                }
-                if (backup)
-                {
-                    speriod = backup->getPeriodString();
-                    if (!speriod.size())
-                    {
-                        period = backup->getPeriod();
-                    }
-                    delete backup;
-                }
-                else
-                {
-                    setCurrentOutCode(MCMD_EARGS);
-                    LOG_err << "      " << getUsageStr("backup");
-                    return;
-                }
-            }
-            if (speriod.find(" ") == string::npos && period == -1)
-            {
-                period = 10 * getTimeStampAfter(0,speriod);
-                speriod = "";
-            }
-
-            int64_t numBackups = getintOption(cloptions, "num-backups", -1);
-            if (numBackups == -1)
-            {
-                MegaBackup *backup = api->getBackupByPath(words[1].c_str());
-                if (!backup)
-                {
-                    backup = api->getBackupByTag(toInteger(words[1], -1));
-                }
-                if (backup)
-                {
-                    numBackups = backup->getMaxBackups();
-                    delete backup;
-                }
-            }
-            if (numBackups == -1)
-            {
-                setCurrentOutCode(MCMD_EARGS);
-                LOG_err << "      " << getUsageStr("backup");
-                return;
-            }
-
-            MegaNode *n = api->getNodeByPath(remote.c_str());
-            if (n)
-            {
-                if (n->getType() != MegaNode::TYPE_FOLDER)
-                {
-                    setCurrentOutCode(MCMD_INVALIDTYPE);
-                    LOG_err << remote << " must be a valid folder";
-                }
-                else
-                {
-                    if (stablishBackup(local, n, period, speriod, numBackups) )
-                    {
-                        mtxBackupsMap.lock();
-                        ConfigurationManager::saveBackups(&ConfigurationManager::configuredBackups);
-                        mtxBackupsMap.unlock();
-                        OUTSTREAM << "Backup stablished: " << local << " into " << remote << " period="
-                                  << ((period != -1)?getReadablePeriod(period/10):"\""+speriod+"\"")
-                                  << " Number-of-Backups=" << numBackups << endl;
-                    }
-                }
-                delete n;
-            }
-            else
-            {
-                setCurrentOutCode(MCMD_NOTFOUND);
-                LOG_err << remote << " not found";
-            }
+            createOrModifyBackup(local, remote, speriod, numBackups);
         }
         else if (words.size() == 2)
         {
-            MegaBackup *backup = api->getBackupByPath(words[1].c_str());
+            string local = words.at(1);
+
+            MegaBackup *backup = api->getBackupByPath(local.c_str());
             if (!backup)
             {
-                backup = api->getBackupByTag(toInteger(words[1], -1));
+                backup = api->getBackupByTag(toInteger(local, -1));
             }
             map<string, backup_struct *>::iterator itr;
             if (backup)
@@ -5205,7 +5231,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 }
                 if (backupid == -1)
                 {
-                    LOG_err << " Requesting info of unregistered backup: " << words[1];
+                    LOG_err << " Requesting info of unregistered backup: " << local;
                 }
 
                 if (dodelete)
@@ -5222,7 +5248,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         mtxBackupsMap.lock();
                         ConfigurationManager::saveBackups(&ConfigurationManager::configuredBackups);
                         mtxBackupsMap.unlock();
-                        OUTSTREAM << " Backup removed succesffuly: " << words[1] << endl;
+                        OUTSTREAM << " Backup removed succesffuly: " << local << endl;
                     }
                 }
                 else if (abort)
@@ -5232,25 +5258,32 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     megaCmdListener->wait();
                     if (checkNoErrors(megaCmdListener->getError(), "abort backup"))
                     {
-                        OUTSTREAM << " Backup aborted succesffuly: " << words[1] << endl;
+                        OUTSTREAM << " Backup aborted succesffuly: " << local << endl;
                     }
                 }
                 else
                 {
-                    if(firstbackup)
+                    if (speriod.size() || numBackups != -1)
                     {
-                        printBackupHeader(PATHSIZE);
-                        firstbackup = false;
+                        createOrModifyBackup(backup->getLocalFolder(), "", speriod, numBackups);
                     }
+                    else
+                    {
+                        if(firstbackup)
+                        {
+                            printBackupHeader(PATHSIZE);
+                            firstbackup = false;
+                        }
 
-                    printBackup(backup->getTag(), backup, PATHSIZE, listinfo, listhistory);
+                        printBackup(backup->getTag(), backup, PATHSIZE, listinfo, listhistory);
+                    }
                 }
                 delete backup;
             }
             else
             {
                 setCurrentOutCode(MCMD_NOTFOUND);
-                LOG_err << "Backup not found: " << words[1];
+                LOG_err << "Backup not found: " << local;
             }
         }
         else if (words.size() == 1) //list backups

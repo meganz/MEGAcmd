@@ -106,6 +106,7 @@ public:
     void disableExport(mega::MegaNode *n);
     void shareNode(mega::MegaNode *n, std::string with, int level = mega::MegaShare::ACCESS_READ);
     void disableShare(mega::MegaNode *n, std::string with);
+    void createOrModifyBackup(std::string local, std::string remote, std::string speriod, int numBackups);
     std::vector<std::string> listpaths(bool usepcre, std::string askedPath = "", bool discardFiles = false);
     std::vector<std::string> getlistusers();
     std::vector<std::string> getNodeAttrs(std::string nodePath);
