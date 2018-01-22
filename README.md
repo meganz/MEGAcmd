@@ -1,8 +1,8 @@
 # MEGAcmd - Command Line Interactive and Scriptable Application
 
 MEGAcmd provides non UI access to MEGA services. It intends to offer all the 
-functionality with your MEGA account via commands. It features *synchronization* 
-and *backup* of local folders into your MEGA account. See [`Usage Examples`](#usage-examples).
+functionality with your MEGA account via commands. It features **synchronization** 
+and **backup** of local folders into your MEGA account. See [`Usage Examples`](#usage-examples).
 
 Available packages for MEGAcmd in all supported platforms should be found 
 [here](https://mega.nz/cmd). 
@@ -102,13 +102,13 @@ Ideally, you would like to have these commands in your PATH
 
 ## Usage examples
 
-* A *synchronization* can be stablished simply by typing:
+* A **synchronization** can be stablished simply by typing:
 ```
 sync /path/to/local/folder /folder/in/mega
 ```
 This will synchronize the contents in your local and your mega folder both ways.
 
-* You can also set remote *backups* of a local folder to keep historical snapshots
+* You can also set remote **backups** of a local folder to keep historical snapshots
 of your files. So simple as:
 ```
 backup /path/to/myfolder /remote/path --period="0 0 4 * * *" --num-backups=10
