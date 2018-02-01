@@ -1,0 +1,80 @@
+# SynoBuildConf/build
+
+mkdir ./MEGAcmd/sdk/sdk_build
+mkdir ./MEGAcmd/sdk/sdk_build/install
+mkdir ./MEGAcmd/sdk/sdk_build/install/lib
+
+# machine=armada38x for DS218j
+export MACHINE=$PLATFORM_ABBR
+#export CUSTOM_CONFIG_ARGS="$ConfigOpt  --prefix=/usr/local"
+export CUSTOM_CONFIG_ARGS="$ConfigOpt"
+export AM_LIBTOOLFLAGS='--tag=CXX'
+
+export CC=$CC
+export CXX=$CXX
+export LD=$LD
+export CFLAGS=$CFLAGS
+export CXXFLAGS=$CFLAGS
+export AR=$AR
+export NM=$NM
+export STRIP=$STRIP
+export RANLIB=$RANLIB
+export OBJDUMP=$OBJDUMP
+export LDFLAGS=$LDFLAGS
+export ConfigOpt=$ConfigOpt
+export ARCH=$ARCH
+export SYNO_PLATFORM=$SYNO_PLATFORM
+export DSM_SHLIB_MAJOR=$DSM_SHLIB_MAJOR
+export DSM_SHLIB_MINOR=$DSM_SHLIB_MINOR
+export DSM_SHLIB_NUM=$DSM_SHLIB_NUM
+export ToolChainSysRoot=$ToolChainSysRoot
+export SysRootPrefix=$SysRootPrefix
+export SysRootInclude=$SysRootInclude
+export SysRootLib=$SysRootLib
+
+#sdk configure doesn't like defines in the CFLAGS
+echo $0
+echo CFLAGS was $CFLAGS
+export CFLAGS=`echo $CFLAGS | sed -e 's/-D[^ ][^ ]*//g' `
+echo CFLAGS now $CFLAGS
+
+echo ---------- env set up --------------------
+env
+echo ---------- env set up --------------------
+
+cd MEGAcmd/sdk
+pwd
+echo executing ./contrib/build_sdk.sh -a -e -g -n -q -x "$CUSTOM_CONFIG_ARGS" 
+./contrib/build_sdk.sh -a -e -g -n -q -x "$CUSTOM_CONFIG_ARGS" 2>&1 | tee /mybuildlogs-sdkbuild.out
+
+mkdir norecurse
+mv ./Makefile norecurse
+mv ./config* norecurse
+cd ..
+
+echo -------------------------------------------------------- sdk end --------------------------------------
+
+
+export CPPFLAGS='-I/source/megacmdpkg/MEGAcmd/sdk/sdk_build/install/include'
+
+echo about to build megacmd ---------------------------
+env
+echo
+
+sh autogen.sh 2>&1 | tee /mybuildlogs-autogen2.out
+./configure --enable-static --with-cryptopp $CUSTOM_CONFIG_ARGS  2>&1 | tee /mybuildlogs-configure2.out 
+make SUBDIRS='' 2>&1 | tee /mybuildlogs-make2.out
+
+echo "-------------------------------seems it cant build mega-cmd-server though the other two succeed
+echo "-------------------------------building directly at
+pwd
+
+echo "command $CXX src/megacmd.cpp src/comunicationsmanager.cpp         src/megacmdutils.cpp src/configurationmanager.cpp         src/megacmdlogger.cpp src/megacmdsandbox.cpp src/listeners.cpp         src/megacmdexecuter.cpp         src/comunicationsmanagerportsockets.cpp src/comunicationsmanagerfilesockets.cpp -Isdk/include -Isdk/sdk_build/install/include -Isdk/sdk_build/install/include/mega/posix sdk/sdk_build/install/lib/*.a sdk/sdk_build/install/lib/*.a sdk/sdk_build/install/lib/*.a sdk/sdk_build/install/lib/*.a -lpthread -ldl -lrt -o mega-cmd-server "
+
+$CXX src/megacmd.cpp src/comunicationsmanager.cpp         src/megacmdutils.cpp src/configurationmanager.cpp         src/megacmdlogger.cpp src/megacmdsandbox.cpp src/listeners.cpp         src/megacmdexecuter.cpp         src/comunicationsmanagerportsockets.cpp src/comunicationsmanagerfilesockets.cpp -Isdk/include -Isdk/sdk_build/install/include -Isdk/sdk_build/install/include/mega/posix sdk/sdk_build/install/lib/*.a sdk/sdk_build/install/lib/*.a sdk/sdk_build/install/lib/*.a sdk/sdk_build/install/lib/*.a -lpthread -ldl -lrt -o mega-cmd-server 
+
+echo "final return code: $?"
+echo "outputs should be 3 files, mega-cmd mega-cmd-server mega-exec.  ls output:"
+ls mega-*
+
+exit 0
