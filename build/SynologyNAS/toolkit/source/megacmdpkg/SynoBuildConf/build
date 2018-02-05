@@ -45,7 +45,7 @@ echo ---------- env set up --------------------
 cd MEGAcmd/sdk
 pwd
 echo executing ./contrib/build_sdk.sh -a -e -g -n -q -x "$CUSTOM_CONFIG_ARGS" 
-./contrib/build_sdk.sh -a -e -g -n -q -x "$CUSTOM_CONFIG_ARGS" 2>&1 | tee /mybuildlogs-sdkbuild.out
+./contrib/build_sdk.sh -a -e -g -i -n -q -x "$CUSTOM_CONFIG_ARGS" 2>&1 | tee /mybuildlogs-sdkbuild.out
 
 mkdir norecurse
 mv ./Makefile norecurse

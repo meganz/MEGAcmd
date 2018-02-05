@@ -15,6 +15,9 @@ create_inner_tarball() {
 	rm -rf $inner_tarball_dir && mkdir -p $inner_tarball_dir
 	
     ### install needed file into PKG_DIR    
+	chmod 777 INFO.sh
+	chmod 666 PACKAGE_ICON.PNG
+	chmod 777 scripts/*
 	cd MEGAcmd
 	pwd
 	echo running make install
