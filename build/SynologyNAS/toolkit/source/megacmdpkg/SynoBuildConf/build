@@ -6,7 +6,6 @@ mkdir ./MEGAcmd/sdk/sdk_build/install/lib
 
 # machine=armada38x for DS218j
 export MACHINE=$PLATFORM_ABBR
-#export CUSTOM_CONFIG_ARGS="$ConfigOpt  --prefix=/usr/local"
 export CUSTOM_CONFIG_ARGS="$ConfigOpt"
 export AM_LIBTOOLFLAGS='--tag=CXX'
 
@@ -45,7 +44,11 @@ echo ---------- env set up --------------------
 cd MEGAcmd/sdk
 pwd
 echo executing ./contrib/build_sdk.sh -a -e -g -n -q -x "$CUSTOM_CONFIG_ARGS" 
-./contrib/build_sdk.sh -a -e -g -i -n -q -x "$CUSTOM_CONFIG_ARGS" 2>&1 | tee /mybuildlogs-sdkbuild.out
+./contrib/build_sdk.sh -a -e -g -n -q -x "$CUSTOM_CONFIG_ARGS" 2>&1 | tee /mybuildlogs-sdkbuild.out
+
+echo "libtool could not link it so we do it ourselves. Including Zen and MediaInfo somehow reference a nonexistent path /home/chingfen in the Synology libtool libraries. If we left those out it would make the lib ok."
+echo "we make the lib using $AR directly, with and output the same name src/libmega.la that satisfies the configure script for MEGAcmd."
+$AR -rcs src/libmega.la `find src -name "*.o"` `find sdk_build -name "*.a"`
 
 mkdir norecurse
 mv ./Makefile norecurse
@@ -55,26 +58,27 @@ cd ..
 echo -------------------------------------------------------- sdk end --------------------------------------
 
 
-export CPPFLAGS='-I/source/megacmdpkg/MEGAcmd/sdk/sdk_build/install/include'
-
 echo about to build megacmd ---------------------------
-env
-echo
 
 sh autogen.sh 2>&1 | tee /mybuildlogs-autogen2.out
 ./configure --enable-static --with-cryptopp $CUSTOM_CONFIG_ARGS  2>&1 | tee /mybuildlogs-configure2.out 
+
+export INCLUDES="-I/source/megacmdpkg/MEGAcmd/sdk/sdk_build/install/include -I/source/megacmdpkg/MEGAcmd/sdk/include/ -I/source/megacmdpkg/MEGAcmd/sdk/include/mega/posix"
 make SUBDIRS='' 2>&1 | tee /mybuildlogs-make2.out
 
-echo "-------------------------------seems it cant build mega-cmd-server though the other two succeed
-echo "-------------------------------building directly at
+echo "-------------------------------seems autotools cannot build mega-cmd-server though the other two succeed"
+echo "-------------------------------above it does not like our directly built non-libtool library, but prior to adding Zen and MediaInfo it failed anyway even with the libtool built libmega.la"
+echo "-------------------------------the problem then was that it did not like the format of one of the .o files, even though we can build fine with it directly"
+echo "-------------------------------either way building it directly at this point does the trick"
 pwd
 
-echo "command $CXX src/megacmd.cpp src/comunicationsmanager.cpp         src/megacmdutils.cpp src/configurationmanager.cpp         src/megacmdlogger.cpp src/megacmdsandbox.cpp src/listeners.cpp         src/megacmdexecuter.cpp         src/comunicationsmanagerportsockets.cpp src/comunicationsmanagerfilesockets.cpp -Isdk/include -Isdk/sdk_build/install/include -Isdk/sdk_build/install/include/mega/posix sdk/sdk_build/install/lib/*.a sdk/sdk_build/install/lib/*.a sdk/sdk_build/install/lib/*.a sdk/sdk_build/install/lib/*.a -lpthread -ldl -lrt -o mega-cmd-server "
 
-$CXX src/megacmd.cpp src/comunicationsmanager.cpp         src/megacmdutils.cpp src/configurationmanager.cpp         src/megacmdlogger.cpp src/megacmdsandbox.cpp src/listeners.cpp         src/megacmdexecuter.cpp         src/comunicationsmanagerportsockets.cpp src/comunicationsmanagerfilesockets.cpp -Isdk/include -Isdk/sdk_build/install/include -Isdk/sdk_build/install/include/mega/posix sdk/sdk_build/install/lib/*.a sdk/sdk_build/install/lib/*.a sdk/sdk_build/install/lib/*.a sdk/sdk_build/install/lib/*.a -lpthread -ldl -lrt -o mega-cmd-server 
+echo "executing command $CXX src/megacmd.cpp src/comunicationsmanager.cpp         src/megacmdutils.cpp src/configurationmanager.cpp         src/megacmdlogger.cpp src/megacmdsandbox.cpp src/listeners.cpp         src/megacmdexecuter.cpp         src/comunicationsmanagerportsockets.cpp src/comunicationsmanagerfilesockets.cpp -Isdk/include -Isdk/include/mega/posix -Isdk/sdk_build/install/include  sdk/src/libmega.la sdk/sdk_build/install/lib/libcryptopp.a sdk/sdk_build/install/lib/libmediainfo.a sdk/sdk_build/install/lib/libzen.a  sdk/sdk_build/install/lib/libcurl.a sdk/sdk_build/install/lib/libcares.a sdk/sdk_build/install/lib/libssl.a sdk/sdk_build/install/lib/libcrypto.a sdk/sdk_build/install/lib/libfreeimage.a sdk/sdk_build/install/lib/libsqlite3.a -lpthread -ldl -lrt -o mega-cmd-server"
+
+$CXX src/megacmd.cpp src/comunicationsmanager.cpp         src/megacmdutils.cpp src/configurationmanager.cpp         src/megacmdlogger.cpp src/megacmdsandbox.cpp src/listeners.cpp         src/megacmdexecuter.cpp         src/comunicationsmanagerportsockets.cpp src/comunicationsmanagerfilesockets.cpp -Isdk/include -Isdk/include/mega/posix -Isdk/sdk_build/install/include  sdk/src/libmega.la sdk/sdk_build/install/lib/libcryptopp.a sdk/sdk_build/install/lib/libmediainfo.a sdk/sdk_build/install/lib/libzen.a  sdk/sdk_build/install/lib/libcurl.a sdk/sdk_build/install/lib/libcares.a sdk/sdk_build/install/lib/libssl.a sdk/sdk_build/install/lib/libcrypto.a sdk/sdk_build/install/lib/libfreeimage.a sdk/sdk_build/install/lib/libsqlite3.a -lpthread -ldl -lrt -o mega-cmd-server
 
 echo "final return code: $?"
-echo "outputs should be 3 files, mega-cmd mega-cmd-server mega-exec.  ls output:"
+echo "outputs should be 3 files: mega-cmd mega-cmd-server mega-exec.  ls output: "
 ls mega-*
 
 exit 0
