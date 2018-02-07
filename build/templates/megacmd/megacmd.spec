@@ -11,10 +11,12 @@ Packager:	MEGA Linux Team <linux@mega.co.nz>
 
 BuildRequires: openssl-devel, sqlite-devel, zlib-devel, autoconf, automake, libtool, gcc-c++, pcre-devel
 BuildRequires: hicolor-icon-theme, unzip, wget
+BuildRequires: ffmpeg-mega
 
 %if 0%{?suse_version}
 BuildRequires: libcares-devel, pkg-config
- 
+BuildRequires: libbz2-devel
+
 # disabling post-build-checks that ocassionally prevent opensuse rpms from being generated
 # plus it speeds up building process
 BuildRequires: -post-build-checks
