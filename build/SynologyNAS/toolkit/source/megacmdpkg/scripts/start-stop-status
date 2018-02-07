@@ -1,3 +1,4 @@
-#!/bin/bash
-exit 0
+#!/bin/sh
 
+echo "Please use telnet/ssh/PuTTY or similar to connect and use MEGAcmd.  Executables are at $SYNOPKG_PKGDEST/usr/local/bin/" > $SYNOPKG_TEMP_LOGFILE
+exit 3 
