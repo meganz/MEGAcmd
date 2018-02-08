@@ -193,6 +193,7 @@ void MegaCmdMegaListener::onChatsUpdate(MegaApi *api, MegaTextChatList *chats)
 {}
 #endif
 
+#ifdef ENABLE_BACKUPS
 //backup callbacks:
 void MegaCmdMegaListener::onBackupStateChanged(MegaApi *api,  MegaBackup *backup)
 {
@@ -218,7 +219,7 @@ void MegaCmdMegaListener::onBackupTemporaryError(MegaApi *api, MegaBackup *backu
 {
     LOG_verbose << " At onBackupTemporaryError";
 }
-
+#endif
 ////////////////////////////////////////
 ///      MegaCmdListener methods     ///
 ////////////////////////////////////////

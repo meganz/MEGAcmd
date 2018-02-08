@@ -107,7 +107,9 @@ MegaCmdExecuter::MegaCmdExecuter(MegaApi *api, MegaCMDLogger *loggerCMD, MegaCmd
     cwd = UNDEF;
     fsAccessCMD = new MegaFileSystemAccess();
     mtxSyncMap.init(false);
+#ifdef ENABLE_BACKUPS
     mtxBackupsMap.init(true);
+#endif
     session = NULL;
 }
 
@@ -1579,6 +1581,7 @@ void MegaCmdExecuter::dumpNode(MegaNode* n, int extended_info, bool showversions
         }
     }
 }
+#ifdef ENABLE_BACKUPS
 
 void MegaCmdExecuter::createOrModifyBackup(string local, string remote, string speriod, int numBackups)
 {
@@ -1692,6 +1695,7 @@ void MegaCmdExecuter::createOrModifyBackup(string local, string remote, string s
         LOG_err << remote << " not found";
     }
 }
+#endif
 
 void MegaCmdExecuter::dumptree(MegaNode* n, int recurse, int extended_info, bool showversions, int depth, string pathRelativeTo)
 {
@@ -2320,9 +2324,12 @@ void MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
         mtxSyncMap.lock();
         ConfigurationManager::loadsyncs();
         mtxSyncMap.unlock();
+#ifdef ENABLE_BACKUPS
         mtxBackupsMap.lock();
         ConfigurationManager::loadbackups();
         mtxBackupsMap.unlock();
+#endif
+
         ConfigurationManager::loadExcludedNames();
         ConfigurationManager::loadConfiguration(false);
         std::vector<string> vexcludednames(ConfigurationManager::excludedNames.begin(), ConfigurationManager::excludedNames.end());
@@ -2366,7 +2373,7 @@ void MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
             delete u;
         }
 
-
+#ifdef ENABLE_BACKUPS
         mtxBackupsMap.lock();
         if (ConfigurationManager::configuredBackups.size())
         {
@@ -2399,6 +2406,7 @@ void MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
             ConfigurationManager::saveBackups(&ConfigurationManager::configuredBackups);
         }
         mtxBackupsMap.unlock();
+#endif
     }
 
 #if defined(_WIN32) || defined(__APPLE__)
@@ -3516,6 +3524,8 @@ void MegaCmdExecuter::printSyncHeader(const unsigned int PATHSIZE)
 
 }
 
+#ifdef ENABLE_BACKUPS
+
 void MegaCmdExecuter::printBackupHeader(const unsigned int PATHSIZE)
 {
     OUTSTREAM << "TAG  " << " ";
@@ -3710,7 +3720,7 @@ void MegaCmdExecuter::printBackup(backup_struct *backupstruct, const unsigned in
         }
     }
 }
-
+#endif
 
 void MegaCmdExecuter::printSync(int i, string key, const char *nodepath, sync_struct * thesync, MegaNode *n, long long nfiles, long long nfolders, const unsigned int PATHSIZE)
 {
@@ -4047,6 +4057,7 @@ void MegaCmdExecuter::restartsyncs()
     }
 }
 
+#ifdef ENABLE_BACKUPS
 bool MegaCmdExecuter::stablishBackup(string pathToBackup, MegaNode *n, int64_t period, string speriod,  int numBackups)
 {
     bool attendpastbackups = true; //TODO: receive as parameter
@@ -4135,6 +4146,7 @@ bool MegaCmdExecuter::stablishBackup(string pathToBackup, MegaNode *n, int64_t p
     delete megaCmdListener;
     return false;
 }
+#endif
 
 void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clflags, map<string, string> *cloptions)
 {
@@ -5177,6 +5189,8 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
         return;
     }
+#ifdef ENABLE_BACKUPS
+
     else if (words[0] == "backup")
     {
         bool dodelete = getFlag(clflags,"d");
@@ -5312,6 +5326,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             LOG_err << "      " << getUsageStr("backup");
         }
     }
+#endif
     else if (words[0] == "put")
     {
         int clientID = getintOption(cloptions, "clientID", -1);
