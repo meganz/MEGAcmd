@@ -461,6 +461,7 @@ const char * getTransferStateStr(int transferState)
     }
 
 }
+#ifdef ENABLE_BACKUPS
 
 string backupSatetStr(int backupstate)
 {
@@ -495,7 +496,7 @@ string backupSatetStr(int backupstate)
 
     return "UNDEFINED";
 }
-
+#endif
 /**
  * @brief tests if a path is writable
  * @param path

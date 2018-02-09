@@ -196,7 +196,11 @@ vector<string> emailpatterncommands(aemailpatterncommands, aemailpatterncommands
 string avalidCommands [] = { "login", "signup", "confirm", "session", "mount", "ls", "cd", "log", "debug", "pwd", "lcd", "lpwd", "import", "masterkey",
                              "put", "get", "attr", "userattr", "mkdir", "rm", "du", "mv", "cp", "sync", "export", "share", "invite", "ipc",
                              "showpcr", "users", "speedlimit", "killsession", "whoami", "help", "passwd", "reload", "logout", "version", "quit",
-                             "thumbnail", "preview", "find", "completion", "clear", "https", "transfers", "exclude", "exit", "backup", "deleteversions"
+                             "thumbnail", "preview", "find", "completion", "clear", "https", "transfers", "exclude", "exit"
+#ifdef ENABLE_BACKUPS
+                             , "backup"
+#endif
+                             , "deleteversions"
 #ifdef _WIN32
                              ,"unicode"
 #else

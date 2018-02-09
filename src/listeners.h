@@ -140,12 +140,13 @@ public:
     void onChatsUpdate(mega::MegaApi *api, mega::MegaTextChatList *chats);
 #endif
 
+#ifdef ENABLE_BACKUPS
     virtual void onBackupStateChanged(mega::MegaApi *api,  mega::MegaBackup *backup);
     virtual void onBackupStart(mega::MegaApi *api, mega::MegaBackup *backup);
     virtual void onBackupFinish(mega::MegaApi* api, mega::MegaBackup *backup, mega::MegaError* error);
     virtual void onBackupUpdate(mega::MegaApi *api, mega::MegaBackup *backup);
     virtual void onBackupTemporaryError(mega::MegaApi *api, mega::MegaBackup *backup, mega::MegaError* error);
-
+#endif
 
 protected:
     mega::MegaApi *megaApi;
