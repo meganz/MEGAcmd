@@ -12,8 +12,8 @@ export AM_LIBTOOLFLAGS='--tag=CXX'
 export CC=$CC
 export CXX=$CXX
 export LD=$LD
-export CFLAGS=$CFLAGS
-export CXXFLAGS=$CFLAGS
+export CFLAGS="$CFLAGS -O3 -fPIC -fexceptions -fvisibility=hidden"
+export CXXFLAGS="-std=c++11 $CFLAGS"
 export AR=$AR
 export NM=$NM
 export STRIP=$STRIP
@@ -72,10 +72,9 @@ echo "-------------------------------the problem then was that it did not like t
 echo "-------------------------------either way building it directly at this point does the trick"
 pwd
 
+echo "executing command $CXX $CXXFLAGS src/megacmd.cpp src/comunicationsmanager.cpp         src/megacmdutils.cpp src/configurationmanager.cpp         src/megacmdlogger.cpp src/megacmdsandbox.cpp src/listeners.cpp         src/megacmdexecuter.cpp         src/comunicationsmanagerportsockets.cpp src/comunicationsmanagerfilesockets.cpp -Isdk/include -Isdk/include/mega/posix -Isdk/sdk_build/install/include  sdk/src/libmega.la sdk/sdk_build/install/lib/libcryptopp.a sdk/sdk_build/install/lib/libmediainfo.a sdk/sdk_build/install/lib/libzen.a  sdk/sdk_build/install/lib/libcurl.a sdk/sdk_build/install/lib/libcares.a sdk/sdk_build/install/lib/libssl.a sdk/sdk_build/install/lib/libcrypto.a sdk/sdk_build/install/lib/libfreeimage.a sdk/sdk_build/install/lib/libsqlite3.a -lpthread -ldl -lrt -o mega-cmd-server"
 
-echo "executing command $CXX src/megacmd.cpp src/comunicationsmanager.cpp         src/megacmdutils.cpp src/configurationmanager.cpp         src/megacmdlogger.cpp src/megacmdsandbox.cpp src/listeners.cpp         src/megacmdexecuter.cpp         src/comunicationsmanagerportsockets.cpp src/comunicationsmanagerfilesockets.cpp -Isdk/include -Isdk/include/mega/posix -Isdk/sdk_build/install/include  sdk/src/libmega.la sdk/sdk_build/install/lib/libcryptopp.a sdk/sdk_build/install/lib/libmediainfo.a sdk/sdk_build/install/lib/libzen.a  sdk/sdk_build/install/lib/libcurl.a sdk/sdk_build/install/lib/libcares.a sdk/sdk_build/install/lib/libssl.a sdk/sdk_build/install/lib/libcrypto.a sdk/sdk_build/install/lib/libfreeimage.a sdk/sdk_build/install/lib/libsqlite3.a -lpthread -ldl -lrt -o mega-cmd-server"
-
-$CXX src/megacmd.cpp src/comunicationsmanager.cpp         src/megacmdutils.cpp src/configurationmanager.cpp         src/megacmdlogger.cpp src/megacmdsandbox.cpp src/listeners.cpp         src/megacmdexecuter.cpp         src/comunicationsmanagerportsockets.cpp src/comunicationsmanagerfilesockets.cpp -Isdk/include -Isdk/include/mega/posix -Isdk/sdk_build/install/include  sdk/src/libmega.la sdk/sdk_build/install/lib/libcryptopp.a sdk/sdk_build/install/lib/libmediainfo.a sdk/sdk_build/install/lib/libzen.a  sdk/sdk_build/install/lib/libcurl.a sdk/sdk_build/install/lib/libcares.a sdk/sdk_build/install/lib/libssl.a sdk/sdk_build/install/lib/libcrypto.a sdk/sdk_build/install/lib/libfreeimage.a sdk/sdk_build/install/lib/libsqlite3.a -lpthread -ldl -lrt -o mega-cmd-server
+$CXX $CXXFLAGS src/megacmd.cpp src/comunicationsmanager.cpp         src/megacmdutils.cpp src/configurationmanager.cpp         src/megacmdlogger.cpp src/megacmdsandbox.cpp src/listeners.cpp         src/megacmdexecuter.cpp         src/comunicationsmanagerportsockets.cpp src/comunicationsmanagerfilesockets.cpp -Isdk/include -Isdk/include/mega/posix -Isdk/sdk_build/install/include  sdk/src/libmega.la sdk/sdk_build/install/lib/libcryptopp.a sdk/sdk_build/install/lib/libmediainfo.a sdk/sdk_build/install/lib/libzen.a  sdk/sdk_build/install/lib/libcurl.a sdk/sdk_build/install/lib/libcares.a sdk/sdk_build/install/lib/libssl.a sdk/sdk_build/install/lib/libcrypto.a sdk/sdk_build/install/lib/libfreeimage.a sdk/sdk_build/install/lib/libsqlite3.a -lpthread -ldl -lrt -o mega-cmd-server
 
 echo "final return code: $?"
 echo "outputs should be 3 files: mega-cmd mega-cmd-server mega-exec.  ls output: "
