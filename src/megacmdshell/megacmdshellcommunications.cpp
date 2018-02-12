@@ -440,7 +440,7 @@ int MegaCmdShellCommunications::createSocket(int number, bool initializeserver, 
                     {
                         if (errno == 2 )
                         {
-                            cerr << "Couln't initiate MEGAcmd server: executable not found: " << executable << endl;
+                            cerr << "Couldn't initiate MEGAcmd server: executable not found: " << executable << endl;
 
                         }
                         else
