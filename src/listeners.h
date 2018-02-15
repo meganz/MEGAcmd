@@ -48,7 +48,7 @@ class MegaCmdTransferListener : public mega::SynchronousTransferListener
 {
 private:
     MegaCmdSandbox * sandboxCMD;
-    float percentDowloaded;
+    float percentDownloaded;
     bool alreadyFinished;
     int clientID;
 
@@ -73,7 +73,7 @@ class MegaCmdMultiTransferListener : public mega::SynchronousTransferListener
 private:
 
     MegaCmdSandbox * sandboxCMD;
-    float percentDowloaded;
+    float percentDownloaded;
     bool alreadyFinished;
     int clientID;
     int started;

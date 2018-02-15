@@ -331,7 +331,7 @@ void MegaCmdListener::onRequestUpdate(MegaApi* api, MegaRequest *request)
             }
             else
             {
-                percentFetchnodes = request->getTransferredBytes() * 1.0 / request->getTotalBytes() * 100.0;
+                percentFetchnodes = float(request->getTransferredBytes() * 1.0 / request->getTotalBytes() * 100.0);
             }
             if (alreadyFinished || ( ( percentFetchnodes == oldpercent ) && ( oldpercent != 0 )) )
             {
@@ -465,22 +465,22 @@ void MegaCmdTransferListener::onTransferUpdate(MegaApi* api, MegaTransfer *trans
     *ptr = '.'; //replace \0 char
 
 
-    float oldpercent = percentDowloaded;
+    float oldpercent = percentDownloaded;
     if (transfer->getTotalBytes() == 0)
     {
-        percentDowloaded = 0;
+        percentDownloaded = 0;
     }
     else
     {
-        percentDowloaded = transfer->getTransferredBytes() * 1.0 / transfer->getTotalBytes() * 100.0;
+        percentDownloaded = float(transfer->getTransferredBytes() * 1.0 / transfer->getTotalBytes() * 100.0);
     }
-    if (alreadyFinished || ( ( percentDowloaded == oldpercent ) && ( oldpercent != 0 ) ) )
+    if (alreadyFinished || ( (percentDownloaded == oldpercent ) && ( oldpercent != 0 ) ) )
     {
         return;
     }
-    if (percentDowloaded < 0)
+    if (percentDownloaded < 0)
     {
-        percentDowloaded = 0;
+        percentDownloaded = 0;
     }
 
     char aux[40];
@@ -492,14 +492,14 @@ void MegaCmdTransferListener::onTransferUpdate(MegaApi* api, MegaTransfer *trans
     {
         return; // after a 100% this happens
     }
-    sprintf(aux,"||(%lld/%lld MB: %.2f %%) ", transfer->getTransferredBytes() / 1024 / 1024, transfer->getTotalBytes() / 1024 / 1024, percentDowloaded);
+    sprintf(aux,"||(%lld/%lld MB: %.2f %%) ", (long long)(transfer->getTransferredBytes() / 1024 / 1024), (long long)(transfer->getTotalBytes() / 1024 / 1024), (float)percentDownloaded);
     sprintf((char *)outputString.c_str() + cols - strlen(aux), "%s",                         aux);
-    for (int i = 0; i <= ( cols - strlen("TRANSFERING ||") - strlen(aux)) * 1.0 * percentDowloaded / 100.0; i++)
+    for (int i = 0; i <= ( cols - strlen("TRANSFERING ||") - strlen(aux)) * 1.0 * percentDownloaded / 100.0; i++)
     {
         *ptr++ = '#';
     }
 
-    if (percentDowloaded == 100 && !alreadyFinished)
+    if (percentDownloaded == 100 && !alreadyFinished)
     {
         alreadyFinished = true;
         cout << outputString << endl;
@@ -534,7 +534,7 @@ MegaCmdTransferListener::MegaCmdTransferListener(MegaApi *megaApi, MegaCmdSandbo
     this->megaApi = megaApi;
     this->sandboxCMD = sandboxCMD;
     this->listener = listener;
-    percentDowloaded = 0.0f;
+    percentDownloaded = 0.0f;
     alreadyFinished = false;
     this->clientID = clientID;
 }
@@ -559,11 +559,11 @@ void MegaCmdMultiTransferListener::onTransferStart(MegaApi* api, MegaTransfer *t
     alreadyFinished = false;
     if (totalbytes == 0)
     {
-        percentDowloaded = 0;
+        percentDownloaded = 0;
     }
     else
     {
-        percentDowloaded = (transferredbytes + getOngoingTransferredBytes()) * 1.0 / totalbytes * 1.0;
+        percentDownloaded = float((transferredbytes + getOngoingTransferredBytes()) * 1.0 / totalbytes * 1.0);
     }
 
     onTransferUpdate(api,transfer);
@@ -634,24 +634,24 @@ void MegaCmdMultiTransferListener::onTransferUpdate(MegaApi* api, MegaTransfer *
     *ptr = '.'; //replace \0 char
 
 
-    float oldpercent = percentDowloaded;
+    float oldpercent = percentDownloaded;
     if ((totalbytes + getOngoingTotalBytes() ) == 0)
     {
-        percentDowloaded = 0;
+        percentDownloaded = 0;
     }
     else
     {
-        percentDowloaded = (transferredbytes + getOngoingTransferredBytes()) * 1.0 / (totalbytes + getOngoingTotalBytes() ) * 100.0;
+        percentDownloaded = float((transferredbytes + getOngoingTransferredBytes()) * 1.0 / (totalbytes + getOngoingTotalBytes() ) * 100.0);
     }
-    if (alreadyFinished || ( ( percentDowloaded == oldpercent ) && ( oldpercent != 0 ) ) )
+    if (alreadyFinished || ( (percentDownloaded == oldpercent ) && ( oldpercent != 0 ) ) )
     {
         return;
     }
-    if (percentDowloaded < 0)
+    if (percentDownloaded < 0)
     {
-        percentDowloaded = 0;
+        percentDownloaded = 0;
     }
-    assert(percentDowloaded <=100);
+    assert(percentDownloaded <=100);
 
     char aux[40];
     if (transfer->getTotalBytes() < 0)
@@ -662,14 +662,14 @@ void MegaCmdMultiTransferListener::onTransferUpdate(MegaApi* api, MegaTransfer *
     {
         return; // after a 100% this happens
     }
-    sprintf(aux,"||(%lld/%lld MB: %.2f %%) ", (transferredbytes + getOngoingTransferredBytes()) / 1024 / 1024, (totalbytes + getOngoingTotalBytes() ) / 1024 / 1024, percentDowloaded);
+    sprintf(aux,"||(%lld/%lld MB: %.2f %%) ", (transferredbytes + getOngoingTransferredBytes()) / 1024 / 1024, (totalbytes + getOngoingTotalBytes() ) / 1024 / 1024, percentDownloaded);
     sprintf((char *)outputString.c_str() + cols - strlen(aux), "%s",                         aux);
-    for (int i = 0; i <= ( cols - strlen("TRANSFERING ||") - strlen(aux)) * 1.0 * min (100.0f,percentDowloaded) / 100.0; i++)
+    for (int i = 0; i <= ( cols - strlen("TRANSFERING ||") - strlen(aux)) * 1.0 * min (100.0f, percentDownloaded) / 100.0; i++)
     {
         *ptr++ = '#';
     }
 
-    if (percentDowloaded == 100 && !alreadyFinished)
+    if (percentDownloaded == 100 && !alreadyFinished)
     {
         alreadyFinished = true;
         cout << outputString << endl;
@@ -731,7 +731,7 @@ MegaCmdMultiTransferListener::MegaCmdMultiTransferListener(MegaApi *megaApi, Meg
     this->megaApi = megaApi;
     this->sandboxCMD = sandboxCMD;
     this->listener = listener;
-    percentDowloaded = 0.0f;
+    percentDownloaded = 0.0f;
     alreadyFinished = false;
     this->clientID = clientID;
 

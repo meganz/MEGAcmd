@@ -29,13 +29,13 @@
 #define MEGACMDINITIALPORTNUMBER 12300
 
 
-void closeSocket(int socket);
+void closeSocket(SOCKET socket);
 
 class CmdPetitionPortSockets: public CmdPetition
 {
 public:
-    int outSocket;
-    int acceptedOutSocket;
+    SOCKET outSocket;
+    SOCKET acceptedOutSocket;
     CmdPetitionPortSockets(){
         acceptedOutSocket = -1;
     }
@@ -57,7 +57,7 @@ private:
     fd_set fds;
 
     // sockets and asociated variables
-    int sockfd, newsockfd;
+    SOCKET sockfd, newsockfd;
 #ifdef _WIN32
     HANDLE sockfd_event_handle;
     static bool ended;
@@ -75,7 +75,7 @@ private:
      * The caller is responsible for deleting the newly created socket
      * @return
      */
-    int create_new_socket(int *sockId);
+    SOCKET create_new_socket(int *sockId);
 
 public:
     ComunicationsManagerPortSockets();

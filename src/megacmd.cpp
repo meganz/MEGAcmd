@@ -40,6 +40,7 @@
 #else
 #include <fcntl.h>
 #include <io.h>
+#define strdup _strdup  // avoid warning
 #endif
 
 
@@ -225,7 +226,7 @@ Console* console;
 
 MegaMutex mutexHistory;
 
-map<int, string> threadline;
+map<unsigned long long, string> threadline;
 
 void printWelcomeMsg();
 
@@ -266,7 +267,7 @@ void sigint_handler(int signum)
 }
 
 #ifdef _WIN32
-BOOL CtrlHandler( DWORD fdwCtrlType )
+BOOL __stdcall CtrlHandler( DWORD fdwCtrlType )
 {
   LOG_verbose << "Reached CtrlHandler: " << fdwCtrlType;
 
@@ -1003,7 +1004,7 @@ completionfunction_t *getCompletionFunction(vector<string> words)
     }
     discardOptionsAndFlags(&words);
 
-    int currentparameter = words.size() - 1;
+    int currentparameter = int(words.size() - 1);
     if (stringcontained(thecommand.c_str(), localremotefolderpatterncommands))
     {
         if (currentparameter == 1)
@@ -1893,7 +1894,7 @@ string getHelpStr(const char *command)
         os << "If no argument is given it will list the configured backups" << endl;
         os << " To get extra info on backups use -l or -h (see Options below)" << endl;
         os << endl;
-        os << "When a backup of a folder (localfolder) is stablished in a remote folder (remotepath)" << endl;
+        os << "When a backup of a folder (localfolder) is established in a remote folder (remotepath)" << endl;
         os << " MEGAcmd will create subfolder within the remote path with names like: \"localfoldername_bk_TIME\"" << endl;
         os << " which shall contain a backup of the local folder at that specific time" << endl;
         os << "In order to configure a backup you need to specify the local and remote paths, " << endl;
@@ -2898,7 +2899,7 @@ void printCenteredLine(string msj, unsigned int width, bool encapsulated = true)
 {
     if (msj.size()>width)
     {
-        width = msj.size();
+        width = (unsigned int)msj.size();
     }
     if (encapsulated)
         COUT << "|";
@@ -3142,14 +3143,14 @@ int main(int argc, char* argv[])
 
     if (fd >= 0)
     {
-        api = new MegaApi("BdARkQSQ", ConfigurationManager::getConfigFolder().c_str(), userAgent, fd);
+        api = new MegaApi("BdARkQSQ", (MegaGfxProcessor*)NULL, ConfigurationManager::getConfigFolder().c_str(), userAgent, loggerCMD, fd);
     }
     else
     {
-        api = new MegaApi("BdARkQSQ", ConfigurationManager::getConfigFolder().c_str(), userAgent);
+        api = new MegaApi("BdARkQSQ", (MegaGfxProcessor*)NULL, ConfigurationManager::getConfigFolder().c_str(), userAgent, loggerCMD);
     }
 #else
-    api = new MegaApi("BdARkQSQ", ConfigurationManager::getConfigFolder().c_str(), userAgent);
+    api = new MegaApi("BdARkQSQ", (MegaGfxProcessor*)NULL, ConfigurationManager::getConfigFolder().c_str(), userAgent, loggerCMD);
 #endif
 
 
@@ -3157,10 +3158,9 @@ int main(int argc, char* argv[])
 
     for (int i = 0; i < 5; i++)
     {
-        MegaApi *apiFolder = new MegaApi("BdARkQSQ", (const char*)NULL, userAgent);
+        MegaApi *apiFolder = new MegaApi("BdARkQSQ", (MegaGfxProcessor*)NULL, (const char*)NULL, userAgent, loggerCMD);
         apiFolder->setLanguage(localecode.c_str());
         apiFolders.push(apiFolder);
-        apiFolder->addLoggerObject(loggerCMD);
         apiFolder->setLogLevel(MegaApi::LOG_LEVEL_MAX);
         semaphoreapiFolders.release();
     }
@@ -3172,7 +3172,6 @@ int main(int argc, char* argv[])
 
     mutexapiFolders.init(false);
 
-    api->addLoggerObject(loggerCMD);
     api->setLogLevel(MegaApi::LOG_LEVEL_MAX);
 
     LOG_debug << "Language set to: " << localecode;

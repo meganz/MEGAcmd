@@ -51,7 +51,7 @@ void path2local(string* path, string* local)
                                   path->c_str(),
                                   -1,
                                   (wchar_t*)local->data(),
-                                  local->size() / sizeof(wchar_t) + 1);
+                                  int(local->size() / sizeof(wchar_t) + 1));
     if (len)
     {
         // resize to actual result
@@ -69,9 +69,9 @@ void local2path(string* local, string* path)
     path->resize((local->size() + 1) * 4 / sizeof(wchar_t));
 
     path->resize(WideCharToMultiByte(CP_UTF8, 0, (wchar_t*)local->data(),
-                                     local->size() / sizeof(wchar_t),
+                                     int(local->size() / sizeof(wchar_t)),
                                      (char*)path->data(),
-                                     path->size() + 1,
+                                     int(path->size() + 1),
                                      NULL, NULL));
     //normalize(path);
 }

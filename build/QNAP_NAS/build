@@ -1,0 +1,100 @@
+#!/bin/bash
+# run this from the MEGAcmd folder
+# but first set up the environment per the PDF and tar files at https://sourceforge.net/projects/qosgpl/files/QNAP%20NAS%20Tool%20Chains/
+# and put the MEGAcmd tree at /opt/cross-project/arm/marvell/arm-none-linux-gnueabi/libc/marvell-f/src/
+# this first sample build uses the arm cross compile toolchain, testing on the TS-228
+
+. /opt/cross-project/arm/marvell/arm-glibc-2.5.env
+
+export MEGA_CMD_DIR=$TARGET_PREFIX/src/MEGAcmd
+
+export PATH=/opt/cross-project/arm/marvell/arm-none-linux-gnueabi/libc/marvell-f/usr/share/:$PATH
+
+export MACHINE=armada38x
+export CUSTOM_CONFIG_ARGS="--host=arm-none-linux-gnueabi --disable-dependency-tracking"
+#export CUSTOM_CONFIG_ARGS="linux-generic32 --host=arm-none-linux-gnueabi"
+#export CUSTOM_CONFIG_ARGS="-m32 linux-generic32 "
+#export CUSTOM_CONFIG_ARGS="-m32 linux-generic32 --cross-compile-prefix=$CROSS_COMPILE"
+#export CUSTOM_CONFIG_ARGS="-march=armv7-a --host=arm-none-linux-gnueabi --target=arm-none-linux-gnueabi --build=i686-pc-linux" 
+#export AM_LIBTOOLFLAGS=" --tag=CXX "
+
+export CC=${CROSS_COMPILE}gcc
+export CXX=${CROSS_COMPILE}g++
+export LD=${CROSS_COMPILE}ld
+export CFLAGS="$CFLAGS -O3 -fPIC -fexceptions -fvisibility=hidden -fsigned-char "
+#export CXXFLAGS="-std=c++11 $CXXFLAGS $CFLAGS"
+export CXXFLAGS="$CXXFLAGS $CFLAGS"
+export AR=${CROSS_COMPILE}ar
+export NM=${CROSS_COMPILE}nm
+export STRIP=${CROSS_COMPILE}strip
+export RANLIB=${CROSS_COMPILE}ranlib
+export OBJDUMP=${CROSS_COMPILE}objdump
+export LDFLAGS=
+export ConfigOpt=
+#export ARCH=$ARCH
+export ToolChainSysRoot=$SYS_TARGET_PREFIX
+export SysRootPrefix=$SYS_TARGET_PREFIX
+export SysRootInclude=$SYS_TARGET_PREFIX/include
+export SysRootLib=$SYS_TARGET_PREFIX/lib
+
+export CROSS_COMPILE=
+
+export AUTOMAKE_OPTIONS="no-dependencies"
+
+
+echo ---------- env set up --------------------
+env | sort
+echo ---------- env set up --------------------
+
+#fix any utf-8 w/ BOM files that the compiler can't handle
+cd $MEGA_CMD_DIR
+find src -name "*.h" | xargs dos2unix
+find src -name "*.c" | xargs dos2unix
+find src -name "*.cpp" | xargs dos2unix
+find sdk/include -name "*.h" | xargs dos2unix
+find sdk/src -name "*.c" | xargs dos2unix
+find sdk/src -name "*.cpp" | xargs dos2unix
+
+
+cd $MEGA_CMD_DIR/sdk
+pwd
+
+mkdir -p norecurse
+mv norecurse/* .
+
+echo executing ./contrib/build_sdk.sh -a -e -g -I -q -x "$CUSTOM_CONFIG_ARGS" 
+./contrib/build_sdk.sh -a -e -f -g -I -i -n -q -z -x "$CUSTOM_CONFIG_ARGS"
+#2>&1 | tee $MEGA_CMD_DIR/mybuildlogs-sdkbuild.out
+
+if [ $? -ne 0 ] ; then
+   exit 1
+fi
+
+mv ./Makefile* norecurse/
+mv ./config* norecurse/
+cd ..
+
+echo -------------------------------------------------------- sdk end --------------------------------------
+
+
+echo about to build megacmd ---------------------------
+
+sh autogen.sh 2>&1 | tee $MEGA_CMD_DIR/mybuildlogs-autogen2.out
+./configure SUBDIRS="" --enable-static --with-cryptopp --with-readline $CUSTOM_CONFIG_ARGS  2>&1 | tee $MEGA_CMD_DIR/mybuildlogs-configure2.out 
+
+
+export INCLUDES="-I$MEGA_CMD_DIR/sdk/sdk_build/install/include -I$MEGA_CMD_DIR/sdk/include/ -I$MEGA_CMD_DIR/include/mega/posix"
+#somehow autotools is determined to have WIN32 defined
+#make SUBDIRS='' 2>&1 | tee $MEGA_CMD_DIR/mybuildlogs-make2.out
+
+rm -f mega-cmd-server
+rm -f mega-cmd
+rm -f mega-cmd-exec
+
+$CXX $CXXFLAGS src/megacmd.cpp src/comunicationsmanager.cpp         src/megacmdutils.cpp src/configurationmanager.cpp         src/megacmdlogger.cpp src/megacmdsandbox.cpp src/listeners.cpp         src/megacmdexecuter.cpp         src/comunicationsmanagerportsockets.cpp src/comunicationsmanagerfilesockets.cpp -Isdk/include -Isdk/include/mega/posix -Isdk/sdk_build/install/include  sdk/sdk_build/install/lib/libmega.a sdk/sdk_build/install/lib/libcryptopp.a    sdk/sdk_build/install/lib/libcurl.a sdk/sdk_build/install/lib/libcares.a sdk/sdk_build/install/lib/libssl.a sdk/sdk_build/install/lib/libcrypto.a  sdk/sdk_build/install/lib/libsqlite3.a -lpthread -ldl -lrt sdk/sdk_build/install/lib/libz.a -o mega-cmd-server
+
+echo "final return code: $?"
+echo "outputs should be 3 files: mega-cmd mega-cmd-server mega-exec.  ls output: "
+ls mega-*
+
+exit 0
