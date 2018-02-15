@@ -1033,7 +1033,7 @@ vector<string> getlistOfWords(char *ptr, bool ignoreTrailingSpaces = true)
     for (;; )
     {
         // skip leading blank space
-        while (*ptr > 0 && *ptr <= ' ' && (ignoreTrailingSpaces || *(ptr+1)))
+        while (*(const signed char*)ptr > 0 && *ptr <= ' ' && (ignoreTrailingSpaces || *(ptr+1)))
         {
             ptr++;
         }
