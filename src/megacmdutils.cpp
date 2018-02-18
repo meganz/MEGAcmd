@@ -1521,8 +1521,8 @@ string sizeProgressToText(long long partialSize, long long totalSize, bool equal
 
         if ( totalSize > 1099511627776LL *2 )
         {
-            reducedPartSize = totalSize / (double) 1099511627776L;
-            reducedSize = totalSize / (double) 1099511627776L;
+            reducedPartSize = totalSize / (double) 1099511627776ull;
+            reducedSize = totalSize / (double) 1099511627776ull;
             unit = "TB";
         }
         else if ( totalSize > 1073741824LL *2 )
@@ -1566,7 +1566,7 @@ string sizeToText(long long totalSize, bool equalizeUnitsLength, bool humanreada
 
         if ( totalSize > 1099511627776LL *2 )
         {
-            reducedSize = totalSize / (double) 1099511627776L;
+            reducedSize = totalSize / (double) 1099511627776ull;
             unit = "TB";
         }
         else if ( totalSize > 1073741824LL *2 )

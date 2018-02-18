@@ -25,6 +25,7 @@
 #include <WinSock2.h>
 #else
 #include <sys/socket.h>
+typedef int SOCKET;
 #endif
 #define MEGACMDINITIALPORTNUMBER 12300
 

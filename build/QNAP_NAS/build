@@ -8,7 +8,7 @@
 
 export MEGA_CMD_DIR=$TARGET_PREFIX/src/MEGAcmd
 
-export PATH=/opt/cross-project/arm/marvell/arm-none-linux-gnueabi/libc/marvell-f/usr/share/:$PATH
+export PATH=/opt/cross-project/arm/marvell/arm-none-linux-gnueabi/libc/marvell-f/usr/share:/opt/cross-project/arm/marvell/bin:$PATH
 
 export MACHINE=armada38x
 export CUSTOM_CONFIG_ARGS="--host=arm-none-linux-gnueabi --disable-dependency-tracking"
@@ -63,7 +63,7 @@ mkdir -p norecurse
 mv norecurse/* .
 
 echo executing ./contrib/build_sdk.sh -a -e -g -I -q -x "$CUSTOM_CONFIG_ARGS" 
-./contrib/build_sdk.sh -a -e -f -g -I -i -n -q -z -x "$CUSTOM_CONFIG_ARGS"
+./contrib/build_sdk.sh -a -e -f -g -I -i -n -q -R -x "$CUSTOM_CONFIG_ARGS"
 #2>&1 | tee $MEGA_CMD_DIR/mybuildlogs-sdkbuild.out
 
 if [ $? -ne 0 ] ; then
@@ -80,7 +80,8 @@ echo -------------------------------------------------------- sdk end ----------
 echo about to build megacmd ---------------------------
 
 sh autogen.sh 2>&1 | tee $MEGA_CMD_DIR/mybuildlogs-autogen2.out
-./configure SUBDIRS="" --enable-static --with-cryptopp --with-readline $CUSTOM_CONFIG_ARGS  2>&1 | tee $MEGA_CMD_DIR/mybuildlogs-configure2.out 
+./configure SUBDIRS="" --enable-static --with-cryptopp --with-readline=/opt/cross-project/arm/marvell/arm-none-linux-gnueabi/libc/marvell-f/src/MEGAcmd/sdk/sdk_build/install/include/ \
+            $CUSTOM_CONFIG_ARGS  2>&1 | tee $MEGA_CMD_DIR/mybuildlogs-configure2.out 
 
 
 export INCLUDES="-I$MEGA_CMD_DIR/sdk/sdk_build/install/include -I$MEGA_CMD_DIR/sdk/include/ -I$MEGA_CMD_DIR/include/mega/posix"
@@ -92,6 +93,12 @@ rm -f mega-cmd
 rm -f mega-cmd-exec
 
 $CXX $CXXFLAGS src/megacmd.cpp src/comunicationsmanager.cpp         src/megacmdutils.cpp src/configurationmanager.cpp         src/megacmdlogger.cpp src/megacmdsandbox.cpp src/listeners.cpp         src/megacmdexecuter.cpp         src/comunicationsmanagerportsockets.cpp src/comunicationsmanagerfilesockets.cpp -Isdk/include -Isdk/include/mega/posix -Isdk/sdk_build/install/include  sdk/sdk_build/install/lib/libmega.a sdk/sdk_build/install/lib/libcryptopp.a    sdk/sdk_build/install/lib/libcurl.a sdk/sdk_build/install/lib/libcares.a sdk/sdk_build/install/lib/libssl.a sdk/sdk_build/install/lib/libcrypto.a  sdk/sdk_build/install/lib/libsqlite3.a -lpthread -ldl -lrt sdk/sdk_build/install/lib/libz.a -o mega-cmd-server
+
+$CXX $CXXFLAGS src/megacmdshell/*.cpp -Isdk/include -Isdk/include/mega/posix -Isdk/sdk_build/install/include  sdk/sdk_build/install/lib/libmega.a sdk/sdk_build/install/lib/libcryptopp.a    sdk/sdk_build/install/lib/libcurl.a sdk/sdk_build/install/lib/libcares.a sdk/sdk_build/install/lib/libssl.a sdk/sdk_build/install/lib/libcrypto.a  sdk/sdk_build/install/lib/libsqlite3.a -lpthread -ldl -lrt sdk/sdk_build/install/lib/libz.a ./sdk/sdk_build/install/lib/libreadline.a ./sdk/sdk_build/install/lib/libtermcap.a -o mega-cmd
+
+$CXX $CXXFLAGS  src/client/*.cpp src/megacmdshell/megacmdshellcommunications.cpp -Isdk/include -Isdk/include/mega/posix -Isdk/sdk_build/install/include  sdk/sdk_build/install/lib/libmega.a sdk/sdk_build/install/lib/libcryptopp.a    sdk/sdk_build/install/lib/libcurl.a sdk/sdk_build/install/lib/libcares.a sdk/sdk_build/install/lib/libssl.a sdk/sdk_build/install/lib/libcrypto.a  sdk/sdk_build/install/lib/libsqlite3.a -lpthread -ldl -lrt sdk/sdk_build/install/lib/libz.a -o mega-exec
+
+
 
 echo "final return code: $?"
 echo "outputs should be 3 files: mega-cmd mega-cmd-server mega-exec.  ls output: "

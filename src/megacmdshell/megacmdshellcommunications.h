@@ -55,6 +55,7 @@ std::ostringstream & operator<< ( std::ostringstream & ostr, std::wstring const 
 #define OUTSTRINGSTREAM std::ostringstream
 #define OUTSTRING std::string
 #define COUT std::cout
+typedef int SOCKET;
 #endif
 
 #define OUTSTREAM COUT
