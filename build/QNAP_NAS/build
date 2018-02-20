@@ -62,12 +62,21 @@ pwd
 mkdir -p norecurse
 mv norecurse/* .
 
-echo executing ./contrib/build_sdk.sh -a -e -g -I -q -x "$CUSTOM_CONFIG_ARGS" 
-./contrib/build_sdk.sh -a -e -f -g -I -i -n -q -R -x "$CUSTOM_CONFIG_ARGS"
-#2>&1 | tee $MEGA_CMD_DIR/mybuildlogs-sdkbuild.out
+echo executing ./contrib/build_sdk.sh -a -e -f -g -I -q -x "$CUSTOM_CONFIG_ARGS" 
+#ultimately after overcoming many build challenges, we still can't build freeimage, as it turns out it uses __sync builtins, but they fail to link.  Hence the -f
+./contrib/build_sdk.sh -a -e -g -f -I -n -q -R -x "$CUSTOM_CONFIG_ARGS" -0 2>&1 | tee $MEGA_CMD_DIR/mybuildlogs-sdkbuild.out
+
+
+echo "libtool could not link it so we do it ourselves. Including Zen and MediaInfo somehow reference a nonexistent path /home/slava in the Synology libtool libraries. If we left those out it would make the lib ok."
+echo "we make the lib using $AR directly, with and output the same name src/libmega.la that satisfies the configure script for MEGAcmd."
+rm -f src/libmega.la
+$AR -rcs src/libmega.la `find src -name "*.o"` `find sdk_build -name "*.a"`
 
 if [ $? -ne 0 ] ; then
    exit 1
+else
+   cp src/libmega.la ./sdk_build/install/lib/
+   cp ./sdk_build/install/lib/libmega.la ./sdk_build/install/lib/libmega.a
 fi
 
 mv ./Makefile* norecurse/
@@ -92,16 +101,12 @@ rm -f mega-cmd-server
 rm -f mega-cmd
 rm -f mega-cmd-exec
 
-$CXX $CXXFLAGS src/megacmd.cpp src/comunicationsmanager.cpp         src/megacmdutils.cpp src/configurationmanager.cpp         src/megacmdlogger.cpp src/megacmdsandbox.cpp src/listeners.cpp         src/megacmdexecuter.cpp         src/comunicationsmanagerportsockets.cpp src/comunicationsmanagerfilesockets.cpp -Isdk/include -Isdk/include/mega/posix -Isdk/sdk_build/install/include  sdk/sdk_build/install/lib/libmega.a sdk/sdk_build/install/lib/libcryptopp.a    sdk/sdk_build/install/lib/libcurl.a sdk/sdk_build/install/lib/libcares.a sdk/sdk_build/install/lib/libssl.a sdk/sdk_build/install/lib/libcrypto.a  sdk/sdk_build/install/lib/libsqlite3.a -lpthread -ldl -lrt sdk/sdk_build/install/lib/libz.a -o mega-cmd-server
+$CXX $CXXFLAGS src/megacmd.cpp src/comunicationsmanager.cpp         src/megacmdutils.cpp src/configurationmanager.cpp         src/megacmdlogger.cpp src/megacmdsandbox.cpp src/listeners.cpp         src/megacmdexecuter.cpp         src/comunicationsmanagerportsockets.cpp src/comunicationsmanagerfilesockets.cpp -Isdk/include -Isdk/include/mega/posix -Isdk/sdk_build/install/include  sdk/sdk_build/install/lib/libmega.a sdk/sdk_build/install/lib/libcryptopp.a    sdk/sdk_build/install/lib/libcurl.a sdk/sdk_build/install/lib/libcares.a sdk/sdk_build/install/lib/libssl.a sdk/sdk_build/install/lib/libcrypto.a  sdk/sdk_build/install/lib/libsqlite3.a  sdk/sdk_build/install/lib/libmediainfo.a sdk/sdk_build/install/lib/libzen.a -lpthread -ldl -lrt sdk/sdk_build/install/lib/libz.a -o mega-cmd-server
 
 $CXX $CXXFLAGS src/megacmdshell/*.cpp -Isdk/include -Isdk/include/mega/posix -Isdk/sdk_build/install/include  sdk/sdk_build/install/lib/libmega.a sdk/sdk_build/install/lib/libcryptopp.a    sdk/sdk_build/install/lib/libcurl.a sdk/sdk_build/install/lib/libcares.a sdk/sdk_build/install/lib/libssl.a sdk/sdk_build/install/lib/libcrypto.a  sdk/sdk_build/install/lib/libsqlite3.a -lpthread -ldl -lrt sdk/sdk_build/install/lib/libz.a ./sdk/sdk_build/install/lib/libreadline.a ./sdk/sdk_build/install/lib/libtermcap.a -o mega-cmd
 
 $CXX $CXXFLAGS  src/client/*.cpp src/megacmdshell/megacmdshellcommunications.cpp -Isdk/include -Isdk/include/mega/posix -Isdk/sdk_build/install/include  sdk/sdk_build/install/lib/libmega.a sdk/sdk_build/install/lib/libcryptopp.a    sdk/sdk_build/install/lib/libcurl.a sdk/sdk_build/install/lib/libcares.a sdk/sdk_build/install/lib/libssl.a sdk/sdk_build/install/lib/libcrypto.a  sdk/sdk_build/install/lib/libsqlite3.a -lpthread -ldl -lrt sdk/sdk_build/install/lib/libz.a -o mega-exec
 
-
-
-echo "final return code: $?"
 echo "outputs should be 3 files: mega-cmd mega-cmd-server mega-exec.  ls output: "
-ls mega-*
+ls mega-cmd mega-cmd-server mega-exec
 
-exit 0
