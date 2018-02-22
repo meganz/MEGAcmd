@@ -325,7 +325,7 @@ MegaNode* MegaCmdExecuter::nodebypath(const char* ptr, string* user, string* nam
     {
         if (!l)
         {
-            if (*ptr >= 0)
+            if (*(const signed char*)ptr >= 0)
             {
                 if (*ptr == '\\')
                 {
@@ -717,7 +717,7 @@ vector <string> * MegaCmdExecuter::nodesPathsbypath(const char* ptr, bool usepcr
     {
         if (!l)
         {
-            if (*ptr >= 0)
+            if (*(const signed char*)ptr >= 0)
             {
                 if (*ptr == '\\')
                 {
@@ -1048,7 +1048,7 @@ MegaNode * MegaCmdExecuter::getRootNodeByPath(const char *ptr, string* user)
     {
         if (!l)
         {
-            if (*ptr >= 0)
+            if (*(const signed char*)ptr >= 0)
             {
                 if (*ptr == '\\')
                 {
@@ -1240,7 +1240,7 @@ vector <MegaNode*> * MegaCmdExecuter::nodesbypath(const char* ptr, bool usepcre,
     {
         if (!l)
         {
-            if (*ptr >= 0)
+            if (*(const signed char*)ptr >= 0)
             {
                 if (*ptr == '\\')
                 {
