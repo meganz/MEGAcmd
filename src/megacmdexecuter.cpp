@@ -5760,6 +5760,47 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             }
         }
     }
+#ifdef HAVE_LIBUV
+    else if (words[0] == "webdav")
+    {
+        if (words.size() < 2)
+        {
+            setCurrentOutCode(MCMD_EARGS);
+            LOG_err << "      " << getUsageStr("webdav");
+            return;
+        }
+
+        bool tls = getFlag(clflags, "tls");
+        int port = getintOption(cloptions, "port", 4443);
+        bool localonly = !getFlag(clflags, "public");
+
+        string pathtocert = getOption(cloptions, "certificate", "");
+        string pathtokey = getOption(cloptions, "key", "");
+
+        //api->httpServerStart(false, 4443, true, "/assets/others/certs/selfsignedSDK/pepitopalotes.pem", "/assets/others/certs/selfsignedSDK/pepitopalotes.key");
+
+        bool serverstarted = api->httpServerIsRunning();
+        if (!serverstarted)
+        {
+            LOG_info << "Starting http server";
+            api->httpServerEnableFolderServer(true);
+            api->httpServerStart(localonly, port, tls, pathtocert, pathtokey);
+        }
+        for (unsigned int i = 1; i < words.size(); i++)
+        {
+            string pathToServe = words[i];
+
+            MegaNode *n = api->getNodeByPath(pathToServe.c_str());
+            if (n)
+            {
+                char *l = api->httpServerGetLocalLink(n);
+                OUTSTREAM << "Serving " << pathToServe << " via WEBDAV at URL:" << endl << l << endl;
+                delete n;
+                delete []l;
+            }
+        }
+    }
+#endif
 #ifdef ENABLE_SYNC
     else if (words[0] == "exclude")
     {

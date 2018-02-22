@@ -197,6 +197,9 @@ string avalidCommands [] = { "login", "signup", "confirm", "session", "mount", "
                              "put", "get", "attr", "userattr", "mkdir", "rm", "du", "mv", "cp", "sync", "export", "share", "invite", "ipc",
                              "showpcr", "users", "speedlimit", "killsession", "whoami", "help", "passwd", "reload", "logout", "version", "quit",
                              "thumbnail", "preview", "find", "completion", "clear", "https", "transfers", "exclude", "exit"
+#ifdef HAVE_LIBUV
+                             , "webdav"
+#endif
 #ifdef ENABLE_BACKUPS
                              , "backup"
 #endif
@@ -429,6 +432,16 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validParams->insert("d");
         validParams->insert("restart-syncs");
     }
+#ifdef HAVE_LIBUV
+    else if ("webdav" == thecommand)
+    {
+        validParams->insert("tls");
+        validParams->insert("public");
+        validOptValues->insert("port");
+        validOptValues->insert("certificate");
+        validOptValues->insert("key");
+    }
+#endif
     else if ("backup" == thecommand)
     {
         validOptValues->insert("period");
@@ -1360,6 +1373,12 @@ const char * getUsageStr(const char *command)
     {
         return "exclude [(-a|-d) pattern1 pattern2 pattern3 [--restart-syncs]]";
     }
+#ifdef HAVE_LIBUV
+    if (!strcmp(command, "webdav"))
+    {
+        return "webdav remotepath [--port=PORT] [--public] [--tls --certificate=/path/to/certificate.pem --key=/path/to/certificate.key]";
+    }
+#endif
     if (!strcmp(command, "sync"))
     {
         return "sync [localpath dstremotepath| [-dsr] [ID|localpath]";
@@ -1845,6 +1864,19 @@ string getHelpStr(const char *command)
         os << "To see versions of a file use \"ls -v\"." << endl;
         os << "To see space occupied by sessions use \"du\" with \"-v\"." << endl;
     }
+#ifdef HAVE_LIBUV
+    else if (!strcmp(command, "webdav"))
+    {
+        os << "Configures a WEBDAV server to serve a location." << endl;
+        os << endl;
+        os << "Options:" << endl;
+        os << " --public" << "\t" << "Allow access from outside localhost" << endl;
+        os << " --port=PORT" << "\t" << "Port to serve. DEFAULT= 4443" << endl;
+        os << " --tls" << "\t" << "Serve with TLS (HTTPS)" << endl;
+        os << " --certificate=/path/to/certificate.pem" << "\t" << "Path to PEM formated certificate" << endl;
+        os << " --key=/path/to/certificate.key" << "\t" << "Path to PEM formated key" << endl;
+    }
+#endif
     else if (!strcmp(command, "exclude"))
     {
         os << "Manages exclusions in syncs." << endl;
