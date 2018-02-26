@@ -3120,6 +3120,15 @@ int main(int argc, char* argv[])
         loggerCMD->setApiLoggerLevel(MegaApi::LOG_LEVEL_DEBUG);
         loggerCMD->setCmdLoggerLevel(MegaApi::LOG_LEVEL_DEBUG);
     }
+    if (!loglevelenv.compare("VERBOSE") || (( argc > 1 ) && !( strcmp(argv[1], "--verbose"))) )
+    {
+        loggerCMD->setCmdLoggerLevel(MegaApi::LOG_LEVEL_MAX);
+    }
+    if (!loglevelenv.compare("FULLVERBOSE") || (( argc > 1 ) && !( strcmp(argv[1], "--verbose-full"))) )
+    {
+        loggerCMD->setApiLoggerLevel(MegaApi::LOG_LEVEL_MAX);
+        loggerCMD->setCmdLoggerLevel(MegaApi::LOG_LEVEL_MAX);
+    }
 
     mutexHistory.init(false);
 
