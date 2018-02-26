@@ -5793,7 +5793,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             MegaNode *n = api->getNodeByPath(pathToServe.c_str());
             if (n)
             {
-                char *l = api->httpServerGetLocalLink(n);
+                char *l = api->httpServerGetLocalWebDavLink(n);
                 OUTSTREAM << "Serving " << pathToServe << " via WEBDAV at URL:" << endl << l << endl;
                 delete n;
                 delete []l;
