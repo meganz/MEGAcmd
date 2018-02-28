@@ -1,6 +1,9 @@
 #!/bin/bash 
 # Copyright (C) 2000-2016 Synology Inc. All rights reserved.
 
+mkdir /ccache-tmp
+export CCACHE_DIR=/ccache-tmp
+
 ### Use PKG_DIR as working directory. 
 PKG_DIR=/tmp/_test_spk 
 rm -rf $PKG_DIR 
@@ -20,9 +23,13 @@ create_inner_tarball() {
 	chmod 777 scripts/*
 	cd MEGAcmd
 	pwd
-	echo running make install
-	make install SUBDIRS='' DESTDIR="$inner_tarball_dir"
-	echo make install done: $?
+	#echo running make install
+	#make install SUBDIRS='' DESTDIR="$inner_tarball_dir"
+	#echo make install done: $?
+
+        cp mega-cmd mega-exec mega-cmd-server "$inner_tarball_dir"
+        cp src/client/mega-* "$inner_tarball_dir"
+
 	cd ..
 	pwd
 	

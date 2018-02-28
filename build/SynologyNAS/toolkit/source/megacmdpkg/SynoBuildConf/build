@@ -10,13 +10,14 @@ AUTOMAKE_OPTIONS="no-dependencies"
 export MACHINE=$PLATFORM_ABBR
 export CUSTOM_CONFIG_ARGS="$ConfigOpt"
 export AM_LIBTOOLFLAGS='--tag=CXX'
-export SPECIAL_OPENSSL_CONFIG_PARAMS="no-asm no-ssl no-ssl2 no-ssl3 no-ssl3-method no-weak-ssl-ciphers"
+export SPECIAL_OPENSSL_CONFIG_PARAMS=""
 
 export CC=$CC
 export CXX=$CXX
 export LD=$LD
 export CFLAGS="$CFLAGS -O3 -fexceptions -fvisibility=hidden -static"
-export CXXFLAGS="-std=c++11 $CFLAGS"
+export CPPFLAGS="$CPPFLAGS -DNDEBUG"
+export CXXFLAGS="-std=c++11 $CFLAGS -DNDEBUG"
 export AR=$AR
 export NM=$NM
 export STRIP=$STRIP
@@ -34,21 +35,97 @@ export SysRootPrefix=$SysRootPrefix
 export SysRootInclude=$SysRootInclude
 export SysRootLib=$SysRootLib
 
-#sdk configure doesn't like defines in the CFLAGS
+#sdk configure doesn't like defines in the CFLAGS.  Nor does it like -I include paths.  We can move those to CPPFLAGS for the preprocessor
 echo $0
-echo CFLAGS was $CFLAGS
+echo "CFLAGS was $CFLAGS"
+echo "CPPFLAGS was $CPPFLAGS"
+export CPPFLAGS=$CPPFLAGS `echo $CFLAGS | grep -o -- '-D[^ ][^ ]*' | tr "\n" " " `
+export CPPFLAGS=$CPPFLAGS `echo $CFLAGS | grep -o -- '-I[^ ][^ ]*' | tr "\n" " " `
 export CFLAGS=`echo $CFLAGS | sed -e 's/-D[^ ][^ ]*//g' `
-echo CFLAGS now $CFLAGS
+export CFLAGS=`echo $CFLAGS | sed -e 's/-I[^ ][^ ]*//g' `
+echo "CFLAGS now $CFLAGS"
+echo "CPPFLAGS now $CPPFLAGS"
 
 #we need to specify the platform specially for OpenSSL
-case $PLATFORM_ABBR in
-armada38x)
+if [ $BUILD_ARCH -eq 32 ] ; then
+  export OS_COMPILER_FOR_OPENSSL=linux-generic32
+else
   export OS_COMPILER_FOR_OPENSSL=linux-x86_64
+fi
+
+case $PLATFORM_ABBR in
+6281)
+  # it doens't like -std=c++11
+  export CXXFLAGS=`echo $CXXFLAGS | sed -e 's/-std=c[^ ]+11//g' `
+  ;;
+armada38x)
+  ;;
+armadaxp)
   ;;
 cedarview)
-  export OS_COMPILER_FOR_OPENSSL=linux-generic32
+  export SPECIAL_OPENSSL_CONFIG_PARAMS="no-asm"
+  ;;
+comcerto2k)
+  #freeimage tries to use an undefined symbol if it uses neon
+  export CFLAGS=`echo $CFLAGS | sed -e 's/-mfpu=neon[^ ]*//g' `
+  export CXXFLAGS=`echo $CXXFLAGS | sed -e 's/-mfpu=neon[^ ]*//g' `
+  ;;
+braswell)
+  export SPECIAL_OPENSSL_CONFIG_PARAMS="no-asm"
+  ;;
+broadwell)
+  export SPECIAL_OPENSSL_CONFIG_PARAMS="no-asm"
+  ;;
+bromolow)
+  export SPECIAL_OPENSSL_CONFIG_PARAMS="no-asm"
+  ;;
+x64)
+  export SPECIAL_OPENSSL_CONFIG_PARAMS="no-asm"
+  ;;
+alpine)
+  #freeimage tries to use an undefined symbol if it uses neon
+  export CFLAGS=`echo $CFLAGS | sed -e 's/-mfpu=neon[^ ]*//g' `
+  export CXXFLAGS=`echo $CXXFLAGS | sed -e 's/-mfpu=neon[^ ]*//g' `
+  ;;
+alpine4k)
+  #freeimage tries to use an undefined symbol if it uses neon
+  export CFLAGS=`echo $CFLAGS | sed -e 's/-mfpu=neon[^ ]*//g' `
+  export CXXFLAGS=`echo $CXXFLAGS | sed -e 's/-mfpu=neon[^ ]*//g' `
+  ;;
+avoton)
+  export SPECIAL_OPENSSL_CONFIG_PARAMS="no-asm"
+  ;;
+denverton)
+  export SPECIAL_OPENSSL_CONFIG_PARAMS="no-asm"
+  ;;
+dockerx64)
+  export SPECIAL_OPENSSL_CONFIG_PARAMS="no-asm"
+  ;;
+grantley)
+  export SPECIAL_OPENSSL_CONFIG_PARAMS="no-asm"
+  ;;
+kvmx64)
+  export SPECIAL_OPENSSL_CONFIG_PARAMS="no-asm"
+  ;;
+monaco)
+  #freeimage tries to use an undefined symbol if it uses neon
+  export CFLAGS=`echo $CFLAGS | sed -e 's/-mfpu=neon[^ ]*//g' `
+  export CXXFLAGS=`echo $CXXFLAGS | sed -e 's/-mfpu=neon[^ ]*//g' `
+  ;;
+rtd1296)
+  #freeimage tries to use an undefined symbol if it uses neon
+  export CFLAGS=`echo $CFLAGS | sed -e 's/-mfpu=neon[^ ]*//g' `
+  export CXXFLAGS=`echo $CXXFLAGS | sed -e 's/-mfpu=neon[^ ]*//g' `
+  ;;
+apollolake)
+  export SPECIAL_OPENSSL_CONFIG_PARAMS="no-asm"
   ;;
 esac
+
+
+echo "after platform adjustments CFLAGS now $CFLAGS"
+echo "after platform adjustments CPPFLAGS now $CPPFLAGS"
+
 
 echo ---------- env set up --------------------
 env
@@ -98,8 +175,6 @@ echo "-------------------------------above it does not like our directly built n
 echo "-------------------------------the problem then was that it did not like the format of one of the .o files, even though we can build fine with it directly"
 echo "-------------------------------either way building it directly at this point does the trick"
 pwd
-
-env
 
 if ! [ -e mega-cmd-server ] ; then
     echo "Attempt to build mega-cmd-server manually"
