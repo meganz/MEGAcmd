@@ -43,7 +43,7 @@ build_package() {
             mkdir -p synology_build_results/image-$platform
             cp -r /toolkit/build_env/ds.$platform-6.1/image synology_build_results/image-$platform
 
-            #rm -rf /toolkit/build_env/ds.$platform-6.1/
+            rm -rf /toolkit/build_env/ds.$platform-6.1/
         else
             echo "------- $platform build failed -----"
             echo "whimper" > synology_build_results/$platform.failed
