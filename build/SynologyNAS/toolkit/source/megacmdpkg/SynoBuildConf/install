@@ -20,6 +20,7 @@ create_inner_tarball() {
     ### install needed file into PKG_DIR    
 	chmod 777 INFO.sh
 	chmod 666 PACKAGE_ICON.PNG
+	chmod 666 PACKAGE_ICON_256.PNG
 	chmod 777 scripts/*
 	cd MEGAcmd
 	pwd
@@ -46,6 +47,7 @@ create_spk(){
 	
     ### Copy package icon    
 	cp -av PACKAGE_ICON.PNG $PKG_DIR
+	cp -av PACKAGE_ICON_256.PNG $PKG_DIR
     ### Generate INFO file    
 	./INFO.sh > INFO    
 	cp INFO $PKG_DIR/INFO
