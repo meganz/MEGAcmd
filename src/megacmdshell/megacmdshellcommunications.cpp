@@ -375,7 +375,7 @@ SOCKET MegaCmdShellCommunications::createSocket(int number, bool initializeserve
 #ifndef _WIN32
     else
     {
-        int thesock = socket(AF_UNIX, SOCK_STREAM, 0);
+        SOCKET thesock = socket(AF_UNIX, SOCK_STREAM, 0);
         char socket_path[60];
         if (!socketValid(thesock))
         {
@@ -423,7 +423,7 @@ SOCKET MegaCmdShellCommunications::createSocket(int number, bool initializeserve
 #ifdef __MACH__
                     const char executable[] = "../../../../MEGAcmdServer/MEGAcmd.app/Contents/MacOS/MEGAcmd";
 #else
-                const char executable[] = "../MEGAcmdServer/MEGAcmd";
+                    const char executable[] = "../MEGAcmdServer/MEGAcmd";
 #endif
 
 #else
@@ -497,8 +497,6 @@ SOCKET MegaCmdShellCommunications::createSocket(int number, bool initializeserve
 
         return thesock;
     }
-    return INVALID_SOCKET;
-
 #endif
     return INVALID_SOCKET;
 }

@@ -116,3 +116,11 @@ mkdir -p install
 cp src/client/mega-* install/
 cp mega-cmd mega-exec mega-cmd-server install/
 
+cp install/* build/QNAP_NAS/megacmdpkg/arm-x41
+
+MAJOR=`sed -n -e 's/.*MAJOR_VERSION \([0-9]*\).*/\1/p' < src/megacmdversion.h`
+MINOR=`sed -n -e 's/.*MINOR_VERSION \([0-9]*\).*/\1/p' < src/megacmdversion.h`
+MICRO=`sed -n -e 's/.*MICRO_VERSION \([0-9]*\).*/\1/p' < src/megacmdversion.h`
+MEGACMD_VERSION="\"$MAJOR.$MINOR.$MICRO\""
+sudo sed -i build/QNAP_NAS/megacmdpkg/qpkg.cfg -e "s/^QPKG_VER=.*/QPKG_VER=$MEGACMD_VERSION/"
+
