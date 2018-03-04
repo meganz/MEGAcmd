@@ -344,11 +344,7 @@ int ComunicationsManagerPortSockets::informStateListener(CmdPetition *inf, strin
 
     static map<SOCKET, SOCKET> connectedsockets;
 
-#ifdef _WIN32    
     SOCKET connectedsocket = INVALID_SOCKET;
-#else
-    SOCKET connectedsocket = -1;
-#endif
     if (connectedsockets.find(((CmdPetitionPortSockets *)inf)->outSocket) == connectedsockets.end())
     {
         //select with timeout and accept non-blocking, so that things don't get stuck
