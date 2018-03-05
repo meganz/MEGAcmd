@@ -5784,7 +5784,8 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         {
             LOG_info << "Starting http server";
             api->httpServerEnableFolderServer(true);
-            api->httpServerStart(localonly, port, tls, pathtocert, pathtokey);
+//            api->httpServerEnableOfflineAttribute(true);
+            api->httpServerStart(localonly, port, tls, pathtocert.c_str(), pathtokey.c_str());
         }
         for (unsigned int i = 1; i < words.size(); i++)
         {
