@@ -39,6 +39,12 @@ build_package() {
                 rm -f synology_build_results/$platform.failed
             fi
 
+            MAJOR=`sed -n -e 's/.*MAJOR_VERSION \([0-9]*\).*/\1/p' < source/megacmdpkg/MEGAcmd/src/megacmdversion.h`
+            MINOR=`sed -n -e 's/.*MINOR_VERSION \([0-9]*\).*/\1/p' < source/megacmdpkg/MEGAcmd/src/megacmdversion.h`
+            MICRO=`sed -n -e 's/.*MICRO_VERSION \([0-9]*\).*/\1/p' < source/megacmdpkg/MEGAcmd/src/megacmdversion.h`
+            MEGACMD_VERSION="\"$MAJOR.$MINOR.$MICRO\""
+            sudo sed -i source/megacmdpkg/INFO.sh -e "s/^version=.*/version=$MEGACMD_VERSION/"
+
             ./pkgscripts-ng/PkgCreate.py -i -S -p $platform megacmdpkg  
             mkdir -p synology_build_results/image-$platform
             cp -r /toolkit/build_env/ds.$platform-6.1/image synology_build_results/image-$platform
