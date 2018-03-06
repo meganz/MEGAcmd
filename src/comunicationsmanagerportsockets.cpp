@@ -22,8 +22,12 @@
 #ifdef _WIN32
 #include <windows.h>
 #define ERRNO WSAGetLastError()
+#define strdup _strdup
 #else
 #define ERRNO errno
+#ifndef INVALID_SOCKET
+#define INVALID_SOCKET -1
+#endif
 #endif
 
 #ifndef SOCKET_ERROR
@@ -36,7 +40,7 @@
 
 using namespace mega;
 
-void closeSocket(int socket){
+void closeSocket(SOCKET socket){
 #ifdef _WIN32
     closesocket(socket);
 #else
@@ -44,7 +48,7 @@ void closeSocket(int socket){
 #endif
 }
 
-bool socketValid(int socket)
+bool socketValid(SOCKET socket)
 {
 #ifdef _WIN32
     return socket != INVALID_SOCKET;
@@ -66,9 +70,9 @@ int ComunicationsManagerPortSockets::get_next_comm_id()
     return count;
 }
 
-int ComunicationsManagerPortSockets::create_new_socket(int *sockId)
+SOCKET ComunicationsManagerPortSockets::create_new_socket(int *sockId)
 {
-    int thesock;
+    SOCKET thesock;
     int attempts = 10;
     bool socketsucceded = false;
     while (--attempts && !socketsucceded)
@@ -109,7 +113,7 @@ int ComunicationsManagerPortSockets::create_new_socket(int *sockId)
     memset(&addr, 0, sizeof( addr ));
     addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = htonl (INADDR_LOOPBACK);
-    addr.sin_port = htons(portno);
+    addr.sin_port = htons((unsigned short)portno);
 
     socklen_t saddrlength = sizeof( addr );
 
@@ -191,7 +195,7 @@ int ComunicationsManagerPortSockets::initialize()
     memset(&addr, 0, sizeof( addr ));
     addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = htonl (INADDR_LOOPBACK);
-    addr.sin_port = htons(portno);
+    addr.sin_port = htons((unsigned short)portno);
 
     socklen_t saddrlength = sizeof( addr );
 
@@ -292,7 +296,7 @@ void ComunicationsManagerPortSockets::returnAndClosePetition(CmdPetition *inf, O
     LOG_verbose << "Output to write in socket " << ((CmdPetitionPortSockets *)inf)->outSocket << ": <<" << s->str() << ">>";
     sockaddr_in cliAddr;
     socklen_t cliLength = sizeof( cliAddr );
-    int connectedsocket = ((CmdPetitionPortSockets *)inf)->acceptedOutSocket;
+    SOCKET connectedsocket = ((CmdPetitionPortSockets *)inf)->acceptedOutSocket;
     if (connectedsocket == SOCKET_ERROR)
     {
         connectedsocket = accept(((CmdPetitionPortSockets *)inf)->outSocket, (struct sockaddr*)&cliAddr, &cliLength);
@@ -320,7 +324,7 @@ void ComunicationsManagerPortSockets::returnAndClosePetition(CmdPetition *inf, O
 #ifdef _WIN32
    string sutf8;
    localwtostring(&sout,&sutf8);
-   n = send(connectedsocket, sutf8.data(), sutf8.size(), MSG_NOSIGNAL);
+   n = send(connectedsocket, sutf8.data(), int(sutf8.size()), MSG_NOSIGNAL);
 #else
    n = send(connectedsocket, sout.data(), max(1,(int)sout.size()), MSG_NOSIGNAL); //TODO: test this max and do it for windows
 #endif
@@ -341,9 +345,9 @@ int ComunicationsManagerPortSockets::informStateListener(CmdPetition *inf, strin
     sockaddr_in cliAddr;
     socklen_t cliLength = sizeof( cliAddr );
 
-    static map<int,int> connectedsockets;
+    static map<SOCKET, SOCKET> connectedsockets;
 
-    int connectedsocket = -1;
+    SOCKET connectedsocket = INVALID_SOCKET;
     if (connectedsockets.find(((CmdPetitionPortSockets *)inf)->outSocket) == connectedsockets.end())
     {
         //select with timeout and accept non-blocking, so that things don't get stuck
@@ -354,7 +358,7 @@ int ComunicationsManagerPortSockets::informStateListener(CmdPetition *inf, strin
         struct timeval timeout;
         timeout.tv_sec = 0;
         timeout.tv_usec = 4000000;
-        int rv = select(((CmdPetitionPortSockets *)inf)->outSocket+1, &set, NULL, NULL, &timeout);
+        int rv = select(int(((CmdPetitionPortSockets *)inf)->outSocket+1), &set, NULL, NULL, &timeout);
         if(rv == -1)
         {
             LOG_err << "Informing state listener: Unable to select on outsocket " << ((CmdPetitionPortSockets *)inf)->outSocket << " error: " << errno;
@@ -382,7 +386,7 @@ int ComunicationsManagerPortSockets::informStateListener(CmdPetition *inf, strin
         connectedsocket = connectedsockets[((CmdPetitionPortSockets *)inf)->outSocket];
     }
 
-    if (connectedsocket == -1)
+    if (!socketValid(connectedsocket))
     {
         if (errno == 32) //socket closed
         {
@@ -402,7 +406,7 @@ int ComunicationsManagerPortSockets::informStateListener(CmdPetition *inf, strin
 #define MSG_NOSIGNAL 0
 #endif
 
-    int n = send(connectedsocket, s.data(), s.size(), MSG_NOSIGNAL);
+    int n = send(connectedsocket, s.data(), int(s.size()), MSG_NOSIGNAL);
     if (n < 0)
     {
         if (errno == 32) //socket closed
@@ -519,8 +523,8 @@ int ComunicationsManagerPortSockets::getConfirmation(CmdPetition *inf, string me
 {
     sockaddr_in cliAddr;
     socklen_t cliLength = sizeof( cliAddr );
-    int connectedsocket = ((CmdPetitionPortSockets *)inf)->acceptedOutSocket;
-    if (connectedsocket == -1)
+    SOCKET connectedsocket = ((CmdPetitionPortSockets *)inf)->acceptedOutSocket;
+    if (!socketValid(connectedsocket))
         connectedsocket = accept(((CmdPetitionPortSockets *)inf)->outSocket, (struct sockaddr*)&cliAddr, &cliLength);
      ((CmdPetitionPortSockets *)inf)->acceptedOutSocket = connectedsocket;
     if (connectedsocket == -1)

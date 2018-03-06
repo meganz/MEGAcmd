@@ -87,7 +87,7 @@ bool MegaCmdShellCommunications::registerAgainRequired;
 bool MegaCmdShellCommunications::confirmResponse;
 bool MegaCmdShellCommunications::stopListener;
 ::mega::Thread *MegaCmdShellCommunications::listenerThread;
-int MegaCmdShellCommunications::newsockfd;
+SOCKET MegaCmdShellCommunications::newsockfd = INVALID_SOCKET;
 
 #ifdef _WIN32
 // UNICODE SUPPORT FOR WINDOWS
@@ -166,12 +166,12 @@ void utf16ToUtf8(const wchar_t* utf16data, int utf16size, string* utf8string)
     utf8string->resize(WideCharToMultiByte(CP_UTF8, 0, utf16data,
         utf16size,
         (char*)utf8string->data(),
-        utf8string->size() + 1,
+        int(utf8string->size() + 1),
         NULL, NULL));
 }
 #endif
 
-bool MegaCmdShellCommunications::socketValid(int socket)
+bool MegaCmdShellCommunications::socketValid(SOCKET socket)
 {
 #ifdef _WIN32
     return socket != INVALID_SOCKET;
@@ -180,7 +180,7 @@ bool MegaCmdShellCommunications::socketValid(int socket)
 #endif
 }
 
-void MegaCmdShellCommunications::closeSocket(int socket){
+void MegaCmdShellCommunications::closeSocket(SOCKET socket){
 #ifdef _WIN32
     closesocket(socket);
 #else
@@ -264,11 +264,11 @@ bool is_pid_running(pid_t pid) {
 }
 #endif
 
-int MegaCmdShellCommunications::createSocket(int number, bool initializeserver, bool net)
+SOCKET MegaCmdShellCommunications::createSocket(int number, bool initializeserver, bool net)
 {
     if (net)
     {
-        int thesock = socket(AF_INET, SOCK_STREAM, 0);
+        SOCKET thesock = socket(AF_INET, SOCK_STREAM, 0);
         if (!socketValid(thesock))
         {
             cerr << "ERROR opening socket: " << ERRNO << endl;
@@ -375,7 +375,7 @@ int MegaCmdShellCommunications::createSocket(int number, bool initializeserver, 
 #ifndef _WIN32
     else
     {
-        int thesock = socket(AF_UNIX, SOCK_STREAM, 0);
+        SOCKET thesock = socket(AF_UNIX, SOCK_STREAM, 0);
         char socket_path[60];
         if (!socketValid(thesock))
         {
@@ -423,7 +423,7 @@ int MegaCmdShellCommunications::createSocket(int number, bool initializeserver, 
 #ifdef __MACH__
                     const char executable[] = "../../../../MEGAcmdServer/MEGAcmd.app/Contents/MacOS/MEGAcmd";
 #else
-                const char executable[] = "../MEGAcmdServer/MEGAcmd";
+                    const char executable[] = "../MEGAcmdServer/MEGAcmd";
 #endif
 
 #else
@@ -497,8 +497,6 @@ int MegaCmdShellCommunications::createSocket(int number, bool initializeserver, 
 
         return thesock;
     }
-    return INVALID_SOCKET;
-
 #endif
     return INVALID_SOCKET;
 }
@@ -627,10 +625,10 @@ int MegaCmdShellCommunications::executeCommandW(wstring wcommand, int (*readconf
 
 int MegaCmdShellCommunications::executeCommand(string command, int (*readconfirmationloop)(const char *), OUTSTREAMTYPE &output, bool interactiveshell, wstring wcommand)
 {
-    int thesock = createSocket(0, command.compare(0,4,"exit") && command.compare(0,4,"quit"));
-    if (thesock == INVALID_SOCKET)
+    SOCKET thesock = createSocket(0, command.compare(0,4,"exit") && command.compare(0,4,"quit"));
+    if (!socketValid(thesock))
     {
-        return INVALID_SOCKET;
+        return -1;
     }
 
     if (interactiveshell)
@@ -651,7 +649,7 @@ int MegaCmdShellCommunications::executeCommand(string command, int (*readconfirm
     {
         wcommand=L"X"+wcommand;
     }
-    int n = send(thesock,(char *)wcommand.data(),wcslen(wcommand.c_str())*sizeof(wchar_t), MSG_NOSIGNAL);
+    int n = send(thesock,(char *)wcommand.data(),int(wcslen(wcommand.c_str())*sizeof(wchar_t)), MSG_NOSIGNAL);
 
 #else
     int n = send(thesock,command.data(),command.size(), MSG_NOSIGNAL);
@@ -678,9 +676,9 @@ int MegaCmdShellCommunications::executeCommand(string command, int (*readconfirm
         return -1;
     }
 
-    int newsockfd = createSocket(receiveSocket);
-    if (newsockfd == INVALID_SOCKET)
-        return INVALID_SOCKET;
+    SOCKET newsockfd = createSocket(receiveSocket);
+    if (!socketValid(newsockfd))
+        return -1;
 
     int outcode = -1;
 
@@ -774,8 +772,8 @@ int MegaCmdShellCommunications::listenToStateChanges(int receiveSocket, void (*s
     int timeout_notified_server_might_be_down = 0;
     while (!stopListener)
     {
-        if (newsockfd == INVALID_SOCKET)
-            return INVALID_SOCKET;
+        if (!socketValid(newsockfd))
+            return -1;
 
         string newstate;
 
@@ -795,7 +793,7 @@ int MegaCmdShellCommunications::listenToStateChanges(int receiveSocket, void (*s
         {
             cerr << "ERROR reading state from server: " << ERRNO << endl;
             closeSocket(newsockfd);
-            return -1;;
+            return -1;
         }
 
         if (!n)
@@ -847,17 +845,17 @@ int MegaCmdShellCommunications::registerForStateChanges(void (*statechangehandle
         registerAgainRequired = false;
         return 0; //Do nth
     }
-    int thesock = createSocket();
+    SOCKET thesock = createSocket();
     if (thesock == INVALID_SOCKET)
     {
         cerr << "Failed to create socket for registering for state changes" << endl;
         registerAgainRequired = true;
-        return INVALID_SOCKET;
+        return -1;
     }
 
 #ifdef _WIN32
     wstring wcommand=L"registerstatelistener";
-    int n = send(thesock,(char*)wcommand.data(),wcslen(wcommand.c_str())*sizeof(wchar_t), MSG_NOSIGNAL);
+    int n = send(thesock,(char*)wcommand.data(),int(wcslen(wcommand.c_str())*sizeof(wchar_t)), MSG_NOSIGNAL);
 #else
     string command="registerstatelistener";
     int n = send(thesock,command.data(),command.size(), MSG_NOSIGNAL);
