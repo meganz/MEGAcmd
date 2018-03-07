@@ -107,7 +107,9 @@ MegaCmdExecuter::MegaCmdExecuter(MegaApi *api, MegaCMDLogger *loggerCMD, MegaCmd
     cwd = UNDEF;
     fsAccessCMD = new MegaFileSystemAccess();
     mtxSyncMap.init(false);
+#ifdef ENABLE_BACKUPS
     mtxBackupsMap.init(true);
+#endif
     session = NULL;
 }
 
@@ -323,7 +325,7 @@ MegaNode* MegaCmdExecuter::nodebypath(const char* ptr, string* user, string* nam
     {
         if (!l)
         {
-            if (*ptr >= 0)
+            if (*(const signed char*)ptr >= 0)
             {
                 if (*ptr == '\\')
                 {
@@ -715,7 +717,7 @@ vector <string> * MegaCmdExecuter::nodesPathsbypath(const char* ptr, bool usepcr
     {
         if (!l)
         {
-            if (*ptr >= 0)
+            if (*(const signed char*)ptr >= 0)
             {
                 if (*ptr == '\\')
                 {
@@ -1046,7 +1048,7 @@ MegaNode * MegaCmdExecuter::getRootNodeByPath(const char *ptr, string* user)
     {
         if (!l)
         {
-            if (*ptr >= 0)
+            if (*(const signed char*)ptr >= 0)
             {
                 if (*ptr == '\\')
                 {
@@ -1238,7 +1240,7 @@ vector <MegaNode*> * MegaCmdExecuter::nodesbypath(const char* ptr, bool usepcre,
     {
         if (!l)
         {
-            if (*ptr >= 0)
+            if (*(const signed char*)ptr >= 0)
             {
                 if (*ptr == '\\')
                 {
@@ -1579,6 +1581,7 @@ void MegaCmdExecuter::dumpNode(MegaNode* n, int extended_info, bool showversions
         }
     }
 }
+#ifdef ENABLE_BACKUPS
 
 void MegaCmdExecuter::createOrModifyBackup(string local, string remote, string speriod, int numBackups)
 {
@@ -1692,6 +1695,7 @@ void MegaCmdExecuter::createOrModifyBackup(string local, string remote, string s
         LOG_err << remote << " not found";
     }
 }
+#endif
 
 void MegaCmdExecuter::dumptree(MegaNode* n, int recurse, int extended_info, bool showversions, int depth, string pathRelativeTo)
 {
@@ -1770,7 +1774,7 @@ bool MegaCmdExecuter::TestCanWriteOnContainingFolder(string *path)
 #endif
     string localpath;
     fsAccessCMD->path2local(path, &localpath);
-    int lastpart = fsAccessCMD->lastpartlocal(&localpath);
+    size_t lastpart = fsAccessCMD->lastpartlocal(&localpath);
     string containingFolder = ".";
     if (lastpart)
     {
@@ -1932,7 +1936,7 @@ int MegaCmdExecuter::dumpListOfExported(MegaNode* n, string givenPath)
             delete n;
         }
     }
-    toret = listOfExported.size();
+    toret = int(listOfExported.size());
     listOfExported.clear();
     return toret;
 }
@@ -2320,9 +2324,12 @@ void MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
         mtxSyncMap.lock();
         ConfigurationManager::loadsyncs();
         mtxSyncMap.unlock();
+#ifdef ENABLE_BACKUPS
         mtxBackupsMap.lock();
         ConfigurationManager::loadbackups();
         mtxBackupsMap.unlock();
+#endif
+
         ConfigurationManager::loadExcludedNames();
         ConfigurationManager::loadConfiguration(false);
         std::vector<string> vexcludednames(ConfigurationManager::excludedNames.begin(), ConfigurationManager::excludedNames.end());
@@ -2366,7 +2373,7 @@ void MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
             delete u;
         }
 
-
+#ifdef ENABLE_BACKUPS
         mtxBackupsMap.lock();
         if (ConfigurationManager::configuredBackups.size())
         {
@@ -2399,6 +2406,7 @@ void MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
             ConfigurationManager::saveBackups(&ConfigurationManager::configuredBackups);
         }
         mtxBackupsMap.unlock();
+#endif
     }
 
 #if defined(_WIN32) || defined(__APPLE__)
@@ -2605,13 +2613,15 @@ int MegaCmdExecuter::deleteNodeVersions(MegaNode *nodeToDelete, MegaApi* api, in
         return MCMDCONFIRM_YES; //nothing to do, no sense asking
     }
 
+    int confirmationResponse;
+
     if (nodeToDelete->getType() != MegaNode::TYPE_FILE)
     {
         string confirmationQuery("Are you sure todelete the version histories of files within ");
         confirmationQuery += nodeToDelete->getName();
         confirmationQuery += "? (Yes/No): ";
 
-        int confirmationResponse = force?MCMDCONFIRM_ALL:askforConfirmation(confirmationQuery);
+        confirmationResponse = force?MCMDCONFIRM_ALL:askforConfirmation(confirmationQuery);
 
         if (confirmationResponse == MCMDCONFIRM_YES || confirmationResponse == MCMDCONFIRM_ALL)
         {
@@ -2626,7 +2636,6 @@ int MegaCmdExecuter::deleteNodeVersions(MegaNode *nodeToDelete, MegaApi* api, in
                 delete children;
             }
         }
-        return confirmationResponse;
     }
     else
     {
@@ -2634,7 +2643,7 @@ int MegaCmdExecuter::deleteNodeVersions(MegaNode *nodeToDelete, MegaApi* api, in
         string confirmationQuery("Are you sure todelete the version histories of ");
         confirmationQuery += nodeToDelete->getName();
         confirmationQuery += "? (Yes/No): ";
-        int confirmationResponse = force?MCMDCONFIRM_ALL:askforConfirmation(confirmationQuery);
+        confirmationResponse = force?MCMDCONFIRM_ALL:askforConfirmation(confirmationQuery);
 
         if (confirmationResponse == MCMDCONFIRM_YES || confirmationResponse == MCMDCONFIRM_ALL)
         {
@@ -2663,10 +2672,9 @@ int MegaCmdExecuter::deleteNodeVersions(MegaNode *nodeToDelete, MegaApi* api, in
                 }
                 delete versionsToDelete;
             }
-            return confirmationResponse;
-
         }
     }
+    return confirmationResponse;
 }
 
 /**
@@ -2923,7 +2931,7 @@ void MegaCmdExecuter::uploadNode(string path, MegaApi* api, MegaNode *node, stri
 }
 
 
-void MegaCmdExecuter::exportNode(MegaNode *n, int expireTime, bool force)
+void MegaCmdExecuter::exportNode(MegaNode *n, int64_t expireTime, bool force)
 {
     bool copyrightAccepted = false;
 
@@ -3487,7 +3495,7 @@ void MegaCmdExecuter::printTransfer(MegaTransfer *transfer, const unsigned int P
     }
     else
     {
-        percent =transfer->getTransferredBytes()*1.0/transfer->getTotalBytes();
+        percent = float(transfer->getTransferredBytes()*1.0/transfer->getTotalBytes());
     }
     OUTSTREAM << "  " << getFixLengthString(percentageToText(percent),7,' ',true)
               << " of " << getFixLengthString(sizeToText(transfer->getTotalBytes()),10,' ',true);
@@ -3515,6 +3523,8 @@ void MegaCmdExecuter::printSyncHeader(const unsigned int PATHSIZE)
     OUTSTREAM << endl;
 
 }
+
+#ifdef ENABLE_BACKUPS
 
 void MegaCmdExecuter::printBackupHeader(const unsigned int PATHSIZE)
 {
@@ -3710,7 +3720,7 @@ void MegaCmdExecuter::printBackup(backup_struct *backupstruct, const unsigned in
         }
     }
 }
-
+#endif
 
 void MegaCmdExecuter::printSync(int i, string key, const char *nodepath, sync_struct * thesync, MegaNode *n, long long nfiles, long long nfolders, const unsigned int PATHSIZE)
 {
@@ -4047,6 +4057,7 @@ void MegaCmdExecuter::restartsyncs()
     }
 }
 
+#ifdef ENABLE_BACKUPS
 bool MegaCmdExecuter::stablishBackup(string pathToBackup, MegaNode *n, int64_t period, string speriod,  int numBackups)
 {
     bool attendpastbackups = true; //TODO: receive as parameter
@@ -4135,6 +4146,7 @@ bool MegaCmdExecuter::stablishBackup(string pathToBackup, MegaNode *n, int64_t p
     delete megaCmdListener;
     return false;
 }
+#endif
 
 void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clflags, map<string, string> *cloptions)
 {
@@ -5177,6 +5189,8 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
         return;
     }
+#ifdef ENABLE_BACKUPS
+
     else if (words[0] == "backup")
     {
         bool dodelete = getFlag(clflags,"d");
@@ -5312,6 +5326,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             LOG_err << "      " << getUsageStr("backup");
         }
     }
+#endif
     else if (words[0] == "put")
     {
         int clientID = getintOption(cloptions, "clientID", -1);
@@ -7852,10 +7867,10 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         if (showcompleted)
         {
             globalTransferListener->completedTransfersMutex.lock();
-            unsigned int totalcompleted = globalTransferListener->completedTransfers.size();
-            for (unsigned int i = 0;(i < totalcompleted)
+            size_t totalcompleted = globalTransferListener->completedTransfers.size();
+            for (size_t i = 0;(i < totalcompleted)
                  && (shownCompleted < totalcompleted)
-                 && (shownCompleted < (unsigned int)(limit+1)); //Note limit+1 to seek for one more to show if there are more to show!
+                 && (shownCompleted < (size_t)(limit+1)); //Note limit+1 to seek for one more to show if there are more to show!
                  i++)
             {
                 MegaTransfer *transfer = globalTransferListener->completedTransfers.at(i);

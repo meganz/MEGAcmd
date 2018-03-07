@@ -94,7 +94,7 @@ Use the different `mega-*` commands available.
 the commands listed there). To obtain further info use `mega-command --help`
 
 Those commands will have an output value != 0 in case of failure. 
-See [megacmd.h](megacmd.h) to view the existing error codes.
+See [megacmd.h](https://github.com/meganz/MEGAcmd/blob/master/src/megacmd.h) to view the existing error codes.
 
 Ideally, you would like to have these commands in your PATH 
 (See [`Platform`](#platforms) for more info). For further info use `mega-help --non-interactive`.
@@ -152,6 +152,13 @@ And for bash completion, source `megacmd_completion.sh` :
 ```
 source /Applications/MEGAcmd.app/Contents/MacOS/megacmd_completion.sh
 ```
+
+## NAS systems
+Currently we have build scripts for Synology and QNAP, which can be found in the build/<system> folder
+along with instructions on how to set up the build.  Typically this results in a 'package' which 
+can then be manually installed in the NAS.   To use MEGAcmd on those systems, ssh into the device
+and run the commands as normal (having first added their folder to your PATH variable).
+
 
 # Features:
 

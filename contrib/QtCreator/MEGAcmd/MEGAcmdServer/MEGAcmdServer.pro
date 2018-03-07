@@ -28,6 +28,15 @@ CONFIG += USE_PCRE
 
 CONFIG += USE_MEDIAINFO
 
+unix:!macx {
+        exists(/usr/include/ffmpeg-mega)|exists(mega/bindings/qt/3rdparty/include/ffmpeg)|packagesExist(libavcodec) {
+            CONFIG += USE_FFMPEG
+        }
+}
+else {
+    CONFIG += USE_FFMPEG
+}
+
 win32 {
     SOURCES += ../../../../sdk/src/wincurl/console.cpp
     SOURCES += ../../../../sdk/src/wincurl/consolewaiter.cpp
@@ -88,11 +97,9 @@ win32{
     SOURCES += src/thread/win32thread.cpp
 }
 else{
-    SOURCES += src/thread/posixthread.cpp
     LIBS += -lpthread
 }
 SOURCES -= src/gfx/qt.cpp
-SOURCES += src/gfx/freeimage.cpp
 SOURCES -= bindings/qt/QTMegaRequestListener.cpp
 SOURCES -= bindings/qt/QTMegaTransferListener.cpp
 SOURCES -= bindings/qt/QTMegaGlobalListener.cpp

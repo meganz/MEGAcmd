@@ -25,7 +25,7 @@
 #include <Lmcons.h> //getusername
 
 #define ERRNO WSAGetLastError()
-
+#define strdup _strdup
 
 using namespace mega;
 
@@ -202,7 +202,10 @@ void ComunicationsManagerNamedPipes::stopWaiting()
     nameOfPipe += username;
     DeleteFile(nameOfPipe.c_str()); // without this, CloseHandle will hang, and loop will be stuck in ConnectNamedPipe
 
-    CloseHandle(pipeGeneral);
+    if (pipeGeneral != INVALID_HANDLE_VALUE)
+    {
+        CloseHandle(pipeGeneral);
+    }
 }
 
 void ComunicationsManagerNamedPipes::registerStateListener(CmdPetition *inf)
@@ -298,7 +301,7 @@ int ComunicationsManagerNamedPipes::informStateListener(CmdPetition *inf, string
     }
 
     DWORD n;
-    if (!WriteFile(outNamedPipe, s.data(), s.size(), &n, NULL))
+    if (!WriteFile(outNamedPipe, s.data(), DWORD(s.size()), &n, NULL))
     {
         if (ERRNO == 32) //namedPipe closed
         {

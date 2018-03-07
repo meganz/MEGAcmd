@@ -606,6 +606,7 @@ string ConfigurationManager::getConfigurationSValue(string propertyName)
         configFile << configFolder << "/" << "megacmd.cfg";
         return getPropertyFromFile(configFile.str().c_str(),propertyName.c_str());
     }
+    return string();
 }
 
 void ConfigurationManager::clearConfigurationFile()
