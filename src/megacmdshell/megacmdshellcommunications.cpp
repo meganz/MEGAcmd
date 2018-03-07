@@ -49,6 +49,7 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <stdio.h>
+#include <limits.h>
 #endif
 
 #ifdef __FreeBSD__
@@ -264,6 +265,29 @@ bool is_pid_running(pid_t pid) {
 }
 #endif
 
+#ifdef __linux__
+std::string getCurrentExecPath()
+{
+    std::string path = ".";
+    pid_t pid = getpid();
+    char buf[20] = {0};
+    sprintf(buf,"%d",pid);
+    std::string _link = "/proc/";
+    _link.append( buf );
+    _link.append( "/exe");
+    char proc[PATH_MAX];
+    int ch = readlink(_link.c_str(),proc,PATH_MAX);
+    if (ch != -1) {
+        proc[ch] = 0;
+        path = proc;
+        std::string::size_type t = path.find_last_of("/");
+        path = path.substr(0,t);
+    }
+
+    return path;
+}
+#endif
+
 SOCKET MegaCmdShellCommunications::createSocket(int number, bool initializeserver, bool net)
 {
     if (net)
@@ -429,24 +453,33 @@ SOCKET MegaCmdShellCommunications::createSocket(int number, bool initializeserve
 #else
     #ifdef __MACH__
                     const char executable[] = "/Applications/MEGAcmd.app/Contents/MacOS/MEGAcmdLoader";
+                    const char executable2[] = "./MEGAcmdLoader";
     #else
                     const char executable[] = "mega-cmd-server";
+                    char executable2[PATH_MAX];
+                    sprintf(executable2, "%s/mega-cmd-server", getCurrentExecPath().c_str());
     #endif
 #endif
                     char * args[] = {NULL};
 
                     int ret = execvp(executable,args);
-                    if (ret)
-                    {
-                        if (errno == 2 )
-                        {
-                            cerr << "Couln't initiate MEGAcmd server: executable not found: " << executable << endl;
 
-                        }
-                        else
+                    if (ret && errno == 2 )
+                    {
+                        cerr << "Couln't initiate MEGAcmd server: executable not found: " << executable << endl;
+#ifdef NDEBUG
+                        cerr << "Trying to use alternative executable: " << executable2 << endl;
+                        ret = execvp(executable2,args);
+                        if (ret && errno == 2 )
                         {
-                            cerr << "MEGAcmd server exit with code " << ret << " . errno = " << errno << endl;
+                            cerr << "Couln't initiate MEGAcmd server: executable not found: " << executable2 << endl;
                         }
+#endif
+                    }
+
+                    if (ret && errno !=2 )
+                    {
+                        cerr << "MEGAcmd server exit with code " << ret << " . errno = " << errno << endl;
                     }
                     exit(0);
                 }
