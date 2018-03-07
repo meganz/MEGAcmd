@@ -29,6 +29,9 @@ BuildRequires: libcryptopp-devel
 
 %if 0%{?fedora}
 BuildRequires: c-ares-devel, cryptopp-devel
+%if 0%{?fedora_version} >= 27
+Requires: cryptopp >= 5.6.5
+%endif
 %endif
 
 %if 0%{?fedora_version}==21 || 0%{?fedora_version}==22 || 0%{?fedora_version}>=25 || 0%{?sle_version} == 120300
