@@ -1,0 +1,68 @@
+#!/bin/bash
+
+
+echo "here is the latest list"
+./pkgscripts-ng/EnvDeploy -v 6.1 --list
+
+
+#6281 alpine alpine4k armada370 armada375 armada38x armadaxp avoton braswell broadwell bromolow cedarview comcerto2k dockerx64 evansport grantley hi3535 kvmx64 monaco qoriq x64 rtd1296 denverton apollolake
+
+
+build_package() {
+    local platform=$1
+
+    if [ -e synology_build_results/$platform.built ] ; then
+        echo "$platform built already"
+    else
+        echo "Building for $platform -----------------------------------------------"
+
+        if [ -e /toolkit/build_env/ds.$platform-6.1/ ] ; then
+            echo "cleaning old build of $platform"
+            rm -rf /toolkit/build_env/ds.$platform-6.1/ 
+        fi
+
+        ./pkgscripts-ng/EnvDeploy -v 6.1 -p $platform -t /toolkit/toolkit_tarballs/
+
+        mkdir -p /toolkit/build_env/ds.$platform-6.1/tmp/megasdkbuild/
+        cp sdk_dep_tarballs/* /toolkit/build_env/ds.$platform-6.1/tmp/megasdkbuild/
+
+        rm -rf source/megacmdpkg/MEGAcmd/sdk/sdk_build
+        ./pkgscripts-ng/PkgCreate.py -v 6.1 -p $platform megacmdpkg || true
+
+        local megaDir="/toolkit/build_env/ds.$platform-6.1/source/megacmdpkg/MEGAcmd/"
+        echo "checking $megaDir"
+        ls $megaDir
+        if [ -e $megaDir/mega-cmd ] && [ -e $megaDir/mega-cmd-server ] && [ -e $megaDir/mega-exec ] ; then
+            echo "--------------------- SUCCESS for $platform ------------------------"
+            echo "boom" > synology_build_results/$platform.built
+            if [ -e synology_build_results/$platform.failed ] ; then
+                rm -f synology_build_results/$platform.failed
+            fi
+
+            MAJOR=`sed -n -e 's/.*MAJOR_VERSION \([0-9]*\).*/\1/p' < source/megacmdpkg/MEGAcmd/src/megacmdversion.h`
+            MINOR=`sed -n -e 's/.*MINOR_VERSION \([0-9]*\).*/\1/p' < source/megacmdpkg/MEGAcmd/src/megacmdversion.h`
+            MICRO=`sed -n -e 's/.*MICRO_VERSION \([0-9]*\).*/\1/p' < source/megacmdpkg/MEGAcmd/src/megacmdversion.h`
+            MEGACMD_VERSION="\"$MAJOR.$MINOR.$MICRO\""
+            sudo sed -i source/megacmdpkg/INFO.sh -e "s/^version=.*/version=$MEGACMD_VERSION/"
+
+            ./pkgscripts-ng/PkgCreate.py -i -S -p $platform megacmdpkg  
+            mkdir -p synology_build_results/image-$platform
+            cp -r /toolkit/build_env/ds.$platform-6.1/image synology_build_results/image-$platform
+
+            rm -rf /toolkit/build_env/ds.$platform-6.1/
+        else
+            echo "------- $platform build failed -----"
+            echo "whimper" > synology_build_results/$platform.failed
+        fi
+
+
+    fi
+}
+
+mkdir -p synology_build_results
+
+for p in `./pkgscripts-ng/EnvDeploy -v 6.1 --list | grep -o "[^:]*$" ` ; do
+  build_package $p
+done
+
+

@@ -1,0 +1,205 @@
+# SynoBuildConf/build
+
+mkdir ./MEGAcmd/sdk/sdk_build
+mkdir ./MEGAcmd/sdk/sdk_build/install
+mkdir ./MEGAcmd/sdk/sdk_build/install/lib
+
+AUTOMAKE_OPTIONS="no-dependencies"
+
+#achine=armada38x for DS218j.  This variable short-circuits ./config for those projects that use it.
+export MACHINE=$PLATFORM_ABBR
+export CUSTOM_CONFIG_ARGS="$ConfigOpt"
+export AM_LIBTOOLFLAGS='--tag=CXX'
+export SPECIAL_OPENSSL_CONFIG_PARAMS=""
+
+export CC=$CC
+export CXX=$CXX
+export LD=$LD
+export CFLAGS="$CFLAGS -O3 -fexceptions -fvisibility=hidden -static"
+export CPPFLAGS="$CPPFLAGS -DNDEBUG"
+export CXXFLAGS="-std=c++11 $CFLAGS -DNDEBUG"
+export AR=$AR
+export NM=$NM
+export STRIP=$STRIP
+export RANLIB=$RANLIB
+export OBJDUMP=$OBJDUMP
+export LDFLAGS=$LDFLAGS
+export ConfigOpt=$ConfigOpt
+export ARCH=$ARCH
+export SYNO_PLATFORM=$SYNO_PLATFORM
+export DSM_SHLIB_MAJOR=$DSM_SHLIB_MAJOR
+export DSM_SHLIB_MINOR=$DSM_SHLIB_MINOR
+export DSM_SHLIB_NUM=$DSM_SHLIB_NUM
+export ToolChainSysRoot=$ToolChainSysRoot
+export SysRootPrefix=$SysRootPrefix
+export SysRootInclude=$SysRootInclude
+export SysRootLib=$SysRootLib
+
+#sdk configure doesn't like defines in the CFLAGS.  Nor does it like -I include paths.  We can move those to CPPFLAGS for the preprocessor
+echo $0
+echo "CFLAGS was $CFLAGS"
+echo "CPPFLAGS was $CPPFLAGS"
+export CPPFLAGS=$CPPFLAGS `echo $CFLAGS | grep -o -- '-D[^ ][^ ]*' | tr "\n" " " `
+export CPPFLAGS=$CPPFLAGS `echo $CFLAGS | grep -o -- '-I[^ ][^ ]*' | tr "\n" " " `
+export CFLAGS=`echo $CFLAGS | sed -e 's/-D[^ ][^ ]*//g' `
+export CFLAGS=`echo $CFLAGS | sed -e 's/-I[^ ][^ ]*//g' `
+echo "CFLAGS now $CFLAGS"
+echo "CPPFLAGS now $CPPFLAGS"
+
+suppress_freeimage_flag=""
+
+#we need to specify the platform specially for OpenSSL
+if [ $BUILD_ARCH -eq 32 ] ; then
+  export OS_COMPILER_FOR_OPENSSL=linux-generic32
+else
+  export OS_COMPILER_FOR_OPENSSL=linux-x86_64
+fi
+
+case $PLATFORM_ABBR in
+6281)
+  # it doens't like -std=c++11
+  export CXXFLAGS=`echo $CXXFLAGS | sed -e 's/-std=c[^ ]+11//g' `
+  ;;
+armada38x)
+  ;;
+armadaxp)
+  ;;
+cedarview)
+  export SPECIAL_OPENSSL_CONFIG_PARAMS="no-asm"
+  ;;
+comcerto2k)
+  #freeimage tries to use an undefined symbol if it uses neon
+  export CFLAGS=`echo $CFLAGS | sed -e 's/-mfpu=neon[^ ]*//g' `
+  export CXXFLAGS=`echo $CXXFLAGS | sed -e 's/-mfpu=neon[^ ]*//g' `
+  ;;
+braswell)
+  export SPECIAL_OPENSSL_CONFIG_PARAMS="no-asm"
+  ;;
+broadwell)
+  export SPECIAL_OPENSSL_CONFIG_PARAMS="no-asm"
+  ;;
+bromolow)
+  export SPECIAL_OPENSSL_CONFIG_PARAMS="no-asm"
+  ;;
+x64)
+  export SPECIAL_OPENSSL_CONFIG_PARAMS="no-asm"
+  ;;
+alpine)
+  #freeimage tries to use an undefined symbol if it uses neon
+  export CFLAGS=`echo $CFLAGS | sed -e 's/-mfpu=neon[^ ]*//g' `
+  export CXXFLAGS=`echo $CXXFLAGS | sed -e 's/-mfpu=neon[^ ]*//g' `
+  ;;
+alpine4k)
+  #freeimage tries to use an undefined symbol if it uses neon
+  export CFLAGS=`echo $CFLAGS | sed -e 's/-mfpu=neon[^ ]*//g' `
+  export CXXFLAGS=`echo $CXXFLAGS | sed -e 's/-mfpu=neon[^ ]*//g' `
+  ;;
+avoton)
+  export SPECIAL_OPENSSL_CONFIG_PARAMS="no-asm"
+  ;;
+denverton)
+  export SPECIAL_OPENSSL_CONFIG_PARAMS="no-asm"
+  ;;
+dockerx64)
+  export SPECIAL_OPENSSL_CONFIG_PARAMS="no-asm"
+  ;;
+grantley)
+  export SPECIAL_OPENSSL_CONFIG_PARAMS="no-asm"
+  ;;
+kvmx64)
+  export SPECIAL_OPENSSL_CONFIG_PARAMS="no-asm"
+  ;;
+monaco)
+  #freeimage tries to use an undefined symbol if it uses neon
+  export CFLAGS=`echo $CFLAGS | sed -e 's/-mfpu=neon[^ ]*//g' `
+  export CXXFLAGS=`echo $CXXFLAGS | sed -e 's/-mfpu=neon[^ ]*//g' `
+  ;;
+rtd1296)
+  #freeimage tries to use an undefined symbol if it uses neon
+  export CFLAGS=`echo $CFLAGS | sed -e 's/-mfpu=neon[^ ]*//g' `
+  export CXXFLAGS=`echo $CXXFLAGS | sed -e 's/-mfpu=neon[^ ]*//g' `
+  #despite that, freeimage still insists on neon , preventing linking, and it's not clear how that gets turned on for this platform, it's not in the compiler flags
+  suppress_freeimage_flag="-f"
+  ;;
+apollolake)
+  export SPECIAL_OPENSSL_CONFIG_PARAMS="no-asm"
+  ;;
+esac
+
+
+echo "after platform adjustments CFLAGS now $CFLAGS"
+echo "after platform adjustments CPPFLAGS now $CPPFLAGS"
+
+
+echo ---------- env set up --------------------
+env
+echo ---------- env set up --------------------
+
+
+cd MEGAcmd/sdk
+pwd
+
+mkdir -p norecurse
+mv norecurse/* .
+
+./contrib/build_sdk.sh -a -e $suppress_freeimage_flag -g -I -n -q -R -X -C "$CUSTOM_CONFIG_ARGS" -O $OS_COMPILER_FOR_OPENSSL -S "$SPECIAL_OPENSSL_CONFIG_PARAMS" 2>&1 | tee /mybuildlogs-sdkbuild.out
+
+if ! [ -e src/libmega.la ] ; then
+    echo "libtool could not link it so we do it ourselves. Including Zen and MediaInfo somehow reference a nonexistent path /home/chingfen in the Synology libtool libraries. If we left those out it would make the lib ok."
+    echo "we make the lib using $AR directly, with and output the same name src/libmega.la that satisfies the configure script for MEGAcmd."
+    $AR -rcs src/libmega.a `find src -name "*.o"` `find sdk_build -name "*.a"`
+    #MEGAcmd configure wants to see a .la file too
+    cp ./src/libmega.a ./src/libmega.la
+    cp ./src/libmega* ./sdk_build/install/lib/
+fi
+
+if ! [ -e ./src/libmega.la ] ; then
+   echo "SDK build failed"
+   exit 1
+fi
+
+
+mv ./Makefile* norecurse
+mv ./config* norecurse
+cd ..
+
+echo -------------------------------------------------------- sdk end --------------------------------------
+
+
+echo about to build megacmd ---------------------------
+
+sh autogen.sh 2>&1 | tee /mybuildlogs-autogen2.out
+./configure --enable-static --with-cryptopp $CUSTOM_CONFIG_ARGS  2>&1 | tee /mybuildlogs-configure2.out 
+
+export INCLUDES="-I/source/megacmdpkg/MEGAcmd/sdk/sdk_build/install/include -I/source/megacmdpkg/MEGAcmd/sdk/include/ -I/source/megacmdpkg/MEGAcmd/sdk/include/mega/posix"
+make SUBDIRS='' DEFS='' 2>&1 | tee /mybuildlogs-make2.out
+
+echo "-------------------------------seems autotools cannot build mega-cmd-server though the other two succeed"
+echo "-------------------------------above it does not like our directly built non-libtool library, but prior to adding Zen and MediaInfo it failed anyway even with the libtool built libmega.la"
+echo "-------------------------------the problem then was that it did not like the format of one of the .o files, even though we can build fine with it directly"
+echo "-------------------------------either way building it directly at this point does the trick"
+pwd
+
+freeimagelib=${suppress_freeimage_flag:-"sdk/sdk_build/install/lib/libfreeimage.a"}
+freeimagelib=${freeimagelib/-f/-lz}
+
+if ! [ -e mega-cmd-server ] ; then
+    echo "Attempt to build mega-cmd-server manually"
+    $CXX $CXXFLAGS src/megacmd.cpp src/comunicationsmanager.cpp         src/megacmdutils.cpp src/configurationmanager.cpp         src/megacmdlogger.cpp src/megacmdsandbox.cpp src/listeners.cpp         src/megacmdexecuter.cpp         src/comunicationsmanagerportsockets.cpp src/comunicationsmanagerfilesockets.cpp -Isdk/include -Isdk/include/mega/posix -Isdk/sdk_build/install/include  sdk/sdk_build/install/lib/libmega.a sdk/sdk_build/install/lib/libcryptopp.a sdk/sdk_build/install/lib/libmediainfo.a sdk/sdk_build/install/lib/libzen.a  sdk/sdk_build/install/lib/libcurl.a sdk/sdk_build/install/lib/libcares.a sdk/sdk_build/install/lib/libssl.a sdk/sdk_build/install/lib/libcrypto.a $freeimagelib sdk/sdk_build/install/lib/libsqlite3.a -lpthread -ldl -lrt -o mega-cmd-server
+fi
+
+if ! [ -e mega-cmd ] ; then
+    echo "Attempt to build mega-cmd manually"
+    $CXX $CXXFLAGS src/megacmdshell/*.cpp -Isdk/include -Isdk/include/mega/posix -Isdk/sdk_build/install/include  sdk/sdk_build/install/lib/libmega.a sdk/sdk_build/install/lib/libcryptopp.a    sdk/sdk_build/install/lib/libcurl.a sdk/sdk_build/install/lib/libcares.a sdk/sdk_build/install/lib/libssl.a sdk/sdk_build/install/lib/libcrypto.a  sdk/sdk_build/install/lib/libsqlite3.a -lpthread -ldl -lrt sdk/sdk_build/install/lib/libz.a ./sdk/sdk_build/install/lib/libreadline.a ./sdk/sdk_build/install/lib/libtermcap.a -o mega-cmd
+fi
+
+if ! [ -e mega-exec ] ; then
+    echo "Attempt to build mega-exec manually"
+    $CXX $CXXFLAGS  src/client/*.cpp src/megacmdshell/megacmdshellcommunications.cpp -Isdk/include -Isdk/include/mega/posix -Isdk/sdk_build/install/include  sdk/sdk_build/install/lib/libmega.a sdk/sdk_build/install/lib/libcryptopp.a    sdk/sdk_build/install/lib/libcurl.a sdk/sdk_build/install/lib/libcares.a sdk/sdk_build/install/lib/libssl.a sdk/sdk_build/install/lib/libcrypto.a  sdk/sdk_build/install/lib/libsqlite3.a -lpthread -ldl -lrt sdk/sdk_build/install/lib/libz.a -o mega-exec
+fi
+
+echo "final return code: $?"
+echo "outputs should be 3 files: mega-cmd mega-cmd-server mega-exec.  ls output: "
+ls mega-*
+
+exit 0
