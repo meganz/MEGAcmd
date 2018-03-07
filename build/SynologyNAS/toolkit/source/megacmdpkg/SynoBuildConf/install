@@ -1,5 +1,4 @@
 #!/bin/bash 
-# Copyright (C) 2000-2016 Synology Inc. All rights reserved.
 
 mkdir /ccache-tmp
 export CCACHE_DIR=/ccache-tmp
@@ -62,5 +61,3 @@ create_spk(){
 
 create_inner_tarball 
 create_spk
-
-
