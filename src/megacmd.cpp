@@ -3125,6 +3125,9 @@ int main(int argc, char* argv[])
     char userAgent[30];
     sprintf(userAgent, "MEGAcmd/%d.%d.%d.0", MEGACMD_MAJOR_VERSION,MEGACMD_MINOR_VERSION,MEGACMD_MICRO_VERSION);
 
+    MegaApi::addLoggerObject(loggerCMD);
+    MegaApi::setLogLevel(MegaApi::LOG_LEVEL_MAX);
+
 #if defined(__MACH__) && defined(ENABLE_SYNC)
     int fd = -1;
     if (argc)
@@ -3167,9 +3170,6 @@ int main(int argc, char* argv[])
     }
 
     mutexapiFolders.init(false);
-
-    api->addLoggerObject(loggerCMD);
-    api->setLogLevel(MegaApi::LOG_LEVEL_MAX);
 
     LOG_debug << "Language set to: " << localecode;
 
