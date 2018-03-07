@@ -703,6 +703,21 @@ void changeprompt(const char *newprompt, bool redisplay)
         handlerinstalled = true;
 
         requirepromptinstall = false;
+
+        static bool firstime = true;
+        if (firstime)
+        {
+            firstime = false;
+#if _WIN32
+            if( !SetConsoleCtrlHandler( (PHANDLER_ROUTINE) CtrlHandler, TRUE ) )
+            {
+                cerr << "Control handler set failed" << endl;
+            }
+#else
+            // prevent CTRL+C exit
+            signal(SIGINT, sigint_handler);
+#endif
+        }
     }
     mutexPrompt.unlock();
 }
@@ -1856,16 +1871,6 @@ int main(int argc, char* argv[])
     comms = new MegaCmdShellCommunicationsNamedPipes();
 #else
     comms = new MegaCmdShellCommunications();
-#endif
-
-#if _WIN32
-    if( !SetConsoleCtrlHandler( (PHANDLER_ROUTINE) CtrlHandler, TRUE ) )
-    {
-        cerr << "Control handler set failed" << endl;
-     }
-#else
-    // prevent CTRL+C exit
-    signal(SIGINT, sigint_handler);
 #endif
 
     rl_attempted_completion_function = getCompletionMatches;
