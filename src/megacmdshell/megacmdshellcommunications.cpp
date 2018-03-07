@@ -456,8 +456,12 @@ SOCKET MegaCmdShellCommunications::createSocket(int number, bool initializeserve
                     const char executable2[] = "./MEGAcmdLoader";
     #else
                     const char executable[] = "mega-cmd-server";
+        #ifdef __linux__
                     char executable2[PATH_MAX];
                     sprintf(executable2, "%s/mega-cmd-server", getCurrentExecPath().c_str());
+        #else
+                    const char executable2[] = "./mega-cmd-server";
+        #endif
     #endif
 #endif
                     char * args[] = {NULL};
