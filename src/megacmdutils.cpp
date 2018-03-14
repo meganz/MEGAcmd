@@ -818,12 +818,12 @@ time_t getTimeStampBefore(time_t initial, string timestring)
     struct tm dt;
     fillLocalTimeStruct(&initial, &dt);
 
-    dt.tm_mday += days;
-    dt.tm_hour += hours;
-    dt.tm_min += minutes;
-    dt.tm_sec += seconds;
-    dt.tm_mon += months;
-    dt.tm_year += years;
+    dt.tm_mday -= days;
+    dt.tm_hour -= hours;
+    dt.tm_min -= minutes;
+    dt.tm_sec -= seconds;
+    dt.tm_mon -= months;
+    dt.tm_year -= years;
 
     delete [] buffer;
     return mktime(&dt);
