@@ -160,7 +160,7 @@ public:
     void move(mega::MegaNode *n, std::string destiny);
     std::string getLPWD();
     bool isValidFolder(std::string destiny);
-    bool stablishBackup(std::string local, mega::MegaNode *n, int64_t period, std::string periodstring, int numBackups);
+    bool establishBackup(std::string local, mega::MegaNode *n, int64_t period, std::string periodstring, int numBackups);
 };
 
 #endif // MEGACMDEXECUTER_H

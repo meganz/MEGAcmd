@@ -1801,7 +1801,7 @@ string getHelpStr(const char *command)
 #ifndef _WIN32
     else if (!strcmp(command, "permissions"))
     {
-        os << "Shows/stablish default permissions for files and folders created by MEGAcmd." << endl;
+        os << "Shows/Establish default permissions for files and folders created by MEGAcmd." << endl;
         os << endl;
         os << "Permissions are unix-like permissions, with 3 numbers: one for owner, one for group and one for others" << endl;
         os << "Options:" << endl;
@@ -1942,7 +1942,7 @@ string getHelpStr(const char *command)
         os << "                       \t" << "  Notice that this is an uncertain measure since not all months" << endl;
         os << "                       \t" << "  last the same and Daylight saving time changes are not considered" << endl;
         os << "                       \t" << "  If possible use a cron like expresion" << endl;
-        os << "                       \t" << "Notice: regardless of the period expresion, the first time you stablish a backup," << endl;
+        os << "                       \t" << "Notice: regardless of the period expresion, the first time you establish a backup," << endl;
         os << "                       \t" << " it will be created inmediately" << endl;
         os << "--num-backups=N\t" << "Maximum number of backups to store" << endl;
         os << "                 \t" << " After creating the backup (N+1) the oldest one will be deleted" << endl;
@@ -1970,7 +1970,7 @@ string getHelpStr(const char *command)
         os << " --expire=TIMEDELAY" << "\t" << "Determines the expiration time of a node." << endl;
         os << "                   " << "\t" << "   It indicates the delay in hours(h), days(d), " << endl;
         os << "                   " << "\t"  << "   minutes(M), seconds(s), months(m) or years(y)" << endl;
-        os << "                   " << "\t" << "   e.g. \"1m12d3h\" stablish an expiration time 1 month, " << endl;
+        os << "                   " << "\t" << "   e.g. \"1m12d3h\" establish an expiration time 1 month, " << endl;
         os << "                   " << "\t"  << "   12 days and 3 hours after the current moment" << endl;
         os << " -f" << "\t" << "Implicitly accept copyright terms (only shown the first time an export is made)" << endl;
         os << "   " << "\t" << "MEGA respects the copyrights of others and requires that users of the MEGA cloud service " << endl;
@@ -2077,7 +2077,7 @@ string getHelpStr(const char *command)
     else if (!strcmp(command, "speedlimit"))
     {
         os << "Displays/modifies upload/download rate limits" << endl;
-        os << " NEWLIMIT stablish the new limit in size per second (0 = no limit)" << endl;
+        os << " NEWLIMIT establish the new limit in size per second (0 = no limit)" << endl;
         os << " NEWLIMIT may include (B)ytes, (K)ilobytes, (M)egabytes, (G)igabytes & (T)erabytes." << endl;
         os << "  Examples: \"1m12k3B\" \"3M\". If no unit given, it'll use Bytes" << endl;
         os << endl;
