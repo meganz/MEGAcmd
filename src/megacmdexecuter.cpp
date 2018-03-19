@@ -1677,12 +1677,12 @@ void MegaCmdExecuter::createOrModifyBackup(string local, string remote, string s
         }
         else
         {
-            if (stablishBackup(local, n, period, speriod, numBackups) )
+            if (establishBackup(local, n, period, speriod, numBackups) )
             {
                 mtxBackupsMap.lock();
                 ConfigurationManager::saveBackups(&ConfigurationManager::configuredBackups);
                 mtxBackupsMap.unlock();
-                OUTSTREAM << "Backup stablished: " << local << " into " << remote << " period="
+                OUTSTREAM << "Backup established: " << local << " into " << remote << " period="
                           << ((period != -1)?getReadablePeriod(period/10):"\""+speriod+"\"")
                           << " Number-of-Backups=" << numBackups << endl;
             }
@@ -2385,7 +2385,7 @@ void MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
                 backup_struct *thebackup = itr->second;
 
                 MegaNode * node = api->getNodeByHandle(thebackup->handle);
-                if (stablishBackup(thebackup->localpath, node, thebackup->period, thebackup->speriod, thebackup->numBackups))
+                if (establishBackup(thebackup->localpath, node, thebackup->period, thebackup->speriod, thebackup->numBackups))
                 {
                     thebackup->failed = false;
                     const char *nodepath = api->getNodePath(node);
@@ -4058,7 +4058,7 @@ void MegaCmdExecuter::restartsyncs()
 }
 
 #ifdef ENABLE_BACKUPS
-bool MegaCmdExecuter::stablishBackup(string pathToBackup, MegaNode *n, int64_t period, string speriod,  int numBackups)
+bool MegaCmdExecuter::establishBackup(string pathToBackup, MegaNode *n, int64_t period, string speriod,  int numBackups)
 {
     bool attendpastbackups = true; //TODO: receive as parameter
     static int backupcounter = 0;
@@ -4072,7 +4072,7 @@ bool MegaCmdExecuter::stablishBackup(string pathToBackup, MegaNode *n, int64_t p
     MegaCmdListener *megaCmdListener = new MegaCmdListener(api, NULL);
     api->setBackup(path.c_str(), n, attendpastbackups, period, speriod, numBackups, megaCmdListener);
     megaCmdListener->wait();
-    if (checkNoErrors(megaCmdListener->getError(), "stablish backup"))
+    if (checkNoErrors(megaCmdListener->getError(), "establish backup"))
     {
         mtxBackupsMap.lock();
 
