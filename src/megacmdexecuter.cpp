@@ -5274,6 +5274,12 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             }
             else //remote file
             {
+                if (!api->isFilesystemAvailable())
+                {
+                    setCurrentOutCode(MCMD_NOTLOGGEDIN);
+                    LOG_err << "Not logged in.";
+                    return;
+                }
                 unescapeifRequired(words[1]);
 
                 if (isRegExp(words[1]))
