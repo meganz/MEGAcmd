@@ -355,7 +355,9 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validParams->insert("R");
         validParams->insert("r");
         validParams->insert("l");
-        validParams->insert("v");
+        validParams->insert("a");
+        validParams->insert("h");
+        validParams->insert("versions");
 
 #ifdef USE_PCRE
         validParams->insert("use-pcre");
@@ -364,7 +366,7 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     else if ("du" == thecommand)
     {
         validParams->insert("h");
-        validParams->insert("v");
+        validParams->insert("versions");
 #ifdef USE_PCRE
         validParams->insert("use-pcre");
 #endif
@@ -1267,9 +1269,9 @@ const char * getUsageStr(const char *command)
     if (!strcmp(command, "ls"))
     {
 #ifdef USE_PCRE
-        return "ls [-lRrv] [remotepath] [--use-pcre]";
+        return "ls [-halRr] [--versions] [remotepath] [--use-pcre]";
 #else
-        return "ls [-lRrv] [remotepath]";
+        return "ls [-halRr] [--versions] [remotepath]";
 #endif
     }
     if (!strcmp(command, "cd"))
@@ -1283,9 +1285,9 @@ const char * getUsageStr(const char *command)
     if (!strcmp(command, "du"))
     {
 #ifdef USE_PCRE
-        return "du [-hv] [remotepath remotepath2 remotepath3 ... ] [--use-pcre]";
+        return "du [-h] [--versions] [remotepath remotepath2 remotepath3 ... ] [--use-pcre]";
 #else
-        return "du [-hv] [remotepath remotepath2 remotepath3 ... ]";
+        return "du [-h] [--versions] [remotepath remotepath2 remotepath3 ... ]";
 #endif
     }
     if (!strcmp(command, "pwd"))
@@ -1643,8 +1645,21 @@ string getHelpStr(const char *command)
         os << endl;
         os << "Options:" << endl;
         os << " -R|-r" << "\t" << "list folders recursively" << endl;
-        os << " -l" << "\t" << "include extra information" << endl;
-        os << " -v" << "\t" << "show historical versions" << endl;
+        os << " -l" << "\t" << "print summary" << endl;
+        os << "   " << "\t" << " SUMMARY contents:" << endl;
+        os << "   " << "\t" << "   FLAGS: Indicate type/status of an element:" << endl;
+        os << "   " << "\t" << "     xxxx" << endl;
+        os << "   " << "\t" << "     |||+---- Sharing status: (s)hared, (i)n share or not shared(-)" << endl;
+        os << "   " << "\t" << "     ||+----- if exported, whether it is (p)ermanent or (t)temporal" << endl;
+        os << "   " << "\t" << "     |+------ e/- wheter node is (e)xported" << endl;
+        os << "   " << "\t" << "     +-------- Type(d=folder,-=file,r=root,i=inbox,b=rubbish,x=unsupported)" << endl;
+        os << "   " << "\t" << "   VERS: Number of versions in a file" << endl;
+        os << "   " << "\t" << "   SIZE: Size of the file in bytes:" << endl;
+        os << "   " << "\t" << "   DATE: Modification date for files and creation date for folders:" << endl;
+        os << "   " << "\t" << "   NAME: name of the node" << endl;
+        os << " -h" << "\t" << "Show human readable sizes in summary" << endl;
+        os << " -a" << "\t" << "include extra information" << endl;
+        os << " --versions" << "\t" << "show historical versions" << endl;
         os << "   " << "\t" << "You can delete all versions of a file with \"deleteversions\"" << endl;
 #ifdef USE_PCRE
         os << " --use-pcre" << "\t" << "use PCRE expressions" << endl;
@@ -1680,8 +1695,8 @@ string getHelpStr(const char *command)
         os << endl;
         os << "Options:" << endl;
         os << " -h" << "\t" << "Human readable" << endl;
-        os << " -v" << "\t" << "Calculate size including all versions." << endl;
-        os << "   " << "\t" << "You can remove all versions with \"deleteversions\" and list them with \"ls -v\"" << endl;
+        os << " --versions" << "\t" << "Calculate size including all versions." << endl;
+        os << "   " << "\t" << "You can remove all versions with \"deleteversions\" and list them with \"ls --versions\"" << endl;
 #ifdef USE_PCRE
         os << " --use-pcre" << "\t" << "use PCRE expressions" << endl;
 #endif
@@ -1861,8 +1876,8 @@ string getHelpStr(const char *command)
         os << " --use-pcre" << "\t" << "use PCRE expressions" << endl;
 #endif
         os << endl;
-        os << "To see versions of a file use \"ls -v\"." << endl;
-        os << "To see space occupied by sessions use \"du\" with \"-v\"." << endl;
+        os << "To see versions of a file use \"ls --versions\"." << endl;
+        os << "To see space occupied by sessions use \"du\" with \"--versions\"." << endl;
     }
 #ifdef HAVE_LIBUV
     else if (!strcmp(command, "webdav"))

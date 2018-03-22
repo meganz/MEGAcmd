@@ -1581,6 +1581,136 @@ void MegaCmdExecuter::dumpNode(MegaNode* n, int extended_info, bool showversions
         }
     }
 }
+
+void MegaCmdExecuter::dumpNodeSummaryHeader()
+{
+    OUTSTREAM << "FLAGS";
+    OUTSTREAM << " ";
+    OUTSTREAM << getFixLengthString("VERS", 4);
+    OUTSTREAM << " ";
+    OUTSTREAM << getFixLengthString("SIZE  ", 10 -1, ' ', true); //-1 because of "FLAGS"
+    OUTSTREAM << " ";
+    OUTSTREAM << getFixLengthString("DATE      ", 18, ' ', true); //TODO: differenciate modficiation/creation date? too verbose
+    OUTSTREAM << " ";
+    OUTSTREAM << "NAME";
+    OUTSTREAM << endl;
+}
+
+void MegaCmdExecuter::dumpNodeSummary(MegaNode *n, bool humanreadable, const char *title)
+{
+    if (!title && !( title = n->getName()))
+    {
+        title = "CRYPTO_ERROR";
+    }
+
+    switch (n->getType())
+    {
+    case MegaNode::TYPE_FILE:
+        OUTSTREAM << "-";
+        break;
+    case MegaNode::TYPE_FOLDER:
+        OUTSTREAM << "d";
+        break;
+    case MegaNode::TYPE_ROOT:
+        OUTSTREAM << "r";
+        break;
+    case MegaNode::TYPE_INCOMING:
+        OUTSTREAM << "i";
+        break;
+    case MegaNode::TYPE_RUBBISH:
+        OUTSTREAM << "b";
+        break;
+    default:
+        OUTSTREAM << "x";
+        break;
+    }
+
+    if (UNDEF != n->getPublicHandle())
+    {
+        OUTSTREAM << "e";
+        if (n->getExpirationTime())
+        {
+            OUTSTREAM << "t";
+        }
+        else
+        {
+            OUTSTREAM << "p";
+        }
+    }
+    else
+    {
+        OUTSTREAM << "--";
+    }
+
+    if (n->isShared())
+    {
+        OUTSTREAM << "s";
+    }
+    else if (n->isInShare())
+    {
+        OUTSTREAM << "i";
+    }
+    else
+    {
+        OUTSTREAM << "-";
+    }
+
+    OUTSTREAM << " ";
+
+    if (n->isFile())
+    {
+        MegaNodeList *versionNodes = api->getVersions(n);
+        int nversions = versionNodes ? versionNodes->size() : 0;
+        if (nversions > 999)
+        {
+            OUTSTREAM << getFixLengthString(">999", 4, ' ', true);
+        }
+        else
+        {
+            OUTSTREAM << getFixLengthString(SSTR(nversions), 4, ' ', true);
+        }
+
+        delete versionNodes;
+    }
+    else
+    {
+        OUTSTREAM << getFixLengthString("-", 4, ' ', true);
+    }
+
+    OUTSTREAM << " ";
+
+    if (n->isFile())
+    {
+        if (humanreadable)
+        {
+            OUTSTREAM << getFixLengthString(sizeToText(n->getSize()), 10, ' ', true);
+        }
+        else
+        {
+            OUTSTREAM << getFixLengthString(SSTR(n->getSize()), 10, ' ', true);
+        }
+    }
+    else
+    {
+        OUTSTREAM << getFixLengthString("-", 10, ' ', true);
+    }
+
+    if (n->isFile())
+    {
+        OUTSTREAM << " " << getReadableShortTime(n->getModificationTime());
+    }
+    else
+    {
+        OUTSTREAM << " " << getReadableShortTime(n->getCreationTime());
+    }
+
+
+    OUTSTREAM << " " << title;
+    OUTSTREAM << endl;
+}
+
+
+
 #ifdef ENABLE_BACKUPS
 
 void MegaCmdExecuter::createOrModifyBackup(string local, string remote, string speriod, int numBackups)
@@ -1757,6 +1887,71 @@ void MegaCmdExecuter::dumptree(MegaNode* n, int recurse, int extended_info, bool
             }
 
             delete children;
+        }
+    }
+}
+
+void MegaCmdExecuter::dumpTreeSummary(MegaNode *n, int recurse, int depth, bool humanreadable, string pathRelativeTo)
+{
+    char * nodepath = api->getNodePath(n);
+
+    char *pathToShow = NULL;
+    if (pathRelativeTo != "")
+    {
+        pathToShow = strstr(nodepath, pathRelativeTo.c_str());
+    }
+
+    if (pathToShow == nodepath) //found at beginning
+    {
+        pathToShow += pathRelativeTo.size();
+        if (( *pathToShow == '/' ) && ( pathRelativeTo != "/" ))
+        {
+            pathToShow++;
+        }
+    }
+    else
+    {
+        pathToShow = nodepath;
+    }
+
+    if (!pathToShow && !( pathToShow = (char *)n->getName()))
+    {
+        pathToShow = "CRYPTO_ERROR";
+    }
+
+    if (n->getType() != MegaNode::TYPE_FILE)
+    {
+        MegaNodeList* children = api->getChildren(n);
+        if (children)
+        {
+            if (depth)
+            {
+                OUTSTREAM << endl;
+            }
+
+            if (recurse)
+            {
+                OUTSTREAM << pathToShow << ":" << endl;
+            }
+
+            for (int i = 0; i < children->size(); i++)
+            {
+                dumpNodeSummary(children->get(i), humanreadable);
+            }
+
+            delete []nodepath;
+            if (recurse)
+            {
+                for (int i = 0; i < children->size(); i++)
+                {
+                    dumpTreeSummary(children->get(i), recurse, depth + 1, humanreadable);
+                }
+            }
+            delete children;
+        }
+        else
+        {
+            delete []nodepath;
         }
     }
 }
@@ -4160,8 +4355,11 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             return;
         }
         int recursive = getFlag(clflags, "R") + getFlag(clflags, "r");
-        int extended_info = getFlag(clflags, "l");
-        int show_versions = getFlag(clflags, "v");
+        int extended_info = getFlag(clflags, "a");
+        int show_versions = getFlag(clflags, "versions");
+        bool summary = getFlag(clflags, "l");
+        bool firstprint = true;
+        bool humanreadable = getFlag(clflags, "h");
 
         if ((int)words.size() > 1)
         {
@@ -4199,7 +4397,19 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                                 {
                                     OUTSTREAM << nodepath << ": " << endl;
                                 }
-                                dumptree(n, recursive, extended_info, show_versions, 0, rNpath);
+                                if (summary)
+                                {
+                                    if (firstprint)
+                                    {
+                                        dumpNodeSummaryHeader();
+                                        firstprint = false;
+                                    }
+                                    dumpTreeSummary(n, recursive, 0, humanreadable, rNpath);
+                                }
+                                else
+                                {
+                                    dumptree(n, recursive, extended_info, show_versions, 0, rNpath);
+                                }
                                 if (( !n->getType() == MegaNode::TYPE_FILE ) && (( it + 1 ) != pathsToList->end()))
                                 {
                                     OUTSTREAM << endl;
@@ -4232,7 +4442,19 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 n = nodebypath(words[1].c_str());
                 if (n)
                 {
-                    dumptree(n, recursive, extended_info, show_versions, 0, rNpath);
+                    if (summary)
+                    {
+                        if (firstprint)
+                        {
+                            dumpNodeSummaryHeader();
+                            firstprint = false;
+                        }
+                        dumpTreeSummary(n, recursive, 0, humanreadable, rNpath);
+                    }
+                    else
+                    {
+                        dumptree(n, recursive, extended_info, show_versions, 0, rNpath);
+                    }
                     delete n;
                 }
                 else
@@ -4247,7 +4469,19 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             n = api->getNodeByHandle(cwd);
             if (n)
             {
-                dumptree(n, recursive, extended_info, show_versions);
+                if (summary)
+                {
+                    if (firstprint)
+                    {
+                        dumpNodeSummaryHeader();
+                        firstprint = false;
+                    }
+                    dumpTreeSummary(n, recursive, 0, humanreadable);
+                }
+                else
+                {
+                    dumptree(n, recursive, extended_info, show_versions);
+                }
                 delete n;
             }
         }
@@ -4712,7 +4946,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         }
 
         bool humanreadable = getFlag(clflags, "h");
-        bool show_versions_size = getFlag(clflags, "v");
+        bool show_versions_size = getFlag(clflags, "versions");
         bool firstone = true;
 
         for (unsigned int i = 1; i < words.size(); i++)

@@ -630,7 +630,7 @@ std::string getReadableShortTime(const time_t rawtime, bool showUTCDeviation)
         fillLocalTimeStruct(&rawtime, &dt);
         if (showUTCDeviation)
         {
-            strftime(buffer, sizeof( buffer ), "%d%b%Y %T %z", &dt); // Following RFC 2822 (as in date -R)
+            strftime(buffer, sizeof( buffer ), "%d%b%Y %T %z", &dt);
         }
         else
         {
