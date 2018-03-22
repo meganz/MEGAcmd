@@ -5997,12 +5997,79 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 #ifdef HAVE_LIBUV
     else if (words[0] == "webdav")
     {
-        if (words.size() < 2)
+        bool remove = getFlag(clflags, "d");
+
+        if (words.size() > 2 || (words.size() == 1 && remove) )
         {
             setCurrentOutCode(MCMD_EARGS);
             LOG_err << "      " << getUsageStr("webdav");
             return;
         }
+
+        if (words.size() == 1 || remove)
+        {
+            if (remove)
+            {
+                MegaNode *n = api->getNodeByPath(words[1].c_str());
+                if (n)
+                {
+                    api->httpServerRemoveWebDavAllowedNode(n->getHandle());
+                    OUTSTREAM << words[1] << " no longer served via webdav" << endl; //TODO: what if it was never served?
+                    delete n;
+                }
+                else
+                {
+                    setCurrentOutCode(MCMD_NOTFOUND);
+                    LOG_err << "Path not found" << words[1];
+                    return;
+                }
+            }
+
+            //List served nodes
+            MegaNodeList *webdavnodes = api->httpServerGetWebDavAllowedNodes();
+            if (webdavnodes)
+            {
+                bool found = false;
+
+                for (int a = 0; a < webdavnodes->size(); a++)
+                {
+                    MegaNode *n= webdavnodes->get(a);
+                    if (n)
+                    {
+                        char *link = api->httpServerGetLocalWebDavLink(n); //notice this is not only consulting but also creating,
+                        //had it been deleted in the meantime this will recreate it
+                        if (link)
+                        {
+                            if (!found)
+                            {
+                                OUTSTREAM << "WEBDAV SERVED LOCATIONS:" << endl;
+                            }
+                            found = true;
+                            char * nodepath = api->getNodePath(n);
+                            OUTSTREAM << link << ": " << nodepath << endl;
+                            delete []nodepath;
+                            delete []link;
+                        }
+                    }
+                }
+
+                if(!found)
+                {
+                    OUTSTREAM << "No webdav links found" << endl;
+                }
+
+                delete webdavnodes;
+
+           }
+           else
+           {
+               OUTSTREAM << "Webdav server might not running. Add a new location to serve." << endl;
+           }
+
+           return;
+        }
+
+        //create new link:
 
         bool tls = getFlag(clflags, "tls");
         int port = getintOption(cloptions, "port", 4443);
@@ -6029,7 +6096,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             if (n)
             {
                 char *l = api->httpServerGetLocalWebDavLink(n);
-                OUTSTREAM << "Serving " << pathToServe << " via WEBDAV at URL:" << endl << l << endl;
+                OUTSTREAM << "Serving " << pathToServe << ":" << l << endl;
                 delete n;
                 delete []l;
             }

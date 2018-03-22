@@ -437,6 +437,7 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
 #ifdef HAVE_LIBUV
     else if ("webdav" == thecommand)
     {
+        validParams->insert("d");
         validParams->insert("tls");
         validParams->insert("public");
         validOptValues->insert("port");
@@ -1378,7 +1379,7 @@ const char * getUsageStr(const char *command)
 #ifdef HAVE_LIBUV
     if (!strcmp(command, "webdav"))
     {
-        return "webdav remotepath [--port=PORT] [--public] [--tls --certificate=/path/to/certificate.pem --key=/path/to/certificate.key]";
+        return "webdav [ [-d] remotepath [--port=PORT] [--public] [--tls --certificate=/path/to/certificate.pem --key=/path/to/certificate.key]]";
     }
 #endif
     if (!strcmp(command, "sync"))
@@ -1884,12 +1885,18 @@ string getHelpStr(const char *command)
     {
         os << "Configures a WEBDAV server to serve a location." << endl;
         os << endl;
+        os << "If no argument is given, it will list the webdav enabled locations." << endl;
+        os << "Notice: the paths offered via webdav are not persisted, you will lose them upon restart." << endl; //TODO: persist and recover this info
+        os << endl;
         os << "Options:" << endl;
-        os << " --public" << "\t" << "Allow access from outside localhost" << endl;
-        os << " --port=PORT" << "\t" << "Port to serve. DEFAULT= 4443" << endl;
-        os << " --tls" << "\t" << "Serve with TLS (HTTPS)" << endl;
-        os << " --certificate=/path/to/certificate.pem" << "\t" << "Path to PEM formated certificate" << endl;
-        os << " --key=/path/to/certificate.key" << "\t" << "Path to PEM formated key" << endl;
+        os << " --d" << "\t" << "Stops serving that location" << endl;
+        os << " --public" << "\t" << "*Allow access from outside localhost" << endl;
+        os << " --port=PORT" << "\t" << "*Port to serve. DEFAULT= 4443" << endl;
+        os << " --tls" << "\t" << "*Serve with TLS (HTTPS)" << endl;
+        os << " --certificate=/path/to/certificate.pem" << "\t" << "*Path to PEM formated certificate" << endl;
+        os << " --key=/path/to/certificate.key" << "\t" << "*Path to PEM formated key" << endl;
+        os << endl;
+        os << "*If you serve more than one location, these parameters will be ignored and used those of the first location served." << endl;
     }
 #endif
     else if (!strcmp(command, "exclude"))
