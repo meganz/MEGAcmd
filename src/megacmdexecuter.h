@@ -84,7 +84,7 @@ public:
     void dumptree(mega::MegaNode* n, int recurse, int extended_info, bool showversions = false, int depth = 0, std::string pathRelativeTo = "NULL");
     void dumpNodeSummaryHeader();
     void dumpNodeSummary(mega::MegaNode* n, bool humanreadable = false, const char* title = NULL);
-    void dumpTreeSummary(mega::MegaNode* n, int recurse, int depth = 0, bool humanreadable = false, std::string pathRelativeTo = "NULL");
+    void dumpTreeSummary(mega::MegaNode* n, int recurse, bool show_versions, int depth = 0, bool humanreadable = false, std::string pathRelativeTo = "NULL");
     mega::MegaContactRequest * getPcrByContact(std::string contactEmail);
     bool TestCanWriteOnContainingFolder(std::string *path);
     std::string getDisplayPath(std::string givenPath, mega::MegaNode* n);

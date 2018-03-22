@@ -1891,7 +1891,7 @@ void MegaCmdExecuter::dumptree(MegaNode* n, int recurse, int extended_info, bool
     }
 }
 
-void MegaCmdExecuter::dumpTreeSummary(MegaNode *n, int recurse, int depth, bool humanreadable, string pathRelativeTo)
+void MegaCmdExecuter::dumpTreeSummary(MegaNode *n, int recurse, bool show_versions, int depth, bool humanreadable, string pathRelativeTo)
 {
     char * nodepath = api->getNodePath(n);
 
@@ -1939,21 +1939,63 @@ void MegaCmdExecuter::dumpTreeSummary(MegaNode *n, int recurse, int depth, bool 
                 dumpNodeSummary(children->get(i), humanreadable);
             }
 
-            delete []nodepath;
+            if (show_versions)
+            {
+                for (int i = 0; i < children->size(); i++)
+                {
+                    MegaNode *c = children->get(i);
+
+                    MegaNodeList *vers = api->getVersions(c);
+                    if (vers &&  vers->size() > 1)
+                    {
+                        OUTSTREAM << endl << "Versions of " << pathToShow << "/" << c->getName() << ":" << endl;
+
+                        for (int i = 0; i < vers->size(); i++)
+                        {
+                            dumpNodeSummary(vers->get(i), humanreadable);
+                        }
+                    }
+                    delete vers;
+                }
+            }
+
             if (recurse)
             {
                 for (int i = 0; i < children->size(); i++)
                 {
-                    dumpTreeSummary(children->get(i), recurse, depth + 1, humanreadable);
+                    MegaNode *c = children->get(i);
+                    dumpTreeSummary(c, recurse, show_versions, depth + 1, humanreadable);
                 }
             }
             delete children;
         }
-        else
-        {
-            delete []nodepath;
-        }
     }
+    else // file
+    {
+        if (!depth)
+        {
+
+            dumpNodeSummary(n, humanreadable);
+
+            if (show_versions)
+            {
+                MegaNodeList *vers = api->getVersions(n);
+                if (vers &&  vers->size() > 1)
+                {
+                    OUTSTREAM << endl << "Versions of " << pathToShow << ":" << endl;
+
+                    for (int i = 0; i < vers->size(); i++)
+                    {
+                        string nametoshow = n->getName()+string("#")+SSTR(vers->get(i)->getModificationTime());
+                        dumpNodeSummary(vers->get(i), humanreadable, nametoshow.c_str() );
+                    }
+                }
+                delete vers;
+            }
+        }
+
+    }
+    delete []nodepath;
 }
 
 
@@ -4404,7 +4446,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                                         dumpNodeSummaryHeader();
                                         firstprint = false;
                                     }
-                                    dumpTreeSummary(n, recursive, 0, humanreadable, rNpath);
+                                    dumpTreeSummary(n, recursive, show_versions, 0, humanreadable, rNpath);
                                 }
                                 else
                                 {
@@ -4449,7 +4491,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                             dumpNodeSummaryHeader();
                             firstprint = false;
                         }
-                        dumpTreeSummary(n, recursive, 0, humanreadable, rNpath);
+                        dumpTreeSummary(n, recursive, show_versions, 0, humanreadable, rNpath);
                     }
                     else
                     {
@@ -4476,7 +4518,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         dumpNodeSummaryHeader();
                         firstprint = false;
                     }
-                    dumpTreeSummary(n, recursive, 0, humanreadable);
+                    dumpTreeSummary(n, recursive, show_versions, 0, humanreadable);
                 }
                 else
                 {
