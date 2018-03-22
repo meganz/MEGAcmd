@@ -1584,14 +1584,14 @@ void readloop()
 
                 wait_for_input(readline_fd);
 
+                rl_callback_read_char(); //this calls store_line if last char was enter
+
                 time_t tnow = time(NULL);
-                if ( (tnow - lasttimeretrycons) > 5)
+                if ( (tnow - lasttimeretrycons) > 5 && !doExit)
                 {
                     comms->executeCommand("retrycons");
                     lasttimeretrycons = tnow;
                 }
-
-                rl_callback_read_char(); //this calls store_line if last char was enter
 
                 rl_resize_terminal(); // to always adjust to new screen sizes
 
