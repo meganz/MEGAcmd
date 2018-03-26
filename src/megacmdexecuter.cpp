@@ -2644,6 +2644,49 @@ void MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
         }
         mtxBackupsMap.unlock();
 #endif
+
+        // restart webdav
+        int port = ConfigurationManager::getConfigurationValue("webdav_port", -1);
+        if (port != -1)
+        {
+            bool localonly = ConfigurationManager::getConfigurationValue("webdav_localonly", -1);
+            bool tls = ConfigurationManager::getConfigurationValue("webdav_tls", false);
+            string pathtocert, pathtokey;
+            pathtocert = ConfigurationManager::getConfigurationSValue("webdav_cert");
+            pathtokey = ConfigurationManager::getConfigurationSValue("webdav_key");
+
+            api->httpServerEnableFolderServer(true);
+            if (api->httpServerStart(localonly, port, tls, pathtocert.c_str(), pathtokey.c_str()))
+            {
+                list<string> servedpaths = ConfigurationManager::getConfigurationValueList<string>("webdav_served_locations");
+
+                for ( std::list<string>::iterator it = servedpaths.begin(); it != servedpaths.end(); ++it){
+                    string pathToServe = *it;
+                    if (pathToServe.size())
+                    {
+                        MegaNode *n = api->getNodeByPath(pathToServe.c_str());
+                        if (n)
+                        {
+                            char *l = api->httpServerGetLocalWebDavLink(n);
+                            LOG_debug << "Serving via webdav: " << pathToServe << ": " << l;
+                            delete []l;
+                            delete n;
+                        }
+                        else
+                        {
+                            LOG_warn << "Could no find location to server via webdav: " << pathToServe;
+                        }
+                    }
+                }
+
+                LOG_info << "Webdav server restored due to saved configuration";
+            }
+            else
+            {
+                LOG_err << "Failed to initialize WEBDAV server";
+            }
+        }
+
     }
 
 #if defined(_WIN32) || defined(__APPLE__)
@@ -6054,25 +6097,8 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             return;
         }
 
-        if (words.size() == 1 || remove)
+        if (words.size() == 1)
         {
-            if (remove)
-            {
-                MegaNode *n = api->getNodeByPath(words[1].c_str());
-                if (n)
-                {
-                    api->httpServerRemoveWebDavAllowedNode(n->getHandle());
-                    OUTSTREAM << words[1] << " no longer served via webdav" << endl; //TODO: what if it was never served?
-                    delete n;
-                }
-                else
-                {
-                    setCurrentOutCode(MCMD_NOTFOUND);
-                    LOG_err << "Path not found" << words[1];
-                    return;
-                }
-            }
-
             //List served nodes
             MegaNodeList *webdavnodes = api->httpServerGetWebDavAllowedNodes();
             if (webdavnodes)
@@ -6094,7 +6120,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                             }
                             found = true;
                             char * nodepath = api->getNodePath(n);
-                            OUTSTREAM << link << ": " << nodepath << endl;
+                            OUTSTREAM << nodepath << ": " << link << endl;
                             delete []nodepath;
                             delete []link;
                         }
@@ -6117,36 +6143,92 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
            return;
         }
 
-        //create new link:
-
-        bool tls = getFlag(clflags, "tls");
-        int port = getintOption(cloptions, "port", 4443);
-        bool localonly = !getFlag(clflags, "public");
-
-        string pathtocert = getOption(cloptions, "certificate", "");
-        string pathtokey = getOption(cloptions, "key", "");
-
-        //api->httpServerStart(false, 4443, true, "/assets/others/certs/selfsignedSDK/pepitopalotes.pem", "/assets/others/certs/selfsignedSDK/pepitopalotes.key");
-
-        bool serverstarted = api->httpServerIsRunning();
-        if (!serverstarted)
+        if (!remove)
         {
-            LOG_info << "Starting http server";
-            api->httpServerEnableFolderServer(true);
-//            api->httpServerEnableOfflineAttribute(true);
-            api->httpServerStart(localonly, port, tls, pathtocert.c_str(), pathtokey.c_str());
+            //create new link:
+            bool tls = getFlag(clflags, "tls");
+            int port = getintOption(cloptions, "port", 4443);
+            bool localonly = !getFlag(clflags, "public");
+
+            string pathtocert = getOption(cloptions, "certificate", "");
+            string pathtokey = getOption(cloptions, "key", "");
+
+            bool serverstarted = api->httpServerIsRunning();
+            if (!serverstarted)
+            {
+                LOG_info << "Starting http server";
+                api->httpServerEnableFolderServer(true);
+    //            api->httpServerEnableOfflineAttribute(true); //TODO: we might want to offer this as parameter
+                if (api->httpServerStart(localonly, port, tls, pathtocert.c_str(), pathtokey.c_str()))
+                {
+                    ConfigurationManager::savePropertyValue("webdav_port", port);
+                    ConfigurationManager::savePropertyValue("webdav_localonly", localonly);
+                    ConfigurationManager::savePropertyValue("webdav_tls", tls);
+                    if (pathtocert.size())
+                    {
+                        ConfigurationManager::savePropertyValue("webdav_cert", pathtocert);
+                    }
+                    if (pathtokey.size())
+                    {
+                        ConfigurationManager::savePropertyValue("webdav_key", pathtokey);
+                    }
+                }
+                else
+                {
+                    setCurrentOutCode(MCMD_EARGS);
+                    LOG_err << "Failed to initialize WEBDAV server";
+                    return;
+                }
+            }
         }
+
+        //add/remove
         for (unsigned int i = 1; i < words.size(); i++)
         {
             string pathToServe = words[i];
 
-            MegaNode *n = api->getNodeByPath(pathToServe.c_str());
-            if (n)
+            if (remove)
             {
-                char *l = api->httpServerGetLocalWebDavLink(n);
-                OUTSTREAM << "Serving " << pathToServe << ":" << l << endl;
-                delete n;
-                delete []l;
+                MegaNode *n = api->getNodeByPath(pathToServe.c_str());
+                if (n)
+                {
+                    api->httpServerRemoveWebDavAllowedNode(n->getHandle());
+
+                    //TODO: this might be mutexed:
+                    list<string> servedpaths = ConfigurationManager::getConfigurationValueList<string>("webdav_served_locations");
+                    servedpaths.remove(pathToServe);
+                    ConfigurationManager::savePropertyValueList("webdav_served_locations", servedpaths);
+
+                    OUTSTREAM << pathToServe << " no longer served via webdav" << endl; //TODO: what if it was never served?
+                    delete n;
+                }
+                else
+                {
+                    setCurrentOutCode(MCMD_NOTFOUND);
+                    LOG_err << "Path not found" << pathToServe;
+                    return;
+                }
+            }
+            else //add
+            {
+
+                MegaNode *n = api->getNodeByPath(pathToServe.c_str());
+                if (n)
+                {
+                    char *l = api->httpServerGetLocalWebDavLink(n);
+                    OUTSTREAM << "Serving via webdav " << pathToServe << " :" << l << endl;
+
+                    //TODO: this might be mutexed:
+                    list<string> servedpaths = ConfigurationManager::getConfigurationValueList<string>("webdav_served_locations");
+                    servedpaths.push_back(pathToServe);
+                    servedpaths.sort();
+                    servedpaths.unique();
+                    ConfigurationManager::savePropertyValueList("webdav_served_locations", servedpaths);
+
+
+                    delete n;
+                    delete []l;
+                }
             }
         }
     }

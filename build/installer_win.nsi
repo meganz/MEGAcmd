@@ -520,7 +520,11 @@ modeselected:
   File "${SRCDIR_BATFILES}\mega-https.bat"
   AccessControl::SetFileOwner "$INSTDIR\mega-https.bat" "$USERNAME"
   AccessControl::GrantOnFile "$INSTDIR\mega-https.bat" "$USERNAME" "GenericRead + GenericWrite"
-  
+
+  File "${SRCDIR_BATFILES}\mega-webdav.bat"
+  AccessControl::SetFileOwner "$INSTDIR\mega-webdav.bat" "$USERNAME"
+  AccessControl::GrantOnFile "$INSTDIR\mega-webdav.bat" "$USERNAME" "GenericRead + GenericWrite"
+
   File "${SRCDIR_BATFILES}\mega-deleteversions.bat"
   AccessControl::SetFileOwner "$INSTDIR\mega-deleteversions.bat" "$USERNAME"
   AccessControl::GrantOnFile "$INSTDIR\mega-deleteversions.bat" "$USERNAME" "GenericRead + GenericWrite"
@@ -815,6 +819,7 @@ Section Uninstall
   Delete "$INSTDIR\mega-help.bat"
   Delete "$INSTDIR\mega-history.bat"
   Delete "$INSTDIR\mega-https.bat"
+  Delete "$INSTDIR\mega-webdav.bat"
   Delete "$INSTDIR\mega-deleteversions.bat"
   Delete "$INSTDIR\mega-transfers.bat"
   Delete "$INSTDIR\mega-import.bat"

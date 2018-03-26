@@ -416,6 +416,7 @@ killall mega-cmd-server 2> /dev/null || true
 %{_bindir}/mega-get
 %{_bindir}/mega-help
 %{_bindir}/mega-https
+%{_bindir}/mega-webdav
 %{_bindir}/mega-permissions
 %{_bindir}/mega-deleteversions
 %{_bindir}/mega-transfers

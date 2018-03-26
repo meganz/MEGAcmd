@@ -69,6 +69,38 @@ public:
         saveProperty(property,os.str().c_str());
     }
 
+    template<typename T>
+    static void savePropertyValueList(const char* property, std::list<T> value, char separator = 0x1F)
+    {
+        std::ostringstream os;
+        typename std::list<T>::iterator it = value.begin();
+        for (; it != value.end(); ++it){
+            os << (*it);
+
+            if ( std::distance( it, value.end() ) != 1 ) // not last
+            {
+                os << separator;
+            }
+        }
+        saveProperty(property,os.str().c_str());
+    }
+
+    template<typename T>
+    static void savePropertyValueSet(const char* property, std::set<T> value, char separator = 0x1F)
+    {
+        std::ostringstream os;
+        typename std::set<T>::iterator it = value.begin();
+        for (; it != value.end(); ++it){
+            os << (*it);
+
+            if ( std::distance( it, value.end() ) != 1 ) // not last
+            {
+                os << separator;
+            }
+        }
+        saveProperty(property,os.str().c_str());
+    }
+
     static std::string getConfigurationSValue(std::string propertyName);
     template <typename T>
     static T getConfigurationValue(std::string propertyName, T defaultValue)
@@ -80,6 +112,79 @@ public:
         std::istringstream is(propValue);
         is >> i;
         return i;
+    }
+    template <typename T>
+    static std::list<T> getConfigurationValueList(std::string propertyName, char separator = 0x1F)
+    {
+        std::list<T> toret;
+
+        std::string propValue = getConfigurationSValue(propertyName);
+        if (!propValue.size())
+        {
+            return toret;
+        }
+        size_t possep;
+        do {
+            possep = propValue.find(separator);
+
+            std::string current = propValue.substr(0,possep);
+
+            if (possep != std::string::npos && ((possep + 1 ) != propValue.size()))
+            {
+                propValue = propValue.substr(possep + 1);
+            }
+            else
+            {
+                possep = std::string::npos;
+            }
+
+            if (current.size())
+            {
+                T i;
+                std::istringstream is(current);
+                is >> i;
+                toret.push_back(i);
+            }
+        } while (possep != std::string::npos);
+
+        return toret;
+    }
+
+    template <typename T>
+    static std::set<T> getConfigurationValueSet(std::string propertyName, char separator = 0x1F)
+    {
+        std::set<T> toret;
+
+        std::string propValue = getConfigurationSValue(propertyName);
+        if (!propValue.size())
+        {
+            return toret;
+        }
+        size_t possep;
+        do {
+            possep = propValue.find(separator);
+
+            std::string current = propValue.substr(0,possep);
+
+            if (possep != std::string::npos && ((possep + 1 ) != propValue.size()))
+            {
+                propValue = propValue.substr(possep + 1);
+            }
+            else
+            {
+                possep = std::string::npos;
+            }
+
+            if (current.size())
+            {
+                T i;
+                std::istringstream is(current);
+                is >> i;
+                toret.insert(i);
+            }
+        } while (possep != std::string::npos);
+
+        return toret;
     }
 
     static std::string getConfigFolder();
