@@ -1890,7 +1890,6 @@ string getHelpStr(const char *command)
         os << "Configures a WEBDAV server to serve a location." << endl;
         os << endl;
         os << "If no argument is given, it will list the webdav enabled locations." << endl;
-        os << "Notice: the paths offered via webdav are not persisted, you will lose them upon restart." << endl; //TODO: persist and recover this info
         os << endl;
         os << "Options:" << endl;
         os << " --d" << "\t" << "Stops serving that location" << endl;
@@ -1901,6 +1900,9 @@ string getHelpStr(const char *command)
         os << " --key=/path/to/certificate.key" << "\t" << "*Path to PEM formated key" << endl;
         os << endl;
         os << "*If you serve more than one location, these parameters will be ignored and used those of the first location served." << endl;
+        os << endl;
+        os << "Caveat: This functionality is in BETA state. If you experience any issue with this, please contact: support@mega.nz" << endl;
+        os << endl;
     }
 #endif
     else if (!strcmp(command, "exclude"))
