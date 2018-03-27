@@ -34,6 +34,8 @@ private:
     MegaCmdSandbox *sandboxCMD;
     MegaCmdGlobalTransferListener *globalTransferListener;
     mega::MegaMutex mtxSyncMap;
+    mega::MegaMutex mtxWebDavLocations;
+
 #ifdef ENABLE_BACKUPS
     mega::MegaMutex mtxBackupsMap;
 #endif

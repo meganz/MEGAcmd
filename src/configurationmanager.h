@@ -70,7 +70,7 @@ public:
     }
 
     template<typename T>
-    static void savePropertyValueList(const char* property, std::list<T> value, char separator = 0x1F)
+    static void savePropertyValueList(const char* property, std::list<T> value, char separator = ';')
     {
         std::ostringstream os;
         typename std::list<T>::iterator it = value.begin();
@@ -86,7 +86,7 @@ public:
     }
 
     template<typename T>
-    static void savePropertyValueSet(const char* property, std::set<T> value, char separator = 0x1F)
+    static void savePropertyValueSet(const char* property, std::set<T> value, char separator = ';')
     {
         std::ostringstream os;
         typename std::set<T>::iterator it = value.begin();
@@ -114,7 +114,7 @@ public:
         return i;
     }
     template <typename T>
-    static std::list<T> getConfigurationValueList(std::string propertyName, char separator = 0x1F)
+    static std::list<T> getConfigurationValueList(std::string propertyName, char separator = ';')
     {
         std::list<T> toret;
 
@@ -151,7 +151,7 @@ public:
     }
 
     template <typename T>
-    static std::set<T> getConfigurationValueSet(std::string propertyName, char separator = 0x1F)
+    static std::set<T> getConfigurationValueSet(std::string propertyName, char separator = ';')
     {
         std::set<T> toret;
 

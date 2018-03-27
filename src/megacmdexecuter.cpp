@@ -107,6 +107,7 @@ MegaCmdExecuter::MegaCmdExecuter(MegaApi *api, MegaCMDLogger *loggerCMD, MegaCmd
     cwd = UNDEF;
     fsAccessCMD = new MegaFileSystemAccess();
     mtxSyncMap.init(false);
+    mtxWebDavLocations.init(false);
 #ifdef ENABLE_BACKUPS
     mtxBackupsMap.init(true);
 #endif
@@ -1590,7 +1591,7 @@ void MegaCmdExecuter::dumpNodeSummaryHeader()
     OUTSTREAM << " ";
     OUTSTREAM << getFixLengthString("SIZE  ", 10 -1, ' ', true); //-1 because of "FLAGS"
     OUTSTREAM << " ";
-    OUTSTREAM << getFixLengthString("DATE      ", 18, ' ', true); //TODO: differenciate modficiation/creation date? too verbose
+    OUTSTREAM << getFixLengthString("DATE      ", 18, ' ', true);
     OUTSTREAM << " ";
     OUTSTREAM << "NAME";
     OUTSTREAM << endl;
@@ -6195,12 +6196,23 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 {
                     api->httpServerRemoveWebDavAllowedNode(n->getHandle());
 
-                    //TODO: this might be mutexed:
+                    mtxWebDavLocations.lock();
                     list<string> servedpaths = ConfigurationManager::getConfigurationValueList<string>("webdav_served_locations");
+                    size_t sizeprior = servedpaths.size();
                     servedpaths.remove(pathToServe);
+                    size_t sizeafter = servedpaths.size();
                     ConfigurationManager::savePropertyValueList("webdav_served_locations", servedpaths);
+                    mtxWebDavLocations.unlock();
 
-                    OUTSTREAM << pathToServe << " no longer served via webdav" << endl; //TODO: what if it was never served?
+                    if (sizeprior != sizeafter)
+                    {
+                        OUTSTREAM << pathToServe << " no longer served via webdav" << endl;
+                    }
+                    else
+                    {
+                        setCurrentOutCode(MCMD_NOTFOUND);
+                        LOG_err << pathToServe << " is not served via webdav";
+                    }
                     delete n;
                 }
                 else
@@ -6217,14 +6229,15 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 if (n)
                 {
                     char *l = api->httpServerGetLocalWebDavLink(n);
-                    OUTSTREAM << "Serving via webdav " << pathToServe << " :" << l << endl;
+                    OUTSTREAM << "Serving via webdav " << pathToServe << ": " << l << endl;
 
-                    //TODO: this might be mutexed:
+                    mtxWebDavLocations.lock();
                     list<string> servedpaths = ConfigurationManager::getConfigurationValueList<string>("webdav_served_locations");
                     servedpaths.push_back(pathToServe);
                     servedpaths.sort();
                     servedpaths.unique();
                     ConfigurationManager::savePropertyValueList("webdav_served_locations", servedpaths);
+                    mtxWebDavLocations.unlock();
 
 
                     delete n;

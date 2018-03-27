@@ -1890,8 +1890,9 @@ string getHelpStr(const char *command)
 #ifdef HAVE_LIBUV
     else if (!strcmp(command, "webdav"))
     {
-        os << "Configures a WEBDAV server to serve a location." << endl;
+        os << "Configures a WEBDAV server to serve a location in MEGA" << endl;
         os << endl;
+        os << "This can also be used for streaming files. The server will be running as long as MEGAcmd Server is. " << endl;
         os << "If no argument is given, it will list the webdav enabled locations." << endl;
         os << endl;
         os << "Options:" << endl;
