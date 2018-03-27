@@ -43,6 +43,9 @@
 #define strdup _strdup  // avoid warning
 #endif
 
+#ifdef __APPLE__
+#include <sys/sysctl.h>
+#endif
 
 #if !defined (PARAMS)
 #  if defined (__STDC__) || defined (__GNUC__) || defined (__cplusplus)
@@ -179,7 +182,11 @@ vector<string> remotepatterncommands(aremotepatterncommands, aremotepatterncomma
 string aremotefolderspatterncommands[] = {"cd", "share"};
 vector<string> remotefolderspatterncommands(aremotefolderspatterncommands, aremotefolderspatterncommands + sizeof aremotefolderspatterncommands / sizeof aremotefolderspatterncommands[0]);
 
-string amultipleremotepatterncommands[] = {"ls", "mkdir", "rm", "du", "find", "mv", "deleteversions"};
+string amultipleremotepatterncommands[] = {"ls", "mkdir", "rm", "du", "find", "mv", "deleteversions"
+#ifdef HAVE_LIBUV
+                                           , "webdav"
+#endif
+                                          };
 vector<string> multipleremotepatterncommands(amultipleremotepatterncommands, amultipleremotepatterncommands + sizeof amultipleremotepatterncommands / sizeof amultipleremotepatterncommands[0]);
 
 string aremoteremotepatterncommands[] = {"cp"};
@@ -198,6 +205,9 @@ string avalidCommands [] = { "login", "signup", "confirm", "session", "mount", "
                              "put", "get", "attr", "userattr", "mkdir", "rm", "du", "mv", "cp", "sync", "export", "share", "invite", "ipc",
                              "showpcr", "users", "speedlimit", "killsession", "whoami", "help", "passwd", "reload", "logout", "version", "quit",
                              "thumbnail", "preview", "find", "completion", "clear", "https", "transfers", "exclude", "exit"
+#ifdef HAVE_LIBUV
+                             , "webdav"
+#endif
 #ifdef ENABLE_BACKUPS
                              , "backup"
 #endif
@@ -353,7 +363,9 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validParams->insert("R");
         validParams->insert("r");
         validParams->insert("l");
-        validParams->insert("v");
+        validParams->insert("a");
+        validParams->insert("h");
+        validParams->insert("versions");
 
 #ifdef USE_PCRE
         validParams->insert("use-pcre");
@@ -362,7 +374,7 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     else if ("du" == thecommand)
     {
         validParams->insert("h");
-        validParams->insert("v");
+        validParams->insert("versions");
 #ifdef USE_PCRE
         validParams->insert("use-pcre");
 #endif
@@ -430,6 +442,17 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validParams->insert("d");
         validParams->insert("restart-syncs");
     }
+#ifdef HAVE_LIBUV
+    else if ("webdav" == thecommand)
+    {
+        validParams->insert("d");
+        validParams->insert("tls");
+        validParams->insert("public");
+        validOptValues->insert("port");
+        validOptValues->insert("certificate");
+        validOptValues->insert("key");
+    }
+#endif
     else if ("backup" == thecommand)
     {
         validOptValues->insert("period");
@@ -1255,9 +1278,9 @@ const char * getUsageStr(const char *command)
     if (!strcmp(command, "ls"))
     {
 #ifdef USE_PCRE
-        return "ls [-lRrv] [remotepath] [--use-pcre]";
+        return "ls [-halRr] [--versions] [remotepath] [--use-pcre]";
 #else
-        return "ls [-lRrv] [remotepath]";
+        return "ls [-halRr] [--versions] [remotepath]";
 #endif
     }
     if (!strcmp(command, "cd"))
@@ -1271,9 +1294,9 @@ const char * getUsageStr(const char *command)
     if (!strcmp(command, "du"))
     {
 #ifdef USE_PCRE
-        return "du [-hv] [remotepath remotepath2 remotepath3 ... ] [--use-pcre]";
+        return "du [-h] [--versions] [remotepath remotepath2 remotepath3 ... ] [--use-pcre]";
 #else
-        return "du [-hv] [remotepath remotepath2 remotepath3 ... ]";
+        return "du [-h] [--versions] [remotepath remotepath2 remotepath3 ... ]";
 #endif
     }
     if (!strcmp(command, "pwd"))
@@ -1361,6 +1384,12 @@ const char * getUsageStr(const char *command)
     {
         return "exclude [(-a|-d) pattern1 pattern2 pattern3 [--restart-syncs]]";
     }
+#ifdef HAVE_LIBUV
+    if (!strcmp(command, "webdav"))
+    {
+        return "webdav [ [-d] remotepath [--port=PORT] [--public] [--tls --certificate=/path/to/certificate.pem --key=/path/to/certificate.key]]";
+    }
+#endif
     if (!strcmp(command, "sync"))
     {
         return "sync [localpath dstremotepath| [-dsr] [ID|localpath]";
@@ -1625,8 +1654,21 @@ string getHelpStr(const char *command)
         os << endl;
         os << "Options:" << endl;
         os << " -R|-r" << "\t" << "list folders recursively" << endl;
-        os << " -l" << "\t" << "include extra information" << endl;
-        os << " -v" << "\t" << "show historical versions" << endl;
+        os << " -l" << "\t" << "print summary" << endl;
+        os << "   " << "\t" << " SUMMARY contents:" << endl;
+        os << "   " << "\t" << "   FLAGS: Indicate type/status of an element:" << endl;
+        os << "   " << "\t" << "     xxxx" << endl;
+        os << "   " << "\t" << "     |||+---- Sharing status: (s)hared, (i)n share or not shared(-)" << endl;
+        os << "   " << "\t" << "     ||+----- if exported, whether it is (p)ermanent or (t)temporal" << endl;
+        os << "   " << "\t" << "     |+------ e/- wheter node is (e)xported" << endl;
+        os << "   " << "\t" << "     +-------- Type(d=folder,-=file,r=root,i=inbox,b=rubbish,x=unsupported)" << endl;
+        os << "   " << "\t" << "   VERS: Number of versions in a file" << endl;
+        os << "   " << "\t" << "   SIZE: Size of the file in bytes:" << endl;
+        os << "   " << "\t" << "   DATE: Modification date for files and creation date for folders:" << endl;
+        os << "   " << "\t" << "   NAME: name of the node" << endl;
+        os << " -h" << "\t" << "Show human readable sizes in summary" << endl;
+        os << " -a" << "\t" << "include extra information" << endl;
+        os << " --versions" << "\t" << "show historical versions" << endl;
         os << "   " << "\t" << "You can delete all versions of a file with \"deleteversions\"" << endl;
 #ifdef USE_PCRE
         os << " --use-pcre" << "\t" << "use PCRE expressions" << endl;
@@ -1662,8 +1704,8 @@ string getHelpStr(const char *command)
         os << endl;
         os << "Options:" << endl;
         os << " -h" << "\t" << "Human readable" << endl;
-        os << " -v" << "\t" << "Calculate size including all versions." << endl;
-        os << "   " << "\t" << "You can remove all versions with \"deleteversions\" and list them with \"ls -v\"" << endl;
+        os << " --versions" << "\t" << "Calculate size including all versions." << endl;
+        os << "   " << "\t" << "You can remove all versions with \"deleteversions\" and list them with \"ls --versions\"" << endl;
 #ifdef USE_PCRE
         os << " --use-pcre" << "\t" << "use PCRE expressions" << endl;
 #endif
@@ -1843,9 +1885,31 @@ string getHelpStr(const char *command)
         os << " --use-pcre" << "\t" << "use PCRE expressions" << endl;
 #endif
         os << endl;
-        os << "To see versions of a file use \"ls -v\"." << endl;
-        os << "To see space occupied by sessions use \"du\" with \"-v\"." << endl;
+        os << "To see versions of a file use \"ls --versions\"." << endl;
+        os << "To see space occupied by sessions use \"du\" with \"--versions\"." << endl;
     }
+#ifdef HAVE_LIBUV
+    else if (!strcmp(command, "webdav"))
+    {
+        os << "Configures a WEBDAV server to serve a location in MEGA" << endl;
+        os << endl;
+        os << "This can also be used for streaming files. The server will be running as long as MEGAcmd Server is. " << endl;
+        os << "If no argument is given, it will list the webdav enabled locations." << endl;
+        os << endl;
+        os << "Options:" << endl;
+        os << " --d" << "\t" << "Stops serving that location" << endl;
+        os << " --public" << "\t" << "*Allow access from outside localhost" << endl;
+        os << " --port=PORT" << "\t" << "*Port to serve. DEFAULT= 4443" << endl;
+        os << " --tls" << "\t" << "*Serve with TLS (HTTPS)" << endl;
+        os << " --certificate=/path/to/certificate.pem" << "\t" << "*Path to PEM formated certificate" << endl;
+        os << " --key=/path/to/certificate.key" << "\t" << "*Path to PEM formated key" << endl;
+        os << endl;
+        os << "*If you serve more than one location, these parameters will be ignored and used those of the first location served." << endl;
+        os << endl;
+        os << "Caveat: This functionality is in BETA state. If you experience any issue with this, please contact: support@mega.nz" << endl;
+        os << endl;
+    }
+#endif
     else if (!strcmp(command, "exclude"))
     {
         os << "Manages exclusions in syncs." << endl;
@@ -2865,8 +2929,48 @@ void megacmd()
                     s+=(char)0x1F;
                 }
 #endif
-                cm->informStateListener(inf,s);
 
+                bool isOSdeprecated = false;
+#ifdef MEGACMD_DEPRECATED_OS
+                isOSdeprecated = true;
+#endif
+
+#ifdef __APPLE__
+                char releaseStr[256];
+                size_t size = sizeof(releaseStr);
+                if (!sysctlbyname("kern.osrelease", releaseStr, &size, NULL, 0)  && size > 0)
+                {
+                    if (strchr(releaseStr,'.'))
+                    {
+                        char *token = strtok(releaseStr, ".");
+                        if (token)
+                        {
+                            errno = 0;
+                            char *endPtr = NULL;
+                            long majorVersion = strtol(token, &endPtr, 10);
+                            if (endPtr != token && errno != ERANGE && majorVersion >= INT_MIN && majorVersion <= INT_MAX)
+                            {
+                                if((int)majorVersion < 13) // Older versions from 10.9 (mavericks)
+                                {
+                                    isOSdeprecated = true;
+                                }
+                            }
+                        }
+                    }
+                }
+#endif
+                if (isOSdeprecated)
+                {
+                    s += "message:";
+                    s += "---------------------------------------------------------------------\n";
+                    s += "--              Your Operative System is too old.                  --\n";
+                    s += "--      You might not receive new updates for this application.    --\n";
+                    s += "--       We strongly recommend you to update to a new version.     --\n";
+                    s += "---------------------------------------------------------------------\n";
+                    s+=(char)0x1F;
+                }
+
+                cm->informStateListener(inf,s);
             }
             else
             { // normal petition
