@@ -2645,6 +2645,7 @@ void MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
         mtxBackupsMap.unlock();
 #endif
 
+#ifdef HAVE_LIBUV
         // restart webdav
         int port = ConfigurationManager::getConfigurationValue("webdav_port", -1);
         if (port != -1)
@@ -2686,7 +2687,7 @@ void MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
                 LOG_err << "Failed to initialize WEBDAV server";
             }
         }
-
+#endif
     }
 
 #if defined(_WIN32) || defined(__APPLE__)

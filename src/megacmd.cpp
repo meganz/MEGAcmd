@@ -2924,8 +2924,19 @@ void megacmd()
                     s+=(char)0x1F;
                 }
 #endif
-                cm->informStateListener(inf,s);
 
+#ifdef MEGACMD_DEPRECATED_OS
+
+                s += "message:";
+                s += "---------------------------------------------------------------------\n";
+                s += "--              Your Operative System is too old.                  --\n";
+                s += "--      You might not receive new updates for this application.    --\n";
+                s += "--       We strongly recommend you to update to a new version.     --\n";
+                s += "---------------------------------------------------------------------\n";
+                s+=(char)0x1F;
+#endif
+
+                cm->informStateListener(inf,s);
             }
             else
             { // normal petition

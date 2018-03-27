@@ -456,6 +456,7 @@ AC_MSG_NOTICE([MEGAcmd configuration:
   Install prefix:   $prefix
   Compiler:         $CXX
   CXXFLAGS:         $CXXFLAGS
+  CPPFLAGS:         $CPPFLAGS
   LDFLAGS:          $LDFLAGS
   debug:            $enable_debug
   static:           $enable_static
