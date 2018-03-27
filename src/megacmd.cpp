@@ -42,6 +42,9 @@
 #include <io.h>
 #endif
 
+#ifdef __APPLE__
+#include <sys/sysctl.h>
+#endif
 
 #if !defined (PARAMS)
 #  if defined (__STDC__) || defined (__GNUC__) || defined (__cplusplus)
@@ -2925,16 +2928,45 @@ void megacmd()
                 }
 #endif
 
+                bool isOSdeprecated = false;
 #ifdef MEGACMD_DEPRECATED_OS
-
-                s += "message:";
-                s += "---------------------------------------------------------------------\n";
-                s += "--              Your Operative System is too old.                  --\n";
-                s += "--      You might not receive new updates for this application.    --\n";
-                s += "--       We strongly recommend you to update to a new version.     --\n";
-                s += "---------------------------------------------------------------------\n";
-                s+=(char)0x1F;
+                isOSdeprecated = true;
 #endif
+
+#ifdef __APPLE__
+                char releaseStr[256];
+                size_t size = sizeof(releaseStr);
+                if (!sysctlbyname("kern.osrelease", releaseStr, &size, NULL, 0)  && size > 0)
+                {
+                    if (strchr(releaseStr,'.'))
+                    {
+                        char *token = strtok(releaseStr, ".");
+                        if (token)
+                        {
+                            errno = 0;
+                            char *endPtr = NULL;
+                            long majorVersion = strtol(token, &endPtr, 10);
+                            if (endPtr != token && errno != ERANGE && majorVersion >= INT_MIN && majorVersion <= INT_MAX)
+                            {
+                                if((int)majorVersion < 13) // Older versions from 10.9 (mavericks)
+                                {
+                                    isOSdeprecated = true;
+                                }
+                            }
+                        }
+                    }
+                }
+#endif
+                if (isOSdeprecated)
+                {
+                    s += "message:";
+                    s += "---------------------------------------------------------------------\n";
+                    s += "--              Your Operative System is too old.                  --\n";
+                    s += "--      You might not receive new updates for this application.    --\n";
+                    s += "--       We strongly recommend you to update to a new version.     --\n";
+                    s += "---------------------------------------------------------------------\n";
+                    s+=(char)0x1F;
+                }
 
                 cm->informStateListener(inf,s);
             }
