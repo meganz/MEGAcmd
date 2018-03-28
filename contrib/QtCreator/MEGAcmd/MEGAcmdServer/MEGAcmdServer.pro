@@ -92,14 +92,7 @@ else {
 include(../../../../sdk/bindings/qt/sdk.pri)
 DEFINES -= USE_QT
 DEFINES -= MEGA_QT_LOGGING
-DEFINES += USE_FREEIMAGE
-SOURCES -= src/thread/qtthread.cpp
-win32{
-    SOURCES += src/thread/win32thread.cpp
-}
-else{
-    LIBS += -lpthread
-}
+
 SOURCES -= src/gfx/qt.cpp
 SOURCES -= bindings/qt/QTMegaRequestListener.cpp
 SOURCES -= bindings/qt/QTMegaTransferListener.cpp
@@ -113,9 +106,6 @@ macx {
     OBJECTIVE_SOURCES += ../../../../src/megacmdplatform.mm
     ICON = app.icns
 #    QMAKE_INFO_PLIST = Info_MEGA.plist
-    DEFINES += USE_PTHREAD
-    INCLUDEPATH += ../../../../sdk/bindings/qt/3rdparty/include/FreeImage/Source
-    LIBS += $$PWD/../../../../sdk/bindings/qt/3rdparty/libs/libfreeimage.a
     INCLUDEPATH += ../../../../sdk/bindings/qt/3rdparty/include/pcre
     LIBS += $$PWD/../../../../sdk/bindings/qt/3rdparty/libs/libpcre.a
     LIBS += $$PWD/../../../../sdk/bindings/qt/3rdparty/libs/libpcrecpp.a
@@ -125,9 +115,6 @@ macx {
     LIBS += -framework Cocoa -framework SystemConfiguration -framework CoreFoundation -framework Foundation -framework Security
     LIBS += -lncurses
     QMAKE_CXXFLAGS += -g
-}
-else {
-    LIBS += -lfreeimage
 }
 
 win32 {

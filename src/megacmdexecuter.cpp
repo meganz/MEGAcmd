@@ -1896,6 +1896,8 @@ void MegaCmdExecuter::dumpTreeSummary(MegaNode *n, int recurse, bool show_versio
 {
     char * nodepath = api->getNodePath(n);
 
+    string scryptoerror = "CRYPTO_ERROR";
+
     char *pathToShow = NULL;
     if (pathRelativeTo != "")
     {
@@ -1917,7 +1919,7 @@ void MegaCmdExecuter::dumpTreeSummary(MegaNode *n, int recurse, bool show_versio
 
     if (!pathToShow && !( pathToShow = (char *)n->getName()))
     {
-        pathToShow = "CRYPTO_ERROR";
+        pathToShow = (char *)scryptoerror.c_str();
     }
 
     if (n->getType() != MegaNode::TYPE_FILE)
@@ -6201,6 +6203,11 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     size_t sizeprior = servedpaths.size();
                     servedpaths.remove(pathToServe);
                     size_t sizeafter = servedpaths.size();
+                    if (!sizeafter)
+                    {
+                        api->httpServerStop();
+                        ConfigurationManager::savePropertyValue("webdav_port", -1); //so as not to load server on startup
+                    }
                     ConfigurationManager::savePropertyValueList("webdav_served_locations", servedpaths);
                     mtxWebDavLocations.unlock();
 
