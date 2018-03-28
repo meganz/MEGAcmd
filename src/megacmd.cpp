@@ -1879,7 +1879,7 @@ string getHelpStr(const char *command)
 
         os << endl;
         os << "Options:" << endl;
-        os << " -f" << "\t" << "Force (no asking)" << endl;
+        os << " -f   " << "\t" << "Force (no asking)" << endl;
         os << " --all" << "\t" << "Delete versions of all nodes. This will delete the version histories of all files (not current files)." << endl;
 #ifdef USE_PCRE
         os << " --use-pcre" << "\t" << "use PCRE expressions" << endl;
@@ -1897,10 +1897,10 @@ string getHelpStr(const char *command)
         os << "If no argument is given, it will list the webdav enabled locations." << endl;
         os << endl;
         os << "Options:" << endl;
-        os << " --d" << "\t" << "Stops serving that location" << endl;
-        os << " --public" << "\t" << "*Allow access from outside localhost" << endl;
+        os << " --d        " << "\t" << "Stops serving that location" << endl;
+        os << " --public   " << "\t" << "*Allow access from outside localhost" << endl;
         os << " --port=PORT" << "\t" << "*Port to serve. DEFAULT= 4443" << endl;
-        os << " --tls" << "\t" << "*Serve with TLS (HTTPS)" << endl;
+        os << " --tls      " << "\t" << "*Serve with TLS (HTTPS)" << endl;
         os << " --certificate=/path/to/certificate.pem" << "\t" << "*Path to PEM formated certificate" << endl;
         os << " --key=/path/to/certificate.key" << "\t" << "*Path to PEM formated key" << endl;
         os << endl;
