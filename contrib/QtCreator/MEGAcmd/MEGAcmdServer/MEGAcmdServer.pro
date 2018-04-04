@@ -20,8 +20,7 @@ TEMPLATE = app
 CONFIG += console
 CONFIG += USE_MEGAAPI
 
-packagesExist(libpcrecpp){
-DEFINES += USE_PCRE
+packagesExist(libpcrecpp) | macx {
 LIBS += -lpcrecpp
 CONFIG += USE_PCRE
 }
@@ -89,6 +88,26 @@ else {
     SOURCES +=../../../../src/comunicationsmanagerfilesockets.cpp
     HEADERS +=../../../../src/comunicationsmanagerfilesockets.h
 }
+
+macx {
+    HEADERS += ../../../../src/megacmdplatform.h
+    OBJECTIVE_SOURCES += ../../../../src/megacmdplatform.mm
+    ICON = app.icns
+#    QMAKE_INFO_PLIST = Info_MEGA.plist
+
+    CONFIG += USE_OPENSSL
+    DEFINES += USE_OPENSSL
+
+    QMAKE_MACOSX_DEPLOYMENT_TARGET = 10.6
+    QMAKE_CXXFLAGS -= -stdlib=libc++
+    QMAKE_LFLAGS -= -stdlib=libc++
+    CONFIG -= c++11
+
+    LIBS += -framework Cocoa -framework SystemConfiguration -framework CoreFoundation -framework Foundation -framework Security
+    LIBS += -lncurses
+    QMAKE_CXXFLAGS += -g
+}
+
 include(../../../../sdk/bindings/qt/sdk.pri)
 DEFINES -= USE_QT
 DEFINES -= MEGA_QT_LOGGING
@@ -101,21 +120,6 @@ SOURCES -= bindings/qt/QTMegaSyncListener.cpp
 SOURCES -= bindings/qt/QTMegaListener.cpp
 SOURCES -= bindings/qt/QTMegaEvent.cpp
 
-macx {
-    HEADERS += ../../../../src/megacmdplatform.h
-    OBJECTIVE_SOURCES += ../../../../src/megacmdplatform.mm
-    ICON = app.icns
-#    QMAKE_INFO_PLIST = Info_MEGA.plist
-    INCLUDEPATH += ../../../../sdk/bindings/qt/3rdparty/include/pcre
-    LIBS += $$PWD/../../../../sdk/bindings/qt/3rdparty/libs/libpcre.a
-    LIBS += $$PWD/../../../../sdk/bindings/qt/3rdparty/libs/libpcrecpp.a
-    DEFINES += USE_PCRE
-    CONFIG += USE_PCRE
-
-    LIBS += -framework Cocoa -framework SystemConfiguration -framework CoreFoundation -framework Foundation -framework Security
-    LIBS += -lncurses
-    QMAKE_CXXFLAGS += -g
-}
 
 win32 {
     QMAKE_CXXFLAGS_RELEASE = $$QMAKE_CFLAGS_RELEASE_WITH_DEBUGINFO
