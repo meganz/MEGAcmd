@@ -61,8 +61,8 @@
   #define strncasecmp _strnicmp
 #endif
 
-#define SSTR( x ) static_cast< std::ostringstream & >( \
-        ( std::ostringstream() << std::dec << x ) ).str()
+#define SSTR( x ) static_cast< const std::ostringstream & >( \
+        (  std::ostringstream() << std::dec << x ) ).str()
 
 #if defined(_WIN32) && !defined(WINDOWS_PHONE)
 #include "mega/thread/win32thread.h"

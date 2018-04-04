@@ -39,7 +39,7 @@ using namespace mega;
 static const char* rootnodenames[] = { "ROOT", "INBOX", "RUBBISH" };
 static const char* rootnodepaths[] = { "/", "//in", "//bin" };
 
-#define SSTR( x ) static_cast< std::ostringstream & >( \
+#define SSTR( x ) static_cast< const std::ostringstream & >( \
         ( std::ostringstream() << std::dec << x ) ).str()
 
 /**

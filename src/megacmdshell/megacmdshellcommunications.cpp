@@ -65,7 +65,7 @@
 #endif
 
 #ifndef SSTR
-    #define SSTR( x ) static_cast< std::ostringstream & >( \
+    #define SSTR( x ) static_cast< const std::ostringstream & >( \
         ( std::ostringstream() << std::dec << x ) ).str()
 #endif
 
