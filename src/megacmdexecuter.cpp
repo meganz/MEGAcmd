@@ -4354,7 +4354,7 @@ bool MegaCmdExecuter::establishBackup(string pathToBackup, MegaNode *n, int64_t 
     fsAccessCMD->local2path(&localabsolutepath, &path);
 
     MegaCmdListener *megaCmdListener = new MegaCmdListener(api, NULL);
-    api->setBackup(path.c_str(), n, attendpastbackups, period, speriod, numBackups, megaCmdListener);
+    api->setBackup(path.c_str(), n, attendpastbackups, period, speriod.c_str(), numBackups, megaCmdListener);
     megaCmdListener->wait();
     if (checkNoErrors(megaCmdListener->getError(), "establish backup"))
     {

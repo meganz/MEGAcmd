@@ -146,6 +146,9 @@ AX_CHECK_COMPILE_FLAG([-fPIC], [
   )
 ])
 
+# Enable backups
+CXXFLAGS="$CXXFLAGS -DENABLE_BACKUPS=1"
+
 AM_CONDITIONAL(ENABLE_STATIC, test x$enable_static = xyes)
 AC_SUBST(ENABLE_STATIC)
 

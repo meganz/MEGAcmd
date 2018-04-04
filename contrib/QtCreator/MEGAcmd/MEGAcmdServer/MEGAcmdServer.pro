@@ -27,6 +27,7 @@ CONFIG += USE_PCRE
 
 CONFIG += USE_MEDIAINFO
 CONFIG += USE_LIBUV
+DEFINES += ENABLE_BACKUPS
 
 unix:!macx {
         exists(/usr/include/ffmpeg-mega)|exists(mega/bindings/qt/3rdparty/include/ffmpeg)|packagesExist(libavcodec) {
@@ -48,7 +49,6 @@ else {
     SOURCES += ../../../../sdk/src/posix/consolewaiter.cpp
 
     DEFINES += USE_PTHREAD
-
 }
 
 SOURCES += ../../../../src/megacmd.cpp \
