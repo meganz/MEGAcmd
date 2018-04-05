@@ -36,6 +36,9 @@ unix:!macx {
 }
 else {
     CONFIG += USE_FFMPEG
+    win32 {
+        DEFINES += __STDC_CONSTANT_MACROS
+    }
 }
 
 win32 {
