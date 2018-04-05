@@ -6225,7 +6225,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 else
                 {
                     setCurrentOutCode(MCMD_NOTFOUND);
-                    LOG_err << "Path not found" << pathToServe;
+                    LOG_err << "Path not found: " << pathToServe;
                     return;
                 }
             }
@@ -6249,6 +6249,12 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
                     delete n;
                     delete []l;
+                }
+                else
+                {
+                    setCurrentOutCode(MCMD_NOTFOUND);
+                    LOG_err << "Path not found: " << pathToServe;
+                    return;
                 }
             }
         }
