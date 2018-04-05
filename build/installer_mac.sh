@@ -40,7 +40,7 @@ make -j4
 cp -R MEGAcmdServer/MEGAcmd.app MEGAcmdServer/MEGAcmd_orig.app
 
 #do macdeploy on the server .app
-$QTBASE/bin/macdeployqt MEGAcmdServer/MEGAcmd.app
+$QTBASE/bin/macdeployqt MEGAcmdServer/MEGAcmd.app -no-strip
 
 #get debug symbols and strip executable for MEGAcmdServer
 dsymutil MEGAcmdServer/MEGAcmd.app/Contents/MacOS/MEGAcmd -o MEGAcmd.app.dSYM
