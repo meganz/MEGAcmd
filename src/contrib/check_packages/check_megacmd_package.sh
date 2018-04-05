@@ -512,8 +512,7 @@ $sshpasscommand ssh root@$IP_GUEST  "cat /usr/share/doc/megasync/{distro,version
 ## CHECKING REPO SET OK ##
 if [[ $VMNAME == *"OPENSUSE"* ]]; then
 	distroDir="openSUSE"
-	ver=$($sshpasscommand ssh root@$IP_GUEST lsb_release -rs)
-	if [ x$ver == "x20160920" ]; then ver="Tumbleweed"; fi
+	ver=$($sshpasscommand ssh root@$IP_GUEST grep -i Tumbleweed /etc/issue > /dev/null && echo Tumbleweed || $sshpasscommand ssh root@$IP_GUEST lsb_release -rs)
 	if [[ x$ver == "x42"* ]]; then ver="Leap_$ver"; fi
 	expected="baseurl=https://mega.nz/linux/MEGAsync/${distroDir}_$ver"
 	resultRepoConfiguredOk=0
