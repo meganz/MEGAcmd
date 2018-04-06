@@ -9,6 +9,16 @@ MOUNTDIR=tmp
 RESOURCES=installer/resourcesDMG
 QTBASE=/QT/qt5/qtbase
 
+AVCODEC_VERSION=libavcodec.57.dylib
+AVFORMAT_VERSION=libavformat.57.dylib
+AVUTIL_VERSION=libavutil.55.dylib
+SWSCALE_VERSION=libswscale.4.dylib
+
+AVCODEC_PATH=sdk/bindings/qt/3rdparty/libs/$AVCODEC_VERSION
+AVFORMAT_PATH=sdk/bindings/qt/3rdparty/libs/$AVFORMAT_VERSION
+AVUTIL_PATH=sdk/bindings/qt/3rdparty/libs/$AVUTIL_VERSION
+SWSCALE_PATH=sdk/bindings/qt/3rdparty/libs/$SWSCALE_VERSION
+
 sign=0
 createdmg=0
 
@@ -80,6 +90,28 @@ mv MEGAcmdShell/MEGAcmdShell.app/Contents/MacOS/MEGAcmdShell MEGAcmdServer/MEGAc
 #move the resulting package to ./
 mv MEGAcmdServer/MEGAcmd.app ./MEGAcmd.app
 
+mkdir -p MEGAcmd.app/Contents/Frameworks
+cp -L ../../$AVCODEC_PATH MEGAcmd.app/Contents/Frameworks/
+cp -L ../../$AVFORMAT_PATH MEGAcmd.app/Contents/Frameworks/
+cp -L ../../$AVUTIL_PATH MEGAcmd.app/Contents/Frameworks/
+cp -L ../../$SWSCALE_PATH MEGAcmd.app/Contents/Frameworks/
+
+if [ ! -f MEGAcmd.app/Contents/Frameworks/$AVCODEC_VERSION ]  \
+	|| [ ! -f MEGAcmd.app/Contents/Frameworks/$AVFORMAT_VERSION ]  \
+	|| [ ! -f MEGAcmd.app/Contents/Frameworks/$AVUTIL_VERSION ]  \
+	|| [ ! -f MEGAcmd.app/Contents/Frameworks/$SWSCALE_VERSION ];
+then
+	echo "Error copying FFmpeg libs to app bundle."
+	exit 1
+fi
+
+install_name_tool -change @loader_path/$AVCODEC_VERSION @executable_path/../Frameworks/$AVCODEC_VERSION MEGAcmd.app/Contents/MacOS/mega-cmd
+install_name_tool -change @loader_path/$AVFORMAT_VERSION @executable_path/../Frameworks/$AVFORMAT_VERSION MEGAcmd.app/Contents/MacOS/mega-cmd
+install_name_tool -change @loader_path/$AVUTIL_VERSION @executable_path/../Frameworks/$AVUTIL_VERSION MEGAcmd.app/Contents/MacOS/mega-cmd
+install_name_tool -change @loader_path/$SWSCALE_VERSION @executable_path/../Frameworks/$SWSCALE_VERSION MEGAcmd.app/Contents/MacOS/mega-cmd
+
+otool -L MEGAcmd.app/Contents/MacOS/mega-cmd
+
 if [ "$sign" = "1" ]; then
 	cp -R $APP_NAME.app ${APP_NAME}_unsigned.app
 	echo "Signing 'APPBUNDLE'"
@@ -99,14 +131,14 @@ if [ "$createdmg" = "1" ]; then
 	mkdir $MOUNTDIR
 	/usr/bin/hdiutil attach $APP_NAME-tmp.dmg -mountroot $MOUNTDIR >/dev/null
 
-	echo "Copying resources (3/7)" 
+	echo "Copying resources (3/7)"
 	#Copy the background, the volume icon and DS_Store files
 	unzip -d $MOUNTDIR/$APP_NAME ../$RESOURCES.zip
 	/usr/bin/SetFile -a C $MOUNTDIR/$APP_NAME
 
 	echo "Adding symlinks (4/7)"
 	#Add a symbolic link to the Applications directory
-	ln -s /Applications/ $MOUNTDIR/$APP_NAME/Applications 
+	ln -s /Applications/ $MOUNTDIR/$APP_NAME/Applications
 
 	echo "Detaching temporary Disk Image (5/7)"
 	#Detach the temporary image
@@ -126,7 +158,6 @@ echo "Cleaning"
 rm -rf MEGAcmdServer
 rm -rf MEGAcmdClient
 rm -rf MEGAcmdShell
+rm -rf MEGAcmdLoader
 
 echo "DONE"
-
-
