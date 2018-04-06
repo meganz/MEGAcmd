@@ -13,7 +13,6 @@ case "$1" in
     fi
     echo "MEGA-cmd is a console tool, and can be invoked via an ssh connection.  Executables are at %QPKG_ROOT"
     sed -i -e "s#%%%#$QPKG_ROOT#" $QPKG_ROOT/web/index.html
-    sed -i -e "s#QNAP NAS IP.*#QNAP NAS IP is `ifconfig eth0 | grep inet`#" $QPKG_ROOT/web/index.html
     ln -s $QPKG_ROOT/web /home/Qhttpd/Web/MEGAcmd
     ;;
 
