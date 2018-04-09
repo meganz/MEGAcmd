@@ -12,6 +12,8 @@ case "$1" in
         exit 1
     fi
     echo "MEGA-cmd is a console tool, and can be invoked via an ssh connection.  Executables are at %QPKG_ROOT"
+    sed -i -e "s#%%%#$QPKG_ROOT#" $QPKG_ROOT/web/index.html
+    ln -s $QPKG_ROOT/web /home/Qhttpd/Web/MEGAcmd
     ;;
 
   stop)
