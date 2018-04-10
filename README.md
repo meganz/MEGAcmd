@@ -1,7 +1,8 @@
 # MEGAcmd - Command Line Interactive and Scriptable Application
 
 MEGAcmd provides non UI access to MEGA services. It intends to offer all the 
-functionality with your MEGA account via commands. 
+functionality with your MEGA account via commands. It features **synchronization** 
+and **backup** of local folders into your MEGA account. See [`Usage Examples`](#usage-examples).
 
 Available packages for MEGAcmd in all supported platforms should be found 
 [here](https://mega.nz/cmd). 
@@ -98,6 +99,44 @@ See [megacmd.h](https://github.com/meganz/MEGAcmd/blob/master/src/megacmd.h) to 
 
 Ideally, you would like to have these commands in your PATH 
 (See [`Platform`](#platforms) for more info). For further info use `mega-help --non-interactive`.
+
+## Usage examples
+
+* A **synchronization** can be stablished simply by typing:
+```
+sync /path/to/local/folder /folder/in/mega
+```
+This will synchronize the contents in your local and your mega folder both ways.
+
+* You can also set remote **backups** of a local folder to keep historical snapshots
+of your files. So simple as:
+```
+backup /path/to/myfolder /remote/path --period="0 0 4 * * *" --num-backups=10
+```
+This will configure a backup of "myfolder" into /remote/path that will be carried out
+ at 4:00 A.M. (UTC) every day. It will store the last 10 copies. 
+ Further info on backups [here](contrib/docs/BACKUPS.md). 
+ 
+* Download the contents of a shared link:
+```
+get https://mega.nz/#F!ABcD1E2F!gHiJ23k-LMno45PqrSTUvw /path/to/local/folder 
+```
+
+Now let's do something more complicated with non-interactive usage using some GNU tools 
+(similar stuff can be easily done in Windows as well):
+* We wants to provide something crypto secured with only 10 minutes of access:
+```
+mega-put /path/to/my/temporary_resource /exportedstuff/
+mega-export -a  /exportedstuff/temporary_resource --expire=10M | awk '{print $4}'
+```
+
+* Or imagine we'd like to public the enterprise promotional videos of May 2015 that 
+we have previously stored in MEGA:
+```
+for i in $(mega-find /enterprise/video/promotional2015/may --pattern="*mpeg"); do 
+mega-export -a $i | awk '{print $4}'; 
+done
+```
 
 # Platforms
 
