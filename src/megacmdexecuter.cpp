@@ -1783,7 +1783,7 @@ void MegaCmdExecuter::createOrModifyBackup(string local, string remote, string s
     MegaNode *n = NULL;
     if (remote.size())
     {
-        n = api->getNodeByPath(remote.c_str());
+        n = nodebypath(remote.c_str());
     }
     else
     {
@@ -2668,7 +2668,7 @@ void MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
                     string pathToServe = *it;
                     if (pathToServe.size())
                     {
-                        MegaNode *n = api->getNodeByPath(pathToServe.c_str());
+                        MegaNode *n = nodebypath(pathToServe.c_str());
                         if (n)
                         {
                             char *l = api->httpServerGetLocalWebDavLink(n);
@@ -3909,7 +3909,7 @@ void MegaCmdExecuter::printBackupHistory(MegaBackup *backup, MegaNode *parentnod
             long long nfolders = 0;
             if (parentnode)
             {
-                MegaNode *backupInstanceNode = api->getNodeByPath(msl->get(i));
+                MegaNode *backupInstanceNode = nodebypath(msl->get(i));
                 if (backupInstanceNode)
                 {
                     backupInstanceStatus = backupInstanceNode->getCustomAttr("BACKST");
@@ -6193,7 +6193,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
             if (remove)
             {
-                MegaNode *n = api->getNodeByPath(pathToServe.c_str());
+                MegaNode *n = nodebypath(pathToServe.c_str());
                 if (n)
                 {
                     api->httpServerRemoveWebDavAllowedNode(n->getHandle());
@@ -6232,7 +6232,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             else //add
             {
 
-                MegaNode *n = api->getNodeByPath(pathToServe.c_str());
+                MegaNode *n = nodebypath(pathToServe.c_str());
                 if (n)
                 {
                     char *l = api->httpServerGetLocalWebDavLink(n);
