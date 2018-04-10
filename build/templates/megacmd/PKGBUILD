@@ -26,11 +26,11 @@ arch=('i686' 'x86_64')
 url="http://mega.nz/cmd"
 license=("https://github.com/meganz/meganz/blob/master/LICENSE")
 groups=()
-depends=('glibc' 'gcc-libs' 'sqlite' 'openssl' 'zlib' 'libpsl' 'icu' 'bash-completion' 'pcre')
-makedepends=('unzip' 'wget' 'ca-certificates')
+depends=('glibc' 'gcc-libs' 'sqlite' 'openssl' 'zlib' 'libpsl' 'icu' 'bash-completion' 'pcre' 'bzip2' 'xz')
+makedepends=('unzip' 'wget' 'ca-certificates' 'ffmpeg-mega' 'bzip2' 'xz')
 checkdepends=()
 optdepends=()
-provides=("megacmd=${pkgver}")
+provides=("megacmd=${pkgver}" 'ffmpeg-mega')
 replaces=()
 backup=()
 options=()
@@ -53,12 +53,12 @@ build() {
 	#build dependencies into folder deps
 	mkdir deps || :
 	bash -x ./contrib/build_sdk.sh -o archives \
-	  -e -g -b -l -c -s -u -a -q -p deps/
+	  -e -g -b -l -c -s -u -v -a -q -p deps/
 
 	./configure --disable-shared --enable-static --disable-silent-rules \
 	  --disable-curl-checks --with-sodium=$PWD/deps --with-pcre --with-cryptopp=$PWD/deps\
 	  --with-curl=$PWD/deps --with-freeimage=$PWD/deps --with-readline=$PWD/deps \
-	  --with-cares=$PWD/deps \
+	  --with-cares=$PWD/deps --with-libuv=$PWD/deps \
 	  --with-termcap=$PWD/deps --prefix=$PWD/deps --disable-examples \
 	  --with-libmediainfo=$PWD/deps --with-libzen=$PWD/deps
 

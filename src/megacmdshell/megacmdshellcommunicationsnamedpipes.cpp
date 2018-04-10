@@ -541,7 +541,7 @@ int MegaCmdShellCommunicationsNamedPipes::executeCommand(string command, int (*r
     }
 
     DWORD n;
-    if (!WriteFile(theNamedPipe,(char *)wcommand.data(),wcslen(wcommand.c_str())*sizeof(wchar_t), &n, NULL))
+    if (!WriteFile(theNamedPipe,(char *)wcommand.data(),DWORD(wcslen(wcommand.c_str())*sizeof(wchar_t)), &n, NULL))
     {
         cerr << "ERROR writing command to namedPipe: " << ERRNO << endl;
         return -1;
@@ -760,7 +760,7 @@ int MegaCmdShellCommunicationsNamedPipes::registerForStateChanges(void (*statech
     wstring wcommand=L"registerstatelistener";
 
     DWORD n;
-    if (!WriteFile(theNamedPipe,(char *)wcommand.data(),wcslen(wcommand.c_str())*sizeof(wchar_t), &n, NULL))
+    if (!WriteFile(theNamedPipe,(char *)wcommand.data(),DWORD(wcslen(wcommand.c_str())*sizeof(wchar_t)), &n, NULL))
     {
         cerr << "ERROR writing command to namedPipe: " << ERRNO << endl;
         return -1;

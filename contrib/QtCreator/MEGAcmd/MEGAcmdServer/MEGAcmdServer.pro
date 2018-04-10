@@ -20,13 +20,26 @@ TEMPLATE = app
 CONFIG += console
 CONFIG += USE_MEGAAPI
 
-packagesExist(libpcrecpp){
-DEFINES += USE_PCRE
+packagesExist(libpcrecpp) | macx {
 LIBS += -lpcrecpp
 CONFIG += USE_PCRE
 }
 
 CONFIG += USE_MEDIAINFO
+CONFIG += USE_LIBUV
+DEFINES += ENABLE_BACKUPS
+
+unix:!macx {
+        exists(/usr/include/ffmpeg-mega)|exists(mega/bindings/qt/3rdparty/include/ffmpeg)|packagesExist(libavcodec) {
+            CONFIG += USE_FFMPEG
+        }
+}
+else {
+    CONFIG += USE_FFMPEG
+    win32 {
+        DEFINES += __STDC_CONSTANT_MACROS
+    }
+}
 
 win32 {
     SOURCES += ../../../../sdk/src/wincurl/console.cpp
@@ -39,7 +52,6 @@ else {
     SOURCES += ../../../../sdk/src/posix/consolewaiter.cpp
 
     DEFINES += USE_PTHREAD
-
 }
 
 SOURCES += ../../../../src/megacmd.cpp \
@@ -79,20 +91,31 @@ else {
     SOURCES +=../../../../src/comunicationsmanagerfilesockets.cpp
     HEADERS +=../../../../src/comunicationsmanagerfilesockets.h
 }
+
+macx {
+    HEADERS += ../../../../src/megacmdplatform.h
+    OBJECTIVE_SOURCES += ../../../../src/megacmdplatform.mm
+    ICON = app.icns
+#    QMAKE_INFO_PLIST = Info_MEGA.plist
+
+    CONFIG += USE_OPENSSL
+    DEFINES += USE_OPENSSL
+
+    QMAKE_MACOSX_DEPLOYMENT_TARGET = 10.6
+    QMAKE_CXXFLAGS -= -stdlib=libc++
+    QMAKE_LFLAGS -= -stdlib=libc++
+    CONFIG -= c++11
+
+    LIBS += -framework Cocoa -framework SystemConfiguration -framework CoreFoundation -framework Foundation -framework Security
+    LIBS += -lncurses
+    QMAKE_CXXFLAGS += -g
+}
+
 include(../../../../sdk/bindings/qt/sdk.pri)
 DEFINES -= USE_QT
 DEFINES -= MEGA_QT_LOGGING
-DEFINES += USE_FREEIMAGE
-SOURCES -= src/thread/qtthread.cpp
-win32{
-    SOURCES += src/thread/win32thread.cpp
-}
-else{
-    SOURCES += src/thread/posixthread.cpp
-    LIBS += -lpthread
-}
+
 SOURCES -= src/gfx/qt.cpp
-SOURCES += src/gfx/freeimage.cpp
 SOURCES -= bindings/qt/QTMegaRequestListener.cpp
 SOURCES -= bindings/qt/QTMegaTransferListener.cpp
 SOURCES -= bindings/qt/QTMegaGlobalListener.cpp
@@ -100,27 +123,6 @@ SOURCES -= bindings/qt/QTMegaSyncListener.cpp
 SOURCES -= bindings/qt/QTMegaListener.cpp
 SOURCES -= bindings/qt/QTMegaEvent.cpp
 
-macx {
-    HEADERS += ../../../../src/megacmdplatform.h
-    OBJECTIVE_SOURCES += ../../../../src/megacmdplatform.mm
-    ICON = app.icns
-#    QMAKE_INFO_PLIST = Info_MEGA.plist
-    DEFINES += USE_PTHREAD
-    INCLUDEPATH += ../../../../sdk/bindings/qt/3rdparty/include/FreeImage/Source
-    LIBS += $$PWD/../../../../sdk/bindings/qt/3rdparty/libs/libfreeimage.a
-    INCLUDEPATH += ../../../../sdk/bindings/qt/3rdparty/include/pcre
-    LIBS += $$PWD/../../../../sdk/bindings/qt/3rdparty/libs/libpcre.a
-    LIBS += $$PWD/../../../../sdk/bindings/qt/3rdparty/libs/libpcrecpp.a
-    DEFINES += USE_PCRE
-    CONFIG += USE_PCRE
-
-    LIBS += -framework Cocoa -framework SystemConfiguration -framework CoreFoundation -framework Foundation -framework Security
-    LIBS += -lncurses
-    QMAKE_CXXFLAGS += -g
-}
-else {
-    LIBS += -lfreeimage
-}
 
 win32 {
     QMAKE_CXXFLAGS_RELEASE = $$QMAKE_CFLAGS_RELEASE_WITH_DEBUGINFO

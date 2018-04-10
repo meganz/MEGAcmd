@@ -146,6 +146,9 @@ AX_CHECK_COMPILE_FLAG([-fPIC], [
   )
 ])
 
+# Enable backups
+CXXFLAGS="$CXXFLAGS -DENABLE_BACKUPS=1"
+
 AM_CONDITIONAL(ENABLE_STATIC, test x$enable_static = xyes)
 AC_SUBST(ENABLE_STATIC)
 
@@ -456,6 +459,7 @@ AC_MSG_NOTICE([MEGAcmd configuration:
   Install prefix:   $prefix
   Compiler:         $CXX
   CXXFLAGS:         $CXXFLAGS
+  CPPFLAGS:         $CPPFLAGS
   LDFLAGS:          $LDFLAGS
   debug:            $enable_debug
   static:           $enable_static

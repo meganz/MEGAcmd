@@ -61,8 +61,8 @@
   #define strncasecmp _strnicmp
 #endif
 
-#define SSTR( x ) static_cast< std::ostringstream & >( \
-        ( std::ostringstream() << std::dec << x ) ).str()
+#define SSTR( x ) static_cast< const std::ostringstream & >( \
+        (  std::ostringstream() << std::dec << x ) ).str()
 
 #if defined(_WIN32) && !defined(WINDOWS_PHONE)
 #include "mega/thread/win32thread.h"
@@ -703,6 +703,21 @@ void changeprompt(const char *newprompt, bool redisplay)
         handlerinstalled = true;
 
         requirepromptinstall = false;
+
+        static bool firstime = true;
+        if (firstime)
+        {
+            firstime = false;
+#if _WIN32
+            if( !SetConsoleCtrlHandler( (PHANDLER_ROUTINE) CtrlHandler, TRUE ) )
+            {
+                cerr << "Control handler set failed" << endl;
+            }
+#else
+            // prevent CTRL+C exit
+            signal(SIGINT, sigint_handler);
+#endif
+        }
     }
     mutexPrompt.unlock();
 }
@@ -1584,14 +1599,14 @@ void readloop()
 
                 wait_for_input(readline_fd);
 
+                rl_callback_read_char(); //this calls store_line if last char was enter
+
                 time_t tnow = time(NULL);
-                if ( (tnow - lasttimeretrycons) > 5)
+                if ( (tnow - lasttimeretrycons) > 5 && !doExit)
                 {
                     comms->executeCommand("retrycons");
                     lasttimeretrycons = tnow;
                 }
-
-                rl_callback_read_char(); //this calls store_line if last char was enter
 
                 rl_resize_terminal(); // to always adjust to new screen sizes
 
@@ -1856,16 +1871,6 @@ int main(int argc, char* argv[])
     comms = new MegaCmdShellCommunicationsNamedPipes();
 #else
     comms = new MegaCmdShellCommunications();
-#endif
-
-#if _WIN32
-    if( !SetConsoleCtrlHandler( (PHANDLER_ROUTINE) CtrlHandler, TRUE ) )
-    {
-        cerr << "Control handler set failed" << endl;
-     }
-#else
-    // prevent CTRL+C exit
-    signal(SIGINT, sigint_handler);
 #endif
 
     rl_attempted_completion_function = getCompletionMatches;

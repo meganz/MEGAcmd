@@ -55,6 +55,7 @@ std::ostringstream & operator<< ( std::ostringstream & ostr, std::wstring const 
 #define OUTSTRINGSTREAM std::ostringstream
 #define OUTSTRING std::string
 #define COUT std::cout
+typedef int SOCKET;
 #endif
 
 #define OUTSTREAM COUT
@@ -133,9 +134,9 @@ public:
     static bool registerAgainRequired;
 
 private:
-    static int newsockfd;
-    static bool socketValid(int socket);
-    static void closeSocket(int socket);
+    static SOCKET newsockfd;
+    static bool socketValid(SOCKET socket);
+    static void closeSocket(SOCKET socket);
 
     static void *listenToStateChangesEntry(void *slsc);
     static int listenToStateChanges(int receiveSocket, void (*statechangehandle)(std::string) = NULL);
@@ -146,9 +147,9 @@ private:
     static mega::Thread *listenerThread;
 
 #ifdef _WIN32
-static int createSocket(int number = 0, bool initializeserver = true, bool net = true);
+static SOCKET createSocket(int number = 0, bool initializeserver = true, bool net = true);
 #else
-static int createSocket(int number = 0, bool initializeserver = true, bool net = false);
+static SOCKET createSocket(int number = 0, bool initializeserver = true, bool net = false);
 #endif
 
 

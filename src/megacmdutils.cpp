@@ -39,7 +39,7 @@ using namespace mega;
 void getNumFolderFiles(MegaNode *n, MegaApi *api, long long *nfiles, long long *nfolders)
 {
     MegaNodeList *totalnodes = api->getChildren(n);
-    for (long long i = 0; i < totalnodes->size(); i++)
+    for (int i = 0; i < totalnodes->size(); i++)
     {
         if (totalnodes->get(i)->getType() == MegaNode::TYPE_FILE)
         {
@@ -461,6 +461,7 @@ const char * getTransferStateStr(int transferState)
     }
 
 }
+#ifdef ENABLE_BACKUPS
 
 string backupSatetStr(int backupstate)
 {
@@ -495,7 +496,7 @@ string backupSatetStr(int backupstate)
 
     return "UNDEFINED";
 }
-
+#endif
 /**
  * @brief tests if a path is writable
  * @param path
@@ -573,7 +574,7 @@ const char *fillStructWithSYYmdHMS(string &stime, struct tm &dt)
 
 void fillLocalTimeStruct(const time_t *ttime, struct tm *dt) //TODO: copy this to megaapiimpl
 {
-#if (__cplusplus >= 201103L) && defined(__STDC_WANT_LIB_EXT1__)
+#if (__cplusplus >= 201103L) && defined (__STDC_LIB_EXT1__) && defined(__STDC_WANT_LIB_EXT1__)
     localtime_s(ttime, dt);
 #elif _MSC_VER >= 1400 // MSVCRT (2005+): std::localtime is threadsafe
     struct tm *newtm = localtime(ttime);
@@ -629,7 +630,7 @@ std::string getReadableShortTime(const time_t rawtime, bool showUTCDeviation)
         fillLocalTimeStruct(&rawtime, &dt);
         if (showUTCDeviation)
         {
-            strftime(buffer, sizeof( buffer ), "%d%b%Y %T %z", &dt); // Following RFC 2822 (as in date -R)
+            strftime(buffer, sizeof( buffer ), "%d%b%Y %T %z", &dt);
         }
         else
         {
@@ -638,7 +639,7 @@ std::string getReadableShortTime(const time_t rawtime, bool showUTCDeviation)
     }
     else
     {
-        sprintf(buffer,"INVALID_TIME %d", rawtime);
+        sprintf(buffer,"INVALID_TIME %lld", (long long)rawtime);
     }
     return std::string(buffer);
 }
@@ -675,7 +676,7 @@ time_t getTimeStampAfter(time_t initial, string timestring)
     char *buffer = new char[timestring.size() + 1];
     strcpy(buffer, timestring.c_str());
 
-    time_t days = 0, hours = 0, minutes = 0, seconds = 0, months = 0, years = 0;
+    int days = 0, hours = 0, minutes = 0, seconds = 0, months = 0, years = 0;
 
     char * ptr = buffer;
     char * last = buffer;
@@ -757,7 +758,7 @@ time_t getTimeStampBefore(time_t initial, string timestring)
     char *buffer = new char[timestring.size() + 1];
     strcpy(buffer, timestring.c_str());
 
-    time_t days = 0, hours = 0, minutes = 0, seconds = 0, months = 0, years = 0;
+    int days = 0, hours = 0, minutes = 0, seconds = 0, months = 0, years = 0;
 
     char * ptr = buffer;
     char * last = buffer;
@@ -817,12 +818,12 @@ time_t getTimeStampBefore(time_t initial, string timestring)
     struct tm dt;
     fillLocalTimeStruct(&initial, &dt);
 
-    dt.tm_mday += days;
-    dt.tm_hour += hours;
-    dt.tm_min += minutes;
-    dt.tm_sec += seconds;
-    dt.tm_mon += months;
-    dt.tm_year += years;
+    dt.tm_mday -= days;
+    dt.tm_hour -= hours;
+    dt.tm_min -= minutes;
+    dt.tm_sec -= seconds;
+    dt.tm_mon -= months;
+    dt.tm_year -= years;
 
     delete [] buffer;
     return mktime(&dt);
@@ -1358,7 +1359,7 @@ string joinStrings(const vector<string>& vec, const char* delim, bool quoted)
 
 unsigned int getstringutf8size(const string &str) {
     int c,i,ix,q;
-    for (q=0, i=0, ix=str.length(); i < ix; i++, q++)
+    for (q=0, i=0, ix=int(str.length()); i < ix; i++, q++)
     {
         c = (unsigned char) str[i];
 
@@ -1378,8 +1379,8 @@ unsigned int getstringutf8size(const string &str) {
 string getFixLengthString(const string origin, unsigned int size, const char delim, bool alignedright)
 {
     string toret;
-    unsigned int printableSize = getstringutf8size(origin);
-    unsigned int bytesSize = origin.size();
+    size_t printableSize = getstringutf8size(origin);
+    size_t bytesSize = origin.size();
     if (printableSize <= size){
         if (alignedright)
         {
@@ -1515,13 +1516,13 @@ string sizeProgressToText(long long partialSize, long long totalSize, bool equal
     {
         string unit;
         unit = ( equalizeUnitsLength ? " B" : "B" );
-        double reducedPartSize = totalSize;
-        double reducedSize = totalSize;
+        double reducedPartSize = (double)totalSize;
+        double reducedSize = (double)totalSize;
 
         if ( totalSize > 1099511627776LL *2 )
         {
-            reducedPartSize = totalSize / (double) 1099511627776L;
-            reducedSize = totalSize / (double) 1099511627776L;
+            reducedPartSize = totalSize / (double) 1099511627776ull;
+            reducedSize = totalSize / (double) 1099511627776ull;
             unit = "TB";
         }
         else if ( totalSize > 1073741824LL *2 )
@@ -1561,11 +1562,11 @@ string sizeToText(long long totalSize, bool equalizeUnitsLength, bool humanreada
     {
         string unit;
         unit = ( equalizeUnitsLength ? " B" : "B" );
-        double reducedSize = totalSize;
+        double reducedSize = (double)totalSize;
 
         if ( totalSize > 1099511627776LL *2 )
         {
-            reducedSize = totalSize / (double) 1099511627776L;
+            reducedSize = totalSize / (double) 1099511627776ull;
             unit = "TB";
         }
         else if ( totalSize > 1073741824LL *2 )
@@ -1609,31 +1610,31 @@ int64_t textToSize(const char *text)
                 case 'b': //Bytes
                 case 'B':
                     *ptr = '\0';
-                    sizeinbytes += atof(last);
+                    sizeinbytes += int64_t(atof(last));
                     break;
 
                 case 'k': //KiloBytes
                 case 'K':
                     *ptr = '\0';
-                    sizeinbytes += 1024.0 * atof(last);
+                    sizeinbytes += int64_t(1024.0 * atof(last));
                     break;
 
                 case 'm': //MegaBytes
                 case 'M':
                     *ptr = '\0';
-                    sizeinbytes += 1048576.0 * atof(last);
+                    sizeinbytes += int64_t(1048576.0 * atof(last));
                     break;
 
                 case 'g': //GigaBytes
                 case 'G':
                     *ptr = '\0';
-                    sizeinbytes += 1073741824.0 * atof(last);
+                    sizeinbytes += int64_t(1073741824.0 * atof(last));
                     break;
 
                 case 't': //TeraBytes
                 case 'T':
                     *ptr = '\0';
-                    sizeinbytes += 1125899906842624.0 * atof(last);
+                    sizeinbytes += int64_t(1125899906842624.0 * atof(last));
                     break;
 
                 default:
@@ -1661,7 +1662,7 @@ string secondsToText(time_t seconds, bool humanreadable)
     os.precision(2);
     if (humanreadable)
     {
-        time_t reducedSize = ( seconds > 3600 * 2 ? seconds / 3600.0 : ( seconds > 60 * 2 ? seconds / 60.0 : seconds ));
+        time_t reducedSize = time_t( seconds > 3600 * 2 ? seconds / 3600.0 : ( seconds > 60 * 2 ? seconds / 60.0 : seconds ));
         os << fixed << reducedSize;
         os << ( seconds > 3600 * 2 ? " hours" : ( seconds > 60 * 2 ? " minutes" : " seconds" ));
     }
@@ -1838,7 +1839,7 @@ bool nodeNameIsVersion(string &nodeName)
     bool isversion = false;
     if (nodeName.size() > 12 && nodeName.at(nodeName.size()-11) =='#') //TODO: def version separator elswhere
     {
-        for (int i = nodeName.size()-10; i < nodeName.size() ; i++)
+        for (size_t i = nodeName.size()-10; i < nodeName.size() ; i++)
         {
             if (nodeName.at(i) > '9' || nodeName.at(i) < '0')
                 break;

@@ -40,8 +40,12 @@
 #else
 #include <fcntl.h>
 #include <io.h>
+#define strdup _strdup  // avoid warning
 #endif
 
+#ifdef __APPLE__
+#include <sys/sysctl.h>
+#endif
 
 #if !defined (PARAMS)
 #  if defined (__STDC__) || defined (__GNUC__) || defined (__cplusplus)
@@ -53,7 +57,7 @@
 
 typedef char *completionfunction_t PARAMS((const char *, int));
 
-#define SSTR( x ) static_cast< std::ostringstream & >( \
+#define SSTR( x ) static_cast< const std::ostringstream & >( \
         ( std::ostringstream() << std::dec << x ) ).str()
 
 
@@ -178,7 +182,11 @@ vector<string> remotepatterncommands(aremotepatterncommands, aremotepatterncomma
 string aremotefolderspatterncommands[] = {"cd", "share"};
 vector<string> remotefolderspatterncommands(aremotefolderspatterncommands, aremotefolderspatterncommands + sizeof aremotefolderspatterncommands / sizeof aremotefolderspatterncommands[0]);
 
-string amultipleremotepatterncommands[] = {"ls", "mkdir", "rm", "du", "find", "mv", "deleteversions"};
+string amultipleremotepatterncommands[] = {"ls", "mkdir", "rm", "du", "find", "mv", "deleteversions"
+#ifdef HAVE_LIBUV
+                                           , "webdav"
+#endif
+                                          };
 vector<string> multipleremotepatterncommands(amultipleremotepatterncommands, amultipleremotepatterncommands + sizeof amultipleremotepatterncommands / sizeof amultipleremotepatterncommands[0]);
 
 string aremoteremotepatterncommands[] = {"cp"};
@@ -196,7 +204,14 @@ vector<string> emailpatterncommands(aemailpatterncommands, aemailpatterncommands
 string avalidCommands [] = { "login", "signup", "confirm", "session", "mount", "ls", "cd", "log", "debug", "pwd", "lcd", "lpwd", "import", "masterkey",
                              "put", "get", "attr", "userattr", "mkdir", "rm", "du", "mv", "cp", "sync", "export", "share", "invite", "ipc",
                              "showpcr", "users", "speedlimit", "killsession", "whoami", "help", "passwd", "reload", "logout", "version", "quit",
-                             "thumbnail", "preview", "find", "completion", "clear", "https", "transfers", "exclude", "exit", "backup", "deleteversions"
+                             "thumbnail", "preview", "find", "completion", "clear", "https", "transfers", "exclude", "exit"
+#ifdef HAVE_LIBUV
+                             , "webdav"
+#endif
+#ifdef ENABLE_BACKUPS
+                             , "backup"
+#endif
+                             , "deleteversions"
 #ifdef _WIN32
                              ,"unicode"
 #else
@@ -221,7 +236,7 @@ Console* console;
 
 MegaMutex mutexHistory;
 
-map<int, string> threadline;
+map<unsigned long long, string> threadline;
 
 void printWelcomeMsg();
 
@@ -262,7 +277,7 @@ void sigint_handler(int signum)
 }
 
 #ifdef _WIN32
-BOOL CtrlHandler( DWORD fdwCtrlType )
+BOOL __stdcall CtrlHandler( DWORD fdwCtrlType )
 {
   LOG_verbose << "Reached CtrlHandler: " << fdwCtrlType;
 
@@ -348,7 +363,9 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validParams->insert("R");
         validParams->insert("r");
         validParams->insert("l");
-        validParams->insert("v");
+        validParams->insert("a");
+        validParams->insert("h");
+        validParams->insert("versions");
 
 #ifdef USE_PCRE
         validParams->insert("use-pcre");
@@ -357,7 +374,7 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     else if ("du" == thecommand)
     {
         validParams->insert("h");
-        validParams->insert("v");
+        validParams->insert("versions");
 #ifdef USE_PCRE
         validParams->insert("use-pcre");
 #endif
@@ -425,6 +442,17 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validParams->insert("d");
         validParams->insert("restart-syncs");
     }
+#ifdef HAVE_LIBUV
+    else if ("webdav" == thecommand)
+    {
+        validParams->insert("d");
+        validParams->insert("tls");
+        validParams->insert("public");
+        validOptValues->insert("port");
+        validOptValues->insert("certificate");
+        validOptValues->insert("key");
+    }
+#endif
     else if ("backup" == thecommand)
     {
         validOptValues->insert("period");
@@ -999,7 +1027,7 @@ completionfunction_t *getCompletionFunction(vector<string> words)
     }
     discardOptionsAndFlags(&words);
 
-    int currentparameter = words.size() - 1;
+    int currentparameter = int(words.size() - 1);
     if (stringcontained(thecommand.c_str(), localremotefolderpatterncommands))
     {
         if (currentparameter == 1)
@@ -1250,9 +1278,9 @@ const char * getUsageStr(const char *command)
     if (!strcmp(command, "ls"))
     {
 #ifdef USE_PCRE
-        return "ls [-lRrv] [remotepath] [--use-pcre]";
+        return "ls [-halRr] [--versions] [remotepath] [--use-pcre]";
 #else
-        return "ls [-lRrv] [remotepath]";
+        return "ls [-halRr] [--versions] [remotepath]";
 #endif
     }
     if (!strcmp(command, "cd"))
@@ -1266,9 +1294,9 @@ const char * getUsageStr(const char *command)
     if (!strcmp(command, "du"))
     {
 #ifdef USE_PCRE
-        return "du [-hv] [remotepath remotepath2 remotepath3 ... ] [--use-pcre]";
+        return "du [-h] [--versions] [remotepath remotepath2 remotepath3 ... ] [--use-pcre]";
 #else
-        return "du [-hv] [remotepath remotepath2 remotepath3 ... ]";
+        return "du [-h] [--versions] [remotepath remotepath2 remotepath3 ... ]";
 #endif
     }
     if (!strcmp(command, "pwd"))
@@ -1356,6 +1384,12 @@ const char * getUsageStr(const char *command)
     {
         return "exclude [(-a|-d) pattern1 pattern2 pattern3 [--restart-syncs]]";
     }
+#ifdef HAVE_LIBUV
+    if (!strcmp(command, "webdav"))
+    {
+        return "webdav [ [-d] remotepath [--port=PORT] [--public] [--tls --certificate=/path/to/certificate.pem --key=/path/to/certificate.key]]";
+    }
+#endif
     if (!strcmp(command, "sync"))
     {
         return "sync [localpath dstremotepath| [-dsr] [ID|localpath]";
@@ -1620,8 +1654,21 @@ string getHelpStr(const char *command)
         os << endl;
         os << "Options:" << endl;
         os << " -R|-r" << "\t" << "list folders recursively" << endl;
-        os << " -l" << "\t" << "include extra information" << endl;
-        os << " -v" << "\t" << "show historical versions" << endl;
+        os << " -l" << "\t" << "print summary" << endl;
+        os << "   " << "\t" << " SUMMARY contents:" << endl;
+        os << "   " << "\t" << "   FLAGS: Indicate type/status of an element:" << endl;
+        os << "   " << "\t" << "     xxxx" << endl;
+        os << "   " << "\t" << "     |||+---- Sharing status: (s)hared, (i)n share or not shared(-)" << endl;
+        os << "   " << "\t" << "     ||+----- if exported, whether it is (p)ermanent or (t)temporal" << endl;
+        os << "   " << "\t" << "     |+------ e/- wheter node is (e)xported" << endl;
+        os << "   " << "\t" << "     +-------- Type(d=folder,-=file,r=root,i=inbox,b=rubbish,x=unsupported)" << endl;
+        os << "   " << "\t" << "   VERS: Number of versions in a file" << endl;
+        os << "   " << "\t" << "   SIZE: Size of the file in bytes:" << endl;
+        os << "   " << "\t" << "   DATE: Modification date for files and creation date for folders:" << endl;
+        os << "   " << "\t" << "   NAME: name of the node" << endl;
+        os << " -h" << "\t" << "Show human readable sizes in summary" << endl;
+        os << " -a" << "\t" << "include extra information" << endl;
+        os << " --versions" << "\t" << "show historical versions" << endl;
         os << "   " << "\t" << "You can delete all versions of a file with \"deleteversions\"" << endl;
 #ifdef USE_PCRE
         os << " --use-pcre" << "\t" << "use PCRE expressions" << endl;
@@ -1657,8 +1704,8 @@ string getHelpStr(const char *command)
         os << endl;
         os << "Options:" << endl;
         os << " -h" << "\t" << "Human readable" << endl;
-        os << " -v" << "\t" << "Calculate size including all versions." << endl;
-        os << "   " << "\t" << "You can remove all versions with \"deleteversions\" and list them with \"ls -v\"" << endl;
+        os << " --versions" << "\t" << "Calculate size including all versions." << endl;
+        os << "   " << "\t" << "You can remove all versions with \"deleteversions\" and list them with \"ls --versions\"" << endl;
 #ifdef USE_PCRE
         os << " --use-pcre" << "\t" << "use PCRE expressions" << endl;
 #endif
@@ -1796,7 +1843,7 @@ string getHelpStr(const char *command)
 #ifndef _WIN32
     else if (!strcmp(command, "permissions"))
     {
-        os << "Shows/stablish default permissions for files and folders created by MEGAcmd." << endl;
+        os << "Shows/Establish default permissions for files and folders created by MEGAcmd." << endl;
         os << endl;
         os << "Permissions are unix-like permissions, with 3 numbers: one for owner, one for group and one for others" << endl;
         os << "Options:" << endl;
@@ -1832,15 +1879,37 @@ string getHelpStr(const char *command)
 
         os << endl;
         os << "Options:" << endl;
-        os << " -f" << "\t" << "Force (no asking)" << endl;
+        os << " -f   " << "\t" << "Force (no asking)" << endl;
         os << " --all" << "\t" << "Delete versions of all nodes. This will delete the version histories of all files (not current files)." << endl;
 #ifdef USE_PCRE
         os << " --use-pcre" << "\t" << "use PCRE expressions" << endl;
 #endif
         os << endl;
-        os << "To see versions of a file use \"ls -v\"." << endl;
-        os << "To see space occupied by sessions use \"du\" with \"-v\"." << endl;
+        os << "To see versions of a file use \"ls --versions\"." << endl;
+        os << "To see space occupied by sessions use \"du\" with \"--versions\"." << endl;
     }
+#ifdef HAVE_LIBUV
+    else if (!strcmp(command, "webdav"))
+    {
+        os << "Configures a WEBDAV server to serve a location in MEGA" << endl;
+        os << endl;
+        os << "This can also be used for streaming files. The server will be running as long as MEGAcmd Server is. " << endl;
+        os << "If no argument is given, it will list the webdav enabled locations." << endl;
+        os << endl;
+        os << "Options:" << endl;
+        os << " --d        " << "\t" << "Stops serving that location" << endl;
+        os << " --public   " << "\t" << "*Allow access from outside localhost" << endl;
+        os << " --port=PORT" << "\t" << "*Port to serve. DEFAULT= 4443" << endl;
+        os << " --tls      " << "\t" << "*Serve with TLS (HTTPS)" << endl;
+        os << " --certificate=/path/to/certificate.pem" << "\t" << "*Path to PEM formated certificate" << endl;
+        os << " --key=/path/to/certificate.key" << "\t" << "*Path to PEM formated key" << endl;
+        os << endl;
+        os << "*If you serve more than one location, these parameters will be ignored and used those of the first location served." << endl;
+        os << endl;
+        os << "Caveat: This functionality is in BETA state. If you experience any issue with this, please contact: support@mega.nz" << endl;
+        os << endl;
+    }
+#endif
     else if (!strcmp(command, "exclude"))
     {
         os << "Manages exclusions in syncs." << endl;
@@ -1889,7 +1958,7 @@ string getHelpStr(const char *command)
         os << "If no argument is given it will list the configured backups" << endl;
         os << " To get extra info on backups use -l or -h (see Options below)" << endl;
         os << endl;
-        os << "When a backup of a folder (localfolder) is stablished in a remote folder (remotepath)" << endl;
+        os << "When a backup of a folder (localfolder) is established in a remote folder (remotepath)" << endl;
         os << " MEGAcmd will create subfolder within the remote path with names like: \"localfoldername_bk_TIME\"" << endl;
         os << " which shall contain a backup of the local folder at that specific time" << endl;
         os << "In order to configure a backup you need to specify the local and remote paths, " << endl;
@@ -1937,7 +2006,7 @@ string getHelpStr(const char *command)
         os << "                       \t" << "  Notice that this is an uncertain measure since not all months" << endl;
         os << "                       \t" << "  last the same and Daylight saving time changes are not considered" << endl;
         os << "                       \t" << "  If possible use a cron like expresion" << endl;
-        os << "                       \t" << "Notice: regardless of the period expresion, the first time you stablish a backup," << endl;
+        os << "                       \t" << "Notice: regardless of the period expresion, the first time you establish a backup," << endl;
         os << "                       \t" << " it will be created inmediately" << endl;
         os << "--num-backups=N\t" << "Maximum number of backups to store" << endl;
         os << "                 \t" << " After creating the backup (N+1) the oldest one will be deleted" << endl;
@@ -1965,7 +2034,7 @@ string getHelpStr(const char *command)
         os << " --expire=TIMEDELAY" << "\t" << "Determines the expiration time of a node." << endl;
         os << "                   " << "\t" << "   It indicates the delay in hours(h), days(d), " << endl;
         os << "                   " << "\t"  << "   minutes(M), seconds(s), months(m) or years(y)" << endl;
-        os << "                   " << "\t" << "   e.g. \"1m12d3h\" stablish an expiration time 1 month, " << endl;
+        os << "                   " << "\t" << "   e.g. \"1m12d3h\" establish an expiration time 1 month, " << endl;
         os << "                   " << "\t"  << "   12 days and 3 hours after the current moment" << endl;
         os << " -f" << "\t" << "Implicitly accept copyright terms (only shown the first time an export is made)" << endl;
         os << "   " << "\t" << "MEGA respects the copyrights of others and requires that users of the MEGA cloud service " << endl;
@@ -2072,7 +2141,7 @@ string getHelpStr(const char *command)
     else if (!strcmp(command, "speedlimit"))
     {
         os << "Displays/modifies upload/download rate limits" << endl;
-        os << " NEWLIMIT stablish the new limit in size per second (0 = no limit)" << endl;
+        os << " NEWLIMIT establish the new limit in size per second (0 = no limit)" << endl;
         os << " NEWLIMIT may include (B)ytes, (K)ilobytes, (M)egabytes, (G)igabytes & (T)erabytes." << endl;
         os << "  Examples: \"1m12k3B\" \"3M\". If no unit given, it'll use Bytes" << endl;
         os << endl;
@@ -2201,7 +2270,7 @@ string getHelpStr(const char *command)
     return os.str();
 }
 
-#define SSTR( x ) static_cast< std::ostringstream & >( \
+#define SSTR( x ) static_cast< const std::ostringstream & >( \
         ( std::ostringstream() << std::dec << x ) ).str()
 
 void printAvailableCommands(int extensive = 0)
@@ -2860,8 +2929,48 @@ void megacmd()
                     s+=(char)0x1F;
                 }
 #endif
-                cm->informStateListener(inf,s);
 
+                bool isOSdeprecated = false;
+#ifdef MEGACMD_DEPRECATED_OS
+                isOSdeprecated = true;
+#endif
+
+#ifdef __APPLE__
+                char releaseStr[256];
+                size_t size = sizeof(releaseStr);
+                if (!sysctlbyname("kern.osrelease", releaseStr, &size, NULL, 0)  && size > 0)
+                {
+                    if (strchr(releaseStr,'.'))
+                    {
+                        char *token = strtok(releaseStr, ".");
+                        if (token)
+                        {
+                            errno = 0;
+                            char *endPtr = NULL;
+                            long majorVersion = strtol(token, &endPtr, 10);
+                            if (endPtr != token && errno != ERANGE && majorVersion >= INT_MIN && majorVersion <= INT_MAX)
+                            {
+                                if((int)majorVersion < 13) // Older versions from 10.9 (mavericks)
+                                {
+                                    isOSdeprecated = true;
+                                }
+                            }
+                        }
+                    }
+                }
+#endif
+                if (isOSdeprecated)
+                {
+                    s += "message:";
+                    s += "---------------------------------------------------------------------\n";
+                    s += "--              Your Operative System is too old.                  --\n";
+                    s += "--      You might not receive new updates for this application.    --\n";
+                    s += "--       We strongly recommend you to update to a new version.     --\n";
+                    s += "---------------------------------------------------------------------\n";
+                    s+=(char)0x1F;
+                }
+
+                cm->informStateListener(inf,s);
             }
             else
             { // normal petition
@@ -2894,7 +3003,7 @@ void printCenteredLine(string msj, unsigned int width, bool encapsulated = true)
 {
     if (msj.size()>width)
     {
-        width = msj.size();
+        width = (unsigned int)msj.size();
     }
     if (encapsulated)
         COUT << "|";
@@ -3115,6 +3224,15 @@ int main(int argc, char* argv[])
         loggerCMD->setApiLoggerLevel(MegaApi::LOG_LEVEL_DEBUG);
         loggerCMD->setCmdLoggerLevel(MegaApi::LOG_LEVEL_DEBUG);
     }
+    if (!loglevelenv.compare("VERBOSE") || (( argc > 1 ) && !( strcmp(argv[1], "--verbose"))) )
+    {
+        loggerCMD->setCmdLoggerLevel(MegaApi::LOG_LEVEL_MAX);
+    }
+    if (!loglevelenv.compare("FULLVERBOSE") || (( argc > 1 ) && !( strcmp(argv[1], "--verbose-full"))) )
+    {
+        loggerCMD->setApiLoggerLevel(MegaApi::LOG_LEVEL_MAX);
+        loggerCMD->setCmdLoggerLevel(MegaApi::LOG_LEVEL_MAX);
+    }
 
     mutexHistory.init(false);
 
@@ -3124,6 +3242,9 @@ int main(int argc, char* argv[])
 
     char userAgent[30];
     sprintf(userAgent, "MEGAcmd/%d.%d.%d.0", MEGACMD_MAJOR_VERSION,MEGACMD_MINOR_VERSION,MEGACMD_MICRO_VERSION);
+
+    MegaApi::addLoggerObject(loggerCMD);
+    MegaApi::setLogLevel(MegaApi::LOG_LEVEL_MAX);
 
 #if defined(__MACH__) && defined(ENABLE_SYNC)
     int fd = -1;
@@ -3142,10 +3263,10 @@ int main(int argc, char* argv[])
     }
     else
     {
-        api = new MegaApi("BdARkQSQ", ConfigurationManager::getConfigFolder().c_str(), userAgent);
+        api = new MegaApi("BdARkQSQ", (MegaGfxProcessor*)NULL, ConfigurationManager::getConfigFolder().c_str(), userAgent);
     }
 #else
-    api = new MegaApi("BdARkQSQ", ConfigurationManager::getConfigFolder().c_str(), userAgent);
+    api = new MegaApi("BdARkQSQ", (MegaGfxProcessor*)NULL, ConfigurationManager::getConfigFolder().c_str(), userAgent);
 #endif
 
 
@@ -3153,10 +3274,9 @@ int main(int argc, char* argv[])
 
     for (int i = 0; i < 5; i++)
     {
-        MegaApi *apiFolder = new MegaApi("BdARkQSQ", (const char*)NULL, userAgent);
+        MegaApi *apiFolder = new MegaApi("BdARkQSQ", (MegaGfxProcessor*)NULL, (const char*)NULL, userAgent);
         apiFolder->setLanguage(localecode.c_str());
         apiFolders.push(apiFolder);
-        apiFolder->addLoggerObject(loggerCMD);
         apiFolder->setLogLevel(MegaApi::LOG_LEVEL_MAX);
         semaphoreapiFolders.release();
     }
@@ -3167,9 +3287,6 @@ int main(int argc, char* argv[])
     }
 
     mutexapiFolders.init(false);
-
-    api->addLoggerObject(loggerCMD);
-    api->setLogLevel(MegaApi::LOG_LEVEL_MAX);
 
     LOG_debug << "Language set to: " << localecode;
 

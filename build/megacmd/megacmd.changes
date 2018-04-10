@@ -1,3 +1,15 @@
+Tue Mar 27 18:37:30 CEST 2018 - linux@mega.co.nz
+- Update to version 0.9.9:
+  * Webdav: Serve a MEGA location as a WEBDAV server.
+  * Streaming: Webdav command can also be used for HTTP(S) streaming.
+  * Added thumbnails for video files.
+  * Listing -l now list unix-like columned summary (extended info is now -a)
+  * du & ls -v is now --versions
+  * Fixed --mtime restrictions in find
+  * Added support for compiling in NAS systems
+  * Minor fixes & adjustements
+
+-------------------------------------------------------------------
 Thu Jan 18 19:15:35 CET 2018 - linux@mega.co.nz
 - Update to version 0.9.8:
   * Backups: added the possibility to configure periodic backups
