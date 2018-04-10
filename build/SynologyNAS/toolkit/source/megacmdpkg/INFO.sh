@@ -3,7 +3,7 @@
 source /pkgscripts/include/pkg_util.sh
 
 package="MEGAcmd"   
-version="0.9.8000"
+version="0.9.9000"
 displayname="MEGAcmd"        
 maintainer="Mega NZ"      
 arch="$(pkg_get_unified_platform)"

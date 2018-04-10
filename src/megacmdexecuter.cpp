@@ -39,7 +39,7 @@ using namespace mega;
 static const char* rootnodenames[] = { "ROOT", "INBOX", "RUBBISH" };
 static const char* rootnodepaths[] = { "/", "//in", "//bin" };
 
-#define SSTR( x ) static_cast< std::ostringstream & >( \
+#define SSTR( x ) static_cast< const std::ostringstream & >( \
         ( std::ostringstream() << std::dec << x ) ).str()
 
 /**
@@ -1783,7 +1783,7 @@ void MegaCmdExecuter::createOrModifyBackup(string local, string remote, string s
     MegaNode *n = NULL;
     if (remote.size())
     {
-        n = api->getNodeByPath(remote.c_str());
+        n = nodebypath(remote.c_str());
     }
     else
     {
@@ -2668,7 +2668,7 @@ void MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
                     string pathToServe = *it;
                     if (pathToServe.size())
                     {
-                        MegaNode *n = api->getNodeByPath(pathToServe.c_str());
+                        MegaNode *n = nodebypath(pathToServe.c_str());
                         if (n)
                         {
                             char *l = api->httpServerGetLocalWebDavLink(n);
@@ -3909,7 +3909,7 @@ void MegaCmdExecuter::printBackupHistory(MegaBackup *backup, MegaNode *parentnod
             long long nfolders = 0;
             if (parentnode)
             {
-                MegaNode *backupInstanceNode = api->getNodeByPath(msl->get(i));
+                MegaNode *backupInstanceNode = nodebypath(msl->get(i));
                 if (backupInstanceNode)
                 {
                     backupInstanceStatus = backupInstanceNode->getCustomAttr("BACKST");
@@ -4354,7 +4354,7 @@ bool MegaCmdExecuter::establishBackup(string pathToBackup, MegaNode *n, int64_t 
     fsAccessCMD->local2path(&localabsolutepath, &path);
 
     MegaCmdListener *megaCmdListener = new MegaCmdListener(api, NULL);
-    api->setBackup(path.c_str(), n, attendpastbackups, period, speriod, numBackups, megaCmdListener);
+    api->setBackup(path.c_str(), n, attendpastbackups, period, speriod.c_str(), numBackups, megaCmdListener);
     megaCmdListener->wait();
     if (checkNoErrors(megaCmdListener->getError(), "establish backup"))
     {
@@ -6193,7 +6193,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
             if (remove)
             {
-                MegaNode *n = api->getNodeByPath(pathToServe.c_str());
+                MegaNode *n = nodebypath(pathToServe.c_str());
                 if (n)
                 {
                     api->httpServerRemoveWebDavAllowedNode(n->getHandle());
@@ -6225,14 +6225,14 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 else
                 {
                     setCurrentOutCode(MCMD_NOTFOUND);
-                    LOG_err << "Path not found" << pathToServe;
+                    LOG_err << "Path not found: " << pathToServe;
                     return;
                 }
             }
             else //add
             {
 
-                MegaNode *n = api->getNodeByPath(pathToServe.c_str());
+                MegaNode *n = nodebypath(pathToServe.c_str());
                 if (n)
                 {
                     char *l = api->httpServerGetLocalWebDavLink(n);
@@ -6249,6 +6249,12 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
                     delete n;
                     delete []l;
+                }
+                else
+                {
+                    setCurrentOutCode(MCMD_NOTFOUND);
+                    LOG_err << "Path not found: " << pathToServe;
+                    return;
                 }
             }
         }

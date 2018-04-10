@@ -57,7 +57,7 @@
 
 typedef char *completionfunction_t PARAMS((const char *, int));
 
-#define SSTR( x ) static_cast< std::ostringstream & >( \
+#define SSTR( x ) static_cast< const std::ostringstream & >( \
         ( std::ostringstream() << std::dec << x ) ).str()
 
 
@@ -2270,7 +2270,7 @@ string getHelpStr(const char *command)
     return os.str();
 }
 
-#define SSTR( x ) static_cast< std::ostringstream & >( \
+#define SSTR( x ) static_cast< const std::ostringstream & >( \
         ( std::ostringstream() << std::dec << x ) ).str()
 
 void printAvailableCommands(int extensive = 0)
@@ -3259,7 +3259,7 @@ int main(int argc, char* argv[])
 
     if (fd >= 0)
     {
-        api = new MegaApi("BdARkQSQ", (MegaGfxProcessor*)NULL, ConfigurationManager::getConfigFolder().c_str(), userAgent, fd);
+        api = new MegaApi("BdARkQSQ", ConfigurationManager::getConfigFolder().c_str(), userAgent, fd);
     }
     else
     {
