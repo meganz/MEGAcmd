@@ -1,3 +1,16 @@
+megacmd (0.9.9) stable; urgency=low
+
+  * Webdav: Serve a MEGA location as a WEBDAV server.
+  * Streaming: Webdav command can also be used for HTTP(S) streaming.
+  * Added thumbnails for video files.
+  * Listing -l now list unix-like columned summary (extended info is now -a)
+  * du & ls -v is now --versions
+  * Fixed --mtime restrictions in find
+  * Added support for compiling in NAS systems
+  * Minor fixes & adjustements
+
+ -- MEGA Team <linux@mega.co.nz>  Tue, 27 Mar 2018 18:37:30 +0200
+
 megacmd (0.9.8) stable; urgency=low
 
   * Backups: added the possibility to configure periodic backups

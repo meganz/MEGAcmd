@@ -8,7 +8,7 @@
 #define MEGACMD_MINOR_VERSION 9
 #endif
 #ifndef MEGACMD_MICRO_VERSION
-#define MEGACMD_MICRO_VERSION 8
+#define MEGACMD_MICRO_VERSION 9
 #endif
 
 #ifndef MEGACMD_CODE_VERSION
@@ -16,14 +16,14 @@
 #endif
 
 const char * const megacmdchangelog =
-        "Backups: added the possibility to configure periodic backups""\n"
-        "Full version support: listing, see space ocupied, accessing, copying, removing, ...""\n"
-        "Added \"deleteversions\" command to remove versions (all or by path)""\n"
-        "Permissions: you can change default permission for files and folders""\n"
-        "Persistence of settings: speedlimit, permissions, https""\n"
-        "Speedlimit takes units and allows human-readable output""\n"
-        "Support for video metadata""\n"
-        "Minor fixes and doc improvements"
+        "Webdav: Serve a MEGA location as a WEBDAV server.""\n"
+        "Streaming: Webdav command can also be used for HTTP(S) streaming.""\n"
+        "Added thumbnails for video files.""\n"
+        "Listing -l now list unix-like columned summary (extended info is now -a)""\n"
+        "du & ls -v is now --versions""\n"
+        "Fixed --mtime restrictions in find""\n"
+        "Added support for compiling in NAS systems""\n"
+        "Minor fixes & adjustements"
         ;
 
 

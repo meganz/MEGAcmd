@@ -34,6 +34,8 @@ private:
     MegaCmdSandbox *sandboxCMD;
     MegaCmdGlobalTransferListener *globalTransferListener;
     mega::MegaMutex mtxSyncMap;
+    mega::MegaMutex mtxWebDavLocations;
+
 #ifdef ENABLE_BACKUPS
     mega::MegaMutex mtxBackupsMap;
 #endif
@@ -82,6 +84,9 @@ public:
 
     void dumpNode(mega::MegaNode* n, int extended_info, bool showversions = false, int depth = 0, const char* title = NULL);
     void dumptree(mega::MegaNode* n, int recurse, int extended_info, bool showversions = false, int depth = 0, std::string pathRelativeTo = "NULL");
+    void dumpNodeSummaryHeader();
+    void dumpNodeSummary(mega::MegaNode* n, bool humanreadable = false, const char* title = NULL);
+    void dumpTreeSummary(mega::MegaNode* n, int recurse, bool show_versions, int depth = 0, bool humanreadable = false, std::string pathRelativeTo = "NULL");
     mega::MegaContactRequest * getPcrByContact(std::string contactEmail);
     bool TestCanWriteOnContainingFolder(std::string *path);
     std::string getDisplayPath(std::string givenPath, mega::MegaNode* n);
@@ -160,7 +165,7 @@ public:
     void move(mega::MegaNode *n, std::string destiny);
     std::string getLPWD();
     bool isValidFolder(std::string destiny);
-    bool stablishBackup(std::string local, mega::MegaNode *n, int64_t period, std::string periodstring, int numBackups);
+    bool establishBackup(std::string local, mega::MegaNode *n, int64_t period, std::string periodstring, int numBackups);
 };
 
 #endif // MEGACMDEXECUTER_H

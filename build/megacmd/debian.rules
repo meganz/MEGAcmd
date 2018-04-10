@@ -1,4 +1,5 @@
 #!/usr/bin/make -f
+CPPFLAGS := $(shell cat /etc/issue | grep "Ubuntu 1[234]\|Debian.* 7" >/dev/null && echo "$$CPPFLAGS -DMEGACMD_DEPRECATED_OS" || echo "")
 FMEDIAINFO := $(shell dpkg -l | grep mediainfo >/dev/null && echo "-i" || echo " ")
 WMEDIAINFO := $(shell dpkg -l | grep mediainfo >/dev/null && echo " " || echo "--with-libmediainfo=$(CURDIR)/deps --with-libzen=$(CURDIR)/deps")
 build: build-stamp
@@ -8,10 +9,10 @@ build-stamp:
 	#build dependencies into folder deps
 	mkdir deps || :
 	bash -x ./sdk/contrib/build_sdk.sh -o archives \
-	  -g -b $(FMEDIAINFO) -l -c -s -u -a -z -p deps/
+	  -g -b $(FMEDIAINFO) -l -c -s -u -v -a -z -p deps/
 
-	./configure --disable-shared --enable-static --disable-silent-rules \
-	  --disable-curl-checks --with-sodium=$(CURDIR)/deps --with-pcre \
+	CPPFLAGS="$(CPPFLAGS)" ./configure --disable-shared --enable-static --disable-silent-rules \
+	  --disable-curl-checks --with-sodium=$(CURDIR)/deps --with-libuv=$(CURDIR)/deps --with-pcre \
 	  --with-curl=$(CURDIR)/deps --with-freeimage=$(CURDIR)/deps --with-readline=$(CURDIR)/deps \
 	  --with-termcap=$(CURDIR)/deps --prefix=$(CURDIR)/deps --disable-examples $(WMEDIAINFO)
 

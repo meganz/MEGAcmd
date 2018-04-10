@@ -574,7 +574,7 @@ const char *fillStructWithSYYmdHMS(string &stime, struct tm &dt)
 
 void fillLocalTimeStruct(const time_t *ttime, struct tm *dt) //TODO: copy this to megaapiimpl
 {
-#if (__cplusplus >= 201103L) && defined(__STDC_WANT_LIB_EXT1__)
+#if (__cplusplus >= 201103L) && defined (__STDC_LIB_EXT1__) && defined(__STDC_WANT_LIB_EXT1__)
     localtime_s(ttime, dt);
 #elif _MSC_VER >= 1400 // MSVCRT (2005+): std::localtime is threadsafe
     struct tm *newtm = localtime(ttime);
@@ -630,7 +630,7 @@ std::string getReadableShortTime(const time_t rawtime, bool showUTCDeviation)
         fillLocalTimeStruct(&rawtime, &dt);
         if (showUTCDeviation)
         {
-            strftime(buffer, sizeof( buffer ), "%d%b%Y %T %z", &dt); // Following RFC 2822 (as in date -R)
+            strftime(buffer, sizeof( buffer ), "%d%b%Y %T %z", &dt);
         }
         else
         {

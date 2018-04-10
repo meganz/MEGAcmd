@@ -21,10 +21,10 @@ VIAddVersionKey "LegalCopyright" "MEGA Limited 2017"
 VIAddVersionKey "ProductName" "MEGAcmd"
 
 ; Version info
-VIProductVersion "0.9.8.0"
-VIAddVersionKey "FileVersion" "0.9.8.0"
-VIAddVersionKey "ProductVersion" "0.9.8.0"
-!define PRODUCT_VERSION "0.9.8"
+VIProductVersion "0.9.9.0"
+VIAddVersionKey "FileVersion" "0.9.9.0"
+VIAddVersionKey "ProductVersion" "0.9.9.0"
+!define PRODUCT_VERSION "0.9.9"
 
 !define PRODUCT_PUBLISHER "Mega Limited"
 !define PRODUCT_WEB_SITE "http://www.mega.nz"
@@ -475,6 +475,26 @@ modeselected:
   AccessControl::SetFileOwner "$INSTDIR\FreeImage.dll" "$USERNAME"
   AccessControl::GrantOnFile "$INSTDIR\FreeImage.dll" "$USERNAME" "GenericRead + GenericWrite"
 
+  File "${SRCDIR_MEGACMD}\avcodec-57.dll"
+  AccessControl::SetFileOwner "$INSTDIR\avcodec-57.dll" "$USERNAME"
+  AccessControl::GrantOnFile "$INSTDIR\avcodec-57.dll" "$USERNAME" "GenericRead + GenericWrite"
+
+  File "${SRCDIR_MEGACMD}\avformat-57.dll"
+  AccessControl::SetFileOwner "$INSTDIR\avformat-57.dll" "$USERNAME"
+  AccessControl::GrantOnFile "$INSTDIR\avformat-57.dll" "$USERNAME" "GenericRead + GenericWrite"
+
+  File "${SRCDIR_MEGACMD}\avutil-55.dll"
+  AccessControl::SetFileOwner "$INSTDIR\avutil-55.dll" "$USERNAME"
+  AccessControl::GrantOnFile "$INSTDIR\avutil-55.dll" "$USERNAME" "GenericRead + GenericWrite"
+
+  File "${SRCDIR_MEGACMD}\swresample-2.dll"
+  AccessControl::SetFileOwner "$INSTDIR\swresample-2.dll" "$USERNAME"
+  AccessControl::GrantOnFile "$INSTDIR\swresample-2.dll" "$USERNAME" "GenericRead + GenericWrite"
+
+  File "${SRCDIR_MEGACMD}\swscale-4.dll"
+  AccessControl::SetFileOwner "$INSTDIR\swscale-4.dll" "$USERNAME"
+  AccessControl::GrantOnFile "$INSTDIR\swscale-4.dll" "$USERNAME" "GenericRead + GenericWrite"
+
 ; BAT files
 
   File "${SRCDIR_BATFILES}\mega-attr.bat"
@@ -520,7 +540,11 @@ modeselected:
   File "${SRCDIR_BATFILES}\mega-https.bat"
   AccessControl::SetFileOwner "$INSTDIR\mega-https.bat" "$USERNAME"
   AccessControl::GrantOnFile "$INSTDIR\mega-https.bat" "$USERNAME" "GenericRead + GenericWrite"
-  
+
+  File "${SRCDIR_BATFILES}\mega-webdav.bat"
+  AccessControl::SetFileOwner "$INSTDIR\mega-webdav.bat" "$USERNAME"
+  AccessControl::GrantOnFile "$INSTDIR\mega-webdav.bat" "$USERNAME" "GenericRead + GenericWrite"
+
   File "${SRCDIR_BATFILES}\mega-deleteversions.bat"
   AccessControl::SetFileOwner "$INSTDIR\mega-deleteversions.bat" "$USERNAME"
   AccessControl::GrantOnFile "$INSTDIR\mega-deleteversions.bat" "$USERNAME" "GenericRead + GenericWrite"
@@ -801,7 +825,12 @@ Section Uninstall
   Delete "$INSTDIR\cares.dll"
   Delete "$INSTDIR\libsodium.dll"
   Delete "$INSTDIR\FreeImage.dll"
-  
+  Delete "$INSTDIR\avcodec-57.dll"
+  Delete "$INSTDIR\avformat-57.dll"
+  Delete "$INSTDIR\avutil-55.dll"
+  Delete "$INSTDIR\swresample-2.dll"
+  Delete "$INSTDIR\swscale-4.dll"
+
   ; BAT files
   Delete "$INSTDIR\mega-attr.bat"
   Delete "$INSTDIR\mega-cd.bat"
@@ -815,6 +844,7 @@ Section Uninstall
   Delete "$INSTDIR\mega-help.bat"
   Delete "$INSTDIR\mega-history.bat"
   Delete "$INSTDIR\mega-https.bat"
+  Delete "$INSTDIR\mega-webdav.bat"
   Delete "$INSTDIR\mega-deleteversions.bat"
   Delete "$INSTDIR\mega-transfers.bat"
   Delete "$INSTDIR\mega-import.bat"

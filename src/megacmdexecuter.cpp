@@ -39,7 +39,7 @@ using namespace mega;
 static const char* rootnodenames[] = { "ROOT", "INBOX", "RUBBISH" };
 static const char* rootnodepaths[] = { "/", "//in", "//bin" };
 
-#define SSTR( x ) static_cast< std::ostringstream & >( \
+#define SSTR( x ) static_cast< const std::ostringstream & >( \
         ( std::ostringstream() << std::dec << x ) ).str()
 
 /**
@@ -107,6 +107,7 @@ MegaCmdExecuter::MegaCmdExecuter(MegaApi *api, MegaCMDLogger *loggerCMD, MegaCmd
     cwd = UNDEF;
     fsAccessCMD = new MegaFileSystemAccess();
     mtxSyncMap.init(false);
+    mtxWebDavLocations.init(false);
 #ifdef ENABLE_BACKUPS
     mtxBackupsMap.init(true);
 #endif
@@ -1581,6 +1582,136 @@ void MegaCmdExecuter::dumpNode(MegaNode* n, int extended_info, bool showversions
         }
     }
 }
+
+void MegaCmdExecuter::dumpNodeSummaryHeader()
+{
+    OUTSTREAM << "FLAGS";
+    OUTSTREAM << " ";
+    OUTSTREAM << getFixLengthString("VERS", 4);
+    OUTSTREAM << " ";
+    OUTSTREAM << getFixLengthString("SIZE  ", 10 -1, ' ', true); //-1 because of "FLAGS"
+    OUTSTREAM << " ";
+    OUTSTREAM << getFixLengthString("DATE      ", 18, ' ', true);
+    OUTSTREAM << " ";
+    OUTSTREAM << "NAME";
+    OUTSTREAM << endl;
+}
+
+void MegaCmdExecuter::dumpNodeSummary(MegaNode *n, bool humanreadable, const char *title)
+{
+    if (!title && !( title = n->getName()))
+    {
+        title = "CRYPTO_ERROR";
+    }
+
+    switch (n->getType())
+    {
+    case MegaNode::TYPE_FILE:
+        OUTSTREAM << "-";
+        break;
+    case MegaNode::TYPE_FOLDER:
+        OUTSTREAM << "d";
+        break;
+    case MegaNode::TYPE_ROOT:
+        OUTSTREAM << "r";
+        break;
+    case MegaNode::TYPE_INCOMING:
+        OUTSTREAM << "i";
+        break;
+    case MegaNode::TYPE_RUBBISH:
+        OUTSTREAM << "b";
+        break;
+    default:
+        OUTSTREAM << "x";
+        break;
+    }
+
+    if (UNDEF != n->getPublicHandle())
+    {
+        OUTSTREAM << "e";
+        if (n->getExpirationTime())
+        {
+            OUTSTREAM << "t";
+        }
+        else
+        {
+            OUTSTREAM << "p";
+        }
+    }
+    else
+    {
+        OUTSTREAM << "--";
+    }
+
+    if (n->isShared())
+    {
+        OUTSTREAM << "s";
+    }
+    else if (n->isInShare())
+    {
+        OUTSTREAM << "i";
+    }
+    else
+    {
+        OUTSTREAM << "-";
+    }
+
+    OUTSTREAM << " ";
+
+    if (n->isFile())
+    {
+        MegaNodeList *versionNodes = api->getVersions(n);
+        int nversions = versionNodes ? versionNodes->size() : 0;
+        if (nversions > 999)
+        {
+            OUTSTREAM << getFixLengthString(">999", 4, ' ', true);
+        }
+        else
+        {
+            OUTSTREAM << getFixLengthString(SSTR(nversions), 4, ' ', true);
+        }
+
+        delete versionNodes;
+    }
+    else
+    {
+        OUTSTREAM << getFixLengthString("-", 4, ' ', true);
+    }
+
+    OUTSTREAM << " ";
+
+    if (n->isFile())
+    {
+        if (humanreadable)
+        {
+            OUTSTREAM << getFixLengthString(sizeToText(n->getSize()), 10, ' ', true);
+        }
+        else
+        {
+            OUTSTREAM << getFixLengthString(SSTR(n->getSize()), 10, ' ', true);
+        }
+    }
+    else
+    {
+        OUTSTREAM << getFixLengthString("-", 10, ' ', true);
+    }
+
+    if (n->isFile())
+    {
+        OUTSTREAM << " " << getReadableShortTime(n->getModificationTime());
+    }
+    else
+    {
+        OUTSTREAM << " " << getReadableShortTime(n->getCreationTime());
+    }
+
+
+    OUTSTREAM << " " << title;
+    OUTSTREAM << endl;
+}
+
+
+
 #ifdef ENABLE_BACKUPS
 
 void MegaCmdExecuter::createOrModifyBackup(string local, string remote, string speriod, int numBackups)
@@ -1652,7 +1783,7 @@ void MegaCmdExecuter::createOrModifyBackup(string local, string remote, string s
     MegaNode *n = NULL;
     if (remote.size())
     {
-        n = api->getNodeByPath(remote.c_str());
+        n = nodebypath(remote.c_str());
     }
     else
     {
@@ -1677,12 +1808,12 @@ void MegaCmdExecuter::createOrModifyBackup(string local, string remote, string s
         }
         else
         {
-            if (stablishBackup(local, n, period, speriod, numBackups) )
+            if (establishBackup(local, n, period, speriod, numBackups) )
             {
                 mtxBackupsMap.lock();
                 ConfigurationManager::saveBackups(&ConfigurationManager::configuredBackups);
                 mtxBackupsMap.unlock();
-                OUTSTREAM << "Backup stablished: " << local << " into " << remote << " period="
+                OUTSTREAM << "Backup established: " << local << " into " << remote << " period="
                           << ((period != -1)?getReadablePeriod(period/10):"\""+speriod+"\"")
                           << " Number-of-Backups=" << numBackups << endl;
             }
@@ -1759,6 +1890,115 @@ void MegaCmdExecuter::dumptree(MegaNode* n, int recurse, int extended_info, bool
             delete children;
         }
     }
+}
+
+void MegaCmdExecuter::dumpTreeSummary(MegaNode *n, int recurse, bool show_versions, int depth, bool humanreadable, string pathRelativeTo)
+{
+    char * nodepath = api->getNodePath(n);
+
+    string scryptoerror = "CRYPTO_ERROR";
+
+    char *pathToShow = NULL;
+    if (pathRelativeTo != "")
+    {
+        pathToShow = strstr(nodepath, pathRelativeTo.c_str());
+    }
+
+    if (pathToShow == nodepath) //found at beginning
+    {
+        pathToShow += pathRelativeTo.size();
+        if (( *pathToShow == '/' ) && ( pathRelativeTo != "/" ))
+        {
+            pathToShow++;
+        }
+    }
+    else
+    {
+        pathToShow = nodepath;
+    }
+
+    if (!pathToShow && !( pathToShow = (char *)n->getName()))
+    {
+        pathToShow = (char *)scryptoerror.c_str();
+    }
+
+    if (n->getType() != MegaNode::TYPE_FILE)
+    {
+        MegaNodeList* children = api->getChildren(n);
+        if (children)
+        {
+            if (depth)
+            {
+                OUTSTREAM << endl;
+            }
+
+            if (recurse)
+            {
+                OUTSTREAM << pathToShow << ":" << endl;
+            }
+
+            for (int i = 0; i < children->size(); i++)
+            {
+                dumpNodeSummary(children->get(i), humanreadable);
+            }
+
+            if (show_versions)
+            {
+                for (int i = 0; i < children->size(); i++)
+                {
+                    MegaNode *c = children->get(i);
+
+                    MegaNodeList *vers = api->getVersions(c);
+                    if (vers &&  vers->size() > 1)
+                    {
+                        OUTSTREAM << endl << "Versions of " << pathToShow << "/" << c->getName() << ":" << endl;
+
+                        for (int i = 0; i < vers->size(); i++)
+                        {
+                            dumpNodeSummary(vers->get(i), humanreadable);
+                        }
+                    }
+                    delete vers;
+                }
+            }
+
+            if (recurse)
+            {
+                for (int i = 0; i < children->size(); i++)
+                {
+                    MegaNode *c = children->get(i);
+                    dumpTreeSummary(c, recurse, show_versions, depth + 1, humanreadable);
+                }
+            }
+            delete children;
+        }
+    }
+    else // file
+    {
+        if (!depth)
+        {
+
+            dumpNodeSummary(n, humanreadable);
+
+            if (show_versions)
+            {
+                MegaNodeList *vers = api->getVersions(n);
+                if (vers &&  vers->size() > 1)
+                {
+                    OUTSTREAM << endl << "Versions of " << pathToShow << ":" << endl;
+
+                    for (int i = 0; i < vers->size(); i++)
+                    {
+                        string nametoshow = n->getName()+string("#")+SSTR(vers->get(i)->getModificationTime());
+                        dumpNodeSummary(vers->get(i), humanreadable, nametoshow.c_str() );
+                    }
+                }
+                delete vers;
+            }
+        }
+
+    }
+    delete []nodepath;
 }
 
 
@@ -2385,7 +2625,7 @@ void MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
                 backup_struct *thebackup = itr->second;
 
                 MegaNode * node = api->getNodeByHandle(thebackup->handle);
-                if (stablishBackup(thebackup->localpath, node, thebackup->period, thebackup->speriod, thebackup->numBackups))
+                if (establishBackup(thebackup->localpath, node, thebackup->period, thebackup->speriod, thebackup->numBackups))
                 {
                     thebackup->failed = false;
                     const char *nodepath = api->getNodePath(node);
@@ -2406,6 +2646,50 @@ void MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
             ConfigurationManager::saveBackups(&ConfigurationManager::configuredBackups);
         }
         mtxBackupsMap.unlock();
+#endif
+
+#ifdef HAVE_LIBUV
+        // restart webdav
+        int port = ConfigurationManager::getConfigurationValue("webdav_port", -1);
+        if (port != -1)
+        {
+            bool localonly = ConfigurationManager::getConfigurationValue("webdav_localonly", -1);
+            bool tls = ConfigurationManager::getConfigurationValue("webdav_tls", false);
+            string pathtocert, pathtokey;
+            pathtocert = ConfigurationManager::getConfigurationSValue("webdav_cert");
+            pathtokey = ConfigurationManager::getConfigurationSValue("webdav_key");
+
+            api->httpServerEnableFolderServer(true);
+            if (api->httpServerStart(localonly, port, tls, pathtocert.c_str(), pathtokey.c_str()))
+            {
+                list<string> servedpaths = ConfigurationManager::getConfigurationValueList<string>("webdav_served_locations");
+
+                for ( std::list<string>::iterator it = servedpaths.begin(); it != servedpaths.end(); ++it){
+                    string pathToServe = *it;
+                    if (pathToServe.size())
+                    {
+                        MegaNode *n = nodebypath(pathToServe.c_str());
+                        if (n)
+                        {
+                            char *l = api->httpServerGetLocalWebDavLink(n);
+                            LOG_debug << "Serving via webdav: " << pathToServe << ": " << l;
+                            delete []l;
+                            delete n;
+                        }
+                        else
+                        {
+                            LOG_warn << "Could no find location to server via webdav: " << pathToServe;
+                        }
+                    }
+                }
+
+                LOG_info << "Webdav server restored due to saved configuration";
+            }
+            else
+            {
+                LOG_err << "Failed to initialize WEBDAV server";
+            }
+        }
 #endif
     }
 
@@ -3625,7 +3909,7 @@ void MegaCmdExecuter::printBackupHistory(MegaBackup *backup, MegaNode *parentnod
             long long nfolders = 0;
             if (parentnode)
             {
-                MegaNode *backupInstanceNode = api->getNodeByPath(msl->get(i));
+                MegaNode *backupInstanceNode = nodebypath(msl->get(i));
                 if (backupInstanceNode)
                 {
                     backupInstanceStatus = backupInstanceNode->getCustomAttr("BACKST");
@@ -4058,7 +4342,7 @@ void MegaCmdExecuter::restartsyncs()
 }
 
 #ifdef ENABLE_BACKUPS
-bool MegaCmdExecuter::stablishBackup(string pathToBackup, MegaNode *n, int64_t period, string speriod,  int numBackups)
+bool MegaCmdExecuter::establishBackup(string pathToBackup, MegaNode *n, int64_t period, string speriod,  int numBackups)
 {
     bool attendpastbackups = true; //TODO: receive as parameter
     static int backupcounter = 0;
@@ -4070,9 +4354,9 @@ bool MegaCmdExecuter::stablishBackup(string pathToBackup, MegaNode *n, int64_t p
     fsAccessCMD->local2path(&localabsolutepath, &path);
 
     MegaCmdListener *megaCmdListener = new MegaCmdListener(api, NULL);
-    api->setBackup(path.c_str(), n, attendpastbackups, period, speriod, numBackups, megaCmdListener);
+    api->setBackup(path.c_str(), n, attendpastbackups, period, speriod.c_str(), numBackups, megaCmdListener);
     megaCmdListener->wait();
-    if (checkNoErrors(megaCmdListener->getError(), "stablish backup"))
+    if (checkNoErrors(megaCmdListener->getError(), "establish backup"))
     {
         mtxBackupsMap.lock();
 
@@ -4160,8 +4444,11 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             return;
         }
         int recursive = getFlag(clflags, "R") + getFlag(clflags, "r");
-        int extended_info = getFlag(clflags, "l");
-        int show_versions = getFlag(clflags, "v");
+        int extended_info = getFlag(clflags, "a");
+        int show_versions = getFlag(clflags, "versions");
+        bool summary = getFlag(clflags, "l");
+        bool firstprint = true;
+        bool humanreadable = getFlag(clflags, "h");
 
         if ((int)words.size() > 1)
         {
@@ -4199,7 +4486,19 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                                 {
                                     OUTSTREAM << nodepath << ": " << endl;
                                 }
-                                dumptree(n, recursive, extended_info, show_versions, 0, rNpath);
+                                if (summary)
+                                {
+                                    if (firstprint)
+                                    {
+                                        dumpNodeSummaryHeader();
+                                        firstprint = false;
+                                    }
+                                    dumpTreeSummary(n, recursive, show_versions, 0, humanreadable, rNpath);
+                                }
+                                else
+                                {
+                                    dumptree(n, recursive, extended_info, show_versions, 0, rNpath);
+                                }
                                 if (( !n->getType() == MegaNode::TYPE_FILE ) && (( it + 1 ) != pathsToList->end()))
                                 {
                                     OUTSTREAM << endl;
@@ -4232,7 +4531,19 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 n = nodebypath(words[1].c_str());
                 if (n)
                 {
-                    dumptree(n, recursive, extended_info, show_versions, 0, rNpath);
+                    if (summary)
+                    {
+                        if (firstprint)
+                        {
+                            dumpNodeSummaryHeader();
+                            firstprint = false;
+                        }
+                        dumpTreeSummary(n, recursive, show_versions, 0, humanreadable, rNpath);
+                    }
+                    else
+                    {
+                        dumptree(n, recursive, extended_info, show_versions, 0, rNpath);
+                    }
                     delete n;
                 }
                 else
@@ -4247,7 +4558,19 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             n = api->getNodeByHandle(cwd);
             if (n)
             {
-                dumptree(n, recursive, extended_info, show_versions);
+                if (summary)
+                {
+                    if (firstprint)
+                    {
+                        dumpNodeSummaryHeader();
+                        firstprint = false;
+                    }
+                    dumpTreeSummary(n, recursive, show_versions, 0, humanreadable);
+                }
+                else
+                {
+                    dumptree(n, recursive, extended_info, show_versions);
+                }
                 delete n;
             }
         }
@@ -4712,7 +5035,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         }
 
         bool humanreadable = getFlag(clflags, "h");
-        bool show_versions_size = getFlag(clflags, "v");
+        bool show_versions_size = getFlag(clflags, "versions");
         bool firstone = true;
 
         for (unsigned int i = 1; i < words.size(); i++)
@@ -4998,6 +5321,12 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             }
             else //remote file
             {
+                if (!api->isFilesystemAvailable())
+                {
+                    setCurrentOutCode(MCMD_NOTLOGGEDIN);
+                    LOG_err << "Not logged in.";
+                    return;
+                }
                 unescapeifRequired(words[1]);
 
                 if (isRegExp(words[1]))
@@ -5760,6 +6089,177 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             }
         }
     }
+#ifdef HAVE_LIBUV
+    else if (words[0] == "webdav")
+    {
+        bool remove = getFlag(clflags, "d");
+
+        if (words.size() > 2 || (words.size() == 1 && remove) )
+        {
+            setCurrentOutCode(MCMD_EARGS);
+            LOG_err << "      " << getUsageStr("webdav");
+            return;
+        }
+
+        if (words.size() == 1)
+        {
+            //List served nodes
+            MegaNodeList *webdavnodes = api->httpServerGetWebDavAllowedNodes();
+            if (webdavnodes)
+            {
+                bool found = false;
+
+                for (int a = 0; a < webdavnodes->size(); a++)
+                {
+                    MegaNode *n= webdavnodes->get(a);
+                    if (n)
+                    {
+                        char *link = api->httpServerGetLocalWebDavLink(n); //notice this is not only consulting but also creating,
+                        //had it been deleted in the meantime this will recreate it
+                        if (link)
+                        {
+                            if (!found)
+                            {
+                                OUTSTREAM << "WEBDAV SERVED LOCATIONS:" << endl;
+                            }
+                            found = true;
+                            char * nodepath = api->getNodePath(n);
+                            OUTSTREAM << nodepath << ": " << link << endl;
+                            delete []nodepath;
+                            delete []link;
+                        }
+                    }
+                }
+
+                if(!found)
+                {
+                    OUTSTREAM << "No webdav links found" << endl;
+                }
+
+                delete webdavnodes;
+
+           }
+           else
+           {
+               OUTSTREAM << "Webdav server might not running. Add a new location to serve." << endl;
+           }
+
+           return;
+        }
+
+        if (!remove)
+        {
+            //create new link:
+            bool tls = getFlag(clflags, "tls");
+            int port = getintOption(cloptions, "port", 4443);
+            bool localonly = !getFlag(clflags, "public");
+
+            string pathtocert = getOption(cloptions, "certificate", "");
+            string pathtokey = getOption(cloptions, "key", "");
+
+            bool serverstarted = api->httpServerIsRunning();
+            if (!serverstarted)
+            {
+                LOG_info << "Starting http server";
+                api->httpServerEnableFolderServer(true);
+    //            api->httpServerEnableOfflineAttribute(true); //TODO: we might want to offer this as parameter
+                if (api->httpServerStart(localonly, port, tls, pathtocert.c_str(), pathtokey.c_str()))
+                {
+                    ConfigurationManager::savePropertyValue("webdav_port", port);
+                    ConfigurationManager::savePropertyValue("webdav_localonly", localonly);
+                    ConfigurationManager::savePropertyValue("webdav_tls", tls);
+                    if (pathtocert.size())
+                    {
+                        ConfigurationManager::savePropertyValue("webdav_cert", pathtocert);
+                    }
+                    if (pathtokey.size())
+                    {
+                        ConfigurationManager::savePropertyValue("webdav_key", pathtokey);
+                    }
+                }
+                else
+                {
+                    setCurrentOutCode(MCMD_EARGS);
+                    LOG_err << "Failed to initialize WEBDAV server";
+                    return;
+                }
+            }
+        }
+
+        //add/remove
+        for (unsigned int i = 1; i < words.size(); i++)
+        {
+            string pathToServe = words[i];
+
+            if (remove)
+            {
+                MegaNode *n = nodebypath(pathToServe.c_str());
+                if (n)
+                {
+                    api->httpServerRemoveWebDavAllowedNode(n->getHandle());
+
+                    mtxWebDavLocations.lock();
+                    list<string> servedpaths = ConfigurationManager::getConfigurationValueList<string>("webdav_served_locations");
+                    size_t sizeprior = servedpaths.size();
+                    servedpaths.remove(pathToServe);
+                    size_t sizeafter = servedpaths.size();
+                    if (!sizeafter)
+                    {
+                        api->httpServerStop();
+                        ConfigurationManager::savePropertyValue("webdav_port", -1); //so as not to load server on startup
+                    }
+                    ConfigurationManager::savePropertyValueList("webdav_served_locations", servedpaths);
+                    mtxWebDavLocations.unlock();
+
+                    if (sizeprior != sizeafter)
+                    {
+                        OUTSTREAM << pathToServe << " no longer served via webdav" << endl;
+                    }
+                    else
+                    {
+                        setCurrentOutCode(MCMD_NOTFOUND);
+                        LOG_err << pathToServe << " is not served via webdav";
+                    }
+                    delete n;
+                }
+                else
+                {
+                    setCurrentOutCode(MCMD_NOTFOUND);
+                    LOG_err << "Path not found: " << pathToServe;
+                    return;
+                }
+            }
+            else //add
+            {
+
+                MegaNode *n = nodebypath(pathToServe.c_str());
+                if (n)
+                {
+                    char *l = api->httpServerGetLocalWebDavLink(n);
+                    OUTSTREAM << "Serving via webdav " << pathToServe << ": " << l << endl;
+
+                    mtxWebDavLocations.lock();
+                    list<string> servedpaths = ConfigurationManager::getConfigurationValueList<string>("webdav_served_locations");
+                    servedpaths.push_back(pathToServe);
+                    servedpaths.sort();
+                    servedpaths.unique();
+                    ConfigurationManager::savePropertyValueList("webdav_served_locations", servedpaths);
+                    mtxWebDavLocations.unlock();
+
+
+                    delete n;
+                    delete []l;
+                }
+                else
+                {
+                    setCurrentOutCode(MCMD_NOTFOUND);
+                    LOG_err << "Path not found: " << pathToServe;
+                    return;
+                }
+            }
+        }
+    }
+#endif
 #ifdef ENABLE_SYNC
     else if (words[0] == "exclude")
     {
