@@ -23,7 +23,7 @@ webdav /path/to/myfile.mp4
 
 You will receive an URL that you can use in your favourite video player.
 
-##Issues
+## Issues
 We have detected some issues with different software, when trying to save a file into a webdav served locations. Typically with software that creates temporary files. 
 We will keep on trying to circumvent those. 
 
