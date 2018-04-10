@@ -21,7 +21,7 @@ Backups will be stored as:
 
 ## Listing 
 
-You can list the backups configured Typing `backup`:
+You can list the backups configured typing `backup`:
 
 ```
 TAG   LOCALPATH                 REMOTEPARENTPATH                  STATUS

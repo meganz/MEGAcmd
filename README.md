@@ -2,7 +2,8 @@
 
 MEGAcmd provides non UI access to MEGA services. It intends to offer all the 
 functionality with your MEGA account via commands. It features **synchronization** 
-and **backup** of local folders into your MEGA account. See [`Usage Examples`](#usage-examples).
+, **backup** of local folders into your MEGA account and a **webdav/streaming** server. 
+See [`Usage Examples`](#usage-examples).
 
 Available packages for MEGAcmd in all supported platforms should be found 
 [here](https://mega.nz/cmd). 
@@ -116,6 +117,17 @@ backup /path/to/myfolder /remote/path --period="0 0 4 * * *" --num-backups=10
 This will configure a backup of "myfolder" into /remote/path that will be carried out
  at 4:00 A.M. (UTC) every day. It will store the last 10 copies. 
  Further info on backups [here](contrib/docs/BACKUPS.md). 
+ 
+* You serve a location via webdav:
+```
+webdav /path/to/myfolder
+```
+
+* Or stream a file in your MEGA account:
+```
+webdav /path/to/myfile.mp4
+```
+Further info on webdav and streaming [here](contrib/docs/WEBDAV.md). 
  
 * Download the contents of a shared link:
 ```
