@@ -27,7 +27,7 @@ You will receive an URL that you can use in your favourite video player.
 We have detected some issues with different software, when trying to save a file into a webdav served locations. Typically with software that creates temporary files. 
 We will keep on trying to circumvent those. 
 
-In Linux, using gvfsd-dav (Gnome's default webdav client), we have ocasionally seen problems trying to open text files that have already been modified using some graphic editors.
+In Linux, using gvfsd-dav (Gnome's default webdav client), we have occasionally seen problems trying to open text files that have already been modified using some graphic editors.
 This is due to that gvfsd-dav tries to retrieve a URL different to the actual URL of the files. Reading the files through the console works just fine. This has been detected in Ubuntu 16.04.
 
 In Windows XP, copying a file from a MEGA webdav location, and pasting in a local folder does nothing.
@@ -59,7 +59,7 @@ In that case, use the IP of your server to access to it.
 ## HTTPS
 
 Files in MEGA are encrypted, but you should bear in mind that the HTTP webdav server offers your files unencrypted. \
-If you wish to add authenticity to your webdav server and integrity & privacy of the data trasnfered to/from the clients, 
+If you wish to add authenticity to your webdav server and integrity & privacy of the data transfered to/from the clients, 
 you can secure it with [TLS](https://wikipedia.org/wiki/Transport_Layer_Security). 
 You just need to pass `--tls` and the paths* to your certificate and key files (in PEM format):
 
@@ -87,4 +87,45 @@ If successfully, it will show a message indicating that the path is no longer se
 
 ## Platforms
 
-We will include contents for this section soon
+All major platfors support accesing/mounting a webdav location. Here are some instructions to do that in Windows, Linux & Mac.
+
+### Windows
+
+This instructions refer to Windows 10, but they are similar in other windows.
+
+Open an Explorer window, and then do right click on "This PC", and then "Map network drive...".
+
+![webdavMenuWin.png](pics/webdavMenuWin.png?raw=true "webdavMenuWin.png")
+
+Then enter the URL MEGAcmd gave you
+
+![webdavConnectToServerWin.png](pics/webdavConnectToServerWin.png?raw=true "webdavConnectToServerWin.png")
+
+Then, you should see the new location in the navigation panel now.
+
+### Mac
+
+Open Find and in the Menu "Go", select "Connect to Server", or type **&#x2318; - k**:
+
+![webdavMenuMac.png](pics/webdavMenuMac.png?raw=true "webdavMenuMac.png")
+
+Then enter the URL MEGAcmd gave you
+
+![webdavConnectToServerMac.png](pics/webdavConnectToServerMac.png?raw=true "webdavConnectToServerMac.png")
+
+At the moment of writing this tutorial, there is no authentication mechanisms, 
+hence you don't need to worry about providing a user name/password. Just proceed if you are prompted with default options.
+You should see the new location in the navigation panel now.
+
+### Linux
+
+This instructions are for Nautilus, it should be similar using another file browser. 
+Click on File -> Connect to Server:
+
+![webdavMenuLinux.png](pics/webdavMenuLinux.png?raw=true "webdavMenuLinux.png")
+
+Then enter the URL MEGAcmd gave you
+
+![webdavConnectToServerLinux.png](pics/webdavConnectToServerLinux.png?raw=true "webdavConnectToServerLinux.png")
+
+You should see the new location in the navigation panel now.
