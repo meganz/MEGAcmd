@@ -202,7 +202,7 @@ Changes the current remote folder
 Usage: `cd [remotepath]`
 <pre>
 If no folder is provided, it will be changed to the root folder
-<pre>
+</pre>
 
 ### clear
 Clear screen
@@ -606,6 +606,7 @@ Forces a reload of the remote files of the user
 Usage: `reload`
 <pre>
 It will also resume synchronizations.
+</pre>
 
 ### rm
 Deletes a remote file/folder
