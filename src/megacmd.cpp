@@ -1590,10 +1590,10 @@ string getHelpStr(const char *command)
     os << "Usage: " << getUsageStr(command) << endl;
     if (!strcmp(command, "login"))
     {
-        os << "Logs into a mega" << endl;
+        os << "Logs into a MEGA account" << endl;
         os << " You can log in either with email and password, with session ID," << endl;
         os << " or into a folder (an exported/public folder)" << endl;
-        os << " If loging into a folder indicate url#key" << endl;
+        os << " If logging into a folder indicate url#key" << endl;
     }
     else if (!strcmp(command, "signup"))
     {
@@ -1638,7 +1638,7 @@ string getHelpStr(const char *command)
     }
     else if (!strcmp(command, "unicode"))
     {
-        os << "Toogle unicode input enabled/disabled in interactive shell" << endl;
+        os << "Toggle unicode input enabled/disabled in interactive shell" << endl;
         os << endl;
         os << " Unicode mode is experimental, you might experience" << endl;
         os << " some issues interacting with the console" << endl;
@@ -1823,7 +1823,7 @@ string getHelpStr(const char *command)
         os << "Moves file(s)/folder(s) into a new location (all remotes)" << endl;
         os << endl;
         os << "If the location exists and is a folder, the source will be moved there" << endl;
-        os << "If the location doesn't exits, the source will be renamed to the defined destiny" << endl;
+        os << "If the location doesn't exist, the source will be renamed to the destination name given" << endl;
 #ifdef USE_PCRE
         os << "Options:" << endl;
         os << " --use-pcre" << "\t" << "use PCRE expressions" << endl;
@@ -1834,7 +1834,7 @@ string getHelpStr(const char *command)
         os << "Moves a file/folder into a new location (all remotes)" << endl;
         os << endl;
         os << "If the location exists and is a folder, the source will be copied there" << endl;
-        os << "If the location doesn't exits, the file/folder will be renamed to the defined destiny" << endl;
+        os << "If the location doesn't exist, the file/folder will be renamed to the destination name given" << endl;
         os << endl;
         os << "If \"dstemail:\" provided, the file/folder will be sent to that user's inbox (//in)" << endl;
         os << " e.g: cp /path/to/file user@doma.in:" << endl;
@@ -1886,7 +1886,7 @@ string getHelpStr(const char *command)
 #endif
         os << endl;
         os << "To see versions of a file use \"ls --versions\"." << endl;
-        os << "To see space occupied by sessions use \"du\" with \"--versions\"." << endl;
+        os << "To see space occupied by file versions use \"du\" with \"--versions\"." << endl;
     }
 #ifdef HAVE_LIBUV
     else if (!strcmp(command, "webdav"))
@@ -1904,7 +1904,7 @@ string getHelpStr(const char *command)
         os << " --certificate=/path/to/certificate.pem" << "\t" << "*Path to PEM formated certificate" << endl;
         os << " --key=/path/to/certificate.key" << "\t" << "*Path to PEM formated key" << endl;
         os << endl;
-        os << "*If you serve more than one location, these parameters will be ignored and used those of the first location served." << endl;
+        os << "*If you serve more than one location, these parameters will be ignored and use those of the first location served." << endl;
         os << endl;
         os << "Caveat: This functionality is in BETA state. If you experience any issue with this, please contact: support@mega.nz" << endl;
         os << endl;
@@ -2074,7 +2074,7 @@ string getHelpStr(const char *command)
         os << "  the share will be in a pending state. You can list pending shares with" << endl;
         os << " \"share -p\". He would need to accept your invitation (see \"ipc\")" << endl;
         os << endl;
-        os << "If someone has shared somethin with you, it will be listed as a root folder" << endl;
+        os << "If someone has shared something with you, it will be listed as a root folder" << endl;
         os << " Use \"mount\" to list folders shared with you" << endl;
     }
     else if (!strcmp(command, "invite"))
@@ -2092,7 +2092,7 @@ string getHelpStr(const char *command)
     }
     if (!strcmp(command, "ipc"))
     {
-        os << "Manages contact incomming invitations." << endl;
+        os << "Manages contact incoming invitations." << endl;
         os << endl;
         os << "Options:" << endl;
         os << " -a" << "\t" << "Accepts invitation" << endl;
