@@ -1766,10 +1766,8 @@ string getHelpStr(const char *command)
         os << endl;
         os << "In case it is a file, the file will be downloaded at the specified folder " << endl;
         os << "                             (or at the current folder if none specified)." << endl;
-        os << "  If the localpath(destiny) already exists and is the same (same contents)" << endl;
+        os << "  If the localpath (destination) already exists and is the same (same contents)" << endl;
         os << "  nothing will be done. If differs, it will create a new file appending \" (NUM)\" " << endl;
-        os << "  if the localpath(destiny) is a folder with a file with the same name on it, " << endl;
-        os << "         it will preserve the, it will create a new file appending \" (NUM)\" " << endl;
         os << endl;
         os << "For folders, the entire contents (and the root folder itself) will be" << endl;
         os << "                    by default downloaded into the destination folder" << endl;
@@ -2143,7 +2141,7 @@ string getHelpStr(const char *command)
         os << "Displays/modifies upload/download rate limits" << endl;
         os << " NEWLIMIT establish the new limit in size per second (0 = no limit)" << endl;
         os << " NEWLIMIT may include (B)ytes, (K)ilobytes, (M)egabytes, (G)igabytes & (T)erabytes." << endl;
-        os << "  Examples: \"1m12k3B\" \"3M\". If no unit given, it'll use Bytes" << endl;
+        os << "  Examples: \"1m12k3B\" \"3M\". If no units are given, bytes are assumed" << endl;
         os << endl;
         os << "Options:" << endl;
         os << " -d" << "\t" << "Download speed limit" << endl;

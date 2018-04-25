@@ -16,10 +16,10 @@ Download it from the MEGA.nz website: https://mega.nz/cmd
 
 ### What can you do with it
 The major features are
-	* Move files around inside your MEGA account or between MEGA and your PC in a way similar to how you manage files in a Linux shell or Windows command prompt.
-	* Use those same commands in scripts to manage your files.
-	* Set up synchronization or a backup schedule between a folder on your machine, and a folder on your MEGA account.   (use the [`sync`](#sync) or [`backup`](#backup) commands)
-	* Set up WebDAV access to files in your MEGA account (use the [`webdav`](#webdav) command)
+* Move files around inside your MEGA account or between MEGA and your PC in a way similar to how you manage files in a Linux shell or Windows command prompt.
+* Use those same commands in scripts to manage your files.
+* Set up synchronization or a backup schedule between a folder on your machine, and a folder on your MEGA account.   (use the [`sync`](#sync) or [`backup`](#backup) commands)
+* Set up WebDAV access to files in your MEGA account (use the [`webdav`](#webdav) command)
 
 ## Terminology and Descriptions
 
@@ -33,7 +33,7 @@ This refers to a file or a folder stored in your MEGA account, or a publicly ava
 This refers to a file or folder on the PC or device that MEGAcmd is running in.
 
 ### Session
-When you log in with your email and MEGA account password, that creates a session.  The session exists until you log out of it or kill it.  In MEGAcmd, use `whoami -l` to see all your open sessions across all devices, and use `killsession` to close them.   You can use other client such as the phone app, or webclient to close these also.
+When you log in with your email and MEGA account password, that creates a session.  The session exists until you log out of it or kill it.  In MEGAcmd, use `whoami -l` to see all your open sessions across all devices, and use `killsession` to close them.   You can use other client such as the phone app, or webclient to close these also.   Devices that were using a killed session will have their connection to MEGA closed and will no longer have access to your account, until you log in on them again.
 
 ### Local Cache
 MEGAcmd holds some encrypted data on your device relating to your account, such as folder structure and contacts, for performance reasons.  The MEGAcmd background server keeps the local cache up to date when changes to your account occur from other clients.
@@ -122,8 +122,8 @@ Lists/updates node attributes
 Usage: `attr remotepath [-s attribute value|-d attribute]`
 <pre>
 Options:
-  -s attribute-value` \t sets an attribute to a value
-  -d attribute` \t removes the attribute
+  -s attribute value    sets an attribute to a value
+  -d attribute          removes the attribute
 </pre>
 
 ### backup
@@ -678,14 +678,14 @@ Usage: `speedlimit [-u|-d] [-h] [NEWLIMIT]`
 <pre>
 NEWLIMIT establish the new limit in size per second (0 = no limit)
 NEWLIMIT may include (B)ytes, (K)ilobytes, (M)egabytes, (G)igabytes & (T)erabytes.
-Examples: "1m12k3B" "3M". If no unit given, it'll use Bytes
+Examples: "1m12k3B" "3M". If no units are given, bytes are assumed.
 
 Options:
   -d     Download speed limit
   -u     Upload speed limit
   -h     Human readable
 
-Notice: this limit will be saved for the next time you execute MEGAcmd server. They will be removed if you logout.
+Notice: these limits are saved for the next time you execute MEGAcmd server.  They will be removed if you logout.
 </pre>
 
 ### sync
@@ -718,7 +718,7 @@ Options:
 </pre>
 
 ### transfers
-List or operate with queued transfers
+List or operate with queued transfers ([example](#transfers-example))
 
 Usage: `transfers [-c TAG|-a] | [-r TAG|-a]  | [-p TAG|-a] [--only-downloads | --only-uploads] [SHOWOPTIONS]`
 <pre>
@@ -785,7 +785,7 @@ Options:
 </pre>
 
 ### webdav
-Configures a WEBDAV server to serve a location in MEGA
+Configures a WEBDAV server to serve a location in MEGA  ([example](#webdav-example))
 
 Usage: `webdav [ [-d] remotepath [--port=PORT] [--public] [--tls --certificate=/path/to/certificate.pem --key=/path/to/certificate.key]]`
 <pre>
@@ -814,3 +814,56 @@ Options:
  -l     Show extended info: total storage used, storage per main folder
         (see mount), pro level, account balance, and also the active sessions
 </pre>
+
+
+## Examples
+
+### transfers example
+<pre>
+eg.email@example.co.nz:/tmp-test/Mega.dir$ transfers
+DIR/SYNC TAG  SOURCEPATH                         DESTINYPATH                              PROGRESS           STATE
+ U     17361 \\?\C:\Users\MAT...ebug\megaapi.obj /tmp-test/Mega.dir/Mega.dir/Debug    100.00% of 2016.62 KB  ACTIVE
+ U     17362 \\?\C:\Users\MAT...megaapi_impl.obj /tmp-test/Mega.dir/Mega.dir/Debug     13.64% of   13.85 MB  ACTIVE
+ U     17363 \\?\C:\Users\MAT...g\megaclient.obj /tmp-test/Mega.dir/Mega.dir/Debug      0.00% of   15.46 MB  QUEUED
+ U     17364 \\?\C:\Users\MAT..._http_parser.obj /tmp-test/Mega.dir/Mega.dir/Debug      0.00% of   85.15 KB  QUEUED
+ U     17365 \\?\C:\Users\MAT...ega_utf8proc.obj /tmp-test/Mega.dir/Mega.dir/Debug      0.00% of  312.44 KB  QUEUED
+ U     17366 \\?\C:\Users\MAT...\mega_zxcvbn.obj /tmp-test/Mega.dir/Mega.dir/Debug      0.00% of  589.88 KB  QUEUED
+ U     17367 \\?\C:\Users\MAT...ir\Debug\net.obj /tmp-test/Mega.dir/Mega.dir/Debug      0.00% of    3.20 MB  QUEUED
+ U     17368 \\?\C:\Users\MAT...r\Debug\node.obj /tmp-test/Mega.dir/Mega.dir/Debug      0.00% of    3.73 MB  QUEUED
+ U     17369 \\?\C:\Users\MAT...ntactrequest.obj /tmp-test/Mega.dir/Mega.dir/Debug      0.00% of  352.22 KB  QUEUED
+ U     17370 \\?\C:\Users\MAT...\Debug\proxy.obj /tmp-test/Mega.dir/Mega.dir/Debug      0.00% of  203.57 KB  QUEUED
+ ...  Showing first 10 transfers ...
+eg.email@example.co.nz:/tmp-test/Mega.dir$ transfers -p 17367
+Transfer 17367 paused successfully.
+eg.email@example.co.nz:/tmp-test/Mega.dir$ transfers -c 17370
+Transfer 17370 cancelled successfully.
+eg.email@example.co.nz:/tmp-test/Mega.dir$ transfers
+DIR/SYNC TAG  SOURCEPATH                         DESTINYPATH                              PROGRESS           STATE
+ U     17362 \\?\C:\Users\MAT...megaapi_impl.obj /tmp-test/Mega.dir/Mega.dir/Debug     96.32% of   13.85 MB  ACTIVE
+ U     17363 \\?\C:\Users\MAT...g\megaclient.obj /tmp-test/Mega.dir/Mega.dir/Debug      0.20% of   15.46 MB  ACTIVE
+ U     17364 \\?\C:\Users\MAT..._http_parser.obj /tmp-test/Mega.dir/Mega.dir/Debug      0.00% of   85.15 KB  QUEUED
+ U     17365 \\?\C:\Users\MAT...ega_utf8proc.obj /tmp-test/Mega.dir/Mega.dir/Debug      0.00% of  312.44 KB  QUEUED
+ U     17366 \\?\C:\Users\MAT...\mega_zxcvbn.obj /tmp-test/Mega.dir/Mega.dir/Debug      0.00% of  589.88 KB  QUEUED
+ U     17367 \\?\C:\Users\MAT...ir\Debug\net.obj /tmp-test/Mega.dir/Mega.dir/Debug      0.00% of    3.20 MB  PAUSED
+ U     17368 \\?\C:\Users\MAT...r\Debug\node.obj /tmp-test/Mega.dir/Mega.dir/Debug      0.00% of    3.73 MB  QUEUED
+ U     17369 \\?\C:\Users\MAT...ntactrequest.obj /tmp-test/Mega.dir/Mega.dir/Debug      0.00% of  352.22 KB  QUEUED
+ U     17371 \\?\C:\Users\MAT...pubkeyaction.obj /tmp-test/Mega.dir/Mega.dir/Debug      0.00% of  355.75 KB  QUEUED
+ U     17372 \\?\C:\Users\MAT...ebug\request.obj /tmp-test/Mega.dir/Mega.dir/Debug      0.00% of  933.14 KB  QUEUED
+ ...  Showing first 10 transfers ...
+eg.email@example.co.nz:/tmp-test/Mega.dir$
+</pre>
+
+### webdav example
+<pre>
+eg.email@example.co.nz:/$ webdav myfile.tif --port=1024
+Serving via webdav myfile.tif: http://127.0.0.1:1024/5mYHQT4B/myfile.tif
+eg.email@example.co.nz:/$ webdav
+WEBDAV SERVED LOCATIONS:
+/myfile.tif: http://127.0.0.1:1024/5mYHQT4B/myfile.tif
+eg.email@example.co.nz:/$ webdav -d myfile.tif
+myfile.tif no longer served via webdav
+eg.email@example.co.nz:/$
+</pre>
+
+
+
