@@ -5,10 +5,11 @@ This document relates to MEGAcmd version 0.9.9.
 ### What is it
 A command line tool to work with your MEGA account and files.  You can run it in interactive mode where it processes all commands directly, or you can use all the features from your favourite Linux or Mac shell such as bash, or you can even run it in a Windows command prompt.   You can also use its commands in scripts.
 
-In order to enable running commands from scripts or OS shells without supplying a password every time, MEGAcmd runs a command server in the background, which the MEGAcmd shell or the script commands will forward requests to.   The server will exit when the MEGAcmd shell is closed with `exit` or `quit`, or the `mega-quit` shell script is used.  Using any of the `mega-*` shell scripts will also start the server.   
+In addition to running commands on request, MEGAcmd can also be configured to synchronise folders between your local device to your MEGA account, or perform regular backups from your device to your MEGA account.
 
-Working with your MEGA account requires signing in with your email and password using the `login` command, though you can download public links or upload to public folders without logging in.   Logging in causes some of your account such as the folder structure to be downloaded and cached locally for performance (encrypted, of course).  That cache is kept on disk, and will be reused the next time you run MEGAcmd under the same account.  Once you are logged in, the running server will maintain your access to your account.   If you exit it (with `quit`, `exit`, etc, you will need to log in again when you next start it.  For convenience you can use the `session` command to get the ID of your current session that can be used with the `login` command in future to log back into the same session.  That session string is valid until the session is closed with `logout`, or cancelled with `killsession`.   You must keep the id secure as it provides access to your account without a password.  You can see all the active session IDs with `whoami -l`.
+In order to enable synchronisation and backup features, and for efficiency running commands, MEGAcmd runs a server process in the background which the MEGAcmd shell or the script commands will forward requests to.   The server keeps running in the background until it is told to close with the `exit` or `quit` commands.   If you want it to keep running (for sync and backup for example) when you exit MEGAcmd, use the `--only-shell` flag.
 
+Working with your MEGA account requires signing in with your email and password using the `login` command, though you can download public links or upload to public folders without logging in.   Logging in with your username and password starts a [Session](#session), and causes some of your account such as the folder structure to be downloaded and cached locally for performance (encrypted, of course).  That cache is kept on disk, and will be reused the next time you run MEGAcmd.  While the background server is running, the cache is kept up to date.  Closing and reopening MEGAcmd will not require you to log in again, unless you logged out.   Logging out closes your session, and means that the next login will require downloading the cache again.  Logging out means your device cannot access your MEGA account again until you provide your password (or use a Session ID to log on), so it is more secure, however the sync and backup features will not be able to operate, and your local cache will not be kept up to date.
 
 ### Where can you get it  
 Download it from the MEGA.nz website: https://mega.nz/cmd
@@ -17,41 +18,41 @@ Download it from the MEGA.nz website: https://mega.nz/cmd
 The major features are
 	* Move files around inside your MEGA account or between MEGA and your PC in a way similar to how you manage files in a Linux shell or Windows command prompt.
 	* Use those same commands in scripts to manage your files.
-	* Set up synchronization or a backup schedule between a folder on your machine, and a folder on your MEGA account.   (use the `sync` or `backup` commands)
+	* Set up synchronization or a backup schedule between a folder on your machine, and a folder on your MEGA account.   (use the [`sync`](#sync) or [`backup`](#backup) commands)
+	* Set up WebDAV access to files in your MEGA account (use the [`webdav`](#webdav) command)
 
-Security aspects
-	* Where does it store temp files / cached account data (encrypted of course)
-	* Keep your password safe
-	* Be careful with sessionids
+## Terminology and Descriptions
 
-## Terminology and description
+### Contact
+A contact is someone (or more precisely, their email address) that you can share files or folders with, and can chat with on MEGAchat.
 
-Contact
+### Remote Path
+This refers to a file or a folder stored in your MEGA account, or a publicly available file or folder in the MEGA cloud.
 
-Remote Path
+### Local Path
+This refers to a file or folder on the PC or device that MEGAcmd is running in.
 
-Local Path
+### Session
+When you log in with your email and MEGA account password, that creates a session.  The session exists until you log out of it or kill it.  In MEGAcmd, use `whoami -l` to see all your open sessions across all devices, and use `killsession` to close them.   You can use other client such as the phone app, or webclient to close these also.
 
-Session ID
-
-Local Cache
-
+### Local Cache
+MEGAcmd holds some encrypted data on your device relating to your account, such as folder structure and contacts, for performance reasons.  The MEGAcmd background server keeps the local cache up to date when changes to your account occur from other clients.
 
 
 ## Command Summary
 
 These summaries use the usual conventions - `[]` indicates its content is optional,  `|` indicates you should choose either the item on the left or the one on the right (but not both)
 
-Each command is described as it would be used in the MEGAcmd shell, and the corresponding shell script (prefixed with "mega-") works in the same way.
+Each command is described as it would be used in the MEGAcmd shell, and the corresponding shell script (prefixed with `mega-`) works in the same way.
 
 Commands referring to a `remote path` are talking about a file in your MEGA account online, whereas a `local path` refers to a file or folder on your local device where MEGAcmd is running.
 
 Verbosity: You can increase the amount of information given by any command by passing `-v` (`-vv`, `-vvv`, ...)
 
 ### Account / Contacts
-* [`signup`](#signup)`email [password] [--name="Your Name"]`  * Register as user with a given email
+* [`signup`](#signup)`email [password] [--name="Your Name"]`  Register as user with a given email.
 * [`confirm`](#confirm)`link email [password]`  Confirm an account using the link provided after the "signup" process.
-* [`invite`](#invite)`[-d|-r] dstemail [--message="MESSAGE"]`  Invites a contact / deletes an invitation
+* [`invite`](#invite)`[-d|-r] dstemail [--message="MESSAGE"]`  Invites a contact / deletes an invitation.
 * [`showpcr`](#showpcr)`[--in | --out]`  Shows incoming and outgoing contact requests.
 * [`ipc`](#ipc)`email|handle -a|-d|-i`  Manages contact incoming invitations.
 * [`passwd`](#passwd)`[oldpassword newpassword]`  Modifies user password
@@ -102,28 +103,32 @@ Verbosity: You can increase the amount of information given by any command by pa
 
 ### Misc
 * [`version`](#version)`[-l][-c]` Prints MEGAcmd versioning and extra info
+* [`deleteversions`](#deleteversions)` [-f] (--all | remotepath1 remotepath2 ...)` Delete prior versions of files to save space.
 * [`unicode`](#unicode) Toggle unicode input enabled/disabled in interactive shell
 * [`reload`](#reload) Forces a reload of the remote files of the user
 * [`help`](#help)`[-f]` Prints list of commands
-* [`https`](#https)`[on|off]` Shows if HTTPS is used for transfers. Use "https on" to enable it.
+* [`https`](#https)`[on|off]` Shows if HTTPS is used for transfers. Use `https on` to enable it.
 * [`clear`](#clear) Clear screen
 * [`log`](#log)`[-sc] level` Prints/Modifies the current logs level
 * [`debug`](#debug) Enters debugging mode (HIGHLY VERBOSE)
-* [`exit`](#exit)|[`quit`] [--only-shell]` Quits MEGAcmd
+* [`exit`](#exit)`|`[`quit`](#quit)` [--only-shell]` Quits MEGAcmd
 
 
 ## Command Detail
 
 ### attr
-Usage: attr remotepath [-s attribute value|-d attribute]
 Lists/updates node attributes
 
+Usage: `attr remotepath [-s attribute value|-d attribute]`
+<pre>
 Options:
-* `-s attribute-value` \t sets an attribute to a value
-* `-d attribute` \t removes the attribute
+  -s attribute-value` \t sets an attribute to a value
+  -d attribute` \t removes the attribute
+</pre>
 
 ### backup
 Controls backups
+
 Usage: `backup (localpath remotepath --period="PERIODSTRING" --num-backups=N  | [-lhda] [TAG|localpath] [--period="PERIODSTRING"] [--num-backups=N])`
 
 <pre>
@@ -177,15 +182,15 @@ Configuration Options:
                          TIMEFORMAT can be expressed in hours(h), days(d),
                            minutes(M), seconds(s), months(m) or years(y)
                            e.g. "1m12d3h" indicates 1 month, 12 days and 3 hours
-                          Notice that this is an uncertain measure since not all months
+                         Notice that this is an uncertain measure since not all months
                           last the same and Daylight saving time changes are not considered
                           If possible use a cron like expresion
-                        Notice: regardless of the period expresion, the first time you establish a backup,
-                         it will be created inmediately
+                         Notice: regardless of the period expresion, the first time you establish a backup,
+                          it will be created inmediately
 --num-backups=N Maximum number of backups to store
                          After creating the backup (N+1) the oldest one will be deleted
-                          That might not be true in case there are incomplete backups:
-                           in order not to lose data, at least one COMPLETE backup will be kept
+                         That might not be true in case there are incomplete backups:
+                          in order not to lose data, at least one COMPLETE backup will be kept
 Use backup TAG|localpath --option=VALUE to modify existing backups
 
 Management Options:
@@ -211,6 +216,7 @@ Usage: `clear`
 
 ### confirm
 Confirm an account using the link provided after the "signup" process.
+
 Usage: `confirm link email [password]`
 It requires the email and the password used to obtain the link.
 
@@ -224,18 +230,20 @@ If the location doesn't exist, the file/folder will be renamed to the destinatio
 
 If "dstemail:" provided, the file/folder will be sent to that user's inbox (//in)
  e.g: cp /path/to/file user@doma.in:
- Remember the trailing ":", otherwise a file with the name of that user ("user@doma.in") will be created
+Remember the trailing ":", otherwise a file with the name of that user ("user@doma.in") will be created
 </pre>
 
 ### debug
 Enters debugging mode (HIGHLY VERBOSE)
+
 Usage: `debug`
 <pre>
-For a finer control of log level see "log --help"
+For a finer control of log level see [`log`](#log)
 </pre>
 
 ### deleteversions
 Deletes previous versions of files, keeping the current version.
+
 Usage: `deleteversions [-f] (--all | remotepath1 remotepath2 ...)`
 <pre>
 This will permanently delete all historical versions of a file.
@@ -246,24 +254,27 @@ Options:
  -f     Force (no asking)
  --all  Delete versions of all nodes. This will delete the version histories of all files (not current files).
 
-To see versions of a file use "ls --versions".
-To see space occupied by file versions use "du" with "--versions".
+To see versions of a file use `ls --versions`.
+To see space occupied by file versions use `du --versions`.
 </pre>
 
 ### du
 Prints size used by files/folders
+
 Usage: `du [-h] [--versions] [remotepath remotepath2 remotepath3 ... ]`
 <pre>
 remotepath can be a pattern (it accepts wildcards: ? and *. e.g.: f*00?.txt)
 
 Options:
- -h     Human readable
+ -h             Human readable
  --versions     Calculate size including all versions.
-        You can remove all versions with "deleteversions" and list them with "ls --versions"
+
+You can remove all versions with `deleteversions` and list them with `ls --versions <remotepath>`
 </pre>
 
 ### exclude
 Manages exclusions in syncs.
+
 Usage: `exclude [(-a|-d) pattern1 pattern2 pattern3 [--restart-syncs]]`
 <pre>
 Options:
@@ -284,10 +295,11 @@ After adding/deleting patterns, you might want to:
 
 ### exit
 Quits MEGAcmd
+
 Usage: `exit [--only-shell]`
 <pre>
 By default this command will exit both the interactive shell and the command server.
-To only exit current shell and keep server running, use "exit --only-shell"
+To only exit current shell and keep server running, use `exit --only-shell`
 
 Exiting the server does not cancel the session, and the encrypted local cache of your account is kept on your PC.
 The session will be resumed when the service is restarted.
@@ -314,8 +326,7 @@ Options:
         or other proprietary rights of any person or entity.
  -d     Deletes an export
 
-If a remote path is given it'll be used to add/delete or in case of no option selected,
- it will display all the exports existing in the tree of that path
+If a remote path is given it'll be used to add/delete or in case of no option selected, it will display all the exports existing in the tree of that path
 </pre>
 
 ### find
@@ -324,22 +335,20 @@ Find nodes matching a pattern
 Usage: `find [remotepath] [-l] [--pattern=PATTERN] [--mtime=TIMECONSTRAIN] [--size=SIZECONSTRAIN]`
 <pre>
 Options:
- --pattern=PATTERN      Pattern to match (it accepts wildcards: ? and *. e.g.: f*00?.txt)
- --mtime=TIMECONSTRAIN  Determines time constrains, in the form: [+-]TIMEVALUE
-                          TIMEVALUE may include hours(h), days(d), minutes(M),
-                           seconds(s), months(m) or years(y)
-                          Examples:
-                           "+1m12d3h" shows files modified before 1 month,
-                            12 days and 3 hours the current moment
+  -l                     Prints file info
+  --pattern=PATTERN      Pattern to match (it accepts wildcards: ? and *. e.g.: f*00?.txt)
+  --mtime=TIMECONSTRAIN  Determines time constrains, in the form: [+-]TIMEVALUE
+                         TIMEVALUE may include hours(h), days(d), minutes(M), seconds(s), months(m) or years(y)
+                         Examples:
+                           "+1m12d3h" shows files modified before 1 month, 12 days and 3 hours the current moment
                            "-3h" shows files modified within the last 3 hours
                            "-3d+1h" shows files modified in the last 3 days prior to the last hour
- --size=SIZECONSTRAIN   Determines size constrains, in the form: [+-]TIMEVALUE
-                          TIMEVALUE may include (B)ytes, (K)ilobytes, (M)egabytes, (G)igabytes & (T)erabytes
-                          Examples:
+  --size=SIZECONSTRAIN   Determines size constrains, in the form: [+-]TIMEVALUE
+                         TIMEVALUE may include (B)ytes, (K)ilobytes, (M)egabytes, (G)igabytes & (T)erabytes
+                         Examples:
                            "+1m12k3B" shows files bigger than 1 Mega, 12 Kbytes and 3Bytes
                            "-3M" shows files smaller than 3 Megabytes
                            "-4M+100K" shows files smaller than 4 Mbytes and bigger than 100 Kbytes
- -l     Prints file info
 </pre>
 
 ### get
@@ -347,21 +356,14 @@ Downloads a remote file/folder or a public link
 
 Usage: `get [-m] [-q] [--ignore-quota-warn] exportedlink#key|remotepath [localpath]`
 <pre>
-In case it is a file, the file will be downloaded at the specified folder
-                             (or at the current folder if none specified).
-  If the localpath(destiny) already exists and is the same (same contents)
-  nothing will be done. If differs, it will create a new file appending " (NUM)"
-  if the localpath(destiny) is a folder with a file with the same name on it,
-         it will preserve the, it will create a new file appending " (NUM)"
+If the remotepath is a file, it will be downloaded to folder specified in localpath (or to the current folder if not specified).
+If the localpath (destination) already exists and is the same (by content) then nothing will be done. If it differs, it will create a new file appending " (NUM)".
+If the remotepath or exportedlink is a folder, the folder and its entire contents will be downloaded into the destination folder.
 
-For folders, the entire contents (and the root folder itself) will be
-                    by default downloaded into the destination folder
 Options:
- -q     queue download: execute in the background. Don't wait for it to end'
- -m     if the folder already exists, the contents will be merged with the
-                     downloaded one (preserving the existing files)
- --ignore-quota-warn    ignore quota surpassing warning.
-                          The download will be attempted anyway.
+  -q                    queue download: execute in the background. 
+  -m                    if the folder already exists, the contents will be merged with the downloaded one (preserving the existing files)
+  --ignore-quota-warn   ignore quota surpassing warning. The download will be attempted anyway.
 </pre>
 
 ### help
@@ -370,11 +372,11 @@ Prints list of commands
 Usage: `help [-f]`
 <pre>
 Options:
- -f     Include a brief description of the commands
+  -f     Include a brief description of the commands
 </pre>
 
 ### https
-Shows if HTTPS is used for transfers. Use "https on" to enable it.  
+Shows if HTTPS is used for transfers. Use `https on` to enable it.  
 
 Usage: `https [on|off]`
 <pre>
@@ -394,16 +396,17 @@ If no remote path is provided, the current local folder will be used
 
 ### invite
 Invites a contact / deletes an invitation
+
 Usage: invite [-d|-r] dstemail [--message="MESSAGE"]
 <pre>
 Options:
- -d     Deletes invitation
- -r     Sends the invitation again
- --message="MESSAGE"    Sends inviting message
+  -d                   Deletes invitation
+  -r                   Resends the invitation
+  --message="MESSAGE"  Sends the invitation, including your message.
 
-Use "showpcr" to browse invitations
-Use "ipc" to manage invitations received
-Use "users" to see contacts
+Use [`showpcr`](#showpcr) to browse invitations
+Use [`ipc`](#ipc) to manage invitations received
+Use [`users`](#users) to see contacts
 </pre>
 
 ### ipc
@@ -412,13 +415,13 @@ Manages contact incoming invitations.
 Usage: `ipc email|handle -a|-d|-i`
 <pre>
 Options:
- -a     Accepts invitation
- -d     Rejects invitation
- -i     Ignores invitation [WARNING: do not use unless you know what you are doing]
+  -a     Accepts invitation
+  -d     Rejects invitation
+  -i     Ignores invitation [WARNING: do not use unless you know what you are doing]
 
-Use "invite" to send/remove invitations to other users
-Use "showpcr" to browse incoming/outgoing invitations
-Use "users" to see contacts
+Use [`invite`](#invite) to send/remove invitations to other users
+Use [`showpcr`](#showpcr) to browse incoming/outgoing invitations
+Use [`users`](#users) to see contacts
 </pre>
 
 ### killsession
@@ -427,20 +430,19 @@ Kills a session of current user.
 Usage: killsession [-a|sessionid]
 <pre>
 Options:
- -a     kills all sessions except the current one
+  -a     kills all sessions except the current one
 
 To see all sessions use "whoami -l"
 </pre>
 
 ### lcd
-Usage: lcd [localpath]
-<pre>
 Changes the current local folder for the interactive console
 
+Usage: lcd [localpath]
+<pre>
 It will be used for uploads and downloads
 
-If not using interactive console, the current local folder will be
- that of the shell executing mega comands
+If not using interactive console, the current local folder will be that of the shell executing mega comands
 </pre>
 
 ### log
@@ -449,33 +451,30 @@ Prints/Modifies the setting for how detailed log output is.
 Usage: log [-sc] level
 <pre>
 Options:
- -c     CMD log level (higher level messages).
+  -c     CMD log level (higher level messages).
          Messages captured by MEGAcmd server.
- -s     SDK log level (lower level messages).
+  -s     SDK log level (lower level messages).
          Messages captured by the engine and libs
 
-Regardless of the log level of the
- interactive shell, you can increase the amount of information given
-   by any command by passing "-v" ("-vv", "-vvv", ...)
+Regardless of the log level of the  interactive shell, you can increase the amount of information given by any command by passing `-v` (`-vv`, `-vvv`, ...)
 </pre>
 
 ### login
-Logs into a MEGA account
+Log into your MEGA account
 
 Usage: `login [email [password]] | exportedfolderurl#key | session`
 <pre>
- You can log in either with email and password, with session ID,
- or into a folder (an exported/public folder)
- If logging into a folder indicate url#key
+You can log in either with email and password, with session ID, or into a folder (an exported/public folder).
+If logging into a folder indicate url#key
 </pre>
 
 ### logout
-Logs out
+Logs out.  Your session will be invalidated unless you use the flag to prevent that.
 
 Usage: logout [--keep-session]
 <pre>
 Options:
- --keep-session Keeps the current session.
+  --keep-session Keeps the current session.
 </pre>
 
 ### lpwd
@@ -532,7 +531,7 @@ Creates a directory or a directories hierarchy
 Usage: `mkdir [-p] remotepath`
 <pre>
 Options:
- -p     Allow recursive
+  -p     Allow recursive
 </pre>
 
 ### mount
@@ -563,7 +562,7 @@ Usage: preview [-s] remotepath localpath
 If no -s is inidicated, it will download the preview.
 
 Options:
- -s     Sets the preview to the specified file
+  -s     Sets the preview to the specified file
 </pre>
 
 ### put
@@ -572,14 +571,14 @@ Uploads files/folders to a remote folder
 Usage: `put  [-c] [-q] [--ignore-quota-warn] localfile [localfile2 localfile3 ...] [dstremotepath]`
 <pre>
 Options:
- -c     Creates remote folder destination in case of not existing.
- -q     queue upload: execute in the background. Don't wait for it to end'
- --ignore-quota-warn    ignore quota surpassing warning.
+  -c     Creates remote folder destination in case of not existing.
+  -q     queue upload: execute in the background. Don't wait for it to end'
+  --ignore-quota-warn    ignore quota surpassing warning.
                           The upload will be attempted anyway.
 
 Notice that the dstremotepath can only be omitted when only one local path is provided.
- In such case, the current remote working dir will be the destination for the upload.
- Mind that using wildcards for local paths will result in multiple paths.
+In such case, the current remote working dir will be the destination for the upload.
+Mind that using wildcards for local paths will result in multiple paths.
 </pre>
 
 ### pwd
@@ -614,8 +613,8 @@ Deletes a remote file/folder
 Usage: `rm [-r] [-f] remotepath`
 <pre>
 Options:
- -r     Delete recursively (for folders)
- -f     Force (no asking)
+  -r     Delete recursively (for folders)
+  -f     Force (no asking)
 </pre>
 
 ### session
@@ -629,26 +628,22 @@ Prints/Modifies the status of current shares
 Usage: `share [-p] [-d|-a --with=user@email.com [--level=LEVEL]] [remotepath]`
 <pre>
 Options:
- -p     Show pending shares
- --with=email   Determines the email of the user to [no longer] share with
- -d     Stop sharing with the selected user
- -a     Adds a share (or modifies it if existing)
- --level=LEVEL  Level of acces given to the user
+  -p     Show pending shares
+  --with=email   Determines the email of the user to [no longer] share with
+  -d     Stop sharing with the selected user
+  -a     Adds a share (or modifies it if existing)
+  --level=LEVEL  Level of acces given to the user
                 0: Read access
                 1: Read and write
                 2: Full access
                 3: Owner access
 
-If a remote path is given it'll be used to add/delete or in case
- of no option selected, it will display all the shares existing
- in the tree of that path
+If a remote path is given it'll be used to add/delete or in case of no option selected, it will display all the shares existing in the tree of that path
 
-When sharing a folder with a user that is not a contact (see "users --help")
-  the share will be in a pending state. You can list pending shares with
- "share -p". He would need to accept your invitation (see "ipc")
+When sharing a folder with a user that is not a contact (see "users --help") the share will be in a pending state. You can list pending shares with `share -p`. Your contact will need to accept your invitation (see [`ipc`](#ipc))
 
 If someone has shared something with you, it will be listed as a root folder.
-Use "mount" to list folders shared with you
+Use [`mount`](#mount) to list folders shared with you
 </pre>
 
 ### showpcr
@@ -657,8 +652,8 @@ Shows incoming and outgoing contact requests.
 Usage: `showpcr [--in | --out]`
 <pre>
 Options:
- --in   Shows incoming requests
- --out  Shows outgoing invitations
+  --in   Shows incoming requests
+  --out  Shows outgoing invitations
 
 Use "ipc" to manage invitations received
 Use "users" to see contacts
@@ -670,11 +665,10 @@ Register as user with a given email
 Usage: `signup email [password] [--name="Your Name"]`
 <pre>
 Options:
- --name="Your Name"     Name to register. e.g. "John Smith"
+  --name="Your Name"     Name to register. e.g. "John Smith"
 
- You will receive an email to confirm your account.
- Once you have received the email, please proceed to confirm the link
- included in that email with "confirm".
+You will receive an email to confirm your account.
+Once you have received the email, please proceed to confirm the link included in that email with "confirm".
 </pre>
 
 ### speedlimit
@@ -682,14 +676,14 @@ Displays/modifies upload/download rate limits
 
 Usage: `speedlimit [-u|-d] [-h] [NEWLIMIT]`
 <pre>
- NEWLIMIT establish the new limit in size per second (0 = no limit)
- NEWLIMIT may include (B)ytes, (K)ilobytes, (M)egabytes, (G)igabytes & (T)erabytes.
-  Examples: "1m12k3B" "3M". If no unit given, it'll use Bytes
+NEWLIMIT establish the new limit in size per second (0 = no limit)
+NEWLIMIT may include (B)ytes, (K)ilobytes, (M)egabytes, (G)igabytes & (T)erabytes.
+Examples: "1m12k3B" "3M". If no unit given, it'll use Bytes
 
 Options:
- -d     Download speed limit
- -u     Upload speed limit
- -h     Human readable
+  -d     Download speed limit
+  -u     Upload speed limit
+  -h     Human readable
 
 Notice: this limit will be saved for the next time you execute MEGAcmd server. They will be removed if you logout.
 </pre>
@@ -701,17 +695,15 @@ Usage: `sync [localpath dstremotepath| [-dsr] [ID|localpath]`
 <pre>
 If no argument is provided, it lists current configured synchronizations
 
-If provided local and remote paths, it will start synchronizing
- a local folder into a remote folder
+If provided local and remote paths, it will start synchronizing a local folder into a remote folder
 
-If an ID/local path is provided, it will list such synchronization
- unless an option is specified.
+If an ID/local path is provided, it will list such synchronization unless an option is specified.
 
 Options:
--d ID|localpath deletes a synchronization
--s ID|localpath stops(pauses) a synchronization
--r ID|localpath resumes a synchronization
---path-display-size=N  Use a fixed size of N characters for paths
+  -d ID|localpath deletes a synchronization
+  -s ID|localpath stops(pauses) a synchronization
+  -r ID|localpath resumes a synchronization
+  --path-display-size=N  Use a fixed size of N characters for paths
 </pre>
 
 ### thumbnail
@@ -722,7 +714,7 @@ Usage: thumbnail [-s] remotepath localpath
 If no -s is inidicated, it will download the thumbnail.
 
 Options:
- -s     Sets the thumbnail to the specified file
+  -s     Sets the thumbnail to the specified file
 </pre>
 
 ### transfers
@@ -732,18 +724,18 @@ Usage: `transfers [-c TAG|-a] | [-r TAG|-a]  | [-p TAG|-a] [--only-downloads | -
 <pre>
 If executed without option it will list the first 10 tranfers
 Options:
- -c (TAG|-a)    Cancel transfer with TAG (or all with -a)
- -p (TAG|-a)    Pause transfer with TAG (or all with -a)
- -r (TAG|-a)    Resume transfer with TAG (or all with -a)
- -only-uploads  Show/Operate only upload transfers
- -only-downloads        Show/Operate only download transfers
+  -c (TAG|-a)            Cancel transfer with TAG (or all with -a)
+  -p (TAG|-a)            Pause transfer with TAG (or all with -a)
+  -r (TAG|-a)            Resume transfer with TAG (or all with -a)
+  -only-uploads          Show/Operate only upload transfers
+  -only-downloads        Show/Operate only download transfers
 
 Show options:
- -show-syncs            Show synchronization transfers
- -show-completed        Show completed transfers
- -only-completed        Show only completed download
- --limit=N      Show only first N transfers
- --path-display-size=N  Use a fixed size of N characters for paths
+  -show-syncs            Show synchronization transfers
+  -show-completed        Show completed transfers
+  -only-completed        Show only completed download
+  --limit=N              Show only first N transfers
+  --path-display-size=N  Use a fixed size of N characters for paths
 </pre>
 
 ### unicode
@@ -751,10 +743,8 @@ Toggle unicode input enabled/disabled in interactive shell
 
 Usage: `unicode`
 <pre>
- Unicode mode is experimental, you might experience
- some issues interacting with the console
- (e.g. history navigation fails).
-Type "help --unicode" for further info
+Unicode mode is experimental, you might experience some issues interacting with the console (e.g. history navigation fails).
+Type "help --unicode" for further info.
 </pre>
 
 ### userattr
@@ -763,8 +753,8 @@ Lists/updates user attributes
 Usage: `userattr [-s attribute value|attribute] [--user=user@email]`
 <pre>
 Options:
- -s     attribute value         sets an attribute to a value
- --user=user@email      select the user to query
+  -s attribute value     sets an attribute to a value
+  --user=user@email      select the user to query
 </pre>
 
 ### users
@@ -773,10 +763,10 @@ List contacts
 Usage: `users [-s] [-h] [-n] [-d contact@email]`
 <pre>
 Options:
- -s     Show shared folders with listed contacts
- -h     Show all contacts (hidden, blocked, ...)
- -n     Show users names
- -d     contact@email Deletes the specified contact
+  -s     Show shared folders with listed contacts
+  -h     Show all contacts (hidden, blocked, ...)
+  -n     Show users names
+  -d     contact@email Deletes the specified contact
 
 Use "invite" to send/remove invitations to other users
 Use "showpcr" to browse incoming/outgoing invitations
@@ -790,8 +780,8 @@ Prints MEGAcmd versioning and extra info
 Usage: `version [-l][-c]`
 <pre>
 Options:
- -c     Shows changelog for the current version
- -l     Show extended info: MEGA SDK version and features enabled
+  -c     Shows changelog for the current version
+  -l     Show extended info: MEGA SDK version and features enabled
 </pre>
 
 ### webdav
@@ -803,12 +793,12 @@ This can also be used for streaming files. The server will be running as long as
 If no argument is given, it will list the webdav enabled locations.
 
 Options:
- --d            Stops serving that location
- --public       *Allow access from outside localhost
- --port=PORT    *Port to serve. DEFAULT= 4443
- --tls          *Serve with TLS (HTTPS)
- --certificate=/path/to/certificate.pem *Path to PEM formated certificate
- --key=/path/to/certificate.key *Path to PEM formated key
+  --d            Stops serving that location
+  --public       *Allow access from outside localhost
+  --port=PORT    *Port to serve. DEFAULT= 4443
+  --tls          *Serve with TLS (HTTPS)
+  --certificate=/path/to/certificate.pem *Path to PEM formated certificate
+  --key=/path/to/certificate.key *Path to PEM formated key
 
 *If you serve more than one location, these parameters will be ignored and use those of the first location served.
 
@@ -817,6 +807,7 @@ Caveat: This functionality is in BETA state. If you experience any issue with th
 
 ### whoami
 Print account information
+
 Usage: `whoami [-l]`
 <pre>
 Options:
