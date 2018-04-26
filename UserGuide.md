@@ -28,13 +28,13 @@ The major features are
 A contact is someone (identified by their email address) that also has a MEGA account, who you can share files or folders with, and can chat with on MEGAchat.
 
 ### Remote Path
-This refers to a file or a folder stored in your MEGA account, or a publicly available file or folder in the MEGA cloud.
+This refers to a file or a folder stored in your MEGA account, or a publicly available file or folder in the MEGA cloud.  Remote paths always use the '/' character as the separator between folder and file elements.
 
 ### Local Path
-This refers to a file or folder on the PC or device that MEGAcmd is running in.
+This refers to a file or folder on the PC or device that MEGAcmd is running in.  
 
 ### Session
-When you log in with your email and MEGA account password, that creates a session.  The session exists until you log out of it or kill it.  In MEGAcmd, use `whoami -l` to see all your open sessions across all devices, and use `killsession` to close them.   You can use other MEGA clients such as the phone app, or webclient to close these also.   Devices that were using a killed session will have their connection to MEGA closed immediately and will no longer have access to your account, until you log in on them again.   Syncs, backups, and webdavs are specific to a session, so logging out will cause them to be turned off, and they won't be restored at the next login.
+When you log in with your email and MEGA account password, that creates a session.  The session exists until you log out of it or kill it.  In MEGAcmd, use `whoami -l` to see all your open sessions across all devices, and use `killsession` to close them.   You can use other MEGA clients such as the phone app, or webclient to close these also.   Devices that were using a killed session will have their connection to MEGA closed immediately and will no longer have access to your account, until you log in on them again.   Syncs, backups, and webdavs are specific to a session, so logging out will cause them to be cancelled.
 
 ### Local Cache
 MEGAcmd holds some encrypted data on your device relating to your account, such as folder structure and contacts, for performance reasons.  The MEGAcmd background server keeps the local cache up to date when changes to your account occur from other clients.  The cache does contain a way for MEGAcmd to log back into your account when it starts up again if you have not logged out fully, so if your device is not completely secure between sessions then you should do that.
@@ -80,7 +80,7 @@ Verbosity: You can increase the amount of information given by any command by pa
 
 ### Moving/Copying Files
 * [`mkdir`](#mkdir)`[-p] remotepath` Creates a directory or a directory hierarchy
-* [`cp`](#cp)`srcremotepath dstremotepath|dstemail` Moves a file/folder into a new location (all remotes)
+* [`cp`](#cp)`srcremotepath dstremotepath|dstemail` Copies a file/folder into a new location (all remotes)
 * [`put`](#put)`[-c] [-q] [--ignore-quota-warn] localfile [localfile2 localfile3 ...] [dstremotepath]` Uploads files/folders to a remote folder
 * [`get`](#get)`[-m] [-q] [--ignore-quota-warn] exportedlink#key|remotepath [localpath]` Downloads a remote file/folder or a public link
 * [`preview`](#preview)`[-s] remotepath localpath` To download/upload the preview of a file.
@@ -309,7 +309,7 @@ The session will be resumed when the service is restarted.
 </pre>
 
 ### export
-Prints/Modifies the status of current exports
+Prints/Modifies the status of current exports ([example](#export-import-example))
 
 Usage: `export [-d|-a [--expire=TIMEDELAY] [-f]] [remotepath]`
 <pre>
@@ -390,7 +390,7 @@ This setting is ephemeral: it will reset for the next time you open MEGAcmd
 </pre>
 
 ### import
-Imports the contents of a remote link into your MEGA account or to a local folder.
+Imports the contents of a remote link into your MEGA account or to a local folder.  ([example](#export-import-example))
 
 Usage: `import exportedfilelink#key [remotepath]`
 <pre>
@@ -537,12 +537,12 @@ Lists all the main nodes  ([example](#login-logout-whoami-mkdir-cd-get-put-du-mo
 Usage: `mount`
 
 ### mv
-Moves file(s)/folder(s) into a new location (all remotes)
+Copies files/folders to a new location in your MEGA account
 
 Usage: `mv srcremotepath [srcremotepath2 srcremotepath3 ..] dstremotepath`
 <pre>
-If the destination remote path exists and is a folder, the source will be moved there.
-If the destination remote path doesn't exist, the source will be renamed to the name given.
+If the destination remote path exists and is a folder, the source will be copied there.
+If the destination remote path doesn't exist, the source will be renamed to the given dstremotepath leaf name.
 </pre>
 
 ### passwd
@@ -596,7 +596,7 @@ To only exit current shell and keep server running, use "exit --only-shell"
 </pre>
 
 ### reload
-Forces a reload of the remote files of the user
+Forces re-downloading the Local Cache information from MEGA.
 
 Usage: `reload`
 <pre>
@@ -997,6 +997,53 @@ WEBDAV SERVED LOCATIONS:
 eg.email@example.co.nz:/$ webdav -d myfile.tif
 myfile.tif no longer served via webdav
 eg.email@example.co.nz:/$
+</pre>
+
+### export import example
+<pre>
+eg.email_1@example.co.nz:/$ export -a Pictures/
+MEGA respects the copyrights of others and requires that users of the MEGA cloud service comply with the laws of copyright.
+You are strictly prohibited from using the MEGA cloud service to infringe copyrights.
+You may not upload, download, store, share, display, stream, distribute, email, link to, transmit or otherwise make available any files, data or content that infringes any copyright or other proprietary rights of any person or entity. Do you accept this terms? (Yes/No): Yes
+Please enter [y]es/[n]o/[a]ll/none:yes
+Exported /Pictures: https://mega.nz/#F!iaZlEBIL!mQD3rFuJhKov0sco-6s9xg
+eg.email_1@example.co.nz:/$ export
+Pictures (folder, shared as exported permanent folder link: https://mega.nz/#F!iaZlEBIL!mQD3rFuJhKov0sco-6s9xg)
+eg.email_1@example.co.nz:/$ logout --keep-session
+Logging out...
+Session closed but not deleted. Warning: it will be restored the next time you execute the application. Execute "logout" to delete the session permanently.
+You can also login with the session id: ARo7aiLAxK-jseOdVBYhj285Twb06ivWsFmT4XAnkTsiaDRRbm5oYS1zRm-V3I0FHHOvwj7P2RPvrSw_
+MEGA CMD> login eg.email_2@example.co.nz
+Password:
+[API:info: 01:55:04] Fetching nodes ...
+[API:info: 01:55:05] Loading transfers from local cache
+[API:info: 01:55:05] Login complete as eg.email_2@example.co.nz
+MEGA CMD>
+eg.email_2@example.co.nz:/$ ls
+Welcome to MEGA.pdf
+eg.email_2@example.co.nz:/$ import https://mega.nz/#F!iaZlEBIL!mQD3rFuJhKov0sco-6s9xg
+Imported folder complete: /Pictures
+eg.email_2@example.co.nz:/$ ls
+Pictures
+Welcome to MEGA.pdf
+eg.email_2@example.co.nz:/$ ls Pictures/
+Camera Roll
+Feedback
+Saved Pictures
+megacmdpkg.gif
+megacmdpkg_80.gif
+megacmdpkg_gray.gif
+eg.email_2@example.co.nz:/$ logout
+Logging out...
+eg.email_2@example.co.nz:/$
+MEGA CMD> login ARo7aiLAxK-jseOdVBYhj285Twb06ivWsFmT4XAnkTsiaDRRbm5oYS1zRm-V3I0FHHOvwj7P2RPvrSw_
+eg.email_1@example.co.nz:/$ export
+Pictures (folder, shared as exported permanent folder link: https://mega.nz/#F!iaZlEBIL!mQD3rFuJhKov0sco-6s9xg)
+eg.email_1@example.co.nz:/$ export -d Pictures/
+Disabled export: /Pictures
+eg.email_1@example.co.nz:/$ export
+Couldn't find anything exported below current folder. Use -a to export it
+eg.email_1@example.co.nz:/$
 </pre>
 
 ### transfers example
