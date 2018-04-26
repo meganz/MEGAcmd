@@ -1001,54 +1001,54 @@ eg.email@example.co.nz:/$
 
 ### export import example
 <pre>
-eg.email_1@example.co.nz:/$ export -a Pictures/
+eg.email_1@example.co.nz:/$ <b>export -a Pictures/</b>
 MEGA respects the copyrights of others and requires that users of the MEGA cloud service comply with the laws of copyright.
 You are strictly prohibited from using the MEGA cloud service to infringe copyrights.
 You may not upload, download, store, share, display, stream, distribute, email, link to, transmit or otherwise make available any files, data or content that infringes any copyright or other proprietary rights of any person or entity. Do you accept this terms? (Yes/No): Yes
 Please enter [y]es/[n]o/[a]ll/none:yes
 Exported /Pictures: https://mega.nz/#F!iaZlEBIL!mQD3rFuJhKov0sco-6s9xg
-eg.email_1@example.co.nz:/$ export
+eg.email_1@example.co.nz:/$ <b>export</b>
 Pictures (folder, shared as exported permanent folder link: https://mega.nz/#F!iaZlEBIL!mQD3rFuJhKov0sco-6s9xg)
-eg.email_1@example.co.nz:/$ logout --keep-session
+eg.email_1@example.co.nz:/$ <b>logout --keep-session</b>
 Logging out...
 Session closed but not deleted. Warning: it will be restored the next time you execute the application. Execute "logout" to delete the session permanently.
 You can also login with the session id: ARo7aiLAxK-jseOdVBYhj285Twb06ivWsFmT4XAnkTsiaDRRbm5oYS1zRm-V3I0FHHOvwj7P2RPvrSw_
-MEGA CMD> login eg.email_2@example.co.nz
+MEGA CMD> <b>login eg.email_2@example.co.nz</b>
 Password:
 [API:info: 01:55:04] Fetching nodes ...
 [API:info: 01:55:05] Loading transfers from local cache
 [API:info: 01:55:05] Login complete as eg.email_2@example.co.nz
 MEGA CMD>
-eg.email_2@example.co.nz:/$ ls
+eg.email_2@example.co.nz:/$ <b>ls</b>
 Welcome to MEGA.pdf
-eg.email_2@example.co.nz:/$ import https://mega.nz/#F!iaZlEBIL!mQD3rFuJhKov0sco-6s9xg
+eg.email_2@example.co.nz:/$ <b>import https://mega.nz/#F!iaZlEBIL!mQD3rFuJhKov0sco-6s9xg</b>
 Imported folder complete: /Pictures
-eg.email_2@example.co.nz:/$ ls
+eg.email_2@example.co.nz:/$ <b>ls</b>
 Pictures
 Welcome to MEGA.pdf
-eg.email_2@example.co.nz:/$ ls Pictures/
+eg.email_2@example.co.nz:/$ <b>ls Pictures/</b>
 Camera Roll
 Feedback
 Saved Pictures
 megacmdpkg.gif
 megacmdpkg_80.gif
 megacmdpkg_gray.gif
-eg.email_2@example.co.nz:/$ logout
+eg.email_2@example.co.nz:/$ <b>logout</b>
 Logging out...
 eg.email_2@example.co.nz:/$
-MEGA CMD> login ARo7aiLAxK-jseOdVBYhj285Twb06ivWsFmT4XAnkTsiaDRRbm5oYS1zRm-V3I0FHHOvwj7P2RPvrSw_
-eg.email_1@example.co.nz:/$ export
+MEGA CMD> <b>login ARo7aiLAxK-jseOdVBYhj285Twb06ivWsFmT4XAnkTsiaDRRbm5oYS1zRm-V3I0FHHOvwj7P2RPvrSw_</b>
+eg.email_1@example.co.nz:/$ <b>export</b>
 Pictures (folder, shared as exported permanent folder link: https://mega.nz/#F!iaZlEBIL!mQD3rFuJhKov0sco-6s9xg)
-eg.email_1@example.co.nz:/$ export -d Pictures/
+eg.email_1@example.co.nz:/$ <b>export -d Pictures/</b>
 Disabled export: /Pictures
-eg.email_1@example.co.nz:/$ export
+eg.email_1@example.co.nz:/$ <b>export</b>
 Couldn't find anything exported below current folder. Use -a to export it
 eg.email_1@example.co.nz:/$
 </pre>
 
 ### transfers example
 <pre>
-eg.email@example.co.nz:/tmp-test/Mega.dir$ **transfers**
+eg.email@example.co.nz:/tmp-test/Mega.dir$ <b>transfers</b>
 DIR/SYNC TAG  SOURCEPATH                         DESTINYPATH                              PROGRESS           STATE
  U     17361 \\?\C:\Users\ME\...ebug\megaapi.obj /tmp-test/Mega.dir/Mega.dir/Debug    100.00% of 2016.62 KB  ACTIVE
  U     17362 \\?\C:\Users\ME\...megaapi_impl.obj /tmp-test/Mega.dir/Mega.dir/Debug     13.64% of   13.85 MB  ACTIVE
@@ -1061,11 +1061,11 @@ DIR/SYNC TAG  SOURCEPATH                         DESTINYPATH                    
  U     17369 \\?\C:\Users\ME\...ntactrequest.obj /tmp-test/Mega.dir/Mega.dir/Debug      0.00% of  352.22 KB  QUEUED
  U     17370 \\?\C:\Users\ME\...\Debug\proxy.obj /tmp-test/Mega.dir/Mega.dir/Debug      0.00% of  203.57 KB  QUEUED
  ...  Showing first 10 transfers ...
-eg.email@example.co.nz:/tmp-test/Mega.dir$ transfers -p 17367
+eg.email@example.co.nz:/tmp-test/Mega.dir$ <b>transfers -p 17367</b>
 Transfer 17367 paused successfully.
-eg.email@example.co.nz:/tmp-test/Mega.dir$ transfers -c 17370
+eg.email@example.co.nz:/tmp-test/Mega.dir$ <b>transfers -c 17370</b>
 Transfer 17370 cancelled successfully.
-eg.email@example.co.nz:/tmp-test/Mega.dir$ transfers
+eg.email@example.co.nz:/tmp-test/Mega.dir$ <b>transfers</b>
 DIR/SYNC TAG  SOURCEPATH                         DESTINYPATH                              PROGRESS           STATE
  U     17362 \\?\C:\Users\ME\...megaapi_impl.obj /tmp-test/Mega.dir/Mega.dir/Debug     96.32% of   13.85 MB  ACTIVE
  U     17363 \\?\C:\Users\ME\...g\megaclient.obj /tmp-test/Mega.dir/Mega.dir/Debug      0.20% of   15.46 MB  ACTIVE
