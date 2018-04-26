@@ -1829,7 +1829,7 @@ string getHelpStr(const char *command)
     }
     else if (!strcmp(command, "cp"))
     {
-        os << "Moves a file/folder into a new location (all remotes)" << endl;
+        os << "Copies a file/folder into a new location (all remotes)" << endl;
         os << endl;
         os << "If the location exists and is a folder, the source will be copied there" << endl;
         os << "If the location doesn't exist, the file/folder will be renamed to the destination name given" << endl;

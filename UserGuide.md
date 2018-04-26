@@ -12,7 +12,7 @@ In order to enable synchronisation and backup features, and for efficiency runni
 Working with your MEGA account requires signing in with your email and password using the `login` command, though you can download public links or upload to public folders without logging in.  Logging in with your username and password starts a [Session](#session), and causes some of your account such as the folder structure to be downloaded and cached locally for performance (encrypted, of course).  That cache is kept on disk, and will be reused the next time you run MEGAcmd.  While the background server is running, the cache is kept up to date.  Closing and reopening MEGAcmd will not require you to log in again, unless you logged out.   Logging out closes your session, and means that the next login will require downloading the cache again.  Logging out means your device cannot access your MEGA account again until you provide your password (or use a Session ID to log on), so it is more secure, however the sync and backup features will not be able to operate, and your local cache will not be kept up to date.
 
 ### Where can you get it  
-For Linux, Mac, or Windows: Download it from the MEGA.nz website: https://mega.nz/cmd
+For Linux, Mac, or Windows: Download it from the MEGA.nz website: https://mega.nz/cmd <p>
 We are also building it for some NAS systems, please check your provider's App Store.
 
 ### What can you do with it
@@ -1048,7 +1048,7 @@ eg.email_1@example.co.nz:/$
 
 ### transfers example
 <pre>
-eg.email@example.co.nz:/tmp-test/Mega.dir$ transfers
+eg.email@example.co.nz:/tmp-test/Mega.dir$ **transfers**
 DIR/SYNC TAG  SOURCEPATH                         DESTINYPATH                              PROGRESS           STATE
  U     17361 \\?\C:\Users\ME\...ebug\megaapi.obj /tmp-test/Mega.dir/Mega.dir/Debug    100.00% of 2016.62 KB  ACTIVE
  U     17362 \\?\C:\Users\ME\...megaapi_impl.obj /tmp-test/Mega.dir/Mega.dir/Debug     13.64% of   13.85 MB  ACTIVE
