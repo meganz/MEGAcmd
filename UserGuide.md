@@ -7,16 +7,17 @@ A command line tool to work with your MEGA account and files.  You can run it in
 
 In addition to running commands on request, MEGAcmd can also be configured to synchronise folders between your local device to your MEGA account, or perform regular backups from your device to your MEGA account.
 
-In order to enable synchronisation and backup features, and for efficiency running commands, MEGAcmd runs a server process in the background which the MEGAcmd shell or the script commands will forward requests to.   The server keeps running in the background until it is told to close with the `exit` or `quit` commands.   If you want it to keep running (for sync and backup for example) when you exit MEGAcmd, use the `--only-shell` flag.
+In order to enable synchronisation and backup features, and for efficiency running commands, MEGAcmd runs a server process in the background which the MEGAcmd shell or the script commands forward requests to.   The server keeps running in the background until it is told to close with the `exit` or `quit` commands.   If you want it to keep running (for sync and backup for example) when you exit MEGAcmd, use the `--only-shell` flag.
 
-Working with your MEGA account requires signing in with your email and password using the `login` command, though you can download public links or upload to public folders without logging in.   Logging in with your username and password starts a [Session](#session), and causes some of your account such as the folder structure to be downloaded and cached locally for performance (encrypted, of course).  That cache is kept on disk, and will be reused the next time you run MEGAcmd.  While the background server is running, the cache is kept up to date.  Closing and reopening MEGAcmd will not require you to log in again, unless you logged out.   Logging out closes your session, and means that the next login will require downloading the cache again.  Logging out means your device cannot access your MEGA account again until you provide your password (or use a Session ID to log on), so it is more secure, however the sync and backup features will not be able to operate, and your local cache will not be kept up to date.
+Working with your MEGA account requires signing in with your email and password using the `login` command, though you can download public links or upload to public folders without logging in.  Logging in with your username and password starts a [Session](#session), and causes some of your account such as the folder structure to be downloaded and cached locally for performance (encrypted, of course).  That cache is kept on disk, and will be reused the next time you run MEGAcmd.  While the background server is running, the cache is kept up to date.  Closing and reopening MEGAcmd will not require you to log in again, unless you logged out.   Logging out closes your session, and means that the next login will require downloading the cache again.  Logging out means your device cannot access your MEGA account again until you provide your password (or use a Session ID to log on), so it is more secure, however the sync and backup features will not be able to operate, and your local cache will not be kept up to date.
 
 ### Where can you get it  
-Download it from the MEGA.nz website: https://mega.nz/cmd
+For Linux, Mac, or Windows: Download it from the MEGA.nz website: https://mega.nz/cmd
+We are also building it for some NAS systems, please check your provider's App Store.
 
 ### What can you do with it
 The major features are
-* Move files around inside your MEGA account or between MEGA and your PC in a way similar to how you manage files in a Linux shell or Windows command prompt.
+* Move files around inside your MEGA account or between MEGA and your PC using command line tools.
 * Use those same commands in scripts to manage your files.
 * Set up synchronization or a backup schedule between a folder on your machine, and a folder on your MEGA account.   (use the [`sync`](#sync) or [`backup`](#backup) commands)
 * Set up WebDAV access to files in your MEGA account (use the [`webdav`](#webdav) command)
@@ -24,7 +25,7 @@ The major features are
 ## Terminology and Descriptions
 
 ### Contact
-A contact is someone (or more precisely, their email address) that you can share files or folders with, and can chat with on MEGAchat.
+A contact is someone (identified by their email address) that also has a MEGA account, who you can share files or folders with, and can chat with on MEGAchat.
 
 ### Remote Path
 This refers to a file or a folder stored in your MEGA account, or a publicly available file or folder in the MEGA cloud.
@@ -33,11 +34,10 @@ This refers to a file or a folder stored in your MEGA account, or a publicly ava
 This refers to a file or folder on the PC or device that MEGAcmd is running in.
 
 ### Session
-When you log in with your email and MEGA account password, that creates a session.  The session exists until you log out of it or kill it.  In MEGAcmd, use `whoami -l` to see all your open sessions across all devices, and use `killsession` to close them.   You can use other client such as the phone app, or webclient to close these also.   Devices that were using a killed session will have their connection to MEGA closed and will no longer have access to your account, until you log in on them again.
+When you log in with your email and MEGA account password, that creates a session.  The session exists until you log out of it or kill it.  In MEGAcmd, use `whoami -l` to see all your open sessions across all devices, and use `killsession` to close them.   You can use other MEGA clients such as the phone app, or webclient to close these also.   Devices that were using a killed session will have their connection to MEGA closed immediately and will no longer have access to your account, until you log in on them again.   Syncs, backups, and webdavs are specific to a session, so logging out will cause them to be turned off, and they won't be restored at the next login.
 
 ### Local Cache
-MEGAcmd holds some encrypted data on your device relating to your account, such as folder structure and contacts, for performance reasons.  The MEGAcmd background server keeps the local cache up to date when changes to your account occur from other clients.
-
+MEGAcmd holds some encrypted data on your device relating to your account, such as folder structure and contacts, for performance reasons.  The MEGAcmd background server keeps the local cache up to date when changes to your account occur from other clients.  The cache does contain a way for MEGAcmd to log back into your account when it starts up again if you have not logged out fully, so if your device is not completely secure between sessions then you should do that.
 
 ## Command Summary
 
@@ -55,6 +55,8 @@ Verbosity: You can increase the amount of information given by any command by pa
 * [`invite`](#invite)`[-d|-r] dstemail [--message="MESSAGE"]`  Invites a contact / deletes an invitation.
 * [`showpcr`](#showpcr)`[--in | --out]`  Shows incoming and outgoing contact requests.
 * [`ipc`](#ipc)`email|handle -a|-d|-i`  Manages contact incoming invitations.
+* [`users`](#users)`[-s] [-h] [-n] [-d contact@email]` List contacts
+* [`userattr`](#userattr)`[-s attribute value|attribute] [--user=user@email]` Lists/updates user attributes
 * [`passwd`](#passwd)`[oldpassword newpassword]`  Modifies user password
 * [`masterkey`](#masterkey)`pathtosave`  Shows your master key.
 
@@ -64,8 +66,6 @@ Verbosity: You can increase the amount of information given by any command by pa
 * [`whoami`](#whoami)`[-l]` Print info of the user
 * [`session`](#session) Prints (secret) session ID
 * [`killsession`](#killsession)`[-a|sessionid]` Kills a session of current user.
-* [`userattr`](#userattr)`[-s attribute value|attribute] [--user=user@email]` Lists/updates user attributes
-* [`users`](#users)`[-s] [-h] [-n] [-d contact@email]` List contacts
 	  
 ### Browse
 * [`cd`](#cd)`[remotepath]` Changes the current remote folder
@@ -93,7 +93,7 @@ Verbosity: You can increase the amount of information given by any command by pa
 * [`exclude`](#exclude)`[(-a|-d) pattern1 pattern2 pattern3 [--restart-syncs]]` Manages exclusions in syncs.
 * [`backup`](#backup)`localpath remotepath --period="PERIODSTRING" --num-backups=N`  Set up a new backup folder and/or schedule
 * [`backup`](#backup)`[-lhda] [TAG|localpath] [--period="PERIODSTRING"] [--num-backups=N])`  View/Modify an existing backup schedule 
-	  
+
 ### Sharing (your own files, of course, without infringing any copyright)
 * [`cp`](#cp)`srcremotepath dstremotepath|dstemail` Moves a file/folder into a new location (all remotes)
 * [`export`](#export)`[-d|-a [--expire=TIMEDELAY]] [remotepath]` Prints/Modifies the status of current exports
@@ -127,7 +127,7 @@ Options:
 </pre>
 
 ### backup
-Controls backups
+Sets up or controls backups.  ([example](#backup-example))  ([tutorial](https://github.com/meganz/MEGAcmd/blob/master/contrib/docs/BACKUPS.md))
 
 Usage: `backup (localpath remotepath --period="PERIODSTRING" --num-backups=N  | [-lhda] [TAG|localpath] [--period="PERIODSTRING"] [--num-backups=N])`
 
@@ -198,11 +198,13 @@ Management Options:
                          Folders created by backup won't be deleted
 -a TAG|localpath        Aborts ongoing backup
 
+Syncs are associated with your Session, so logging out will cancel them.
+
 Caveat: This functionality is in BETA state. If you experience any issue with this, please contact: support@mega.nz
 </pre>
 
 ### cd
-Changes the current remote folder
+Changes the current remote folder  ([example](#login-logout-whoami-mkdir-cd-get-put-du-mount-example))
 
 Usage: `cd [remotepath]`
 <pre>
@@ -215,7 +217,7 @@ Clear screen
 Usage: `clear`
 
 ### confirm
-Confirm an account using the link provided after the "signup" process.
+Confirm an account using the link provided after the "signup" process.  ([example](#signup-confirm-invite-showpcr-ipc-users-userattr-example))
 
 Usage: `confirm link email [password]`
 It requires the email and the password used to obtain the link.
@@ -258,8 +260,8 @@ To see versions of a file use `ls --versions`.
 To see space occupied by file versions use `du --versions`.
 </pre>
 
-### du
-Prints size used by files/folders
+### du  
+Prints size used by files/folders  ([example](#login-logout-whoami-mkdir-cd-get-put-du-mount-example))
 
 Usage: `du [-h] [--versions] [remotepath remotepath2 remotepath3 ... ]`
 <pre>
@@ -291,6 +293,7 @@ After adding/deleting patterns, you might want to:
   This will cause active transfers to be restarted
   In certain cases --restart-syncs might be unable to re-enable a synchronization.
   In such case, you will need to manually resume it or restart MEGAcmd server.
+  
 </pre>
 
 ### exit
@@ -352,7 +355,7 @@ Options:
 </pre>
 
 ### get
-Downloads a remote file/folder or a public link
+Downloads a remote file/folder or a public link  ([example](#login-logout-whoami-mkdir-cd-get-put-du-mount-example))
 
 Usage: `get [-m] [-q] [--ignore-quota-warn] exportedlink#key|remotepath [localpath]`
 <pre>
@@ -395,7 +398,7 @@ If no remote path is provided, the current local folder will be used
 </pre>
 
 ### invite
-Invites a contact / deletes an invitation
+Invites a contact / deletes an invitation  ([example](#signup-confirm-invite-showpcr-ipc-users-userattr-example))
 
 Usage: invite [-d|-r] dstemail [--message="MESSAGE"]
 <pre>
@@ -403,14 +406,10 @@ Options:
   -d                   Deletes invitation
   -r                   Resends the invitation
   --message="MESSAGE"  Sends the invitation, including your message.
-
-Use [`showpcr`](#showpcr) to browse invitations
-Use [`ipc`](#ipc) to manage invitations received
-Use [`users`](#users) to see contacts
 </pre>
 
 ### ipc
-Manages contact incoming invitations.
+Manages contact incoming invitations.   ([example](#signup-confirm-invite-showpcr-ipc-users-userattr-example))
 
 Usage: `ipc email|handle -a|-d|-i`
 <pre>
@@ -418,10 +417,6 @@ Options:
   -a     Accepts invitation
   -d     Rejects invitation
   -i     Ignores invitation [WARNING: do not use unless you know what you are doing]
-
-Use [`invite`](#invite) to send/remove invitations to other users
-Use [`showpcr`](#showpcr) to browse incoming/outgoing invitations
-Use [`users`](#users) to see contacts
 </pre>
 
 ### killsession
@@ -460,7 +455,7 @@ Regardless of the log level of the  interactive shell, you can increase the amou
 </pre>
 
 ### login
-Log into your MEGA account
+Log into your MEGA account ([example](#login-logout-whoami-mkdir-cd-get-put-du-mount-example))
 
 Usage: `login [email [password]] | exportedfolderurl#key | session`
 <pre>
@@ -469,12 +464,14 @@ If logging into a folder indicate url#key
 </pre>
 
 ### logout
-Logs out.  Your session will be invalidated unless you use the flag to prevent that.
+Closes your session for security or to allow subsequently logging into a different account. ([example](#login-logout-whoami-mkdir-cd-get-put-du-mount-example))
 
-Usage: logout [--keep-session]
+Usage: logout [--keep-session] 
 <pre>
 Options:
-  --keep-session Keeps the current session.
+  --keep-session    The current session is not closed, allowing logging back into it later using the session ID rather than email/password.
+  
+MEGAcmd will still log back into your account automatically on restart if you specify --keep-session, similar to exiting it without logging out.
 </pre>
 
 ### lpwd
@@ -526,7 +523,7 @@ Always keep physical control of your master key (e.g. on a client device, extern
 </pre>
 
 ### mkdir
-Creates a directory or a directories hierarchy
+Creates a directory or a directories hierarchy  ([example](#login-logout-whoami-mkdir-cd-get-put-du-mount-example))
 
 Usage: `mkdir [-p] remotepath`
 <pre>
@@ -535,10 +532,9 @@ Options:
 </pre>
 
 ### mount
-Lists all the main nodes
+Lists all the main nodes  ([example](#login-logout-whoami-mkdir-cd-get-put-du-mount-example))
 
 Usage: `mount`
-
 
 ### mv
 Moves file(s)/folder(s) into a new location (all remotes)
@@ -566,7 +562,7 @@ Options:
 </pre>
 
 ### put
-Uploads files/folders to a remote folder
+Uploads files/folders to a remote folder  ([example](#login-logout-whoami-mkdir-cd-get-put-du-mount-example))
 
 Usage: `put  [-c] [-q] [--ignore-quota-warn] localfile [localfile2 localfile3 ...] [dstremotepath]`
 <pre>
@@ -647,20 +643,17 @@ Use [`mount`](#mount) to list folders shared with you
 </pre>
 
 ### showpcr
-Shows incoming and outgoing contact requests.
+Shows incoming and outgoing contact requests.  ([example](#signup-confirm-invite-showpcr-ipc-users-userattr-example))
 
 Usage: `showpcr [--in | --out]`
 <pre>
 Options:
   --in   Shows incoming requests
   --out  Shows outgoing invitations
-
-Use "ipc" to manage invitations received
-Use "users" to see contacts
 </pre>
 
 ### signup
-Register as user with a given email
+Register as user with a given email ([example](#signup-confirm-invite-showpcr-ipc-users-userattr-example))
 
 Usage: `signup email [password] [--name="Your Name"]`
 <pre>
@@ -689,7 +682,7 @@ Notice: these limits are saved for the next time you execute MEGAcmd server.  Th
 </pre>
 
 ### sync
-Controls synchronizations
+Sets up synchronisation between a local folder and one in your MEGA account.  ([example](#sync-example))
 
 Usage: `sync [localpath dstremotepath| [-dsr] [ID|localpath]`
 <pre>
@@ -704,6 +697,8 @@ Options:
   -s ID|localpath stops(pauses) a synchronization
   -r ID|localpath resumes a synchronization
   --path-display-size=N  Use a fixed size of N characters for paths
+
+Syncs are associated with your Session, so logging out will cancel them.
 </pre>
 
 ### thumbnail
@@ -748,7 +743,7 @@ Type "help --unicode" for further info.
 </pre>
 
 ### userattr
-Lists/updates user attributes
+Lists/updates user attributes  ([example](#signup-confirm-invite-showpcr-ipc-users-userattr-example))
 
 Usage: `userattr [-s attribute value|attribute] [--user=user@email]`
 <pre>
@@ -758,7 +753,7 @@ Options:
 </pre>
 
 ### users
-List contacts
+List contacts  ([example](#signup-confirm-invite-showpcr-ipc-users-userattr-example))
 
 Usage: `users [-s] [-h] [-n] [-d contact@email]`
 <pre>
@@ -767,11 +762,6 @@ Options:
   -h     Show all contacts (hidden, blocked, ...)
   -n     Show users names
   -d     contact@email Deletes the specified contact
-
-Use "invite" to send/remove invitations to other users
-Use "showpcr" to browse incoming/outgoing invitations
-Use "ipc" to manage invitations received
-Use "users" to see contacts
 </pre>
 
 ### version
@@ -802,11 +792,13 @@ Options:
 
 *If you serve more than one location, these parameters will be ignored and use those of the first location served.
 
+Webdav setup is associated with your Session, so logging out will cancel them.
+
 Caveat: This functionality is in BETA state. If you experience any issue with this, please contact: support@mega.nz
 </pre>
 
 ### whoami
-Print account information
+Print account information  ([example](#login-logout-whoami-mkdir-cd-get-put-du-mount-example))
 
 Usage: `whoami [-l]`
 <pre>
@@ -818,39 +810,181 @@ Options:
 
 ## Examples
 
-### transfers example
+### signup confirm invite showpcr ipc users userattr example
 <pre>
-eg.email@example.co.nz:/tmp-test/Mega.dir$ transfers
-DIR/SYNC TAG  SOURCEPATH                         DESTINYPATH                              PROGRESS           STATE
- U     17361 \\?\C:\Users\MAT...ebug\megaapi.obj /tmp-test/Mega.dir/Mega.dir/Debug    100.00% of 2016.62 KB  ACTIVE
- U     17362 \\?\C:\Users\MAT...megaapi_impl.obj /tmp-test/Mega.dir/Mega.dir/Debug     13.64% of   13.85 MB  ACTIVE
- U     17363 \\?\C:\Users\MAT...g\megaclient.obj /tmp-test/Mega.dir/Mega.dir/Debug      0.00% of   15.46 MB  QUEUED
- U     17364 \\?\C:\Users\MAT..._http_parser.obj /tmp-test/Mega.dir/Mega.dir/Debug      0.00% of   85.15 KB  QUEUED
- U     17365 \\?\C:\Users\MAT...ega_utf8proc.obj /tmp-test/Mega.dir/Mega.dir/Debug      0.00% of  312.44 KB  QUEUED
- U     17366 \\?\C:\Users\MAT...\mega_zxcvbn.obj /tmp-test/Mega.dir/Mega.dir/Debug      0.00% of  589.88 KB  QUEUED
- U     17367 \\?\C:\Users\MAT...ir\Debug\net.obj /tmp-test/Mega.dir/Mega.dir/Debug      0.00% of    3.20 MB  QUEUED
- U     17368 \\?\C:\Users\MAT...r\Debug\node.obj /tmp-test/Mega.dir/Mega.dir/Debug      0.00% of    3.73 MB  QUEUED
- U     17369 \\?\C:\Users\MAT...ntactrequest.obj /tmp-test/Mega.dir/Mega.dir/Debug      0.00% of  352.22 KB  QUEUED
- U     17370 \\?\C:\Users\MAT...\Debug\proxy.obj /tmp-test/Mega.dir/Mega.dir/Debug      0.00% of  203.57 KB  QUEUED
- ...  Showing first 10 transfers ...
-eg.email@example.co.nz:/tmp-test/Mega.dir$ transfers -p 17367
-Transfer 17367 paused successfully.
-eg.email@example.co.nz:/tmp-test/Mega.dir$ transfers -c 17370
-Transfer 17370 cancelled successfully.
-eg.email@example.co.nz:/tmp-test/Mega.dir$ transfers
-DIR/SYNC TAG  SOURCEPATH                         DESTINYPATH                              PROGRESS           STATE
- U     17362 \\?\C:\Users\MAT...megaapi_impl.obj /tmp-test/Mega.dir/Mega.dir/Debug     96.32% of   13.85 MB  ACTIVE
- U     17363 \\?\C:\Users\MAT...g\megaclient.obj /tmp-test/Mega.dir/Mega.dir/Debug      0.20% of   15.46 MB  ACTIVE
- U     17364 \\?\C:\Users\MAT..._http_parser.obj /tmp-test/Mega.dir/Mega.dir/Debug      0.00% of   85.15 KB  QUEUED
- U     17365 \\?\C:\Users\MAT...ega_utf8proc.obj /tmp-test/Mega.dir/Mega.dir/Debug      0.00% of  312.44 KB  QUEUED
- U     17366 \\?\C:\Users\MAT...\mega_zxcvbn.obj /tmp-test/Mega.dir/Mega.dir/Debug      0.00% of  589.88 KB  QUEUED
- U     17367 \\?\C:\Users\MAT...ir\Debug\net.obj /tmp-test/Mega.dir/Mega.dir/Debug      0.00% of    3.20 MB  PAUSED
- U     17368 \\?\C:\Users\MAT...r\Debug\node.obj /tmp-test/Mega.dir/Mega.dir/Debug      0.00% of    3.73 MB  QUEUED
- U     17369 \\?\C:\Users\MAT...ntactrequest.obj /tmp-test/Mega.dir/Mega.dir/Debug      0.00% of  352.22 KB  QUEUED
- U     17371 \\?\C:\Users\MAT...pubkeyaction.obj /tmp-test/Mega.dir/Mega.dir/Debug      0.00% of  355.75 KB  QUEUED
- U     17372 \\?\C:\Users\MAT...ebug\request.obj /tmp-test/Mega.dir/Mega.dir/Debug      0.00% of  933.14 KB  QUEUED
- ...  Showing first 10 transfers ...
-eg.email@example.co.nz:/tmp-test/Mega.dir$
+MEGA CMD> signup eg.email_1@example.co.nz --name="test1"
+New Password:
+Retype New Password:
+Account <eg.email_1@example.co.nz> created succesfully. You will receive a confirmation link. Use "confirm" with the provided link to confirm that account
+MEGA CMD> confirm https://mega.nz/#confirmQFSfjtUkExc5M2Us6q5d-klx60Rfx<REDACTED>Vbxjhk eg.email_1@example.co.nz
+Password:
+Account eg.email_1@example.co.nz confirmed succesfully. You can login with it now
+MEGA CMD> signup eg.email_2@example.co.nz --name="test2"
+New Password:
+Retype New Password:
+Account <eg.email_2@example.co.nz> created succesfully. You will receive a confirmation link. Use "confirm" with the provided link to confirm that account
+MEGA CMD> confirm https://mega.nz/#confirmcz7Ss68ChhMKk8WEFTQCqLMHJg8es<REDACTED>AEEpQE eg.email_2@example.co.nz
+Password:
+Account eg.email_2@example.co.nz confirmed succesfully. You can login with it now
+MEGA CMD> login eg.email_1@example.co.nz
+Password:
+[API:info: 23:19:14] Fetching nodes ...
+[API:info: 23:19:17] Loading transfers from local cache
+[API:info: 23:19:17] Login complete as eg.email_1@example.co.nz
+MEGA CMD>
+eg.email_1@example.co.nz:/$ invite eg.email_2@example.co.nz
+Invitation to user: eg.email_2@example.co.nz sent
+eg.email_1@example.co.nz:/$ showpcr
+Outgoing PCRs:
+ eg.email_2@example.co.nz  (id: 47Xhz6wvVTk, creation: Thu, 26 Apr 2018 11:20:09 +1200, modification: Thu, 26 Apr 2018 11:20:09 +1200)
+eg.email_1@example.co.nz:/$ logout
+Logging out...
+eg.email_1@example.co.nz:/$
+MEGA CMD> login eg.email_2@example.co.nz
+Password:
+[API:info: 23:21:10] Fetching nodes ...
+[API:info: 23:21:12] Loading transfers from local cache
+[API:info: 23:21:12] Login complete as eg.email_2@example.co.nz
+MEGA CMD>
+eg.email_2@example.co.nz:/$ showpcr
+Incoming PCRs:
+ eg.email_1@example.co.nz  (id: 47Xhz6wvVTk, creation: Thu, 26 Apr 2018 11:20:09 +1200, modification: Thu, 26 Apr 2018 11:20:09 +1200)
+eg.email_2@example.co.nz:/$ ipc 47Xhz6wvVTk -a
+Accepted invitation by eg.email_1@example.co.nz
+eg.email_2@example.co.nz:/$ users
+eg.email_1@example.co.nz, visible since Thu, 26 Apr 2018 11:22:02 +1200
+eg.email_2@example.co.nz:/$ userattr --user=eg.email_1@example.co.nz
+        firstname = test1
+        ed25519 = 5Xl2-mUtsZkaATmSS88Ncepju5805uw66Hfdh_-SwpE
+        cu25519 = ejoYtpaJIZvlpmPsYviIa6tNvPTdVjfkYf9G1k8PKgM
+        rsa = AAAAAFrhDPPMS1AXAhJwScpJ_GKqFUJ42uIIcwxLp5RIalkWtsa5j87u2LFhoZlI_rHIzGXrdsbywgs7Msisw0CjodrtwtME
+        cu255 = AAAAAFrhDPPWUOP2tNByV72zU4M3EKNoddyVCT13VkkouMldniR2UZtLrPjUjUeOZOLvOL7H1C0W0Q_b3QqYSvAKo775pUwD
+eg.email_2@example.co.nz:/$ showpcr
+eg.email_2@example.co.nz:/$ logout
+Logging out...
+MEGA CMD> login eg.email_1@example.co.nz
+Password:
+[API:info: 23:24:26] Fetching nodes ...
+[API:info: 23:24:27] Loading transfers from local cache
+[API:info: 23:24:27] Login complete as eg.email_1@example.co.nz
+MEGA CMD>
+eg.email_1@example.co.nz:/$ showpcr
+eg.email_1@example.co.nz:/$ users
+eg.email_2@example.co.nz, visible
+eg.email_1@example.co.nz:/$ userattr --user=eg.email_2@example.co.nz
+        firstname = test2
+        ed25519 = M7SLy2RajwUAvynxJQaVkhe6hxGpbwJmvve3dgl8B1o
+        cu25519 = VaXluGS2c5xbo0xOHHJciqLRxwMaWZHVK8iuxtlCBTk
+        rsa = AAAAAFrhDWemabQ4JAOtP7zcoy6m74PsFTFCbj04Zh4G8K_TZB5Sm9T5Xj9CXYzwWnpfRd1McPdDouKdsASQ6Er7i4Y4LpEA
+        cu255 = AAAAAFrhDWcXE_7AHZmvxk5Hk0G7V65UnvFO42tb1gM9SYy3BpsMCas0X-pbqkYwf6_2eBG-ZLvkonGfXB3DWonWNvnVehIB
+eg.email_1@example.co.nz:/$
+</pre>
+
+### login logout whoami mkdir cd get put du mount example
+<pre>
+MEGA CMD> login eg.email_1@example.co.nz
+Password:
+[API:info: 23:43:14] Fetching nodes ...
+[API:info: 23:43:14] Loading transfers from local cache
+[API:info: 23:43:14] Login complete as eg.email_1@example.co.nz
+MEGA CMD>
+eg.email_1@example.co.nz:/$ whoami -l
+Account e-mail: eg.email_1@example.co.nz
+    Available storage: 50.00 GBytes
+        In ROOT:      146... KBytes in     1 file(s) and     0 folder(s)
+        In INBOX:       0.00  Bytes in     0 file(s) and     0 folder(s)
+        In RUBBISH:     0.00  Bytes in     0 file(s) and     0 folder(s)
+        Total size taken up by file versions:      0.00  Bytes
+    Pro level: 0
+    Subscription type:
+    Account balance:
+Current Active Sessions:
+    * Current Session
+    Session ID: m3a8eluyPdo
+    Session start: 4/26/2018 11:43:12 AM
+    Most recent activity: 4/26/2018 11:43:13 AM
+    IP: 122.56.56.232
+    Country: NZ
+    User-Agent: MEGAcmd/0.9.9.0 (Windows 10.0.16299) MegaClient/3.3.5
+    -----
+1 active sessions opened
+eg.email_1@example.co.nz:/$ mount
+ROOT on /
+INBOX on //in
+RUBBISH on //bin
+eg.email_1@example.co.nz:/$ ls
+Welcome to MEGA.pdf
+eg.email_1@example.co.nz:/$ get "Welcome to MEGA.pdf"
+TRANSFERING ||################################################################################||(1/1 MB: 100.00 %)
+eg.email_1@example.co.nz:/$ mkdir my-pictures
+eg.email_1@example.co.nz:/$ cd my-pictures/
+eg.email_1@example.co.nz:/my-pictures$ put C:\Users\MYWINDOWSUSER\Pictures
+TRANSFERING ||################################################################################||(1/1 MB: 100.00 %)
+eg.email_1@example.co.nz:/my-pictures$ pwd
+/my-pictures
+eg.email_1@example.co.nz:/my-pictures$ ls
+Pictures
+eg.email_1@example.co.nz:/my-pictures$ cd Pictures/
+eg.email_1@example.co.nz:/my-pictures/my-pictures$ ls
+Camera Roll
+Feedback
+Saved Pictures
+megacmdpkg.gif
+megacmdpkg_80.gif
+megacmdpkg_gray.gif
+eg.email_1@example.co.nz:/my-pictures/my-pictures$ pwd
+/my-pictures/Pictures
+eg.email_1@example.co.nz:/my-pictures/my-pictures$ cd /
+eg.email_1@example.co.nz:/$ du my-pictures/
+FILENAME                                        SIZE
+my-pictures:                                 1376143
+----------------------------------------------------------------
+Total storage used:                          1376143
+eg.email_1@example.co.nz:/$ logout
+Logging out...
+MEGA CMD>
+</pre>
+
+### sync example
+<pre>
+email_1@example.co.nz:/$ sync c:\Go go-backup/
+email_1@example.co.nz:/$ sync
+ID LOCALPATH                                  REMOTEPATH                                 ActState   SyncState     SIZE  FILES   DIRS
+ 0 \\?\c:\Go                                  /go-backup                                 InitScan   Syncing   119.13 KB     10     97 
+email_1@example.co.nz:/$ sync
+ID LOCALPATH                                  REMOTEPATH                                 ActState   SyncState     SIZE  FILES   DIRS
+ 0 \\?\c:\Go                                  /go-backup                                 InitScan   Syncing   61.22 MB   1252    463
+email_1@example.co.nz:/$ sync
+ID LOCALPATH                                  REMOTEPATH                                 ActState   SyncState     SIZE  FILES   DIRS
+ 0 \\?\c:\Go                                  /go-backup                                 InitScan   Syncing   232.94 MB   4942    773 
+email_1@example.co.nz:/$ sync
+ID LOCALPATH                                  REMOTEPATH                                 ActState   SyncState     SIZE  FILES   DIRS
+ 0 \\?\c:\Go                                  /go-backup                                 Active     Synced    285.91 MB   7710   1003 
+ 
+[then on a windows cmd prompt] 
+C:\Users\ME>rmdir /s c:\go\blog
+c:\go\blog, Are you sure (Y/N)? Y 
+
+[back in MEGAcmd- update has been applied to MEGA already] 
+email_1@example.co.nz:/$ sync
+ID LOCALPATH                                  REMOTEPATH                                 ActState   SyncState     SIZE  FILES   DIRS
+ 0 \\?\c:\Go                                  /go-backup                                 Active     Synced    268.53 MB   7306    961 
+</pre>
+
+### backup example
+<pre>
+eg.email@example.co.nz:/$ backup c:/cmake /cmake-backup --period="0 0 4 * * *" --num-backups=3
+Backup established: c:/cmake into /cmake-backup period="0 0 4 * * *" Number-of-Backups=3
+eg.email@example.co.nz:/$ backup
+TAG   LOCALPATH                                               REMOTEPARENTPATH                                                STATUS
+166   \\?\c:\cmake                                            /cmake-backup                                                  ONGOING
+eg.email@example.co.nz:/$ backup -h
+TAG   LOCALPATH                                               REMOTEPARENTPATH                                                STATUS
+166   \\?\c:\cmake                                            /cmake-backup                                                  ONGOING
+   -- SAVED BACKUPS --
+  NAME                                                    DATE                    STATUS  FILES FOLDERS
+  cmake_bk_20180426133300                                 26Apr2018 13:33:00     ONGOING      0      92
+eg.email@example.co.nz:/$
 </pre>
 
 ### webdav example
@@ -864,6 +998,43 @@ eg.email@example.co.nz:/$ webdav -d myfile.tif
 myfile.tif no longer served via webdav
 eg.email@example.co.nz:/$
 </pre>
+
+### transfers example
+<pre>
+eg.email@example.co.nz:/tmp-test/Mega.dir$ transfers
+DIR/SYNC TAG  SOURCEPATH                         DESTINYPATH                              PROGRESS           STATE
+ U     17361 \\?\C:\Users\ME\...ebug\megaapi.obj /tmp-test/Mega.dir/Mega.dir/Debug    100.00% of 2016.62 KB  ACTIVE
+ U     17362 \\?\C:\Users\ME\...megaapi_impl.obj /tmp-test/Mega.dir/Mega.dir/Debug     13.64% of   13.85 MB  ACTIVE
+ U     17363 \\?\C:\Users\ME\...g\megaclient.obj /tmp-test/Mega.dir/Mega.dir/Debug      0.00% of   15.46 MB  QUEUED
+ U     17364 \\?\C:\Users\ME\..._http_parser.obj /tmp-test/Mega.dir/Mega.dir/Debug      0.00% of   85.15 KB  QUEUED
+ U     17365 \\?\C:\Users\ME\...ega_utf8proc.obj /tmp-test/Mega.dir/Mega.dir/Debug      0.00% of  312.44 KB  QUEUED
+ U     17366 \\?\C:\Users\ME\...\mega_zxcvbn.obj /tmp-test/Mega.dir/Mega.dir/Debug      0.00% of  589.88 KB  QUEUED
+ U     17367 \\?\C:\Users\ME\...ir\Debug\net.obj /tmp-test/Mega.dir/Mega.dir/Debug      0.00% of    3.20 MB  QUEUED
+ U     17368 \\?\C:\Users\ME\...r\Debug\node.obj /tmp-test/Mega.dir/Mega.dir/Debug      0.00% of    3.73 MB  QUEUED
+ U     17369 \\?\C:\Users\ME\...ntactrequest.obj /tmp-test/Mega.dir/Mega.dir/Debug      0.00% of  352.22 KB  QUEUED
+ U     17370 \\?\C:\Users\ME\...\Debug\proxy.obj /tmp-test/Mega.dir/Mega.dir/Debug      0.00% of  203.57 KB  QUEUED
+ ...  Showing first 10 transfers ...
+eg.email@example.co.nz:/tmp-test/Mega.dir$ transfers -p 17367
+Transfer 17367 paused successfully.
+eg.email@example.co.nz:/tmp-test/Mega.dir$ transfers -c 17370
+Transfer 17370 cancelled successfully.
+eg.email@example.co.nz:/tmp-test/Mega.dir$ transfers
+DIR/SYNC TAG  SOURCEPATH                         DESTINYPATH                              PROGRESS           STATE
+ U     17362 \\?\C:\Users\ME\...megaapi_impl.obj /tmp-test/Mega.dir/Mega.dir/Debug     96.32% of   13.85 MB  ACTIVE
+ U     17363 \\?\C:\Users\ME\...g\megaclient.obj /tmp-test/Mega.dir/Mega.dir/Debug      0.20% of   15.46 MB  ACTIVE
+ U     17364 \\?\C:\Users\ME\..._http_parser.obj /tmp-test/Mega.dir/Mega.dir/Debug      0.00% of   85.15 KB  QUEUED
+ U     17365 \\?\C:\Users\ME\...ega_utf8proc.obj /tmp-test/Mega.dir/Mega.dir/Debug      0.00% of  312.44 KB  QUEUED
+ U     17366 \\?\C:\Users\ME\...\mega_zxcvbn.obj /tmp-test/Mega.dir/Mega.dir/Debug      0.00% of  589.88 KB  QUEUED
+ U     17367 \\?\C:\Users\ME\...ir\Debug\net.obj /tmp-test/Mega.dir/Mega.dir/Debug      0.00% of    3.20 MB  PAUSED
+ U     17368 \\?\C:\Users\ME\...r\Debug\node.obj /tmp-test/Mega.dir/Mega.dir/Debug      0.00% of    3.73 MB  QUEUED
+ U     17369 \\?\C:\Users\ME\...ntactrequest.obj /tmp-test/Mega.dir/Mega.dir/Debug      0.00% of  352.22 KB  QUEUED
+ U     17371 \\?\C:\Users\ME\...pubkeyaction.obj /tmp-test/Mega.dir/Mega.dir/Debug      0.00% of  355.75 KB  QUEUED
+ U     17372 \\?\C:\Users\ME\...ebug\request.obj /tmp-test/Mega.dir/Mega.dir/Debug      0.00% of  933.14 KB  QUEUED
+ ...  Showing first 10 transfers ...
+eg.email@example.co.nz:/tmp-test/Mega.dir$
+</pre>
+
+
 
 
 
