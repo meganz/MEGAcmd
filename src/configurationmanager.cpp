@@ -161,7 +161,7 @@ void ConfigurationManager::saveProperty(const char *property, const char *value)
             {
                 string key;
                 size_t pos = line.find("=");
-                if (pos != string::npos && ((pos + 1) < line.size()))
+                if (pos != string::npos)
                 {
                     key = line.substr(0, pos);
                     rtrimProperty(key, ' ');

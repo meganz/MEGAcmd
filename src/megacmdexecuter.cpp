@@ -108,6 +108,7 @@ MegaCmdExecuter::MegaCmdExecuter(MegaApi *api, MegaCMDLogger *loggerCMD, MegaCmd
     fsAccessCMD = new MegaFileSystemAccess();
     mtxSyncMap.init(false);
     mtxWebDavLocations.init(false);
+    mtxFtpLocations.init(false);
 #ifdef ENABLE_BACKUPS
     mtxBackupsMap.init(true);
 #endif
@@ -2663,8 +2664,10 @@ void MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
             if (api->httpServerStart(localonly, port, tls, pathtocert.c_str(), pathtokey.c_str()))
             {
                 list<string> servedpaths = ConfigurationManager::getConfigurationValueList<string>("webdav_served_locations");
+                bool modified = false;
 
-                for ( std::list<string>::iterator it = servedpaths.begin(); it != servedpaths.end(); ++it){
+                for ( std::list<string>::iterator it = servedpaths.begin(); it != servedpaths.end(); ++it)
+                {
                     string pathToServe = *it;
                     if (pathToServe.size())
                     {
@@ -2672,8 +2675,17 @@ void MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
                         if (n)
                         {
                             char *l = api->httpServerGetLocalWebDavLink(n);
-                            LOG_debug << "Serving via webdav: " << pathToServe << ": " << l;
+                            char *actualNodePath = api->getNodePath(n);
+                            LOG_debug << "Serving via webdav: " << actualNodePath << ": " << l;
+
+                            if (pathToServe != actualNodePath)
+                            {
+                                it = servedpaths.erase(it);
+                                servedpaths.insert(it,string(actualNodePath));
+                                modified = true;
+                            }
                             delete []l;
+                            delete []actualNodePath;
                             delete n;
                         }
                         else
@@ -2682,12 +2694,73 @@ void MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
                         }
                     }
                 }
+                if (modified)
+                {
+                    ConfigurationManager::savePropertyValueList("webdav_served_locations", servedpaths);
+                }
 
                 LOG_info << "Webdav server restored due to saved configuration";
             }
             else
             {
                 LOG_err << "Failed to initialize WEBDAV server";
+            }
+        }
+
+        //ftp
+        // restart ftp
+        int portftp = ConfigurationManager::getConfigurationValue("ftp_port", -1);
+        if (portftp != -1)
+        {
+            bool localonly = ConfigurationManager::getConfigurationValue("ftp_localonly", -1);
+            bool tls = ConfigurationManager::getConfigurationValue("ftp_tls", false);
+            string pathtocert, pathtokey;
+            pathtocert = ConfigurationManager::getConfigurationSValue("ftp_cert");
+            pathtokey = ConfigurationManager::getConfigurationSValue("ftp_key");
+
+            if (api->ftpServerStart(localonly, portftp, tls, pathtocert.c_str(), pathtokey.c_str()))
+            {
+                list<string> servedpaths = ConfigurationManager::getConfigurationValueList<string>("ftp_served_locations");
+                bool modified = false;
+
+                for ( std::list<string>::iterator it = servedpaths.begin(); it != servedpaths.end(); ++it)
+                {
+                    string pathToServe = *it;
+                    if (pathToServe.size())
+                    {
+                        MegaNode *n = nodebypath(pathToServe.c_str());
+                        if (n)
+                        {
+                            char *l = api->ftpServerGetLocalLink(n);
+                            char *actualNodePath = api->getNodePath(n);
+                            LOG_debug << "Serving via ftp: " << pathToServe << ": " << l;
+
+                            if (pathToServe != actualNodePath)
+                            {
+                                it = servedpaths.erase(it);
+                                servedpaths.insert(it,string(actualNodePath));
+                                modified = true;
+                            }
+                            delete []l;
+                            delete []actualNodePath;
+                            delete n;
+                        }
+                        else
+                        {
+                            LOG_warn << "Could no find location to server via ftp: " << pathToServe;
+                        }
+                    }
+                }
+                if (modified)
+                {
+                    ConfigurationManager::savePropertyValueList("ftp_served_locations", servedpaths);
+                }
+
+                LOG_info << "FTP server restored due to saved configuration";
+            }
+            else
+            {
+                LOG_err << "Failed to initialize FTP server";
             }
         }
 #endif
@@ -6196,12 +6269,13 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 MegaNode *n = nodebypath(pathToServe.c_str());
                 if (n)
                 {
+                    char *actualNodePath = api->getNodePath(n);
                     api->httpServerRemoveWebDavAllowedNode(n->getHandle());
 
                     mtxWebDavLocations.lock();
                     list<string> servedpaths = ConfigurationManager::getConfigurationValueList<string>("webdav_served_locations");
                     size_t sizeprior = servedpaths.size();
-                    servedpaths.remove(pathToServe);
+                    servedpaths.remove(actualNodePath);
                     size_t sizeafter = servedpaths.size();
                     if (!sizeafter)
                     {
@@ -6221,6 +6295,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         LOG_err << pathToServe << " is not served via webdav";
                     }
                     delete n;
+                    delete []actualNodePath;
                 }
                 else
                 {
@@ -6235,12 +6310,13 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 MegaNode *n = nodebypath(pathToServe.c_str());
                 if (n)
                 {
+                    char *actualNodePath = api->getNodePath(n);
                     char *l = api->httpServerGetLocalWebDavLink(n);
                     OUTSTREAM << "Serving via webdav " << pathToServe << ": " << l << endl;
 
                     mtxWebDavLocations.lock();
                     list<string> servedpaths = ConfigurationManager::getConfigurationValueList<string>("webdav_served_locations");
-                    servedpaths.push_back(pathToServe);
+                    servedpaths.push_back(actualNodePath);
                     servedpaths.sort();
                     servedpaths.unique();
                     ConfigurationManager::savePropertyValueList("webdav_served_locations", servedpaths);
@@ -6249,6 +6325,178 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
                     delete n;
                     delete []l;
+                    delete []actualNodePath;
+                }
+                else
+                {
+                    setCurrentOutCode(MCMD_NOTFOUND);
+                    LOG_err << "Path not found: " << pathToServe;
+                    return;
+                }
+            }
+        }
+    }
+    else if (words[0] == "ftp")
+    {
+        bool remove = getFlag(clflags, "d");
+
+        if (words.size() > 2 || (words.size() == 1 && remove) )
+        {
+            setCurrentOutCode(MCMD_EARGS);
+            LOG_err << "      " << getUsageStr("ftp");
+            return;
+        }
+
+        if (words.size() == 1)
+        {
+            //List served nodes
+            MegaNodeList *ftpnodes = api->ftpServerGetAllowedNodes();
+            if (ftpnodes)
+            {
+                bool found = false;
+
+                for (int a = 0; a < ftpnodes->size(); a++)
+                {
+                    MegaNode *n= ftpnodes->get(a);
+                    if (n)
+                    {
+                        char *link = api->ftpServerGetLocalLink(n); //notice this is not only consulting but also creating,
+                        //had it been deleted in the meantime this will recreate it
+                        if (link)
+                        {
+                            if (!found)
+                            {
+                                OUTSTREAM << "FTP SERVED LOCATIONS:" << endl;
+                            }
+                            found = true;
+                            char * nodepath = api->getNodePath(n);
+                            OUTSTREAM << nodepath << ": " << link << endl;
+                            delete []nodepath;
+                            delete []link;
+                        }
+                    }
+                }
+
+                if(!found)
+                {
+                    OUTSTREAM << "No ftp links found" << endl;
+                }
+
+                delete ftpnodes;
+
+           }
+           else
+           {
+               OUTSTREAM << "Ftp server might not running. Add a new location to serve." << endl;
+           }
+
+           return;
+        }
+
+        if (!remove)
+        {
+            //create new link:
+            bool tls = getFlag(clflags, "tls");
+            int port = getintOption(cloptions, "port", 4443);
+            bool localonly = !getFlag(clflags, "public");
+
+            string pathtocert = getOption(cloptions, "certificate", "");
+            string pathtokey = getOption(cloptions, "key", "");
+
+            bool serverstarted = api->ftpServerIsRunning();
+            if (!serverstarted)
+            {
+                LOG_info << "Starting ftp server";
+                if (api->ftpServerStart(localonly, port, tls, pathtocert.c_str(), pathtokey.c_str()))
+                {
+                    ConfigurationManager::savePropertyValue("ftp_port", port);
+                    ConfigurationManager::savePropertyValue("ftp_localonly", localonly);
+                    ConfigurationManager::savePropertyValue("ftp_tls", tls);
+                    if (pathtocert.size())
+                    {
+                        ConfigurationManager::savePropertyValue("ftp_cert", pathtocert);
+                    }
+                    if (pathtokey.size())
+                    {
+                        ConfigurationManager::savePropertyValue("ftp_key", pathtokey);
+                    }
+                }
+                else
+                {
+                    setCurrentOutCode(MCMD_EARGS);
+                    LOG_err << "Failed to initialize FTP server";
+                    return;
+                }
+            }
+        }
+
+        //add/remove
+        for (unsigned int i = 1; i < words.size(); i++)
+        {
+            string pathToServe = words[i];
+
+            if (remove)
+            {
+                MegaNode *n = nodebypath(pathToServe.c_str());
+                if (n)
+                {
+                    char *actualNodePath = api->getNodePath(n);
+                    api->ftpServerRemoveAllowedNode(n->getHandle());
+
+                    mtxFtpLocations.lock();
+                    list<string> servedpaths = ConfigurationManager::getConfigurationValueList<string>("ftp_served_locations");
+                    size_t sizeprior = servedpaths.size();
+                    servedpaths.remove(actualNodePath);
+                    size_t sizeafter = servedpaths.size();
+                    if (!sizeafter)
+                    {
+                        api->ftpServerStop();
+                        ConfigurationManager::savePropertyValue("ftp_port", -1); //so as not to load server on startup
+                    }
+                    ConfigurationManager::savePropertyValueList("ftp_served_locations", servedpaths);
+                    mtxFtpLocations.unlock();
+
+                    if (sizeprior != sizeafter)
+                    {
+                        OUTSTREAM << pathToServe << " no longer served via ftp" << endl;
+                    }
+                    else
+                    {
+                        setCurrentOutCode(MCMD_NOTFOUND);
+                        LOG_err << pathToServe << " is not served via ftp";
+                    }
+                    delete n;
+                    delete []actualNodePath;
+                }
+                else
+                {
+                    setCurrentOutCode(MCMD_NOTFOUND);
+                    LOG_err << "Path not found: " << pathToServe;
+                    return;
+                }
+            }
+            else //add
+            {
+
+                MegaNode *n = nodebypath(pathToServe.c_str());
+                if (n)
+                {
+                    char *actualNodePath = api->getNodePath(n);
+                    char *l = api->ftpServerGetLocalLink(n);
+                    OUTSTREAM << "Serving via ftp " << pathToServe << ": " << l << endl;
+
+                    mtxFtpLocations.lock();
+                    list<string> servedpaths = ConfigurationManager::getConfigurationValueList<string>("ftp_served_locations");
+                    servedpaths.push_back(actualNodePath);
+                    servedpaths.sort();
+                    servedpaths.unique();
+                    ConfigurationManager::savePropertyValueList("ftp_served_locations", servedpaths);
+                    mtxFtpLocations.unlock();
+
+
+                    delete n;
+                    delete []l;
+                    delete []actualNodePath;
                 }
                 else
                 {

@@ -184,7 +184,7 @@ vector<string> remotefolderspatterncommands(aremotefolderspatterncommands, aremo
 
 string amultipleremotepatterncommands[] = {"ls", "mkdir", "rm", "du", "find", "mv", "deleteversions"
 #ifdef HAVE_LIBUV
-                                           , "webdav"
+                                           , "webdav", "ftp"
 #endif
                                           };
 vector<string> multipleremotepatterncommands(amultipleremotepatterncommands, amultipleremotepatterncommands + sizeof amultipleremotepatterncommands / sizeof amultipleremotepatterncommands[0]);
@@ -206,7 +206,7 @@ string avalidCommands [] = { "login", "signup", "confirm", "session", "mount", "
                              "showpcr", "users", "speedlimit", "killsession", "whoami", "help", "passwd", "reload", "logout", "version", "quit",
                              "thumbnail", "preview", "find", "completion", "clear", "https", "transfers", "exclude", "exit"
 #ifdef HAVE_LIBUV
-                             , "webdav"
+                             , "webdav", "ftp"
 #endif
 #ifdef ENABLE_BACKUPS
                              , "backup"
@@ -444,6 +444,15 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     }
 #ifdef HAVE_LIBUV
     else if ("webdav" == thecommand)
+    {
+        validParams->insert("d");
+        validParams->insert("tls");
+        validParams->insert("public");
+        validOptValues->insert("port");
+        validOptValues->insert("certificate");
+        validOptValues->insert("key");
+    }
+    else if ("ftp" == thecommand)
     {
         validParams->insert("d");
         validParams->insert("tls");
@@ -1389,6 +1398,10 @@ const char * getUsageStr(const char *command)
     {
         return "webdav [ [-d] remotepath [--port=PORT] [--public] [--tls --certificate=/path/to/certificate.pem --key=/path/to/certificate.key]]";
     }
+    if (!strcmp(command, "ftp"))
+    {
+        return "ftp [ [-d] remotepath [--port=PORT] [--public] [--tls --certificate=/path/to/certificate.pem --key=/path/to/certificate.key]]";
+    }
 #endif
     if (!strcmp(command, "sync"))
     {
@@ -1901,6 +1914,26 @@ string getHelpStr(const char *command)
         os << " --public   " << "\t" << "*Allow access from outside localhost" << endl;
         os << " --port=PORT" << "\t" << "*Port to serve. DEFAULT= 4443" << endl;
         os << " --tls      " << "\t" << "*Serve with TLS (HTTPS)" << endl;
+        os << " --certificate=/path/to/certificate.pem" << "\t" << "*Path to PEM formated certificate" << endl;
+        os << " --key=/path/to/certificate.key" << "\t" << "*Path to PEM formated key" << endl;
+        os << endl;
+        os << "*If you serve more than one location, these parameters will be ignored and used those of the first location served." << endl;
+        os << endl;
+        os << "Caveat: This functionality is in BETA state. If you experience any issue with this, please contact: support@mega.nz" << endl;
+        os << endl;
+    }
+    else if (!strcmp(command, "ftp"))
+    {
+        os << "Configures a FTP server to serve a location in MEGA" << endl;
+        os << endl;
+        os << "This can also be used for streaming files. The server will be running as long as MEGAcmd Server is. " << endl;
+        os << "If no argument is given, it will list the ftp enabled locations." << endl;
+        os << endl;
+        os << "Options:" << endl;
+        os << " --d        " << "\t" << "Stops serving that location" << endl;
+        os << " --public   " << "\t" << "*Allow access from outside localhost" << endl;
+        os << " --port=PORT" << "\t" << "*Port to serve. DEFAULT= 4443" << endl;
+        os << " --tls      " << "\t" << "*Serve with TLS (FTPs)" << endl;
         os << " --certificate=/path/to/certificate.pem" << "\t" << "*Path to PEM formated certificate" << endl;
         os << " --key=/path/to/certificate.key" << "\t" << "*Path to PEM formated key" << endl;
         os << endl;
