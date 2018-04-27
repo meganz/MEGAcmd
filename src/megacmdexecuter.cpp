@@ -2710,6 +2710,7 @@ void MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
         //ftp
         // restart ftp
         int portftp = ConfigurationManager::getConfigurationValue("ftp_port", -1);
+
         if (portftp != -1)
         {
             bool localonly = ConfigurationManager::getConfigurationValue("ftp_localonly", -1);
@@ -2717,8 +2718,10 @@ void MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
             string pathtocert, pathtokey;
             pathtocert = ConfigurationManager::getConfigurationSValue("ftp_cert");
             pathtokey = ConfigurationManager::getConfigurationSValue("ftp_key");
+            int dataPortRangeBegin = ConfigurationManager::getConfigurationValue("ftp_port_data_begin", 1500);
+            int dataPortRangeEnd = ConfigurationManager::getConfigurationValue("ftp_port_data_end", 1500+100);
 
-            if (api->ftpServerStart(localonly, portftp, tls, pathtocert.c_str(), pathtokey.c_str()))
+            if (api->ftpServerStart(localonly, portftp, dataPortRangeBegin, dataPortRangeEnd, tls, pathtocert.c_str(), pathtokey.c_str()))
             {
                 list<string> servedpaths = ConfigurationManager::getConfigurationValueList<string>("ftp_served_locations");
                 bool modified = false;
@@ -2733,7 +2736,7 @@ void MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
                         {
                             char *l = api->ftpServerGetLocalLink(n);
                             char *actualNodePath = api->getNodePath(n);
-                            LOG_debug << "Serving via ftp: " << pathToServe << ": " << l;
+                            LOG_debug << "Serving via ftp: " << pathToServe << ": " << l << ". Data Channel Port Range: " << dataPortRangeBegin << "-" << dataPortRangeEnd;
 
                             if (pathToServe != actualNodePath)
                             {
@@ -6397,8 +6400,20 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         {
             //create new link:
             bool tls = getFlag(clflags, "tls");
-            int port = getintOption(cloptions, "port", 4443);
+            int port = getintOption(cloptions, "port", 22);
             bool localonly = !getFlag(clflags, "public");
+
+            string dataPorts = getOption(cloptions, "data-ports");
+            size_t seppos = dataPorts.find("-");
+            int dataPortRangeBegin = 1500;
+            istringstream is(dataPorts.substr(0,seppos));
+            is >> dataPortRangeBegin;
+            int dataPortRangeEnd = dataPortRangeBegin + 100;
+            if (seppos != string::npos && seppos < (dataPorts.size()+1))
+            {
+                istringstream is(dataPorts.substr(seppos+1));
+                is >> dataPortRangeEnd;
+            }
 
             string pathtocert = getOption(cloptions, "certificate", "");
             string pathtokey = getOption(cloptions, "key", "");
@@ -6406,10 +6421,11 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             bool serverstarted = api->ftpServerIsRunning();
             if (!serverstarted)
             {
-                LOG_info << "Starting ftp server";
-                if (api->ftpServerStart(localonly, port, tls, pathtocert.c_str(), pathtokey.c_str()))
+                if (api->ftpServerStart(localonly, port, dataPortRangeBegin, dataPortRangeEnd, tls, pathtocert.c_str(), pathtokey.c_str()))
                 {
                     ConfigurationManager::savePropertyValue("ftp_port", port);
+                    ConfigurationManager::savePropertyValue("ftp_port_data_begin", dataPortRangeBegin);
+                    ConfigurationManager::savePropertyValue("ftp_port_data_end", dataPortRangeEnd);
                     ConfigurationManager::savePropertyValue("ftp_localonly", localonly);
                     ConfigurationManager::savePropertyValue("ftp_tls", tls);
                     if (pathtocert.size())
@@ -6420,6 +6436,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     {
                         ConfigurationManager::savePropertyValue("ftp_key", pathtokey);
                     }
+                    LOG_info << "Started ftp server at port " << port << ". Data Channel Port Range: " << dataPortRangeBegin << "-" << dataPortRangeEnd;
                 }
                 else
                 {

@@ -458,6 +458,7 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validParams->insert("tls");
         validParams->insert("public");
         validOptValues->insert("port");
+        validOptValues->insert("data-ports");
         validOptValues->insert("certificate");
         validOptValues->insert("key");
     }
@@ -1400,7 +1401,7 @@ const char * getUsageStr(const char *command)
     }
     if (!strcmp(command, "ftp"))
     {
-        return "ftp [ [-d] remotepath [--port=PORT] [--public] [--tls --certificate=/path/to/certificate.pem --key=/path/to/certificate.key]]";
+        return "ftp [ [-d] remotepath [--port=PORT] [--data-ports=BEGIN-END] [--public] [--tls --certificate=/path/to/certificate.pem --key=/path/to/certificate.key]]";
     }
 #endif
     if (!strcmp(command, "sync"))
@@ -1932,7 +1933,8 @@ string getHelpStr(const char *command)
         os << "Options:" << endl;
         os << " --d        " << "\t" << "Stops serving that location" << endl;
         os << " --public   " << "\t" << "*Allow access from outside localhost" << endl;
-        os << " --port=PORT" << "\t" << "*Port to serve. DEFAULT= 4443" << endl;
+        os << " --port=PORT" << "\t" << "*Port to serve. DEFAULT=22" << endl;
+        os << " --data-ports=BEGIN-END" << "\t" << "*Ports range used for data channel (in passive mode). DEFAULT=1500-1600" << endl;
         os << " --tls      " << "\t" << "*Serve with TLS (FTPs)" << endl;
         os << " --certificate=/path/to/certificate.pem" << "\t" << "*Path to PEM formated certificate" << endl;
         os << " --key=/path/to/certificate.key" << "\t" << "*Path to PEM formated key" << endl;
