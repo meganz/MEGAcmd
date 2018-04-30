@@ -1480,7 +1480,7 @@ const char * getUsageStr(const char *command)
     }
     if (!strcmp(command, "passwd"))
     {
-        return "passwd [oldpassword newpassword]";
+        return "passwd [newpassword]";
     }
     if (!strcmp(command, "retry"))
     {
@@ -2632,19 +2632,6 @@ static bool process_line(char* l)
             setprompt(COMMAND);
             break;
         }
-
-        case OLDPASSWORD:
-        {
-            if (!strlen(l))
-            {
-                break;
-            }
-            oldpasswd = l;
-            OUTSTREAM << endl;
-            setprompt(NEWPASSWORD);
-            break;
-        }
-
         case NEWPASSWORD:
         {
             if (!strlen(l))
@@ -2672,7 +2659,7 @@ static bool process_line(char* l)
                 OUTSTREAM << endl;
                 if (!cmdexecuter->signingup)
                 {
-                    cmdexecuter->changePassword(oldpasswd.c_str(), newpasswd.c_str());
+                    cmdexecuter->changePassword(newpasswd.c_str());
                 }
                 else
                 {

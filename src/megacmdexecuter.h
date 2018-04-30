@@ -100,7 +100,7 @@ public:
     long long getVersionsSize(mega::MegaNode* n);
     //acting
     void loginWithPassword(char *password);
-    void changePassword(const char *oldpassword, const char *newpassword);
+    void changePassword(const char *newpassword);
     void actUponGetExtendedAccountDetails(mega::SynchronousRequestListener  *srl, int timeout = -1);
     bool actUponFetchNodes(mega::MegaApi * api, mega::SynchronousRequestListener  *srl, int timeout = -1);
     void actUponLogin(mega::SynchronousRequestListener  *srl, int timeout = -1);

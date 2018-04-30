@@ -1196,19 +1196,6 @@ void process_line(char * line)
             setprompt(COMMAND);
             break;
         }
-
-        case OLDPASSWORD:
-        {
-            if (!strlen(line))
-            {
-                break;
-            }
-            oldpasswd = line;
-            OUTSTREAM << endl;
-            setprompt(NEWPASSWORD);
-            break;
-        }
-
         case NEWPASSWORD:
         {
             if (!strlen(line))
@@ -1218,9 +1205,8 @@ void process_line(char * line)
             newpasswd = line;
             OUTSTREAM << endl;
             setprompt(PASSWORDCONFIRM);
-        }
             break;
-
+        }
         case PASSWORDCONFIRM:
         {
             if (!strlen(line))
@@ -1308,7 +1294,7 @@ void process_line(char * line)
                         discardOptionsAndFlags(&words);
                         if (words.size() == 1)
                         {
-                            setprompt(OLDPASSWORD);
+                            setprompt(NEWPASSWORD);
                         }
                         else
                         {

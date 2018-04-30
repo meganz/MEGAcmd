@@ -2287,16 +2287,12 @@ void MegaCmdExecuter::loginWithPassword(char *password)
 }
 
 
-void MegaCmdExecuter::changePassword(const char *oldpassword, const char *newpassword)
+void MegaCmdExecuter::changePassword(const char *newpassword)
 {
     MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
-    api->changePassword(oldpassword, newpassword, megaCmdListener);
+    api->changePassword(NULL, newpassword, megaCmdListener);
     megaCmdListener->wait();
-    if (!checkNoErrors(megaCmdListener->getError(), "change password"))
-    {
-        LOG_err << "Please, ensure you enter the old password correctly";
-    }
-    else
+    if (checkNoErrors(megaCmdListener->getError(), "change password"))
     {
         OUTSTREAM << "Password changed succesfully" << endl;
     }
@@ -7645,7 +7641,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             {
                 if (interactiveThread())
                 {
-                    setprompt(OLDPASSWORD);
+                    setprompt(NEWPASSWORD);
                 }
                 else
                 {
@@ -7653,9 +7649,9 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     LOG_err << "Extra args required in non interactive mode. Usage: " << getUsageStr("passwd");
                 }
             }
-            else if (words.size() > 2)
+            else if (words.size() == 2)
             {
-                changePassword(words[1].c_str(), words[2].c_str());
+                changePassword(words[1].c_str());
             }
             else
             {
