@@ -8,10 +8,10 @@
 #     (unzipped to /opt/cross-compile)
 #  - (maybe)32 bit libz, eg this works for ubuntu 16.04: sudo apt-get install zlib1g:i386
 
-export PROJECT=x86_64-QNAP-linux-gnu
+export PROJECT=i686-QNAP-linux-gnu
 export PRJROOT=/opt/cross-project/CT
-export ARCH=x86_64
-export TARGET=x86_64-QNAP-linux-gnu
+export ARCH=x86
+export TARGET=$PROJECT
 export CROSS_COMPILE=${TARGET}-
 export TARGET_PREFIX=${PRJROOT}/${PROJECT}/cross-tools
 export SYS_TARGET_PREFIX=${PRJROOT}/${PROJECT}/cross-tools
@@ -66,7 +66,7 @@ pwd
 mkdir -p norecurse
 mv norecurse/* .
 
-./contrib/build_sdk.sh -a -e -g -I -n -q -R -X -C"$CUSTOM_CONFIG_ARGS" -O linux-x86_64 -S "no-asm" -0 2>&1 | tee $MEGA_CMD_DIR/mybuildlogs-sdkbuild.out
+./contrib/build_sdk.sh -a -e -g -I -n -q -R -X -C"$CUSTOM_CONFIG_ARGS" -O linux-32 2>&1 | tee $MEGA_CMD_DIR/mybuildlogs-sdkbuild.out
 
 if [ -e ./src/libmega.a ] ; then
     size=$(wc -c < ./src/libmega.a )
@@ -131,8 +131,8 @@ if [ -e mega-cmd ] && [ -e mega-cmd-server ] && [ -e mega-exec ] ; then
     cp src/client/mega-* install/
     cp mega-cmd mega-exec mega-cmd-server install/
 
-    mkdir -p build/QNAP_NAS/megacmdpkg/x86_64
-    cp install/* build/QNAP_NAS/megacmdpkg/x86_64
+    mkdir -p build/QNAP_NAS/megacmdpkg/x86
+    cp install/* build/QNAP_NAS/megacmdpkg/x86
 
     MAJOR=`sed -n -e 's/.*MAJOR_VERSION \([0-9]*\).*/\1/p' < src/megacmdversion.h`
     MINOR=`sed -n -e 's/.*MINOR_VERSION \([0-9]*\).*/\1/p' < src/megacmdversion.h`
