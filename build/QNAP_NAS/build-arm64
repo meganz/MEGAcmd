@@ -130,8 +130,8 @@ if [ -e mega-cmd ] && [ -e mega-cmd-server ] && [ -e mega-exec ] ; then
     cp src/client/mega-* install/
     cp mega-cmd mega-exec mega-cmd-server install/
 
-    mkdir -p build/QNAP_NAS/megacmdpkg/arm64
-    cp install/* build/QNAP_NAS/megacmdpkg/arm64
+    mkdir -p build/QNAP_NAS/megacmdpkg/arm_64
+    cp install/* build/QNAP_NAS/megacmdpkg/arm_64
 
     MAJOR=`sed -n -e 's/.*MAJOR_VERSION \([0-9]*\).*/\1/p' < src/megacmdversion.h`
     MINOR=`sed -n -e 's/.*MINOR_VERSION \([0-9]*\).*/\1/p' < src/megacmdversion.h`

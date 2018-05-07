@@ -39,14 +39,21 @@ export SysRootLib=$SysRootLib
 echo $0
 echo "CFLAGS was $CFLAGS"
 echo "CPPFLAGS was $CPPFLAGS"
-export CPPFLAGS=$CPPFLAGS `echo $CFLAGS | grep -o -- '-D[^ ][^ ]*' | tr "\n" " " `
-export CPPFLAGS=$CPPFLAGS `echo $CFLAGS | grep -o -- '-I[^ ][^ ]*' | tr "\n" " " `
+export defines=`echo $CFLAGS | grep -o -- '-D[^ ][^ ]*' | tr "\n" " " `
+export includes=`echo $CFLAGS | grep -o -- '-I[^ ][^ ]*' | tr "\n" " " `
+echo "defines:$defines"
+echo "includes:$includes"
+export CPPFLAGS="$CPPFLAGS $defines $includes"
+export defines=
+export includes=
 export CFLAGS=`echo $CFLAGS | sed -e 's/-D[^ ][^ ]*//g' `
 export CFLAGS=`echo $CFLAGS | sed -e 's/-I[^ ][^ ]*//g' `
 echo "CFLAGS now $CFLAGS"
 echo "CPPFLAGS now $CPPFLAGS"
 
 suppress_freeimage_flag=""
+
+echo "BUILD_ARCH: $BUILD_ARCH"
 
 #we need to specify the platform specially for OpenSSL
 if [ $BUILD_ARCH -eq 32 ] ; then
@@ -201,5 +208,17 @@ fi
 echo "final return code: $?"
 echo "outputs should be 3 files: mega-cmd mega-cmd-server mega-exec.  ls output: "
 ls mega-*
+
+echo checkiing we build the right 32/64bit target
+export built_arch=`file mega-exec | grep -o "[0-9]*-bit" `
+if [ "$built_arch" == "$BUILD_ARCH-bit" ] ; then
+    echo "Correct buildarch: $BUILD_ARCH"
+else
+    echo "wrong buildarch: $BUILD_ARCH"
+    file mega-exec 
+    rm mega-exec
+fi
+
+
 
 exit 0
