@@ -9,7 +9,7 @@ In addition to running commands on request, MEGAcmd can also be configured to sy
 
 In order to enable synchronisation and backup features, and for efficiency running commands, MEGAcmd runs a server process in the background which the MEGAcmd shell or the script commands forward requests to.   The server keeps running in the background until it is told to close with the `exit` or `quit` commands.   If you want it to keep running (for sync and backup for example) when you exit MEGAcmd, use the `--only-shell` flag.
 
-Working with your MEGA account requires signing in with your email and password using the `login` command, though you can download public links or upload to public folders without logging in.  Logging in with your username and password starts a [Session](#session), and causes some of your account such as the folder structure to be downloaded and cached locally for performance (encrypted, of course).  That cache is kept on disk, and will be reused the next time you run MEGAcmd.  While the background server is running, the cache is kept up to date.  Closing and reopening MEGAcmd will not require you to log in again, unless you logged out.   Logging out closes your session, and means that the next login will require downloading the cache again.  Logging out means your device cannot access your MEGA account again until you provide your password (or use a Session ID to log on), so it is more secure, however the sync and backup features will not be able to operate, and your local cache will not be kept up to date.
+Working with your MEGA account requires signing in with your email and password using the `login` command, though you can download public links or upload to public folders without logging in.  Logging in with your username and password starts a [Session](#session), and causes some of your account such as the folder structure to be downloaded and cached locally for performance (encrypted, of course).  That cache is kept on disk, and will be reused the next time you run MEGAcmd.  While the background server is running, the cache is kept up to date.  Closing and reopening MEGAcmd will not require you to log in again, unless you logged out.   Logging out closes your session, and means that the next login will require downloading the cache again.  Logging out also cancels your sync, backup, and webdav setup on that device, since those are part of the session, so you may want to create a script to set those up.
 
 ### Where can you get it  
 For Linux, Mac, or Windows: Download it from the MEGA.nz website: https://mega.nz/cmd <p>
@@ -132,8 +132,7 @@ Sets up or controls backups.  ([example](#backup-example))  ([tutorial](https://
 Usage: `backup (localpath remotepath --period="PERIODSTRING" --num-backups=N  | [-lhda] [TAG|localpath] [--period="PERIODSTRING"] [--num-backups=N])`
 
 <pre>
-This command can be used to configure and control backups.
-A tutorial can be found here: https://github.com/meganz/MEGAcmd/blob/master/contrib/docs/BACKUPS.md
+This command can be used to configure which folders to back up, and how often to do so.
 
 If no argument is given it will list the configured backups.
 To get extra info on backups use -l or -h (see Options below)
@@ -775,7 +774,8 @@ Options:
 </pre>
 
 ### webdav
-Configures a WEBDAV server to serve a location in MEGA  ([example](#webdav-example))
+Configures a WEBDAV server to serve a location in MEGA.  You can use feature to make a folder in your MEGA account appear as a virtual drive, or to stream files.
+([example](#webdav-example)) ([tutorial](#https://github.com/meganz/MEGAcmd/blob/master/contrib/docs/WEBDAV.md))
 
 Usage: `webdav [ [-d] remotepath [--port=PORT] [--public] [--tls --certificate=/path/to/certificate.pem --key=/path/to/certificate.key]]`
 <pre>

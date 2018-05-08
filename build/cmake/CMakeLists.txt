@@ -10,6 +10,13 @@ include(${CMAKE_CURRENT_LIST_DIR}/../../sdk/contrib/cmake/CMakeLists.txt)
 
 set(ProjectDir "${CMAKE_CURRENT_LIST_DIR}/../..")
 
+set (ENABLE_BACKUP 1 CACHE TYPE BOOL)
+
+if (ENABLE_BACKUP)
+    add_definitions( -DENABLE_BACKUPS )
+endif (ENABLE_BACKUP)
+
+
 add_executable(mega-cmd-server 
     "${ProjectDir}/src/megacmd.cpp"
     "${ProjectDir}/src/megacmdexecuter.cpp"

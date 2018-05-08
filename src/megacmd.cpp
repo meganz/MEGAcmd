@@ -1983,7 +1983,7 @@ string getHelpStr(const char *command)
         os << " --path-display-size=N" << "\t" << "Use a fixed size of N characters for paths" << endl;
         os << endl;
         os << "Configuration Options:" << endl;
-        os << "--period=\"PERIODSTRING\"\t" << "Period: either time in TIMEFORMAT (see below) or a cron like expresisions" << endl;
+        os << "--period=\"PERIODSTRING\"\t" << "Period: either time in TIMEFORMAT (see below) or a cron like expression" << endl;
         os << "                       \t" << " Cron like period is formatted as follows" << endl;
         os << "                       \t" << "  - - - - - -" << endl;
         os << "                       \t" << "  | | | | | |" << endl;
