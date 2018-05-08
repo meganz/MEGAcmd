@@ -7681,7 +7681,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     {
                         if (dumpListOfExported(n, words[i]) == 0 )
                         {
-                            OUTSTREAM << "Couldn't find nothing exported below ";
+                            OUTSTREAM << "Couldn't find anything exported below ";
                             if (words[i] == ".")
                             {
                                 OUTSTREAM << "current folder";
