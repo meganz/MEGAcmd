@@ -17,7 +17,7 @@ export CXX=$CXX
 export LD=$LD
 export CFLAGS="$CFLAGS -O3 -fexceptions -fvisibility=hidden -static"
 export CPPFLAGS="$CPPFLAGS -DNDEBUG"
-export CXXFLAGS="-std=c++11 $CFLAGS -DNDEBUG"
+export CXXFLAGS="-std=c++11 $CFLAGS -DNDEBUG -DENABLE_BACKUPS"
 export AR=$AR
 export NM=$NM
 export STRIP=$STRIP
@@ -189,6 +189,8 @@ pwd
 
 freeimagelib=${suppress_freeimage_flag:-"sdk/sdk_build/install/lib/libfreeimage.a"}
 freeimagelib=${freeimagelib/-f/-lz}
+
+echo "CXXFLAGS: $CXXFLAGS"
 
 if ! [ -e mega-cmd-server ] ; then
     echo "Attempt to build mega-cmd-server manually"
