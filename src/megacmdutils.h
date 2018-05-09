@@ -70,14 +70,14 @@ bool hasWildCards(std::string &what);
 /* Time related */
 const char *fillStructWithSYYmdHMS(std::string &stime, struct tm &dt);
 
-std::string getReadableTime(const time_t rawtime);
-std::string getReadableShortTime(const time_t rawtime, bool showUTCDeviation = false);
+std::string getReadableTime(const ::mega::m_time_t rawtime);
+std::string getReadableShortTime(const ::mega::m_time_t rawtime, bool showUTCDeviation = false);
 
-std::string getReadablePeriod(const time_t rawtime);
+std::string getReadablePeriod(const ::mega::m_time_t rawtime);
 
-time_t getTimeStampAfter(time_t initial, std::string timestring);
+::mega::m_time_t getTimeStampAfter(::mega::m_time_t initial, std::string timestring);
 
-time_t getTimeStampAfter(std::string timestring);
+::mega::m_time_t getTimeStampAfter(std::string timestring);
 
 time_t getTimeStampBefore(time_t initial, std::string timestring);
 
@@ -140,7 +140,7 @@ std::string sizeProgressToText(long long partialSize, long long totalSize, bool 
 
 int64_t textToSize(const char *text);
 
-std::string secondsToText(time_t seconds, bool humanreadable = true);
+std::string secondsToText(::mega::m_time_t seconds, bool humanreadable = true);
 
 std::string percentageToText(float percentage);
 

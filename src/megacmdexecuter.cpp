@@ -2302,6 +2302,13 @@ void MegaCmdExecuter::changePassword(const char *oldpassword, const char *newpas
     delete megaCmdListener;
 }
 
+void str_localtime(char s[32], ::mega::m_time_t t)
+{
+    time_t tt = time_t(t); // can be 32 bit
+    strftime(s, 32, "%c", localtime(&tt));
+}
+
+
 void MegaCmdExecuter::actUponGetExtendedAccountDetails(SynchronousRequestListener *srl, int timeout)
 {
     if (timeout == -1)
@@ -2383,8 +2390,7 @@ void MegaCmdExecuter::actUponGetExtendedAccountDetails(SynchronousRequestListene
             {
                 if (details->getProExpiration())
                 {
-                    time_t ts = details->getProExpiration();
-                    strftime(timebuf, sizeof timebuf, "%c", localtime(&ts));
+                    str_localtime(timebuf, details->getProExpiration());
                     OUTSTREAM << "        " << "Pro expiration date: " << timebuf << endl;
                 }
             }
@@ -2407,10 +2413,9 @@ void MegaCmdExecuter::actUponGetExtendedAccountDetails(SynchronousRequestListene
                 {
                     MegaAccountPurchase *purchase = details->getPurchase(i);
 
-                    time_t ts = purchase->getTimestamp();
                     char spurchase[150];
 
-                    strftime(timebuf, sizeof timebuf, "%c", localtime(&ts));
+                    str_localtime(timebuf, purchase->getTimestamp());
                     sprintf(spurchase, "ID: %.11s Time: %s Amount: %.3s %.02f Payment method: %d\n",
                         purchase->getHandle(), timebuf, purchase->getCurrency(), purchase->getAmount(), purchase->getMethod());
                     OUTSTREAM << "    " << spurchase << endl;
@@ -2423,9 +2428,9 @@ void MegaCmdExecuter::actUponGetExtendedAccountDetails(SynchronousRequestListene
                 for (int i = 0; i < details->getNumTransactions(); i++)
                 {
                     MegaAccountTransaction *transaction = details->getTransaction(i);
-                    time_t ts = transaction->getTimestamp();
                     char stransaction[100];
-                    strftime(timebuf, sizeof timebuf, "%c", localtime(&ts));
+
+                    str_localtime(timebuf, transaction->getTimestamp());
                     sprintf(stransaction, "ID: %.11s Time: %s Amount: %.3s %.02f\n",
                         transaction->getHandle(), timebuf, transaction->getCurrency(), transaction->getAmount());
                     OUTSTREAM << "    " << stransaction << endl;
@@ -2441,10 +2446,8 @@ void MegaCmdExecuter::actUponGetExtendedAccountDetails(SynchronousRequestListene
                 if (session->isAlive())
                 {
                     sdetails[0]='\0';
-                    time_t ts = session->getCreationTimestamp();
-                    strftime(timebuf,  sizeof timebuf, "%c", localtime(&ts));
-                    ts = session->getMostRecentUsage();
-                    strftime(timebuf2, sizeof timebuf, "%c", localtime(&ts));
+                    str_localtime(timebuf, session->getCreationTimestamp());
+                    str_localtime(timebuf2, session->getMostRecentUsage());
 
                     char *sid = api->userHandleToBase64(session->getHandle());
 
@@ -3852,7 +3855,7 @@ void MegaCmdExecuter::printBackupDetails(MegaBackup *backup)
         long long totbytes = backup->getTotalBytes();
         double percent = totbytes?double(trabytes)/double(totbytes):0;
 
-        string sprogress = sizeProgressToText(trabytes, totbytes) + "  " + percentageToText(percent);
+        string sprogress = sizeProgressToText(trabytes, totbytes) + "  " + percentageToText(float(percent));
         OUTSTREAM << "  " << getRightAlignedString(sprogress,10);
         OUTSTREAM << endl;
     }
@@ -7596,7 +7599,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             LOG_err << "Not logged in.";
             return;
         }
-        time_t expireTime = 0;
+        ::mega::m_time_t expireTime = 0;
         string sexpireTime = getOption(cloptions, "expire", "");
         if ("" != sexpireTime)
         {
