@@ -808,7 +808,7 @@ void MegaCmdGlobalTransferListener::onTransferTemporaryError(MegaApi *api, MegaT
                          "See \"help --upgrade\" for further details";
         }
         sandboxCMD->setOverquota(true);
-        sandboxCMD->timeOfOverquota=time(NULL);
+        sandboxCMD->timeOfOverquota = m_time(NULL);
         sandboxCMD->secondsOverQuota=e->getValue();
     }
 };

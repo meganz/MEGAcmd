@@ -21,6 +21,8 @@
 
 #include "megacmd.h"
 
+using ::mega::m_time_t;
+
 /* mega::MegaNode info extracting*/
 void getNumFolderFiles(mega::MegaNode *, mega::MegaApi *, long long *nfiles, long long *nfolders);
 
@@ -70,22 +72,22 @@ bool hasWildCards(std::string &what);
 /* Time related */
 const char *fillStructWithSYYmdHMS(std::string &stime, struct tm &dt);
 
-std::string getReadableTime(const ::mega::m_time_t rawtime);
-std::string getReadableShortTime(const ::mega::m_time_t rawtime, bool showUTCDeviation = false);
+std::string getReadableTime(const m_time_t rawtime);
+std::string getReadableShortTime(const m_time_t rawtime, bool showUTCDeviation = false);
 
-std::string getReadablePeriod(const ::mega::m_time_t rawtime);
+std::string getReadablePeriod(const m_time_t rawtime);
 
-::mega::m_time_t getTimeStampAfter(::mega::m_time_t initial, std::string timestring);
+m_time_t getTimeStampAfter(m_time_t initial, std::string timestring);
 
-::mega::m_time_t getTimeStampAfter(std::string timestring);
+m_time_t getTimeStampAfter(std::string timestring);
 
-time_t getTimeStampBefore(time_t initial, std::string timestring);
+m_time_t getTimeStampBefore(m_time_t initial, std::string timestring);
 
-time_t getTimeStampBefore(std::string timestring);
+m_time_t getTimeStampBefore(std::string timestring);
 
-bool getMinAndMaxTime(std::string timestring, time_t *minTime, time_t *maxTime);
+bool getMinAndMaxTime(std::string timestring, m_time_t *minTime, m_time_t *maxTime);
 
-bool getMinAndMaxTime(time_t initial, std::string timestring, time_t *minTime, time_t *maxTime);
+bool getMinAndMaxTime(m_time_t initial, std::string m_timestring, m_time_t *minTime, m_time_t *maxTime);
 
 
 /* Strings related */
@@ -140,7 +142,7 @@ std::string sizeProgressToText(long long partialSize, long long totalSize, bool 
 
 int64_t textToSize(const char *text);
 
-std::string secondsToText(::mega::m_time_t seconds, bool humanreadable = true);
+std::string secondsToText(m_time_t seconds, bool humanreadable = true);
 
 std::string percentageToText(float percentage);
 
