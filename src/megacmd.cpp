@@ -813,10 +813,35 @@ char * flags_value_completion(const char*text, int state)
                     }
                 }
             }
-            if (( thecommand == "userattr" ) && ( currentFlag.find("--user=") == 0 ))
+            else if (( thecommand == "userattr" ) && ( currentFlag.find("--user=") == 0 ))
             {
                 validValues = cmdexecuter->getlistusers();
                 string prefix = strncmp(text, "--user=", strlen("--user="))?"":"--user=";
+                for (unsigned int i=0;i<validValues.size();i++)
+                {
+                    validValues.at(i)=prefix+validValues.at(i);
+                }
+            }
+            else if  ( ( thecommand == "ftp" || thecommand == "webdav" )
+                && ( currentFlag.find("--key=") == 0 || currentFlag.find("--certificate=") == 0 ) )
+            {
+                const char * cflag = (currentFlag.find("--key=") == 0)? "--key=" : "--certificate=";
+                string stext = text;
+                size_t begin = strncmp(text, cflag, strlen(cflag))?0:strlen(cflag);
+                size_t end = stext.find_last_of('/');
+                if (end != string::npos && (end + 1 ) < stext.size() )
+                {
+                    end = end - begin +1;
+                }
+                else
+                {
+                    end = string::npos;
+                }
+
+                string location = stext.substr(begin, end);
+                validValues = cmdexecuter->getlistfilesfolders(location.size()?location:"./");
+                string prefix = strncmp(text, cflag, strlen(cflag))?"":cflag;
+                prefix.append(location);
                 for (unsigned int i=0;i<validValues.size();i++)
                 {
                     validValues.at(i)=prefix+validValues.at(i);

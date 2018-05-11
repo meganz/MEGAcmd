@@ -3689,6 +3689,31 @@ vector<string> MegaCmdExecuter::getsessions()
     return sessions;
 }
 
+vector<string> MegaCmdExecuter::getlistfilesfolders(string location)
+{
+    vector<string> toret;
+#ifdef HAVE_DIRENT_H
+    DIR *dir;
+    struct dirent *entry;
+    if ((dir = opendir (location.c_str())) != NULL)
+    {
+        while ((entry = readdir (dir)) != NULL)
+        {
+            if (IsFolder(location + entry->d_name))
+            {
+                toret.push_back(entry->d_name + string("/"));
+            }
+            else
+            {
+                toret.push_back(entry->d_name);
+            }
+        }
+        closedir (dir);
+    }
+#endif
+    return toret;
+}
+
 void MegaCmdExecuter::signup(string name, string passwd, string email)
 {
     MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
