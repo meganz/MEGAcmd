@@ -27,7 +27,7 @@ export CXX=${CROSS_COMPILE}g++
 export LD=${CROSS_COMPILE}ld
 export CFLAGS="$CFLAGS -fPIC -fexceptions -fvisibility=hidden -fsigned-char"
 export CPPFLAGS="-DNDEBUG"
-export CXXFLAGS="$CXXFLAGS $CFLAGS -DNDEBUG"
+export CXXFLAGS="$CXXFLAGS $CFLAGS -DNDEBUG -DENABLE_BACKUPS"
 export AR=${CROSS_COMPILE}ar
 export NM=${CROSS_COMPILE}nm
 export STRIP=${CROSS_COMPILE}strip

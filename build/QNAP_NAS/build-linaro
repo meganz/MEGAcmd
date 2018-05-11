@@ -34,7 +34,7 @@ export CXX=${CROSS_COMPILE}g++
 export LD=${CROSS_COMPILE}ld
 export CFLAGS="$CFLAGS -fPIC -fexceptions -fvisibility=hidden -fsigned-char"
 export CPPFLAGS="-DNDEBUG"
-export CXXFLAGS="$CXXFLAGS $CFLAGS -DNDEBUG"
+export CXXFLAGS="$CXXFLAGS $CFLAGS -DNDEBUG -DENABLE_BACKUPS"
 export AR=${CROSS_COMPILE}ar
 export NM=${CROSS_COMPILE}nm
 export STRIP=${CROSS_COMPILE}strip
@@ -136,7 +136,7 @@ if [ -e mega-cmd ] && [ -e mega-cmd-server ] && [ -e mega-exec ] ; then
     MINOR=`sed -n -e 's/.*MINOR_VERSION \([0-9]*\).*/\1/p' < src/megacmdversion.h`
     MICRO=`sed -n -e 's/.*MICRO_VERSION \([0-9]*\).*/\1/p' < src/megacmdversion.h`
     MEGACMD_VERSION="\"$MAJOR.$MINOR.$MICRO\""
-    sudo sed -i build/QNAP_NAS/megacmdpkg/qpkg.cfg -e "s/^QPKG_VER=.*/QPKG_VER=$MEGACMD_VERSION/"
+    sed -i build/QNAP_NAS/megacmdpkg/qpkg.cfg -e "s/^QPKG_VER=.*/QPKG_VER=$MEGACMD_VERSION/"
 else
     echo "Build failed"
     exit 1
