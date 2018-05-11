@@ -446,6 +446,7 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     else if ("webdav" == thecommand)
     {
         validParams->insert("d");
+        validParams->insert("all");
         validParams->insert("tls");
         validParams->insert("public");
         validOptValues->insert("port");
@@ -455,6 +456,7 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     else if ("ftp" == thecommand)
     {
         validParams->insert("d");
+        validParams->insert("all");
         validParams->insert("tls");
         validParams->insert("public");
         validOptValues->insert("port");
@@ -1422,11 +1424,11 @@ const char * getUsageStr(const char *command)
 #ifdef HAVE_LIBUV
     if (!strcmp(command, "webdav"))
     {
-        return "webdav [ [-d] remotepath [--port=PORT] [--public] [--tls --certificate=/path/to/certificate.pem --key=/path/to/certificate.key]]";
+        return "webdav [-d (--all | remotepath ) ] [ remotepath [--port=PORT] [--public] [--tls --certificate=/path/to/certificate.pem --key=/path/to/certificate.key]]";
     }
     if (!strcmp(command, "ftp"))
     {
-        return "ftp [ [-d] remotepath [--port=PORT] [--data-ports=BEGIN-END] [--public] [--tls --certificate=/path/to/certificate.pem --key=/path/to/certificate.key]]";
+        return "ftp [-d ( --all | remotepath ) ] [ remotepath [--port=PORT] [--data-ports=BEGIN-END] [--public] [--tls --certificate=/path/to/certificate.pem --key=/path/to/certificate.key]]";
     }
 #endif
     if (!strcmp(command, "sync"))
@@ -1937,6 +1939,7 @@ string getHelpStr(const char *command)
         os << endl;
         os << "Options:" << endl;
         os << " --d        " << "\t" << "Stops serving that location" << endl;
+        os << " --all      " << "\t" << "When used with -d, stops serving all locations (and stops the server)" << endl;
         os << " --public   " << "\t" << "*Allow access from outside localhost" << endl;
         os << " --port=PORT" << "\t" << "*Port to serve. DEFAULT= 4443" << endl;
         os << " --tls      " << "\t" << "*Serve with TLS (HTTPS)" << endl;
@@ -1957,6 +1960,7 @@ string getHelpStr(const char *command)
         os << endl;
         os << "Options:" << endl;
         os << " --d        " << "\t" << "Stops serving that location" << endl;
+        os << " --all      " << "\t" << "When used with -d, stops serving all locations (and stops the server)" << endl;
         os << " --public   " << "\t" << "*Allow access from outside localhost" << endl;
         os << " --port=PORT" << "\t" << "*Port to serve. DEFAULT=22" << endl;
         os << " --data-ports=BEGIN-END" << "\t" << "*Ports range used for data channel (in passive mode). DEFAULT=1500-1600" << endl;
