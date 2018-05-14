@@ -2460,7 +2460,7 @@ void executecommand(char* ptr)
             if (words.size() < 3) words.push_back("");
             vector<string> wordstocomplete(words.begin()+1,words.end());
             setCurrentThreadLine(wordstocomplete);
-            OUTSTREAM << getListOfCompletionValues(wordstocomplete,(char)0x1F, ""+(char)0x1F, false);
+            OUTSTREAM << getListOfCompletionValues(wordstocomplete,(char)0x1F, string().append(1, (char)0x1F).c_str(), false);
         }
 
         return;
