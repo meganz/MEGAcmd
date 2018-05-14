@@ -3836,7 +3836,7 @@ void MegaCmdExecuter::printTransfer(MegaTransfer *transfer, const unsigned int P
         OUTSTREAM << " ";
 
         //destination
-        string dest = transfer->getParentPath();
+        string dest = transfer->getParentPath() ? transfer->getParentPath() : "";
         dest.append(transfer->getFileName());
         OUTSTREAM << getFixLengthString(dest,PATHSIZE);
     }
@@ -4011,7 +4011,7 @@ void MegaCmdExecuter::printBackupHistory(MegaBackup *backup, MegaNode *parentnod
                 {
                     backupInstanceStatus = backupInstanceNode->getCustomAttr("BACKST");
 
-                    getNumFolderFiles(backupInstanceNode, api, &nfiles, &nfolders);
+                    getNumFolderFilesFromRequest(backupInstanceNode, api, &nfiles, &nfolders);
 
                 }
 
@@ -6744,7 +6744,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         long long nfiles = 0;
                         long long nfolders = 0;
                         nfolders++; //add the share itself
-                        getNumFolderFiles(n, api, &nfiles, &nfolders);
+                        getInfoFromFolder(n, api, &nfiles, &nfolders);
 
                         if (getFlag(clflags, "s") || getFlag(clflags, "r"))
                         {
@@ -6858,7 +6858,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     long long nfiles = 0;
                     long long nfolders = 0;
                     nfolders++; //add the share itself
-                    getNumFolderFiles(n, api, &nfiles, &nfolders);
+                    getInfoFromFolder(n, api, &nfiles, &nfolders);
 
                     char * nodepath = api->getNodePath(n);
                     printSync(i++, ( *itr ).first, nodepath, thesync, n, nfiles, nfolders, PATHSIZE);
@@ -8838,19 +8838,3 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
     }
 }
 
-bool MegaCmdExecuter::checkNoErrors(MegaError *error, string message)
-{
-    if (!error)
-    {
-        LOG_fatal << "No MegaError at request: " << message;
-        return false;
-    }
-    if (error->getErrorCode() == MegaError::API_OK)
-    {
-        return true;
-    }
-
-    setCurrentOutCode(error->getErrorCode());
-    LOG_err << "Failed to " << message << ": " << error->getErrorString();
-    return false;
-}
