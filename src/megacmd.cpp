@@ -371,6 +371,10 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validParams->insert("use-pcre");
 #endif
     }
+    else if ("passwd" == thecommand)
+    {
+        validParams->insert("f");
+    }
     else if ("du" == thecommand)
     {
         validParams->insert("h");
@@ -1507,7 +1511,7 @@ const char * getUsageStr(const char *command)
     }
     if (!strcmp(command, "passwd"))
     {
-        return "passwd [newpassword]";
+        return "passwd [-f] [newpassword]";
     }
     if (!strcmp(command, "retry"))
     {
@@ -2236,6 +2240,13 @@ string getHelpStr(const char *command)
     if (!strcmp(command, "passwd"))
     {
         os << "Modifies user password" << endl;
+        os << endl;
+        os << "Notice that modifying the password will close all your active sessions" << endl;
+        os << " in all your devices (except for the current one)" << endl;
+        os << endl;
+        os << "Options:" << endl;
+        os << " -f   " << "\t" << "Force (no asking)" << endl;
+
     }
     else if (!strcmp(command, "reload"))
     {

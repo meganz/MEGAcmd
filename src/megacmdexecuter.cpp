@@ -7688,6 +7688,14 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
     }
     else if (words[0] == "passwd")
     {
+        string confirmationQuery("Changing password will close all your sessions. Are you sure?(Yes/No): ");
+        bool force = getFlag(clflags, "f");
+        int confirmationResponse = force?MCMDCONFIRM_ALL:askforConfirmation(confirmationQuery);
+        if (confirmationResponse != MCMDCONFIRM_YES && confirmationResponse != MCMDCONFIRM_ALL)
+        {
+            return;
+        }
+
         if (api->isLoggedIn())
         {
             if (words.size() == 1)

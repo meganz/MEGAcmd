@@ -285,6 +285,7 @@ static int pw_buf_pos = 0;
 string loginname;
 bool signingup = false;
 string signupline;
+string passwdline;
 string linktoconfirm;
 
 bool confirminglink = false;
@@ -1231,7 +1232,8 @@ void process_line(char * line)
                 }
                 else
                 {
-                    string changepasscommand("passwd ");
+                    string changepasscommand(passwdline);
+                    passwdline = " ";
                     changepasscommand+=oldpasswd;
                     changepasscommand+=" " ;
                     changepasscommand+=newpasswd;
@@ -1288,9 +1290,9 @@ void process_line(char * line)
 #endif
                 else if (!helprequested && words[0] == "passwd")
                 {
-
                     if (isserverloggedin())
                     {
+                        passwdline = line;
                         discardOptionsAndFlags(&words);
                         if (words.size() == 1)
                         {
