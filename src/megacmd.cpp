@@ -1204,7 +1204,7 @@ completionfunction_t *getCompletionFunction(vector<string> words)
     return empty_completion;
 }
 
-string getListOfCompletionValues(vector<string> words, char separator = ' ', bool suppressflag = true)
+string getListOfCompletionValues(vector<string> words, char separator = ' ', const char * separators = " ;", bool suppressflag = true)
 {
     string completionValues;
     completionfunction_t * compfunction = getCompletionFunction(words);
@@ -1242,7 +1242,7 @@ string getListOfCompletionValues(vector<string> words, char separator = ' ', boo
             completionValues+=separator;
         }
 
-        if (strchr(newval,separator))
+        if (string(newval).find_first_of(separators) != string::npos)
         {
             completionValues+="\"";
             completionValues+=newval;
@@ -2460,7 +2460,7 @@ void executecommand(char* ptr)
             if (words.size() < 3) words.push_back("");
             vector<string> wordstocomplete(words.begin()+1,words.end());
             setCurrentThreadLine(wordstocomplete);
-            OUTSTREAM << getListOfCompletionValues(wordstocomplete,(char)0x1F, false);
+            OUTSTREAM << getListOfCompletionValues(wordstocomplete,(char)0x1F, ""+(char)0x1F, false);
         }
 
         return;

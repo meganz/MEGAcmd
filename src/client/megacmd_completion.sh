@@ -15,6 +15,8 @@ _megacmd()
 	for a in "${COMP_WORDS[@]}"; do
 		if [[ $a == *" "* ]] && [[ $a != "\""* ]] && [[ $a != "'"* ]]; then
 			linetoexec=$linetoexec" \""$(echo $a | sed 's#\\$#\\ #g' | sed 's#\\\ # #g')"\""
+		elif [[ $a == *";"* ]] && [[ $a != "\""* ]] && [[ $a != "'"* ]]; then
+			linetoexec=$linetoexec" \""$(echo $a | sed 's#\\$#\\;#g' | sed 's#\\\;#;#g')"\""
 		else
 			if [[ ${a} == '=' ]] || [[ ${lasta} == '=' ]] || [[ ${a} == ':' ]] || [[ ${lasta} == ':' ]]; then
 				linetoexec=$linetoexec$a
@@ -44,7 +46,7 @@ _megacmd()
 		return $?
 	fi
 
-	declare -a "aOPTS=($opts)" || declare -a 'aOPTS=($opts)'
+	declare -a "aOPTS=(${opts/;/\\;})" || declare -a 'aOPTS=(${opts/;/\\. ;})'
 
 	for a in `seq 0 $(( ${#aOPTS[@]} -1 ))`; do
 		COMPREPLY[$a]=$( echo ${aOPTS[$a]} | sed "s# #\\\ #g")
