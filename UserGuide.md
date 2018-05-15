@@ -1,6 +1,6 @@
 # MEGAcmd User Guide
 
-This document relates to MEGAcmd version 0.9.9.
+This document relates to MEGAcmd version 0.9.9.  It contains introductory information and the [Command Summary](#command-summary), with links to detailed command descriptions.
 
 ### What is it
 A command line tool to work with your MEGA account and files.  The intent is to offer all the MEGA account functionality via command line.  You can run it in [interactive](#interactive) mode where it processes all commands directly, or you can run its [scriptable](#scriptable) commands from your favourite Linux or Mac shell such as bash, or you can even run its commands in a Windows command prompt. And of course you can write scripts using those scriptable commands.
@@ -112,7 +112,7 @@ On Linux, MEGAcmd commands are installed at /usr/bin and so will already be on y
 If you are using the scriptable commands in bash (or using the interactive commands in mega-cmd), the commands will auto-complete.
 
 ### Macintosh
-For MacOS, after installing the dmg, you can launch the server using *MEGAcmd* in Applications. If you wish to use the client commands from MacOS Terminal, open the Terminal and include the installation folder in the PATH.<p>
+For MacOS, after installing the dmg, you can launch the server using **MEGAcmd** in Applications. If you wish to use the client commands from MacOS Terminal, open the Terminal and include the installation folder in the PATH.<p>
 Typically:
 ```
 export PATH=/Applications/MEGAcmd.app/Contents/MacOS:$PATH
@@ -132,12 +132,20 @@ $env:PATH += ";$env:LOCALAPPDATA\MEGAcmd"
 MEGAcmdShell
 ```
 
-For [scriptable](#scriptable) usage, the MEGAcmd commands are provided via installed .bat files which pass the command to the MEGAcmdServer.exe.  Provided you have set the PATH as above, you can use these like normal command line tools in PowerShell or Command Prompt:
+For [scriptable](#scriptable) usage, the MEGAcmd commands are provided via installed .bat files which pass the command to the MEGAcmdServer.exe.  Provided you have set the PATH as above, you can use these like normal command line tools in PowerShell:
 ```
 $env:PATH += ";$env:LOCALAPPDATA\MEGAcmd"
 mega-cd /my/favourite/folder
 mega-ls 
 ```
+
+Or in Command Prompt:
+```
+set PATH=%LOCALAPPDATA%\MEGAcmd;%PATH%
+mega-cd /my/favourite/folder
+mega-ls 
+```
+
 
 And of course those can be invoked in your own .bat or .cmd files.
 Autocompletion is not available for the scriptable commands, but is in the interactive shell.
@@ -152,9 +160,9 @@ Currently we are working on releasing MEGAcmd for QNAP and Synology.  Please che
 
 These summaries use the usual conventions - `[]` indicates its content is optional,  `|` indicates you should choose either the item on the left or the one on the right (but not both)
 
-Each command is described as it would be used in the MEGAcmd shell, and the corresponding shell script (prefixed with `mega-`) works in the same way.
+Each command is described as it would be used in the [interactive](#interactive) MEGAcmd shell, and the corresponding [scriptable](#scriptable) command (which must be prefixed with `mega-`) works in the same way.
 
-Commands referring to a `remote path` are talking about a file in your MEGA account online, whereas a `local path` refers to a file or folder on your local device where MEGAcmd is running.
+Commands referring to a [remote path](#remote-path) are talking about a file in your MEGA account online, whereas a [local path](#local-path) refers to a file or folder on your local device where MEGAcmd is running.
 
 Verbosity: You can increase the amount of information given by any command by passing `-v` (`-vv`, `-vvv`, ...)
 
