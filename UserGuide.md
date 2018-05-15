@@ -3,14 +3,14 @@
 This document relates to MEGAcmd version 0.9.9.
 
 ### What is it
-A command line tool to work with your MEGA account and files.  The intent is to offer all the MEGA account functionality via command line.  You can run it in [interactive](#interactive) mode where it processes all commands directly, or you can run its [scriptable](#scriptable) commands from your favourite Linux or Mac shell such as bash, or you can even run its commands in a Windows command prompt.   You can also use its scriptable commands in scripts on any of those platforms.
+A command line tool to work with your MEGA account and files.  The intent is to offer all the MEGA account functionality via command line.  You can run it in [interactive](#interactive) mode where it processes all commands directly, or you can run its [scriptable](#scriptable) commands from your favourite Linux or Mac shell such as bash, or you can even run its commands in a Windows command prompt. And of course you can write scripts using those scriptable commands.
 
 Here is an example of downloading a file using MEGAcmd.  In this case we are downloading a file specified by a public link, which does not require being logged in: <p>
 ```
 mega-get https://mega.nz/#F!ABcD1E2F!gHiJ23k-LMno45PqrSTUvw /path/to/local/folder 
 ```
 
-And here is an example of uploading a file using MEGAcmd, and making a link to share it for a limited time. <p>
+And here is an example of uploading a file using MEGAcmd, and making a link available to share it, that will expire after 10 minutes.<p>
 ```
 mega-put /path/to/my/temporary_resource /exportedstuff/
 mega-export -a  /exportedstuff/temporary_resource --expire=10M | awk '{print $4}'
@@ -24,9 +24,9 @@ mega-export -a $i | awk '{print $4}';
 done
 ```
 
-In addition to running commands on request, MEGAcmd can also be configured to synchronise folders between your local device to your MEGA account, or perform regular backups from your device to your MEGA account.
+In addition to running commands on request, MEGAcmd can also be configured to [synchronise](#synchronisation-configurations) folders between your local device and your MEGA account, or perform regular [backups](#backup-configurations) from your device to your MEGA account.
 
-In order to enable synchronisation and backup features, and for efficiency running commands, MEGAcmd runs a server process in the background which the MEGAcmd shell or the script commands forward requests to.   The server keeps running in the background until it is told to close with the [`quit`](#quit) commands.   If you want it to keep running (for sync and backup for example) when you exit MEGAcmd, use the `--only-shell` flag.
+In order to enable synchronisation and backup features, and for efficiency running commands, MEGAcmd runs a server process in the background which the MEGAcmd shell or the script commands forward requests to.   The server keeps running in the background until it is told to close with the [`quit`](#quit) command.   If you want it to keep running when you quit the interactive shell (to keep sync and backup runnign for example), use `quit --only-shell`.
 
 Working with your MEGA account requires signing in with your email and password using the [`login`](#login) command, though you can download public links or upload to public folders without logging in.  Logging in with your username and password starts a [Session](#session), and causes some of your account such as the folder structure to be downloaded to your [Local Cache](#local-cache).  
 
@@ -46,9 +46,9 @@ See our Help Centre pages for the basics of getting started, and friendly exampl
 ## Terminology and Descriptions
 
 ### Interactive
-Interactive refers to running the MEGAcmd shell which only processes MEGA commands, and sending it commands by typing and pressing Enter.  MEGAcmd shell provides a lot of feedback about what it's doing.  You can start the MEGAcmd shell with `mega-cmd` (or `MEGAcmd` on Windows).  You can then issue commands like `ls` directly: <p>
+Interactive refers to running the MEGAcmd shell which only processes MEGA commands.  You invoke commands by typing and pressing Enter.  MEGAcmd shell provides a lot of feedback about what it's doing.  You can start the MEGAcmd shell with `mega-cmd` (or `MEGAcmd` on Windows).  You can then issue commands like `ls` directly: <p>
 `ls /my/account/folder`<p>
-or you can get a list of available commands with:
+or you can get a list of available commands with: <p>
 `help`<p>
 or you can get detailed information about any particular command by using the `--help` flag with that command:<p>
 `ls --help`<p>
@@ -57,7 +57,7 @@ Autocompletion (pressing tab to fill in the remainder of a command) is available
 ### Scriptable
 Scriptable refers to running the MEGAcmd commands from a shell such as bash or the windows powershell.  If the PATH to the MEGAcmd commands are not yet on the PATH in that shell, you'll need to add it.  You can then issue commands like `ls` by prefixing them with the `mega-` prefix: <p>
 `mega-ls /my/account/folder`<p>
-or you can get a list of available commands with:
+or you can get a list of available commands with: <p>
 `mega-help`<p>
 or you can get detailed information about any particular command by using the `--help` flag with that command:<p>
 `mega-ls --help`<p>
@@ -91,17 +91,20 @@ sync /path/to/local/folder /folder/in/mega
 
 You can set up more than one pair or folders to be synced, and you can also set a sync from another device to the same folder, to achieve folder synchronisations between different devices.   The changes are sent via your MEGA account rather than directly between the devices in that case.
 
-Additional information about synchronising folder is available in our Help Centre:  https://mega.nz/help/client/megasync/syncing
+Additional information about synchronising folders is available in our Help Centre:  https://mega.nz/help/client/megasync/syncing
 
 ### Backup configurations
-MEGAcmd can set up a periodic copy of a local folder to your MEGA account using the [`backup`](#backup) command.  Here is a simple example that will run immediately and then at 4am each day, keeping the 10 most recent backups: <p>
+MEGAcmd can set up a periodic copy of a local folder to your MEGA account using the [`backup`](#backup) command.  Here is a simple example that will back up a folder immediately and then at 4am each day, keeping the 10 most recent backups: <p>
 ```
 backup /path/to/myfolder /remote/path --period="0 0 4 * * *" --num-backups=10
-```<p>
+```
+
 For further information on backups, please see the [`backup`](#backup) command and the [tutorial](contrib/docs/BACKUPS.md). 
 
 ### WebDAV configurations
 MEGAcmd can set up access to folders or files in your MEGA account as if they were local folders and files on your device using the [`webdav`](#webdav) command.  For example making the folder appear like a local drive on your PC, or providing a hyperlink a browser can access, where the hyperlink is to your PC.
+
+For further information on WebDAV, please see the [`webdav`](#webdav) command and the [tutorial](contrib/docs/WEBDAV.md). 
 
 ### Linux
 On Linux, MEGAcmd commands are installed at /usr/bin and so will already be on your PATH.  The interactive shell is `mega-cmd` and the background server is `mega-cmd-server`, which will be automatically started on demand.  The various scriptable commands are installed at the same location, and invoke `mega-exec` to send the command to `mega-cmd-server`.    
