@@ -3,13 +3,32 @@
 This document relates to MEGAcmd version 0.9.9.
 
 ### What is it
-A command line tool to work with your MEGA account and files.  You can run it in interactive mode where it processes all commands directly, or you can use all the features from your favourite Linux or Mac shell such as bash, or you can even run it in a Windows command prompt.   You can also use its commands in scripts.
+A command line tool to work with your MEGA account and files.  The intent is to offer all the MEGA account functionality via command line.  You can run it in [interactive](#interactive) mode where it processes all commands directly, or you can run its [scriptable](#scriptable) commands from your favourite Linux or Mac shell such as bash, or you can even run its commands in a Windows command prompt.   You can also use its scriptable commands in scripts on any of those platforms.
+
+Here is an example of downloading a file using MEGAcmd.  In this case we are downloading a file specified by a public link, which does not require being logged in: <p>
+```
+mega-get https://mega.nz/#F!ABcD1E2F!gHiJ23k-LMno45PqrSTUvw /path/to/local/folder 
+```
+
+And here is an example of uploading a file using MEGAcmd, and making a link to share it for a limited time. <p>
+```
+mega-put /path/to/my/temporary_resource /exportedstuff/
+mega-export -a  /exportedstuff/temporary_resource --expire=10M | awk '{print $4}'
+```
+
+And here is an example of the power of using [scriptable](#scriptable) MEGAcmd commands in bash.  In this case we are going to share some promotional videos previously uploaded to MEGA: <p>
+```
+for i in $(mega-find /enterprise/video/promotional2015/may --pattern="*mpeg")
+do 
+mega-export -a $i | awk '{print $4}'; 
+done
+```
 
 In addition to running commands on request, MEGAcmd can also be configured to synchronise folders between your local device to your MEGA account, or perform regular backups from your device to your MEGA account.
 
-In order to enable synchronisation and backup features, and for efficiency running commands, MEGAcmd runs a server process in the background which the MEGAcmd shell or the script commands forward requests to.   The server keeps running in the background until it is told to close with the `exit` or `quit` commands.   If you want it to keep running (for sync and backup for example) when you exit MEGAcmd, use the `--only-shell` flag.
+In order to enable synchronisation and backup features, and for efficiency running commands, MEGAcmd runs a server process in the background which the MEGAcmd shell or the script commands forward requests to.   The server keeps running in the background until it is told to close with the [`quit`](#quit) commands.   If you want it to keep running (for sync and backup for example) when you exit MEGAcmd, use the `--only-shell` flag.
 
-Working with your MEGA account requires signing in with your email and password using the `login` command, though you can download public links or upload to public folders without logging in.  Logging in with your username and password starts a [Session](#session), and causes some of your account such as the folder structure to be downloaded and cached locally for performance (encrypted, of course).  That cache is kept on disk, and will be reused the next time you run MEGAcmd.  While the background server is running, the cache is kept up to date.  Closing and reopening MEGAcmd will not require you to log in again, unless you logged out.   Logging out closes your session, and means that the next login will require downloading the cache again.  Logging out also cancels your sync, backup, and webdav setup on that device, since those are part of the session, so you may want to create a script to set those up.
+Working with your MEGA account requires signing in with your email and password using the [`login`](#login) command, though you can download public links or upload to public folders without logging in.  Logging in with your username and password starts a [Session](#session), and causes some of your account such as the folder structure to be downloaded to your [Local Cache](#local-cache).  
 
 ### Where can you get it  
 For Linux, Mac, or Windows: Download it from the MEGA.nz website: https://mega.nz/cmd <p>
@@ -22,7 +41,28 @@ The major features are
 * Set up synchronization or a backup schedule between a folder on your machine, and a folder on your MEGA account.   (use the [`sync`](#sync) or [`backup`](#backup) commands)
 * Set up WebDAV access to files in your MEGA account (use the [`webdav`](#webdav) command)
 
+See our Help Centre pages for the basics of getting started, and friendly examples of common usages with plenty of pictures:  https://mega.nz/help
+
 ## Terminology and Descriptions
+
+### Interactive
+Interactive refers to running the MEGAcmd shell which only processes MEGA commands, and sending it commands by typing and pressing Enter.  MEGAcmd shell provides a lot of feedback about what it's doing.  You can start the MEGAcmd shell with `mega-cmd` (or `MEGAcmd` on Windows).  You can then issue commands like `ls` directly: <p>
+`ls /my/account/folder`<p>
+or you can get a list of available commands with:
+`help`<p>
+or you can get detailed information about any particular command by using the `--help` flag with that command:<p>
+`ls --help`<p>
+Autocompletion (pressing tab to fill in the remainder of a command) is available in interactive mode.
+
+### Scriptable
+Scriptable refers to running the MEGAcmd commands from a shell such as bash or the windows powershell.  If the PATH to the MEGAcmd commands are not yet on the PATH in that shell, you'll need to add it.  You can then issue commands like `ls` by prefixing them with the `mega-` prefix: <p>
+`mega-ls /my/account/folder`<p>
+or you can get a list of available commands with:
+`mega-help`<p>
+or you can get detailed information about any particular command by using the `--help` flag with that command:<p>
+`mega-ls --help`<p>
+Scriptable commands can of course be used in scripts to achieve a lot in a short space of time, using loops or preparing all the desired commands ahead of time.
+If you are using bash as your shell, the MEGAcmd commands support auto-completion.
 
 ### Contact
 A contact is someone (identified by their email address) that also has a MEGA account, who you can share files or folders with, and can chat with on MEGAchat.
@@ -30,14 +70,80 @@ A contact is someone (identified by their email address) that also has a MEGA ac
 ### Remote Path
 This refers to a file or a folder stored in your MEGA account, or a publicly available file or folder in the MEGA cloud.  Remote paths always use the '/' character as the separator between folder and file elements.
 
+Some MEGAcmd commands allow the use of regular expressions in remote paths.  You can check if the command supports those by using the `--help` flag with the command.  If you use these in the [scriptable](#scriptable) way, you need to escape characters that would otherwise be intercepted and interpreted by the shell.
+
 ### Local Path
 This refers to a file or folder on the PC or device that MEGAcmd is running in.  
 
 ### Session
-When you log in with your email and MEGA account password, that creates a session.  The session exists until you log out of it or kill it.  In MEGAcmd, use `whoami -l` to see all your open sessions across all devices, and use `killsession` to close them.   You can use other MEGA clients such as the phone app, or webclient to close these also.   Devices that were using a killed session will have their connection to MEGA closed immediately and will no longer have access to your account, until you log in on them again.   Syncs, backups, and webdavs are specific to a session, so logging out will cause them to be cancelled.
+When you log in with your email and MEGA account password, that creates a session.  The session exists until you log out of it or kill it from another client.  In MEGAcmd, use `whoami -l` to see all your open sessions across all devices, and use `killsession` to close them.   You can use other MEGA clients such as the phone app, or webclient to close these also.   Devices that were using a killed session will have their connection to MEGA closed immediately and will no longer have access to your account, until you log in on them again.   Syncs, backups, and webdavs are specific to a session, so logging out will cause them to be cancelled.
 
 ### Local Cache
-MEGAcmd holds some encrypted data on your device relating to your account, such as folder structure and contacts, for performance reasons.  The MEGAcmd background server keeps the local cache up to date when changes to your account occur from other clients.  The cache does contain a way for MEGAcmd to log back into your account when it starts up again if you have not logged out fully, so if your device is not completely secure between sessions then you should do that.
+Logging in with MEGAcmd creates your Local Cache, a subfolder of your home folder.  MEGAcmd downloads and stores some data in your Local Cache relating to your account, such as folder structure and contacts, for performance reasons.  The MEGAcmd background server keeps the local cache up to date when changes to your account occur from other clients.  The cache does contain a way for MEGAcmd to access your MEGA account when it starts up again if you have not specifically logged out.  The Local Cache also contains information from your Session, including sync, backup, and webdav configurations.  Logging out cleans the Local Cache, but also closes your session and the sync, backup, and webdav configurations are wiped.
+
+### Synchronisation configurations
+MEGAcmd can set up a synchronisation between a folder on your local machine and a folder in your MEGA account, using the [`sync`](#sync) command.   This is the same mechanism that MEGAsync uses.  The synchronisation is two-way: the folders you nominate to be synced will mirror any action!  Whatever you add or delete in your sync folder on your device gets added or deleted in your sync folder in your MEGA account.  And additions or deletions in your synced folder in your MEGA account will similarly be applied to your local synced folder.  Files that are removed from sync folders are moved to a hidden local folder (Rubbish/.debris inside your local sync folder, or SyncDebris folder in the Rubbish Bin of your MEGA account).
+
+Here is a very simple example of setting up a synchronisation with MEGAcmd: <p>
+```
+sync /path/to/local/folder /folder/in/mega
+```
+
+You can set up more than one pair or folders to be synced, and you can also set a sync from another device to the same folder, to achieve folder synchronisations between different devices.   The changes are sent via your MEGA account rather than directly between the devices in that case.
+
+Additional information about synchronising folder is available in our Help Centre:  https://mega.nz/help/client/megasync/syncing
+
+### Backup configurations
+MEGAcmd can set up a periodic copy of a local folder to your MEGA account using the [`backup`](#backup) command.  Here is a simple example that will run immediately and then at 4am each day, keeping the 10 most recent backups: <p>
+```
+backup /path/to/myfolder /remote/path --period="0 0 4 * * *" --num-backups=10
+```<p>
+For further information on backups, please see the [`backup`](#backup) command and the [tutorial](contrib/docs/BACKUPS.md). 
+
+### WebDAV configurations
+MEGAcmd can set up access to folders or files in your MEGA account as if they were local folders and files on your device using the [`webdav`](#webdav) command.  For example making the folder appear like a local drive on your PC, or providing a hyperlink a browser can access, where the hyperlink is to your PC.
+
+### Linux
+On Linux, MEGAcmd commands are installed at /usr/bin and so will already be on your PATH.  The interactive shell is `mega-cmd` and the background server is `mega-cmd-server`, which will be automatically started on demand.  The various scriptable commands are installed at the same location, and invoke `mega-exec` to send the command to `mega-cmd-server`.    
+
+If you are using the scriptable commands in bash (or using the interactive commands in mega-cmd), the commands will auto-complete.
+
+### Macintosh
+For MacOS, after installing the dmg, you can launch the server using *MEGAcmd* in Applications. If you wish to use the client commands from MacOS Terminal, open the Terminal and include the installation folder in the PATH.<p>
+Typically:
+```
+export PATH=/Applications/MEGAcmd.app/Contents/MacOS:$PATH
+```
+
+And for bash completion, source `megacmd_completion.sh` :
+```
+source /Applications/MEGAcmd.app/Contents/MacOS/megacmd_completion.sh
+```
+
+### Windows
+Once you have MEGAcmd installed, you can start the [interactive](#interactive) shell from the Start Menu or desktop icon.  On windows the interactive shell executable is called `MEGAcmdShell.exe` and the server is `MEGAcmdServer.exe`.
+
+On Windows 7, we recommend using the MEGAcmd shell from inside PowerShell for a better user experience (and you can do this on other Windows platforms also).  You can start powershell from the Start Menu and then execute these commands to start it:
+```
+$env:PATH += ";$env:LOCALAPPDATA\MEGAcmd"
+MEGAcmdShell
+```
+
+For [scriptable](#scriptable) usage, the MEGAcmd commands are provided via installed .bat files which pass the command to the MEGAcmdServer.exe.  Provided you have set the PATH as above, you can use these like normal command line tools in PowerShell or Command Prompt:
+```
+$env:PATH += ";$env:LOCALAPPDATA\MEGAcmd"
+mega-cd /my/favourite/folder
+mega-ls 
+```
+
+And of course those can be invoked in your own .bat or .cmd files.
+Autocompletion is not available for the scriptable commands, but is in the interactive shell.
+
+Unicode is supported though it currently in the interactive shell it needs to be switched on, and to have a suitable font selected; please execute `help --unicode` for the latest information.  There are plans to improve this.  Please report any issues experienced to our support team.
+
+### NAS Support
+Currently we are working on releasing MEGAcmd for QNAP and Synology.  Please check if you can download a MEGAcmd package for your NAS device from their package system.
+
 
 ## Command Summary
 
