@@ -22,7 +22,7 @@ export CXX=${CROSS_COMPILE}g++
 export LD=${CROSS_COMPILE}ld
 export CFLAGS="$CFLAGS -fPIC -fexceptions -fvisibility=hidden -fsigned-char"
 export CPPFLAGS="-DNDEBUG"
-export CXXFLAGS="$CXXFLAGS $CFLAGS -DNDEBUG -DENABLE_BACKUPS"
+export CXXFLAGS="$CXXFLAGS $CFLAGS -DNDEBUG -DENABLE_BACKUPS -DMEGACMD_USERAGENT_SUFFIX=QNAP  -DHAVE_LIBUV"
 export AR=${CROSS_COMPILE}ar
 export NM=${CROSS_COMPILE}nm
 export STRIP=${CROSS_COMPILE}strip
@@ -60,7 +60,7 @@ pwd
 mkdir -p norecurse
 mv norecurse/* .
 
-echo executing ./contrib/build_sdk.sh -a -e -f -g -I -q -X -C "$CUSTOM_CONFIG_ARGS" -O linux-generic32
+echo executing ./contrib/build_sdk.sh -a -e -f -g -I -q -v -X -C "$CUSTOM_CONFIG_ARGS" -O linux-generic32
 
 #ultimately after overcoming many build challenges, we still can't build freeimage, as it turns out it uses __sync builtins, but they fail to link.  Hence the -f
 ./contrib/build_sdk.sh -a -e -g -f -I -n -q -R -X -C"$CUSTOM_CONFIG_ARGS" -O linux-generic32 -0 2>&1 | tee $MEGA_CMD_DIR/mybuildlogs-sdkbuild.out
@@ -104,7 +104,7 @@ rm -f mega-cmd-server
 rm -f mega-cmd
 rm -f mega-cmd-exec
 
-$CXX $CXXFLAGS src/megacmd.cpp src/comunicationsmanager.cpp         src/megacmdutils.cpp src/configurationmanager.cpp         src/megacmdlogger.cpp src/megacmdsandbox.cpp src/listeners.cpp         src/megacmdexecuter.cpp         src/comunicationsmanagerportsockets.cpp src/comunicationsmanagerfilesockets.cpp -Isdk/include -Isdk/include/mega/posix -Isdk/sdk_build/install/include  sdk/sdk_build/install/lib/libmega.a sdk/sdk_build/install/lib/libcryptopp.a    sdk/sdk_build/install/lib/libcurl.a sdk/sdk_build/install/lib/libcares.a sdk/sdk_build/install/lib/libssl.a sdk/sdk_build/install/lib/libcrypto.a  sdk/sdk_build/install/lib/libsqlite3.a  sdk/sdk_build/install/lib/libmediainfo.a sdk/sdk_build/install/lib/libzen.a -lpthread -ldl -lrt sdk/sdk_build/install/lib/libz.a -o mega-cmd-server
+$CXX $CXXFLAGS src/megacmd.cpp src/comunicationsmanager.cpp         src/megacmdutils.cpp src/configurationmanager.cpp         src/megacmdlogger.cpp src/megacmdsandbox.cpp src/listeners.cpp         src/megacmdexecuter.cpp         src/comunicationsmanagerportsockets.cpp src/comunicationsmanagerfilesockets.cpp -Isdk/include -Isdk/include/mega/posix -Isdk/sdk_build/install/include  sdk/sdk_build/install/lib/libmega.a sdk/sdk_build/install/lib/libcryptopp.a    sdk/sdk_build/install/lib/libcurl.a sdk/sdk_build/install/lib/libcares.a sdk/sdk_build/install/lib/libssl.a sdk/sdk_build/install/lib/libcrypto.a  sdk/sdk_build/install/lib/libsqlite3.a  sdk/sdk_build/install/lib/libmediainfo.a sdk/sdk_build/install/lib/libzen.a  sdk/sdk_build/build/libuv-v1.8.0/.libs/libuv.a -lpthread -ldl -lrt sdk/sdk_build/install/lib/libz.a -o mega-cmd-server
 
 $CXX $CXXFLAGS src/megacmdshell/*.cpp -Isdk/include -Isdk/include/mega/posix -Isdk/sdk_build/install/include  sdk/sdk_build/install/lib/libmega.a sdk/sdk_build/install/lib/libcryptopp.a    sdk/sdk_build/install/lib/libcurl.a sdk/sdk_build/install/lib/libcares.a sdk/sdk_build/install/lib/libssl.a sdk/sdk_build/install/lib/libcrypto.a  sdk/sdk_build/install/lib/libsqlite3.a -lpthread -ldl -lrt sdk/sdk_build/install/lib/libz.a ./sdk/sdk_build/install/lib/libreadline.a ./sdk/sdk_build/install/lib/libtermcap.a -o mega-cmd
 

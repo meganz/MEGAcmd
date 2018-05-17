@@ -27,7 +27,7 @@ export CXX=${CROSS_COMPILE}g++
 export LD=${CROSS_COMPILE}ld
 export CFLAGS="$CFLAGS -fPIC -fexceptions -fvisibility=hidden -fsigned-char "
 export CPPFLAGS="-DNDEBUG "
-export CXXFLAGS="$CXXFLAGS $CFLAGS $CPPFLAGS -DENABLE_BACKUPS"
+export CXXFLAGS="$CXXFLAGS $CFLAGS $CPPFLAGS -DENABLE_BACKUPS -DMEGACMD_USERAGENT_SUFFIX=QNAP  -DHAVE_LIBUV"
 export AR=${CROSS_COMPILE}ar
 export NM=${CROSS_COMPILE}nm
 export STRIP=${CROSS_COMPILE}strip
@@ -65,7 +65,7 @@ pwd
 mkdir -p norecurse
 mv norecurse/* .
 
-./contrib/build_sdk.sh -a -e -g -I -n -q -R -X -C"$CUSTOM_CONFIG_ARGS" -O linux-generic64 2>&1 | tee $MEGA_CMD_DIR/mybuildlogs-sdkbuild.out
+./contrib/build_sdk.sh -a -e -g -I -n -q -R -v -X -C"$CUSTOM_CONFIG_ARGS" -O linux-generic64 2>&1 | tee $MEGA_CMD_DIR/mybuildlogs-sdkbuild.out
 
 if [ -e ./src/libmega.a ] ; then
     size=$(wc -c < ./src/libmega.a )
@@ -115,7 +115,7 @@ rm -f mega-cmd-server
 rm -f mega-cmd
 rm -f mega-cmd-exec
 
-$CXX $CXXFLAGS src/megacmd.cpp src/comunicationsmanager.cpp         src/megacmdutils.cpp src/configurationmanager.cpp         src/megacmdlogger.cpp src/megacmdsandbox.cpp src/listeners.cpp         src/megacmdexecuter.cpp         src/comunicationsmanagerportsockets.cpp src/comunicationsmanagerfilesockets.cpp -Isdk/include -Isdk/include/mega/posix -Isdk/sdk_build/install/include  `find sdk/src -name "*.o"` sdk/sdk_build/install/lib/libcryptopp.a    sdk/sdk_build/install/lib/libcurl.a sdk/sdk_build/install/lib/libcares.a sdk/sdk_build/install/lib/libssl.a sdk/sdk_build/install/lib/libcrypto.a  sdk/sdk_build/install/lib/libsqlite3.a sdk/sdk_build/install/lib/libfreeimage.a sdk/sdk_build/install/lib/libmediainfo.a sdk/sdk_build/install/lib/libzen.a -lpthread -ldl -lrt sdk/sdk_build/install/lib/libz.a -o mega-cmd-server
+$CXX $CXXFLAGS src/megacmd.cpp src/comunicationsmanager.cpp         src/megacmdutils.cpp src/configurationmanager.cpp         src/megacmdlogger.cpp src/megacmdsandbox.cpp src/listeners.cpp         src/megacmdexecuter.cpp         src/comunicationsmanagerportsockets.cpp src/comunicationsmanagerfilesockets.cpp -Isdk/include -Isdk/include/mega/posix -Isdk/sdk_build/install/include  `find sdk/src -name "*.o"` sdk/sdk_build/install/lib/libcryptopp.a    sdk/sdk_build/install/lib/libcurl.a sdk/sdk_build/install/lib/libcares.a sdk/sdk_build/install/lib/libssl.a sdk/sdk_build/install/lib/libcrypto.a  sdk/sdk_build/install/lib/libsqlite3.a sdk/sdk_build/install/lib/libfreeimage.a sdk/sdk_build/install/lib/libmediainfo.a sdk/sdk_build/install/lib/libzen.a  sdk/sdk_build/build/libuv-v1.8.0/.libs/libuv.a -lpthread -ldl -lrt sdk/sdk_build/install/lib/libz.a -o mega-cmd-server
 
 $CXX $CXXFLAGS src/megacmdshell/*.cpp -Isdk/include -Isdk/include/mega/posix -Isdk/sdk_build/install/include  `find sdk/src -name "*.o"` sdk/sdk_build/install/lib/libcryptopp.a    sdk/sdk_build/install/lib/libcurl.a sdk/sdk_build/install/lib/libcares.a sdk/sdk_build/install/lib/libssl.a sdk/sdk_build/install/lib/libcrypto.a  sdk/sdk_build/install/lib/libsqlite3.a sdk/sdk_build/install/lib/libfreeimage.a sdk/sdk_build/install/lib/libmediainfo.a sdk/sdk_build/install/lib/libzen.a  -lpthread -ldl -lrt sdk/sdk_build/install/lib/libz.a ./sdk/sdk_build/install/lib/libreadline.a ./sdk/sdk_build/install/lib/libtermcap.a -o mega-cmd
 
