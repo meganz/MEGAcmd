@@ -1,5 +1,5 @@
 #!/usr/bin/make -f
-CPPFLAGS := $(shell cat /etc/issue | grep "Ubuntu 1[234]\|Debian.* 7" >/dev/null && echo "$$CPPFLAGS -DMEGACMD_DEPRECATED_OS" || echo "")
+CPPFLAGS := $(shell cat /etc/issue | grep "Ubuntu 1[235]\|Debian.* 7\|Ubuntu 17.04\|Ubuntu 14.10" >/dev/null && echo "$$CPPFLAGS -DMEGACMD_DEPRECATED_OS" || echo "")
 FMEDIAINFO := $(shell dpkg -l | grep mediainfo >/dev/null && echo "-i" || echo " ")
 WMEDIAINFO := $(shell dpkg -l | grep mediainfo >/dev/null && echo " " || echo "--with-libmediainfo=$(CURDIR)/deps --with-libzen=$(CURDIR)/deps")
 build: build-stamp
