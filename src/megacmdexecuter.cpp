@@ -3793,7 +3793,7 @@ void MegaCmdExecuter::printTransfer(MegaTransfer *transfer, const unsigned int P
 #else
     OUTSTREAM << " " << ((transfer->getType() == MegaTransfer::TYPE_DOWNLOAD)?"\u21d3":"\u21d1") << " ";
 #endif
-    //TODO: handle TYPE_LOCAL_HTTP_DOWNLOAD
+    //TODO: handle TYPE_LOCAL_TCP_DOWNLOAD
 
     //type (transfer/normal)
     if (transfer->isSyncTransfer())
@@ -8332,6 +8332,8 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             OUTSTREAM << "MEGA SDK Credits: https://github.com/meganz/sdk/blob/master/CREDITS.md" << endl;
             OUTSTREAM << "MEGA SDK License: https://github.com/meganz/sdk/blob/master/LICENSE" << endl;
             OUTSTREAM << "MEGAcmd License: https://github.com/meganz/megacmd/blob/master/LICENSE" << endl;
+            OUTSTREAM << "MEGA Terms: https://mega.nz/terms" << endl;
+            OUTSTREAM << "MEGA General Data Protection Regulation Disclosure: https://mega.nz/gdpr" << endl;
 
             OUTSTREAM << "Features enabled:" << endl;
 
