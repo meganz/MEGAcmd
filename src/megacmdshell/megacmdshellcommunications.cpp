@@ -662,7 +662,7 @@ int MegaCmdShellCommunications::executeCommandW(wstring wcommand, int (*readconf
 
 int MegaCmdShellCommunications::executeCommand(string command, int (*readconfirmationloop)(const char *), OUTSTREAMTYPE &output, bool interactiveshell, wstring wcommand)
 {
-    SOCKET thesock = createSocket(0, command.compare(0,4,"exit") && command.compare(0,4,"quit"));
+    SOCKET thesock = createSocket(0, command.compare(0,4,"exit") && command.compare(0,4,"quit") && command.compare(0,10,"completion"));
     if (!socketValid(thesock))
     {
         return -1;
