@@ -738,7 +738,7 @@ int MegaCmdShellCommunications::executeCommand(string command, int (*readconfirm
                 buffer[n]='\0';
                 confirmQuestion.append(buffer);
             }
-        } while(n == BUFFERSIZE && n !=SOCKET_ERROR);
+        } while(n != 0 && n !=SOCKET_ERROR);
 
         int response = MCMDCONFIRM_NO;
 
@@ -781,7 +781,7 @@ int MegaCmdShellCommunications::executeCommand(string command, int (*readconfirm
             output << buffer;
 #endif
         }
-    } while(n == BUFFERSIZE && n !=SOCKET_ERROR);
+    } while(n != 0 && n !=SOCKET_ERROR);
 
     if (n == SOCKET_ERROR)
     {
@@ -824,7 +824,7 @@ int MegaCmdShellCommunications::listenToStateChanges(int receiveSocket, void (*s
                 buffer[n]='\0';
                 newstate += buffer;
             }
-        } while(n == BUFFERSIZE && n !=SOCKET_ERROR);
+        } while(n != 0 && n !=SOCKET_ERROR);
 
         if (n == SOCKET_ERROR)
         {
