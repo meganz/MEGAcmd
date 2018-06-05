@@ -279,6 +279,11 @@ elif [[ $VMNAME == *"DEBIAN"* ]] || [[ $VMNAME == *"UBUNTU"* ]] || [[ $VMNAME ==
 	logOperationResult "modifying repos ..." $resultMODREPO
 	$sshpasscommand ssh root@$IP_GUEST "cat /etc/apt/sources.list.d/megasync.list"
 
+	echo "cleaning apt cache ..."
+	$sshpasscommand ssh root@$IP_GUEST DEBIAN_FRONTEND=noninteractive apt-get -y clean
+	resultCLEANCACHE=$?
+	logOperationResult "clean apt cache ..." $resultCLEANCACHE
+
 	echo " reinstalling/updating megacmd ..."
 	BEFOREINSTALL=`$sshpasscommand ssh root@$IP_GUEST dpkg -l megacmd`
 	$sshpasscommand ssh root@$IP_GUEST DEBIAN_FRONTEND=noninteractive apt-get -y install megacmd
