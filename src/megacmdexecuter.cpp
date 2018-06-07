@@ -309,253 +309,84 @@ bool MegaCmdExecuter::processTree(MegaNode *n, bool processor(MegaApi *, MegaNod
 // returns NULL if path malformed or not found
 MegaNode* MegaCmdExecuter::nodebypath(const char* ptr, string* user, string* namepart)
 {
-    vector<string> c;
-    string s;
-    int l = 0;
-    const char* bptr = ptr;
-    int remote = 0;
-    MegaNode* n = NULL;
-    MegaNode* nn = NULL;
+    string rest;
+    MegaNode *baseNode = getBaseNode(ptr, rest);
 
-    if (*ptr == '\0')
+    if (baseNode && !rest.size())
     {
-        LOG_warn << "Trying to get node whose path is \"\"";
-        return NULL;
+        return baseNode;
     }
-    // split path by / or :
-    do
+
+    while (baseNode)
     {
-        if (!l)
+        size_t possep = rest.find('/');
+        string curName = rest.substr(0,possep);
+
+        if (curName != ".")
         {
-            if (*(const signed char*)ptr >= 0)
+            MegaNode * nextNode = NULL;
+            if (curName == "..")
             {
-                if (*ptr == '\\')
+                nextNode = api->getParentNode(baseNode);
+            }
+            else
+            {
+                replaceAll(curName, "\\\\", "\\"); //unescape '\\'
+                replaceAll(curName, "\\ ", " "); //unescape '\ '
+                bool isversion = nodeNameIsVersion(curName);
+                if (isversion)
                 {
-                    if (ptr > bptr)
+                    MegaNode *baseNode = api->getChildNode(baseNode, curName.substr(0,curName.size()-11).c_str());
+                    if (baseNode)
                     {
-                        s.append(bptr, ptr - bptr);
-                    }
-
-                    bptr = ++ptr;
-
-                    if (*bptr == 0)
-                    {
-                        c.push_back(s);
-                        break;
-                    }
-
-                    ptr++;
-                    continue;
-                }
-
-                if (( *ptr == '/' ) || ( *ptr == ':' ) || !*ptr)
-                {
-                    if (*ptr == ':')
-                    {
-                        if (c.size())
+                        MegaNodeList *versionNodes = api->getVersions(baseNode);
+                        if (versionNodes)
                         {
-                            return NULL;
+                            for (int i = 0; i < versionNodes->size(); i++)
+                            {
+                                MegaNode *versionNode = versionNodes->get(i);
+                                if ( curName.substr(curName.size()-10) == SSTR(versionNode->getModificationTime()) )
+                                {
+                                    nextNode = versionNode->copy();
+                                    break;
+                                }
+                            }
+                            delete versionNodes;
                         }
-
-                        remote = 1;
+                        delete baseNode;
                     }
-
-                    if (ptr > bptr)
-                    {
-                        s.append(bptr, ptr - bptr);
-                    }
-
-                    bptr = ptr + 1;
-
-                    c.push_back(s);
-
-                    s.erase();
-                }
-            }
-            else if (( *ptr & 0xf0 ) == 0xe0)
-            {
-                l = 1;
-            }
-            else if (( *ptr & 0xf8 ) == 0xf0)
-            {
-                l = 2;
-            }
-            else if (( *ptr & 0xfc ) == 0xf8)
-            {
-                l = 3;
-            }
-            else if (( *ptr & 0xfe ) == 0xfc)
-            {
-                l = 4;
-            }
-        }
-        else
-        {
-            l--;
-        }
-    }
-    while (*ptr++);
-
-    if (l)
-    {
-        return NULL;
-    }
-
-    if (remote)
-    {
-        // target: user inbox - record username/email and return NULL
-        if (( c.size() == 2 ) && !c[1].size())
-        {
-            if (user)
-            {
-                *user = c[0];
-            }
-
-            return NULL;
-        }
-
-        MegaUserList * usersList = api->getContacts();
-        MegaUser *u = NULL;
-        for (int i = 0; i < usersList->size(); i++)
-        {
-            if (usersList->get(i)->getEmail() == c[0])
-            {
-                u = usersList->get(i);
-                break;
-            }
-        }
-
-        if (u)
-        {
-            MegaNodeList* inshares = api->getInShares(u);
-            for (int i = 0; i < inshares->size(); i++)
-            {
-                if (inshares->get(i)->getName() == c[1])
-                {
-                    n = inshares->get(i)->copy();
-                    l = 2;
-                    break;
-                }
-            }
-
-            delete inshares;
-        }
-        delete usersList;
-
-        if (!l)
-        {
-            return NULL;
-        }
-    }
-    else //local
-    {
-        // path starting with /
-        if (( c.size() > 1 ) && !c[0].size())
-        {
-            // path starting with //
-            if (( c.size() > 2 ) && !c[1].size())
-            {
-                if (c[2] == "in")
-                {
-                    n = api->getInboxNode();
-                }
-                else if (c[2] == "bin")
-                {
-                    n = api->getRubbishNode();
                 }
                 else
                 {
-                    return NULL;
+                    nextNode = api->getChildNode(baseNode,curName.c_str());
                 }
+            }
 
-                l = 3;
-            }
-            else
+            // mv command target? return name part of not found
+            if (namepart && !nextNode && ( possep == string::npos)) //if this is the last part, we will pass that one, so that a mv command know the name to give the new node
             {
-                n = api->getRootNode();
-                l = 1;
+                *namepart = rest;
+                return baseNode;
             }
+
+            if (nextNode != baseNode)
+            {
+                delete baseNode;
+            }
+            baseNode = nextNode;
+        }
+
+        if (possep != string::npos && possep != (rest.size() - 1) )
+        {
+            rest = rest.substr(possep+1);
         }
         else
         {
-            n = api->getNodeByHandle(cwd);
+            return baseNode;
         }
     }
 
-    // parse relative path
-    while (n && l < (int)c.size())
-    {
-        if (c[l] != ".")
-        {
-            if (c[l] == "..")
-            {
-                MegaNode * aux;
-                aux = n;
-                n = api->getParentNode(n);
-                if (n != aux)
-                {
-                    delete aux;
-                }
-            }
-            else
-            {
-                // locate child node (explicit ambiguity resolution: not implemented)
-                if (c[l].size())
-                {
-                    bool isversion = nodeNameIsVersion(c[l]);
-                    if (isversion)
-                    {
-                        MegaNode *baseNode = api->getChildNode(n, c[l].substr(0,c[l].size()-11).c_str());
-                        if (baseNode)
-                        {
-                            MegaNodeList *versionNodes = api->getVersions(baseNode);
-                            if (versionNodes)
-                            {
-                                for (int i = 0; i < versionNodes->size(); i++)
-                                {
-                                    MegaNode *versionNode = versionNodes->get(i);
-                                    if ( c[l].substr(c[l].size()-10) == SSTR(versionNode->getModificationTime()) )
-                                    {
-                                        nn = versionNode->copy();
-                                        break;
-                                    }
-                                }
-                                delete versionNodes;
-                            }
-                            delete baseNode;
-                        }
-                    }
-                    else
-                    {
-                        nn = api->getChildNode(n, c[l].c_str());
-                    }
-
-                    if (!nn) //NOT FOUND
-                    {
-                        // mv command target? return name part of not found
-                        if (namepart && ( l == (int)c.size() - 1 )) //if this is the last part, we will pass that one, so that a mv command know the name to give the new node
-                        {
-                            *namepart = c[l];
-                            return n;
-                        }
-
-                        delete n;
-                        return NULL;
-                    }
-
-                    if (n != nn)
-                    {
-                        delete n;
-                    }
-                    n = nn;
-                }
-            }
-        }
-
-        l++;
-    }
-
-    return n;
+    return NULL;
 }
 
 /**
@@ -699,218 +530,37 @@ void MegaCmdExecuter::getPathsMatching(MegaNode *parentNode, deque<string> pathP
  */
 vector <string> * MegaCmdExecuter::nodesPathsbypath(const char* ptr, bool usepcre, string* user, string* namepart)
 {
+    string rest;
+    bool isrelative;
+    MegaNode *baseNode = getBaseNode(ptr, rest, &isrelative);
+
     vector<string> *pathsMatching = new vector<string> ();
-    deque<string> c;
-    string s;
-    int l = 0;
-    const char* bptr = ptr;
-    int remote = 0; //shared
-    MegaNode* n = NULL;
-    bool isrelative = false;
-
-    if (*ptr == '\0')
+    if (baseNode)
     {
-        LOG_warn << "Trying to get node Paths for a node whose path is \"\"";
-        return pathsMatching;
-    }
-
-    // split path by / or :
-    do
-    {
-        if (!l)
+        string pathPrefix;
+        if (!isrelative)
         {
-            if (*(const signed char*)ptr >= 0)
-            {
-                if (*ptr == '\\')
-                {
-                    if (ptr > bptr)
-                    {
-                        s.append(bptr, ptr - bptr);
-                    }
+            char * nodepath = api->getNodePath(baseNode);
+            pathPrefix=nodepath;
+            if (pathPrefix.size() && pathPrefix.at(pathPrefix.size()-1)!='/')
+                pathPrefix+="/";
+            delete []nodepath;
+        }
 
-                    bptr = ++ptr;
+        deque<string> c;
+        getPathParts(rest, &c);
 
-                    if (*bptr == 0)
-                    {
-                        c.push_back(s);
-                        break;
-                    }
-
-                    ptr++;
-                    continue;
-                }
-
-                if (( *ptr == '/' ) || ( *ptr == ':' ) || !*ptr)
-                {
-                    if (*ptr == ':')
-                    {
-                        if (c.size())
-                        {
-                            return pathsMatching;
-                        }
-
-                        remote = 1;
-                    }
-
-                    if (ptr > bptr)
-                    {
-                        s.append(bptr, ptr - bptr);
-                    }
-
-                    bptr = ptr + 1;
-
-                    c.push_back(s);
-
-                    s.erase();
-                }
-            }
-            else if (( *ptr & 0xf0 ) == 0xe0)
-            {
-                l = 1;
-            }
-            else if (( *ptr & 0xf8 ) == 0xf0)
-            {
-                l = 2;
-            }
-            else if (( *ptr & 0xfc ) == 0xf8)
-            {
-                l = 3;
-            }
-            else if (( *ptr & 0xfe ) == 0xfc)
-            {
-                l = 4;
-            }
+        if (!c.size())
+        {
+            char * nodepath = api->getNodePath(baseNode);
+            pathsMatching->push_back(nodepath);
+            delete []nodepath;
         }
         else
         {
-            l--;
+            getPathsMatching((MegaNode *)baseNode, c, (vector<string> *)pathsMatching, usepcre, pathPrefix);
         }
-    }
-    while (*ptr++);
-
-    if (l)
-    {
-        delete pathsMatching;
-        return NULL;
-    }
-
-    if (remote)
-    {
-        // target: user inbox - record username/email and return NULL
-        if (( c.size() == 2 ) && !c.back().size())
-        {
-            if (user)
-            {
-                *user = c.front();
-            }
-            delete pathsMatching;
-            return NULL;
-        }
-
-        MegaUserList * usersList = api->getContacts();
-        MegaUser *u = NULL;
-        for (int i = 0; i < usersList->size(); i++)
-        {
-            if (usersList->get(i)->getEmail() == c.front())
-            {
-                u = usersList->get(i);
-                c.pop_front();
-                break;
-            }
-        }
-
-        if (u)
-        {
-            MegaNodeList* inshares = api->getInShares(u);
-            for (int i = 0; i < inshares->size(); i++)
-            {
-                if (inshares->get(i)->getName() == c.front())
-                {
-                    n = inshares->get(i)->copy();
-                    c.pop_front();
-                    break;
-                }
-            }
-
-            delete inshares;
-        }
-        delete usersList;
-    }
-    else // mine
-    {
-
-        // path starting with /
-        if (( c.size() > 1 ) && !c.front().size())
-        {
-            c.pop_front();
-            // path starting with //
-            if (( c.size() > 1 ) && !c.front().size())
-            {
-                c.pop_front();
-                if (c.front() == "in")
-                {
-                    n = api->getInboxNode();
-                    c.pop_front();
-                }
-                else if (c.front() == "bin")
-                {
-                    n = api->getRubbishNode();
-                    c.pop_front();
-                }
-                else
-                {
-                    if (c.size()==1) //last leave
-                    {
-                        string currentPart = c.front();
-                        if (patternMatches("bin", currentPart.c_str(), usepcre))
-                        {
-                            pathsMatching->push_back("//bin");
-                        }
-                        if (patternMatches("in", currentPart.c_str(), usepcre))
-                        {
-                            pathsMatching->push_back("//in");
-                        }
-                        //shares?
-                    }
-                    return pathsMatching;
-                }
-            }
-            else
-            {
-                n = api->getRootNode();
-            }
-        }
-        else
-        {
-            n = api->getNodeByHandle(cwd);
-            isrelative=true;
-        }
-    }
-
-    string pathPrefix;
-    if ((n) && !isrelative) //is root and not relative
-    {
-        char * nodepath = api->getNodePath(n);
-        pathPrefix=nodepath;
-        if (pathPrefix.size() && pathPrefix.at(pathPrefix.size()-1)!='/')
-            pathPrefix+="/";
-        delete []nodepath;
-    }
-    if (n)
-    {
-        while (c.size())
-        {
-            if (!c.back().size())
-            {
-                c.pop_back();
-            }
-            else
-            {
-                break;
-            }
-        }
-        getPathsMatching(n, c, pathsMatching, usepcre, pathPrefix);
-        delete n;
+        delete baseNode;
     }
 
     return pathsMatching;
@@ -923,7 +573,7 @@ vector <string> * MegaCmdExecuter::nodesPathsbypath(const char* ptr, bool usepcr
  * @param c
  * @param nodesMatching
  */
-void MegaCmdExecuter::getNodesMatching(MegaNode *parentNode, queue<string> pathParts, vector<MegaNode *> *nodesMatching, bool usepcre)
+void MegaCmdExecuter::getNodesMatching(MegaNode *parentNode, deque<string> pathParts, vector<MegaNode *> *nodesMatching, bool usepcre)
 {
     if (!pathParts.size())
     {
@@ -931,7 +581,7 @@ void MegaCmdExecuter::getNodesMatching(MegaNode *parentNode, queue<string> pathP
     }
 
     string currentPart = pathParts.front();
-    pathParts.pop();
+    pathParts.pop_front();
 
     if (currentPart == "." || currentPart == "")
     {
@@ -1036,172 +686,129 @@ void MegaCmdExecuter::getNodesMatching(MegaNode *parentNode, queue<string> pathP
     }
 }
 
-MegaNode * MegaCmdExecuter::getRootNodeByPath(const char *ptr, string* user)
+// TODO: docs
+MegaNode * MegaCmdExecuter::getBaseNode(string thepath, string &rest, bool *isrelative)
 {
-    queue<string> c;
-    string s;
-    int l = 0;
-    const char* bptr = ptr;
-    int remote = 0;
-    MegaNode* n = NULL;
-
-    // split path by / or :
-    do
+    if (isrelative != NULL)
     {
-        if (!l)
-        {
-            if (*(const signed char*)ptr >= 0)
-            {
-                if (*ptr == '\\')
-                {
-                    if (ptr > bptr)
-                    {
-                        s.append(bptr, ptr - bptr);
-                    }
-
-                    bptr = ++ptr;
-
-                    if (*bptr == 0)
-                    {
-                        c.push(s);
-                        break;
-                    }
-
-                    ptr++;
-                    continue;
-                }
-
-                if (( *ptr == '/' ) || ( *ptr == ':' ) || !*ptr)
-                {
-                    if (*ptr == ':')
-                    {
-                        if (c.size())
-                        {
-                            return NULL;
-                        }
-
-                        remote = 1;
-                    }
-
-                    if (ptr > bptr)
-                    {
-                        s.append(bptr, ptr - bptr);
-                    }
-
-                    bptr = ptr + 1;
-
-                    c.push(s);
-
-                    s.erase();
-                }
-            }
-            else if (( *ptr & 0xf0 ) == 0xe0)
-            {
-                l = 1;
-            }
-            else if (( *ptr & 0xf8 ) == 0xf0)
-            {
-                l = 2;
-            }
-            else if (( *ptr & 0xfc ) == 0xf8)
-            {
-                l = 3;
-            }
-            else if (( *ptr & 0xfe ) == 0xfc)
-            {
-                l = 4;
-            }
-        }
-        else
-        {
-            l--;
-        }
+        *isrelative = false;
     }
-    while (*ptr++);
-
-    if (l)
+    MegaNode *baseNode = NULL;
+    rest = string();
+    if (thepath == "//bin")
     {
-        return NULL;
+        baseNode = api->getRubbishNode();
+        rest = "";
     }
-
-    if (remote)
+    else if (thepath == "//in")
     {
-        // target: user inbox - record username/email and return NULL
-        if (( c.size() == 2 ) && !c.back().size())
-        {
-            if (user)
-            {
-                *user = c.front();
-            }
+        baseNode = api->getInboxNode();
+        rest = "";
+    }
+    else if (thepath == "/")
+    {
+        baseNode = api->getRootNode();
+        rest = "";
+    }
+    else if (thepath.find("//bin/") == 0 )
+    {
+        baseNode = api->getRubbishNode();
+        rest = thepath.substr(6);
+    }
+    else if (thepath.find("//in/") == 0 )
+    {
+        baseNode = api->getInboxNode();
+        rest = thepath.substr(5);
+    }
+    else if (thepath.find("/") == 0 )
+    {
+        baseNode = api->getRootNode();
+        rest = thepath.substr(1);
+    }
+    else
+    {
+        size_t possep = thepath.find('/');
+        string base = thepath.substr(0,possep);
+        size_t possepcol = base.find(":");
+        size_t possepat = base.find("@");
 
-            return NULL;
-        }
-        MegaUserList * usersList = api->getContacts();
-        MegaUser *u = NULL;
-        for (int i = 0; i < usersList->size(); i++)
+        if ( possepcol != string::npos && possepat != string::npos  && possepat < possepcol && possepcol < (base.size() + 1) )
         {
-            if (usersList->get(i)->getEmail() == c.front())
+            string userName = base.substr(0,possepcol);
+            string inshareName = base.substr(possepcol + 1);
+            MegaUserList * usersList = api->getContacts();
+            MegaUser *u = NULL;
+            for (int i = 0; i < usersList->size(); i++)
             {
-                u = usersList->get(i);
-                c.pop();
-                break;
-            }
-        }
-
-        if (u)
-        {
-            MegaNodeList* inshares = api->getInShares(u);
-            for (int i = 0; i < inshares->size(); i++)
-            {
-                if (inshares->get(i)->getName() == c.front())
+                if (usersList->get(i)->getEmail() == userName)
                 {
-                    n = inshares->get(i)->copy();
-                    c.pop();
+                    u = usersList->get(i);
                     break;
                 }
             }
+            if (u)
+            {
+                MegaNodeList* inshares = api->getInShares(u);
+                for (int i = 0; i < inshares->size(); i++)
+                {
+                    if (inshares->get(i)->getName() == inshareName)
+                    {
+                        baseNode = inshares->get(i)->copy();
+                        break;
+                    }
+                }
 
-            delete inshares;
-        }
-        delete usersList;
-    }
-    else //local
-    {
-        // path starting with /
-        if (( c.size() > 1 ) && !c.front().size())
-        {
-            c.pop();
-            // path starting with //
-            if (( c.size() > 1 ) && !c.front().size())
-            {
-                c.pop();
-                if (c.front() == "in")
-                {
-                    n = api->getInboxNode();
-                    c.pop();
-                }
-                else if (c.front() == "bin")
-                {
-                    n = api->getRubbishNode();
-                    c.pop();
-                }
-                else
-                {
-                    return NULL;
-                }
+                delete inshares;
             }
-            else
+            delete usersList;
+
+            if (possep != string::npos && possep != (thepath.size() - 1) )
             {
-                n = api->getRootNode();
+                rest = thepath.substr(possep+1);
             }
         }
         else
         {
-            n = api->getNodeByHandle(cwd);
+            baseNode = api->getNodeByHandle(cwd);
+            rest = thepath;
+            if (isrelative != NULL)
+            {
+                *isrelative = true;
+            }
         }
     }
 
-    return n;
+    return baseNode;
+}
+
+void MegaCmdExecuter::getPathParts(string path, deque<string> *c)
+{
+    size_t possep = path.find('/');
+    do
+    {
+        string curName = path.substr(0,possep);
+        replaceAll(curName, "\\\\", "\\"); //unescape '\\'
+        replaceAll(curName, "\\ ", " "); //unescape '\ '
+        c->push_back(curName);
+        if (possep != string::npos && possep < (path.size()+1))
+        {
+            path = path.substr(possep+1);
+        }
+        else
+        {
+            break;
+        }
+        possep = path.find('/');
+        if (possep == string::npos ||  !(possep < (path.size()+1)))
+        {
+            string curName = path.substr(0,possep);
+            replaceAll(curName, "\\\\", "\\"); //unescape '\\'
+            replaceAll(curName, "\\ ", " "); //unescape '\ '
+            c->push_back(curName);
+
+            break;
+        }
+    } while (path.size());
 }
 
 /**
@@ -1223,181 +830,32 @@ MegaNode * MegaCmdExecuter::getRootNodeByPath(const char *ptr, string* user)
  */
 vector <MegaNode*> * MegaCmdExecuter::nodesbypath(const char* ptr, bool usepcre, string* user)
 {
+    string rest;
+    MegaNode *baseNode = getBaseNode(ptr, rest);
+
     vector<MegaNode *> *nodesMatching = new vector<MegaNode *> ();
-    queue<string> c;
-    string s;
-    int l = 0;
-    const char* bptr = ptr;
-    int remote = 0; //shared
-    MegaNode* n = NULL;
 
-    if (*ptr == '\0')
+    if (baseNode)
     {
-        LOG_warn << "Trying to get node whose path is \"\"";
-        return nodesMatching;
-    }
-
-    // split path by / or :
-    do
-    {
-        if (!l)
+        if (!rest.size())
         {
-            if (*(const signed char*)ptr >= 0)
-            {
-                if (*ptr == '\\')
-                {
-                    if (ptr > bptr)
-                    {
-                        s.append(bptr, ptr - bptr);
-                    }
+            nodesMatching->push_back(baseNode);
+            return nodesMatching;
+        }
 
-                    bptr = ++ptr;
+        deque<string> c;
+        getPathParts(rest, &c);
 
-                    if (*bptr == 0)
-                    {
-                        c.push(s);
-                        break;
-                    }
-
-                    ptr++;
-                    continue;
-                }
-
-                if (( *ptr == '/' ) || ( *ptr == ':' ) || !*ptr)
-                {
-                    if (*ptr == ':')
-                    {
-                        if (c.size())
-                        {
-                            return nodesMatching;
-                        }
-
-                        remote = 1;
-                    }
-
-                    if (ptr > bptr)
-                    {
-                        s.append(bptr, ptr - bptr);
-                    }
-
-                    bptr = ptr + 1;
-
-                    c.push(s);
-
-                    s.erase();
-                }
-            }
-            else if (( *ptr & 0xf0 ) == 0xe0)
-            {
-                l = 1;
-            }
-            else if (( *ptr & 0xf8 ) == 0xf0)
-            {
-                l = 2;
-            }
-            else if (( *ptr & 0xfc ) == 0xf8)
-            {
-                l = 3;
-            }
-            else if (( *ptr & 0xfe ) == 0xfc)
-            {
-                l = 4;
-            }
+        if (!c.size())
+        {
+            nodesMatching->push_back(baseNode);
+            return nodesMatching;
         }
         else
         {
-            l--;
+            getNodesMatching(baseNode, c, nodesMatching, usepcre);
         }
-    }
-    while (*ptr++);
-
-    if (l)
-    {
-        delete nodesMatching;
-        return NULL;
-    }
-
-    if (remote)
-    {
-        // target: user inbox - record username/email and return NULL
-        if (( c.size() == 2 ) && !c.back().size())
-        {
-            if (user)
-            {
-                *user = c.front();
-            }
-            delete nodesMatching;
-            return NULL;
-        }
-
-        MegaUserList * usersList = api->getContacts();
-        MegaUser *u = NULL;
-        for (int i = 0; i < usersList->size(); i++)
-        {
-            if (usersList->get(i)->getEmail() == c.front())
-            {
-                u = usersList->get(i);
-                c.pop();
-                break;
-            }
-        }
-
-        if (u)
-        {
-            MegaNodeList* inshares = api->getInShares(u);
-            for (int i = 0; i < inshares->size(); i++)
-            {
-                if (inshares->get(i)->getName() == c.front())
-                {
-                    n = inshares->get(i)->copy();
-                    c.pop();
-                    break;
-                }
-            }
-
-            delete inshares;
-        }
-        delete usersList;
-    }
-    else // mine
-    {
-        // path starting with /
-        if (( c.size() > 1 ) && !c.front().size())
-        {
-            c.pop();
-            // path starting with //
-            if (( c.size() > 1 ) && !c.front().size())
-            {
-                c.pop();
-                if (c.front() == "in")
-                {
-                    n = api->getInboxNode();
-                    c.pop();
-                }
-                else if (c.front() == "bin")
-                {
-                    n = api->getRubbishNode();
-                    c.pop();
-                }
-                else
-                {
-                    return nodesMatching;
-                }
-            }
-            else
-            {
-                n = api->getRootNode();
-            }
-        }
-        else
-        {
-            n = api->getNodeByHandle(cwd);
-        }
-    }
-    if (n)
-    {
-        getNodesMatching(n, c, nodesMatching, usepcre);
-        delete n;
+        delete baseNode;
     }
 
     return nodesMatching;

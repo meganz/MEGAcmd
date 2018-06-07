@@ -888,6 +888,16 @@ char* remotepaths_completion(const char* text, int state)
         unescapeEspace(wildtext);
 
         validpaths = cmdexecuter->listpaths(usepcre, wildtext);
+
+        // we need to escape '\' to fit what's done when parsing words
+        if (!getCurrentThreadIsCmdShell())
+        {
+            for (int i = 0; i < (int)validpaths.size(); i++)
+            {
+                replaceAll(validpaths[i],"\\","\\\\");
+            }
+        }
+
     }
     return generic_completion(text, state, validpaths);
 }
@@ -1204,7 +1214,7 @@ completionfunction_t *getCompletionFunction(vector<string> words)
     return empty_completion;
 }
 
-string getListOfCompletionValues(vector<string> words, char separator = ' ', const char * separators = " ;", bool suppressflag = true)
+string getListOfCompletionValues(vector<string> words, char separator = ' ', const char * separators = " ;!\"\\", bool suppressflag = true)
 {
     string completionValues;
     completionfunction_t * compfunction = getCompletionFunction(words);
@@ -1242,10 +1252,12 @@ string getListOfCompletionValues(vector<string> words, char separator = ' ', con
             completionValues+=separator;
         }
 
-        if (string(newval).find_first_of(separators) != string::npos)
+        string snewval=newval;
+        if (snewval.find_first_of(separators) != string::npos)
         {
             completionValues+="\"";
-            completionValues+=newval;
+            replaceAll(snewval,"\"","\\\"");
+            completionValues+=snewval;
             completionValues+="\"";
         }
         else

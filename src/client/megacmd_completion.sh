@@ -8,20 +8,17 @@ _megacmd()
 	if [[ ${cur} == '=' ]]; then
 		cur=""
 	fi
-	
 	COMP_WORDS[0]="${COMP_WORDS[0]/mega-/}"
 	linetoexec=""
 	lasta=""
 	for a in "${COMP_WORDS[@]}"; do
-		if [[ $a == *" "* ]] && [[ $a != "\""* ]] && [[ $a != "'"* ]]; then
-			linetoexec=$linetoexec" \""$(echo $a | sed 's#\\$#\\ #g' | sed 's#\\\ # #g')"\""
-		elif [[ $a == *";"* ]] && [[ $a != "\""* ]] && [[ $a != "'"* ]]; then
-			linetoexec=$linetoexec" \""$(echo $a | sed 's#\\$#\\;#g' | sed 's#\\\;#;#g')"\""
+		if  [[ $a =~ ^.*([; \!\"\\]).*$ ]] && [[ $a != "\""* ]] && [[ $a != "'"* ]]; then
+			lastcharina="${a: -1}"
+			linetoexec=$linetoexec" '"$(echo $a | sed 's#\([^\\]\)\\$#\1\\ #g' | sed "s#\\\\\([ ;\"\!]\)#\1#g")"'"
 		else
 			if [[ ${a} == '=' ]] || [[ ${lasta} == '=' ]] || [[ ${a} == ':' ]] || [[ ${lasta} == ':' ]]; then
 				linetoexec=$linetoexec$a
 			else
-#				linetoexec=$linetoexec" "$(echo $a | sed 's#\\$#\\ #g' | sed 's#\\\ # #g')
 				linetoexec=$linetoexec" "$a
 				if [[ $a == "\""* ]] && [[ $a != *"\"" ]];then
 					linetoexec=$linetoexec"\""
@@ -46,10 +43,10 @@ _megacmd()
 		return $?
 	fi
 
-	declare -a "aOPTS=(${opts/;/\\;})" || declare -a 'aOPTS=(${opts/;/\\. ;})'
+	declare -a "aOPTS=(${opts/;/\\;})" || declare -a 'aOPTS=(${opts/;/\\;})'
 
 	for a in `seq 0 $(( ${#aOPTS[@]} -1 ))`; do
-		COMPREPLY[$a]=$( echo ${aOPTS[$a]} | sed "s# #\\\ #g")
+		COMPREPLY[$a]=$( echo ${aOPTS[$a]} | sed "s#\([ \"\\]\)#\\\\\1#g")
 	done
 
 	for i in "${COMPREPLY[@]}"; do
