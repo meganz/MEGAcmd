@@ -1214,7 +1214,7 @@ completionfunction_t *getCompletionFunction(vector<string> words)
     return empty_completion;
 }
 
-string getListOfCompletionValues(vector<string> words, char separator = ' ', const char * separators = " ;!\"\\", bool suppressflag = true)
+string getListOfCompletionValues(vector<string> words, char separator = ' ', const char * separators = " ;!`\"'\\()[]{}<>", bool suppressflag = true)
 {
     string completionValues;
     completionfunction_t * compfunction = getCompletionFunction(words);

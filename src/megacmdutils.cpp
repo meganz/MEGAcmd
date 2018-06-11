@@ -1105,7 +1105,7 @@ vector<string> getlistOfWords(char *ptr, bool ignoreTrailingSpaces)
         }
     }
 
-    if (!getCurrentThreadIsCmdShell())
+    if (!getCurrentThreadIsCmdShell() && words.size()> 1 && words[0] == "completion")
     {
         for (int i = 1; i < (int)words.size(); i++)
         {
