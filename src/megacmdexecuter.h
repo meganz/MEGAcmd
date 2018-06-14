@@ -74,11 +74,9 @@ public:
 
     bool processTree(mega::MegaNode * n, bool(mega::MegaApi *, mega::MegaNode *, void *), void *( arg ));
 
-    mega::MegaNode * getRootNodeByPath(const char *ptr, std::string* user = NULL);
-
     mega::MegaNode* nodebypath(const char* ptr, std::string* user = NULL, std::string* namepart = NULL);
     std::vector <mega::MegaNode*> * nodesbypath(const char* ptr, bool usepcre, std::string* user = NULL);
-    void getNodesMatching(mega::MegaNode *parentNode, std::queue<std::string> pathParts, std::vector<mega::MegaNode *> *nodesMatching, bool usepcre);
+    void getNodesMatching(mega::MegaNode *parentNode, std::deque<std::string> pathParts, std::vector<mega::MegaNode *> *nodesMatching, bool usepcre);
 
     std::vector <std::string> * nodesPathsbypath(const char* ptr, bool usepcre, std::string* user = NULL, std::string* namepart = NULL);
     void getPathsMatching(mega::MegaNode *parentNode, std::deque<std::string> pathParts, std::vector<std::string> *pathsMatching, bool usepcre, std::string pathPrefix = "");
@@ -166,6 +164,8 @@ public:
     std::string getLPWD();
     bool isValidFolder(std::string destiny);
     bool establishBackup(std::string local, mega::MegaNode *n, int64_t period, std::string periodstring, int numBackups);
+    mega::MegaNode *getBaseNode(std::string thepath, std::string &rest, bool *isrelative = NULL);
+    void getPathParts(std::string path, std::deque<std::string> *c);
 };
 
 #endif // MEGACMDEXECUTER_H

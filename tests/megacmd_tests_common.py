@@ -48,7 +48,7 @@ def esc(what):
 def ef(what):
     out,code=esc(what)
     if code != 0:
-        print >>sys.stderr, "FALLO en "+str(what) #TODO: stderr?
+        print >>sys.stderr, "FAILED trying ", what
         print >>sys.stderr, out #TODO: stderr?
         
         exit(code)

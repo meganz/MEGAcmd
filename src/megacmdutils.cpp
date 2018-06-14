@@ -1100,8 +1100,16 @@ vector<string> getlistOfWords(char *ptr, bool ignoreTrailingSpaces)
                 prev=ptr;
                 ptr++;
             }
+                string newword(wptr, ptr - wptr);
+                words.push_back(newword);
+        }
+    }
 
-                words.push_back(string(wptr, ptr - wptr));
+    if (!getCurrentThreadIsCmdShell() && words.size()> 1 && words[0] == "completion")
+    {
+        for (int i = 1; i < (int)words.size(); i++)
+        {
+            replaceAll(words[i],"\\","\\\\");
         }
     }
 

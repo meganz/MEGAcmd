@@ -723,8 +723,9 @@ void changeprompt(const char *newprompt, bool redisplay)
     mutexPrompt.unlock();
 }
 
-void escapeEspace(string &orig)
+void escapeEspaceAndBackslash(string &orig)
 {
+    replaceAll(orig,"\\", "\\\\");
     replaceAll(orig," ", "\\ ");
 }
 
@@ -766,14 +767,14 @@ char* generic_completion(const char* text, int state, vector<string> validOption
     {
         name = validOptions.at(list_index);
         if (!rl_completion_quote_character) {
-            escapeEspace(name);
+            escapeEspaceAndBackslash(name);
         }
 
         list_index++;
 
         if (!( strcmp(text, "")) || (( name.size() >= len ) && ( strlen(text) >= len ) && ( name.find(text) == 0 )))
         {
-            if (name.size() && (( name.at(name.size() - 1) == '=' ) || ( name.at(name.size() - 1) == '/' )))
+            if (name.size() && (( name.at(name.size() - 1) == '=' ) || ( name.at(name.size() - 1) == '\\' ) || ( name.at(name.size() - 1) == '/' )))
             {
                 rl_completion_suppress_append = 1;
             }
