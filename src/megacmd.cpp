@@ -3414,7 +3414,7 @@ int main(int argc, char* argv[])
         loginInAtStartup = true;
         stringstream logLine;
         logLine << "login " << ConfigurationManager::session;
-        LOG_debug << "Executing ... " << logLine.str();
+        LOG_debug << "Executing ... " << logLine.str().substr(0,9) << "...";
         process_line((char*)logLine.str().c_str());
         loginInAtStartup = false;
     }
