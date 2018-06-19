@@ -7305,6 +7305,39 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
         return;
     }
+    else if (words[0] == "errorcode")
+    {
+        if (words.size() != 2)
+        {
+            setCurrentOutCode(MCMD_EARGS);
+            LOG_err << "Extra args required in non interactive mode. Usage: " << getUsageStr("errorcode");
+            return;
+        }
+
+        int errCode = -1999;
+        istringstream is(words[1]);
+        is >> errCode;
+        if (errCode == -1999)
+        {
+            setCurrentOutCode(MCMD_EARGS);
+            LOG_err << "Invalid error code: " << words[1];
+            return;
+        }
+
+        if (errCode > 0)
+        {
+            errCode = -errCode;
+        }
+
+        string errString = getMCMDErrorString(errCode);
+        if (errString == "UNKNOWN")
+        {
+            errString = MegaError::getErrorString(errCode);
+        }
+
+        OUTSTREAM << errString << endl;
+
+    }
     else if (words[0] == "signup")
     {
         if (api->isLoggedIn())

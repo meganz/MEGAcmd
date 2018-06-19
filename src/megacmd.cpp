@@ -204,7 +204,7 @@ vector<string> emailpatterncommands(aemailpatterncommands, aemailpatterncommands
 string avalidCommands [] = { "login", "signup", "confirm", "session", "mount", "ls", "cd", "log", "debug", "pwd", "lcd", "lpwd", "import", "masterkey",
                              "put", "get", "attr", "userattr", "mkdir", "rm", "du", "mv", "cp", "sync", "export", "share", "invite", "ipc",
                              "showpcr", "users", "speedlimit", "killsession", "whoami", "help", "passwd", "reload", "logout", "version", "quit",
-                             "thumbnail", "preview", "find", "completion", "clear", "https", "transfers", "exclude", "exit"
+                             "thumbnail", "preview", "find", "completion", "clear", "https", "transfers", "exclude", "exit", "errorcode"
 #ifdef HAVE_LIBUV
                              , "webdav", "ftp"
 #endif
@@ -1316,6 +1316,10 @@ const char * getUsageStr(const char *command)
     {
         return "confirm link email [password]";
     }
+    if (!strcmp(command, "errorcode"))
+    {
+        return "errorcode number";
+    }
     if (!strcmp(command, "session"))
     {
         return "session";
@@ -1651,6 +1655,10 @@ string getHelpStr(const char *command)
         os << " You can log in either with email and password, with session ID," << endl;
         os << " or into a folder (an exported/public folder)" << endl;
         os << " If loging into a folder indicate url#key" << endl;
+    }
+    else if (!strcmp(command, "errorcode"))
+    {
+        os << "Translate error code into string" << endl;
     }
     else if (!strcmp(command, "signup"))
     {
