@@ -1670,6 +1670,13 @@ string getHelpStr(const char *command)
         os << " You will receive an email to confirm your account. " << endl;
         os << " Once you have received the email, please proceed to confirm the link " << endl;
         os << " included in that email with \"confirm\"." << endl;
+        os << endl;
+        os << "Warning: Due to our end-to-end encryption paradigm, you will not be able to access your data " << endl;
+        os << "without either your password or a backup of your Recovery Key (master key)." << endl;
+        os << "Exporting the master key and keeping it in a secure location enables you " << endl;
+        os << "to set a new password without data loss. Always keep physical control of " << endl;
+        os << "your master key (e.g. on a client device, external storage, or print)." << endl;
+        os << " See \"masterkey --help\" for further info." << endl;
     }
     else if (!strcmp(command, "clear"))
     {
@@ -1986,7 +1993,7 @@ string getHelpStr(const char *command)
         os << " --d        " << "\t" << "Stops serving that location" << endl;
         os << " --all      " << "\t" << "When used with -d, stops serving all locations (and stops the server)" << endl;
         os << " --public   " << "\t" << "*Allow access from outside localhost" << endl;
-        os << " --port=PORT" << "\t" << "*Port to serve. DEFAULT=22" << endl;
+        os << " --port=PORT" << "\t" << "*Port to serve. DEFAULT=4990" << endl;
         os << " --data-ports=BEGIN-END" << "\t" << "*Ports range used for data channel (in passive mode). DEFAULT=1500-1600" << endl;
         os << " --tls      " << "\t" << "*Serve with TLS (FTPs)" << endl;
         os << " --certificate=/path/to/certificate.pem" << "\t" << "*Path to PEM formated certificate" << endl;
@@ -2195,10 +2202,13 @@ string getHelpStr(const char *command)
     {
         os << "Shows your master key." << endl;
         os << endl;
-        os << "Getting the master key and keeping it in a secure location enables you " << endl;
-        os << " to set a new password without data loss." << endl;
-        os << "Always keep physical control of your master key " << endl;
-        os << " (e.g. on a client device, external storage, or print)" << endl;
+        os << "Your data is only readable through a chain of decryption operations that begins " << endl;
+        os << "with your master encryption key (Recovery Key), which MEGA stores encrypted with your password." << endl;
+        os << "This means that if you lose your password, your Recovery Key can no longer be decrypted, " << endl;
+        os << "and you can no longer decrypt your data." << endl;
+        os << "Exporting the Recovery Key and keeping it in a secure location " << endl;
+        os << "enables you to set a new password without data loss." << endl;
+        os << "Always keep physical control of your master key (e.g. on a client device, external storage, or print)" << endl;
     }
     if (!strcmp(command, "showpcr"))
     {

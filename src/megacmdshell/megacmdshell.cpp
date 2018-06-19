@@ -1716,9 +1716,7 @@ void printWelcomeMsg(unsigned int width)
     COUT << "|";
     COUT << endl;
     printCenteredLine("Welcome to MEGAcmd! A Command Line Interactive and Scriptable",width);
-    printCenteredLine("Application to interact with your MEGA account",width);
-    printCenteredLine("This is a BETA version, it might not be bug-free.",width);
-    printCenteredLine("Also, the signature/output of the commands may change in a future.",width);
+    printCenteredLine("Application to interact with your MEGA account.",width);
     printCenteredLine("Please write to support@mega.nz if you find any issue or",width);
     printCenteredLine("have any suggestion concerning its functionalities.",width);
     printCenteredLine("Enter \"help --non-interactive\" to learn how to use MEGAcmd with scripts.",width);

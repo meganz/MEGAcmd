@@ -459,6 +459,7 @@ killall mega-cmd-server 2> /dev/null || true
 %{_bindir}/mega-users
 %{_bindir}/mega-version
 %{_bindir}/mega-whoami
+%{_bindir}/mega-errorcode
 %{_bindir}/mega-cmd
 %{_bindir}/mega-cmd-server
 %{_sysconfdir}/bash_completion.d/megacmd_completion.sh

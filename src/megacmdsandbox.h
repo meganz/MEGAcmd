@@ -32,6 +32,7 @@ public:
     time_t lastQuerytemporalBandwith;
     time_t timeOfOverquota;
     time_t secondsOverQuota;
+    bool accounthasbeenblocked;
 public:
     MegaCmdSandbox();
     bool isOverquota() const;

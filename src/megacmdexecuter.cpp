@@ -1739,6 +1739,7 @@ void MegaCmdExecuter::dumpListOfPendingShares(MegaNode* n, string givenPath)
 void MegaCmdExecuter::loginWithPassword(char *password)
 {
     MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
+    sandboxCMD->accounthasbeenblocked = false;
     api->login(login.c_str(), password, megaCmdListener);
     actUponLogin(megaCmdListener);
     delete megaCmdListener;
@@ -1839,7 +1840,7 @@ void MegaCmdExecuter::actUponGetExtendedAccountDetails(SynchronousRequestListene
                 if (details->getProExpiration())
                 {
                     time_t ts = details->getProExpiration();
-                    strftime(timebuf, sizeof timebuf, "%c", localtime(&ts));
+                    strftime(timebuf, sizeof timebuf, "%c", localtime(&ts)); //TODO: use thread safe version of this everywhere!
                     OUTSTREAM << "        " << "Pro expiration date: " << timebuf << endl;
                 }
             }
@@ -2010,8 +2011,29 @@ void MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
     {
         LOG_err << "Login failed: unconfirmed account. Please confirm your account";
     }
+    else if (srl->getError()->getErrorCode() == MegaError::API_EBLOCKED)
+    {
+        LOG_err << "Login failed: Your account has been blocked. Please contact support@mega.co.nz";
+    }
+    else if (sandboxCMD->accounthasbeenblocked)
+    {
+        MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
+        api->whyAmIBlocked(megaCmdListener);
+        megaCmdListener->wait();
+        if (checkNoErrors(megaCmdListener->getError(), "find why am I blocked"))
+        {
+            LOG_err << "Login invalid: Account blocked reason: " << megaCmdListener->getRequest()->getText();
+            MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
+            api->localLogout(megaCmdListener);
+            megaCmdListener->wait();
+            checkNoErrors(megaCmdListener->getError(), "local logout after blocked");
+        }
+        delete megaCmdListener;
+    }
     else if (checkNoErrors(srl->getError(), "Login")) //login success:
     {
+
+
         LOG_debug << "Login correct ... " << (srl->getRequest()->getEmail()?srl->getRequest()->getEmail():"");
         /* Restoring configured values */
         session = srl->getApi()->dumpSession();
@@ -2157,7 +2179,7 @@ void MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
             }
             else
             {
-                LOG_err << "Failed to initialize WEBDAV server";
+                LOG_err << "Failed to initialize WEBDAV server. Ensure the port is free.";
             }
         }
 
@@ -2217,7 +2239,7 @@ void MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
             }
             else
             {
-                LOG_err << "Failed to initialize FTP server";
+                LOG_err << "Failed to initialize FTP server. Ensure the port is free.";
             }
         }
 #endif
@@ -5894,7 +5916,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         {
             //create new link:
             bool tls = getFlag(clflags, "tls");
-            int port = getintOption(cloptions, "port", 22);
+            int port = getintOption(cloptions, "port", 4990);
             bool localonly = !getFlag(clflags, "public");
 
             string dataPorts = getOption(cloptions, "data-ports");
@@ -5935,7 +5957,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 else
                 {
                     setCurrentOutCode(MCMD_EARGS);
-                    LOG_err << "Failed to initialize FTP server";
+                    LOG_err << "Failed to initialize FTP server. Ensure the port is free.";
                     return;
                 }
             }

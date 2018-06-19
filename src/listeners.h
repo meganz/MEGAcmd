@@ -121,6 +121,7 @@ public:
     void onNodesUpdate(mega::MegaApi* api, mega::MegaNodeList *nodes);
     void onUsersUpdate(mega::MegaApi* api, mega::MegaUserList *users);
     void onAccountUpdate(mega::MegaApi *api);
+    void onEvent(mega::MegaApi *api, mega::MegaEvent *event);
 #ifdef ENABLE_CHAT
     void onChatsUpdate(mega::MegaApi*, mega::MegaTextChatList*);
 #endif
