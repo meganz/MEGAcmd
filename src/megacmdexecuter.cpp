@@ -5536,6 +5536,25 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         }
         return;
     }
+    else if (words[0] == "graphics")
+    {
+        if (words.size() == 2 && (words[1] == "on" || words[1] == "off"))
+        {
+            bool enableGraphics = words[1] == "on";
+
+            api->disableGfxFeatures(!enableGraphics);
+            ConfigurationManager::savePropertyValue("graphics", !api->areGfxFeaturesDisabled());
+        }
+        else if (words.size() > 1)
+        {
+            setCurrentOutCode(MCMD_EARGS);
+            LOG_err << "      " << getUsageStr("https");
+            return;
+        }
+
+        OUTSTREAM << "Graphic features " << (api->areGfxFeaturesDisabled()?"disabled":"enabled") << endl;
+        return;
+    }
 #ifndef _WIN32
     else if (words[0] == "permissions")
     {

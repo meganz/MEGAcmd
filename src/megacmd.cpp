@@ -204,7 +204,7 @@ vector<string> emailpatterncommands(aemailpatterncommands, aemailpatterncommands
 string avalidCommands [] = { "login", "signup", "confirm", "session", "mount", "ls", "cd", "log", "debug", "pwd", "lcd", "lpwd", "import", "masterkey",
                              "put", "get", "attr", "userattr", "mkdir", "rm", "du", "mv", "cp", "sync", "export", "share", "invite", "ipc",
                              "showpcr", "users", "speedlimit", "killsession", "whoami", "help", "passwd", "reload", "logout", "version", "quit",
-                             "thumbnail", "preview", "find", "completion", "clear", "https", "transfers", "exclude", "exit", "errorcode"
+                             "thumbnail", "preview", "find", "completion", "clear", "https", "transfers", "exclude", "exit", "errorcode", "graphics"
 #ifdef HAVE_LIBUV
                              , "webdav", "ftp"
 #endif
@@ -1334,6 +1334,10 @@ const char * getUsageStr(const char *command)
     {
         return "errorcode number";
     }
+    if (!strcmp(command, "graphics"))
+    {
+        return "graphics [on|off]";
+    }
     if (!strcmp(command, "session"))
     {
         return "session";
@@ -1681,6 +1685,20 @@ string getHelpStr(const char *command)
     {
         os << "Translate error code into string" << endl;
     }
+    else if (!strcmp(command, "graphics"))
+    {
+        os << "Shows if special features related to images and videos are enabled. " << endl;
+        os << "Use \"graphics on/off\" to enable/disable it." << endl;
+        os << endl;
+        os << "Disabling these features will avoid the upload of previews and thumbnails" << endl;
+        os << "for images and videos." << endl;
+        os << endl;
+        os << "It's only recommended to disable these features before uploading files" << endl;
+        os << "with image or video extensions that are not really images or videos," << endl;
+        os << "or that are encrypted in the local drive so they can't be analyzed anyway." << endl;
+        os << endl;
+        os << "Notice that this setting will be saved for the next time you open MEGAcmd" << endl;
+    }
     else if (!strcmp(command, "signup"))
     {
         os << "Register as user with a given email" << endl;
@@ -1958,7 +1976,7 @@ string getHelpStr(const char *command)
         os << "HTTPS is not necesary since all data is stored and transfered encrypted." << endl;
         os << "Enabling it will increase CPU usage and add network overhead." << endl;
         os << endl;
-        os << "Notice that this setting is ephemeral: it will reset for the next time you open MEGAcmd" << endl;
+        os << "Notice that this setting will be saved for the next time you open MEGAcmd" << endl;
     }
     else if (!strcmp(command, "deleteversions"))
     {
