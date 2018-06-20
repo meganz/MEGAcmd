@@ -5777,7 +5777,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 else
                 {
                     setCurrentOutCode(MCMD_EARGS);
-                    LOG_err << "Failed to initialize WEBDAV server";
+                    LOG_err << "Failed to initialize WEBDAV server. Ensure the port is free.";
                     return;
                 }
             }
@@ -6415,7 +6415,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         else
                         {
                             setCurrentOutCode(MCMD_EARGS);
-                            LOG_err << "Extra args required in non interactive mode. Usage: " << getUsageStr("login");
+                            LOG_err << "Extra args required in non-interactive mode. Usage: " << getUsageStr("login");
                         }
                     }
                 }
@@ -7206,7 +7206,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 else
                 {
                     setCurrentOutCode(MCMD_EARGS);
-                    LOG_err << "Extra args required in non interactive mode. Usage: " << getUsageStr("passwd");
+                    LOG_err << "Extra args required in non-interactive mode. Usage: " << getUsageStr("passwd");
                 }
             }
             else if (words.size() == 2)
@@ -7351,7 +7351,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         if (words.size() != 2)
         {
             setCurrentOutCode(MCMD_EARGS);
-            LOG_err << "Extra args required in non interactive mode. Usage: " << getUsageStr("errorcode");
+            LOG_err << "      " << getUsageStr("errorcode");
             return;
         }
 
@@ -7407,7 +7407,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 else
                 {
                     setCurrentOutCode(MCMD_EARGS);
-                    LOG_err << "Extra args required in non interactive mode. Usage: " << getUsageStr("signup");
+                    LOG_err << "Extra args required in non-interactive mode. Usage: " << getUsageStr("signup");
                 }
             }
         }
@@ -7764,7 +7764,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         else
                         {
                             setCurrentOutCode(MCMD_EARGS);
-                            LOG_err << "Extra args required in non interactive mode. Usage: " << getUsageStr("confirm");
+                            LOG_err << "Extra args required in non-interactive mode. Usage: " << getUsageStr("confirm");
                         }
                     }
                 }

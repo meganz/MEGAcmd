@@ -1310,11 +1310,25 @@ const char * getUsageStr(const char *command)
     }
     if (!strcmp(command, "signup"))
     {
-        return "signup email [password] [--name=\"Your Name\"]";
+        if (interactiveThread())
+        {
+            return "signup email [password] [--name=\"Your Name\"]";
+        }
+        else
+        {
+            return "signup email password [--name=\"Your Name\"]";
+        }
     }
     if (!strcmp(command, "confirm"))
     {
-        return "confirm link email [password]";
+        if (interactiveThread())
+        {
+            return "confirm link email [password]";
+        }
+        else
+        {
+            return "confirm link email password";
+        }
     }
     if (!strcmp(command, "errorcode"))
     {
@@ -1527,7 +1541,14 @@ const char * getUsageStr(const char *command)
     }
     if (!strcmp(command, "passwd"))
     {
-        return "passwd [-f] [newpassword]";
+        if (interactiveThread())
+        {
+            return "passwd [-f] [newpassword]";
+        }
+        else
+        {
+            return "passwd [-f] newpassword";
+        }
     }
     if (!strcmp(command, "retry"))
     {
