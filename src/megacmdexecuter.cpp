@@ -5202,8 +5202,27 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             }
             else
             {
-                setCurrentOutCode(MCMD_NOTFOUND);
-                LOG_err << "Backup not found: " << local;
+                if (dodelete) //remove from configured backups
+                {
+                    for ( itr = ConfigurationManager::configuredBackups.begin(); itr != ConfigurationManager::configuredBackups.end(); itr++ )
+                    {
+                        if (itr->second->tag == -1 && itr->second->localpath == local)
+                        {
+                            mtxBackupsMap.lock();
+                            ConfigurationManager::configuredBackups.erase(itr);
+                            ConfigurationManager::saveBackups(&ConfigurationManager::configuredBackups);
+                            mtxBackupsMap.unlock();
+                            OUTSTREAM << " Backup removed succesffuly: " << local << endl;
+
+                            break;
+                        }
+                    }
+                }
+                else
+                {
+                    setCurrentOutCode(MCMD_NOTFOUND);
+                    LOG_err << "Backup not found: " << local;
+                }
             }
         }
         else if (words.size() == 1) //list backups
@@ -7516,7 +7535,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     {
                         if (dumpListOfExported(n, words[i]) == 0 )
                         {
-                            OUTSTREAM << "Couldn't find nothing exported below ";
+                            OUTSTREAM << "Couldn't find anything exported below ";
                             if (words[i] == ".")
                             {
                                 OUTSTREAM << "current folder";

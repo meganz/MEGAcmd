@@ -473,8 +473,8 @@ void MegaCmdTransferListener::onTransferUpdate(MegaApi* api, MegaTransfer *trans
 
     outputString[cols] = '\0';
     char *ptr = (char *)outputString.c_str();
-    sprintf(ptr, "%s", "TRANSFERING ||");
-    ptr += strlen("TRANSFERING ||");
+    sprintf(ptr, "%s", "TRANSFERRING ||");
+    ptr += strlen("TRANSFERRING ||");
     *ptr = '.'; //replace \0 char
 
 
@@ -507,7 +507,7 @@ void MegaCmdTransferListener::onTransferUpdate(MegaApi* api, MegaTransfer *trans
     }
     sprintf(aux,"||(%lld/%lld MB: %.2f %%) ", (long long)(transfer->getTransferredBytes() / 1024 / 1024), (long long)(transfer->getTotalBytes() / 1024 / 1024), (float)percentDownloaded);
     sprintf((char *)outputString.c_str() + cols - strlen(aux), "%s",                         aux);
-    for (int i = 0; i <= ( cols - strlen("TRANSFERING ||") - strlen(aux)) * 1.0 * percentDownloaded / 100.0; i++)
+    for (int i = 0; i <= ( cols - strlen("TRANSFERRING ||") - strlen(aux)) * 1.0 * percentDownloaded / 100.0; i++)
     {
         *ptr++ = '#';
     }
@@ -595,7 +595,7 @@ void MegaCmdMultiTransferListener::doOnTransferFinish(MegaApi* api, MegaTransfer
         return;
     }
 
-    LOG_verbose << "doOnTransferFinish MegaCmdMultiTransferListener Transfer->getType(): " << transfer->getType() << " transfering " << transfer->getFileName();
+    LOG_verbose << "doOnTransferFinish MegaCmdMultiTransferListener Transfer->getType(): " << transfer->getType() << " transferring " << transfer->getFileName();
     map<int, long long>::iterator itr = ongoingtransferredbytes.find(transfer->getTag());
     if ( itr!= ongoingtransferredbytes.end())
     {
@@ -642,8 +642,8 @@ void MegaCmdMultiTransferListener::onTransferUpdate(MegaApi* api, MegaTransfer *
 
     outputString[cols] = '\0';
     char *ptr = (char *)outputString.c_str();
-    sprintf(ptr, "%s", "TRANSFERING ||");
-    ptr += strlen("TRANSFERING ||");
+    sprintf(ptr, "%s", "TRANSFERRING ||");
+    ptr += strlen("TRANSFERRING ||");
     *ptr = '.'; //replace \0 char
 
 
@@ -677,7 +677,7 @@ void MegaCmdMultiTransferListener::onTransferUpdate(MegaApi* api, MegaTransfer *
     }
     sprintf(aux,"||(%lld/%lld MB: %.2f %%) ", (transferredbytes + getOngoingTransferredBytes()) / 1024 / 1024, (totalbytes + getOngoingTotalBytes() ) / 1024 / 1024, percentDownloaded);
     sprintf((char *)outputString.c_str() + cols - strlen(aux), "%s",                         aux);
-    for (int i = 0; i <= ( cols - strlen("TRANSFERING ||") - strlen(aux)) * 1.0 * min (100.0f, percentDownloaded) / 100.0; i++)
+    for (int i = 0; i <= ( cols - strlen("TRANSFERRING ||") - strlen(aux)) * 1.0 * min (100.0f, percentDownloaded) / 100.0; i++)
     {
         *ptr++ = '#';
     }
