@@ -3492,7 +3492,7 @@ void MegaCmdExecuter::printBackupHistory(MegaBackup *backup, MegaNode *parentnod
                 {
                     backupInstanceStatus = backupInstanceNode->getCustomAttr("BACKST");
 
-                    getNumFolderFilesFromRequest(backupInstanceNode, api, &nfiles, &nfolders);
+                    getNumFolderFiles(backupInstanceNode, api, &nfiles, &nfolders);
 
                 }
 
