@@ -1,2 +1,2 @@
 @echo off
-"%~dp0MegaClient.exe" whoami %*
+"%~dp0MegaClient.exe" errorcode %*

@@ -1,1 +1,2 @@
-mega-exec whoami "$@"
+#!bin/bash
+mega-exec errorcode "$@"
