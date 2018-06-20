@@ -2058,6 +2058,7 @@ void MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
         if (maxspeedupload != -1) api->setMaxUploadSpeed(maxspeedupload);
 
         api->useHttpsOnly(ConfigurationManager::getConfigurationValue("https", false));
+        api->disableGfxFeatures(!ConfigurationManager::getConfigurationValue("graphics", true));
 
 #ifndef _WIN32
         string permissionsFiles = ConfigurationManager::getConfigurationSValue("permissionsFiles");

@@ -723,9 +723,8 @@ void changeprompt(const char *newprompt, bool redisplay)
     mutexPrompt.unlock();
 }
 
-void escapeEspaceAndBackslash(string &orig)
+void escapeEspace(string &orig)
 {
-    replaceAll(orig,"\\", "\\\\");
     replaceAll(orig," ", "\\ ");
 }
 
@@ -767,7 +766,7 @@ char* generic_completion(const char* text, int state, vector<string> validOption
     {
         name = validOptions.at(list_index);
         if (!rl_completion_quote_character) {
-            escapeEspaceAndBackslash(name);
+            escapeEspace(name);
         }
 
         list_index++;
