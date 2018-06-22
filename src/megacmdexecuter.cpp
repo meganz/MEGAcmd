@@ -218,8 +218,8 @@ struct criteriaNodeVector
 {
     string pattern;
     bool usepcre;
-    time_t minTime;
-    time_t maxTime;
+    m_time_t minTime;
+    m_time_t maxTime;
 
     int64_t maxSize;
     int64_t minSize;
@@ -2302,6 +2302,13 @@ void MegaCmdExecuter::changePassword(const char *oldpassword, const char *newpas
     delete megaCmdListener;
 }
 
+void str_localtime(char s[32], ::mega::m_time_t t)
+{
+    struct tm tms;
+    strftime(s, 32, "%c", m_localtime(t, &tms));
+}
+
+
 void MegaCmdExecuter::actUponGetExtendedAccountDetails(SynchronousRequestListener *srl, int timeout)
 {
     if (timeout == -1)
@@ -2383,8 +2390,7 @@ void MegaCmdExecuter::actUponGetExtendedAccountDetails(SynchronousRequestListene
             {
                 if (details->getProExpiration())
                 {
-                    time_t ts = details->getProExpiration();
-                    strftime(timebuf, sizeof timebuf, "%c", localtime(&ts));
+                    str_localtime(timebuf, details->getProExpiration());
                     OUTSTREAM << "        " << "Pro expiration date: " << timebuf << endl;
                 }
             }
@@ -2407,10 +2413,9 @@ void MegaCmdExecuter::actUponGetExtendedAccountDetails(SynchronousRequestListene
                 {
                     MegaAccountPurchase *purchase = details->getPurchase(i);
 
-                    time_t ts = purchase->getTimestamp();
                     char spurchase[150];
 
-                    strftime(timebuf, sizeof timebuf, "%c", localtime(&ts));
+                    str_localtime(timebuf, purchase->getTimestamp());
                     sprintf(spurchase, "ID: %.11s Time: %s Amount: %.3s %.02f Payment method: %d\n",
                         purchase->getHandle(), timebuf, purchase->getCurrency(), purchase->getAmount(), purchase->getMethod());
                     OUTSTREAM << "    " << spurchase << endl;
@@ -2423,9 +2428,9 @@ void MegaCmdExecuter::actUponGetExtendedAccountDetails(SynchronousRequestListene
                 for (int i = 0; i < details->getNumTransactions(); i++)
                 {
                     MegaAccountTransaction *transaction = details->getTransaction(i);
-                    time_t ts = transaction->getTimestamp();
                     char stransaction[100];
-                    strftime(timebuf, sizeof timebuf, "%c", localtime(&ts));
+
+                    str_localtime(timebuf, transaction->getTimestamp());
                     sprintf(stransaction, "ID: %.11s Time: %s Amount: %.3s %.02f\n",
                         transaction->getHandle(), timebuf, transaction->getCurrency(), transaction->getAmount());
                     OUTSTREAM << "    " << stransaction << endl;
@@ -2441,10 +2446,8 @@ void MegaCmdExecuter::actUponGetExtendedAccountDetails(SynchronousRequestListene
                 if (session->isAlive())
                 {
                     sdetails[0]='\0';
-                    time_t ts = session->getCreationTimestamp();
-                    strftime(timebuf,  sizeof timebuf, "%c", localtime(&ts));
-                    ts = session->getMostRecentUsage();
-                    strftime(timebuf2, sizeof timebuf, "%c", localtime(&ts));
+                    str_localtime(timebuf, session->getCreationTimestamp());
+                    str_localtime(timebuf2, session->getMostRecentUsage());
 
                     char *sid = api->userHandleToBase64(session->getHandle());
 
@@ -3043,7 +3046,7 @@ void MegaCmdExecuter::downloadNode(string path, MegaApi* api, MegaNode *node, bo
 {
     if (sandboxCMD->isOverquota() && !ignorequotawarn)
     {
-        time_t ts = time(NULL);
+        m_time_t ts = m_time();
         // in order to speedup and not flood the server we only ask for the details every 1 minute or after account changes
         if (!sandboxCMD->temporalbandwidth || (ts - sandboxCMD->lastQuerytemporalBandwith ) > 60 )
         {
@@ -3852,7 +3855,7 @@ void MegaCmdExecuter::printBackupDetails(MegaBackup *backup)
         long long totbytes = backup->getTotalBytes();
         double percent = totbytes?double(trabytes)/double(totbytes):0;
 
-        string sprogress = sizeProgressToText(trabytes, totbytes) + "  " + percentageToText(percent);
+        string sprogress = sizeProgressToText(trabytes, totbytes) + "  " + percentageToText(float(percent));
         OUTSTREAM << "  " << getRightAlignedString(sprogress,10);
         OUTSTREAM << endl;
     }
@@ -3901,7 +3904,7 @@ void MegaCmdExecuter::printBackupHistory(MegaBackup *backup, MegaNode *parentnod
             {
                 struct tm dt;
                 fillStructWithSYYmdHMS(btime,dt);
-                printableDate = getReadableShortTime(mktime(&dt));
+                printableDate = getReadableShortTime(m_mktime(&dt));
             }
 
             string backupInstanceStatus="NOT_FOUND";
@@ -4062,7 +4065,7 @@ void MegaCmdExecuter::printSync(int i, string key, const char *nodepath, sync_st
 
 }
 
-void MegaCmdExecuter::doFind(MegaNode* nodeBase, string word, int printfileinfo, string pattern, bool usepcre, time_t minTime, time_t maxTime, int64_t minSize, int64_t maxSize)
+void MegaCmdExecuter::doFind(MegaNode* nodeBase, string word, int printfileinfo, string pattern, bool usepcre, m_time_t minTime, m_time_t maxTime, int64_t minSize, int64_t maxSize)
 {
     struct criteriaNodeVector pnv;
     pnv.pattern = pattern;
@@ -4588,8 +4591,8 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             return;
         }
 
-        time_t minTime = -1;
-        time_t maxTime = -1;
+        m_time_t minTime = -1;
+        m_time_t maxTime = -1;
         string mtimestring = getOption(cloptions, "mtime", "");
         if ("" != mtimestring && !getMinAndMaxTime(mtimestring, &minTime, &maxTime))
         {
@@ -5542,7 +5545,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
         bool firstbackup = true;
         string speriod=getOption(cloptions, "period");
-        int64_t numBackups = getintOption(cloptions, "num-backups", -1);
+        int numBackups = int(getintOption(cloptions, "num-backups", -1));
 
         if (words.size() == 3)
         {
@@ -7615,7 +7618,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             LOG_err << "Not logged in.";
             return;
         }
-        time_t expireTime = 0;
+        ::mega::m_time_t expireTime = 0;
         string sexpireTime = getOption(cloptions, "expire", "");
         if ("" != sexpireTime)
         {

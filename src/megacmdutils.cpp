@@ -572,62 +572,23 @@ const char *fillStructWithSYYmdHMS(string &stime, struct tm &dt)
 #endif
 }
 
-void fillLocalTimeStruct(const time_t *ttime, struct tm *dt) //TODO: copy this to megaapiimpl
-{
-#if (__cplusplus >= 201103L) && defined (__STDC_LIB_EXT1__) && defined(__STDC_WANT_LIB_EXT1__)
-    localtime_s(ttime, dt);
-#elif _MSC_VER >= 1400 // MSVCRT (2005+): std::localtime is threadsafe
-    struct tm *newtm = localtime(ttime);
-    if (newtm)
-    {
-        memcpy(dt,newtm,sizeof(struct tm));
-    }
-    else
-    {
-        memset(dt,0,sizeof(struct tm));
-    }
-
-#elif _WIN32
-    static MegaMutex * mtx = new MegaMutex();
-    static bool initiated = false;
-    if (!initiated)
-    {
-        mtx->init(true);
-        initiated = true;
-    }
-    mtx->lock();
-    struct tm *newtm = localtime(ttime);
-    if (newtm)
-    {
-        memcpy(dt,newtm,sizeof(struct tm));
-    }
-    else
-    {
-        memset(dt,0,sizeof(struct tm));
-    }
-    mtx->unlock();
-#else //POSIX
-    localtime_r(ttime, dt);
-#endif
-}
-
-std::string getReadableTime(const time_t rawtime)
+std::string getReadableTime(const m_time_t rawtime)
 {
     struct tm dt;
     char buffer [40];
-    fillLocalTimeStruct(&rawtime, &dt);
+    m_localtime(rawtime, &dt);
     strftime(buffer, sizeof( buffer ), "%a, %d %b %Y %T %z", &dt); // Following RFC 2822 (as in date -R)
     return std::string(buffer);
 }
 
-std::string getReadableShortTime(const time_t rawtime, bool showUTCDeviation)
+std::string getReadableShortTime(const m_time_t rawtime, bool showUTCDeviation)
 {
     struct tm dt;
     memset(&dt, 0, sizeof(struct tm));
     char buffer [40];
     if (rawtime != -1)
     {
-        fillLocalTimeStruct(&rawtime, &dt);
+        m_localtime(rawtime, &dt);
         if (showUTCDeviation)
         {
             strftime(buffer, sizeof( buffer ), "%d%b%Y %T %z", &dt);
@@ -644,7 +605,7 @@ std::string getReadableShortTime(const time_t rawtime, bool showUTCDeviation)
     return std::string(buffer);
 }
 
-std::string getReadablePeriod(const time_t rawtime)
+std::string getReadablePeriod(const m_time_t rawtime)
 {
 
     long long rest = rawtime;
@@ -671,7 +632,7 @@ std::string getReadablePeriod(const time_t rawtime)
     return toret.size()?toret:"0s";
 }
 
-time_t getTimeStampAfter(time_t initial, string timestring)
+m_time_t getTimeStampAfter(m_time_t initial, string timestring)
 {
     char *buffer = new char[timestring.size() + 1];
     strcpy(buffer, timestring.c_str());
@@ -734,7 +695,7 @@ time_t getTimeStampAfter(time_t initial, string timestring)
     }
 
     struct tm dt;
-    fillLocalTimeStruct(&initial, &dt);
+    m_localtime(initial, &dt);
 
     dt.tm_mday += days;
     dt.tm_hour += hours;
@@ -744,16 +705,16 @@ time_t getTimeStampAfter(time_t initial, string timestring)
     dt.tm_year += years;
 
     delete [] buffer;
-    return mktime(&dt);
+    return m_mktime(&dt);
 }
 
-time_t getTimeStampAfter(string timestring)
+m_time_t getTimeStampAfter(string timestring)
 {
-    time_t initial = time(NULL);
+    m_time_t initial = m_time();
     return getTimeStampAfter(initial, timestring);
 }
 
-time_t getTimeStampBefore(time_t initial, string timestring)
+m_time_t getTimeStampBefore(m_time_t initial, string timestring)
 {
     char *buffer = new char[timestring.size() + 1];
     strcpy(buffer, timestring.c_str());
@@ -816,7 +777,7 @@ time_t getTimeStampBefore(time_t initial, string timestring)
     }
 
     struct tm dt;
-    fillLocalTimeStruct(&initial, &dt);
+    m_localtime(initial, &dt);
 
     dt.tm_mday -= days;
     dt.tm_hour -= hours;
@@ -826,22 +787,22 @@ time_t getTimeStampBefore(time_t initial, string timestring)
     dt.tm_year -= years;
 
     delete [] buffer;
-    return mktime(&dt);
+    return m_mktime(&dt);
 }
 
-time_t getTimeStampBefore(string timestring)
+m_time_t getTimeStampBefore(string timestring)
 {
-    time_t initial = time(NULL);
+    m_time_t initial = m_time();
     return getTimeStampBefore(initial, timestring);
 }
 
-bool getMinAndMaxTime(string timestring, time_t *minTime, time_t *maxTime)
+bool getMinAndMaxTime(string timestring, m_time_t *minTime, m_time_t *maxTime)
 {
-    time_t initial = time(NULL);
+    m_time_t initial = m_time();
     return getMinAndMaxTime(initial, timestring, minTime, maxTime);
 }
 
-bool getMinAndMaxTime(time_t initial, string timestring, time_t *minTime, time_t *maxTime)
+bool getMinAndMaxTime(m_time_t initial, string timestring, m_time_t *minTime, m_time_t *maxTime)
 {
 
     *minTime = -1;
@@ -1656,13 +1617,13 @@ int64_t textToSize(const char *text)
 }
 
 
-string secondsToText(time_t seconds, bool humanreadable)
+string secondsToText(m_time_t seconds, bool humanreadable)
 {
     ostringstream os;
     os.precision(2);
     if (humanreadable)
     {
-        time_t reducedSize = time_t( seconds > 3600 * 2 ? seconds / 3600.0 : ( seconds > 60 * 2 ? seconds / 60.0 : seconds ));
+        m_time_t reducedSize = m_time_t( seconds > 3600 * 2 ? seconds / 3600.0 : ( seconds > 60 * 2 ? seconds / 60.0 : seconds) );
         os << fixed << reducedSize;
         os << ( seconds > 3600 * 2 ? " hours" : ( seconds > 60 * 2 ? " minutes" : " seconds" ));
     }

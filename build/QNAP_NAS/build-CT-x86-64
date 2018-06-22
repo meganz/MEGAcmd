@@ -2,31 +2,24 @@
 # run this from the MEGAcmd folder
 # but first set up the environment per the PDF and tar files at https://sourceforge.net/projects/qosgpl/files/QNAP%20NAS%20Tool%20Chains/
 # and put the MEGAcmd tree at /opt/cross-project/qnap/
-# this first sample build uses the arm cross compile toolchain, testing on the TS-228
 
 #prerequisites:
-#  - qnap installed cross compiler from http://download.qnap.com/dev/Toolchain/TS-x31%2B_cross-project-arm_al.20150909.tar.gz
-#     (unzipped to /opt/)
-#  - 32 bit libz, eg this works for ubuntu 16.04: sudo apt-get install zlib1g:i386
+#  - qnap installed cross compiler from http://download.qnap.com/dev/Toolchain/QNAP_cross_toolchains_64.20160606.tar
+#     (unzipped to /opt/cross-compile)
+#  - (maybe)32 bit libz, eg this works for ubuntu 16.04: sudo apt-get install zlib1g:i386
 
-
-export PROJECT=arm-linux-gnueabihf
-export PRJROOT=/opt/cross-project/arm/linaro
-export ARCH=arm
-export TARGET=arm-linux-gnueabihf
+export PROJECT=x86_64-QNAP-linux-gnu
+export PRJROOT=/opt/cross-project/CT
+export ARCH=x86_64
+export TARGET=x86_64-QNAP-linux-gnu
 export CROSS_COMPILE=${TARGET}-
-export TARGET_PREFIX=${PRJROOT}/${PROJECT}/libc
-export TARGET_PREFIX=${PRJROOT}/${PROJECT}/libc
-export SYS_TARGET_PREFIX=${PRJROOT}/${PROJECT}/libc
-export PATH=${PRJROOT}/bin:${PATH}:/usr/sbin:/sbin
-
+export TARGET_PREFIX=${PRJROOT}/${PROJECT}/cross-tools
+export SYS_TARGET_PREFIX=${PRJROOT}/${PROJECT}/cross-tools
+export PATH=${SYS_TARGET_PREFIX}/bin/:${PATH}:/usr/sbin:/sbin
 
 export MEGA_CMD_DIR=/opt/cross-project/qnap/MEGAcmd
 
-#export PATH=/opt/cross-project/arm/linaro/arm-linux-gnueabihf/libc/usr/lib/:/opt/cross-project/arm/linaro/bin:$PATH
-#export LD_LIBRARY_PATH=/opt/cross-project/arm/linaro/arm-linux-gnueabihf/libc/usr/lib:$LD_LIBRARY_PATH
-
-export MACHINE=armada38x
+#export MACHINE=
 export CUSTOM_CONFIG_ARGS="--host=${TARGET} --disable-dependency-tracking"
 
 export CC=${CROSS_COMPILE}gcc
@@ -34,7 +27,7 @@ export CXX=${CROSS_COMPILE}g++
 export LD=${CROSS_COMPILE}ld
 export CFLAGS="$CFLAGS -fPIC -fexceptions -fvisibility=hidden -fsigned-char"
 export CPPFLAGS="-DNDEBUG"
-export CXXFLAGS="$CXXFLAGS $CFLAGS -DNDEBUG -DENABLE_BACKUPS -DMEGACMD_USERAGENT_SUFFIX=QNAP -DHAVE_LIBUV"
+export CXXFLAGS="$CXXFLAGS $CFLAGS -DNDEBUG -DENABLE_BACKUPS -DMEGACMD_USERAGENT_SUFFIX=QNAP  -DHAVE_LIBUV"
 export AR=${CROSS_COMPILE}ar
 export NM=${CROSS_COMPILE}nm
 export STRIP=${CROSS_COMPILE}strip
@@ -73,7 +66,16 @@ pwd
 mkdir -p norecurse
 mv norecurse/* .
 
-./contrib/build_sdk.sh -a -e -g -I -n -q -R -v -X -C"$CUSTOM_CONFIG_ARGS" -O linux-generic32 -0 2>&1 | tee $MEGA_CMD_DIR/mybuildlogs-sdkbuild.out
+./contrib/build_sdk.sh -a -e -g -I -n -q -R -v -X -C"$CUSTOM_CONFIG_ARGS" -O linux-x86_64 -S "no-asm" -0 2>&1 | tee $MEGA_CMD_DIR/mybuildlogs-sdkbuild.out
+
+if [ -e ./src/libmega.a ] ; then
+    size=$(wc -c < ./src/libmega.a )
+    if [ $size -le 5000 ] ; then
+        echo "erasing bad build products"
+        rm -f ./src/libmega.a 
+        rm -f ./src/libmega.la 
+    fi
+fi
 
 if ! [ -e src/libmega.a ] ; then
     echo "libtool could not link it so we do it ourselves. Including Zen and MediaInfo somehow reference a nonexistent path /home/slava in the Synology libtool libraries. If we left those out it would make the lib ok."
@@ -102,7 +104,7 @@ echo -------------------------------------------------------- sdk end ----------
 echo about to build megacmd ---------------------------
 
 sh autogen.sh 2>&1 | tee $MEGA_CMD_DIR/mybuildlogs-autogen2.out
-./configure SUBDIRS="" --enable-static --with-cryptopp --with-readline=/opt/cross-project/arm/marvell/arm-none-linux-gnueabi/libc/marvell-f/src/MEGAcmd/sdk/sdk_build/install/include/ \
+./configure SUBDIRS="" --enable-static --with-cryptopp --with-readline=$MEGA_CMD_DIR/sdk/sdk_build/install/include/ \
             $CUSTOM_CONFIG_ARGS  2>&1 | tee $MEGA_CMD_DIR/mybuildlogs-configure2.out 
 
 
@@ -114,11 +116,11 @@ rm -f mega-cmd-server
 rm -f mega-cmd
 rm -f mega-cmd-exec
 
-$CXX $CXXFLAGS src/megacmd.cpp src/comunicationsmanager.cpp         src/megacmdutils.cpp src/configurationmanager.cpp         src/megacmdlogger.cpp src/megacmdsandbox.cpp src/listeners.cpp         src/megacmdexecuter.cpp         src/comunicationsmanagerportsockets.cpp src/comunicationsmanagerfilesockets.cpp -Isdk/include -Isdk/include/mega/posix -Isdk/sdk_build/install/include  sdk/sdk_build/install/lib/libmega.a sdk/sdk_build/install/lib/libcryptopp.a    sdk/sdk_build/install/lib/libcurl.a sdk/sdk_build/install/lib/libcares.a sdk/sdk_build/install/lib/libssl.a sdk/sdk_build/install/lib/libcrypto.a  sdk/sdk_build/install/lib/libsqlite3.a sdk/sdk_build/install/lib/libfreeimage.a sdk/sdk_build/install/lib/libmediainfo.a sdk/sdk_build/install/lib/libzen.a sdk/sdk_build/build/libuv-v1.8.0/.libs/libuv.a -lpthread -ldl -lrt sdk/sdk_build/install/lib/libz.a -o mega-cmd-server
+$CXX $CXXFLAGS src/megacmd.cpp src/comunicationsmanager.cpp         src/megacmdutils.cpp src/configurationmanager.cpp         src/megacmdlogger.cpp src/megacmdsandbox.cpp src/listeners.cpp         src/megacmdexecuter.cpp         src/comunicationsmanagerportsockets.cpp src/comunicationsmanagerfilesockets.cpp -Isdk/include -Isdk/include/mega/posix -Isdk/sdk_build/install/include  `find sdk/src -name "*.o"` sdk/sdk_build/install/lib/libcryptopp.a    sdk/sdk_build/install/lib/libcurl.a sdk/sdk_build/install/lib/libcares.a sdk/sdk_build/install/lib/libssl.a sdk/sdk_build/install/lib/libcrypto.a  sdk/sdk_build/install/lib/libsqlite3.a sdk/sdk_build/install/lib/libfreeimage.a sdk/sdk_build/install/lib/libmediainfo.a sdk/sdk_build/install/lib/libzen.a  sdk/sdk_build/build/libuv-v1.8.0/.libs/libuv.a -lpthread -ldl -lrt sdk/sdk_build/install/lib/libz.a -o mega-cmd-server
 
-$CXX $CXXFLAGS src/megacmdshell/*.cpp -Isdk/include -Isdk/include/mega/posix -Isdk/sdk_build/install/include  sdk/sdk_build/install/lib/libmega.a sdk/sdk_build/install/lib/libcryptopp.a    sdk/sdk_build/install/lib/libcurl.a sdk/sdk_build/install/lib/libcares.a sdk/sdk_build/install/lib/libssl.a sdk/sdk_build/install/lib/libcrypto.a  sdk/sdk_build/install/lib/libsqlite3.a -lpthread -ldl -lrt sdk/sdk_build/install/lib/libz.a ./sdk/sdk_build/install/lib/libreadline.a ./sdk/sdk_build/install/lib/libtermcap.a -o mega-cmd
+$CXX $CXXFLAGS src/megacmdshell/*.cpp -Isdk/include -Isdk/include/mega/posix -Isdk/sdk_build/install/include  `find sdk/src -name "*.o"` sdk/sdk_build/install/lib/libcryptopp.a    sdk/sdk_build/install/lib/libcurl.a sdk/sdk_build/install/lib/libcares.a sdk/sdk_build/install/lib/libssl.a sdk/sdk_build/install/lib/libcrypto.a  sdk/sdk_build/install/lib/libsqlite3.a sdk/sdk_build/install/lib/libfreeimage.a sdk/sdk_build/install/lib/libmediainfo.a sdk/sdk_build/install/lib/libzen.a  -lpthread -ldl -lrt sdk/sdk_build/install/lib/libz.a ./sdk/sdk_build/install/lib/libreadline.a ./sdk/sdk_build/install/lib/libtermcap.a -o mega-cmd
 
-$CXX $CXXFLAGS  src/client/*.cpp src/megacmdshell/megacmdshellcommunications.cpp -Isdk/include -Isdk/include/mega/posix -Isdk/sdk_build/install/include  sdk/sdk_build/install/lib/libmega.a sdk/sdk_build/install/lib/libcryptopp.a    sdk/sdk_build/install/lib/libcurl.a sdk/sdk_build/install/lib/libcares.a sdk/sdk_build/install/lib/libssl.a sdk/sdk_build/install/lib/libcrypto.a  sdk/sdk_build/install/lib/libsqlite3.a -lpthread -ldl -lrt sdk/sdk_build/install/lib/libz.a -o mega-exec
+$CXX $CXXFLAGS  src/client/*.cpp src/megacmdshell/megacmdshellcommunications.cpp -Isdk/include -Isdk/include/mega/posix -Isdk/sdk_build/install/include  `find sdk/src -name "*.o"` sdk/sdk_build/install/lib/libcryptopp.a    sdk/sdk_build/install/lib/libcurl.a sdk/sdk_build/install/lib/libcares.a sdk/sdk_build/install/lib/libssl.a sdk/sdk_build/install/lib/libcrypto.a  sdk/sdk_build/install/lib/libsqlite3.a sdk/sdk_build/install/lib/libfreeimage.a sdk/sdk_build/install/lib/libmediainfo.a sdk/sdk_build/install/lib/libzen.a -lpthread -ldl -lrt sdk/sdk_build/install/lib/libz.a -o mega-exec
 
 echo "outputs should be 3 files: mega-cmd mega-cmd-server mega-exec.  ls output: "
 ls mega-cmd mega-cmd-server mega-exec
@@ -129,8 +131,8 @@ if [ -e mega-cmd ] && [ -e mega-cmd-server ] && [ -e mega-exec ] ; then
     cp src/client/mega-* install/
     cp mega-cmd mega-exec mega-cmd-server install/
 
-    mkdir -p build/QNAP_NAS/megacmdpkg/arm-x41
-    cp install/* build/QNAP_NAS/megacmdpkg/arm-x41
+    mkdir -p build/QNAP_NAS/megacmdpkg/x86_64
+    cp install/* build/QNAP_NAS/megacmdpkg/x86_64
 
     MAJOR=`sed -n -e 's/.*MAJOR_VERSION \([0-9]*\).*/\1/p' < src/megacmdversion.h`
     MINOR=`sed -n -e 's/.*MINOR_VERSION \([0-9]*\).*/\1/p' < src/megacmdversion.h`

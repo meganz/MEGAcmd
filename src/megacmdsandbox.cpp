@@ -18,6 +18,8 @@
 
 #include "megacmdsandbox.h"
 
+using namespace mega;
+
 bool MegaCmdSandbox::isOverquota() const
 {
     return overquota;
@@ -34,8 +36,8 @@ MegaCmdSandbox::MegaCmdSandbox()
     this->istemporalbandwidthvalid = false;
     this->temporalbandwidth = 0;
     this->temporalbandwithinterval = 0;
-    this->lastQuerytemporalBandwith = time(NULL);
-    this->timeOfOverquota = time(NULL);
+    this->lastQuerytemporalBandwith = m_time();
+    this->timeOfOverquota = m_time();
     this->secondsOverQuota = 0;
 }
 
