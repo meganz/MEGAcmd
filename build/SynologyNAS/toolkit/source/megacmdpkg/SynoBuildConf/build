@@ -15,7 +15,7 @@ export SPECIAL_OPENSSL_CONFIG_PARAMS=""
 export CC=$CC
 export CXX=$CXX
 export LD=$LD
-export CFLAGS="$CFLAGS -O3 -fexceptions -fvisibility=hidden -static"
+export CFLAGS="$CFLAGS -O2 -fexceptions -fvisibility=hidden -static"
 export CPPFLAGS="$CPPFLAGS -DNDEBUG"
 export CXXFLAGS="-std=c++11 $CFLAGS -DNDEBUG -DENABLE_BACKUPS -DMEGACMD_USERAGENT_SUFFIX=QNAP -DHAVE_LIBUV"
 export AR=$AR
@@ -149,7 +149,7 @@ pwd
 mkdir -p norecurse
 mv norecurse/* .
 
-./contrib/build_sdk.sh -a -e $suppress_freeimage_flag -g -I -n -q -R -v -X -C "$CUSTOM_CONFIG_ARGS" -O $OS_COMPILER_FOR_OPENSSL -S "$SPECIAL_OPENSSL_CONFIG_PARAMS" 2>&1 | tee /mybuildlogs-sdkbuild.out
+./contrib/build_sdk.sh -a -e $suppress_freeimage_flag -g -I -n -q -R -v -X -0 -C "$CUSTOM_CONFIG_ARGS" -O $OS_COMPILER_FOR_OPENSSL -S "$SPECIAL_OPENSSL_CONFIG_PARAMS" 2>&1 | tee /mybuildlogs-sdkbuild.out
 
 if ! [ -e src/libmega.la ] ; then
     echo "libtool could not link it so we do it ourselves. Including Zen and MediaInfo somehow reference a nonexistent path /home/chingfen in the Synology libtool libraries. If we left those out it would make the lib ok."
