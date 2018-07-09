@@ -184,7 +184,7 @@ vector<string> remotefolderspatterncommands(aremotefolderspatterncommands, aremo
 
 string amultipleremotepatterncommands[] = {"ls", "mkdir", "rm", "du", "find", "mv", "deleteversions"
 #ifdef HAVE_LIBUV
-                                           , "webdav"
+                                           , "webdav", "ftp"
 #endif
                                           };
 vector<string> multipleremotepatterncommands(amultipleremotepatterncommands, amultipleremotepatterncommands + sizeof amultipleremotepatterncommands / sizeof amultipleremotepatterncommands[0]);
@@ -204,9 +204,9 @@ vector<string> emailpatterncommands(aemailpatterncommands, aemailpatterncommands
 string avalidCommands [] = { "login", "signup", "confirm", "session", "mount", "ls", "cd", "log", "debug", "pwd", "lcd", "lpwd", "import", "masterkey",
                              "put", "get", "attr", "userattr", "mkdir", "rm", "du", "mv", "cp", "sync", "export", "share", "invite", "ipc",
                              "showpcr", "users", "speedlimit", "killsession", "whoami", "help", "passwd", "reload", "logout", "version", "quit",
-                             "thumbnail", "preview", "find", "completion", "clear", "https", "transfers", "exclude", "exit"
+                             "thumbnail", "preview", "find", "completion", "clear", "https", "transfers", "exclude", "exit", "errorcode", "graphics"
 #ifdef HAVE_LIBUV
-                             , "webdav"
+                             , "webdav", "ftp"
 #endif
 #ifdef ENABLE_BACKUPS
                              , "backup"
@@ -371,6 +371,10 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validParams->insert("use-pcre");
 #endif
     }
+    else if ("passwd" == thecommand)
+    {
+        validParams->insert("f");
+    }
     else if ("du" == thecommand)
     {
         validParams->insert("h");
@@ -446,9 +450,21 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     else if ("webdav" == thecommand)
     {
         validParams->insert("d");
+        validParams->insert("all");
         validParams->insert("tls");
         validParams->insert("public");
         validOptValues->insert("port");
+        validOptValues->insert("certificate");
+        validOptValues->insert("key");
+    }
+    else if ("ftp" == thecommand)
+    {
+        validParams->insert("d");
+        validParams->insert("all");
+        validParams->insert("tls");
+        validParams->insert("public");
+        validOptValues->insert("port");
+        validOptValues->insert("data-ports");
         validOptValues->insert("certificate");
         validOptValues->insert("key");
     }
@@ -803,10 +819,35 @@ char * flags_value_completion(const char*text, int state)
                     }
                 }
             }
-            if (( thecommand == "userattr" ) && ( currentFlag.find("--user=") == 0 ))
+            else if (( thecommand == "userattr" ) && ( currentFlag.find("--user=") == 0 ))
             {
                 validValues = cmdexecuter->getlistusers();
                 string prefix = strncmp(text, "--user=", strlen("--user="))?"":"--user=";
+                for (unsigned int i=0;i<validValues.size();i++)
+                {
+                    validValues.at(i)=prefix+validValues.at(i);
+                }
+            }
+            else if  ( ( thecommand == "ftp" || thecommand == "webdav" )
+                && ( currentFlag.find("--key=") == 0 || currentFlag.find("--certificate=") == 0 ) )
+            {
+                const char * cflag = (currentFlag.find("--key=") == 0)? "--key=" : "--certificate=";
+                string stext = text;
+                size_t begin = strncmp(text, cflag, strlen(cflag))?0:strlen(cflag);
+                size_t end = stext.find_last_of('/');
+                if (end != string::npos && (end + 1 ) < stext.size() )
+                {
+                    end = end - begin +1;
+                }
+                else
+                {
+                    end = string::npos;
+                }
+
+                string location = stext.substr(begin, end);
+                validValues = cmdexecuter->getlistfilesfolders(location.size()?location:"./");
+                string prefix = strncmp(text, cflag, strlen(cflag))?"":cflag;
+                prefix.append(location);
                 for (unsigned int i=0;i<validValues.size();i++)
                 {
                     validValues.at(i)=prefix+validValues.at(i);
@@ -847,6 +888,16 @@ char* remotepaths_completion(const char* text, int state)
         unescapeEspace(wildtext);
 
         validpaths = cmdexecuter->listpaths(usepcre, wildtext);
+
+        // we need to escape '\' to fit what's done when parsing words
+        if (!getCurrentThreadIsCmdShell())
+        {
+            for (int i = 0; i < (int)validpaths.size(); i++)
+            {
+                replaceAll(validpaths[i],"\\","\\\\");
+            }
+        }
+
     }
     return generic_completion(text, state, validpaths);
 }
@@ -1163,7 +1214,7 @@ completionfunction_t *getCompletionFunction(vector<string> words)
     return empty_completion;
 }
 
-string getListOfCompletionValues(vector<string> words, char separator = ' ', bool suppressflag = true)
+string getListOfCompletionValues(vector<string> words, char separator = ' ', const char * separators = " ;!`\"'\\()[]{}<>", bool suppressflag = true)
 {
     string completionValues;
     completionfunction_t * compfunction = getCompletionFunction(words);
@@ -1201,10 +1252,12 @@ string getListOfCompletionValues(vector<string> words, char separator = ' ', boo
             completionValues+=separator;
         }
 
-        if (strchr(newval,separator))
+        string snewval=newval;
+        if (snewval.find_first_of(separators) != string::npos)
         {
             completionValues+="\"";
-            completionValues+=newval;
+            replaceAll(snewval,"\"","\\\"");
+            completionValues+=snewval;
             completionValues+="\"";
         }
         else
@@ -1257,11 +1310,33 @@ const char * getUsageStr(const char *command)
     }
     if (!strcmp(command, "signup"))
     {
-        return "signup email [password] [--name=\"Your Name\"]";
+        if (interactiveThread())
+        {
+            return "signup email [password] [--name=\"Your Name\"]";
+        }
+        else
+        {
+            return "signup email password [--name=\"Your Name\"]";
+        }
     }
     if (!strcmp(command, "confirm"))
     {
-        return "confirm link email [password]";
+        if (interactiveThread())
+        {
+            return "confirm link email [password]";
+        }
+        else
+        {
+            return "confirm link email password";
+        }
+    }
+    if (!strcmp(command, "errorcode"))
+    {
+        return "errorcode number";
+    }
+    if (!strcmp(command, "graphics"))
+    {
+        return "graphics [on|off]";
     }
     if (!strcmp(command, "session"))
     {
@@ -1387,7 +1462,11 @@ const char * getUsageStr(const char *command)
 #ifdef HAVE_LIBUV
     if (!strcmp(command, "webdav"))
     {
-        return "webdav [ [-d] remotepath [--port=PORT] [--public] [--tls --certificate=/path/to/certificate.pem --key=/path/to/certificate.key]]";
+        return "webdav [-d (--all | remotepath ) ] [ remotepath [--port=PORT] [--public] [--tls --certificate=/path/to/certificate.pem --key=/path/to/certificate.key]]";
+    }
+    if (!strcmp(command, "ftp"))
+    {
+        return "ftp [-d ( --all | remotepath ) ] [ remotepath [--port=PORT] [--data-ports=BEGIN-END] [--public] [--tls --certificate=/path/to/certificate.pem --key=/path/to/certificate.key]]";
     }
 #endif
     if (!strcmp(command, "sync"))
@@ -1466,7 +1545,14 @@ const char * getUsageStr(const char *command)
     }
     if (!strcmp(command, "passwd"))
     {
-        return "passwd [oldpassword newpassword]";
+        if (interactiveThread())
+        {
+            return "passwd [-f] [newpassword]";
+        }
+        else
+        {
+            return "passwd [-f] newpassword";
+        }
     }
     if (!strcmp(command, "retry"))
     {
@@ -1595,6 +1681,24 @@ string getHelpStr(const char *command)
         os << " or into a folder (an exported/public folder)" << endl;
         os << " If logging into a folder indicate url#key" << endl;
     }
+    else if (!strcmp(command, "errorcode"))
+    {
+        os << "Translate error code into string" << endl;
+    }
+    else if (!strcmp(command, "graphics"))
+    {
+        os << "Shows if special features related to images and videos are enabled. " << endl;
+        os << "Use \"graphics on/off\" to enable/disable it." << endl;
+        os << endl;
+        os << "Disabling these features will avoid the upload of previews and thumbnails" << endl;
+        os << "for images and videos." << endl;
+        os << endl;
+        os << "It's only recommended to disable these features before uploading files" << endl;
+        os << "with image or video extensions that are not really images or videos," << endl;
+        os << "or that are encrypted in the local drive so they can't be analyzed anyway." << endl;
+        os << endl;
+        os << "Notice that this setting will be saved for the next time you open MEGAcmd" << endl;
+    }
     else if (!strcmp(command, "signup"))
     {
         os << "Register as user with a given email" << endl;
@@ -1605,6 +1709,13 @@ string getHelpStr(const char *command)
         os << " You will receive an email to confirm your account. " << endl;
         os << " Once you have received the email, please proceed to confirm the link " << endl;
         os << " included in that email with \"confirm\"." << endl;
+        os << endl;
+        os << "Warning: Due to our end-to-end encryption paradigm, you will not be able to access your data " << endl;
+        os << "without either your password or a backup of your Recovery Key (master key)." << endl;
+        os << "Exporting the master key and keeping it in a secure location enables you " << endl;
+        os << "to set a new password without data loss. Always keep physical control of " << endl;
+        os << "your master key (e.g. on a client device, external storage, or print)." << endl;
+        os << " See \"masterkey --help\" for further info." << endl;
     }
     else if (!strcmp(command, "clear"))
     {
@@ -1865,7 +1976,7 @@ string getHelpStr(const char *command)
         os << "HTTPS is not necesary since all data is stored and transfered encrypted." << endl;
         os << "Enabling it will increase CPU usage and add network overhead." << endl;
         os << endl;
-        os << "Notice that this setting is ephemeral: it will reset for the next time you open MEGAcmd" << endl;
+        os << "Notice that this setting will be saved for the next time you open MEGAcmd" << endl;
     }
     else if (!strcmp(command, "deleteversions"))
     {
@@ -1896,6 +2007,7 @@ string getHelpStr(const char *command)
         os << endl;
         os << "Options:" << endl;
         os << " --d        " << "\t" << "Stops serving that location" << endl;
+        os << " --all      " << "\t" << "When used with -d, stops serving all locations (and stops the server)" << endl;
         os << " --public   " << "\t" << "*Allow access from outside localhost" << endl;
         os << " --port=PORT" << "\t" << "*Port to serve. DEFAULT= 4443" << endl;
         os << " --tls      " << "\t" << "*Serve with TLS (HTTPS)" << endl;
@@ -1903,6 +2015,28 @@ string getHelpStr(const char *command)
         os << " --key=/path/to/certificate.key" << "\t" << "*Path to PEM formated key" << endl;
         os << endl;
         os << "*If you serve more than one location, these parameters will be ignored and use those of the first location served." << endl;
+        os << endl;
+        os << "Caveat: This functionality is in BETA state. If you experience any issue with this, please contact: support@mega.nz" << endl;
+        os << endl;
+    }
+    else if (!strcmp(command, "ftp"))
+    {
+        os << "Configures a FTP server to serve a location in MEGA" << endl;
+        os << endl;
+        os << "This can also be used for streaming files. The server will be running as long as MEGAcmd Server is. " << endl;
+        os << "If no argument is given, it will list the ftp enabled locations." << endl;
+        os << endl;
+        os << "Options:" << endl;
+        os << " --d        " << "\t" << "Stops serving that location" << endl;
+        os << " --all      " << "\t" << "When used with -d, stops serving all locations (and stops the server)" << endl;
+        os << " --public   " << "\t" << "*Allow access from outside localhost" << endl;
+        os << " --port=PORT" << "\t" << "*Port to serve. DEFAULT=4990" << endl;
+        os << " --data-ports=BEGIN-END" << "\t" << "*Ports range used for data channel (in passive mode). DEFAULT=1500-1600" << endl;
+        os << " --tls      " << "\t" << "*Serve with TLS (FTPs)" << endl;
+        os << " --certificate=/path/to/certificate.pem" << "\t" << "*Path to PEM formated certificate" << endl;
+        os << " --key=/path/to/certificate.key" << "\t" << "*Path to PEM formated key" << endl;
+        os << endl;
+        os << "*If you serve more than one location, these parameters will be ignored and used those of the first location served." << endl;
         os << endl;
         os << "Caveat: This functionality is in BETA state. If you experience any issue with this, please contact: support@mega.nz" << endl;
         os << endl;
@@ -2105,10 +2239,13 @@ string getHelpStr(const char *command)
     {
         os << "Shows your master key." << endl;
         os << endl;
-        os << "Getting the master key and keeping it in a secure location enables you " << endl;
-        os << " to set a new password without data loss." << endl;
-        os << "Always keep physical control of your master key " << endl;
-        os << " (e.g. on a client device, external storage, or print)" << endl;
+        os << "Your data is only readable through a chain of decryption operations that begins " << endl;
+        os << "with your master encryption key (Recovery Key), which MEGA stores encrypted with your password." << endl;
+        os << "This means that if you lose your password, your Recovery Key can no longer be decrypted, " << endl;
+        os << "and you can no longer decrypt your data." << endl;
+        os << "Exporting the Recovery Key and keeping it in a secure location " << endl;
+        os << "enables you to set a new password without data loss." << endl;
+        os << "Always keep physical control of your master key (e.g. on a client device, external storage, or print)" << endl;
     }
     if (!strcmp(command, "showpcr"))
     {
@@ -2170,6 +2307,13 @@ string getHelpStr(const char *command)
     if (!strcmp(command, "passwd"))
     {
         os << "Modifies user password" << endl;
+        os << endl;
+        os << "Notice that modifying the password will close all your active sessions" << endl;
+        os << " in all your devices (except for the current one)" << endl;
+        os << endl;
+        os << "Options:" << endl;
+        os << " -f   " << "\t" << "Force (no asking)" << endl;
+
     }
     else if (!strcmp(command, "reload"))
     {
@@ -2383,7 +2527,7 @@ void executecommand(char* ptr)
             if (words.size() < 3) words.push_back("");
             vector<string> wordstocomplete(words.begin()+1,words.end());
             setCurrentThreadLine(wordstocomplete);
-            OUTSTREAM << getListOfCompletionValues(wordstocomplete,(char)0x1F, false);
+            OUTSTREAM << getListOfCompletionValues(wordstocomplete,(char)0x1F, string().append(1, (char)0x1F).c_str(), false);
         }
 
         return;
@@ -2595,19 +2739,6 @@ static bool process_line(char* l)
             setprompt(COMMAND);
             break;
         }
-
-        case OLDPASSWORD:
-        {
-            if (!strlen(l))
-            {
-                break;
-            }
-            oldpasswd = l;
-            OUTSTREAM << endl;
-            setprompt(NEWPASSWORD);
-            break;
-        }
-
         case NEWPASSWORD:
         {
             if (!strlen(l))
@@ -2635,7 +2766,7 @@ static bool process_line(char* l)
                 OUTSTREAM << endl;
                 if (!cmdexecuter->signingup)
                 {
-                    cmdexecuter->changePassword(oldpasswd.c_str(), newpasswd.c_str());
+                    cmdexecuter->changePassword(newpasswd.c_str());
                 }
                 else
                 {
@@ -3346,7 +3477,7 @@ int main(int argc, char* argv[])
         loginInAtStartup = true;
         stringstream logLine;
         logLine << "login " << ConfigurationManager::session;
-        LOG_debug << "Executing ... " << logLine.str();
+        LOG_debug << "Executing ... " << logLine.str().substr(0,9) << "...";
         process_line((char*)logLine.str().c_str());
         loginInAtStartup = false;
     }

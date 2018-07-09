@@ -21,6 +21,7 @@
 
 #include <mega.h>
 #include <ctime>
+#include <string>
 
 class MegaCmdSandbox
 {
@@ -33,6 +34,8 @@ public:
     ::mega::m_time_t lastQuerytemporalBandwith;
     ::mega::m_time_t timeOfOverquota;
     ::mega::m_time_t secondsOverQuota;
+    bool accounthasbeenblocked;
+    std::string reasonblocked;
 public:
     MegaCmdSandbox();
     bool isOverquota() const;

@@ -39,5 +39,6 @@ MegaCmdSandbox::MegaCmdSandbox()
     this->lastQuerytemporalBandwith = m_time();
     this->timeOfOverquota = m_time();
     this->secondsOverQuota = 0;
+    this->accounthasbeenblocked = false;
 }
 

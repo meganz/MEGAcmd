@@ -662,7 +662,7 @@ int MegaCmdShellCommunications::executeCommandW(wstring wcommand, int (*readconf
 
 int MegaCmdShellCommunications::executeCommand(string command, int (*readconfirmationloop)(const char *), OUTSTREAMTYPE &output, bool interactiveshell, wstring wcommand)
 {
-    SOCKET thesock = createSocket(0, command.compare(0,4,"exit") && command.compare(0,4,"quit"));
+    SOCKET thesock = createSocket(0, command.compare(0,4,"exit") && command.compare(0,4,"quit") && command.compare(0,10,"completion"));
     if (!socketValid(thesock))
     {
         return -1;
@@ -781,7 +781,8 @@ int MegaCmdShellCommunications::executeCommand(string command, int (*readconfirm
             output << buffer;
 #endif
         }
-    } while(n == BUFFERSIZE && n !=SOCKET_ERROR);
+        //read until socket is closed or while it's full and we are registering state listener (the socket will stay open for receiving further info)
+    } while((n != 0 || (n == BUFFERSIZE && command.find("registerstatelisterner") != string::npos))&& n !=SOCKET_ERROR);
 
     if (n == SOCKET_ERROR)
     {

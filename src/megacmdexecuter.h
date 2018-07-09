@@ -34,7 +34,8 @@ private:
     MegaCmdSandbox *sandboxCMD;
     MegaCmdGlobalTransferListener *globalTransferListener;
     mega::MegaMutex mtxSyncMap;
-    mega::MegaMutex mtxWebDavLocations;
+    mega::MegaMutex mtxWebDavLocations; //TODO: destroy these two
+    mega::MegaMutex mtxFtpLocations;
 
 #ifdef ENABLE_BACKUPS
     mega::MegaMutex mtxBackupsMap;
@@ -73,11 +74,9 @@ public:
 
     bool processTree(mega::MegaNode * n, bool(mega::MegaApi *, mega::MegaNode *, void *), void *( arg ));
 
-    mega::MegaNode * getRootNodeByPath(const char *ptr, std::string* user = NULL);
-
     mega::MegaNode* nodebypath(const char* ptr, std::string* user = NULL, std::string* namepart = NULL);
     std::vector <mega::MegaNode*> * nodesbypath(const char* ptr, bool usepcre, std::string* user = NULL);
-    void getNodesMatching(mega::MegaNode *parentNode, std::queue<std::string> pathParts, std::vector<mega::MegaNode *> *nodesMatching, bool usepcre);
+    void getNodesMatching(mega::MegaNode *parentNode, std::deque<std::string> pathParts, std::vector<mega::MegaNode *> *nodesMatching, bool usepcre);
 
     std::vector <std::string> * nodesPathsbypath(const char* ptr, bool usepcre, std::string* user = NULL, std::string* namepart = NULL);
     void getPathsMatching(mega::MegaNode *parentNode, std::deque<std::string> pathParts, std::vector<std::string> *pathsMatching, bool usepcre, std::string pathPrefix = "");
@@ -97,9 +96,12 @@ public:
     void dumpListOfPendingShares(mega::MegaNode* n, std::string givenPath);
     std::string getCurrentPath();
     long long getVersionsSize(mega::MegaNode* n);
+    void getInfoFromFolder(mega::MegaNode *, mega::MegaApi *, long long *nfiles, long long *nfolders, long long *nversions = NULL);
+
+
     //acting
     void loginWithPassword(char *password);
-    void changePassword(const char *oldpassword, const char *newpassword);
+    void changePassword(const char *newpassword);
     void actUponGetExtendedAccountDetails(mega::SynchronousRequestListener  *srl, int timeout = -1);
     bool actUponFetchNodes(mega::MegaApi * api, mega::SynchronousRequestListener  *srl, int timeout = -1);
     void actUponLogin(mega::SynchronousRequestListener  *srl, int timeout = -1);
@@ -119,12 +121,11 @@ public:
     std::vector<std::string> getNodeAttrs(std::string nodePath);
     std::vector<std::string> getUserAttrs();
     std::vector<std::string> getsessions();
+    std::vector<std::string> getlistfilesfolders(std::string location);
 
     void restartsyncs();
 
     void executecommand(std::vector<std::string> words, std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions);
-
-    bool checkNoErrors(mega::MegaError *error, std::string message = "");
 
     //doomedtodie
     void syncstat(mega::Sync* sync);
@@ -166,6 +167,11 @@ public:
     std::string getLPWD();
     bool isValidFolder(std::string destiny);
     bool establishBackup(std::string local, mega::MegaNode *n, int64_t period, std::string periodstring, int numBackups);
+    mega::MegaNode *getBaseNode(std::string thepath, std::string &rest, bool *isrelative = NULL);
+    void getPathParts(std::string path, std::deque<std::string> *c);
+
+    bool checkNoErrors(mega::MegaError *error, std::string message = "");
+
 };
 
 #endif // MEGACMDEXECUTER_H

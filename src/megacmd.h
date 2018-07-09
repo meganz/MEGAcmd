@@ -72,12 +72,12 @@ typedef struct backup_struct
 
 enum prompttype
 {
-    COMMAND, LOGINPASSWORD, OLDPASSWORD, NEWPASSWORD, PASSWORDCONFIRM, AREYOUSURETODELETE
+    COMMAND, LOGINPASSWORD, NEWPASSWORD, PASSWORDCONFIRM, AREYOUSURETODELETE
 };
 
 static const char* const prompts[] =
 {
-    "MEGA CMD> ", "Password:", "Old Password:", "New Password:", "Retype New Password:", "Are you sure to delete? "
+    "MEGA CMD> ", "Password:", "New Password:", "Retype New Password:", "Are you sure to delete? "
 };
 
 enum

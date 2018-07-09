@@ -285,6 +285,7 @@ static int pw_buf_pos = 0;
 string loginname;
 bool signingup = false;
 string signupline;
+string passwdline;
 string linktoconfirm;
 
 bool confirminglink = false;
@@ -772,7 +773,7 @@ char* generic_completion(const char* text, int state, vector<string> validOption
 
         if (!( strcmp(text, "")) || (( name.size() >= len ) && ( strlen(text) >= len ) && ( name.find(text) == 0 )))
         {
-            if (name.size() && (( name.at(name.size() - 1) == '=' ) || ( name.at(name.size() - 1) == '/' )))
+            if (name.size() && (( name.at(name.size() - 1) == '=' ) || ( name.at(name.size() - 1) == '\\' ) || ( name.at(name.size() - 1) == '/' )))
             {
                 rl_completion_suppress_append = 1;
             }
@@ -1196,19 +1197,6 @@ void process_line(char * line)
             setprompt(COMMAND);
             break;
         }
-
-        case OLDPASSWORD:
-        {
-            if (!strlen(line))
-            {
-                break;
-            }
-            oldpasswd = line;
-            OUTSTREAM << endl;
-            setprompt(NEWPASSWORD);
-            break;
-        }
-
         case NEWPASSWORD:
         {
             if (!strlen(line))
@@ -1218,9 +1206,8 @@ void process_line(char * line)
             newpasswd = line;
             OUTSTREAM << endl;
             setprompt(PASSWORDCONFIRM);
-        }
             break;
-
+        }
         case PASSWORDCONFIRM:
         {
             if (!strlen(line))
@@ -1245,7 +1232,8 @@ void process_line(char * line)
                 }
                 else
                 {
-                    string changepasscommand("passwd ");
+                    string changepasscommand(passwdline);
+                    passwdline = " ";
                     changepasscommand+=oldpasswd;
                     changepasscommand+=" " ;
                     changepasscommand+=newpasswd;
@@ -1302,13 +1290,13 @@ void process_line(char * line)
 #endif
                 else if (!helprequested && words[0] == "passwd")
                 {
-
                     if (isserverloggedin())
                     {
+                        passwdline = line;
                         discardOptionsAndFlags(&words);
                         if (words.size() == 1)
                         {
-                            setprompt(OLDPASSWORD);
+                            setprompt(NEWPASSWORD);
                         }
                         else
                         {
@@ -1727,9 +1715,7 @@ void printWelcomeMsg(unsigned int width)
     COUT << "|";
     COUT << endl;
     printCenteredLine("Welcome to MEGAcmd! A Command Line Interactive and Scriptable",width);
-    printCenteredLine("Application to interact with your MEGA account",width);
-    printCenteredLine("This is a BETA version, it might not be bug-free.",width);
-    printCenteredLine("Also, the signature/output of the commands may change in a future.",width);
+    printCenteredLine("Application to interact with your MEGA account.",width);
     printCenteredLine("Please write to support@mega.nz if you find any issue or",width);
     printCenteredLine("have any suggestion concerning its functionalities.",width);
     printCenteredLine("Enter \"help --non-interactive\" to learn how to use MEGAcmd with scripts.",width);

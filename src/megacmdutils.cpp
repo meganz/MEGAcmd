@@ -17,6 +17,7 @@
  */
 
 #include "megacmdutils.h"
+#include "listeners.h"
 
 #ifdef USE_PCRE
 #include <pcrecpp.h>
@@ -280,6 +281,37 @@ string visibilityToString(int visibility)
         return "blocked";
     }
     return "undefined visibility";
+}
+
+const char * getMCMDErrorString(int errorCode)
+{
+    switch(errorCode)
+    {
+    case MCMD_OK:
+        return "Everything OK";
+    case MCMD_EARGS:
+        return "Wrong arguments";
+    case MCMD_INVALIDEMAIL:
+        return "Invalid email";
+    case MCMD_NOTFOUND:
+        return "Resource not found";
+    case MCMD_INVALIDSTATE:
+        return "Invalid state";
+    case MCMD_INVALIDTYPE:
+        return "Invalid type";
+    case MCMD_NOTPERMITTED:
+        return "Operation not allowed";
+    case MCMD_NOTLOGGEDIN:
+        return "Needs loging in";
+    case MCMD_NOFETCH:
+        return "Nodes not fetched";
+    case MCMD_EUNEXPECTED:
+        return "Unexpected failure";
+    case MCMD_REQCONFIRM:
+        return "Confirmation required";
+    default:
+        return "UNKNOWN";
+    }
 }
 
 const char * getErrorCodeStr(MegaError *e)
@@ -1037,8 +1069,16 @@ vector<string> getlistOfWords(char *ptr, bool ignoreTrailingSpaces)
                 prev=ptr;
                 ptr++;
             }
+                string newword(wptr, ptr - wptr);
+                words.push_back(newword);
+        }
+    }
 
-                words.push_back(string(wptr, ptr - wptr));
+    if (!getCurrentThreadIsCmdShell() && words.size()> 1 && words[0] == "completion")
+    {
+        for (int i = 1; i < (int)words.size(); i++)
+        {
+            replaceAll(words[i],"\\","\\\\");
         }
     }
 

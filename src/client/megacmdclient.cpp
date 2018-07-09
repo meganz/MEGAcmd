@@ -573,5 +573,11 @@ int main(int argc, char* argv[])
 
     delete comms;
 
+    // do always return positive error codes (POSIX compliant)
+    if (outcode < 0)
+    {
+        outcode = - outcode;
+    }
+
     return outcode;
 }

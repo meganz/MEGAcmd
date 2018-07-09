@@ -279,6 +279,11 @@ elif [[ $VMNAME == *"DEBIAN"* ]] || [[ $VMNAME == *"UBUNTU"* ]] || [[ $VMNAME ==
 	logOperationResult "modifying repos ..." $resultMODREPO
 	$sshpasscommand ssh root@$IP_GUEST "cat /etc/apt/sources.list.d/megasync.list"
 
+	echo "cleaning apt cache ..."
+	$sshpasscommand ssh root@$IP_GUEST DEBIAN_FRONTEND=noninteractive apt-get -y clean
+	resultCLEANCACHE=$?
+	logOperationResult "clean apt cache ..." $resultCLEANCACHE
+
 	echo " reinstalling/updating megacmd ..."
 	BEFOREINSTALL=`$sshpasscommand ssh root@$IP_GUEST dpkg -l megacmd`
 	$sshpasscommand ssh root@$IP_GUEST DEBIAN_FRONTEND=noninteractive apt-get -y install megacmd
@@ -572,6 +577,7 @@ else #FEDORA | CENTOS...
 	if [[ $distroDir == "Scientific"* ]]; then distroDir="ScientificLinux"; fi
 	ver=$($sshpasscommand ssh root@$IP_GUEST cat /etc/system-release | awk -F"release "  '{print $2}' | awk '{print $1}')
 	if [[ x$ver == "x7"* ]]; then ver="7"; fi #centos7
+	if [[ x$ver == "x6"* ]]; then ver="6"; fi #centos6
 	if [[ $distroDir == "Fedora"* ]]; then ver="\$releasever"; fi
 
 

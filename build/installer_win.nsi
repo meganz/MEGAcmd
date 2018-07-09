@@ -684,6 +684,18 @@ modeselected:
   File "${SRCDIR_BATFILES}\mega-whoami.bat"
   AccessControl::SetFileOwner "$INSTDIR\mega-whoami.bat" "$USERNAME"
   AccessControl::GrantOnFile "$INSTDIR\mega-whoami.bat" "$USERNAME" "GenericRead + GenericWrite"
+ 
+  File "${SRCDIR_BATFILES}\mega-graphics.bat"
+  AccessControl::SetFileOwner "$INSTDIR\mega-graphics.bat" "$USERNAME"
+  AccessControl::GrantOnFile "$INSTDIR\mega-graphics.bat" "$USERNAME" "GenericRead + GenericWrite"
+ 
+  File "${SRCDIR_BATFILES}\mega-ftp.bat"
+  AccessControl::SetFileOwner "$INSTDIR\mega-ftp.bat" "$USERNAME"
+  AccessControl::GrantOnFile "$INSTDIR\mega-ftp.bat" "$USERNAME" "GenericRead + GenericWrite"
+ 
+  File "${SRCDIR_BATFILES}\mega-errorcode.bat"
+  AccessControl::SetFileOwner "$INSTDIR\mega-errorcode.bat" "$USERNAME"
+  AccessControl::GrantOnFile "$INSTDIR\mega-errorcode.bat" "$USERNAME" "GenericRead + GenericWrite"
 
 ; Uninstaller
 
@@ -880,6 +892,9 @@ Section Uninstall
   Delete "$INSTDIR\mega-users.bat"
   Delete "$INSTDIR\mega-version.bat"
   Delete "$INSTDIR\mega-whoami.bat"
+  Delete "$INSTDIR\mega-graphics.bat"
+  Delete "$INSTDIR\mega-ftp.bat"
+  Delete "$INSTDIR\mega-errorcode.bat"
 
   ; Cache
   RMDir /r "$INSTDIR\.megaCmd"

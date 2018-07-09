@@ -42,6 +42,8 @@ const char* getSyncStateStr(int state);
 
 std::string visibilityToString(int visibility);
 
+const char * getMCMDErrorString(int errorCode);
+
 const char * getErrorCodeStr(mega::MegaError *e);
 
 const char * getLogLevelStr(int loglevel);
@@ -155,6 +157,7 @@ void sleepSeconds(int seconds);
 void sleepMicroSeconds(long microseconds);
 
 bool isValidEmail(std::string email);
+
 
 /* Properties */
 std::string &ltrimProperty(std::string &s, const char &c);
