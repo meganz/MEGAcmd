@@ -16,13 +16,13 @@ Cross compiling machine requirements:
   - dos2unix
   - cross compiler from QNAP: install by following QNAP instructions to unzip one of these (available from qnap) in your `/opt/cross-project` folder 
     - `cross-project-arm-20110901.tar.gz` (for x19 platform) or 
-    - `TS-x31+_cross-project-arm_al.20150909.tar.gz` (for x31+ platform)
+    - `TS-x31+_cross-project-arm_al.20150909.tar.gz` (for x41+ platform)
 
 Then copy or git clone the MEGAcmd project to /opt/cross-project/qnap/MEGAcmd.  The sdk must be copied or cloned to the 'sdk' subfolder of that.
 
-From the MEGAcmd folder, execute:
-`./build/QNAP/build-marvell`  (for x19 platform)
-`./build/QNAP/build-marvell`  (for x31+ platform)
+From the MEGAcmd folder, execute: <p>
+`./build/QNAP/build-marvell`  (for x19 ARM platform) <p>
+`./build/QNAP/build-linaro`  (for x41+ ARM platform) <p>
 which will result in the binaries and scripts ending up in the MEGAcmd/install folder and being copied to the megacmdpkg folder ready to build the package.
 
 

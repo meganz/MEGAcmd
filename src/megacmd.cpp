@@ -3316,6 +3316,14 @@ bool runningInBackground()
     return false;
 }
 
+#ifndef MEGACMD_USERAGENT_SUFFIX
+#define MEGACMD_USERAGENT_SUFFIX
+#define MEGACMD_STRINGIZE(x) 
+#else
+#define MEGACMD_STRINGIZE2(x) "-" #x
+#define MEGACMD_STRINGIZE(x) MEGACMD_STRINGIZE2(x)
+#endif
+
 int main(int argc, char* argv[])
 {
     string localecode = getLocaleCode();
@@ -3369,8 +3377,8 @@ int main(int argc, char* argv[])
 
     ConfigurationManager::loadConfiguration(( argc > 1 ) && !( strcmp(argv[1], "--debug")));
 
-    char userAgent[30];
-    sprintf(userAgent, "MEGAcmd/%d.%d.%d.0", MEGACMD_MAJOR_VERSION,MEGACMD_MINOR_VERSION,MEGACMD_MICRO_VERSION);
+    char userAgent[40];
+    sprintf(userAgent, "MEGAcmd" MEGACMD_STRINGIZE(MEGACMD_USERAGENT_SUFFIX) "/%d.%d.%d.0", MEGACMD_MAJOR_VERSION,MEGACMD_MINOR_VERSION,MEGACMD_MICRO_VERSION);
 
     MegaApi::addLoggerObject(loggerCMD);
     MegaApi::setLogLevel(MegaApi::LOG_LEVEL_MAX);
