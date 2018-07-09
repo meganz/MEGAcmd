@@ -165,6 +165,7 @@ void MegaCmdGlobalListener::onEvent(MegaApi *api, MegaEvent *event)
     {
         sandboxCMD->accounthasbeenblocked = true;
         LOG_err << "Received event account blocked: " << event->getText();
+        sandboxCMD->reasonblocked = event->getText();
     }
 }
 

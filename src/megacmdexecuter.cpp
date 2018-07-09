@@ -811,6 +811,31 @@ void MegaCmdExecuter::getPathParts(string path, deque<string> *c)
     } while (path.size());
 }
 
+bool MegaCmdExecuter::checkNoErrors(MegaError *error, string message)
+{
+    if (!error)
+    {
+        LOG_fatal << "No MegaError at request: " << message;
+        return false;
+    }
+    if (error->getErrorCode() == MegaError::API_OK)
+    {
+        return true;
+    }
+
+    setCurrentOutCode(error->getErrorCode());
+    if (error->getErrorCode() == MegaError::API_EBLOCKED)
+    {
+        LOG_err << "Failed to " << message << ". Account blocked. Reason: " << sandboxCMD->reasonblocked;
+    }
+    else
+    {
+        LOG_err << "Failed to " << message << ": " << error->getErrorString();
+    }
+
+    return false;
+}
+
 /**
  * @brief MegaCmdExecuter::nodesbypath
  * returns nodes determined by path pattern
@@ -2011,29 +2036,8 @@ void MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
     {
         LOG_err << "Login failed: unconfirmed account. Please confirm your account";
     }
-    else if (srl->getError()->getErrorCode() == MegaError::API_EBLOCKED)
-    {
-        LOG_err << "Login failed: Your account has been blocked. Please contact support@mega.co.nz";
-    }
-    else if (sandboxCMD->accounthasbeenblocked)
-    {
-        MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
-        api->whyAmIBlocked(megaCmdListener);
-        megaCmdListener->wait();
-        if (checkNoErrors(megaCmdListener->getError(), "find why am I blocked"))
-        {
-            LOG_err << "Login invalid: Account blocked reason: " << megaCmdListener->getRequest()->getText();
-            MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
-            api->localLogout(megaCmdListener);
-            megaCmdListener->wait();
-            checkNoErrors(megaCmdListener->getError(), "local logout after blocked");
-        }
-        delete megaCmdListener;
-    }
     else if (checkNoErrors(srl->getError(), "Login")) //login success:
     {
-
-
         LOG_debug << "Login correct ... " << (srl->getRequest()->getEmail()?srl->getRequest()->getEmail():"");
         /* Restoring configured values */
         session = srl->getApi()->dumpSession();
@@ -3033,6 +3037,29 @@ long long MegaCmdExecuter::getVersionsSize(MegaNode *n)
         delete children;
     }
     return toret;
+}
+
+void MegaCmdExecuter::getInfoFromFolder(MegaNode *n, MegaApi *api, long long *nfiles, long long *nfolders, long long *nversions)
+{
+    MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
+    api->getFolderInfo(n, megaCmdListener);
+    *nfiles = 0;
+    *nfolders = 0;
+    megaCmdListener->wait();
+    if (checkNoErrors(megaCmdListener->getError(), "getting folder info"))
+    {
+        MegaFolderInfo * mfi = megaCmdListener->getRequest()->getMegaFolderInfo();
+        if (mfi)
+        {
+            *nfiles  = mfi->getNumFiles();
+            *nfolders  = mfi->getNumFolders();
+            if (nversions)
+            {
+                *nversions = mfi->getNumVersions();
+            }
+            delete mfi;
+        }
+    }
 }
 
 vector<string> MegaCmdExecuter::listpaths(bool usepcre, string askedPath, bool discardFiles)
@@ -6421,6 +6448,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     if (words.size() > 2)
                     {
                         MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL,NULL,clientID);
+                        sandboxCMD->accounthasbeenblocked = false;
                         api->login(words[1].c_str(), words[2].c_str(), megaCmdListener);
                         actUponLogin(megaCmdListener);
                         delete megaCmdListener;
@@ -6445,6 +6473,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     if (( ptr = strchr(words[1].c_str(), '#')))  // folder link indicator
                     {
                         MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
+                        sandboxCMD->accounthasbeenblocked = false;
                         api->loginToFolder(words[1].c_str(), megaCmdListener);
                         actUponLogin(megaCmdListener);
                         delete megaCmdListener;
@@ -6458,6 +6487,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         {
                             LOG_info << "Resuming session...";
                             MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
+                            sandboxCMD->accounthasbeenblocked = false;
                             api->fastLogin(words[1].c_str(), megaCmdListener);
                             actUponLogin(megaCmdListener);
                             delete megaCmdListener;

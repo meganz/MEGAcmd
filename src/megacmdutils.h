@@ -24,8 +24,6 @@
 /* mega::MegaNode info extracting*/
 void getNumFolderFiles(mega::MegaNode *, mega::MegaApi *, long long *nfiles, long long *nfolders);
 
-void getInfoFromFolder(mega::MegaNode *, mega::MegaApi *, long long *nfiles, long long *nfolders, long long *nversions = NULL);
-
 std::string getUserInSharedNode(mega::MegaNode *n, mega::MegaApi *api);
 
 
@@ -158,7 +156,6 @@ void sleepMicroSeconds(long microseconds);
 
 bool isValidEmail(std::string email);
 
-bool checkNoErrors(mega::MegaError *error, std::string message = "");
 
 /* Properties */
 std::string &ltrimProperty(std::string &s, const char &c);

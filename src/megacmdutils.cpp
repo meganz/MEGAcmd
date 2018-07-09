@@ -55,29 +55,6 @@ void getNumFolderFiles(MegaNode *n, MegaApi *api, long long *nfiles, long long *
     delete totalnodes;
 }
 
-void getInfoFromFolder(MegaNode *n, MegaApi *api, long long *nfiles, long long *nfolders, long long *nversions)
-{
-    MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
-    api->getFolderInfo(n, megaCmdListener);
-    *nfiles = 0;
-    *nfolders = 0;
-    megaCmdListener->wait();
-    if (checkNoErrors(megaCmdListener->getError(), "getting folder info"))
-    {
-        MegaFolderInfo * mfi = megaCmdListener->getRequest()->getMegaFolderInfo();
-        if (mfi)
-        {
-            *nfiles  = mfi->getNumFiles();
-            *nfolders  = mfi->getNumFolders();
-            if (nversions)
-            {
-                *nversions = mfi->getNumVersions();
-            }
-            delete mfi;
-        }
-    }
-}
-
 string getUserInSharedNode(MegaNode *n, MegaApi *api)
 {
     MegaShareList * msl = api->getInSharesList();
@@ -1913,21 +1890,4 @@ bool nodeNameIsVersion(string &nodeName)
         }
     }
     return isversion;
-}
-
-bool checkNoErrors(MegaError *error, string message)
-{
-    if (!error)
-    {
-        LOG_fatal << "No MegaError at request: " << message;
-        return false;
-    }
-    if (error->getErrorCode() == MegaError::API_OK)
-    {
-        return true;
-    }
-
-    setCurrentOutCode(error->getErrorCode());
-    LOG_err << "Failed to " << message << ": " << error->getErrorString();
-    return false;
 }

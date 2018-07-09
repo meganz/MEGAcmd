@@ -20,6 +20,7 @@
 #define MEGACMDSANDBOX_H
 
 #include <ctime>
+#include <string>
 
 class MegaCmdSandbox
 {
@@ -33,6 +34,7 @@ public:
     time_t timeOfOverquota;
     time_t secondsOverQuota;
     bool accounthasbeenblocked;
+    std::string reasonblocked;
 public:
     MegaCmdSandbox();
     bool isOverquota() const;

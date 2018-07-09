@@ -96,6 +96,9 @@ public:
     void dumpListOfPendingShares(mega::MegaNode* n, std::string givenPath);
     std::string getCurrentPath();
     long long getVersionsSize(mega::MegaNode* n);
+    void getInfoFromFolder(mega::MegaNode *, mega::MegaApi *, long long *nfiles, long long *nfolders, long long *nversions = NULL);
+
+
     //acting
     void loginWithPassword(char *password);
     void changePassword(const char *newpassword);
@@ -166,6 +169,9 @@ public:
     bool establishBackup(std::string local, mega::MegaNode *n, int64_t period, std::string periodstring, int numBackups);
     mega::MegaNode *getBaseNode(std::string thepath, std::string &rest, bool *isrelative = NULL);
     void getPathParts(std::string path, std::deque<std::string> *c);
+
+    bool checkNoErrors(mega::MegaError *error, std::string message = "");
+
 };
 
 #endif // MEGACMDEXECUTER_H

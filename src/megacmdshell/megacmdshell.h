@@ -38,7 +38,7 @@ void sleepMicroSeconds(long microseconds);
 
 void restoreprompt();
 
-void printprogress(long long completed, long long total, const char *title = "TRANSFERING");
+void printprogress(long long completed, long long total, const char *title = "TRANSFERRING");
 
 void changeprompt(const char *newprompt, bool redisplay = false);
 
