@@ -1864,8 +1864,10 @@ void MegaCmdExecuter::actUponGetExtendedAccountDetails(SynchronousRequestListene
             {
                 if (details->getProExpiration())
                 {
-                    time_t ts = details->getProExpiration();
-                    strftime(timebuf, sizeof timebuf, "%c", localtime(&ts)); //TODO: use thread safe version of this everywhere!
+                    m_time_t ts = details->getProExpiration();
+                    struct tm dt;
+
+                    strftime(timebuf, sizeof timebuf, "%c", m_localtime(ts, &dt));
                     OUTSTREAM << "        " << "Pro expiration date: " << timebuf << endl;
                 }
             }
@@ -1891,7 +1893,8 @@ void MegaCmdExecuter::actUponGetExtendedAccountDetails(SynchronousRequestListene
                     time_t ts = purchase->getTimestamp();
                     char spurchase[150];
 
-                    strftime(timebuf, sizeof timebuf, "%c", localtime(&ts));
+                    struct tm dt;
+                    strftime(timebuf,  sizeof timebuf, "%c", m_localtime(ts, &dt));
                     sprintf(spurchase, "ID: %.11s Time: %s Amount: %.3s %.02f Payment method: %d\n",
                         purchase->getHandle(), timebuf, purchase->getCurrency(), purchase->getAmount(), purchase->getMethod());
                     OUTSTREAM << "    " << spurchase << endl;
@@ -1906,7 +1909,8 @@ void MegaCmdExecuter::actUponGetExtendedAccountDetails(SynchronousRequestListene
                     MegaAccountTransaction *transaction = details->getTransaction(i);
                     time_t ts = transaction->getTimestamp();
                     char stransaction[100];
-                    strftime(timebuf, sizeof timebuf, "%c", localtime(&ts));
+                    struct tm dt;
+                    strftime(timebuf,  sizeof timebuf, "%c", m_localtime(ts, &dt));
                     sprintf(stransaction, "ID: %.11s Time: %s Amount: %.3s %.02f\n",
                         transaction->getHandle(), timebuf, transaction->getCurrency(), transaction->getAmount());
                     OUTSTREAM << "    " << stransaction << endl;
@@ -1922,10 +1926,11 @@ void MegaCmdExecuter::actUponGetExtendedAccountDetails(SynchronousRequestListene
                 if (session->isAlive())
                 {
                     sdetails[0]='\0';
-                    time_t ts = session->getCreationTimestamp();
-                    strftime(timebuf,  sizeof timebuf, "%c", localtime(&ts));
+                    m_time_t ts = session->getCreationTimestamp();
+                    struct tm dt;
+                    strftime(timebuf,  sizeof timebuf, "%c", m_localtime(ts, &dt));
                     ts = session->getMostRecentUsage();
-                    strftime(timebuf2, sizeof timebuf, "%c", localtime(&ts));
+                    strftime(timebuf2, sizeof timebuf, "%c", m_localtime(ts, &dt));
 
                     char *sid = api->userHandleToBase64(session->getHandle());
 

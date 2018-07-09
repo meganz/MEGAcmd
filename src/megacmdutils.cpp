@@ -604,50 +604,12 @@ const char *fillStructWithSYYmdHMS(string &stime, struct tm &dt)
 #endif
 }
 
-void fillLocalTimeStruct(const time_t *ttime, struct tm *dt) //TODO: copy this to megaapiimpl
-{
-#if (__cplusplus >= 201103L) && defined (__STDC_LIB_EXT1__) && defined(__STDC_WANT_LIB_EXT1__)
-    localtime_s(ttime, dt);
-#elif _MSC_VER >= 1400 // MSVCRT (2005+): std::localtime is threadsafe
-    struct tm *newtm = localtime(ttime);
-    if (newtm)
-    {
-        memcpy(dt,newtm,sizeof(struct tm));
-    }
-    else
-    {
-        memset(dt,0,sizeof(struct tm));
-    }
-
-#elif _WIN32
-    static MegaMutex * mtx = new MegaMutex();
-    static bool initiated = false;
-    if (!initiated)
-    {
-        mtx->init(true);
-        initiated = true;
-    }
-    mtx->lock();
-    struct tm *newtm = localtime(ttime);
-    if (newtm)
-    {
-        memcpy(dt,newtm,sizeof(struct tm));
-    }
-    else
-    {
-        memset(dt,0,sizeof(struct tm));
-    }
-    mtx->unlock();
-#else //POSIX
-    localtime_r(ttime, dt);
-#endif
-}
 
 std::string getReadableTime(const time_t rawtime)
 {
     struct tm dt;
     char buffer [40];
-    fillLocalTimeStruct(&rawtime, &dt);
+    m_localtime(rawtime, &dt);
     strftime(buffer, sizeof( buffer ), "%a, %d %b %Y %T %z", &dt); // Following RFC 2822 (as in date -R)
     return std::string(buffer);
 }
@@ -659,7 +621,7 @@ std::string getReadableShortTime(const time_t rawtime, bool showUTCDeviation)
     char buffer [40];
     if (rawtime != -1)
     {
-        fillLocalTimeStruct(&rawtime, &dt);
+        m_localtime(rawtime, &dt);
         if (showUTCDeviation)
         {
             strftime(buffer, sizeof( buffer ), "%d%b%Y %T %z", &dt);
@@ -766,7 +728,7 @@ time_t getTimeStampAfter(time_t initial, string timestring)
     }
 
     struct tm dt;
-    fillLocalTimeStruct(&initial, &dt);
+    m_localtime(initial, &dt);
 
     dt.tm_mday += days;
     dt.tm_hour += hours;
@@ -848,7 +810,7 @@ time_t getTimeStampBefore(time_t initial, string timestring)
     }
 
     struct tm dt;
-    fillLocalTimeStruct(&initial, &dt);
+    m_localtime(initial, &dt);
 
     dt.tm_mday -= days;
     dt.tm_hour -= hours;
