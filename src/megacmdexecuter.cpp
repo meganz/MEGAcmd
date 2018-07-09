@@ -2144,7 +2144,7 @@ void MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
             api->httpServerEnableFolderServer(true);
             if (api->httpServerStart(localonly, port, tls, pathtocert.c_str(), pathtokey.c_str()))
             {
-                list<string> servedpaths = ConfigurationManager::getConfigurationValueList<string>("webdav_served_locations");
+                list<string> servedpaths = ConfigurationManager::getConfigurationValueList("webdav_served_locations");
                 bool modified = false;
 
                 for ( std::list<string>::iterator it = servedpaths.begin(); it != servedpaths.end(); ++it)
@@ -2204,7 +2204,7 @@ void MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
 
             if (api->ftpServerStart(localonly, portftp, dataPortRangeBegin, dataPortRangeEnd, tls, pathtocert.c_str(), pathtokey.c_str()))
             {
-                list<string> servedpaths = ConfigurationManager::getConfigurationValueList<string>("ftp_served_locations");
+                list<string> servedpaths = ConfigurationManager::getConfigurationValueList("ftp_served_locations");
                 bool modified = false;
 
                 for ( std::list<string>::iterator it = servedpaths.begin(); it != servedpaths.end(); ++it)
@@ -5856,7 +5856,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         api->httpServerRemoveWebDavAllowedNode(n->getHandle());
 
                         mtxWebDavLocations.lock();
-                        list<string> servedpaths = ConfigurationManager::getConfigurationValueList<string>("webdav_served_locations");
+                        list<string> servedpaths = ConfigurationManager::getConfigurationValueList("webdav_served_locations");
                         size_t sizeprior = servedpaths.size();
                         servedpaths.remove(actualNodePath);
                         size_t sizeafter = servedpaths.size();
@@ -5898,7 +5898,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         OUTSTREAM << "Serving via webdav " << pathToServe << ": " << l << endl;
 
                         mtxWebDavLocations.lock();
-                        list<string> servedpaths = ConfigurationManager::getConfigurationValueList<string>("webdav_served_locations");
+                        list<string> servedpaths = ConfigurationManager::getConfigurationValueList("webdav_served_locations");
                         servedpaths.push_back(actualNodePath);
                         servedpaths.sort();
                         servedpaths.unique();
@@ -6055,7 +6055,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         api->ftpServerRemoveAllowedNode(n->getHandle());
 
                         mtxFtpLocations.lock();
-                        list<string> servedpaths = ConfigurationManager::getConfigurationValueList<string>("ftp_served_locations");
+                        list<string> servedpaths = ConfigurationManager::getConfigurationValueList("ftp_served_locations");
                         size_t sizeprior = servedpaths.size();
                         servedpaths.remove(actualNodePath);
                         size_t sizeafter = servedpaths.size();
@@ -6097,7 +6097,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         OUTSTREAM << "Serving via ftp " << pathToServe << ": " << l << endl;
 
                         mtxFtpLocations.lock();
-                        list<string> servedpaths = ConfigurationManager::getConfigurationValueList<string>("ftp_served_locations");
+                        list<string> servedpaths = ConfigurationManager::getConfigurationValueList("ftp_served_locations");
                         servedpaths.push_back(actualNodePath);
                         servedpaths.sort();
                         servedpaths.unique();

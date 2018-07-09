@@ -113,6 +113,7 @@ public:
         is >> i;
         return i;
     }
+
     template <typename T>
     static std::list<T> getConfigurationValueList(std::string propertyName, char separator = ';')
     {
@@ -144,6 +145,39 @@ public:
                 std::istringstream is(current);
                 is >> i;
                 toret.push_back(i);
+            }
+        } while (possep != std::string::npos);
+
+        return toret;
+    }
+
+    static std::list<std::string> getConfigurationValueList(std::string propertyName, char separator = ';')
+    {
+        std::list<std::string> toret;
+
+        std::string propValue = getConfigurationSValue(propertyName);
+        if (!propValue.size())
+        {
+            return toret;
+        }
+        size_t possep;
+        do {
+            possep = propValue.find(separator);
+
+            std::string current = propValue.substr(0,possep);
+
+            if (possep != std::string::npos && ((possep + 1 ) != propValue.size()))
+            {
+                propValue = propValue.substr(possep + 1);
+            }
+            else
+            {
+                possep = std::string::npos;
+            }
+
+            if (current.size())
+            {
+                toret.push_back(current);
             }
         } while (possep != std::string::npos);
 
