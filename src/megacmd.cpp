@@ -2867,6 +2867,22 @@ int askforConfirmation(string message)
     return MCMDCONFIRM_NO;
 }
 
+string askforUserResponse(string message)
+{
+    CmdPetition *inf = getCurrentPetition();
+    if (inf)
+    {
+        return cm->getUserResponse(inf,message);
+    }
+    else
+    {
+        LOG_err << "Unable to get current petition to ask for confirmation";
+    }
+
+    return string("NOCURRENPETITION");
+}
+
+
 
 void delete_finished_threads()
 {

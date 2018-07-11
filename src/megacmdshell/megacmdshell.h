@@ -52,7 +52,7 @@ prompttype getprompt();
 
 void printHistory();
 
-int readconfirmationloop(const char *question);
+std::string readresponse(const char *question);
 
 #ifdef _WIN32
 void stringtolocalw(const char* path, std::wstring* local);

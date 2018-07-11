@@ -535,7 +535,7 @@ static void store_line(char* l)
         if (comms->serverinitiatedfromshell)
         {
             OUTSTREAM << " Forwarding exit command to the server, since this cmd shell (most likely) initiated it" << endl;
-            comms->executeCommand("exit", readconfirmationloop);
+            comms->executeCommand("exit", readresponse);
         }
 #endif
 #endif
@@ -838,7 +838,7 @@ char* remote_completion(const char* text, int state)
         OUTSTRING s;
         OUTSTRINGSTREAM oss(s);
 
-        comms->executeCommand(completioncommand, readconfirmationloop, oss);
+        comms->executeCommand(completioncommand, readresponse, oss);
 
         string outputcommand;
 
@@ -1178,7 +1178,7 @@ void process_line(char * line)
                     logincommand+=clientID;
                 }
                 OUTSTREAM << endl;
-                comms->executeCommand(logincommand.c_str(), readconfirmationloop);
+                comms->executeCommand(logincommand.c_str(), readresponse);
             }
             else
             {
@@ -1189,7 +1189,7 @@ void process_line(char * line)
                 confirmcommand+=" " ;
                 confirmcommand+=line;
                 OUTSTREAM << endl;
-                comms->executeCommand(confirmcommand.c_str(), readconfirmationloop);
+                comms->executeCommand(confirmcommand.c_str(), readresponse);
 
                 confirminglink = false;
             }
@@ -1226,7 +1226,7 @@ void process_line(char * line)
                 {
                     signupline += " ";
                     signupline += newpasswd;
-                    comms->executeCommand(signupline.c_str(), readconfirmationloop);
+                    comms->executeCommand(signupline.c_str(), readresponse);
 
                     signingup = false;
                 }
@@ -1237,7 +1237,7 @@ void process_line(char * line)
                     changepasscommand+=oldpasswd;
                     changepasscommand+=" " ;
                     changepasscommand+=newpasswd;
-                    comms->executeCommand(changepasscommand.c_str(), readconfirmationloop);
+                    comms->executeCommand(changepasscommand.c_str(), readresponse);
                 }
             }
 
@@ -1262,7 +1262,7 @@ void process_line(char * line)
                     }
                     if (words.size() == 1 || words[1]!="--only-shell")
                     {
-                        comms->executeCommand(line, readconfirmationloop);
+                        comms->executeCommand(line, readresponse);
                     }
                     else
                     {
@@ -1300,7 +1300,7 @@ void process_line(char * line)
                         }
                         else
                         {
-                            comms->executeCommand(line, readconfirmationloop);
+                            comms->executeCommand(line, readresponse);
                         }
                     }
                     else
@@ -1330,7 +1330,7 @@ void process_line(char * line)
                                 s+=clientID;
                                 words.push_back(s);
                             }
-                            comms->executeCommand(s, readconfirmationloop);
+                            comms->executeCommand(s, readresponse);
                         }
                     }
                     else
@@ -1354,7 +1354,7 @@ void process_line(char * line)
                         }
                         else
                         {
-                            comms->executeCommand(line, readconfirmationloop);
+                            comms->executeCommand(line, readresponse);
                         }
                     }
                     else
@@ -1376,7 +1376,7 @@ void process_line(char * line)
                     }
                     else
                     {
-                        comms->executeCommand(line, readconfirmationloop);
+                        comms->executeCommand(line, readresponse);
                     }
                 }
                 else if ( words[0] == "clear" )
@@ -1430,7 +1430,7 @@ void process_line(char * line)
                         toexec+=line;
                     }
 
-                    comms->executeCommand(toexec.c_str(), readconfirmationloop);
+                    comms->executeCommand(toexec.c_str(), readresponse);
                 }
                 else if (words[0] == "sync")
                 {
@@ -1454,7 +1454,7 @@ void process_line(char * line)
                         toexec+=line;
                     }
 
-                    comms->executeCommand(toexec.c_str(), readconfirmationloop);
+                    comms->executeCommand(toexec.c_str(), readresponse);
                 }
                 else if (words[0] == "backup")
                 {
@@ -1478,7 +1478,7 @@ void process_line(char * line)
                         toexec+=line;
                     }
 
-                    comms->executeCommand(toexec.c_str(), readconfirmationloop);
+                    comms->executeCommand(toexec.c_str(), readresponse);
                 }
                 else
                 {
@@ -1499,7 +1499,7 @@ void process_line(char * line)
                             }
                             words.push_back(s);
                         }
-                        comms->executeCommand(s, readconfirmationloop);
+                        comms->executeCommand(s, readresponse);
 #ifdef _WIN32
                         Sleep(200); // give a brief while to print progress ended
 #endif
@@ -1507,7 +1507,7 @@ void process_line(char * line)
                     else
                     {
                         // execute user command
-                        comms->executeCommand(line, readconfirmationloop);
+                        comms->executeCommand(line, readresponse);
                     }
                 }
             }
@@ -1803,42 +1803,13 @@ void mycompletefunct(char **c, int num_matches, int max_length)
 }
 #endif
 
-int readconfirmationloop(const char *question)
+std::string readresponse(const char* question)
 {
-    bool firstime = true;
-    for (;; )
-    {
-        string response;
-
-        if (firstime)
-        {
-            response = readline(question);
-
-        }
-        else
-        {
-            response = readline("Please enter [y]es/[n]o/[a]ll/none:");
-        }
-
-        firstime = false;
-
-        if (response == "yes" || response == "y" || response == "YES" || response == "Y")
-        {
-            return MCMDCONFIRM_YES;
-        }
-        if (response == "no" || response == "n" || response == "NO" || response == "N")
-        {
-            return MCMDCONFIRM_NO;
-        }
-        if (response == "All" || response == "ALL" || response == "a" || response == "A" || response == "all")
-        {
-            return MCMDCONFIRM_ALL;
-        }
-        if (response == "none" || response == "NONE" || response == "None")
-        {
-            return MCMDCONFIRM_NONE;
-        }
-    }
+    string response;
+    response = readline(question);
+    rl_set_prompt("");
+    rl_replace_line("", 0);
+    return response;
 }
 
 

@@ -130,6 +130,11 @@ int ComunicationsManager::getConfirmation(CmdPetition *inf, string message)
     return MCMDCONFIRM_NO;
 }
 
+std::string ComunicationsManager::getUserResponse(CmdPetition *inf, string message)
+{
+    return string();
+}
+
 string ComunicationsManager::get_petition_details(CmdPetition *inf)
 {
     return "";

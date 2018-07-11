@@ -101,6 +101,7 @@ enum
     MCMD_EUNEXPECTED = -59,   ///< Unexpected failure
 
     MCMD_REQCONFIRM = -60,     ///< Confirmation required
+    MCMD_REQSTRING = -61,     ///< String required
 
 };
 
@@ -123,8 +124,8 @@ public:
     MegaCmdShellCommunications();
     virtual ~MegaCmdShellCommunications();
 
-    virtual int executeCommand(std::string command, int (*readconfirmationloop)(const char *) = NULL, OUTSTREAMTYPE &output = COUT, bool interactiveshell = true, std::wstring = L"");
-    virtual int executeCommandW(std::wstring command, int (*readconfirmationloop)(const char *) = NULL, OUTSTREAMTYPE &output = COUT, bool interactiveshell = true);
+    virtual int executeCommand(std::string command, std::string (*readresponse)(const char *) = NULL, OUTSTREAMTYPE &output = COUT, bool interactiveshell = true, std::wstring = L"");
+    virtual int executeCommandW(std::wstring command, std::string (*readresponse)(const char *) = NULL, OUTSTREAMTYPE &output = COUT, bool interactiveshell = true);
 
     virtual int registerForStateChanges(void (*statechangehandle)(std::string) = NULL);
 
@@ -140,6 +141,8 @@ private:
 
     static void *listenToStateChangesEntry(void *slsc);
     static int listenToStateChanges(int receiveSocket, void (*statechangehandle)(std::string) = NULL);
+
+    int readconfirmationloop(const char *question, std::string (*readresponse)(const char *));
 
     static bool confirmResponse;
 
