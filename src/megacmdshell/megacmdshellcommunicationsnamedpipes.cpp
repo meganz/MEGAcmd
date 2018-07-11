@@ -609,7 +609,9 @@ int MegaCmdShellCommunicationsNamedPipes::executeCommand(string command, std::st
                 response = readresponse(confirmQuestion.c_str());
             }
 
-            if (!WriteFile(newNamedPipe, (const char *) response.data(), sizeof(response), &n, NULL))
+            wstring wresponse;
+            stringtolocalw(response.c_str(),&wresponse);
+            if (!WriteFile(newNamedPipe, (char *) wresponse.data(), DWORD(wcslen(wresponse.c_str())*sizeof(wchar_t)), &n, NULL))
             {
                 cerr << "ERROR writing confirm response to namedPipe: " << ERRNO << endl;
                 return -1;

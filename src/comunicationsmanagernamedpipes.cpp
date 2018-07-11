@@ -420,7 +420,7 @@ string ComunicationsManagerNamedPipes::getUserResponse(CmdPetition *inf, string 
 {
     HANDLE outNamedPipe = ((CmdPetitionNamedPipes *)inf)->outNamedPipe;
 
-    int outCode = MCMD_REQCONFIRM;
+    int outCode = MCMD_REQSTRING;
     DWORD n;
     if (!WriteFile(outNamedPipe, (const char *)&outCode, sizeof( outCode ), &n, NULL))
     {
@@ -435,7 +435,6 @@ string ComunicationsManagerNamedPipes::getUserResponse(CmdPetition *inf, string 
     wstring wread;
     wchar_t wbuffer[1024]= {};
 
-    DWORD n;
     //ZeroMemory( wbuffer, sizeof(wbuffer));
     bool readok = ReadFile(outNamedPipe, wbuffer, 1023*sizeof(wchar_t), &n, NULL );
     while(readok && n == 1023*sizeof(wchar_t))
@@ -485,3 +484,4 @@ ComunicationsManagerNamedPipes::~ComunicationsManagerNamedPipes()
     delete mtx;
 }
 #endif
+

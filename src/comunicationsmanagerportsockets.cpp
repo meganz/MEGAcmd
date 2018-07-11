@@ -568,7 +568,7 @@ string ComunicationsManagerPortSockets::getUserResponse(CmdPetition *inf, string
     }
 
     int outCode = MCMD_REQSTRING;
-    int n = send(connectedsocket, (void*)&outCode, sizeof( outCode ), MSG_NOSIGNAL);
+    int n = send(connectedsocket, (const char *)&outCode, sizeof( outCode ), MSG_NOSIGNAL);
     if (n < 0)
     {
         LOG_err << "ERROR writing output Code to socket: " << errno;

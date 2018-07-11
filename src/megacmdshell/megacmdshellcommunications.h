@@ -133,6 +133,7 @@ public:
 
     static bool serverinitiatedfromshell;
     static bool registerAgainRequired;
+    int readconfirmationloop(const char *question, std::string (*readresponse)(const char *));
 
 private:
     static SOCKET newsockfd;
@@ -142,7 +143,6 @@ private:
     static void *listenToStateChangesEntry(void *slsc);
     static int listenToStateChanges(int receiveSocket, void (*statechangehandle)(std::string) = NULL);
 
-    int readconfirmationloop(const char *question, std::string (*readresponse)(const char *));
 
     static bool confirmResponse;
 
