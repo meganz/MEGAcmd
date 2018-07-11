@@ -95,6 +95,7 @@ enum
     MCMD_EUNEXPECTED = -59,   ///< Unexpected failure
 
     MCMD_REQCONFIRM = -60,     ///< Confirmation required
+    MCMD_REQSTRING = -61,     ///< String required
 
 };
 
@@ -123,6 +124,9 @@ prompttype getprompt();
 void printHistory();
 
 int askforConfirmation(std::string message);
+
+std::string askforUserResponse(std::string message);
+
 
 void informTransferUpdate(mega::MegaTransfer *transfer, int clientID);
 

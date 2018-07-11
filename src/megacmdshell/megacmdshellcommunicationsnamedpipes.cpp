@@ -472,9 +472,9 @@ MegaCmdShellCommunicationsNamedPipes::MegaCmdShellCommunicationsNamedPipes()
     listenerThread = NULL;
 }
 
-int MegaCmdShellCommunicationsNamedPipes::executeCommandW(wstring wcommand, int (*readconfirmationloop)(const char *), OUTSTREAMTYPE &output, bool interactiveshell)
+int MegaCmdShellCommunicationsNamedPipes::executeCommandW(wstring wcommand, string (*readresponse)(const char *), OUTSTREAMTYPE &output, bool interactiveshell)
 {
-    return executeCommand("", readconfirmationloop, output, interactiveshell, wcommand);
+    return executeCommand("", readresponse, output, interactiveshell, wcommand);
 }
 
 /**
@@ -512,7 +512,7 @@ bool outputtobinaryorconsole(void)
     return false;
 }
 
-int MegaCmdShellCommunicationsNamedPipes::executeCommand(string command, int (*readconfirmationloop)(const char *), OUTSTREAMTYPE &output, bool interactiveshell, wstring wcommand)
+int MegaCmdShellCommunicationsNamedPipes::executeCommand(string command, std::string (*readresponse)(const char *), OUTSTREAMTYPE &output, bool interactiveshell, wstring wcommand)
 {
     HANDLE theNamedPipe = createNamedPipe(0,command.compare(0,4,"exit")
                                           && command.compare(0,4,"quit")
@@ -568,7 +568,7 @@ int MegaCmdShellCommunicationsNamedPipes::executeCommand(string command, int (*r
         return -1;
     }
 
-    while (outcode == MCMD_REQCONFIRM)
+    while (outcode == MCMD_REQCONFIRM || outcode == MCMD_REQSTRING )
     {
         int BUFFERSIZE = 1024;
         string confirmQuestion;
@@ -585,18 +585,39 @@ int MegaCmdShellCommunicationsNamedPipes::executeCommand(string command, int (*r
             cerr << "ERROR reading confirm question: " << ERRNO << endl;
         }
 
-        int response = MCMDCONFIRM_NO;
-
-        if (readconfirmationloop != NULL)
+        if (outcode == MCMD_REQCONFIRM)
         {
-            response = readconfirmationloop(confirmQuestion.c_str());
+            int response = MCMDCONFIRM_NO;
+
+            if (readresponse != NULL)
+            {
+                response = readconfirmationloop(confirmQuestion.c_str(), readresponse);
+            }
+
+            if (!WriteFile(newNamedPipe, (const char *) &response, sizeof(response), &n, NULL))
+            {
+                cerr << "ERROR writing confirm response to namedPipe: " << ERRNO << endl;
+                return -1;
+            }
+        }
+        else // MCMD_REQSTRING
+        {
+            string response = "FAILED";
+
+            if (readresponse != NULL)
+            {
+                response = readresponse(confirmQuestion.c_str());
+            }
+
+            wstring wresponse;
+            stringtolocalw(response.c_str(),&wresponse);
+            if (!WriteFile(newNamedPipe, (char *) wresponse.data(), DWORD(wcslen(wresponse.c_str())*sizeof(wchar_t)), &n, NULL))
+            {
+                cerr << "ERROR writing confirm response to namedPipe: " << ERRNO << endl;
+                return -1;
+            }
         }
 
-        if (!WriteFile(newNamedPipe, (const char *) &response, sizeof(response), &n, NULL))
-        {
-            cerr << "ERROR writing confirm response to namedPipe: " << ERRNO << endl;
-            return -1;
-        }
 
         if (!ReadFile(newNamedPipe, (char *)&outcode, sizeof(outcode),&n, NULL))
         {
