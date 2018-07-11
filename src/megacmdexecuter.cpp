@@ -3261,7 +3261,18 @@ vector<string> MegaCmdExecuter::getlistfilesfolders(string location)
 void MegaCmdExecuter::signup(string name, string passwd, string email)
 {
     MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
-    api->createAccount(email.c_str(), passwd.c_str(), name.c_str(), megaCmdListener);
+
+    size_t spos = name.find(" ");
+    string firstname = name.substr(0, spos);
+    string lastname;
+    if (spos != string::npos && ((spos + 1) < name.length()))
+    {
+        lastname = name.substr(spos+1);
+    }
+
+    OUTSTREAM << "Singinup up. name=" << firstname << ". surname=" << lastname<< endl;
+
+    api->createAccount(email.c_str(), passwd.c_str(), firstname.c_str(), lastname.c_str(), megaCmdListener);
     megaCmdListener->wait();
     if (checkNoErrors(megaCmdListener->getError(), "create account <" + email + ">"))
     {

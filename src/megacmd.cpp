@@ -544,7 +544,7 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     }
     else if ("signup" == thecommand)
     {
-        validParams->insert("name");
+        validOptValues->insert("name");
     }
     else if ("logout" == thecommand)
     {
