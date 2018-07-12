@@ -28,6 +28,7 @@ class ConfigurationManager
 {
 private:
     static std::string configFolder;
+    static int fd;
 
     static void loadConfigDir();
 
@@ -42,6 +43,9 @@ public:
 
     static void loadConfiguration(bool debug);
     static void clearConfigurationFile();
+    static bool lockExecution();
+    static void unlockExecution();
+
     static void loadsyncs();
     static void loadbackups();
 

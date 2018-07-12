@@ -26,6 +26,7 @@
 #include <Shlwapi.h> //PathAppend
 #else
 #include <pwd.h>  //getpwuid_r
+#include <sys/file.h> //flock
 #endif
 
 #ifdef _WIN32
@@ -44,10 +45,10 @@ bool is_file_exist(const char *fileName)
 }
 
 string ConfigurationManager::configFolder;
+int ConfigurationManager::fd;
 map<string, sync_struct *> ConfigurationManager::configuredSyncs;
 string ConfigurationManager::session;
 std::set<std::string> ConfigurationManager::excludedNames;
-
 map<std::string, backup_struct *> ConfigurationManager::configuredBackups;
 
 std::string ConfigurationManager::getConfigFolder()
@@ -594,6 +595,74 @@ void ConfigurationManager::loadConfiguration(bool debug)
     }
 }
 
+bool ConfigurationManager::lockExecution()
+{
+    if (!configFolder.size())
+    {
+        loadConfigDir();
+    }
+    if (configFolder.size())
+    {
+        stringstream lockfile;
+        lockfile << configFolder << "/" << "lockMCMD";
+
+        LOG_err << "Lock file: " << lockfile.str();
+
+#ifdef _WIN32
+        if((fd = open(lockfile.str().c_str(), O_RDWR|O_CREAT|O_EXCL, 0444)) == -1)
+        {
+            return false;
+        }
+#elif defined(LOCK_EX) && defined(LOCK_NB)
+        fd = open(lockfile.str().c_str(), O_RDWR | O_CREAT, 0666); // open or create lockfile
+        //check open success...
+        if (flock(fd, LOCK_EX | LOCK_NB))
+        {
+            return false;
+        }
+#else
+        ofstream fo(lockfile.str().c_str());
+        if(!fo.fail()){
+            return false;
+        }
+        if (fo.is_open())
+        {
+            fo.close();
+        }
+#endif
+
+        return true;
+    }
+    else
+    {
+        LOG_err  << "Couldnt access configuration folder ";
+    }
+    return false;
+}
+
+void ConfigurationManager::unlockExecution()
+{
+    if (!configFolder.size())
+    {
+        loadConfigDir();
+    }
+    if (configFolder.size())
+    {
+        stringstream lockfile;
+        lockfile << configFolder << "/" << "lockMCMD";
+
+#if !defined(_WIN32) && defined(LOCK_EX) && defined(LOCK_NB)
+        flock(fd, LOCK_UN | LOCK_NB);
+#endif
+        close(fd);
+
+        unlink(lockfile.str().c_str());
+    }
+    else
+    {
+        LOG_err  << "Couldnt access configuration folder ";
+    }
+}
 string ConfigurationManager::getConfigurationSValue(string propertyName)
 {
     if (!configFolder.size())

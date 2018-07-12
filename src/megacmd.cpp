@@ -2948,6 +2948,7 @@ void finalize()
 
     LOG_debug << "resources have been cleaned ...";
     delete loggerCMD;
+    ConfigurationManager::unlockExecution();
     ConfigurationManager::unloadConfiguration();
 
 }
@@ -3340,6 +3341,18 @@ bool runningInBackground()
 #define MEGACMD_STRINGIZE(x) MEGACMD_STRINGIZE2(x)
 #endif
 
+bool findarg(const char *what, int argc, char *argv[])
+{
+    for (int i = 1; i < argc; i++)
+    {
+        if (!strcmp(argv[i], what))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 int main(int argc, char* argv[])
 {
     string localecode = getLocaleCode();
@@ -3361,27 +3374,26 @@ int main(int argc, char* argv[])
 
     loggerCMD->setApiLoggerLevel(MegaApi::LOG_LEVEL_ERROR);
     loggerCMD->setCmdLoggerLevel(MegaApi::LOG_LEVEL_INFO);
-    loggerCMD->setCmdLoggerLevel(MegaApi::LOG_LEVEL_DEBUG);
 
     string loglevelenv;
 #ifndef _WIN32
     loglevelenv = (getenv ("MEGACMD_LOGLEVEL") == NULL)?"":getenv ("MEGACMD_LOGLEVEL");
 #endif
 
-    if (!loglevelenv.compare("DEBUG") || (( argc > 1 ) && !( strcmp(argv[1], "--debug"))) )
+    if (!loglevelenv.compare("DEBUG") || (( argc > 1 ) && findarg("--debug", argc, argv)) )
     {
         loggerCMD->setCmdLoggerLevel(MegaApi::LOG_LEVEL_DEBUG);
     }
-    if (!loglevelenv.compare("FULLDEBUG") || (( argc > 1 ) && !( strcmp(argv[1], "--debug-full"))) )
+    if (!loglevelenv.compare("FULLDEBUG") || (( argc > 1 ) && findarg("--debug-full", argc, argv)) )
     {
         loggerCMD->setApiLoggerLevel(MegaApi::LOG_LEVEL_DEBUG);
         loggerCMD->setCmdLoggerLevel(MegaApi::LOG_LEVEL_DEBUG);
     }
-    if (!loglevelenv.compare("VERBOSE") || (( argc > 1 ) && !( strcmp(argv[1], "--verbose"))) )
+    if (!loglevelenv.compare("VERBOSE") || (( argc > 1 ) && findarg("--verbose", argc, argv)) )
     {
         loggerCMD->setCmdLoggerLevel(MegaApi::LOG_LEVEL_MAX);
     }
-    if (!loglevelenv.compare("FULLVERBOSE") || (( argc > 1 ) && !( strcmp(argv[1], "--verbose-full"))) )
+    if (!loglevelenv.compare("FULLVERBOSE") || (( argc > 1 ) && findarg("--verbose-full", argc, argv)) )
     {
         loggerCMD->setApiLoggerLevel(MegaApi::LOG_LEVEL_MAX);
         loggerCMD->setCmdLoggerLevel(MegaApi::LOG_LEVEL_MAX);
@@ -3391,7 +3403,12 @@ int main(int argc, char* argv[])
 
     mutexEndedPetitionThreads.init(false);
 
-    ConfigurationManager::loadConfiguration(( argc > 1 ) && !( strcmp(argv[1], "--debug")));
+    ConfigurationManager::loadConfiguration(( argc > 1 ) && findarg("--debug", argc, argv));
+    if (!ConfigurationManager::lockExecution() && !findarg("--skip-lock-check", argc, argv))
+    {
+        cerr << "Another instance of MEGAcmd Server is running. Execute with --skip-lock-check to force running (NOT RECOMMENDED)" << endl;
+        exit(-2);
+    }
 
     char userAgent[40];
     sprintf(userAgent, "MEGAcmd" MEGACMD_STRINGIZE(MEGACMD_USERAGENT_SUFFIX) "/%d.%d.%d.0", MEGACMD_MAJOR_VERSION,MEGACMD_MINOR_VERSION,MEGACMD_MICRO_VERSION);
