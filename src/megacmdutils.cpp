@@ -598,10 +598,13 @@ const char *fillStructWithSYYmdHMS(string &stime, struct tm &dt)
     dt.tm_hour = atoi(stime.substr(8,2).c_str());
     dt.tm_min = atoi(stime.substr(10,2).c_str());
     dt.tm_sec = atoi(stime.substr(12,2).c_str());
-    return stime.c_str();
 #else
-    return strptime(stime.c_str(), "%Y%m%d%H%M%S", &dt);
+    strptime(stime.c_str(), "%Y%m%d%H%M%S", &dt);
 #endif
+    dt.tm_isdst = -1; //let mktime interprete if time has Daylight Saving Time flag correction
+                        //TODO: would this work cross platformly? At least I believe it'll be consistent with localtime. Otherwise, we'd need to save that
+    return stime.c_str();
+
 }
 
 std::string getReadableTime(const m_time_t rawtime)

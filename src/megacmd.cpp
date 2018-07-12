@@ -1775,7 +1775,7 @@ string getHelpStr(const char *command)
         os << "   " << "\t" << "     +-------- Type(d=folder,-=file,r=root,i=inbox,b=rubbish,x=unsupported)" << endl;
         os << "   " << "\t" << "   VERS: Number of versions in a file" << endl;
         os << "   " << "\t" << "   SIZE: Size of the file in bytes:" << endl;
-        os << "   " << "\t" << "   DATE: Modification date for files and creation date for folders:" << endl;
+        os << "   " << "\t" << "   DATE: Modification date for files and creation date for folders (in UTC time):" << endl;
         os << "   " << "\t" << "   NAME: name of the node" << endl;
         os << " -h" << "\t" << "Show human readable sizes in summary" << endl;
         os << " -a" << "\t" << "include extra information" << endl;
