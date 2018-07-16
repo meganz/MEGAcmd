@@ -7704,7 +7704,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         {
                             MegaNode *imported = api->getNodeByHandle(megaCmdListener->getRequest()->getNodeHandle());
                             char *importedPath = api->getNodePath(imported);
-                            LOG_info << "Import file complete: " << importedPath;
+                            OUTSTREAM << "Import file complete: " << importedPath << endl;
                             delete imported;
                             delete []importedPath;
                         }
