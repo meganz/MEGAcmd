@@ -28,7 +28,9 @@ class ConfigurationManager
 {
 private:
     static std::string configFolder;
+#if !defined(_WIN32) && defined(LOCK_EX) && defined(LOCK_NB)
     static int fd;
+#endif
 
     static void loadConfigDir();
 

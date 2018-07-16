@@ -45,7 +45,9 @@ bool is_file_exist(const char *fileName)
 }
 
 string ConfigurationManager::configFolder;
+#if !defined(_WIN32) && defined(LOCK_EX) && defined(LOCK_NB)
 int ConfigurationManager::fd;
+#endif
 map<string, sync_struct *> ConfigurationManager::configuredSyncs;
 string ConfigurationManager::session;
 std::set<std::string> ConfigurationManager::excludedNames;
@@ -609,7 +611,11 @@ bool ConfigurationManager::lockExecution()
         LOG_err << "Lock file: " << lockfile.str();
 
 #ifdef _WIN32
-        if((fd = open(lockfile.str().c_str(), O_RDWR|O_CREAT|O_EXCL, 0444)) == -1)
+        string wlockfile;
+        MegaApi::utf8ToUtf16(lockfile.str().c_str(),&wlockfile);
+        OFSTRUCT offstruct;
+        if (OpenFile(wlockfile.c_str(), &offstruct, OF_CREATE | OF_READWRITE |OF_SHARE_EXCLUSIVE ) == HFILE_ERROR)
+
         {
             return false;
         }
@@ -653,9 +659,8 @@ void ConfigurationManager::unlockExecution()
 
 #if !defined(_WIN32) && defined(LOCK_EX) && defined(LOCK_NB)
         flock(fd, LOCK_UN | LOCK_NB);
-#endif
         close(fd);
-
+#endif
         unlink(lockfile.str().c_str());
     }
     else
