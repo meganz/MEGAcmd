@@ -6047,6 +6047,13 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             string pathtocert = getOption(cloptions, "certificate", "");
             string pathtokey = getOption(cloptions, "key", "");
 
+            if (tls && (!pathtocert.size() || !pathtokey.size()))
+            {
+                setCurrentOutCode(MCMD_EARGS);
+                LOG_err << "Path to certificate/key not indicated";
+                return;
+            }
+
             bool serverstarted = api->ftpServerIsRunning();
             if (!serverstarted)
             {
