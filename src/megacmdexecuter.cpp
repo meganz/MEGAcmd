@@ -3261,7 +3261,18 @@ vector<string> MegaCmdExecuter::getlistfilesfolders(string location)
 void MegaCmdExecuter::signup(string name, string passwd, string email)
 {
     MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
-    api->createAccount(email.c_str(), passwd.c_str(), name.c_str(), megaCmdListener);
+
+    size_t spos = name.find(" ");
+    string firstname = name.substr(0, spos);
+    string lastname;
+    if (spos != string::npos && ((spos + 1) < name.length()))
+    {
+        lastname = name.substr(spos+1);
+    }
+
+    OUTSTREAM << "Singinup up. name=" << firstname << ". surname=" << lastname<< endl;
+
+    api->createAccount(email.c_str(), passwd.c_str(), firstname.c_str(), lastname.c_str(), megaCmdListener);
     megaCmdListener->wait();
     if (checkNoErrors(megaCmdListener->getError(), "create account <" + email + ">"))
     {
@@ -3303,7 +3314,6 @@ void MegaCmdExecuter::confirmWithPassword(string passwd)
 {
     return confirm(passwd, login, link);
 }
-
 
 bool MegaCmdExecuter::IsFolder(string path)
 {
@@ -4072,6 +4082,30 @@ bool MegaCmdExecuter::establishBackup(string pathToBackup, MegaNode *n, int64_t 
     return false;
 }
 #endif
+
+void MegaCmdExecuter::confirmCancel(const char* confirmlink, const char* pass)
+{
+    MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
+    api->confirmCancelAccount(confirmlink, pass, megaCmdListener);
+    megaCmdListener->wait();
+    if (megaCmdListener->getError()->getErrorCode() == MegaError::API_ETOOMANY)
+    {
+        LOG_err << "Confirm cancel account failed: too many attempts";
+    }
+    else if (megaCmdListener->getError()->getErrorCode() == MegaError::API_ENOENT)
+    {
+        LOG_err << "Confirm cancel account failed: invalid link/password";
+    }
+    else if (checkNoErrors(megaCmdListener->getError(), "confirm cancel account"))
+    {
+        OUTSTREAM << "CONFIRM Account cancelled succesfully" << endl;
+        MegaCmdListener *megaCmdListener2 = new MegaCmdListener(NULL);
+        api->localLogout(megaCmdListener2);
+        actUponLogout(megaCmdListener2, false);
+        delete megaCmdListener2;
+    }
+    delete megaCmdListener;
+}
 
 void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clflags, map<string, string> *cloptions)
 {
@@ -6036,6 +6070,13 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             string pathtocert = getOption(cloptions, "certificate", "");
             string pathtokey = getOption(cloptions, "key", "");
 
+            if (tls && (!pathtocert.size() || !pathtokey.size()))
+            {
+                setCurrentOutCode(MCMD_EARGS);
+                LOG_err << "Path to certificate/key not indicated";
+                return;
+            }
+
             bool serverstarted = api->ftpServerIsRunning();
             if (!serverstarted)
             {
@@ -6470,6 +6511,44 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         return;
     }
 #endif
+    else if (words[0] == "cancel")
+    {
+        MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
+        api->cancelAccount(megaCmdListener);
+        megaCmdListener->wait();
+        if (checkNoErrors(megaCmdListener->getError(), "cancel account"))
+        {
+            OUTSTREAM << "Account pendind cancel confirmation. You will receive a confirmation link. Use \"confirmcancel\" with the provided link to confirm the cancelation" << endl;
+        }
+        delete megaCmdListener;
+    }
+    else if (words[0] == "confirmcancel")
+    {
+        if (words.size() < 2)
+        {
+            setCurrentOutCode(MCMD_EARGS);
+            LOG_err << "      " << getUsageStr("confirmcancel");
+            return;
+        }
+
+        const char * confirmlink = words[1].c_str();
+        if (words.size() > 2)
+        {
+            const char * pass = words[2].c_str();
+            confirmCancel(confirmlink, pass);
+        }
+        else if (interactiveThread())
+        {
+            link = confirmlink;
+            confirmingcancel = true;
+            setprompt(LOGINPASSWORD);
+        }
+        else
+        {
+            setCurrentOutCode(MCMD_EARGS);
+            LOG_err << "Extra args required in non-interactive mode. Usage: " << getUsageStr("confirmcancel");
+        }
+    }
     else if (words[0] == "login")
     {
         int clientID = getintOption(cloptions, "clientID", -1);
@@ -7693,7 +7772,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         {
                             MegaNode *imported = api->getNodeByHandle(megaCmdListener->getRequest()->getNodeHandle());
                             char *importedPath = api->getNodePath(imported);
-                            LOG_info << "Import file complete: " << importedPath;
+                            OUTSTREAM << "Import file complete: " << importedPath << endl;
                             delete imported;
                             delete []importedPath;
                         }
@@ -7840,7 +7919,11 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             megaCmdListener->wait();
             if (checkNoErrors(megaCmdListener->getError(), "check email corresponds to link"))
             {
-                if (megaCmdListener->getRequest()->getEmail() && email == megaCmdListener->getRequest()->getEmail())
+                if (megaCmdListener->getRequest()->getFlag())
+                {
+                    OUTSTREAM << "Account " << email << " confirmed succesfully. You can login with it now" << endl;
+                }
+                else if (megaCmdListener->getRequest()->getEmail() && email == megaCmdListener->getRequest()->getEmail())
                 {
                     string passwd;
                     if (words.size() > 3)

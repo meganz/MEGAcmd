@@ -479,6 +479,8 @@ killall mega-cmd-server 2> /dev/null || true
 %{_bindir}/mega-whoami
 %{_bindir}/mega-graphics
 %{_bindir}/mega-ftp
+%{_bindir}/mega-cancel
+%{_bindir}/mega-confirmcancel
 %{_bindir}/mega-errorcode
 %{_bindir}/mega-cmd
 %{_bindir}/mega-cmd-server

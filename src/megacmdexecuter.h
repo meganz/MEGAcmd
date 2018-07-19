@@ -47,18 +47,17 @@ private:
     // signup name
     std::string name;
 
-    // link to confirm
-    std::string link;
-
     //delete confirmation
     std::vector<mega::MegaNode *> nodesToConfirmDelete;
-
 
     void updateprompt(mega::MegaApi *api, mega::MegaHandle handle);
 
 public:
     bool signingup;
     bool confirming;
+    bool confirmingcancel;
+    // link to confirm
+    std::string link;
 
     MegaCmdExecuter(mega::MegaApi *api, MegaCMDLogger *loggerCMD, MegaCmdSandbox *sandboxCMD);
     ~MegaCmdExecuter();
@@ -172,6 +171,7 @@ public:
 
     bool checkNoErrors(mega::MegaError *error, std::string message = "");
 
+    void confirmCancel(const char* confirmlink, const char* pass);
 };
 
 #endif // MEGACMDEXECUTER_H

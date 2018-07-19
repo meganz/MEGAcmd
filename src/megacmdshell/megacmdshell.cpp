@@ -289,6 +289,7 @@ string passwdline;
 string linktoconfirm;
 
 bool confirminglink = false;
+bool confirmingcancellink = false;
 
 // communications with megacmdserver:
 MegaCmdShellCommunications *comms;
@@ -1165,7 +1166,27 @@ void process_line(char * line)
             {
                 break;
             }
-            if (!confirminglink)
+            if (confirminglink)
+            {
+                string confirmcommand("confirm ");
+                confirmcommand+=linktoconfirm;
+                confirmcommand+=" " ;
+                confirmcommand+=loginname;
+                confirmcommand+=" " ;
+                confirmcommand+=line;
+                OUTSTREAM << endl;
+                comms->executeCommand(confirmcommand.c_str(), readresponse);
+            }
+            else if (confirmingcancellink)
+            {
+                string confirmcommand("confirmcancel ");
+                confirmcommand+=linktoconfirm;
+                confirmcommand+=" " ;
+                confirmcommand+=line;
+                OUTSTREAM << endl;
+                comms->executeCommand(confirmcommand.c_str(), readresponse);
+            }
+            else
             {
                 string logincommand("login -v ");
                 logincommand+=loginname;
@@ -1180,19 +1201,8 @@ void process_line(char * line)
                 OUTSTREAM << endl;
                 comms->executeCommand(logincommand.c_str(), readresponse);
             }
-            else
-            {
-                string confirmcommand("confirm ");
-                confirmcommand+=linktoconfirm;
-                confirmcommand+=" " ;
-                confirmcommand+=loginname;
-                confirmcommand+=" " ;
-                confirmcommand+=line;
-                OUTSTREAM << endl;
-                comms->executeCommand(confirmcommand.c_str(), readresponse);
-
-                confirminglink = false;
-            }
+            confirminglink = false;
+            confirmingcancellink = false;
 
             setprompt(COMMAND);
             break;
@@ -1378,6 +1388,22 @@ void process_line(char * line)
                     {
                         comms->executeCommand(line, readresponse);
                     }
+                }
+                else if (!helprequested && words[0] == "confirmcancel")
+                {
+                    discardOptionsAndFlags(&words);
+
+                    if (words.size() == 2)
+                    {
+                        linktoconfirm = words[1];
+                        confirmingcancellink = true;
+                        setprompt(LOGINPASSWORD);
+                    }
+                    else
+                    {
+                        comms->executeCommand(line, readresponse);
+                    }
+                    return;
                 }
                 else if ( words[0] == "clear" )
                 {

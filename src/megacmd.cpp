@@ -204,7 +204,8 @@ vector<string> emailpatterncommands(aemailpatterncommands, aemailpatterncommands
 string avalidCommands [] = { "login", "signup", "confirm", "session", "mount", "ls", "cd", "log", "debug", "pwd", "lcd", "lpwd", "import", "masterkey",
                              "put", "get", "attr", "userattr", "mkdir", "rm", "du", "mv", "cp", "sync", "export", "share", "invite", "ipc",
                              "showpcr", "users", "speedlimit", "killsession", "whoami", "help", "passwd", "reload", "logout", "version", "quit",
-                             "thumbnail", "preview", "find", "completion", "clear", "https", "transfers", "exclude", "exit", "errorcode", "graphics"
+                             "thumbnail", "preview", "find", "completion", "clear", "https", "transfers", "exclude", "exit", "errorcode", "graphics",
+                             "cancel", "confirmcancel"
 #ifdef HAVE_LIBUV
                              , "webdav", "ftp"
 #endif
@@ -544,7 +545,7 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     }
     else if ("signup" == thecommand)
     {
-        validParams->insert("name");
+        validOptValues->insert("name");
     }
     else if ("logout" == thecommand)
     {
@@ -1304,6 +1305,21 @@ const char * getUsageStr(const char *command)
             return "login email password | exportedfolderurl#key | session";
         }
     }
+    if (!strcmp(command, "cancel"))
+    {
+        return "cancel";
+    }
+    if (!strcmp(command, "confirmcancel"))
+    {
+        if (interactiveThread())
+        {
+            return "confirmcancel link [password]";
+        }
+        else
+        {
+            return "confirmcancel link password";
+        }
+    }
     if (!strcmp(command, "begin"))
     {
         return "begin [ephemeralhandle#ephemeralpw]";
@@ -1681,6 +1697,21 @@ string getHelpStr(const char *command)
         os << " or into a folder (an exported/public folder)" << endl;
         os << " If logging into a folder indicate url#key" << endl;
     }
+    else if (!strcmp(command, "cancel"))
+    {
+        os << "Cancels your MEGA account" << endl;
+        os << " Caution: The account under this email address will be permanently closed" << endl;
+        os << " and your data deleted. This can not be undone." << endl;
+        os << endl;
+        os << "The cancellation will not take place inmediately. You will need to confirm the cancellation" << endl;
+        os << "using a link that will be delivered to your email. See \"confirmcancel --help\"" << endl;
+    }
+    else if (!strcmp(command, "confirmcancel"))
+    {
+        os << "Confirms the cancellation of your MEGA account" << endl;
+        os << " Caution: The account under this email address will be permanently closed" << endl;
+        os << " and your data deleted. This can not be undone." << endl;
+    }
     else if (!strcmp(command, "errorcode"))
     {
         os << "Translate error code into string" << endl;
@@ -1775,7 +1806,7 @@ string getHelpStr(const char *command)
         os << "   " << "\t" << "     +-------- Type(d=folder,-=file,r=root,i=inbox,b=rubbish,x=unsupported)" << endl;
         os << "   " << "\t" << "   VERS: Number of versions in a file" << endl;
         os << "   " << "\t" << "   SIZE: Size of the file in bytes:" << endl;
-        os << "   " << "\t" << "   DATE: Modification date for files and creation date for folders:" << endl;
+        os << "   " << "\t" << "   DATE: Modification date for files and creation date for folders (in UTC time):" << endl;
         os << "   " << "\t" << "   NAME: name of the node" << endl;
         os << " -h" << "\t" << "Show human readable sizes in summary" << endl;
         os << " -a" << "\t" << "include extra information" << endl;
@@ -2727,15 +2758,22 @@ static bool process_line(char* l)
             {
                 break;
             }
-            if (!cmdexecuter->confirming)
+            if (cmdexecuter->confirming)
             {
-                cmdexecuter->loginWithPassword(l);
+                cmdexecuter->confirmWithPassword(l);
+            }
+            else if (cmdexecuter->confirmingcancel)
+            {
+                cmdexecuter->confirmCancel(cmdexecuter->link.c_str(), l);
             }
             else
             {
-                cmdexecuter->confirmWithPassword(l);
-                cmdexecuter->confirming = false;
+                cmdexecuter->loginWithPassword(l);
             }
+
+            cmdexecuter->confirming = false;
+            cmdexecuter->confirmingcancel = false;
+
             setprompt(COMMAND);
             break;
         }
@@ -2948,6 +2986,7 @@ void finalize()
 
     LOG_debug << "resources have been cleaned ...";
     delete loggerCMD;
+    ConfigurationManager::unlockExecution();
     ConfigurationManager::unloadConfiguration();
 
 }
@@ -3340,6 +3379,18 @@ bool runningInBackground()
 #define MEGACMD_STRINGIZE(x) MEGACMD_STRINGIZE2(x)
 #endif
 
+bool findarg(const char *what, int argc, char *argv[])
+{
+    for (int i = 1; i < argc; i++)
+    {
+        if (!strcmp(argv[i], what))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 int main(int argc, char* argv[])
 {
     string localecode = getLocaleCode();
@@ -3361,27 +3412,26 @@ int main(int argc, char* argv[])
 
     loggerCMD->setApiLoggerLevel(MegaApi::LOG_LEVEL_ERROR);
     loggerCMD->setCmdLoggerLevel(MegaApi::LOG_LEVEL_INFO);
-    loggerCMD->setCmdLoggerLevel(MegaApi::LOG_LEVEL_DEBUG);
 
     string loglevelenv;
 #ifndef _WIN32
     loglevelenv = (getenv ("MEGACMD_LOGLEVEL") == NULL)?"":getenv ("MEGACMD_LOGLEVEL");
 #endif
 
-    if (!loglevelenv.compare("DEBUG") || (( argc > 1 ) && !( strcmp(argv[1], "--debug"))) )
+    if (!loglevelenv.compare("DEBUG") || (( argc > 1 ) && findarg("--debug", argc, argv)) )
     {
         loggerCMD->setCmdLoggerLevel(MegaApi::LOG_LEVEL_DEBUG);
     }
-    if (!loglevelenv.compare("FULLDEBUG") || (( argc > 1 ) && !( strcmp(argv[1], "--debug-full"))) )
+    if (!loglevelenv.compare("FULLDEBUG") || (( argc > 1 ) && findarg("--debug-full", argc, argv)) )
     {
         loggerCMD->setApiLoggerLevel(MegaApi::LOG_LEVEL_DEBUG);
         loggerCMD->setCmdLoggerLevel(MegaApi::LOG_LEVEL_DEBUG);
     }
-    if (!loglevelenv.compare("VERBOSE") || (( argc > 1 ) && !( strcmp(argv[1], "--verbose"))) )
+    if (!loglevelenv.compare("VERBOSE") || (( argc > 1 ) && findarg("--verbose", argc, argv)) )
     {
         loggerCMD->setCmdLoggerLevel(MegaApi::LOG_LEVEL_MAX);
     }
-    if (!loglevelenv.compare("FULLVERBOSE") || (( argc > 1 ) && !( strcmp(argv[1], "--verbose-full"))) )
+    if (!loglevelenv.compare("FULLVERBOSE") || (( argc > 1 ) && findarg("--verbose-full", argc, argv)) )
     {
         loggerCMD->setApiLoggerLevel(MegaApi::LOG_LEVEL_MAX);
         loggerCMD->setCmdLoggerLevel(MegaApi::LOG_LEVEL_MAX);
@@ -3391,7 +3441,12 @@ int main(int argc, char* argv[])
 
     mutexEndedPetitionThreads.init(false);
 
-    ConfigurationManager::loadConfiguration(( argc > 1 ) && !( strcmp(argv[1], "--debug")));
+    ConfigurationManager::loadConfiguration(( argc > 1 ) && findarg("--debug", argc, argv));
+    if (!ConfigurationManager::lockExecution() && !findarg("--skip-lock-check", argc, argv))
+    {
+        cerr << "Another instance of MEGAcmd Server is running. Execute with --skip-lock-check to force running (NOT RECOMMENDED)" << endl;
+        exit(-2);
+    }
 
     char userAgent[40];
     sprintf(userAgent, "MEGAcmd" MEGACMD_STRINGIZE(MEGACMD_USERAGENT_SUFFIX) "/%d.%d.%d.0", MEGACMD_MAJOR_VERSION,MEGACMD_MINOR_VERSION,MEGACMD_MICRO_VERSION);
