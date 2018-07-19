@@ -3315,7 +3315,6 @@ void MegaCmdExecuter::confirmWithPassword(string passwd)
     return confirm(passwd, login, link);
 }
 
-
 bool MegaCmdExecuter::IsFolder(string path)
 {
 #ifdef _WIN32
@@ -4083,6 +4082,30 @@ bool MegaCmdExecuter::establishBackup(string pathToBackup, MegaNode *n, int64_t 
     return false;
 }
 #endif
+
+void MegaCmdExecuter::confirmCancel(const char* confirmlink, const char* pass)
+{
+    MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
+    api->confirmCancelAccount(confirmlink, pass, megaCmdListener);
+    megaCmdListener->wait();
+    if (megaCmdListener->getError()->getErrorCode() == MegaError::API_ETOOMANY)
+    {
+        LOG_err << "Confirm cancel account failed: too many attempts";
+    }
+    else if (megaCmdListener->getError()->getErrorCode() == MegaError::API_ENOENT)
+    {
+        LOG_err << "Confirm cancel account failed: invalid link/password";
+    }
+    else if (checkNoErrors(megaCmdListener->getError(), "confirm cancel account"))
+    {
+        OUTSTREAM << "CONFIRM Account cancelled succesfully" << endl;
+        MegaCmdListener *megaCmdListener2 = new MegaCmdListener(NULL);
+        api->localLogout(megaCmdListener2);
+        actUponLogout(megaCmdListener2, false);
+        delete megaCmdListener2;
+    }
+    delete megaCmdListener;
+}
 
 void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clflags, map<string, string> *cloptions)
 {
@@ -6488,6 +6511,44 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         return;
     }
 #endif
+    else if (words[0] == "cancel")
+    {
+        MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
+        api->cancelAccount(megaCmdListener);
+        megaCmdListener->wait();
+        if (checkNoErrors(megaCmdListener->getError(), "cancel account"))
+        {
+            OUTSTREAM << "Account pendind cancel confirmation. You will receive a confirmation link. Use \"confirmcancel\" with the provided link to confirm the cancelation" << endl;
+        }
+        delete megaCmdListener;
+    }
+    else if (words[0] == "confirmcancel")
+    {
+        if (words.size() < 2)
+        {
+            setCurrentOutCode(MCMD_EARGS);
+            LOG_err << "      " << getUsageStr("confirmcancel");
+            return;
+        }
+
+        const char * confirmlink = words[1].c_str();
+        if (words.size() > 2)
+        {
+            const char * pass = words[2].c_str();
+            confirmCancel(confirmlink, pass);
+        }
+        else if (interactiveThread())
+        {
+            link = confirmlink;
+            confirmingcancel = true;
+            setprompt(LOGINPASSWORD);
+        }
+        else
+        {
+            setCurrentOutCode(MCMD_EARGS);
+            LOG_err << "Extra args required in non-interactive mode. Usage: " << getUsageStr("confirmcancel");
+        }
+    }
     else if (words[0] == "login")
     {
         int clientID = getintOption(cloptions, "clientID", -1);

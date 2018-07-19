@@ -692,7 +692,15 @@ modeselected:
   File "${SRCDIR_BATFILES}\mega-ftp.bat"
   AccessControl::SetFileOwner "$INSTDIR\mega-ftp.bat" "$USERNAME"
   AccessControl::GrantOnFile "$INSTDIR\mega-ftp.bat" "$USERNAME" "GenericRead + GenericWrite"
- 
+
+  File "${SRCDIR_BATFILES}\mega-cancel.bat"
+  AccessControl::SetFileOwner "$INSTDIR\mega-cancel.bat" "$USERNAME"
+  AccessControl::GrantOnFile "$INSTDIR\mega-cancel.bat" "$USERNAME" "GenericRead + GenericWrite"
+
+  File "${SRCDIR_BATFILES}\mega-confirmcancel.bat"
+  AccessControl::SetFileOwner "$INSTDIR\mega-confirmcancel.bat" "$USERNAME"
+  AccessControl::GrantOnFile "$INSTDIR\mega-confirmcancel.bat" "$USERNAME" "GenericRead + GenericWrite"
+
   File "${SRCDIR_BATFILES}\mega-errorcode.bat"
   AccessControl::SetFileOwner "$INSTDIR\mega-errorcode.bat" "$USERNAME"
   AccessControl::GrantOnFile "$INSTDIR\mega-errorcode.bat" "$USERNAME" "GenericRead + GenericWrite"
@@ -894,6 +902,8 @@ Section Uninstall
   Delete "$INSTDIR\mega-whoami.bat"
   Delete "$INSTDIR\mega-graphics.bat"
   Delete "$INSTDIR\mega-ftp.bat"
+  Delete "$INSTDIR\mega-cancel.bat"
+  Delete "$INSTDIR\mega-confirmcancel.bat"
   Delete "$INSTDIR\mega-errorcode.bat"
 
   ; Cache

@@ -204,7 +204,8 @@ vector<string> emailpatterncommands(aemailpatterncommands, aemailpatterncommands
 string avalidCommands [] = { "login", "signup", "confirm", "session", "mount", "ls", "cd", "log", "debug", "pwd", "lcd", "lpwd", "import", "masterkey",
                              "put", "get", "attr", "userattr", "mkdir", "rm", "du", "mv", "cp", "sync", "export", "share", "invite", "ipc",
                              "showpcr", "users", "speedlimit", "killsession", "whoami", "help", "passwd", "reload", "logout", "version", "quit",
-                             "thumbnail", "preview", "find", "completion", "clear", "https", "transfers", "exclude", "exit", "errorcode", "graphics"
+                             "thumbnail", "preview", "find", "completion", "clear", "https", "transfers", "exclude", "exit", "errorcode", "graphics",
+                             "cancel", "confirmcancel"
 #ifdef HAVE_LIBUV
                              , "webdav", "ftp"
 #endif
@@ -1304,6 +1305,21 @@ const char * getUsageStr(const char *command)
             return "login email password | exportedfolderurl#key | session";
         }
     }
+    if (!strcmp(command, "cancel"))
+    {
+        return "cancel";
+    }
+    if (!strcmp(command, "confirmcancel"))
+    {
+        if (interactiveThread())
+        {
+            return "confirmcancel link [password]";
+        }
+        else
+        {
+            return "confirmcancel link password";
+        }
+    }
     if (!strcmp(command, "begin"))
     {
         return "begin [ephemeralhandle#ephemeralpw]";
@@ -1680,6 +1696,21 @@ string getHelpStr(const char *command)
         os << " You can log in either with email and password, with session ID," << endl;
         os << " or into a folder (an exported/public folder)" << endl;
         os << " If logging into a folder indicate url#key" << endl;
+    }
+    else if (!strcmp(command, "cancel"))
+    {
+        os << "Cancels your MEGA account" << endl;
+        os << " Caution: The account under this email address will be permanently closed" << endl;
+        os << " and your data deleted. This can not be undone." << endl;
+        os << endl;
+        os << "The cancellation will not take place inmediately. You will need to confirm the cancellation" << endl;
+        os << "using a link that will be delivered to your email. See \"confirmcancel --help\"" << endl;
+    }
+    else if (!strcmp(command, "confirmcancel"))
+    {
+        os << "Confirms the cancellation of your MEGA account" << endl;
+        os << " Caution: The account under this email address will be permanently closed" << endl;
+        os << " and your data deleted. This can not be undone." << endl;
     }
     else if (!strcmp(command, "errorcode"))
     {
@@ -2727,15 +2758,22 @@ static bool process_line(char* l)
             {
                 break;
             }
-            if (!cmdexecuter->confirming)
+            if (cmdexecuter->confirming)
             {
-                cmdexecuter->loginWithPassword(l);
+                cmdexecuter->confirmWithPassword(l);
+            }
+            else if (cmdexecuter->confirmingcancel)
+            {
+                cmdexecuter->confirmCancel(cmdexecuter->link.c_str(), l);
             }
             else
             {
-                cmdexecuter->confirmWithPassword(l);
-                cmdexecuter->confirming = false;
+                cmdexecuter->loginWithPassword(l);
             }
+
+            cmdexecuter->confirming = false;
+            cmdexecuter->confirmingcancel = false;
+
             setprompt(COMMAND);
             break;
         }
