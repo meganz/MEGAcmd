@@ -7858,7 +7858,11 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             megaCmdListener->wait();
             if (checkNoErrors(megaCmdListener->getError(), "check email corresponds to link"))
             {
-                if (megaCmdListener->getRequest()->getEmail() && email == megaCmdListener->getRequest()->getEmail())
+                if (megaCmdListener->getRequest()->getFlag())
+                {
+                    OUTSTREAM << "Account " << email << " confirmed succesfully. You can login with it now" << endl;
+                }
+                else if (megaCmdListener->getRequest()->getEmail() && email == megaCmdListener->getRequest()->getEmail())
                 {
                     string passwd;
                     if (words.size() > 3)
