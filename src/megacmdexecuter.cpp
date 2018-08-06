@@ -5179,7 +5179,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             if (megaCmdMultiTransferListener->getFinalerror() != MegaError::API_OK)
             {
                 setCurrentOutCode(megaCmdMultiTransferListener->getFinalerror());
-                LOG_err << "Download failed. error code:" << MegaError::getErrorString(megaCmdMultiTransferListener->getFinalerror());
+                LOG_err << "Download failed. error code: " << MegaError::getErrorString(megaCmdMultiTransferListener->getFinalerror());
             }
 
             informProgressUpdate(PROGRESS_COMPLETE, megaCmdMultiTransferListener->getTotalbytes(), clientID);
@@ -5410,6 +5410,20 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                             words[i] = getLPWD();
                         }
                         uploadNode(words[i], api, n, newname, background, ignorequotawarn, clientID, megaCmdMultiTransferListener);
+                    }
+                }
+                else if (words.size() == 3 && !IsFolder(words[1])) //replace file
+                {
+                    MegaNode *pn = api->getNodeByHandle(n->getParentHandle());
+                    if (pn)
+                    {
+                        uploadNode(words[1], api, pn, n->getName(), background, ignorequotawarn, clientID, megaCmdMultiTransferListener);
+                        delete pn;
+                    }
+                    else
+                    {
+                        setCurrentOutCode(MCMD_NOTFOUND);
+                        LOG_err << "Destination is not valid. Parent folder cannot be found";
                     }
                 }
                 else
