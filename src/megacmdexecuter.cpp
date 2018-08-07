@@ -2330,7 +2330,8 @@ void MegaCmdExecuter::actUponLogout(SynchronousRequestListener *srl, bool keptSe
             return;
         }
     }
-    if (checkNoErrors(srl->getError(), "logout"))
+
+    if (srl->getError()->getErrorCode() == MegaError::API_ESID || checkNoErrors(srl->getError(), "logout"))
     {
         LOG_verbose << "actUponLogout logout ok";
         cwd = UNDEF;
