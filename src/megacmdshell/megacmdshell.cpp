@@ -1189,15 +1189,15 @@ void process_line(char * line)
             else
             {
                 string logincommand("login -v ");
+                if (clientID.size())
+                {
+                    logincommand += "--clientID=";
+                    logincommand+=clientID;
+                    logincommand+=" ";
+                }
                 logincommand+=loginname;
                 logincommand+=" " ;
                 logincommand+=line;
-
-                if (clientID.size())
-                {
-                    logincommand += " --clientID=";
-                    logincommand+=clientID;
-                }
                 OUTSTREAM << endl;
                 comms->executeCommand(logincommand.c_str(), readresponse);
             }
@@ -1336,9 +1336,9 @@ void process_line(char * line)
                             string s = line;
                             if (clientID.size())
                             {
-                                s += " --clientID=";
+                                s = "login --clientID=";
                                 s+=clientID;
-                                words.push_back(s);
+                                s.append(string(line).substr(5));
                             }
                             comms->executeCommand(s, readresponse);
                         }
