@@ -1795,8 +1795,8 @@ string getHelpStr(const char *command)
         os << " Also, constructions like /PATTERN1/PATTERN2/PATTERN3 are allowed" << endl;
         os << endl;
         os << "Options:" << endl;
-        os << " -R|-r" << "\t" << "list folders recursively" << endl;
-        os << " -l" << "\t" << "print summary" << endl;
+        os << " -R|-r" << "\t" << "List folders recursively" << endl;
+        os << " -l" << "\t" << "Print summary" << endl;
         os << "   " << "\t" << " SUMMARY contents:" << endl;
         os << "   " << "\t" << "   FLAGS: Indicate type/status of an element:" << endl;
         os << "   " << "\t" << "     xxxx" << endl;
@@ -1809,7 +1809,9 @@ string getHelpStr(const char *command)
         os << "   " << "\t" << "   DATE: Modification date for files and creation date for folders (in UTC time):" << endl;
         os << "   " << "\t" << "   NAME: name of the node" << endl;
         os << " -h" << "\t" << "Show human readable sizes in summary" << endl;
-        os << " -a" << "\t" << "include extra information" << endl;
+        os << " -a" << "\t" << "Include extra information" << endl;
+        os << "   " << "\t" << " If this flag is repeated (e.g: -aa) more info will appear" << endl;
+        os << "   " << "\t" << " (public links, expiration dates, ...)" << endl;
         os << " --versions" << "\t" << "show historical versions" << endl;
         os << "   " << "\t" << "You can delete all versions of a file with \"deleteversions\"" << endl;
 #ifdef USE_PCRE

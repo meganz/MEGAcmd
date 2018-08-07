@@ -528,7 +528,7 @@ string ComunicationsManagerFileSockets::getUserResponse(CmdPetition *inf, string
     {
         LOG_fatal << "Getting Confirmation: Unable to accept on outsocket " << ((CmdPetitionPosixSockets *)inf)->outSocket << " error: " << errno;
         delete inf;
-        return false;
+        return "FAILED";
     }
 
     int outCode = MCMD_REQSTRING;
