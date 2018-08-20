@@ -2809,7 +2809,22 @@ void MegaCmdExecuter::uploadNode(string path, MegaApi* api, MegaNode *node, stri
 }
 
 
-void MegaCmdExecuter::exportNode(MegaNode *n, int64_t expireTime, bool force)
+bool MegaCmdExecuter::amIPro()
+{
+    int prolevel = -1;
+    MegaCmdListener *megaCmdListener = new MegaCmdListener(api, NULL);
+    api->getAccountDetails(megaCmdListener);
+    megaCmdListener->wait();
+    if (checkNoErrors(megaCmdListener->getError(), "export node"))
+    {
+        MegaAccountDetails *details = megaCmdListener->getRequest()->getMegaAccountDetails();
+        prolevel = details->getProLevel();
+    }
+    delete megaCmdListener;
+    return prolevel > 0;
+}
+
+void MegaCmdExecuter::exportNode(MegaNode *n, int64_t expireTime, std::string password, bool force)
 {
     bool copyrightAccepted = false;
 
@@ -2848,7 +2863,28 @@ void MegaCmdExecuter::exportNode(MegaNode *n, int64_t expireTime, bool force)
             {
                 char *nodepath = api->getNodePath(nexported);
                 char *publiclink = nexported->getPublicLink();
-                OUTSTREAM << "Exported " << nodepath << ": " << publiclink;
+                string publicPassProtectedLink = string();
+
+                if (amIPro() && password.size() )
+                {
+                    MegaCmdListener *megaCmdListener2 = new MegaCmdListener(api, NULL);
+                    api->encryptLinkWithPassword(publiclink, password.c_str(), megaCmdListener2);
+                    megaCmdListener2->wait();
+                    if (checkNoErrors(megaCmdListener2->getError(), "protect public link with password"))
+                    {
+                        publicPassProtectedLink = megaCmdListener2->getRequest()->getText();
+                    }
+                    delete megaCmdListener2;
+                }
+                else if (password.size())
+                {
+                    LOG_err << "Only PRO users can protect links with passwords. Showing UNPROTECTED link";
+                }
+
+                OUTSTREAM << "Exported " << nodepath << ": "
+                          << (publicPassProtectedLink.size()?publicPassProtectedLink:publiclink);
+
+
                 if (nexported->getExpirationTime())
                 {
                     OUTSTREAM << " expires at " << getReadableTime(nexported->getExpirationTime());
@@ -4827,9 +4863,45 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
             bool ignorequotawarn = getFlag(clflags,"ignore-quota-warn");
             bool destinyIsFolder = false;
+
             if (isPublicLink(words[1]))
             {
-                if (getLinkType(words[1]) == MegaNode::TYPE_FILE)
+                string publicLink = words[1];
+                if (isEncryptedLink(publicLink))
+                {
+                    string linkPass = getOption(cloptions, "password", "");
+                    if (!linkPass.size())
+                    {
+                        linkPass = askforUserResponse("Enter password: ");
+                    }
+
+                    if (linkPass.size())
+                    {
+                        MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
+                        api->decryptPasswordProtectedLink(publicLink.c_str(), linkPass.c_str(), megaCmdListener);
+                        megaCmdListener->wait();
+                        if (checkNoErrors(megaCmdListener->getError(), "decrypt password protected link"))
+                        {
+                            publicLink = megaCmdListener->getRequest()->getText();
+                            delete megaCmdListener;
+                        }
+                        else
+                        {
+                            setCurrentOutCode(MCMD_NOTPERMITTED);
+                            LOG_err << "Invalid password";
+                            delete megaCmdListener;
+                            return;
+                        }
+                    }
+                    else
+                    {
+                        setCurrentOutCode(MCMD_EARGS);
+                        LOG_err << "Need a password to decrypt provided link (--password=PASSWORD)";
+                        return;
+                    }
+                }
+
+                if (getLinkType(publicLink) == MegaNode::TYPE_FILE)
                 {
                     if (words.size() > 2)
                     {
@@ -4863,7 +4935,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         }
                     }
                     MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
-                    api->getPublicNode(words[1].c_str(), megaCmdListener);
+                    api->getPublicNode(publicLink.c_str(), megaCmdListener);
                     megaCmdListener->wait();
 
                     if (!megaCmdListener->getError())
@@ -4874,18 +4946,18 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     {
                         if (megaCmdListener->getError()->getErrorCode() == MegaError::API_EARGS)
                         {
-                            LOG_err << "The link provided might be incorrect: " << words[1].c_str();
+                            LOG_err << "The link provided might be incorrect: " << publicLink.c_str();
                         }
                         else if (megaCmdListener->getError()->getErrorCode() == MegaError::API_EINCOMPLETE)
                         {
-                            LOG_err << "The key is missing or wrong " << words[1].c_str();
+                            LOG_err << "The key is missing or wrong " << publicLink.c_str();
                         }
                     }
                     else
                     {
                         if (megaCmdListener->getRequest() && megaCmdListener->getRequest()->getFlag())
                         {
-                            LOG_err << "Key not valid " << words[1].c_str();
+                            LOG_err << "Key not valid " << publicLink.c_str();
                         }
                         if (megaCmdListener->getRequest())
                         {
@@ -4907,7 +4979,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     }
                     delete megaCmdListener;
                 }
-                else if (getLinkType(words[1]) == MegaNode::TYPE_FOLDER)
+                else if (getLinkType(publicLink) == MegaNode::TYPE_FOLDER)
                 {
                     if (words.size() > 2)
                     {
@@ -4946,14 +5018,14 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     delete []accountAuth;
 
                     MegaCmdListener *megaCmdListener = new MegaCmdListener(apiFolder, NULL);
-                    apiFolder->loginToFolder(words[1].c_str(), megaCmdListener);
+                    apiFolder->loginToFolder(publicLink.c_str(), megaCmdListener);
                     megaCmdListener->wait();
                     if (checkNoErrors(megaCmdListener->getError(), "login to folder"))
                     {
                         MegaCmdListener *megaCmdListener2 = new MegaCmdListener(apiFolder, NULL);
                         apiFolder->fetchNodes(megaCmdListener2);
                         megaCmdListener2->wait();
-                        if (checkNoErrors(megaCmdListener2->getError(), "access folder link " + words[1]))
+                        if (checkNoErrors(megaCmdListener2->getError(), "access folder link " + publicLink))
                         {
                             MegaNode *folderRootNode = apiFolder->getRootNode();
                             if (folderRootNode)
@@ -4973,7 +5045,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                                 }
                                 else
                                 {
-                                    LOG_debug << "Node couldn't be authorized: " << words[1] << ". Downloading as non-loged user";
+                                    LOG_debug << "Node couldn't be authorized: " << publicLink << ". Downloading as non-loged user";
                                     downloadNode(path, apiFolder, folderRootNode, background, ignorequotawarn, clientID, megaCmdMultiTransferListener);
                                 }
                                 delete folderRootNode;
@@ -4992,7 +5064,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 else
                 {
                     setCurrentOutCode(MCMD_INVALIDTYPE);
-                    LOG_err << "Invalid link: " << words[1];
+                    LOG_err << "Invalid link: " << publicLink;
                 }
             }
             else //remote file
@@ -7653,6 +7725,8 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             return;
         }
 
+        string linkPass = getOption(cloptions, "password", "");
+
         if (words.size() <= 1)
         {
             words.push_back(string(".")); //cwd
@@ -7679,7 +7753,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                             if (getFlag(clflags, "a"))
                             {
                                 LOG_debug << " exporting ... " << n->getName() << " expireTime=" << expireTime;
-                                exportNode(n, expireTime, getFlag(clflags,"f"));
+                                exportNode(n, expireTime, linkPass, getFlag(clflags,"f"));
                             }
                             else if (getFlag(clflags, "d"))
                             {
@@ -7714,7 +7788,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     if (getFlag(clflags, "a"))
                     {
                         LOG_debug << " exporting ... " << n->getName();
-                        exportNode(n, expireTime, getFlag(clflags,"f"));
+                        exportNode(n, expireTime, linkPass, getFlag(clflags,"f"));
                     }
                     else if (getFlag(clflags, "d"))
                     {
@@ -7765,6 +7839,41 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         {
             if (isPublicLink(words[1]))
             {
+                string publicLink = words[1];
+                if (isEncryptedLink(publicLink))
+                {
+                    string linkPass = getOption(cloptions, "password", "");
+                    if (!linkPass.size())
+                    {
+                        linkPass = askforUserResponse("Enter password: ");
+                    }
+
+                    if (linkPass.size())
+                    {
+                        MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
+                        api->decryptPasswordProtectedLink(publicLink.c_str(), linkPass.c_str(), megaCmdListener);
+                        megaCmdListener->wait();
+                        if (checkNoErrors(megaCmdListener->getError(), "decrypt password protected link"))
+                        {
+                            publicLink = megaCmdListener->getRequest()->getText();
+                            delete megaCmdListener;
+                        }
+                        else
+                        {
+                            setCurrentOutCode(MCMD_NOTPERMITTED);
+                            LOG_err << "Invalid password";
+                            delete megaCmdListener;
+                            return;
+                        }
+                    }
+                    else
+                    {
+                        setCurrentOutCode(MCMD_EARGS);
+                        LOG_err << "Need a password to decrypt provided link (--password=PASSWORD)";
+                        return;
+                    }
+                }
+
                 if (words.size() > 2)
                 {
                     remotePath = words[2];
@@ -7777,11 +7886,11 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 }
                 if (dstFolder && ( !dstFolder->getType() == MegaNode::TYPE_FILE ))
                 {
-                    if (getLinkType(words[1]) == MegaNode::TYPE_FILE)
+                    if (getLinkType(publicLink) == MegaNode::TYPE_FILE)
                     {
                         MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
 
-                        api->importFileLink(words[1].c_str(), dstFolder, megaCmdListener);
+                        api->importFileLink(publicLink.c_str(), dstFolder, megaCmdListener);
                         megaCmdListener->wait();
                         if (checkNoErrors(megaCmdListener->getError(), "import node"))
                         {
@@ -7794,7 +7903,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
                         delete megaCmdListener;
                     }
-                    else if (getLinkType(words[1]) == MegaNode::TYPE_FOLDER)
+                    else if (getLinkType(publicLink) == MegaNode::TYPE_FOLDER)
                     {
                         MegaApi* apiFolder = getFreeApiFolder();
                         char *accountAuth = api->getAccountAuth();
@@ -7802,14 +7911,14 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         delete []accountAuth;
 
                         MegaCmdListener *megaCmdListener = new MegaCmdListener(apiFolder, NULL);
-                        apiFolder->loginToFolder(words[1].c_str(), megaCmdListener);
+                        apiFolder->loginToFolder(publicLink.c_str(), megaCmdListener);
                         megaCmdListener->wait();
                         if (checkNoErrors(megaCmdListener->getError(), "login to folder"))
                         {
                             MegaCmdListener *megaCmdListener2 = new MegaCmdListener(apiFolder, NULL);
                             apiFolder->fetchNodes(megaCmdListener2);
                             megaCmdListener2->wait();
-                            if (checkNoErrors(megaCmdListener2->getError(), "access folder link " + words[1]))
+                            if (checkNoErrors(megaCmdListener2->getError(), "access folder link " + publicLink))
                             {
                                 MegaNode *folderRootNode = apiFolder->getRootNode();
                                 if (folderRootNode)
@@ -7837,7 +7946,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                                     else
                                     {
                                         setCurrentOutCode(MCMD_EUNEXPECTED);
-                                        LOG_debug << "Node couldn't be authorized: " << words[1];
+                                        LOG_debug << "Node couldn't be authorized: " << publicLink;
                                     }
                                     delete folderRootNode;
                                 }
@@ -7855,7 +7964,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     else
                     {
                         setCurrentOutCode(MCMD_EARGS);
-                        LOG_err << "Invalid link: " << words[1];
+                        LOG_err << "Invalid link: " << publicLink;
                         LOG_err << "      " << getUsageStr("import");
                     }
                 }

@@ -571,6 +571,15 @@ bool isPublicLink(string link)
     return false;
 }
 
+bool isEncryptedLink(string link)
+{
+    if (( link.find("http") == 0 ) && ( link.find("#") != string::npos ) && (link.substr(link.find("#"),3) == "#P!") )
+    {
+        return true;
+    }
+    return false;
+}
+
 bool hasWildCards(string &what)
 {
     return what.find('*') != string::npos || what.find('?') != string::npos;

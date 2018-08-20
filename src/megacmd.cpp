@@ -496,6 +496,7 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validParams->insert("d");
         validParams->insert("f");
         validOptValues->insert("expire");
+        validOptValues->insert("password");
 #ifdef USE_PCRE
         validParams->insert("use-pcre");
 #endif
@@ -592,10 +593,15 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validParams->insert("m");
         validParams->insert("q");
         validParams->insert("ignore-quota-warn");
+        validOptValues->insert("password");
 #ifdef USE_PCRE
         validParams->insert("use-pcre");
 #endif
         validOptValues->insert("clientID");
+    }
+    else if ("import" == thecommand)
+    {
+        validOptValues->insert("password");
     }
     else if ("login" == thecommand)
     {
@@ -1404,7 +1410,7 @@ const char * getUsageStr(const char *command)
     }
     if (!strcmp(command, "import"))
     {
-        return "import exportedfilelink#key [remotepath]";
+        return "import exportedlink [--password=PASSWORD] [remotepath]";
     }
     if (!strcmp(command, "put"))
     {
@@ -1417,9 +1423,9 @@ const char * getUsageStr(const char *command)
     if (!strcmp(command, "get"))
     {
 #ifdef USE_PCRE
-        return "get [-m] [-q] [--ignore-quota-warn] [--use-pcre] exportedlink#key|remotepath [localpath]";
+        return "get [-m] [-q] [--ignore-quota-warn] [--use-pcre] [--password=PASSWORD] exportedlink|remotepath [localpath]";
 #else
-        return "get [-m] [-q] [--ignore-quota-warn] exportedlink#key|remotepath [localpath]";
+        return "get [-m] [-q] [--ignore-quota-warn] [--password=PASSWORD] exportedlink|remotepath [localpath]";
 #endif
     }
     if (!strcmp(command, "getq"))
@@ -1506,9 +1512,9 @@ const char * getUsageStr(const char *command)
     if (!strcmp(command, "export"))
     {
 #ifdef USE_PCRE
-        return "export [-d|-a [--expire=TIMEDELAY] [-f]] [remotepath] [--use-pcre]";
+        return "export [-d|-a [--password=PASSWORD] [--expire=TIMEDELAY] [-f]] [remotepath] [--use-pcre]";
 #else
-        return "export [-d|-a [--expire=TIMEDELAY] [-f]] [remotepath]";
+        return "export [-d|-a [--password=PASSWORD] [--expire=TIMEDELAY] [-f]] [remotepath]";
 #endif
     }
     if (!strcmp(command, "share"))
@@ -1888,6 +1894,9 @@ string getHelpStr(const char *command)
         os << "Imports the contents of a remote link into user's cloud" << endl;
         os << endl;
         os << "If no remote path is provided, the current local folder will be used" << endl;
+        os << "Exported links: Exported links are usually formed as publiclink#key." << endl;
+        os << " Alternativelly you can provide a password-protected link and" << endl;
+        os << " provide the password with --password" << endl;
     }
     else if (!strcmp(command, "put"))
     {
@@ -1915,12 +1924,18 @@ string getHelpStr(const char *command)
         os << endl;
         os << "For folders, the entire contents (and the root folder itself) will be" << endl;
         os << "                    by default downloaded into the destination folder" << endl;
+        os << endl;
+        os << "Exported links: Exported links are usually formed as publiclink#key." << endl;
+        os << " Alternativelly you can provide a password-protected link and" << endl;
+        os << " provide the password with --password" << endl;
+        os << endl;
         os << "Options:" << endl;
         os << " -q" << "\t" << "queue download: execute in the background. Don't wait for it to end' " << endl;
         os << " -m" << "\t" << "if the folder already exists, the contents will be merged with the " << endl;
         os << "                     downloaded one (preserving the existing files)" << endl;
         os << " --ignore-quota-warn" << "\t" << "ignore quota surpassing warning. " << endl;
         os << "                    " << "\t" << "  The download will be attempted anyway." << endl;
+        os << " --password=PASSWORD" << "\t" << "Password to decrypt the password-protected link." << endl;
 #ifdef USE_PCRE
         os << " --use-pcre" << "\t" << "use PCRE expressions" << endl;
 #endif
@@ -2196,6 +2211,7 @@ string getHelpStr(const char *command)
         os << " --use-pcre" << "\t" << "use PCRE expressions" << endl;
 #endif
         os << " -a" << "\t" << "Adds an export (or modifies it if existing)" << endl;
+        os << " --password=PASSWORD" << "\t" << "Protects link with password." << endl;
         os << " --expire=TIMEDELAY" << "\t" << "Determines the expiration time of a node." << endl;
         os << "                   " << "\t" << "   It indicates the delay in hours(h), days(d), " << endl;
         os << "                   " << "\t"  << "   minutes(M), seconds(s), months(m) or years(y)" << endl;

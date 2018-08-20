@@ -68,6 +68,8 @@ int getLinkType(std::string link);
 
 bool isPublicLink(std::string link);
 
+bool isEncryptedLink(std::string link);
+
 bool hasWildCards(std::string &what);
 
 
