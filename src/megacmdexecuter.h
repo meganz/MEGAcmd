@@ -173,6 +173,10 @@ public:
 
     void confirmCancel(const char* confirmlink, const char* pass);
     bool amIPro();
+    void removeWebdavLocation(mega::MegaNode *n, std::string name = std::string());
+    void addWebdavLocation(mega::MegaNode *n, std::string name = std::string());
+    void removeFtpLocation(mega::MegaNode *n, std::string name = std::string());
+    void addFtpLocation(mega::MegaNode *n, std::string name = std::string());
 };
 
 #endif // MEGACMDEXECUTER_H

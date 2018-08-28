@@ -439,7 +439,9 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     {
         validParams->insert("all");
         validParams->insert("f");
+#ifdef USE_PCRE
         validParams->insert("use-pcre");
+#endif
     }
     else if ("exclude" == thecommand)
     {
@@ -457,6 +459,9 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validOptValues->insert("port");
         validOptValues->insert("certificate");
         validOptValues->insert("key");
+#ifdef USE_PCRE
+        validParams->insert("use-pcre");
+#endif
     }
     else if ("ftp" == thecommand)
     {
@@ -468,6 +473,9 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validOptValues->insert("data-ports");
         validOptValues->insert("certificate");
         validOptValues->insert("key");
+#ifdef USE_PCRE
+        validParams->insert("use-pcre");
+#endif
     }
 #endif
     else if ("backup" == thecommand)
@@ -1484,11 +1492,19 @@ const char * getUsageStr(const char *command)
 #ifdef HAVE_LIBUV
     if (!strcmp(command, "webdav"))
     {
+#ifdef USE_PCRE
+        return "webdav [-d (--all | remotepath ) ] [ remotepath [--port=PORT] [--public] [--tls --certificate=/path/to/certificate.pem --key=/path/to/certificate.key]] [--use-pcre]";
+#else
         return "webdav [-d (--all | remotepath ) ] [ remotepath [--port=PORT] [--public] [--tls --certificate=/path/to/certificate.pem --key=/path/to/certificate.key]]";
+#endif
     }
     if (!strcmp(command, "ftp"))
     {
+#ifdef USE_PCRE
+        return "ftp [-d ( --all | remotepath ) ] [ remotepath [--port=PORT] [--data-ports=BEGIN-END] [--public] [--tls --certificate=/path/to/certificate.pem --key=/path/to/certificate.key]] [--use-pcre]";
+#else
         return "ftp [-d ( --all | remotepath ) ] [ remotepath [--port=PORT] [--data-ports=BEGIN-END] [--public] [--tls --certificate=/path/to/certificate.pem --key=/path/to/certificate.key]]";
+#endif
     }
 #endif
     if (!strcmp(command, "sync"))
@@ -2061,6 +2077,9 @@ string getHelpStr(const char *command)
         os << " --tls      " << "\t" << "*Serve with TLS (HTTPS)" << endl;
         os << " --certificate=/path/to/certificate.pem" << "\t" << "*Path to PEM formated certificate" << endl;
         os << " --key=/path/to/certificate.key" << "\t" << "*Path to PEM formated key" << endl;
+#ifdef USE_PCRE
+        os << " --use-pcre" << "\t" << "use PCRE expressions" << endl;
+#endif
         os << endl;
         os << "*If you serve more than one location, these parameters will be ignored and use those of the first location served." << endl;
         os << endl;
@@ -2083,6 +2102,9 @@ string getHelpStr(const char *command)
         os << " --tls      " << "\t" << "*Serve with TLS (FTPs)" << endl;
         os << " --certificate=/path/to/certificate.pem" << "\t" << "*Path to PEM formated certificate" << endl;
         os << " --key=/path/to/certificate.key" << "\t" << "*Path to PEM formated key" << endl;
+#ifdef USE_PCRE
+        os << " --use-pcre" << "\t" << "use PCRE expressions" << endl;
+#endif
         os << endl;
         os << "*If you serve more than one location, these parameters will be ignored and used those of the first location served." << endl;
         os << endl;
