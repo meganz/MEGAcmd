@@ -173,6 +173,9 @@ public:
 
     void confirmCancel(const char* confirmlink, const char* pass);
     bool amIPro();
+
+    void processPath(std::string path, bool usepcre, void (*nodeprocessor)(MegaCmdExecuter *, mega::MegaNode *), MegaCmdExecuter *context = NULL);
+
     void removeWebdavLocation(mega::MegaNode *n, std::string name = std::string());
     void addWebdavLocation(mega::MegaNode *n, std::string name = std::string());
     void removeFtpLocation(mega::MegaNode *n, std::string name = std::string());

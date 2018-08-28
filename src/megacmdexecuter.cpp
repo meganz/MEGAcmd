@@ -4144,6 +4144,66 @@ void MegaCmdExecuter::confirmCancel(const char* confirmlink, const char* pass)
     delete megaCmdListener;
 }
 
+
+void forwarderRemoveWebdavLocation(MegaCmdExecuter* context, MegaNode *n) {
+    context->removeWebdavLocation(n);
+}
+void forwarderAddWebdavLocation(MegaCmdExecuter* context, MegaNode *n) {
+    context->addWebdavLocation(n);
+}
+void forwarderRemoveFtpLocation(MegaCmdExecuter* context, MegaNode *n) {
+    context->removeFtpLocation(n);
+}
+void forwarderAddFtpLocation(MegaCmdExecuter* context, MegaNode *n) {
+    context->addFtpLocation(n);
+}
+
+void MegaCmdExecuter::processPath(string path, bool usepcre, void (*nodeprocessor)(MegaCmdExecuter *, MegaNode *), MegaCmdExecuter *context)
+{
+    if (isRegExp(path))
+    {
+        vector<MegaNode *> *nodes = nodesbypath(path.c_str(), usepcre);
+        if (nodes)
+        {
+            if (!nodes->size())
+            {
+                setCurrentOutCode(MCMD_NOTFOUND);
+                LOG_err << "Path not found: " << path;
+            }
+            for (std::vector< MegaNode * >::iterator it = nodes->begin(); it != nodes->end(); ++it)
+            {
+                MegaNode * n = *it;
+                if (n)
+                {
+                    nodeprocessor(context, n);
+                    delete n;
+                }
+                else
+                {
+                    setCurrentOutCode(MCMD_NOTFOUND);
+                    LOG_err << "Path not found: " << path;
+                    return;
+                }
+            }
+        }
+    }
+    else // non-regexp
+    {
+        MegaNode *n = nodebypath(path.c_str());
+        if (n)
+        {
+            nodeprocessor(context, n);
+            delete n;
+        }
+        else
+        {
+            setCurrentOutCode(MCMD_NOTFOUND);
+            LOG_err << "Path not found: " << path;
+            return;
+        }
+    }
+}
+
 void MegaCmdExecuter::removeWebdavLocation(MegaNode *n, string name)
 {
     char *actualNodePath = api->getNodePath(n);
@@ -6099,62 +6159,13 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             for (unsigned int i = 1; i < words.size(); i++)
             {
                 string pathToServe = words[i];
-
-                if (isRegExp(pathToServe))
+                if (remove)
                 {
-                    vector<MegaNode *> *nodes = nodesbypath(pathToServe.c_str(), getFlag(clflags,"use-pcre"));
-                    if (nodes)
-                    {
-                        if (!nodes->size())
-                        {
-                            setCurrentOutCode(MCMD_NOTFOUND);
-                            LOG_err << "Nodes not found: " << words[i];
-                        }
-                        for (std::vector< MegaNode * >::iterator it = nodes->begin(); it != nodes->end(); ++it)
-                        {
-                            MegaNode * n = *it;
-                            if (n)
-                            {
-                                if (remove)
-                                {
-                                    removeWebdavLocation(n);
-                                }
-                                else
-                                {
-                                    addWebdavLocation(n);
-                                }
-                                delete n;
-                            }
-                            else
-                            {
-                                setCurrentOutCode(MCMD_NOTFOUND);
-                                LOG_err << "Path not found: " << pathToServe;
-                                return;
-                            }
-                        }
-                    }
+                    processPath(pathToServe, getFlag(clflags,"use-pcre"), forwarderRemoveWebdavLocation, this);
                 }
-                else // non-regexp
+                else
                 {
-                    MegaNode *n = nodebypath(pathToServe.c_str());
-                    if (n)
-                    {
-                        if (remove)
-                        {
-                            removeWebdavLocation(n, pathToServe);
-                        }
-                        else
-                        {
-                            addWebdavLocation(n, pathToServe);
-                        }
-                        delete n;
-                    }
-                    else
-                    {
-                        setCurrentOutCode(MCMD_NOTFOUND);
-                        LOG_err << "Path not found: " << pathToServe;
-                        return;
-                    }
+                    processPath(pathToServe, getFlag(clflags,"use-pcre"), forwarderAddWebdavLocation, this);
                 }
             }
         }
@@ -6291,62 +6302,13 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             for (unsigned int i = 1; i < words.size(); i++)
             {
                 string pathToServe = words[i];
-
-                if (isRegExp(pathToServe))
+                if (remove)
                 {
-                    vector<MegaNode *> *nodes = nodesbypath(pathToServe.c_str(), getFlag(clflags,"use-pcre"));
-                    if (nodes)
-                    {
-                        if (!nodes->size())
-                        {
-                            setCurrentOutCode(MCMD_NOTFOUND);
-                            LOG_err << "Nodes not found: " << words[i];
-                        }
-                        for (std::vector< MegaNode * >::iterator it = nodes->begin(); it != nodes->end(); ++it)
-                        {
-                            MegaNode * n = *it;
-                            if (n)
-                            {
-                                if (remove)
-                                {
-                                    removeFtpLocation(n);
-                                }
-                                else
-                                {
-                                    addFtpLocation(n);
-                                }
-                                delete n;
-                            }
-                            else
-                            {
-                                setCurrentOutCode(MCMD_NOTFOUND);
-                                LOG_err << "Path not found: " << pathToServe;
-                                return;
-                            }
-                        }
-                    }
+                    processPath(pathToServe, getFlag(clflags,"use-pcre"), forwarderRemoveFtpLocation, this);
                 }
-                else // non-regexp
+                else
                 {
-                    MegaNode *n = nodebypath(pathToServe.c_str());
-                    if (n)
-                    {
-                        if (remove)
-                        {
-                            removeFtpLocation(n, pathToServe);
-                        }
-                        else
-                        {
-                            addFtpLocation(n, pathToServe);
-                        }
-                        delete n;
-                    }
-                    else
-                    {
-                        setCurrentOutCode(MCMD_NOTFOUND);
-                        LOG_err << "Path not found: " << pathToServe;
-                        return;
-                    }
+                    processPath(pathToServe, getFlag(clflags,"use-pcre"), forwarderAddFtpLocation, this);
                 }
             }
         }
