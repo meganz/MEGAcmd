@@ -222,37 +222,43 @@ cmd_ef(PUT+' '+'localtmp/file01.txt /')
 shutil.copy2('localtmp/file01.txt','localUPs/')
 compare_and_clear()
 
-#Test 04 #no destiny nont empty file upload
+#Test 04 #no destiny non empty file upload
 cmd_ef(PUT+' '+'localtmp/file01nonempty.txt')
 shutil.copy2('localtmp/file01nonempty.txt','localUPs/')
 compare_and_clear()
 
-#Test 05 #empty folder
+#Test 05 #update non empty file upload
+out('newfile01contents', 'localtmp/file01nonempty.txt')
+cmd_ef(PUT+' '+'localtmp/file01nonempty.txt')
+shutil.copy2('localtmp/file01nonempty.txt','localUPs/file01nonempty.txt')
+compare_and_clear()
+
+#Test 06 #empty folder
 cmd_ef(PUT+' '+'localtmp/le01/les01/less01')
 copyfolder('localtmp/le01/les01/less01','localUPs/')
 compare_and_clear()
 
-#Test 06 #1 file folder
+#Test 07 #1 file folder
 cmd_ef(PUT+' '+'localtmp/lf01/lfs01/lfss01')
 copyfolder('localtmp/lf01/lfs01/lfss01','localUPs/')
 compare_and_clear()
 
-#Test 07 #entire empty folders structure
+#Test 08 #entire empty folders structure
 cmd_ef(PUT+' '+'localtmp/le01')
 copyfolder('localtmp/le01','localUPs/')
 compare_and_clear()
 
-#Test 08 #entire non empty folders structure
+#Test 09 #entire non empty folders structure
 cmd_ef(PUT+' '+'localtmp/lf01')
 copyfolder('localtmp/lf01','localUPs/')
 compare_and_clear()
 
-#Test 09 #copy structure into subfolder
+#Test 10 #copy structure into subfolder
 cmd_ef(PUT+' '+'localtmp/le01 /01/s01')
 copyfolder('localtmp/le01','localUPs/01/s01')
 compare_and_clear()
 
-#~ #Test 10 #copy exact structure
+#~ #Test 11 #copy exact structure
 makedir('auxx')
 copyfolder('localUPs/01','auxx')
 cmd_ef(PUT+' '+'auxx/01/s01 /01/s01')
@@ -260,7 +266,7 @@ copyfolder('auxx/01/s01','localUPs/01/s01')
 rmfolderifexisting("auxx")
 compare_and_clear()
 
-#~ #Test 11 #merge increased structure 
+#~ #Test 12 #merge increased structure
 makedir('auxx')
 copyfolder('localUPs/01','auxx')
 touch('auxx/01/s01/another.txt')
@@ -269,30 +275,30 @@ shutil.copy2('auxx/01/s01/another.txt','localUPs/01/s01')
 compare_and_clear()
 rmfolderifexisting("auxx")
 
-#Test 12 #multiple upload
+#Test 13 #multiple upload
 cmd_ef(PUT+' '+'localtmp/le01 localtmp/lf01 /01/s01')
 copyfolder('localtmp/le01','localUPs/01/s01')
 copyfolder('localtmp/lf01','localUPs/01/s01')
 compare_and_clear()
 
-currentTest=13
-#Test 13 #local regexp
+currentTest=14
+#Test 14 #local regexp
 if (platform.system() != "Windows" and not CMDSHELL):
     cmd_ef(PUT+' '+'localtmp/*txt /01/s01')
     copybyfilepattern('localtmp/','*.txt','localUPs/01/s01')
     compare_and_clear()
 
-currentTest=14
-#Test 14 #../
+currentTest=15
+#Test 15 #../
 cmd_ef(CD+' 01')
 cmd_ef(PUT+' '+'localtmp/le01 ../01/s01')
 cmd_ef(CD+' /')
 copyfolder('localtmp/le01','localUPs/01/s01')
 compare_and_clear()
 
-currentTest=15
+currentTest=16
 
-#Test 15 #spaced stuff
+#Test 16 #spaced stuff
 if CMDSHELL: #TODO: think about this again
     cmd_ef(PUT+' '+'localtmp/ls\ 01')
 else:

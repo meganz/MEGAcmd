@@ -285,9 +285,11 @@ static int pw_buf_pos = 0;
 string loginname;
 bool signingup = false;
 string signupline;
+string passwdline;
 string linktoconfirm;
 
 bool confirminglink = false;
+bool confirmingcancellink = false;
 
 // communications with megacmdserver:
 MegaCmdShellCommunications *comms;
@@ -534,7 +536,7 @@ static void store_line(char* l)
         if (comms->serverinitiatedfromshell)
         {
             OUTSTREAM << " Forwarding exit command to the server, since this cmd shell (most likely) initiated it" << endl;
-            comms->executeCommand("exit", readconfirmationloop);
+            comms->executeCommand("exit", readresponse);
         }
 #endif
 #endif
@@ -772,7 +774,7 @@ char* generic_completion(const char* text, int state, vector<string> validOption
 
         if (!( strcmp(text, "")) || (( name.size() >= len ) && ( strlen(text) >= len ) && ( name.find(text) == 0 )))
         {
-            if (name.size() && (( name.at(name.size() - 1) == '=' ) || ( name.at(name.size() - 1) == '/' )))
+            if (name.size() && (( name.at(name.size() - 1) == '=' ) || ( name.at(name.size() - 1) == '\\' ) || ( name.at(name.size() - 1) == '/' )))
             {
                 rl_completion_suppress_append = 1;
             }
@@ -837,7 +839,7 @@ char* remote_completion(const char* text, int state)
         OUTSTRING s;
         OUTSTRINGSTREAM oss(s);
 
-        comms->executeCommand(completioncommand, readconfirmationloop, oss);
+        comms->executeCommand(completioncommand, readresponse, oss);
 
         string outputcommand;
 
@@ -1048,7 +1050,7 @@ vector<string> getlistOfWords(char *ptr, bool ignoreTrailingSpaces = true)
     for (;; )
     {
         // skip leading blank space
-        while (*ptr > 0 && *ptr <= ' ' && (ignoreTrailingSpaces || *(ptr+1)))
+        while (*(const signed char*)ptr > 0 && *ptr <= ' ' && (ignoreTrailingSpaces || *(ptr+1)))
         {
             ptr++;
         }
@@ -1164,22 +1166,7 @@ void process_line(char * line)
             {
                 break;
             }
-            if (!confirminglink)
-            {
-                string logincommand("login -v ");
-                logincommand+=loginname;
-                logincommand+=" " ;
-                logincommand+=line;
-
-                if (clientID.size())
-                {
-                    logincommand += " --clientID=";
-                    logincommand+=clientID;
-                }
-                OUTSTREAM << endl;
-                comms->executeCommand(logincommand.c_str(), readconfirmationloop);
-            }
-            else
+            if (confirminglink)
             {
                 string confirmcommand("confirm ");
                 confirmcommand+=linktoconfirm;
@@ -1188,27 +1175,38 @@ void process_line(char * line)
                 confirmcommand+=" " ;
                 confirmcommand+=line;
                 OUTSTREAM << endl;
-                comms->executeCommand(confirmcommand.c_str(), readconfirmationloop);
-
-                confirminglink = false;
+                comms->executeCommand(confirmcommand.c_str(), readresponse);
             }
+            else if (confirmingcancellink)
+            {
+                string confirmcommand("confirmcancel ");
+                confirmcommand+=linktoconfirm;
+                confirmcommand+=" " ;
+                confirmcommand+=line;
+                OUTSTREAM << endl;
+                comms->executeCommand(confirmcommand.c_str(), readresponse);
+            }
+            else
+            {
+                string logincommand("login -v ");
+                if (clientID.size())
+                {
+                    logincommand += "--clientID=";
+                    logincommand+=clientID;
+                    logincommand+=" ";
+                }
+                logincommand+=loginname;
+                logincommand+=" " ;
+                logincommand+=line;
+                OUTSTREAM << endl;
+                comms->executeCommand(logincommand.c_str(), readresponse);
+            }
+            confirminglink = false;
+            confirmingcancellink = false;
 
             setprompt(COMMAND);
             break;
         }
-
-        case OLDPASSWORD:
-        {
-            if (!strlen(line))
-            {
-                break;
-            }
-            oldpasswd = line;
-            OUTSTREAM << endl;
-            setprompt(NEWPASSWORD);
-            break;
-        }
-
         case NEWPASSWORD:
         {
             if (!strlen(line))
@@ -1218,9 +1216,8 @@ void process_line(char * line)
             newpasswd = line;
             OUTSTREAM << endl;
             setprompt(PASSWORDCONFIRM);
-        }
             break;
-
+        }
         case PASSWORDCONFIRM:
         {
             if (!strlen(line))
@@ -1239,17 +1236,18 @@ void process_line(char * line)
                 {
                     signupline += " ";
                     signupline += newpasswd;
-                    comms->executeCommand(signupline.c_str(), readconfirmationloop);
+                    comms->executeCommand(signupline.c_str(), readresponse);
 
                     signingup = false;
                 }
                 else
                 {
-                    string changepasscommand("passwd ");
+                    string changepasscommand(passwdline);
+                    passwdline = " ";
                     changepasscommand+=oldpasswd;
                     changepasscommand+=" " ;
                     changepasscommand+=newpasswd;
-                    comms->executeCommand(changepasscommand.c_str(), readconfirmationloop);
+                    comms->executeCommand(changepasscommand.c_str(), readresponse);
                 }
             }
 
@@ -1274,7 +1272,7 @@ void process_line(char * line)
                     }
                     if (words.size() == 1 || words[1]!="--only-shell")
                     {
-                        comms->executeCommand(line, readconfirmationloop);
+                        comms->executeCommand(line, readresponse);
                     }
                     else
                     {
@@ -1302,17 +1300,17 @@ void process_line(char * line)
 #endif
                 else if (!helprequested && words[0] == "passwd")
                 {
-
                     if (isserverloggedin())
                     {
+                        passwdline = line;
                         discardOptionsAndFlags(&words);
                         if (words.size() == 1)
                         {
-                            setprompt(OLDPASSWORD);
+                            setprompt(NEWPASSWORD);
                         }
                         else
                         {
-                            comms->executeCommand(line, readconfirmationloop);
+                            comms->executeCommand(line, readresponse);
                         }
                     }
                     else
@@ -1338,11 +1336,11 @@ void process_line(char * line)
                             string s = line;
                             if (clientID.size())
                             {
-                                s += " --clientID=";
+                                s = "login --clientID=";
                                 s+=clientID;
-                                words.push_back(s);
+                                s.append(string(line).substr(5));
                             }
-                            comms->executeCommand(s, readconfirmationloop);
+                            comms->executeCommand(s, readresponse);
                         }
                     }
                     else
@@ -1366,7 +1364,7 @@ void process_line(char * line)
                         }
                         else
                         {
-                            comms->executeCommand(line, readconfirmationloop);
+                            comms->executeCommand(line, readresponse);
                         }
                     }
                     else
@@ -1388,8 +1386,24 @@ void process_line(char * line)
                     }
                     else
                     {
-                        comms->executeCommand(line, readconfirmationloop);
+                        comms->executeCommand(line, readresponse);
                     }
+                }
+                else if (!helprequested && words[0] == "confirmcancel")
+                {
+                    discardOptionsAndFlags(&words);
+
+                    if (words.size() == 2)
+                    {
+                        linktoconfirm = words[1];
+                        confirmingcancellink = true;
+                        setprompt(LOGINPASSWORD);
+                    }
+                    else
+                    {
+                        comms->executeCommand(line, readresponse);
+                    }
+                    return;
                 }
                 else if ( words[0] == "clear" )
                 {
@@ -1442,7 +1456,7 @@ void process_line(char * line)
                         toexec+=line;
                     }
 
-                    comms->executeCommand(toexec.c_str(), readconfirmationloop);
+                    comms->executeCommand(toexec.c_str(), readresponse);
                 }
                 else if (words[0] == "sync")
                 {
@@ -1466,7 +1480,7 @@ void process_line(char * line)
                         toexec+=line;
                     }
 
-                    comms->executeCommand(toexec.c_str(), readconfirmationloop);
+                    comms->executeCommand(toexec.c_str(), readresponse);
                 }
                 else if (words[0] == "backup")
                 {
@@ -1490,7 +1504,7 @@ void process_line(char * line)
                         toexec+=line;
                     }
 
-                    comms->executeCommand(toexec.c_str(), readconfirmationloop);
+                    comms->executeCommand(toexec.c_str(), readresponse);
                 }
                 else
                 {
@@ -1511,7 +1525,7 @@ void process_line(char * line)
                             }
                             words.push_back(s);
                         }
-                        comms->executeCommand(s, readconfirmationloop);
+                        comms->executeCommand(s, readresponse);
 #ifdef _WIN32
                         Sleep(200); // give a brief while to print progress ended
 #endif
@@ -1519,7 +1533,7 @@ void process_line(char * line)
                     else
                     {
                         // execute user command
-                        comms->executeCommand(line, readconfirmationloop);
+                        comms->executeCommand(line, readresponse);
                     }
                 }
             }
@@ -1727,9 +1741,7 @@ void printWelcomeMsg(unsigned int width)
     COUT << "|";
     COUT << endl;
     printCenteredLine("Welcome to MEGAcmd! A Command Line Interactive and Scriptable",width);
-    printCenteredLine("Application to interact with your MEGA account",width);
-    printCenteredLine("This is a BETA version, it might not be bug-free.",width);
-    printCenteredLine("Also, the signature/output of the commands may change in a future.",width);
+    printCenteredLine("Application to interact with your MEGA account.",width);
     printCenteredLine("Please write to support@mega.nz if you find any issue or",width);
     printCenteredLine("have any suggestion concerning its functionalities.",width);
     printCenteredLine("Enter \"help --non-interactive\" to learn how to use MEGAcmd with scripts.",width);
@@ -1817,42 +1829,13 @@ void mycompletefunct(char **c, int num_matches, int max_length)
 }
 #endif
 
-int readconfirmationloop(const char *question)
+std::string readresponse(const char* question)
 {
-    bool firstime = true;
-    for (;; )
-    {
-        string response;
-
-        if (firstime)
-        {
-            response = readline(question);
-
-        }
-        else
-        {
-            response = readline("Please enter [y]es/[n]o/[a]ll/none:");
-        }
-
-        firstime = false;
-
-        if (response == "yes" || response == "y" || response == "YES" || response == "Y")
-        {
-            return MCMDCONFIRM_YES;
-        }
-        if (response == "no" || response == "n" || response == "NO" || response == "N")
-        {
-            return MCMDCONFIRM_NO;
-        }
-        if (response == "All" || response == "ALL" || response == "a" || response == "A" || response == "all")
-        {
-            return MCMDCONFIRM_ALL;
-        }
-        if (response == "none" || response == "NONE" || response == "None")
-        {
-            return MCMDCONFIRM_NONE;
-        }
-    }
+    string response;
+    response = readline(question);
+    rl_set_prompt("");
+    rl_replace_line("", 0);
+    return response;
 }
 
 

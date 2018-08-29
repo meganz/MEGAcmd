@@ -19,7 +19,9 @@
 #ifndef MEGACMDSANDBOX_H
 #define MEGACMDSANDBOX_H
 
+#include <mega.h>
 #include <ctime>
+#include <string>
 
 class MegaCmdSandbox
 {
@@ -29,9 +31,11 @@ public:
     bool istemporalbandwidthvalid;
     long long temporalbandwidth;
     long long temporalbandwithinterval;
-    time_t lastQuerytemporalBandwith;
-    time_t timeOfOverquota;
-    time_t secondsOverQuota;
+    ::mega::m_time_t lastQuerytemporalBandwith;
+    ::mega::m_time_t timeOfOverquota;
+    ::mega::m_time_t secondsOverQuota;
+    bool accounthasbeenblocked;
+    std::string reasonblocked;
 public:
     MegaCmdSandbox();
     bool isOverquota() const;

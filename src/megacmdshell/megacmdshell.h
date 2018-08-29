@@ -24,12 +24,12 @@
 
 enum prompttype
 {
-    COMMAND, LOGINPASSWORD, OLDPASSWORD, NEWPASSWORD, PASSWORDCONFIRM, AREYOUSURE
+    COMMAND, LOGINPASSWORD, NEWPASSWORD, PASSWORDCONFIRM, AREYOUSURE
 };
 
 static const char* const prompts[] =
 {
-    "MEGA CMD> ", "Password:", "Old Password:", "New Password:", "Retype New Password:", "Are you sure to delete? "
+    "MEGA CMD> ", "Password:", "New Password:", "Retype New Password:", "Are you sure to delete? "
 };
 
 void sleepSeconds(int seconds);
@@ -38,7 +38,7 @@ void sleepMicroSeconds(long microseconds);
 
 void restoreprompt();
 
-void printprogress(long long completed, long long total, const char *title = "TRANSFERING");
+void printprogress(long long completed, long long total, const char *title = "TRANSFERRING");
 
 void changeprompt(const char *newprompt, bool redisplay = false);
 
@@ -52,7 +52,7 @@ prompttype getprompt();
 
 void printHistory();
 
-int readconfirmationloop(const char *question);
+std::string readresponse(const char *question);
 
 #ifdef _WIN32
 void stringtolocalw(const char* path, std::wstring* local);

@@ -415,6 +415,63 @@ int ComunicationsManagerNamedPipes::getConfirmation(CmdPetition *inf, string mes
     return response;
 }
 
+
+string ComunicationsManagerNamedPipes::getUserResponse(CmdPetition *inf, string message)
+{
+    HANDLE outNamedPipe = ((CmdPetitionNamedPipes *)inf)->outNamedPipe;
+
+    int outCode = MCMD_REQSTRING;
+    DWORD n;
+    if (!WriteFile(outNamedPipe, (const char *)&outCode, sizeof( outCode ), &n, NULL))
+    {
+        LOG_err << "ERROR writing output Code to namedPipe: " << ERRNO;
+    }
+
+    if (!WriteFile(outNamedPipe, message.data(), max(1,(int)message.size()), &n, NULL) )
+    {
+        LOG_err << "ERROR writing to namedPipe: " << ERRNO;
+    }
+
+    wstring wread;
+    wchar_t wbuffer[1024]= {};
+
+    //ZeroMemory( wbuffer, sizeof(wbuffer));
+    bool readok = ReadFile(outNamedPipe, wbuffer, 1023*sizeof(wchar_t), &n, NULL );
+    while(readok && n == 1023*sizeof(wchar_t))
+    {
+        DWORD total_available_bytes;
+        if (FALSE == PeekNamedPipe(outNamedPipe,0,0,0,&total_available_bytes,0))
+        {
+            LOG_err << "Failed to PeekNamedPipe. errno: L" << ERRNO;
+            break;
+        }
+        if (total_available_bytes == 0)
+        {
+            break;
+        }
+        wbuffer[n/sizeof(wchar_t)]=0;
+        wread.append(wbuffer);
+
+        readok = ReadFile(outNamedPipe, wbuffer, 1023*sizeof(wchar_t), &n, NULL );
+    }
+    if (readok)
+    {
+        wbuffer[n/sizeof(wchar_t)]=0;
+        wread.append(wbuffer);
+    }
+
+    if (!readok)
+    {
+        LOG_err << "Failed to read user response from named pipe. errno: L" << ERRNO;
+        return "FAILED";
+    }
+
+    string receivedutf8;
+    localwtostring(&wread,&receivedutf8);
+
+    return receivedutf8;
+}
+
 string ComunicationsManagerNamedPipes::get_petition_details(CmdPetition *inf)
 {
     ostringstream os;
@@ -427,3 +484,4 @@ ComunicationsManagerNamedPipes::~ComunicationsManagerNamedPipes()
     delete mtx;
 }
 #endif
+

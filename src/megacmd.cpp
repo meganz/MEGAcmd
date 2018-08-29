@@ -184,7 +184,7 @@ vector<string> remotefolderspatterncommands(aremotefolderspatterncommands, aremo
 
 string amultipleremotepatterncommands[] = {"ls", "mkdir", "rm", "du", "find", "mv", "deleteversions"
 #ifdef HAVE_LIBUV
-                                           , "webdav"
+                                           , "webdav", "ftp"
 #endif
                                           };
 vector<string> multipleremotepatterncommands(amultipleremotepatterncommands, amultipleremotepatterncommands + sizeof amultipleremotepatterncommands / sizeof amultipleremotepatterncommands[0]);
@@ -204,9 +204,10 @@ vector<string> emailpatterncommands(aemailpatterncommands, aemailpatterncommands
 string avalidCommands [] = { "login", "signup", "confirm", "session", "mount", "ls", "cd", "log", "debug", "pwd", "lcd", "lpwd", "import", "masterkey",
                              "put", "get", "attr", "userattr", "mkdir", "rm", "du", "mv", "cp", "sync", "export", "share", "invite", "ipc",
                              "showpcr", "users", "speedlimit", "killsession", "whoami", "help", "passwd", "reload", "logout", "version", "quit",
-                             "thumbnail", "preview", "find", "completion", "clear", "https", "transfers", "exclude", "exit"
+                             "thumbnail", "preview", "find", "completion", "clear", "https", "transfers", "exclude", "exit", "errorcode", "graphics",
+                             "cancel", "confirmcancel"
 #ifdef HAVE_LIBUV
-                             , "webdav"
+                             , "webdav", "ftp"
 #endif
 #ifdef ENABLE_BACKUPS
                              , "backup"
@@ -371,6 +372,10 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validParams->insert("use-pcre");
 #endif
     }
+    else if ("passwd" == thecommand)
+    {
+        validParams->insert("f");
+    }
     else if ("du" == thecommand)
     {
         validParams->insert("h");
@@ -434,7 +439,9 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     {
         validParams->insert("all");
         validParams->insert("f");
+#ifdef USE_PCRE
         validParams->insert("use-pcre");
+#endif
     }
     else if ("exclude" == thecommand)
     {
@@ -446,11 +453,29 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     else if ("webdav" == thecommand)
     {
         validParams->insert("d");
+        validParams->insert("all");
         validParams->insert("tls");
         validParams->insert("public");
         validOptValues->insert("port");
         validOptValues->insert("certificate");
         validOptValues->insert("key");
+#ifdef USE_PCRE
+        validParams->insert("use-pcre");
+#endif
+    }
+    else if ("ftp" == thecommand)
+    {
+        validParams->insert("d");
+        validParams->insert("all");
+        validParams->insert("tls");
+        validParams->insert("public");
+        validOptValues->insert("port");
+        validOptValues->insert("data-ports");
+        validOptValues->insert("certificate");
+        validOptValues->insert("key");
+#ifdef USE_PCRE
+        validParams->insert("use-pcre");
+#endif
     }
 #endif
     else if ("backup" == thecommand)
@@ -479,6 +504,7 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validParams->insert("d");
         validParams->insert("f");
         validOptValues->insert("expire");
+        validOptValues->insert("password");
 #ifdef USE_PCRE
         validParams->insert("use-pcre");
 #endif
@@ -528,7 +554,7 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     }
     else if ("signup" == thecommand)
     {
-        validParams->insert("name");
+        validOptValues->insert("name");
     }
     else if ("logout" == thecommand)
     {
@@ -575,10 +601,15 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validParams->insert("m");
         validParams->insert("q");
         validParams->insert("ignore-quota-warn");
+        validOptValues->insert("password");
 #ifdef USE_PCRE
         validParams->insert("use-pcre");
 #endif
         validOptValues->insert("clientID");
+    }
+    else if ("import" == thecommand)
+    {
+        validOptValues->insert("password");
     }
     else if ("login" == thecommand)
     {
@@ -803,10 +834,35 @@ char * flags_value_completion(const char*text, int state)
                     }
                 }
             }
-            if (( thecommand == "userattr" ) && ( currentFlag.find("--user=") == 0 ))
+            else if (( thecommand == "userattr" ) && ( currentFlag.find("--user=") == 0 ))
             {
                 validValues = cmdexecuter->getlistusers();
                 string prefix = strncmp(text, "--user=", strlen("--user="))?"":"--user=";
+                for (unsigned int i=0;i<validValues.size();i++)
+                {
+                    validValues.at(i)=prefix+validValues.at(i);
+                }
+            }
+            else if  ( ( thecommand == "ftp" || thecommand == "webdav" )
+                && ( currentFlag.find("--key=") == 0 || currentFlag.find("--certificate=") == 0 ) )
+            {
+                const char * cflag = (currentFlag.find("--key=") == 0)? "--key=" : "--certificate=";
+                string stext = text;
+                size_t begin = strncmp(text, cflag, strlen(cflag))?0:strlen(cflag);
+                size_t end = stext.find_last_of('/');
+                if (end != string::npos && (end + 1 ) < stext.size() )
+                {
+                    end = end - begin +1;
+                }
+                else
+                {
+                    end = string::npos;
+                }
+
+                string location = stext.substr(begin, end);
+                validValues = cmdexecuter->getlistfilesfolders(location.size()?location:"./");
+                string prefix = strncmp(text, cflag, strlen(cflag))?"":cflag;
+                prefix.append(location);
                 for (unsigned int i=0;i<validValues.size();i++)
                 {
                     validValues.at(i)=prefix+validValues.at(i);
@@ -847,6 +903,16 @@ char* remotepaths_completion(const char* text, int state)
         unescapeEspace(wildtext);
 
         validpaths = cmdexecuter->listpaths(usepcre, wildtext);
+
+        // we need to escape '\' to fit what's done when parsing words
+        if (!getCurrentThreadIsCmdShell())
+        {
+            for (int i = 0; i < (int)validpaths.size(); i++)
+            {
+                replaceAll(validpaths[i],"\\","\\\\");
+            }
+        }
+
     }
     return generic_completion(text, state, validpaths);
 }
@@ -1163,7 +1229,7 @@ completionfunction_t *getCompletionFunction(vector<string> words)
     return empty_completion;
 }
 
-string getListOfCompletionValues(vector<string> words, char separator = ' ', bool suppressflag = true)
+string getListOfCompletionValues(vector<string> words, char separator = ' ', const char * separators = " ;!`\"'\\()[]{}<>", bool suppressflag = true)
 {
     string completionValues;
     completionfunction_t * compfunction = getCompletionFunction(words);
@@ -1201,10 +1267,12 @@ string getListOfCompletionValues(vector<string> words, char separator = ' ', boo
             completionValues+=separator;
         }
 
-        if (strchr(newval,separator))
+        string snewval=newval;
+        if (snewval.find_first_of(separators) != string::npos)
         {
             completionValues+="\"";
-            completionValues+=newval;
+            replaceAll(snewval,"\"","\\\"");
+            completionValues+=snewval;
             completionValues+="\"";
         }
         else
@@ -1251,17 +1319,54 @@ const char * getUsageStr(const char *command)
             return "login email password | exportedfolderurl#key | session";
         }
     }
+    if (!strcmp(command, "cancel"))
+    {
+        return "cancel";
+    }
+    if (!strcmp(command, "confirmcancel"))
+    {
+        if (interactiveThread())
+        {
+            return "confirmcancel link [password]";
+        }
+        else
+        {
+            return "confirmcancel link password";
+        }
+    }
     if (!strcmp(command, "begin"))
     {
         return "begin [ephemeralhandle#ephemeralpw]";
     }
     if (!strcmp(command, "signup"))
     {
-        return "signup email [password] [--name=\"Your Name\"]";
+        if (interactiveThread())
+        {
+            return "signup email [password] [--name=\"Your Name\"]";
+        }
+        else
+        {
+            return "signup email password [--name=\"Your Name\"]";
+        }
     }
     if (!strcmp(command, "confirm"))
     {
-        return "confirm link email [password]";
+        if (interactiveThread())
+        {
+            return "confirm link email [password]";
+        }
+        else
+        {
+            return "confirm link email password";
+        }
+    }
+    if (!strcmp(command, "errorcode"))
+    {
+        return "errorcode number";
+    }
+    if (!strcmp(command, "graphics"))
+    {
+        return "graphics [on|off]";
     }
     if (!strcmp(command, "session"))
     {
@@ -1313,7 +1418,7 @@ const char * getUsageStr(const char *command)
     }
     if (!strcmp(command, "import"))
     {
-        return "import exportedfilelink#key [remotepath]";
+        return "import exportedlink [--password=PASSWORD] [remotepath]";
     }
     if (!strcmp(command, "put"))
     {
@@ -1326,9 +1431,9 @@ const char * getUsageStr(const char *command)
     if (!strcmp(command, "get"))
     {
 #ifdef USE_PCRE
-        return "get [-m] [-q] [--ignore-quota-warn] [--use-pcre] exportedlink#key|remotepath [localpath]";
+        return "get [-m] [-q] [--ignore-quota-warn] [--use-pcre] [--password=PASSWORD] exportedlink|remotepath [localpath]";
 #else
-        return "get [-m] [-q] [--ignore-quota-warn] exportedlink#key|remotepath [localpath]";
+        return "get [-m] [-q] [--ignore-quota-warn] [--password=PASSWORD] exportedlink|remotepath [localpath]";
 #endif
     }
     if (!strcmp(command, "getq"))
@@ -1387,7 +1492,19 @@ const char * getUsageStr(const char *command)
 #ifdef HAVE_LIBUV
     if (!strcmp(command, "webdav"))
     {
-        return "webdav [ [-d] remotepath [--port=PORT] [--public] [--tls --certificate=/path/to/certificate.pem --key=/path/to/certificate.key]]";
+#ifdef USE_PCRE
+        return "webdav [-d (--all | remotepath ) ] [ remotepath [--port=PORT] [--public] [--tls --certificate=/path/to/certificate.pem --key=/path/to/certificate.key]] [--use-pcre]";
+#else
+        return "webdav [-d (--all | remotepath ) ] [ remotepath [--port=PORT] [--public] [--tls --certificate=/path/to/certificate.pem --key=/path/to/certificate.key]]";
+#endif
+    }
+    if (!strcmp(command, "ftp"))
+    {
+#ifdef USE_PCRE
+        return "ftp [-d ( --all | remotepath ) ] [ remotepath [--port=PORT] [--data-ports=BEGIN-END] [--public] [--tls --certificate=/path/to/certificate.pem --key=/path/to/certificate.key]] [--use-pcre]";
+#else
+        return "ftp [-d ( --all | remotepath ) ] [ remotepath [--port=PORT] [--data-ports=BEGIN-END] [--public] [--tls --certificate=/path/to/certificate.pem --key=/path/to/certificate.key]]";
+#endif
     }
 #endif
     if (!strcmp(command, "sync"))
@@ -1411,9 +1528,9 @@ const char * getUsageStr(const char *command)
     if (!strcmp(command, "export"))
     {
 #ifdef USE_PCRE
-        return "export [-d|-a [--expire=TIMEDELAY] [-f]] [remotepath] [--use-pcre]";
+        return "export [-d|-a [--password=PASSWORD] [--expire=TIMEDELAY] [-f]] [remotepath] [--use-pcre]";
 #else
-        return "export [-d|-a [--expire=TIMEDELAY] [-f]] [remotepath]";
+        return "export [-d|-a [--password=PASSWORD] [--expire=TIMEDELAY] [-f]] [remotepath]";
 #endif
     }
     if (!strcmp(command, "share"))
@@ -1466,7 +1583,14 @@ const char * getUsageStr(const char *command)
     }
     if (!strcmp(command, "passwd"))
     {
-        return "passwd [oldpassword newpassword]";
+        if (interactiveThread())
+        {
+            return "passwd [-f] [newpassword]";
+        }
+        else
+        {
+            return "passwd [-f] newpassword";
+        }
     }
     if (!strcmp(command, "retry"))
     {
@@ -1595,6 +1719,39 @@ string getHelpStr(const char *command)
         os << " or into a folder (an exported/public folder)" << endl;
         os << " If logging into a folder indicate url#key" << endl;
     }
+    else if (!strcmp(command, "cancel"))
+    {
+        os << "Cancels your MEGA account" << endl;
+        os << " Caution: The account under this email address will be permanently closed" << endl;
+        os << " and your data deleted. This can not be undone." << endl;
+        os << endl;
+        os << "The cancellation will not take place inmediately. You will need to confirm the cancellation" << endl;
+        os << "using a link that will be delivered to your email. See \"confirmcancel --help\"" << endl;
+    }
+    else if (!strcmp(command, "confirmcancel"))
+    {
+        os << "Confirms the cancellation of your MEGA account" << endl;
+        os << " Caution: The account under this email address will be permanently closed" << endl;
+        os << " and your data deleted. This can not be undone." << endl;
+    }
+    else if (!strcmp(command, "errorcode"))
+    {
+        os << "Translate error code into string" << endl;
+    }
+    else if (!strcmp(command, "graphics"))
+    {
+        os << "Shows if special features related to images and videos are enabled. " << endl;
+        os << "Use \"graphics on/off\" to enable/disable it." << endl;
+        os << endl;
+        os << "Disabling these features will avoid the upload of previews and thumbnails" << endl;
+        os << "for images and videos." << endl;
+        os << endl;
+        os << "It's only recommended to disable these features before uploading files" << endl;
+        os << "with image or video extensions that are not really images or videos," << endl;
+        os << "or that are encrypted in the local drive so they can't be analyzed anyway." << endl;
+        os << endl;
+        os << "Notice that this setting will be saved for the next time you open MEGAcmd" << endl;
+    }
     else if (!strcmp(command, "signup"))
     {
         os << "Register as user with a given email" << endl;
@@ -1605,6 +1762,13 @@ string getHelpStr(const char *command)
         os << " You will receive an email to confirm your account. " << endl;
         os << " Once you have received the email, please proceed to confirm the link " << endl;
         os << " included in that email with \"confirm\"." << endl;
+        os << endl;
+        os << "Warning: Due to our end-to-end encryption paradigm, you will not be able to access your data " << endl;
+        os << "without either your password or a backup of your Recovery Key (master key)." << endl;
+        os << "Exporting the master key and keeping it in a secure location enables you " << endl;
+        os << "to set a new password without data loss. Always keep physical control of " << endl;
+        os << "your master key (e.g. on a client device, external storage, or print)." << endl;
+        os << " See \"masterkey --help\" for further info." << endl;
     }
     else if (!strcmp(command, "clear"))
     {
@@ -1653,8 +1817,8 @@ string getHelpStr(const char *command)
         os << " Also, constructions like /PATTERN1/PATTERN2/PATTERN3 are allowed" << endl;
         os << endl;
         os << "Options:" << endl;
-        os << " -R|-r" << "\t" << "list folders recursively" << endl;
-        os << " -l" << "\t" << "print summary" << endl;
+        os << " -R|-r" << "\t" << "List folders recursively" << endl;
+        os << " -l" << "\t" << "Print summary" << endl;
         os << "   " << "\t" << " SUMMARY contents:" << endl;
         os << "   " << "\t" << "   FLAGS: Indicate type/status of an element:" << endl;
         os << "   " << "\t" << "     xxxx" << endl;
@@ -1664,10 +1828,12 @@ string getHelpStr(const char *command)
         os << "   " << "\t" << "     +-------- Type(d=folder,-=file,r=root,i=inbox,b=rubbish,x=unsupported)" << endl;
         os << "   " << "\t" << "   VERS: Number of versions in a file" << endl;
         os << "   " << "\t" << "   SIZE: Size of the file in bytes:" << endl;
-        os << "   " << "\t" << "   DATE: Modification date for files and creation date for folders:" << endl;
+        os << "   " << "\t" << "   DATE: Modification date for files and creation date for folders (in UTC time):" << endl;
         os << "   " << "\t" << "   NAME: name of the node" << endl;
         os << " -h" << "\t" << "Show human readable sizes in summary" << endl;
-        os << " -a" << "\t" << "include extra information" << endl;
+        os << " -a" << "\t" << "Include extra information" << endl;
+        os << "   " << "\t" << " If this flag is repeated (e.g: -aa) more info will appear" << endl;
+        os << "   " << "\t" << " (public links, expiration dates, ...)" << endl;
         os << " --versions" << "\t" << "show historical versions" << endl;
         os << "   " << "\t" << "You can delete all versions of a file with \"deleteversions\"" << endl;
 #ifdef USE_PCRE
@@ -1744,6 +1910,9 @@ string getHelpStr(const char *command)
         os << "Imports the contents of a remote link into user's cloud" << endl;
         os << endl;
         os << "If no remote path is provided, the current local folder will be used" << endl;
+        os << "Exported links: Exported links are usually formed as publiclink#key." << endl;
+        os << " Alternativelly you can provide a password-protected link and" << endl;
+        os << " provide the password with --password" << endl;
     }
     else if (!strcmp(command, "put"))
     {
@@ -1771,12 +1940,18 @@ string getHelpStr(const char *command)
         os << endl;
         os << "For folders, the entire contents (and the root folder itself) will be" << endl;
         os << "                    by default downloaded into the destination folder" << endl;
+        os << endl;
+        os << "Exported links: Exported links are usually formed as publiclink#key." << endl;
+        os << " Alternativelly you can provide a password-protected link and" << endl;
+        os << " provide the password with --password" << endl;
+        os << endl;
         os << "Options:" << endl;
         os << " -q" << "\t" << "queue download: execute in the background. Don't wait for it to end' " << endl;
         os << " -m" << "\t" << "if the folder already exists, the contents will be merged with the " << endl;
         os << "                     downloaded one (preserving the existing files)" << endl;
         os << " --ignore-quota-warn" << "\t" << "ignore quota surpassing warning. " << endl;
         os << "                    " << "\t" << "  The download will be attempted anyway." << endl;
+        os << " --password=PASSWORD" << "\t" << "Password to decrypt the password-protected link." << endl;
 #ifdef USE_PCRE
         os << " --use-pcre" << "\t" << "use PCRE expressions" << endl;
 #endif
@@ -1865,7 +2040,7 @@ string getHelpStr(const char *command)
         os << "HTTPS is not necesary since all data is stored and transfered encrypted." << endl;
         os << "Enabling it will increase CPU usage and add network overhead." << endl;
         os << endl;
-        os << "Notice that this setting is ephemeral: it will reset for the next time you open MEGAcmd" << endl;
+        os << "Notice that this setting will be saved for the next time you open MEGAcmd" << endl;
     }
     else if (!strcmp(command, "deleteversions"))
     {
@@ -1896,13 +2071,42 @@ string getHelpStr(const char *command)
         os << endl;
         os << "Options:" << endl;
         os << " --d        " << "\t" << "Stops serving that location" << endl;
+        os << " --all      " << "\t" << "When used with -d, stops serving all locations (and stops the server)" << endl;
         os << " --public   " << "\t" << "*Allow access from outside localhost" << endl;
         os << " --port=PORT" << "\t" << "*Port to serve. DEFAULT= 4443" << endl;
         os << " --tls      " << "\t" << "*Serve with TLS (HTTPS)" << endl;
         os << " --certificate=/path/to/certificate.pem" << "\t" << "*Path to PEM formated certificate" << endl;
         os << " --key=/path/to/certificate.key" << "\t" << "*Path to PEM formated key" << endl;
+#ifdef USE_PCRE
+        os << " --use-pcre" << "\t" << "use PCRE expressions" << endl;
+#endif
         os << endl;
         os << "*If you serve more than one location, these parameters will be ignored and use those of the first location served." << endl;
+        os << endl;
+        os << "Caveat: This functionality is in BETA state. If you experience any issue with this, please contact: support@mega.nz" << endl;
+        os << endl;
+    }
+    else if (!strcmp(command, "ftp"))
+    {
+        os << "Configures a FTP server to serve a location in MEGA" << endl;
+        os << endl;
+        os << "This can also be used for streaming files. The server will be running as long as MEGAcmd Server is. " << endl;
+        os << "If no argument is given, it will list the ftp enabled locations." << endl;
+        os << endl;
+        os << "Options:" << endl;
+        os << " --d        " << "\t" << "Stops serving that location" << endl;
+        os << " --all      " << "\t" << "When used with -d, stops serving all locations (and stops the server)" << endl;
+        os << " --public   " << "\t" << "*Allow access from outside localhost" << endl;
+        os << " --port=PORT" << "\t" << "*Port to serve. DEFAULT=4990" << endl;
+        os << " --data-ports=BEGIN-END" << "\t" << "*Ports range used for data channel (in passive mode). DEFAULT=1500-1600" << endl;
+        os << " --tls      " << "\t" << "*Serve with TLS (FTPs)" << endl;
+        os << " --certificate=/path/to/certificate.pem" << "\t" << "*Path to PEM formated certificate" << endl;
+        os << " --key=/path/to/certificate.key" << "\t" << "*Path to PEM formated key" << endl;
+#ifdef USE_PCRE
+        os << " --use-pcre" << "\t" << "use PCRE expressions" << endl;
+#endif
+        os << endl;
+        os << "*If you serve more than one location, these parameters will be ignored and used those of the first location served." << endl;
         os << endl;
         os << "Caveat: This functionality is in BETA state. If you experience any issue with this, please contact: support@mega.nz" << endl;
         os << endl;
@@ -2029,6 +2233,7 @@ string getHelpStr(const char *command)
         os << " --use-pcre" << "\t" << "use PCRE expressions" << endl;
 #endif
         os << " -a" << "\t" << "Adds an export (or modifies it if existing)" << endl;
+        os << " --password=PASSWORD" << "\t" << "Protects link with password." << endl;
         os << " --expire=TIMEDELAY" << "\t" << "Determines the expiration time of a node." << endl;
         os << "                   " << "\t" << "   It indicates the delay in hours(h), days(d), " << endl;
         os << "                   " << "\t"  << "   minutes(M), seconds(s), months(m) or years(y)" << endl;
@@ -2105,10 +2310,13 @@ string getHelpStr(const char *command)
     {
         os << "Shows your master key." << endl;
         os << endl;
-        os << "Getting the master key and keeping it in a secure location enables you " << endl;
-        os << " to set a new password without data loss." << endl;
-        os << "Always keep physical control of your master key " << endl;
-        os << " (e.g. on a client device, external storage, or print)" << endl;
+        os << "Your data is only readable through a chain of decryption operations that begins " << endl;
+        os << "with your master encryption key (Recovery Key), which MEGA stores encrypted with your password." << endl;
+        os << "This means that if you lose your password, your Recovery Key can no longer be decrypted, " << endl;
+        os << "and you can no longer decrypt your data." << endl;
+        os << "Exporting the Recovery Key and keeping it in a secure location " << endl;
+        os << "enables you to set a new password without data loss." << endl;
+        os << "Always keep physical control of your master key (e.g. on a client device, external storage, or print)" << endl;
     }
     if (!strcmp(command, "showpcr"))
     {
@@ -2170,6 +2378,13 @@ string getHelpStr(const char *command)
     if (!strcmp(command, "passwd"))
     {
         os << "Modifies user password" << endl;
+        os << endl;
+        os << "Notice that modifying the password will close all your active sessions" << endl;
+        os << " in all your devices (except for the current one)" << endl;
+        os << endl;
+        os << "Options:" << endl;
+        os << " -f   " << "\t" << "Force (no asking)" << endl;
+
     }
     else if (!strcmp(command, "reload"))
     {
@@ -2383,7 +2598,7 @@ void executecommand(char* ptr)
             if (words.size() < 3) words.push_back("");
             vector<string> wordstocomplete(words.begin()+1,words.end());
             setCurrentThreadLine(wordstocomplete);
-            OUTSTREAM << getListOfCompletionValues(wordstocomplete,(char)0x1F, false);
+            OUTSTREAM << getListOfCompletionValues(wordstocomplete,(char)0x1F, string().append(1, (char)0x1F).c_str(), false);
         }
 
         return;
@@ -2583,31 +2798,25 @@ static bool process_line(char* l)
             {
                 break;
             }
-            if (!cmdexecuter->confirming)
+            if (cmdexecuter->confirming)
             {
-                cmdexecuter->loginWithPassword(l);
+                cmdexecuter->confirmWithPassword(l);
+            }
+            else if (cmdexecuter->confirmingcancel)
+            {
+                cmdexecuter->confirmCancel(cmdexecuter->link.c_str(), l);
             }
             else
             {
-                cmdexecuter->confirmWithPassword(l);
-                cmdexecuter->confirming = false;
+                cmdexecuter->loginWithPassword(l);
             }
+
+            cmdexecuter->confirming = false;
+            cmdexecuter->confirmingcancel = false;
+
             setprompt(COMMAND);
             break;
         }
-
-        case OLDPASSWORD:
-        {
-            if (!strlen(l))
-            {
-                break;
-            }
-            oldpasswd = l;
-            OUTSTREAM << endl;
-            setprompt(NEWPASSWORD);
-            break;
-        }
-
         case NEWPASSWORD:
         {
             if (!strlen(l))
@@ -2635,7 +2844,7 @@ static bool process_line(char* l)
                 OUTSTREAM << endl;
                 if (!cmdexecuter->signingup)
                 {
-                    cmdexecuter->changePassword(oldpasswd.c_str(), newpasswd.c_str());
+                    cmdexecuter->changePassword(newpasswd.c_str());
                 }
                 else
                 {
@@ -2736,6 +2945,22 @@ int askforConfirmation(string message)
     return MCMDCONFIRM_NO;
 }
 
+string askforUserResponse(string message)
+{
+    CmdPetition *inf = getCurrentPetition();
+    if (inf)
+    {
+        return cm->getUserResponse(inf,message);
+    }
+    else
+    {
+        LOG_err << "Unable to get current petition to ask for confirmation";
+    }
+
+    return string("NOCURRENPETITION");
+}
+
+
 
 void delete_finished_threads()
 {
@@ -2801,6 +3026,7 @@ void finalize()
 
     LOG_debug << "resources have been cleaned ...";
     delete loggerCMD;
+    ConfigurationManager::unlockExecution();
     ConfigurationManager::unloadConfiguration();
 
 }
@@ -3185,6 +3411,26 @@ bool runningInBackground()
     return false;
 }
 
+#ifndef MEGACMD_USERAGENT_SUFFIX
+#define MEGACMD_USERAGENT_SUFFIX
+#define MEGACMD_STRINGIZE(x) 
+#else
+#define MEGACMD_STRINGIZE2(x) "-" #x
+#define MEGACMD_STRINGIZE(x) MEGACMD_STRINGIZE2(x)
+#endif
+
+bool findarg(const char *what, int argc, char *argv[])
+{
+    for (int i = 1; i < argc; i++)
+    {
+        if (!strcmp(argv[i], what))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 int main(int argc, char* argv[])
 {
     string localecode = getLocaleCode();
@@ -3206,27 +3452,26 @@ int main(int argc, char* argv[])
 
     loggerCMD->setApiLoggerLevel(MegaApi::LOG_LEVEL_ERROR);
     loggerCMD->setCmdLoggerLevel(MegaApi::LOG_LEVEL_INFO);
-    loggerCMD->setCmdLoggerLevel(MegaApi::LOG_LEVEL_DEBUG);
 
     string loglevelenv;
 #ifndef _WIN32
     loglevelenv = (getenv ("MEGACMD_LOGLEVEL") == NULL)?"":getenv ("MEGACMD_LOGLEVEL");
 #endif
 
-    if (!loglevelenv.compare("DEBUG") || (( argc > 1 ) && !( strcmp(argv[1], "--debug"))) )
+    if (!loglevelenv.compare("DEBUG") || (( argc > 1 ) && findarg("--debug", argc, argv)) )
     {
         loggerCMD->setCmdLoggerLevel(MegaApi::LOG_LEVEL_DEBUG);
     }
-    if (!loglevelenv.compare("FULLDEBUG") || (( argc > 1 ) && !( strcmp(argv[1], "--debug-full"))) )
+    if (!loglevelenv.compare("FULLDEBUG") || (( argc > 1 ) && findarg("--debug-full", argc, argv)) )
     {
         loggerCMD->setApiLoggerLevel(MegaApi::LOG_LEVEL_DEBUG);
         loggerCMD->setCmdLoggerLevel(MegaApi::LOG_LEVEL_DEBUG);
     }
-    if (!loglevelenv.compare("VERBOSE") || (( argc > 1 ) && !( strcmp(argv[1], "--verbose"))) )
+    if (!loglevelenv.compare("VERBOSE") || (( argc > 1 ) && findarg("--verbose", argc, argv)) )
     {
         loggerCMD->setCmdLoggerLevel(MegaApi::LOG_LEVEL_MAX);
     }
-    if (!loglevelenv.compare("FULLVERBOSE") || (( argc > 1 ) && !( strcmp(argv[1], "--verbose-full"))) )
+    if (!loglevelenv.compare("FULLVERBOSE") || (( argc > 1 ) && findarg("--verbose-full", argc, argv)) )
     {
         loggerCMD->setApiLoggerLevel(MegaApi::LOG_LEVEL_MAX);
         loggerCMD->setCmdLoggerLevel(MegaApi::LOG_LEVEL_MAX);
@@ -3236,10 +3481,15 @@ int main(int argc, char* argv[])
 
     mutexEndedPetitionThreads.init(false);
 
-    ConfigurationManager::loadConfiguration(( argc > 1 ) && !( strcmp(argv[1], "--debug")));
+    ConfigurationManager::loadConfiguration(( argc > 1 ) && findarg("--debug", argc, argv));
+    if (!ConfigurationManager::lockExecution() && !findarg("--skip-lock-check", argc, argv))
+    {
+        cerr << "Another instance of MEGAcmd Server is running. Execute with --skip-lock-check to force running (NOT RECOMMENDED)" << endl;
+        exit(-2);
+    }
 
-    char userAgent[30];
-    sprintf(userAgent, "MEGAcmd/%d.%d.%d.0", MEGACMD_MAJOR_VERSION,MEGACMD_MINOR_VERSION,MEGACMD_MICRO_VERSION);
+    char userAgent[40];
+    sprintf(userAgent, "MEGAcmd" MEGACMD_STRINGIZE(MEGACMD_USERAGENT_SUFFIX) "/%d.%d.%d.0", MEGACMD_MAJOR_VERSION,MEGACMD_MINOR_VERSION,MEGACMD_MICRO_VERSION);
 
     MegaApi::addLoggerObject(loggerCMD);
     MegaApi::setLogLevel(MegaApi::LOG_LEVEL_MAX);
@@ -3338,7 +3588,7 @@ int main(int argc, char* argv[])
         loginInAtStartup = true;
         stringstream logLine;
         logLine << "login " << ConfigurationManager::session;
-        LOG_debug << "Executing ... " << logLine.str();
+        LOG_debug << "Executing ... " << logLine.str().substr(0,9) << "...";
         process_line((char*)logLine.str().c_str());
         loginInAtStartup = false;
     }
