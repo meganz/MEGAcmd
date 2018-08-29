@@ -31,11 +31,12 @@ have support for regular expressions.
 
 Also, in order to have support for thumbnails and previews,
 it is highly recommended to have `ffmpeg` (`libavcodec-dev libavutil-dev libavformat-dev libswscale-dev`)
-and `mediainfo`(`libmediainfo-dev + libzen-dev`) for media file attributes.
+and `libraw` (libraw-dev). We too recommend `mediainfo`(`libmediainfo-dev + libzen-dev`) for media file attributes.
 
 * For convenience here is a list of packages for ubuntu 16.04: `autoconf libtool 
 g++ libcrypto++-dev libz-dev libsqlite3-dev libssl-dev libcurl4-openssl-dev
-libreadline-dev libpcre++-dev libsodium-dev libc-ares-dev libfreeimage-dev`
+libreadline-dev libpcre++-dev libsodium-dev libc-ares-dev libfreeimage-dev
+libavcodec-dev libavutil-dev libavformat-dev libswscale-dev libraw-dev libmediainfo-dev libzen-dev`
 
 ## Getting the source
 
@@ -47,8 +48,7 @@ git submodule update --init --recursive
 
 ## Building and installing
 
-For platforms with Autotools, MEGAcmd is included in the generic compilation 
-of the sdk. To build and install:
+For platforms with Autotools, MEGAcmd can be built and installed with:
 
     sh autogen.sh
     ./configure
@@ -56,8 +56,6 @@ of the sdk. To build and install:
     make install
     
 * You will need to run `make install` as root
-
-* To disable MEGAcmd use `configure` with `--disable-megacmd`
 
 `Note`: if you use a prefix in configure, autocompletion from non-interactive usage
 won't work. You would need to `source /YOUR/PREFIX/etc/bash_completion.d/megacmd_completion.sh` 
