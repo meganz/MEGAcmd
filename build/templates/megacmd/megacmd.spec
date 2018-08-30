@@ -19,6 +19,7 @@ BuildRequires: libcurl4
 %if 0%{?suse_version}
 BuildRequires: libcares-devel, pkg-config
 BuildRequires: libbz2-devel
+#BuildRequires: LibRaw-devel
 
 # disabling post-build-checks that ocassionally prevent opensuse rpms from being generated
 # plus it speeds up building process
@@ -26,7 +27,13 @@ BuildRequires: -post-build-checks
 
 %if 0%{?suse_version} <= 1320
 BuildRequires: libcryptopp-devel
+
+%else
+%if 0%{?rhel_version} == 0
+#if !RHEL
+#BuildRequires: LibRaw-devel
 %endif
+%endif	%endif
 
 %endif
 
@@ -61,6 +68,8 @@ It features 2 modes of interaction:
 
 %define flag_cryptopp %{nil}
 %define with_cryptopp %{nil}
+%define flag_libraw %{nil}
+%define with_libraw --without-libraw
 %define flag_disablemediainfo -i
 %define with_mediainfo %{nil}
 
@@ -113,14 +122,14 @@ sed -i "s#AC_INIT#m4_pattern_allow(AC_PROG_OBJCXX)\nAC_INIT#g" sdk/configure.ac
 
 #build dependencies into folder deps
 mkdir deps || :
-bash -x ./contrib/build_sdk.sh %{flag_cryptopp} %{flag_cares} -o archives \
+bash -x ./contrib/build_sdk.sh %{flag_cryptopp} %{flag_libraw} %{flag_cares} -o archives \
   -g %{flag_disablezlib} %{flag_disablemediainfo} -b -l -c -s -u -v -a -p deps/
 %if ( 0%{?fedora_version} && 0%{?fedora_version}<=24 ) || ( 0%{?centos_version} == 600 ) || ( 0%{?suse_version} && 0%{?suse_version} <= 1320 && !0%{?sle_version})
 export CPPFLAGS="$CPPFLAGS -DMEGACMD_DEPRECATED_OS"
 %endif
 
 ./configure --disable-shared --enable-static --disable-silent-rules \
-  --disable-curl-checks %{with_cryptopp} --with-sodium=$PWD/deps --with-pcre \
+  --disable-curl-checks %{with_cryptopp} %{with_libraw} --with-sodium=$PWD/deps --with-pcre \
   %{with_zlib} --with-sqlite=$PWD/deps --with-cares=$PWD/deps --with-libuv=$PWD/deps \
   --with-curl=$PWD/deps --with-freeimage=$PWD/deps --with-readline=$PWD/deps \
   --with-termcap=$PWD/deps --prefix=$PWD/deps --disable-examples %{with_mediainfo} || export CONFFAILED=1
@@ -129,7 +138,7 @@ if [ "x$CONFFAILED" == "x1" ]; then
 sed -i "s#.*CONFLICTIVEOLDAUTOTOOLS##g" sdk/configure.ac
 ./autogen.sh
 ./configure --disable-shared --enable-static --disable-silent-rules \
-  --disable-curl-checks %{with_cryptopp} --with-sodium=$PWD/deps --with-pcre \
+  --disable-curl-checks %{with_cryptopp} %{with_libraw} --with-sodium=$PWD/deps --with-pcre \
   %{with_zlib} --with-sqlite=$PWD/deps --with-cares=$PWD/deps \
   --with-curl=$PWD/deps --with-freeimage=$PWD/deps --with-readline=$PWD/deps \
   --with-termcap=$PWD/deps --prefix=$PWD/deps --disable-examples %{with_mediainfo} || cat sdk/configure

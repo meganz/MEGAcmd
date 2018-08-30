@@ -103,7 +103,7 @@ echo -------------------------------------------------------- sdk end ----------
 echo about to build megacmd ---------------------------
 
 sh autogen.sh 2>&1 | tee $MEGA_CMD_DIR/mybuildlogs-autogen2.out
-./configure SUBDIRS="" --enable-static --with-cryptopp --with-readline=$MEGA_CMD_DIR/sdk/sdk_build/install/include/ \
+./configure --without-libraw SUBDIRS="" --enable-static --with-cryptopp --with-readline=$MEGA_CMD_DIR/sdk/sdk_build/install/include/ \
             $CUSTOM_CONFIG_ARGS  2>&1 | tee $MEGA_CMD_DIR/mybuildlogs-configure2.out 
 
 
