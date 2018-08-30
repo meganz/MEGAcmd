@@ -4144,22 +4144,9 @@ void MegaCmdExecuter::confirmCancel(const char* confirmlink, const char* pass)
     delete megaCmdListener;
 }
 
-
-void forwarderRemoveWebdavLocation(MegaCmdExecuter* context, MegaNode *n) {
-    context->removeWebdavLocation(n);
-}
-void forwarderAddWebdavLocation(MegaCmdExecuter* context, MegaNode *n) {
-    context->addWebdavLocation(n);
-}
-void forwarderRemoveFtpLocation(MegaCmdExecuter* context, MegaNode *n) {
-    context->removeFtpLocation(n);
-}
-void forwarderAddFtpLocation(MegaCmdExecuter* context, MegaNode *n) {
-    context->addFtpLocation(n);
-}
-
-void MegaCmdExecuter::processPath(string path, bool usepcre, void (*nodeprocessor)(MegaCmdExecuter *, MegaNode *), MegaCmdExecuter *context)
+void MegaCmdExecuter::processPath(string path, bool usepcre, bool &firstone, void (*nodeprocessor)(MegaCmdExecuter *, MegaNode *, bool), MegaCmdExecuter *context)
 {
+
     if (isRegExp(path))
     {
         vector<MegaNode *> *nodes = nodesbypath(path.c_str(), usepcre);
@@ -4175,7 +4162,8 @@ void MegaCmdExecuter::processPath(string path, bool usepcre, void (*nodeprocesso
                 MegaNode * n = *it;
                 if (n)
                 {
-                    nodeprocessor(context, n);
+                    nodeprocessor(context, n, firstone);
+                    firstone = false;
                     delete n;
                 }
                 else
@@ -4192,7 +4180,8 @@ void MegaCmdExecuter::processPath(string path, bool usepcre, void (*nodeprocesso
         MegaNode *n = nodebypath(path.c_str());
         if (n)
         {
-            nodeprocessor(context, n);
+            nodeprocessor(context, n, firstone);
+            firstone = false;
             delete n;
         }
         else
@@ -4204,7 +4193,23 @@ void MegaCmdExecuter::processPath(string path, bool usepcre, void (*nodeprocesso
     }
 }
 
-void MegaCmdExecuter::removeWebdavLocation(MegaNode *n, string name)
+
+#ifdef HAVE_LIBUV
+
+void forwarderRemoveWebdavLocation(MegaCmdExecuter* context, MegaNode *n, bool firstone) {
+    context->removeWebdavLocation(n, firstone);
+}
+void forwarderAddWebdavLocation(MegaCmdExecuter* context, MegaNode *n, bool firstone) {
+    context->addWebdavLocation(n, firstone);
+}
+void forwarderRemoveFtpLocation(MegaCmdExecuter* context, MegaNode *n, bool firstone) {
+    context->removeFtpLocation(n, firstone);
+}
+void forwarderAddFtpLocation(MegaCmdExecuter* context, MegaNode *n, bool firstone) {
+    context->addFtpLocation(n, firstone);
+}
+
+void MegaCmdExecuter::removeWebdavLocation(MegaNode *n, bool firstone, string name)
 {
     char *actualNodePath = api->getNodePath(n);
     api->httpServerRemoveWebDavAllowedNode(n->getHandle());
@@ -4234,7 +4239,7 @@ void MegaCmdExecuter::removeWebdavLocation(MegaNode *n, string name)
     delete []actualNodePath;
 }
 
-void MegaCmdExecuter::addWebdavLocation(MegaNode *n, string name)
+void MegaCmdExecuter::addWebdavLocation(MegaNode *n, bool firstone, string name)
 {
     char *actualNodePath = api->getNodePath(n);
     char *l = api->httpServerGetLocalWebDavLink(n);
@@ -4252,7 +4257,7 @@ void MegaCmdExecuter::addWebdavLocation(MegaNode *n, string name)
     delete []actualNodePath;
 }
 
-void MegaCmdExecuter::removeFtpLocation(MegaNode *n, string name)
+void MegaCmdExecuter::removeFtpLocation(MegaNode *n, bool firstone, string name)
 {
     char *actualNodePath = api->getNodePath(n);
     api->ftpServerRemoveAllowedNode(n->getHandle());
@@ -4282,7 +4287,7 @@ void MegaCmdExecuter::removeFtpLocation(MegaNode *n, string name)
     delete []actualNodePath;
 }
 
-void MegaCmdExecuter::addFtpLocation(MegaNode *n, string name)
+void MegaCmdExecuter::addFtpLocation(MegaNode *n, bool firstone, string name)
 {
     char *actualNodePath = api->getNodePath(n);
     char *l = api->ftpServerGetLocalLink(n);
@@ -4299,6 +4304,8 @@ void MegaCmdExecuter::addFtpLocation(MegaNode *n, string name)
     delete []l;
     delete []actualNodePath;
 }
+
+#endif
 
 void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clflags, map<string, string> *cloptions)
 {
@@ -4893,6 +4900,16 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             LOG_err << "Not logged in.";
             return;
         }
+
+        int PATHSIZE = getintOption(cloptions,"path-display-size");
+        if (!PATHSIZE)
+        {
+            // get screen size for output purposes
+            unsigned int width = getNumberOfCols(75);
+            PATHSIZE = min(50,int(width-13));
+        }
+        PATHSIZE = max(0, PATHSIZE);
+
         long long totalSize = 0;
         long long currentSize = 0;
         long long totalVersionsSize = 0;
@@ -4921,7 +4938,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         {
                             if (firstone)//print header
                             {
-                                OUTSTREAM << getFixLengthString("FILENAME",40) << getFixLengthString("SIZE", 12, ' ', true);
+                                OUTSTREAM << getFixLengthString("FILENAME",PATHSIZE) << getFixLengthString("SIZE", 12, ' ', true);
                                 if (show_versions_size)
                                 {
                                     OUTSTREAM << getFixLengthString("S.WITH VERS", 12, ' ', true);;
@@ -4933,7 +4950,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                             totalSize += currentSize;
 
                             dpath = getDisplayPath(words[i], n);
-                            OUTSTREAM << getFixLengthString(dpath+":",40) << getFixLengthString(sizeToText(currentSize, true, humanreadable), 12, ' ', true);
+                            OUTSTREAM << getFixLengthString(dpath+":",PATHSIZE) << getFixLengthString(sizeToText(currentSize, true, humanreadable), 12, ' ', true);
                             if (show_versions_size)
                             {
                                 long long sizeWithVersions = getVersionsSize(n);
@@ -4966,7 +4983,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 {
                     if (firstone)//print header
                     {
-                        OUTSTREAM << getFixLengthString("FILENAME",40) << getFixLengthString("SIZE", 12, ' ', true);
+                        OUTSTREAM << getFixLengthString("FILENAME",PATHSIZE) << getFixLengthString("SIZE", 12, ' ', true);
                         if (show_versions_size)
                         {
                             OUTSTREAM << getFixLengthString("S.WITH VERS", 12, ' ', true);;
@@ -4975,7 +4992,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         firstone = false;
                     }
 
-                    OUTSTREAM << getFixLengthString(dpath+":",40) << getFixLengthString(sizeToText(currentSize, true, humanreadable), 12, ' ', true);
+                    OUTSTREAM << getFixLengthString(dpath+":",PATHSIZE) << getFixLengthString(sizeToText(currentSize, true, humanreadable), 12, ' ', true);
                     if (show_versions_size)
                     {
                         long long sizeWithVersions = getVersionsSize(n);
@@ -4991,9 +5008,13 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
         if (!firstone)
         {
-            OUTSTREAM << "----------------------------------------------------------------" << endl;
+            for (int i = 0; i < PATHSIZE+12 ; i++)
+            {
+                OUTSTREAM << "-";
+            }
+            OUTSTREAM << endl;
 
-            OUTSTREAM << getFixLengthString("Total storage used:",40) << getFixLengthString(sizeToText(totalSize, true, humanreadable), 12, ' ', true);
+            OUTSTREAM << getFixLengthString("Total storage used:",PATHSIZE) << getFixLengthString(sizeToText(totalSize, true, humanreadable), 12, ' ', true);
             //OUTSTREAM << "Total storage used: " << setw(22) << sizeToText(totalSize, true, humanreadable);
             if (show_versions_size)
             {
@@ -5443,6 +5464,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             unsigned int width = getNumberOfCols(75);
             PATHSIZE = min(60,int((width-46)/2));
         }
+        PATHSIZE = max(0, PATHSIZE);
 
         bool firstbackup = true;
         string speriod=getOption(cloptions, "period");
@@ -6156,16 +6178,17 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         }
         else
         {
+            bool firstone = true;
             for (unsigned int i = 1; i < words.size(); i++)
             {
                 string pathToServe = words[i];
                 if (remove)
                 {
-                    processPath(pathToServe, getFlag(clflags,"use-pcre"), forwarderRemoveWebdavLocation, this);
+                    processPath(pathToServe, getFlag(clflags,"use-pcre"), firstone, forwarderRemoveWebdavLocation, this);
                 }
                 else
                 {
-                    processPath(pathToServe, getFlag(clflags,"use-pcre"), forwarderAddWebdavLocation, this);
+                    processPath(pathToServe, getFlag(clflags,"use-pcre"), firstone, forwarderAddWebdavLocation, this);
                 }
             }
         }
@@ -6299,16 +6322,17 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         }
         else
         {
+            bool firstone = true;
             for (unsigned int i = 1; i < words.size(); i++)
             {
                 string pathToServe = words[i];
                 if (remove)
                 {
-                    processPath(pathToServe, getFlag(clflags,"use-pcre"), forwarderRemoveFtpLocation, this);
+                    processPath(pathToServe, getFlag(clflags,"use-pcre"), firstone, forwarderRemoveFtpLocation, this);
                 }
                 else
                 {
-                    processPath(pathToServe, getFlag(clflags,"use-pcre"), forwarderAddFtpLocation, this);
+                    processPath(pathToServe, getFlag(clflags,"use-pcre"), firstone, forwarderAddFtpLocation, this);
                 }
             }
         }
@@ -6400,6 +6424,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             unsigned int width = getNumberOfCols(75);
             PATHSIZE = min(60,int((width-46)/2));
         }
+        PATHSIZE = max(0, PATHSIZE);
 
         bool headershown = false;
         bool modifiedsyncs = false;
@@ -8388,6 +8413,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             unsigned int width = getNumberOfCols(75);
             PATHSIZE = min(60,int((width-46)/2));
         }
+        PATHSIZE = max(0, PATHSIZE);
 
         if (getFlag(clflags,"c"))
         {

@@ -174,12 +174,14 @@ public:
     void confirmCancel(const char* confirmlink, const char* pass);
     bool amIPro();
 
-    void processPath(std::string path, bool usepcre, void (*nodeprocessor)(MegaCmdExecuter *, mega::MegaNode *), MegaCmdExecuter *context = NULL);
+    void processPath(std::string path, bool usepcre, bool &firstone, void (*nodeprocessor)(MegaCmdExecuter *, mega::MegaNode *, bool), MegaCmdExecuter *context = NULL);
 
-    void removeWebdavLocation(mega::MegaNode *n, std::string name = std::string());
-    void addWebdavLocation(mega::MegaNode *n, std::string name = std::string());
-    void removeFtpLocation(mega::MegaNode *n, std::string name = std::string());
-    void addFtpLocation(mega::MegaNode *n, std::string name = std::string());
+#ifdef HAVE_LIBUV
+    void removeWebdavLocation(mega::MegaNode *n, bool firstone, std::string name = std::string());
+    void addWebdavLocation(mega::MegaNode *n, bool firstone, std::string name = std::string());
+    void removeFtpLocation(mega::MegaNode *n, bool firstone, std::string name = std::string());
+    void addFtpLocation(mega::MegaNode *n, bool firstone, std::string name = std::string());
+#endif
 };
 
 #endif // MEGACMDEXECUTER_H

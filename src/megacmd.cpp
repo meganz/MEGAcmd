@@ -380,6 +380,7 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     {
         validParams->insert("h");
         validParams->insert("versions");
+        validOptValues->insert("path-display-size");
 #ifdef USE_PCRE
         validParams->insert("use-pcre");
 #endif
@@ -1872,6 +1873,8 @@ string getHelpStr(const char *command)
         os << " -h" << "\t" << "Human readable" << endl;
         os << " --versions" << "\t" << "Calculate size including all versions." << endl;
         os << "   " << "\t" << "You can remove all versions with \"deleteversions\" and list them with \"ls --versions\"" << endl;
+        os << " --path-display-size=N" << "\t" << "Use a fixed size of N characters for paths" << endl;
+
 #ifdef USE_PCRE
         os << " --use-pcre" << "\t" << "use PCRE expressions" << endl;
 #endif

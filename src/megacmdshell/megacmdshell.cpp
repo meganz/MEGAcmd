@@ -1434,7 +1434,7 @@ void process_line(char * line)
 #endif
                     return;
                 }
-                else if (words[0] == "transfers")
+                else if ( (words[0] == "transfers"))
                 {
                     string toexec;
 
@@ -1443,12 +1443,38 @@ void process_line(char * line)
                         unsigned int width = getNumberOfCols(75);
                         int pathSize = int((width-46)/2);
 
-                        toexec+="transfers --path-display-size=";
+                        toexec+=words[0];
+                        toexec+=" --path-display-size=";
                         toexec+=SSTR(pathSize);
                         toexec+=" ";
-                        if (strlen(line)>strlen("transfers "))
+                        if (strlen(line)>(words[0].size()+1))
                         {
-                            toexec+=line+strlen("transfers ");
+                            toexec+=line+words[0].size()+1;
+                        }
+                    }
+                    else
+                    {
+                        toexec+=line;
+                    }
+
+                    comms->executeCommand(toexec.c_str(), readresponse);
+                }
+                else if ( (words[0] == "du"))
+                {
+                    string toexec;
+
+                    if (!strstr (line,"path-display-size"))
+                    {
+                        unsigned int width = getNumberOfCols(75);
+                        int pathSize = int(width-13);
+
+                        toexec+=words[0];
+                        toexec+=" --path-display-size=";
+                        toexec+=SSTR(pathSize);
+                        toexec+=" ";
+                        if (strlen(line)>(words[0].size()+1))
+                        {
+                            toexec+=line+words[0].size()+1;
                         }
                     }
                     else
