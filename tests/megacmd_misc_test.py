@@ -387,7 +387,47 @@ cmd_ef(CP+" -vvv file01nonempty.txt "+'copied2')
 copybyfilepattern("localUPs/","file01nonempty.txt", "localUPs/copied2")
 compare_find('/')
 
+currentTest=26
+#Test 26 #move into non existing file
+cmd_ef(CP+" -vvv file01nonempty.txt "+'copied3')
+cmd_ef(MV+" -vvv copied3 "+'moved3')
+copybyfilepattern("localUPs/","file01nonempty.txt", "localUPs/moved3")
+compare_find('/')
 
+currentTest=27
+#Test 27 #move into existing (different) file
+cmd_ef(CP+" -vvv file01nonempty.txt "+'copied4')
+cmd_ef(CP+" -vvv file01.txt "+'moved4')
+cmd_ef(MV+" -vvv copied4 "+'moved4')
+copybyfilepattern("localUPs/","file01nonempty.txt", "localUPs/moved4")
+compare_find('/')
+
+#Test 28 #move into existing equal file
+cmd_ef(CP+" -vvv file01nonempty.txt "+'copied5')
+cmd_ef(CP+" -vvv copied5 "+'moved5')
+cmd_ef(MV+" -vvv copied5 "+'moved5')
+copybyfilepattern("localUPs/","file01nonempty.txt", "localUPs/moved5")
+compare_find('/')
+
+#Test 29 #move into other path
+cmd_ef(CP+" -vvv file01nonempty.txt "+'copied6')
+cmd_ef(MV+" -vvv copied6 "+'/le01/moved6')
+copybyfilepattern("localUPs/","file01nonempty.txt", "localUPs/le01/moved6")
+compare_find('/')
+
+#Test 30 #move existing other path (different file)
+cmd_ef(CP+" -vvv file01nonempty.txt "+'copied7')
+cmd_ef(CP+" -vvv file01.txt "+'/le01/moved7')
+cmd_ef(MV+" -vvv copied7 "+'/le01/moved7')
+copybyfilepattern("localUPs/","file01nonempty.txt", "localUPs/le01/moved7")
+compare_find('/')
+
+#Test 31 #move existing other path
+cmd_ef(CP+" -vvv file01nonempty.txt "+'copied7')
+cmd_ef(CP+" -vvv file01nonempty.txt "+'/le01/moved7')
+cmd_ef(MV+" -vvv copied7 "+'/le01/moved7')
+copybyfilepattern("localUPs/","file01nonempty.txt", "localUPs/le01/moved7")
+compare_find('/')
 
 ###################
 

@@ -3921,7 +3921,7 @@ void MegaCmdExecuter::move(MegaNode * n, string destiny)
                             }
 
                             // rename moved node with the new name
-                            if (!strcmp(name_to_replace, n->getName()))
+                            if (strcmp(name_to_replace, n->getName()))
                             {
                                 MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
                                 api->renameNode(n, name_to_replace, megaCmdListener);
