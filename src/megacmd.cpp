@@ -3380,7 +3380,7 @@ string getLocaleCode()
             if(GetLocaleInfoW( lcidLocaleId, lctyLocaleInfo, pstr, iBuffSize ))
             {
                 string toret;
-                wstring ws(pstr);
+                std::wstring ws(pstr);
                 localwtostring(&ws,&toret);
                 free(pstr); //free locale info string
                 return toret;

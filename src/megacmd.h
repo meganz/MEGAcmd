@@ -21,6 +21,9 @@
 
 #include <iostream>
 #include <iomanip>
+#ifdef _WIN32
+#include <algorithm>
+#endif
 using std::cout;
 using std::endl;
 using std::max;

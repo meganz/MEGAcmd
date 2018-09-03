@@ -24,6 +24,8 @@
 #include <windows.h>
 #include <Lmcons.h> //getusername
 
+using std::wstring;
+
 #define ERRNO WSAGetLastError()
 #define strdup _strdup
 

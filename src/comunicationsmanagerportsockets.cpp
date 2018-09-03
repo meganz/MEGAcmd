@@ -474,7 +474,7 @@ CmdPetition * ComunicationsManagerPortSockets::getPetition()
         wstring ws=wbuffer;
         localwtostring(&ws,&receivedutf8);
 #else
-        localwtostring(&wstring(wbuffer),&receivedutf8);
+        localwtostring(&std::wstring(wbuffer),&receivedutf8);
 #endif
     }
     else
