@@ -3007,7 +3007,10 @@ void finalize()
     }
 
     delete megaCmdMegaListener;
-    threadRetryConnections->join();
+    if (threadRetryConnections)
+    {
+        threadRetryConnections->join();
+    }
     delete threadRetryConnections;
     delete api;
 
