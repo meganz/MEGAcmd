@@ -138,7 +138,7 @@ int ComunicationsManagerFileSockets::initialize()
     mtx->init(false);
 
     MegaFileSystemAccess *fsAccess = new MegaFileSystemAccess();
-    char csocketsFolder[19]; // enough to hold all numbers up to 64-bits
+    char csocketsFolder[34]; // enough to hold all numbers up to 64-bits
     sprintf(csocketsFolder, "/tmp/megaCMD_%d", getuid());
     string socketsFolder = csocketsFolder;
 
