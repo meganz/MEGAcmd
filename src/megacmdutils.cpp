@@ -571,6 +571,15 @@ bool isPublicLink(string link)
     return false;
 }
 
+bool isEncryptedLink(string link)
+{
+    if (( link.find("http") == 0 ) && ( link.find("#") != string::npos ) && (link.substr(link.find("#"),3) == "#P!") )
+    {
+        return true;
+    }
+    return false;
+}
+
 bool hasWildCards(string &what)
 {
     return what.find('*') != string::npos || what.find('?') != string::npos;
@@ -1401,8 +1410,8 @@ string getFixLengthString(const string origin, unsigned int size, const char del
     else
     {
         toret.insert(0,origin,0,(size+1)/2-2);
-        toret.insert((size+1)/2-2,3,'.');
-        toret.insert((size+1)/2+1,origin,bytesSize-(size)/2+1,(size)/2-1); //TODO: This could break characters if multibyte!  //alternative: separate in multibyte strings and print one by one?
+        if (size > 3) toret.insert((size+1)/2-2,3,'.');
+        if (size > 1) toret.insert((size+1)/2+1,origin,bytesSize-(size)/2+1,(size)/2-1); //TODO: This could break characters if multibyte!  //alternative: separate in multibyte strings and print one by one?
     }
 
     return toret;

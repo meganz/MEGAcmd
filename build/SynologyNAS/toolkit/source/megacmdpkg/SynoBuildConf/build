@@ -176,7 +176,7 @@ echo -------------------------------------------------------- sdk end ----------
 echo about to build megacmd ---------------------------
 
 sh autogen.sh 2>&1 | tee /mybuildlogs-autogen2.out
-./configure --enable-static --with-cryptopp $CUSTOM_CONFIG_ARGS  2>&1 | tee /mybuildlogs-configure2.out 
+./configure --without-libraw --enable-static --with-cryptopp $CUSTOM_CONFIG_ARGS  2>&1 | tee /mybuildlogs-configure2.out 
 
 export INCLUDES="-I/source/megacmdpkg/MEGAcmd/sdk/sdk_build/install/include -I/source/megacmdpkg/MEGAcmd/sdk/include/ -I/source/megacmdpkg/MEGAcmd/sdk/include/mega/posix"
 make SUBDIRS='' DEFS='' 2>&1 | tee /mybuildlogs-make2.out

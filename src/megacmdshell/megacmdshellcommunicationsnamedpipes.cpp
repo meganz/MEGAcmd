@@ -261,11 +261,11 @@ bool MegaCmdShellCommunicationsNamedPipes::isFileOwnerCurrentUser(HANDLE hFile)
         }
         else
         {
-            wcerr << L"Unmatched owner - current user -> " << AcctName << L" - " << username;
+            std::wcerr << L"Unmatched owner - current user -> " << AcctName << L" - " << username;
 #ifndef __MINGW32__
-            wcerr << L" IsUserAdmin=" << IsUserAnAdmin();
+            std::wcerr << L" IsUserAdmin=" << IsUserAnAdmin();
 #endif
-            wcerr << L" SIDOwner=" << stringSIDOwner << endl;
+            std::wcerr << L" SIDOwner=" << stringSIDOwner << endl;
             return false;
         }
 

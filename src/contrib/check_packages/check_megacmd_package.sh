@@ -485,9 +485,9 @@ fi
 
 theDisplay="DISPLAY=:0.0"
 
-if [[ $VMNAME == *"ARCHLINUX"* ]]; then
-theDisplay="DISPLAY=:1.0"
-fi
+#if [[ $VMNAME == *"ARCHLINUX"* ]]; then
+#theDisplay="DISPLAY=:1.0"
+#fi
 
 echo " relaunching megacmd as user ..."
 
@@ -496,7 +496,7 @@ $sshpasscommand ssh -oStrictHostKeyChecking=no  mega@$IP_GUEST $theDisplay mega-
 sleep 5 #TODO: sleep longer?
 
 echo " checking new megacmd running ..."
-$sshpasscommand ssh root@$IP_GUEST ps aux | grep mega-cmd
+$sshpasscommand ssh root@$IP_GUEST pgrep mega-cmd
 resultRunning=$?
 logOperationResult "checking new megacmd running ..." $resultRunning
 

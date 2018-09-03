@@ -11,7 +11,7 @@ build-stamp:
 	bash -x ./sdk/contrib/build_sdk.sh -o archives \
 	  -g -b $(FMEDIAINFO) -l -c -s -u -v -a -z -p deps/
 
-	CPPFLAGS="$(CPPFLAGS)" ./configure --disable-shared --enable-static --disable-silent-rules \
+	CPPFLAGS="$(CPPFLAGS)" ./configure --without-libraw --disable-shared --enable-static --disable-silent-rules \
 	  --disable-curl-checks --with-sodium=$(CURDIR)/deps --with-libuv=$(CURDIR)/deps --with-pcre \
 	  --with-curl=$(CURDIR)/deps --with-freeimage=$(CURDIR)/deps --with-readline=$(CURDIR)/deps \
 	  --with-termcap=$(CURDIR)/deps --prefix=$(CURDIR)/deps --disable-examples $(WMEDIAINFO)

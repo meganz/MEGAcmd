@@ -380,6 +380,7 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     {
         validParams->insert("h");
         validParams->insert("versions");
+        validOptValues->insert("path-display-size");
 #ifdef USE_PCRE
         validParams->insert("use-pcre");
 #endif
@@ -412,6 +413,12 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validParams->insert("use-pcre");
 #endif
     }
+    else if ("cp" == thecommand)
+    {
+#ifdef USE_PCRE
+        validParams->insert("use-pcre");
+#endif
+    }
     else if ("speedlimit" == thecommand)
     {
         validParams->insert("u");
@@ -439,7 +446,9 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     {
         validParams->insert("all");
         validParams->insert("f");
+#ifdef USE_PCRE
         validParams->insert("use-pcre");
+#endif
     }
     else if ("exclude" == thecommand)
     {
@@ -457,6 +466,9 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validOptValues->insert("port");
         validOptValues->insert("certificate");
         validOptValues->insert("key");
+#ifdef USE_PCRE
+        validParams->insert("use-pcre");
+#endif
     }
     else if ("ftp" == thecommand)
     {
@@ -468,6 +480,9 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validOptValues->insert("data-ports");
         validOptValues->insert("certificate");
         validOptValues->insert("key");
+#ifdef USE_PCRE
+        validParams->insert("use-pcre");
+#endif
     }
 #endif
     else if ("backup" == thecommand)
@@ -496,6 +511,7 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validParams->insert("d");
         validParams->insert("f");
         validOptValues->insert("expire");
+        validOptValues->insert("password");
 #ifdef USE_PCRE
         validParams->insert("use-pcre");
 #endif
@@ -592,10 +608,15 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validParams->insert("m");
         validParams->insert("q");
         validParams->insert("ignore-quota-warn");
+        validOptValues->insert("password");
 #ifdef USE_PCRE
         validParams->insert("use-pcre");
 #endif
         validOptValues->insert("clientID");
+    }
+    else if ("import" == thecommand)
+    {
+        validOptValues->insert("password");
     }
     else if ("login" == thecommand)
     {
@@ -1404,7 +1425,7 @@ const char * getUsageStr(const char *command)
     }
     if (!strcmp(command, "import"))
     {
-        return "import exportedfilelink#key [remotepath]";
+        return "import exportedlink [--password=PASSWORD] [remotepath]";
     }
     if (!strcmp(command, "put"))
     {
@@ -1417,9 +1438,9 @@ const char * getUsageStr(const char *command)
     if (!strcmp(command, "get"))
     {
 #ifdef USE_PCRE
-        return "get [-m] [-q] [--ignore-quota-warn] [--use-pcre] exportedlink#key|remotepath [localpath]";
+        return "get [-m] [-q] [--ignore-quota-warn] [--use-pcre] [--password=PASSWORD] exportedlink|remotepath [localpath]";
 #else
-        return "get [-m] [-q] [--ignore-quota-warn] exportedlink#key|remotepath [localpath]";
+        return "get [-m] [-q] [--ignore-quota-warn] [--password=PASSWORD] exportedlink|remotepath [localpath]";
 #endif
     }
     if (!strcmp(command, "getq"))
@@ -1460,7 +1481,11 @@ const char * getUsageStr(const char *command)
     }
     if (!strcmp(command, "cp"))
     {
-        return "cp srcremotepath dstremotepath|dstemail:";
+#ifdef USE_PCRE
+        return "cp [--use-pcre] srcremotepath [srcremotepath2 srcremotepath3 ..] dstremotepath|dstemail:";
+#else
+        return "cp srcremotepath [srcremotepath2 srcremotepath3 ..] dstremotepath|dstemail:";
+#endif
     }
     if (!strcmp(command, "deleteversions"))
     {
@@ -1478,11 +1503,19 @@ const char * getUsageStr(const char *command)
 #ifdef HAVE_LIBUV
     if (!strcmp(command, "webdav"))
     {
+#ifdef USE_PCRE
+        return "webdav [-d (--all | remotepath ) ] [ remotepath [--port=PORT] [--public] [--tls --certificate=/path/to/certificate.pem --key=/path/to/certificate.key]] [--use-pcre]";
+#else
         return "webdav [-d (--all | remotepath ) ] [ remotepath [--port=PORT] [--public] [--tls --certificate=/path/to/certificate.pem --key=/path/to/certificate.key]]";
+#endif
     }
     if (!strcmp(command, "ftp"))
     {
+#ifdef USE_PCRE
+        return "ftp [-d ( --all | remotepath ) ] [ remotepath [--port=PORT] [--data-ports=BEGIN-END] [--public] [--tls --certificate=/path/to/certificate.pem --key=/path/to/certificate.key]] [--use-pcre]";
+#else
         return "ftp [-d ( --all | remotepath ) ] [ remotepath [--port=PORT] [--data-ports=BEGIN-END] [--public] [--tls --certificate=/path/to/certificate.pem --key=/path/to/certificate.key]]";
+#endif
     }
 #endif
     if (!strcmp(command, "sync"))
@@ -1506,9 +1539,9 @@ const char * getUsageStr(const char *command)
     if (!strcmp(command, "export"))
     {
 #ifdef USE_PCRE
-        return "export [-d|-a [--expire=TIMEDELAY] [-f]] [remotepath] [--use-pcre]";
+        return "export [-d|-a [--password=PASSWORD] [--expire=TIMEDELAY] [-f]] [remotepath] [--use-pcre]";
 #else
-        return "export [-d|-a [--expire=TIMEDELAY] [-f]] [remotepath]";
+        return "export [-d|-a [--password=PASSWORD] [--expire=TIMEDELAY] [-f]] [remotepath]";
 #endif
     }
     if (!strcmp(command, "share"))
@@ -1795,8 +1828,8 @@ string getHelpStr(const char *command)
         os << " Also, constructions like /PATTERN1/PATTERN2/PATTERN3 are allowed" << endl;
         os << endl;
         os << "Options:" << endl;
-        os << " -R|-r" << "\t" << "list folders recursively" << endl;
-        os << " -l" << "\t" << "print summary" << endl;
+        os << " -R|-r" << "\t" << "List folders recursively" << endl;
+        os << " -l" << "\t" << "Print summary" << endl;
         os << "   " << "\t" << " SUMMARY contents:" << endl;
         os << "   " << "\t" << "   FLAGS: Indicate type/status of an element:" << endl;
         os << "   " << "\t" << "     xxxx" << endl;
@@ -1809,7 +1842,9 @@ string getHelpStr(const char *command)
         os << "   " << "\t" << "   DATE: Modification date for files and creation date for folders (in UTC time):" << endl;
         os << "   " << "\t" << "   NAME: name of the node" << endl;
         os << " -h" << "\t" << "Show human readable sizes in summary" << endl;
-        os << " -a" << "\t" << "include extra information" << endl;
+        os << " -a" << "\t" << "Include extra information" << endl;
+        os << "   " << "\t" << " If this flag is repeated (e.g: -aa) more info will appear" << endl;
+        os << "   " << "\t" << " (public links, expiration dates, ...)" << endl;
         os << " --versions" << "\t" << "show historical versions" << endl;
         os << "   " << "\t" << "You can delete all versions of a file with \"deleteversions\"" << endl;
 #ifdef USE_PCRE
@@ -1848,6 +1883,8 @@ string getHelpStr(const char *command)
         os << " -h" << "\t" << "Human readable" << endl;
         os << " --versions" << "\t" << "Calculate size including all versions." << endl;
         os << "   " << "\t" << "You can remove all versions with \"deleteversions\" and list them with \"ls --versions\"" << endl;
+        os << " --path-display-size=N" << "\t" << "Use a fixed size of N characters for paths" << endl;
+
 #ifdef USE_PCRE
         os << " --use-pcre" << "\t" << "use PCRE expressions" << endl;
 #endif
@@ -1886,6 +1923,9 @@ string getHelpStr(const char *command)
         os << "Imports the contents of a remote link into user's cloud" << endl;
         os << endl;
         os << "If no remote path is provided, the current local folder will be used" << endl;
+        os << "Exported links: Exported links are usually formed as publiclink#key." << endl;
+        os << " Alternativelly you can provide a password-protected link and" << endl;
+        os << " provide the password with --password" << endl;
     }
     else if (!strcmp(command, "put"))
     {
@@ -1913,12 +1953,18 @@ string getHelpStr(const char *command)
         os << endl;
         os << "For folders, the entire contents (and the root folder itself) will be" << endl;
         os << "                    by default downloaded into the destination folder" << endl;
+        os << endl;
+        os << "Exported links: Exported links are usually formed as publiclink#key." << endl;
+        os << " Alternativelly you can provide a password-protected link and" << endl;
+        os << " provide the password with --password" << endl;
+        os << endl;
         os << "Options:" << endl;
         os << " -q" << "\t" << "queue download: execute in the background. Don't wait for it to end' " << endl;
         os << " -m" << "\t" << "if the folder already exists, the contents will be merged with the " << endl;
         os << "                     downloaded one (preserving the existing files)" << endl;
         os << " --ignore-quota-warn" << "\t" << "ignore quota surpassing warning. " << endl;
         os << "                    " << "\t" << "  The download will be attempted anyway." << endl;
+        os << " --password=PASSWORD" << "\t" << "Password to decrypt the password-protected link." << endl;
 #ifdef USE_PCRE
         os << " --use-pcre" << "\t" << "use PCRE expressions" << endl;
 #endif
@@ -1971,14 +2017,19 @@ string getHelpStr(const char *command)
     }
     else if (!strcmp(command, "cp"))
     {
-        os << "Copies a file/folder into a new location (all remotes)" << endl;
+        os << "Copies files/folders into a new location (all remotes)" << endl;
         os << endl;
         os << "If the location exists and is a folder, the source will be copied there" << endl;
-        os << "If the location doesn't exist, the file/folder will be renamed to the destination name given" << endl;
+        os << "If the location doesn't exist, and only one source is provided," << endl;
+        os << " the file/folder will be copied and renamed to the destination name given." << endl;
         os << endl;
         os << "If \"dstemail:\" provided, the file/folder will be sent to that user's inbox (//in)" << endl;
         os << " e.g: cp /path/to/file user@doma.in:" << endl;
         os << " Remember the trailing \":\", otherwise a file with the name of that user (\"user@doma.in\") will be created" << endl;
+#ifdef USE_PCRE
+        os << "Options:" << endl;
+        os << " --use-pcre" << "\t" << "use PCRE expressions" << endl;
+#endif
     }
 #ifndef _WIN32
     else if (!strcmp(command, "permissions"))
@@ -2044,6 +2095,9 @@ string getHelpStr(const char *command)
         os << " --tls      " << "\t" << "*Serve with TLS (HTTPS)" << endl;
         os << " --certificate=/path/to/certificate.pem" << "\t" << "*Path to PEM formated certificate" << endl;
         os << " --key=/path/to/certificate.key" << "\t" << "*Path to PEM formated key" << endl;
+#ifdef USE_PCRE
+        os << " --use-pcre" << "\t" << "use PCRE expressions" << endl;
+#endif
         os << endl;
         os << "*If you serve more than one location, these parameters will be ignored and use those of the first location served." << endl;
         os << endl;
@@ -2066,6 +2120,9 @@ string getHelpStr(const char *command)
         os << " --tls      " << "\t" << "*Serve with TLS (FTPs)" << endl;
         os << " --certificate=/path/to/certificate.pem" << "\t" << "*Path to PEM formated certificate" << endl;
         os << " --key=/path/to/certificate.key" << "\t" << "*Path to PEM formated key" << endl;
+#ifdef USE_PCRE
+        os << " --use-pcre" << "\t" << "use PCRE expressions" << endl;
+#endif
         os << endl;
         os << "*If you serve more than one location, these parameters will be ignored and used those of the first location served." << endl;
         os << endl;
@@ -2194,6 +2251,7 @@ string getHelpStr(const char *command)
         os << " --use-pcre" << "\t" << "use PCRE expressions" << endl;
 #endif
         os << " -a" << "\t" << "Adds an export (or modifies it if existing)" << endl;
+        os << " --password=PASSWORD" << "\t" << "Protects link with password." << endl;
         os << " --expire=TIMEDELAY" << "\t" << "Determines the expiration time of a node." << endl;
         os << "                   " << "\t" << "   It indicates the delay in hours(h), days(d), " << endl;
         os << "                   " << "\t"  << "   minutes(M), seconds(s), months(m) or years(y)" << endl;
@@ -2964,7 +3022,10 @@ void finalize()
     }
 
     delete megaCmdMegaListener;
-    threadRetryConnections->join();
+    if (threadRetryConnections)
+    {
+        threadRetryConnections->join();
+    }
     delete threadRetryConnections;
     delete api;
 

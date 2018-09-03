@@ -8,11 +8,14 @@ GET="mega-get"
 PUT="mega-put"
 RM="mega-rm"
 MV="mega-mv"
+CP="mega-cp"
 CD="mega-cd"
 LCD="mega-lcd"
 MKDIR="mega-mkdir"
 EXPORT="mega-export -f"
 FIND="mega-find"
+INVITE="mega-invite"
+IPC="mega-ipc"
 WHOAMI="mega-whoami"
 LOGOUT="mega-logout"
 LOGIN="mega-login"
@@ -32,8 +35,10 @@ except:
 try:
     MEGA_EMAIL=os.environ["MEGA_EMAIL"]
     MEGA_PWD=os.environ["MEGA_PWD"]
+    MEGA_EMAIL_AUX=os.environ["MEGA_EMAIL_AUX"]
+    MEGA_PWD_AUX=os.environ["MEGA_PWD_AUX"]
 except:
-    print >>sys.stderr, "You must define variables MEGA_EMAIL MEGA_PWD. WARNING: Use an empty account for $MEGA_EMAIL"
+    print >>sys.stderr, "You must define variables MEGA_EMAIL MEGA_PWD MEGA_EMAIL_AUX MEGA_PWD_AUX. WARNING: Use an empty account for $MEGA_EMAIL"
     exit(1)
 
 
@@ -46,9 +51,17 @@ except:
     CMDSHELL=False
 
 def initialize_contents():
+    cmd_ec(INVITE+" "+osvar("MEGA_EMAIL_AUX"))
+    cmd_ef(LOGOUT)
+    cmd_ef(LOGIN+" " +osvar("MEGA_EMAIL_AUX")+" "+osvar("MEGA_PWD_AUX"))
+    cmd_ec(IPC+" -a "+osvar("MEGA_EMAIL"))
+    cmd_ef(LOGOUT)
+    cmd_ef(LOGIN+" " +osvar("MEGA_EMAIL")+" "+osvar("MEGA_PWD"))
+
     contents=" ".join(['"localtmp/'+x+'"' for x in os.listdir('localtmp/')])
     cmd_ef(PUT+" "+contents+" /")
     shutil.copytree('localtmp', 'localUPs')
+
 
 def clean_all(): 
     
@@ -105,6 +118,19 @@ def compare_and_clear() :
         exit(1)
 
     clear_local_and_remote()
+    currentTest+=1
+    cmd_ef(CD+" /")
+
+def check_failed_and_clear(o,status):
+    global currentTest
+
+    if status == 0:
+        print "test "+str(currentTest)+" failed!"
+        print o
+        exit(1)
+    else:
+        print "test "+str(currentTest)+" succesful!"
+
     currentTest+=1
     cmd_ef(CD+" /")
 
@@ -276,6 +302,9 @@ currentTest=15
 cmd_ef(MV+" file01nonempty.txt "+'/le01/moved.txt')
 shutil.move("localUPs/file01nonempty.txt", "localUPs/le01/moved.txt")
 compare_find('/')
+#revert original situation
+cmd_ef(MV+' /le01/moved.txt'+" file01nonempty.txt ")
+shutil.move("localUPs/le01/moved.txt", "localUPs/file01nonempty.txt")
 
 #Test 16
 touch("localUPs/newemptyfile.txt")
@@ -312,7 +341,92 @@ u'\U00027436\ua44f\uc908\u217f\U00027425\U0002ba8c\uc30a\U00023dc5\ud325\u70c8\U
 ]:
     i+=1
     touch("localUPs/"+fname)
-    cmd_ef(PUT+" "+"localUPs/"+fname+" "+"/")
+    cmd_ef(PUT+" "+"localUPs/"+fname.encode('utf-8')+" "+"/")
+compare_find('/')
+
+currentTest=18
+#Test 18 #copy & rename
+cmd_ef(CP+" file01nonempty.txt "+'/le01/copied')
+copybyfilepattern("localUPs/","file01nonempty.txt", "localUPs/le01/copied")
+compare_find('/')
+
+#Test 19 #multicopy
+cmd_ef(CP+" *.txt "+'/le01')
+copybyfilepattern("localUPs/","*.txt", "localUPs/le01/")
+compare_find('/')
+
+#Test 20 #multicopy with trailing /
+cmd_ef(CP+" *.txt "+'/le01/les01/')
+copybyfilepattern("localUPs/","*.txt", "localUPs/le01/les01/")
+compare_find('/')
+
+#Test 21 #multisend
+cmd_ef(CP+" *.txt "+MEGA_EMAIL_AUX+':')
+print "test "+str(currentTest)+" succesful!"
+currentTest+=1
+
+#Test 22 #copy folder
+cmd_ef(CP+" le01 "+'lf01')
+copyfolder("localUPs/le01", "localUPs/lf01/")
+compare_find('/')
+
+if not CMDSHELL: #TODO: currently there is no way to know last CMSHELL status code
+    #Test 23 #send to non contact
+    o,status=cmd_ec(CP+" *.txt badContact"+MEGA_EMAIL_AUX+':')
+    check_failed_and_clear(o,status)
+
+    #Test 24 #multicopy into file
+    o,status=cmd_ec(CP+" *.txt /le01/file01nonempty.txt")
+    check_failed_and_clear(o,status)
+
+currentTest=25
+
+#Test 25 #copy into existing file
+cmd_ef(CP+" -vvv file01nonempty.txt "+'copied2')
+cmd_ef(CP+" -vvv file01nonempty.txt "+'copied2')
+copybyfilepattern("localUPs/","file01nonempty.txt", "localUPs/copied2")
+compare_find('/')
+
+currentTest=26
+#Test 26 #move into non existing file
+cmd_ef(CP+" -vvv file01nonempty.txt "+'copied3')
+cmd_ef(MV+" -vvv copied3 "+'moved3')
+copybyfilepattern("localUPs/","file01nonempty.txt", "localUPs/moved3")
+compare_find('/')
+
+currentTest=27
+#Test 27 #move into existing (different) file
+cmd_ef(CP+" -vvv file01nonempty.txt "+'copied4')
+cmd_ef(CP+" -vvv file01.txt "+'moved4')
+cmd_ef(MV+" -vvv copied4 "+'moved4')
+copybyfilepattern("localUPs/","file01nonempty.txt", "localUPs/moved4")
+compare_find('/')
+
+#Test 28 #move into existing equal file
+cmd_ef(CP+" -vvv file01nonempty.txt "+'copied5')
+cmd_ef(CP+" -vvv copied5 "+'moved5')
+cmd_ef(MV+" -vvv copied5 "+'moved5')
+copybyfilepattern("localUPs/","file01nonempty.txt", "localUPs/moved5")
+compare_find('/')
+
+#Test 29 #move into other path
+cmd_ef(CP+" -vvv file01nonempty.txt "+'copied6')
+cmd_ef(MV+" -vvv copied6 "+'/le01/moved6')
+copybyfilepattern("localUPs/","file01nonempty.txt", "localUPs/le01/moved6")
+compare_find('/')
+
+#Test 30 #move existing other path (different file)
+cmd_ef(CP+" -vvv file01nonempty.txt "+'copied7')
+cmd_ef(CP+" -vvv file01.txt "+'/le01/moved7')
+cmd_ef(MV+" -vvv copied7 "+'/le01/moved7')
+copybyfilepattern("localUPs/","file01nonempty.txt", "localUPs/le01/moved7")
+compare_find('/')
+
+#Test 31 #move existing other path
+cmd_ef(CP+" -vvv file01nonempty.txt "+'copied7')
+cmd_ef(CP+" -vvv file01nonempty.txt "+'/le01/moved7')
+cmd_ef(MV+" -vvv copied7 "+'/le01/moved7')
+copybyfilepattern("localUPs/","file01nonempty.txt", "localUPs/le01/moved7")
 compare_find('/')
 
 ###################

@@ -138,7 +138,7 @@ int ComunicationsManagerFileSockets::initialize()
     mtx->init(false);
 
     MegaFileSystemAccess *fsAccess = new MegaFileSystemAccess();
-    char csocketsFolder[19]; // enough to hold all numbers up to 64-bits
+    char csocketsFolder[34]; // enough to hold all numbers up to 64-bits
     sprintf(csocketsFolder, "/tmp/megaCMD_%d", getuid());
     string socketsFolder = csocketsFolder;
 
@@ -528,7 +528,7 @@ string ComunicationsManagerFileSockets::getUserResponse(CmdPetition *inf, string
     {
         LOG_fatal << "Getting Confirmation: Unable to accept on outsocket " << ((CmdPetitionPosixSockets *)inf)->outSocket << " error: " << errno;
         delete inf;
-        return false;
+        return "FAILED";
     }
 
     int outCode = MCMD_REQSTRING;
