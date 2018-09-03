@@ -52,6 +52,8 @@ private:
 
     void updateprompt(mega::MegaApi *api, mega::MegaHandle handle);
 
+    std::string getNodePathString(mega::MegaNode *n);
+
 public:
     bool signingup;
     bool confirming;
@@ -163,6 +165,7 @@ public:
     void doFind(mega::MegaNode* nodeBase, std::string word, int printfileinfo, std::string pattern, bool usepcre, mega::m_time_t minTime, mega::m_time_t maxTime, int64_t minSize, int64_t maxSize);
 
     void move(mega::MegaNode *n, std::string destiny);
+    void copyNode(mega::MegaNode *n, std::string destiny, mega::MegaNode *tn, std::string &targetuser, std::string &newname);
     std::string getLPWD();
     bool isValidFolder(std::string destiny);
     bool establishBackup(std::string local, mega::MegaNode *n, int64_t period, std::string periodstring, int numBackups);

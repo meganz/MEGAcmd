@@ -413,6 +413,12 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validParams->insert("use-pcre");
 #endif
     }
+    else if ("cp" == thecommand)
+    {
+#ifdef USE_PCRE
+        validParams->insert("use-pcre");
+#endif
+    }
     else if ("speedlimit" == thecommand)
     {
         validParams->insert("u");
@@ -1475,7 +1481,11 @@ const char * getUsageStr(const char *command)
     }
     if (!strcmp(command, "cp"))
     {
-        return "cp srcremotepath dstremotepath|dstemail:";
+#ifdef USE_PCRE
+        return "cp [--use-pcre] srcremotepath [srcremotepath2 srcremotepath3 ..] dstremotepath|dstemail:";
+#else
+        return "cp srcremotepath [srcremotepath2 srcremotepath3 ..] dstremotepath|dstemail:";
+#endif
     }
     if (!strcmp(command, "deleteversions"))
     {
@@ -2007,14 +2017,19 @@ string getHelpStr(const char *command)
     }
     else if (!strcmp(command, "cp"))
     {
-        os << "Copies a file/folder into a new location (all remotes)" << endl;
+        os << "Copies files/folders into a new location (all remotes)" << endl;
         os << endl;
         os << "If the location exists and is a folder, the source will be copied there" << endl;
-        os << "If the location doesn't exist, the file/folder will be renamed to the destination name given" << endl;
+        os << "If the location doesn't exist, and only one source is provided," << endl;
+        os << " the file/folder will be copied and renamed to the destination name given." << endl;
         os << endl;
         os << "If \"dstemail:\" provided, the file/folder will be sent to that user's inbox (//in)" << endl;
         os << " e.g: cp /path/to/file user@doma.in:" << endl;
         os << " Remember the trailing \":\", otherwise a file with the name of that user (\"user@doma.in\") will be created" << endl;
+#ifdef USE_PCRE
+        os << "Options:" << endl;
+        os << " --use-pcre" << "\t" << "use PCRE expressions" << endl;
+#endif
     }
 #ifndef _WIN32
     else if (!strcmp(command, "permissions"))

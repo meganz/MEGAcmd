@@ -317,6 +317,18 @@ MegaNode* MegaCmdExecuter::nodebypath(const char* ptr, string* user, string* nam
         return baseNode;
     }
 
+    if (!rest.size() && !baseNode)
+    {
+        string path(ptr);
+        if (path.size() && path.find("@") != string::npos && path.find_last_of(":") == (path.size() - 1))
+        {
+            if (user)
+            {
+                *user = path.substr(0,path.size()-1);
+            }
+        }
+    }
+
     while (baseNode)
     {
         size_t possep = rest.find('/');
@@ -4029,6 +4041,141 @@ void MegaCmdExecuter::restartsyncs()
     }
 }
 
+std::string MegaCmdExecuter::getNodePathString(MegaNode *n)
+{
+    const char *path = api->getNodePath(n);
+    string toret(path);
+    delete[] path;
+    return toret;
+}
+
+void MegaCmdExecuter::copyNode(MegaNode *n, string destiny, MegaNode * tn, string &targetuser, string &newname)
+{
+    if (tn)
+    {
+        if (tn->getHandle() == n->getHandle())
+        {
+            LOG_err << "Source and destiny are the same";
+        }
+        else
+        {
+            if (newname.size()) //target not found, but tn has what was before the last "/" in the path.
+            {
+                if (n->getType() == MegaNode::TYPE_FILE)
+                {
+                    LOG_debug << "copy with new name: \"" << getNodePathString(n) << "\" to \"" << destiny << "\" newname=" << newname;
+                    //copy with new name
+                    MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
+                    api->copyNode(n, tn, newname.c_str(), megaCmdListener); //only works for files
+                    megaCmdListener->wait();
+                    checkNoErrors(megaCmdListener->getError(), "copy node");
+                    delete megaCmdListener;
+                }
+                else //copy & rename
+                {
+                    LOG_debug << "copy & rename: \"" << getNodePathString(n) << "\" to \"" << destiny << "\"";
+                    //copy with new name
+                    MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
+                    api->copyNode(n, tn, megaCmdListener);
+                    megaCmdListener->wait();
+                    if (checkNoErrors(megaCmdListener->getError(), "copy node"))
+                    {
+                        MegaNode * newNode = api->getNodeByHandle(megaCmdListener->getRequest()->getNodeHandle());
+                        if (newNode)
+                        {
+                            MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
+                            api->renameNode(newNode, newname.c_str(), megaCmdListener);
+                            megaCmdListener->wait();
+                            checkNoErrors(megaCmdListener->getError(), "rename new node");
+                            delete megaCmdListener;
+                            delete newNode;
+                        }
+                        else
+                        {
+                            LOG_err << " Couldn't find new node created upon cp";
+                        }
+                    }
+                    delete megaCmdListener;
+                }
+            }
+            else
+            { //target exists
+                if (tn->getType() == MegaNode::TYPE_FILE)
+                {
+                    if (n->getType() == MegaNode::TYPE_FILE)
+                    {
+                        LOG_debug << "overwriding target: \"" << getNodePathString(n) << "\" to \"" << destiny << "\"";
+
+                        // overwrite target if source and target are files
+                        MegaNode *tnParentNode = api->getNodeByHandle(tn->getParentHandle());
+                        if (tnParentNode) // (there should never be any orphaned filenodes)
+                        {
+                            const char* name_to_replace = tn->getName();
+                            //copy with new name
+                            MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
+                            api->copyNode(n, tnParentNode, name_to_replace, megaCmdListener);
+                            megaCmdListener->wait();
+                            if (checkNoErrors(megaCmdListener->getError(), "copy with new name") )
+                            {
+                                MegaHandle newNodeHandle = megaCmdListener->getRequest()->getNodeHandle();
+                                delete megaCmdListener;
+                                delete tnParentNode;
+
+                                //remove target node
+                                if (tn->getHandle() != newNodeHandle )//&& newNodeHandle != n->getHandle())
+                                {
+                                    megaCmdListener = new MegaCmdListener(NULL);
+                                    api->remove(tn, megaCmdListener);
+                                    megaCmdListener->wait();
+                                    checkNoErrors(megaCmdListener->getError(), "delete target node");
+                                    delete megaCmdListener;
+                                }
+                            }
+                        }
+                        else
+                        {
+                            setCurrentOutCode(MCMD_INVALIDSTATE);
+                            LOG_fatal << "Destiny node is orphan!!!";
+                        }
+                    }
+                    else
+                    {
+                        setCurrentOutCode(MCMD_INVALIDTYPE);
+                        LOG_err << "Cannot overwrite file with folder";
+                        return;
+                    }
+                }
+                else //copying into folder
+                {
+                    LOG_debug << "Copying into folder: \"" << getNodePathString(n) << "\" to \"" << destiny << "\"";
+
+                    MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
+                    api->copyNode(n, tn, megaCmdListener);
+                    megaCmdListener->wait();
+                    checkNoErrors(megaCmdListener->getError(), "copy node");
+                    delete megaCmdListener;
+                }
+            }
+        }
+    }
+    else if (targetuser.size())
+    {
+        LOG_debug << "Sending to user: \"" << getNodePathString(n) << "\" to \"" << targetuser << "\"";
+
+        MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
+        api->sendFileToUser(n,targetuser.c_str(),megaCmdListener);
+        megaCmdListener->wait();
+        checkNoErrors(megaCmdListener->getError(), "send file to user");
+        delete megaCmdListener;
+    }
+    else
+    {
+        setCurrentOutCode(MCMD_NOTFOUND);
+        LOG_err << destiny << " Couldn't find destination";
+    }
+}
+
+
 #ifdef ENABLE_BACKUPS
 bool MegaCmdExecuter::establishBackup(string pathToBackup, MegaNode *n, int64_t period, string speriod,  int numBackups)
 {
@@ -4760,129 +4907,71 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             LOG_err << "Not logged in.";
             return;
         }
-        MegaNode* tn;
-        string targetuser;
-        string newname;
-
         if (words.size() > 2)
         {
-            if (( n = nodebypath(words[1].c_str())))
-            {
-                if (( tn = nodebypath(words[2].c_str(), &targetuser, &newname)))
-                {
-                    if (tn->getHandle() == n->getHandle())
-                    {
-                        LOG_err << "Source and destiny are the same";
-                    }
-                    else
-                    {
-                        if (newname.size()) //target not found, but tn has what was before the last "/" in the path.
-                        {
-                            if (n->getType() == MegaNode::TYPE_FILE)
-                            {
-                                //copy with new name
-                                MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
-                                api->copyNode(n, tn, newname.c_str(), megaCmdListener); //only works for files
-                                megaCmdListener->wait();
-                                checkNoErrors(megaCmdListener->getError(), "copy node");
-                                delete megaCmdListener;
-                            }
-                            else //copy & rename
-                            {
-                                //copy with new name
-                                MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
-                                api->copyNode(n, tn, megaCmdListener);
-                                megaCmdListener->wait();
-                                if (checkNoErrors(megaCmdListener->getError(), "copy node"))
-                                {
-                                    MegaNode * newNode = api->getNodeByHandle(megaCmdListener->getRequest()->getNodeHandle());
-                                    if (newNode)
-                                    {
-                                        MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
-                                        api->renameNode(newNode, newname.c_str(), megaCmdListener);
-                                        megaCmdListener->wait();
-                                        checkNoErrors(megaCmdListener->getError(), "rename new node");
-                                        delete megaCmdListener;
-                                        delete newNode;
-                                    }
-                                    else
-                                    {
-                                        LOG_err << " Couldn't find new node created upon cp";
-                                    }
-                                }
-                                delete megaCmdListener;
-                            }
-                        }
-                        else
-                        { //target exists
-                            if (tn->getType() == MegaNode::TYPE_FILE)
-                            {
-                                if (n->getType() == MegaNode::TYPE_FILE)
-                                {
-                                    // overwrite target if source and target are files
-                                    MegaNode *tnParentNode = api->getNodeByHandle(tn->getParentHandle());
-                                    if (tnParentNode) // (there should never be any orphaned filenodes)
-                                    {
-                                        const char* name_to_replace = tn->getName();
-                                        //copy with new name
-                                        MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
-                                        api->copyNode(n, tnParentNode, name_to_replace, megaCmdListener);
-                                        megaCmdListener->wait();
-                                        delete megaCmdListener;
-                                        delete tnParentNode;
+            string destiny = words[words.size()-1];
+            string targetuser;
+            string newname;
+            MegaNode *tn = nodebypath(destiny.c_str(), &targetuser, &newname);
 
-                                        //remove target node
-                                        megaCmdListener = new MegaCmdListener(NULL);
-                                        api->remove(tn, megaCmdListener);
-                                        megaCmdListener->wait();
-                                        checkNoErrors(megaCmdListener->getError(), "delete target node");
-                                        delete megaCmdListener;
-                                    }
-                                    else
-                                    {
-                                        setCurrentOutCode(MCMD_INVALIDSTATE);
-                                        LOG_fatal << "Destiny node is orphan!!!";
-                                    }
-                                }
-                                else
-                                {
-                                    setCurrentOutCode(MCMD_INVALIDTYPE);
-                                    LOG_err << "Cannot overwrite file with folder";
-                                    return;
-                                }
-                            }
-                            else //copying into folder
+            if (words.size() > 3 && !isValidFolder(destiny) && !targetuser.size())
+            {
+                setCurrentOutCode(MCMD_INVALIDTYPE);
+                LOG_err << destiny << " must be a valid folder";
+                return;
+            }
+
+            for (unsigned int i=1;i<(words.size()-1);i++)
+            {
+                string source = words[i];
+
+                if (isRegExp(source))
+                {
+                    vector<MegaNode *> *nodesToCopy = nodesbypath(words[i].c_str(), getFlag(clflags,"use-pcre"));
+                    if (nodesToCopy)
+                    {
+                        if (!nodesToCopy->size())
+                        {
+                            setCurrentOutCode(MCMD_NOTFOUND);
+                            LOG_err << source << ": No such file or directory";
+                        }
+
+                        bool destinyisok=true;
+                        if (nodesToCopy->size() > 1 && !isValidFolder(destiny) && !targetuser.size())
+                        {
+                            destinyisok = false;
+                            setCurrentOutCode(MCMD_INVALIDTYPE);
+                            LOG_err << destiny << " must be a valid folder";
+                        }
+
+                        if (destinyisok)
+                        {
+                            for (std::vector< MegaNode * >::iterator it = nodesToCopy->begin(); it != nodesToCopy->end(); ++it)
                             {
-                                MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
-                                api->copyNode(n, tn, megaCmdListener);
-                                megaCmdListener->wait();
-                                checkNoErrors(megaCmdListener->getError(), "copy node");
-                                delete megaCmdListener;
+                                MegaNode * n = *it;
+                                if (n)
+                                {
+                                    copyNode(n, destiny, tn, targetuser, newname);
+                                    delete n;
+                                }
                             }
                         }
+                        nodesToCopy->clear();
+                        delete nodesToCopy;
                     }
-                    delete tn;
                 }
-                else if (targetuser.size())
+                else if (( n = nodebypath(source.c_str())))
                 {
-                    MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
-                    api->sendFileToUser(n,targetuser.c_str(),megaCmdListener);
-                    megaCmdListener->wait();
-                    checkNoErrors(megaCmdListener->getError(), "send file to user");
-                    delete megaCmdListener;
+                    copyNode(n, destiny, tn, targetuser, newname);
+                    delete n;
                 }
                 else
                 {
                     setCurrentOutCode(MCMD_NOTFOUND);
-                    LOG_err << words[2] << " Couldn't find destination";
+                    LOG_err << source << ": No such file or directory";
                 }
-                delete n;
             }
-            else
-            {
-                setCurrentOutCode(MCMD_NOTFOUND);
-                LOG_err << words[1] << ": No such file or directory";
-            }
+            delete tn;
         }
         else
         {
