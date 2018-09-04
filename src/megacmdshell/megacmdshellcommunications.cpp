@@ -795,8 +795,8 @@ int MegaCmdShellCommunications::executeCommand(string command, std::string (*rea
             output << buffer;
 #endif
         }
-        //read until socket is closed or while it's full and we are registering state listener (the socket will stay open for receiving further info)
-    } while((n != 0 || (n == BUFFERSIZE && command.find("registerstatelisterner") != string::npos))&& n !=SOCKET_ERROR);
+    } while(n !=SOCKET_ERROR);
+
 
     if (n == SOCKET_ERROR)
     {
