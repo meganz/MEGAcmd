@@ -795,8 +795,7 @@ int MegaCmdShellCommunications::executeCommand(string command, std::string (*rea
             output << buffer;
 #endif
         }
-    } while(n !=SOCKET_ERROR);
-
+    } while(n != 0 && n !=SOCKET_ERROR);
 
     if (n == SOCKET_ERROR)
     {
