@@ -539,6 +539,8 @@ int main(int argc, char* argv[])
     int outcode = comms->executeCommand(parsedArgs, readresponse, COUT, false);
 #endif
 
+    cerr << "COMMAND EXECUTED. Closing client app" << endl;
+    cout << "COUT: COMMAND EXECUTED. Closing client app" << endl;
     delete comms;
 
     // do always return positive error codes (POSIX compliant)

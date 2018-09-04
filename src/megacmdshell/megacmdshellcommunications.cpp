@@ -780,6 +780,8 @@ int MegaCmdShellCommunications::executeCommand(string command, std::string (*rea
     char buffer[1025];
     do{
         n = recv(newsockfd, buffer, BUFFERSIZE, MSG_NOSIGNAL);
+        cerr << "read output from server n=" << n << endl;
+        cout << "COUT: read output from server n=" << n << endl;
         if (n)
         {
 #ifdef _WIN32
@@ -802,6 +804,9 @@ int MegaCmdShellCommunications::executeCommand(string command, std::string (*rea
         cerr << "ERROR reading output: " << ERRNO << endl;
         return -1;;
     }
+
+    cerr << " after received all bytes. last n=" << n << endl;
+    cout << "COUT: after received all bytes. last n=" << n << endl;
 
     closeSocket(newsockfd);
     closeSocket(thesock);
