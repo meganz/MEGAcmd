@@ -203,6 +203,15 @@ def find(where, prefix=""):
             toret+="\n"+findR(where, prefix+"/").strip()
     return toret.strip()
 
+def ls(where, prefix=""):
+    if not os.path.exists(where):
+        if VERBOSE: print "file not found in find:", where, os.getcwd()
+        return ""
+    toret=""
+    for f in os.listdir(where):
+        toret+=prefix+f+"\n"
+    return toret
+
 def touch(what, times=None):
     with open(what, 'a'):
         os.utime(what, times)

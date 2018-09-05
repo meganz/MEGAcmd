@@ -8039,10 +8039,17 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         if (checkNoErrors(megaCmdListener->getError(), "import node"))
                         {
                             MegaNode *imported = api->getNodeByHandle(megaCmdListener->getRequest()->getNodeHandle());
-                            char *importedPath = api->getNodePath(imported);
-                            OUTSTREAM << "Import file complete: " << importedPath << endl;
+                            if (imported)
+                            {
+                                char *importedPath = api->getNodePath(imported);
+                                OUTSTREAM << "Import file complete: " << importedPath << endl;
+                                delete []importedPath;
+                            }
+                            else
+                            {
+                                LOG_warn << "Import file complete: Couldn't get path of imported file";
+                            }
                             delete imported;
-                            delete []importedPath;
                         }
 
                         delete megaCmdListener;
