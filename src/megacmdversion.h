@@ -2,13 +2,13 @@
 #define MEGACMDVERSION_H
 
 #ifndef MEGACMD_MAJOR_VERSION
-#define MEGACMD_MAJOR_VERSION 0
+#define MEGACMD_MAJOR_VERSION 1
 #endif
 #ifndef MEGACMD_MINOR_VERSION
-#define MEGACMD_MINOR_VERSION 9
+#define MEGACMD_MINOR_VERSION 0
 #endif
 #ifndef MEGACMD_MICRO_VERSION
-#define MEGACMD_MICRO_VERSION 9
+#define MEGACMD_MICRO_VERSION 0
 #endif
 
 #ifndef MEGACMD_CODE_VERSION
@@ -16,14 +16,21 @@
 #endif
 
 const char * const megacmdchangelog =
-        "Webdav: Serve a MEGA location as a WEBDAV server.""\n"
-        "Streaming: Webdav command can also be used for HTTP(S) streaming.""\n"
-        "Added thumbnails for video files.""\n"
-        "Listing -l now list unix-like columned summary (extended info is now -a)""\n"
-        "du & ls -v is now --versions""\n"
-        "Fixed --mtime restrictions in find""\n"
-        "Added support for compiling in NAS systems""\n"
-        "Minor fixes & adjustements"
+        "added FTP support (See \"ftp\")""\n"
+        "renew path parsing & improved completion with special characters""\n"
+        "fix truncated redirected output in MacOS""\n"
+        "added support for account cancelation(See \"cancel\")""\n"
+        "cp now allows multiple sourth paths and regular expresions""\n"
+        "du path display size variable now""\n"
+        "output error code always positive now""\n"
+        "new command \"errorcode\" to translate error code into string""\n"
+        "allow password protected links for PRO users""\n"
+        "password changing no longer requires old one""\n"
+        "webdav now allows stop serving all locations""\n"
+        "added \"graphisc\" command to turn off thumbnails/previews generation""\n"
+        "support login and password change using 2FA""\n"
+        "limit one instance of server""\n"
+        "Many more minor fixes & adjustements"
         ;
 
 
