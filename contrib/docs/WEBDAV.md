@@ -87,7 +87,7 @@ If successfully, it will show a message indicating that the path is no longer se
 
 ## Platforms
 
-All major platfors support accesing/mounting a webdav location. Here are some instructions to do that in Windows, Linux & Mac.
+All major platforms support accesing/mounting a webdav location. Here are some instructions to do that in Windows, Linux & Mac.
 
 ### Windows
 
