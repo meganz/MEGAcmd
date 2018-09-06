@@ -116,7 +116,7 @@ Windows FTP client does not allow writing, if you wish to modify your files you 
 
 Open Find and in the Menu "Go", select "Connect to Server", or type **&#x2318; - k**:
 
-![webdavMenuMac.png](pics/ftpMenuMac.png?raw=true "ftpMenuMac.png")
+![webdavMenuMac.png](pics/webdavMenuMac.png?raw=true "webdavMenuMac.png")
 
 Then enter the URL MEGAcmd gave you
 
@@ -133,7 +133,7 @@ Notice that `gvfs` currently does not support FTPs
 
 Click on File -> Connect to Server:
 
-![webdavMenuLinux.png](pics/ftpMenuLinux.png?raw=true "ftpMenuLinux.png")
+![webdavMenuLinux.png](pics/webdavMenuLinux.png?raw=true "webdavMenuLinux.png")
 
 Then enter the URL MEGAcmd gave you
 
