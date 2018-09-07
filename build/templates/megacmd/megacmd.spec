@@ -118,6 +118,9 @@ sed -i "s#AC_INIT#m4_pattern_allow(AC_PROG_OBJCXX)\nAC_INIT#g" configure.ac
 sed -i "s#AC_INIT#m4_pattern_allow(AC_PROG_OBJCXX)\nAC_INIT#g" sdk/configure.ac
 %endif
 
+%define fullreqs -DREQUIRE_HAVE_FFMPEG -DREQUIRE_HAVE_LIBUV -DREQUIRE_USE_MEDIAINFO -DREQUIRE_USE_PCRE
+
+
 ./autogen.sh
 
 #build dependencies into folder deps
@@ -128,7 +131,7 @@ bash -x ./contrib/build_sdk.sh %{flag_cryptopp} %{flag_libraw} %{flag_cares} -o 
 export CPPFLAGS="$CPPFLAGS -DMEGACMD_DEPRECATED_OS"
 %endif
 
-./configure --disable-shared --enable-static --disable-silent-rules \
+CPPFLAGS="$CPPFLAGS %{fullreqs}" ./configure --disable-shared --enable-static --disable-silent-rules \
   --disable-curl-checks %{with_cryptopp} %{with_libraw} --with-sodium=$PWD/deps --with-pcre \
   %{with_zlib} --with-sqlite=$PWD/deps --with-cares=$PWD/deps --with-libuv=$PWD/deps \
   --with-curl=$PWD/deps --with-freeimage=$PWD/deps --with-readline=$PWD/deps \
@@ -137,7 +140,7 @@ export CPPFLAGS="$CPPFLAGS -DMEGACMD_DEPRECATED_OS"
 if [ "x$CONFFAILED" == "x1" ]; then
 sed -i "s#.*CONFLICTIVEOLDAUTOTOOLS##g" sdk/configure.ac
 ./autogen.sh
-./configure --disable-shared --enable-static --disable-silent-rules \
+CPPFLAGS="$CPPFLAGS %{fullreqs}" ./configure --disable-shared --enable-static --disable-silent-rules \
   --disable-curl-checks %{with_cryptopp} %{with_libraw} --with-sodium=$PWD/deps --with-pcre \
   %{with_zlib} --with-sqlite=$PWD/deps --with-cares=$PWD/deps \
   --with-curl=$PWD/deps --with-freeimage=$PWD/deps --with-readline=$PWD/deps \

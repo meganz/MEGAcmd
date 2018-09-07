@@ -2,6 +2,9 @@
 CPPFLAGS := $(shell cat /etc/issue | grep "Ubuntu 1[235]\|Debian.* 7\|Ubuntu 17.04\|Ubuntu 1[46].10" >/dev/null && echo "$$CPPFLAGS -DMEGACMD_DEPRECATED_OS" || echo "")
 FMEDIAINFO := $(shell dpkg -l | grep mediainfo >/dev/null && echo "-i" || echo " ")
 WMEDIAINFO := $(shell dpkg -l | grep mediainfo >/dev/null && echo " " || echo "--with-libmediainfo=$(CURDIR)/deps --with-libzen=$(CURDIR)/deps")
+FULLREQS := $(shell cat /etc/issue | grep "Ubuntu 12.04" >/dev/null && echo "" || echo '-DREQUIRE_HAVE_FFMPEG -DREQUIRE_HAVE_LIBUV -DREQUIRE_USE_MEDIAINFO -DREQUIRE_USE_PCRE')
+
+
 build: build-stamp
 build-stamp:
 	./autogen.sh
@@ -11,7 +14,7 @@ build-stamp:
 	bash -x ./sdk/contrib/build_sdk.sh -o archives \
 	  -g -b $(FMEDIAINFO) -l -c -s -u -v -a -z -p deps/
 
-	CPPFLAGS="$(CPPFLAGS)" ./configure --without-libraw --disable-shared --enable-static --disable-silent-rules \
+	CPPFLAGS="$(CPPFLAGS) $(FULLREQS)" ./configure --without-libraw --disable-shared --enable-static --disable-silent-rules \
 	  --disable-curl-checks --with-sodium=$(CURDIR)/deps --with-libuv=$(CURDIR)/deps --with-pcre \
 	  --with-curl=$(CURDIR)/deps --with-freeimage=$(CURDIR)/deps --with-readline=$(CURDIR)/deps \
 	  --with-termcap=$(CURDIR)/deps --prefix=$(CURDIR)/deps --disable-examples $(WMEDIAINFO)
