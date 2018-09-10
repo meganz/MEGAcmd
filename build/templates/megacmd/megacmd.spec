@@ -142,7 +142,7 @@ sed -i "s#.*CONFLICTIVEOLDAUTOTOOLS##g" sdk/configure.ac
 ./autogen.sh
 CPPFLAGS="$CPPFLAGS %{fullreqs}" ./configure --disable-shared --enable-static --disable-silent-rules \
   --disable-curl-checks %{with_cryptopp} %{with_libraw} --with-sodium=$PWD/deps --with-pcre \
-  %{with_zlib} --with-sqlite=$PWD/deps --with-cares=$PWD/deps \
+  %{with_zlib} --with-sqlite=$PWD/deps --with-cares=$PWD/deps --with-libuv=$PWD/deps \
   --with-curl=$PWD/deps --with-freeimage=$PWD/deps --with-readline=$PWD/deps \
   --with-termcap=$PWD/deps --prefix=$PWD/deps --disable-examples %{with_mediainfo} || cat sdk/configure
 fi
