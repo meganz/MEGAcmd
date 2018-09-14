@@ -21,6 +21,7 @@
 #include "megacmdutils.h"
 
 using namespace mega;
+using namespace std;
 
 #ifdef ENABLE_CHAT
 void MegaCmdGlobalListener::onChatsUpdate(MegaApi*, MegaTextChatList*)

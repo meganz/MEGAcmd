@@ -35,6 +35,7 @@
 #include <signal.h>
 
 using namespace mega;
+using namespace std;
 
 static const char* rootnodenames[] = { "ROOT", "INBOX", "RUBBISH" };
 static const char* rootnodepaths[] = { "/", "//in", "//bin" };
