@@ -39,6 +39,7 @@
 #endif
 
 using namespace mega;
+using namespace std;
 
 void closeSocket(SOCKET socket){
 #ifdef _WIN32

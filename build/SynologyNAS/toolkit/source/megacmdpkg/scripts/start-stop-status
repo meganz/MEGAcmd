@@ -2,13 +2,22 @@
 #if changed check no errors are logged in /var/log/bash_err.log on install or run steps
 
 if [ "$SYNOPKG_TEMP_LOGFILE" = "" ] ; then
-   exit 3
+    exit 0
 fi
 
-echo "" > "$SYNOPKG_TEMP_LOGFILE" 2> /dev/null
+case $1 in
+    start)
+        exit 0
+        ;;
+    stop)
+        exit 0
+        ;;
+    status)
+        exit 0
+        ;;
+    *)
+        exit 0
+        ;;
+esac
 
-if [ -e "$SYNOPKG_TEMP_LOGFILE" ] && [ -w "$SYNOPKG_TEMP_LOGFILE" ] ; then
-   echo "Please use telnet/ssh/PuTTY or similar to connect and use MEGAcmd.  Executables are at $SYNOPKG_PKGDEST/ " >> "$SYNOPKG_TEMP_LOGFILE"
-fi
 
-exit 3 

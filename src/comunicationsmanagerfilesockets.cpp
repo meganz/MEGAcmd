@@ -29,6 +29,7 @@
 #endif
 
 using namespace mega;
+using namespace std;
 
 int ComunicationsManagerFileSockets::get_next_comm_id()
 {
