@@ -21,18 +21,30 @@
 #include <map>
 
 #include <sys/types.h>
+
 using namespace std;
 using namespace mega;
 
 // different outstreams for every thread. to gather all the output data
+MUTEX_CLASS threadLookups(false);
 map<uint64_t, OUTSTREAMTYPE *> outstreams;
 map<uint64_t, int> threadLogLevel;
 map<uint64_t, int> threadoutCode;
 map<uint64_t, CmdPetition *> threadpetition;
 map<uint64_t, bool> threadIsCmdShell;
 
+
+class MutexGuard  //todo: move this into the SDK's thread.h then remove from here
+{
+    ::mega::Mutex& m;
+public:
+    MutexGuard(::mega::Mutex& cm) : m(cm) { m.lock(); }
+    ~MutexGuard() { m.unlock(); }
+};
+
 OUTSTREAMTYPE &getCurrentOut()
 {
+    MutexGuard g(threadLookups);
     uint64_t currentThread = MegaThread::currentThreadId();
     if (outstreams.find(currentThread) == outstreams.end())
     {
@@ -52,6 +64,8 @@ bool interactiveThread()
     }
 
     unsigned long long currentThread = MegaThread::currentThreadId();
+
+    MutexGuard g(threadLookups);
     if (outstreams.find(currentThread) == outstreams.end())
     {
         return true;
@@ -65,6 +79,8 @@ bool interactiveThread()
 int getCurrentOutCode()
 {
     unsigned long long currentThread = MegaThread::currentThreadId();
+
+    MutexGuard g(threadLookups);
     if (threadoutCode.find(currentThread) == threadoutCode.end())
     {
         return 0; //default OK
@@ -79,6 +95,8 @@ int getCurrentOutCode()
 CmdPetition * getCurrentPetition()
 {
     unsigned long long currentThread = MegaThread::currentThreadId();
+
+    MutexGuard g(threadLookups);
     if (threadpetition.find(currentThread) == threadpetition.end())
     {
         return NULL;
@@ -92,6 +110,8 @@ CmdPetition * getCurrentPetition()
 int getCurrentThreadLogLevel()
 {
     unsigned long long currentThread = MegaThread::currentThreadId();
+
+    MutexGuard g(threadLookups);
     if (threadLogLevel.find(currentThread) == threadLogLevel.end())
     {
         return -1;
@@ -105,6 +125,8 @@ int getCurrentThreadLogLevel()
 bool getCurrentThreadIsCmdShell()
 {
     unsigned long long currentThread = MegaThread::currentThreadId();
+
+    MutexGuard g(threadLookups);
     if (threadIsCmdShell.find(currentThread) == threadIsCmdShell.end())
     {
         return false; //default not
@@ -118,26 +140,31 @@ bool getCurrentThreadIsCmdShell()
 
 void setCurrentThreadLogLevel(int level)
 {
+    MutexGuard g(threadLookups);
     threadLogLevel[MegaThread::currentThreadId()] = level;
 }
 
 void setCurrentThreadOutStream(OUTSTREAMTYPE *s)
 {
+    MutexGuard g(threadLookups);
     outstreams[MegaThread::currentThreadId()] = s;
 }
 
 void setCurrentThreadIsCmdShell(bool isit)
 {
+    MutexGuard g(threadLookups);
     threadIsCmdShell[MegaThread::currentThreadId()] = isit;
 }
 
 void setCurrentOutCode(int outCode)
 {
+    MutexGuard g(threadLookups);
     threadoutCode[MegaThread::currentThreadId()] = outCode;
 }
 
 void setCurrentPetition(CmdPetition *petition)
 {
+    MutexGuard g(threadLookups);
     threadpetition[MegaThread::currentThreadId()] = petition;
 }
 

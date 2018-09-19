@@ -42,17 +42,6 @@
 #define _O_U8TEXT 0x00040000
 #endif
 
-#if defined(_WIN32) && !defined(WINDOWS_PHONE)
-#include "mega/thread/win32thread.h"
-class MegaThread : public mega::Win32Thread {};
-#elif defined(USE_CPPTHREAD)
-#include "mega/thread/cppthread.h"
-class MegaThread : public mega::CppThread {};
-#else
-#include "mega/thread/posixthread.h"
-class MegaThread : public mega::PosixThread {};
-#endif
-
 bool MegaCmdShellCommunicationsNamedPipes::confirmResponse; //TODO: do all this only in parent class
 bool MegaCmdShellCommunicationsNamedPipes::stopListener;
 mega::Thread *MegaCmdShellCommunicationsNamedPipes::listenerThread;

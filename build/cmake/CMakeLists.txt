@@ -3,7 +3,7 @@
 cmake_minimum_required(VERSION 3.8)
 
 #specify where 3rd party libraries are available
-set(Mega3rdPartyDir "${CMAKE_CURRENT_LIST_DIR}/../../../3rdparty")
+set(Mega3rdPartyDir "${CMAKE_CURRENT_LIST_DIR}/../../../3pNew/3rdparty")
 
 # this line could also point to an sdk repo outside this one, or you can use the submodule in ./sdk folder
 include(${CMAKE_CURRENT_LIST_DIR}/../../sdk/contrib/cmake/CMakeLists.txt)

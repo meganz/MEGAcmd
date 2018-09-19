@@ -21,8 +21,12 @@
 #define USE_VARARGS
 #define PREFER_STDARG
 
+#ifdef NO_READLINE
+#include <megaconsole.h>
+#else
 #include <readline/readline.h>
 #include <readline/history.h>
+#endif
 
 #include <iomanip>
 #include <string>
@@ -54,29 +58,30 @@
 #endif
 #endif
 
-#if defined(_WIN32) || defined(_WIN64)
-  #define snprintf _snprintf
+#if defined(_WIN32) || defined(_WIN64)   
+  
+  #ifndef snprintf  // megasys.h for WIN32
+    #define snprintf _snprintf  
+  #endif
+
   #define vsnprintf _vsnprintf
-  #define strcasecmp _stricmp
-  #define strncasecmp _strnicmp
+  #define strdup _strdup
+
+  #ifndef strcasecmp  // megasys.h for WIN32
+    #define strcasecmp _stricmp
+    #define strncasecmp _strnicmp
+  #endif
 #endif
 
 #define SSTR( x ) static_cast< const std::ostringstream & >( \
         (  std::ostringstream() << std::dec << x ) ).str()
 
-#if defined(_WIN32) && !defined(WINDOWS_PHONE)
-#include "mega/thread/win32thread.h"
-class MegaMutex : public mega::Win32Mutex {};
-#elif defined(USE_CPPTHREAD)
-#include "mega/thread/cppthread.h"
-class MegaMutex : public mega::CppMutex {};
-#else
-#include "mega/thread/posixthread.h"
-class MegaMutex : public mega::PosixMutex {};
-#endif
-
-
 using namespace std;
+using namespace mega;
+
+#if defined(NO_READLINE) && defined(_WIN32)
+CONSOLE_CLASS* console = NULL;
+#endif
 
 
 // utility functions
@@ -103,6 +108,7 @@ void replaceAll(std::string& str, const std::string& from, const std::string& to
     }
 }
 
+#ifndef NO_READLINE
 string getCurrentLine()
 {
     char *saved_line = rl_copy_text(0, rl_point);
@@ -111,6 +117,7 @@ string getCurrentLine()
     saved_line = NULL;
     return toret;
 }
+#endif
 
 void sleepSeconds(int seconds)
 {
@@ -121,12 +128,12 @@ void sleepSeconds(int seconds)
 #endif
 }
 
-void sleepMicroSeconds(long microseconds)
+void sleepMilliSeconds(long milliseconds)
 {
 #ifdef _WIN32
-    Sleep(microseconds);
+    Sleep(milliseconds);
 #else
-    usleep(microseconds*1000);
+    usleep(milliseconds *1000);
 #endif
 }
 
@@ -294,7 +301,7 @@ bool confirmingcancellink = false;
 // communications with megacmdserver:
 MegaCmdShellCommunications *comms;
 
-MegaMutex mutexPrompt;
+MUTEX_CLASS mutexPrompt(false);
 
 void printWelcomeMsg(unsigned int width = 0);
 
@@ -387,6 +394,7 @@ void sigint_handler(int signum)
         setprompt(COMMAND);
     }
 
+#ifndef NO_READLINE
     // reset position and print prompt
     rl_replace_line("", 0); //clean contents of actual command
     rl_crlf(); //move to nextline
@@ -404,6 +412,7 @@ void sigint_handler(int signum)
         rl_reset_line_state();
     }
     rl_redisplay();
+#endif
 }
 
 
@@ -432,7 +441,7 @@ void printprogress(long long completed, long long total, const char *title)
     }
     else
     {
-        percentDowloaded = completed * 1.0 / total * 100.0;
+        percentDowloaded = float(completed * 1.0 / total * 100.0);
     }
     if (completed != PROGRESS_COMPLETE && (alreadyFinished || ( ( percentDowloaded == oldpercent ) && ( oldpercent != 0 ) ) ))
     {
@@ -478,7 +487,7 @@ void printprogress(long long completed, long long total, const char *title)
 
 
 #ifdef _WIN32
-BOOL CtrlHandler( DWORD fdwCtrlType )
+BOOL WINAPI CtrlHandler( DWORD fdwCtrlType )
 {
   cerr << "Reached CtrlHandler: " << fdwCtrlType << endl;
 
@@ -504,6 +513,7 @@ void setprompt(prompttype p, string arg)
 {
     prompt = p;
 
+#ifndef NO_READLINE
     if (p == COMMAND)
     {
         console_setecho(true);
@@ -521,8 +531,18 @@ void setprompt(prompttype p, string arg)
         }
         console_setecho(false);
     }
+#else
+    console->setecho(p == COMMAND);
+    
+    if (p != COMMAND)
+    {
+        pw_buf_pos = 0;
+        console->updateInputPrompt(arg.empty() ? prompts[p] : arg);
+    }
+#endif
 }
 
+#ifndef NO_READLINE
 // readline callback - exit if EOF, add to history unless password
 static void store_line(char* l)
 {
@@ -550,6 +570,7 @@ static void store_line(char* l)
 
     line = l;
 }
+#endif
 
 #ifdef _WIN32
 
@@ -613,6 +634,7 @@ wstring escapereadlinebreakers(const wchar_t *what)
 }
 #endif
 
+#ifndef NO_READLINE
 void install_rl_handler(const char *theprompt)
 {
 #ifdef _WIN32
@@ -654,15 +676,27 @@ void install_rl_handler(const char *theprompt)
     rl_callback_handler_install(theprompt, store_line);
 #endif
 }
+#endif
+
+class MutexGuard  //todo: move this into the SDK's thread.h then remove from here
+{
+    ::mega::Mutex& m;
+public:
+    MutexGuard(::mega::Mutex& cm) : m(cm) { m.lock(); }
+    ~MutexGuard() { m.unlock(); }
+};
 
 void changeprompt(const char *newprompt, bool redisplay)
 {
+    MutexGuard g(mutexPrompt);
+#ifdef NO_READLINE
+    console->updateInputPrompt(newprompt);
+#else
     if (*dynamicprompt)
     {
         if (!strcmp(newprompt,dynamicprompt))
             return; //same prompt. do nth
     }
-    mutexPrompt.lock();
 
     strncpy(dynamicprompt, newprompt, sizeof( dynamicprompt ));
 
@@ -705,23 +739,24 @@ void changeprompt(const char *newprompt, bool redisplay)
         handlerinstalled = true;
 
         requirepromptinstall = false;
-
-        static bool firstime = true;
-        if (firstime)
-        {
-            firstime = false;
-#if _WIN32
-            if( !SetConsoleCtrlHandler( (PHANDLER_ROUTINE) CtrlHandler, TRUE ) )
-            {
-                cerr << "Control handler set failed" << endl;
-            }
-#else
-            // prevent CTRL+C exit
-            signal(SIGINT, sigint_handler);
-#endif
-        }
     }
-    mutexPrompt.unlock();
+
+#endif
+
+    static bool firstime = true;
+    if (firstime)
+    {
+        firstime = false;
+#if _WIN32
+        if( !SetConsoleCtrlHandler( CtrlHandler, TRUE ) )
+        {
+            cerr << "Control handler set failed" << endl;
+        }
+#else
+        // prevent CTRL+C exit
+        signal(SIGINT, sigint_handler);
+#endif
+    }
 }
 
 void escapeEspace(string &orig)
@@ -734,6 +769,7 @@ void unescapeEspace(string &orig)
     replaceAll(orig,"\\ ", " ");
 }
 
+#ifndef NO_READLINE
 char* empty_completion(const char* text, int state)
 {
     // we offer 2 different options so that it doesn't complete (no space is inserted)
@@ -790,6 +826,8 @@ char* generic_completion(const char* text, int state, vector<string> validOption
 
     return((char*)NULL );
 }
+#endif
+
 
 inline bool ends_with(std::string const & value, std::string const & ending)
 {
@@ -824,7 +862,7 @@ void pushvalidoption(vector<string>  *validOptions, const char *beginopt)
 #endif
 }
 
-
+#ifndef NO_READLINE
 char* remote_completion(const char* text, int state)
 {
     char *saved_line = strdup(getCurrentLine().c_str());
@@ -1030,6 +1068,130 @@ void wait_for_input(int readline_fd)
         }
     }
 }
+#else
+
+
+vector<autocomplete::ACState::Completion> remote_completion(string linetocomplete)
+{
+    vector<autocomplete::ACState::Completion> result;
+
+    OUTSTRING s;
+    OUTSTRINGSTREAM oss(s);
+    comms->executeCommand(string("completionshell ") + linetocomplete, readresponse, oss);
+
+    string outputcommand;
+    localwtostring(&oss.str(), &outputcommand);
+
+    if (outputcommand == "MEGACMD_USE_LOCAL_COMPLETION")
+    {
+        return result;
+    }
+    else
+    {
+        char *ptr = (char *)outputcommand.c_str();
+
+        char *beginopt = ptr;
+        while (*ptr)
+        {
+            if (*ptr == 0x1F)
+            {
+                *ptr = '\0';
+                if (strcmp(beginopt, " ")) //the server will give a " " for empty_completion (no matches)
+                {
+                    result.push_back(autocomplete::ACState::Completion(beginopt, false));
+                }
+
+                beginopt = ptr + 1;
+            }
+            ptr++;
+        }
+        if (*beginopt && strcmp(beginopt, " "))
+        {
+            result.push_back(autocomplete::ACState::Completion(beginopt, false));
+        }
+
+        return result;
+    }
+}
+
+void exec_clear(autocomplete::ACState& s)
+{
+    console->clearScreen();
+}
+
+void exec_history(autocomplete::ACState& s)
+{
+    console->outputHistory();
+}
+
+void exec_dos_unix(autocomplete::ACState& s)
+{
+    console->setAutocompleteStyle(s.words[1].s == "unix");
+}
+
+void exec_codepage(autocomplete::ACState& s)
+{
+    if (s.words.size() == 1)
+    {
+        UINT cp1, cp2;
+        console->getShellCodepages(cp1, cp2);
+        cout << "Current codepage is " << cp1;
+        if (cp2 != cp1)
+        {
+            cout << " with failover to codepage " << cp2 << " for any absent glyphs";
+        }
+        cout << endl;
+        for (int i = 32; i < 256; ++i)
+        {
+            string theCharUtf8 = WinConsole::toUtf8String(WinConsole::toUtf16String(string(1, (char)i), cp1));
+            cout << "  dec/" << i << " hex/" << hex << i << dec << ": '" << theCharUtf8 << "'";
+            if (i % 4 == 3)
+            {
+                cout << endl;
+            }
+        }
+    }
+    else if (s.words.size() == 2 && atoi(s.words[1].s.c_str()) != 0)
+    {
+        if (!console->setShellConsole(atoi(s.words[1].s.c_str()), atoi(s.words[1].s.c_str())))
+        {
+            cout << "Code page change failed - unicode selected" << endl;
+        }
+    }
+    else if (s.words.size() == 3 && atoi(s.words[1].s.c_str()) != 0 && atoi(s.words[2].s.c_str()) != 0)
+    {
+        if (!console->setShellConsole(atoi(s.words[1].s.c_str()), atoi(s.words[2].s.c_str())))
+        {
+            cout << "Code page change failed - unicode selected" << endl;
+        }
+    }
+    else
+    {
+        cout << "      codepage [N [N]]" << endl;
+    }
+}
+
+
+autocomplete::ACN autocompleteSyntax;
+
+autocomplete::ACN buildAutocompleteSyntax()
+{
+    using namespace autocomplete;
+    std::unique_ptr<Either> p(new Either("      "));
+
+    p->Add(exec_clear,      sequence(text("clear")));
+    p->Add(exec_codepage,   sequence(text("codepage"), opt(sequence(wholenumber(65001), opt(wholenumber(65001))))));
+    p->Add(exec_dos_unix,   sequence(text("autocomplete"), opt(either(text("unix"), text("dos")))));
+    p->Add(exec_history,    sequence(text("history")));
+
+    return autocompleteSyntax = std::move(p);
+}
+
+void printHistory()
+{
+    console->outputHistory();
+}
+#endif
 
 bool isserverloggedin()
 {
@@ -1256,6 +1418,17 @@ void process_line(char * line)
         }
         case COMMAND:
         {
+
+#ifdef NO_READLINE
+            // see if it's a local command
+            string consoleOutput;
+            if (autocomplete::autoExec(line, string::npos, autocompleteSyntax, false, consoleOutput, false))
+            {
+                COUT << consoleOutput << flush;
+                return;
+            }
+#endif
+
             vector<string> words = getlistOfWords(line);
             bool helprequested = false;
             for (unsigned int i = 1; i< words.size(); i++)
@@ -1290,7 +1463,7 @@ void process_line(char * line)
                         printHistory();
                     }
                 }
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(NO_READLINE)
                 else if (!helprequested && words[0] == "unicode" && words.size() == 1)
                 {
                     rl_getc_function=(rl_getc_function==&getcharacterreadlineUTF16support)?rl_getc:&getcharacterreadlineUTF16support;
@@ -1574,6 +1747,7 @@ void process_line(char * line)
 }
 
 // main loop
+#ifndef NO_READLINE
 void readloop()
 {
     time_t lasttimeretrycons = 0;
@@ -1590,7 +1764,7 @@ void readloop()
     comms->registerForStateChanges(statechangehandle);
 
     //give it a while to communicate the state
-    sleepMicroSeconds(700);
+    sleepMilliSeconds(700);
 
 #if defined(_WIN32) && defined(USE_PORT_COMMS)
     // due to a failure in reconnecting to the socket, if the server was initiated in while registeringForStateChanges
@@ -1600,7 +1774,7 @@ void readloop()
         comms->registerForStateChanges(statechangehandle);
     }
     //give it a while to communicate the state
-    sleepMicroSeconds(1);
+    sleepMilliSeconds(1);
 #endif
 
     for (;; )
@@ -1714,6 +1888,91 @@ void readloop()
         }
     }
 }
+#else  // NO_READLINE
+void readloop()
+{
+    time_t lasttimeretrycons = 0;
+
+    comms->registerForStateChanges(statechangehandle);
+
+    //give it a while to communicate the state
+    sleepMilliSeconds(700);
+
+#if defined(_WIN32) && defined(USE_PORT_COMMS)
+    // due to a failure in reconnecting to the socket, if the server was initiated in while registeringForStateChanges
+    // in windows we would not be yet connected. we need to manually try to register again.
+    if (comms->registerAgainRequired)
+    {
+        comms->registerForStateChanges(statechangehandle);
+    }
+    //give it a while to communicate the state
+    sleepMilliSeconds(1);
+#endif
+
+    for (;; )
+    {
+        if (prompt == COMMAND)
+        {
+            console->updateInputPrompt(*dynamicprompt ? dynamicprompt : prompts[COMMAND]);
+        }
+
+        // command editing loop - exits when a line is submitted
+        for (;; )
+        {
+            line = console->checkForCompletedInputLine();
+
+            if (line)
+            {
+                break;
+            }
+            else
+            {
+                time_t tnow = time(NULL);
+                if ((tnow - lasttimeretrycons) > 5 && !doExit)
+                {
+                    comms->executeCommand("retrycons");
+                    lasttimeretrycons = tnow;
+                }
+
+                if (doExit)
+                {
+                    return;
+                }
+            }
+        }
+
+        if (line)
+        {
+            if (strlen(line))
+            {
+                alreadyFinished = false;
+                percentDowloaded = 0.0;
+                mutexPrompt.lock();
+                process_line(line);
+                requirepromptinstall = true;
+                mutexPrompt.unlock();
+
+                if (comms->registerAgainRequired)
+                {
+                    // register again for state changes
+                    comms->registerForStateChanges(statechangehandle);
+                    comms->registerAgainRequired = false;
+                }
+
+                // sleep, so that in case there was a changeprompt waiting, gets executed before relooping
+                // this is not 100% guaranteed to happen
+                sleepSeconds(0);
+            }
+            free(line);
+            line = NULL;
+        }
+        if (doExit)
+        {
+            return;
+        }
+    }
+}
+#endif
 
 class NullBuffer : public std::streambuf
 {
@@ -1855,6 +2114,7 @@ void mycompletefunct(char **c, int num_matches, int max_length)
 }
 #endif
 
+#ifndef NO_READLINE
 std::string readresponse(const char* question)
 {
     string response;
@@ -1863,17 +2123,37 @@ std::string readresponse(const char* question)
     rl_replace_line("", 0);
     return response;
 }
+#else
+std::string readresponse(const char* question)
+{
+    COUT << question << flush;
+    console->updateInputPrompt(question);
+    for (;;)
+    {
+        if (char* line = console->checkForCompletedInputLine())
+        {
+            console->updateInputPrompt("");
+            string response(line);
+            free(line);
+            return response;
+        }
+        else
+        {
+            sleepMilliSeconds(200);
+        }
+    }
+}
+#endif
 
 
 int main(int argc, char* argv[])
 {
-#ifdef _WIN32
+
+#if defined(_WIN32) && !defined(NO_READLINE)
     // Set Environment's default locale
     setlocale(LC_ALL, "en-US");
     rl_completion_display_matches_hook = mycompletefunct;
 #endif
-
-    mutexPrompt.init(false);
 
     // intialize the comms object
 #if defined(_WIN32) && !defined(USE_PORT_COMMS)
@@ -1882,6 +2162,7 @@ int main(int argc, char* argv[])
     comms = new MegaCmdShellCommunications();
 #endif
 
+#ifndef NO_READLINE
     rl_attempted_completion_function = getCompletionMatches;
     rl_completer_quote_characters = "\"'";
     rl_filename_quote_characters  = " ";
@@ -1895,6 +2176,14 @@ int main(int argc, char* argv[])
         // so that we can use rl_message or rl_resize_terminal safely before ever
         // prompting anything.
     }
+#endif
+
+#if defined(_WIN32) && defined(NO_READLINE)
+    console = new CONSOLE_CLASS;
+    console->setAutocompleteSyntax(buildAutocompleteSyntax());
+    console->setAutocompleteFunction(remote_completion);
+    console->setShellConsole(CP_UTF8, GetConsoleOutputCP());
+#endif
 
 #ifdef _WIN32
     // in windows, rl_resize_terminal fails to resize before first prompt appears, we take the width from elsewhere
@@ -1904,15 +2193,16 @@ int main(int argc, char* argv[])
     columns = csbi.srWindow.Right - csbi.srWindow.Left - 2;
     printWelcomeMsg(columns);
 #else
-    sleepMicroSeconds(200); // this gives a little while so that the console is ready and rl_resize_terminal works fine
+    sleepMilliSeconds(200); // this gives a little while so that the console is ready and rl_resize_terminal works fine
     printWelcomeMsg();
 #endif
 
     readloop();
 
-
+#ifndef NO_READLINE
     clear_history();
     rl_callback_handler_remove(); //To avoid having the terminal messed up (requiring a "reset")
+#endif
     delete comms;
 
 }

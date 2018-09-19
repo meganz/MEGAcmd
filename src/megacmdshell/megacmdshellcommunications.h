@@ -22,7 +22,20 @@
 #ifndef MEGACMDSHELLCOMMUNICATIONS_H
 #define MEGACMDSHELLCOMMUNICATIONS_H
 
-#include "mega/thread.h"
+#if defined(_WIN32) && !defined(WINDOWS_PHONE) && !defined(USE_CPPTHREAD)
+#include "mega/thread/win32thread.h"
+class MegaMutex : public ::mega::Win32Mutex {};
+class MegaThread : public ::mega::Win32Thread {};
+#elif defined(USE_CPPTHREAD)
+#include "mega/thread/cppthread.h"
+class MegaMutex : public ::mega::CppMutex {};
+class MegaThread : public ::mega::CppThread {};
+#else
+#include "mega/thread/posixthread.h"
+class MegaMutex : public ::mega::PosixMutex {};
+class MegaThread : public ::mega::PosixThread {};
+#endif
+
 
 #include <string>
 #include <iostream>
