@@ -286,13 +286,15 @@ currentTest=1
 bar=""
 if not CMDSHELL: bar="\\"
 if os.name == 'nt': bar=""
-#Tests 1-13 # handle special characters
+#Tests 1-14 # handle special characters
 for c in opts:
     megafind=sort(cmd_ef(FIND+" "+'odd/file'+bar+c+'01.txt'))
     compare_remote_local(megafind,'odd/file'+c+'01.txt')
 
+currentTest=15
+
 if os.name != 'nt':
-    #Test 14 # very special \ character
+    #Test 15 # very special \ character
     c='\\'
     cmd_ef(MV+" "+'odd/fileX01.txt odd/file'+bar+'\\01.txt') #upload of file containing "\\" fails (SDK issue)
     shutil.move('localUPs/odd/fileX01.txt', 'localUPs/odd/file\\01.txt')
@@ -302,9 +304,9 @@ if os.name != 'nt':
     cmd_ef(MV+" "+'odd/file\\\\01.txt odd/fileX01.txt')
     shutil.move('localUPs/odd/file\\01.txt', 'localUPs/odd/fileX01.txt')
 
-currentTest=15
+currentTest=16
 
-#Test 15 #move & rename
+#Test 16 #move & rename
 cmd_ef(MV+" file01nonempty.txt "+'/le01/moved.txt')
 shutil.move("localUPs/file01nonempty.txt", "localUPs/le01/moved.txt")
 compare_find('/')
@@ -312,15 +314,15 @@ compare_find('/')
 cmd_ef(MV+' /le01/moved.txt'+" file01nonempty.txt ")
 shutil.move("localUPs/le01/moved.txt", "localUPs/file01nonempty.txt")
 
-#Test 16
+#Test 17
 touch("localUPs/newemptyfile.txt")
 cmd_ef(PUT+" "+"localUPs/newemptyfile.txt"+" "+"/")
 #shutil.copy2('auxx/01/s01/another.txt','localUPs/01/s01')
 compare_find('/')
 
-currentTest=17
+currentTest=18
 
-#Test 17 # Some unicode characters
+#Test 18 # Some unicode characters
 # us=''.join(tuple(chr(l) for l in range(1, 0x10ffff) if chr(l).isprintable())) #requires python 3.5
 # for r in range(10):
     # fname=""
@@ -352,42 +354,42 @@ if os.name != 'nt':
         cmd_ef(PUT+" "+"localUPs/"+fname.encode('utf-8')+" "+"/")
     compare_find('/')
 
-currentTest=18
-#Test 18 #copy & rename
+currentTest=19
+#Test 19 #copy & rename
 cmd_ef(CP+" file01nonempty.txt "+'/le01/copied')
 copybyfilepattern("localUPs/","file01nonempty.txt", "localUPs/le01/copied")
 compare_find('/')
 
-#Test 19 #multicopy
+#Test 18 #multicopy
 cmd_ef(CP+" *.txt "+'/le01')
 copybyfilepattern("localUPs/","*.txt", "localUPs/le01/")
 compare_find('/')
 
-#Test 20 #multicopy with trailing /
+#Test 19 #multicopy with trailing /
 cmd_ef(CP+" *.txt "+'/le01/les01/')
 copybyfilepattern("localUPs/","*.txt", "localUPs/le01/les01/")
 compare_find('/')
 
-#Test 21 #multisend
+#Test 20 #multisend
 cmd_ef(CP+" *.txt "+MEGA_EMAIL_AUX+':')
 print "test "+str(currentTest)+" succesful!"
 currentTest+=1
 
-#Test 22 #copy folder
+#Test 21 #copy folder
 cmd_ef(CP+" le01 "+'lf01')
 copyfolder("localUPs/le01", "localUPs/lf01/")
 compare_find('/')
 
 if not CMDSHELL: #TODO: currently there is no way to know last CMSHELL status code
-    #Test 23 #send to non contact
+    #Test 24 #send to non contact
     o,status=cmd_ec(CP+" *.txt badContact"+MEGA_EMAIL_AUX+':')
     check_failed_and_clear(o,status)
 
-    #Test 24 #multicopy into file
+    #Test 25 #multicopy into file
     o,status=cmd_ec(CP+" *.txt /le01/file01nonempty.txt")
     check_failed_and_clear(o,status)
 
-currentTest=25
+currentTest=26
 
 #Test 25 #copy into existing file
 cmd_ef(CP+" -vvv file01nonempty.txt "+'copied2')
@@ -395,42 +397,42 @@ cmd_ef(CP+" -vvv file01nonempty.txt "+'copied2')
 copybyfilepattern("localUPs/","file01nonempty.txt", "localUPs/copied2")
 compare_find('/')
 
-currentTest=26
+currentTest=27
 #Test 26 #move into non existing file
 cmd_ef(CP+" -vvv file01nonempty.txt "+'copied3')
 cmd_ef(MV+" -vvv copied3 "+'moved3')
 copybyfilepattern("localUPs/","file01nonempty.txt", "localUPs/moved3")
 compare_find('/')
 
-currentTest=27
-#Test 27 #move into existing (different) file
+currentTest=28
+#Test 28 #move into existing (different) file
 cmd_ef(CP+" -vvv file01nonempty.txt "+'copied4')
 cmd_ef(CP+" -vvv file01.txt "+'moved4')
 cmd_ef(MV+" -vvv copied4 "+'moved4')
 copybyfilepattern("localUPs/","file01nonempty.txt", "localUPs/moved4")
 compare_find('/')
 
-#Test 28 #move into existing equal file
+#Test 29 #move into existing equal file
 cmd_ef(CP+" -vvv file01nonempty.txt "+'copied5')
 cmd_ef(CP+" -vvv copied5 "+'moved5')
 cmd_ef(MV+" -vvv copied5 "+'moved5')
 copybyfilepattern("localUPs/","file01nonempty.txt", "localUPs/moved5")
 compare_find('/')
 
-#Test 29 #move into other path
+#Test 30 #move into other path
 cmd_ef(CP+" -vvv file01nonempty.txt "+'copied6')
 cmd_ef(MV+" -vvv copied6 "+'/le01/moved6')
 copybyfilepattern("localUPs/","file01nonempty.txt", "localUPs/le01/moved6")
 compare_find('/')
 
-#Test 30 #move existing other path (different file)
+#Test 31 #move existing other path (different file)
 cmd_ef(CP+" -vvv file01nonempty.txt "+'copied7')
 cmd_ef(CP+" -vvv file01.txt "+'/le01/moved7')
 cmd_ef(MV+" -vvv copied7 "+'/le01/moved7')
 copybyfilepattern("localUPs/","file01nonempty.txt", "localUPs/le01/moved7")
 compare_find('/')
 
-#Test 31 #move existing other path
+#Test 32 #move existing other path
 cmd_ef(CP+" -vvv file01nonempty.txt "+'copied7')
 cmd_ef(CP+" -vvv file01nonempty.txt "+'/le01/moved7')
 cmd_ef(MV+" -vvv copied7 "+'/le01/moved7')
