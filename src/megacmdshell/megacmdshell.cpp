@@ -137,6 +137,103 @@ void sleepMilliSeconds(long milliseconds)
 #endif
 }
 
+vector<string> getlistOfWords(char *ptr, bool ignoreTrailingSpaces = true)
+{
+    vector<string> words;
+
+    char* wptr;
+
+    // split line into words with quoting and escaping
+    for (;; )
+    {
+        // skip leading blank space
+        while (*(const signed char*)ptr > 0 && *ptr <= ' ' && (ignoreTrailingSpaces || *(ptr+1)))
+        {
+            ptr++;
+        }
+
+        if (!*ptr)
+        {
+            break;
+        }
+
+        // quoted arg / regular arg
+        if (*ptr == '"')
+        {
+            ptr++;
+            wptr = ptr;
+            words.push_back(string());
+
+            for (;; )
+            {
+                if (( *ptr == '"' ) || ( *ptr == '\\' ) || !*ptr)
+                {
+                    words[words.size() - 1].append(wptr, ptr - wptr);
+
+                    if (!*ptr || ( *ptr++ == '"' ))
+                    {
+                        break;
+                    }
+
+                    wptr = ptr - 1;
+                }
+                else
+                {
+                    ptr++;
+                }
+            }
+        }
+        else if (*ptr == '\'') // quoted arg / regular arg
+        {
+            ptr++;
+            wptr = ptr;
+            words.push_back(string());
+
+            for (;; )
+            {
+                if (( *ptr == '\'' ) || ( *ptr == '\\' ) || !*ptr)
+                {
+                    words[words.size() - 1].append(wptr, ptr - wptr);
+
+                    if (!*ptr || ( *ptr++ == '\'' ))
+                    {
+                        break;
+                    }
+
+                    wptr = ptr - 1;
+                }
+                else
+                {
+                    ptr++;
+                }
+            }
+        }
+        else
+        {
+            while (*ptr == ' ') ptr++;// only possible if ptr+1 is the end
+
+            wptr = ptr;
+
+            char *prev = ptr;
+            //while ((unsigned char)*ptr > ' ')
+            while ((*ptr != '\0') && !(*ptr ==' ' && *prev !='\\'))
+            {
+                if (*ptr == '"')
+                {
+                    while (*++ptr != '"' && *ptr != '\0')
+                    { }
+                }
+                prev=ptr;
+                ptr++;
+            }
+
+                words.push_back(string(wptr, ptr - wptr));
+        }
+    }
+
+    return words;
+}
+
 void discardOptionsAndFlags(vector<string> *ws)
 {
     for (std::vector<string>::iterator it = ws->begin(); it != ws->end(); )
@@ -1074,8 +1171,37 @@ vector<autocomplete::ACState::Completion> remote_completion(string linetocomplet
     string outputcommand;
     localwtostring(&oss.str(), &outputcommand);
 
-    if (outputcommand == "MEGACMD_USE_LOCAL_COMPLETION")
+    if (outputcommand.find("MEGACMD_USE_LOCAL_COMPLETION") == 0)
     {
+        string where = outputcommand.substr(strlen("MEGACMD_USE_LOCAL_COMPLETION"));
+#ifdef _WIN32
+        wstring wwhere;
+        stringtolocalw(where.c_str(),&wwhere);
+        int r = SetCurrentDirectoryW((LPCWSTR)wwhere.data());
+        if (!r)
+        {
+            cerr << "Error at SetCurrentDirectoryW before local completion to " << where << ". errno: " << ERRNO << endl;
+        }
+#else
+        chdir(where.c_str());
+#endif
+
+        vector<string> words = getlistOfWords((char *)linetocomplete.c_str());
+
+        if (words.size())
+        {
+            string l;
+            if (words.size() > 1)
+            {
+                words.at(words.size()-1);
+            }
+
+            autocomplete::ACState acs = autocomplete::prepACState(l, l.size(), static_cast<WinConsole*>(console)->getAutocompleteStyle());
+            autocomplete::LocalFS *lfs = new autocomplete::LocalFS(words[0] != "lcd", true, l);
+            lfs->addCompletions(acs);
+            result.swap(acs.completions);
+            delete lfs;
+        }
         return result;
     }
     else
@@ -1192,103 +1318,6 @@ bool isserverloggedin()
         return false;
     }
     return true;
-}
-
-vector<string> getlistOfWords(char *ptr, bool ignoreTrailingSpaces = true)
-{
-    vector<string> words;
-
-    char* wptr;
-
-    // split line into words with quoting and escaping
-    for (;; )
-    {
-        // skip leading blank space
-        while (*(const signed char*)ptr > 0 && *ptr <= ' ' && (ignoreTrailingSpaces || *(ptr+1)))
-        {
-            ptr++;
-        }
-
-        if (!*ptr)
-        {
-            break;
-        }
-
-        // quoted arg / regular arg
-        if (*ptr == '"')
-        {
-            ptr++;
-            wptr = ptr;
-            words.push_back(string());
-
-            for (;; )
-            {
-                if (( *ptr == '"' ) || ( *ptr == '\\' ) || !*ptr)
-                {
-                    words[words.size() - 1].append(wptr, ptr - wptr);
-
-                    if (!*ptr || ( *ptr++ == '"' ))
-                    {
-                        break;
-                    }
-
-                    wptr = ptr - 1;
-                }
-                else
-                {
-                    ptr++;
-                }
-            }
-        }
-        else if (*ptr == '\'') // quoted arg / regular arg
-        {
-            ptr++;
-            wptr = ptr;
-            words.push_back(string());
-
-            for (;; )
-            {
-                if (( *ptr == '\'' ) || ( *ptr == '\\' ) || !*ptr)
-                {
-                    words[words.size() - 1].append(wptr, ptr - wptr);
-
-                    if (!*ptr || ( *ptr++ == '\'' ))
-                    {
-                        break;
-                    }
-
-                    wptr = ptr - 1;
-                }
-                else
-                {
-                    ptr++;
-                }
-            }
-        }
-        else
-        {
-            while (*ptr == ' ') ptr++;// only possible if ptr+1 is the end
-
-            wptr = ptr;
-
-            char *prev = ptr;
-            //while ((unsigned char)*ptr > ' ')
-            while ((*ptr != '\0') && !(*ptr ==' ' && *prev !='\\'))
-            {
-                if (*ptr == '"')
-                {
-                    while (*++ptr != '"' && *ptr != '\0')
-                    { }
-                }
-                prev=ptr;
-                ptr++;
-            }
-
-                words.push_back(string(wptr, ptr - wptr));
-        }
-    }
-
-    return words;
 }
 
 
