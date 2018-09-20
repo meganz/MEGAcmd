@@ -1202,7 +1202,7 @@ vector<autocomplete::ACState::Completion> remote_completion(string linetocomplet
             string l;
             if (words.size() > 1)
             {
-                words.at(words.size()-1);
+                l=words.at(words.size()-1);
             }
 
             autocomplete::ACState acs = autocomplete::prepACState(l, l.size(), static_cast<WinConsole*>(console)->getAutocompleteStyle());
