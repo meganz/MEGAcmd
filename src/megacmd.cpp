@@ -213,8 +213,10 @@ string avalidCommands [] = { "login", "signup", "confirm", "session", "mount", "
                              , "backup"
 #endif
                              , "deleteversions"
-#ifdef _WIN32
-                             ,"unicode"
+#if defined(_WIN32) && defined(NO_READLINE)
+                             , "autocomplete", "codepage"
+#elif defined(_WIN32)
+                             , "unicode"
 #else
                              , "permissions"
 #endif
@@ -1383,10 +1385,12 @@ const char * getUsageStr(const char *command)
     {
         return "mount";
     }
+#if defined(_WIN32) && !defined(NO_READLINE)
     if (!strcmp(command, "unicode"))
     {
         return "unicode";
     }
+#endif
     if (!strcmp(command, "ls"))
     {
 #ifdef USE_PCRE
@@ -1699,6 +1703,16 @@ const char * getUsageStr(const char *command)
     {
         return "transfers [-c TAG|-a] | [-r TAG|-a]  | [-p TAG|-a] [--only-downloads | --only-uploads] [SHOWOPTIONS]";
     }
+#if defined(_WIN32) && defined(NO_READLINE)
+    if (!strcmp(command, "autocomplete"))
+    {
+        return "autocomplete [dos | unix]";
+    }
+    else if (!strcmp(command, "codepage"))
+    {
+        return "codepage [N [M]]";
+    }
+#endif
     return "command not found: ";
 }
 
@@ -1811,6 +1825,7 @@ string getHelpStr(const char *command)
     {
         os << "Lists all the main nodes" << endl;
     }
+#if defined(_WIN32) && !defined(NO_READLINE)
     else if (!strcmp(command, "unicode"))
     {
         os << "Toggle unicode input enabled/disabled in interactive shell" << endl;
@@ -1819,8 +1834,8 @@ string getHelpStr(const char *command)
         os << " some issues interacting with the console" << endl;
         os << " (e.g. history navigation fails)." << endl;
         os << "Type \"help --unicode\" for further info" << endl;
-
     }
+#endif
     else if (!strcmp(command, "ls"))
     {
         os << "Lists files in a remote path" << endl;
@@ -2498,6 +2513,30 @@ string getHelpStr(const char *command)
         os << " --limit=N" << "\t" << "Show only first N transfers" << endl;
         os << " --path-display-size=N" << "\t" << "Use a fixed size of N characters for paths" << endl;
     }
+#if defined(_WIN32) && defined(NO_READLINE)
+    else if (!strcmp(command, "autocomplete"))
+    {
+        os << "Modifes how tab completion operates." << endl;
+        os << endl;
+        os << "The default is to operate like the native platform. However" << endl;
+        os << "you can switch it between mode 'dos' and 'unix' as you prefer." << endl;
+        os << "Options:" << endl;
+        os << " dos" << "\t" << "Each press of tab places the next option into the command line" << endl;
+        os << " unix" << "\t" << "Options are listed in a table, or put in-line if there is only one" << endl;
+    }
+    else if (!strcmp(command, "codepage"))
+    {
+        os << "Switches the codepage used to decide which characters show on-screen." << endl;
+        os << endl;
+        os << "MEGAcmd supports unicode or specific code pages.  For european countries you may need" << endl;
+        os << "to select a suitable codepage or secondary codepage for the character set you use." << endl;
+        os << "Of course a font containing the glyphs you need must have been selected for the terminal first." << endl;
+        os << "Options:" << endl;
+        os << " (no option)" << "\t" << "Outputs the selected code page and secondary codepage (if configured)." << endl;
+        os << " N" << "\t" << "Sets the main codepage to N. 65001 is Unicode." << endl;
+        os << " M" << "\t" << "Sets the secondary codepage to M, which is used if the primary can't translate a character." << endl;
+    }
+#endif
     return os.str();
 }
 
@@ -2738,7 +2777,22 @@ void executecommand(char* ptr)
 
 #endif
         }
-#ifdef _WIN32
+
+#if defined(_WIN32) && defined(NO_READLINE)
+        else if (getFlag(&clflags, "unicode"))
+        {
+            OUTSTREAM << "Unicode support has been considerably improved in the interactive console in version 1.0.0." << endl;
+            OUTSTREAM << "If you do experience issues with it, please do not hesistate to contact us." << endl;
+            OUTSTREAM << endl;
+            OUTSTREAM << "Known issues: " << endl;
+            OUTSTREAM << endl;
+            OUTSTREAM << "If some symbols are not displaying, or displaying correctly, please first check you have a suitable font" << endl;
+            OUTSTREAM << "selected, and a suitable codepage. See \"help codepage\" for details on that." << endl;
+            OUTSTREAM << "When using the non-interactive mode (See \"help --non-interactive\"), piping or redirecting can be quite" << endl;
+            OUTSTREAM << "problematic due to different encoding expectations between programs.  You can use \"-o outputfile\" with your " << endl;
+            OUTSTREAM << "mega-*.bat commands to have the output written to a file in UTF-8, and then open it with a suitable editor." << endl;
+        }
+#elif defined(_WIN32)
         else if (getFlag(&clflags,"unicode"))
         {
             OUTSTREAM << "A great effort has been done so as to have MEGAcmd support non-ASCII characters." << endl;
