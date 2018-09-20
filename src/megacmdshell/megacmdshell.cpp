@@ -342,7 +342,15 @@ int getNumberOfCols(unsigned int defaultwidth=0)
 {
     unsigned int width = defaultwidth;
     int rows = 1, cols = width;
-#if defined( RL_ISSTATE ) && defined( RL_STATE_INITIALIZED )
+#ifdef NO_READLINE
+    CONSOLE_SCREEN_BUFFER_INFO sbi;
+    BOOL ok = GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &sbi);
+    assert(ok);
+    if (ok)
+    {
+        cols = sbi.dwSize.X ;
+    }
+#elif defined( RL_ISSTATE ) && defined( RL_STATE_INITIALIZED )
 
     if (RL_ISSTATE(RL_STATE_INITIALIZED))
     {
