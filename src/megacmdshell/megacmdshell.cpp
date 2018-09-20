@@ -678,14 +678,6 @@ void install_rl_handler(const char *theprompt)
 }
 #endif
 
-class MutexGuard  //todo: move this into the SDK's thread.h then remove from here
-{
-    ::mega::Mutex& m;
-public:
-    MutexGuard(::mega::Mutex& cm) : m(cm) { m.lock(); }
-    ~MutexGuard() { m.unlock(); }
-};
-
 void changeprompt(const char *newprompt, bool redisplay)
 {
     MutexGuard g(mutexPrompt);

@@ -33,15 +33,6 @@ map<uint64_t, int> threadoutCode;
 map<uint64_t, CmdPetition *> threadpetition;
 map<uint64_t, bool> threadIsCmdShell;
 
-
-class MutexGuard  //todo: move this into the SDK's thread.h then remove from here
-{
-    ::mega::Mutex& m;
-public:
-    MutexGuard(::mega::Mutex& cm) : m(cm) { m.lock(); }
-    ~MutexGuard() { m.unlock(); }
-};
-
 OUTSTREAMTYPE &getCurrentOut()
 {
     MutexGuard g(threadLookups);
