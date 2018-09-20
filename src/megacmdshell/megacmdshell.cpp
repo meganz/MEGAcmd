@@ -137,6 +137,103 @@ void sleepMilliSeconds(long milliseconds)
 #endif
 }
 
+vector<string> getlistOfWords(char *ptr, bool ignoreTrailingSpaces = true)
+{
+    vector<string> words;
+
+    char* wptr;
+
+    // split line into words with quoting and escaping
+    for (;; )
+    {
+        // skip leading blank space
+        while (*(const signed char*)ptr > 0 && *ptr <= ' ' && (ignoreTrailingSpaces || *(ptr+1)))
+        {
+            ptr++;
+        }
+
+        if (!*ptr)
+        {
+            break;
+        }
+
+        // quoted arg / regular arg
+        if (*ptr == '"')
+        {
+            ptr++;
+            wptr = ptr;
+            words.push_back(string());
+
+            for (;; )
+            {
+                if (( *ptr == '"' ) || ( *ptr == '\\' ) || !*ptr)
+                {
+                    words[words.size() - 1].append(wptr, ptr - wptr);
+
+                    if (!*ptr || ( *ptr++ == '"' ))
+                    {
+                        break;
+                    }
+
+                    wptr = ptr - 1;
+                }
+                else
+                {
+                    ptr++;
+                }
+            }
+        }
+        else if (*ptr == '\'') // quoted arg / regular arg
+        {
+            ptr++;
+            wptr = ptr;
+            words.push_back(string());
+
+            for (;; )
+            {
+                if (( *ptr == '\'' ) || ( *ptr == '\\' ) || !*ptr)
+                {
+                    words[words.size() - 1].append(wptr, ptr - wptr);
+
+                    if (!*ptr || ( *ptr++ == '\'' ))
+                    {
+                        break;
+                    }
+
+                    wptr = ptr - 1;
+                }
+                else
+                {
+                    ptr++;
+                }
+            }
+        }
+        else
+        {
+            while (*ptr == ' ') ptr++;// only possible if ptr+1 is the end
+
+            wptr = ptr;
+
+            char *prev = ptr;
+            //while ((unsigned char)*ptr > ' ')
+            while ((*ptr != '\0') && !(*ptr ==' ' && *prev !='\\'))
+            {
+                if (*ptr == '"')
+                {
+                    while (*++ptr != '"' && *ptr != '\0')
+                    { }
+                }
+                prev=ptr;
+                ptr++;
+            }
+
+                words.push_back(string(wptr, ptr - wptr));
+        }
+    }
+
+    return words;
+}
+
 void discardOptionsAndFlags(vector<string> *ws)
 {
     for (std::vector<string>::iterator it = ws->begin(); it != ws->end(); )
@@ -245,7 +342,15 @@ int getNumberOfCols(unsigned int defaultwidth=0)
 {
     unsigned int width = defaultwidth;
     int rows = 1, cols = width;
-#if defined( RL_ISSTATE ) && defined( RL_STATE_INITIALIZED )
+#ifdef NO_READLINE
+    CONSOLE_SCREEN_BUFFER_INFO sbi;
+    BOOL ok = GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &sbi);
+    assert(ok);
+    if (ok)
+    {
+        cols = sbi.dwSize.X ;
+    }
+#elif defined( RL_ISSTATE ) && defined( RL_STATE_INITIALIZED )
 
     if (RL_ISSTATE(RL_STATE_INITIALIZED))
     {
@@ -681,9 +786,7 @@ void install_rl_handler(const char *theprompt)
 void changeprompt(const char *newprompt, bool redisplay)
 {
     MutexGuard g(mutexPrompt);
-#ifdef NO_READLINE
-    console->updateInputPrompt(newprompt);
-#else
+
     if (*dynamicprompt)
     {
         if (!strcmp(newprompt,dynamicprompt))
@@ -702,6 +805,9 @@ void changeprompt(const char *newprompt, bool redisplay)
         dynamicprompt[PROMPT_MAX_SIZE-1] = '\0';
     }
 
+#ifdef NO_READLINE
+    console->updateInputPrompt(newprompt);
+#else
     if (redisplay)
     {
         // save line
@@ -1074,8 +1180,37 @@ vector<autocomplete::ACState::Completion> remote_completion(string linetocomplet
     string outputcommand;
     localwtostring(&oss.str(), &outputcommand);
 
-    if (outputcommand == "MEGACMD_USE_LOCAL_COMPLETION")
+    if (outputcommand.find("MEGACMD_USE_LOCAL_COMPLETION") == 0)
     {
+        string where = outputcommand.substr(strlen("MEGACMD_USE_LOCAL_COMPLETION"));
+#ifdef _WIN32
+        wstring wwhere;
+        stringtolocalw(where.c_str(),&wwhere);
+        int r = SetCurrentDirectoryW((LPCWSTR)wwhere.data());
+        if (!r)
+        {
+            cerr << "Error at SetCurrentDirectoryW before local completion to " << where << ". errno: " << ERRNO << endl;
+        }
+#else
+        chdir(where.c_str());
+#endif
+
+        vector<string> words = getlistOfWords((char *)linetocomplete.c_str());
+
+        if (words.size())
+        {
+            string l;
+            if (words.size() > 1)
+            {
+                l=words.at(words.size()-1);
+            }
+
+            autocomplete::ACState acs = autocomplete::prepACState(l, l.size(), static_cast<WinConsole*>(console)->getAutocompleteStyle());
+            autocomplete::LocalFS *lfs = new autocomplete::LocalFS(words[0] != "lcd", true, l);
+            lfs->addCompletions(acs);
+            result.swap(acs.completions);
+            delete lfs;
+        }
         return result;
     }
     else
@@ -1118,7 +1253,7 @@ void exec_history(autocomplete::ACState& s)
 
 void exec_dos_unix(autocomplete::ACState& s)
 {
-    console->setAutocompleteStyle(s.words[1].s == "unix");
+    console->setAutocompleteStyle(s.words.size() > 1 && s.words[1].s == "unix");
 }
 
 void exec_codepage(autocomplete::ACState& s)
@@ -1192,103 +1327,6 @@ bool isserverloggedin()
         return false;
     }
     return true;
-}
-
-vector<string> getlistOfWords(char *ptr, bool ignoreTrailingSpaces = true)
-{
-    vector<string> words;
-
-    char* wptr;
-
-    // split line into words with quoting and escaping
-    for (;; )
-    {
-        // skip leading blank space
-        while (*(const signed char*)ptr > 0 && *ptr <= ' ' && (ignoreTrailingSpaces || *(ptr+1)))
-        {
-            ptr++;
-        }
-
-        if (!*ptr)
-        {
-            break;
-        }
-
-        // quoted arg / regular arg
-        if (*ptr == '"')
-        {
-            ptr++;
-            wptr = ptr;
-            words.push_back(string());
-
-            for (;; )
-            {
-                if (( *ptr == '"' ) || ( *ptr == '\\' ) || !*ptr)
-                {
-                    words[words.size() - 1].append(wptr, ptr - wptr);
-
-                    if (!*ptr || ( *ptr++ == '"' ))
-                    {
-                        break;
-                    }
-
-                    wptr = ptr - 1;
-                }
-                else
-                {
-                    ptr++;
-                }
-            }
-        }
-        else if (*ptr == '\'') // quoted arg / regular arg
-        {
-            ptr++;
-            wptr = ptr;
-            words.push_back(string());
-
-            for (;; )
-            {
-                if (( *ptr == '\'' ) || ( *ptr == '\\' ) || !*ptr)
-                {
-                    words[words.size() - 1].append(wptr, ptr - wptr);
-
-                    if (!*ptr || ( *ptr++ == '\'' ))
-                    {
-                        break;
-                    }
-
-                    wptr = ptr - 1;
-                }
-                else
-                {
-                    ptr++;
-                }
-            }
-        }
-        else
-        {
-            while (*ptr == ' ') ptr++;// only possible if ptr+1 is the end
-
-            wptr = ptr;
-
-            char *prev = ptr;
-            //while ((unsigned char)*ptr > ' ')
-            while ((*ptr != '\0') && !(*ptr ==' ' && *prev !='\\'))
-            {
-                if (*ptr == '"')
-                {
-                    while (*++ptr != '"' && *ptr != '\0')
-                    { }
-                }
-                prev=ptr;
-                ptr++;
-            }
-
-                words.push_back(string(wptr, ptr - wptr));
-        }
-    }
-
-    return words;
 }
 
 

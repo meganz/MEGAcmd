@@ -214,7 +214,9 @@ string avalidCommands [] = { "login", "signup", "confirm", "session", "mount", "
 #endif
                              , "deleteversions"
 #ifdef _WIN32
+#if !defined(NO_READLINE)
                              ,"unicode"
+#endif
 #else
                              , "permissions"
 #endif

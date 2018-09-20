@@ -18,6 +18,7 @@ DEFINES += NO_READLINE
 
 win32 {
 include(../../../../sdk/bindings/qt/sdk.pri) #This is required to have console.cpp included: avoiding this is rather complicated
+HEADERS +=     ../../../../sdk/include/mega/win32/autocomplete.h
 }
 
 SOURCES += ../../../../src/megacmdshell/megacmdshell.cpp \
