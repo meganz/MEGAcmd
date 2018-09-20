@@ -786,9 +786,7 @@ void install_rl_handler(const char *theprompt)
 void changeprompt(const char *newprompt, bool redisplay)
 {
     MutexGuard g(mutexPrompt);
-#ifdef NO_READLINE
-    console->updateInputPrompt(newprompt);
-#else
+
     if (*dynamicprompt)
     {
         if (!strcmp(newprompt,dynamicprompt))
@@ -807,6 +805,9 @@ void changeprompt(const char *newprompt, bool redisplay)
         dynamicprompt[PROMPT_MAX_SIZE-1] = '\0';
     }
 
+#ifdef NO_READLINE
+    console->updateInputPrompt(newprompt);
+#else
     if (redisplay)
     {
         // save line
