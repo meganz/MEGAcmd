@@ -1252,7 +1252,7 @@ void exec_history(autocomplete::ACState& s)
 
 void exec_dos_unix(autocomplete::ACState& s)
 {
-    console->setAutocompleteStyle(s.words[1].s == "unix");
+    console->setAutocompleteStyle(s.words.size() > 1 && s.words[1].s == "unix");
 }
 
 void exec_codepage(autocomplete::ACState& s)
