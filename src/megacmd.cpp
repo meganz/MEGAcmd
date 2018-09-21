@@ -140,6 +140,7 @@ std::ostringstream & operator<< ( std::ostringstream & ostr, std::wstring const 
 #endif
 
 using namespace mega;
+using namespace std;
 
 MegaCmdExecuter *cmdexecuter;
 MegaCmdSandbox *sandboxCMD;
