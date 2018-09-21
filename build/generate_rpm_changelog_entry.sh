@@ -24,7 +24,13 @@ if [ "$#" -ne 2 ]; then
 fi
 
 in_file="$2"
-out1=$(awk -NF '"$| "|""\\\\n' ' /megacmdchangelog/ {flag=1;next} /;/{flag=0} flag { print "  * "$2 }' $in_file)
+
+out1=$(printf "#include <iostream>
+using namespace std;
+#include \"$2\"
+int main() {
+cout << megacmdchangelog << endl;
+}" | g++ -x c++ - -o /tmp/printChangeLogMcmd && /tmp/printChangeLogMcmd | awk '{print "  * "$0}' && rm /tmp/printChangeLogMcmd )
 
 # print ChangeLog entry
 NOW=$(LANG=en_us_8859_1;date)
