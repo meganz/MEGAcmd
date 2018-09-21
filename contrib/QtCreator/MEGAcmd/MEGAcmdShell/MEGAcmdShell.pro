@@ -14,6 +14,13 @@ TARGET = MEGAcmdShell
 TEMPLATE = app
 CONFIG += console
 
+DEFINES += NO_READLINE
+
+win32 {
+include(../../../../sdk/bindings/qt/sdk.pri) #This is required to have console.cpp included: avoiding this is rather complicated
+HEADERS +=     ../../../../sdk/include/mega/win32/autocomplete.h
+}
+
 SOURCES += ../../../../src/megacmdshell/megacmdshell.cpp \
     ../../../../src/megacmdshell/megacmdshellcommunications.cpp \
     ../../../../src/megacmdshell/megacmdshellcommunicationsnamedpipes.cpp
@@ -51,7 +58,9 @@ else{
 }
 
 win32 {
-SOURCES += ../../../../sdk/src/thread/win32thread.cpp \
+SOURCES += ../../../../sdk/src/win32/autocomplete.cpp \
+    ../../../../sdk/src/win32/console.cpp \
+    ../../../../sdk/src/thread/win32thread.cpp \
     ../../../../sdk/src/logging.cpp
 HEADERS +=  ../../../../sdk/include/mega/win32thread.h \
     ../../../../sdk/include/mega/logging.h

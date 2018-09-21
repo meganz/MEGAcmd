@@ -69,18 +69,6 @@
         ( std::ostringstream() << std::dec << x ) ).str()
 #endif
 
-#if defined(_WIN32) && !defined(WINDOWS_PHONE)
-#include "mega/thread/win32thread.h"
-class MegaThread : public mega::Win32Thread {};
-#elif defined(USE_CPPTHREAD)
-#include "mega/thread/cppthread.h"
-class MegaThread : public mega::CppThread {};
-#else
-#include "mega/thread/posixthread.h"
-class MegaThread : public mega::PosixThread {};
-#endif
-
-
 using namespace std;
 
 bool MegaCmdShellCommunications::serverinitiatedfromshell;

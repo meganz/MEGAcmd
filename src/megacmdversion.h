@@ -16,6 +16,9 @@
 #endif
 
 const char * const megacmdchangelog =
+#if defined(_WIN32) && defined(NO_READLINE)
+        "unicode support vastly improved (See \"help --unicode\")""\n"
+#endif
         "added FTP support (See \"ftp\")""\n"
         "renew path parsing & improved completion with special characters""\n"
         "fix truncated redirected output in MacOS""\n"
@@ -30,7 +33,7 @@ const char * const megacmdchangelog =
         "added \"graphisc\" command to turn off thumbnails/previews generation""\n"
         "support login and password change using 2FA""\n"
         "limit one instance of server""\n"
-        "Many more minor fixes & adjustements"
+        "many more minor fixes & adjustements"
         ;
 
 

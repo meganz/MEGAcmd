@@ -35,6 +35,10 @@
 #define PATH_MAX_LOCAL_BACKUP PATH_MAX
 #endif
 
+#if defined(_WIN32)
+#define unlink _unlink  
+#endif
+
 using namespace std;
 using namespace mega;
 
