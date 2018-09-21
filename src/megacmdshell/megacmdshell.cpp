@@ -58,19 +58,8 @@
 #endif
 #endif
 
-#if defined(_WIN32) || defined(_WIN64)   
-  
-  #ifndef snprintf  // megasys.h for WIN32
-    #define snprintf _snprintf  
-  #endif
-
-  #define vsnprintf _vsnprintf
+#if defined(_WIN32)
   #define strdup _strdup
-
-  #ifndef strcasecmp  // megasys.h for WIN32
-    #define strcasecmp _stricmp
-    #define strncasecmp _strnicmp
-  #endif
 #endif
 
 #define SSTR( x ) static_cast< const std::ostringstream & >( \
@@ -137,11 +126,11 @@ void sleepMilliSeconds(long milliseconds)
 #endif
 }
 
-vector<string> getlistOfWords(char *ptr, bool ignoreTrailingSpaces = true)
+vector<string> getlistOfWords(const char *ptr, bool ignoreTrailingSpaces = true)
 {
     vector<string> words;
 
-    char* wptr;
+    const char* wptr;
 
     // split line into words with quoting and escaping
     for (;; )
@@ -214,7 +203,7 @@ vector<string> getlistOfWords(char *ptr, bool ignoreTrailingSpaces = true)
 
             wptr = ptr;
 
-            char *prev = ptr;
+            const char *prev = ptr;
             //while ((unsigned char)*ptr > ' ')
             while ((*ptr != '\0') && !(*ptr ==' ' && *prev !='\\'))
             {
@@ -227,7 +216,7 @@ vector<string> getlistOfWords(char *ptr, bool ignoreTrailingSpaces = true)
                 ptr++;
             }
 
-                words.push_back(string(wptr, ptr - wptr));
+            words.push_back(string(wptr, ptr - wptr));
         }
     }
 
@@ -682,7 +671,7 @@ static void store_line(char* l)
 bool validoptionforreadline(const string& string)
 {// TODO: this has not been tested in 100% cases (perhaps it is too diligent or too strict)
     int c,i,ix,n,j;
-    for (i=0, ix=string.length(); i < ix; i++)
+    for (i=0, ix=int(string.length()); i < ix; i++)
     {
         c = (unsigned char) string[i];
 
@@ -960,6 +949,22 @@ void pushvalidoption(vector<string>  *validOptions, const char *beginopt)
 #endif
 }
 
+void changedir(const string& where)
+{
+#ifdef _WIN32
+    wstring wwhere;
+    stringtolocalw(where.c_str(), &wwhere);
+    int r = SetCurrentDirectoryW((LPCWSTR)wwhere.data());
+    if (!r)
+    {
+        cerr << "Error at SetCurrentDirectoryW before local completion to " << where << ". errno: " << ERRNO << endl;
+    }
+#else
+    chdir(where.c_str());
+#endif
+}
+
+
 #ifndef NO_READLINE
 char* remote_completion(const char* text, int state)
 {
@@ -999,17 +1004,7 @@ char* remote_completion(const char* text, int state)
         if (outputcommand.find("MEGACMD_USE_LOCAL_COMPLETION") == 0)
         {
             string where = outputcommand.substr(strlen("MEGACMD_USE_LOCAL_COMPLETION"));
-#ifdef _WIN32
-            wstring wwhere;
-            stringtolocalw(where.c_str(),&wwhere);
-            int r = SetCurrentDirectoryW((LPCWSTR)wwhere.data());
-            if (!r)
-            {
-                cerr << "Error at SetCurrentDirectoryW before local completion to " << where << ". errno: " << ERRNO << endl;
-            }
-#else
-            chdir(where.c_str());
-#endif
+            changedir(where);
             free(saved_line);
             return local_completion(text,state); //fallback to local path completion
         }
@@ -1171,45 +1166,36 @@ void wait_for_input(int readline_fd)
 
 vector<autocomplete::ACState::Completion> remote_completion(string linetocomplete)
 {
-    vector<autocomplete::ACState::Completion> result;
+    using namespace autocomplete;
+    vector<ACState::Completion> result;
+
+    // normalize any partially or intermediately quoted strings, eg.  `put c:\Program" Fi` or `/My" Documents/"`
+    ACState acs = prepACState(linetocomplete, linetocomplete.size(), console->getAutocompleteStyle());
+    string refactoredline;
+    for (auto& s : acs.words)
+    {
+        refactoredline += (refactoredline.empty() ? "" : " ") + s.getQuoted();
+    }
 
     OUTSTRING s;
     OUTSTRINGSTREAM oss(s);
-    comms->executeCommand(string("completionshell ") + linetocomplete, readresponse, oss);
+    comms->executeCommand(string("completionshell ") + refactoredline, readresponse, oss);
 
     string outputcommand;
     localwtostring(&oss.str(), &outputcommand);
 
+    ACState::quoted_word completionword = acs.words.size() ? acs.words[acs.words.size() - 1] : string();
+
     if (outputcommand.find("MEGACMD_USE_LOCAL_COMPLETION") == 0)
     {
         string where = outputcommand.substr(strlen("MEGACMD_USE_LOCAL_COMPLETION"));
-#ifdef _WIN32
-        wstring wwhere;
-        stringtolocalw(where.c_str(),&wwhere);
-        int r = SetCurrentDirectoryW((LPCWSTR)wwhere.data());
-        if (!r)
+        changedir(where);
+
+        if (acs.words.size())
         {
-            cerr << "Error at SetCurrentDirectoryW before local completion to " << where << ". errno: " << ERRNO << endl;
-        }
-#else
-        chdir(where.c_str());
-#endif
-
-        vector<string> words = getlistOfWords((char *)linetocomplete.c_str());
-
-        if (words.size())
-        {
-            string l;
-            if (words.size() > 1)
-            {
-                l=words.at(words.size()-1);
-            }
-
-            autocomplete::ACState acs = autocomplete::prepACState(l, l.size(), static_cast<WinConsole*>(console)->getAutocompleteStyle());
-            autocomplete::LocalFS *lfs = new autocomplete::LocalFS(words[0] != "lcd", true, l);
-            lfs->addCompletions(acs);
-            result.swap(acs.completions);
-            delete lfs;
+            string l = completionword.getQuoted();
+            CompletionState cs = autoComplete(l, l.size(), acs.words[0].s == "lcd" ? localFSFolder() : localFSPath(), console->getAutocompleteStyle());
+            result.swap(cs.completions);
         }
         return result;
     }
@@ -1237,6 +1223,10 @@ vector<autocomplete::ACState::Completion> remote_completion(string linetocomplet
             result.push_back(autocomplete::ACState::Completion(beginopt, false));
         }
 
+        if (result.size() == 1 && result[0].s == completionword.s)
+        {
+            result.clear();  // for parameters it returns the same string when there are no matches
+        }
         return result;
     }
 }
@@ -1253,7 +1243,14 @@ void exec_history(autocomplete::ACState& s)
 
 void exec_dos_unix(autocomplete::ACState& s)
 {
-    console->setAutocompleteStyle(s.words.size() > 1 && s.words[1].s == "unix");
+    if (s.words.size() < 2)
+    {
+        OUTSTREAM << "autocomplete style: " << (console->getAutocompleteStyle() ? "unix" : "dos") << endl;
+    }
+    else
+    {
+        console->setAutocompleteStyle(s.words[1].s == "unix");
+    }
 }
 
 void exec_codepage(autocomplete::ACState& s)
@@ -1330,8 +1327,10 @@ bool isserverloggedin()
 }
 
 
-void process_line(char * line)
+void process_line(const char * line)
 {
+    string refactoredline;
+
     switch (prompt)
     {
         case AREYOUSURE:
@@ -1450,13 +1449,21 @@ void process_line(char * line)
         {
 
 #ifdef NO_READLINE
-            // see if it's a local command
+            // if local command and syntax is satisfied, execute it
             string consoleOutput;
             if (autocomplete::autoExec(line, string::npos, autocompleteSyntax, false, consoleOutput, false))
             {
                 COUT << consoleOutput << flush;
                 return;
             }
+
+            // normalize any partially or intermediately quoted strings, eg.  `put c:\Program" Fi` or get `/My" Documents/"`
+            autocomplete::ACState acs = autocomplete::prepACState(line, strlen(line), console->getAutocompleteStyle());
+            for (auto& s : acs.words)
+            {
+                refactoredline += (refactoredline.empty() ? "" : " ") + s.getQuoted();
+            }
+            line = refactoredline.c_str();
 #endif
 
             vector<string> words = getlistOfWords(line);
@@ -1608,7 +1615,7 @@ void process_line(char * line)
                     }
                     return;
                 }
-                else if ( words[0] == "clear" )
+                else if (!helprequested && words[0] == "clear")
                 {
 #ifdef _WIN32
                     HANDLE hStdOut;
@@ -2017,7 +2024,7 @@ void printCenteredLine(string msj, unsigned int width, bool encapsulated = true)
 {
     if (msj.size()>width)
     {
-        width = msj.size();
+        width = unsigned(msj.size());
     }
     if (encapsulated)
         COUT << "|";
@@ -2062,7 +2069,9 @@ void printWelcomeMsg(unsigned int width)
     printCenteredLine("Enter \"help --non-interactive\" to learn how to use MEGAcmd with scripts.",width);
     printCenteredLine("Enter \"help\" for basic info and a list of available commands.",width);
 
-#ifdef _WIN32
+#if defined(_WIN32) && defined(NO_READLINE)
+    printCenteredLine("Unicode support in the console is improved, see \"help --unicode\"", width);
+#elif defined(_WIN32)
     printCenteredLine("Enter \"help --unicode\" for info regarding non-ASCII support.",width);
 #endif
 

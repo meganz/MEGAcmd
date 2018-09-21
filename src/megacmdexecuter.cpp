@@ -348,10 +348,10 @@ MegaNode* MegaCmdExecuter::nodebypath(const char* ptr, string* user, string* nam
                 bool isversion = nodeNameIsVersion(curName);
                 if (isversion)
                 {
-                    MegaNode *baseNode = api->getChildNode(baseNode, curName.substr(0,curName.size()-11).c_str());
-                    if (baseNode)
+                    MegaNode *childNode = api->getChildNode(baseNode, curName.substr(0,curName.size()-11).c_str());
+                    if (childNode)
                     {
-                        MegaNodeList *versionNodes = api->getVersions(baseNode);
+                        MegaNodeList *versionNodes = api->getVersions(childNode);
                         if (versionNodes)
                         {
                             for (int i = 0; i < versionNodes->size(); i++)
@@ -365,7 +365,7 @@ MegaNode* MegaCmdExecuter::nodebypath(const char* ptr, string* user, string* nam
                             }
                             delete versionNodes;
                         }
-                        delete baseNode;
+                        delete childNode;
                     }
                 }
                 else
