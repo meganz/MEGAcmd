@@ -1,9 +1,4 @@
 #!/bin/bash
 
-for C in mega-attr mega-backup mega-cd mega-cmd mega-cmd-server mega-confirm mega-cp mega-debug mega-deleteversions mega-du mega-exclude mega-exec mega-export mega-find mega-get mega-help mega-https mega-import mega-invite mega-ipc mega-killsession mega-lcd mega-log mega-login mega-logout mega-lpwd mega-ls mega-mkdir mega-mount mega-mv mega-passwd mega-permissions mega-preview mega-put mega-pwd mega-quit mega-reload mega-rm mega-session mega-share mega-showpcr mega-signup mega-speedlimit mega-sync mega-thumbnail mega-transfers mega-userattr mega-users mega-versio mega-webdav mega-whoami
-do
-  rm /usr/local/bin/$C
-done
-
 exit 0
 
