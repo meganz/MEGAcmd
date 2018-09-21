@@ -954,6 +954,7 @@ void changedir(const string& where)
 #ifdef _WIN32
     wstring wwhere;
     stringtolocalw(where.c_str(), &wwhere);
+    wwhere.append(L"\\");
     int r = SetCurrentDirectoryW((LPCWSTR)wwhere.data());
     if (!r)
     {
