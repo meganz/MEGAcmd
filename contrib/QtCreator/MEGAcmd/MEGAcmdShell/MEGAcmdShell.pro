@@ -90,7 +90,9 @@ macx {
     QMAKE_CXXFLAGS += -g
 }
 else {
-    LIBS += -lreadline
+    unix {
+        LIBS += -lreadline
+    }
 }
 
 win32 {
