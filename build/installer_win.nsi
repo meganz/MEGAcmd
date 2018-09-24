@@ -21,10 +21,10 @@ VIAddVersionKey "LegalCopyright" "MEGA Limited 2017"
 VIAddVersionKey "ProductName" "MEGAcmd"
 
 ; Version info
-VIProductVersion "0.9.9.0"
-VIAddVersionKey "FileVersion" "0.9.9.0"
-VIAddVersionKey "ProductVersion" "0.9.9.0"
-!define PRODUCT_VERSION "0.9.9"
+VIProductVersion "1.0.0.0"
+VIAddVersionKey "FileVersion" "1.0.0.0"
+VIAddVersionKey "ProductVersion" "1.0.0.0"
+!define PRODUCT_VERSION "1.0.0"
 
 !define PRODUCT_PUBLISHER "Mega Limited"
 !define PRODUCT_WEB_SITE "http://www.mega.nz"
