@@ -6838,7 +6838,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     }
                     else
                     {
-                        mega::byte session[64];
+                        unsigned char session[64];
 
                         if (words[1].size() < sizeof session * 4 / 3)
                         {
@@ -8438,7 +8438,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
                     MegaHandle id = cr->getHandle();
                     char sid[12];
-                    Base64::btoa((mega::byte*)&( id ), sizeof( id ), sid);
+                    Base64::btoa((unsigned char*)&( id ), sizeof( id ), sid);
 
                     OUTSTREAM << "\t (id: " << sid << ", creation: " << getReadableTime(cr->getCreationTime())
                               << ", modification: " << getReadableTime(cr->getModificationTime()) << ")";
