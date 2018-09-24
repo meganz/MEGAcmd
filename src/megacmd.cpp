@@ -231,7 +231,7 @@ string newpasswd;
 bool doExit = false;
 bool consoleFailed = false;
 
-string dynamicprompt;
+string dynamicprompt = "MEGA CMD> ";
 
 static prompttype prompt = COMMAND;
 
