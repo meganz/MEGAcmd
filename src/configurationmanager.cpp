@@ -618,8 +618,7 @@ bool ConfigurationManager::lockExecution()
         string wlockfile;
         MegaApi::utf8ToUtf16(lockfile.str().c_str(),&wlockfile);
         OFSTRUCT offstruct;
-        if (OpenFile(wlockfile.c_str(), &offstruct, OF_CREATE | OF_READWRITE |OF_SHARE_EXCLUSIVE ) == HFILE_ERROR)
-
+        if (LZOpenFileW((LPWSTR)wlockfile.data(), &offstruct, OF_CREATE | OF_READWRITE |OF_SHARE_EXCLUSIVE ) == HFILE_ERROR)
         {
             return false;
         }

@@ -79,7 +79,7 @@ HEADERS += ../../../../src/megacmd.h \
     HEADERS +=../../../../src/comunicationsmanagerportsockets.h
 
 win32 {
-    LIBS += -lshell32
+    LIBS += -lshell32 -llz32
     RC_FILE = icon.rc
     QMAKE_LFLAGS += /LARGEADDRESSAWARE
     QMAKE_LFLAGS_WINDOWS += /SUBSYSTEM:WINDOWS,5.01
