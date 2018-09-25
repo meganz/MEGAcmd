@@ -2223,6 +2223,7 @@ int main(int argc, char* argv[])
     console->setAutocompleteSyntax(buildAutocompleteSyntax());
     console->setAutocompleteFunction(remote_completion);
     console->setShellConsole(CP_UTF8, GetConsoleOutputCP());
+    console->blockingConsolePeek = true;
 #endif
 
 #ifdef _WIN32
