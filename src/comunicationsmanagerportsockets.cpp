@@ -39,6 +39,7 @@
 #endif
 
 using namespace mega;
+using namespace std;
 
 void closeSocket(SOCKET socket){
 #ifdef _WIN32
@@ -474,7 +475,7 @@ CmdPetition * ComunicationsManagerPortSockets::getPetition()
         wstring ws=wbuffer;
         localwtostring(&ws,&receivedutf8);
 #else
-        localwtostring(&wstring(wbuffer),&receivedutf8);
+        localwtostring(&std::wstring(wbuffer),&receivedutf8);
 #endif
     }
     else
@@ -548,6 +549,49 @@ int ComunicationsManagerPortSockets::getConfirmation(CmdPetition *inf, string me
 
     int response;
     n = recv(connectedsocket,(char *)&response, sizeof(response), MSG_NOSIGNAL);
+    return response;
+}
+
+
+string ComunicationsManagerPortSockets::getUserResponse(CmdPetition *inf, string message)
+{
+    sockaddr_in cliAddr;
+    socklen_t cliLength = sizeof( cliAddr );
+    SOCKET connectedsocket = ((CmdPetitionPortSockets *)inf)->acceptedOutSocket;
+    if (!socketValid(connectedsocket))
+        connectedsocket = accept(((CmdPetitionPortSockets *)inf)->outSocket, (struct sockaddr*)&cliAddr, &cliLength);
+     ((CmdPetitionPortSockets *)inf)->acceptedOutSocket = connectedsocket;
+    if (connectedsocket == -1)
+    {
+        LOG_fatal << "Getting Confirmation: Unable to accept on outsocket " << ((CmdPetitionPortSockets *)inf)->outSocket << " error: " << errno;
+        delete inf;
+        return "FAILED";
+    }
+
+    int outCode = MCMD_REQSTRING;
+    int n = send(connectedsocket, (const char *)&outCode, sizeof( outCode ), MSG_NOSIGNAL);
+    if (n < 0)
+    {
+        LOG_err << "ERROR writing output Code to socket: " << errno;
+    }
+    n = send(connectedsocket, message.data(), max(1,(int)message.size()), MSG_NOSIGNAL); // for some reason without the max recv never quits in the client for empty responses
+    if (n < 0)
+    {
+        LOG_err << "ERROR writing to socket: " << errno;
+    }
+
+    string response;
+    int BUFFERSIZE = 1024;
+    char buffer[1025];
+    do{
+        n = recv(connectedsocket, buffer, BUFFERSIZE, MSG_NOSIGNAL);
+        if (n)
+        {
+            buffer[n]='\0';
+            response += buffer;
+        }
+    } while(n == BUFFERSIZE && n != SOCKET_ERROR);
+
     return response;
 }
 

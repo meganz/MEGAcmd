@@ -34,7 +34,7 @@ export CXX=${CROSS_COMPILE}g++
 export LD=${CROSS_COMPILE}ld
 export CFLAGS="$CFLAGS -fPIC -fexceptions -fvisibility=hidden -fsigned-char"
 export CPPFLAGS="-DNDEBUG"
-export CXXFLAGS="$CXXFLAGS $CFLAGS -DNDEBUG"
+export CXXFLAGS="$CXXFLAGS $CFLAGS -DNDEBUG -DENABLE_BACKUPS -DMEGACMD_USERAGENT_SUFFIX=QNAP -DHAVE_LIBUV"
 export AR=${CROSS_COMPILE}ar
 export NM=${CROSS_COMPILE}nm
 export STRIP=${CROSS_COMPILE}strip
@@ -73,7 +73,7 @@ pwd
 mkdir -p norecurse
 mv norecurse/* .
 
-./contrib/build_sdk.sh -a -e -g -I -n -q -R -S -X -C"$CUSTOM_CONFIG_ARGS" -O linux-generic32 -0 2>&1 | tee $MEGA_CMD_DIR/mybuildlogs-sdkbuild.out
+./contrib/build_sdk.sh -a -e -g -I -n -q -R -v -X -C"$CUSTOM_CONFIG_ARGS" -O linux-generic32 -0 2>&1 | tee $MEGA_CMD_DIR/mybuildlogs-sdkbuild.out
 
 if ! [ -e src/libmega.a ] ; then
     echo "libtool could not link it so we do it ourselves. Including Zen and MediaInfo somehow reference a nonexistent path /home/slava in the Synology libtool libraries. If we left those out it would make the lib ok."
@@ -102,7 +102,7 @@ echo -------------------------------------------------------- sdk end ----------
 echo about to build megacmd ---------------------------
 
 sh autogen.sh 2>&1 | tee $MEGA_CMD_DIR/mybuildlogs-autogen2.out
-./configure SUBDIRS="" --enable-static --with-cryptopp --with-readline=/opt/cross-project/arm/marvell/arm-none-linux-gnueabi/libc/marvell-f/src/MEGAcmd/sdk/sdk_build/install/include/ \
+./configure --without-libraw SUBDIRS="" --enable-static --with-cryptopp --with-readline=/opt/cross-project/arm/marvell/arm-none-linux-gnueabi/libc/marvell-f/src/MEGAcmd/sdk/sdk_build/install/include/ \
             $CUSTOM_CONFIG_ARGS  2>&1 | tee $MEGA_CMD_DIR/mybuildlogs-configure2.out 
 
 
@@ -114,7 +114,7 @@ rm -f mega-cmd-server
 rm -f mega-cmd
 rm -f mega-cmd-exec
 
-$CXX $CXXFLAGS src/megacmd.cpp src/comunicationsmanager.cpp         src/megacmdutils.cpp src/configurationmanager.cpp         src/megacmdlogger.cpp src/megacmdsandbox.cpp src/listeners.cpp         src/megacmdexecuter.cpp         src/comunicationsmanagerportsockets.cpp src/comunicationsmanagerfilesockets.cpp -Isdk/include -Isdk/include/mega/posix -Isdk/sdk_build/install/include  sdk/sdk_build/install/lib/libmega.a sdk/sdk_build/install/lib/libcryptopp.a    sdk/sdk_build/install/lib/libcurl.a sdk/sdk_build/install/lib/libcares.a sdk/sdk_build/install/lib/libssl.a sdk/sdk_build/install/lib/libcrypto.a  sdk/sdk_build/install/lib/libsqlite3.a sdk/sdk_build/install/lib/libfreeimage.a sdk/sdk_build/install/lib/libmediainfo.a sdk/sdk_build/install/lib/libzen.a -lpthread -ldl -lrt sdk/sdk_build/install/lib/libz.a -o mega-cmd-server
+$CXX $CXXFLAGS src/megacmd.cpp src/comunicationsmanager.cpp         src/megacmdutils.cpp src/configurationmanager.cpp         src/megacmdlogger.cpp src/megacmdsandbox.cpp src/listeners.cpp         src/megacmdexecuter.cpp         src/comunicationsmanagerportsockets.cpp src/comunicationsmanagerfilesockets.cpp -Isdk/include -Isdk/include/mega/posix -Isdk/sdk_build/install/include  sdk/sdk_build/install/lib/libmega.a sdk/sdk_build/install/lib/libcryptopp.a    sdk/sdk_build/install/lib/libcurl.a sdk/sdk_build/install/lib/libcares.a sdk/sdk_build/install/lib/libssl.a sdk/sdk_build/install/lib/libcrypto.a  sdk/sdk_build/install/lib/libsqlite3.a sdk/sdk_build/install/lib/libfreeimage.a sdk/sdk_build/install/lib/libmediainfo.a sdk/sdk_build/install/lib/libzen.a sdk/sdk_build/build/libuv-v1.8.0/.libs/libuv.a -lpthread -ldl -lrt sdk/sdk_build/install/lib/libz.a -o mega-cmd-server
 
 $CXX $CXXFLAGS src/megacmdshell/*.cpp -Isdk/include -Isdk/include/mega/posix -Isdk/sdk_build/install/include  sdk/sdk_build/install/lib/libmega.a sdk/sdk_build/install/lib/libcryptopp.a    sdk/sdk_build/install/lib/libcurl.a sdk/sdk_build/install/lib/libcares.a sdk/sdk_build/install/lib/libssl.a sdk/sdk_build/install/lib/libcrypto.a  sdk/sdk_build/install/lib/libsqlite3.a -lpthread -ldl -lrt sdk/sdk_build/install/lib/libz.a ./sdk/sdk_build/install/lib/libreadline.a ./sdk/sdk_build/install/lib/libtermcap.a -o mega-cmd
 
@@ -136,7 +136,7 @@ if [ -e mega-cmd ] && [ -e mega-cmd-server ] && [ -e mega-exec ] ; then
     MINOR=`sed -n -e 's/.*MINOR_VERSION \([0-9]*\).*/\1/p' < src/megacmdversion.h`
     MICRO=`sed -n -e 's/.*MICRO_VERSION \([0-9]*\).*/\1/p' < src/megacmdversion.h`
     MEGACMD_VERSION="\"$MAJOR.$MINOR.$MICRO\""
-    sudo sed -i build/QNAP_NAS/megacmdpkg/qpkg.cfg -e "s/^QPKG_VER=.*/QPKG_VER=$MEGACMD_VERSION/"
+    sed -i build/QNAP_NAS/megacmdpkg/qpkg.cfg -e "s/^QPKG_VER=.*/QPKG_VER=$MEGACMD_VERSION/"
 else
     echo "Build failed"
     exit 1

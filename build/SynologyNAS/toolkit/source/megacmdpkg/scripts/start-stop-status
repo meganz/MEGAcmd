@@ -1,4 +1,4 @@
 #!/bin/sh
+#if changed check no errors are logged in /var/log/bash_err.log on install or run steps
 
-echo "Please use telnet/ssh/PuTTY or similar to connect and use MEGAcmd.  Executables are at $SYNOPKG_PKGDEST/usr/local/bin/" > $SYNOPKG_TEMP_LOGFILE
-exit 3 
+exit 0

@@ -17,6 +17,7 @@
  */
 
 #include "megacmdutils.h"
+#include "listeners.h"
 
 #ifdef USE_PCRE
 #include <pcrecpp.h>
@@ -282,6 +283,37 @@ string visibilityToString(int visibility)
     return "undefined visibility";
 }
 
+const char * getMCMDErrorString(int errorCode)
+{
+    switch(errorCode)
+    {
+    case MCMD_OK:
+        return "Everything OK";
+    case MCMD_EARGS:
+        return "Wrong arguments";
+    case MCMD_INVALIDEMAIL:
+        return "Invalid email";
+    case MCMD_NOTFOUND:
+        return "Resource not found";
+    case MCMD_INVALIDSTATE:
+        return "Invalid state";
+    case MCMD_INVALIDTYPE:
+        return "Invalid type";
+    case MCMD_NOTPERMITTED:
+        return "Operation not allowed";
+    case MCMD_NOTLOGGEDIN:
+        return "Needs loging in";
+    case MCMD_NOFETCH:
+        return "Nodes not fetched";
+    case MCMD_EUNEXPECTED:
+        return "Unexpected failure";
+    case MCMD_REQCONFIRM:
+        return "Confirmation required";
+    default:
+        return "UNKNOWN";
+    }
+}
+
 const char * getErrorCodeStr(MegaError *e)
 {
     if (e)
@@ -539,6 +571,15 @@ bool isPublicLink(string link)
     return false;
 }
 
+bool isEncryptedLink(string link)
+{
+    if (( link.find("http") == 0 ) && ( link.find("#") != string::npos ) && (link.substr(link.find("#"),3) == "#P!") )
+    {
+        return true;
+    }
+    return false;
+}
+
 bool hasWildCards(string &what)
 {
     return what.find('*') != string::npos || what.find('?') != string::npos;
@@ -566,68 +607,32 @@ const char *fillStructWithSYYmdHMS(string &stime, struct tm &dt)
     dt.tm_hour = atoi(stime.substr(8,2).c_str());
     dt.tm_min = atoi(stime.substr(10,2).c_str());
     dt.tm_sec = atoi(stime.substr(12,2).c_str());
-    return stime.c_str();
 #else
-    return strptime(stime.c_str(), "%Y%m%d%H%M%S", &dt);
+    strptime(stime.c_str(), "%Y%m%d%H%M%S", &dt);
 #endif
+    dt.tm_isdst = -1; //let mktime interprete if time has Daylight Saving Time flag correction
+                        //TODO: would this work cross platformly? At least I believe it'll be consistent with localtime. Otherwise, we'd need to save that
+    return stime.c_str();
+
 }
 
-void fillLocalTimeStruct(const time_t *ttime, struct tm *dt) //TODO: copy this to megaapiimpl
-{
-#if (__cplusplus >= 201103L) && defined (__STDC_LIB_EXT1__) && defined(__STDC_WANT_LIB_EXT1__)
-    localtime_s(ttime, dt);
-#elif _MSC_VER >= 1400 // MSVCRT (2005+): std::localtime is threadsafe
-    struct tm *newtm = localtime(ttime);
-    if (newtm)
-    {
-        memcpy(dt,newtm,sizeof(struct tm));
-    }
-    else
-    {
-        memset(dt,0,sizeof(struct tm));
-    }
-
-#elif _WIN32
-    static MegaMutex * mtx = new MegaMutex();
-    static bool initiated = false;
-    if (!initiated)
-    {
-        mtx->init(true);
-        initiated = true;
-    }
-    mtx->lock();
-    struct tm *newtm = localtime(ttime);
-    if (newtm)
-    {
-        memcpy(dt,newtm,sizeof(struct tm));
-    }
-    else
-    {
-        memset(dt,0,sizeof(struct tm));
-    }
-    mtx->unlock();
-#else //POSIX
-    localtime_r(ttime, dt);
-#endif
-}
-
-std::string getReadableTime(const time_t rawtime)
+std::string getReadableTime(const m_time_t rawtime)
 {
     struct tm dt;
     char buffer [40];
-    fillLocalTimeStruct(&rawtime, &dt);
+    m_localtime(rawtime, &dt);
     strftime(buffer, sizeof( buffer ), "%a, %d %b %Y %T %z", &dt); // Following RFC 2822 (as in date -R)
     return std::string(buffer);
 }
 
-std::string getReadableShortTime(const time_t rawtime, bool showUTCDeviation)
+std::string getReadableShortTime(const m_time_t rawtime, bool showUTCDeviation)
 {
     struct tm dt;
     memset(&dt, 0, sizeof(struct tm));
     char buffer [40];
     if (rawtime != -1)
     {
-        fillLocalTimeStruct(&rawtime, &dt);
+        m_localtime(rawtime, &dt);
         if (showUTCDeviation)
         {
             strftime(buffer, sizeof( buffer ), "%d%b%Y %T %z", &dt);
@@ -644,7 +649,7 @@ std::string getReadableShortTime(const time_t rawtime, bool showUTCDeviation)
     return std::string(buffer);
 }
 
-std::string getReadablePeriod(const time_t rawtime)
+std::string getReadablePeriod(const m_time_t rawtime)
 {
 
     long long rest = rawtime;
@@ -671,7 +676,7 @@ std::string getReadablePeriod(const time_t rawtime)
     return toret.size()?toret:"0s";
 }
 
-time_t getTimeStampAfter(time_t initial, string timestring)
+m_time_t getTimeStampAfter(m_time_t initial, string timestring)
 {
     char *buffer = new char[timestring.size() + 1];
     strcpy(buffer, timestring.c_str());
@@ -734,7 +739,7 @@ time_t getTimeStampAfter(time_t initial, string timestring)
     }
 
     struct tm dt;
-    fillLocalTimeStruct(&initial, &dt);
+    m_localtime(initial, &dt);
 
     dt.tm_mday += days;
     dt.tm_hour += hours;
@@ -744,16 +749,16 @@ time_t getTimeStampAfter(time_t initial, string timestring)
     dt.tm_year += years;
 
     delete [] buffer;
-    return mktime(&dt);
+    return m_mktime(&dt);
 }
 
-time_t getTimeStampAfter(string timestring)
+m_time_t getTimeStampAfter(string timestring)
 {
-    time_t initial = time(NULL);
+    m_time_t initial = m_time();
     return getTimeStampAfter(initial, timestring);
 }
 
-time_t getTimeStampBefore(time_t initial, string timestring)
+m_time_t getTimeStampBefore(m_time_t initial, string timestring)
 {
     char *buffer = new char[timestring.size() + 1];
     strcpy(buffer, timestring.c_str());
@@ -816,7 +821,7 @@ time_t getTimeStampBefore(time_t initial, string timestring)
     }
 
     struct tm dt;
-    fillLocalTimeStruct(&initial, &dt);
+    m_localtime(initial, &dt);
 
     dt.tm_mday -= days;
     dt.tm_hour -= hours;
@@ -826,22 +831,22 @@ time_t getTimeStampBefore(time_t initial, string timestring)
     dt.tm_year -= years;
 
     delete [] buffer;
-    return mktime(&dt);
+    return m_mktime(&dt);
 }
 
-time_t getTimeStampBefore(string timestring)
+m_time_t getTimeStampBefore(string timestring)
 {
-    time_t initial = time(NULL);
+    m_time_t initial = m_time();
     return getTimeStampBefore(initial, timestring);
 }
 
-bool getMinAndMaxTime(string timestring, time_t *minTime, time_t *maxTime)
+bool getMinAndMaxTime(string timestring, m_time_t *minTime, m_time_t *maxTime)
 {
-    time_t initial = time(NULL);
+    m_time_t initial = m_time();
     return getMinAndMaxTime(initial, timestring, minTime, maxTime);
 }
 
-bool getMinAndMaxTime(time_t initial, string timestring, time_t *minTime, time_t *maxTime)
+bool getMinAndMaxTime(m_time_t initial, string timestring, m_time_t *minTime, m_time_t *maxTime)
 {
 
     *minTime = -1;
@@ -997,7 +1002,7 @@ vector<string> getlistOfWords(char *ptr, bool ignoreTrailingSpaces)
     for (;; )
     {
         // skip leading blank space
-        while (*ptr > 0 && *ptr <= ' ' && (ignoreTrailingSpaces || *(ptr+1)))
+        while (*(const signed char*)ptr > 0 && *ptr <= ' ' && (ignoreTrailingSpaces || *(ptr+1)))
         {
             ptr++;
         }
@@ -1076,8 +1081,16 @@ vector<string> getlistOfWords(char *ptr, bool ignoreTrailingSpaces)
                 prev=ptr;
                 ptr++;
             }
+                string newword(wptr, ptr - wptr);
+                words.push_back(newword);
+        }
+    }
 
-                words.push_back(string(wptr, ptr - wptr));
+    if (!getCurrentThreadIsCmdShell() && words.size()> 1 && words[0] == "completion")
+    {
+        for (int i = 1; i < (int)words.size(); i++)
+        {
+            replaceAll(words[i],"\\","\\\\");
         }
     }
 
@@ -1397,8 +1410,8 @@ string getFixLengthString(const string origin, unsigned int size, const char del
     else
     {
         toret.insert(0,origin,0,(size+1)/2-2);
-        toret.insert((size+1)/2-2,3,'.');
-        toret.insert((size+1)/2+1,origin,bytesSize-(size)/2+1,(size)/2-1); //TODO: This could break characters if multibyte!  //alternative: separate in multibyte strings and print one by one?
+        if (size > 3) toret.insert((size+1)/2-2,3,'.');
+        if (size > 1) toret.insert((size+1)/2+1,origin,bytesSize-(size)/2+1,(size)/2-1); //TODO: This could break characters if multibyte!  //alternative: separate in multibyte strings and print one by one?
     }
 
     return toret;
@@ -1656,13 +1669,13 @@ int64_t textToSize(const char *text)
 }
 
 
-string secondsToText(time_t seconds, bool humanreadable)
+string secondsToText(m_time_t seconds, bool humanreadable)
 {
     ostringstream os;
     os.precision(2);
     if (humanreadable)
     {
-        time_t reducedSize = time_t( seconds > 3600 * 2 ? seconds / 3600.0 : ( seconds > 60 * 2 ? seconds / 60.0 : seconds ));
+        m_time_t reducedSize = m_time_t( seconds > 3600 * 2 ? seconds / 3600.0 : ( seconds > 60 * 2 ? seconds / 60.0 : seconds) );
         os << fixed << reducedSize;
         os << ( seconds > 3600 * 2 ? " hours" : ( seconds > 60 * 2 ? " minutes" : " seconds" ));
     }

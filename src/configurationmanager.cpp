@@ -26,12 +26,17 @@
 #include <Shlwapi.h> //PathAppend
 #else
 #include <pwd.h>  //getpwuid_r
+#include <sys/file.h> //flock
 #endif
 
 #ifdef _WIN32
 #define PATH_MAX_LOCAL_BACKUP MAX_PATH
 #else
 #define PATH_MAX_LOCAL_BACKUP PATH_MAX
+#endif
+
+#if defined(_WIN32)
+#define unlink _unlink  
 #endif
 
 using namespace std;
@@ -44,10 +49,12 @@ bool is_file_exist(const char *fileName)
 }
 
 string ConfigurationManager::configFolder;
+#if !defined(_WIN32) && defined(LOCK_EX) && defined(LOCK_NB)
+int ConfigurationManager::fd;
+#endif
 map<string, sync_struct *> ConfigurationManager::configuredSyncs;
 string ConfigurationManager::session;
 std::set<std::string> ConfigurationManager::excludedNames;
-
 map<std::string, backup_struct *> ConfigurationManager::configuredBackups;
 
 std::string ConfigurationManager::getConfigFolder()
@@ -161,7 +168,7 @@ void ConfigurationManager::saveProperty(const char *property, const char *value)
             {
                 string key;
                 size_t pos = line.find("=");
-                if (pos != string::npos && ((pos + 1) < line.size()))
+                if (pos != string::npos)
                 {
                     key = line.substr(0, pos);
                     rtrimProperty(key, ' ');
@@ -594,6 +601,76 @@ void ConfigurationManager::loadConfiguration(bool debug)
     }
 }
 
+bool ConfigurationManager::lockExecution()
+{
+    if (!configFolder.size())
+    {
+        loadConfigDir();
+    }
+    if (configFolder.size())
+    {
+        stringstream lockfile;
+        lockfile << configFolder << "/" << "lockMCMD";
+
+        LOG_err << "Lock file: " << lockfile.str();
+
+#ifdef _WIN32
+        string wlockfile;
+        MegaApi::utf8ToUtf16(lockfile.str().c_str(),&wlockfile);
+        OFSTRUCT offstruct;
+        if (LZOpenFileW((LPWSTR)wlockfile.data(), &offstruct, OF_CREATE | OF_READWRITE |OF_SHARE_EXCLUSIVE ) == HFILE_ERROR)
+        {
+            return false;
+        }
+#elif defined(LOCK_EX) && defined(LOCK_NB)
+        fd = open(lockfile.str().c_str(), O_RDWR | O_CREAT, 0666); // open or create lockfile
+        //check open success...
+        if (flock(fd, LOCK_EX | LOCK_NB))
+        {
+            return false;
+        }
+#else
+        ofstream fo(lockfile.str().c_str());
+        if(!fo.fail()){
+            return false;
+        }
+        if (fo.is_open())
+        {
+            fo.close();
+        }
+#endif
+
+        return true;
+    }
+    else
+    {
+        LOG_err  << "Couldnt access configuration folder ";
+    }
+    return false;
+}
+
+void ConfigurationManager::unlockExecution()
+{
+    if (!configFolder.size())
+    {
+        loadConfigDir();
+    }
+    if (configFolder.size())
+    {
+        stringstream lockfile;
+        lockfile << configFolder << "/" << "lockMCMD";
+
+#if !defined(_WIN32) && defined(LOCK_EX) && defined(LOCK_NB)
+        flock(fd, LOCK_UN | LOCK_NB);
+        close(fd);
+#endif
+        unlink(lockfile.str().c_str());
+    }
+    else
+    {
+        LOG_err  << "Couldnt access configuration folder ";
+    }
+}
 string ConfigurationManager::getConfigurationSValue(string propertyName)
 {
     if (!configFolder.size())

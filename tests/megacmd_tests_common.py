@@ -48,7 +48,7 @@ def esc(what):
 def ef(what):
     out,code=esc(what)
     if code != 0:
-        print >>sys.stderr, "FALLO en "+str(what) #TODO: stderr?
+        print >>sys.stderr, "FAILED trying ", what
         print >>sys.stderr, out #TODO: stderr?
         
         exit(code)
@@ -202,6 +202,15 @@ def find(where, prefix=""):
         else:
             toret+="\n"+findR(where, prefix+"/").strip()
     return toret.strip()
+
+def ls(where, prefix=""):
+    if not os.path.exists(where):
+        if VERBOSE: print "file not found in find:", where, os.getcwd()
+        return ""
+    toret=""
+    for f in os.listdir(where):
+        toret+=prefix+f+"\n"
+    return toret
 
 def touch(what, times=None):
     with open(what, 'a'):

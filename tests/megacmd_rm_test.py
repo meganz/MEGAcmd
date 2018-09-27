@@ -258,20 +258,22 @@ cmd_ef(CD+' '+'/')
 rmfolderifexisting('localUPs/le01/les01')
 compare_and_clear()
 
+currentTest=13
+
 #Test 13 #spaced stuff
-cmd_ef(RM+' '+'-rf "ls\ 01"')
+cmd_ef(RM+' '+'-rf "ls 01"')
 rmfolderifexisting('localUPs/ls 01')
 compare_and_clear()
 
 #Test 14 #complex stuff
-cmd_ef(RM+' '+'-rf "ls\ 01/../le01/les01" "lf01/../ls*/ls\ s02"')
+cmd_ef(RM+' '+'-rf "ls 01/../le01/les01" "lf01/../ls*/ls s02"')
 rmfolderifexisting('localUPs/ls 01/../le01/les01')
 [rmfolderifexisting('localUPs/lf01/../'+f+'/ls s02') for f in os.listdir('localUPs/lf01/..') if f.startswith('ls')] 
 compare_and_clear()
 
 #Test 15 #complex stuff with PCRE exp
 if (platform.system() != "Windows"):
-    cmd_ef(RM+' '+'-rf --use-pcre "ls\ 01/../le01/les0[12]" "lf01/../ls.*/ls\ s0[12]"')
+    cmd_ef(RM+' '+'-rf --use-pcre "ls 01/../le01/les0[12]" "lf01/../ls.*/ls s0[12]"')
     rmfolderifexisting('localUPs/ls 01/../le01/les01')
     rmfolderifexisting('localUPs/ls 01/../le01/les02')
     [rmfolderifexisting('localUPs/lf01/../'+f+'/ls s01') for f in os.listdir('localUPs/lf01/..') if f.startswith('ls')] 
@@ -279,6 +281,11 @@ if (platform.system() != "Windows"):
     compare_and_clear()
 
 currentTest=16
+
+#Test 16 #spaced stuff2
+cmd_ef(RM+' '+'-rf ls\ 01')
+rmfolderifexisting('localUPs/ls 01')
+compare_and_clear()
 
 ###TODO: do stuff in shared folders...
 

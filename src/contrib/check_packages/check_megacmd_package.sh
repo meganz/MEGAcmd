@@ -279,6 +279,11 @@ elif [[ $VMNAME == *"DEBIAN"* ]] || [[ $VMNAME == *"UBUNTU"* ]] || [[ $VMNAME ==
 	logOperationResult "modifying repos ..." $resultMODREPO
 	$sshpasscommand ssh root@$IP_GUEST "cat /etc/apt/sources.list.d/megasync.list"
 
+	echo "cleaning apt cache ..."
+	$sshpasscommand ssh root@$IP_GUEST DEBIAN_FRONTEND=noninteractive apt-get -y clean
+	resultCLEANCACHE=$?
+	logOperationResult "clean apt cache ..." $resultCLEANCACHE
+
 	echo " reinstalling/updating megacmd ..."
 	BEFOREINSTALL=`$sshpasscommand ssh root@$IP_GUEST dpkg -l megacmd`
 	$sshpasscommand ssh root@$IP_GUEST DEBIAN_FRONTEND=noninteractive apt-get -y install megacmd
@@ -480,6 +485,10 @@ fi
 
 theDisplay="DISPLAY=:0.0"
 
+#if [[ $VMNAME == *"ARCHLINUX"* ]]; then
+#theDisplay="DISPLAY=:1.0"
+#fi
+
 echo " relaunching megacmd as user ..."
 
 $sshpasscommand ssh -oStrictHostKeyChecking=no  mega@$IP_GUEST $theDisplay mega-cmd 2>/dev/null &
@@ -487,7 +496,7 @@ $sshpasscommand ssh -oStrictHostKeyChecking=no  mega@$IP_GUEST $theDisplay mega-
 sleep 5 #TODO: sleep longer?
 
 echo " checking new megacmd running ..."
-$sshpasscommand ssh root@$IP_GUEST ps aux | grep mega-cmd
+$sshpasscommand ssh root@$IP_GUEST pgrep mega-cmd
 resultRunning=$?
 logOperationResult "checking new megacmd running ..." $resultRunning
 
@@ -514,6 +523,7 @@ if [[ $VMNAME == *"OPENSUSE"* ]]; then
 	distroDir="openSUSE"
 	ver=$($sshpasscommand ssh root@$IP_GUEST grep -i Tumbleweed /etc/issue > /dev/null && echo Tumbleweed || $sshpasscommand ssh root@$IP_GUEST lsb_release -rs)
 	if [[ x$ver == "x42"* ]]; then ver="Leap_$ver"; fi
+	if [[ x$ver == "x15"* ]]; then ver="Leap_$ver"; fi
 	expected="baseurl=https://mega.nz/linux/MEGAsync/${distroDir}_$ver"
 	resultRepoConfiguredOk=0
 	if ! $sshpasscommand ssh root@$IP_GUEST cat /etc/zypp/repos.d/megasync.repo | grep "$expected" > /dev/null; then
@@ -567,6 +577,7 @@ else #FEDORA | CENTOS...
 	if [[ $distroDir == "Scientific"* ]]; then distroDir="ScientificLinux"; fi
 	ver=$($sshpasscommand ssh root@$IP_GUEST cat /etc/system-release | awk -F"release "  '{print $2}' | awk '{print $1}')
 	if [[ x$ver == "x7"* ]]; then ver="7"; fi #centos7
+	if [[ x$ver == "x6"* ]]; then ver="6"; fi #centos6
 	if [[ $distroDir == "Fedora"* ]]; then ver="\$releasever"; fi
 
 

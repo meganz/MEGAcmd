@@ -21,6 +21,7 @@
 #include "megacmdutils.h"
 
 using namespace mega;
+using namespace std;
 
 #ifdef ENABLE_CHAT
 void MegaCmdGlobalListener::onChatsUpdate(MegaApi*, MegaTextChatList*)
@@ -159,6 +160,16 @@ void MegaCmdGlobalListener::onAccountUpdate(MegaApi *api)
     sandboxCMD->temporalbandwidth = 0; //This will cause account details to be queried again
 }
 
+void MegaCmdGlobalListener::onEvent(MegaApi *api, MegaEvent *event)
+{
+    if (event->getType() == MegaEvent::EVENT_ACCOUNT_BLOCKED)
+    {
+        sandboxCMD->accounthasbeenblocked = true;
+        LOG_err << "Received event account blocked: " << event->getText();
+        sandboxCMD->reasonblocked = event->getText();
+    }
+}
+
 
 ////////////////////////////////////////////
 ///      MegaCmdMegaListener methods     ///
@@ -170,6 +181,10 @@ void MegaCmdMegaListener::onRequestFinish(MegaApi *api, MegaRequest *request, Me
     {
         LOG_err << "Session is no longer valid (it might have been invalidated from elsewhere) ";
         changeprompt(prompts[COMMAND]);
+    }
+    else if (e && request->getType() == MegaRequest::TYPE_WHY_AM_I_BLOCKED && e->getErrorCode() == API_EBLOCKED)
+    {
+        LOG_err << "Your account has been blocked. Reason: " << request->getText();
     }
 }
 
@@ -808,7 +823,7 @@ void MegaCmdGlobalTransferListener::onTransferTemporaryError(MegaApi *api, MegaT
                          "See \"help --upgrade\" for further details";
         }
         sandboxCMD->setOverquota(true);
-        sandboxCMD->timeOfOverquota=time(NULL);
+        sandboxCMD->timeOfOverquota = m_time(NULL);
         sandboxCMD->secondsOverQuota=e->getValue();
     }
 };

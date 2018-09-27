@@ -1,3 +1,22 @@
+Fri Sep 7 14:00:51 CEST 2018 - linux@mega.co.nz
+- Update to version 1.0.0:
+  * added FTP support (See "ftp")
+  * renew path parsing & improved completion with special characters
+  * fix truncated redirected output in MacOS
+  * added support for account cancelation(See "cancel")
+  * cp now allows multiple sourth paths and regular expresions
+  * du path display size variable now
+  * output error code always positive now
+  * new command "errorcode" to translate error code into string
+  * allow password protected links for PRO users
+  * password changing no longer requires old one
+  * webdav now allows stop serving all locations
+  * added "graphisc" command to turn off thumbnails/previews generation
+  * support login and password change using 2FA
+  * limit one instance of server
+  * Many more minor fixes & adjustements
+
+-------------------------------------------------------------------
 Tue Mar 27 18:37:30 CEST 2018 - linux@mega.co.nz
 - Update to version 0.9.9:
   * Webdav: Serve a MEGA location as a WEBDAV server.

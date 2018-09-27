@@ -496,45 +496,13 @@ wstring parsewArgs(int argc, wchar_t* argv[])
 }
 #endif
 
-int readconfirmationloop(const char *question)
+std::string readresponse(const char *question)
 {
-    bool firstime = true;
-    for (;; )
-    {
-        string response;
-
-        if (firstime)
-        {
-            cout << question << " " << flush;
-            getline(cin, response);
-        }
-        else
-        {
-            cout << "Please enter [y]es/[n]o/[a]ll/none:" << " " << flush;
-            getline(cin, response);
-        }
-
-        firstime = false;
-
-        if (response == "yes" || response == "y" || response == "YES" || response == "Y")
-        {
-            return MCMDCONFIRM_YES;
-        }
-        if (response == "no" || response == "n" || response == "NO" || response == "N")
-        {
-            return MCMDCONFIRM_NO;
-        }
-        if (response == "All" || response == "ALL" || response == "a" || response == "A" || response == "all")
-        {
-            return MCMDCONFIRM_ALL;
-        }
-        if (response == "none" || response == "NONE" || response == "None")
-        {
-            return MCMDCONFIRM_NONE;
-        }
-    }
+    string response;
+    cout << question << " " << flush;
+    getline(cin, response);
+    return response;
 }
-
 
 int main(int argc, char* argv[])
 {
@@ -565,13 +533,19 @@ int main(int argc, char* argv[])
     int wargc;
     LPWSTR *szArglist = CommandLineToArgvW(GetCommandLineW(),&wargc);
     wstring wcommand = parsewArgs(wargc,szArglist);
-    int outcode = comms->executeCommandW(wcommand, readconfirmationloop, COUT, false);
+    int outcode = comms->executeCommandW(wcommand, readresponse, COUT, false);
 #else
     string parsedArgs = parseArgs(argc,argv);
-    int outcode = comms->executeCommand(parsedArgs, readconfirmationloop, COUT, false);
+    int outcode = comms->executeCommand(parsedArgs, readresponse, COUT, false);
 #endif
 
     delete comms;
+
+    // do always return positive error codes (POSIX compliant)
+    if (outcode < 0)
+    {
+        outcode = - outcode;
+    }
 
     return outcode;
 }

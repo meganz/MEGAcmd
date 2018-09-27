@@ -19,12 +19,30 @@
 #ifndef MEGACMD_H
 #define MEGACMD_H
 
+#include <iostream>
+#include <iomanip>
+#ifdef _WIN32
+#include <algorithm>
+#endif
+using std::cout;
+using std::endl;
+using std::max;
+using std::min;
+using std::flush;
+using std::left;
+using std::setw;
+using std::cerr;
+using std::istringstream;
+using std::locale;
+using std::stringstream;
+using std::exception;
+
 #ifdef _WIN32
 
 #define OUTSTREAMTYPE std::wostream
 #define OUTSTRINGSTREAM std::wostringstream
 #define OUTSTRING std::wstring
-#define COUT wcout
+#define COUT std::wcout
 
 
 
@@ -39,7 +57,7 @@ void localwtostring(const std::wstring* wide, std::string *multibyte);
 #define OUTSTREAMTYPE std::ostream
 #define OUTSTRINGSTREAM std::ostringstream
 #define OUTSTRING std::string
-#define COUT cout
+#define COUT std::cout
 #endif
 
 #include "megaapi_impl.h"
@@ -72,12 +90,12 @@ typedef struct backup_struct
 
 enum prompttype
 {
-    COMMAND, LOGINPASSWORD, OLDPASSWORD, NEWPASSWORD, PASSWORDCONFIRM, AREYOUSURETODELETE
+    COMMAND, LOGINPASSWORD, NEWPASSWORD, PASSWORDCONFIRM, AREYOUSURETODELETE
 };
 
 static const char* const prompts[] =
 {
-    "MEGA CMD> ", "Password:", "Old Password:", "New Password:", "Retype New Password:", "Are you sure to delete? "
+    "MEGA CMD> ", "Password:", "New Password:", "Retype New Password:", "Are you sure to delete? "
 };
 
 enum
@@ -95,6 +113,7 @@ enum
     MCMD_EUNEXPECTED = -59,   ///< Unexpected failure
 
     MCMD_REQCONFIRM = -60,     ///< Confirmation required
+    MCMD_REQSTRING = -61,     ///< String required
 
 };
 
@@ -123,6 +142,9 @@ prompttype getprompt();
 void printHistory();
 
 int askforConfirmation(std::string message);
+
+std::string askforUserResponse(std::string message);
+
 
 void informTransferUpdate(mega::MegaTransfer *transfer, int clientID);
 

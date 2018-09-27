@@ -1,3 +1,9 @@
 #!/bin/bash
+
+for C in "$SYNOPKG_PKGDEST/mega-"*
+do
+  ln -s "$C" "/usr/local/bin/${C/$SYNOPKG_PKGDEST/}"
+done
+
 exit 0
 

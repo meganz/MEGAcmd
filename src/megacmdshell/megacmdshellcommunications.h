@@ -22,8 +22,6 @@
 #ifndef MEGACMDSHELLCOMMUNICATIONS_H
 #define MEGACMDSHELLCOMMUNICATIONS_H
 
-#include "mega/thread.h"
-
 #include <string>
 #include <iostream>
 
@@ -38,6 +36,19 @@
 #include <sys/un.h>
 #endif
 
+#if defined(_WIN32) && !defined(WINDOWS_PHONE) && !defined(USE_CPPTHREAD)
+#include "mega/thread/win32thread.h"
+class MegaMutex : public ::mega::Win32Mutex {};
+class MegaThread : public ::mega::Win32Thread {};
+#elif defined(USE_CPPTHREAD)
+#include "mega/thread/cppthread.h"
+class MegaMutex : public ::mega::CppMutex {};
+class MegaThread : public ::mega::CppThread {};
+#else
+#include "mega/thread/posixthread.h"
+class MegaMutex : public ::mega::PosixMutex {};
+class MegaThread : public ::mega::PosixThread {};
+#endif
 
 #ifdef _WIN32
 
@@ -101,6 +112,7 @@ enum
     MCMD_EUNEXPECTED = -59,   ///< Unexpected failure
 
     MCMD_REQCONFIRM = -60,     ///< Confirmation required
+    MCMD_REQSTRING = -61,     ///< String required
 
 };
 
@@ -123,8 +135,8 @@ public:
     MegaCmdShellCommunications();
     virtual ~MegaCmdShellCommunications();
 
-    virtual int executeCommand(std::string command, int (*readconfirmationloop)(const char *) = NULL, OUTSTREAMTYPE &output = COUT, bool interactiveshell = true, std::wstring = L"");
-    virtual int executeCommandW(std::wstring command, int (*readconfirmationloop)(const char *) = NULL, OUTSTREAMTYPE &output = COUT, bool interactiveshell = true);
+    virtual int executeCommand(std::string command, std::string (*readresponse)(const char *) = NULL, OUTSTREAMTYPE &output = COUT, bool interactiveshell = true, std::wstring = L"");
+    virtual int executeCommandW(std::wstring command, std::string (*readresponse)(const char *) = NULL, OUTSTREAMTYPE &output = COUT, bool interactiveshell = true);
 
     virtual int registerForStateChanges(void (*statechangehandle)(std::string) = NULL);
 
@@ -132,6 +144,7 @@ public:
 
     static bool serverinitiatedfromshell;
     static bool registerAgainRequired;
+    int readconfirmationloop(const char *question, std::string (*readresponse)(const char *));
 
 private:
     static SOCKET newsockfd;
@@ -140,6 +153,7 @@ private:
 
     static void *listenToStateChangesEntry(void *slsc);
     static int listenToStateChanges(int receiveSocket, void (*statechangehandle)(std::string) = NULL);
+
 
     static bool confirmResponse;
 

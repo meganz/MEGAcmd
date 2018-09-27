@@ -26,7 +26,7 @@ arch=('i686' 'x86_64')
 url="http://mega.nz/cmd"
 license=("https://github.com/meganz/meganz/blob/master/LICENSE")
 groups=()
-depends=('glibc' 'gcc-libs' 'sqlite' 'openssl' 'zlib' 'libpsl' 'icu' 'bash-completion' 'pcre' 'bzip2' 'xz')
+depends=('glibc>=2.28' 'gcc-libs' 'sqlite' 'openssl>=1.1.1' 'zlib' 'libpsl' 'icu' 'bash-completion' 'pcre' 'bzip2' 'xz')
 makedepends=('unzip' 'wget' 'ca-certificates' 'ffmpeg-mega' 'bzip2' 'xz')
 checkdepends=()
 optdepends=()
@@ -55,7 +55,7 @@ build() {
 	bash -x ./contrib/build_sdk.sh -o archives \
 	  -e -g -b -l -c -s -u -v -a -q -p deps/
 
-	./configure --disable-shared --enable-static --disable-silent-rules \
+	CPPFLAGS="$CPPFLAGS -DREQUIRE_HAVE_FFMPEG -DREQUIRE_HAVE_LIBUV -DREQUIRE_USE_MEDIAINFO -DREQUIRE_USE_PCRE" ./configure --without-libraw --disable-shared --enable-static --disable-silent-rules \
 	  --disable-curl-checks --with-sodium=$PWD/deps --with-pcre --with-cryptopp=$PWD/deps\
 	  --with-curl=$PWD/deps --with-freeimage=$PWD/deps --with-readline=$PWD/deps \
 	  --with-cares=$PWD/deps --with-libuv=$PWD/deps \

@@ -69,18 +69,6 @@
         ( std::ostringstream() << std::dec << x ) ).str()
 #endif
 
-#if defined(_WIN32) && !defined(WINDOWS_PHONE)
-#include "mega/thread/win32thread.h"
-class MegaThread : public mega::Win32Thread {};
-#elif defined(USE_CPPTHREAD)
-#include "mega/thread/cppthread.h"
-class MegaThread : public mega::CppThread {};
-#else
-#include "mega/thread/posixthread.h"
-class MegaThread : public mega::PosixThread {};
-#endif
-
-
 using namespace std;
 
 bool MegaCmdShellCommunications::serverinitiatedfromshell;
@@ -655,14 +643,14 @@ string unescapeutf16escapedseqs(const char *what)
 #endif
 
 
-int MegaCmdShellCommunications::executeCommandW(wstring wcommand, int (*readconfirmationloop)(const char *), OUTSTREAMTYPE &output, bool interactiveshell)
+int MegaCmdShellCommunications::executeCommandW(wstring wcommand, std::string (*readresponse)(const char *), OUTSTREAMTYPE &output, bool interactiveshell)
 {
-    return executeCommand("", readconfirmationloop, output, interactiveshell, wcommand);
+    return executeCommand("", readresponse, output, interactiveshell, wcommand);
 }
 
-int MegaCmdShellCommunications::executeCommand(string command, int (*readconfirmationloop)(const char *), OUTSTREAMTYPE &output, bool interactiveshell, wstring wcommand)
+int MegaCmdShellCommunications::executeCommand(string command, std::string (*readresponse)(const char *), OUTSTREAMTYPE &output, bool interactiveshell, wstring wcommand)
 {
-    SOCKET thesock = createSocket(0, command.compare(0,4,"exit") && command.compare(0,4,"quit"));
+    SOCKET thesock = createSocket(0, command.compare(0,4,"exit") && command.compare(0,4,"quit") && command.compare(0,10,"completion"));
     if (!socketValid(thesock))
     {
         return -1;
@@ -726,7 +714,7 @@ int MegaCmdShellCommunications::executeCommand(string command, int (*readconfirm
         return -1;
     }
 
-    while (outcode == MCMD_REQCONFIRM)
+    while (outcode == MCMD_REQCONFIRM || outcode == MCMD_REQSTRING )
     {
         int BUFFERSIZE = 1024;
         string confirmQuestion;
@@ -740,14 +728,28 @@ int MegaCmdShellCommunications::executeCommand(string command, int (*readconfirm
             }
         } while(n == BUFFERSIZE && n !=SOCKET_ERROR);
 
-        int response = MCMDCONFIRM_NO;
-
-        if (readconfirmationloop != NULL)
+        if (outcode == MCMD_REQCONFIRM)
         {
-            response = readconfirmationloop(confirmQuestion.c_str());
-        }
+            int response = MCMDCONFIRM_NO;
 
-        n = send(newsockfd, (const char *) &response, sizeof(response), MSG_NOSIGNAL);
+            if (readresponse != NULL)
+            {
+                response = readconfirmationloop(confirmQuestion.c_str(), readresponse);
+            }
+
+            n = send(newsockfd, (const char *) &response, sizeof(response), MSG_NOSIGNAL);
+        }
+        else // MCMD_REQSTRING
+        {
+            string response = "FAILED";
+
+            if (readresponse != NULL)
+            {
+                response = readresponse(confirmQuestion.c_str());
+            }
+
+            n = send(newsockfd, (const char *) response.data(), sizeof(response), MSG_NOSIGNAL);
+        }
         if (n == SOCKET_ERROR)
         {
             cerr << "ERROR writing confirm response to socket: " << ERRNO << endl;
@@ -781,7 +783,7 @@ int MegaCmdShellCommunications::executeCommand(string command, int (*readconfirm
             output << buffer;
 #endif
         }
-    } while(n == BUFFERSIZE && n !=SOCKET_ERROR);
+    } while(n != 0 && n !=SOCKET_ERROR);
 
     if (n == SOCKET_ERROR)
     {
@@ -872,6 +874,44 @@ int MegaCmdShellCommunications::listenToStateChanges(int receiveSocket, void (*s
 
     closeSocket(newsockfd);
     return 0;
+}
+
+int MegaCmdShellCommunications::readconfirmationloop(const char *question, string (*readresponse)(const char *))
+{
+    bool firstime = true;
+    for (;; )
+    {
+        string response;
+
+        if (firstime)
+        {
+            response = readresponse(question);
+        }
+        else
+        {
+            response = readresponse("Please enter [y]es/[n]o/[a]ll/none:");
+        }
+
+        firstime = false;
+
+        if (response == "yes" || response == "y" || response == "YES" || response == "Y")
+        {
+            return MCMDCONFIRM_YES;
+        }
+        if (response == "no" || response == "n" || response == "NO" || response == "N")
+        {
+            return MCMDCONFIRM_NO;
+        }
+        if (response == "All" || response == "ALL" || response == "a" || response == "A" || response == "all")
+        {
+            return MCMDCONFIRM_ALL;
+        }
+        if (response == "none" || response == "NONE" || response == "None")
+        {
+            return MCMDCONFIRM_NONE;
+        }
+    }
+
 }
 
 int MegaCmdShellCommunications::registerForStateChanges(void (*statechangehandle)(string))

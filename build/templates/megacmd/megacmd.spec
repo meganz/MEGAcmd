@@ -12,10 +12,14 @@ Packager:	MEGA Linux Team <linux@mega.co.nz>
 BuildRequires: openssl-devel, sqlite-devel, zlib-devel, autoconf, automake, libtool, gcc-c++, pcre-devel
 BuildRequires: hicolor-icon-theme, unzip, wget
 BuildRequires: ffmpeg-mega
+%if 0%{?sle_version} >= 150000
+BuildRequires: libcurl4
+%endif
 
 %if 0%{?suse_version}
 BuildRequires: libcares-devel, pkg-config
 BuildRequires: libbz2-devel
+#BuildRequires: LibRaw-devel
 
 # disabling post-build-checks that ocassionally prevent opensuse rpms from being generated
 # plus it speeds up building process
@@ -23,21 +27,26 @@ BuildRequires: -post-build-checks
 
 %if 0%{?suse_version} <= 1320
 BuildRequires: libcryptopp-devel
+
+%else
+%if 0%{?rhel_version} == 0
+#if !RHEL
+#BuildRequires: LibRaw-devel
+%endif
+%endif	%endif
+
 %endif
 
+%if 0%{?fedora_version}==21 || 0%{?fedora_version}==22 || 0%{?fedora_version}>=25 || !(0%{?sle_version} < 120300)
+BuildRequires: libzen-devel, libmediainfo-devel
 %endif
 
 %if 0%{?fedora}
 BuildRequires: c-ares-devel, cryptopp-devel
-%if 0%{?fedora_version} >= 27
+%if 0%{?fedora_version} >= 26
 Requires: cryptopp >= 5.6.5
 %endif
 %endif
-
-%if 0%{?fedora_version}==21 || 0%{?fedora_version}==22 || 0%{?fedora_version}>=25 || 0%{?sle_version} == 120300
-BuildRequires: libzen-devel, libmediainfo-devel
-%endif
-
 
 %if 0%{?centos_version} || 0%{?scientificlinux_version}
 BuildRequires: c-ares-devel,
@@ -59,10 +68,12 @@ It features 2 modes of interaction:
 
 %define flag_cryptopp %{nil}
 %define with_cryptopp %{nil}
+%define flag_libraw %{nil}
+%define with_libraw --without-libraw
 %define flag_disablemediainfo -i
 %define with_mediainfo %{nil}
 
-%if 0%{?fedora_version}==19 || 0%{?fedora_version}==20 || 0%{?fedora_version}==23 || 0%{?fedora_version}==24 || 0%{?centos_version} || 0%{?scientificlinux_version} || 0%{?rhel_version} || ( 0%{?suse_version} && 0%{?sle_version} != 120300)
+%if 0%{?fedora_version}==19 || 0%{?fedora_version}==20 || 0%{?fedora_version}==23 || 0%{?fedora_version}==24 || 0%{?centos_version} || 0%{?scientificlinux_version} || 0%{?rhel_version} || ( 0%{?suse_version} && 0%{?sle_version} < 120300)
 %define flag_disablemediainfo %{nil}
 %define with_mediainfo --with-libmediainfo=$PWD/deps --with-libzen=$PWD/deps
 %endif
@@ -107,18 +118,21 @@ sed -i "s#AC_INIT#m4_pattern_allow(AC_PROG_OBJCXX)\nAC_INIT#g" configure.ac
 sed -i "s#AC_INIT#m4_pattern_allow(AC_PROG_OBJCXX)\nAC_INIT#g" sdk/configure.ac
 %endif
 
+%define fullreqs -DREQUIRE_HAVE_FFMPEG -DREQUIRE_HAVE_LIBUV -DREQUIRE_USE_MEDIAINFO -DREQUIRE_USE_PCRE
+
+
 ./autogen.sh
 
 #build dependencies into folder deps
 mkdir deps || :
-bash -x ./contrib/build_sdk.sh %{flag_cryptopp} %{flag_cares} -o archives \
+bash -x ./contrib/build_sdk.sh %{flag_cryptopp} %{flag_libraw} %{flag_cares} -o archives \
   -g %{flag_disablezlib} %{flag_disablemediainfo} -b -l -c -s -u -v -a -p deps/
 %if ( 0%{?fedora_version} && 0%{?fedora_version}<=24 ) || ( 0%{?centos_version} == 600 ) || ( 0%{?suse_version} && 0%{?suse_version} <= 1320 && !0%{?sle_version})
 export CPPFLAGS="$CPPFLAGS -DMEGACMD_DEPRECATED_OS"
 %endif
 
-./configure --disable-shared --enable-static --disable-silent-rules \
-  --disable-curl-checks %{with_cryptopp} --with-sodium=$PWD/deps --with-pcre \
+CPPFLAGS="$CPPFLAGS %{fullreqs}" ./configure --disable-shared --enable-static --disable-silent-rules \
+  --disable-curl-checks %{with_cryptopp} %{with_libraw} --with-sodium=$PWD/deps --with-pcre \
   %{with_zlib} --with-sqlite=$PWD/deps --with-cares=$PWD/deps --with-libuv=$PWD/deps \
   --with-curl=$PWD/deps --with-freeimage=$PWD/deps --with-readline=$PWD/deps \
   --with-termcap=$PWD/deps --prefix=$PWD/deps --disable-examples %{with_mediainfo} || export CONFFAILED=1
@@ -126,9 +140,9 @@ export CPPFLAGS="$CPPFLAGS -DMEGACMD_DEPRECATED_OS"
 if [ "x$CONFFAILED" == "x1" ]; then
 sed -i "s#.*CONFLICTIVEOLDAUTOTOOLS##g" sdk/configure.ac
 ./autogen.sh
-./configure --disable-shared --enable-static --disable-silent-rules \
-  --disable-curl-checks %{with_cryptopp} --with-sodium=$PWD/deps --with-pcre \
-  %{with_zlib} --with-sqlite=$PWD/deps --with-cares=$PWD/deps \
+CPPFLAGS="$CPPFLAGS %{fullreqs}" ./configure --disable-shared --enable-static --disable-silent-rules \
+  --disable-curl-checks %{with_cryptopp} %{with_libraw} --with-sodium=$PWD/deps --with-pcre \
+  %{with_zlib} --with-sqlite=$PWD/deps --with-cares=$PWD/deps --with-libuv=$PWD/deps \
   --with-curl=$PWD/deps --with-freeimage=$PWD/deps --with-readline=$PWD/deps \
   --with-termcap=$PWD/deps --prefix=$PWD/deps --disable-examples %{with_mediainfo} || cat sdk/configure
 fi
@@ -263,7 +277,22 @@ DATA
 fi
 %endif
  
-
+%if 0%{?sle_version} == 150000
+# openSUSE Leap 15
+if [ -d "/etc/zypp/repos.d/" ]; then
+ZYPP_FILE="/etc/zypp/repos.d/megasync.repo"
+cat > "$ZYPP_FILE" << DATA
+[MEGAsync]
+name=MEGAsync
+type=rpm-md
+baseurl=https://mega.nz/linux/MEGAsync/openSUSE_Leap_15.0/
+gpgcheck=1
+autorefresh=1
+gpgkey=https://mega.nz/linux/MEGAsync/openSUSE_Leap_15.0/repodata/repomd.xml.key
+enabled=1
+DATA
+fi
+%else
 %if 0%{?suse_version} > 1320
 # openSUSE Tumbleweed (rolling release)
 if [ -d "/etc/zypp/repos.d/" ]; then
@@ -279,6 +308,7 @@ gpgkey=https://mega.nz/linux/MEGAsync/openSUSE_Tumbleweed/repodata/repomd.xml.ke
 enabled=1
 DATA
 fi
+%endif
 %endif
 
 %if 0%{?suse_version} == 1320
@@ -459,6 +489,11 @@ killall mega-cmd-server 2> /dev/null || true
 %{_bindir}/mega-users
 %{_bindir}/mega-version
 %{_bindir}/mega-whoami
+%{_bindir}/mega-graphics
+%{_bindir}/mega-ftp
+%{_bindir}/mega-cancel
+%{_bindir}/mega-confirmcancel
+%{_bindir}/mega-errorcode
 %{_bindir}/mega-cmd
 %{_bindir}/mega-cmd-server
 %{_sysconfdir}/bash_completion.d/megacmd_completion.sh

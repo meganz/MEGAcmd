@@ -21,10 +21,10 @@ VIAddVersionKey "LegalCopyright" "MEGA Limited 2017"
 VIAddVersionKey "ProductName" "MEGAcmd"
 
 ; Version info
-VIProductVersion "0.9.9.0"
-VIAddVersionKey "FileVersion" "0.9.9.0"
-VIAddVersionKey "ProductVersion" "0.9.9.0"
-!define PRODUCT_VERSION "0.9.9"
+VIProductVersion "1.0.0.0"
+VIAddVersionKey "FileVersion" "1.0.0.0"
+VIAddVersionKey "ProductVersion" "1.0.0.0"
+!define PRODUCT_VERSION "1.0.0"
 
 !define PRODUCT_PUBLISHER "Mega Limited"
 !define PRODUCT_WEB_SITE "http://www.mega.nz"
@@ -684,6 +684,26 @@ modeselected:
   File "${SRCDIR_BATFILES}\mega-whoami.bat"
   AccessControl::SetFileOwner "$INSTDIR\mega-whoami.bat" "$USERNAME"
   AccessControl::GrantOnFile "$INSTDIR\mega-whoami.bat" "$USERNAME" "GenericRead + GenericWrite"
+ 
+  File "${SRCDIR_BATFILES}\mega-graphics.bat"
+  AccessControl::SetFileOwner "$INSTDIR\mega-graphics.bat" "$USERNAME"
+  AccessControl::GrantOnFile "$INSTDIR\mega-graphics.bat" "$USERNAME" "GenericRead + GenericWrite"
+ 
+  File "${SRCDIR_BATFILES}\mega-ftp.bat"
+  AccessControl::SetFileOwner "$INSTDIR\mega-ftp.bat" "$USERNAME"
+  AccessControl::GrantOnFile "$INSTDIR\mega-ftp.bat" "$USERNAME" "GenericRead + GenericWrite"
+
+  File "${SRCDIR_BATFILES}\mega-cancel.bat"
+  AccessControl::SetFileOwner "$INSTDIR\mega-cancel.bat" "$USERNAME"
+  AccessControl::GrantOnFile "$INSTDIR\mega-cancel.bat" "$USERNAME" "GenericRead + GenericWrite"
+
+  File "${SRCDIR_BATFILES}\mega-confirmcancel.bat"
+  AccessControl::SetFileOwner "$INSTDIR\mega-confirmcancel.bat" "$USERNAME"
+  AccessControl::GrantOnFile "$INSTDIR\mega-confirmcancel.bat" "$USERNAME" "GenericRead + GenericWrite"
+
+  File "${SRCDIR_BATFILES}\mega-errorcode.bat"
+  AccessControl::SetFileOwner "$INSTDIR\mega-errorcode.bat" "$USERNAME"
+  AccessControl::GrantOnFile "$INSTDIR\mega-errorcode.bat" "$USERNAME" "GenericRead + GenericWrite"
 
 ; Uninstaller
 
@@ -880,6 +900,11 @@ Section Uninstall
   Delete "$INSTDIR\mega-users.bat"
   Delete "$INSTDIR\mega-version.bat"
   Delete "$INSTDIR\mega-whoami.bat"
+  Delete "$INSTDIR\mega-graphics.bat"
+  Delete "$INSTDIR\mega-ftp.bat"
+  Delete "$INSTDIR\mega-cancel.bat"
+  Delete "$INSTDIR\mega-confirmcancel.bat"
+  Delete "$INSTDIR\mega-errorcode.bat"
 
   ; Cache
   RMDir /r "$INSTDIR\.megaCmd"
