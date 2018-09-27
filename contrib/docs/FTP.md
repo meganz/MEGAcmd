@@ -39,8 +39,8 @@ You can list the ftp served locations typing `ftp`:
 
 ```
 FTP SERVED LOCATIONS:                                                        
-/path/to/myfolder: http://127.0.0.1:4990/XXXXXXX/myfolder
-/path/to/myfile.mp4: http://127.0.0.1:4990/YYYYYYY/myfile.mp4
+/path/to/myfolder: ftp://127.0.0.1:4990/XXXXXXX/myfolder
+/path/to/myfile.mp4: ftp://127.0.0.1:4990/YYYYYYY/myfile.mp4
 ```
 
 These locations will be available as long as MEGAcmd is running. The configuration is persisted, and will be restored every time you restart MEGAcmd
