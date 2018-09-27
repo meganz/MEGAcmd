@@ -32,7 +32,10 @@ have support for regular expressions.
 Also, in order to have support for thumbnails and previews,
 it is highly recommended to have `ffmpeg` (`libavcodec-dev libavutil-dev libavformat-dev libswscale-dev`) and `mediainfo`(`libmediainfo-dev + libzen-dev`) for media file attributes.
 
-* For convenience here is a list of packages for ubuntu 16.04: `autoconf libtool 
+* For convenience here is a list of packages for ubuntu 18.04: `autoconf libtool g++ libcrypto++-dev libz-dev libsqlite3-dev libssl-dev libcurl4-gnutls-dev libreadline-dev libpcre++-dev libsodium-dev libc-ares-dev libfreeimage-dev libavcodec-dev libavutil-dev libavformat-dev libswscale-dev libmediainfo-dev libzen-dev`
+
+
+and for ubuntu 16.04: `autoconf libtool
 g++ libcrypto++-dev libz-dev libsqlite3-dev libssl-dev libcurl4-openssl-dev
 libreadline-dev libpcre++-dev libsodium-dev libc-ares-dev libfreeimage-dev
 libavcodec-dev libavutil-dev libavformat-dev libswscale-dev libmediainfo-dev libzen-dev`
