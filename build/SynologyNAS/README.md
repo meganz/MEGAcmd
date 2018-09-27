@@ -1,6 +1,6 @@
 # How to build MEGAcmd for Synology NAS drives.  
 
-We follow the cross compiling system provided by Synology, described in their developer-guide.pdf (also at https://originhelp.synology.com/developer-guide/getting_started/index.html).  
+We follow the cross compiling system provided by Synology, described in their [developer-guide.pdf](https://global.download.synology.com/download/Document/DeveloperGuide/DSM_Developer_Guide.pdf) (also at https://originhelp.synology.com/developer-guide/getting_started/index.html).  
 Tested with ubuntu 16.04 as the build machine - others may work but that one does for sure.  
   
 **All commands need to be run as 'sudo'**.  We are going to set up a root folder /toolkit, and work out of that.  The cross-compile system uses chroot to build inside a subfolder of that.  
