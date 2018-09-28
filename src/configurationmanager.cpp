@@ -20,6 +20,7 @@
 #include "megacmdversion.h"
 #include "megacmdutils.h"
 #include <fstream>
+#include <lzexpand.h>
 
 #ifdef _WIN32
 #include <shlobj.h> //SHGetFolderPath

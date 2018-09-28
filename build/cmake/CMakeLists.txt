@@ -44,7 +44,7 @@ add_executable(mega-cmd
 
 target_link_libraries(mega-exec Mega )
 target_link_libraries(mega-cmd Mega )
-target_link_libraries(mega-cmd-server Mega )
+target_link_libraries(mega-cmd-server Mega Lz32.lib)
 if (NOT NO_READLINE)
     target_link_libraries(mega-cmd readline)
 endif (NOT NO_READLINE)
