@@ -3495,12 +3495,27 @@ bool runningInBackground()
 #define MEGACMD_STRINGIZE(x) MEGACMD_STRINGIZE2(x)
 #endif
 
-bool findarg(const char *what, int argc, char *argv[])
+bool extractarg(vector<const char*>& args, const char *what)
 {
-    for (int i = 1; i < argc; i++)
+    for (int i = int(args.size()); i--; )
     {
-        if (!strcmp(argv[i], what))
+        if (!strcmp(args[i], what))
         {
+            args.erase(args.begin() + i);
+            return true;
+        }
+    }
+    return false;
+}
+
+bool extractargparam(vector<const char*>& args, const char *what, std::string& param)
+{
+    for (int i = int(args.size()) - 1; i-- >= 0; )
+    {
+        if (!strcmp(args[i], what))
+        {
+            param = args[i + 1];
+            args.erase(args.begin() + i, args.begin() + i + 2);
             return true;
         }
     }
@@ -3534,20 +3549,32 @@ int main(int argc, char* argv[])
     loglevelenv = (getenv ("MEGACMD_LOGLEVEL") == NULL)?"":getenv ("MEGACMD_LOGLEVEL");
 #endif
 
-    if (!loglevelenv.compare("DEBUG") || (( argc > 1 ) && findarg("--debug", argc, argv)) )
+    vector<const char*> args(argv + 1, argv + argc);
+
+    string debug_api_url;  
+    bool debug = extractarg(args, "--debug");
+    bool debugfull = extractarg(args, "--debug-full");
+    bool verbose = extractarg(args, "--verbose");
+    bool verbosefull = extractarg(args, "--verbose-full");
+    bool skiplockcheck = extractarg(args, "--skip-lock-check");
+    bool setapiurl = extractargparam(args, "--apiurl", debug_api_url);  // only for debugging
+    bool disablepkp = extractarg(args, "--disablepkp");  // only for debugging
+
+
+    if (!loglevelenv.compare("DEBUG") || debug )
     {
         loggerCMD->setCmdLoggerLevel(MegaApi::LOG_LEVEL_DEBUG);
     }
-    if (!loglevelenv.compare("FULLDEBUG") || (( argc > 1 ) && findarg("--debug-full", argc, argv)) )
+    if (!loglevelenv.compare("FULLDEBUG") || debugfull )
     {
         loggerCMD->setApiLoggerLevel(MegaApi::LOG_LEVEL_DEBUG);
         loggerCMD->setCmdLoggerLevel(MegaApi::LOG_LEVEL_DEBUG);
     }
-    if (!loglevelenv.compare("VERBOSE") || (( argc > 1 ) && findarg("--verbose", argc, argv)) )
+    if (!loglevelenv.compare("VERBOSE") || verbose )
     {
         loggerCMD->setCmdLoggerLevel(MegaApi::LOG_LEVEL_MAX);
     }
-    if (!loglevelenv.compare("FULLVERBOSE") || (( argc > 1 ) && findarg("--verbose-full", argc, argv)) )
+    if (!loglevelenv.compare("FULLVERBOSE") || verbosefull )
     {
         loggerCMD->setApiLoggerLevel(MegaApi::LOG_LEVEL_MAX);
         loggerCMD->setCmdLoggerLevel(MegaApi::LOG_LEVEL_MAX);
@@ -3557,8 +3584,8 @@ int main(int argc, char* argv[])
 
     mutexEndedPetitionThreads.init(false);
 
-    ConfigurationManager::loadConfiguration(( argc > 1 ) && findarg("--debug", argc, argv));
-    if (!ConfigurationManager::lockExecution() && !findarg("--skip-lock-check", argc, argv))
+    ConfigurationManager::loadConfiguration(( argc > 1 ) && debug);
+    if (!ConfigurationManager::lockExecution() && !skiplockcheck)
     {
         cerr << "Another instance of MEGAcmd Server is running. Execute with --skip-lock-check to force running (NOT RECOMMENDED)" << endl;
         exit(-2);
@@ -3592,6 +3619,11 @@ int main(int argc, char* argv[])
 #else
     api = new MegaApi("BdARkQSQ", (MegaGfxProcessor*)NULL, ConfigurationManager::getConfigFolder().c_str(), userAgent);
 #endif
+
+    if (setapiurl)
+    {
+        api->changeApiUrl(debug_api_url.c_str(), disablepkp);
+    }
 
 
     api->setLanguage(localecode.c_str());

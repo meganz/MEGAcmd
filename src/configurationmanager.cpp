@@ -24,6 +24,7 @@
 #ifdef _WIN32
 #include <shlobj.h> //SHGetFolderPath
 #include <Shlwapi.h> //PathAppend
+#include <lzexpand.h>
 #else
 #include <pwd.h>  //getpwuid_r
 #include <sys/file.h> //flock
