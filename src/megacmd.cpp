@@ -3510,9 +3510,9 @@ bool extractarg(vector<const char*>& args, const char *what)
 
 bool extractargparam(vector<const char*>& args, const char *what, std::string& param)
 {
-    for (int i = int(args.size()) - 1; i-- >= 0; )
+    for (int i = int(args.size()) - 1; --i >= 0; )
     {
-        if (!strcmp(args[i], what))
+        if (!strcmp(args[i], what) && args.size() > i)
         {
             param = args[i + 1];
             args.erase(args.begin() + i, args.begin() + i + 2);
