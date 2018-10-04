@@ -23,6 +23,10 @@
 #include <map>
 #include <set>
 
+#ifndef _WIN32
+#include <sys/file.h> // LOCK_EX and LOCK_NB
+#endif
+
 #define CONFIGURATIONSTOREDBYVERSION -2
 class ConfigurationManager
 {
