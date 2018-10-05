@@ -9,7 +9,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <assert.h>
-#include <unistd.h>
 
 #ifdef _WIN32
 #include <Windows.h>
@@ -22,6 +21,7 @@
 #include <algorithm>
 #include <Shlobj.h>
 #else
+#include <unistd.h>
 #include <sys/types.h>
 #include <dirent.h>
 #endif
@@ -40,6 +40,21 @@ using namespace CryptoPP;
 #endif
 
 #define MEGA_SEPARATOR '\\'
+
+
+enum {
+    LOG_LEVEL_FATAL = 0,   // Very severe error event that will presumably lead the application to abort.
+    LOG_LEVEL_ERROR,   // Error information but will continue application to keep running.
+    LOG_LEVEL_WARNING, // Information representing errors in application but application will keep running
+    LOG_LEVEL_INFO,    // Mainly useful to represent current progress of application.
+    LOG_LEVEL_DEBUG,   // Informational logs, that are useful for developers. Only applicable if DEBUG is defined.
+    LOG_LEVEL_MAX
+};
+
+#define MAX_LOG_SIZE 1024
+char log_message[MAX_LOG_SIZE];
+#define LOG(logLevel, ...) snprintf(log_message, MAX_LOG_SIZE, __VA_ARGS__); \
+                                   cout << log_message << endl;
 
 void utf8ToUtf16(const char* utf8data, string* utf16string)
 {
@@ -150,14 +165,14 @@ string UpdateTask::getAppDataDir()
 //    if (SHGetSpecialFolderPathW(NULL, (LPWSTR)wpath.data(), CSIDL_LOCAL_APPDATA, FALSE))
 //    {
 //        utf16ToUtf8((LPWSTR)wpath.data(), lstrlen((LPCWSTR)wpath.data()), &path);
-//        path.append("\\Mega Limited\\MEGAcmd\\");
+//        path.append("\\MEGAcmd\\");
 //    }
 
     //TODO: review this
     TCHAR szPath[MAX_PATH];
      if (!SUCCEEDED(GetModuleFileName(NULL, szPath , MAX_PATH)))
      {
-         LOG_fatal << "Couldnt get EXECUTABLE folder";
+          LOG(LOG_LEVEL_ERROR, "Couldnt get EXECUTABLE folder");
      }
      else
      {
@@ -165,7 +180,7 @@ string UpdateTask::getAppDataDir()
          {
              if (PathAppend(szPath,TEXT(".megaCmd")))
              {
-                 MegaApi::utf16ToUtf8(szPath, lstrlen(szPath), &path);
+                 utf16ToUtf8(szPath, lstrlen(szPath), &path);
              }
          }
      }
@@ -225,20 +240,6 @@ string UpdateTask::getAppDir()
 #endif
 
 #define mega_base_path(x) x.substr(0, x.find_last_of("/\\") + 1)
-
-enum {
-    LOG_LEVEL_FATAL = 0,   // Very severe error event that will presumably lead the application to abort.
-    LOG_LEVEL_ERROR,   // Error information but will continue application to keep running.
-    LOG_LEVEL_WARNING, // Information representing errors in application but application will keep running
-    LOG_LEVEL_INFO,    // Mainly useful to represent current progress of application.
-    LOG_LEVEL_DEBUG,   // Informational logs, that are useful for developers. Only applicable if DEBUG is defined.
-    LOG_LEVEL_MAX
-};
-
-#define MAX_LOG_SIZE 1024
-char log_message[MAX_LOG_SIZE];
-#define LOG(logLevel, ...) snprintf(log_message, MAX_LOG_SIZE, __VA_ARGS__); \
-                                   cout << log_message << endl;
 
 int mkdir_p(const char *path)
 {
