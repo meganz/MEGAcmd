@@ -160,15 +160,6 @@ int mega_rmdir(const char *path)
 string UpdateTask::getAppDataDir()
 {
     string path;
-//    string wpath;
-//    wpath.resize(MAX_PATH * sizeof (wchar_t));
-//    if (SHGetSpecialFolderPathW(NULL, (LPWSTR)wpath.data(), CSIDL_LOCAL_APPDATA, FALSE))
-//    {
-//        utf16ToUtf8((LPWSTR)wpath.data(), lstrlen((LPCWSTR)wpath.data()), &path);
-//        path.append("\\MEGAcmd\\");
-//    }
-
-    //TODO: review this
     TCHAR szPath[MAX_PATH];
      if (!SUCCEEDED(GetModuleFileName(NULL, szPath , MAX_PATH)))
      {
@@ -181,6 +172,7 @@ string UpdateTask::getAppDataDir()
              if (PathAppend(szPath,TEXT(".megaCmd")))
              {
                  utf16ToUtf8(szPath, lstrlen(szPath), &path);
+                 path.append("\\");
              }
          }
      }
@@ -311,7 +303,7 @@ UpdateTask::~UpdateTask()
     delete signatureChecker;
 }
 
-void UpdateTask::checkForUpdates()
+bool UpdateTask::checkForUpdates()
 {
     LOG(LOG_LEVEL_INFO, "Starting update check");
 
@@ -325,7 +317,7 @@ void UpdateTask::checkForUpdates()
     if (!appFolder.size() || !appDataFolder.size())
     {
         LOG(LOG_LEVEL_ERROR, "No app or data folder set");
-        return;
+        return false;
     }
 
     string appData = appDataFolder;
@@ -338,14 +330,14 @@ void UpdateTask::checkForUpdates()
         {
             LOG(LOG_LEVEL_ERROR, "Error opening update file");
             mega_remove(updateFile.c_str());
-            return;
+            return false;
         }
 
         if (!processUpdateFile(pFile))
         {
             fclose(pFile);
             mega_remove(updateFile.c_str());
-            return;
+            return false;
         }
         initialCleanup();
         fclose(pFile);
@@ -361,7 +353,7 @@ void UpdateTask::checkForUpdates()
                 if (mkdir_p(mega_base_path(localFile).c_str()) == -1)
                 {
                     LOG(LOG_LEVEL_INFO, "Unable to create folder for file: %s", localFile.c_str());
-                    return;
+                    return false;
                 }
 
                 //Delete the file if exists
@@ -377,13 +369,13 @@ void UpdateTask::checkForUpdates()
                     if (!alreadyDownloaded(localPaths[currentFile], fileSignatures[currentFile]))
                     {
                         LOG(LOG_LEVEL_ERROR, "Signature of downloaded file doesn't match: %s",  localPaths[currentFile].c_str());
-                        return;
+                        return false;
                     }
                     LOG(LOG_LEVEL_INFO, "File signature OK: %s",  localPaths[currentFile].c_str());
                     currentFile++;
                     continue;
                 }
-                return;
+                return false;
             }
 
             LOG(LOG_LEVEL_INFO, "File already downloaded: %s",  localPaths[currentFile].c_str());
@@ -394,15 +386,16 @@ void UpdateTask::checkForUpdates()
         if (!performUpdate())
         {
             LOG(LOG_LEVEL_INFO, "Error applying update");
-            return;
+            return false;
         }
 
         finalCleanup();
+        return true;
     }
     else
     {
         LOG(LOG_LEVEL_ERROR, "Unable to download file");
-        return;
+        return false;
     }
 }
 
@@ -454,7 +447,7 @@ bool UpdateTask::processUpdateFile(FILE *fd)
     int currentVersion = readVersion();
     if (currentVersion == -1)
     {
-        LOG(LOG_LEVEL_INFO,"Error reading file version (megacmd.version)");
+        LOG(LOG_LEVEL_INFO, "Error reading file version (megacmd.version)");
         return false;
     }
 
@@ -469,7 +462,7 @@ bool UpdateTask::processUpdateFile(FILE *fd)
     string updateSignature = readNextLine(fd);
     if (updateSignature.empty())
     {
-        LOG(LOG_LEVEL_ERROR,"Invalid update info (empty info signature)");
+        LOG(LOG_LEVEL_ERROR, "Invalid update info (empty info signature)");
         return false;
     }
 
@@ -487,14 +480,14 @@ bool UpdateTask::processUpdateFile(FILE *fd)
         string localPath = readNextLine(fd);
         if (localPath.empty())
         {
-            LOG(LOG_LEVEL_ERROR,"Invalid update info (empty path)");
+            LOG(LOG_LEVEL_ERROR, "Invalid update info (empty path)");
             return false;
         }
 
         string fileSignature = readNextLine(fd);
         if (fileSignature.empty())
         {
-            LOG(LOG_LEVEL_ERROR,"Invalid update info (empty file signature)");
+            LOG(LOG_LEVEL_ERROR, "Invalid update info (empty file signature)");
             return false;
         }
 
@@ -522,7 +515,7 @@ bool UpdateTask::processUpdateFile(FILE *fd)
 
     if (!checkSignature(updateSignature))
     {
-        LOG(LOG_LEVEL_ERROR,"Invalid update info (invalid signature)");
+        LOG(LOG_LEVEL_ERROR, "Invalid update info (invalid signature)");
         return false;
     }
 
@@ -760,6 +753,7 @@ int UpdateTask::readVersion()
     FILE *fp = mega_fopen((appDataFolder + VERSION_FILE_NAME).c_str(), "r");
     if (fp == NULL)
     {
+        LOG(LOG_LEVEL_INFO, "Couldn't open file version file: %s", (appDataFolder + VERSION_FILE_NAME).c_str());
         return version;
     }
 

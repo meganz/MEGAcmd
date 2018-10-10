@@ -61,6 +61,15 @@ typedef char *completionfunction_t PARAMS((const char *, int));
         ( std::ostringstream() << std::dec << x ) ).str()
 
 
+#ifndef ERRNO
+#ifdef _WIN32
+#include <windows.h>
+#define ERRNO WSAGetLastError()
+#else
+#define ERRNO errno
+#endif
+#endif
+
 #ifdef _WIN32
 // convert UTF-8 to Windows Unicode wstring
 void stringtolocalw(const char* path, std::wstring* local)
@@ -220,6 +229,9 @@ string avalidCommands [] = { "login", "signup", "confirm", "session", "mount", "
                              , "unicode"
 #else
                              , "permissions"
+#endif
+#ifndef __linux__
+                             , "update"
 #endif
                            };
 vector<string> validCommands(avalidCommands, avalidCommands + sizeof avalidCommands / sizeof avalidCommands[0]);
@@ -1867,6 +1879,12 @@ string getHelpStr(const char *command)
         os << " --use-pcre" << "\t" << "use PCRE expressions" << endl;
 #endif
     }
+#ifndef __linux__
+    else if (!strcmp(command, "update"))
+    {
+        os << "Updates MEGAcmd" << endl;
+    }
+#endif
     else if (!strcmp(command, "cd"))
     {
         os << "Changes the current remote folder" << endl;
@@ -2945,6 +2963,158 @@ static bool process_line(char* l)
                 cm->informStateListeners(sack);
                 break;
             }
+
+#ifndef __linux__
+            else if (!strcmp(l, "update") || !strcmp(l, "update "))
+            {
+                string confirmationQuery("This might require restarting MEGAcmd. Are you sure you want to update");
+                confirmationQuery+=" ? (Yes/No): ";
+
+                int confirmationResponse = askforConfirmation(confirmationQuery);
+
+                if (confirmationResponse != MCMDCONFIRM_YES && confirmationResponse != MCMDCONFIRM_ALL)
+                {
+                    setCurrentOutCode(MCMD_INVALIDSTATE); // so as not to indicate already updated
+                    return false;
+                }
+
+                bool pathok = false;
+                LPWSTR szPathExecQuoted = GetCommandLineW();
+                wstring wspathexec = wstring(szPathExecQuoted);
+
+                if (wspathexec.at(0) == '"')
+                {
+                    wspathexec = wspathexec.substr(1);
+                }
+
+                size_t pos = wspathexec.find(L"--wait-for");
+                if (pos != string::npos)
+                {
+                    wspathexec = wspathexec.substr(0,pos);
+                }
+
+                while (wspathexec.size() && ( wspathexec.at(wspathexec.size()-1) == '"' || wspathexec.at(wspathexec.size()-1) == ' ' ))
+                {
+                    wspathexec = wspathexec.substr(0,wspathexec.size()-1);
+                }
+
+                LPWSTR szPathServerCommand = (LPWSTR) wspathexec.c_str();
+                TCHAR szPathServer[MAX_PATH];
+                if (!SUCCEEDED(GetModuleFileName(NULL, szPathServer , MAX_PATH)))
+                {
+                    LOG_err << "Couldnt get EXECUTABLE folder: " << wstring(szPathServer);
+                    setCurrentOutCode(MCMD_EUNEXPECTED);
+                    return false;
+                }
+
+#ifndef NDEBUG
+                LPCWSTR szPath = TEXT("..\\MEGAcmdUpdater\\debug\\MEGAcmdUpdater.exe");
+                pathok = true;
+#else
+                TCHAR szPath[MAX_PATH];
+
+                if (!SUCCEEDED(GetModuleFileName(NULL, szPath , MAX_PATH)))
+                {
+                    LOG_err << "Couldnt get EXECUTABLE folder: " << wstring(szPath);
+                    setCurrentOutCode(MCMD_EUNEXPECTED);
+                    return false;
+                }
+                else
+                {
+                    if (SUCCEEDED(PathRemoveFileSpec(szPath)))
+                    {
+                        if (PathAppend(szPath,TEXT("MEGAcmdUpdater.exe")))
+                        {
+                            pathok = true;
+                        }
+                        else
+                        {
+                            LOG_err << "Couldnt append MEGAcmdUpdater exec: " << wstring(szPath);
+                            setCurrentOutCode(MCMD_EUNEXPECTED);
+                            return false;
+                        }
+                    }
+                    else
+                    {
+                        LOG_err << "Couldnt remove file spec: " << wstring(szPath);
+                        setCurrentOutCode(MCMD_EUNEXPECTED);
+                        return false;
+                    }
+                }
+#endif
+                if (pathok)
+                {
+                    STARTUPINFO si;
+                    PROCESS_INFORMATION pi;
+                    ZeroMemory( &si, sizeof(si) );
+                    ZeroMemory( &pi, sizeof(pi) );
+                    LPWSTR szPath2 = (LPWSTR) szPath;
+                    si.cb = sizeof(si);
+                    si.dwFlags = STARTF_USESHOWWINDOW;
+                    if (!CreateProcess( szPath,szPath2,NULL,NULL,TRUE,
+                                        0,
+                                        NULL,NULL,
+                                        &si,&pi) )
+                    {
+                        LOG_err << "Unable to execute: <" << wstring(szPath) << "> errno = : " << ERRNO;
+                        setCurrentOutCode(MCMD_EUNEXPECTED);
+                        return false;
+                    }
+                    else
+                    {
+                        // Wait until child process exits.
+                        WaitForSingleObject( pi.hProcess, INFINITE );
+
+                        DWORD exit_code;
+                        GetExitCodeProcess(pi.hProcess, &exit_code);
+
+                        LOG_verbose << " The execution of Updater returns: " << exit_code;
+
+                        // Close process and thread handles.
+                        CloseHandle( pi.hProcess );
+                        CloseHandle( pi.hThread );
+
+                        if (exit_code)
+                        {
+                            LOG_debug << "Restarting the server : <" << wstring(szPathServerCommand) << ">";
+
+                            ZeroMemory( &si, sizeof(si) );
+                            ZeroMemory( &pi, sizeof(pi) );
+                            si.cb = sizeof(si);
+                            si.dwFlags = STARTF_USESHOWWINDOW;
+                            TCHAR szPathServerCL[MAX_PATH+30];
+                            wsprintfW(szPathServerCL,L"%ls --wait-for %d", szPathServerCommand, GetCurrentProcessId());
+                            LOG_info << "Executing: " << wstring(szPathServerCL);
+                            if (!CreateProcess( szPathServer,(LPWSTR) szPathServerCL,NULL,NULL,TRUE,
+                                                0,
+                                                NULL,NULL,
+                                                &si,&pi) )
+                            {
+                                LOG_debug << "Unable to execute: <" << wstring(szPathServerCL) << "> errno = : " << ERRNO;
+                                return false;
+                            }
+                            else
+                            {
+                                LOG_debug << "Server restarted, indicating the shell to restart also";
+                                setCurrentOutCode(MCMD_REQRESTART);
+                                return true;
+                            }
+                        }
+                        else
+                        {
+                            return false;
+                        }
+                    }
+                }
+                else
+                {
+                    LOG_err << "path not ok: " << wstring(szPath);
+                    setCurrentOutCode(MCMD_EUNEXPECTED);
+                    return false;
+                }
+
+            }
+#endif
             executecommand(l);
             break;
         }
@@ -3560,6 +3730,22 @@ int main(int argc, char* argv[])
     bool setapiurl = extractargparam(args, "--apiurl", debug_api_url);  // only for debugging
     bool disablepkp = extractarg(args, "--disablepkp");  // only for debugging
 
+#ifdef _WIN32
+    string shandletowait;
+    bool dowaitforhandle = extractargparam(args, "--wait-for", shandletowait);
+    if (dowaitforhandle)
+    {
+        DWORD processId = atoi(shandletowait.c_str());
+
+        HANDLE processHandle = OpenProcess(PROCESS_ALL_ACCESS, FALSE, processId);
+
+        cout << "Waiting for former server to end" << endl;
+        WaitForSingleObject( processHandle, INFINITE );
+        CloseHandle(processHandle);
+    }
+
+#endif
+
 
     if (!loglevelenv.compare("DEBUG") || debug )
     {
@@ -3588,6 +3774,7 @@ int main(int argc, char* argv[])
     if (!ConfigurationManager::lockExecution() && !skiplockcheck)
     {
         cerr << "Another instance of MEGAcmd Server is running. Execute with --skip-lock-check to force running (NOT RECOMMENDED)" << endl;
+        sleepSeconds(5);
         exit(-2);
     }
 

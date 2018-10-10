@@ -75,6 +75,7 @@ bool MegaCmdShellCommunications::serverinitiatedfromshell;
 bool MegaCmdShellCommunications::registerAgainRequired;
 bool MegaCmdShellCommunications::confirmResponse;
 bool MegaCmdShellCommunications::stopListener;
+bool MegaCmdShellCommunications::updating;
 ::mega::Thread *MegaCmdShellCommunications::listenerThread;
 SOCKET MegaCmdShellCommunications::newsockfd = INVALID_SOCKET;
 
@@ -551,6 +552,7 @@ MegaCmdShellCommunications::MegaCmdShellCommunications()
     registerAgainRequired = false;
 
     stopListener = false;
+    updating = false;
     listenerThread = NULL;
 }
 
@@ -840,7 +842,7 @@ int MegaCmdShellCommunications::listenToStateChanges(int receiveSocket, void (*s
             if (!timeout_notified_server_might_be_down)
             {
                 timeout_notified_server_might_be_down = 30;
-                if (!stopListener)
+                if (!stopListener && !updating)
                 {
                     cerr << endl << "[Server is probably down. Type to respawn or reconnect to it]" << endl;
                 }

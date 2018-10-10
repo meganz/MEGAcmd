@@ -48,7 +48,7 @@ class UpdateTask
 public:
     explicit UpdateTask();
     ~UpdateTask();
-    void checkForUpdates();
+    bool checkForUpdates();
 
 protected:
     bool downloadFile(std::string url, std::string dstPath);

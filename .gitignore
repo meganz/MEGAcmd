@@ -115,3 +115,5 @@ build/Release_x64
 *_BASE_*
 *_LOCAL_*
 *_REMOTE_*
+contrib/QtCreator/MEGAcmd/MEGAcmdUpdateGenerator/Makefile*
+contrib/QtCreator/MEGAcmd/MEGAcmdUpdater/Makefile*

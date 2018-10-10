@@ -10,20 +10,16 @@
 
 using namespace std;
 
-#ifdef _WIN32
-int CALLBACK WinMain(_In_ HINSTANCE, _In_ HINSTANCE, _In_ LPSTR, _In_ int)
-#else
-int main(int argc, char *argv[])
-#endif
+int main(int argc, char **argv)
 {
     time_t currentTime = time(NULL);
-    cout << "Process started at " << ctime(&currentTime);
+    cout << "Process started at " << ctime(&currentTime) << endl;
     srand(currentTime);
 
     UpdateTask updater;
-    updater.checkForUpdates();
+    bool updated = updater.checkForUpdates();
 
     currentTime = time(NULL);
-    cout << "Process finished at " << ctime(&currentTime);
-    return 0;
+    cout << "Process finished at " << ctime(&currentTime) << endl;
+    return updated;
 }

@@ -366,7 +366,9 @@ string oldpasswd;
 string newpasswd;
 
 bool doExit = false;
-
+#ifndef __linux__
+bool doReboot = false;
+#endif
 bool handlerinstalled = false;
 
 bool requirepromptinstall = true;
@@ -1490,6 +1492,26 @@ void process_line(const char * line)
                         doExit = true;
                     }
                 }
+#ifndef __linux__
+                else if (words[0] == "update")
+                {
+                    OUTSTREAM << "Updating ..." << endl;
+
+                    MegaCmdShellCommunications::updating = true;
+                    int ret = comms->executeCommand(line, readresponse);
+                    if (ret == MCMD_REQRESTART)
+                    {
+                        OUTSTREAM << "MEGAcmd has been updated ... this shell will be restarted before proceding...." << endl;
+                        doExit = true;
+                        doReboot = true;
+                    }
+                    else if (ret != MCMD_INVALIDSTATE)
+                    {
+                        MegaCmdShellCommunications::updating = false;
+                        OUTSTREAM << "Update is not required. You are in the last version. Further info: \"version --help\"" << endl;
+                    }
+                }
+#endif
                 else if (words[0] == "history")
                 {
                     if (helprequested)
@@ -1854,7 +1876,7 @@ void readloop()
                 rl_callback_read_char(); //this calls store_line if last char was enter
 
                 time_t tnow = time(NULL);
-                if ( (tnow - lasttimeretrycons) > 5 && !doExit)
+                if ( (tnow - lasttimeretrycons) > 5 && !doExit && !MegaCmdShellCommunications::updating)
                 {
                     comms->executeCommand("retrycons");
                     lasttimeretrycons = tnow;
@@ -1966,7 +1988,7 @@ void readloop()
             else
             {
                 time_t tnow = time(NULL);
-                if ((tnow - lasttimeretrycons) > 5 && !doExit)
+                if ((tnow - lasttimeretrycons) > 5 && !doExit && !MegaCmdShellCommunications::updating)
                 {
                     comms->executeCommand("retrycons");
                     lasttimeretrycons = tnow;
@@ -2245,5 +2267,41 @@ int main(int argc, char* argv[])
     rl_callback_handler_remove(); //To avoid having the terminal messed up (requiring a "reset")
 #endif
     delete comms;
+
+#ifndef __linux__
+    if (doReboot)
+    {
+        //TODO: macos version ?
+        sleepSeconds(5); // Give a while for server to restart
+
+        LPWSTR szPathExecQuoted = GetCommandLineW();
+        wstring wspathexec = wstring(szPathExecQuoted);
+
+        if (wspathexec.at(0) == '"')
+        {
+            wspathexec = wspathexec.substr(1);
+        }
+        while (wspathexec.size() && ( wspathexec.at(wspathexec.size()-1) == '"' || wspathexec.at(wspathexec.size()-1) == ' ' ))
+        {
+            wspathexec = wspathexec.substr(0,wspathexec.size()-1);
+        }
+        LPWSTR szPathExec = (LPWSTR) wspathexec.c_str();
+
+        STARTUPINFO si;
+        PROCESS_INFORMATION pi;
+        ZeroMemory( &si, sizeof(si) );
+        ZeroMemory( &pi, sizeof(pi) );
+        si.cb = sizeof(si);
+
+        if (!CreateProcess( szPathExec,szPathExec,NULL,NULL,TRUE,
+                            CREATE_NEW_CONSOLE,
+                            NULL,NULL,
+                            &si,&pi) )
+        {
+            COUT << "Unable to execute: " << szPathExec << " errno = : " << ERRNO << endl;
+            sleepSeconds(5);
+        }
+    }
+#endif
 
 }

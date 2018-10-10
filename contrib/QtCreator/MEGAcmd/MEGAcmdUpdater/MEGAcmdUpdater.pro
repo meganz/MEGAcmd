@@ -12,6 +12,7 @@ CONFIG(release, debug|release) {
 
 TARGET = MEGAcmdUpdater
 TEMPLATE = app
+CONFIG += console
 
 HEADERS += ../../../../src/updater/UpdateTask.h \
     ../../../../src/updater/Preferences.h \
