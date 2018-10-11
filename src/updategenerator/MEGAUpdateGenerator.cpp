@@ -589,7 +589,7 @@ int main(int argc, char *argv[])
         {
             filesVector.clear();
             targetPathsVector.clear();
-            ifstream infile(fileInput);
+            ifstream infile(fileInput.c_str());
             string line;
             while (getline(infile, line))
             {
