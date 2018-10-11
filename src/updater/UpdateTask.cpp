@@ -33,14 +33,6 @@
 using namespace std;
 using namespace CryptoPP;
 
-#ifdef _WIN32
-
-#ifndef PATH_MAX
-    #define PATH_MAX _MAX_PATH
-#endif
-
-#define MEGA_SEPARATOR '\\'
-
 
 enum {
     LOG_LEVEL_FATAL = 0,   // Very severe error event that will presumably lead the application to abort.
@@ -55,6 +47,15 @@ enum {
 char log_message[MAX_LOG_SIZE];
 #define LOG(logLevel, ...) snprintf(log_message, MAX_LOG_SIZE, __VA_ARGS__); \
                                    cout << log_message << endl;
+
+#ifdef _WIN32
+
+#ifndef PATH_MAX
+    #define PATH_MAX _MAX_PATH
+#endif
+
+#define MEGA_SEPARATOR '\\'
+
 
 void utf8ToUtf16(const char* utf8data, string* utf16string)
 {
@@ -214,6 +215,36 @@ string UpdateTask::getAppDir()
 
 #else
 
+
+int64_t mega_size(const char *path)
+{
+    struct stat statbuf;
+    string localname = path;
+
+#ifdef USE_IOS
+    if (PosixFileSystemAccess::appbasepath)
+    {
+        if (localname.size() && localname.at(0) != '/')
+        {
+            localname.insert(0, PosixFileSystemAccess::appbasepath);
+        }
+    }
+#endif
+
+    if (!stat(localname.c_str(), &statbuf))
+    {
+        if (S_ISDIR(statbuf.st_mode))
+        {
+            return -1;
+        }
+
+        return statbuf.st_size;
+    }
+
+    return -1;
+}
+
+
 #define MEGA_SEPARATOR '/'
 #define mega_mkdir(x) mkdir(x, S_IRWXU)
 #define mega_access(x) access(x, F_OK)
@@ -237,6 +268,7 @@ string UpdateTask::getAppDataDir()
 #define MEGA_TO_NATIVE_SEPARATORS(x) std::replace(x.begin(), x.end(), '\\', '/');
 #define MEGA_SET_PERMISSIONS chmod("/Applications/MEGAcmd.app/Contents/MacOS/mega-cmd", S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH); \
                              chmod("/Applications/MEGAcmd.app/Contents/MacOS/MEGAupdater", S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
+//TODO: figure if this is enough in MAC ^
 
 
 string UpdateTask::getAppDir()
@@ -437,14 +469,14 @@ bool UpdateTask::downloadFile(string url, string dstPath)
        return false;
     }
 
-    if (!fileExist(dstPath.c_str())) //TODO: review this in MAC (in windows, dl empty file does not create a file)
+    if (!fileExist(dstPath.c_str())) // URLDownloadToFileW does not create an empty file
     {
         //create empty file
         FILE * pFileEmpty =  mega_fopen(dstPath.c_str(), "wt+");
         if (pFileEmpty == NULL)
         {
             LOG(LOG_LEVEL_ERROR, "Couldn't create empty file: %s", dstPath.c_str());
-            return false; //TODO: uncomment
+            return false;
         }
         fclose(pFileEmpty);
     }
