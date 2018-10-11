@@ -453,8 +453,44 @@ unsigned signFile(const char * filePath, AsymmCipher* key, byte* signature, unsi
     return signatureSize;
 }
 
+bool extractarg(vector<const char*>& args, const char *what)
+{
+    for (int i = int(args.size()); i--; )
+    {
+        if (!strcmp(args[i], what))
+        {
+            args.erase(args.begin() + i);
+            return true;
+        }
+    }
+    return false;
+}
+
+bool extractargparam(vector<const char*>& args, const char *what, std::string& param)
+{
+    for (int i = int(args.size()) - 1; --i >= 0; )
+    {
+        if (!strcmp(args[i], what) && args.size() > i)
+        {
+            param = args[i + 1];
+            args.erase(args.begin() + i, args.begin() + i + 2);
+            return true;
+        }
+    }
+    return false;
+}
+
 int main(int argc, char *argv[])
 {
+    vector<const char*> args(argv + 1, argv + argc);
+
+    string fileInput;
+    bool externalfile = extractargparam(args, "--file", fileInput);
+    bool generate = extractarg(args, "-g");
+    string os;
+    bool bos = extractargparam(args, "-s", os);
+
+
     HashSignature signatureGenerator(new Hash());
     AsymmCipher aprivk;
     vector<string> downloadURLs;
@@ -465,7 +501,7 @@ int main(int argc, char *argv[])
     string privk;
     bool win = true;
 
-    if ((argc == 2) && !strcmp(argv[1], "-g"))
+    if ((args.size() == 1) && generate)
     {
         //Generate a keypair
         CryptoPP::Integer pubk[AsymmCipher::PUBKEY];
@@ -492,21 +528,20 @@ int main(int argc, char *argv[])
         delete [] privkstr;
         return 0;
     }
-    else if ((argc == 6) && !strcmp(argv[1], "-s")
-             && (!strcmp(argv[2], "win") || !strcmp(argv[2], "osx")))
+    else if ((args.size() == 3)  && bos && os == "win" || os == "osx")
     {
         //Sign an update
-        win = !strcmp(argv[2], "win");
+        win = os == "win";
 
         //Prepare the update folder path
-        string updateFolder(argv[3]);
+        string updateFolder(args.at(0));
         if (updateFolder[updateFolder.size()-1] != '/')
         {
             updateFolder.append("/");
         }
 
         //Read keys
-        ifstream keyFile(argv[4], std::ios::in);
+        ifstream keyFile(args.at(1), std::ios::in);
         if (keyFile.bad())
         {
             printUsage(argv[0]);
@@ -522,7 +557,7 @@ int main(int argc, char *argv[])
         }
         keyFile.close();
 
-        long versionCode = strtol (argv[5], NULL, 10);
+        long versionCode = strtol (args.at(2), NULL, 10);
         if (!versionCode)
         {
             cerr << "Invalid version code" << endl;
@@ -536,7 +571,9 @@ int main(int argc, char *argv[])
         aprivk.setkey(AsymmCipher::PRIVKEY,(byte*)privks.data(), privks.size());
 
         //Generate update file signature
-        signatureGenerator.add((const byte *)argv[5], strlen(argv[5]));
+        signatureGenerator.add((const byte *)args.at(2), strlen(args.at(2)));
+        vector<string> filesVector;
+        vector<string> targetPathsVector;
 
         unsigned int numFiles;
         if (win)
@@ -548,9 +585,45 @@ int main(int argc, char *argv[])
             numFiles = SIZEOF_ARRAY(UPDATE_FILES_OSX);
         }
 
-        for (unsigned int i = 0; i < numFiles; i++)
+        if (externalfile)
         {
-            string filePath = updateFolder + (win ? UPDATE_FILES_WIN : UPDATE_FILES_OSX)[i];
+            filesVector.clear();
+            targetPathsVector.clear();
+            ifstream infile(fileInput);
+            string line;
+            while (getline(infile, line))
+            {
+                if (line.length() > 0 && line[0] != '#')
+                {
+                    string fileToDl, targetpah;
+                    size_t pos = line.find(";");
+                    fileToDl = line.substr(0, pos);
+                    if (pos != string::npos && ((pos + 1) < line.size()))
+                    {
+                        targetpah = line.substr(pos + 1);
+                    }
+                    else
+                    {
+                        targetpah = fileToDl;
+                    }
+                    filesVector.push_back(fileToDl.c_str());
+                    targetPathsVector.push_back(targetpah.c_str());
+                }
+            }
+        }
+        else
+        {
+            for (unsigned int i = 0; i < numFiles; i++)
+            {
+                filesVector.push_back( (win ? UPDATE_FILES_WIN : UPDATE_FILES_OSX)[i]);
+                targetPathsVector.push_back( (win ? TARGET_PATHS_WIN : TARGET_PATHS_OSX)[i]);
+            }
+        }
+
+
+        for (unsigned int i = 0; i < filesVector.size(); i++)
+        {
+            string filePath = updateFolder + filesVector.at(i);
             signatureSize = signFile(filePath.data(), &aprivk, signature, sizeof(signature));
             if (!signatureSize)
             {
@@ -564,12 +637,12 @@ int main(int argc, char *argv[])
             signatures.push_back(s);
 
             string fileUrl((win ? SERVER_BASE_URL_WIN : SERVER_BASE_URL_OSX));
-            fileUrl.append((win ? UPDATE_FILES_WIN : UPDATE_FILES_OSX)[i]);
+            fileUrl.append(filesVector.at(i));
             downloadURLs.push_back(fileUrl);
 
             signatureGenerator.add((const byte*)fileUrl.data(), fileUrl.size());
-            signatureGenerator.add((const byte*)(win ? TARGET_PATHS_WIN : TARGET_PATHS_OSX)[i],
-                                   strlen((win ? TARGET_PATHS_WIN : TARGET_PATHS_OSX)[i]));
+            signatureGenerator.add((const byte*)targetPathsVector.at(i).data(),
+                                   targetPathsVector.at(i).size());
             signatureGenerator.add((const byte*)s.data(), s.length());
         }
 
@@ -602,12 +675,12 @@ int main(int argc, char *argv[])
         updateFileSignature.resize(Base64::btoa((byte *)signature, signatureSize, (char *)updateFileSignature.data()));
 
         //Print update file
-        cout << argv[5] << endl;
+        cout << args.at(2) << endl;
         cout << updateFileSignature << endl;
-        for (unsigned int i = 0; i < numFiles; i++)
+        for (unsigned int i = 0; i < targetPathsVector.size(); i++)
         {
             cout << downloadURLs[i] << endl;
-            cout << (win ? TARGET_PATHS_WIN : TARGET_PATHS_OSX)[i] << endl;
+            cout << targetPathsVector.at(i) << endl;
             cout << signatures[i] << endl;
         }
 
