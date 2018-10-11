@@ -136,6 +136,21 @@ int mega_remove(const char *path)
     return _wremove((LPCWSTR)wpath.data());
 }
 
+int64_t mega_size(const char *path)
+{
+    string wpath;
+    utf8ToUtf16(path, &wpath);
+    wpath.append("", 1);
+    WIN32_FILE_ATTRIBUTE_DATA fad;
+
+    if (!GetFileAttributesExW((LPCWSTR)wpath.data(), GetFileExInfoStandard, (LPVOID)&fad))
+    {
+        DWORD e = GetLastError();
+        return -1;
+    }
+    return ((int64_t)fad.nFileSizeHigh << 32) + (int64_t)fad.nFileSizeLow;
+}
+
 int mega_rename(const char *srcpath, const char *dstpath)
 {
     string wsrcpath;
@@ -421,6 +436,19 @@ bool UpdateTask::downloadFile(string url, string dstPath)
        LOG(LOG_LEVEL_ERROR, "Unable to download file. Error code: %d", res);
        return false;
     }
+
+    if (!fileExist(dstPath.c_str())) //TODO: review this in MAC (in windows, dl empty file does not create a file)
+    {
+        //create empty file
+        FILE * pFileEmpty =  mega_fopen(dstPath.c_str(), "wt+");
+        if (pFileEmpty == NULL)
+        {
+            LOG(LOG_LEVEL_ERROR, "Couldn't create empty file: %s", dstPath.c_str());
+            return false; //TODO: uncomment
+        }
+        fclose(pFileEmpty);
+    }
+
 #else
     bool success = downloadFileSynchronously(url, dstPath);
     if (!success)
@@ -569,24 +597,45 @@ bool UpdateTask::performUpdate()
             return false;
         }
 
-        if (mkdir_p(mega_base_path(origFile).c_str()) == -1)
-        {
-            LOG(LOG_LEVEL_ERROR, "Error creating target folder for: %s",  origFile.c_str());
-            rollbackUpdate(i);
-            return false;
-        }
-        setPermissions(mega_base_path(origFile).c_str());
-
         string update = updateFolder + localPaths[i];
-        if (mega_rename(update.c_str(), origFile.c_str()))
+        if (mega_size(update.c_str()))
         {
-            LOG(LOG_LEVEL_ERROR, "Error installing file %s in %s",  update.c_str(), origFile.c_str());
-            rollbackUpdate(i);
-            return false;
-        }
-        setPermissions(origFile.c_str());
+            if (mkdir_p(mega_base_path(origFile).c_str()) == -1)
+            {
+                LOG(LOG_LEVEL_ERROR, "Error creating target folder for: %s",  origFile.c_str());
+                rollbackUpdate(i);
+                return false;
+            }
+            setPermissions(mega_base_path(origFile).c_str());
 
-        LOG(LOG_LEVEL_INFO, "File correctly installed: %s",  localPaths[i].c_str());
+            if (mega_rename(update.c_str(), origFile.c_str()))
+            {
+                LOG(LOG_LEVEL_ERROR, "Error installing file %s in %s",  update.c_str(), origFile.c_str());
+                rollbackUpdate(i);
+                return false;
+            }
+
+            if (!mega_size(update.c_str()))
+            {
+                if (mega_remove(origFile.c_str()))
+                {
+                    LOG(LOG_LEVEL_ERROR, "Error installing file %s in %s",  update.c_str(), origFile.c_str());
+                    rollbackUpdate(i);
+                    return false;
+                }
+            }
+            else
+            {
+                setPermissions(origFile.c_str());
+            }
+
+            LOG(LOG_LEVEL_INFO, "File correctly installed: %s",  localPaths[i].c_str());
+        }
+        else
+        {
+            LOG(LOG_LEVEL_INFO, "File correctly removed: %s",  localPaths[i].c_str());
+        }
+
     }
 
     LOG(LOG_LEVEL_INFO, "Update successfully installed");
