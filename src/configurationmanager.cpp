@@ -594,6 +594,17 @@ void ConfigurationManager::loadConfiguration(bool debug)
             }
             fi.close();
         }
+
+        //Save version
+        stringstream versionionfile;
+        versionionfile << configFolder << "/" << "megacmd.version";
+        ofstream fo(versionionfile.str().c_str(), ios::out);
+
+        if (fo.is_open())
+        {
+            fo << MEGACMD_CODE_VERSION;
+            fo.close();
+        }
     }
     else
     {
