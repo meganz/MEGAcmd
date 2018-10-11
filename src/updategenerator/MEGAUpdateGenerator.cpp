@@ -501,7 +501,7 @@ int main(int argc, char *argv[])
     string privk;
     bool win = true;
 
-    if ((args.size() == 1) && generate)
+    if (generate)
     {
         //Generate a keypair
         CryptoPP::Integer pubk[AsymmCipher::PUBKEY];
