@@ -405,10 +405,14 @@ char (&static_sizeof_array( T(&)[N] ))[N];
 void printUsage(const char* appname)
 {
     cerr << "Usage: " << endl;
-    cerr << "Sign an update:" << endl;
-    cerr << "    " << appname << " -s <win|osx> <update folder> <keyfile> <version_code>" << endl;
     cerr << "Generate a keypair" << endl;
     cerr << "    " << appname << " -g" << endl;
+    cerr << "Sign an update:" << endl;
+    cerr << "    " << appname << " -s <win|osx> <update folder> <keyfile> <version_code>" << endl;
+    cerr << "  or:" << endl;
+    cerr << "    " << appname << " <update folder> <keyfile> <version_code> --file <contentsfile> --base-url <base_url>" << endl;
+    cerr << "    e.g:" << endl;
+    cerr << "        " << appname << " /tmp/updatefiles /tmp/key.pem 100050 --file /tmp/files.txt --base-url http://g.static.mega.co.nz/upd/wcmd/" << endl;
 }
 
 unsigned signFile(const char * filePath, AsymmCipher* key, byte* signature, unsigned signbuflen)
@@ -489,6 +493,8 @@ int main(int argc, char *argv[])
     bool generate = extractarg(args, "-g");
     string os;
     bool bos = extractargparam(args, "-s", os);
+    string fileUrl;
+    bool bUrl = extractargparam(args, "--base-url", fileUrl);
 
 
     HashSignature signatureGenerator(new Hash());
@@ -528,10 +534,15 @@ int main(int argc, char *argv[])
         delete [] privkstr;
         return 0;
     }
-    else if ((args.size() == 3)  && bos && os == "win" || os == "osx")
+    else if ((args.size() == 3)  && ((bos && (os == "win" || os == "osx")) || (bUrl && externalfile)))
     {
         //Sign an update
         win = os == "win";
+
+        if (!bUrl)
+        {
+            fileUrl = string ((win ? SERVER_BASE_URL_WIN : SERVER_BASE_URL_OSX));
+        }
 
         //Prepare the update folder path
         string updateFolder(args.at(0));
@@ -575,16 +586,6 @@ int main(int argc, char *argv[])
         vector<string> filesVector;
         vector<string> targetPathsVector;
 
-        unsigned int numFiles;
-        if (win)
-        {
-            numFiles = SIZEOF_ARRAY(UPDATE_FILES_WIN);
-        }
-        else
-        {
-            numFiles = SIZEOF_ARRAY(UPDATE_FILES_OSX);
-        }
-
         if (externalfile)
         {
             filesVector.clear();
@@ -613,6 +614,15 @@ int main(int argc, char *argv[])
         }
         else
         {
+            unsigned int numFiles;
+            if (win)
+            {
+                numFiles = SIZEOF_ARRAY(UPDATE_FILES_WIN);
+            }
+            else
+            {
+                numFiles = SIZEOF_ARRAY(UPDATE_FILES_OSX);
+            }
             for (unsigned int i = 0; i < numFiles; i++)
             {
                 filesVector.push_back( (win ? UPDATE_FILES_WIN : UPDATE_FILES_OSX)[i]);
@@ -636,7 +646,6 @@ int main(int argc, char *argv[])
             s.resize(Base64::btoa((byte *)signature, signatureSize, (char *)s.data()));
             signatures.push_back(s);
 
-            string fileUrl((win ? SERVER_BASE_URL_WIN : SERVER_BASE_URL_OSX));
             fileUrl.append(filesVector.at(i));
             downloadURLs.push_back(fileUrl);
 
