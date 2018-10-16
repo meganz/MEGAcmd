@@ -5,6 +5,6 @@ To create an update file, you need to pass the list of files for window/macos in
 
 The updater will expect this baseURL (to provide to the generator):
 
-* Windows: "http://g.static.mega.co.nz/upd/wsync/"
+* Windows: "http://g.static.mega.co.nz/upd/wcmd/"
 
 * MacOS: http://g.static.mega.co.nz/upd/mcmd/MEGAsync.app/"
