@@ -4277,7 +4277,8 @@ void MegaCmdExecuter::confirmCancel(const char* confirmlink, const char* pass)
     {
         LOG_err << "Confirm cancel account failed: too many attempts";
     }
-    else if (megaCmdListener->getError()->getErrorCode() == MegaError::API_ENOENT)
+    else if (megaCmdListener->getError()->getErrorCode() == MegaError::API_ENOENT
+             || megaCmdListener->getError()->getErrorCode() == MegaError::API_EKEY)
     {
         LOG_err << "Confirm cancel account failed: invalid link/password";
     }
