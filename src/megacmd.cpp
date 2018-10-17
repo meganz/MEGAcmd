@@ -37,6 +37,7 @@
 
 #ifndef _WIN32
 #include "signal.h"
+#include <sys/wait.h>
 #else
 #include <fcntl.h>
 #include <io.h>
@@ -253,6 +254,9 @@ Console* console;
 MegaMutex mutexHistory;
 
 map<unsigned long long, string> threadline;
+
+char ** mcmdMainArgv;
+int mcmdMainArgc;
 
 void printWelcomeMsg();
 
@@ -2977,8 +2981,9 @@ static bool process_line(char* l)
                     setCurrentOutCode(MCMD_INVALIDSTATE); // so as not to indicate already updated
                     return false;
                 }
+                bool restartRequired = false;
 
-                bool pathok = false;
+#ifdef _WIN32
                 LPWSTR szPathExecQuoted = GetCommandLineW();
                 wstring wspathexec = wstring(szPathExecQuoted);
 
@@ -3009,7 +3014,6 @@ static bool process_line(char* l)
 
 #ifndef NDEBUG
                 LPCWSTR szPath = TEXT("..\\MEGAcmdUpdater\\debug\\MEGAcmdUpdater.exe");
-                pathok = true;
 #else
                 TCHAR szPath[MAX_PATH];
 
@@ -3019,100 +3023,152 @@ static bool process_line(char* l)
                     setCurrentOutCode(MCMD_EUNEXPECTED);
                     return false;
                 }
-                else
+
+                if (SUCCEEDED(PathRemoveFileSpec(szPath)))
                 {
-                    if (SUCCEEDED(PathRemoveFileSpec(szPath)))
+                    if (!PathAppend(szPath,TEXT("MEGAcmdUpdater.exe")))
                     {
-                        if (PathAppend(szPath,TEXT("MEGAcmdUpdater.exe")))
-                        {
-                            pathok = true;
-                        }
-                        else
-                        {
-                            LOG_err << "Couldnt append MEGAcmdUpdater exec: " << wstring(szPath);
-                            setCurrentOutCode(MCMD_EUNEXPECTED);
-                            return false;
-                        }
-                    }
-                    else
-                    {
-                        LOG_err << "Couldnt remove file spec: " << wstring(szPath);
+                        LOG_err << "Couldnt append MEGAcmdUpdater exec: " << wstring(szPath);
                         setCurrentOutCode(MCMD_EUNEXPECTED);
                         return false;
                     }
+                }
+                else
+                {
+                    LOG_err << "Couldnt remove file spec: " << wstring(szPath);
+                    setCurrentOutCode(MCMD_EUNEXPECTED);
+                    return false;
                 }
 #endif
-                if (pathok)
+                STARTUPINFO si;
+                PROCESS_INFORMATION pi;
+                ZeroMemory( &si, sizeof(si) );
+                ZeroMemory( &pi, sizeof(pi) );
+                LPWSTR szPath2 = (LPWSTR) szPath;
+                si.cb = sizeof(si);
+                si.dwFlags = STARTF_USESHOWWINDOW;
+                if (!CreateProcess( szPath,szPath2,NULL,NULL,TRUE,
+                                    0,
+                                    NULL,NULL,
+                                    &si,&pi) )
                 {
-                    STARTUPINFO si;
-                    PROCESS_INFORMATION pi;
-                    ZeroMemory( &si, sizeof(si) );
-                    ZeroMemory( &pi, sizeof(pi) );
-                    LPWSTR szPath2 = (LPWSTR) szPath;
-                    si.cb = sizeof(si);
-                    si.dwFlags = STARTF_USESHOWWINDOW;
-                    if (!CreateProcess( szPath,szPath2,NULL,NULL,TRUE,
-                                        0,
-                                        NULL,NULL,
-                                        &si,&pi) )
-                    {
-                        LOG_err << "Unable to execute: <" << wstring(szPath) << "> errno = : " << ERRNO;
-                        setCurrentOutCode(MCMD_EUNEXPECTED);
-                        return false;
-                    }
-                    else
-                    {
-                        // Wait until child process exits.
-                        WaitForSingleObject( pi.hProcess, INFINITE );
-
-                        DWORD exit_code;
-                        GetExitCodeProcess(pi.hProcess, &exit_code);
-
-                        LOG_verbose << " The execution of Updater returns: " << exit_code;
-
-                        // Close process and thread handles.
-                        CloseHandle( pi.hProcess );
-                        CloseHandle( pi.hThread );
-
-                        if (exit_code)
-                        {
-                            LOG_debug << "Restarting the server : <" << wstring(szPathServerCommand) << ">";
-
-                            ZeroMemory( &si, sizeof(si) );
-                            ZeroMemory( &pi, sizeof(pi) );
-                            si.cb = sizeof(si);
-                            si.dwFlags = STARTF_USESHOWWINDOW;
-                            TCHAR szPathServerCL[MAX_PATH+30];
-                            wsprintfW(szPathServerCL,L"%ls --wait-for %d", szPathServerCommand, GetCurrentProcessId());
-                            LOG_info << "Executing: " << wstring(szPathServerCL);
-                            if (!CreateProcess( szPathServer,(LPWSTR) szPathServerCL,NULL,NULL,TRUE,
-                                                0,
-                                                NULL,NULL,
-                                                &si,&pi) )
-                            {
-                                LOG_debug << "Unable to execute: <" << wstring(szPathServerCL) << "> errno = : " << ERRNO;
-                                return false;
-                            }
-                            else
-                            {
-                                LOG_debug << "Server restarted, indicating the shell to restart also";
-                                setCurrentOutCode(MCMD_REQRESTART);
-                                return true;
-                            }
-                        }
-                        else
-                        {
-                            return false;
-                        }
-                    }
-                }
-                else
-                {
-                    LOG_err << "path not ok: " << wstring(szPath);
+                    LOG_err << "Unable to execute: <" << wstring(szPath) << "> errno = : " << ERRNO;
                     setCurrentOutCode(MCMD_EUNEXPECTED);
                     return false;
                 }
 
+                // Wait until child process exits.
+                WaitForSingleObject( pi.hProcess, INFINITE );
+
+                DWORD exit_code;
+                GetExitCodeProcess(pi.hProcess, &exit_code);
+                restartRequired = exit_code != 0;
+
+                LOG_verbose << " The execution of Updater returns: " << exit_code;
+
+                // Close process and thread handles.
+                CloseHandle( pi.hProcess );
+                CloseHandle( pi.hThread );
+
+#else
+                pid_t pidupdater = fork();
+
+                 if ( pidupdater == 0 )
+                 {
+#ifndef NDEBUG
+                     char * args[] = {"../MEGAcmdUpdater/MEGAcmdUpdater", NULL};
+#else
+                     char * args[] = {"/Applications/MEGAcmd.app/Contents/MacOS/MEGAcmdUpdater", NULL};
+#endif
+
+                    if (execv(args[0], args) < 0)
+                    {
+
+                        LOG_err << " FAILED to initiate updater. errno = " << ERRNO;
+                    }
+                 }
+
+                 int status;
+
+                 waitpid(pidupdater, &status, 0);
+
+                 if ( WIFEXITED(status) )
+                 {
+                     int exit_code = WEXITSTATUS(status);
+                     LOG_ debug << "Exit status of the updater was " << exit_code;
+                     restartRequired = exit_code != 0;
+
+                 }
+                 else
+                 {
+                     LOG_err << " Unexpected error waiting for Updater. errno = " << ERRNO;
+                 }
+
+#endif
+                if (restartRequired)
+                {
+
+#ifdef _WIN32
+                    LOG_debug << "Restarting the server : <" << wstring(szPathServerCommand) << ">";
+
+                    ZeroMemory( &si, sizeof(si) );
+                    ZeroMemory( &pi, sizeof(pi) );
+                    si.cb = sizeof(si);
+                    si.dwFlags = STARTF_USESHOWWINDOW;
+                    TCHAR szPathServerCL[MAX_PATH+30];
+                    wsprintfW(szPathServerCL,L"%ls --wait-for %d", szPathServerCommand, GetCurrentProcessId());
+                    LOG_info << "Executing: " << wstring(szPathServerCL);
+                    if (!CreateProcess( szPathServer,(LPWSTR) szPathServerCL,NULL,NULL,TRUE,
+                                        0,
+                                        NULL,NULL,
+                                        &si,&pi) )
+                    {
+                        LOG_debug << "Unable to execute: <" << wstring(szPathServerCL) << "> errno = : " << ERRNO;
+                        return false;
+                    }
+#else
+                    pid_t childid = fork();
+                    if ( childid ) //parent
+                    {
+                        char **argv = new char*[mcmdMainArgc+3];
+                        int i = 0;
+                        for (;i < mcmdMainArgc; i++)
+                        {
+                            argv[i]=mcmdMainArgv[i];
+                        }
+
+                        argv[i++]="--wait-for";
+                        argv[i++]=(char*)SSTR(childid).c_str();
+                        argv[i++]=NULL;
+                        LOG_debug << "Restarting the server : <" << argv[0] << ">";
+
+                        LOG_debug << " childid=" << childid;
+
+                        //delete getCurrentPetition(); //So that client socket is liberated!
+                        execv(argv[0],argv);
+                    }
+#endif
+
+                    OUTSTREAM << " The child is responding to update " << endl;
+
+                    LOG_debug << "Server restarted, indicating the shell to restart also";
+                    setCurrentOutCode(MCMD_REQRESTART);
+
+                    string s = "restart";
+                    cm->informStateListeners(s);
+
+                    int attempts=20; //give a while for ingoin petitions to end before killing the server
+                    while(petitionThreads.size() > 1 && attempts--)
+                    {
+                        sleepSeconds(20-attempts);
+                    }
+
+                    return true;
+                }
+                else
+                {
+                    return false;
+                }
             }
 #endif
             executecommand(l);
@@ -3692,6 +3748,23 @@ bool extractargparam(vector<const char*>& args, const char *what, std::string& p
     return false;
 }
 
+
+#ifndef _WIN32
+#include <sys/wait.h>
+bool is_pid_running(pid_t pid) {
+
+    while(waitpid(-1, 0, WNOHANG) > 0) {
+        // Wait for defunct....
+    }
+
+    if (0 == kill(pid, 0))
+        return 1; // Process exists
+
+    return 0;
+}
+#endif
+
+
 int main(int argc, char* argv[])
 {
     string localecode = getLocaleCode();
@@ -3699,6 +3772,8 @@ int main(int argc, char* argv[])
     // Set Environment's default locale
     setlocale(LC_ALL, "en-US");
 #endif
+    mcmdMainArgv = argv;
+    mcmdMainArgc = argc;
 
 #ifdef __MACH__
     initializeMacOSStuff(argc,argv);
@@ -3730,11 +3805,11 @@ int main(int argc, char* argv[])
     bool setapiurl = extractargparam(args, "--apiurl", debug_api_url);  // only for debugging
     bool disablepkp = extractarg(args, "--disablepkp");  // only for debugging
 
-#ifdef _WIN32
     string shandletowait;
     bool dowaitforhandle = extractargparam(args, "--wait-for", shandletowait);
     if (dowaitforhandle)
     {
+#ifdef _WIN32
         DWORD processId = atoi(shandletowait.c_str());
 
         HANDLE processHandle = OpenProcess(PROCESS_ALL_ACCESS, FALSE, processId);
@@ -3742,9 +3817,18 @@ int main(int argc, char* argv[])
         cout << "Waiting for former server to end" << endl;
         WaitForSingleObject( processHandle, INFINITE );
         CloseHandle(processHandle);
+#else
+
+        pid_t processId = atoi(shandletowait.c_str());
+
+        cout << "Waiting for former server to end... " << endl;
+        while (is_pid_running(processId))
+        {
+            sleep(1);
+        }
+#endif
     }
 
-#endif
 
 
     if (!loglevelenv.compare("DEBUG") || debug )

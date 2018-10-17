@@ -641,6 +641,12 @@ bool ConfigurationManager::lockExecution()
         {
             return false;
         }
+
+        if (fcntl(fd, F_SETFD, FD_CLOEXEC) == -1)
+        {
+            LOG_err << "ERROR setting CLOEXEC to lock fd: " << errno;
+        }
+
 #else
         ofstream fo(lockfile.str().c_str());
         if(!fo.fail()){

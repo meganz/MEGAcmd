@@ -366,9 +366,7 @@ string oldpasswd;
 string newpasswd;
 
 bool doExit = false;
-#ifndef __linux__
 bool doReboot = false;
-#endif
 bool handlerinstalled = false;
 
 bool requirepromptinstall = true;
@@ -472,6 +470,14 @@ void statechangehandle(string statestring)
         else if (newstate == "ack")
         {
             // do nothing, all good
+        }
+        else if (newstate == "restart")
+        {
+            doExit = true;
+            doReboot = true;
+            comms->updating = true; // to avoid mensajes about server down
+            sleepSeconds(3); // Give a while for server to restart
+            changeprompt("RESTART REQUIRED BY SERVER (due to an update). Press any key to continue.", true);
         }
         else
         {
@@ -2268,12 +2274,10 @@ int main(int argc, char* argv[])
 #endif
     delete comms;
 
-#ifndef __linux__
     if (doReboot)
     {
-        //TODO: macos version ?
+#ifdef __WIN32
         sleepSeconds(5); // Give a while for server to restart
-
         LPWSTR szPathExecQuoted = GetCommandLineW();
         wstring wspathexec = wstring(szPathExecQuoted);
 
@@ -2301,7 +2305,9 @@ int main(int argc, char* argv[])
             COUT << "Unable to execute: " << szPathExec << " errno = : " << ERRNO << endl;
             sleepSeconds(5);
         }
-    }
+#else
+        execv(argv[0], argv);
 #endif
 
+    }
 }
