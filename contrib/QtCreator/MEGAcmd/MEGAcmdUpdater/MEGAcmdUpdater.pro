@@ -70,3 +70,12 @@ win32 {
     QMAKE_LFLAGS_CONSOLE += /SUBSYSTEM:CONSOLE,5.01
     DEFINES += PSAPI_VERSION=1
 }
+
+unix:!macx {
+   exists($$MEGASDK_BASE_PATH/bindings/qt/3rdparty/libs/libcryptopp.a) {
+    LIBS +=  $$MEGASDK_BASE_PATH/bindings/qt/3rdparty/libs/libcryptopp.a
+   }
+   else {
+    LIBS += -lcryptopp
+   }
+}

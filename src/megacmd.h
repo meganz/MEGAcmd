@@ -149,6 +149,7 @@ int askforConfirmation(std::string message);
 
 std::string askforUserResponse(std::string message);
 
+void* checkForUpdates(void *param);
 
 void informTransferUpdate(mega::MegaTransfer *transfer, int clientID);
 

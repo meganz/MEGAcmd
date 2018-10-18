@@ -481,13 +481,19 @@ bool UpdateTask::downloadFile(string url, string dstPath)
         fclose(pFileEmpty);
     }
 
-#else
+#el#ifdef __MACH__
     bool success = downloadFileSynchronously(url, dstPath);
     if (!success)
     {
         LOG(LOG_LEVEL_ERROR, "Unable to download file %s to %s.", url.c_str(), dstPath.c_str());
         return false;
     }
+#else
+    string dlcommand = "curl ";
+    dlcommand.append(url.c_str());
+    dlcommand.append(" -o ");
+    dlcommand.append(dstPath);
+    system(dlcommand.c_str());
 #endif
 
     LOG(LOG_LEVEL_INFO, "File downloaded OK");

@@ -37,7 +37,7 @@
 #endif
 
 #if defined(_WIN32)
-#define unlink _unlink  
+#define unlink _unlink
 #endif
 
 using namespace std;
@@ -62,6 +62,11 @@ std::string ConfigurationManager::getConfigFolder()
 {
     return configFolder;
 }
+
+static const char* const persistentmcmdconfigurationkeys[] =
+{
+    "autoupdate"
+};
 
 void ConfigurationManager::loadConfigDir()
 {
@@ -204,8 +209,6 @@ void ConfigurationManager::saveProperty(const char *property, const char *value)
             }
             fo.close();
         }
-
-
     }
 }
 
@@ -714,13 +717,38 @@ void ConfigurationManager::clearConfigurationFile()
     {
         stringstream configFile;
         configFile << configFolder << "/" << "megacmd.cfg";
+
+        stringstream formerlines;
+        ifstream infile(configFile.str().c_str());
+        string line;
+        while (getline(infile, line))
+        {
+            size_t pos;
+            if (line.length() > 0 && line[0] != '#' && (pos = line.find("=")) != string::npos)
+            {
+                string key;
+                key = line.substr(0, pos);
+                rtrimProperty(key, ' ');
+
+                for (unsigned int i = 0; i < sizeof(persistentmcmdconfigurationkeys)/sizeof(persistentmcmdconfigurationkeys[0]); i++)
+                {
+                    if (!strcmp(key.c_str(), persistentmcmdconfigurationkeys[i]))
+                    {
+                        formerlines << line << endl;
+                    }
+                }
+            }
+            else
+            {
+                formerlines << line << endl;
+            }
+        }
         ofstream fo(configFile.str().c_str());
 
         if (fo.is_open())
         {
-            fo << "";
+            fo << formerlines.str();
             fo.close();
         }
     }
-
 }

@@ -2859,6 +2859,194 @@ void executecommand(char* ptr)
     cmdexecuter->executecommand(words, &clflags, &cloptions);
 }
 
+bool executeUpdater(bool *restartRequired)
+{
+    //TODO: make updater in --download mode only that returns if update proceeds
+    // and have the thread check first
+
+    LOG_debug << "Executing updater..." ;
+#ifdef _WIN32
+
+#ifndef NDEBUG
+    LPCWSTR szPath = TEXT("..\\MEGAcmdUpdater\\debug\\MEGAcmdUpdater.exe");
+#else
+    TCHAR szPath[MAX_PATH];
+
+    if (!SUCCEEDED(GetModuleFileName(NULL, szPath , MAX_PATH)))
+    {
+        LOG_err << "Couldnt get EXECUTABLE folder: " << wstring(szPath);
+        setCurrentOutCode(MCMD_EUNEXPECTED);
+        return false;
+    }
+
+    if (SUCCEEDED(PathRemoveFileSpec(szPath)))
+    {
+        if (!PathAppend(szPath,TEXT("MEGAcmdUpdater.exe")))
+        {
+            LOG_err << "Couldnt append MEGAcmdUpdater exec: " << wstring(szPath);
+            setCurrentOutCode(MCMD_EUNEXPECTED);
+            return false;
+        }
+    }
+    else
+    {
+        LOG_err << "Couldnt remove file spec: " << wstring(szPath);
+        setCurrentOutCode(MCMD_EUNEXPECTED);
+        return false;
+    }
+#endif
+    STARTUPINFO si;
+    PROCESS_INFORMATION pi;
+    ZeroMemory( &si, sizeof(si) );
+    ZeroMemory( &pi, sizeof(pi) );
+    LPWSTR szPath2 = (LPWSTR) szPath;
+    si.cb = sizeof(si);
+    si.dwFlags = STARTF_USESHOWWINDOW;
+    if (!CreateProcess( szPath,szPath2,NULL,NULL,TRUE,
+                        0,
+                        NULL,NULL,
+                        &si,&pi) )
+    {
+        LOG_err << "Unable to execute: <" << wstring(szPath) << "> errno = : " << ERRNO;
+        setCurrentOutCode(MCMD_EUNEXPECTED);
+        return false;
+    }
+
+    // Wait until child process exits.
+    WaitForSingleObject( pi.hProcess, INFINITE );
+
+    DWORD exit_code;
+    GetExitCodeProcess(pi.hProcess, &exit_code);
+    *restartRequired = exit_code != 0;
+
+    LOG_verbose << " The execution of Updater returns: " << exit_code;
+
+    // Close process and thread handles.
+    CloseHandle( pi.hProcess );
+    CloseHandle( pi.hThread );
+
+#else
+    pid_t pidupdater = fork();
+
+    if ( pidupdater == 0 )
+    {
+#ifdef __MACH__
+#ifndef NDEBUG
+        char * args[] = {"../../../../MEGAcmdUpdater/MEGAcmdUpdater.app/Contents/MacOS/MEGAcmdUpdater", NULL};
+#else
+        char * args[] = {"/Applications/MEGAcmd.app/Contents/MacOS/MEGAcmdUpdater", NULL};
+#endif
+#else
+#ifndef NDEBUG
+        char * args[] = {"../MEGAcmdUpdater/MEGAcmdUpdater", NULL}; // TODO: what if lcd?
+#else
+        char * args[] = {"MEGAcmdUpdater", NULL}; //TODO: mega-cmd-updater? or remove all this code directly
+#endif
+#endif
+
+        if (execvp(args[0], args) < 0)
+        {
+
+            LOG_err << " FAILED to initiate updater. errno = " << ERRNO;
+        }
+    }
+
+    int status;
+
+    waitpid(pidupdater, &status, 0);
+
+    if ( WIFEXITED(status) )
+    {
+        int exit_code = WEXITSTATUS(status);
+        LOG_debug << "Exit status of the updater was " << exit_code;
+        *restartRequired = exit_code != 0;
+
+    }
+    else
+    {
+        LOG_err << " Unexpected error waiting for Updater. errno = " << ERRNO;
+    }
+#endif
+    return true;
+}
+
+bool restartServer()
+{
+#ifdef _WIN32
+        LPWSTR szPathExecQuoted = GetCommandLineW();
+        wstring wspathexec = wstring(szPathExecQuoted);
+
+        if (wspathexec.at(0) == '"')
+        {
+            wspathexec = wspathexec.substr(1);
+        }
+
+        size_t pos = wspathexec.find(L"--wait-for");
+        if (pos != string::npos)
+        {
+            wspathexec = wspathexec.substr(0,pos);
+        }
+
+        while (wspathexec.size() && ( wspathexec.at(wspathexec.size()-1) == '"' || wspathexec.at(wspathexec.size()-1) == ' ' ))
+        {
+            wspathexec = wspathexec.substr(0,wspathexec.size()-1);
+        }
+
+        LPWSTR szPathServerCommand = (LPWSTR) wspathexec.c_str();
+        TCHAR szPathServer[MAX_PATH];
+        if (!SUCCEEDED(GetModuleFileName(NULL, szPathServer , MAX_PATH)))
+        {
+            LOG_err << "Couldnt get EXECUTABLE folder: " << wstring(szPathServer);
+            setCurrentOutCode(MCMD_EUNEXPECTED);
+            return false;
+        }
+
+        LOG_debug << "Restarting the server : <" << wstring(szPathServerCommand) << ">";
+
+        ZeroMemory( &si, sizeof(si) );
+        ZeroMemory( &pi, sizeof(pi) );
+        si.cb = sizeof(si);
+        si.dwFlags = STARTF_USESHOWWINDOW;
+        TCHAR szPathServerCL[MAX_PATH+30];
+        wsprintfW(szPathServerCL,L"%ls --wait-for %d", szPathServerCommand, GetCurrentProcessId());
+        LOG_info << "Executing: " << wstring(szPathServerCL);
+        if (!CreateProcess( szPathServer,(LPWSTR) szPathServerCL,NULL,NULL,TRUE,
+                            0,
+                            NULL,NULL,
+                            &si,&pi) )
+        {
+            LOG_debug << "Unable to execute: <" << wstring(szPathServerCL) << "> errno = : " << ERRNO;
+            return false;
+        }
+#else
+    pid_t childid = fork();
+    if ( childid ) //parent
+    {
+        char **argv = new char*[mcmdMainArgc+3];
+        int i = 0;
+        for (;i < mcmdMainArgc; i++)
+        {
+            argv[i]=mcmdMainArgv[i];
+        }
+
+        argv[i++]="--wait-for";
+        argv[i++]=(char*)SSTR(childid).c_str();
+        argv[i++]=NULL;
+        LOG_debug << "Restarting the server : <" << argv[0] << ">";
+
+        execv(argv[0],argv);
+    }
+#endif
+
+
+    LOG_debug << "Server restarted, indicating the shell to restart also";
+    setCurrentOutCode(MCMD_REQRESTART);
+
+    string s = "restart";
+    cm->informStateListeners(s);
+
+    return true;
+}
 
 static bool process_line(char* l)
 {
@@ -2983,176 +3171,14 @@ static bool process_line(char* l)
                 }
                 bool restartRequired = false;
 
-#ifdef _WIN32
-                LPWSTR szPathExecQuoted = GetCommandLineW();
-                wstring wspathexec = wstring(szPathExecQuoted);
-
-                if (wspathexec.at(0) == '"')
+                if (!executeUpdater(&restartRequired))
                 {
-                    wspathexec = wspathexec.substr(1);
+                    return false; //Failed to execute
                 }
 
-                size_t pos = wspathexec.find(L"--wait-for");
-                if (pos != string::npos)
+                if (restartRequired && restartServer())
                 {
-                    wspathexec = wspathexec.substr(0,pos);
-                }
-
-                while (wspathexec.size() && ( wspathexec.at(wspathexec.size()-1) == '"' || wspathexec.at(wspathexec.size()-1) == ' ' ))
-                {
-                    wspathexec = wspathexec.substr(0,wspathexec.size()-1);
-                }
-
-                LPWSTR szPathServerCommand = (LPWSTR) wspathexec.c_str();
-                TCHAR szPathServer[MAX_PATH];
-                if (!SUCCEEDED(GetModuleFileName(NULL, szPathServer , MAX_PATH)))
-                {
-                    LOG_err << "Couldnt get EXECUTABLE folder: " << wstring(szPathServer);
-                    setCurrentOutCode(MCMD_EUNEXPECTED);
-                    return false;
-                }
-
-#ifndef NDEBUG
-                LPCWSTR szPath = TEXT("..\\MEGAcmdUpdater\\debug\\MEGAcmdUpdater.exe");
-#else
-                TCHAR szPath[MAX_PATH];
-
-                if (!SUCCEEDED(GetModuleFileName(NULL, szPath , MAX_PATH)))
-                {
-                    LOG_err << "Couldnt get EXECUTABLE folder: " << wstring(szPath);
-                    setCurrentOutCode(MCMD_EUNEXPECTED);
-                    return false;
-                }
-
-                if (SUCCEEDED(PathRemoveFileSpec(szPath)))
-                {
-                    if (!PathAppend(szPath,TEXT("MEGAcmdUpdater.exe")))
-                    {
-                        LOG_err << "Couldnt append MEGAcmdUpdater exec: " << wstring(szPath);
-                        setCurrentOutCode(MCMD_EUNEXPECTED);
-                        return false;
-                    }
-                }
-                else
-                {
-                    LOG_err << "Couldnt remove file spec: " << wstring(szPath);
-                    setCurrentOutCode(MCMD_EUNEXPECTED);
-                    return false;
-                }
-#endif
-                STARTUPINFO si;
-                PROCESS_INFORMATION pi;
-                ZeroMemory( &si, sizeof(si) );
-                ZeroMemory( &pi, sizeof(pi) );
-                LPWSTR szPath2 = (LPWSTR) szPath;
-                si.cb = sizeof(si);
-                si.dwFlags = STARTF_USESHOWWINDOW;
-                if (!CreateProcess( szPath,szPath2,NULL,NULL,TRUE,
-                                    0,
-                                    NULL,NULL,
-                                    &si,&pi) )
-                {
-                    LOG_err << "Unable to execute: <" << wstring(szPath) << "> errno = : " << ERRNO;
-                    setCurrentOutCode(MCMD_EUNEXPECTED);
-                    return false;
-                }
-
-                // Wait until child process exits.
-                WaitForSingleObject( pi.hProcess, INFINITE );
-
-                DWORD exit_code;
-                GetExitCodeProcess(pi.hProcess, &exit_code);
-                restartRequired = exit_code != 0;
-
-                LOG_verbose << " The execution of Updater returns: " << exit_code;
-
-                // Close process and thread handles.
-                CloseHandle( pi.hProcess );
-                CloseHandle( pi.hThread );
-
-#else
-                pid_t pidupdater = fork();
-
-                 if ( pidupdater == 0 )
-                 {
-#ifndef NDEBUG
-                     char * args[] = {"../../../../MEGAcmdUpdater/MEGAcmdUpdater.app/Contents/MacOS/MEGAcmdUpdater", NULL};
-#else
-                     char * args[] = {"/Applications/MEGAcmd.app/Contents/MacOS/MEGAcmdUpdater", NULL};
-#endif
-
-                    if (execv(args[0], args) < 0)
-                    {
-
-                        LOG_err << " FAILED to initiate updater. errno = " << ERRNO;
-                    }
-                 }
-
-                 int status;
-
-                 waitpid(pidupdater, &status, 0);
-
-                 if ( WIFEXITED(status) )
-                 {
-                     int exit_code = WEXITSTATUS(status);
-                     LOG_debug << "Exit status of the updater was " << exit_code;
-                     restartRequired = exit_code != 0;
-
-                 }
-                 else
-                 {
-                     LOG_err << " Unexpected error waiting for Updater. errno = " << ERRNO;
-                 }
-
-#endif
-                if (restartRequired)
-                {
-
-#ifdef _WIN32
-                    LOG_debug << "Restarting the server : <" << wstring(szPathServerCommand) << ">";
-
-                    ZeroMemory( &si, sizeof(si) );
-                    ZeroMemory( &pi, sizeof(pi) );
-                    si.cb = sizeof(si);
-                    si.dwFlags = STARTF_USESHOWWINDOW;
-                    TCHAR szPathServerCL[MAX_PATH+30];
-                    wsprintfW(szPathServerCL,L"%ls --wait-for %d", szPathServerCommand, GetCurrentProcessId());
-                    LOG_info << "Executing: " << wstring(szPathServerCL);
-                    if (!CreateProcess( szPathServer,(LPWSTR) szPathServerCL,NULL,NULL,TRUE,
-                                        0,
-                                        NULL,NULL,
-                                        &si,&pi) )
-                    {
-                        LOG_debug << "Unable to execute: <" << wstring(szPathServerCL) << "> errno = : " << ERRNO;
-                        return false;
-                    }
-#else
-                    pid_t childid = fork();
-                    if ( childid ) //parent
-                    {
-                        char **argv = new char*[mcmdMainArgc+3];
-                        int i = 0;
-                        for (;i < mcmdMainArgc; i++)
-                        {
-                            argv[i]=mcmdMainArgv[i];
-                        }
-
-                        argv[i++]="--wait-for";
-                        argv[i++]=(char*)SSTR(childid).c_str();
-                        argv[i++]=NULL;
-                        LOG_debug << "Restarting the server : <" << argv[0] << ">";
-
-                        execv(argv[0],argv);
-                    }
-#endif
-
                     OUTSTREAM << " " << endl;
-
-                    LOG_debug << "Server restarted, indicating the shell to restart also";
-                    setCurrentOutCode(MCMD_REQRESTART);
-
-                    string s = "restart";
-                    cm->informStateListeners(s);
 
                     int attempts=20; //give a while for ingoin petitions to end before killing the server
                     while(petitionThreads.size() > 1 && attempts--)
@@ -3348,6 +3374,48 @@ void * retryConnections(void *pointer)
     return NULL;
 }
 
+void* checkForUpdates(void *param)
+{
+    static bool already = false;
+    if (!already)
+    {
+        already = true;
+    }
+    else
+    {
+        return NULL;
+    }
+
+    while(!doExit)
+    {
+        LOG_verbose << "Calling recurrent checkForUpdates";
+
+        sleepSeconds(10); // TODO: do some initial random sleep ?
+
+        while (!doExit)
+        {
+            bool restartRequired = executeUpdater(&restartRequired);
+            if (restartRequired && restartServer())
+            {
+                OUTSTREAM << " " << endl;
+
+                int attempts=20; //give a while for ingoin petitions to end before killing the server
+                while(petitionThreads.size() && attempts--)
+                {
+                    sleepSeconds(20-attempts);
+                }
+                //TODO: actually we should download the update, but never apply untill petitionThread.size is 0 in this case!!!!!!!
+
+                doExit = true;
+                cm->stopWaiting();
+                break;
+            }
+
+            sleepSeconds(300); // TODO: see MEGAsync implementation/ check time
+        }
+    }
+    return NULL;
+}
 
 // main loop
 void megacmd()
@@ -3427,14 +3495,14 @@ void megacmd()
                         {
                             os << "---------------------------------------------------------------------" << endl;
                             os << "--        There is a new version available of megacmd: " << setw(12) << left << megaCmdListener->getRequest()->getName() << "--" << endl;
-                            os << "--        Please, download it from https://mega.nz/cmd             --" << endl;
+                            os << "--        Please, update this one: See \"update --help\".          --" << endl;
+                            os << "--        Or download the latest from https://mega.nz/cmd          --" << endl;
 #if defined(__APPLE__)
                             os << "--        Before installing enter \"exit\" to close MEGAcmd          --" << endl;
 #endif
                             os << "---------------------------------------------------------------------" << endl;
                         }
                     }
-                    message=os.str();
                     delete megaCmdListener;
                 }
                 else
@@ -3444,6 +3512,21 @@ void megacmd()
                     api->removeRequestListener(megaCmdListener);
                     delete megaCmdListener;
                 }
+
+                int autoupdate = ConfigurationManager::getConfigurationValue("autoupdate", -1);
+                if (autoupdate == -1)
+                {
+                    os << "ENABLING AUTOUPDATE BY DEFAULT. You can disable it with \"update --auto=off\"" << endl;
+                    ConfigurationManager::savePropertyValue("autoupdate", 1);
+                }
+                else if (autoupdate == 1)
+                {
+                    LOG_info << "Starting autoupdate check mechanism";
+                    MegaThread *checkupdatesThread = new MegaThread();
+                    checkupdatesThread->start(checkForUpdates,NULL);
+                }
+                message=os.str();
+
 
                 if (message.size())
                 {
@@ -3712,7 +3795,7 @@ bool runningInBackground()
 
 #ifndef MEGACMD_USERAGENT_SUFFIX
 #define MEGACMD_USERAGENT_SUFFIX
-#define MEGACMD_STRINGIZE(x) 
+#define MEGACMD_STRINGIZE(x)
 #else
 #define MEGACMD_STRINGIZE2(x) "-" #x
 #define MEGACMD_STRINGIZE(x) MEGACMD_STRINGIZE2(x)
@@ -3793,7 +3876,7 @@ int main(int argc, char* argv[])
 
     vector<const char*> args(argv + 1, argv + argc);
 
-    string debug_api_url;  
+    string debug_api_url;
     bool debug = extractarg(args, "--debug");
     bool debugfull = extractarg(args, "--debug-full");
     bool verbose = extractarg(args, "--verbose");

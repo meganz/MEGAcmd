@@ -2325,6 +2325,21 @@ int MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
         }
     }
     delete megaCmdListener;
+
+    //this goes here in case server is launched directly and thus we ensure that's shown at the beginning
+    int autoupdate = ConfigurationManager::getConfigurationValue("autoupdate", -1);
+    if (autoupdate == -1)
+    {
+        OUTSTREAM << "ENABLING AUTOUPDATE BY DEFAULT. You can disable it with \"update --auto=off\"" << endl;
+        ConfigurationManager::savePropertyValue("autoupdate", 1);
+    }
+    else if (autoupdate == 1) {
+        LOG_info << "Starting autoupdate check mechanism";
+
+        MegaThread *checkupdatesThread = new MegaThread();
+        checkupdatesThread->start(checkForUpdates,NULL);
+    }
+
 #endif
     return srl->getError()->getErrorCode();
 }
