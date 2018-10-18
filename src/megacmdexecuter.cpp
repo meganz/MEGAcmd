@@ -2319,7 +2319,8 @@ int MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
         {
             OUTSTREAM << "---------------------------------------------------------------------" << endl;
             OUTSTREAM << "--        There is a new version available of megacmd: " << setw(12) << left << megaCmdListener->getRequest()->getName() << "--" << endl;
-            OUTSTREAM << "--        Please, download it from https://mega.nz/cmd             --" << endl;
+            OUTSTREAM << "--        Please, update this one: See \"update --help\".          --" << endl;
+            OUTSTREAM << "--        Or download the latest from https://mega.nz/cmd          --" << endl;
             OUTSTREAM << "---------------------------------------------------------------------" << endl;
         }
     }

@@ -3076,7 +3076,7 @@ static bool process_line(char* l)
                  if ( pidupdater == 0 )
                  {
 #ifndef NDEBUG
-                     char * args[] = {"../MEGAcmdUpdater/MEGAcmdUpdater", NULL};
+                     char * args[] = {"../../../../MEGAcmdUpdater/MEGAcmdUpdater.app/Contents/MacOS/MEGAcmdUpdater", NULL};
 #else
                      char * args[] = {"/Applications/MEGAcmd.app/Contents/MacOS/MEGAcmdUpdater", NULL};
 #endif
@@ -3095,7 +3095,7 @@ static bool process_line(char* l)
                  if ( WIFEXITED(status) )
                  {
                      int exit_code = WEXITSTATUS(status);
-                     LOG_ debug << "Exit status of the updater was " << exit_code;
+                     LOG_debug << "Exit status of the updater was " << exit_code;
                      restartRequired = exit_code != 0;
 
                  }
@@ -3142,14 +3142,11 @@ static bool process_line(char* l)
                         argv[i++]=NULL;
                         LOG_debug << "Restarting the server : <" << argv[0] << ">";
 
-                        LOG_debug << " childid=" << childid;
-
-                        //delete getCurrentPetition(); //So that client socket is liberated!
                         execv(argv[0],argv);
                     }
 #endif
 
-                    OUTSTREAM << " The child is responding to update " << endl;
+                    OUTSTREAM << " " << endl;
 
                     LOG_debug << "Server restarted, indicating the shell to restart also";
                     setCurrentOutCode(MCMD_REQRESTART);
@@ -3828,8 +3825,6 @@ int main(int argc, char* argv[])
         }
 #endif
     }
-
-
 
     if (!loglevelenv.compare("DEBUG") || debug )
     {

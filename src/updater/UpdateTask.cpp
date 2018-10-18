@@ -260,7 +260,7 @@ string UpdateTask::getAppDataDir()
     if (home)
     {
         path.append(home);
-        path.append(".megaCmd/");
+        path.append("/.megaCmd/");
     }
     return path;
 }
@@ -485,7 +485,7 @@ bool UpdateTask::downloadFile(string url, string dstPath)
     bool success = downloadFileSynchronously(url, dstPath);
     if (!success)
     {
-        LOG(LOG_LEVEL_ERROR, "Unable to download file.");
+        LOG(LOG_LEVEL_ERROR, "Unable to download file %s to %s.", url.c_str(), dstPath.c_str());
         return false;
     }
 #endif

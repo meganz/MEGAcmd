@@ -329,10 +329,7 @@ void ComunicationsManagerFileSockets::returnAndClosePetition(CmdPetition *inf, O
         LOG_err << "ERROR writing to socket: " << errno;
     }
 
-    LOG_verbose << " At returnAndClosePetition " << *inf << " in thread: " << MegaThread::currentThreadId() << " " << get_petition_details(inf);
     delete inf;
-    LOG_verbose << " At returnAndClosePetition 2" << *inf << " in thread: " << MegaThread::currentThreadId() << " " << get_petition_details(inf);
-
 }
 
 int ComunicationsManagerFileSockets::informStateListener(CmdPetition *inf, string &s)

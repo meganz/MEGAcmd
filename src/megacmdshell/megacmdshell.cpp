@@ -475,9 +475,12 @@ void statechangehandle(string statestring)
         {
             doExit = true;
             doReboot = true;
-            comms->updating = true; // to avoid mensajes about server down
-            sleepSeconds(3); // Give a while for server to restart
-            changeprompt("RESTART REQUIRED BY SERVER (due to an update). Press any key to continue.", true);
+            if (!comms->updating)
+            {
+                comms->updating = true; // to avoid mensajes about server down
+                sleepSeconds(3); // Give a while for server to restart
+                changeprompt("RESTART REQUIRED BY SERVER (due to an update). Press any key to continue.", true);
+            }
         }
         else
         {
@@ -2270,7 +2273,10 @@ int main(int argc, char* argv[])
 
 #ifndef NO_READLINE
     clear_history();
-    rl_callback_handler_remove(); //To avoid having the terminal messed up (requiring a "reset")
+    if (!doReboot)
+    {
+        rl_callback_handler_remove(); //To avoid having the terminal messed up (requiring a "reset")
+    }
 #endif
     delete comms;
 
@@ -2306,6 +2312,7 @@ int main(int argc, char* argv[])
             sleepSeconds(5);
         }
 #else
+        system("reset -I");
         execv(argv[0], argv);
 #endif
 
