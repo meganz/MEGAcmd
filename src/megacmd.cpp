@@ -3390,15 +3390,17 @@ void* checkForUpdates(void *param)
     {
         LOG_verbose << "Calling recurrent checkForUpdates";
 
-        sleepSeconds(10); // TODO: do some initial random sleep ?
+        sleepSeconds(60); // TODO: do some initial random sleep ?
 
         while (!doExit)
         {
-            bool restartRequired = executeUpdater(&restartRequired);
+            bool restartRequired = false;
+            if (!executeUpdater(&restartRequired))
+            {
+                LOG_err << " Failed to execute updater";
+            }
             if (restartRequired && restartServer())
             {
-                OUTSTREAM << " " << endl;
-
                 int attempts=20; //give a while for ingoin petitions to end before killing the server
                 while(petitionThreads.size() && attempts--)
                 {
@@ -3411,7 +3413,7 @@ void* checkForUpdates(void *param)
                 break;
             }
 
-            sleepSeconds(300); // TODO: see MEGAsync implementation/ check time
+            sleepSeconds(7200);
         }
     }
     return NULL;
@@ -3518,8 +3520,10 @@ void megacmd()
                 {
                     os << "ENABLING AUTOUPDATE BY DEFAULT. You can disable it with \"update --auto=off\"" << endl;
                     ConfigurationManager::savePropertyValue("autoupdate", 1);
+                    autoupdate = 1;
                 }
-                else if (autoupdate == 1)
+
+                if (autoupdate == 1)
                 {
                     LOG_info << "Starting autoupdate check mechanism";
                     MegaThread *checkupdatesThread = new MegaThread();

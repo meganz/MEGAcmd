@@ -2332,8 +2332,11 @@ int MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
     {
         OUTSTREAM << "ENABLING AUTOUPDATE BY DEFAULT. You can disable it with \"update --auto=off\"" << endl;
         ConfigurationManager::savePropertyValue("autoupdate", 1);
+        autoupdate = 1;
     }
-    else if (autoupdate == 1) {
+
+    if (autoupdate == 1)
+    {
         LOG_info << "Starting autoupdate check mechanism";
 
         MegaThread *checkupdatesThread = new MegaThread();
