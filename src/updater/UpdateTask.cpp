@@ -244,7 +244,6 @@ int64_t mega_size(const char *path)
     return -1;
 }
 
-
 #define MEGA_SEPARATOR '/'
 #define mega_mkdir(x) mkdir(x, S_IRWXU)
 #define mega_access(x) access(x, F_OK)
@@ -350,7 +349,7 @@ UpdateTask::~UpdateTask()
     delete signatureChecker;
 }
 
-bool UpdateTask::checkForUpdates()
+bool UpdateTask::checkForUpdates(bool emergencyUpdater, bool doNotInstall)
 {
     LOG(LOG_LEVEL_INFO, "Starting update check");
 
@@ -369,7 +368,19 @@ bool UpdateTask::checkForUpdates()
 
     string appData = appDataFolder;
     string updateFile = appData.append(UPDATE_FILENAME);
-    if (downloadFile((char *)((string(UPDATE_CHECK_URL) + randomSec).c_str()), updateFile.c_str()))
+
+    string updateurl=emergencyUpdater?EMERGENCY_UPDATE_CHECK_URL:UPDATE_CHECK_URL;
+    updateurl.append(randomSec);
+
+    if (getenv("USE_UPDATE_TEST_FILE"))
+    {
+        if (updateurl.find("v.txt") != string::npos)
+        {
+            updateurl = updateurl.replace(updateurl.find("v.txt"),strlen("v.txt"),"vv.txt");
+        }
+    }
+
+    if (downloadFile((char *)(updateurl.c_str()), updateFile.c_str()))
     {
         FILE * pFile;
         pFile = mega_fopen(updateFile.c_str(), "r");
@@ -429,14 +440,21 @@ bool UpdateTask::checkForUpdates()
             currentFile++;
         }
 
-        //All files have been processed. Apply update
-        if (!performUpdate())
+        if (!doNotInstall)
         {
-            LOG(LOG_LEVEL_INFO, "Error applying update");
-            return false;
-        }
+            //All files have been processed. Apply update
+            if (!performUpdate())
+            {
+                LOG(LOG_LEVEL_INFO, "Error applying update");
+                return false;
+            }
 
-        finalCleanup();
+            finalCleanup();
+        }
+        else
+        {
+            LOG(LOG_LEVEL_INFO, "Do Not Install requested. Perform update skipped.");
+        }
         return true;
     }
     else
@@ -630,7 +648,7 @@ bool UpdateTask::performUpdate()
         string origFile = appFolder + localPaths[i];
         if (mega_rename(origFile.c_str(), file.c_str()) && errno != ENOENT)
         {
-            LOG(LOG_LEVEL_ERROR, "Error creating backup of file %s to %s",  origFile.c_str(), file.c_str());
+            LOG(LOG_LEVEL_ERROR, "Error creating backup of file %s to %s. errno=%d",  origFile.c_str(), file.c_str(), errno);
             rollbackUpdate(i);
             return false;
         }

@@ -651,10 +651,15 @@ bool ConfigurationManager::lockExecution()
         }
 
 #else
-        ofstream fo(lockfile.str().c_str());
-        if(!fo.fail()){
+        ifstream fi(thelockfile.c_str()); //TODO: test this in MAC
+        if(!fi.fail()){
             return false;
         }
+        if (fi.is_open())
+        {
+            fi.close();
+        }
+        ofstream fo(thelockfile.c_str());
         if (fo.is_open())
         {
             fo.close();

@@ -350,6 +350,16 @@ void changeprompt(const char *newprompt)
     cm->informStateListeners(s);
 }
 
+void broadcastMessage(string message)
+{
+    string s;
+    if (message.size())
+    {
+        s += "message:";
+        s+=message;
+    }
+    cm->informStateListeners(s);
+}
 
 void informTransferUpdate(MegaTransfer *transfer, int clientID)
 {
@@ -2859,11 +2869,8 @@ void executecommand(char* ptr)
     cmdexecuter->executecommand(words, &clflags, &cloptions);
 }
 
-bool executeUpdater(bool *restartRequired)
+bool executeUpdater(bool *restartRequired, bool doNotInstall = false)
 {
-    //TODO: make updater in --download mode only that returns if update proceeds
-    // and have the thread check first
-
     LOG_debug << "Executing updater..." ;
 #ifdef _WIN32
 
@@ -2899,10 +2906,13 @@ bool executeUpdater(bool *restartRequired)
     PROCESS_INFORMATION pi;
     ZeroMemory( &si, sizeof(si) );
     ZeroMemory( &pi, sizeof(pi) );
-    LPWSTR szPath2 = (LPWSTR) szPath;
+
     si.cb = sizeof(si);
     si.dwFlags = STARTF_USESHOWWINDOW;
-    if (!CreateProcess( szPath,szPath2,NULL,NULL,TRUE,
+    TCHAR szPathUpdaterCL[MAX_PATH+30];
+    wsprintfW(szPathUpdaterCL,L"%ls --normal-update --do-not-install", szPath);
+    LOG_info << "Executing: " << wstring(szPathUpdaterCL);
+    if (!CreateProcess( szPath,(LPWSTR) szPathUpdaterCL,NULL,NULL,TRUE,
                         0,
                         NULL,NULL,
                         &si,&pi) )
@@ -2930,19 +2940,27 @@ bool executeUpdater(bool *restartRequired)
 
     if ( pidupdater == 0 )
     {
+        char * donotinstallstr = NULL;
+        if (doNotInstall)
+        {
+            donotinstallstr = "--do-not-install";
+        }
+
 #ifdef __MACH__
 #ifndef NDEBUG
-        char * args[] = {"../../../../MEGAcmdUpdater/MEGAcmdUpdater.app/Contents/MacOS/MEGAcmdUpdater", NULL};
+        char * args[] = {"../../../../MEGAcmdUpdater/MEGAcmdUpdater.app/Contents/MacOS/MEGAcmdUpdater", "--normal-update", donotinstallstr, NULL};
 #else
-        char * args[] = {"/Applications/MEGAcmd.app/Contents/MacOS/MEGAcmdUpdater", NULL};
+        char * args[] = {"/Applications/MEGAcmd.app/Contents/MacOS/MEGAcmdUpdater", "--normal-update", donotinstallstr, NULL};
 #endif
 #else
 #ifndef NDEBUG
-        char * args[] = {"../MEGAcmdUpdater/MEGAcmdUpdater", NULL}; // TODO: what if lcd?
+        char * args[] = {"../MEGAcmdUpdater/MEGAcmdUpdater", "--normal-update", donotinstallstr, NULL}; // TODO: what if lcd?
 #else
-        char * args[] = {"MEGAcmdUpdater", NULL}; //TODO: mega-cmd-updater? or remove all this code directly
+        char * args[] = {"MEGAcmdUpdater", "--normal-update", donotinstallstr, NULL}; //TODO: mega-cmd-updater? or remove all this code directly
 #endif
 #endif
+
+        LOG_verbose << "Exec updater line: " << args[0] << " " << args[1] << " " << args[2];
 
         if (execvp(args[0], args) < 0)
         {
@@ -3386,35 +3404,54 @@ void* checkForUpdates(void *param)
         return NULL;
     }
 
-    while(!doExit)
+    LOG_debug << "Initiating recurrent checkForUpdates";
+
+    sleepSeconds(60);
+
+    while (!doExit)
     {
-        LOG_verbose << "Calling recurrent checkForUpdates";
-
-        sleepSeconds(60); // TODO: do some initial random sleep ?
-
-        while (!doExit)
+        bool restartRequired = false;
+        if (!executeUpdater(&restartRequired, true)) //only download & check
         {
-            bool restartRequired = false;
-            if (!executeUpdater(&restartRequired))
-            {
-                LOG_err << " Failed to execute updater";
-            }
-            if (restartRequired && restartServer())
-            {
-                int attempts=20; //give a while for ingoin petitions to end before killing the server
-                while(petitionThreads.size() && attempts--)
-                {
-                    sleepSeconds(20-attempts);
-                }
-                //TODO: actually we should download the update, but never apply untill petitionThread.size is 0 in this case!!!!!!!
-
-                doExit = true;
-                cm->stopWaiting();
-                break;
-            }
-
-            sleepSeconds(7200);
+            LOG_err << " Failed to execute updater";
         }
+        else if (restartRequired)
+        {
+            LOG_info << " There is a pending update. Will be applied in a few seconds";
+
+            broadcastMessage("A new update has been downloaded. It will be performed in 60 seconds");
+            sleepSeconds(57);
+            broadcastMessage("  Executing update in 3");
+            sleepSeconds(1);
+            broadcastMessage("     ................ 2");
+            sleepSeconds(1);
+            broadcastMessage("     ................ 1");
+            sleepSeconds(1);
+
+            //TODO: mark to stop listening to petitions?
+            while(petitionThreads.size())
+            {
+                sleepSeconds(2);
+            }
+
+            broadcastMessage("  Executing update    !");
+            executeUpdater(&restartRequired);
+        }
+
+        if (restartRequired && restartServer())
+        {
+            int attempts=20; //give a while for ingoin petitions to end before killing the server
+            while(petitionThreads.size() && attempts--)
+            {
+                sleepSeconds(20-attempts);
+            }
+
+            doExit = true;
+            cm->stopWaiting();
+            break;
+        }
+
+        sleepSeconds(7200);
     }
     return NULL;
 }

@@ -7,9 +7,12 @@ const char CLIENT_KEY[] = "FhMgXbqb";
 const char USER_AGENT[] = "MEGA/MEGAUpdaterTask";
 
 #ifdef _WIN32
-const char UPDATE_CHECK_URL[]  = "http://g.static.mega.co.nz/eupd/wcmd/v.txt";
+const char UPDATE_CHECK_URL[]  = "http://g.static.mega.co.nz/upd/wcmd/v.txt";
+const char EMERGENCY_UPDATE_CHECK_URL[]  = "http://g.static.mega.co.nz/eupd/wcmd/v.txt";
 #else
-const char UPDATE_CHECK_URL[]  = "http://g.static.mega.co.nz/eupd/mcmd/v.txt";
+const char UPDATE_CHECK_URL[]  = "http://g.static.mega.co.nz/upd/mcmd/v.txt";
+const char EMERGENCY_UPDATE_CHECK_URL[]  = "http://g.static.mega.co.nz/eupd/mcmd/v.txt";
+
 const char APP_DIR_BUNDLE[] = "/Applications/MEGAcmd.app/";
 #endif
 
