@@ -2337,10 +2337,7 @@ int MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
 
     if (autoupdate == 1)
     {
-        LOG_info << "Starting autoupdate check mechanism";
-
-        MegaThread *checkupdatesThread = new MegaThread();
-        checkupdatesThread->start(checkForUpdates,NULL);
+        startcheckingForUpdates();
     }
 
 #endif
@@ -4700,6 +4697,31 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
         }
     }
+#ifndef __linux__
+    else if (words[0] == "update")
+    {
+        string sauto = getOption(cloptions, "auto", "");
+        transform(sauto.begin(), sauto.end(), sauto.begin(), ::tolower);
+
+        if (sauto == "off")
+        {
+            stopcheckingForUpdates();
+            OUTSTREAM << "Automatic updates disabled" << endl;
+        }
+        else if (sauto == "on")
+        {
+            startcheckingForUpdates();
+            OUTSTREAM << "Automatic updates enabled" << endl;
+        }
+        else
+        {
+            setCurrentOutCode(MCMD_EARGS);
+            LOG_err << "      " << getUsageStr("update");
+        }
+
+        return;
+    }
+#endif
     else if (words[0] == "cd")
     {
         if (!api->isFilesystemAvailable())

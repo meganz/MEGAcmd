@@ -243,6 +243,7 @@ string newpasswd;
 
 bool doExit = false;
 bool consoleFailed = false;
+bool stopcheckingforUpdaters = false;
 
 string dynamicprompt = "MEGA CMD> ";
 
@@ -293,6 +294,7 @@ void sigint_handler(int signum)
 
     LOG_debug << "Exiting due to SIGINT";
 
+    stopcheckingforUpdaters = true;
     doExit = true;
 }
 
@@ -673,7 +675,12 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     {
         validParams->insert("only-shell");
     }
-
+#ifndef __linux__
+    else if ("update" == thecommand)
+    {
+        validOptValues->insert("auto");
+    }
+#endif
 }
 
 void escapeEspace(string &orig)
@@ -1740,6 +1747,12 @@ const char * getUsageStr(const char *command)
         return "codepage [N [M]]";
     }
 #endif
+#ifndef __linux__
+    if (!strcmp(command, "update"))
+    {
+        return "update [--auto=on|off]";
+    }
+#endif
     return "command not found: ";
 }
 
@@ -1897,6 +1910,12 @@ string getHelpStr(const char *command)
     else if (!strcmp(command, "update"))
     {
         os << "Updates MEGAcmd" << endl;
+        os << endl;
+        os << "Looks for updates and applies if available." << endl;
+        os << "This command can also be used to enable/disable automatic updates." << endl;
+
+        os << "Options:" << endl;
+        os << " --auto=ON|OFF" << "\t" << "Enables/disables auto updates." << endl;
     }
 #endif
     else if (!strcmp(command, "cd"))
@@ -2733,7 +2752,6 @@ void executecommand(char* ptr)
         return;
     }
 
-
     if ( thecommand == "help" )
     {
         if (getFlag(&clflags,"upgrade"))
@@ -2910,8 +2928,15 @@ bool executeUpdater(bool *restartRequired, bool doNotInstall = false)
     si.cb = sizeof(si);
     si.dwFlags = STARTF_USESHOWWINDOW;
     TCHAR szPathUpdaterCL[MAX_PATH+30];
-    wsprintfW(szPathUpdaterCL,L"%ls --normal-update --do-not-install", szPath);
-    LOG_info << "Executing: " << wstring(szPathUpdaterCL);
+    if (doNotInstall)
+    {
+        wsprintfW(szPathUpdaterCL,L"%ls --normal-update --do-not-install", szPath);
+    }
+    else
+    {
+        wsprintfW(szPathUpdaterCL,L"%ls --normal-update", szPath);
+    }
+    LOG_verbose << "Executing: " << wstring(szPathUpdaterCL);
     if (!CreateProcess( szPath,(LPWSTR) szPathUpdaterCL,NULL,NULL,TRUE,
                         0,
                         NULL,NULL,
@@ -3021,13 +3046,15 @@ bool restartServer()
 
         LOG_debug << "Restarting the server : <" << wstring(szPathServerCommand) << ">";
 
+        STARTUPINFO si;
+        PROCESS_INFORMATION pi;
         ZeroMemory( &si, sizeof(si) );
         ZeroMemory( &pi, sizeof(pi) );
         si.cb = sizeof(si);
         si.dwFlags = STARTF_USESHOWWINDOW;
         TCHAR szPathServerCL[MAX_PATH+30];
         wsprintfW(szPathServerCL,L"%ls --wait-for %d", szPathServerCommand, GetCurrentProcessId());
-        LOG_info << "Executing: " << wstring(szPathServerCL);
+        LOG_verbose  << "Executing: " << wstring(szPathServerCL);
         if (!CreateProcess( szPathServer,(LPWSTR) szPathServerCL,NULL,NULL,TRUE,
                             0,
                             NULL,NULL,
@@ -3191,6 +3218,7 @@ static bool process_line(char* l)
 
                 if (!executeUpdater(&restartRequired))
                 {
+                    setCurrentOutCode(MCMD_INVALIDSTATE); // so as not to indicate already updated
                     return false; //Failed to execute
                 }
 
@@ -3203,11 +3231,11 @@ static bool process_line(char* l)
                     {
                         sleepSeconds(20-attempts);
                     }
-
                     return true;
                 }
                 else
                 {
+                    OUTSTREAM << "Update is not required. You are in the last version. Further info: \"version --help\", \"update --help\"" << endl;
                     return false;
                 }
             }
@@ -3247,6 +3275,7 @@ void * doProcessLine(void *pointer)
 
     if (doExit)
     {
+        stopcheckingforUpdaters = true;
         LOG_verbose << " Exit registered upon process_line: " ;
     }
 
@@ -3392,6 +3421,23 @@ void * retryConnections(void *pointer)
     return NULL;
 }
 
+
+void startcheckingForUpdates()
+{
+    ConfigurationManager::savePropertyValue("autoupdate", 1);
+
+    LOG_info << "Starting autoupdate check mechanism";
+    MegaThread *checkupdatesThread = new MegaThread(); //TODO: memleak
+    checkupdatesThread->start(checkForUpdates,NULL);
+}
+
+void stopcheckingForUpdates()
+{
+    ConfigurationManager::savePropertyValue("autoupdate", 0);
+
+    stopcheckingforUpdaters = true;
+}
+
 void* checkForUpdates(void *param)
 {
     static bool already = false;
@@ -3404,11 +3450,17 @@ void* checkForUpdates(void *param)
         return NULL;
     }
 
+    stopcheckingforUpdaters = false;
     LOG_debug << "Initiating recurrent checkForUpdates";
 
-    sleepSeconds(60);
+    int secstosleep = 60;
+    while (secstosleep>0 && !stopcheckingforUpdaters)
+    {
+        sleepSeconds(2);
+        secstosleep-=2;
+    }
 
-    while (!doExit)
+    while (!doExit && !stopcheckingforUpdaters)
     {
         bool restartRequired = false;
         if (!executeUpdater(&restartRequired, true)) //only download & check
@@ -3420,30 +3472,49 @@ void* checkForUpdates(void *param)
             LOG_info << " There is a pending update. Will be applied in a few seconds";
 
             broadcastMessage("A new update has been downloaded. It will be performed in 60 seconds");
-            sleepSeconds(57);
-            broadcastMessage("  Executing update in 3");
-            sleepSeconds(1);
-            broadcastMessage("     ................ 2");
-            sleepSeconds(1);
-            broadcastMessage("     ................ 1");
-            sleepSeconds(1);
-
-            //TODO: mark to stop listening to petitions?
-            while(petitionThreads.size())
+            int secstosleep = 57;
+            while (secstosleep>0 && !stopcheckingforUpdaters)
             {
                 sleepSeconds(2);
+                secstosleep-=2;
+            }
+            if (stopcheckingforUpdaters) break;
+            broadcastMessage("  Executing update in 3");
+            sleepSeconds(1);
+            if (stopcheckingforUpdaters) break;
+            broadcastMessage("  Executing update in 2");
+            sleepSeconds(1);
+            if (stopcheckingforUpdaters) break;
+            broadcastMessage("  Executing update in 1");
+            sleepSeconds(1);
+            if (stopcheckingforUpdaters) break;
+
+            //TODO: mark to stop listening to petitions?
+            while(petitionThreads.size() && !stopcheckingforUpdaters)
+            {
+                LOG_fatal << " waiting for petitions to end to initiate upload " << petitionThreads.size() << petitionThreads.at(0);
+                sleepSeconds(2);
+                delete_finished_threads();
             }
 
+            if (stopcheckingforUpdaters) break;
             broadcastMessage("  Executing update    !");
+            LOG_info << " Applying update";
             executeUpdater(&restartRequired);
         }
+        else
+        {
+            LOG_verbose << " There is no pending update";
+        }
 
+        if (stopcheckingforUpdaters) break;
         if (restartRequired && restartServer())
         {
             int attempts=20; //give a while for ingoin petitions to end before killing the server
             while(petitionThreads.size() && attempts--)
             {
                 sleepSeconds(20-attempts);
+                delete_finished_threads();
             }
 
             doExit = true;
@@ -3451,7 +3522,12 @@ void* checkForUpdates(void *param)
             break;
         }
 
-        sleepSeconds(7200);
+        int secstosleep = 7200;
+        while (secstosleep>0 && !stopcheckingforUpdaters)
+        {
+            sleepSeconds(2);
+            secstosleep-=2;
+        }
     }
     return NULL;
 }
@@ -3556,15 +3632,12 @@ void megacmd()
                 if (autoupdate == -1)
                 {
                     os << "ENABLING AUTOUPDATE BY DEFAULT. You can disable it with \"update --auto=off\"" << endl;
-                    ConfigurationManager::savePropertyValue("autoupdate", 1);
                     autoupdate = 1;
                 }
 
                 if (autoupdate == 1)
                 {
-                    LOG_info << "Starting autoupdate check mechanism";
-                    MegaThread *checkupdatesThread = new MegaThread();
-                    checkupdatesThread->start(checkForUpdates,NULL);
+                    startcheckingForUpdates();
                 }
                 message=os.str();
 
@@ -3626,10 +3699,11 @@ void megacmd()
 
                 //append new one
                 MegaThread * petitionThread = new MegaThread();
+
                 petitionThreads.push_back(petitionThread);
                 inf->setPetitionThread(petitionThread);
 
-                LOG_verbose << "starting processing: <" << *inf << ">";
+                LOG_fatal << "starting processing: <" << *inf << ">";
 
                 petitionThread->start(doProcessLine, (void*)inf);
             }
@@ -4094,3 +4168,4 @@ int main(int argc, char* argv[])
     megacmd();
     finalize();
 }
+

@@ -499,7 +499,7 @@ bool UpdateTask::downloadFile(string url, string dstPath)
         fclose(pFileEmpty);
     }
 
-#el#ifdef __MACH__
+#elif defined(__MACH__)
     bool success = downloadFileSynchronously(url, dstPath);
     if (!success)
     {

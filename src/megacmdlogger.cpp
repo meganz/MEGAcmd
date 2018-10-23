@@ -161,10 +161,10 @@ void setCurrentPetition(CmdPetition *petition)
 
 void MegaCMDLogger::log(const char *time, int loglevel, const char *source, const char *message)
 {
-    if ( (strstr(source, "src/megacmd") != NULL)
-         || (strstr(source, "src/listeners.cpp") != NULL)
-         || (strstr(source, "src/configurationmanager.cpp") != NULL)
-         || (strstr(source, "src/comunicationsmanager") != NULL)
+    if ( (string(source).find("megacmd") != string::npos)
+         || (string(source).find("listeners.cpp") != string::npos)
+         || (string(source).find("configurationmanager.cpp") != string::npos)
+         || (string(source).find("comunicationsmanager") != string::npos)
          )
     {
         if (loglevel <= cmdLoggerLevel)

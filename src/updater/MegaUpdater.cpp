@@ -1,10 +1,13 @@
 #ifdef _WIN32
 #include <Windows.h>
+#include <lzexpand.h>
+#include <shlwapi.h>
 #else
 #include <sys/types.h>
 #include <pwd.h>
 #include <sys/file.h> //flock
 #include <errno.h>
+#include <unistd.h>
 #endif
 
 #include <iostream>
@@ -12,13 +15,13 @@
 #include <fstream>
 
 #include <time.h>
-#include <unistd.h>
 
 #include "UpdateTask.h"
 #include "Preferences.h"
 
 using namespace std;
 
+namespace megacmdupdater {
 bool extractarg(vector<const char*>& args, const char *what)
 {
     for (int i = int(args.size()); i--; )
@@ -36,6 +39,53 @@ bool extractarg(vector<const char*>& args, const char *what)
     static int fdMcmdUpdaterLockFile;
 #endif
 
+
+#ifdef _WIN32
+void utf8ToUtf16(const char* utf8data, string* utf16string)
+{
+    if(!utf8data)
+    {
+        utf16string->clear();
+        utf16string->append("", 1);
+        return;
+    }
+
+    int size = strlen(utf8data) + 1;
+
+    // make space for the worst case
+    utf16string->resize(size * sizeof(wchar_t));
+
+    // resize to actual result
+    utf16string->resize(sizeof(wchar_t) * MultiByteToWideChar(CP_UTF8, 0, utf8data, size, (wchar_t*)utf16string->data(),
+                                                              utf16string->size() / sizeof(wchar_t) + 1));
+    if (utf16string->size())
+    {
+        utf16string->resize(utf16string->size() - 1);
+    }
+    else
+    {
+        utf16string->append("", 1);
+    }
+}
+// convert Windows Unicode to UTF-8
+void utf16ToUtf8(const wchar_t* utf16data, int utf16size, string* utf8string)
+{
+    if(!utf16size)
+    {
+        utf8string->clear();
+        return;
+    }
+
+    utf8string->resize((utf16size + 1) * 4);
+
+    utf8string->resize(WideCharToMultiByte(CP_UTF8, 0, utf16data,
+        utf16size,
+        (char*)utf8string->data(),
+        utf8string->size() + 1,
+        NULL, NULL));
+}
+#endif
+
 string getLockFile()
 {
     string configFolder;
@@ -44,6 +94,13 @@ string getLockFile()
     if (!SUCCEEDED(GetModuleFileName(NULL, szPath , MAX_PATH)))
     {
         cerr << "Couldnt get EXECUTABLE folder" << endl;
+    }
+    else
+    {
+        if (SUCCEEDED(PathRemoveFileSpec(szPath)))
+        {
+            utf16ToUtf8(szPath, lstrlen(szPath), &configFolder);
+        }
     }
 #else
     const char *homedir = NULL;
@@ -86,7 +143,7 @@ bool lockExecution()
 
     #ifdef _WIN32
         string wlockfile;
-        MegaApi::utf8ToUtf16(thelockfile.c_str(),&wlockfile);
+        utf8ToUtf16(thelockfile.c_str(),&wlockfile);
         OFSTRUCT offstruct;
         if (LZOpenFileW((LPWSTR)wlockfile.data(), &offstruct, OF_CREATE | OF_READWRITE |OF_SHARE_EXCLUSIVE ) == HFILE_ERROR)
         {
@@ -151,6 +208,10 @@ void unlockExecution()
 }
 
 
+
+}
+
+using namespace megacmdupdater;
 int main(int argc, char **argv)
 {
     vector<const char*> args(argv + 1, argv + argc);

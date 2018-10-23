@@ -34,6 +34,8 @@ macx {
 }
 
 win32 {
+    LIBS += -llz32
+
     contains(CONFIG, BUILDX64) {
        release {
             LIBS += -L"$$MEGASDK_BASE_PATH/bindings/qt/3rdparty/libs/x64"

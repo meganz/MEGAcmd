@@ -1504,8 +1504,6 @@ void process_line(const char * line)
 #ifndef __linux__
                 else if (words[0] == "update")
                 {
-                    OUTSTREAM << "Updating ..." << endl;
-
                     MegaCmdShellCommunications::updating = true;
                     int ret = comms->executeCommand(line, readresponse);
                     if (ret == MCMD_REQRESTART)
@@ -1514,10 +1512,10 @@ void process_line(const char * line)
                         doExit = true;
                         doReboot = true;
                     }
-                    else if (ret != MCMD_INVALIDSTATE)
+                    else if (ret != MCMD_INVALIDSTATE && words.size() == 1)
                     {
                         MegaCmdShellCommunications::updating = false;
-                        OUTSTREAM << "Update is not required. You are in the last version. Further info: \"version --help\"" << endl;
+//                        OUTSTREAM << "Update is not required. You are in the last version. Further info: \"version --help\"" << endl;
                     }
                 }
 #endif
@@ -2282,7 +2280,7 @@ int main(int argc, char* argv[])
 
     if (doReboot)
     {
-#ifdef __WIN32
+#ifdef _WIN32
         sleepSeconds(5); // Give a while for server to restart
         LPWSTR szPathExecQuoted = GetCommandLineW();
         wstring wspathexec = wstring(szPathExecQuoted);
