@@ -3529,6 +3529,8 @@ void* checkForUpdates(void *param)
             secstosleep-=2;
         }
     }
+
+    already = false;
     return NULL;
 }
 

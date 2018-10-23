@@ -2190,6 +2190,9 @@ std::string readresponse(const char* question)
     response = readline(question);
     rl_set_prompt("");
     rl_replace_line("", 0);
+
+    rl_callback_handler_remove(); //To fix broken readline (e.g: upper key wouldnt work)
+
     return response;
 }
 #else
