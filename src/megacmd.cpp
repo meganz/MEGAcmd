@@ -3204,8 +3204,8 @@ static bool process_line(char* l)
 #ifndef __linux__
             else if (!strcmp(l, "update") || !strcmp(l, "update "))
             {
-                string confirmationQuery("This might require restarting MEGAcmd. Are you sure you want to update");
-                confirmationQuery+=" ? (Yes/No): ";
+                string confirmationQuery("This might require restarting MEGAcmd. Are you sure to continue");
+                confirmationQuery+="? (Yes/No): ";
 
                 int confirmationResponse = askforConfirmation(confirmationQuery);
 
@@ -3703,7 +3703,7 @@ void megacmd()
                 petitionThreads.push_back(petitionThread);
                 inf->setPetitionThread(petitionThread);
 
-                LOG_fatal << "starting processing: <" << *inf << ">";
+                LOG_verbose << "starting processing: <" << *inf << ">";
 
                 petitionThread->start(doProcessLine, (void*)inf);
             }
@@ -3882,7 +3882,9 @@ string getLocaleCode()
      }
      catch (const std::exception& e)
      {
+#ifndef __MACH__
         std::cerr << "Warning: unable to get locale " << std::endl;
+#endif
      }
 
 #endif
