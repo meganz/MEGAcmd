@@ -39,6 +39,10 @@
 #include "signal.h"
 #include <sys/wait.h>
 #else
+#include <taskschd.h>
+#include <comutil.h>
+#include <comdef.h>
+#include <sddl.h>
 #include <fcntl.h>
 #include <io.h>
 #define strdup _strdup  // avoid warning
@@ -3963,6 +3967,30 @@ bool is_pid_running(pid_t pid) {
 }
 #endif
 
+#ifdef _WIN32
+LPTSTR getCurrentSid()
+{
+    HANDLE hTok = NULL;
+    LPBYTE buf = NULL;
+    DWORD  dwSize = 0;
+    LPTSTR stringSID = NULL;
+    if (OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &hTok))
+    {
+        GetTokenInformation(hTok, TokenUser, NULL, 0, &dwSize);
+        if (dwSize)
+        {
+            buf = (LPBYTE)LocalAlloc(LPTR, dwSize);
+            if (GetTokenInformation(hTok, TokenUser, buf, dwSize, &dwSize))
+            {
+                ConvertSidToStringSid(((PTOKEN_USER)buf)->User.Sid, &stringSID);
+            }
+            LocalFree(buf);
+        }
+        CloseHandle(hTok);
+    }
+    return stringSID;
+}
+#endif
 
 bool registerUpdater()
 {
@@ -4027,6 +4055,8 @@ bool registerUpdater()
         LOG_err << "Couldnt remove file spec: " << wstring(MEGAcmdUpdaterPath);
         return false;
     }
+
+    CoInitializeEx(NULL, COINIT_MULTITHREADED);
 
     if (SUCCEEDED(CoInitializeSecurity(NULL, -1, NULL, NULL, RPC_C_AUTHN_LEVEL_PKT_PRIVACY, RPC_C_IMP_LEVEL_IMPERSONATE, NULL, 0, NULL))
             && SUCCEEDED(CoCreateInstance(CLSID_TaskScheduler, NULL, CLSCTX_INPROC_SERVER, IID_ITaskService, (void**)&pService))
@@ -4364,7 +4394,7 @@ int main(int argc, char* argv[])
 
 
 #ifndef __linux__
-    if (ConfigurationManager::getConfigurationValue("updaterregistered", false))
+    if (!ConfigurationManager::getConfigurationValue("updaterregistered", false))
     {
         LOG_debug << "Registering automatic updater";
         if (registerUpdater())

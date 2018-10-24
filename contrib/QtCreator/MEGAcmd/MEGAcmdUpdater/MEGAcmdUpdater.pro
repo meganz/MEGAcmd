@@ -12,7 +12,9 @@ CONFIG(release, debug|release) {
 
 TARGET = MEGAcmdUpdater
 TEMPLATE = app
+!win32 {
 CONFIG += console
+}
 
 HEADERS += ../../../../src/updater/UpdateTask.h \
     ../../../../src/updater/Preferences.h \
@@ -34,7 +36,7 @@ macx {
 }
 
 win32 {
-    LIBS += -llz32
+    LIBS += -llz32 -luser32
 
     contains(CONFIG, BUILDX64) {
        release {

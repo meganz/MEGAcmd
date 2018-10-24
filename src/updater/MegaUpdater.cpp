@@ -210,13 +210,43 @@ void unlockExecution()
 }//end of namespace
 
 using namespace megacmdupdater;
-int main(int argc, char **argv)
+
+#ifdef _WIN32
+#include <stdio.h>
+#include <io.h>
+#include <fcntl.h>
+#include <windows.h>
+#include <locale>
+#include <codecvt>
+
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR szCmdLine,int iCmdShow)
+{
+    int argc;
+    LPWSTR *argv = CommandLineToArgvW(GetCommandLineW(),&argc);
+    vector<const char*> args;
+    for (int i = 0; i < argc; i++)
+    {
+        std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> convert;
+        args.push_back(convert.to_bytes(argv[i]).c_str());
+    }
+
+#else
+int main(int argc, char *argv[])
 {
     vector<const char*> args(argv + 1, argv + argc);
+#endif
 
     bool doNotInstall = extractarg(args, "--do-not-install");
     bool emergencyupdate = extractarg(args, "--emergency-update");
     bool skiplockcheck = extractarg(args, "--skip-lock-check");
+
+#ifdef _WIN32
+    if(!emergencyupdate)
+    {
+        AllocConsole();
+        freopen("CONOUT$", "w+", stdout);
+    }
+#endif
 
     if (!lockExecution() && !skiplockcheck)
     {
