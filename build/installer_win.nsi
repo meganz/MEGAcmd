@@ -784,13 +784,22 @@ ${EndIf}
 !insertmacro MUI_UNGETLANGUAGE
 FunctionEnd
 
+Function un.UninstallCmd
+  ExecDos::exec "$INSTDIR\MEGAcmdServer.exe --uninstall"
+FunctionEnd
+
+
 Section Uninstall
   ExecDos::exec /DETAILED "taskkill /f /IM MEGAcmdShell.exe"
   ExecDos::exec /DETAILED "taskkill /f /IM MEGAclient.exe"
   ExecDos::exec /DETAILED "taskkill /f /IM MEGAcmd.exe"
   ExecDos::exec /DETAILED "taskkill /f /IM MEGAcmdServer.exe"
   ExecDos::exec /DETAILED "taskkill /f /IM MEGAcmdUpdater.exe"
+  Sleep 1000
+  ${UAC.CallFunctionAsUser} un.UninstallCmd
+  Sleep 1000
 
+  
   !insertmacro MUI_STARTMENU_GETFOLDER "Application" $ICONS_GROUP
   Delete "$INSTDIR\${PRODUCT_NAME}.url"
   Delete "$INSTDIR\${UNINSTALLER_NAME}"

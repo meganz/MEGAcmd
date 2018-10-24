@@ -4286,8 +4286,8 @@ int main(int argc, char* argv[])
 
 
 #ifdef _WIN32
-    bool uninstall = extractarg(args, "--uninstall") || extractarg(args, "/uninstall") || ;
-    if (uninstall)
+    bool buninstall = extractarg(args, "--uninstall") || extractarg(args, "/uninstall");
+    if (buninstall)
     {
         MegaApi::removeRecursively(ConfigurationManager::getConfigFolder().c_str());
         uninstall();
