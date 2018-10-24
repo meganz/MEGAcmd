@@ -4402,6 +4402,10 @@ int main(int argc, char* argv[])
             ConfigurationManager::savePropertyValue("updaterregistered", true);
             LOG_verbose << "Registered automatic updater";
         }
+        else
+        {
+            LOG_err << "Failed to register automatic updater";
+        }
     }
 #endif
 
