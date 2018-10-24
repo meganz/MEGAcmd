@@ -4197,6 +4197,51 @@ bool registerUpdater()
 #endif
 }
 
+#ifdef _WIN32
+void uninstall()
+{
+    ITaskService *pService = NULL;
+    ITaskFolder *pRootFolder = NULL;
+    ITaskFolder *pMEGAFolder = NULL;
+    _bstr_t taskBaseName = L"MEGAcmd Update Task ";
+    LPTSTR stringSID = NULL;
+
+    stringSID = getCurrentSid();
+    if (!stringSID)
+    {
+        MegaApi::log(MegaApi::LOG_LEVEL_ERROR, "Unable to get the current SID");
+        return;
+    }
+    _bstr_t taskName = taskBaseName + stringSID;
+
+    CoInitializeEx(NULL, COINIT_MULTITHREADED);
+
+    if (SUCCEEDED(CoInitializeSecurity(NULL, -1, NULL, NULL, RPC_C_AUTHN_LEVEL_PKT_PRIVACY, RPC_C_IMP_LEVEL_IMPERSONATE, NULL, 0, NULL))
+            && SUCCEEDED(CoCreateInstance(CLSID_TaskScheduler, NULL, CLSCTX_INPROC_SERVER, IID_ITaskService, (void**)&pService))
+            && SUCCEEDED(pService->Connect(_variant_t(), _variant_t(), _variant_t(), _variant_t()))
+            && SUCCEEDED(pService->GetFolder(_bstr_t( L"\\"), &pRootFolder)))
+    {
+        if (pRootFolder->CreateFolder(_bstr_t(L"MEGA"), _variant_t(L""), &pMEGAFolder) == 0x800700b7)
+        {
+            pRootFolder->GetFolder(_bstr_t(L"MEGA"), &pMEGAFolder);
+        }
+
+        if (pMEGAFolder)
+        {
+            pMEGAFolder->DeleteTask(taskName, 0);
+            pMEGAFolder->Release();
+        }
+        pRootFolder->Release();
+    }
+
+    if (pService)
+    {
+        pService->Release();
+    }
+}
+
+#endif
+
 
 
 int main(int argc, char* argv[])
@@ -4239,6 +4284,16 @@ int main(int argc, char* argv[])
     bool setapiurl = extractargparam(args, "--apiurl", debug_api_url);  // only for debugging
     bool disablepkp = extractarg(args, "--disablepkp");  // only for debugging
 
+
+#ifdef _WIN32
+    bool uninstall = extractarg(args, "--uninstall") || extractarg(args, "/uninstall") || ;
+    if (uninstall)
+    {
+        MegaApi::removeRecursively(ConfigurationManager::getConfigFolder().c_str());
+        uninstall();
+        exit(0);
+    }
+#endif
     string shandletowait;
     bool dowaitforhandle = extractargparam(args, "--wait-for", shandletowait);
     if (dowaitforhandle)

@@ -60,6 +60,10 @@ map<std::string, backup_struct *> ConfigurationManager::configuredBackups;
 
 std::string ConfigurationManager::getConfigFolder()
 {
+    if (!configFolder.size())
+    {
+        ConfigurationManager::loadConfigDir();
+    }
     return configFolder;
 }
 
