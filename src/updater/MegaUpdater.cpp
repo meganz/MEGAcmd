@@ -207,9 +207,7 @@ void unlockExecution()
     }
 }
 
-
-
-}
+}//end of namespace
 
 using namespace megacmdupdater;
 int main(int argc, char **argv)
@@ -217,7 +215,7 @@ int main(int argc, char **argv)
     vector<const char*> args(argv + 1, argv + argc);
 
     bool doNotInstall = extractarg(args, "--do-not-install");
-    bool emergencyupdate = extractarg(args, "--normal-update");
+    bool emergencyupdate = extractarg(args, "--emergency-update");
     bool skiplockcheck = extractarg(args, "--skip-lock-check");
 
     if (!lockExecution() && !skiplockcheck)
@@ -231,7 +229,7 @@ int main(int argc, char **argv)
     srand(currentTime);
 
     UpdateTask updater;
-    bool updated = updater.checkForUpdates(!emergencyupdate, doNotInstall);
+    bool updated = updater.checkForUpdates(emergencyupdate, doNotInstall);
 
     currentTime = time(NULL);
     cout << "Process finished at " << ctime(&currentTime) << endl;

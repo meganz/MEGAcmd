@@ -651,7 +651,7 @@ bool ConfigurationManager::lockExecution()
         }
 
 #else
-        ifstream fi(thelockfile.c_str()); //TODO: test this in MAC
+        ifstream fi(thelockfile.c_str());
         if(!fi.fail()){
             return false;
         }

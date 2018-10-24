@@ -3964,6 +3964,211 @@ bool is_pid_running(pid_t pid) {
 #endif
 
 
+bool registerUpdater()
+{
+#ifdef _WIN32
+    ITaskService *pService = NULL;
+    ITaskFolder *pRootFolder = NULL;
+    ITaskFolder *pMEGAFolder = NULL;
+    ITaskDefinition *pTask = NULL;
+    IRegistrationInfo *pRegInfo = NULL;
+    IPrincipal *pPrincipal = NULL;
+    ITaskSettings *pSettings = NULL;
+    IIdleSettings *pIdleSettings = NULL;
+    ITriggerCollection *pTriggerCollection = NULL;
+    ITrigger *pTrigger = NULL;
+    IDailyTrigger *pCalendarTrigger = NULL;
+    IRepetitionPattern *pRepetitionPattern = NULL;
+    IActionCollection *pActionCollection = NULL;
+    IAction *pAction = NULL;
+    IExecAction *pExecAction = NULL;
+    IRegisteredTask *pRegisteredTask = NULL;
+    time_t currentTime;
+    struct tm* currentTimeInfo;
+    WCHAR currentTimeString[128];
+    _bstr_t taskBaseName = L"MEGAcmd Update Task ";
+    LPTSTR stringSID = NULL;
+    bool success = false;
+
+    stringSID = getCurrentSid();
+    if (!stringSID)
+    {
+        MegaApi::log(MegaApi::LOG_LEVEL_ERROR, "Unable to get the current SID");
+        return false;
+    }
+
+    time(&currentTime);
+    currentTimeInfo = localtime(&currentTime);
+    wcsftime(currentTimeString, 128,  L"%Y-%m-%dT%H:%M:%S", currentTimeInfo);
+    _bstr_t taskName = taskBaseName + stringSID;
+    _bstr_t userId = stringSID;
+    LocalFree(stringSID);
+
+
+
+    TCHAR MEGAcmdUpdaterPath[MAX_PATH];
+
+    if (!SUCCEEDED(GetModuleFileName(NULL, MEGAcmdUpdaterPath , MAX_PATH)))
+    {
+        LOG_err << "Couldnt get EXECUTABLE folder: " << wstring(MEGAcmdUpdaterPath);
+        return false;
+    }
+
+    if (SUCCEEDED(PathRemoveFileSpec(MEGAcmdUpdaterPath)))
+    {
+        if (!PathAppend(MEGAcmdUpdaterPath,TEXT("MEGAcmdUpdater.exe")))
+        {
+            LOG_err << "Couldnt append MEGAcmdUpdater exec: " << wstring(MEGAcmdUpdaterPath);
+            return false;
+        }
+    }
+    else
+    {
+        LOG_err << "Couldnt remove file spec: " << wstring(MEGAcmdUpdaterPath);
+        return false;
+    }
+
+    if (SUCCEEDED(CoInitializeSecurity(NULL, -1, NULL, NULL, RPC_C_AUTHN_LEVEL_PKT_PRIVACY, RPC_C_IMP_LEVEL_IMPERSONATE, NULL, 0, NULL))
+            && SUCCEEDED(CoCreateInstance(CLSID_TaskScheduler, NULL, CLSCTX_INPROC_SERVER, IID_ITaskService, (void**)&pService))
+            && SUCCEEDED(pService->Connect(_variant_t(), _variant_t(), _variant_t(), _variant_t()))
+            && SUCCEEDED(pService->GetFolder(_bstr_t( L"\\"), &pRootFolder)))
+    {
+        if (pRootFolder->CreateFolder(_bstr_t(L"MEGA"), _variant_t(L""), &pMEGAFolder) == 0x800700b7)
+        {
+            pRootFolder->GetFolder(_bstr_t(L"MEGA"), &pMEGAFolder);
+        }
+
+        if (pMEGAFolder
+                && SUCCEEDED(pService->NewTask(0, &pTask))
+                && SUCCEEDED(pTask->get_RegistrationInfo(&pRegInfo))
+                && SUCCEEDED(pRegInfo->put_Author(_bstr_t(L"MEGA Limited")))
+                && SUCCEEDED(pTask->get_Principal(&pPrincipal))
+                && SUCCEEDED(pPrincipal->put_Id(_bstr_t(L"Principal1")))
+                && SUCCEEDED(pPrincipal->put_LogonType(TASK_LOGON_INTERACTIVE_TOKEN))
+                && SUCCEEDED(pPrincipal->put_RunLevel(TASK_RUNLEVEL_LUA))
+                && SUCCEEDED(pPrincipal->put_UserId(userId))
+                && SUCCEEDED(pTask->get_Settings(&pSettings))
+                && SUCCEEDED(pSettings->put_StartWhenAvailable(VARIANT_TRUE))
+                && SUCCEEDED(pSettings->put_DisallowStartIfOnBatteries(VARIANT_FALSE))
+                && SUCCEEDED(pSettings->get_IdleSettings(&pIdleSettings))
+                && SUCCEEDED(pIdleSettings->put_StopOnIdleEnd(VARIANT_FALSE))
+                && SUCCEEDED(pIdleSettings->put_RestartOnIdle(VARIANT_FALSE))
+                && SUCCEEDED(pIdleSettings->put_WaitTimeout(_bstr_t()))
+                && SUCCEEDED(pIdleSettings->put_IdleDuration(_bstr_t()))
+                && SUCCEEDED(pTask->get_Triggers(&pTriggerCollection))
+                && SUCCEEDED(pTriggerCollection->Create(TASK_TRIGGER_DAILY, &pTrigger))
+                && SUCCEEDED(pTrigger->QueryInterface(IID_IDailyTrigger, (void**) &pCalendarTrigger))
+                && SUCCEEDED(pCalendarTrigger->put_Id(_bstr_t(L"Trigger1")))
+                && SUCCEEDED(pCalendarTrigger->put_DaysInterval(1))
+                && SUCCEEDED(pCalendarTrigger->put_StartBoundary(_bstr_t(currentTimeString)))
+                && SUCCEEDED(pCalendarTrigger->get_Repetition(&pRepetitionPattern))
+                && SUCCEEDED(pRepetitionPattern->put_Duration(_bstr_t(L"P1D")))
+                && SUCCEEDED(pRepetitionPattern->put_Interval(_bstr_t(L"PT2H")))
+                && SUCCEEDED(pRepetitionPattern->put_StopAtDurationEnd(VARIANT_FALSE))
+                && SUCCEEDED(pTask->get_Actions(&pActionCollection))
+                && SUCCEEDED(pActionCollection->Create(TASK_ACTION_EXEC, &pAction))
+                && SUCCEEDED(pAction->QueryInterface(IID_IExecAction, (void**)&pExecAction))
+                && SUCCEEDED(pExecAction->put_Path(_bstr_t(MEGAcmdUpdaterPath)))
+                && SUCCEEDED(pExecAction->put_Arguments(_bstr_t(L"--emergency-update"))))
+        {
+            if (SUCCEEDED(pMEGAFolder->RegisterTaskDefinition(taskName, pTask,
+                    TASK_CREATE_OR_UPDATE, _variant_t(), _variant_t(),
+                    TASK_LOGON_INTERACTIVE_TOKEN, _variant_t(L""),
+                    &pRegisteredTask)))
+            {
+                success = true;
+                MegaApi::log(MegaApi::LOG_LEVEL_ERROR, "Update task registered OK");
+            }
+            else
+            {
+                MegaApi::log(MegaApi::LOG_LEVEL_ERROR, "Error registering update task");
+            }
+        }
+        else
+        {
+            MegaApi::log(MegaApi::LOG_LEVEL_ERROR, "Error creating update task");
+        }
+    }
+    else
+    {
+        MegaApi::log(MegaApi::LOG_LEVEL_ERROR, "Error getting root task folder");
+    }
+
+    if (pRegisteredTask)
+    {
+        pRegisteredTask->Release();
+    }
+    if (pTrigger)
+    {
+        pTrigger->Release();
+    }
+    if (pTriggerCollection)
+    {
+        pTriggerCollection->Release();
+    }
+    if (pIdleSettings)
+    {
+        pIdleSettings->Release();
+    }
+    if (pSettings)
+    {
+        pSettings->Release();
+    }
+    if (pPrincipal)
+    {
+        pPrincipal->Release();
+    }
+    if (pRegInfo)
+    {
+        pRegInfo->Release();
+    }
+    if (pCalendarTrigger)
+    {
+        pCalendarTrigger->Release();
+    }
+    if (pAction)
+    {
+        pAction->Release();
+    }
+    if (pActionCollection)
+    {
+        pActionCollection->Release();
+    }
+    if (pRepetitionPattern)
+    {
+        pRepetitionPattern->Release();
+    }
+    if (pExecAction)
+    {
+        pExecAction->Release();
+    }
+    if (pTask)
+    {
+        pTask->Release();
+    }
+    if (pMEGAFolder)
+    {
+        pMEGAFolder->Release();
+    }
+    if (pRootFolder)
+    {
+        pRootFolder->Release();
+    }
+    if (pService)
+    {
+        pService->Release();
+    }
+
+    return success;
+#elif defined(__MACH__)
+    return registerUpdateDaemon();
+#else
+    return true;
+#endif
+}
+
+
+
 int main(int argc, char* argv[])
 {
     string localecode = getLocaleCode();
@@ -4156,6 +4361,19 @@ int main(int argc, char* argv[])
 #endif
 
     atexit(finalize);
+
+
+#ifndef __linux__
+    if (ConfigurationManager::getConfigurationValue("updaterregistered", false))
+    {
+        LOG_debug << "Registering automatic updater";
+        if (registerUpdater())
+        {
+            ConfigurationManager::savePropertyValue("updaterregistered", true);
+            LOG_verbose << "Registered automatic updater";
+        }
+    }
+#endif
 
     printWelcomeMsg();
 

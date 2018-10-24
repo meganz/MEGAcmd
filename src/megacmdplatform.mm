@@ -57,4 +57,52 @@ char *runWithRootPrivileges(char *command)
     return result;
 }
 
+
+bool registerUpdateDaemon()
+{
+    NSDictionary *plistd = @{
+            @"Label": @"megacmd.mac.megaupdater",
+            @"ProgramArguments": @[@"/Applications/MEGAcmd.app/Contents/MacOS/MEGAcmdUpdater"],
+            @"StartInterval": @7200,
+            @"RunAtLoad": @true,
+            @"StandardErrorPath": @"/dev/null",
+            @"StandardOutPath": @"/dev/null",
+     };
+
+    const char* home = getenv("HOME");
+    if (!home)
+    {
+        return false;
+    }
+
+    NSString *homepath = [NSString stringWithUTF8String:home];
+    if (!homepath)
+    {
+        return false;
+    }
+
+    NSString *fullpath = [homepath stringByAppendingString:@"/Library/LaunchAgents/megacmd.mac.megaupdater.plist"];
+    if ([plistd writeToFile:fullpath atomically:YES] == NO)
+    {
+        return false;
+    }
+
+    QString path = QString::fromUtf8([fullpath UTF8String]);
+    QFile(path).setPermissions(QFileDevice::ReadOwner | QFileDevice::WriteOwner | QFileDevice::ReadGroup | QFileDevice::ReadOther);
+
+    QStringList scriptArgs;
+    scriptArgs << QString::fromUtf8("-c")
+               << QString::fromUtf8("launchctl unload %1 && launchctl load %1").arg(path);
+
+    QProcess p;
+    p.start(QString::fromAscii("bash"), scriptArgs);
+    if (!p.waitForFinished(2000))
+    {
+        return false;
+    }
+
+    return p.exitCode();
+}
+
+
 #endif
