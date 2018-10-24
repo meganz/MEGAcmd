@@ -65,7 +65,7 @@ std::string ConfigurationManager::getConfigFolder()
 
 static const char* const persistentmcmdconfigurationkeys[] =
 {
-    "autoupdate"
+    "autoupdate", "updaterregistered"
 };
 
 void ConfigurationManager::loadConfigDir()
