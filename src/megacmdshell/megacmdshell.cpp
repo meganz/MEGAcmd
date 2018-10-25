@@ -1515,7 +1515,6 @@ void process_line(const char * line)
                     else if (ret != MCMD_INVALIDSTATE && words.size() == 1)
                     {
                         MegaCmdShellCommunications::updating = false;
-//                        OUTSTREAM << "Update is not required. You are in the last version. Further info: \"version --help\"" << endl;
                     }
                 }
 #endif

@@ -2,7 +2,7 @@
 #baseurl=http://g.static.mega.co.nz/upd/mcmd/MEGAsync.app/
 #Hash: note this is the hash of the public key assuming an "\n" at the end
 #TODO: update when one pubkey is provided
-#pubkeysha256sum=e75c01489028a737044e0b21fe2879ddb761adefb9c71679a28ec7280d422f9a
+#pubkeysha256sum=XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 Contents/_CodeSignature/CodeResources;Contents/_CodeSignature/CodeResources;746ff3e249285a52a821140e2ba4d5b9de3e3b2d312830b29383a4c0b4395cdb
 Contents/_CodeSignature/CodeDirectory;Contents/_CodeSignature/CodeDirectory;bf332d5dbbfbc78d6c54ebedd0fa241b8d31ea307b76fec3930c8977e8a19bc4
 Contents/_CodeSignature/CodeRequirements-1;Contents/_CodeSignature/CodeRequirements-1;15cde689b2f28441b8f9792e4cc7cf1a45ac384e53332fe634b6fe252dc1c1e3

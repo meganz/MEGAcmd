@@ -2,7 +2,7 @@
 #baseurl=http://g.static.mega.co.nz/upd/mcmd/
 #Hash: note this is the hash of the public key assuming an "\n" at the end
 #TODO: update when one pubkey is provided
-#pubkeysha256sum=e75c01489028a737044e0b21fe2879ddb761adefb9c71679a28ec7280d422f9a
+#pubkeysha256sum=XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 api-ms-win-core-console-l1-1-0.dll;api-ms-win-core-console-l1-1-0.dll;bce066193feb60b08edf4cbeb490aaaa5dffeb8a63a720cadf948748a9af4b8f
 api-ms-win-core-datetime-l1-1-0.dll;api-ms-win-core-datetime-l1-1-0.dll;29b23370474be0c459cc47863603167cc7191f58318bd29877225fcbf2454215
 api-ms-win-core-debug-l1-1-0.dll;api-ms-win-core-debug-l1-1-0.dll;f654e56c4299f507bc34271b6baa29290fd4919b853e17d7470596cad779f063

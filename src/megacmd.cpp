@@ -1919,7 +1919,11 @@ string getHelpStr(const char *command)
         os << "This command can also be used to enable/disable automatic updates." << endl;
 
         os << "Options:" << endl;
-        os << " --auto=ON|OFF" << "\t" << "Enables/disables auto updates." << endl;
+        os << " --auto=ON|OFF|query" << "\t" << "Enables/disables/queries status of auto updates." << endl;
+        os << endl;
+        os << "If auto updates are enabled it will be checked while MEGAcmd server is running." << endl;
+        os << " If there is an update available, it will be downloaded and applied. " << endl;
+        os << " This will cause MEGAcmd to be restarted whenever the updates are applied." << endl;
     }
 #endif
     else if (!strcmp(command, "cd"))
@@ -2951,7 +2955,6 @@ bool executeUpdater(bool *restartRequired, bool doNotInstall = false)
         return false;
     }
 
-    // Wait until child process exits.
     WaitForSingleObject( pi.hProcess, INFINITE );
 
     DWORD exit_code;
@@ -2960,7 +2963,6 @@ bool executeUpdater(bool *restartRequired, bool doNotInstall = false)
 
     LOG_verbose << " The execution of Updater returns: " << exit_code;
 
-    // Close process and thread handles.
     CloseHandle( pi.hProcess );
     CloseHandle( pi.hThread );
 
@@ -2981,11 +2983,11 @@ bool executeUpdater(bool *restartRequired, bool doNotInstall = false)
 #else
         char * args[] = {"/Applications/MEGAcmd.app/Contents/MacOS/MEGAcmdUpdater", "--normal-update", donotinstallstr, NULL};
 #endif
-#else
+#else //linux don't use autoupdater: this is just for testing
 #ifndef NDEBUG
-        char * args[] = {"../MEGAcmdUpdater/MEGAcmdUpdater", "--normal-update", donotinstallstr, NULL}; // TODO: what if lcd?
+        char * args[] = {"../MEGAcmdUpdater/MEGAcmdUpdater", "--normal-update", donotinstallstr, NULL}; // notice: won't work after lcd
 #else
-        char * args[] = {"MEGAcmdUpdater", "--normal-update", donotinstallstr, NULL}; //TODO: mega-cmd-updater? or remove all this code directly
+        char * args[] = {"mega-cmd-updater", "--normal-update", donotinstallstr, NULL};
 #endif
 #endif
 
@@ -3206,7 +3208,7 @@ static bool process_line(char* l)
             }
 
 #ifndef __linux__
-            else if (!strcmp(l, "update") || !strcmp(l, "update "))
+            else if (!strcmp(l, "update") || !strcmp(l, "update ")) //if extra args are received, it'll be processed by executer
             {
                 string confirmationQuery("This might require restarting MEGAcmd. Are you sure to continue");
                 confirmationQuery+="? (Yes/No): ";
@@ -3223,7 +3225,7 @@ static bool process_line(char* l)
                 if (!executeUpdater(&restartRequired))
                 {
                     setCurrentOutCode(MCMD_INVALIDSTATE); // so as not to indicate already updated
-                    return false; //Failed to execute
+                    return false;
                 }
 
                 if (restartRequired && restartServer())
@@ -3493,7 +3495,6 @@ void* checkForUpdates(void *param)
             sleepSeconds(1);
             if (stopcheckingforUpdaters) break;
 
-            //TODO: mark to stop listening to petitions?
             while(petitionThreads.size() && !stopcheckingforUpdaters)
             {
                 LOG_fatal << " waiting for petitions to end to initiate upload " << petitionThreads.size() << petitionThreads.at(0);
@@ -3635,7 +3636,7 @@ void megacmd()
                 }
 
                 int autoupdate = ConfigurationManager::getConfigurationValue("autoupdate", -1);
-                if (autoupdate == -1)
+                if (autoupdate == -1 || autoupdate == 2)
                 {
                     os << "ENABLING AUTOUPDATE BY DEFAULT. You can disable it with \"update --auto=off\"" << endl;
                     autoupdate = 1;
@@ -4032,8 +4033,6 @@ bool registerUpdater()
     _bstr_t userId = stringSID;
     LocalFree(stringSID);
 
-
-
     TCHAR MEGAcmdUpdaterPath[MAX_PATH];
 
     if (!SUCCEEDED(GetModuleFileName(NULL, MEGAcmdUpdaterPath , MAX_PATH)))
@@ -4294,6 +4293,7 @@ int main(int argc, char* argv[])
         exit(0);
     }
 #endif
+
     string shandletowait;
     bool dowaitforhandle = extractargparam(args, "--wait-for", shandletowait);
     if (dowaitforhandle)

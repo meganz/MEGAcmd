@@ -2328,16 +2328,21 @@ int MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
 
     //this goes here in case server is launched directly and thus we ensure that's shown at the beginning
     int autoupdate = ConfigurationManager::getConfigurationValue("autoupdate", -1);
-    if (autoupdate == -1)
+    bool enabledupdaterhere = false;
+    if (autoupdate == -1 || autoupdate == 2)
     {
         OUTSTREAM << "ENABLING AUTOUPDATE BY DEFAULT. You can disable it with \"update --auto=off\"" << endl;
-        ConfigurationManager::savePropertyValue("autoupdate", 1);
         autoupdate = 1;
+        enabledupdaterhere = true;
     }
 
-    if (autoupdate == 1)
+    if (autoupdate >= 1)
     {
         startcheckingForUpdates();
+    }
+    if (enabledupdaterhere)
+    {
+        ConfigurationManager::savePropertyValue("autoupdate", 2); //save to special value to indicate first listener that it is enabled
     }
 
 #endif
@@ -4712,6 +4717,10 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         {
             startcheckingForUpdates();
             OUTSTREAM << "Automatic updates enabled" << endl;
+        }
+        else if (sauto == "query")
+        {
+            OUTSTREAM << "Automatic updates " << (ConfigurationManager::getConfigurationValue("autoupdate", false)?"enabled":"disabled") << endl;
         }
         else
         {
