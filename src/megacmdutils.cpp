@@ -74,7 +74,6 @@ string getUserInSharedNode(MegaNode *n, MegaApi *api)
     return "";
 }
 
-
 const char* getAccessLevelStr(int level)
 {
     switch (level)

@@ -2614,14 +2614,14 @@ void printAvailableCommands(int extensive = 0)
         size_t k = 2*(validCommandsOrdered.size()/3)+validCommandsOrdered.size()%3;
         for (i = 0; i < validCommandsOrdered.size() && j < validCommandsOrdered.size()  && k < validCommandsOrdered.size(); i++, j++, k++)
         {
-            OUTSTREAM << "      " << setw(20) << left << validCommandsOrdered.at(i) <<  setw(20) << validCommandsOrdered.at(j)  <<  "      " << validCommandsOrdered.at(k) << endl;
+            OUTSTREAM << "      " << getLeftAlignedStr(validCommandsOrdered.at(i), 20) <<  getLeftAlignedStr(validCommandsOrdered.at(j), 20)  <<  "      " << validCommandsOrdered.at(k) << endl;
         }
         if (validCommandsOrdered.size()%3)
         {
-            OUTSTREAM << "      " << setw(20) <<  validCommandsOrdered.at(i);
+            OUTSTREAM << "      " << getLeftAlignedStr(validCommandsOrdered.at(i), 20) ;
             if (validCommandsOrdered.size()%3 > 1 )
             {
-                OUTSTREAM << setw(20) <<  validCommandsOrdered.at(j);
+                OUTSTREAM << getLeftAlignedStr(validCommandsOrdered.at(j), 20) ;
             }
             OUTSTREAM << endl;
         }
@@ -3258,10 +3258,12 @@ void * doProcessLine(void *pointer)
     CmdPetition *inf = (CmdPetition*)pointer;
 
     OUTSTRINGSTREAM s;
-    setCurrentThreadOutStream(&s);
+
     setCurrentThreadLogLevel(MegaApi::LOG_LEVEL_ERROR);
     setCurrentOutCode(MCMD_OK);
     setCurrentPetition(inf);
+    LoggedStreamPartialOutputs ls(cm, inf);
+    setCurrentThreadOutStream(&ls);
 
     if (inf->getLine() && *(inf->getLine())=='X')
     {
@@ -4262,7 +4264,9 @@ int main(int argc, char* argv[])
     SimpleLogger::setAllOutputs(&null_stream);
     SimpleLogger::setLogLevel(logMax); // do not filter anything here, log level checking is done by loggerCMD
 
-    loggerCMD = new MegaCMDLogger(&COUT);
+    LoggedStream LCOUT(&COUT);
+
+    loggerCMD = new MegaCMDLogger(&LCOUT);
 
     loggerCMD->setApiLoggerLevel(MegaApi::LOG_LEVEL_ERROR);
     loggerCMD->setCmdLoggerLevel(MegaApi::LOG_LEVEL_INFO);

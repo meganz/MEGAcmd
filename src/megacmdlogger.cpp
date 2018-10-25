@@ -27,19 +27,22 @@ using namespace mega;
 
 // different outstreams for every thread. to gather all the output data
 MUTEX_CLASS threadLookups(false);
-map<uint64_t, OUTSTREAMTYPE *> outstreams;
+map<uint64_t, LoggedStream *> outstreams;
 map<uint64_t, int> threadLogLevel;
 map<uint64_t, int> threadoutCode;
 map<uint64_t, CmdPetition *> threadpetition;
 map<uint64_t, bool> threadIsCmdShell;
 
-OUTSTREAMTYPE &getCurrentOut()
+LoggedStream LCOUT(&COUT);
+
+
+LoggedStream &getCurrentOut()
 {
     MutexGuard g(threadLookups);
     uint64_t currentThread = MegaThread::currentThreadId();
     if (outstreams.find(currentThread) == outstreams.end())
     {
-        return COUT;
+        return LCOUT;
     }
     else
     {
@@ -135,7 +138,7 @@ void setCurrentThreadLogLevel(int level)
     threadLogLevel[MegaThread::currentThreadId()] = level;
 }
 
-void setCurrentThreadOutStream(OUTSTREAMTYPE *s)
+void setCurrentThreadOutStream(LoggedStream *s)
 {
     MutexGuard g(threadLookups);
     outstreams[MegaThread::currentThreadId()] = s;

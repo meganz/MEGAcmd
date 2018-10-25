@@ -716,46 +716,83 @@ int MegaCmdShellCommunications::executeCommand(string command, std::string (*rea
         return -1;
     }
 
-    while (outcode == MCMD_REQCONFIRM || outcode == MCMD_REQSTRING )
+    while (outcode == MCMD_REQCONFIRM || outcode == MCMD_REQSTRING || outcode == MCMD_PARTIALOUT)
     {
-        int BUFFERSIZE = 1024;
-        string confirmQuestion;
-        char buffer[1025];
-        do{
-            n = recv(newsockfd, buffer, BUFFERSIZE, MSG_NOSIGNAL);
-            if (n)
-            {
-                buffer[n]='\0';
-                confirmQuestion.append(buffer);
-            }
-        } while(n == BUFFERSIZE && n !=SOCKET_ERROR);
-
-        if (outcode == MCMD_REQCONFIRM)
+        if (outcode == MCMD_PARTIALOUT)
         {
-            int response = MCMDCONFIRM_NO;
+            int partialoutsize;
 
-            if (readresponse != NULL)
+            n = recv(newsockfd, &partialoutsize, sizeof(int), MSG_NOSIGNAL);
+            if (n && partialoutsize > 0)
             {
-                response = readconfirmationloop(confirmQuestion.c_str(), readresponse);
-            }
+                do{
+                    char buffer[partialoutsize+1];
+                    n = recv(newsockfd, buffer, partialoutsize, MSG_NOSIGNAL);
+                    if (n)
+                    {
+#ifdef _WIN32
+                        buffer[n]='\0';
 
-            n = send(newsockfd, (const char *) &response, sizeof(response), MSG_NOSIGNAL);
+                        wstring wbuffer;
+                        stringtolocalw((const char*)&buffer,&wbuffer);
+                        int oldmode = _setmode(_fileno(stdout), _O_U16TEXT);
+                        output << wbuffer << flush;
+                        _setmode(_fileno(stdout), oldmode);
+#else
+                        buffer[n]='\0';
+                        output << buffer << flush;
+#endif
+                        partialoutsize-=n;
+                    }
+                } while(n != 0 && partialoutsize && n !=SOCKET_ERROR);
+            }
+            else
+            {
+                std:cerr << "Error reading size of partial output: " << ERRNO << std::endl;
+                return -1;
+            }
         }
-        else // MCMD_REQSTRING
-        {
-            string response = "FAILED";
+        else { //REQCONFIRM|REQSTRING
+            int BUFFERSIZE = 1024;
+            string confirmQuestion;
+            char buffer[1025];
+            do{
+                n = recv(newsockfd, buffer, BUFFERSIZE, MSG_NOSIGNAL);
+                if (n)
+                {
+                    buffer[n]='\0';
+                    confirmQuestion.append(buffer);
+                }
+            } while(n == BUFFERSIZE && n !=SOCKET_ERROR);
 
-            if (readresponse != NULL)
+            if (outcode == MCMD_REQCONFIRM)
             {
-                response = readresponse(confirmQuestion.c_str());
+                int response = MCMDCONFIRM_NO;
+
+                if (readresponse != NULL)
+                {
+                    response = readconfirmationloop(confirmQuestion.c_str(), readresponse);
+                }
+
+                n = send(newsockfd, (const char *) &response, sizeof(response), MSG_NOSIGNAL);
+            }
+            else // MCMD_REQSTRING
+            {
+                string response = "FAILED";
+
+                if (readresponse != NULL)
+                {
+                    response = readresponse(confirmQuestion.c_str());
+                }
+
+                n = send(newsockfd, (const char *) response.data(), sizeof(response), MSG_NOSIGNAL);
+            }
+            if (n == SOCKET_ERROR)
+            {
+                cerr << "ERROR writing confirm response to socket: " << ERRNO << endl;
+                return -1;
             }
 
-            n = send(newsockfd, (const char *) response.data(), sizeof(response), MSG_NOSIGNAL);
-        }
-        if (n == SOCKET_ERROR)
-        {
-            cerr << "ERROR writing confirm response to socket: " << ERRNO << endl;
-            return -1;
         }
 
         n = recv(newsockfd, (char *)&outcode, sizeof(outcode), MSG_NOSIGNAL);

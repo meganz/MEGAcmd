@@ -115,6 +115,13 @@ void ComunicationsManager::returnAndClosePetition(CmdPetition *inf, OUTSTRINGSTR
     return;
 }
 
+void ComunicationsManager::sendPartialOutput(CmdPetition *inf, OUTSTRING *s)
+{
+    delete inf;
+    return;
+}
+
+
 /**
  * @brief getPetition
  * @return pointer to new CmdPetition. Petition returned must be properly deleted (this can be calling returnAndClosePetition)

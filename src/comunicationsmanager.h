@@ -29,11 +29,13 @@ class CmdPetition
         char * line;
         mega::MegaThread * petitionThread;
         int clientID;
+        bool clientDisconnected;
 
         CmdPetition()
         {
             line = NULL;
             petitionThread = NULL;
+            clientDisconnected = false;
         }
 
         char *getLine()
@@ -82,6 +84,8 @@ public:
      * It will clean struct and close the socket within
      */
     virtual void returnAndClosePetition(CmdPetition *inf, OUTSTRINGSTREAM *s, int);
+
+    virtual void sendPartialOutput(CmdPetition *inf, OUTSTRING *s);
 
     /**
      * @brief Sends an status message (e.g. prompt:who@/new/prompt:) to all registered listeners

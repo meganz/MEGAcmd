@@ -332,6 +332,58 @@ void ComunicationsManagerFileSockets::returnAndClosePetition(CmdPetition *inf, O
     delete inf;
 }
 
+void ComunicationsManagerFileSockets::sendPartialOutput(CmdPetition *inf, OUTSTRING *s)
+{
+    if (inf->clientDisconnected)
+    {
+        return;
+    }
+    LOG_verbose << "Partial Output to write in socket " << ((CmdPetitionPosixSockets *)inf)->outSocket << ": <<" << *s << ">>";
+    sockaddr_in cliAddr;
+    socklen_t cliLength = sizeof( cliAddr );
+    int connectedsocket = ((CmdPetitionPosixSockets *)inf)->acceptedOutSocket;
+    if (connectedsocket == -1)
+    {
+        connectedsocket = accept(((CmdPetitionPosixSockets *)inf)->outSocket, (struct sockaddr*)&cliAddr, &cliLength);
+        if (fcntl(connectedsocket, F_SETFD, FD_CLOEXEC) == -1)
+        {
+            std::cerr << "ERROR setting CLOEXEC to socket: " << errno << endl; // we do not log this stuff, because that would cause some loop sending more partial output
+        }
+        ((CmdPetitionPosixSockets *)inf)->acceptedOutSocket = connectedsocket; //So that it gets closed in destructor
+    }
+    if (connectedsocket == -1)
+    {
+        std::cerr << "Return and close: Unable to accept on outsocket " << ((CmdPetitionPosixSockets *)inf)->outSocket << " error: " << errno << endl;
+        return;
+    }
+
+    int outCode = MCMD_PARTIALOUT;
+    int n = send(connectedsocket, (void*)&outCode, sizeof( outCode ), MSG_NOSIGNAL);
+    if (n < 0)
+    {
+        std::cerr << "ERROR writing MCMD_PARTIALOUT to socket: " << errno << endl;
+        if (errno == EPIPE)
+        {
+            std::cerr << "WARNING: Client disconnected, the rest of the output will be discarded" << endl;
+            inf->clientDisconnected = true;
+        }
+        return;
+    }
+    int size = max(1,(int)s->size());
+    n = send(connectedsocket, (void*)&size, sizeof( size ), MSG_NOSIGNAL);
+    if (n < 0)
+    {
+        std::cerr << "ERROR writing size of partial output to socket: " << errno << endl;
+        return;
+    }
+    n = send(connectedsocket, s->data(), max(1,size), MSG_NOSIGNAL); // for some reason without the max recv never quits in the client for empty responses
+    if (n < 0)
+    {
+        std::cerr << "ERROR writing to socket partial output: " << errno << endl;
+        return;
+    }
+}
+
 int ComunicationsManagerFileSockets::informStateListener(CmdPetition *inf, string &s)
 {
     LOG_verbose << "Inform State Listener: Output to write in socket " << ((CmdPetitionPosixSockets *)inf)->outSocket << ": <<" << s << ">>";

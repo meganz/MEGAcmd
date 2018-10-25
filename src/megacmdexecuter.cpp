@@ -1690,7 +1690,7 @@ void MegaCmdExecuter::listnodeshares(MegaNode* n, string name)
     {
         for (int i = 0; i < outShares->size(); i++)
         {
-            OUTSTREAM << name ? name : n->getName();
+            OUTSTREAM << (name.size() ? name : n->getName());
 
             if (outShares->get(i))
             {
@@ -8331,7 +8331,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 if (megaCmdListener->getRequest()->getNumber() != MEGACMD_CODE_VERSION)
                 {
                     OUTSTREAM << "---------------------------------------------------------------------" << endl;
-                    OUTSTREAM << "--        There is a new version available of megacmd: " << setw(12) << left << megaCmdListener->getRequest()->getName() << "--" << endl;
+                    OUTSTREAM << "--        There is a new version available of megacmd: " << getLeftAlignedStr(megaCmdListener->getRequest()->getName(), 12) << "--" << endl;
                     OUTSTREAM << "--        Please, download it from https://mega.nz/cmd             --" << endl;
 #if defined(__APPLE__)
                     OUTSTREAM << "--        Before installing enter \"exit\" to close MEGAcmd          --" << endl;
