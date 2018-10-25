@@ -2317,8 +2317,9 @@ int MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
     {
         if (megaCmdListener->getRequest()->getNumber() != MEGACMD_CODE_VERSION)
         {
+
             OUTSTREAM << "---------------------------------------------------------------------" << endl;
-            OUTSTREAM << "--        There is a new version available of megacmd: " << setw(12) << left << megaCmdListener->getRequest()->getName() << "--" << endl;
+            OUTSTREAM << "--        There is a new version available of megacmd: " << getLeftAlignedStr(megaCmdListener->getRequest()->getName(),12) << "--" << endl;
             OUTSTREAM << "--        Please, update this one: See \"update --help\".          --" << endl;
             OUTSTREAM << "--        Or download the latest from https://mega.nz/cmd          --" << endl;
             OUTSTREAM << "---------------------------------------------------------------------" << endl;
@@ -8457,7 +8458,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 for (int i = 0; i < ocrl->size(); i++)
                 {
                     MegaContactRequest * cr = ocrl->get(i);
-                    OUTSTREAM << " " << setw(22) << cr->getTargetEmail();
+                    OUTSTREAM << " " << getLeftAlignedStr(cr->getTargetEmail(),22);
 
                     char * sid = api->userHandleToBase64(cr->getHandle());
 
@@ -8485,7 +8486,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 for (int i = 0; i < icrl->size(); i++)
                 {
                     MegaContactRequest * cr = icrl->get(i);
-                    OUTSTREAM << " " << setw(22) << cr->getSourceEmail();
+                    OUTSTREAM << " " << getLeftAlignedStr(cr->getSourceEmail(), 22);
 
                     MegaHandle id = cr->getHandle();
                     char sid[12];

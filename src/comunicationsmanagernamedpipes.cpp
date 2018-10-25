@@ -269,6 +269,7 @@ void ComunicationsManagerNamedPipes::returnAndClosePetition(CmdPetition *inf, OU
         LOG_err << "ERROR writing output Code to namedPipe: " << ERRNO;
     }
 
+
     string sutf8;
     localwtostring(&sout,&sutf8);
     if (!WriteFile(outNamedPipe,sutf8.data(), max(1,(int)sutf8.size()), &n, NULL)) // client does not like empty responses
@@ -278,6 +279,77 @@ void ComunicationsManagerNamedPipes::returnAndClosePetition(CmdPetition *inf, OU
     DisconnectNamedPipe(outNamedPipe);
     delete inf;
 }
+
+
+void ComunicationsManagerNamedPipes::sendPartialOutput(CmdPetition *inf, OUTSTRING *s)
+{
+    HANDLE outNamedPipe = ((CmdPetitionNamedPipes *)inf)->outNamedPipe;
+
+    LOG_verbose << "Output to write in namedPipe " << outNamedPipe << ": <<" << *s << ">>";
+
+    bool connectsucceeded = false;
+    int attempts = 10;
+    while (--attempts && !connectsucceeded)
+    {
+        if (!ConnectNamedPipe(outNamedPipe, NULL))
+        {
+            if (ERRNO == ERROR_PIPE_CONNECTED)
+            {
+                //cerr << "Client arrived first when connecting to namedPipe " << outNamedPipe << endl;
+                connectsucceeded = true;
+                break;
+            }
+            else
+            {
+                cerr << "ERROR on connecting to namedPipe " << outNamedPipe << ". errno: " << ERRNO << ". Attempts: " << attempts << endl;
+            }
+            sleepMicroSeconds(500);
+        }
+        else
+        {
+            connectsucceeded = true;
+        }
+    }
+
+    if (!connectsucceeded)
+    {
+        cerr << "sendPartialOutput: Unable to connect on outnamedPipe " << outNamedPipe << " error: " << ERRNO << endl;
+        if (errno == ERROR_NO_DATA) //TODO: pipe disconnected error?
+        {
+            std::cerr << "WARNING: Client disconnected, the rest of the output will be discarded" << endl;
+            inf->clientDisconnected = true;
+        }
+        return;
+    }
+
+    int outCode = MCMD_PARTIALOUT;
+    DWORD n;
+    if (!WriteFile(outNamedPipe,(const char*)&outCode, sizeof(outCode), &n, NULL))
+    {
+        LOG_err << "ERROR writing output Code to namedPipe: " << ERRNO;
+        if (errno == ERROR_NO_DATA) //TODO: pipe disconnected error?
+        {
+            std::cerr << "WARNING: Client disconnected, the rest of the output will be discarded" << endl;
+            inf->clientDisconnected = true;
+        }
+        return;
+    }
+
+    string sutf8;
+    localwtostring(s,&sutf8);
+
+    int size = max(1,(int)sutf8.size()); // client does not like empty responses
+    if (!WriteFile(outNamedPipe,(const char*)&size, sizeof(size), &n, NULL))
+    {
+        LOG_err << "ERROR writing output Code to namedPipe: " << ERRNO;
+        return;
+    }
+    if (!WriteFile(outNamedPipe,sutf8.data(), size, &n, NULL))
+    {
+        LOG_err << "ERROR writing to namedPipe: " << ERRNO;
+    }
+}
+
 
 int ComunicationsManagerNamedPipes::informStateListener(CmdPetition *inf, string &s)
 {

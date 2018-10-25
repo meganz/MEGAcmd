@@ -33,8 +33,10 @@ public:
 
   virtual const LoggedStream& operator<<(const char& v) const {*out << v;return *this;}
   virtual const LoggedStream& operator<<(const char* v) const {*out << v;return *this;}
-  virtual const LoggedStream& operator<<(OUTSTRING v) const {*out << v;return *this;}
-  virtual const LoggedStream& operator<<(std::_Setw v) const {*out << v;return *this;}
+#ifdef _WIN32
+  virtual const LoggedStream& operator<<(std::wstring v) const {*out << v;return *this;}
+#endif
+  virtual const LoggedStream& operator<<(std::string v) const {*out << v;return *this;}
   virtual const LoggedStream& operator<<(int v) const {*out << v;return *this;}
   virtual const LoggedStream& operator<<(long long int v) const {*out << v;return *this;}
   virtual const LoggedStream& operator<<(std::ios_base v) const {*out << &v;return *this;}
@@ -52,8 +54,10 @@ public:
 
   virtual const LoggedStream& operator<<(const char& v) const {OUTSTRINGSTREAM os; os << v; OUTSTRING s = os.str(); cm->sendPartialOutput(inf, &s); return *this;}
   virtual const LoggedStream& operator<<(const char* v) const {OUTSTRINGSTREAM os; os << v; OUTSTRING s = os.str(); cm->sendPartialOutput(inf, &s); return *this;}
-  virtual const LoggedStream& operator<<(OUTSTRING v) const {OUTSTRINGSTREAM os; os << v; OUTSTRING s = os.str(); cm->sendPartialOutput(inf, &s); return *this;}
-  virtual const LoggedStream& operator<<(std::_Setw v) const {OUTSTRINGSTREAM os; os << v; OUTSTRING s = os.str(); cm->sendPartialOutput(inf, &s); return *this;}
+#ifdef _WIN32
+  virtual const LoggedStream& operator<<(std::wstring v) const {OUTSTRINGSTREAM os; os << v; OUTSTRING s = os.str(); cm->sendPartialOutput(inf, &s); return *this;}
+#endif
+  virtual const LoggedStream& operator<<(std::string v) const {OUTSTRINGSTREAM os; os << v; OUTSTRING s = os.str(); cm->sendPartialOutput(inf, &s); return *this;}
   virtual const LoggedStream& operator<<(int v) const {OUTSTRINGSTREAM os; os << v; OUTSTRING s = os.str(); cm->sendPartialOutput(inf, &s); return *this;}
   virtual const LoggedStream& operator<<(long long int v) const {OUTSTRINGSTREAM os; os << v; OUTSTRING s = os.str(); cm->sendPartialOutput(inf, &s); return *this;}
   virtual const LoggedStream& operator<<(std::ios_base v) const {*out << &v;return *this;}

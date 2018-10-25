@@ -722,12 +722,12 @@ int MegaCmdShellCommunications::executeCommand(string command, std::string (*rea
         {
             int partialoutsize;
 
-            n = recv(newsockfd, &partialoutsize, sizeof(int), MSG_NOSIGNAL);
+            n = recv(newsockfd, (char *)&partialoutsize, sizeof(int), MSG_NOSIGNAL);
             if (n && partialoutsize > 0)
             {
                 do{
-                    char buffer[partialoutsize+1];
-                    n = recv(newsockfd, buffer, partialoutsize, MSG_NOSIGNAL);
+                    char *buffer = new char[partialoutsize+1];
+                    n = recv(newsockfd, (char *)buffer, partialoutsize, MSG_NOSIGNAL);
                     if (n)
                     {
 #ifdef _WIN32
@@ -744,6 +744,7 @@ int MegaCmdShellCommunications::executeCommand(string command, std::string (*rea
 #endif
                         partialoutsize-=n;
                     }
+                    delete[] buffer;
                 } while(n != 0 && partialoutsize && n !=SOCKET_ERROR);
             }
             else

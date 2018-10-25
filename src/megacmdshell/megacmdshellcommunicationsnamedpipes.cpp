@@ -557,57 +557,107 @@ int MegaCmdShellCommunicationsNamedPipes::executeCommand(string command, std::st
         return -1;
     }
 
-    while (outcode == MCMD_REQCONFIRM || outcode == MCMD_REQSTRING )
+    while (outcode == MCMD_REQCONFIRM || outcode == MCMD_REQSTRING || outcode == MCMD_PARTIALOUT)
     {
-        int BUFFERSIZE = 1024;
-        string confirmQuestion;
-        char bufferQuestion[1025];
-        memset(bufferQuestion,'\0',1025);
-        BOOL readok;
-        do{
-            readok = ReadFile(newNamedPipe, bufferQuestion, BUFFERSIZE, &n, NULL);
-            confirmQuestion.append(bufferQuestion);
-        } while(n == BUFFERSIZE && readok);
-
-        if (!readok)
+        if (outcode == MCMD_PARTIALOUT)
         {
-            cerr << "ERROR reading confirm question: " << ERRNO << endl;
-        }
-
-        if (outcode == MCMD_REQCONFIRM)
-        {
-            int response = MCMDCONFIRM_NO;
-
-            if (readresponse != NULL)
+            int partialoutsize;
+            if (!ReadFile(newNamedPipe, (char *)&partialoutsize, sizeof(partialoutsize),&n, NULL))
             {
-                response = readconfirmationloop(confirmQuestion.c_str(), readresponse);
+                std:cerr << "Error reading size of partial output: " << ERRNO << std::endl;
+                return -1;
             }
 
-            if (!WriteFile(newNamedPipe, (const char *) &response, sizeof(response), &n, NULL))
+            if (partialoutsize > 0)
             {
-                cerr << "ERROR writing confirm response to namedPipe: " << ERRNO << endl;
+                int BUFFERSIZE = 1024;
+                char buffer[1025];
+                do{
+                    BOOL readok;
+                    readok = ReadFile(newNamedPipe, buffer, min(BUFFERSIZE,partialoutsize),&n,NULL);
+                    if (readok)
+                    {
+                        buffer[n]='\0';
+
+                        wstring wbuffer;
+                        stringtolocalw((const char*)&buffer,&wbuffer);
+                        int oldmode;
+            //            if (interactiveshell || outputtobinaryorconsole())
+            //            {
+                            // In non-interactive mode, at least in powershell, when outputting to a file/pipe, things get rough
+                            // Powershell tries to interpret the output as a string and would meddle with the UTF16 encoding, resulting
+                            // in unusable output, So we disable the UTF-16 in such cases (this might cause that the output could be truncated!).
+            //                oldmode = _setmode(_fileno(stdout), _O_U16TEXT);
+            //            }
+                        oldmode = _setmode(_fileno(stdout), _O_U8TEXT);
+                        output << wbuffer << flush;
+                        _setmode(_fileno(stdout), oldmode);
+            //            if (interactiveshell || outputtobinaryorconsole() || true)
+            //            {
+            //                _setmode(_fileno(stdout), oldmode);
+            //            }
+
+                        partialoutsize-=n;
+                    }
+                } while(n != 0 && partialoutsize && n !=SOCKET_ERROR);
+            }
+            else
+            {
+                cerr << "Invalid size of partial output: " << partialoutsize << endl;
                 return -1;
             }
         }
-        else // MCMD_REQSTRING
+        else
         {
-            string response = "FAILED";
 
-            if (readresponse != NULL)
+            int BUFFERSIZE = 1024;
+            string confirmQuestion;
+            char bufferQuestion[1025];
+            memset(bufferQuestion,'\0',1025);
+            BOOL readok;
+            do{
+                readok = ReadFile(newNamedPipe, bufferQuestion, BUFFERSIZE, &n, NULL);
+                confirmQuestion.append(bufferQuestion);
+            } while(n == BUFFERSIZE && readok);
+
+            if (!readok)
             {
-                response = readresponse(confirmQuestion.c_str());
+                cerr << "ERROR reading confirm question: " << ERRNO << endl;
             }
 
-            wstring wresponse;
-            stringtolocalw(response.c_str(),&wresponse);
-            if (!WriteFile(newNamedPipe, (char *) wresponse.data(), DWORD(wcslen(wresponse.c_str())*sizeof(wchar_t)), &n, NULL))
+            if (outcode == MCMD_REQCONFIRM)
             {
-                cerr << "ERROR writing confirm response to namedPipe: " << ERRNO << endl;
-                return -1;
+                int response = MCMDCONFIRM_NO;
+
+                if (readresponse != NULL)
+                {
+                    response = readconfirmationloop(confirmQuestion.c_str(), readresponse);
+                }
+
+                if (!WriteFile(newNamedPipe, (const char *) &response, sizeof(response), &n, NULL))
+                {
+                    cerr << "ERROR writing confirm response to namedPipe: " << ERRNO << endl;
+                    return -1;
+                }
+            }
+            else // MCMD_REQSTRING
+            {
+                string response = "FAILED";
+
+                if (readresponse != NULL)
+                {
+                    response = readresponse(confirmQuestion.c_str());
+                }
+
+                wstring wresponse;
+                stringtolocalw(response.c_str(),&wresponse);
+                if (!WriteFile(newNamedPipe, (char *) wresponse.data(), DWORD(wcslen(wresponse.c_str())*sizeof(wchar_t)), &n, NULL))
+                {
+                    cerr << "ERROR writing confirm response to namedPipe: " << ERRNO << endl;
+                    return -1;
+                }
             }
         }
-
-
         if (!ReadFile(newNamedPipe, (char *)&outcode, sizeof(outcode),&n, NULL))
         {
             cerr << "ERROR reading output code: " << ERRNO << endl;
