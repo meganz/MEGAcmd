@@ -79,7 +79,7 @@ HEADERS += ../../../../src/megacmd.h \
     HEADERS +=../../../../src/comunicationsmanagerportsockets.h
 
 win32 {
-    LIBS += -lshell32 -llz32
+    LIBS += -lole32 -loleaut32 -lshell32 -llz32 -ltaskschd
     RC_FILE = icon.rc
     QMAKE_LFLAGS += /LARGEADDRESSAWARE
     QMAKE_LFLAGS_WINDOWS += /SUBSYSTEM:WINDOWS,5.01
@@ -101,7 +101,7 @@ macx {
     CONFIG += USE_OPENSSL
     DEFINES += USE_OPENSSL
 
-    QMAKE_MACOSX_DEPLOYMENT_TARGET = 10.6
+    QMAKE_MACOSX_DEPLOYMENT_TARGET = 10.9
     QMAKE_CXXFLAGS -= -stdlib=libc++
     QMAKE_LFLAGS -= -stdlib=libc++
     CONFIG -= c++11

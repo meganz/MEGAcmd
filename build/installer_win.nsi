@@ -428,6 +428,7 @@ modeselected:
   ExecDos::exec /DETAILED /DISABLEFSR "taskkill /f /IM MEGAcmd.exe"
   ExecDos::exec /DETAILED /DISABLEFSR "taskkill /f /IM MEGAcmdServer.exe"
   ExecDos::exec /DETAILED /DISABLEFSR "taskkill /f /IM MEGAclient.exe"
+  ExecDos::exec /DETAILED /DISABLEFSR "taskkill /f /IM MEGAcmdUpdater.exe"
   
   !insertmacro DEBUG_MSG "Installing files"  
 
@@ -451,6 +452,10 @@ modeselected:
   AccessControl::SetFileOwner "$INSTDIR\MEGAcmdShell.exe" "$USERNAME"
   AccessControl::GrantOnFile "$INSTDIR\MEGAcmdShell.exe" "$USERNAME" "GenericRead + GenericWrite"
 
+  File "${SRCDIR_MEGACMD}\..\..\MEGAcmdUpdater\release\MEGAcmdUpdater.exe"
+  AccessControl::SetFileOwner "$INSTDIR\MEGAcmdUpdater.exe" "$USERNAME"
+  AccessControl::GrantOnFile "$INSTDIR\MEGAcmdUpdater.exe" "$USERNAME" "GenericRead + GenericWrite"
+  
   File "${SRCDIR_MEGACMD}\libeay32.dll"
   AccessControl::SetFileOwner "$INSTDIR\libeay32.dll" "$USERNAME"
   AccessControl::GrantOnFile "$INSTDIR\libeay32.dll" "$USERNAME" "GenericRead + GenericWrite"
@@ -720,6 +725,7 @@ modeselected:
   CreateDirectory "$SMPROGRAMS\$ICONS_GROUP"
   CreateShortCut "$SMPROGRAMS\$ICONS_GROUP\MEGAcmd.lnk" "$INSTDIR\MEGAcmdShell.exe"
   CreateShortCut "$SMPROGRAMS\$ICONS_GROUP\MEGAcmdServer.lnk" "$INSTDIR\MEGAcmdServer.exe"
+  CreateShortCut "$SMPROGRAMS\$ICONS_GROUP\Update MEGAcmd.lnk" "$INSTDIR\MEGAcmdUpdater.exe"
   CreateShortCut "$DESKTOP\MEGAcmd.lnk" "$INSTDIR\MEGAcmdShell.exe"
   WriteIniStr "$INSTDIR\MEGA Website.url" "InternetShortcut" "URL" "${PRODUCT_WEB_SITE}"
   CreateShortCut "$SMPROGRAMS\$ICONS_GROUP\MEGA Website.lnk" "$INSTDIR\MEGA Website.url" "" "$INSTDIR\MEGAcmdShell.exe" 1
@@ -732,6 +738,7 @@ currentuser2:
   CreateDirectory "$SMPROGRAMS\$ICONS_GROUP"
   CreateShortCut "$SMPROGRAMS\$ICONS_GROUP\MEGAcmd.lnk" "$INSTDIR\MEGAcmdShell.exe"
   CreateShortCut "$SMPROGRAMS\$ICONS_GROUP\MEGAcmdServer.lnk" "$INSTDIR\MEGAcmdServer.exe"
+  CreateShortCut "$SMPROGRAMS\$ICONS_GROUP\Update MEGAcmd.lnk" "$INSTDIR\MEGAcmdUpdater.exe"
   CreateShortCut "$DESKTOP\MEGAcmd.lnk" "$INSTDIR\MEGAcmdShell.exe"
 
   WriteIniStr "$INSTDIR\MEGA Website.url" "InternetShortcut" "URL" "${PRODUCT_WEB_SITE}"
@@ -777,12 +784,22 @@ ${EndIf}
 !insertmacro MUI_UNGETLANGUAGE
 FunctionEnd
 
+Function un.UninstallCmd
+  ExecDos::exec "$INSTDIR\MEGAcmdServer.exe --uninstall"
+FunctionEnd
+
+
 Section Uninstall
   ExecDos::exec /DETAILED "taskkill /f /IM MEGAcmdShell.exe"
   ExecDos::exec /DETAILED "taskkill /f /IM MEGAclient.exe"
   ExecDos::exec /DETAILED "taskkill /f /IM MEGAcmd.exe"
   ExecDos::exec /DETAILED "taskkill /f /IM MEGAcmdServer.exe"
+  ExecDos::exec /DETAILED "taskkill /f /IM MEGAcmdUpdater.exe"
+  Sleep 1000
+  ${UAC.CallFunctionAsUser} un.UninstallCmd
+  Sleep 1000
 
+  
   !insertmacro MUI_STARTMENU_GETFOLDER "Application" $ICONS_GROUP
   Delete "$INSTDIR\${PRODUCT_NAME}.url"
   Delete "$INSTDIR\${UNINSTALLER_NAME}"
@@ -835,6 +852,7 @@ Section Uninstall
   Delete "$INSTDIR\api-ms-win-core-console-l1-1-0.dll"
   
   ;Common files
+  Delete "$INSTDIR\MEGAcmdUpdater.exe"
   Delete "$INSTDIR\MEGAcmdServer.exe"
   Delete "$INSTDIR\MEGAcmd.exe"
   Delete "$INSTDIR\MEGAcmdShell.exe"

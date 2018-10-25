@@ -115,6 +115,10 @@ enum
     MCMD_REQCONFIRM = -60,     ///< Confirmation required
     MCMD_REQSTRING = -61,     ///< String required
 
+#ifndef __linux__
+    MCMD_REQRESTART = -71,     ///< Restart required
+#endif
+
 };
 
 
@@ -127,6 +131,8 @@ enum confirmresponse
 };
 
 void changeprompt(const char *newprompt);
+
+void broadcastMessage(std::string message);
 
 mega::MegaApi* getFreeApiFolder();
 void freeApiFolder(mega::MegaApi *apiFolder);
@@ -145,6 +151,10 @@ int askforConfirmation(std::string message);
 
 std::string askforUserResponse(std::string message);
 
+void* checkForUpdates(void *param);
+
+void stopcheckingForUpdates();
+void startcheckingForUpdates();
 
 void informTransferUpdate(mega::MegaTransfer *transfer, int clientID);
 

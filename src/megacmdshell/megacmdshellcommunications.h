@@ -114,6 +114,9 @@ enum
     MCMD_REQCONFIRM = -60,     ///< Confirmation required
     MCMD_REQSTRING = -61,     ///< String required
 
+#ifndef __linux__
+    MCMD_REQRESTART = -71,     ///< Restart required
+#endif
 };
 
 enum confirmresponse
@@ -145,6 +148,7 @@ public:
     static bool serverinitiatedfromshell;
     static bool registerAgainRequired;
     int readconfirmationloop(const char *question, std::string (*readresponse)(const char *));
+    static bool updating;
 
 private:
     static SOCKET newsockfd;

@@ -2319,11 +2319,32 @@ int MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
         {
             OUTSTREAM << "---------------------------------------------------------------------" << endl;
             OUTSTREAM << "--        There is a new version available of megacmd: " << setw(12) << left << megaCmdListener->getRequest()->getName() << "--" << endl;
-            OUTSTREAM << "--        Please, download it from https://mega.nz/cmd             --" << endl;
+            OUTSTREAM << "--        Please, update this one: See \"update --help\".          --" << endl;
+            OUTSTREAM << "--        Or download the latest from https://mega.nz/cmd          --" << endl;
             OUTSTREAM << "---------------------------------------------------------------------" << endl;
         }
     }
     delete megaCmdListener;
+
+    //this goes here in case server is launched directly and thus we ensure that's shown at the beginning
+    int autoupdate = ConfigurationManager::getConfigurationValue("autoupdate", -1);
+    bool enabledupdaterhere = false;
+    if (autoupdate == -1 || autoupdate == 2)
+    {
+        OUTSTREAM << "ENABLING AUTOUPDATE BY DEFAULT. You can disable it with \"update --auto=off\"" << endl;
+        autoupdate = 1;
+        enabledupdaterhere = true;
+    }
+
+    if (autoupdate >= 1)
+    {
+        startcheckingForUpdates();
+    }
+    if (enabledupdaterhere)
+    {
+        ConfigurationManager::savePropertyValue("autoupdate", 2); //save to special value to indicate first listener that it is enabled
+    }
+
 #endif
     return srl->getError()->getErrorCode();
 }
@@ -4277,7 +4298,8 @@ void MegaCmdExecuter::confirmCancel(const char* confirmlink, const char* pass)
     {
         LOG_err << "Confirm cancel account failed: too many attempts";
     }
-    else if (megaCmdListener->getError()->getErrorCode() == MegaError::API_ENOENT)
+    else if (megaCmdListener->getError()->getErrorCode() == MegaError::API_ENOENT
+             || megaCmdListener->getError()->getErrorCode() == MegaError::API_EKEY)
     {
         LOG_err << "Confirm cancel account failed: invalid link/password";
     }
@@ -4680,6 +4702,35 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
         }
     }
+#ifndef __linux__
+    else if (words[0] == "update")
+    {
+        string sauto = getOption(cloptions, "auto", "");
+        transform(sauto.begin(), sauto.end(), sauto.begin(), ::tolower);
+
+        if (sauto == "off")
+        {
+            stopcheckingForUpdates();
+            OUTSTREAM << "Automatic updates disabled" << endl;
+        }
+        else if (sauto == "on")
+        {
+            startcheckingForUpdates();
+            OUTSTREAM << "Automatic updates enabled" << endl;
+        }
+        else if (sauto == "query")
+        {
+            OUTSTREAM << "Automatic updates " << (ConfigurationManager::getConfigurationValue("autoupdate", false)?"enabled":"disabled") << endl;
+        }
+        else
+        {
+            setCurrentOutCode(MCMD_EARGS);
+            LOG_err << "      " << getUsageStr("update");
+        }
+
+        return;
+    }
+#endif
     else if (words[0] == "cd")
     {
         if (!api->isFilesystemAvailable())

@@ -366,7 +366,7 @@ string oldpasswd;
 string newpasswd;
 
 bool doExit = false;
-
+bool doReboot = false;
 bool handlerinstalled = false;
 
 bool requirepromptinstall = true;
@@ -470,6 +470,17 @@ void statechangehandle(string statestring)
         else if (newstate == "ack")
         {
             // do nothing, all good
+        }
+        else if (newstate == "restart")
+        {
+            doExit = true;
+            doReboot = true;
+            if (!comms->updating)
+            {
+                comms->updating = true; // to avoid mensajes about server down
+                sleepSeconds(3); // Give a while for server to restart
+                changeprompt("RESTART REQUIRED BY SERVER (due to an update). Press any key to continue.", true);
+            }
         }
         else
         {
@@ -1490,6 +1501,23 @@ void process_line(const char * line)
                         doExit = true;
                     }
                 }
+#ifndef __linux__
+                else if (words[0] == "update")
+                {
+                    MegaCmdShellCommunications::updating = true;
+                    int ret = comms->executeCommand(line, readresponse);
+                    if (ret == MCMD_REQRESTART)
+                    {
+                        OUTSTREAM << "MEGAcmd has been updated ... this shell will be restarted before proceding...." << endl;
+                        doExit = true;
+                        doReboot = true;
+                    }
+                    else if (ret != MCMD_INVALIDSTATE && words.size() == 1)
+                    {
+                        MegaCmdShellCommunications::updating = false;
+                    }
+                }
+#endif
                 else if (words[0] == "history")
                 {
                     if (helprequested)
@@ -1854,7 +1882,7 @@ void readloop()
                 rl_callback_read_char(); //this calls store_line if last char was enter
 
                 time_t tnow = time(NULL);
-                if ( (tnow - lasttimeretrycons) > 5 && !doExit)
+                if ( (tnow - lasttimeretrycons) > 5 && !doExit && !MegaCmdShellCommunications::updating)
                 {
                     comms->executeCommand("retrycons");
                     lasttimeretrycons = tnow;
@@ -1966,7 +1994,7 @@ void readloop()
             else
             {
                 time_t tnow = time(NULL);
-                if ((tnow - lasttimeretrycons) > 5 && !doExit)
+                if ((tnow - lasttimeretrycons) > 5 && !doExit && !MegaCmdShellCommunications::updating)
                 {
                     comms->executeCommand("retrycons");
                     lasttimeretrycons = tnow;
@@ -2161,6 +2189,9 @@ std::string readresponse(const char* question)
     response = readline(question);
     rl_set_prompt("");
     rl_replace_line("", 0);
+
+    rl_callback_handler_remove(); //To fix broken readline (e.g: upper key wouldnt work)
+
     return response;
 }
 #else
@@ -2242,8 +2273,48 @@ int main(int argc, char* argv[])
 
 #ifndef NO_READLINE
     clear_history();
-    rl_callback_handler_remove(); //To avoid having the terminal messed up (requiring a "reset")
+    if (!doReboot)
+    {
+        rl_callback_handler_remove(); //To avoid having the terminal messed up (requiring a "reset")
+    }
 #endif
     delete comms;
 
+    if (doReboot)
+    {
+#ifdef _WIN32
+        sleepSeconds(5); // Give a while for server to restart
+        LPWSTR szPathExecQuoted = GetCommandLineW();
+        wstring wspathexec = wstring(szPathExecQuoted);
+
+        if (wspathexec.at(0) == '"')
+        {
+            wspathexec = wspathexec.substr(1);
+        }
+        while (wspathexec.size() && ( wspathexec.at(wspathexec.size()-1) == '"' || wspathexec.at(wspathexec.size()-1) == ' ' ))
+        {
+            wspathexec = wspathexec.substr(0,wspathexec.size()-1);
+        }
+        LPWSTR szPathExec = (LPWSTR) wspathexec.c_str();
+
+        STARTUPINFO si;
+        PROCESS_INFORMATION pi;
+        ZeroMemory( &si, sizeof(si) );
+        ZeroMemory( &pi, sizeof(pi) );
+        si.cb = sizeof(si);
+
+        if (!CreateProcess( szPathExec,szPathExec,NULL,NULL,TRUE,
+                            CREATE_NEW_CONSOLE,
+                            NULL,NULL,
+                            &si,&pi) )
+        {
+            COUT << "Unable to execute: " << szPathExec << " errno = : " << ERRNO << endl;
+            sleepSeconds(5);
+        }
+#else
+        system("reset -I");
+        execv(argv[0], argv);
+#endif
+
+    }
 }

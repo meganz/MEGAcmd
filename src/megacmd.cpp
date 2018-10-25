@@ -37,7 +37,12 @@
 
 #ifndef _WIN32
 #include "signal.h"
+#include <sys/wait.h>
 #else
+#include <taskschd.h>
+#include <comutil.h>
+#include <comdef.h>
+#include <sddl.h>
 #include <fcntl.h>
 #include <io.h>
 #define strdup _strdup  // avoid warning
@@ -60,6 +65,15 @@ typedef char *completionfunction_t PARAMS((const char *, int));
 #define SSTR( x ) static_cast< const std::ostringstream & >( \
         ( std::ostringstream() << std::dec << x ) ).str()
 
+
+#ifndef ERRNO
+#ifdef _WIN32
+#include <windows.h>
+#define ERRNO WSAGetLastError()
+#else
+#define ERRNO errno
+#endif
+#endif
 
 #ifdef _WIN32
 // convert UTF-8 to Windows Unicode wstring
@@ -221,6 +235,9 @@ string avalidCommands [] = { "login", "signup", "confirm", "session", "mount", "
 #else
                              , "permissions"
 #endif
+#ifndef __linux__
+                             , "update"
+#endif
                            };
 vector<string> validCommands(avalidCommands, avalidCommands + sizeof avalidCommands / sizeof avalidCommands[0]);
 
@@ -230,6 +247,7 @@ string newpasswd;
 
 bool doExit = false;
 bool consoleFailed = false;
+bool stopcheckingforUpdaters = false;
 
 string dynamicprompt = "MEGA CMD> ";
 
@@ -241,6 +259,9 @@ Console* console;
 MegaMutex mutexHistory;
 
 map<unsigned long long, string> threadline;
+
+char ** mcmdMainArgv;
+int mcmdMainArgc;
 
 void printWelcomeMsg();
 
@@ -277,6 +298,7 @@ void sigint_handler(int signum)
 
     LOG_debug << "Exiting due to SIGINT";
 
+    stopcheckingforUpdaters = true;
     doExit = true;
 }
 
@@ -334,6 +356,16 @@ void changeprompt(const char *newprompt)
     cm->informStateListeners(s);
 }
 
+void broadcastMessage(string message)
+{
+    string s;
+    if (message.size())
+    {
+        s += "message:";
+        s+=message;
+    }
+    cm->informStateListeners(s);
+}
 
 void informTransferUpdate(MegaTransfer *transfer, int clientID)
 {
@@ -647,7 +679,12 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     {
         validParams->insert("only-shell");
     }
-
+#ifndef __linux__
+    else if ("update" == thecommand)
+    {
+        validOptValues->insert("auto");
+    }
+#endif
 }
 
 void escapeEspace(string &orig)
@@ -1714,6 +1751,12 @@ const char * getUsageStr(const char *command)
         return "codepage [N [M]]";
     }
 #endif
+#ifndef __linux__
+    if (!strcmp(command, "update"))
+    {
+        return "update [--auto=on|off]";
+    }
+#endif
     return "command not found: ";
 }
 
@@ -1867,6 +1910,22 @@ string getHelpStr(const char *command)
         os << " --use-pcre" << "\t" << "use PCRE expressions" << endl;
 #endif
     }
+#ifndef __linux__
+    else if (!strcmp(command, "update"))
+    {
+        os << "Updates MEGAcmd" << endl;
+        os << endl;
+        os << "Looks for updates and applies if available." << endl;
+        os << "This command can also be used to enable/disable automatic updates." << endl;
+
+        os << "Options:" << endl;
+        os << " --auto=ON|OFF|query" << "\t" << "Enables/disables/queries status of auto updates." << endl;
+        os << endl;
+        os << "If auto updates are enabled it will be checked while MEGAcmd server is running." << endl;
+        os << " If there is an update available, it will be downloaded and applied. " << endl;
+        os << " This will cause MEGAcmd to be restarted whenever the updates are applied." << endl;
+    }
+#endif
     else if (!strcmp(command, "cd"))
     {
         os << "Changes the current remote folder" << endl;
@@ -2701,7 +2760,6 @@ void executecommand(char* ptr)
         return;
     }
 
-
     if ( thecommand == "help" )
     {
         if (getFlag(&clflags,"upgrade"))
@@ -2837,6 +2895,209 @@ void executecommand(char* ptr)
     cmdexecuter->executecommand(words, &clflags, &cloptions);
 }
 
+bool executeUpdater(bool *restartRequired, bool doNotInstall = false)
+{
+    LOG_debug << "Executing updater..." ;
+#ifdef _WIN32
+
+#ifndef NDEBUG
+    LPCWSTR szPath = TEXT("..\\MEGAcmdUpdater\\debug\\MEGAcmdUpdater.exe");
+#else
+    TCHAR szPath[MAX_PATH];
+
+    if (!SUCCEEDED(GetModuleFileName(NULL, szPath , MAX_PATH)))
+    {
+        LOG_err << "Couldnt get EXECUTABLE folder: " << wstring(szPath);
+        setCurrentOutCode(MCMD_EUNEXPECTED);
+        return false;
+    }
+
+    if (SUCCEEDED(PathRemoveFileSpec(szPath)))
+    {
+        if (!PathAppend(szPath,TEXT("MEGAcmdUpdater.exe")))
+        {
+            LOG_err << "Couldnt append MEGAcmdUpdater exec: " << wstring(szPath);
+            setCurrentOutCode(MCMD_EUNEXPECTED);
+            return false;
+        }
+    }
+    else
+    {
+        LOG_err << "Couldnt remove file spec: " << wstring(szPath);
+        setCurrentOutCode(MCMD_EUNEXPECTED);
+        return false;
+    }
+#endif
+    STARTUPINFO si;
+    PROCESS_INFORMATION pi;
+    ZeroMemory( &si, sizeof(si) );
+    ZeroMemory( &pi, sizeof(pi) );
+
+    si.cb = sizeof(si);
+    si.dwFlags = STARTF_USESHOWWINDOW;
+    TCHAR szPathUpdaterCL[MAX_PATH+30];
+    if (doNotInstall)
+    {
+        wsprintfW(szPathUpdaterCL,L"%ls --normal-update --do-not-install", szPath);
+    }
+    else
+    {
+        wsprintfW(szPathUpdaterCL,L"%ls --normal-update", szPath);
+    }
+    LOG_verbose << "Executing: " << wstring(szPathUpdaterCL);
+    if (!CreateProcess( szPath,(LPWSTR) szPathUpdaterCL,NULL,NULL,TRUE,
+                        0,
+                        NULL,NULL,
+                        &si,&pi) )
+    {
+        LOG_err << "Unable to execute: <" << wstring(szPath) << "> errno = : " << ERRNO;
+        setCurrentOutCode(MCMD_EUNEXPECTED);
+        return false;
+    }
+
+    WaitForSingleObject( pi.hProcess, INFINITE );
+
+    DWORD exit_code;
+    GetExitCodeProcess(pi.hProcess, &exit_code);
+    *restartRequired = exit_code != 0;
+
+    LOG_verbose << " The execution of Updater returns: " << exit_code;
+
+    CloseHandle( pi.hProcess );
+    CloseHandle( pi.hThread );
+
+#else
+    pid_t pidupdater = fork();
+
+    if ( pidupdater == 0 )
+    {
+        char * donotinstallstr = NULL;
+        if (doNotInstall)
+        {
+            donotinstallstr = "--do-not-install";
+        }
+
+#ifdef __MACH__
+#ifndef NDEBUG
+        char * args[] = {"../../../../MEGAcmdUpdater/MEGAcmdUpdater.app/Contents/MacOS/MEGAcmdUpdater", "--normal-update", donotinstallstr, NULL};
+#else
+        char * args[] = {"/Applications/MEGAcmd.app/Contents/MacOS/MEGAcmdUpdater", "--normal-update", donotinstallstr, NULL};
+#endif
+#else //linux don't use autoupdater: this is just for testing
+#ifndef NDEBUG
+        char * args[] = {"../MEGAcmdUpdater/MEGAcmdUpdater", "--normal-update", donotinstallstr, NULL}; // notice: won't work after lcd
+#else
+        char * args[] = {"mega-cmd-updater", "--normal-update", donotinstallstr, NULL};
+#endif
+#endif
+
+        LOG_verbose << "Exec updater line: " << args[0] << " " << args[1] << " " << args[2];
+
+        if (execvp(args[0], args) < 0)
+        {
+
+            LOG_err << " FAILED to initiate updater. errno = " << ERRNO;
+        }
+    }
+
+    int status;
+
+    waitpid(pidupdater, &status, 0);
+
+    if ( WIFEXITED(status) )
+    {
+        int exit_code = WEXITSTATUS(status);
+        LOG_debug << "Exit status of the updater was " << exit_code;
+        *restartRequired = exit_code != 0;
+
+    }
+    else
+    {
+        LOG_err << " Unexpected error waiting for Updater. errno = " << ERRNO;
+    }
+#endif
+    return true;
+}
+
+bool restartServer()
+{
+#ifdef _WIN32
+        LPWSTR szPathExecQuoted = GetCommandLineW();
+        wstring wspathexec = wstring(szPathExecQuoted);
+
+        if (wspathexec.at(0) == '"')
+        {
+            wspathexec = wspathexec.substr(1);
+        }
+
+        size_t pos = wspathexec.find(L"--wait-for");
+        if (pos != string::npos)
+        {
+            wspathexec = wspathexec.substr(0,pos);
+        }
+
+        while (wspathexec.size() && ( wspathexec.at(wspathexec.size()-1) == '"' || wspathexec.at(wspathexec.size()-1) == ' ' ))
+        {
+            wspathexec = wspathexec.substr(0,wspathexec.size()-1);
+        }
+
+        LPWSTR szPathServerCommand = (LPWSTR) wspathexec.c_str();
+        TCHAR szPathServer[MAX_PATH];
+        if (!SUCCEEDED(GetModuleFileName(NULL, szPathServer , MAX_PATH)))
+        {
+            LOG_err << "Couldnt get EXECUTABLE folder: " << wstring(szPathServer);
+            setCurrentOutCode(MCMD_EUNEXPECTED);
+            return false;
+        }
+
+        LOG_debug << "Restarting the server : <" << wstring(szPathServerCommand) << ">";
+
+        STARTUPINFO si;
+        PROCESS_INFORMATION pi;
+        ZeroMemory( &si, sizeof(si) );
+        ZeroMemory( &pi, sizeof(pi) );
+        si.cb = sizeof(si);
+        si.dwFlags = STARTF_USESHOWWINDOW;
+        TCHAR szPathServerCL[MAX_PATH+30];
+        wsprintfW(szPathServerCL,L"%ls --wait-for %d", szPathServerCommand, GetCurrentProcessId());
+        LOG_verbose  << "Executing: " << wstring(szPathServerCL);
+        if (!CreateProcess( szPathServer,(LPWSTR) szPathServerCL,NULL,NULL,TRUE,
+                            0,
+                            NULL,NULL,
+                            &si,&pi) )
+        {
+            LOG_debug << "Unable to execute: <" << wstring(szPathServerCL) << "> errno = : " << ERRNO;
+            return false;
+        }
+#else
+    pid_t childid = fork();
+    if ( childid ) //parent
+    {
+        char **argv = new char*[mcmdMainArgc+3];
+        int i = 0;
+        for (;i < mcmdMainArgc; i++)
+        {
+            argv[i]=mcmdMainArgv[i];
+        }
+
+        argv[i++]="--wait-for";
+        argv[i++]=(char*)SSTR(childid).c_str();
+        argv[i++]=NULL;
+        LOG_debug << "Restarting the server : <" << argv[0] << ">";
+
+        execv(argv[0],argv);
+    }
+#endif
+
+
+    LOG_debug << "Server restarted, indicating the shell to restart also";
+    setCurrentOutCode(MCMD_REQRESTART);
+
+    string s = "restart";
+    cm->informStateListeners(s);
+
+    return true;
+}
 
 static bool process_line(char* l)
 {
@@ -2945,6 +3206,46 @@ static bool process_line(char* l)
                 cm->informStateListeners(sack);
                 break;
             }
+
+#ifndef __linux__
+            else if (!strcmp(l, "update") || !strcmp(l, "update ")) //if extra args are received, it'll be processed by executer
+            {
+                string confirmationQuery("This might require restarting MEGAcmd. Are you sure to continue");
+                confirmationQuery+="? (Yes/No): ";
+
+                int confirmationResponse = askforConfirmation(confirmationQuery);
+
+                if (confirmationResponse != MCMDCONFIRM_YES && confirmationResponse != MCMDCONFIRM_ALL)
+                {
+                    setCurrentOutCode(MCMD_INVALIDSTATE); // so as not to indicate already updated
+                    return false;
+                }
+                bool restartRequired = false;
+
+                if (!executeUpdater(&restartRequired))
+                {
+                    setCurrentOutCode(MCMD_INVALIDSTATE); // so as not to indicate already updated
+                    return false;
+                }
+
+                if (restartRequired && restartServer())
+                {
+                    OUTSTREAM << " " << endl;
+
+                    int attempts=20; //give a while for ingoin petitions to end before killing the server
+                    while(petitionThreads.size() > 1 && attempts--)
+                    {
+                        sleepSeconds(20-attempts);
+                    }
+                    return true;
+                }
+                else
+                {
+                    OUTSTREAM << "Update is not required. You are in the last version. Further info: \"version --help\", \"update --help\"" << endl;
+                    return false;
+                }
+            }
+#endif
             executecommand(l);
             break;
         }
@@ -2980,6 +3281,7 @@ void * doProcessLine(void *pointer)
 
     if (doExit)
     {
+        stopcheckingforUpdaters = true;
         LOG_verbose << " Exit registered upon process_line: " ;
     }
 
@@ -3126,6 +3428,117 @@ void * retryConnections(void *pointer)
 }
 
 
+void startcheckingForUpdates()
+{
+    ConfigurationManager::savePropertyValue("autoupdate", 1);
+
+    LOG_info << "Starting autoupdate check mechanism";
+    MegaThread *checkupdatesThread = new MegaThread(); //TODO: memleak
+    checkupdatesThread->start(checkForUpdates,NULL);
+}
+
+void stopcheckingForUpdates()
+{
+    ConfigurationManager::savePropertyValue("autoupdate", 0);
+
+    stopcheckingforUpdaters = true;
+}
+
+void* checkForUpdates(void *param)
+{
+    static bool already = false;
+    if (!already)
+    {
+        already = true;
+    }
+    else
+    {
+        return NULL;
+    }
+
+    stopcheckingforUpdaters = false;
+    LOG_debug << "Initiating recurrent checkForUpdates";
+
+    int secstosleep = 60;
+    while (secstosleep>0 && !stopcheckingforUpdaters)
+    {
+        sleepSeconds(2);
+        secstosleep-=2;
+    }
+
+    while (!doExit && !stopcheckingforUpdaters)
+    {
+        bool restartRequired = false;
+        if (!executeUpdater(&restartRequired, true)) //only download & check
+        {
+            LOG_err << " Failed to execute updater";
+        }
+        else if (restartRequired)
+        {
+            LOG_info << " There is a pending update. Will be applied in a few seconds";
+
+            broadcastMessage("A new update has been downloaded. It will be performed in 60 seconds");
+            int secstosleep = 57;
+            while (secstosleep>0 && !stopcheckingforUpdaters)
+            {
+                sleepSeconds(2);
+                secstosleep-=2;
+            }
+            if (stopcheckingforUpdaters) break;
+            broadcastMessage("  Executing update in 3");
+            sleepSeconds(1);
+            if (stopcheckingforUpdaters) break;
+            broadcastMessage("  Executing update in 2");
+            sleepSeconds(1);
+            if (stopcheckingforUpdaters) break;
+            broadcastMessage("  Executing update in 1");
+            sleepSeconds(1);
+            if (stopcheckingforUpdaters) break;
+
+            while(petitionThreads.size() && !stopcheckingforUpdaters)
+            {
+                LOG_fatal << " waiting for petitions to end to initiate upload " << petitionThreads.size() << petitionThreads.at(0);
+                sleepSeconds(2);
+                delete_finished_threads();
+            }
+
+            if (stopcheckingforUpdaters) break;
+            broadcastMessage("  Executing update    !");
+            LOG_info << " Applying update";
+            executeUpdater(&restartRequired);
+        }
+        else
+        {
+            LOG_verbose << " There is no pending update";
+        }
+
+        if (stopcheckingforUpdaters) break;
+        if (restartRequired && restartServer())
+        {
+            int attempts=20; //give a while for ingoin petitions to end before killing the server
+            while(petitionThreads.size() && attempts--)
+            {
+                sleepSeconds(20-attempts);
+                delete_finished_threads();
+            }
+
+            doExit = true;
+            cm->stopWaiting();
+            break;
+        }
+
+        int secstosleep = 7200;
+        while (secstosleep>0 && !stopcheckingforUpdaters)
+        {
+            sleepSeconds(2);
+            secstosleep-=2;
+        }
+    }
+
+    already = false;
+    return NULL;
+}
+
 // main loop
 void megacmd()
 {
@@ -3204,14 +3617,14 @@ void megacmd()
                         {
                             os << "---------------------------------------------------------------------" << endl;
                             os << "--        There is a new version available of megacmd: " << setw(12) << left << megaCmdListener->getRequest()->getName() << "--" << endl;
-                            os << "--        Please, download it from https://mega.nz/cmd             --" << endl;
+                            os << "--        Please, update this one: See \"update --help\".          --" << endl;
+                            os << "--        Or download the latest from https://mega.nz/cmd          --" << endl;
 #if defined(__APPLE__)
                             os << "--        Before installing enter \"exit\" to close MEGAcmd          --" << endl;
 #endif
                             os << "---------------------------------------------------------------------" << endl;
                         }
                     }
-                    message=os.str();
                     delete megaCmdListener;
                 }
                 else
@@ -3221,6 +3634,20 @@ void megacmd()
                     api->removeRequestListener(megaCmdListener);
                     delete megaCmdListener;
                 }
+
+                int autoupdate = ConfigurationManager::getConfigurationValue("autoupdate", -1);
+                if (autoupdate == -1 || autoupdate == 2)
+                {
+                    os << "ENABLING AUTOUPDATE BY DEFAULT. You can disable it with \"update --auto=off\"" << endl;
+                    autoupdate = 1;
+                }
+
+                if (autoupdate == 1)
+                {
+                    startcheckingForUpdates();
+                }
+                message=os.str();
+
 
                 if (message.size())
                 {
@@ -3279,6 +3706,7 @@ void megacmd()
 
                 //append new one
                 MegaThread * petitionThread = new MegaThread();
+
                 petitionThreads.push_back(petitionThread);
                 inf->setPetitionThread(petitionThread);
 
@@ -3461,7 +3889,9 @@ string getLocaleCode()
      }
      catch (const std::exception& e)
      {
+#ifndef __MACH__
         std::cerr << "Warning: unable to get locale " << std::endl;
+#endif
      }
 
 #endif
@@ -3489,7 +3919,7 @@ bool runningInBackground()
 
 #ifndef MEGACMD_USERAGENT_SUFFIX
 #define MEGACMD_USERAGENT_SUFFIX
-#define MEGACMD_STRINGIZE(x) 
+#define MEGACMD_STRINGIZE(x)
 #else
 #define MEGACMD_STRINGIZE2(x) "-" #x
 #define MEGACMD_STRINGIZE(x) MEGACMD_STRINGIZE2(x)
@@ -3522,6 +3952,297 @@ bool extractargparam(vector<const char*>& args, const char *what, std::string& p
     return false;
 }
 
+
+#ifndef _WIN32
+#include <sys/wait.h>
+bool is_pid_running(pid_t pid) {
+
+    while(waitpid(-1, 0, WNOHANG) > 0) {
+        // Wait for defunct....
+    }
+
+    if (0 == kill(pid, 0))
+        return 1; // Process exists
+
+    return 0;
+}
+#endif
+
+#ifdef _WIN32
+LPTSTR getCurrentSid()
+{
+    HANDLE hTok = NULL;
+    LPBYTE buf = NULL;
+    DWORD  dwSize = 0;
+    LPTSTR stringSID = NULL;
+    if (OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &hTok))
+    {
+        GetTokenInformation(hTok, TokenUser, NULL, 0, &dwSize);
+        if (dwSize)
+        {
+            buf = (LPBYTE)LocalAlloc(LPTR, dwSize);
+            if (GetTokenInformation(hTok, TokenUser, buf, dwSize, &dwSize))
+            {
+                ConvertSidToStringSid(((PTOKEN_USER)buf)->User.Sid, &stringSID);
+            }
+            LocalFree(buf);
+        }
+        CloseHandle(hTok);
+    }
+    return stringSID;
+}
+#endif
+
+bool registerUpdater()
+{
+#ifdef _WIN32
+    ITaskService *pService = NULL;
+    ITaskFolder *pRootFolder = NULL;
+    ITaskFolder *pMEGAFolder = NULL;
+    ITaskDefinition *pTask = NULL;
+    IRegistrationInfo *pRegInfo = NULL;
+    IPrincipal *pPrincipal = NULL;
+    ITaskSettings *pSettings = NULL;
+    IIdleSettings *pIdleSettings = NULL;
+    ITriggerCollection *pTriggerCollection = NULL;
+    ITrigger *pTrigger = NULL;
+    IDailyTrigger *pCalendarTrigger = NULL;
+    IRepetitionPattern *pRepetitionPattern = NULL;
+    IActionCollection *pActionCollection = NULL;
+    IAction *pAction = NULL;
+    IExecAction *pExecAction = NULL;
+    IRegisteredTask *pRegisteredTask = NULL;
+    time_t currentTime;
+    struct tm* currentTimeInfo;
+    WCHAR currentTimeString[128];
+    _bstr_t taskBaseName = L"MEGAcmd Update Task ";
+    LPTSTR stringSID = NULL;
+    bool success = false;
+
+    stringSID = getCurrentSid();
+    if (!stringSID)
+    {
+        MegaApi::log(MegaApi::LOG_LEVEL_ERROR, "Unable to get the current SID");
+        return false;
+    }
+
+    time(&currentTime);
+    currentTimeInfo = localtime(&currentTime);
+    wcsftime(currentTimeString, 128,  L"%Y-%m-%dT%H:%M:%S", currentTimeInfo);
+    _bstr_t taskName = taskBaseName + stringSID;
+    _bstr_t userId = stringSID;
+    LocalFree(stringSID);
+
+    TCHAR MEGAcmdUpdaterPath[MAX_PATH];
+
+    if (!SUCCEEDED(GetModuleFileName(NULL, MEGAcmdUpdaterPath , MAX_PATH)))
+    {
+        LOG_err << "Couldnt get EXECUTABLE folder: " << wstring(MEGAcmdUpdaterPath);
+        return false;
+    }
+
+    if (SUCCEEDED(PathRemoveFileSpec(MEGAcmdUpdaterPath)))
+    {
+        if (!PathAppend(MEGAcmdUpdaterPath,TEXT("MEGAcmdUpdater.exe")))
+        {
+            LOG_err << "Couldnt append MEGAcmdUpdater exec: " << wstring(MEGAcmdUpdaterPath);
+            return false;
+        }
+    }
+    else
+    {
+        LOG_err << "Couldnt remove file spec: " << wstring(MEGAcmdUpdaterPath);
+        return false;
+    }
+
+    CoInitializeEx(NULL, COINIT_MULTITHREADED);
+
+    if (SUCCEEDED(CoInitializeSecurity(NULL, -1, NULL, NULL, RPC_C_AUTHN_LEVEL_PKT_PRIVACY, RPC_C_IMP_LEVEL_IMPERSONATE, NULL, 0, NULL))
+            && SUCCEEDED(CoCreateInstance(CLSID_TaskScheduler, NULL, CLSCTX_INPROC_SERVER, IID_ITaskService, (void**)&pService))
+            && SUCCEEDED(pService->Connect(_variant_t(), _variant_t(), _variant_t(), _variant_t()))
+            && SUCCEEDED(pService->GetFolder(_bstr_t( L"\\"), &pRootFolder)))
+    {
+        if (pRootFolder->CreateFolder(_bstr_t(L"MEGA"), _variant_t(L""), &pMEGAFolder) == 0x800700b7)
+        {
+            pRootFolder->GetFolder(_bstr_t(L"MEGA"), &pMEGAFolder);
+        }
+
+        if (pMEGAFolder
+                && SUCCEEDED(pService->NewTask(0, &pTask))
+                && SUCCEEDED(pTask->get_RegistrationInfo(&pRegInfo))
+                && SUCCEEDED(pRegInfo->put_Author(_bstr_t(L"MEGA Limited")))
+                && SUCCEEDED(pTask->get_Principal(&pPrincipal))
+                && SUCCEEDED(pPrincipal->put_Id(_bstr_t(L"Principal1")))
+                && SUCCEEDED(pPrincipal->put_LogonType(TASK_LOGON_INTERACTIVE_TOKEN))
+                && SUCCEEDED(pPrincipal->put_RunLevel(TASK_RUNLEVEL_LUA))
+                && SUCCEEDED(pPrincipal->put_UserId(userId))
+                && SUCCEEDED(pTask->get_Settings(&pSettings))
+                && SUCCEEDED(pSettings->put_StartWhenAvailable(VARIANT_TRUE))
+                && SUCCEEDED(pSettings->put_DisallowStartIfOnBatteries(VARIANT_FALSE))
+                && SUCCEEDED(pSettings->get_IdleSettings(&pIdleSettings))
+                && SUCCEEDED(pIdleSettings->put_StopOnIdleEnd(VARIANT_FALSE))
+                && SUCCEEDED(pIdleSettings->put_RestartOnIdle(VARIANT_FALSE))
+                && SUCCEEDED(pIdleSettings->put_WaitTimeout(_bstr_t()))
+                && SUCCEEDED(pIdleSettings->put_IdleDuration(_bstr_t()))
+                && SUCCEEDED(pTask->get_Triggers(&pTriggerCollection))
+                && SUCCEEDED(pTriggerCollection->Create(TASK_TRIGGER_DAILY, &pTrigger))
+                && SUCCEEDED(pTrigger->QueryInterface(IID_IDailyTrigger, (void**) &pCalendarTrigger))
+                && SUCCEEDED(pCalendarTrigger->put_Id(_bstr_t(L"Trigger1")))
+                && SUCCEEDED(pCalendarTrigger->put_DaysInterval(1))
+                && SUCCEEDED(pCalendarTrigger->put_StartBoundary(_bstr_t(currentTimeString)))
+                && SUCCEEDED(pCalendarTrigger->get_Repetition(&pRepetitionPattern))
+                && SUCCEEDED(pRepetitionPattern->put_Duration(_bstr_t(L"P1D")))
+                && SUCCEEDED(pRepetitionPattern->put_Interval(_bstr_t(L"PT2H")))
+                && SUCCEEDED(pRepetitionPattern->put_StopAtDurationEnd(VARIANT_FALSE))
+                && SUCCEEDED(pTask->get_Actions(&pActionCollection))
+                && SUCCEEDED(pActionCollection->Create(TASK_ACTION_EXEC, &pAction))
+                && SUCCEEDED(pAction->QueryInterface(IID_IExecAction, (void**)&pExecAction))
+                && SUCCEEDED(pExecAction->put_Path(_bstr_t(MEGAcmdUpdaterPath)))
+                && SUCCEEDED(pExecAction->put_Arguments(_bstr_t(L"--emergency-update"))))
+        {
+            if (SUCCEEDED(pMEGAFolder->RegisterTaskDefinition(taskName, pTask,
+                    TASK_CREATE_OR_UPDATE, _variant_t(), _variant_t(),
+                    TASK_LOGON_INTERACTIVE_TOKEN, _variant_t(L""),
+                    &pRegisteredTask)))
+            {
+                success = true;
+                MegaApi::log(MegaApi::LOG_LEVEL_ERROR, "Update task registered OK");
+            }
+            else
+            {
+                MegaApi::log(MegaApi::LOG_LEVEL_ERROR, "Error registering update task");
+            }
+        }
+        else
+        {
+            MegaApi::log(MegaApi::LOG_LEVEL_ERROR, "Error creating update task");
+        }
+    }
+    else
+    {
+        MegaApi::log(MegaApi::LOG_LEVEL_ERROR, "Error getting root task folder");
+    }
+
+    if (pRegisteredTask)
+    {
+        pRegisteredTask->Release();
+    }
+    if (pTrigger)
+    {
+        pTrigger->Release();
+    }
+    if (pTriggerCollection)
+    {
+        pTriggerCollection->Release();
+    }
+    if (pIdleSettings)
+    {
+        pIdleSettings->Release();
+    }
+    if (pSettings)
+    {
+        pSettings->Release();
+    }
+    if (pPrincipal)
+    {
+        pPrincipal->Release();
+    }
+    if (pRegInfo)
+    {
+        pRegInfo->Release();
+    }
+    if (pCalendarTrigger)
+    {
+        pCalendarTrigger->Release();
+    }
+    if (pAction)
+    {
+        pAction->Release();
+    }
+    if (pActionCollection)
+    {
+        pActionCollection->Release();
+    }
+    if (pRepetitionPattern)
+    {
+        pRepetitionPattern->Release();
+    }
+    if (pExecAction)
+    {
+        pExecAction->Release();
+    }
+    if (pTask)
+    {
+        pTask->Release();
+    }
+    if (pMEGAFolder)
+    {
+        pMEGAFolder->Release();
+    }
+    if (pRootFolder)
+    {
+        pRootFolder->Release();
+    }
+    if (pService)
+    {
+        pService->Release();
+    }
+
+    return success;
+#elif defined(__MACH__)
+    return registerUpdateDaemon();
+#else
+    return true;
+#endif
+}
+
+#ifdef _WIN32
+void uninstall()
+{
+    ITaskService *pService = NULL;
+    ITaskFolder *pRootFolder = NULL;
+    ITaskFolder *pMEGAFolder = NULL;
+    _bstr_t taskBaseName = L"MEGAcmd Update Task ";
+    LPTSTR stringSID = NULL;
+
+    stringSID = getCurrentSid();
+    if (!stringSID)
+    {
+        MegaApi::log(MegaApi::LOG_LEVEL_ERROR, "Unable to get the current SID");
+        return;
+    }
+    _bstr_t taskName = taskBaseName + stringSID;
+
+    CoInitializeEx(NULL, COINIT_MULTITHREADED);
+
+    if (SUCCEEDED(CoInitializeSecurity(NULL, -1, NULL, NULL, RPC_C_AUTHN_LEVEL_PKT_PRIVACY, RPC_C_IMP_LEVEL_IMPERSONATE, NULL, 0, NULL))
+            && SUCCEEDED(CoCreateInstance(CLSID_TaskScheduler, NULL, CLSCTX_INPROC_SERVER, IID_ITaskService, (void**)&pService))
+            && SUCCEEDED(pService->Connect(_variant_t(), _variant_t(), _variant_t(), _variant_t()))
+            && SUCCEEDED(pService->GetFolder(_bstr_t( L"\\"), &pRootFolder)))
+    {
+        if (pRootFolder->CreateFolder(_bstr_t(L"MEGA"), _variant_t(L""), &pMEGAFolder) == 0x800700b7)
+        {
+            pRootFolder->GetFolder(_bstr_t(L"MEGA"), &pMEGAFolder);
+        }
+
+        if (pMEGAFolder)
+        {
+            pMEGAFolder->DeleteTask(taskName, 0);
+            pMEGAFolder->Release();
+        }
+        pRootFolder->Release();
+    }
+
+    if (pService)
+    {
+        pService->Release();
+    }
+}
+
+#endif
+
+
+
 int main(int argc, char* argv[])
 {
     string localecode = getLocaleCode();
@@ -3529,6 +4250,8 @@ int main(int argc, char* argv[])
     // Set Environment's default locale
     setlocale(LC_ALL, "en-US");
 #endif
+    mcmdMainArgv = argv;
+    mcmdMainArgc = argc;
 
 #ifdef __MACH__
     initializeMacOSStuff(argc,argv);
@@ -3551,7 +4274,7 @@ int main(int argc, char* argv[])
 
     vector<const char*> args(argv + 1, argv + argc);
 
-    string debug_api_url;  
+    string debug_api_url;
     bool debug = extractarg(args, "--debug");
     bool debugfull = extractarg(args, "--debug-full");
     bool verbose = extractarg(args, "--verbose");
@@ -3560,6 +4283,40 @@ int main(int argc, char* argv[])
     bool setapiurl = extractargparam(args, "--apiurl", debug_api_url);  // only for debugging
     bool disablepkp = extractarg(args, "--disablepkp");  // only for debugging
 
+
+#ifdef _WIN32
+    bool buninstall = extractarg(args, "--uninstall") || extractarg(args, "/uninstall");
+    if (buninstall)
+    {
+        MegaApi::removeRecursively(ConfigurationManager::getConfigFolder().c_str());
+        uninstall();
+        exit(0);
+    }
+#endif
+
+    string shandletowait;
+    bool dowaitforhandle = extractargparam(args, "--wait-for", shandletowait);
+    if (dowaitforhandle)
+    {
+#ifdef _WIN32
+        DWORD processId = atoi(shandletowait.c_str());
+
+        HANDLE processHandle = OpenProcess(PROCESS_ALL_ACCESS, FALSE, processId);
+
+        cout << "Waiting for former server to end" << endl;
+        WaitForSingleObject( processHandle, INFINITE );
+        CloseHandle(processHandle);
+#else
+
+        pid_t processId = atoi(shandletowait.c_str());
+
+        cout << "Waiting for former server to end... " << endl;
+        while (is_pid_running(processId))
+        {
+            sleep(1);
+        }
+#endif
+    }
 
     if (!loglevelenv.compare("DEBUG") || debug )
     {
@@ -3588,6 +4345,7 @@ int main(int argc, char* argv[])
     if (!ConfigurationManager::lockExecution() && !skiplockcheck)
     {
         cerr << "Another instance of MEGAcmd Server is running. Execute with --skip-lock-check to force running (NOT RECOMMENDED)" << endl;
+        sleepSeconds(5);
         exit(-2);
     }
 
@@ -3689,6 +4447,23 @@ int main(int argc, char* argv[])
 
     atexit(finalize);
 
+
+#ifndef __linux__
+    if (!ConfigurationManager::getConfigurationValue("updaterregistered", false))
+    {
+        LOG_debug << "Registering automatic updater";
+        if (registerUpdater())
+        {
+            ConfigurationManager::savePropertyValue("updaterregistered", true);
+            LOG_verbose << "Registered automatic updater";
+        }
+        else
+        {
+            LOG_err << "Failed to register automatic updater";
+        }
+    }
+#endif
+
     printWelcomeMsg();
 
     if (!ConfigurationManager::session.empty())
@@ -3704,3 +4479,4 @@ int main(int argc, char* argv[])
     megacmd();
     finalize();
 }
+
