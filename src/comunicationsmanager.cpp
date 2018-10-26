@@ -117,7 +117,6 @@ void ComunicationsManager::returnAndClosePetition(CmdPetition *inf, OUTSTRINGSTR
 
 void ComunicationsManager::sendPartialOutput(CmdPetition *inf, OUTSTRING *s)
 {
-    delete inf;
     return;
 }
 

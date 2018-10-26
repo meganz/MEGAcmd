@@ -4478,6 +4478,26 @@ void MegaCmdExecuter::addFtpLocation(MegaNode *n, bool firstone, string name)
 
 #endif
 
+
+void MegaCmdExecuter::catFile(MegaNode *n)
+{
+    long long nsize = api->getSize(n);
+    long long end = nsize;
+    long long start = 0;
+
+    MegaCmdCatTransferListener *mcctl = new MegaCmdCatTransferListener(&OUTSTREAM, api, sandboxCMD);
+    api->startStreaming(n, start, end-start, mcctl);
+    mcctl->wait();
+    if (checkNoErrors(mcctl->getError(), "Cat streaming from " +SSTR(start) + " to " + SSTR(end) ))
+    {
+        char * npath = api->getNodePath(n);
+        LOG_verbose << "Streamed: " << npath << " from " << start << " to " << end;
+        delete []npath;
+    }
+
+    delete mcctl;
+}
+
 void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clflags, map<string, string> *cloptions)
 {
     MegaNode* n = NULL;
@@ -5165,6 +5185,62 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             OUTSTREAM << endl;
         }
         return;
+    }
+    else if (words[0] == "cat") //TODO: docs & multiple files
+    {
+        if (!api->isFilesystemAvailable())
+        {
+            setCurrentOutCode(MCMD_NOTLOGGEDIN);
+            LOG_err << "Not logged in.";
+            return;
+        }
+        if (words.size() < 2)
+        {
+            setCurrentOutCode(MCMD_EARGS);
+            LOG_err << "      " << getUsageStr("cat");
+            return;
+        }
+
+        for (int i = 1; i < (int)words.size(); i++)
+        {
+            unescapeifRequired(words[i]);
+            if (isRegExp(words[i]))
+            {
+                vector<MegaNode *> *nodes = nodesbypath(words[i].c_str(), getFlag(clflags,"use-pcre"));
+                if (nodes)
+                {
+                    if (!nodes->size())
+                    {
+                        setCurrentOutCode(MCMD_NOTFOUND);
+                        LOG_err << "Nodes not found: " << words[i];
+                    }
+                    for (std::vector< MegaNode * >::iterator it = nodes->begin(); it != nodes->end(); ++it)
+                    {
+                        MegaNode * n = *it;
+                        if (n)
+                        {
+                            catFile(n);
+                            delete n;
+                        }
+                    }
+                }
+                else
+                {
+                    MegaNode *n = nodebypath(words[i].c_str());
+                    if (n)
+                    {
+                        catFile(n);
+                        delete n;
+                    }
+                    else
+                    {
+                        setCurrentOutCode(MCMD_NOTFOUND);
+                        LOG_err << "Node not found: " << words[i];
+                    }
+                }
+            }
+        }
+
     }
     else if (words[0] == "get")
     {

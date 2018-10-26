@@ -840,3 +840,20 @@ MegaCmdGlobalTransferListener::~MegaCmdGlobalTransferListener()
     }
     completedTransfersMutex.unlock();
 }
+
+bool MegaCmdCatTransferListener::onTransferData(MegaApi *api, MegaTransfer *transfer, char *buffer, size_t size)
+{
+    if (!ls->isClientConnected())
+    {
+        LOG_debug << " CatTransfer listener, cancelled transfer due to client disconnected";
+        api->cancelTransfer(transfer);
+    }
+    else
+    {
+
+        LOG_debug << " CatTransfer listener, streaming " << size << " bytes";  //TODO: verbose
+        *ls << string(buffer,size);
+    }
+
+    return true;
+}

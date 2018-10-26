@@ -178,6 +178,8 @@ public:
     bool amIPro();
 
     void processPath(std::string path, bool usepcre, bool &firstone, void (*nodeprocessor)(MegaCmdExecuter *, mega::MegaNode *, bool), MegaCmdExecuter *context = NULL);
+    void catFile(mega::MegaNode *n);
+
 
 #ifdef HAVE_LIBUV
     void removeWebdavLocation(mega::MegaNode *n, bool firstone, std::string name = std::string());

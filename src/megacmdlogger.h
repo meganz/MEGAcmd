@@ -31,6 +31,8 @@ public:
 
   }
 
+  virtual bool isClientConnected(){return true;};
+
   virtual const LoggedStream& operator<<(const char& v) const {*out << v;return *this;}
   virtual const LoggedStream& operator<<(const char* v) const {*out << v;return *this;}
 #ifdef _WIN32
@@ -51,13 +53,14 @@ class LoggedStreamPartialOutputs : public LoggedStream{
 public:
 
   LoggedStreamPartialOutputs(ComunicationsManager *_cm, CmdPetition *_inf):cm(_cm),inf(_inf){}
+  virtual bool isClientConnected(){return inf && !inf->clientDisconnected;};
 
   virtual const LoggedStream& operator<<(const char& v) const {OUTSTRINGSTREAM os; os << v; OUTSTRING s = os.str(); cm->sendPartialOutput(inf, &s); return *this;}
   virtual const LoggedStream& operator<<(const char* v) const {OUTSTRINGSTREAM os; os << v; OUTSTRING s = os.str(); cm->sendPartialOutput(inf, &s); return *this;}
 #ifdef _WIN32
   virtual const LoggedStream& operator<<(std::wstring v) const {OUTSTRINGSTREAM os; os << v; OUTSTRING s = os.str(); cm->sendPartialOutput(inf, &s); return *this;}
 #endif
-  virtual const LoggedStream& operator<<(std::string v) const {OUTSTRINGSTREAM os; os << v; OUTSTRING s = os.str(); cm->sendPartialOutput(inf, &s); return *this;}
+  virtual const LoggedStream& operator<<(std::string v) const {cm->sendPartialOutput(inf, &v); return *this;}
   virtual const LoggedStream& operator<<(int v) const {OUTSTRINGSTREAM os; os << v; OUTSTRING s = os.str(); cm->sendPartialOutput(inf, &s); return *this;}
   virtual const LoggedStream& operator<<(long long int v) const {OUTSTRINGSTREAM os; os << v; OUTSTRING s = os.str(); cm->sendPartialOutput(inf, &s); return *this;}
   virtual const LoggedStream& operator<<(std::ios_base v) const {*out << &v;return *this;}

@@ -739,8 +739,11 @@ int MegaCmdShellCommunications::executeCommand(string command, std::string (*rea
                         output << wbuffer << flush;
                         _setmode(_fileno(stdout), oldmode);
 #else
-                        buffer[n]='\0';
-                        output << buffer << flush;
+                        output << string(buffer,partialoutsize) << flush;
+                        //TODO: do the same in windows? strintolocal issue? printing bytes into stdout can be hazardous!? (might break output)
+                        //TODO: might differenciate when using "cat" or --binary
+                        //but perhaps with the new console we don't need to set outmode to _O_U16? review that
+                        //what if broken at half an utf8 character? I believe it's ok, since the console will wait for it ? (flush? ok?)
 #endif
                         partialoutsize-=n;
                     }
