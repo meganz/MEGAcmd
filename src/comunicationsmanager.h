@@ -86,6 +86,8 @@ public:
     virtual void returnAndClosePetition(CmdPetition *inf, OUTSTRINGSTREAM *s, int);
 
     virtual void sendPartialOutput(CmdPetition *inf, OUTSTRING *s);
+    virtual void sendPartialOutput(CmdPetition *inf, char *s, size_t size);
+
 
     /**
      * @brief Sends an status message (e.g. prompt:who@/new/prompt:) to all registered listeners

@@ -80,7 +80,6 @@ public:
     bool onTransferData(mega::MegaApi *api, mega::MegaTransfer *transfer, char *buffer, size_t size);
 };
 
-
 class MegaCmdMultiTransferListener : public mega::SynchronousTransferListener
 {
 private:

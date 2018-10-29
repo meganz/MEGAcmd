@@ -5224,19 +5224,19 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         }
                     }
                 }
+            }
+            else
+            {
+                MegaNode *n = nodebypath(words[i].c_str());
+                if (n)
+                {
+                    catFile(n);
+                    delete n;
+                }
                 else
                 {
-                    MegaNode *n = nodebypath(words[i].c_str());
-                    if (n)
-                    {
-                        catFile(n);
-                        delete n;
-                    }
-                    else
-                    {
-                        setCurrentOutCode(MCMD_NOTFOUND);
-                        LOG_err << "Node not found: " << words[i];
-                    }
+                    setCurrentOutCode(MCMD_NOTFOUND);
+                    LOG_err << "Node not found: " << words[i];
                 }
             }
         }

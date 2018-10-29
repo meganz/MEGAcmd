@@ -89,6 +89,9 @@ public:
 
     void sendPartialOutput(CmdPetition *inf, OUTSTRING *s);
 
+    void sendPartialOutput(CmdPetition *inf, char *s, size_t size);
+
+
     int informStateListener(CmdPetition *inf, std::string &s);
 
     /**

@@ -120,6 +120,12 @@ void ComunicationsManager::sendPartialOutput(CmdPetition *inf, OUTSTRING *s)
     return;
 }
 
+void ComunicationsManager::sendPartialOutput(CmdPetition *inf, char *s, size_t size)
+{
+    return;
+}
+
+
 
 /**
  * @brief getPetition

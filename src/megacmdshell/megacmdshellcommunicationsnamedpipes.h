@@ -44,8 +44,13 @@ typedef struct structListenStateChangesNamedPipe{
 
 class MegaCmdShellCommunicationsNamedPipes : public MegaCmdShellCommunications
 {
+private:
+    bool redirectedstdout;
 public:
+
     MegaCmdShellCommunicationsNamedPipes();
+    MegaCmdShellCommunicationsNamedPipes(bool _redirectedstdout):redirectedstdout(_redirectedstdout){};
+
     ~MegaCmdShellCommunicationsNamedPipes();
 
     virtual int executeCommand(std::string command, std::string (*readresponse)(const char *) = NULL, OUTSTREAMTYPE &output = COUT, bool interactiveshell = true, std::wstring = L"");

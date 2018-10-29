@@ -351,6 +351,72 @@ void ComunicationsManagerNamedPipes::sendPartialOutput(CmdPetition *inf, OUTSTRI
 }
 
 
+void ComunicationsManagerNamedPipes::sendPartialOutput(CmdPetition *inf, char *s, size_t size)
+{
+    HANDLE outNamedPipe = ((CmdPetitionNamedPipes *)inf)->outNamedPipe;
+
+    LOG_verbose << "Output to write in namedPipe " << outNamedPipe << ": <<" << *s << ">>";
+
+    bool connectsucceeded = false;
+    int attempts = 10;
+    while (--attempts && !connectsucceeded)
+    {
+        if (!ConnectNamedPipe(outNamedPipe, NULL))
+        {
+            if (ERRNO == ERROR_PIPE_CONNECTED)
+            {
+                //cerr << "Client arrived first when connecting to namedPipe " << outNamedPipe << endl;
+                connectsucceeded = true;
+                break;
+            }
+            else
+            {
+                cerr << "ERROR on connecting to namedPipe " << outNamedPipe << ". errno: " << ERRNO << ". Attempts: " << attempts << endl;
+            }
+            sleepMicroSeconds(500);
+        }
+        else
+        {
+            connectsucceeded = true;
+        }
+    }
+
+    if (!connectsucceeded)
+    {
+        cerr << "sendPartialOutput: Unable to connect on outnamedPipe " << outNamedPipe << " error: " << ERRNO << endl;
+        if (errno == ERROR_NO_DATA)
+        {
+            std::cerr << "WARNING: Client disconnected, the rest of the output will be discarded" << endl;
+            inf->clientDisconnected = true;
+        }
+        return;
+    }
+
+    int outCode = MCMD_PARTIALOUT;
+    DWORD n;
+    if (!WriteFile(outNamedPipe,(const char*)&outCode, sizeof(outCode), &n, NULL))
+    {
+        LOG_err << "ERROR writing output Code to namedPipe: " << ERRNO;
+        if (errno == ERROR_NO_DATA)
+        {
+            std::cerr << "WARNING: Client disconnected, the rest of the output will be discarded" << endl;
+            inf->clientDisconnected = true;
+        }
+        return;
+    }
+
+    size_t thesize = max(1,size); // client does not like empty responses
+    if (!WriteFile(outNamedPipe,(const char*)&thesize, sizeof(thesize), &n, NULL))
+    {
+        LOG_err << "ERROR writing output Code to namedPipe: " << ERRNO;
+        return;
+    }
+    if (!WriteFile(outNamedPipe,s, thesize, &n, NULL))
+    {
+        LOG_err << "ERROR writing to namedPipe: " << ERRNO;
+    }
+}
+
 int ComunicationsManagerNamedPipes::informStateListener(CmdPetition *inf, string &s)
 {
     LOG_verbose << "Inform State Listener: Output to write in namedPipe " << ((CmdPetitionNamedPipes *)inf)->outNamedPipe << ": <<" << s << ">>";

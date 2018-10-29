@@ -459,6 +459,7 @@ MegaCmdShellCommunicationsNamedPipes::MegaCmdShellCommunicationsNamedPipes()
 
     stopListener = false;
     listenerThread = NULL;
+    redirectedstdout = false;
 }
 
 int MegaCmdShellCommunicationsNamedPipes::executeCommandW(wstring wcommand, string (*readresponse)(const char *), OUTSTREAMTYPE &output, bool interactiveshell)
@@ -557,6 +558,8 @@ int MegaCmdShellCommunicationsNamedPipes::executeCommand(string command, std::st
         return -1;
     }
 
+    bool binaryoutput = !wcommand.compare(0, 3, L"cat") && redirectedstdout;
+
     while (outcode == MCMD_REQCONFIRM || outcode == MCMD_REQSTRING || outcode == MCMD_PARTIALOUT)
     {
         if (outcode == MCMD_PARTIALOUT)
@@ -568,44 +571,66 @@ int MegaCmdShellCommunicationsNamedPipes::executeCommand(string command, std::st
                 return -1;
             }
 
+
             if (partialoutsize > 0)
             {
-                int BUFFERSIZE = 1024;
-                char buffer[1025];
+                int oldmode;
+
+                if (binaryoutput)
+                {
+                    oldmode = _setmode(_fileno(stdout), O_BINARY);
+                }
+
+                int BUFFERSIZE = 10024;
+                char buffer[10025];
                 do{
                     BOOL readok;
                     readok = ReadFile(newNamedPipe, buffer, min(BUFFERSIZE,partialoutsize),&n,NULL);
                     if (readok)
                     {
-                        buffer[n]='\0';
 
-                        wstring wbuffer;
-                        stringtolocalw((const char*)&buffer,&wbuffer);
-                        int oldmode;
-            //            if (interactiveshell || outputtobinaryorconsole())
-            //            {
+                        if (binaryoutput)
+                        {
+                            std::cout << string(buffer,n) << flush;
+                        }
+                        else
+                        {
+
+                            buffer[n]='\0';
+
+                            wstring wbuffer;
+                            stringtolocalw((const char*)&buffer,&wbuffer);
+                            int oldmode;
+                            //            if (interactiveshell || outputtobinaryorconsole())
+                            //            {
                             // In non-interactive mode, at least in powershell, when outputting to a file/pipe, things get rough
                             // Powershell tries to interpret the output as a string and would meddle with the UTF16 encoding, resulting
                             // in unusable output, So we disable the UTF-16 in such cases (this might cause that the output could be truncated!).
-            //                oldmode = _setmode(_fileno(stdout), _O_U16TEXT);
-            //            }
-                        oldmode = _setmode(_fileno(stdout), _O_U8TEXT);
-                        output << wbuffer << flush;
-                        _setmode(_fileno(stdout), oldmode);
-            //            if (interactiveshell || outputtobinaryorconsole() || true)
-            //            {
-            //                _setmode(_fileno(stdout), oldmode);
-            //            }
-
+                            //                oldmode = _setmode(_fileno(stdout), _O_U16TEXT);
+                            //            }
+                            oldmode = _setmode(_fileno(stdout), _O_U8TEXT);
+                            output << wbuffer << flush;
+                            _setmode(_fileno(stdout), oldmode);
+                            //            if (interactiveshell || outputtobinaryorconsole() || true)
+                            //            {
+                            //                _setmode(_fileno(stdout), oldmode);
+                            //            }
+                        }
                         partialoutsize-=n;
                     }
                 } while(n != 0 && partialoutsize && n !=SOCKET_ERROR);
+
+                if (binaryoutput)
+                {
+                    _setmode(_fileno(stdout), oldmode);
+                }
             }
             else
             {
                 cerr << "Invalid size of partial output: " << partialoutsize << endl;
                 return -1;
             }
+
         }
         else
         {
