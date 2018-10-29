@@ -564,7 +564,7 @@ int MegaCmdShellCommunicationsNamedPipes::executeCommand(string command, std::st
     {
         if (outcode == MCMD_PARTIALOUT)
         {
-            int partialoutsize;
+            size_t partialoutsize;
             if (!ReadFile(newNamedPipe, (char *)&partialoutsize, sizeof(partialoutsize),&n, NULL))
             {
                 std:cerr << "Error reading size of partial output: " << ERRNO << std::endl;
@@ -581,7 +581,7 @@ int MegaCmdShellCommunicationsNamedPipes::executeCommand(string command, std::st
                     oldmode = _setmode(_fileno(stdout), O_BINARY);
                 }
 
-                int BUFFERSIZE = 10024;
+                size_t BUFFERSIZE = 10024;
                 char buffer[10025];
                 do{
                     BOOL readok;
@@ -595,26 +595,14 @@ int MegaCmdShellCommunicationsNamedPipes::executeCommand(string command, std::st
                         }
                         else
                         {
-
                             buffer[n]='\0';
 
                             wstring wbuffer;
                             stringtolocalw((const char*)&buffer,&wbuffer);
                             int oldmode;
-                            //            if (interactiveshell || outputtobinaryorconsole())
-                            //            {
-                            // In non-interactive mode, at least in powershell, when outputting to a file/pipe, things get rough
-                            // Powershell tries to interpret the output as a string and would meddle with the UTF16 encoding, resulting
-                            // in unusable output, So we disable the UTF-16 in such cases (this might cause that the output could be truncated!).
-                            //                oldmode = _setmode(_fileno(stdout), _O_U16TEXT);
-                            //            }
                             oldmode = _setmode(_fileno(stdout), _O_U8TEXT);
                             output << wbuffer << flush;
                             _setmode(_fileno(stdout), oldmode);
-                            //            if (interactiveshell || outputtobinaryorconsole() || true)
-                            //            {
-                            //                _setmode(_fileno(stdout), oldmode);
-                            //            }
                         }
                         partialoutsize-=n;
                     }

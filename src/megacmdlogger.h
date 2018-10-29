@@ -31,7 +31,7 @@ public:
 
   }
 
-  virtual bool isClientConnected(){return true;};
+  virtual bool isClientConnected(){return true;}
 
   virtual const LoggedStream& operator<<(const char& v) const {*out << v;return *this;}
   virtual const LoggedStream& operator<<(const char* v) const {*out << v;return *this;}
@@ -53,13 +53,12 @@ class LoggedStreamPartialOutputs : public LoggedStream{
 public:
 
   LoggedStreamPartialOutputs(ComunicationsManager *_cm, CmdPetition *_inf):cm(_cm),inf(_inf){}
-  virtual bool isClientConnected(){return inf && !inf->clientDisconnected;};
+  virtual bool isClientConnected(){return inf && !inf->clientDisconnected;}
 
   virtual const LoggedStream& operator<<(const char& v) const {OUTSTRINGSTREAM os; os << v; OUTSTRING s = os.str(); cm->sendPartialOutput(inf, &s); return *this;}
   virtual const LoggedStream& operator<<(const char* v) const {OUTSTRINGSTREAM os; os << v; OUTSTRING s = os.str(); cm->sendPartialOutput(inf, &s); return *this;}
 #ifdef _WIN32
   virtual const LoggedStream& operator<<(std::wstring v) const {cm->sendPartialOutput(inf, &v); return *this;}
-//  virtual const LoggedStream& operator<<(std::string v) const {OUTSTRINGSTREAM os; os << v; OUTSTRING s = os.str(); cm->sendPartialOutput(inf, &s); return *this;}
   virtual const LoggedStream& operator<<(std::string v) const {cm->sendPartialOutput(inf, (char *)v.data(), v.size()); return *this;}
 #else
   virtual const LoggedStream& operator<<(std::string v) const {cm->sendPartialOutput(inf, &v); return *this;}
@@ -69,12 +68,8 @@ public:
   virtual const LoggedStream& operator<<(std::ios_base v) const {*out << &v;return *this;}
   virtual const LoggedStream& operator<<(std::ios_base *v) const {OUTSTRINGSTREAM os; os << v; OUTSTRING s = os.str(); cm->sendPartialOutput(inf, &s); return *this;}
 
-  LoggedStream const& operator<<(std::ios_base& (*F)(std::ios_base&)) const {
-  }
-
   LoggedStream const& operator<<(OUTSTREAMTYPE& (*F)(OUTSTREAMTYPE&)) const
   {
-
       if (F == (OUTSTREAMTYPE& (*)(OUTSTREAMTYPE&) )(std::endl))
       {
           OUTSTRINGSTREAM os; os << "\n"; OUTSTRING s = os.str(); cm->sendPartialOutput(inf, &s); return *this;
@@ -83,14 +78,13 @@ public:
       {
           std::cerr << "unable to identify f:" << std::endl;
       }
-
+      return *this;
   }
 
 protected:
   CmdPetition *inf;
   ComunicationsManager *cm;
 };
-
 
 LoggedStream &getCurrentOut();
 bool interactiveThread();

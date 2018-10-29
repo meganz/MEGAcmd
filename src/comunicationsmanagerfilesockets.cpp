@@ -369,14 +369,14 @@ void ComunicationsManagerFileSockets::sendPartialOutput(CmdPetition *inf, OUTSTR
         }
         return;
     }
-    int size = max(1,(int)s->size());
+    size_t size = s->size() > 1 ? s->size() : 1;
     n = send(connectedsocket, (void*)&size, sizeof( size ), MSG_NOSIGNAL);
     if (n < 0)
     {
         std::cerr << "ERROR writing size of partial output to socket: " << errno << endl;
         return;
     }
-    n = send(connectedsocket, s->data(), max(1,size), MSG_NOSIGNAL); // for some reason without the max recv never quits in the client for empty responses
+    n = send(connectedsocket, s->data(), size, MSG_NOSIGNAL); // for some reason without the max recv never quits in the client for empty responses
     if (n < 0)
     {
         std::cerr << "ERROR writing to socket partial output: " << errno << endl;

@@ -720,9 +720,9 @@ int MegaCmdShellCommunications::executeCommand(string command, std::string (*rea
     {
         if (outcode == MCMD_PARTIALOUT)
         {
-            int partialoutsize;
+            size_t partialoutsize;
 
-            n = recv(newsockfd, (char *)&partialoutsize, sizeof(int), MSG_NOSIGNAL);
+            n = recv(newsockfd, (char *)&partialoutsize, sizeof(partialoutsize), MSG_NOSIGNAL);
             if (n && partialoutsize > 0)
             {
                 do{
@@ -731,6 +731,7 @@ int MegaCmdShellCommunications::executeCommand(string command, std::string (*rea
                     if (n)
                     {
 #ifdef _WIN32
+                        assert(0 && "This is deprecated/untested. Using named pipes required!");
                         buffer[n]='\0';
 
                         wstring wbuffer;
@@ -740,10 +741,6 @@ int MegaCmdShellCommunications::executeCommand(string command, std::string (*rea
                         _setmode(_fileno(stdout), oldmode);
 #else
                         output << string(buffer,partialoutsize) << flush;
-                        //TODO: do the same in windows? strintolocal issue? printing bytes into stdout can be hazardous!? (might break output)
-                        //TODO: might differenciate when using "cat" or --binary
-                        //but perhaps with the new console we don't need to set outmode to _O_U16? review that
-                        //what if broken at half an utf8 character? I believe it's ok, since the console will wait for it ? (flush? ok?)
 #endif
                         partialoutsize-=n;
                     }

@@ -5186,7 +5186,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         }
         return;
     }
-    else if (words[0] == "cat") //TODO: docs & multiple files
+    else if (words[0] == "cat")
     {
         if (!api->isFilesystemAvailable())
         {

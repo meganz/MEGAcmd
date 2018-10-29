@@ -1634,6 +1634,10 @@ const char * getUsageStr(const char *command)
     {
         return "whoami [-l]";
     }
+    if (!strcmp(command, "cat"))
+    {
+        return "cat remotepath1 remotepath2 ...";
+    }
     if (!strcmp(command, "passwd"))
     {
         if (interactiveThread())
@@ -2468,6 +2472,16 @@ string getHelpStr(const char *command)
         os << " -l" << "\t" << "Show extended info: total storage used, storage per main folder " << endl;
         os << "   " << "\t" << "(see mount), pro level, account balance, and also the active sessions" << endl;
     }
+    else if (!strcmp(command, "cat"))
+    {
+        os << "Prints the contents of remote files" << endl;
+        os << endl;
+#ifdef _WIN32
+        os << "To avoid issues with encoding, if you want to cat the exact binary contents of a remote file into a local one, " << endl;
+        os << "use non-interactive mode with -o /path/to/file. See help \"non-interactive\"" << endl;
+#endif
+    }
+
     if (!strcmp(command, "passwd"))
     {
         os << "Modifies user password" << endl;

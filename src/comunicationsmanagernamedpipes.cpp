@@ -336,7 +336,7 @@ void ComunicationsManagerNamedPipes::sendPartialOutput(CmdPetition *inf, OUTSTRI
     string sutf8;
     localwtostring(s,&sutf8);
 
-    int size = max(1,(int)sutf8.size()); // client does not like empty responses
+    size_t size = sutf8.size() > 1 ? sutf8.size : 1; // client does not like empty responses
     if (!WriteFile(outNamedPipe,(const char*)&size, sizeof(size), &n, NULL))
     {
         LOG_err << "ERROR writing output Code to namedPipe: " << ERRNO;
@@ -401,7 +401,7 @@ void ComunicationsManagerNamedPipes::sendPartialOutput(CmdPetition *inf, char *s
         return;
     }
 
-    size_t thesize = max(1,size); // client does not like empty responses
+    size_t thesize = size > 1 ? size : 1; // client does not like empty responses
     if (!WriteFile(outNamedPipe,(const char*)&thesize, sizeof(thesize), &n, NULL))
     {
         LOG_err << "ERROR writing output Code to namedPipe: " << ERRNO;
