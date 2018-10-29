@@ -285,8 +285,6 @@ void ComunicationsManagerNamedPipes::sendPartialOutput(CmdPetition *inf, OUTSTRI
 {
     HANDLE outNamedPipe = ((CmdPetitionNamedPipes *)inf)->outNamedPipe;
 
-    LOG_verbose << "Output to write in namedPipe " << outNamedPipe << ": <<" << *s << ">>";
-
     bool connectsucceeded = false;
     int attempts = 10;
     while (--attempts && !connectsucceeded)
@@ -354,8 +352,6 @@ void ComunicationsManagerNamedPipes::sendPartialOutput(CmdPetition *inf, OUTSTRI
 void ComunicationsManagerNamedPipes::sendPartialOutput(CmdPetition *inf, char *s, size_t size)
 {
     HANDLE outNamedPipe = ((CmdPetitionNamedPipes *)inf)->outNamedPipe;
-
-    LOG_verbose << "Output to write in namedPipe " << outNamedPipe << ": <<" << *s << ">>";
 
     bool connectsucceeded = false;
     int attempts = 10;

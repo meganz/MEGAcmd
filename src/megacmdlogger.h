@@ -63,7 +63,8 @@ public:
   virtual const LoggedStream& operator<<(std::string v) const {cm->sendPartialOutput(inf, (char *)v.data(), v.size()); return *this;}
 #else
   virtual const LoggedStream& operator<<(std::string v) const {cm->sendPartialOutput(inf, &v); return *this;}
-#endif  virtual const LoggedStream& operator<<(int v) const {OUTSTRINGSTREAM os; os << v; OUTSTRING s = os.str(); cm->sendPartialOutput(inf, &s); return *this;}
+#endif
+  virtual const LoggedStream& operator<<(int v) const {OUTSTRINGSTREAM os; os << v; OUTSTRING s = os.str(); cm->sendPartialOutput(inf, &s); return *this;}
   virtual const LoggedStream& operator<<(long long int v) const {OUTSTRINGSTREAM os; os << v; OUTSTRING s = os.str(); cm->sendPartialOutput(inf, &s); return *this;}
   virtual const LoggedStream& operator<<(std::ios_base v) const {*out << &v;return *this;}
   virtual const LoggedStream& operator<<(std::ios_base *v) const {OUTSTRINGSTREAM os; os << v; OUTSTRING s = os.str(); cm->sendPartialOutput(inf, &s); return *this;}

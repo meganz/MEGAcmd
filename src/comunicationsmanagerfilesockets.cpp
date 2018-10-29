@@ -338,7 +338,7 @@ void ComunicationsManagerFileSockets::sendPartialOutput(CmdPetition *inf, OUTSTR
     {
         return;
     }
-    LOG_verbose << "Partial Output to write in socket " << ((CmdPetitionPosixSockets *)inf)->outSocket << ": <<" << *s << ">>";
+
     sockaddr_in cliAddr;
     socklen_t cliLength = sizeof( cliAddr );
     int connectedsocket = ((CmdPetitionPosixSockets *)inf)->acceptedOutSocket;
