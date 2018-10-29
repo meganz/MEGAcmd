@@ -113,6 +113,7 @@ enum
 
     MCMD_REQCONFIRM = -60,     ///< Confirmation required
     MCMD_REQSTRING = -61,     ///< String required
+    MCMD_PARTIALOUT = -62,     ///< Partial output provided
 
 #ifndef __linux__
     MCMD_REQRESTART = -71,     ///< Restart required

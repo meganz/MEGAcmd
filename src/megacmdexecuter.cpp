@@ -1690,7 +1690,7 @@ void MegaCmdExecuter::listnodeshares(MegaNode* n, string name)
     {
         for (int i = 0; i < outShares->size(); i++)
         {
-            OUTSTREAM << name ? name : n->getName();
+            OUTSTREAM << (name.size() ? name : n->getName());
 
             if (outShares->get(i))
             {
@@ -2317,8 +2317,9 @@ int MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
     {
         if (megaCmdListener->getRequest()->getNumber() != MEGACMD_CODE_VERSION)
         {
+
             OUTSTREAM << "---------------------------------------------------------------------" << endl;
-            OUTSTREAM << "--        There is a new version available of megacmd: " << setw(12) << left << megaCmdListener->getRequest()->getName() << "--" << endl;
+            OUTSTREAM << "--        There is a new version available of megacmd: " << getLeftAlignedStr(megaCmdListener->getRequest()->getName(),12) << "--" << endl;
             OUTSTREAM << "--        Please, update this one: See \"update --help\".          --" << endl;
             OUTSTREAM << "--        Or download the latest from https://mega.nz/cmd          --" << endl;
             OUTSTREAM << "---------------------------------------------------------------------" << endl;
@@ -4477,6 +4478,26 @@ void MegaCmdExecuter::addFtpLocation(MegaNode *n, bool firstone, string name)
 
 #endif
 
+
+void MegaCmdExecuter::catFile(MegaNode *n)
+{
+    long long nsize = api->getSize(n);
+    long long end = nsize;
+    long long start = 0;
+
+    MegaCmdCatTransferListener *mcctl = new MegaCmdCatTransferListener(&OUTSTREAM, api, sandboxCMD);
+    api->startStreaming(n, start, end-start, mcctl);
+    mcctl->wait();
+    if (checkNoErrors(mcctl->getError(), "Cat streaming from " +SSTR(start) + " to " + SSTR(end) ))
+    {
+        char * npath = api->getNodePath(n);
+        LOG_verbose << "Streamed: " << npath << " from " << start << " to " << end;
+        delete []npath;
+    }
+
+    delete mcctl;
+}
+
 void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clflags, map<string, string> *cloptions)
 {
     MegaNode* n = NULL;
@@ -5164,6 +5185,62 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             OUTSTREAM << endl;
         }
         return;
+    }
+    else if (words[0] == "cat")
+    {
+        if (!api->isFilesystemAvailable())
+        {
+            setCurrentOutCode(MCMD_NOTLOGGEDIN);
+            LOG_err << "Not logged in.";
+            return;
+        }
+        if (words.size() < 2)
+        {
+            setCurrentOutCode(MCMD_EARGS);
+            LOG_err << "      " << getUsageStr("cat");
+            return;
+        }
+
+        for (int i = 1; i < (int)words.size(); i++)
+        {
+            unescapeifRequired(words[i]);
+            if (isRegExp(words[i]))
+            {
+                vector<MegaNode *> *nodes = nodesbypath(words[i].c_str(), getFlag(clflags,"use-pcre"));
+                if (nodes)
+                {
+                    if (!nodes->size())
+                    {
+                        setCurrentOutCode(MCMD_NOTFOUND);
+                        LOG_err << "Nodes not found: " << words[i];
+                    }
+                    for (std::vector< MegaNode * >::iterator it = nodes->begin(); it != nodes->end(); ++it)
+                    {
+                        MegaNode * n = *it;
+                        if (n)
+                        {
+                            catFile(n);
+                            delete n;
+                        }
+                    }
+                }
+            }
+            else
+            {
+                MegaNode *n = nodebypath(words[i].c_str());
+                if (n)
+                {
+                    catFile(n);
+                    delete n;
+                }
+                else
+                {
+                    setCurrentOutCode(MCMD_NOTFOUND);
+                    LOG_err << "Node not found: " << words[i];
+                }
+            }
+        }
+
     }
     else if (words[0] == "get")
     {
@@ -8331,7 +8408,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 if (megaCmdListener->getRequest()->getNumber() != MEGACMD_CODE_VERSION)
                 {
                     OUTSTREAM << "---------------------------------------------------------------------" << endl;
-                    OUTSTREAM << "--        There is a new version available of megacmd: " << setw(12) << left << megaCmdListener->getRequest()->getName() << "--" << endl;
+                    OUTSTREAM << "--        There is a new version available of megacmd: " << getLeftAlignedStr(megaCmdListener->getRequest()->getName(), 12) << "--" << endl;
                     OUTSTREAM << "--        Please, download it from https://mega.nz/cmd             --" << endl;
 #if defined(__APPLE__)
                     OUTSTREAM << "--        Before installing enter \"exit\" to close MEGAcmd          --" << endl;
@@ -8457,7 +8534,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 for (int i = 0; i < ocrl->size(); i++)
                 {
                     MegaContactRequest * cr = ocrl->get(i);
-                    OUTSTREAM << " " << setw(22) << cr->getTargetEmail();
+                    OUTSTREAM << " " << getLeftAlignedStr(cr->getTargetEmail(),22);
 
                     char * sid = api->userHandleToBase64(cr->getHandle());
 
@@ -8485,7 +8562,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 for (int i = 0; i < icrl->size(); i++)
                 {
                     MegaContactRequest * cr = icrl->get(i);
-                    OUTSTREAM << " " << setw(22) << cr->getSourceEmail();
+                    OUTSTREAM << " " << getLeftAlignedStr(cr->getSourceEmail(), 22);
 
                     MegaHandle id = cr->getHandle();
                     char sid[12];

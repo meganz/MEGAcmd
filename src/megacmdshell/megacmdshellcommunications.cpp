@@ -25,6 +25,8 @@
 #include <sstream>
 #include <string.h>
 
+#include <assert.h>
+
 #ifdef _WIN32
 #include <shlobj.h> //SHGetFolderPath
 #include <Shlwapi.h> //PathAppend
@@ -716,46 +718,84 @@ int MegaCmdShellCommunications::executeCommand(string command, std::string (*rea
         return -1;
     }
 
-    while (outcode == MCMD_REQCONFIRM || outcode == MCMD_REQSTRING )
+    while (outcode == MCMD_REQCONFIRM || outcode == MCMD_REQSTRING || outcode == MCMD_PARTIALOUT)
     {
-        int BUFFERSIZE = 1024;
-        string confirmQuestion;
-        char buffer[1025];
-        do{
-            n = recv(newsockfd, buffer, BUFFERSIZE, MSG_NOSIGNAL);
-            if (n)
-            {
-                buffer[n]='\0';
-                confirmQuestion.append(buffer);
-            }
-        } while(n == BUFFERSIZE && n !=SOCKET_ERROR);
-
-        if (outcode == MCMD_REQCONFIRM)
+        if (outcode == MCMD_PARTIALOUT)
         {
-            int response = MCMDCONFIRM_NO;
+            size_t partialoutsize;
 
-            if (readresponse != NULL)
+            n = recv(newsockfd, (char *)&partialoutsize, sizeof(partialoutsize), MSG_NOSIGNAL);
+            if (n && partialoutsize > 0)
             {
-                response = readconfirmationloop(confirmQuestion.c_str(), readresponse);
-            }
+                do{
+                    char *buffer = new char[partialoutsize+1];
+                    n = recv(newsockfd, (char *)buffer, partialoutsize, MSG_NOSIGNAL);
+                    if (n)
+                    {
+#ifdef _WIN32
+                        assert(0 && "This is deprecated/untested. Using named pipes required!");
+                        buffer[n]='\0';
 
-            n = send(newsockfd, (const char *) &response, sizeof(response), MSG_NOSIGNAL);
+                        wstring wbuffer;
+                        stringtolocalw((const char*)&buffer,&wbuffer);
+                        int oldmode = _setmode(_fileno(stdout), _O_U16TEXT);
+                        output << wbuffer << flush;
+                        _setmode(_fileno(stdout), oldmode);
+#else
+                        output << string(buffer,partialoutsize) << flush;
+#endif
+                        partialoutsize-=n;
+                    }
+                    delete[] buffer;
+                } while(n != 0 && partialoutsize && n !=SOCKET_ERROR);
+            }
+            else
+            {
+                std:cerr << "Error reading size of partial output: " << ERRNO << std::endl;
+                return -1;
+            }
         }
-        else // MCMD_REQSTRING
-        {
-            string response = "FAILED";
+        else { //REQCONFIRM|REQSTRING
+            int BUFFERSIZE = 1024;
+            string confirmQuestion;
+            char buffer[1025];
+            do{
+                n = recv(newsockfd, buffer, BUFFERSIZE, MSG_NOSIGNAL);
+                if (n)
+                {
+                    buffer[n]='\0';
+                    confirmQuestion.append(buffer);
+                }
+            } while(n == BUFFERSIZE && n !=SOCKET_ERROR);
 
-            if (readresponse != NULL)
+            if (outcode == MCMD_REQCONFIRM)
             {
-                response = readresponse(confirmQuestion.c_str());
+                int response = MCMDCONFIRM_NO;
+
+                if (readresponse != NULL)
+                {
+                    response = readconfirmationloop(confirmQuestion.c_str(), readresponse);
+                }
+
+                n = send(newsockfd, (const char *) &response, sizeof(response), MSG_NOSIGNAL);
+            }
+            else // MCMD_REQSTRING
+            {
+                string response = "FAILED";
+
+                if (readresponse != NULL)
+                {
+                    response = readresponse(confirmQuestion.c_str());
+                }
+
+                n = send(newsockfd, (const char *) response.data(), sizeof(response), MSG_NOSIGNAL);
+            }
+            if (n == SOCKET_ERROR)
+            {
+                cerr << "ERROR writing confirm response to socket: " << ERRNO << endl;
+                return -1;
             }
 
-            n = send(newsockfd, (const char *) response.data(), sizeof(response), MSG_NOSIGNAL);
-        }
-        if (n == SOCKET_ERROR)
-        {
-            cerr << "ERROR writing confirm response to socket: " << ERRNO << endl;
-            return -1;
         }
 
         n = recv(newsockfd, (char *)&outcode, sizeof(outcode), MSG_NOSIGNAL);
@@ -781,8 +821,10 @@ int MegaCmdShellCommunications::executeCommand(string command, std::string (*rea
             output << wbuffer;
             _setmode(_fileno(stdout), oldmode);
 #else
-            buffer[n]='\0';
-            output << buffer;
+            if (n != 1 || buffer[0] != 0) //To avoid outputing 0 char in binary outputs
+            {
+                output << string(buffer,n) << flush;
+            }
 #endif
         }
     } while(n != 0 && n !=SOCKET_ERROR);

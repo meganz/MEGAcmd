@@ -197,7 +197,7 @@ vector<string> remotepatterncommands(aremotepatterncommands, aremotepatterncomma
 string aremotefolderspatterncommands[] = {"cd", "share"};
 vector<string> remotefolderspatterncommands(aremotefolderspatterncommands, aremotefolderspatterncommands + sizeof aremotefolderspatterncommands / sizeof aremotefolderspatterncommands[0]);
 
-string amultipleremotepatterncommands[] = {"ls", "mkdir", "rm", "du", "find", "mv", "deleteversions"
+string amultipleremotepatterncommands[] = {"ls", "mkdir", "rm", "du", "find", "mv", "deleteversions", "cat"
 #ifdef HAVE_LIBUV
                                            , "webdav", "ftp"
 #endif
@@ -220,7 +220,7 @@ string avalidCommands [] = { "login", "signup", "confirm", "session", "mount", "
                              "put", "get", "attr", "userattr", "mkdir", "rm", "du", "mv", "cp", "sync", "export", "share", "invite", "ipc",
                              "showpcr", "users", "speedlimit", "killsession", "whoami", "help", "passwd", "reload", "logout", "version", "quit",
                              "thumbnail", "preview", "find", "completion", "clear", "https", "transfers", "exclude", "exit", "errorcode", "graphics",
-                             "cancel", "confirmcancel"
+                             "cancel", "confirmcancel", "cat"
 #ifdef HAVE_LIBUV
                              , "webdav", "ftp"
 #endif
@@ -1634,6 +1634,10 @@ const char * getUsageStr(const char *command)
     {
         return "whoami [-l]";
     }
+    if (!strcmp(command, "cat"))
+    {
+        return "cat remotepath1 remotepath2 ...";
+    }
     if (!strcmp(command, "passwd"))
     {
         if (interactiveThread())
@@ -2468,6 +2472,16 @@ string getHelpStr(const char *command)
         os << " -l" << "\t" << "Show extended info: total storage used, storage per main folder " << endl;
         os << "   " << "\t" << "(see mount), pro level, account balance, and also the active sessions" << endl;
     }
+    else if (!strcmp(command, "cat"))
+    {
+        os << "Prints the contents of remote files" << endl;
+        os << endl;
+#ifdef _WIN32
+        os << "To avoid issues with encoding, if you want to cat the exact binary contents of a remote file into a local one, " << endl;
+        os << "use non-interactive mode with -o /path/to/file. See help \"non-interactive\"" << endl;
+#endif
+    }
+
     if (!strcmp(command, "passwd"))
     {
         os << "Modifies user password" << endl;
@@ -2614,14 +2628,14 @@ void printAvailableCommands(int extensive = 0)
         size_t k = 2*(validCommandsOrdered.size()/3)+validCommandsOrdered.size()%3;
         for (i = 0; i < validCommandsOrdered.size() && j < validCommandsOrdered.size()  && k < validCommandsOrdered.size(); i++, j++, k++)
         {
-            OUTSTREAM << "      " << setw(20) << left << validCommandsOrdered.at(i) <<  setw(20) << validCommandsOrdered.at(j)  <<  "      " << validCommandsOrdered.at(k) << endl;
+            OUTSTREAM << "      " << getLeftAlignedStr(validCommandsOrdered.at(i), 20) <<  getLeftAlignedStr(validCommandsOrdered.at(j), 20)  <<  "      " << validCommandsOrdered.at(k) << endl;
         }
         if (validCommandsOrdered.size()%3)
         {
-            OUTSTREAM << "      " << setw(20) <<  validCommandsOrdered.at(i);
+            OUTSTREAM << "      " << getLeftAlignedStr(validCommandsOrdered.at(i), 20) ;
             if (validCommandsOrdered.size()%3 > 1 )
             {
-                OUTSTREAM << setw(20) <<  validCommandsOrdered.at(j);
+                OUTSTREAM << getLeftAlignedStr(validCommandsOrdered.at(j), 20) ;
             }
             OUTSTREAM << endl;
         }
@@ -3258,10 +3272,12 @@ void * doProcessLine(void *pointer)
     CmdPetition *inf = (CmdPetition*)pointer;
 
     OUTSTRINGSTREAM s;
-    setCurrentThreadOutStream(&s);
+
     setCurrentThreadLogLevel(MegaApi::LOG_LEVEL_ERROR);
     setCurrentOutCode(MCMD_OK);
     setCurrentPetition(inf);
+    LoggedStreamPartialOutputs ls(cm, inf);
+    setCurrentThreadOutStream(&ls);
 
     if (inf->getLine() && *(inf->getLine())=='X')
     {
@@ -4262,7 +4278,9 @@ int main(int argc, char* argv[])
     SimpleLogger::setAllOutputs(&null_stream);
     SimpleLogger::setLogLevel(logMax); // do not filter anything here, log level checking is done by loggerCMD
 
-    loggerCMD = new MegaCMDLogger(&COUT);
+    LoggedStream LCOUT(&COUT);
+
+    loggerCMD = new MegaCMDLogger(&LCOUT);
 
     loggerCMD->setApiLoggerLevel(MegaApi::LOG_LEVEL_ERROR);
     loggerCMD->setCmdLoggerLevel(MegaApi::LOG_LEVEL_INFO);

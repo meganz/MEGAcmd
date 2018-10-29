@@ -88,6 +88,8 @@ public:
      */
     void returnAndClosePetition(CmdPetition *inf, OUTSTRINGSTREAM *s, int);
 
+    virtual void sendPartialOutput(CmdPetition *inf, OUTSTRING *s);
+
     int informStateListener(CmdPetition *inf, std::string &s);
 
 

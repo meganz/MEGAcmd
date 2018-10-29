@@ -67,6 +67,18 @@ protected:
     mega::MegaTransferListener *listener;
 };
 
+class MegaCmdCatTransferListener : public MegaCmdTransferListener
+{
+private:
+    LoggedStream *ls;
+public:
+    std::string contents;
+
+    MegaCmdCatTransferListener(LoggedStream *_ls, mega::MegaApi *megaApi, MegaCmdSandbox * sandboxCMD, mega::MegaTransferListener *listener = NULL, int clientID=-1)
+        :MegaCmdTransferListener(megaApi,sandboxCMD,listener,clientID),ls(_ls){};
+
+    bool onTransferData(mega::MegaApi *api, mega::MegaTransfer *transfer, char *buffer, size_t size);
+};
 
 class MegaCmdMultiTransferListener : public mega::SynchronousTransferListener
 {

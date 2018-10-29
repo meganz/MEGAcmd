@@ -126,6 +126,24 @@ std::string getFixLengthString(const std::string origin, unsigned int size, cons
 
 std::string getRightAlignedString(const std::string origin, unsigned int minsize);
 
+
+template<typename T>
+OUTSTRING getLeftAlignedStr(T what, int n)
+{
+    OUTSTRINGSTREAM os;
+    os << setw(n) << left << what;
+    return os.str();
+}
+
+
+template<typename T>
+OUTSTRING getRightAlignedStr(T what, int n)
+{
+    OUTSTRINGSTREAM os;
+    os << setw(n) << what;
+    return os.str();
+}
+
 bool nodeNameIsVersion(std::string &nodeName);
 
 /* Flags and Options */

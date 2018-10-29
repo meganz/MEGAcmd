@@ -509,12 +509,15 @@ int main(int argc, char* argv[])
 #ifdef _WIN32
     setlocale(LC_ALL, "en-US");
 
+    bool redirectedoutput = false;
+
     //Redirect stdout to a file
     for (int i=1;i<argc;i++)
     {
         if (i<(argc-1) && !strcmp(argv[i],"-o"))
         {
             freopen(argv[i+1],"w",stdout);
+            redirectedoutput = true;
         }
     }
 
@@ -525,7 +528,7 @@ int main(int argc, char* argv[])
         return -1;
     }
 #ifdef _WIN32
-    MegaCmdShellCommunications *comms = new MegaCmdShellCommunicationsNamedPipes();
+    MegaCmdShellCommunications *comms = new MegaCmdShellCommunicationsNamedPipes(redirectedoutput);
 #else
     MegaCmdShellCommunications *comms = new MegaCmdShellCommunications();
 #endif
