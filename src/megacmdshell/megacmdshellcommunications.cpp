@@ -518,7 +518,16 @@ SOCKET MegaCmdShellCommunications::createSocket(int number, bool initializeserve
             }
             else
             {
-                cerr << "Unable to connect to socket  " << number <<  " : " << ERRNO << endl;
+#ifdef ECONNREFUSED
+                if (!initializeserver && ERRNO == ECONNREFUSED)
+                {
+                    cerr << "Server is not responding" << endl;
+                }
+                else
+#endif
+                {
+                    cerr << "Unable to connect to socket  " << number <<  " : " << ERRNO << endl;
+                }
                 return INVALID_SOCKET;
             }
         }
