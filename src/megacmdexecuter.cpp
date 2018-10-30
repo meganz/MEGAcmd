@@ -7977,6 +7977,24 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
         return;
     }
+    else if (words[0] == "alerts")
+    {
+        MegaUserAlertList *uas = api->getUserAlerts();
+        if (uas)
+        {
+            for (int i = 0; i < uas->size(); i++)
+            {
+                MegaUserAlert * ua = uas->get(i);
+                OUTSTREAM << ua->getTypeString() << "\t" <<  ua->getTitle() << endl;
+            }
+            delete uas;
+        }
+        else
+        {
+            setCurrentOutCode(MCMD_EUNEXPECTED);
+            LOG_err << "No User Alerts List";
+        }
+    }
     else if (words[0] == "export")
     {
         if (!api->isFilesystemAvailable())
