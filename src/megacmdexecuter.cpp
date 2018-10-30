@@ -5282,7 +5282,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             }
         }
     }
-    else if (words[0] == "info")
+    else if (words[0] == "mediainfo")
     {
         if (!api->isFilesystemAvailable())
         {
@@ -5293,7 +5293,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         if (words.size() < 2)
         {
             setCurrentOutCode(MCMD_EARGS);
-            LOG_err << "      " << getUsageStr("info");
+            LOG_err << "      " << getUsageStr("mediainfo");
             return;
         }
 
