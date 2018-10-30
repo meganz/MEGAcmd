@@ -233,7 +233,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR szCmdLine
 #else
 int main(int argc, char *argv[])
 {
-    vector<const char*> args(argv + 1, argv + argc);
+    vector<const char*> args;
+    if (argc > 1)
+    {
+        args = vector<const char*>(argv + 1, argv + argc);
+    }
 #endif
 
     bool doNotInstall = extractarg(args, "--do-not-install");

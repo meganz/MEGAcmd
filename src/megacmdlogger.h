@@ -109,11 +109,7 @@ private:
     int cmdLoggerLevel;
     LoggedStream * output;
 public:
-    MegaCMDLogger(LoggedStream * outstr)
-    {
-        this->output = outstr;
-        this->apiLoggerLevel = mega::MegaApi::LOG_LEVEL_ERROR;
-    }
+    MegaCMDLogger();
 
     void log(const char *time, int loglevel, const char *source, const char *message);
 

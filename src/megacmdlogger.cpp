@@ -162,6 +162,13 @@ void setCurrentPetition(CmdPetition *petition)
     threadpetition[MegaThread::currentThreadId()] = petition;
 }
 
+
+MegaCMDLogger::MegaCMDLogger()
+{
+    this->output = &LCOUT;
+    this->apiLoggerLevel = mega::MegaApi::LOG_LEVEL_ERROR;
+}
+
 void MegaCMDLogger::log(const char *time, int loglevel, const char *source, const char *message)
 {
     if ( (string(source).find("src/megacmd") != string::npos)

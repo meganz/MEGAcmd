@@ -4278,9 +4278,7 @@ int main(int argc, char* argv[])
     SimpleLogger::setAllOutputs(&null_stream);
     SimpleLogger::setLogLevel(logMax); // do not filter anything here, log level checking is done by loggerCMD
 
-    LoggedStream LCOUT(&COUT);
-
-    loggerCMD = new MegaCMDLogger(&LCOUT);
+    loggerCMD = new MegaCMDLogger();
 
     loggerCMD->setApiLoggerLevel(MegaApi::LOG_LEVEL_ERROR);
     loggerCMD->setCmdLoggerLevel(MegaApi::LOG_LEVEL_INFO);
@@ -4290,7 +4288,11 @@ int main(int argc, char* argv[])
     loglevelenv = (getenv ("MEGACMD_LOGLEVEL") == NULL)?"":getenv ("MEGACMD_LOGLEVEL");
 #endif
 
-    vector<const char*> args(argv + 1, argv + argc);
+    vector<const char*> args;
+    if (argc > 1)
+    {
+        args = vector<const char*>(argv + 1, argv + argc);
+    }
 
     string debug_api_url;
     bool debug = extractarg(args, "--debug");
@@ -4372,6 +4374,8 @@ int main(int argc, char* argv[])
 
     MegaApi::addLoggerObject(loggerCMD);
     MegaApi::setLogLevel(MegaApi::LOG_LEVEL_MAX);
+
+    LOG_debug << "MEGAcmd version: " << MEGACMD_MAJOR_VERSION << "." << MEGACMD_MINOR_VERSION << "." << MEGACMD_MICRO_VERSION << ": code " << MEGACMD_CODE_VERSION;
 
 #if defined(__MACH__) && defined(ENABLE_SYNC)
     int fd = -1;
