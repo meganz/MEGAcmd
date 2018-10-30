@@ -2018,6 +2018,7 @@ void readloop()
         {
             line = console->checkForCompletedInputLine();
 
+
             if (line)
             {
                 break;
@@ -2027,8 +2028,12 @@ void readloop()
                 time_t tnow = time(NULL);
                 if ((tnow - lasttimeretrycons) > 5 && !doExit && !MegaCmdShellCommunications::updating)
                 {
-                    comms->executeCommand("retrycons");
-                    lasttimeretrycons = tnow;
+                    if (wstring(L"quit").find(console->getInputLineToCursor()) != 0 &&
+                         wstring(L"exit").find(console->getInputLineToCursor()) != 0   )
+                    {
+                        comms->executeCommand("retrycons");
+                        lasttimeretrycons = tnow;
+                    }
                 }
 
                 if (doExit)
