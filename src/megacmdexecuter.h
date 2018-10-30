@@ -179,6 +179,7 @@ public:
 
     void processPath(std::string path, bool usepcre, bool &firstone, void (*nodeprocessor)(MegaCmdExecuter *, mega::MegaNode *, bool), MegaCmdExecuter *context = NULL);
     void catFile(mega::MegaNode *n);
+    void printInfoFile(mega::MegaNode *n, bool &firstone, int PATHSIZE);
 
 
 #ifdef HAVE_LIBUV

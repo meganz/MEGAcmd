@@ -221,6 +221,7 @@ string avalidCommands [] = { "login", "signup", "confirm", "session", "mount", "
                              "showpcr", "users", "speedlimit", "killsession", "whoami", "help", "passwd", "reload", "logout", "version", "quit",
                              "thumbnail", "preview", "find", "completion", "clear", "https", "transfers", "exclude", "exit", "errorcode", "graphics",
                              "cancel", "confirmcancel", "cat"
+                             , "mediainfo"
 #ifdef HAVE_LIBUV
                              , "webdav", "ftp"
 #endif
@@ -463,6 +464,10 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     else if ("whoami" == thecommand)
     {
         validParams->insert("l");
+    }
+    else if ("mediainfo" == thecommand)
+    {
+        validOptValues->insert("path-display-size");
     }
     else if ("log" == thecommand)
     {
@@ -1638,6 +1643,10 @@ const char * getUsageStr(const char *command)
     {
         return "cat remotepath1 remotepath2 ...";
     }
+    if (!strcmp(command, "mediainfo"))
+    {
+        return "info remotepath1 remotepath2 ...";
+    }
     if (!strcmp(command, "passwd"))
     {
         if (interactiveThread())
@@ -2481,8 +2490,14 @@ string getHelpStr(const char *command)
         os << "use non-interactive mode with -o /path/to/file. See help \"non-interactive\"" << endl;
 #endif
     }
-
-    if (!strcmp(command, "passwd"))
+    else if (!strcmp(command, "mediainfo"))
+    {
+        os << "Prints media info of remote files" << endl;
+        os << endl;
+        os << "Options:" << endl;
+        os << " --path-display-size=N" << "\t" << "Use a fixed size of N characters for paths" << endl;
+    }
+    else if (!strcmp(command, "passwd"))
     {
         os << "Modifies user password" << endl;
         os << endl;

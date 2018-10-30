@@ -1667,7 +1667,6 @@ int64_t textToSize(const char *text)
 
 }
 
-
 string secondsToText(m_time_t seconds, bool humanreadable)
 {
     ostringstream os;

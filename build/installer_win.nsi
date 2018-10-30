@@ -694,6 +694,10 @@ modeselected:
   AccessControl::SetFileOwner "$INSTDIR\mega-cat.bat" "$USERNAME"
   AccessControl::GrantOnFile "$INSTDIR\mega-cat.bat" "$USERNAME" "GenericRead + GenericWrite"
 
+  File "${SRCDIR_BATFILES}\mega-mediainfo.bat"
+  AccessControl::SetFileOwner "$INSTDIR\mega-mediainfo.bat" "$USERNAME"
+  AccessControl::GrantOnFile "$INSTDIR\mega-mediainfo.bat" "$USERNAME" "GenericRead + GenericWrite"
+
   File "${SRCDIR_BATFILES}\mega-graphics.bat"
   AccessControl::SetFileOwner "$INSTDIR\mega-graphics.bat" "$USERNAME"
   AccessControl::GrantOnFile "$INSTDIR\mega-graphics.bat" "$USERNAME" "GenericRead + GenericWrite"
@@ -923,6 +927,7 @@ Section Uninstall
   Delete "$INSTDIR\mega-version.bat"
   Delete "$INSTDIR\mega-whoami.bat"
   Delete "$INSTDIR\mega-cat.bat"
+  Delete "$INSTDIR\mega-mediainfo.bat"
   Delete "$INSTDIR\mega-graphics.bat"
   Delete "$INSTDIR\mega-ftp.bat"
   Delete "$INSTDIR\mega-cancel.bat"

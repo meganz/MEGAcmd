@@ -4498,6 +4498,47 @@ void MegaCmdExecuter::catFile(MegaNode *n)
     delete mcctl;
 }
 
+void MegaCmdExecuter::printInfoFile(MegaNode *n, bool &firstone, int PATHSIZE)
+{
+    char * nodepath = api->getNodePath(n);
+    char *fattrs = n->getFileAttrString();
+    if (fattrs == NULL)
+    {
+        LOG_warn << " Unable to get attributes for node " << nodepath;
+    }
+
+    if (firstone)
+    {
+        OUTSTREAM << getFixLengthString("FILE", PATHSIZE);
+        OUTSTREAM << getFixLengthString("WIDTH", 7);
+        OUTSTREAM << getFixLengthString("HEIGHT", 7);
+        OUTSTREAM << getFixLengthString("FPS", 4);
+        OUTSTREAM << getFixLengthString("PLAYTIME", 10);
+        OUTSTREAM << endl;
+        firstone = false;
+    }
+
+    OUTSTREAM << getFixLengthString(nodepath, PATHSIZE-1) << " ";
+    delete []nodepath;
+
+    OUTSTREAM << getFixLengthString( (n->getWidth() == -1) ? "---" : SSTR(n->getWidth()) , 6) << " ";
+    OUTSTREAM << getFixLengthString( (n->getHeight() == -1) ? "---" : SSTR(n->getHeight()) , 6) << " ";
+
+    if (fattrs == NULL)
+    {
+        OUTSTREAM << getFixLengthString("---", 3) << " ";
+    }
+    else
+    {
+        MediaProperties mp = MediaProperties::decodeMediaPropertiesAttributes(fattrs, (uint32_t*)(n->getNodeKey()->data() + FILENODEKEYLENGTH / 2) );
+        OUTSTREAM << getFixLengthString( (mp.fps == 0) ? "---" : SSTR(mp.fps) , 3) << " ";
+    }
+    OUTSTREAM << getFixLengthString( (n->getHeight() == -1) ? "---" : getReadablePeriod(n->getDuration()) , 10) << " ";
+
+    OUTSTREAM << endl;
+
+
+}
 void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clflags, map<string, string> *cloptions)
 {
     MegaNode* n = NULL;
@@ -5240,7 +5281,71 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 }
             }
         }
+    }
+    else if (words[0] == "info")
+    {
+        if (!api->isFilesystemAvailable())
+        {
+            setCurrentOutCode(MCMD_NOTLOGGEDIN);
+            LOG_err << "Not logged in.";
+            return;
+        }
+        if (words.size() < 2)
+        {
+            setCurrentOutCode(MCMD_EARGS);
+            LOG_err << "      " << getUsageStr("info");
+            return;
+        }
 
+        int PATHSIZE = getintOption(cloptions,"path-display-size");
+        if (!PATHSIZE)
+        {
+            // get screen size for output purposes
+            unsigned int width = getNumberOfCols(75);
+            PATHSIZE = min(50,int(width-28));
+        }
+        PATHSIZE = max(0, PATHSIZE);
+
+        bool firstone = true;
+        for (int i = 1; i < (int)words.size(); i++)
+        {
+            unescapeifRequired(words[i]);
+            if (isRegExp(words[i]))
+            {
+                vector<MegaNode *> *nodes = nodesbypath(words[i].c_str(), getFlag(clflags,"use-pcre"));
+                if (nodes)
+                {
+                    if (!nodes->size())
+                    {
+                        setCurrentOutCode(MCMD_NOTFOUND);
+                        LOG_err << "Nodes not found: " << words[i];
+                    }
+                    for (std::vector< MegaNode * >::iterator it = nodes->begin(); it != nodes->end(); ++it)
+                    {
+                        MegaNode * n = *it;
+                        if (n)
+                        {
+                            printInfoFile(n, firstone, PATHSIZE);
+                            delete n;
+                        }
+                    }
+                }
+            }
+            else
+            {
+                MegaNode *n = nodebypath(words[i].c_str());
+                if (n)
+                {
+                    printInfoFile(n, firstone, PATHSIZE);
+                    delete n;
+                }
+                else
+                {
+                    setCurrentOutCode(MCMD_NOTFOUND);
+                    LOG_err << "Node not found: " << words[i];
+                }
+            }
+        }
     }
     else if (words[0] == "get")
     {

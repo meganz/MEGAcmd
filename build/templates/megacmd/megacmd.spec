@@ -490,6 +490,7 @@ killall mega-cmd-server 2> /dev/null || true
 %{_bindir}/mega-version
 %{_bindir}/mega-whoami
 %{_bindir}/mega-cat
+%{_bindir}/mega-mediainfo
 %{_bindir}/mega-graphics
 %{_bindir}/mega-ftp
 %{_bindir}/mega-cancel
