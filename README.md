@@ -26,7 +26,7 @@ requirements and building instructions.
 ## Requirements
 
 The same as those for the sdk (`cryptopp, zlib, sqlite3, cares, libuv, ssl, curl,
-sodium`) and of course `readline`. Also, it is recommended to include `pcre` to
+sodium`) and `readline` for platforms other than Windows. Also, it is recommended to include `pcre` to
 have support for regular expressions.
 
 Also, in order to have support for thumbnails and previews,
