@@ -84,9 +84,9 @@ public:
 
     void dumpNode(mega::MegaNode* n, const char *timeFormat, int extended_info, bool showversions = false, int depth = 0, const char* title = NULL);
     void dumptree(mega::MegaNode* n, const char *timeFormat, int recurse, int extended_info, bool showversions = false, int depth = 0, std::string pathRelativeTo = "NULL");
-    void dumpNodeSummaryHeader();
-    void dumpNodeSummary(mega::MegaNode* n, bool humanreadable = false, const char* title = NULL);
-    void dumpTreeSummary(mega::MegaNode* n, int recurse, bool show_versions, int depth = 0, bool humanreadable = false, std::string pathRelativeTo = "NULL");
+    void dumpNodeSummaryHeader(const char *timeFormat);
+    void dumpNodeSummary(mega::MegaNode* n, const char *timeFormat, bool humanreadable = false, const char* title = NULL);
+    void dumpTreeSummary(mega::MegaNode* n, const char *timeFormat, int recurse, bool show_versions, int depth = 0, bool humanreadable = false, std::string pathRelativeTo = "NULL");
     mega::MegaContactRequest * getPcrByContact(std::string contactEmail);
     bool TestCanWriteOnContainingFolder(std::string *path);
     std::string getDisplayPath(std::string givenPath, mega::MegaNode* n);
@@ -155,7 +155,7 @@ public:
 
     void printBackupHeader(const unsigned int PATHSIZE);
     void printBackupSummary(int tag, const char *localfolder, const char *remoteparentfolder, std::string status, const unsigned int PATHSIZE);
-    void printBackupHistory(mega::MegaBackup *backup, mega::MegaNode *parentnode, const unsigned int PATHSIZE);
+    void printBackupHistory(mega::MegaBackup *backup, const char *timeFormat, mega::MegaNode *parentnode, const unsigned int PATHSIZE);
     void printBackupDetails(mega::MegaBackup *backup, const char *timeFormat);
     void printBackup(int tag, mega::MegaBackup *backup, const char *timeFormat, const unsigned int PATHSIZE, bool extendedinfo = false, bool showhistory = false, mega::MegaNode *parentnode = NULL);
     void printBackup(backup_struct *backupstruct, const char *timeFormat, const unsigned int PATHSIZE, bool extendedinfo = false, bool showhistory = false);

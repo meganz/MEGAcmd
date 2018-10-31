@@ -633,7 +633,7 @@ const char *getFormatStrFromId(int strftimeformatid)
         return "%d%b%Y %T";
         break;
     case MCMDTIME_SHORTWITHUTCDEVIATION:
-        return "%d%b%Y %T";
+        return "%d%b%Y %T %z";
         break;
 
     default:

@@ -1080,21 +1080,23 @@ void MegaCmdExecuter::dumpNode(MegaNode* n, const char *timeFormat, int extended
     }
 }
 
-void MegaCmdExecuter::dumpNodeSummaryHeader()
+void MegaCmdExecuter::dumpNodeSummaryHeader(const char *timeFormat)
 {
+    int datelength = getReadableTime(m_time(), timeFormat).size();
+
     OUTSTREAM << "FLAGS";
     OUTSTREAM << " ";
     OUTSTREAM << getFixLengthString("VERS", 4);
     OUTSTREAM << " ";
     OUTSTREAM << getFixLengthString("SIZE  ", 10 -1, ' ', true); //-1 because of "FLAGS"
     OUTSTREAM << " ";
-    OUTSTREAM << getFixLengthString("DATE      ", 18, ' ', true);
+    OUTSTREAM << getFixLengthString("DATE      ", datelength+1, ' ', true);
     OUTSTREAM << " ";
     OUTSTREAM << "NAME";
     OUTSTREAM << endl;
 }
 
-void MegaCmdExecuter::dumpNodeSummary(MegaNode *n, bool humanreadable, const char *title)
+void MegaCmdExecuter::dumpNodeSummary(MegaNode *n, const char *timeFormat, bool humanreadable, const char *title)
 {
     if (!title && !( title = n->getName()))
     {
@@ -1195,11 +1197,11 @@ void MegaCmdExecuter::dumpNodeSummary(MegaNode *n, bool humanreadable, const cha
 
     if (n->isFile())
     {
-        OUTSTREAM << " " << getReadableShortTime(n->getModificationTime());
+        OUTSTREAM << " " << getReadableTime(n->getModificationTime(), timeFormat);
     }
     else
     {
-        OUTSTREAM << " " << getReadableShortTime(n->getCreationTime());
+        OUTSTREAM << " " << getReadableTime(n->getCreationTime(), timeFormat);
     }
 
 
@@ -1389,7 +1391,7 @@ void MegaCmdExecuter::dumptree(MegaNode* n, const char *timeFormat, int recurse,
     }
 }
 
-void MegaCmdExecuter::dumpTreeSummary(MegaNode *n, int recurse, bool show_versions, int depth, bool humanreadable, string pathRelativeTo)
+void MegaCmdExecuter::dumpTreeSummary(MegaNode *n, const char *timeFormat, int recurse, bool show_versions, int depth, bool humanreadable, string pathRelativeTo)
 {
     char * nodepath = api->getNodePath(n);
 
@@ -1436,7 +1438,7 @@ void MegaCmdExecuter::dumpTreeSummary(MegaNode *n, int recurse, bool show_versio
 
             for (int i = 0; i < children->size(); i++)
             {
-                dumpNodeSummary(children->get(i), humanreadable);
+                dumpNodeSummary(children->get(i), timeFormat, humanreadable);
             }
 
             if (show_versions)
@@ -1452,7 +1454,7 @@ void MegaCmdExecuter::dumpTreeSummary(MegaNode *n, int recurse, bool show_versio
 
                         for (int i = 0; i < vers->size(); i++)
                         {
-                            dumpNodeSummary(vers->get(i), humanreadable);
+                            dumpNodeSummary(vers->get(i), timeFormat, humanreadable);
                         }
                     }
                     delete vers;
@@ -1464,7 +1466,7 @@ void MegaCmdExecuter::dumpTreeSummary(MegaNode *n, int recurse, bool show_versio
                 for (int i = 0; i < children->size(); i++)
                 {
                     MegaNode *c = children->get(i);
-                    dumpTreeSummary(c, recurse, show_versions, depth + 1, humanreadable);
+                    dumpTreeSummary(c, timeFormat, recurse, show_versions, depth + 1, humanreadable);
                 }
             }
             delete children;
@@ -1475,7 +1477,7 @@ void MegaCmdExecuter::dumpTreeSummary(MegaNode *n, int recurse, bool show_versio
         if (!depth)
         {
 
-            dumpNodeSummary(n, humanreadable);
+            dumpNodeSummary(n, timeFormat, humanreadable);
 
             if (show_versions)
             {
@@ -1487,7 +1489,7 @@ void MegaCmdExecuter::dumpTreeSummary(MegaNode *n, int recurse, bool show_versio
                     for (int i = 0; i < vers->size(); i++)
                     {
                         string nametoshow = n->getName()+string("#")+SSTR(vers->get(i)->getModificationTime());
-                        dumpNodeSummary(vers->get(i), humanreadable, nametoshow.c_str() );
+                        dumpNodeSummary(vers->get(i), timeFormat, humanreadable, nametoshow.c_str() );
                     }
                 }
                 delete vers;
@@ -3581,7 +3583,7 @@ void MegaCmdExecuter::printBackupDetails(MegaBackup *backup, const char *timeFor
     }
 }
 
-void MegaCmdExecuter::printBackupHistory(MegaBackup *backup, MegaNode *parentnode, const unsigned int PATHSIZE)
+void MegaCmdExecuter::printBackupHistory(MegaBackup *backup, const char *timeFormat, MegaNode *parentnode, const unsigned int PATHSIZE)
 {
     bool firstinhistory = true;
     MegaStringList *msl = api->getBackupFolders(backup->getTag());
@@ -3624,7 +3626,7 @@ void MegaCmdExecuter::printBackupHistory(MegaBackup *backup, MegaNode *parentnod
             {
                 struct tm dt;
                 fillStructWithSYYmdHMS(btime,dt);
-                printableDate = getReadableShortTime(m_mktime(&dt));
+                printableDate = getReadableTime(m_mktime(&dt), timeFormat);
             }
 
             string backupInstanceStatus="NOT_FOUND";
@@ -3687,7 +3689,7 @@ void MegaCmdExecuter::printBackup(int tag, MegaBackup *backup, const char *timeF
 
         if (showhistory && parentnode)
         {
-            printBackupHistory(backup, parentnode, PATHSIZE);
+            printBackupHistory(backup, timeFormat, parentnode, PATHSIZE);
         }
 
         if (deleteparentnode)
@@ -4597,10 +4599,10 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                                 {
                                     if (firstprint)
                                     {
-                                        dumpNodeSummaryHeader();
+                                        dumpNodeSummaryHeader(getTimeFormatFromSTR(getOption(cloptions, "time-format","SHORT")));
                                         firstprint = false;
                                     }
-                                    dumpTreeSummary(n, recursive, show_versions, 0, humanreadable, rNpath);
+                                    dumpTreeSummary(n, getTimeFormatFromSTR(getOption(cloptions, "time-format","SHORT")), recursive, show_versions, 0, humanreadable, rNpath);
                                 }
                                 else
                                 {
@@ -4642,10 +4644,10 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     {
                         if (firstprint)
                         {
-                            dumpNodeSummaryHeader();
+                            dumpNodeSummaryHeader(getTimeFormatFromSTR(getOption(cloptions, "time-format","SHORT")));
                             firstprint = false;
                         }
-                        dumpTreeSummary(n, recursive, show_versions, 0, humanreadable, rNpath);
+                        dumpTreeSummary(n, getTimeFormatFromSTR(getOption(cloptions, "time-format","SHORT")), recursive, show_versions, 0, humanreadable, rNpath);
                     }
                     else
                     {
@@ -4669,10 +4671,10 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 {
                     if (firstprint)
                     {
-                        dumpNodeSummaryHeader();
+                        dumpNodeSummaryHeader(getTimeFormatFromSTR(getOption(cloptions, "time-format","SHORT")));
                         firstprint = false;
                     }
-                    dumpTreeSummary(n, recursive, show_versions, 0, humanreadable);
+                    dumpTreeSummary(n, getTimeFormatFromSTR(getOption(cloptions, "time-format","SHORT")), recursive, show_versions, 0, humanreadable);
                 }
                 else
                 {
