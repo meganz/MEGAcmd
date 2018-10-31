@@ -1909,8 +1909,13 @@ void readloop()
                 time_t tnow = time(NULL);
                 if ( (tnow - lasttimeretrycons) > 5 && !doExit && !MegaCmdShellCommunications::updating)
                 {
-                    comms->executeCommand("retrycons");
-                    lasttimeretrycons = tnow;
+                    char * sl = rl_copy_text(0, rl_end);
+                    if (string("quit").find(sl) != 0 && string("exit").find(sl) != 0)
+                    {
+                        comms->executeCommand("retrycons");
+                        lasttimeretrycons = tnow;
+                    }
+                    free(sl);
                 }
 
                 rl_resize_terminal(); // to always adjust to new screen sizes
@@ -1932,6 +1937,7 @@ void readloop()
             {
                 break;
             }
+
         }
 
         // save line
@@ -2012,6 +2018,7 @@ void readloop()
         {
             line = console->checkForCompletedInputLine();
 
+
             if (line)
             {
                 break;
@@ -2021,8 +2028,12 @@ void readloop()
                 time_t tnow = time(NULL);
                 if ((tnow - lasttimeretrycons) > 5 && !doExit && !MegaCmdShellCommunications::updating)
                 {
-                    comms->executeCommand("retrycons");
-                    lasttimeretrycons = tnow;
+                    if (wstring(L"quit").find(console->getInputLineToCursor()) != 0 &&
+                         wstring(L"exit").find(console->getInputLineToCursor()) != 0   )
+                    {
+                        comms->executeCommand("retrycons");
+                        lasttimeretrycons = tnow;
+                    }
                 }
 
                 if (doExit)
