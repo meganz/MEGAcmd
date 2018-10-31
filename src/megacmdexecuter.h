@@ -82,19 +82,19 @@ public:
     std::vector <std::string> * nodesPathsbypath(const char* ptr, bool usepcre, std::string* user = NULL, std::string* namepart = NULL);
     void getPathsMatching(mega::MegaNode *parentNode, std::deque<std::string> pathParts, std::vector<std::string> *pathsMatching, bool usepcre, std::string pathPrefix = "");
 
-    void dumpNode(mega::MegaNode* n, int extended_info, bool showversions = false, int depth = 0, const char* title = NULL);
-    void dumptree(mega::MegaNode* n, int recurse, int extended_info, bool showversions = false, int depth = 0, std::string pathRelativeTo = "NULL");
+    void dumpNode(mega::MegaNode* n, const char *timeFormat, int extended_info, bool showversions = false, int depth = 0, const char* title = NULL);
+    void dumptree(mega::MegaNode* n, const char *timeFormat, int recurse, int extended_info, bool showversions = false, int depth = 0, std::string pathRelativeTo = "NULL");
     void dumpNodeSummaryHeader();
     void dumpNodeSummary(mega::MegaNode* n, bool humanreadable = false, const char* title = NULL);
     void dumpTreeSummary(mega::MegaNode* n, int recurse, bool show_versions, int depth = 0, bool humanreadable = false, std::string pathRelativeTo = "NULL");
     mega::MegaContactRequest * getPcrByContact(std::string contactEmail);
     bool TestCanWriteOnContainingFolder(std::string *path);
     std::string getDisplayPath(std::string givenPath, mega::MegaNode* n);
-    int dumpListOfExported(mega::MegaNode* n, std::string givenPath);
+    int dumpListOfExported(mega::MegaNode* n, const char *timeFormat, std::string givenPath);
     void listnodeshares(mega::MegaNode* n, std::string name);
     void dumpListOfShared(mega::MegaNode* n, std::string givenPath);
-    void dumpListOfAllShared(mega::MegaNode* n, std::string givenPath);
-    void dumpListOfPendingShares(mega::MegaNode* n, std::string givenPath);
+    void dumpListOfAllShared(mega::MegaNode* n, const char *timeFormat, std::string givenPath);
+    void dumpListOfPendingShares(mega::MegaNode* n, const char *timeFormat, std::string givenPath);
     std::string getCurrentPath();
     long long getVersionsSize(mega::MegaNode* n);
     void getInfoFromFolder(mega::MegaNode *, mega::MegaApi *, long long *nfiles, long long *nfolders, long long *nversions = NULL);
@@ -156,13 +156,13 @@ public:
     void printBackupHeader(const unsigned int PATHSIZE);
     void printBackupSummary(int tag, const char *localfolder, const char *remoteparentfolder, std::string status, const unsigned int PATHSIZE);
     void printBackupHistory(mega::MegaBackup *backup, mega::MegaNode *parentnode, const unsigned int PATHSIZE);
-    void printBackupDetails(mega::MegaBackup *backup);
-    void printBackup(int tag, mega::MegaBackup *backup, const unsigned int PATHSIZE, bool extendedinfo = false, bool showhistory = false, mega::MegaNode *parentnode = NULL);
-    void printBackup(backup_struct *backupstruct, const unsigned int PATHSIZE, bool extendedinfo = false, bool showhistory = false);
+    void printBackupDetails(mega::MegaBackup *backup, const char *timeFormat);
+    void printBackup(int tag, mega::MegaBackup *backup, const char *timeFormat, const unsigned int PATHSIZE, bool extendedinfo = false, bool showhistory = false, mega::MegaNode *parentnode = NULL);
+    void printBackup(backup_struct *backupstruct, const char *timeFormat, const unsigned int PATHSIZE, bool extendedinfo = false, bool showhistory = false);
 #endif
     void printSync(int i, std::string key, const char *nodepath, sync_struct * thesync, mega::MegaNode *n, long long nfiles, long long nfolders, const unsigned int PATHSIZE);
 
-    void doFind(mega::MegaNode* nodeBase, std::string word, int printfileinfo, std::string pattern, bool usepcre, mega::m_time_t minTime, mega::m_time_t maxTime, int64_t minSize, int64_t maxSize);
+    void doFind(mega::MegaNode* nodeBase, const char *timeFormat, std::string word, int printfileinfo, std::string pattern, bool usepcre, mega::m_time_t minTime, mega::m_time_t maxTime, int64_t minSize, int64_t maxSize);
 
     void move(mega::MegaNode *n, std::string destiny);
     void copyNode(mega::MegaNode *n, std::string destiny, mega::MegaNode *tn, std::string &targetuser, std::string &newname);
