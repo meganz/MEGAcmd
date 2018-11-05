@@ -615,37 +615,118 @@ const char *fillStructWithSYYmdHMS(string &stime, struct tm &dt)
 
 }
 
-std::string getReadableTime(const m_time_t rawtime)
+const char *getFormatStrFromId(int strftimeformatid)
+{
+    switch (strftimeformatid)
+    {
+
+    case  MCMDTIME_RFC2822:
+        return "%a, %d %b %Y %T %z";
+        break;
+    case MCMDTIME_ISO6081:
+        return "%F";
+        break;
+    case MCMDTIME_ISO6081WITHTIME:
+        return "%FT%T";
+        break;
+    case MCMDTIME_SHORT:
+        return "%d%b%Y %T";
+        break;
+    case MCMDTIME_SHORTWITHUTCDEVIATION:
+        return "%d%b%Y %T %z";
+        break;
+
+    default:
+        return "%a, %d %b %Y %T %z";
+        break;
+    }
+}
+
+const char *getTimeFormatNameFromId(int strftimeformatid)
+{
+    switch (strftimeformatid)
+    {
+
+    case  MCMDTIME_RFC2822:
+        return "RFC2822";
+        break;
+    case MCMDTIME_ISO6081:
+        return "ISO6081";
+        break;
+    case MCMDTIME_ISO6081WITHTIME:
+        return "ISO6081_WITH_TIME";
+        break;
+    case MCMDTIME_SHORT:
+        return "SHORT";
+        break;
+    case MCMDTIME_SHORTWITHUTCDEVIATION:
+        return "SHORT_UTC";
+        break;
+    default:
+        return "INVALID";
+        break;
+    }
+}
+
+
+const char *getTimeFormatFromSTR(string formatName)
+{
+    string lformatName = formatName;
+    transform(lformatName.begin(), lformatName.end(), lformatName.begin(), ::tolower);
+
+    if (lformatName == "rfc2822")
+    {
+        return getFormatStrFromId(MCMDTIME_RFC2822);
+    }
+    else if (lformatName == "iso6081")
+    {
+        return getFormatStrFromId(MCMDTIME_ISO6081);
+    }
+    else if (lformatName == "iso6081_with_time")
+    {
+        return getFormatStrFromId(MCMDTIME_ISO6081WITHTIME);
+    }
+    else if (lformatName == "short")
+    {
+        return getFormatStrFromId(MCMDTIME_SHORT);
+    }
+    else if (lformatName == "short_utc")
+    {
+        return getFormatStrFromId(MCMDTIME_SHORTWITHUTCDEVIATION);
+    }
+    else
+    {
+        return formatName.c_str();
+    }
+}
+
+std::string getReadableTime(const m_time_t rawtime, const char* strftimeformat)
 {
     struct tm dt;
     char buffer [40];
     m_localtime(rawtime, &dt);
-    strftime(buffer, sizeof( buffer ), "%a, %d %b %Y %T %z", &dt); // Following RFC 2822 (as in date -R)
+    strftime(buffer, sizeof( buffer ), strftimeformat, &dt); // Following RFC 2822 (as in date -R)
     return std::string(buffer);
+}
+
+std::string getReadableTime(const m_time_t rawtime, int strftimeformatid)
+{
+    return getReadableTime(rawtime, getFormatStrFromId(strftimeformatid));
 }
 
 std::string getReadableShortTime(const m_time_t rawtime, bool showUTCDeviation)
 {
-    struct tm dt;
-    memset(&dt, 0, sizeof(struct tm));
-    char buffer [40];
     if (rawtime != -1)
     {
-        m_localtime(rawtime, &dt);
-        if (showUTCDeviation)
-        {
-            strftime(buffer, sizeof( buffer ), "%d%b%Y %T %z", &dt);
-        }
-        else
-        {
-            strftime(buffer, sizeof( buffer ), "%d%b%Y %T", &dt); // Following RFC 2822 (as in date -R)
-        }
+        return getReadableTime(rawtime, showUTCDeviation?MCMDTIME_SHORTWITHUTCDEVIATION:MCMDTIME_SHORT);
+
     }
     else
     {
+        char buffer [40];
         sprintf(buffer,"INVALID_TIME %lld", (long long)rawtime);
+        return std::string(buffer);
     }
-    return std::string(buffer);
 }
 
 std::string getReadablePeriod(const m_time_t rawtime)
@@ -1862,3 +1943,4 @@ bool nodeNameIsVersion(string &nodeName)
     }
     return isversion;
 }
+

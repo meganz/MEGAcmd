@@ -403,7 +403,7 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validParams->insert("a");
         validParams->insert("h");
         validParams->insert("versions");
-
+        validOptValues->insert("time-format");
 #ifdef USE_PCRE
         validParams->insert("use-pcre");
 #endif
@@ -537,6 +537,7 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validParams->insert("l");
         validParams->insert("h");
         validOptValues->insert("path-display-size");
+        validOptValues->insert("time-format");
     }
     else if ("sync" == thecommand)
     {
@@ -567,6 +568,7 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
 #ifdef USE_PCRE
         validParams->insert("use-pcre");
 #endif
+        validOptValues->insert("time-format");
     }
     else if ("find" == thecommand)
     {
@@ -577,6 +579,7 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
 #endif
         validOptValues->insert("mtime");
         validOptValues->insert("size");
+        validOptValues->insert("time-format");
     }
     else if ("mkdir" == thecommand)
     {
@@ -588,6 +591,7 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validParams->insert("h");
         validParams->insert("d");
         validParams->insert("n");
+        validOptValues->insert("time-format");
     }
     else if ("killsession" == thecommand)
     {
@@ -627,6 +631,7 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     {
         validParams->insert("in");
         validParams->insert("out");
+        validOptValues->insert("time-format");
     }
     else if ("thumbnail" == thecommand)
     {
@@ -862,6 +867,15 @@ char * flags_value_completion(const char*text, int state)
             if (setOptionsAndFlags(&cloptions, &clflags, &words, validParams, true))
             {
                 // return invalid??
+            }
+
+            if (currentFlag.find("--time-format=") == 0)
+            {
+                string prefix = strncmp(text, "--time-format=", strlen("--time-format="))?"":"--time-format=";
+                for (int i = 0; i < MCMDTIME_TOTAL; i++)
+                {
+                    validValues.push_back(prefix+getTimeFormatNameFromId(i));
+                }
             }
 
             if (thecommand == "share")
@@ -1437,9 +1451,9 @@ const char * getUsageStr(const char *command)
     if (!strcmp(command, "ls"))
     {
 #ifdef USE_PCRE
-        return "ls [-halRr] [--versions] [remotepath] [--use-pcre]";
+        return "ls [-halRr] [--versions] [remotepath] [--use-pcre] [--time-format=FORMAT]";
 #else
-        return "ls [-halRr] [--versions] [remotepath]";
+        return "ls [-halRr] [--versions] [remotepath] [--time-format=FORMAT]";
 #endif
     }
     if (!strcmp(command, "cd"))
@@ -1571,7 +1585,7 @@ const char * getUsageStr(const char *command)
     }
     if (!strcmp(command, "backup"))
     {
-        return "backup (localpath remotepath --period=\"PERIODSTRING\" --num-backups=N  | [-lhda] [TAG|localpath] [--period=\"PERIODSTRING\"] [--num-backups=N])";
+        return "backup (localpath remotepath --period=\"PERIODSTRING\" --num-backups=N  | [-lhda] [TAG|localpath] [--period=\"PERIODSTRING\"] [--num-backups=N]) [--time-format=FORMAT]";
     }
     if (!strcmp(command, "https"))
     {
@@ -1586,17 +1600,17 @@ const char * getUsageStr(const char *command)
     if (!strcmp(command, "export"))
     {
 #ifdef USE_PCRE
-        return "export [-d|-a [--password=PASSWORD] [--expire=TIMEDELAY] [-f]] [remotepath] [--use-pcre]";
+        return "export [-d|-a [--password=PASSWORD] [--expire=TIMEDELAY] [-f]] [remotepath] [--use-pcre] [--time-format=FORMAT]";
 #else
-        return "export [-d|-a [--password=PASSWORD] [--expire=TIMEDELAY] [-f]] [remotepath]";
+        return "export [-d|-a [--password=PASSWORD] [--expire=TIMEDELAY] [-f]] [remotepath] [--time-format=FORMAT]";
 #endif
     }
     if (!strcmp(command, "share"))
     {
 #ifdef USE_PCRE
-        return "share [-p] [-d|-a --with=user@email.com [--level=LEVEL]] [remotepath] [--use-pcre]";
+        return "share [-p] [-d|-a --with=user@email.com [--level=LEVEL]] [remotepath] [--use-pcre] [--time-format=FORMAT]";
 #else
-        return "share [-p] [-d|-a --with=user@email.com [--level=LEVEL]] [remotepath]";
+        return "share [-p] [-d|-a --with=user@email.com [--level=LEVEL]] [remotepath] [--time-format=FORMAT]";
 #endif
     }
     if (!strcmp(command, "invite"))
@@ -1609,7 +1623,7 @@ const char * getUsageStr(const char *command)
     }
     if (!strcmp(command, "showpcr"))
     {
-        return "showpcr [--in | --out]";
+        return "showpcr [--in | --out] [--time-format=FORMAT]";
     }
     if (!strcmp(command, "masterkey"))
     {
@@ -1617,7 +1631,7 @@ const char * getUsageStr(const char *command)
     }
     if (!strcmp(command, "users"))
     {
-        return "users [-s] [-h] [-n] [-d contact@email]";
+        return "users [-s] [-h] [-n] [-d contact@email] [--time-format=FORMAT]";
     }
     if (!strcmp(command, "getua"))
     {
@@ -1737,9 +1751,9 @@ const char * getUsageStr(const char *command)
     if (!strcmp(command, "find"))
     {
 #ifdef USE_PCRE
-        return "find [remotepath] [-l] [--pattern=PATTERN] [--mtime=TIMECONSTRAIN] [--size=SIZECONSTRAIN] [--use-pcre]";
+        return "find [remotepath] [-l] [--pattern=PATTERN] [--mtime=TIMECONSTRAIN] [--size=SIZECONSTRAIN] [--use-pcre] [--time-format=FORMAT]";
 #else
-        return "find [remotepath] [-l] [--pattern=PATTERN] [--mtime=TIMECONSTRAIN] [--size=SIZECONSTRAIN]";
+        return "find [remotepath] [-l] [--pattern=PATTERN] [--mtime=TIMECONSTRAIN] [--size=SIZECONSTRAIN] [--time-format=FORMAT]";
 #endif
     }
     if (!strcmp(command, "help"))
@@ -1787,6 +1801,17 @@ string getsupportedregexps()
 #else
         return "it accepts wildcards: ? and *. e.g.: f*00?.txt";
 #endif
+}
+
+void printTimeFormatHelp(ostringstream &os)
+{
+    os << " --time-format=FORMAT" << "\t" << "show time in available formats. Examples:" << endl;
+    os << "               RFC2822: " << " Example: Fri, 06 Apr 2018 13:05:37 +0200" << endl;
+    os << "               ISO6081: " << " Example: 2018-04-06" << endl;
+    os << "               ISO6081_WITH_TIME: " << " Example: 2018-04-06T13:05:37" << endl;
+    os << "               SHORT: " << " Example: 06Apr2018 13:05:37" << endl;
+    os << "               SHORT_UTC: " << " Example: 06Apr2018 13:05:37" << endl;
+    os << "               CUSTOM. e.g: --time-format=\"%Y %b\": "<< " Example: 2018 Apr" << endl;
 }
 
 string getHelpStr(const char *command)
@@ -1919,6 +1944,8 @@ string getHelpStr(const char *command)
         os << "   " << "\t" << " (public links, expiration dates, ...)" << endl;
         os << " --versions" << "\t" << "show historical versions" << endl;
         os << "   " << "\t" << "You can delete all versions of a file with \"deleteversions\"" << endl;
+        printTimeFormatHelp(os);
+
 #ifdef USE_PCRE
         os << " --use-pcre" << "\t" << "use PCRE expressions" << endl;
 #endif
@@ -2291,6 +2318,7 @@ string getHelpStr(const char *command)
         os << "  \t"  << " is completed, and if by the time the first one(1) ends the time for the next one(3) has already arrived," << endl;
         os << "  \t"  << " an empty BACKUP(2) will be created with state SKIPPED" << endl;
         os << " --path-display-size=N" << "\t" << "Use a fixed size of N characters for paths" << endl;
+        printTimeFormatHelp(os);
         os << endl;
         os << "Configuration Options:" << endl;
         os << "--period=\"PERIODSTRING\"\t" << "Period: either time in TIMEFORMAT (see below) or a cron like expression" << endl;
@@ -2353,6 +2381,7 @@ string getHelpStr(const char *command)
         os << "   " << "\t" << "transmit or otherwise make available any files, data or content that infringes any copyright " << endl;
         os << "   " << "\t" << "or other proprietary rights of any person or entity." << endl;
         os << " -d" << "\t" << "Deletes an export" << endl;
+        printTimeFormatHelp(os);
         os << endl;
         os << "If a remote path is given it'll be used to add/delete or in case of no option selected," << endl;
         os << " it will display all the exports existing in the tree of that path" << endl;
@@ -2431,6 +2460,7 @@ string getHelpStr(const char *command)
         os << "Options:" << endl;
         os << " --in" << "\t" << "Shows incoming requests" << endl;
         os << " --out" << "\t" << "Shows outgoing invitations" << endl;
+        printTimeFormatHelp(os);
         os << endl;
         os << "Use \"ipc\" to manage invitations received" << endl;
         os << "Use \"users\" to see contacts" << endl;
@@ -2444,6 +2474,7 @@ string getHelpStr(const char *command)
         os << " -h" << "\t" << "Show all contacts (hidden, blocked, ...)" << endl;
         os << " -n" << "\t" << "Show users names" << endl;
         os << " -d" << "\tcontact@email " << "Deletes the specified contact" << endl;
+        printTimeFormatHelp(os);
         os << endl;
         os << "Use \"invite\" to send/remove invitations to other users" << endl;
         os << "Use \"showpcr\" to browse incoming/outgoing invitations" << endl;
@@ -2562,7 +2593,7 @@ string getHelpStr(const char *command)
         os << " --use-pcre" << "\t" << "use PCRE expressions" << endl;
 #endif
         os << " -l" << "\t" << "Prints file info" << endl;
-
+        printTimeFormatHelp(os);
     }
     else if(!strcmp(command,"debug") )
     {

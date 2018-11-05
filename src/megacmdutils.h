@@ -76,7 +76,22 @@ bool hasWildCards(std::string &what);
 /* Time related */
 const char *fillStructWithSYYmdHMS(std::string &stime, struct tm &dt);
 
-std::string getReadableTime(const m_time_t rawtime);
+enum MegaCmdStrfTimeFormatId
+{
+    MCMDTIME_RFC2822,
+    MCMDTIME_ISO6081,
+    MCMDTIME_ISO6081WITHTIME,
+    MCMDTIME_SHORT,
+    MCMDTIME_SHORTWITHUTCDEVIATION,
+
+    MCMDTIME_TOTAL
+};
+
+const char *getTimeFormatFromSTR(std::string formatName);
+const char *getFormatStrFromId(int strftimeformatid);
+const char *getTimeFormatNameFromId(int strftimeformatid);
+std::string getReadableTime(const m_time_t rawtime, const char* strftimeformat);
+std::string getReadableTime(const m_time_t rawtime, int strftimeformatid = MCMDTIME_RFC2822);
 std::string getReadableShortTime(const m_time_t rawtime, bool showUTCDeviation = false);
 
 std::string getReadablePeriod(const m_time_t rawtime);
