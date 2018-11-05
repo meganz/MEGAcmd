@@ -723,8 +723,6 @@ std::string getReadableShortTime(const m_time_t rawtime, bool showUTCDeviation)
     }
     else
     {
-        struct tm dt;
-        memset(&dt, 0, sizeof(struct tm));
         char buffer [40];
         sprintf(buffer,"INVALID_TIME %lld", (long long)rawtime);
         return std::string(buffer);
