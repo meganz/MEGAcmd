@@ -2834,7 +2834,6 @@ void executecommand(char* ptr)
 
              if (api->isLoggedIn())
              {
-
                  MegaCmdListener *megaCmdListener = new MegaCmdListener(api, NULL);
                  api->getSessionTransferURL(url, megaCmdListener);
                  megaCmdListener->wait();
@@ -2852,7 +2851,7 @@ void executecommand(char* ptr)
 
              if (!theurl.size())
              {
-                 theurl = url;
+                 theurl = "https://mega.nz/pro";
              }
 
              OUTSTREAM << "MEGA offers different PRO plans to increase your allowed transfer quota and user storage." << endl;
