@@ -24,7 +24,7 @@ epoch=
 pkgdesc="MEGA Command Line Interactive and Scriptable Application"
 arch=('i686' 'x86_64')
 url="http://mega.nz/cmd"
-license=("https://github.com/meganz/meganz/blob/master/LICENSE")
+license=("https://github.com/meganz/megacmd/blob/master/LICENSE")
 groups=()
 depends=('glibc>=2.28' 'gcc-libs' 'sqlite' 'openssl>=1.1.1' 'zlib' 'libpsl' 'icu' 'bash-completion' 'pcre' 'bzip2' 'xz')
 makedepends=('unzip' 'wget' 'ca-certificates' 'ffmpeg-mega' 'bzip2' 'xz')
