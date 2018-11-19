@@ -197,7 +197,7 @@ vector<string> remotepatterncommands(aremotepatterncommands, aremotepatterncomma
 string aremotefolderspatterncommands[] = {"cd", "share"};
 vector<string> remotefolderspatterncommands(aremotefolderspatterncommands, aremotefolderspatterncommands + sizeof aremotefolderspatterncommands / sizeof aremotefolderspatterncommands[0]);
 
-string amultipleremotepatterncommands[] = {"ls", "mkdir", "rm", "du", "find", "mv", "deleteversions", "cat"
+string amultipleremotepatterncommands[] = {"ls", "tree", "mkdir", "rm", "du", "find", "mv", "deleteversions", "cat"
 #ifdef HAVE_LIBUV
                                            , "webdav", "ftp"
 #endif
@@ -220,7 +220,7 @@ string avalidCommands [] = { "login", "signup", "confirm", "session", "mount", "
                              "put", "get", "attr", "userattr", "mkdir", "rm", "du", "mv", "cp", "sync", "export", "share", "invite", "ipc",
                              "showpcr", "users", "speedlimit", "killsession", "whoami", "help", "passwd", "reload", "logout", "version", "quit",
                              "thumbnail", "preview", "find", "completion", "clear", "https", "transfers", "exclude", "exit", "errorcode", "graphics",
-                             "cancel", "confirmcancel", "cat"
+                             "cancel", "confirmcancel", "cat", "tree"
                              , "mediainfo"
 #ifdef HAVE_LIBUV
                              , "webdav", "ftp"
@@ -404,6 +404,7 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validParams->insert("h");
         validParams->insert("versions");
         validOptValues->insert("time-format");
+        validOptValues->insert("tree");
 #ifdef USE_PCRE
         validParams->insert("use-pcre");
 #endif
@@ -1451,10 +1452,14 @@ const char * getUsageStr(const char *command)
     if (!strcmp(command, "ls"))
     {
 #ifdef USE_PCRE
-        return "ls [-halRr] [--versions] [remotepath] [--use-pcre] [--time-format=FORMAT]";
+        return "ls [-halRr] [--tree] [--versions] [remotepath] [--use-pcre] [--time-format=FORMAT]";
 #else
-        return "ls [-halRr] [--versions] [remotepath] [--time-format=FORMAT]";
+        return "ls [-halRr] [--tree] [--versions] [remotepath] [--time-format=FORMAT]";
 #endif
+    }
+    if (!strcmp(command, "tree"))
+    {
+        return "tree [remotepath]";
     }
     if (!strcmp(command, "cd"))
     {
@@ -1926,7 +1931,8 @@ string getHelpStr(const char *command)
         os << endl;
         os << "Options:" << endl;
         os << " -R|-r" << "\t" << "List folders recursively" << endl;
-        os << " -l" << "\t" << "Print summary" << endl;
+        os << " --tree" << "\t" << "Prints tree-like exit (implies -r)" << endl;
+        os << " -l" << "\t" << "Print summary (--tree has no effect)" << endl;
         os << "   " << "\t" << " SUMMARY contents:" << endl;
         os << "   " << "\t" << "   FLAGS: Indicate type/status of an element:" << endl;
         os << "   " << "\t" << "     xxxx" << endl;
@@ -1949,6 +1955,12 @@ string getHelpStr(const char *command)
 #ifdef USE_PCRE
         os << " --use-pcre" << "\t" << "use PCRE expressions" << endl;
 #endif
+    }
+    else if (!strcmp(command, "tree"))
+    {
+        os << "Lists files in a remote path in a nested tree decorated output" << endl;
+        os << endl;
+        os << "This is similar to \"ls --tree\"" << endl;
     }
 #ifndef __linux__
     else if (!strcmp(command, "update"))

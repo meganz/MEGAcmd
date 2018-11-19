@@ -1327,15 +1327,29 @@ void MegaCmdExecuter::createOrModifyBackup(string local, string remote, string s
 }
 #endif
 
-void MegaCmdExecuter::dumptree(MegaNode* n, const char *timeFormat, int recurse, int extended_info, bool showversions, int depth, string pathRelativeTo)
+void MegaCmdExecuter::printTreeSuffix(int depth, vector<bool> &lastleaf)
+{
+    for (int i = 0; i < depth-1; i++)
+    {
+        OUTSTREAM << (lastleaf.at(i)?" ":"\u2502") << "   ";
+    }
+    if (lastleaf.size())
+    {
+        OUTSTREAM << (lastleaf.back()?"\u2514":"\u251c") << "\u2500\u2500 ";
+    }
+}
+
+void MegaCmdExecuter::dumptree(MegaNode* n, bool treelike, vector<bool> &lastleaf, const char *timeFormat, int recurse, int extended_info, bool showversions, int depth, string pathRelativeTo)
 {
     if (depth || ( n->getType() == MegaNode::TYPE_FILE ))
     {
+        if (treelike) printTreeSuffix(depth, lastleaf);
+
         if (pathRelativeTo != "NULL")
         {
             if (!n->getName())
             {
-                dumpNode(n, timeFormat, extended_info, showversions, depth, "CRYPTO_ERROR");
+                dumpNode(n, timeFormat, extended_info, showversions, treelike?0:depth, "CRYPTO_ERROR");
             }
             else
             {
@@ -1360,14 +1374,14 @@ void MegaCmdExecuter::dumptree(MegaNode* n, const char *timeFormat, int recurse,
                     pathToShow = nodepath;
                 }
 
-                dumpNode(n, timeFormat, extended_info, showversions, depth, pathToShow);
+                dumpNode(n, timeFormat, extended_info, showversions, treelike?0:depth, pathToShow);
 
                 delete []nodepath;
             }
         }
         else
         {
-                dumpNode(n, timeFormat, extended_info, showversions, depth);
+                dumpNode(n, timeFormat, extended_info, showversions, treelike?0:depth);
         }
 
         if (!recurse && depth)
@@ -1383,7 +1397,9 @@ void MegaCmdExecuter::dumptree(MegaNode* n, const char *timeFormat, int recurse,
         {
             for (int i = 0; i < children->size(); i++)
             {
-                dumptree(children->get(i), timeFormat, recurse, extended_info, showversions, depth + 1);
+                vector<bool> lfs = lastleaf;
+                lfs.push_back(i==(children->size()-1));
+                dumptree(children->get(i), treelike, lfs, timeFormat, recurse, extended_info, showversions, depth + 1);
             }
 
             delete children;
@@ -4538,9 +4554,8 @@ void MegaCmdExecuter::printInfoFile(MegaNode *n, bool &firstone, int PATHSIZE)
     OUTSTREAM << getFixLengthString( (n->getHeight() == -1) ? "---" : getReadablePeriod(n->getDuration()) , 10) << " ";
 
     OUTSTREAM << endl;
-
-
 }
+
 void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clflags, map<string, string> *cloptions)
 {
     MegaNode* n = NULL;
@@ -4558,6 +4573,8 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         bool summary = getFlag(clflags, "l");
         bool firstprint = true;
         bool humanreadable = getFlag(clflags, "h");
+        bool treelike = getFlag(clflags,"tree");
+        recursive += treelike?1:0;
 
         if ((int)words.size() > 1)
         {
@@ -4606,7 +4623,8 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                                 }
                                 else
                                 {
-                                    dumptree(n, getTimeFormatFromSTR(getOption(cloptions, "time-format","RFC2822")), recursive, extended_info, show_versions, 0, rNpath);
+                                    vector<bool> lfs;
+                                    dumptree(n, treelike, lfs, getTimeFormatFromSTR(getOption(cloptions, "time-format","RFC2822")), recursive, extended_info, show_versions, 0, rNpath);
                                 }
                                 if (( !n->getType() == MegaNode::TYPE_FILE ) && (( it + 1 ) != pathsToList->end()))
                                 {
@@ -4651,7 +4669,9 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     }
                     else
                     {
-                        dumptree(n, getTimeFormatFromSTR(getOption(cloptions, "time-format","RFC2822")), recursive, extended_info, show_versions, 0, rNpath);
+                        if (treelike) OUTSTREAM << words[1] << endl;
+                        vector<bool> lfs;
+                        dumptree(n, treelike, lfs, getTimeFormatFromSTR(getOption(cloptions, "time-format","RFC2822")), recursive, extended_info, show_versions, 0, rNpath);
                     }
                     delete n;
                 }
@@ -4678,7 +4698,9 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 }
                 else
                 {
-                    dumptree(n, getTimeFormatFromSTR(getOption(cloptions, "time-format","RFC2822")), recursive, extended_info, show_versions);
+                    if (treelike) OUTSTREAM << "." << endl;
+                    vector<bool> lfs;
+                    dumptree(n, treelike, lfs, getTimeFormatFromSTR(getOption(cloptions, "time-format","RFC2822")), recursive, extended_info, show_versions);
                 }
                 delete n;
             }
@@ -7817,6 +7839,21 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             return;
         }
         return;
+    }
+    else if (words[0] == "tree")
+    {
+        vector<string> newcom;
+        newcom.push_back("ls");
+        (*clflags)["tree"] = 1;
+        if (words.size()>1)
+        {
+            for (vector<string>::iterator it = ++words.begin(); it != words.end();it++)
+            {
+                newcom.push_back(*it);
+            }
+        }
+
+        return executecommand(newcom, clflags, cloptions);
     }
     else if (words[0] == "debug")
     {

@@ -82,8 +82,9 @@ public:
     std::vector <std::string> * nodesPathsbypath(const char* ptr, bool usepcre, std::string* user = NULL, std::string* namepart = NULL);
     void getPathsMatching(mega::MegaNode *parentNode, std::deque<std::string> pathParts, std::vector<std::string> *pathsMatching, bool usepcre, std::string pathPrefix = "");
 
+    void printTreeSuffix(int depth, std::vector<bool> &lastleaf);
     void dumpNode(mega::MegaNode* n, const char *timeFormat, int extended_info, bool showversions = false, int depth = 0, const char* title = NULL);
-    void dumptree(mega::MegaNode* n, const char *timeFormat, int recurse, int extended_info, bool showversions = false, int depth = 0, std::string pathRelativeTo = "NULL");
+    void dumptree(mega::MegaNode* n, bool treelike, std::vector<bool> &lastleaf, const char *timeFormat, int recurse, int extended_info, bool showversions = false, int depth = 0, std::string pathRelativeTo = "NULL");
     void dumpNodeSummaryHeader(const char *timeFormat);
     void dumpNodeSummary(mega::MegaNode* n, const char *timeFormat, bool humanreadable = false, const char* title = NULL);
     void dumpTreeSummary(mega::MegaNode* n, const char *timeFormat, int recurse, bool show_versions, int depth = 0, bool humanreadable = false, std::string pathRelativeTo = "NULL");
