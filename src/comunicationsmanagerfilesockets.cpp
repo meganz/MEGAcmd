@@ -305,13 +305,13 @@ void ComunicationsManagerFileSockets::returnAndClosePetition(CmdPetition *inf, O
         connectedsocket = accept(((CmdPetitionPosixSockets *)inf)->outSocket, (struct sockaddr*)&cliAddr, &cliLength);
         if (fcntl(connectedsocket, F_SETFD, FD_CLOEXEC) == -1)
         {
-            LOG_err << "ERROR setting CLOEXEC to socket: " << errno;
+            cerr << "ERROR setting CLOEXEC to socket: " << errno << endl;
         }
         ((CmdPetitionPosixSockets *)inf)->acceptedOutSocket = connectedsocket; //So that it gets closed in destructor
     }
     if (connectedsocket == -1)
     {
-        LOG_fatal << "Return and close: Unable to accept on outsocket " << ((CmdPetitionPosixSockets *)inf)->outSocket << " error: " << errno;
+        cerr << "Return and close: Unable to accept on outsocket " << ((CmdPetitionPosixSockets *)inf)->outSocket << " error: " << errno << endl;
         delete inf;
         return;
     }
@@ -321,12 +321,12 @@ void ComunicationsManagerFileSockets::returnAndClosePetition(CmdPetition *inf, O
     int n = send(connectedsocket, (void*)&outCode, sizeof( outCode ), MSG_NOSIGNAL);
     if (n < 0)
     {
-        LOG_err << "ERROR writing output Code to socket: " << errno;
+        cerr << "ERROR writing output Code to socket: " << errno << endl;
     }
     n = send(connectedsocket, sout.data(), max(1,(int)sout.size()), MSG_NOSIGNAL); // for some reason without the max recv never quits in the client for empty responses
     if (n < 0)
     {
-        LOG_err << "ERROR writing to socket: " << errno;
+        cerr << "ERROR writing to socket: " << errno << endl;
     }
 
     delete inf;

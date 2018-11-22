@@ -392,7 +392,7 @@ void ComunicationsManagerNamedPipes::sendPartialOutput(CmdPetition *inf, char *s
     DWORD n;
     if (!WriteFile(outNamedPipe,(const char*)&outCode, sizeof(outCode), &n, NULL))
     {
-        LOG_err << "ERROR writing output Code to namedPipe: " << ERRNO;
+        cerr << "ERROR writing output Code to namedPipe: " << ERRNO << endl;
         if (errno == ERROR_NO_DATA)
         {
             std::cerr << "WARNING: Client disconnected, the rest of the output will be discarded" << endl;
@@ -404,12 +404,12 @@ void ComunicationsManagerNamedPipes::sendPartialOutput(CmdPetition *inf, char *s
     size_t thesize = size > 1 ? size : 1; // client does not like empty responses
     if (!WriteFile(outNamedPipe,(const char*)&thesize, sizeof(thesize), &n, NULL))
     {
-        LOG_err << "ERROR writing output Code to namedPipe: " << ERRNO;
+        cerr << "ERROR writing output Code to namedPipe: " << ERRNO<< endl;
         return;
     }
     if (!WriteFile(outNamedPipe,s, thesize, &n, NULL))
     {
-        LOG_err << "ERROR writing to namedPipe: " << ERRNO;
+        cerr << "ERROR writing to namedPipe: " << ERRNO << endl;
     }
 }
 
@@ -472,7 +472,7 @@ CmdPetition * ComunicationsManagerNamedPipes::getPetition()
         DWORD total_available_bytes;
         if (FALSE == PeekNamedPipe(pipeGeneral,0,0,0,&total_available_bytes,0))
         {
-            LOG_err << "Failed to PeekNamedPipe. errno: L" << ERRNO;
+            cerr << "Failed to PeekNamedPipe. errno: L" << ERRNO << endl;
             break;
         }
         if (total_available_bytes == 0)
@@ -492,7 +492,7 @@ CmdPetition * ComunicationsManagerNamedPipes::getPetition()
 
     if (!readok)
     {
-        LOG_err << "Failed to read petition from named pipe. errno: L" << ERRNO;
+        cerr << "Failed to read petition from named pipe. errno: L" << ERRNO << endl;
         inf->line = strdup("ERROR");
         return inf;
     }
@@ -505,21 +505,21 @@ CmdPetition * ComunicationsManagerNamedPipes::getPetition()
     inf->outNamedPipe = create_new_namedPipe(&namedPipe_id);
     if (!namedPipeValid(inf->outNamedPipe) || !namedPipe_id)
     {
-        LOG_fatal << "ERROR creating output namedPipe at getPetition";
+        cerr << "ERROR creating output namedPipe at getPetition" << endl;
         inf->line = strdup("ERROR");
         return inf;
     }
 
     if(!WriteFile(pipeGeneral,(const char*)&namedPipe_id, sizeof( namedPipe_id ), &n, NULL))
     {
-        LOG_fatal << "ERROR writing to namedPipe at getPetition: ERRNO = " << ERRNO;
+        cerr << "ERROR writing to namedPipe at getPetition: ERRNO = " << ERRNO << endl;
         inf->line = strdup("ERROR");
         return inf;
     }
 
     if (!DisconnectNamedPipe(pipeGeneral) )
     {
-        LOG_fatal << " Error disconnecting from general pip. errno: " << ERRNO;
+        cerr << " Error disconnecting from general pipe. errno: " << ERRNO << endl;
     }
 
     inf->line = strdup(receivedutf8.c_str());

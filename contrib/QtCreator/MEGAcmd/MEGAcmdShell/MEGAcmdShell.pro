@@ -17,7 +17,7 @@ CONFIG += console
 win32 {
 DEFINES += NO_READLINE
 include(../../../../sdk/bindings/qt/sdk.pri) #This is required to have console.cpp included: avoiding this is rather complicated
-HEADERS +=     ../../../../sdk/include/mega/win32/autocomplete.h
+HEADERS +=     ../../../../sdk/include/mega/autocomplete.h
 }
 
 SOURCES += ../../../../src/megacmdshell/megacmdshell.cpp \
@@ -57,7 +57,7 @@ else{
 }
 
 win32 {
-SOURCES += ../../../../sdk/src/win32/autocomplete.cpp \
+SOURCES += ../../../../sdk/src/autocomplete.cpp \
     ../../../../sdk/src/win32/console.cpp \
     ../../../../sdk/src/thread/win32thread.cpp \
     ../../../../sdk/src/logging.cpp
