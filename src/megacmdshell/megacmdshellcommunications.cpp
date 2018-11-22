@@ -983,6 +983,7 @@ int MegaCmdShellCommunications::registerForStateChanges(void (*statechangehandle
         return -1;
     }
 
+    OUTSTREAM << "Connecting to server ...." << flush;
 #ifdef _WIN32
     wstring wcommand=L"registerstatelistener";
     int n = send(thesock,(char*)wcommand.data(),int(wcslen(wcommand.c_str())*sizeof(wchar_t)), MSG_NOSIGNAL);
@@ -997,6 +998,7 @@ int MegaCmdShellCommunications::registerForStateChanges(void (*statechangehandle
         registerAgainRequired = true;
         return -1;
     }
+    OUTSTREAM << "                         \r" << flush;
 
     int receiveSocket = SOCKET_ERROR ;
 

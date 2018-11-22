@@ -425,6 +425,17 @@ unsigned int getstringutf8size(const string &str) {
     return q;
 }
 
+#ifdef NO_READLINE
+std::string toUtf8String(const std::wstring& ws, UINT codepage)
+{
+    std::string s;
+    s.resize((ws.size() + 1) * 4);
+    int nchars = WideCharToMultiByte(codepage, 0, ws.data(), int(ws.size()), (LPSTR)s.data(), int(s.size()), NULL, NULL);
+    s.resize(nchars);
+    return s;
+}
+#endif
+
 string warnstatus;
 MegaThread *warnerThread = NULL;
 const int MARQUEE_WARN_WIDTH = 20;
@@ -440,6 +451,10 @@ void setwarnstatus(const char * s)
 
 void *warner(void * pointer)
 {
+#ifdef WIN32
+    HANDLE hOutput = GetStdHandle(STD_OUTPUT_HANDLE);
+    CONSOLE_SCREEN_BUFFER_INFO sbi;
+#endif
     unsigned int i = 0;
     while (!doExit)
     {
@@ -460,24 +475,29 @@ void *warner(void * pointer)
             char *rlline = rl_copy_text(0, rl_end);
             string srline(rlline);
             free(rlline);
-
-#else
-            string srline = console->model.buffer;
-            const char * rl_prompt = console->currentPrompt.c_str();
-            int rl_end = getstringutf8size(srline);
-            int rl_point = console->model.insertPos;
 #endif
 
+#ifdef WIN32
+            BOOL ok = GetConsoleScreenBufferInfo(hOutput, &sbi);
+            if (ok)
+            {
+                ok = SetConsoleCursorPosition(hOutput, {SHORT(width-1), sbi.dwCursorPosition.Y });
+                if (ok)
+                {
+                    OUTSTREAM << "[ " << subwarn << " ]" << flush ;
+                    ok = SetConsoleCursorPosition(hOutput, sbi.dwCursorPosition );
+                }
+            }
+#else
             string fullprompt;
 
             if (!processing || queryinguser)
             {
                 if (rl_prompt) fullprompt.append(rl_prompt);
             }
-
             OUTSTREAM  << "\r" << fullprompt << srline << setw(width-getstringutf8size(fullprompt) - rl_end) << right << "[ " << subwarn << " ]" << flush ;
             OUTSTREAM << "\r" << fullprompt << srline.substr(0,rl_point) << flush ;
-
+#endif
         }
         #ifdef _WIN32
             Sleep(100);
@@ -488,7 +508,7 @@ void *warner(void * pointer)
     return NULL;
 }
 
-
+bool firstpromptreceived = false;
 void statechangehandle(string statestring)
 {
     char statedelim[2]={(char)0x1F,'\0'};
@@ -501,6 +521,7 @@ void statechangehandle(string statestring)
         nextstatedelimitpos = statestring.find(statedelim);
         if (newstate.compare(0, strlen("prompt:"), "prompt:") == 0)
         {
+            firstpromptreceived = true;
             changeprompt(newstate.substr(strlen("prompt:")).c_str(),true);
         }
         else if (newstate.compare(0, strlen("message:"), "message:") == 0)
@@ -738,7 +759,7 @@ prompttype getprompt()
 #ifdef NO_READLINE
 void doUpdateConsolePrompt(const char *newprompt)
 {
-    string fullprompt = promptsuffix;
+    string fullprompt = promptpreffix;
     fullprompt.append(newprompt);
     console->updateInputPrompt(fullprompt);
 }
@@ -772,7 +793,7 @@ void setprompt(prompttype p, string arg)
     if (p != COMMAND)
     {
         pw_buf_pos = 0;
-        doUpdateConsolePrompt(arg.empty() ? prompts[p] : arg);
+        doUpdateConsolePrompt(arg.empty() ? prompts[p] : arg.c_str());
     }
 #endif
 }
@@ -949,7 +970,10 @@ void changeprompt(const char *newprompt, bool redisplay, const char *newpreffix)
     }
 
 #ifdef NO_READLINE
-    doUpdateConsolePrompt(newprompt);
+    if (readyforprompt)
+    {
+        doUpdateConsolePrompt(newprompt);
+    }
 #else
     if (redisplay && readyforprompt)
     {
@@ -2140,7 +2164,14 @@ void readloop()
     comms->registerForStateChanges(statechangehandle);
 
     //give it a while to communicate the state
-    sleepMilliSeconds(700);
+    int millistowait = 5000;
+    while (millistowait >0 && !firstpromptreceived)
+    {
+        sleepMilliSeconds(100);
+        millistowait-=100;
+    }
+    sleepMilliSeconds(300); // a little bit more to finish communicating all initial state
+
 
 #if defined(_WIN32) && defined(USE_PORT_COMMS)
     // due to a failure in reconnecting to the socket, if the server was initiated in while registeringForStateChanges
@@ -2158,6 +2189,7 @@ void readloop()
         if (prompt == COMMAND)
         {
             doUpdateConsolePrompt(*dynamicprompt ? dynamicprompt : prompts[COMMAND]);
+            readyforprompt = true;
         }
 
         // command editing loop - exits when a line is submitted

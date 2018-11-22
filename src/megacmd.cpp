@@ -4581,7 +4581,7 @@ int main(int argc, char* argv[])
     tlogin->start(startSession, &loginended);
 
     // give it a while to try to login before answering petitions
-    long long millisecondstowait = 10000;
+    long long millisecondstowait = 30000;
     while (!loginended && millisecondstowait > 0)
     {
         sleepMilliSeconds(100);
