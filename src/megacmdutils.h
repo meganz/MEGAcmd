@@ -189,7 +189,7 @@ int permissionsFromReadable(std::string permissions);
 unsigned int getNumberOfCols(unsigned int defaultwidth = 90);
 
 void sleepSeconds(int seconds);
-void sleepMicroSeconds(long microseconds);
+void sleepMilliSeconds(long microseconds);
 
 bool isValidEmail(std::string email);
 

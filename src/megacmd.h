@@ -131,7 +131,7 @@ enum confirmresponse
 
 void changeprompt(const char *newprompt);
 
-void broadcastMessage(std::string message);
+void broadcastMessage(std::string message, const char *suffix = "message:");
 
 mega::MegaApi* getFreeApiFolder();
 void freeApiFolder(mega::MegaApi *apiFolder);

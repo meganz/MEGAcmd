@@ -249,6 +249,7 @@ string newpasswd;
 bool doExit = false;
 bool consoleFailed = false;
 bool stopcheckingforUpdaters = false;
+bool loginended = false;
 
 string dynamicprompt = "MEGA CMD> ";
 
@@ -357,12 +358,12 @@ void changeprompt(const char *newprompt)
     cm->informStateListeners(s);
 }
 
-void broadcastMessage(string message)
+void broadcastMessage(string message, const char *suffix)
 {
     string s;
     if (message.size())
     {
-        s += "message:";
+        s += suffix;
         s+=message;
     }
     cm->informStateListeners(s);
@@ -3494,12 +3495,27 @@ void * retryConnections(void *pointer)
         int count = 100;
         while (!doExit && --count)
         {
-            sleepMicroSeconds(300);
+            sleepMilliSeconds(300);
         }
     }
     return NULL;
 }
 
+void * startSession(void *pointer)
+{
+    bool *loginended = (bool *) pointer;
+    if (!ConfigurationManager::session.empty())
+    {
+        loginInAtStartup = true;
+        stringstream logLine;
+        logLine << "login " << ConfigurationManager::session;
+        LOG_debug << "Executing ... " << logLine.str().substr(0,9) << "...";
+        process_line((char*)logLine.str().c_str());
+        loginInAtStartup = false;
+    }
+    *loginended = true;
+    return NULL;
+}
 
 void startcheckingForUpdates()
 {
@@ -3769,6 +3785,22 @@ void megacmd()
                     s += "---------------------------------------------------------------------\n";
                     s+=(char)0x1F;
                 }
+
+                if (!loginended)
+                {
+                    s += "message:";
+                    s += "--------------------------------------------------\n"
+                         "--   MEGAcmd Server has not finished login in.  --\n"
+                         "--   Please ensure your connection is OK        --\n"
+                         "--------------------------------------------------\n";
+
+                    s+=(char)0x1F;
+                }
+
+                // communicate connectivity status
+                s += "connectivity:";
+                s += SSTR(api->isWaiting());
+                s += (char)0x1F;
 
                 cm->informStateListener(inf,s);
             }
@@ -4545,14 +4577,15 @@ int main(int argc, char* argv[])
 
     printWelcomeMsg();
 
-    if (!ConfigurationManager::session.empty())
+    MegaThread *tlogin = new MegaThread();
+    tlogin->start(startSession, &loginended);
+
+    // give it a while to try to login before answering petitions
+    long long millisecondstowait = 10000;
+    while (!loginended && millisecondstowait > 0)
     {
-        loginInAtStartup = true;
-        stringstream logLine;
-        logLine << "login " << ConfigurationManager::session;
-        LOG_debug << "Executing ... " << logLine.str().substr(0,9) << "...";
-        process_line((char*)logLine.str().c_str());
-        loginInAtStartup = false;
+        sleepMilliSeconds(100);
+        millisecondstowait -= 100;
     }
 
     megacmd();

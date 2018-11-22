@@ -1814,7 +1814,7 @@ void sleepSeconds(int seconds)
 #endif
 }
 
-void sleepMicroSeconds(long microseconds)
+void sleepMilliSeconds(long microseconds)
 {
 #ifdef _WIN32
     Sleep(microseconds);

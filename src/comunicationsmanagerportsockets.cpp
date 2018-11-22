@@ -92,7 +92,7 @@ SOCKET ComunicationsManagerPortSockets::create_new_socket(int *sockId)
             {
                 LOG_fatal << "ERROR opening socket ID=" << sockId << " errno: " << errno << ". Attempts: " << attempts;
             }
-            sleepMicroSeconds(500);
+            sleepMilliSeconds(500);
         }
         else
         {
@@ -133,7 +133,7 @@ SOCKET ComunicationsManagerPortSockets::create_new_socket(int *sockId)
             {
                 LOG_fatal << "ERROR on binding socket port " << portno << " errno: " << errno << ". Attempts: " << attempts;
             }
-            sleepMicroSeconds(500);
+            sleepMilliSeconds(500);
         }
         else
         {

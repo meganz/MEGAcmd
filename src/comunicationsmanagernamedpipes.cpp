@@ -109,7 +109,7 @@ HANDLE ComunicationsManagerNamedPipes::create_new_namedPipe(int *pipeId)
             {
                 LOG_fatal << "ERROR opening namedPipe ID=" << pipeId << " errno: " << ERRNO << ". Attempts: " << attempts;
             }
-            sleepMicroSeconds(500);
+            sleepMilliSeconds(500);
         }
         else
         {
@@ -182,7 +182,7 @@ int ComunicationsManagerNamedPipes::waitForPetition()
         else
         {
             LOG_fatal << "ERROR on connecting to namedPipe. errno: " << ERRNO;
-            sleepMicroSeconds(1000);
+            sleepMilliSeconds(1000);
             pipeGeneral = INVALID_HANDLE_VALUE;
             return false;
         }
@@ -246,7 +246,7 @@ void ComunicationsManagerNamedPipes::returnAndClosePetition(CmdPetition *inf, OU
             {
                 LOG_fatal << "ERROR on connecting to namedPipe " << outNamedPipe << ". errno: " << ERRNO << ". Attempts: " << attempts;
             }
-            sleepMicroSeconds(500);
+            sleepMilliSeconds(500);
         }
         else
         {
@@ -301,7 +301,7 @@ void ComunicationsManagerNamedPipes::sendPartialOutput(CmdPetition *inf, OUTSTRI
             {
                 cerr << "ERROR on connecting to namedPipe " << outNamedPipe << ". errno: " << ERRNO << ". Attempts: " << attempts << endl;
             }
-            sleepMicroSeconds(500);
+            sleepMilliSeconds(500);
         }
         else
         {
@@ -369,7 +369,7 @@ void ComunicationsManagerNamedPipes::sendPartialOutput(CmdPetition *inf, char *s
             {
                 cerr << "ERROR on connecting to namedPipe " << outNamedPipe << ". errno: " << ERRNO << ". Attempts: " << attempts << endl;
             }
-            sleepMicroSeconds(500);
+            sleepMilliSeconds(500);
         }
         else
         {
