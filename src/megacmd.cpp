@@ -3768,13 +3768,13 @@ void megacmd()
 
                     if (sandboxCMD->storageStatus == MegaApi::STORAGE_STATE_RED)
                     {
-                        s+= "You have exeeded your available storage. ";
+                        s+= "You have exeeded your available storage.\n";
                     }
                     else
                     {
-                        s+= "You are running out of available storage. ";
+                        s+= "You are running out of available storage.\n";
                     }
-                    s+="You can change your account plan to increse your quota limit. See \"help --upgrade\" for further details";
+                    s+="You can change your account plan to increse your quota limit.\nSee \"help --upgrade\" for further details";
                     s+=(char)0x1F;
                 }
 
