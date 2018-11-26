@@ -129,6 +129,7 @@ ComunicationsManagerNamedPipes::ComunicationsManagerNamedPipes()
 {
     count = 0;
     mtx = new MegaMutex();
+    informerMutex = new MegaMutex(false);
     initialize();
 }
 
@@ -415,6 +416,8 @@ void ComunicationsManagerNamedPipes::sendPartialOutput(CmdPetition *inf, char *s
 
 int ComunicationsManagerNamedPipes::informStateListener(CmdPetition *inf, string &s)
 {
+    MutexGuard g(*informerMutex);
+
     LOG_verbose << "Inform State Listener: Output to write in namedPipe " << ((CmdPetitionNamedPipes *)inf)->outNamedPipe << ": <<" << s << ">>";
     HANDLE outNamedPipe = ((CmdPetitionNamedPipes *)inf)->outNamedPipe;
 
@@ -618,6 +621,7 @@ string ComunicationsManagerNamedPipes::get_petition_details(CmdPetition *inf)
 ComunicationsManagerNamedPipes::~ComunicationsManagerNamedPipes()
 {
     delete mtx;
+    delete informerMutex;
 }
 #endif
 

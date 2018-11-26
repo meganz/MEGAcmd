@@ -173,6 +173,7 @@ public:
     mega::MegaNode *getBaseNode(std::string thepath, std::string &rest, bool *isrelative = NULL);
     void getPathParts(std::string path, std::deque<std::string> *c);
 
+    bool checkNoErrors(int errorCode, std::string message = "");
     bool checkNoErrors(mega::MegaError *error, std::string message = "");
 
     void confirmCancel(const char* confirmlink, const char* pass);

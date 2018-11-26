@@ -40,5 +40,6 @@ MegaCmdSandbox::MegaCmdSandbox()
     this->timeOfOverquota = m_time();
     this->secondsOverQuota = 0;
     this->accounthasbeenblocked = false;
+    this->storageStatus = 0;
 }
 

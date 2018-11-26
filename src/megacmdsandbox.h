@@ -36,6 +36,7 @@ public:
     ::mega::m_time_t secondsOverQuota;
     bool accounthasbeenblocked;
     std::string reasonblocked;
+    int storageStatus;
 public:
     MegaCmdSandbox();
     bool isOverquota() const;

@@ -168,6 +168,11 @@ void MegaCmdGlobalListener::onEvent(MegaApi *api, MegaEvent *event)
         LOG_err << "Received event account blocked: " << event->getText();
         sandboxCMD->reasonblocked = event->getText();
     }
+    else if (event->getType() == MegaEvent::EVENT_STORAGE)
+    {
+        sandboxCMD->storageStatus = event->getNumber();
+        LOG_info << "Received event storage changed: " << event->getNumber();
+    }
 }
 
 

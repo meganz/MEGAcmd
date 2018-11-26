@@ -2324,8 +2324,8 @@ string getHelpStr(const char *command)
         os << "  \t"  << "If MEGAcmd server stops during a transfer, it will be considered MISCARRIED" << endl;
         os << "  \t"  << "  Notice that currently when MEGAcmd server is restarted, ongoing and scheduled transfers " << endl;
         os << "  \t"  << "  will be carried out nevertheless." << endl;
-        os << "  \t"  << "If MEGAcmd server is not running when a backup is scheduled and the time for the next one has already arrived,"
-              " an empty BACKUP will be created with state SKIPPED" << endl;
+        os << "  \t"  << "If MEGAcmd server is not running when a backup is scheduled and the time for the next one has already arrived," << endl;
+        os << "  \t"  << " an empty BACKUP will be created with state SKIPPED" << endl;
         os << "  \t"  << "If a backup(1) is ONGOING and the time for the next backup(2) arrives, it won't start untill the previous one(1) " << endl;
         os << "  \t"  << " is completed, and if by the time the first one(1) ends the time for the next one(3) has already arrived," << endl;
         os << "  \t"  << " an empty BACKUP(2) will be created with state SKIPPED" << endl;
@@ -2368,7 +2368,6 @@ string getHelpStr(const char *command)
         os << "-a TAG|localpath\t" << "Aborts ongoing backup" << endl;
         os << endl;
         os << "Caveat: This functionality is in BETA state. If you experience any issue with this, please contact: support@mega.nz" << endl;
-        os << endl;
     }
     else if (!strcmp(command, "export"))
     {
@@ -3664,11 +3663,6 @@ void megacmd()
 
                 cm->informStateListener(inf,s);
 
-                // communicate status info
-                s = "prompt:";
-                s+=dynamicprompt;
-                s+=(char)0x1F;
-
 #if defined(_WIN32) || defined(__APPLE__)
                 string message="";
                 ostringstream os;
@@ -3762,13 +3756,32 @@ void megacmd()
                 if (isOSdeprecated)
                 {
                     s += "message:";
-                    s += "---------------------------------------------------------------------\n";
-                    s += "--              Your Operative System is too old.                  --\n";
-                    s += "--      You might not receive new updates for this application.    --\n";
-                    s += "--       We strongly recommend you to update to a new version.     --\n";
-                    s += "---------------------------------------------------------------------\n";
+                    s += "Your Operative System is too old.\n";
+                    s += "You might not receive new updates for this application.\n";
+                    s += "We strongly recommend you to update to a new version.\n";
                     s+=(char)0x1F;
                 }
+
+                if (sandboxCMD->storageStatus != MegaApi::STORAGE_STATE_GREEN)
+                {
+                    s += "message:";
+
+                    if (sandboxCMD->storageStatus == MegaApi::STORAGE_STATE_RED)
+                    {
+                        s+= "You have exeeded your available storage. ";
+                    }
+                    else
+                    {
+                        s+= "You are running out of available storage. ";
+                    }
+                    s+="You can change your account plan to increse your quota limit. See \"help --upgrade\" for further details";
+                    s+=(char)0x1F;
+                }
+
+                // communicate status info
+                s+= "prompt:";
+                s+=dynamicprompt;
+                s+=(char)0x1F;
 
                 cm->informStateListener(inf,s);
             }
