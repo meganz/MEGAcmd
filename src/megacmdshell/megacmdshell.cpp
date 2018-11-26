@@ -398,8 +398,8 @@ MegaCmdShellCommunications *comms;
 MUTEX_CLASS mutexPrompt(false);
 
 void printWelcomeMsg(unsigned int width = 0);
-
-
+void printCenteredLine(string msj, unsigned int width, bool encapsulated = true);
+void printCenteredContents(string msj, unsigned int width, bool encapsulated = true);
 
 void statechangehandle(string statestring)
 {
@@ -417,7 +417,18 @@ void statechangehandle(string statestring)
         }
         else if (newstate.compare(0, strlen("message:"), "message:") == 0)
         {
-            OUTSTREAM << endl << newstate.substr(strlen("message:")) << endl;
+            string contents = newstate.substr(strlen("message:"));
+            unsigned int width = getNumberOfCols(75);
+            if (contents.find("-----") != 0)
+            {
+                printCenteredContents(contents, width);
+            }
+            else
+            {
+                OUTSTREAM << endl <<  contents << endl;
+            }
+
+            requirepromptinstall = true;
         }
         else if (newstate.compare(0, strlen("clientID:"), "clientID:") == 0)
         {
@@ -2085,7 +2096,7 @@ public:
     }
 };
 
-void printCenteredLine(string msj, unsigned int width, bool encapsulated = true)
+void printCenteredLine(string msj, unsigned int width, bool encapsulated)
 {
     if (msj.size()>width)
     {
@@ -2101,6 +2112,65 @@ void printCenteredLine(string msj, unsigned int width, bool encapsulated = true)
     if (encapsulated)
         COUT << "|";
     COUT << endl;
+}
+
+void printCenteredContents(string msj, unsigned int width, bool encapsulated)
+{
+    size_t possepnewline = msj.find("\n");
+    size_t possep = msj.find(" ");
+
+    if (possepnewline != string::npos && possepnewline < width)
+    {
+        possep = possepnewline;
+    }
+    size_t possepprev = possep;
+
+
+
+    string headfoot = " ";
+    headfoot.append(width, '-');
+    if (msj.size())
+    {
+        COUT << headfoot << endl;
+    }
+
+    while (msj.size())
+    {
+
+        if (possepnewline != string::npos && possepnewline <= width)
+        {
+            possep = possepnewline;
+            possepprev = possep;
+        }
+        else
+        {
+            while (possep < width && possep != string::npos)
+            {
+                possepprev = possep;
+                possep = msj.find_first_of(" ", possep+1);
+            }
+        }
+
+        if (possep == string::npos)
+        {
+            printCenteredLine(msj, width, encapsulated);
+            break;
+        }
+        else
+        {
+            printCenteredLine(msj.substr(0,possepprev), width, encapsulated);
+            if (possepprev < (msj.size() - 1))
+            {
+                msj = msj.substr(possepprev+1);
+                possepnewline = msj.find("\n");
+            }
+            else
+            {
+                break;
+            }
+        }
+    }
+    COUT << headfoot << endl;
 }
 
 void printWelcomeMsg(unsigned int width)

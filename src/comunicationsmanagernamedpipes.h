@@ -58,6 +58,7 @@ private:
     // to get next namedPipe id
     int count;
     mega::MegaMutex *mtx;
+    mega::MegaMutex *informerMutex;
 
     /**
      * @brief create_new_namedPipe

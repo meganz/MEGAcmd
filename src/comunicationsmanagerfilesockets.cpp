@@ -135,6 +135,7 @@ ComunicationsManagerFileSockets::ComunicationsManagerFileSockets()
 {
     count = 0;
     mtx = new MegaMutex();
+    informerMutex = new MegaMutex(false);
     initialize();
 }
 
@@ -386,6 +387,7 @@ void ComunicationsManagerFileSockets::sendPartialOutput(CmdPetition *inf, OUTSTR
 
 int ComunicationsManagerFileSockets::informStateListener(CmdPetition *inf, string &s)
 {
+    MutexGuard g(*informerMutex);
     LOG_verbose << "Inform State Listener: Output to write in socket " << ((CmdPetitionPosixSockets *)inf)->outSocket << ": <<" << s << ">>";
 
     sockaddr_in cliAddr;
@@ -657,4 +659,5 @@ string ComunicationsManagerFileSockets::get_petition_details(CmdPetition *inf)
 ComunicationsManagerFileSockets::~ComunicationsManagerFileSockets()
 {
     delete mtx;
+    delete informerMutex;
 }

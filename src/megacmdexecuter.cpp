@@ -824,6 +824,13 @@ void MegaCmdExecuter::getPathParts(string path, deque<string> *c)
     } while (path.size());
 }
 
+
+bool MegaCmdExecuter::checkNoErrors(int errorCode, string message)
+{
+    MegaError e(errorCode);
+    return checkNoErrors(&e, message);
+}
+
 bool MegaCmdExecuter::checkNoErrors(MegaError *error, string message)
 {
     if (!error)
@@ -840,6 +847,12 @@ bool MegaCmdExecuter::checkNoErrors(MegaError *error, string message)
     if (error->getErrorCode() == MegaError::API_EBLOCKED)
     {
         LOG_err << "Failed to " << message << ". Account blocked. Reason: " << sandboxCMD->reasonblocked;
+    }
+    else if (error->getErrorCode() == MegaError::API_EOVERQUOTA && sandboxCMD->storageStatus == MegaApi::STORAGE_STATE_RED)
+    {
+        LOG_err << "Failed to " << message << ": Reached storage quota."
+                         "You can change your account plan to increse your quota limit. "
+                         "See \"help --upgrade\" for further details";
     }
     else
     {
@@ -3607,13 +3620,15 @@ void MegaCmdExecuter::printBackupHistory(MegaBackup *backup, const char *timeFor
     {
         for (int i = 0; i < msl->size(); i++)
         {
+            int datelength = getReadableTime(m_time(), timeFormat).size();
+
             if (firstinhistory)
             {
                 OUTSTREAM << "  " << " -- SAVED BACKUPS --" << endl;
 
                 // print header
                 OUTSTREAM << "  " << getFixLengthString("NAME", PATHSIZE) << " ";
-                OUTSTREAM << getFixLengthString("DATE", 18) << " ";
+                OUTSTREAM << getFixLengthString("DATE", datelength+1) << " ";
                 OUTSTREAM << getRightAlignedString("STATUS", 11)<< " ";
                 OUTSTREAM << getRightAlignedString("FILES", 6)<< " ";
                 OUTSTREAM << getRightAlignedString("FOLDERS", 7);
@@ -3663,7 +3678,7 @@ void MegaCmdExecuter::printBackupHistory(MegaBackup *backup, const char *timeFor
             }
 
             OUTSTREAM << "  " << getFixLengthString(backupInstanceName, PATHSIZE) << " ";
-            OUTSTREAM << getFixLengthString(printableDate, 18) << " ";
+            OUTSTREAM << getFixLengthString(printableDate, datelength+1) << " ";
             OUTSTREAM << getRightAlignedString(backupInstanceStatus, 11) << " ";
             OUTSTREAM << getRightAlignedString(SSTR(nfiles), 6)<< " ";
             OUTSTREAM << getRightAlignedString(SSTR(nfolders), 7);
@@ -6032,11 +6047,8 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
 
                 megaCmdMultiTransferListener->waitMultiEnd();
-                if (megaCmdMultiTransferListener->getFinalerror() != MegaError::API_OK)
-                {
-                    setCurrentOutCode(megaCmdMultiTransferListener->getFinalerror());
-                    LOG_err << "Upload failed. error code:" << MegaError::getErrorString(megaCmdMultiTransferListener->getFinalerror());
-                }
+
+                checkNoErrors(megaCmdMultiTransferListener->getFinalerror(), "upload");
 
                 informProgressUpdate(PROGRESS_COMPLETE, megaCmdMultiTransferListener->getTotalbytes(), clientID);
                 delete megaCmdMultiTransferListener;
