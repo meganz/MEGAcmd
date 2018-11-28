@@ -228,6 +228,14 @@ void MegaCmdMegaListener::onBackupStart(MegaApi *api, MegaBackup *backup)
 void MegaCmdMegaListener::onBackupFinish(MegaApi* api, MegaBackup *backup, MegaError* error)
 {
     LOG_verbose << " At onBackupFinish";
+    if (error->getErrorCode() == MegaError::API_EEXPIRED)
+    {
+        LOG_warn << "Backup skipped (the time for the next one has been reached)";
+    }
+    else if (error->getErrorCode() != MegaError::API_OK)
+    {
+        LOG_err << "Backup failed: " << error->getErrorString();
+    }
 }
 
 void MegaCmdMegaListener::onBackupUpdate(MegaApi *api, MegaBackup *backup)
@@ -238,6 +246,10 @@ void MegaCmdMegaListener::onBackupUpdate(MegaApi *api, MegaBackup *backup)
 void MegaCmdMegaListener::onBackupTemporaryError(MegaApi *api, MegaBackup *backup, MegaError* error)
 {
     LOG_verbose << " At onBackupTemporaryError";
+    if (error->getErrorCode() != MegaError::API_OK)
+    {
+        LOG_err << "Backup temporary error: " << error->getErrorString();
+    }
 }
 #endif
 ////////////////////////////////////////
@@ -824,7 +836,7 @@ void MegaCmdGlobalTransferListener::onTransferTemporaryError(MegaApi *api, MegaT
             LOG_warn  << "Reached bandwidth quota. Your download could not proceed "
                          "because it would take you over the current free transfer allowance for your IP address. "
                          "This limit is dynamic and depends on the amount of unused bandwidth we have available. "
-                         "You can change your account plan to increse such bandwidth. "
+                         "You can change your account plan to increase such bandwidth. "
                          "See \"help --upgrade\" for further details";
         }
         sandboxCMD->setOverquota(true);

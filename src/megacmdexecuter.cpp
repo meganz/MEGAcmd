@@ -3481,7 +3481,7 @@ bool MegaCmdExecuter::IsFolder(string path)
 
 void MegaCmdExecuter::printTransfersHeader(const unsigned int PATHSIZE, bool printstate)
 {
-    OUTSTREAM << "DIR/SYNC TAG  " << getFixLengthString("SOURCEPATH ",PATHSIZE) << getFixLengthString("DESTINYPATH ",PATHSIZE)
+    OUTSTREAM << "TYPE     TAG  " << getFixLengthString("SOURCEPATH ",PATHSIZE) << getFixLengthString("DESTINYPATH ",PATHSIZE)
               << "  " << getFixLengthString("    PROGRESS",21);
     if (printstate)
     {
@@ -3507,6 +3507,14 @@ void MegaCmdExecuter::printTransfer(MegaTransfer *transfer, const unsigned int P
         OUTSTREAM << "S";
 #else
         OUTSTREAM << "\u21f5";
+#endif
+    }
+    else if (transfer->isBackupTransfer())
+    {
+#ifdef _WIN32
+        OUTSTREAM << "S";
+#else
+        OUTSTREAM << "\u23eb";
 #endif
     }
     else
@@ -3644,7 +3652,13 @@ void MegaCmdExecuter::printBackupDetails(MegaBackup *backup, const char *timeFor
         OUTSTREAM << "  " << " -- CURRENT/LAST BACKUP --" << endl;
         OUTSTREAM << "  " << getFixLengthString("FILES UP/TOT", 15);
         OUTSTREAM << "  " << getFixLengthString("FOLDERS CREATED", 15);
-        OUTSTREAM << "  " << getRightAlignedString("PROGRESS", 10);
+        OUTSTREAM << "  " << getRightAlignedString("PROGRESS     ", 22);
+
+        MegaTransferList * ml = backup->getFailedTransfers();
+        if (ml && ml->size())
+        {
+            OUTSTREAM << "  " << getRightAlignedString("FAILED TRANSFERS", 17);
+        }
         OUTSTREAM << endl;
 
         string sfiles = SSTR(backup->getNumberFiles()) + "/" + SSTR(backup->getTotalFiles());
@@ -3655,7 +3669,12 @@ void MegaCmdExecuter::printBackupDetails(MegaBackup *backup, const char *timeFor
         double percent = totbytes?double(trabytes)/double(totbytes):0;
 
         string sprogress = sizeProgressToText(trabytes, totbytes) + "  " + percentageToText(float(percent));
-        OUTSTREAM << "  " << getRightAlignedString(sprogress,10);
+        OUTSTREAM << "  " << getRightAlignedString(sprogress,22);
+        if (ml && ml->size())
+        {
+            OUTSTREAM << getRightAlignedString(SSTR(backup->getFailedTransfers()->size()), 17);
+        }
+        delete ml;
         OUTSTREAM << endl;
     }
 }

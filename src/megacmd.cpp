@@ -2653,6 +2653,19 @@ string getHelpStr(const char *command)
         os << " -only-completed" << "\t" << "Show only completed download" << endl;
         os << " --limit=N" << "\t" << "Show only first N transfers" << endl;
         os << " --path-display-size=N" << "\t" << "Use a fixed size of N characters for paths" << endl;
+        os << endl;
+        os << "TYPE legend correspondence:" << endl;
+#ifdef _WIN32
+        os << "  D = \t" << "Download transfer" << endl;
+        os << "  U = \t" << "Upload transfer" << endl;
+        os << "  S = \t" << "Sync transfer. The transfer is done in the context of a synchronization" << endl;
+        os << "  B = \t" << "Backup transfer. The transfer is done in the context of a backup" << endl;
+#else
+        os << "  \u21d3 = \t" << "Download transfer" << endl;
+        os << "  \u21d1 = \t" << "Upload transfer" << endl;
+        os << "  \u21f5 = \t" << "Sync transfer. The transfer is done in the context of a synchronization" << endl;
+        os << "  \u23eb = \t" << "Backup transfer. The transfer is done in the context of a backup" << endl;
+#endif
     }
 #if defined(_WIN32) && defined(NO_READLINE)
     else if (!strcmp(command, "autocomplete"))
