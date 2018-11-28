@@ -851,7 +851,7 @@ bool MegaCmdExecuter::checkNoErrors(MegaError *error, string message)
     else if (error->getErrorCode() == MegaError::API_EOVERQUOTA && sandboxCMD->storageStatus == MegaApi::STORAGE_STATE_RED)
     {
         LOG_err << "Failed to " << message << ": Reached storage quota."
-                         "You can change your account plan to increse your quota limit. "
+                         "You can change your account plan to increase your quota limit. "
                          "See \"help --upgrade\" for further details";
     }
     else
@@ -3247,6 +3247,54 @@ vector<string> MegaCmdExecuter::listpaths(bool usepcre, string askedPath, bool d
     }
 
     return paths;
+}
+
+vector<string> MegaCmdExecuter::listlocalpathsstartingby(string askedPath, bool discardFiles)
+{
+    vector<string> paths;
+
+#ifdef WIN32
+        char sep = (!s.word().s.empty() && s.word().s.find('/') != string::npos ) ?'/':'\\';
+#else
+        char sep = '/';
+#endif
+
+        size_t postlastsep = askedPath.find_last_of(sep);
+        if (postlastsep == 0) postlastsep++; // absolute paths
+        string containingfolder = postlastsep == string::npos ? string() : askedPath.substr(0, postlastsep);
+
+        bool removeprefix = false;
+        if (!containingfolder.size())
+        {
+            containingfolder = ".";
+            removeprefix= true;
+        }
+
+        DIR *dir;
+        if ((dir = opendir (containingfolder.c_str())) != NULL)
+        {
+            struct dirent *entry;
+            while ((entry = readdir (dir)) != NULL)
+            {
+                if (!discardFiles || entry->d_type == DT_DIR)
+                {
+                    string path = containingfolder;
+                    if (path != "/")
+                        path.append(1, sep);
+                    path.append(entry->d_name);
+                    if (removeprefix) path = path.substr(2);
+                    if (path.size() && entry->d_type == DT_DIR)
+                    {
+                        path.append(1, sep);
+                    }
+                    paths.push_back(path);
+                }
+            }
+
+            closedir(dir);
+        }
+
+        return paths;
 }
 
 vector<string> MegaCmdExecuter::getlistusers()

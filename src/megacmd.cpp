@@ -210,8 +210,8 @@ vector<string> remoteremotepatterncommands(aremoteremotepatterncommands, aremote
 string aremotelocalpatterncommands[] = {"get", "thumbnail", "preview"};
 vector<string> remotelocalpatterncommands(aremotelocalpatterncommands, aremotelocalpatterncommands + sizeof aremotelocalpatterncommands / sizeof aremotelocalpatterncommands[0]);
 
-string alocalpatterncommands [] = {"lcd"};
-vector<string> localpatterncommands(alocalpatterncommands, alocalpatterncommands + sizeof alocalpatterncommands / sizeof alocalpatterncommands[0]);
+string alocalfolderpatterncommands [] = {"lcd"};
+vector<string> localfolderpatterncommands(alocalfolderpatterncommands, alocalfolderpatterncommands + sizeof alocalfolderpatterncommands / sizeof alocalfolderpatterncommands[0]);
 
 string aemailpatterncommands [] = {"invite", "signup", "ipc", "users"};
 vector<string> emailpatterncommands(aemailpatterncommands, aemailpatterncommands + sizeof aemailpatterncommands / sizeof aemailpatterncommands[0]);
@@ -1021,6 +1021,16 @@ char* loglevels_completion(const char* text, int state)
     return generic_completion(text, state, validloglevels);
 }
 
+char* localfolders_completion(const char* text, int state)
+{
+    static vector<string> validpaths;
+    if (state == 0)
+    {
+        validpaths = cmdexecuter->listlocalpathsstartingby(text, true);
+    }
+    return generic_completion(text, state, validpaths);
+}
+
 char* transfertags_completion(const char* text, int state)
 {
     static vector<string> validtransfertags;
@@ -1183,11 +1193,11 @@ completionfunction_t *getCompletionFunction(vector<string> words)
             return remotepaths_completion;
         }
     }
-    else if (thecommand == "backup") //TODO: offer local folder completion
+    else if (thecommand == "backup")
     {
         if (currentparameter == 1)
         {
-            return local_completion;
+            return localfolders_completion;
         }
         else
         {
@@ -1215,11 +1225,11 @@ completionfunction_t *getCompletionFunction(vector<string> words)
             return remotepaths_completion;
         }
     }
-    else if (stringcontained(thecommand.c_str(), localpatterncommands))
+    else if (stringcontained(thecommand.c_str(), localfolderpatterncommands))
     {
         if (currentparameter == 1)
         {
-            return local_completion;
+            return localfolders_completion;
         }
     }
     else if (stringcontained(thecommand.c_str(), remoteremotepatterncommands))
@@ -3774,7 +3784,7 @@ void megacmd()
                     {
                         s+= "You are running out of available storage.\n";
                     }
-                    s+="You can change your account plan to increse your quota limit.\nSee \"help --upgrade\" for further details";
+                    s+="You can change your account plan to increase your quota limit.\nSee \"help --upgrade\" for further details";
                     s+=(char)0x1F;
                 }
 
