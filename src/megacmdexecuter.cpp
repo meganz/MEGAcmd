@@ -34,6 +34,23 @@
 
 #include <signal.h>
 
+
+#if (__cplusplus >= 201700L)
+    #include <filesystem>
+    namespace fs = std::filesystem;
+    #define MEGACMDEXECUTER_FILESYSTEM
+#elif !defined(__MINGW32__) && !defined(__ANDROID__) && ( (__cplusplus >= 201100L) || (defined(_MSC_VER) && _MSC_VER >= 1600) )
+#define MEGACMDEXECUTER_FILESYSTEM
+#ifdef WIN32
+    #include <filesystem>
+    namespace fs = std::experimental::filesystem;
+#else
+    #include <experimental/filesystem>
+    namespace fs = std::experimental::filesystem;
+#endif
+#endif
+
+
 using namespace mega;
 using namespace std;
 
@@ -3249,52 +3266,126 @@ vector<string> MegaCmdExecuter::listpaths(bool usepcre, string askedPath, bool d
     return paths;
 }
 
+#ifdef _WIN32
+//TODO: try to use these functions from somewhere else
+static std::wstring toUtf16String(const std::string& s, UINT codepage = CP_UTF8)
+{
+    std::wstring ws;
+    ws.resize(s.size() + 1);
+    int nwchars = MultiByteToWideChar(codepage, 0, s.data(), int(s.size()), (LPWSTR)ws.data(), int(ws.size()));
+    ws.resize(nwchars);
+    return ws;
+}
+
+std::string toUtf8String(const std::wstring& ws, UINT codepage = CP_UTF8)
+{
+    std::string s;
+    s.resize((ws.size() + 1) * 4);
+    int nchars = WideCharToMultiByte(codepage, 0, ws.data(), int(ws.size()), (LPSTR)s.data(), int(s.size()), NULL, NULL);
+    s.resize(nchars);
+    return s;
+}
+
+
+bool replaceW(std::wstring& str, const std::wstring& from, const std::wstring& to)
+{
+    size_t start_pos = str.find(from);
+    if (start_pos == std::wstring::npos)
+    {
+        return false;
+    }
+    str.replace(start_pos, from.length(), to);
+    return true;
+}
+#endif
+
 vector<string> MegaCmdExecuter::listlocalpathsstartingby(string askedPath, bool discardFiles)
 {
     vector<string> paths;
 
 #ifdef WIN32
-        char sep = (!s.word().s.empty() && s.word().s.find('/') != string::npos ) ?'/':'\\';
+    string actualaskedPath = fs::u8path(askedPath).string();
+    char sep = (!askedPath.empty() && askedPath.find('/') != string::npos ) ?'/':'\\';
 #else
-        char sep = '/';
+    string actualaskedPath = askedPath;
+    char sep = '/';
 #endif
 
-        size_t postlastsep = askedPath.find_last_of(sep);
-        if (postlastsep == 0) postlastsep++; // absolute paths
-        string containingfolder = postlastsep == string::npos ? string() : askedPath.substr(0, postlastsep);
+    size_t postlastsep = askedPath.find_last_of(sep);
+    if (postlastsep == 0) postlastsep++; // absolute paths
+    string containingfolder = postlastsep == string::npos ? string() : actualaskedPath.substr(0, postlastsep);
 
-        bool removeprefix = false;
-        if (!containingfolder.size())
-        {
-            containingfolder = ".";
-            removeprefix= true;
-        }
+    bool removeprefix = false;
+    bool requiresseparatorafterunit = false;
+    if (!containingfolder.size())
+    {
+        containingfolder = ".";
+        removeprefix= true;
+    }
+#ifdef WIN32
+    else if (containingfolder.find(":") == 1 && (containingfolder.size() < 3 || ( containingfolder.at(2) != '/' && containingfolder.at(2) != '\\')))
+    {
+        requiresseparatorafterunit = true;
+    }
+#endif
 
-        DIR *dir;
-        if ((dir = opendir (containingfolder.c_str())) != NULL)
+#ifdef MEGACMDEXECUTER_FILESYSTEM
+    for(auto& p: fs::directory_iterator(containingfolder))
+    {
+        if(!discardFiles || p.status().type() == fs::file_type::directory)
         {
-            struct dirent *entry;
-            while ((entry = readdir (dir)) != NULL)
+            wstring path = p.path().wstring();
+            if (removeprefix) path = path.substr(2);
+            if (requiresseparatorafterunit) path.insert(2, 1, sep);
+            if (p.status().type() == fs::file_type::directory)
             {
-                if (!discardFiles || entry->d_type == DT_DIR)
+                path.append(1, sep);
+#ifdef _WIN32
+                // try to mimic the exact startup of the asked path to allow mix of '\' & '/'
+                fs::path paskedpath = fs::u8path(askedPath);
+                paskedpath.make_preferred();
+                wstring toreplace = paskedpath.wstring();
+                if (path.find(toreplace) == 0)
                 {
-                    string path = containingfolder;
-                    if (path != "/")
-                        path.append(1, sep);
-                    path.append(entry->d_name);
-                    if (removeprefix) path = path.substr(2);
-                    if (path.size() && entry->d_type == DT_DIR)
-                    {
-                        path.append(1, sep);
-                    }
-                    paths.push_back(path);
+                    replaceW(path, toreplace, toUtf16String(askedPath));
                 }
+#endif
             }
+#ifdef _WIN32
+            paths.push_back(toUtf8String(path));
+#else
+            paths.push_back(path);
+#endif
 
-            closedir(dir);
+        }
+    }
+
+#elif defined(HAVE_DIRENT_H)
+    DIR *dir;
+    if ((dir = opendir (containingfolder.c_str())) != NULL)
+    {
+        struct dirent *entry;
+        while ((entry = readdir (dir)) != NULL)
+        {
+            if (!discardFiles || entry->d_type == DT_DIR)
+            {
+                string path = containingfolder;
+                if (path != "/")
+                    path.append(1, sep);
+                path.append(entry->d_name);
+                if (removeprefix) path = path.substr(2);
+                if (path.size() && entry->d_type == DT_DIR)
+                {
+                    path.append(1, sep);
+                }
+                paths.push_back(path);
+            }
         }
 
-        return paths;
+        closedir(dir);
+    }
+#endif
+    return paths;
 }
 
 vector<string> MegaCmdExecuter::getlistusers()
@@ -5902,12 +5993,15 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         {
             string local = words.at(1);
             string remote = words.at(2);
+            unescapeifRequired(local);
+            unescapeifRequired(remote);
 
             createOrModifyBackup(local, remote, speriod, numBackups);
         }
         else if (words.size() == 2)
         {
             string local = words.at(1);
+            unescapeifRequired(local);
 
             MegaBackup *backup = api->getBackupByPath(local.c_str());
             if (!backup)

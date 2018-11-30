@@ -1026,7 +1026,9 @@ char* localfolders_completion(const char* text, int state)
     static vector<string> validpaths;
     if (state == 0)
     {
-        validpaths = cmdexecuter->listlocalpathsstartingby(text, true);
+        string what(text);
+        unescapeEspace(what);
+        validpaths = cmdexecuter->listlocalpathsstartingby(what.c_str(), true);
     }
     return generic_completion(text, state, validpaths);
 }
