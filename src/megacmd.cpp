@@ -210,8 +210,8 @@ vector<string> remoteremotepatterncommands(aremoteremotepatterncommands, aremote
 string aremotelocalpatterncommands[] = {"get", "thumbnail", "preview"};
 vector<string> remotelocalpatterncommands(aremotelocalpatterncommands, aremotelocalpatterncommands + sizeof aremotelocalpatterncommands / sizeof aremotelocalpatterncommands[0]);
 
-string alocalpatterncommands [] = {"lcd"};
-vector<string> localpatterncommands(alocalpatterncommands, alocalpatterncommands + sizeof alocalpatterncommands / sizeof alocalpatterncommands[0]);
+string alocalfolderpatterncommands [] = {"lcd"};
+vector<string> localfolderpatterncommands(alocalfolderpatterncommands, alocalfolderpatterncommands + sizeof alocalfolderpatterncommands / sizeof alocalfolderpatterncommands[0]);
 
 string aemailpatterncommands [] = {"invite", "signup", "ipc", "users"};
 vector<string> emailpatterncommands(aemailpatterncommands, aemailpatterncommands + sizeof aemailpatterncommands / sizeof aemailpatterncommands[0]);
@@ -926,10 +926,8 @@ char * flags_value_completion(const char*text, int state)
                     end = string::npos;
                 }
 
-                string location = stext.substr(begin, end);
-                validValues = cmdexecuter->getlistfilesfolders(location.size()?location:"./");
+                validValues = cmdexecuter->listlocalpathsstartingby(stext.substr(begin));
                 string prefix = strncmp(text, cflag, strlen(cflag))?"":cflag;
-                prefix.append(location);
                 for (unsigned int i=0;i<validValues.size();i++)
                 {
                     validValues.at(i)=prefix+validValues.at(i);
@@ -1019,6 +1017,18 @@ char* loglevels_completion(const char* text, int state)
         validloglevels.push_back(getLogLevelStr(MegaApi::LOG_LEVEL_MAX));
     }
     return generic_completion(text, state, validloglevels);
+}
+
+char* localfolders_completion(const char* text, int state)
+{
+    static vector<string> validpaths;
+    if (state == 0)
+    {
+        string what(text);
+        unescapeEspace(what);
+        validpaths = cmdexecuter->listlocalpathsstartingby(what.c_str(), true);
+    }
+    return generic_completion(text, state, validpaths);
 }
 
 char* transfertags_completion(const char* text, int state)
@@ -1183,11 +1193,11 @@ completionfunction_t *getCompletionFunction(vector<string> words)
             return remotepaths_completion;
         }
     }
-    else if (thecommand == "backup") //TODO: offer local folder completion
+    else if (thecommand == "backup")
     {
         if (currentparameter == 1)
         {
-            return local_completion;
+            return localfolders_completion;
         }
         else
         {
@@ -1215,11 +1225,11 @@ completionfunction_t *getCompletionFunction(vector<string> words)
             return remotepaths_completion;
         }
     }
-    else if (stringcontained(thecommand.c_str(), localpatterncommands))
+    else if (stringcontained(thecommand.c_str(), localfolderpatterncommands))
     {
         if (currentparameter == 1)
         {
-            return local_completion;
+            return localfolders_completion;
         }
     }
     else if (stringcontained(thecommand.c_str(), remoteremotepatterncommands))
@@ -1313,6 +1323,22 @@ string getListOfCompletionValues(vector<string> words, char separator = ' ', con
             return toret;
         }
     }
+#ifdef _WIN32
+//    // let MEGAcmdShell handle the local folder completion (available via autocomplete.cpp stuff that takes into account units/unicode/etc...)
+//    else if (compfunction == localfolders_completion)
+//    {
+//        if (!interactiveThread())
+//        {
+//            return "MEGACMD_USE_LOCAL_COMPLETIONFOLDERS";
+//        }
+//        else
+//        {
+//            string toret="MEGACMD_USE_LOCAL_COMPLETIONFOLDERS";
+//            toret+=cmdexecuter->getLPWD();
+//            return toret;
+//        }
+//    }
+#endif
     int state=0;
     if (words.size()>1)
     while (true)
@@ -2643,6 +2669,19 @@ string getHelpStr(const char *command)
         os << " -only-completed" << "\t" << "Show only completed download" << endl;
         os << " --limit=N" << "\t" << "Show only first N transfers" << endl;
         os << " --path-display-size=N" << "\t" << "Use a fixed size of N characters for paths" << endl;
+        os << endl;
+        os << "TYPE legend correspondence:" << endl;
+#ifdef _WIN32
+        os << "  D = \t" << "Download transfer" << endl;
+        os << "  U = \t" << "Upload transfer" << endl;
+        os << "  S = \t" << "Sync transfer. The transfer is done in the context of a synchronization" << endl;
+        os << "  B = \t" << "Backup transfer. The transfer is done in the context of a backup" << endl;
+#else
+        os << "  \u21d3 = \t" << "Download transfer" << endl;
+        os << "  \u21d1 = \t" << "Upload transfer" << endl;
+        os << "  \u21f5 = \t" << "Sync transfer. The transfer is done in the context of a synchronization" << endl;
+        os << "  \u23eb = \t" << "Backup transfer. The transfer is done in the context of a backup" << endl;
+#endif
     }
 #if defined(_WIN32) && defined(NO_READLINE)
     else if (!strcmp(command, "autocomplete"))
@@ -3774,7 +3813,7 @@ void megacmd()
                     {
                         s+= "You are running out of available storage.\n";
                     }
-                    s+="You can change your account plan to increse your quota limit.\nSee \"help --upgrade\" for further details";
+                    s+="You can change your account plan to increase your quota limit.\nSee \"help --upgrade\" for further details";
                     s+=(char)0x1F;
                 }
 
