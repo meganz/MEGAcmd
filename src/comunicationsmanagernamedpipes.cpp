@@ -442,7 +442,7 @@ int ComunicationsManagerNamedPipes::informStateListener(CmdPetition *inf, string
     DWORD n;
     if (!WriteFile(outNamedPipe, s.data(), DWORD(s.size()), &n, NULL))
     {
-        if (ERRNO == 32) //namedPipe closed
+        if (ERRNO == 32 || ERRNO == 109) //namedPipe closed | pipe has been ended
         {
             LOG_debug << "namedPipe closed. Client probably disconnected. Original petition: " << *inf;
             return -1;

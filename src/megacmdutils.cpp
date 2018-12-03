@@ -1786,10 +1786,12 @@ unsigned int getNumberOfCols(unsigned int defaultwidth)
 {
 #ifdef _WIN32
     CONSOLE_SCREEN_BUFFER_INFO csbi;
-    int columns;
+    int columns = defaultwidth;
 
-    GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
-    columns = csbi.srWindow.Right - csbi.srWindow.Left - 1;
+    if (GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi))
+    {
+        columns = csbi.srWindow.Right - csbi.srWindow.Left - 1;
+    }
 
     return columns;
 #else

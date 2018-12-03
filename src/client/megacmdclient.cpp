@@ -59,10 +59,12 @@ unsigned int getNumberOfCols(unsigned int defaultwidth)
 {
 #ifdef _WIN32
     CONSOLE_SCREEN_BUFFER_INFO csbi;
-    int columns;
+    int columns = defaultwidth;
 
-    GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
-    columns = csbi.srWindow.Right - csbi.srWindow.Left - 1;
+    if (GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi))
+    {
+        columns = csbi.srWindow.Right - csbi.srWindow.Left - 1;
+    }
 
     return columns;
 #else
@@ -446,7 +448,6 @@ string parseArgs(int argc, char* argv[])
 
 wstring parsewArgs(int argc, wchar_t* argv[])
 {
-
     for (int i=1;i<argc;i++)
     {
         if (i<(argc-1) && !wcscmp(argv[i],L"-o"))
@@ -490,7 +491,7 @@ wstring parsewArgs(int argc, wchar_t* argv[])
                 || !wcscmp(argv[1],L"sync")
                 || !wcscmp(argv[1],L"transfers") )
         {
-            unsigned int width = getNumberOfCols(75);
+            unsigned int width = getNumberOfCols(80);
             int pathSize = width/2;
 
             if ( !wcscmp(argv[1],L"transfers") )
@@ -515,7 +516,7 @@ wstring parsewArgs(int argc, wchar_t* argv[])
             }
 
             wstring spathSize = L"--path-display-size=";
-            string sps = SSTR(pathSize)
+            string sps = SSTR(pathSize);
             std::wstring wspathSize(sps.begin(), sps.end());
             spathSize+=wspathSize;
             absolutedargs.push_back(spathSize);
@@ -841,10 +842,10 @@ void statechangehandle(string statestring)
         else if (newstate.compare(0, strlen("message:"), "message:") == 0)
         {
             string contents = newstate.substr(strlen("message:"));
-            unsigned int width = getNumberOfCols(75);
+            unsigned int width = getNumberOfCols(80);
             if (contents.find("-----") != 0)
             {
-                printCenteredContents(contents, width);
+                printCenteredContents(contents, width - 1);
             }
             else
             {
