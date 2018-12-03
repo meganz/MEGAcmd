@@ -926,10 +926,8 @@ char * flags_value_completion(const char*text, int state)
                     end = string::npos;
                 }
 
-                string location = stext.substr(begin, end);
-                validValues = cmdexecuter->getlistfilesfolders(location.size()?location:"./");
+                validValues = cmdexecuter->listlocalpathsstartingby(stext.substr(begin));
                 string prefix = strncmp(text, cflag, strlen(cflag))?"":cflag;
-                prefix.append(location);
                 for (unsigned int i=0;i<validValues.size();i++)
                 {
                     validValues.at(i)=prefix+validValues.at(i);
@@ -1325,6 +1323,22 @@ string getListOfCompletionValues(vector<string> words, char separator = ' ', con
             return toret;
         }
     }
+#ifdef _WIN32
+//    // let MEGAcmdShell handle the local folder completion (available via autocomplete.cpp stuff that takes into account units/unicode/etc...)
+//    else if (compfunction == localfolders_completion)
+//    {
+//        if (!interactiveThread())
+//        {
+//            return "MEGACMD_USE_LOCAL_COMPLETIONFOLDERS";
+//        }
+//        else
+//        {
+//            string toret="MEGACMD_USE_LOCAL_COMPLETIONFOLDERS";
+//            toret+=cmdexecuter->getLPWD();
+//            return toret;
+//        }
+//    }
+#endif
     int state=0;
     if (words.size()>1)
     while (true)

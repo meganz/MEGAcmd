@@ -1211,13 +1211,23 @@ vector<autocomplete::ACState::Completion> remote_completion(string linetocomplet
 
     if (outputcommand.find("MEGACMD_USE_LOCAL_COMPLETION") == 0)
     {
-        string where = outputcommand.substr(strlen("MEGACMD_USE_LOCAL_COMPLETION"));
+        string where;
+        bool folders = false;
+        if (outputcommand.find("MEGACMD_USE_LOCAL_COMPLETIONFOLDERS") == 0)
+        {
+            where = outputcommand.substr(strlen("MEGACMD_USE_LOCAL_COMPLETIONFOLDERS"));
+            folders = true;
+        }
+        else
+        {
+            where = outputcommand.substr(strlen("MEGACMD_USE_LOCAL_COMPLETION"));
+        }
         changedir(where);
 
         if (acs.words.size())
         {
             string l = completionword.getQuoted();
-            CompletionState cs = autoComplete(l, l.size(), acs.words[0].s == "lcd" ? localFSFolder() : localFSPath(), console->getAutocompleteStyle());
+            CompletionState cs = autoComplete(l, l.size(), folders ? localFSFolder() : localFSPath(), console->getAutocompleteStyle());
             result.swap(cs.completions);
         }
         return result;

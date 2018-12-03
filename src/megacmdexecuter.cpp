@@ -3304,14 +3304,15 @@ vector<string> MegaCmdExecuter::listlocalpathsstartingby(string askedPath, bool 
     vector<string> paths;
 
 #ifdef WIN32
-    string actualaskedPath = fs::u8path(askedPath).string();
+    string actualaskedPath = fs::u8path(askedPath).u8string();
     char sep = (!askedPath.empty() && askedPath.find('/') != string::npos ) ?'/':'\\';
+    size_t postlastsep = actualaskedPath.find_last_of("/\\");
 #else
     string actualaskedPath = askedPath;
     char sep = '/';
+    size_t postlastsep = actualaskedPath.find_last_of(sep);
 #endif
 
-    size_t postlastsep = askedPath.find_last_of(sep);
     if (postlastsep == 0) postlastsep++; // absolute paths
     string containingfolder = postlastsep == string::npos ? string() : actualaskedPath.substr(0, postlastsep);
 
@@ -3330,9 +3331,9 @@ vector<string> MegaCmdExecuter::listlocalpathsstartingby(string askedPath, bool 
 #endif
 
 #ifdef MEGACMDEXECUTER_FILESYSTEM
-    for(auto& p: fs::directory_iterator(containingfolder))
+    for(auto& p: fs::directory_iterator(fs::u8path(containingfolder)))
     {
-        if(!discardFiles || p.status().type() == fs::file_type::directory)
+        if (!discardFiles || p.status().type() == fs::file_type::directory)
         {
             wstring path = p.path().wstring();
             if (removeprefix) path = path.substr(2);
@@ -3340,6 +3341,7 @@ vector<string> MegaCmdExecuter::listlocalpathsstartingby(string askedPath, bool 
             if (p.status().type() == fs::file_type::directory)
             {
                 path.append(1, sep);
+            }
 #ifdef _WIN32
                 // try to mimic the exact startup of the asked path to allow mix of '\' & '/'
                 fs::path paskedpath = fs::u8path(askedPath);
@@ -3350,7 +3352,6 @@ vector<string> MegaCmdExecuter::listlocalpathsstartingby(string askedPath, bool 
                     replaceW(path, toreplace, toUtf16String(askedPath));
                 }
 #endif
-            }
 #ifdef _WIN32
             paths.push_back(toUtf8String(path));
 #else
@@ -3478,7 +3479,13 @@ vector<string> MegaCmdExecuter::getsessions()
 vector<string> MegaCmdExecuter::getlistfilesfolders(string location)
 {
     vector<string> toret;
-#ifdef HAVE_DIRENT_H
+#ifdef MEGACMDEXECUTER_FILESYSTEM
+    for(auto& p: fs::directory_iterator(fs::u8path(location)))
+    {
+        toret.push_back(p.path().filename().u8string());
+    }
+
+#elif defined(HAVE_DIRENT_H)
     DIR *dir;
     struct dirent *entry;
     if ((dir = opendir (location.c_str())) != NULL)
