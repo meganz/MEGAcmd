@@ -1794,7 +1794,8 @@ unsigned int getNumberOfCols(unsigned int defaultwidth)
     return columns;
 #else
     struct winsize size;
-    if (ioctl(STDOUT_FILENO,TIOCGWINSZ,&size) != -1)
+    if ( ioctl(STDOUT_FILENO,TIOCGWINSZ,&size) != -1
+         || (ioctl(STDIN_FILENO,TIOCGWINSZ,&size) != -1))
     {
         if (size.ws_col > 2)
         {

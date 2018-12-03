@@ -38,7 +38,46 @@
 #include <sys/un.h>
 #endif
 
+#ifdef _WIN32
+#else
+#include <sys/ioctl.h> // console size
+#endif
+#include <sstream>
+
+
+#define PROGRESS_COMPLETE -2
+#define SPROGRESS_COMPLETE "-2"
+
 using namespace std;
+
+#define SSTR( x ) static_cast< const std::ostringstream & >( \
+        (  std::ostringstream() << std::dec << x ) ).str()
+
+void printprogress(long long completed, long long total, const char *title = "TRANSFERRING");
+
+unsigned int getNumberOfCols(unsigned int defaultwidth)
+{
+#ifdef _WIN32
+    CONSOLE_SCREEN_BUFFER_INFO csbi;
+    int columns;
+
+    GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
+    columns = csbi.srWindow.Right - csbi.srWindow.Left - 1;
+
+    return columns;
+#else
+    struct winsize size;
+    if ( ioctl(STDOUT_FILENO,TIOCGWINSZ,&size) != -1
+         || (ioctl(STDIN_FILENO,TIOCGWINSZ,&size) != -1))
+    {
+        if (size.ws_col > 2)
+        {
+            return size.ws_col - 2;
+        }
+    }
+#endif
+    return defaultwidth;
+}
 
 #ifdef _WIN32
 // convert UTF-8 to Windows Unicode
@@ -122,7 +161,7 @@ wstring getWAbsPath(wstring localpath)
 }
 #endif
 
-
+string clientID; //identifier for a registered state listener
 
 string getAbsPath(string relativePath)
 {
@@ -198,6 +237,15 @@ string getAbsPath(string relativePath)
 
 }
 
+void sleepMicroSeconds(long microseconds)
+{
+#ifdef _WIN32
+    Sleep(microseconds);
+#else
+    usleep(microseconds*1000);
+#endif
+}
+
 string parseArgs(int argc, char* argv[])
 {
     vector<string> absolutedargs;
@@ -205,6 +253,60 @@ string parseArgs(int argc, char* argv[])
     if (argc>1)
     {
         absolutedargs.push_back(argv[1]);
+
+        if (!strcmp(argv[1],"get")
+                || !strcmp(argv[1],"put")
+                || !strcmp(argv[1],"login")
+                || !strcmp(argv[1],"reload") )
+        {
+            int waittime = 15000;
+            while (waittime > 0 && !clientID.size())
+            {
+                sleepMicroSeconds(100);
+                waittime -= 100;
+            }
+            if (clientID.size())
+            {
+                string sclientID = "--clientID=";
+                sclientID+=clientID;
+                absolutedargs.push_back(sclientID);
+            }
+        }
+
+        if (!strcmp(argv[1],"backup")
+                || !strcmp(argv[1],"du")
+                || !strcmp(argv[1],"mediainfo")
+                || !strcmp(argv[1],"sync")
+                || !strcmp(argv[1],"transfers") )
+        {
+            unsigned int width = getNumberOfCols(80);
+            int pathSize = width/2;
+
+            if ( !strcmp(argv[1],"transfers") )
+            {
+                pathSize = int((width-46)/2);
+            }
+            else if ( !strcmp(argv[1],"du") )
+            {
+                pathSize = int(width-13);
+            }
+            else if ( !strcmp(argv[1],"sync") )
+            {
+                pathSize = int((width-46)/2);
+            }
+            else if ( !strcmp(argv[1],"mediainfo") )
+            {
+                pathSize = int(width - 28);
+            }
+            else if ( !strcmp(argv[1],"backup") )
+            {
+                pathSize = int((width-21)/2);
+            }
+
+            string spathSize = "--path-display-size=";
+            spathSize+=SSTR(pathSize);
+            absolutedargs.push_back(spathSize);
+        }
 
         if (!strcmp(argv[1],"sync"))
         {
@@ -362,6 +464,63 @@ wstring parsewArgs(int argc, wchar_t* argv[])
     {
         absolutedargs.push_back(argv[1]);
 
+        if (!wcscmp(argv[1],L"get")
+                || !wcscmp(argv[1],L"put")
+                || !wcscmp(argv[1],L"login")
+                || !wcscmp(argv[1],L"reload") )
+        {
+            int waittime = 5000;
+            while (waittime > 0 && !clientID.size())
+            {
+                sleepMicroSeconds(100);
+                waittime -= 100;
+            }
+            if (clientID.size())
+            {
+                wstring sclientID = L"--clientID=";
+                std::wstring wclientID(clientID.begin(), clientID.end());
+                sclientID+=wclientID;
+                absolutedargs.push_back(sclientID);
+            }
+        }
+
+        if (!wcscmp(argv[1],L"backup")
+                || !wcscmp(argv[1],L"du")
+                || !wcscmp(argv[1],L"mediainfo")
+                || !wcscmp(argv[1],L"sync")
+                || !wcscmp(argv[1],L"transfers") )
+        {
+            unsigned int width = getNumberOfCols(75);
+            int pathSize = width/2;
+
+            if ( !wcscmp(argv[1],L"transfers") )
+            {
+                pathSize = int((width-46)/2);
+            }
+            else if ( !wcscmp(argv[1],L"du") )
+            {
+                pathSize = int(width-13);
+            }
+            else if ( !wcscmp(argv[1],L"sync") )
+            {
+                pathSize = int((width-46)/2);
+            }
+            else if ( !wcscmp(argv[1],L"mediainfo") )
+            {
+                pathSize = int(width - 28);
+            }
+            else if ( !wcscmp(argv[1],L"backup") )
+            {
+                pathSize = int((width-21)/2);
+            }
+
+            wstring spathSize = L"--path-display-size=";
+            string sps = SSTR(pathSize)
+            std::wstring wspathSize(sps.begin(), sps.end());
+            spathSize+=wspathSize;
+            absolutedargs.push_back(spathSize);
+        }
+
         if (!wcscmp(argv[1],L"sync"))
         {
             for (int i = 2; i < argc; i++)
@@ -504,6 +663,260 @@ std::string readresponse(const char *question)
     return response;
 }
 
+
+long long charstoll(const char *instr)
+{
+  long long retval;
+
+  retval = 0;
+  for (; *instr; instr++) {
+    retval = 10*retval + (*instr - '0');
+  }
+  return retval;
+}
+
+void printprogress(long long completed, long long total, const char *title)
+{
+    static bool alreadyFinished = false; //flag to show progress
+    static float percentDowloaded = 0.0;
+    int cols = getNumberOfCols(80);
+
+    string outputString;
+    outputString.resize(cols + 1);
+    for (int i = 0; i < cols; i++)
+    {
+        outputString[i] = '.';
+    }
+
+    outputString[cols] = '\0';
+    char *ptr = (char *)outputString.c_str();
+    sprintf(ptr, "%s%s", title, " ||");
+    ptr += strlen(title);
+    ptr += strlen(" ||");
+    *ptr = '.'; //replace \0 char
+
+    float oldpercent = percentDowloaded;
+    if (total == 0)
+    {
+        percentDowloaded = 0;
+    }
+    else
+    {
+        percentDowloaded = float(completed * 1.0 / total * 100.0);
+    }
+    if (completed != PROGRESS_COMPLETE && (alreadyFinished || ( ( percentDowloaded == oldpercent ) && ( oldpercent != 0 ) ) ))
+    {
+        return;
+    }
+    if (percentDowloaded < 0)
+    {
+        percentDowloaded = 0;
+    }
+
+    char aux[41];
+    if (total < 0)
+    {
+        return; // after a 100% this happens
+    }
+    if (completed != PROGRESS_COMPLETE  && completed < 0.001 * total)
+    {
+        return; // after a 100% this happens
+    }
+    if (completed == PROGRESS_COMPLETE)
+    {
+        alreadyFinished = true;
+        completed = total;
+        percentDowloaded = 100;
+    }
+    sprintf(aux,"||(%lld/%lld MB: %6.2f %%) ", completed / 1024 / 1024, total / 1024 / 1024, percentDowloaded);
+    sprintf((char *)outputString.c_str() + cols - strlen(aux), "%s",                         aux);
+    for (int i = 0; i < ( cols - (strlen(title) + strlen(" ||")) - strlen(aux)) * 1.0 * min(100.0f,percentDowloaded) / 100.0; i++)
+    {
+        *ptr++ = '#';
+    }
+
+    if (alreadyFinished)
+    {
+        cerr << outputString << endl;
+    }
+    else
+    {
+        cerr << outputString << '\r' << flush;
+    }
+}
+
+
+void printCenteredLine(ostringstream &os, string msj, unsigned int width, bool encapsulated = true)
+{
+    if (msj.size()>width)
+    {
+        width = unsigned(msj.size());
+    }
+    if (encapsulated)
+        os << "|";
+    for (unsigned int i = 0; i < (width-msj.size())/2; i++)
+        os << " ";
+    os << msj;
+    for (unsigned int i = 0; i < (width-msj.size())/2 + (width-msj.size())%2 ; i++)
+        os << " ";
+    if (encapsulated)
+        os << "|";
+    os << endl;
+}
+
+void printCenteredContents(string msj, unsigned int width, bool encapsulated = true)
+{
+    ostringstream os;
+    size_t possepnewline = msj.find("\n");
+    size_t possep = msj.find(" ");
+
+    if (possepnewline != string::npos && possepnewline < width)
+    {
+        possep = possepnewline;
+    }
+    size_t possepprev = possep;
+
+    string headfoot = " ";
+    headfoot.append(width, '-');
+    if (msj.size())
+    {
+        os << headfoot << endl;
+    }
+
+    while (msj.size())
+    {
+
+        if (possepnewline != string::npos && possepnewline <= width)
+        {
+            possep = possepnewline;
+            possepprev = possep;
+        }
+        else
+        {
+            while (possep < width && possep != string::npos)
+            {
+                possepprev = possep;
+                possep = msj.find_first_of(" ", possep+1);
+            }
+        }
+
+        if (possep == string::npos)
+        {
+            printCenteredLine(os, msj, width, encapsulated);
+            break;
+        }
+        else
+        {
+            printCenteredLine(os, msj.substr(0,possepprev), width, encapsulated);
+            if (possepprev < (msj.size() - 1))
+            {
+                msj = msj.substr(possepprev+1);
+                possepnewline = msj.find("\n");
+            }
+            else
+            {
+                break;
+            }
+        }
+    }
+    os << headfoot << endl;
+    cerr << os.str();
+}
+
+
+void statechangehandle(string statestring)
+{
+    char statedelim[2]={(char)0x1F,'\0'};
+    size_t nextstatedelimitpos = statestring.find(statedelim);
+
+    while (nextstatedelimitpos!=string::npos && statestring.size())
+    {
+        string newstate = statestring.substr(0,nextstatedelimitpos);
+        statestring=statestring.substr(nextstatedelimitpos+1);
+        nextstatedelimitpos = statestring.find(statedelim);
+        if (newstate.compare(0, strlen("prompt:"), "prompt:") == 0)
+        {
+            //ignore prompt state
+        }
+        else if (newstate.compare(0, strlen("message:"), "message:") == 0)
+        {
+            string contents = newstate.substr(strlen("message:"));
+            unsigned int width = getNumberOfCols(75);
+            if (contents.find("-----") != 0)
+            {
+                printCenteredContents(contents, width);
+            }
+            else
+            {
+                cerr << endl <<  contents << endl;
+            }
+        }
+        else if (newstate.compare(0, strlen("clientID:"), "clientID:") == 0)
+        {
+            clientID = newstate.substr(strlen("clientID:")).c_str();
+        }
+        else if (newstate.compare(0, strlen("progress:"), "progress:") == 0)
+        {
+            string rest = newstate.substr(strlen("progress:"));
+
+            size_t nexdel = rest.find(":");
+            string received = rest.substr(0,nexdel);
+
+            rest = rest.substr(nexdel+1);
+            nexdel = rest.find(":");
+            string total = rest.substr(0,nexdel);
+
+            string title;
+            if ( (nexdel != string::npos) && (nexdel < rest.size() ) )
+            {
+                rest = rest.substr(nexdel+1);
+                nexdel = rest.find(":");
+                title = rest.substr(0,nexdel);
+            }
+
+            if (title.size())
+            {
+                if (received==SPROGRESS_COMPLETE)
+                {
+                    printprogress(PROGRESS_COMPLETE, charstoll(total.c_str()),title.c_str());
+
+                }
+                else
+                {
+                    printprogress(charstoll(received.c_str()), charstoll(total.c_str()),title.c_str());
+                }
+            }
+            else
+            {
+                if (received==SPROGRESS_COMPLETE)
+                {
+                    printprogress(PROGRESS_COMPLETE, charstoll(total.c_str()));
+                }
+                else
+                {
+                    printprogress(charstoll(received.c_str()), charstoll(total.c_str()));
+                }
+            }
+
+        }
+        else if (newstate == "ack")
+        {
+            // do nothing, all good
+        }
+        else if (newstate == "restart")
+        {
+            // ignore restart command
+        }
+        else
+        {
+            //received unrecognized state change. sleep a while to avoid continuous looping
+            sleepMicroSeconds(1000);
+        }
+    }
+}
+
+
+
 int main(int argc, char* argv[])
 {
 #ifdef _WIN32
@@ -532,6 +945,9 @@ int main(int argc, char* argv[])
 #else
     MegaCmdShellCommunications *comms = new MegaCmdShellCommunications();
 #endif
+
+    comms->registerForStateChanges(statechangehandle);
+
 #ifdef _WIN32
     int wargc;
     LPWSTR *szArglist = CommandLineToArgvW(GetCommandLineW(),&wargc);
