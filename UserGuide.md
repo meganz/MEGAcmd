@@ -153,8 +153,7 @@ Autocompletion is not available for the scriptable commands, but is in the inter
 Unicode is supported though it currently in the interactive shell it needs to be switched on, and to have a suitable font selected; please execute `help --unicode` for the latest information.  There are plans to improve this.  Please report any issues experienced to our support team.
 
 ### NAS Support
-Currently we are working on releasing MEGAcmd for QNAP and Synology.  Please check if you can download a MEGAcmd package for your NAS device from their package system.
-
+We have released packages for QNAP and Synology, which you can download and install from the App Center in QNAP, and the Package Center in Synology.   In QNAP, please make sure to turn on "Enable home folder for all users" from the control panel, and set HOME=/share/homes/<username> before starting any MEGA commands, so that the `mega-cmd-server` creates the `.megaCmd` local cache folder there (as the default HOME location may be erased on restart).
 
 ## Command Summary
 
