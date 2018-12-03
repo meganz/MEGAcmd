@@ -675,6 +675,7 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     else if ("transfers" == thecommand)
     {
         validParams->insert("show-completed");
+        validParams->insert("summary");
         validParams->insert("only-uploads");
         validParams->insert("only-completed");
         validParams->insert("only-downloads");
@@ -2660,13 +2661,14 @@ string getHelpStr(const char *command)
         os << " -c (TAG|-a)" << "\t" << "Cancel transfer with TAG (or all with -a)" << endl;
         os << " -p (TAG|-a)" << "\t" << "Pause transfer with TAG (or all with -a)" << endl;
         os << " -r (TAG|-a)" << "\t" << "Resume transfer with TAG (or all with -a)" << endl;
-        os << " -only-uploads" << "\t" << "Show/Operate only upload transfers" << endl;
-        os << " -only-downloads" << "\t" << "Show/Operate only download transfers" << endl;
+        os << " --only-uploads" << "\t" << "Show/Operate only upload transfers" << endl;
+        os << " --only-downloads" << "\t" << "Show/Operate only download transfers" << endl;
         os << endl;
         os << "Show options:" << endl;
-        os << " -show-syncs" << "\t" << "Show synchronization transfers" << endl;
-        os << " -show-completed" << "\t" << "Show completed transfers" << endl;
-        os << " -only-completed" << "\t" << "Show only completed download" << endl;
+        os << " --summary" << "\t" << "Prints summary of on going transfers" << endl;
+        os << " --show-syncs" << "\t" << "Show synchronization transfers" << endl;
+        os << " --show-completed" << "\t" << "Show completed transfers" << endl;
+        os << " --only-completed" << "\t" << "Show only completed download" << endl;
         os << " --limit=N" << "\t" << "Show only first N transfers" << endl;
         os << " --path-display-size=N" << "\t" << "Use a fixed size of N characters for paths" << endl;
         os << endl;

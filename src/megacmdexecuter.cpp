@@ -8953,6 +8953,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         bool onlyuploads = getFlag(clflags, "only-uploads");
         bool onlydownloads = getFlag(clflags, "only-downloads");
         bool showsyncs = getFlag(clflags, "show-syncs");
+        bool printsummary = getFlag(clflags, "summary");
 
         int PATHSIZE = getintOption(cloptions,"path-display-size");
         if (!PATHSIZE)
@@ -9103,7 +9104,70 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
         //show transfers
         MegaTransferData* transferdata = api->getTransferData();
-        int limit = getintOption(cloptions, "limit", min(10,transferdata->getNumDownloads()+transferdata->getNumUploads()+(int)globalTransferListener->completedTransfers.size()));
+
+        int ndownloads = transferdata->getNumDownloads();
+        int nuploads = transferdata->getNumUploads();
+
+        if (printsummary)
+        {
+            long long transferredDownload = 0, transferredUpload = 0, totalDownload = 0, totalUpload = 0;
+            for (int i = 0; i< ndownloads; i++)
+            {
+                MegaTransfer *t = api->getTransferByTag(transferdata->getDownloadTag(i));
+                {
+                    if (t)
+                    {
+                        transferredDownload += t->getTransferredBytes();
+                        totalDownload += t->getTotalBytes();
+                        delete t;
+                    }
+                }
+            }
+            for (int i = 0; i< nuploads; i++)
+            {
+                MegaTransfer *t = api->getTransferByTag(transferdata->getUploadTag(i));
+                {
+                    if (t)
+                    {
+                        transferredUpload += t->getTransferredBytes();
+                        totalUpload += t->getTotalBytes();
+                        delete t;
+                    }
+                }
+            }
+
+            float percentDownload = !totalDownload?0:float(transferredDownload*1.0/totalDownload);
+            float percentUpload = !totalUpload?0:float(transferredUpload*1.0/totalUpload);
+
+            OUTSTREAM << getFixLengthString("NUM DOWNLOADS", 16, ' ', true);
+            OUTSTREAM << getFixLengthString("DOWNLOADED", 12, ' ', true);
+            OUTSTREAM << getFixLengthString("TOTAL", 12, ' ', true);
+            OUTSTREAM << getFixLengthString("%   ", 8, ' ', true);
+            OUTSTREAM << "     ";
+            OUTSTREAM << getFixLengthString("NUM UPLOADS", 16, ' ', true);
+            OUTSTREAM << getFixLengthString("UPLOADED", 12, ' ', true);
+            OUTSTREAM << getFixLengthString("TOTAL", 12, ' ', true);
+            OUTSTREAM << getFixLengthString("%   ", 8, ' ', true);
+            OUTSTREAM << endl;
+
+            OUTSTREAM << getFixLengthString(SSTR(ndownloads), 16, ' ', true);
+            OUTSTREAM << getFixLengthString(sizeToText(transferredDownload), 12, ' ', true);
+            OUTSTREAM << getFixLengthString(sizeToText(totalDownload), 12, ' ', true);
+            OUTSTREAM << getFixLengthString(percentageToText(percentDownload),8,' ',true);
+
+            OUTSTREAM << "     ";
+            OUTSTREAM << getFixLengthString(SSTR(nuploads), 16, ' ', true);
+            OUTSTREAM << getFixLengthString(sizeToText(transferredUpload), 12, ' ', true);
+            OUTSTREAM << getFixLengthString(sizeToText(totalUpload), 12, ' ', true);
+            OUTSTREAM << getFixLengthString(percentageToText(percentUpload),8,' ',true);
+            OUTSTREAM << endl;
+            delete transferdata;
+            return;
+        }
+
+
+
+        int limit = getintOption(cloptions, "limit", min(10,ndownloads+nuploads+(int)globalTransferListener->completedTransfers.size()));
 
         if (!transferdata)
         {
@@ -9167,7 +9231,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             else
             {
                 if ( (!onlydownloads || (onlydownloads && onlyuploads)) //both
-                     && ( (shown >= (limit/2) ) || indexDownload == transferdata->getNumDownloads() ) // /already chosen half slots for dls or no more dls
+                     && ( (shown >= (limit/2) ) || indexDownload == ndownloads ) // /already chosen half slots for dls or no more dls
                      && indexUpload < transferdata->getNumUploads()
                      )
                     //This is not 100 % perfect, it could show with a limit of 10 5 downloads and 3 uploads with more downloads on the queue.
@@ -9175,7 +9239,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     transfer = api->getTransferByTag(transferdata->getUploadTag(indexUpload++));
 
                 }
-                else if(indexDownload < transferdata->getNumDownloads())
+                else if(indexDownload < ndownloads)
                 {
                     transfer =  api->getTransferByTag(transferdata->getDownloadTag(indexDownload++));
                 }
