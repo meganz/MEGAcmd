@@ -3331,14 +3331,14 @@ vector<string> MegaCmdExecuter::listlocalpathsstartingby(string askedPath, bool 
 #endif
 
 #ifdef MEGACMDEXECUTER_FILESYSTEM
-    for(auto& p: fs::directory_iterator(fs::u8path(containingfolder)))
+    for (fs::directory_iterator iter(fs::u8path(containingfolder)); iter != fs::directory_iterator(); ++iter)
     {
-        if (!discardFiles || p.status().type() == fs::file_type::directory)
+        if (!discardFiles || iter->status().type() == fs::file_type::directory)
         {
-            wstring path = p.path().wstring();
+            wstring path = iter->path().wstring();
             if (removeprefix) path = path.substr(2);
             if (requiresseparatorafterunit) path.insert(2, 1, sep);
-            if (p.status().type() == fs::file_type::directory)
+            if (iter->status().type() == fs::file_type::directory)
             {
                 path.append(1, sep);
             }
@@ -3480,9 +3480,9 @@ vector<string> MegaCmdExecuter::getlistfilesfolders(string location)
 {
     vector<string> toret;
 #ifdef MEGACMDEXECUTER_FILESYSTEM
-    for(auto& p: fs::directory_iterator(fs::u8path(location)))
+    for (fs::directory_iterator iter(fs::u8path(location)); iter != fs::directory_iterator(); ++iter)
     {
-        toret.push_back(p.path().filename().u8string());
+        toret.push_back(iter->path().filename().u8string());
     }
 
 #elif defined(HAVE_DIRENT_H)
