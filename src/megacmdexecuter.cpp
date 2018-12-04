@@ -3335,7 +3335,11 @@ vector<string> MegaCmdExecuter::listlocalpathsstartingby(string askedPath, bool 
     {
         if (!discardFiles || iter->status().type() == fs::file_type::directory)
         {
+#ifdef _WIN32
             wstring path = iter->path().wstring();
+#else
+            string path = iter->path().string();
+#endif
             if (removeprefix) path = path.substr(2);
             if (requiresseparatorafterunit) path.insert(2, 1, sep);
             if (iter->status().type() == fs::file_type::directory)
