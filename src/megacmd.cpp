@@ -412,6 +412,7 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     else if ("passwd" == thecommand)
     {
         validParams->insert("f");
+        validOptValues->insert("auth-code");
     }
     else if ("du" == thecommand)
     {
@@ -667,6 +668,7 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     else if ("login" == thecommand)
     {
         validOptValues->insert("clientID");
+        validOptValues->insert("auth-code");
     }
     else if ("reload" == thecommand)
     {
@@ -1406,11 +1408,11 @@ const char * getUsageStr(const char *command)
     {
         if (interactiveThread())
         {
-            return "login [email [password]] | exportedfolderurl#key | session";
+            return "login [--auth-code=XXXX] [email [password]] | exportedfolderurl#key | session";
         }
         else
         {
-            return "login email password | exportedfolderurl#key | session";
+            return "login [--auth-code=XXXX] email password | exportedfolderurl#key | session";
         }
     }
     if (!strcmp(command, "cancel"))
@@ -1697,11 +1699,11 @@ const char * getUsageStr(const char *command)
     {
         if (interactiveThread())
         {
-            return "passwd [-f] [newpassword]";
+            return "passwd [-f]  [--auth-code=XXXX] [newpassword]";
         }
         else
         {
-            return "passwd [-f] newpassword";
+            return "passwd [-f]  [--auth-code=XXXX] newpassword";
         }
     }
     if (!strcmp(command, "retry"))
@@ -1857,6 +1859,9 @@ string getHelpStr(const char *command)
         os << " You can log in either with email and password, with session ID," << endl;
         os << " or into a folder (an exported/public folder)" << endl;
         os << " If logging into a folder indicate url#key" << endl;
+        os << endl;
+        os << "Options:" << endl;
+        os << " --auth-code=XXXX" << "\t" << "Two-factor Authentication code. More info: https://mega.nz/blog_48" << endl;
     }
     else if (!strcmp(command, "cancel"))
     {
@@ -2575,7 +2580,7 @@ string getHelpStr(const char *command)
         os << endl;
         os << "Options:" << endl;
         os << " -f   " << "\t" << "Force (no asking)" << endl;
-
+        os << " --auth-code=XXXX" << "\t" << "Two-factor Authentication code. More info: https://mega.nz/blog_48" << endl;
     }
     else if (!strcmp(command, "reload"))
     {
