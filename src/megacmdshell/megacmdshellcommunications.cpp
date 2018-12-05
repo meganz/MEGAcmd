@@ -116,34 +116,6 @@ void stringtolocalw(const char* path, std::wstring* local)
     }
 }
 
-//override << operators for wostream for string and const char *
-
-std::wostream & operator<< ( std::wostream & ostr, std::string const & str )
-{
-    std::wstring toout;
-    stringtolocalw(str.c_str(),&toout);
-    ostr << toout;
-
-    return ( ostr );
-}
-
-std::wostream & operator<< ( std::wostream & ostr, const char * str )
-{
-    std::wstring toout;
-    stringtolocalw(str,&toout);
-    ostr << toout;
-    return ( ostr );
-}
-
-//override for the log. This is required for compiling, otherwise SimpleLog won't compile. FIXME
-std::ostringstream & operator<< ( std::ostringstream & ostr, std::wstring const &str)
-{
-    std::string s;
-    localwtostring(&str,&s);
-    ostr << s;
-    return ( ostr );
-}
-
 // convert Windows Unicode to UTF-8
 void utf16ToUtf8(const wchar_t* utf16data, int utf16size, string* utf8string)
 {

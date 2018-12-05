@@ -22,13 +22,16 @@ HEADERS +=     ../../../../sdk/include/mega/win32/autocomplete.h
 
 SOURCES += ../../../../src/megacmdshell/megacmdshell.cpp \
     ../../../../src/megacmdshell/megacmdshellcommunications.cpp \
-    ../../../../src/megacmdshell/megacmdshellcommunicationsnamedpipes.cpp
+    ../../../../src/megacmdshell/megacmdshellcommunicationsnamedpipes.cpp \
+    ../../../../src/megacmdcommonutils.cpp
 
 
 HEADERS += ../../../../src/megacmdshell/megacmdshell.h \
     ../../../../src/megacmdshell/megacmdshellcommunications.h \
     ../../../../src/megacmdshell/megacmdshellcommunicationsnamedpipes.h \
-    ../../../../sdk/include/mega/thread.h
+    ../../../../sdk/include/mega/thread.h \
+    ../../../../src/megacmdcommonutils.h
+
 
 INCLUDEPATH += ../../../../sdk/include
 

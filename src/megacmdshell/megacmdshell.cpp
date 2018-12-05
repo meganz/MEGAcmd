@@ -17,6 +17,7 @@
 #include "megacmdshell.h"
 #include "megacmdshellcommunications.h"
 #include "megacmdshellcommunicationsnamedpipes.h"
+#include "../megacmdcommonutils.h"
 
 #define USE_VARARGS
 #define PREFER_STDARG
@@ -74,29 +75,6 @@ CONSOLE_CLASS* console = NULL;
 
 
 // utility functions
-char * dupstr(char* s)
-{
-    char *r;
-
-    r = (char*)malloc(sizeof( char ) * ( strlen(s) + 1 ));
-    strcpy(r, s);
-    return( r );
-}
-
-void replaceAll(std::string& str, const std::string& from, const std::string& to)
-{
-    if (from.empty())
-    {
-        return;
-    }
-    size_t start_pos = 0;
-    while (( start_pos = str.find(from, start_pos)) != std::string::npos)
-    {
-        str.replace(start_pos, from.length(), to);
-        start_pos += to.length();
-    }
-}
-
 #ifndef NO_READLINE
 string getCurrentLine()
 {
@@ -107,24 +85,6 @@ string getCurrentLine()
     return toret;
 }
 #endif
-
-void sleepSeconds(int seconds)
-{
-#ifdef _WIN32
-    Sleep(1000*seconds);
-#else
-    sleep(seconds);
-#endif
-}
-
-void sleepMilliSeconds(long milliseconds)
-{
-#ifdef _WIN32
-    Sleep(milliseconds);
-#else
-    usleep(milliseconds *1000);
-#endif
-}
 
 vector<string> getlistOfWords(const char *ptr, bool ignoreTrailingSpaces = true)
 {
@@ -327,36 +287,36 @@ void console_setecho(bool echo)
 #endif
 }
 
-int getNumberOfCols(unsigned int defaultwidth=0)
-{
-    unsigned int width = defaultwidth;
-    int rows = 1, cols = width;
-#ifdef NO_READLINE
-    CONSOLE_SCREEN_BUFFER_INFO sbi;
-    BOOL ok = GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &sbi);
-    assert(ok);
-    if (ok)
-    {
-        cols = sbi.dwSize.X ;
-    }
-#elif defined( RL_ISSTATE ) && defined( RL_STATE_INITIALIZED )
+//int getNumberOfCols(unsigned int defaultwidth=0)
+//{
+//    unsigned int width = defaultwidth;
+//    int rows = 1, cols = width;
+//#ifdef NO_READLINE
+//    CONSOLE_SCREEN_BUFFER_INFO sbi;
+//    BOOL ok = GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &sbi);
+//    assert(ok);
+//    if (ok)
+//    {
+//        cols = sbi.dwSize.X ;
+//    }
+//#elif defined( RL_ISSTATE ) && defined( RL_STATE_INITIALIZED )
 
-    if (RL_ISSTATE(RL_STATE_INITIALIZED))
-    {
-        rl_resize_terminal();
-        rl_get_screen_size(&rows, &cols);
-    }
-#endif
+//    if (RL_ISSTATE(RL_STATE_INITIALIZED))
+//    {
+//        rl_resize_terminal();
+//        rl_get_screen_size(&rows, &cols);
+//    }
+//#endif
 
-    if (cols)
-    {
-        width = cols-2;
-#ifdef _WIN32
-        width--;
-#endif
-    }
-    return width;
-}
+//    if (cols)
+//    {
+//        width = cols-2;
+//#ifdef _WIN32
+//        width--;
+//#endif
+//    }
+//    return width;
+//}
 bool alreadyFinished = false; //flag to show progress
 float percentDowloaded = 0.0; // to show progress
 

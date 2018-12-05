@@ -107,36 +107,6 @@ void localwtostring(const std::wstring* wide, std::string *multibyte)
         WideCharToMultiByte(CP_UTF8, 0, wide->data(), (int)wide->size(), (char*)multibyte->data(), size_needed, NULL, NULL);
     }
 }
-
-//override << operators for wostream for string and const char *
-
-std::wostream & operator<< ( std::wostream & ostr, std::string const & str )
-{
-    std::wstring toout;
-    stringtolocalw(str.c_str(),&toout);
-    ostr << toout;
-
-return ( ostr );
-}
-
-std::wostream & operator<< ( std::wostream & ostr, const char * str )
-{
-    std::wstring toout;
-    stringtolocalw(str,&toout);
-    ostr << toout;
-    return ( ostr );
-}
-
-//override for the log. This is required for compiling, otherwise SimpleLog won't compile.
-std::ostringstream & operator<< ( std::ostringstream & ostr, std::wstring const &str)
-{
-    std::string s;
-    localwtostring(&str,&s);
-    ostr << s;
-    return ( ostr );
-}
-
-
 #endif
 
 #ifdef _WIN32
@@ -794,7 +764,7 @@ char * flags_completion(const char*text, int state)
     {
         validparams.clear();
         char *saved_line = strdup(getCurrentThreadLine().c_str());
-        vector<string> words = getlistOfWords(saved_line);
+        vector<string> words = getlistOfWords(saved_line, !getCurrentThreadIsCmdShell());
         free(saved_line);
         if (words.size())
         {
@@ -853,7 +823,7 @@ char * flags_value_completion(const char*text, int state)
         validValues.clear();
 
         char *saved_line = strdup(getCurrentThreadLine().c_str());
-        vector<string> words = getlistOfWords(saved_line);
+        vector<string> words = getlistOfWords(saved_line, !getCurrentThreadIsCmdShell());
         free(saved_line);
         saved_line = NULL;
         if (words.size() > 1)
@@ -1089,7 +1059,7 @@ char* nodeattrs_completion(const char* text, int state)
     {
         validAttrs.clear();
         char *saved_line = strdup(getCurrentThreadLine().c_str());
-        vector<string> words = getlistOfWords(saved_line);
+        vector<string> words = getlistOfWords(saved_line, !getCurrentThreadIsCmdShell());
         free(saved_line);
         saved_line = NULL;
         if (words.size() > 1)
@@ -2763,7 +2733,7 @@ void printAvailableCommands(int extensive = 0)
 
 void executecommand(char* ptr)
 {
-    vector<string> words = getlistOfWords(ptr);
+    vector<string> words = getlistOfWords(ptr, !getCurrentThreadIsCmdShell());
     if (!words.size())
     {
         return;
@@ -2827,7 +2797,7 @@ void executecommand(char* ptr)
         return;
     }
 
-    words = getlistOfWords(ptr,true); //Get words again ignoring trailing spaces (only reasonable for completion)
+    words = getlistOfWords(ptr, !getCurrentThreadIsCmdShell(), true); //Get words again ignoring trailing spaces (only reasonable for completion)
 
     map<string, string> cloptions;
     map<string, int> clflags;
@@ -3528,7 +3498,7 @@ void * retryConnections(void *pointer)
         int count = 100;
         while (!doExit && --count)
         {
-            sleepMicroSeconds(300);
+            sleepMilliSeconds(300);
         }
     }
     return NULL;

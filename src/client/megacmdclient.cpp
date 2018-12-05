@@ -16,6 +16,7 @@
  * program.
  */
 
+#include "../megacmdcommonutils.h"
 #include "../megacmdshell/megacmdshellcommunications.h"
 #include "../megacmdshell/megacmdshellcommunicationsnamedpipes.h"
 
@@ -54,32 +55,6 @@ using namespace std;
         (  std::ostringstream() << std::dec << x ) ).str()
 
 void printprogress(long long completed, long long total, const char *title = "TRANSFERRING");
-
-unsigned int getNumberOfCols(unsigned int defaultwidth)
-{
-#ifdef _WIN32
-    CONSOLE_SCREEN_BUFFER_INFO csbi;
-    int columns = defaultwidth;
-
-    if (GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi))
-    {
-        columns = csbi.srWindow.Right - csbi.srWindow.Left - 1;
-    }
-
-    return columns;
-#else
-    struct winsize size;
-    if ( ioctl(STDOUT_FILENO,TIOCGWINSZ,&size) != -1
-         || (ioctl(STDIN_FILENO,TIOCGWINSZ,&size) != -1))
-    {
-        if (size.ws_col > 2)
-        {
-            return size.ws_col - 2;
-        }
-    }
-#endif
-    return defaultwidth;
-}
 
 #ifdef _WIN32
 // convert UTF-8 to Windows Unicode
@@ -239,15 +214,6 @@ string getAbsPath(string relativePath)
 
 }
 
-void sleepMicroSeconds(long microseconds)
-{
-#ifdef _WIN32
-    Sleep(microseconds);
-#else
-    usleep(microseconds*1000);
-#endif
-}
-
 string parseArgs(int argc, char* argv[])
 {
     vector<string> absolutedargs;
@@ -264,7 +230,7 @@ string parseArgs(int argc, char* argv[])
             int waittime = 15000;
             while (waittime > 0 && !clientID.size())
             {
-                sleepMicroSeconds(100);
+                sleepMilliSeconds(100);
                 waittime -= 100;
             }
             if (clientID.size())
@@ -473,7 +439,7 @@ wstring parsewArgs(int argc, wchar_t* argv[])
             int waittime = 5000;
             while (waittime > 0 && !clientID.size())
             {
-                sleepMicroSeconds(100);
+                sleepMilliSeconds(100);
                 waittime -= 100;
             }
             if (clientID.size())
@@ -911,7 +877,7 @@ void statechangehandle(string statestring)
         else
         {
             //received unrecognized state change. sleep a while to avoid continuous looping
-            sleepMicroSeconds(1000);
+            sleepMilliSeconds(1000);
         }
     }
 }

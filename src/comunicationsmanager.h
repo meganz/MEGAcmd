@@ -20,6 +20,7 @@
 #define COMUNICATIONSMANAGER_H
 
 #include "megacmd.h"
+#include "megacmdcommonutils.h"
 
 static const int MAXCMDSTATELISTENERS = 300;
 

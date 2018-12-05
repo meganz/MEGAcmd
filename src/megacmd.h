@@ -30,35 +30,13 @@ using std::max;
 using std::min;
 using std::flush;
 using std::left;
-using std::setw;
 using std::cerr;
 using std::istringstream;
 using std::locale;
 using std::stringstream;
 using std::exception;
 
-#ifdef _WIN32
 
-#define OUTSTREAMTYPE std::wostream
-#define OUTSTRINGSTREAM std::wostringstream
-#define OUTSTRING std::wstring
-#define COUT std::wcout
-
-
-
-#include <string>
-std::wostream & operator<< ( std::wostream & ostr, std::string const & str );
-std::wostream & operator<< ( std::wostream & ostr, const char * str );
-std::ostringstream & operator<< ( std::ostringstream & ostr, std::wstring const &str);
-
-void localwtostring(const std::wstring* wide, std::string *multibyte);
-
-#else
-#define OUTSTREAMTYPE std::ostream
-#define OUTSTRINGSTREAM std::ostringstream
-#define OUTSTRING std::string
-#define COUT std::cout
-#endif
 
 #include "megaapi_impl.h"
 

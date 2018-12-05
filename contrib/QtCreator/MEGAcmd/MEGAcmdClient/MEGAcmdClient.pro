@@ -16,11 +16,13 @@ CONFIG += console
 
 SOURCES += ../../../../src/client/megacmdclient.cpp \
     ../../../../src/megacmdshell/megacmdshellcommunications.cpp \
-    ../../../../src/megacmdshell/megacmdshellcommunicationsnamedpipes.cpp
+    ../../../../src/megacmdshell/megacmdshellcommunicationsnamedpipes.cpp \
+    ../../../../src/megacmdcommonutils.cpp
 
 HEADERS += ../../../../src/megacmdshell/megacmdshellcommunications.h \
     ../../../../src/megacmdshell/megacmdshellcommunicationsnamedpipes.h \
-    ../../../../sdk/include/mega/thread.h
+    ../../../../sdk/include/mega/thread.h \
+    ../../../../src/megacmdcommonutils.h
 
 INCLUDEPATH += ../../../../sdk/include
 

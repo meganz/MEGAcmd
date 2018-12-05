@@ -34,7 +34,7 @@ static const char* const prompts[] =
 
 void sleepSeconds(int seconds);
 
-void sleepMicroSeconds(long microseconds);
+void sleepMilliSeconds(long milliseconds);
 
 void restoreprompt();
 
