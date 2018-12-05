@@ -32,25 +32,30 @@
 using std::setw;
 using std::left;
 
-
+/* platform dependent */
 #ifdef _WIN32
 
 #define OUTSTREAMTYPE std::wostream
 #define OUTSTRINGSTREAM std::wostringstream
 #define OUTSTRING std::wstring
 #define COUT std::wcout
+#define CERR std::wcerr
 
 std::wostream & operator<< ( std::wostream & ostr, std::string const & str );
 std::wostream & operator<< ( std::wostream & ostr, const char * str );
 std::ostringstream & operator<< ( std::ostringstream & ostr, std::wstring const &str);
 
+void stringtolocalw(const char* path, std::wstring* local);
 void localwtostring(const std::wstring* wide, std::string *multibyte);
+void utf16ToUtf8(const wchar_t* utf16data, int utf16size, std::string* utf8string);
 
 #else
 #define OUTSTREAMTYPE std::ostream
 #define OUTSTRINGSTREAM std::ostringstream
 #define OUTSTRING std::string
 #define COUT std::cout
+#define CERR std::cerr
+
 #endif
 
 #define OUTSTREAM COUT
@@ -73,6 +78,8 @@ bool hasWildCards(std::string &what);
 
 
 /* Strings related */
+
+long long charstoll(const char *instr);
 
 // trim from start
 std::string &ltrim(std::string &s, const char &c);
@@ -115,6 +122,12 @@ OUTSTRING getRightAlignedStr(T what, int n)
     return os.str();
 }
 
+void printCenteredLine(std::string msj, unsigned int width, bool encapsulated = true);
+void printCenteredContents(std::string msj, unsigned int width, bool encapsulated = true);
+void printCenteredContentsCerr(std::string msj, unsigned int width, bool encapsulated = true);
+void printCenteredLine(OUTSTREAMTYPE &os, std::string msj, unsigned int width, bool encapsulated = true);
+void printCenteredContents(OUTSTREAMTYPE &os, std::string msj, unsigned int width, bool encapsulated = true);
+
 /* Flags and Options */
 int getFlag(std::map<std::string, int> *flags, const char * optname);
 
@@ -122,10 +135,11 @@ std::string getOption(std::map<std::string, std::string> *cloptions, const char 
 
 int getintOption(std::map<std::string, std::string> *cloptions, const char * optname, int defaultValue = 0);
 
+void discardOptionsAndFlags(std::vector<std::string> *ws);
+
 //This has been defined in megacmdutils.h because it depends on logging. If ever require offer a version without it here
 //bool setOptionsAndFlags(map<string, string> *opts, map<string, int> *flags, vector<string> *ws, set<string> vvalidOptions, bool global)
 
-bool getMinAndMaxSize(std::string sizestring, int64_t *minSize, int64_t *maxSize);
 
 /* Others */
 std::string sizeToText(long long totalSize, bool equalizeUnitsLength = true, bool humanreadable = true);

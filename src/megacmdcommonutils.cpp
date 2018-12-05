@@ -64,6 +64,55 @@ std::ostringstream & operator<< ( std::ostringstream & ostr, std::wstring const 
     return ( ostr );
 }
 
+// convert UTF-8 to Windows Unicode wstring
+void stringtolocalw(const char* path, std::wstring* local)
+{
+    // make space for the worst case
+    local->resize((strlen(path) + 1) * sizeof(wchar_t));
+
+    int wchars_num = MultiByteToWideChar(CP_UTF8, 0, path,-1, NULL,0);
+    local->resize(wchars_num);
+
+    int len = MultiByteToWideChar(CP_UTF8, 0, path,-1, (wchar_t*)local->data(), wchars_num);
+
+    if (len)
+    {
+        local->resize(len-1);
+    }
+    else
+    {
+        local->clear();
+    }
+}
+
+//widechar to utf8 string
+void localwtostring(const std::wstring* wide, std::string *multibyte)
+{
+    if( !wide->empty() )
+    {
+        int size_needed = WideCharToMultiByte(CP_UTF8, 0, wide->data(), (int)wide->size(), NULL, 0, NULL, NULL);
+        multibyte->resize(size_needed);
+        WideCharToMultiByte(CP_UTF8, 0, wide->data(), (int)wide->size(), (char*)multibyte->data(), size_needed, NULL, NULL);
+    }
+}
+
+// convert Windows Unicode to UTF-8
+void utf16ToUtf8(const wchar_t* utf16data, int utf16size, string* utf8string)
+{
+    if(!utf16size)
+    {
+        utf8string->clear();
+        return;
+    }
+
+    utf8string->resize((utf16size + 1) * 4);
+
+    utf8string->resize(WideCharToMultiByte(CP_UTF8, 0, utf16data,
+        utf16size,
+        (char*)utf8string->data(),
+        int(utf8string->size() + 1),
+        NULL, NULL));
+}
 
 #endif
 
@@ -103,6 +152,17 @@ bool isEncryptedLink(string link)
 bool hasWildCards(string &what)
 {
     return what.find('*') != string::npos || what.find('?') != string::npos;
+}
+
+long long charstoll(const char *instr)
+{
+  long long retval;
+
+  retval = 0;
+  for (; *instr; instr++) {
+    retval = 10*retval + (*instr - '0');
+  }
+  return retval;
 }
 
 std::string &ltrim(std::string &s, const char &c)
@@ -382,6 +442,103 @@ string getRightAlignedString(const string origin, unsigned int minsize)
     return os.str();
 }
 
+void printCenteredLine(OUTSTREAMTYPE &os, string msj, unsigned int width, bool encapsulated)
+{
+    if (msj.size()>width)
+    {
+        width = unsigned(msj.size());
+    }
+    if (encapsulated)
+        os << "|";
+    for (unsigned int i = 0; i < (width-msj.size())/2; i++)
+        os << " ";
+    os << msj;
+    for (unsigned int i = 0; i < (width-msj.size())/2 + (width-msj.size())%2 ; i++)
+        os << " ";
+    if (encapsulated)
+        os << "|";
+    os << endl;
+}
+
+void printCenteredContents(OUTSTREAMTYPE &os, string msj, unsigned int width, bool encapsulated)
+{
+    size_t possepnewline = msj.find("\n");
+    size_t possep = msj.find(" ");
+
+    if (possepnewline != string::npos && possepnewline < width)
+    {
+        possep = possepnewline;
+    }
+    size_t possepprev = possep;
+
+    string headfoot = " ";
+    headfoot.append(width, '-');
+    if (msj.size())
+    {
+        os << headfoot << endl;
+    }
+
+    while (msj.size())
+    {
+
+        if (possepnewline != string::npos && possepnewline <= width)
+        {
+            possep = possepnewline;
+            possepprev = possep;
+        }
+        else
+        {
+            while (possep < width && possep != string::npos)
+            {
+                possepprev = possep;
+                possep = msj.find_first_of(" ", possep+1);
+            }
+        }
+
+        if (possep == string::npos)
+        {
+            printCenteredLine(os, msj, width, encapsulated);
+            break;
+        }
+        else
+        {
+            printCenteredLine(os, msj.substr(0,possepprev), width, encapsulated);
+            if (possepprev < (msj.size() - 1))
+            {
+                msj = msj.substr(possepprev+1);
+                possepnewline = msj.find("\n");
+            }
+            else
+            {
+                break;
+            }
+        }
+    }
+    os << headfoot << endl;
+}
+
+void printCenteredLine(string msj, unsigned int width, bool encapsulated)
+{
+    OUTSTRINGSTREAM os;
+    printCenteredLine(os, msj, width, encapsulated);
+    COUT << os.str();
+}
+
+void printCenteredContents(string msj, unsigned int width, bool encapsulated)
+{
+    OUTSTRINGSTREAM os;
+    printCenteredContents(os, msj, width, encapsulated);
+    COUT << os.str();
+}
+
+void printCenteredContentsCerr(string msj, unsigned int width, bool encapsulated)
+{
+    OUTSTRINGSTREAM os;
+    printCenteredContents(os, msj, width, encapsulated);
+    CERR << os.str();
+}
+
+
 int getFlag(map<string, int> *flags, const char * optname)
 {
     return flags->count(optname) ? ( *flags )[optname] : 0;
@@ -407,7 +564,22 @@ int getintOption(map<string, string> *cloptions, const char * optname, int defau
     }
 }
 
-
+void discardOptionsAndFlags(vector<string> *ws)
+{
+    for (std::vector<string>::iterator it = ws->begin(); it != ws->end(); )
+    {
+        /* std::cout << *it; ... */
+        string w = ( string ) * it;
+        if (w.length() && ( w.at(0) == '-' )) //begins with "-"
+        {
+            it = ws->erase(it);
+        }
+        else //not an option/flag
+        {
+            ++it;
+        }
+    }
+}
 
 string sizeProgressToText(long long partialSize, long long totalSize, bool equalizeUnitsLength, bool humanreadable)
 {

@@ -86,135 +86,10 @@ string getCurrentLine()
 }
 #endif
 
-vector<string> getlistOfWords(const char *ptr, bool ignoreTrailingSpaces = true)
-{
-    vector<string> words;
-
-    const char* wptr;
-
-    // split line into words with quoting and escaping
-    for (;; )
-    {
-        // skip leading blank space
-        while (*(const signed char*)ptr > 0 && *ptr <= ' ' && (ignoreTrailingSpaces || *(ptr+1)))
-        {
-            ptr++;
-        }
-
-        if (!*ptr)
-        {
-            break;
-        }
-
-        // quoted arg / regular arg
-        if (*ptr == '"')
-        {
-            ptr++;
-            wptr = ptr;
-            words.push_back(string());
-
-            for (;; )
-            {
-                if (( *ptr == '"' ) || ( *ptr == '\\' ) || !*ptr)
-                {
-                    words[words.size() - 1].append(wptr, ptr - wptr);
-
-                    if (!*ptr || ( *ptr++ == '"' ))
-                    {
-                        break;
-                    }
-
-                    wptr = ptr - 1;
-                }
-                else
-                {
-                    ptr++;
-                }
-            }
-        }
-        else if (*ptr == '\'') // quoted arg / regular arg
-        {
-            ptr++;
-            wptr = ptr;
-            words.push_back(string());
-
-            for (;; )
-            {
-                if (( *ptr == '\'' ) || ( *ptr == '\\' ) || !*ptr)
-                {
-                    words[words.size() - 1].append(wptr, ptr - wptr);
-
-                    if (!*ptr || ( *ptr++ == '\'' ))
-                    {
-                        break;
-                    }
-
-                    wptr = ptr - 1;
-                }
-                else
-                {
-                    ptr++;
-                }
-            }
-        }
-        else
-        {
-            while (*ptr == ' ') ptr++;// only possible if ptr+1 is the end
-
-            wptr = ptr;
-
-            const char *prev = ptr;
-            //while ((unsigned char)*ptr > ' ')
-            while ((*ptr != '\0') && !(*ptr ==' ' && *prev !='\\'))
-            {
-                if (*ptr == '"')
-                {
-                    while (*++ptr != '"' && *ptr != '\0')
-                    { }
-                }
-                prev=ptr;
-                ptr++;
-            }
-
-            words.push_back(string(wptr, ptr - wptr));
-        }
-    }
-
-    return words;
-}
-
-void discardOptionsAndFlags(vector<string> *ws)
-{
-    for (std::vector<string>::iterator it = ws->begin(); it != ws->end(); )
-    {
-        /* std::cout << *it; ... */
-        string w = ( string ) * it;
-        if (w.length() && ( w.at(0) == '-' )) //begins with "-"
-        {
-            it = ws->erase(it);
-        }
-        else //not an option/flag
-        {
-            ++it;
-        }
-    }
-}
-
 
 // end utily functions
 
 string clientID; //identifier for a registered state listener
-
-long long charstoll(const char *instr)
-{
-  long long retval;
-
-  retval = 0;
-  for (; *instr; instr++) {
-    retval = 10*retval + (*instr - '0');
-  }
-  return retval;
-}
 
 // Console related functions:
 void console_readpwchar(char* pw_buf, int pw_buf_size, int* pw_buf_pos, char** line)
@@ -358,8 +233,6 @@ MegaCmdShellCommunications *comms;
 MUTEX_CLASS mutexPrompt(false);
 
 void printWelcomeMsg(unsigned int width = 0);
-void printCenteredLine(string msj, unsigned int width, bool encapsulated = true);
-void printCenteredContents(string msj, unsigned int width, bool encapsulated = true);
 
 void statechangehandle(string statestring)
 {
@@ -1459,7 +1332,7 @@ void process_line(const char * line)
             line = refactoredline.c_str();
 #endif
 
-            vector<string> words = getlistOfWords(line);
+            vector<string> words = getlistOfWords((char *)line);
             bool helprequested = false;
             for (unsigned int i = 1; i< words.size(); i++)
             {
@@ -2066,83 +1939,6 @@ public:
     }
 };
 
-void printCenteredLine(string msj, unsigned int width, bool encapsulated)
-{
-    if (msj.size()>width)
-    {
-        width = unsigned(msj.size());
-    }
-    if (encapsulated)
-        COUT << "|";
-    for (unsigned int i = 0; i < (width-msj.size())/2; i++)
-        COUT << " ";
-    COUT << msj;
-    for (unsigned int i = 0; i < (width-msj.size())/2 + (width-msj.size())%2 ; i++)
-        COUT << " ";
-    if (encapsulated)
-        COUT << "|";
-    COUT << endl;
-}
-
-void printCenteredContents(string msj, unsigned int width, bool encapsulated)
-{
-    size_t possepnewline = msj.find("\n");
-    size_t possep = msj.find(" ");
-
-    if (possepnewline != string::npos && possepnewline < width)
-    {
-        possep = possepnewline;
-    }
-    size_t possepprev = possep;
-
-
-
-    string headfoot = " ";
-    headfoot.append(width, '-');
-    if (msj.size())
-    {
-        COUT << headfoot << endl;
-    }
-
-    while (msj.size())
-    {
-
-        if (possepnewline != string::npos && possepnewline <= width)
-        {
-            possep = possepnewline;
-            possepprev = possep;
-        }
-        else
-        {
-            while (possep < width && possep != string::npos)
-            {
-                possepprev = possep;
-                possep = msj.find_first_of(" ", possep+1);
-            }
-        }
-
-        if (possep == string::npos)
-        {
-            printCenteredLine(msj, width, encapsulated);
-            break;
-        }
-        else
-        {
-            printCenteredLine(msj.substr(0,possepprev), width, encapsulated);
-            if (possepprev < (msj.size() - 1))
-            {
-                msj = msj.substr(possepprev+1);
-                possepnewline = msj.find("\n");
-            }
-            else
-            {
-                break;
-            }
-        }
-    }
-    COUT << headfoot << endl;
-}
-
 void printWelcomeMsg(unsigned int width)
 {
     if (!width)
@@ -2196,7 +1992,6 @@ int quote_detector(char *line, int index)
         !quote_detector(line, index - 1)
     );
 }
-
 
 bool runningInBackground()
 {

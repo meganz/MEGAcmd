@@ -57,14 +57,6 @@ class MegaThread : public ::mega::PosixThread {};
 typedef int SOCKET;
 #endif
 
-
-#ifdef _WIN32
-void stringtolocalw(const char* path, std::wstring* local);
-void localwtostring(const std::wstring* wide, std::string *multibyte);
-void utf16ToUtf8(const wchar_t* utf16data, int utf16size, std::string* utf8string);
-#endif
-
-
 #ifdef _WIN32
 #include <windows.h>
 #define ERRNO WSAGetLastError()

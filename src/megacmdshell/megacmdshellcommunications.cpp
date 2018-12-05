@@ -81,60 +81,6 @@ bool MegaCmdShellCommunications::updating;
 ::mega::Thread *MegaCmdShellCommunications::listenerThread;
 SOCKET MegaCmdShellCommunications::newsockfd = INVALID_SOCKET;
 
-#ifdef _WIN32
-// UNICODE SUPPORT FOR WINDOWS
-
-//widechar to utf8 string
-void localwtostring(const std::wstring* wide, std::string *multibyte)
-{
-    if( !wide->empty() )
-    {
-        int size_needed = WideCharToMultiByte(CP_UTF8, 0, wide->data(), (int)wide->size(), NULL, 0, NULL, NULL);
-        multibyte->resize(size_needed);
-        WideCharToMultiByte(CP_UTF8, 0, wide->data(), (int)wide->size(), (char*)multibyte->data(), size_needed, NULL, NULL);
-    }
-}
-
-// convert UTF-8 to Windows Unicode wstring
-void stringtolocalw(const char* path, std::wstring* local)
-{
-    // make space for the worst case
-    local->resize((strlen(path) + 1) * sizeof(wchar_t));
-
-    int wchars_num = MultiByteToWideChar(CP_UTF8, 0, path,-1, NULL,0);
-    local->resize(wchars_num);
-
-    int len = MultiByteToWideChar(CP_UTF8, 0, path,-1, (wchar_t*)local->data(), wchars_num);
-
-    if (len)
-    {
-        local->resize(len-1);
-    }
-    else
-    {
-        local->clear();
-    }
-}
-
-// convert Windows Unicode to UTF-8
-void utf16ToUtf8(const wchar_t* utf16data, int utf16size, string* utf8string)
-{
-    if(!utf16size)
-    {
-        utf8string->clear();
-        return;
-    }
-
-    utf8string->resize((utf16size + 1) * 4);
-
-    utf8string->resize(WideCharToMultiByte(CP_UTF8, 0, utf16data,
-        utf16size,
-        (char*)utf8string->data(),
-        int(utf8string->size() + 1),
-        NULL, NULL));
-}
-#endif
-
 bool MegaCmdShellCommunications::socketValid(SOCKET socket)
 {
 #ifdef _WIN32
@@ -151,7 +97,6 @@ void MegaCmdShellCommunications::closeSocket(SOCKET socket){
     close(socket);
 #endif
 }
-
 
 string createAndRetrieveConfigFolder()
 {

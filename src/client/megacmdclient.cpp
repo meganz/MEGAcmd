@@ -630,18 +630,6 @@ std::string readresponse(const char *question)
     return response;
 }
 
-
-long long charstoll(const char *instr)
-{
-  long long retval;
-
-  retval = 0;
-  for (; *instr; instr++) {
-    retval = 10*retval + (*instr - '0');
-  }
-  return retval;
-}
-
 void printprogress(long long completed, long long total, const char *title)
 {
     static bool alreadyFinished = false; //flag to show progress
@@ -712,85 +700,6 @@ void printprogress(long long completed, long long total, const char *title)
     }
 }
 
-
-void printCenteredLine(ostringstream &os, string msj, unsigned int width, bool encapsulated = true)
-{
-    if (msj.size()>width)
-    {
-        width = unsigned(msj.size());
-    }
-    if (encapsulated)
-        os << "|";
-    for (unsigned int i = 0; i < (width-msj.size())/2; i++)
-        os << " ";
-    os << msj;
-    for (unsigned int i = 0; i < (width-msj.size())/2 + (width-msj.size())%2 ; i++)
-        os << " ";
-    if (encapsulated)
-        os << "|";
-    os << endl;
-}
-
-void printCenteredContents(string msj, unsigned int width, bool encapsulated = true)
-{
-    ostringstream os;
-    size_t possepnewline = msj.find("\n");
-    size_t possep = msj.find(" ");
-
-    if (possepnewline != string::npos && possepnewline < width)
-    {
-        possep = possepnewline;
-    }
-    size_t possepprev = possep;
-
-    string headfoot = " ";
-    headfoot.append(width, '-');
-    if (msj.size())
-    {
-        os << headfoot << endl;
-    }
-
-    while (msj.size())
-    {
-
-        if (possepnewline != string::npos && possepnewline <= width)
-        {
-            possep = possepnewline;
-            possepprev = possep;
-        }
-        else
-        {
-            while (possep < width && possep != string::npos)
-            {
-                possepprev = possep;
-                possep = msj.find_first_of(" ", possep+1);
-            }
-        }
-
-        if (possep == string::npos)
-        {
-            printCenteredLine(os, msj, width, encapsulated);
-            break;
-        }
-        else
-        {
-            printCenteredLine(os, msj.substr(0,possepprev), width, encapsulated);
-            if (possepprev < (msj.size() - 1))
-            {
-                msj = msj.substr(possepprev+1);
-                possepnewline = msj.find("\n");
-            }
-            else
-            {
-                break;
-            }
-        }
-    }
-    os << headfoot << endl;
-    cerr << os.str();
-}
-
-
 void statechangehandle(string statestring)
 {
     char statedelim[2]={(char)0x1F,'\0'};
@@ -811,7 +720,7 @@ void statechangehandle(string statestring)
             unsigned int width = getNumberOfCols(80);
             if (contents.find("-----") != 0)
             {
-                printCenteredContents(contents, width - 1);
+                printCenteredContentsCerr(contents, width - 1);
             }
             else
             {
