@@ -950,7 +950,8 @@ void unescapeifRequired(string &what)
     }
 }
 
-char* remotepaths_completion(const char* text, int state)
+
+char* remotepaths_completion(const char* text, int state, bool onlyfolders)
 {
     static vector<string> validpaths;
     if (state == 0)
@@ -970,7 +971,7 @@ char* remotepaths_completion(const char* text, int state)
 
         unescapeEspace(wildtext);
 
-        validpaths = cmdexecuter->listpaths(usepcre, wildtext);
+        validpaths = cmdexecuter->listpaths(usepcre, wildtext, onlyfolders);
 
         // we need to escape '\' to fit what's done when parsing words
         if (!getCurrentThreadIsCmdShell())
@@ -985,26 +986,14 @@ char* remotepaths_completion(const char* text, int state)
     return generic_completion(text, state, validpaths);
 }
 
+char* remotepaths_completion(const char* text, int state)
+{
+    return remotepaths_completion(text, state, false);
+}
+
 char* remotefolders_completion(const char* text, int state)
 {
-    static vector<string> validpaths;
-    if (state == 0)
-    {
-        string wildtext(text);
-        bool usepcre = false; //pcre makes no sense in paths completion
-        if (usepcre)
-        {
-#ifdef USE_PCRE
-        wildtext += ".";
-#elif __cplusplus >= 201103L
-        wildtext += ".";
-#endif
-        }
-        wildtext += "*";
-
-        validpaths = cmdexecuter->listpaths(usepcre, wildtext, true);
-    }
-    return generic_completion(text, state, validpaths);
+    return remotepaths_completion(text, state, true);
 }
 
 char* loglevels_completion(const char* text, int state)
