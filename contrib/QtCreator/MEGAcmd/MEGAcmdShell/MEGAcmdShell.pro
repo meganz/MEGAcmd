@@ -15,6 +15,7 @@ TEMPLATE = app
 CONFIG += console
 
 win32 {
+CONFIG += USE_AUTOCOMPLETE
 DEFINES += NO_READLINE
 include(../../../../sdk/bindings/qt/sdk.pri) #This is required to have console.cpp included: avoiding this is rather complicated
 HEADERS +=     ../../../../sdk/include/mega/win32/autocomplete.h
@@ -60,8 +61,7 @@ else{
 }
 
 win32 {
-SOURCES += ../../../../sdk/src/win32/autocomplete.cpp \
-    ../../../../sdk/src/win32/console.cpp \
+SOURCES += ../../../../sdk/src/win32/console.cpp \
     ../../../../sdk/src/thread/win32thread.cpp \
     ../../../../sdk/src/logging.cpp
 HEADERS +=  ../../../../sdk/include/mega/win32thread.h \

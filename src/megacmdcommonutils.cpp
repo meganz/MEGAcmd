@@ -19,6 +19,8 @@
 #include "megacmdcommonutils.h"
 
 #ifdef _WIN32
+#include <Shlwapi.h> //PathAppend
+#include <Shellapi.h> //CommandLineToArgvW
 #else
 #include <sys/ioctl.h> // console size
 #include <unistd.h>

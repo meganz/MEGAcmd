@@ -12,6 +12,7 @@ CONFIG -= qt
 
 win32 {
 TARGET = MEGAcmdServer
+CONFIG += USE_AUTOCOMPLETE
 }
 else {
 TARGET = MEGAcmd
