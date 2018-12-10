@@ -128,6 +128,8 @@ void printCenteredContentsCerr(std::string msj, unsigned int width, bool encapsu
 void printCenteredLine(OUTSTREAMTYPE &os, std::string msj, unsigned int width, bool encapsulated = true);
 void printCenteredContents(OUTSTREAMTYPE &os, std::string msj, unsigned int width, bool encapsulated = true);
 
+void printPercentageLineCerr(const char *title, long long completed, long long total, float percentDowloaded, bool cleanLineAfter = true);
+
 /* Flags and Options */
 int getFlag(std::map<std::string, int> *flags, const char * optname);
 

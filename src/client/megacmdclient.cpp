@@ -634,21 +634,6 @@ void printprogress(long long completed, long long total, const char *title)
 {
     static bool alreadyFinished = false; //flag to show progress
     static float percentDowloaded = 0.0;
-    int cols = getNumberOfCols(80);
-
-    string outputString;
-    outputString.resize(cols + 1);
-    for (int i = 0; i < cols; i++)
-    {
-        outputString[i] = '.';
-    }
-
-    outputString[cols] = '\0';
-    char *ptr = (char *)outputString.c_str();
-    sprintf(ptr, "%s%s", title, " ||");
-    ptr += strlen(title);
-    ptr += strlen(" ||");
-    *ptr = '.'; //replace \0 char
 
     float oldpercent = percentDowloaded;
     if (total == 0)
@@ -668,7 +653,6 @@ void printprogress(long long completed, long long total, const char *title)
         percentDowloaded = 0;
     }
 
-    char aux[41];
     if (total < 0)
     {
         return; // after a 100% this happens
@@ -683,21 +667,8 @@ void printprogress(long long completed, long long total, const char *title)
         completed = total;
         percentDowloaded = 100;
     }
-    sprintf(aux,"||(%lld/%lld MB: %6.2f %%) ", completed / 1024 / 1024, total / 1024 / 1024, percentDowloaded);
-    sprintf((char *)outputString.c_str() + cols - strlen(aux), "%s",                         aux);
-    for (int i = 0; i < ( cols - (strlen(title) + strlen(" ||")) - strlen(aux)) * 1.0 * min(100.0f,percentDowloaded) / 100.0; i++)
-    {
-        *ptr++ = '#';
-    }
 
-    if (alreadyFinished)
-    {
-        cerr << outputString << endl;
-    }
-    else
-    {
-        cerr << outputString << '\r' << flush;
-    }
+    printPercentageLineCerr(title, completed, total, percentDowloaded, !alreadyFinished);
 }
 
 void statechangehandle(string statestring)

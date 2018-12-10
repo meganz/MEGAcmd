@@ -162,39 +162,8 @@ void console_setecho(bool echo)
 #endif
 }
 
-//int getNumberOfCols(unsigned int defaultwidth=0)
-//{
-//    unsigned int width = defaultwidth;
-//    int rows = 1, cols = width;
-//#ifdef NO_READLINE
-//    CONSOLE_SCREEN_BUFFER_INFO sbi;
-//    BOOL ok = GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &sbi);
-//    assert(ok);
-//    if (ok)
-//    {
-//        cols = sbi.dwSize.X ;
-//    }
-//#elif defined( RL_ISSTATE ) && defined( RL_STATE_INITIALIZED )
-
-//    if (RL_ISSTATE(RL_STATE_INITIALIZED))
-//    {
-//        rl_resize_terminal();
-//        rl_get_screen_size(&rows, &cols);
-//    }
-//#endif
-
-//    if (cols)
-//    {
-//        width = cols-2;
-//#ifdef _WIN32
-//        width--;
-//#endif
-//    }
-//    return width;
-//}
 bool alreadyFinished = false; //flag to show progress
 float percentDowloaded = 0.0; // to show progress
-
 
 // password change-related state information
 string oldpasswd;
@@ -364,25 +333,8 @@ void sigint_handler(int signum)
 #endif
 }
 
-
 void printprogress(long long completed, long long total, const char *title)
 {
-    int cols = getNumberOfCols(80);
-
-    string outputString;
-    outputString.resize(cols + 1);
-    for (int i = 0; i < cols; i++)
-    {
-        outputString[i] = '.';
-    }
-
-    outputString[cols] = '\0';
-    char *ptr = (char *)outputString.c_str();
-    sprintf(ptr, "%s%s", title, " ||");
-    ptr += strlen(title);
-    ptr += strlen(" ||");
-    *ptr = '.'; //replace \0 char
-
     float oldpercent = percentDowloaded;
     if (total == 0)
     {
@@ -401,7 +353,6 @@ void printprogress(long long completed, long long total, const char *title)
         percentDowloaded = 0;
     }
 
-    char aux[41];
     if (total < 0)
     {
         return; // after a 100% this happens
@@ -416,22 +367,7 @@ void printprogress(long long completed, long long total, const char *title)
         completed = total;
         percentDowloaded = 100;
     }
-    sprintf(aux,"||(%lld/%lld MB: %6.2f %%) ", completed / 1024 / 1024, total / 1024 / 1024, percentDowloaded);
-    sprintf((char *)outputString.c_str() + cols - strlen(aux), "%s",                         aux);
-    for (int i = 0; i < ( cols - (strlen(title) + strlen(" ||")) - strlen(aux)) * 1.0 * min(100.0f,percentDowloaded) / 100.0; i++)
-    {
-        *ptr++ = '#';
-    }
-
-    if (alreadyFinished)
-    {
-        cerr << outputString << endl;
-    }
-    else
-    {
-        cerr << outputString << '\r' << flush;
-    }
-
+    printPercentageLineCerr(title, completed, total, percentDowloaded, !alreadyFinished);
 }
 
 
@@ -769,13 +705,6 @@ char* generic_completion(const char* text, int state, vector<string> validOption
     return((char*)NULL );
 }
 #endif
-
-
-inline bool ends_with(std::string const & value, std::string const & ending)
-{
-    if (ending.size() > value.size()) return false;
-    return std::equal(ending.rbegin(), ending.rend(), value.rbegin());
-}
 
 char* local_completion(const char* text, int state)
 {

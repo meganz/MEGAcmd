@@ -538,6 +538,41 @@ void printCenteredContentsCerr(string msj, unsigned int width, bool encapsulated
     CERR << os.str();
 }
 
+void printPercentageLineCerr(const char *title, long long completed, long long total, float percentDowloaded, bool cleanLineAfter)
+{
+    int cols = getNumberOfCols(80);
+
+    string outputString;
+    outputString.resize(cols + 1);
+    for (int i = 0; i < cols; i++)
+    {
+        outputString[i] = '.';
+    }
+
+    outputString[cols] = '\0';
+    char *ptr = (char *)outputString.c_str();
+    sprintf(ptr, "%s%s", title, " ||");
+    ptr += strlen(title);
+    ptr += strlen(" ||");
+    *ptr = '.'; //replace \0 char
+
+    char aux[41];
+    sprintf(aux,"||(%lld/%lld MB: %6.2f %%) ", completed / 1024 / 1024, total / 1024 / 1024, percentDowloaded);
+    sprintf((char *)outputString.c_str() + cols - strlen(aux), "%s",                         aux);
+    for (int i = 0; i < ( cols - (strlen(title) + strlen(" ||")) - strlen(aux)) * 1.0 * min(100.0f,percentDowloaded) / 100.0; i++)
+    {
+        *ptr++ = '#';
+    }
+
+    if (cleanLineAfter)
+    {
+        cerr << outputString << '\r' << flush;
+    }
+    else
+    {
+        cerr << outputString << endl;
+    }
+}
 
 int getFlag(map<string, int> *flags, const char * optname)
 {
