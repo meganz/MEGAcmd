@@ -2,7 +2,7 @@
  * @file src/megacmdutils.h
  * @brief MEGAcmd: Auxiliary methods
  *
- * (c) 2013-2016 by Mega Limited, Auckland, New Zealand
+ * (c) 2013 by Mega Limited, Auckland, New Zealand
  *
  * This file is part of the MEGAcmd.
  *
@@ -19,7 +19,10 @@
 #ifndef MEGACMDUTILS_H
 #define MEGACMDUTILS_H
 
+#include "megacmdcommonutils.h"
 #include "megacmd.h"
+
+#include <string>
 
 using ::mega::m_time_t;
 
@@ -59,19 +62,9 @@ const char * getTransferStateStr(int transferState);
 std::string backupSatetStr(int backupstate);
 
 
-
 /* Files and folders */
 
-bool canWrite(std::string path);
-
 int getLinkType(std::string link);
-
-bool isPublicLink(std::string link);
-
-bool isEncryptedLink(std::string link);
-
-bool hasWildCards(std::string &what);
-
 
 /* Time related */
 const char *fillStructWithSYYmdHMS(std::string &stime, struct tm &dt);
@@ -90,6 +83,8 @@ enum MegaCmdStrfTimeFormatId
 const char *getTimeFormatFromSTR(std::string formatName);
 const char *getFormatStrFromId(int strftimeformatid);
 const char *getTimeFormatNameFromId(int strftimeformatid);
+std::string secondsToText(m_time_t seconds, bool humanreadable = true);
+
 std::string getReadableTime(const m_time_t rawtime, const char* strftimeformat);
 std::string getReadableTime(const m_time_t rawtime, int strftimeformatid = MCMDTIME_RFC2822);
 std::string getReadableShortTime(const m_time_t rawtime, bool showUTCDeviation = false);
@@ -110,106 +105,25 @@ bool getMinAndMaxTime(m_time_t initial, std::string m_timestring, m_time_t *minT
 
 
 /* Strings related */
-
-// trim from start
-std::string &ltrim(std::string &s, const char &c);
-
-// trim at the end
-std::string &rtrim(std::string &s, const char &c);
-
-std::vector<std::string> getlistOfWords(char *ptr, bool ignoreTrailingSpaces = false);
-
-bool stringcontained(const char * s, std::vector<std::string> list);
-
-char * dupstr(char* s);
-
-bool replace(std::string& str, const std::string& from, const std::string& to);
-
-void replaceAll(std::string& str, const std::string& from, const std::string& to);
-
 bool isRegExp(std::string what);
 
 std::string unquote(std::string what);
 
+bool megacmdWildcardMatch(const char *pszString, const char *pszMatch);
+
 bool patternMatches(const char *what, const char *pattern, bool usepcre);
-
-int toInteger(std::string what, int failValue = -1);
-
-std::string joinStrings(const std::vector<std::string>& vec, const char* delim = " ", bool quoted=true);
-
-std::string getFixLengthString(const std::string origin, unsigned int size, const char delimm=' ', bool alignedright = false);
-
-std::string getRightAlignedString(const std::string origin, unsigned int minsize);
-
-
-template<typename T>
-OUTSTRING getLeftAlignedStr(T what, int n)
-{
-    OUTSTRINGSTREAM os;
-    os << setw(n) << left << what;
-    return os.str();
-}
-
-
-template<typename T>
-OUTSTRING getRightAlignedStr(T what, int n)
-{
-    OUTSTRINGSTREAM os;
-    os << setw(n) << what;
-    return os.str();
-}
 
 bool nodeNameIsVersion(std::string &nodeName);
 
+
 /* Flags and Options */
-int getFlag(std::map<std::string, int> *flags, const char * optname);
-
-std::string getOption(std::map<std::string, std::string> *cloptions, const char * optname, std::string defaultValue = "");
-
-int getintOption(std::map<std::string, std::string> *cloptions, const char * optname, int defaultValue = 0);
-
 bool setOptionsAndFlags(std::map<std::string, std::string> *opts, std::map<std::string, int> *flags, std::vector<std::string> *ws,
                         std::set<std::string> vvalidOptions, bool global = false);
 
 bool getMinAndMaxSize(std::string sizestring, int64_t *minSize, int64_t *maxSize);
 
 /* Others */
-std::string sizeToText(long long totalSize, bool equalizeUnitsLength = true, bool humanreadable = true);
-std::string sizeProgressToText(long long partialSize, long long totalSize, bool equalizeUnitsLength = true, bool humanreadable = true);
-
-int64_t textToSize(const char *text);
-
-std::string secondsToText(m_time_t seconds, bool humanreadable = true);
-
-std::string percentageToText(float percentage);
-
 std::string readablePermissions(int permvalue);
 int permissionsFromReadable(std::string permissions);
-
-unsigned int getNumberOfCols(unsigned int defaultwidth = 90);
-
-void sleepSeconds(int seconds);
-void sleepMicroSeconds(long microseconds);
-
-bool isValidEmail(std::string email);
-
-
-/* Properties */
-std::string &ltrimProperty(std::string &s, const char &c);
-std::string &rtrimProperty(std::string &s, const char &c);
-std::string &trimProperty(std::string &what);
-std::string getPropertyFromFile(const char *configFile, const char *propertyName);
-template <typename T>
-T getValueFromFile(const char *configFile, const char *propertyName, T defaultValue)
-{
-    std::string propValue = getPropertyFromFile(configFile, propertyName);
-    if (!propValue.size()) return defaultValue;
-
-    T i;
-    std::istringstream is(propValue);
-    is >> i;
-    return i;
-
-}
 
 #endif // MEGACMDUTILS_H

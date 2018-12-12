@@ -2,7 +2,7 @@
  * @file src/megacmdshellcommunications.h
  * @brief MEGAcmd: Communications module to connect to server
  *
- * (c) 2013-2017 by Mega Limited, Auckland, New Zealand
+ * (c) 2013 by Mega Limited, Auckland, New Zealand
  *
  * This file is part of the MEGAcmd.
  *
@@ -21,6 +21,8 @@
 
 #ifndef MEGACMDSHELLCOMMUNICATIONS_H
 #define MEGACMDSHELLCOMMUNICATIONS_H
+
+#include "../megacmdcommonutils.h"
 
 #include <string>
 #include <iostream>
@@ -51,32 +53,9 @@ class MegaThread : public ::mega::PosixThread {};
 #endif
 
 #ifdef _WIN32
-
-#define OUTSTREAMTYPE std::wostream
-#define OUTSTRINGSTREAM std::wostringstream
-#define OUTSTRING std::wstring
-#define COUT std::wcout
-
-std::wostream & operator<< ( std::wostream & ostr, std::string const & str );
-std::wostream & operator<< ( std::wostream & ostr, const char * str );
-std::ostringstream & operator<< ( std::ostringstream & ostr, std::wstring const &str);
-
 #else
-#define OUTSTREAMTYPE std::ostream
-#define OUTSTRINGSTREAM std::ostringstream
-#define OUTSTRING std::string
-#define COUT std::cout
 typedef int SOCKET;
 #endif
-
-#define OUTSTREAM COUT
-
-#ifdef _WIN32
-void stringtolocalw(const char* path, std::wstring* local);
-void localwtostring(const std::wstring* wide, std::string *multibyte);
-void utf16ToUtf8(const wchar_t* utf16data, int utf16size, std::string* utf8string);
-#endif
-
 
 #ifdef _WIN32
 #include <windows.h>

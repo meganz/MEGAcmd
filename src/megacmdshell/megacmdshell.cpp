@@ -3,7 +3,7 @@
  * @brief MEGAcmd: Interactive CLI and service application
  * This is the shell application
  *
- * (c) 2013-2017 by Mega Limited, Auckland, New Zealand
+ * (c) 2013 by Mega Limited, Auckland, New Zealand
  *
  * This file is distributed under the terms of the GNU General Public
  * License, see http://www.gnu.org/copyleft/gpl.txt
@@ -17,6 +17,7 @@
 #include "megacmdshell.h"
 #include "megacmdshellcommunications.h"
 #include "megacmdshellcommunicationsnamedpipes.h"
+#include "../megacmdcommonutils.h"
 
 #define USE_VARARGS
 #define PREFER_STDARG
@@ -74,29 +75,6 @@ CONSOLE_CLASS* console = NULL;
 
 
 // utility functions
-char * dupstr(char* s)
-{
-    char *r;
-
-    r = (char*)malloc(sizeof( char ) * ( strlen(s) + 1 ));
-    strcpy(r, s);
-    return( r );
-}
-
-void replaceAll(std::string& str, const std::string& from, const std::string& to)
-{
-    if (from.empty())
-    {
-        return;
-    }
-    size_t start_pos = 0;
-    while (( start_pos = str.find(from, start_pos)) != std::string::npos)
-    {
-        str.replace(start_pos, from.length(), to);
-        start_pos += to.length();
-    }
-}
-
 #ifndef NO_READLINE
 string getCurrentLine()
 {
@@ -108,153 +86,10 @@ string getCurrentLine()
 }
 #endif
 
-void sleepSeconds(int seconds)
-{
-#ifdef _WIN32
-    Sleep(1000*seconds);
-#else
-    sleep(seconds);
-#endif
-}
-
-void sleepMilliSeconds(long milliseconds)
-{
-#ifdef _WIN32
-    Sleep(milliseconds);
-#else
-    usleep(milliseconds *1000);
-#endif
-}
-
-vector<string> getlistOfWords(const char *ptr, bool ignoreTrailingSpaces = true)
-{
-    vector<string> words;
-
-    const char* wptr;
-
-    // split line into words with quoting and escaping
-    for (;; )
-    {
-        // skip leading blank space
-        while (*(const signed char*)ptr > 0 && *ptr <= ' ' && (ignoreTrailingSpaces || *(ptr+1)))
-        {
-            ptr++;
-        }
-
-        if (!*ptr)
-        {
-            break;
-        }
-
-        // quoted arg / regular arg
-        if (*ptr == '"')
-        {
-            ptr++;
-            wptr = ptr;
-            words.push_back(string());
-
-            for (;; )
-            {
-                if (( *ptr == '"' ) || ( *ptr == '\\' ) || !*ptr)
-                {
-                    words[words.size() - 1].append(wptr, ptr - wptr);
-
-                    if (!*ptr || ( *ptr++ == '"' ))
-                    {
-                        break;
-                    }
-
-                    wptr = ptr - 1;
-                }
-                else
-                {
-                    ptr++;
-                }
-            }
-        }
-        else if (*ptr == '\'') // quoted arg / regular arg
-        {
-            ptr++;
-            wptr = ptr;
-            words.push_back(string());
-
-            for (;; )
-            {
-                if (( *ptr == '\'' ) || ( *ptr == '\\' ) || !*ptr)
-                {
-                    words[words.size() - 1].append(wptr, ptr - wptr);
-
-                    if (!*ptr || ( *ptr++ == '\'' ))
-                    {
-                        break;
-                    }
-
-                    wptr = ptr - 1;
-                }
-                else
-                {
-                    ptr++;
-                }
-            }
-        }
-        else
-        {
-            while (*ptr == ' ') ptr++;// only possible if ptr+1 is the end
-
-            wptr = ptr;
-
-            const char *prev = ptr;
-            //while ((unsigned char)*ptr > ' ')
-            while ((*ptr != '\0') && !(*ptr ==' ' && *prev !='\\'))
-            {
-                if (*ptr == '"')
-                {
-                    while (*++ptr != '"' && *ptr != '\0')
-                    { }
-                }
-                prev=ptr;
-                ptr++;
-            }
-
-            words.push_back(string(wptr, ptr - wptr));
-        }
-    }
-
-    return words;
-}
-
-void discardOptionsAndFlags(vector<string> *ws)
-{
-    for (std::vector<string>::iterator it = ws->begin(); it != ws->end(); )
-    {
-        /* std::cout << *it; ... */
-        string w = ( string ) * it;
-        if (w.length() && ( w.at(0) == '-' )) //begins with "-"
-        {
-            it = ws->erase(it);
-        }
-        else //not an option/flag
-        {
-            ++it;
-        }
-    }
-}
-
 
 // end utily functions
 
 string clientID; //identifier for a registered state listener
-
-long long charstoll(const char *instr)
-{
-  long long retval;
-
-  retval = 0;
-  for (; *instr; instr++) {
-    retval = 10*retval + (*instr - '0');
-  }
-  return retval;
-}
 
 // Console related functions:
 void console_readpwchar(char* pw_buf, int pw_buf_size, int* pw_buf_pos, char** line)
@@ -327,39 +162,8 @@ void console_setecho(bool echo)
 #endif
 }
 
-int getNumberOfCols(unsigned int defaultwidth=0)
-{
-    unsigned int width = defaultwidth;
-    int rows = 1, cols = width;
-#ifdef NO_READLINE
-    CONSOLE_SCREEN_BUFFER_INFO sbi;
-    BOOL ok = GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &sbi);
-    assert(ok);
-    if (ok)
-    {
-        cols = sbi.dwSize.X ;
-    }
-#elif defined( RL_ISSTATE ) && defined( RL_STATE_INITIALIZED )
-
-    if (RL_ISSTATE(RL_STATE_INITIALIZED))
-    {
-        rl_resize_terminal();
-        rl_get_screen_size(&rows, &cols);
-    }
-#endif
-
-    if (cols)
-    {
-        width = cols-2;
-#ifdef _WIN32
-        width--;
-#endif
-    }
-    return width;
-}
 bool alreadyFinished = false; //flag to show progress
 float percentDowloaded = 0.0; // to show progress
-
 
 // password change-related state information
 string oldpasswd;
@@ -398,8 +202,6 @@ MegaCmdShellCommunications *comms;
 MUTEX_CLASS mutexPrompt(false);
 
 void printWelcomeMsg(unsigned int width = 0);
-void printCenteredLine(string msj, unsigned int width, bool encapsulated = true);
-void printCenteredContents(string msj, unsigned int width, bool encapsulated = true);
 
 void statechangehandle(string statestring)
 {
@@ -531,25 +333,8 @@ void sigint_handler(int signum)
 #endif
 }
 
-
 void printprogress(long long completed, long long total, const char *title)
 {
-    int cols = getNumberOfCols(80);
-
-    string outputString;
-    outputString.resize(cols + 1);
-    for (int i = 0; i < cols; i++)
-    {
-        outputString[i] = '.';
-    }
-
-    outputString[cols] = '\0';
-    char *ptr = (char *)outputString.c_str();
-    sprintf(ptr, "%s%s", title, " ||");
-    ptr += strlen(title);
-    ptr += strlen(" ||");
-    *ptr = '.'; //replace \0 char
-
     float oldpercent = percentDowloaded;
     if (total == 0)
     {
@@ -568,7 +353,6 @@ void printprogress(long long completed, long long total, const char *title)
         percentDowloaded = 0;
     }
 
-    char aux[41];
     if (total < 0)
     {
         return; // after a 100% this happens
@@ -583,22 +367,7 @@ void printprogress(long long completed, long long total, const char *title)
         completed = total;
         percentDowloaded = 100;
     }
-    sprintf(aux,"||(%lld/%lld MB: %6.2f %%) ", completed / 1024 / 1024, total / 1024 / 1024, percentDowloaded);
-    sprintf((char *)outputString.c_str() + cols - strlen(aux), "%s",                         aux);
-    for (int i = 0; i < ( cols - (strlen(title) + strlen(" ||")) - strlen(aux)) * 1.0 * min(100.0f,percentDowloaded) / 100.0; i++)
-    {
-        *ptr++ = '#';
-    }
-
-    if (alreadyFinished)
-    {
-        cerr << outputString << endl;
-    }
-    else
-    {
-        cerr << outputString << '\r' << flush;
-    }
-
+    printPercentageLineCerr(title, completed, total, percentDowloaded, !alreadyFinished);
 }
 
 
@@ -936,13 +705,6 @@ char* generic_completion(const char* text, int state, vector<string> validOption
     return((char*)NULL );
 }
 #endif
-
-
-inline bool ends_with(std::string const & value, std::string const & ending)
-{
-    if (ending.size() > value.size()) return false;
-    return std::equal(ending.rbegin(), ending.rend(), value.rbegin());
-}
 
 char* local_completion(const char* text, int state)
 {
@@ -1499,7 +1261,7 @@ void process_line(const char * line)
             line = refactoredline.c_str();
 #endif
 
-            vector<string> words = getlistOfWords(line);
+            vector<string> words = getlistOfWords((char *)line);
             bool helprequested = false;
             for (unsigned int i = 1; i< words.size(); i++)
             {
@@ -2106,83 +1868,6 @@ public:
     }
 };
 
-void printCenteredLine(string msj, unsigned int width, bool encapsulated)
-{
-    if (msj.size()>width)
-    {
-        width = unsigned(msj.size());
-    }
-    if (encapsulated)
-        COUT << "|";
-    for (unsigned int i = 0; i < (width-msj.size())/2; i++)
-        COUT << " ";
-    COUT << msj;
-    for (unsigned int i = 0; i < (width-msj.size())/2 + (width-msj.size())%2 ; i++)
-        COUT << " ";
-    if (encapsulated)
-        COUT << "|";
-    COUT << endl;
-}
-
-void printCenteredContents(string msj, unsigned int width, bool encapsulated)
-{
-    size_t possepnewline = msj.find("\n");
-    size_t possep = msj.find(" ");
-
-    if (possepnewline != string::npos && possepnewline < width)
-    {
-        possep = possepnewline;
-    }
-    size_t possepprev = possep;
-
-
-
-    string headfoot = " ";
-    headfoot.append(width, '-');
-    if (msj.size())
-    {
-        COUT << headfoot << endl;
-    }
-
-    while (msj.size())
-    {
-
-        if (possepnewline != string::npos && possepnewline <= width)
-        {
-            possep = possepnewline;
-            possepprev = possep;
-        }
-        else
-        {
-            while (possep < width && possep != string::npos)
-            {
-                possepprev = possep;
-                possep = msj.find_first_of(" ", possep+1);
-            }
-        }
-
-        if (possep == string::npos)
-        {
-            printCenteredLine(msj, width, encapsulated);
-            break;
-        }
-        else
-        {
-            printCenteredLine(msj.substr(0,possepprev), width, encapsulated);
-            if (possepprev < (msj.size() - 1))
-            {
-                msj = msj.substr(possepprev+1);
-                possepnewline = msj.find("\n");
-            }
-            else
-            {
-                break;
-            }
-        }
-    }
-    COUT << headfoot << endl;
-}
-
 void printWelcomeMsg(unsigned int width)
 {
     if (!width)
@@ -2236,7 +1921,6 @@ int quote_detector(char *line, int index)
         !quote_detector(line, index - 1)
     );
 }
-
 
 bool runningInBackground()
 {

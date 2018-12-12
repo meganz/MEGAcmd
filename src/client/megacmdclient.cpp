@@ -2,7 +2,7 @@
  * @file src/client/megacmdclient.cpp
  * @brief MEGAcmdClient: Client application of MEGAcmd
  *
- * (c) 2013-2016 by Mega Limited, Auckland, New Zealand
+ * (c) 2013 by Mega Limited, Auckland, New Zealand
  *
  * This file is part of the MEGAcmd.
  *
@@ -16,6 +16,7 @@
  * program.
  */
 
+#include "../megacmdcommonutils.h"
 #include "../megacmdshell/megacmdshellcommunications.h"
 #include "../megacmdshell/megacmdshellcommunicationsnamedpipes.h"
 
@@ -54,32 +55,6 @@ using namespace std;
         (  std::ostringstream() << std::dec << x ) ).str()
 
 void printprogress(long long completed, long long total, const char *title = "TRANSFERRING");
-
-unsigned int getNumberOfCols(unsigned int defaultwidth)
-{
-#ifdef _WIN32
-    CONSOLE_SCREEN_BUFFER_INFO csbi;
-    int columns = defaultwidth;
-
-    if (GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi))
-    {
-        columns = csbi.srWindow.Right - csbi.srWindow.Left - 1;
-    }
-
-    return columns;
-#else
-    struct winsize size;
-    if ( ioctl(STDOUT_FILENO,TIOCGWINSZ,&size) != -1
-         || (ioctl(STDIN_FILENO,TIOCGWINSZ,&size) != -1))
-    {
-        if (size.ws_col > 2)
-        {
-            return size.ws_col - 2;
-        }
-    }
-#endif
-    return defaultwidth;
-}
 
 #ifdef _WIN32
 // convert UTF-8 to Windows Unicode
@@ -239,15 +214,6 @@ string getAbsPath(string relativePath)
 
 }
 
-void sleepMicroSeconds(long microseconds)
-{
-#ifdef _WIN32
-    Sleep(microseconds);
-#else
-    usleep(microseconds*1000);
-#endif
-}
-
 string parseArgs(int argc, char* argv[])
 {
     vector<string> absolutedargs;
@@ -264,7 +230,7 @@ string parseArgs(int argc, char* argv[])
             int waittime = 15000;
             while (waittime > 0 && !clientID.size())
             {
-                sleepMicroSeconds(100);
+                sleepMilliSeconds(100);
                 waittime -= 100;
             }
             if (clientID.size())
@@ -473,7 +439,7 @@ wstring parsewArgs(int argc, wchar_t* argv[])
             int waittime = 5000;
             while (waittime > 0 && !clientID.size())
             {
-                sleepMicroSeconds(100);
+                sleepMilliSeconds(100);
                 waittime -= 100;
             }
             if (clientID.size())
@@ -664,37 +630,10 @@ std::string readresponse(const char *question)
     return response;
 }
 
-
-long long charstoll(const char *instr)
-{
-  long long retval;
-
-  retval = 0;
-  for (; *instr; instr++) {
-    retval = 10*retval + (*instr - '0');
-  }
-  return retval;
-}
-
 void printprogress(long long completed, long long total, const char *title)
 {
     static bool alreadyFinished = false; //flag to show progress
     static float percentDowloaded = 0.0;
-    int cols = getNumberOfCols(80);
-
-    string outputString;
-    outputString.resize(cols + 1);
-    for (int i = 0; i < cols; i++)
-    {
-        outputString[i] = '.';
-    }
-
-    outputString[cols] = '\0';
-    char *ptr = (char *)outputString.c_str();
-    sprintf(ptr, "%s%s", title, " ||");
-    ptr += strlen(title);
-    ptr += strlen(" ||");
-    *ptr = '.'; //replace \0 char
 
     float oldpercent = percentDowloaded;
     if (total == 0)
@@ -714,7 +653,6 @@ void printprogress(long long completed, long long total, const char *title)
         percentDowloaded = 0;
     }
 
-    char aux[41];
     if (total < 0)
     {
         return; // after a 100% this happens
@@ -729,101 +667,9 @@ void printprogress(long long completed, long long total, const char *title)
         completed = total;
         percentDowloaded = 100;
     }
-    sprintf(aux,"||(%lld/%lld MB: %6.2f %%) ", completed / 1024 / 1024, total / 1024 / 1024, percentDowloaded);
-    sprintf((char *)outputString.c_str() + cols - strlen(aux), "%s",                         aux);
-    for (int i = 0; i < ( cols - (strlen(title) + strlen(" ||")) - strlen(aux)) * 1.0 * min(100.0f,percentDowloaded) / 100.0; i++)
-    {
-        *ptr++ = '#';
-    }
 
-    if (alreadyFinished)
-    {
-        cerr << outputString << endl;
-    }
-    else
-    {
-        cerr << outputString << '\r' << flush;
-    }
+    printPercentageLineCerr(title, completed, total, percentDowloaded, !alreadyFinished);
 }
-
-
-void printCenteredLine(ostringstream &os, string msj, unsigned int width, bool encapsulated = true)
-{
-    if (msj.size()>width)
-    {
-        width = unsigned(msj.size());
-    }
-    if (encapsulated)
-        os << "|";
-    for (unsigned int i = 0; i < (width-msj.size())/2; i++)
-        os << " ";
-    os << msj;
-    for (unsigned int i = 0; i < (width-msj.size())/2 + (width-msj.size())%2 ; i++)
-        os << " ";
-    if (encapsulated)
-        os << "|";
-    os << endl;
-}
-
-void printCenteredContents(string msj, unsigned int width, bool encapsulated = true)
-{
-    ostringstream os;
-    size_t possepnewline = msj.find("\n");
-    size_t possep = msj.find(" ");
-
-    if (possepnewline != string::npos && possepnewline < width)
-    {
-        possep = possepnewline;
-    }
-    size_t possepprev = possep;
-
-    string headfoot = " ";
-    headfoot.append(width, '-');
-    if (msj.size())
-    {
-        os << headfoot << endl;
-    }
-
-    while (msj.size())
-    {
-
-        if (possepnewline != string::npos && possepnewline <= width)
-        {
-            possep = possepnewline;
-            possepprev = possep;
-        }
-        else
-        {
-            while (possep < width && possep != string::npos)
-            {
-                possepprev = possep;
-                possep = msj.find_first_of(" ", possep+1);
-            }
-        }
-
-        if (possep == string::npos)
-        {
-            printCenteredLine(os, msj, width, encapsulated);
-            break;
-        }
-        else
-        {
-            printCenteredLine(os, msj.substr(0,possepprev), width, encapsulated);
-            if (possepprev < (msj.size() - 1))
-            {
-                msj = msj.substr(possepprev+1);
-                possepnewline = msj.find("\n");
-            }
-            else
-            {
-                break;
-            }
-        }
-    }
-    os << headfoot << endl;
-    cerr << os.str();
-}
-
 
 void statechangehandle(string statestring)
 {
@@ -845,7 +691,7 @@ void statechangehandle(string statestring)
             unsigned int width = getNumberOfCols(80);
             if (contents.find("-----") != 0)
             {
-                printCenteredContents(contents, width - 1);
+                printCenteredContentsCerr(contents, width - 1);
             }
             else
             {
@@ -911,7 +757,7 @@ void statechangehandle(string statestring)
         else
         {
             //received unrecognized state change. sleep a while to avoid continuous looping
-            sleepMicroSeconds(1000);
+            sleepMilliSeconds(1000);
         }
     }
 }

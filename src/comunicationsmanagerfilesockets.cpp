@@ -2,7 +2,7 @@
  * @file src/comunicationsmanagerfilesockets.cpp
  * @brief MEGAcmd: Communications manager using Network Sockets
  *
- * (c) 2013-2016 by Mega Limited, Auckland, New Zealand
+ * (c) 2013 by Mega Limited, Auckland, New Zealand
  *
  * This file is part of the MEGAcmd.
  *
@@ -60,7 +60,7 @@ int ComunicationsManagerFileSockets::create_new_socket(int *sockId)
             {
                 LOG_fatal << "ERROR opening socket ID=" << sockId << " errno: " << errno << ". Attempts: " << attempts;
             }
-            sleepMicroSeconds(500);
+            sleepMilliSeconds(500);
         }
         else
         {
@@ -105,7 +105,7 @@ int ComunicationsManagerFileSockets::create_new_socket(int *sockId)
             {
                 LOG_fatal << "ERROR on binding socket " << socket_path << " errno: " << errno << ". Attempts: " << attempts;
             }
-            sleepMicroSeconds(500);
+            sleepMilliSeconds(500);
         }
         else
         {
