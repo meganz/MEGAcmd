@@ -3,7 +3,7 @@
  * @brief MEGAcmd: Interactive CLI and service application
  * This is the shell application
  *
- * (c) 2013-2017 by Mega Limited, Auckland, New Zealand
+ * (c) 2013 by Mega Limited, Auckland, New Zealand
  *
  * This file is distributed under the terms of the GNU General Public
  * License, see http://www.gnu.org/copyleft/gpl.txt

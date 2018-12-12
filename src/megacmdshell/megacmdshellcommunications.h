@@ -2,7 +2,7 @@
  * @file src/megacmdshellcommunications.h
  * @brief MEGAcmd: Communications module to connect to server
  *
- * (c) 2013-2017 by Mega Limited, Auckland, New Zealand
+ * (c) 2013 by Mega Limited, Auckland, New Zealand
  *
  * This file is part of the MEGAcmd.
  *

@@ -2,7 +2,7 @@
  * @file src/loader/megacmdloader.cpp
  * @brief MEGAcmdClient: Loader application of MEGAcmd for MAC
  *
- * (c) 2013-2016 by Mega Limited, Auckland, New Zealand
+ * (c) 2013 by Mega Limited, Auckland, New Zealand
  *
  * This file is part of the MEGAcmd.
  *
