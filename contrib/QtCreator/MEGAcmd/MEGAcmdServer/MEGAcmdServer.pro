@@ -12,6 +12,7 @@ CONFIG -= qt
 
 win32 {
 TARGET = MEGAcmdServer
+CONFIG += USE_AUTOCOMPLETE
 }
 else {
 TARGET = MEGAcmd
@@ -61,7 +62,8 @@ SOURCES += ../../../../src/megacmd.cpp \
     ../../../../src/megacmdsandbox.cpp \
     ../../../../src/configurationmanager.cpp \
     ../../../../src/comunicationsmanager.cpp \
-    ../../../../src/megacmdutils.cpp
+    ../../../../src/megacmdutils.cpp \
+    ../../../../src/megacmdcommonutils.cpp
 
 
 HEADERS += ../../../../src/megacmd.h \
@@ -72,6 +74,7 @@ HEADERS += ../../../../src/megacmd.h \
     ../../../../src/configurationmanager.h \
     ../../../../src/comunicationsmanager.h \
     ../../../../src/megacmdutils.h \
+    ../../../../src/megacmdcommonutils.h \
     ../../../../src/megacmdversion.h \
     ../../../../src/megacmdplatform.h
 

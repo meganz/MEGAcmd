@@ -2,7 +2,7 @@
  * @file src/megacmd.cpp
  * @brief MEGAcmd: Interactive CLI and service application
  *
- * (c) 2013-2016 by Mega Limited, Auckland, New Zealand
+ * (c) 2013 by Mega Limited, Auckland, New Zealand
  *
  * This file is part of the MEGAcmd.
  *
@@ -73,70 +73,6 @@ typedef char *completionfunction_t PARAMS((const char *, int));
 #else
 #define ERRNO errno
 #endif
-#endif
-
-#ifdef _WIN32
-// convert UTF-8 to Windows Unicode wstring
-void stringtolocalw(const char* path, std::wstring* local)
-{
-    // make space for the worst case
-    local->resize((strlen(path) + 1) * sizeof(wchar_t));
-
-    int wchars_num = MultiByteToWideChar(CP_UTF8, 0, path,-1, NULL,0);
-    local->resize(wchars_num);
-
-    int len = MultiByteToWideChar(CP_UTF8, 0, path,-1, (wchar_t*)local->data(), wchars_num);
-
-    if (len)
-    {
-        local->resize(len-1);
-    }
-    else
-    {
-        local->clear();
-    }
-}
-
-//widechar to utf8 string
-void localwtostring(const std::wstring* wide, std::string *multibyte)
-{
-    if( !wide->empty() )
-    {
-        int size_needed = WideCharToMultiByte(CP_UTF8, 0, wide->data(), (int)wide->size(), NULL, 0, NULL, NULL);
-        multibyte->resize(size_needed);
-        WideCharToMultiByte(CP_UTF8, 0, wide->data(), (int)wide->size(), (char*)multibyte->data(), size_needed, NULL, NULL);
-    }
-}
-
-//override << operators for wostream for string and const char *
-
-std::wostream & operator<< ( std::wostream & ostr, std::string const & str )
-{
-    std::wstring toout;
-    stringtolocalw(str.c_str(),&toout);
-    ostr << toout;
-
-return ( ostr );
-}
-
-std::wostream & operator<< ( std::wostream & ostr, const char * str )
-{
-    std::wstring toout;
-    stringtolocalw(str,&toout);
-    ostr << toout;
-    return ( ostr );
-}
-
-//override for the log. This is required for compiling, otherwise SimpleLog won't compile.
-std::ostringstream & operator<< ( std::ostringstream & ostr, std::wstring const &str)
-{
-    std::string s;
-    localwtostring(&str,&s);
-    ostr << s;
-    return ( ostr );
-}
-
-
 #endif
 
 #ifdef _WIN32
@@ -412,6 +348,7 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     else if ("passwd" == thecommand)
     {
         validParams->insert("f");
+        validOptValues->insert("auth-code");
     }
     else if ("du" == thecommand)
     {
@@ -667,6 +604,7 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     else if ("login" == thecommand)
     {
         validOptValues->insert("clientID");
+        validOptValues->insert("auth-code");
     }
     else if ("reload" == thecommand)
     {
@@ -675,6 +613,7 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     else if ("transfers" == thecommand)
     {
         validParams->insert("show-completed");
+        validParams->insert("summary");
         validParams->insert("only-uploads");
         validParams->insert("only-completed");
         validParams->insert("only-downloads");
@@ -791,7 +730,7 @@ char * flags_completion(const char*text, int state)
     {
         validparams.clear();
         char *saved_line = strdup(getCurrentThreadLine().c_str());
-        vector<string> words = getlistOfWords(saved_line);
+        vector<string> words = getlistOfWords(saved_line, !getCurrentThreadIsCmdShell());
         free(saved_line);
         if (words.size())
         {
@@ -850,7 +789,7 @@ char * flags_value_completion(const char*text, int state)
         validValues.clear();
 
         char *saved_line = strdup(getCurrentThreadLine().c_str());
-        vector<string> words = getlistOfWords(saved_line);
+        vector<string> words = getlistOfWords(saved_line, !getCurrentThreadIsCmdShell());
         free(saved_line);
         saved_line = NULL;
         if (words.size() > 1)
@@ -947,7 +886,8 @@ void unescapeifRequired(string &what)
     }
 }
 
-char* remotepaths_completion(const char* text, int state)
+
+char* remotepaths_completion(const char* text, int state, bool onlyfolders)
 {
     static vector<string> validpaths;
     if (state == 0)
@@ -967,7 +907,7 @@ char* remotepaths_completion(const char* text, int state)
 
         unescapeEspace(wildtext);
 
-        validpaths = cmdexecuter->listpaths(usepcre, wildtext);
+        validpaths = cmdexecuter->listpaths(usepcre, wildtext, onlyfolders);
 
         // we need to escape '\' to fit what's done when parsing words
         if (!getCurrentThreadIsCmdShell())
@@ -982,26 +922,14 @@ char* remotepaths_completion(const char* text, int state)
     return generic_completion(text, state, validpaths);
 }
 
+char* remotepaths_completion(const char* text, int state)
+{
+    return remotepaths_completion(text, state, false);
+}
+
 char* remotefolders_completion(const char* text, int state)
 {
-    static vector<string> validpaths;
-    if (state == 0)
-    {
-        string wildtext(text);
-        bool usepcre = false; //pcre makes no sense in paths completion
-        if (usepcre)
-        {
-#ifdef USE_PCRE
-        wildtext += ".";
-#elif __cplusplus >= 201103L
-        wildtext += ".";
-#endif
-        }
-        wildtext += "*";
-
-        validpaths = cmdexecuter->listpaths(usepcre, wildtext, true);
-    }
-    return generic_completion(text, state, validpaths);
+    return remotepaths_completion(text, state, true);
 }
 
 char* loglevels_completion(const char* text, int state)
@@ -1097,7 +1025,7 @@ char* nodeattrs_completion(const char* text, int state)
     {
         validAttrs.clear();
         char *saved_line = strdup(getCurrentThreadLine().c_str());
-        vector<string> words = getlistOfWords(saved_line);
+        vector<string> words = getlistOfWords(saved_line, !getCurrentThreadIsCmdShell());
         free(saved_line);
         saved_line = NULL;
         if (words.size() > 1)
@@ -1129,23 +1057,6 @@ char* userattrs_completion(const char* text, int state)
     }
 
     return generic_completion(text, state, validAttrs);
-}
-
-void discardOptionsAndFlags(vector<string> *ws)
-{
-    for (std::vector<string>::iterator it = ws->begin(); it != ws->end(); )
-    {
-        /* std::cout << *it; ... */
-        string w = ( string ) * it;
-        if (w.length() && ( w.at(0) == '-' )) //begins with "-"
-        {
-            it = ws->erase(it);
-        }
-        else //not an option/flag
-        {
-            ++it;
-        }
-    }
 }
 
 completionfunction_t *getCompletionFunction(vector<string> words)
@@ -1405,11 +1316,11 @@ const char * getUsageStr(const char *command)
     {
         if (interactiveThread())
         {
-            return "login [email [password]] | exportedfolderurl#key | session";
+            return "login [--auth-code=XXXX] [email [password]] | exportedfolderurl#key | session";
         }
         else
         {
-            return "login email password | exportedfolderurl#key | session";
+            return "login [--auth-code=XXXX] email password | exportedfolderurl#key | session";
         }
     }
     if (!strcmp(command, "cancel"))
@@ -1696,11 +1607,11 @@ const char * getUsageStr(const char *command)
     {
         if (interactiveThread())
         {
-            return "passwd [-f] [newpassword]";
+            return "passwd [-f]  [--auth-code=XXXX] [newpassword]";
         }
         else
         {
-            return "passwd [-f] newpassword";
+            return "passwd [-f]  [--auth-code=XXXX] newpassword";
         }
     }
     if (!strcmp(command, "retry"))
@@ -1856,6 +1767,9 @@ string getHelpStr(const char *command)
         os << " You can log in either with email and password, with session ID," << endl;
         os << " or into a folder (an exported/public folder)" << endl;
         os << " If logging into a folder indicate url#key" << endl;
+        os << endl;
+        os << "Options:" << endl;
+        os << " --auth-code=XXXX" << "\t" << "Two-factor Authentication code. More info: https://mega.nz/blog_48" << endl;
     }
     else if (!strcmp(command, "cancel"))
     {
@@ -2574,7 +2488,7 @@ string getHelpStr(const char *command)
         os << endl;
         os << "Options:" << endl;
         os << " -f   " << "\t" << "Force (no asking)" << endl;
-
+        os << " --auth-code=XXXX" << "\t" << "Two-factor Authentication code. More info: https://mega.nz/blog_48" << endl;
     }
     else if (!strcmp(command, "reload"))
     {
@@ -2660,13 +2574,14 @@ string getHelpStr(const char *command)
         os << " -c (TAG|-a)" << "\t" << "Cancel transfer with TAG (or all with -a)" << endl;
         os << " -p (TAG|-a)" << "\t" << "Pause transfer with TAG (or all with -a)" << endl;
         os << " -r (TAG|-a)" << "\t" << "Resume transfer with TAG (or all with -a)" << endl;
-        os << " -only-uploads" << "\t" << "Show/Operate only upload transfers" << endl;
-        os << " -only-downloads" << "\t" << "Show/Operate only download transfers" << endl;
+        os << " --only-uploads" << "\t" << "Show/Operate only upload transfers" << endl;
+        os << " --only-downloads" << "\t" << "Show/Operate only download transfers" << endl;
         os << endl;
         os << "Show options:" << endl;
-        os << " -show-syncs" << "\t" << "Show synchronization transfers" << endl;
-        os << " -show-completed" << "\t" << "Show completed transfers" << endl;
-        os << " -only-completed" << "\t" << "Show only completed download" << endl;
+        os << " --summary" << "\t" << "Prints summary of on going transfers" << endl;
+        os << " --show-syncs" << "\t" << "Show synchronization transfers" << endl;
+        os << " --show-completed" << "\t" << "Show completed transfers" << endl;
+        os << " --only-completed" << "\t" << "Show only completed download" << endl;
         os << " --limit=N" << "\t" << "Show only first N transfers" << endl;
         os << " --path-display-size=N" << "\t" << "Use a fixed size of N characters for paths" << endl;
         os << endl;
@@ -2767,7 +2682,7 @@ void printAvailableCommands(int extensive = 0)
 
 void executecommand(char* ptr)
 {
-    vector<string> words = getlistOfWords(ptr);
+    vector<string> words = getlistOfWords(ptr, !getCurrentThreadIsCmdShell());
     if (!words.size())
     {
         return;
@@ -2831,7 +2746,7 @@ void executecommand(char* ptr)
         return;
     }
 
-    words = getlistOfWords(ptr,true); //Get words again ignoring trailing spaces (only reasonable for completion)
+    words = getlistOfWords(ptr, !getCurrentThreadIsCmdShell(), true); //Get words again ignoring trailing spaces (only reasonable for completion)
 
     map<string, string> cloptions;
     map<string, int> clflags;
@@ -3532,7 +3447,7 @@ void * retryConnections(void *pointer)
         int count = 100;
         while (!doExit && --count)
         {
-            sleepMicroSeconds(300);
+            sleepMilliSeconds(300);
         }
     }
     return NULL;
@@ -3852,24 +3767,6 @@ public:
     }
 };
 
-void printCenteredLine(string msj, unsigned int width, bool encapsulated = true)
-{
-    if (msj.size()>width)
-    {
-        width = (unsigned int)msj.size();
-    }
-    if (encapsulated)
-        COUT << "|";
-    for (unsigned int i = 0; i < (width-msj.size())/2; i++)
-        COUT << " ";
-    COUT << msj;
-    for (unsigned int i = 0; i < (width-msj.size())/2 + (width-msj.size())%2 ; i++)
-        COUT << " ";
-    if (encapsulated)
-        COUT << "|";
-    COUT << endl;
-}
-
 void printWelcomeMsg()
 {
     unsigned int width = getNumberOfCols(75);
@@ -3904,16 +3801,6 @@ void printWelcomeMsg()
     COUT << endl;
 
 }
-
-int quote_detector(char *line, int index)
-{
-    return (
-        index > 0 &&
-        line[index - 1] == '\\' &&
-        !quote_detector(line, index - 1)
-    );
-}
-
 
 #ifdef __MACH__
 

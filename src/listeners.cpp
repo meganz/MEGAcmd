@@ -2,7 +2,7 @@
  * @file src/listeners.cpp
  * @brief MEGAcmd: Listeners
  *
- * (c) 2013-2016 by Mega Limited, Auckland, New Zealand
+ * (c) 2013 by Mega Limited, Auckland, New Zealand
  *
  * This file is part of the MEGAcmd.
  *
@@ -828,8 +828,7 @@ void MegaCmdGlobalTransferListener::onTransferStart(MegaApi* api, MegaTransfer *
 void MegaCmdGlobalTransferListener::onTransferUpdate(MegaApi* api, MegaTransfer *transfer) {};
 void MegaCmdGlobalTransferListener::onTransferTemporaryError(MegaApi *api, MegaTransfer *transfer, MegaError* e)
 {
-
-    if (e && e->getErrorCode() == MegaError::API_EOVERQUOTA)
+    if (e && e->getErrorCode() == MegaError::API_EOVERQUOTA && e->getValue())
     {
         if (!sandboxCMD->isOverquota())
         {

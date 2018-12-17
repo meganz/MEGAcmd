@@ -2,7 +2,7 @@
  * @file src/megacmdexecuter.h
  * @brief MEGAcmd: Executer of the commands
  *
- * (c) 2013-2016 by Mega Limited, Auckland, New Zealand
+ * (c) 2013 by Mega Limited, Auckland, New Zealand
  *
  * This file is part of the MEGAcmd.
  *
@@ -103,7 +103,7 @@ public:
 
     //acting
     void loginWithPassword(char *password);
-    void changePassword(const char *newpassword);
+    void changePassword(const char *newpassword, std::string pin2fa = "");
     void actUponGetExtendedAccountDetails(mega::SynchronousRequestListener  *srl, int timeout = -1);
     bool actUponFetchNodes(mega::MegaApi * api, mega::SynchronousRequestListener  *srl, int timeout = -1);
     int actUponLogin(mega::SynchronousRequestListener  *srl, int timeout = -1);
