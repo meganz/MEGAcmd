@@ -358,30 +358,37 @@ void ComunicationsManagerFileSockets::sendPartialOutput(CmdPetition *inf, OUTSTR
         return;
     }
 
-    int outCode = MCMD_PARTIALOUT;
-    int n = send(connectedsocket, (void*)&outCode, sizeof( outCode ), MSG_NOSIGNAL);
-    if (n < 0)
+    if (s->size())
     {
-        std::cerr << "ERROR writing MCMD_PARTIALOUT to socket: " << errno << endl;
-        if (errno == EPIPE)
+        size_t size = s->size();
+
+        int outCode = MCMD_PARTIALOUT;
+        int n = send(connectedsocket, (void*)&outCode, sizeof( outCode ), MSG_NOSIGNAL);
+        if (n < 0)
         {
-            std::cerr << "WARNING: Client disconnected, the rest of the output will be discarded" << endl;
-            inf->clientDisconnected = true;
+            std::cerr << "ERROR writing MCMD_PARTIALOUT to socket: " << errno << endl;
+            if (errno == EPIPE)
+            {
+                std::cerr << "WARNING: Client disconnected, the rest of the output will be discarded" << endl;
+                inf->clientDisconnected = true;
+            }
+            return;
         }
-        return;
-    }
-    size_t size = s->size() > 1 ? s->size() : 1;
-    n = send(connectedsocket, (void*)&size, sizeof( size ), MSG_NOSIGNAL);
-    if (n < 0)
-    {
-        std::cerr << "ERROR writing size of partial output to socket: " << errno << endl;
-        return;
-    }
-    n = send(connectedsocket, s->data(), size, MSG_NOSIGNAL); // for some reason without the max recv never quits in the client for empty responses
-    if (n < 0)
-    {
-        std::cerr << "ERROR writing to socket partial output: " << errno << endl;
-        return;
+        n = send(connectedsocket, (void*)&size, sizeof( size ), MSG_NOSIGNAL);
+        if (n < 0)
+        {
+            std::cerr << "ERROR writing size of partial output to socket: " << errno << endl;
+            return;
+        }
+
+
+        n = send(connectedsocket, s->data(), size, MSG_NOSIGNAL); // for some reason without the max recv never quits in the client for empty responses
+
+        if (n < 0)
+        {
+            std::cerr << "ERROR writing to socket partial output: " << errno << endl;
+            return;
+        }
     }
 }
 
