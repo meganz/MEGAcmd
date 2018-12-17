@@ -1,5 +1,7 @@
 # MEGA-BACKUPS - Backing folders with MEGAcmd
-This is a brief tutorial on how to configure backups. It will be improved soon.
+This is a brief tutorial on how to configure backups.
+
+Notice: the commands listed here assume you are using the interactive interaction mode: they are supposed to be executed within MEGAcmdShell.
 
 ## Creation
 Example: 

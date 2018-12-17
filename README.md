@@ -107,6 +107,8 @@ Ideally, you would like to have these commands in your PATH
 
 ## Usage examples
 
+Notice: the commands listed here assume you are using the interactive interaction mode: they are supposed to be executed within MEGAcmdShell.
+
 * A **synchronization** can be stablished simply by typing:
 ```
 sync /path/to/local/folder /folder/in/mega
@@ -122,7 +124,7 @@ This will configure a backup of "myfolder" into /remote/path that will be carrie
  at 4:00 A.M. (UTC) every day. It will store the last 10 copies. 
  Further info on backups [here](contrib/docs/BACKUPS.md). 
  
-* You serve a location via webdav:
+* You serve a location in your MEGA account via webdav:
 ```
 webdav /path/to/myfolder
 ```

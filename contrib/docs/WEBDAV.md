@@ -4,6 +4,8 @@ This is a brief tutorial on how to configure [webdav](https://wikipedia.org/wiki
 Configuring a WEBDAV server will let you access your MEGA files as if they were located in your computer.
 All major platforms support access to WEBDAV server. See [`Platform`](#platforms) usage.
 
+Notice: the commands listed here assume you are using the interactive interaction mode: they are supposed to be executed within MEGAcmdShell.
+
 ## Serving a folder
 Example: 
 ```
