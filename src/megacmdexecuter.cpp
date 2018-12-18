@@ -4686,13 +4686,17 @@ void MegaCmdExecuter::addFtpLocation(MegaNode *n, bool firstone, string name)
 void MegaCmdExecuter::catFile(MegaNode *n)
 {
     long long nsize = api->getSize(n);
+    if (!nsize)
+    {
+        return;
+    }
     long long end = nsize;
     long long start = 0;
 
     MegaCmdCatTransferListener *mcctl = new MegaCmdCatTransferListener(&OUTSTREAM, api, sandboxCMD);
     api->startStreaming(n, start, end-start, mcctl);
     mcctl->wait();
-    if (checkNoErrors(mcctl->getError(), "Cat streaming from " +SSTR(start) + " to " + SSTR(end) ))
+    if (checkNoErrors(mcctl->getError(), "cat streaming from " +SSTR(start) + " to " + SSTR(end) ))
     {
         char * npath = api->getNodePath(n);
         LOG_verbose << "Streamed: " << npath << " from " << start << " to " << end;

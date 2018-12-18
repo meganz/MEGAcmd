@@ -221,6 +221,7 @@ void statechangehandle(string statestring)
         {
             string contents = newstate.substr(strlen("message:"));
             unsigned int width = getNumberOfCols(75);
+            if (width > 1 ) width--;
             if (contents.find("-----") != 0)
             {
                 printCenteredContents(contents, width);

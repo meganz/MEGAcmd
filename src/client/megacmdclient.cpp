@@ -689,9 +689,10 @@ void statechangehandle(string statestring)
         {
             string contents = newstate.substr(strlen("message:"));
             unsigned int width = getNumberOfCols(80);
+            if (width > 1 ) width--;
             if (contents.find("-----") != 0)
             {
-                printCenteredContentsCerr(contents, width - 1);
+                printCenteredContentsCerr(contents, width);
             }
             else
             {
