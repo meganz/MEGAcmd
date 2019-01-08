@@ -3613,6 +3613,7 @@ void MegaCmdExecuter::printTransfer(MegaTransfer *transfer, const unsigned int P
         OUTSTREAM << "\u21f5";
 #endif
     }
+#ifdef ENABLE_BACKUPS
     else if (transfer->isBackupTransfer())
     {
 #ifdef _WIN32
@@ -3621,6 +3622,7 @@ void MegaCmdExecuter::printTransfer(MegaTransfer *transfer, const unsigned int P
         OUTSTREAM << "\u23eb";
 #endif
     }
+#endif
     else
     {
         OUTSTREAM << " " ;
