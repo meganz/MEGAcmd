@@ -30,6 +30,19 @@ void MegaCmdSandbox::setOverquota(bool value)
     overquota = value;
 }
 
+void MegaCmdSandbox::resetSandBox()
+{
+    this->overquota = false;
+    this->istemporalbandwidthvalid = false;
+    this->temporalbandwidth = 0;
+    this->temporalbandwithinterval = 0;
+    this->lastQuerytemporalBandwith = m_time();
+    this->timeOfOverquota = m_time();
+    this->secondsOverQuota = 0;
+    this->accounthasbeenblocked = false;
+    this->storageStatus = 0;
+}
+
 MegaCmdSandbox::MegaCmdSandbox()
 {
     this->overquota = false;

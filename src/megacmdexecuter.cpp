@@ -867,9 +867,11 @@ bool MegaCmdExecuter::checkNoErrors(MegaError *error, string message)
     }
     else if (error->getErrorCode() == MegaError::API_EOVERQUOTA && sandboxCMD->storageStatus == MegaApi::STORAGE_STATE_RED)
     {
-        LOG_err << "Failed to " << message << ": Reached storage quota."
+        LOG_err << "Failed to " << message << ": Reached storage quota. "
                          "You can change your account plan to increase your quota limit. "
                          "See \"help --upgrade\" for further details";
+        // TODO: what if API_EOVERQUOTA && STORAGE_STATE_CHANGE? quizas hay que llamar a getAccountDetails aqui!
+        // o mostrar siempre este error!
     }
     else
     {
@@ -1825,7 +1827,7 @@ void MegaCmdExecuter::dumpListOfPendingShares(MegaNode* n, const char *timeForma
 void MegaCmdExecuter::loginWithPassword(char *password)
 {
     MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
-    sandboxCMD->accounthasbeenblocked = false;
+    sandboxCMD->resetSandBox();
     api->login(login.c_str(), password, megaCmdListener);
     actUponLogin(megaCmdListener);
     delete megaCmdListener;
@@ -2192,6 +2194,32 @@ int MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
         {
             LOG_info << "Login complete as " << u->getEmail();
             delete u;
+        }
+
+        if (ConfigurationManager::getConfigurationValue("ask4storage", true))
+        {
+            ConfigurationManager::savePropertyValue("ask4storage",false);
+            MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
+            api->getAccountDetails(megaCmdListener);
+            megaCmdListener->wait();
+            // we don't call getAccountDetails on startup always: we ask on first login (no "ask4storage") or previous state was STATE_RED | STATE_ORANGE
+            // if we were green, don't need to ask: if there are changes they will be received via action packet indicating STATE_CHANGE
+
+            if (sandboxCMD->storageStatus != MegaApi::STORAGE_STATE_GREEN)
+            {
+                string s;
+
+                if (sandboxCMD->storageStatus == MegaApi::STORAGE_STATE_RED)
+                {
+                    s+= "You have exeeded your available storage.\n";
+                }
+                else
+                {
+                    s+= "You are running out of available storage.\n";
+                }
+                s+="You can change your account plan to increase your quota limit.\nSee \"help --upgrade\" for further details";
+                broadcastMessage(s);
+            }
         }
 
 #ifdef ENABLE_BACKUPS
@@ -7243,7 +7271,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     if (words.size() > 2)
                     {
                         MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL,NULL,clientID);
-                        sandboxCMD->accounthasbeenblocked = false;
+                        sandboxCMD->resetSandBox();
                         api->login(words[1].c_str(), words[2].c_str(), megaCmdListener);
                         if (actUponLogin(megaCmdListener) == MegaError::API_EMFAREQUIRED )
                         {
@@ -7282,7 +7310,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     if (( ptr = strchr(words[1].c_str(), '#')))  // folder link indicator
                     {
                         MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
-                        sandboxCMD->accounthasbeenblocked = false;
+                        sandboxCMD->resetSandBox();
                         api->loginToFolder(words[1].c_str(), megaCmdListener);
                         actUponLogin(megaCmdListener);
                         delete megaCmdListener;
@@ -7296,7 +7324,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         {
                             LOG_info << "Resuming session...";
                             MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
-                            sandboxCMD->accounthasbeenblocked = false;
+                            sandboxCMD->resetSandBox();
                             api->fastLogin(words[1].c_str(), megaCmdListener);
                             actUponLogin(megaCmdListener);
                             delete megaCmdListener;

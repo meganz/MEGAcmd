@@ -41,6 +41,7 @@ public:
     MegaCmdSandbox();
     bool isOverquota() const;
     void setOverquota(bool value);
+    void resetSandBox();
 };
 
 #endif // MEGACMDSANDBOX_H

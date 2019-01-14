@@ -170,7 +170,22 @@ void MegaCmdGlobalListener::onEvent(MegaApi *api, MegaEvent *event)
     }
     else if (event->getType() == MegaEvent::EVENT_STORAGE)
     {
-        sandboxCMD->storageStatus = event->getNumber();
+        if (event->getNumber() == MegaApi::STORAGE_STATE_CHANGE)
+        {
+            api->getAccountDetails();
+        }
+        else
+        {
+            sandboxCMD->storageStatus = event->getNumber();
+            if (sandboxCMD->storageStatus == MegaApi::STORAGE_STATE_RED || sandboxCMD->storageStatus == MegaApi::STORAGE_STATE_ORANGE)
+            {
+                ConfigurationManager::savePropertyValue("ask4storage",true);
+            }
+            else
+            {
+                ConfigurationManager::savePropertyValue("ask4storage",false);
+            }
+        }
         LOG_info << "Received event storage changed: " << event->getNumber();
     }
 }

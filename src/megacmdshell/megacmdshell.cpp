@@ -224,6 +224,10 @@ void statechangehandle(string statestring)
             if (width > 1 ) width--;
             if (contents.find("-----") != 0)
             {
+                if (!procesingline)
+                {
+                    OUTSTREAM << endl;
+                }
                 printCenteredContents(contents, width);
             }
             else
@@ -1636,10 +1640,12 @@ void readloop()
 
     readline_fd = fileno(rl_instream);
 
+    procesingline = true;
     comms->registerForStateChanges(statechangehandle);
 
     //give it a while to communicate the state
     sleepMilliSeconds(700);
+    procesingline = false;
 
 #if defined(_WIN32) && defined(USE_PORT_COMMS)
     // due to a failure in reconnecting to the socket, if the server was initiated in while registeringForStateChanges
