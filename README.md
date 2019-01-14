@@ -107,6 +107,8 @@ Ideally, you would like to have these commands in your PATH
 
 ## Usage examples
 
+Here are some examples of use (more info and usage examples are available at the [User Guide](UserGuide.md)).
+
 * A **synchronization** can be stablished simply by typing:
 ```
 sync /path/to/local/folder /folder/in/mega
