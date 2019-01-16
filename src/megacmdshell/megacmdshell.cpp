@@ -1289,7 +1289,7 @@ void process_line(const char * line)
                         doExit = true;
                     }
                 }
-#ifndef __linux__
+#if defined(_WIN32) || defined(__APPLE__)
                 else if (words[0] == "update")
                 {
                     MegaCmdShellCommunications::updating = true;

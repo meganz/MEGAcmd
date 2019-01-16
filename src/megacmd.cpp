@@ -172,7 +172,7 @@ string avalidCommands [] = { "login", "signup", "confirm", "session", "mount", "
 #else
                              , "permissions"
 #endif
-#ifndef __linux__
+#if defined(_WIN32) || defined(__APPLE__)
                              , "update"
 #endif
                            };
@@ -629,7 +629,7 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     {
         validParams->insert("only-shell");
     }
-#ifndef __linux__
+#if defined(_WIN32) || defined(__APPLE__)
     else if ("update" == thecommand)
     {
         validOptValues->insert("auto");
@@ -1720,7 +1720,7 @@ const char * getUsageStr(const char *command)
         return "codepage [N [M]]";
     }
 #endif
-#ifndef __linux__
+#if defined(_WIN32) || defined(__APPLE__)
     if (!strcmp(command, "update"))
     {
         return "update [--auto=on|off]";
@@ -1902,7 +1902,7 @@ string getHelpStr(const char *command)
         os << endl;
         os << "This is similar to \"ls --tree\"" << endl;
     }
-#ifndef __linux__
+#if defined(_WIN32) || defined(__APPLE__)
     else if (!strcmp(command, "update"))
     {
         os << "Updates MEGAcmd" << endl;
@@ -3231,7 +3231,7 @@ static bool process_line(char* l)
                 break;
             }
 
-#ifndef __linux__
+#if defined(_WIN32) || defined(__APPLE__)
             else if (!strcmp(l, "update") || !strcmp(l, "update ")) //if extra args are received, it'll be processed by executer
             {
                 string confirmationQuery("This might require restarting MEGAcmd. Are you sure to continue");
@@ -4466,7 +4466,7 @@ int main(int argc, char* argv[])
     atexit(finalize);
 
 
-#ifndef __linux__
+#if defined(_WIN32) || defined(__APPLE__)
     if (!ConfigurationManager::getConfigurationValue("updaterregistered", false))
     {
         LOG_debug << "Registering automatic updater";

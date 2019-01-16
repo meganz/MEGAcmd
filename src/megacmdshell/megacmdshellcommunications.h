@@ -94,7 +94,7 @@ enum
     MCMD_REQSTRING = -61,     ///< String required
     MCMD_PARTIALOUT = -62,     ///< Partial output provided
 
-#ifndef __linux__
+#if defined(_WIN32) || defined(__APPLE__)
     MCMD_REQRESTART = -71,     ///< Restart required
 #endif
 };

@@ -5007,7 +5007,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             }
         }
     }
-#ifndef __linux__
+#if defined(_WIN32) || defined(__APPLE__)
     else if (words[0] == "update")
     {
         string sauto = getOption(cloptions, "auto", "");
