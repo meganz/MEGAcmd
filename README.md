@@ -45,6 +45,7 @@ libavcodec-dev libavutil-dev libavformat-dev libswscale-dev libmediainfo-dev lib
 Ensure you obtain the repository recursively.
 ```
 git clone https://github.com/meganz/MEGAcmd.git
+cd MEGAcmd
 git submodule update --init --recursive
 ```
 
@@ -56,8 +57,9 @@ For platforms with Autotools, MEGAcmd can be built and installed with:
     ./configure
     make
     make install
+    ldconfig
     
-* You will need to run `make install` as root
+* You will need to run `make install` and `ldconfig` as root
 
 `Note`: if you use a prefix in configure, autocompletion from non-interactive usage
 won't work. You would need to `source /YOUR/PREFIX/etc/bash_completion.d/megacmd_completion.sh` 
