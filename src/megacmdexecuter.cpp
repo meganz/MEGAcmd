@@ -8953,42 +8953,54 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
     }
     else if (words[0] == "killsession")
     {
-        string thesession;
-        MegaHandle thehandle = UNDEF;
-        if (getFlag(clflags, "a"))
-        {
-            // Kill all sessions (except current)
-            thesession = "all";
-            thehandle = INVALID_HANDLE;
-        }
-        else if (words.size() > 1)
-        {
-            thesession = words[1];
-            thehandle = api->base64ToUserHandle(thesession.c_str());
-        }
-        else
+        bool all = getFlag(clflags, "a");
+
+        if ((words.size() <= 1 && !all) || (all && words.size() > 1))
         {
             setCurrentOutCode(MCMD_EARGS);
             LOG_err << "      " << getUsageStr("killsession");
             return;
         }
+        string thesession;
+        MegaHandle thehandle = UNDEF;
 
-        MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
-        api->killSession(thehandle, megaCmdListener);
-        megaCmdListener->wait();
-        if (checkNoErrors(megaCmdListener->getError(), "kill session " + thesession + ". Maybe the session was not valid."))
+        if (all)
         {
-            if (!getFlag(clflags, "a"))
+            // Kill all sessions (except current)
+            words.push_back("all");
+        }
+
+        for (unsigned int i = 1; i < words.size() ; i++)
+        {
+            thesession = words[i];
+            if (thesession == "all")
             {
-               OUTSTREAM << "Session " << thesession << " killed successfully" << endl;
+                thehandle = INVALID_HANDLE;
             }
             else
             {
-                OUTSTREAM << "All sessions killed successfully" << endl;
+                thehandle = api->base64ToUserHandle(thesession.c_str());
             }
+
+
+            MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
+            api->killSession(thehandle, megaCmdListener);
+            megaCmdListener->wait();
+            if (checkNoErrors(megaCmdListener->getError(), "kill session " + thesession + ". Maybe the session was not valid."))
+            {
+                if (thesession != "all")
+                {
+                    OUTSTREAM << "Session " << thesession << " killed successfully" << endl;
+                }
+                else
+                {
+                    OUTSTREAM << "All sessions killed successfully" << endl;
+                }
+            }
+
+            delete megaCmdListener;
         }
 
-        delete megaCmdListener;
         return;
     }
     else if (words[0] == "transfers")

@@ -1589,7 +1589,7 @@ const char * getUsageStr(const char *command)
     }
     if (!strcmp(command, "killsession"))
     {
-        return "killsession [-a|sessionid]";
+        return "killsession [-a | sessionid1 sessionid2 ... ]";
     }
     if (!strcmp(command, "whoami"))
     {
