@@ -1494,6 +1494,10 @@ void process_line(const char * line)
                     {
                         unsigned int width = getNumberOfCols(75);
                         int pathSize = int(width-13);
+                        if (strstr(line, "--versions"))
+                        {
+                            pathSize -= 11;
+                        }
 
                         toexec+=words[0];
                         toexec+=" --path-display-size=";

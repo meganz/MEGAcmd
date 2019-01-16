@@ -5352,7 +5352,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         {
             // get screen size for output purposes
             unsigned int width = getNumberOfCols(75);
-            PATHSIZE = min(50,int(width-13));
+            PATHSIZE = min(50,int(width-22));
         }
         PATHSIZE = max(0, PATHSIZE);
 
@@ -5454,7 +5454,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
         if (!firstone)
         {
-            for (int i = 0; i < PATHSIZE+12 ; i++)
+            for (int i = 0; i < PATHSIZE+12 +(show_versions_size?12:0) ; i++)
             {
                 OUTSTREAM << "-";
             }

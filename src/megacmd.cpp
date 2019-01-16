@@ -133,7 +133,7 @@ vector<string> remotepatterncommands(aremotepatterncommands, aremotepatterncomma
 string aremotefolderspatterncommands[] = {"cd", "share"};
 vector<string> remotefolderspatterncommands(aremotefolderspatterncommands, aremotefolderspatterncommands + sizeof aremotefolderspatterncommands / sizeof aremotefolderspatterncommands[0]);
 
-string amultipleremotepatterncommands[] = {"ls", "tree", "mkdir", "rm", "du", "find", "mv", "deleteversions", "cat"
+string amultipleremotepatterncommands[] = {"ls", "tree", "mkdir", "rm", "du", "find", "mv", "deleteversions", "cat", "mediainfo"
 #ifdef HAVE_LIBUV
                                            , "webdav", "ftp"
 #endif

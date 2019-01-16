@@ -257,6 +257,14 @@ string parseArgs(int argc, char* argv[])
             else if ( !strcmp(argv[1],"du") )
             {
                 pathSize = int(width-13);
+                for (int i = 1; i < argc; i++)
+                {
+                    if (strstr(argv[i], "--versions"))
+                    {
+                        pathSize -= 11;
+                        break;
+                    }
+                }
             }
             else if ( !strcmp(argv[1],"sync") )
             {
@@ -467,6 +475,16 @@ wstring parsewArgs(int argc, wchar_t* argv[])
             else if ( !wcscmp(argv[1],L"du") )
             {
                 pathSize = int(width-13);
+
+                for (int i = 1; i < argc; i++)
+                {
+                    if (wcsstr(argv[i], L"--versions"))
+                    {
+                        pathSize -= 11;
+                        break;
+                    }
+                }
+
             }
             else if ( !wcscmp(argv[1],L"sync") )
             {
