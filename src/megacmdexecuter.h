@@ -174,6 +174,8 @@ public:
     mega::MegaNode *getBaseNode(std::string thepath, std::string &rest, bool *isrelative = NULL);
     void getPathParts(std::string path, std::deque<std::string> *c);
 
+    bool checkAndInformPSA(CmdPetition *inf, bool enforce = false);
+
     bool checkNoErrors(int errorCode, std::string message = "");
     bool checkNoErrors(mega::MegaError *error, std::string message = "");
 

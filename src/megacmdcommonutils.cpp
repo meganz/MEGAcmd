@@ -464,6 +464,27 @@ void printCenteredLine(OUTSTREAMTYPE &os, string msj, unsigned int width, bool e
 
 void printCenteredContents(OUTSTREAMTYPE &os, string msj, unsigned int width, bool encapsulated)
 {
+    string headfoot = " ";
+    headfoot.append(width, '-');
+    if (msj.size())
+    {
+        string header;
+        if (msj.at(0) == '<')
+        {
+            size_t possenditle = msj.find(">");
+            if (possenditle < (width -2))
+            {
+                header.append(" ");
+                header.append((width - possenditle ) / 2, '-');
+                header.append(msj.substr(0,possenditle+1));
+                header.append(width - header.size() + 1, '-');
+                msj = msj.substr(possenditle + 1);
+            }
+        }
+
+        os << (header.size()?header:headfoot) << endl;
+    }
+
     size_t possepnewline = msj.find("\n");
     size_t possep = msj.find(" ");
 
@@ -473,12 +494,6 @@ void printCenteredContents(OUTSTREAMTYPE &os, string msj, unsigned int width, bo
     }
     size_t possepprev = possep;
 
-    string headfoot = " ";
-    headfoot.append(width, '-');
-    if (msj.size())
-    {
-        os << headfoot << endl;
-    }
 
     while (msj.size())
     {
