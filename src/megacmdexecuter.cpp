@@ -7134,7 +7134,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                                     ConfigurationManager::configuredSyncs.erase(itr++); //TODO: should protect with mutex!
                                     erased = true;
                                     delete ( thesync );
-                                    LOG_info << "Removed sync " << key << " to " << nodepath;
+                                    OUTSTREAM << "Removed sync " << key << " to " << nodepath << endl;
                                     modifiedsyncs=true;
                                 }
                             }
@@ -7144,7 +7144,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                                 ConfigurationManager::configuredSyncs.erase(itr++);
                                 erased = true;
                                 delete ( thesync );
-                                LOG_info << "Removed sync " << key << " to " << nodepath;
+                                OUTSTREAM << "Removed sync " << key << " to " << nodepath << endl;
                                 modifiedsyncs=true;
                             }
                             delete megaCmdListener;
@@ -7164,15 +7164,26 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 }
                 else
                 {
-                    setCurrentOutCode(MCMD_NOTFOUND);
-                    LOG_err << "Node not found for sync " << key << " into handle: " << thesync->handle;
+                    if (( id == i ) && getFlag(clflags, "d")) //simply remove: disabled (not found)
+                    {
+                        ConfigurationManager::configuredSyncs.erase(itr++);
+                        erased = true;
+                        delete ( thesync );
+                        OUTSTREAM << "Removed sync " << key << endl;
+                        modifiedsyncs = true;
+                    }
+                    else
+                    {
+                        setCurrentOutCode(MCMD_NOTFOUND);
+                        LOG_err << "Node not found for sync " << key << " into handle: " << thesync->handle;
+                    }
                 }
                 if (!erased)
                 {
                     ++itr;
                 }
             }
-            if (!foundsync)
+            if (!foundsync && !modifiedsyncs)
             {
                 setCurrentOutCode(MCMD_NOTFOUND);
                 LOG_err << "Sync not found: " << words[1] << ". Please provide full path or valid ID";
@@ -7186,14 +7197,13 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             {
                 sync_struct *thesync = ((sync_struct*)( *itr ).second );
                 MegaNode * n = api->getNodeByHandle(thesync->handle);
-
+                if (!headershown)
+                {
+                    headershown = true;
+                    printSyncHeader(PATHSIZE);
+                }
                 if (n)
                 {
-                    if (!headershown)
-                    {
-                        headershown = true;
-                        printSyncHeader(PATHSIZE);
-                    }
                     long long nfiles = 0;
                     long long nfolders = 0;
                     nfolders++; //add the share itself
@@ -7207,8 +7217,8 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 }
                 else
                 {
+                    printSync(i++, ( *itr ).first, "NOT FOUND", thesync, n, -1, -1, PATHSIZE);
                     setCurrentOutCode(MCMD_NOTFOUND);
-                    LOG_err << "Node not found for sync " << ( *itr ).first << " into handle: " << thesync->handle;
                 }
             }
         }
