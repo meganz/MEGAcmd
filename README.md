@@ -57,7 +57,6 @@ For platforms with Autotools, MEGAcmd can be built and installed with:
     ./configure
     make
     make install
-    ldconfig
     
 * You will need to run `make install` and `ldconfig` as root
 
