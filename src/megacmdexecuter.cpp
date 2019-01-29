@@ -4717,6 +4717,13 @@ void MegaCmdExecuter::addFtpLocation(MegaNode *n, bool firstone, string name)
 
 void MegaCmdExecuter::catFile(MegaNode *n)
 {
+    if (n->getType() != MegaNode::TYPE_FILE)
+    {
+        LOG_err << " Unable to cat: not a file";
+        setCurrentOutCode(MCMD_EARGS);
+        return;
+    }
+
     long long nsize = api->getSize(n);
     if (!nsize)
     {
@@ -5489,40 +5496,123 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
         for (int i = 1; i < (int)words.size(); i++)
         {
-            unescapeifRequired(words[i]);
-            if (isRegExp(words[i]))
+            if (isPublicLink(words[i]))
             {
-                vector<MegaNode *> *nodes = nodesbypath(words[i].c_str(), getFlag(clflags,"use-pcre"));
-                if (nodes)
+                string publicLink = words[i];
+                if (isEncryptedLink(publicLink))
                 {
-                    if (!nodes->size())
+                    string linkPass = getOption(cloptions, "password", "");
+                    if (!linkPass.size())
                     {
-                        setCurrentOutCode(MCMD_NOTFOUND);
-                        LOG_err << "Nodes not found: " << words[i];
+                        linkPass = askforUserResponse("Enter password: ");
                     }
-                    for (std::vector< MegaNode * >::iterator it = nodes->begin(); it != nodes->end(); ++it)
+
+                    if (linkPass.size())
                     {
-                        MegaNode * n = *it;
-                        if (n)
+                        MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
+                        api->decryptPasswordProtectedLink(publicLink.c_str(), linkPass.c_str(), megaCmdListener);
+                        megaCmdListener->wait();
+                        if (checkNoErrors(megaCmdListener->getError(), "decrypt password protected link"))
                         {
-                            catFile(n);
-                            delete n;
+                            publicLink = megaCmdListener->getRequest()->getText();
+                            delete megaCmdListener;
+                        }
+                        else
+                        {
+                            setCurrentOutCode(MCMD_NOTPERMITTED);
+                            LOG_err << "Invalid password";
+                            delete megaCmdListener;
+                            return;
                         }
                     }
+                    else
+                    {
+                        setCurrentOutCode(MCMD_EARGS);
+                        LOG_err << "Need a password to decrypt provided link (--password=PASSWORD)";
+                        return;
+                    }
+                }
+
+                if (getLinkType(publicLink) == MegaNode::TYPE_FILE)
+                {
+                    MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
+                    api->getPublicNode(publicLink.c_str(), megaCmdListener);
+                    megaCmdListener->wait();
+
+                    if (!checkNoErrors(megaCmdListener->getError(), "cat public node"))
+                    {
+                        if (megaCmdListener->getError()->getErrorCode() == MegaError::API_EARGS)
+                        {
+                            LOG_err << "The link provided might be incorrect: " << publicLink.c_str();
+                        }
+                        else if (megaCmdListener->getError()->getErrorCode() == MegaError::API_EINCOMPLETE)
+                        {
+                            LOG_err << "The key is missing or wrong " << publicLink.c_str();
+                        }
+                    }
+                    else
+                    {
+                        if (megaCmdListener->getRequest()->getFlag())
+                        {
+                            LOG_err << "Key not valid " << publicLink.c_str();
+                            setCurrentOutCode(MCMD_EARGS);
+                        }
+                        else
+                        {
+                            MegaNode *n = megaCmdListener->getRequest()->getPublicMegaNode();
+                            if (n)
+                            {
+                                catFile(n);
+                                delete n;
+                            }
+                        }
+
+                    }
+                    delete megaCmdListener;
+                }
+                else
+                {
+                    LOG_err << "Public link is not a file";
+                    setCurrentOutCode(MCMD_EARGS);
                 }
             }
             else
             {
-                MegaNode *n = nodebypath(words[i].c_str());
-                if (n)
+                unescapeifRequired(words[i]);
+                if (isRegExp(words[i]))
                 {
-                    catFile(n);
-                    delete n;
+                    vector<MegaNode *> *nodes = nodesbypath(words[i].c_str(), getFlag(clflags,"use-pcre"));
+                    if (nodes)
+                    {
+                        if (!nodes->size())
+                        {
+                            setCurrentOutCode(MCMD_NOTFOUND);
+                            LOG_err << "Nodes not found: " << words[i];
+                        }
+                        for (std::vector< MegaNode * >::iterator it = nodes->begin(); it != nodes->end(); ++it)
+                        {
+                            MegaNode * n = *it;
+                            if (n)
+                            {
+                                catFile(n);
+                                delete n;
+                            }
+                        }
+                    }
                 }
                 else
                 {
-                    setCurrentOutCode(MCMD_NOTFOUND);
-                    LOG_err << "Node not found: " << words[i];
+                    MegaNode *n = nodebypath(words[i].c_str());
+                    if (n)
+                    {
+                        catFile(n);
+                        delete n;
+                    }
+                    else
+                    {
+                        setCurrentOutCode(MCMD_NOTFOUND);
+                        LOG_err << "Node not found: " << words[i];
+                    }
                 }
             }
         }
