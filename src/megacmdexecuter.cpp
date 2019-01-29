@@ -1903,7 +1903,7 @@ void MegaCmdExecuter::actUponGetExtendedAccountDetails(SynchronousRequestListene
         MegaAccountDetails *details = srl->getRequest()->getMegaAccountDetails();
         if (details)
         {
-            OUTSTREAM << "    Available storage:"
+            OUTSTREAM << "    Available storage: "
                       << getFixLengthString(sizeToText(details->getStorageMax()), 9, ' ', true)
                       << "ytes" << endl;
             MegaNode *n = api->getRootNode();
@@ -1948,8 +1948,10 @@ void MegaCmdExecuter::actUponGetExtendedAccountDetails(SynchronousRequestListene
                 for (int i = 0; i < inshares->size(); i++)
                 {
                     n = inshares->get(i);
-                    OUTSTREAM << "        In INSHARE " << n->getName() << ": " << details->getStorageUsed(n->getHandle()) << " byte(s) in "
-                              << details->getNumFiles(n->getHandle()) << " file(s) and " << details->getNumFolders(n->getHandle()) << " folder(s)" << endl;
+                    OUTSTREAM << "        In INSHARE " << n->getName() << ": "
+                              << getFixLengthString(sizeToText(details->getStorageUsed(n->getHandle())), 9, ' ', true) << "ytes in "
+                              << getFixLengthString(SSTR(details->getNumFiles(n->getHandle())),5,' ',true) << " file(s) and "
+                              << getFixLengthString(SSTR(details->getNumFolders(n->getHandle())),5,' ',true) << " folder(s)" << endl;
                 }
             }
             delete inshares;
@@ -8353,6 +8355,133 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 actUponGetExtendedAccountDetails(megaCmdListener);
                 delete megaCmdListener;
             }
+            delete u;
+        }
+        else
+        {
+            setCurrentOutCode(MCMD_NOTLOGGEDIN);
+            LOG_err << "Not logged in.";
+        }
+
+        return;
+    }
+    else if (words[0] == "df")
+    {
+        bool humanreadable = getFlag(clflags, "h");
+        MegaUser *u = api->getMyUser();
+        if (u)
+        {
+            MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
+            api->getExtendedAccountDetails(true, true, true, megaCmdListener);
+            megaCmdListener->wait();
+            if (checkNoErrors(megaCmdListener->getError(), "failed to get used storage"))
+            {
+                MegaAccountDetails *details = megaCmdListener->getRequest()->getMegaAccountDetails();
+                if (details)
+                {
+                    long long usedTotal = 0;
+                    long long rootStorage = 0;
+                    long long inboxStorage = 0;
+                    long long rubbishStorage = 0;
+                    long long insharesStorage = 0;
+
+                    long long storageMax = details->getStorageMax();
+
+                    MegaNode *n = api->getRootNode();
+                    if (n)
+                    {
+                        rootStorage = details->getStorageUsed(n->getHandle());
+                        OUTSTREAM << "Cloud drive:          "
+                                  << getFixLengthString(sizeToText(rootStorage, true, humanreadable), 12, ' ', true) << " in "
+                                  << getFixLengthString(SSTR(details->getNumFiles(n->getHandle())),7,' ',true) << " file(s) and "
+                                  << getFixLengthString(SSTR(details->getNumFolders(n->getHandle())),7,' ',true) << " folder(s)" << endl;
+                        delete n;
+                    }
+
+                    n = api->getInboxNode();
+                    if (n)
+                    {
+                        inboxStorage = details->getStorageUsed(n->getHandle());
+                        OUTSTREAM << "Inbox:                "
+                                  << getFixLengthString(sizeToText(inboxStorage, true, humanreadable), 12, ' ', true ) << " in "
+                                  << getFixLengthString(SSTR(details->getNumFiles(n->getHandle())),7,' ',true) << " file(s) and "
+                                  << getFixLengthString(SSTR(details->getNumFolders(n->getHandle())),7,' ',true) << " folder(s)" << endl;
+                        delete n;
+                    }
+
+                    n = api->getRubbishNode();
+                    if (n)
+                    {
+                        rubbishStorage = details->getStorageUsed(n->getHandle());
+                        OUTSTREAM << "Rubbish bin:          "
+                                  << getFixLengthString(sizeToText(rubbishStorage, true, humanreadable), 12, ' ', true) << " in "
+                                  << getFixLengthString(SSTR(details->getNumFiles(n->getHandle())),7,' ',true) << " file(s) and "
+                                  << getFixLengthString(SSTR(details->getNumFolders(n->getHandle())),7,' ',true) << " folder(s)" << endl;
+                        delete n;
+                    }
+
+                    MegaNodeList *inshares = api->getInShares();
+                    if (inshares)
+                    {
+                        for (int i = 0; i < inshares->size(); i++)
+                        {
+                            n = inshares->get(i);
+                            long long thisinshareStorage = details->getStorageUsed(n->getHandle());
+                            insharesStorage += thisinshareStorage;
+                            if (i == 0)
+                            {
+                                OUTSTREAM << "Incoming shares:" << endl;
+                            }
+
+                            string name = n->getName();
+                            name += ": ";
+                            name.append(max(0, int (21 - name.size())), ' ');
+
+                            OUTSTREAM << " " << name
+                                      << getFixLengthString(sizeToText(thisinshareStorage, true, humanreadable), 12, ' ', true) << " in "
+                                      << getFixLengthString(SSTR(details->getNumFiles(n->getHandle())),7,' ',true) << " file(s) and "
+                                      << getFixLengthString(SSTR(details->getNumFolders(n->getHandle())),7,' ',true) << " folder(s)" << endl;
+                        }
+                    }
+                    delete inshares;
+
+                    usedTotal += rootStorage;
+                    usedTotal += inboxStorage;
+                    usedTotal += rubbishStorage;
+                    usedTotal += insharesStorage;
+
+                    float percent = float(usedTotal * 1.0 / storageMax);
+                    if (percent < 0 ) percent = 0;
+
+                    string sof= percentageToText(percent);
+                    sof +=  " of ";
+                    sof +=  sizeToText(storageMax, true, humanreadable);
+
+
+                    for (int i = 0; i < 75 ; i++)
+                    {
+                        OUTSTREAM << "-";
+                    }
+                    OUTSTREAM << endl;
+
+                    OUTSTREAM << "USED STORAGE:         " << getFixLengthString(sizeToText(usedTotal, true, humanreadable), 12, ' ', true)
+                              << "  " << getFixLengthString(sof, 39, ' ', true) << endl;
+
+                    for (int i = 0; i < 75 ; i++)
+                    {
+                        OUTSTREAM << "-";
+                    }
+                    OUTSTREAM << endl;
+
+                    long long usedinVersions = details->getVersionStorageUsed();
+
+                    OUTSTREAM << "Total size taken up by file versions: "
+                              << getFixLengthString(sizeToText(usedinVersions, true, humanreadable), 12, ' ', true) << endl;
+
+                    delete details;
+                }
+            }
+            delete megaCmdListener;
             delete u;
         }
         else

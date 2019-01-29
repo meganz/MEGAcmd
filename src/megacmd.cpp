@@ -153,7 +153,7 @@ string aemailpatterncommands [] = {"invite", "signup", "ipc", "users"};
 vector<string> emailpatterncommands(aemailpatterncommands, aemailpatterncommands + sizeof aemailpatterncommands / sizeof aemailpatterncommands[0]);
 
 string avalidCommands [] = { "login", "signup", "confirm", "session", "mount", "ls", "cd", "log", "debug", "pwd", "lcd", "lpwd", "import", "masterkey",
-                             "put", "get", "attr", "userattr", "mkdir", "rm", "du", "mv", "cp", "sync", "export", "share", "invite", "ipc",
+                             "put", "get", "attr", "userattr", "mkdir", "rm", "du", "mv", "cp", "sync", "export", "share", "invite", "ipc", "df",
                              "showpcr", "users", "speedlimit", "killsession", "whoami", "help", "passwd", "reload", "logout", "version", "quit",
                              "thumbnail", "preview", "find", "completion", "clear", "https", "transfers", "exclude", "exit", "errorcode", "graphics",
                              "cancel", "confirmcancel", "cat", "tree"
@@ -402,6 +402,10 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     else if ("whoami" == thecommand)
     {
         validParams->insert("l");
+    }
+    else if ("df" == thecommand)
+    {
+        validParams->insert("h");
     }
     else if ("mediainfo" == thecommand)
     {
@@ -1595,6 +1599,10 @@ const char * getUsageStr(const char *command)
     {
         return "whoami [-l]";
     }
+    if (!strcmp(command, "df"))
+    {
+        return "df [-h]";
+    }
     if (!strcmp(command, "cat"))
     {
         return "cat remotepath1 remotepath2 ...";
@@ -2457,11 +2465,20 @@ string getHelpStr(const char *command)
     }
     else if (!strcmp(command, "whoami"))
     {
-        os << "Print info of the user" << endl;
+        os << "Prints info of the user" << endl;
         os << endl;
         os << "Options:" << endl;
         os << " -l" << "\t" << "Show extended info: total storage used, storage per main folder " << endl;
         os << "   " << "\t" << "(see mount), pro level, account balance, and also the active sessions" << endl;
+    }
+    else if (!strcmp(command, "df"))
+    {
+        os << "Shows storage info" << endl;
+        os << endl;
+        os << "Shows total storage used in the account, storage per main folder (see mount)" << endl;
+        os << endl;
+        os << "Options:" << endl;
+        os << " -h" << "\t" << "Human readable sizes. Otherwise, size will be expressed in Bytes" << endl;
     }
     else if (!strcmp(command, "cat"))
     {
