@@ -388,7 +388,15 @@ int getLogLevelNum(const char* level)
     {
         return MegaApi:: LOG_LEVEL_MAX;
     }
-    return atoi(level);
+
+    int i = -1;
+    istringstream is(level);
+    is >> i;
+    if (i == 0 && strcmp(level,"0"))
+    {
+        return -1;
+    }
+    return i;
 }
 
 

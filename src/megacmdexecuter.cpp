@@ -6396,6 +6396,12 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         else
         {
             int newLogLevel = getLogLevelNum(words[1].c_str());
+            if (newLogLevel == -1)
+            {
+                setCurrentOutCode(MCMD_EARGS);
+                LOG_err << "Invalid log level";
+                return;
+            }
             newLogLevel = max(newLogLevel, (int)MegaApi::LOG_LEVEL_FATAL);
             newLogLevel = min(newLogLevel, (int)MegaApi::LOG_LEVEL_MAX);
             if (!getFlag(clflags, "s") && !getFlag(clflags, "c"))
