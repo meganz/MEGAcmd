@@ -191,6 +191,7 @@ public:
     void removeFtpLocation(mega::MegaNode *n, bool firstone, std::string name = std::string());
     void addFtpLocation(mega::MegaNode *n, bool firstone, std::string name = std::string());
 #endif
+    bool printUserAttribute(int a, std::string user, bool onlylist = false);
 };
 
 #endif // MEGACMDEXECUTER_H

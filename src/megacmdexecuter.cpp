@@ -3468,10 +3468,23 @@ vector<string> MegaCmdExecuter::getNodeAttrs(string nodePath)
 vector<string> MegaCmdExecuter::getUserAttrs()
 {
     vector<string> attrs;
-    for (int i=0;i < 10; i++)
+    int i = 0;
+    do
     {
-        attrs.push_back(getAttrStr(i) );
-    }
+        const char *catrn = api->userAttributeToString(i);
+        if (strlen(catrn))
+        {
+            attrs.push_back(catrn);
+        }
+        else
+        {
+            delete [] catrn;
+            break;
+        }
+        delete [] catrn;
+        i++;
+    } while (true);
+
     return attrs;
 }
 
@@ -4783,6 +4796,67 @@ void MegaCmdExecuter::printInfoFile(MegaNode *n, bool &firstone, int PATHSIZE)
     OUTSTREAM << getFixLengthString( (n->getHeight() == -1) ? "---" : getReadablePeriod(n->getDuration()) , 10) << " ";
 
     OUTSTREAM << endl;
+}
+
+bool MegaCmdExecuter::printUserAttribute(int a, string user, bool onlylist)
+{
+    const char *catrn = api->userAttributeToString(a);
+    string attrname = catrn;
+    delete [] catrn;
+
+    const char *catrln = api->userAttributeToLongName(a);
+    string longname = catrln;
+    delete [] catrln;
+
+    if (attrname.size())
+    {
+        if (onlylist)
+        {
+            OUTSTREAM << longname << " (" << attrname << ")" << endl;
+        }
+        else
+        {
+            MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
+            if (user.size())
+            {
+                api->getUserAttribute(user.c_str(), a, megaCmdListener);
+            }
+            else
+            {
+                api->getUserAttribute(a, megaCmdListener);
+            }
+            megaCmdListener->wait();
+            if (checkNoErrors(megaCmdListener->getError(), string("get user attribute ") + attrname))
+            {
+                int iattr = megaCmdListener->getRequest()->getParamType();
+                const char *value = megaCmdListener->getRequest()->getText();
+                //if (!value) value = megaCmdListener->getRequest()->getMegaStringMap()->;
+                string svalue;
+                try
+                {
+                    if (value)
+                    {
+                        svalue = string(value);
+                    }
+                    else
+                    {
+
+                        svalue = "NOT PRINTABLE";
+                    }
+
+                }
+                catch (exception e)
+                {
+                    svalue = "NOT PRINTABLE";
+                }
+                OUTSTREAM << "\t" << longname << " (" << attrname << ")" << " = " << svalue << endl;
+            }
+
+            delete megaCmdListener;
+        }
+        return true;
+    }
+    return false;
 }
 
 void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clflags, map<string, string> *cloptions)
@@ -8017,8 +8091,10 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             return;
         }
         bool settingattr = getFlag(clflags, "s");
+        bool listattrs = getFlag(clflags, "list");
+        bool listall = words.size() == 1;
 
-        int attribute = getAttrNum(words.size() > 1 ? words[1].c_str() : "-1");
+        int attribute = api->userAttributeFromString(words.size() > 1 ? words[1].c_str() : "-1");
         string attrValue = words.size() > 2 ? words[2] : "";
         string user = getOption(cloptions, "user", "");
         if (settingattr && user.size())
@@ -8032,17 +8108,17 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         {
             if (attribute != -1)
             {
+                const char *catrn = api->userAttributeToString(attribute);
+                string attrname = catrn;
+                delete [] catrn;
+
                 MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
                 api->setUserAttribute(attribute, attrValue.c_str(), megaCmdListener);
                 megaCmdListener->wait();
-                if (checkNoErrors(megaCmdListener->getError(), string("set user attribute ") + getAttrStr(attribute)))
+                if (checkNoErrors(megaCmdListener->getError(), string("set user attribute ") + attrname))
                 {
-                    OUTSTREAM << "User attribute " << getAttrStr(attribute) << " updated" << " correctly" << endl;
-                }
-                else
-                {
-                    delete megaCmdListener;
-                    return;
+                    OUTSTREAM << "User attribute " << attrname << " updated correctly" << endl;
+                    printUserAttribute(attribute, user, listattrs);
                 }
                 delete megaCmdListener;
             }
@@ -8054,44 +8130,26 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 return;
             }
         }
-
-        for (int a = ( attribute == -1 ? 0 : attribute ); a < ( attribute == -1 ? 10 : attribute + 1 ); a++)
+        else // list
         {
-            MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
-            if (user.size())
+            if (listall)
             {
-                api->getUserAttribute(user.c_str(), a, megaCmdListener);
+                int a = 0;
+                bool found = false;
+                do
+                {
+                    found = printUserAttribute(a, user, listattrs);
+                    a++;
+                } while (found && listall);
             }
             else
             {
-                api->getUserAttribute(a, megaCmdListener);
-            }
-            megaCmdListener->wait();
-            if (checkNoErrors(megaCmdListener->getError(), string("get user attribute ") + getAttrStr(a)))
-            {
-                int iattr = megaCmdListener->getRequest()->getParamType();
-                const char *value = megaCmdListener->getRequest()->getText();
-                string svalue;
-                try
+                if (!printUserAttribute(attribute, user, listattrs))
                 {
-                    if (value)
-                    {
-                        svalue = string(value);
-                    }
-                    else
-                    {
-                        svalue = "NOT PRINTABLE";
-                    }
-
+                    setCurrentOutCode(MCMD_NOTFOUND);
+                    LOG_err << "Attribute not found: " << words[1];
                 }
-                catch (exception e)
-                {
-                    svalue = "NOT PRINTABLE";
-                }
-                OUTSTREAM << "\t" << getAttrStr(iattr) << " = " << svalue << endl;
             }
-
-            delete megaCmdListener;
         }
 
         return;

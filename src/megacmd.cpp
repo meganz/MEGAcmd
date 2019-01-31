@@ -562,6 +562,7 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     {
         validOptValues->insert("user");
         validParams->insert("s");
+        validParams->insert("list");
     }
     else if ("ipc" == thecommand)
     {
@@ -1464,7 +1465,7 @@ const char * getUsageStr(const char *command)
     }
     if (!strcmp(command, "userattr"))
     {
-        return "userattr [-s attribute value|attribute] [--user=user@email]";
+        return "userattr [-s attribute value|attribute|--list] [--user=user@email]";
     }
     if (!strcmp(command, "mkdir"))
     {
@@ -2060,6 +2061,7 @@ string getHelpStr(const char *command)
         os << "Options:" << endl;
         os << " -s" << "\tattribute value \t" << "sets an attribute to a value" << endl;
         os << " --user=user@email" << "\t" << "select the user to query" << endl;
+        os << " --list" << "\t" << "lists valid attributes" << endl;
     }
     else if (!strcmp(command, "mkdir"))
     {
