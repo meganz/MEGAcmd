@@ -671,20 +671,7 @@ bool UpdateTask::performUpdate()
                 return false;
             }
 
-            if (!mega_size(update.c_str()))
-            {
-                if (mega_remove(origFile.c_str()))
-                {
-                    LOG(LOG_LEVEL_ERROR, "Error installing file %s in %s",  update.c_str(), origFile.c_str());
-                    rollbackUpdate(i);
-                    return false;
-                }
-            }
-            else
-            {
-                setPermissions(origFile.c_str());
-            }
-
+            setPermissions(origFile.c_str());
             LOG(LOG_LEVEL_INFO, "File correctly installed: %s",  localPaths[i].c_str());
         }
         else
