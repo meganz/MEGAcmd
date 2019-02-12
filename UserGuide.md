@@ -301,7 +301,7 @@ Configuration Options:
                           last the same and Daylight saving time changes are not considered
                           If possible use a cron like expresion
                          Notice: regardless of the period expresion, the first time you establish a backup,
-                          it will be created inmediately
+                          it will be created immediately
 --num-backups=N Maximum number of backups to store
                          After creating the backup (N+1) the oldest one will be deleted
                          That might not be true in case there are incomplete backups:
@@ -400,7 +400,7 @@ Options:
  -d pattern1 pattern2 ...       deletes pattern(s) from the exclusion list
  --restart-syncs        Try to restart synchronizations.
 
-Changes will not be applied inmediately to actions being performed in active syncs.
+Changes will not be applied immediately to actions being performed in active syncs.
 After adding/deleting patterns, you might want to:
  a) disable/reenable synchronizations manually
  b) restart MEGAcmd server
