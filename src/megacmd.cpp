@@ -1751,7 +1751,7 @@ string getHelpStr(const char *command)
         os << " Caution: The account under this email address will be permanently closed" << endl;
         os << " and your data deleted. This can not be undone." << endl;
         os << endl;
-        os << "The cancellation will not take place inmediately. You will need to confirm the cancellation" << endl;
+        os << "The cancellation will not take place immediately. You will need to confirm the cancellation" << endl;
         os << "using a link that will be delivered to your email. See \"confirmcancel --help\"" << endl;
     }
     else if (!strcmp(command, "confirmcancel"))
@@ -2157,7 +2157,7 @@ string getHelpStr(const char *command)
         os << " --restart-syncs" << "\t" << "Try to restart synchronizations." << endl;
 
         os << endl;
-        os << "Changes will not be applied inmediately to actions being performed in active syncs. " << endl;
+        os << "Changes will not be applied immediately to actions being performed in active syncs. " << endl;
         os << "After adding/deleting patterns, you might want to: " << endl;
         os << " a) disable/reenable synchronizations manually" << endl;
         os << " b) restart MEGAcmd server" << endl;
@@ -2243,7 +2243,7 @@ string getHelpStr(const char *command)
         os << "                       \t" << "  last the same and Daylight saving time changes are not considered" << endl;
         os << "                       \t" << "  If possible use a cron like expresion" << endl;
         os << "                       \t" << "Notice: regardless of the period expresion, the first time you establish a backup," << endl;
-        os << "                       \t" << " it will be created inmediately" << endl;
+        os << "                       \t" << " it will be created immediately" << endl;
         os << "--num-backups=N\t" << "Maximum number of backups to store" << endl;
         os << "                 \t" << " After creating the backup (N+1) the oldest one will be deleted" << endl;
         os << "                 \t" << "  That might not be true in case there are incomplete backups:" << endl;
