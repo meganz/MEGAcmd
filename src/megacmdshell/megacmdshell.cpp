@@ -1456,6 +1456,8 @@ void process_line(const char * line)
                     }
                     /* Move the cursor home */
                     SetConsoleCursorPosition( hStdOut, { 0, 0 } );
+#elif __linux__
+                    printf("\033[H\033[J");
 #else
                     rl_clear_screen(0,0);
 #endif
