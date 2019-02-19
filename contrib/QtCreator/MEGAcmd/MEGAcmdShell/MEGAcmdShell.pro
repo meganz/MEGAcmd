@@ -90,6 +90,12 @@ macx {
     LIBS += $$PWD/../../../../sdk/bindings/qt/3rdparty/libs/libreadline.a
     LIBS += -framework Cocoa -framework SystemConfiguration -framework CoreFoundation -framework Foundation -framework Security
     LIBS += -lncurses
+
+    QMAKE_MACOSX_DEPLOYMENT_TARGET = 10.9
+    QMAKE_CXXFLAGS -= -stdlib=libc++
+    QMAKE_LFLAGS -= -stdlib=libc++
+    CONFIG -= c++11
+
     QMAKE_CXXFLAGS += -g
 }
 else {

@@ -166,7 +166,7 @@ void setCurrentPetition(CmdPetition *petition)
 MegaCMDLogger::MegaCMDLogger()
 {
     this->output = &LCOUT;
-    this->apiLoggerLevel = mega::MegaApi::LOG_LEVEL_ERROR;
+    this->apiLoggerLevel = MegaApi::LOG_LEVEL_ERROR;
 }
 
 void MegaCMDLogger::log(const char *time, int loglevel, const char *source, const char *message)
