@@ -267,8 +267,6 @@ string UpdateTask::getAppDataDir()
 #define MEGA_TO_NATIVE_SEPARATORS(x) std::replace(x.begin(), x.end(), '\\', '/');
 #define MEGA_SET_PERMISSIONS chmod("/Applications/MEGAcmd.app/Contents/MacOS/mega-cmd", S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH); \
                              chmod("/Applications/MEGAcmd.app/Contents/MacOS/MEGAupdater", S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
-//TODO: figure if this is enough in MAC ^
-
 
 string UpdateTask::getAppDir()
 {
@@ -713,6 +711,10 @@ void UpdateTask::finalCleanup()
 bool UpdateTask::setPermissions(const char *path)
 {
 #ifndef _WIN32
+    if (path && string(path).find("/mega-") != string::npos)
+    {
+        chmod(path, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
+    }
     return true;
 #else
     if (!isPublic)
