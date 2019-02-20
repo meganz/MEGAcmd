@@ -30,9 +30,8 @@
 #include "Preferences.h"
 #include "MacUtils.h"
 
-using namespace std;
-using namespace CryptoPP;
-
+using std::string;
+using CryptoPP::Integer;
 
 enum {
     LOG_LEVEL_FATAL = 0,   // Very severe error event that will presumably lead the application to abort.
