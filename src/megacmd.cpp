@@ -4445,7 +4445,7 @@ int main(int argc, char* argv[])
     cmdexecuter = new MegaCmdExecuter(api, loggerCMD, sandboxCMD);
 
     megaCmdGlobalListener = new MegaCmdGlobalListener(loggerCMD, sandboxCMD);
-    megaCmdMegaListener = new MegaCmdMegaListener(api, NULL);
+    megaCmdMegaListener = new MegaCmdMegaListener(api, NULL, sandboxCMD);
     api->addGlobalListener(megaCmdGlobalListener);
     api->addListener(megaCmdMegaListener);
 

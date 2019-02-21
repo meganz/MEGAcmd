@@ -201,6 +201,11 @@ void MegaCmdMegaListener::onRequestFinish(MegaApi *api, MegaRequest *request, Me
     {
         LOG_verbose << "TYPE_APP_VERSION finished";
     }
+    else if (request->getType() == MegaRequest::TYPE_LOGOUT)
+    {
+        LOG_debug << "Session closed";
+        sandboxCMD->resetSandBox();
+    }
     else if (e && ( e->getErrorCode() == MegaError::API_ESID ))
     {
         LOG_err << "Session is no longer valid (it might have been invalidated from elsewhere) ";
@@ -212,10 +217,11 @@ void MegaCmdMegaListener::onRequestFinish(MegaApi *api, MegaRequest *request, Me
     }
 }
 
-MegaCmdMegaListener::MegaCmdMegaListener(MegaApi *megaApi, MegaListener *parent)
+MegaCmdMegaListener::MegaCmdMegaListener(MegaApi *megaApi, MegaListener *parent, MegaCmdSandbox *sandboxCMD)
 {
     this->megaApi = megaApi;
     this->listener = parent;
+    this->sandboxCMD = sandboxCMD;
 }
 
 MegaCmdMegaListener::~MegaCmdMegaListener()

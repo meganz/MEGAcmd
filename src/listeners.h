@@ -144,7 +144,7 @@ class MegaCmdMegaListener : public mega::MegaListener
 {
 
 public:
-    MegaCmdMegaListener(mega::MegaApi *megaApi, mega::MegaListener *parent=NULL);
+    MegaCmdMegaListener(mega::MegaApi *megaApi, mega::MegaListener *parent=NULL, MegaCmdSandbox *sandboxCMD = NULL);
     virtual ~MegaCmdMegaListener();
 
     virtual void onRequestFinish(mega::MegaApi* api, mega::MegaRequest *request, mega::MegaError* e);
@@ -164,6 +164,7 @@ public:
 protected:
     mega::MegaApi *megaApi;
     mega::MegaListener *listener;
+    MegaCmdSandbox *sandboxCMD;
 };
 
 class MegaCmdGlobalTransferListener : public mega::MegaTransferListener
