@@ -197,7 +197,11 @@ void MegaCmdGlobalListener::onEvent(MegaApi *api, MegaEvent *event)
 
 void MegaCmdMegaListener::onRequestFinish(MegaApi *api, MegaRequest *request, MegaError *e)
 {
-    if (e && ( e->getErrorCode() == MegaError::API_ESID ))
+    if (request->getType() == MegaRequest::TYPE_APP_VERSION)
+    {
+        LOG_verbose << "TYPE_APP_VERSION finished";
+    }
+    else if (e && ( e->getErrorCode() == MegaError::API_ESID ))
     {
         LOG_err << "Session is no longer valid (it might have been invalidated from elsewhere) ";
         changeprompt(prompts[COMMAND]);
