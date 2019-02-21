@@ -296,9 +296,9 @@ void statechangehandle(string statestring)
             if (!comms->updating)
             {
                 comms->updating = true; // to avoid mensajes about server down
-                sleepSeconds(3); // Give a while for server to restart
-                changeprompt("RESTART REQUIRED BY SERVER (due to an update). Press any key to continue.", true);
             }
+            sleepSeconds(3); // Give a while for server to restart
+            changeprompt("RESTART REQUIRED BY SERVER (due to an update). Press any key to continue.", true);
         }
         else
         {

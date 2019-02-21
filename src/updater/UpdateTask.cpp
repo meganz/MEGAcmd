@@ -266,7 +266,9 @@ string UpdateTask::getAppDataDir()
 
 #define MEGA_TO_NATIVE_SEPARATORS(x) std::replace(x.begin(), x.end(), '\\', '/');
 #define MEGA_SET_PERMISSIONS chmod("/Applications/MEGAcmd.app/Contents/MacOS/mega-cmd", S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH); \
-                             chmod("/Applications/MEGAcmd.app/Contents/MacOS/MEGAupdater", S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
+                             chmod("/Applications/MEGAcmd.app/Contents/MacOS/MEGAcmdShell", S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH); \
+                             chmod("/Applications/MEGAcmd.app/Contents/MacOS/MEGAcmd", S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH); \
+                             chmod("/Applications/MEGAcmd.app/Contents/MacOS/MEGAcmdUpdater", S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
 
 string UpdateTask::getAppDir()
 {
