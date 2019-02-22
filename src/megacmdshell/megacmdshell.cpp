@@ -207,6 +207,7 @@ void statechangehandle(string statestring)
 {
     char statedelim[2]={(char)0x1F,'\0'};
     size_t nextstatedelimitpos = statestring.find(statedelim);
+    static bool shown_partial_progress = false;
 
     while (nextstatedelimitpos!=string::npos && statestring.size())
     {
@@ -216,6 +217,20 @@ void statechangehandle(string statestring)
         if (newstate.compare(0, strlen("prompt:"), "prompt:") == 0)
         {
             changeprompt(newstate.substr(strlen("prompt:")).c_str(),true);
+        }
+        else if (newstate.compare(0, strlen("endtransfer:"), "endtransfer:") == 0)
+        {
+            string rest = newstate.substr(strlen("endtransfer:"));
+            if (rest.size() >=3)
+            {
+                bool isdown = rest.at(0) == 'D';
+                string path = rest.substr(2);
+                OUTSTRINGSTREAM os;
+                if (shown_partial_progress)
+                    os << endl;
+                os << (isdown?"Download":"Upload") << " finished: " << path << endl;
+                OUTSTREAM << os.str();
+            }
         }
         else if (newstate.compare(0, strlen("message:"), "message:") == 0)
         {
@@ -259,6 +274,16 @@ void statechangehandle(string statestring)
                 nexdel = rest.find(":");
                 title = rest.substr(0,nexdel);
             }
+
+            if (received!=SPROGRESS_COMPLETE)
+            {
+                shown_partial_progress = true;
+            }
+            else
+            {
+                shown_partial_progress = false;
+            }
+
 
             if (title.size())
             {
@@ -305,6 +330,12 @@ void statechangehandle(string statestring)
             cerr << "received unrecognized state change: [" << newstate << "]" << endl;
             //sleep a while to avoid continuous looping
             sleepSeconds(1);
+        }
+
+
+        if (newstate.compare(0, strlen("progress:"), "progress:") != 0)
+        {
+            shown_partial_progress = false;
         }
     }
 }

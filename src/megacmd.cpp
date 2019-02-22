@@ -309,6 +309,11 @@ void informTransferUpdate(MegaTransfer *transfer, int clientID)
     informProgressUpdate(transfer->getTransferredBytes(),transfer->getTotalBytes(), clientID);
 }
 
+void informStateListenerByClientId(int clientID, string s)
+{
+    cm->informStateListenerByClientId(s, clientID);
+}
+
 void informProgressUpdate(long long transferred, long long total, int clientID, string title)
 {
     string s = "progress:";
@@ -322,7 +327,7 @@ void informProgressUpdate(long long transferred, long long total, int clientID, 
         s+=title;
     }
 
-    cm->informStateListenerByClientId(s, clientID);
+    informStateListenerByClientId(clientID, s);
 }
 
 void insertValidParamsPerCommand(set<string> *validParams, string thecommand, set<string> *validOptValues = NULL)

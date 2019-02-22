@@ -134,6 +134,8 @@ void stopcheckingForUpdates();
 void startcheckingForUpdates();
 
 void informTransferUpdate(mega::MegaTransfer *transfer, int clientID);
+void informStateListenerByClientId(int clientID, std::string s);
+
 
 void informProgressUpdate(long long transferred, long long total, int clientID, std::string title = "");
 

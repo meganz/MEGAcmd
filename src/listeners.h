@@ -99,6 +99,8 @@ private:
     long long getOngoingTransferredBytes();
     long long getOngoingTotalBytes();
 
+    bool progressinformed;
+
 public:
     MegaCmdMultiTransferListener(mega::MegaApi *megaApi, MegaCmdSandbox * sandboxCMD, mega::MegaTransferListener *listener = NULL, int clientID=-1);
     virtual ~MegaCmdMultiTransferListener();
@@ -117,6 +119,8 @@ public:
     int getFinalerror() const;
 
     long long getTotalbytes() const;
+
+    bool getProgressinformed() const;
 
 protected:
     mega::MegaTransferListener *listener;
