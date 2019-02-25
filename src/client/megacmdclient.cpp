@@ -807,7 +807,6 @@ void statechangehandle(string statestring)
             }
             MegaCmdShellCommunicationsNamedPipes::megaCmdStdoutputing.unlock();
 
-
         }
         else if (newstate == "ack")
         {
