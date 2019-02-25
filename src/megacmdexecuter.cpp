@@ -2206,22 +2206,6 @@ int MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
             megaCmdListener->wait();
             // we don't call getAccountDetails on startup always: we ask on first login (no "ask4storage") or previous state was STATE_RED | STATE_ORANGE
             // if we were green, don't need to ask: if there are changes they will be received via action packet indicating STATE_CHANGE
-
-            if (sandboxCMD->storageStatus != MegaApi::STORAGE_STATE_GREEN)
-            {
-                string s;
-
-                if (sandboxCMD->storageStatus == MegaApi::STORAGE_STATE_RED)
-                {
-                    s+= "You have exeeded your available storage.\n";
-                }
-                else
-                {
-                    s+= "You are running out of available storage.\n";
-                }
-                s+="You can change your account plan to increase your quota limit.\nSee \"help --upgrade\" for further details";
-                broadcastMessage(s);
-            }
         }
 
 #ifdef ENABLE_BACKUPS

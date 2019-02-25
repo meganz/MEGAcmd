@@ -176,15 +176,32 @@ void MegaCmdGlobalListener::onEvent(MegaApi *api, MegaEvent *event)
         }
         else
         {
+            int previousStatus = sandboxCMD->storageStatus;
             sandboxCMD->storageStatus = event->getNumber();
             if (sandboxCMD->storageStatus == MegaApi::STORAGE_STATE_RED || sandboxCMD->storageStatus == MegaApi::STORAGE_STATE_ORANGE)
             {
                 ConfigurationManager::savePropertyValue("ask4storage",true);
+
+                if (previousStatus < sandboxCMD->storageStatus)
+                {
+                    string s;
+                    if (sandboxCMD->storageStatus == MegaApi::STORAGE_STATE_RED)
+                    {
+                        s+= "You have exeeded your available storage.\n";
+                    }
+                    else
+                    {
+                        s+= "You are running out of available storage.\n";
+                    }
+                    s+="You can change your account plan to increase your quota limit.\nSee \"help --upgrade\" for further details";
+                    broadcastMessage(s);
+                }
             }
             else
             {
                 ConfigurationManager::savePropertyValue("ask4storage",false);
             }
+
         }
         LOG_info << "Received event storage changed: " << event->getNumber();
     }
