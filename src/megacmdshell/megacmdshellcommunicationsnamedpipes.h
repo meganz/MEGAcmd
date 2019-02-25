@@ -47,6 +47,7 @@ class MegaCmdShellCommunicationsNamedPipes : public MegaCmdShellCommunications
 private:
     bool redirectedstdout;
 public:
+    static MegaMutex megaCmdStdoutputing;
 
     MegaCmdShellCommunicationsNamedPipes();
     MegaCmdShellCommunicationsNamedPipes(bool _redirectedstdout):redirectedstdout(_redirectedstdout){};

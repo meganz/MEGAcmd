@@ -22,6 +22,18 @@
 
 #include <sys/types.h>
 
+#ifdef _WIN32
+#include <fcntl.h>
+#include <io.h>
+#include <stdio.h>
+#ifndef _O_U16TEXT
+#define _O_U16TEXT 0x00020000
+#endif
+#ifndef _O_U8TEXT
+#define _O_U8TEXT 0x00040000
+#endif
+#endif
+
 using namespace std;
 using namespace mega;
 
@@ -167,6 +179,12 @@ MegaCMDLogger::MegaCMDLogger()
 {
     this->output = &LCOUT;
     this->apiLoggerLevel = MegaApi::LOG_LEVEL_ERROR;
+    this->outputmutex = new MegaMutex(false);
+}
+
+MegaCMDLogger::~MegaCMDLogger()
+{
+    delete this->outputmutex;
 }
 
 void MegaCMDLogger::log(const char *time, int loglevel, const char *source, const char *message)
@@ -180,7 +198,16 @@ void MegaCMDLogger::log(const char *time, int loglevel, const char *source, cons
     {
         if (loglevel <= cmdLoggerLevel)
         {
+#ifdef _WIN32
+            MutexGuard g(*outputmutex);
+            int oldmode;
+            oldmode = _setmode(_fileno(stdout), _O_U8TEXT);
             *output << "[" << SimpleLogger::toStr(LogLevel(loglevel)) << ": " << time << "] " << message << endl;
+            _setmode(_fileno(stdout), oldmode);
+#else
+            *output << "[" << SimpleLogger::toStr(LogLevel(loglevel)) << ": " << time << "] " << message << endl;
+#endif
+
         }
 
         int currentThreadLogLevel = getCurrentThreadLogLevel();
@@ -205,8 +232,15 @@ void MegaCMDLogger::log(const char *time, int loglevel, const char *source, cons
             {
                 return;
             }
-
+#ifdef _WIN32
+            MutexGuard g(*outputmutex);
+            int oldmode;
+            oldmode = _setmode(_fileno(stdout), _O_U8TEXT);
             *output << "[API:" << SimpleLogger::toStr(LogLevel(loglevel)) << ": " << time << "] " << message << endl;
+            _setmode(_fileno(stdout), oldmode);
+#else
+            *output << "[API:" << SimpleLogger::toStr(LogLevel(loglevel)) << ": " << time << "] " << message << endl;
+#endif
         }
 
         int currentThreadLogLevel = getCurrentThreadLogLevel();

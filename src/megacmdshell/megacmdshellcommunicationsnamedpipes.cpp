@@ -46,6 +46,9 @@ bool MegaCmdShellCommunicationsNamedPipes::confirmResponse; //TODO: do all this 
 bool MegaCmdShellCommunicationsNamedPipes::stopListener;
 mega::Thread *MegaCmdShellCommunicationsNamedPipes::listenerThread;
 HANDLE MegaCmdShellCommunicationsNamedPipes::newNamedPipe;
+MegaMutex MegaCmdShellCommunicationsNamedPipes::megaCmdStdoutputing;
+
+
 
 bool MegaCmdShellCommunicationsNamedPipes::namedPipeValid(HANDLE namedPipe)
 {
@@ -574,6 +577,7 @@ int MegaCmdShellCommunicationsNamedPipes::executeCommand(string command, std::st
 
             if (partialoutsize > 0)
             {
+                megaCmdStdoutputing.lock();
                 int oldmode;
 
                 if (binaryoutput)
@@ -612,6 +616,7 @@ int MegaCmdShellCommunicationsNamedPipes::executeCommand(string command, std::st
                 {
                     _setmode(_fileno(stdout), oldmode);
                 }
+                megaCmdStdoutputing.unlock();
             }
             else
             {

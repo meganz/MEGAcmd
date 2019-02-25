@@ -711,11 +711,26 @@ void statechangehandle(string statestring)
             {
                 bool isdown = rest.at(0) == 'D';
                 string path = rest.substr(2);
-                OUTSTRINGSTREAM os;
+
+                stringstream os;
                 if (shown_partial_progress)
                     os << endl;
+
                 os << (isdown?"Download":"Upload") << " finished: " << path << endl;
+
+#ifdef _WIN32
+                wstring wbuffer;
+                stringtolocalw((const char*)os.str().data(),&wbuffer);
+                int oldmode;
+                MegaCmdShellCommunicationsNamedPipes::megaCmdStdoutputing.lock();
+                oldmode = _setmode(_fileno(stdout), _O_U8TEXT);
+                OUTSTREAM << wbuffer << flush;
+                _setmode(_fileno(stdout), oldmode);
+                MegaCmdShellCommunicationsNamedPipes::megaCmdStdoutputing.unlock();
+
+#else
                 OUTSTREAM << os.str();
+#endif
             }
         }
         else if (newstate.compare(0, strlen("message:"), "message:") == 0)
@@ -723,6 +738,7 @@ void statechangehandle(string statestring)
             string contents = newstate.substr(strlen("message:"));
             unsigned int width = getNumberOfCols(80);
             if (width > 1 ) width--;
+            MegaCmdShellCommunicationsNamedPipes::megaCmdStdoutputing.lock();
             if (contents.find("-----") != 0)
             {
                 printCenteredContentsCerr(contents, width);
@@ -731,6 +747,7 @@ void statechangehandle(string statestring)
             {
                 cerr << endl <<  contents << endl;
             }
+            MegaCmdShellCommunicationsNamedPipes::megaCmdStdoutputing.unlock();
         }
         else if (newstate.compare(0, strlen("clientID:"), "clientID:") == 0)
         {
@@ -763,6 +780,7 @@ void statechangehandle(string statestring)
             {
                 shown_partial_progress = false;
             }
+            MegaCmdShellCommunicationsNamedPipes::megaCmdStdoutputing.lock();
 
             if (title.size())
             {
@@ -787,6 +805,8 @@ void statechangehandle(string statestring)
                     printprogress(charstoll(received.c_str()), charstoll(total.c_str()));
                 }
             }
+            MegaCmdShellCommunicationsNamedPipes::megaCmdStdoutputing.unlock();
+
 
         }
         else if (newstate == "ack")

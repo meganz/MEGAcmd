@@ -225,11 +225,21 @@ void statechangehandle(string statestring)
             {
                 bool isdown = rest.at(0) == 'D';
                 string path = rest.substr(2);
-                OUTSTRINGSTREAM os;
+                stringstream os;
                 if (shown_partial_progress)
                     os << endl;
                 os << (isdown?"Download":"Upload") << " finished: " << path << endl;
+
+#ifdef _WIN32
+                wstring wbuffer;
+                stringtolocalw((const char*)os.str().data(),&wbuffer);
+                int oldmode;
+                oldmode = _setmode(_fileno(stdout), _O_U8TEXT);
+                OUTSTREAM << wbuffer << flush;
+                _setmode(_fileno(stdout), oldmode);
+#else
                 OUTSTREAM << os.str();
+#endif
             }
         }
         else if (newstate.compare(0, strlen("message:"), "message:") == 0)
