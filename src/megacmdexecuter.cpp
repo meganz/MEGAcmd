@@ -2866,6 +2866,18 @@ void MegaCmdExecuter::uploadNode(string path, MegaApi* api, MegaNode *node, stri
 //            }
 //        }
     }
+
+    string locallocal;
+    fsAccessCMD->path2local(&path, &locallocal);
+    FileAccess *fa = fsAccessCMD->newfileaccess();
+    if (!fa->fopen(&locallocal, true, false))
+    {
+        setCurrentOutCode(MCMD_NOTFOUND);
+        LOG_err << "Unable to open local path: " << path;
+        return;
+    }
+
+
     MegaCmdTransferListener *megaCmdTransferListener = NULL;
     if (!background)
     {
@@ -6164,7 +6176,10 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 LOG_err << "Download failed. error code: " << MegaError::getErrorString(megaCmdMultiTransferListener->getFinalerror());
             }
 
-            informProgressUpdate(PROGRESS_COMPLETE, megaCmdMultiTransferListener->getTotalbytes(), clientID);
+            if (megaCmdMultiTransferListener->getProgressinformed() || getCurrentOutCode() == MCMD_OK )
+            {
+                informProgressUpdate(PROGRESS_COMPLETE, megaCmdMultiTransferListener->getTotalbytes(), clientID);
+            }
             delete megaCmdMultiTransferListener;
         }
         else
@@ -6432,7 +6447,10 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
                 checkNoErrors(megaCmdMultiTransferListener->getFinalerror(), "upload");
 
-                informProgressUpdate(PROGRESS_COMPLETE, megaCmdMultiTransferListener->getTotalbytes(), clientID);
+                if (megaCmdMultiTransferListener->getProgressinformed() || getCurrentOutCode() == MCMD_OK )
+                {
+                    informProgressUpdate(PROGRESS_COMPLETE, megaCmdMultiTransferListener->getTotalbytes(), clientID);
+                }
                 delete megaCmdMultiTransferListener;
             }
             else

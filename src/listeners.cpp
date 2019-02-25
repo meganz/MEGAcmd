@@ -197,7 +197,16 @@ void MegaCmdGlobalListener::onEvent(MegaApi *api, MegaEvent *event)
 
 void MegaCmdMegaListener::onRequestFinish(MegaApi *api, MegaRequest *request, MegaError *e)
 {
-    if (e && ( e->getErrorCode() == MegaError::API_ESID ))
+    if (request->getType() == MegaRequest::TYPE_APP_VERSION)
+    {
+        LOG_verbose << "TYPE_APP_VERSION finished";
+    }
+    else if (request->getType() == MegaRequest::TYPE_LOGOUT)
+    {
+        LOG_debug << "Session closed";
+        sandboxCMD->resetSandBox();
+    }
+    else if (e && ( e->getErrorCode() == MegaError::API_ESID ))
     {
         LOG_err << "Session is no longer valid (it might have been invalidated from elsewhere) ";
         changeprompt(prompts[COMMAND]);
@@ -208,10 +217,11 @@ void MegaCmdMegaListener::onRequestFinish(MegaApi *api, MegaRequest *request, Me
     }
 }
 
-MegaCmdMegaListener::MegaCmdMegaListener(MegaApi *megaApi, MegaListener *parent)
+MegaCmdMegaListener::MegaCmdMegaListener(MegaApi *megaApi, MegaListener *parent, MegaCmdSandbox *sandboxCMD)
 {
     this->megaApi = megaApi;
     this->listener = parent;
+    this->sandboxCMD = sandboxCMD;
 }
 
 MegaCmdMegaListener::~MegaCmdMegaListener()
@@ -333,7 +343,6 @@ void MegaCmdListener::doOnRequestFinish(MegaApi* api, MegaRequest *request, Mega
             }
 #endif
             informProgressUpdate(PROGRESS_COMPLETE, request->getTotalBytes(), this->clientID, "Fetching nodes");
-
             break;
         }
 
@@ -630,6 +639,33 @@ void MegaCmdMultiTransferListener::doOnTransferFinish(MegaApi* api, MegaTransfer
     }
 
     LOG_verbose << "doOnTransferFinish MegaCmdMultiTransferListener Transfer->getType(): " << transfer->getType() << " transferring " << transfer->getFileName();
+
+    if (e->getErrorCode() == API_OK)
+    {
+        // communicate status info
+        string s= "endtransfer:";
+        s+=((transfer->getType() == MegaTransfer::TYPE_DOWNLOAD)?"D":"U");
+        s+=":";
+        if (transfer->getType() == MegaTransfer::TYPE_UPLOAD)
+        {
+            MegaNode *n = api->getNodeByHandle(transfer->getNodeHandle());
+            if (n)
+            {
+                const char *path = api->getNodePath(n);
+                if (path)
+                {
+                    s+=path;
+                }
+                delete [] path;
+            }
+        }
+        else
+        {
+            s+=transfer->getPath();
+        }
+        informStateListenerByClientId(this->clientID, s);
+    }
+
     map<int, long long>::iterator itr = ongoingtransferredbytes.find(transfer->getTag());
     if ( itr!= ongoingtransferredbytes.end())
     {
@@ -729,7 +765,7 @@ void MegaCmdMultiTransferListener::onTransferUpdate(MegaApi* api, MegaTransfer *
     LOG_verbose << "onTransferUpdate transfer->getType(): " << transfer->getType() << " clientID=" << this->clientID;
 
     informProgressUpdate((transferredbytes + getOngoingTransferredBytes()),(totalbytes + getOngoingTotalBytes() ), clientID);
-
+    progressinformed = true;
 
 }
 
@@ -773,6 +809,11 @@ long long MegaCmdMultiTransferListener::getOngoingTotalBytes()
     return total;
 }
 
+bool MegaCmdMultiTransferListener::getProgressinformed() const
+{
+    return progressinformed;
+}
+
 MegaCmdMultiTransferListener::MegaCmdMultiTransferListener(MegaApi *megaApi, MegaCmdSandbox *sandboxCMD, MegaTransferListener *listener, int clientID)
 {
     this->megaApi = megaApi;
@@ -786,6 +827,8 @@ MegaCmdMultiTransferListener::MegaCmdMultiTransferListener(MegaApi *megaApi, Meg
     finished = 0;
     totalbytes = 0;
     transferredbytes = 0;
+
+    progressinformed = false;
 
     finalerror = MegaError::API_OK;
 
