@@ -714,7 +714,9 @@ void statechangehandle(string statestring)
 
                 stringstream os;
                 if (shown_partial_progress)
+                {
                     os << endl;
+                }
 
                 os << (isdown?"Download":"Upload") << " finished: " << path << endl;
 
@@ -739,6 +741,10 @@ void statechangehandle(string statestring)
             unsigned int width = getNumberOfCols(80);
             if (width > 1 ) width--;
             MegaCmdShellCommunications::megaCmdStdoutputing.lock();
+            if (shown_partial_progress)
+            {
+                cerr << endl;
+            }
             if (contents.find("-----") != 0)
             {
                 printCenteredContentsCerr(contents, width);

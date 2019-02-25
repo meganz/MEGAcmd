@@ -227,7 +227,9 @@ void statechangehandle(string statestring)
                 string path = rest.substr(2);
                 stringstream os;
                 if (shown_partial_progress)
+                {
                     os << endl;
+                }
                 os << (isdown?"Download":"Upload") << " finished: " << path << endl;
 
 #ifdef _WIN32
@@ -252,7 +254,7 @@ void statechangehandle(string statestring)
             MegaCmdShellCommunications::megaCmdStdoutputing.lock();
             if (contents.find("-----") != 0)
             {
-                if (!procesingline)
+                if (!procesingline || shown_partial_progress)
                 {
                     OUTSTREAM << endl;
                 }
@@ -341,6 +343,10 @@ void statechangehandle(string statestring)
         }
         else
         {
+            if (shown_partial_progress)
+            {
+                OUTSTREAM << endl;
+            }
             cerr << "received unrecognized state change: [" << newstate << "]" << endl;
             //sleep a while to avoid continuous looping
             sleepSeconds(1);
