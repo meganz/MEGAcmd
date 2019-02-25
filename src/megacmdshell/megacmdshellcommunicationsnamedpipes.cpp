@@ -46,9 +46,6 @@ bool MegaCmdShellCommunicationsNamedPipes::confirmResponse; //TODO: do all this 
 bool MegaCmdShellCommunicationsNamedPipes::stopListener;
 mega::Thread *MegaCmdShellCommunicationsNamedPipes::listenerThread;
 HANDLE MegaCmdShellCommunicationsNamedPipes::newNamedPipe;
-MegaMutex MegaCmdShellCommunicationsNamedPipes::megaCmdStdoutputing;
-
-
 
 bool MegaCmdShellCommunicationsNamedPipes::namedPipeValid(HANDLE namedPipe)
 {
@@ -702,10 +699,11 @@ int MegaCmdShellCommunicationsNamedPipes::executeCommand(string command, std::st
                 // in unusable output, So we disable the UTF-16 in such cases (this might cause that the output could be truncated!).
 //                oldmode = _setmode(_fileno(stdout), _O_U16TEXT);
 //            }
-
+            megaCmdStdoutputing.lock();
             oldmode = _setmode(_fileno(stdout), _O_U8TEXT);
             output << wbuffer << flush;
             _setmode(_fileno(stdout), oldmode);
+            megaCmdStdoutputing.unlock();
 
 //            if (interactiveshell || outputtobinaryorconsole() || true)
 //            {

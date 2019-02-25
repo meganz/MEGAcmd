@@ -80,6 +80,7 @@ bool MegaCmdShellCommunications::stopListener;
 bool MegaCmdShellCommunications::updating;
 ::mega::Thread *MegaCmdShellCommunications::listenerThread;
 SOCKET MegaCmdShellCommunications::newsockfd = INVALID_SOCKET;
+MegaMutex MegaCmdShellCommunications::megaCmdStdoutputing;
 
 bool MegaCmdShellCommunications::socketValid(SOCKET socket)
 {
@@ -653,8 +654,11 @@ int MegaCmdShellCommunications::executeCommand(string command, std::string (*rea
             n = recv(newsockfd, (char *)&partialoutsize, sizeof(partialoutsize), MSG_NOSIGNAL);
             if (n && partialoutsize > 0)
             {
+                megaCmdStdoutputing.lock();
+
                 do{
                     char *buffer = new char[partialoutsize+1];
+
                     n = recv(newsockfd, (char *)buffer, partialoutsize, MSG_NOSIGNAL);
                     if (n)
                     {
@@ -674,6 +678,7 @@ int MegaCmdShellCommunications::executeCommand(string command, std::string (*rea
                     }
                     delete[] buffer;
                 } while(n != 0 && partialoutsize && n !=SOCKET_ERROR);
+                megaCmdStdoutputing.unlock();
             }
             else
             {
@@ -738,6 +743,8 @@ int MegaCmdShellCommunications::executeCommand(string command, std::string (*rea
         n = recv(newsockfd, buffer, BUFFERSIZE, MSG_NOSIGNAL);
         if (n)
         {
+            megaCmdStdoutputing.lock();
+
 #ifdef _WIN32
             buffer[n]='\0';
 
@@ -752,6 +759,7 @@ int MegaCmdShellCommunications::executeCommand(string command, std::string (*rea
                 output << string(buffer,n) << flush;
             }
 #endif
+            megaCmdStdoutputing.unlock();
         }
     } while(n != 0 && n !=SOCKET_ERROR);
 

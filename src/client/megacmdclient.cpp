@@ -722,11 +722,11 @@ void statechangehandle(string statestring)
                 wstring wbuffer;
                 stringtolocalw((const char*)os.str().data(),&wbuffer);
                 int oldmode;
-                MegaCmdShellCommunicationsNamedPipes::megaCmdStdoutputing.lock();
+                MegaCmdShellCommunications::megaCmdStdoutputing.lock();
                 oldmode = _setmode(_fileno(stdout), _O_U8TEXT);
                 OUTSTREAM << wbuffer << flush;
                 _setmode(_fileno(stdout), oldmode);
-                MegaCmdShellCommunicationsNamedPipes::megaCmdStdoutputing.unlock();
+                MegaCmdShellCommunications::megaCmdStdoutputing.unlock();
 
 #else
                 OUTSTREAM << os.str();
@@ -738,7 +738,7 @@ void statechangehandle(string statestring)
             string contents = newstate.substr(strlen("message:"));
             unsigned int width = getNumberOfCols(80);
             if (width > 1 ) width--;
-            MegaCmdShellCommunicationsNamedPipes::megaCmdStdoutputing.lock();
+            MegaCmdShellCommunications::megaCmdStdoutputing.lock();
             if (contents.find("-----") != 0)
             {
                 printCenteredContentsCerr(contents, width);
@@ -747,7 +747,7 @@ void statechangehandle(string statestring)
             {
                 cerr << endl <<  contents << endl;
             }
-            MegaCmdShellCommunicationsNamedPipes::megaCmdStdoutputing.unlock();
+            MegaCmdShellCommunications::megaCmdStdoutputing.unlock();
         }
         else if (newstate.compare(0, strlen("clientID:"), "clientID:") == 0)
         {
@@ -780,8 +780,8 @@ void statechangehandle(string statestring)
             {
                 shown_partial_progress = false;
             }
-            MegaCmdShellCommunicationsNamedPipes::megaCmdStdoutputing.lock();
 
+            MegaCmdShellCommunications::megaCmdStdoutputing.lock();
             if (title.size())
             {
                 if (received==SPROGRESS_COMPLETE)
@@ -805,8 +805,7 @@ void statechangehandle(string statestring)
                     printprogress(charstoll(received.c_str()), charstoll(total.c_str()));
                 }
             }
-            MegaCmdShellCommunicationsNamedPipes::megaCmdStdoutputing.unlock();
-
+            MegaCmdShellCommunications::megaCmdStdoutputing.unlock();
         }
         else if (newstate == "ack")
         {
