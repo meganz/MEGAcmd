@@ -559,7 +559,17 @@ void printPercentageLineCerr(const char *title, long long completed, long long t
     *ptr = '.'; //replace \0 char
 
     char aux[41];
-    sprintf(aux,"||(%lld/%lld MB: %6.2f %%) ", completed / 1024 / 1024, total / 1024 / 1024, percentDowloaded);
+
+    if (total < 1048576)
+    {
+        sprintf(aux,"||(%lld/%lld KB: %6.2f %%) ", completed / 1024, total / 1024, percentDowloaded);
+    }
+    else
+    {
+        sprintf(aux,"||(%lld/%lld MB: %6.2f %%) ", completed / 1024 / 1024, total / 1024 / 1024, percentDowloaded);
+    }
+
+
     sprintf((char *)outputString.c_str() + cols - strlen(aux), "%s",                         aux);
     for (int i = 0; i < ( cols - (strlen(title) + strlen(" ||")) - strlen(aux)) * 1.0 * min(100.0f,percentDowloaded) / 100.0; i++)
     {

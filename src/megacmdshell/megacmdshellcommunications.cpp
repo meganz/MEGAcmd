@@ -483,6 +483,7 @@ MegaCmdShellCommunications::MegaCmdShellCommunications()
     stopListener = false;
     updating = false;
     listenerThread = NULL;
+    MegaCmdShellCommunications::megaCmdStdoutputing.init(false);
 }
 
 
