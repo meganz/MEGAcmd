@@ -118,7 +118,7 @@ This will synchronize the contents in your local and your mega folder both ways.
 * You can also set remote **backups** of a local folder to keep historical snapshots
 of your files. So simple as:
 ```
-backup /path/to/myfolder /remote/path --period="0 0 4 * * *" --num-backups=10
+backup /path/mega/folder /remote/path --period="0 0 4 * * *" --num-backups=10
 ```
 This will configure a backup of "myfolder" into /remote/path that will be carried out
  at 4:00 A.M. (UTC) every day. It will store the last 10 copies. 
@@ -126,7 +126,7 @@ This will configure a backup of "myfolder" into /remote/path that will be carrie
  
 * You serve a location in your MEGA account via webdav:
 ```
-webdav /path/to/myfolder
+webdav /path/mega/folder
 ```
 
 * Or stream a file in your MEGA account:

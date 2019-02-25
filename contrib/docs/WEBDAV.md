@@ -9,7 +9,7 @@ Notice: the commands listed here assume you are using the interactive interactio
 ## Serving a folder
 Example: 
 ```
-webdav /path/to/myfolder
+webdav /path/mega/folder
 ```
 
 This will configure a WEBDAV server that will serve "myfolder". It'll show you the URL to access that path. You just use that location to configure access [according to your specific OS](#platforms).
@@ -42,7 +42,7 @@ You can list the webdav served locations typing `webdav`:
 
 ```
 WEBDAV SERVED LOCATIONS:                                                        
-/path/to/myfolder: http://127.0.0.1:4443/XXXXXXX/myfolder
+/path/mega/folder: http://127.0.0.1:4443/XXXXXXX/myfolder
 /path/to/myfile.mp4: http://127.0.0.1:4443/YYYYYYY/myfile.mp4
 ```
 
@@ -66,7 +66,7 @@ you can secure it with [TLS](https://wikipedia.org/wiki/Transport_Layer_Security
 You just need to pass `--tls` and the paths* to your certificate and key files (in PEM format):
 
 ```
-webdav /path/to/myfolder --tls --certificate=/path/to/certificate.pem --key=/path/to/certificate.key
+webdav /path/mega/folder --tls --certificate=/path/to/certificate.pem --key=/path/to/certificate.key
 ```
 
 *Those paths are local paths in your machine, not in MEGA.
@@ -80,11 +80,11 @@ If you want to change that configuration you will need to stop serving each and 
 
 You can stop serving a MEGA location with:
 ```
-webdav -d /path/to/myfolder
+webdav -d /path/mega/folder
 ```
 If successfully, it will show a message indicating that the path is no longer served:
 ```
-/path/to/myfolder no longer served via webdav                                  
+/path/mega/folder no longer served via webdav
 ```
 
 ## Platforms

@@ -2182,6 +2182,7 @@ string getHelpStr(const char *command)
 #endif
         os << endl;
         os << "*If you serve more than one location, these parameters will be ignored and use those of the first location served." << endl;
+        os << " If you want to change those parameters, you need to stop serving all locations and configure them again." << endl;
         os << endl;
         os << "Caveat: This functionality is in BETA state. If you experience any issue with this, please contact: support@mega.nz" << endl;
         os << endl;
@@ -2207,6 +2208,7 @@ string getHelpStr(const char *command)
 #endif
         os << endl;
         os << "*If you serve more than one location, these parameters will be ignored and used those of the first location served." << endl;
+        os << " If you want to change those parameters, you need to stop serving all locations and configure them again." << endl;
         os << endl;
         os << "Caveat: This functionality is in BETA state. If you experience any issue with this, please contact: support@mega.nz" << endl;
         os << endl;
