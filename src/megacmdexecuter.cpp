@@ -6457,7 +6457,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         {
             if (!getFlag(clflags, "s") && !getFlag(clflags, "c"))
             {
-                OUTSTREAM << "CMD log level = " << getLogLevelStr(loggerCMD->getCmdLoggerLevel()) << endl;
+                OUTSTREAM << "MEGAcmd log level = " << getLogLevelStr(loggerCMD->getCmdLoggerLevel()) << endl;
                 OUTSTREAM << "SDK log level = " << getLogLevelStr(loggerCMD->getApiLoggerLevel()) << endl;
             }
             else if (getFlag(clflags, "s"))
@@ -6466,7 +6466,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             }
             else if (getFlag(clflags, "c"))
             {
-                OUTSTREAM << "CMD log level = " << getLogLevelStr(loggerCMD->getCmdLoggerLevel()) << endl;
+                OUTSTREAM << "MEGAcmd log level = " << getLogLevelStr(loggerCMD->getCmdLoggerLevel()) << endl;
             }
         }
         else
@@ -6484,7 +6484,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             {
                 loggerCMD->setCmdLoggerLevel(newLogLevel);
                 loggerCMD->setApiLoggerLevel(newLogLevel);
-                OUTSTREAM << "CMD log level = " << getLogLevelStr(loggerCMD->getCmdLoggerLevel()) << endl;
+                OUTSTREAM << "MEGAcmd log level = " << getLogLevelStr(loggerCMD->getCmdLoggerLevel()) << endl;
                 OUTSTREAM << "SDK log level = " << getLogLevelStr(loggerCMD->getApiLoggerLevel()) << endl;
             }
             else if (getFlag(clflags, "s"))
@@ -6495,7 +6495,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             else if (getFlag(clflags, "c"))
             {
                 loggerCMD->setCmdLoggerLevel(newLogLevel);
-                OUTSTREAM << "CMD log level = " << getLogLevelStr(loggerCMD->getCmdLoggerLevel()) << endl;
+                OUTSTREAM << "MEGAcmd log level = " << getLogLevelStr(loggerCMD->getCmdLoggerLevel()) << endl;
             }
         }
 
@@ -9060,7 +9060,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
     }
     else if (words[0] == "version")
     {
-        OUTSTREAM << "MEGA CMD version: " << MEGACMD_MAJOR_VERSION << "." << MEGACMD_MINOR_VERSION << "." << MEGACMD_MICRO_VERSION << ": code " << MEGACMD_CODE_VERSION << endl;
+        OUTSTREAM << "MEGAcmd version: " << MEGACMD_MAJOR_VERSION << "." << MEGACMD_MINOR_VERSION << "." << MEGACMD_MICRO_VERSION << ": code " << MEGACMD_CODE_VERSION << endl;
 
         MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
         api->getLastAvailableVersion("BdARkQSQ",megaCmdListener);

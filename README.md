@@ -232,8 +232,11 @@ There are two different kinds of logging messages:
 - MEGAcmd based: those messages reported by MEGAcmd itself.
 
 You can adjust the level of logging for those kinds with `log` command.
-However, for non interactive commands, passing `-v` (`-vv`, `-vvv`, and so on 
-for a more verbose output) will use higher level of verbosity to an specific command.
+
+However, passing `-v` (`-vv`, `-vvv`, and so on for a more verbose output)
+to an specific command will use higher level of verbosity of MEGAcmd based messages.
+
+Further info on verbosity [here](contrib/docs/DEBUG.md).
 
 ## Regular Expressions
 If you have compiled MEGAcmd with PCRE (enabled by default), 
