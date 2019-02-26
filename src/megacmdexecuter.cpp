@@ -2114,6 +2114,7 @@ int MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
     }
 
     LOG_debug << "actUponLogin login";
+    setCurrentOutCode(srl->getError()->getErrorCode());
 
     if (srl->getRequest()->getEmail())
     {
@@ -8670,6 +8671,14 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         }
 
         string linkPass = getOption(cloptions, "password", "");
+        bool add = getFlag(clflags, "a");
+
+        if (linkPass.size() && !add)
+        {
+            setCurrentOutCode(MCMD_EARGS);
+            LOG_err << "You need to use -a to add an export. Usage: " << getUsageStr("export");
+            return;
+        }
 
         if (words.size() <= 1)
         {
@@ -8694,7 +8703,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         MegaNode * n = *it;
                         if (n)
                         {
-                            if (getFlag(clflags, "a"))
+                            if (add)
                             {
                                 LOG_debug << " exporting ... " << n->getName() << " expireTime=" << expireTime;
                                 exportNode(n, expireTime, linkPass, getFlag(clflags,"f"));
@@ -8729,7 +8738,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 MegaNode *n = nodebypath(words[i].c_str());
                 if (n)
                 {
-                    if (getFlag(clflags, "a"))
+                    if (add)
                     {
                         LOG_debug << " exporting ... " << n->getName();
                         exportNode(n, expireTime, linkPass, getFlag(clflags,"f"));

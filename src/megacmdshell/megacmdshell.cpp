@@ -1214,8 +1214,9 @@ void process_line(const char * line)
                 confirmcommand+=linktoconfirm;
                 confirmcommand+=" " ;
                 confirmcommand+=loginname;
-                confirmcommand+=" " ;
+                confirmcommand+=" \"";
                 confirmcommand+=line;
+                confirmcommand+="\"" ;
                 OUTSTREAM << endl;
                 comms->executeCommand(confirmcommand.c_str(), readresponse);
             }
@@ -1223,8 +1224,9 @@ void process_line(const char * line)
             {
                 string confirmcommand("confirmcancel ");
                 confirmcommand+=linktoconfirm;
-                confirmcommand+=" " ;
+                confirmcommand+=" \"";
                 confirmcommand+=line;
+                confirmcommand+="\"" ;
                 OUTSTREAM << endl;
                 comms->executeCommand(confirmcommand.c_str(), readresponse);
             }
@@ -1238,8 +1240,9 @@ void process_line(const char * line)
                     logincommand+=" ";
                 }
                 logincommand+=loginname;
-                logincommand+=" " ;
+                logincommand+=" \"" ;
                 logincommand+=line;
+                logincommand+="\"" ;
                 OUTSTREAM << endl;
                 comms->executeCommand(logincommand.c_str(), readresponse);
             }
@@ -1276,8 +1279,9 @@ void process_line(const char * line)
 
                 if (signingup)
                 {
-                    signupline += " ";
+                    signupline += " \"";
                     signupline += newpasswd;
+                    signupline += "\"";
                     comms->executeCommand(signupline.c_str(), readresponse);
 
                     signingup = false;
@@ -1286,9 +1290,16 @@ void process_line(const char * line)
                 {
                     string changepasscommand(passwdline);
                     passwdline = " ";
-                    changepasscommand+=oldpasswd;
                     changepasscommand+=" " ;
+                    if (oldpasswd.size())
+                    {
+                        changepasscommand+="\"" ;
+                        changepasscommand+=oldpasswd;
+                        changepasscommand+="\"" ;
+                    }
+                    changepasscommand+=" \"" ;
                     changepasscommand+=newpasswd;
+                    changepasscommand+="\"" ;
                     comms->executeCommand(changepasscommand.c_str(), readresponse);
                 }
             }
@@ -1404,7 +1415,8 @@ void process_line(const char * line)
                     {
                         discardOptionsAndFlags(&words);
 
-                        if (words.size() == 2 && (words[1].find("@") != string::npos))
+                        if ( (words.size() == 2 || ( words.size() == 3 && !words[2].size() ) )
+                                && (words[1].find("@") != string::npos))
                         {
                             loginname = words[1];
                             setprompt(LOGINPASSWORD);
