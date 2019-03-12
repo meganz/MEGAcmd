@@ -1930,6 +1930,8 @@ string getHelpStr(const char *command)
         os << "If auto updates are enabled it will be checked while MEGAcmd server is running." << endl;
         os << " If there is an update available, it will be downloaded and applied. " << endl;
         os << " This will cause MEGAcmd to be restarted whenever the updates are applied." << endl;
+        os << endl;
+        os << "Further info at https://github.com/meganz/megacmd#megacmd-updates";
     }
 #endif
     else if (!strcmp(command, "cd"))
