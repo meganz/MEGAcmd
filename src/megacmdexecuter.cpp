@@ -5610,12 +5610,6 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
     }
     else if (words[0] == "cat")
     {
-        if (!api->isFilesystemAvailable())
-        {
-            setCurrentOutCode(MCMD_NOTLOGGEDIN);
-            LOG_err << "Not logged in.";
-            return;
-        }
         if (words.size() < 2)
         {
             setCurrentOutCode(MCMD_EARGS);
@@ -5704,6 +5698,11 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     LOG_err << "Public link is not a file";
                     setCurrentOutCode(MCMD_EARGS);
                 }
+            }
+            else if (!api->isFilesystemAvailable())
+            {
+                setCurrentOutCode(MCMD_NOTLOGGEDIN);
+                LOG_err << "Unable to cat " << words[i] << ": Not logged in.";
             }
             else
             {
