@@ -2,7 +2,7 @@
  * @file src/megacmdshellcommunicationsnamedpipes.cpp
  * @brief MEGAcmd: Communications module to connect to server using NamedPipes
  *
- * (c) 2013-2017 by Mega Limited, Auckland, New Zealand
+ * (c) 2013 by Mega Limited, Auckland, New Zealand
  *
  * This file is part of the MEGAcmd.
  *
@@ -574,6 +574,7 @@ int MegaCmdShellCommunicationsNamedPipes::executeCommand(string command, std::st
 
             if (partialoutsize > 0)
             {
+                megaCmdStdoutputing.lock();
                 int oldmode;
 
                 if (binaryoutput)
@@ -612,6 +613,7 @@ int MegaCmdShellCommunicationsNamedPipes::executeCommand(string command, std::st
                 {
                     _setmode(_fileno(stdout), oldmode);
                 }
+                megaCmdStdoutputing.unlock();
             }
             else
             {
@@ -697,10 +699,11 @@ int MegaCmdShellCommunicationsNamedPipes::executeCommand(string command, std::st
                 // in unusable output, So we disable the UTF-16 in such cases (this might cause that the output could be truncated!).
 //                oldmode = _setmode(_fileno(stdout), _O_U16TEXT);
 //            }
-
+            megaCmdStdoutputing.lock();
             oldmode = _setmode(_fileno(stdout), _O_U8TEXT);
             output << wbuffer << flush;
             _setmode(_fileno(stdout), oldmode);
+            megaCmdStdoutputing.unlock();
 
 //            if (interactiveshell || outputtobinaryorconsole() || true)
 //            {
@@ -839,8 +842,6 @@ int MegaCmdShellCommunicationsNamedPipes::registerForStateChanges(void (*statech
         cerr << "ERROR writing command to namedPipe: " << ERRNO << endl;
         return -1;
     }
-    OUTSTREAM << "                         \r" << flush;
-
 
     int receiveNamedPipeNum = -1;
 
@@ -849,6 +850,8 @@ int MegaCmdShellCommunicationsNamedPipes::registerForStateChanges(void (*statech
         cerr << "ERROR reading output namedPipe" << endl;
         return -1;
     }
+
+    OUTSTREAM << "\r                         \r" << flush;
 
     if (listenerThread != NULL)
     {

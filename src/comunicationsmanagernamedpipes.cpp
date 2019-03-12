@@ -2,7 +2,7 @@
  * @file src/comunicationsmanagernamedPipes.cpp
  * @brief MegaCMD: Communications manager using Network NamedPipes
  *
- * (c) 2013-2016 by Mega Limited, Auckland, New Zealand
+ * (c) 2013 by Mega Limited, Auckland, New Zealand
  *
  * This file is part of the MEGAcmd.
  *
@@ -129,6 +129,7 @@ ComunicationsManagerNamedPipes::ComunicationsManagerNamedPipes()
 {
     count = 0;
     mtx = new MegaMutex();
+    informerMutex = new MegaMutex(false);
     initialize();
 }
 
@@ -415,6 +416,8 @@ void ComunicationsManagerNamedPipes::sendPartialOutput(CmdPetition *inf, char *s
 
 int ComunicationsManagerNamedPipes::informStateListener(CmdPetition *inf, string &s)
 {
+    MutexGuard g(*informerMutex);
+
     LOG_verbose << "Inform State Listener: Output to write in namedPipe " << ((CmdPetitionNamedPipes *)inf)->outNamedPipe << ": <<" << s << ">>";
     HANDLE outNamedPipe = ((CmdPetitionNamedPipes *)inf)->outNamedPipe;
 
@@ -439,7 +442,7 @@ int ComunicationsManagerNamedPipes::informStateListener(CmdPetition *inf, string
     DWORD n;
     if (!WriteFile(outNamedPipe, s.data(), DWORD(s.size()), &n, NULL))
     {
-        if (ERRNO == 32) //namedPipe closed
+        if (ERRNO == 32 || ERRNO == 109 || (ERRNO == 232 && s == "ack")) //namedPipe closed | pipe has been ended
         {
             LOG_debug << "namedPipe closed. Client probably disconnected. Original petition: " << *inf;
             return -1;
@@ -618,6 +621,7 @@ string ComunicationsManagerNamedPipes::get_petition_details(CmdPetition *inf)
 ComunicationsManagerNamedPipes::~ComunicationsManagerNamedPipes()
 {
     delete mtx;
+    delete informerMutex;
 }
 #endif
 

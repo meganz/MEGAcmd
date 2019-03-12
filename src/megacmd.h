@@ -2,7 +2,7 @@
  * @file src/megacmd.h
  * @brief MEGAcmd: Interactive CLI and service application
  *
- * (c) 2013-2016 by Mega Limited, Auckland, New Zealand
+ * (c) 2013 by Mega Limited, Auckland, New Zealand
  *
  * This file is part of the MEGAcmd.
  *
@@ -30,35 +30,13 @@ using std::max;
 using std::min;
 using std::flush;
 using std::left;
-using std::setw;
 using std::cerr;
 using std::istringstream;
 using std::locale;
 using std::stringstream;
 using std::exception;
 
-#ifdef _WIN32
 
-#define OUTSTREAMTYPE std::wostream
-#define OUTSTRINGSTREAM std::wostringstream
-#define OUTSTRING std::wstring
-#define COUT std::wcout
-
-
-
-#include <string>
-std::wostream & operator<< ( std::wostream & ostr, std::string const & str );
-std::wostream & operator<< ( std::wostream & ostr, const char * str );
-std::ostringstream & operator<< ( std::ostringstream & ostr, std::wstring const &str);
-
-void localwtostring(const std::wstring* wide, std::string *multibyte);
-
-#else
-#define OUTSTREAMTYPE std::ostream
-#define OUTSTRINGSTREAM std::ostringstream
-#define OUTSTRING std::string
-#define COUT std::cout
-#endif
 
 #include "megaapi_impl.h"
 
@@ -131,6 +109,7 @@ enum confirmresponse
 
 void changeprompt(const char *newprompt);
 
+void informStateListener(std::string message, int clientID);
 void broadcastMessage(std::string message, const char *suffix = "message:");
 
 mega::MegaApi* getFreeApiFolder();
@@ -156,6 +135,8 @@ void stopcheckingForUpdates();
 void startcheckingForUpdates();
 
 void informTransferUpdate(mega::MegaTransfer *transfer, int clientID);
+void informStateListenerByClientId(int clientID, std::string s);
+
 
 void informProgressUpdate(long long transferred, long long total, int clientID, std::string title = "");
 

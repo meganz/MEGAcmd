@@ -2,7 +2,7 @@
  * @file src/megacmdshellcommunications.cpp
  * @brief MEGAcmd: Communications module to connect to server
  *
- * (c) 2013-2017 by Mega Limited, Auckland, New Zealand
+ * (c) 2013 by Mega Limited, Auckland, New Zealand
  *
  * This file is part of the MEGAcmd.
  *
@@ -80,88 +80,7 @@ bool MegaCmdShellCommunications::stopListener;
 bool MegaCmdShellCommunications::updating;
 ::mega::Thread *MegaCmdShellCommunications::listenerThread;
 SOCKET MegaCmdShellCommunications::newsockfd = INVALID_SOCKET;
-
-#ifdef _WIN32
-// UNICODE SUPPORT FOR WINDOWS
-
-//widechar to utf8 string
-void localwtostring(const std::wstring* wide, std::string *multibyte)
-{
-    if( !wide->empty() )
-    {
-        int size_needed = WideCharToMultiByte(CP_UTF8, 0, wide->data(), (int)wide->size(), NULL, 0, NULL, NULL);
-        multibyte->resize(size_needed);
-        WideCharToMultiByte(CP_UTF8, 0, wide->data(), (int)wide->size(), (char*)multibyte->data(), size_needed, NULL, NULL);
-    }
-}
-
-// convert UTF-8 to Windows Unicode wstring
-void stringtolocalw(const char* path, std::wstring* local)
-{
-    // make space for the worst case
-    local->resize((strlen(path) + 1) * sizeof(wchar_t));
-
-    int wchars_num = MultiByteToWideChar(CP_UTF8, 0, path,-1, NULL,0);
-    local->resize(wchars_num);
-
-    int len = MultiByteToWideChar(CP_UTF8, 0, path,-1, (wchar_t*)local->data(), wchars_num);
-
-    if (len)
-    {
-        local->resize(len-1);
-    }
-    else
-    {
-        local->clear();
-    }
-}
-
-//override << operators for wostream for string and const char *
-
-std::wostream & operator<< ( std::wostream & ostr, std::string const & str )
-{
-    std::wstring toout;
-    stringtolocalw(str.c_str(),&toout);
-    ostr << toout;
-
-    return ( ostr );
-}
-
-std::wostream & operator<< ( std::wostream & ostr, const char * str )
-{
-    std::wstring toout;
-    stringtolocalw(str,&toout);
-    ostr << toout;
-    return ( ostr );
-}
-
-//override for the log. This is required for compiling, otherwise SimpleLog won't compile. FIXME
-std::ostringstream & operator<< ( std::ostringstream & ostr, std::wstring const &str)
-{
-    std::string s;
-    localwtostring(&str,&s);
-    ostr << s;
-    return ( ostr );
-}
-
-// convert Windows Unicode to UTF-8
-void utf16ToUtf8(const wchar_t* utf16data, int utf16size, string* utf8string)
-{
-    if(!utf16size)
-    {
-        utf8string->clear();
-        return;
-    }
-
-    utf8string->resize((utf16size + 1) * 4);
-
-    utf8string->resize(WideCharToMultiByte(CP_UTF8, 0, utf16data,
-        utf16size,
-        (char*)utf8string->data(),
-        int(utf8string->size() + 1),
-        NULL, NULL));
-}
-#endif
+MegaMutex MegaCmdShellCommunications::megaCmdStdoutputing;
 
 bool MegaCmdShellCommunications::socketValid(SOCKET socket)
 {
@@ -179,7 +98,6 @@ void MegaCmdShellCommunications::closeSocket(SOCKET socket){
     close(socket);
 #endif
 }
-
 
 string createAndRetrieveConfigFolder()
 {
@@ -565,6 +483,7 @@ MegaCmdShellCommunications::MegaCmdShellCommunications()
     stopListener = false;
     updating = false;
     listenerThread = NULL;
+    MegaCmdShellCommunications::megaCmdStdoutputing.init(false);
 }
 
 
@@ -736,8 +655,11 @@ int MegaCmdShellCommunications::executeCommand(string command, std::string (*rea
             n = recv(newsockfd, (char *)&partialoutsize, sizeof(partialoutsize), MSG_NOSIGNAL);
             if (n && partialoutsize > 0)
             {
+                megaCmdStdoutputing.lock();
+
                 do{
                     char *buffer = new char[partialoutsize+1];
+
                     n = recv(newsockfd, (char *)buffer, partialoutsize, MSG_NOSIGNAL);
                     if (n)
                     {
@@ -757,6 +679,7 @@ int MegaCmdShellCommunications::executeCommand(string command, std::string (*rea
                     }
                     delete[] buffer;
                 } while(n != 0 && partialoutsize && n !=SOCKET_ERROR);
+                megaCmdStdoutputing.unlock();
             }
             else
             {
@@ -821,6 +744,8 @@ int MegaCmdShellCommunications::executeCommand(string command, std::string (*rea
         n = recv(newsockfd, buffer, BUFFERSIZE, MSG_NOSIGNAL);
         if (n)
         {
+            megaCmdStdoutputing.lock();
+
 #ifdef _WIN32
             buffer[n]='\0';
 
@@ -835,6 +760,7 @@ int MegaCmdShellCommunications::executeCommand(string command, std::string (*rea
                 output << string(buffer,n) << flush;
             }
 #endif
+            megaCmdStdoutputing.unlock();
         }
     } while(n != 0 && n !=SOCKET_ERROR);
 
@@ -998,7 +924,6 @@ int MegaCmdShellCommunications::registerForStateChanges(void (*statechangehandle
         registerAgainRequired = true;
         return -1;
     }
-    OUTSTREAM << "                         \r" << flush;
 
     int receiveSocket = SOCKET_ERROR ;
 
@@ -1009,6 +934,9 @@ int MegaCmdShellCommunications::registerForStateChanges(void (*statechangehandle
         registerAgainRequired = true;
         return -1;
     }
+
+    OUTSTREAM << "\r                         \r" << flush;
+
 
     if (listenerThread != NULL)
     {

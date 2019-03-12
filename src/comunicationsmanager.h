@@ -2,7 +2,7 @@
  * @file src/comunicationsmanager.h
  * @brief MEGAcmd: Communications manager non supporting non-interactive mode
  *
- * (c) 2013-2016 by Mega Limited, Auckland, New Zealand
+ * (c) 2013 by Mega Limited, Auckland, New Zealand
  *
  * This file is part of the MEGAcmd.
  *
@@ -20,6 +20,7 @@
 #define COMUNICATIONSMANAGER_H
 
 #include "megacmd.h"
+#include "megacmdcommonutils.h"
 
 static const int MAXCMDSTATELISTENERS = 300;
 

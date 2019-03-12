@@ -2,7 +2,7 @@
  * @file src/listeners.h
  * @brief MEGAcmd: Listeners
  *
- * (c) 2013-2016 by Mega Limited, Auckland, New Zealand
+ * (c) 2013 by Mega Limited, Auckland, New Zealand
  *
  * This file is part of the MEGAcmd.
  *
@@ -99,6 +99,8 @@ private:
     long long getOngoingTransferredBytes();
     long long getOngoingTotalBytes();
 
+    bool progressinformed;
+
 public:
     MegaCmdMultiTransferListener(mega::MegaApi *megaApi, MegaCmdSandbox * sandboxCMD, mega::MegaTransferListener *listener = NULL, int clientID=-1);
     virtual ~MegaCmdMultiTransferListener();
@@ -117,6 +119,8 @@ public:
     int getFinalerror() const;
 
     long long getTotalbytes() const;
+
+    bool getProgressinformed() const;
 
 protected:
     mega::MegaTransferListener *listener;
@@ -144,7 +148,7 @@ class MegaCmdMegaListener : public mega::MegaListener
 {
 
 public:
-    MegaCmdMegaListener(mega::MegaApi *megaApi, mega::MegaListener *parent=NULL);
+    MegaCmdMegaListener(mega::MegaApi *megaApi, mega::MegaListener *parent=NULL, MegaCmdSandbox *sandboxCMD = NULL);
     virtual ~MegaCmdMegaListener();
 
     virtual void onRequestFinish(mega::MegaApi* api, mega::MegaRequest *request, mega::MegaError* e);
@@ -164,6 +168,7 @@ public:
 protected:
     mega::MegaApi *megaApi;
     mega::MegaListener *listener;
+    MegaCmdSandbox *sandboxCMD;
 };
 
 class MegaCmdGlobalTransferListener : public mega::MegaTransferListener

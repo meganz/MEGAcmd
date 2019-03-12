@@ -2,7 +2,7 @@
  * @file src/megacmd.cpp
  * @brief MEGAcmd: Interactive CLI and service application
  *
- * (c) 2013-2016 by Mega Limited, Auckland, New Zealand
+ * (c) 2013 by Mega Limited, Auckland, New Zealand
  *
  * This file is part of the MEGAcmd.
  *
@@ -76,70 +76,6 @@ typedef char *completionfunction_t PARAMS((const char *, int));
 #endif
 
 #ifdef _WIN32
-// convert UTF-8 to Windows Unicode wstring
-void stringtolocalw(const char* path, std::wstring* local)
-{
-    // make space for the worst case
-    local->resize((strlen(path) + 1) * sizeof(wchar_t));
-
-    int wchars_num = MultiByteToWideChar(CP_UTF8, 0, path,-1, NULL,0);
-    local->resize(wchars_num);
-
-    int len = MultiByteToWideChar(CP_UTF8, 0, path,-1, (wchar_t*)local->data(), wchars_num);
-
-    if (len)
-    {
-        local->resize(len-1);
-    }
-    else
-    {
-        local->clear();
-    }
-}
-
-//widechar to utf8 string
-void localwtostring(const std::wstring* wide, std::string *multibyte)
-{
-    if( !wide->empty() )
-    {
-        int size_needed = WideCharToMultiByte(CP_UTF8, 0, wide->data(), (int)wide->size(), NULL, 0, NULL, NULL);
-        multibyte->resize(size_needed);
-        WideCharToMultiByte(CP_UTF8, 0, wide->data(), (int)wide->size(), (char*)multibyte->data(), size_needed, NULL, NULL);
-    }
-}
-
-//override << operators for wostream for string and const char *
-
-std::wostream & operator<< ( std::wostream & ostr, std::string const & str )
-{
-    std::wstring toout;
-    stringtolocalw(str.c_str(),&toout);
-    ostr << toout;
-
-return ( ostr );
-}
-
-std::wostream & operator<< ( std::wostream & ostr, const char * str )
-{
-    std::wstring toout;
-    stringtolocalw(str,&toout);
-    ostr << toout;
-    return ( ostr );
-}
-
-//override for the log. This is required for compiling, otherwise SimpleLog won't compile.
-std::ostringstream & operator<< ( std::ostringstream & ostr, std::wstring const &str)
-{
-    std::string s;
-    localwtostring(&str,&s);
-    ostr << s;
-    return ( ostr );
-}
-
-
-#endif
-
-#ifdef _WIN32
 #ifdef USE_PORT_COMMS
 #include "comunicationsmanagerportsockets.h"
 #define COMUNICATIONMANAGER ComunicationsManagerPortSockets
@@ -197,7 +133,7 @@ vector<string> remotepatterncommands(aremotepatterncommands, aremotepatterncomma
 string aremotefolderspatterncommands[] = {"cd", "share"};
 vector<string> remotefolderspatterncommands(aremotefolderspatterncommands, aremotefolderspatterncommands + sizeof aremotefolderspatterncommands / sizeof aremotefolderspatterncommands[0]);
 
-string amultipleremotepatterncommands[] = {"ls", "tree", "mkdir", "rm", "du", "find", "mv", "deleteversions", "cat"
+string amultipleremotepatterncommands[] = {"ls", "tree", "mkdir", "rm", "du", "find", "mv", "deleteversions", "cat", "mediainfo"
 #ifdef HAVE_LIBUV
                                            , "webdav", "ftp"
 #endif
@@ -210,17 +146,17 @@ vector<string> remoteremotepatterncommands(aremoteremotepatterncommands, aremote
 string aremotelocalpatterncommands[] = {"get", "thumbnail", "preview"};
 vector<string> remotelocalpatterncommands(aremotelocalpatterncommands, aremotelocalpatterncommands + sizeof aremotelocalpatterncommands / sizeof aremotelocalpatterncommands[0]);
 
-string alocalpatterncommands [] = {"lcd"};
-vector<string> localpatterncommands(alocalpatterncommands, alocalpatterncommands + sizeof alocalpatterncommands / sizeof alocalpatterncommands[0]);
+string alocalfolderpatterncommands [] = {"lcd"};
+vector<string> localfolderpatterncommands(alocalfolderpatterncommands, alocalfolderpatterncommands + sizeof alocalfolderpatterncommands / sizeof alocalfolderpatterncommands[0]);
 
 string aemailpatterncommands [] = {"invite", "signup", "ipc", "users"};
 vector<string> emailpatterncommands(aemailpatterncommands, aemailpatterncommands + sizeof aemailpatterncommands / sizeof aemailpatterncommands[0]);
 
 string avalidCommands [] = { "login", "signup", "confirm", "session", "mount", "ls", "cd", "log", "debug", "pwd", "lcd", "lpwd", "import", "masterkey",
-                             "put", "get", "attr", "userattr", "mkdir", "rm", "du", "mv", "cp", "sync", "export", "share", "invite", "ipc",
+                             "put", "get", "attr", "userattr", "mkdir", "rm", "du", "mv", "cp", "sync", "export", "share", "invite", "ipc", "df",
                              "showpcr", "users", "speedlimit", "killsession", "whoami", "help", "passwd", "reload", "logout", "version", "quit",
                              "thumbnail", "preview", "find", "completion", "clear", "https", "transfers", "exclude", "exit", "errorcode", "graphics",
-                             "cancel", "confirmcancel", "cat", "tree"
+                             "cancel", "confirmcancel", "cat", "tree", "psa"
                              , "mediainfo"
 #ifdef HAVE_LIBUV
                              , "webdav", "ftp"
@@ -236,7 +172,7 @@ string avalidCommands [] = { "login", "signup", "confirm", "session", "mount", "
 #else
                              , "permissions"
 #endif
-#ifndef __linux__
+#if defined(_WIN32) || defined(__APPLE__)
                              , "update"
 #endif
                            };
@@ -358,6 +294,17 @@ void changeprompt(const char *newprompt)
     cm->informStateListeners(s);
 }
 
+void informStateListener(string message, int clientID)
+{
+    string s;
+    if (message.size())
+    {
+        s += "message:";
+        s+=message;
+    }
+    cm->informStateListenerByClientId(s, clientID);
+}
+
 void broadcastMessage(string message, const char *suffix)
 {
     string s;
@@ -374,6 +321,11 @@ void informTransferUpdate(MegaTransfer *transfer, int clientID)
     informProgressUpdate(transfer->getTransferredBytes(),transfer->getTotalBytes(), clientID);
 }
 
+void informStateListenerByClientId(int clientID, string s)
+{
+    cm->informStateListenerByClientId(s, clientID);
+}
+
 void informProgressUpdate(long long transferred, long long total, int clientID, string title)
 {
     string s = "progress:";
@@ -387,7 +339,7 @@ void informProgressUpdate(long long transferred, long long total, int clientID, 
         s+=title;
     }
 
-    cm->informStateListenerByClientId(s, clientID);
+    informStateListenerByClientId(clientID, s);
 }
 
 void insertValidParamsPerCommand(set<string> *validParams, string thecommand, set<string> *validOptValues = NULL)
@@ -413,6 +365,7 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     else if ("passwd" == thecommand)
     {
         validParams->insert("f");
+        validOptValues->insert("auth-code");
     }
     else if ("du" == thecommand)
     {
@@ -466,6 +419,10 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     else if ("whoami" == thecommand)
     {
         validParams->insert("l");
+    }
+    else if ("df" == thecommand)
+    {
+        validParams->insert("h");
     }
     else if ("mediainfo" == thecommand)
     {
@@ -622,6 +579,7 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     {
         validOptValues->insert("user");
         validParams->insert("s");
+        validParams->insert("list");
     }
     else if ("ipc" == thecommand)
     {
@@ -668,6 +626,11 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     else if ("login" == thecommand)
     {
         validOptValues->insert("clientID");
+        validOptValues->insert("auth-code");
+    }
+    else if ("psa" == thecommand)
+    {
+        validParams->insert("discard");
     }
     else if ("reload" == thecommand)
     {
@@ -676,6 +639,7 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     else if ("transfers" == thecommand)
     {
         validParams->insert("show-completed");
+        validParams->insert("summary");
         validParams->insert("only-uploads");
         validParams->insert("only-completed");
         validParams->insert("only-downloads");
@@ -691,7 +655,7 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     {
         validParams->insert("only-shell");
     }
-#ifndef __linux__
+#if defined(_WIN32) || defined(__APPLE__)
     else if ("update" == thecommand)
     {
         validOptValues->insert("auto");
@@ -792,7 +756,7 @@ char * flags_completion(const char*text, int state)
     {
         validparams.clear();
         char *saved_line = strdup(getCurrentThreadLine().c_str());
-        vector<string> words = getlistOfWords(saved_line);
+        vector<string> words = getlistOfWords(saved_line, !getCurrentThreadIsCmdShell());
         free(saved_line);
         if (words.size())
         {
@@ -851,7 +815,7 @@ char * flags_value_completion(const char*text, int state)
         validValues.clear();
 
         char *saved_line = strdup(getCurrentThreadLine().c_str());
-        vector<string> words = getlistOfWords(saved_line);
+        vector<string> words = getlistOfWords(saved_line, !getCurrentThreadIsCmdShell());
         free(saved_line);
         saved_line = NULL;
         if (words.size() > 1)
@@ -927,10 +891,8 @@ char * flags_value_completion(const char*text, int state)
                     end = string::npos;
                 }
 
-                string location = stext.substr(begin, end);
-                validValues = cmdexecuter->getlistfilesfolders(location.size()?location:"./");
+                validValues = cmdexecuter->listlocalpathsstartingby(stext.substr(begin));
                 string prefix = strncmp(text, cflag, strlen(cflag))?"":cflag;
-                prefix.append(location);
                 for (unsigned int i=0;i<validValues.size();i++)
                 {
                     validValues.at(i)=prefix+validValues.at(i);
@@ -950,7 +912,8 @@ void unescapeifRequired(string &what)
     }
 }
 
-char* remotepaths_completion(const char* text, int state)
+
+char* remotepaths_completion(const char* text, int state, bool onlyfolders)
 {
     static vector<string> validpaths;
     if (state == 0)
@@ -970,7 +933,7 @@ char* remotepaths_completion(const char* text, int state)
 
         unescapeEspace(wildtext);
 
-        validpaths = cmdexecuter->listpaths(usepcre, wildtext);
+        validpaths = cmdexecuter->listpaths(usepcre, wildtext, onlyfolders);
 
         // we need to escape '\' to fit what's done when parsing words
         if (!getCurrentThreadIsCmdShell())
@@ -985,26 +948,14 @@ char* remotepaths_completion(const char* text, int state)
     return generic_completion(text, state, validpaths);
 }
 
+char* remotepaths_completion(const char* text, int state)
+{
+    return remotepaths_completion(text, state, false);
+}
+
 char* remotefolders_completion(const char* text, int state)
 {
-    static vector<string> validpaths;
-    if (state == 0)
-    {
-        string wildtext(text);
-        bool usepcre = false; //pcre makes no sense in paths completion
-        if (usepcre)
-        {
-#ifdef USE_PCRE
-        wildtext += ".";
-#elif __cplusplus >= 201103L
-        wildtext += ".";
-#endif
-        }
-        wildtext += "*";
-
-        validpaths = cmdexecuter->listpaths(usepcre, wildtext, true);
-    }
-    return generic_completion(text, state, validpaths);
+    return remotepaths_completion(text, state, true);
 }
 
 char* loglevels_completion(const char* text, int state)
@@ -1020,6 +971,18 @@ char* loglevels_completion(const char* text, int state)
         validloglevels.push_back(getLogLevelStr(MegaApi::LOG_LEVEL_MAX));
     }
     return generic_completion(text, state, validloglevels);
+}
+
+char* localfolders_completion(const char* text, int state)
+{
+    static vector<string> validpaths;
+    if (state == 0)
+    {
+        string what(text);
+        unescapeEspace(what);
+        validpaths = cmdexecuter->listlocalpathsstartingby(what.c_str(), true);
+    }
+    return generic_completion(text, state, validpaths);
 }
 
 char* transfertags_completion(const char* text, int state)
@@ -1088,7 +1051,7 @@ char* nodeattrs_completion(const char* text, int state)
     {
         validAttrs.clear();
         char *saved_line = strdup(getCurrentThreadLine().c_str());
-        vector<string> words = getlistOfWords(saved_line);
+        vector<string> words = getlistOfWords(saved_line, !getCurrentThreadIsCmdShell());
         free(saved_line);
         saved_line = NULL;
         if (words.size() > 1)
@@ -1120,23 +1083,6 @@ char* userattrs_completion(const char* text, int state)
     }
 
     return generic_completion(text, state, validAttrs);
-}
-
-void discardOptionsAndFlags(vector<string> *ws)
-{
-    for (std::vector<string>::iterator it = ws->begin(); it != ws->end(); )
-    {
-        /* std::cout << *it; ... */
-        string w = ( string ) * it;
-        if (w.length() && ( w.at(0) == '-' )) //begins with "-"
-        {
-            it = ws->erase(it);
-        }
-        else //not an option/flag
-        {
-            ++it;
-        }
-    }
 }
 
 completionfunction_t *getCompletionFunction(vector<string> words)
@@ -1184,11 +1130,11 @@ completionfunction_t *getCompletionFunction(vector<string> words)
             return remotepaths_completion;
         }
     }
-    else if (thecommand == "backup") //TODO: offer local folder completion
+    else if (thecommand == "backup")
     {
         if (currentparameter == 1)
         {
-            return local_completion;
+            return localfolders_completion;
         }
         else
         {
@@ -1216,11 +1162,11 @@ completionfunction_t *getCompletionFunction(vector<string> words)
             return remotepaths_completion;
         }
     }
-    else if (stringcontained(thecommand.c_str(), localpatterncommands))
+    else if (stringcontained(thecommand.c_str(), localfolderpatterncommands))
     {
         if (currentparameter == 1)
         {
-            return local_completion;
+            return localfolders_completion;
         }
     }
     else if (stringcontained(thecommand.c_str(), remoteremotepatterncommands))
@@ -1314,6 +1260,22 @@ string getListOfCompletionValues(vector<string> words, char separator = ' ', con
             return toret;
         }
     }
+#ifdef _WIN32
+//    // let MEGAcmdShell handle the local folder completion (available via autocomplete.cpp stuff that takes into account units/unicode/etc...)
+//    else if (compfunction == localfolders_completion)
+//    {
+//        if (!interactiveThread())
+//        {
+//            return "MEGACMD_USE_LOCAL_COMPLETIONFOLDERS";
+//        }
+//        else
+//        {
+//            string toret="MEGACMD_USE_LOCAL_COMPLETIONFOLDERS";
+//            toret+=cmdexecuter->getLPWD();
+//            return toret;
+//        }
+//    }
+#endif
     int state=0;
     if (words.size()>1)
     while (true)
@@ -1380,12 +1342,16 @@ const char * getUsageStr(const char *command)
     {
         if (interactiveThread())
         {
-            return "login [email [password]] | exportedfolderurl#key | session";
+            return "login [--auth-code=XXXX] [email [password]] | exportedfolderurl#key | session";
         }
         else
         {
-            return "login email password | exportedfolderurl#key | session";
+            return "login [--auth-code=XXXX] email password | exportedfolderurl#key | session";
         }
+    }
+    if (!strcmp(command, "psa"))
+    {
+        return "psa [--discard]";
     }
     if (!strcmp(command, "cancel"))
     {
@@ -1524,7 +1490,7 @@ const char * getUsageStr(const char *command)
     }
     if (!strcmp(command, "userattr"))
     {
-        return "userattr [-s attribute value|attribute] [--user=user@email]";
+        return "userattr [-s attribute value|attribute|--list] [--user=user@email]";
     }
     if (!strcmp(command, "mkdir"))
     {
@@ -1653,11 +1619,15 @@ const char * getUsageStr(const char *command)
     }
     if (!strcmp(command, "killsession"))
     {
-        return "killsession [-a|sessionid]";
+        return "killsession [-a | sessionid1 sessionid2 ... ]";
     }
     if (!strcmp(command, "whoami"))
     {
         return "whoami [-l]";
+    }
+    if (!strcmp(command, "df"))
+    {
+        return "df [-h]";
     }
     if (!strcmp(command, "cat"))
     {
@@ -1671,11 +1641,11 @@ const char * getUsageStr(const char *command)
     {
         if (interactiveThread())
         {
-            return "passwd [-f] [newpassword]";
+            return "passwd [-f]  [--auth-code=XXXX] [newpassword]";
         }
         else
         {
-            return "passwd [-f] newpassword";
+            return "passwd [-f]  [--auth-code=XXXX] newpassword";
         }
     }
     if (!strcmp(command, "retry"))
@@ -1784,7 +1754,7 @@ const char * getUsageStr(const char *command)
         return "codepage [N [M]]";
     }
 #endif
-#ifndef __linux__
+#if defined(_WIN32) || defined(__APPLE__)
     if (!strcmp(command, "update"))
     {
         return "update [--auto=on|off]";
@@ -1831,6 +1801,9 @@ string getHelpStr(const char *command)
         os << " You can log in either with email and password, with session ID," << endl;
         os << " or into a folder (an exported/public folder)" << endl;
         os << " If logging into a folder indicate url#key" << endl;
+        os << endl;
+        os << "Options:" << endl;
+        os << " --auth-code=XXXX" << "\t" << "Two-factor Authentication code. More info: https://mega.nz/blog_48" << endl;
     }
     else if (!strcmp(command, "cancel"))
     {
@@ -1840,6 +1813,14 @@ string getHelpStr(const char *command)
         os << endl;
         os << "The cancellation will not take place inmediately. You will need to confirm the cancellation" << endl;
         os << "using a link that will be delivered to your email. See \"confirmcancel --help\"" << endl;
+    }
+    else if (!strcmp(command, "psa"))
+    {
+        os << "Shows the next available Public Service Announcement (PSA)" << endl;
+        os << endl;
+        os << "Options:" << endl;
+        os << " --discard" << "\t" << "Discards last received PSA" << endl;
+        os << endl;
     }
     else if (!strcmp(command, "confirmcancel"))
     {
@@ -1963,7 +1944,7 @@ string getHelpStr(const char *command)
         os << endl;
         os << "This is similar to \"ls --tree\"" << endl;
     }
-#ifndef __linux__
+#if defined(_WIN32) || defined(__APPLE__)
     else if (!strcmp(command, "update"))
     {
         os << "Updates MEGAcmd" << endl;
@@ -1977,6 +1958,8 @@ string getHelpStr(const char *command)
         os << "If auto updates are enabled it will be checked while MEGAcmd server is running." << endl;
         os << " If there is an update available, it will be downloaded and applied. " << endl;
         os << " This will cause MEGAcmd to be restarted whenever the updates are applied." << endl;
+        os << endl;
+        os << "Further info at https://github.com/meganz/megacmd#megacmd-updates";
     }
 #endif
     else if (!strcmp(command, "cd"))
@@ -2113,6 +2096,7 @@ string getHelpStr(const char *command)
         os << "Options:" << endl;
         os << " -s" << "\tattribute value \t" << "sets an attribute to a value" << endl;
         os << " --user=user@email" << "\t" << "select the user to query" << endl;
+        os << " --list" << "\t" << "lists valid attributes" << endl;
     }
     else if (!strcmp(command, "mkdir"))
     {
@@ -2228,6 +2212,7 @@ string getHelpStr(const char *command)
 #endif
         os << endl;
         os << "*If you serve more than one location, these parameters will be ignored and use those of the first location served." << endl;
+        os << " If you want to change those parameters, you need to stop serving all locations and configure them again." << endl;
         os << endl;
         os << "Caveat: This functionality is in BETA state. If you experience any issue with this, please contact: support@mega.nz" << endl;
         os << endl;
@@ -2253,6 +2238,7 @@ string getHelpStr(const char *command)
 #endif
         os << endl;
         os << "*If you serve more than one location, these parameters will be ignored and used those of the first location served." << endl;
+        os << " If you want to change those parameters, you need to stop serving all locations and configure them again." << endl;
         os << endl;
         os << "Caveat: This functionality is in BETA state. If you experience any issue with this, please contact: support@mega.nz" << endl;
         os << endl;
@@ -2325,8 +2311,8 @@ string getHelpStr(const char *command)
         os << "  \t"  << "If MEGAcmd server stops during a transfer, it will be considered MISCARRIED" << endl;
         os << "  \t"  << "  Notice that currently when MEGAcmd server is restarted, ongoing and scheduled transfers " << endl;
         os << "  \t"  << "  will be carried out nevertheless." << endl;
-        os << "  \t"  << "If MEGAcmd server is not running when a backup is scheduled and the time for the next one has already arrived,"
-              " an empty BACKUP will be created with state SKIPPED" << endl;
+        os << "  \t"  << "If MEGAcmd server is not running when a backup is scheduled and the time for the next one has already arrived," << endl;
+        os << "  \t"  << " an empty BACKUP will be created with state SKIPPED" << endl;
         os << "  \t"  << "If a backup(1) is ONGOING and the time for the next backup(2) arrives, it won't start untill the previous one(1) " << endl;
         os << "  \t"  << " is completed, and if by the time the first one(1) ends the time for the next one(3) has already arrived," << endl;
         os << "  \t"  << " an empty BACKUP(2) will be created with state SKIPPED" << endl;
@@ -2369,7 +2355,6 @@ string getHelpStr(const char *command)
         os << "-a TAG|localpath\t" << "Aborts ongoing backup" << endl;
         os << endl;
         os << "Caveat: This functionality is in BETA state. If you experience any issue with this, please contact: support@mega.nz" << endl;
-        os << endl;
     }
     else if (!strcmp(command, "export"))
     {
@@ -2519,11 +2504,20 @@ string getHelpStr(const char *command)
     }
     else if (!strcmp(command, "whoami"))
     {
-        os << "Print info of the user" << endl;
+        os << "Prints info of the user" << endl;
         os << endl;
         os << "Options:" << endl;
         os << " -l" << "\t" << "Show extended info: total storage used, storage per main folder " << endl;
         os << "   " << "\t" << "(see mount), pro level, account balance, and also the active sessions" << endl;
+    }
+    else if (!strcmp(command, "df"))
+    {
+        os << "Shows storage info" << endl;
+        os << endl;
+        os << "Shows total storage used in the account, storage per main folder (see mount)" << endl;
+        os << endl;
+        os << "Options:" << endl;
+        os << " -h" << "\t" << "Human readable sizes. Otherwise, size will be expressed in Bytes" << endl;
     }
     else if (!strcmp(command, "cat"))
     {
@@ -2550,7 +2544,7 @@ string getHelpStr(const char *command)
         os << endl;
         os << "Options:" << endl;
         os << " -f   " << "\t" << "Force (no asking)" << endl;
-
+        os << " --auth-code=XXXX" << "\t" << "Two-factor Authentication code. More info: https://mega.nz/blog_48" << endl;
     }
     else if (!strcmp(command, "reload"))
     {
@@ -2636,15 +2630,29 @@ string getHelpStr(const char *command)
         os << " -c (TAG|-a)" << "\t" << "Cancel transfer with TAG (or all with -a)" << endl;
         os << " -p (TAG|-a)" << "\t" << "Pause transfer with TAG (or all with -a)" << endl;
         os << " -r (TAG|-a)" << "\t" << "Resume transfer with TAG (or all with -a)" << endl;
-        os << " -only-uploads" << "\t" << "Show/Operate only upload transfers" << endl;
-        os << " -only-downloads" << "\t" << "Show/Operate only download transfers" << endl;
+        os << " --only-uploads" << "\t" << "Show/Operate only upload transfers" << endl;
+        os << " --only-downloads" << "\t" << "Show/Operate only download transfers" << endl;
         os << endl;
         os << "Show options:" << endl;
-        os << " -show-syncs" << "\t" << "Show synchronization transfers" << endl;
-        os << " -show-completed" << "\t" << "Show completed transfers" << endl;
-        os << " -only-completed" << "\t" << "Show only completed download" << endl;
+        os << " --summary" << "\t" << "Prints summary of on going transfers" << endl;
+        os << " --show-syncs" << "\t" << "Show synchronization transfers" << endl;
+        os << " --show-completed" << "\t" << "Show completed transfers" << endl;
+        os << " --only-completed" << "\t" << "Show only completed download" << endl;
         os << " --limit=N" << "\t" << "Show only first N transfers" << endl;
         os << " --path-display-size=N" << "\t" << "Use a fixed size of N characters for paths" << endl;
+        os << endl;
+        os << "TYPE legend correspondence:" << endl;
+#ifdef _WIN32
+        os << "  D = \t" << "Download transfer" << endl;
+        os << "  U = \t" << "Upload transfer" << endl;
+        os << "  S = \t" << "Sync transfer. The transfer is done in the context of a synchronization" << endl;
+        os << "  B = \t" << "Backup transfer. The transfer is done in the context of a backup" << endl;
+#else
+        os << "  \u21d3 = \t" << "Download transfer" << endl;
+        os << "  \u21d1 = \t" << "Upload transfer" << endl;
+        os << "  \u21f5 = \t" << "Sync transfer. The transfer is done in the context of a synchronization" << endl;
+        os << "  \u23eb = \t" << "Backup transfer. The transfer is done in the context of a backup" << endl;
+#endif
     }
 #if defined(_WIN32) && defined(NO_READLINE)
     else if (!strcmp(command, "autocomplete"))
@@ -2730,7 +2738,7 @@ void printAvailableCommands(int extensive = 0)
 
 void executecommand(char* ptr)
 {
-    vector<string> words = getlistOfWords(ptr);
+    vector<string> words = getlistOfWords(ptr, !getCurrentThreadIsCmdShell());
     if (!words.size())
     {
         return;
@@ -2794,7 +2802,7 @@ void executecommand(char* ptr)
         return;
     }
 
-    words = getlistOfWords(ptr,true); //Get words again ignoring trailing spaces (only reasonable for completion)
+    words = getlistOfWords(ptr, !getCurrentThreadIsCmdShell(), true); //Get words again ignoring trailing spaces (only reasonable for completion)
 
     map<string, string> cloptions;
     map<string, int> clflags;
@@ -3279,7 +3287,7 @@ static bool process_line(char* l)
                 break;
             }
 
-#ifndef __linux__
+#if defined(_WIN32) || defined(__APPLE__)
             else if (!strcmp(l, "update") || !strcmp(l, "update ")) //if extra args are received, it'll be processed by executer
             {
                 string confirmationQuery("This might require restarting MEGAcmd. Are you sure to continue");
@@ -3680,11 +3688,6 @@ void megacmd()
 
                 cm->informStateListener(inf,s);
 
-                // communicate status info
-                s = "prompt:";
-                s+=dynamicprompt;
-                s+=(char)0x1F;
-
 #if defined(_WIN32) || defined(__APPLE__)
                 string message="";
                 ostringstream os;
@@ -3778,11 +3781,25 @@ void megacmd()
                 if (isOSdeprecated)
                 {
                     s += "message:";
-                    s += "---------------------------------------------------------------------\n";
-                    s += "--              Your Operative System is too old.                  --\n";
-                    s += "--      You might not receive new updates for this application.    --\n";
-                    s += "--       We strongly recommend you to update to a new version.     --\n";
-                    s += "---------------------------------------------------------------------\n";
+                    s += "Your Operative System is too old.\n";
+                    s += "You might not receive new updates for this application.\n";
+                    s += "We strongly recommend you to update to a new version.\n";
+                    s+=(char)0x1F;
+                }
+
+                if (sandboxCMD->storageStatus != MegaApi::STORAGE_STATE_GREEN)
+                {
+                    s += "message:";
+
+                    if (sandboxCMD->storageStatus == MegaApi::STORAGE_STATE_RED)
+                    {
+                        s+= "You have exeeded your available storage.\n";
+                    }
+                    else
+                    {
+                        s+= "You are running out of available storage.\n";
+                    }
+                    s+="You can change your account plan to increase your quota limit.\nSee \"help --upgrade\" for further details";
                     s+=(char)0x1F;
                 }
 
@@ -3801,6 +3818,13 @@ void megacmd()
                 s += "connectivity:";
                 s += SSTR(api->isWaiting());
                 s += (char)0x1F;
+
+                // communicate status info
+                s+= "prompt:";
+                s+=dynamicprompt;
+                s+=(char)0x1F;
+
+                cmdexecuter->checkAndInformPSA(inf);
 
                 cm->informStateListener(inf,s);
             }
@@ -3831,24 +3855,6 @@ public:
         return c;
     }
 };
-
-void printCenteredLine(string msj, unsigned int width, bool encapsulated = true)
-{
-    if (msj.size()>width)
-    {
-        width = (unsigned int)msj.size();
-    }
-    if (encapsulated)
-        COUT << "|";
-    for (unsigned int i = 0; i < (width-msj.size())/2; i++)
-        COUT << " ";
-    COUT << msj;
-    for (unsigned int i = 0; i < (width-msj.size())/2 + (width-msj.size())%2 ; i++)
-        COUT << " ";
-    if (encapsulated)
-        COUT << "|";
-    COUT << endl;
-}
 
 void printWelcomeMsg()
 {
@@ -3884,16 +3890,6 @@ void printWelcomeMsg()
     COUT << endl;
 
 }
-
-int quote_detector(char *line, int index)
-{
-    return (
-        index > 0 &&
-        line[index - 1] == '\\' &&
-        !quote_detector(line, index - 1)
-    );
-}
-
 
 #ifdef __MACH__
 
@@ -4519,7 +4515,7 @@ int main(int argc, char* argv[])
     cmdexecuter = new MegaCmdExecuter(api, loggerCMD, sandboxCMD);
 
     megaCmdGlobalListener = new MegaCmdGlobalListener(loggerCMD, sandboxCMD);
-    megaCmdMegaListener = new MegaCmdMegaListener(api, NULL);
+    megaCmdMegaListener = new MegaCmdMegaListener(api, NULL, sandboxCMD);
     api->addGlobalListener(megaCmdGlobalListener);
     api->addListener(megaCmdMegaListener);
 
@@ -4559,7 +4555,7 @@ int main(int argc, char* argv[])
     atexit(finalize);
 
 
-#ifndef __linux__
+#if defined(_WIN32) || defined(__APPLE__)
     if (!ConfigurationManager::getConfigurationValue("updaterregistered", false))
     {
         LOG_debug << "Registering automatic updater";

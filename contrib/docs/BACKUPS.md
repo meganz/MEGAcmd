@@ -1,9 +1,11 @@
 # MEGA-BACKUPS - Backing folders with MEGAcmd
-This is a brief tutorial on how to configure backups. It will be improved soon.
+This is a brief tutorial on how to configure backups.
+
+Notice: the commands listed here assume you are using the interactive interaction mode: they are supposed to be executed within MEGAcmdShell.
 
 ## Creation
 Example: 
-backup /path/to/myfolder /remote/path --period="0 0 4 * * *" --num-backups=10
+backup /path/mega/folder /remote/path --period="0 0 4 * * *" --num-backups=10
 
 This will configure a backup of "myfolder" into /remote/path that will be carried out
  at 4:00 A.M. (UTC) every day. It will store the last 10 copies. 
@@ -25,7 +27,7 @@ You can list the backups configured typing `backup`:
 
 ```
 TAG   LOCALPATH                 REMOTEPARENTPATH                  STATUS
-4     /path/to/myfolder            /remote/path                   ACTIVE
+4     /path/mega/folder            /remote/path                   ACTIVE
 ```
 
 Notice the TAG. You can use it to refer to the backup if you wan to change its configuration 
@@ -37,7 +39,7 @@ If you type "backup -l" you will see extra information concerning the backup. He
 see when the next backup is scheduled for:
 ```
 TAG   LOCALPATH                 REMOTEPARENTPATH                  STATUS
-4     /path/to/myfolder            /remote/path                  ONGOING
+4     /path/mega/folder            /remote/path                  ONGOING
   Max Backups:   4
   Period:         "0 0 4 * * *"
   Next backup scheduled for: Fri, 19 Jan 2018 04:00:00 +0000
@@ -55,7 +57,7 @@ With "backup -h" you will be able to see the existing backups with their state a
 
 ```
 TAG   LOCALPATH                 REMOTEPARENTPATH                  STATUS
-4     /path/to/myfolder            /remote/path                  ONGOING
+4     /path/mega/folder            /remote/path                  ONGOING
    -- SAVED BACKUPS --
   NAME                             DATE                    STATUS  FILES FOLDERS
   myfolder_bk_20180115175811       15Jan2018 17:58:11    COMPLETE     33      10
@@ -83,7 +85,7 @@ This will cancel all transfers and set the backup as ABORTED
 
 Similarly you can remove a backup, to no longer backup that folder with:
 ```
-backup -d /path/to/myfolder
+backup -d /path/mega/folder
 ``` 
 This will not remove the existing backups wich will be available in MEGA.
 
@@ -95,7 +97,7 @@ backup 4 --period=2h
 ```
 This will set our backup with TAG=4 to have a period of 2 hours.
 ```
-backup /path/to/myfolder --num-backups=1
+backup /path/mega/folder --num-backups=1
 ```
 This will configure the backup to only keep one instance. 
 Notice that in order not to lose data, older instances will not be deleted until

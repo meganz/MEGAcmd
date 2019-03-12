@@ -15,20 +15,24 @@ TEMPLATE = app
 CONFIG += console
 
 win32 {
+CONFIG += USE_AUTOCOMPLETE
+CONFIG += USE_CONSOLE
 DEFINES += NO_READLINE
 include(../../../../sdk/bindings/qt/sdk.pri) #This is required to have console.cpp included: avoiding this is rather complicated
-HEADERS +=     ../../../../sdk/include/mega/autocomplete.h
 }
 
 SOURCES += ../../../../src/megacmdshell/megacmdshell.cpp \
     ../../../../src/megacmdshell/megacmdshellcommunications.cpp \
-    ../../../../src/megacmdshell/megacmdshellcommunicationsnamedpipes.cpp
+    ../../../../src/megacmdshell/megacmdshellcommunicationsnamedpipes.cpp \
+    ../../../../src/megacmdcommonutils.cpp
 
 
 HEADERS += ../../../../src/megacmdshell/megacmdshell.h \
     ../../../../src/megacmdshell/megacmdshellcommunications.h \
     ../../../../src/megacmdshell/megacmdshellcommunicationsnamedpipes.h \
-    ../../../../sdk/include/mega/thread.h
+    ../../../../sdk/include/mega/thread.h \
+    ../../../../src/megacmdcommonutils.h
+
 
 INCLUDEPATH += ../../../../sdk/include
 
@@ -57,9 +61,7 @@ else{
 }
 
 win32 {
-SOURCES += ../../../../sdk/src/autocomplete.cpp \
-    ../../../../sdk/src/win32/console.cpp \
-    ../../../../sdk/src/thread/win32thread.cpp \
+SOURCES += ../../../../sdk/src/thread/win32thread.cpp \
     ../../../../sdk/src/logging.cpp
 HEADERS +=  ../../../../sdk/include/mega/win32thread.h \
     ../../../../sdk/include/mega/logging.h
@@ -87,6 +89,12 @@ macx {
     LIBS += $$PWD/../../../../sdk/bindings/qt/3rdparty/libs/libreadline.a
     LIBS += -framework Cocoa -framework SystemConfiguration -framework CoreFoundation -framework Foundation -framework Security
     LIBS += -lncurses
+
+    QMAKE_MACOSX_DEPLOYMENT_TARGET = 10.9
+    QMAKE_CXXFLAGS -= -stdlib=libc++
+    QMAKE_LFLAGS -= -stdlib=libc++
+    CONFIG -= c++11
+
     QMAKE_CXXFLAGS += -g
 }
 else {

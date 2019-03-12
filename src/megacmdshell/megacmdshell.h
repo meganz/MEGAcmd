@@ -3,7 +3,7 @@
  * @brief MEGAcmd: Interactive CLI and service application
  * This is the shell application
  *
- * (c) 2013-2017 by Mega Limited, Auckland, New Zealand
+ * (c) 2013 by Mega Limited, Auckland, New Zealand
  *
  * This file is distributed under the terms of the GNU General Public
  * License, see http://www.gnu.org/copyleft/gpl.txt
@@ -34,7 +34,7 @@ static const char* const prompts[] =
 
 void sleepSeconds(int seconds);
 
-void sleepMilliSeconds(long microseconds);
+void sleepMilliSeconds(long milliseconds);
 
 void restoreprompt();
 
@@ -53,14 +53,6 @@ prompttype getprompt();
 void printHistory();
 
 std::string readresponse(const char *question);
-
-#ifdef _WIN32
-void stringtolocalw(const char* path, std::wstring* local);
-void localwtostring(const std::wstring* wide, std::string *multibyte);
-
-void utf16ToUtf8(const wchar_t* utf16data, int utf16size, std::string* utf8string);
-#endif
-
 
 #endif // MEGACMDSHELL_H
 

@@ -2,7 +2,7 @@
  * @file src/megacmdlogger.h
  * @brief MEGAcmd: Controls message logging
  *
- * (c) 2013-2016 by Mega Limited, Auckland, New Zealand
+ * (c) 2013 by Mega Limited, Auckland, New Zealand
  *
  * This file is part of the MEGAcmd.
  *
@@ -112,8 +112,11 @@ private:
     int apiLoggerLevel;
     int cmdLoggerLevel;
     LoggedStream * output;
+    mega::MegaMutex *outputmutex;
+
 public:
     MegaCMDLogger();
+    ~MegaCMDLogger();
 
     void log(const char *time, int loglevel, const char *source, const char *message);
 

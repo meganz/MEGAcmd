@@ -2,7 +2,7 @@
  * @file src/comunicationsmanagerportnamedPipes.h
  * @brief MegaCMD: Communications manager using Network NamedPipes
  *
- * (c) 2013-2016 by Mega Limited, Auckland, New Zealand
+ * (c) 2013 by Mega Limited, Auckland, New Zealand
  *
  * This file is part of the MEGAcmd.
  *
@@ -58,6 +58,7 @@ private:
     // to get next namedPipe id
     int count;
     mega::MegaMutex *mtx;
+    mega::MegaMutex *informerMutex;
 
     /**
      * @brief create_new_namedPipe

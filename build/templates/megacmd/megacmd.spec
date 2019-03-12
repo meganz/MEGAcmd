@@ -127,7 +127,7 @@ sed -i "s#AC_INIT#m4_pattern_allow(AC_PROG_OBJCXX)\nAC_INIT#g" sdk/configure.ac
 mkdir deps || :
 bash -x ./contrib/build_sdk.sh %{flag_cryptopp} %{flag_libraw} %{flag_cares} -o archives \
   -g %{flag_disablezlib} %{flag_disablemediainfo} -b -l -c -s -u -v -a -p deps/
-%if ( 0%{?fedora_version} && 0%{?fedora_version}<=24 ) || ( 0%{?centos_version} == 600 ) || ( 0%{?suse_version} && 0%{?suse_version} <= 1320 && !0%{?sle_version})
+%if ( 0%{?fedora_version} && 0%{?fedora_version}<=27 ) || ( 0%{?centos_version} == 600 ) || ( 0%{?suse_version} && 0%{?suse_version} <= 1320 && !0%{?sle_version} ) || ( 0%{?sle_version} && 0%{?sle_version} <= 120200 )
 export CPPFLAGS="$CPPFLAGS -DMEGACMD_DEPRECATED_OS"
 %endif
 
@@ -446,6 +446,7 @@ killall mega-cmd-server 2> /dev/null || true
 %{_bindir}/mega-cp
 %{_bindir}/mega-debug
 %{_bindir}/mega-du
+%{_bindir}/mega-df
 %{_bindir}/mega-exec
 %{_bindir}/mega-export
 %{_bindir}/mega-find

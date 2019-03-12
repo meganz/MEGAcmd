@@ -2,7 +2,7 @@
  * @file src/comunicationsmanagerportsockets.cpp
  * @brief MEGAcmd: Communications manager using Network Sockets
  *
- * (c) 2013-2016 by Mega Limited, Auckland, New Zealand
+ * (c) 2013 by Mega Limited, Auckland, New Zealand
  *
  * This file is part of the MEGAcmd.
  *

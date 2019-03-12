@@ -2,7 +2,7 @@
  * @file src/megacmdexecuter.h
  * @brief MEGAcmd: Executer of the commands
  *
- * (c) 2013-2016 by Mega Limited, Auckland, New Zealand
+ * (c) 2013 by Mega Limited, Auckland, New Zealand
  *
  * This file is part of the MEGAcmd.
  *
@@ -103,7 +103,7 @@ public:
 
     //acting
     void loginWithPassword(char *password);
-    void changePassword(const char *newpassword);
+    void changePassword(const char *newpassword, std::string pin2fa = "");
     void actUponGetExtendedAccountDetails(mega::SynchronousRequestListener  *srl, int timeout = -1);
     bool actUponFetchNodes(mega::MegaApi * api, mega::SynchronousRequestListener  *srl, int timeout = -1);
     int actUponLogin(mega::SynchronousRequestListener  *srl, int timeout = -1);
@@ -119,6 +119,7 @@ public:
     void disableShare(mega::MegaNode *n, std::string with);
     void createOrModifyBackup(std::string local, std::string remote, std::string speriod, int numBackups);
     std::vector<std::string> listpaths(bool usepcre, std::string askedPath = "", bool discardFiles = false);
+    std::vector<std::string> listlocalpathsstartingby(std::string askedPath = "", bool discardFiles = false);
     std::vector<std::string> getlistusers();
     std::vector<std::string> getNodeAttrs(std::string nodePath);
     std::vector<std::string> getUserAttrs();
@@ -173,6 +174,9 @@ public:
     mega::MegaNode *getBaseNode(std::string thepath, std::string &rest, bool *isrelative = NULL);
     void getPathParts(std::string path, std::deque<std::string> *c);
 
+    bool checkAndInformPSA(CmdPetition *inf, bool enforce = false);
+
+    bool checkNoErrors(int errorCode, std::string message = "");
     bool checkNoErrors(mega::MegaError *error, std::string message = "");
 
     void confirmCancel(const char* confirmlink, const char* pass);
@@ -189,6 +193,7 @@ public:
     void removeFtpLocation(mega::MegaNode *n, bool firstone, std::string name = std::string());
     void addFtpLocation(mega::MegaNode *n, bool firstone, std::string name = std::string());
 #endif
+    bool printUserAttribute(int a, std::string user, bool onlylist = false);
 };
 
 #endif // MEGACMDEXECUTER_H

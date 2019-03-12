@@ -4,10 +4,12 @@ This is a brief tutorial on how to configure [ftp](https://en.wikipedia.org/wiki
 Configuring a FTP server will let you access your MEGA files as if they were located in your computer.
 All major platforms support access to FTP server. See [`Platform`](#platforms) usage.
 
+Notice: the commands listed here assume you are using the interactive interaction mode: they are supposed to be executed within MEGAcmdShell.
+
 ## Serving a folder
 Example: 
 ```
-ftp /path/to/myfolder
+ftp /path/mega/folder
 ```
 
 This will configure a FTP server that will serve "myfolder". It'll show you the URL to access that path. You just use that location to configure access [according to your specific OS](#platforms).
@@ -39,7 +41,7 @@ You can list the ftp served locations typing `ftp`:
 
 ```
 FTP SERVED LOCATIONS:                                                        
-/path/to/myfolder: ftp://127.0.0.1:4990/XXXXXXX/myfolder
+/path/mega/folder: ftp://127.0.0.1:4990/XXXXXXX/myfolder
 /path/to/myfile.mp4: ftp://127.0.0.1:4990/YYYYYYY/myfile.mp4
 ```
 
@@ -66,7 +68,7 @@ you can secure it with [TLS](https://wikipedia.org/wiki/Transport_Layer_Security
 To serve via FTPS, you just need to pass `--tls` and the paths* to your certificate and key files (in PEM format):
 
 ```
-ftp /path/to/myfolder --tls --certificate=/path/to/certificate.pem --key=/path/to/certificate.key
+ftp /path/mega/folder --tls --certificate=/path/to/certificate.pem --key=/path/to/certificate.key
 ```
 
 *Those paths are local paths in your machine, not in MEGA.
@@ -80,11 +82,11 @@ If you want to change that configuration you will need to stop serving each and 
 
 You can stop serving a MEGA location with:
 ```
-ftp -d /path/to/myfolder
+ftp -d /path/mega/folder
 ```
 If successfully, it will show a message indicating that the path is no longer served:
 ```
-/path/to/myfolder no longer served via ftp                                  
+/path/mega/folder no longer served via ftp
 ```
 
 ## Platforms

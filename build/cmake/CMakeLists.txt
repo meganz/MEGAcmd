@@ -23,6 +23,7 @@ add_executable(mega-cmd-server
     "${ProjectDir}/src/megacmdlogger.cpp"
     "${ProjectDir}/src/megacmdsandbox.cpp"
     "${ProjectDir}/src/megacmdutils.cpp"
+    "${ProjectDir}/src/megacmdcommonutils.cpp"
     "${ProjectDir}/src/comunicationsmanager.cpp"
     "${ProjectDir}/src/comunicationsmanagernamedpipes.cpp"
     "${ProjectDir}/src/comunicationsmanagerportsockets.cpp"
@@ -34,12 +35,15 @@ add_executable(mega-exec
     "${ProjectDir}/src/client/megacmdclient.cpp"
     "${ProjectDir}/src/megacmdshell/megacmdshellcommunicationsnamedpipes.cpp"
     "${ProjectDir}/src/megacmdshell/megacmdshellcommunications.cpp"
+    "${ProjectDir}/src/megacmdcommonutils.cpp"
 )
 
 add_executable(mega-cmd 
     "${ProjectDir}/src/megacmdshell/megacmdshellcommunications.cpp"
     "${ProjectDir}/src/megacmdshell/megacmdshellcommunicationsnamedpipes.cpp"
     "${ProjectDir}/src/megacmdshell/megacmdshell.cpp"
+    "${ProjectDir}/src/megacmdcommonutils.cpp"
+
 )
 
 target_link_libraries(mega-exec Mega )
