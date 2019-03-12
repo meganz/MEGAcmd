@@ -156,7 +156,7 @@ string avalidCommands [] = { "login", "signup", "confirm", "session", "mount", "
                              "put", "get", "attr", "userattr", "mkdir", "rm", "du", "mv", "cp", "sync", "export", "share", "invite", "ipc", "df",
                              "showpcr", "users", "speedlimit", "killsession", "whoami", "help", "passwd", "reload", "logout", "version", "quit",
                              "thumbnail", "preview", "find", "completion", "clear", "https", "transfers", "exclude", "exit", "errorcode", "graphics",
-                             "cancel", "confirmcancel", "cat", "tree"
+                             "cancel", "confirmcancel", "cat", "tree", "psa"
                              , "mediainfo"
 #ifdef HAVE_LIBUV
                              , "webdav", "ftp"
@@ -291,6 +291,17 @@ void changeprompt(const char *newprompt)
     string s = "prompt:";
     s+=dynamicprompt;
     cm->informStateListeners(s);
+}
+
+void informStateListener(string message, int clientID)
+{
+    string s;
+    if (message.size())
+    {
+        s += "message:";
+        s+=message;
+    }
+    cm->informStateListenerByClientId(s, clientID);
 }
 
 void broadcastMessage(string message)
@@ -615,6 +626,10 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     {
         validOptValues->insert("clientID");
         validOptValues->insert("auth-code");
+    }
+    else if ("psa" == thecommand)
+    {
+        validParams->insert("discard");
     }
     else if ("reload" == thecommand)
     {
@@ -1333,6 +1348,10 @@ const char * getUsageStr(const char *command)
             return "login [--auth-code=XXXX] email password | exportedfolderurl#key | session";
         }
     }
+    if (!strcmp(command, "psa"))
+    {
+        return "psa [--discard]";
+    }
     if (!strcmp(command, "cancel"))
     {
         return "cancel";
@@ -1793,6 +1812,14 @@ string getHelpStr(const char *command)
         os << endl;
         os << "The cancellation will not take place inmediately. You will need to confirm the cancellation" << endl;
         os << "using a link that will be delivered to your email. See \"confirmcancel --help\"" << endl;
+    }
+    else if (!strcmp(command, "psa"))
+    {
+        os << "Shows the next available Public Service Announcement (PSA)" << endl;
+        os << endl;
+        os << "Options:" << endl;
+        os << " --discard" << "\t" << "Discards last received PSA" << endl;
+        os << endl;
     }
     else if (!strcmp(command, "confirmcancel"))
     {
@@ -3762,6 +3789,8 @@ void megacmd()
                 s+= "prompt:";
                 s+=dynamicprompt;
                 s+=(char)0x1F;
+
+                cmdexecuter->checkAndInformPSA(inf);
 
                 cm->informStateListener(inf,s);
             }

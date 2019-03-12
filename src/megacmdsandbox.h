@@ -34,6 +34,10 @@ public:
     ::mega::m_time_t lastQuerytemporalBandwith;
     ::mega::m_time_t timeOfOverquota;
     ::mega::m_time_t secondsOverQuota;
+
+    ::mega::m_time_t timeOfPSACheck;
+    int lastPSAnumreceived;
+
     bool accounthasbeenblocked;
     std::string reasonblocked;
     int storageStatus;
