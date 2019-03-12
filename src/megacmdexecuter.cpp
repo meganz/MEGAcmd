@@ -841,6 +841,63 @@ void MegaCmdExecuter::getPathParts(string path, deque<string> *c)
     } while (path.size());
 }
 
+bool MegaCmdExecuter::checkAndInformPSA(CmdPetition *inf, bool enforce)
+{
+    bool toret = false;
+    m_time_t now = m_time();
+    if ( enforce || (now - sandboxCMD->timeOfPSACheck > 86400) )
+    {
+        sandboxCMD->timeOfPSACheck = now;
+
+        LOG_verbose << "Getting PSA";
+        MegaCmdListener *megaCmdListener = new MegaCmdListener(api, NULL);
+        api->getPSA(megaCmdListener);
+        megaCmdListener->wait();
+        if (megaCmdListener->getError()->getErrorCode() == MegaError::API_ENOENT)
+        {
+            LOG_verbose << "No new PSA available";
+            sandboxCMD->lastPSAnumreceived = max(0,sandboxCMD->lastPSAnumreceived);
+        }
+        else if(checkNoErrors(megaCmdListener->getError(), "get PSA"))
+        {
+            sandboxCMD->lastPSAnumreceived = megaCmdListener->getRequest()->getNumber();
+
+            LOG_debug << "Informing PSA #" << megaCmdListener->getRequest()->getNumber() << ": " << megaCmdListener->getRequest()->getName();
+
+            OUTSTRINGSTREAM oss;
+
+            oss << "<" << megaCmdListener->getRequest()->getName() << ">";
+            oss << megaCmdListener->getRequest()->getText();
+
+            string action = megaCmdListener->getRequest()->getPassword();
+            string link = megaCmdListener->getRequest()->getLink();
+            if (!action.length())
+            {
+                action = "read more: ";
+            }
+
+            if (link.size())
+            {
+                oss << endl << action << ": " << link;
+            }
+
+            oss << endl << " Execute \"psa --discard\" to stop seeing this message";
+
+            if (inf)
+            {
+                informStateListener(oss.str(), inf->clientID);
+            }
+            else
+            {
+                broadcastMessage(oss.str());
+            }
+            toret = true;
+        }
+        delete megaCmdListener;
+    }
+    return toret;
+}
+
 
 bool MegaCmdExecuter::checkNoErrors(int errorCode, string message)
 {
@@ -870,8 +927,6 @@ bool MegaCmdExecuter::checkNoErrors(MegaError *error, string message)
         LOG_err << "Failed to " << message << ": Reached storage quota. "
                          "You can change your account plan to increase your quota limit. "
                          "See \"help --upgrade\" for further details";
-        // TODO: what if API_EOVERQUOTA && STORAGE_STATE_CHANGE? quizas hay que llamar a getAccountDetails aqui!
-        // o mostrar siempre este error!
     }
     else
     {
@@ -2208,6 +2263,9 @@ int MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
             // we don't call getAccountDetails on startup always: we ask on first login (no "ask4storage") or previous state was STATE_RED | STATE_ORANGE
             // if we were green, don't need to ask: if there are changes they will be received via action packet indicating STATE_CHANGE
         }
+
+        checkAndInformPSA(NULL); // this needs broacasting in case there's another Shell running.
+                                 // no need to enforce, because time since last check should has been restored
 
 #ifdef ENABLE_BACKUPS
         mtxBackupsMap.lock();
@@ -7543,6 +7601,36 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         }
 
         return;
+    }
+    else if (words[0] == "psa")
+    {
+        int psanum = sandboxCMD->lastPSAnumreceived;
+
+#ifndef NDEBUG
+        if (words.size() >1)
+        {
+            psanum = toInteger(words[1], 0);
+        }
+#endif
+        bool discard = getFlag(clflags, "discard");
+
+        if (discard)
+        {
+            MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
+            api->setPSA(psanum, megaCmdListener);
+            megaCmdListener->wait();
+            if (checkNoErrors(megaCmdListener->getError(), "set psa " + SSTR(psanum)))
+            {
+                OUTSTREAM << "PSA discarded" << endl;
+            }
+            delete megaCmdListener;
+        }
+
+        if (!checkAndInformPSA(NULL, true) && !discard) // even when discarded: we need to read the next
+        {
+            OUTSTREAM << "No PSA available" << endl;
+            setCurrentOutCode(MCMD_NOTFOUND);
+        }
     }
     else if (words[0] == "mount")
     {
