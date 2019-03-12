@@ -472,7 +472,7 @@ void printCenteredContents(OUTSTREAMTYPE &os, string msj, unsigned int width, bo
         if (msj.at(0) == '<')
         {
             size_t possenditle = msj.find(">");
-            if (possenditle < (width -2))
+            if (width >= 2 && possenditle < (width -2))
             {
                 header.append(" ");
                 header.append((width - possenditle ) / 2, '-');
