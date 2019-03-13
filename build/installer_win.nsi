@@ -211,7 +211,37 @@ Function .onInit
  
   ;!insertmacro MUI_UNGETLANGUAGE
   !insertmacro MUI_LANGDLL_DISPLAY
+
+UserInfo::GetAccountType
+pop $0
+${If} $0 != "admin" ;Require admin rights at least in win10; TODO: only ask for this if that's the case
+MessageBox MB_YESNO "Do you want to configure ${PRODUCT_NAME} in the registry. This is required to have it listed in installed applications and will need admin rights." IDYES elevate IDNO next
+${EndIf}
   
+elevate:
+  UAC::RunElevated
+  ${Switch} $0
+  ${Case} 0
+    ${IfThen} $1 = 1 ${|} Quit ${|} ;User process. The installer has finished. Quit.
+    ${IfThen} $3 <> 0 ${|} ${Break} ${|} ;Admin process, continue the installation
+    ${If} $1 = 3 ;RunAs completed successfully, but with a non-admin user
+      ;MessageBox mb_YesNo|mb_IconExclamation|mb_TopMost|mb_SetForeground "This requires admin privileges, try again" /SD IDNO IDYES uac_tryagain IDNO 0
+      Quit
+    ${EndIf}
+  ${Case} 1223
+    ;MessageBox mb_IconStop|mb_TopMost|mb_SetForeground "This requires admin privileges, aborting!"
+    Quit
+  ${Default}
+    MessageBox mb_IconStop|mb_TopMost|mb_SetForeground "This installer requires Administrator privileges. Error $0"
+    Quit
+  ${EndSwitch} 
+
+  Goto next
+next:
+    !insertmacro DEBUG_MSG "exiting oninit"
+ 
+   
+   
 FunctionEnd
 
 Section "Principal" SEC01
