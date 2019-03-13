@@ -864,7 +864,7 @@ bool MegaCmdExecuter::checkAndInformPSA(CmdPetition *inf, bool enforce)
 
             LOG_debug << "Informing PSA #" << megaCmdListener->getRequest()->getNumber() << ": " << megaCmdListener->getRequest()->getName();
 
-            OUTSTRINGSTREAM oss;
+            stringstream oss;
 
             oss << "<" << megaCmdListener->getRequest()->getName() << ">";
             oss << megaCmdListener->getRequest()->getText();
@@ -3526,7 +3526,7 @@ vector<string> MegaCmdExecuter::getUserAttrs()
     int i = 0;
     do
     {
-        const char *catrn = api->userAttributeToString(i);
+        const char *catrn;// = api->userAttributeToString(i);
         if (strlen(catrn))
         {
             attrs.push_back(catrn);
@@ -4855,11 +4855,11 @@ void MegaCmdExecuter::printInfoFile(MegaNode *n, bool &firstone, int PATHSIZE)
 
 bool MegaCmdExecuter::printUserAttribute(int a, string user, bool onlylist)
 {
-    const char *catrn = api->userAttributeToString(a);
+    const char *catrn;// = api->userAttributeToString(a);
     string attrname = catrn;
     delete [] catrn;
 
-    const char *catrln = api->userAttributeToLongName(a);
+    const char *catrln;// = api->userAttributeToLongName(a);
     string longname = catrln;
     delete [] catrln;
 
@@ -8184,7 +8184,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         bool listattrs = getFlag(clflags, "list");
         bool listall = words.size() == 1;
 
-        int attribute = api->userAttributeFromString(words.size() > 1 ? words[1].c_str() : "-1");
+        int attribute;// = api->userAttributeFromString(words.size() > 1 ? words[1].c_str() : "-1");
         string attrValue = words.size() > 2 ? words[2] : "";
         string user = getOption(cloptions, "user", "");
         if (settingattr && user.size())
@@ -8198,7 +8198,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         {
             if (attribute != -1)
             {
-                const char *catrn = api->userAttributeToString(attribute);
+                const char *catrn;// = api->userAttributeToString(attribute);
                 string attrname = catrn;
                 delete [] catrn;
 

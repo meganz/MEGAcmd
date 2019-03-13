@@ -446,16 +446,17 @@ string getRightAlignedString(const string origin, unsigned int minsize)
 
 void printCenteredLine(OUTSTREAMTYPE &os, string msj, unsigned int width, bool encapsulated)
 {
-    if (msj.size()>width)
+    unsigned int msjsize = getstringutf8size(msj);
+    if (msjsize>width)
     {
-        width = unsigned(msj.size());
+        width = unsigned(msjsize);
     }
     if (encapsulated)
         os << "|";
-    for (unsigned int i = 0; i < (width-msj.size())/2; i++)
+    for (unsigned int i = 0; i < (width-msjsize)/2; i++)
         os << " ";
     os << msj;
-    for (unsigned int i = 0; i < (width-msj.size())/2 + (width-msj.size())%2 ; i++)
+    for (unsigned int i = 0; i < (width-msjsize)/2 + (width-msjsize)%2 ; i++)
         os << " ";
     if (encapsulated)
         os << "|";
@@ -466,6 +467,8 @@ void printCenteredContents(OUTSTREAMTYPE &os, string msj, unsigned int width, bo
 {
     string headfoot = " ";
     headfoot.append(width, '-');
+    unsigned int msjsize = getstringutf8size(msj);
+
     if (msj.size())
     {
         string header;
@@ -477,7 +480,7 @@ void printCenteredContents(OUTSTREAMTYPE &os, string msj, unsigned int width, bo
                 header.append(" ");
                 header.append((width - possenditle ) / 2, '-');
                 header.append(msj.substr(0,possenditle+1));
-                header.append(width - header.size() + 1, '-');
+                header.append(width - getstringutf8size(header) + 1, '-');
                 msj = msj.substr(possenditle + 1);
             }
         }

@@ -252,6 +252,9 @@ void statechangehandle(string statestring)
             unsigned int width = getNumberOfCols(75);
             if (width > 1 ) width--;
             MegaCmdShellCommunications::megaCmdStdoutputing.lock();
+#ifdef _WIN32
+            int oldmode = _setmode(_fileno(stdout), _O_U8TEXT);
+#endif
             if (contents.find("-----") != 0)
             {
                 if (!procesingline || shown_partial_progress)
@@ -264,6 +267,9 @@ void statechangehandle(string statestring)
             {
                 OUTSTREAM << endl <<  contents << endl;
             }
+#ifdef _WIN32
+            _setmode(_fileno(stdout), oldmode);
+#endif
             MegaCmdShellCommunications::megaCmdStdoutputing.unlock();
 
             requirepromptinstall = true;
