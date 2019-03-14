@@ -23,6 +23,11 @@
 using namespace mega;
 using namespace std;
 
+#ifndef SSTR
+#define SSTR( x ) static_cast< const std::ostringstream & >( \
+        ( std::ostringstream() << std::dec << x ) ).str()
+#endif
+
 #ifdef ENABLE_CHAT
 void MegaCmdGlobalListener::onChatsUpdate(MegaApi*, MegaTextChatList*)
 {
@@ -167,6 +172,18 @@ void MegaCmdGlobalListener::onEvent(MegaApi *api, MegaEvent *event)
         sandboxCMD->accounthasbeenblocked = true;
         LOG_err << "Received event account blocked: " << event->getText();
         sandboxCMD->reasonblocked = event->getText();
+    }
+    else if (event->getType() == MegaEvent::EVENT_CONNECTIVITY_CHANGED)
+    {
+        LOG_debug << "Received event connectivity changed: " << event->getNumber();
+        if (event->getNumber() == RETRY_CONNECTIVITY)
+        {
+            broadcastMessage(SSTR(event->getNumber()), "connectivity:");
+        }
+        else if (event->getNumber() == RETRY_NONE)
+        {
+            broadcastMessage(SSTR(event->getNumber()), "connectivity:");
+        }
     }
     else if (event->getType() == MegaEvent::EVENT_STORAGE)
     {

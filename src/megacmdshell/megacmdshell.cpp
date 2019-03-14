@@ -19,6 +19,8 @@
 #include "megacmdshellcommunicationsnamedpipes.h"
 #include "../megacmdcommonutils.h"
 
+#include "megaapi.h"
+
 #define USE_VARARGS
 #define PREFER_STDARG
 
@@ -178,7 +180,9 @@ bool requirepromptinstall = true;
 bool procesingline = false;
 
 
+static string promptpreffix;
 static char dynamicprompt[PROMPT_MAX_SIZE];
+static bool readyforprompt = false;
 
 static char* line;
 
@@ -201,7 +205,95 @@ MegaCmdShellCommunications *comms;
 
 MUTEX_CLASS mutexPrompt(false);
 
+bool processing = false;
+bool queryinguser = false;
+
 void printWelcomeMsg(unsigned int width = 0);
+
+#ifdef NO_READLINE
+std::string toUtf8String(const std::wstring& ws, UINT codepage)
+{
+    std::string s;
+    s.resize((ws.size() + 1) * 4);
+    int nchars = WideCharToMultiByte(codepage, 0, ws.data(), int(ws.size()), (LPSTR)s.data(), int(s.size()), NULL, NULL);
+    s.resize(nchars);
+    return s;
+}
+#endif
+
+string warnstatus;
+MegaThread *warnerThread = NULL;
+const int MARQUEE_WARN_WIDTH = 20;
+void setwarnstatus(const char * s)
+{
+    warnstatus = "";
+    if (strlen(s))
+    {
+        warnstatus.append(MARQUEE_WARN_WIDTH-1, ' ');
+        warnstatus.append(s);
+    }
+}
+
+void *warner(void * pointer)
+{
+#ifdef WIN32
+    HANDLE hOutput = GetStdHandle(STD_OUTPUT_HANDLE);
+    CONSOLE_SCREEN_BUFFER_INFO sbi;
+#endif
+    unsigned int i = 0;
+    while (!doExit)
+    {
+        int width = getNumberOfCols(80);
+        width -= (MARQUEE_WARN_WIDTH);
+
+        i++;
+        if (i >= warnstatus.size())
+        {
+            i = 0;
+        }
+
+        if (warnstatus.size())
+        {
+            string subwarn = warnstatus.substr(i,MARQUEE_WARN_WIDTH);
+            subwarn.append(MARQUEE_WARN_WIDTH - getstringutf8size(subwarn), ' ');
+#ifndef NO_READLINE
+            char *rlline = rl_copy_text(0, rl_end);
+            string srline(rlline);
+            free(rlline);
+#endif
+
+#ifdef WIN32
+            BOOL ok = GetConsoleScreenBufferInfo(hOutput, &sbi);
+            if (ok)
+            {
+                ok = SetConsoleCursorPosition(hOutput, {SHORT(width-1), sbi.dwCursorPosition.Y });
+                if (ok)
+                {
+                    OUTSTREAM << "[ " << subwarn << " ]" << flush ;
+                    ok = SetConsoleCursorPosition(hOutput, sbi.dwCursorPosition );
+                }
+            }
+#else
+            string fullprompt;
+
+            if (!processing || queryinguser)
+            {
+                if (rl_prompt) fullprompt.append(rl_prompt);
+            }
+            OUTSTREAM  << "\r" << fullprompt << srline << setw(width-getstringutf8size(fullprompt) - rl_end) << right << "[ " << subwarn << " ]" << flush ;
+            OUTSTREAM << "\r" << fullprompt << srline.substr(0,rl_point) << flush ;
+#endif
+        }
+        #ifdef _WIN32
+            Sleep(100);
+        #else
+            usleep(100000);
+        #endif
+    }
+    return NULL;
+}
+
+bool firstpromptreceived = false;
 
 void statechangehandle(string statestring)
 {
@@ -216,6 +308,7 @@ void statechangehandle(string statestring)
         nextstatedelimitpos = statestring.find(statedelim);
         if (newstate.compare(0, strlen("prompt:"), "prompt:") == 0)
         {
+            firstpromptreceived = true;
             changeprompt(newstate.substr(strlen("prompt:")).c_str(),true);
         }
         else if (newstate.compare(0, strlen("endtransfer:"), "endtransfer:") == 0)
@@ -277,6 +370,40 @@ void statechangehandle(string statestring)
         else if (newstate.compare(0, strlen("clientID:"), "clientID:") == 0)
         {
             clientID = newstate.substr(strlen("clientID:")).c_str();
+        }
+        else if (newstate.compare(0, strlen("connectivity:"), "connectivity:") == 0)
+        {
+            int connectivitystatus = atoi(newstate.substr(strlen("connectivity:")).c_str());
+            switch (connectivitystatus)
+            {
+            case MegaApi::RETRY_CONNECTIVITY:
+                setwarnstatus("SERVER SEEMS OFFLINE: commands that require connectivity might halt until connectivity is restored");
+                break;
+            case MegaApi::RETRY_SERVERS_BUSY:
+                setwarnstatus("SERVER SEEMS BUSY: commands that require connectivity might take a while to complete");
+                break;
+            case MegaApi::RETRY_RATE_LIMIT:
+                setwarnstatus("SERVER RATE limit reached: commands that require connectivity might take a while to complete");
+                break;
+            case MegaApi::RETRY_LOCAL_LOCK:
+                setwarnstatus("SERVER SEEMS LOCKED: commands that require connectivity might halt until unlocked");
+                break;
+            case MegaApi::RETRY_ESID:
+                setwarnstatus("SERVER SEEMS TO have a bad session ID: commands that requ    ire connectivity might not to complete");
+                break;
+            case MegaApi::RETRY_NONE:
+                setwarnstatus("");
+                break;
+            default:
+                setwarnstatus("SERVER CONNECTIVY STATUS UNEXPECTED: commands that require connectivity might halt");
+                break;
+            }
+
+            if (connectivitystatus!= MegaApi::RETRY_NONE && !warnerThread)
+            {
+                warnerThread = new MegaThread(); //TODO: memleak
+                warnerThread->start(warner,NULL);
+            }
         }
         else if (newstate.compare(0, strlen("progress:"), "progress:") == 0)
         {
@@ -455,6 +582,14 @@ prompttype getprompt()
 {
     return prompt;
 }
+#ifdef NO_READLINE
+void doUpdateConsolePrompt(const char *newprompt)
+{
+    string fullprompt = promptpreffix;
+    fullprompt.append(newprompt);
+    console->updateInputPrompt(fullprompt);
+}
+#endif
 
 void setprompt(prompttype p, string arg)
 {
@@ -484,7 +619,7 @@ void setprompt(prompttype p, string arg)
     if (p != COMMAND)
     {
         pw_buf_pos = 0;
-        console->updateInputPrompt(arg.empty() ? prompts[p] : arg);
+        doUpdateConsolePrompt(arg.empty() ? prompts[p] : arg.c_str());
     }
 #endif
 }
@@ -623,16 +758,29 @@ void install_rl_handler(const char *theprompt)
     rl_callback_handler_install(theprompt, store_line);
 #endif
 }
+
+void doInstallRLHandler()
+{
+    string fullprompt = promptpreffix;
+    fullprompt.append(*dynamicprompt ? dynamicprompt : prompts[COMMAND]);
+    install_rl_handler(fullprompt.c_str());
+}
 #endif
 
-void changeprompt(const char *newprompt, bool redisplay)
+void changeprompt(const char *newprompt, bool redisplay, const char *newpreffix)
 {
     MutexGuard g(mutexPrompt);
 
     if (*dynamicprompt)
     {
-        if (!strcmp(newprompt,dynamicprompt))
+        if (!strcmp(newprompt,dynamicprompt) && (!newpreffix || !promptpreffix.compare(newpreffix)))
+        {
             return; //same prompt. do nth
+        }
+    }
+    if (newpreffix)
+    {
+        promptpreffix = newpreffix;
     }
 
     strncpy(dynamicprompt, newprompt, sizeof( dynamicprompt ));
@@ -648,9 +796,12 @@ void changeprompt(const char *newprompt, bool redisplay)
     }
 
 #ifdef NO_READLINE
-    console->updateInputPrompt(newprompt);
+    if (readyforprompt)
+    {
+        doUpdateConsolePrompt(newprompt);
+    }
 #else
-    if (redisplay)
+    if (redisplay && readyforprompt)
     {
         // save line
         int saved_point = rl_point;
@@ -664,7 +815,7 @@ void changeprompt(const char *newprompt, bool redisplay)
             rl_crlf();
         }
 
-        install_rl_handler(*dynamicprompt ? dynamicprompt : prompts[COMMAND]);
+        doInstallRLHandler();
 
         // restore line
         if (saved_line)
@@ -1702,6 +1853,7 @@ void process_line(const char * line)
 
 // main loop
 #ifndef NO_READLINE
+
 void readloop()
 {
     time_t lasttimeretrycons = 0;
@@ -1740,9 +1892,10 @@ void readloop()
             mutexPrompt.lock();
             if (requirepromptinstall)
             {
-                install_rl_handler(*dynamicprompt ? dynamicprompt : prompts[COMMAND]);
+                doInstallRLHandler();
 
                 handlerinstalled = false;
+                readyforprompt = true;
 
                 // display prompt
                 if (saved_line)
@@ -1823,7 +1976,9 @@ void readloop()
                 alreadyFinished = false;
                 percentDowloaded = 0.0;
                 mutexPrompt.lock();
+                processing = true;
                 process_line(line);
+                processing = false;
                 requirepromptinstall = true;
                 mutexPrompt.unlock();
 
@@ -1858,7 +2013,14 @@ void readloop()
     comms->registerForStateChanges(statechangehandle);
 
     //give it a while to communicate the state
-    sleepMilliSeconds(700);
+    int millistowait = 5000;
+    while (millistowait >0 && !firstpromptreceived)
+    {
+        sleepMilliSeconds(100);
+        millistowait-=100;
+    }
+    sleepMilliSeconds(300); // a little bit more to finish communicating all initial state
+
 
 #if defined(_WIN32) && defined(USE_PORT_COMMS)
     // due to a failure in reconnecting to the socket, if the server was initiated in while registeringForStateChanges
@@ -1875,7 +2037,8 @@ void readloop()
     {
         if (prompt == COMMAND)
         {
-            console->updateInputPrompt(*dynamicprompt ? dynamicprompt : prompts[COMMAND]);
+            doUpdateConsolePrompt(*dynamicprompt ? dynamicprompt : prompts[COMMAND]);
+            readyforprompt = true;
         }
 
         // command editing loop - exits when a line is submitted
@@ -2070,11 +2233,12 @@ void mycompletefunct(char **c, int num_matches, int max_length)
 std::string readresponse(const char* question)
 {
     string response;
+    queryinguser = true;
     response = readline(question);
     rl_set_prompt("");
     rl_replace_line("", 0);
-
     rl_callback_handler_remove(); //To fix broken readline (e.g: upper key wouldnt work)
+    queryinguser = false;
 
     return response;
 }
@@ -2082,12 +2246,12 @@ std::string readresponse(const char* question)
 std::string readresponse(const char* question)
 {
     COUT << question << flush;
-    console->updateInputPrompt(question);
+    doUpdateConsolePrompt(question);
     for (;;)
     {
         if (char* line = console->checkForCompletedInputLine())
         {
-            console->updateInputPrompt("");
+            doUpdateConsolePrompt("");
             string response(line);
             free(line);
             return response;

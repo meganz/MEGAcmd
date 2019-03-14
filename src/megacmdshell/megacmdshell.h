@@ -40,7 +40,7 @@ void restoreprompt();
 
 void printprogress(long long completed, long long total, const char *title = "TRANSFERRING");
 
-void changeprompt(const char *newprompt, bool redisplay = false);
+void changeprompt(const char *newprompt, bool redisplay = false, const char *newpreffix = NULL);
 
 const char * getUsageStr(const char *command);
 

@@ -836,6 +836,7 @@ int MegaCmdShellCommunicationsNamedPipes::registerForStateChanges(void (*statech
     wstring wcommand=L"registerstatelistener";
 
     DWORD n;
+    OUTSTREAM << "Connecting to server ...." << flush;
     if (!WriteFile(theNamedPipe,(char *)wcommand.data(),DWORD(wcslen(wcommand.c_str())*sizeof(wchar_t)), &n, NULL))
     {
         cerr << "ERROR writing command to namedPipe: " << ERRNO << endl;
@@ -849,6 +850,8 @@ int MegaCmdShellCommunicationsNamedPipes::registerForStateChanges(void (*statech
         cerr << "ERROR reading output namedPipe" << endl;
         return -1;
     }
+
+    OUTSTREAM << "\r                         \r" << flush;
 
     if (listenerThread != NULL)
     {
