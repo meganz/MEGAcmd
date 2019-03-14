@@ -184,6 +184,7 @@ string newpasswd;
 
 bool doExit = false;
 bool consoleFailed = false;
+bool alreadyCheckingForUpdates = false;
 bool stopcheckingforUpdaters = false;
 
 string dynamicprompt = "MEGA CMD> ";
@@ -3511,11 +3512,14 @@ void * retryConnections(void *pointer)
 
 void startcheckingForUpdates()
 {
-    ConfigurationManager::savePropertyValue("autoupdate", 1);
-
-    LOG_info << "Starting autoupdate check mechanism";
-    MegaThread *checkupdatesThread = new MegaThread(); //TODO: memleak
-    checkupdatesThread->start(checkForUpdates,NULL);
+    if (!alreadyCheckingForUpdates)
+    {
+        alreadyCheckingForUpdates = true;
+        ConfigurationManager::savePropertyValue("autoupdate", 1);
+        LOG_info << "Starting autoupdate check mechanism";
+        MegaThread *checkupdatesThread = new MegaThread();
+        checkupdatesThread->start(checkForUpdates,checkupdatesThread);
+    }
 }
 
 void stopcheckingForUpdates()
@@ -3527,16 +3531,6 @@ void stopcheckingForUpdates()
 
 void* checkForUpdates(void *param)
 {
-    static bool already = false;
-    if (!already)
-    {
-        already = true;
-    }
-    else
-    {
-        return NULL;
-    }
-
     stopcheckingforUpdaters = false;
     LOG_debug << "Initiating recurrent checkForUpdates";
 
@@ -3616,7 +3610,9 @@ void* checkForUpdates(void *param)
         }
     }
 
-    already = false;
+    alreadyCheckingForUpdates = false;
+
+    delete (MegaThread *)param;
     return NULL;
 }
 
