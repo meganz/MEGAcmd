@@ -2917,9 +2917,10 @@ void MegaCmdExecuter::uploadNode(string path, MegaApi* api, MegaNode *node, stri
     {
         setCurrentOutCode(MCMD_NOTFOUND);
         LOG_err << "Unable to open local path: " << path;
+        delete fa;
         return;
     }
-
+    delete fa;
 
     MegaCmdTransferListener *megaCmdTransferListener = NULL;
     if (!background)
