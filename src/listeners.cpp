@@ -443,11 +443,13 @@ void MegaCmdListener::onRequestUpdate(MegaApi* api, MegaRequest *request)
             if (percentFetchnodes == 100 && !alreadyFinished)
             {
                 alreadyFinished = true;
-                cout << outputString << endl;
+                //cout << outputString << endl;
+                LOG_debug << outputString;
             }
             else
             {
-                cout << outputString << '\r' << flush;
+                LOG_debug << outputString;
+                //cout << outputString << '\r' << flush;
             }
 
             informProgressUpdate(request->getTransferredBytes(), request->getTotalBytes(), this->clientID, "Fetching nodes");
@@ -593,11 +595,13 @@ void MegaCmdTransferListener::onTransferUpdate(MegaApi* api, MegaTransfer *trans
     if (percentDownloaded == 100 && !alreadyFinished)
     {
         alreadyFinished = true;
-        cout << outputString << endl;
+        //cout << outputString << endl;
+        LOG_debug << outputString;
     }
     else
     {
-        cout << outputString << '\r' << flush;
+        LOG_debug << outputString;
+        //cout << outputString << '\r' << flush;
     }
 
     LOG_verbose << "onTransferUpdate transfer->getType(): " << transfer->getType() << " clientID=" << this->clientID;
