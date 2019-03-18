@@ -17,7 +17,7 @@ BrandingText "MEGA Limited"
 
 VIAddVersionKey "CompanyName" "MEGA Limited"
 VIAddVersionKey "FileDescription" "MEGAcmd"
-VIAddVersionKey "LegalCopyright" "MEGA Limited 2017"
+VIAddVersionKey "LegalCopyright" "MEGA Limited 2019"
 VIAddVersionKey "ProductName" "MEGAcmd"
 
 ; Version info

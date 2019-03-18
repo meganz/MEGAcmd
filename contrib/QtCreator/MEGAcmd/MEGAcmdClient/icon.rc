@@ -20,7 +20,7 @@ BEGIN
             VALUE   "CompanyName",      "Mega Limited\0"
             VALUE   "FileDescription",  "MEGAclient\0"
             VALUE   "InternalName",     "MEGAclient.exe\0"
-            VALUE   "LegalCopyright",   "Mega Limited 2017\0"
+            VALUE   "LegalCopyright",   "Mega Limited 2019\0"
             VALUE   "OriginalFilename", "MEGAclient.exe\0"
             VALUE   "ProductName",      "MEGAclient\0"
             VALUE   "ProductVersion",   "1.1.0.0\0"
