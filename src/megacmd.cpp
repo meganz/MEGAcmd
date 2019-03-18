@@ -2920,7 +2920,7 @@ void executecommand(char* ptr)
 #if defined(_WIN32) && defined(NO_READLINE)
         else if (getFlag(&clflags, "unicode"))
         {
-            OUTSTREAM << "Unicode support has been considerably improved in the interactive console in version 1.0.0." << endl;
+            OUTSTREAM << "Unicode support has been considerably improved in the interactive console since version 1.0.0." << endl;
             OUTSTREAM << "If you do experience issues with it, please do not hesistate to contact us." << endl;
             OUTSTREAM << endl;
             OUTSTREAM << "Known issues: " << endl;
