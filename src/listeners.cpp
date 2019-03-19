@@ -801,11 +801,13 @@ void MegaCmdMultiTransferListener::onTransferUpdate(MegaApi* api, MegaTransfer *
     if (percentDownloaded == 100 && !alreadyFinished)
     {
         alreadyFinished = true;
-        cout << outputString << endl;
+        //cout << outputString << endl;
+        LOG_debug << outputString;
     }
     else
     {
-        cout << outputString << '\r' << flush;
+        LOG_debug << outputString;
+        //cout << outputString << '\r' << flush;
     }
 
     LOG_verbose << "onTransferUpdate transfer->getType(): " << transfer->getType() << " clientID=" << this->clientID;

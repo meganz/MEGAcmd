@@ -1822,10 +1822,10 @@ void readloop()
             {
                 alreadyFinished = false;
                 percentDowloaded = 0.0;
-                mutexPrompt.lock();
+//                mutexPrompt.lock();
                 process_line(line);
                 requirepromptinstall = true;
-                mutexPrompt.unlock();
+//                mutexPrompt.unlock();
 
                 if (comms->registerAgainRequired)
                 {
@@ -1914,10 +1914,10 @@ void readloop()
             {
                 alreadyFinished = false;
                 percentDowloaded = 0.0;
-                mutexPrompt.lock();
+//                mutexPrompt.lock();
                 process_line(line);
                 requirepromptinstall = true;
-                mutexPrompt.unlock();
+//                mutexPrompt.unlock();
 
                 if (comms->registerAgainRequired)
                 {
