@@ -18,5 +18,10 @@
     <string>megacmd.mac</string>
     <key>NSHighResolutionCapable</key>
     <string>True</string>
+    <key>NSAppTransportSecurity</key>
+    <dict>
+        <key>NSAllowsArbitraryLoads</key>
+        <true/>
+    </dict>
 </dict>
 </plist>
