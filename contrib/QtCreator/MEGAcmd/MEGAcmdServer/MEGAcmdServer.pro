@@ -99,7 +99,7 @@ macx {
     HEADERS += ../../../../src/megacmdplatform.h
     OBJECTIVE_SOURCES += ../../../../src/megacmdplatform.mm
     ICON = app.icns
-#    QMAKE_INFO_PLIST = Info_MEGA.plist
+    QMAKE_INFO_PLIST = Info_MEGA.plist
 
     QMAKE_MACOSX_DEPLOYMENT_TARGET = 10.9
     QMAKE_CXXFLAGS -= -stdlib=libc++
