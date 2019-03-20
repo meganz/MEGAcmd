@@ -3512,10 +3512,11 @@ void * retryConnections(void *pointer)
 
 void startcheckingForUpdates()
 {
+    ConfigurationManager::savePropertyValue("autoupdate", 1);
+
     if (!alreadyCheckingForUpdates)
     {
         alreadyCheckingForUpdates = true;
-        ConfigurationManager::savePropertyValue("autoupdate", 1);
         LOG_info << "Starting autoupdate check mechanism";
         MegaThread *checkupdatesThread = new MegaThread();
         checkupdatesThread->start(checkForUpdates,checkupdatesThread);
