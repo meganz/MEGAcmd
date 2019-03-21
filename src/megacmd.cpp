@@ -1757,7 +1757,7 @@ const char * getUsageStr(const char *command)
 #if defined(_WIN32) || defined(__APPLE__)
     if (!strcmp(command, "update"))
     {
-        return "update [--auto=on|off]";
+        return "update [--auto=on|off|query]";
     }
 #endif
     return "command not found: ";
