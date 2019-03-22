@@ -10,7 +10,7 @@ CONFIG(release, debug|release) {
 
 TEMPLATE = subdirs
 SUBDIRS =  MEGAcmdShell MEGAcmdClient \
-     MEGAcmdServer
+     MEGAcmdServer MEGAcmdUpdater
 
 macx {
     SUBDIRS += MEGAcmdLoader

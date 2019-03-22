@@ -2,7 +2,7 @@
  * @file src/comunicationsmanager.h
  * @brief MEGAcmd: Communications manager non supporting non-interactive mode
  *
- * (c) 2013-2016 by Mega Limited, Auckland, New Zealand
+ * (c) 2013 by Mega Limited, Auckland, New Zealand
  *
  * This file is part of the MEGAcmd.
  *
@@ -20,6 +20,7 @@
 #define COMUNICATIONSMANAGER_H
 
 #include "megacmd.h"
+#include "megacmdcommonutils.h"
 
 static const int MAXCMDSTATELISTENERS = 300;
 
@@ -29,11 +30,13 @@ class CmdPetition
         char * line;
         mega::MegaThread * petitionThread;
         int clientID;
+        bool clientDisconnected;
 
         CmdPetition()
         {
             line = NULL;
             petitionThread = NULL;
+            clientDisconnected = false;
         }
 
         char *getLine()
@@ -82,6 +85,10 @@ public:
      * It will clean struct and close the socket within
      */
     virtual void returnAndClosePetition(CmdPetition *inf, OUTSTRINGSTREAM *s, int);
+
+    virtual void sendPartialOutput(CmdPetition *inf, OUTSTRING *s);
+    virtual void sendPartialOutput(CmdPetition *inf, char *s, size_t size);
+
 
     /**
      * @brief Sends an status message (e.g. prompt:who@/new/prompt:) to all registered listeners

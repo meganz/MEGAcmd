@@ -2,7 +2,7 @@
  * @file src/megacmdlogger.h
  * @brief MEGAcmd: Controls message logging
  *
- * (c) 2013-2016 by Mega Limited, Auckland, New Zealand
+ * (c) 2013 by Mega Limited, Auckland, New Zealand
  *
  * This file is part of the MEGAcmd.
  *
@@ -24,9 +24,75 @@
 
 #define OUTSTREAM getCurrentOut()
 
-OUTSTREAMTYPE &getCurrentOut();
+class LoggedStream {
+public:
+  LoggedStream(){out = NULL;}
+  LoggedStream(OUTSTREAMTYPE *_out):out(_out){
+
+  }
+
+  virtual bool isClientConnected(){return true;}
+
+  virtual const LoggedStream& operator<<(const char& v) const {*out << v;return *this;}
+  virtual const LoggedStream& operator<<(const char* v) const {*out << v;return *this;}
+#ifdef _WIN32
+  virtual const LoggedStream& operator<<(std::wstring v) const {*out << v;return *this;}
+#endif
+  virtual const LoggedStream& operator<<(std::string v) const {*out << v;return *this;}
+  virtual const LoggedStream& operator<<(int v) const {*out << v;return *this;}
+  virtual const LoggedStream& operator<<(unsigned int v) const {*out << v;return *this;}
+  virtual const LoggedStream& operator<<(long unsigned int v) const {*out << v;return *this;}
+  virtual const LoggedStream& operator<<(long long int v) const {*out << v;return *this;}
+  virtual const LoggedStream& operator<<(std::ios_base v) const {*out << &v;return *this;}
+  virtual const LoggedStream& operator<<(std::ios_base *v) const {*out << v;return *this;}
+
+  virtual LoggedStream const& operator<<(OUTSTREAMTYPE& (*F)(OUTSTREAMTYPE&)) const { if (out) F(*out); return *this; }
+protected:
+  OUTSTREAMTYPE * out;
+};
+
+class LoggedStreamPartialOutputs : public LoggedStream{
+public:
+
+  LoggedStreamPartialOutputs(ComunicationsManager *_cm, CmdPetition *_inf):cm(_cm),inf(_inf){}
+  virtual bool isClientConnected(){return inf && !inf->clientDisconnected;}
+
+  virtual const LoggedStream& operator<<(const char& v) const {OUTSTRINGSTREAM os; os << v; OUTSTRING s = os.str(); cm->sendPartialOutput(inf, &s); return *this;}
+  virtual const LoggedStream& operator<<(const char* v) const {OUTSTRINGSTREAM os; os << v; OUTSTRING s = os.str(); cm->sendPartialOutput(inf, &s); return *this;}
+#ifdef _WIN32
+  virtual const LoggedStream& operator<<(std::wstring v) const {cm->sendPartialOutput(inf, &v); return *this;}
+  virtual const LoggedStream& operator<<(std::string v) const {cm->sendPartialOutput(inf, (char *)v.data(), v.size()); return *this;}
+#else
+  virtual const LoggedStream& operator<<(std::string v) const {cm->sendPartialOutput(inf, &v); return *this;}
+#endif
+  virtual const LoggedStream& operator<<(int v) const {OUTSTRINGSTREAM os; os << v; OUTSTRING s = os.str(); cm->sendPartialOutput(inf, &s); return *this;}
+  virtual const LoggedStream& operator<<(unsigned int v) const {OUTSTRINGSTREAM os; os << v; OUTSTRING s = os.str(); cm->sendPartialOutput(inf, &s); return *this;}
+  virtual const LoggedStream& operator<<(long unsigned int v) const {OUTSTRINGSTREAM os; os << v; OUTSTRING s = os.str(); cm->sendPartialOutput(inf, &s); return *this;}
+  virtual const LoggedStream& operator<<(long long int v) const {OUTSTRINGSTREAM os; os << v; OUTSTRING s = os.str(); cm->sendPartialOutput(inf, &s); return *this;}
+  virtual const LoggedStream& operator<<(std::ios_base v) const {*out << &v;return *this;}
+  virtual const LoggedStream& operator<<(std::ios_base *v) const {OUTSTRINGSTREAM os; os << v; OUTSTRING s = os.str(); cm->sendPartialOutput(inf, &s); return *this;}
+
+  LoggedStream const& operator<<(OUTSTREAMTYPE& (*F)(OUTSTREAMTYPE&)) const
+  {
+      if (F == (OUTSTREAMTYPE& (*)(OUTSTREAMTYPE&) )(std::endl))
+      {
+          OUTSTRINGSTREAM os; os << "\n"; OUTSTRING s = os.str(); cm->sendPartialOutput(inf, &s); return *this;
+      }
+      else
+      {
+          std::cerr << "unable to identify f:" << std::endl;
+      }
+      return *this;
+  }
+
+protected:
+  CmdPetition *inf;
+  ComunicationsManager *cm;
+};
+
+LoggedStream &getCurrentOut();
 bool interactiveThread();
-void setCurrentThreadOutStream(OUTSTREAMTYPE *);
+void setCurrentThreadOutStream(LoggedStream *);
 int getCurrentOutCode();
 void setCurrentOutCode(int);
 int getCurrentThreadLogLevel();
@@ -45,13 +111,12 @@ class MegaCMDLogger : public mega::MegaLogger
 private:
     int apiLoggerLevel;
     int cmdLoggerLevel;
-    OUTSTREAMTYPE * output;
+    LoggedStream * output;
+    mega::MegaMutex *outputmutex;
+
 public:
-    MegaCMDLogger(OUTSTREAMTYPE * outstr)
-    {
-        this->output = outstr;
-        this->apiLoggerLevel = mega::MegaApi::LOG_LEVEL_ERROR;
-    }
+    MegaCMDLogger();
+    ~MegaCMDLogger();
 
     void log(const char *time, int loglevel, const char *source, const char *message);
 

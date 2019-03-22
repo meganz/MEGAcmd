@@ -26,13 +26,13 @@ requirements and building instructions.
 ## Requirements
 
 The same as those for the sdk (`cryptopp, zlib, sqlite3, cares, libuv, ssl, curl,
-sodium`) and of course `readline`. Also, it is recommended to include `pcre` to
+sodium`) and `readline` for platforms other than Windows. Also, it is recommended to include `pcre` to
 have support for regular expressions.
 
 Also, in order to have support for thumbnails and previews,
 it is highly recommended to have `ffmpeg` (`libavcodec-dev libavutil-dev libavformat-dev libswscale-dev`) and `mediainfo`(`libmediainfo-dev + libzen-dev`) for media file attributes.
 
-* For convenience here is a list of packages for ubuntu 18.04: `autoconf libtool g++ libcrypto++-dev libz-dev libsqlite3-dev libssl-dev libcurl4-gnutls-dev libreadline-dev libpcre++-dev libsodium-dev libc-ares-dev libfreeimage-dev libavcodec-dev libavutil-dev libavformat-dev libswscale-dev libmediainfo-dev libzen-dev`
+* For convenience here is a list of packages for ubuntu 18.04: `autoconf libtool g++ libcrypto++-dev libz-dev libsqlite3-dev libssl-dev libcurl4-gnutls-dev libreadline-dev libpcre++-dev libsodium-dev libc-ares-dev libfreeimage-dev libavcodec-dev libavutil-dev libavformat-dev libswscale-dev libmediainfo-dev libzen-dev libuv1-dev`
 
 
 * here is a list of packages for debian 9: `autoconf build-essential libtool g++ libcrypto++-dev libz-dev libsqlite3-dev libssl-dev libcurl4-gnutls-dev libreadline-dev libpcre++-dev libsodium-dev libc-ares-dev libfreeimage-dev libavcodec-dev libavutil-dev libavformat-dev libswscale-dev libmediainfo-dev libzen-dev`
@@ -111,6 +111,9 @@ Ideally, you would like to have these commands in your PATH
 
 Here are some examples of use (more info and usage examples are available at the [User Guide](UserGuide.md)).
 
+Notice: the commands listed here assume you are using the interactive interaction mode: they are supposed to be executed within MEGAcmdShell.
+
+
 * A **synchronization** can be stablished simply by typing:
 ```
 sync /path/to/local/folder /folder/in/mega
@@ -120,15 +123,15 @@ This will synchronize the contents in your local and your mega folder both ways.
 * You can also set remote **backups** of a local folder to keep historical snapshots
 of your files. So simple as:
 ```
-backup /path/to/myfolder /remote/path --period="0 0 4 * * *" --num-backups=10
+backup /path/mega/folder /remote/path --period="0 0 4 * * *" --num-backups=10
 ```
 This will configure a backup of "myfolder" into /remote/path that will be carried out
  at 4:00 A.M. (UTC) every day. It will store the last 10 copies. 
  Further info on backups [here](contrib/docs/BACKUPS.md). 
  
-* You serve a location via webdav:
+* You serve a location in your MEGA account via webdav:
 ```
-webdav /path/to/myfolder
+webdav /path/mega/folder
 ```
 
 * Or stream a file in your MEGA account:
@@ -234,8 +237,11 @@ There are two different kinds of logging messages:
 - MEGAcmd based: those messages reported by MEGAcmd itself.
 
 You can adjust the level of logging for those kinds with `log` command.
-However, for non interactive commands, passing `-v` (`-vv`, `-vvv`, and so on 
-for a more verbose output) will use higher level of verbosity to an specific command.
+
+However, passing `-v` (`-vv`, `-vvv`, and so on for a more verbose output)
+to an specific command will use higher level of verbosity of MEGAcmd based messages.
+
+Further info on verbosity [here](contrib/docs/DEBUG.md).
 
 ## Regular Expressions
 If you have compiled MEGAcmd with PCRE (enabled by default), 
@@ -255,6 +261,26 @@ Notice: if you use MEGAcmd in non interactive mode, notice that shell pattern wi
 take precedence. You will need to either escape symbols like `*` (`\*`) 
 or surround them between quotes (e.g: "*.txt")
 
+
+## MEGAcmd UPDATES
+
+MEGAcmd updates automatically for Windows & MacOS.
+For Linux, whenever there is a new update, 
+it will be published in the corresponding repository and your system's updating tool will let you update it.
+
+### Disable automatic updates
+
+You can type `update --auto=OFF` to disable automatic updates. `update --auto=ON` will re-enable them. 
+
+If you want to see the state of automatic updates you can use `update --auto=query`. This will inform if
+automatic updates are enabled or not.
+
+Notice that MEGAcmdServer must be running in order to have automatic updates working.
+
+You can also update manually by typing `update` within MEGAcmd. This will check if there are updates available and 
+proceed to update if affirmative. Whenever MEGAcmd is updated it will be restarted (all open instances of MEGAcmdShell will be restarted too).
+
+Alternatively you can also execute `MEGAcmdUpdater.exe` in Windows or `MEGAcmdUpdater` (located at /Applications/MEGAcmd.app/Contents/MacOS) in MacOS.
 
 # Known Bugs
 - Currently there are certain discrepancies with PATHS when loggin into a public folder.

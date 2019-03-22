@@ -2,7 +2,7 @@
  * @file src/listeners.cpp
  * @brief MEGAcmd: Listeners
  *
- * (c) 2013-2016 by Mega Limited, Auckland, New Zealand
+ * (c) 2013 by Mega Limited, Auckland, New Zealand
  *
  * This file is part of the MEGAcmd.
  *
@@ -168,6 +168,43 @@ void MegaCmdGlobalListener::onEvent(MegaApi *api, MegaEvent *event)
         LOG_err << "Received event account blocked: " << event->getText();
         sandboxCMD->reasonblocked = event->getText();
     }
+    else if (event->getType() == MegaEvent::EVENT_STORAGE)
+    {
+        if (event->getNumber() == MegaApi::STORAGE_STATE_CHANGE)
+        {
+            api->getAccountDetails();
+        }
+        else
+        {
+            int previousStatus = sandboxCMD->storageStatus;
+            sandboxCMD->storageStatus = event->getNumber();
+            if (sandboxCMD->storageStatus == MegaApi::STORAGE_STATE_RED || sandboxCMD->storageStatus == MegaApi::STORAGE_STATE_ORANGE)
+            {
+                ConfigurationManager::savePropertyValue("ask4storage",true);
+
+                if (previousStatus < sandboxCMD->storageStatus)
+                {
+                    string s;
+                    if (sandboxCMD->storageStatus == MegaApi::STORAGE_STATE_RED)
+                    {
+                        s+= "You have exeeded your available storage.\n";
+                    }
+                    else
+                    {
+                        s+= "You are running out of available storage.\n";
+                    }
+                    s+="You can change your account plan to increase your quota limit.\nSee \"help --upgrade\" for further details";
+                    broadcastMessage(s);
+                }
+            }
+            else
+            {
+                ConfigurationManager::savePropertyValue("ask4storage",false);
+            }
+
+        }
+        LOG_info << "Received event storage changed: " << event->getNumber();
+    }
 }
 
 
@@ -177,7 +214,16 @@ void MegaCmdGlobalListener::onEvent(MegaApi *api, MegaEvent *event)
 
 void MegaCmdMegaListener::onRequestFinish(MegaApi *api, MegaRequest *request, MegaError *e)
 {
-    if (e && ( e->getErrorCode() == MegaError::API_ESID ))
+    if (request->getType() == MegaRequest::TYPE_APP_VERSION)
+    {
+        LOG_verbose << "TYPE_APP_VERSION finished";
+    }
+    else if (request->getType() == MegaRequest::TYPE_LOGOUT)
+    {
+        LOG_debug << "Session closed";
+        sandboxCMD->resetSandBox();
+    }
+    else if (e && ( e->getErrorCode() == MegaError::API_ESID ))
     {
         LOG_err << "Session is no longer valid (it might have been invalidated from elsewhere) ";
         changeprompt(prompts[COMMAND]);
@@ -188,10 +234,11 @@ void MegaCmdMegaListener::onRequestFinish(MegaApi *api, MegaRequest *request, Me
     }
 }
 
-MegaCmdMegaListener::MegaCmdMegaListener(MegaApi *megaApi, MegaListener *parent)
+MegaCmdMegaListener::MegaCmdMegaListener(MegaApi *megaApi, MegaListener *parent, MegaCmdSandbox *sandboxCMD)
 {
     this->megaApi = megaApi;
     this->listener = parent;
+    this->sandboxCMD = sandboxCMD;
 }
 
 MegaCmdMegaListener::~MegaCmdMegaListener()
@@ -223,6 +270,14 @@ void MegaCmdMegaListener::onBackupStart(MegaApi *api, MegaBackup *backup)
 void MegaCmdMegaListener::onBackupFinish(MegaApi* api, MegaBackup *backup, MegaError* error)
 {
     LOG_verbose << " At onBackupFinish";
+    if (error->getErrorCode() == MegaError::API_EEXPIRED)
+    {
+        LOG_warn << "Backup skipped (the time for the next one has been reached)";
+    }
+    else if (error->getErrorCode() != MegaError::API_OK)
+    {
+        LOG_err << "Backup failed: " << error->getErrorString();
+    }
 }
 
 void MegaCmdMegaListener::onBackupUpdate(MegaApi *api, MegaBackup *backup)
@@ -233,6 +288,10 @@ void MegaCmdMegaListener::onBackupUpdate(MegaApi *api, MegaBackup *backup)
 void MegaCmdMegaListener::onBackupTemporaryError(MegaApi *api, MegaBackup *backup, MegaError* error)
 {
     LOG_verbose << " At onBackupTemporaryError";
+    if (error->getErrorCode() != MegaError::API_OK)
+    {
+        LOG_err << "Backup temporary error: " << error->getErrorString();
+    }
 }
 #endif
 ////////////////////////////////////////
@@ -301,7 +360,6 @@ void MegaCmdListener::doOnRequestFinish(MegaApi* api, MegaRequest *request, Mega
             }
 #endif
             informProgressUpdate(PROGRESS_COMPLETE, request->getTotalBytes(), this->clientID, "Fetching nodes");
-
             break;
         }
 
@@ -366,7 +424,16 @@ void MegaCmdListener::onRequestUpdate(MegaApi* api, MegaRequest *request)
             {
                 return;                                                            // after a 100% this happens
             }
-            sprintf(aux,"||(%lld/%lld MB: %.2f %%) ", request->getTransferredBytes() / 1024 / 1024, request->getTotalBytes() / 1024 / 1024, percentFetchnodes);
+
+            if (request->getTotalBytes() < 1048576)
+            {
+                sprintf(aux,"||(%lld/%lld KB: %.2f %%) ", request->getTransferredBytes() / 1024, request->getTotalBytes() / 1024, percentFetchnodes);
+            }
+            else
+            {
+                sprintf(aux,"||(%lld/%lld MB: %.2f %%) ", request->getTransferredBytes() / 1024 / 1024, request->getTotalBytes() / 1024 / 1024, percentFetchnodes);
+            }
+
             sprintf((char *)outputString.c_str() + cols - strlen(aux), "%s",                         aux);
             for (int i = 0; i <= ( cols - strlen("Fetching nodes ||") - strlen(aux)) * 1.0 * percentFetchnodes / 100.0; i++)
             {
@@ -376,11 +443,13 @@ void MegaCmdListener::onRequestUpdate(MegaApi* api, MegaRequest *request)
             if (percentFetchnodes == 100 && !alreadyFinished)
             {
                 alreadyFinished = true;
-                cout << outputString << endl;
+                //cout << outputString << endl;
+                LOG_debug << outputString;
             }
             else
             {
-                cout << outputString << '\r' << flush;
+                LOG_debug << outputString;
+                //cout << outputString << '\r' << flush;
             }
 
             informProgressUpdate(request->getTransferredBytes(), request->getTotalBytes(), this->clientID, "Fetching nodes");
@@ -507,7 +576,16 @@ void MegaCmdTransferListener::onTransferUpdate(MegaApi* api, MegaTransfer *trans
     {
         return; // after a 100% this happens
     }
-    sprintf(aux,"||(%lld/%lld MB: %.2f %%) ", (long long)(transfer->getTransferredBytes() / 1024 / 1024), (long long)(transfer->getTotalBytes() / 1024 / 1024), (float)percentDownloaded);
+
+    if (transfer->getTotalBytes() < 1048576)
+    {
+        sprintf(aux,"||(%lld/%lld KB: %.2f %%) ", (long long)(transfer->getTransferredBytes() / 1024), (long long)(transfer->getTotalBytes() / 1024), (float)percentDownloaded);
+
+    }
+    else
+    {
+        sprintf(aux,"||(%lld/%lld MB: %.2f %%) ", (long long)(transfer->getTransferredBytes() / 1024 / 1024), (long long)(transfer->getTotalBytes() / 1024 / 1024), (float)percentDownloaded);
+    }
     sprintf((char *)outputString.c_str() + cols - strlen(aux), "%s",                         aux);
     for (int i = 0; i <= ( cols - strlen("TRANSFERRING ||") - strlen(aux)) * 1.0 * percentDownloaded / 100.0; i++)
     {
@@ -517,11 +595,13 @@ void MegaCmdTransferListener::onTransferUpdate(MegaApi* api, MegaTransfer *trans
     if (percentDownloaded == 100 && !alreadyFinished)
     {
         alreadyFinished = true;
-        cout << outputString << endl;
+        //cout << outputString << endl;
+        LOG_debug << outputString;
     }
     else
     {
-        cout << outputString << '\r' << flush;
+        LOG_debug << outputString;
+        //cout << outputString << '\r' << flush;
     }
 
     LOG_verbose << "onTransferUpdate transfer->getType(): " << transfer->getType() << " clientID=" << this->clientID;
@@ -598,6 +678,33 @@ void MegaCmdMultiTransferListener::doOnTransferFinish(MegaApi* api, MegaTransfer
     }
 
     LOG_verbose << "doOnTransferFinish MegaCmdMultiTransferListener Transfer->getType(): " << transfer->getType() << " transferring " << transfer->getFileName();
+
+    if (e->getErrorCode() == API_OK)
+    {
+        // communicate status info
+        string s= "endtransfer:";
+        s+=((transfer->getType() == MegaTransfer::TYPE_DOWNLOAD)?"D":"U");
+        s+=":";
+        if (transfer->getType() == MegaTransfer::TYPE_UPLOAD)
+        {
+            MegaNode *n = api->getNodeByHandle(transfer->getNodeHandle());
+            if (n)
+            {
+                const char *path = api->getNodePath(n);
+                if (path)
+                {
+                    s+=path;
+                }
+                delete [] path;
+            }
+        }
+        else
+        {
+            s+=transfer->getPath();
+        }
+        informStateListenerByClientId(this->clientID, s);
+    }
+
     map<int, long long>::iterator itr = ongoingtransferredbytes.find(transfer->getTag());
     if ( itr!= ongoingtransferredbytes.end())
     {
@@ -677,7 +784,14 @@ void MegaCmdMultiTransferListener::onTransferUpdate(MegaApi* api, MegaTransfer *
     {
         return; // after a 100% this happens
     }
-    sprintf(aux,"||(%lld/%lld MB: %.2f %%) ", (transferredbytes + getOngoingTransferredBytes()) / 1024 / 1024, (totalbytes + getOngoingTotalBytes() ) / 1024 / 1024, percentDownloaded);
+    if (totalbytes + getOngoingTotalBytes() < 1048576)
+    {
+        sprintf(aux,"||(%lld/%lld KB: %.2f %%) ", (transferredbytes + getOngoingTransferredBytes()) / 1024, (totalbytes + getOngoingTotalBytes() ) / 1024, percentDownloaded);
+    }
+    else
+    {
+        sprintf(aux,"||(%lld/%lld MB: %.2f %%) ", (transferredbytes + getOngoingTransferredBytes()) / 1024 / 1024, (totalbytes + getOngoingTotalBytes() ) / 1024 / 1024, percentDownloaded);
+    }
     sprintf((char *)outputString.c_str() + cols - strlen(aux), "%s",                         aux);
     for (int i = 0; i <= ( cols - strlen("TRANSFERRING ||") - strlen(aux)) * 1.0 * min (100.0f, percentDownloaded) / 100.0; i++)
     {
@@ -687,17 +801,19 @@ void MegaCmdMultiTransferListener::onTransferUpdate(MegaApi* api, MegaTransfer *
     if (percentDownloaded == 100 && !alreadyFinished)
     {
         alreadyFinished = true;
-        cout << outputString << endl;
+        //cout << outputString << endl;
+        LOG_debug << outputString;
     }
     else
     {
-        cout << outputString << '\r' << flush;
+        LOG_debug << outputString;
+        //cout << outputString << '\r' << flush;
     }
 
     LOG_verbose << "onTransferUpdate transfer->getType(): " << transfer->getType() << " clientID=" << this->clientID;
 
     informProgressUpdate((transferredbytes + getOngoingTransferredBytes()),(totalbytes + getOngoingTotalBytes() ), clientID);
-
+    progressinformed = true;
 
 }
 
@@ -741,6 +857,11 @@ long long MegaCmdMultiTransferListener::getOngoingTotalBytes()
     return total;
 }
 
+bool MegaCmdMultiTransferListener::getProgressinformed() const
+{
+    return progressinformed;
+}
+
 MegaCmdMultiTransferListener::MegaCmdMultiTransferListener(MegaApi *megaApi, MegaCmdSandbox *sandboxCMD, MegaTransferListener *listener, int clientID)
 {
     this->megaApi = megaApi;
@@ -754,6 +875,8 @@ MegaCmdMultiTransferListener::MegaCmdMultiTransferListener(MegaApi *megaApi, Meg
     finished = 0;
     totalbytes = 0;
     transferredbytes = 0;
+
+    progressinformed = false;
 
     finalerror = MegaError::API_OK;
 
@@ -811,15 +934,14 @@ void MegaCmdGlobalTransferListener::onTransferStart(MegaApi* api, MegaTransfer *
 void MegaCmdGlobalTransferListener::onTransferUpdate(MegaApi* api, MegaTransfer *transfer) {};
 void MegaCmdGlobalTransferListener::onTransferTemporaryError(MegaApi *api, MegaTransfer *transfer, MegaError* e)
 {
-
-    if (e && e->getErrorCode() == MegaError::API_EOVERQUOTA)
+    if (e && e->getErrorCode() == MegaError::API_EOVERQUOTA && e->getValue())
     {
         if (!sandboxCMD->isOverquota())
         {
             LOG_warn  << "Reached bandwidth quota. Your download could not proceed "
                          "because it would take you over the current free transfer allowance for your IP address. "
                          "This limit is dynamic and depends on the amount of unused bandwidth we have available. "
-                         "You can change your account plan to increse such bandwidth. "
+                         "You can change your account plan to increase such bandwidth. "
                          "See \"help --upgrade\" for further details";
         }
         sandboxCMD->setOverquota(true);
@@ -839,4 +961,21 @@ MegaCmdGlobalTransferListener::~MegaCmdGlobalTransferListener()
         completedTransfers.pop_front();
     }
     completedTransfersMutex.unlock();
+}
+
+bool MegaCmdCatTransferListener::onTransferData(MegaApi *api, MegaTransfer *transfer, char *buffer, size_t size)
+{
+    if (!ls->isClientConnected())
+    {
+        LOG_debug << " CatTransfer listener, cancelled transfer due to client disconnected";
+        api->cancelTransfer(transfer);
+    }
+    else
+    {
+
+        LOG_debug << " CatTransfer listener, streaming " << size << " bytes";  //TODO: verbose
+        *ls << string(buffer,size);
+    }
+
+    return true;
 }

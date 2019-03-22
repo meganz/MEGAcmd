@@ -2,7 +2,7 @@
  * @file src/configurationmanager.h
  * @brief MEGAcmd: configuration manager
  *
- * (c) 2013-2016 by Mega Limited, Auckland, New Zealand
+ * (c) 2013 by Mega Limited, Auckland, New Zealand
  *
  * This file is part of the MEGAcmd.
  *
@@ -22,6 +22,10 @@
 #include "megacmd.h"
 #include <map>
 #include <set>
+
+#ifndef _WIN32
+#include <sys/file.h> // LOCK_EX and LOCK_NB
+#endif
 
 #define CONFIGURATIONSTOREDBYVERSION -2
 class ConfigurationManager

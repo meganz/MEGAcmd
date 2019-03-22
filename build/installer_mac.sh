@@ -43,8 +43,8 @@ cd Release_x64
 $QTBASE/bin/qmake -r ../../contrib/QtCreator/MEGAcmd/ -spec macx-g++ CONFIG+=release CONFIG+=x86_64 -nocache
 make -j4
 
-#After building, we will have 4 folders (one per project: MEGAcmdServer, MEGAcmdClient, MEGAcmdLoader & MEGAcmdShell)
-# we will include the stuff from the other 3 into MEGAcmdServer folder
+#After building, we will have 5 folders (one per project: MEGAcmdServer, MEGAcmdClient, MEGAcmdLoader, MEGAcmdUpdater & MEGAcmdShell)
+# we will include the stuff from the other 4 into MEGAcmdServer folder
 
 #backup stuff
 cp -R MEGAcmdServer/MEGAcmd.app MEGAcmdServer/MEGAcmd_orig.app
@@ -68,6 +68,10 @@ strip MEGAcmdShell/MEGAcmdShell.app/Contents/MacOS/MEGAcmdShell
 dsymutil MEGAcmdLoader/MEGAcmdLoader.app/Contents/MacOS/MEGAcmdLoader -o MEGAcmdLoader.dSYM
 strip MEGAcmdLoader/MEGAcmdLoader.app/Contents/MacOS/MEGAcmdLoader
 
+#get debug symbols and strip executable for MEGAcmdUpdater
+dsymutil MEGAcmdUpdater/MEGAcmdUpdater.app/Contents/MacOS/MEGAcmdUpdater -o MEGAcmdUpdater.dSYM
+strip MEGAcmdUpdater/MEGAcmdUpdater.app/Contents/MacOS/MEGAcmdUpdater
+
 #copy client scripts and completion into package contents
 cp ../../src/client/mega-* MEGAcmdServer/MEGAcmd.app/Contents/MacOS/
 cp ../../src/client/megacmd_completion.sh  MEGAcmdServer/MEGAcmd.app/Contents/MacOS/
@@ -83,6 +87,9 @@ mv MEGAcmdClient/MEGAclient.app/Contents/MacOS/MEGAclient MEGAcmdServer/MEGAcmd.
 
 #add MEGAcmdLoader into package contents
 mv MEGAcmdLoader/MEGAcmdLoader.app/Contents/MacOS/MEGAcmdLoader MEGAcmdServer/MEGAcmd.app/Contents/MacOS/MEGAcmdLoader
+
+#add MEGAcmdUpdater into package contents
+mv MEGAcmdUpdater/MEGAcmdUpdater.app/Contents/MacOS/MEGAcmdUpdater MEGAcmdServer/MEGAcmd.app/Contents/MacOS/MEGAcmdUpdater
 
 #add MEGAcmdShell into package contents
 mv MEGAcmdShell/MEGAcmdShell.app/Contents/MacOS/MEGAcmdShell MEGAcmdServer/MEGAcmd.app/Contents/MacOS/MEGAcmdShell
@@ -159,5 +166,6 @@ rm -rf MEGAcmdServer
 rm -rf MEGAcmdClient
 rm -rf MEGAcmdShell
 rm -rf MEGAcmdLoader
+rm -rf MEGAcmdUpdater
 
 echo "DONE"

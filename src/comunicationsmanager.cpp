@@ -2,7 +2,7 @@
  * @file src/comunicationsmanager.cpp
  * @brief MEGAcmd: Communications manager non supporting non-interactive mode
  *
- * (c) 2013-2016 by Mega Limited, Auckland, New Zealand
+ * (c) 2013 by Mega Limited, Auckland, New Zealand
  *
  * This file is part of the MEGAcmd.
  *
@@ -114,6 +114,18 @@ void ComunicationsManager::returnAndClosePetition(CmdPetition *inf, OUTSTRINGSTR
     delete inf;
     return;
 }
+
+void ComunicationsManager::sendPartialOutput(CmdPetition *inf, OUTSTRING *s)
+{
+    return;
+}
+
+void ComunicationsManager::sendPartialOutput(CmdPetition *inf, char *s, size_t size)
+{
+    return;
+}
+
+
 
 /**
  * @brief getPetition

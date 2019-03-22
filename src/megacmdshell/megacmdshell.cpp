@@ -3,7 +3,7 @@
  * @brief MEGAcmd: Interactive CLI and service application
  * This is the shell application
  *
- * (c) 2013-2017 by Mega Limited, Auckland, New Zealand
+ * (c) 2013 by Mega Limited, Auckland, New Zealand
  *
  * This file is distributed under the terms of the GNU General Public
  * License, see http://www.gnu.org/copyleft/gpl.txt
@@ -17,6 +17,7 @@
 #include "megacmdshell.h"
 #include "megacmdshellcommunications.h"
 #include "megacmdshellcommunicationsnamedpipes.h"
+#include "../megacmdcommonutils.h"
 
 #define USE_VARARGS
 #define PREFER_STDARG
@@ -74,29 +75,6 @@ CONSOLE_CLASS* console = NULL;
 
 
 // utility functions
-char * dupstr(char* s)
-{
-    char *r;
-
-    r = (char*)malloc(sizeof( char ) * ( strlen(s) + 1 ));
-    strcpy(r, s);
-    return( r );
-}
-
-void replaceAll(std::string& str, const std::string& from, const std::string& to)
-{
-    if (from.empty())
-    {
-        return;
-    }
-    size_t start_pos = 0;
-    while (( start_pos = str.find(from, start_pos)) != std::string::npos)
-    {
-        str.replace(start_pos, from.length(), to);
-        start_pos += to.length();
-    }
-}
-
 #ifndef NO_READLINE
 string getCurrentLine()
 {
@@ -108,153 +86,10 @@ string getCurrentLine()
 }
 #endif
 
-void sleepSeconds(int seconds)
-{
-#ifdef _WIN32
-    Sleep(1000*seconds);
-#else
-    sleep(seconds);
-#endif
-}
-
-void sleepMilliSeconds(long milliseconds)
-{
-#ifdef _WIN32
-    Sleep(milliseconds);
-#else
-    usleep(milliseconds *1000);
-#endif
-}
-
-vector<string> getlistOfWords(const char *ptr, bool ignoreTrailingSpaces = true)
-{
-    vector<string> words;
-
-    const char* wptr;
-
-    // split line into words with quoting and escaping
-    for (;; )
-    {
-        // skip leading blank space
-        while (*(const signed char*)ptr > 0 && *ptr <= ' ' && (ignoreTrailingSpaces || *(ptr+1)))
-        {
-            ptr++;
-        }
-
-        if (!*ptr)
-        {
-            break;
-        }
-
-        // quoted arg / regular arg
-        if (*ptr == '"')
-        {
-            ptr++;
-            wptr = ptr;
-            words.push_back(string());
-
-            for (;; )
-            {
-                if (( *ptr == '"' ) || ( *ptr == '\\' ) || !*ptr)
-                {
-                    words[words.size() - 1].append(wptr, ptr - wptr);
-
-                    if (!*ptr || ( *ptr++ == '"' ))
-                    {
-                        break;
-                    }
-
-                    wptr = ptr - 1;
-                }
-                else
-                {
-                    ptr++;
-                }
-            }
-        }
-        else if (*ptr == '\'') // quoted arg / regular arg
-        {
-            ptr++;
-            wptr = ptr;
-            words.push_back(string());
-
-            for (;; )
-            {
-                if (( *ptr == '\'' ) || ( *ptr == '\\' ) || !*ptr)
-                {
-                    words[words.size() - 1].append(wptr, ptr - wptr);
-
-                    if (!*ptr || ( *ptr++ == '\'' ))
-                    {
-                        break;
-                    }
-
-                    wptr = ptr - 1;
-                }
-                else
-                {
-                    ptr++;
-                }
-            }
-        }
-        else
-        {
-            while (*ptr == ' ') ptr++;// only possible if ptr+1 is the end
-
-            wptr = ptr;
-
-            const char *prev = ptr;
-            //while ((unsigned char)*ptr > ' ')
-            while ((*ptr != '\0') && !(*ptr ==' ' && *prev !='\\'))
-            {
-                if (*ptr == '"')
-                {
-                    while (*++ptr != '"' && *ptr != '\0')
-                    { }
-                }
-                prev=ptr;
-                ptr++;
-            }
-
-            words.push_back(string(wptr, ptr - wptr));
-        }
-    }
-
-    return words;
-}
-
-void discardOptionsAndFlags(vector<string> *ws)
-{
-    for (std::vector<string>::iterator it = ws->begin(); it != ws->end(); )
-    {
-        /* std::cout << *it; ... */
-        string w = ( string ) * it;
-        if (w.length() && ( w.at(0) == '-' )) //begins with "-"
-        {
-            it = ws->erase(it);
-        }
-        else //not an option/flag
-        {
-            ++it;
-        }
-    }
-}
-
 
 // end utily functions
 
 string clientID; //identifier for a registered state listener
-
-long long charstoll(const char *instr)
-{
-  long long retval;
-
-  retval = 0;
-  for (; *instr; instr++) {
-    retval = 10*retval + (*instr - '0');
-  }
-  return retval;
-}
 
 // Console related functions:
 void console_readpwchar(char* pw_buf, int pw_buf_size, int* pw_buf_pos, char** line)
@@ -327,46 +162,15 @@ void console_setecho(bool echo)
 #endif
 }
 
-int getNumberOfCols(unsigned int defaultwidth=0)
-{
-    unsigned int width = defaultwidth;
-    int rows = 1, cols = width;
-#ifdef NO_READLINE
-    CONSOLE_SCREEN_BUFFER_INFO sbi;
-    BOOL ok = GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &sbi);
-    assert(ok);
-    if (ok)
-    {
-        cols = sbi.dwSize.X ;
-    }
-#elif defined( RL_ISSTATE ) && defined( RL_STATE_INITIALIZED )
-
-    if (RL_ISSTATE(RL_STATE_INITIALIZED))
-    {
-        rl_resize_terminal();
-        rl_get_screen_size(&rows, &cols);
-    }
-#endif
-
-    if (cols)
-    {
-        width = cols-2;
-#ifdef _WIN32
-        width--;
-#endif
-    }
-    return width;
-}
 bool alreadyFinished = false; //flag to show progress
 float percentDowloaded = 0.0; // to show progress
-
 
 // password change-related state information
 string oldpasswd;
 string newpasswd;
 
 bool doExit = false;
-
+bool doReboot = false;
 bool handlerinstalled = false;
 
 bool requirepromptinstall = true;
@@ -399,12 +203,11 @@ MUTEX_CLASS mutexPrompt(false);
 
 void printWelcomeMsg(unsigned int width = 0);
 
-
-
 void statechangehandle(string statestring)
 {
     char statedelim[2]={(char)0x1F,'\0'};
     size_t nextstatedelimitpos = statestring.find(statedelim);
+    static bool shown_partial_progress = false;
 
     while (nextstatedelimitpos!=string::npos && statestring.size())
     {
@@ -415,9 +218,61 @@ void statechangehandle(string statestring)
         {
             changeprompt(newstate.substr(strlen("prompt:")).c_str(),true);
         }
+        else if (newstate.compare(0, strlen("endtransfer:"), "endtransfer:") == 0)
+        {
+            string rest = newstate.substr(strlen("endtransfer:"));
+            if (rest.size() >=3)
+            {
+                bool isdown = rest.at(0) == 'D';
+                string path = rest.substr(2);
+                stringstream os;
+                if (shown_partial_progress)
+                {
+                    os << endl;
+                }
+                os << (isdown?"Download":"Upload") << " finished: " << path << endl;
+
+#ifdef _WIN32
+                wstring wbuffer;
+                stringtolocalw((const char*)os.str().data(),&wbuffer);
+                int oldmode;
+                MegaCmdShellCommunications::megaCmdStdoutputing.lock();
+                oldmode = _setmode(_fileno(stdout), _O_U8TEXT);
+                OUTSTREAM << wbuffer << flush;
+                _setmode(_fileno(stdout), oldmode);
+                MegaCmdShellCommunications::megaCmdStdoutputing.unlock();
+#else
+                OUTSTREAM << os.str();
+#endif
+            }
+        }
         else if (newstate.compare(0, strlen("message:"), "message:") == 0)
         {
-            OUTSTREAM << endl << newstate.substr(strlen("message:")) << endl;
+            string contents = newstate.substr(strlen("message:"));
+            unsigned int width = getNumberOfCols(75);
+            if (width > 1 ) width--;
+            MegaCmdShellCommunications::megaCmdStdoutputing.lock();
+#ifdef _WIN32
+            int oldmode = _setmode(_fileno(stdout), _O_U8TEXT);
+#endif
+            if (contents.find("-----") != 0)
+            {
+                if (!procesingline || shown_partial_progress)
+                {
+                    OUTSTREAM << endl;
+                }
+                printCenteredContents(contents, width);
+            }
+            else
+            {
+                OUTSTREAM << endl <<  contents << endl;
+            }
+#ifdef _WIN32
+            _setmode(_fileno(stdout), oldmode);
+#endif
+            MegaCmdShellCommunications::megaCmdStdoutputing.unlock();
+
+            requirepromptinstall = true;
         }
         else if (newstate.compare(0, strlen("clientID:"), "clientID:") == 0)
         {
@@ -442,6 +297,16 @@ void statechangehandle(string statestring)
                 title = rest.substr(0,nexdel);
             }
 
+            if (received!=SPROGRESS_COMPLETE)
+            {
+                shown_partial_progress = true;
+            }
+            else
+            {
+                shown_partial_progress = false;
+            }
+
+            MegaCmdShellCommunications::megaCmdStdoutputing.lock();
             if (title.size())
             {
                 if (received==SPROGRESS_COMPLETE)
@@ -465,17 +330,38 @@ void statechangehandle(string statestring)
                     printprogress(charstoll(received.c_str()), charstoll(total.c_str()));
                 }
             }
-
+            MegaCmdShellCommunications::megaCmdStdoutputing.unlock();
         }
         else if (newstate == "ack")
         {
             // do nothing, all good
         }
+        else if (newstate == "restart")
+        {
+            doExit = true;
+            doReboot = true;
+            if (!comms->updating)
+            {
+                comms->updating = true; // to avoid mensajes about server down
+            }
+            sleepSeconds(3); // Give a while for server to restart
+            changeprompt("RESTART REQUIRED BY SERVER (due to an update). Press any key to continue.", true);
+        }
         else
         {
+            if (shown_partial_progress)
+            {
+                OUTSTREAM << endl;
+            }
             cerr << "received unrecognized state change: [" << newstate << "]" << endl;
             //sleep a while to avoid continuous looping
             sleepSeconds(1);
+        }
+
+
+        if (newstate.compare(0, strlen("progress:"), "progress:") != 0)
+        {
+            shown_partial_progress = false;
         }
     }
 }
@@ -509,25 +395,8 @@ void sigint_handler(int signum)
 #endif
 }
 
-
 void printprogress(long long completed, long long total, const char *title)
 {
-    int cols = getNumberOfCols(80);
-
-    string outputString;
-    outputString.resize(cols + 1);
-    for (int i = 0; i < cols; i++)
-    {
-        outputString[i] = '.';
-    }
-
-    outputString[cols] = '\0';
-    char *ptr = (char *)outputString.c_str();
-    sprintf(ptr, "%s%s", title, " ||");
-    ptr += strlen(title);
-    ptr += strlen(" ||");
-    *ptr = '.'; //replace \0 char
-
     float oldpercent = percentDowloaded;
     if (total == 0)
     {
@@ -546,7 +415,6 @@ void printprogress(long long completed, long long total, const char *title)
         percentDowloaded = 0;
     }
 
-    char aux[41];
     if (total < 0)
     {
         return; // after a 100% this happens
@@ -561,22 +429,7 @@ void printprogress(long long completed, long long total, const char *title)
         completed = total;
         percentDowloaded = 100;
     }
-    sprintf(aux,"||(%lld/%lld MB: %6.2f %%) ", completed / 1024 / 1024, total / 1024 / 1024, percentDowloaded);
-    sprintf((char *)outputString.c_str() + cols - strlen(aux), "%s",                         aux);
-    for (int i = 0; i < ( cols - (strlen(title) + strlen(" ||")) - strlen(aux)) * 1.0 * min(100.0f,percentDowloaded) / 100.0; i++)
-    {
-        *ptr++ = '#';
-    }
-
-    if (alreadyFinished)
-    {
-        cerr << outputString << endl;
-    }
-    else
-    {
-        cerr << outputString << '\r' << flush;
-    }
-
+    printPercentageLineCerr(title, completed, total, percentDowloaded, !alreadyFinished);
 }
 
 
@@ -915,13 +768,6 @@ char* generic_completion(const char* text, int state, vector<string> validOption
 }
 #endif
 
-
-inline bool ends_with(std::string const & value, std::string const & ending)
-{
-    if (ending.size() > value.size()) return false;
-    return std::equal(ending.rbegin(), ending.rend(), value.rbegin());
-}
-
 char* local_completion(const char* text, int state)
 {
     return((char*)NULL );  //matches will be NULL: readline will use local completion
@@ -1189,13 +1035,23 @@ vector<autocomplete::ACState::Completion> remote_completion(string linetocomplet
 
     if (outputcommand.find("MEGACMD_USE_LOCAL_COMPLETION") == 0)
     {
-        string where = outputcommand.substr(strlen("MEGACMD_USE_LOCAL_COMPLETION"));
+        string where;
+        bool folders = false;
+        if (outputcommand.find("MEGACMD_USE_LOCAL_COMPLETIONFOLDERS") == 0)
+        {
+            where = outputcommand.substr(strlen("MEGACMD_USE_LOCAL_COMPLETIONFOLDERS"));
+            folders = true;
+        }
+        else
+        {
+            where = outputcommand.substr(strlen("MEGACMD_USE_LOCAL_COMPLETION"));
+        }
         changedir(where);
 
         if (acs.words.size())
         {
             string l = completionword.getQuoted();
-            CompletionState cs = autoComplete(l, l.size(), acs.words[0].s == "lcd" ? localFSFolder() : localFSPath(), console->getAutocompleteStyle());
+            CompletionState cs = autoComplete(l, l.size(), folders ? localFSFolder() : localFSPath(), console->getAutocompleteStyle());
             result.swap(cs.completions);
         }
         return result;
@@ -1364,8 +1220,9 @@ void process_line(const char * line)
                 confirmcommand+=linktoconfirm;
                 confirmcommand+=" " ;
                 confirmcommand+=loginname;
-                confirmcommand+=" " ;
+                confirmcommand+=" \"";
                 confirmcommand+=line;
+                confirmcommand+="\"" ;
                 OUTSTREAM << endl;
                 comms->executeCommand(confirmcommand.c_str(), readresponse);
             }
@@ -1373,8 +1230,9 @@ void process_line(const char * line)
             {
                 string confirmcommand("confirmcancel ");
                 confirmcommand+=linktoconfirm;
-                confirmcommand+=" " ;
+                confirmcommand+=" \"";
                 confirmcommand+=line;
+                confirmcommand+="\"" ;
                 OUTSTREAM << endl;
                 comms->executeCommand(confirmcommand.c_str(), readresponse);
             }
@@ -1388,8 +1246,9 @@ void process_line(const char * line)
                     logincommand+=" ";
                 }
                 logincommand+=loginname;
-                logincommand+=" " ;
+                logincommand+=" \"" ;
                 logincommand+=line;
+                logincommand+="\"" ;
                 OUTSTREAM << endl;
                 comms->executeCommand(logincommand.c_str(), readresponse);
             }
@@ -1426,8 +1285,9 @@ void process_line(const char * line)
 
                 if (signingup)
                 {
-                    signupline += " ";
+                    signupline += " \"";
                     signupline += newpasswd;
+                    signupline += "\"";
                     comms->executeCommand(signupline.c_str(), readresponse);
 
                     signingup = false;
@@ -1436,9 +1296,16 @@ void process_line(const char * line)
                 {
                     string changepasscommand(passwdline);
                     passwdline = " ";
-                    changepasscommand+=oldpasswd;
                     changepasscommand+=" " ;
+                    if (oldpasswd.size())
+                    {
+                        changepasscommand+="\"" ;
+                        changepasscommand+=oldpasswd;
+                        changepasscommand+="\"" ;
+                    }
+                    changepasscommand+=" \"" ;
                     changepasscommand+=newpasswd;
+                    changepasscommand+="\"" ;
                     comms->executeCommand(changepasscommand.c_str(), readresponse);
                 }
             }
@@ -1467,7 +1334,7 @@ void process_line(const char * line)
             line = refactoredline.c_str();
 #endif
 
-            vector<string> words = getlistOfWords(line);
+            vector<string> words = getlistOfWords((char *)line);
             bool helprequested = false;
             for (unsigned int i = 1; i< words.size(); i++)
             {
@@ -1490,6 +1357,23 @@ void process_line(const char * line)
                         doExit = true;
                     }
                 }
+#if defined(_WIN32) || defined(__APPLE__)
+                else if (words[0] == "update")
+                {
+                    MegaCmdShellCommunications::updating = true;
+                    int ret = comms->executeCommand(line, readresponse);
+                    if (ret == MCMD_REQRESTART)
+                    {
+                        OUTSTREAM << "MEGAcmd has been updated ... this shell will be restarted before proceding...." << endl;
+                        doExit = true;
+                        doReboot = true;
+                    }
+                    else if (ret != MCMD_INVALIDSTATE && words.size() == 1)
+                    {
+                        MegaCmdShellCommunications::updating = false;
+                    }
+                }
+#endif
                 else if (words[0] == "history")
                 {
                     if (helprequested)
@@ -1537,7 +1421,8 @@ void process_line(const char * line)
                     {
                         discardOptionsAndFlags(&words);
 
-                        if (words.size() == 2 && (words[1].find("@") != string::npos))
+                        if ( (words.size() == 2 || ( words.size() == 3 && !words[2].size() ) )
+                                && (words[1].find("@") != string::npos))
                         {
                             loginname = words[1];
                             setprompt(LOGINPASSWORD);
@@ -1640,6 +1525,8 @@ void process_line(const char * line)
                     }
                     /* Move the cursor home */
                     SetConsoleCursorPosition( hStdOut, { 0, 0 } );
+#elif __linux__
+                    printf("\033[H\033[J");
 #else
                     rl_clear_screen(0,0);
 #endif
@@ -1678,6 +1565,10 @@ void process_line(const char * line)
                     {
                         unsigned int width = getNumberOfCols(75);
                         int pathSize = int(width-13);
+                        if (strstr(line, "--versions"))
+                        {
+                            pathSize -= 11;
+                        }
 
                         toexec+=words[0];
                         toexec+=" --path-display-size=";
@@ -1710,6 +1601,31 @@ void process_line(const char * line)
                         if (strlen(line)>strlen("sync "))
                         {
                             toexec+=line+strlen("sync ");
+                        }
+                    }
+                    else
+                    {
+                        toexec+=line;
+                    }
+
+                    comms->executeCommand(toexec.c_str(), readresponse);
+                }
+                else if (words[0] == "mediainfo")
+                {
+                    string toexec;
+
+                    if (!strstr (line,"path-display-size"))
+                    {
+                        unsigned int width = getNumberOfCols(75);
+                        int pathSize = int(width - 28);
+
+                        toexec+=words[0];
+                        toexec+=" --path-display-size=";
+                        toexec+=SSTR(pathSize);
+                        toexec+=" ";
+                        if (strlen(line)>(words[0].size()+1))
+                        {
+                            toexec+=line+words[0].size()+1;
                         }
                     }
                     else
@@ -1799,10 +1715,12 @@ void readloop()
 
     readline_fd = fileno(rl_instream);
 
+    procesingline = true;
     comms->registerForStateChanges(statechangehandle);
 
     //give it a while to communicate the state
     sleepMilliSeconds(700);
+    procesingline = false;
 
 #if defined(_WIN32) && defined(USE_PORT_COMMS)
     // due to a failure in reconnecting to the socket, if the server was initiated in while registeringForStateChanges
@@ -1854,10 +1772,15 @@ void readloop()
                 rl_callback_read_char(); //this calls store_line if last char was enter
 
                 time_t tnow = time(NULL);
-                if ( (tnow - lasttimeretrycons) > 5 && !doExit)
+                if ( (tnow - lasttimeretrycons) > 5 && !doExit && !MegaCmdShellCommunications::updating)
                 {
-                    comms->executeCommand("retrycons");
-                    lasttimeretrycons = tnow;
+                    char * sl = rl_copy_text(0, rl_end);
+                    if (string("quit").find(sl) != 0 && string("exit").find(sl) != 0)
+                    {
+                        comms->executeCommand("retrycons");
+                        lasttimeretrycons = tnow;
+                    }
+                    free(sl);
                 }
 
                 rl_resize_terminal(); // to always adjust to new screen sizes
@@ -1879,6 +1802,7 @@ void readloop()
             {
                 break;
             }
+
         }
 
         // save line
@@ -1898,10 +1822,10 @@ void readloop()
             {
                 alreadyFinished = false;
                 percentDowloaded = 0.0;
-                mutexPrompt.lock();
+//                mutexPrompt.lock();
                 process_line(line);
                 requirepromptinstall = true;
-                mutexPrompt.unlock();
+//                mutexPrompt.unlock();
 
                 if (comms->registerAgainRequired)
                 {
@@ -1959,6 +1883,7 @@ void readloop()
         {
             line = console->checkForCompletedInputLine();
 
+
             if (line)
             {
                 break;
@@ -1966,10 +1891,14 @@ void readloop()
             else
             {
                 time_t tnow = time(NULL);
-                if ((tnow - lasttimeretrycons) > 5 && !doExit)
+                if ((tnow - lasttimeretrycons) > 5 && !doExit && !MegaCmdShellCommunications::updating)
                 {
-                    comms->executeCommand("retrycons");
-                    lasttimeretrycons = tnow;
+                    if (wstring(L"quit").find(console->getInputLineToCursor()) != 0 &&
+                         wstring(L"exit").find(console->getInputLineToCursor()) != 0   )
+                    {
+                        comms->executeCommand("retrycons");
+                        lasttimeretrycons = tnow;
+                    }
                 }
 
                 if (doExit)
@@ -1985,10 +1914,10 @@ void readloop()
             {
                 alreadyFinished = false;
                 percentDowloaded = 0.0;
-                mutexPrompt.lock();
+//                mutexPrompt.lock();
                 process_line(line);
                 requirepromptinstall = true;
-                mutexPrompt.unlock();
+//                mutexPrompt.unlock();
 
                 if (comms->registerAgainRequired)
                 {
@@ -2020,24 +1949,6 @@ public:
         return c;
     }
 };
-
-void printCenteredLine(string msj, unsigned int width, bool encapsulated = true)
-{
-    if (msj.size()>width)
-    {
-        width = unsigned(msj.size());
-    }
-    if (encapsulated)
-        COUT << "|";
-    for (unsigned int i = 0; i < (width-msj.size())/2; i++)
-        COUT << " ";
-    COUT << msj;
-    for (unsigned int i = 0; i < (width-msj.size())/2 + (width-msj.size())%2 ; i++)
-        COUT << " ";
-    if (encapsulated)
-        COUT << "|";
-    COUT << endl;
-}
 
 void printWelcomeMsg(unsigned int width)
 {
@@ -2093,7 +2004,6 @@ int quote_detector(char *line, int index)
     );
 }
 
-
 bool runningInBackground()
 {
 #ifndef _WIN32
@@ -2140,10 +2050,12 @@ void mycompletefunct(char **c, int num_matches, int max_length)
     {
         string option = c[i];
 
+        MegaCmdShellCommunications::megaCmdStdoutputing.lock();
         OUTSTREAM << setw(min(cols-1,max_length+1)) << left;
         int oldmode = _setmode(_fileno(stdout), _O_U16TEXT);
         OUTSTREAM << c[i];
         _setmode(_fileno(stdout), oldmode);
+        MegaCmdShellCommunications::megaCmdStdoutputing.unlock();
 
         if ( (i%nelements_per_col == 0) && (i != num_matches))
         {
@@ -2161,6 +2073,9 @@ std::string readresponse(const char* question)
     response = readline(question);
     rl_set_prompt("");
     rl_replace_line("", 0);
+
+    rl_callback_handler_remove(); //To fix broken readline (e.g: upper key wouldnt work)
+
     return response;
 }
 #else
@@ -2242,8 +2157,48 @@ int main(int argc, char* argv[])
 
 #ifndef NO_READLINE
     clear_history();
-    rl_callback_handler_remove(); //To avoid having the terminal messed up (requiring a "reset")
+    if (!doReboot)
+    {
+        rl_callback_handler_remove(); //To avoid having the terminal messed up (requiring a "reset")
+    }
 #endif
     delete comms;
 
+    if (doReboot)
+    {
+#ifdef _WIN32
+        sleepSeconds(5); // Give a while for server to restart
+        LPWSTR szPathExecQuoted = GetCommandLineW();
+        wstring wspathexec = wstring(szPathExecQuoted);
+
+        if (wspathexec.at(0) == '"')
+        {
+            wspathexec = wspathexec.substr(1);
+        }
+        while (wspathexec.size() && ( wspathexec.at(wspathexec.size()-1) == '"' || wspathexec.at(wspathexec.size()-1) == ' ' ))
+        {
+            wspathexec = wspathexec.substr(0,wspathexec.size()-1);
+        }
+        LPWSTR szPathExec = (LPWSTR) wspathexec.c_str();
+
+        STARTUPINFO si;
+        PROCESS_INFORMATION pi;
+        ZeroMemory( &si, sizeof(si) );
+        ZeroMemory( &pi, sizeof(pi) );
+        si.cb = sizeof(si);
+
+        if (!CreateProcess( szPathExec,szPathExec,NULL,NULL,TRUE,
+                            CREATE_NEW_CONSOLE,
+                            NULL,NULL,
+                            &si,&pi) )
+        {
+            COUT << "Unable to execute: " << szPathExec << " errno = : " << ERRNO << endl;
+            sleepSeconds(5);
+        }
+#else
+        system("reset -I");
+        execv(argv[0], argv);
+#endif
+
+    }
 }

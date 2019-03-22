@@ -2,7 +2,7 @@
  * @file src/comunicationsmanagerfilesockets.h
  * @brief MEGAcmd: Communications manager using Network Sockets
  *
- * (c) 2013-2016 by Mega Limited, Auckland, New Zealand
+ * (c) 2013 by Mega Limited, Auckland, New Zealand
  *
  * This file is part of the MEGAcmd.
  *
@@ -59,6 +59,7 @@ private:
     // to get next socket id
     int count;
     mega::MegaMutex *mtx;
+    mega::MegaMutex *informerMutex;
 
     /**
      * @brief create_new_socket
@@ -87,6 +88,8 @@ public:
      * I will clean struct and close the socket within
      */
     void returnAndClosePetition(CmdPetition *inf, OUTSTRINGSTREAM *s, int);
+
+    virtual void sendPartialOutput(CmdPetition *inf, OUTSTRING *s);
 
     int informStateListener(CmdPetition *inf, std::string &s);
 

@@ -96,7 +96,7 @@ Additional information about synchronising folders is available in our Help Cent
 ### Backup configurations
 MEGAcmd can set up a periodic copy of a local folder to your MEGA account using the [`backup`](#backup) command.  Here is a simple example that will back up a folder immediately and then at 4am each day, keeping the 10 most recent backups: <p>
 ```
-backup /path/to/myfolder /remote/path --period="0 0 4 * * *" --num-backups=10
+backup /path/mega/folder /remote/path --period="0 0 4 * * *" --num-backups=10
 ```
 
 For further information on backups, please see the [`backup`](#backup) command and the [tutorial](contrib/docs/BACKUPS.md). 

@@ -8,29 +8,29 @@ noinst_HEADERS=
 MEGACMD = mega-cmd mega-exec mega-cmd-server
 bin_PROGRAMS += $(MEGACMD)
 $(MEGACMD): $(top_builddir)/sdk/src/libmega.la
-noinst_HEADERS += src/comunicationsmanager.h src/configurationmanager.h src/megacmd.h src/megacmdlogger.h src/megacmdsandbox.h src/megacmdutils.h src/listeners.h src/megacmdexecuter.h src/megacmdversion.h src/megacmdplatform.h src/comunicationsmanagerportsockets.h
+noinst_HEADERS += src/comunicationsmanager.h src/configurationmanager.h src/megacmd.h src/megacmdlogger.h src/megacmdsandbox.h src/megacmdutils.h src/megacmdcommonutils.h src/listeners.h src/megacmdexecuter.h src/megacmdversion.h src/megacmdplatform.h src/comunicationsmanagerportsockets.h
 megacmdcompletiondir = $(sysconfdir)/bash_completion.d/
 megacmdcompletion_DATA = src/client/megacmd_completion.sh
 megacmdscripts_bindir = $(bindir)
 
-megacmdscripts_bin_SCRIPTS = src/client/mega-attr src/client/mega-cd src/client/mega-confirm src/client/mega-cp src/client/mega-debug src/client/mega-du src/client/mega-export src/client/mega-find src/client/mega-get src/client/mega-help src/client/mega-https src/client/mega-webdav src/client/mega-permissions src/client/mega-deleteversions src/client/mega-transfers src/client/mega-import src/client/mega-invite src/client/mega-ipc src/client/mega-killsession src/client/mega-lcd src/client/mega-log src/client/mega-login src/client/mega-logout src/client/mega-lpwd src/client/mega-ls src/client/mega-backup src/client/mega-mkdir src/client/mega-mount src/client/mega-mv src/client/mega-passwd src/client/mega-preview src/client/mega-put src/client/mega-speedlimit src/client/mega-pwd src/client/mega-quit src/client/mega-reload src/client/mega-rm src/client/mega-session src/client/mega-share src/client/mega-showpcr src/client/mega-signup src/client/mega-sync src/client/mega-exclude src/client/mega-thumbnail src/client/mega-userattr src/client/mega-users src/client/mega-version src/client/mega-whoami src/client/mega-graphics src/client/mega-ftp src/client/mega-cancel src/client/mega-confirmcancel src/client/mega-errorcode
+megacmdscripts_bin_SCRIPTS = src/client/mega-attr src/client/mega-cd src/client/mega-confirm src/client/mega-cp src/client/mega-debug src/client/mega-du src/client/mega-df src/client/mega-export src/client/mega-find src/client/mega-get src/client/mega-help src/client/mega-https src/client/mega-webdav src/client/mega-permissions src/client/mega-deleteversions src/client/mega-transfers src/client/mega-import src/client/mega-invite src/client/mega-ipc src/client/mega-killsession src/client/mega-lcd src/client/mega-log src/client/mega-login src/client/mega-logout src/client/mega-lpwd src/client/mega-ls src/client/mega-backup src/client/mega-mkdir src/client/mega-mount src/client/mega-mv src/client/mega-passwd src/client/mega-preview src/client/mega-put src/client/mega-speedlimit src/client/mega-pwd src/client/mega-quit src/client/mega-reload src/client/mega-rm src/client/mega-session src/client/mega-share src/client/mega-showpcr src/client/mega-signup src/client/mega-sync src/client/mega-exclude src/client/mega-thumbnail src/client/mega-userattr src/client/mega-users src/client/mega-version src/client/mega-whoami src/client/mega-cat src/client/mega-tree src/client/mega-mediainfo src/client/mega-graphics src/client/mega-ftp src/client/mega-cancel src/client/mega-confirmcancel src/client/mega-errorcode
 
-mega_cmd_server_SOURCES = src/megacmd.cpp src/comunicationsmanager.cpp src/megacmdutils.cpp src/configurationmanager.cpp src/megacmdlogger.cpp src/megacmdsandbox.cpp src/listeners.cpp src/megacmdexecuter.cpp src/comunicationsmanagerportsockets.cpp  
+mega_cmd_server_SOURCES = src/megacmd.cpp src/comunicationsmanager.cpp src/megacmdutils.cpp src/megacmdcommonutils.cpp src/configurationmanager.cpp src/megacmdlogger.cpp src/megacmdsandbox.cpp src/listeners.cpp src/megacmdexecuter.cpp src/comunicationsmanagerportsockets.cpp  
 
 mega_cmddir=examples
 
 #CMDCLIENT
-noinst_HEADERS += src/megacmdshell/megacmdshellcommunications.h src/megacmdshell/megacmdshell.h sdk/include/mega/thread.h
+noinst_HEADERS += src/megacmdcommonutils.h src/megacmdshell/megacmdshellcommunications.h src/megacmdshell/megacmdshell.h sdk/include/mega/thread.h
 
-mega_exec_SOURCES = src/client/megacmdclient.cpp src/megacmdshell/megacmdshellcommunications.cpp
+mega_exec_SOURCES = src/megacmdcommonutils.cpp src/client/megacmdclient.cpp src/megacmdshell/megacmdshellcommunications.cpp
 mega_execdir=examples
 #mega_exec_CXXFLAGS = -std=c++11 -DUSE_CPPTHREAD=1 -Iinclude/
 #mega_exec_CXXFLAGS = -Iinclude/
 mega_exec_CXXFLAGS = -Isdk/include/ $(LMEGAINC)
 
 #CMDSHELL
-noinst_HEADERS += src/megacmdshell/megacmdshellcommunications.h src/megacmdshell/megacmdshell.h sdk/include/mega/thread.h
-mega_cmd_SOURCES = src/megacmdshell/megacmdshellcommunications.cpp src/megacmdshell/megacmdshell.cpp 
+noinst_HEADERS += src/megacmdcommonutils.h src/megacmdshell/megacmdshellcommunications.h src/megacmdshell/megacmdshell.h sdk/include/mega/thread.h
+mega_cmd_SOURCES = src/megacmdcommonutils.cpp src/megacmdshell/megacmdshellcommunications.cpp src/megacmdshell/megacmdshell.cpp 
 
 mega_cmd_CXXFLAGS = $(RL_CXXFLAGS) -Isdk/include/ $(LMEGAINC)
 mega_cmd_LDADD = $(RL_LDFLAGS) $(RL_LIBS) $(TERMCAP_LDFLAGS) $(TERMCAP_LIBS) 

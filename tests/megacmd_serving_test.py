@@ -311,7 +311,7 @@ subpath=subpath.replace('%20',' ')
 if VERBOSE:
     print " connecting ... to "+server+" port="+port+" path="+subpath
 ftp=ftplib.FTP()
-ftp.connect(server,port, timeout=5) #TODO: add timeout?
+ftp.connect(server,port, timeout=30)
 ftp.login("anonymous", "nomatter")
 ftp.cwd(subpath)
 

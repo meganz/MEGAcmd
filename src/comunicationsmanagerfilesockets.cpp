@@ -2,7 +2,7 @@
  * @file src/comunicationsmanagerfilesockets.cpp
  * @brief MEGAcmd: Communications manager using Network Sockets
  *
- * (c) 2013-2016 by Mega Limited, Auckland, New Zealand
+ * (c) 2013 by Mega Limited, Auckland, New Zealand
  *
  * This file is part of the MEGAcmd.
  *
@@ -60,11 +60,15 @@ int ComunicationsManagerFileSockets::create_new_socket(int *sockId)
             {
                 LOG_fatal << "ERROR opening socket ID=" << sockId << " errno: " << errno << ". Attempts: " << attempts;
             }
-            sleepMicroSeconds(500);
+            sleepMilliSeconds(500);
         }
         else
         {
             socketsucceded = true;
+        }
+        if (fcntl(thesock, F_SETFD, FD_CLOEXEC) == -1)
+        {
+            LOG_err << "ERROR setting CLOEXEC to socket: " << errno;
         }
     }
     if (thesock < 0)
@@ -101,7 +105,7 @@ int ComunicationsManagerFileSockets::create_new_socket(int *sockId)
             {
                 LOG_fatal << "ERROR on binding socket " << socket_path << " errno: " << errno << ". Attempts: " << attempts;
             }
-            sleepMicroSeconds(500);
+            sleepMilliSeconds(500);
         }
         else
         {
@@ -131,6 +135,7 @@ ComunicationsManagerFileSockets::ComunicationsManagerFileSockets()
 {
     count = 0;
     mtx = new MegaMutex();
+    informerMutex = new MegaMutex(false);
     initialize();
 }
 
@@ -157,6 +162,10 @@ int ComunicationsManagerFileSockets::initialize()
     if (sockfd < 0)
     {
         LOG_fatal << "ERROR opening socket";
+    }
+    if (fcntl(sockfd, F_SETFD, FD_CLOEXEC) == -1)
+    {
+        LOG_err << "ERROR setting CLOEXEC to socket: " << errno;
     }
 
     struct sockaddr_un addr;
@@ -239,6 +248,10 @@ void ComunicationsManagerFileSockets::stopWaiting()
         }
         else
         {
+            if (fcntl(clientsocket, F_SETFD, FD_CLOEXEC) == -1)
+            {
+                LOG_err << "ERROR setting CLOEXEC to socket: " << errno;
+            }
             bzero(socket_path, sizeof( socket_path ) * sizeof( *socket_path ));
             {
                 sprintf(socket_path, "/tmp/megaCMD_%d/srv", getuid() );
@@ -291,6 +304,10 @@ void ComunicationsManagerFileSockets::returnAndClosePetition(CmdPetition *inf, O
     if (connectedsocket == -1)
     {
         connectedsocket = accept(((CmdPetitionPosixSockets *)inf)->outSocket, (struct sockaddr*)&cliAddr, &cliLength);
+        if (fcntl(connectedsocket, F_SETFD, FD_CLOEXEC) == -1)
+        {
+            LOG_err << "ERROR setting CLOEXEC to socket: " << errno;
+        }
         ((CmdPetitionPosixSockets *)inf)->acceptedOutSocket = connectedsocket; //So that it gets closed in destructor
     }
     if (connectedsocket == -1)
@@ -316,8 +333,68 @@ void ComunicationsManagerFileSockets::returnAndClosePetition(CmdPetition *inf, O
     delete inf;
 }
 
+void ComunicationsManagerFileSockets::sendPartialOutput(CmdPetition *inf, OUTSTRING *s)
+{
+    if (inf->clientDisconnected)
+    {
+        return;
+    }
+
+    sockaddr_in cliAddr;
+    socklen_t cliLength = sizeof( cliAddr );
+    int connectedsocket = ((CmdPetitionPosixSockets *)inf)->acceptedOutSocket;
+    if (connectedsocket == -1)
+    {
+        connectedsocket = accept(((CmdPetitionPosixSockets *)inf)->outSocket, (struct sockaddr*)&cliAddr, &cliLength);
+        if (fcntl(connectedsocket, F_SETFD, FD_CLOEXEC) == -1)
+        {
+            std::cerr << "ERROR setting CLOEXEC to socket: " << errno << endl; // we do not log this stuff, because that would cause some loop sending more partial output
+        }
+        ((CmdPetitionPosixSockets *)inf)->acceptedOutSocket = connectedsocket; //So that it gets closed in destructor
+    }
+    if (connectedsocket == -1)
+    {
+        std::cerr << "Return and close: Unable to accept on outsocket " << ((CmdPetitionPosixSockets *)inf)->outSocket << " error: " << errno << endl;
+        return;
+    }
+
+    if (s->size())
+    {
+        size_t size = s->size();
+
+        int outCode = MCMD_PARTIALOUT;
+        int n = send(connectedsocket, (void*)&outCode, sizeof( outCode ), MSG_NOSIGNAL);
+        if (n < 0)
+        {
+            std::cerr << "ERROR writing MCMD_PARTIALOUT to socket: " << errno << endl;
+            if (errno == EPIPE)
+            {
+                std::cerr << "WARNING: Client disconnected, the rest of the output will be discarded" << endl;
+                inf->clientDisconnected = true;
+            }
+            return;
+        }
+        n = send(connectedsocket, (void*)&size, sizeof( size ), MSG_NOSIGNAL);
+        if (n < 0)
+        {
+            std::cerr << "ERROR writing size of partial output to socket: " << errno << endl;
+            return;
+        }
+
+
+        n = send(connectedsocket, s->data(), size, MSG_NOSIGNAL); // for some reason without the max recv never quits in the client for empty responses
+
+        if (n < 0)
+        {
+            std::cerr << "ERROR writing to socket partial output: " << errno << endl;
+            return;
+        }
+    }
+}
+
 int ComunicationsManagerFileSockets::informStateListener(CmdPetition *inf, string &s)
 {
+    MutexGuard g(*informerMutex);
     LOG_verbose << "Inform State Listener: Output to write in socket " << ((CmdPetitionPosixSockets *)inf)->outSocket << ": <<" << s << ">>";
 
     sockaddr_in cliAddr;
@@ -351,6 +428,10 @@ int ComunicationsManagerFileSockets::informStateListener(CmdPetition *inf, strin
             int oldfl = fcntl(sockfd, F_GETFL);
             fcntl(((CmdPetitionPosixSockets *)inf)->outSocket, F_SETFL, oldfl | O_NONBLOCK);
             connectedsocket = accept(((CmdPetitionPosixSockets *)inf)->outSocket, (struct sockaddr*)&cliAddr, &cliLength);
+            if (fcntl(connectedsocket, F_SETFD, FD_CLOEXEC) == -1)
+            {
+                LOG_err << "ERROR setting CLOEXEC to socket: " << errno;
+            }
             fcntl(((CmdPetitionPosixSockets *)inf)->outSocket, F_SETFL, oldfl);
         }
         connectedsockets[((CmdPetitionPosixSockets *)inf)->outSocket] = connectedsocket;
@@ -409,7 +490,10 @@ CmdPetition * ComunicationsManagerFileSockets::getPetition()
     clilen = sizeof( cli_addr );
 
     newsockfd = accept(sockfd, (struct sockaddr*)&cli_addr, &clilen);
-
+    if (fcntl(newsockfd, F_SETFD, FD_CLOEXEC) == -1)
+    {
+        LOG_err << "ERROR setting CLOEXEC to socket: " << errno;
+    }
     if (newsockfd < 0)
     {
         if (errno == EMFILE)
@@ -490,8 +574,14 @@ int ComunicationsManagerFileSockets::getConfirmation(CmdPetition *inf, string me
     socklen_t cliLength = sizeof( cliAddr );
     int connectedsocket = ((CmdPetitionPosixSockets *)inf)->acceptedOutSocket;
     if (connectedsocket == -1)
+    {
         connectedsocket = accept(((CmdPetitionPosixSockets *)inf)->outSocket, (struct sockaddr*)&cliAddr, &cliLength);
-     ((CmdPetitionPosixSockets *)inf)->acceptedOutSocket = connectedsocket;
+        if (fcntl(connectedsocket, F_SETFD, FD_CLOEXEC) == -1)
+        {
+            LOG_err << "ERROR setting CLOEXEC to socket: " << errno;
+        }
+    }
+    ((CmdPetitionPosixSockets *)inf)->acceptedOutSocket = connectedsocket;
     if (connectedsocket == -1)
     {
         LOG_fatal << "Getting Confirmation: Unable to accept on outsocket " << ((CmdPetitionPosixSockets *)inf)->outSocket << " error: " << errno;
@@ -523,8 +613,14 @@ string ComunicationsManagerFileSockets::getUserResponse(CmdPetition *inf, string
     socklen_t cliLength = sizeof( cliAddr );
     int connectedsocket = ((CmdPetitionPosixSockets *)inf)->acceptedOutSocket;
     if (connectedsocket == -1)
+    {
         connectedsocket = accept(((CmdPetitionPosixSockets *)inf)->outSocket, (struct sockaddr*)&cliAddr, &cliLength);
-     ((CmdPetitionPosixSockets *)inf)->acceptedOutSocket = connectedsocket;
+        if (fcntl(connectedsocket, F_SETFD, FD_CLOEXEC) == -1)
+        {
+            LOG_err << "ERROR setting CLOEXEC to socket: " << errno;
+        }
+    }
+    ((CmdPetitionPosixSockets *)inf)->acceptedOutSocket = connectedsocket;
     if (connectedsocket == -1)
     {
         LOG_fatal << "Getting Confirmation: Unable to accept on outsocket " << ((CmdPetitionPosixSockets *)inf)->outSocket << " error: " << errno;
@@ -570,4 +666,5 @@ string ComunicationsManagerFileSockets::get_petition_details(CmdPetition *inf)
 ComunicationsManagerFileSockets::~ComunicationsManagerFileSockets()
 {
     delete mtx;
+    delete informerMutex;
 }

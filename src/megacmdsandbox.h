@@ -2,7 +2,7 @@
  * @file src/megacmdsandbox.h
  * @brief MegaCMD: A sandbox class to store status variables
  *
- * (c) 2013-2016 by Mega Limited, Auckland, New Zealand
+ * (c) 2013 by Mega Limited, Auckland, New Zealand
  *
  * This file is part of the MEGAcmd.
  *
@@ -34,12 +34,18 @@ public:
     ::mega::m_time_t lastQuerytemporalBandwith;
     ::mega::m_time_t timeOfOverquota;
     ::mega::m_time_t secondsOverQuota;
+
+    ::mega::m_time_t timeOfPSACheck;
+    int lastPSAnumreceived;
+
     bool accounthasbeenblocked;
     std::string reasonblocked;
+    int storageStatus;
 public:
     MegaCmdSandbox();
     bool isOverquota() const;
     void setOverquota(bool value);
+    void resetSandBox();
 };
 
 #endif // MEGACMDSANDBOX_H

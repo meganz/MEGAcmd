@@ -2,7 +2,7 @@
  * @file src/comunicationsmanagerportnamedPipes.h
  * @brief MegaCMD: Communications manager using Network NamedPipes
  *
- * (c) 2013-2016 by Mega Limited, Auckland, New Zealand
+ * (c) 2013 by Mega Limited, Auckland, New Zealand
  *
  * This file is part of the MEGAcmd.
  *
@@ -58,6 +58,7 @@ private:
     // to get next namedPipe id
     int count;
     mega::MegaMutex *mtx;
+    mega::MegaMutex *informerMutex;
 
     /**
      * @brief create_new_namedPipe
@@ -86,6 +87,11 @@ public:
      * I will clean struct and close the namedPipe within
      */
     void returnAndClosePetition(CmdPetition *inf, OUTSTRINGSTREAM *s, int);
+
+    void sendPartialOutput(CmdPetition *inf, OUTSTRING *s);
+
+    void sendPartialOutput(CmdPetition *inf, char *s, size_t size);
+
 
     int informStateListener(CmdPetition *inf, std::string &s);
 

@@ -2,7 +2,7 @@
  * @file src/megacmdshellcommunicationsnamedpipes.cpp
  * @brief MEGAcmd: Communications module to connect to server using NamedPipes
  *
- * (c) 2013-2017 by Mega Limited, Auckland, New Zealand
+ * (c) 2013 by Mega Limited, Auckland, New Zealand
  *
  * This file is part of the MEGAcmd.
  *
@@ -459,6 +459,7 @@ MegaCmdShellCommunicationsNamedPipes::MegaCmdShellCommunicationsNamedPipes()
 
     stopListener = false;
     listenerThread = NULL;
+    redirectedstdout = false;
 }
 
 int MegaCmdShellCommunicationsNamedPipes::executeCommandW(wstring wcommand, string (*readresponse)(const char *), OUTSTREAMTYPE &output, bool interactiveshell)
@@ -557,57 +558,121 @@ int MegaCmdShellCommunicationsNamedPipes::executeCommand(string command, std::st
         return -1;
     }
 
-    while (outcode == MCMD_REQCONFIRM || outcode == MCMD_REQSTRING )
+    bool binaryoutput = !wcommand.compare(0, 3, L"cat") && redirectedstdout;
+
+    while (outcode == MCMD_REQCONFIRM || outcode == MCMD_REQSTRING || outcode == MCMD_PARTIALOUT)
     {
-        int BUFFERSIZE = 1024;
-        string confirmQuestion;
-        char bufferQuestion[1025];
-        memset(bufferQuestion,'\0',1025);
-        BOOL readok;
-        do{
-            readok = ReadFile(newNamedPipe, bufferQuestion, BUFFERSIZE, &n, NULL);
-            confirmQuestion.append(bufferQuestion);
-        } while(n == BUFFERSIZE && readok);
-
-        if (!readok)
+        if (outcode == MCMD_PARTIALOUT)
         {
-            cerr << "ERROR reading confirm question: " << ERRNO << endl;
-        }
-
-        if (outcode == MCMD_REQCONFIRM)
-        {
-            int response = MCMDCONFIRM_NO;
-
-            if (readresponse != NULL)
+            size_t partialoutsize;
+            if (!ReadFile(newNamedPipe, (char *)&partialoutsize, sizeof(partialoutsize),&n, NULL))
             {
-                response = readconfirmationloop(confirmQuestion.c_str(), readresponse);
-            }
-
-            if (!WriteFile(newNamedPipe, (const char *) &response, sizeof(response), &n, NULL))
-            {
-                cerr << "ERROR writing confirm response to namedPipe: " << ERRNO << endl;
+                std:cerr << "Error reading size of partial output: " << ERRNO << std::endl;
                 return -1;
             }
-        }
-        else // MCMD_REQSTRING
-        {
-            string response = "FAILED";
 
-            if (readresponse != NULL)
+
+            if (partialoutsize > 0)
             {
-                response = readresponse(confirmQuestion.c_str());
+                megaCmdStdoutputing.lock();
+                int oldmode;
+
+                if (binaryoutput)
+                {
+                    oldmode = _setmode(_fileno(stdout), O_BINARY);
+                }
+
+                size_t BUFFERSIZE = 10024;
+                char buffer[10025];
+                do{
+                    BOOL readok;
+                    readok = ReadFile(newNamedPipe, buffer, min(BUFFERSIZE,partialoutsize),&n,NULL);
+                    if (readok)
+                    {
+
+                        if (binaryoutput)
+                        {
+                            std::cout << string(buffer,n) << flush;
+                        }
+                        else
+                        {
+                            buffer[n]='\0';
+
+                            wstring wbuffer;
+                            stringtolocalw((const char*)&buffer,&wbuffer);
+                            int oldmode;
+                            oldmode = _setmode(_fileno(stdout), _O_U8TEXT);
+                            output << wbuffer << flush;
+                            _setmode(_fileno(stdout), oldmode);
+                        }
+                        partialoutsize-=n;
+                    }
+                } while(n != 0 && partialoutsize && n !=SOCKET_ERROR);
+
+                if (binaryoutput)
+                {
+                    _setmode(_fileno(stdout), oldmode);
+                }
+                megaCmdStdoutputing.unlock();
             }
-
-            wstring wresponse;
-            stringtolocalw(response.c_str(),&wresponse);
-            if (!WriteFile(newNamedPipe, (char *) wresponse.data(), DWORD(wcslen(wresponse.c_str())*sizeof(wchar_t)), &n, NULL))
+            else
             {
-                cerr << "ERROR writing confirm response to namedPipe: " << ERRNO << endl;
+                cerr << "Invalid size of partial output: " << partialoutsize << endl;
                 return -1;
             }
+
         }
+        else
+        {
 
+            int BUFFERSIZE = 1024;
+            string confirmQuestion;
+            char bufferQuestion[1025];
+            memset(bufferQuestion,'\0',1025);
+            BOOL readok;
+            do{
+                readok = ReadFile(newNamedPipe, bufferQuestion, BUFFERSIZE, &n, NULL);
+                confirmQuestion.append(bufferQuestion);
+            } while(n == BUFFERSIZE && readok);
 
+            if (!readok)
+            {
+                cerr << "ERROR reading confirm question: " << ERRNO << endl;
+            }
+
+            if (outcode == MCMD_REQCONFIRM)
+            {
+                int response = MCMDCONFIRM_NO;
+
+                if (readresponse != NULL)
+                {
+                    response = readconfirmationloop(confirmQuestion.c_str(), readresponse);
+                }
+
+                if (!WriteFile(newNamedPipe, (const char *) &response, sizeof(response), &n, NULL))
+                {
+                    cerr << "ERROR writing confirm response to namedPipe: " << ERRNO << endl;
+                    return -1;
+                }
+            }
+            else // MCMD_REQSTRING
+            {
+                string response = "FAILED";
+
+                if (readresponse != NULL)
+                {
+                    response = readresponse(confirmQuestion.c_str());
+                }
+
+                wstring wresponse;
+                stringtolocalw(response.c_str(),&wresponse);
+                if (!WriteFile(newNamedPipe, (char *) wresponse.data(), DWORD(wcslen(wresponse.c_str())*sizeof(wchar_t)), &n, NULL))
+                {
+                    cerr << "ERROR writing confirm response to namedPipe: " << ERRNO << endl;
+                    return -1;
+                }
+            }
+        }
         if (!ReadFile(newNamedPipe, (char *)&outcode, sizeof(outcode),&n, NULL))
         {
             cerr << "ERROR reading output code: " << ERRNO << endl;
@@ -634,10 +699,11 @@ int MegaCmdShellCommunicationsNamedPipes::executeCommand(string command, std::st
                 // in unusable output, So we disable the UTF-16 in such cases (this might cause that the output could be truncated!).
 //                oldmode = _setmode(_fileno(stdout), _O_U16TEXT);
 //            }
-
+            megaCmdStdoutputing.lock();
             oldmode = _setmode(_fileno(stdout), _O_U8TEXT);
             output << wbuffer << flush;
             _setmode(_fileno(stdout), oldmode);
+            megaCmdStdoutputing.unlock();
 
 //            if (interactiveshell || outputtobinaryorconsole() || true)
 //            {
@@ -713,7 +779,7 @@ int MegaCmdShellCommunicationsNamedPipes::listenToStateChanges(int receiveNamedP
         {
             if (ERRNO == ERROR_BROKEN_PIPE)
             {
-                if (!stopListener)
+                if (!stopListener && !updating)
                 {
                     cerr << "ERROR reading output (state change): The sever problably exited."<< endl;
                 }

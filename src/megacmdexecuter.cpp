@@ -2,7 +2,7 @@
  * @file src/megacmdexecuter.cpp
  * @brief MEGAcmd: Executer of the commands
  *
- * (c) 2013-2016 by Mega Limited, Auckland, New Zealand
+ * (c) 2013 by Mega Limited, Auckland, New Zealand
  *
  * This file is part of the MEGAcmd.
  *
@@ -33,6 +33,23 @@
 #include <set>
 
 #include <signal.h>
+
+
+#if (__cplusplus >= 201700L)
+    #include <filesystem>
+    namespace fs = std::filesystem;
+    #define MEGACMDEXECUTER_FILESYSTEM
+#elif !defined(__MINGW32__) && !defined(__ANDROID__) && ( (__cplusplus >= 201100L) || (defined(_MSC_VER) && _MSC_VER >= 1600) )
+#define MEGACMDEXECUTER_FILESYSTEM
+#ifdef WIN32
+    #include <filesystem>
+    namespace fs = std::experimental::filesystem;
+#else
+    #include <experimental/filesystem>
+    namespace fs = std::experimental::filesystem;
+#endif
+#endif
+
 
 using namespace mega;
 using namespace std;
@@ -824,6 +841,70 @@ void MegaCmdExecuter::getPathParts(string path, deque<string> *c)
     } while (path.size());
 }
 
+bool MegaCmdExecuter::checkAndInformPSA(CmdPetition *inf, bool enforce)
+{
+    bool toret = false;
+    m_time_t now = m_time();
+    if ( enforce || (now - sandboxCMD->timeOfPSACheck > 86400) )
+    {
+        sandboxCMD->timeOfPSACheck = now;
+
+        LOG_verbose << "Getting PSA";
+        MegaCmdListener *megaCmdListener = new MegaCmdListener(api, NULL);
+        api->getPSA(megaCmdListener);
+        megaCmdListener->wait();
+        if (megaCmdListener->getError()->getErrorCode() == MegaError::API_ENOENT)
+        {
+            LOG_verbose << "No new PSA available";
+            sandboxCMD->lastPSAnumreceived = max(0,sandboxCMD->lastPSAnumreceived);
+        }
+        else if(checkNoErrors(megaCmdListener->getError(), "get PSA"))
+        {
+            sandboxCMD->lastPSAnumreceived = megaCmdListener->getRequest()->getNumber();
+
+            LOG_debug << "Informing PSA #" << megaCmdListener->getRequest()->getNumber() << ": " << megaCmdListener->getRequest()->getName();
+
+            stringstream oss;
+
+            oss << "<" << megaCmdListener->getRequest()->getName() << ">";
+            oss << megaCmdListener->getRequest()->getText();
+
+            string action = megaCmdListener->getRequest()->getPassword();
+            string link = megaCmdListener->getRequest()->getLink();
+            if (!action.length())
+            {
+                action = "read more: ";
+            }
+
+            if (link.size())
+            {
+                oss << endl << action << ": " << link;
+            }
+
+            oss << endl << " Execute \"psa --discard\" to stop seeing this message";
+
+            if (inf)
+            {
+                informStateListener(oss.str(), inf->clientID);
+            }
+            else
+            {
+                broadcastMessage(oss.str());
+            }
+            toret = true;
+        }
+        delete megaCmdListener;
+    }
+    return toret;
+}
+
+
+bool MegaCmdExecuter::checkNoErrors(int errorCode, string message)
+{
+    MegaError e(errorCode);
+    return checkNoErrors(&e, message);
+}
+
 bool MegaCmdExecuter::checkNoErrors(MegaError *error, string message)
 {
     if (!error)
@@ -840,6 +921,12 @@ bool MegaCmdExecuter::checkNoErrors(MegaError *error, string message)
     if (error->getErrorCode() == MegaError::API_EBLOCKED)
     {
         LOG_err << "Failed to " << message << ". Account blocked. Reason: " << sandboxCMD->reasonblocked;
+    }
+    else if (error->getErrorCode() == MegaError::API_EOVERQUOTA && sandboxCMD->storageStatus == MegaApi::STORAGE_STATE_RED)
+    {
+        LOG_err << "Failed to " << message << ": Reached storage quota. "
+                         "You can change your account plan to increase your quota limit. "
+                         "See \"help --upgrade\" for further details";
     }
     else
     {
@@ -899,7 +986,7 @@ vector <MegaNode*> * MegaCmdExecuter::nodesbypath(const char* ptr, bool usepcre,
     return nodesMatching;
 }
 
-void MegaCmdExecuter::dumpNode(MegaNode* n, int extended_info, bool showversions, int depth, const char* title)
+void MegaCmdExecuter::dumpNode(MegaNode* n, const char *timeFormat, int extended_info, bool showversions, int depth, const char* title)
 {
     if (!title && !( title = n->getName()))
     {
@@ -957,7 +1044,7 @@ void MegaCmdExecuter::dumpNode(MegaNode* n, int extended_info, bool showversions
                             {
                                 OUTSTREAM << " expires at ";
                             }
-                            OUTSTREAM << " at " << getReadableTime(n->getExpirationTime());
+                            OUTSTREAM << " at " << getReadableTime(n->getExpirationTime(), timeFormat);
                         }
                         delete []publicLink;
                     }
@@ -1068,7 +1155,7 @@ void MegaCmdExecuter::dumpNode(MegaNode* n, int extended_info, bool showversions
                     {
                         OUTSTREAM << "[" << (versionNode->getName()?versionNode->getName():"NO_NAME") << "]";
                     }
-                    OUTSTREAM << " (" << getReadableTime(versionNode->getModificationTime()) << ")";
+                    OUTSTREAM << " (" << getReadableTime(versionNode->getModificationTime(), timeFormat) << ")";
                     if (extended_info)
                     {
                         OUTSTREAM << " (" << sizeToText(versionNode->getSize(), false) << ")";
@@ -1080,21 +1167,23 @@ void MegaCmdExecuter::dumpNode(MegaNode* n, int extended_info, bool showversions
     }
 }
 
-void MegaCmdExecuter::dumpNodeSummaryHeader()
+void MegaCmdExecuter::dumpNodeSummaryHeader(const char *timeFormat)
 {
+    int datelength = getReadableTime(m_time(), timeFormat).size();
+
     OUTSTREAM << "FLAGS";
     OUTSTREAM << " ";
     OUTSTREAM << getFixLengthString("VERS", 4);
     OUTSTREAM << " ";
     OUTSTREAM << getFixLengthString("SIZE  ", 10 -1, ' ', true); //-1 because of "FLAGS"
     OUTSTREAM << " ";
-    OUTSTREAM << getFixLengthString("DATE      ", 18, ' ', true);
+    OUTSTREAM << getFixLengthString("DATE      ", datelength+1, ' ', true);
     OUTSTREAM << " ";
     OUTSTREAM << "NAME";
     OUTSTREAM << endl;
 }
 
-void MegaCmdExecuter::dumpNodeSummary(MegaNode *n, bool humanreadable, const char *title)
+void MegaCmdExecuter::dumpNodeSummary(MegaNode *n, const char *timeFormat, bool humanreadable, const char *title)
 {
     if (!title && !( title = n->getName()))
     {
@@ -1195,11 +1284,11 @@ void MegaCmdExecuter::dumpNodeSummary(MegaNode *n, bool humanreadable, const cha
 
     if (n->isFile())
     {
-        OUTSTREAM << " " << getReadableShortTime(n->getModificationTime());
+        OUTSTREAM << " " << getReadableTime(n->getModificationTime(), timeFormat);
     }
     else
     {
-        OUTSTREAM << " " << getReadableShortTime(n->getCreationTime());
+        OUTSTREAM << " " << getReadableTime(n->getCreationTime(), timeFormat);
     }
 
 
@@ -1325,15 +1414,29 @@ void MegaCmdExecuter::createOrModifyBackup(string local, string remote, string s
 }
 #endif
 
-void MegaCmdExecuter::dumptree(MegaNode* n, int recurse, int extended_info, bool showversions, int depth, string pathRelativeTo)
+void MegaCmdExecuter::printTreeSuffix(int depth, vector<bool> &lastleaf)
+{
+    for (int i = 0; i < depth-1; i++)
+    {
+        OUTSTREAM << (lastleaf.at(i)?" ":"\u2502") << "   ";
+    }
+    if (lastleaf.size())
+    {
+        OUTSTREAM << (lastleaf.back()?"\u2514":"\u251c") << "\u2500\u2500 ";
+    }
+}
+
+void MegaCmdExecuter::dumptree(MegaNode* n, bool treelike, vector<bool> &lastleaf, const char *timeFormat, int recurse, int extended_info, bool showversions, int depth, string pathRelativeTo)
 {
     if (depth || ( n->getType() == MegaNode::TYPE_FILE ))
     {
+        if (treelike) printTreeSuffix(depth, lastleaf);
+
         if (pathRelativeTo != "NULL")
         {
             if (!n->getName())
             {
-                dumpNode(n, extended_info, showversions, depth, "CRYPTO_ERROR");
+                dumpNode(n, timeFormat, extended_info, showversions, treelike?0:depth, "CRYPTO_ERROR");
             }
             else
             {
@@ -1358,14 +1461,14 @@ void MegaCmdExecuter::dumptree(MegaNode* n, int recurse, int extended_info, bool
                     pathToShow = nodepath;
                 }
 
-                dumpNode(n, extended_info, showversions, depth, pathToShow);
+                dumpNode(n, timeFormat, extended_info, showversions, treelike?0:depth, pathToShow);
 
                 delete []nodepath;
             }
         }
         else
         {
-                dumpNode(n, extended_info, showversions, depth);
+                dumpNode(n, timeFormat, extended_info, showversions, treelike?0:depth);
         }
 
         if (!recurse && depth)
@@ -1381,7 +1484,9 @@ void MegaCmdExecuter::dumptree(MegaNode* n, int recurse, int extended_info, bool
         {
             for (int i = 0; i < children->size(); i++)
             {
-                dumptree(children->get(i), recurse, extended_info, showversions, depth + 1);
+                vector<bool> lfs = lastleaf;
+                lfs.push_back(i==(children->size()-1));
+                dumptree(children->get(i), treelike, lfs, timeFormat, recurse, extended_info, showversions, depth + 1);
             }
 
             delete children;
@@ -1389,7 +1494,7 @@ void MegaCmdExecuter::dumptree(MegaNode* n, int recurse, int extended_info, bool
     }
 }
 
-void MegaCmdExecuter::dumpTreeSummary(MegaNode *n, int recurse, bool show_versions, int depth, bool humanreadable, string pathRelativeTo)
+void MegaCmdExecuter::dumpTreeSummary(MegaNode *n, const char *timeFormat, int recurse, bool show_versions, int depth, bool humanreadable, string pathRelativeTo)
 {
     char * nodepath = api->getNodePath(n);
 
@@ -1436,7 +1541,7 @@ void MegaCmdExecuter::dumpTreeSummary(MegaNode *n, int recurse, bool show_versio
 
             for (int i = 0; i < children->size(); i++)
             {
-                dumpNodeSummary(children->get(i), humanreadable);
+                dumpNodeSummary(children->get(i), timeFormat, humanreadable);
             }
 
             if (show_versions)
@@ -1452,7 +1557,7 @@ void MegaCmdExecuter::dumpTreeSummary(MegaNode *n, int recurse, bool show_versio
 
                         for (int i = 0; i < vers->size(); i++)
                         {
-                            dumpNodeSummary(vers->get(i), humanreadable);
+                            dumpNodeSummary(vers->get(i), timeFormat, humanreadable);
                         }
                     }
                     delete vers;
@@ -1464,7 +1569,7 @@ void MegaCmdExecuter::dumpTreeSummary(MegaNode *n, int recurse, bool show_versio
                 for (int i = 0; i < children->size(); i++)
                 {
                     MegaNode *c = children->get(i);
-                    dumpTreeSummary(c, recurse, show_versions, depth + 1, humanreadable);
+                    dumpTreeSummary(c, timeFormat, recurse, show_versions, depth + 1, humanreadable);
                 }
             }
             delete children;
@@ -1475,7 +1580,7 @@ void MegaCmdExecuter::dumpTreeSummary(MegaNode *n, int recurse, bool show_versio
         if (!depth)
         {
 
-            dumpNodeSummary(n, humanreadable);
+            dumpNodeSummary(n, timeFormat, humanreadable);
 
             if (show_versions)
             {
@@ -1487,7 +1592,7 @@ void MegaCmdExecuter::dumpTreeSummary(MegaNode *n, int recurse, bool show_versio
                     for (int i = 0; i < vers->size(); i++)
                     {
                         string nametoshow = n->getName()+string("#")+SSTR(vers->get(i)->getModificationTime());
-                        dumpNodeSummary(vers->get(i), humanreadable, nametoshow.c_str() );
+                        dumpNodeSummary(vers->get(i), timeFormat, humanreadable, nametoshow.c_str() );
                     }
                 }
                 delete vers;
@@ -1657,7 +1762,7 @@ string MegaCmdExecuter::getDisplayPath(string givenPath, MegaNode* n)
     return toret;
 }
 
-int MegaCmdExecuter::dumpListOfExported(MegaNode* n, string givenPath)
+int MegaCmdExecuter::dumpListOfExported(MegaNode* n, const char *timeFormat, string givenPath)
 {
     int toret = 0;
     vector<MegaNode *> listOfExported;
@@ -1668,7 +1773,7 @@ int MegaCmdExecuter::dumpListOfExported(MegaNode* n, string givenPath)
         if (n)
         {
             string pathToShow = getDisplayPath(givenPath, n);
-            dumpNode(n, 2, 1, false, pathToShow.c_str());
+            dumpNode(n, timeFormat, 2, 1, false, pathToShow.c_str());
 
             delete n;
         }
@@ -1690,7 +1795,7 @@ void MegaCmdExecuter::listnodeshares(MegaNode* n, string name)
     {
         for (int i = 0; i < outShares->size(); i++)
         {
-            OUTSTREAM << name ? name : n->getName();
+            OUTSTREAM << (name.size() ? name : n->getName());
 
             if (outShares->get(i))
             {
@@ -1733,7 +1838,7 @@ void MegaCmdExecuter::dumpListOfShared(MegaNode* n, string givenPath)
 }
 
 //includes pending and normal shares
-void MegaCmdExecuter::dumpListOfAllShared(MegaNode* n, string givenPath)
+void MegaCmdExecuter::dumpListOfAllShared(MegaNode* n, const char *timeFormat, string givenPath)
 {
     vector<MegaNode *> listOfShared;
     processTree(n, includeIfIsSharedOrPendingOutShare, (void*)&listOfShared);
@@ -1743,7 +1848,7 @@ void MegaCmdExecuter::dumpListOfAllShared(MegaNode* n, string givenPath)
         if (n)
         {
             string pathToShow = getDisplayPath(givenPath, n);
-            dumpNode(n, 3, false, 1, pathToShow.c_str());
+            dumpNode(n, timeFormat, 3, false, 1, pathToShow.c_str());
             //notice: some nodes may be dumped twice
 
             delete n;
@@ -1753,7 +1858,7 @@ void MegaCmdExecuter::dumpListOfAllShared(MegaNode* n, string givenPath)
     listOfShared.clear();
 }
 
-void MegaCmdExecuter::dumpListOfPendingShares(MegaNode* n, string givenPath)
+void MegaCmdExecuter::dumpListOfPendingShares(MegaNode* n, const char *timeFormat, string givenPath)
 {
     vector<MegaNode *> listOfShared;
     processTree(n, includeIfIsPendingOutShare, (void*)&listOfShared);
@@ -1764,7 +1869,7 @@ void MegaCmdExecuter::dumpListOfPendingShares(MegaNode* n, string givenPath)
         if (n)
         {
             string pathToShow = getDisplayPath(givenPath, n);
-            dumpNode(n, 3, false, 1, pathToShow.c_str());
+            dumpNode(n, timeFormat, 3, false, 1, pathToShow.c_str());
 
             delete n;
         }
@@ -1777,14 +1882,13 @@ void MegaCmdExecuter::dumpListOfPendingShares(MegaNode* n, string givenPath)
 void MegaCmdExecuter::loginWithPassword(char *password)
 {
     MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
-    sandboxCMD->accounthasbeenblocked = false;
+    sandboxCMD->resetSandBox();
     api->login(login.c_str(), password, megaCmdListener);
     actUponLogin(megaCmdListener);
     delete megaCmdListener;
 }
 
-
-void MegaCmdExecuter::changePassword(const char *newpassword)
+void MegaCmdExecuter::changePassword(const char *newpassword, string pin2fa)
 {
     MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
     api->changePassword(NULL, newpassword, megaCmdListener);
@@ -1793,7 +1897,10 @@ void MegaCmdExecuter::changePassword(const char *newpassword)
     if (megaCmdListener->getError()->getErrorCode() == MegaError::API_EMFAREQUIRED)
     {
         MegaCmdListener *megaCmdListener2 = new MegaCmdListener(NULL);
-        string pin2fa = askforUserResponse("Enter the code generated by your authentication app: ");
+        if (!pin2fa.size())
+        {
+            pin2fa = askforUserResponse("Enter the code generated by your authentication app: ");
+        }
         LOG_verbose << " Using confirmation pin: " << pin2fa;
         api->multiFactorAuthChangePassword(NULL, newpassword, pin2fa.c_str(), megaCmdListener2);
         megaCmdListener2->wait();
@@ -1851,7 +1958,7 @@ void MegaCmdExecuter::actUponGetExtendedAccountDetails(SynchronousRequestListene
         MegaAccountDetails *details = srl->getRequest()->getMegaAccountDetails();
         if (details)
         {
-            OUTSTREAM << "    Available storage:"
+            OUTSTREAM << "    Available storage: "
                       << getFixLengthString(sizeToText(details->getStorageMax()), 9, ' ', true)
                       << "ytes" << endl;
             MegaNode *n = api->getRootNode();
@@ -1896,8 +2003,10 @@ void MegaCmdExecuter::actUponGetExtendedAccountDetails(SynchronousRequestListene
                 for (int i = 0; i < inshares->size(); i++)
                 {
                     n = inshares->get(i);
-                    OUTSTREAM << "        In INSHARE " << n->getName() << ": " << details->getStorageUsed(n->getHandle()) << " byte(s) in "
-                              << details->getNumFiles(n->getHandle()) << " file(s) and " << details->getNumFolders(n->getHandle()) << " folder(s)" << endl;
+                    OUTSTREAM << "        In INSHARE " << n->getName() << ": "
+                              << getFixLengthString(sizeToText(details->getStorageUsed(n->getHandle())), 9, ' ', true) << "ytes in "
+                              << getFixLengthString(SSTR(details->getNumFiles(n->getHandle())),5,' ',true) << " file(s) and "
+                              << getFixLengthString(SSTR(details->getNumFolders(n->getHandle())),5,' ',true) << " folder(s)" << endl;
                 }
             }
             delete inshares;
@@ -2060,6 +2169,7 @@ int MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
     }
 
     LOG_debug << "actUponLogin login";
+    setCurrentOutCode(srl->getError()->getErrorCode());
 
     if (srl->getRequest()->getEmail())
     {
@@ -2143,6 +2253,19 @@ int MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
             LOG_info << "Login complete as " << u->getEmail();
             delete u;
         }
+
+        if (ConfigurationManager::getConfigurationValue("ask4storage", true))
+        {
+            ConfigurationManager::savePropertyValue("ask4storage",false);
+            MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
+            api->getAccountDetails(megaCmdListener);
+            megaCmdListener->wait();
+            // we don't call getAccountDetails on startup always: we ask on first login (no "ask4storage") or previous state was STATE_RED | STATE_ORANGE
+            // if we were green, don't need to ask: if there are changes they will be received via action packet indicating STATE_CHANGE
+        }
+
+        checkAndInformPSA(NULL); // this needs broacasting in case there's another Shell running.
+                                 // no need to enforce, because time since last check should has been restored
 
 #ifdef ENABLE_BACKUPS
         mtxBackupsMap.lock();
@@ -2317,13 +2440,35 @@ int MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
     {
         if (megaCmdListener->getRequest()->getNumber() != MEGACMD_CODE_VERSION)
         {
+
             OUTSTREAM << "---------------------------------------------------------------------" << endl;
-            OUTSTREAM << "--        There is a new version available of megacmd: " << setw(12) << left << megaCmdListener->getRequest()->getName() << "--" << endl;
-            OUTSTREAM << "--        Please, download it from https://mega.nz/cmd             --" << endl;
+            OUTSTREAM << "--        There is a new version available of megacmd: " << getLeftAlignedStr(megaCmdListener->getRequest()->getName(),12) << "--" << endl;
+            OUTSTREAM << "--        Please, update this one: See \"update --help\".          --" << endl;
+            OUTSTREAM << "--        Or download the latest from https://mega.nz/cmd          --" << endl;
             OUTSTREAM << "---------------------------------------------------------------------" << endl;
         }
     }
     delete megaCmdListener;
+
+    //this goes here in case server is launched directly and thus we ensure that's shown at the beginning
+    int autoupdate = ConfigurationManager::getConfigurationValue("autoupdate", -1);
+    bool enabledupdaterhere = false;
+    if (autoupdate == -1 || autoupdate == 2)
+    {
+        OUTSTREAM << "ENABLING AUTOUPDATE BY DEFAULT. You can disable it with \"update --auto=off\"" << endl;
+        autoupdate = 1;
+        enabledupdaterhere = true;
+    }
+
+    if (autoupdate >= 1)
+    {
+        startcheckingForUpdates();
+    }
+    if (enabledupdaterhere)
+    {
+        ConfigurationManager::savePropertyValue("autoupdate", 2); //save to special value to indicate first listener that it is enabled
+    }
+
 #endif
     return srl->getError()->getErrorCode();
 }
@@ -2764,6 +2909,19 @@ void MegaCmdExecuter::uploadNode(string path, MegaApi* api, MegaNode *node, stri
 //            }
 //        }
     }
+
+    string locallocal;
+    fsAccessCMD->path2local(&path, &locallocal);
+    FileAccess *fa = fsAccessCMD->newfileaccess();
+    if (!fa->fopen(&locallocal, true, false))
+    {
+        setCurrentOutCode(MCMD_NOTFOUND);
+        LOG_err << "Unable to open local path: " << path;
+        delete fa;
+        return;
+    }
+    delete fa;
+
     MegaCmdTransferListener *megaCmdTransferListener = NULL;
     if (!background)
     {
@@ -3196,6 +3354,133 @@ vector<string> MegaCmdExecuter::listpaths(bool usepcre, string askedPath, bool d
     return paths;
 }
 
+#ifdef _WIN32
+//TODO: try to use these functions from somewhere else
+static std::wstring toUtf16String(const std::string& s, UINT codepage = CP_UTF8)
+{
+    std::wstring ws;
+    ws.resize(s.size() + 1);
+    int nwchars = MultiByteToWideChar(codepage, 0, s.data(), int(s.size()), (LPWSTR)ws.data(), int(ws.size()));
+    ws.resize(nwchars);
+    return ws;
+}
+
+std::string toUtf8String(const std::wstring& ws, UINT codepage = CP_UTF8)
+{
+    std::string s;
+    s.resize((ws.size() + 1) * 4);
+    int nchars = WideCharToMultiByte(codepage, 0, ws.data(), int(ws.size()), (LPSTR)s.data(), int(s.size()), NULL, NULL);
+    s.resize(nchars);
+    return s;
+}
+
+
+bool replaceW(std::wstring& str, const std::wstring& from, const std::wstring& to)
+{
+    size_t start_pos = str.find(from);
+    if (start_pos == std::wstring::npos)
+    {
+        return false;
+    }
+    str.replace(start_pos, from.length(), to);
+    return true;
+}
+#endif
+
+vector<string> MegaCmdExecuter::listlocalpathsstartingby(string askedPath, bool discardFiles)
+{
+    vector<string> paths;
+
+#ifdef WIN32
+    string actualaskedPath = fs::u8path(askedPath).u8string();
+    char sep = (!askedPath.empty() && askedPath.find('/') != string::npos ) ?'/':'\\';
+    size_t postlastsep = actualaskedPath.find_last_of("/\\");
+#else
+    string actualaskedPath = askedPath;
+    char sep = '/';
+    size_t postlastsep = actualaskedPath.find_last_of(sep);
+#endif
+
+    if (postlastsep == 0) postlastsep++; // absolute paths
+    string containingfolder = postlastsep == string::npos ? string() : actualaskedPath.substr(0, postlastsep);
+
+    bool removeprefix = false;
+    bool requiresseparatorafterunit = false;
+    if (!containingfolder.size())
+    {
+        containingfolder = ".";
+        removeprefix= true;
+    }
+#ifdef WIN32
+    else if (containingfolder.find(":") == 1 && (containingfolder.size() < 3 || ( containingfolder.at(2) != '/' && containingfolder.at(2) != '\\')))
+    {
+        requiresseparatorafterunit = true;
+    }
+#endif
+
+#ifdef MEGACMDEXECUTER_FILESYSTEM
+    for (fs::directory_iterator iter(fs::u8path(containingfolder)); iter != fs::directory_iterator(); ++iter)
+    {
+        if (!discardFiles || iter->status().type() == fs::file_type::directory)
+        {
+#ifdef _WIN32
+            wstring path = iter->path().wstring();
+#else
+            string path = iter->path().string();
+#endif
+            if (removeprefix) path = path.substr(2);
+            if (requiresseparatorafterunit) path.insert(2, 1, sep);
+            if (iter->status().type() == fs::file_type::directory)
+            {
+                path.append(1, sep);
+            }
+#ifdef _WIN32
+                // try to mimic the exact startup of the asked path to allow mix of '\' & '/'
+                fs::path paskedpath = fs::u8path(askedPath);
+                paskedpath.make_preferred();
+                wstring toreplace = paskedpath.wstring();
+                if (path.find(toreplace) == 0)
+                {
+                    replaceW(path, toreplace, toUtf16String(askedPath));
+                }
+#endif
+#ifdef _WIN32
+            paths.push_back(toUtf8String(path));
+#else
+            paths.push_back(path);
+#endif
+
+        }
+    }
+
+#elif defined(HAVE_DIRENT_H)
+    DIR *dir;
+    if ((dir = opendir (containingfolder.c_str())) != NULL)
+    {
+        struct dirent *entry;
+        while ((entry = readdir (dir)) != NULL)
+        {
+            if (!discardFiles || entry->d_type == DT_DIR)
+            {
+                string path = containingfolder;
+                if (path != "/")
+                    path.append(1, sep);
+                path.append(entry->d_name);
+                if (removeprefix) path = path.substr(2);
+                if (path.size() && entry->d_type == DT_DIR)
+                {
+                    path.append(1, sep);
+                }
+                paths.push_back(path);
+            }
+        }
+
+        closedir(dir);
+    }
+#endif
+    return paths;
+}
+
 vector<string> MegaCmdExecuter::getlistusers()
 {
     vector<string> users;
@@ -3239,10 +3524,23 @@ vector<string> MegaCmdExecuter::getNodeAttrs(string nodePath)
 vector<string> MegaCmdExecuter::getUserAttrs()
 {
     vector<string> attrs;
-    for (int i=0;i < 10; i++)
+    int i = 0;
+    do
     {
-        attrs.push_back(getAttrStr(i) );
-    }
+        const char *catrn;// = api->userAttributeToString(i);
+        if (strlen(catrn))
+        {
+            attrs.push_back(catrn);
+        }
+        else
+        {
+            delete [] catrn;
+            break;
+        }
+        delete [] catrn;
+        i++;
+    } while (true);
+
     return attrs;
 }
 
@@ -3286,7 +3584,13 @@ vector<string> MegaCmdExecuter::getsessions()
 vector<string> MegaCmdExecuter::getlistfilesfolders(string location)
 {
     vector<string> toret;
-#ifdef HAVE_DIRENT_H
+#ifdef MEGACMDEXECUTER_FILESYSTEM
+    for (fs::directory_iterator iter(fs::u8path(location)); iter != fs::directory_iterator(); ++iter)
+    {
+        toret.push_back(iter->path().filename().u8string());
+    }
+
+#elif defined(HAVE_DIRENT_H)
     DIR *dir;
     struct dirent *entry;
     if ((dir = opendir (location.c_str())) != NULL)
@@ -3380,7 +3684,7 @@ bool MegaCmdExecuter::IsFolder(string path)
 
 void MegaCmdExecuter::printTransfersHeader(const unsigned int PATHSIZE, bool printstate)
 {
-    OUTSTREAM << "DIR/SYNC TAG  " << getFixLengthString("SOURCEPATH ",PATHSIZE) << getFixLengthString("DESTINYPATH ",PATHSIZE)
+    OUTSTREAM << "TYPE     TAG  " << getFixLengthString("SOURCEPATH ",PATHSIZE) << getFixLengthString("DESTINYPATH ",PATHSIZE)
               << "  " << getFixLengthString("    PROGRESS",21);
     if (printstate)
     {
@@ -3408,6 +3712,16 @@ void MegaCmdExecuter::printTransfer(MegaTransfer *transfer, const unsigned int P
         OUTSTREAM << "\u21f5";
 #endif
     }
+#ifdef ENABLE_BACKUPS
+    else if (transfer->isBackupTransfer())
+    {
+#ifdef _WIN32
+        OUTSTREAM << "S";
+#else
+        OUTSTREAM << "\u23eb";
+#endif
+    }
+#endif
     else
     {
         OUTSTREAM << " " ;
@@ -3530,20 +3844,26 @@ void MegaCmdExecuter::printBackupSummary(int tag, const char * localfolder, cons
               << endl;
 }
 
-void MegaCmdExecuter::printBackupDetails(MegaBackup *backup)
+void MegaCmdExecuter::printBackupDetails(MegaBackup *backup, const char *timeFormat)
 {
     if (backup)
     {
         string speriod = (backup->getPeriod() == -1)?backup->getPeriodString():getReadablePeriod(backup->getPeriod()/10);
         OUTSTREAM << "  Max Backups:   " << backup->getMaxBackups() << endl;
         OUTSTREAM << "  Period:         " << "\"" << speriod << "\"" << endl;
-        OUTSTREAM << "  Next backup scheduled for: " << getReadableTime(backup->getNextStartTime());
+        OUTSTREAM << "  Next backup scheduled for: " << getReadableTime(backup->getNextStartTime(), timeFormat);
 
         OUTSTREAM << endl;
         OUTSTREAM << "  " << " -- CURRENT/LAST BACKUP --" << endl;
         OUTSTREAM << "  " << getFixLengthString("FILES UP/TOT", 15);
         OUTSTREAM << "  " << getFixLengthString("FOLDERS CREATED", 15);
-        OUTSTREAM << "  " << getRightAlignedString("PROGRESS", 10);
+        OUTSTREAM << "  " << getRightAlignedString("PROGRESS     ", 22);
+
+        MegaTransferList * ml = backup->getFailedTransfers();
+        if (ml && ml->size())
+        {
+            OUTSTREAM << "  " << getRightAlignedString("FAILED TRANSFERS", 17);
+        }
         OUTSTREAM << endl;
 
         string sfiles = SSTR(backup->getNumberFiles()) + "/" + SSTR(backup->getTotalFiles());
@@ -3554,12 +3874,17 @@ void MegaCmdExecuter::printBackupDetails(MegaBackup *backup)
         double percent = totbytes?double(trabytes)/double(totbytes):0;
 
         string sprogress = sizeProgressToText(trabytes, totbytes) + "  " + percentageToText(float(percent));
-        OUTSTREAM << "  " << getRightAlignedString(sprogress,10);
+        OUTSTREAM << "  " << getRightAlignedString(sprogress,22);
+        if (ml && ml->size())
+        {
+            OUTSTREAM << getRightAlignedString(SSTR(backup->getFailedTransfers()->size()), 17);
+        }
+        delete ml;
         OUTSTREAM << endl;
     }
 }
 
-void MegaCmdExecuter::printBackupHistory(MegaBackup *backup, MegaNode *parentnode, const unsigned int PATHSIZE)
+void MegaCmdExecuter::printBackupHistory(MegaBackup *backup, const char *timeFormat, MegaNode *parentnode, const unsigned int PATHSIZE)
 {
     bool firstinhistory = true;
     MegaStringList *msl = api->getBackupFolders(backup->getTag());
@@ -3567,13 +3892,15 @@ void MegaCmdExecuter::printBackupHistory(MegaBackup *backup, MegaNode *parentnod
     {
         for (int i = 0; i < msl->size(); i++)
         {
+            int datelength = getReadableTime(m_time(), timeFormat).size();
+
             if (firstinhistory)
             {
                 OUTSTREAM << "  " << " -- SAVED BACKUPS --" << endl;
 
                 // print header
                 OUTSTREAM << "  " << getFixLengthString("NAME", PATHSIZE) << " ";
-                OUTSTREAM << getFixLengthString("DATE", 18) << " ";
+                OUTSTREAM << getFixLengthString("DATE", datelength+1) << " ";
                 OUTSTREAM << getRightAlignedString("STATUS", 11)<< " ";
                 OUTSTREAM << getRightAlignedString("FILES", 6)<< " ";
                 OUTSTREAM << getRightAlignedString("FOLDERS", 7);
@@ -3602,7 +3929,7 @@ void MegaCmdExecuter::printBackupHistory(MegaBackup *backup, MegaNode *parentnod
             {
                 struct tm dt;
                 fillStructWithSYYmdHMS(btime,dt);
-                printableDate = getReadableShortTime(m_mktime(&dt));
+                printableDate = getReadableTime(m_mktime(&dt), timeFormat);
             }
 
             string backupInstanceStatus="NOT_FOUND";
@@ -3623,7 +3950,7 @@ void MegaCmdExecuter::printBackupHistory(MegaBackup *backup, MegaNode *parentnod
             }
 
             OUTSTREAM << "  " << getFixLengthString(backupInstanceName, PATHSIZE) << " ";
-            OUTSTREAM << getFixLengthString(printableDate, 18) << " ";
+            OUTSTREAM << getFixLengthString(printableDate, datelength+1) << " ";
             OUTSTREAM << getRightAlignedString(backupInstanceStatus, 11) << " ";
             OUTSTREAM << getRightAlignedString(SSTR(nfiles), 6)<< " ";
             OUTSTREAM << getRightAlignedString(SSTR(nfolders), 7);
@@ -3635,7 +3962,7 @@ void MegaCmdExecuter::printBackupHistory(MegaBackup *backup, MegaNode *parentnod
     }
 }
 
-void MegaCmdExecuter::printBackup(int tag, MegaBackup *backup, const unsigned int PATHSIZE, bool extendedinfo, bool showhistory, MegaNode *parentnode)
+void MegaCmdExecuter::printBackup(int tag, MegaBackup *backup, const char *timeFormat, const unsigned int PATHSIZE, bool extendedinfo, bool showhistory, MegaNode *parentnode)
 {
     if (backup)
     {
@@ -3659,13 +3986,13 @@ void MegaCmdExecuter::printBackup(int tag, MegaBackup *backup, const unsigned in
         printBackupSummary(tag, backup->getLocalFolder(),nodepath,backupSatetStr(backup->getState()), PATHSIZE);
         if (extendedinfo)
         {
-            printBackupDetails(backup);
+            printBackupDetails(backup, timeFormat);
         }
         delete []nodepath;
 
         if (showhistory && parentnode)
         {
-            printBackupHistory(backup, parentnode, PATHSIZE);
+            printBackupHistory(backup, timeFormat, parentnode, PATHSIZE);
         }
 
         if (deleteparentnode)
@@ -3679,14 +4006,14 @@ void MegaCmdExecuter::printBackup(int tag, MegaBackup *backup, const unsigned in
     }
 }
 
-void MegaCmdExecuter::printBackup(backup_struct *backupstruct, const unsigned int PATHSIZE, bool extendedinfo, bool showhistory)
+void MegaCmdExecuter::printBackup(backup_struct *backupstruct, const char *timeFormat, const unsigned int PATHSIZE, bool extendedinfo, bool showhistory)
 {
     if (backupstruct->tag >= 0)
     {
         MegaBackup *backup = api->getBackupByTag(backupstruct->tag);
         if (backup)
         {
-            printBackup(backupstruct->tag, backup, PATHSIZE, extendedinfo, showhistory);
+            printBackup(backupstruct->tag, backup, timeFormat, PATHSIZE, extendedinfo, showhistory);
             delete backup;
         }
         else
@@ -3763,7 +4090,7 @@ void MegaCmdExecuter::printSync(int i, string key, const char *nodepath, sync_st
 
 }
 
-void MegaCmdExecuter::doFind(MegaNode* nodeBase, string word, int printfileinfo, string pattern, bool usepcre, m_time_t minTime, m_time_t maxTime, int64_t minSize, int64_t maxSize)
+void MegaCmdExecuter::doFind(MegaNode* nodeBase, const char *timeFormat, string word, int printfileinfo, string pattern, bool usepcre, m_time_t minTime, m_time_t maxTime, int64_t minSize, int64_t maxSize)
 {
     struct criteriaNodeVector pnv;
     pnv.pattern = pattern;
@@ -3800,7 +4127,7 @@ void MegaCmdExecuter::doFind(MegaNode* nodeBase, string word, int printfileinfo,
             }
             if (printfileinfo)
             {
-                dumpNode(n, 3, false, 1, pathToShow.c_str());
+                dumpNode(n, timeFormat, 3, false, 1, pathToShow.c_str());
             }
             else
             {
@@ -4277,7 +4604,8 @@ void MegaCmdExecuter::confirmCancel(const char* confirmlink, const char* pass)
     {
         LOG_err << "Confirm cancel account failed: too many attempts";
     }
-    else if (megaCmdListener->getError()->getErrorCode() == MegaError::API_ENOENT)
+    else if (megaCmdListener->getError()->getErrorCode() == MegaError::API_ENOENT
+             || megaCmdListener->getError()->getErrorCode() == MegaError::API_EKEY)
     {
         LOG_err << "Confirm cancel account failed: invalid link/password";
     }
@@ -4455,6 +4783,138 @@ void MegaCmdExecuter::addFtpLocation(MegaNode *n, bool firstone, string name)
 
 #endif
 
+
+void MegaCmdExecuter::catFile(MegaNode *n)
+{
+    if (n->getType() != MegaNode::TYPE_FILE)
+    {
+        LOG_err << " Unable to cat: not a file";
+        setCurrentOutCode(MCMD_EARGS);
+        return;
+    }
+
+    long long nsize = api->getSize(n);
+    if (!nsize)
+    {
+        return;
+    }
+    long long end = nsize;
+    long long start = 0;
+
+    MegaCmdCatTransferListener *mcctl = new MegaCmdCatTransferListener(&OUTSTREAM, api, sandboxCMD);
+    api->startStreaming(n, start, end-start, mcctl);
+    mcctl->wait();
+    if (checkNoErrors(mcctl->getError(), "cat streaming from " +SSTR(start) + " to " + SSTR(end) ))
+    {
+        char * npath = api->getNodePath(n);
+        LOG_verbose << "Streamed: " << npath << " from " << start << " to " << end;
+        delete []npath;
+    }
+
+    delete mcctl;
+}
+
+void MegaCmdExecuter::printInfoFile(MegaNode *n, bool &firstone, int PATHSIZE)
+{
+    char * nodepath = api->getNodePath(n);
+    char *fattrs = n->getFileAttrString();
+    if (fattrs == NULL)
+    {
+        LOG_warn << " Unable to get attributes for node " << nodepath;
+    }
+
+    if (firstone)
+    {
+        OUTSTREAM << getFixLengthString("FILE", PATHSIZE);
+        OUTSTREAM << getFixLengthString("WIDTH", 7);
+        OUTSTREAM << getFixLengthString("HEIGHT", 7);
+        OUTSTREAM << getFixLengthString("FPS", 4);
+        OUTSTREAM << getFixLengthString("PLAYTIME", 10);
+        OUTSTREAM << endl;
+        firstone = false;
+    }
+
+    OUTSTREAM << getFixLengthString(nodepath, PATHSIZE-1) << " ";
+    delete []nodepath;
+
+    OUTSTREAM << getFixLengthString( (n->getWidth() == -1) ? "---" : SSTR(n->getWidth()) , 6) << " ";
+    OUTSTREAM << getFixLengthString( (n->getHeight() == -1) ? "---" : SSTR(n->getHeight()) , 6) << " ";
+
+    if (fattrs == NULL)
+    {
+        OUTSTREAM << getFixLengthString("---", 3) << " ";
+    }
+    else
+    {
+        MediaProperties mp = MediaProperties::decodeMediaPropertiesAttributes(fattrs, (uint32_t*)(n->getNodeKey()->data() + FILENODEKEYLENGTH / 2) );
+        OUTSTREAM << getFixLengthString( (mp.fps == 0) ? "---" : SSTR(mp.fps) , 3) << " ";
+    }
+    OUTSTREAM << getFixLengthString( (n->getHeight() == -1) ? "---" : getReadablePeriod(n->getDuration()) , 10) << " ";
+
+    OUTSTREAM << endl;
+}
+
+bool MegaCmdExecuter::printUserAttribute(int a, string user, bool onlylist)
+{
+    const char *catrn;// = api->userAttributeToString(a);
+    string attrname = catrn;
+    delete [] catrn;
+
+    const char *catrln;// = api->userAttributeToLongName(a);
+    string longname = catrln;
+    delete [] catrln;
+
+    if (attrname.size())
+    {
+        if (onlylist)
+        {
+            OUTSTREAM << longname << " (" << attrname << ")" << endl;
+        }
+        else
+        {
+            MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
+            if (user.size())
+            {
+                api->getUserAttribute(user.c_str(), a, megaCmdListener);
+            }
+            else
+            {
+                api->getUserAttribute(a, megaCmdListener);
+            }
+            megaCmdListener->wait();
+            if (checkNoErrors(megaCmdListener->getError(), string("get user attribute ") + attrname))
+            {
+                int iattr = megaCmdListener->getRequest()->getParamType();
+                const char *value = megaCmdListener->getRequest()->getText();
+                //if (!value) value = megaCmdListener->getRequest()->getMegaStringMap()->;
+                string svalue;
+                try
+                {
+                    if (value)
+                    {
+                        svalue = string(value);
+                    }
+                    else
+                    {
+
+                        svalue = "NOT PRINTABLE";
+                    }
+
+                }
+                catch (exception e)
+                {
+                    svalue = "NOT PRINTABLE";
+                }
+                OUTSTREAM << "\t" << longname << " (" << attrname << ")" << " = " << svalue << endl;
+            }
+
+            delete megaCmdListener;
+        }
+        return true;
+    }
+    return false;
+}
+
 void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clflags, map<string, string> *cloptions)
 {
     MegaNode* n = NULL;
@@ -4472,6 +4932,8 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         bool summary = getFlag(clflags, "l");
         bool firstprint = true;
         bool humanreadable = getFlag(clflags, "h");
+        bool treelike = getFlag(clflags,"tree");
+        recursive += treelike?1:0;
 
         if ((int)words.size() > 1)
         {
@@ -4513,14 +4975,15 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                                 {
                                     if (firstprint)
                                     {
-                                        dumpNodeSummaryHeader();
+                                        dumpNodeSummaryHeader(getTimeFormatFromSTR(getOption(cloptions, "time-format","SHORT")));
                                         firstprint = false;
                                     }
-                                    dumpTreeSummary(n, recursive, show_versions, 0, humanreadable, rNpath);
+                                    dumpTreeSummary(n, getTimeFormatFromSTR(getOption(cloptions, "time-format","SHORT")), recursive, show_versions, 0, humanreadable, rNpath);
                                 }
                                 else
                                 {
-                                    dumptree(n, recursive, extended_info, show_versions, 0, rNpath);
+                                    vector<bool> lfs;
+                                    dumptree(n, treelike, lfs, getTimeFormatFromSTR(getOption(cloptions, "time-format","RFC2822")), recursive, extended_info, show_versions, 0, rNpath);
                                 }
                                 if (( !n->getType() == MegaNode::TYPE_FILE ) && (( it + 1 ) != pathsToList->end()))
                                 {
@@ -4558,14 +5021,16 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     {
                         if (firstprint)
                         {
-                            dumpNodeSummaryHeader();
+                            dumpNodeSummaryHeader(getTimeFormatFromSTR(getOption(cloptions, "time-format","SHORT")));
                             firstprint = false;
                         }
-                        dumpTreeSummary(n, recursive, show_versions, 0, humanreadable, rNpath);
+                        dumpTreeSummary(n, getTimeFormatFromSTR(getOption(cloptions, "time-format","SHORT")), recursive, show_versions, 0, humanreadable, rNpath);
                     }
                     else
                     {
-                        dumptree(n, recursive, extended_info, show_versions, 0, rNpath);
+                        if (treelike) OUTSTREAM << words[1] << endl;
+                        vector<bool> lfs;
+                        dumptree(n, treelike, lfs, getTimeFormatFromSTR(getOption(cloptions, "time-format","RFC2822")), recursive, extended_info, show_versions, 0, rNpath);
                     }
                     delete n;
                 }
@@ -4585,14 +5050,16 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 {
                     if (firstprint)
                     {
-                        dumpNodeSummaryHeader();
+                        dumpNodeSummaryHeader(getTimeFormatFromSTR(getOption(cloptions, "time-format","SHORT")));
                         firstprint = false;
                     }
-                    dumpTreeSummary(n, recursive, show_versions, 0, humanreadable);
+                    dumpTreeSummary(n, getTimeFormatFromSTR(getOption(cloptions, "time-format","SHORT")), recursive, show_versions, 0, humanreadable);
                 }
                 else
                 {
-                    dumptree(n, recursive, extended_info, show_versions);
+                    if (treelike) OUTSTREAM << "." << endl;
+                    vector<bool> lfs;
+                    dumptree(n, treelike, lfs, getTimeFormatFromSTR(getOption(cloptions, "time-format","RFC2822")), recursive, extended_info, show_versions);
                 }
                 delete n;
             }
@@ -4635,7 +5102,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         if (words.size() <= 1)
         {
             n = api->getNodeByHandle(cwd);
-            doFind(n, "", printfileinfo, pattern, getFlag(clflags,"use-pcre"), minTime, maxTime, minSize, maxSize);
+            doFind(n, getTimeFormatFromSTR(getOption(cloptions, "time-format","RFC2822")), "", printfileinfo, pattern, getFlag(clflags,"use-pcre"), minTime, maxTime, minSize, maxSize);
             delete n;
         }
         for (int i = 1; i < (int)words.size(); i++)
@@ -4650,7 +5117,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         MegaNode * nodeToFind = *it;
                         if (nodeToFind)
                         {
-                            doFind(nodeToFind, words[i], printfileinfo, pattern, getFlag(clflags,"use-pcre"), minTime, maxTime, minSize, maxSize);
+                            doFind(nodeToFind, getTimeFormatFromSTR(getOption(cloptions, "time-format","RFC2822")), words[i], printfileinfo, pattern, getFlag(clflags,"use-pcre"), minTime, maxTime, minSize, maxSize);
                             delete nodeToFind;
                         }
                     }
@@ -4673,13 +5140,41 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 }
                 else
                 {
-                    doFind(n, words[i], printfileinfo, pattern, getFlag(clflags,"use-pcre"), minTime, maxTime, minSize, maxSize);
+                    doFind(n, getTimeFormatFromSTR(getOption(cloptions, "time-format","RFC2822")), words[i], printfileinfo, pattern, getFlag(clflags,"use-pcre"), minTime, maxTime, minSize, maxSize);
                     delete n;
                 }
             }
-
         }
     }
+#if defined(_WIN32) || defined(__APPLE__)
+    else if (words[0] == "update")
+    {
+        string sauto = getOption(cloptions, "auto", "");
+        transform(sauto.begin(), sauto.end(), sauto.begin(), ::tolower);
+
+        if (sauto == "off")
+        {
+            stopcheckingForUpdates();
+            OUTSTREAM << "Automatic updates disabled" << endl;
+        }
+        else if (sauto == "on")
+        {
+            startcheckingForUpdates();
+            OUTSTREAM << "Automatic updates enabled" << endl;
+        }
+        else if (sauto == "query")
+        {
+            OUTSTREAM << "Automatic updates " << (ConfigurationManager::getConfigurationValue("autoupdate", false)?"enabled":"disabled") << endl;
+        }
+        else
+        {
+            setCurrentOutCode(MCMD_EARGS);
+            LOG_err << "      " << getUsageStr("update");
+        }
+
+        return;
+    }
+#endif
     else if (words[0] == "cd")
     {
         if (!api->isFilesystemAvailable())
@@ -4996,7 +5491,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         {
             // get screen size for output purposes
             unsigned int width = getNumberOfCols(75);
-            PATHSIZE = min(50,int(width-13));
+            PATHSIZE = min(50,int(width-22));
         }
         PATHSIZE = max(0, PATHSIZE);
 
@@ -5098,7 +5593,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
         if (!firstone)
         {
-            for (int i = 0; i < PATHSIZE+12 ; i++)
+            for (int i = 0; i < PATHSIZE+12 +(show_versions_size?12:0) ; i++)
             {
                 OUTSTREAM << "-";
             }
@@ -5113,6 +5608,208 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             OUTSTREAM << endl;
         }
         return;
+    }
+    else if (words[0] == "cat")
+    {
+        if (words.size() < 2)
+        {
+            setCurrentOutCode(MCMD_EARGS);
+            LOG_err << "      " << getUsageStr("cat");
+            return;
+        }
+
+        for (int i = 1; i < (int)words.size(); i++)
+        {
+            if (isPublicLink(words[i]))
+            {
+                string publicLink = words[i];
+                if (isEncryptedLink(publicLink))
+                {
+                    string linkPass = getOption(cloptions, "password", "");
+                    if (!linkPass.size())
+                    {
+                        linkPass = askforUserResponse("Enter password: ");
+                    }
+
+                    if (linkPass.size())
+                    {
+                        MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
+                        api->decryptPasswordProtectedLink(publicLink.c_str(), linkPass.c_str(), megaCmdListener);
+                        megaCmdListener->wait();
+                        if (checkNoErrors(megaCmdListener->getError(), "decrypt password protected link"))
+                        {
+                            publicLink = megaCmdListener->getRequest()->getText();
+                            delete megaCmdListener;
+                        }
+                        else
+                        {
+                            setCurrentOutCode(MCMD_NOTPERMITTED);
+                            LOG_err << "Invalid password";
+                            delete megaCmdListener;
+                            return;
+                        }
+                    }
+                    else
+                    {
+                        setCurrentOutCode(MCMD_EARGS);
+                        LOG_err << "Need a password to decrypt provided link (--password=PASSWORD)";
+                        return;
+                    }
+                }
+
+                if (getLinkType(publicLink) == MegaNode::TYPE_FILE)
+                {
+                    MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
+                    api->getPublicNode(publicLink.c_str(), megaCmdListener);
+                    megaCmdListener->wait();
+
+                    if (!checkNoErrors(megaCmdListener->getError(), "cat public node"))
+                    {
+                        if (megaCmdListener->getError()->getErrorCode() == MegaError::API_EARGS)
+                        {
+                            LOG_err << "The link provided might be incorrect: " << publicLink.c_str();
+                        }
+                        else if (megaCmdListener->getError()->getErrorCode() == MegaError::API_EINCOMPLETE)
+                        {
+                            LOG_err << "The key is missing or wrong " << publicLink.c_str();
+                        }
+                    }
+                    else
+                    {
+                        if (megaCmdListener->getRequest()->getFlag())
+                        {
+                            LOG_err << "Key not valid " << publicLink.c_str();
+                            setCurrentOutCode(MCMD_EARGS);
+                        }
+                        else
+                        {
+                            MegaNode *n = megaCmdListener->getRequest()->getPublicMegaNode();
+                            if (n)
+                            {
+                                catFile(n);
+                                delete n;
+                            }
+                        }
+
+                    }
+                    delete megaCmdListener;
+                }
+                else
+                {
+                    LOG_err << "Public link is not a file";
+                    setCurrentOutCode(MCMD_EARGS);
+                }
+            }
+            else if (!api->isFilesystemAvailable())
+            {
+                setCurrentOutCode(MCMD_NOTLOGGEDIN);
+                LOG_err << "Unable to cat " << words[i] << ": Not logged in.";
+            }
+            else
+            {
+                unescapeifRequired(words[i]);
+                if (isRegExp(words[i]))
+                {
+                    vector<MegaNode *> *nodes = nodesbypath(words[i].c_str(), getFlag(clflags,"use-pcre"));
+                    if (nodes)
+                    {
+                        if (!nodes->size())
+                        {
+                            setCurrentOutCode(MCMD_NOTFOUND);
+                            LOG_err << "Nodes not found: " << words[i];
+                        }
+                        for (std::vector< MegaNode * >::iterator it = nodes->begin(); it != nodes->end(); ++it)
+                        {
+                            MegaNode * n = *it;
+                            if (n)
+                            {
+                                catFile(n);
+                                delete n;
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    MegaNode *n = nodebypath(words[i].c_str());
+                    if (n)
+                    {
+                        catFile(n);
+                        delete n;
+                    }
+                    else
+                    {
+                        setCurrentOutCode(MCMD_NOTFOUND);
+                        LOG_err << "Node not found: " << words[i];
+                    }
+                }
+            }
+        }
+    }
+    else if (words[0] == "mediainfo")
+    {
+        if (!api->isFilesystemAvailable())
+        {
+            setCurrentOutCode(MCMD_NOTLOGGEDIN);
+            LOG_err << "Not logged in.";
+            return;
+        }
+        if (words.size() < 2)
+        {
+            setCurrentOutCode(MCMD_EARGS);
+            LOG_err << "      " << getUsageStr("mediainfo");
+            return;
+        }
+
+        int PATHSIZE = getintOption(cloptions,"path-display-size");
+        if (!PATHSIZE)
+        {
+            // get screen size for output purposes
+            unsigned int width = getNumberOfCols(75);
+            PATHSIZE = min(50,int(width-28));
+        }
+        PATHSIZE = max(0, PATHSIZE);
+
+        bool firstone = true;
+        for (int i = 1; i < (int)words.size(); i++)
+        {
+            unescapeifRequired(words[i]);
+            if (isRegExp(words[i]))
+            {
+                vector<MegaNode *> *nodes = nodesbypath(words[i].c_str(), getFlag(clflags,"use-pcre"));
+                if (nodes)
+                {
+                    if (!nodes->size())
+                    {
+                        setCurrentOutCode(MCMD_NOTFOUND);
+                        LOG_err << "Nodes not found: " << words[i];
+                    }
+                    for (std::vector< MegaNode * >::iterator it = nodes->begin(); it != nodes->end(); ++it)
+                    {
+                        MegaNode * n = *it;
+                        if (n)
+                        {
+                            printInfoFile(n, firstone, PATHSIZE);
+                            delete n;
+                        }
+                    }
+                }
+            }
+            else
+            {
+                MegaNode *n = nodebypath(words[i].c_str());
+                if (n)
+                {
+                    printInfoFile(n, firstone, PATHSIZE);
+                    delete n;
+                }
+                else
+                {
+                    setCurrentOutCode(MCMD_NOTFOUND);
+                    LOG_err << "Node not found: " << words[i];
+                }
+            }
+        }
     }
     else if (words[0] == "get")
     {
@@ -5522,7 +6219,10 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 LOG_err << "Download failed. error code: " << MegaError::getErrorString(megaCmdMultiTransferListener->getFinalerror());
             }
 
-            informProgressUpdate(PROGRESS_COMPLETE, megaCmdMultiTransferListener->getTotalbytes(), clientID);
+            if (megaCmdMultiTransferListener->getProgressinformed() || getCurrentOutCode() == MCMD_OK )
+            {
+                informProgressUpdate(PROGRESS_COMPLETE, megaCmdMultiTransferListener->getTotalbytes(), clientID);
+            }
             delete megaCmdMultiTransferListener;
         }
         else
@@ -5564,12 +6264,15 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         {
             string local = words.at(1);
             string remote = words.at(2);
+            unescapeifRequired(local);
+            unescapeifRequired(remote);
 
             createOrModifyBackup(local, remote, speriod, numBackups);
         }
         else if (words.size() == 2)
         {
             string local = words.at(1);
+            unescapeifRequired(local);
 
             MegaBackup *backup = api->getBackupByPath(local.c_str());
             if (!backup)
@@ -5634,7 +6337,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                             firstbackup = false;
                         }
 
-                        printBackup(backup->getTag(), backup, PATHSIZE, listinfo, listhistory);
+                        printBackup(backup->getTag(), backup, getTimeFormatFromSTR(getOption(cloptions, "time-format","RFC2822")), PATHSIZE, listinfo, listhistory);
                     }
                 }
                 delete backup;
@@ -5643,6 +6346,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             {
                 if (dodelete) //remove from configured backups
                 {
+                    bool deletedok = false;
                     for ( itr = ConfigurationManager::configuredBackups.begin(); itr != ConfigurationManager::configuredBackups.end(); itr++ )
                     {
                         if (itr->second->tag == -1 && itr->second->localpath == local)
@@ -5652,9 +6356,16 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                             ConfigurationManager::saveBackups(&ConfigurationManager::configuredBackups);
                             mtxBackupsMap.unlock();
                             OUTSTREAM << " Backup removed succesffuly: " << local << endl;
+                            deletedok = true;
 
                             break;
                         }
+                    }
+
+                    if (!deletedok)
+                    {
+                        setCurrentOutCode(MCMD_NOTFOUND);
+                        OUTSTREAM << "Backup not found: " << local << endl;
                     }
                 }
                 else
@@ -5674,7 +6385,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     printBackupHeader(PATHSIZE);
                     firstbackup = false;
                 }
-                printBackup(itr->second, PATHSIZE, listinfo, listhistory);
+                printBackup(itr->second, getTimeFormatFromSTR(getOption(cloptions, "time-format","RFC2822")), PATHSIZE, listinfo, listhistory);
             }
             if (!ConfigurationManager::configuredBackups.size())
             {
@@ -5776,13 +6487,13 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
 
                 megaCmdMultiTransferListener->waitMultiEnd();
-                if (megaCmdMultiTransferListener->getFinalerror() != MegaError::API_OK)
-                {
-                    setCurrentOutCode(megaCmdMultiTransferListener->getFinalerror());
-                    LOG_err << "Upload failed. error code:" << MegaError::getErrorString(megaCmdMultiTransferListener->getFinalerror());
-                }
 
-                informProgressUpdate(PROGRESS_COMPLETE, megaCmdMultiTransferListener->getTotalbytes(), clientID);
+                checkNoErrors(megaCmdMultiTransferListener->getFinalerror(), "upload");
+
+                if (megaCmdMultiTransferListener->getProgressinformed() || getCurrentOutCode() == MCMD_OK )
+                {
+                    informProgressUpdate(PROGRESS_COMPLETE, megaCmdMultiTransferListener->getTotalbytes(), clientID);
+                }
                 delete megaCmdMultiTransferListener;
             }
             else
@@ -5805,7 +6516,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         {
             if (!getFlag(clflags, "s") && !getFlag(clflags, "c"))
             {
-                OUTSTREAM << "CMD log level = " << getLogLevelStr(loggerCMD->getCmdLoggerLevel()) << endl;
+                OUTSTREAM << "MEGAcmd log level = " << getLogLevelStr(loggerCMD->getCmdLoggerLevel()) << endl;
                 OUTSTREAM << "SDK log level = " << getLogLevelStr(loggerCMD->getApiLoggerLevel()) << endl;
             }
             else if (getFlag(clflags, "s"))
@@ -5814,19 +6525,25 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             }
             else if (getFlag(clflags, "c"))
             {
-                OUTSTREAM << "CMD log level = " << getLogLevelStr(loggerCMD->getCmdLoggerLevel()) << endl;
+                OUTSTREAM << "MEGAcmd log level = " << getLogLevelStr(loggerCMD->getCmdLoggerLevel()) << endl;
             }
         }
         else
         {
             int newLogLevel = getLogLevelNum(words[1].c_str());
+            if (newLogLevel == -1)
+            {
+                setCurrentOutCode(MCMD_EARGS);
+                LOG_err << "Invalid log level";
+                return;
+            }
             newLogLevel = max(newLogLevel, (int)MegaApi::LOG_LEVEL_FATAL);
             newLogLevel = min(newLogLevel, (int)MegaApi::LOG_LEVEL_MAX);
             if (!getFlag(clflags, "s") && !getFlag(clflags, "c"))
             {
                 loggerCMD->setCmdLoggerLevel(newLogLevel);
                 loggerCMD->setApiLoggerLevel(newLogLevel);
-                OUTSTREAM << "CMD log level = " << getLogLevelStr(loggerCMD->getCmdLoggerLevel()) << endl;
+                OUTSTREAM << "MEGAcmd log level = " << getLogLevelStr(loggerCMD->getCmdLoggerLevel()) << endl;
                 OUTSTREAM << "SDK log level = " << getLogLevelStr(loggerCMD->getApiLoggerLevel()) << endl;
             }
             else if (getFlag(clflags, "s"))
@@ -5837,7 +6554,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             else if (getFlag(clflags, "c"))
             {
                 loggerCMD->setCmdLoggerLevel(newLogLevel);
-                OUTSTREAM << "CMD log level = " << getLogLevelStr(loggerCMD->getCmdLoggerLevel()) << endl;
+                OUTSTREAM << "MEGAcmd log level = " << getLogLevelStr(loggerCMD->getCmdLoggerLevel()) << endl;
             }
         }
 
@@ -6650,7 +7367,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                                     ConfigurationManager::configuredSyncs.erase(itr++); //TODO: should protect with mutex!
                                     erased = true;
                                     delete ( thesync );
-                                    LOG_info << "Removed sync " << key << " to " << nodepath;
+                                    OUTSTREAM << "Removed sync " << key << " to " << nodepath << endl;
                                     modifiedsyncs=true;
                                 }
                             }
@@ -6660,7 +7377,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                                 ConfigurationManager::configuredSyncs.erase(itr++);
                                 erased = true;
                                 delete ( thesync );
-                                LOG_info << "Removed sync " << key << " to " << nodepath;
+                                OUTSTREAM << "Removed sync " << key << " to " << nodepath << endl;
                                 modifiedsyncs=true;
                             }
                             delete megaCmdListener;
@@ -6680,15 +7397,26 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 }
                 else
                 {
-                    setCurrentOutCode(MCMD_NOTFOUND);
-                    LOG_err << "Node not found for sync " << key << " into handle: " << thesync->handle;
+                    if (( id == i ) && getFlag(clflags, "d")) //simply remove: disabled (not found)
+                    {
+                        ConfigurationManager::configuredSyncs.erase(itr++);
+                        erased = true;
+                        delete ( thesync );
+                        OUTSTREAM << "Removed sync " << key << endl;
+                        modifiedsyncs = true;
+                    }
+                    else
+                    {
+                        setCurrentOutCode(MCMD_NOTFOUND);
+                        LOG_err << "Node not found for sync " << key << " into handle: " << thesync->handle;
+                    }
                 }
                 if (!erased)
                 {
                     ++itr;
                 }
             }
-            if (!foundsync)
+            if (!foundsync && !modifiedsyncs)
             {
                 setCurrentOutCode(MCMD_NOTFOUND);
                 LOG_err << "Sync not found: " << words[1] << ". Please provide full path or valid ID";
@@ -6702,14 +7430,13 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             {
                 sync_struct *thesync = ((sync_struct*)( *itr ).second );
                 MegaNode * n = api->getNodeByHandle(thesync->handle);
-
+                if (!headershown)
+                {
+                    headershown = true;
+                    printSyncHeader(PATHSIZE);
+                }
                 if (n)
                 {
-                    if (!headershown)
-                    {
-                        headershown = true;
-                        printSyncHeader(PATHSIZE);
-                    }
                     long long nfiles = 0;
                     long long nfolders = 0;
                     nfolders++; //add the share itself
@@ -6723,8 +7450,8 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 }
                 else
                 {
+                    printSync(i++, ( *itr ).first, "NOT FOUND", thesync, n, -1, -1, PATHSIZE);
                     setCurrentOutCode(MCMD_NOTFOUND);
-                    LOG_err << "Node not found for sync " << ( *itr ).first << " into handle: " << thesync->handle;
                 }
             }
         }
@@ -6795,12 +7522,16 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     if (words.size() > 2)
                     {
                         MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL,NULL,clientID);
-                        sandboxCMD->accounthasbeenblocked = false;
+                        sandboxCMD->resetSandBox();
                         api->login(words[1].c_str(), words[2].c_str(), megaCmdListener);
                         if (actUponLogin(megaCmdListener) == MegaError::API_EMFAREQUIRED )
                         {
                             MegaCmdListener *megaCmdListener2 = new MegaCmdListener(NULL,NULL,clientID);
-                            string pin2fa = askforUserResponse("Enter the code generated by your authentication app: ");
+                            string pin2fa = getOption(cloptions, "auth-code", "");
+                            if (!pin2fa.size())
+                            {
+                                pin2fa = askforUserResponse("Enter the code generated by your authentication app: ");
+                            }
                             LOG_verbose << " Using confirmation pin: " << pin2fa;
                             api->multiFactorAuthLogin(words[1].c_str(), words[2].c_str(), pin2fa.c_str(), megaCmdListener2);
                             actUponLogin(megaCmdListener2);
@@ -6830,7 +7561,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     if (( ptr = strchr(words[1].c_str(), '#')))  // folder link indicator
                     {
                         MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
-                        sandboxCMD->accounthasbeenblocked = false;
+                        sandboxCMD->resetSandBox();
                         api->loginToFolder(words[1].c_str(), megaCmdListener);
                         actUponLogin(megaCmdListener);
                         delete megaCmdListener;
@@ -6844,7 +7575,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         {
                             LOG_info << "Resuming session...";
                             MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
-                            sandboxCMD->accounthasbeenblocked = false;
+                            sandboxCMD->resetSandBox();
                             api->fastLogin(words[1].c_str(), megaCmdListener);
                             actUponLogin(megaCmdListener);
                             delete megaCmdListener;
@@ -6870,6 +7601,36 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         }
 
         return;
+    }
+    else if (words[0] == "psa")
+    {
+        int psanum = sandboxCMD->lastPSAnumreceived;
+
+#ifndef NDEBUG
+        if (words.size() >1)
+        {
+            psanum = toInteger(words[1], 0);
+        }
+#endif
+        bool discard = getFlag(clflags, "discard");
+
+        if (discard)
+        {
+            MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
+            api->setPSA(psanum, megaCmdListener);
+            megaCmdListener->wait();
+            if (checkNoErrors(megaCmdListener->getError(), "set psa " + SSTR(psanum)))
+            {
+                OUTSTREAM << "PSA discarded" << endl;
+            }
+            delete megaCmdListener;
+        }
+
+        if (!checkAndInformPSA(NULL, true) && !discard) // even when discarded: we need to read the next
+        {
+            OUTSTREAM << "No PSA available" << endl;
+            setCurrentOutCode(MCMD_NOTFOUND);
+        }
     }
     else if (words[0] == "mount")
     {
@@ -7000,7 +7761,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                                 }
                                 else if (listPending)
                                 {
-                                    dumpListOfPendingShares(n, words[i]);
+                                    dumpListOfPendingShares(n, getTimeFormatFromSTR(getOption(cloptions, "time-format","RFC2822")), words[i]);
                                 }
                                 else
                                 {
@@ -7068,7 +7829,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         }
                         else if (listPending)
                         {
-                            dumpListOfPendingShares(n, words[i]);
+                            dumpListOfPendingShares(n, getTimeFormatFromSTR(getOption(cloptions, "time-format","RFC2822")), words[i]);
                         }
                         else
                         {
@@ -7164,7 +7925,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         OUTSTREAM << user->getEmail() << ", " << visibilityToString(user->getVisibility());
                         if (user->getTimestamp())
                         {
-                            OUTSTREAM << " since " << getReadableTime(user->getTimestamp());
+                            OUTSTREAM << " since " << getReadableTime(user->getTimestamp(), getTimeFormatFromSTR(getOption(cloptions, "time-format","RFC2822")));
                         }
                         OUTSTREAM << endl;
 
@@ -7188,7 +7949,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                                             }
 
                                             OUTSTREAM << "\t";
-                                            dumpNode(n, 2, false, 0, getDisplayPath("/", n).c_str());
+                                            dumpNode(n, getTimeFormatFromSTR(getOption(cloptions, "time-format","RFC2822")), 2, false, 0, getDisplayPath("/", n).c_str());
                                             delete n;
                                         }
                                     }
@@ -7421,8 +8182,10 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             return;
         }
         bool settingattr = getFlag(clflags, "s");
+        bool listattrs = getFlag(clflags, "list");
+        bool listall = words.size() == 1;
 
-        int attribute = getAttrNum(words.size() > 1 ? words[1].c_str() : "-1");
+        int attribute;// = api->userAttributeFromString(words.size() > 1 ? words[1].c_str() : "-1");
         string attrValue = words.size() > 2 ? words[2] : "";
         string user = getOption(cloptions, "user", "");
         if (settingattr && user.size())
@@ -7436,17 +8199,17 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         {
             if (attribute != -1)
             {
+                const char *catrn;// = api->userAttributeToString(attribute);
+                string attrname = catrn;
+                delete [] catrn;
+
                 MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
                 api->setUserAttribute(attribute, attrValue.c_str(), megaCmdListener);
                 megaCmdListener->wait();
-                if (checkNoErrors(megaCmdListener->getError(), string("set user attribute ") + getAttrStr(attribute)))
+                if (checkNoErrors(megaCmdListener->getError(), string("set user attribute ") + attrname))
                 {
-                    OUTSTREAM << "User attribute " << getAttrStr(attribute) << " updated" << " correctly" << endl;
-                }
-                else
-                {
-                    delete megaCmdListener;
-                    return;
+                    OUTSTREAM << "User attribute " << attrname << " updated correctly" << endl;
+                    printUserAttribute(attribute, user, listattrs);
                 }
                 delete megaCmdListener;
             }
@@ -7458,44 +8221,26 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 return;
             }
         }
-
-        for (int a = ( attribute == -1 ? 0 : attribute ); a < ( attribute == -1 ? 10 : attribute + 1 ); a++)
+        else // list
         {
-            MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
-            if (user.size())
+            if (listall)
             {
-                api->getUserAttribute(user.c_str(), a, megaCmdListener);
+                int a = 0;
+                bool found = false;
+                do
+                {
+                    found = printUserAttribute(a, user, listattrs);
+                    a++;
+                } while (found && listall);
             }
             else
             {
-                api->getUserAttribute(a, megaCmdListener);
-            }
-            megaCmdListener->wait();
-            if (checkNoErrors(megaCmdListener->getError(), string("get user attribute ") + getAttrStr(a)))
-            {
-                int iattr = megaCmdListener->getRequest()->getParamType();
-                const char *value = megaCmdListener->getRequest()->getText();
-                string svalue;
-                try
+                if (!printUserAttribute(attribute, user, listattrs))
                 {
-                    if (value)
-                    {
-                        svalue = string(value);
-                    }
-                    else
-                    {
-                        svalue = "NOT PRINTABLE";
-                    }
-
+                    setCurrentOutCode(MCMD_NOTFOUND);
+                    LOG_err << "Attribute not found: " << words[1];
                 }
-                catch (exception e)
-                {
-                    svalue = "NOT PRINTABLE";
-                }
-                OUTSTREAM << "\t" << getAttrStr(iattr) << " = " << svalue << endl;
             }
-
-            delete megaCmdListener;
         }
 
         return;
@@ -7584,6 +8329,21 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         }
         return;
     }
+    else if (words[0] == "tree")
+    {
+        vector<string> newcom;
+        newcom.push_back("ls");
+        (*clflags)["tree"] = 1;
+        if (words.size()>1)
+        {
+            for (vector<string>::iterator it = ++words.begin(); it != words.end();it++)
+            {
+                newcom.push_back(*it);
+            }
+        }
+
+        return executecommand(newcom, clflags, cloptions);
+    }
     else if (words[0] == "debug")
     {
         vector<string> newcom;
@@ -7618,7 +8378,8 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             }
             else if (words.size() == 2)
             {
-                changePassword(words[1].c_str());
+                string pin2fa = getOption(cloptions, "auth-code", "");
+                changePassword(words[1].c_str(), pin2fa);
             }
             else
             {
@@ -7849,6 +8610,133 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
         return;
     }
+    else if (words[0] == "df")
+    {
+        bool humanreadable = getFlag(clflags, "h");
+        MegaUser *u = api->getMyUser();
+        if (u)
+        {
+            MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
+            api->getExtendedAccountDetails(true, true, true, megaCmdListener);
+            megaCmdListener->wait();
+            if (checkNoErrors(megaCmdListener->getError(), "failed to get used storage"))
+            {
+                MegaAccountDetails *details = megaCmdListener->getRequest()->getMegaAccountDetails();
+                if (details)
+                {
+                    long long usedTotal = 0;
+                    long long rootStorage = 0;
+                    long long inboxStorage = 0;
+                    long long rubbishStorage = 0;
+                    long long insharesStorage = 0;
+
+                    long long storageMax = details->getStorageMax();
+
+                    MegaNode *n = api->getRootNode();
+                    if (n)
+                    {
+                        rootStorage = details->getStorageUsed(n->getHandle());
+                        OUTSTREAM << "Cloud drive:          "
+                                  << getFixLengthString(sizeToText(rootStorage, true, humanreadable), 12, ' ', true) << " in "
+                                  << getFixLengthString(SSTR(details->getNumFiles(n->getHandle())),7,' ',true) << " file(s) and "
+                                  << getFixLengthString(SSTR(details->getNumFolders(n->getHandle())),7,' ',true) << " folder(s)" << endl;
+                        delete n;
+                    }
+
+                    n = api->getInboxNode();
+                    if (n)
+                    {
+                        inboxStorage = details->getStorageUsed(n->getHandle());
+                        OUTSTREAM << "Inbox:                "
+                                  << getFixLengthString(sizeToText(inboxStorage, true, humanreadable), 12, ' ', true ) << " in "
+                                  << getFixLengthString(SSTR(details->getNumFiles(n->getHandle())),7,' ',true) << " file(s) and "
+                                  << getFixLengthString(SSTR(details->getNumFolders(n->getHandle())),7,' ',true) << " folder(s)" << endl;
+                        delete n;
+                    }
+
+                    n = api->getRubbishNode();
+                    if (n)
+                    {
+                        rubbishStorage = details->getStorageUsed(n->getHandle());
+                        OUTSTREAM << "Rubbish bin:          "
+                                  << getFixLengthString(sizeToText(rubbishStorage, true, humanreadable), 12, ' ', true) << " in "
+                                  << getFixLengthString(SSTR(details->getNumFiles(n->getHandle())),7,' ',true) << " file(s) and "
+                                  << getFixLengthString(SSTR(details->getNumFolders(n->getHandle())),7,' ',true) << " folder(s)" << endl;
+                        delete n;
+                    }
+
+                    MegaNodeList *inshares = api->getInShares();
+                    if (inshares)
+                    {
+                        for (int i = 0; i < inshares->size(); i++)
+                        {
+                            n = inshares->get(i);
+                            long long thisinshareStorage = details->getStorageUsed(n->getHandle());
+                            insharesStorage += thisinshareStorage;
+                            if (i == 0)
+                            {
+                                OUTSTREAM << "Incoming shares:" << endl;
+                            }
+
+                            string name = n->getName();
+                            name += ": ";
+                            name.append(max(0, int (21 - name.size())), ' ');
+
+                            OUTSTREAM << " " << name
+                                      << getFixLengthString(sizeToText(thisinshareStorage, true, humanreadable), 12, ' ', true) << " in "
+                                      << getFixLengthString(SSTR(details->getNumFiles(n->getHandle())),7,' ',true) << " file(s) and "
+                                      << getFixLengthString(SSTR(details->getNumFolders(n->getHandle())),7,' ',true) << " folder(s)" << endl;
+                        }
+                    }
+                    delete inshares;
+
+                    usedTotal += rootStorage;
+                    usedTotal += inboxStorage;
+                    usedTotal += rubbishStorage;
+                    usedTotal += insharesStorage;
+
+                    float percent = float(usedTotal * 1.0 / storageMax);
+                    if (percent < 0 ) percent = 0;
+
+                    string sof= percentageToText(percent);
+                    sof +=  " of ";
+                    sof +=  sizeToText(storageMax, true, humanreadable);
+
+
+                    for (int i = 0; i < 75 ; i++)
+                    {
+                        OUTSTREAM << "-";
+                    }
+                    OUTSTREAM << endl;
+
+                    OUTSTREAM << "USED STORAGE:         " << getFixLengthString(sizeToText(usedTotal, true, humanreadable), 12, ' ', true)
+                              << "  " << getFixLengthString(sof, 39, ' ', true) << endl;
+
+                    for (int i = 0; i < 75 ; i++)
+                    {
+                        OUTSTREAM << "-";
+                    }
+                    OUTSTREAM << endl;
+
+                    long long usedinVersions = details->getVersionStorageUsed();
+
+                    OUTSTREAM << "Total size taken up by file versions: "
+                              << getFixLengthString(sizeToText(usedinVersions, true, humanreadable), 12, ' ', true) << endl;
+
+                    delete details;
+                }
+            }
+            delete megaCmdListener;
+            delete u;
+        }
+        else
+        {
+            setCurrentOutCode(MCMD_NOTLOGGEDIN);
+            LOG_err << "Not logged in.";
+        }
+
+        return;
+    }
     else if (words[0] == "export")
     {
         if (!api->isFilesystemAvailable())
@@ -7871,6 +8759,14 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         }
 
         string linkPass = getOption(cloptions, "password", "");
+        bool add = getFlag(clflags, "a");
+
+        if (linkPass.size() && !add)
+        {
+            setCurrentOutCode(MCMD_EARGS);
+            LOG_err << "You need to use -a to add an export. Usage: " << getUsageStr("export");
+            return;
+        }
 
         if (words.size() <= 1)
         {
@@ -7895,7 +8791,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         MegaNode * n = *it;
                         if (n)
                         {
-                            if (getFlag(clflags, "a"))
+                            if (add)
                             {
                                 LOG_debug << " exporting ... " << n->getName() << " expireTime=" << expireTime;
                                 exportNode(n, expireTime, linkPass, getFlag(clflags,"f"));
@@ -7907,7 +8803,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                             }
                             else
                             {
-                                if (dumpListOfExported(n, words[i]) == 0 )
+                                if (dumpListOfExported(n, getTimeFormatFromSTR(getOption(cloptions, "time-format","RFC2822")), words[i]) == 0 )
                                 {
                                     OUTSTREAM << words[i] << " is not exported. Use -a to export it" << endl;
                                 }
@@ -7930,7 +8826,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 MegaNode *n = nodebypath(words[i].c_str());
                 if (n)
                 {
-                    if (getFlag(clflags, "a"))
+                    if (add)
                     {
                         LOG_debug << " exporting ... " << n->getName();
                         exportNode(n, expireTime, linkPass, getFlag(clflags,"f"));
@@ -7942,7 +8838,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     }
                     else
                     {
-                        if (dumpListOfExported(n, words[i]) == 0 )
+                        if (dumpListOfExported(n, getTimeFormatFromSTR(getOption(cloptions, "time-format","RFC2822")), words[i]) == 0 )
                         {
                             OUTSTREAM << "Couldn't find anything exported below ";
                             if (words[i] == ".")
@@ -8261,7 +9157,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
     }
     else if (words[0] == "version")
     {
-        OUTSTREAM << "MEGA CMD version: " << MEGACMD_MAJOR_VERSION << "." << MEGACMD_MINOR_VERSION << "." << MEGACMD_MICRO_VERSION << ": code " << MEGACMD_CODE_VERSION << endl;
+        OUTSTREAM << "MEGAcmd version: " << MEGACMD_MAJOR_VERSION << "." << MEGACMD_MINOR_VERSION << "." << MEGACMD_MICRO_VERSION << ": code " << MEGACMD_CODE_VERSION << endl;
 
         MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
         api->getLastAvailableVersion("BdARkQSQ",megaCmdListener);
@@ -8280,7 +9176,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 if (megaCmdListener->getRequest()->getNumber() != MEGACMD_CODE_VERSION)
                 {
                     OUTSTREAM << "---------------------------------------------------------------------" << endl;
-                    OUTSTREAM << "--        There is a new version available of megacmd: " << setw(12) << left << megaCmdListener->getRequest()->getName() << "--" << endl;
+                    OUTSTREAM << "--        There is a new version available of megacmd: " << getLeftAlignedStr(megaCmdListener->getRequest()->getName(), 12) << "--" << endl;
                     OUTSTREAM << "--        Please, download it from https://mega.nz/cmd             --" << endl;
 #if defined(__APPLE__)
                     OUTSTREAM << "--        Before installing enter \"exit\" to close MEGAcmd          --" << endl;
@@ -8406,12 +9302,12 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 for (int i = 0; i < ocrl->size(); i++)
                 {
                     MegaContactRequest * cr = ocrl->get(i);
-                    OUTSTREAM << " " << setw(22) << cr->getTargetEmail();
+                    OUTSTREAM << " " << getLeftAlignedStr(cr->getTargetEmail(),22);
 
                     char * sid = api->userHandleToBase64(cr->getHandle());
 
-                    OUTSTREAM << "\t (id: " << sid << ", creation: " << getReadableTime(cr->getCreationTime())
-                              << ", modification: " << getReadableTime(cr->getModificationTime()) << ")";
+                    OUTSTREAM << "\t (id: " << sid << ", creation: " << getReadableTime(cr->getCreationTime(), getTimeFormatFromSTR(getOption(cloptions, "time-format","RFC2822")))
+                              << ", modification: " << getReadableTime(cr->getModificationTime(), getTimeFormatFromSTR(getOption(cloptions, "time-format","RFC2822"))) << ")";
 
                     delete[] sid;
                     OUTSTREAM << endl;
@@ -8434,14 +9330,14 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 for (int i = 0; i < icrl->size(); i++)
                 {
                     MegaContactRequest * cr = icrl->get(i);
-                    OUTSTREAM << " " << setw(22) << cr->getSourceEmail();
+                    OUTSTREAM << " " << getLeftAlignedStr(cr->getSourceEmail(), 22);
 
                     MegaHandle id = cr->getHandle();
                     char sid[12];
                     Base64::btoa((unsigned char*)&( id ), sizeof( id ), sid);
 
-                    OUTSTREAM << "\t (id: " << sid << ", creation: " << getReadableTime(cr->getCreationTime())
-                              << ", modification: " << getReadableTime(cr->getModificationTime()) << ")";
+                    OUTSTREAM << "\t (id: " << sid << ", creation: " << getReadableTime(cr->getCreationTime(), getTimeFormatFromSTR(getOption(cloptions, "time-format","RFC2822")))
+                              << ", modification: " << getReadableTime(cr->getModificationTime(), getTimeFormatFromSTR(getOption(cloptions, "time-format","RFC2822"))) << ")";
                     if (cr->getSourceMessage())
                     {
                         OUTSTREAM << endl << "\t" << "Invitation message: " << cr->getSourceMessage();
@@ -8457,42 +9353,54 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
     }
     else if (words[0] == "killsession")
     {
-        string thesession;
-        MegaHandle thehandle = UNDEF;
-        if (getFlag(clflags, "a"))
-        {
-            // Kill all sessions (except current)
-            thesession = "all";
-            thehandle = INVALID_HANDLE;
-        }
-        else if (words.size() > 1)
-        {
-            thesession = words[1];
-            thehandle = api->base64ToUserHandle(thesession.c_str());
-        }
-        else
+        bool all = getFlag(clflags, "a");
+
+        if ((words.size() <= 1 && !all) || (all && words.size() > 1))
         {
             setCurrentOutCode(MCMD_EARGS);
             LOG_err << "      " << getUsageStr("killsession");
             return;
         }
+        string thesession;
+        MegaHandle thehandle = UNDEF;
 
-        MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
-        api->killSession(thehandle, megaCmdListener);
-        megaCmdListener->wait();
-        if (checkNoErrors(megaCmdListener->getError(), "kill session " + thesession + ". Maybe the session was not valid."))
+        if (all)
         {
-            if (!getFlag(clflags, "a"))
+            // Kill all sessions (except current)
+            words.push_back("all");
+        }
+
+        for (unsigned int i = 1; i < words.size() ; i++)
+        {
+            thesession = words[i];
+            if (thesession == "all")
             {
-               OUTSTREAM << "Session " << thesession << " killed successfully" << endl;
+                thehandle = INVALID_HANDLE;
             }
             else
             {
-                OUTSTREAM << "All sessions killed successfully" << endl;
+                thehandle = api->base64ToUserHandle(thesession.c_str());
             }
+
+
+            MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
+            api->killSession(thehandle, megaCmdListener);
+            megaCmdListener->wait();
+            if (checkNoErrors(megaCmdListener->getError(), "kill session " + thesession + ". Maybe the session was not valid."))
+            {
+                if (thesession != "all")
+                {
+                    OUTSTREAM << "Session " << thesession << " killed successfully" << endl;
+                }
+                else
+                {
+                    OUTSTREAM << "All sessions killed successfully" << endl;
+                }
+            }
+
+            delete megaCmdListener;
         }
 
-        delete megaCmdListener;
         return;
     }
     else if (words[0] == "transfers")
@@ -8502,6 +9410,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         bool onlyuploads = getFlag(clflags, "only-uploads");
         bool onlydownloads = getFlag(clflags, "only-downloads");
         bool showsyncs = getFlag(clflags, "show-syncs");
+        bool printsummary = getFlag(clflags, "summary");
 
         int PATHSIZE = getintOption(cloptions,"path-display-size");
         if (!PATHSIZE)
@@ -8652,7 +9561,70 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
         //show transfers
         MegaTransferData* transferdata = api->getTransferData();
-        int limit = getintOption(cloptions, "limit", min(10,transferdata->getNumDownloads()+transferdata->getNumUploads()+(int)globalTransferListener->completedTransfers.size()));
+
+        int ndownloads = transferdata->getNumDownloads();
+        int nuploads = transferdata->getNumUploads();
+
+        if (printsummary)
+        {
+            long long transferredDownload = 0, transferredUpload = 0, totalDownload = 0, totalUpload = 0;
+            for (int i = 0; i< ndownloads; i++)
+            {
+                MegaTransfer *t = api->getTransferByTag(transferdata->getDownloadTag(i));
+                {
+                    if (t)
+                    {
+                        transferredDownload += t->getTransferredBytes();
+                        totalDownload += t->getTotalBytes();
+                        delete t;
+                    }
+                }
+            }
+            for (int i = 0; i< nuploads; i++)
+            {
+                MegaTransfer *t = api->getTransferByTag(transferdata->getUploadTag(i));
+                {
+                    if (t)
+                    {
+                        transferredUpload += t->getTransferredBytes();
+                        totalUpload += t->getTotalBytes();
+                        delete t;
+                    }
+                }
+            }
+
+            float percentDownload = !totalDownload?0:float(transferredDownload*1.0/totalDownload);
+            float percentUpload = !totalUpload?0:float(transferredUpload*1.0/totalUpload);
+
+            OUTSTREAM << getFixLengthString("NUM DOWNLOADS", 16, ' ', true);
+            OUTSTREAM << getFixLengthString("DOWNLOADED", 12, ' ', true);
+            OUTSTREAM << getFixLengthString("TOTAL", 12, ' ', true);
+            OUTSTREAM << getFixLengthString("%   ", 8, ' ', true);
+            OUTSTREAM << "     ";
+            OUTSTREAM << getFixLengthString("NUM UPLOADS", 16, ' ', true);
+            OUTSTREAM << getFixLengthString("UPLOADED", 12, ' ', true);
+            OUTSTREAM << getFixLengthString("TOTAL", 12, ' ', true);
+            OUTSTREAM << getFixLengthString("%   ", 8, ' ', true);
+            OUTSTREAM << endl;
+
+            OUTSTREAM << getFixLengthString(SSTR(ndownloads), 16, ' ', true);
+            OUTSTREAM << getFixLengthString(sizeToText(transferredDownload), 12, ' ', true);
+            OUTSTREAM << getFixLengthString(sizeToText(totalDownload), 12, ' ', true);
+            OUTSTREAM << getFixLengthString(percentageToText(percentDownload),8,' ',true);
+
+            OUTSTREAM << "     ";
+            OUTSTREAM << getFixLengthString(SSTR(nuploads), 16, ' ', true);
+            OUTSTREAM << getFixLengthString(sizeToText(transferredUpload), 12, ' ', true);
+            OUTSTREAM << getFixLengthString(sizeToText(totalUpload), 12, ' ', true);
+            OUTSTREAM << getFixLengthString(percentageToText(percentUpload),8,' ',true);
+            OUTSTREAM << endl;
+            delete transferdata;
+            return;
+        }
+
+
+
+        int limit = getintOption(cloptions, "limit", min(10,ndownloads+nuploads+(int)globalTransferListener->completedTransfers.size()));
 
         if (!transferdata)
         {
@@ -8716,7 +9688,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             else
             {
                 if ( (!onlydownloads || (onlydownloads && onlyuploads)) //both
-                     && ( (shown >= (limit/2) ) || indexDownload == transferdata->getNumDownloads() ) // /already chosen half slots for dls or no more dls
+                     && ( (shown >= (limit/2) ) || indexDownload == ndownloads ) // /already chosen half slots for dls or no more dls
                      && indexUpload < transferdata->getNumUploads()
                      )
                     //This is not 100 % perfect, it could show with a limit of 10 5 downloads and 3 uploads with more downloads on the queue.
@@ -8724,7 +9696,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     transfer = api->getTransferByTag(transferdata->getUploadTag(indexUpload++));
 
                 }
-                else if(indexDownload < transferdata->getNumDownloads())
+                else if(indexDownload < ndownloads)
                 {
                     transfer =  api->getTransferByTag(transferdata->getDownloadTag(indexDownload++));
                 }

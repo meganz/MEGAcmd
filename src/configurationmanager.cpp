@@ -2,7 +2,7 @@
  * @file src/configurationmanager.cpp
  * @brief MEGAcmd: configuration manager
  *
- * (c) 2013-2016 by Mega Limited, Auckland, New Zealand
+ * (c) 2013 by Mega Limited, Auckland, New Zealand
  *
  * This file is part of the MEGAcmd.
  *
@@ -24,6 +24,7 @@
 #ifdef _WIN32
 #include <shlobj.h> //SHGetFolderPath
 #include <Shlwapi.h> //PathAppend
+#include <lzexpand.h>
 #else
 #include <pwd.h>  //getpwuid_r
 #include <sys/file.h> //flock
@@ -36,7 +37,7 @@
 #endif
 
 #if defined(_WIN32)
-#define unlink _unlink  
+#define unlink _unlink
 #endif
 
 using namespace std;
@@ -59,8 +60,17 @@ map<std::string, backup_struct *> ConfigurationManager::configuredBackups;
 
 std::string ConfigurationManager::getConfigFolder()
 {
+    if (!configFolder.size())
+    {
+        ConfigurationManager::loadConfigDir();
+    }
     return configFolder;
 }
+
+static const char* const persistentmcmdconfigurationkeys[] =
+{
+    "autoupdate", "updaterregistered"
+};
 
 void ConfigurationManager::loadConfigDir()
 {
@@ -203,8 +213,6 @@ void ConfigurationManager::saveProperty(const char *property, const char *value)
             }
             fo.close();
         }
-
-
     }
 }
 
@@ -593,6 +601,17 @@ void ConfigurationManager::loadConfiguration(bool debug)
             }
             fi.close();
         }
+
+        //Save version
+        stringstream versionionfile;
+        versionionfile << configFolder << "/" << "megacmd.version";
+        ofstream fo(versionionfile.str().c_str(), ios::out);
+
+        if (fo.is_open())
+        {
+            fo << MEGACMD_CODE_VERSION;
+            fo.close();
+        }
     }
     else
     {
@@ -629,11 +648,22 @@ bool ConfigurationManager::lockExecution()
         {
             return false;
         }
+
+        if (fcntl(fd, F_SETFD, FD_CLOEXEC) == -1)
+        {
+            LOG_err << "ERROR setting CLOEXEC to lock fd: " << errno;
+        }
+
 #else
-        ofstream fo(lockfile.str().c_str());
-        if(!fo.fail()){
+        ifstream fi(thelockfile.c_str());
+        if(!fi.fail()){
             return false;
         }
+        if (fi.is_open())
+        {
+            fi.close();
+        }
+        ofstream fo(thelockfile.c_str());
         if (fo.is_open())
         {
             fo.close();
@@ -696,13 +726,38 @@ void ConfigurationManager::clearConfigurationFile()
     {
         stringstream configFile;
         configFile << configFolder << "/" << "megacmd.cfg";
+
+        stringstream formerlines;
+        ifstream infile(configFile.str().c_str());
+        string line;
+        while (getline(infile, line))
+        {
+            size_t pos;
+            if (line.length() > 0 && line[0] != '#' && (pos = line.find("=")) != string::npos)
+            {
+                string key;
+                key = line.substr(0, pos);
+                rtrimProperty(key, ' ');
+
+                for (unsigned int i = 0; i < sizeof(persistentmcmdconfigurationkeys)/sizeof(persistentmcmdconfigurationkeys[0]); i++)
+                {
+                    if (!strcmp(key.c_str(), persistentmcmdconfigurationkeys[i]))
+                    {
+                        formerlines << line << endl;
+                    }
+                }
+            }
+            else
+            {
+                formerlines << line << endl;
+            }
+        }
         ofstream fo(configFile.str().c_str());
 
         if (fo.is_open())
         {
-            fo << "";
+            fo << formerlines.str();
             fo.close();
         }
     }
-
 }

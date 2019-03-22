@@ -2,7 +2,7 @@
  * @file src/megacmdlogger.cpp
  * @brief MEGAcmd: Controls message logging
  *
- * (c) 2013-2016 by Mega Limited, Auckland, New Zealand
+ * (c) 2013 by Mega Limited, Auckland, New Zealand
  *
  * This file is part of the MEGAcmd.
  *
@@ -22,24 +22,39 @@
 
 #include <sys/types.h>
 
+#ifdef _WIN32
+#include <fcntl.h>
+#include <io.h>
+#include <stdio.h>
+#ifndef _O_U16TEXT
+#define _O_U16TEXT 0x00020000
+#endif
+#ifndef _O_U8TEXT
+#define _O_U8TEXT 0x00040000
+#endif
+#endif
+
 using namespace std;
 using namespace mega;
 
 // different outstreams for every thread. to gather all the output data
 MUTEX_CLASS threadLookups(false);
-map<uint64_t, OUTSTREAMTYPE *> outstreams;
+map<uint64_t, LoggedStream *> outstreams;
 map<uint64_t, int> threadLogLevel;
 map<uint64_t, int> threadoutCode;
 map<uint64_t, CmdPetition *> threadpetition;
 map<uint64_t, bool> threadIsCmdShell;
 
-OUTSTREAMTYPE &getCurrentOut()
+LoggedStream LCOUT(&COUT);
+
+
+LoggedStream &getCurrentOut()
 {
     MutexGuard g(threadLookups);
     uint64_t currentThread = MegaThread::currentThreadId();
     if (outstreams.find(currentThread) == outstreams.end())
     {
-        return COUT;
+        return LCOUT;
     }
     else
     {
@@ -135,7 +150,7 @@ void setCurrentThreadLogLevel(int level)
     threadLogLevel[MegaThread::currentThreadId()] = level;
 }
 
-void setCurrentThreadOutStream(OUTSTREAMTYPE *s)
+void setCurrentThreadOutStream(LoggedStream *s)
 {
     MutexGuard g(threadLookups);
     outstreams[MegaThread::currentThreadId()] = s;
@@ -159,17 +174,40 @@ void setCurrentPetition(CmdPetition *petition)
     threadpetition[MegaThread::currentThreadId()] = petition;
 }
 
+
+MegaCMDLogger::MegaCMDLogger()
+{
+    this->output = &LCOUT;
+    this->apiLoggerLevel = MegaApi::LOG_LEVEL_ERROR;
+    this->outputmutex = new MegaMutex(false);
+}
+
+MegaCMDLogger::~MegaCMDLogger()
+{
+    delete this->outputmutex;
+}
+
 void MegaCMDLogger::log(const char *time, int loglevel, const char *source, const char *message)
 {
-    if ( (strstr(source, "src/megacmd") != NULL)
-         || (strstr(source, "src/listeners.cpp") != NULL)
-         || (strstr(source, "src/configurationmanager.cpp") != NULL)
-         || (strstr(source, "src/comunicationsmanager") != NULL)
+    if ( (string(source).find("src/megacmd") != string::npos)
+         || (string(source).find("src\\megacmd") != string::npos)
+         || (string(source).find("listeners.cpp") != string::npos)
+         || (string(source).find("configurationmanager.cpp") != string::npos)
+         || (string(source).find("comunicationsmanager") != string::npos)
          )
     {
         if (loglevel <= cmdLoggerLevel)
         {
+#ifdef _WIN32
+            MutexGuard g(*outputmutex);
+            int oldmode;
+            oldmode = _setmode(_fileno(stdout), _O_U8TEXT);
             *output << "[" << SimpleLogger::toStr(LogLevel(loglevel)) << ": " << time << "] " << message << endl;
+            _setmode(_fileno(stdout), oldmode);
+#else
+            *output << "[" << SimpleLogger::toStr(LogLevel(loglevel)) << ": " << time << "] " << message << endl;
+#endif
+
         }
 
         int currentThreadLogLevel = getCurrentThreadLogLevel();
@@ -194,8 +232,15 @@ void MegaCMDLogger::log(const char *time, int loglevel, const char *source, cons
             {
                 return;
             }
-
+#ifdef _WIN32
+            MutexGuard g(*outputmutex);
+            int oldmode;
+            oldmode = _setmode(_fileno(stdout), _O_U8TEXT);
             *output << "[API:" << SimpleLogger::toStr(LogLevel(loglevel)) << ": " << time << "] " << message << endl;
+            _setmode(_fileno(stdout), oldmode);
+#else
+            *output << "[API:" << SimpleLogger::toStr(LogLevel(loglevel)) << ": " << time << "] " << message << endl;
+#endif
         }
 
         int currentThreadLogLevel = getCurrentThreadLogLevel();

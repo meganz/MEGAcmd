@@ -66,6 +66,7 @@ py-compile
 *~
 Debug
 Release
+*.pro.user
 
 megaclient_statecache*
 
@@ -107,6 +108,11 @@ contrib/QtCreator/MEGAcmd/.qmake.stash
 contrib/QtCreator/MEGAcmd/MEGAcmdClient/Makefile.Debug
 contrib/QtCreator/MEGAcmd/MEGAcmdClient/Makefile.Release
 contrib/QtCreator/MEGAcmd/MEGAcmdServer/Makefile.Release
+contrib/QtCreator/MEGAcmd/MEGAcmdUpdateGenerator/Makefile*
+contrib/QtCreator/MEGAcmd/MEGAcmdUpdater/Makefile*
+contrib/QtCreator/MEGAcmd/build-*
+
+/Makefile*
 build/Release_x64
 /build/megacmd/megacmd*.dsc
 

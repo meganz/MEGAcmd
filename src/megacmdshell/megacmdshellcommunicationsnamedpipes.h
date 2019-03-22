@@ -2,7 +2,7 @@
  * @file src/megacmdshellcommunicationsnamedpipes.h
  * @brief MEGAcmd: Communications module to connect to server using NamedPipes
  *
- * (c) 2013-2017 by Mega Limited, Auckland, New Zealand
+ * (c) 2013 by Mega Limited, Auckland, New Zealand
  *
  * This file is part of the MEGAcmd.
  *
@@ -44,8 +44,13 @@ typedef struct structListenStateChangesNamedPipe{
 
 class MegaCmdShellCommunicationsNamedPipes : public MegaCmdShellCommunications
 {
+private:
+    bool redirectedstdout;
 public:
+
     MegaCmdShellCommunicationsNamedPipes();
+    MegaCmdShellCommunicationsNamedPipes(bool _redirectedstdout):redirectedstdout(_redirectedstdout){};
+
     ~MegaCmdShellCommunicationsNamedPipes();
 
     virtual int executeCommand(std::string command, std::string (*readresponse)(const char *) = NULL, OUTSTREAMTYPE &output = COUT, bool interactiveshell = true, std::wstring = L"");
