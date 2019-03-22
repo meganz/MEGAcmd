@@ -207,6 +207,7 @@ void statechangehandle(string statestring)
 {
     char statedelim[2]={(char)0x1F,'\0'};
     size_t nextstatedelimitpos = statestring.find(statedelim);
+    static bool shown_partial_progress = false;
 
     while (nextstatedelimitpos!=string::npos && statestring.size())
     {
@@ -217,19 +218,59 @@ void statechangehandle(string statestring)
         {
             changeprompt(newstate.substr(strlen("prompt:")).c_str(),true);
         }
+        else if (newstate.compare(0, strlen("endtransfer:"), "endtransfer:") == 0)
+        {
+            string rest = newstate.substr(strlen("endtransfer:"));
+            if (rest.size() >=3)
+            {
+                bool isdown = rest.at(0) == 'D';
+                string path = rest.substr(2);
+                stringstream os;
+                if (shown_partial_progress)
+                {
+                    os << endl;
+                }
+                os << (isdown?"Download":"Upload") << " finished: " << path << endl;
+
+#ifdef _WIN32
+                wstring wbuffer;
+                stringtolocalw((const char*)os.str().data(),&wbuffer);
+                int oldmode;
+                MegaCmdShellCommunications::megaCmdStdoutputing.lock();
+                oldmode = _setmode(_fileno(stdout), _O_U8TEXT);
+                OUTSTREAM << wbuffer << flush;
+                _setmode(_fileno(stdout), oldmode);
+                MegaCmdShellCommunications::megaCmdStdoutputing.unlock();
+#else
+                OUTSTREAM << os.str();
+#endif
+            }
+        }
         else if (newstate.compare(0, strlen("message:"), "message:") == 0)
         {
             string contents = newstate.substr(strlen("message:"));
             unsigned int width = getNumberOfCols(75);
             if (width > 1 ) width--;
+            MegaCmdShellCommunications::megaCmdStdoutputing.lock();
+#ifdef _WIN32
+            int oldmode = _setmode(_fileno(stdout), _O_U8TEXT);
+#endif
             if (contents.find("-----") != 0)
             {
+                if (!procesingline || shown_partial_progress)
+                {
+                    OUTSTREAM << endl;
+                }
                 printCenteredContents(contents, width);
             }
             else
             {
                 OUTSTREAM << endl <<  contents << endl;
             }
+#ifdef _WIN32
+            _setmode(_fileno(stdout), oldmode);
+#endif
+            MegaCmdShellCommunications::megaCmdStdoutputing.unlock();
 
             requirepromptinstall = true;
         }
@@ -256,6 +297,16 @@ void statechangehandle(string statestring)
                 title = rest.substr(0,nexdel);
             }
 
+            if (received!=SPROGRESS_COMPLETE)
+            {
+                shown_partial_progress = true;
+            }
+            else
+            {
+                shown_partial_progress = false;
+            }
+
+            MegaCmdShellCommunications::megaCmdStdoutputing.lock();
             if (title.size())
             {
                 if (received==SPROGRESS_COMPLETE)
@@ -279,7 +330,7 @@ void statechangehandle(string statestring)
                     printprogress(charstoll(received.c_str()), charstoll(total.c_str()));
                 }
             }
-
+            MegaCmdShellCommunications::megaCmdStdoutputing.unlock();
         }
         else if (newstate == "ack")
         {
@@ -292,15 +343,25 @@ void statechangehandle(string statestring)
             if (!comms->updating)
             {
                 comms->updating = true; // to avoid mensajes about server down
-                sleepSeconds(3); // Give a while for server to restart
-                changeprompt("RESTART REQUIRED BY SERVER (due to an update). Press any key to continue.", true);
             }
+            sleepSeconds(3); // Give a while for server to restart
+            changeprompt("RESTART REQUIRED BY SERVER (due to an update). Press any key to continue.", true);
         }
         else
         {
+            if (shown_partial_progress)
+            {
+                OUTSTREAM << endl;
+            }
             cerr << "received unrecognized state change: [" << newstate << "]" << endl;
             //sleep a while to avoid continuous looping
             sleepSeconds(1);
+        }
+
+
+        if (newstate.compare(0, strlen("progress:"), "progress:") != 0)
+        {
+            shown_partial_progress = false;
         }
     }
 }
@@ -1159,8 +1220,9 @@ void process_line(const char * line)
                 confirmcommand+=linktoconfirm;
                 confirmcommand+=" " ;
                 confirmcommand+=loginname;
-                confirmcommand+=" " ;
+                confirmcommand+=" \"";
                 confirmcommand+=line;
+                confirmcommand+="\"" ;
                 OUTSTREAM << endl;
                 comms->executeCommand(confirmcommand.c_str(), readresponse);
             }
@@ -1168,8 +1230,9 @@ void process_line(const char * line)
             {
                 string confirmcommand("confirmcancel ");
                 confirmcommand+=linktoconfirm;
-                confirmcommand+=" " ;
+                confirmcommand+=" \"";
                 confirmcommand+=line;
+                confirmcommand+="\"" ;
                 OUTSTREAM << endl;
                 comms->executeCommand(confirmcommand.c_str(), readresponse);
             }
@@ -1183,8 +1246,9 @@ void process_line(const char * line)
                     logincommand+=" ";
                 }
                 logincommand+=loginname;
-                logincommand+=" " ;
+                logincommand+=" \"" ;
                 logincommand+=line;
+                logincommand+="\"" ;
                 OUTSTREAM << endl;
                 comms->executeCommand(logincommand.c_str(), readresponse);
             }
@@ -1221,8 +1285,9 @@ void process_line(const char * line)
 
                 if (signingup)
                 {
-                    signupline += " ";
+                    signupline += " \"";
                     signupline += newpasswd;
+                    signupline += "\"";
                     comms->executeCommand(signupline.c_str(), readresponse);
 
                     signingup = false;
@@ -1231,9 +1296,16 @@ void process_line(const char * line)
                 {
                     string changepasscommand(passwdline);
                     passwdline = " ";
-                    changepasscommand+=oldpasswd;
                     changepasscommand+=" " ;
+                    if (oldpasswd.size())
+                    {
+                        changepasscommand+="\"" ;
+                        changepasscommand+=oldpasswd;
+                        changepasscommand+="\"" ;
+                    }
+                    changepasscommand+=" \"" ;
                     changepasscommand+=newpasswd;
+                    changepasscommand+="\"" ;
                     comms->executeCommand(changepasscommand.c_str(), readresponse);
                 }
             }
@@ -1285,7 +1357,7 @@ void process_line(const char * line)
                         doExit = true;
                     }
                 }
-#ifndef __linux__
+#if defined(_WIN32) || defined(__APPLE__)
                 else if (words[0] == "update")
                 {
                     MegaCmdShellCommunications::updating = true;
@@ -1349,7 +1421,8 @@ void process_line(const char * line)
                     {
                         discardOptionsAndFlags(&words);
 
-                        if (words.size() == 2 && (words[1].find("@") != string::npos))
+                        if ( (words.size() == 2 || ( words.size() == 3 && !words[2].size() ) )
+                                && (words[1].find("@") != string::npos))
                         {
                             loginname = words[1];
                             setprompt(LOGINPASSWORD);
@@ -1452,6 +1525,8 @@ void process_line(const char * line)
                     }
                     /* Move the cursor home */
                     SetConsoleCursorPosition( hStdOut, { 0, 0 } );
+#elif __linux__
+                    printf("\033[H\033[J");
 #else
                     rl_clear_screen(0,0);
 #endif
@@ -1490,6 +1565,10 @@ void process_line(const char * line)
                     {
                         unsigned int width = getNumberOfCols(75);
                         int pathSize = int(width-13);
+                        if (strstr(line, "--versions"))
+                        {
+                            pathSize -= 11;
+                        }
 
                         toexec+=words[0];
                         toexec+=" --path-display-size=";
@@ -1636,10 +1715,12 @@ void readloop()
 
     readline_fd = fileno(rl_instream);
 
+    procesingline = true;
     comms->registerForStateChanges(statechangehandle);
 
     //give it a while to communicate the state
     sleepMilliSeconds(700);
+    procesingline = false;
 
 #if defined(_WIN32) && defined(USE_PORT_COMMS)
     // due to a failure in reconnecting to the socket, if the server was initiated in while registeringForStateChanges
@@ -1741,10 +1822,10 @@ void readloop()
             {
                 alreadyFinished = false;
                 percentDowloaded = 0.0;
-                mutexPrompt.lock();
+//                mutexPrompt.lock();
                 process_line(line);
                 requirepromptinstall = true;
-                mutexPrompt.unlock();
+//                mutexPrompt.unlock();
 
                 if (comms->registerAgainRequired)
                 {
@@ -1833,10 +1914,10 @@ void readloop()
             {
                 alreadyFinished = false;
                 percentDowloaded = 0.0;
-                mutexPrompt.lock();
+//                mutexPrompt.lock();
                 process_line(line);
                 requirepromptinstall = true;
-                mutexPrompt.unlock();
+//                mutexPrompt.unlock();
 
                 if (comms->registerAgainRequired)
                 {
@@ -1969,10 +2050,12 @@ void mycompletefunct(char **c, int num_matches, int max_length)
     {
         string option = c[i];
 
+        MegaCmdShellCommunications::megaCmdStdoutputing.lock();
         OUTSTREAM << setw(min(cols-1,max_length+1)) << left;
         int oldmode = _setmode(_fileno(stdout), _O_U16TEXT);
         OUTSTREAM << c[i];
         _setmode(_fileno(stdout), oldmode);
+        MegaCmdShellCommunications::megaCmdStdoutputing.unlock();
 
         if ( (i%nelements_per_col == 0) && (i != num_matches))
         {

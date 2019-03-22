@@ -133,7 +133,7 @@ vector<string> remotepatterncommands(aremotepatterncommands, aremotepatterncomma
 string aremotefolderspatterncommands[] = {"cd", "share"};
 vector<string> remotefolderspatterncommands(aremotefolderspatterncommands, aremotefolderspatterncommands + sizeof aremotefolderspatterncommands / sizeof aremotefolderspatterncommands[0]);
 
-string amultipleremotepatterncommands[] = {"ls", "tree", "mkdir", "rm", "du", "find", "mv", "deleteversions", "cat"
+string amultipleremotepatterncommands[] = {"ls", "tree", "mkdir", "rm", "du", "find", "mv", "deleteversions", "cat", "mediainfo"
 #ifdef HAVE_LIBUV
                                            , "webdav", "ftp"
 #endif
@@ -153,10 +153,10 @@ string aemailpatterncommands [] = {"invite", "signup", "ipc", "users"};
 vector<string> emailpatterncommands(aemailpatterncommands, aemailpatterncommands + sizeof aemailpatterncommands / sizeof aemailpatterncommands[0]);
 
 string avalidCommands [] = { "login", "signup", "confirm", "session", "mount", "ls", "cd", "log", "debug", "pwd", "lcd", "lpwd", "import", "masterkey",
-                             "put", "get", "attr", "userattr", "mkdir", "rm", "du", "mv", "cp", "sync", "export", "share", "invite", "ipc",
+                             "put", "get", "attr", "userattr", "mkdir", "rm", "du", "mv", "cp", "sync", "export", "share", "invite", "ipc", "df",
                              "showpcr", "users", "speedlimit", "killsession", "whoami", "help", "passwd", "reload", "logout", "version", "quit",
                              "thumbnail", "preview", "find", "completion", "clear", "https", "transfers", "exclude", "exit", "errorcode", "graphics",
-                             "cancel", "confirmcancel", "cat", "tree"
+                             "cancel", "confirmcancel", "cat", "tree", "psa"
                              , "mediainfo"
 #ifdef HAVE_LIBUV
                              , "webdav", "ftp"
@@ -172,7 +172,7 @@ string avalidCommands [] = { "login", "signup", "confirm", "session", "mount", "
 #else
                              , "permissions"
 #endif
-#ifndef __linux__
+#if defined(_WIN32) || defined(__APPLE__)
                              , "update"
 #endif
                            };
@@ -184,6 +184,7 @@ string newpasswd;
 
 bool doExit = false;
 bool consoleFailed = false;
+bool alreadyCheckingForUpdates = false;
 bool stopcheckingforUpdaters = false;
 
 string dynamicprompt = "MEGA CMD> ";
@@ -293,6 +294,17 @@ void changeprompt(const char *newprompt)
     cm->informStateListeners(s);
 }
 
+void informStateListener(string message, int clientID)
+{
+    string s;
+    if (message.size())
+    {
+        s += "message:";
+        s+=message;
+    }
+    cm->informStateListenerByClientId(s, clientID);
+}
+
 void broadcastMessage(string message)
 {
     string s;
@@ -309,6 +321,11 @@ void informTransferUpdate(MegaTransfer *transfer, int clientID)
     informProgressUpdate(transfer->getTransferredBytes(),transfer->getTotalBytes(), clientID);
 }
 
+void informStateListenerByClientId(int clientID, string s)
+{
+    cm->informStateListenerByClientId(s, clientID);
+}
+
 void informProgressUpdate(long long transferred, long long total, int clientID, string title)
 {
     string s = "progress:";
@@ -322,7 +339,7 @@ void informProgressUpdate(long long transferred, long long total, int clientID, 
         s+=title;
     }
 
-    cm->informStateListenerByClientId(s, clientID);
+    informStateListenerByClientId(clientID, s);
 }
 
 void insertValidParamsPerCommand(set<string> *validParams, string thecommand, set<string> *validOptValues = NULL)
@@ -402,6 +419,10 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     else if ("whoami" == thecommand)
     {
         validParams->insert("l");
+    }
+    else if ("df" == thecommand)
+    {
+        validParams->insert("h");
     }
     else if ("mediainfo" == thecommand)
     {
@@ -558,6 +579,7 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     {
         validOptValues->insert("user");
         validParams->insert("s");
+        validParams->insert("list");
     }
     else if ("ipc" == thecommand)
     {
@@ -606,6 +628,10 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validOptValues->insert("clientID");
         validOptValues->insert("auth-code");
     }
+    else if ("psa" == thecommand)
+    {
+        validParams->insert("discard");
+    }
     else if ("reload" == thecommand)
     {
         validOptValues->insert("clientID");
@@ -629,7 +655,7 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     {
         validParams->insert("only-shell");
     }
-#ifndef __linux__
+#if defined(_WIN32) || defined(__APPLE__)
     else if ("update" == thecommand)
     {
         validOptValues->insert("auto");
@@ -1323,6 +1349,10 @@ const char * getUsageStr(const char *command)
             return "login [--auth-code=XXXX] email password | exportedfolderurl#key | session";
         }
     }
+    if (!strcmp(command, "psa"))
+    {
+        return "psa [--discard]";
+    }
     if (!strcmp(command, "cancel"))
     {
         return "cancel";
@@ -1460,7 +1490,7 @@ const char * getUsageStr(const char *command)
     }
     if (!strcmp(command, "userattr"))
     {
-        return "userattr [-s attribute value|attribute] [--user=user@email]";
+        return "userattr [-s attribute value|attribute|--list] [--user=user@email]";
     }
     if (!strcmp(command, "mkdir"))
     {
@@ -1589,11 +1619,15 @@ const char * getUsageStr(const char *command)
     }
     if (!strcmp(command, "killsession"))
     {
-        return "killsession [-a|sessionid]";
+        return "killsession [-a | sessionid1 sessionid2 ... ]";
     }
     if (!strcmp(command, "whoami"))
     {
         return "whoami [-l]";
+    }
+    if (!strcmp(command, "df"))
+    {
+        return "df [-h]";
     }
     if (!strcmp(command, "cat"))
     {
@@ -1720,10 +1754,10 @@ const char * getUsageStr(const char *command)
         return "codepage [N [M]]";
     }
 #endif
-#ifndef __linux__
+#if defined(_WIN32) || defined(__APPLE__)
     if (!strcmp(command, "update"))
     {
-        return "update [--auto=on|off]";
+        return "update [--auto=on|off|query]";
     }
 #endif
     return "command not found: ";
@@ -1779,6 +1813,14 @@ string getHelpStr(const char *command)
         os << endl;
         os << "The cancellation will not take place inmediately. You will need to confirm the cancellation" << endl;
         os << "using a link that will be delivered to your email. See \"confirmcancel --help\"" << endl;
+    }
+    else if (!strcmp(command, "psa"))
+    {
+        os << "Shows the next available Public Service Announcement (PSA)" << endl;
+        os << endl;
+        os << "Options:" << endl;
+        os << " --discard" << "\t" << "Discards last received PSA" << endl;
+        os << endl;
     }
     else if (!strcmp(command, "confirmcancel"))
     {
@@ -1902,7 +1944,7 @@ string getHelpStr(const char *command)
         os << endl;
         os << "This is similar to \"ls --tree\"" << endl;
     }
-#ifndef __linux__
+#if defined(_WIN32) || defined(__APPLE__)
     else if (!strcmp(command, "update"))
     {
         os << "Updates MEGAcmd" << endl;
@@ -1916,6 +1958,8 @@ string getHelpStr(const char *command)
         os << "If auto updates are enabled it will be checked while MEGAcmd server is running." << endl;
         os << " If there is an update available, it will be downloaded and applied. " << endl;
         os << " This will cause MEGAcmd to be restarted whenever the updates are applied." << endl;
+        os << endl;
+        os << "Further info at https://github.com/meganz/megacmd#megacmd-updates";
     }
 #endif
     else if (!strcmp(command, "cd"))
@@ -2052,6 +2096,7 @@ string getHelpStr(const char *command)
         os << "Options:" << endl;
         os << " -s" << "\tattribute value \t" << "sets an attribute to a value" << endl;
         os << " --user=user@email" << "\t" << "select the user to query" << endl;
+        os << " --list" << "\t" << "lists valid attributes" << endl;
     }
     else if (!strcmp(command, "mkdir"))
     {
@@ -2167,6 +2212,7 @@ string getHelpStr(const char *command)
 #endif
         os << endl;
         os << "*If you serve more than one location, these parameters will be ignored and use those of the first location served." << endl;
+        os << " If you want to change those parameters, you need to stop serving all locations and configure them again." << endl;
         os << endl;
         os << "Caveat: This functionality is in BETA state. If you experience any issue with this, please contact: support@mega.nz" << endl;
         os << endl;
@@ -2192,6 +2238,7 @@ string getHelpStr(const char *command)
 #endif
         os << endl;
         os << "*If you serve more than one location, these parameters will be ignored and used those of the first location served." << endl;
+        os << " If you want to change those parameters, you need to stop serving all locations and configure them again." << endl;
         os << endl;
         os << "Caveat: This functionality is in BETA state. If you experience any issue with this, please contact: support@mega.nz" << endl;
         os << endl;
@@ -2457,11 +2504,20 @@ string getHelpStr(const char *command)
     }
     else if (!strcmp(command, "whoami"))
     {
-        os << "Print info of the user" << endl;
+        os << "Prints info of the user" << endl;
         os << endl;
         os << "Options:" << endl;
         os << " -l" << "\t" << "Show extended info: total storage used, storage per main folder " << endl;
         os << "   " << "\t" << "(see mount), pro level, account balance, and also the active sessions" << endl;
+    }
+    else if (!strcmp(command, "df"))
+    {
+        os << "Shows storage info" << endl;
+        os << endl;
+        os << "Shows total storage used in the account, storage per main folder (see mount)" << endl;
+        os << endl;
+        os << "Options:" << endl;
+        os << " -h" << "\t" << "Human readable sizes. Otherwise, size will be expressed in Bytes" << endl;
     }
     else if (!strcmp(command, "cat"))
     {
@@ -2864,7 +2920,7 @@ void executecommand(char* ptr)
 #if defined(_WIN32) && defined(NO_READLINE)
         else if (getFlag(&clflags, "unicode"))
         {
-            OUTSTREAM << "Unicode support has been considerably improved in the interactive console in version 1.0.0." << endl;
+            OUTSTREAM << "Unicode support has been considerably improved in the interactive console since version 1.0.0." << endl;
             OUTSTREAM << "If you do experience issues with it, please do not hesistate to contact us." << endl;
             OUTSTREAM << endl;
             OUTSTREAM << "Known issues: " << endl;
@@ -3231,7 +3287,7 @@ static bool process_line(char* l)
                 break;
             }
 
-#ifndef __linux__
+#if defined(_WIN32) || defined(__APPLE__)
             else if (!strcmp(l, "update") || !strcmp(l, "update ")) //if extra args are received, it'll be processed by executer
             {
                 string confirmationQuery("This might require restarting MEGAcmd. Are you sure to continue");
@@ -3458,9 +3514,13 @@ void startcheckingForUpdates()
 {
     ConfigurationManager::savePropertyValue("autoupdate", 1);
 
-    LOG_info << "Starting autoupdate check mechanism";
-    MegaThread *checkupdatesThread = new MegaThread(); //TODO: memleak
-    checkupdatesThread->start(checkForUpdates,NULL);
+    if (!alreadyCheckingForUpdates)
+    {
+        alreadyCheckingForUpdates = true;
+        LOG_info << "Starting autoupdate check mechanism";
+        MegaThread *checkupdatesThread = new MegaThread();
+        checkupdatesThread->start(checkForUpdates,checkupdatesThread);
+    }
 }
 
 void stopcheckingForUpdates()
@@ -3472,16 +3532,6 @@ void stopcheckingForUpdates()
 
 void* checkForUpdates(void *param)
 {
-    static bool already = false;
-    if (!already)
-    {
-        already = true;
-    }
-    else
-    {
-        return NULL;
-    }
-
     stopcheckingforUpdaters = false;
     LOG_debug << "Initiating recurrent checkForUpdates";
 
@@ -3561,7 +3611,9 @@ void* checkForUpdates(void *param)
         }
     }
 
-    already = false;
+    alreadyCheckingForUpdates = false;
+
+    delete (MegaThread *)param;
     return NULL;
 }
 
@@ -3736,6 +3788,8 @@ void megacmd()
                 s+= "prompt:";
                 s+=dynamicprompt;
                 s+=(char)0x1F;
+
+                cmdexecuter->checkAndInformPSA(inf);
 
                 cm->informStateListener(inf,s);
             }
@@ -4426,7 +4480,7 @@ int main(int argc, char* argv[])
     cmdexecuter = new MegaCmdExecuter(api, loggerCMD, sandboxCMD);
 
     megaCmdGlobalListener = new MegaCmdGlobalListener(loggerCMD, sandboxCMD);
-    megaCmdMegaListener = new MegaCmdMegaListener(api, NULL);
+    megaCmdMegaListener = new MegaCmdMegaListener(api, NULL, sandboxCMD);
     api->addGlobalListener(megaCmdGlobalListener);
     api->addListener(megaCmdMegaListener);
 
@@ -4466,7 +4520,7 @@ int main(int argc, char* argv[])
     atexit(finalize);
 
 
-#ifndef __linux__
+#if defined(_WIN32) || defined(__APPLE__)
     if (!ConfigurationManager::getConfigurationValue("updaterregistered", false))
     {
         LOG_debug << "Registering automatic updater";

@@ -446,16 +446,17 @@ string getRightAlignedString(const string origin, unsigned int minsize)
 
 void printCenteredLine(OUTSTREAMTYPE &os, string msj, unsigned int width, bool encapsulated)
 {
-    if (msj.size()>width)
+    unsigned int msjsize = getstringutf8size(msj);
+    if (msjsize>width)
     {
-        width = unsigned(msj.size());
+        width = unsigned(msjsize);
     }
     if (encapsulated)
         os << "|";
-    for (unsigned int i = 0; i < (width-msj.size())/2; i++)
+    for (unsigned int i = 0; i < (width-msjsize)/2; i++)
         os << " ";
     os << msj;
-    for (unsigned int i = 0; i < (width-msj.size())/2 + (width-msj.size())%2 ; i++)
+    for (unsigned int i = 0; i < (width-msjsize)/2 + (width-msjsize)%2 ; i++)
         os << " ";
     if (encapsulated)
         os << "|";
@@ -464,6 +465,29 @@ void printCenteredLine(OUTSTREAMTYPE &os, string msj, unsigned int width, bool e
 
 void printCenteredContents(OUTSTREAMTYPE &os, string msj, unsigned int width, bool encapsulated)
 {
+    string headfoot = " ";
+    headfoot.append(width, '-');
+    unsigned int msjsize = getstringutf8size(msj);
+
+    if (msj.size())
+    {
+        string header;
+        if (msj.at(0) == '<')
+        {
+            size_t possenditle = msj.find(">");
+            if (width >= 2 && possenditle < (width -2))
+            {
+                header.append(" ");
+                header.append((width - possenditle ) / 2, '-');
+                header.append(msj.substr(0,possenditle+1));
+                header.append(width - getstringutf8size(header) + 1, '-');
+                msj = msj.substr(possenditle + 1);
+            }
+        }
+
+        os << (header.size()?header:headfoot) << endl;
+    }
+
     size_t possepnewline = msj.find("\n");
     size_t possep = msj.find(" ");
 
@@ -473,12 +497,6 @@ void printCenteredContents(OUTSTREAMTYPE &os, string msj, unsigned int width, bo
     }
     size_t possepprev = possep;
 
-    string headfoot = " ";
-    headfoot.append(width, '-');
-    if (msj.size())
-    {
-        os << headfoot << endl;
-    }
 
     while (msj.size())
     {
@@ -559,7 +577,17 @@ void printPercentageLineCerr(const char *title, long long completed, long long t
     *ptr = '.'; //replace \0 char
 
     char aux[41];
-    sprintf(aux,"||(%lld/%lld MB: %6.2f %%) ", completed / 1024 / 1024, total / 1024 / 1024, percentDowloaded);
+
+    if (total < 1048576)
+    {
+        sprintf(aux,"||(%lld/%lld KB: %6.2f %%) ", completed / 1024, total / 1024, percentDowloaded);
+    }
+    else
+    {
+        sprintf(aux,"||(%lld/%lld MB: %6.2f %%) ", completed / 1024 / 1024, total / 1024 / 1024, percentDowloaded);
+    }
+
+
     sprintf((char *)outputString.c_str() + cols - strlen(aux), "%s",                         aux);
     for (int i = 0; i < ( cols - (strlen(title) + strlen(" ||")) - strlen(aux)) * 1.0 * min(100.0f,percentDowloaded) / 100.0; i++)
     {

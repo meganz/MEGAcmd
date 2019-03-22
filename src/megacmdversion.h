@@ -5,7 +5,7 @@
 #define MEGACMD_MAJOR_VERSION 1
 #endif
 #ifndef MEGACMD_MINOR_VERSION
-#define MEGACMD_MINOR_VERSION 0
+#define MEGACMD_MINOR_VERSION 1
 #endif
 #ifndef MEGACMD_MICRO_VERSION
 #define MEGACMD_MICRO_VERSION 0
@@ -16,24 +16,26 @@
 #endif
 
 const char * const megacmdchangelog =
-#if defined(_WIN32) && defined(NO_READLINE)
-        "unicode support vastly improved (See \"help --unicode\")""\n"
-#endif
-        "added FTP support (See \"ftp\")""\n"
-        "renew path parsing & improved completion with special characters""\n"
-        "fix truncated redirected output in MacOS""\n"
-        "added support for account cancelation(See \"cancel\")""\n"
-        "cp now allows multiple sourth paths and regular expresions""\n"
-        "du path display size variable now""\n"
-        "output error code always positive now""\n"
-        "new command \"errorcode\" to translate error code into string""\n"
-        "allow password protected links for PRO users""\n"
-        "password changing no longer requires old one""\n"
-        "webdav now allows stop serving all locations""\n"
-        "added \"graphisc\" command to turn off thumbnails/previews generation""\n"
-        "support login and password change using 2FA""\n"
-        "limit one instance of server""\n"
-        "many more minor fixes & adjustements"
+        "added \"cat\" command to read text files (and potentially stream any file)""\n"
+        "added update capabilities for Windows & MacOS (automatic updates are enabled by default)""\n"
+        "added \"media-info\" command to show some information of multimedia files""\n"
+        "added \"df\" command to show storage info""\n"
+        "added tree-like listing command: \"tree\" or \"ls --tree\"""\n"
+        "shown progress in non-interactive mode""\n"
+        "improvements in progress and transfers results information""\n"
+        "width output adjustments in non-interactive mode""\n"
+        "output streamed partially from server to clients""\n"
+        "added --time-format option to commands displaying times, to allow other formats""\n"
+        "2FA login auth code can be passed as parameter now""\n"
+        "transfer now differentiate backup transfers""\n"
+        "backup command completion for local paths now only looks for folders""\n"
+        "backup transfers are no longer cached (no reason to: backups are considered failed in such case)""\n"
+        "backup fix some halts and output improvements""\n"
+        "added Public Service Announcements (PSA) support""\n"
+        "killsession now allows multiple parameters""\n"
+        "fix \"clear\" in some linuxes""\n"
+        "add support for spaces in password prompts""\n"
+        "many more minor fixes & adjustments"
         ;
 
 

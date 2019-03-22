@@ -15,11 +15,11 @@ TEMPLATE = app
 CONFIG += console
 
 win32 {
+CONFIG += noreadline
 CONFIG += USE_AUTOCOMPLETE
 CONFIG += USE_CONSOLE
 DEFINES += NO_READLINE
 include(../../../../sdk/bindings/qt/sdk.pri) #This is required to have console.cpp included: avoiding this is rather complicated
-HEADERS +=     ../../../../sdk/include/mega/win32/autocomplete.h
 }
 
 SOURCES += ../../../../src/megacmdshell/megacmdshell.cpp \
@@ -90,6 +90,12 @@ macx {
     LIBS += $$PWD/../../../../sdk/bindings/qt/3rdparty/libs/libreadline.a
     LIBS += -framework Cocoa -framework SystemConfiguration -framework CoreFoundation -framework Foundation -framework Security
     LIBS += -lncurses
+
+    QMAKE_MACOSX_DEPLOYMENT_TARGET = 10.9
+    QMAKE_CXXFLAGS -= -stdlib=libc++
+    QMAKE_LFLAGS -= -stdlib=libc++
+    CONFIG -= c++11
+
     QMAKE_CXXFLAGS += -g
 }
 else {

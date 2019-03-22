@@ -30,9 +30,8 @@
 #include "Preferences.h"
 #include "MacUtils.h"
 
-using namespace std;
-using namespace CryptoPP;
-
+using std::string;
+using CryptoPP::Integer;
 
 enum {
     LOG_LEVEL_FATAL = 0,   // Very severe error event that will presumably lead the application to abort.
@@ -266,9 +265,9 @@ string UpdateTask::getAppDataDir()
 
 #define MEGA_TO_NATIVE_SEPARATORS(x) std::replace(x.begin(), x.end(), '\\', '/');
 #define MEGA_SET_PERMISSIONS chmod("/Applications/MEGAcmd.app/Contents/MacOS/mega-cmd", S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH); \
-                             chmod("/Applications/MEGAcmd.app/Contents/MacOS/MEGAupdater", S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
-//TODO: figure if this is enough in MAC ^
-
+                             chmod("/Applications/MEGAcmd.app/Contents/MacOS/MEGAcmdShell", S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH); \
+                             chmod("/Applications/MEGAcmd.app/Contents/MacOS/MEGAcmd", S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH); \
+                             chmod("/Applications/MEGAcmd.app/Contents/MacOS/MEGAcmdUpdater", S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
 
 string UpdateTask::getAppDir()
 {
@@ -671,20 +670,7 @@ bool UpdateTask::performUpdate()
                 return false;
             }
 
-            if (!mega_size(update.c_str()))
-            {
-                if (mega_remove(origFile.c_str()))
-                {
-                    LOG(LOG_LEVEL_ERROR, "Error installing file %s in %s",  update.c_str(), origFile.c_str());
-                    rollbackUpdate(i);
-                    return false;
-                }
-            }
-            else
-            {
-                setPermissions(origFile.c_str());
-            }
-
+            setPermissions(origFile.c_str());
             LOG(LOG_LEVEL_INFO, "File correctly installed: %s",  localPaths[i].c_str());
         }
         else
@@ -726,6 +712,10 @@ void UpdateTask::finalCleanup()
 bool UpdateTask::setPermissions(const char *path)
 {
 #ifndef _WIN32
+    if (path && string(path).find("/mega-") != string::npos)
+    {
+        chmod(path, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
+    }
     return true;
 #else
     if (!isPublic)

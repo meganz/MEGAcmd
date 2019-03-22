@@ -17,14 +17,14 @@ BrandingText "MEGA Limited"
 
 VIAddVersionKey "CompanyName" "MEGA Limited"
 VIAddVersionKey "FileDescription" "MEGAcmd"
-VIAddVersionKey "LegalCopyright" "MEGA Limited 2017"
+VIAddVersionKey "LegalCopyright" "MEGA Limited 2019"
 VIAddVersionKey "ProductName" "MEGAcmd"
 
 ; Version info
-VIProductVersion "1.0.0.0"
-VIAddVersionKey "FileVersion" "1.0.0.0"
-VIAddVersionKey "ProductVersion" "1.0.0.0"
-!define PRODUCT_VERSION "1.0.0"
+VIProductVersion "1.1.0.0"
+VIAddVersionKey "FileVersion" "1.1.0.0"
+VIAddVersionKey "ProductVersion" "1.1.0.0"
+!define PRODUCT_VERSION "1.1.0"
 
 !define PRODUCT_PUBLISHER "Mega Limited"
 !define PRODUCT_WEB_SITE "http://www.mega.nz"
@@ -211,7 +211,37 @@ Function .onInit
  
   ;!insertmacro MUI_UNGETLANGUAGE
   !insertmacro MUI_LANGDLL_DISPLAY
+
+UserInfo::GetAccountType
+pop $0
+${If} $0 != "admin" ;Require admin rights at least in win10; TODO: only ask for this if that's the case
+MessageBox MB_YESNO "If you would like ${PRODUCT_NAME} to be listed in the installed applications, Admin Privileges are needed.  Press Yes to grant that, or No for a plain install." IDYES elevate IDNO next
+${EndIf}
   
+elevate:
+  UAC::RunElevated
+  ${Switch} $0
+  ${Case} 0
+    ${IfThen} $1 = 1 ${|} Quit ${|} ;User process. The installer has finished. Quit.
+    ${IfThen} $3 <> 0 ${|} ${Break} ${|} ;Admin process, continue the installation
+    ${If} $1 = 3 ;RunAs completed successfully, but with a non-admin user
+      ;MessageBox mb_YesNo|mb_IconExclamation|mb_TopMost|mb_SetForeground "This requires admin privileges, try again" /SD IDNO IDYES uac_tryagain IDNO 0
+      Quit
+    ${EndIf}
+  ${Case} 1223
+    ;MessageBox mb_IconStop|mb_TopMost|mb_SetForeground "This requires admin privileges, aborting!"
+    Quit
+  ${Default}
+    MessageBox mb_IconStop|mb_TopMost|mb_SetForeground "This installer requires Administrator privileges. Error $0"
+    Quit
+  ${EndSwitch} 
+
+  Goto next
+next:
+    !insertmacro DEBUG_MSG "exiting oninit"
+ 
+   
+   
 FunctionEnd
 
 Section "Principal" SEC01
@@ -525,6 +555,10 @@ modeselected:
   File "${SRCDIR_BATFILES}\mega-du.bat"
   AccessControl::SetFileOwner "$INSTDIR\mega-du.bat" "$USERNAME"
   AccessControl::GrantOnFile "$INSTDIR\mega-du.bat" "$USERNAME" "GenericRead + GenericWrite"
+
+  File "${SRCDIR_BATFILES}\mega-df.bat"
+  AccessControl::SetFileOwner "$INSTDIR\mega-df.bat" "$USERNAME"
+  AccessControl::GrantOnFile "$INSTDIR\mega-df.bat" "$USERNAME" "GenericRead + GenericWrite"
 
   File "${SRCDIR_BATFILES}\mega-export.bat"
   AccessControl::SetFileOwner "$INSTDIR\mega-export.bat" "$USERNAME"
@@ -888,6 +922,7 @@ Section Uninstall
   Delete "$INSTDIR\mega-cp.bat"
   Delete "$INSTDIR\mega-debug.bat"
   Delete "$INSTDIR\mega-du.bat"
+  Delete "$INSTDIR\mega-df.bat"
   Delete "$INSTDIR\mega-export.bat"
   Delete "$INSTDIR\mega-find.bat"
   Delete "$INSTDIR\mega-get.bat"

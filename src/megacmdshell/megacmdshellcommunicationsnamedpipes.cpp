@@ -574,6 +574,7 @@ int MegaCmdShellCommunicationsNamedPipes::executeCommand(string command, std::st
 
             if (partialoutsize > 0)
             {
+                megaCmdStdoutputing.lock();
                 int oldmode;
 
                 if (binaryoutput)
@@ -612,6 +613,7 @@ int MegaCmdShellCommunicationsNamedPipes::executeCommand(string command, std::st
                 {
                     _setmode(_fileno(stdout), oldmode);
                 }
+                megaCmdStdoutputing.unlock();
             }
             else
             {
@@ -697,10 +699,11 @@ int MegaCmdShellCommunicationsNamedPipes::executeCommand(string command, std::st
                 // in unusable output, So we disable the UTF-16 in such cases (this might cause that the output could be truncated!).
 //                oldmode = _setmode(_fileno(stdout), _O_U16TEXT);
 //            }
-
+            megaCmdStdoutputing.lock();
             oldmode = _setmode(_fileno(stdout), _O_U8TEXT);
             output << wbuffer << flush;
             _setmode(_fileno(stdout), oldmode);
+            megaCmdStdoutputing.unlock();
 
 //            if (interactiveshell || outputtobinaryorconsole() || true)
 //            {

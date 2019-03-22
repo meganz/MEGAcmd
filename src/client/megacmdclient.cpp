@@ -257,6 +257,14 @@ string parseArgs(int argc, char* argv[])
             else if ( !strcmp(argv[1],"du") )
             {
                 pathSize = int(width-13);
+                for (int i = 1; i < argc; i++)
+                {
+                    if (strstr(argv[i], "--versions"))
+                    {
+                        pathSize -= 11;
+                        break;
+                    }
+                }
             }
             else if ( !strcmp(argv[1],"sync") )
             {
@@ -467,6 +475,16 @@ wstring parsewArgs(int argc, wchar_t* argv[])
             else if ( !wcscmp(argv[1],L"du") )
             {
                 pathSize = int(width-13);
+
+                for (int i = 1; i < argc; i++)
+                {
+                    if (wcsstr(argv[i], L"--versions"))
+                    {
+                        pathSize -= 11;
+                        break;
+                    }
+                }
+
             }
             else if ( !wcscmp(argv[1],L"sync") )
             {
@@ -675,6 +693,7 @@ void statechangehandle(string statestring)
 {
     char statedelim[2]={(char)0x1F,'\0'};
     size_t nextstatedelimitpos = statestring.find(statedelim);
+    static bool shown_partial_progress = false;
 
     while (nextstatedelimitpos!=string::npos && statestring.size())
     {
@@ -685,11 +704,47 @@ void statechangehandle(string statestring)
         {
             //ignore prompt state
         }
+        else if (newstate.compare(0, strlen("endtransfer:"), "endtransfer:") == 0)
+        {
+            string rest = newstate.substr(strlen("endtransfer:"));
+            if (rest.size() >=3)
+            {
+                bool isdown = rest.at(0) == 'D';
+                string path = rest.substr(2);
+
+                stringstream os;
+                if (shown_partial_progress)
+                {
+                    os << endl;
+                }
+
+                os << (isdown?"Download":"Upload") << " finished: " << path << endl;
+
+#ifdef _WIN32
+                wstring wbuffer;
+                stringtolocalw((const char*)os.str().data(),&wbuffer);
+                int oldmode;
+                MegaCmdShellCommunications::megaCmdStdoutputing.lock();
+                oldmode = _setmode(_fileno(stdout), _O_U8TEXT);
+                OUTSTREAM << wbuffer << flush;
+                _setmode(_fileno(stdout), oldmode);
+                MegaCmdShellCommunications::megaCmdStdoutputing.unlock();
+
+#else
+                OUTSTREAM << os.str();
+#endif
+            }
+        }
         else if (newstate.compare(0, strlen("message:"), "message:") == 0)
         {
             string contents = newstate.substr(strlen("message:"));
             unsigned int width = getNumberOfCols(80);
             if (width > 1 ) width--;
+            MegaCmdShellCommunications::megaCmdStdoutputing.lock();
+            if (shown_partial_progress)
+            {
+                cerr << endl;
+            }
             if (contents.find("-----") != 0)
             {
                 printCenteredContentsCerr(contents, width);
@@ -698,6 +753,7 @@ void statechangehandle(string statestring)
             {
                 cerr << endl <<  contents << endl;
             }
+            MegaCmdShellCommunications::megaCmdStdoutputing.unlock();
         }
         else if (newstate.compare(0, strlen("clientID:"), "clientID:") == 0)
         {
@@ -722,6 +778,16 @@ void statechangehandle(string statestring)
                 title = rest.substr(0,nexdel);
             }
 
+            if (received!=SPROGRESS_COMPLETE)
+            {
+                shown_partial_progress = true;
+            }
+            else
+            {
+                shown_partial_progress = false;
+            }
+
+            MegaCmdShellCommunications::megaCmdStdoutputing.lock();
             if (title.size())
             {
                 if (received==SPROGRESS_COMPLETE)
@@ -745,7 +811,7 @@ void statechangehandle(string statestring)
                     printprogress(charstoll(received.c_str()), charstoll(total.c_str()));
                 }
             }
-
+            MegaCmdShellCommunications::megaCmdStdoutputing.unlock();
         }
         else if (newstate == "ack")
         {
@@ -759,6 +825,11 @@ void statechangehandle(string statestring)
         {
             //received unrecognized state change. sleep a while to avoid continuous looping
             sleepMilliSeconds(1000);
+        }
+
+        if (newstate.compare(0, strlen("progress:"), "progress:") != 0)
+        {
+            shown_partial_progress = false;
         }
     }
 }
