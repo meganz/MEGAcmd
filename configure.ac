@@ -157,6 +157,7 @@ AC_SUBST(ENABLE_STATIC)
 WIN32=no
 DARWIN=no
 ANDROID=no
+LINUX=no
 AC_MSG_CHECKING([if building for Win32 platform])
 case $host in
   *-*-cygwin*)
@@ -176,6 +177,9 @@ case $host in
   *-android*)
     ANDROID=yes
     ;;    
+  *-linux*)
+    LINUX=yes
+    ;;
   *)
     LIBS_EXTRA=""
     ;;
@@ -184,9 +188,7 @@ AC_MSG_RESULT([${WIN32}])
 AM_CONDITIONAL([WIN32], [test "${WIN32}" = "yes"])
 AM_CONDITIONAL([DARWIN], [test "${DARWIN}" = "yes"])
 AM_CONDITIONAL([ANDROID], [test "${ANDROID}" = "yes"])
-
-
-
+AM_CONDITIONAL([LINUX], [test "${LINUX}" = "yes"])
 
 SAVE_LDFLAGS=$LDFLAGS
 SAVE_CXXFLAGS=$CXXFLAGS

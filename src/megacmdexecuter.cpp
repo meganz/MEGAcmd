@@ -7205,7 +7205,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
         if ( !getFlag(clflags, "restart-syncs") && (getFlag(clflags, "a") || getFlag(clflags, "d")) )
         {
-            OUTSTREAM << endl <<  "Changes will not be applied inmediately to operations being performed in active syncs."
+            OUTSTREAM << endl <<  "Changes will not be applied immediately to operations being performed in active syncs."
                       << " See \"exclude --help\" for further info" << endl;
         }
     }

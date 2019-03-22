@@ -35,6 +35,8 @@ it is highly recommended to have `ffmpeg` (`libavcodec-dev libavutil-dev libavfo
 * For convenience here is a list of packages for ubuntu 18.04: `autoconf libtool g++ libcrypto++-dev libz-dev libsqlite3-dev libssl-dev libcurl4-gnutls-dev libreadline-dev libpcre++-dev libsodium-dev libc-ares-dev libfreeimage-dev libavcodec-dev libavutil-dev libavformat-dev libswscale-dev libmediainfo-dev libzen-dev libuv1-dev`
 
 
+* here is a list of packages for debian 9: `autoconf build-essential libtool g++ libcrypto++-dev libz-dev libsqlite3-dev libssl-dev libcurl4-gnutls-dev libreadline-dev libpcre++-dev libsodium-dev libc-ares-dev libfreeimage-dev libavcodec-dev libavutil-dev libavformat-dev libswscale-dev libmediainfo-dev libzen-dev`
+
 and for ubuntu 16.04: `autoconf libtool
 g++ libcrypto++-dev libz-dev libsqlite3-dev libssl-dev libcurl4-openssl-dev
 libreadline-dev libpcre++-dev libsodium-dev libc-ares-dev libfreeimage-dev
@@ -107,7 +109,10 @@ Ideally, you would like to have these commands in your PATH
 
 ## Usage examples
 
+Here are some examples of use (more info and usage examples are available at the [User Guide](UserGuide.md)).
+
 Notice: the commands listed here assume you are using the interactive interaction mode: they are supposed to be executed within MEGAcmdShell.
+
 
 * A **synchronization** can be stablished simply by typing:
 ```
