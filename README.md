@@ -34,13 +34,15 @@ it is highly recommended to have `ffmpeg` (`libavcodec-dev libavutil-dev libavfo
 
 * For convenience here is a list of packages for ubuntu 18.04: `autoconf libtool g++ libcrypto++-dev libz-dev libsqlite3-dev libssl-dev libcurl4-gnutls-dev libreadline-dev libpcre++-dev libsodium-dev libc-ares-dev libfreeimage-dev libavcodec-dev libavutil-dev libavformat-dev libswscale-dev libmediainfo-dev libzen-dev libuv1-dev`
 
-
 * here is a list of packages for debian 9: `autoconf build-essential libtool g++ libcrypto++-dev libz-dev libsqlite3-dev libssl-dev libcurl4-gnutls-dev libreadline-dev libpcre++-dev libsodium-dev libc-ares-dev libfreeimage-dev libavcodec-dev libavutil-dev libavformat-dev libswscale-dev libmediainfo-dev libzen-dev`
 
 and for ubuntu 16.04: `autoconf libtool
 g++ libcrypto++-dev libz-dev libsqlite3-dev libssl-dev libcurl4-openssl-dev
 libreadline-dev libpcre++-dev libsodium-dev libc-ares-dev libfreeimage-dev
 libavcodec-dev libavutil-dev libavformat-dev libswscale-dev libmediainfo-dev libzen-dev`
+
+For Windows, here is a bundle with all the 3rd party dependencies required to build:
+https://mega.nz/#!MkZmVazb!fffUvFV9pIQhr__dVipwWqFfvjDEEp0JUsT8WBKAbRg.
 
 ## Getting the source
 
@@ -64,6 +66,10 @@ For platforms with Autotools, MEGAcmd can be built and installed with:
 `Note`: if you use a prefix in configure, autocompletion from non-interactive usage
 won't work. You would need to `source /YOUR/PREFIX/etc/bash_completion.d/megacmd_completion.sh` 
 (or link it at /etc/bash_completion.d)
+
+Alternatively you can build using Qt project located at `contrib/QtCreator/MEGAcmd/MEGAcmd.pro`.
+For Windows you will need to place the `3rdparty` folder
+(included in the dependency bundle referenced [`above`](#requirements)) into `sdk/bindings/qt/`.
 
 # Usage
 
