@@ -1,3 +1,27 @@
+Tue Mar 26 10:52:56 CET 2019 - linux@mega.co.nz
+- Update to version 1.1.0:
+  * added "cat" command to read text files (and potentially stream any file)
+  * added update capabilities for Windows & MacOS (automatic updates are enabled by default)
+  * added "media-info" command to show some information of multimedia files
+  * added "df" command to show storage info
+  * added tree-like listing command: "tree" or "ls --tree"
+  * shown progress in non-interactive mode
+  * improvements in progress and transfers results information
+  * width output adjustments in non-interactive mode
+  * output streamed partially from server to clients
+  * added --time-format option to commands displaying times, to allow other formats
+  * 2FA login auth code can be passed as parameter now
+  * transfer now differentiate backup transfers
+  * backup command completion for local paths now only looks for folders
+  * backup transfers are no longer cached (no reason to: backups are considered failed in such case)
+  * backup fix some halts and output improvements
+  * added Public Service Announcements (PSA) support
+  * killsession now allows multiple parameters
+  * fix "clear" in some linuxes
+  * add support for spaces in password prompts
+  * many more minor fixes & adjustments
+
+-------------------------------------------------------------------
 Fri Sep 7 14:00:51 CEST 2018 - linux@mega.co.nz
 - Update to version 1.0.0:
   * added FTP beta support (See "ftp")
