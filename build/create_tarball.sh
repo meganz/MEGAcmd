@@ -56,7 +56,7 @@ rm -fr megacmd/megacmd*.dsc
 # fix version number in template files and copy to appropriate directories
 sed -e "s/megacmd_VERSION/$megacmd_VERSION/g" templates/megacmd/megacmd.spec > megacmd/megacmd.spec
 #sed -e "s/megacmd_VERSION/$megacmd_VERSION/g" templates/megacmd/megacmd.dsc > megacmd/megacmd.dsc
-for dist in xUbuntu_1{2,3,4,5,6,7,8}.{04,10} Debian_{7,8,9}.0; do
+for dist in xUbuntu_1{2,3,4,5,6,7,8,9}.{04,10} Debian_{7,8,9}.0; do
 if [ -f templates/megacmd/megacmd-$dist.dsc ]; then
     sed -e "s/megacmd_VERSION/$megacmd_VERSION/g" templates/megacmd/megacmd-$dist.dsc > megacmd/megacmd-$dist.dsc
 else
