@@ -17,7 +17,7 @@ export CXX=$CXX
 export LD=$LD
 export CFLAGS="$CFLAGS -O2 -fexceptions -fvisibility=hidden -static"
 export CPPFLAGS="$CPPFLAGS -DNDEBUG"
-export CXXFLAGS="-std=c++11 $CFLAGS -DNDEBUG -DENABLE_BACKUPS -DMEGACMD_USERAGENT_SUFFIX=QNAP -DHAVE_LIBUV"
+export CXXFLAGS="-std=c++11 $CFLAGS -DNDEBUG -DENABLE_BACKUPS -DMEGACMD_USERAGENT_SUFFIX=Synology -DHAVE_LIBUV -std=c++11"
 export AR=$AR
 export NM=$NM
 export STRIP=$STRIP

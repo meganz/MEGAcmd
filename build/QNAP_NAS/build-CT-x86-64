@@ -8,8 +8,10 @@
 #     (unzipped to /opt/cross-compile)
 #  - (maybe)32 bit libz, eg this works for ubuntu 16.04: sudo apt-get install zlib1g:i386
 
+export BUILDROOT=$(pwd)/../../../..
+
 export PROJECT=x86_64-QNAP-linux-gnu
-export PRJROOT=/opt/cross-project/CT
+export PRJROOT=${BUILDROOT}/opt/cross-project/CT
 export ARCH=x86_64
 export TARGET=x86_64-QNAP-linux-gnu
 export CROSS_COMPILE=${TARGET}-
@@ -17,7 +19,7 @@ export TARGET_PREFIX=${PRJROOT}/${PROJECT}/cross-tools
 export SYS_TARGET_PREFIX=${PRJROOT}/${PROJECT}/cross-tools
 export PATH=${SYS_TARGET_PREFIX}/bin/:${PATH}:/usr/sbin:/sbin
 
-export MEGA_CMD_DIR=/opt/cross-project/qnap/MEGAcmd
+export MEGA_CMD_DIR=${BUILDROOT}/opt/cross-project/qnap/MEGAcmd
 
 #export MACHINE=
 export CUSTOM_CONFIG_ARGS="--host=${TARGET} --disable-dependency-tracking"
@@ -27,7 +29,7 @@ export CXX=${CROSS_COMPILE}g++
 export LD=${CROSS_COMPILE}ld
 export CFLAGS="$CFLAGS -fPIC -fexceptions -fvisibility=hidden -fsigned-char"
 export CPPFLAGS="-DNDEBUG"
-export CXXFLAGS="$CXXFLAGS $CFLAGS -DNDEBUG -DENABLE_BACKUPS -DMEGACMD_USERAGENT_SUFFIX=QNAP  -DHAVE_LIBUV"
+export CXXFLAGS="$CXXFLAGS $CFLAGS -DNDEBUG -DENABLE_BACKUPS -DMEGACMD_USERAGENT_SUFFIX=QNAP  -DHAVE_LIBUV  -std=c++11"
 export AR=${CROSS_COMPILE}ar
 export NM=${CROSS_COMPILE}nm
 export STRIP=${CROSS_COMPILE}strip
@@ -45,6 +47,7 @@ export CROSS_COMPILE=
 
 export AUTOMAKE_OPTIONS="no-dependencies"
 
+${CXX} --version
 
 echo ---------- env set up --------------------
 env | sort
@@ -118,9 +121,9 @@ rm -f mega-cmd-exec
 
 $CXX $CXXFLAGS src/megacmd.cpp src/comunicationsmanager.cpp src/megacmdutils.cpp src/megacmdcommonutils.cpp src/configurationmanager.cpp src/megacmdlogger.cpp src/megacmdsandbox.cpp src/listeners.cpp src/megacmdexecuter.cpp src/comunicationsmanagerportsockets.cpp src/comunicationsmanagerfilesockets.cpp -Isdk/include -Isdk/include/mega/posix -Isdk/sdk_build/install/include  `find sdk/src -name "*.o"` sdk/sdk_build/install/lib/libcryptopp.a    sdk/sdk_build/install/lib/libcurl.a sdk/sdk_build/install/lib/libcares.a sdk/sdk_build/install/lib/libssl.a sdk/sdk_build/install/lib/libcrypto.a  sdk/sdk_build/install/lib/libsqlite3.a sdk/sdk_build/install/lib/libfreeimage.a sdk/sdk_build/install/lib/libmediainfo.a sdk/sdk_build/install/lib/libzen.a  sdk/sdk_build/build/libuv-v1.8.0/.libs/libuv.a -lpthread -ldl -lrt sdk/sdk_build/install/lib/libz.a -o mega-cmd-server
 
-$CXX $CXXFLAGS src/megacmdcommonutils.cpp src/megacmdshell/*.cpp -Isdk/include -Isdk/include/mega/posix -Isdk/sdk_build/install/include  `find sdk/src -name "*.o"` sdk/sdk_build/install/lib/libcryptopp.a    sdk/sdk_build/install/lib/libcurl.a sdk/sdk_build/install/lib/libcares.a sdk/sdk_build/install/lib/libssl.a sdk/sdk_build/install/lib/libcrypto.a  sdk/sdk_build/install/lib/libsqlite3.a sdk/sdk_build/install/lib/libfreeimage.a sdk/sdk_build/install/lib/libmediainfo.a sdk/sdk_build/install/lib/libzen.a  -lpthread -ldl -lrt sdk/sdk_build/install/lib/libz.a ./sdk/sdk_build/install/lib/libreadline.a ./sdk/sdk_build/install/lib/libtermcap.a -o mega-cmd
+$CXX $CXXFLAGS src/megacmdcommonutils.cpp src/megacmdshell/*.cpp -Isdk/include -Isdk/include/mega/posix -Isdk/sdk_build/install/include  `find sdk/src -name "*.o"` sdk/sdk_build/install/lib/libcryptopp.a    sdk/sdk_build/install/lib/libcurl.a sdk/sdk_build/install/lib/libcares.a sdk/sdk_build/install/lib/libssl.a sdk/sdk_build/install/lib/libcrypto.a  sdk/sdk_build/install/lib/libsqlite3.a sdk/sdk_build/install/lib/libfreeimage.a sdk/sdk_build/install/lib/libmediainfo.a sdk/sdk_build/install/lib/libzen.a sdk/sdk_build/build/libuv-v1.8.0/.libs/libuv.a -lpthread -ldl -lrt sdk/sdk_build/install/lib/libz.a ./sdk/sdk_build/install/lib/libreadline.a ./sdk/sdk_build/install/lib/libtermcap.a -o mega-cmd
 
-$CXX $CXXFLAGS src/megacmdcommonutils.cpp src/client/*.cpp src/megacmdshell/megacmdshellcommunications.cpp -Isdk/include -Isdk/include/mega/posix -Isdk/sdk_build/install/include  `find sdk/src -name "*.o"` sdk/sdk_build/install/lib/libcryptopp.a    sdk/sdk_build/install/lib/libcurl.a sdk/sdk_build/install/lib/libcares.a sdk/sdk_build/install/lib/libssl.a sdk/sdk_build/install/lib/libcrypto.a  sdk/sdk_build/install/lib/libsqlite3.a sdk/sdk_build/install/lib/libfreeimage.a sdk/sdk_build/install/lib/libmediainfo.a sdk/sdk_build/install/lib/libzen.a -lpthread -ldl -lrt sdk/sdk_build/install/lib/libz.a -o mega-exec
+$CXX $CXXFLAGS src/megacmdcommonutils.cpp src/client/*.cpp src/megacmdshell/megacmdshellcommunications.cpp -Isdk/include -Isdk/include/mega/posix -Isdk/sdk_build/install/include  `find sdk/src -name "*.o"` sdk/sdk_build/install/lib/libcryptopp.a    sdk/sdk_build/install/lib/libcurl.a sdk/sdk_build/install/lib/libcares.a sdk/sdk_build/install/lib/libssl.a sdk/sdk_build/install/lib/libcrypto.a  sdk/sdk_build/install/lib/libsqlite3.a sdk/sdk_build/install/lib/libfreeimage.a sdk/sdk_build/install/lib/libmediainfo.a sdk/sdk_build/install/lib/libzen.a sdk/sdk_build/build/libuv-v1.8.0/.libs/libuv.a -lpthread -ldl -lrt sdk/sdk_build/install/lib/libz.a -o mega-exec
 
 echo "outputs should be 3 files: mega-cmd mega-cmd-server mega-exec.  ls output: "
 ls mega-cmd mega-cmd-server mega-exec
