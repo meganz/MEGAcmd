@@ -1,8 +1,13 @@
+#!/bin/bash
 # SynoBuildConf/build
+set -x
+env
 
 mkdir ./MEGAcmd/sdk/sdk_build
-mkdir ./MEGAcmd/sdk/sdk_build/install
-mkdir ./MEGAcmd/sdk/sdk_build/install/lib
+
+local_install_dir=$PWD/MEGAcmd/sdk/sdk_build/install
+mkdir $local_install_dir
+mkdir $local_install_dir/lib
 
 AUTOMAKE_OPTIONS="no-dependencies"
 
@@ -14,10 +19,11 @@ export SPECIAL_OPENSSL_CONFIG_PARAMS=""
 
 export CC=$CC
 export CXX=$CXX
+$CXX --version
 export LD=$LD
 export CFLAGS="$CFLAGS -O2 -fexceptions -fvisibility=hidden -static"
 export CPPFLAGS="$CPPFLAGS -DNDEBUG"
-export CXXFLAGS="-std=c++11 $CFLAGS -DNDEBUG -DENABLE_BACKUPS -DMEGACMD_USERAGENT_SUFFIX=Synology -DHAVE_LIBUV -std=c++11"
+export CXXFLAGS="-std=c++0x $CFLAGS -DNDEBUG -DENABLE_BACKUPS -DMEGACMD_USERAGENT_SUFFIX=Synology -DHAVE_LIBUV"
 export AR=$AR
 export NM=$NM
 export STRIP=$STRIP
@@ -149,7 +155,7 @@ pwd
 mkdir -p norecurse
 mv norecurse/* .
 
-./contrib/build_sdk.sh -a -e $suppress_freeimage_flag -g -I -n -q -R -v -X -0 -C "$CUSTOM_CONFIG_ARGS" -O $OS_COMPILER_FOR_OPENSSL -S "$SPECIAL_OPENSSL_CONFIG_PARAMS" 2>&1 | tee /mybuildlogs-sdkbuild.out
+./contrib/build_sdk.sh -a -e $suppress_freeimage_flag -g -I -q -R -v -X -0 -C "$CUSTOM_CONFIG_ARGS" -O $OS_COMPILER_FOR_OPENSSL -S "$SPECIAL_OPENSSL_CONFIG_PARAMS" 2>&1 | tee /mybuildlogs-sdkbuild.out
 
 if ! [ -e src/libmega.la ] ; then
     echo "libtool could not link it so we do it ourselves. Including Zen and MediaInfo somehow reference a nonexistent path /home/chingfen in the Synology libtool libraries. If we left those out it would make the lib ok."
@@ -176,7 +182,7 @@ echo -------------------------------------------------------- sdk end ----------
 echo about to build megacmd ---------------------------
 
 sh autogen.sh 2>&1 | tee /mybuildlogs-autogen2.out
-./configure --without-libraw --enable-static --with-cryptopp $CUSTOM_CONFIG_ARGS  2>&1 | tee /mybuildlogs-configure2.out 
+./configure --without-libraw --enable-static --with-cryptopp=$local_install_dir --with-readline=$local_install_dir --with-termcap=$local_install_dir $CUSTOM_CONFIG_ARGS  2>&1 | tee /mybuildlogs-configure2.out
 
 export INCLUDES="-I/source/megacmdpkg/MEGAcmd/sdk/sdk_build/install/include -I/source/megacmdpkg/MEGAcmd/sdk/include/ -I/source/megacmdpkg/MEGAcmd/sdk/include/mega/posix"
 make SUBDIRS='' DEFS='' 2>&1 | tee /mybuildlogs-make2.out
@@ -217,7 +223,7 @@ if [ "$built_arch" == "$BUILD_ARCH-bit" ] ; then
     echo "Correct buildarch: $BUILD_ARCH"
 else
     echo "wrong buildarch: $BUILD_ARCH"
-    file mega-exec 
+    file mega-exec
     rm mega-exec
 fi
 
