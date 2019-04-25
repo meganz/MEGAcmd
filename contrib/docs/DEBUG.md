@@ -43,12 +43,12 @@ mega-cmd-server
 ### Windows
 
 MEGAcmdServer is executed in the background without saving the log into a file. If you want to 
-see the output you would need to execute the server (MEGAcmdShell.exe) manually.
+see the output you would need to execute the server (MEGAcmdServer.exe) manually.
 
 ## Verbosity on startup
 
 You can start the server with higher level of verbosity in order to have log levels increased at startup.
-In Windows & Linux you will need to pass `--debug-full` as an argument to the executable (e.g: `MEGAcmdShell.exe --debug-full`).
+In Windows & Linux you will need to pass `--debug-full` as an argument to the executable (e.g: `MEGAcmdServer.exe --debug-full`).
 
 In MacOS, you can use `MEGACMD_LOGLEVEL` environment variable like this: `MEGACMD_LOGLEVEL=FULLDEBUG ./mega-cmd`.
 
