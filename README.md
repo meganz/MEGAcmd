@@ -49,7 +49,7 @@ https://mega.nz/#!MkZmVazb!fffUvFV9pIQhr__dVipwWqFfvjDEEp0JUsT8WBKAbRg.
 Ensure you obtain the repository recursively.
 ```
 git clone https://github.com/meganz/MEGAcmd.git
-git submodule update --init --recursive
+cd MEGAcmd && git submodule update --init --recursive
 ```
 
 ## Building and installing
