@@ -355,9 +355,10 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validParams->insert("l");
         validParams->insert("a");
         validParams->insert("h");
+        validParams->insert("show-handles");
         validParams->insert("versions");
         validOptValues->insert("time-format");
-        validOptValues->insert("tree");
+        validParams->insert("tree");
 #ifdef USE_PCRE
         validParams->insert("use-pcre");
 #endif
@@ -533,6 +534,7 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     {
         validOptValues->insert("pattern");
         validOptValues->insert("l");
+        validParams->insert("show-handles");
 #ifdef USE_PCRE
         validParams->insert("use-pcre");
 #endif
@@ -1419,9 +1421,9 @@ const char * getUsageStr(const char *command)
     if (!strcmp(command, "ls"))
     {
 #ifdef USE_PCRE
-        return "ls [-halRr] [--tree] [--versions] [remotepath] [--use-pcre] [--time-format=FORMAT]";
+        return "ls [-halRr] [--show-handles] [--tree] [--versions] [remotepath] [--use-pcre] [--time-format=FORMAT]";
 #else
-        return "ls [-halRr] [--tree] [--versions] [remotepath] [--time-format=FORMAT]";
+        return "ls [-halRr] [--show-handles] [--tree] [--versions] [remotepath] [--time-format=FORMAT]";
 #endif
     }
     if (!strcmp(command, "tree"))
@@ -1727,9 +1729,9 @@ const char * getUsageStr(const char *command)
     if (!strcmp(command, "find"))
     {
 #ifdef USE_PCRE
-        return "find [remotepath] [-l] [--pattern=PATTERN] [--mtime=TIMECONSTRAIN] [--size=SIZECONSTRAIN] [--use-pcre] [--time-format=FORMAT]";
+        return "find [remotepath] [-l] [--pattern=PATTERN] [--mtime=TIMECONSTRAIN] [--size=SIZECONSTRAIN] [--use-pcre] [--time-format=FORMAT] [--show-handles]";
 #else
-        return "find [remotepath] [-l] [--pattern=PATTERN] [--mtime=TIMECONSTRAIN] [--size=SIZECONSTRAIN] [--time-format=FORMAT]";
+        return "find [remotepath] [-l] [--pattern=PATTERN] [--mtime=TIMECONSTRAIN] [--size=SIZECONSTRAIN] [--time-format=FORMAT] [--show-handles]";
 #endif
     }
     if (!strcmp(command, "help"))
@@ -1914,6 +1916,7 @@ string getHelpStr(const char *command)
         os << "Options:" << endl;
         os << " -R|-r" << "\t" << "List folders recursively" << endl;
         os << " --tree" << "\t" << "Prints tree-like exit (implies -r)" << endl;
+        os << " --show-handles" << "\t" << "Prints files/folders handles (H:XXXXXXXX). You can address a file/folder by its handle" << endl;
         os << " -l" << "\t" << "Print summary (--tree has no effect)" << endl;
         os << "   " << "\t" << " SUMMARY contents:" << endl;
         os << "   " << "\t" << "   FLAGS: Indicate type/status of an element:" << endl;
@@ -2596,6 +2599,7 @@ string getHelpStr(const char *command)
         os << "                      " << "\t" << "   \"+1m12k3B\" shows files bigger than 1 Mega, 12 Kbytes and 3Bytes" << endl;
         os << "                      " << "\t" << "   \"-3M\" shows files smaller than 3 Megabytes" << endl;
         os << "                      " << "\t" << "   \"-4M+100K\" shows files smaller than 4 Mbytes and bigger than 100 Kbytes" << endl;
+        os << " --show-handles" << "\t" << "Prints files/folders handles (H:XXXXXXXX). You can address a file/folder by its handle" << endl;
 #ifdef USE_PCRE
         os << " --use-pcre" << "\t" << "use PCRE expressions" << endl;
 #endif
