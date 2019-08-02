@@ -543,7 +543,7 @@ elif [[ $VMNAME == *"DEBIAN"* ]] || [[ $VMNAME == *"UBUNTU"* ]] || [[ $VMNAME ==
 		if [[ x$ver == "x8"* ]]; then ver="8.0"; fi
 		if [[ x$ver == "x7"* ]]; then ver="7.0"; fi
 		if [[ x$ver == "x9"* ]]; then ver="9.0"; fi
-		if [[ x$ver == "xtesting"* ]]; then ver="9.0"; fi
+		if [[ x$ver == "xtesting"* ]]; then ver="10.0"; fi
 	fi
 	
 	if [[ $distroDir == "Linux Mint 17"* ]]; then distroDir="xUbuntu"; ver="14.04"; fi
