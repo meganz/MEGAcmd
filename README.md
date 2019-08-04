@@ -33,8 +33,8 @@ have support for regular expressions.
 g++ libcrypto++-dev libz-dev sqlite3-dev libsqlite3-dev libssl-dev libcurl4-openssl-dev 
 libreadline-dev libpcre++-dev libsodium-dev`
 
-* 18.04: `autoconf libtool g++ libcrypto++-dev libz-dev libsqlite3-dev libsqlite3-dev 
-libssl-dev libcurl4-openssl-dev libreadline-dev libpcre++-dev libsodium-dev libc-ares-dev
+* 18.04: `autoconf libtool g++ libcrypto++-dev libz-dev libsqlite3-dev libssl-dev
+libcurl4-openssl-dev libreadline-dev libpcre++-dev libsodium-dev libc-ares-dev
 libfreeimage-dev`
 
 ## Getting the source
