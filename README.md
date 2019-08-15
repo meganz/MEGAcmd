@@ -34,7 +34,7 @@ it is highly recommended to have `ffmpeg` (`libavcodec-dev libavutil-dev libavfo
 
 * For convenience here is a list of packages for ubuntu 18.04: `autoconf libtool g++ libcrypto++-dev libz-dev libsqlite3-dev libssl-dev libcurl4-gnutls-dev libreadline-dev libpcre++-dev libsodium-dev libc-ares-dev libfreeimage-dev libavcodec-dev libavutil-dev libavformat-dev libswscale-dev libmediainfo-dev libzen-dev libuv1-dev`
 
-* here is a list of packages for debian 9: `autoconf build-essential libtool g++ libcrypto++-dev libz-dev libsqlite3-dev libssl-dev libcurl4-gnutls-dev libreadline-dev libpcre++-dev libsodium-dev libc-ares-dev libfreeimage-dev libavcodec-dev libavutil-dev libavformat-dev libswscale-dev libmediainfo-dev libzen-dev`
+* here is a list of packages for debian 9: `autoconf build-essential libtool g++ libcrypto++-dev libz-dev libsqlite3-dev libssl-dev libcurl4-gnutls-dev libreadline-dev libpcre++-dev libsodium-dev libc-ares-dev libfreeimage-dev libavcodec-dev libavutil-dev libavformat-dev libswscale-dev libmediainfo-dev libzen-dev libcurl4-openssl-dev`
 
 and for ubuntu 16.04: `autoconf libtool
 g++ libcrypto++-dev libz-dev libsqlite3-dev libssl-dev libcurl4-openssl-dev
