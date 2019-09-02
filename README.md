@@ -44,6 +44,10 @@ libavcodec-dev libavutil-dev libavformat-dev libswscale-dev libmediainfo-dev lib
 For Windows, here is a bundle with all the 3rd party dependencies required to build:
 https://mega.nz/#!MkZmVazb!fffUvFV9pIQhr__dVipwWqFfvjDEEp0JUsT8WBKAbRg.
 
+* 18.04: `autoconf libtool g++ libcrypto++-dev libz-dev libsqlite3-dev libssl-dev
+libcurl4-openssl-dev libreadline-dev libpcre++-dev libsodium-dev libc-ares-dev
+libfreeimage-dev`
+
 ## Getting the source
 
 Ensure you obtain the repository recursively.
