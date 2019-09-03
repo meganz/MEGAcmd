@@ -22,7 +22,7 @@ If you wish to build or install MEGAcmd, here are a list of requirements and ins
 
 ## Requirements
 
-The requirements are the same as those for the sdk (usually `cryptopp, zlib, sqlite3, cares, libuv, ssl, curl,sodium, readline` for platforms other than Windows. It is recommended to include `pcre` to have support for regular expressions.
+The requirements are the same as those for the sdk (usually `cryptopp, zlib, sqlite3, cares, libuv, ssl, curl, sodium, readline` for platforms other than Windows. It is recommended to include `pcre` to have support for regular expressions.
 
 In order to have support for thumbnails and previews, it is highly recommended to have `ffmpeg` (`libavcodec-dev libavutil-dev libavformat-dev libswscale-dev`) and `mediainfo`(`libmediainfo-dev + libzen-dev`) for media file attributes.
 
@@ -38,10 +38,6 @@ In order to have support for thumbnails and previews, it is highly recommended t
 	* `libcrypto++ libpcrecpp0v5 libc-ares-dev zlib1g-dev libuv1 libssl-dev libsodium-dev readline-common sqlite3 curl autoconf libtool g++ libcrypto++-dev libz-dev libsqlite3-dev libssl-dev libcurl4-gnutls-dev libreadline-dev libpcre++-dev libsodium-dev libc-ares-dev libfreeimage-dev libavcodec-dev libavutil-dev libavformat-dev libswscale-dev libmediainfo-dev libzen-dev`
 	* In some instanances you may need to run
 		 `apt install --reinstall build-essential`
-
- * **Windows** 
-	 * Here is a bundle with all the 3rd party dependencies required to build:
-	   https://mega.nz/#!MkZmVazb!fffUvFV9pIQhr__dVipwWqFfvjDEEp0JUsT8WBKAbRg
 
 ## Getting the source
 
