@@ -40,8 +40,8 @@ In order to have support for thumbnails and previews, it is highly recommended t
 		 `apt install --reinstall build-essential`
 * **Windows**
 
-For Windows, here is a bundle with all the 3rd party dependencies required to build:
-https://mega.nz/#!MkZmVazb!fffUvFV9pIQhr__dVipwWqFfvjDEEp0JUsT8WBKAbRg.
+	For Windows, here is a bundle with all the 3rd party dependencies required to build:
+	https://mega.nz/#!MkZmVazb!fffUvFV9pIQhr__dVipwWqFfvjDEEp0JUsT8WBKAbRg.
 
 ## Getting the source
 
