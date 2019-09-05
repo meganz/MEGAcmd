@@ -865,6 +865,14 @@ bool MegaCmdExecuter::checkAndInformPSA(CmdPetition *inf, bool enforce)
     m_time_t now = m_time();
     if ( enforce || (now - sandboxCMD->timeOfPSACheck > 86400) )
     {
+        mega::MegaUser *u = api->getMyUser();
+        if (!u)
+        {
+            LOG_debug << "No PSA request (not logged into an account)";
+            return toret; //Not logged in, no reason to get PSA
+        }
+        delete u;
+
         sandboxCMD->timeOfPSACheck = now;
 
         LOG_verbose << "Getting PSA";
