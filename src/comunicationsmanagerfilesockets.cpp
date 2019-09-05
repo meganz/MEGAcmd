@@ -134,15 +134,13 @@ int ComunicationsManagerFileSockets::create_new_socket(int *sockId)
 ComunicationsManagerFileSockets::ComunicationsManagerFileSockets()
 {
     count = 0;
-    mtx = new MegaMutex();
-    informerMutex = new MegaMutex(false);
+    mtx = new std::mutex();
+    informerMutex = new std::mutex();
     initialize();
 }
 
 int ComunicationsManagerFileSockets::initialize()
 {
-    mtx->init(false);
-
     MegaFileSystemAccess *fsAccess = new MegaFileSystemAccess();
     char csocketsFolder[34]; // enough to hold all numbers up to 64-bits
     sprintf(csocketsFolder, "/tmp/megaCMD_%d", getuid());
@@ -394,7 +392,7 @@ void ComunicationsManagerFileSockets::sendPartialOutput(CmdPetition *inf, OUTSTR
 
 int ComunicationsManagerFileSockets::informStateListener(CmdPetition *inf, string &s)
 {
-    MutexGuard g(*informerMutex);
+    std::lock_guard<std::mutex> g(*informerMutex);
     LOG_verbose << "Inform State Listener: Output to write in socket " << ((CmdPetitionPosixSockets *)inf)->outSocket << ": <<" << s << ">>";
 
     sockaddr_in cliAddr;

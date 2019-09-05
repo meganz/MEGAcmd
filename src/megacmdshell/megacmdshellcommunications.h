@@ -26,6 +26,7 @@
 
 #include <string>
 #include <iostream>
+#include <mutex>
 
 #ifdef _WIN32
 #include <WinSock2.h>
@@ -40,15 +41,14 @@
 
 #if defined(_WIN32) && !defined(WINDOWS_PHONE) && !defined(USE_CPPTHREAD)
 #include "mega/thread/win32thread.h"
-class MegaMutex : public ::mega::Win32Mutex {};
+class std::mutex : public ::mega::Win32Mutex {};
 class MegaThread : public ::mega::Win32Thread {};
 #elif defined(USE_CPPTHREAD)
 #include "mega/thread/cppthread.h"
-class MegaMutex : public ::mega::CppMutex {};
+class std::mutex : public ::mega::CppMutex {};
 class MegaThread : public ::mega::CppThread {};
 #else
 #include "mega/thread/posixthread.h"
-class MegaMutex : public ::mega::PosixMutex {};
 class MegaThread : public ::mega::PosixThread {};
 #endif
 
@@ -118,7 +118,7 @@ public:
     MegaCmdShellCommunications();
     virtual ~MegaCmdShellCommunications();
 
-    static MegaMutex megaCmdStdoutputing;
+    static std::mutex megaCmdStdoutputing;
     virtual int executeCommand(std::string command, std::string (*readresponse)(const char *) = NULL, OUTSTREAMTYPE &output = COUT, bool interactiveshell = true, std::wstring = L"");
     virtual int executeCommandW(std::wstring command, std::string (*readresponse)(const char *) = NULL, OUTSTREAMTYPE &output = COUT, bool interactiveshell = true);
 

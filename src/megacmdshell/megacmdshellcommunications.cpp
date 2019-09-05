@@ -80,7 +80,7 @@ bool MegaCmdShellCommunications::stopListener;
 bool MegaCmdShellCommunications::updating;
 ::mega::Thread *MegaCmdShellCommunications::listenerThread;
 SOCKET MegaCmdShellCommunications::newsockfd = INVALID_SOCKET;
-MegaMutex MegaCmdShellCommunications::megaCmdStdoutputing;
+std::mutex MegaCmdShellCommunications::megaCmdStdoutputing;
 
 bool MegaCmdShellCommunications::socketValid(SOCKET socket)
 {
@@ -483,7 +483,6 @@ MegaCmdShellCommunications::MegaCmdShellCommunications()
     stopListener = false;
     updating = false;
     listenerThread = NULL;
-    MegaCmdShellCommunications::megaCmdStdoutputing.init(false);
 }
 
 

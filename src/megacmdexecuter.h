@@ -33,12 +33,12 @@ private:
     MegaCMDLogger *loggerCMD;
     MegaCmdSandbox *sandboxCMD;
     MegaCmdGlobalTransferListener *globalTransferListener;
-    mega::MegaMutex mtxSyncMap;
-    mega::MegaMutex mtxWebDavLocations; //TODO: destroy these two
-    mega::MegaMutex mtxFtpLocations;
+    std::mutex mtxSyncMap;
+    std::mutex mtxWebDavLocations;
+    std::mutex mtxFtpLocations;
 
 #ifdef ENABLE_BACKUPS
-    mega::MegaMutex mtxBackupsMap;
+    std::recursive_mutex mtxBackupsMap;
 #endif
 
     // login/signup e-mail address

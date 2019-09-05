@@ -69,7 +69,7 @@ private:
 
     // to get next socket id
     int count;
-    mega::MegaMutex *mtx;
+    std::mutex *mtx;
 
     /**
      * @brief create_new_socket

@@ -199,7 +199,7 @@ bool confirmingcancellink = false;
 // communications with megacmdserver:
 MegaCmdShellCommunications *comms;
 
-MUTEX_CLASS mutexPrompt(false);
+std::mutex mutexPrompt;
 
 void printWelcomeMsg(unsigned int width = 0);
 
@@ -627,7 +627,7 @@ void install_rl_handler(const char *theprompt)
 
 void changeprompt(const char *newprompt, bool redisplay)
 {
-    MutexGuard g(mutexPrompt);
+    std::lock_guard<std::mutex> g(mutexPrompt);
 
     if (*dynamicprompt)
     {

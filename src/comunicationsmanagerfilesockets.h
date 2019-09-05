@@ -58,8 +58,8 @@ private:
 
     // to get next socket id
     int count;
-    mega::MegaMutex *mtx;
-    mega::MegaMutex *informerMutex;
+    std::mutex *mtx;
+    std::mutex *informerMutex;
 
     /**
      * @brief create_new_socket

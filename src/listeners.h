@@ -178,7 +178,7 @@ private:
     static const int MAXCOMPLETEDTRANSFERSBUFFER;
 
 public:
-    mega::MegaMutex completedTransfersMutex;
+    std::mutex completedTransfersMutex;
     std::deque<mega::MegaTransfer *> completedTransfers;
     std::map<mega::MegaHandle,std::string> completedPathsByHandle;
 public:

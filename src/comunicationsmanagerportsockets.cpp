@@ -161,13 +161,12 @@ SOCKET ComunicationsManagerPortSockets::create_new_socket(int *sockId)
 ComunicationsManagerPortSockets::ComunicationsManagerPortSockets()
 {
     count = 0;
-    mtx = new MegaMutex();
+    mtx = new std::mutex();
     initialize();
 }
 
 int ComunicationsManagerPortSockets::initialize()
 {
-    mtx->init(false);
 #if _WIN32
     WORD wVersionRequested;
     WSADATA wsaData;

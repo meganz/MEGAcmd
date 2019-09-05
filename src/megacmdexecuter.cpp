@@ -124,12 +124,6 @@ MegaCmdExecuter::MegaCmdExecuter(MegaApi *api, MegaCMDLogger *loggerCMD, MegaCmd
     api->addTransferListener(globalTransferListener);
     cwd = UNDEF;
     fsAccessCMD = new MegaFileSystemAccess();
-    mtxSyncMap.init(false);
-    mtxWebDavLocations.init(false);
-    mtxFtpLocations.init(false);
-#ifdef ENABLE_BACKUPS
-    mtxBackupsMap.init(true);
-#endif
     session = NULL;
 }
 

@@ -112,7 +112,7 @@ private:
     int apiLoggerLevel;
     int cmdLoggerLevel;
     LoggedStream * output;
-    mega::MegaMutex *outputmutex;
+    std::mutex *outputmutex;
 
 public:
     MegaCMDLogger();

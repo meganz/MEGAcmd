@@ -103,11 +103,11 @@ MegaApi *api;
 std::queue<MegaApi *> apiFolders;
 std::vector<MegaApi *> occupiedapiFolders;
 MegaSemaphore semaphoreapiFolders;
-MegaMutex mutexapiFolders;
+std::mutex mutexapiFolders;
 
 MegaCMDLogger *loggerCMD;
 
-MegaMutex mutexEndedPetitionThreads;
+std::mutex mutexEndedPetitionThreads;
 std::vector<MegaThread *> petitionThreads;
 std::vector<MegaThread *> endedPetitionThreads;
 MegaThread *threadRetryConnections;
@@ -194,7 +194,7 @@ static prompttype prompt = COMMAND;
 // local console
 Console* console;
 
-MegaMutex mutexHistory;
+std::mutex mutexHistory;
 
 map<unsigned long long, string> threadline;
 
@@ -4411,10 +4411,6 @@ int main(int argc, char* argv[])
         loggerCMD->setCmdLoggerLevel(MegaApi::LOG_LEVEL_MAX);
     }
 
-    mutexHistory.init(false);
-
-    mutexEndedPetitionThreads.init(false);
-
     ConfigurationManager::loadConfiguration(( argc > 1 ) && debug);
     if (!ConfigurationManager::lockExecution() && !skiplockcheck)
     {
@@ -4475,8 +4471,6 @@ int main(int argc, char* argv[])
     {
         semaphoreClients.release();
     }
-
-    mutexapiFolders.init(false);
 
     LOG_debug << "Language set to: " << localecode;
 
