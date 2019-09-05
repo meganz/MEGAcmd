@@ -446,6 +446,16 @@ string backupSatetStr(int backupstate)
 
 int getLinkType(string link)
 {
+    if (link.find("/file/") != string::npos)
+    {
+        return MegaNode::TYPE_FILE;
+    }
+
+    if (link.find("/folder/") != string::npos)
+    {
+        return MegaNode::TYPE_FOLDER;
+    }
+
     size_t posHash = link.find_first_of("#");
     if (( posHash == string::npos ) || !( posHash + 1 < link.length()))
     {

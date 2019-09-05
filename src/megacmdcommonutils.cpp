@@ -135,7 +135,14 @@ bool canWrite(string path)
 
 bool isPublicLink(string link)
 {
-    if (( link.find("http") == 0 ) && ( link.find("#") != string::npos ))
+    //Old format:
+    //https://mega.nz/#!ph!key
+    //https://mega.nz/#F!ph!key
+
+    //new format:
+    //https://mega.nz/file/ph#key
+    //https://mega.nz/folder/ph#key
+    if (( link.find("http") == 0 ) && ( link.find("#") != string::npos || link.find("/file/") != string::npos || link.find("/folder/") != string::npos))
     {
         return true;
     }
