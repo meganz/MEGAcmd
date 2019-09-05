@@ -41,6 +41,7 @@ public:
     bool accounthasbeenblocked;
     std::string reasonblocked;
     int storageStatus;
+    long long receivedStorageSum;
 public:
     MegaCmdSandbox();
     bool isOverquota() const;

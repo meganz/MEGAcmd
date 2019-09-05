@@ -8675,7 +8675,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         if (u)
         {
             MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
-            api->getExtendedAccountDetails(true, true, true, megaCmdListener);
+            api->getSpecificAccountDetails(true, false, false, -1, megaCmdListener);
             megaCmdListener->wait();
             if (checkNoErrors(megaCmdListener->getError(), "failed to get used storage"))
             {
@@ -8748,10 +8748,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     }
                     delete inshares;
 
-                    usedTotal += rootStorage;
-                    usedTotal += inboxStorage;
-                    usedTotal += rubbishStorage;
-                    usedTotal += insharesStorage;
+                    usedTotal = sandboxCMD->receivedStorageSum;
 
                     float percent = float(usedTotal * 1.0 / storageMax);
                     if (percent < 0 ) percent = 0;

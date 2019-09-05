@@ -201,9 +201,12 @@ void MegaCmdGlobalListener::onEvent(MegaApi *api, MegaEvent *event)
             {
                 ConfigurationManager::savePropertyValue("ask4storage",false);
             }
-
         }
         LOG_info << "Received event storage changed: " << event->getNumber();
+    }
+    else if (event->getType() == MegaEvent::EVENT_STORAGE_SUM_CHANGED)
+    {
+        sandboxCMD->receivedStorageSum = event->getNumber();
     }
 }
 
