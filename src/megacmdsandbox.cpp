@@ -42,6 +42,7 @@ void MegaCmdSandbox::resetSandBox()
     this->accounthasbeenblocked = false;
     this->storageStatus = 0;
     this->receivedStorageSum = 0;
+    this->totalStorage = 0;
     this->timeOfPSACheck = 0;
     this->lastPSAnumreceived = -1;
 }
@@ -58,6 +59,7 @@ MegaCmdSandbox::MegaCmdSandbox()
     this->accounthasbeenblocked = false;
     this->storageStatus = 0;
     this->receivedStorageSum = 0;
+    this->totalStorage = 0;
     this->timeOfPSACheck = 0;
     this->lastPSAnumreceived = -1;
 }

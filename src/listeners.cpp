@@ -226,6 +226,21 @@ void MegaCmdMegaListener::onRequestFinish(MegaApi *api, MegaRequest *request, Me
         LOG_debug << "Session closed";
         sandboxCMD->resetSandBox();
     }
+    else if (request->getType() == MegaRequest::TYPE_ACCOUNT_DETAILS)
+    {
+        if (e->getErrorCode() != MegaError::API_OK)
+        {
+            return;
+        }
+
+        bool storage = (request->getNumDetails() & 0x01) != 0;
+
+        if (storage)
+        {
+            unique_ptr<MegaAccountDetails> details(request->getMegaAccountDetails());
+            sandboxCMD->totalStorage = details->getStorageMax();
+        }
+    }
     else if (e && ( e->getErrorCode() == MegaError::API_ESID ))
     {
         LOG_err << "Session is no longer valid (it might have been invalidated from elsewhere) ";
