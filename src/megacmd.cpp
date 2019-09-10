@@ -2054,7 +2054,8 @@ string getHelpStr(const char *command)
         os << endl;
         os << "Notice that the dstremotepath can only be omitted when only one local path is provided. " << endl;
         os << " In such case, the current remote working dir will be the destination for the upload." << endl;
-        os << " Mind that using wildcards for local paths will result in multiple paths." << endl;
+        os << " Mind that using wildcards for local paths in non-interactive mode in a supportive console (e.g. bash)," << endl;
+        os << " could result in multiple paths being passed to MEGAcmd." << endl;
     }
     else if (!strcmp(command, "get"))
     {

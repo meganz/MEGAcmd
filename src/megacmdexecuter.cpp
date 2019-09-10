@@ -60,6 +60,27 @@ static const char* rootnodepaths[] = { "/", "//in", "//bin" };
 #define SSTR( x ) static_cast< const std::ostringstream & >( \
         ( std::ostringstream() << std::dec << x ) ).str()
 
+
+#ifdef HAVE_GLOB_H
+std::vector<std::string> resolvewildcard(const std::string& pattern) {
+    using namespace std;
+
+    vector<string> filenames;
+    glob_t glob_result;
+    memset(&glob_result, 0, sizeof(glob_result));
+
+    if (!glob(pattern.c_str(), GLOB_TILDE, NULL, &glob_result))
+    {
+        for(size_t i = 0; i < glob_result.gl_pathc; ++i) {
+            filenames.push_back(string(glob_result.gl_pathv[i]));
+        }
+    }
+
+    globfree(&glob_result);
+    return filenames;
+}
+#endif
+
 /**
  * @brief updateprompt updates prompt with the current user/location
  * @param api
@@ -1726,6 +1747,12 @@ MegaContactRequest * MegaCmdExecuter::getPcrByContact(string contactEmail)
 string MegaCmdExecuter::getDisplayPath(string givenPath, MegaNode* n)
 {
     char * pathToNode = api->getNodePath(n);
+    if (!pathToNode)
+    {
+        LOG_err << " GetNodePath failed for: " << givenPath;
+        return givenPath;
+    }
+
     char * pathToShow = pathToNode;
 
     string pathRelativeTo = "NULL";
@@ -6527,16 +6554,44 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         {
                             words[i] = getLPWD();
                         }
-                        uploadNode(words[i], api, n, newname, background, ignorequotawarn, clientID, megaCmdMultiTransferListener);
+
+#ifdef HAVE_GLOB_H
+                        if (!newname.size() && !fs::exists(words[i]) && hasWildCards(words[i]))
+                        {
+                            auto paths = resolvewildcard(words[i]);
+                            if (!paths.size())
+                            {
+                                setCurrentOutCode(MCMD_NOTFOUND);
+                                LOG_err << words[i] << " not found";
+                            }
+                            for (auto path : paths)
+                            {
+                                uploadNode(path, api, n, newname, background, ignorequotawarn, clientID, megaCmdMultiTransferListener);
+                            }
+                        }
+                        else
+#endif
+                        {
+                            uploadNode(words[i], api, n, newname, background, ignorequotawarn, clientID, megaCmdMultiTransferListener);
+                        }
                     }
                 }
                 else if (words.size() == 3 && !IsFolder(words[1])) //replace file
                 {
-                    MegaNode *pn = api->getNodeByHandle(n->getParentHandle());
+                    unique_ptr<MegaNode> pn(api->getNodeByHandle(n->getParentHandle()));
                     if (pn)
                     {
-                        uploadNode(words[1], api, pn, n->getName(), background, ignorequotawarn, clientID, megaCmdMultiTransferListener);
-                        delete pn;
+#ifdef HAVE_GLOB_H
+                        if (!fs::exists(words[1]) && hasWildCards(words[1]))
+                        {
+                            LOG_err << "Invalid target for wildcard expression: " << words[1] << ". Folder expected";
+                            setCurrentOutCode(MCMD_INVALIDTYPE);
+                        }
+                        else
+#endif
+                        {
+                            uploadNode(words[1], api, pn.get(), n->getName(), background, ignorequotawarn, clientID, megaCmdMultiTransferListener);
+                        }
                     }
                     else
                     {
