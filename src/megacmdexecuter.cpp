@@ -8742,7 +8742,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             megaCmdListener->wait();
             if (checkNoErrors(megaCmdListener->getError(), "failed to get used storage"))
             {
-                MegaAccountDetails *details = megaCmdListener->getRequest()->getMegaAccountDetails();
+                unique_ptr<MegaAccountDetails> details(megaCmdListener->getRequest()->getMegaAccountDetails());
                 if (details)
                 {
                     long long usedTotal = 0;
@@ -8753,45 +8753,46 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
                     long long storageMax = details->getStorageMax();
 
-                    MegaNode *n = api->getRootNode();
-                    if (n)
+                    unique_ptr<MegaNode> root(api->getRootNode());
+                    unique_ptr<MegaNode> inbox(api->getInboxNode());
+                    unique_ptr<MegaNode> rubbish(api->getRubbishNode());
+                    unique_ptr<MegaNodeList> inShares(api->getInShares());
+
+                    if (!root || !inbox || !rubbish)
                     {
-                        rootStorage = details->getStorageUsed(n->getHandle());
-                        OUTSTREAM << "Cloud drive:          "
-                                  << getFixLengthString(sizeToText(rootStorage, true, humanreadable), 12, ' ', true) << " in "
-                                  << getFixLengthString(SSTR(details->getNumFiles(n->getHandle())),7,' ',true) << " file(s) and "
-                                  << getFixLengthString(SSTR(details->getNumFolders(n->getHandle())),7,' ',true) << " folder(s)" << endl;
-                        delete n;
+                        LOG_err << " Error retrieving storage details. Root node missing";
+                        return;
                     }
 
-                    n = api->getInboxNode();
-                    if (n)
-                    {
-                        inboxStorage = details->getStorageUsed(n->getHandle());
-                        OUTSTREAM << "Inbox:                "
-                                  << getFixLengthString(sizeToText(inboxStorage, true, humanreadable), 12, ' ', true ) << " in "
-                                  << getFixLengthString(SSTR(details->getNumFiles(n->getHandle())),7,' ',true) << " file(s) and "
-                                  << getFixLengthString(SSTR(details->getNumFolders(n->getHandle())),7,' ',true) << " folder(s)" << endl;
-                        delete n;
-                    }
+                    MegaHandle rootHandle = root->getHandle();
+                    MegaHandle inboxHandle = inbox->getHandle();
+                    MegaHandle rubbishHandle = rubbish->getHandle();
 
-                    n = api->getRubbishNode();
-                    if (n)
-                    {
-                        rubbishStorage = details->getStorageUsed(n->getHandle());
-                        OUTSTREAM << "Rubbish bin:          "
-                                  << getFixLengthString(sizeToText(rubbishStorage, true, humanreadable), 12, ' ', true) << " in "
-                                  << getFixLengthString(SSTR(details->getNumFiles(n->getHandle())),7,' ',true) << " file(s) and "
-                                  << getFixLengthString(SSTR(details->getNumFolders(n->getHandle())),7,' ',true) << " folder(s)" << endl;
-                        delete n;
-                    }
+                    rootStorage = details->getStorageUsed(rootHandle);
+                    OUTSTREAM << "Cloud drive:          "
+                              << getFixLengthString(sizeToText(rootStorage, true, humanreadable), 12, ' ', true) << " in "
+                              << getFixLengthString(SSTR(details->getNumFiles(rootHandle)),7,' ',true) << " file(s) and "
+                              << getFixLengthString(SSTR(details->getNumFolders(rootHandle)),7,' ',true) << " folder(s)" << endl;
 
-                    MegaNodeList *inshares = api->getInShares();
-                    if (inshares)
+
+                    inboxStorage = details->getStorageUsed(inboxHandle);
+                    OUTSTREAM << "Inbox:                "
+                              << getFixLengthString(sizeToText(inboxStorage, true, humanreadable), 12, ' ', true ) << " in "
+                              << getFixLengthString(SSTR(details->getNumFiles(inboxHandle)),7,' ',true) << " file(s) and "
+                              << getFixLengthString(SSTR(details->getNumFolders(inboxHandle)),7,' ',true) << " folder(s)" << endl;
+
+                    rubbishStorage = details->getStorageUsed(rubbishHandle);
+                    OUTSTREAM << "Rubbish bin:          "
+                              << getFixLengthString(sizeToText(rubbishStorage, true, humanreadable), 12, ' ', true) << " in "
+                              << getFixLengthString(SSTR(details->getNumFiles(rubbishHandle)),7,' ',true) << " file(s) and "
+                              << getFixLengthString(SSTR(details->getNumFolders(rubbishHandle)),7,' ',true) << " folder(s)" << endl;
+
+
+                    if (inShares)
                     {
-                        for (int i = 0; i < inshares->size(); i++)
+                        for (int i = 0; i < inShares->size(); i++)
                         {
-                            n = inshares->get(i);
+                            n = inShares->get(i);
                             long long thisinshareStorage = details->getStorageUsed(n->getHandle());
                             insharesStorage += thisinshareStorage;
                             if (i == 0)
@@ -8809,7 +8810,6 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                                       << getFixLengthString(SSTR(details->getNumFolders(n->getHandle())),7,' ',true) << " folder(s)" << endl;
                         }
                     }
-                    delete inshares;
 
                     usedTotal = sandboxCMD->receivedStorageSum;
 
@@ -8836,12 +8836,13 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     }
                     OUTSTREAM << endl;
 
-                    long long usedinVersions = details->getVersionStorageUsed();
+                    long long usedinVersions = details->getVersionStorageUsed(rootHandle)
+                            + details->getVersionStorageUsed(inboxHandle)
+                            + details->getVersionStorageUsed(rubbishHandle);
+
 
                     OUTSTREAM << "Total size taken up by file versions: "
                               << getFixLengthString(sizeToText(usedinVersions, true, humanreadable), 12, ' ', true) << endl;
-
-                    delete details;
                 }
             }
             delete megaCmdListener;
