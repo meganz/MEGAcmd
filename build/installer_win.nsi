@@ -215,7 +215,7 @@ Function .onInit
 UserInfo::GetAccountType
 pop $0
 ${If} $0 != "admin" ;Require admin rights at least in win10; TODO: only ask for this if that's the case
-MessageBox MB_YESNO "If you would like ${PRODUCT_NAME} to be listed in the installed applications, Admin Privileges are needed.  Press Yes to grant that, or No for a plain install." IDYES elevate IDNO next
+MessageBox MB_YESNO "If you would like ${PRODUCT_NAME} to be listed in the installed applications, Admin Privileges are needed.  Press Yes to grant that, or No for a plain install." /SD IDNO IDYES elevate IDNO next
 ${EndIf}
   
 elevate:

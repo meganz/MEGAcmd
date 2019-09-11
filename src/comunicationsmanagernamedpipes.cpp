@@ -129,14 +129,12 @@ ComunicationsManagerNamedPipes::ComunicationsManagerNamedPipes()
 {
     count = 0;
     mtx = new std::mutex();
-    informerMutex = new std::mutex(false);
+    informerMutex = new std::mutex();
     initialize();
 }
 
 int ComunicationsManagerNamedPipes::initialize()
 {
-    mtx->init(false);
-
     petitionready = false;
 
     wchar_t username[UNLEN+1];

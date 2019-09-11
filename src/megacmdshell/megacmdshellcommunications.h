@@ -41,7 +41,6 @@
 
 #if defined(_WIN32) && !defined(WINDOWS_PHONE) && !defined(USE_CPPTHREAD)
 #include "mega/thread/win32thread.h"
-class std::mutex : public ::mega::Win32Mutex {};
 class MegaThread : public ::mega::Win32Thread {};
 #elif defined(USE_CPPTHREAD)
 #include "mega/thread/cppthread.h"
