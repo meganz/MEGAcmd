@@ -178,7 +178,7 @@ void MegaCmdExecuter::listtrees()
         MegaShare *share = msl->get(i);
         MegaNode *n = api->getNodeByHandle(share->getNodeHandle());
 
-        OUTSTREAM << "INSHARE on " << share->getUser() << ":" << n->getName() << " (" << getAccessLevelStr(share->getAccess()) << ")" << endl;
+        OUTSTREAM << "INSHARE on //from/" << share->getUser() << ":" << n->getName() << " (" << getAccessLevelStr(share->getAccess()) << ")" << endl;
         delete n;
     }
 
@@ -616,6 +616,11 @@ vector <string> * MegaCmdExecuter::nodesPathsbypath(const char* ptr, bool usepcr
             delete []nodepath;
         }
 
+        if (string(ptr).find("//from/") == 0)
+        {
+            pathPrefix.insert(0,"//from/");
+        }
+
         deque<string> c;
         getPathParts(rest, &c);
 
@@ -630,6 +635,22 @@ vector <string> * MegaCmdExecuter::nodesPathsbypath(const char* ptr, bool usepcr
             getPathsMatching((MegaNode *)baseNode, c, (vector<string> *)pathsMatching, usepcre, pathPrefix);
         }
         delete baseNode;
+    }
+    else if (!strncmp(ptr,"//from/",max(3,min((int)strlen(ptr)-1,7)))) //pattern trying to match inshares
+    {
+        unique_ptr<MegaShareList> inShares(api->getInSharesList());
+        if (inShares)
+        {
+            for (int i = 0; i < inShares->size(); i++)
+            {
+                unique_ptr<MegaNode> n(api->getNodeByHandle(inShares->get(i)->getNodeHandle()));
+                string tomatch = string("//from/")+inShares->get(i)->getUser() + ":"+n->getName();
+                if (patternMatches(tomatch.c_str(), ptr, false))
+                {
+                    pathsMatching->push_back(tomatch);
+                }
+            }
+        }
     }
 
     return pathsMatching;
@@ -789,13 +810,27 @@ MegaNode * MegaCmdExecuter::getBaseNode(string thepath, string &rest, bool *isre
         baseNode = api->getInboxNode();
         rest = thepath.substr(5);
     }
-    else if (thepath.find("/") == 0 )
+    else if (thepath.find("/") == 0 && !(thepath.find("//from/") == 0 ))
     {
+        if ( thepath.find("//f") == 0 && string("//from/").find(thepath.substr(0,thepath.find("*"))) == 0)
+        {
+            return NULL;
+        }
         baseNode = api->getRootNode();
         rest = thepath.substr(1);
     }
+    else if ( thepath == "//from/*" )
+    {
+        return NULL;
+    }
     else
     {
+        bool from = false;
+        if  (thepath.find("//from/") == 0 && thepath != "//from/*" )
+        {
+            thepath = thepath.substr(7);
+            from = true;
+        }
         size_t possep = thepath.find('/');
         string base = thepath.substr(0,possep);
         size_t possepcol = base.find(":");
@@ -836,7 +871,7 @@ MegaNode * MegaCmdExecuter::getBaseNode(string thepath, string &rest, bool *isre
                 rest = thepath.substr(possep+1);
             }
         }
-        else
+        else if (!from)
         {
             baseNode = api->getNodeByHandle(cwd);
             rest = thepath;
@@ -1018,7 +1053,6 @@ vector <MegaNode*> * MegaCmdExecuter::nodesbypath(const char* ptr, bool usepcre,
     string rest;
     MegaNode *baseNode = getBaseNode(ptr, rest);
 
-
     if (baseNode)
     {
         if (!rest.size())
@@ -1040,6 +1074,26 @@ vector <MegaNode*> * MegaCmdExecuter::nodesbypath(const char* ptr, bool usepcre,
             getNodesMatching(baseNode, c, nodesMatching, usepcre);
         }
         delete baseNode;
+    }
+    else if (!strncmp(ptr,"//from/",max(3,min((int)strlen(ptr)-1,7)))) //pattern trying to match inshares
+    {
+        unique_ptr<MegaShareList> inShares(api->getInSharesList());
+        if (inShares)
+        {
+            for (int i = 0; i < inShares->size(); i++)
+            {
+                MegaNode* n = api->getNodeByHandle(inShares->get(i)->getNodeHandle());
+                string tomatch = string("//from/")+inShares->get(i)->getUser() + ":"+n->getName();
+                if (patternMatches(tomatch.c_str(), ptr, false))
+                {
+                    nodesMatching->push_back(n);
+                }
+                else
+                {
+                    delete n;
+                }
+            }
+        }
     }
 
     return nodesMatching;
