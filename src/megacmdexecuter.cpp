@@ -6138,8 +6138,21 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         megaCmdListener2->wait();
                         if (checkNoErrors(megaCmdListener2->getError(), "access folder link " + publicLink))
                         {
-                            MegaNode *folderRootNode = apiFolder->getRootNode();
-                            if (folderRootNode)
+                            MegaNode *nodeToDownload = NULL;
+                            bool usedRoot = false;
+                            string shandle = getPublicLinkHandle(publicLink);
+                            if (shandle.size())
+                            {
+                                handle thehandle = apiFolder->base64ToHandle(shandle.c_str());
+                                nodeToDownload = apiFolder->getNodeByHandle(thehandle);
+                            }
+                            else
+                            {
+                                nodeToDownload = apiFolder->getRootNode();
+                                usedRoot = true;
+                            }
+
+                            if (nodeToDownload)
                             {
                                 if (destinyIsFolder && getFlag(clflags,"m"))
                                 {
@@ -6148,7 +6161,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                                         path=path.substr(0,path.size()-1);
                                     }
                                 }
-                                MegaNode *authorizedNode = apiFolder->authorizeNode(folderRootNode);
+                                MegaNode *authorizedNode = apiFolder->authorizeNode(nodeToDownload);
                                 if (authorizedNode != NULL)
                                 {
                                     downloadNode(path, api, authorizedNode, background, ignorequotawarn, clientID, megaCmdMultiTransferListener);
@@ -6157,14 +6170,21 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                                 else
                                 {
                                     LOG_debug << "Node couldn't be authorized: " << publicLink << ". Downloading as non-loged user";
-                                    downloadNode(path, apiFolder, folderRootNode, background, ignorequotawarn, clientID, megaCmdMultiTransferListener);
+                                    downloadNode(path, apiFolder, nodeToDownload, background, ignorequotawarn, clientID, megaCmdMultiTransferListener);
                                 }
-                                delete folderRootNode;
+                                delete nodeToDownload;
                             }
                             else
                             {
                                 setCurrentOutCode(MCMD_INVALIDSTATE);
-                                LOG_err << "Couldn't get root folder for folder link";
+                                if (usedRoot)
+                                {
+                                    LOG_err << "Couldn't get root folder for folder link";
+                                }
+                                else
+                                {
+                                    LOG_err << "Failed to get node corresponding to handle within public link " << shandle;
+                                }
                             }
                         }
                         delete megaCmdListener2;

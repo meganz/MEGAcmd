@@ -158,6 +158,43 @@ bool isEncryptedLink(string link)
     return false;
 }
 
+string getPublicLinkHandle(const string &link)
+{
+    size_t posLastSep = link.rfind("?");
+    if (posLastSep == string::npos )
+    {
+        string rest = link;
+        int count = 0;
+        size_t posExc = rest.find("!");
+        while ( posExc != string::npos && (posExc +1) < rest.size())
+        {
+            count++;
+            if (count <= 3 )
+            {
+                posLastSep += posExc + 1;
+            }
+
+            rest = rest.substr(posExc + 1);
+            posExc = rest.find("!");
+        }
+
+        if (count != 3)
+        {
+            return string();
+        }
+    }
+
+
+    if (( posLastSep == string::npos ) || !( posLastSep + 1 < link.length()))
+    {
+        return string();
+    }
+    else
+    {
+        return link.substr(posLastSep+1);
+    }
+}
+
 bool hasWildCards(string &what)
 {
     return what.find('*') != string::npos || what.find('?') != string::npos;
