@@ -9161,10 +9161,23 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                             megaCmdListener2->wait();
                             if (checkNoErrors(megaCmdListener2->getError(), "access folder link " + publicLink))
                             {
-                                MegaNode *folderRootNode = apiFolder->getRootNode();
-                                if (folderRootNode)
+                                MegaNode *nodeToImport = NULL;
+                                bool usedRoot = false;
+                                string shandle = getPublicLinkHandle(publicLink);
+                                if (shandle.size())
                                 {
-                                    MegaNode *authorizedNode = apiFolder->authorizeNode(folderRootNode);
+                                    handle thehandle = apiFolder->base64ToHandle(shandle.c_str());
+                                    nodeToImport = apiFolder->getNodeByHandle(thehandle);
+                                }
+                                else
+                                {
+                                    nodeToImport = apiFolder->getRootNode();
+                                    usedRoot = true;
+                                }
+
+                                if (nodeToImport)
+                                {
+                                    MegaNode *authorizedNode = apiFolder->authorizeNode(nodeToImport);
                                     if (authorizedNode != NULL)
                                     {
                                         MegaCmdListener *megaCmdListener3 = new MegaCmdListener(apiFolder, NULL);
@@ -9189,12 +9202,19 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                                         setCurrentOutCode(MCMD_EUNEXPECTED);
                                         LOG_debug << "Node couldn't be authorized: " << publicLink;
                                     }
-                                    delete folderRootNode;
+                                    delete nodeToImport;
                                 }
                                 else
                                 {
                                     setCurrentOutCode(MCMD_INVALIDSTATE);
-                                    LOG_err << "Couldn't get root folder for folder link";
+                                    if (usedRoot)
+                                    {
+                                        LOG_err << "Couldn't get root folder for folder link";
+                                    }
+                                    else
+                                    {
+                                        LOG_err << "Failed to get node corresponding to handle within public link " << shandle;
+                                    }
                                 }
                             }
                             delete megaCmdListener2;
