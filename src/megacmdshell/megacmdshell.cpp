@@ -69,6 +69,8 @@
 using namespace std;
 using namespace mega;
 
+namespace megacmd {
+
 #if defined(NO_READLINE) && defined(_WIN32)
 CONSOLE_CLASS* console = NULL;
 #endif
@@ -2100,6 +2102,9 @@ std::string readresponse(const char* question)
 }
 #endif
 
+} //end namespace
+
+using namespace megacmd;
 
 int main(int argc, char* argv[])
 {

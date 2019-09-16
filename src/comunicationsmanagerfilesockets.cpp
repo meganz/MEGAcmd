@@ -31,6 +31,7 @@
 using namespace mega;
 using namespace std;
 
+namespace megacmd {
 int ComunicationsManagerFileSockets::get_next_comm_id()
 {
     mtx->lock();
@@ -666,3 +667,4 @@ ComunicationsManagerFileSockets::~ComunicationsManagerFileSockets()
     delete mtx;
     delete informerMutex;
 }
+}//end namespace

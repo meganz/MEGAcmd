@@ -14,6 +14,7 @@
 #ifndef MEGACMD_CODE_VERSION
 #define MEGACMD_CODE_VERSION (MEGACMD_MICRO_VERSION*100+MEGACMD_MINOR_VERSION*10000+MEGACMD_MAJOR_VERSION*1000000)
 #endif
+namespace megacmd {
 
 const char * const megacmdchangelog =
         "added \"cat\" command to read text files (and potentially stream any file)""\n"
@@ -38,7 +39,7 @@ const char * const megacmdchangelog =
         "many more minor fixes & adjustments"
         ;
 
-
+}//end namespace
 #endif // VERSION_H
 
 

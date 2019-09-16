@@ -20,6 +20,7 @@
 
 using namespace mega;
 
+namespace megacmd {
 bool MegaCmdSandbox::isOverquota() const
 {
     return overquota;
@@ -64,3 +65,4 @@ MegaCmdSandbox::MegaCmdSandbox()
     this->lastPSAnumreceived = -1;
 }
 
+}//end namespace

@@ -22,6 +22,7 @@
 #include "megacmdlogger.h"
 #include "megacmdsandbox.h"
 
+namespace megacmd {
 class MegaCmdListener : public mega::SynchronousRequestListener
 {
 private:
@@ -199,5 +200,5 @@ protected:
     mega::MegaTransferListener *listener;
 };
 
-
+} //end namespace
 #endif // LISTENERS_H

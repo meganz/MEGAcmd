@@ -28,6 +28,7 @@
 #endif
 
 #define CONFIGURATIONSTOREDBYVERSION -2
+namespace megacmd {
 class ConfigurationManager
 {
 private:
@@ -237,5 +238,5 @@ public:
 
 };
 
-
+}//end namespace
 #endif // CONFIGURATIONMANAGER_H

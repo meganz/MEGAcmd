@@ -30,6 +30,7 @@ typedef int SOCKET;
 #define MEGACMDINITIALPORTNUMBER 12300
 
 
+namespace megacmd {
 void closeSocket(SOCKET socket);
 
 class CmdPetitionPortSockets: public CmdPetition
@@ -119,5 +120,5 @@ public:
     ~ComunicationsManagerPortSockets();
 };
 
-
+}//end namespace
 #endif // COMUNICATIONSMANAGERPOSIX_H

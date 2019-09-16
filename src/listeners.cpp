@@ -23,6 +23,7 @@
 using namespace mega;
 using namespace std;
 
+namespace megacmd {
 #ifdef ENABLE_CHAT
 void MegaCmdGlobalListener::onChatsUpdate(MegaApi*, MegaTextChatList*)
 {
@@ -996,3 +997,4 @@ bool MegaCmdCatTransferListener::onTransferData(MegaApi *api, MegaTransfer *tran
 
     return true;
 }
+} //end namespace

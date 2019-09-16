@@ -60,7 +60,6 @@
 #  endif
 #endif
 
-typedef char *completionfunction_t PARAMS((const char *, int));
 
 #define SSTR( x ) static_cast< const std::ostringstream & >( \
         ( std::ostringstream() << std::dec << x ) ).str()
@@ -91,6 +90,11 @@ typedef char *completionfunction_t PARAMS((const char *, int));
 
 using namespace mega;
 using namespace std;
+
+
+namespace megacmd {
+
+typedef char *completionfunction_t PARAMS((const char *, int));
 
 MegaCmdExecuter *cmdexecuter;
 MegaCmdSandbox *sandboxCMD;
@@ -4312,7 +4316,9 @@ void uninstall()
 
 #endif
 
+} //end namespace
 
+using namespace megacmd;
 
 int main(int argc, char* argv[])
 {
@@ -4547,7 +4553,7 @@ int main(int argc, char* argv[])
         loginInAtStartup = false;
     }
 
-    megacmd();
+    megacmd::megacmd();
     finalize();
 }
 

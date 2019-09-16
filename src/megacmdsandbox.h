@@ -23,6 +23,7 @@
 #include <ctime>
 #include <string>
 
+namespace megacmd {
 class MegaCmdSandbox
 {
 private:
@@ -50,4 +51,5 @@ public:
     void resetSandBox();
 };
 
+}//end namespace
 #endif // MEGACMDSANDBOX_H

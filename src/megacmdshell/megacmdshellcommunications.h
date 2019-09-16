@@ -74,6 +74,7 @@ typedef int SOCKET;
 #endif
 
 #define MEGACMDINITIALPORTNUMBER 12300
+namespace megacmd {
 
 enum
 {
@@ -153,4 +154,5 @@ static SOCKET createSocket(int number = 0, bool initializeserver = true, bool ne
 
 };
 
+}//end namespace
 #endif // MEGACMDSHELLCOMMUNICATIONS_H

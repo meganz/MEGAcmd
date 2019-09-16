@@ -72,6 +72,7 @@
 #endif
 
 using namespace std;
+namespace megacmd {
 
 bool MegaCmdShellCommunications::serverinitiatedfromshell;
 bool MegaCmdShellCommunications::registerAgainRequired;
@@ -977,3 +978,4 @@ MegaCmdShellCommunications::~MegaCmdShellCommunications()
     }
     delete (MegaThread *)listenerThread;
 }
+} //end namespace

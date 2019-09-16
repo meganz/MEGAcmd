@@ -36,6 +36,7 @@
 using namespace std;
 using namespace mega;
 
+namespace megacmd {
 void getNumFolderFiles(MegaNode *n, MegaApi *api, long long *nfiles, long long *nfolders)
 {
     MegaNodeList *totalnodes = api->getChildren(n);
@@ -1249,3 +1250,5 @@ int permissionsFromReadable(string permissions)
     return -1;
 }
 #endif
+
+}//end namespace

@@ -41,6 +41,7 @@ using std::exception;
 #include "megaapi_impl.h"
 
 #define PROGRESS_COMPLETE -2
+namespace megacmd {
 
 typedef struct sync_struct
 {
@@ -140,6 +141,5 @@ void informStateListenerByClientId(int clientID, std::string s);
 
 void informProgressUpdate(long long transferred, long long total, int clientID, std::string title = "");
 
-
-
+}//end namespace
 #endif

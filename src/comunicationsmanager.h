@@ -22,6 +22,7 @@
 #include "megacmd.h"
 #include "megacmdcommonutils.h"
 
+namespace megacmd {
 static const int MAXCMDSTATELISTENERS = 300;
 
 class CmdPetition
@@ -127,4 +128,5 @@ public:
     virtual ~ComunicationsManager();
 };
 
+} //end namespace
 #endif // COMUNICATIONSMANAGER_H

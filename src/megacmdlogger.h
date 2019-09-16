@@ -24,6 +24,7 @@
 
 #define OUTSTREAM getCurrentOut()
 
+namespace megacmd {
 class LoggedStream {
 public:
   LoggedStream(){out = NULL;}
@@ -143,4 +144,5 @@ public:
     }
 };
 
+}//end namespace
 #endif // MEGACMDLOGGER_H

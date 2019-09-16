@@ -36,6 +36,7 @@
 
 using namespace std;
 
+namespace megacmd {
 #ifdef _WIN32
 
 //override << operators for wostream for string and const char *
@@ -968,3 +969,5 @@ string getPropertyFromFile(const char *configFile, const char *propertyName)
 
     return string();
 }
+
+} //end namespace

@@ -23,6 +23,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 
+namespace megacmd {
 class CmdPetitionPosixSockets: public CmdPetition
 {
 public:
@@ -113,5 +114,5 @@ public:
     ~ComunicationsManagerFileSockets();
 };
 
-
+}//end namespace
 #endif // COMUNICATIONSMANAGERPOSIX_H

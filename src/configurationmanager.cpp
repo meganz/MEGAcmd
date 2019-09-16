@@ -43,6 +43,7 @@
 using namespace std;
 using namespace mega;
 
+namespace megacmd {
 bool is_file_exist(const char *fileName)
 {
     std::ifstream infile(fileName);
@@ -761,3 +762,4 @@ void ConfigurationManager::clearConfigurationFile()
         }
     }
 }
+}//end namespace

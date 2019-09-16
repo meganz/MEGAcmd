@@ -32,6 +32,7 @@ using std::wstring;
 using namespace mega;
 
 
+namespace megacmd {
 bool namedPipeValid(HANDLE namedPipe)
 {
     return namedPipe != INVALID_HANDLE_VALUE;
@@ -621,5 +622,6 @@ ComunicationsManagerNamedPipes::~ComunicationsManagerNamedPipes()
     delete mtx;
     delete informerMutex;
 }
+}//end namespace
 #endif
 

@@ -23,6 +23,7 @@
 #include "megacmdsandbox.h"
 #include "listeners.h"
 
+namespace megacmd {
 class MegaCmdExecuter
 {
 private:
@@ -196,4 +197,5 @@ public:
     bool printUserAttribute(int a, std::string user, bool onlylist = false);
 };
 
+}//end namespace
 #endif // MEGACMDEXECUTER_H

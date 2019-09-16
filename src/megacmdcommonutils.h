@@ -34,6 +34,8 @@
 using std::setw;
 using std::left;
 
+namespace megacmd {
+
 /* platform dependent */
 #ifdef _WIN32
 
@@ -176,4 +178,6 @@ T getValueFromFile(const char *configFile, const char *propertyName, T defaultVa
 
 }
 
+
+}//end namespace
 #endif // MEGACMDCOMMONUTILS_H

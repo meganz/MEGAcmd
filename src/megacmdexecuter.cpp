@@ -54,6 +54,7 @@
 using namespace mega;
 using namespace std;
 
+namespace megacmd {
 static const char* rootnodenames[] = { "ROOT", "INBOX", "RUBBISH" };
 static const char* rootnodepaths[] = { "/", "//in", "//bin" };
 
@@ -10013,3 +10014,4 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
     }
 }
 
+}//end namespace

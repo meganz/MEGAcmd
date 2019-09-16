@@ -26,6 +26,7 @@
 
 #define MEGACMDINITIALPORTNUMBER 12300
 
+namespace megacmd {
 class CmdPetitionNamedPipes: public CmdPetition
 {
 public:
@@ -115,5 +116,5 @@ public:
 
 };
 
-
+}//end namespace
 #endif // COMUNICATIONSMANAGERPOSIX_H

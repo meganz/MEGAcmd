@@ -37,6 +37,7 @@
 using namespace std;
 using namespace mega;
 
+namespace megacmd {
 // different outstreams for every thread. to gather all the output data
 std::mutex threadLookups;
 map<uint64_t, LoggedStream *> outstreams;
@@ -261,3 +262,4 @@ int MegaCMDLogger::getMaxLogLevel()
     return max(max(getCurrentThreadLogLevel(), cmdLoggerLevel), apiLoggerLevel);
 }
 
+}//end namespace

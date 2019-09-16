@@ -36,6 +36,7 @@
 
 #include <Shlwapi.h> //PathAppend
 
+namespace megacmd {
 typedef struct structListenStateChangesNamedPipe{
     int receiveNamedPipeNum;
     void (*statechangehandle)(std::string);
@@ -82,5 +83,6 @@ private:
 
 };
 
+}//end namespace
 #endif
 #endif // MEGACMDSHELLCOMMUNICATIONS_H

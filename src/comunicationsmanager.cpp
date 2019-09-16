@@ -21,6 +21,7 @@
 using namespace std;
 using namespace mega;
 
+namespace megacmd {
 OUTSTREAMTYPE &operator<<(OUTSTREAMTYPE &os, const CmdPetition& p)
 {
     return os << p.line;
@@ -171,3 +172,4 @@ void CmdPetition::setPetitionThread(MegaThread *value)
 {
     petitionThread = value;
 }
+}//end namespace

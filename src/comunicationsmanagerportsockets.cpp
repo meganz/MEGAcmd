@@ -41,6 +41,7 @@
 using namespace mega;
 using namespace std;
 
+namespace megacmd {
 void closeSocket(SOCKET socket){
 #ifdef _WIN32
     closesocket(socket);
@@ -610,3 +611,4 @@ ComunicationsManagerPortSockets::~ComunicationsManagerPortSockets()
 #endif
     delete mtx;
 }
+}//end namespace

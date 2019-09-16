@@ -42,6 +42,8 @@
 #define _O_U8TEXT 0x00040000
 #endif
 
+namespace megacmd {
+
 bool MegaCmdShellCommunicationsNamedPipes::confirmResponse; //TODO: do all this only in parent class
 bool MegaCmdShellCommunicationsNamedPipes::stopListener;
 mega::Thread *MegaCmdShellCommunicationsNamedPipes::listenerThread;
@@ -887,4 +889,6 @@ MegaCmdShellCommunicationsNamedPipes::~MegaCmdShellCommunicationsNamedPipes()
     }
     delete (MegaThread *)listenerThread;
 }
+
+} //end namespace
 #endif

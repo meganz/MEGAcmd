@@ -24,6 +24,7 @@
 
 #include <string>
 
+namespace megacmd {
 using ::mega::m_time_t;
 
 /* mega::MegaNode info extracting*/
@@ -122,4 +123,5 @@ bool getMinAndMaxSize(std::string sizestring, int64_t *minSize, int64_t *maxSize
 std::string readablePermissions(int permvalue);
 int permissionsFromReadable(std::string permissions);
 
+}//end namespace
 #endif // MEGACMDUTILS_H

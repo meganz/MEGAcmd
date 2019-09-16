@@ -54,6 +54,8 @@ using namespace std;
 #define SSTR( x ) static_cast< const std::ostringstream & >( \
         (  std::ostringstream() << std::dec << x ) ).str()
 
+namespace  megacmd {
+
 void printprogress(long long completed, long long total, const char *title = "TRANSFERRING");
 
 #ifdef _WIN32
@@ -834,7 +836,9 @@ void statechangehandle(string statestring)
     }
 }
 
+} //end namespace
 
+using namespace megacmd;
 
 int main(int argc, char* argv[])
 {
