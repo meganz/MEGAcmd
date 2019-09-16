@@ -161,12 +161,13 @@ bool isEncryptedLink(string link)
 
 string getPublicLinkHandle(const string &link)
 {
+    size_t posFolder = string::npos;
     size_t posLastSep = link.rfind("?");
     if (posLastSep == string::npos )
     {
         string rest = link;
         int count = 0;
-        size_t posExc = rest.find("!");
+        size_t posExc = rest.find_first_of("!");
         while ( posExc != string::npos && (posExc +1) < rest.size())
         {
             count++;
@@ -181,10 +182,35 @@ string getPublicLinkHandle(const string &link)
 
         if (count != 3)
         {
-            return string();
+            posLastSep = string::npos;
         }
     }
 
+    if (posLastSep == string::npos )
+    {
+        posFolder = link.find("/folder/");
+    }
+
+    if (posFolder != string::npos)
+    {
+        posLastSep = link.rfind("/file/");
+        if (posLastSep != string::npos)
+        {
+            posLastSep += strlen("/file/")-1;
+        }
+        else
+        {
+            posLastSep = link.rfind("/folder/");
+            if (posLastSep != string::npos && posFolder != posLastSep)
+            {
+                posLastSep += strlen("/folder/")-1;
+            }
+            else
+            {
+                return string();
+            }
+        }
+    }
 
     if (( posLastSep == string::npos ) || !( posLastSep + 1 < link.length()))
     {
