@@ -224,6 +224,13 @@ string parseArgs(int argc, char* argv[])
     {
         absolutedargs.push_back(argv[1]);
 
+        if ( strcmp(argv[1],"quit") && strcmp(argv[1],"exit") )
+        {
+            string clientWidth = "--client-width=";
+            clientWidth+= SSTR(getNumberOfCols(80));
+            absolutedargs.push_back(clientWidth);
+        }
+
         if (!strcmp(argv[1],"get")
                 || !strcmp(argv[1],"put")
                 || !strcmp(argv[1],"login")
@@ -440,6 +447,15 @@ wstring parsewArgs(int argc, wchar_t* argv[])
     if (argc>1)
     {
         absolutedargs.push_back(argv[1]);
+
+        if ( wcscmp(argv[1],L"quit") && wcscmp(argv[1],L"exit") )
+        {
+            wstring clientWidth = L"--client-width=";
+            string scw = SSTR(getNumberOfCols(80));
+            std::wstring wsclientWidth(scw.begin(), scw.end());
+            clientWidth+=wsclientWidth;
+            absolutedargs.push_back(clientWidth);
+        }
 
         if (!wcscmp(argv[1],L"get")
                 || !wcscmp(argv[1],L"put")

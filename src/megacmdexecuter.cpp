@@ -3857,7 +3857,7 @@ void MegaCmdExecuter::printTransfer(MegaTransfer *transfer, const unsigned int P
     else if (transfer->isBackupTransfer())
     {
 #ifdef _WIN32
-        OUTSTREAM << "S";
+        OUTSTREAM << "B";
 #else
         OUTSTREAM << "\u23eb";
 #endif
@@ -3949,8 +3949,122 @@ void MegaCmdExecuter::printTransfer(MegaTransfer *transfer, const unsigned int P
     OUTSTREAM << endl;
 }
 
-void MegaCmdExecuter::printSyncHeader(const unsigned int PATHSIZE)
+
+void MegaCmdExecuter::printTransferColumnDisplayer(ColumnDisplayer *cd, MegaTransfer *transfer, bool printstate)
 {
+    //Direction
+    string type;
+#ifdef _WIN32
+    type += (MegaTransfer::TYPE_DOWNLOAD)?"D":"U";
+#else
+    type += (MegaTransfer::TYPE_DOWNLOAD)?"\u21d3":"\u21d1";
+#endif
+    //TODO: handle TYPE_LOCAL_TCP_DOWNLOAD
+
+    //type (transfer/normal)
+    if (transfer->isSyncTransfer())
+    {
+#ifdef _WIN32
+        type += "S";
+#else
+        type += "\u21f5";
+#endif
+    }
+#ifdef ENABLE_BACKUPS
+    else if (transfer->isBackupTransfer())
+    {
+#ifdef _WIN32
+        type += "B";
+#else
+        type += "\u23eb";
+#endif
+    }
+#endif
+
+    cd->addValue("TYPE",type);
+    cd->addValue("TAG", SSTR(transfer->getTag())); //TODO: do SSTR within ColumnDisplayer
+
+    if (transfer->getType() == MegaTransfer::TYPE_DOWNLOAD)
+    {
+        // source
+        MegaNode * node = api->getNodeByHandle(transfer->getNodeHandle());
+        if (node)
+        {
+            char * nodepath = api->getNodePath(node);
+            cd->addValue("SOURCEPATH",nodepath);
+            delete []nodepath;
+
+            delete node;
+        }
+        else
+        {
+            globalTransferListener->completedTransfersMutex.lock();
+            cd->addValue("SOURCEPATH",globalTransferListener->completedPathsByHandle[transfer->getNodeHandle()]);
+            globalTransferListener->completedTransfersMutex.unlock();
+        }
+
+        //destination
+        string dest = transfer->getParentPath() ? transfer->getParentPath() : "";
+        dest.append(transfer->getFileName());
+        cd->addValue("DESTINYPATH",dest);
+    }
+    else
+    {
+        //source
+        string source(transfer->getParentPath()?transfer->getParentPath():"");
+        source.append(transfer->getFileName());
+
+        cd->addValue("SOURCEPATH",source);
+
+        //destination
+        MegaNode * parentNode = api->getNodeByHandle(transfer->getParentHandle());
+        if (parentNode)
+        {
+            char * parentnodepath = api->getNodePath(parentNode);
+            cd->addValue("DESTINYPATH",parentnodepath);
+            delete []parentnodepath;
+
+            delete parentNode;
+        }
+        else
+        {
+            cd->addValue("DESTINYPATH","---------");
+
+            LOG_warn << "Could not find destination (parent handle "<< ((transfer->getParentHandle()==INVALID_HANDLE)?" invalid":" valid")
+                     <<" ) for upload transfer. Source=" << transfer->getParentPath() << transfer->getFileName();
+        }
+    }
+
+    //progress
+    float percent;
+    if (transfer->getTotalBytes() == 0)
+    {
+        percent = 0;
+    }
+    else
+    {
+        percent = float(transfer->getTransferredBytes()*1.0/transfer->getTotalBytes());
+    }
+
+    stringstream osspercent;
+    osspercent << percentageToText(percent) << " of " << getFixLengthString(sizeToText(transfer->getTotalBytes()),10,' ',true);
+    cd->addValue("PROGRESS",osspercent.str());
+
+    //state
+    if (printstate)
+    {
+        cd->addValue("STATE",getTransferStateStr(transfer->getState()));
+    }
+}
+
+void MegaCmdExecuter::printSyncHeader(const unsigned int PATHSIZE, ColumnDisplayer *cd)
+{
+    if (cd)
+    {
+        cd->addHeader("LOCALPATH", false);
+        cd->addHeader("REMOTEPATH", false);
+        return;
+    }
     OUTSTREAM << "ID ";
     OUTSTREAM << getFixLengthString("LOCALPATH ", PATHSIZE) << " ";
     OUTSTREAM << getFixLengthString("REMOTEPATH ", PATHSIZE) << " ";
@@ -3961,7 +4075,6 @@ void MegaCmdExecuter::printSyncHeader(const unsigned int PATHSIZE)
     OUTSTREAM << getRightAlignedString("FILES", 6) << " ";
     OUTSTREAM << getRightAlignedString("DIRS", 6);
     OUTSTREAM << endl;
-
 }
 
 #ifdef ENABLE_BACKUPS
@@ -4175,8 +4288,57 @@ void MegaCmdExecuter::printBackup(backup_struct *backupstruct, const char *timeF
 }
 #endif
 
-void MegaCmdExecuter::printSync(int i, string key, const char *nodepath, sync_struct * thesync, MegaNode *n, long long nfiles, long long nfolders, const unsigned int PATHSIZE)
+void MegaCmdExecuter::printSync(int i, string key, const char *nodepath, sync_struct * thesync, MegaNode *n, long long nfiles, long long nfolders, const unsigned int PATHSIZE, megacmd::ColumnDisplayer *cd)
 {
+    if (cd)
+    {
+        cd->addValue("ID", SSTR(i));
+        cd->addValue("LOCALPATH", key);
+        cd->addValue("REMOTEPATH", nodepath);
+
+        string sstate(key);
+        sstate = rtrim(sstate, '/');
+    #ifdef _WIN32
+        sstate = rtrim(sstate, '\\');
+    #endif
+        string psstate;
+        fsAccessCMD->path2local(&sstate,&psstate);
+        int statepath = api->syncPathState(&psstate);
+
+        MegaSync *msync = api->getSyncByNode(n);
+        string syncstate = "REMOVED";
+        if (msync)
+        {
+            syncstate = getSyncStateStr(msync->getState());
+        }
+
+        string statetoprint;
+        if (thesync->active)
+        {
+            statetoprint = syncstate;
+        }
+        else
+        {
+            if (msync)
+            {
+                statetoprint = "Disabling:";
+                statetoprint+=syncstate;
+            }
+            else
+            {
+                statetoprint = "Disabled";
+            }
+        }
+        delete msync;
+        cd->addValue("ActState", statetoprint);
+        cd->addValue("SyncState", SSTR(statepath));
+        cd->addValue("SIZE", sizeToText(api->getSize(n)));
+        cd->addValue("FILES", SSTR(nfiles));
+        cd->addValue("DIRS", SSTR(nfolders));
+
+        return;
+    }
+
     //tag
     OUTSTREAM << getRightAlignedString(SSTR(i),2) << " ";
 
@@ -5842,7 +6004,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     }
                     delete megaCmdListener;
                 }
-                else
+                else //TODO: detect if referenced file within public link and in that case, do login and cat it
                 {
                     LOG_err << "Public link is not a file";
                     setCurrentOutCode(MCMD_EARGS);
@@ -7505,6 +7667,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 if (n)
                 {
                     char * nodepath = api->getNodePath(n);
+                    ColumnDisplayer cd;
 
                     if (( id == i ) || (( id == -1 ) && ( words[1] == thesync->localpath )))
                     {
@@ -7582,14 +7745,17 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         if (!headershown)
                         {
                             headershown = true;
-                            printSyncHeader(PATHSIZE);
+                            printSyncHeader(PATHSIZE, &cd);
                         }
 
-                        printSync(i, key, nodepath, thesync, n, nfiles, nfolders, PATHSIZE);
+                        printSync(i, key, nodepath, thesync, n, nfiles, nfolders, PATHSIZE, &cd);
 
                     }
                     delete n;
                     delete []nodepath;
+                    OUTSTRINGSTREAM oss;
+                    cd.print(oss, getintOption(cloptions, "client-width", getNumberOfCols(75)));
+                    OUTSTREAM << oss.str();
                 }
                 else
                 {
@@ -7620,6 +7786,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         }
         else if (words.size() == 1)
         {
+            ColumnDisplayer cd;
             map<string, sync_struct *>::const_iterator itr;
             int i = 0;
             for (itr = ConfigurationManager::configuredSyncs.begin(); itr != ConfigurationManager::configuredSyncs.end(); ++itr)
@@ -7629,7 +7796,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 if (!headershown)
                 {
                     headershown = true;
-                    printSyncHeader(PATHSIZE);
+                    printSyncHeader(PATHSIZE, &cd);
                 }
                 if (n)
                 {
@@ -7639,17 +7806,21 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     getInfoFromFolder(n, api, &nfiles, &nfolders);
 
                     char * nodepath = api->getNodePath(n);
-                    printSync(i++, ( *itr ).first, nodepath, thesync, n, nfiles, nfolders, PATHSIZE);
+                    printSync(i++, ( *itr ).first, nodepath, thesync, n, nfiles, nfolders, PATHSIZE, &cd);
 
                     delete n;
                     delete []nodepath;
                 }
                 else
                 {
-                    printSync(i++, ( *itr ).first, "NOT FOUND", thesync, n, -1, -1, PATHSIZE);
+                    printSync(i++, ( *itr ).first, "NOT FOUND", thesync, n, -1, -1, PATHSIZE, &cd);
                     setCurrentOutCode(MCMD_NOTFOUND);
                 }
             }
+            OUTSTRINGSTREAM oss;
+            cd.print(oss, getintOption(cloptions, "client-width", getNumberOfCols(75)));
+            OUTSTREAM << oss.str();
+
         }
         else
         {
@@ -9954,6 +10125,10 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         vector<MegaTransfer *>::iterator itDLs = transfersDLToShow.begin();
         vector<MegaTransfer *>::iterator itUPs = transfersUPToShow.begin();
 
+        ColumnDisplayer cd;
+        cd.addHeader("SOURCEPATH", false);
+        cd.addHeader("DESTINYPATH", false);
+
         for (unsigned int i=0;i<showndl+shownup+shownCompleted; i++)
         {
             MegaTransfer *transfer = NULL;
@@ -9981,7 +10156,6 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     OUTSTREAM << "            " << (downloadpaused?"DOWNLOADS":"") << ((uploadpaused && downloadpaused)?" AND ":"")
                               << (uploadpaused?"UPLOADS":"") << " ARE PAUSED " << endl;
                 }
-                printTransfersHeader(PATHSIZE);
             }
             if (i==(unsigned int)limit) //we are in the extra one (not to be shown)
             {
@@ -9993,13 +10167,16 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 break;
             }
 
-            printTransfer(transfer, PATHSIZE);
+            printTransferColumnDisplayer(&cd, transfer);
 
             if (deleteTransfer)
             {
                 delete transfer;
             }
         }
+        OUTSTRINGSTREAM oss;
+        cd.print(oss, getintOption(cloptions, "client-width", getNumberOfCols(75)));
+        OUTSTREAM << oss.str();
     }
     else if (words[0] == "locallogout")
     {

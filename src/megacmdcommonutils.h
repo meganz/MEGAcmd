@@ -102,7 +102,7 @@ int toInteger(std::string what, int failValue = -1);
 
 std::string joinStrings(const std::vector<std::string>& vec, const char* delim = " ", bool quoted=true);
 
-std::string getFixLengthString(const std::string origin, unsigned int size, const char delimm=' ', bool alignedright = false);
+std::string getFixLengthString(const std::string &origin, unsigned int size, const char delimm=' ', bool alignedright = false);
 
 std::string getRightAlignedString(const std::string origin, unsigned int minsize);
 
@@ -175,9 +175,42 @@ T getValueFromFile(const char *configFile, const char *propertyName, T defaultVa
     std::istringstream is(propValue);
     is >> i;
     return i;
-
 }
 
+class Field
+{
+public:
+    Field();
+    Field(std::string name, bool fixed = false, int fixedWidth = 0);
+
+public:
+    std::string name;
+    int fixedWidth;
+    bool fixedSize;
+    int dispWidth = 0;
+    int maxValueLength = 0;
+
+    void updateMaxValue(int newcandidate);
+};
+
+class ColumnDisplayer
+{
+public:
+    void print(OUTSTREAMTYPE &os, int fullWidth, bool printHeader=true);
+    void addHeader(const std::string &name, bool fixed = true, int minWidth = 0);
+    void addValue(const std::string &name, const std::string & value, bool replace = false);
+    void endregistry();
+
+private:
+    std::map<std::string, Field> fields;
+    std::vector<std::string> fieldnames;
+    std::vector<std::map<std::string, std::string>> values;
+    std::vector<int> lengths;
+
+    std::map<std::string, std::string> currentRegistry;
+    int currentlength = 0;
+
+};
 
 }//end namespace
 #endif // MEGACMDCOMMONUTILS_H

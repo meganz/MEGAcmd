@@ -446,7 +446,15 @@ unsigned int getstringutf8size(const string &str) {
 #ifdef _WIN32
         else if ((c & 0xF0) == 0xE0) i+=2;
 #else
-        else if ((c & 0xF0) == 0xE0) {i+=2;q++;} //these gliphs may occupy 2 characters! Problem: not always. Let's assume the worse
+        else if ((c & 0xF0) == 0xE0)
+        {
+            if ((i+2)>ix || c != 0xE2 || (strncmp(&str.c_str()[i],"\u21f5",3)
+                    && strncmp(&str.c_str()[i],"\u21d3",3) && strncmp(&str.c_str()[i],"\u21d1",3) ) )
+            { //known 1 character gliphs
+                q++;
+            }
+            i+=2;
+        } //these gliphs may occupy 2 characters! Problem: not always. Let's assume the worse
 #endif
         else if ((c & 0xF8) == 0xF0) i+=3;
         else return 0;//invalid utf8
@@ -454,7 +462,7 @@ unsigned int getstringutf8size(const string &str) {
     return q;
 }
 
-string getFixLengthString(const string origin, unsigned int size, const char delim, bool alignedright)
+string getFixLengthString(const string &origin, unsigned int size, const char delim, bool alignedright)
 {
     string toret;
     size_t printableSize = getstringutf8size(origin);
@@ -968,6 +976,146 @@ string getPropertyFromFile(const char *configFile, const char *propertyName)
     }
 
     return string();
+}
+
+void ColumnDisplayer::endregistry()
+{
+    values.push_back(std::move(currentRegistry));
+    currentlength = 0;
+}
+
+void ColumnDisplayer::addHeader(const string &name, bool fixed, int minWidth)
+{
+    fields[name] = Field(name, fixed, minWidth);
+}
+
+void ColumnDisplayer::addValue(const string &name, const string &value, bool replace)
+{
+    int len = getstringutf8size(value);
+    if (!replace)
+    {
+        if (currentRegistry.size() && currentRegistry.find(name) != currentRegistry.end())
+        {
+            endregistry();
+        }
+    }
+
+    currentRegistry[name] = value;
+    currentlength += len;
+    if (fields.find(name) == fields.end())
+    {
+        addHeader(name, true);
+    }
+    if (find (fieldnames.begin(), fieldnames.end(), name) == fieldnames.end())
+    {
+        fieldnames.push_back(name);
+    }
+
+    fields[name].updateMaxValue(len);
+}
+
+void ColumnDisplayer::print(OUTSTREAMTYPE &os, int fullWidth, bool printHeader)
+{
+    if (currentRegistry.size())
+    {
+        endregistry();
+    }
+
+    int unfixedfieldscount = 0;
+    int leftWidth = fullWidth;
+    vector<Field *> unfixedfields;
+    for (auto &el : fields)
+    {
+        Field &f = el.second;
+        if (f.fixedSize)
+
+        {
+            if (f.fixedWidth)
+            {
+                f.dispWidth = f.fixedWidth;
+            }
+            else
+            {
+                f.dispWidth = max((int)getstringutf8size(f.name),f.maxValueLength);
+            }
+            leftWidth-=(f.dispWidth + 1);
+        }
+        else
+        {
+            unfixedfieldscount++;
+            unfixedfields.push_back(&f);
+        }
+    }
+
+    for (auto &f: unfixedfields)
+    {
+        f->dispWidth = max((int)getstringutf8size(f->name), min((leftWidth - unfixedfieldscount + 1)/(unfixedfieldscount), f->maxValueLength));
+        leftWidth-=(f->dispWidth + 1);
+        unfixedfieldscount--;
+    }
+
+    if (printHeader)
+    {
+        bool first = true;
+        for (auto el : fieldnames)
+        {
+            Field &f = fields[el];
+            if (!first)
+            {
+                os << " ";
+            }
+            first = false;
+            os << getFixLengthString(f.name, f.dispWidth);
+        }
+    }
+    os << std::endl;
+
+    for (auto &registry : values)
+    {
+        bool firstvalue = true;
+        for (auto &el : fieldnames)
+        {
+            Field &f = fields[el];
+            if (!firstvalue)
+            {
+                os << " ";
+            }
+            firstvalue = false;
+
+            if (registry.find(f.name) != registry.end())
+            {
+                os << getFixLengthString(registry[f.name], f.dispWidth);
+            }
+            else
+            {
+                os << getFixLengthString("", f.dispWidth);
+            }
+
+        }
+        os << std::endl;
+    }
+}
+
+Field::Field()
+{
+
+}
+
+Field::Field(string name, bool fixed, int minWidth) :name(name), fixedSize(fixed), fixedWidth(minWidth)
+{
+    if (fixed)
+    {
+        this->dispWidth = minWidth;
+    }
+
+}
+
+void Field::updateMaxValue(int newcandidate)
+{
+    if (newcandidate > this->maxValueLength)
+    {
+        this->maxValueLength = newcandidate;
+    }
 }
 
 } //end namespace

@@ -1336,7 +1336,24 @@ void process_line(const char * line)
             line = refactoredline.c_str();
 #endif
 
-            vector<string> words = getlistOfWords((char *)line);
+            vector<string> wordsOfLine = getlistOfWords((char *)line);
+
+            string clientWidth = " --client-width=";
+            clientWidth+= SSTR(getNumberOfCols(80));
+
+            wordsOfLine.insert(wordsOfLine.begin()+1, clientWidth);
+
+            string scommandtoexec(wordsOfLine[0]);
+            scommandtoexec+=clientWidth;
+            scommandtoexec+=" ";
+            if (scommandtoexec.size()>(wordsOfLine[0].size()+1))
+            {
+                scommandtoexec+=scommandtoexec.c_str()+wordsOfLine[0].size()+1;
+            }
+
+            vector<string> words = getlistOfWords((char *)scommandtoexec.c_str());
+            const char *commandtoexec = scommandtoexec.c_str();
+
             bool helprequested = false;
             for (unsigned int i = 1; i< words.size(); i++)
             {
@@ -1352,7 +1369,7 @@ void process_line(const char * line)
                     }
                     if (words.size() == 1 || words[1]!="--only-shell")
                     {
-                        comms->executeCommand(line, readresponse);
+                        comms->executeCommand(commandtoexec, readresponse);
                     }
                     else
                     {
@@ -1363,7 +1380,7 @@ void process_line(const char * line)
                 else if (words[0] == "update")
                 {
                     MegaCmdShellCommunications::updating = true;
-                    int ret = comms->executeCommand(line, readresponse);
+                    int ret = comms->executeCommand(commandtoexec, readresponse);
                     if (ret == MCMD_REQRESTART)
                     {
                         OUTSTREAM << "MEGAcmd has been updated ... this shell will be restarted before proceding...." << endl;
@@ -1399,7 +1416,7 @@ void process_line(const char * line)
                 {
                     if (isserverloggedin())
                     {
-                        passwdline = line;
+                        passwdline = commandtoexec;
                         discardOptionsAndFlags(&words);
                         if (words.size() == 1)
                         {
@@ -1407,7 +1424,7 @@ void process_line(const char * line)
                         }
                         else
                         {
-                            comms->executeCommand(line, readresponse);
+                            comms->executeCommand(commandtoexec, readresponse);
                         }
                     }
                     else
@@ -1431,12 +1448,12 @@ void process_line(const char * line)
                         }
                         else
                         {
-                            string s = line;
+                            string s = commandtoexec;
                             if (clientID.size())
                             {
                                 s = "login --clientID=";
                                 s+=clientID;
-                                s.append(string(line).substr(5));
+                                s.append(string(commandtoexec).substr(5));
                             }
                             comms->executeCommand(s, readresponse);
                         }
@@ -1451,7 +1468,7 @@ void process_line(const char * line)
                 {
                     if (!isserverloggedin())
                     {
-                        signupline = line;
+                        signupline = commandtoexec;
                         discardOptionsAndFlags(&words);
 
                         if (words.size() == 2)
@@ -1462,7 +1479,7 @@ void process_line(const char * line)
                         }
                         else
                         {
-                            comms->executeCommand(line, readresponse);
+                            comms->executeCommand(commandtoexec, readresponse);
                         }
                     }
                     else
@@ -1484,7 +1501,7 @@ void process_line(const char * line)
                     }
                     else
                     {
-                        comms->executeCommand(line, readresponse);
+                        comms->executeCommand(commandtoexec, readresponse);
                     }
                 }
                 else if (!helprequested && words[0] == "confirmcancel")
@@ -1499,7 +1516,7 @@ void process_line(const char * line)
                     }
                     else
                     {
-                        comms->executeCommand(line, readresponse);
+                        comms->executeCommand(commandtoexec, readresponse);
                     }
                     return;
                 }
@@ -1538,7 +1555,7 @@ void process_line(const char * line)
                 {
                     string toexec;
 
-                    if (!strstr (line,"path-display-size"))
+                    if (!strstr (commandtoexec,"path-display-size"))
                     {
                         unsigned int width = getNumberOfCols(75);
                         int pathSize = int((width-46)/2);
@@ -1547,14 +1564,14 @@ void process_line(const char * line)
                         toexec+=" --path-display-size=";
                         toexec+=SSTR(pathSize);
                         toexec+=" ";
-                        if (strlen(line)>(words[0].size()+1))
+                        if (strlen(commandtoexec)>(words[0].size()+1))
                         {
-                            toexec+=line+words[0].size()+1;
+                            toexec+=commandtoexec+words[0].size()+1;
                         }
                     }
                     else
                     {
-                        toexec+=line;
+                        toexec+=commandtoexec;
                     }
 
                     comms->executeCommand(toexec.c_str(), readresponse);
@@ -1563,11 +1580,11 @@ void process_line(const char * line)
                 {
                     string toexec;
 
-                    if (!strstr (line,"path-display-size"))
+                    if (!strstr (commandtoexec,"path-display-size"))
                     {
                         unsigned int width = getNumberOfCols(75);
                         int pathSize = int(width-13);
-                        if (strstr(line, "--versions"))
+                        if (strstr(commandtoexec, "--versions"))
                         {
                             pathSize -= 11;
                         }
@@ -1576,14 +1593,14 @@ void process_line(const char * line)
                         toexec+=" --path-display-size=";
                         toexec+=SSTR(pathSize);
                         toexec+=" ";
-                        if (strlen(line)>(words[0].size()+1))
+                        if (strlen(commandtoexec)>(words[0].size()+1))
                         {
-                            toexec+=line+words[0].size()+1;
+                            toexec+=commandtoexec+words[0].size()+1;
                         }
                     }
                     else
                     {
-                        toexec+=line;
+                        toexec+=commandtoexec;
                     }
 
                     comms->executeCommand(toexec.c_str(), readresponse);
@@ -1592,7 +1609,7 @@ void process_line(const char * line)
                 {
                     string toexec;
 
-                    if (!strstr (line,"path-display-size"))
+                    if (!strstr (commandtoexec,"path-display-size"))
                     {
                         unsigned int width = getNumberOfCols(75);
                         int pathSize = int((width-46)/2);
@@ -1600,14 +1617,14 @@ void process_line(const char * line)
                         toexec+="sync --path-display-size=";
                         toexec+=SSTR(pathSize);
                         toexec+=" ";
-                        if (strlen(line)>strlen("sync "))
+                        if (strlen(commandtoexec)>strlen("sync "))
                         {
-                            toexec+=line+strlen("sync ");
+                            toexec+=commandtoexec+strlen("sync ");
                         }
                     }
                     else
                     {
-                        toexec+=line;
+                        toexec+=commandtoexec;
                     }
 
                     comms->executeCommand(toexec.c_str(), readresponse);
@@ -1616,7 +1633,7 @@ void process_line(const char * line)
                 {
                     string toexec;
 
-                    if (!strstr (line,"path-display-size"))
+                    if (!strstr (commandtoexec,"path-display-size"))
                     {
                         unsigned int width = getNumberOfCols(75);
                         int pathSize = int(width - 28);
@@ -1625,14 +1642,14 @@ void process_line(const char * line)
                         toexec+=" --path-display-size=";
                         toexec+=SSTR(pathSize);
                         toexec+=" ";
-                        if (strlen(line)>(words[0].size()+1))
+                        if (strlen(commandtoexec)>(words[0].size()+1))
                         {
-                            toexec+=line+words[0].size()+1;
+                            toexec+=commandtoexec+words[0].size()+1;
                         }
                     }
                     else
                     {
-                        toexec+=line;
+                        toexec+=commandtoexec;
                     }
 
                     comms->executeCommand(toexec.c_str(), readresponse);
@@ -1641,7 +1658,7 @@ void process_line(const char * line)
                 {
                     string toexec;
 
-                    if (!strstr (line,"path-display-size"))
+                    if (!strstr (commandtoexec,"path-display-size"))
                     {
                         unsigned int width = getNumberOfCols(75);
                         int pathSize = int((width-21)/2);
@@ -1649,14 +1666,14 @@ void process_line(const char * line)
                         toexec+="backup --path-display-size=";
                         toexec+=SSTR(pathSize);
                         toexec+=" ";
-                        if (strlen(line)>strlen("backup "))
+                        if (strlen(commandtoexec)>strlen("backup "))
                         {
-                            toexec+=line+strlen("backup ");
+                            toexec+=commandtoexec+strlen("backup ");
                         }
                     }
                     else
                     {
-                        toexec+=line;
+                        toexec+=commandtoexec;
                     }
 
                     comms->executeCommand(toexec.c_str(), readresponse);
@@ -1665,10 +1682,10 @@ void process_line(const char * line)
                 {
                     if ( words[0] == "get" || words[0] == "put" || words[0] == "reload")
                     {
-                        string s = line;
+                        string s = commandtoexec;
                         if (clientID.size())
                         {
-                            string sline = line;
+                            string sline = commandtoexec;
                             size_t pspace = sline.find_first_of(" ");
                             s="";
                             s=sline.substr(0,pspace);
@@ -1688,13 +1705,13 @@ void process_line(const char * line)
                     else
                     {
                         // execute user command
-                        comms->executeCommand(line, readresponse);
+                        comms->executeCommand(commandtoexec, readresponse);
                     }
                 }
             }
             else
             {
-                cerr << "failed to interprete input line: " << line << endl;
+                cerr << "failed to interprete input commandtoexec: " << commandtoexec << endl;
             }
             break;
         }

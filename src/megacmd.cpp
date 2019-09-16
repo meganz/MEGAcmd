@@ -352,6 +352,10 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     {
         validOptValues = validParams;
     }
+
+    validOptValues->insert("client-width");
+
+
     if ("ls" == thecommand)
     {
         validParams->insert("R");
