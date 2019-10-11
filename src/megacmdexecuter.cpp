@@ -322,11 +322,21 @@ bool MegaCmdExecuter::processTree(MegaNode *n, bool processor(MegaApi *, MegaNod
 // * //bin is in RUBBISH
 // * X: is user X's INBOX
 // * X:SHARE is share SHARE from user X
+// * H:HANDLE is node with handle HANDLE
 // * : and / filename components, as well as the \, must be escaped by \.
 // (correct UTF-8 encoding is assumed)
 // returns NULL if path malformed or not found
 MegaNode* MegaCmdExecuter::nodebypath(const char* ptr, string* user, string* namepart)
 {
+    if (ptr && ptr[0] == 'H' && ptr[1] == ':')
+    {
+        MegaNode * n = api->getNodeByHandle(api->base64ToHandle(ptr+2));
+        if (n)
+        {
+            return n;
+        }
+    }
+
     string rest;
     MegaNode *baseNode = getBaseNode(ptr, rest);
 
@@ -548,6 +558,7 @@ void MegaCmdExecuter::getPathsMatching(MegaNode *parentNode, deque<string> pathP
  * //bin is in RUBBISH
  * X: is user X's INBOX
  * X:SHARE is share SHARE from user X
+ * H:HANDLE is node with handle HANDLE
  * : and / filename components, as well as the \, must be escaped by \.
  * (correct UTF-8 encoding is assumed)
  *
@@ -560,11 +571,24 @@ void MegaCmdExecuter::getPathsMatching(MegaNode *parentNode, deque<string> pathP
  */
 vector <string> * MegaCmdExecuter::nodesPathsbypath(const char* ptr, bool usepcre, string* user, string* namepart)
 {
+    vector<string> *pathsMatching = new vector<string> ();
+
+    if (ptr && ptr[0] == 'H' && ptr[1] == ':')
+    {
+        MegaNode * n = api->getNodeByHandle(api->base64ToHandle(ptr+2));
+        if (n)
+        {
+            char * nodepath = api->getNodePath(n);
+            pathsMatching->push_back(nodepath);
+            delete []nodepath;
+            return pathsMatching;
+        }
+    }
+
     string rest;
     bool isrelative;
     MegaNode *baseNode = getBaseNode(ptr, rest, &isrelative);
 
-    vector<string> *pathsMatching = new vector<string> ();
     if (baseNode)
     {
         string pathPrefix;
@@ -946,6 +970,7 @@ bool MegaCmdExecuter::checkNoErrors(MegaError *error, string message)
  * //bin is in RUBBISH
  * X: is user X's INBOX
  * X:SHARE is share SHARE from user X
+ * H:HANDLE is node with handle HANDLE
  * : and / filename components, as well as the \, must be escaped by \.
  * (correct UTF-8 encoding is assumed)
  * @param ptr
@@ -955,10 +980,21 @@ bool MegaCmdExecuter::checkNoErrors(MegaError *error, string message)
  */
 vector <MegaNode*> * MegaCmdExecuter::nodesbypath(const char* ptr, bool usepcre, string* user)
 {
+    vector<MegaNode *> *nodesMatching = new vector<MegaNode *> ();
+
+    if (ptr && ptr[0] == 'H' && ptr[1] == ':')
+    {
+        MegaNode * n = api->getNodeByHandle(api->base64ToHandle(ptr+2));
+        if (n)
+        {
+            nodesMatching->push_back(n);
+            return nodesMatching;
+        }
+    }
+
     string rest;
     MegaNode *baseNode = getBaseNode(ptr, rest);
 
-    vector<MegaNode *> *nodesMatching = new vector<MegaNode *> ();
 
     if (baseNode)
     {
@@ -986,7 +1022,7 @@ vector <MegaNode*> * MegaCmdExecuter::nodesbypath(const char* ptr, bool usepcre,
     return nodesMatching;
 }
 
-void MegaCmdExecuter::dumpNode(MegaNode* n, const char *timeFormat, int extended_info, bool showversions, int depth, const char* title)
+void MegaCmdExecuter::dumpNode(MegaNode* n, const char *timeFormat, std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions, int extended_info, bool showversions, int depth, const char* title)
 {
     if (!title && !( title = n->getName()))
     {
@@ -1002,9 +1038,14 @@ void MegaCmdExecuter::dumpNode(MegaNode* n, const char *timeFormat, int extended
     }
 
     OUTSTREAM << title;
+
+    if (getFlag(clflags, "show-handles"))
+    {
+        OUTSTREAM << " <H:" << api->handleToBase64(n->getHandle()) << ">";
+    }
+
     if (extended_info)
     {
-        //OUTSTREAM << "<" << api->handleToBase64(n->getHandle()) << ">";
         OUTSTREAM << " (";
         switch (n->getType())
         {
@@ -1160,6 +1201,13 @@ void MegaCmdExecuter::dumpNode(MegaNode* n, const char *timeFormat, int extended
                     {
                         OUTSTREAM << " (" << sizeToText(versionNode->getSize(), false) << ")";
                     }
+
+
+                    if (getFlag(clflags, "show-handles"))
+                    {
+                        OUTSTREAM << " <H:" << api->handleToBase64(versionNode->getHandle()) << ">";
+                    }
+
                     OUTSTREAM << endl;
                 }
             }
@@ -1167,7 +1215,7 @@ void MegaCmdExecuter::dumpNode(MegaNode* n, const char *timeFormat, int extended
     }
 }
 
-void MegaCmdExecuter::dumpNodeSummaryHeader(const char *timeFormat)
+void MegaCmdExecuter::dumpNodeSummaryHeader(const char *timeFormat, std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions)
 {
     int datelength = getReadableTime(m_time(), timeFormat).size();
 
@@ -1178,12 +1226,17 @@ void MegaCmdExecuter::dumpNodeSummaryHeader(const char *timeFormat)
     OUTSTREAM << getFixLengthString("SIZE  ", 10 -1, ' ', true); //-1 because of "FLAGS"
     OUTSTREAM << " ";
     OUTSTREAM << getFixLengthString("DATE      ", datelength+1, ' ', true);
+    if (getFlag(clflags, "show-handles"))
+    {
+        OUTSTREAM << " ";
+        OUTSTREAM << "   HANDLE";
+    }
     OUTSTREAM << " ";
     OUTSTREAM << "NAME";
     OUTSTREAM << endl;
 }
 
-void MegaCmdExecuter::dumpNodeSummary(MegaNode *n, const char *timeFormat, bool humanreadable, const char *title)
+void MegaCmdExecuter::dumpNodeSummary(MegaNode *n, const char *timeFormat, std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions, bool humanreadable, const char *title)
 {
     if (!title && !( title = n->getName()))
     {
@@ -1291,6 +1344,10 @@ void MegaCmdExecuter::dumpNodeSummary(MegaNode *n, const char *timeFormat, bool 
         OUTSTREAM << " " << getReadableTime(n->getCreationTime(), timeFormat);
     }
 
+    if (getFlag(clflags, "show-handles"))
+    {
+        OUTSTREAM << " H:" << api->handleToBase64(n->getHandle());
+    }
 
     OUTSTREAM << " " << title;
     OUTSTREAM << endl;
@@ -1426,7 +1483,7 @@ void MegaCmdExecuter::printTreeSuffix(int depth, vector<bool> &lastleaf)
     }
 }
 
-void MegaCmdExecuter::dumptree(MegaNode* n, bool treelike, vector<bool> &lastleaf, const char *timeFormat, int recurse, int extended_info, bool showversions, int depth, string pathRelativeTo)
+void MegaCmdExecuter::dumptree(MegaNode* n, bool treelike, vector<bool> &lastleaf, const char *timeFormat, std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions, int recurse, int extended_info, bool showversions, int depth, string pathRelativeTo)
 {
     if (depth || ( n->getType() == MegaNode::TYPE_FILE ))
     {
@@ -1436,7 +1493,7 @@ void MegaCmdExecuter::dumptree(MegaNode* n, bool treelike, vector<bool> &lastlea
         {
             if (!n->getName())
             {
-                dumpNode(n, timeFormat, extended_info, showversions, treelike?0:depth, "CRYPTO_ERROR");
+                dumpNode(n, timeFormat, clflags, cloptions, extended_info, showversions, treelike?0:depth, "CRYPTO_ERROR");
             }
             else
             {
@@ -1461,14 +1518,14 @@ void MegaCmdExecuter::dumptree(MegaNode* n, bool treelike, vector<bool> &lastlea
                     pathToShow = nodepath;
                 }
 
-                dumpNode(n, timeFormat, extended_info, showversions, treelike?0:depth, pathToShow);
+                dumpNode(n, timeFormat, clflags, cloptions, extended_info, showversions, treelike?0:depth, pathToShow);
 
                 delete []nodepath;
             }
         }
         else
         {
-                dumpNode(n, timeFormat, extended_info, showversions, treelike?0:depth);
+                dumpNode(n, timeFormat, clflags, cloptions, extended_info, showversions, treelike?0:depth);
         }
 
         if (!recurse && depth)
@@ -1486,7 +1543,7 @@ void MegaCmdExecuter::dumptree(MegaNode* n, bool treelike, vector<bool> &lastlea
             {
                 vector<bool> lfs = lastleaf;
                 lfs.push_back(i==(children->size()-1));
-                dumptree(children->get(i), treelike, lfs, timeFormat, recurse, extended_info, showversions, depth + 1);
+                dumptree(children->get(i), treelike, lfs, timeFormat, clflags, cloptions, recurse, extended_info, showversions, depth + 1);
             }
 
             delete children;
@@ -1494,7 +1551,7 @@ void MegaCmdExecuter::dumptree(MegaNode* n, bool treelike, vector<bool> &lastlea
     }
 }
 
-void MegaCmdExecuter::dumpTreeSummary(MegaNode *n, const char *timeFormat, int recurse, bool show_versions, int depth, bool humanreadable, string pathRelativeTo)
+void MegaCmdExecuter::dumpTreeSummary(MegaNode *n, const char *timeFormat, std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions, int recurse, bool show_versions, int depth, bool humanreadable, string pathRelativeTo)
 {
     char * nodepath = api->getNodePath(n);
 
@@ -1541,7 +1598,7 @@ void MegaCmdExecuter::dumpTreeSummary(MegaNode *n, const char *timeFormat, int r
 
             for (int i = 0; i < children->size(); i++)
             {
-                dumpNodeSummary(children->get(i), timeFormat, humanreadable);
+                dumpNodeSummary(children->get(i), timeFormat, clflags, cloptions, humanreadable);
             }
 
             if (show_versions)
@@ -1557,7 +1614,7 @@ void MegaCmdExecuter::dumpTreeSummary(MegaNode *n, const char *timeFormat, int r
 
                         for (int i = 0; i < vers->size(); i++)
                         {
-                            dumpNodeSummary(vers->get(i), timeFormat, humanreadable);
+                            dumpNodeSummary(vers->get(i), timeFormat, clflags, cloptions, humanreadable);
                         }
                     }
                     delete vers;
@@ -1569,7 +1626,7 @@ void MegaCmdExecuter::dumpTreeSummary(MegaNode *n, const char *timeFormat, int r
                 for (int i = 0; i < children->size(); i++)
                 {
                     MegaNode *c = children->get(i);
-                    dumpTreeSummary(c, timeFormat, recurse, show_versions, depth + 1, humanreadable);
+                    dumpTreeSummary(c, timeFormat, clflags, cloptions, recurse, show_versions, depth + 1, humanreadable);
                 }
             }
             delete children;
@@ -1580,7 +1637,7 @@ void MegaCmdExecuter::dumpTreeSummary(MegaNode *n, const char *timeFormat, int r
         if (!depth)
         {
 
-            dumpNodeSummary(n, timeFormat, humanreadable);
+            dumpNodeSummary(n, timeFormat, clflags, cloptions, humanreadable);
 
             if (show_versions)
             {
@@ -1592,7 +1649,7 @@ void MegaCmdExecuter::dumpTreeSummary(MegaNode *n, const char *timeFormat, int r
                     for (int i = 0; i < vers->size(); i++)
                     {
                         string nametoshow = n->getName()+string("#")+SSTR(vers->get(i)->getModificationTime());
-                        dumpNodeSummary(vers->get(i), timeFormat, humanreadable, nametoshow.c_str() );
+                        dumpNodeSummary(vers->get(i), timeFormat, clflags, cloptions, humanreadable, nametoshow.c_str() );
                     }
                 }
                 delete vers;
@@ -1762,7 +1819,7 @@ string MegaCmdExecuter::getDisplayPath(string givenPath, MegaNode* n)
     return toret;
 }
 
-int MegaCmdExecuter::dumpListOfExported(MegaNode* n, const char *timeFormat, string givenPath)
+int MegaCmdExecuter::dumpListOfExported(MegaNode* n, const char *timeFormat, std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions, string givenPath)
 {
     int toret = 0;
     vector<MegaNode *> listOfExported;
@@ -1773,7 +1830,7 @@ int MegaCmdExecuter::dumpListOfExported(MegaNode* n, const char *timeFormat, str
         if (n)
         {
             string pathToShow = getDisplayPath(givenPath, n);
-            dumpNode(n, timeFormat, 2, 1, false, pathToShow.c_str());
+            dumpNode(n, timeFormat, clflags, cloptions, 2, 1, false, pathToShow.c_str());
 
             delete n;
         }
@@ -1838,7 +1895,7 @@ void MegaCmdExecuter::dumpListOfShared(MegaNode* n, string givenPath)
 }
 
 //includes pending and normal shares
-void MegaCmdExecuter::dumpListOfAllShared(MegaNode* n, const char *timeFormat, string givenPath)
+void MegaCmdExecuter::dumpListOfAllShared(MegaNode* n, const char *timeFormat, std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions, string givenPath)
 {
     vector<MegaNode *> listOfShared;
     processTree(n, includeIfIsSharedOrPendingOutShare, (void*)&listOfShared);
@@ -1848,7 +1905,7 @@ void MegaCmdExecuter::dumpListOfAllShared(MegaNode* n, const char *timeFormat, s
         if (n)
         {
             string pathToShow = getDisplayPath(givenPath, n);
-            dumpNode(n, timeFormat, 3, false, 1, pathToShow.c_str());
+            dumpNode(n, timeFormat, clflags, cloptions, 3, false, 1, pathToShow.c_str());
             //notice: some nodes may be dumped twice
 
             delete n;
@@ -1858,7 +1915,7 @@ void MegaCmdExecuter::dumpListOfAllShared(MegaNode* n, const char *timeFormat, s
     listOfShared.clear();
 }
 
-void MegaCmdExecuter::dumpListOfPendingShares(MegaNode* n, const char *timeFormat, string givenPath)
+void MegaCmdExecuter::dumpListOfPendingShares(MegaNode* n, const char *timeFormat, std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions, string givenPath)
 {
     vector<MegaNode *> listOfShared;
     processTree(n, includeIfIsPendingOutShare, (void*)&listOfShared);
@@ -1869,7 +1926,7 @@ void MegaCmdExecuter::dumpListOfPendingShares(MegaNode* n, const char *timeForma
         if (n)
         {
             string pathToShow = getDisplayPath(givenPath, n);
-            dumpNode(n, timeFormat, 3, false, 1, pathToShow.c_str());
+            dumpNode(n, timeFormat, clflags, cloptions, 3, false, 1, pathToShow.c_str());
 
             delete n;
         }
@@ -4090,7 +4147,7 @@ void MegaCmdExecuter::printSync(int i, string key, const char *nodepath, sync_st
 
 }
 
-void MegaCmdExecuter::doFind(MegaNode* nodeBase, const char *timeFormat, string word, int printfileinfo, string pattern, bool usepcre, m_time_t minTime, m_time_t maxTime, int64_t minSize, int64_t maxSize)
+void MegaCmdExecuter::doFind(MegaNode* nodeBase, const char *timeFormat, std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions, string word, int printfileinfo, string pattern, bool usepcre, m_time_t minTime, m_time_t maxTime, int64_t minSize, int64_t maxSize)
 {
     struct criteriaNodeVector pnv;
     pnv.pattern = pattern;
@@ -4127,11 +4184,18 @@ void MegaCmdExecuter::doFind(MegaNode* nodeBase, const char *timeFormat, string 
             }
             if (printfileinfo)
             {
-                dumpNode(n, timeFormat, 3, false, 1, pathToShow.c_str());
+                dumpNode(n, timeFormat, clflags, cloptions, 3, false, 1, pathToShow.c_str());
             }
             else
             {
-                OUTSTREAM << pathToShow << endl;
+                OUTSTREAM << pathToShow;
+
+                if (getFlag(clflags, "show-handles"))
+                {
+                    OUTSTREAM << " <H:" << api->handleToBase64(n->getHandle()) << ">";
+                }
+
+                OUTSTREAM << endl;
             }
             //notice: some nodes may be dumped twice
 
@@ -4975,15 +5039,15 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                                 {
                                     if (firstprint)
                                     {
-                                        dumpNodeSummaryHeader(getTimeFormatFromSTR(getOption(cloptions, "time-format","SHORT")));
+                                        dumpNodeSummaryHeader(getTimeFormatFromSTR(getOption(cloptions, "time-format","SHORT")), clflags, cloptions);
                                         firstprint = false;
                                     }
-                                    dumpTreeSummary(n, getTimeFormatFromSTR(getOption(cloptions, "time-format","SHORT")), recursive, show_versions, 0, humanreadable, rNpath);
+                                    dumpTreeSummary(n, getTimeFormatFromSTR(getOption(cloptions, "time-format","SHORT")), clflags, cloptions, recursive, show_versions, 0, humanreadable, rNpath);
                                 }
                                 else
                                 {
                                     vector<bool> lfs;
-                                    dumptree(n, treelike, lfs, getTimeFormatFromSTR(getOption(cloptions, "time-format","RFC2822")), recursive, extended_info, show_versions, 0, rNpath);
+                                    dumptree(n, treelike, lfs, getTimeFormatFromSTR(getOption(cloptions, "time-format","RFC2822")), clflags, cloptions, recursive, extended_info, show_versions, 0, rNpath);
                                 }
                                 if (( !n->getType() == MegaNode::TYPE_FILE ) && (( it + 1 ) != pathsToList->end()))
                                 {
@@ -5021,16 +5085,16 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     {
                         if (firstprint)
                         {
-                            dumpNodeSummaryHeader(getTimeFormatFromSTR(getOption(cloptions, "time-format","SHORT")));
+                            dumpNodeSummaryHeader(getTimeFormatFromSTR(getOption(cloptions, "time-format","SHORT")), clflags, cloptions);
                             firstprint = false;
                         }
-                        dumpTreeSummary(n, getTimeFormatFromSTR(getOption(cloptions, "time-format","SHORT")), recursive, show_versions, 0, humanreadable, rNpath);
+                        dumpTreeSummary(n, getTimeFormatFromSTR(getOption(cloptions, "time-format","SHORT")), clflags, cloptions, recursive, show_versions, 0, humanreadable, rNpath);
                     }
                     else
                     {
                         if (treelike) OUTSTREAM << words[1] << endl;
                         vector<bool> lfs;
-                        dumptree(n, treelike, lfs, getTimeFormatFromSTR(getOption(cloptions, "time-format","RFC2822")), recursive, extended_info, show_versions, 0, rNpath);
+                        dumptree(n, treelike, lfs, getTimeFormatFromSTR(getOption(cloptions, "time-format","RFC2822")), clflags, cloptions, recursive, extended_info, show_versions, 0, rNpath);
                     }
                     delete n;
                 }
@@ -5050,16 +5114,16 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 {
                     if (firstprint)
                     {
-                        dumpNodeSummaryHeader(getTimeFormatFromSTR(getOption(cloptions, "time-format","SHORT")));
+                        dumpNodeSummaryHeader(getTimeFormatFromSTR(getOption(cloptions, "time-format","SHORT")), clflags, cloptions);
                         firstprint = false;
                     }
-                    dumpTreeSummary(n, getTimeFormatFromSTR(getOption(cloptions, "time-format","SHORT")), recursive, show_versions, 0, humanreadable);
+                    dumpTreeSummary(n, getTimeFormatFromSTR(getOption(cloptions, "time-format","SHORT")), clflags, cloptions, recursive, show_versions, 0, humanreadable);
                 }
                 else
                 {
                     if (treelike) OUTSTREAM << "." << endl;
                     vector<bool> lfs;
-                    dumptree(n, treelike, lfs, getTimeFormatFromSTR(getOption(cloptions, "time-format","RFC2822")), recursive, extended_info, show_versions);
+                    dumptree(n, treelike, lfs, getTimeFormatFromSTR(getOption(cloptions, "time-format","RFC2822")), clflags, cloptions, recursive, extended_info, show_versions);
                 }
                 delete n;
             }
@@ -5102,7 +5166,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         if (words.size() <= 1)
         {
             n = api->getNodeByHandle(cwd);
-            doFind(n, getTimeFormatFromSTR(getOption(cloptions, "time-format","RFC2822")), "", printfileinfo, pattern, getFlag(clflags,"use-pcre"), minTime, maxTime, minSize, maxSize);
+            doFind(n, getTimeFormatFromSTR(getOption(cloptions, "time-format","RFC2822")), clflags, cloptions, "", printfileinfo, pattern, getFlag(clflags,"use-pcre"), minTime, maxTime, minSize, maxSize);
             delete n;
         }
         for (int i = 1; i < (int)words.size(); i++)
@@ -5117,7 +5181,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         MegaNode * nodeToFind = *it;
                         if (nodeToFind)
                         {
-                            doFind(nodeToFind, getTimeFormatFromSTR(getOption(cloptions, "time-format","RFC2822")), words[i], printfileinfo, pattern, getFlag(clflags,"use-pcre"), minTime, maxTime, minSize, maxSize);
+                            doFind(nodeToFind, getTimeFormatFromSTR(getOption(cloptions, "time-format","RFC2822")), clflags, cloptions, words[i], printfileinfo, pattern, getFlag(clflags,"use-pcre"), minTime, maxTime, minSize, maxSize);
                             delete nodeToFind;
                         }
                     }
@@ -5140,7 +5204,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 }
                 else
                 {
-                    doFind(n, getTimeFormatFromSTR(getOption(cloptions, "time-format","RFC2822")), words[i], printfileinfo, pattern, getFlag(clflags,"use-pcre"), minTime, maxTime, minSize, maxSize);
+                    doFind(n, getTimeFormatFromSTR(getOption(cloptions, "time-format","RFC2822")), clflags, cloptions, words[i], printfileinfo, pattern, getFlag(clflags,"use-pcre"), minTime, maxTime, minSize, maxSize);
                     delete n;
                 }
             }
@@ -7761,7 +7825,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                                 }
                                 else if (listPending)
                                 {
-                                    dumpListOfPendingShares(n, getTimeFormatFromSTR(getOption(cloptions, "time-format","RFC2822")), words[i]);
+                                    dumpListOfPendingShares(n, getTimeFormatFromSTR(getOption(cloptions, "time-format","RFC2822")), clflags, cloptions, words[i]);
                                 }
                                 else
                                 {
@@ -7829,7 +7893,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         }
                         else if (listPending)
                         {
-                            dumpListOfPendingShares(n, getTimeFormatFromSTR(getOption(cloptions, "time-format","RFC2822")), words[i]);
+                            dumpListOfPendingShares(n, getTimeFormatFromSTR(getOption(cloptions, "time-format","RFC2822")), clflags, cloptions, words[i]);
                         }
                         else
                         {
@@ -7949,7 +8013,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                                             }
 
                                             OUTSTREAM << "\t";
-                                            dumpNode(n, getTimeFormatFromSTR(getOption(cloptions, "time-format","RFC2822")), 2, false, 0, getDisplayPath("/", n).c_str());
+                                            dumpNode(n, getTimeFormatFromSTR(getOption(cloptions, "time-format","RFC2822")), clflags, cloptions, 2, false, 0, getDisplayPath("/", n).c_str());
                                             delete n;
                                         }
                                     }
@@ -8803,7 +8867,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                             }
                             else
                             {
-                                if (dumpListOfExported(n, getTimeFormatFromSTR(getOption(cloptions, "time-format","RFC2822")), words[i]) == 0 )
+                                if (dumpListOfExported(n, getTimeFormatFromSTR(getOption(cloptions, "time-format","RFC2822")), clflags, cloptions, words[i]) == 0 )
                                 {
                                     OUTSTREAM << words[i] << " is not exported. Use -a to export it" << endl;
                                 }
@@ -8838,7 +8902,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     }
                     else
                     {
-                        if (dumpListOfExported(n, getTimeFormatFromSTR(getOption(cloptions, "time-format","RFC2822")), words[i]) == 0 )
+                        if (dumpListOfExported(n, getTimeFormatFromSTR(getOption(cloptions, "time-format","RFC2822")), clflags, cloptions, words[i]) == 0 )
                         {
                             OUTSTREAM << "Couldn't find anything exported below ";
                             if (words[i] == ".")
