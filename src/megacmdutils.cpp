@@ -1173,6 +1173,11 @@ bool setOptionsAndFlags(map<string, string> *opts, map<string, int> *flags, vect
                     }
                 }
             }
+            else if (w == "--")
+            {
+                it = ws->erase(it);
+                return discarded; // cease to look for options & leave the rest
+            }
             else if (w.find_first_of("=") == std::string::npos) //flag
             {
                 string optname = ltrim(w, '-');
