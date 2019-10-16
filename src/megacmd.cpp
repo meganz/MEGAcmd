@@ -3370,7 +3370,7 @@ void * doProcessLine(void *pointer)
         setCurrentThreadIsCmdShell(false);
     }
 
-    LOG_verbose << " Processing " << *inf << " in thread: " << MegaThread::currentThreadId() << " " << cm->get_petition_details(inf);
+    LOG_verbose << " Processing " << inf->line << " in thread: " << MegaThread::currentThreadId() << " " << cm->get_petition_details(inf);
 
     doExit = process_line(inf->getLine());
 
@@ -3380,7 +3380,7 @@ void * doProcessLine(void *pointer)
         LOG_verbose << " Exit registered upon process_line: " ;
     }
 
-    LOG_verbose << " Procesed " << *inf << " in thread: " << MegaThread::currentThreadId() << " " << cm->get_petition_details(inf);
+    LOG_verbose << " Procesed " << inf->line << " in thread: " << MegaThread::currentThreadId() << " " << cm->get_petition_details(inf);
 
     MegaThread * petitionThread = inf->getPetitionThread();
     cm->returnAndClosePetition(inf, &s, getCurrentOutCode());
@@ -3657,7 +3657,7 @@ void megacmd()
 
             CmdPetition *inf = cm->getPetition();
 
-            LOG_verbose << "petition registered: " << *inf;
+            LOG_verbose << "petition registered: " << inf->line;
 
             delete_finished_threads();
 
@@ -3817,7 +3817,7 @@ void megacmd()
                 petitionThreads.push_back(petitionThread);
                 inf->setPetitionThread(petitionThread);
 
-                LOG_verbose << "starting processing: <" << *inf << ">";
+                LOG_verbose << "starting processing: <" << inf->line << ">";
 
                 petitionThread->start(doProcessLine, (void*)inf);
             }
@@ -4340,7 +4340,9 @@ int main(int argc, char* argv[])
 
     NullBuffer null_buffer;
     std::ostream null_stream(&null_buffer);
+#ifndef ENABLE_LOG_PERFORMANCE
     SimpleLogger::setAllOutputs(&null_stream);
+#endif
     SimpleLogger::setLogLevel(logMax); // do not filter anything here, log level checking is done by loggerCMD
 
     loggerCMD = new MegaCMDLogger();

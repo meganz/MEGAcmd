@@ -1439,15 +1439,13 @@ void MegaCmdExecuter::createOrModifyBackup(string local, string remote, string s
 {
     string locallocal;
     fsAccessCMD->path2local(&local, &locallocal);
-    FileAccess *fa = fsAccessCMD->newfileaccess();
+    std::unique_ptr<FileAccess> fa = fsAccessCMD->newfileaccess();
     if (!fa->isfolder(&locallocal))
     {
         setCurrentOutCode(MCMD_NOTFOUND);
         LOG_err << "Local path must be an existing folder: " << local;
-        delete fa;
         return;
     }
-    delete fa;
 
 
     int64_t period = -1;
@@ -1761,15 +1759,14 @@ bool MegaCmdExecuter::TestCanWriteOnContainingFolder(string *path)
 
     string localcontainingFolder;
     fsAccessCMD->path2local(&containingFolder, &localcontainingFolder);
-    FileAccess *fa = fsAccessCMD->newfileaccess();
+    std::unique_ptr<FileAccess> fa = fsAccessCMD->newfileaccess();
     if (!fa->isfolder(&localcontainingFolder))
     {
-        delete fa;
         setCurrentOutCode(MCMD_INVALIDTYPE);
         LOG_err << containingFolder << " is not a valid Download Folder";
         return false;
     }
-    delete fa;
+
     if (!canWrite(containingFolder))
     {
         setCurrentOutCode(MCMD_NOTPERMITTED);
@@ -3053,15 +3050,13 @@ void MegaCmdExecuter::uploadNode(string path, MegaApi* api, MegaNode *node, stri
 
     string locallocal;
     fsAccessCMD->path2local(&path, &locallocal);
-    FileAccess *fa = fsAccessCMD->newfileaccess();
+    std::unique_ptr<FileAccess> fa = fsAccessCMD->newfileaccess();
     if (!fa->fopen(&locallocal, true, false))
     {
         setCurrentOutCode(MCMD_NOTFOUND);
         LOG_err << "Unable to open local path: " << path;
-        delete fa;
         return;
     }
-    delete fa;
 
     MegaCmdTransferListener *megaCmdTransferListener = NULL;
     if (!background)
@@ -3817,10 +3812,8 @@ bool MegaCmdExecuter::IsFolder(string path)
 #endif
     string localpath;
     fsAccessCMD->path2local(&path, &localpath);
-    FileAccess *fa = fsAccessCMD->newfileaccess();
-    bool destinyIsFolder = fa->isfolder(&localpath);
-    delete fa;
-    return destinyIsFolder;
+    std::unique_ptr<FileAccess> fa = fsAccessCMD->newfileaccess();
+    return fa->isfolder(&localpath);
 }
 
 void MegaCmdExecuter::printTransfersHeader(const unsigned int PATHSIZE, bool printstate)

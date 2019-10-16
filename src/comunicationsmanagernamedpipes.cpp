@@ -443,7 +443,7 @@ int ComunicationsManagerNamedPipes::informStateListener(CmdPetition *inf, string
     {
         if (ERRNO == 32 || ERRNO == 109 || (ERRNO == 232 && s == "ack")) //namedPipe closed | pipe has been ended
         {
-            LOG_debug << "namedPipe closed. Client probably disconnected. Original petition: " << *inf;
+            LOG_debug << "namedPipe closed. Client probably disconnected. Original petition: " << inf->line;
             return -1;
         }
         else
