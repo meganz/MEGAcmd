@@ -59,8 +59,8 @@ private:
 
     // to get next socket id
     int count;
-    std::mutex *mtx;
-    std::mutex *informerMutex;
+    std::mutex mtx;
+    std::mutex informerMutex;
 
     /**
      * @brief create_new_socket

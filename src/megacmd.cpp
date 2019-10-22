@@ -89,8 +89,6 @@
 #endif
 
 using namespace mega;
-using namespace std;
-
 
 namespace megacmd {
 

@@ -34,7 +34,6 @@
 #endif
 #endif
 
-using namespace std;
 using namespace mega;
 
 namespace megacmd {

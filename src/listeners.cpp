@@ -21,7 +21,7 @@
 #include "megacmdutils.h"
 
 using namespace mega;
-using namespace std;
+
 
 namespace megacmd {
 #ifdef ENABLE_CHAT

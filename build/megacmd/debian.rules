@@ -20,7 +20,7 @@ build-stamp:
 	  --with-termcap=$(CURDIR)/deps --prefix=$(CURDIR)/deps --disable-examples $(WMEDIAINFO)
 
 	make
-
+	echo "fs.inotify.max_user_watches = 524288" > 100-megasync-inotify-limit.conf
 	touch build-stamp
 
 clean:
@@ -39,6 +39,7 @@ install: build
 	lsb_release -rs > version	
 	dh_install distro /usr/share/doc/megacmd/
 	dh_install version /usr/share/doc/megacmd/
+	dh_install 100-megasync-inotify-limit.conf /etc/sysctl.d/
 
 
 # Build architecture-independent files here.

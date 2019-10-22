@@ -66,10 +66,10 @@
 #define SSTR( x ) static_cast< const std::ostringstream & >( \
         (  std::ostringstream() << std::dec << x ) ).str()
 
-using namespace std;
 using namespace mega;
 
 namespace megacmd {
+using namespace std;
 
 #if defined(NO_READLINE) && defined(_WIN32)
 CONSOLE_CLASS* console = NULL;

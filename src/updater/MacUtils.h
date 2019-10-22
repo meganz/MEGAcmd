@@ -2,8 +2,6 @@
 #define MACUTILS_H
 #include <iostream>
 
-using namespace std;
-
-bool downloadFileSynchronously(string url, string path);
+bool downloadFileSynchronously(std::string url, std::string path);
 
 #endif // MACUTILS_H

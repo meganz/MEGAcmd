@@ -40,10 +40,10 @@
 #define unlink _unlink
 #endif
 
-using namespace std;
 using namespace mega;
 
 namespace megacmd {
+using namespace std;
 bool is_file_exist(const char *fileName)
 {
     std::ifstream infile(fileName);

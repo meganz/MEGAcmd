@@ -39,7 +39,7 @@
     #include <filesystem>
     namespace fs = std::filesystem;
     #define MEGACMDEXECUTER_FILESYSTEM
-#elif !defined(__MINGW32__) && !defined(__ANDROID__) && ( (__cplusplus >= 201100L) || (defined(_MSC_VER) && _MSC_VER >= 1600) )
+#elif !defined(__MINGW32__) && !defined(__ANDROID__) && (!defined(__GNUC__) || (__GNUC__*100+__GNUC_MINOR__) >= 503)
 #define MEGACMDEXECUTER_FILESYSTEM
 #ifdef WIN32
     #include <filesystem>
@@ -52,7 +52,6 @@
 
 
 using namespace mega;
-using namespace std;
 
 namespace megacmd {
 static const char* rootnodenames[] = { "ROOT", "INBOX", "RUBBISH" };
@@ -64,16 +63,15 @@ static const char* rootnodepaths[] = { "/", "//in", "//bin" };
 
 #ifdef HAVE_GLOB_H
 std::vector<std::string> resolvewildcard(const std::string& pattern) {
-    using namespace std;
 
-    vector<string> filenames;
+    vector<std::string> filenames;
     glob_t glob_result;
     memset(&glob_result, 0, sizeof(glob_result));
 
     if (!glob(pattern.c_str(), GLOB_TILDE, NULL, &glob_result))
     {
         for(size_t i = 0; i < glob_result.gl_pathc; ++i) {
-            filenames.push_back(string(glob_result.gl_pathv[i]));
+            filenames.push_back(std::string(glob_result.gl_pathv[i]));
         }
     }
 
@@ -6786,7 +6784,11 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         }
 
 #ifdef HAVE_GLOB_H
-                        if (!newname.size() && !fs::exists(words[i]) && hasWildCards(words[i]))
+                        if (!newname.size()
+#ifdef MEGACMDEXECUTER_FILESYSTEM
+                                && !fs::exists(words[i])
+#endif
+                                && hasWildCards(words[i]))
                         {
                             auto paths = resolvewildcard(words[i]);
                             if (!paths.size())
@@ -6811,7 +6813,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     unique_ptr<MegaNode> pn(api->getNodeByHandle(n->getParentHandle()));
                     if (pn)
                     {
-#ifdef HAVE_GLOB_H
+#if defined(HAVE_GLOB_H) && defined(MEGACMDEXECUTER_FILESYSTEM)
                         if (!fs::exists(words[1]) && hasWildCards(words[1]))
                         {
                             LOG_err << "Invalid target for wildcard expression: " << words[1] << ". Folder expected";

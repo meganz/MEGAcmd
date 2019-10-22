@@ -71,15 +71,15 @@
         ( std::ostringstream() << std::dec << x ) ).str()
 #endif
 
-using namespace std;
 namespace megacmd {
+using namespace std;
 
 bool MegaCmdShellCommunications::serverinitiatedfromshell;
 bool MegaCmdShellCommunications::registerAgainRequired;
 bool MegaCmdShellCommunications::confirmResponse;
 bool MegaCmdShellCommunications::stopListener;
 bool MegaCmdShellCommunications::updating;
-::mega::Thread *MegaCmdShellCommunications::listenerThread;
+MegaThread *MegaCmdShellCommunications::listenerThread;
 SOCKET MegaCmdShellCommunications::newsockfd = INVALID_SOCKET;
 std::mutex MegaCmdShellCommunications::megaCmdStdoutputing;
 

@@ -39,7 +39,6 @@
 #endif
 
 using namespace mega;
-using namespace std;
 
 namespace megacmd {
 void closeSocket(SOCKET socket){

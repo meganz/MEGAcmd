@@ -34,9 +34,8 @@
 #include <limits.h>
 #include <iterator>
 
-using namespace std;
-
 namespace megacmd {
+using namespace std;
 #ifdef _WIN32
 
 //override << operators for wostream for string and const char *

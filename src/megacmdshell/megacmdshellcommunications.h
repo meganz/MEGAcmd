@@ -44,7 +44,6 @@
 class MegaThread : public ::mega::Win32Thread {};
 #elif defined(USE_CPPTHREAD)
 #include "mega/thread/cppthread.h"
-class std::mutex : public ::mega::CppMutex {};
 class MegaThread : public ::mega::CppThread {};
 #else
 #include "mega/thread/posixthread.h"
@@ -143,7 +142,7 @@ private:
     static bool confirmResponse;
 
     static bool stopListener;
-    static mega::Thread *listenerThread;
+    static MegaThread *listenerThread;
 
 #ifdef _WIN32
 static SOCKET createSocket(int number = 0, bool initializeserver = true, bool net = true);

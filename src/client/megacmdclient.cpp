@@ -49,13 +49,12 @@
 #define PROGRESS_COMPLETE -2
 #define SPROGRESS_COMPLETE "-2"
 
-using namespace std;
 
 #define SSTR( x ) static_cast< const std::ostringstream & >( \
         (  std::ostringstream() << std::dec << x ) ).str()
 
 namespace  megacmd {
-
+using namespace std;
 void printprogress(long long completed, long long total, const char *title = "TRANSFERRING");
 
 #ifdef _WIN32

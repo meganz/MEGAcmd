@@ -33,7 +33,6 @@
 #include <fstream>
 #include <time.h>
 
-using namespace std;
 using namespace mega;
 
 namespace megacmd {
@@ -561,7 +560,7 @@ string secondsToText(m_time_t seconds, bool humanreadable)
     if (humanreadable)
     {
         m_time_t reducedSize = m_time_t( seconds > 3600 * 2 ? seconds / 3600.0 : ( seconds > 60 * 2 ? seconds / 60.0 : seconds) );
-        os << fixed << reducedSize;
+        os << std::fixed << reducedSize;
         os << ( seconds > 3600 * 2 ? " hours" : ( seconds > 60 * 2 ? " minutes" : " seconds" ));
     }
     else

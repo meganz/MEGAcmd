@@ -29,15 +29,12 @@
 #endif
 
 using namespace mega;
-using namespace std;
 
 namespace megacmd {
 int ComunicationsManagerFileSockets::get_next_comm_id()
 {
-    mtx->lock();
-    ++count;
-    mtx->unlock();
-    return count;
+    std::lock_guard<std::mutex> g(informerMutex);
+    return ++count;
 }
 
 int ComunicationsManagerFileSockets::create_new_socket(int *sockId)
@@ -135,8 +132,6 @@ int ComunicationsManagerFileSockets::create_new_socket(int *sockId)
 ComunicationsManagerFileSockets::ComunicationsManagerFileSockets()
 {
     count = 0;
-    mtx = new std::mutex();
-    informerMutex = new std::mutex();
     initialize();
 }
 
@@ -393,7 +388,7 @@ void ComunicationsManagerFileSockets::sendPartialOutput(CmdPetition *inf, OUTSTR
 
 int ComunicationsManagerFileSockets::informStateListener(CmdPetition *inf, string &s)
 {
-    std::lock_guard<std::mutex> g(*informerMutex);
+    std::lock_guard<std::mutex> g(informerMutex);
     LOG_verbose << "Inform State Listener: Output to write in socket " << ((CmdPetitionPosixSockets *)inf)->outSocket << ": <<" << s << ">>";
 
     sockaddr_in cliAddr;
@@ -664,7 +659,5 @@ string ComunicationsManagerFileSockets::get_petition_details(CmdPetition *inf)
 
 ComunicationsManagerFileSockets::~ComunicationsManagerFileSockets()
 {
-    delete mtx;
-    delete informerMutex;
 }
 }//end namespace
