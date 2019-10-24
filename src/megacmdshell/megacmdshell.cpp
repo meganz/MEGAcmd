@@ -1336,22 +1336,22 @@ void process_line(const char * line)
             line = refactoredline.c_str();
 #endif
 
-            vector<string> wordsOfLine = getlistOfWords((char *)line);
+            vector<string> words = getlistOfWords((char *)line);
 
             string clientWidth = " --client-width=";
             clientWidth+= SSTR(getNumberOfCols(80));
 
-            wordsOfLine.insert(wordsOfLine.begin()+1, clientWidth);
+            words.insert(words.begin()+1, clientWidth);
 
-            string scommandtoexec(wordsOfLine[0]);
+            string scommandtoexec(words[0]);
             scommandtoexec+=clientWidth;
             scommandtoexec+=" ";
-            if (scommandtoexec.size()>(wordsOfLine[0].size()+1))
+
+            if (strlen(line)>(words[0].size()+1))
             {
-                scommandtoexec+=scommandtoexec.c_str()+wordsOfLine[0].size()+1;
+                scommandtoexec+=line+words[0].size()+1;
             }
 
-            vector<string> words = getlistOfWords((char *)scommandtoexec.c_str());
             const char *commandtoexec = scommandtoexec.c_str();
 
             bool helprequested = false;
