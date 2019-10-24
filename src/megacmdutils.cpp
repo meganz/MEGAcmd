@@ -444,6 +444,26 @@ string backupSatetStr(int backupstate)
 }
 #endif
 
+const char * getProxyTypeStr(int proxyType)
+{
+    switch (proxyType)
+    {
+    case MegaProxy::PROXY_AUTO:
+        return "PROXY_AUTO";
+        break;
+    case MegaProxy::PROXY_NONE:
+        return "PROXY_NONE";
+        break;
+    case MegaProxy::PROXY_CUSTOM:
+        return "PROXY_CUSTOM";
+        break;
+    default:
+        return "INVALID";
+        break;
+    }
+
+}
+
 int getLinkType(string link)
 {
     if (link.find("/folder/") != string::npos)

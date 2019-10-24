@@ -111,7 +111,10 @@ enum confirmresponse
 void changeprompt(const char *newprompt);
 
 void informStateListener(std::string message, int clientID);
-void broadcastMessage(std::string message);
+void broadcastMessage(std::string message, bool keepIfNoListeners = false);
+
+void appendMessageInformFirstListener(const std::string &msj);
+
 
 mega::MegaApi* getFreeApiFolder();
 void freeApiFolder(mega::MegaApi *apiFolder);

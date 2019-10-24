@@ -5216,6 +5216,72 @@ bool MegaCmdExecuter::printUserAttribute(int a, string user, bool onlylist)
     return false;
 }
 
+bool MegaCmdExecuter::setProxy(const std::string &url, const std::string &username, const std::string &password, int proxyType)
+{
+    MegaProxy mpx;
+
+    if (url.size())
+    {
+        mpx.setProxyURL(url.c_str());
+    }
+
+    if (username.size())
+    {
+        mpx.setCredentials(username.c_str(), password.c_str());
+    }
+
+    mpx.setProxyType(proxyType);
+
+    std::vector<MegaApi *> megaapis;
+    //TODO: add apiFolders to that list
+    megaapis.push_back(api);
+    bool failed = false;
+    for (auto api: megaapis)
+    {
+        MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
+        api->setProxySettings(&mpx, megaCmdListener);
+        megaCmdListener->wait();
+        if (checkNoErrors(megaCmdListener->getError(), "(un)setting proxy"))
+        {
+            //TODO: connectivity check! // review connectivity check branch
+        }
+        else
+        {
+            failed = true;
+        }
+        delete megaCmdListener;
+    }
+
+    if (!failed)
+    {
+        ConfigurationManager::savePropertyValue("proxy_url", mpx.getProxyURL()?mpx.getProxyURL():"");
+        ConfigurationManager::savePropertyValue("proxy_type", mpx.getProxyType());
+
+        ConfigurationManager::savePropertyValue("proxy_username", mpx.getUsername()?mpx.getUsername():"");
+        ConfigurationManager::savePropertyValue("proxy_password", mpx.getPassword()?mpx.getPassword():"");
+
+        if (mpx.getProxyType() == MegaProxy::PROXY_NONE)
+        {
+            OUTSTREAM << "Proxy unset correctly" << endl ;
+        }
+        else
+        {
+            OUTSTREAM << "Proxy set: " << (mpx.getProxyURL()?mpx.getProxyURL():"")
+                      << " type = " << getProxyTypeStr(mpx.getProxyType()) << endl;
+
+            broadcastMessage(string("Proxy set: ").append((mpx.getProxyURL()?mpx.getProxyURL():""))
+                             .append(" type = ").append(getProxyTypeStr(mpx.getProxyType())), true);
+        }
+    }
+    else
+    {
+        LOG_err << "Unable to configure proxy";
+        broadcastMessage("Unable to configure proxy", true);
+    }
+
+    return !failed;
+}
+
 void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clflags, map<string, string> *cloptions)
 {
     MegaNode* n = NULL;
@@ -10178,6 +10244,73 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         OUTSTREAM << "Logging out locally..." << endl;
         cwd = UNDEF;
         return;
+    }
+    else if (words[0] == "proxy")
+    {
+        bool autoProxy = getFlag(clflags, "auto");
+        bool noneProxy = getFlag(clflags, "none");
+        int proxyType = -1;
+
+
+        string username = getOption(cloptions, "username", "");
+        string password;
+        if (username.size())
+        {
+            password = getOption(cloptions, "password", "");
+            if (!password.size())
+            {
+                password = askforUserResponse("Enter password: ");
+            }
+        }
+
+        string urlProxy;
+        if (words.size() > 1)
+        {
+            proxyType = MegaProxy::PROXY_CUSTOM;
+            urlProxy = words[1];
+        }
+        else if (autoProxy)
+        {
+            proxyType = MegaProxy::PROXY_AUTO;
+        }
+        else if (noneProxy)
+        {
+            proxyType = MegaProxy::PROXY_NONE;
+        }
+
+        if (proxyType == -1)
+        {
+            int configuredProxyType = ConfigurationManager::getConfigurationValue("proxy_type", -1);
+            auto configuredProxyUrl = ConfigurationManager::getConfigurationSValue("proxy_url");
+
+            auto configuredProxyUsername = ConfigurationManager::getConfigurationSValue("proxy_username");
+            auto configuredProxyPassword = ConfigurationManager::getConfigurationSValue("proxy_password");
+
+            OUTSTREAM << "Proxy configured.";
+            if (configuredProxyType != 1)
+            {
+                OUTSTREAM << " type " << configuredProxyType;
+            }
+
+            if (configuredProxyUrl.size())
+            {
+                OUTSTREAM << endl << " URL = " << configuredProxyUrl;
+            }
+            if (configuredProxyUsername.size())
+            {
+                OUTSTREAM << endl << " username = " << configuredProxyUsername;
+            }
+            if (configuredProxyUrl.size())
+            {
+                OUTSTREAM << endl << " password = " << configuredProxyPassword;
+            }
+            OUTSTREAM << endl;
+        }
+        else
+        {
+            setProxy(urlProxy, username, password, proxyType);
+        }
+
     }
     else
     {

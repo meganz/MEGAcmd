@@ -196,6 +196,7 @@ public:
     void addFtpLocation(mega::MegaNode *n, bool firstone, std::string name = std::string());
 #endif
     bool printUserAttribute(int a, std::string user, bool onlylist = false);
+    bool setProxy(const std::string &url, const std::string &username, const std::string &password, int proxyType);
 };
 
 }//end namespace

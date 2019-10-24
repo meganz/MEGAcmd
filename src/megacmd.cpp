@@ -114,6 +114,9 @@ std::vector<MegaThread *> petitionThreads;
 std::vector<MegaThread *> endedPetitionThreads;
 MegaThread *threadRetryConnections;
 
+std::queue<std::string> greetingsmsgs;
+std::mutex greetingsmsgsMutex;
+
 //Comunications Manager
 ComunicationsManager * cm;
 
@@ -158,7 +161,7 @@ string avalidCommands [] = { "login", "signup", "confirm", "session", "mount", "
                              "put", "get", "attr", "userattr", "mkdir", "rm", "du", "mv", "cp", "sync", "export", "share", "invite", "ipc", "df",
                              "showpcr", "users", "speedlimit", "killsession", "whoami", "help", "passwd", "reload", "logout", "version", "quit",
                              "thumbnail", "preview", "find", "completion", "clear", "https", "transfers", "exclude", "exit", "errorcode", "graphics",
-                             "cancel", "confirmcancel", "cat", "tree", "psa"
+                             "cancel", "confirmcancel", "cat", "tree", "psa", "proxy"
                              , "mediainfo"
 #ifdef HAVE_LIBUV
                              , "webdav", "ftp"
@@ -204,6 +207,12 @@ char ** mcmdMainArgv;
 int mcmdMainArgc;
 
 void printWelcomeMsg();
+
+void appendMessageInformFirstListener(const std::string &msj)
+{
+    std::lock_guard<std::mutex> g(greetingsmsgsMutex);
+    greetingsmsgs.push(msj);
+}
 
 string getCurrentThreadLine()
 {
@@ -307,7 +316,7 @@ void informStateListener(string message, int clientID)
     cm->informStateListenerByClientId(s, clientID);
 }
 
-void broadcastMessage(string message)
+void broadcastMessage(string message, bool keepIfNoListeners) //TODO: perhaps make keep.. true by default
 {
     string s;
     if (message.size())
@@ -315,7 +324,7 @@ void broadcastMessage(string message)
         s += "message:";
         s+=message;
     }
-    cm->informStateListeners(s);
+    cm->informStateListeners(s, keepIfNoListeners);
 }
 
 void informTransferUpdate(MegaTransfer *transfer, int clientID)
@@ -658,6 +667,13 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validParams->insert("r");
         validOptValues->insert("limit");
         validOptValues->insert("path-display-size");
+    }
+    else if ("proxy" == thecommand)
+    {
+        validParams->insert("auto");
+        validParams->insert("none");
+        validOptValues->insert("username");
+        validOptValues->insert("password");
     }
     else if ("exit" == thecommand || "quit" == thecommand)
     {
@@ -3381,7 +3397,15 @@ void * doProcessLine(void *pointer)
     LOG_verbose << " Procesed " << inf->line << " in thread: " << MegaThread::currentThreadId() << " " << cm->get_petition_details(inf);
 
     MegaThread * petitionThread = inf->getPetitionThread();
-    cm->returnAndClosePetition(inf, &s, getCurrentOutCode());
+
+    if (inf->clientID == -3) //self client: no actual client
+    {
+        delete inf;//simply delete the pointer
+    }
+    else
+    {
+        cm->returnAndClosePetition(inf, &s, getCurrentOutCode());
+    }
 
     semaphoreClients.release();
 
@@ -3628,6 +3652,30 @@ void* checkForUpdates(void *param)
     return NULL;
 }
 
+void processCommandInPetitionQueues(CmdPetition *inf)
+{
+    semaphoreClients.wait();
+
+    //append new one
+    MegaThread * petitionThread = new MegaThread();
+
+    petitionThreads.push_back(petitionThread);
+    inf->setPetitionThread(petitionThread);
+
+    LOG_verbose << "starting processing: <" << inf->line << ">";
+
+    petitionThread->start(doProcessLine, (void*)inf);
+}
+
+void processCommandLinePetitionQueues(std::string what)
+{
+    CmdPetition *inf = new CmdPetition();
+    inf->line = strdup(what.c_str());
+    inf->clientDisconnected = true; //There's no actual client
+    inf->clientID = -3;
+    processCommandInPetitionQueues(inf);
+}
+
 // main loop
 void megacmd()
 {
@@ -3678,6 +3726,15 @@ void megacmd()
                 inf->clientID = currentclientID;
                 currentclientID++;
 
+                {
+                    std::lock_guard<std::mutex> g(greetingsmsgsMutex);
+
+                    while(greetingsmsgs.size())
+                    {
+                        cm->informStateListener(inf,greetingsmsgs.front());
+                        greetingsmsgs.pop();
+                    }
+                }
                 cm->informStateListener(inf,s);
 
 #if defined(_WIN32) || defined(__APPLE__)
@@ -3806,18 +3863,7 @@ void megacmd()
             }
             else
             { // normal petition
-
-                semaphoreClients.wait();
-
-                //append new one
-                MegaThread * petitionThread = new MegaThread();
-
-                petitionThreads.push_back(petitionThread);
-                inf->setPetitionThread(petitionThread);
-
-                LOG_verbose << "starting processing: <" << inf->line << ">";
-
-                petitionThread->start(doProcessLine, (void*)inf);
+                processCommandInPetitionQueues(inf);
             }
         }
     }
@@ -4547,6 +4593,20 @@ int main(int argc, char* argv[])
 
     printWelcomeMsg();
 
+
+    int configuredProxyType = ConfigurationManager::getConfigurationValue("proxy_type", -1);
+    auto configuredProxyUrl = ConfigurationManager::getConfigurationSValue("proxy_url");
+
+    auto configuredProxyUsername = ConfigurationManager::getConfigurationSValue("proxy_username");
+    auto configuredProxyPassword = ConfigurationManager::getConfigurationSValue("proxy_password");
+    if (configuredProxyType != -1 && configuredProxyType != MegaProxy::PROXY_AUTO) //AUTO is default, no need to set
+    {
+
+        std::string command("proxy ");
+        command.append(configuredProxyUrl);
+        //TODO: pass username-password
+        processCommandLinePetitionQueues(command);
+    }
     if (!ConfigurationManager::session.empty())
     {
         loginInAtStartup = true;

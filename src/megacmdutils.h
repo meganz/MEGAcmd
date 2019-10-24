@@ -58,6 +58,7 @@ const char * getTransferStateStr(int transferState);
 
 std::string backupSatetStr(int backupstate);
 
+const char * getProxyTypeStr(int proxyType);
 
 /* Files and folders */
 
