@@ -547,6 +547,8 @@ void printCenteredContents(OUTSTREAMTYPE &os, string msj, unsigned int width, bo
     headfoot.append(width, '-');
     unsigned int msjsize = getstringutf8size(msj);
 
+    bool printfooter = false;
+
     if (msj.size())
     {
         string header;
@@ -562,8 +564,11 @@ void printCenteredContents(OUTSTREAMTYPE &os, string msj, unsigned int width, bo
                 msj = msj.substr(possenditle + 1);
             }
         }
-
-        os << (header.size()?header:headfoot) << endl;
+        if (header.size() || encapsulated)
+        {
+            os << (header.size()?header:headfoot) << endl;
+            printfooter = true;
+        }
     }
 
     size_t possepnewline = msj.find("\n");
@@ -612,7 +617,10 @@ void printCenteredContents(OUTSTREAMTYPE &os, string msj, unsigned int width, bo
             }
         }
     }
-    os << headfoot << endl;
+    if (printfooter)
+    {
+        os << headfoot << endl;
+    }
 }
 
 void printCenteredLine(string msj, unsigned int width, bool encapsulated)

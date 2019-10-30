@@ -69,7 +69,7 @@ int ComunicationsManager::get_next_comm_id()
     return 0;
 }
 
-void ComunicationsManager::informStateListeners(string &s, bool keepIfNoListeners)
+bool ComunicationsManager::informStateListeners(string &s)
 {
     s+=(char)0x1F;
 
@@ -86,10 +86,11 @@ void ComunicationsManager::informStateListeners(string &s, bool keepIfNoListener
         }
     }
 
-    if (keepIfNoListeners && !stateListenersPetitions.size())
+    if (!stateListenersPetitions.size())
     {
-        appendMessageInformFirstListener(s);
+        return false;
     }
+    return true;
 }
 
 void ComunicationsManager::informStateListenerByClientId(string &s, int clientID)

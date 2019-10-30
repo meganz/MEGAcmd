@@ -32,6 +32,8 @@
 #include <iomanip>
 #include <string>
 #include <cstring>
+#include <mutex>
+#include <condition_variable>
 #include <set>
 #include <map>
 #include <vector>
@@ -179,6 +181,10 @@ bool requirepromptinstall = true;
 
 bool procesingline = false;
 
+std::mutex promptLogReceivedMutex;
+std::condition_variable promtpLogReceivedCV;
+bool serverTryingToLog = false;
+
 
 static char dynamicprompt[PROMPT_MAX_SIZE];
 
@@ -211,6 +217,9 @@ void statechangehandle(string statestring)
     size_t nextstatedelimitpos = statestring.find(statedelim);
     static bool shown_partial_progress = false;
 
+    unsigned int width = getNumberOfCols(75);
+    if (width > 1 ) width--;
+
     while (nextstatedelimitpos!=string::npos && statestring.size())
     {
         string newstate = statestring.substr(0,nextstatedelimitpos);
@@ -218,7 +227,14 @@ void statechangehandle(string statestring)
         nextstatedelimitpos = statestring.find(statedelim);
         if (newstate.compare(0, strlen("prompt:"), "prompt:") == 0)
         {
+            if (serverTryingToLog)
+            {
+                std::unique_lock<std::mutex> lk(MegaCmdShellCommunications::megaCmdStdoutputing);
+                printCenteredContentsCerr(string(" Server is still trying to log in. Still, some commands are available.\n"
+                             "Type \"help\", to list them.").c_str(), width);
+            }
             changeprompt(newstate.substr(strlen("prompt:")).c_str(),true);
+            promtpLogReceivedCV.notify_one();
         }
         else if (newstate.compare(0, strlen("endtransfer:"), "endtransfer:") == 0)
         {
@@ -248,15 +264,23 @@ void statechangehandle(string statestring)
 #endif
             }
         }
+        else if (newstate.compare(0, strlen("loged:"), "loged:") == 0)
+        {
+            serverTryingToLog = false;
+        }
+        else if (newstate.compare(0, strlen("login:"), "login:") == 0)
+        {
+            serverTryingToLog = true;
+            std::unique_lock<std::mutex> lk(MegaCmdShellCommunications::megaCmdStdoutputing);
+            printCenteredContentsCerr(string("Resuming session ... ").c_str(), width, false);
+        }
         else if (newstate.compare(0, strlen("message:"), "message:") == 0)
         {
-            string contents = newstate.substr(strlen("message:"));
-            unsigned int width = getNumberOfCols(75);
-            if (width > 1 ) width--;
             MegaCmdShellCommunications::megaCmdStdoutputing.lock();
 #ifdef _WIN32
             int oldmode = _setmode(_fileno(stdout), _O_U8TEXT);
 #endif
+            string contents = newstate.substr(strlen("message:"));
             if (contents.find("-----") != 0)
             {
                 if (!procesingline || shown_partial_progress)
@@ -1338,12 +1362,13 @@ void process_line(const char * line)
 
             vector<string> words = getlistOfWords((char *)line);
 
-            string clientWidth = " --client-width=";
+            string clientWidth = "--client-width=";
             clientWidth+= SSTR(getNumberOfCols(80));
 
             words.insert(words.begin()+1, clientWidth);
 
             string scommandtoexec(words[0]);
+            scommandtoexec+=" ";
             scommandtoexec+=clientWidth;
             scommandtoexec+=" ";
 
@@ -1363,15 +1388,13 @@ void process_line(const char * line)
             {
                 if ( words[0] == "exit" || words[0] == "quit")
                 {
-                    if (words.size() == 1)
-                    {
-                        doExit = true;
-                    }
-                    if (words.size() == 1 || words[1]!="--only-shell")
+                    if (find(words.begin(), words.end(), "--only-shell") == words.end())
                     {
                         comms->executeCommand(commandtoexec, readresponse);
                     }
-                    else
+
+                    if (find(words.begin(), words.end(), "--help") == words.end()
+                            && find(words.begin(), words.end(), "--only-server") == words.end() )
                     {
                         doExit = true;
                     }
@@ -1735,10 +1758,19 @@ void readloop()
     readline_fd = fileno(rl_instream);
 
     procesingline = true;
-    comms->registerForStateChanges(statechangehandle);
+    comms->registerForStateChanges(true, statechangehandle);
 
-    //give it a while to communicate the state
-    sleepMilliSeconds(700);
+
+    //now we can relay on having a prompt received if the server is running
+    {
+        std::unique_lock<std::mutex> lk(promptLogReceivedMutex);
+        if (promtpLogReceivedCV.wait_for(lk, std::chrono::seconds(2*RESUME_SESSION_TIMEOUT)) == std::cv_status::timeout)
+        {
+            std::cerr << "Server seems irresponsive" << endl;
+        }
+    }
+
+
     procesingline = false;
 
 #if defined(_WIN32) && defined(USE_PORT_COMMS)
@@ -1746,7 +1778,7 @@ void readloop()
     // in windows we would not be yet connected. we need to manually try to register again.
     if (comms->registerAgainRequired)
     {
-        comms->registerForStateChanges(statechangehandle);
+        comms->registerForStateChanges(true, statechangehandle);
     }
     //give it a while to communicate the state
     sleepMilliSeconds(1);
@@ -1849,7 +1881,7 @@ void readloop()
                 if (comms->registerAgainRequired)
                 {
                     // register again for state changes
-                     comms->registerForStateChanges(statechangehandle);
+                     comms->registerForStateChanges(true, statechangehandle);
                      comms->registerAgainRequired = false;
                 }
 
@@ -1874,7 +1906,7 @@ void readloop()
 {
     time_t lasttimeretrycons = 0;
 
-    comms->registerForStateChanges(statechangehandle);
+    comms->registerForStateChanges(true, statechangehandle);
 
     //give it a while to communicate the state
     sleepMilliSeconds(700);
@@ -1884,7 +1916,7 @@ void readloop()
     // in windows we would not be yet connected. we need to manually try to register again.
     if (comms->registerAgainRequired)
     {
-        comms->registerForStateChanges(statechangehandle);
+        comms->registerForStateChanges(true, statechangehandle);
     }
     //give it a while to communicate the state
     sleepMilliSeconds(1);
@@ -1941,7 +1973,7 @@ void readloop()
                 if (comms->registerAgainRequired)
                 {
                     // register again for state changes
-                    comms->registerForStateChanges(statechangehandle);
+                    comms->registerForStateChanges(true, statechangehandle);
                     comms->registerAgainRequired = false;
                 }
 

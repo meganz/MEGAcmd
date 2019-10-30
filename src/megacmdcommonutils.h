@@ -64,6 +64,67 @@ void utf16ToUtf8(const wchar_t* utf16data, int utf16size, std::string* utf8strin
 
 #define OUTSTREAM COUT
 
+
+/* commands */
+static std::vector<std::string> validGlobalParameters {"v", "help"};
+static std::vector<std::string> localremotefolderpatterncommands {"sync"};
+static std::vector<std::string> remotepatterncommands {"export", "attr"};
+static std::vector<std::string> remotefolderspatterncommands {"cd", "share"};
+
+static std::vector<std::string> multipleremotepatterncommands {"ls", "tree", "mkdir", "rm", "du", "find", "mv", "deleteversions", "cat", "mediainfo"
+#ifdef HAVE_LIBUV
+                                           , "webdav", "ftp"
+#endif
+                                          };
+
+static std::vector<std::string> remoteremotepatterncommands {"cp"};
+
+static std::vector<std::string> remotelocalpatterncommands {"get", "thumbnail", "preview"};
+
+static std::vector<std::string> localfolderpatterncommands {"lcd"};
+
+static std::vector<std::string> emailpatterncommands {"invite", "signup", "ipc", "users"};
+
+static std::vector<std::string> loginInValidCommands { "log", "debug", "speedlimit","help", "logout", "version", "quit",
+                            "clear", "https", "exit", "errorcode", "proxy"
+#if defined(_WIN32) && defined(NO_READLINE)
+                             , "autocomplete", "codepage"
+#elif defined(_WIN32)
+                             , "unicode"
+#endif
+#if defined(_WIN32) || defined(__APPLE__)
+                             , "update"
+#endif
+                           };
+
+static std::vector<std::string> allValidCommands { "login", "signup", "confirm", "session", "mount", "ls", "cd", "log", "debug", "pwd", "lcd", "lpwd", "import", "masterkey",
+                             "put", "get", "attr", "userattr", "mkdir", "rm", "du", "mv", "cp", "sync", "export", "share", "invite", "ipc", "df",
+                             "showpcr", "users", "speedlimit", "killsession", "whoami", "help", "passwd", "reload", "logout", "version", "quit",
+                             "thumbnail", "preview", "find", "completion", "clear", "https", "transfers", "exclude", "exit", "errorcode", "graphics",
+                             "cancel", "confirmcancel", "cat", "tree", "psa", "proxy"
+                             , "mediainfo"
+#ifdef HAVE_LIBUV
+                             , "webdav", "ftp"
+#endif
+#ifdef ENABLE_BACKUPS
+                             , "backup"
+#endif
+                             , "deleteversions"
+#if defined(_WIN32) && defined(NO_READLINE)
+                             , "autocomplete", "codepage"
+#elif defined(_WIN32)
+                             , "unicode"
+#else
+                             , "permissions"
+#endif
+#if defined(_WIN32) || defined(__APPLE__)
+                             , "update"
+#endif
+                           };
+
+
+static const int RESUME_SESSION_TIMEOUT = 10;
+
 /* Files and folders */
 
 //tests if a path is writable  //TODO: move to fsAccess

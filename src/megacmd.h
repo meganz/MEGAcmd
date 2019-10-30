@@ -112,8 +112,35 @@ void changeprompt(const char *newprompt);
 
 void informStateListener(std::string message, int clientID);
 void broadcastMessage(std::string message, bool keepIfNoListeners = false);
+void informStateListeners(std::string s);
 
-void appendMessageInformFirstListener(const std::string &msj);
+void appendGreetingStatusFirstListener(const std::string &msj);
+void removeGreetingStatusFirstListener(const std::string &msj);
+void appendGreetingStatusAllListener(const std::string &msj);
+void removeGreetingStatusAllListener(const std::string &msj);
+
+
+void setloginInAtStartup(bool value);
+bool getloginInAtStartup();
+
+/**
+ * @brief A class to ensure clients are properly informed of login in situations
+ */
+class LoginGuard {
+public:
+    LoginGuard()
+    {
+        appendGreetingStatusAllListener(std::string("login:"));
+        setloginInAtStartup(true);
+    }
+
+    ~LoginGuard()
+    {
+        removeGreetingStatusAllListener(std::string("login:"));
+        informStateListeners("loged:"); //send this even when failed!
+        setloginInAtStartup(false);
+    }
+};
 
 
 mega::MegaApi* getFreeApiFolder();

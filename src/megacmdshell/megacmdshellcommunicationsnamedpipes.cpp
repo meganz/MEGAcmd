@@ -822,7 +822,7 @@ int MegaCmdShellCommunicationsNamedPipes::listenToStateChanges(int receiveNamedP
     return 0;
 }
 
-int MegaCmdShellCommunicationsNamedPipes::registerForStateChanges(void (*statechangehandle)(string))
+int MegaCmdShellCommunicationsNamedPipes::registerForStateChanges(bool interactive, void (*statechangehandle)(string))
 {
     if (statechangehandle == NULL)
     {
@@ -835,7 +835,7 @@ int MegaCmdShellCommunicationsNamedPipes::registerForStateChanges(void (*statech
         return -1;
     }
 
-    wstring wcommand=L"registerstatelistener";
+    wstring wcommand=interactive?L"Xregisterstatelistener":L"registerstatelistener";
 
     DWORD n;
     if (!WriteFile(theNamedPipe,(char *)wcommand.data(),DWORD(wcslen(wcommand.c_str())*sizeof(wchar_t)), &n, NULL))

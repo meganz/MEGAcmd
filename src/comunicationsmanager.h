@@ -94,8 +94,9 @@ public:
     /**
      * @brief Sends an status message (e.g. prompt:who@/new/prompt:) to all registered listeners
      * @param s
+     * @returns if state listeners left
      */
-    void informStateListeners(std::string &s, bool keepIfNoListeners = false);
+    bool informStateListeners(std::string &s);
 
     void informStateListenerByClientId(std::string &s, int clientID);
 

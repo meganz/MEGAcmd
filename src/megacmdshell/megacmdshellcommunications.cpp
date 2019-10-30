@@ -347,7 +347,7 @@ SOCKET MegaCmdShellCommunications::createSocket(int number, bool initializeserve
                     setsid(); //create new session so as not to receive parent's Ctrl+C
 
                     string pathtolog = createAndRetrieveConfigFolder()+"/megacmdserver.log";
-                    OUTSTREAM << "[Initiating server in background. Log: " << pathtolog << "]" << endl;
+                    CERR << "[Initiating server in background. Log: " << pathtolog << "]" << endl; //TODO: try this in windows with non unicode user name?
 
                     dup2(fileno(stdout), fileno(stderr));  //redirects stderr to stdout below this line.
                     freopen(pathtolog.c_str(),"w",stdout);
@@ -893,7 +893,7 @@ int MegaCmdShellCommunications::readconfirmationloop(const char *question, strin
 
 }
 
-int MegaCmdShellCommunications::registerForStateChanges(void (*statechangehandle)(string))
+int MegaCmdShellCommunications::registerForStateChanges(bool interactive, void (*statechangehandle)(string))
 {
     if (statechangehandle == NULL)
     {
@@ -910,10 +910,11 @@ int MegaCmdShellCommunications::registerForStateChanges(void (*statechangehandle
     }
 
 #ifdef _WIN32
-    wstring wcommand=L"registerstatelistener";
+    wstring wcommand=interactive?L"Xregisterstatelistener":L"registerstatelistener";
     int n = send(thesock,(char*)wcommand.data(),int(wcslen(wcommand.c_str())*sizeof(wchar_t)), MSG_NOSIGNAL);
 #else
-    string command="registerstatelistener";
+    string command=interactive?"Xregisterstatelistener":"registerstatelistener";
+
     int n = send(thesock,command.data(),command.size(), MSG_NOSIGNAL);
 #endif
 

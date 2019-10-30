@@ -24,6 +24,9 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <algorithm>
+#include <mutex>
+#include <condition_variable>
 #include <memory.h>
 #include <limits.h>
 
@@ -140,6 +143,10 @@ wstring getWAbsPath(wstring localpath)
 #endif
 
 string clientID; //identifier for a registered state listener
+
+std::mutex promptLogReceivedMutex;
+std::condition_variable promtpLogReceivedCV;
+bool serverTryingToLog = false;
 
 string getAbsPath(string relativePath)
 {
@@ -712,6 +719,9 @@ void statechangehandle(string statestring)
     size_t nextstatedelimitpos = statestring.find(statedelim);
     static bool shown_partial_progress = false;
 
+    unsigned int width = getNumberOfCols(80);
+    if (width > 1 ) width--;
+
     while (nextstatedelimitpos!=string::npos && statestring.size())
     {
         string newstate = statestring.substr(0,nextstatedelimitpos);
@@ -719,7 +729,7 @@ void statechangehandle(string statestring)
         nextstatedelimitpos = statestring.find(statedelim);
         if (newstate.compare(0, strlen("prompt:"), "prompt:") == 0)
         {
-            //ignore prompt state
+            promtpLogReceivedCV.notify_one(); //This is always received after server is first ready
         }
         else if (newstate.compare(0, strlen("endtransfer:"), "endtransfer:") == 0)
         {
@@ -752,11 +762,21 @@ void statechangehandle(string statestring)
 #endif
             }
         }
+        else if (newstate.compare(0, strlen("loged:"), "loged:") == 0)
+        {
+            serverTryingToLog = false;
+            promtpLogReceivedCV.notify_one();
+        }
+        else if (newstate.compare(0, strlen("login:"), "login:") == 0)
+        {
+            serverTryingToLog = true;
+            std::unique_lock<std::mutex> lk(MegaCmdShellCommunications::megaCmdStdoutputing);
+            printCenteredContentsCerr(string("Resuming session ... ").c_str(), width, false);
+        }
         else if (newstate.compare(0, strlen("message:"), "message:") == 0)
         {
             string contents = newstate.substr(strlen("message:"));
-            unsigned int width = getNumberOfCols(80);
-            if (width > 1 ) width--;
+
             MegaCmdShellCommunications::megaCmdStdoutputing.lock();
             if (shown_partial_progress)
             {
@@ -884,7 +904,7 @@ int main(int argc, char* argv[])
     MegaCmdShellCommunications *comms = new MegaCmdShellCommunications();
 #endif
 
-    comms->registerForStateChanges(statechangehandle);
+    comms->registerForStateChanges(false, statechangehandle);
 
 #ifdef _WIN32
     int wargc;
@@ -893,6 +913,21 @@ int main(int argc, char* argv[])
     int outcode = comms->executeCommandW(wcommand, readresponse, COUT, false);
 #else
     string parsedArgs = parseArgs(argc,argv);
+
+    bool isInloginInValidCommands = false;
+    if (argc>1)
+    {
+        isInloginInValidCommands = std::find(loginInValidCommands.begin(), loginInValidCommands.end(), string(argv[1])) != loginInValidCommands.end();
+    }
+
+    //now we can relay on having a prompt received if the server is running
+    //after that first prompt, we will keep on waiting for server to finish logging in (resuming session)
+    //if the requested command is not allowed. For other commands (e.g. proxy), we let the execution continue
+    do {
+        std::unique_lock<std::mutex> lk(promptLogReceivedMutex);
+        promtpLogReceivedCV.wait(lk);
+    } while (serverTryingToLog && !isInloginInValidCommands);
+
     int outcode = comms->executeCommand(parsedArgs, readresponse, COUT, false);
 #endif
 

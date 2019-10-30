@@ -2281,6 +2281,8 @@ bool MegaCmdExecuter::actUponFetchNodes(MegaApi *api, SynchronousRequestListener
         {
             delete cwdNode;
         }
+
+        informStateListeners("loged:"); // tell the clients login ended, before providing them the first prompt
         updateprompt(api, cwd);
         LOG_debug << " Fetch nodes correctly";
         return true;
@@ -5269,7 +5271,7 @@ bool MegaCmdExecuter::setProxy(const std::string &url, const std::string &userna
             OUTSTREAM << "Proxy set: " << (mpx.getProxyURL()?mpx.getProxyURL():"")
                       << " type = " << getProxyTypeStr(mpx.getProxyType()) << endl;
 
-            broadcastMessage(string("Proxy set: ").append((mpx.getProxyURL()?mpx.getProxyURL():""))
+            broadcastMessage(string("Using proxy: ").append((mpx.getProxyURL()?mpx.getProxyURL():""))
                              .append(" type = ").append(getProxyTypeStr(mpx.getProxyType())), true);
         }
     }
@@ -7938,6 +7940,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
     }
     else if (words[0] == "login")
     {
+        LoginGuard loginGuard;
         int clientID = getintOption(cloptions, "clientID", -1);
 
         if (!api->isLoggedIn())
