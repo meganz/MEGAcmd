@@ -4,9 +4,13 @@ FMEDIAINFO := $(shell dpkg -l | grep mediainfo >/dev/null && echo "-i" || echo "
 WMEDIAINFO := $(shell dpkg -l | grep mediainfo >/dev/null && echo " " || echo "--with-libmediainfo=$(CURDIR)/deps --with-libzen=$(CURDIR)/deps")
 FULLREQS := $(shell cat /etc/issue | grep "Ubuntu 12.04" >/dev/null && echo "" || echo '-DREQUIRE_HAVE_FFMPEG -DREQUIRE_HAVE_LIBUV -DREQUIRE_USE_MEDIAINFO -DREQUIRE_USE_PCRE')
 
+MEGA_BUILD_ID := $(shell cat MEGA_BUILD_ID || echo "1")
 
 build: build-stamp
 build-stamp:
+	sed -i -E "s/(^#define MEGACMD_BUILD_ID )[0-9]*/\1$(MEGA_BUILD_ID)/g" src/megacmdversion.h
+	sed -i -E "0,/megacmd \(([0-9.]*)\)/s//megacmd \(\1+$(MEGA_BUILD_ID).1)/" debian.changelog
+
 	./autogen.sh
 
 	#build dependencies into folder deps

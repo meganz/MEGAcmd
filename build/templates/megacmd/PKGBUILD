@@ -19,7 +19,7 @@
 # Maintainer: Pablo Martin <pm@mega.nz>
 pkgname=megacmd
 pkgver=megacmd_VERSION
-pkgrel=1
+pkgrel=`cat MEGA_BUILD_ID || echo "1"`
 epoch=
 pkgdesc="MEGA Command Line Interactive and Scriptable Application"
 arch=('i686' 'x86_64')
@@ -44,6 +44,7 @@ validpgpkeys=()
 
 prepare() {
 	cd "$pkgname-$pkgver"
+	sed -i -E "s/(^#define MEGACMD_BUILD_ID )[0-9]*/\1${pkgrel}/g" src/megacmdversion.h
 }
 
 build() {
