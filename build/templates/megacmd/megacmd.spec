@@ -128,8 +128,6 @@ It features 2 modes of interaction:
 mega_build_id=`echo %{release} | cut -d'.' -f 1`
 sed -i -E "s/(^#define MEGACMD_BUILD_ID )[0-9]*/\1${mega_build_id}/g" src/megacmdversion.h
 
-#define MEGACMD_BUILD_ID
-
 %build
 
 # Fedora uses system Crypto++ header files
