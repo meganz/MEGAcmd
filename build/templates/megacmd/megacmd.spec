@@ -1,6 +1,6 @@
 Name:		megacmd
 Version:	megacmd_VERSION
-Release:	1%{?dist}
+Release:	%(cat MEGA_BUILD_ID || echo "1").1
 Summary:	MEGA Command Line Interactive and Scriptable Application
 License:	https://github.com/meganz/megacmd/blob/master/LICENSE
 Group:		Applications/Others
@@ -124,6 +124,9 @@ It features 2 modes of interaction:
 
 %prep
 %setup -q
+
+mega_build_id=`echo %{release} | cut -d'.' -f 1`
+sed -i -E "s/(^#define MEGACMD_BUILD_ID )[0-9]*/\1${mega_build_id}/g" src/megacmdversion.h
 
 %build
 

@@ -9606,7 +9606,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
     }
     else if (words[0] == "version")
     {
-        OUTSTREAM << "MEGAcmd version: " << MEGACMD_MAJOR_VERSION << "." << MEGACMD_MINOR_VERSION << "." << MEGACMD_MICRO_VERSION << ": code " << MEGACMD_CODE_VERSION << endl;
+        OUTSTREAM << "MEGAcmd version: " << MEGACMD_MAJOR_VERSION << "." << MEGACMD_MINOR_VERSION << "." << MEGACMD_MICRO_VERSION << "." << MEGACMD_BUILD_ID << ": code " << MEGACMD_CODE_VERSION << endl;
 
         MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
         api->getLastAvailableVersion("BdARkQSQ",megaCmdListener);
