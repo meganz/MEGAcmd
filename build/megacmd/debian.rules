@@ -9,7 +9,7 @@ MEGA_BUILD_ID := $(shell cat MEGA_BUILD_ID || echo "1")
 build: build-stamp
 build-stamp:
 	sed -i -E "s/(^#define MEGACMD_BUILD_ID )[0-9]*/\1$(MEGA_BUILD_ID)/g" src/megacmdversion.h
-	sed -i -E "0,/megacmd \(([0-9.]*)[^\)]*\)/s//megacmd \(\1+$(MEGA_BUILD_ID).1)/" debian.changelog || :
+	sed -i -E "0,/megacmd \(([0-9.]*)[^\)]*\)/s//megacmd \(\1-$(MEGA_BUILD_ID).1)/" debian.changelog || :
 
 	./autogen.sh
 
