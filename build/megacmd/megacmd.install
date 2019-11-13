@@ -3,6 +3,9 @@ post_install() {
 #remove repo if existing
 sed -n '1h;1!H;${g;s/###REPO for MEGA###\n.*###END REPO for MEGA###//;p;}' -i /etc/pacman.conf 
 
+lastC=`tail -c1 /etc/pacman.conf || echo -n "x"`
+if [ "$lastC" != "" ]; then echo >> /etc/pacman.conf; fi
+
 #include repo
 cat >> /etc/pacman.conf <<-EOF
 ###REPO for MEGA###
