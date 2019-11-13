@@ -4,6 +4,10 @@ post_install() {
 sed -n '1h;1!H;${g;s/###REPO for MEGA###\n.*###END REPO for MEGA###//;p;}' -i /etc/pacman.conf 
 
 #include repo
+#Add a new line if required
+lastC=`tail -c1 /etc/pacman.conf || echo -n "x"`
+if [ "$lastC" != "" ]; then echo >> /etc/pacman.conf; fi
+
 cat >> /etc/pacman.conf <<-EOF
 ###REPO for MEGA###
 [DEB_Arch_Extra]
