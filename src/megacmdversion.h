@@ -27,7 +27,7 @@ const char * const megacmdchangelog =
         "support for files/folders within public links""\n"
         "minor fix for ls --tree autocompletion""\n"
         "discard flags/options after \"--\"""\n"
-        "--show-handles option added in ls & find"
+        "--show-handles option added in ls & find""\n"
         "files/folders can be addressed using their handle H:XXXXXXX""\n"
         "support new links format""\n"
         "fixes in reported used storage""\n"
