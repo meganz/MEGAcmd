@@ -5,7 +5,7 @@
 #define MEGACMD_MAJOR_VERSION 1
 #endif
 #ifndef MEGACMD_MINOR_VERSION
-#define MEGACMD_MINOR_VERSION 1
+#define MEGACMD_MINOR_VERSION 2
 #endif
 #ifndef MEGACMD_MICRO_VERSION
 #define MEGACMD_MICRO_VERSION 0
@@ -21,26 +21,28 @@
 namespace megacmd {
 
 const char * const megacmdchangelog =
-        "added \"cat\" command to read text files (and potentially stream any file)""\n"
-        "added update capabilities for Windows & MacOS (automatic updates are enabled by default)""\n"
-        "added \"media-info\" command to show some information of multimedia files""\n"
-        "added \"df\" command to show storage info""\n"
-        "added tree-like listing command: \"tree\" or \"ls --tree\"""\n"
-        "shown progress in non-interactive mode""\n"
-        "improvements in progress and transfers results information""\n"
-        "width output adjustments in non-interactive mode""\n"
-        "output streamed partially from server to clients""\n"
-        "added --time-format option to commands displaying times, to allow other formats""\n"
-        "2FA login auth code can be passed as parameter now""\n"
-        "transfer now differentiate backup transfers""\n"
-        "backup command completion for local paths now only looks for folders""\n"
-        "backup transfers are no longer cached (no reason to: backups are considered failed in such case)""\n"
-        "backup fix some halts and output improvements""\n"
-        "added Public Service Announcements (PSA) support""\n"
-        "killsession now allows multiple parameters""\n"
-        "fix \"clear\" in some linuxes""\n"
-        "add support for spaces in password prompts""\n"
-        "many more minor fixes & adjustments"
+        "\"put\" now supports wildcard expressions""\n"
+        "support setting a proxy with \"proxy\" command""\n"
+        "add support for addressing inshares with //from/""\n"
+        "support for files/folders within public links""\n"
+        "minor fix for ls --tree autocompletion""\n"
+        "discard flags/options after \"--\"""\n"
+        "--show-handles option added in ls & find"
+        "files/folders can be addressed using their handle H:XXXXXXX""\n"
+        "support new links format""\n"
+        "fixes in reported used storage""\n"
+        "fix crash in find command""\n"
+        "do not consider inshares for version storage used""\n"
+        "win installer: do not ask for elevate permissions when running in silent mode""\n"
+        "improved columned outputs to maximize screen use (syncs & transfers)""\n"
+        "improve responsiveness at startup in interactive mode, to avoid hangs when session does not resume"
+        "Added mode while logging in that allows certain actions (like setting a proxy)""\n"
+        "non-interactive mode will not wait for commands that can be addressed before the session is resumed""\n"
+
+        "speedup cancellation/startup of a huge number of transfers""\n"
+        "cloud raid support""\n"
+        "speedup improvements in cache and other CPU bottlenecks""\n"
+        "many more fixes & adjustments"
         ;
 
 }//end namespace
