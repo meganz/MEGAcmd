@@ -1,4 +1,4 @@
 #!/bin/bash
-# kill running megacmd instance
+# kill running megacmd instance (when removing)
 [ "$1" == "remove" ] && killall mega-cmd 2> /dev/null || true
 [ "$1" == "remove" ] && killall mega-cmd-server 2> /dev/null || true

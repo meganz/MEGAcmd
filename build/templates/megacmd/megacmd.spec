@@ -359,7 +359,7 @@ sleep 2
 
 
 %posttrans
-# to restore dormant MEGAsync upon updates
+# to restore dormant MEGAcmd upon updates
 killall -s SIGUSR2 mega-cmd-server 2> /dev/null || true
 
 
