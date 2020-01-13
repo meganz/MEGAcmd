@@ -36,6 +36,9 @@
 #include <string>
 #include <deque>
 
+#ifdef __linux__
+#include <condition_variable>
+#endif
 #ifndef _WIN32
 #include "signal.h"
 #include <sys/wait.h>
@@ -3183,7 +3186,7 @@ bool restartServer()
         argv[i++]="--wait-for";
         argv[i++]=(char*)SSTR(childid).c_str();
         argv[i++]=NULL;
-        LOG_debug << "Restarting the server : <" << argv[0] << ">";
+        cerr << "Restarting the server : <" << argv[0] << ">";
 
         execv(argv[0],argv);
     }
@@ -3297,6 +3300,16 @@ static bool process_line(char* l)
                 || ( (!strncmp(l, "quit ", strlen("quit ")) || !strncmp(l, "exit ", strlen("exit ")) ) && !strstr(l,"--help") )  )
             {
                 //                store_line(NULL);
+
+                if (strstr(l,"--wait-for-ongoing-petitions"))
+                {
+                    int attempts=20; //give a while for ongoing petitions to end before killing the server
+                    while(petitionThreads.size() > 1 && attempts--)
+                    {
+                        sleepSeconds(20-attempts);
+                    }
+                }
+
                 return true; // exit
             }
 
@@ -3333,7 +3346,7 @@ static bool process_line(char* l)
                 {
                     OUTSTREAM << " " << endl;
 
-                    int attempts=20; //give a while for ingoin petitions to end before killing the server
+                    int attempts=20; //give a while for ongoing petitions to end before killing the server
                     while(petitionThreads.size() > 1 && attempts--)
                     {
                         sleepSeconds(20-attempts);
@@ -3477,8 +3490,7 @@ void delete_finished_threads()
 }
 
 
-
-void finalize()
+void finalize(bool doNotUnlockExecution)
 {
     static bool alreadyfinalized = false;
     if (alreadyfinalized)
@@ -3518,9 +3530,16 @@ void finalize()
 
     LOG_debug << "resources have been cleaned ...";
     delete loggerCMD;
-    ConfigurationManager::unlockExecution();
+    if (!doNotUnlockExecution)
+    {
+        ConfigurationManager::unlockExecution();
+    }
     ConfigurationManager::unloadConfiguration();
 
+}
+void finalize()
+{
+    finalize(false);
 }
 
 int currentclientID = 1;
@@ -4402,8 +4421,51 @@ void uninstall()
 
 using namespace megacmd;
 
+
+#ifdef __linux__
+bool waitForRestartSignal = false;
+std::mutex mtxcondvar;
+std::condition_variable condVarRestart;
+string appToWaitForSignal;
+
+void LinuxSignalHandler(int signum)
+{
+    if (signum == SIGUSR2)
+    {
+        std::unique_lock<std::mutex> lock(mtxcondvar);
+        condVarRestart.notify_one();
+    }
+    else if (signum == SIGUSR1)
+    {
+        if (!waitForRestartSignal)
+        {
+            waitForRestartSignal = true;
+            cerr << "Preparing MEGAcmd to restart: " << endl;
+            processCommandLinePetitionQueues("quit --wait-for-ongoing-petitions");
+        }
+    }
+}
+
+#endif
+
+
+
 int main(int argc, char* argv[])
 {
+#ifdef __linux__
+    // Ensure interesting signals are unblocked.
+    sigset_t signalstounblock;
+    sigemptyset (&signalstounblock);
+    sigaddset(&signalstounblock, SIGUSR1);
+    sigaddset(&signalstounblock, SIGUSR2);
+    sigprocmask(SIG_UNBLOCK, &signalstounblock, NULL);
+
+    if (signal(SIGUSR1, LinuxSignalHandler)) //TODO: do this after startup?
+    {
+        cerr << " Failed to register signal SIGUSR1 " << endl;
+    }
+
+#endif
     string localecode = getLocaleCode();
 #ifdef _WIN32
     // Set Environment's default locale
@@ -4657,6 +4719,26 @@ int main(int argc, char* argv[])
     }
 
     megacmd::megacmd();
-    finalize();
+    finalize(waitForRestartSignal);
+
+    if (waitForRestartSignal)
+    {
+        std::unique_lock<std::mutex> lock(mtxcondvar);
+        if (signal(SIGUSR2, LinuxSignalHandler))
+        {
+            cerr << " Failed to register signal SIGUSR2 " << endl;
+        }
+
+        cerr << "Waiting for signal to restart MEGAcmd ... "<< endl;
+        if (condVarRestart.wait_for(lock, std::chrono::minutes(30)) == std::cv_status::no_timeout )
+        {
+            ConfigurationManager::unlockExecution();
+            restartServer();
+        }
+        else
+        {
+            ConfigurationManager::unlockExecution();
+        }
+    }
 }
 
