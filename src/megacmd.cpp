@@ -3520,6 +3520,7 @@ void processCommandLinePetitionQueues(std::string what);
 bool waitForRestartSignal = false;
 std::mutex mtxcondvar;
 std::condition_variable condVarRestart;
+bool condVarRestartBool = false;
 string appToWaitForSignal;
 
 void LinuxSignalHandler(int signum)
@@ -3528,6 +3529,7 @@ void LinuxSignalHandler(int signum)
     {
         std::unique_lock<std::mutex> lock(mtxcondvar);
         condVarRestart.notify_one();
+        condVarRestartBool = true;
     }
     else if (signum == SIGUSR1)
     {
@@ -3582,20 +3584,9 @@ void finalize(bool waitForRestartSignal)
 #ifdef __linux__
     if (waitForRestartSignal)
     {
-        // Unblock SIGUSR2
-        sigset_t signalstoblock;
-        sigemptyset (&signalstoblock);
-        sigaddset(&signalstoblock, SIGUSR2);
-        sigprocmask(SIG_UNBLOCK, &signalstoblock, NULL);
-
-        if (signal(SIGUSR2, LinuxSignalHandler))
-        {
-            LOG_debug << " Failed to register signal SIGUSR2 ";
-        }
-
         LOG_debug << "Waiting for signal to restart MEGAcmd ... ";
         std::unique_lock<std::mutex> lock(mtxcondvar);
-        if (condVarRestart.wait_for(lock, std::chrono::minutes(30)) == std::cv_status::no_timeout )
+        if (condVarRestartBool || condVarRestart.wait_for(lock, std::chrono::minutes(30)) == std::cv_status::no_timeout )
         {
             restartServer();
         }
@@ -4503,18 +4494,17 @@ int main(int argc, char* argv[])
     sigset_t signalstounblock;
     sigemptyset (&signalstounblock);
     sigaddset(&signalstounblock, SIGUSR1);
+    sigaddset(&signalstounblock, SIGUSR2);
     sigprocmask(SIG_UNBLOCK, &signalstounblock, NULL);
 
     if (signal(SIGUSR1, LinuxSignalHandler)) //TODO: do this after startup?
     {
         cerr << " Failed to register signal SIGUSR1 " << endl;
     }
-
-    // Block SIGUSR2 for normal execution: we don't want it to kill the process, in case there's a rogue update going on.
-    sigset_t signalstoblock;
-    sigemptyset (&signalstoblock);
-    sigaddset(&signalstoblock, SIGUSR2);
-    sigprocmask(SIG_BLOCK, &signalstoblock, NULL);
+    if (signal(SIGUSR2, LinuxSignalHandler))
+    {
+        LOG_debug << " Failed to register signal SIGUSR2 ";
+    }
 #endif
     string localecode = getLocaleCode();
 #ifdef _WIN32

@@ -348,7 +348,6 @@ sysctl -p /etc/sysctl.d/100-megacmd-inotify-limit.conf
 
 %preun
 [ "$1" == "1" ] && killall -s SIGUSR1 mega-cmd-server 2> /dev/null || true
-sleep 2
 
 
 %postun
