@@ -162,6 +162,8 @@ int mcmdMainArgc;
 
 void printWelcomeMsg();
 
+void delete_finished_threads();
+
 void appendGreetingStatusFirstListener(const std::string &msj)
 {
     std::lock_guard<std::mutex> g(greetingsmsgsMutex);
@@ -3177,21 +3179,39 @@ bool restartServer()
     if ( childid ) //parent
     {
         char **argv = new char*[mcmdMainArgc+3];
-        int i = 0;
+        int i = 0, j = 0;
+
+#ifdef __linux__
+        string executable = mcmdMainArgv[0];
+        if (executable.find("/") != 0)
+        {
+            executable.insert(0, getCurrentExecPath()+"/");
+        }
+        argv[0]=(char *)executable.c_str();
+        i++;
+        j++;
+#endif
+
         for (;i < mcmdMainArgc; i++)
         {
-            argv[i]=mcmdMainArgv[i];
+            if ( (i+1) < mcmdMainArgc && !strcmp(mcmdMainArgv[i],"--wait-for"))
+            {
+                i+=2;
+            }
+            else
+            {
+                argv[j++]=mcmdMainArgv[i];
+            }
         }
 
-        argv[i++]="--wait-for";
-        argv[i++]=(char*)SSTR(childid).c_str();
-        argv[i++]=NULL;
-        cerr << "Restarting the server : <" << argv[0] << ">";
+        argv[j++]="--wait-for";
+        argv[j++]=(char*)SSTR(childid).c_str();
+        argv[j++]=NULL;
 
+        LOG_debug << "Restarting the server : <" << argv[0] << ">";
         execv(argv[0],argv);
     }
 #endif
-
 
     LOG_debug << "Server restarted, indicating the shell to restart also";
     setCurrentOutCode(MCMD_REQRESTART);
@@ -3304,9 +3324,13 @@ static bool process_line(char* l)
                 if (strstr(l,"--wait-for-ongoing-petitions"))
                 {
                     int attempts=20; //give a while for ongoing petitions to end before killing the server
+                    delete_finished_threads();
+
                     while(petitionThreads.size() > 1 && attempts--)
                     {
+                        LOG_debug << "giving a little longer for ongoing petitions: " << petitionThreads.size();
                         sleepSeconds(20-attempts);
+                        delete_finished_threads();
                     }
                 }
 
@@ -3489,8 +3513,36 @@ void delete_finished_threads()
     mutexEndedPetitionThreads.unlock();
 }
 
+void processCommandInPetitionQueues(CmdPetition *inf);
+void processCommandLinePetitionQueues(std::string what);
 
-void finalize(bool doNotUnlockExecution)
+#ifdef __linux__
+bool waitForRestartSignal = false;
+std::mutex mtxcondvar;
+std::condition_variable condVarRestart;
+string appToWaitForSignal;
+
+void LinuxSignalHandler(int signum)
+{
+    if (signum == SIGUSR2)
+    {
+        std::unique_lock<std::mutex> lock(mtxcondvar);
+        condVarRestart.notify_one();
+    }
+    else if (signum == SIGUSR1)
+    {
+        if (!waitForRestartSignal)
+        {
+            waitForRestartSignal = true;
+            LOG_debug << "Preparing MEGAcmd to restart: ";
+            stopcheckingforUpdaters = true;
+            doExit = true;
+        }
+    }
+}
+#endif
+
+void finalize(bool waitForRestartSignal)
 {
     static bool alreadyfinalized = false;
     if (alreadyfinalized)
@@ -3498,7 +3550,6 @@ void finalize(bool doNotUnlockExecution)
     alreadyfinalized = true;
     LOG_info << "closing application ...";
     delete_finished_threads();
-    delete cm;
     if (!consoleFailed)
     {
         delete console;
@@ -3528,12 +3579,36 @@ void finalize(bool doNotUnlockExecution)
     delete megaCmdGlobalListener;
     delete cmdexecuter;
 
+#ifdef __linux__
+    if (waitForRestartSignal)
+    {
+        // Unblock SIGUSR2
+        sigset_t signalstoblock;
+        sigemptyset (&signalstoblock);
+        sigaddset(&signalstoblock, SIGUSR2);
+        sigprocmask(SIG_UNBLOCK, &signalstoblock, NULL);
+
+        if (signal(SIGUSR2, LinuxSignalHandler))
+        {
+            LOG_debug << " Failed to register signal SIGUSR2 ";
+        }
+
+        LOG_debug << "Waiting for signal to restart MEGAcmd ... ";
+        std::unique_lock<std::mutex> lock(mtxcondvar);
+        if (condVarRestart.wait_for(lock, std::chrono::minutes(30)) == std::cv_status::no_timeout )
+        {
+            restartServer();
+        }
+        else
+        {
+            LOG_err << "Former server still alive after waiting. Not restarted.";
+        }
+    }
+#endif
+    delete cm; //this needs to go after restartServer();
     LOG_debug << "resources have been cleaned ...";
     delete loggerCMD;
-    if (!doNotUnlockExecution)
-    {
-        ConfigurationManager::unlockExecution();
-    }
+    ConfigurationManager::unlockExecution();
     ConfigurationManager::unloadConfiguration();
 
 }
@@ -4421,35 +4496,6 @@ void uninstall()
 
 using namespace megacmd;
 
-
-#ifdef __linux__
-bool waitForRestartSignal = false;
-std::mutex mtxcondvar;
-std::condition_variable condVarRestart;
-string appToWaitForSignal;
-
-void LinuxSignalHandler(int signum)
-{
-    if (signum == SIGUSR2)
-    {
-        std::unique_lock<std::mutex> lock(mtxcondvar);
-        condVarRestart.notify_one();
-    }
-    else if (signum == SIGUSR1)
-    {
-        if (!waitForRestartSignal)
-        {
-            waitForRestartSignal = true;
-            cerr << "Preparing MEGAcmd to restart: " << endl;
-            processCommandLinePetitionQueues("quit --wait-for-ongoing-petitions");
-        }
-    }
-}
-
-#endif
-
-
-
 int main(int argc, char* argv[])
 {
 #ifdef __linux__
@@ -4457,7 +4503,6 @@ int main(int argc, char* argv[])
     sigset_t signalstounblock;
     sigemptyset (&signalstounblock);
     sigaddset(&signalstounblock, SIGUSR1);
-    sigaddset(&signalstounblock, SIGUSR2);
     sigprocmask(SIG_UNBLOCK, &signalstounblock, NULL);
 
     if (signal(SIGUSR1, LinuxSignalHandler)) //TODO: do this after startup?
@@ -4465,6 +4510,11 @@ int main(int argc, char* argv[])
         cerr << " Failed to register signal SIGUSR1 " << endl;
     }
 
+    // Block SIGUSR2 for normal execution: we don't want it to kill the process, in case there's a rogue update going on.
+    sigset_t signalstoblock;
+    sigemptyset (&signalstoblock);
+    sigaddset(&signalstoblock, SIGUSR2);
+    sigprocmask(SIG_BLOCK, &signalstoblock, NULL);
 #endif
     string localecode = getLocaleCode();
 #ifdef _WIN32
@@ -4537,9 +4587,9 @@ int main(int argc, char* argv[])
 
         pid_t processId = atoi(shandletowait.c_str());
 
-        cout << "Waiting for former server to end... " << endl;
         while (is_pid_running(processId))
         {
+            cerr << "Waiting for former server to end:  " << processId << endl;
             sleep(1);
         }
 #endif
@@ -4720,25 +4770,5 @@ int main(int argc, char* argv[])
 
     megacmd::megacmd();
     finalize(waitForRestartSignal);
-
-    if (waitForRestartSignal)
-    {
-        std::unique_lock<std::mutex> lock(mtxcondvar);
-        if (signal(SIGUSR2, LinuxSignalHandler))
-        {
-            cerr << " Failed to register signal SIGUSR2 " << endl;
-        }
-
-        cerr << "Waiting for signal to restart MEGAcmd ... "<< endl;
-        if (condVarRestart.wait_for(lock, std::chrono::minutes(30)) == std::cv_status::no_timeout )
-        {
-            ConfigurationManager::unlockExecution();
-            restartServer();
-        }
-        else
-        {
-            ConfigurationManager::unlockExecution();
-        }
-    }
 }
 

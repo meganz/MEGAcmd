@@ -175,29 +175,6 @@ bool is_pid_running(pid_t pid) {
 }
 #endif
 
-#ifdef __linux__
-std::string getCurrentExecPath()
-{
-    std::string path = ".";
-    pid_t pid = getpid();
-    char buf[20] = {0};
-    sprintf(buf,"%d",pid);
-    std::string _link = "/proc/";
-    _link.append( buf );
-    _link.append( "/exe");
-    char proc[PATH_MAX];
-    int ch = readlink(_link.c_str(),proc,PATH_MAX);
-    if (ch != -1) {
-        proc[ch] = 0;
-        path = proc;
-        std::string::size_type t = path.find_last_of("/");
-        path = path.substr(0,t);
-    }
-
-    return path;
-}
-#endif
-
 SOCKET MegaCmdShellCommunications::createSocket(int number, bool initializeserver, bool net)
 {
     if (net)
@@ -207,6 +184,10 @@ SOCKET MegaCmdShellCommunications::createSocket(int number, bool initializeserve
         {
             cerr << "ERROR opening socket: " << ERRNO << endl;
             return INVALID_SOCKET;
+        }
+        if (fcntl(thesock, F_SETFD, FD_CLOEXEC) == -1)
+        {
+            cerr << "ERROR setting CLOEXEC to socket: " << errno << endl;
         }
         int portno=MEGACMDINITIALPORTNUMBER+number;
 
@@ -316,6 +297,10 @@ SOCKET MegaCmdShellCommunications::createSocket(int number, bool initializeserve
             cerr << "ERROR opening socket: " << ERRNO << endl;
             return INVALID_SOCKET;
         }
+        if (fcntl(thesock, F_SETFD, FD_CLOEXEC) == -1)
+        {
+            cerr << "ERROR setting CLOEXEC to socket: " << errno << endl;
+        }
 
         bzero(socket_path, sizeof( socket_path ) * sizeof( *socket_path ));
         if (number)
@@ -374,7 +359,10 @@ SOCKET MegaCmdShellCommunications::createSocket(int number, bool initializeserve
         #endif
     #endif
 #endif
-                    char * args[] = {NULL};
+
+                    char **args = new char*[2];
+                    args[0]=(char *)executable;
+                    args[1] = NULL;
 
                     int ret = execvp(executable,args);
 
@@ -383,6 +371,7 @@ SOCKET MegaCmdShellCommunications::createSocket(int number, bool initializeserve
                         cerr << "Couln't initiate MEGAcmd server: executable not found: " << executable << endl;
 #ifdef NDEBUG
                         cerr << "Trying to use alternative executable: " << executable2 << endl;
+                        args[0]=(char *)executable2;
                         ret = execvp(executable2,args);
                         if (ret && errno == 2 )
                         {

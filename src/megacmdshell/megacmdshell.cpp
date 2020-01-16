@@ -2249,6 +2249,14 @@ int main(int argc, char* argv[])
             COUT << "Unable to execute: " << szPathExec << " errno = : " << ERRNO << endl;
             sleepSeconds(5);
         }
+#elif defined(__linux__)
+        system("reset -I");
+        string executable = argv[0];
+        if (executable.find("/") != 0)
+        {
+            executable.insert(0, getCurrentExecPath()+"/");
+        }
+        execv(executable.c_str(), argv);
 #else
         system("reset -I");
         execv(argv[0], argv);
