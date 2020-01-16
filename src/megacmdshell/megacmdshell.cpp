@@ -183,6 +183,7 @@ bool procesingline = false;
 
 std::mutex promptLogReceivedMutex;
 std::condition_variable promtpLogReceivedCV;
+bool promtpLogReceivedBool = false;
 bool serverTryingToLog = false;
 
 
@@ -234,7 +235,10 @@ void statechangehandle(string statestring)
                              "Type \"help\", to list them.").c_str(), width);
             }
             changeprompt(newstate.substr(strlen("prompt:")).c_str(),true);
+
+            std::unique_lock<std::mutex> lk(promptLogReceivedMutex);
             promtpLogReceivedCV.notify_one();
+            promtpLogReceivedBool = true;
         }
         else if (newstate.compare(0, strlen("endtransfer:"), "endtransfer:") == 0)
         {
@@ -1764,9 +1768,12 @@ void readloop()
     //now we can relay on having a prompt received if the server is running
     {
         std::unique_lock<std::mutex> lk(promptLogReceivedMutex);
-        if (promtpLogReceivedCV.wait_for(lk, std::chrono::seconds(2*RESUME_SESSION_TIMEOUT)) == std::cv_status::timeout)
+        if (promtpLogReceivedBool)
         {
-            std::cerr << "Server seems irresponsive" << endl;
+            if (promtpLogReceivedCV.wait_for(lk, std::chrono::seconds(2*RESUME_SESSION_TIMEOUT)) == std::cv_status::timeout)
+            {
+                std::cerr << "Server seems irresponsive" << endl;
+            }
         }
     }
 

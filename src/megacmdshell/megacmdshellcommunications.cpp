@@ -882,7 +882,7 @@ int MegaCmdShellCommunications::readconfirmationloop(const char *question, strin
 
 }
 
-int MegaCmdShellCommunications::registerForStateChanges(bool interactive, void (*statechangehandle)(string))
+int MegaCmdShellCommunications::registerForStateChanges(bool interactive, void (*statechangehandle)(string), bool initiateServer)
 {
     if (statechangehandle == NULL)
     {
@@ -890,7 +890,8 @@ int MegaCmdShellCommunications::registerForStateChanges(bool interactive, void (
         registerAgainRequired = false;
         return 0; //Do nth
     }
-    SOCKET thesock = createSocket();
+    SOCKET thesock = createSocket(0, initiateServer);
+
     if (thesock == INVALID_SOCKET)
     {
         cerr << "Failed to create socket for registering for state changes" << endl;

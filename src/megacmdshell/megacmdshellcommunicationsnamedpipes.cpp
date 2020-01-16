@@ -822,14 +822,14 @@ int MegaCmdShellCommunicationsNamedPipes::listenToStateChanges(int receiveNamedP
     return 0;
 }
 
-int MegaCmdShellCommunicationsNamedPipes::registerForStateChanges(bool interactive, void (*statechangehandle)(string))
+int MegaCmdShellCommunicationsNamedPipes::registerForStateChanges(bool interactive, void (*statechangehandle)(string), bool initiateServer)
 {
     if (statechangehandle == NULL)
     {
         registerAgainRequired = false;
         return 0; //Do nth
     }
-    HANDLE theNamedPipe = createNamedPipe();
+    HANDLE theNamedPipe = createNamedPipe(0, initiateServer);
     if (!namedPipeValid(theNamedPipe))
     {
         return -1;

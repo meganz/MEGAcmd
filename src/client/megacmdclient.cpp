@@ -146,6 +146,7 @@ string clientID; //identifier for a registered state listener
 
 std::mutex promptLogReceivedMutex;
 std::condition_variable promtpLogReceivedCV;
+bool promtpLogReceivedBool = false;
 bool serverTryingToLog = false;
 
 string getAbsPath(string relativePath)
@@ -729,7 +730,9 @@ void statechangehandle(string statestring)
         nextstatedelimitpos = statestring.find(statedelim);
         if (newstate.compare(0, strlen("prompt:"), "prompt:") == 0)
         {
+            std::unique_lock<std::mutex> lk(promptLogReceivedMutex);
             promtpLogReceivedCV.notify_one(); //This is always received after server is first ready
+            promtpLogReceivedBool = true;
         }
         else if (newstate.compare(0, strlen("endtransfer:"), "endtransfer:") == 0)
         {
@@ -766,6 +769,7 @@ void statechangehandle(string statestring)
         {
             serverTryingToLog = false;
             promtpLogReceivedCV.notify_one();
+            promtpLogReceivedBool = true;
         }
         else if (newstate.compare(0, strlen("login:"), "login:") == 0)
         {
@@ -904,16 +908,20 @@ int main(int argc, char* argv[])
     MegaCmdShellCommunications *comms = new MegaCmdShellCommunications();
 #endif
 
-    comms->registerForStateChanges(false, statechangehandle);
+    string command = argv[1];
+    int registerResult = comms->registerForStateChanges(false, statechangehandle, command.compare(0,4,"exit") && command.compare(0,4,"quit") && command.compare(0,10,"completion"));
+    if (registerResult == -1)
+    {
+        return -2;
+    }
 
 #ifdef _WIN32
     int wargc;
     LPWSTR *szArglist = CommandLineToArgvW(GetCommandLineW(),&wargc);
-    wstring wcommand = parsewArgs(wargc,szArglist);
-    int outcode = comms->executeCommandW(wcommand, readresponse, COUT, false);
+    wstring wParsedArgs = parsewArgs(wargc,szArglist);
 #else
     string parsedArgs = parseArgs(argc,argv);
-
+#endif
     bool isInloginInValidCommands = false;
     if (argc>1)
     {
@@ -925,9 +933,16 @@ int main(int argc, char* argv[])
     //if the requested command is not allowed. For other commands (e.g. proxy), we let the execution continue
     do {
         std::unique_lock<std::mutex> lk(promptLogReceivedMutex);
-        promtpLogReceivedCV.wait(lk);
+        if (!promtpLogReceivedBool)
+        {
+            promtpLogReceivedCV.wait(lk);
+        }
     } while (serverTryingToLog && !isInloginInValidCommands);
 
+
+#ifdef _WIN32
+    int outcode = comms->executeCommandW(wParsedArgs, readresponse, COUT, false);
+#else
     int outcode = comms->executeCommand(parsedArgs, readresponse, COUT, false);
 #endif
 
