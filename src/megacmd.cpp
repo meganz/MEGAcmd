@@ -36,6 +36,9 @@
 #include <string>
 #include <deque>
 
+#ifdef __linux__
+#include <condition_variable>
+#endif
 #ifndef _WIN32
 #include "signal.h"
 #include <sys/wait.h>
@@ -158,6 +161,8 @@ char ** mcmdMainArgv;
 int mcmdMainArgc;
 
 void printWelcomeMsg();
+
+void delete_finished_threads();
 
 void appendGreetingStatusFirstListener(const std::string &msj)
 {
@@ -3174,21 +3179,39 @@ bool restartServer()
     if ( childid ) //parent
     {
         char **argv = new char*[mcmdMainArgc+3];
-        int i = 0;
+        int i = 0, j = 0;
+
+#ifdef __linux__
+        string executable = mcmdMainArgv[0];
+        if (executable.find("/") != 0)
+        {
+            executable.insert(0, getCurrentExecPath()+"/");
+        }
+        argv[0]=(char *)executable.c_str();
+        i++;
+        j++;
+#endif
+
         for (;i < mcmdMainArgc; i++)
         {
-            argv[i]=mcmdMainArgv[i];
+            if ( (i+1) < mcmdMainArgc && !strcmp(mcmdMainArgv[i],"--wait-for"))
+            {
+                i+=2;
+            }
+            else
+            {
+                argv[j++]=mcmdMainArgv[i];
+            }
         }
 
-        argv[i++]="--wait-for";
-        argv[i++]=(char*)SSTR(childid).c_str();
-        argv[i++]=NULL;
-        LOG_debug << "Restarting the server : <" << argv[0] << ">";
+        argv[j++]="--wait-for";
+        argv[j++]=(char*)SSTR(childid).c_str();
+        argv[j++]=NULL;
 
+        LOG_debug << "Restarting the server : <" << argv[0] << ">";
         execv(argv[0],argv);
     }
 #endif
-
 
     LOG_debug << "Server restarted, indicating the shell to restart also";
     setCurrentOutCode(MCMD_REQRESTART);
@@ -3297,6 +3320,20 @@ static bool process_line(char* l)
                 || ( (!strncmp(l, "quit ", strlen("quit ")) || !strncmp(l, "exit ", strlen("exit ")) ) && !strstr(l,"--help") )  )
             {
                 //                store_line(NULL);
+
+                if (strstr(l,"--wait-for-ongoing-petitions"))
+                {
+                    int attempts=20; //give a while for ongoing petitions to end before killing the server
+                    delete_finished_threads();
+
+                    while(petitionThreads.size() > 1 && attempts--)
+                    {
+                        LOG_debug << "giving a little longer for ongoing petitions: " << petitionThreads.size();
+                        sleepSeconds(20-attempts);
+                        delete_finished_threads();
+                    }
+                }
+
                 return true; // exit
             }
 
@@ -3333,7 +3370,7 @@ static bool process_line(char* l)
                 {
                     OUTSTREAM << " " << endl;
 
-                    int attempts=20; //give a while for ingoin petitions to end before killing the server
+                    int attempts=20; //give a while for ongoing petitions to end before killing the server
                     while(petitionThreads.size() > 1 && attempts--)
                     {
                         sleepSeconds(20-attempts);
@@ -3476,9 +3513,38 @@ void delete_finished_threads()
     mutexEndedPetitionThreads.unlock();
 }
 
+void processCommandInPetitionQueues(CmdPetition *inf);
+void processCommandLinePetitionQueues(std::string what);
 
+#ifdef __linux__
+bool waitForRestartSignal = false;
+std::mutex mtxcondvar;
+std::condition_variable condVarRestart;
+bool condVarRestartBool = false;
+string appToWaitForSignal;
 
-void finalize()
+void LinuxSignalHandler(int signum)
+{
+    if (signum == SIGUSR2)
+    {
+        std::unique_lock<std::mutex> lock(mtxcondvar);
+        condVarRestart.notify_one();
+        condVarRestartBool = true;
+    }
+    else if (signum == SIGUSR1)
+    {
+        if (!waitForRestartSignal)
+        {
+            waitForRestartSignal = true;
+            LOG_debug << "Preparing MEGAcmd to restart: ";
+            stopcheckingforUpdaters = true;
+            doExit = true;
+        }
+    }
+}
+#endif
+
+void finalize(bool waitForRestartSignal)
 {
     static bool alreadyfinalized = false;
     if (alreadyfinalized)
@@ -3486,7 +3552,6 @@ void finalize()
     alreadyfinalized = true;
     LOG_info << "closing application ...";
     delete_finished_threads();
-    delete cm;
     if (!consoleFailed)
     {
         delete console;
@@ -3516,11 +3581,31 @@ void finalize()
     delete megaCmdGlobalListener;
     delete cmdexecuter;
 
+#ifdef __linux__
+    if (waitForRestartSignal)
+    {
+        LOG_debug << "Waiting for signal to restart MEGAcmd ... ";
+        std::unique_lock<std::mutex> lock(mtxcondvar);
+        if (condVarRestartBool || condVarRestart.wait_for(lock, std::chrono::minutes(30)) == std::cv_status::no_timeout )
+        {
+            restartServer();
+        }
+        else
+        {
+            LOG_err << "Former server still alive after waiting. Not restarted.";
+        }
+    }
+#endif
+    delete cm; //this needs to go after restartServer();
     LOG_debug << "resources have been cleaned ...";
     delete loggerCMD;
     ConfigurationManager::unlockExecution();
     ConfigurationManager::unloadConfiguration();
 
+}
+void finalize()
+{
+    finalize(false);
 }
 
 int currentclientID = 1;
@@ -4404,6 +4489,23 @@ using namespace megacmd;
 
 int main(int argc, char* argv[])
 {
+#ifdef __linux__
+    // Ensure interesting signals are unblocked.
+    sigset_t signalstounblock;
+    sigemptyset (&signalstounblock);
+    sigaddset(&signalstounblock, SIGUSR1);
+    sigaddset(&signalstounblock, SIGUSR2);
+    sigprocmask(SIG_UNBLOCK, &signalstounblock, NULL);
+
+    if (signal(SIGUSR1, LinuxSignalHandler)) //TODO: do this after startup?
+    {
+        cerr << " Failed to register signal SIGUSR1 " << endl;
+    }
+    if (signal(SIGUSR2, LinuxSignalHandler))
+    {
+        LOG_debug << " Failed to register signal SIGUSR2 ";
+    }
+#endif
     string localecode = getLocaleCode();
 #ifdef _WIN32
     // Set Environment's default locale
@@ -4475,9 +4577,9 @@ int main(int argc, char* argv[])
 
         pid_t processId = atoi(shandletowait.c_str());
 
-        cout << "Waiting for former server to end... " << endl;
         while (is_pid_running(processId))
         {
+            cerr << "Waiting for former server to end:  " << processId << endl;
             sleep(1);
         }
 #endif
@@ -4657,6 +4759,6 @@ int main(int argc, char* argv[])
     }
 
     megacmd::megacmd();
-    finalize();
+    finalize(waitForRestartSignal);
 }
 

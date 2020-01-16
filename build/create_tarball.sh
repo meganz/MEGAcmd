@@ -107,6 +107,7 @@ fi
 mkdir $megacmd_NAME
 ln -s ../megacmd/megacmd.spec $megacmd_NAME/megacmd.spec
 ln -s ../megacmd/debian.postinst $megacmd_NAME/debian.postinst
+ln -s ../megacmd/debian.prerm $megacmd_NAME/debian.prerm
 ln -s ../megacmd/debian.postrm $megacmd_NAME/debian.postrm
 ln -s ../megacmd/debian.copyright $megacmd_NAME/debian.copyright
 

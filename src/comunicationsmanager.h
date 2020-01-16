@@ -30,7 +30,7 @@ class CmdPetition
     public:
         char * line;
         mega::MegaThread * petitionThread;
-        int clientID;
+        int clientID = -27;
         bool clientDisconnected;
 
         CmdPetition()

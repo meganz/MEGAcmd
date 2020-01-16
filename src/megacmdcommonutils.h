@@ -220,6 +220,9 @@ void sleepMilliSeconds(long microseconds);
 
 bool isValidEmail(std::string email);
 
+#ifdef __linux__
+std::string getCurrentExecPath();
+#endif
 
 /* Properties */
 std::string &ltrimProperty(std::string &s, const char &c);

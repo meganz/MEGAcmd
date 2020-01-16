@@ -946,6 +946,29 @@ bool isValidEmail(string email)
                     || (email.find("@") > email.find_last_of(".")));
 }
 
+#ifdef __linux__
+std::string getCurrentExecPath()
+{
+    std::string path = ".";
+    pid_t pid = getpid();
+    char buf[20] = {0};
+    sprintf(buf,"%d",pid);
+    std::string _link = "/proc/";
+    _link.append( buf );
+    _link.append( "/exe");
+    char proc[PATH_MAX];
+    int ch = readlink(_link.c_str(),proc,PATH_MAX);
+    if (ch != -1) {
+        proc[ch] = 0;
+        path = proc;
+        std::string::size_type t = path.find_last_of("/");
+        path = path.substr(0,t);
+    }
+
+    return path;
+}
+#endif
+
 string &ltrimProperty(string &s, const char &c)
 {
     size_t pos = s.find_first_not_of(c);
