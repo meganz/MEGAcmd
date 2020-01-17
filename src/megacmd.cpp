@@ -95,7 +95,7 @@
 using namespace mega;
 
 namespace megacmd {
-
+using namespace std;
 typedef char *completionfunction_t PARAMS((const char *, int));
 
 MegaCmdExecuter *cmdexecuter;
@@ -3222,6 +3222,33 @@ bool restartServer()
     return true;
 }
 
+bool isBareCommand(const char *l, const string &command)
+{
+    string what(l);
+    string xcommand = "X" + command;
+    if (what == command || what == xcommand)
+    {
+        return true;
+    }
+    if (what.find(command+" ") != 0 && what.find(xcommand+" ") != 0 )
+    {
+        return false;
+    }
+
+   vector<string> words = getlistOfWords((char *)l, !getCurrentThreadIsCmdShell());
+   for (int i = 1; i<words.size(); i++)
+   {
+       if (words[i].empty()) continue;
+       if (words[i] == "--help") return false;
+       if (words[i].find("--client-width") == 0) continue;
+       if (words[i].find("--clientID") == 0) continue;
+
+       return false;
+   }
+
+   return true;
+}
+
 static bool process_line(char* l)
 {
     switch (prompt)
@@ -3336,9 +3363,7 @@ static bool process_line(char* l)
 
                 return true; // exit
             }
-
-            else  if (!strncmp(l,"sendack",strlen("sendack")) ||
-                      !strncmp(l,"Xsendack",strlen("Xsendack")))
+            else if (isBareCommand(l, "sendack"))
             {
                 string sack="ack";
                 cm->informStateListeners(sack);
@@ -3346,7 +3371,7 @@ static bool process_line(char* l)
             }
 
 #if defined(_WIN32) || defined(__APPLE__)
-            else if (!strcmp(l, "update") || !strcmp(l, "update ")) //if extra args are received, it'll be processed by executer
+            else if (isBareCommand(l, "update")) //if extra args are received, it'll be processed by executer
             {
                 string confirmationQuery("This might require restarting MEGAcmd. Are you sure to continue");
                 confirmationQuery+="? (Yes/No): ";
@@ -3516,8 +3541,8 @@ void delete_finished_threads()
 void processCommandInPetitionQueues(CmdPetition *inf);
 void processCommandLinePetitionQueues(std::string what);
 
-#ifdef __linux__
 bool waitForRestartSignal = false;
+#ifdef __linux__
 std::mutex mtxcondvar;
 std::condition_variable condVarRestart;
 bool condVarRestartBool = false;

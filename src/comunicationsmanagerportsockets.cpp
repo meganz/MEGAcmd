@@ -293,7 +293,7 @@ void ComunicationsManagerPortSockets::registerStateListener(CmdPetition *inf)
  */
 void ComunicationsManagerPortSockets::returnAndClosePetition(CmdPetition *inf, OUTSTRINGSTREAM *s, int outCode)
 {
-    LOG_verbose << "Output to write in socket " << ((CmdPetitionPortSockets *)inf)->outSocket << ": <<" << s->str() << ">>";
+    LOG_verbose << "Output to write in socket " << (long)((CmdPetitionPortSockets *)inf)->outSocket;
     sockaddr_in cliAddr;
     socklen_t cliLength = sizeof( cliAddr );
     SOCKET connectedsocket = ((CmdPetitionPortSockets *)inf)->acceptedOutSocket;
@@ -304,7 +304,7 @@ void ComunicationsManagerPortSockets::returnAndClosePetition(CmdPetition *inf, O
     }
     if (connectedsocket == SOCKET_ERROR)
     {
-        LOG_fatal << "Return and close: Unable to accept on outsocket " << ((CmdPetitionPortSockets *)inf)->outSocket << " error: " << ERRNO;
+        LOG_fatal << "Return and close: Unable to accept on outsocket " << (long)((CmdPetitionPortSockets *)inf)->outSocket << " error: " << ERRNO;
         delete inf;
         return;
     }

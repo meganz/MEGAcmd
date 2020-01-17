@@ -78,9 +78,6 @@ HEADERS += ../../../../src/megacmd.h \
     ../../../../src/megacmdversion.h \
     ../../../../src/megacmdplatform.h
 
-    SOURCES +=../../../../src/comunicationsmanagerportsockets.cpp
-    HEADERS +=../../../../src/comunicationsmanagerportsockets.h
-
 win32 {
     LIBS += -lole32 -loleaut32 -lshell32 -llz32 -ltaskschd
     RC_FILE = icon.rc

@@ -291,7 +291,7 @@ void ComunicationsManagerFileSockets::registerStateListener(CmdPetition *inf)
  */
 void ComunicationsManagerFileSockets::returnAndClosePetition(CmdPetition *inf, OUTSTRINGSTREAM *s, int outCode)
 {
-    LOG_verbose << "Output to write in socket " << ((CmdPetitionPosixSockets *)inf)->outSocket << ": <<" << s->str() << ">>";
+    LOG_verbose << "Output to write in socket " << ((CmdPetitionPosixSockets *)inf)->outSocket;
     sockaddr_in cliAddr;
     socklen_t cliLength = sizeof( cliAddr );
     int connectedsocket = ((CmdPetitionPosixSockets *)inf)->acceptedOutSocket;

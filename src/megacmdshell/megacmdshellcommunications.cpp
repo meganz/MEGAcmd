@@ -185,10 +185,12 @@ SOCKET MegaCmdShellCommunications::createSocket(int number, bool initializeserve
             cerr << "ERROR opening socket: " << ERRNO << endl;
             return INVALID_SOCKET;
         }
+#ifndef _WIN32
         if (fcntl(thesock, F_SETFD, FD_CLOEXEC) == -1)
         {
             cerr << "ERROR setting CLOEXEC to socket: " << errno << endl;
         }
+#endif
         int portno=MEGACMDINITIALPORTNUMBER+number;
 
         struct sockaddr_in addr;

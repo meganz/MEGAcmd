@@ -228,7 +228,7 @@ void ComunicationsManagerNamedPipes::returnAndClosePetition(CmdPetition *inf, OU
 {
     HANDLE outNamedPipe = ((CmdPetitionNamedPipes *)inf)->outNamedPipe;
 
-    LOG_verbose << "Output to write in namedPipe " << outNamedPipe << ": <<" << s->str() << ">>";
+    LOG_verbose << "Output to write in namedPipe " << (long)outNamedPipe;
 
     bool connectsucceeded = false;
     int attempts = 10;
@@ -283,6 +283,11 @@ void ComunicationsManagerNamedPipes::returnAndClosePetition(CmdPetition *inf, OU
 
 void ComunicationsManagerNamedPipes::sendPartialOutput(CmdPetition *inf, OUTSTRING *s)
 {
+    if (inf->clientDisconnected)
+    {
+        return;
+    }
+
     HANDLE outNamedPipe = ((CmdPetitionNamedPipes *)inf)->outNamedPipe;
 
     bool connectsucceeded = false;
