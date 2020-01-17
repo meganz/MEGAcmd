@@ -72,6 +72,8 @@ This refers to a file or a folder stored in your MEGA account, or a publicly ava
 
 Some MEGAcmd commands allow the use of regular expressions in remote paths.  You can check if the command supports those by using the `--help` flag with the command.  If you use these in the [scriptable](#scriptable) way, you need to escape characters that would otherwise be intercepted and interpreted by the shell.
 
+Paths to folders shared to you from another person start with their email and a : character, see the example at ([example](#shared-folders-example))
+
 ### Local Path
 This refers to a file or folder on the PC or device that MEGAcmd is running in.  
 
@@ -1197,7 +1199,23 @@ DIR/SYNC TAG  SOURCEPATH                         DESTINYPATH                    
 eg.email@example.co.nz:/tmp-test/Mega.dir$
 </pre>
 
+### shared folders example
 
-
-
+<pre>
+eg.email@example.co.nz:/$ mount
+ROOT on /
+INBOX on //in
+RUBBISH on //bin
+INSHARE on family.member@example.co.nz:photos_Jan_1_2020 (read access)
+INSHARE on family.member@example.co.nz:other_folder (read access)
+eg.email@example.co.nz:/$ ls family.member@example.co.nz:photos_Jan_1_2020
+photo1.jpg
+photo2.jpg
+eg.email@example.co.nz:/$ get family.member@example.co.nz:photos_Jan_1_2020/photo1.jpg
+TRANSFERRING ||###########################################################################################||(5/5 MB: 100.00 %)
+Download finished: .\photo1.jpg
+eg.email@example.co.nz:/$ share  -a --with=family.member@example.co.nz --level=0  "/Camera Uploads/my_photos_from_that_day"
+Shared /Camera Uploads/my_photos_from_that_day : family.member@example.co.nz accessLevel=0
+eg.email@example.co.nz:/$                                                                                     
+</pre>
 
