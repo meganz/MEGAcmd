@@ -21,6 +21,7 @@
 #include "megacmdutils.h"
 
 
+#include <winsock2.h>
 #include <windows.h>
 #include <Lmcons.h> //getusername
 

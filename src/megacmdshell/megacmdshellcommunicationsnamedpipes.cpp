@@ -31,6 +31,7 @@
 #include <Aclapi.h> //GetSecurityInfo
 #include <Sddl.h> //ConvertSidToStringSid
 
+#include <algorithm>
 
 #include <fcntl.h>
 #include <io.h>
@@ -588,7 +589,7 @@ int MegaCmdShellCommunicationsNamedPipes::executeCommand(string command, std::st
                 char buffer[10025];
                 do{
                     BOOL readok;
-                    readok = ReadFile(newNamedPipe, buffer, min(BUFFERSIZE,partialoutsize),&n,NULL);
+                    readok = ReadFile(newNamedPipe, buffer, std::min(BUFFERSIZE,partialoutsize),&n,NULL);
                     if (readok)
                     {
 

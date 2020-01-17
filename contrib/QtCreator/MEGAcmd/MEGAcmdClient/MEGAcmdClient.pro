@@ -81,3 +81,15 @@ macx {
     QMAKE_CXXFLAGS += -g
 }
 
+include(../../../../sdk/bindings/qt/sdk.pri) #This is required to have logging.h included: avoiding this is rather complicated
+DEFINES -= USE_QT
+DEFINES -= MEGA_QT_LOGGING
+
+SOURCES -= src/gfx/qt.cpp
+SOURCES -= bindings/qt/QTMegaRequestListener.cpp
+SOURCES -= bindings/qt/QTMegaTransferListener.cpp
+SOURCES -= bindings/qt/QTMegaGlobalListener.cpp
+SOURCES -= bindings/qt/QTMegaSyncListener.cpp
+SOURCES -= bindings/qt/QTMegaListener.cpp
+SOURCES -= bindings/qt/QTMegaEvent.cpp
+
