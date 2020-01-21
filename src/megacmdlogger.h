@@ -75,14 +75,7 @@ public:
 
   LoggedStream const& operator<<(OUTSTREAMTYPE& (*F)(OUTSTREAMTYPE&)) const
   {
-      if (F == (OUTSTREAMTYPE& (*)(OUTSTREAMTYPE&) )(std::endl))
-      {
-          OUTSTRINGSTREAM os; os << "\n"; OUTSTRING s = os.str(); cm->sendPartialOutput(inf, &s); return *this;
-      }
-      else
-      {
-          std::cerr << "unable to identify f:" << std::endl;
-      }
+      OUTSTRINGSTREAM os; os << F; OUTSTRING s = os.str(); cm->sendPartialOutput(inf, &s); return *this;
       return *this;
   }
 

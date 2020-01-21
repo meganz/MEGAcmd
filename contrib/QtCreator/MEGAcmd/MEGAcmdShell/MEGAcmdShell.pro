@@ -19,8 +19,33 @@ CONFIG += noreadline
 CONFIG += USE_AUTOCOMPLETE
 CONFIG += USE_CONSOLE
 DEFINES += NO_READLINE
-include(../../../../sdk/bindings/qt/sdk.pri) #This is required to have console.cpp included: avoiding this is rather complicated
 }
+
+
+packagesExist(libpcrecpp) | macx {
+LIBS += -lpcrecpp
+CONFIG += USE_PCRE
+}
+
+CONFIG += USE_MEDIAINFO
+CONFIG += USE_LIBUV
+DEFINES += ENABLE_BACKUPS
+
+
+unix:!macx {
+        exists(/usr/include/ffmpeg-mega)|exists(mega/bindings/qt/3rdparty/include/ffmpeg)|packagesExist(libavcodec) {
+            CONFIG += USE_FFMPEG
+        }
+}
+else {
+    CONFIG += USE_FFMPEG
+    win32 {
+        DEFINES += __STDC_CONSTANT_MACROS
+    }
+}
+
+
+include(../../../../sdk/bindings/qt/sdk.pri) #This is required to have console.cpp included: avoiding this is rather complicated
 
 SOURCES += ../../../../src/megacmdshell/megacmdshell.cpp \
     ../../../../src/megacmdshell/megacmdshellcommunications.cpp \
@@ -62,23 +87,6 @@ else{
 }
 
 win32 {
-SOURCES += ../../../../sdk/src/thread/win32thread.cpp \
-    ../../../../sdk/src/logging.cpp
-HEADERS +=  ../../../../sdk/include/mega/win32thread.h \
-    ../../../../sdk/include/mega/logging.h
-}
-else {
-SOURCES += ../../../../sdk/src/thread/cppthread.cpp \
-    ../../../../sdk/src/thread/posixthread.cpp \
-    ../../../../sdk/src/logging.cpp
-
-HEADERS +=  ../../../../sdk/include/mega/posixthread.h \
-    ../../../../sdk/include/mega/thread/cppthread.h \
-    ../../../../sdk/include/mega/logging.h
-}
-
-
-win32 {
 DEFINES += USE_READLINE_STATIC
 }
 
@@ -92,9 +100,6 @@ macx {
     LIBS += -lncurses
 
     QMAKE_MACOSX_DEPLOYMENT_TARGET = 10.9
-    QMAKE_CXXFLAGS -= -stdlib=libc++
-    QMAKE_LFLAGS -= -stdlib=libc++
-    CONFIG -= c++11
 
     QMAKE_CXXFLAGS += -g
 }

@@ -41,7 +41,7 @@ rm -rf Release_x64
 mkdir Release_x64
 cd Release_x64
 $QTBASE/bin/qmake -r ../../contrib/QtCreator/MEGAcmd/ -spec macx-g++ CONFIG+=release CONFIG+=x86_64 -nocache
-make -j4
+make -j$(sysctl -n hw.ncpu)
 
 #After building, we will have 5 folders (one per project: MEGAcmdServer, MEGAcmdClient, MEGAcmdLoader, MEGAcmdUpdater & MEGAcmdShell)
 # we will include the stuff from the other 4 into MEGAcmdServer folder

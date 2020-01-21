@@ -38,22 +38,6 @@ else{
 }
 
 win32 {
-SOURCES += ../../../../sdk/src/thread/win32thread.cpp \
-    ../../../../sdk/src/logging.cpp
-HEADERS +=  ../../../../sdk/include/mega/win32thread.h \
-    ../../../../sdk/include/mega/logging.h
-}
-else {
-SOURCES += ../../../../sdk/src/thread/cppthread.cpp \
-    ../../../../sdk/src/thread/posixthread.cpp \
-    ../../../../sdk/src/logging.cpp
-
-HEADERS +=  ../../../../sdk/include/mega/posixthread.h \
-    ../../../../sdk/include/mega/thread/cppthread.h \
-    ../../../../sdk/include/mega/logging.h
-}
-
-win32 {
     LIBS +=  -lshlwapi -lws2_32
     LIBS +=  -lshell32 -luser32 -ladvapi32
 
@@ -73,14 +57,37 @@ else{
 
 
 macx {
+    INCLUDEPATH += $$PWD/../../../../sdk/bindings/qt/3rdparty/include
+    LIBS += $$PWD/../../../../sdk/bindings/qt/3rdparty/libs/libreadline.a
+    LIBS += -framework Cocoa -framework SystemConfiguration -framework CoreFoundation -framework Foundation -framework Security
+    LIBS += -lncurses
+
     QMAKE_MACOSX_DEPLOYMENT_TARGET = 10.9
-    QMAKE_CXXFLAGS -= -stdlib=libc++
-    QMAKE_LFLAGS -= -stdlib=libc++
-    CONFIG -= c++11
 
     QMAKE_CXXFLAGS += -g
 }
 
+
+packagesExist(libpcrecpp) | macx {
+LIBS += -lpcrecpp
+CONFIG += USE_PCRE
+}
+
+CONFIG += USE_MEDIAINFO
+CONFIG += USE_LIBUV
+DEFINES += ENABLE_BACKUPS
+
+unix:!macx {
+        exists(/usr/include/ffmpeg-mega)|exists(mega/bindings/qt/3rdparty/include/ffmpeg)|packagesExist(libavcodec) {
+            CONFIG += USE_FFMPEG
+        }
+}
+else {
+    CONFIG += USE_FFMPEG
+    win32 {
+        DEFINES += __STDC_CONSTANT_MACROS
+    }
+}
 include(../../../../sdk/bindings/qt/sdk.pri) #This is required to have logging.h included: avoiding this is rather complicated
 DEFINES -= USE_QT
 DEFINES -= MEGA_QT_LOGGING

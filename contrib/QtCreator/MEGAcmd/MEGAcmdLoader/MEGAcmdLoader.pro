@@ -23,9 +23,6 @@ win32 {
 
 macx {
     QMAKE_MACOSX_DEPLOYMENT_TARGET = 10.9
-    QMAKE_CXXFLAGS -= -stdlib=libc++
-    QMAKE_LFLAGS -= -stdlib=libc++
-    CONFIG -= c++11
 
     QMAKE_CXXFLAGS += -g
 }

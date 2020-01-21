@@ -53,6 +53,9 @@ else {
     SOURCES += ../../../../sdk/src/posix/consolewaiter.cpp
 
     DEFINES += USE_PTHREAD
+
+    LIBS += -lpthread
+    LIBS += -lpcre
 }
 
 SOURCES += ../../../../src/megacmd.cpp \
@@ -99,9 +102,6 @@ macx {
     QMAKE_INFO_PLIST = Info_MEGA.plist
 
     QMAKE_MACOSX_DEPLOYMENT_TARGET = 10.9
-    QMAKE_CXXFLAGS -= -stdlib=libc++
-    QMAKE_LFLAGS -= -stdlib=libc++
-    CONFIG -= c++11
 
     LIBS += -framework Cocoa -framework SystemConfiguration -framework CoreFoundation -framework Foundation -framework Security
     LIBS += -lncurses

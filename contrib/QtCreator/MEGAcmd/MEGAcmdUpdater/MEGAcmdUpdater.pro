@@ -27,7 +27,7 @@ INCLUDEPATH += $$MEGASDK_BASE_PATH/bindings/qt/3rdparty/include
 
 macx {    
     OBJECTIVE_SOURCES +=  ../../../../src/updater/MacUtils.mm
-    DEFINES += _DARWIN_FEATURE_64_BIT_INODE USE_OPENSSL CRYPTOPP_DISABLE_ASM
+    DEFINES += _DARWIN_FEATURE_64_BIT_INODE CRYPTOPP_DISABLE_ASM
     QMAKE_MACOSX_DEPLOYMENT_TARGET = 10.9
     LIBS += -L$$MEGASDK_BASE_PATH/bindings/qt/3rdparty/libs/
     LIBS += -framework Cocoa -framework SystemConfiguration -framework CoreFoundation -framework Foundation -framework Security

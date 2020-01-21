@@ -35,6 +35,7 @@
 #include <iomanip>
 #include <string>
 #include <deque>
+#include <atomic>
 
 #ifdef __linux__
 #include <condition_variable>
