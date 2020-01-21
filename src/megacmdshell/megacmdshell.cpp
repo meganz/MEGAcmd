@@ -39,6 +39,7 @@
 #include <vector>
 #include <sstream>
 #include <algorithm>
+#include <atomic>
 #include <stdio.h>
 
 #define PROGRESS_COMPLETE -2
@@ -175,9 +176,10 @@ string newpasswd;
 
 bool doExit = false;
 bool doReboot = false;
-bool handlerinstalled = false;
+static std::atomic_bool handlerOverridenByExternalThread(false);
+static std::mutex handlerInstallerMutex;
 
-bool requirepromptinstall = true;
+static std::atomic_bool requirepromptinstall(true);
 
 bool procesingline = false;
 
@@ -612,8 +614,10 @@ wstring escapereadlinebreakers(const wchar_t *what)
 #endif
 
 #ifndef NO_READLINE
-void install_rl_handler(const char *theprompt)
+void install_rl_handler(const char *theprompt, bool external = true)
 {
+    std::lock_guard<std::mutex> lkrlhandler(handlerInstallerMutex);
+
 #ifdef _WIN32
     wstring wswhat;
     stringtolocalw(theprompt,&wswhat);
@@ -650,7 +654,11 @@ void install_rl_handler(const char *theprompt)
     }
 
 #else
+
     rl_callback_handler_install(theprompt, store_line);
+    handlerOverridenByExternalThread = external;
+    requirepromptinstall = false;
+
 #endif
 }
 #endif
@@ -706,9 +714,7 @@ void changeprompt(const char *newprompt, bool redisplay)
         rl_point = saved_point;
         rl_redisplay();
 
-        handlerinstalled = true;
 
-        requirepromptinstall = false;
     }
 
 #endif
@@ -1798,9 +1804,7 @@ void readloop()
             mutexPrompt.lock();
             if (requirepromptinstall)
             {
-                install_rl_handler(*dynamicprompt ? dynamicprompt : prompts[COMMAND]);
-
-                handlerinstalled = false;
+                install_rl_handler(*dynamicprompt ? dynamicprompt : prompts[COMMAND], false);
 
                 // display prompt
                 if (saved_line)
@@ -1826,6 +1830,8 @@ void readloop()
                 procesingline = false;
 
                 wait_for_input(readline_fd);
+
+                std::lock_guard<std::mutex> g(mutexPrompt);
 
                 rl_callback_read_char(); //this calls store_line if last char was enter
 
@@ -1863,6 +1869,7 @@ void readloop()
 
         }
 
+        mutexPrompt.lock();
         // save line
         saved_point = rl_point;
         if (saved_line != NULL)
@@ -1874,16 +1881,26 @@ void readloop()
         rl_replace_line("", 0);
         rl_redisplay();
 
+        mutexPrompt.unlock();
         if (line)
         {
             if (strlen(line))
             {
                 alreadyFinished = false;
                 percentDowloaded = 0.0;
-//                mutexPrompt.lock();
+
+                handlerOverridenByExternalThread = false;
                 process_line(line);
-                requirepromptinstall = true;
-//                mutexPrompt.unlock();
+
+                {
+                    //after processing the line, we want to reinstall the handler (except if during the process, or due to it,
+                    // the handler is reinstalled by e.g: a change in prompt)
+                    std::lock_guard<std::mutex> lkrlhandler(handlerInstallerMutex);
+                    if (!handlerOverridenByExternalThread)
+                    {
+                        requirepromptinstall = true;
+                    }
+                }
 
                 if (comms->registerAgainRequired)
                 {
