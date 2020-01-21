@@ -1914,7 +1914,10 @@ string getHelpStr(const char *command)
     }
     else if (!strcmp(command, "mount"))
     {
-        os << "Lists all the main nodes" << endl;
+        os << "Lists all the root nodes" << endl;
+        os << endl;
+        os << "This includes the root node in your cloud drive, Inbox, Rubbish Bin " << endl;
+        os << "and all the in-shares (nodes shares to you from other users)" << endl;
     }
 #if defined(_WIN32) && !defined(NO_READLINE)
     else if (!strcmp(command, "unicode"))
