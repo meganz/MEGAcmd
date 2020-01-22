@@ -49,7 +49,6 @@ win32 {
     SOURCES += ../../../../src/comunicationsmanagernamedpipes.cpp
     HEADERS += ../../../../src/comunicationsmanagernamedpipes.h
 
-    LIBS += -lole32 -loleaut32 -lshell32 -llz32 -ltaskschd
     RC_FILE = icon.rc
     QMAKE_LFLAGS += /LARGEADDRESSAWARE
     QMAKE_LFLAGS_WINDOWS += /SUBSYSTEM:WINDOWS,5.01

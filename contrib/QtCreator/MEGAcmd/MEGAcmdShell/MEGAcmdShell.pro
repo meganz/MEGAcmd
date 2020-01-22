@@ -44,21 +44,6 @@ win32{
     DEFINES += UNICODE _UNICODE NTDDI_VERSION=0x05010000 _WIN32_WINNT=0x0501
 }
 
-
-#win32{
-#    DEFINES += USE_WIN32THREAD
-#}
-#else{
-#    ## Disable de following to work with posix threads
-#    #DEFINES+=USE_CPPTHREAD
-#    #CONFIG += c++11
-
-#    DEFINES+=USE_PTHREAD
-#    LIBS += -lpthread
-
-#    LIBS += -lpcre
-#}
-
 win32 {
     DEFINES += USE_READLINE_STATIC
 }

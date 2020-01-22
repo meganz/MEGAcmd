@@ -21,8 +21,14 @@ else {
 }
 
 win32 {
+    DEFINES += NOMINMAX
+
+    LIBS += -lole32 -loleaut32 -lshell32 -llz32 -ltaskschd
+    QMAKE_CXXFLAGS_RELEASE = $$QMAKE_CFLAGS_RELEASE_WITH_DEBUGINFO
+    QMAKE_LFLAGS_RELEASE = $$QMAKE_LFLAGS_RELEASE_WITH_DEBUGINFO
 }
 else {
+    QMAKE_CXXFLAGS_WARN_ON += -Wno-unused-parameter
 
     DEFINES += USE_PTHREAD
 
@@ -54,15 +60,6 @@ SOURCES -= bindings/qt/QTMegaGlobalListener.cpp
 SOURCES -= bindings/qt/QTMegaSyncListener.cpp
 SOURCES -= bindings/qt/QTMegaListener.cpp
 SOURCES -= bindings/qt/QTMegaEvent.cpp
-
-
-win32 {
-    QMAKE_CXXFLAGS_RELEASE = $$QMAKE_CFLAGS_RELEASE_WITH_DEBUGINFO
-    QMAKE_LFLAGS_RELEASE = $$QMAKE_LFLAGS_RELEASE_WITH_DEBUGINFO
-}
-else {
-    QMAKE_CXXFLAGS_WARN_ON += -Wno-unused-parameter
-}
 
 
 CONFIG(FULLREQUIREMENTS) {
