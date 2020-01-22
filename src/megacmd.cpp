@@ -2857,7 +2857,14 @@ void executecommand(char* ptr)
     if (!validCommand(thecommand))   //unknown command
     {
         setCurrentOutCode(MCMD_EARGS);
-        LOG_err << "Command not found: " << thecommand;
+        if (loginInAtStartup)
+        {
+            LOG_err << "Command not valid while login in: " << thecommand;
+        }
+        else
+        {
+            LOG_err << "Command not found: " << thecommand;
+        }
         return;
     }
 
@@ -3959,6 +3966,14 @@ void megacmd()
                     s+=(char)0x1F;
                 }
 
+
+                // if server resuming session, lets give him a very litle while before sending greeting message to the early clients
+                // (to aovid "Resuming session..." being printed fast resumed session)
+                while (getloginInAtStartup() && ((m_time(nullptr) - timeLoginStarted() < RESUME_SESSION_TIMEOUT * 0.3)))
+                {
+                    sleepMilliSeconds(300);
+                }
+
                 {
                     std::lock_guard<std::mutex> g(greetingsmsgsMutex);
 
@@ -3977,7 +3992,7 @@ void megacmd()
                 // if server resuming session, lets give him a litle while before returning a prompt to the early clients
                 // This will block the server from responging any commands in the meantime, but that assumable, it will only happen
                 // the first time the server is initiated.
-                while (getloginInAtStartup() && ((m_time(nullptr) - timeLoginStarted() < RESUME_SESSION_TIMEOUT)))
+                while (getloginInAtStartup() && ((m_time(nullptr) - timeLoginStarted() < RESUME_SESSION_TIMEOUT * 0.7)))
                 {
                     sleepMilliSeconds(300);
                 }

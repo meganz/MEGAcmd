@@ -4338,7 +4338,7 @@ void MegaCmdExecuter::printSync(int i, string key, const char *nodepath, sync_st
         }
         delete msync;
         cd->addValue("ActState", statetoprint);
-        cd->addValue("SyncState", SSTR(statepath));
+        cd->addValue("SyncState", getSyncPathStateStr(statepath));
         cd->addValue("SIZE", sizeToText(api->getSize(n)));
         cd->addValue("FILES", SSTR(nfiles));
         cd->addValue("DIRS", SSTR(nfolders));

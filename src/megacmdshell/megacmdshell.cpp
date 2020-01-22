@@ -214,6 +214,8 @@ std::mutex mutexPrompt;
 
 void printWelcomeMsg(unsigned int width = 0);
 
+void install_rl_handler(const char *theprompt, bool external = true);
+
 void statechangehandle(string statestring)
 {
     char statedelim[2]={(char)0x1F,'\0'};
@@ -294,6 +296,10 @@ void statechangehandle(string statestring)
                     OUTSTREAM << endl;
                 }
                 printCenteredContents(contents, width);
+                if (prompt == COMMAND && promtpLogReceivedBool)
+                {
+                    install_rl_handler(*dynamicprompt ? dynamicprompt : prompts[COMMAND]);
+                }
             }
             else
             {
@@ -614,7 +620,7 @@ wstring escapereadlinebreakers(const wchar_t *what)
 #endif
 
 #ifndef NO_READLINE
-void install_rl_handler(const char *theprompt, bool external = true)
+void install_rl_handler(const char *theprompt, bool external)
 {
     std::lock_guard<std::mutex> lkrlhandler(handlerInstallerMutex);
 
@@ -702,7 +708,10 @@ void changeprompt(const char *newprompt, bool redisplay)
             rl_crlf();
         }
 
-        install_rl_handler(*dynamicprompt ? dynamicprompt : prompts[COMMAND]);
+        if (prompt == COMMAND)
+        {
+            install_rl_handler(*dynamicprompt ? dynamicprompt : prompts[COMMAND]);
+        }
 
         // restore line
         if (saved_line)
@@ -1774,7 +1783,7 @@ void readloop()
     //now we can relay on having a prompt received if the server is running
     {
         std::unique_lock<std::mutex> lk(promptLogReceivedMutex);
-        if (promtpLogReceivedBool)
+        if (!promtpLogReceivedBool)
         {
             if (promtpLogReceivedCV.wait_for(lk, std::chrono::seconds(2*RESUME_SESSION_TIMEOUT)) == std::cv_status::timeout)
             {
