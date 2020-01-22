@@ -51,6 +51,7 @@ std::ostringstream & operator<< ( std::ostringstream & ostr, std::wstring const 
 
 void stringtolocalw(const char* path, std::wstring* local);
 void localwtostring(const std::wstring* wide, std::string *multibyte);
+std::string getutf8fromUtf16(const wchar_t *ws);
 void utf16ToUtf8(const wchar_t* utf16data, int utf16size, std::string* utf8string);
 
 #else

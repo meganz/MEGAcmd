@@ -1549,13 +1549,26 @@ void MegaCmdExecuter::createOrModifyBackup(string local, string remote, string s
 
 void MegaCmdExecuter::printTreeSuffix(int depth, vector<bool> &lastleaf)
 {
+#ifdef _WIN32
+    const wchar_t *c0 = L" ";
+    const wchar_t *c1 = L"\u2502";
+    const wchar_t *c2 = L"\u2514";
+    const wchar_t *c3 = L"\u251c";
+    const wchar_t *c4 = L"\u2500\u2500";
+#else
+    const char *c0 = " ";
+    const char *c1 = "\u2502";
+    const char *c2 = "\u2514";
+    const char *c3 = "\u251c";
+    const char *c4 = "\u2500\u2500";
+#endif
     for (int i = 0; i < depth-1; i++)
     {
-        OUTSTREAM << (lastleaf.at(i)?" ":"\u2502") << "   ";
+        OUTSTREAM << (lastleaf.at(i)?c0:c1) << "   ";
     }
     if (lastleaf.size())
     {
-        OUTSTREAM << (lastleaf.back()?"\u2514":"\u251c") << "\u2500\u2500 ";
+        OUTSTREAM << (lastleaf.back()?c2:c3) << c4 << " ";
     }
 }
 
@@ -3944,15 +3957,14 @@ void MegaCmdExecuter::printTransfer(MegaTransfer *transfer, const unsigned int P
     OUTSTREAM << endl;
 }
 
-
 void MegaCmdExecuter::printTransferColumnDisplayer(ColumnDisplayer *cd, MegaTransfer *transfer, bool printstate)
 {
     //Direction
     string type;
 #ifdef _WIN32
-    type += (MegaTransfer::TYPE_DOWNLOAD)?"D":"U";
+    type += getutf8fromUtf16((transfer->getType() == MegaTransfer::TYPE_DOWNLOAD)?L"\u25bc":L"\u25b2");
 #else
-    type += (MegaTransfer::TYPE_DOWNLOAD)?"\u21d3":"\u21d1";
+    type += (transfer->getType() == MegaTransfer::TYPE_DOWNLOAD)?"\u21d3":"\u21d1";
 #endif
     //TODO: handle TYPE_LOCAL_TCP_DOWNLOAD
 
@@ -3960,7 +3972,7 @@ void MegaCmdExecuter::printTransferColumnDisplayer(ColumnDisplayer *cd, MegaTran
     if (transfer->isSyncTransfer())
     {
 #ifdef _WIN32
-        type += "S";
+        type += getutf8fromUtf16(L"\u21a8");
 #else
         type += "\u21f5";
 #endif
@@ -3969,7 +3981,7 @@ void MegaCmdExecuter::printTransferColumnDisplayer(ColumnDisplayer *cd, MegaTran
     else if (transfer->isBackupTransfer())
     {
 #ifdef _WIN32
-        type += "B";
+        type += getutf8fromUtf16(L"\u2191");
 #else
         type += "\u23eb";
 #endif

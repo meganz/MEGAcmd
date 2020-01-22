@@ -116,6 +116,13 @@ void utf16ToUtf8(const wchar_t* utf16data, int utf16size, string* utf8string)
         NULL, NULL));
 }
 
+std::string getutf8fromUtf16(const wchar_t *ws)
+{
+    string utf8s;
+    utf16ToUtf8(ws, wcslen(ws), &utf8s);
+    return utf8s;
+}
+
 #endif
 
 

@@ -2672,16 +2672,22 @@ string getHelpStr(const char *command)
         os << endl;
         os << "TYPE legend correspondence:" << endl;
 #ifdef _WIN32
-        os << "  D = \t" << "Download transfer" << endl;
-        os << "  U = \t" << "Upload transfer" << endl;
-        os << "  S = \t" << "Sync transfer. The transfer is done in the context of a synchronization" << endl;
-        os << "  B = \t" << "Backup transfer. The transfer is done in the context of a backup" << endl;
+
+        const string cD = getutf8fromUtf16(L"\u25bc");
+        const string cU = getutf8fromUtf16(L"\u25b2");
+        const string cS = getutf8fromUtf16(L"\u21a8");
+        const string cB = getutf8fromUtf16(L"\u2191");
 #else
-        os << "  \u21d3 = \t" << "Download transfer" << endl;
-        os << "  \u21d1 = \t" << "Upload transfer" << endl;
-        os << "  \u21f5 = \t" << "Sync transfer. The transfer is done in the context of a synchronization" << endl;
-        os << "  \u23eb = \t" << "Backup transfer. The transfer is done in the context of a backup" << endl;
+        const string cD = "\u21d3";
+        const string cU = "\u21d1";
+        const string cS = "\u21f5";
+        const string cB = "\u23eb";
 #endif
+        os << "  " << cD <<" = \t" << "Download transfer" << endl;
+        os << "  " << cU <<" = \t" << "Upload transfer" << endl;
+        os << "  " << cS <<" = \t" << "Sync transfer. The transfer is done in the context of a synchronization" << endl;
+        os << "  " << cB <<" = \t" << "Backup transfer. The transfer is done in the context of a backup" << endl;
+
     }
 #if defined(_WIN32) && defined(NO_READLINE)
     else if (!strcmp(command, "autocomplete"))
