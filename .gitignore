@@ -103,6 +103,8 @@ megacmdconfig.h.in
 /build/megacmd/megacmd.dsc
 /build/megacmd/megacmd.spec
 /build/megacmd/megacmd_*.tar.gz
+/build/build-cmake-*
+/build/cmake/CMakeLists.txt.user
 contrib/QtCreator/MEGAcmd/MEGAcmdServer/Makefile.Debug
 contrib/QtCreator/MEGAcmd/.qmake.stash
 contrib/QtCreator/MEGAcmd/MEGAcmdClient/Makefile.Debug
