@@ -2789,6 +2789,10 @@ void executecommand(char* ptr)
 
     if (words[0] == "completion")
     {
+        if (words.size() >= 2 && words[1].find("--client-width=") == 0)
+        {
+            words.erase(++words.begin());
+        }
         if (words.size() < 3) words.push_back("");
         vector<string> wordstocomplete(words.begin()+1,words.end());
         setCurrentThreadLine(wordstocomplete);

@@ -3062,6 +3062,7 @@ void MegaCmdExecuter::uploadNode(string path, MegaApi* api, MegaNode *node, stri
 //            }
 //        }
     }
+    unescapeifRequired(path);
 
     string locallocal;
     fsAccessCMD->path2local(&path, &locallocal);
@@ -3082,7 +3083,6 @@ void MegaCmdExecuter::uploadNode(string path, MegaApi* api, MegaNode *node, stri
         }
         multiTransferListener->onNewTransfer();
     }
-    unescapeifRequired(path);
 
 #ifdef _WIN32
     replaceAll(path,"/","\\");
