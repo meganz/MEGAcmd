@@ -10303,10 +10303,27 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             auto configuredProxyUsername = ConfigurationManager::getConfigurationSValue("proxy_username");
             auto configuredProxyPassword = ConfigurationManager::getConfigurationSValue("proxy_password");
 
-            OUTSTREAM << "Proxy configured.";
-            if (configuredProxyType != 1)
+            if (configuredProxyType == -1)
             {
-                OUTSTREAM << " type " << configuredProxyType;
+                OUTSTREAM << "No proxy configuration found" << endl;
+                return;
+            }
+            if (configuredProxyType == MegaProxy::PROXY_NONE)
+            {
+                OUTSTREAM << "Proxy disabled" << endl;
+                return;
+            }
+
+
+            OUTSTREAM << "Proxy configured. ";
+
+            if (configuredProxyType == MegaProxy::PROXY_AUTO)
+            {
+                OUTSTREAM << endl << " Type = AUTO";
+            }
+            else
+            {
+                OUTSTREAM << endl << " Type = CUSTOM";
             }
 
             if (configuredProxyUrl.size())
@@ -10317,10 +10334,11 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             {
                 OUTSTREAM << endl << " username = " << configuredProxyUsername;
             }
-            if (configuredProxyUrl.size())
+            if (configuredProxyPassword.size())
             {
                 OUTSTREAM << endl << " password = " << configuredProxyPassword;
             }
+
             OUTSTREAM << endl;
         }
         else

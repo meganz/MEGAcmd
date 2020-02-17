@@ -560,6 +560,10 @@ modeselected:
   AccessControl::SetFileOwner "$INSTDIR\mega-df.bat" "$USERNAME"
   AccessControl::GrantOnFile "$INSTDIR\mega-df.bat" "$USERNAME" "GenericRead + GenericWrite"
 
+  File "${SRCDIR_BATFILES}\mega-proxy.bat"
+  AccessControl::SetFileOwner "$INSTDIR\mega-proxy.bat" "$USERNAME"
+  AccessControl::GrantOnFile "$INSTDIR\mega-proxy.bat" "$USERNAME" "GenericRead + GenericWrite"
+
   File "${SRCDIR_BATFILES}\mega-export.bat"
   AccessControl::SetFileOwner "$INSTDIR\mega-export.bat" "$USERNAME"
   AccessControl::GrantOnFile "$INSTDIR\mega-export.bat" "$USERNAME" "GenericRead + GenericWrite"
@@ -923,6 +927,7 @@ Section Uninstall
   Delete "$INSTDIR\mega-debug.bat"
   Delete "$INSTDIR\mega-du.bat"
   Delete "$INSTDIR\mega-df.bat"
+  Delete "$INSTDIR\mega-proxy.bat"
   Delete "$INSTDIR\mega-export.bat"
   Delete "$INSTDIR\mega-find.bat"
   Delete "$INSTDIR\mega-get.bat"

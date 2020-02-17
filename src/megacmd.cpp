@@ -1652,6 +1652,10 @@ const char * getUsageStr(const char *command)
     {
         return "df [-h]";
     }
+    if (!strcmp(command, "proxy"))
+    {
+        return "proxy [URL|--auto|--none] [--username=USERNAME --password=PASSWORD]";
+    }
     if (!strcmp(command, "cat"))
     {
         return "cat remotepath1 remotepath2 ...";
@@ -2546,6 +2550,21 @@ string getHelpStr(const char *command)
         os << endl;
         os << "Options:" << endl;
         os << " -h" << "\t" << "Human readable sizes. Otherwise, size will be expressed in Bytes" << endl;
+    }
+    else if (!strcmp(command, "proxy"))
+    {
+        os << "Show or sets proxy configuration" << endl;
+        os << endl;
+        os << "With no parameter given, this will print proxy configuration" << endl;
+        os << endl;
+
+        os << "Options:" << endl;
+        os << "URL" << "\t" << "Proxy URL (e.g: https://127.0.0.1:8080)" << endl;
+        os << " --none" << "\t" << "To disable using a proxy" << endl;
+        os << " --auto" << "\t" << "To use the proxy configured in your system" << endl;
+        os << " --username=USERNAME" << "\t" << "The username, for authenticated proxies" << endl;
+        os << " --password=PASSWORD" << "\t" << "The password, for authenticated proxies" << endl;
+
     }
     else if (!strcmp(command, "cat"))
     {

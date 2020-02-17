@@ -375,6 +375,7 @@ killall -s SIGUSR2 mega-cmd-server 2> /dev/null || true
 %{_bindir}/mega-debug
 %{_bindir}/mega-du
 %{_bindir}/mega-df
+%{_bindir}/mega-proxy
 %{_bindir}/mega-exec
 %{_bindir}/mega-export
 %{_bindir}/mega-find
