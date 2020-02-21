@@ -124,7 +124,7 @@ otool -L MEGAcmd.app/Contents/MacOS/mega-cmd
 if [ "$sign" = "1" ]; then
 	cp -R $APP_NAME.app ${APP_NAME}_unsigned.app
 	echo "Signing 'APPBUNDLE'"
-	codesign --force --verify --verbose --sign "Developer ID Application: Mega Limited" --deep $APP_NAME.app
+	codesign --force --verify --verbose --options runtime --sign "Developer ID Application: Mega Limited" --deep $APP_NAME.app
 	echo "Checking signature"
 	spctl -vv -a $APP_NAME.app
 fi
