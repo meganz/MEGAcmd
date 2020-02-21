@@ -18,7 +18,7 @@ build_package() {
 
         if [ -e /toolkit/build_env/ds.$platform-6.1/ ] ; then
             echo "cleaning old build of $platform"
-            rm -rf /toolkit/build_env/ds.$platform-6.1/ 
+            rm -rf /toolkit/build_env/ds.$platform-6.1/
         fi
 
         ./pkgscripts-ng/EnvDeploy -v 6.1 -p $platform -t /toolkit/toolkit_tarballs/
@@ -45,7 +45,7 @@ build_package() {
             MEGACMD_VERSION="\"$MAJOR.$MINOR.$MICRO\""
             sed -i source/megacmdpkg/INFO.sh -e "s/^version=.*/version=$MEGACMD_VERSION/"
 
-            ./pkgscripts-ng/PkgCreate.py -i -p $platform megacmdpkg  
+            ./pkgscripts-ng/PkgCreate.py -i -p $platform megacmdpkg
 
             echo "Signing!"
             tar -xf syn-sign-key -C /toolkit/build_env/ds.$platform-6.1/root/
@@ -59,13 +59,12 @@ build_package() {
 
             mkdir -p synology_build_results/image-$platform
             cp -r /toolkit/build_env/ds.$platform-6.1/image synology_build_results/image-$platform
-
-            rm -rf /toolkit/build_env/ds.$platform-6.1/
         else
             echo "------- $platform build failed -----"
             echo "whimper" > synology_build_results/$platform.failed
         fi
-
+        cp /toolkit/build_env/ds.$platform-6.1/logs.build /toolkit/synology_build_results/$platform.logs.build
+        rm -rf /toolkit/build_env/ds.$platform-6.1/
 
     fi
 }
@@ -75,5 +74,3 @@ mkdir -p synology_build_results
 for p in `./pkgscripts-ng/EnvDeploy -v 6.1 --list | grep -o "[^:]*$" ` ; do
   build_package $p
 done
-
-

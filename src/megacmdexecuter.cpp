@@ -39,7 +39,7 @@
     #include <filesystem>
     namespace fs = std::filesystem;
     #define MEGACMDEXECUTER_FILESYSTEM
-#elif !defined(__MINGW32__) && !defined(__ANDROID__) && ( (__cplusplus >= 201100L) || (defined(_MSC_VER) && _MSC_VER >= 1600) )
+#elif !defined(__MINGW32__) && !defined(__ANDROID__) && ( (__cplusplus >= 201100L) || (defined(_MSC_VER) && _MSC_VER >= 1600) ) && (!defined(__GNUC__) || (__GNUC__*100+__GNUC_MINOR__) >= 503)
 #define MEGACMDEXECUTER_FILESYSTEM
 #ifdef WIN32
     #include <filesystem>
