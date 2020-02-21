@@ -112,10 +112,12 @@ then
 	exit 1
 fi
 
-install_name_tool -change @loader_path/$AVCODEC_VERSION @executable_path/../Frameworks/$AVCODEC_VERSION MEGAcmd.app/Contents/MacOS/mega-cmd
-install_name_tool -change @loader_path/$AVFORMAT_VERSION @executable_path/../Frameworks/$AVFORMAT_VERSION MEGAcmd.app/Contents/MacOS/mega-cmd
-install_name_tool -change @loader_path/$AVUTIL_VERSION @executable_path/../Frameworks/$AVUTIL_VERSION MEGAcmd.app/Contents/MacOS/mega-cmd
-install_name_tool -change @loader_path/$SWSCALE_VERSION @executable_path/../Frameworks/$SWSCALE_VERSION MEGAcmd.app/Contents/MacOS/mega-cmd
+for exec in mega-cmd mega-exec MEGAcmdShell; do
+install_name_tool -change @loader_path/$AVCODEC_VERSION @executable_path/../Frameworks/$AVCODEC_VERSION MEGAcmd.app/Contents/MacOS/$exec
+install_name_tool -change @loader_path/$AVFORMAT_VERSION @executable_path/../Frameworks/$AVFORMAT_VERSION MEGAcmd.app/Contents/MacOS/$exec
+install_name_tool -change @loader_path/$AVUTIL_VERSION @executable_path/../Frameworks/$AVUTIL_VERSION MEGAcmd.app/Contents/MacOS/$exec
+install_name_tool -change @loader_path/$SWSCALE_VERSION @executable_path/../Frameworks/$SWSCALE_VERSION MEGAcmd.app/Contents/MacOS/$exec
+done
 
 otool -L MEGAcmd.app/Contents/MacOS/mega-cmd
 
@@ -131,7 +133,7 @@ if [ "$createdmg" = "1" ]; then
 	echo "DMG CREATION PROCESS..."
 	echo "Creating temporary Disk Image (1/7)"
 	#Create a temporary Disk Image
-	/usr/bin/hdiutil create -srcfolder $APP_NAME.app/ -volname $APP_NAME -ov $APP_NAME-tmp.dmg -format UDRW >/dev/null
+	/usr/bin/hdiutil create -srcfolder $APP_NAME.app/ -volname $APP_NAME -ov $APP_NAME-tmp.dmg -fs HFS+ -format UDRW >/dev/null
 
 	echo "Attaching the temporary image (2/7)"
 	#Attach the temporary image
