@@ -639,6 +639,9 @@ vector <string> * MegaCmdExecuter::nodesPathsbypath(const char* ptr, bool usepcr
     }
     else if (!strncmp(ptr,"//from/",max(3,min((int)strlen(ptr)-1,7)))) //pattern trying to match inshares
     {
+
+        string matching = ptr;
+        unescapeifRequired(matching);
         unique_ptr<MegaShareList> inShares(api->getInSharesList());
         if (inShares)
         {
@@ -646,7 +649,8 @@ vector <string> * MegaCmdExecuter::nodesPathsbypath(const char* ptr, bool usepcr
             {
                 unique_ptr<MegaNode> n(api->getNodeByHandle(inShares->get(i)->getNodeHandle()));
                 string tomatch = string("//from/")+inShares->get(i)->getUser() + ":"+n->getName();
-                if (patternMatches(tomatch.c_str(), ptr, false))
+
+                if (patternMatches(tomatch.c_str(), matching.c_str(), false))
                 {
                     pathsMatching->push_back(tomatch);
                 }
@@ -841,6 +845,8 @@ MegaNode * MegaCmdExecuter::getBaseNode(string thepath, string &rest, bool *isre
         {
             string userName = base.substr(0,possepcol);
             string inshareName = base.substr(possepcol + 1);
+            unescapeifRequired(inshareName);
+
             MegaUserList * usersList = api->getContacts();
             MegaUser *u = NULL;
             for (int i = 0; i < usersList->size(); i++)
@@ -1081,11 +1087,13 @@ vector <MegaNode*> * MegaCmdExecuter::nodesbypath(const char* ptr, bool usepcre,
         unique_ptr<MegaShareList> inShares(api->getInSharesList());
         if (inShares)
         {
+            string matching = ptr;
+            unescapeifRequired(matching);
             for (int i = 0; i < inShares->size(); i++)
             {
                 MegaNode* n = api->getNodeByHandle(inShares->get(i)->getNodeHandle());
                 string tomatch = string("//from/")+inShares->get(i)->getUser() + ":"+n->getName();
-                if (patternMatches(tomatch.c_str(), ptr, false))
+                if (patternMatches(tomatch.c_str(), matching.c_str(), false))
                 {
                     nodesMatching->push_back(n);
                 }
@@ -5706,6 +5714,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         if (words.size() > 2)
         {
             string destiny = words[words.size()-1];
+            unescapeifRequired(destiny);
 
             if (words.size() > 3 && !isValidFolder(destiny))
             {
@@ -5717,6 +5726,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             for (unsigned int i=1;i<(words.size()-1);i++)
             {
                 string source = words[i];
+                unescapeifRequired(source);
 
                 if (isRegExp(source))
                 {
