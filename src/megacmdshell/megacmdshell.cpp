@@ -214,7 +214,9 @@ std::mutex mutexPrompt;
 
 void printWelcomeMsg(unsigned int width = 0);
 
+#ifndef NO_READLINE
 void install_rl_handler(const char *theprompt, bool external = true);
+#endif
 
 void statechangehandle(string statestring)
 {
@@ -296,10 +298,12 @@ void statechangehandle(string statestring)
                     OUTSTREAM << endl;
                 }
                 printCenteredContents(contents, width);
+#ifndef NO_READLINE
                 if (prompt == COMMAND && promtpLogReceivedBool)
                 {
                     install_rl_handler(*dynamicprompt ? dynamicprompt : prompts[COMMAND]);
                 }
+#endif
             }
             else
             {
