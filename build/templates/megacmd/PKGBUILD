@@ -87,5 +87,6 @@ package() {
 	install -D mega-cmd $_bindir/mega-cmd
 	install -D mega-cmd-server $_bindir/mega-cmd-server
 	install -D mega-exec $_bindir/mega-exec
+	mkdir -p $pkgdir/etc/sysctl.d/
 	echo "fs.inotify.max_user_watches = 524288" > $pkgdir/etc/sysctl.d/100-megacmd-inotify-limit.conf
 }
