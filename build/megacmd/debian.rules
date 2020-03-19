@@ -16,7 +16,7 @@ build-stamp:
 	#build dependencies into folder deps
 	mkdir deps || :
 	bash -x ./sdk/contrib/build_sdk.sh -o archives \
-	  -g -b $(FMEDIAINFO) -l -c -s -u -v -a -z -p deps/
+	  -g -b $(FMEDIAINFO) -l -c -s -u -v -a -z -I -p deps/
 
 	CPPFLAGS="$(CPPFLAGS) $(FULLREQS)" ./configure --without-libraw --disable-shared --enable-static --disable-silent-rules \
 	  --disable-curl-checks --with-sodium=$(CURDIR)/deps --with-libuv=$(CURDIR)/deps --with-pcre \

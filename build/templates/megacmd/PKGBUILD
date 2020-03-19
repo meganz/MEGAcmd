@@ -54,7 +54,7 @@ build() {
 	#build dependencies into folder deps
 	mkdir deps || :
 	bash -x ./contrib/build_sdk.sh -o archives \
-	  -e -g -b -l -c -s -u -v -a -q -p deps/
+	  -e -g -b -l -c -s -u -v -a -q -I -p deps/
 
 	CPPFLAGS="$CPPFLAGS -DREQUIRE_HAVE_FFMPEG -DREQUIRE_HAVE_LIBUV -DREQUIRE_USE_MEDIAINFO -DREQUIRE_USE_PCRE" ./configure --without-libraw --disable-shared --enable-static --disable-silent-rules \
 	  --disable-curl-checks --with-sodium=$PWD/deps --with-pcre --with-cryptopp=$PWD/deps\

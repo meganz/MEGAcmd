@@ -148,7 +148,7 @@ sed -i -E "s/(^#define MEGACMD_BUILD_ID )[0-9]*/\1${mega_build_id}/g" src/megacm
 #build dependencies into folder deps
 mkdir deps || :
 bash -x ./contrib/build_sdk.sh %{flag_cryptopp} %{flag_libraw} %{flag_cares} -o archives \
-  -g %{flag_disablezlib} %{flag_disablemediainfo} -b -l -c -s -u -v -a -p deps/
+  -g %{flag_disablezlib} %{flag_disablemediainfo} -b -l -c -s -u -v -a -I -p deps/
 
 %if ( 0%{?fedora_version} && 0%{?fedora_version}<=27 ) || ( 0%{?centos_version} == 600 ) || ( 0%{?suse_version} && 0%{?suse_version} <= 1320 && !0%{?sle_version} ) || ( 0%{?sle_version} && 0%{?sle_version} <= 120200 )
     export CPPFLAGS="$CPPFLAGS -DMEGACMD_DEPRECATED_OS"
