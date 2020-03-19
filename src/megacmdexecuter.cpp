@@ -2305,6 +2305,7 @@ bool MegaCmdExecuter::actUponFetchNodes(MegaApi *api, SynchronousRequestListener
             delete cwdNode;
         }
 
+        setloginInAtStartup(false); //to enable all commands before giving clients the green light!
         informStateListeners("loged:"); // tell the clients login ended, before providing them the first prompt
         updateprompt(api, cwd);
         LOG_debug << " Fetch nodes correctly";
