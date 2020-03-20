@@ -4636,6 +4636,7 @@ bool MegaCmdExecuter::isValidFolder(string destiny)
 
 void MegaCmdExecuter::restartsyncs()
 {
+    std::lock_guard<std::recursive_mutex> g(ConfigurationManager::settingsMutex);
     map<string, sync_struct *>::iterator itr;
     for (itr = ConfigurationManager::configuredSyncs.begin(); itr != ConfigurationManager::configuredSyncs.end(); ++itr)
     {
@@ -7699,8 +7700,9 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 }
                 else if (api->getAccess(n) >= MegaShare::ACCESS_FULL)
                 {
-                    MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
+                    std::lock_guard<std::recursive_mutex> g(ConfigurationManager::settingsMutex);
 
+                    MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
                     api->syncFolder(path.c_str(), n, megaCmdListener);
                     megaCmdListener->wait();
                     if (checkNoErrors(megaCmdListener->getError(), "sync folder"))
@@ -7710,6 +7712,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         thesync->handle = megaCmdListener->getRequest()->getNodeHandle();
                         thesync->localpath = string(megaCmdListener->getRequest()->getFile());
                         thesync->fingerprint = megaCmdListener->getRequest()->getNumber();
+
 
                         if (ConfigurationManager::configuredSyncs.find(megaCmdListener->getRequest()->getFile()) != ConfigurationManager::configuredSyncs.end())
                         {
@@ -7729,7 +7732,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 else
                 {
                     setCurrentOutCode(MCMD_NOTPERMITTED);
-                    LOG_err << words[2] << ": Syncing requires full access to path, current acces: " << api->getAccess(n);
+                    LOG_err << words[2] << ": Syncing requires full access to path, current access: " << api->getAccess(n);
                 }
                 delete n;
             }
@@ -7745,6 +7748,8 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             map<string, sync_struct *>::iterator itr;
             int i = 0;
             bool foundsync = false;
+            std::lock_guard<std::recursive_mutex> g(ConfigurationManager::settingsMutex);
+
             for (itr = ConfigurationManager::configuredSyncs.begin(); itr != ConfigurationManager::configuredSyncs.end(); i++)
             {
                 string key = ( *itr ).first;

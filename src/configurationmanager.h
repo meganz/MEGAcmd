@@ -44,6 +44,8 @@ public:
     static std::map<std::string, sync_struct *> configuredSyncs;
     static std::map<std::string, backup_struct *> configuredBackups;
 
+    static std::recursive_mutex settingsMutex;
+
     static std::string session;
 
     static std::set<std::string> excludedNames;

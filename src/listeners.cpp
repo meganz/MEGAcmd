@@ -346,36 +346,38 @@ void MegaCmdListener::doOnRequestFinish(MegaApi* api, MegaRequest *request, Mega
             int i = 0;
 #ifdef ENABLE_SYNC
 
+            std::shared_ptr<std::lock_guard<std::recursive_mutex>> g = std::make_shared<std::lock_guard<std::recursive_mutex>>(ConfigurationManager::settingsMutex);
+            // shared pointed lock_guard. will be freed when all resuming are complete
+
             for (itr = ConfigurationManager::configuredSyncs.begin(); itr != ConfigurationManager::configuredSyncs.end(); ++itr, i++)
             {
                 sync_struct *oldsync = ((sync_struct*)( *itr ).second );
 
-                MegaCmdListener *megaCmdListener = new MegaCmdListener(api, NULL);
                 MegaNode * node = api->getNodeByHandle(oldsync->handle);
-                api->resumeSync(oldsync->localpath.c_str(), node, oldsync->fingerprint, megaCmdListener);
-                megaCmdListener->wait();
-                if ( megaCmdListener->getError()->getErrorCode() == MegaError::API_OK )
+                api->resumeSync(oldsync->localpath.c_str(), node, oldsync->fingerprint, new MegaCmdListenerFuncExecuter([g, oldsync, node](mega::MegaApi* api, mega::MegaRequest *request, mega::MegaError *e)
                 {
-                    oldsync->fingerprint = megaCmdListener->getRequest()->getNumber();
-                    oldsync->active = true;
-                    oldsync->loadedok = true;
+                    std::unique_ptr<char []>nodepath (api->getNodePath(node));
 
-                    char *nodepath = api->getNodePath(node);
-                    LOG_info << "Loaded sync: " << oldsync->localpath << " to " << nodepath;
-                    delete []nodepath;
-                }
-                else
-                {
-                    oldsync->loadedok = false;
-                    oldsync->active = false;
+                    if ( e->getErrorCode() == MegaError::API_OK )
+                    {
+                        if (request->getNumber())
+                        {
+                            oldsync->fingerprint = request->getNumber();
+                        }
+                        oldsync->active = true;
+                        oldsync->loadedok = true;
 
-                    char *nodepath = api->getNodePath(node);
-                    LOG_err << "Failed to resume sync: " << oldsync->localpath << " to " << nodepath;
-                    delete []nodepath;
-                }
+                        LOG_info << "Loaded sync: " << oldsync->localpath << " to " << nodepath.get();
+                    }
+                    else
+                    {
+                        oldsync->loadedok = false;
+                        oldsync->active = false;
 
-                delete megaCmdListener;
-                delete node;
+                        LOG_err << "Failed to resume sync: " << oldsync->localpath << " to " << nodepath.get();
+                    }
+                    delete node;
+                }, true));
             }
 #endif
             informProgressUpdate(PROGRESS_COMPLETE, request->getTotalBytes(), this->clientID, "Fetching nodes");

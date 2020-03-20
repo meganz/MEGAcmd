@@ -45,6 +45,45 @@ protected:
 };
 
 
+/**
+ * @brief The MegaCmdListenerFuncExecuter class
+ *
+ * it takes an std::function as parameter that will be called upon request finish.
+ *
+ */
+class MegaCmdListenerFuncExecuter : public mega::MegaRequestListener
+{
+private:
+    std::function<void(mega::MegaApi* api, mega::MegaRequest *request, mega::MegaError *e)> onRequestFinishCallback;
+    bool mAutoremove = true;
+
+public:
+
+    /**
+     * @brief MegaCmdListenerFuncExecuter
+     * @param func to call upon onRequestFinish
+     * @param autoremove whether this should be deleted after func is called
+     */
+    MegaCmdListenerFuncExecuter(std::function<void(mega::MegaApi* api, mega::MegaRequest *request, mega::MegaError *e)> func, bool autoremove = false)
+    {
+        onRequestFinishCallback = std::move(func);
+        mAutoremove = autoremove;
+    }
+
+    void onRequestFinish(mega::MegaApi *api, mega::MegaRequest *request, mega::MegaError *e)
+    {
+        onRequestFinishCallback(api, request, e);
+
+        if (mAutoremove)
+        {
+            delete this;
+        }
+    }
+    virtual void onRequestStart(mega::MegaApi* api, mega::MegaRequest *request) {}
+    virtual void onRequestUpdate(mega::MegaApi* api, mega::MegaRequest *request) {}
+    virtual void onRequestTemporaryError(mega::MegaApi *api, mega::MegaRequest *request, mega::MegaError* e) {}
+};
+
 class MegaCmdTransferListener : public mega::SynchronousTransferListener
 {
 private:
