@@ -1,4 +1,5 @@
 #ifdef _WIN32
+#include <winsock2.h>
 #include <Windows.h>
 #include <lzexpand.h>
 #include <shlwapi.h>
@@ -215,6 +216,7 @@ using namespace megacmdupdater;
 #include <stdio.h>
 #include <io.h>
 #include <fcntl.h>
+#include <winsock2.h>
 #include <windows.h>
 #include <locale>
 #include <codecvt>

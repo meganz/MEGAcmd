@@ -1,5 +1,4 @@
 
-
 # MEGAcmd - Command Line Interactive and Scriptable Application
 
 MEGAcmd provides non UI access to MEGA services. It intends to offer all the 
@@ -20,13 +19,12 @@ In order to provide those 2 modes, it features one server (**MEGAcmdServer**), a
 
 See [`Usage`](#usage) and [`Platform`](#platforms) to understand how to use it in your particular system.
 
-
 # Building MEGAcmd
 If you wish to build or install MEGAcmd, here are a list of requirements and instructions.
 
 ## Requirements
 
-The requirements are the same as those for the sdk (usually `cryptopp, zlib, sqlite3, cares, libuv, ssl, curl,sodium, readline` for platforms *other than Windows*. It is recommended to include `pcre` to have support for regular expressions.
+The requirements are the same as those for the sdk (usually `cryptopp, zlib, sqlite3, cares, libuv, ssl, curl, sodium, readline` for platforms *other than Windows*. It is recommended to include `pcre` to have support for regular expressions.
 
 In order to have support for thumbnails and previews, it is highly recommended to have `ffmpeg` (`libavcodec-dev libavutil-dev libavformat-dev libswscale-dev`) and `mediainfo`(`libmediainfo-dev + libzen-dev`) for media file attributes.
 
@@ -46,6 +44,11 @@ In order to have support for thumbnails and previews, it is highly recommended t
  * **Windows** 
 	 * Here is a bundle with all the 3rd party dependencies required to build:
 	   https://mega.nz/#!MkZmVazb!fffUvFV9pIQhr__dVipwWqFfvjDEEp0JUsT8WBKAbRg
+
+* **Windows**
+
+	* For Windows, here is a bundle with all the 3rd party dependencies required to build:
+	https://mega.nz/#!MkZmVazb!fffUvFV9pIQhr__dVipwWqFfvjDEEp0JUsT8WBKAbRg
 
 ## Getting the source
 
@@ -174,6 +177,7 @@ Once you have MEGAcmd installed, you just need to execute it (via Desktop icon o
 For a better user experience (specially in Windows 7) we recommend executing MEGAcmd from PowerShell.
 
 **Open PowerShell and execute:**
+
 ```
 $env:PATH += ";$env:LOCALAPPDATA\MEGAcmd"
 MEGAcmdShell
@@ -215,6 +219,8 @@ source /Applications/MEGAcmd.app/Contents/MacOS/megacmd_completion.sh
 ## NAS systems
 Currently we have build scripts for **Synology** and **QNAP**, which can be found in the `build/<system>` folder along with instructions on how to set up the build.  Typically this results in a 'package' which can then be manually installed in the NAS.   To use MEGAcmd on those systems, ssh into the device and run the commands as normal (having first added their folder to your `PATH` variable).
 
+*Important note for MacOS Catalina or above: since Catalina, MacOS uses `zsh` as default shell. If you want to have auto completion, we strongly recommend you to use `bash` shell (just execute `bash` in your terminal).
+
 # Features:
 
 ## Autocompletion:
@@ -245,8 +251,8 @@ find --help
 Options:
  --pattern=PATTERN	Pattern to match (Perl Compatible Regular Expressions)
 ```
-**Notice:** if you use MEGAcmd in non interactive mode, notice that shell pattern will take precedence. You will need to either escape symbols like `*` (`\*`) or surround them between quotes (e.g: "*.txt").
 
+**Notice:** if you use MEGAcmd in non interactive mode, notice that shell pattern will take precedence. You will need to either escape symbols like `*` (`\*`) or surround them between quotes (e.g: "*.txt").
 
 ## MEGAcmd Updates
 
@@ -267,15 +273,20 @@ You can also update manually by typing `update` within MEGAcmd. This will check 
 Alternatively you can also execute `MEGAcmdUpdater.exe` in Windows or `MEGAcmdUpdater` (located at /Applications/MEGAcmd.app/Contents/MacOS) in MacOS.
 
 ## Known Bugs
+
 Currently there are certain discrepancies with **PATHS** when logging into a public folder.
 
 For instance, imagine a folder named `toshare` with a subfolder named `x`. If we login in to `toshare` and execute `find /x`, this will be the output:
+
 ```
 /toshare/x
 ```
+
 Whereas if we execute `find /toshare/x`, we receive an error, since folder absolute path
 refers to `/` as root path. 
+
 ```
 [err: 12:21:51] Couldn't find /toshare/x
 ```
+
 It might better be referred as `/toshare/x`.

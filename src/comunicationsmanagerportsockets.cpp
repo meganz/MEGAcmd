@@ -39,8 +39,8 @@
 #endif
 
 using namespace mega;
-using namespace std;
 
+namespace megacmd {
 void closeSocket(SOCKET socket){
 #ifdef _WIN32
     closesocket(socket);
@@ -161,13 +161,12 @@ SOCKET ComunicationsManagerPortSockets::create_new_socket(int *sockId)
 ComunicationsManagerPortSockets::ComunicationsManagerPortSockets()
 {
     count = 0;
-    mtx = new MegaMutex();
+    mtx = new std::mutex();
     initialize();
 }
 
 int ComunicationsManagerPortSockets::initialize()
 {
-    mtx->init(false);
 #if _WIN32
     WORD wVersionRequested;
     WSADATA wsaData;
@@ -294,7 +293,7 @@ void ComunicationsManagerPortSockets::registerStateListener(CmdPetition *inf)
  */
 void ComunicationsManagerPortSockets::returnAndClosePetition(CmdPetition *inf, OUTSTRINGSTREAM *s, int outCode)
 {
-    LOG_verbose << "Output to write in socket " << ((CmdPetitionPortSockets *)inf)->outSocket << ": <<" << s->str() << ">>";
+    LOG_verbose << "Output to write in socket " << (long)((CmdPetitionPortSockets *)inf)->outSocket;
     sockaddr_in cliAddr;
     socklen_t cliLength = sizeof( cliAddr );
     SOCKET connectedsocket = ((CmdPetitionPortSockets *)inf)->acceptedOutSocket;
@@ -305,7 +304,7 @@ void ComunicationsManagerPortSockets::returnAndClosePetition(CmdPetition *inf, O
     }
     if (connectedsocket == SOCKET_ERROR)
     {
-        LOG_fatal << "Return and close: Unable to accept on outsocket " << ((CmdPetitionPortSockets *)inf)->outSocket << " error: " << ERRNO;
+        LOG_fatal << "Return and close: Unable to accept on outsocket " << (long)((CmdPetitionPortSockets *)inf)->outSocket << " error: " << ERRNO;
         delete inf;
         return;
     }
@@ -391,7 +390,7 @@ int ComunicationsManagerPortSockets::informStateListener(CmdPetition *inf, strin
     {
         if (errno == 32) //socket closed
         {
-            LOG_debug << "Unregistering no longer listening client. Original petition: " << *inf;
+            LOG_debug << "Unregistering no longer listening client. Original petition: " << inf->line;
             closeSocket(connectedsocket);
             connectedsockets.erase(((CmdPetitionPortSockets *)inf)->outSocket);
             return -1;
@@ -412,7 +411,7 @@ int ComunicationsManagerPortSockets::informStateListener(CmdPetition *inf, strin
     {
         if (errno == 32) //socket closed
         {
-            LOG_debug << "Unregistering no longer listening client. Original petition: " << *inf;
+            LOG_debug << "Unregistering no longer listening client. Original petition: " << inf->line;
             connectedsockets.erase(((CmdPetitionPortSockets *)inf)->outSocket);
             return -1;
         }
@@ -611,3 +610,4 @@ ComunicationsManagerPortSockets::~ComunicationsManagerPortSockets()
 #endif
     delete mtx;
 }
+}//end namespace

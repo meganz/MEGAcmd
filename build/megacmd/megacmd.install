@@ -4,10 +4,14 @@ post_install() {
 sed -n '1h;1!H;${g;s/###REPO for MEGA###\n.*###END REPO for MEGA###//;p;}' -i /etc/pacman.conf 
 
 #include repo
+#Add a new line if required
+lastC=`tail -c1 /etc/pacman.conf || echo -n "x"`
+if [ "$lastC" != "" ]; then echo >> /etc/pacman.conf; fi
+
 cat >> /etc/pacman.conf <<-EOF
 ###REPO for MEGA###
 [DEB_Arch_Extra]
-SigLevel = Optional TrustAll
+SigLevel = Required TrustedOnly
 Server = https://mega.nz/linux/MEGAsync/Arch_Extra/\$arch
 ###END REPO for MEGA###
 EOF
@@ -36,5 +40,16 @@ Jjiho4rUEW8c1EUPvK8v1jRGwjYED3ihJ6510eblYFPl+6k91OWlScnxuVVAmSn4
 -----END PGP PUBLIC KEY BLOCK-----
 KEY
 
+pacman-key --lsign-key 8F208FBF12FEE766AA32AEAF03C3AD3A7F068E5D
+
 }
 
+pre_upgrade() {
+killall -s SIGUSR1 mega-cmd-server 2> /dev/null || true
+}
+
+post_upgrade() {
+sysctl -p /etc/sysctl.d/100-megacmd-inotify-limit.conf
+
+killall -s SIGUSR2 mega-cmd-server 2> /dev/null || true
+}

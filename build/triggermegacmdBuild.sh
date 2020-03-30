@@ -109,7 +109,7 @@ for package in megacmd; do
 	if ls $PROJECT_PATH/build/megacmd/*changes 2>&1 > /dev/null ; then 
 		copy $PROJECT_PATH/build/megacmd/*changes $NEWOSCFOLDER_PATH/RPM/$package/; 
 	fi
-	for i in $PROJECT_PATH/build/megacmd/{PKGBUILD,megacmd.install,*.dsc,*.tar.gz,debian.changelog,debian.control,debian.postinst,debian.postrm,debian.rules,debian.compat,debian.copyright} ; do 
+	for i in $PROJECT_PATH/build/megacmd/{PKGBUILD,megacmd.install,*.dsc,*.tar.gz,debian.changelog,debian.control,debian.postinst,debian.prerm,debian.postrm,debian.rules,debian.compat,debian.copyright} ; do 
 		if [ -e $i ]; then
 			copy $i $NEWOSCFOLDER_PATH/DEB/$package/; 
 		fi

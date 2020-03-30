@@ -1,7 +1,7 @@
 #include "MacUtils.h"
 #include <Cocoa/Cocoa.h>
 
-bool downloadFileSynchronously(string url, string path)
+bool downloadFileSynchronously(std::string url, std::string path)
 {
     NSString *stringURL = [NSString stringWithCString:url.c_str() encoding:NSUTF8StringEncoding];
     NSURL *myURL = [NSURL URLWithString:stringURL];

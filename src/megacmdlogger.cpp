@@ -34,11 +34,11 @@
 #endif
 #endif
 
-using namespace std;
 using namespace mega;
 
+namespace megacmd {
 // different outstreams for every thread. to gather all the output data
-MUTEX_CLASS threadLookups(false);
+std::mutex threadLookups;
 map<uint64_t, LoggedStream *> outstreams;
 map<uint64_t, int> threadLogLevel;
 map<uint64_t, int> threadoutCode;
@@ -50,7 +50,7 @@ LoggedStream LCOUT(&COUT);
 
 LoggedStream &getCurrentOut()
 {
-    MutexGuard g(threadLookups);
+    std::lock_guard<std::mutex> g(threadLookups);
     uint64_t currentThread = MegaThread::currentThreadId();
     if (outstreams.find(currentThread) == outstreams.end())
     {
@@ -71,7 +71,7 @@ bool interactiveThread()
 
     unsigned long long currentThread = MegaThread::currentThreadId();
 
-    MutexGuard g(threadLookups);
+    std::lock_guard<std::mutex> g(threadLookups);
     if (outstreams.find(currentThread) == outstreams.end())
     {
         return true;
@@ -86,7 +86,7 @@ int getCurrentOutCode()
 {
     unsigned long long currentThread = MegaThread::currentThreadId();
 
-    MutexGuard g(threadLookups);
+    std::lock_guard<std::mutex> g(threadLookups);
     if (threadoutCode.find(currentThread) == threadoutCode.end())
     {
         return 0; //default OK
@@ -102,7 +102,7 @@ CmdPetition * getCurrentPetition()
 {
     unsigned long long currentThread = MegaThread::currentThreadId();
 
-    MutexGuard g(threadLookups);
+    std::lock_guard<std::mutex> g(threadLookups);
     if (threadpetition.find(currentThread) == threadpetition.end())
     {
         return NULL;
@@ -117,7 +117,7 @@ int getCurrentThreadLogLevel()
 {
     unsigned long long currentThread = MegaThread::currentThreadId();
 
-    MutexGuard g(threadLookups);
+    std::lock_guard<std::mutex> g(threadLookups);
     if (threadLogLevel.find(currentThread) == threadLogLevel.end())
     {
         return -1;
@@ -132,7 +132,7 @@ bool getCurrentThreadIsCmdShell()
 {
     unsigned long long currentThread = MegaThread::currentThreadId();
 
-    MutexGuard g(threadLookups);
+    std::lock_guard<std::mutex> g(threadLookups);
     if (threadIsCmdShell.find(currentThread) == threadIsCmdShell.end())
     {
         return false; //default not
@@ -146,31 +146,31 @@ bool getCurrentThreadIsCmdShell()
 
 void setCurrentThreadLogLevel(int level)
 {
-    MutexGuard g(threadLookups);
+    std::lock_guard<std::mutex> g(threadLookups);
     threadLogLevel[MegaThread::currentThreadId()] = level;
 }
 
 void setCurrentThreadOutStream(LoggedStream *s)
 {
-    MutexGuard g(threadLookups);
+    std::lock_guard<std::mutex> g(threadLookups);
     outstreams[MegaThread::currentThreadId()] = s;
 }
 
 void setCurrentThreadIsCmdShell(bool isit)
 {
-    MutexGuard g(threadLookups);
+    std::lock_guard<std::mutex> g(threadLookups);
     threadIsCmdShell[MegaThread::currentThreadId()] = isit;
 }
 
 void setCurrentOutCode(int outCode)
 {
-    MutexGuard g(threadLookups);
+    std::lock_guard<std::mutex> g(threadLookups);
     threadoutCode[MegaThread::currentThreadId()] = outCode;
 }
 
 void setCurrentPetition(CmdPetition *petition)
 {
-    MutexGuard g(threadLookups);
+    std::lock_guard<std::mutex> g(threadLookups);
     threadpetition[MegaThread::currentThreadId()] = petition;
 }
 
@@ -179,7 +179,7 @@ MegaCMDLogger::MegaCMDLogger()
 {
     this->output = &LCOUT;
     this->apiLoggerLevel = MegaApi::LOG_LEVEL_ERROR;
-    this->outputmutex = new MegaMutex(false);
+    this->outputmutex = new std::mutex();
 }
 
 MegaCMDLogger::~MegaCMDLogger()
@@ -199,7 +199,7 @@ void MegaCMDLogger::log(const char *time, int loglevel, const char *source, cons
         if (loglevel <= cmdLoggerLevel)
         {
 #ifdef _WIN32
-            MutexGuard g(*outputmutex);
+            std::lock_guard<std::mutex> g(*outputmutex);
             int oldmode;
             oldmode = _setmode(_fileno(stdout), _O_U8TEXT);
             *output << "[" << SimpleLogger::toStr(LogLevel(loglevel)) << ": " << time << "] " << message << endl;
@@ -233,7 +233,7 @@ void MegaCMDLogger::log(const char *time, int loglevel, const char *source, cons
                 return;
             }
 #ifdef _WIN32
-            MutexGuard g(*outputmutex);
+            std::lock_guard<std::mutex> g(*outputmutex);
             int oldmode;
             oldmode = _setmode(_fileno(stdout), _O_U8TEXT);
             *output << "[API:" << SimpleLogger::toStr(LogLevel(loglevel)) << ": " << time << "] " << message << endl;
@@ -261,3 +261,4 @@ int MegaCMDLogger::getMaxLogLevel()
     return max(max(getCurrentThreadLogLevel(), cmdLoggerLevel), apiLoggerLevel);
 }
 
+}//end namespace

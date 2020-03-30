@@ -9,6 +9,8 @@
 #include <sys/stat.h>
 #ifdef __MACH__
 
+namespace megacmd {
+
 char *runWithRootPrivileges(char *command)
 {
     OSStatus status;
@@ -129,5 +131,6 @@ bool registerUpdateDaemon()
     return false;
 }
 
+}// end of namespace
 
 #endif

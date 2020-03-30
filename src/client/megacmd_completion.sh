@@ -16,7 +16,7 @@ _megacmd()
 			lastcharina="${a: -1}"
 			#add trailing space if ended in \ (it would have been strimmed)
 			#and unescape symbols that dont need scaping between single quotes
-			linetoexec=$linetoexec" '"$(echo $a | sed 's#\([^\\]\)\\$#\1\\ #g' | sed "s#\\\\\([ \<\>\|\`;\"\!]\)#\1#g")"'"
+			linetoexec=$linetoexec" '"$(echo $a | sed 's#\([^\\]\)\\$#\1\\ #g' | sed "s#\\\\\([ \<\>\|\`;:\"\!]\)#\1#g")"'"
 		else
 			if [[ ${a} == '=' ]] || [[ ${lasta} == '=' ]] || [[ ${a} == ':' ]] || [[ ${lasta} == ':' ]]; then
 				linetoexec=$linetoexec$a
@@ -53,7 +53,7 @@ _megacmd()
 	#escape characters that need to be scaped
 	for a in `seq 0 $(( ${#aOPTS[@]} -1 ))`; do
 		if [[ $lasta != "\""* ]] && [[ $lasta != "'"* ]]; then
-			COMPREPLY[$a]=$( echo ${aOPTS[$a]} | sed "s#\([ \!;\|\`\(\)\<\>\"\'\\]\)#\\\\\1#g") #OK
+			COMPREPLY[$a]=$( echo ${aOPTS[$a]} | sed "s#\([ \!;:\|\`\(\)\<\>\"\'\\]\)#\\\\\1#g") #OK
 		else
 			COMPREPLY[$a]="${aOPTS[$a]}"
 		fi

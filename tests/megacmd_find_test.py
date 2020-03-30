@@ -76,7 +76,7 @@ def clear_local_and_remote():
 def compare_and_clear() :
     global currentTest
     if VERBOSE:
-        print "test $currentTest"
+        print "test "+str(currentTest)
     
     megafind=sort(cmd_ef(FIND))
     localfind=sort(find('localUPs'))

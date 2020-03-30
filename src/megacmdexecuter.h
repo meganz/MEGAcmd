@@ -23,6 +23,7 @@
 #include "megacmdsandbox.h"
 #include "listeners.h"
 
+namespace megacmd {
 class MegaCmdExecuter
 {
 private:
@@ -33,12 +34,12 @@ private:
     MegaCMDLogger *loggerCMD;
     MegaCmdSandbox *sandboxCMD;
     MegaCmdGlobalTransferListener *globalTransferListener;
-    mega::MegaMutex mtxSyncMap;
-    mega::MegaMutex mtxWebDavLocations; //TODO: destroy these two
-    mega::MegaMutex mtxFtpLocations;
+    std::mutex mtxSyncMap;
+    std::mutex mtxWebDavLocations;
+    std::mutex mtxFtpLocations;
 
 #ifdef ENABLE_BACKUPS
-    mega::MegaMutex mtxBackupsMap;
+    std::recursive_mutex mtxBackupsMap;
 #endif
 
     // login/signup e-mail address
@@ -83,19 +84,19 @@ public:
     void getPathsMatching(mega::MegaNode *parentNode, std::deque<std::string> pathParts, std::vector<std::string> *pathsMatching, bool usepcre, std::string pathPrefix = "");
 
     void printTreeSuffix(int depth, std::vector<bool> &lastleaf);
-    void dumpNode(mega::MegaNode* n, const char *timeFormat, int extended_info, bool showversions = false, int depth = 0, const char* title = NULL);
-    void dumptree(mega::MegaNode* n, bool treelike, std::vector<bool> &lastleaf, const char *timeFormat, int recurse, int extended_info, bool showversions = false, int depth = 0, std::string pathRelativeTo = "NULL");
-    void dumpNodeSummaryHeader(const char *timeFormat);
-    void dumpNodeSummary(mega::MegaNode* n, const char *timeFormat, bool humanreadable = false, const char* title = NULL);
-    void dumpTreeSummary(mega::MegaNode* n, const char *timeFormat, int recurse, bool show_versions, int depth = 0, bool humanreadable = false, std::string pathRelativeTo = "NULL");
+    void dumpNode(mega::MegaNode* n, const char *timeFormat, std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions, int extended_info, bool showversions = false, int depth = 0, const char* title = NULL);
+    void dumptree(mega::MegaNode* n, bool treelike, std::vector<bool> &lastleaf, const char *timeFormat, std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions, int recurse, int extended_info, bool showversions = false, int depth = 0, std::string pathRelativeTo = "NULL");
+    void dumpNodeSummaryHeader(const char *timeFormat, std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions);
+    void dumpNodeSummary(mega::MegaNode* n, const char *timeFormat, std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions, bool humanreadable = false, const char* title = NULL);
+    void dumpTreeSummary(mega::MegaNode* n, const char *timeFormat, std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions, int recurse, bool show_versions, int depth = 0, bool humanreadable = false, std::string pathRelativeTo = "NULL");
     mega::MegaContactRequest * getPcrByContact(std::string contactEmail);
     bool TestCanWriteOnContainingFolder(std::string *path);
     std::string getDisplayPath(std::string givenPath, mega::MegaNode* n);
-    int dumpListOfExported(mega::MegaNode* n, const char *timeFormat, std::string givenPath);
+    int dumpListOfExported(mega::MegaNode* n, const char *timeFormat, std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions, std::string givenPath);
     void listnodeshares(mega::MegaNode* n, std::string name);
     void dumpListOfShared(mega::MegaNode* n, std::string givenPath);
-    void dumpListOfAllShared(mega::MegaNode* n, const char *timeFormat, std::string givenPath);
-    void dumpListOfPendingShares(mega::MegaNode* n, const char *timeFormat, std::string givenPath);
+    void dumpListOfAllShared(mega::MegaNode* n, const char *timeFormat, std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions, std::string givenPath);
+    void dumpListOfPendingShares(mega::MegaNode* n, const char *timeFormat, std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions, std::string givenPath);
     std::string getCurrentPath();
     long long getVersionsSize(mega::MegaNode* n);
     void getInfoFromFolder(mega::MegaNode *, mega::MegaApi *, long long *nfiles, long long *nfolders, long long *nversions = NULL);
@@ -151,7 +152,7 @@ public:
 
     void printTransfersHeader(const unsigned int PATHSIZE, bool printstate=true);
     void printTransfer(mega::MegaTransfer *transfer, const unsigned int PATHSIZE, bool printstate=true);
-    void printSyncHeader(const unsigned int PATHSIZE);
+    void printTransferColumnDisplayer(ColumnDisplayer *cd, mega::MegaTransfer *transfer, bool printstate=true);
 
 #ifdef ENABLE_BACKUPS
 
@@ -162,9 +163,10 @@ public:
     void printBackup(int tag, mega::MegaBackup *backup, const char *timeFormat, const unsigned int PATHSIZE, bool extendedinfo = false, bool showhistory = false, mega::MegaNode *parentnode = NULL);
     void printBackup(backup_struct *backupstruct, const char *timeFormat, const unsigned int PATHSIZE, bool extendedinfo = false, bool showhistory = false);
 #endif
-    void printSync(int i, std::string key, const char *nodepath, sync_struct * thesync, mega::MegaNode *n, long long nfiles, long long nfolders, const unsigned int PATHSIZE);
+    void printSyncHeader(const unsigned int PATHSIZE, ColumnDisplayer *cd = nullptr);
+    void printSync(int i, std::string key, const char *nodepath, sync_struct * thesync, mega::MegaNode *n, long long nfiles, long long nfolders, const unsigned int PATHSIZE, ColumnDisplayer *cd = nullptr);
 
-    void doFind(mega::MegaNode* nodeBase, const char *timeFormat, std::string word, int printfileinfo, std::string pattern, bool usepcre, mega::m_time_t minTime, mega::m_time_t maxTime, int64_t minSize, int64_t maxSize);
+    void doFind(mega::MegaNode* nodeBase, const char *timeFormat, std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions, std::string word, int printfileinfo, std::string pattern, bool usepcre, mega::m_time_t minTime, mega::m_time_t maxTime, int64_t minSize, int64_t maxSize);
 
     void move(mega::MegaNode *n, std::string destiny);
     void copyNode(mega::MegaNode *n, std::string destiny, mega::MegaNode *tn, std::string &targetuser, std::string &newname);
@@ -194,6 +196,8 @@ public:
     void addFtpLocation(mega::MegaNode *n, bool firstone, std::string name = std::string());
 #endif
     bool printUserAttribute(int a, std::string user, bool onlylist = false);
+    bool setProxy(const std::string &url, const std::string &username, const std::string &password, int proxyType);
 };
 
+}//end namespace
 #endif // MEGACMDEXECUTER_H

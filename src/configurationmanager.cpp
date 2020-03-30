@@ -40,9 +40,10 @@
 #define unlink _unlink
 #endif
 
-using namespace std;
 using namespace mega;
 
+namespace megacmd {
+using namespace std;
 bool is_file_exist(const char *fileName)
 {
     std::ifstream infile(fileName);
@@ -57,6 +58,7 @@ map<string, sync_struct *> ConfigurationManager::configuredSyncs;
 string ConfigurationManager::session;
 std::set<std::string> ConfigurationManager::excludedNames;
 map<std::string, backup_struct *> ConfigurationManager::configuredBackups;
+std::recursive_mutex ConfigurationManager::settingsMutex;
 
 std::string ConfigurationManager::getConfigFolder()
 {
@@ -74,6 +76,8 @@ static const char* const persistentmcmdconfigurationkeys[] =
 
 void ConfigurationManager::loadConfigDir()
 {
+    std::lock_guard<std::recursive_mutex> g(settingsMutex);
+
 #ifdef _WIN32
 
    TCHAR szPath[MAX_PATH];
@@ -132,6 +136,8 @@ void ConfigurationManager::loadConfigDir()
 
 void ConfigurationManager::saveSession(const char*session)
 {
+    std::lock_guard<std::recursive_mutex> g(settingsMutex);
+
     stringstream sessionfile;
     if (!configFolder.size())
     {
@@ -159,6 +165,8 @@ void ConfigurationManager::saveSession(const char*session)
 
 void ConfigurationManager::saveProperty(const char *property, const char *value)
 {
+    std::lock_guard<std::recursive_mutex> g(settingsMutex);
+
     if (!configFolder.size())
     {
         loadConfigDir();
@@ -218,6 +226,8 @@ void ConfigurationManager::saveProperty(const char *property, const char *value)
 
 void ConfigurationManager::saveSyncs(map<string, sync_struct *> *syncsmap)
 {
+    std::lock_guard<std::recursive_mutex> g(settingsMutex);
+
     stringstream syncsfile;
     if (!configFolder.size())
     {
@@ -265,6 +275,8 @@ void ConfigurationManager::saveSyncs(map<string, sync_struct *> *syncsmap)
 
 void ConfigurationManager::saveBackups(map<string, backup_struct *> *backupsmap)
 {
+    std::lock_guard<std::recursive_mutex> g(settingsMutex);
+
     stringstream backupsfile;
     if (!configFolder.size())
     {
@@ -319,6 +331,7 @@ void ConfigurationManager::saveBackups(map<string, backup_struct *> *backupsmap)
 
 void ConfigurationManager::addExcludedName(string excludedName)
 {
+    std::lock_guard<std::recursive_mutex> g(settingsMutex);
     LOG_verbose << "Adding: " << excludedName << " to exclusion list";
     excludedNames.insert(excludedName);
     saveExcludedNames();
@@ -326,6 +339,7 @@ void ConfigurationManager::addExcludedName(string excludedName)
 
 void ConfigurationManager::removeExcludedName(string excludedName)
 {
+    std::lock_guard<std::recursive_mutex> g(settingsMutex);
     LOG_verbose << "Removing: " << excludedName << " from exclusion list";
     excludedNames.erase(excludedName);
     saveExcludedNames();
@@ -333,6 +347,7 @@ void ConfigurationManager::removeExcludedName(string excludedName)
 
 void ConfigurationManager::saveExcludedNames()
 {
+    std::lock_guard<std::recursive_mutex> g(settingsMutex);
     stringstream excludedNamesFile;
     if (!configFolder.size())
     {
@@ -362,6 +377,7 @@ void ConfigurationManager::saveExcludedNames()
 
 void ConfigurationManager::loadExcludedNames()
 {
+    std::lock_guard<std::recursive_mutex> g(settingsMutex);
     stringstream excludedNamesFile;
     if (!configFolder.size())
     {
@@ -408,6 +424,8 @@ void ConfigurationManager::loadExcludedNames()
 
 void ConfigurationManager::unloadConfiguration()
 {
+    std::lock_guard<std::recursive_mutex> g(settingsMutex);
+
     for (map<string, sync_struct *>::iterator itr = configuredSyncs.begin(); itr != configuredSyncs.end(); )
     {
         sync_struct *thesync = ((sync_struct*)( *itr ).second );
@@ -427,6 +445,7 @@ void ConfigurationManager::unloadConfiguration()
 
 void ConfigurationManager::loadsyncs()
 {
+    std::lock_guard<std::recursive_mutex> g(settingsMutex);
     stringstream syncsfile;
     if (!configFolder.size())
     {
@@ -503,6 +522,7 @@ void ConfigurationManager::loadsyncs()
 
 void ConfigurationManager::loadbackups()
 {
+    std::lock_guard<std::recursive_mutex> g(settingsMutex);
     stringstream backupsfile;
     if (!configFolder.size())
     {
@@ -576,6 +596,8 @@ void ConfigurationManager::loadbackups()
 
 void ConfigurationManager::loadConfiguration(bool debug)
 {
+    std::lock_guard<std::recursive_mutex> g(settingsMutex);
+
     if (!configFolder.size())
     {
         loadConfigDir();
@@ -703,6 +725,8 @@ void ConfigurationManager::unlockExecution()
 }
 string ConfigurationManager::getConfigurationSValue(string propertyName)
 {
+    std::lock_guard<std::recursive_mutex> g(settingsMutex);
+
     if (!configFolder.size())
     {
         loadConfigDir();
@@ -718,6 +742,8 @@ string ConfigurationManager::getConfigurationSValue(string propertyName)
 
 void ConfigurationManager::clearConfigurationFile()
 {
+    std::lock_guard<std::recursive_mutex> g(settingsMutex);
+
     if (!configFolder.size())
     {
         loadConfigDir();
@@ -761,3 +787,4 @@ void ConfigurationManager::clearConfigurationFile()
         }
     }
 }
+}//end namespace

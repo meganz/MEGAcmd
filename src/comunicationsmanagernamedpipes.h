@@ -21,11 +21,13 @@
 #include "comunicationsmanager.h"
 
 #include <sys/types.h>
+#include <winsock2.h>
 #include <windows.h>
 
 
 #define MEGACMDINITIALPORTNUMBER 12300
 
+namespace megacmd {
 class CmdPetitionNamedPipes: public CmdPetition
 {
 public:
@@ -57,8 +59,8 @@ private:
 
     // to get next namedPipe id
     int count;
-    mega::MegaMutex *mtx;
-    mega::MegaMutex *informerMutex;
+    std::mutex *mtx;
+    std::mutex *informerMutex;
 
     /**
      * @brief create_new_namedPipe
@@ -115,5 +117,5 @@ public:
 
 };
 
-
+}//end namespace
 #endif // COMUNICATIONSMANAGERPOSIX_H

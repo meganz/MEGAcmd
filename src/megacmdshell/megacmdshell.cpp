@@ -32,11 +32,14 @@
 #include <iomanip>
 #include <string>
 #include <cstring>
+#include <mutex>
+#include <condition_variable>
 #include <set>
 #include <map>
 #include <vector>
 #include <sstream>
 #include <algorithm>
+#include <atomic>
 #include <stdio.h>
 
 #define PROGRESS_COMPLETE -2
@@ -66,8 +69,10 @@
 #define SSTR( x ) static_cast< const std::ostringstream & >( \
         (  std::ostringstream() << std::dec << x ) ).str()
 
-using namespace std;
 using namespace mega;
+
+namespace megacmd {
+using namespace std;
 
 #if defined(NO_READLINE) && defined(_WIN32)
 CONSOLE_CLASS* console = NULL;
@@ -171,11 +176,17 @@ string newpasswd;
 
 bool doExit = false;
 bool doReboot = false;
-bool handlerinstalled = false;
+static std::atomic_bool handlerOverridenByExternalThread(false);
+static std::mutex handlerInstallerMutex;
 
-bool requirepromptinstall = true;
+static std::atomic_bool requirepromptinstall(true);
 
 bool procesingline = false;
+
+std::mutex promptLogReceivedMutex;
+std::condition_variable promtpLogReceivedCV;
+bool promtpLogReceivedBool = false;
+bool serverTryingToLog = false;
 
 
 static char dynamicprompt[PROMPT_MAX_SIZE];
@@ -199,15 +210,22 @@ bool confirmingcancellink = false;
 // communications with megacmdserver:
 MegaCmdShellCommunications *comms;
 
-MUTEX_CLASS mutexPrompt(false);
+std::mutex mutexPrompt;
 
 void printWelcomeMsg(unsigned int width = 0);
+
+#ifndef NO_READLINE
+void install_rl_handler(const char *theprompt, bool external = true);
+#endif
 
 void statechangehandle(string statestring)
 {
     char statedelim[2]={(char)0x1F,'\0'};
     size_t nextstatedelimitpos = statestring.find(statedelim);
     static bool shown_partial_progress = false;
+
+    unsigned int width = getNumberOfCols(75);
+    if (width > 1 ) width--;
 
     while (nextstatedelimitpos!=string::npos && statestring.size())
     {
@@ -216,7 +234,17 @@ void statechangehandle(string statestring)
         nextstatedelimitpos = statestring.find(statedelim);
         if (newstate.compare(0, strlen("prompt:"), "prompt:") == 0)
         {
+            if (serverTryingToLog)
+            {
+                std::unique_lock<std::mutex> lk(MegaCmdShellCommunications::megaCmdStdoutputing);
+                printCenteredContentsCerr(string(" Server is still trying to log in. Still, some commands are available.\n"
+                             "Type \"help\", to list them.").c_str(), width);
+            }
             changeprompt(newstate.substr(strlen("prompt:")).c_str(),true);
+
+            std::unique_lock<std::mutex> lk(promptLogReceivedMutex);
+            promtpLogReceivedCV.notify_one();
+            promtpLogReceivedBool = true;
         }
         else if (newstate.compare(0, strlen("endtransfer:"), "endtransfer:") == 0)
         {
@@ -246,15 +274,23 @@ void statechangehandle(string statestring)
 #endif
             }
         }
+        else if (newstate.compare(0, strlen("loged:"), "loged:") == 0)
+        {
+            serverTryingToLog = false;
+        }
+        else if (newstate.compare(0, strlen("login:"), "login:") == 0)
+        {
+            serverTryingToLog = true;
+            std::unique_lock<std::mutex> lk(MegaCmdShellCommunications::megaCmdStdoutputing);
+            printCenteredContentsCerr(string("Resuming session ... ").c_str(), width, false);
+        }
         else if (newstate.compare(0, strlen("message:"), "message:") == 0)
         {
-            string contents = newstate.substr(strlen("message:"));
-            unsigned int width = getNumberOfCols(75);
-            if (width > 1 ) width--;
             MegaCmdShellCommunications::megaCmdStdoutputing.lock();
 #ifdef _WIN32
             int oldmode = _setmode(_fileno(stdout), _O_U8TEXT);
 #endif
+            string contents = newstate.substr(strlen("message:"));
             if (contents.find("-----") != 0)
             {
                 if (!procesingline || shown_partial_progress)
@@ -262,6 +298,12 @@ void statechangehandle(string statestring)
                     OUTSTREAM << endl;
                 }
                 printCenteredContents(contents, width);
+#ifndef NO_READLINE
+                if (prompt == COMMAND && promtpLogReceivedBool)
+                {
+                    install_rl_handler(*dynamicprompt ? dynamicprompt : prompts[COMMAND]);
+                }
+#endif
             }
             else
             {
@@ -582,8 +624,10 @@ wstring escapereadlinebreakers(const wchar_t *what)
 #endif
 
 #ifndef NO_READLINE
-void install_rl_handler(const char *theprompt)
+void install_rl_handler(const char *theprompt, bool external)
 {
+    std::lock_guard<std::mutex> lkrlhandler(handlerInstallerMutex);
+
 #ifdef _WIN32
     wstring wswhat;
     stringtolocalw(theprompt,&wswhat);
@@ -620,14 +664,18 @@ void install_rl_handler(const char *theprompt)
     }
 
 #else
+
     rl_callback_handler_install(theprompt, store_line);
+    handlerOverridenByExternalThread = external;
+    requirepromptinstall = false;
+
 #endif
 }
 #endif
 
 void changeprompt(const char *newprompt, bool redisplay)
 {
-    MutexGuard g(mutexPrompt);
+    std::lock_guard<std::mutex> g(mutexPrompt);
 
     if (*dynamicprompt)
     {
@@ -664,7 +712,10 @@ void changeprompt(const char *newprompt, bool redisplay)
             rl_crlf();
         }
 
-        install_rl_handler(*dynamicprompt ? dynamicprompt : prompts[COMMAND]);
+        if (prompt == COMMAND)
+        {
+            install_rl_handler(*dynamicprompt ? dynamicprompt : prompts[COMMAND]);
+        }
 
         // restore line
         if (saved_line)
@@ -676,9 +727,7 @@ void changeprompt(const char *newprompt, bool redisplay)
         rl_point = saved_point;
         rl_redisplay();
 
-        handlerinstalled = true;
 
-        requirepromptinstall = false;
     }
 
 #endif
@@ -1335,6 +1384,24 @@ void process_line(const char * line)
 #endif
 
             vector<string> words = getlistOfWords((char *)line);
+
+            string clientWidth = "--client-width=";
+            clientWidth+= SSTR(getNumberOfCols(80));
+
+            words.insert(words.begin()+1, clientWidth);
+
+            string scommandtoexec(words[0]);
+            scommandtoexec+=" ";
+            scommandtoexec+=clientWidth;
+            scommandtoexec+=" ";
+
+            if (strlen(line)>(words[0].size()+1))
+            {
+                scommandtoexec+=line+words[0].size()+1;
+            }
+
+            const char *commandtoexec = scommandtoexec.c_str();
+
             bool helprequested = false;
             for (unsigned int i = 1; i< words.size(); i++)
             {
@@ -1344,15 +1411,13 @@ void process_line(const char * line)
             {
                 if ( words[0] == "exit" || words[0] == "quit")
                 {
-                    if (words.size() == 1)
+                    if (find(words.begin(), words.end(), "--only-shell") == words.end())
                     {
-                        doExit = true;
+                        comms->executeCommand(commandtoexec, readresponse);
                     }
-                    if (words.size() == 1 || words[1]!="--only-shell")
-                    {
-                        comms->executeCommand(line, readresponse);
-                    }
-                    else
+
+                    if (find(words.begin(), words.end(), "--help") == words.end()
+                            && find(words.begin(), words.end(), "--only-server") == words.end() )
                     {
                         doExit = true;
                     }
@@ -1361,7 +1426,7 @@ void process_line(const char * line)
                 else if (words[0] == "update")
                 {
                     MegaCmdShellCommunications::updating = true;
-                    int ret = comms->executeCommand(line, readresponse);
+                    int ret = comms->executeCommand(commandtoexec, readresponse);
                     if (ret == MCMD_REQRESTART)
                     {
                         OUTSTREAM << "MEGAcmd has been updated ... this shell will be restarted before proceding...." << endl;
@@ -1397,7 +1462,7 @@ void process_line(const char * line)
                 {
                     if (isserverloggedin())
                     {
-                        passwdline = line;
+                        passwdline = commandtoexec;
                         discardOptionsAndFlags(&words);
                         if (words.size() == 1)
                         {
@@ -1405,7 +1470,7 @@ void process_line(const char * line)
                         }
                         else
                         {
-                            comms->executeCommand(line, readresponse);
+                            comms->executeCommand(commandtoexec, readresponse);
                         }
                     }
                     else
@@ -1429,12 +1494,12 @@ void process_line(const char * line)
                         }
                         else
                         {
-                            string s = line;
+                            string s = commandtoexec;
                             if (clientID.size())
                             {
                                 s = "login --clientID=";
                                 s+=clientID;
-                                s.append(string(line).substr(5));
+                                s.append(string(commandtoexec).substr(5));
                             }
                             comms->executeCommand(s, readresponse);
                         }
@@ -1449,7 +1514,7 @@ void process_line(const char * line)
                 {
                     if (!isserverloggedin())
                     {
-                        signupline = line;
+                        signupline = commandtoexec;
                         discardOptionsAndFlags(&words);
 
                         if (words.size() == 2)
@@ -1460,7 +1525,7 @@ void process_line(const char * line)
                         }
                         else
                         {
-                            comms->executeCommand(line, readresponse);
+                            comms->executeCommand(commandtoexec, readresponse);
                         }
                     }
                     else
@@ -1482,7 +1547,7 @@ void process_line(const char * line)
                     }
                     else
                     {
-                        comms->executeCommand(line, readresponse);
+                        comms->executeCommand(commandtoexec, readresponse);
                     }
                 }
                 else if (!helprequested && words[0] == "confirmcancel")
@@ -1497,7 +1562,7 @@ void process_line(const char * line)
                     }
                     else
                     {
-                        comms->executeCommand(line, readresponse);
+                        comms->executeCommand(commandtoexec, readresponse);
                     }
                     return;
                 }
@@ -1536,7 +1601,7 @@ void process_line(const char * line)
                 {
                     string toexec;
 
-                    if (!strstr (line,"path-display-size"))
+                    if (!strstr (commandtoexec,"path-display-size"))
                     {
                         unsigned int width = getNumberOfCols(75);
                         int pathSize = int((width-46)/2);
@@ -1545,14 +1610,14 @@ void process_line(const char * line)
                         toexec+=" --path-display-size=";
                         toexec+=SSTR(pathSize);
                         toexec+=" ";
-                        if (strlen(line)>(words[0].size()+1))
+                        if (strlen(commandtoexec)>(words[0].size()+1))
                         {
-                            toexec+=line+words[0].size()+1;
+                            toexec+=commandtoexec+words[0].size()+1;
                         }
                     }
                     else
                     {
-                        toexec+=line;
+                        toexec+=commandtoexec;
                     }
 
                     comms->executeCommand(toexec.c_str(), readresponse);
@@ -1561,11 +1626,11 @@ void process_line(const char * line)
                 {
                     string toexec;
 
-                    if (!strstr (line,"path-display-size"))
+                    if (!strstr (commandtoexec,"path-display-size"))
                     {
                         unsigned int width = getNumberOfCols(75);
                         int pathSize = int(width-13);
-                        if (strstr(line, "--versions"))
+                        if (strstr(commandtoexec, "--versions"))
                         {
                             pathSize -= 11;
                         }
@@ -1574,14 +1639,14 @@ void process_line(const char * line)
                         toexec+=" --path-display-size=";
                         toexec+=SSTR(pathSize);
                         toexec+=" ";
-                        if (strlen(line)>(words[0].size()+1))
+                        if (strlen(commandtoexec)>(words[0].size()+1))
                         {
-                            toexec+=line+words[0].size()+1;
+                            toexec+=commandtoexec+words[0].size()+1;
                         }
                     }
                     else
                     {
-                        toexec+=line;
+                        toexec+=commandtoexec;
                     }
 
                     comms->executeCommand(toexec.c_str(), readresponse);
@@ -1590,7 +1655,7 @@ void process_line(const char * line)
                 {
                     string toexec;
 
-                    if (!strstr (line,"path-display-size"))
+                    if (!strstr (commandtoexec,"path-display-size"))
                     {
                         unsigned int width = getNumberOfCols(75);
                         int pathSize = int((width-46)/2);
@@ -1598,14 +1663,14 @@ void process_line(const char * line)
                         toexec+="sync --path-display-size=";
                         toexec+=SSTR(pathSize);
                         toexec+=" ";
-                        if (strlen(line)>strlen("sync "))
+                        if (strlen(commandtoexec)>strlen("sync "))
                         {
-                            toexec+=line+strlen("sync ");
+                            toexec+=commandtoexec+strlen("sync ");
                         }
                     }
                     else
                     {
-                        toexec+=line;
+                        toexec+=commandtoexec;
                     }
 
                     comms->executeCommand(toexec.c_str(), readresponse);
@@ -1614,7 +1679,7 @@ void process_line(const char * line)
                 {
                     string toexec;
 
-                    if (!strstr (line,"path-display-size"))
+                    if (!strstr (commandtoexec,"path-display-size"))
                     {
                         unsigned int width = getNumberOfCols(75);
                         int pathSize = int(width - 28);
@@ -1623,14 +1688,14 @@ void process_line(const char * line)
                         toexec+=" --path-display-size=";
                         toexec+=SSTR(pathSize);
                         toexec+=" ";
-                        if (strlen(line)>(words[0].size()+1))
+                        if (strlen(commandtoexec)>(words[0].size()+1))
                         {
-                            toexec+=line+words[0].size()+1;
+                            toexec+=commandtoexec+words[0].size()+1;
                         }
                     }
                     else
                     {
-                        toexec+=line;
+                        toexec+=commandtoexec;
                     }
 
                     comms->executeCommand(toexec.c_str(), readresponse);
@@ -1639,7 +1704,7 @@ void process_line(const char * line)
                 {
                     string toexec;
 
-                    if (!strstr (line,"path-display-size"))
+                    if (!strstr (commandtoexec,"path-display-size"))
                     {
                         unsigned int width = getNumberOfCols(75);
                         int pathSize = int((width-21)/2);
@@ -1647,14 +1712,14 @@ void process_line(const char * line)
                         toexec+="backup --path-display-size=";
                         toexec+=SSTR(pathSize);
                         toexec+=" ";
-                        if (strlen(line)>strlen("backup "))
+                        if (strlen(commandtoexec)>strlen("backup "))
                         {
-                            toexec+=line+strlen("backup ");
+                            toexec+=commandtoexec+strlen("backup ");
                         }
                     }
                     else
                     {
-                        toexec+=line;
+                        toexec+=commandtoexec;
                     }
 
                     comms->executeCommand(toexec.c_str(), readresponse);
@@ -1663,10 +1728,10 @@ void process_line(const char * line)
                 {
                     if ( words[0] == "get" || words[0] == "put" || words[0] == "reload")
                     {
-                        string s = line;
+                        string s = commandtoexec;
                         if (clientID.size())
                         {
-                            string sline = line;
+                            string sline = commandtoexec;
                             size_t pspace = sline.find_first_of(" ");
                             s="";
                             s=sline.substr(0,pspace);
@@ -1686,13 +1751,13 @@ void process_line(const char * line)
                     else
                     {
                         // execute user command
-                        comms->executeCommand(line, readresponse);
+                        comms->executeCommand(commandtoexec, readresponse);
                     }
                 }
             }
             else
             {
-                cerr << "failed to interprete input line: " << line << endl;
+                cerr << "failed to interprete input commandtoexec: " << commandtoexec << endl;
             }
             break;
         }
@@ -1716,10 +1781,22 @@ void readloop()
     readline_fd = fileno(rl_instream);
 
     procesingline = true;
-    comms->registerForStateChanges(statechangehandle);
+    comms->registerForStateChanges(true, statechangehandle);
 
-    //give it a while to communicate the state
-    sleepMilliSeconds(700);
+
+    //now we can relay on having a prompt received if the server is running
+    {
+        std::unique_lock<std::mutex> lk(promptLogReceivedMutex);
+        if (!promtpLogReceivedBool)
+        {
+            if (promtpLogReceivedCV.wait_for(lk, std::chrono::seconds(2*RESUME_SESSION_TIMEOUT)) == std::cv_status::timeout)
+            {
+                std::cerr << "Server seems irresponsive" << endl;
+            }
+        }
+    }
+
+
     procesingline = false;
 
 #if defined(_WIN32) && defined(USE_PORT_COMMS)
@@ -1727,7 +1804,7 @@ void readloop()
     // in windows we would not be yet connected. we need to manually try to register again.
     if (comms->registerAgainRequired)
     {
-        comms->registerForStateChanges(statechangehandle);
+        comms->registerForStateChanges(true, statechangehandle);
     }
     //give it a while to communicate the state
     sleepMilliSeconds(1);
@@ -1740,9 +1817,7 @@ void readloop()
             mutexPrompt.lock();
             if (requirepromptinstall)
             {
-                install_rl_handler(*dynamicprompt ? dynamicprompt : prompts[COMMAND]);
-
-                handlerinstalled = false;
+                install_rl_handler(*dynamicprompt ? dynamicprompt : prompts[COMMAND], false);
 
                 // display prompt
                 if (saved_line)
@@ -1768,6 +1843,8 @@ void readloop()
                 procesingline = false;
 
                 wait_for_input(readline_fd);
+
+                std::lock_guard<std::mutex> g(mutexPrompt);
 
                 rl_callback_read_char(); //this calls store_line if last char was enter
 
@@ -1805,6 +1882,7 @@ void readloop()
 
         }
 
+        mutexPrompt.lock();
         // save line
         saved_point = rl_point;
         if (saved_line != NULL)
@@ -1816,21 +1894,31 @@ void readloop()
         rl_replace_line("", 0);
         rl_redisplay();
 
+        mutexPrompt.unlock();
         if (line)
         {
             if (strlen(line))
             {
                 alreadyFinished = false;
                 percentDowloaded = 0.0;
-//                mutexPrompt.lock();
+
+                handlerOverridenByExternalThread = false;
                 process_line(line);
-                requirepromptinstall = true;
-//                mutexPrompt.unlock();
+
+                {
+                    //after processing the line, we want to reinstall the handler (except if during the process, or due to it,
+                    // the handler is reinstalled by e.g: a change in prompt)
+                    std::lock_guard<std::mutex> lkrlhandler(handlerInstallerMutex);
+                    if (!handlerOverridenByExternalThread)
+                    {
+                        requirepromptinstall = true;
+                    }
+                }
 
                 if (comms->registerAgainRequired)
                 {
                     // register again for state changes
-                     comms->registerForStateChanges(statechangehandle);
+                     comms->registerForStateChanges(true, statechangehandle);
                      comms->registerAgainRequired = false;
                 }
 
@@ -1855,7 +1943,7 @@ void readloop()
 {
     time_t lasttimeretrycons = 0;
 
-    comms->registerForStateChanges(statechangehandle);
+    comms->registerForStateChanges(true, statechangehandle);
 
     //give it a while to communicate the state
     sleepMilliSeconds(700);
@@ -1865,7 +1953,7 @@ void readloop()
     // in windows we would not be yet connected. we need to manually try to register again.
     if (comms->registerAgainRequired)
     {
-        comms->registerForStateChanges(statechangehandle);
+        comms->registerForStateChanges(true, statechangehandle);
     }
     //give it a while to communicate the state
     sleepMilliSeconds(1);
@@ -1922,7 +2010,7 @@ void readloop()
                 if (comms->registerAgainRequired)
                 {
                     // register again for state changes
-                    comms->registerForStateChanges(statechangehandle);
+                    comms->registerForStateChanges(true, statechangehandle);
                     comms->registerAgainRequired = false;
                 }
 
@@ -2100,6 +2188,9 @@ std::string readresponse(const char* question)
 }
 #endif
 
+} //end namespace
+
+using namespace megacmd;
 
 int main(int argc, char* argv[])
 {
@@ -2195,6 +2286,14 @@ int main(int argc, char* argv[])
             COUT << "Unable to execute: " << szPathExec << " errno = : " << ERRNO << endl;
             sleepSeconds(5);
         }
+#elif defined(__linux__)
+        system("reset -I");
+        string executable = argv[0];
+        if (executable.find("/") != 0)
+        {
+            executable.insert(0, getCurrentExecPath()+"/");
+        }
+        execv(executable.c_str(), argv);
 #else
         system("reset -I");
         execv(argv[0], argv);

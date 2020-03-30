@@ -21,8 +21,9 @@
 #include "megacmdutils.h"
 
 using namespace mega;
-using namespace std;
 
+
+namespace megacmd {
 #ifdef ENABLE_CHAT
 void MegaCmdGlobalListener::onChatsUpdate(MegaApi*, MegaTextChatList*)
 {
@@ -201,9 +202,12 @@ void MegaCmdGlobalListener::onEvent(MegaApi *api, MegaEvent *event)
             {
                 ConfigurationManager::savePropertyValue("ask4storage",false);
             }
-
         }
         LOG_info << "Received event storage changed: " << event->getNumber();
+    }
+    else if (event->getType() == MegaEvent::EVENT_STORAGE_SUM_CHANGED)
+    {
+        sandboxCMD->receivedStorageSum = event->getNumber();
     }
 }
 
@@ -222,6 +226,21 @@ void MegaCmdMegaListener::onRequestFinish(MegaApi *api, MegaRequest *request, Me
     {
         LOG_debug << "Session closed";
         sandboxCMD->resetSandBox();
+    }
+    else if (request->getType() == MegaRequest::TYPE_ACCOUNT_DETAILS)
+    {
+        if (e->getErrorCode() != MegaError::API_OK)
+        {
+            return;
+        }
+
+        bool storage = (request->getNumDetails() & 0x01) != 0;
+
+        if (storage)
+        {
+            unique_ptr<MegaAccountDetails> details(request->getMegaAccountDetails());
+            sandboxCMD->totalStorage = details->getStorageMax();
+        }
     }
     else if (e && ( e->getErrorCode() == MegaError::API_ESID ))
     {
@@ -327,36 +346,38 @@ void MegaCmdListener::doOnRequestFinish(MegaApi* api, MegaRequest *request, Mega
             int i = 0;
 #ifdef ENABLE_SYNC
 
+            std::shared_ptr<std::lock_guard<std::recursive_mutex>> g = std::make_shared<std::lock_guard<std::recursive_mutex>>(ConfigurationManager::settingsMutex);
+            // shared pointed lock_guard. will be freed when all resuming are complete
+
             for (itr = ConfigurationManager::configuredSyncs.begin(); itr != ConfigurationManager::configuredSyncs.end(); ++itr, i++)
             {
                 sync_struct *oldsync = ((sync_struct*)( *itr ).second );
 
-                MegaCmdListener *megaCmdListener = new MegaCmdListener(api, NULL);
                 MegaNode * node = api->getNodeByHandle(oldsync->handle);
-                api->resumeSync(oldsync->localpath.c_str(), node, oldsync->fingerprint, megaCmdListener);
-                megaCmdListener->wait();
-                if ( megaCmdListener->getError()->getErrorCode() == MegaError::API_OK )
+                api->resumeSync(oldsync->localpath.c_str(), node, oldsync->fingerprint, new MegaCmdListenerFuncExecuter([g, oldsync, node](mega::MegaApi* api, mega::MegaRequest *request, mega::MegaError *e)
                 {
-                    oldsync->fingerprint = megaCmdListener->getRequest()->getNumber();
-                    oldsync->active = true;
-                    oldsync->loadedok = true;
+                    std::unique_ptr<char []>nodepath (api->getNodePath(node));
 
-                    char *nodepath = api->getNodePath(node);
-                    LOG_info << "Loaded sync: " << oldsync->localpath << " to " << nodepath;
-                    delete []nodepath;
-                }
-                else
-                {
-                    oldsync->loadedok = false;
-                    oldsync->active = false;
+                    if ( e->getErrorCode() == MegaError::API_OK )
+                    {
+                        if (request->getNumber())
+                        {
+                            oldsync->fingerprint = request->getNumber();
+                        }
+                        oldsync->active = true;
+                        oldsync->loadedok = true;
 
-                    char *nodepath = api->getNodePath(node);
-                    LOG_err << "Failed to resume sync: " << oldsync->localpath << " to " << nodepath;
-                    delete []nodepath;
-                }
+                        LOG_info << "Loaded sync: " << oldsync->localpath << " to " << nodepath.get();
+                    }
+                    else
+                    {
+                        oldsync->loadedok = false;
+                        oldsync->active = false;
 
-                delete megaCmdListener;
-                delete node;
+                        LOG_err << "Failed to resume sync: " << oldsync->localpath << " to " << nodepath.get();
+                    }
+                    delete node;
+                }, true));
             }
 #endif
             informProgressUpdate(PROGRESS_COMPLETE, request->getTotalBytes(), this->clientID, "Fetching nodes");
@@ -902,7 +923,6 @@ MegaCmdGlobalTransferListener::MegaCmdGlobalTransferListener(MegaApi *megaApi, M
     this->megaApi = megaApi;
     this->sandboxCMD = sandboxCMD;
     this->listener = parent;
-    completedTransfersMutex.init(false);
 };
 
 void MegaCmdGlobalTransferListener::onTransferFinish(MegaApi* api, MegaTransfer *transfer, MegaError* error)
@@ -979,3 +999,4 @@ bool MegaCmdCatTransferListener::onTransferData(MegaApi *api, MegaTransfer *tran
 
     return true;
 }
+} //end namespace

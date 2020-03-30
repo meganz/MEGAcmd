@@ -33,9 +33,9 @@
 #include <fstream>
 #include <time.h>
 
-using namespace std;
 using namespace mega;
 
+namespace megacmd {
 void getNumFolderFiles(MegaNode *n, MegaApi *api, long long *nfiles, long long *nfolders)
 {
     MegaNodeList *totalnodes = api->getChildren(n);
@@ -444,8 +444,38 @@ string backupSatetStr(int backupstate)
 }
 #endif
 
+const char * getProxyTypeStr(int proxyType)
+{
+    switch (proxyType)
+    {
+    case MegaProxy::PROXY_AUTO:
+        return "PROXY_AUTO";
+        break;
+    case MegaProxy::PROXY_NONE:
+        return "PROXY_NONE";
+        break;
+    case MegaProxy::PROXY_CUSTOM:
+        return "PROXY_CUSTOM";
+        break;
+    default:
+        return "INVALID";
+        break;
+    }
+
+}
+
 int getLinkType(string link)
 {
+    if (link.find("/folder/") != string::npos)
+    {
+        return MegaNode::TYPE_FOLDER;
+    }
+
+    if (link.find("/file/") != string::npos)
+    {
+        return MegaNode::TYPE_FILE;
+    }
+
     size_t posHash = link.find_first_of("#");
     if (( posHash == string::npos ) || !( posHash + 1 < link.length()))
     {
@@ -550,7 +580,7 @@ string secondsToText(m_time_t seconds, bool humanreadable)
     if (humanreadable)
     {
         m_time_t reducedSize = m_time_t( seconds > 3600 * 2 ? seconds / 3600.0 : ( seconds > 60 * 2 ? seconds / 60.0 : seconds) );
-        os << fixed << reducedSize;
+        os << std::fixed << reducedSize;
         os << ( seconds > 3600 * 2 ? " hours" : ( seconds > 60 * 2 ? " minutes" : " seconds" ));
     }
     else
@@ -1162,6 +1192,11 @@ bool setOptionsAndFlags(map<string, string> *opts, map<string, int> *flags, vect
                     }
                 }
             }
+            else if (w == "--")
+            {
+                it = ws->erase(it);
+                return discarded; // cease to look for options & leave the rest
+            }
             else if (w.find_first_of("=") == std::string::npos) //flag
             {
                 string optname = ltrim(w, '-');
@@ -1239,3 +1274,5 @@ int permissionsFromReadable(string permissions)
     return -1;
 }
 #endif
+
+}//end namespace

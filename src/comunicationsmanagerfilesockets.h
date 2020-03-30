@@ -23,6 +23,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 
+namespace megacmd {
 class CmdPetitionPosixSockets: public CmdPetition
 {
 public:
@@ -58,8 +59,8 @@ private:
 
     // to get next socket id
     int count;
-    mega::MegaMutex *mtx;
-    mega::MegaMutex *informerMutex;
+    std::mutex mtx;
+    std::mutex informerMutex;
 
     /**
      * @brief create_new_socket
@@ -113,5 +114,5 @@ public:
     ~ComunicationsManagerFileSockets();
 };
 
-
+}//end namespace
 #endif // COMUNICATIONSMANAGERPOSIX_H

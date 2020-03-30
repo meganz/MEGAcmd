@@ -31,6 +31,7 @@
 #include <Aclapi.h> //GetSecurityInfo
 #include <Sddl.h> //ConvertSidToStringSid
 
+#include <algorithm>
 
 #include <fcntl.h>
 #include <io.h>
@@ -41,6 +42,8 @@
 #ifndef _O_U8TEXT
 #define _O_U8TEXT 0x00040000
 #endif
+
+namespace megacmd {
 
 bool MegaCmdShellCommunicationsNamedPipes::confirmResponse; //TODO: do all this only in parent class
 bool MegaCmdShellCommunicationsNamedPipes::stopListener;
@@ -586,7 +589,7 @@ int MegaCmdShellCommunicationsNamedPipes::executeCommand(string command, std::st
                 char buffer[10025];
                 do{
                     BOOL readok;
-                    readok = ReadFile(newNamedPipe, buffer, min(BUFFERSIZE,partialoutsize),&n,NULL);
+                    readok = ReadFile(newNamedPipe, buffer, std::min(BUFFERSIZE,partialoutsize),&n,NULL);
                     if (readok)
                     {
 
@@ -820,20 +823,20 @@ int MegaCmdShellCommunicationsNamedPipes::listenToStateChanges(int receiveNamedP
     return 0;
 }
 
-int MegaCmdShellCommunicationsNamedPipes::registerForStateChanges(void (*statechangehandle)(string))
+int MegaCmdShellCommunicationsNamedPipes::registerForStateChanges(bool interactive, void (*statechangehandle)(string), bool initiateServer)
 {
     if (statechangehandle == NULL)
     {
         registerAgainRequired = false;
         return 0; //Do nth
     }
-    HANDLE theNamedPipe = createNamedPipe();
+    HANDLE theNamedPipe = createNamedPipe(0, initiateServer);
     if (!namedPipeValid(theNamedPipe))
     {
         return -1;
     }
 
-    wstring wcommand=L"registerstatelistener";
+    wstring wcommand=interactive?L"Xregisterstatelistener":L"registerstatelistener";
 
     DWORD n;
     if (!WriteFile(theNamedPipe,(char *)wcommand.data(),DWORD(wcslen(wcommand.c_str())*sizeof(wchar_t)), &n, NULL))
@@ -887,4 +890,6 @@ MegaCmdShellCommunicationsNamedPipes::~MegaCmdShellCommunicationsNamedPipes()
     }
     delete (MegaThread *)listenerThread;
 }
+
+} //end namespace
 #endif

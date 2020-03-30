@@ -424,5 +424,12 @@ cmd_ef(GET+' /imported/fileatsub02.txt '+ABSMEGADLFOLDER+'')
 shutil.copy2('origin/foreign/sub02/fileatsub02.txt','localDls/')
 compare_and_clear()
 
+
+#Test 38 # get from //from/XXX
+cmd_ex(GET+' //from/'+osvar('MEGA_EMAIL_AUX')+':foreign/sub02/fileatsub02.txt '+ABSMEGADLFOLDER+'')
+shutil.copy2('origin/foreign/sub02/fileatsub02.txt','localDls/')
+compare_and_clear()
+
+
 # Clean all
 clean_all()

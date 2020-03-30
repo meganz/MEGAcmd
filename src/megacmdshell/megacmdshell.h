@@ -22,6 +22,7 @@
 
 #define OUTSTREAM COUT
 
+namespace megacmd {
 enum prompttype
 {
     COMMAND, LOGINPASSWORD, NEWPASSWORD, PASSWORDCONFIRM, AREYOUSURE
@@ -54,5 +55,6 @@ void printHistory();
 
 std::string readresponse(const char *question);
 
+}//end namespace
 #endif // MEGACMDSHELL_H
 

@@ -28,9 +28,13 @@
 #include <sstream>
 #include <iostream>
 #include <iomanip>
+#include <mutex>
+
 
 using std::setw;
 using std::left;
+
+namespace megacmd {
 
 /* platform dependent */
 #ifdef _WIN32
@@ -47,6 +51,7 @@ std::ostringstream & operator<< ( std::ostringstream & ostr, std::wstring const 
 
 void stringtolocalw(const char* path, std::wstring* local);
 void localwtostring(const std::wstring* wide, std::string *multibyte);
+std::string getutf8fromUtf16(const wchar_t *ws);
 void utf16ToUtf8(const wchar_t* utf16data, int utf16size, std::string* utf8string);
 
 #else
@@ -60,6 +65,67 @@ void utf16ToUtf8(const wchar_t* utf16data, int utf16size, std::string* utf8strin
 
 #define OUTSTREAM COUT
 
+
+/* commands */
+static std::vector<std::string> validGlobalParameters {"v", "help"};
+static std::vector<std::string> localremotefolderpatterncommands {"sync"};
+static std::vector<std::string> remotepatterncommands {"export", "attr"};
+static std::vector<std::string> remotefolderspatterncommands {"cd", "share"};
+
+static std::vector<std::string> multipleremotepatterncommands {"ls", "tree", "mkdir", "rm", "du", "find", "mv", "deleteversions", "cat", "mediainfo"
+#ifdef HAVE_LIBUV
+                                           , "webdav", "ftp"
+#endif
+                                          };
+
+static std::vector<std::string> remoteremotepatterncommands {"cp"};
+
+static std::vector<std::string> remotelocalpatterncommands {"get", "thumbnail", "preview"};
+
+static std::vector<std::string> localfolderpatterncommands {"lcd"};
+
+static std::vector<std::string> emailpatterncommands {"invite", "signup", "ipc", "users"};
+
+static std::vector<std::string> loginInValidCommands { "log", "debug", "speedlimit","help", "logout", "version", "quit",
+                            "clear", "https", "exit", "errorcode", "proxy"
+#if defined(_WIN32) && defined(NO_READLINE)
+                             , "autocomplete", "codepage"
+#elif defined(_WIN32)
+                             , "unicode"
+#endif
+#if defined(_WIN32) || defined(__APPLE__)
+                             , "update"
+#endif
+                           };
+
+static std::vector<std::string> allValidCommands { "login", "signup", "confirm", "session", "mount", "ls", "cd", "log", "debug", "pwd", "lcd", "lpwd", "import", "masterkey",
+                             "put", "get", "attr", "userattr", "mkdir", "rm", "du", "mv", "cp", "sync", "export", "share", "invite", "ipc", "df",
+                             "showpcr", "users", "speedlimit", "killsession", "whoami", "help", "passwd", "reload", "logout", "version", "quit",
+                             "thumbnail", "preview", "find", "completion", "clear", "https", "transfers", "exclude", "exit", "errorcode", "graphics",
+                             "cancel", "confirmcancel", "cat", "tree", "psa", "proxy"
+                             , "mediainfo"
+#ifdef HAVE_LIBUV
+                             , "webdav", "ftp"
+#endif
+#ifdef ENABLE_BACKUPS
+                             , "backup"
+#endif
+                             , "deleteversions"
+#if defined(_WIN32) && defined(NO_READLINE)
+                             , "autocomplete", "codepage"
+#elif defined(_WIN32)
+                             , "unicode"
+#else
+                             , "permissions"
+#endif
+#if defined(_WIN32) || defined(__APPLE__)
+                             , "update"
+#endif
+                           };
+
+
+static const int RESUME_SESSION_TIMEOUT = 10;
+
 /* Files and folders */
 
 //tests if a path is writable  //TODO: move to fsAccess
@@ -68,6 +134,8 @@ bool canWrite(std::string path);
 bool isPublicLink(std::string link);
 
 bool isEncryptedLink(std::string link);
+
+std::string getPublicLinkHandle(const std::string &link);
 
 bool hasWildCards(std::string &what);
 
@@ -96,7 +164,7 @@ int toInteger(std::string what, int failValue = -1);
 
 std::string joinStrings(const std::vector<std::string>& vec, const char* delim = " ", bool quoted=true);
 
-std::string getFixLengthString(const std::string origin, unsigned int size, const char delimm=' ', bool alignedright = false);
+std::string getFixLengthString(const std::string &origin, unsigned int size, const char delimm=' ', bool alignedright = false);
 
 std::string getRightAlignedString(const std::string origin, unsigned int minsize);
 
@@ -153,6 +221,9 @@ void sleepMilliSeconds(long microseconds);
 
 bool isValidEmail(std::string email);
 
+#ifdef __linux__
+std::string getCurrentExecPath();
+#endif
 
 /* Properties */
 std::string &ltrimProperty(std::string &s, const char &c);
@@ -169,7 +240,42 @@ T getValueFromFile(const char *configFile, const char *propertyName, T defaultVa
     std::istringstream is(propValue);
     is >> i;
     return i;
-
 }
 
+class Field
+{
+public:
+    Field();
+    Field(std::string name, bool fixed = false, int fixedWidth = 0);
+
+public:
+    std::string name;
+    int fixedWidth;
+    bool fixedSize;
+    int dispWidth = 0;
+    int maxValueLength = 0;
+
+    void updateMaxValue(int newcandidate);
+};
+
+class ColumnDisplayer
+{
+public:
+    void print(OUTSTREAMTYPE &os, int fullWidth, bool printHeader=true);
+    void addHeader(const std::string &name, bool fixed = true, int minWidth = 0);
+    void addValue(const std::string &name, const std::string & value, bool replace = false);
+    void endregistry();
+
+private:
+    std::map<std::string, Field> fields;
+    std::vector<std::string> fieldnames;
+    std::vector<std::map<std::string, std::string>> values;
+    std::vector<int> lengths;
+
+    std::map<std::string, std::string> currentRegistry;
+    int currentlength = 0;
+
+};
+
+}//end namespace
 #endif // MEGACMDCOMMONUTILS_H

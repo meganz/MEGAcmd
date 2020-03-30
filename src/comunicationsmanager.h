@@ -22,6 +22,7 @@
 #include "megacmd.h"
 #include "megacmdcommonutils.h"
 
+namespace megacmd {
 static const int MAXCMDSTATELISTENERS = 300;
 
 class CmdPetition
@@ -29,7 +30,7 @@ class CmdPetition
     public:
         char * line;
         mega::MegaThread * petitionThread;
-        int clientID;
+        int clientID = -27;
         bool clientDisconnected;
 
         CmdPetition()
@@ -93,8 +94,9 @@ public:
     /**
      * @brief Sends an status message (e.g. prompt:who@/new/prompt:) to all registered listeners
      * @param s
+     * @returns if state listeners left
      */
-    void informStateListeners(std::string &s);
+    bool informStateListeners(std::string &s);
 
     void informStateListenerByClientId(std::string &s, int clientID);
 
@@ -127,4 +129,5 @@ public:
     virtual ~ComunicationsManager();
 };
 
+} //end namespace
 #endif // COMUNICATIONSMANAGER_H
