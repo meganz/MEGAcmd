@@ -23,6 +23,7 @@
 #include <ctime>
 #include <string>
 
+namespace megacmd {
 class MegaCmdSandbox
 {
 private:
@@ -41,6 +42,8 @@ public:
     bool accounthasbeenblocked;
     std::string reasonblocked;
     int storageStatus;
+    long long receivedStorageSum;
+    long long totalStorage;
 public:
     MegaCmdSandbox();
     bool isOverquota() const;
@@ -48,4 +51,5 @@ public:
     void resetSandBox();
 };
 
+}//end namespace
 #endif // MEGACMDSANDBOX_H

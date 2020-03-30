@@ -207,7 +207,7 @@ def ls(where, prefix=""):
     if not os.path.exists(where):
         if VERBOSE: print "file not found in find:", where, os.getcwd()
         return ""
-    toret=""
+    toret=".\n"
     for f in os.listdir(where):
         toret+=prefix+f+"\n"
     return toret

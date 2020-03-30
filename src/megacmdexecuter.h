@@ -23,6 +23,7 @@
 #include "megacmdsandbox.h"
 #include "listeners.h"
 
+namespace megacmd {
 class MegaCmdExecuter
 {
 private:
@@ -33,12 +34,12 @@ private:
     MegaCMDLogger *loggerCMD;
     MegaCmdSandbox *sandboxCMD;
     MegaCmdGlobalTransferListener *globalTransferListener;
-    mega::MegaMutex mtxSyncMap;
-    mega::MegaMutex mtxWebDavLocations; //TODO: destroy these two
-    mega::MegaMutex mtxFtpLocations;
+    std::mutex mtxSyncMap;
+    std::mutex mtxWebDavLocations;
+    std::mutex mtxFtpLocations;
 
 #ifdef ENABLE_BACKUPS
-    mega::MegaMutex mtxBackupsMap;
+    std::recursive_mutex mtxBackupsMap;
 #endif
 
     // login/signup e-mail address
@@ -151,7 +152,7 @@ public:
 
     void printTransfersHeader(const unsigned int PATHSIZE, bool printstate=true);
     void printTransfer(mega::MegaTransfer *transfer, const unsigned int PATHSIZE, bool printstate=true);
-    void printSyncHeader(const unsigned int PATHSIZE);
+    void printTransferColumnDisplayer(ColumnDisplayer *cd, mega::MegaTransfer *transfer, bool printstate=true);
 
 #ifdef ENABLE_BACKUPS
 
@@ -162,7 +163,8 @@ public:
     void printBackup(int tag, mega::MegaBackup *backup, const char *timeFormat, const unsigned int PATHSIZE, bool extendedinfo = false, bool showhistory = false, mega::MegaNode *parentnode = NULL);
     void printBackup(backup_struct *backupstruct, const char *timeFormat, const unsigned int PATHSIZE, bool extendedinfo = false, bool showhistory = false);
 #endif
-    void printSync(int i, std::string key, const char *nodepath, sync_struct * thesync, mega::MegaNode *n, long long nfiles, long long nfolders, const unsigned int PATHSIZE);
+    void printSyncHeader(const unsigned int PATHSIZE, ColumnDisplayer *cd = nullptr);
+    void printSync(int i, std::string key, const char *nodepath, sync_struct * thesync, mega::MegaNode *n, long long nfiles, long long nfolders, const unsigned int PATHSIZE, ColumnDisplayer *cd = nullptr);
 
     void doFind(mega::MegaNode* nodeBase, const char *timeFormat, std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions, std::string word, int printfileinfo, std::string pattern, bool usepcre, mega::m_time_t minTime, mega::m_time_t maxTime, int64_t minSize, int64_t maxSize);
 
@@ -194,6 +196,8 @@ public:
     void addFtpLocation(mega::MegaNode *n, bool firstone, std::string name = std::string());
 #endif
     bool printUserAttribute(int a, std::string user, bool onlylist = false);
+    bool setProxy(const std::string &url, const std::string &username, const std::string &password, int proxyType);
 };
 
+}//end namespace
 #endif // MEGACMDEXECUTER_H

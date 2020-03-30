@@ -12,6 +12,8 @@ elif [[ $distro = "Raspbian GNU/Linux 9"* ]]; then
 elif [[ $distro = "Raspbian GNU/Linux 8"* ]]; then
     str="Raspbian_8.0"
 # Ubuntu
+elif [[ $ver = "19.10" ]]; then
+    str="xUbuntu_19.10"
 elif [[ $ver = "19.04" ]]; then
     str="xUbuntu_19.04"
 elif [[ $ver = "18.10" ]]; then
@@ -105,3 +107,6 @@ KEY
 if [[ $str == "Debian_10.0" ]]; then
 sed -i "s#Buster#Debian_10#g" /var/lib/apt/lists/mega.nz_linux_MEGAsync_Debian%5f10.0_._InRelease 2>/dev/null || true
 fi
+
+killall -s SIGUSR2 mega-cmd-server 2> /dev/null || true
+

@@ -34,8 +34,8 @@
 #include <limits.h>
 #include <iterator>
 
+namespace megacmd {
 using namespace std;
-
 #ifdef _WIN32
 
 //override << operators for wostream for string and const char *
@@ -116,6 +116,13 @@ void utf16ToUtf8(const wchar_t* utf16data, int utf16size, string* utf8string)
         NULL, NULL));
 }
 
+std::string getutf8fromUtf16(const wchar_t *ws)
+{
+    string utf8s;
+    utf16ToUtf8(ws, wcslen(ws), &utf8s);
+    return utf8s;
+}
+
 #endif
 
 
@@ -135,7 +142,14 @@ bool canWrite(string path)
 
 bool isPublicLink(string link)
 {
-    if (( link.find("http") == 0 ) && ( link.find("#") != string::npos ))
+    //Old format:
+    //https://mega.nz/#!ph!key
+    //https://mega.nz/#F!ph!key
+
+    //new format:
+    //https://mega.nz/file/ph#key
+    //https://mega.nz/folder/ph#key
+    if (( link.find("http") == 0 ) && ( link.find("#") != string::npos || link.find("/file/") != string::npos || link.find("/folder/") != string::npos))
     {
         return true;
     }
@@ -149,6 +163,69 @@ bool isEncryptedLink(string link)
         return true;
     }
     return false;
+}
+
+string getPublicLinkHandle(const string &link)
+{
+    size_t posFolder = string::npos;
+    size_t posLastSep = link.rfind("?");
+    if (posLastSep == string::npos )
+    {
+        string rest = link;
+        int count = 0;
+        size_t posExc = rest.find_first_of("!");
+        while ( posExc != string::npos && (posExc +1) < rest.size())
+        {
+            count++;
+            if (count <= 3 )
+            {
+                posLastSep += posExc + 1;
+            }
+
+            rest = rest.substr(posExc + 1);
+            posExc = rest.find("!");
+        }
+
+        if (count != 3)
+        {
+            posLastSep = string::npos;
+        }
+    }
+
+    if (posLastSep == string::npos )
+    {
+        posFolder = link.find("/folder/");
+    }
+
+    if (posFolder != string::npos)
+    {
+        posLastSep = link.rfind("/file/");
+        if (posLastSep != string::npos)
+        {
+            posLastSep += strlen("/file/")-1;
+        }
+        else
+        {
+            posLastSep = link.rfind("/folder/");
+            if (posLastSep != string::npos && posFolder != posLastSep)
+            {
+                posLastSep += strlen("/folder/")-1;
+            }
+            else
+            {
+                return string();
+            }
+        }
+    }
+
+    if (( posLastSep == string::npos ) || !( posLastSep + 1 < link.length()))
+    {
+        return string();
+    }
+    else
+    {
+        return link.substr(posLastSep+1);
+    }
 }
 
 bool hasWildCards(string &what)
@@ -401,7 +478,15 @@ unsigned int getstringutf8size(const string &str) {
 #ifdef _WIN32
         else if ((c & 0xF0) == 0xE0) i+=2;
 #else
-        else if ((c & 0xF0) == 0xE0) {i+=2;q++;} //these gliphs may occupy 2 characters! Problem: not always. Let's assume the worse
+        else if ((c & 0xF0) == 0xE0)
+        {
+            if ((i+2)>ix || c != 0xE2 || (strncmp(&str.c_str()[i],"\u21f5",3)
+                    && strncmp(&str.c_str()[i],"\u21d3",3) && strncmp(&str.c_str()[i],"\u21d1",3) ) )
+            { //known 1 character gliphs
+                q++;
+            }
+            i+=2;
+        } //these gliphs may occupy 2 characters! Problem: not always. Let's assume the worse
 #endif
         else if ((c & 0xF8) == 0xF0) i+=3;
         else return 0;//invalid utf8
@@ -409,7 +494,7 @@ unsigned int getstringutf8size(const string &str) {
     return q;
 }
 
-string getFixLengthString(const string origin, unsigned int size, const char delim, bool alignedright)
+string getFixLengthString(const string &origin, unsigned int size, const char delim, bool alignedright)
 {
     string toret;
     size_t printableSize = getstringutf8size(origin);
@@ -469,6 +554,8 @@ void printCenteredContents(OUTSTREAMTYPE &os, string msj, unsigned int width, bo
     headfoot.append(width, '-');
     unsigned int msjsize = getstringutf8size(msj);
 
+    bool printfooter = false;
+
     if (msj.size())
     {
         string header;
@@ -484,8 +571,11 @@ void printCenteredContents(OUTSTREAMTYPE &os, string msj, unsigned int width, bo
                 msj = msj.substr(possenditle + 1);
             }
         }
-
-        os << (header.size()?header:headfoot) << endl;
+        if (header.size() || encapsulated)
+        {
+            os << (header.size()?header:headfoot) << endl;
+            printfooter = true;
+        }
     }
 
     size_t possepnewline = msj.find("\n");
@@ -534,7 +624,10 @@ void printCenteredContents(OUTSTREAMTYPE &os, string msj, unsigned int width, bo
             }
         }
     }
-    os << headfoot << endl;
+    if (printfooter)
+    {
+        os << headfoot << endl;
+    }
 }
 
 void printCenteredLine(string msj, unsigned int width, bool encapsulated)
@@ -860,6 +953,29 @@ bool isValidEmail(string email)
                     || (email.find("@") > email.find_last_of(".")));
 }
 
+#ifdef __linux__
+std::string getCurrentExecPath()
+{
+    std::string path = ".";
+    pid_t pid = getpid();
+    char buf[20] = {0};
+    sprintf(buf,"%d",pid);
+    std::string _link = "/proc/";
+    _link.append( buf );
+    _link.append( "/exe");
+    char proc[PATH_MAX];
+    int ch = readlink(_link.c_str(),proc,PATH_MAX);
+    if (ch != -1) {
+        proc[ch] = 0;
+        path = proc;
+        std::string::size_type t = path.find_last_of("/");
+        path = path.substr(0,t);
+    }
+
+    return path;
+}
+#endif
+
 string &ltrimProperty(string &s, const char &c)
 {
     size_t pos = s.find_first_not_of(c);
@@ -924,3 +1040,145 @@ string getPropertyFromFile(const char *configFile, const char *propertyName)
 
     return string();
 }
+
+void ColumnDisplayer::endregistry()
+{
+    values.push_back(std::move(currentRegistry));
+    currentlength = 0;
+}
+
+void ColumnDisplayer::addHeader(const string &name, bool fixed, int minWidth)
+{
+    fields[name] = Field(name, fixed, minWidth);
+}
+
+void ColumnDisplayer::addValue(const string &name, const string &value, bool replace)
+{
+    int len = getstringutf8size(value);
+    if (!replace)
+    {
+        if (currentRegistry.size() && currentRegistry.find(name) != currentRegistry.end())
+        {
+            endregistry();
+        }
+    }
+
+    currentRegistry[name] = value;
+    currentlength += len;
+    if (fields.find(name) == fields.end())
+    {
+        addHeader(name, true);
+    }
+    if (find (fieldnames.begin(), fieldnames.end(), name) == fieldnames.end())
+    {
+        fieldnames.push_back(name);
+    }
+
+    fields[name].updateMaxValue(len);
+}
+
+void ColumnDisplayer::print(OUTSTREAMTYPE &os, int fullWidth, bool printHeader)
+{
+    if (currentRegistry.size())
+    {
+        endregistry();
+    }
+
+    int unfixedfieldscount = 0;
+    int leftWidth = fullWidth;
+    vector<Field *> unfixedfields;
+    for (auto &el : fields)
+    {
+        Field &f = el.second;
+        if (f.fixedSize)
+
+        {
+            if (f.fixedWidth)
+            {
+                f.dispWidth = f.fixedWidth;
+            }
+            else
+            {
+                f.dispWidth = max((int)getstringutf8size(f.name),f.maxValueLength);
+            }
+            leftWidth-=(f.dispWidth + 1);
+        }
+        else
+        {
+            unfixedfieldscount++;
+            unfixedfields.push_back(&f);
+        }
+    }
+
+    for (auto &f: unfixedfields)
+    {
+        f->dispWidth = max((int)getstringutf8size(f->name), min((leftWidth - unfixedfieldscount + 1)/(unfixedfieldscount), f->maxValueLength));
+        leftWidth-=(f->dispWidth + 1);
+        unfixedfieldscount--;
+    }
+
+    if (printHeader)
+    {
+        bool first = true;
+        for (auto el : fieldnames)
+        {
+            Field &f = fields[el];
+            if (!first)
+            {
+                os << " ";
+            }
+            first = false;
+            os << getFixLengthString(f.name, f.dispWidth);
+        }
+    }
+    os << std::endl;
+
+    for (auto &registry : values)
+    {
+        bool firstvalue = true;
+        for (auto &el : fieldnames)
+        {
+            Field &f = fields[el];
+            if (!firstvalue)
+            {
+                os << " ";
+            }
+            firstvalue = false;
+
+            if (registry.find(f.name) != registry.end())
+            {
+                os << getFixLengthString(registry[f.name], f.dispWidth);
+            }
+            else
+            {
+                os << getFixLengthString("", f.dispWidth);
+            }
+
+        }
+        os << std::endl;
+    }
+}
+
+Field::Field()
+{
+
+}
+
+Field::Field(string name, bool fixed, int minWidth) :name(name), fixedSize(fixed), fixedWidth(minWidth)
+{
+    if (fixed)
+    {
+        this->dispWidth = minWidth;
+    }
+
+}
+
+void Field::updateMaxValue(int newcandidate)
+{
+    if (newcandidate > this->maxValueLength)
+    {
+        this->maxValueLength = newcandidate;
+    }
+}
+
+} //end namespace

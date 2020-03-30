@@ -198,11 +198,13 @@ For MacOS, after installing the dmg, you can launch the server using MEGAcmd in 
 export PATH=/Applications/MEGAcmd.app/Contents/MacOS:$PATH
 ```
 
-And for bash completion, source `megacmd_completion.sh` :
+And for bash completion*, source `megacmd_completion.sh` :
 
 ```
 source /Applications/MEGAcmd.app/Contents/MacOS/megacmd_completion.sh
 ```
+
+*Important note for MacOS Catalina or above: since Catalina, MacOS uses `zsh` as default shell. If you want to have auto completion, we strongly recommend you to use `bash` shell (just execute `bash` in your terminal).
 
 ## NAS systems
 Currently we have build scripts for **Synology** and **QNAP**, which can be found in the build/<system> folder along with instructions on how to set up the build.  Typically this results in a 'package' which can then be manually installed in the NAS.   To use MEGAcmd on those systems, ssh into the device and run the commands as normal (having first added their folder to your `PATH` variable).

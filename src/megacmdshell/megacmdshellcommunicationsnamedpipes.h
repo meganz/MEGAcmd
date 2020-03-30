@@ -36,6 +36,7 @@
 
 #include <Shlwapi.h> //PathAppend
 
+namespace megacmd {
 typedef struct structListenStateChangesNamedPipe{
     int receiveNamedPipeNum;
     void (*statechangehandle)(std::string);
@@ -56,7 +57,7 @@ public:
     virtual int executeCommand(std::string command, std::string (*readresponse)(const char *) = NULL, OUTSTREAMTYPE &output = COUT, bool interactiveshell = true, std::wstring = L"");
     virtual int executeCommandW(std::wstring command, std::string (*readresponse)(const char *) = NULL, OUTSTREAMTYPE &output = COUT, bool interactiveshell = true);
 
-    virtual int registerForStateChanges(void (*statechangehandle)(std::string) = NULL);
+    virtual int registerForStateChanges(bool interactive, void (*statechangehandle)(std::string) = NULL, bool initiateServer = true);
 
     void setResponseConfirmation(bool confirmation);
 
@@ -82,5 +83,6 @@ private:
 
 };
 
+}//end namespace
 #endif
 #endif // MEGACMDSHELLCOMMUNICATIONS_H

@@ -4,15 +4,19 @@ FMEDIAINFO := $(shell dpkg -l | grep mediainfo >/dev/null && echo "-i" || echo "
 WMEDIAINFO := $(shell dpkg -l | grep mediainfo >/dev/null && echo " " || echo "--with-libmediainfo=$(CURDIR)/deps --with-libzen=$(CURDIR)/deps")
 FULLREQS := $(shell cat /etc/issue | grep "Ubuntu 12.04" >/dev/null && echo "" || echo '-DREQUIRE_HAVE_FFMPEG -DREQUIRE_HAVE_LIBUV -DREQUIRE_USE_MEDIAINFO -DREQUIRE_USE_PCRE')
 
+MEGA_BUILD_ID := $(shell cat MEGA_BUILD_ID || echo "1")
 
 build: build-stamp
 build-stamp:
+	sed -i -E "s/(^#define MEGACMD_BUILD_ID )[0-9]*/\1$(MEGA_BUILD_ID)/g" src/megacmdversion.h
+	sed -i -E "0,/megacmd \(([0-9.]*)[^\)]*\)/s//megacmd \(\1-$(MEGA_BUILD_ID).1)/" debian.changelog || :
+
 	./autogen.sh
 
 	#build dependencies into folder deps
 	mkdir deps || :
 	bash -x ./sdk/contrib/build_sdk.sh -o archives \
-	  -g -b $(FMEDIAINFO) -l -c -s -u -v -a -z -p deps/
+	  -g -b $(FMEDIAINFO) -l -c -s -u -v -a -z -I -p deps/
 
 	CPPFLAGS="$(CPPFLAGS) $(FULLREQS)" ./configure --without-libraw --disable-shared --enable-static --disable-silent-rules \
 	  --disable-curl-checks --with-sodium=$(CURDIR)/deps --with-libuv=$(CURDIR)/deps --with-pcre \
@@ -20,7 +24,7 @@ build-stamp:
 	  --with-termcap=$(CURDIR)/deps --prefix=$(CURDIR)/deps --disable-examples $(WMEDIAINFO)
 
 	make
-
+	echo "fs.inotify.max_user_watches = 524288" > 100-megacmd-inotify-limit.conf
 	touch build-stamp
 
 clean:
@@ -39,6 +43,7 @@ install: build
 	lsb_release -rs > version	
 	dh_install distro /usr/share/doc/megacmd/
 	dh_install version /usr/share/doc/megacmd/
+	dh_install 100-megacmd-inotify-limit.conf /etc/sysctl.d/
 
 
 # Build architecture-independent files here.

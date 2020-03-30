@@ -26,6 +26,7 @@
 
 #include <string>
 #include <iostream>
+#include <mutex>
 
 #ifdef _WIN32
 #include <WinSock2.h>
@@ -40,15 +41,12 @@
 
 #if defined(_WIN32) && !defined(WINDOWS_PHONE) && !defined(USE_CPPTHREAD)
 #include "mega/thread/win32thread.h"
-class MegaMutex : public ::mega::Win32Mutex {};
 class MegaThread : public ::mega::Win32Thread {};
 #elif defined(USE_CPPTHREAD)
 #include "mega/thread/cppthread.h"
-class MegaMutex : public ::mega::CppMutex {};
 class MegaThread : public ::mega::CppThread {};
 #else
 #include "mega/thread/posixthread.h"
-class MegaMutex : public ::mega::PosixMutex {};
 class MegaThread : public ::mega::PosixThread {};
 #endif
 
@@ -75,6 +73,7 @@ typedef int SOCKET;
 #endif
 
 #define MEGACMDINITIALPORTNUMBER 12300
+namespace megacmd {
 
 enum
 {
@@ -118,11 +117,11 @@ public:
     MegaCmdShellCommunications();
     virtual ~MegaCmdShellCommunications();
 
-    static MegaMutex megaCmdStdoutputing;
+    static std::mutex megaCmdStdoutputing;
     virtual int executeCommand(std::string command, std::string (*readresponse)(const char *) = NULL, OUTSTREAMTYPE &output = COUT, bool interactiveshell = true, std::wstring = L"");
     virtual int executeCommandW(std::wstring command, std::string (*readresponse)(const char *) = NULL, OUTSTREAMTYPE &output = COUT, bool interactiveshell = true);
 
-    virtual int registerForStateChanges(void (*statechangehandle)(std::string) = NULL);
+    virtual int registerForStateChanges(bool interactive, void (*statechangehandle)(std::string) = NULL, bool initiateServer = true);
 
     virtual void setResponseConfirmation(bool confirmation);
 
@@ -143,7 +142,7 @@ private:
     static bool confirmResponse;
 
     static bool stopListener;
-    static mega::Thread *listenerThread;
+    static MegaThread *listenerThread;
 
 #ifdef _WIN32
 static SOCKET createSocket(int number = 0, bool initializeserver = true, bool net = true);
@@ -154,4 +153,5 @@ static SOCKET createSocket(int number = 0, bool initializeserver = true, bool ne
 
 };
 
+}//end namespace
 #endif // MEGACMDSHELLCOMMUNICATIONS_H

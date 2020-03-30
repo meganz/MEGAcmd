@@ -14,6 +14,8 @@ TARGET = MEGAclient
 TEMPLATE = app
 CONFIG += console
 
+include(../MEGAcmdCommon.pri)
+
 SOURCES += ../../../../src/client/megacmdclient.cpp \
     ../../../../src/megacmdshell/megacmdshellcommunications.cpp \
     ../../../../src/megacmdshell/megacmdshellcommunicationsnamedpipes.cpp \
@@ -21,37 +23,18 @@ SOURCES += ../../../../src/client/megacmdclient.cpp \
 
 HEADERS += ../../../../src/megacmdshell/megacmdshellcommunications.h \
     ../../../../src/megacmdshell/megacmdshellcommunicationsnamedpipes.h \
-    ../../../../sdk/include/mega/thread.h \
     ../../../../src/megacmdcommonutils.h
 
-INCLUDEPATH += ../../../../sdk/include
+#win32{
+#    DEFINES += USE_WIN32THREAD
+#}
+#else{
+#    ## Disable de following to work with posix threads
+#    #DEFINES+=USE_CPPTHREAD
+#    #CONFIG += c++11
 
-win32{
-    DEFINES += USE_WIN32THREAD
-}
-else{
-    ## Disable de following to work with posix threads
-    #DEFINES+=USE_CPPTHREAD
-    #CONFIG += c++11
-
-    DEFINES+=USE_PTHREAD
-}
-
-win32 {
-SOURCES += ../../../../sdk/src/thread/win32thread.cpp \
-    ../../../../sdk/src/logging.cpp
-HEADERS +=  ../../../../sdk/include/mega/win32thread.h \
-    ../../../../sdk/include/mega/logging.h
-}
-else {
-SOURCES += ../../../../sdk/src/thread/cppthread.cpp \
-    ../../../../sdk/src/thread/posixthread.cpp \
-    ../../../../sdk/src/logging.cpp
-
-HEADERS +=  ../../../../sdk/include/mega/posixthread.h \
-    ../../../../sdk/include/mega/thread/cppthread.h \
-    ../../../../sdk/include/mega/logging.h
-}
+#    DEFINES+=USE_PTHREAD
+#}
 
 win32 {
     LIBS +=  -lshlwapi -lws2_32
@@ -73,11 +56,10 @@ else{
 
 
 macx {
-    QMAKE_MACOSX_DEPLOYMENT_TARGET = 10.9
-    QMAKE_CXXFLAGS -= -stdlib=libc++
-    QMAKE_LFLAGS -= -stdlib=libc++
-    CONFIG -= c++11
-
-    QMAKE_CXXFLAGS += -g
+    INCLUDEPATH += $$PWD/../../../../sdk/bindings/qt/3rdparty/include
+    LIBS += $$PWD/../../../../sdk/bindings/qt/3rdparty/libs/libreadline.a
+    LIBS += -framework Cocoa -framework SystemConfiguration -framework CoreFoundation -framework Foundation -framework Security
+    LIBS += -lncurses
 }
+
 

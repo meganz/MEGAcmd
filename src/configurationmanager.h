@@ -28,6 +28,7 @@
 #endif
 
 #define CONFIGURATIONSTOREDBYVERSION -2
+namespace megacmd {
 class ConfigurationManager
 {
 private:
@@ -42,6 +43,8 @@ private:
 public:
     static std::map<std::string, sync_struct *> configuredSyncs;
     static std::map<std::string, backup_struct *> configuredBackups;
+
+    static std::recursive_mutex settingsMutex;
 
     static std::string session;
 
@@ -237,5 +240,5 @@ public:
 
 };
 
-
+}//end namespace
 #endif // CONFIGURATIONMANAGER_H
