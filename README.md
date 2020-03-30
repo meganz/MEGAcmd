@@ -28,7 +28,7 @@ The requirements are the same as those for the sdk (usually `cryptopp, zlib, sql
 
 In order to have support for thumbnails and previews, it is highly recommended to have `ffmpeg` (`libavcodec-dev libavutil-dev libavformat-dev libswscale-dev`) and `mediainfo`(`libmediainfo-dev + libzen-dev`) for media file attributes.
 
-**For convenience, here is a list of packages for common distros:**
+**For convenience, here is a list of packages for common Linux Distros and precompiled third party dependencies for other Operative Systems:**
  * **Ubuntu 16.04**
 	 * `autoconf libtool g++ libcrypto++-dev libz-dev libsqlite3-dev libssl-dev libcurl4-openssl-dev libreadline-dev libpcre++-dev libsodium-dev libc-ares-dev libfreeimage-dev libavcodec-dev libavutil-dev libavformat-dev libswscale-dev libmediainfo-dev libzen-dev`
 
@@ -45,6 +45,11 @@ In order to have support for thumbnails and previews, it is highly recommended t
 
 	* For Windows, here is a bundle with all the 3rd party dependencies required to build:
 	https://mega.nz/#!MkZmVazb!fffUvFV9pIQhr__dVipwWqFfvjDEEp0JUsT8WBKAbRg
+
+* **MacOS**
+
+	* For MacOS, here is a bundle with all the 3rd party dependencies required to build, plus a `config.h` file to be placed at `sdk/include/mega/config.h`:
+	https://mega.nz/#F!WwZyBZRL!1vXiBr7pJZLINpSRErBxvA
 
 ## Getting the source
 
@@ -71,7 +76,7 @@ won't work. You would need to `source /YOUR/PREFIX/etc/bash_completion.d/megacmd
 
 Alternatively you can build using Qt project located at `contrib/QtCreator/MEGAcmd/MEGAcmd.pro`.
 
-For Windows you will need to place the `3rdparty` folder (included in the dependency bundle referenced [`above`](#requirements)) into `sdk/bindings/qt/`.
+For Windows/MacOS you will need to place the `3rdparty` folder (included in the dependency bundle referenced [`above`](#requirements)) into `sdk/bindings/qt/`.
 
 # Usage
 
