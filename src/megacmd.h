@@ -41,6 +41,7 @@ using std::exception;
 #include "megaapi_impl.h"
 
 #define PROGRESS_COMPLETE -2
+namespace megacmd {
 
 typedef struct sync_struct
 {
@@ -110,7 +111,37 @@ enum confirmresponse
 void changeprompt(const char *newprompt);
 
 void informStateListener(std::string message, int clientID);
-void broadcastMessage(std::string message);
+void broadcastMessage(std::string message, bool keepIfNoListeners = false);
+void informStateListeners(std::string s);
+
+void appendGreetingStatusFirstListener(const std::string &msj);
+void removeGreetingStatusFirstListener(const std::string &msj);
+void appendGreetingStatusAllListener(const std::string &msj);
+void removeGreetingStatusAllListener(const std::string &msj);
+
+
+void setloginInAtStartup(bool value);
+bool getloginInAtStartup();
+
+/**
+ * @brief A class to ensure clients are properly informed of login in situations
+ */
+class LoginGuard {
+public:
+    LoginGuard()
+    {
+        appendGreetingStatusAllListener(std::string("login:"));
+        setloginInAtStartup(true);
+    }
+
+    ~LoginGuard()
+    {
+        removeGreetingStatusAllListener(std::string("login:"));
+        informStateListeners("loged:"); //send this even when failed!
+        setloginInAtStartup(false);
+    }
+};
+
 
 mega::MegaApi* getFreeApiFolder();
 void freeApiFolder(mega::MegaApi *apiFolder);
@@ -140,6 +171,5 @@ void informStateListenerByClientId(int clientID, std::string s);
 
 void informProgressUpdate(long long transferred, long long total, int clientID, std::string title = "");
 
-
-
+}//end namespace
 #endif

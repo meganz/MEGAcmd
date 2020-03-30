@@ -41,7 +41,7 @@ rm -rf Release_x64
 mkdir Release_x64
 cd Release_x64
 $QTBASE/bin/qmake -r ../../contrib/QtCreator/MEGAcmd/ -spec macx-g++ CONFIG+=release CONFIG+=x86_64 -nocache
-make -j4
+make -j$(sysctl -n hw.ncpu)
 
 #After building, we will have 5 folders (one per project: MEGAcmdServer, MEGAcmdClient, MEGAcmdLoader, MEGAcmdUpdater & MEGAcmdShell)
 # we will include the stuff from the other 4 into MEGAcmdServer folder
@@ -112,17 +112,19 @@ then
 	exit 1
 fi
 
-install_name_tool -change @loader_path/$AVCODEC_VERSION @executable_path/../Frameworks/$AVCODEC_VERSION MEGAcmd.app/Contents/MacOS/mega-cmd
-install_name_tool -change @loader_path/$AVFORMAT_VERSION @executable_path/../Frameworks/$AVFORMAT_VERSION MEGAcmd.app/Contents/MacOS/mega-cmd
-install_name_tool -change @loader_path/$AVUTIL_VERSION @executable_path/../Frameworks/$AVUTIL_VERSION MEGAcmd.app/Contents/MacOS/mega-cmd
-install_name_tool -change @loader_path/$SWSCALE_VERSION @executable_path/../Frameworks/$SWSCALE_VERSION MEGAcmd.app/Contents/MacOS/mega-cmd
+for exec in mega-cmd mega-exec MEGAcmdShell; do
+install_name_tool -change @loader_path/$AVCODEC_VERSION @executable_path/../Frameworks/$AVCODEC_VERSION MEGAcmd.app/Contents/MacOS/$exec
+install_name_tool -change @loader_path/$AVFORMAT_VERSION @executable_path/../Frameworks/$AVFORMAT_VERSION MEGAcmd.app/Contents/MacOS/$exec
+install_name_tool -change @loader_path/$AVUTIL_VERSION @executable_path/../Frameworks/$AVUTIL_VERSION MEGAcmd.app/Contents/MacOS/$exec
+install_name_tool -change @loader_path/$SWSCALE_VERSION @executable_path/../Frameworks/$SWSCALE_VERSION MEGAcmd.app/Contents/MacOS/$exec
+done
 
 otool -L MEGAcmd.app/Contents/MacOS/mega-cmd
 
 if [ "$sign" = "1" ]; then
 	cp -R $APP_NAME.app ${APP_NAME}_unsigned.app
 	echo "Signing 'APPBUNDLE'"
-	codesign --force --verify --verbose --sign "Developer ID Application: Mega Limited" --deep $APP_NAME.app
+	codesign --force --verify --verbose --options runtime --sign "Developer ID Application: Mega Limited" --deep $APP_NAME.app
 	echo "Checking signature"
 	spctl -vv -a $APP_NAME.app
 fi
@@ -131,7 +133,7 @@ if [ "$createdmg" = "1" ]; then
 	echo "DMG CREATION PROCESS..."
 	echo "Creating temporary Disk Image (1/7)"
 	#Create a temporary Disk Image
-	/usr/bin/hdiutil create -srcfolder $APP_NAME.app/ -volname $APP_NAME -ov $APP_NAME-tmp.dmg -format UDRW >/dev/null
+	/usr/bin/hdiutil create -srcfolder $APP_NAME.app/ -volname $APP_NAME -ov $APP_NAME-tmp.dmg -fs HFS+ -format UDRW >/dev/null
 
 	echo "Attaching the temporary image (2/7)"
 	#Attach the temporary image

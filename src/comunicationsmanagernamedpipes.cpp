@@ -21,6 +21,7 @@
 #include "megacmdutils.h"
 
 
+#include <winsock2.h>
 #include <windows.h>
 #include <Lmcons.h> //getusername
 
@@ -32,6 +33,7 @@ using std::wstring;
 using namespace mega;
 
 
+namespace megacmd {
 bool namedPipeValid(HANDLE namedPipe)
 {
     return namedPipe != INVALID_HANDLE_VALUE;
@@ -128,15 +130,13 @@ HANDLE ComunicationsManagerNamedPipes::create_new_namedPipe(int *pipeId)
 ComunicationsManagerNamedPipes::ComunicationsManagerNamedPipes()
 {
     count = 0;
-    mtx = new MegaMutex();
-    informerMutex = new MegaMutex(false);
+    mtx = new std::mutex();
+    informerMutex = new std::mutex();
     initialize();
 }
 
 int ComunicationsManagerNamedPipes::initialize()
 {
-    mtx->init(false);
-
     petitionready = false;
 
     wchar_t username[UNLEN+1];
@@ -229,7 +229,7 @@ void ComunicationsManagerNamedPipes::returnAndClosePetition(CmdPetition *inf, OU
 {
     HANDLE outNamedPipe = ((CmdPetitionNamedPipes *)inf)->outNamedPipe;
 
-    LOG_verbose << "Output to write in namedPipe " << outNamedPipe << ": <<" << s->str() << ">>";
+    LOG_verbose << "Output to write in namedPipe " << (long)outNamedPipe;
 
     bool connectsucceeded = false;
     int attempts = 10;
@@ -284,6 +284,11 @@ void ComunicationsManagerNamedPipes::returnAndClosePetition(CmdPetition *inf, OU
 
 void ComunicationsManagerNamedPipes::sendPartialOutput(CmdPetition *inf, OUTSTRING *s)
 {
+    if (inf->clientDisconnected)
+    {
+        return;
+    }
+
     HANDLE outNamedPipe = ((CmdPetitionNamedPipes *)inf)->outNamedPipe;
 
     bool connectsucceeded = false;
@@ -416,7 +421,7 @@ void ComunicationsManagerNamedPipes::sendPartialOutput(CmdPetition *inf, char *s
 
 int ComunicationsManagerNamedPipes::informStateListener(CmdPetition *inf, string &s)
 {
-    MutexGuard g(*informerMutex);
+    std::lock_guard<std::mutex> g(*informerMutex);
 
     LOG_verbose << "Inform State Listener: Output to write in namedPipe " << ((CmdPetitionNamedPipes *)inf)->outNamedPipe << ": <<" << s << ">>";
     HANDLE outNamedPipe = ((CmdPetitionNamedPipes *)inf)->outNamedPipe;
@@ -444,7 +449,7 @@ int ComunicationsManagerNamedPipes::informStateListener(CmdPetition *inf, string
     {
         if (ERRNO == 32 || ERRNO == 109 || (ERRNO == 232 && s == "ack")) //namedPipe closed | pipe has been ended
         {
-            LOG_debug << "namedPipe closed. Client probably disconnected. Original petition: " << *inf;
+            LOG_debug << "namedPipe closed. Client probably disconnected. Original petition: " << inf->line;
             return -1;
         }
         else
@@ -623,5 +628,6 @@ ComunicationsManagerNamedPipes::~ComunicationsManagerNamedPipes()
     delete mtx;
     delete informerMutex;
 }
+}//end namespace
 #endif
 

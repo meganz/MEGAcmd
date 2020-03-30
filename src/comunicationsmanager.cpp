@@ -18,9 +18,9 @@
 
 #include "comunicationsmanager.h"
 
-using namespace std;
 using namespace mega;
 
+namespace megacmd {
 OUTSTREAMTYPE &operator<<(OUTSTREAMTYPE &os, const CmdPetition& p)
 {
     return os << p.line;
@@ -69,7 +69,7 @@ int ComunicationsManager::get_next_comm_id()
     return 0;
 }
 
-void ComunicationsManager::informStateListeners(string &s)
+bool ComunicationsManager::informStateListeners(string &s)
 {
     s+=(char)0x1F;
 
@@ -85,6 +85,12 @@ void ComunicationsManager::informStateListeners(string &s)
              ++it;
         }
     }
+
+    if (!stateListenersPetitions.size())
+    {
+        return false;
+    }
+    return true;
 }
 
 void ComunicationsManager::informStateListenerByClientId(string &s, int clientID)
@@ -171,3 +177,4 @@ void CmdPetition::setPetitionThread(MegaThread *value)
 {
     petitionThread = value;
 }
+}//end namespace

@@ -71,6 +71,7 @@
         ( std::ostringstream() << std::dec << x ) ).str()
 #endif
 
+namespace megacmd {
 using namespace std;
 
 bool MegaCmdShellCommunications::serverinitiatedfromshell;
@@ -78,9 +79,9 @@ bool MegaCmdShellCommunications::registerAgainRequired;
 bool MegaCmdShellCommunications::confirmResponse;
 bool MegaCmdShellCommunications::stopListener;
 bool MegaCmdShellCommunications::updating;
-::mega::Thread *MegaCmdShellCommunications::listenerThread;
+MegaThread *MegaCmdShellCommunications::listenerThread;
 SOCKET MegaCmdShellCommunications::newsockfd = INVALID_SOCKET;
-MegaMutex MegaCmdShellCommunications::megaCmdStdoutputing;
+std::mutex MegaCmdShellCommunications::megaCmdStdoutputing;
 
 bool MegaCmdShellCommunications::socketValid(SOCKET socket)
 {
@@ -174,29 +175,6 @@ bool is_pid_running(pid_t pid) {
 }
 #endif
 
-#ifdef __linux__
-std::string getCurrentExecPath()
-{
-    std::string path = ".";
-    pid_t pid = getpid();
-    char buf[20] = {0};
-    sprintf(buf,"%d",pid);
-    std::string _link = "/proc/";
-    _link.append( buf );
-    _link.append( "/exe");
-    char proc[PATH_MAX];
-    int ch = readlink(_link.c_str(),proc,PATH_MAX);
-    if (ch != -1) {
-        proc[ch] = 0;
-        path = proc;
-        std::string::size_type t = path.find_last_of("/");
-        path = path.substr(0,t);
-    }
-
-    return path;
-}
-#endif
-
 SOCKET MegaCmdShellCommunications::createSocket(int number, bool initializeserver, bool net)
 {
     if (net)
@@ -207,6 +185,12 @@ SOCKET MegaCmdShellCommunications::createSocket(int number, bool initializeserve
             cerr << "ERROR opening socket: " << ERRNO << endl;
             return INVALID_SOCKET;
         }
+#ifndef _WIN32
+        if (fcntl(thesock, F_SETFD, FD_CLOEXEC) == -1)
+        {
+            cerr << "ERROR setting CLOEXEC to socket: " << errno << endl;
+        }
+#endif
         int portno=MEGACMDINITIALPORTNUMBER+number;
 
         struct sockaddr_in addr;
@@ -315,6 +299,10 @@ SOCKET MegaCmdShellCommunications::createSocket(int number, bool initializeserve
             cerr << "ERROR opening socket: " << ERRNO << endl;
             return INVALID_SOCKET;
         }
+        if (fcntl(thesock, F_SETFD, FD_CLOEXEC) == -1)
+        {
+            cerr << "ERROR setting CLOEXEC to socket: " << errno << endl;
+        }
 
         bzero(socket_path, sizeof( socket_path ) * sizeof( *socket_path ));
         if (number)
@@ -346,7 +334,7 @@ SOCKET MegaCmdShellCommunications::createSocket(int number, bool initializeserve
                     setsid(); //create new session so as not to receive parent's Ctrl+C
 
                     string pathtolog = createAndRetrieveConfigFolder()+"/megacmdserver.log";
-                    OUTSTREAM << "[Initiating server in background. Log: " << pathtolog << "]" << endl;
+                    CERR << "[Initiating server in background. Log: " << pathtolog << "]" << endl; //TODO: try this in windows with non unicode user name?
 
                     dup2(fileno(stdout), fileno(stderr));  //redirects stderr to stdout below this line.
                     freopen(pathtolog.c_str(),"w",stdout);
@@ -373,7 +361,10 @@ SOCKET MegaCmdShellCommunications::createSocket(int number, bool initializeserve
         #endif
     #endif
 #endif
-                    char * args[] = {NULL};
+
+                    char **args = new char*[2];
+                    args[0]=(char *)executable;
+                    args[1] = NULL;
 
                     int ret = execvp(executable,args);
 
@@ -382,6 +373,7 @@ SOCKET MegaCmdShellCommunications::createSocket(int number, bool initializeserve
                         cerr << "Couln't initiate MEGAcmd server: executable not found: " << executable << endl;
 #ifdef NDEBUG
                         cerr << "Trying to use alternative executable: " << executable2 << endl;
+                        args[0]=(char *)executable2;
                         ret = execvp(executable2,args);
                         if (ret && errno == 2 )
                         {
@@ -483,7 +475,6 @@ MegaCmdShellCommunications::MegaCmdShellCommunications()
     stopListener = false;
     updating = false;
     listenerThread = NULL;
-    MegaCmdShellCommunications::megaCmdStdoutputing.init(false);
 }
 
 
@@ -893,7 +884,7 @@ int MegaCmdShellCommunications::readconfirmationloop(const char *question, strin
 
 }
 
-int MegaCmdShellCommunications::registerForStateChanges(void (*statechangehandle)(string))
+int MegaCmdShellCommunications::registerForStateChanges(bool interactive, void (*statechangehandle)(string), bool initiateServer)
 {
     if (statechangehandle == NULL)
     {
@@ -901,7 +892,8 @@ int MegaCmdShellCommunications::registerForStateChanges(void (*statechangehandle
         registerAgainRequired = false;
         return 0; //Do nth
     }
-    SOCKET thesock = createSocket();
+    SOCKET thesock = createSocket(0, initiateServer);
+
     if (thesock == INVALID_SOCKET)
     {
         cerr << "Failed to create socket for registering for state changes" << endl;
@@ -910,10 +902,11 @@ int MegaCmdShellCommunications::registerForStateChanges(void (*statechangehandle
     }
 
 #ifdef _WIN32
-    wstring wcommand=L"registerstatelistener";
+    wstring wcommand=interactive?L"Xregisterstatelistener":L"registerstatelistener";
     int n = send(thesock,(char*)wcommand.data(),int(wcslen(wcommand.c_str())*sizeof(wchar_t)), MSG_NOSIGNAL);
 #else
-    string command="registerstatelistener";
+    string command=interactive?"Xregisterstatelistener":"registerstatelistener";
+
     int n = send(thesock,command.data(),command.size(), MSG_NOSIGNAL);
 #endif
 
@@ -978,3 +971,4 @@ MegaCmdShellCommunications::~MegaCmdShellCommunications()
     }
     delete (MegaThread *)listenerThread;
 }
+} //end namespace

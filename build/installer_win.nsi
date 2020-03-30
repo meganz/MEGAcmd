@@ -21,10 +21,10 @@ VIAddVersionKey "LegalCopyright" "MEGA Limited 2019"
 VIAddVersionKey "ProductName" "MEGAcmd"
 
 ; Version info
-VIProductVersion "1.1.0.0"
-VIAddVersionKey "FileVersion" "1.1.0.0"
-VIAddVersionKey "ProductVersion" "1.1.0.0"
-!define PRODUCT_VERSION "1.1.0"
+VIProductVersion "1.2.0.0"
+VIAddVersionKey "FileVersion" "1.2.0.0"
+VIAddVersionKey "ProductVersion" "1.2.0.0"
+!define PRODUCT_VERSION "1.2.0"
 
 !define PRODUCT_PUBLISHER "Mega Limited"
 !define PRODUCT_WEB_SITE "http://www.mega.nz"
@@ -36,8 +36,8 @@ VIAddVersionKey "ProductVersion" "1.1.0.0"
 !define CSIDL_LOCALAPPDATA '0x1C' ;Local Application Data path
 !define CSIDL_COMMON_APPDATA '0x23'
 
-!define BUILDFOLDER_X86 "Release_x32"
-!define BUILDFOLDER_X64 "Release_x64"
+!define BUILDFOLDER_X86 "build-MEGAcmd-Desktop_Qt_5_6_3_MSVC2015_32bit-Release"
+!define BUILDFOLDER_X64 "build-MEGAcmd-Desktop_Qt_5_6_3_MSVC2015_64bit-Release"
 
 !ifdef BUILD_X64_VERSION
 !define SRCDIR_MEGACMD "..\contrib\QtCreator\${BUILDFOLDER_X64}\MEGAcmdServer\release"
@@ -112,12 +112,12 @@ var ALL_USERS_INSTDIR
 !insertmacro MUI_LANGUAGE "Breton"
 !insertmacro MUI_LANGUAGE "Bulgarian"       ;bg
 !insertmacro MUI_LANGUAGE "Catalan"         ;ca
-!insertmacro MUI_LANGUAGE "Cibemba"
+#!insertmacro MUI_LANGUAGE "Cibemba"
 !insertmacro MUI_LANGUAGE "Croatian"        ;hr
 !insertmacro MUI_LANGUAGE "Czech"           ;cs
 !insertmacro MUI_LANGUAGE "Danish"          ;da
 !insertmacro MUI_LANGUAGE "Dutch"           ;nl
-!insertmacro MUI_LANGUAGE "Efik" 			;locale code not found
+#!insertmacro MUI_LANGUAGE "Efik" 			;locale code not found
 !insertmacro MUI_LANGUAGE "English"
 !insertmacro MUI_LANGUAGE "Esperanto"
 !insertmacro MUI_LANGUAGE "Estonian"
@@ -132,19 +132,19 @@ var ALL_USERS_INSTDIR
 !insertmacro MUI_LANGUAGE "Hindi"             ;hi
 !insertmacro MUI_LANGUAGE "Hungarian"         ;hu
 !insertmacro MUI_LANGUAGE "Icelandic"
-!insertmacro MUI_LANGUAGE "Igbo"
+#!insertmacro MUI_LANGUAGE "Igbo"
 !insertmacro MUI_LANGUAGE "Indonesian"        ;in
 !insertmacro MUI_LANGUAGE "Irish"
 !insertmacro MUI_LANGUAGE "Italian"           ;it
 !insertmacro MUI_LANGUAGE "Japanese"          ;ja
-!insertmacro MUI_LANGUAGE "Khmer"
+#!insertmacro MUI_LANGUAGE "Khmer"
 !insertmacro MUI_LANGUAGE "Korean"            ;ko
 !insertmacro MUI_LANGUAGE "Kurdish"
 !insertmacro MUI_LANGUAGE "Latvian"           ;lv
 !insertmacro MUI_LANGUAGE "Lithuanian"        ;lt
 !insertmacro MUI_LANGUAGE "Luxembourgish"
 !insertmacro MUI_LANGUAGE "Macedonian"        ;mk
-!insertmacro MUI_LANGUAGE "Malagasy"
+#!insertmacro MUI_LANGUAGE "Malagasy"
 !insertmacro MUI_LANGUAGE "Malay"             ;ms
 !insertmacro MUI_LANGUAGE "Mongolian"
 !insertmacro MUI_LANGUAGE "Norwegian"         ;no
@@ -156,26 +156,26 @@ var ALL_USERS_INSTDIR
 !insertmacro MUI_LANGUAGE "Russian"           ;ru
 !insertmacro MUI_LANGUAGE "Serbian"
 !insertmacro MUI_LANGUAGE "SerbianLatin"
-!insertmacro MUI_LANGUAGE "Sesotho"
+#!insertmacro MUI_LANGUAGE "Sesotho"
 !insertmacro MUI_LANGUAGE "SimpChinese"       ;zh_CN
 !insertmacro MUI_LANGUAGE "Slovak"            ;sk
 !insertmacro MUI_LANGUAGE "Slovenian"         ;sl
 !insertmacro MUI_LANGUAGE "Spanish"           ;es
 !insertmacro MUI_LANGUAGE "SpanishInternational"
-!insertmacro MUI_LANGUAGE "Swahili"
+#!insertmacro MUI_LANGUAGE "Swahili"
 !insertmacro MUI_LANGUAGE "Swedish"          ;sv
-!insertmacro MUI_LANGUAGE "Tamil"
+#!insertmacro MUI_LANGUAGE "Tamil"
 !insertmacro MUI_LANGUAGE "Thai"             ;th
 !insertmacro MUI_LANGUAGE "TradChinese"      ;zh_TW
 !insertmacro MUI_LANGUAGE "Turkish"          ;tr
-!insertmacro MUI_LANGUAGE "Twi"
+#!insertmacro MUI_LANGUAGE "Twi"
 !insertmacro MUI_LANGUAGE "Ukrainian"        ;uk
-!insertmacro MUI_LANGUAGE "Uyghur"
+#!insertmacro MUI_LANGUAGE "Uyghur"
 !insertmacro MUI_LANGUAGE "Uzbek"
 !insertmacro MUI_LANGUAGE "Vietnamese"       ;vn
 !insertmacro MUI_LANGUAGE "Welsh"            ;cy
-!insertmacro MUI_LANGUAGE "Yoruba"
-!insertmacro MUI_LANGUAGE "Zulu"
+#!insertmacro MUI_LANGUAGE "Yoruba"
+#!insertmacro MUI_LANGUAGE "Zulu"
 
 ; MUI end ------
 
@@ -215,7 +215,7 @@ Function .onInit
 UserInfo::GetAccountType
 pop $0
 ${If} $0 != "admin" ;Require admin rights at least in win10; TODO: only ask for this if that's the case
-MessageBox MB_YESNO "If you would like ${PRODUCT_NAME} to be listed in the installed applications, Admin Privileges are needed.  Press Yes to grant that, or No for a plain install." IDYES elevate IDNO next
+MessageBox MB_YESNO "If you would like ${PRODUCT_NAME} to be listed in the installed applications, Admin Privileges are needed.  Press Yes to grant that, or No for a plain install." /SD IDNO IDYES elevate IDNO next
 ${EndIf}
   
 elevate:
@@ -559,6 +559,10 @@ modeselected:
   File "${SRCDIR_BATFILES}\mega-df.bat"
   AccessControl::SetFileOwner "$INSTDIR\mega-df.bat" "$USERNAME"
   AccessControl::GrantOnFile "$INSTDIR\mega-df.bat" "$USERNAME" "GenericRead + GenericWrite"
+
+  File "${SRCDIR_BATFILES}\mega-proxy.bat"
+  AccessControl::SetFileOwner "$INSTDIR\mega-proxy.bat" "$USERNAME"
+  AccessControl::GrantOnFile "$INSTDIR\mega-proxy.bat" "$USERNAME" "GenericRead + GenericWrite"
 
   File "${SRCDIR_BATFILES}\mega-export.bat"
   AccessControl::SetFileOwner "$INSTDIR\mega-export.bat" "$USERNAME"
@@ -923,6 +927,7 @@ Section Uninstall
   Delete "$INSTDIR\mega-debug.bat"
   Delete "$INSTDIR\mega-du.bat"
   Delete "$INSTDIR\mega-df.bat"
+  Delete "$INSTDIR\mega-proxy.bat"
   Delete "$INSTDIR\mega-export.bat"
   Delete "$INSTDIR\mega-find.bat"
   Delete "$INSTDIR\mega-get.bat"

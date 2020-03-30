@@ -17,10 +17,10 @@ CONFIG += console
 win32 {
 CONFIG += noreadline
 CONFIG += USE_AUTOCOMPLETE
-CONFIG += USE_CONSOLE
 DEFINES += NO_READLINE
-include(../../../../sdk/bindings/qt/sdk.pri) #This is required to have console.cpp included: avoiding this is rather complicated
 }
+
+include(../MEGAcmdCommon.pri)
 
 SOURCES += ../../../../src/megacmdshell/megacmdshell.cpp \
     ../../../../src/megacmdshell/megacmdshellcommunications.cpp \
@@ -35,8 +35,6 @@ HEADERS += ../../../../src/megacmdshell/megacmdshell.h \
     ../../../../src/megacmdcommonutils.h
 
 
-INCLUDEPATH += ../../../../sdk/include
-
 win32{
     RC_FILE = icon.rc
     QMAKE_LFLAGS += /LARGEADDRESSAWARE
@@ -46,95 +44,13 @@ win32{
     DEFINES += UNICODE _UNICODE NTDDI_VERSION=0x05010000 _WIN32_WINNT=0x0501
 }
 
-
-win32{
-    DEFINES += USE_WIN32THREAD
-}
-else{
-    ## Disable de following to work with posix threads
-    #DEFINES+=USE_CPPTHREAD
-    #CONFIG += c++11
-
-    DEFINES+=USE_PTHREAD
-    LIBS += -lpthread
-
-    LIBS += -lpcre
-}
-
 win32 {
-SOURCES += ../../../../sdk/src/thread/win32thread.cpp \
-    ../../../../sdk/src/logging.cpp
-HEADERS +=  ../../../../sdk/include/mega/win32thread.h \
-    ../../../../sdk/include/mega/logging.h
+    DEFINES += USE_READLINE_STATIC
 }
-else {
-SOURCES += ../../../../sdk/src/thread/cppthread.cpp \
-    ../../../../sdk/src/thread/posixthread.cpp \
-    ../../../../sdk/src/logging.cpp
-
-HEADERS +=  ../../../../sdk/include/mega/posixthread.h \
-    ../../../../sdk/include/mega/thread/cppthread.h \
-    ../../../../sdk/include/mega/logging.h
-}
-
-
-win32 {
-DEFINES += USE_READLINE_STATIC
-}
-
-
-DEFINES -= USE_QT
 
 macx {
     INCLUDEPATH += $$PWD/../../../../sdk/bindings/qt/3rdparty/include
     LIBS += $$PWD/../../../../sdk/bindings/qt/3rdparty/libs/libreadline.a
     LIBS += -framework Cocoa -framework SystemConfiguration -framework CoreFoundation -framework Foundation -framework Security
     LIBS += -lncurses
-
-    QMAKE_MACOSX_DEPLOYMENT_TARGET = 10.9
-    QMAKE_CXXFLAGS -= -stdlib=libc++
-    QMAKE_LFLAGS -= -stdlib=libc++
-    CONFIG -= c++11
-
-    QMAKE_CXXFLAGS += -g
 }
-else {
-    unix {
-        LIBS += -lreadline
-    }
-}
-
-win32 {
-    QMAKE_CXXFLAGS_RELEASE = $$QMAKE_CFLAGS_RELEASE_WITH_DEBUGINFO
-    QMAKE_LFLAGS_RELEASE = $$QMAKE_LFLAGS_RELEASE_WITH_DEBUGINFO
-
-    INCLUDEPATH += $$PWD/../../../../sdk/bindings/qt/3rdparty/include
-
-    DEFINES += __STDC_LIMIT_MACROS #this is required to include <thread> or <mutex>
-
-    LIBS +=  -lshlwapi -lws2_32 -luser32 -ladvapi32 -lshell32
-
-    contains(CONFIG, BUILDX64) {
-       release {
-            LIBS += -L"$$PWD/../../../../sdk/bindings/qt/3rdparty/libs/x64"
-        }
-        else {
-            LIBS += -L"$$PWD/../../../../sdk/bindings/qt/3rdparty/libs/x64d"
-        }
-    }
-
-
-    !contains(CONFIG, BUILDX64) {
-        release {
-            LIBS += -L"$$PWD/../../../../sdk/bindings/qt/3rdparty/libs/x32"
-        }
-        else {
-            LIBS += -L"$$PWD/../../../../sdk/bindings/qt/3rdparty/libs/x32d"
-        }
-    }
-}
-else {
-    QMAKE_CXXFLAGS_WARN_ON += -Wno-unused-parameter
-}
-
-

@@ -24,6 +24,7 @@
 
 #define OUTSTREAM getCurrentOut()
 
+namespace megacmd {
 class LoggedStream {
 public:
   LoggedStream(){out = NULL;}
@@ -74,14 +75,7 @@ public:
 
   LoggedStream const& operator<<(OUTSTREAMTYPE& (*F)(OUTSTREAMTYPE&)) const
   {
-      if (F == (OUTSTREAMTYPE& (*)(OUTSTREAMTYPE&) )(std::endl))
-      {
-          OUTSTRINGSTREAM os; os << "\n"; OUTSTRING s = os.str(); cm->sendPartialOutput(inf, &s); return *this;
-      }
-      else
-      {
-          std::cerr << "unable to identify f:" << std::endl;
-      }
+      OUTSTRINGSTREAM os; os << F; OUTSTRING s = os.str(); cm->sendPartialOutput(inf, &s); return *this;
       return *this;
   }
 
@@ -112,7 +106,7 @@ private:
     int apiLoggerLevel;
     int cmdLoggerLevel;
     LoggedStream * output;
-    mega::MegaMutex *outputmutex;
+    std::mutex *outputmutex;
 
 public:
     MegaCMDLogger();
@@ -143,4 +137,5 @@ public:
     }
 };
 
+}//end namespace
 #endif // MEGACMDLOGGER_H

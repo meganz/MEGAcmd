@@ -24,6 +24,7 @@
 
 #include <string>
 
+namespace megacmd {
 using ::mega::m_time_t;
 
 /* mega::MegaNode info extracting*/
@@ -57,6 +58,7 @@ const char * getTransferStateStr(int transferState);
 
 std::string backupSatetStr(int backupstate);
 
+const char * getProxyTypeStr(int proxyType);
 
 /* Files and folders */
 
@@ -122,4 +124,5 @@ bool getMinAndMaxSize(std::string sizestring, int64_t *minSize, int64_t *maxSize
 std::string readablePermissions(int permvalue);
 int permissionsFromReadable(std::string permissions);
 
+}//end namespace
 #endif // MEGACMDUTILS_H
