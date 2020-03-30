@@ -30,6 +30,7 @@ add_executable(mega-cmd-server
     "${ProjectDir}/src/megacmdutils.cpp"
     "${ProjectDir}/src/megacmdcommonutils.cpp"
     "${ProjectDir}/src/comunicationsmanager.cpp"
+    "${ProjectDir}/src/comunicationsmanagerfilesockets.cpp"
     "${ProjectDir}/src/comunicationsmanagernamedpipes.cpp"
     "${ProjectDir}/src/comunicationsmanagerportsockets.cpp"
     "${ProjectDir}/src/configurationmanager.cpp"
@@ -48,14 +49,15 @@ add_executable(mega-cmd
     "${ProjectDir}/src/megacmdshell/megacmdshellcommunicationsnamedpipes.cpp"
     "${ProjectDir}/src/megacmdshell/megacmdshell.cpp"
     "${ProjectDir}/src/megacmdcommonutils.cpp"
-
 )
 
-target_link_libraries(mega-exec Mega )
-target_link_libraries(mega-cmd Mega )
-target_link_libraries(mega-cmd-server Mega Lz32.lib)
+target_link_libraries(mega-exec Mega)
+target_link_libraries(mega-cmd Mega)
+if (WIN32)
+  target_link_libraries(mega-cmd-server Mega Lz32.lib)
+else()
+  target_link_libraries(mega-cmd-server Mega)
+endif()
 if (NOT NO_READLINE)
     target_link_libraries(mega-cmd readline)
 endif (NOT NO_READLINE)
-
-
