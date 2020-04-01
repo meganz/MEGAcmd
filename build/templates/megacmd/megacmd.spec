@@ -21,7 +21,7 @@ BuildRequires: ffmpeg-mega
 
     # disabling post-build-checks that ocassionally prevent opensuse rpms from being generated
     # plus it speeds up building process
-    BuildRequires: -post-build-checks
+    #!BuildIgnore: post-build-checks
 
     %if 0%{?sle_version} >= 150000
         BuildRequires: libcurl4
