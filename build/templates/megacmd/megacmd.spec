@@ -9,14 +9,14 @@ Source0:	megacmd_%{version}.tar.gz
 Vendor:		MEGA Limited
 Packager:	MEGA Linux Team <linux@mega.co.nz>
 
-BuildRequires: openssl-devel, sqlite-devel, zlib-devel, autoconf, automake, libtool, gcc-c++, pcre-devel
+BuildRequires: zlib-devel, autoconf, automake, libtool, gcc-c++, pcre-devel
 BuildRequires: hicolor-icon-theme, unzip, wget
 BuildRequires: ffmpeg-mega
 
 #OpenSUSE
-%if 0%{?suse_version}
+%if 0%{?suse_version} || 0%{?sle_version}
 
-    BuildRequires: libcares-devel, pkg-config
+    BuildRequires: libopenssl-devel, sqlite3-devel
     BuildRequires: libbz2-devel
 
     # disabling post-build-checks that ocassionally prevent opensuse rpms from being generated
@@ -27,6 +27,18 @@ BuildRequires: ffmpeg-mega
         BuildRequires: libcurl4
     %endif
 
+    %if 0%{?suse_version}>=1550
+        BuildRequires: pkgconf-pkg-config
+    %else
+        BuildRequires: pkg-config
+    %endif
+
+    %if 0%{?suse_version}>=1550 || (0%{?is_opensuse} && 0%{?sle_version} > 120300 )
+        BuildRequires: c-ares-devel
+    %else
+        BuildRequires: libcares-devel
+    %endif
+
     %if 0%{?suse_version} <= 1320
         BuildRequires: libcryptopp-devel
     %endif
@@ -35,7 +47,7 @@ BuildRequires: ffmpeg-mega
 
 #Fedora specific
 %if 0%{?fedora}
-    BuildRequires: c-ares-devel, cryptopp-devel
+    BuildRequires: openssl-devel, sqlite-devel, c-ares-devel, cryptopp-devel
 
     %if 0%{?fedora_version} >= 31
         BuildRequires: bzip2-devel
@@ -49,7 +61,7 @@ BuildRequires: ffmpeg-mega
 
 #centos/scientific linux
 %if 0%{?centos_version} || 0%{?scientificlinux_version}
-    BuildRequires: c-ares-devel
+    BuildRequires: openssl-devel, sqlite-devel, c-ares-devel, bzip2-devel
 
     %if 0%{?centos_version} >= 800
         BuildRequires: bzip2-devel
@@ -58,6 +70,7 @@ BuildRequires: ffmpeg-mega
 
 #red hat
 %if 0%{?rhel_version}
+    BuildRequires: openssl-devel, sqlite-devel
     %if 0%{?rhel_version} >= 800
         BuildRequires: bzip2-devel
     %endif
