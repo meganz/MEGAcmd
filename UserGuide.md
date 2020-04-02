@@ -9,7 +9,15 @@ Here is an example of downloading a file using MEGAcmd.  In this case we are dow
 ```
 mega-get https://mega.nz/#F!ABcD1E2F!gHiJ23k-LMno45PqrSTUvw /path/to/local/folder 
 ```
-
+Note:- If you get any error like this one
+```
+Event not found
+```
+In link put ```\``` in front of every ```!``` for example
+```
+mega-get https://mega.nz/#F\!ABcD1E2F\!gHiJ23k-LMno45PqrSTUvw /path/to/local/folder
+```
+	
 And here is an example of uploading a file using MEGAcmd, and making a link available to share it, that will expire after 10 minutes.<p>
 ```
 mega-put /path/to/my/temporary_resource /exportedstuff/
