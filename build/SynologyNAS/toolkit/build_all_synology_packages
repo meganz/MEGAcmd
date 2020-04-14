@@ -4,9 +4,7 @@
 echo "here is the latest list"
 ./pkgscripts-ng/EnvDeploy -v 6.1 --list
 
-
 #6281 alpine alpine4k armada370 armada375 armada38x armadaxp avoton braswell broadwell bromolow cedarview comcerto2k dockerx64 evansport grantley hi3535 kvmx64 monaco qoriq x64 rtd1296 denverton apollolake
-
 
 build_package() {
     local platform=$1
@@ -72,8 +70,10 @@ build_package() {
 
 mkdir -p synology_build_results
 
-for p in `./pkgscripts-ng/EnvDeploy -v 6.1 --list | grep -o "[^:]*$" ` ; do
-  build_package $p
-done
+# Skip 6281
+PLATFORMS=$(./pkgscripts-ng/EnvDeploy -v 6.1 -l | cut -d ' ' -f 4-)
 
+for platform in $PLATFORMS; do
+  build_package $platform
+done
 
