@@ -50,6 +50,10 @@ echo ---------- env set up --------------------
 env | sort
 echo ---------- env set up --------------------
 
+# Sanitize toolchain .la files.
+find /opt/cross-project/CT -type f -name '*.la' \
+    | xargs sed -i 's!/root/toolchain/docker_deploy/dockerfile/CT_auto_build!/opt/cross-project!g'
+
 #fix any utf-8 w/ BOM files that the compiler can't handle
 cd $MEGA_CMD_DIR
 find src -name "*.h" | xargs dos2unix
@@ -68,18 +72,6 @@ mv norecurse/* .
 
 ./contrib/build_sdk.sh -a -e -g -I -n -q -R -u -v -X -C"$CUSTOM_CONFIG_ARGS" -O linux-generic64 -S "no-asm" -0 2>&1 | tee $MEGA_CMD_DIR/mybuildlogs-sdkbuild.out
 
-if ! [ -e src/libmega.a ] ; then
-    echo "libtool could not link it so we do it ourselves. Including Zen and MediaInfo somehow reference a nonexistent path /home/slava in the Synology libtool libraries. If we left those out it would make the lib ok."
-    echo "we make the lib using $AR directly, with and output the same name src/libmega.la that satisfies the configure script for MEGAcmd."
-    rm -f src/libmega.la
-    $AR -rcs ./src/libmega.a `find src -name "*.o"` `find sdk_build -name "*.a"`
-    cp ./src/libmega.a ./src/libmega.la
-fi
-
-if ! [ -e ./sdk_build/install/lib/libmega.a ] ; then
-    cp ./src/libmega* ./sdk_build/install/lib/
-fi
-
 if ! [ -e ./sdk_build/install/lib/libmega.a ] ; then
    echo "SDK build failed"
    exit 1
@@ -91,16 +83,6 @@ cd ..
 echo -------------------------------------------------------- sdk end --------------------------------------
 
 echo about to build megacmd ---------------------------
-
-sh autogen.sh 2>&1 | tee $MEGA_CMD_DIR/mybuildlogs-autogen2.out
-
-./configure --without-libraw SUBDIRS="" \
-            --enable-static \
-            --with-cryptopp=${MEGA_CMD_DIR}/sdl/sdk_build/install \
-            --with-readline=${MEGA_CMD_DIR}/sdk/sdk_build/install \
-            --with-termcap=${MEGA_CMD_DIR}/sdk/sdk_build/install \
-            $CUSTOM_CONFIG_ARGS \
-    2>&1 | tee $MEGA_CMD_DIR/mybuildlogs-configure2.out 
 
 rm -f mega-cmd-server
 rm -f mega-cmd

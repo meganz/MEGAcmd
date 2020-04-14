@@ -83,10 +83,6 @@ if ! [ -e src/libmega.a ] ; then
 fi
 
 if ! [ -e ./sdk_build/install/lib/libmega.a ] ; then
-    cp ./src/libmega* ./sdk_build/install/lib/
-fi
-
-if ! [ -e ./sdk_build/install/lib/libmega.a ] ; then
    echo "SDK build failed"
    exit 1
 fi
@@ -99,16 +95,6 @@ cd ..
 echo -------------------------------------------------------- sdk end --------------------------------------
 
 echo about to build megacmd ---------------------------
-
-sh autogen.sh 2>&1 | tee $MEGA_CMD_DIR/mybuildlogs-autogen2.out
-
-./configure --without-libraw SUBDIRS="" \
-            --enable-static \
-            --with-cryptopp=${MEGA_CMD_DIR}/sdl/sdk_build/install \
-            --with-readline=${MEGA_CMD_DIR}/sdk/sdk_build/install \
-            --with-termcap=${MEGA_CMD_DIR}/sdk/sdk_build/install \
-            $CUSTOM_CONFIG_ARGS \
-    2>&1 | tee $MEGA_CMD_DIR/mybuildlogs-configure2.out 
 
 rm -f mega-cmd-server
 rm -f mega-cmd
