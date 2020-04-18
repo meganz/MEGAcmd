@@ -160,6 +160,8 @@ mega-export -a $i | awk '{print $4}';
 done
 ```
 
+**Note**: autocomplition usually will add forward-slash to your foler, make sure to remove the trailing slash, otherwise you'll most likely to see the `Failed to upload: Invalid argument` output.
+
 # Platforms
 
 ## Linux
