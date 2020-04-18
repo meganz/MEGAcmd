@@ -47,12 +47,9 @@ build_package() {
 
             echo "Signing!"
             tar -xf syn-sign-key -C /toolkit/build_env/ds.$platform-6.1/root/
-            echo "#!/bin/bash" > /toolkit/build_env/ds.$platform-6.1/signcmd
-            echo "echo SignScriptStarted" >> /toolkit/build_env/ds.$platform-6.1/signcmd
-            echo "php /pkgscripts/CodeSign.php --sign=/image/packages/MEGAcmd-$platform-$MAJOR.$MINOR.$MICRO.spk" >> /toolkit/build_env/ds.$platform-6.1/signcmd
-            echo "echo SignScriptComplete" >> /toolkit/build_env/ds.$platform-6.1/signcmd
+            cp signcmd /toolkit/build_env/ds.$platform-6.1/signcmd
             chmod a+x /toolkit/build_env/ds.$platform-6.1/signcmd
-            chroot /toolkit/build_env/ds.$platform-6.1/ "./signcmd"
+            chroot /toolkit/build_env/ds.$platform-6.1/ "/signcmd"
             echo "Sign complete!"
 
             mkdir -p synology_build_results/image-$platform
