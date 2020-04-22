@@ -267,6 +267,11 @@ std::string &rtrim(std::string &s, const char &c)
     return s;
 }
 
+string removeTrailingSeparators(string &path)
+{
+    return rtrim(rtrim(path,'/'),'\\');
+}
+
 vector<string> getlistOfWords(char *ptr, bool escapeBackSlashInCompletion, bool ignoreTrailingSpaces)
 {
     vector<string> words;
