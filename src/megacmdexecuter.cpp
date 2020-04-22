@@ -7760,7 +7760,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 if (n)
                 {
                     char * nodepath = api->getNodePath(n);
-                    ColumnDisplayer cd;
+                    ColumnDisplayer cd(getintOption(cloptions,"path-display-size", 0));
 
                     if (( id == i ) || (( id == -1 ) && ( words[1] == thesync->localpath )))
                     {
@@ -7879,7 +7879,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         }
         else if (words.size() == 1)
         {
-            ColumnDisplayer cd;
+            ColumnDisplayer cd(getintOption(cloptions,"path-display-size", 0));
             map<string, sync_struct *>::const_iterator itr;
             int i = 0;
             for (itr = ConfigurationManager::configuredSyncs.begin(); itr != ConfigurationManager::configuredSyncs.end(); ++itr)
@@ -10219,7 +10219,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         vector<MegaTransfer *>::iterator itDLs = transfersDLToShow.begin();
         vector<MegaTransfer *>::iterator itUPs = transfersUPToShow.begin();
 
-        ColumnDisplayer cd;
+        ColumnDisplayer cd(getintOption(cloptions,"path-display-size", 0));
         cd.addHeader("SOURCEPATH", false);
         cd.addHeader("DESTINYPATH", false);
 

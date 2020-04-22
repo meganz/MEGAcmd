@@ -2025,7 +2025,7 @@ string getHelpStr(const char *command)
         os << " -h" << "\t" << "Human readable" << endl;
         os << " --versions" << "\t" << "Calculate size including all versions." << endl;
         os << "   " << "\t" << "You can remove all versions with \"deleteversions\" and list them with \"ls --versions\"" << endl;
-        os << " --path-display-size=N" << "\t" << "Use a fixed size of N characters for paths" << endl;
+        os << " --path-display-size=N" << "\t" << "Use at least N characters for displaying paths" << endl;
 
 #ifdef USE_PCRE
         os << " --use-pcre" << "\t" << "use PCRE expressions" << endl;
@@ -2312,7 +2312,7 @@ string getHelpStr(const char *command)
         os << "-d" << " " << "ID|localpath" << "\t" << "deletes a synchronization" << endl;
         os << "-s" << " " << "ID|localpath" << "\t" << "stops(pauses) a synchronization" << endl;
         os << "-r" << " " << "ID|localpath" << "\t" << "resumes a synchronization" << endl;
-        os << " --path-display-size=N" << "\t" << "Use a fixed size of N characters for paths" << endl;
+        os << " --path-display-size=N" << "\t" << "Use at least N characters for displaying paths" << endl;
     }
     else if (!strcmp(command, "backup"))
     {
@@ -2348,7 +2348,7 @@ string getHelpStr(const char *command)
         os << "  \t"  << "If a backup(1) is ONGOING and the time for the next backup(2) arrives, it won't start untill the previous one(1) " << endl;
         os << "  \t"  << " is completed, and if by the time the first one(1) ends the time for the next one(3) has already arrived," << endl;
         os << "  \t"  << " an empty BACKUP(2) will be created with state SKIPPED" << endl;
-        os << " --path-display-size=N" << "\t" << "Use a fixed size of N characters for paths" << endl;
+        os << " --path-display-size=N" << "\t" << "Use at least N characters for displaying paths" << endl;
         printTimeFormatHelp(os);
         os << endl;
         os << "Configuration Options:" << endl;
@@ -2580,7 +2580,7 @@ string getHelpStr(const char *command)
         os << "Prints media info of remote files" << endl;
         os << endl;
         os << "Options:" << endl;
-        os << " --path-display-size=N" << "\t" << "Use a fixed size of N characters for paths" << endl;
+        os << " --path-display-size=N" << "\t" << "Use at least N characters for displaying paths" << endl;
     }
     else if (!strcmp(command, "passwd"))
     {
@@ -2687,7 +2687,7 @@ string getHelpStr(const char *command)
         os << " --show-completed" << "\t" << "Show completed transfers" << endl;
         os << " --only-completed" << "\t" << "Show only completed download" << endl;
         os << " --limit=N" << "\t" << "Show only first N transfers" << endl;
-        os << " --path-display-size=N" << "\t" << "Use a fixed size of N characters for paths" << endl;
+        os << " --path-display-size=N" << "\t" << "Use at least N characters for displaying paths" << endl;
         os << endl;
         os << "TYPE legend correspondence:" << endl;
 #ifdef _WIN32

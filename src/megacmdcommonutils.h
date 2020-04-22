@@ -261,6 +261,8 @@ public:
 class ColumnDisplayer
 {
 public:
+    ColumnDisplayer(int unfixedColsMinSize = 0);
+
     void print(OUTSTREAMTYPE &os, int fullWidth, bool printHeader=true);
     void addHeader(const std::string &name, bool fixed = true, int minWidth = 0);
     void addValue(const std::string &name, const std::string & value, bool replace = false);
@@ -274,6 +276,8 @@ private:
 
     std::map<std::string, std::string> currentRegistry;
     int currentlength = 0;
+
+    int mUnfixedColsMinSize = 0;
 
 };
 

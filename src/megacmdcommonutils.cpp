@@ -1077,6 +1077,11 @@ void ColumnDisplayer::addValue(const string &name, const string &value, bool rep
     fields[name].updateMaxValue(len);
 }
 
+ColumnDisplayer::ColumnDisplayer(int unfixedColsMinSize) : mUnfixedColsMinSize(unfixedColsMinSize)
+{
+
+}
+
 void ColumnDisplayer::print(OUTSTREAMTYPE &os, int fullWidth, bool printHeader)
 {
     if (currentRegistry.size())
@@ -1085,6 +1090,8 @@ void ColumnDisplayer::print(OUTSTREAMTYPE &os, int fullWidth, bool printHeader)
     }
 
     int unfixedfieldscount = 0;
+    int unfixedFieldsMaxLengthSum = 0;
+
     int leftWidth = fullWidth;
     vector<Field *> unfixedfields;
     for (auto &el : fields)
@@ -1107,12 +1114,23 @@ void ColumnDisplayer::print(OUTSTREAMTYPE &os, int fullWidth, bool printHeader)
         {
             unfixedfieldscount++;
             unfixedfields.push_back(&f);
+            unfixedFieldsMaxLengthSum+=f.maxValueLength;
         }
     }
 
+    auto unfixedFieldsMaxLengthsLeft = unfixedFieldsMaxLengthSum;
     for (auto &f: unfixedfields)
     {
-        f->dispWidth = max((int)getstringutf8size(f->name), min((leftWidth - unfixedfieldscount + 1)/(unfixedfieldscount), f->maxValueLength));
+        unfixedFieldsMaxLengthsLeft -= f->maxValueLength;
+
+        f->dispWidth = max(
+                    (int)getstringutf8size(f->name), // min limit: header size
+                    min( f->maxValueLength // max limit: its longest value
+                         , max(mUnfixedColsMinSize, // min limit 2: the min limit for unfixed columns
+                               max((leftWidth - unfixedfieldscount + 1)/(unfixedfieldscount), (leftWidth - unfixedfieldscount + 1 - unfixedFieldsMaxLengthsLeft)) //either an equitative share between all unfixedfields left, or all the space the other left me considering their maxLegnths
+                               )
+                        )
+                    );
         leftWidth-=(f->dispWidth + 1);
         unfixedfieldscount--;
     }
