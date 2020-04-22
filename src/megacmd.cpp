@@ -395,6 +395,7 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     {
         validParams->insert("f");
         validParams->insert("non-interactive");
+        validParams->insert("paths");
         validParams->insert("upgrade");
 #ifdef _WIN32
         validParams->insert("unicode");
@@ -1815,6 +1816,7 @@ void printTimeFormatHelp(ostringstream &os)
     os << "               SHORT: " << " Example: 06Apr2018 13:05:37" << endl;
     os << "               SHORT_UTC: " << " Example: 06Apr2018 13:05:37" << endl;
     os << "               CUSTOM. e.g: --time-format=\"%Y %b\": "<< " Example: 2018 Apr" << endl;
+    os << "                 You can use any strftime compliant format: http://www.cplusplus.com/reference/ctime/strftime/" << endl;
 }
 
 string getHelpStr(const char *command)
@@ -2221,7 +2223,7 @@ string getHelpStr(const char *command)
 #endif
         os << endl;
         os << "To see versions of a file use \"ls --versions\"." << endl;
-        os << "To see space occupied by file versions use \"du\" with \"--versions\"." << endl;
+        os << "To see space occupied by file versions use \"du --versions\"." << endl;
     }
 #ifdef HAVE_LIBUV
     else if (!strcmp(command, "webdav"))
@@ -2946,6 +2948,24 @@ void executecommand(char* ptr)
 
              delete [] url;
         }
+        else if (getFlag(&clflags,"paths"))
+        {
+            OUTSTREAM << "MEGAcmd will allow you to enter local and remote paths." << endl;
+            OUTSTREAM << " - REMOTE paths are case-sensitive, and use '/' as path separator." << endl;
+            OUTSTREAM << "    The root folder in your cloud will be `/`. " << endl;
+            OUTSTREAM << "    There are other possible root folders (Rubbish Bin, Inbox & in-shares). " << endl;
+            OUTSTREAM << "       For further info on root folders, see \"mount --help\"" << endl;
+            OUTSTREAM << " - LOCAL paths are system dependant. " << endl;
+            OUTSTREAM << "    In Windows, you will be able to use both '\\' and '/' as separator." << endl;
+            OUTSTREAM << endl;
+            OUTSTREAM << "To refer to paths that include spaces, you will need to either surround the path between quotes \"\"," << endl;
+            OUTSTREAM << "   or scape the space with '\\ '." << endl;
+            OUTSTREAM << "     e.g: <ls /a\\ folder> of <ls \"a folder\"> will list the contents of a folder named 'a folder' " << endl;
+            OUTSTREAM << "          located in the root folder of your cloud."  << endl;
+            OUTSTREAM << endl;
+            OUTSTREAM << "USE autocompletion! MEGAcmd features autocompletion. Pressing <TAB> will autocomplete paths" << endl;
+            OUTSTREAM << " (both LOCAL & REMOTE) along with other parameters of commands. It will surely save you some typing!" << endl;
+        }
         else if (getFlag(&clflags,"non-interactive"))
         {
             OUTSTREAM << "MEGAcmd features two modes of interaction:" << endl;
@@ -3024,10 +3044,11 @@ void executecommand(char* ptr)
         {
             OUTSTREAM << "Here is the list of available commands and their usage" << endl;
             OUTSTREAM << "Use \"help -f\" to get a brief description of the commands" << endl;
-            OUTSTREAM << "You can get further help on a specific command with \"command\" --help " << endl;
-            OUTSTREAM << "Alternatively, you can use \"help\" -ff to get a complete description of all commands" << endl;
+            OUTSTREAM << "You can get further help on a specific command with \"command --help\" " << endl;
+            OUTSTREAM << "Alternatively, you can use \"help -ff\" to get a complete description of all commands" << endl;
             OUTSTREAM << "Use \"help --non-interactive\" to learn how to use MEGAcmd with scripts" << endl;
             OUTSTREAM << "Use \"help --upgrade\" to learn about the limitations and obtaining PRO accounts" << endl;
+            OUTSTREAM << "Use \"help --paths\" to learn about paths and how to enter them" << endl;
 
             OUTSTREAM << endl << "Commands:" << endl;
 
