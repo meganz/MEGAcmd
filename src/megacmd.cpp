@@ -318,10 +318,10 @@ void broadcastMessage(string message, bool keepIfNoListeners)
     {
         s += "message:";
         s+=message;
-
+        string unalteredCopy(s);
         if (!cm->informStateListeners(s) && keepIfNoListeners)
         {
-            appendGreetingStatusFirstListener(s);
+            appendGreetingStatusFirstListener(unalteredCopy);
         }
     }
 }
@@ -4025,7 +4025,10 @@ void megacmd()
                 s+=dynamicprompt;
                 s+=(char)0x1F;
 
-                cmdexecuter->checkAndInformPSA(inf);
+                if (!sandboxCMD->getReasonblocked().size())
+                {
+                    cmdexecuter->checkAndInformPSA(inf);
+                }
 
                 cm->informStateListener(inf,s);
             }
@@ -4742,6 +4745,7 @@ int main(int argc, char* argv[])
 
     sandboxCMD = new MegaCmdSandbox();
     cmdexecuter = new MegaCmdExecuter(api, loggerCMD, sandboxCMD);
+    sandboxCMD->cmdexecuter = cmdexecuter;
 
     megaCmdGlobalListener = new MegaCmdGlobalListener(loggerCMD, sandboxCMD);
     megaCmdMegaListener = new MegaCmdMegaListener(api, NULL, sandboxCMD);

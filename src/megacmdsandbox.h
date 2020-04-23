@@ -22,12 +22,21 @@
 #include <mega.h>
 #include <ctime>
 #include <string>
+#include <future>
+#include "megacmdexecuter.h"
 
 namespace megacmd {
+class MegaCmdExecuter;
+
 class MegaCmdSandbox
 {
 private:
     bool overquota;
+    std::mutex reasonBlockedMutex;
+    std::string reasonblocked;
+    bool reasonPending = false;
+    std::promise<std::string> reasonPromise;
+
 public:
     bool istemporalbandwidthvalid;
     long long temporalbandwidth;
@@ -40,15 +49,24 @@ public:
     int lastPSAnumreceived;
 
     bool accounthasbeenblocked;
-    std::string reasonblocked;
     int storageStatus;
     long long receivedStorageSum;
     long long totalStorage;
+
+    MegaCmdExecuter * cmdexecuter = nullptr;
+
 public:
     MegaCmdSandbox();
     bool isOverquota() const;
     void setOverquota(bool value);
     void resetSandBox();
+
+    std::string getReasonblocked();
+    void setReasonPendingPromise();
+    void setReasonblocked(const std::string &value);
+    void setPromisedReasonblocked(const std::string &value);
+
+
 };
 
 }//end namespace

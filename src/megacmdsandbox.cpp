@@ -46,6 +46,45 @@ void MegaCmdSandbox::resetSandBox()
     this->totalStorage = 0;
     this->timeOfPSACheck = 0;
     this->lastPSAnumreceived = -1;
+    this->reasonblocked = "";
+    this->reasonPending = false;
+}
+
+std::string MegaCmdSandbox::getReasonblocked()
+{
+    std::unique_lock<std::mutex> ul(reasonBlockedMutex);
+
+    if (reasonPending)
+    {
+        std::future<std::string> f = reasonPromise.get_future();
+        ul.unlock();
+        return f.get();
+    }
+
+    return reasonblocked;
+}
+
+void MegaCmdSandbox::setReasonPendingPromise()
+{
+    std::lock_guard<std::mutex> g(reasonBlockedMutex);
+    reasonPending = true;
+    this->reasonPromise = std::promise<std::string>();
+}
+
+void MegaCmdSandbox::setReasonblocked(const std::string &value)
+{
+    std::lock_guard<std::mutex> g(reasonBlockedMutex);
+    reasonblocked = value;
+}
+
+
+void MegaCmdSandbox::setPromisedReasonblocked(const std::string &value)
+{
+    std::lock_guard<std::mutex> g(reasonBlockedMutex);
+
+    reasonblocked = value;
+    reasonPending = false;
+    this->reasonPromise.set_value(value);
 }
 
 MegaCmdSandbox::MegaCmdSandbox()

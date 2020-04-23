@@ -24,6 +24,10 @@
 #include "listeners.h"
 
 namespace megacmd {
+class MegaCmdSandbox;
+class MegaCmdMultiTransferListener;
+class MegaCmdGlobalTransferListener;
+
 class MegaCmdExecuter
 {
 private:
@@ -197,6 +201,7 @@ public:
 #endif
     bool printUserAttribute(int a, std::string user, bool onlylist = false);
     bool setProxy(const std::string &url, const std::string &username, const std::string &password, int proxyType);
+    void fetchNodes(mega::MegaApi *api, int clientID = -27);
 };
 
 }//end namespace

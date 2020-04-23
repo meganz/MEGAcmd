@@ -68,6 +68,8 @@ MegaCmdGlobalListener::MegaCmdGlobalListener(MegaCMDLogger *logger, MegaCmdSandb
 {
     this->loggerCMD = logger;
     this->sandboxCMD = sandboxCMD;
+
+    ongoing = false;
 }
 
 void MegaCmdGlobalListener::onNodesUpdate(MegaApi *api, MegaNodeList *nodes)
@@ -166,8 +168,68 @@ void MegaCmdGlobalListener::onEvent(MegaApi *api, MegaEvent *event)
     if (event->getType() == MegaEvent::EVENT_ACCOUNT_BLOCKED)
     {
         sandboxCMD->accounthasbeenblocked = true;
-        LOG_err << "Received event account blocked: " << event->getText();
-        sandboxCMD->reasonblocked = event->getText();
+
+        switch (event->getNumber())
+        {
+        case MegaApi::ACCOUNT_NOT_BLOCKED:
+        {
+            sandboxCMD->setReasonblocked("");
+            broadcastMessage("Your account is not longer blocked", true);
+            if (!api->isFilesystemAvailable())
+            {
+                std::thread t([this, api](){
+                    sandboxCMD->cmdexecuter->fetchNodes(api);
+                });
+            }
+            break;
+        }
+        case MegaApi::ACCOUNT_BLOCKED_VERIFICATION_EMAIL:
+        {
+            sandboxCMD->setReasonblocked( "Your account has been temporarily suspended for your safety. "
+                                        "Please verify your email and follow its steps to unlock your account.");
+            broadcastMessage(sandboxCMD->getReasonblocked(), true);
+            break;
+        }
+        case MegaApi::ACCOUNT_BLOCKED_VERIFICATION_SMS:
+        {
+            if (!ongoing)
+            {
+                ongoing = true;
+
+                sandboxCMD->setReasonPendingPromise();
+
+                api->getSessionTransferURL("", new MegaCmdListenerFuncExecuter(
+                                               [this](mega::MegaApi* api, mega::MegaRequest *request, mega::MegaError *e)
+                {
+                   if (e->getValue() == MegaError::API_OK)
+                   {
+                       string reason("Your account has been suspended temporarily due to potential abuse. "
+                       "Please verify your phone number to unlock your account."
+                       " Open the following link: ");
+                        reason.append(request->getLink());
+
+                        sandboxCMD->setPromisedReasonblocked(reason);
+
+                        broadcastMessage(reason, true);
+                        ongoing = false;
+                   }
+                }));
+            }
+            break;
+        }
+        case MegaApi::ACCOUNT_BLOCKED_SUBUSER_DISABLED:
+        {
+            sandboxCMD->setReasonblocked("Your account has been disabled by your administrator. Please contact your business account administrator for further details.");
+            broadcastMessage(sandboxCMD->getReasonblocked(), true);
+            break;
+        }
+        default:
+        {
+            sandboxCMD->setReasonblocked(event->getText());
+            broadcastMessage(sandboxCMD->getReasonblocked(), true);
+            LOG_err << "Received event account blocked: " << event->getText();
+        }
+        }
     }
     else if (event->getType() == MegaEvent::EVENT_STORAGE)
     {
