@@ -55,7 +55,6 @@ private:
     //delete confirmation
     std::vector<mega::MegaNode *> nodesToConfirmDelete;
 
-    void updateprompt(mega::MegaApi *api, mega::MegaHandle handle);
 
     std::string getNodePathString(mega::MegaNode *n);
 
@@ -68,6 +67,8 @@ public:
 
     MegaCmdExecuter(mega::MegaApi *api, MegaCMDLogger *loggerCMD, MegaCmdSandbox *sandboxCMD);
     ~MegaCmdExecuter();
+
+    void updateprompt(mega::MegaApi *api = nullptr);
 
     // nodes browsing
     void listtrees();
@@ -201,7 +202,7 @@ public:
 #endif
     bool printUserAttribute(int a, std::string user, bool onlylist = false);
     bool setProxy(const std::string &url, const std::string &username, const std::string &password, int proxyType);
-    void fetchNodes(mega::MegaApi *api, int clientID = -27);
+    void fetchNodes(mega::MegaApi *api = nullptr, int clientID = -27);
 };
 
 }//end namespace

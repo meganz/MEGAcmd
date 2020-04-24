@@ -227,6 +227,8 @@ void statechangehandle(string statestring)
     unsigned int width = getNumberOfCols(75);
     if (width > 1 ) width--;
 
+    static string lastMessage;
+
     while (nextstatedelimitpos!=string::npos && statestring.size())
     {
         string newstate = statestring.substr(0,nextstatedelimitpos);
@@ -286,35 +288,41 @@ void statechangehandle(string statestring)
         }
         else if (newstate.compare(0, strlen("message:"), "message:") == 0)
         {
-            MegaCmdShellCommunications::megaCmdStdoutputing.lock();
-#ifdef _WIN32
-            int oldmode = _setmode(_fileno(stdout), _O_U8TEXT);
-#endif
-            string contents = newstate.substr(strlen("message:"));
-            if (contents.find("-----") != 0)
+            if (lastMessage.compare(newstate)) //to avoid repeating messages
             {
-                if (!procesingline || shown_partial_progress)
-                {
-                    OUTSTREAM << endl;
-                }
-                printCenteredContents(contents, width);
-#ifndef NO_READLINE
-                if (prompt == COMMAND && promtpLogReceivedBool)
-                {
-                    install_rl_handler(*dynamicprompt ? dynamicprompt : prompts[COMMAND]);
-                }
-#endif
-            }
-            else
-            {
-                OUTSTREAM << endl <<  contents << endl;
-            }
-#ifdef _WIN32
-            _setmode(_fileno(stdout), oldmode);
-#endif
-            MegaCmdShellCommunications::megaCmdStdoutputing.unlock();
+                lastMessage = newstate;
 
-            requirepromptinstall = true;
+                MegaCmdShellCommunications::megaCmdStdoutputing.lock();
+#ifdef _WIN32
+                int oldmode = _setmode(_fileno(stdout), _O_U8TEXT);
+#endif
+                string contents = newstate.substr(strlen("message:"));
+                if (contents.find("-----") != 0)
+                {
+                    if (!procesingline || shown_partial_progress)
+                    {
+                        OUTSTREAM << endl;
+                    }
+                    printCenteredContents(contents, width);
+#ifndef NO_READLINE
+                    if (prompt == COMMAND && promtpLogReceivedBool)
+                    {
+                        install_rl_handler(*dynamicprompt ? dynamicprompt : prompts[COMMAND]);
+                    }
+#endif
+
+                }
+                else
+                {
+                    OUTSTREAM << endl <<  contents << endl;
+                }
+#ifdef _WIN32
+                _setmode(_fileno(stdout), oldmode);
+#endif
+                MegaCmdShellCommunications::megaCmdStdoutputing.unlock();
+
+                requirepromptinstall = true;
+            }
         }
         else if (newstate.compare(0, strlen("clientID:"), "clientID:") == 0)
         {

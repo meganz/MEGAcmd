@@ -37,6 +37,8 @@ private:
     bool reasonPending = false;
     std::promise<std::string> reasonPromise;
 
+    void doSetReasonBlocked(const std::string &value);
+
 public:
     bool istemporalbandwidthvalid;
     long long temporalbandwidth;
@@ -48,7 +50,6 @@ public:
     ::mega::m_time_t timeOfPSACheck;
     int lastPSAnumreceived;
 
-    bool accounthasbeenblocked;
     int storageStatus;
     long long receivedStorageSum;
     long long totalStorage;

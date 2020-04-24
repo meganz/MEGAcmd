@@ -86,7 +86,7 @@ static std::vector<std::string> localfolderpatterncommands {"lcd"};
 
 static std::vector<std::string> emailpatterncommands {"invite", "signup", "ipc", "users"};
 
-static std::vector<std::string> loginInValidCommands { "log", "debug", "speedlimit","help", "logout", "version", "quit",
+static std::vector<std::string> loginInValidCommands { "log", "debug", "speedlimit", "help", "logout", "version", "quit",
                             "clear", "https", "exit", "errorcode", "proxy"
 #if defined(_WIN32) && defined(NO_READLINE)
                              , "autocomplete", "codepage"

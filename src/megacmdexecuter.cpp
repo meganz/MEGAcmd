@@ -87,51 +87,56 @@ std::vector<std::string> resolvewildcard(const std::string& pattern) {
  * @param api
  * @param handle
  */
-void MegaCmdExecuter::updateprompt(MegaApi *api, MegaHandle handle)
+void MegaCmdExecuter::updateprompt(MegaApi *api)
 {
-    static char dynamicprompt[2024]; //TODO: rewrite this function to have prompts with any size (use string)
+    if (!api) api = this->api;
+    MegaHandle handle = cwd;
+
+    string newprompt;
 
     MegaNode *n = api->getNodeByHandle(handle);
 
     MegaUser *u = api->getMyUser();
-    char *ptraux = dynamicprompt;
-    char *lastpos = dynamicprompt + sizeof( dynamicprompt ) / sizeof( dynamicprompt[0] );
     if (u)
     {
         const char *email = u->getEmail();
-        strncpy(dynamicprompt, email, ( lastpos - ptraux ) / sizeof( dynamicprompt[0] ));
-        ptraux += strlen(email);
-        ptraux = min(ptraux, lastpos - 2);
+        newprompt.append(email);
         delete u;
     }
+
     if (n)
     {
         char *np = api->getNodePath(n);
-        if (ptraux!=dynamicprompt)
-            *ptraux++ = ':';
-        ptraux = min(ptraux, lastpos - 2);
-        strncpy(ptraux, np, ( lastpos - ptraux ) / sizeof( dynamicprompt[0] ));
-        ptraux += strlen(np);
-        ptraux = min(ptraux, lastpos - 2);
+
+        if (!newprompt.empty())
+        {
+            newprompt.append(":");
+        }
+
+        if (np)
+        {
+            newprompt.append(np);
+        }
+
         delete n;
         delete []np;
     }
-    if (ptraux == dynamicprompt)
+
+    if (getBlocked())
     {
-        strcpy(ptraux, prompts[0]);
+        newprompt.append("[BLOCKED]");
+    }
+
+    if (newprompt.empty()) //i.e. !u && !n
+    {
+        newprompt = prompts[0];
     }
     else
     {
-        *ptraux++ = '$';
-        ptraux = min(ptraux, lastpos - 1);
-
-        *ptraux++ = ' ';
-        ptraux = min(ptraux, lastpos);
-
-        *ptraux = '\0';
+        newprompt.append("$ ");
     }
 
-    changeprompt(dynamicprompt);
+    changeprompt(newprompt.c_str());
 }
 
 MegaCmdExecuter::MegaCmdExecuter(MegaApi *api, MegaCMDLogger *loggerCMD, MegaCmdSandbox *sandboxCMD)
@@ -2460,6 +2465,7 @@ int MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
 
 void MegaCmdExecuter::fetchNodes(MegaApi *api, int clientID)
 {
+    if (!api) api = this->api;
     MegaCmdListener * megaCmdListener = new MegaCmdListener(api, NULL, clientID);
     api->fetchNodes(megaCmdListener);
     if (!actUponFetchNodes(api, megaCmdListener))
@@ -2487,7 +2493,7 @@ void MegaCmdExecuter::fetchNodes(MegaApi *api, int clientID)
 
     setloginInAtStartup(false); //to enable all commands before giving clients the green light!
     informStateListeners("loged:"); // tell the clients login ended, before providing them the first prompt
-    updateprompt(api, cwd);
+    updateprompt(api);
     LOG_debug << " Fetch nodes correctly";
 
     MegaUser *u = api->getMyUser();
@@ -2698,7 +2704,7 @@ void MegaCmdExecuter::actUponLogout(SynchronousRequestListener *srl, bool keptSe
         ConfigurationManager::clearConfigurationFile();
         mtxSyncMap.unlock();
     }
-    updateprompt(api, cwd);
+    updateprompt(api);
 }
 
 int MegaCmdExecuter::actUponCreateFolder(SynchronousRequestListener *srl, int timeout)
@@ -5619,7 +5625,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 {
                     cwd = n->getHandle();
 
-                    updateprompt(api, cwd);
+                    updateprompt(api);
                 }
                 delete n;
             }
@@ -5640,7 +5646,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 return;
             }
             cwd = rootNode->getHandle();
-            updateprompt(api, cwd);
+            updateprompt(api);
 
             delete rootNode;
         }
