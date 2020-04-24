@@ -167,7 +167,12 @@ void MegaCmdGlobalListener::onEvent(MegaApi *api, MegaEvent *event)
 {
     if (event->getType() == MegaEvent::EVENT_ACCOUNT_BLOCKED)
     {
-        setBlocked(event->getNumber() != MegaApi::ACCOUNT_NOT_BLOCKED); //this should be true always
+        if (getBlocked() == event->getNumber())
+        {
+            LOG_debug << " receivied EVENT_ACCOUNT_BLOCKED: number = " << event->getNumber();
+            return;
+        }
+        setBlocked(event->getNumber()); //this should be true always
 
         switch (event->getNumber())
         {

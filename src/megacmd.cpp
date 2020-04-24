@@ -147,7 +147,7 @@ string dynamicprompt = "MEGA CMD> ";
 static prompttype prompt = COMMAND;
 
 static std::atomic_bool loginInAtStartup(false);
-static std::atomic_bool blocked(false);
+static std::atomic<int> blocked(0);
 
 time_t lastTimeCheckBlockStatus = 0;
 
@@ -4552,7 +4552,7 @@ void setloginInAtStartup(bool value)
 
 void unblock()
 {
-    setBlocked(false);
+    setBlocked(0);
     sandboxCMD->setReasonblocked("");
     broadcastMessage("Your account is not longer blocked");
     if (!api->isFilesystemAvailable())
@@ -4564,14 +4564,17 @@ void unblock()
     }
 }
 
-void setBlocked(bool value)
+void setBlocked(int value)
 {
-    blocked = value;
-    updatevalidCommands();
-    cmdexecuter->updateprompt();
+    if (blocked != value)
+    {
+        blocked = value;
+        updatevalidCommands();
+        cmdexecuter->updateprompt();
+    }
 }
 
-bool getBlocked()
+int getBlocked()
 {
     return blocked;
 }

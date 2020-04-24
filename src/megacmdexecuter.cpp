@@ -2302,7 +2302,7 @@ bool MegaCmdExecuter::actUponFetchNodes(MegaApi *api, SynchronousRequestListener
         api->whyAmIBlocked(megaCmdListener); //This shall cause event that sets reasonblocked
         megaCmdListener->wait();
         auto reason = sandboxCMD->getReasonblocked();
-        LOG_err << "Failed to fetch nodes. Account blocked." <<( reason.empty()?"":" Reason: "+reason);
+        LOG_warn << "Failed to fetch nodes. Account blocked." <<( reason.empty()?"":" Reason: "+reason);
     }
     else if (checkNoErrors(srl->getError(), "fetch nodes"))
     {

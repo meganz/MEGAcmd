@@ -121,8 +121,8 @@ void removeGreetingStatusAllListener(const std::string &msj);
 
 
 void setloginInAtStartup(bool value);
-void setBlocked(bool value);
-bool getBlocked();
+void setBlocked(int value);
+int getBlocked();
 void unblock();
 bool getloginInAtStartup();
 void updatevalidCommands();
