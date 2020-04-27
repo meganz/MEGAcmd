@@ -309,6 +309,7 @@ void statechangehandle(string statestring)
 #ifndef NO_READLINE
                     if (prompt == COMMAND && promtpLogReceivedBool)
                     {
+                        std::lock_guard<std::mutex> g(mutexPrompt);
                         redisplay_prompt();
                     }
 #endif
