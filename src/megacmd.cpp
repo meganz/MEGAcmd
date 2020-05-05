@@ -2960,7 +2960,7 @@ void executecommand(char* ptr)
             OUTSTREAM << endl;
             OUTSTREAM << "To refer to paths that include spaces, you will need to either surround the path between quotes \"\"," << endl;
             OUTSTREAM << "   or scape the space with '\\ '." << endl;
-            OUTSTREAM << "     e.g: <ls /a\\ folder> of <ls \"a folder\"> will list the contents of a folder named 'a folder' " << endl;
+            OUTSTREAM << "     e.g: <ls /a\\ folder> or <ls \"a folder\"> will list the contents of a folder named 'a folder' " << endl;
             OUTSTREAM << "          located in the root folder of your cloud."  << endl;
             OUTSTREAM << endl;
             OUTSTREAM << "USE autocompletion! MEGAcmd features autocompletion. Pressing <TAB> will autocomplete paths" << endl;
@@ -4855,4 +4855,3 @@ int main(int argc, char* argv[])
     megacmd::megacmd();
     finalize(waitForRestartSignal);
 }
-
