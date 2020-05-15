@@ -2314,7 +2314,7 @@ string getHelpStr(const char *command)
         os << "-d" << " " << "ID|localpath" << "\t" << "deletes a synchronization" << endl;
         os << "-s" << " " << "ID|localpath" << "\t" << "stops(pauses) a synchronization" << endl;
         os << "-r" << " " << "ID|localpath" << "\t" << "resumes a synchronization" << endl;
-        os << " --path-display-size=N" << "\t" << "Use a fixed size of N characters for paths" << endl;
+        os << " --path-display-size=N" << "\t" << "Use at least N characters for displaying paths" << endl;
     }
     else if (!strcmp(command, "backup"))
     {
@@ -2689,7 +2689,7 @@ string getHelpStr(const char *command)
         os << " --show-completed" << "\t" << "Show completed transfers" << endl;
         os << " --only-completed" << "\t" << "Show only completed download" << endl;
         os << " --limit=N" << "\t" << "Show only first N transfers" << endl;
-        os << " --path-display-size=N" << "\t" << "Use a fixed size of N characters for paths" << endl;
+        os << " --path-display-size=N" << "\t" << "Use at least N characters for displaying paths" << endl;
         os << endl;
         os << "TYPE legend correspondence:" << endl;
 #ifdef _WIN32
