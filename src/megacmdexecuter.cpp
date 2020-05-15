@@ -87,51 +87,56 @@ std::vector<std::string> resolvewildcard(const std::string& pattern) {
  * @param api
  * @param handle
  */
-void MegaCmdExecuter::updateprompt(MegaApi *api, MegaHandle handle)
+void MegaCmdExecuter::updateprompt(MegaApi *api)
 {
-    static char dynamicprompt[2024]; //TODO: rewrite this function to have prompts with any size (use string)
+    if (!api) api = this->api;
+    MegaHandle handle = cwd;
+
+    string newprompt;
 
     MegaNode *n = api->getNodeByHandle(handle);
 
     MegaUser *u = api->getMyUser();
-    char *ptraux = dynamicprompt;
-    char *lastpos = dynamicprompt + sizeof( dynamicprompt ) / sizeof( dynamicprompt[0] );
     if (u)
     {
         const char *email = u->getEmail();
-        strncpy(dynamicprompt, email, ( lastpos - ptraux ) / sizeof( dynamicprompt[0] ));
-        ptraux += strlen(email);
-        ptraux = min(ptraux, lastpos - 2);
+        newprompt.append(email);
         delete u;
     }
+
     if (n)
     {
         char *np = api->getNodePath(n);
-        if (ptraux!=dynamicprompt)
-            *ptraux++ = ':';
-        ptraux = min(ptraux, lastpos - 2);
-        strncpy(ptraux, np, ( lastpos - ptraux ) / sizeof( dynamicprompt[0] ));
-        ptraux += strlen(np);
-        ptraux = min(ptraux, lastpos - 2);
+
+        if (!newprompt.empty())
+        {
+            newprompt.append(":");
+        }
+
+        if (np)
+        {
+            newprompt.append(np);
+        }
+
         delete n;
         delete []np;
     }
-    if (ptraux == dynamicprompt)
+
+    if (getBlocked())
     {
-        strcpy(ptraux, prompts[0]);
+        newprompt.append("[BLOCKED]");
+    }
+
+    if (newprompt.empty()) //i.e. !u && !n
+    {
+        newprompt = prompts[0];
     }
     else
     {
-        *ptraux++ = '$';
-        ptraux = min(ptraux, lastpos - 1);
-
-        *ptraux++ = ' ';
-        ptraux = min(ptraux, lastpos);
-
-        *ptraux = '\0';
+        newprompt.append("$ ");
     }
 
-    changeprompt(dynamicprompt);
+    changeprompt(newprompt.c_str());
 }
 
 MegaCmdExecuter::MegaCmdExecuter(MegaApi *api, MegaCMDLogger *loggerCMD, MegaCmdSandbox *sandboxCMD)
@@ -1009,7 +1014,8 @@ bool MegaCmdExecuter::checkNoErrors(MegaError *error, string message)
     setCurrentOutCode(error->getErrorCode());
     if (error->getErrorCode() == MegaError::API_EBLOCKED)
     {
-        LOG_err << "Failed to " << message << ". Account blocked. Reason: " << sandboxCMD->reasonblocked;
+        auto reason = sandboxCMD->getReasonblocked();
+        LOG_err << "Failed to " << message << ". Account blocked." <<( reason.empty()?"":" Reason: "+reason);
     }
     else if (error->getErrorCode() == MegaError::API_EOVERQUOTA && sandboxCMD->storageStatus == MegaApi::STORAGE_STATE_RED)
     {
@@ -2288,27 +2294,20 @@ bool MegaCmdExecuter::actUponFetchNodes(MegaApi *api, SynchronousRequestListener
         }
     }
 
-    if (checkNoErrors(srl->getError(), "fetch nodes"))
+    if (srl->getError()->getErrorCode() == MegaError::API_EBLOCKED)
+    {
+        LOG_verbose << " EBLOCKED after fetch nodes. quering for reason...";
+
+        MegaCmdListener *megaCmdListener = new MegaCmdListener(api, NULL);
+        api->whyAmIBlocked(megaCmdListener); //This shall cause event that sets reasonblocked
+        megaCmdListener->wait();
+        auto reason = sandboxCMD->getReasonblocked();
+        LOG_warn << "Failed to fetch nodes. Account blocked." <<( reason.empty()?"":" Reason: "+reason);
+    }
+    else if (checkNoErrors(srl->getError(), "fetch nodes"))
     {
         LOG_verbose << "actUponFetchNodes ok";
-        api->enableTransferResumption();
 
-        MegaNode *cwdNode = ( cwd == UNDEF ) ? NULL : api->getNodeByHandle(cwd);
-        if (( cwd == UNDEF ) || !cwdNode)
-        {
-            MegaNode *rootNode = srl->getApi()->getRootNode();
-            cwd = rootNode->getHandle();
-            delete rootNode;
-        }
-        if (cwdNode)
-        {
-            delete cwdNode;
-        }
-
-        setloginInAtStartup(false); //to enable all commands before giving clients the green light!
-        informStateListeners("loged:"); // tell the clients login ended, before providing them the first prompt
-        updateprompt(api, cwd);
-        LOG_debug << " Fetch nodes correctly";
         return true;
     }
     return false;
@@ -2407,181 +2406,10 @@ int MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
 #endif
 
         LOG_info << "Fetching nodes ... ";
-        srl->getApi()->fetchNodes(srl);
-        actUponFetchNodes(api, srl, timeout);
-        MegaUser *u = api->getMyUser();
-        if (u)
-        {
-            LOG_info << "Login complete as " << u->getEmail();
-            delete u;
-        }
+        MegaApi *api = srl->getApi();
+        int clientID = static_cast<MegaCmdListener*>(srl)->clientID;
 
-        if (ConfigurationManager::getConfigurationValue("ask4storage", true))
-        {
-            ConfigurationManager::savePropertyValue("ask4storage",false);
-            MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
-            api->getAccountDetails(megaCmdListener);
-            megaCmdListener->wait();
-            // we don't call getAccountDetails on startup always: we ask on first login (no "ask4storage") or previous state was STATE_RED | STATE_ORANGE
-            // if we were green, don't need to ask: if there are changes they will be received via action packet indicating STATE_CHANGE
-        }
-
-        checkAndInformPSA(NULL); // this needs broacasting in case there's another Shell running.
-                                 // no need to enforce, because time since last check should has been restored
-
-#ifdef ENABLE_BACKUPS
-        mtxBackupsMap.lock();
-        if (ConfigurationManager::configuredBackups.size())
-        {
-            LOG_info << "Restablishing backups ... ";
-            unsigned int i=0;
-            for (map<string, backup_struct *>::iterator itr = ConfigurationManager::configuredBackups.begin();
-                 itr != ConfigurationManager::configuredBackups.end(); ++itr, i++)
-            {
-                backup_struct *thebackup = itr->second;
-
-                MegaNode * node = api->getNodeByHandle(thebackup->handle);
-                if (establishBackup(thebackup->localpath, node, thebackup->period, thebackup->speriod, thebackup->numBackups))
-                {
-                    thebackup->failed = false;
-                    const char *nodepath = api->getNodePath(node);
-                    LOG_debug << "Succesfully resumed backup: " << thebackup->localpath << " to " << nodepath;
-                    delete []nodepath;
-                }
-                else
-                {
-                    thebackup->failed = true;
-                    char *nodepath = api->getNodePath(node);
-                    LOG_err << "Failed to resume backup: " << thebackup->localpath << " to " << nodepath;
-                    delete []nodepath;
-                }
-
-                delete node;
-            }
-
-            ConfigurationManager::saveBackups(&ConfigurationManager::configuredBackups);
-        }
-        mtxBackupsMap.unlock();
-#endif
-
-#ifdef HAVE_LIBUV
-        // restart webdav
-        int port = ConfigurationManager::getConfigurationValue("webdav_port", -1);
-        if (port != -1)
-        {
-            bool localonly = ConfigurationManager::getConfigurationValue("webdav_localonly", -1);
-            bool tls = ConfigurationManager::getConfigurationValue("webdav_tls", false);
-            string pathtocert, pathtokey;
-            pathtocert = ConfigurationManager::getConfigurationSValue("webdav_cert");
-            pathtokey = ConfigurationManager::getConfigurationSValue("webdav_key");
-
-            api->httpServerEnableFolderServer(true);
-            if (api->httpServerStart(localonly, port, tls, pathtocert.c_str(), pathtokey.c_str()))
-            {
-                list<string> servedpaths = ConfigurationManager::getConfigurationValueList("webdav_served_locations");
-                bool modified = false;
-
-                for ( std::list<string>::iterator it = servedpaths.begin(); it != servedpaths.end(); ++it)
-                {
-                    string pathToServe = *it;
-                    if (pathToServe.size())
-                    {
-                        MegaNode *n = nodebypath(pathToServe.c_str());
-                        if (n)
-                        {
-                            char *l = api->httpServerGetLocalWebDavLink(n);
-                            char *actualNodePath = api->getNodePath(n);
-                            LOG_debug << "Serving via webdav: " << actualNodePath << ": " << l;
-
-                            if (pathToServe != actualNodePath)
-                            {
-                                it = servedpaths.erase(it);
-                                servedpaths.insert(it,string(actualNodePath));
-                                modified = true;
-                            }
-                            delete []l;
-                            delete []actualNodePath;
-                            delete n;
-                        }
-                        else
-                        {
-                            LOG_warn << "Could no find location to server via webdav: " << pathToServe;
-                        }
-                    }
-                }
-                if (modified)
-                {
-                    ConfigurationManager::savePropertyValueList("webdav_served_locations", servedpaths);
-                }
-
-                LOG_info << "Webdav server restored due to saved configuration";
-            }
-            else
-            {
-                LOG_err << "Failed to initialize WEBDAV server. Ensure the port is free.";
-            }
-        }
-
-        //ftp
-        // restart ftp
-        int portftp = ConfigurationManager::getConfigurationValue("ftp_port", -1);
-
-        if (portftp != -1)
-        {
-            bool localonly = ConfigurationManager::getConfigurationValue("ftp_localonly", -1);
-            bool tls = ConfigurationManager::getConfigurationValue("ftp_tls", false);
-            string pathtocert, pathtokey;
-            pathtocert = ConfigurationManager::getConfigurationSValue("ftp_cert");
-            pathtokey = ConfigurationManager::getConfigurationSValue("ftp_key");
-            int dataPortRangeBegin = ConfigurationManager::getConfigurationValue("ftp_port_data_begin", 1500);
-            int dataPortRangeEnd = ConfigurationManager::getConfigurationValue("ftp_port_data_end", 1500+100);
-
-            if (api->ftpServerStart(localonly, portftp, dataPortRangeBegin, dataPortRangeEnd, tls, pathtocert.c_str(), pathtokey.c_str()))
-            {
-                list<string> servedpaths = ConfigurationManager::getConfigurationValueList("ftp_served_locations");
-                bool modified = false;
-
-                for ( std::list<string>::iterator it = servedpaths.begin(); it != servedpaths.end(); ++it)
-                {
-                    string pathToServe = *it;
-                    if (pathToServe.size())
-                    {
-                        MegaNode *n = nodebypath(pathToServe.c_str());
-                        if (n)
-                        {
-                            char *l = api->ftpServerGetLocalLink(n);
-                            char *actualNodePath = api->getNodePath(n);
-                            LOG_debug << "Serving via ftp: " << pathToServe << ": " << l << ". Data Channel Port Range: " << dataPortRangeBegin << "-" << dataPortRangeEnd;
-
-                            if (pathToServe != actualNodePath)
-                            {
-                                it = servedpaths.erase(it);
-                                servedpaths.insert(it,string(actualNodePath));
-                                modified = true;
-                            }
-                            delete []l;
-                            delete []actualNodePath;
-                            delete n;
-                        }
-                        else
-                        {
-                            LOG_warn << "Could no find location to server via ftp: " << pathToServe;
-                        }
-                    }
-                }
-                if (modified)
-                {
-                    ConfigurationManager::savePropertyValueList("ftp_served_locations", servedpaths);
-                }
-
-                LOG_info << "FTP server restored due to saved configuration";
-            }
-            else
-            {
-                LOG_err << "Failed to initialize FTP server. Ensure the port is free.";
-            }
-        }
-#endif
+        fetchNodes(api, clientID);
     }
 
 #if defined(_WIN32) || defined(__APPLE__)
@@ -2635,6 +2463,214 @@ int MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
     return srl->getError()->getErrorCode();
 }
 
+void MegaCmdExecuter::fetchNodes(MegaApi *api, int clientID)
+{
+    if (!api) api = this->api;
+    MegaCmdListener * megaCmdListener = new MegaCmdListener(api, NULL, clientID);
+    api->fetchNodes(megaCmdListener);
+    if (!actUponFetchNodes(api, megaCmdListener))
+    {
+        //Ideally we should enter an state that indicates that we are not fully logged.
+        //Specially when the account is blocked
+        return;
+    }
+
+    // This is the actual acting upon fetch nodes ended correctly:
+
+    api->enableTransferResumption();
+
+    MegaNode *cwdNode = ( cwd == UNDEF ) ? NULL : api->getNodeByHandle(cwd);
+    if (( cwd == UNDEF ) || !cwdNode)
+    {
+        MegaNode *rootNode = api->getRootNode();
+        cwd = rootNode->getHandle();
+        delete rootNode;
+    }
+    if (cwdNode)
+    {
+        delete cwdNode;
+    }
+
+    setloginInAtStartup(false); //to enable all commands before giving clients the green light!
+    informStateListeners("loged:"); // tell the clients login ended, before providing them the first prompt
+    updateprompt(api);
+    LOG_debug << " Fetch nodes correctly";
+
+    MegaUser *u = api->getMyUser();
+    if (u)
+    {
+        LOG_info << "Login complete as " << u->getEmail();
+        delete u;
+    }
+
+    if (ConfigurationManager::getConfigurationValue("ask4storage", true))
+    {
+        ConfigurationManager::savePropertyValue("ask4storage",false);
+        MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
+        api->getAccountDetails(megaCmdListener);
+        megaCmdListener->wait();
+        // we don't call getAccountDetails on startup always: we ask on first login (no "ask4storage") or previous state was STATE_RED | STATE_ORANGE
+        // if we were green, don't need to ask: if there are changes they will be received via action packet indicating STATE_CHANGE
+    }
+
+    checkAndInformPSA(NULL); // this needs broacasting in case there's another Shell running.
+    // no need to enforce, because time since last check should has been restored
+
+#ifdef ENABLE_BACKUPS
+    mtxBackupsMap.lock();
+    if (ConfigurationManager::configuredBackups.size())
+    {
+        LOG_info << "Restablishing backups ... ";
+        unsigned int i=0;
+        for (map<string, backup_struct *>::iterator itr = ConfigurationManager::configuredBackups.begin();
+             itr != ConfigurationManager::configuredBackups.end(); ++itr, i++)
+        {
+            backup_struct *thebackup = itr->second;
+
+            MegaNode * node = api->getNodeByHandle(thebackup->handle);
+            if (establishBackup(thebackup->localpath, node, thebackup->period, thebackup->speriod, thebackup->numBackups))
+            {
+                thebackup->failed = false;
+                const char *nodepath = api->getNodePath(node);
+                LOG_debug << "Succesfully resumed backup: " << thebackup->localpath << " to " << nodepath;
+                delete []nodepath;
+            }
+            else
+            {
+                thebackup->failed = true;
+                char *nodepath = api->getNodePath(node);
+                LOG_err << "Failed to resume backup: " << thebackup->localpath << " to " << nodepath;
+                delete []nodepath;
+            }
+
+            delete node;
+        }
+
+        ConfigurationManager::saveBackups(&ConfigurationManager::configuredBackups);
+    }
+    mtxBackupsMap.unlock();
+#endif
+
+#ifdef HAVE_LIBUV
+    // restart webdav
+    int port = ConfigurationManager::getConfigurationValue("webdav_port", -1);
+    if (port != -1)
+    {
+        bool localonly = ConfigurationManager::getConfigurationValue("webdav_localonly", -1);
+        bool tls = ConfigurationManager::getConfigurationValue("webdav_tls", false);
+        string pathtocert, pathtokey;
+        pathtocert = ConfigurationManager::getConfigurationSValue("webdav_cert");
+        pathtokey = ConfigurationManager::getConfigurationSValue("webdav_key");
+
+        api->httpServerEnableFolderServer(true);
+        if (api->httpServerStart(localonly, port, tls, pathtocert.c_str(), pathtokey.c_str()))
+        {
+            list<string> servedpaths = ConfigurationManager::getConfigurationValueList("webdav_served_locations");
+            bool modified = false;
+
+            for ( std::list<string>::iterator it = servedpaths.begin(); it != servedpaths.end(); ++it)
+            {
+                string pathToServe = *it;
+                if (pathToServe.size())
+                {
+                    MegaNode *n = nodebypath(pathToServe.c_str());
+                    if (n)
+                    {
+                        char *l = api->httpServerGetLocalWebDavLink(n);
+                        char *actualNodePath = api->getNodePath(n);
+                        LOG_debug << "Serving via webdav: " << actualNodePath << ": " << l;
+
+                        if (pathToServe != actualNodePath)
+                        {
+                            it = servedpaths.erase(it);
+                            servedpaths.insert(it,string(actualNodePath));
+                            modified = true;
+                        }
+                        delete []l;
+                        delete []actualNodePath;
+                        delete n;
+                    }
+                    else
+                    {
+                        LOG_warn << "Could no find location to server via webdav: " << pathToServe;
+                    }
+                }
+            }
+            if (modified)
+            {
+                ConfigurationManager::savePropertyValueList("webdav_served_locations", servedpaths);
+            }
+
+            LOG_info << "Webdav server restored due to saved configuration";
+        }
+        else
+        {
+            LOG_err << "Failed to initialize WEBDAV server. Ensure the port is free.";
+        }
+    }
+
+    //ftp
+    // restart ftp
+    int portftp = ConfigurationManager::getConfigurationValue("ftp_port", -1);
+
+    if (portftp != -1)
+    {
+        bool localonly = ConfigurationManager::getConfigurationValue("ftp_localonly", -1);
+        bool tls = ConfigurationManager::getConfigurationValue("ftp_tls", false);
+        string pathtocert, pathtokey;
+        pathtocert = ConfigurationManager::getConfigurationSValue("ftp_cert");
+        pathtokey = ConfigurationManager::getConfigurationSValue("ftp_key");
+        int dataPortRangeBegin = ConfigurationManager::getConfigurationValue("ftp_port_data_begin", 1500);
+        int dataPortRangeEnd = ConfigurationManager::getConfigurationValue("ftp_port_data_end", 1500+100);
+
+        if (api->ftpServerStart(localonly, portftp, dataPortRangeBegin, dataPortRangeEnd, tls, pathtocert.c_str(), pathtokey.c_str()))
+        {
+            list<string> servedpaths = ConfigurationManager::getConfigurationValueList("ftp_served_locations");
+            bool modified = false;
+
+            for ( std::list<string>::iterator it = servedpaths.begin(); it != servedpaths.end(); ++it)
+            {
+                string pathToServe = *it;
+                if (pathToServe.size())
+                {
+                    MegaNode *n = nodebypath(pathToServe.c_str());
+                    if (n)
+                    {
+                        char *l = api->ftpServerGetLocalLink(n);
+                        char *actualNodePath = api->getNodePath(n);
+                        LOG_debug << "Serving via ftp: " << pathToServe << ": " << l << ". Data Channel Port Range: " << dataPortRangeBegin << "-" << dataPortRangeEnd;
+
+                        if (pathToServe != actualNodePath)
+                        {
+                            it = servedpaths.erase(it);
+                            servedpaths.insert(it,string(actualNodePath));
+                            modified = true;
+                        }
+                        delete []l;
+                        delete []actualNodePath;
+                        delete n;
+                    }
+                    else
+                    {
+                        LOG_warn << "Could no find location to server via ftp: " << pathToServe;
+                    }
+                }
+            }
+            if (modified)
+            {
+                ConfigurationManager::savePropertyValueList("ftp_served_locations", servedpaths);
+            }
+
+            LOG_info << "FTP server restored due to saved configuration";
+        }
+        else
+        {
+            LOG_err << "Failed to initialize FTP server. Ensure the port is free.";
+        }
+    }
+#endif
+}
+
 void MegaCmdExecuter::actUponLogout(SynchronousRequestListener *srl, bool keptSession, int timeout)
 {
     if (!timeout)
@@ -2668,7 +2704,7 @@ void MegaCmdExecuter::actUponLogout(SynchronousRequestListener *srl, bool keptSe
         ConfigurationManager::clearConfigurationFile();
         mtxSyncMap.unlock();
     }
-    updateprompt(api, cwd);
+    updateprompt(api);
 }
 
 int MegaCmdExecuter::actUponCreateFolder(SynchronousRequestListener *srl, int timeout)
@@ -5589,7 +5625,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 {
                     cwd = n->getHandle();
 
-                    updateprompt(api, cwd);
+                    updateprompt(api);
                 }
                 delete n;
             }
@@ -5610,7 +5646,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 return;
             }
             cwd = rootNode->getHandle();
-            updateprompt(api, cwd);
+            updateprompt(api);
 
             delete rootNode;
         }

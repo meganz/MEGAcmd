@@ -147,6 +147,10 @@ string dynamicprompt = "MEGA CMD> ";
 static prompttype prompt = COMMAND;
 
 static std::atomic_bool loginInAtStartup(false);
+static std::atomic<int> blocked(0);
+
+time_t lastTimeCheckBlockStatus = 0;
+
 static std::atomic<::mega::m_time_t> timeOfLoginInAtStartup(0);
 ::mega::m_time_t timeLoginStarted();
 
@@ -318,10 +322,10 @@ void broadcastMessage(string message, bool keepIfNoListeners)
     {
         s += "message:";
         s+=message;
-
+        string unalteredCopy(s);
         if (!cm->informStateListeners(s) && keepIfNoListeners)
         {
-            appendGreetingStatusFirstListener(s);
+            appendGreetingStatusFirstListener(unalteredCopy);
         }
     }
 }
@@ -2792,6 +2796,24 @@ void printAvailableCommands(int extensive = 0)
     }
 }
 
+void checkBlockStatus(bool waitcompletion = true)
+{
+    time_t tnow = time(NULL);
+    if ( (tnow - lastTimeCheckBlockStatus) > 30)
+    {
+        std::unique_ptr<MegaCmdListener> megaCmdListener{waitcompletion?new MegaCmdListener(api, NULL):nullptr};
+
+        api->whyAmIBlocked(megaCmdListener.get());//TO enforce acknowledging unblock transition
+
+        if (megaCmdListener)
+        {
+            megaCmdListener->wait();
+        }
+
+        lastTimeCheckBlockStatus = tnow;
+    }
+}
+
 void executecommand(char* ptr)
 {
     vector<string> words = getlistOfWords(ptr, !getCurrentThreadIsCmdShell());
@@ -2820,6 +2842,12 @@ void executecommand(char* ptr)
         OUTSTREAM << getListOfCompletionValues(wordstocomplete);
         return;
     }
+
+    if (getBlocked())
+    {
+        checkBlockStatus(!validCommand(thecommand) && thecommand != "retrycons");
+    }
+
     if (words[0] == "retrycons")
     {
         api->retryPendingConnections();
@@ -3054,6 +3082,18 @@ void executecommand(char* ptr)
 
             printAvailableCommands(getFlag(&clflags,"f"));
             OUTSTREAM << endl << "Verbosity: You can increase the amount of information given by any command by passing \"-v\" (\"-vv\", \"-vvv\", ...)" << endl;
+
+            if (getBlocked())
+            {
+                unsigned int width = getintOption(&cloptions, "client-width", getNumberOfCols(75));
+                if (width > 1 ) width--;
+
+                OUTSTRINGSTREAM os;
+                printCenteredContents(os, string("[BLOCKED]\n").append(sandboxCMD->getReasonblocked()).c_str(), width);
+
+                OUTSTREAM << os.str();
+
+            }
         }
         return;
     }
@@ -4046,7 +4086,10 @@ void megacmd()
                 s+=dynamicprompt;
                 s+=(char)0x1F;
 
-                cmdexecuter->checkAndInformPSA(inf);
+                if (!sandboxCMD->getReasonblocked().size())
+                {
+                    cmdexecuter->checkAndInformPSA(inf);
+                }
 
                 cm->informStateListener(inf,s);
             }
@@ -4523,8 +4566,45 @@ void setloginInAtStartup(bool value)
     loginInAtStartup = value;
     if (value)
     {
-        validCommands = loginInValidCommands;
         timeOfLoginInAtStartup = m_time(NULL);
+    }
+    updatevalidCommands();
+}
+
+void unblock()
+{
+    setBlocked(0);
+    sandboxCMD->setReasonblocked("");
+    broadcastMessage("Your account is not longer blocked");
+    if (!api->isFilesystemAvailable())
+    {
+        auto theSandbox = sandboxCMD;
+        std::thread t([theSandbox](){
+            theSandbox->cmdexecuter->fetchNodes();
+        });
+    }
+}
+
+void setBlocked(int value)
+{
+    if (blocked != value)
+    {
+        blocked = value;
+        updatevalidCommands();
+        cmdexecuter->updateprompt();
+    }
+}
+
+int getBlocked()
+{
+    return blocked;
+}
+
+void updatevalidCommands()
+{
+    if (loginInAtStartup || blocked)
+    {
+        validCommands = loginInValidCommands;
     }
     else
     {
@@ -4532,6 +4612,10 @@ void setloginInAtStartup(bool value)
     }
 }
 
+void reset()
+{
+    setBlocked(false);
+}
 #ifdef _WIN32
 void uninstall()
 {
@@ -4763,6 +4847,7 @@ int main(int argc, char* argv[])
 
     sandboxCMD = new MegaCmdSandbox();
     cmdexecuter = new MegaCmdExecuter(api, loggerCMD, sandboxCMD);
+    sandboxCMD->cmdexecuter = cmdexecuter;
 
     megaCmdGlobalListener = new MegaCmdGlobalListener(loggerCMD, sandboxCMD);
     megaCmdMegaListener = new MegaCmdMegaListener(api, NULL, sandboxCMD);

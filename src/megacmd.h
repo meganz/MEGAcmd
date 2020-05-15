@@ -121,7 +121,12 @@ void removeGreetingStatusAllListener(const std::string &msj);
 
 
 void setloginInAtStartup(bool value);
+void setBlocked(int value);
+int getBlocked();
+void unblock();
 bool getloginInAtStartup();
+void updatevalidCommands();
+void reset();
 
 /**
  * @brief A class to ensure clients are properly informed of login in situations

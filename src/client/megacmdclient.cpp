@@ -723,6 +723,8 @@ void statechangehandle(string statestring)
     unsigned int width = getNumberOfCols(80);
     if (width > 1 ) width--;
 
+    static string lastMessage;
+
     while (nextstatedelimitpos!=string::npos && statestring.size())
     {
         string newstate = statestring.substr(0,nextstatedelimitpos);
@@ -779,22 +781,27 @@ void statechangehandle(string statestring)
         }
         else if (newstate.compare(0, strlen("message:"), "message:") == 0)
         {
-            string contents = newstate.substr(strlen("message:"));
+            if (lastMessage.compare(newstate)) //to avoid repeating messages
+            {
+                lastMessage = newstate;
 
-            MegaCmdShellCommunications::megaCmdStdoutputing.lock();
-            if (shown_partial_progress)
-            {
-                cerr << endl;
+                string contents = newstate.substr(strlen("message:"));
+
+                MegaCmdShellCommunications::megaCmdStdoutputing.lock();
+                if (shown_partial_progress)
+                {
+                    cerr << endl;
+                }
+                if (contents.find("-----") != 0)
+                {
+                    printCenteredContentsCerr(contents, width);
+                }
+                else
+                {
+                    cerr << endl <<  contents << endl;
+                }
+                MegaCmdShellCommunications::megaCmdStdoutputing.unlock();
             }
-            if (contents.find("-----") != 0)
-            {
-                printCenteredContentsCerr(contents, width);
-            }
-            else
-            {
-                cerr << endl <<  contents << endl;
-            }
-            MegaCmdShellCommunications::megaCmdStdoutputing.unlock();
         }
         else if (newstate.compare(0, strlen("clientID:"), "clientID:") == 0)
         {

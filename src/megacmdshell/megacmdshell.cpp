@@ -182,6 +182,7 @@ static std::mutex handlerInstallerMutex;
 static std::atomic_bool requirepromptinstall(true);
 
 bool procesingline = false;
+bool promptreinstalledwhenprocessingline = false;
 
 std::mutex promptLogReceivedMutex;
 std::condition_variable promtpLogReceivedCV;
@@ -226,6 +227,8 @@ void statechangehandle(string statestring)
 
     unsigned int width = getNumberOfCols(75);
     if (width > 1 ) width--;
+
+    static string lastMessage;
 
     while (nextstatedelimitpos!=string::npos && statestring.size())
     {
@@ -286,35 +289,43 @@ void statechangehandle(string statestring)
         }
         else if (newstate.compare(0, strlen("message:"), "message:") == 0)
         {
-            MegaCmdShellCommunications::megaCmdStdoutputing.lock();
-#ifdef _WIN32
-            int oldmode = _setmode(_fileno(stdout), _O_U8TEXT);
-#endif
-            string contents = newstate.substr(strlen("message:"));
-            if (contents.find("-----") != 0)
+            if (lastMessage.compare(newstate)) //to avoid repeating messages
             {
-                if (!procesingline || shown_partial_progress)
-                {
-                    OUTSTREAM << endl;
-                }
-                printCenteredContents(contents, width);
-#ifndef NO_READLINE
-                if (prompt == COMMAND && promtpLogReceivedBool)
-                {
-                    install_rl_handler(*dynamicprompt ? dynamicprompt : prompts[COMMAND]);
-                }
-#endif
-            }
-            else
-            {
-                OUTSTREAM << endl <<  contents << endl;
-            }
-#ifdef _WIN32
-            _setmode(_fileno(stdout), oldmode);
-#endif
-            MegaCmdShellCommunications::megaCmdStdoutputing.unlock();
+                lastMessage = newstate;
 
-            requirepromptinstall = true;
+                MegaCmdShellCommunications::megaCmdStdoutputing.lock();
+#ifdef _WIN32
+                int oldmode = _setmode(_fileno(stdout), _O_U8TEXT);
+#endif
+                string contents = newstate.substr(strlen("message:"));
+                if (contents.find("-----") != 0)
+                {
+                    if (!procesingline || promptreinstalledwhenprocessingline || shown_partial_progress)
+                    {
+                        OUTSTREAM << endl;
+                    }
+                    printCenteredContents(contents, width);
+                    requirepromptinstall = true;
+#ifndef NO_READLINE
+                    if (prompt == COMMAND && promtpLogReceivedBool)
+                    {
+                        std::lock_guard<std::mutex> g(mutexPrompt);
+                        redisplay_prompt();
+                    }
+#endif
+
+                }
+                else
+                {
+                    requirepromptinstall = true;
+                    OUTSTREAM << endl <<  contents << endl;
+                }
+#ifdef _WIN32
+                _setmode(_fileno(stdout), oldmode);
+#endif
+                MegaCmdShellCommunications::megaCmdStdoutputing.unlock();
+
+            }
         }
         else if (newstate.compare(0, strlen("clientID:"), "clientID:") == 0)
         {
@@ -627,6 +638,10 @@ wstring escapereadlinebreakers(const wchar_t *what)
 void install_rl_handler(const char *theprompt, bool external)
 {
     std::lock_guard<std::mutex> lkrlhandler(handlerInstallerMutex);
+    if (procesingline)
+    {
+        promptreinstalledwhenprocessingline = true;
+    }
 
 #ifdef _WIN32
     wstring wswhat;
@@ -673,6 +688,35 @@ void install_rl_handler(const char *theprompt, bool external)
 }
 #endif
 
+void redisplay_prompt()
+{
+    int saved_point = rl_point;
+    char *saved_line = rl_copy_text(0, rl_end);
+
+    rl_clear_message();
+
+    // enter a new line if not processing sth (otherwise, the newline should already be there)
+    if (!procesingline)
+    {
+        rl_crlf();
+    }
+
+    if (prompt == COMMAND)
+    {
+        install_rl_handler(*dynamicprompt ? dynamicprompt : prompts[COMMAND]);
+    }
+
+    // restore line
+    if (saved_line)
+    {
+        rl_replace_line(saved_line, 0);
+        free(saved_line);
+        saved_line = NULL;
+    }
+    rl_point = saved_point;
+    rl_redisplay();
+}
+
 void changeprompt(const char *newprompt, bool redisplay)
 {
     std::lock_guard<std::mutex> g(mutexPrompt);
@@ -701,33 +745,7 @@ void changeprompt(const char *newprompt, bool redisplay)
     if (redisplay)
     {
         // save line
-        int saved_point = rl_point;
-        char *saved_line = rl_copy_text(0, rl_end);
-
-        rl_clear_message();
-
-        // enter a new line if not processing sth (otherwise, the newline should already be there)
-        if (!procesingline)
-        {
-            rl_crlf();
-        }
-
-        if (prompt == COMMAND)
-        {
-            install_rl_handler(*dynamicprompt ? dynamicprompt : prompts[COMMAND]);
-        }
-
-        // restore line
-        if (saved_line)
-        {
-            rl_replace_line(saved_line, 0);
-            free(saved_line);
-            saved_line = NULL;
-        }
-        rl_point = saved_point;
-        rl_redisplay();
-
-
+        redisplay_prompt();
     }
 
 #endif
@@ -1798,6 +1816,7 @@ void readloop()
 
 
     procesingline = false;
+    promptreinstalledwhenprocessingline = false;
 
 #if defined(_WIN32) && defined(USE_PORT_COMMS)
     // due to a failure in reconnecting to the socket, if the server was initiated in while registeringForStateChanges
@@ -1841,6 +1860,7 @@ void readloop()
             if (prompt == COMMAND || prompt == AREYOUSURE)
             {
                 procesingline = false;
+                promptreinstalledwhenprocessingline = false;
 
                 wait_for_input(readline_fd);
 
