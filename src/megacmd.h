@@ -43,6 +43,10 @@ using std::exception;
 #define PROGRESS_COMPLETE -2
 namespace megacmd {
 
+// Events
+const int MCMD_EVENT_UPDATE_ID = 98900;
+const char MCMD_EVENT_UPDATE_MESSAGE[] = "MEGAcmd update";
+
 typedef struct sync_struct
 {
     mega::MegaHandle handle;
