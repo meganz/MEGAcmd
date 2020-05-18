@@ -52,7 +52,7 @@ bool is_file_exist(const char *fileName)
 }
 
 string ConfigurationManager::configFolder;
-bool ConfigurationManager::hasBeenUpdated=false;
+bool ConfigurationManager::hasBeenUpdated = false;
 #if !defined(_WIN32) && defined(LOCK_EX) && defined(LOCK_NB)
 int ConfigurationManager::fd;
 #endif
@@ -616,7 +616,9 @@ void ConfigurationManager::loadConfiguration(bool debug)
         sessionfile << configFolder << "/" << "session";
 
         if (debug)
-            cout << "Session file: " << sessionfile.str() << endl;
+        {
+            std::cout << "Session file: " << sessionfile.str() << std::endl;
+        }
 
         ifstream fi(sessionfile.str().c_str(), ios::in);
         if (fi.is_open())
@@ -626,7 +628,9 @@ void ConfigurationManager::loadConfiguration(bool debug)
             {
                 session = line;
                 if (debug)
-                    cout << "Session read from configuration: " << line.substr(0, 5) << "..." << endl;
+                {
+                    std::cout << "Session read from configuration: " << line.substr(0, 5) << "..." << std::endl;
+                }
             }
             fi.close();
         }
@@ -645,11 +649,13 @@ void ConfigurationManager::loadConfiguration(bool debug)
             fiVer.close();
         }
 
-        if (latestVersion.size()>0 && (MEGACMD_CODE_VERSION > stol(latestVersion)))
+        if (!latestVersion.empty() && (MEGACMD_CODE_VERSION > stol(latestVersion)))
         {
             hasBeenUpdated = true;
             if (debug)
-                cout  << "MEGAcmd has been updated." << endl;
+            {
+                std::cout << "MEGAcmd has been updated." << std::endl;
+            }
         }
 
         // Store current version.
@@ -663,7 +669,9 @@ void ConfigurationManager::loadConfiguration(bool debug)
     else
     {
         if (debug)
-            cout  << "Couldnt access configuration folder " << endl;
+        {
+            std::cout << "Couldnt access configuration folder " << std::endl;
+        }
     }
 }
 
