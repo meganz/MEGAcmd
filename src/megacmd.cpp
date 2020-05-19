@@ -104,7 +104,7 @@ MegaCmdSandbox *sandboxCMD;
 
 MegaSemaphore semaphoreClients; //to limit max parallel petitions
 
-MegaApi *api;
+MegaApi *api = nullptr;
 
 //api objects for folderlinks
 std::queue<MegaApi *> apiFolders;
@@ -3222,6 +3222,15 @@ bool executeUpdater(bool *restartRequired, bool doNotInstall = false)
         LOG_err << " Unexpected error waiting for Updater. errno = " << ERRNO;
     }
 #endif
+
+
+    if (*restartRequired && api)
+    {
+        std::unique_ptr<MegaCmdListener> megaCmdListener{new MegaCmdListener(api, NULL)};
+        api->sendEvent(MCMD_EVENT_UPDATE_RESTART_ID,MCMD_EVENT_UPDATE_RESTART_MESSAGE, megaCmdListener.get());
+        megaCmdListener->wait();
+    }
+
     return true;
 }
 
@@ -3822,6 +3831,11 @@ void* checkForUpdates(void *param)
             }
 
             if (stopcheckingforUpdaters) break;
+
+            std::unique_ptr<MegaCmdListener> megaCmdListener{new MegaCmdListener(api, NULL)};
+            api->sendEvent(MCMD_EVENT_UPDATE_START_ID,MCMD_EVENT_UPDATE_START_MESSAGE, megaCmdListener.get());
+            megaCmdListener->wait();
+
             broadcastMessage("  Executing update    !");
             LOG_info << " Applying update";
             executeUpdater(&restartRequired);
@@ -4707,7 +4721,10 @@ int main(int argc, char* argv[])
 
     loggerCMD->setApiLoggerLevel(MegaApi::LOG_LEVEL_ERROR);
     loggerCMD->setCmdLoggerLevel(MegaApi::LOG_LEVEL_INFO);
-
+#if DEBUG
+    loggerCMD->setApiLoggerLevel(MegaApi::LOG_LEVEL_DEBUG);
+    loggerCMD->setCmdLoggerLevel(MegaApi::LOG_LEVEL_DEBUG);
+#endif
     string loglevelenv;
 #ifndef _WIN32
     loglevelenv = (getenv ("MEGACMD_LOGLEVEL") == NULL)?"":getenv ("MEGACMD_LOGLEVEL");

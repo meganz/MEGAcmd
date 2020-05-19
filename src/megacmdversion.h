@@ -25,6 +25,7 @@ const char * const megacmdchangelog =
         "Support for blocked accounts with instructions to unblock them""\n"
         "Fix crash in libcryptopp for Ubuntu 19.10 and onwards""\n"
         "Fix issues with failed transfers""\n"
+        "Fix trailing separator issue for local path in \"put\"""\n"
         "Speed up sync engine startup for windows""\n"
         "Other fixes & adjustments"
         ;
