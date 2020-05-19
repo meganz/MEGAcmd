@@ -3148,11 +3148,12 @@ void MegaCmdExecuter::uploadNode(string path, MegaApi* api, MegaNode *node, stri
 
     if (newname.size())
     {
-        api->startUpload(path.c_str(), node, newname.c_str(), thelistener);
+
+        api->startUpload(removeTrailingSeparators(path).c_str(), node, newname.c_str(), thelistener);
     }
     else
     {
-        api->startUpload(path.c_str(), node, thelistener);
+        api->startUpload(removeTrailingSeparators(path).c_str(), node, thelistener);
     }
     if (megaCmdTransferListener)
     {
