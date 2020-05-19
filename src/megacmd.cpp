@@ -4928,6 +4928,15 @@ int main(int argc, char* argv[])
         }
         processCommandLinePetitionQueues(command);
     }
+
+    if (ConfigurationManager::getHasBeenUpdated())
+    {
+        api->sendEvent(MCMD_EVENT_UPDATE_ID,MCMD_EVENT_UPDATE_MESSAGE);
+        stringstream ss;
+        ss << "MEGAcmd has been updated to version " << MEGACMD_MAJOR_VERSION << "." << MEGACMD_MINOR_VERSION << "." << MEGACMD_MICRO_VERSION << "." << MEGACMD_BUILD_ID << " - code " << MEGACMD_CODE_VERSION << endl;
+        broadcastMessage(ss.str() ,true);
+    }
+
     if (!ConfigurationManager::session.empty())
     {
         loginInAtStartup = true;
