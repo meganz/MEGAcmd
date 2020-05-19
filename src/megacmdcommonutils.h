@@ -139,6 +139,8 @@ std::string getPublicLinkHandle(const std::string &link);
 
 bool hasWildCards(std::string &what);
 
+std::string removeTrailingSeparators(std::string &path);
+
 
 /* Strings related */
 
