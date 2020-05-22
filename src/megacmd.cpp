@@ -4721,7 +4721,7 @@ int main(int argc, char* argv[])
 
     loggerCMD->setApiLoggerLevel(MegaApi::LOG_LEVEL_ERROR);
     loggerCMD->setCmdLoggerLevel(MegaApi::LOG_LEVEL_INFO);
-#if DEBUG
+#if DEBUG and !defined(_WIN32)
     loggerCMD->setApiLoggerLevel(MegaApi::LOG_LEVEL_DEBUG);
     loggerCMD->setCmdLoggerLevel(MegaApi::LOG_LEVEL_DEBUG);
 #endif
