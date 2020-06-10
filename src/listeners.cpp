@@ -229,23 +229,55 @@ void MegaCmdGlobalListener::onEvent(MegaApi *api, MegaEvent *event)
         {
             int previousStatus = sandboxCMD->storageStatus;
             sandboxCMD->storageStatus = event->getNumber();
-            if (sandboxCMD->storageStatus == MegaApi::STORAGE_STATE_RED || sandboxCMD->storageStatus == MegaApi::STORAGE_STATE_ORANGE)
+            if (sandboxCMD->storageStatus == MegaApi::STORAGE_STATE_PAYWALL || sandboxCMD->storageStatus == MegaApi::STORAGE_STATE_RED || sandboxCMD->storageStatus == MegaApi::STORAGE_STATE_ORANGE)
             {
                 ConfigurationManager::savePropertyValue("ask4storage",true);
 
                 if (previousStatus < sandboxCMD->storageStatus)
                 {
-                    string s;
-                    if (sandboxCMD->storageStatus == MegaApi::STORAGE_STATE_RED)
+                    if (sandboxCMD->storageStatus == MegaApi::STORAGE_STATE_PAYWALL)
                     {
-                        s+= "You have exeeded your available storage.\n";
+                        api->getUserData(new MegaCmdListenerFuncExecuter(
+                                        [this](mega::MegaApi* api, mega::MegaRequest *request, mega::MegaError *e)
+                        {
+                            if (e->getValue() == MegaError::API_OK)
+                            {
+                                char *myEmail = api->getMyEmail();
+                                MegaIntegerList *warningsList = api->getOverquotaWarningsTs();
+                                std::string s;
+                                s += "We have contacted you by email to " + string(myEmail) + " on ";
+                                s += getReadableTime(warningsList->get(0),"%b %e %Y");
+                                if (warningsList->size() > 1)
+                                {
+                                    for (int i = 1; i < warningsList->size() - 1; i++)
+                                    {
+                                        s += ", " + getReadableTime(warningsList->get(i),"%b %e %Y");
+                                    }
+                                    s += " and " + getReadableTime(warningsList->get(warningsList->size() - 1),"%b %e %Y");
+                                }
+                                s += ".\n";
+                                s += "You have " + std::to_string((api->getOverquotaDeadlineTs() - m_time(NULL)) / 86400) + " days left to upgrade.\n";
+                                s += "See \"help --upgrade\" for further details.";
+                                broadcastMessage(s);
+                                delete[] myEmail;
+                                delete warningsList;
+                            }
+                        },true));
                     }
                     else
                     {
-                        s+= "You are running out of available storage.\n";
+                        string s;
+                        if (sandboxCMD->storageStatus == MegaApi::STORAGE_STATE_RED)
+                        {
+                            s+= "You have exeeded your available storage.\n";
+                        }
+                        else
+                        {
+                            s+= "You are running out of available storage.\n";
+                        }
+                        s+="You can change your account plan to increase your quota limit.\nSee \"help --upgrade\" for further details";
+                        broadcastMessage(s);
                     }
-                    s+="You can change your account plan to increase your quota limit.\nSee \"help --upgrade\" for further details";
-                    broadcastMessage(s);
                 }
             }
             else
