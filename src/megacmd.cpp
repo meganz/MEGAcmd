@@ -4066,8 +4066,14 @@ void megacmd()
                             }
                             s += " and " + getReadableTime(warningsList->get(warningsList->size() - 1),"%b %e %Y");
                         }
-                        s += ".\n";
-                        s += "You have " + std::to_string((api->getOverquotaDeadlineTs() - m_time(NULL)) / 86400) + " days left to upgrade.\n";
+                        std::unique_ptr<MegaNode> rootNode(api->getRootNode());
+                        long long totalFiles = 0;
+                        long long totalFolders = 0;
+                        getNumFolderFiles(rootNode.get(),api,&totalFiles,&totalFolders);
+                        s += ", but you still have " + std::to_string(totalFiles) + " files taking up " + sizeToText(sandboxCMD->receivedStorageSum);
+                        s += " in your MEGA account, which requires you to upgrade your account.\n\n";
+                        s += "You have " + std::to_string((api->getOverquotaDeadlineTs() - m_time(NULL)) / 86400) + " days left to upgrade. ";
+                        s += "After that, your data is subject to deletion.\n";
                     }
                     else if (sandboxCMD->storageStatus == MegaApi::STORAGE_STATE_RED)
                     {
