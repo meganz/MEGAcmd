@@ -4054,9 +4054,9 @@ void megacmd()
 
                     if (sandboxCMD->storageStatus == MegaApi::STORAGE_STATE_PAYWALL)
                     {
-                        char *myEmail = api->getMyEmail();
-                        MegaIntegerList *warningsList = api->getOverquotaWarningsTs();
-                        s += "We have contacted you by email to " + string(myEmail) + " on ";
+                        std::unique_ptr<char[]> myEmail(api->getMyEmail());
+                        std::unique_ptr<MegaIntegerList> warningsList(api->getOverquotaWarningsTs());
+                        s += "We have contacted you by email to " + string(myEmail.get()) + " on ";
                         s += getReadableTime(warningsList->get(0),"%b %e %Y");
                         if (warningsList->size() > 1)
                         {
@@ -4068,8 +4068,6 @@ void megacmd()
                         }
                         s += ".\n";
                         s += "You have " + std::to_string((api->getOverquotaDeadlineTs() - m_time(NULL)) / 86400) + " days left to upgrade.\n";
-                        delete[] myEmail;
-                        delete warningsList;
                     }
                     else if (sandboxCMD->storageStatus == MegaApi::STORAGE_STATE_RED)
                     {

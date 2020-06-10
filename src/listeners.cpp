@@ -242,10 +242,10 @@ void MegaCmdGlobalListener::onEvent(MegaApi *api, MegaEvent *event)
                         {
                             if (e->getValue() == MegaError::API_OK)
                             {
-                                char *myEmail = api->getMyEmail();
-                                MegaIntegerList *warningsList = api->getOverquotaWarningsTs();
+                                std::unique_ptr<char[]> myEmail(api->getMyEmail());
+                                std::unique_ptr<MegaIntegerList> warningsList(api->getOverquotaWarningsTs());
                                 std::string s;
-                                s += "We have contacted you by email to " + string(myEmail) + " on ";
+                                s += "We have contacted you by email to " + string(myEmail.get()) + " on ";
                                 s += getReadableTime(warningsList->get(0),"%b %e %Y");
                                 if (warningsList->size() > 1)
                                 {
@@ -259,8 +259,6 @@ void MegaCmdGlobalListener::onEvent(MegaApi *api, MegaEvent *event)
                                 s += "You have " + std::to_string((api->getOverquotaDeadlineTs() - m_time(NULL)) / 86400) + " days left to upgrade.\n";
                                 s += "See \"help --upgrade\" for further details.";
                                 broadcastMessage(s);
-                                delete[] myEmail;
-                                delete warningsList;
                             }
                         },true));
                     }
