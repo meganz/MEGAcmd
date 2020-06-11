@@ -203,7 +203,7 @@ void MegaCmdGlobalListener::onEvent(MegaApi *api, MegaEvent *event)
 
                     sandboxCMD->setPromisedReasonblocked(reason);
                     ongoing = false;
-                }));
+                },true));
             }
             break;
         }
