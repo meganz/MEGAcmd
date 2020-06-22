@@ -1,3 +1,40 @@
+megacmd (1.3.0) stable; urgency=low
+
+  * Fix --path-display-size for commands that use it and improve display for "transfer" & "sync"
+  * Support for blocked accounts with instructions to unblock them
+  * Fix crash in libcryptopp for Ubuntu 19.10 and onwards
+  * Fix issues with failed transfers
+  * Fix trailing separator issue for local path in "put"
+  * Speed up sync engine startup for windows
+  * Other fixes & adjustments
+
+ -- MEGA Team <linux@mega.co.nz>  Mon, 22 Jun 2020 19:08:17 +0200
+
+megacmd (1.2.0) stable; urgency=low
+
+  * "put" now supports wildcard expressions
+  * support setting a proxy with "proxy" command
+  * add support for addressing inshares with //from/
+  * support for files/folders within public links
+  * minor fix for ls --tree autocompletion
+  * discard flags/options after "--"
+  * --show-handles option added in ls & find
+  * files/folders can be addressed using their handle H:XXXXXXX
+  * support new links format
+  * fixes in reported used storage
+  * fix crash in find command
+  * do not consider inshares for version storage used
+  * win installer: do not ask for elevate permissions when running in silent mode
+  * improved columned outputs to maximize screen use (syncs & transfers)
+  * improve responsiveness at startup in interactive mode, to avoid hangs when session does not resumeAdded mode while logging in that allows certain actions (like setting a proxy)
+  * non-interactive mode will not wait for commands that can be addressed before the session is resumed
+  * speedup cancellation/startup of a huge number of transfers
+  * cloud raid support
+  * speedup improvements in cache and other CPU bottlenecks
+  * many more fixes & adjustments
+
+ -- MEGA Team <linux@mega.co.nz>  Mon, 22 Jun 2020 19:06:13 +0200
+
 megacmd (1.1.0) stable; urgency=low
 
   * added "cat" command to read text files (and potentially stream any file)
