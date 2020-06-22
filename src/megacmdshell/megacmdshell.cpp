@@ -686,7 +686,6 @@ void install_rl_handler(const char *theprompt, bool external)
 
 #endif
 }
-#endif
 
 void redisplay_prompt()
 {
@@ -716,6 +715,9 @@ void redisplay_prompt()
     rl_point = saved_point;
     rl_redisplay();
 }
+
+#endif
+
 
 void changeprompt(const char *newprompt, bool redisplay)
 {
@@ -1096,7 +1098,8 @@ vector<autocomplete::ACState::Completion> remote_completion(string linetocomplet
     comms->executeCommand(string("completionshell ") + refactoredline, readresponse, oss);
 
     string outputcommand;
-    localwtostring(&oss.str(), &outputcommand);
+    auto ossstr=oss.str();
+    localwtostring(&ossstr, &outputcommand);
 
     ACState::quoted_word completionword = acs.words.size() ? acs.words[acs.words.size() - 1] : string();
 

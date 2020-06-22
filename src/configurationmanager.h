@@ -33,6 +33,7 @@ class ConfigurationManager
 {
 private:
     static std::string configFolder;
+    static bool hasBeenUpdated;
 #if !defined(_WIN32) && defined(LOCK_EX) && defined(LOCK_NB)
     static int fd;
 #endif
@@ -235,6 +236,8 @@ public:
     }
 
     static std::string getConfigFolder();
+
+    static bool getHasBeenUpdated();
 
     static void unloadConfiguration();
 
