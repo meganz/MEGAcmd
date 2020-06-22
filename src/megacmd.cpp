@@ -104,7 +104,7 @@ MegaCmdSandbox *sandboxCMD;
 
 MegaSemaphore semaphoreClients; //to limit max parallel petitions
 
-MegaApi *api;
+MegaApi *api = nullptr;
 
 //api objects for folderlinks
 std::queue<MegaApi *> apiFolders;
@@ -147,6 +147,10 @@ string dynamicprompt = "MEGA CMD> ";
 static prompttype prompt = COMMAND;
 
 static std::atomic_bool loginInAtStartup(false);
+static std::atomic<int> blocked(0);
+
+time_t lastTimeCheckBlockStatus = 0;
+
 static std::atomic<::mega::m_time_t> timeOfLoginInAtStartup(0);
 ::mega::m_time_t timeLoginStarted();
 
@@ -318,10 +322,10 @@ void broadcastMessage(string message, bool keepIfNoListeners)
     {
         s += "message:";
         s+=message;
-
+        string unalteredCopy(s);
         if (!cm->informStateListeners(s) && keepIfNoListeners)
         {
-            appendGreetingStatusFirstListener(s);
+            appendGreetingStatusFirstListener(unalteredCopy);
         }
     }
 }
@@ -395,6 +399,7 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     {
         validParams->insert("f");
         validParams->insert("non-interactive");
+        validParams->insert("paths");
         validParams->insert("upgrade");
 #ifdef _WIN32
         validParams->insert("unicode");
@@ -1815,6 +1820,7 @@ void printTimeFormatHelp(ostringstream &os)
     os << "               SHORT: " << " Example: 06Apr2018 13:05:37" << endl;
     os << "               SHORT_UTC: " << " Example: 06Apr2018 13:05:37" << endl;
     os << "               CUSTOM. e.g: --time-format=\"%Y %b\": "<< " Example: 2018 Apr" << endl;
+    os << "                 You can use any strftime compliant format: http://www.cplusplus.com/reference/ctime/strftime/" << endl;
 }
 
 string getHelpStr(const char *command)
@@ -2221,7 +2227,7 @@ string getHelpStr(const char *command)
 #endif
         os << endl;
         os << "To see versions of a file use \"ls --versions\"." << endl;
-        os << "To see space occupied by file versions use \"du\" with \"--versions\"." << endl;
+        os << "To see space occupied by file versions use \"du --versions\"." << endl;
     }
 #ifdef HAVE_LIBUV
     else if (!strcmp(command, "webdav"))
@@ -2312,7 +2318,7 @@ string getHelpStr(const char *command)
         os << "-d" << " " << "ID|localpath" << "\t" << "deletes a synchronization" << endl;
         os << "-s" << " " << "ID|localpath" << "\t" << "stops(pauses) a synchronization" << endl;
         os << "-r" << " " << "ID|localpath" << "\t" << "resumes a synchronization" << endl;
-        os << " --path-display-size=N" << "\t" << "Use a fixed size of N characters for paths" << endl;
+        os << " --path-display-size=N" << "\t" << "Use at least N characters for displaying paths" << endl;
     }
     else if (!strcmp(command, "backup"))
     {
@@ -2687,7 +2693,7 @@ string getHelpStr(const char *command)
         os << " --show-completed" << "\t" << "Show completed transfers" << endl;
         os << " --only-completed" << "\t" << "Show only completed download" << endl;
         os << " --limit=N" << "\t" << "Show only first N transfers" << endl;
-        os << " --path-display-size=N" << "\t" << "Use a fixed size of N characters for paths" << endl;
+        os << " --path-display-size=N" << "\t" << "Use at least N characters for displaying paths" << endl;
         os << endl;
         os << "TYPE legend correspondence:" << endl;
 #ifdef _WIN32
@@ -2790,6 +2796,24 @@ void printAvailableCommands(int extensive = 0)
     }
 }
 
+void checkBlockStatus(bool waitcompletion = true)
+{
+    time_t tnow = time(NULL);
+    if ( (tnow - lastTimeCheckBlockStatus) > 30)
+    {
+        std::unique_ptr<MegaCmdListener> megaCmdListener{waitcompletion?new MegaCmdListener(api, NULL):nullptr};
+
+        api->whyAmIBlocked(megaCmdListener.get());//TO enforce acknowledging unblock transition
+
+        if (megaCmdListener)
+        {
+            megaCmdListener->wait();
+        }
+
+        lastTimeCheckBlockStatus = tnow;
+    }
+}
+
 void executecommand(char* ptr)
 {
     vector<string> words = getlistOfWords(ptr, !getCurrentThreadIsCmdShell());
@@ -2818,6 +2842,12 @@ void executecommand(char* ptr)
         OUTSTREAM << getListOfCompletionValues(wordstocomplete);
         return;
     }
+
+    if (getBlocked())
+    {
+        checkBlockStatus(!validCommand(thecommand) && thecommand != "retrycons");
+    }
+
     if (words[0] == "retrycons")
     {
         api->retryPendingConnections();
@@ -2946,6 +2976,24 @@ void executecommand(char* ptr)
 
              delete [] url;
         }
+        else if (getFlag(&clflags,"paths"))
+        {
+            OUTSTREAM << "MEGAcmd will allow you to enter local and remote paths." << endl;
+            OUTSTREAM << " - REMOTE paths are case-sensitive, and use '/' as path separator." << endl;
+            OUTSTREAM << "    The root folder in your cloud will be `/`. " << endl;
+            OUTSTREAM << "    There are other possible root folders (Rubbish Bin, Inbox & in-shares). " << endl;
+            OUTSTREAM << "       For further info on root folders, see \"mount --help\"" << endl;
+            OUTSTREAM << " - LOCAL paths are system dependant. " << endl;
+            OUTSTREAM << "    In Windows, you will be able to use both '\\' and '/' as separator." << endl;
+            OUTSTREAM << endl;
+            OUTSTREAM << "To refer to paths that include spaces, you will need to either surround the path between quotes \"\"," << endl;
+            OUTSTREAM << "   or scape the space with '\\ '." << endl;
+            OUTSTREAM << "     e.g: <ls /a\\ folder> or <ls \"a folder\"> will list the contents of a folder named 'a folder' " << endl;
+            OUTSTREAM << "          located in the root folder of your cloud."  << endl;
+            OUTSTREAM << endl;
+            OUTSTREAM << "USE autocompletion! MEGAcmd features autocompletion. Pressing <TAB> will autocomplete paths" << endl;
+            OUTSTREAM << " (both LOCAL & REMOTE) along with other parameters of commands. It will surely save you some typing!" << endl;
+        }
         else if (getFlag(&clflags,"non-interactive"))
         {
             OUTSTREAM << "MEGAcmd features two modes of interaction:" << endl;
@@ -3024,15 +3072,28 @@ void executecommand(char* ptr)
         {
             OUTSTREAM << "Here is the list of available commands and their usage" << endl;
             OUTSTREAM << "Use \"help -f\" to get a brief description of the commands" << endl;
-            OUTSTREAM << "You can get further help on a specific command with \"command\" --help " << endl;
-            OUTSTREAM << "Alternatively, you can use \"help\" -ff to get a complete description of all commands" << endl;
+            OUTSTREAM << "You can get further help on a specific command with \"command --help\" " << endl;
+            OUTSTREAM << "Alternatively, you can use \"help -ff\" to get a complete description of all commands" << endl;
             OUTSTREAM << "Use \"help --non-interactive\" to learn how to use MEGAcmd with scripts" << endl;
             OUTSTREAM << "Use \"help --upgrade\" to learn about the limitations and obtaining PRO accounts" << endl;
+            OUTSTREAM << "Use \"help --paths\" to learn about paths and how to enter them" << endl;
 
             OUTSTREAM << endl << "Commands:" << endl;
 
             printAvailableCommands(getFlag(&clflags,"f"));
             OUTSTREAM << endl << "Verbosity: You can increase the amount of information given by any command by passing \"-v\" (\"-vv\", \"-vvv\", ...)" << endl;
+
+            if (getBlocked())
+            {
+                unsigned int width = getintOption(&cloptions, "client-width", getNumberOfCols(75));
+                if (width > 1 ) width--;
+
+                OUTSTRINGSTREAM os;
+                printCenteredContents(os, string("[BLOCKED]\n").append(sandboxCMD->getReasonblocked()).c_str(), width);
+
+                OUTSTREAM << os.str();
+
+            }
         }
         return;
     }
@@ -3161,6 +3222,15 @@ bool executeUpdater(bool *restartRequired, bool doNotInstall = false)
         LOG_err << " Unexpected error waiting for Updater. errno = " << ERRNO;
     }
 #endif
+
+
+    if (*restartRequired && api)
+    {
+        std::unique_ptr<MegaCmdListener> megaCmdListener{new MegaCmdListener(api, NULL)};
+        api->sendEvent(MCMD_EVENT_UPDATE_RESTART_ID,MCMD_EVENT_UPDATE_RESTART_MESSAGE, megaCmdListener.get());
+        megaCmdListener->wait();
+    }
+
     return true;
 }
 
@@ -3761,6 +3831,11 @@ void* checkForUpdates(void *param)
             }
 
             if (stopcheckingforUpdaters) break;
+
+            std::unique_ptr<MegaCmdListener> megaCmdListener{new MegaCmdListener(api, NULL)};
+            api->sendEvent(MCMD_EVENT_UPDATE_START_ID,MCMD_EVENT_UPDATE_START_MESSAGE, megaCmdListener.get());
+            megaCmdListener->wait();
+
             broadcastMessage("  Executing update    !");
             LOG_info << " Applying update";
             executeUpdater(&restartRequired);
@@ -4025,7 +4100,10 @@ void megacmd()
                 s+=dynamicprompt;
                 s+=(char)0x1F;
 
-                cmdexecuter->checkAndInformPSA(inf);
+                if (!sandboxCMD->getReasonblocked().size())
+                {
+                    cmdexecuter->checkAndInformPSA(inf);
+                }
 
                 cm->informStateListener(inf,s);
             }
@@ -4502,8 +4580,45 @@ void setloginInAtStartup(bool value)
     loginInAtStartup = value;
     if (value)
     {
-        validCommands = loginInValidCommands;
         timeOfLoginInAtStartup = m_time(NULL);
+    }
+    updatevalidCommands();
+}
+
+void unblock()
+{
+    setBlocked(0);
+    sandboxCMD->setReasonblocked("");
+    broadcastMessage("Your account is not longer blocked");
+    if (!api->isFilesystemAvailable())
+    {
+        auto theSandbox = sandboxCMD;
+        std::thread t([theSandbox](){
+            theSandbox->cmdexecuter->fetchNodes();
+        });
+    }
+}
+
+void setBlocked(int value)
+{
+    if (blocked != value)
+    {
+        blocked = value;
+        updatevalidCommands();
+        cmdexecuter->updateprompt();
+    }
+}
+
+int getBlocked()
+{
+    return blocked;
+}
+
+void updatevalidCommands()
+{
+    if (loginInAtStartup || blocked)
+    {
+        validCommands = loginInValidCommands;
     }
     else
     {
@@ -4511,6 +4626,10 @@ void setloginInAtStartup(bool value)
     }
 }
 
+void reset()
+{
+    setBlocked(false);
+}
 #ifdef _WIN32
 void uninstall()
 {
@@ -4602,7 +4721,10 @@ int main(int argc, char* argv[])
 
     loggerCMD->setApiLoggerLevel(MegaApi::LOG_LEVEL_ERROR);
     loggerCMD->setCmdLoggerLevel(MegaApi::LOG_LEVEL_INFO);
-
+#if DEBUG and !defined(_WIN32)
+    loggerCMD->setApiLoggerLevel(MegaApi::LOG_LEVEL_DEBUG);
+    loggerCMD->setCmdLoggerLevel(MegaApi::LOG_LEVEL_DEBUG);
+#endif
     string loglevelenv;
 #ifndef _WIN32
     loglevelenv = (getenv ("MEGACMD_LOGLEVEL") == NULL)?"":getenv ("MEGACMD_LOGLEVEL");
@@ -4742,6 +4864,7 @@ int main(int argc, char* argv[])
 
     sandboxCMD = new MegaCmdSandbox();
     cmdexecuter = new MegaCmdExecuter(api, loggerCMD, sandboxCMD);
+    sandboxCMD->cmdexecuter = cmdexecuter;
 
     megaCmdGlobalListener = new MegaCmdGlobalListener(loggerCMD, sandboxCMD);
     megaCmdMegaListener = new MegaCmdMegaListener(api, NULL, sandboxCMD);
@@ -4822,6 +4945,15 @@ int main(int argc, char* argv[])
         }
         processCommandLinePetitionQueues(command);
     }
+
+    if (ConfigurationManager::getHasBeenUpdated())
+    {
+        api->sendEvent(MCMD_EVENT_UPDATE_ID,MCMD_EVENT_UPDATE_MESSAGE);
+        stringstream ss;
+        ss << "MEGAcmd has been updated to version " << MEGACMD_MAJOR_VERSION << "." << MEGACMD_MINOR_VERSION << "." << MEGACMD_MICRO_VERSION << "." << MEGACMD_BUILD_ID << " - code " << MEGACMD_CODE_VERSION << endl;
+        broadcastMessage(ss.str() ,true);
+    }
+
     if (!ConfigurationManager::session.empty())
     {
         loginInAtStartup = true;
@@ -4834,4 +4966,3 @@ int main(int argc, char* argv[])
     megacmd::megacmd();
     finalize(waitForRestartSignal);
 }
-

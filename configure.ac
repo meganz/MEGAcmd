@@ -368,7 +368,8 @@ AC_ARG_WITH(readline,
     SAVE_LIBS=$LIBS
     LIBS="$TERMCAP_LIBS $LIBS"
     AC_CHECK_LIB([readline], [rl_save_prompt], [RL_LIBS="-lreadline"], [
-        AC_MSG_ERROR([readline library is required for the sample client.])])
+        AC_MSG_ERROR([readline library is required for the sample client.])],
+        [$LIBS])
     LIBS=$SAVE_LIBS
      ;;
    *)
