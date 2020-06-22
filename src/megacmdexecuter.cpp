@@ -1017,7 +1017,7 @@ bool MegaCmdExecuter::checkNoErrors(MegaError *error, string message)
         auto reason = sandboxCMD->getReasonblocked();
         LOG_err << "Failed to " << message << ". Account blocked." <<( reason.empty()?"":" Reason: "+reason);
     }
-    else if (error->getErrorCode() == MegaError::API_EOVERQUOTA && sandboxCMD->storageStatus == MegaApi::STORAGE_STATE_RED)
+    else if ((error->getErrorCode() == MegaError::API_EPAYWALL) || (error->getErrorCode() == MegaError::API_EOVERQUOTA && sandboxCMD->storageStatus == MegaApi::STORAGE_STATE_RED))
     {
         LOG_err << "Failed to " << message << ": Reached storage quota. "
                          "You can change your account plan to increase your quota limit. "

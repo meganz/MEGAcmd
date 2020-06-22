@@ -4052,18 +4052,42 @@ void megacmd()
                 {
                     s += "message:";
 
-                    if (sandboxCMD->storageStatus == MegaApi::STORAGE_STATE_RED)
+                    if (sandboxCMD->storageStatus == MegaApi::STORAGE_STATE_PAYWALL)
                     {
-                        s+= "You have exeeded your available storage.\n";
+                        std::unique_ptr<char[]> myEmail(api->getMyEmail());
+                        std::unique_ptr<MegaIntegerList> warningsList(api->getOverquotaWarningsTs());
+                        s += "We have contacted you by email to " + string(myEmail.get()) + " on ";
+                        s += getReadableTime(warningsList->get(0),"%b %e %Y");
+                        if (warningsList->size() > 1)
+                        {
+                            for (int i = 1; i < warningsList->size() - 1; i++)
+                            {
+                                s += ", " + getReadableTime(warningsList->get(i),"%b %e %Y");
+                            }
+                            s += " and " + getReadableTime(warningsList->get(warningsList->size() - 1),"%b %e %Y");
+                        }
+                        std::unique_ptr<MegaNode> rootNode(api->getRootNode());
+                        long long totalFiles = 0;
+                        long long totalFolders = 0;
+                        getNumFolderFiles(rootNode.get(),api,&totalFiles,&totalFolders);
+                        s += ", but you still have " + std::to_string(totalFiles) + " files taking up " + sizeToText(sandboxCMD->receivedStorageSum);
+                        s += " in your MEGA account, which requires you to upgrade your account.\n\n";
+                        s += "You have " + std::to_string((api->getOverquotaDeadlineTs() - m_time(NULL)) / 86400) + " days left to upgrade. ";
+                        s += "After that, your data is subject to deletion.\n";
+                    }
+                    else if (sandboxCMD->storageStatus == MegaApi::STORAGE_STATE_RED)
+                    {
+                        s += "You have exeeded your available storage.\n";
+                        s += "You can change your account plan to increase your quota limit.\n";
                     }
                     else
                     {
-                        s+= "You are running out of available storage.\n";
+                        s += "You are running out of available storage.\n";
+                        s += "You can change your account plan to increase your quota limit.\n";
                     }
-                    s+="You can change your account plan to increase your quota limit.\nSee \"help --upgrade\" for further details";
-                    s+=(char)0x1F;
+                    s += "See \"help --upgrade\" for further details.\n";
+                    s += (char)0x1F;
                 }
-
 
                 // if server resuming session, lets give him a very litle while before sending greeting message to the early clients
                 // (to aovid "Resuming session..." being printed fast resumed session)
