@@ -995,7 +995,7 @@ bool MegaCmdExecuter::checkAndInformPSA(CmdPetition *inf, bool enforce)
 
 bool MegaCmdExecuter::checkNoErrors(int errorCode, string message)
 {
-    MegaError e(errorCode);
+    MegaErrorPrivate e(errorCode);
     return checkNoErrors(&e, message);
 }
 
