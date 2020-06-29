@@ -320,7 +320,12 @@ int mkdir_p(const char *path)
 UpdateTask::UpdateTask()
 {
     isPublic = false;
-    signatureChecker = new SignatureChecker((const char *)UPDATE_PUBLIC_KEY);
+    string updatePublicKey = UPDATE_PUBLIC_KEY;
+    if (getenv("MEGA_UPDATE_PUBLIC_KEY"))
+    {
+        updatePublicKey = getenv("MEGA_UPDATE_PUBLIC_KEY");
+    }
+    signatureChecker = new SignatureChecker(updatePublicKey.c_str());
     currentFile = 0;
     appDataFolder = getAppDataDir();
     appFolder = getAppDir();
@@ -379,6 +384,11 @@ bool UpdateTask::checkForUpdates(bool emergencyUpdater, bool doNotInstall)
         {
             updateurl = updateurl.replace(updateurl.find("v.txt"),strlen("v.txt"),"vv.txt");
         }
+    }
+
+    if (getenv("MEGA_UPDATE_CHECK_URL"))
+    {
+        updateurl = getenv("MEGA_UPDATE_CHECK_URL");
     }
 
     if (downloadFile((char *)(updateurl.c_str()), updateFile.c_str()))
