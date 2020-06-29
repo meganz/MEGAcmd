@@ -807,7 +807,12 @@ bool UpdateTask::alreadyDownloaded(string relativePath, string fileSignature)
 
 bool UpdateTask::alreadyExists(string absolutePath, string fileSignature)
 {
-    SignatureChecker tmpHash((const char *)UPDATE_PUBLIC_KEY);
+    string updatePublicKey = UPDATE_PUBLIC_KEY;
+    if (getenv("MEGA_UPDATE_PUBLIC_KEY"))
+    {
+        updatePublicKey = getenv("MEGA_UPDATE_PUBLIC_KEY");
+    }
+    SignatureChecker tmpHash(updatePublicKey.c_str());
     char *buffer;
     long fileLength;
     FILE * pFile = mega_fopen(absolutePath.c_str(), "rb");
