@@ -1,4 +1,3 @@
-
 # MEGAcmd - Command Line Interactive and Scriptable Application
 
 MEGAcmd provides non UI access to MEGA services. It intends to offer all the 
@@ -173,6 +172,13 @@ If that is not you case, include the location for the binaries in your `PATH` va
 
 
 ## Windows
+You can have MEGAcmd installed using the installer from [here](https://mega.nz/cmd). 
+
+If you are interested in installing MEGAcmd without human intervention, notice that this installer supports silent installation, you just need to execute in your command prompt:
+```
+MEGAcmdSetup.exe /S
+```
+
 Once you have MEGAcmd installed, you just need to execute it (via Desktop icon or Start Menu) to open the shell.  This will open MEGAcmdServer in the background (a process named MEGAcmdServer.exe).
 
 For a better user experience (specially in Windows 7) we recommend executing MEGAcmd from PowerShell.
