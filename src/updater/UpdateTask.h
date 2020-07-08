@@ -73,7 +73,6 @@ protected:
     bool setPermissions(const char *path);
     bool removeRecursively(std::string path);
     int readVersion();
-    void writeVersion();
     std::string getAppDataDir();
     std::string getAppDir();
     std::string readNextLine(FILE *fd);

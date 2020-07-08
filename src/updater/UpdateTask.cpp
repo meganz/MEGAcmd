@@ -708,7 +708,7 @@ void UpdateTask::finalCleanup()
 {
     removeRecursively(updateFolder);
     MEGA_SET_PERMISSIONS;
-    writeVersion();
+    LOG(LOG_LEVEL_INFO, "Version code updated to %d", updateVersion);
 }
 
 bool UpdateTask::setPermissions(const char *path)
@@ -857,19 +857,6 @@ int UpdateTask::readVersion()
     fscanf(fp, "%d", &version);
     fclose(fp);
     return version;
-}
-
-void UpdateTask::writeVersion()
-{
-    FILE *fp = mega_fopen((appDataFolder + VERSION_FILE_NAME).c_str(), "w");
-    if (fp == NULL)
-    {
-        return;
-    }
-
-    fprintf(fp, "%d", updateVersion);
-    fclose(fp);
-    LOG(LOG_LEVEL_INFO, "Version code updated to %d", updateVersion);
 }
 
 #ifdef _WIN32
