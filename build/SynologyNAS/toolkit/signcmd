@@ -1,0 +1,14 @@
+#!/bin/bash
+
+echo SignScriptStarted
+
+for spk in /image/packages/*.spk; do
+	echo "Signing ${spk}..."
+	php /pkgscripts/CodeSign.php --sign=${spk} || exit 1
+	echo "${spk} signed."
+done
+
+echo SignScriptComplete
+
+exit 0
+
