@@ -19,6 +19,7 @@
 #include "configurationmanager.h"
 #include "megacmdversion.h"
 #include "megacmdutils.h"
+#include "updater/Preferences.h"
 #include <fstream>
 
 #ifdef _WIN32
@@ -51,6 +52,7 @@ bool is_file_exist(const char *fileName)
 }
 
 string ConfigurationManager::configFolder;
+bool ConfigurationManager::hasBeenUpdated = false;
 #if !defined(_WIN32) && defined(LOCK_EX) && defined(LOCK_NB)
 int ConfigurationManager::fd;
 #endif
@@ -67,6 +69,11 @@ std::string ConfigurationManager::getConfigFolder()
         ConfigurationManager::loadConfigDir();
     }
     return configFolder;
+}
+
+bool ConfigurationManager::getHasBeenUpdated()
+{
+    return hasBeenUpdated;
 }
 
 static const char* const persistentmcmdconfigurationkeys[] =
@@ -609,7 +616,9 @@ void ConfigurationManager::loadConfiguration(bool debug)
         sessionfile << configFolder << "/" << "session";
 
         if (debug)
-            cout << "Session file: " << sessionfile.str() << endl;
+        {
+            std::cout << "Session file: " << sessionfile.str() << std::endl;
+        }
 
         ifstream fi(sessionfile.str().c_str(), ios::in);
         if (fi.is_open())
@@ -619,16 +628,38 @@ void ConfigurationManager::loadConfiguration(bool debug)
             {
                 session = line;
                 if (debug)
-                    cout << "Session read from configuration: " << line.substr(0, 5) << "..." << endl;
+                {
+                    std::cout << "Session read from configuration: " << line.substr(0, 5) << "..." << std::endl;
+                }
             }
             fi.close();
         }
 
-        //Save version
-        stringstream versionionfile;
-        versionionfile << configFolder << "/" << "megacmd.version";
-        ofstream fo(versionionfile.str().c_str(), ios::out);
 
+        //Check if version has been updated.
+        stringstream versionionfile;
+        versionionfile << configFolder << "/" << VERSION_FILE_NAME;
+
+        // Get latest version if any.
+        string latestVersion;
+        ifstream fiVer(versionionfile.str().c_str());
+        if (fiVer.is_open())
+        {
+            fiVer >> latestVersion;
+            fiVer.close();
+        }
+
+        if (!latestVersion.empty() && (MEGACMD_CODE_VERSION > stol(latestVersion)))
+        {
+            hasBeenUpdated = true;
+            if (debug)
+            {
+                std::cout << "MEGAcmd has been updated." << std::endl;
+            }
+        }
+
+        // Store current version.
+        ofstream fo(versionionfile.str().c_str(), ios::out);
         if (fo.is_open())
         {
             fo << MEGACMD_CODE_VERSION;
@@ -638,7 +669,9 @@ void ConfigurationManager::loadConfiguration(bool debug)
     else
     {
         if (debug)
-            cout  << "Couldnt access configuration folder " << endl;
+        {
+            std::cout << "Couldnt access configuration folder " << std::endl;
+        }
     }
 }
 

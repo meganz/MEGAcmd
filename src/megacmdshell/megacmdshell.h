@@ -43,6 +43,8 @@ void printprogress(long long completed, long long total, const char *title = "TR
 
 void changeprompt(const char *newprompt, bool redisplay = false);
 
+void redisplay_prompt();
+
 const char * getUsageStr(const char *command);
 
 void unescapeifRequired(std::string &what);

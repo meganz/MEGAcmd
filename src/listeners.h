@@ -23,14 +23,17 @@
 #include "megacmdsandbox.h"
 
 namespace megacmd {
+class MegaCmdSandbox;
+
 class MegaCmdListener : public mega::SynchronousRequestListener
 {
 private:
     float percentFetchnodes;
     bool alreadyFinished;
-    int clientID;
 
 public:
+    int clientID;
+
     MegaCmdListener(mega::MegaApi *megaApi, mega::MegaRequestListener *listener = NULL, int clientID=-1);
     virtual ~MegaCmdListener();
 
@@ -171,6 +174,8 @@ class MegaCmdGlobalListener : public mega::MegaGlobalListener
 private:
     MegaCMDLogger *loggerCMD;
     MegaCmdSandbox *sandboxCMD;
+
+    std::atomic_bool ongoing;
 
 public:
     MegaCmdGlobalListener(MegaCMDLogger *logger, MegaCmdSandbox *sandboxCMD);
