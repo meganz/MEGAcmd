@@ -1,4 +1,3 @@
-
 # MEGAcmd - Command Line Interactive and Scriptable Application
 
 MEGAcmd provides non UI access to MEGA services. It intends to offer all the 
@@ -163,6 +162,7 @@ done
 # Platforms
 
 ## Linux
+
 If you have installed MEGAcmd using one of the available packages at [here](https://mega.nz/cmd).
 
 Or have it built without `--prefix`, both the server (`mega-cmd-server`), the shell (`mega-cmd`) and the different client commands (`mega-*`) will be in your `PATH` (on a fresh install, you might need to open your terminal again). 
@@ -173,6 +173,13 @@ If that is not you case, include the location for the binaries in your `PATH` va
 
 
 ## Windows
+You can have MEGAcmd installed using the installer from [here](https://mega.nz/cmd). 
+
+If you are interested in installing MEGAcmd without human intervention, notice that this installer supports silent installation, you just need to execute in your command prompt:
+```
+MEGAcmdSetup.exe /S
+```
+
 Once you have MEGAcmd installed, you just need to execute it (via Desktop icon or Start Menu) to open the shell.  This will open MEGAcmdServer in the background (a process named MEGAcmdServer.exe).
 
 For a better user experience (specially in Windows 7) we recommend executing MEGAcmd from PowerShell.
@@ -203,6 +210,9 @@ send the output of a command into a file from your client commands. See `help --
 for further info regarding that.
 
 ## MacOS 
+
+Install MEGAcmd from [here](https://mega.nz/cmd).
+
 For MacOS, after installing the dmg, you can launch the server using MEGAcmd in Applications. If you wish to use the client commands from MacOS Terminal, open the Terminal and include the installation folder in the `PATH`.
 
 **Typically:**
