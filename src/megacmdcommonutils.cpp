@@ -267,6 +267,11 @@ std::string &rtrim(std::string &s, const char &c)
     return s;
 }
 
+string removeTrailingSeparators(string &path)
+{
+    return rtrim(rtrim(path,'/'),'\\');
+}
+
 vector<string> getlistOfWords(char *ptr, bool escapeBackSlashInCompletion, bool ignoreTrailingSpaces)
 {
     vector<string> words;
@@ -532,102 +537,106 @@ string getRightAlignedString(const string origin, unsigned int minsize)
 void printCenteredLine(OUTSTREAMTYPE &os, string msj, unsigned int width, bool encapsulated)
 {
     unsigned int msjsize = getstringutf8size(msj);
+    bool overflowed = false;
     if (msjsize>width)
     {
+        overflowed = true;
         width = unsigned(msjsize);
     }
-    if (encapsulated)
+    if (encapsulated && !overflowed)
         os << "|";
     for (unsigned int i = 0; i < (width-msjsize)/2; i++)
         os << " ";
     os << msj;
     for (unsigned int i = 0; i < (width-msjsize)/2 + (width-msjsize)%2 ; i++)
         os << " ";
-    if (encapsulated)
+    if (encapsulated && !overflowed)
         os << "|";
     os << endl;
 }
 
 void printCenteredContents(OUTSTREAMTYPE &os, string msj, unsigned int width, bool encapsulated)
 {
-    string headfoot = " ";
-    headfoot.append(width, '-');
-    unsigned int msjsize = getstringutf8size(msj);
+     string headfoot = " ";
+     headfoot.append(width, '-');
+     unsigned int msjsize = getstringutf8size(msj);
 
-    bool printfooter = false;
+     bool printfooter = false;
 
-    if (msj.size())
-    {
-        string header;
-        if (msj.at(0) == '<')
-        {
-            size_t possenditle = msj.find(">");
-            if (width >= 2 && possenditle < (width -2))
-            {
-                header.append(" ");
-                header.append((width - possenditle ) / 2, '-');
-                header.append(msj.substr(0,possenditle+1));
-                header.append(width - getstringutf8size(header) + 1, '-');
-                msj = msj.substr(possenditle + 1);
-            }
-        }
-        if (header.size() || encapsulated)
-        {
-            os << (header.size()?header:headfoot) << endl;
-            printfooter = true;
-        }
-    }
+     if (msj.size())
+     {
+         string header;
+         if (msj.at(0) == '<')
+         {
+             size_t possenditle = msj.find(">");
+             if (width >= 2 && possenditle < (width -2))
+             {
+                 header.append(" ");
+                 header.append((width - possenditle ) / 2, '-');
+                 header.append(msj.substr(0,possenditle+1));
+                 header.append(width - getstringutf8size(header) + 1, '-');
+                 msj = msj.substr(possenditle + 1);
+             }
+         }
+         if (header.size() || encapsulated)
+         {
+             os << (header.size()?header:headfoot) << endl;
+             printfooter = true;
+         }
+     }
 
-    size_t possepnewline = msj.find("\n");
-    size_t possep = msj.find(" ");
+     size_t possepnewline = msj.find("\n");
+     size_t possep = msj.find(" ");
 
-    if (possepnewline != string::npos && possepnewline < width)
-    {
-        possep = possepnewline;
-    }
-    size_t possepprev = possep;
+     if (possepnewline != string::npos && possepnewline < width)
+     {
+         possep = possepnewline;
+     }
+     size_t possepprev = possep;
 
 
-    while (msj.size())
-    {
+     while (msj.size())
+     {
 
-        if (possepnewline != string::npos && possepnewline <= width)
-        {
-            possep = possepnewline;
-            possepprev = possep;
-        }
-        else
-        {
-            while (possep < width && possep != string::npos)
-            {
-                possepprev = possep;
-                possep = msj.find_first_of(" ", possep+1);
-            }
-        }
+         if (possepnewline != string::npos && possepnewline <= width)
+         {
+             possep = possepnewline;
+             possepprev = possep;
+         }
+         else
+         {
+             while (possep < width && possep != string::npos)
+             {
+                 possepprev = possep;
+                 possep = msj.find_first_of(" ", possep+1);
+             }
+         }
 
-        if (possep == string::npos)
-        {
-            printCenteredLine(os, msj, width, encapsulated);
-            break;
-        }
-        else
-        {
-            printCenteredLine(os, msj.substr(0,possepprev), width, encapsulated);
-            if (possepprev < (msj.size() - 1))
-            {
-                msj = msj.substr(possepprev+1);
-                possepnewline = msj.find("\n");
-            }
-            else
-            {
-                break;
-            }
-        }
-    }
-    if (printfooter)
-    {
-        os << headfoot << endl;
-    }
+         if (possepprev == string::npos || (possep == string::npos && msj.size() <= width))
+         {
+             printCenteredLine(os, msj, width, encapsulated);
+             break;
+         }
+         else
+         {
+             printCenteredLine(os, msj.substr(0,possepprev), width, encapsulated);
+             if (possepprev < (msj.size() - 1))
+             {
+                 msj = msj.substr(possepprev + 1);
+                 possepnewline = msj.find("\n");
+                 possep = msj.find(" ");
+                 possepprev = possep;
+             }
+             else
+             {
+                 break;
+             }
+         }
+     }
+     if (printfooter)
+     {
+         os << headfoot << endl;
+     }
 }
 
 void printCenteredLine(string msj, unsigned int width, bool encapsulated)
@@ -1077,6 +1086,11 @@ void ColumnDisplayer::addValue(const string &name, const string &value, bool rep
     fields[name].updateMaxValue(len);
 }
 
+ColumnDisplayer::ColumnDisplayer(int unfixedColsMinSize) : mUnfixedColsMinSize(unfixedColsMinSize)
+{
+
+}
+
 void ColumnDisplayer::print(OUTSTREAMTYPE &os, int fullWidth, bool printHeader)
 {
     if (currentRegistry.size())
@@ -1085,6 +1099,8 @@ void ColumnDisplayer::print(OUTSTREAMTYPE &os, int fullWidth, bool printHeader)
     }
 
     int unfixedfieldscount = 0;
+    int unfixedFieldsMaxLengthSum = 0;
+
     int leftWidth = fullWidth;
     vector<Field *> unfixedfields;
     for (auto &el : fields)
@@ -1107,12 +1123,23 @@ void ColumnDisplayer::print(OUTSTREAMTYPE &os, int fullWidth, bool printHeader)
         {
             unfixedfieldscount++;
             unfixedfields.push_back(&f);
+            unfixedFieldsMaxLengthSum+=f.maxValueLength;
         }
     }
 
+    auto unfixedFieldsMaxLengthsLeft = unfixedFieldsMaxLengthSum;
     for (auto &f: unfixedfields)
     {
-        f->dispWidth = max((int)getstringutf8size(f->name), min((leftWidth - unfixedfieldscount + 1)/(unfixedfieldscount), f->maxValueLength));
+        unfixedFieldsMaxLengthsLeft -= f->maxValueLength;
+
+        f->dispWidth = max(
+                    (int)getstringutf8size(f->name), // min limit: header size
+                    min( f->maxValueLength // max limit: its longest value
+                         , max(mUnfixedColsMinSize, // min limit 2: the min limit for unfixed columns
+                               max((leftWidth - unfixedfieldscount + 1)/(unfixedfieldscount), (leftWidth - unfixedfieldscount + 1 - unfixedFieldsMaxLengthsLeft)) //either an equitative share between all unfixedfields left, or all the space the other left me considering their maxLegnths
+                               )
+                        )
+                    );
         leftWidth-=(f->dispWidth + 1);
         unfixedfieldscount--;
     }

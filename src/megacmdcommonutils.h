@@ -86,7 +86,7 @@ static std::vector<std::string> localfolderpatterncommands {"lcd"};
 
 static std::vector<std::string> emailpatterncommands {"invite", "signup", "ipc", "users"};
 
-static std::vector<std::string> loginInValidCommands { "log", "debug", "speedlimit","help", "logout", "version", "quit",
+static std::vector<std::string> loginInValidCommands { "log", "debug", "speedlimit", "help", "logout", "version", "quit",
                             "clear", "https", "exit", "errorcode", "proxy"
 #if defined(_WIN32) && defined(NO_READLINE)
                              , "autocomplete", "codepage"
@@ -138,6 +138,8 @@ bool isEncryptedLink(std::string link);
 std::string getPublicLinkHandle(const std::string &link);
 
 bool hasWildCards(std::string &what);
+
+std::string removeTrailingSeparators(std::string &path);
 
 
 /* Strings related */
@@ -261,6 +263,8 @@ public:
 class ColumnDisplayer
 {
 public:
+    ColumnDisplayer(int unfixedColsMinSize = 0);
+
     void print(OUTSTREAMTYPE &os, int fullWidth, bool printHeader=true);
     void addHeader(const std::string &name, bool fixed = true, int minWidth = 0);
     void addValue(const std::string &name, const std::string & value, bool replace = false);
@@ -274,6 +278,8 @@ private:
 
     std::map<std::string, std::string> currentRegistry;
     int currentlength = 0;
+
+    int mUnfixedColsMinSize = 0;
 
 };
 
