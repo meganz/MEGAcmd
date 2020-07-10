@@ -270,5 +270,15 @@ int main(int argc, char *argv[])
     currentTime = time(NULL);
     cout << "Process finished at " << ctime(&currentTime) << endl;
     unlockExecution();
+
+
+    if (getenv("SLEEP_AFTER_UPDATE"))
+    {
+#ifdef _WIN32
+        Sleep(15*1000);
+#else
+        sleep(15);
+#endif
+    }
     return updated;
 }
