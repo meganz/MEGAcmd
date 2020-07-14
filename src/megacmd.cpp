@@ -523,6 +523,11 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validParams->insert("d");
         validParams->insert("s");
         validParams->insert("r");
+
+        validParams->insert("enable");
+        validParams->insert("disable");
+        validParams->insert("remove");
+
         validOptValues->insert("path-display-size");
     }
     else if ("export" == thecommand)
@@ -2315,10 +2320,11 @@ string getHelpStr(const char *command)
         os << " unless an option is specified." << endl;
         os << endl;
         os << "Options:" << endl;
-        os << "-d" << " " << "ID|localpath" << "\t" << "deletes a synchronization" << endl;
-        os << "-s" << " " << "ID|localpath" << "\t" << "stops(pauses) a synchronization" << endl;
-        os << "-r" << " " << "ID|localpath" << "\t" << "resumes a synchronization" << endl;
+        os << "-d | --remove" << " " << "ID|localpath" << "\t" << "deletes a synchronization" << endl;
+        os << "-s | --disable" << " " << "ID|localpath" << "\t" << "stops(pauses) a synchronization" << endl;
+        os << "-r | --enable" << " " << "ID|localpath" << "\t" << "resumes a synchronization" << endl;
         os << " --path-display-size=N" << "\t" << "Use at least N characters for displaying paths" << endl;
+        //TODO: add a word on displayed fields and status!
     }
     else if (!strcmp(command, "backup"))
     {

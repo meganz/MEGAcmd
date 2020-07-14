@@ -51,6 +51,8 @@ const char MCMD_EVENT_UPDATE_START_MESSAGE[] = "MEGAcmd auto-update start";
 const int MCMD_EVENT_UPDATE_RESTART_ID = 98902;
 const char MCMD_EVENT_UPDATE_RESTART_MESSAGE[] = "MEGAcmd updated requiring restart";
 
+//TODO: add event for first sync
+
 typedef struct sync_struct
 {
     mega::MegaHandle handle;

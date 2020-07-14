@@ -168,8 +168,8 @@ public:
     void printBackup(int tag, mega::MegaBackup *backup, const char *timeFormat, const unsigned int PATHSIZE, bool extendedinfo = false, bool showhistory = false, mega::MegaNode *parentnode = NULL);
     void printBackup(backup_struct *backupstruct, const char *timeFormat, const unsigned int PATHSIZE, bool extendedinfo = false, bool showhistory = false);
 #endif
-    void printSyncHeader(const unsigned int PATHSIZE, ColumnDisplayer *cd = nullptr);
-    void printSync(int i, std::string key, const char *nodepath, sync_struct * thesync, mega::MegaNode *n, long long nfiles, long long nfolders, const unsigned int PATHSIZE, ColumnDisplayer *cd = nullptr);
+    void printSyncHeader(ColumnDisplayer &cd);
+    void printSync(mega::MegaSync *sync, long long nfiles, long long nfolders, ColumnDisplayer &cd);
 
     void doFind(mega::MegaNode* nodeBase, const char *timeFormat, std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions, std::string word, int printfileinfo, std::string pattern, bool usepcre, mega::m_time_t minTime, mega::m_time_t maxTime, int64_t minSize, int64_t maxSize);
 
