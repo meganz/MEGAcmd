@@ -305,14 +305,15 @@ void MegaCmdGlobalListener::onEvent(MegaApi *api, MegaEvent *event)
     }
     else if (event->getType() == MegaEvent::EVENT_SYNC_DISABLED)
     {
-        broadcastMessage(std::string("Your syncs have been disabled. Reason: ")
+        removeDelayedBroadcastMatching("Your sync has been temporarily disabled");
+        broadcastMessage(std::string("Your syncs have been temporarily disabled. Reason: ")
                          .append(MegaSync::getMegaSyncErrorCode(event->getNumber()))), true;
     }
     else if (event->getType() == MegaEvent::EVENT_SYNC_RESTORED)
     {
-        broadcastMessage("Your syncs have been re-enabled.", true); //TODO: ideally remove all Your syncs have been disabled msgs from queue
+        removeGreetingMatching("Your syncs have been temporarily disabled");
+        broadcastMessage("Your syncs have been re-enabled.", true);
     }
-
 }
 
 
@@ -434,6 +435,13 @@ void MegaCmdMegaListener::onSyncAdded(MegaApi *api, MegaSync *sync, int addition
 {
     LOG_verbose << "Sync added: " << sync->getLocalFolder() << " to " << sync->getMegaFolder()
                 << ". Adding state = " << additionState;
+
+    if (!ConfigurationManager::getConfigurationValue("firstSyncConfigured", false))
+    {
+        api->sendEvent(MCMD_EVENT_FIRST_CONFIGURED_SYNC_ID,
+                   MCMD_EVENT_FIRST_CONFIGURED_SYNC_MESSAGE);
+        ConfigurationManager::savePropertyValue("firstSyncConfigured", true);
+    }
 }
 
 void MegaCmdMegaListener::onSyncDisabled(MegaApi *api, MegaSync *sync)
@@ -448,10 +456,7 @@ void MegaCmdMegaListener::onSyncDisabled(MegaApi *api, MegaSync *sync)
         msg.append(sync->getMegaFolder());
         msg.append(". Reason: ");
         msg.append(sync->getMegaSyncErrorCode());
-        broadcastMessage(msg, true);
-
-        //TODO: ideally, this message shouldn't be shown if EVENT_SYNC_DISABLED is received afterwards.
-        // but how can we foresee that future?
+        broadcastDelayedMessage(msg, true);
     }
     LOG_warn << "Sync disabled: " << sync->getLocalFolder() << " to " << sync->getMegaFolder()
              << ". Reason: " << sync->getMegaSyncErrorCode();
@@ -464,7 +469,7 @@ void MegaCmdMegaListener::onSyncEnabled(MegaApi *api, MegaSync *sync)
 
 void MegaCmdMegaListener::onSyncDeleted(MegaApi *api, MegaSync *sync)
 {
-    LOG_verbose << "Sync added: " << sync->getLocalFolder() << " to " << sync->getMegaFolder();
+    LOG_verbose << "Sync deleted: " << sync->getLocalFolder() << " to " << sync->getMegaFolder();
 }
 
 #endif

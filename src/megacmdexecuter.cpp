@@ -999,7 +999,7 @@ bool MegaCmdExecuter::checkNoErrors(int errorCode, string message)
     return checkNoErrors(&e, message);
 }
 
-bool MegaCmdExecuter::checkNoErrors(MegaError *error, string message)
+bool MegaCmdExecuter::checkNoErrors(MegaError *error, string message, SyncError syncError)
 {
     if (!error)
     {
@@ -1008,6 +1008,10 @@ bool MegaCmdExecuter::checkNoErrors(MegaError *error, string message)
     }
     if (error->getErrorCode() == MegaError::API_OK)
     {
+        if (syncError)
+        {
+            LOG_info << "Able to " << message << ", but received syncError: " << MegaSync::getMegaSyncErrorCode(syncError);
+        }
         return true;
     }
 
@@ -1025,7 +1029,16 @@ bool MegaCmdExecuter::checkNoErrors(MegaError *error, string message)
     }
     else
     {
-        LOG_err << "Failed to " << message << ": " << error->getErrorString();
+        if (syncError)
+        {
+            LOG_err << "Failed to " << message << ": " << error->getErrorString()
+                    << ". " << MegaSync::getMegaSyncErrorCode(syncError);
+        }
+        else
+        {
+            LOG_err << "Failed to " << message << ": " << error->getErrorString();
+        }
+
     }
 
     return false;
@@ -4114,11 +4127,9 @@ void MegaCmdExecuter::printTransferColumnDisplayer(ColumnDisplayer *cd, MegaTran
 
 void MegaCmdExecuter::printSyncHeader(ColumnDisplayer &cd)
 {
-    // add headers with unfixed width
+    // add headers with unfixed width (those that can be ellided)
     cd.addHeader("LOCALPATH", false);
     cd.addHeader("REMOTEPATH", false);
-    //TODO: STATE will probably be required too . TODO: review all this
-    cd.addHeader("ERROR", false);
     return;
 
 }
@@ -4615,7 +4626,7 @@ bool MegaCmdExecuter::isValidFolder(string destiny)
     return isdestinyavalidfolder;
 }
 
-void MegaCmdExecuter::restartsyncs() //TODO: review & retest this. disable+enable?
+void MegaCmdExecuter::restartsyncs()
 {
     std::unique_ptr<MegaSyncList> syncs{api->getSyncs()};
     for (int i = 0; i < syncs->size(); i++)
@@ -7657,7 +7668,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
                     api->syncFolder(path.c_str(), n, megaCmdListener);
                     megaCmdListener->wait();
-                    if (checkNoErrors(megaCmdListener->getError(), "sync folder")) //TODO: overload checkNoErrors with syncError?
+                    if (checkNoErrors(megaCmdListener->getError(), "sync folder", static_cast<SyncError>(megaCmdListener->getRequest()->getNumDetails())))
                     {
                         string localpath(megaCmdListener->getRequest()->getFile());
                         SyncError syncError = static_cast<SyncError>(megaCmdListener->getRequest()->getNumDetails());
@@ -7666,7 +7677,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         LOG_info << "Added sync: " << megaCmdListener->getRequest()->getFile() << " to " << localpath;
                         if (syncError != API_OK)
                         {
-                            LOG_warn << "Sync added as temporarily disabled. Reason: " << MegaSync::getMegaSyncErrorCode(syncError);
+                            LOG_err << "Sync added as temporarily disabled. Reason: " << MegaSync::getMegaSyncErrorCode(syncError);
                         }
 
                         delete []nodepath;
@@ -7717,7 +7728,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 auto megaCmdListener = ::mega::make_unique<MegaCmdListener>(nullptr);
                 api->disableSync(sync.get(), megaCmdListener.get());
                 megaCmdListener->wait();
-                if (checkNoErrors(megaCmdListener->getError(), "stop sync"))
+                if (checkNoErrors(megaCmdListener->getError(), "stop sync", static_cast<SyncError>(megaCmdListener->getRequest()->getNumDetails())))
                 {
                     LOG_info << "Sync disabled (stopped): " << sync->getLocalFolder() << " to " << sync->getMegaFolder();
                 }
@@ -7727,7 +7738,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 auto megaCmdListener = ::mega::make_unique<MegaCmdListener>(nullptr);
                 api->enableSync(sync.get(), megaCmdListener.get());
                 megaCmdListener->wait();
-                if (checkNoErrors(megaCmdListener->getError(), "enable sync"))
+                if (checkNoErrors(megaCmdListener->getError(), "enable sync", static_cast<SyncError>(megaCmdListener->getRequest()->getNumDetails())))
                 {
                     LOG_info << "Sync re-enabled: " << sync->getLocalFolder() << " to " << sync->getMegaFolder();
                 }
@@ -7737,7 +7748,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 auto megaCmdListener = ::mega::make_unique<MegaCmdListener>(nullptr);
                 api->removeSync(sync.get(), megaCmdListener.get());
                 megaCmdListener->wait();
-                if (checkNoErrors(megaCmdListener->getError(), "remove sync"))
+                if (checkNoErrors(megaCmdListener->getError(), "remove sync", static_cast<SyncError>(megaCmdListener->getRequest()->getNumDetails())))
                 {
                     OUTSTREAM << "Sync removed: " << sync->getLocalFolder() << " to " << sync->getMegaFolder() << endl;
                     return;
