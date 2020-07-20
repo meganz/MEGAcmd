@@ -140,14 +140,14 @@ int ComunicationsManagerFileSockets::initialize()
     MegaFileSystemAccess *fsAccess = new MegaFileSystemAccess();
     char csocketsFolder[34]; // enough to hold all numbers up to 64-bits
     sprintf(csocketsFolder, "/tmp/megaCMD_%d", getuid());
-    string socketsFolder = csocketsFolder;
+    LocalPath socketsFolder = LocalPath::fromPath(csocketsFolder, *fsAccess);
 
     fsAccess->setdefaultfolderpermissions(0700);
-    fsAccess->rmdirlocal(&socketsFolder);
-    LOG_debug << "CREATING sockets folder: " << socketsFolder << "!!!";
-    if (!fsAccess->mkdirlocal(&socketsFolder, false))
+    fsAccess->rmdirlocal(socketsFolder);
+    LOG_debug << "CREATING sockets folder: " << socketsFolder.toPath(*fsAccess) << "!!!";
+    if (!fsAccess->mkdirlocal(socketsFolder, false))
     {
-        LOG_fatal << "ERROR CREATING sockets folder: " << socketsFolder << ": " << errno;
+        LOG_fatal << "ERROR CREATING sockets folder: " << socketsFolder.toPath(*fsAccess) << ": " << errno;
     }
     delete fsAccess;
 
