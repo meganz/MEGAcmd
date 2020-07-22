@@ -303,13 +303,13 @@ void MegaCmdGlobalListener::onEvent(MegaApi *api, MegaEvent *event)
     {
         sandboxCMD->receivedStorageSum = event->getNumber();
     }
-    else if (event->getType() == MegaEvent::EVENT_SYNC_DISABLED)
+    else if (event->getType() == MegaEvent::EVENT_SYNCS_DISABLED)
     {
         removeDelayedBroadcastMatching("Your sync has been temporarily disabled");
         broadcastMessage(std::string("Your syncs have been temporarily disabled. Reason: ")
                          .append(MegaSync::getMegaSyncErrorCode(event->getNumber()))), true;
     }
-    else if (event->getType() == MegaEvent::EVENT_SYNC_RESTORED)
+    else if (event->getType() == MegaEvent::EVENT_SYNCS_RESTORED)
     {
         removeGreetingMatching("Your syncs have been temporarily disabled");
         broadcastMessage("Your syncs have been re-enabled.", true);

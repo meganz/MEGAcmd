@@ -3494,8 +3494,8 @@ long long MegaCmdExecuter::getVersionsSize(MegaNode *n)
 
 void MegaCmdExecuter::getInfoFromFolder(MegaNode *n, MegaApi *api, long long *nfiles, long long *nfolders, long long *nversions)
 {
-    MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
-    api->getFolderInfo(n, megaCmdListener);
+    std::unique_ptr<MegaCmdListener>megaCmdListener = ::mega::make_unique<MegaCmdListener>(nullptr);
+    api->getFolderInfo(n, megaCmdListener.get());
     *nfiles = 0;
     *nfolders = 0;
     megaCmdListener->wait();
@@ -3510,7 +3510,6 @@ void MegaCmdExecuter::getInfoFromFolder(MegaNode *n, MegaApi *api, long long *nf
             {
                 *nversions = mfi->getNumVersions();
             }
-            delete mfi;
         }
     }
 }
