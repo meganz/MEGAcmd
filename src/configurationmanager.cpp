@@ -129,11 +129,10 @@ void ConfigurationManager::loadConfigDir()
     configFolder = sconfigDir.str();
 #endif
 
-    string localConfigFolder;
     MegaFileSystemAccess *fsAccess = new MegaFileSystemAccess();
     fsAccess->setdefaultfolderpermissions(0700);
-    fsAccess->path2local(&configFolder, &localConfigFolder);
-    if (!is_file_exist(configFolder.c_str()) && !fsAccess->mkdirlocal(&localConfigFolder, true))
+    LocalPath localConfigFolder = LocalPath::fromPath(configFolder, *fsAccess);
+    if (!is_file_exist(configFolder.c_str()) && !fsAccess->mkdirlocal(localConfigFolder, true))
     {
         LOG_err << "Config folder not created";
     }

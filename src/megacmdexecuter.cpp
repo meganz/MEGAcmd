@@ -1451,10 +1451,9 @@ void MegaCmdExecuter::dumpNodeSummary(MegaNode *n, const char *timeFormat, std::
 
 void MegaCmdExecuter::createOrModifyBackup(string local, string remote, string speriod, int numBackups)
 {
-    string locallocal;
-    fsAccessCMD->path2local(&local, &locallocal);
+    LocalPath locallocal = LocalPath::fromPath(local, *fsAccessCMD);
     std::unique_ptr<FileAccess> fa = fsAccessCMD->newfileaccess();
-    if (!fa->isfolder(&locallocal))
+    if (!fa->isfolder(locallocal))
     {
         setCurrentOutCode(MCMD_NOTFOUND);
         LOG_err << "Local path must be an existing folder: " << local;
@@ -1784,10 +1783,9 @@ bool MegaCmdExecuter::TestCanWriteOnContainingFolder(string *path)
         fsAccessCMD->local2path(&firstpartlocal, &containingFolder);
     }
 
-    string localcontainingFolder;
-    fsAccessCMD->path2local(&containingFolder, &localcontainingFolder);
+    LocalPath localcontainingFolder = LocalPath::fromPath(containingFolder, *fsAccessCMD);
     std::unique_ptr<FileAccess> fa = fsAccessCMD->newfileaccess();
-    if (!fa->isfolder(&localcontainingFolder))
+    if (!fa->isfolder(localcontainingFolder))
     {
         setCurrentOutCode(MCMD_INVALIDTYPE);
         LOG_err << containingFolder << " is not a valid Download Folder";
@@ -3109,10 +3107,9 @@ void MegaCmdExecuter::uploadNode(string path, MegaApi* api, MegaNode *node, stri
     }
     unescapeifRequired(path);
 
-    string locallocal;
-    fsAccessCMD->path2local(&path, &locallocal);
+    LocalPath locallocal = LocalPath::fromPath(path, *fsAccessCMD);
     std::unique_ptr<FileAccess> fa = fsAccessCMD->newfileaccess();
-    if (!fa->fopen(&locallocal, true, false))
+    if (!fa->fopen(locallocal, true, false))
     {
         setCurrentOutCode(MCMD_NOTFOUND);
         LOG_err << "Unable to open local path: " << path;
@@ -3871,10 +3868,9 @@ bool MegaCmdExecuter::IsFolder(string path)
 #ifdef _WIN32
     replaceAll(path,"/","\\");
 #endif
-    string localpath;
-    fsAccessCMD->path2local(&path, &localpath);
+    LocalPath localpath = LocalPath::fromPath(path, *fsAccessCMD);
     std::unique_ptr<FileAccess> fa = fsAccessCMD->newfileaccess();
-    return fa->isfolder(&localpath);
+    return fa->isfolder(localpath);
 }
 
 void MegaCmdExecuter::printTransfersHeader(const unsigned int PATHSIZE, bool printstate)
@@ -4509,12 +4505,11 @@ string MegaCmdExecuter::getLPWD()
 {
     string relativePath = ".";
     string absolutePath = "Unknown";
-    string localRelativePath;
-    fsAccessCMD->path2local(&relativePath, &localRelativePath);
-    string localAbsolutePath;
-    if (fsAccessCMD->expanselocalpath(&localRelativePath, &localAbsolutePath))
+    LocalPath localRelativePath = LocalPath::fromPath(relativePath, *fsAccessCMD);
+    LocalPath localAbsolutePath;
+    if (fsAccessCMD->expanselocalpath(localRelativePath, localAbsolutePath))
     {
-        fsAccessCMD->local2path(&localAbsolutePath, &absolutePath);
+        absolutePath = localAbsolutePath.toPath(*fsAccessCMD);
     }
 
     return absolutePath;
@@ -4873,15 +4868,12 @@ bool MegaCmdExecuter::establishBackup(string pathToBackup, MegaNode *n, int64_t 
 {
     bool attendpastbackups = true; //TODO: receive as parameter
     static int backupcounter = 0;
-    string path;
-    string localrelativepath;
-    string localabsolutepath;
-    fsAccessCMD->path2local(&pathToBackup, &localrelativepath);
-    fsAccessCMD->expanselocalpath(&localrelativepath, &localabsolutepath);
-    fsAccessCMD->local2path(&localabsolutepath, &path);
+    LocalPath localrelativepath = LocalPath::fromPath(pathToBackup, *fsAccessCMD);
+    LocalPath localabsolutepath;
+    fsAccessCMD->expanselocalpath(localrelativepath, localabsolutepath);
 
     MegaCmdListener *megaCmdListener = new MegaCmdListener(api, NULL);
-    api->setBackup(path.c_str(), n, attendpastbackups, period, speriod.c_str(), numBackups, megaCmdListener);
+    api->setBackup(localabsolutepath.toPath(*fsAccessCMD).c_str(), n, attendpastbackups, period, speriod.c_str(), numBackups, megaCmdListener);
     megaCmdListener->wait();
     if (checkNoErrors(megaCmdListener->getError(), "establish backup"))
     {
@@ -7062,9 +7054,8 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
     {
         if (words.size() > 1)
         {
-            string localpath;
-            fsAccessCMD->path2local(&words[1], &localpath);
-            if (fsAccessCMD->chdirlocal(&localpath)) // maybe this is already checked in chdir
+            LocalPath localpath = LocalPath::fromPath(words[1], *fsAccessCMD);
+            if (fsAccessCMD->chdirlocal(localpath)) // maybe this is already checked in chdir
             {
                 LOG_debug << "Local folder changed to: " << words[1];
             }
@@ -7722,12 +7713,10 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         mtxSyncMap.lock();
         if (words.size() == 3)
         {
-            string path;
-            string localrelativepath;
-            string localabsolutepath;
-            fsAccessCMD->path2local(&words[1], &localrelativepath);
-            fsAccessCMD->expanselocalpath(&localrelativepath, &localabsolutepath);
-            fsAccessCMD->local2path(&localabsolutepath, &path);
+            LocalPath localRelativePath = LocalPath::fromPath(words[1], *fsAccessCMD);
+            LocalPath localAbsolutePath = localRelativePath;
+            fsAccessCMD->expanselocalpath(localRelativePath, localAbsolutePath);
+
             MegaNode* n = nodebypath(words[2].c_str());
             if (n)
             {
@@ -7740,7 +7729,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     std::lock_guard<std::recursive_mutex> g(ConfigurationManager::settingsMutex);
 
                     MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
-                    api->syncFolder(path.c_str(), n, megaCmdListener);
+                    api->syncFolder(localAbsolutePath.toPath(*fsAccessCMD).c_str(), n, megaCmdListener);
                     megaCmdListener->wait();
                     if (checkNoErrors(megaCmdListener->getError(), "sync folder"))
                     {
@@ -7749,7 +7738,6 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         thesync->handle = megaCmdListener->getRequest()->getNodeHandle();
                         thesync->localpath = string(megaCmdListener->getRequest()->getFile());
                         thesync->fingerprint = megaCmdListener->getRequest()->getNumber();
-
 
                         if (ConfigurationManager::configuredSyncs.find(megaCmdListener->getRequest()->getFile()) != ConfigurationManager::configuredSyncs.end())
                         {
@@ -7786,7 +7774,6 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             int i = 0;
             bool foundsync = false;
             std::lock_guard<std::recursive_mutex> g(ConfigurationManager::settingsMutex);
-
             for (itr = ConfigurationManager::configuredSyncs.begin(); itr != ConfigurationManager::configuredSyncs.end(); i++)
             {
                 string key = ( *itr ).first;
