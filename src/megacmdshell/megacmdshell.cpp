@@ -2199,7 +2199,11 @@ void mycompletefunct(char **c, int num_matches, int max_length)
 std::string readresponse(const char* question)
 {
     string response;
-    response = readline(question);
+    auto responseRaw = readline(question);
+    if (responseRaw)
+    {
+        response = responseRaw;
+    }
     rl_set_prompt("");
     rl_replace_line("", 0);
 
