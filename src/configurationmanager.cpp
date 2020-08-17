@@ -683,15 +683,18 @@ bool ConfigurationManager::lockExecution()
     if (configFolder.size())
     {
         stringstream lockfile;
+#ifdef _WIN32
+        lockfile << "\\\\?\\";
+        lockfile << configFolder << "\\" << "lockMCMD";
+#else
         lockfile << configFolder << "/" << "lockMCMD";
-
+#endif
         LOG_err << "Lock file: " << lockfile.str();
 
 #ifdef _WIN32
         string wlockfile;
         MegaApi::utf8ToUtf16(lockfile.str().c_str(),&wlockfile);
-        OFSTRUCT offstruct;
-        if (LZOpenFileW((LPWSTR)wlockfile.data(), &offstruct, OF_CREATE | OF_READWRITE |OF_SHARE_EXCLUSIVE ) == HFILE_ERROR)
+        if (CreateFileW((LPCWSTR)(wlockfile).data(),GENERIC_READ | GENERIC_WRITE,0,NULL,CREATE_ALWAYS,FILE_ATTRIBUTE_NORMAL,NULL) == INVALID_HANDLE_VALUE)
         {
             return false;
         }
