@@ -36,7 +36,7 @@ using std::left;
 
 #ifdef _WIN32
 namespace mega {
-std::ostringstream & operator<< ( std::ostringstream & ostr, const std::wstring str);
+std::ostringstream & operator<< ( std::ostringstream & ostr, const std::wstring & str);
 }
 #endif
 
