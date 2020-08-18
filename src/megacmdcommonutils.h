@@ -34,6 +34,12 @@
 using std::setw;
 using std::left;
 
+#ifdef _WIN32
+namespace mega {
+std::ostringstream & operator<< ( std::ostringstream & ostr, const std::wstring str);
+}
+#endif
+
 namespace megacmd {
 
 /* platform dependent */
@@ -47,7 +53,6 @@ namespace megacmd {
 
 std::wostream & operator<< ( std::wostream & ostr, std::string const & str );
 std::wostream & operator<< ( std::wostream & ostr, const char * str );
-std::ostringstream & operator<< ( std::ostringstream & ostr, std::wstring const &str);
 
 void stringtolocalw(const char* path, std::wstring* local);
 void localwtostring(const std::wstring* wide, std::string *multibyte);
