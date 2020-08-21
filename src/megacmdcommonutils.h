@@ -35,8 +35,13 @@ using std::setw;
 using std::left;
 
 #ifdef _WIN32
-namespace mega {
-std::ostringstream & operator<< ( std::ostringstream & ostr, const std::wstring & str);
+namespace mega{
+
+// Note: these was in megacmd namespace, but after one overload of operator<< was created within mega,
+// ADL did not seem to be able to find it when solving template resolution in loggin.h (namespace mega),
+// even for code coming from megacmd namespace.
+// placing this operator in mega namespace eases ADL lookup and allows compilation
+std::ostringstream & operator<< ( std::ostringstream & ostr, std::wstring const &str); //override for the log, otherwise SimpleLog won't compile.
 }
 #endif
 
@@ -51,6 +56,7 @@ namespace megacmd {
 #define COUT std::wcout
 #define CERR std::wcerr
 
+//override << operators for wostream for string and const char *
 std::wostream & operator<< ( std::wostream & ostr, std::string const & str );
 std::wostream & operator<< ( std::wostream & ostr, const char * str );
 

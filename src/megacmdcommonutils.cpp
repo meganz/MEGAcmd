@@ -49,17 +49,14 @@ std::ostringstream & operator<< ( std::ostringstream & ostr, const std::wstring 
 
 namespace megacmd {
 using namespace std;
+
 #ifdef _WIN32
-
-//override << operators for wostream for string and const char *
-
 std::wostream & operator<< ( std::wostream & ostr, std::string const & str )
 {
     std::wstring toout;
     stringtolocalw(str.c_str(),&toout);
     ostr << toout;
-
-return ( ostr );
+    return ( ostr );
 }
 
 std::wostream & operator<< ( std::wostream & ostr, const char * str )
