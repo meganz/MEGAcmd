@@ -4015,7 +4015,16 @@ void megacmd()
                 isOSdeprecated = true;
 #endif
 
-#ifdef __APPLE__
+
+#ifdef _WIN32
+                OSVERSIONINFOEX osvi;
+                ZeroMemory(&osvi, sizeof(OSVERSIONINFOEX));
+                osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEX);
+                if (GetVersionEx((OSVERSIONINFO*)&osvi) && osvi.dwMajorVersion < 6)
+                {
+                    isOSdeprecated = true;
+                }
+#elif defined(__APPLE__)
                 char releaseStr[256];
                 size_t size = sizeof(releaseStr);
                 if (!sysctlbyname("kern.osrelease", releaseStr, &size, NULL, 0)  && size > 0)

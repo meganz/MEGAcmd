@@ -1,5 +1,5 @@
 #!/usr/bin/make -f
-CPPFLAGS := $(shell cat /etc/issue | grep "Ubuntu 1[2357]\|Debian.* 7\|Ubuntu 1[46].10" >/dev/null && echo "$$CPPFLAGS -DMEGACMD_DEPRECATED_OS" || echo "")
+CPPFLAGS := $(shell cat /etc/issue | grep "Ubuntu 1[2357]\|Debian.* [78]\|Ubuntu 1[46].10" >/dev/null && echo "$$CPPFLAGS -DMEGACMD_DEPRECATED_OS" || echo "")
 FCRYPTOPP := $(shell cat /etc/issue | grep "Ubuntu 19.10\|Ubuntu [2-9][0-9]" >/dev/null && echo "-q" || echo " ")
 WCRYPTOPP := $(shell cat /etc/issue | grep "Ubuntu 19.10\|Ubuntu [2-9][0-9]" >/dev/null && echo "--with-cryptopp=$(CURDIR)/deps" || echo " ")
 FMEDIAINFO := $(shell dpkg -l | grep mediainfo >/dev/null && echo "-i" || echo " ")
