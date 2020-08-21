@@ -693,8 +693,8 @@ bool ConfigurationManager::lockExecution()
 
 #ifdef _WIN32
         string wlockfile;
-        MegaApi::utf8ToUtf16(lockfile.str().c_str(),&wlockfile);
-        if (CreateFileW((LPCWSTR)(wlockfile).data(),GENERIC_READ | GENERIC_WRITE,0,NULL,CREATE_ALWAYS,FILE_ATTRIBUTE_NORMAL,NULL) == INVALID_HANDLE_VALUE)
+        MegaApi::utf8ToUtf16(lockfile.str().c_str(), &wlockfile);
+        if (CreateFileW((LPCWSTR)(wlockfile).data(), GENERIC_READ | GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL) == INVALID_HANDLE_VALUE)
         {
             return false;
         }
