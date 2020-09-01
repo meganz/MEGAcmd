@@ -530,6 +530,7 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validParams->insert("a");
         validParams->insert("d");
         validParams->insert("f");
+        validParams->insert("writable");
         validOptValues->insert("expire");
         validOptValues->insert("password");
 #ifdef USE_PCRE
@@ -648,6 +649,7 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     {
         validOptValues->insert("clientID");
         validOptValues->insert("auth-code");
+        validOptValues->insert("auth-key");
     }
     else if ("psa" == thecommand)
     {

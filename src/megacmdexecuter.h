@@ -119,7 +119,7 @@ public:
     int deleteNodeVersions(mega::MegaNode *nodeToDelete, mega::MegaApi* api, int force = 0);
     void downloadNode(std::string localPath, mega::MegaApi* api, mega::MegaNode *node, bool background, bool ignorequotawar, int clientID, MegaCmdMultiTransferListener *listener = NULL);
     void uploadNode(std::string localPath, mega::MegaApi* api, mega::MegaNode *node, std::string newname, bool background, bool ignorequotawarn, int clientID, MegaCmdMultiTransferListener *multiTransferListener = NULL);
-    void exportNode(mega::MegaNode *n, int64_t expireTime, std::string password = std::string(), bool force = false);
+    void exportNode(mega::MegaNode *n, int64_t expireTime, std::string password = std::string(), bool force = false, bool writable = false);
     void disableExport(mega::MegaNode *n);
     void shareNode(mega::MegaNode *n, std::string with, int level = mega::MegaShare::ACCESS_READ);
     void disableShare(mega::MegaNode *n, std::string with);
