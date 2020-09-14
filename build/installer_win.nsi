@@ -213,7 +213,7 @@ Function .onInit
   !insertmacro MUI_LANGDLL_DISPLAY
 
 ${IfNot} ${AtLeastWin7}
-  MessageBox MB_OK "This MEGAsync installer is for Windows 7 or above"
+  MessageBox MB_OK "This MEGAcmd installer is for Windows 7 or above"
   Quit
 ${EndIf}
 
