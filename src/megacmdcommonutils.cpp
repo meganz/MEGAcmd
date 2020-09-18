@@ -36,7 +36,8 @@
 
 #ifdef _WIN32
 namespace mega {
-std::ostringstream & operator<< ( std::ostringstream & ostr, std::wstring const &str)
+//override for the log. This is required for compiling, otherwise SimpleLog won't compile.
+std::ostringstream & operator<< ( std::ostringstream & ostr, const std::wstring & str)
 {
     std::string s;
     megacmd::localwtostring(&str,&s);
@@ -55,8 +56,7 @@ std::wostream & operator<< ( std::wostream & ostr, std::string const & str )
     std::wstring toout;
     stringtolocalw(str.c_str(),&toout);
     ostr << toout;
-
-return ( ostr );
+    return ( ostr );
 }
 
 std::wostream & operator<< ( std::wostream & ostr, const char * str )
@@ -66,6 +66,7 @@ std::wostream & operator<< ( std::wostream & ostr, const char * str )
     ostr << toout;
     return ( ostr );
 }
+
 // convert UTF-8 to Windows Unicode wstring
 void stringtolocalw(const char* path, std::wstring* local)
 {
