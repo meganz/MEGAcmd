@@ -1178,10 +1178,10 @@ void MegaCmdExecuter::dumpNode(MegaNode* n, const char *timeFormat, std::map<std
                                 OUTSTREAM << " expires at ";
                             }
 
-                            std::unique_ptr<const char[]> authKey(api->getAuthKey(n->getHandle()));
-                            if (authKey && strlen(authKey.get()))
+                            string authKey(n->getWritableLinkAuthKey());
+                            if (authKey.size())
                             {
-                                OUTSTREAM << " AuthKey="<< authKey.get();
+                                OUTSTREAM << " AuthKey="<< authKey;
                             }
 
                             OUTSTREAM << " at " << getReadableTime(n->getExpirationTime(), timeFormat);
@@ -1242,10 +1242,10 @@ void MegaCmdExecuter::dumpNode(MegaNode* n, const char *timeFormat, std::map<std
                             char * publicLink = n->getPublicLink();
                             OUTSTREAM << ": " << publicLink;
 
-                            std::unique_ptr<const char[]> authKey(api->getAuthKey(n->getHandle()));
-                            if (authKey && strlen(authKey.get()))
+                            string authKey(n->getWritableLinkAuthKey());
+                            if (authKey.size())
                             {
-                                OUTSTREAM << " AuthKey="<< authKey.get();
+                                OUTSTREAM << " AuthKey="<< authKey;
                             }
 
                             delete []publicLink;
