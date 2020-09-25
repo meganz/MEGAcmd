@@ -34,19 +34,29 @@
 #include <limits.h>
 #include <iterator>
 
+#ifdef _WIN32
+namespace mega {
+//override for the log. This is required for compiling, otherwise SimpleLog won't compile.
+std::ostringstream & operator<< ( std::ostringstream & ostr, const std::wstring & str)
+{
+    std::string s;
+    megacmd::localwtostring(&str,&s);
+    ostr << s;
+    return ( ostr );
+}
+}
+#endif
+
 namespace megacmd {
 using namespace std;
+
 #ifdef _WIN32
-
-//override << operators for wostream for string and const char *
-
 std::wostream & operator<< ( std::wostream & ostr, std::string const & str )
 {
     std::wstring toout;
     stringtolocalw(str.c_str(),&toout);
     ostr << toout;
-
-return ( ostr );
+    return ( ostr );
 }
 
 std::wostream & operator<< ( std::wostream & ostr, const char * str )
@@ -54,15 +64,6 @@ std::wostream & operator<< ( std::wostream & ostr, const char * str )
     std::wstring toout;
     stringtolocalw(str,&toout);
     ostr << toout;
-    return ( ostr );
-}
-
-//override for the log. This is required for compiling, otherwise SimpleLog won't compile.
-std::ostringstream & operator<< ( std::ostringstream & ostr, std::wstring const &str)
-{
-    std::string s;
-    localwtostring(&str,&s);
-    ostr << s;
     return ( ostr );
 }
 
