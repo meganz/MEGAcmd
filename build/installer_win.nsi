@@ -21,10 +21,10 @@ VIAddVersionKey "LegalCopyright" "MEGA Limited 2019"
 VIAddVersionKey "ProductName" "MEGAcmd"
 
 ; Version info
-VIProductVersion "1.3.0.0"
-VIAddVersionKey "FileVersion" "1.3.0.0"
-VIAddVersionKey "ProductVersion" "1.3.0.0"
-!define PRODUCT_VERSION "1.3.0"
+VIProductVersion "1.4.0.0"
+VIAddVersionKey "FileVersion" "1.4.0.0"
+VIAddVersionKey "ProductVersion" "1.4.0.0"
+!define PRODUCT_VERSION "1.4.0"
 
 !define PRODUCT_PUBLISHER "Mega Limited"
 !define PRODUCT_WEB_SITE "http://www.mega.nz"
@@ -212,6 +212,11 @@ Function .onInit
   ;!insertmacro MUI_UNGETLANGUAGE
   !insertmacro MUI_LANGDLL_DISPLAY
 
+${IfNot} ${AtLeastWin7}
+  MessageBox MB_OK "This MEGAcmd installer is for Windows 7 or above"
+  Quit
+${EndIf}
+
 UserInfo::GetAccountType
 pop $0
 ${If} $0 != "admin" ;Require admin rights at least in win10; TODO: only ask for this if that's the case
@@ -273,19 +278,19 @@ modeselected:
   SetOverwrite try
   SetOutPath "$INSTDIR"
   
-  File "C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\redist\x86\Microsoft.VC140.CRT\vcruntime140.dll"
+  File "C:\Program Files (x86)\Microsoft Visual Studio\2017\Professional\VC\Redist\MSVC\14.16.27012\x86\Microsoft.VC141.CRT\vcruntime140.dll"
   AccessControl::SetFileOwner "$INSTDIR\vcruntime140.dll" "$USERNAME"
   AccessControl::GrantOnFile "$INSTDIR\vcruntime140.dll" "$USERNAME" "GenericRead + GenericWrite"
 
-  File "C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\redist\x86\Microsoft.VC140.CRT\msvcp140.dll"
+  File "C:\Program Files (x86)\Microsoft Visual Studio\2017\Professional\VC\Redist\MSVC\14.16.27012\x86\Microsoft.VC141.CRT\msvcp140.dll"
   AccessControl::SetFileOwner "$INSTDIR\msvcp140.dll" "$USERNAME"
   AccessControl::GrantOnFile "$INSTDIR\msvcp140.dll" "$USERNAME" "GenericRead + GenericWrite"
 
-  File "C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\redist\x86\Microsoft.VC140.CRT\concrt140.dll"
+  File "C:\Program Files (x86)\Microsoft Visual Studio\2017\Professional\VC\Redist\MSVC\14.16.27012\x86\Microsoft.VC141.CRT\concrt140.dll"
   AccessControl::SetFileOwner "$INSTDIR\concrt140.dll" "$USERNAME"
   AccessControl::GrantOnFile "$INSTDIR\concrt140.dll" "$USERNAME" "GenericRead + GenericWrite"  
 
-  File "C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\redist\x86\Microsoft.VC140.CRT\vccorlib140.dll"
+  File "C:\Program Files (x86)\Microsoft Visual Studio\2017\Professional\VC\Redist\MSVC\14.16.27012\x86\Microsoft.VC141.CRT\vccorlib140.dll"
   AccessControl::SetFileOwner "$INSTDIR\vccorlib140.dll" "$USERNAME"
   AccessControl::GrantOnFile "$INSTDIR\vccorlib140.dll" "$USERNAME" "GenericRead + GenericWrite"
 
