@@ -6754,7 +6754,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         mtxBackupsMap.lock();
                         ConfigurationManager::saveBackups(&ConfigurationManager::configuredBackups);
                         mtxBackupsMap.unlock();
-                        OUTSTREAM << " Backup removed succesffuly: " << local << endl;
+                        OUTSTREAM << " Backup removed successfully: " << local << endl;
                     }
                 }
                 else if (abort)
@@ -6764,7 +6764,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     megaCmdListener->wait();
                     if (checkNoErrors(megaCmdListener->getError(), "abort backup"))
                     {
-                        OUTSTREAM << " Backup aborted succesffuly: " << local << endl;
+                        OUTSTREAM << " Backup aborted successfully: " << local << endl;
                     }
                 }
                 else
@@ -6799,7 +6799,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                             ConfigurationManager::configuredBackups.erase(itr);
                             ConfigurationManager::saveBackups(&ConfigurationManager::configuredBackups);
                             mtxBackupsMap.unlock();
-                            OUTSTREAM << " Backup removed succesffuly: " << local << endl;
+                            OUTSTREAM << " Backup removed successfully: " << local << endl;
                             deletedok = true;
 
                             break;
