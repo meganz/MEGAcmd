@@ -14,11 +14,6 @@ TARGET = MEGAcmdShell
 TEMPLATE = app
 CONFIG += console
 
-win32 {
-CONFIG += noreadline
-CONFIG += USE_AUTOCOMPLETE
-DEFINES += NO_READLINE
-}
 
 include(../MEGAcmdCommon.pri)
 
