@@ -3465,6 +3465,7 @@ long long MegaCmdExecuter::getVersionsSize(MegaNode *n)
             MegaNode *versionNode = versionNodes->get(i);
             toret += api->getSize(versionNode);
         }
+        delete versionNodes;
     }
 
     MegaNodeList *children = api->getChildren(n);
