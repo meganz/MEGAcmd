@@ -5,7 +5,7 @@
 #define MEGACMD_MAJOR_VERSION 1
 #endif
 #ifndef MEGACMD_MINOR_VERSION
-#define MEGACMD_MINOR_VERSION 3
+#define MEGACMD_MINOR_VERSION 4
 #endif
 #ifndef MEGACMD_MICRO_VERSION
 #define MEGACMD_MICRO_VERSION 0
@@ -21,16 +21,21 @@
 namespace megacmd {
 
 const char * const megacmdchangelog =
-        "Fix --path-display-size for commands that use it and improve display for \"transfer\" & \"sync\"""\n"
-        "Support for blocked accounts with instructions to unblock them""\n"
-        "Fix crash in libcryptopp for Ubuntu 19.10 and onwards""\n"
-        "Fix issues with failed transfers""\n"
-        "Fix trailing separator issue for local path in \"put\"""\n"
-        "Speed up sync engine startup for windows""\n"
+        "Fix issues with backups timestamps in Raspbian and other OS""\n"
+        "Allow uploads when reached bandwidth overquota""\n"
+        "Fix for syncing mounted drives in Windows""\n"
+        "Fix issues in sync resumption for MacOS""\n"
+        "Improvements in filename escaping""\n"
+        "Improvements in transfers cancellation""\n"
+        "Improve uploads stalling in Windows""\n"
+        "Fix crash in MEGAcmd shell when typing CTRL+D while inserting 2FA code""\n"
+        "Warn incoming Windows XP deprecation""\n"
+        "Improvements in information messages""\n"
+        "Fix issues with too long paths in MEGAcmd server""\n"
+        "Prepare for over storage quota announcements""\n"
         "Other fixes & adjustments"
         ;
 
 }//end namespace
 #endif // VERSION_H
-
 
