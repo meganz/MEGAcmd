@@ -1900,6 +1900,8 @@ string getHelpStr(const char *command)
         os << " or into a folder (an exported/public folder)" << endl;
         os << " If logging into a folder indicate url#key" << endl;
         os << endl;
+        os << " Please, avoid using passwords containing \" or '." << endl;
+        os << endl;
         os << "Options:" << endl;
         os << " --auth-code=XXXX" << "\t" << "Two-factor Authentication code. More info: https://mega.nz/blog_48" << endl;
     }
@@ -1947,6 +1949,8 @@ string getHelpStr(const char *command)
     else if (!strcmp(command, "signup"))
     {
         os << "Register as user with a given email" << endl;
+        os << endl;
+        os << " Please, avoid using passwords containing \" or '" << endl;
         os << endl;
         os << "Options:" << endl;
         os << " --name=\"Your Name\"" << "\t" << "Name to register. e.g. \"John Smith\"" << endl;
@@ -2138,7 +2142,7 @@ string getHelpStr(const char *command)
         os << "If no remote path is provided, the current local folder will be used" << endl;
         os << "Exported links: Exported links are usually formed as publiclink#key." << endl;
         os << " Alternativelly you can provide a password-protected link and" << endl;
-        os << " provide the password with --password" << endl;
+        os << " provide the password with --password. Please, avoid using passwords containing \" or '" << endl;
     }
     else if (!strcmp(command, "put"))
     {
@@ -2170,7 +2174,8 @@ string getHelpStr(const char *command)
         os << endl;
         os << "Exported links: Exported links are usually formed as publiclink#key." << endl;
         os << " Alternativelly you can provide a password-protected link and" << endl;
-        os << " provide the password with --password" << endl;
+        os << " provide the password with --password. Please, avoid using passwords containing \" or '" << endl;
+        os << "" << endl;
         os << endl;
         os << "Options:" << endl;
         os << " -q" << "\t" << "queue download: execute in the background. Don't wait for it to end' " << endl;
@@ -2178,7 +2183,7 @@ string getHelpStr(const char *command)
         os << "                     downloaded one (preserving the existing files)" << endl;
         os << " --ignore-quota-warn" << "\t" << "ignore quota surpassing warning. " << endl;
         os << "                    " << "\t" << "  The download will be attempted anyway." << endl;
-        os << " --password=PASSWORD" << "\t" << "Password to decrypt the password-protected link." << endl;
+        os << " --password=PASSWORD" << "\t" << "Password to decrypt the password-protected link. Please, avoid using passwords containing \" or '" << endl;
 #ifdef USE_PCRE
         os << " --use-pcre" << "\t" << "use PCRE expressions" << endl;
 #endif
@@ -2485,7 +2490,7 @@ string getHelpStr(const char *command)
         os << " --use-pcre" << "\t" << "use PCRE expressions" << endl;
 #endif
         os << " -a" << "\t" << "Adds an export (or modifies it if existing)" << endl;
-        os << " --password=PASSWORD" << "\t" << "Protects link with password." << endl;
+        os << " --password=PASSWORD" << "\t" << "Protects link with password. Please, avoid using passwords containing \" or '" << endl;
         os << " --expire=TIMEDELAY" << "\t" << "Determines the expiration time of a node." << endl;
         os << "                   " << "\t" << "   It indicates the delay in hours(h), days(d), " << endl;
         os << "                   " << "\t"  << "   minutes(M), seconds(s), months(m) or years(y)" << endl;
@@ -2651,7 +2656,7 @@ string getHelpStr(const char *command)
         os << " --none" << "\t" << "To disable using a proxy" << endl;
         os << " --auto" << "\t" << "To use the proxy configured in your system" << endl;
         os << " --username=USERNAME" << "\t" << "The username, for authenticated proxies" << endl;
-        os << " --password=PASSWORD" << "\t" << "The password, for authenticated proxies" << endl;
+        os << " --password=PASSWORD" << "\t" << "The password, for authenticated proxies. Please, avoid using passwords containing \" or '" << endl;
 
     }
     else if (!strcmp(command, "cat"))
@@ -2676,6 +2681,8 @@ string getHelpStr(const char *command)
         os << endl;
         os << "Notice that modifying the password will close all your active sessions" << endl;
         os << " in all your devices (except for the current one)" << endl;
+        os << endl;
+        os << " Please, avoid using passwords containing \" or '" << endl;
         os << endl;
         os << "Options:" << endl;
         os << " -f   " << "\t" << "Force (no asking)" << endl;
@@ -4097,7 +4104,16 @@ void megacmd()
                 isOSdeprecated = true;
 #endif
 
-#ifdef __APPLE__
+
+#ifdef _WIN32
+                OSVERSIONINFOEX osvi;
+                ZeroMemory(&osvi, sizeof(OSVERSIONINFOEX));
+                osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEX);
+                if (GetVersionEx((OSVERSIONINFO*)&osvi) && osvi.dwMajorVersion < 6)
+                {
+                    isOSdeprecated = true;
+                }
+#elif defined(__APPLE__)
                 char releaseStr[256];
                 size_t size = sizeof(releaseStr);
                 if (!sysctlbyname("kern.osrelease", releaseStr, &size, NULL, 0)  && size > 0)

@@ -219,6 +219,24 @@ void printWelcomeMsg(unsigned int width = 0);
 void install_rl_handler(const char *theprompt, bool external = true);
 #endif
 
+std::mutex lastMessageMutex;
+std::string lastMessage;
+bool notRepeatedMessage(const string &newMessage)
+{
+    std::lock_guard<std::mutex> g(lastMessageMutex);
+    bool toret = lastMessage.compare(newMessage);
+    if (toret)
+    {
+        lastMessage = newMessage;
+    }
+    return toret;
+}
+void cleanLastMessage()
+{
+    std::lock_guard<std::mutex> g(lastMessageMutex);
+    lastMessage = string();
+}
+
 void statechangehandle(string statestring)
 {
     char statedelim[2]={(char)0x1F,'\0'};
@@ -227,8 +245,6 @@ void statechangehandle(string statestring)
 
     unsigned int width = getNumberOfCols(75);
     if (width > 1 ) width--;
-
-    static string lastMessage;
 
     while (nextstatedelimitpos!=string::npos && statestring.size())
     {
@@ -289,10 +305,8 @@ void statechangehandle(string statestring)
         }
         else if (newstate.compare(0, strlen("message:"), "message:") == 0)
         {
-            if (lastMessage.compare(newstate)) //to avoid repeating messages
+            if (notRepeatedMessage(newstate)) //to avoid repeating messages
             {
-                lastMessage = newstate;
-
                 MegaCmdShellCommunications::megaCmdStdoutputing.lock();
 #ifdef _WIN32
                 int oldmode = _setmode(_fileno(stdout), _O_U8TEXT);
@@ -1905,6 +1919,8 @@ void readloop()
 
         }
 
+        cleanLastMessage();// clean last message that avoids broadcasts repetitions
+
         mutexPrompt.lock();
         // save line
         saved_point = rl_point;
@@ -2018,6 +2034,8 @@ void readloop()
                 }
             }
         }
+
+        cleanLastMessage();// clean last message that avoids broadcasts repetitions
 
         if (line)
         {
@@ -2181,7 +2199,11 @@ void mycompletefunct(char **c, int num_matches, int max_length)
 std::string readresponse(const char* question)
 {
     string response;
-    response = readline(question);
+    auto responseRaw = readline(question);
+    if (responseRaw)
+    {
+        response = responseRaw;
+    }
     rl_set_prompt("");
     rl_replace_line("", 0);
 
