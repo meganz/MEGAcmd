@@ -41,8 +41,9 @@ private:
     static void loadConfigDir();
 
 
+    static void removeSyncConfig(sync_struct *syncToRemove);
 public:
-    static std::map<std::string, sync_struct *> configuredSyncs;
+    static std::map<std::string, sync_struct *> oldConfiguredSyncs; //This will refer to old syncs from now on
     static std::map<std::string, backup_struct *> configuredBackups;
 
     static std::recursive_mutex settingsMutex;
@@ -241,6 +242,7 @@ public:
 
     static void unloadConfiguration();
 
+    static void migrateSyncConfig(mega::MegaApi *api);
 };
 
 }//end namespace

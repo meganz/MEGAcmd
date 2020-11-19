@@ -999,7 +999,7 @@ bool MegaCmdExecuter::checkNoErrors(int errorCode, string message)
     return checkNoErrors(&e, message);
 }
 
-bool MegaCmdExecuter::checkNoErrors(MegaError *error, string message)
+bool MegaCmdExecuter::checkNoErrors(MegaError *error, string message, SyncError syncError)
 {
     if (!error)
     {
@@ -1008,6 +1008,10 @@ bool MegaCmdExecuter::checkNoErrors(MegaError *error, string message)
     }
     if (error->getErrorCode() == MegaError::API_OK)
     {
+        if (syncError)
+        {
+            LOG_info << "Able to " << message << ", but received syncError: " << MegaSync::getMegaSyncErrorCode(syncError);
+        }
         return true;
     }
 
@@ -1025,7 +1029,16 @@ bool MegaCmdExecuter::checkNoErrors(MegaError *error, string message)
     }
     else
     {
-        LOG_err << "Failed to " << message << ": " << error->getErrorString();
+        if (syncError)
+        {
+            LOG_err << "Failed to " << message << ": " << error->getErrorString()
+                    << ". " << MegaSync::getMegaSyncErrorCode(syncError);
+        }
+        else
+        {
+            LOG_err << "Failed to " << message << ": " << error->getErrorString();
+        }
+
     }
 
     return false;
@@ -1789,31 +1802,38 @@ bool MegaCmdExecuter::TestCanWriteOnContainingFolder(string *path)
 #ifdef _WIN32
     replaceAll(*path,"/","\\");
 #endif
-    string localpath;
-    fsAccessCMD->path2local(path, &localpath);
-    size_t lastpart = fsAccessCMD->lastpartlocal(&localpath);
-    string containingFolder = ".";
-    if (lastpart)
+
+    auto containingFolder = LocalPath::fromPath(*path, *fsAccessCMD);
+
+    // Where does our name begin?
+    auto index = containingFolder.getLeafnameByteIndex(*fsAccessCMD);
+
+    // We have a parent.
+    if (index)
     {
-        string firstpartlocal(localpath, 0, lastpart - fsAccessCMD->localseparator.size());
-        fsAccessCMD->local2path(&firstpartlocal, &containingFolder);
+        // Remove the current leaf name.
+        containingFolder.truncate(index);
+    }
+    else
+    {
+        containingFolder = LocalPath::fromPath(".", *fsAccessCMD);
     }
 
-    LocalPath localcontainingFolder = LocalPath::fromPath(containingFolder, *fsAccessCMD);
     std::unique_ptr<FileAccess> fa = fsAccessCMD->newfileaccess();
-    if (!fa->isfolder(localcontainingFolder))
+    if (!fa->isfolder(containingFolder))
     {
         setCurrentOutCode(MCMD_INVALIDTYPE);
-        LOG_err << containingFolder << " is not a valid Download Folder";
+        LOG_err << containingFolder.toPath(*fsAccessCMD) << " is not a valid Download Folder";
         return false;
     }
 
-    if (!canWrite(containingFolder))
+    if (!canWrite(containingFolder.platformEncoded()))
     {
         setCurrentOutCode(MCMD_NOTPERMITTED);
-        LOG_err << "Write not allowed in " << containingFolder;
+        LOG_err << "Write not allowed in " << containingFolder.toPath(*fsAccessCMD);
         return false;
     }
+
     return true;
 }
 
@@ -2419,6 +2439,8 @@ int MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
         }
 #endif
 
+        ConfigurationManager::migrateSyncConfig(api);
+
         LOG_info << "Fetching nodes ... ";
         MegaApi *api = srl->getApi();
         int clientID = static_cast<MegaCmdListener*>(srl)->clientID;
@@ -2713,7 +2735,7 @@ void MegaCmdExecuter::actUponLogout(SynchronousRequestListener *srl, bool keptSe
         {
             ConfigurationManager::saveSession("");
             ConfigurationManager::saveBackups(&ConfigurationManager::configuredBackups);
-            ConfigurationManager::saveSyncs(&ConfigurationManager::configuredSyncs);
+            ConfigurationManager::saveSyncs(&ConfigurationManager::oldConfiguredSyncs);
         }
         ConfigurationManager::clearConfigurationFile();
         mtxSyncMap.unlock();
@@ -3502,12 +3524,12 @@ long long MegaCmdExecuter::getVersionsSize(MegaNode *n)
 
 void MegaCmdExecuter::getInfoFromFolder(MegaNode *n, MegaApi *api, long long *nfiles, long long *nfolders, long long *nversions)
 {
-    MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
-    api->getFolderInfo(n, megaCmdListener);
+    std::unique_ptr<MegaCmdListener>megaCmdListener = ::mega::make_unique<MegaCmdListener>(nullptr);
+    api->getFolderInfo(n, megaCmdListener.get());
     *nfiles = 0;
     *nfolders = 0;
     megaCmdListener->wait();
-    if (checkNoErrors(megaCmdListener->getError(), "getting folder info"))
+    if (checkNoErrors(megaCmdListener->getError(), "get folder info"))
     {
         MegaFolderInfo * mfi = megaCmdListener->getRequest()->getMegaFolderInfo();
         if (mfi)
@@ -3518,7 +3540,6 @@ void MegaCmdExecuter::getInfoFromFolder(MegaNode *n, MegaApi *api, long long *nf
             {
                 *nversions = mfi->getNumVersions();
             }
-            delete mfi;
         }
     }
 }
@@ -4129,24 +4150,13 @@ void MegaCmdExecuter::printTransferColumnDisplayer(ColumnDisplayer *cd, MegaTran
     }
 }
 
-void MegaCmdExecuter::printSyncHeader(const unsigned int PATHSIZE, ColumnDisplayer *cd)
+void MegaCmdExecuter::printSyncHeader(ColumnDisplayer &cd)
 {
-    if (cd)
-    {
-        cd->addHeader("LOCALPATH", false);
-        cd->addHeader("REMOTEPATH", false);
-        return;
-    }
-    OUTSTREAM << "ID ";
-    OUTSTREAM << getFixLengthString("LOCALPATH ", PATHSIZE) << " ";
-    OUTSTREAM << getFixLengthString("REMOTEPATH ", PATHSIZE) << " ";
+    // add headers with unfixed width (those that can be ellided)
+    cd.addHeader("LOCALPATH", false);
+    cd.addHeader("REMOTEPATH", false);
+    return;
 
-    OUTSTREAM << getFixLengthString("ActState", 10) << " ";
-    OUTSTREAM << getFixLengthString("SyncState", 9) << " ";
-    OUTSTREAM << getRightAlignedString("SIZE", 8) << " ";
-    OUTSTREAM << getRightAlignedString("FILES", 6) << " ";
-    OUTSTREAM << getRightAlignedString("DIRS", 6);
-    OUTSTREAM << endl;
 }
 
 #ifdef ENABLE_BACKUPS
@@ -4360,109 +4370,60 @@ void MegaCmdExecuter::printBackup(backup_struct *backupstruct, const char *timeF
 }
 #endif
 
-void MegaCmdExecuter::printSync(int i, string key, const char *nodepath, sync_struct * thesync, MegaNode *n, long long nfiles, long long nfolders, const unsigned int PATHSIZE, megacmd::ColumnDisplayer *cd)
+void MegaCmdExecuter::printSync(MegaSync *sync, long long nfiles, long long nfolders, megacmd::ColumnDisplayer &cd)
 {
-    if (cd)
+    cd.addValue("ID", SSTR(sync->getTag()));
+    cd.addValue("LOCALPATH", sync->getLocalFolder());
+    cd.addValue("REMOTEPATH", sync->getMegaFolder());
+
+    string state;
+    if (sync->isTemporaryDisabled())
     {
-        cd->addValue("ID", SSTR(i));
-        cd->addValue("LOCALPATH", key);
-        cd->addValue("REMOTEPATH", nodepath);
-
-        string sstate(key);
-        sstate = rtrim(sstate, '/');
-    #ifdef _WIN32
-        sstate = rtrim(sstate, '\\');
-    #endif
-        string psstate;
-        fsAccessCMD->path2local(&sstate,&psstate);
-        int statepath = api->syncPathState(&psstate);
-
-        MegaSync *msync = api->getSyncByNode(n);
-        string syncstate = "REMOVED";
-        if (msync)
-        {
-            syncstate = getSyncStateStr(msync->getState());
-        }
-
-        string statetoprint;
-        if (thesync->active)
-        {
-            statetoprint = syncstate;
-        }
-        else
-        {
-            if (msync)
-            {
-                statetoprint = "Disabling:";
-                statetoprint+=syncstate;
-            }
-            else
-            {
-                statetoprint = "Disabled";
-            }
-        }
-        delete msync;
-        cd->addValue("ActState", statetoprint);
-        cd->addValue("SyncState", getSyncPathStateStr(statepath));
-        cd->addValue("SIZE", sizeToText(api->getSize(n)));
-        cd->addValue("FILES", SSTR(nfiles));
-        cd->addValue("DIRS", SSTR(nfolders));
-
-        return;
+        state = "TempDisabled";
     }
-
-    //tag
-    OUTSTREAM << getRightAlignedString(SSTR(i),2) << " ";
-
-    OUTSTREAM << getFixLengthString(key,PATHSIZE) << " ";
-
-    OUTSTREAM << getFixLengthString(nodepath,PATHSIZE) << " ";
-
-    string sstate(key);
-    sstate = rtrim(sstate, '/');
-#ifdef _WIN32
-    sstate = rtrim(sstate, '\\');
-#endif
-    string psstate;
-    fsAccessCMD->path2local(&sstate,&psstate);
-    int statepath = api->syncPathState(&psstate);
-
-    MegaSync *msync = api->getSyncByNode(n);
-    string syncstate = "REMOVED";
-    if (msync)
+    else if (sync->isActive())
     {
-        syncstate = getSyncStateStr(msync->getState());
+        state = "Enabled";
     }
-
-    string statetoprint;
-    if (thesync->active)
+    else if (!sync->isEnabled())
     {
-        statetoprint = syncstate;
+        state = "Disabled";
     }
     else
     {
-        if (msync)
-        {
-            statetoprint = "Disabling:";
-            statetoprint+=syncstate;
-        }
-        else
-        {
-            statetoprint = "Disabled";
-        }
+        state = "Failed";
     }
-    delete msync;
+    cd.addValue("ACTIVE", state);
 
-    OUTSTREAM << getFixLengthString(statetoprint,10) << " ";
-    OUTSTREAM << getFixLengthString(getSyncPathStateStr(statepath),9) << " ";
 
-    OUTSTREAM << getRightAlignedString(sizeToText(api->getSize(n), false),8) << " ";
+    string pathstate;
+    if (!sync->isActive())
+    {
+        pathstate = "Inactive";
+    }
+    else
+    {
+        string pathLocalFolder(sync->getLocalFolder());
+        pathLocalFolder = rtrim(pathLocalFolder, '/');
+    #ifdef _WIN32
+        pathLocalFolder = rtrim(pathLocalFolder, '\\');
+    #endif
+        string localizedLocalPath;
+        fsAccessCMD->path2local(&pathLocalFolder,&localizedLocalPath);
 
-    OUTSTREAM << getRightAlignedString(SSTR(nfiles),6) << " ";
-    OUTSTREAM << getRightAlignedString(SSTR(nfolders),6) << " ";
+        int statepath = api->syncPathState(&localizedLocalPath);
+        pathstate = getSyncPathStateStr(statepath);
+    }
+    cd.addValue("STATUS", pathstate);
 
-    OUTSTREAM << endl;
+    cd.addValue("ERROR", sync->getError() ? sync->getMegaSyncErrorCode() : "NO");
 
+    std::unique_ptr<MegaNode> n{api->getNodeByHandle(sync->getMegaHandle())};
+    cd.addValue("SIZE", sizeToText(api->getSize(n.get())));
+    cd.addValue("FILES", SSTR(nfiles));
+    cd.addValue("DIRS", SSTR(nfolders));
+
+    return;
 }
 
 void MegaCmdExecuter::doFind(MegaNode* nodeBase, const char *timeFormat, std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions, string word, int printfileinfo, string pattern, bool usepcre, m_time_t minTime, m_time_t maxTime, int64_t minSize, int64_t maxSize)
@@ -4691,61 +4652,36 @@ bool MegaCmdExecuter::isValidFolder(string destiny)
 
 void MegaCmdExecuter::restartsyncs()
 {
-    std::lock_guard<std::recursive_mutex> g(ConfigurationManager::settingsMutex);
-    map<string, sync_struct *>::iterator itr;
-    for (itr = ConfigurationManager::configuredSyncs.begin(); itr != ConfigurationManager::configuredSyncs.end(); ++itr)
+    std::unique_ptr<MegaSyncList> syncs{api->getSyncs()};
+    for (int i = 0; i < syncs->size(); i++)
     {
-        string key = ( *itr ).first;
-        sync_struct *thesync = ((sync_struct*)( *itr ).second );
-        if (thesync->active)
+        MegaSync *sync = syncs->get(i);
+        if (sync->isActive())
         {
-            MegaNode * n = api->getNodeByHandle(thesync->handle);
-            if (n)
+            LOG_info << "Restarting sync "<< sync->getLocalFolder() << " to " << sync->getMegaFolder();
+
+            auto megaCmdListener = ::mega::make_unique<MegaCmdListener>(nullptr);
+            api->disableSync(sync, megaCmdListener.get());
+            megaCmdListener->wait();
+
+            if (checkNoErrors(megaCmdListener->getError(), "disable sync"))
             {
-                char * nodepath = api->getNodePath(n);
-                LOG_info << "Restarting sync "<< key << ": " << nodepath;
-                delete []nodepath;
-                MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
-                api->disableSync(n, megaCmdListener);
+                LOG_verbose << "Disabled sync "<< sync->getLocalFolder() << " to " << sync->getMegaFolder();
+
+                auto megaCmdListener = ::mega::make_unique<MegaCmdListener>(nullptr);
+                api->enableSync(sync, megaCmdListener.get());
                 megaCmdListener->wait();
 
-                if (checkNoErrors(megaCmdListener->getError(), "stop sync"))
+                if (checkNoErrors(megaCmdListener->getError(), "re-enable sync"))
                 {
-                    thesync->active = false;
-
-                    MegaSync *msync = api->getSyncByNode(n);
-                    if (!msync)
-                    {
-                        MegaCmdListener *megaCmdListener2 = new MegaCmdListener(NULL);
-                        api->syncFolder(thesync->localpath.c_str(), n, megaCmdListener2);
-                        megaCmdListener2->wait();
-
-                        if (checkNoErrors(megaCmdListener2->getError(), "resume sync"))
-                        {
-                            thesync->active = true;
-                            thesync->loadedok = true;
-
-                            if (megaCmdListener2->getRequest()->getNumber())
-                            {
-                                thesync->fingerprint = megaCmdListener2->getRequest()->getNumber();
-                            }
-                        }
-                        else
-                        {
-                            thesync->active = false;
-                            thesync->loadedok = false;
-                        }
-                        delete megaCmdListener2;
-                        delete msync;
-                    }
-                    else
-                    {
-                        setCurrentOutCode(MCMD_INVALIDSTATE);
-                        LOG_err << "Failed to restart sync: " << key << ". You will need to manually reenable or restart MEGAcmd";
-                    }
+                    LOG_verbose << "Re-enabled sync "<< sync->getLocalFolder() << " to " << sync->getMegaFolder();
                 }
-                delete megaCmdListener;
-                delete n;
+                else
+                {
+                    setCurrentOutCode(MCMD_INVALIDSTATE);
+                    LOG_err << "Failed to restart sync: " << sync->getLocalFolder() << " to " << sync->getMegaFolder()
+                            << ". You will need to manually reenable or restart MEGAcmd";
+                }
             }
         }
     }
@@ -7732,9 +7668,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         PATHSIZE = max(0, PATHSIZE);
 
         bool headershown = false;
-        bool modifiedsyncs = false;
-        mtxSyncMap.lock();
-        if (words.size() == 3)
+        if (words.size() == 3) //add a sync
         {
             LocalPath localRelativePath = LocalPath::fromPath(words[1], *fsAccessCMD);
             LocalPath localAbsolutePath = localRelativePath;
@@ -7749,29 +7683,21 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 }
                 else if (api->getAccess(n) >= MegaShare::ACCESS_FULL)
                 {
-                    std::lock_guard<std::recursive_mutex> g(ConfigurationManager::settingsMutex);
-
                     MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
                     api->syncFolder(localAbsolutePath.toPath(*fsAccessCMD).c_str(), n, megaCmdListener);
                     megaCmdListener->wait();
-                    if (checkNoErrors(megaCmdListener->getError(), "sync folder"))
+                    if (checkNoErrors(megaCmdListener->getError(), "sync folder", static_cast<SyncError>(megaCmdListener->getRequest()->getNumDetails())))
                     {
-                        sync_struct *thesync = new sync_struct;
-                        thesync->active = true;
-                        thesync->handle = megaCmdListener->getRequest()->getNodeHandle();
-                        thesync->localpath = string(megaCmdListener->getRequest()->getFile());
-                        thesync->fingerprint = megaCmdListener->getRequest()->getNumber();
-
-                        if (ConfigurationManager::configuredSyncs.find(megaCmdListener->getRequest()->getFile()) != ConfigurationManager::configuredSyncs.end())
-                        {
-                            delete ConfigurationManager::configuredSyncs[megaCmdListener->getRequest()->getFile()];
-                        }
-                        ConfigurationManager::configuredSyncs[megaCmdListener->getRequest()->getFile()] = thesync;
+                        string localpath(megaCmdListener->getRequest()->getFile());
+                        SyncError syncError = static_cast<SyncError>(megaCmdListener->getRequest()->getNumDetails());
 
                         char * nodepath = api->getNodePath(n);
-                        LOG_info << "Added sync: " << megaCmdListener->getRequest()->getFile() << " to " << nodepath;
+                        LOG_info << "Added sync: " << localpath << " to " << nodepath;
+                        if (syncError != NO_SYNC_ERROR)
+                        {
+                            LOG_err << "Sync added as temporarily disabled. Reason: " << MegaSync::getMegaSyncErrorCode(syncError);
+                        }
 
-                        modifiedsyncs=true;
                         delete []nodepath;
                     }
 
@@ -7790,188 +7716,126 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 LOG_err << "Couldn't find remote folder: " << words[2];
             }
         }
-        else if (words.size() == 2)
+        else if (words.size() == 2) //manage one sync
         {
-            int id = toInteger(words[1].c_str());
-            map<string, sync_struct *>::iterator itr;
-            int i = 0;
-            bool foundsync = false;
-            std::lock_guard<std::recursive_mutex> g(ConfigurationManager::settingsMutex);
-            for (itr = ConfigurationManager::configuredSyncs.begin(); itr != ConfigurationManager::configuredSyncs.end(); i++)
+            string pathOrId{words[1].c_str()};
+            int id = toInteger(pathOrId, 0);
+            auto stop = getFlag(clflags, "s") || getFlag(clflags, "disable");
+            auto resume = getFlag(clflags, "r") || getFlag(clflags, "enable");
+            auto remove = getFlag(clflags, "d") || getFlag(clflags, "remove");
+
+            //1 - find the sync
+            std::unique_ptr<MegaSync> sync;
+            if (id)
             {
-                string key = ( *itr ).first;
-                sync_struct *thesync = ((sync_struct*)( *itr ).second );
-                MegaNode * n = api->getNodeByHandle(thesync->handle);
-                bool erased = false;
+                sync.reset(api->getSyncByTag(id));
+            }
+            if (!sync)
+            {
+                sync.reset(api->getSyncByPath(pathOrId.c_str()));
+            }
+            if (!sync)
+            {
+                setCurrentOutCode(MCMD_NOTFOUND);
+                LOG_err << "Sync not found: " << pathOrId;
+                return;
+            }
 
-                if (n)
+            if (stop)
+            {
+                auto megaCmdListener = ::mega::make_unique<MegaCmdListener>(nullptr);
+                api->disableSync(sync.get(), megaCmdListener.get());
+                megaCmdListener->wait();
+                if (checkNoErrors(megaCmdListener->getError(), "stop sync", static_cast<SyncError>(megaCmdListener->getRequest()->getNumDetails())))
                 {
-                    char * nodepath = api->getNodePath(n);
-                    ColumnDisplayer cd(getintOption(cloptions,"path-display-size", 0));
+                    LOG_info << "Sync disabled (stopped): " << sync->getLocalFolder() << " to " << sync->getMegaFolder();
+                }
+            }
+            else if (resume)
+            {
+                auto megaCmdListener = ::mega::make_unique<MegaCmdListener>(nullptr);
+                api->enableSync(sync.get(), megaCmdListener.get());
+                megaCmdListener->wait();
+                if (checkNoErrors(megaCmdListener->getError(), "enable sync", static_cast<SyncError>(megaCmdListener->getRequest()->getNumDetails())))
+                {
+                    LOG_info << "Sync re-enabled: " << sync->getLocalFolder() << " to " << sync->getMegaFolder();
+                }
+            }
+            else if (remove)
+            {
+                auto megaCmdListener = ::mega::make_unique<MegaCmdListener>(nullptr);
+                api->removeSync(sync.get(), megaCmdListener.get());
+                megaCmdListener->wait();
+                if (checkNoErrors(megaCmdListener->getError(), "remove sync", static_cast<SyncError>(megaCmdListener->getRequest()->getNumDetails())))
+                {
+                    OUTSTREAM << "Sync removed: " << sync->getLocalFolder() << " to " << sync->getMegaFolder() << endl;
+                    return;
+                }
+            }
 
-                    if (( id == i ) || (( id == -1 ) && ( words[1] == thesync->localpath )))
-                    {
-                        foundsync = true;
-                        long long nfiles = 0;
-                        long long nfolders = 0;
-                        nfolders++; //add the share itself
-                        getInfoFromFolder(n, api, &nfiles, &nfolders);
+            // In any case, print the udpated sync state:
+            sync.reset(api->getSyncByTag(sync->getTag())); //first retrieve it again, to get updated data!
+            if (!sync)
+            {
+                setCurrentOutCode(MCMD_NOTFOUND);
+                LOG_err << "Sync not found: " << pathOrId;
+                return;
+            }
 
-                        if (getFlag(clflags, "s") || getFlag(clflags, "r"))
-                        {
-                            bool stopping = getFlag(clflags, "s");
-                            LOG_info << (stopping?"Stopping (disabling) sync ":"Resuming sync ") << key << ": " << nodepath;
-                            MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
-                            if (stopping)
-                            {
-                                api->disableSync(n, megaCmdListener);
-                            }
-                            else
-                            {
-                                api->syncFolder(thesync->localpath.c_str(), n, megaCmdListener);
-                            }
+            ColumnDisplayer cd(getintOption(cloptions,"path-display-size", 0));
 
-                            megaCmdListener->wait();
+            long long nfiles = 0;
+            long long nfolders = 0;
+            nfolders++; //add the sync itself
+            std::unique_ptr<MegaNode> node{api->getNodeByHandle(sync->getMegaHandle())};
+            getInfoFromFolder(node.get(), api, &nfiles, &nfolders);
 
-                            if (checkNoErrors(megaCmdListener->getError(), stopping?"stop sync":"resume sync"))
-                            {
-                                thesync->active = !stopping;
-                                thesync->loadedok = true;
-                                if (!stopping) //syncFolder
-                                {
-                                    if (megaCmdListener->getRequest()->getNumber())
-                                    {
-                                        thesync->fingerprint = megaCmdListener->getRequest()->getNumber();
-                                    }
-                                }
-                                modifiedsyncs=true;
-                            }
-                            else
-                            {
-                                thesync->active = false;
-                                thesync->loadedok = false;
-                            }
-                            delete megaCmdListener;
-                        }
-                        else if (getFlag(clflags, "d"))
-                        {
-                            LOG_debug << "Removing sync " << key << " to " << nodepath;
-                            MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
-                            if (thesync->active)  //if not active, removeSync will fail.)
-                            {
-                                api->removeSync(n, megaCmdListener);
-                                megaCmdListener->wait();
-                                if (checkNoErrors(megaCmdListener->getError(), "remove sync"))
-                                {
-                                    ConfigurationManager::configuredSyncs.erase(itr++); //TODO: should protect with mutex!
-                                    erased = true;
-                                    delete ( thesync );
-                                    OUTSTREAM << "Removed sync " << key << " to " << nodepath << endl;
-                                    modifiedsyncs=true;
-                                }
-                            }
-                            else //if !active simply remove
-                            {
-                                //TODO: if the sdk ever provides a way to clean cache, call it
-                                ConfigurationManager::configuredSyncs.erase(itr++);
-                                erased = true;
-                                delete ( thesync );
-                                OUTSTREAM << "Removed sync " << key << " to " << nodepath << endl;
-                                modifiedsyncs=true;
-                            }
-                            delete megaCmdListener;
-                        }
+            if (!headershown)
+            {
+                headershown = true;
+                printSyncHeader(cd);
+            }
 
-                        if (!headershown)
-                        {
-                            headershown = true;
-                            printSyncHeader(PATHSIZE, &cd);
-                        }
+            printSync(sync.get(), nfiles, nfolders, cd);
 
-                        printSync(i, key, nodepath, thesync, n, nfiles, nfolders, PATHSIZE, &cd);
+           OUTSTRINGSTREAM oss;
+           cd.print(oss, getintOption(cloptions, "client-width", getNumberOfCols(75)));
+           OUTSTREAM << oss.str();
 
-                    }
-                    delete n;
-                    delete []nodepath;
-                    OUTSTRINGSTREAM oss;
-                    cd.print(oss, getintOption(cloptions, "client-width", getNumberOfCols(75)));
-                    OUTSTREAM << oss.str();
+        }
+        else if (words.size() == 1) //print all syncs
+        {
+            ColumnDisplayer cd(getintOption(cloptions,"path-display-size", 0));
+
+            std::unique_ptr<MegaSyncList> syncs{api->getSyncs()};
+            for (int i = 0; i < syncs->size(); i++)
+            {
+                MegaSync *sync = syncs->get(i);
+
+                long long nfiles = 0;
+                long long nfolders = 0;
+                nfolders++; //add the sync itself
+                std::unique_ptr<MegaNode> node{api->getNodeByHandle(sync->getMegaHandle())};
+                if (node)
+                {
+                    getInfoFromFolder(node.get(), api, &nfiles, &nfolders);
                 }
                 else
                 {
-                    if (( id == i ) && getFlag(clflags, "d")) //simply remove: disabled (not found)
-                    {
-                        ConfigurationManager::configuredSyncs.erase(itr++);
-                        erased = true;
-                        delete ( thesync );
-                        OUTSTREAM << "Removed sync " << key << endl;
-                        modifiedsyncs = true;
-                    }
-                    else
-                    {
-                        setCurrentOutCode(MCMD_NOTFOUND);
-                        LOG_err << "Node not found for sync " << key << " into handle: " << thesync->handle;
-                    }
+                    LOG_warn << "Remote node not found";
                 }
-                if (!erased)
-                {
-                    ++itr;
-                }
-            }
-            if (!foundsync && !modifiedsyncs)
-            {
-                setCurrentOutCode(MCMD_NOTFOUND);
-                LOG_err << "Sync not found: " << words[1] << ". Please provide full path or valid ID";
-            }
-        }
-        else if (words.size() == 1)
-        {
-            ColumnDisplayer cd(getintOption(cloptions,"path-display-size", 0));
-            map<string, sync_struct *>::const_iterator itr;
-            int i = 0;
-            for (itr = ConfigurationManager::configuredSyncs.begin(); itr != ConfigurationManager::configuredSyncs.end(); ++itr)
-            {
-                sync_struct *thesync = ((sync_struct*)( *itr ).second );
-                MegaNode * n = api->getNodeByHandle(thesync->handle);
+
                 if (!headershown)
                 {
                     headershown = true;
-                    printSyncHeader(PATHSIZE, &cd);
+                    printSyncHeader(cd);
                 }
-                if (n)
-                {
-                    long long nfiles = 0;
-                    long long nfolders = 0;
-                    nfolders++; //add the share itself
-                    getInfoFromFolder(n, api, &nfiles, &nfolders);
 
-                    char * nodepath = api->getNodePath(n);
-                    printSync(i++, ( *itr ).first, nodepath, thesync, n, nfiles, nfolders, PATHSIZE, &cd);
-
-                    delete n;
-                    delete []nodepath;
-                }
-                else
-                {
-                    printSync(i++, ( *itr ).first, "NOT FOUND", thesync, n, -1, -1, PATHSIZE, &cd);
-                    setCurrentOutCode(MCMD_NOTFOUND);
-                }
+                printSync(sync, nfiles, nfolders, cd);
             }
             OUTSTRINGSTREAM oss;
             cd.print(oss, getintOption(cloptions, "client-width", getNumberOfCols(75)));
             OUTSTREAM << oss.str();
-
-        }
-        else
-        {
-            setCurrentOutCode(MCMD_EARGS);
-            LOG_err << "      " << getUsageStr("sync");
-            mtxSyncMap.unlock();
-            return;
-        }
-        if (modifiedsyncs)
-        {
-            ConfigurationManager::saveSyncs(&ConfigurationManager::configuredSyncs);
         }
         mtxSyncMap.unlock();
         return;

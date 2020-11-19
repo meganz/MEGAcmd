@@ -303,6 +303,17 @@ void MegaCmdGlobalListener::onEvent(MegaApi *api, MegaEvent *event)
     {
         sandboxCMD->receivedStorageSum = event->getNumber();
     }
+    else if (event->getType() == MegaEvent::EVENT_SYNCS_DISABLED)
+    {
+        removeDelayedBroadcastMatching("Your sync has been temporarily disabled");
+        broadcastMessage(std::string("Your syncs have been temporarily disabled. Reason: ")
+                         .append(MegaSync::getMegaSyncErrorCode(event->getNumber()))), true;
+    }
+    else if (event->getType() == MegaEvent::EVENT_SYNCS_RESTORED)
+    {
+        removeGreetingMatching("Your syncs have been temporarily disabled");
+        broadcastMessage("Your syncs have been re-enabled.", true);
+    }
 }
 
 
@@ -419,6 +430,48 @@ void MegaCmdMegaListener::onBackupTemporaryError(MegaApi *api, MegaBackup *backu
         LOG_err << "Backup temporary error: " << error->getErrorString();
     }
 }
+
+void MegaCmdMegaListener::onSyncAdded(MegaApi *api, MegaSync *sync, int additionState)
+{
+    LOG_verbose << "Sync added: " << sync->getLocalFolder() << " to " << sync->getMegaFolder()
+                << ". Adding state = " << additionState;
+
+    if (!ConfigurationManager::getConfigurationValue("firstSyncConfigured", false))
+    {
+        api->sendEvent(MCMD_EVENT_FIRST_CONFIGURED_SYNC_ID,
+                   MCMD_EVENT_FIRST_CONFIGURED_SYNC_MESSAGE);
+        ConfigurationManager::savePropertyValue("firstSyncConfigured", true);
+    }
+}
+
+void MegaCmdMegaListener::onSyncDisabled(MegaApi *api, MegaSync *sync)
+{
+    if (sync->getState() == SYNC_FAILED || sync->isTemporaryDisabled())
+    {
+        string msg = "Your sync has been ";
+        msg.append(sync->isTemporaryDisabled() ? "temporarily": "permanently");
+        msg.append(" disabled: ");
+        msg.append(sync->getLocalFolder());
+        msg.append(" to: ");
+        msg.append(sync->getMegaFolder());
+        msg.append(". Reason: ");
+        msg.append(sync->getMegaSyncErrorCode());
+        broadcastDelayedMessage(msg, true);
+    }
+    LOG_warn << "Sync disabled: " << sync->getLocalFolder() << " to " << sync->getMegaFolder()
+             << ". Reason: " << sync->getMegaSyncErrorCode();
+}
+
+void MegaCmdMegaListener::onSyncEnabled(MegaApi *api, MegaSync *sync)
+{
+    LOG_verbose << "Sync re-enabled: " << sync->getLocalFolder() << " to " << sync->getMegaFolder();
+}
+
+void MegaCmdMegaListener::onSyncDeleted(MegaApi *api, MegaSync *sync)
+{
+    LOG_verbose << "Sync deleted: " << sync->getLocalFolder() << " to " << sync->getMegaFolder();
+}
+
 #endif
 ////////////////////////////////////////
 ///      MegaCmdListener methods     ///
@@ -451,42 +504,7 @@ void MegaCmdListener::doOnRequestFinish(MegaApi* api, MegaRequest *request, Mega
         {
             map<string, sync_struct *>::iterator itr;
             int i = 0;
-#ifdef ENABLE_SYNC
 
-            std::shared_ptr<std::lock_guard<std::recursive_mutex>> g = std::make_shared<std::lock_guard<std::recursive_mutex>>(ConfigurationManager::settingsMutex);
-            // shared pointed lock_guard. will be freed when all resuming are complete
-
-            for (itr = ConfigurationManager::configuredSyncs.begin(); itr != ConfigurationManager::configuredSyncs.end(); ++itr, i++)
-            {
-                sync_struct *oldsync = ((sync_struct*)( *itr ).second );
-
-                MegaNode * node = api->getNodeByHandle(oldsync->handle);
-                api->resumeSync(oldsync->localpath.c_str(), node, oldsync->fingerprint, new MegaCmdListenerFuncExecuter([g, oldsync, node](mega::MegaApi* api, mega::MegaRequest *request, mega::MegaError *e)
-                {
-                    std::unique_ptr<char []>nodepath (api->getNodePath(node));
-
-                    if ( e->getErrorCode() == MegaError::API_OK )
-                    {
-                        if (request->getNumber())
-                        {
-                            oldsync->fingerprint = request->getNumber();
-                        }
-                        oldsync->active = true;
-                        oldsync->loadedok = true;
-
-                        LOG_info << "Loaded sync: " << oldsync->localpath << " to " << nodepath.get();
-                    }
-                    else
-                    {
-                        oldsync->loadedok = false;
-                        oldsync->active = false;
-
-                        LOG_err << "Failed to resume sync: " << oldsync->localpath << " to " << nodepath.get();
-                    }
-                    delete node;
-                }, true));
-            }
-#endif
             informProgressUpdate(PROGRESS_COMPLETE, request->getTotalBytes(), this->clientID, "Fetching nodes");
             break;
         }
