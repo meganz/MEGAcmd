@@ -502,9 +502,6 @@ void MegaCmdListener::doOnRequestFinish(MegaApi* api, MegaRequest *request, Mega
     {
         case MegaRequest::TYPE_FETCH_NODES:
         {
-            map<string, sync_struct *>::iterator itr;
-            int i = 0;
-
             informProgressUpdate(PROGRESS_COMPLETE, request->getTotalBytes(), this->clientID, "Fetching nodes");
             break;
         }

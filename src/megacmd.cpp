@@ -4970,8 +4970,6 @@ int main(int argc, char* argv[])
     api = new MegaApi("BdARkQSQ", (MegaGfxProcessor*)NULL, ConfigurationManager::getConfigFolder().c_str(), userAgent);
 #endif
 
-    api->changeApiUrl("https://staging.api.mega.co.nz/"); //TODO: DO NOT MERGE WITH THIS
-
     if (setapiurl)
     {
         api->changeApiUrl(debug_api_url.c_str(), disablepkp);

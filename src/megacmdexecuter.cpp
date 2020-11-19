@@ -1191,14 +1191,15 @@ void MegaCmdExecuter::dumpNode(MegaNode* n, const char *timeFormat, std::map<std
                                 OUTSTREAM << " expires at ";
                             }
 
-                            string authKey(n->getWritableLinkAuthKey());
-                            if (authKey.size())
-                            {
-                                OUTSTREAM << " AuthKey="<< authKey;
-                            }
-
-                            OUTSTREAM << " at " << getReadableTime(n->getExpirationTime(), timeFormat);
+                            OUTSTREAM << getReadableTime(n->getExpirationTime(), timeFormat);
                         }
+
+                        string authKey(n->getWritableLinkAuthKey());
+                        if (authKey.size())
+                        {
+                            OUTSTREAM << " AuthKey="<< authKey;
+                        }
+
                         delete []publicLink;
                     }
                 }
@@ -1255,12 +1256,15 @@ void MegaCmdExecuter::dumpNode(MegaNode* n, const char *timeFormat, std::map<std
                             char * publicLink = n->getPublicLink();
                             OUTSTREAM << ": " << publicLink;
 
-                            string authKey(n->getWritableLinkAuthKey());
-                            if (authKey.size())
+                            if (n->getWritableLinkAuthKey())
                             {
-                                string authToken(publicLink);
-                                authToken = authToken.substr(strlen("https://mega.nz/folder/")).append(":").append(authKey);
-                                OUTSTREAM << " AuthToken="<< authToken;
+                                string authKey(n->getWritableLinkAuthKey());
+                                if (authKey.size())
+                                {
+                                    string authToken(publicLink);
+                                    authToken = authToken.substr(strlen("https://mega.nz/folder/")).append(":").append(authKey);
+                                    OUTSTREAM << " AuthToken="<< authToken;
+                                }
                             }
 
                             delete []publicLink;
@@ -3287,12 +3291,15 @@ void MegaCmdExecuter::exportNode(MegaNode *n, int64_t expireTime, std::string pa
                 OUTSTREAM << "Exported " << nodepath << ": "
                           << (publicPassProtectedLink.size()?publicPassProtectedLink:publiclink);
 
-                string authKey(nexported->getWritableLinkAuthKey());
-                if (authKey.size())
+                if (nexported->getWritableLinkAuthKey())
                 {
-                    string authToken((publicPassProtectedLink.size()?publicPassProtectedLink:publiclink));
-                    authToken = authToken.substr(strlen("https://mega.nz/folder/")).append(":").append(authKey);
-                    OUTSTREAM << "\n          AuthToken = " << authToken;
+                    string authKey(nexported->getWritableLinkAuthKey());
+                    if (authKey.size())
+                    {
+                        string authToken((publicPassProtectedLink.size()?publicPassProtectedLink:publiclink));
+                        authToken = authToken.substr(strlen("https://mega.nz/folder/")).append(":").append(authKey);
+                        OUTSTREAM << "\n          AuthToken = " << authToken;
+                    }
                 }
 
                 if (nexported->getExpirationTime())
