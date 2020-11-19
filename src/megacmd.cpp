@@ -123,6 +123,10 @@ std::deque<std::string> greetingsFirstClientMsgs; // to be given on first client
 std::deque<std::string> greetingsAllClientMsgs; // to be given on all clients when registering as state listener
 std::mutex greetingsmsgsMutex;
 
+std::deque<std::string> delayedBroadCastMessages; // messages to be brodcasted in a while
+std::mutex delayedBroadcastMutex;
+bool broadcastingDelayedMsgs = false;
+
 //Comunications Manager
 ComunicationsManager * cm;
 
@@ -330,6 +334,62 @@ void broadcastMessage(string message, bool keepIfNoListeners)
     }
 }
 
+
+void removeDelayedBroadcastMatching(const string &toMatch)
+{
+    std::lock_guard<std::mutex> g(delayedBroadcastMutex);
+    for (auto it = delayedBroadCastMessages.begin(); it != delayedBroadCastMessages.end(); )
+    {
+        if ((*it).find(toMatch) != string::npos)
+        {
+            it = delayedBroadCastMessages.erase(it);
+        }
+        else
+        {
+            ++it;
+        }
+    }
+}
+
+void removeGreetingMatching(const string &toMatch)
+{
+    std::lock_guard<std::mutex> g(greetingsmsgsMutex);
+    for (auto it = greetingsAllClientMsgs.begin(); it != greetingsAllClientMsgs.end(); )
+    {
+        if ((*it).find(toMatch) != string::npos)
+        {
+            it = greetingsAllClientMsgs.erase(it);
+        }
+        else
+        {
+            ++it;
+        }
+    }
+}
+
+void broadcastDelayedMessage(string message, bool keepIfNoListeners)
+{
+    std::lock_guard<std::mutex> g(delayedBroadcastMutex);
+    delayedBroadCastMessages.push_back(message);
+    if (!broadcastingDelayedMsgs)
+    {
+        std::thread([keepIfNoListeners]()
+        {
+            broadcastingDelayedMsgs = true;
+            sleepSeconds(4);
+            std::lock_guard<std::mutex> g(delayedBroadcastMutex);
+            while (delayedBroadCastMessages.size())
+            {
+                auto msg = delayedBroadCastMessages.front();
+                delayedBroadCastMessages.pop_front();
+                broadcastMessage(msg, keepIfNoListeners);
+            }
+
+            broadcastingDelayedMsgs = false;
+        }).detach();
+    }
+}
+
 void informTransferUpdate(MegaTransfer *transfer, int clientID)
 {
     informProgressUpdate(transfer->getTransferredBytes(),transfer->getTotalBytes(), clientID);
@@ -523,6 +583,11 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validParams->insert("d");
         validParams->insert("s");
         validParams->insert("r");
+
+        validParams->insert("enable");
+        validParams->insert("disable");
+        validParams->insert("remove");
+
         validOptValues->insert("path-display-size");
     }
     else if ("export" == thecommand)
@@ -2320,10 +2385,27 @@ string getHelpStr(const char *command)
         os << " unless an option is specified." << endl;
         os << endl;
         os << "Options:" << endl;
-        os << "-d" << " " << "ID|localpath" << "\t" << "deletes a synchronization" << endl;
-        os << "-s" << " " << "ID|localpath" << "\t" << "stops(pauses) a synchronization" << endl;
-        os << "-r" << " " << "ID|localpath" << "\t" << "resumes a synchronization" << endl;
+        os << "-d | --remove" << " " << "ID|localpath" << "\t" << "deletes a synchronization" << endl;
+        os << "-s | --disable" << " " << "ID|localpath" << "\t" << "stops(pauses) a synchronization" << endl;
+        os << "-r | --enable" << " " << "ID|localpath" << "\t" << "resumes a synchronization" << endl;
         os << " --path-display-size=N" << "\t" << "Use at least N characters for displaying paths" << endl;
+        os << endl;
+        os << "DISPLAYED columns:" << endl;
+        os << " " << "ID: an unique identifier of the sync:" << endl;
+        os << " " << "LOCALPATH: local synced path" << endl;
+        os << " " << "REMOTEPATH: remote synced path (in MEGA):" << endl;
+        os << " " << "ACTIVE: Indication of activation status, possible values: " << endl;
+        os << " " << "\t" << "TempDisabled: Sync temporarily disabled: " << endl;
+        os << " " << "\t" << "Enabled: Sync active: the sync engine is working: " << endl;
+        os << " " << "\t" << "Disabled: Sync disabled by the user" << endl;
+        os << " " << "\t" << "Failed: Sync permanently disabled due to an error" << endl;
+        os << " " << "STATUS: State of the sync, possible values: " << endl;
+        os << " " << "\t" << "NONE: Status unknown: " << endl;
+        os << " " << "\t" << "Synced: synced, no transfers/pending actions are ongoing" << endl;
+        os << " " << "\t" << "Pending: sync engine is doing some calculations" << endl;
+        os << " " << "\t" << "Syncing: transfers/pending actions are being carried out" << endl;
+        os << " " << "ERROR: Error, if any: " << endl;
+        os << " " << "SIZE, FILE & DIRS: size, number of files and number of dirs in the remote folder" << endl;
     }
     else if (!strcmp(command, "backup"))
     {
