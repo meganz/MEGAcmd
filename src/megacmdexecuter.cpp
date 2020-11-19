@@ -1786,31 +1786,38 @@ bool MegaCmdExecuter::TestCanWriteOnContainingFolder(string *path)
 #ifdef _WIN32
     replaceAll(*path,"/","\\");
 #endif
-    string localpath;
-    fsAccessCMD->path2local(path, &localpath);
-    size_t lastpart = fsAccessCMD->lastpartlocal(&localpath);
-    string containingFolder = ".";
-    if (lastpart)
+
+    auto containingFolder = LocalPath::fromPath(*path, *fsAccessCMD);
+
+    // Where does our name begin?
+    auto index = containingFolder.getLeafnameByteIndex(*fsAccessCMD);
+
+    // We have a parent.
+    if (index)
     {
-        string firstpartlocal(localpath, 0, lastpart - fsAccessCMD->localseparator.size());
-        fsAccessCMD->local2path(&firstpartlocal, &containingFolder);
+        // Remove the current leaf name.
+        containingFolder.truncate(index);
+    }
+    else
+    {
+        containingFolder = LocalPath::fromPath(".", *fsAccessCMD);
     }
 
-    LocalPath localcontainingFolder = LocalPath::fromPath(containingFolder, *fsAccessCMD);
     std::unique_ptr<FileAccess> fa = fsAccessCMD->newfileaccess();
-    if (!fa->isfolder(localcontainingFolder))
+    if (!fa->isfolder(containingFolder))
     {
         setCurrentOutCode(MCMD_INVALIDTYPE);
-        LOG_err << containingFolder << " is not a valid Download Folder";
+        LOG_err << containingFolder.toPath(*fsAccessCMD) << " is not a valid Download Folder";
         return false;
     }
 
-    if (!canWrite(containingFolder))
+    if (!canWrite(containingFolder.platformEncoded()))
     {
         setCurrentOutCode(MCMD_NOTPERMITTED);
-        LOG_err << "Write not allowed in " << containingFolder;
+        LOG_err << "Write not allowed in " << containingFolder.toPath(*fsAccessCMD);
         return false;
     }
+
     return true;
 }
 
