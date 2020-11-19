@@ -595,7 +595,9 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validParams->insert("a");
         validParams->insert("d");
         validParams->insert("f");
+#ifdef SUPPORT_WRITABLE_FOLDERS
         validParams->insert("writable");
+#endif
         validOptValues->insert("expire");
         validOptValues->insert("password");
 #ifdef USE_PCRE
@@ -714,7 +716,9 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     {
         validOptValues->insert("clientID");
         validOptValues->insert("auth-code");
+#ifdef SUPPORT_WRITABLE_FOLDERS
         validOptValues->insert("auth-key");
+#endif
     }
     else if ("psa" == thecommand)
     {
@@ -1437,11 +1441,19 @@ const char * getUsageStr(const char *command)
     {
         if (interactiveThread())
         {
-            return "login [--auth-code=XXXX] [email [password]] | exportedfolderurl#key | session";
+            return "login [--auth-code=XXXX] [email [password]] | exportedfolderurl#key"
+            #ifdef SUPPORT_WRITABLE_FOLDERS
+                    " [--auth-key=XXXX]"
+            #endif
+                   " | session";
         }
         else
         {
-            return "login [--auth-code=XXXX] email password | exportedfolderurl#key | session";
+            return "login [--auth-code=XXXX] email password | exportedfolderurl#key"
+            #ifdef SUPPORT_WRITABLE_FOLDERS
+                    " [--auth-key=XXXX]"
+            #endif
+                   " | session";
         }
     }
     if (!strcmp(command, "psa"))
@@ -1666,11 +1678,15 @@ const char * getUsageStr(const char *command)
 #endif
     if (!strcmp(command, "export"))
     {
-#ifdef USE_PCRE
-        return "export [-d|-a [--password=PASSWORD] [--expire=TIMEDELAY] [-f]] [remotepath] [--use-pcre] [--time-format=FORMAT]";
-#else
-        return "export [-d|-a [--password=PASSWORD] [--expire=TIMEDELAY] [-f]] [remotepath] [--time-format=FORMAT]";
-#endif
+        return "export [-d|-a"
+        #ifdef SUPPORT_WRITABLE_FOLDERS
+               " [--writable]"
+        #endif
+               " [--password=PASSWORD] [--expire=TIMEDELAY] [-f]] [remotepath]"
+        #ifdef USE_PCRE
+               " [--use-pcre]"
+        #endif
+               " [--time-format=FORMAT]";
     }
     if (!strcmp(command, "share"))
     {
@@ -1901,6 +1917,11 @@ string getHelpStr(const char *command)
         os << " You can log in either with email and password, with session ID," << endl;
         os << " or into a folder (an exported/public folder)" << endl;
         os << " If logging into a folder indicate url#key" << endl;
+#ifdef SUPPORT_WRITABLE_FOLDERS
+        os << "   Pass --auth-key=XXXX" << "\t" << "with the authentication key (last part of the Auth Token)" << endl;
+        os << "   to be able to write into the accessed folder" << endl;
+#endif
+
         os << endl;
         os << " Please, avoid using passwords containing \" or '." << endl;
         os << endl;
@@ -2492,6 +2513,9 @@ string getHelpStr(const char *command)
         os << " --use-pcre" << "\t" << "use PCRE expressions" << endl;
 #endif
         os << " -a" << "\t" << "Adds an export (or modifies it if existing)" << endl;
+#ifdef SUPPORT_WRITABLE_FOLDERS
+        os << " --writable" << "\t" << "Makes the exported folder writable" << endl;
+#endif
         os << " --password=PASSWORD" << "\t" << "Protects link with password. Please, avoid using passwords containing \" or '" << endl;
         os << " --expire=TIMEDELAY" << "\t" << "Determines the expiration time of a node." << endl;
         os << "                   " << "\t" << "   It indicates the delay in hours(h), days(d), " << endl;
