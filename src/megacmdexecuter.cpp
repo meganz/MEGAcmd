@@ -1190,8 +1190,16 @@ void MegaCmdExecuter::dumpNode(MegaNode* n, const char *timeFormat, std::map<std
                             {
                                 OUTSTREAM << " expires at ";
                             }
-                            OUTSTREAM << " at " << getReadableTime(n->getExpirationTime(), timeFormat);
+
+                            OUTSTREAM << getReadableTime(n->getExpirationTime(), timeFormat);
                         }
+
+                        string authKey(n->getWritableLinkAuthKey());
+                        if (authKey.size())
+                        {
+                            OUTSTREAM << " AuthKey="<< authKey;
+                        }
+
                         delete []publicLink;
                     }
                 }
@@ -1247,6 +1255,18 @@ void MegaCmdExecuter::dumpNode(MegaNode* n, const char *timeFormat, std::map<std
                         {
                             char * publicLink = n->getPublicLink();
                             OUTSTREAM << ": " << publicLink;
+
+                            if (n->getWritableLinkAuthKey())
+                            {
+                                string authKey(n->getWritableLinkAuthKey());
+                                if (authKey.size())
+                                {
+                                    string authToken(publicLink);
+                                    authToken = authToken.substr(strlen("https://mega.nz/folder/")).append(":").append(authKey);
+                                    OUTSTREAM << " AuthToken="<< authToken;
+                                }
+                            }
+
                             delete []publicLink;
                         }
                     }
@@ -3211,7 +3231,7 @@ bool MegaCmdExecuter::amIPro()
     return prolevel > 0;
 }
 
-void MegaCmdExecuter::exportNode(MegaNode *n, int64_t expireTime, std::string password, bool force)
+void MegaCmdExecuter::exportNode(MegaNode *n, int64_t expireTime, std::string password, bool force, bool writable)
 {
     bool copyrightAccepted = false;
 
@@ -3241,7 +3261,7 @@ void MegaCmdExecuter::exportNode(MegaNode *n, int64_t expireTime, std::string pa
     {
         ConfigurationManager::savePropertyValue("copyrightAccepted",true);
         MegaCmdListener *megaCmdListener = new MegaCmdListener(api, NULL);
-        api->exportNode(n, expireTime, megaCmdListener);
+        api->exportNode(n, expireTime, writable, megaCmdListener);
         megaCmdListener->wait();
         if (checkNoErrors(megaCmdListener->getError(), "export node"))
         {
@@ -3271,6 +3291,16 @@ void MegaCmdExecuter::exportNode(MegaNode *n, int64_t expireTime, std::string pa
                 OUTSTREAM << "Exported " << nodepath << ": "
                           << (publicPassProtectedLink.size()?publicPassProtectedLink:publiclink);
 
+                if (nexported->getWritableLinkAuthKey())
+                {
+                    string authKey(nexported->getWritableLinkAuthKey());
+                    if (authKey.size())
+                    {
+                        string authToken((publicPassProtectedLink.size()?publicPassProtectedLink:publiclink));
+                        authToken = authToken.substr(strlen("https://mega.nz/folder/")).append(":").append(authKey);
+                        OUTSTREAM << "\n          AuthToken = " << authToken;
+                    }
+                }
 
                 if (nexported->getExpirationTime())
                 {
@@ -7911,7 +7941,17 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     {
                         MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
                         sandboxCMD->resetSandBox();
-                        api->loginToFolder(words[1].c_str(), megaCmdListener);
+
+                        string authKey = getOption(cloptions, "auth-key", "");
+                        if (authKey.empty())
+                        {
+                            api->loginToFolder(words[1].c_str(), megaCmdListener);
+                        }
+                        else
+                        {
+                            api->loginToFolder(words[1].c_str(), authKey.c_str(), megaCmdListener);
+                        }
+
                         actUponLogin(megaCmdListener);
                         delete megaCmdListener;
                         return;
@@ -9141,7 +9181,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                             if (add)
                             {
                                 LOG_debug << " exporting ... " << n->getName() << " expireTime=" << expireTime;
-                                exportNode(n, expireTime, linkPass, getFlag(clflags,"f"));
+                                exportNode(n, expireTime, linkPass, getFlag(clflags,"f"), getFlag(clflags,"writable"));
                             }
                             else if (getFlag(clflags, "d"))
                             {
@@ -9176,7 +9216,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     if (add)
                     {
                         LOG_debug << " exporting ... " << n->getName();
-                        exportNode(n, expireTime, linkPass, getFlag(clflags,"f"));
+                        exportNode(n, expireTime, linkPass, getFlag(clflags,"f"), getFlag(clflags,"writable"));
                     }
                     else if (getFlag(clflags, "d"))
                     {
