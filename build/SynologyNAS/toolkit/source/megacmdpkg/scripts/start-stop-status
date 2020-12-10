@@ -1,4 +1,0 @@
-#!/bin/sh
-#if changed check no errors are logged in /var/log/bash_err.log on install or run steps
-
-exit 0
