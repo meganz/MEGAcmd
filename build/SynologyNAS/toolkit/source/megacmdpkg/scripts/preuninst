@@ -1,8 +1,0 @@
-#!/bin/bash
-
-for C in "$SYNOPKG_PKGDEST/mega-"*
-do
-  rm "/usr/local/bin/${C/$SYNOPKG_PKGDEST/}"
-done
-
-exit 0
