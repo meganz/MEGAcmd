@@ -41,15 +41,15 @@ VIAddVersionKey "ProductVersion" "1.4.1.0"
 
 ; To be defined depending on your working environment
 
-!define BUILDPATH_X64 "build-MEGAcmd-Desktop_Qt_5_12_8_MSVC2017_64bit-Release"
+!define BUILDPATH_X64 "built64"
 !ifndef BUILD_X64_VERSION
-!define BUILDPATH_X86 "build-MEGAcmd-Desktop_Qt_5_12_8_MSVC2017_32bit-Release"
+!define BUILDPATH_X86 "built32"
 !endif
 
 !ifdef BUILD_X64_VERSION
-!define SRCDIR_MEGACMD "..\contrib\QtCreator\${BUILDPATH_X64}\MEGAcmdServer\release"
+!define SRCDIR_MEGACMD "${BUILDPATH_X64}"
 !else
-!define SRCDIR_MEGACMD "..\contrib\QtCreator\${BUILDPATH_X86}\MEGAcmdServer\release"
+!define SRCDIR_MEGACMD "${BUILDPATH_X86}"
 !endif
 
 !define SRCDIR_BATFILES "..\src\client\win"
@@ -470,15 +470,15 @@ modeselected:
   AccessControl::SetFileOwner "$INSTDIR\MEGAcmdServer.exe" "$USERNAME"
   AccessControl::GrantOnFile "$INSTDIR\MEGAcmdServer.exe" "$USERNAME" "GenericRead + GenericWrite"
 
-  File "${SRCDIR_MEGACMD}\..\..\MEGAcmdClient\release\MEGAclient.exe"
+  File "${SRCDIR_MEGACMD}\MEGAclient.exe"
   AccessControl::SetFileOwner "$INSTDIR\MEGAclient.exe" "$USERNAME"
   AccessControl::GrantOnFile "$INSTDIR\MEGAclient.exe" "$USERNAME" "GenericRead + GenericWrite"
 
-  File "${SRCDIR_MEGACMD}\..\..\MEGAcmdShell\release\MEGAcmdShell.exe"
+  File "${SRCDIR_MEGACMD}\MEGAcmdShell.exe"
   AccessControl::SetFileOwner "$INSTDIR\MEGAcmdShell.exe" "$USERNAME"
   AccessControl::GrantOnFile "$INSTDIR\MEGAcmdShell.exe" "$USERNAME" "GenericRead + GenericWrite"
 
-  File "${SRCDIR_MEGACMD}\..\..\MEGAcmdUpdater\release\MEGAcmdUpdater.exe"
+  File "${SRCDIR_MEGACMD}\MEGAcmdUpdater.exe"
   AccessControl::SetFileOwner "$INSTDIR\MEGAcmdUpdater.exe" "$USERNAME"
   AccessControl::GrantOnFile "$INSTDIR\MEGAcmdUpdater.exe" "$USERNAME" "GenericRead + GenericWrite"
   
