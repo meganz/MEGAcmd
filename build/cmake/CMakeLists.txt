@@ -21,8 +21,11 @@ if (ENABLE_BACKUP)
     add_definitions( -DENABLE_BACKUPS )
 endif (ENABLE_BACKUP)
 
+if(WIN32)
+    add_definitions(-DUNICODE -D_UNICODE)
+endif()
 
-add_executable(mega-cmd-server 
+add_executable(mega-cmd-server
     "${ProjectDir}/src/megacmd.cpp"
     "${ProjectDir}/src/megacmdexecuter.cpp"
     "${ProjectDir}/src/megacmdlogger.cpp"
@@ -37,24 +40,39 @@ add_executable(mega-cmd-server
     "${ProjectDir}/src/listeners.cpp"
 )
 
-add_executable(mega-exec 
+add_executable(mega-exec
     "${ProjectDir}/src/client/megacmdclient.cpp"
     "${ProjectDir}/src/megacmdshell/megacmdshellcommunicationsnamedpipes.cpp"
     "${ProjectDir}/src/megacmdshell/megacmdshellcommunications.cpp"
     "${ProjectDir}/src/megacmdcommonutils.cpp"
 )
 
-add_executable(mega-cmd 
+add_executable(mega-cmd
     "${ProjectDir}/src/megacmdshell/megacmdshellcommunications.cpp"
     "${ProjectDir}/src/megacmdshell/megacmdshellcommunicationsnamedpipes.cpp"
     "${ProjectDir}/src/megacmdshell/megacmdshell.cpp"
     "${ProjectDir}/src/megacmdcommonutils.cpp"
 )
 
+add_executable(mega-cmd-updater WIN32
+    "${ProjectDir}/src/updater/MegaUpdater.cpp"
+    "${ProjectDir}/src/updater/UpdateTask.cpp"
+)
+
+if (WIN32)
+set_target_properties(mega-exec PROPERTIES OUTPUT_NAME MEGAclient)
+set_target_properties(mega-cmd PROPERTIES OUTPUT_NAME MEGAcmdShell)
+set_target_properties(mega-cmd-updater PROPERTIES OUTPUT_NAME MEGAcmdUpdater)
+set_target_properties(mega-cmd-server PROPERTIES OUTPUT_NAME MEGAcmdServer)
+endif()
+
+
 target_link_libraries(mega-exec Mega)
 target_link_libraries(mega-cmd Mega)
+target_link_libraries(mega-cmd-updater Mega)
 if (WIN32)
-  target_link_libraries(mega-cmd-server Mega Lz32.lib)
+  target_link_libraries(mega-cmd-server Mega Lz32.lib Taskschd.lib)
+  target_link_libraries(mega-cmd-updater Mega Lz32.lib Urlmon.lib)
 else()
   target_link_libraries(mega-cmd-server Mega)
 endif()

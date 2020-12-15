@@ -3,6 +3,7 @@
 #include <Windows.h>
 #include <lzexpand.h>
 #include <shlwapi.h>
+#include <shellapi.h>
 #else
 #include <sys/types.h>
 #include <pwd.h>
