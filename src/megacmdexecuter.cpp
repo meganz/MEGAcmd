@@ -1194,10 +1194,13 @@ void MegaCmdExecuter::dumpNode(MegaNode* n, const char *timeFormat, std::map<std
                             OUTSTREAM << getReadableTime(n->getExpirationTime(), timeFormat);
                         }
 
-                        string authKey(n->getWritableLinkAuthKey());
-                        if (authKey.size())
+                        if (n->getWritableLinkAuthKey())
                         {
-                            OUTSTREAM << " AuthKey="<< authKey;
+                            string authKey(n->getWritableLinkAuthKey());
+                            if (authKey.size())
+                            {
+                                OUTSTREAM << " AuthKey="<< authKey;
+                            }
                         }
 
                         delete []publicLink;
@@ -1460,7 +1463,7 @@ void MegaCmdExecuter::dumpNodeSummary(MegaNode *n, const char *timeFormat, std::
         OUTSTREAM << getFixLengthString("-", 10, ' ', true);
     }
 
-    if (n->isFile())
+    if (n->isFile() && !getFlag(clflags, "show-creation-time"))
     {
         OUTSTREAM << " " << getReadableTime(n->getModificationTime(), timeFormat);
     }
