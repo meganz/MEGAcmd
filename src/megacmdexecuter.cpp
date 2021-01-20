@@ -4377,11 +4377,17 @@ void MegaCmdExecuter::printBackup(backup_struct *backupstruct, const char *timeF
 }
 #endif
 
-void MegaCmdExecuter::printSync(MegaSync *sync, long long nfiles, long long nfolders, megacmd::ColumnDisplayer &cd)
+void MegaCmdExecuter::printSync(MegaSync *sync, long long nfiles, long long nfolders, megacmd::ColumnDisplayer &cd,  std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions)
 {
     cd.addValue("ID", syncBackupIdToBase64(sync->getBackupId()));
 
     cd.addValue("LOCALPATH", sync->getLocalFolder());
+
+    if (getFlag(clflags, "show-handles"))
+    {
+        cd.addValue("REMOTEHANDLE", string("<H:").append(handleToBase64(sync->getMegaHandle()).append(">")));
+    }
+
     cd.addValue("REMOTEPATH", sync->getMegaFolder());
 
     string state;
@@ -7800,7 +7806,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 printSyncHeader(cd);
             }
 
-            printSync(sync.get(), nfiles, nfolders, cd);
+            printSync(sync.get(), nfiles, nfolders, cd, clflags, cloptions);
 
            OUTSTRINGSTREAM oss;
            cd.print(oss, getintOption(cloptions, "client-width", getNumberOfCols(75)));
@@ -7835,7 +7841,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     printSyncHeader(cd);
                 }
 
-                printSync(sync, nfiles, nfolders, cd);
+                printSync(sync, nfiles, nfolders, cd, clflags, cloptions);
             }
             OUTSTRINGSTREAM oss;
             cd.print(oss, getintOption(cloptions, "client-width", getNumberOfCols(75)));

@@ -588,6 +588,7 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validParams->insert("disable");
         validParams->insert("remove");
 
+        validParams->insert("show-handles");
         validOptValues->insert("path-display-size");
     }
     else if ("export" == thecommand)
@@ -2412,6 +2413,7 @@ string getHelpStr(const char *command)
         os << "-s | --disable" << " " << "ID|localpath" << "\t" << "stops(pauses) a synchronization" << endl;
         os << "-r | --enable" << " " << "ID|localpath" << "\t" << "resumes a synchronization" << endl;
         os << " --path-display-size=N" << "\t" << "Use at least N characters for displaying paths" << endl;
+        os << " --show-handles" << "\t" << "Prints remote nodes handles (H:XXXXXXXX)" << endl;
         os << endl;
         os << "DISPLAYED columns:" << endl;
         os << " " << "ID: an unique identifier of the sync:" << endl;
