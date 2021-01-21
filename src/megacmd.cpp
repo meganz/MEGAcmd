@@ -435,6 +435,7 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validParams->insert("h");
         validParams->insert("show-handles");
         validParams->insert("versions");
+        validParams->insert("show-creation-time");
         validOptValues->insert("time-format");
         validParams->insert("tree");
 #ifdef USE_PCRE
@@ -1517,11 +1518,11 @@ const char * getUsageStr(const char *command)
 #endif
     if (!strcmp(command, "ls"))
     {
+        return "ls [-halRr] [--show-handles] [--tree] [--versions] [remotepath]"
 #ifdef USE_PCRE
-        return "ls [-halRr] [--show-handles] [--tree] [--versions] [remotepath] [--use-pcre] [--time-format=FORMAT]";
-#else
-        return "ls [-halRr] [--show-handles] [--tree] [--versions] [remotepath] [--time-format=FORMAT]";
+        " [--use-pcre]"
 #endif
+        " [--show-creation-time] [--time-format=FORMAT]";
     }
     if (!strcmp(command, "tree"))
     {
@@ -2048,6 +2049,7 @@ string getHelpStr(const char *command)
         os << "   " << "\t" << " (public links, expiration dates, ...)" << endl;
         os << " --versions" << "\t" << "show historical versions" << endl;
         os << "   " << "\t" << "You can delete all versions of a file with \"deleteversions\"" << endl;
+        os << " --show-creation-time" << "\t" << "show creation time instead of modification time for files" << endl;
         printTimeFormatHelp(os);
 
 #ifdef USE_PCRE
