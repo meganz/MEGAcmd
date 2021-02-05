@@ -433,7 +433,7 @@ void MegaCmdMegaListener::onBackupTemporaryError(MegaApi *api, MegaBackup *backu
 
 void MegaCmdMegaListener::onSyncAdded(MegaApi *api, MegaSync *sync, int additionState)
 {
-    LOG_verbose << "Sync added: " << sync->getLocalFolder() << " to " << sync->getMegaFolder()
+    LOG_verbose << "Sync added: " << sync->getLocalFolder() << " to " << sync->getLastKnownMegaFolder()
                 << ". Adding state = " << additionState;
 
     if (!ConfigurationManager::getConfigurationValue("firstSyncConfigured", false))
@@ -447,30 +447,30 @@ void MegaCmdMegaListener::onSyncAdded(MegaApi *api, MegaSync *sync, int addition
 void MegaCmdMegaListener::onSyncDisabled(MegaApi *api, MegaSync *sync)
 {
     if (sync->getError() != MegaSync::LOGGED_OUT
-            && (sync->getError() != MegaSync::NO_SYNC_ERROR || sync->isTemporaryDisabled()) )
+           && (sync->getError() != MegaSync::NO_SYNC_ERROR || sync->isTemporaryDisabled()) )
     {
         string msg = "Your sync has been ";
         msg.append(sync->isTemporaryDisabled() ? "temporarily": "permanently");
         msg.append(" disabled: ");
         msg.append(sync->getLocalFolder());
         msg.append(" to: ");
-        msg.append(sync->getMegaFolder());
+        msg.append(sync->getLastKnownMegaFolder());
         msg.append(". Reason: ");
         msg.append(sync->getMegaSyncErrorCode());
         broadcastDelayedMessage(msg, true);
     }
-    LOG_warn << "Sync disabled: " << sync->getLocalFolder() << " to " << sync->getMegaFolder()
+    LOG_warn << "Sync disabled: " << sync->getLocalFolder() << " to " << sync->getLastKnownMegaFolder()
              << ". Reason: " << sync->getMegaSyncErrorCode();
 }
 
 void MegaCmdMegaListener::onSyncEnabled(MegaApi *api, MegaSync *sync)
 {
-    LOG_verbose << "Sync re-enabled: " << sync->getLocalFolder() << " to " << sync->getMegaFolder();
+    LOG_verbose << "Sync re-enabled: " << sync->getLocalFolder() << " to " << sync->getLastKnownMegaFolder();
 }
 
 void MegaCmdMegaListener::onSyncDeleted(MegaApi *api, MegaSync *sync)
 {
-    LOG_verbose << "Sync deleted: " << sync->getLocalFolder() << " to " << sync->getMegaFolder();
+    LOG_verbose << "Sync deleted: " << sync->getLocalFolder() << " to " << sync->getLastKnownMegaFolder();
 }
 
 #endif
