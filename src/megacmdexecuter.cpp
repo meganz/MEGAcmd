@@ -4382,9 +4382,10 @@ void MegaCmdExecuter::printBackup(backup_struct *backupstruct, const char *timeF
 
 void MegaCmdExecuter::printSync(MegaSync *sync, long long nfiles, long long nfolders, megacmd::ColumnDisplayer &cd)
 {
-    cd.addValue("ID", SSTR(sync->getTag()));
+    unique_ptr<char[]> bid(MegaApi::handleToBase64(sync->getBackupId()));
+    cd.addValue("ID", bid.get());
     cd.addValue("LOCALPATH", sync->getLocalFolder());
-    cd.addValue("REMOTEPATH", sync->getMegaFolder());
+    cd.addValue("REMOTEPATH", sync->getLastKnownMegaFolder());
 
     string state;
     if (sync->isTemporaryDisabled())
@@ -4668,7 +4669,7 @@ void MegaCmdExecuter::restartsyncs()
         MegaSync *sync = syncs->get(i);
         if (sync->isActive())
         {
-            LOG_info << "Restarting sync "<< sync->getLocalFolder() << " to " << sync->getMegaFolder();
+            LOG_info << "Restarting sync "<< sync->getLocalFolder() << " to " << sync->getLastKnownMegaFolder();
 
             auto megaCmdListener = ::mega::make_unique<MegaCmdListener>(nullptr);
             api->disableSync(sync, megaCmdListener.get());
@@ -4676,7 +4677,7 @@ void MegaCmdExecuter::restartsyncs()
 
             if (checkNoErrors(megaCmdListener->getError(), "disable sync"))
             {
-                LOG_verbose << "Disabled sync "<< sync->getLocalFolder() << " to " << sync->getMegaFolder();
+                LOG_verbose << "Disabled sync "<< sync->getLocalFolder() << " to " << sync->getLastKnownMegaFolder();
 
                 auto megaCmdListener = ::mega::make_unique<MegaCmdListener>(nullptr);
                 api->enableSync(sync, megaCmdListener.get());
@@ -4684,12 +4685,12 @@ void MegaCmdExecuter::restartsyncs()
 
                 if (checkNoErrors(megaCmdListener->getError(), "re-enable sync"))
                 {
-                    LOG_verbose << "Re-enabled sync "<< sync->getLocalFolder() << " to " << sync->getMegaFolder();
+                    LOG_verbose << "Re-enabled sync "<< sync->getLocalFolder() << " to " << sync->getLastKnownMegaFolder();
                 }
                 else
                 {
                     setCurrentOutCode(MCMD_INVALIDSTATE);
-                    LOG_err << "Failed to restart sync: " << sync->getLocalFolder() << " to " << sync->getMegaFolder()
+                    LOG_err << "Failed to restart sync: " << sync->getLocalFolder() << " to " << sync->getLastKnownMegaFolder()
                             << ". You will need to manually reenable or restart MEGAcmd";
                 }
             }
@@ -7728,26 +7729,22 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         }
         else if (words.size() == 2) //manage one sync
         {
-            string pathOrId{words[1].c_str()};
-            int id = toInteger(pathOrId, 0);
+            string pathOrBackupId{words[1].c_str()};
             auto stop = getFlag(clflags, "s") || getFlag(clflags, "disable");
             auto resume = getFlag(clflags, "r") || getFlag(clflags, "enable");
             auto remove = getFlag(clflags, "d") || getFlag(clflags, "remove");
 
             //1 - find the sync
             std::unique_ptr<MegaSync> sync;
-            if (id)
-            {
-                sync.reset(api->getSyncByTag(id));
-            }
+            sync.reset(api->getSyncByBackupId(MegaApi::base64ToHandle(pathOrBackupId.c_str())));
             if (!sync)
             {
-                sync.reset(api->getSyncByPath(pathOrId.c_str()));
+                sync.reset(api->getSyncByPath(pathOrBackupId.c_str()));
             }
             if (!sync)
             {
                 setCurrentOutCode(MCMD_NOTFOUND);
-                LOG_err << "Sync not found: " << pathOrId;
+                LOG_err << "Sync not found: " << pathOrBackupId;
                 return;
             }
 
@@ -7758,7 +7755,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 megaCmdListener->wait();
                 if (checkNoErrors(megaCmdListener->getError(), "stop sync", static_cast<SyncError>(megaCmdListener->getRequest()->getNumDetails())))
                 {
-                    LOG_info << "Sync disabled (stopped): " << sync->getLocalFolder() << " to " << sync->getMegaFolder();
+                    LOG_info << "Sync disabled (stopped): " << sync->getLocalFolder() << " to " << sync->getLastKnownMegaFolder();
                 }
             }
             else if (resume)
@@ -7768,7 +7765,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 megaCmdListener->wait();
                 if (checkNoErrors(megaCmdListener->getError(), "enable sync", static_cast<SyncError>(megaCmdListener->getRequest()->getNumDetails())))
                 {
-                    LOG_info << "Sync re-enabled: " << sync->getLocalFolder() << " to " << sync->getMegaFolder();
+                    LOG_info << "Sync re-enabled: " << sync->getLocalFolder() << " to " << sync->getLastKnownMegaFolder();
                 }
             }
             else if (remove)
@@ -7778,17 +7775,17 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 megaCmdListener->wait();
                 if (checkNoErrors(megaCmdListener->getError(), "remove sync", static_cast<SyncError>(megaCmdListener->getRequest()->getNumDetails())))
                 {
-                    OUTSTREAM << "Sync removed: " << sync->getLocalFolder() << " to " << sync->getMegaFolder() << endl;
+                    OUTSTREAM << "Sync removed: " << sync->getLocalFolder() << " to " << sync->getLastKnownMegaFolder() << endl;
                     return;
                 }
             }
 
             // In any case, print the udpated sync state:
-            sync.reset(api->getSyncByTag(sync->getTag())); //first retrieve it again, to get updated data!
+            sync.reset(api->getSyncByBackupId(sync->getBackupId())); //first retrieve it again, to get updated data!
             if (!sync)
             {
                 setCurrentOutCode(MCMD_NOTFOUND);
-                LOG_err << "Sync not found: " << pathOrId;
+                LOG_err << "Sync not found: " << pathOrBackupId;
                 return;
             }
 
@@ -9472,7 +9469,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         }
         else
         {
-            api->logout(megaCmdListener);
+            api->logout(false, megaCmdListener);
         }
         actUponLogout(megaCmdListener, keepSession);
         if (keepSession)

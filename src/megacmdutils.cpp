@@ -137,33 +137,6 @@ const char* getSyncPathStateStr(int state)
     return "undefined";
 }
 
-const char* getSyncStateStr(int state)
-{
-    switch (state)
-    {
-        case MegaSync::SYNC_FAILED:
-            return "Failed";
-
-            break;
-
-        case MegaSync::SYNC_CANCELED:
-            return "Canceled";
-
-            break;
-
-        case MegaSync::SYNC_INITIALSCAN:
-            return "InitScan";
-
-            break;
-
-        case MegaSync::SYNC_ACTIVE:
-            return "Active";
-
-            break;
-    }
-    return "undefined";
-}
-
 string visibilityToString(int visibility)
 {
     if (visibility == MegaUser::VISIBILITY_VISIBLE)
