@@ -28,7 +28,7 @@ IF %ERRORLEVEL% NEQ 0 goto ErrorHandler
 cd %MEGACMD_DIR%\..\3rdParty_megacmd
 IF %ERRORLEVEL% NEQ 0 goto ErrorHandler
 
-cmake C:\dev\sdk5\contrib\cmake\build3rdParty
+cmake %MEGACMD_DIR%\sdk\contrib\cmake\build3rdParty
 IF %ERRORLEVEL% NEQ 0 goto ErrorHandler
 
 cmake --build . --config Release
