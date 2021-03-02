@@ -1146,7 +1146,7 @@ void MegaCmdExecuter::dumpNode(MegaNode* n, const char *timeFormat, std::map<std
 
     if (getFlag(clflags, "show-handles"))
     {
-        OUTSTREAM << " <H:" << api->handleToBase64(n->getHandle()) << ">";
+        OUTSTREAM << " <H:" << handleToBase64(n->getHandle()) << ">";
     }
 
     if (extended_info)
@@ -1333,7 +1333,7 @@ void MegaCmdExecuter::dumpNode(MegaNode* n, const char *timeFormat, std::map<std
 
                     if (getFlag(clflags, "show-handles"))
                     {
-                        OUTSTREAM << " <H:" << api->handleToBase64(versionNode->getHandle()) << ">";
+                        OUTSTREAM << " <H:" << handleToBase64(versionNode->getHandle()) << ">";
                     }
 
                     OUTSTREAM << endl;
@@ -1474,7 +1474,7 @@ void MegaCmdExecuter::dumpNodeSummary(MegaNode *n, const char *timeFormat, std::
 
     if (getFlag(clflags, "show-handles"))
     {
-        OUTSTREAM << " H:" << api->handleToBase64(n->getHandle());
+        OUTSTREAM << " H:" << handleToBase64(n->getHandle());
     }
 
     OUTSTREAM << " " << title;
@@ -4380,10 +4380,17 @@ void MegaCmdExecuter::printBackup(backup_struct *backupstruct, const char *timeF
 }
 #endif
 
-void MegaCmdExecuter::printSync(MegaSync *sync, long long nfiles, long long nfolders, megacmd::ColumnDisplayer &cd)
+void MegaCmdExecuter::printSync(MegaSync *sync, long long nfiles, long long nfolders, megacmd::ColumnDisplayer &cd,  std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions)
 {
-    cd.addValue("ID", SSTR(sync->getTag()));
+    cd.addValue("ID", syncBackupIdToBase64(sync->getBackupId()));
+
     cd.addValue("LOCALPATH", sync->getLocalFolder());
+
+    if (getFlag(clflags, "show-handles"))
+    {
+        cd.addValue("REMOTEHANDLE", string("<H:").append(handleToBase64(sync->getMegaHandle()).append(">")));
+    }
+
     cd.addValue("REMOTEPATH", sync->getMegaFolder());
 
     string state;
@@ -4404,7 +4411,6 @@ void MegaCmdExecuter::printSync(MegaSync *sync, long long nfiles, long long nfol
         state = "Failed";
     }
     cd.addValue("ACTIVE", state);
-
 
     string pathstate;
     if (!sync->isActive())
@@ -4481,7 +4487,7 @@ void MegaCmdExecuter::doFind(MegaNode* nodeBase, const char *timeFormat, std::ma
 
                 if (getFlag(clflags, "show-handles"))
                 {
-                    OUTSTREAM << " <H:" << api->handleToBase64(n->getHandle()) << ">";
+                    OUTSTREAM << " <H:" << handleToBase64(n->getHandle()) << ">";
                 }
 
                 OUTSTREAM << endl;
@@ -7729,21 +7735,18 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         else if (words.size() == 2) //manage one sync
         {
             string pathOrId{words[1].c_str()};
-            int id = toInteger(pathOrId, 0);
             auto stop = getFlag(clflags, "s") || getFlag(clflags, "disable");
             auto resume = getFlag(clflags, "r") || getFlag(clflags, "enable");
             auto remove = getFlag(clflags, "d") || getFlag(clflags, "remove");
 
             //1 - find the sync
             std::unique_ptr<MegaSync> sync;
-            if (id)
-            {
-                sync.reset(api->getSyncByTag(id));
-            }
+            sync.reset(api->getSyncByBackupId(base64ToSyncBackupId(pathOrId)));
             if (!sync)
             {
                 sync.reset(api->getSyncByPath(pathOrId.c_str()));
             }
+
             if (!sync)
             {
                 setCurrentOutCode(MCMD_NOTFOUND);
@@ -7784,7 +7787,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             }
 
             // In any case, print the udpated sync state:
-            sync.reset(api->getSyncByTag(sync->getTag())); //first retrieve it again, to get updated data!
+            sync.reset(api->getSyncByBackupId(sync->getBackupId())); //first retrieve it again, to get updated data!
             if (!sync)
             {
                 setCurrentOutCode(MCMD_NOTFOUND);
@@ -7806,7 +7809,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 printSyncHeader(cd);
             }
 
-            printSync(sync.get(), nfiles, nfolders, cd);
+            printSync(sync.get(), nfiles, nfolders, cd, clflags, cloptions);
 
            OUTSTRINGSTREAM oss;
            cd.print(oss, getintOption(cloptions, "client-width", getNumberOfCols(75)));
@@ -7841,7 +7844,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     printSyncHeader(cd);
                 }
 
-                printSync(sync, nfiles, nfolders, cd);
+                printSync(sync, nfiles, nfolders, cd, clflags, cloptions);
             }
             OUTSTRINGSTREAM oss;
             cd.print(oss, getintOption(cloptions, "client-width", getNumberOfCols(75)));

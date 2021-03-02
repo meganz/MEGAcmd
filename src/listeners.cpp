@@ -446,7 +446,8 @@ void MegaCmdMegaListener::onSyncAdded(MegaApi *api, MegaSync *sync, int addition
 
 void MegaCmdMegaListener::onSyncDisabled(MegaApi *api, MegaSync *sync)
 {
-    if (sync->getState() == SYNC_FAILED || sync->isTemporaryDisabled())
+    if (sync->getError() != MegaSync::LOGGED_OUT
+            && (sync->getError() != MegaSync::NO_SYNC_ERROR || sync->isTemporaryDisabled()) )
     {
         string msg = "Your sync has been ";
         msg.append(sync->isTemporaryDisabled() ? "temporarily": "permanently");
