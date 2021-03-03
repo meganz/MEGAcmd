@@ -9472,7 +9472,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         }
         else
         {
-            api->logout(true, megaCmdListener);
+            api->logout(false, megaCmdListener);
         }
         actUponLogout(megaCmdListener, keepSession);
         if (keepSession)
