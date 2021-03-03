@@ -3,10 +3,9 @@
 cmake_minimum_required(VERSION 3.8)
 project(MEGAcmd)
 
-
-set (USE_PDFIUM 1)
-set (USE_LIBUV 1)
-set (ENABLE_SYNC 1)
+# Turn on SDK flags which are off by default in the SDK, but should be on for MEGAcmd
+set (USE_LIBUV 1 CACHE STRING "Includes the library and turns on internal web and ftp server functionality")
+set (USE_PDFIUM 1 CACHE STRING "Used to create previews/thumbnails for PDF files")
 
 if(WIN32)
     add_definitions( -DUNICODE -D_UNICODE )  # needed for visual studio projects to use the unicode runtime libraries
