@@ -4391,7 +4391,7 @@ void MegaCmdExecuter::printSync(MegaSync *sync, long long nfiles, long long nfol
         cd.addValue("REMOTEHANDLE", string("<H:").append(handleToBase64(sync->getMegaHandle()).append(">")));
     }
 
-    cd.addValue("REMOTEPATH", sync->getMegaFolder());
+    cd.addValue("REMOTEPATH", sync->getLastKnownMegaFolder());
 
     string state;
     if (sync->isTemporaryDisabled())
@@ -4674,7 +4674,7 @@ void MegaCmdExecuter::restartsyncs()
         MegaSync *sync = syncs->get(i);
         if (sync->isActive())
         {
-            LOG_info << "Restarting sync "<< sync->getLocalFolder() << " to " << sync->getMegaFolder();
+            LOG_info << "Restarting sync "<< sync->getLocalFolder() << " to " << sync->getLastKnownMegaFolder();
 
             auto megaCmdListener = ::mega::make_unique<MegaCmdListener>(nullptr);
             api->disableSync(sync, megaCmdListener.get());
@@ -4682,7 +4682,7 @@ void MegaCmdExecuter::restartsyncs()
 
             if (checkNoErrors(megaCmdListener->getError(), "disable sync"))
             {
-                LOG_verbose << "Disabled sync "<< sync->getLocalFolder() << " to " << sync->getMegaFolder();
+                LOG_verbose << "Disabled sync "<< sync->getLocalFolder() << " to " << sync->getLastKnownMegaFolder();
 
                 auto megaCmdListener = ::mega::make_unique<MegaCmdListener>(nullptr);
                 api->enableSync(sync, megaCmdListener.get());
@@ -4690,12 +4690,12 @@ void MegaCmdExecuter::restartsyncs()
 
                 if (checkNoErrors(megaCmdListener->getError(), "re-enable sync"))
                 {
-                    LOG_verbose << "Re-enabled sync "<< sync->getLocalFolder() << " to " << sync->getMegaFolder();
+                    LOG_verbose << "Re-enabled sync "<< sync->getLocalFolder() << " to " << sync->getLastKnownMegaFolder();
                 }
                 else
                 {
                     setCurrentOutCode(MCMD_INVALIDSTATE);
-                    LOG_err << "Failed to restart sync: " << sync->getLocalFolder() << " to " << sync->getMegaFolder()
+                    LOG_err << "Failed to restart sync: " << sync->getLocalFolder() << " to " << sync->getLastKnownMegaFolder()
                             << ". You will need to manually reenable or restart MEGAcmd";
                 }
             }
@@ -7761,7 +7761,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 megaCmdListener->wait();
                 if (checkNoErrors(megaCmdListener->getError(), "stop sync", static_cast<SyncError>(megaCmdListener->getRequest()->getNumDetails())))
                 {
-                    LOG_info << "Sync disabled (stopped): " << sync->getLocalFolder() << " to " << sync->getMegaFolder();
+                    LOG_info << "Sync disabled (stopped): " << sync->getLocalFolder() << " to " << sync->getLastKnownMegaFolder();
                 }
             }
             else if (resume)
@@ -7771,7 +7771,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 megaCmdListener->wait();
                 if (checkNoErrors(megaCmdListener->getError(), "enable sync", static_cast<SyncError>(megaCmdListener->getRequest()->getNumDetails())))
                 {
-                    LOG_info << "Sync re-enabled: " << sync->getLocalFolder() << " to " << sync->getMegaFolder();
+                    LOG_info << "Sync re-enabled: " << sync->getLocalFolder() << " to " << sync->getLastKnownMegaFolder();
                 }
             }
             else if (remove)
@@ -7781,7 +7781,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 megaCmdListener->wait();
                 if (checkNoErrors(megaCmdListener->getError(), "remove sync", static_cast<SyncError>(megaCmdListener->getRequest()->getNumDetails())))
                 {
-                    OUTSTREAM << "Sync removed: " << sync->getLocalFolder() << " to " << sync->getMegaFolder() << endl;
+                    OUTSTREAM << "Sync removed: " << sync->getLocalFolder() << " to " << sync->getLastKnownMegaFolder() << endl;
                     return;
                 }
             }
@@ -9475,7 +9475,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         }
         else
         {
-            api->logout(megaCmdListener);
+            api->logout(false, megaCmdListener);
         }
         actUponLogout(megaCmdListener, keepSession);
         if (keepSession)
