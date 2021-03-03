@@ -137,6 +137,7 @@ const char* getSyncPathStateStr(int state)
     return "undefined";
 }
 
+
 string visibilityToString(int visibility)
 {
     if (visibility == MegaUser::VISIBILITY_VISIBLE)
@@ -1246,6 +1247,30 @@ int permissionsFromReadable(string permissions)
     }
     return -1;
 }
+
+std::string handleToBase64(const MegaHandle &handle)
+{
+    char *base64Handle = MegaApi::handleToBase64(handle);
+    std::string toret{base64Handle};
+    delete [] base64Handle;
+    return toret;
+}
+
+
+std::string syncBackupIdToBase64(const MegaHandle &handle)
+{
+    char *base64Handle = MegaApi::userHandleToBase64(handle);
+    std::string toret{base64Handle};
+    delete [] base64Handle;
+    return toret;
+}
+
+mega::MegaHandle base64ToSyncBackupId(const std::string &shandle)
+{
+    return MegaApi::base64ToUserHandle(shandle.c_str());
+}
+
+
 #endif
 
 }//end namespace

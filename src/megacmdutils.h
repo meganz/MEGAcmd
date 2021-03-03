@@ -38,8 +38,6 @@ const char* getAccessLevelStr(int level);
 
 const char* getSyncPathStateStr(int state);
 
-const char* getSyncStateStr(int state);
-
 std::string visibilityToString(int visibility);
 
 const char * getMCMDErrorString(int errorCode);
@@ -112,6 +110,12 @@ bool megacmdWildcardMatch(const char *pszString, const char *pszMatch);
 bool patternMatches(const char *what, const char *pattern, bool usepcre);
 
 bool nodeNameIsVersion(std::string &nodeName);
+
+std::string handleToBase64(const mega::MegaHandle &handle); //node handles
+std::string syncBackupIdToBase64(const mega::MegaHandle &handle); //sync handles
+
+mega::MegaHandle base64ToSyncBackupId(const std::string &shandle);
+
 
 
 /* Flags and Options */
