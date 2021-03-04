@@ -55,7 +55,7 @@ set x86orx64=x64
 if "%TRIPLET%zz"=="x86-windows-megazz" set x86orx64=Win32
 if "%TRIPLET%zz"=="x86-windows-mega-staticdevzz" set x86orx64=Win32
 
-cmake cmake -G "Visual Studio 16 2019" -A %x86orx64% -DMega3rdPartyDir="%MEGACMD_DIR%\..\3rdParty_megacmd" -DVCPKG_TRIPLET=%TRIPLET% -S "%MEGACMD_DIR%\build\cmake" -B .
+cmake -G "Visual Studio 16 2019" -A %x86orx64% -DMega3rdPartyDir="%MEGACMD_DIR%\..\3rdParty_megacmd" -DVCPKG_TRIPLET=%TRIPLET% -S "%MEGACMD_DIR%\build\cmake" -B .
 IF %ERRORLEVEL% NEQ 0 goto ErrorHandler
 
 cmake --build . --config Debug
