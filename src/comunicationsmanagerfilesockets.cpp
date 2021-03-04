@@ -15,6 +15,7 @@
  * You should have received a copy of the license along with this
  * program.
  */
+#ifndef WIN32
 
 #include "comunicationsmanagerfilesockets.h"
 #include "megacmdutils.h"
@@ -661,3 +662,5 @@ ComunicationsManagerFileSockets::~ComunicationsManagerFileSockets()
 {
 }
 }//end namespace
+
+#endif
