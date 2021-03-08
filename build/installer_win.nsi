@@ -760,7 +760,7 @@ modeselected:
 
 ; Uninstaller
 ;!ifndef BUILD_UNINSTALLER  ; if building uninstaller, skip this check
-  File "${UNINSTALLER_NAME}"
+  File "${SRCDIR_MEGACMD}\${UNINSTALLER_NAME}"
   AccessControl::SetFileOwner "$INSTDIR\${UNINSTALLER_NAME}" "$USERNAME"
   AccessControl::GrantOnFile "$INSTDIR\${UNINSTALLER_NAME}" "$USERNAME" "GenericRead + GenericWrite"
 !endif
