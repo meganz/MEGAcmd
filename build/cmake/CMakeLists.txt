@@ -3,9 +3,17 @@
 cmake_minimum_required(VERSION 3.8)
 project(MEGAcmd)
 
+# Turn on SDK flags which are off by default in the SDK, but should be on for MEGAcmd
+set (USE_LIBUV 1 CACHE STRING "Includes the library and turns on internal web and ftp server functionality")
+set (USE_PDFIUM 1 CACHE STRING "Used to create previews/thumbnails for PDF files")
 
-set (USE_PDFIUM 0 CACHE STRING "")
+if(WIN32)
+    add_definitions( -DUNICODE -D_UNICODE )  # needed for visual studio projects to use the unicode runtime libraries
 
+    #supported windows version: 7 and beyond
+    add_definitions( -DNTDDI_VERSION=NTDDI_WIN7 )
+    add_definitions( -D_WIN32_WINNT=0x0601 ) # 0601: windows 7
+endif()
 
 #specify where 3rd party libraries are available
 set(Mega3rdPartyDir "${CMAKE_CURRENT_LIST_DIR}/../../../3rdparty" CACHE STRING "")
@@ -21,9 +29,6 @@ if (ENABLE_BACKUP)
     add_definitions( -DENABLE_BACKUPS )
 endif (ENABLE_BACKUP)
 
-if(WIN32)
-    add_definitions(-DUNICODE -D_UNICODE)
-endif()
 
 add_executable(mega-cmd-server
     "${ProjectDir}/src/megacmd.cpp"
