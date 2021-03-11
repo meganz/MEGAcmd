@@ -43,6 +43,7 @@ add_executable(mega-cmd-server
     "${ProjectDir}/src/comunicationsmanagerportsockets.cpp"
     "${ProjectDir}/src/configurationmanager.cpp"
     "${ProjectDir}/src/listeners.cpp"
+    "${ProjectDir}/contrib/QtCreator/MEGAcmd/MEGAcmdServer/icon.rc"
 )
 
 add_executable(mega-exec
@@ -50,6 +51,7 @@ add_executable(mega-exec
     "${ProjectDir}/src/megacmdshell/megacmdshellcommunicationsnamedpipes.cpp"
     "${ProjectDir}/src/megacmdshell/megacmdshellcommunications.cpp"
     "${ProjectDir}/src/megacmdcommonutils.cpp"
+    "${ProjectDir}/contrib/QtCreator/MEGAcmd/MEGAcmdClient/icon.rc"
 )
 
 add_executable(mega-cmd
@@ -57,11 +59,13 @@ add_executable(mega-cmd
     "${ProjectDir}/src/megacmdshell/megacmdshellcommunicationsnamedpipes.cpp"
     "${ProjectDir}/src/megacmdshell/megacmdshell.cpp"
     "${ProjectDir}/src/megacmdcommonutils.cpp"
+    "${ProjectDir}/contrib/QtCreator/MEGAcmd/MEGAcmdShell/icon.rc"
 )
 
 add_executable(mega-cmd-updater WIN32
     "${ProjectDir}/src/updater/MegaUpdater.cpp"
     "${ProjectDir}/src/updater/UpdateTask.cpp"
+    "${ProjectDir}/contrib/QtCreator/MEGAcmd/MEGAcmdUpdater/icon.rc"
 )
 
 if (WIN32)
@@ -69,6 +73,7 @@ set_target_properties(mega-exec PROPERTIES OUTPUT_NAME MEGAclient)
 set_target_properties(mega-cmd PROPERTIES OUTPUT_NAME MEGAcmdShell)
 set_target_properties(mega-cmd-updater PROPERTIES OUTPUT_NAME MEGAcmdUpdater)
 set_target_properties(mega-cmd-server PROPERTIES OUTPUT_NAME MEGAcmdServer)
+set_target_properties(mega-cmd-server  PROPERTIES LINK_FLAGS "/LARGEADDRESSAWARE /DEBUG" )
 endif()
 
 
