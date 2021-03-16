@@ -3,9 +3,21 @@
 cmake_minimum_required(VERSION 3.8)
 project(MEGAcmd)
 
-# Turn on SDK flags which are off by default in the SDK, but should be on for MEGAcmd
+# Turn on SDK flags which might be off by default in the SDK, but should be on for MEGAcmd, also set to 0 flags we want to be aware of but not use yet
 set (USE_LIBUV 1 CACHE STRING "Includes the library and turns on internal web and ftp server functionality")
 set (USE_PDFIUM 1 CACHE STRING "Used to create previews/thumbnails for PDF files")
+set (USE_MEDIAINFO 1 CACHE STRING "Used to determine media properties and set those as node attributes")
+set (USE_FREEIMAGE 1 CACHE STRING "Used to create previews/thumbnails for photos/pictures")
+set (ENABLE_SYNC 1 CACHE STRING "Turns on sync functionality")
+set (ENABLE_CHAT 1 CACHE STRING "Turns on chat management functionality")
+set (ENABLE_LOG_PERFORMANCE 0 CACHE STRING "Faster log message generation")
+set (USE_ROTATIVEPERFORMANCELOGGER 0 CACHE STRING "Internal logger, not just callbacks")
+set (HAVE_FFMPEG 1 CACHE STRING "Used to create previews/thumbnails for video files")
+set (USE_PCRE 1 CACHE STRING "Provides pattern matching functionality for sync rules or flie listings")
+
+# should it be have, or use?  Use is our usual pattern.  Turn on both for surety
+set (HAVE_FFMPEG 1 CACHE STRING "Used to create previews/thumbnails for video files")
+set (USE_FFMPEG 1 CACHE STRING "Used to create previews/thumbnails for video files")
 
 if(WIN32)
     add_definitions( -DUNICODE -D_UNICODE )  # needed for visual studio projects to use the unicode runtime libraries
