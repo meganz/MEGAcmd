@@ -25,6 +25,6 @@ copy ..\x86-windows-mega\Release\MEGAcmdShell.exe built32
 copy ..\x86-windows-mega\Release\MEGAclient.exe built32
 copy ..\x86-windows-mega\Release\MEGAcmdUpdater.exe built32
 
-copy C:\Users\build\MEGA\build-MEGAcmd\3rdParty_MSVC2017_20210302\3rdParty_megacmd\vcpkg\installed\x64-windows-mega\bin\*.* built64
-copy C:\Users\build\MEGA\build-MEGAcmd\3rdParty_MSVC2017_20210302\3rdParty_megacmd\vcpkg\installed\x86-windows-mega\bin\*.* built32
+copy C:\Users\build\MEGA\build-MEGAcmd\3rdParty_MSVC2017_20210315\3rdParty_megacmd\vcpkg\installed\x64-windows-mega\bin_signed\*.* built64
+copy C:\Users\build\MEGA\build-MEGAcmd\3rdParty_MSVC2017_20210315\3rdParty_megacmd\vcpkg\installed\x86-windows-mega\bin_signed\*.* built32
 
