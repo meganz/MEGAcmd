@@ -21,7 +21,7 @@ libzen/0.4.37
 ffmpeg/c303dd024e2dc03a0665ddffbb12a1077933e649
 
 #freeimage and its dependencies (image preview/thumbnail generation)
-freeimage/c303dd024e2dc03a0665ddffbb12a1077933e649:freeimage-bool-typedef.patch
+freeimage/c303dd024e2dc03a0665ddffbb12a1077933e649:freeimage-bool-typedef-and-xbm-msvc-compiler-bug.patch
 libpng/c303dd024e2dc03a0665ddffbb12a1077933e649
 libjpeg-turbo/c303dd024e2dc03a0665ddffbb12a1077933e649
 tiff/c303dd024e2dc03a0665ddffbb12a1077933e649
