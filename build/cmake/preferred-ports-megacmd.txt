@@ -21,7 +21,7 @@ libzen/0.4.37
 ffmpeg/c303dd024e2dc03a0665ddffbb12a1077933e649
 
 #freeimage and its dependencies (image preview/thumbnail generation)
-freeimage/c303dd024e2dc03a0665ddffbb12a1077933e649:freeimage-bool-typedef.patch
+freeimage/c47216ac7904b09187c119c7e4d010dcf993e3d5:freeimage-bool-typedef-and-xbm-msvc-compiler-bug.patch
 libpng/c303dd024e2dc03a0665ddffbb12a1077933e649
 libjpeg-turbo/c303dd024e2dc03a0665ddffbb12a1077933e649
 tiff/c303dd024e2dc03a0665ddffbb12a1077933e649
@@ -48,6 +48,9 @@ icu/c303dd024e2dc03a0665ddffbb12a1077933e649
 lcms/c303dd024e2dc03a0665ddffbb12a1077933e649
 libjpeg-turbo/c303dd024e2dc03a0665ddffbb12a1077933e649
 openjpeg/c303dd024e2dc03a0665ddffbb12a1077933e649
+# bzip2 and libpng will be used by pdfium if present, though there are no build errors if either are absent (except bzip2 on mac)
+bzip2/c303dd024e2dc03a0665ddffbb12a1077933e649
+libpng/c303dd024e2dc03a0665ddffbb12a1077933e649
 
 # tests and tools
 asio/c303dd024e2dc03a0665ddffbb12a1077933e649
