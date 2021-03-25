@@ -18,6 +18,8 @@
 #ifndef COMUNICATIONSMANAGERFILESOCKETS_H
 #define COMUNICATIONSMANAGERFILESOCKETS_H
 
+#ifndef WIN32
+
 #include "comunicationsmanager.h"
 
 #include <sys/types.h>
@@ -115,4 +117,5 @@ public:
 };
 
 }//end namespace
+#endif
 #endif // COMUNICATIONSMANAGERPOSIX_H

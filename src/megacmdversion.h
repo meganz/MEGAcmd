@@ -8,7 +8,7 @@
 #define MEGACMD_MINOR_VERSION 4
 #endif
 #ifndef MEGACMD_MICRO_VERSION
-#define MEGACMD_MICRO_VERSION 0
+#define MEGACMD_MICRO_VERSION 1
 #endif
 
 #ifndef MEGACMD_BUILD_ID
@@ -21,6 +21,9 @@
 namespace megacmd {
 
 const char * const megacmdchangelog =
+    #ifdef _WIN64
+        "64 bits support in Windows""\n"
+    #endif
         "Fix issues with backups timestamps in Raspbian and other OS""\n"
         "Allow uploads when reached bandwidth overquota""\n"
         "Fix for syncing mounted drives in Windows""\n"

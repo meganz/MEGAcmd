@@ -16,6 +16,8 @@
  * program.
  */
 
+#ifndef WIN32
+
 #include "comunicationsmanagerfilesockets.h"
 #include "megacmdutils.h"
 #include <sys/ioctl.h>
@@ -661,3 +663,5 @@ ComunicationsManagerFileSockets::~ComunicationsManagerFileSockets()
 {
 }
 }//end namespace
+
+#endif

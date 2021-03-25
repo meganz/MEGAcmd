@@ -33,7 +33,9 @@
 using std::string;
 using CryptoPP::Integer;
 
-using namespace std;
+using std::cout;
+using std::endl;
+using std::vector;
 
 enum {
     LOG_LEVEL_FATAL = 0,   // Very severe error event that will presumably lead the application to abort.
