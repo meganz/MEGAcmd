@@ -10,6 +10,7 @@ RM="mega-rm"
 MV="mega-mv"
 CP="mega-cp"
 CD="mega-cd"
+THUMB="mega-thumbnail"
 LCD="mega-lcd"
 MKDIR="mega-mkdir"
 EXPORT="mega-export -f"
@@ -79,6 +80,7 @@ def clean_all():
     
     rmfileifexisting("megafind.txt")
     rmfileifexisting("localfind.txt")
+    rmfileifexisting("thumbnail.jpg")
 
 
 
@@ -144,8 +146,8 @@ def initialize():
         cmd_es(LOGOUT)
         cmd_ef(LOGIN+" " +osvar("MEGA_EMAIL")+" "+osvar("MEGA_PWD"))
 
-    if len(os.listdir(".")):
-        print >>sys.stderr, "initialization folder not empty!"
+    if len(os.listdir(".")) and ( len(os.listdir(".")) != 1 and os.listdir(".")[0] != 'images'):
+        print >>sys.stderr, "initialization folder not empty!", "\n",os.listdir(".")
         #~ cd $ABSPWD
         exit(1)
 
@@ -439,6 +441,27 @@ cmd_ef(MV+" -vvv copied7 "+'/le01/moved7')
 copybyfilepattern("localUPs/","file01nonempty.txt", "localUPs/le01/moved7")
 compare_find('/')
 
+currentTest=33 #thumbnails
+#Test 33 #ensure thumnail generation
+#1st get images selection
+cmd_ef(GET+" https://mega.nz/folder/GA0j1SaA#VtWP9-TE7vdfgiY4lPFs6g")
+#2nd, upload folder
+cmd_ef(PUT+" images")
+#3rd, for each file, download thumbnail
+folder="/images"
+o,status=cmd_ec(FIND+" "+folder+"/*")
+fullout=""
+fullStatus=1
+for f in o.split():
+    rmfileifexisting("thumbnail.jpg")
+    o,status=cmd_ec(THUMB+" "+f+" thumbnail.jpg")
+    ext=f.split(".")[-1].lower().strip()
+    allowedFailure=["ai","ani","cur","eps","exe","gif","heic","html","idx","j2c","jpm","md","mj2","pdf","psd","sgi","svg","txt","webp","xmp", "pnm","ppm"]    
+    if not ext in allowedFailure and "saved in" not in o: #note: output code is not trustworthy: check for "saved in"
+        fullout=fullout+str("missing thumbnail for:"+str(f)+"\n")
+        fullStatus=0
+        print status, ext," missing thumbnail:",f,"\n",o,
+check_failed_and_clear(fullout,fullStatus)
 ###################
 
 # Clean all

@@ -66,10 +66,18 @@ find /usr -type f -name '*.la' \
 find /usr -type f -name '*.la' \
     | xargs sed -i -e 's!/home/cpt/hi3535/x-tools!/usr/local!g'
 
+# Some platforms require us to explicitly link against libstdc++fs in
+# order to make use of the C++17 filesystem library.
+LIBSTDCXXFS='-lstdc++fs'
+
 case $PLATFORM_ABBR in
 6281)
   # it doens't like -std=c++11
   export CXXFLAGS=`echo $CXXFLAGS | sed -e 's/-std=c[^ ]+11//g' `
+  ;;
+armada37xx)
+  export CFLAGS=`echo $CFLAGS | sed -e 's/-mfpu=neon[^ ]*//g' `
+  export CXXFLAGS=`echo $CXXFLAGS | sed -e 's/-mfpu=neon[^ ]*//g' `
   ;;
 armada38x)
   ;;
@@ -82,6 +90,7 @@ comcerto2k)
   #freeimage tries to use an undefined symbol if it uses neon
   export CFLAGS=`echo $CFLAGS | sed -e 's/-mfpu=neon[^ ]*//g' `
   export CXXFLAGS=`echo $CXXFLAGS | sed -e 's/-mfpu=neon[^ ]*//g' `
+  LIBSTDCXXFS=""
   ;;
 braswell)
   export SPECIAL_OPENSSL_CONFIG_PARAMS="no-asm"
@@ -132,8 +141,6 @@ rtd1296)
   #freeimage tries to use an undefined symbol if it uses neon
   export CFLAGS=`echo $CFLAGS | sed -e 's/-mfpu=neon[^ ]*//g' `
   export CXXFLAGS=`echo $CXXFLAGS | sed -e 's/-mfpu=neon[^ ]*//g' `
-  #despite that, freeimage still insists on neon , preventing linking, and it's not clear how that gets turned on for this platform, it's not in the compiler flags
-  suppress_freeimage_flag="-f"
   ;;
 apollolake)
   export SPECIAL_OPENSSL_CONFIG_PARAMS="no-asm"
@@ -202,6 +209,7 @@ $CXX $CXXFLAGS \
      sdk/sdk_build/install/lib/libuv.a \
      -pthread \
      -latomic \
+     ${LIBSTDCXXFS} \
      -ldl \
      -lrt \
      sdk/sdk_build/install/lib/libsodium.a \
@@ -220,6 +228,7 @@ $CXX $CXXFLAGS \
      sdk/sdk_build/install/lib/libsqlite3.a \
      -pthread \
      -latomic \
+     ${LIBSTDCXXFS} \
      -ldl \
      -lrt \
      sdk/sdk_build/install/lib/libz.a \
@@ -240,6 +249,7 @@ $CXX $CXXFLAGS \
      sdk/sdk_build/install/lib/libsqlite3.a \
      -pthread \
      -latomic \
+     ${LIBSTDCXXFS} \
      -ldl \
      -lrt \
      sdk/sdk_build/install/lib/libz.a \

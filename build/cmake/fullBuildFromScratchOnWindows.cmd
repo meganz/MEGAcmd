@@ -56,6 +56,7 @@ if "%TRIPLET%zz"=="x86-windows-megazz" set x86orx64=Win32
 if "%TRIPLET%zz"=="x86-windows-mega-staticdevzz" set x86orx64=Win32
 
 cmake -G "Visual Studio 15 2017" -A %x86orx64% -DMega3rdPartyDir="%MEGACMD_DIR%\..\3rdParty_megacmd" -DVCPKG_TRIPLET=%TRIPLET% -S "%MEGACMD_DIR%\build\cmake" -B .
+
 IF %ERRORLEVEL% NEQ 0 goto ErrorHandler
 
 cmake --build . --config Debug

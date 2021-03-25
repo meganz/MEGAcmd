@@ -123,6 +123,10 @@ std::deque<std::string> greetingsFirstClientMsgs; // to be given on first client
 std::deque<std::string> greetingsAllClientMsgs; // to be given on all clients when registering as state listener
 std::mutex greetingsmsgsMutex;
 
+std::deque<std::string> delayedBroadCastMessages; // messages to be brodcasted in a while
+std::mutex delayedBroadcastMutex;
+bool broadcastingDelayedMsgs = false;
+
 //Comunications Manager
 ComunicationsManager * cm;
 
@@ -330,6 +334,62 @@ void broadcastMessage(string message, bool keepIfNoListeners)
     }
 }
 
+
+void removeDelayedBroadcastMatching(const string &toMatch)
+{
+    std::lock_guard<std::mutex> g(delayedBroadcastMutex);
+    for (auto it = delayedBroadCastMessages.begin(); it != delayedBroadCastMessages.end(); )
+    {
+        if ((*it).find(toMatch) != string::npos)
+        {
+            it = delayedBroadCastMessages.erase(it);
+        }
+        else
+        {
+            ++it;
+        }
+    }
+}
+
+void removeGreetingMatching(const string &toMatch)
+{
+    std::lock_guard<std::mutex> g(greetingsmsgsMutex);
+    for (auto it = greetingsAllClientMsgs.begin(); it != greetingsAllClientMsgs.end(); )
+    {
+        if ((*it).find(toMatch) != string::npos)
+        {
+            it = greetingsAllClientMsgs.erase(it);
+        }
+        else
+        {
+            ++it;
+        }
+    }
+}
+
+void broadcastDelayedMessage(string message, bool keepIfNoListeners)
+{
+    std::lock_guard<std::mutex> g(delayedBroadcastMutex);
+    delayedBroadCastMessages.push_back(message);
+    if (!broadcastingDelayedMsgs)
+    {
+        std::thread([keepIfNoListeners]()
+        {
+            broadcastingDelayedMsgs = true;
+            sleepSeconds(4);
+            std::lock_guard<std::mutex> g(delayedBroadcastMutex);
+            while (delayedBroadCastMessages.size())
+            {
+                auto msg = delayedBroadCastMessages.front();
+                delayedBroadCastMessages.pop_front();
+                broadcastMessage(msg, keepIfNoListeners);
+            }
+
+            broadcastingDelayedMsgs = false;
+        }).detach();
+    }
+}
+
 void informTransferUpdate(MegaTransfer *transfer, int clientID)
 {
     informProgressUpdate(transfer->getTransferredBytes(),transfer->getTotalBytes(), clientID);
@@ -375,6 +435,7 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validParams->insert("h");
         validParams->insert("show-handles");
         validParams->insert("versions");
+        validParams->insert("show-creation-time");
         validOptValues->insert("time-format");
         validParams->insert("tree");
 #ifdef USE_PCRE
@@ -523,6 +584,12 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validParams->insert("d");
         validParams->insert("s");
         validParams->insert("r");
+
+        validParams->insert("enable");
+        validParams->insert("disable");
+        validParams->insert("remove");
+
+        validParams->insert("show-handles");
         validOptValues->insert("path-display-size");
     }
     else if ("export" == thecommand)
@@ -530,6 +597,7 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validParams->insert("a");
         validParams->insert("d");
         validParams->insert("f");
+        validParams->insert("writable");
         validOptValues->insert("expire");
         validOptValues->insert("password");
 #ifdef USE_PCRE
@@ -648,6 +716,7 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     {
         validOptValues->insert("clientID");
         validOptValues->insert("auth-code");
+        validOptValues->insert("auth-key");
     }
     else if ("psa" == thecommand)
     {
@@ -1370,11 +1439,15 @@ const char * getUsageStr(const char *command)
     {
         if (interactiveThread())
         {
-            return "login [--auth-code=XXXX] [email [password]] | exportedfolderurl#key | session";
+            return "login [--auth-code=XXXX] [email [password]] | exportedfolderurl#key"
+                    " [--auth-key=XXXX]"
+                   " | session";
         }
         else
         {
-            return "login [--auth-code=XXXX] email password | exportedfolderurl#key | session";
+            return "login [--auth-code=XXXX] email password | exportedfolderurl#key"
+                    " [--auth-key=XXXX]"
+                   " | session";
         }
     }
     if (!strcmp(command, "psa"))
@@ -1446,11 +1519,11 @@ const char * getUsageStr(const char *command)
 #endif
     if (!strcmp(command, "ls"))
     {
+        return "ls [-halRr] [--show-handles] [--tree] [--versions] [remotepath]"
 #ifdef USE_PCRE
-        return "ls [-halRr] [--show-handles] [--tree] [--versions] [remotepath] [--use-pcre] [--time-format=FORMAT]";
-#else
-        return "ls [-halRr] [--show-handles] [--tree] [--versions] [remotepath] [--time-format=FORMAT]";
+        " [--use-pcre]"
 #endif
+        " [--show-creation-time] [--time-format=FORMAT]";
     }
     if (!strcmp(command, "tree"))
     {
@@ -1599,11 +1672,13 @@ const char * getUsageStr(const char *command)
 #endif
     if (!strcmp(command, "export"))
     {
-#ifdef USE_PCRE
-        return "export [-d|-a [--password=PASSWORD] [--expire=TIMEDELAY] [-f]] [remotepath] [--use-pcre] [--time-format=FORMAT]";
-#else
-        return "export [-d|-a [--password=PASSWORD] [--expire=TIMEDELAY] [-f]] [remotepath] [--time-format=FORMAT]";
-#endif
+        return "export [-d|-a"
+               " [--writable]"
+               " [--password=PASSWORD] [--expire=TIMEDELAY] [-f]] [remotepath]"
+        #ifdef USE_PCRE
+               " [--use-pcre]"
+        #endif
+               " [--time-format=FORMAT]";
     }
     if (!strcmp(command, "share"))
     {
@@ -1834,6 +1909,8 @@ string getHelpStr(const char *command)
         os << " You can log in either with email and password, with session ID," << endl;
         os << " or into a folder (an exported/public folder)" << endl;
         os << " If logging into a folder indicate url#key" << endl;
+        os << "   Pass --auth-key=XXXX" << "\t" << "with the authentication key (last part of the Auth Token)" << endl;
+        os << "   to be able to write into the accessed folder" << endl;
         os << endl;
         os << " Please, avoid using passwords containing \" or '." << endl;
         os << endl;
@@ -1973,6 +2050,7 @@ string getHelpStr(const char *command)
         os << "   " << "\t" << " (public links, expiration dates, ...)" << endl;
         os << " --versions" << "\t" << "show historical versions" << endl;
         os << "   " << "\t" << "You can delete all versions of a file with \"deleteversions\"" << endl;
+        os << " --show-creation-time" << "\t" << "show creation time instead of modification time for files" << endl;
         printTimeFormatHelp(os);
 
 #ifdef USE_PCRE
@@ -2320,10 +2398,28 @@ string getHelpStr(const char *command)
         os << " unless an option is specified." << endl;
         os << endl;
         os << "Options:" << endl;
-        os << "-d" << " " << "ID|localpath" << "\t" << "deletes a synchronization" << endl;
-        os << "-s" << " " << "ID|localpath" << "\t" << "stops(pauses) a synchronization" << endl;
-        os << "-r" << " " << "ID|localpath" << "\t" << "resumes a synchronization" << endl;
+        os << "-d | --remove" << " " << "ID|localpath" << "\t" << "deletes a synchronization" << endl;
+        os << "-s | --disable" << " " << "ID|localpath" << "\t" << "stops(pauses) a synchronization" << endl;
+        os << "-r | --enable" << " " << "ID|localpath" << "\t" << "resumes a synchronization" << endl;
         os << " --path-display-size=N" << "\t" << "Use at least N characters for displaying paths" << endl;
+        os << " --show-handles" << "\t" << "Prints remote nodes handles (H:XXXXXXXX)" << endl;
+        os << endl;
+        os << "DISPLAYED columns:" << endl;
+        os << " " << "ID: an unique identifier of the sync:" << endl;
+        os << " " << "LOCALPATH: local synced path" << endl;
+        os << " " << "REMOTEPATH: remote synced path (in MEGA):" << endl;
+        os << " " << "ACTIVE: Indication of activation status, possible values: " << endl;
+        os << " " << "\t" << "TempDisabled: Sync temporarily disabled: " << endl;
+        os << " " << "\t" << "Enabled: Sync active: the sync engine is working: " << endl;
+        os << " " << "\t" << "Disabled: Sync disabled by the user" << endl;
+        os << " " << "\t" << "Failed: Sync permanently disabled due to an error" << endl;
+        os << " " << "STATUS: State of the sync, possible values: " << endl;
+        os << " " << "\t" << "NONE: Status unknown: " << endl;
+        os << " " << "\t" << "Synced: synced, no transfers/pending actions are ongoing" << endl;
+        os << " " << "\t" << "Pending: sync engine is doing some calculations" << endl;
+        os << " " << "\t" << "Syncing: transfers/pending actions are being carried out" << endl;
+        os << " " << "ERROR: Error, if any: " << endl;
+        os << " " << "SIZE, FILE & DIRS: size, number of files and number of dirs in the remote folder" << endl;
     }
     else if (!strcmp(command, "backup"))
     {
@@ -2408,6 +2504,7 @@ string getHelpStr(const char *command)
         os << " --use-pcre" << "\t" << "use PCRE expressions" << endl;
 #endif
         os << " -a" << "\t" << "Adds an export (or modifies it if existing)" << endl;
+        os << " --writable" << "\t" << "Makes the exported folder writable" << endl;
         os << " --password=PASSWORD" << "\t" << "Protects link with password. Please, avoid using passwords containing \" or '" << endl;
         os << " --expire=TIMEDELAY" << "\t" << "Determines the expiration time of a node." << endl;
         os << "                   " << "\t" << "   It indicates the delay in hours(h), days(d), " << endl;
