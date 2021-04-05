@@ -77,6 +77,7 @@ def clean_all():
     
     rmfolderifexisting("localUPs")
     rmfolderifexisting("localtmp")
+    rmfolderifexisting("images")
     
     rmfileifexisting("megafind.txt")
     rmfileifexisting("localfind.txt")
