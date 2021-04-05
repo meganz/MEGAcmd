@@ -1247,6 +1247,7 @@ int permissionsFromReadable(string permissions)
     }
     return -1;
 }
+#endif
 
 std::string handleToBase64(const MegaHandle &handle)
 {
@@ -1269,8 +1270,5 @@ mega::MegaHandle base64ToSyncBackupId(const std::string &shandle)
 {
     return MegaApi::base64ToUserHandle(shandle.c_str());
 }
-
-
-#endif
 
 }//end namespace
