@@ -444,9 +444,9 @@ compare_find('/')
 currentTest=33 #thumbnails
 #Test 33 #ensure thumnail generation
 #1st get images selection
-cmd_ef(GET+" https://mega.nz/folder/GA0j1SaA#VtWP9-TE7vdfgiY4lPFs6g")
+cmd_ef(GET+" https://mega.nz/folder/GA0j1SaA#VtWP9-TE7vdfgiY4lPFs6g localtmp/")
 #2nd, upload folder
-cmd_ef(PUT+" images")
+cmd_ef(PUT+" localtmp/images")
 #3rd, for each file, download thumbnail
 folder="/images"
 o,status=cmd_ec(FIND+" "+folder+"/*")
