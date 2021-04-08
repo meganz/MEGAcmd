@@ -7534,7 +7534,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
            }
            else
            {
-               OUTSTREAM << "Ftp server might not running. Add a new location to serve." << endl;
+               OUTSTREAM << "Ftp server might not be running. Add a new location to serve." << endl;
            }
 
            return;
