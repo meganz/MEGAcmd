@@ -42,7 +42,7 @@ jobs:
         # this is required since GitHub by default won't run the next step
         # when the previous one has failed.
         # And alternative it to add `continue-on-error: true` to the previous step
-        if: success() || failure()
+        if: success() || true()
         with:
           # The SARIF Log file name is configurable on scan action
           # therefore the file name is best read from the steps output
