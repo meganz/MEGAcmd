@@ -39,7 +39,7 @@ public:
     SOCKET outSocket;
     SOCKET acceptedOutSocket;
     CmdPetitionPortSockets(){
-        acceptedOutSocket = -1;
+        acceptedOutSocket = INVALID_SOCKET;
     }
     virtual ~CmdPetitionPortSockets()
     {

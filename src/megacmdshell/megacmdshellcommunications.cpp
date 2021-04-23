@@ -198,7 +198,7 @@ SOCKET MegaCmdShellCommunications::createSocket(int number, bool initializeserve
         memset(&addr, 0, sizeof( addr ));
         addr.sin_family = AF_INET;
         addr.sin_addr.s_addr = htonl (INADDR_LOOPBACK);
-        addr.sin_port = htons(portno);
+        addr.sin_port = (unsigned short)htons((unsigned short)portno);
 
         if (::connect(thesock, (struct sockaddr*)&addr, sizeof( addr )) == SOCKET_ERROR)
         {
@@ -650,7 +650,7 @@ int MegaCmdShellCommunications::executeCommand(string command, std::string (*rea
                 do{
                     char *buffer = new char[partialoutsize+1];
 
-                    n = recv(newsockfd, (char *)buffer, partialoutsize, MSG_NOSIGNAL);
+                    n = recv(newsockfd, (char *)buffer, int(partialoutsize), MSG_NOSIGNAL);
                     if (n)
                     {
 #ifdef _WIN32
@@ -673,7 +673,7 @@ int MegaCmdShellCommunications::executeCommand(string command, std::string (*rea
             }
             else
             {
-                std:cerr << "Error reading size of partial output: " << ERRNO << std::endl;
+                std::cerr << "Error reading size of partial output: " << ERRNO << std::endl;
                 return -1;
             }
         }

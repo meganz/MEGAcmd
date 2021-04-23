@@ -61,13 +61,13 @@ protected:
     bool processUpdateFile(FILE *fd);
     bool fileExist(const char* path);
     void initSignature();
-    void addToSignature(const char *bytes, int length);
+    void addToSignature(const char *bytes, size_t length);
     bool checkSignature(std::string value);
     bool alreadyInstalled(std::string relativePath, std::string fileSignature);
     bool alreadyDownloaded(std::string relativePath, std::string fileSignature);
     bool alreadyExists(std::string absolutePath, std::string fileSignature);
     bool performUpdate();
-    void rollbackUpdate(int fileNum);
+    void rollbackUpdate(size_t fileNum);
     void initialCleanup();
     void finalCleanup();
     bool setPermissions(const char *path);

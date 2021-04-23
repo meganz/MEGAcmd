@@ -120,7 +120,7 @@ void utf16ToUtf8(const wchar_t* utf16data, int utf16size, string* utf8string)
 std::string getutf8fromUtf16(const wchar_t *ws)
 {
     string utf8s;
-    utf16ToUtf8(ws, wcslen(ws), &utf8s);
+    utf16ToUtf8(ws, int(wcslen(ws)), &utf8s);
     return utf8s;
 }
 
@@ -456,7 +456,7 @@ string joinStrings(const vector<string>& vec, const char* delim, bool quoted)
     stringstream res;
     if (!quoted)
     {
-        std:copy(vec.begin(), vec.end(), ostream_iterator<string>(res, delim));
+        std::copy(vec.begin(), vec.end(), ostream_iterator<string>(res, delim));
     }
     else
     {
@@ -560,7 +560,7 @@ void printCenteredContents(OUTSTREAMTYPE &os, string msj, unsigned int width, bo
 {
      string headfoot = " ";
      headfoot.append(width, '-');
-     unsigned int msjsize = getstringutf8size(msj);
+     //unsigned int msjsize = getstringutf8size(msj);
 
      bool printfooter = false;
 
@@ -934,8 +934,8 @@ unsigned int getNumberOfCols(unsigned int defaultwidth)
             return size.ws_col - 2;
         }
     }
-#endif
     return defaultwidth;
+#endif
 }
 
 void sleepSeconds(int seconds)

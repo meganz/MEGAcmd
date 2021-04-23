@@ -192,7 +192,7 @@ bool serverTryingToLog = false;
 
 static char dynamicprompt[PROMPT_MAX_SIZE];
 
-static char* line;
+static char* g_line;
 
 static prompttype prompt = COMMAND;
 
@@ -600,8 +600,8 @@ bool validoptionforreadline(const string& string)
         if (0x00 <= c && c <= 0x7f) n=0; // 0bbbbbbb
         else if ((c & 0xE0) == 0xC0) n=1; // 110bbbbb
         else if ( c==0xed && i<(ix-1) && ((unsigned char)string[i+1] & 0xa0)==0xa0) return false; //U+d800 to U+dfff
-        else if ((c & 0xF0) == 0xE0) {return false; n=2;} // 1110bbbb
-        else if ((c & 0xF8) == 0xF0) {return false; n=3;} // 11110bbb
+        else if ((c & 0xF0) == 0xE0) {return false; /*n=2;*/} // 1110bbbb
+        else if ((c & 0xF8) == 0xF0) {return false; /*n=3;*/} // 11110bbb
         //else if (($c & 0xFC) == 0xF8) n=4; // 111110bb //byte 5, unnecessary in 4 byte UTF-8
         //else if (($c & 0xFE) == 0xFC) n=5; // 1111110b //byte 6, unnecessary in 4 byte UTF-8
         else return false;
@@ -2008,10 +2008,10 @@ void readloop()
         // command editing loop - exits when a line is submitted
         for (;; )
         {
-            line = console->checkForCompletedInputLine();
+            g_line = console->checkForCompletedInputLine();
 
 
-            if (line)
+            if (g_line)
             {
                 break;
             }
@@ -2037,14 +2037,14 @@ void readloop()
 
         cleanLastMessage();// clean last message that avoids broadcasts repetitions
 
-        if (line)
+        if (g_line)
         {
-            if (strlen(line))
+            if (strlen(g_line))
             {
                 alreadyFinished = false;
                 percentDowloaded = 0.0;
 //                mutexPrompt.lock();
-                process_line(line);
+                process_line(g_line);
                 requirepromptinstall = true;
 //                mutexPrompt.unlock();
 
@@ -2059,8 +2059,8 @@ void readloop()
                 // this is not 100% guaranteed to happen
                 sleepSeconds(0);
             }
-            free(line);
-            line = NULL;
+            free(g_line);
+            g_line = NULL;
         }
         if (doExit)
         {
@@ -2154,9 +2154,10 @@ bool runningInBackground()
 #ifdef _WIN32
 void mycompletefunct(char **c, int num_matches, int max_length)
 {
-    int rows = 1, cols = 80;
+    int cols = 80;
 
 #if defined( RL_ISSTATE ) && defined( RL_STATE_INITIALIZED )
+    int rows = 1;
 
             if (RL_ISSTATE(RL_STATE_INITIALIZED))
             {
