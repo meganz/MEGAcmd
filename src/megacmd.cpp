@@ -3783,7 +3783,7 @@ void LinuxSignalHandler(int signum)
 }
 #endif
 
-void finalize(bool waitForRestartSignal)
+void finalize(bool waitForRestartSignal_param)
 {
     static bool alreadyfinalized = false;
     if (alreadyfinalized)
@@ -3821,7 +3821,7 @@ void finalize(bool waitForRestartSignal)
     delete cmdexecuter;
 
 #ifdef __linux__
-    if (waitForRestartSignal)
+    if (waitForRestartSignal_param)
     {
         LOG_debug << "Waiting for signal to restart MEGAcmd ... ";
         std::unique_lock<std::mutex> lock(mtxcondvar);
@@ -4124,6 +4124,7 @@ void megacmd()
                 OSVERSIONINFOEX osvi;
                 ZeroMemory(&osvi, sizeof(OSVERSIONINFOEX));
                 osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEX);
+#pragma warning(disable: 4996) //  warning C4996: 'GetVersionExW': was declared deprecated
                 if (GetVersionEx((OSVERSIONINFO*)&osvi) && osvi.dwMajorVersion < 6)
                 {
                     isOSdeprecated = true;
@@ -4866,7 +4867,7 @@ int main(int argc, char* argv[])
 
     loggerCMD->setApiLoggerLevel(MegaApi::LOG_LEVEL_ERROR);
     loggerCMD->setCmdLoggerLevel(MegaApi::LOG_LEVEL_INFO);
-#if DEBUG and !defined(_WIN32)
+#if defined(DEBUG) && !defined(_WIN32)
     loggerCMD->setApiLoggerLevel(MegaApi::LOG_LEVEL_DEBUG);
     loggerCMD->setCmdLoggerLevel(MegaApi::LOG_LEVEL_DEBUG);
 #endif

@@ -249,6 +249,7 @@ bool MegaCmdShellCommunicationsNamedPipes::isFileOwnerCurrentUser(HANDLE hFile)
 #endif
             !wcscmp(stringSIDOwner, L"S-1-5-32-544"))) // owner == user  or   owner == administrators and current process running as admin
         {
+            LocalFree(stringSIDOwner);
             return true;
         }
         else
@@ -258,10 +259,9 @@ bool MegaCmdShellCommunicationsNamedPipes::isFileOwnerCurrentUser(HANDLE hFile)
             std::wcerr << L" IsUserAdmin=" << IsUserAnAdmin();
 #endif
             std::wcerr << L" SIDOwner=" << stringSIDOwner << endl;
+            LocalFree(stringSIDOwner);
             return false;
         }
-
-        LocalFree(stringSIDOwner);
     }
     return false;
 
@@ -502,7 +502,6 @@ bool outputtobinaryorconsole(void)
     } else {
         return true;
     }
-    return false;
 }
 
 int MegaCmdShellCommunicationsNamedPipes::executeCommand(string command, std::string (*readresponse)(const char *), OUTSTREAMTYPE &output, bool interactiveshell, wstring wcommand)
@@ -570,7 +569,7 @@ int MegaCmdShellCommunicationsNamedPipes::executeCommand(string command, std::st
             size_t partialoutsize;
             if (!ReadFile(newNamedPipe, (char *)&partialoutsize, sizeof(partialoutsize),&n, NULL))
             {
-                std:cerr << "Error reading size of partial output: " << ERRNO << std::endl;
+                std::cerr << "Error reading size of partial output: " << ERRNO << std::endl;
                 return -1;
             }
 
@@ -578,7 +577,7 @@ int MegaCmdShellCommunicationsNamedPipes::executeCommand(string command, std::st
             if (partialoutsize > 0)
             {
                 megaCmdStdoutputing.lock();
-                int oldmode;
+                int oldmode = 0;
 
                 if (binaryoutput)
                 {
@@ -589,7 +588,7 @@ int MegaCmdShellCommunicationsNamedPipes::executeCommand(string command, std::st
                 char buffer[10025];
                 do{
                     BOOL readok;
-                    readok = ReadFile(newNamedPipe, buffer, std::min(BUFFERSIZE,partialoutsize),&n,NULL);
+                    readok = ReadFile(newNamedPipe, buffer, DWORD(std::min(BUFFERSIZE,partialoutsize)),&n,NULL);
                     if (readok)
                     {
 
@@ -628,7 +627,7 @@ int MegaCmdShellCommunicationsNamedPipes::executeCommand(string command, std::st
         else
         {
 
-            int BUFFERSIZE = 1024;
+            DWORD BUFFERSIZE = 1024;
             string confirmQuestion;
             char bufferQuestion[1025];
             memset(bufferQuestion,'\0',1025);
@@ -683,7 +682,7 @@ int MegaCmdShellCommunicationsNamedPipes::executeCommand(string command, std::st
         }
     }
 
-    int BUFFERSIZE = 1024;
+    DWORD BUFFERSIZE = 1024;
     char buffer[1025];
     BOOL readok;
     do{
@@ -765,7 +764,7 @@ int MegaCmdShellCommunicationsNamedPipes::listenToStateChanges(int receiveNamedP
 
         string newstate;
 
-        int BUFFERSIZE = 1024;
+        DWORD BUFFERSIZE = 1024;
         char buffer[1025];
         DWORD n;
         bool readok;

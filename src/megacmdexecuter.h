@@ -94,7 +94,7 @@ public:
     void dumpNodeSummaryHeader(const char *timeFormat, std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions);
     void dumpNodeSummary(mega::MegaNode* n, const char *timeFormat, std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions, bool humanreadable = false, const char* title = NULL);
     void dumpTreeSummary(mega::MegaNode* n, const char *timeFormat, std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions, int recurse, bool show_versions, int depth = 0, bool humanreadable = false, std::string pathRelativeTo = "NULL");
-    mega::MegaContactRequest * getPcrByContact(std::string contactEmail);
+    std::unique_ptr<mega::MegaContactRequest> getPcrByContact(std::string contactEmail);
     bool TestCanWriteOnContainingFolder(std::string *path);
     std::string getDisplayPath(std::string givenPath, mega::MegaNode* n);
     int dumpListOfExported(mega::MegaNode* n, const char *timeFormat, std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions, std::string givenPath);

@@ -488,9 +488,8 @@ void MegaCmdExecuter::getPathsMatching(MegaNode *parentNode, deque<string> pathP
                 pathsMatching->push_back(pathPrefix+"..");
             }
 
-            parentNode = api->getNodeByHandle(parentNode->getParentHandle());
-            return getPathsMatching(parentNode, pathParts, pathsMatching, usepcre, pathPrefix+"../");
-            delete parentNode;
+            unique_ptr<MegaNode> p(api->getNodeByHandle(parentNode->getParentHandle()));
+            return getPathsMatching(p.get(), pathParts, pathsMatching, usepcre, pathPrefix+"../");
         }
         else
         {
@@ -954,7 +953,7 @@ bool MegaCmdExecuter::checkAndInformPSA(CmdPetition *inf, bool enforce)
         }
         else if(checkNoErrors(megaCmdListener->getError(), "get PSA"))
         {
-            sandboxCMD->lastPSAnumreceived = megaCmdListener->getRequest()->getNumber();
+            sandboxCMD->lastPSAnumreceived = int(megaCmdListener->getRequest()->getNumber());
 
             LOG_debug << "Informing PSA #" << megaCmdListener->getRequest()->getNumber() << ": " << megaCmdListener->getRequest()->getName();
 
@@ -1345,7 +1344,7 @@ void MegaCmdExecuter::dumpNode(MegaNode* n, const char *timeFormat, std::map<std
 
 void MegaCmdExecuter::dumpNodeSummaryHeader(const char *timeFormat, std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions)
 {
-    int datelength = getReadableTime(m_time(), timeFormat).size();
+    int datelength = int(getReadableTime(m_time(), timeFormat).size());
 
     OUTSTREAM << "FLAGS";
     OUTSTREAM << " ";
@@ -1844,29 +1843,25 @@ bool MegaCmdExecuter::TestCanWriteOnContainingFolder(string *path)
     return true;
 }
 
-MegaContactRequest * MegaCmdExecuter::getPcrByContact(string contactEmail)
+std::unique_ptr<MegaContactRequest> MegaCmdExecuter::getPcrByContact(string contactEmail)
 {
-    MegaContactRequestList *icrl = api->getIncomingContactRequests();
+    unique_ptr<MegaContactRequestList> icrl(api->getIncomingContactRequests());
     if (icrl)
     {
         for (int i = 0; i < icrl->size(); i++)
         {
             if (icrl->get(i)->getSourceEmail() == contactEmail)
             {
-                return icrl->get(i);
-
-                delete icrl;
+                return std::unique_ptr<MegaContactRequest>(icrl->get(i)->copy());
             }
         }
-
-        delete icrl;
     }
     return NULL;
 }
 
-string MegaCmdExecuter::getDisplayPath(string givenPath, MegaNode* n)
+string MegaCmdExecuter::getDisplayPath(string givenPath, MegaNode* n_param)
 {
-    char * pathToNode = api->getNodePath(n);
+    char * pathToNode = api->getNodePath(n_param);
     if (!pathToNode)
     {
         LOG_err << " GetNodePath failed for: " << givenPath;
@@ -1968,11 +1963,11 @@ string MegaCmdExecuter::getDisplayPath(string givenPath, MegaNode* n)
     return toret;
 }
 
-int MegaCmdExecuter::dumpListOfExported(MegaNode* n, const char *timeFormat, std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions, string givenPath)
+int MegaCmdExecuter::dumpListOfExported(MegaNode* n_param, const char *timeFormat, std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions, string givenPath)
 {
     int toret = 0;
     vector<MegaNode *> listOfExported;
-    processTree(n, includeIfIsExported, (void*)&listOfExported);
+    processTree(n_param, includeIfIsExported, (void*)&listOfExported);
     for (std::vector< MegaNode * >::iterator it = listOfExported.begin(); it != listOfExported.end(); ++it)
     {
         MegaNode * n = *it;
@@ -2018,10 +2013,10 @@ void MegaCmdExecuter::listnodeshares(MegaNode* n, string name)
     }
 }
 
-void MegaCmdExecuter::dumpListOfShared(MegaNode* n, string givenPath)
+void MegaCmdExecuter::dumpListOfShared(MegaNode* n_param, string givenPath)
 {
     vector<MegaNode *> listOfShared;
-    processTree(n, includeIfIsShared, (void*)&listOfShared);
+    processTree(n_param, includeIfIsShared, (void*)&listOfShared);
     if (!listOfShared.size())
     {
         setCurrentOutCode(MCMD_NOTFOUND);
@@ -2044,10 +2039,10 @@ void MegaCmdExecuter::dumpListOfShared(MegaNode* n, string givenPath)
 }
 
 //includes pending and normal shares
-void MegaCmdExecuter::dumpListOfAllShared(MegaNode* n, const char *timeFormat, std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions, string givenPath)
+void MegaCmdExecuter::dumpListOfAllShared(MegaNode* n_param, const char *timeFormat, std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions, string givenPath)
 {
     vector<MegaNode *> listOfShared;
-    processTree(n, includeIfIsSharedOrPendingOutShare, (void*)&listOfShared);
+    processTree(n_param, includeIfIsSharedOrPendingOutShare, (void*)&listOfShared);
     for (std::vector< MegaNode * >::iterator it = listOfShared.begin(); it != listOfShared.end(); ++it)
     {
         MegaNode * n = *it;
@@ -2064,10 +2059,10 @@ void MegaCmdExecuter::dumpListOfAllShared(MegaNode* n, const char *timeFormat, s
     listOfShared.clear();
 }
 
-void MegaCmdExecuter::dumpListOfPendingShares(MegaNode* n, const char *timeFormat, std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions, string givenPath)
+void MegaCmdExecuter::dumpListOfPendingShares(MegaNode* n_param, const char *timeFormat, std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions, string givenPath)
 {
     vector<MegaNode *> listOfShared;
-    processTree(n, includeIfIsPendingOutShare, (void*)&listOfShared);
+    processTree(n_param, includeIfIsPendingOutShare, (void*)&listOfShared);
 
     for (std::vector< MegaNode * >::iterator it = listOfShared.begin(); it != listOfShared.end(); ++it)
     {
@@ -2520,7 +2515,8 @@ void MegaCmdExecuter::fetchNodes(MegaApi *api, int clientID)
 
     // This is the actual acting upon fetch nodes ended correctly:
 
-    api->enableTransferResumption();
+    //automatic now:
+    //api->enableTransferResumption();
 
     MegaNode *cwdNode = ( cwd == UNDEF ) ? NULL : api->getNodeByHandle(cwd);
     if (( cwd == UNDEF ) || !cwdNode)
@@ -4240,7 +4236,7 @@ void MegaCmdExecuter::printBackupHistory(MegaBackup *backup, const char *timeFor
     {
         for (int i = 0; i < msl->size(); i++)
         {
-            int datelength = getReadableTime(m_time(), timeFormat).size();
+            int datelength = int(getReadableTime(m_time(), timeFormat).size());
 
             if (firstinhistory)
             {
@@ -5218,7 +5214,7 @@ bool MegaCmdExecuter::printUserAttribute(int a, string user, bool onlylist)
             megaCmdListener->wait();
             if (checkNoErrors(megaCmdListener->getError(), string("get user attribute ") + attrname))
             {
-                int iattr = megaCmdListener->getRequest()->getParamType();
+                //int iattr = int(megaCmdListener->getRequest()->getParamType());
                 const char *value = megaCmdListener->getRequest()->getText();
                 //if (!value) value = megaCmdListener->getRequest()->getMegaStringMap()->;
                 string svalue;
@@ -5550,7 +5546,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
     else if (words[0] == "update")
     {
         string sauto = getOption(cloptions, "auto", "");
-        transform(sauto.begin(), sauto.end(), sauto.begin(), ::tolower);
+        transform(sauto.begin(), sauto.end(), sauto.begin(), [](char c) { return char(::tolower(c)); });
 
         if (sauto == "off")
         {
@@ -7093,7 +7089,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 return;
             }
 
-            MegaContactRequest * cr;
+            std::unique_ptr<MegaContactRequest> cr;
             string shandle = words[1];
             handle thehandle = api->base64ToUserHandle(shandle.c_str());
 
@@ -7103,19 +7099,18 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             }
             else
             {
-                cr = api->getContactRequestByHandle(thehandle);
+                cr.reset(api->getContactRequestByHandle(thehandle));
             }
             if (cr)
             {
                 MegaCmdListener *megaCmdListener = new MegaCmdListener(api, NULL);
-                api->replyContactRequest(cr, action, megaCmdListener);
+                api->replyContactRequest(cr.get(), action, megaCmdListener);
                 megaCmdListener->wait();
                 if (checkNoErrors(megaCmdListener->getError(), "reply ipc"))
                 {
                     OUTSTREAM << saction << "ed invitation by " << cr->getSourceEmail() << endl;
                 }
                 delete megaCmdListener;
-                delete cr;
             }
             else
             {
@@ -7601,7 +7596,9 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 #ifdef ENABLE_SYNC
     else if (words[0] == "exclude")
     {
-        api->enableTransferResumption();
+
+        // automatic now:
+        //api->enableTransferResumption();
 
         if (getFlag(clflags, "a"))
         {
@@ -7703,7 +7700,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 else if (api->getAccess(n) >= MegaShare::ACCESS_FULL)
                 {
                     MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
-                    api->syncFolder(localAbsolutePath.toPath(*fsAccessCMD).c_str(), n, megaCmdListener);
+                    api->syncFolder(MegaSync::TYPE_TWOWAY, localAbsolutePath.toPath(*fsAccessCMD).c_str(), nullptr, n->getHandle(), nullptr, megaCmdListener);
                     megaCmdListener->wait();
                     if (checkNoErrors(megaCmdListener->getError(), "sync folder", static_cast<SyncError>(megaCmdListener->getRequest()->getNumDetails())))
                     {

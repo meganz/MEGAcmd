@@ -31,35 +31,35 @@ void MegaCmdGlobalListener::onChatsUpdate(MegaApi*, MegaTextChatList*)
 }
 #endif
 
-void MegaCmdGlobalListener::onUsersUpdate(MegaApi *api, MegaUserList *users)
+void MegaCmdGlobalListener::onUsersUpdate(MegaApi *api, MegaUserList *users1)
 {
-    if (users)
+    if (users1)
     {
-        if (users->size() == 1)
+        if (users1->size() == 1)
         {
             LOG_debug << " 1 user received or updated";
         }
         else
         {
-            LOG_debug << users->size() << " users received or updated";
+            LOG_debug << users1->size() << " users received or updated";
         }
     }
     else //initial update or too many changes
     {
-        MegaUserList *users = api->getContacts();
+        MegaUserList *users2 = api->getContacts();
 
-        if (users && users->size())
+        if (users2 && users2->size())
         {
-            if (users->size() == 1)
+            if (users2->size() == 1)
             {
                 LOG_debug << " 1 user received or updated";
             }
             else
             {
-                LOG_debug << users->size() << " users received or updated";
+                LOG_debug << users2->size() << " users received or updated";
             }
 
-            delete users;
+            delete users2;
         }
     }
 }
@@ -172,7 +172,7 @@ void MegaCmdGlobalListener::onEvent(MegaApi *api, MegaEvent *event)
             LOG_debug << " receivied EVENT_ACCOUNT_BLOCKED: number = " << event->getNumber();
             return;
         }
-        setBlocked(event->getNumber()); //this should be true always
+        setBlocked(int(event->getNumber())); //this should be true always
 
         switch (event->getNumber())
         {
@@ -228,7 +228,7 @@ void MegaCmdGlobalListener::onEvent(MegaApi *api, MegaEvent *event)
         else
         {
             int previousStatus = sandboxCMD->storageStatus;
-            sandboxCMD->storageStatus = event->getNumber();
+            sandboxCMD->storageStatus = int(event->getNumber());
             if (sandboxCMD->storageStatus == MegaApi::STORAGE_STATE_PAYWALL || sandboxCMD->storageStatus == MegaApi::STORAGE_STATE_RED || sandboxCMD->storageStatus == MegaApi::STORAGE_STATE_ORANGE)
             {
                 ConfigurationManager::savePropertyValue("ask4storage",true);
@@ -307,7 +307,7 @@ void MegaCmdGlobalListener::onEvent(MegaApi *api, MegaEvent *event)
     {
         removeDelayedBroadcastMatching("Your sync has been temporarily disabled");
         broadcastMessage(std::string("Your syncs have been temporarily disabled. Reason: ")
-                         .append(MegaSync::getMegaSyncErrorCode(event->getNumber()))), true;
+                         .append(MegaSync::getMegaSyncErrorCode(int(event->getNumber())))), true;
     }
     else if (event->getType() == MegaEvent::EVENT_SYNCS_RESTORED)
     {
