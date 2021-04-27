@@ -1936,13 +1936,13 @@ void readloop()
         mutexPrompt.unlock();
         if (g_line)
         {
-            if (strlen(line))
+            if (strlen(g_line))
             {
                 alreadyFinished = false;
                 percentDowloaded = 0.0;
 
                 handlerOverridenByExternalThread = false;
-                process_line(line);
+                process_line(g_line);
 
                 {
                     //after processing the line, we want to reinstall the handler (except if during the process, or due to it,
@@ -1965,8 +1965,8 @@ void readloop()
                 // this is not 100% guaranteed to happen
                 sleepSeconds(0);
             }
-            free(line);
-            line = NULL;
+            free(g_line);
+            g_line = NULL;
         }
         if (doExit)
         {
