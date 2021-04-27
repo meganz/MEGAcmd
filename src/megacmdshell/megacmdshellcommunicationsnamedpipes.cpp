@@ -627,7 +627,7 @@ int MegaCmdShellCommunicationsNamedPipes::executeCommand(string command, std::st
         else
         {
 
-            int BUFFERSIZE = 1024;
+            DWORD BUFFERSIZE = 1024;
             string confirmQuestion;
             char bufferQuestion[1025];
             memset(bufferQuestion,'\0',1025);

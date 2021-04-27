@@ -547,7 +547,7 @@ void setprompt(prompttype p, string arg)
     }
 #else
     console->setecho(p == COMMAND);
-    
+
     if (p != COMMAND)
     {
         pw_buf_pos = 0;
@@ -582,7 +582,7 @@ static void store_line(char* l)
         add_history(l);
     }
 
-    line = l;
+    g_line = l;
 }
 #endif
 
@@ -1909,10 +1909,10 @@ void readloop()
             }
             else
             {
-                console_readpwchar(pw_buf, sizeof pw_buf, &pw_buf_pos, &line);
+                console_readpwchar(pw_buf, sizeof pw_buf, &pw_buf_pos, &g_line);
             }
 
-            if (line)
+            if (g_line)
             {
                 break;
             }
@@ -1934,7 +1934,7 @@ void readloop()
         rl_redisplay();
 
         mutexPrompt.unlock();
-        if (line)
+        if (g_line)
         {
             if (strlen(line))
             {

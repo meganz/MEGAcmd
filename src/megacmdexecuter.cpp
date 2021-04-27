@@ -1843,7 +1843,7 @@ bool MegaCmdExecuter::TestCanWriteOnContainingFolder(string *path)
     return true;
 }
 
-MegaContactRequest * MegaCmdExecuter::getPcrByContact(string contactEmail)
+std::unique_ptr<MegaContactRequest> MegaCmdExecuter::getPcrByContact(string contactEmail)
 {
     unique_ptr<MegaContactRequestList> icrl(api->getIncomingContactRequests());
     if (icrl)
@@ -1852,7 +1852,7 @@ MegaContactRequest * MegaCmdExecuter::getPcrByContact(string contactEmail)
         {
             if (icrl->get(i)->getSourceEmail() == contactEmail)
             {
-                return icrl->get(i);
+                return std::unique_ptr<MegaContactRequest>(icrl->get(i)->copy());
             }
         }
     }
@@ -7089,7 +7089,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 return;
             }
 
-            MegaContactRequest * cr;
+            std::unique_ptr<MegaContactRequest> cr;
             string shandle = words[1];
             handle thehandle = api->base64ToUserHandle(shandle.c_str());
 
@@ -7099,19 +7099,18 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             }
             else
             {
-                cr = api->getContactRequestByHandle(thehandle);
+                cr.reset(api->getContactRequestByHandle(thehandle));
             }
             if (cr)
             {
                 MegaCmdListener *megaCmdListener = new MegaCmdListener(api, NULL);
-                api->replyContactRequest(cr, action, megaCmdListener);
+                api->replyContactRequest(cr.get(), action, megaCmdListener);
                 megaCmdListener->wait();
                 if (checkNoErrors(megaCmdListener->getError(), "reply ipc"))
                 {
                     OUTSTREAM << saction << "ed invitation by " << cr->getSourceEmail() << endl;
                 }
                 delete megaCmdListener;
-                delete cr;
             }
             else
             {
@@ -7597,7 +7596,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 #ifdef ENABLE_SYNC
     else if (words[0] == "exclude")
     {
-        
+
         // automatic now:
         //api->enableTransferResumption();
 

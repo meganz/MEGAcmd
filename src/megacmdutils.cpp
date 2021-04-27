@@ -990,7 +990,7 @@ bool isRegExp(string what)
     bool isregex = strcmp(what.c_str(), ns.c_str());
     return isregex;
 
-#elif __cplusplus >= 201103L && !defined(__MINGW32__)
+//TODO: #elif __cplusplus >= 201103L && !defined(__MINGW32__)
     //TODO??
 #else
     return hasWildCards(what);
