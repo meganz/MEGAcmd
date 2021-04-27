@@ -26,6 +26,9 @@
 #else
 #include <sys/socket.h>
 typedef int SOCKET;
+#ifndef INVALID_SOCKET
+#define INVALID_SOCKET -1
+#endif
 #endif
 #define MEGACMDINITIALPORTNUMBER 12300
 

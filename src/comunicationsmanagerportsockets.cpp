@@ -25,9 +25,6 @@
 #define strdup _strdup
 #else
 #define ERRNO errno
-#ifndef INVALID_SOCKET
-#define INVALID_SOCKET -1
-#endif
 #endif
 
 #ifndef SOCKET_ERROR
