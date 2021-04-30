@@ -76,10 +76,13 @@ BuildRequires: ffmpeg-mega
     %endif
 %endif
 
-##Pdfium: required for 64 bits only
-#%if %{_target_cpu} != "i586" &&  %{_target_cpu} != "i686"
-#    BuildRequires: pdfium-mega
-#%endif
+#Pdfium: required for 64 bits only
+%if "%{_target_cpu}" != "i586" &&  "%{_target_cpu}" != "i686"
+    BuildRequires: pdfium-mega
+    %define with_pdfium --with-pdfium
+%else
+    %define with_pdfium %{nil}
+%endif
 
 ### Specific buildable dependencies ###
 
@@ -155,6 +158,9 @@ sed -i -E "s/(^#define MEGACMD_BUILD_ID )[0-9]*/\1${mega_build_id}/g" src/megacm
 
 %define fullreqs -DREQUIRE_HAVE_FFMPEG -DREQUIRE_HAVE_LIBUV -DREQUIRE_USE_MEDIAINFO -DREQUIRE_USE_PCRE
 
+%if "%{_target_cpu}" != "i586" &&  "%{_target_cpu}" != "i686"
+    %define fullreqs -DREQUIRE_HAVE_PDFIUM %{fullreqs}
+%endif
 
 ./autogen.sh
 
@@ -169,7 +175,7 @@ bash -x ./contrib/build_sdk.sh %{flag_cryptopp} %{flag_libraw} %{flag_cares} -o 
 
 CPPFLAGS="$CPPFLAGS %{fullreqs}" ./configure --disable-shared --enable-static --disable-silent-rules \
   --disable-curl-checks %{with_cryptopp} %{with_libraw} --with-sodium=$PWD/deps --with-pcre \
-  %{with_zlib} --with-sqlite=$PWD/deps --with-cares=$PWD/deps --with-libuv=$PWD/deps \
+  %{with_zlib} --with-sqlite=$PWD/deps --with-cares=$PWD/deps --with-libuv=$PWD/deps %{with_pdfium} \
   --with-curl=$PWD/deps --with-freeimage=$PWD/deps --with-readline=$PWD/deps \
   --with-termcap=$PWD/deps --prefix=$PWD/deps --disable-examples %{with_mediainfo} || export CONFFAILED=1
 
@@ -178,7 +184,7 @@ if [ "x$CONFFAILED" == "x1" ]; then
     ./autogen.sh
     CPPFLAGS="$CPPFLAGS %{fullreqs}" ./configure --disable-shared --enable-static --disable-silent-rules \
       --disable-curl-checks %{with_cryptopp} %{with_libraw} --with-sodium=$PWD/deps --with-pcre \
-      %{with_zlib} --with-sqlite=$PWD/deps --with-cares=$PWD/deps --with-libuv=$PWD/deps \
+      %{with_zlib} --with-sqlite=$PWD/deps --with-cares=$PWD/deps --with-libuv=$PWD/deps %{with_pdfium} \
       --with-curl=$PWD/deps --with-freeimage=$PWD/deps --with-readline=$PWD/deps \
       --with-termcap=$PWD/deps --prefix=$PWD/deps --disable-examples %{with_mediainfo} || cat sdk/configure
 fi
