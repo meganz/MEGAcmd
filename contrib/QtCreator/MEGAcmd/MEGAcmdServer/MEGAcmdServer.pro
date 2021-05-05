@@ -19,7 +19,6 @@ TARGET = MEGAcmd
 TEMPLATE = app
 CONFIG += console
 CONFIG += USE_MEGAAPI
-CONFIG -= USE_PDFIUM
 
 include(../MEGAcmdCommon.pri)
 
