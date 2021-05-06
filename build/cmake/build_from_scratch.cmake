@@ -30,6 +30,13 @@ if(NOT TRIPLET)
     usage_exit("Triplet was not provided")
 endif()
 
+if(NOT EXTRA_ARGS)
+	message(STATUS "No extra args")
+else()
+    set(_extra_cmake_args ${EXTRA_ARGS})
+	message(STATUS "Applying extra args: ${EXTRA_ARGS}")
+endif()
+
 set(_triplet ${TRIPLET})
 set(_cmd_dir "${_script_cwd}/../..")
 set(_sdk_dir "${_cmd_dir}/sdk")
@@ -45,6 +52,10 @@ set(CMAKE_EXECUTE_PROCESS_COMMAND_ECHO STDOUT)
 set(_cmake ${CMAKE_COMMAND})
 
 function(execute_checked_command)
+
+    message(STATUS "build_from_scratch executing: ${ARGV}")
+    message(STATUS "------")
+
     execute_process(
         ${ARGV}
         RESULT_VARIABLE _result
@@ -61,7 +72,7 @@ endfunction()
 
 execute_checked_command(
     COMMAND ${_cmake}
-        -S ${_sdk_dir}/contrib/cmake/build3rdparty
+        -S ${_sdk_dir}/contrib/cmake/build3rdParty
         -B ${_3rdparty_dir}
         -DCMAKE_BUILD_TYPE=Release
 )
@@ -146,7 +157,7 @@ endif()
 
 if(WIN32)
     if(_triplet MATCHES "staticdev$")
-        set(_extra_cmake_args -DMEGA_LINK_DYNAMIC_CRT=0 -DUNCHECKED_ITERATORS=1)
+        set(_extra_cmake_args ${_extra_cmake_args} -DMEGA_LINK_DYNAMIC_CRT=0 -DUNCHECKED_ITERATORS=1)
     endif()
 
     if(VCPKG_TARGET_ARCHITECTURE STREQUAL "x86")
@@ -187,6 +198,7 @@ else()
         execute_checked_command(
             COMMAND ${_cmake}
                 ${_common_cmake_args}
+                ${_extra_cmake_args}
                 -B ${_build_dir}
                 "-DCMAKE_BUILD_TYPE=${_config}"
         )
