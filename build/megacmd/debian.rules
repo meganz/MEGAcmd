@@ -5,6 +5,10 @@ WCRYPTOPP := $(shell cat /etc/issue | grep "Ubuntu 19.10\|Ubuntu [2-9][0-9]\|Deb
 FMEDIAINFO := $(shell dpkg -l | grep mediainfo >/dev/null && echo "-i" || echo " ")
 WMEDIAINFO := $(shell dpkg -l | grep mediainfo >/dev/null && echo " " || echo "--with-libmediainfo=$(CURDIR)/deps --with-libzen=$(CURDIR)/deps")
 FULLREQS := $(shell cat /etc/issue | grep "Ubuntu 12.04" >/dev/null && echo "" || echo '-DREQUIRE_HAVE_FFMPEG -DREQUIRE_HAVE_LIBUV -DREQUIRE_USE_MEDIAINFO -DREQUIRE_USE_PCRE')
+FPDFIUM := $(shell dpkg --print-architecture | grep -i "i386\|arm" >/dev/null && echo "" || echo '--with-pdfium')
+RPDFIUM := $(shell dpkg --print-architecture | grep -i "i386\|arm" >/dev/null && echo "" || echo '-DREQUIRE_HAVE_PDFIUM')
+INSTALL3RD := $(shell dpkg --print-architecture | grep -i "i386\|arm" >/dev/null && echo "" || echo 'install3rd')
+LDFLAGS := $(shell dpkg --print-architecture | grep -i "i386\|arm" >/dev/null && echo "" || echo "$$LDFLAGS -Wl,-rpath,/opt/mega/lib")
 
 MEGA_BUILD_ID := $(shell cat MEGA_BUILD_ID || echo "1")
 
@@ -20,8 +24,17 @@ build-stamp:
 	bash -x ./sdk/contrib/build_sdk.sh -o archives \
 	  -g -b $(FMEDIAINFO) $(FCRYPTOPP) -l -c -s -u -v -a -z -I -p deps/
 
-	CPPFLAGS="$(CPPFLAGS) $(FULLREQS)" ./configure --without-libraw --disable-shared --enable-static --disable-silent-rules \
-	  --disable-curl-checks --with-sodium=$(CURDIR)/deps --with-libuv=$(CURDIR)/deps --with-pcre \
+	# Link dynamically with freeimage if pdfium is required.
+	if [ -n "$(INSTALL3RD)" ]; then  \
+	  ln -sfr $(CURDIR)/deps/lib/libfreeimage*.so $(CURDIR)/deps/lib/libfreeimage.so.3; \
+	  ln -sfn libfreeimage.so.3 $(CURDIR)/deps/lib/libfreeimage.so; \
+	else \
+	  rm $(CURDIR)/deps/lib/libfreeimage.so $(CURDIR)/deps/lib/libfreeimage.so.3 || : ; \
+	fi
+
+	CPPFLAGS="$(CPPFLAGS) $(RPDFIUM) $(FULLREQS)" LDFLAGS="$(LDFLAGS)" \
+	   ./configure --without-libraw --disable-shared --enable-static --disable-silent-rules \
+	  --disable-curl-checks --with-sodium=$(CURDIR)/deps --with-libuv=$(CURDIR)/deps --with-pcre $(FPDFIUM) \
 	  --with-curl=$(CURDIR)/deps --with-freeimage=$(CURDIR)/deps --with-readline=$(CURDIR)/deps \
 	  --with-termcap=$(CURDIR)/deps $(WCRYPTOPP) --prefix=$(CURDIR)/deps --disable-examples $(WMEDIAINFO)
 
@@ -47,9 +60,12 @@ install: build
 	dh_install version /usr/share/doc/megacmd/
 	dh_install 100-megacmd-inotify-limit.conf /etc/sysctl.d/
 
+install3rd:
+	mkdir -p $(CURDIR)/debian/megacmd/opt/mega/lib
+	install $(CURDIR)/deps/lib/libfreeimage.so.* $(CURDIR)/debian/megacmd/opt/mega/lib
 
 # Build architecture-independent files here.
-binary-indep: build install
+binary-indep: build install $(INSTALL3RD)
 	# We have nothing to do by default.
 
 # Build architecture-dependent files here.
@@ -77,7 +93,7 @@ binary-arch: build install
 #	dh_makeshlibs
 	dh_installdeb
 #	dh_perl
-	dh_shlibdeps
+	dh_shlibdeps -dpkg-shlibdeps-params=--ignore-missing-info -l$(CURDIR)/deps/lib
 	dh_gencontrol
 	dh_md5sums
 	dh_builddeb

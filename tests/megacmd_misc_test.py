@@ -444,7 +444,7 @@ compare_find('/')
 currentTest=33 #thumbnails
 #Test 33 #ensure thumnail generation
 #1st get images selection
-cmd_ef(GET+" https://mega.nz/folder/GA0j1SaA#VtWP9-TE7vdfgiY4lPFs6g localtmp/")
+cmd_ef(GET+" https://mega.nz/folder/bxomFKwL#3V1dUJFzL98t1GqXX29IXg localtmp/")
 #2nd, upload folder
 cmd_ef(PUT+" localtmp/images")
 #3rd, for each file, download thumbnail
@@ -461,6 +461,32 @@ for f in o.split():
         fullout=fullout+str("missing thumbnail for:"+str(f)+"\n")
         fullStatus=0
         print status, ext," missing thumbnail:",f,"\n",o,
+check_failed_and_clear(fullout,fullStatus)
+
+
+currentTest=34 #pdf thumbnails
+#Test 33 #ensure thumnail generation
+#1st get pdfs selection
+cmd_ef(GET+" https://mega.nz/folder/D0w0nYiY#egvjqP5R-anbBdsJg8QRVg localtmp/")
+#2nd, upload folder
+cmd_ef(PUT+" localtmp/pdfs")
+#3rd, for each file, download thumbnail
+folder="/pdfs"
+o,status=cmd_ec(FIND+" "+folder+"/*")
+fullout=""
+fullStatus=1
+
+print o
+print 'splited=', o.split("\n")
+for f in o.split("\n"):
+    if not len(f): continue
+    rmfileifexisting("thumbnail.jpg")
+    o,status=cmd_ec(THUMB+" '"+f+"' thumbnail.jpg")
+    allowedFailure=["protected", "non-pdf-file","with-password","_TFG"]
+    if not True in [x in f for x in allowedFailure] and "saved in" not in o: #note: output code is not trustworthy: check for "saved in"
+        fullout=fullout+str("missing thumbnail for:"+str(f)+"\n")
+        fullStatus=0
+        print status, " missing thumbnail:",f,"\n",o,
 check_failed_and_clear(fullout,fullStatus)
 ###################
 

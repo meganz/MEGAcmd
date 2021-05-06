@@ -11,7 +11,7 @@ Packager:	MEGA Linux Team <linux@mega.co.nz>
 
 BuildRequires: zlib-devel, autoconf, automake, libtool, gcc-c++, pcre-devel
 BuildRequires: hicolor-icon-theme, unzip, wget
-BuildRequires: ffmpeg-mega
+BuildRequires: ffmpeg-mega pdfium-mega
 
 #OpenSUSE
 %if 0%{?suse_version} || 0%{?sle_version}
@@ -75,11 +75,6 @@ BuildRequires: ffmpeg-mega
         BuildRequires: bzip2-devel
     %endif
 %endif
-
-##Pdfium: required for 64 bits only
-#%if %{_target_cpu} != "i586" &&  %{_target_cpu} != "i686"
-#    BuildRequires: pdfium-mega
-#%endif
 
 ### Specific buildable dependencies ###
 
@@ -153,8 +148,7 @@ sed -i -E "s/(^#define MEGACMD_BUILD_ID )[0-9]*/\1${mega_build_id}/g" src/megacm
     sed -i "s#AC_INIT#m4_pattern_allow(AC_PROG_OBJCXX)\nAC_INIT#g" sdk/configure.ac
 %endif
 
-%define fullreqs -DREQUIRE_HAVE_FFMPEG -DREQUIRE_HAVE_LIBUV -DREQUIRE_USE_MEDIAINFO -DREQUIRE_USE_PCRE
-
+%define fullreqs -DREQUIRE_HAVE_PDFIUM -DREQUIRE_HAVE_FFMPEG -DREQUIRE_HAVE_LIBUV -DREQUIRE_USE_MEDIAINFO -DREQUIRE_USE_PCRE
 
 ./autogen.sh
 
@@ -163,22 +157,25 @@ mkdir deps || :
 bash -x ./contrib/build_sdk.sh %{flag_cryptopp} %{flag_libraw} %{flag_cares} -o archives \
   -g %{flag_disablezlib} %{flag_disablemediainfo} -b -l -c -s -u -v -a -I -p deps/
 
+ln -sfr $PWD/deps/lib/libfreeimage*.so $PWD/deps/lib/libfreeimage.so.3
+ln -sfn libfreeimage.so.3 $PWD/deps/lib/libfreeimage.so
+
 %if ( 0%{?fedora_version} && 0%{?fedora_version}<=31 ) || ( 0%{?centos_version} == 600 ) || ( 0%{?sle_version} && 0%{?sle_version} < 150000 )
     export CPPFLAGS="$CPPFLAGS -DMEGACMD_DEPRECATED_OS"
 %endif
 
-CPPFLAGS="$CPPFLAGS %{fullreqs}" ./configure --disable-shared --enable-static --disable-silent-rules \
-  --disable-curl-checks %{with_cryptopp} %{with_libraw} --with-sodium=$PWD/deps --with-pcre \
-  %{with_zlib} --with-sqlite=$PWD/deps --with-cares=$PWD/deps --with-libuv=$PWD/deps \
+CPPFLAGS="$CPPFLAGS %{fullreqs}" LDFLAGS="$LDFLAGS -Wl,-rpath,/opt/mega/lib" ./configure --disable-shared --enable-static \
+  --disable-silent-rules --disable-curl-checks %{with_cryptopp} %{with_libraw} --with-sodium=$PWD/deps --with-pcre \
+  %{with_zlib} --with-sqlite=$PWD/deps --with-cares=$PWD/deps --with-libuv=$PWD/deps --with-pdfium \
   --with-curl=$PWD/deps --with-freeimage=$PWD/deps --with-readline=$PWD/deps \
   --with-termcap=$PWD/deps --prefix=$PWD/deps --disable-examples %{with_mediainfo} || export CONFFAILED=1
 
 if [ "x$CONFFAILED" == "x1" ]; then
     sed -i "s#.*CONFLICTIVEOLDAUTOTOOLS##g" sdk/configure.ac
     ./autogen.sh
-    CPPFLAGS="$CPPFLAGS %{fullreqs}" ./configure --disable-shared --enable-static --disable-silent-rules \
-      --disable-curl-checks %{with_cryptopp} %{with_libraw} --with-sodium=$PWD/deps --with-pcre \
-      %{with_zlib} --with-sqlite=$PWD/deps --with-cares=$PWD/deps --with-libuv=$PWD/deps \
+    CPPFLAGS="$CPPFLAGS %{fullreqs}" LDFLAGS="$LDFLAGS -Wl,-rpath,/opt/mega/lib" ./configure --disable-shared --enable-static \
+      --disable-silent-rules --disable-curl-checks %{with_cryptopp} %{with_libraw} --with-sodium=$PWD/deps --with-pcre \
+      %{with_zlib} --with-sqlite=$PWD/deps --with-cares=$PWD/deps --with-libuv=$PWD/deps --with-pdfium \
       --with-curl=$PWD/deps --with-freeimage=$PWD/deps --with-readline=$PWD/deps \
       --with-termcap=$PWD/deps --prefix=$PWD/deps --disable-examples %{with_mediainfo} || cat sdk/configure
 fi
@@ -196,6 +193,9 @@ install -D mega-exec %{buildroot}%{_bindir}/mega-exec
 
 mkdir -p  %{buildroot}/etc/sysctl.d/
 echo "fs.inotify.max_user_watches = 524288" > %{buildroot}/etc/sysctl.d/100-megacmd-inotify-limit.conf
+
+mkdir -p  %{buildroot}/opt/mega/lib
+install -D deps/lib/libfreeimage.so.* %{buildroot}/opt/mega/lib
 
 %post
 #source bash_completion?
@@ -444,5 +444,6 @@ killall -s SIGUSR2 mega-cmd-server 2> /dev/null || true
 %{_bindir}/mega-cmd-server
 %{_sysconfdir}/bash_completion.d/megacmd_completion.sh
 /etc/sysctl.d/100-megacmd-inotify-limit.conf
+/opt/mega/lib/libfreeimage.so.3
 
 %changelog
