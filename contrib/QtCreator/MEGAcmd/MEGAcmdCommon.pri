@@ -22,7 +22,14 @@ CONFIG += USE_MEDIAINFO
 CONFIG += USE_LIBUV
 DEFINES += ENABLE_BACKUPS
 CONFIG += USE_CONSOLE
-CONFIG -= USE_PDFIUM
+unix:!macx {
+        exists(/usr/include/fpdfview.h) {
+            CONFIG += USE_PDFIUM
+        }
+}
+else {
+    CONFIG += USE_PDFIUM
+}
 
 win32 {
 CONFIG += noreadline
