@@ -42,6 +42,8 @@ KEY
 
 pacman-key --lsign-key 8F208FBF12FEE766AA32AEAF03C3AD3A7F068E5D
 
+sysctl -p /etc/sysctl.d/99-megacmd-inotify-limit.conf
+
 }
 
 pre_upgrade() {
