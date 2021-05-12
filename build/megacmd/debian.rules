@@ -39,7 +39,7 @@ build-stamp:
 	  --with-termcap=$(CURDIR)/deps $(WCRYPTOPP) --prefix=$(CURDIR)/deps --disable-examples $(WMEDIAINFO)
 
 	make
-	echo "fs.inotify.max_user_watches = 524288" > 100-megacmd-inotify-limit.conf
+	echo "fs.inotify.max_user_watches = 524288" > 99-megacmd-inotify-limit.conf
 	touch build-stamp
 
 clean:
@@ -58,7 +58,7 @@ install: build
 	lsb_release -rs > version	
 	dh_install distro /usr/share/doc/megacmd/
 	dh_install version /usr/share/doc/megacmd/
-	dh_install 100-megacmd-inotify-limit.conf /etc/sysctl.d/
+	dh_install 99-megacmd-inotify-limit.conf /etc/sysctl.d/
 
 install3rd:
 	mkdir -p $(CURDIR)/debian/megacmd/opt/mega/lib
