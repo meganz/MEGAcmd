@@ -93,7 +93,7 @@ binary-arch: build install
 #	dh_makeshlibs
 	dh_installdeb
 #	dh_perl
-	dh_shlibdeps -dpkg-shlibdeps-params=--ignore-missing-info -l$(CURDIR)/deps/lib
+	dh_shlibdeps --dpkg-shlibdeps-params=--ignore-missing-info -l$(CURDIR)/deps/lib
 	dh_gencontrol
 	dh_md5sums
 	dh_builddeb
