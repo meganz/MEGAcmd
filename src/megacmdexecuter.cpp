@@ -20,6 +20,7 @@
 #include "megacmd.h"
 
 #include "megacmdutils.h"
+#include "megacmdtransfermanager.h"
 #include "configurationmanager.h"
 #include "megacmdlogger.h"
 #include "comunicationsmanager.h"
@@ -3028,8 +3029,11 @@ int MegaCmdExecuter::deleteNode(MegaNode *nodeToDelete, MegaApi* api, int recurs
     return MCMDCONFIRM_NO; //default return
 }
 
-void MegaCmdExecuter::downloadNode(string path, MegaApi* api, MegaNode *node, bool background, bool ignorequotawarn, int clientID, MegaCmdMultiTransferListener *multiTransferListener)
+void MegaCmdExecuter::downloadNode(string source, string path, MegaApi* api, MegaNode *node, bool background, bool ignorequotawarn,
+                                   int clientID, std::shared_ptr<MegaCmdMultiTransferListener> multiTransferListener)
 {
+
+
     if (sandboxCMD->isOverquota() && !ignorequotawarn)
     {
         m_time_t ts = m_time();
@@ -3093,13 +3097,8 @@ void MegaCmdExecuter::downloadNode(string path, MegaApi* api, MegaNode *node, bo
         delete megaCmdListener;
     }
 
-    MegaCmdTransferListener *megaCmdTransferListener = NULL;
     if (!background)
     {
-        if (!multiTransferListener)
-        {
-            megaCmdTransferListener = new MegaCmdTransferListener(api, sandboxCMD, multiTransferListener, clientID);
-        }
         multiTransferListener->onNewTransfer();
     }
 #ifdef _WIN32
@@ -3109,23 +3108,11 @@ void MegaCmdExecuter::downloadNode(string path, MegaApi* api, MegaNode *node, bo
 
     if (multiTransferListener && !background)
     {
-        api->startDownload(node, path.c_str(), multiTransferListener);
+        api->startDownload(node, path.c_str(), new ATransferListener(multiTransferListener, source));
     }
     else
     {
-        api->startDownload(node, path.c_str(), megaCmdTransferListener);
-    }
-    if (megaCmdTransferListener)
-    {
-        megaCmdTransferListener->wait();
-#ifdef _WIN32
-            Sleep(100); //give a while to print end of transfer
-#endif
-        if (checkNoErrors(megaCmdTransferListener->getError(), "download node"))
-        {
-            LOG_info << "Download complete: " << megaCmdTransferListener->getTransfer()->getPath();
-        }
-        delete megaCmdTransferListener;
+        api->startDownload(node, path.c_str(), new ATransferListener(multiTransferListener, source));
     }
 }
 
@@ -6211,17 +6198,18 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
     }
     else if (words[0] == "get")
     {
+        bool background = getFlag(clflags,"q");
+
         int clientID = getintOption(cloptions, "clientID", -1);
         if (words.size() > 1 && words.size() < 4)
         {
             string path = "./";
-            bool background = getFlag(clflags,"q");
             if (background)
             {
                 clientID = -1;
             }
 
-            MegaCmdMultiTransferListener *megaCmdMultiTransferListener = new MegaCmdMultiTransferListener(api, sandboxCMD, NULL, clientID);
+            auto megaCmdMultiTransferListener = std::make_shared<MegaCmdMultiTransferListener>(api, sandboxCMD, nullptr, clientID);
 
             bool ignorequotawarn = getFlag(clflags,"ignore-quota-warn");
             bool destinyIsFolder = false;
@@ -6283,7 +6271,6 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                             {
                                 setCurrentOutCode(MCMD_NOTPERMITTED);
                                 LOG_err << "Write not allowed in " << path;
-                                delete megaCmdMultiTransferListener;
                                 return;
                             }
                         }
@@ -6291,7 +6278,6 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         {
                             if (!TestCanWriteOnContainingFolder(&path))
                             {
-                                delete megaCmdMultiTransferListener;
                                 return;
                             }
                         }
@@ -6331,7 +6317,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                                 }
                             }
                             MegaNode *n = megaCmdListener->getRequest()->getPublicMegaNode();
-                            downloadNode(path, api, n, background, ignorequotawarn, clientID, megaCmdMultiTransferListener);
+                            downloadNode(words[1], path, api, n, background, ignorequotawarn, clientID, megaCmdMultiTransferListener);
                             delete n;
                         }
                         else
@@ -6361,7 +6347,6 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                             {
                                 setCurrentOutCode(MCMD_NOTPERMITTED);
                                 LOG_err << "Write not allowed in " << words[2];
-                                delete megaCmdMultiTransferListener;
                                 return;
                             }
                         }
@@ -6369,7 +6354,6 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         {
                             setCurrentOutCode(MCMD_INVALIDTYPE);
                             LOG_err << words[2] << " is not a valid Download Folder";
-                            delete megaCmdMultiTransferListener;
                             return;
                         }
                     }
@@ -6415,13 +6399,13 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                                 MegaNode *authorizedNode = apiFolder->authorizeNode(nodeToDownload);
                                 if (authorizedNode != NULL)
                                 {
-                                    downloadNode(path, api, authorizedNode, background, ignorequotawarn, clientID, megaCmdMultiTransferListener);
+                                    downloadNode(words[1], path, api, authorizedNode, background, ignorequotawarn, clientID, megaCmdMultiTransferListener);
                                     delete authorizedNode;
                                 }
                                 else
                                 {
                                     LOG_debug << "Node couldn't be authorized: " << publicLink << ". Downloading as non-loged user";
-                                    downloadNode(path, apiFolder, nodeToDownload, background, ignorequotawarn, clientID, megaCmdMultiTransferListener);
+                                    downloadNode(words[1], path, apiFolder, nodeToDownload, background, ignorequotawarn, clientID, megaCmdMultiTransferListener);
                                 }
                                 delete nodeToDownload;
                             }
@@ -6487,7 +6471,6 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                                         delete (MegaNode *)*it;
                                     }
                                     delete nodesToGet;
-                                    delete megaCmdMultiTransferListener;
                                     return;
                                 }
                             }
@@ -6500,7 +6483,6 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                                     delete (MegaNode *)*it;
                                 }
                                 delete nodesToGet;
-                                delete megaCmdMultiTransferListener;
                                 return;
                             }
                             else //destiny non existing or a file
@@ -6512,7 +6494,6 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                                         delete (MegaNode *)*it;
                                     }
                                     delete nodesToGet;
-                                    delete megaCmdMultiTransferListener;
                                     return;
                                 }
                             }
@@ -6529,7 +6510,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                             MegaNode * n = *it;
                             if (n)
                             {
-                                downloadNode(path, api, n, background, ignorequotawarn, clientID, megaCmdMultiTransferListener);
+                                downloadNode(words[1], path, api, n, background, ignorequotawarn, clientID, megaCmdMultiTransferListener);
                                 delete n;
                             }
                         }
@@ -6568,7 +6549,6 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                                     {
                                         setCurrentOutCode(MCMD_NOTPERMITTED);
                                         LOG_err << "Write not allowed in " << words[2];
-                                        delete megaCmdMultiTransferListener;
                                         return;
                                     }
                                 }
@@ -6576,7 +6556,6 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                                 {
                                     if (!TestCanWriteOnContainingFolder(&path))
                                     {
-                                        delete megaCmdMultiTransferListener;
                                         return;
                                     }
                                 }
@@ -6599,7 +6578,6 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                                     {
                                         setCurrentOutCode(MCMD_NOTPERMITTED);
                                         LOG_err << "Write not allowed in " << words[2];
-                                        delete megaCmdMultiTransferListener;
                                         return;
                                     }
                                 }
@@ -6607,7 +6585,6 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                                 {
                                     setCurrentOutCode(MCMD_INVALIDTYPE);
                                     LOG_err << words[2] << " is not a valid Download Folder";
-                                    delete megaCmdMultiTransferListener;
                                     return;
                                 }
                             }
@@ -6619,7 +6596,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                                 path=path.substr(0,path.size()-1);
                             }
                         }
-                        downloadNode(path, api, n, background, ignorequotawarn, clientID, megaCmdMultiTransferListener);
+                        downloadNode(words[1], path, api, n, background, ignorequotawarn, clientID, megaCmdMultiTransferListener);
                         delete n;
                     }
                     else
@@ -6630,7 +6607,18 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 }
             }
 
+            if (background) //TODO: do the same for uploads?
+            {
+                megaCmdMultiTransferListener->waitMultiStart();
+
+                for (auto & dlId : megaCmdMultiTransferListener->getStartedTransfers())
+                {
+                    OUTSTREAM << "Started background transfer <" << dlId.mPath << ">. Object Identifier: " << dlId.getPathUID() << endl;
+                }
+            }
+
             megaCmdMultiTransferListener->waitMultiEnd();
+
             if (megaCmdMultiTransferListener->getFinalerror() != MegaError::API_OK)
             {
                 setCurrentOutCode(megaCmdMultiTransferListener->getFinalerror());
@@ -6641,7 +6629,6 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             {
                 informProgressUpdate(PROGRESS_COMPLETE, megaCmdMultiTransferListener->getTotalbytes(), clientID);
             }
-            delete megaCmdMultiTransferListener;
         }
         else
         {
@@ -7795,7 +7782,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 return;
             }
 
-            ColumnDisplayer cd(getintOption(cloptions,"path-display-size", 0));
+            ColumnDisplayer cd(clflags, cloptions);
 
             long long nfiles = 0;
             long long nfolders = 0;
@@ -7812,13 +7799,13 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             printSync(sync.get(), nfiles, nfolders, cd, clflags, cloptions);
 
            OUTSTRINGSTREAM oss;
-           cd.print(oss, getintOption(cloptions, "client-width", getNumberOfCols(75)));
+           cd.print(oss);
            OUTSTREAM << oss.str();
 
         }
         else if (words.size() == 1) //print all syncs
         {
-            ColumnDisplayer cd(getintOption(cloptions,"path-display-size", 0));
+            ColumnDisplayer cd(clflags, cloptions);
 
             std::unique_ptr<MegaSyncList> syncs{api->getSyncs()};
             for (int i = 0; i < syncs->size(); i++)
@@ -7847,7 +7834,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 printSync(sync, nfiles, nfolders, cd, clflags, cloptions);
             }
             OUTSTRINGSTREAM oss;
-            cd.print(oss, getintOption(cloptions, "client-width", getNumberOfCols(75)));
+            cd.print(oss);
             OUTSTREAM << oss.str();
         }
         mtxSyncMap.unlock();
@@ -9822,6 +9809,23 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
     }
     else if (words[0] == "transfers")
     {
+        if (getFlag(clflags, "download-report-all"))
+        {
+            OUTSTRINGSTREAM oss;
+            DownloadsManager::Instance().printAll(oss, clflags, cloptions);
+            OUTSTREAM << oss.str();
+            return;
+        }
+
+        auto reportDl = getOption(cloptions, "download-report", "");
+        if (!reportDl.empty())
+        {
+            OUTSTRINGSTREAM oss;
+            DownloadsManager::Instance().printOne(oss, reportDl, clflags, cloptions);
+            OUTSTREAM << oss.str();
+            return;
+        }
+
         bool showcompleted = getFlag(clflags, "show-completed");
         bool onlycompleted = getFlag(clflags, "only-completed");
         bool onlyuploads = getFlag(clflags, "only-uploads");
@@ -10157,7 +10161,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         vector<MegaTransfer *>::iterator itDLs = transfersDLToShow.begin();
         vector<MegaTransfer *>::iterator itUPs = transfersUPToShow.begin();
 
-        ColumnDisplayer cd(getintOption(cloptions,"path-display-size", 0));
+        ColumnDisplayer cd(clflags, cloptions);
         cd.addHeader("SOURCEPATH", false);
         cd.addHeader("DESTINYPATH", false);
 
@@ -10207,7 +10211,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             }
         }
         OUTSTRINGSTREAM oss;
-        cd.print(oss, getintOption(cloptions, "client-width", getNumberOfCols(75)));
+        cd.print(oss);
         OUTSTREAM << oss.str();
     }
     else if (words[0] == "locallogout")

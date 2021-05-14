@@ -34,6 +34,8 @@
 #include <limits.h>
 #include <iterator>
 
+#include <regex> //split
+
 #ifdef _WIN32
 namespace mega {
 //override for the log. This is required for compiling, otherwise SimpleLog won't compile.
@@ -141,7 +143,7 @@ bool canWrite(string path)
 #endif
 }
 
-bool isPublicLink(string link)
+bool isPublicLink(const string &link)
 {
     //Old format:
     //https://mega.nz/#!ph!key
@@ -229,9 +231,68 @@ string getPublicLinkHandle(const string &link)
     }
 }
 
+string getPublicLinkHandlev2(const string &link)//TODO review v1 (only works for folders apparently)
+{
+    size_t posFolder = string::npos;
+    size_t posLastSep = link.rfind("?");
+//    if (posLastSep == string::npos )
+//    {
+//        string rest = link;
+//        int count = 0;
+//        size_t posExc = rest.find_first_of("!");
+//        while ( posExc != string::npos && (posExc +1) < rest.size())
+//        {
+//            count++;
+//            if (count <= 3 )
+//            {
+//                posLastSep += posExc + 1;
+//            }
+
+//            rest = rest.substr(posExc + 1);
+//            posExc = rest.find("!");
+//        }
+
+//        if (count != 3)
+//        {
+//            posLastSep = string::npos;
+//        }
+//    }
+
+    posFolder = link.find("/folder/");
+    if (posFolder != string::npos)
+    {
+        posFolder+=strlen("/folder/");
+    }
+
+    if (posFolder == string::npos)
+    {
+        posFolder = link.find("/file/");
+        if (posFolder != string::npos)
+        {
+            posFolder+=strlen("/file/");
+        }
+    }
+
+    if (posFolder != string::npos)
+    {
+        auto rest = link.substr(posFolder);
+        return rest.substr(0, rest.find("#"));
+    }
+
+    return string();
+
+}
+
 bool hasWildCards(string &what)
 {
     return what.find('*') != string::npos || what.find('?') != string::npos;
+}
+
+std::vector<std::string> split(const std::string& input, const std::string& pattern)
+{
+    std::regex re(pattern);
+    std::sregex_token_iterator first{input.begin(), input.end(), re, -1}, last;
+    return {first, last};
 }
 
 long long charstoll(const char *instr)
@@ -1057,6 +1118,11 @@ void ColumnDisplayer::endregistry()
     currentlength = 0;
 }
 
+void ColumnDisplayer::setPrefix(const std::string &prefix)
+{
+    mPrefix = prefix;
+}
+
 void ColumnDisplayer::addHeader(const string &name, bool fixed, int minWidth)
 {
     fields[name] = Field(name, fixed, minWidth);
@@ -1079,25 +1145,107 @@ void ColumnDisplayer::addValue(const string &name, const string &value, bool rep
     {
         addHeader(name, true);
     }
-    if (find (fieldnames.begin(), fieldnames.end(), name) == fieldnames.end())
+    if (find (mFieldnames.begin(), mFieldnames.end(), name) == mFieldnames.end())
     {
-        fieldnames.push_back(name);
+        mFieldnames.push_back(name);
     }
 
     fields[name].updateMaxValue(len);
 }
 
-ColumnDisplayer::ColumnDisplayer(int unfixedColsMinSize) : mUnfixedColsMinSize(unfixedColsMinSize)
+ColumnDisplayer::ColumnDisplayer(std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions)
+    : mClflags(clflags), mCloptions(cloptions), mUnfixedColsMinSize(getintOption(cloptions,"path-display-size", 0))
 {
 
 }
 
-void ColumnDisplayer::print(OUTSTREAMTYPE &os, int fullWidth, bool printHeader)
+void ColumnDisplayer::printHeaders(OUTSTREAMTYPE &os)
+{
+    print(os, getintOption(mCloptions, "client-width", getNumberOfCols(75)), true, true);
+}
+
+void ColumnDisplayer::print(OUTSTREAMTYPE &os, bool printHeader)
+{
+    print(os, getintOption(mCloptions, "client-width", getNumberOfCols(75)), printHeader);
+}
+
+void ColumnDisplayer::print(OUTSTREAMTYPE &os, int fullWidth, bool printHeader, bool onlyHeaders)
 {
     if (currentRegistry.size())
     {
         endregistry();
     }
+
+    auto outputcols = getOption(mCloptions,"output-cols", "");
+
+    decltype (mFieldnames) fieldnames;
+
+
+    if (!outputcols.empty())
+    {
+        auto listofCols = split(outputcols, ",");
+        for (auto el : mFieldnames)
+        {
+            auto it = find (listofCols.begin(), listofCols.end(), el);
+            if (it != listofCols.end())
+            {
+                fieldnames.push_back(el);
+            }
+        }
+    }
+    else
+    {
+        fieldnames = mFieldnames;
+    }
+
+    auto colseparator = getOption(mCloptions,"col-separator", "");
+    if (!colseparator.empty()) //col separator separated values
+    {
+        if (printHeader)
+        {
+            bool first = true;
+            os << mPrefix;
+            for (auto el : fieldnames)
+            {
+                Field &f = fields[el];
+                if (!first)
+                {
+                    os << colseparator;
+                }
+                first = false;
+                os << f.name;
+            }
+            os << std::endl;
+        }
+
+        if (!onlyHeaders)
+        {
+            for (auto &registry : values)
+            {
+                bool firstvalue = true;
+                os << mPrefix;
+                for (auto &el : fieldnames)
+                {
+                    Field &f = fields[el];
+                    if (!firstvalue)
+                    {
+                        os << colseparator;
+                    }
+                    firstvalue = false;
+
+                    if (registry.find(f.name) != registry.end())
+                    {
+                        os << registry[f.name];
+                    }
+
+                }
+                os << std::endl;
+            }
+        }
+
+        return;
+    }
+
 
     int unfixedfieldscount = 0;
     int unfixedFieldsMaxLengthSum = 0;
@@ -1108,7 +1256,6 @@ void ColumnDisplayer::print(OUTSTREAMTYPE &os, int fullWidth, bool printHeader)
     {
         Field &f = el.second;
         if (f.fixedSize)
-
         {
             if (f.fixedWidth)
             {
@@ -1148,6 +1295,7 @@ void ColumnDisplayer::print(OUTSTREAMTYPE &os, int fullWidth, bool printHeader)
     if (printHeader)
     {
         bool first = true;
+        os << mPrefix;
         for (auto el : fieldnames)
         {
             Field &f = fields[el];
@@ -1158,32 +1306,36 @@ void ColumnDisplayer::print(OUTSTREAMTYPE &os, int fullWidth, bool printHeader)
             first = false;
             os << getFixLengthString(f.name, f.dispWidth);
         }
-    }
-    os << std::endl;
-
-    for (auto &registry : values)
-    {
-        bool firstvalue = true;
-        for (auto &el : fieldnames)
-        {
-            Field &f = fields[el];
-            if (!firstvalue)
-            {
-                os << " ";
-            }
-            firstvalue = false;
-
-            if (registry.find(f.name) != registry.end())
-            {
-                os << getFixLengthString(registry[f.name], f.dispWidth);
-            }
-            else
-            {
-                os << getFixLengthString("", f.dispWidth);
-            }
-
-        }
         os << std::endl;
+    }
+
+    if (!onlyHeaders)
+    {
+        for (auto &registry : values)
+        {
+            bool firstvalue = true;
+            os << mPrefix;
+            for (auto &el : fieldnames)
+            {
+                Field &f = fields[el];
+                if (!firstvalue)
+                {
+                    os << " ";
+                }
+                firstvalue = false;
+
+                if (registry.find(f.name) != registry.end())
+                {
+                    os << getFixLengthString(registry[f.name], f.dispWidth);
+                }
+                else
+                {
+                    os << getFixLengthString("", f.dispWidth);
+                }
+
+            }
+            os << std::endl;
+        }
     }
 }
 

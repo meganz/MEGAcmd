@@ -19,6 +19,9 @@
 #include "listeners.h"
 #include "configurationmanager.h"
 #include "megacmdutils.h"
+#include "megacmdtransfermanager.h"
+
+#include <utility>
 
 using namespace mega;
 
@@ -873,6 +876,11 @@ void MegaCmdMultiTransferListener::waitMultiEnd()
     }
 }
 
+void MegaCmdMultiTransferListener::waitMultiStart()
+{
+    mAllStartedMutex.lock();
+}
+
 
 void MegaCmdMultiTransferListener::onTransferUpdate(MegaApi* api, MegaTransfer *transfer)
 {
@@ -1001,6 +1009,11 @@ long long MegaCmdMultiTransferListener::getOngoingTotalBytes()
     return total;
 }
 
+std::vector<DownloadId> MegaCmdMultiTransferListener::getStartedTransfers() const
+{
+    return mStartedTransfers;
+}
+
 bool MegaCmdMultiTransferListener::getProgressinformed() const
 {
     return progressinformed;
@@ -1024,16 +1037,32 @@ MegaCmdMultiTransferListener::MegaCmdMultiTransferListener(MegaApi *megaApi, Meg
 
     finalerror = MegaError::API_OK;
 
+    mAllStartedMutex.lock();
+
 }
+
 
 bool MegaCmdMultiTransferListener::onTransferData(MegaApi *api, MegaTransfer *transfer, char *buffer, size_t size)
 {
     return true;
 }
 
-void MegaCmdMultiTransferListener::onNewTransfer()
+void MegaCmdMultiTransferListener::onNewTransfer(/*const string &path*/)
 {
     started ++;
+}
+
+void MegaCmdMultiTransferListener::onTransferStarted(const std::string &path, int tag)
+{
+    {
+        std::lock_guard<std::mutex> g(mStartedTransfersMutex);
+        mStartedTransfers.emplace_back(DownloadId(tag,path));
+    }
+
+    if (mStartedTransfers.size() >= started)
+    {
+        mAllStartedMutex.unlock();
+    }
 }
 
 ////////////////////////////////////////
@@ -1050,6 +1079,12 @@ MegaCmdGlobalTransferListener::MegaCmdGlobalTransferListener(MegaApi *megaApi, M
 
 void MegaCmdGlobalTransferListener::onTransferFinish(MegaApi* api, MegaTransfer *transfer, MegaError* error)
 {
+    if (transfer->getType() == transfer->TYPE_DOWNLOAD)
+    {
+        DownloadsManager::Instance().onTransferFinish(transfer, error);
+    }
+
+
     completedTransfersMutex.lock();
     completedTransfers.push_front(transfer->copy());
 
@@ -1073,8 +1108,21 @@ void MegaCmdGlobalTransferListener::onTransferFinish(MegaApi* api, MegaTransfer 
     completedTransfersMutex.unlock();
 }
 
-void MegaCmdGlobalTransferListener::onTransferStart(MegaApi* api, MegaTransfer *transfer) {};
-void MegaCmdGlobalTransferListener::onTransferUpdate(MegaApi* api, MegaTransfer *transfer) {};
+void MegaCmdGlobalTransferListener::onTransferStart(MegaApi* api, MegaTransfer *transfer)
+{
+    if (transfer->getType() == transfer->TYPE_DOWNLOAD)
+    {
+        DownloadsManager::Instance().onTransferStart(api, transfer);
+    }
+
+}
+void MegaCmdGlobalTransferListener::onTransferUpdate(MegaApi* api, MegaTransfer *transfer)
+{
+    if (transfer->getType() == transfer->TYPE_DOWNLOAD)
+    {
+        DownloadsManager::Instance().onTransferUpdate(transfer);
+    }
+}
 void MegaCmdGlobalTransferListener::onTransferTemporaryError(MegaApi *api, MegaTransfer *transfer, MegaError* e)
 {
     if (e && e->getErrorCode() == MegaError::API_EOVERQUOTA && e->getValue())
@@ -1091,7 +1139,11 @@ void MegaCmdGlobalTransferListener::onTransferTemporaryError(MegaApi *api, MegaT
         sandboxCMD->timeOfOverquota = m_time(NULL);
         sandboxCMD->secondsOverQuota=e->getValue();
     }
-};
+    if (transfer->getType() == transfer->TYPE_DOWNLOAD)
+    {
+        DownloadsManager::Instance().onTransferUpdate(transfer);
+    }
+}
 
 bool MegaCmdGlobalTransferListener::onTransferData(MegaApi *api, MegaTransfer *transfer, char *buffer, size_t size) {return false;};
 
@@ -1122,4 +1174,50 @@ bool MegaCmdCatTransferListener::onTransferData(MegaApi *api, MegaTransfer *tran
 
     return true;
 }
+
+ATransferListener::ATransferListener(const std::shared_ptr<MegaCmdMultiTransferListener> &mMultiTransferListener, const std::string &path)
+    : mMultiTransferListener(mMultiTransferListener), mPath(path)
+{
+    assert(mMultiTransferListener);
+}
+
+ATransferListener::~ATransferListener()
+{
+
+}
+
+
+void ATransferListener::onTransferStart(MegaApi *api, MegaTransfer *transfer)
+{
+    auto tag = transfer->getTag();
+    DownloadsManager::Instance().addNewTopLevelTransfer(api, transfer, tag, mPath);
+    mMultiTransferListener->onTransferStarted(mPath, tag);
+    mMultiTransferListener->onTransferStart(api, transfer);
+}
+
+
+void ATransferListener::onTransferFinish(MegaApi *api, MegaTransfer *transfer, MegaError *e)
+{
+    static_cast<MegaTransferListener *>(mMultiTransferListener.get())->onTransferFinish(api, transfer, e);
+    delete this;
+}
+
+
+void ATransferListener::onTransferUpdate(MegaApi *api, MegaTransfer *transfer)
+{
+    mMultiTransferListener->onTransferUpdate(api, transfer);
+}
+
+
+void ATransferListener::onTransferTemporaryError(MegaApi *api, MegaTransfer *transfer, MegaError *e)
+{
+    mMultiTransferListener->onTransferTemporaryError(api, transfer, e);
+}
+
+
+bool ATransferListener::onTransferData(MegaApi *api, MegaTransfer *transfer, char *buffer, size_t size)
+{
+    return mMultiTransferListener->onTransferData(api, transfer, buffer, size);
+}
+
 } //end namespace

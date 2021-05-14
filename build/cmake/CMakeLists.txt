@@ -45,6 +45,7 @@ endif (ENABLE_BACKUP)
 add_executable(mega-cmd-server
     "${ProjectDir}/src/megacmd.cpp"
     "${ProjectDir}/src/megacmdexecuter.cpp"
+    "${ProjectDir}/src/megacmdtransfermanager.cpp"
     "${ProjectDir}/src/megacmdlogger.cpp"
     "${ProjectDir}/src/megacmdsandbox.cpp"
     "${ProjectDir}/src/megacmdutils.cpp"

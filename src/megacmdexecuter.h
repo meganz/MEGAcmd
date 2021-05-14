@@ -19,6 +19,8 @@
 #ifndef MEGACMDEXECUTER_H
 #define MEGACMDEXECUTER_H
 
+#include "megacmdtransfermanager.h"
+
 #include "megacmdlogger.h"
 #include "megacmdsandbox.h"
 #include "listeners.h"
@@ -117,7 +119,7 @@ public:
     int actUponCreateFolder(mega::SynchronousRequestListener  *srl, int timeout = 0);
     int deleteNode(mega::MegaNode *nodeToDelete, mega::MegaApi* api, int recursive, int force = 0);
     int deleteNodeVersions(mega::MegaNode *nodeToDelete, mega::MegaApi* api, int force = 0);
-    void downloadNode(std::string localPath, mega::MegaApi* api, mega::MegaNode *node, bool background, bool ignorequotawar, int clientID, MegaCmdMultiTransferListener *listener = NULL);
+    void downloadNode(std::string source, std::string localPath, mega::MegaApi* api, mega::MegaNode *node, bool background, bool ignorequotawar, int clientID, std::shared_ptr<MegaCmdMultiTransferListener> listener);
     void uploadNode(std::string localPath, mega::MegaApi* api, mega::MegaNode *node, std::string newname, bool background, bool ignorequotawarn, int clientID, MegaCmdMultiTransferListener *multiTransferListener = NULL);
     void exportNode(mega::MegaNode *n, int64_t expireTime, std::string password = std::string(), bool force = false, bool writable = false);
     void disableExport(mega::MegaNode *n);

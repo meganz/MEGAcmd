@@ -425,6 +425,8 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
 
     validOptValues->insert("client-width");
 
+    validOptValues->insert("col-separator");
+    validOptValues->insert("output-cols");
 
     if ("ls" == thecommand)
     {
@@ -734,6 +736,8 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validParams->insert("only-completed");
         validParams->insert("only-downloads");
         validParams->insert("show-syncs");
+        validParams->insert("download-report-all");
+        validOptValues->insert("download-report");
         validParams->insert("c");
         validParams->insert("a");
         validParams->insert("p");
@@ -4776,6 +4780,8 @@ void reset()
 {
     setBlocked(false);
 }
+
+
 #ifdef _WIN32
 void uninstall()
 {

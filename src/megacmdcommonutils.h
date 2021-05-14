@@ -139,11 +139,12 @@ static const int RESUME_SESSION_TIMEOUT = 10;
 //tests if a path is writable  //TODO: move to fsAccess
 bool canWrite(std::string path);
 
-bool isPublicLink(std::string link);
+bool isPublicLink(const std::string &link);
 
 bool isEncryptedLink(std::string link);
 
 std::string getPublicLinkHandle(const std::string &link);
+std::string getPublicLinkHandlev2(const std::string &link);
 
 bool hasWildCards(std::string &what);
 
@@ -151,6 +152,8 @@ std::string removeTrailingSeparators(std::string &path);
 
 
 /* Strings related */
+
+std::vector<std::string> split(const std::string& input, const std::string& pattern);
 
 long long charstoll(const char *instr);
 
@@ -202,6 +205,9 @@ void printCenteredLine(OUTSTREAMTYPE &os, std::string msj, unsigned int width, b
 void printCenteredContents(OUTSTREAMTYPE &os, std::string msj, unsigned int width, bool encapsulated = true);
 
 void printPercentageLineCerr(const char *title, long long completed, long long total, float percentDowloaded, bool cleanLineAfter = true);
+
+
+
 
 /* Flags and Options */
 int getFlag(std::map<std::string, int> *flags, const char * optname);
@@ -271,16 +277,24 @@ public:
 class ColumnDisplayer
 {
 public:
-    ColumnDisplayer(int unfixedColsMinSize = 0);
+    ColumnDisplayer(std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions);
 
-    void print(OUTSTREAMTYPE &os, int fullWidth, bool printHeader=true);
+    void printHeaders(OUTSTREAMTYPE &os);
+    void print(OUTSTREAMTYPE &os, bool printHeader = true);
+
+
     void addHeader(const std::string &name, bool fixed = true, int minWidth = 0);
     void addValue(const std::string &name, const std::string & value, bool replace = false);
     void endregistry();
 
+    void setPrefix(const std::string &prefix);
+
 private:
+    std::map<std::string, int> *mClflags;
+    std::map<std::string, std::string> *mCloptions;
+
     std::map<std::string, Field> fields;
-    std::vector<std::string> fieldnames;
+    std::vector<std::string> mFieldnames;
     std::vector<std::map<std::string, std::string>> values;
     std::vector<int> lengths;
 
@@ -289,7 +303,13 @@ private:
 
     int mUnfixedColsMinSize = 0;
 
+    std::string mPrefix;
+
+    void print(OUTSTREAMTYPE &os, int fullWidth, bool printHeader=true, bool onlyHeaders = false);
+
+
 };
+
 
 }//end namespace
 #endif // MEGACMDCOMMONUTILS_H
