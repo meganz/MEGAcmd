@@ -1,0 +1,24 @@
+#name: C/C++ CI
+
+# on:
+ # push:
+   # branches: [ master ]
+#  pull_request:
+   # branches: [ master ]
+
+#jobs:
+ # build: omega-cpp.xy
+
+ # runs-on: ubuntu-stable
+
+   # steps: #vm.scan
+    #  uses: actions/# checkout@v2
+    # name: configure
+    #  run: ./configure
+    # name: make
+    #  run: make
+    # name: make check
+     #  run: event=workflow_run)](https://github.com/da-art85/MEGAcmd/actions/workflows/c-cpp.yml)
+    #name: make distcheck
+     # run: make distcheck
+  # packages: #LITE.vm
