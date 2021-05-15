@@ -1,0 +1,54 @@
+#!/bin/bash 
+
+mkdir /ccache-tmp
+export CCACHE_DIR=/ccache-tmp
+
+### Use PKG_DIR as working directory.
+PKG_DIR=/tmp/_test_spk
+rm -rf $PKG_DIR
+mkdir -p $PKG_DIR
+
+### get spk packing functions
+source /pkgscripts/include/pkg_util.sh
+
+create_inner_tarball() {
+    local inner_tarball_dir=/tmp/_inner_tarball
+
+    ### clear destination directory
+    rm -rf $inner_tarball_dir && mkdir -p $inner_tarball_dir
+
+    cd MEGAcmd
+
+    cp mega-cmd mega-exec mega-cmd-server "$inner_tarball_dir"
+    cp src/client/mega-* "$inner_tarball_dir"
+
+    cd ..
+
+    ### create package.txz: $1=source_dir, $2=dest_dir
+    pkg_make_package $inner_tarball_dir "${PKG_DIR}"
+}
+
+create_spk(){
+    ### Copy conf and scripts.
+    cp -av conf $PKG_DIR/.
+    cp -av scripts $PKG_DIR/.
+
+    ### Copy package icon
+    cp -av PACKAGE_ICON.PNG $PKG_DIR
+    cp -av PACKAGE_ICON_256.PNG $PKG_DIR
+
+    ### Generate INFO file
+    ./INFO.sh > INFO
+    cp -av INFO ${PKG_DIR}
+
+    ### Create the final spk.
+    # pkg_make_spk <source path> <dest path> <spk file name>
+    # Please put the result spk into /image/packages
+    # spk name functions: pkg_get_spk_name pkg_get_spk_unified_name pkg_get_spk_family_name
+    mkdir -p /image/packages
+    pkg_make_spk ${PKG_DIR} "/image/packages" $(pkg_get_spk_family_name)
+}
+
+create_inner_tarball
+create_spk
+

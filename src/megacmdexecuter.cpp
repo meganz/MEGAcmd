@@ -1133,7 +1133,8 @@ void MegaCmdExecuter::dumpNode(MegaNode* n, const char *timeFormat, std::map<std
 
     if (getFlag(clflags, "show-handles"))
     {
-        OUTSTREAM << " <H:" << api->handleToBase64(n->getHandle()) << ">";
+        std::unique_ptr<char []> handle {api->handleToBase64(n->getHandle())};
+        OUTSTREAM << " <H:" << handle.get() << ">";
     }
 
     if (extended_info)
@@ -1297,7 +1298,8 @@ void MegaCmdExecuter::dumpNode(MegaNode* n, const char *timeFormat, std::map<std
 
                     if (getFlag(clflags, "show-handles"))
                     {
-                        OUTSTREAM << " <H:" << api->handleToBase64(versionNode->getHandle()) << ">";
+                        std::unique_ptr<char []> handle {api->handleToBase64(versionNode->getHandle())};
+                        OUTSTREAM << " <H:" << handle.get() << ">";
                     }
 
                     OUTSTREAM << endl;
@@ -1438,7 +1440,8 @@ void MegaCmdExecuter::dumpNodeSummary(MegaNode *n, const char *timeFormat, std::
 
     if (getFlag(clflags, "show-handles"))
     {
-        OUTSTREAM << " H:" << api->handleToBase64(n->getHandle());
+        std::unique_ptr<char []> handle {api->handleToBase64(n->getHandle())};
+        OUTSTREAM << " H:" << handle.get();
     }
 
     OUTSTREAM << " " << title;
@@ -3462,6 +3465,7 @@ long long MegaCmdExecuter::getVersionsSize(MegaNode *n)
             MegaNode *versionNode = versionNodes->get(i);
             toret += api->getSize(versionNode);
         }
+        delete versionNodes;
     }
 
     MegaNodeList *children = api->getChildren(n);
@@ -3762,7 +3766,8 @@ vector<string> MegaCmdExecuter::getsessions()
                 {
                     if (session->isAlive())
                     {
-                        sessions.push_back(api->userHandleToBase64(session->getHandle()));
+                        std::unique_ptr<char []> handle {api->userHandleToBase64(session->getHandle())};
+                        sessions.push_back(handle.get());
                     }
                     delete session;
                 }
@@ -4487,7 +4492,8 @@ void MegaCmdExecuter::doFind(MegaNode* nodeBase, const char *timeFormat, std::ma
 
                 if (getFlag(clflags, "show-handles"))
                 {
-                    OUTSTREAM << " <H:" << api->handleToBase64(n->getHandle()) << ">";
+                    std::unique_ptr<char []> handle {api->handleToBase64(n->getHandle())};
+                    OUTSTREAM << " <H:" << handle.get() << ">";
                 }
 
                 OUTSTREAM << endl;
@@ -4587,7 +4593,8 @@ void MegaCmdExecuter::move(MegaNode * n, string destiny)
 
                         //move into the parent of target node
                         MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
-                        api->moveNode(n, api->getNodeByHandle(tn->getParentHandle()), megaCmdListener);
+                        std::unique_ptr<MegaNode> parentNode {api->getNodeByHandle(tn->getParentHandle())};
+                        api->moveNode(n, parentNode.get(), megaCmdListener);
                         megaCmdListener->wait();
                         if (checkNoErrors(megaCmdListener->getError(), "move node"))
                         {
@@ -9660,7 +9667,11 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
     }
     else if (words[0] == "version")
     {
-        OUTSTREAM << "MEGAcmd version: " << MEGACMD_MAJOR_VERSION << "." << MEGACMD_MINOR_VERSION << "." << MEGACMD_MICRO_VERSION << "." << MEGACMD_BUILD_ID << ": code " << MEGACMD_CODE_VERSION << endl;
+        OUTSTREAM << "MEGAcmd version: " << MEGACMD_MAJOR_VERSION << "." << MEGACMD_MINOR_VERSION << "." << MEGACMD_MICRO_VERSION << "." << MEGACMD_BUILD_ID << ": code " << MEGACMD_CODE_VERSION
+#ifdef _WIN64
+                  << " (64 bits)"
+#endif
+                  << endl;
 
         MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
         api->getLastAvailableVersion("BdARkQSQ",megaCmdListener);

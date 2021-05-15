@@ -6,8 +6,13 @@ const char CLIENT_KEY[] = "BdARkQSQ";
 const char USER_AGENT[] = "MEGA/MEGAcmdUpdaterTask";
 
 #ifdef _WIN32
-const char UPDATE_CHECK_URL[]  = "http://g.static.mega.co.nz/upd/wcmd/v.txt";
-const char EMERGENCY_UPDATE_CHECK_URL[]  = "http://g.static.mega.co.nz/eupd/wcmd/v.txt";
+    #ifdef _WIN64
+    const char UPDATE_CHECK_URL[]  = "http://g.static.mega.co.nz/upd/wcmd64/v.txt";
+    const char EMERGENCY_UPDATE_CHECK_URL[]  = "http://g.static.mega.co.nz/eupd/wcmd64/v.txt";
+    #else
+    const char UPDATE_CHECK_URL[]  = "http://g.static.mega.co.nz/upd/wcmd/v.txt";
+    const char EMERGENCY_UPDATE_CHECK_URL[]  = "http://g.static.mega.co.nz/eupd/wcmd/v.txt";
+    #endif
 #else
 const char UPDATE_CHECK_URL[]  = "http://g.static.mega.co.nz/upd/mcmd/v.txt";
 const char EMERGENCY_UPDATE_CHECK_URL[]  = "http://g.static.mega.co.nz/eupd/mcmd/v.txt";
