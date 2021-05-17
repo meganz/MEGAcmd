@@ -1184,10 +1184,10 @@ void ColumnDisplayer::print(OUTSTREAMTYPE &os, int fullWidth, bool printHeader, 
     if (!outputcols.empty())
     {
         auto listofCols = split(outputcols, ",");
-        for (auto el : mFieldnames)
+        for (auto el : listofCols)
         {
-            auto it = find (listofCols.begin(), listofCols.end(), el);
-            if (it != listofCols.end())
+            auto it = find (mFieldnames.begin(), mFieldnames.end(), el);
+            if (it != mFieldnames.end())
             {
                 fieldnames.push_back(el);
             }

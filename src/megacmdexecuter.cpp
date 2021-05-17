@@ -6613,7 +6613,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
                 for (auto & dlId : megaCmdMultiTransferListener->getStartedTransfers())
                 {
-                    OUTSTREAM << "Started background transfer <" << dlId.mPath << ">. Object Identifier: " << dlId.getPathUID() << endl;
+                    OUTSTREAM << "Started background transfer <" << dlId.mPath << ">. Tag = " << dlId.mTag << ". Object Identifier: " << dlId.getObjectID() << endl;
                 }
             }
 
