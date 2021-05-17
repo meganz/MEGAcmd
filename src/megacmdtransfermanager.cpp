@@ -139,10 +139,13 @@ DownloadsManager &DownloadsManager::Instance()
     return myInstance;
 }
 
-std::map<DownloadId, std::unique_ptr<TransferInfo>>::iterator DownloadsManager::addNewTopLevelTransfer(MegaApi *api, MegaTransfer *transfer, int tag, const std::string &path)
+MapOfDlTransfers::iterator DownloadsManager::addNewTopLevelTransfer(MegaApi *api, MegaTransfer *transfer, int tag, const std::string &path)
 {
     DownloadId id(tag, path);
-    auto pair = mTransfers.emplace(id, make_unique<TransferInfo>(api, transfer, &id));
+    auto transferInfo = std::make_shared<TransferInfo>(api, transfer, &id);
+    transferInfo->updateTransfer(transfer, transferInfo); // we need to call this after creating a TransferInfo object, because IO writer  requires a shared_ptr, which is not available from ctor
+    auto pair = mTransfers.emplace(id, transferInfo);
+
     assert(pair.second);
 
     mActiveTransfers.emplace(tag, pair.first);
@@ -196,7 +199,7 @@ void DownloadsManager::onTransferUpdate(MegaTransfer *transfer)
         auto it = mActiveTransfers.find(transfer->getTag());
         if (it != mActiveTransfers.end())
         {
-            it->second->second->onTransferUpdate(transfer);
+            it->second->second->updateTransfer(transfer, it->second->second);
             mTransfersInMemory[it->second->first.getObjectID()] = it->second; //Insert / replace the existing value
         }
         else
@@ -204,7 +207,7 @@ void DownloadsManager::onTransferUpdate(MegaTransfer *transfer)
             auto it = mFinishedTransfers.find(transfer->getTag());
             if (it != mFinishedTransfers.end())
             {
-                it->second->second->onTransferUpdate(transfer);
+                it->second->second->updateTransfer(transfer, it->second->second);
                 mTransfersInMemory[it->second->first.getObjectID()] = it->second; //Insert / replace the existing value
             }
         }
@@ -272,15 +275,7 @@ void DownloadsManager::printAll(OUTSTREAMTYPE &os, map<string, int> *clflags, ma
 
 void DownloadsManager::printOne(OUTSTREAMTYPE &os, std::string objectIDorTag, map<string, int> *clflags, map<string, string> *cloptions)
 {
-//    std::map<int, std::map<DownloadId, std::unique_ptr<TransferInfo>>::iterator> mActiveTransfers; //All active transfers added
-//    std::map<int, std::map<DownloadId, std::unique_ptr<TransferInfo>>::iterator> mFinishedTransfers; //All finished transfers in current run
-
-//    //Map betwen OID -> TransferInfo
-//    // since 2 transfer can have the same OID, it will be keep the last recently updated
-//    std::map<std::string, std::map<DownloadId, std::unique_ptr<TransferInfo>>::iterator> mTransfersInMemory;
-
-
-    TransferInfo *ti = nullptr;
+    std::shared_ptr<TransferInfo> ti;
     DownloadId did;
 
     if (DownloadId::isObjectID(objectIDorTag))
@@ -290,14 +285,16 @@ void DownloadsManager::printOne(OUTSTREAMTYPE &os, std::string objectIDorTag, ma
         {
 
             did = it->second->first;
-            ti = it->second->second.get();
+            ti = it->second->second;
         }
         else
         {
-            //TODO: look in db
-
-            //TODO: set error and print it;
-            os << objectIDorTag << " NOT FOUND";
+            auto transferInfo = TransferInfoIOWriter::Instance().read(objectIDorTag);
+            if (transferInfo)
+            {
+                ti = transferInfo;
+                did = ti->getId();
+            }
         }
     }
     else // a tag
@@ -309,7 +306,7 @@ void DownloadsManager::printOne(OUTSTREAMTYPE &os, std::string objectIDorTag, ma
             if (itActive != mActiveTransfers.end())
             {
                 did = itActive->second->first;
-                ti = itActive->second->second.get();
+                ti = itActive->second->second;
             }
             else
             {
@@ -317,7 +314,7 @@ void DownloadsManager::printOne(OUTSTREAMTYPE &os, std::string objectIDorTag, ma
                 if (itFinished != mFinishedTransfers.end())
                 {
                     did = itFinished->second->first;
-                    ti = itFinished->second->second.get();
+                    ti = itFinished->second->second;
                 }
             }
         }
@@ -352,6 +349,12 @@ OUTSTREAMTYPE &operator<<(OUTSTREAMTYPE &os, const DownloadId &p)
 
 void TransferInfo::addToColumnDisplayer(ColumnDisplayer &cd)
 {
+    if (!mTransfer)
+    {
+        LOG_err << "Cannot print transfer info, transfer not properly loaded";
+        assert(false && "trying to print transfer info without mTransfer");
+        return;
+    }
     if (mTransfer->getFolderTransferTag() <= 0)
     {
         cd.addValue("OBJECT_ID", mId.getObjectID());
@@ -368,6 +371,26 @@ void TransferInfo::addToColumnDisplayer(ColumnDisplayer &cd)
     cd.addValue("ERROR_CODE", MegaError::getErrorString(mFinalError));
 }
 
+
+std::string TransferInfo::serializedTransferData()
+{
+    string toret;
+    ParamWriter pr(toret);
+
+    if (mTransfer)
+    {
+        auto t = mTransfer.get();
+        pr << t;
+    }
+
+    pr << mSubTransfersStarted;
+    pr << mSubTransfersFinishedOk;
+    pr << mSubTransfersFinishedWithFailure;
+    pr << mFinalError;
+    pr << mSourcePath;
+
+    return toret;
+}
 
 int TransferInfo::getType() const
 {
@@ -544,20 +567,47 @@ bool TransferInfo::getTargetOverride() const
     return mTransfer->getTargetOverride();
 }
 
-void TransferInfo::onTransferUpdate(MegaTransfer *transfer)
+void TransferInfo::updateTransfer(MegaTransfer *transfer, const std::shared_ptr<TransferInfo> &transferInfo)
 {
-    assert(!firstUpdate);
-    mTransfer.reset(transfer->copy());
+    if (!mTransfer || transfer != mTransfer.get())
+    {
+        mTransfer.reset(transfer->copy());
+    }
+
+    mLastUpdate = time(nullptr);
 
 
-
-    // TODO: persist here!
-    // TODO: use commiters
+    TransferInfoIOWriter::Instance().write(transferInfo);
 }
 
-void TransferInfo::onTransferUpdate(MegaApi *api, MegaTransfer *transfer)
+DownloadId TransferInfo::getId() const
 {
-    if (firstUpdate && api)
+    return mId;
+}
+
+std::string TransferInfo::getParentOId() const
+{
+    return mParentOId;
+}
+
+int64_t TransferInfo::getLastUpdate() const
+{
+    return mLastUpdate;
+}
+
+void TransferInfo::onPersisted()
+{
+
+}
+
+TransferInfo::TransferInfo(MegaApi *api, MegaTransfer *transfer, DownloadId *id)
+{
+    if (id)
+    {
+        mId = *id;
+    }
+
+    if (api)
     {
         MegaNode * node = api->getNodeByHandle(transfer->getNodeHandle());
         if (node)
@@ -576,19 +626,30 @@ void TransferInfo::onTransferUpdate(MegaApi *api, MegaTransfer *transfer)
             // this can happen also for links!
             mSourcePath = this->mId.mPath;
         }
-        firstUpdate = false;
     }
 
-    onTransferUpdate(transfer);
 }
 
-TransferInfo::TransferInfo(MegaApi *api, MegaTransfer *transfer, DownloadId *id)
+
+TransferInfo::TransferInfo(MegaApi *api, MegaTransfer *transfer, const std::string &parentObjectId)
+    : TransferInfo(api,transfer)
 {
-    if (id)
-    {
-        mId = *id;
-    }
-    onTransferUpdate(api, transfer);
+    mParentOId = parentObjectId;
+}
+
+TransferInfo::TransferInfo(const std::string &serializedContents, int64_t lastUpdate, string parentObjectId)
+    : mParentOId(parentObjectId),
+      mLastUpdate(lastUpdate)
+{
+    ParamReader pr(serializedContents, true);
+    pr >> mTransfer;
+
+    pr >> mSubTransfersStarted;
+    pr >> mSubTransfersFinishedOk;
+    pr >> mSubTransfersFinishedWithFailure;
+    pr >> mFinalError;
+    pr >> mSourcePath;
+
 }
 
 void TransferInfo::onTransferFinish(MegaTransfer *subtransfer, MegaError *error) //TODO: have this called
@@ -603,15 +664,15 @@ void TransferInfo::onTransferFinish(MegaTransfer *subtransfer, MegaError *error)
     }
 
     mFinalError = error->getErrorCode();
-    onTransferUpdate(subtransfer);
+    onSubTransferUpdate(subtransfer);
 }
 
 void TransferInfo::onSubTransferStarted(MegaApi *api, MegaTransfer *subtransfer)
 {
     mSubTransfersStarted++;
-    mSubTransfersInfo.emplace(std::make_pair(subtransfer->getTag(), make_unique<TransferInfo>(api, subtransfer)));
+    mSubTransfersInfo.emplace(std::make_pair(subtransfer->getTag(), std::make_shared<TransferInfo>(api, subtransfer, mId.getObjectID())));
 
-    onSubTransferUpdate(subtransfer);//TODO: probably we want transfer info to have a ctor taking MegaTransfer that calls this
+    onSubTransferUpdate(subtransfer);
 
 }
 
@@ -638,7 +699,7 @@ void TransferInfo::onSubTransferUpdate(MegaTransfer *subtransfer)
     auto it = mSubTransfersInfo.find(subtransfer->getTag());
     if (it != mSubTransfersInfo.end())
     {
-        it->second->onTransferUpdate(subtransfer);
+        it->second->updateTransfer(subtransfer, it->second);
     }
 }
 
@@ -726,6 +787,10 @@ MegaTransferHeldInString::MegaTransferHeldInString(const string &s, size_t *size
 
 
 
+ParamWriter::ParamWriter(string &where)
+    : mOut (where)
+{
+}
 
 ParamReader::ParamReader(const string &params, bool duplicateConstCharPointer)
     : mDuplicateConstCharPointers(duplicateConstCharPointer)
@@ -956,12 +1021,264 @@ std::string DownloadId::getObjectID() const
         }
     }
 
-    return string("O:").append(mPath);
+    return mPath.empty() ? string() : string("O:").append(mPath);
 }
 
 bool DownloadId::isObjectID(const std::string &what)
 {
     return what.find("O:") == 0;
+}
+
+
+int64_t DataBaseEntry::dbid() const
+{
+    return mDbid;
+}
+
+void DataBaseEntry::setDbid(const int64_t &dbid)
+{
+    mDbid = dbid;
+}
+
+
+
+
+
+std::string TransferInfoIOWriter::transferInfoDbPath() const
+{
+    return mTransferInfoDbPath;
+}
+
+TransferInfoIOWriter::~TransferInfoIOWriter()
+{
+    if (mThreadIoProcessor)
+    {
+        end();
+        mThreadIoProcessor->join();
+    }
+}
+
+bool TransferInfoIOWriter::write(std::shared_ptr<TransferInfo> transferInfo)
+{
+    bool delayNotification = false;
+    {
+        std::lock_guard<std::mutex> g(mActionsMutex);
+        mActions.push_back(TransferInfoIOAction(TransferInfoIOAction::Action::Write, transferInfo));
+        //Note: write stores a weak pointer and whenever processing, if locking shared_ptr fails,
+        // we can dismiss the write, without needing to control further the existence of the transferInfo
+
+        delayNotification = mActions.size() < mIOMaxActionBeforeNotifying;
+    }
+
+    if (!delayNotification)
+    {
+        mIOcv.notify_all();
+    }
+
+    return true;
+}
+
+bool TransferInfoIOWriter::remove(std::shared_ptr<TransferInfo> transferInfo, bool delayNotification)
+{
+    {
+        std::lock_guard<std::mutex> g(mActionsMutex);
+        //TODO: look for write action in queue and remove if existing, instead of adding a removing action
+        // we could have a map transferInfoId -> action
+        mActions.push_back(TransferInfoIOAction(TransferInfoIOAction::Action::Remove, transferInfo, true)); // we give ownership
+    }
+    if (!delayNotification)
+    {
+        mIOcv.notify_all();
+    }
+    return true;
+}
+
+void TransferInfoIOWriter::forceExecution()
+{
+    mIOcv.notify_all();
+}
+
+
+TransferInfoIOAction TransferInfoIOWriter::getNextAction()
+{
+    std::unique_lock<std::mutex> lk(mActionsMutex);
+    auto action = mActions.front();
+    mActions.pop_front();
+
+    return action;
+}
+
+bool TransferInfoIOWriter::hasActions()
+{
+    std::unique_lock<std::mutex> lk(mActionsMutex);
+    return !mActions.empty();
+}
+
+void TransferInfoIOWriter::loopIOActionProcessor()
+{
+    while(true)
+    {
+        {
+            std::unique_lock<std::mutex> lk(mActionsMutex);
+            mIOcv.wait_for(lk, std::chrono::milliseconds(mIOScheduleMs), [this]{ return (mFinished || !mActions.empty());});
+        }
+
+        if (hasActions())
+        {
+            std::lock_guard<std::mutex> g(mIOMutex);
+
+            CommitGuard cg(db, true);
+
+            while (hasActions())
+            {
+                auto action = getNextAction();
+                auto weakTransferInfo = action.transferInfo();
+                auto transferInfo = weakTransferInfo.lock();
+
+                if (transferInfo)// otherwise we can dismiss the write: no Downloadable holds it anymore
+                {
+                    switch(action.action())
+                    {
+                    case TransferInfoIOAction::Action::Write:
+                        doWrite(transferInfo);
+                        transferInfo->onPersisted();
+                        break;
+                    case TransferInfoIOAction::Action::Remove:
+                        doRemove(transferInfo);
+                        break;
+                    }
+                }
+
+            }
+        }
+
+
+        if (mFinished) break;
+    }
+}
+
+void TransferInfoIOWriter::end()
+{
+    {
+        std::lock_guard<std::mutex> g(mActionsMutex);
+        mFinished = true;
+    }
+    mIOcv.notify_all();
+}
+
+std::weak_ptr<TransferInfo> TransferInfoIOAction::transferInfo() const
+{
+    return mTransferInfo;
+}
+
+TransferInfoIOAction::Action TransferInfoIOAction::action() const
+{
+    return mAction;
+}
+
+
+bool TransferInfoIOWriter::initializeSqlite()
+{
+    if (mInitialized)
+    {
+        return true;
+    }
+
+    //TODO: get db path from somewhere
+
+//    auto confFolder = ConfigurationManager::Instance().getConfigFolder();
+//    mTransferInfoDbPath = ConfigurationManager::Instance().getConfigurationValue("transferInfos_db_path", confFolder.append("/transferInfosdb"));
+
+    mTransferInfoDbPath = "/tmp/dl.db";
+
+    auto rc = sqlite3_open(mTransferInfoDbPath.c_str(), &db);
+
+    std::string sql = "CREATE TABLE IF NOT EXISTS transferInfo (id INTEGER PRIMARY KEY ASC NOT NULL,"
+            " objectId TEXT, parentObjectId TEXT, lastUpdate DATETIME, content BLOB NOT NULL)"; //TODO add subtransfers failed/and other info
+
+    rc = sqlite3_exec(db, sql.c_str(), NULL, NULL, NULL);
+
+    if (rc)
+    {
+        LOG_err << "Error initializing transferInfosdb: " << sqlite3_errmsg(db) ;
+        return false;
+    }
+
+
+    // indexes
+    sql = "CREATE INDEX IF NOT EXISTS objectId_index ON transferInfo (objectId)";
+    rc = sqlite3_exec(db, sql.c_str(), NULL, NULL, NULL);
+    if (rc)
+    {
+        LOG_err << "Error creating index objectId_index for transferInfosdb: " << sqlite3_errmsg(db) ;
+        return false;
+    }
+
+    // indexes
+    sql = "CREATE INDEX IF NOT EXISTS parentObjectId_index ON transferInfo (parentObjectId)";
+    rc = sqlite3_exec(db, sql.c_str(), NULL, NULL, NULL);
+    if (rc)
+    {
+        LOG_err << "Error creating index parentObjectId_index for transferInfosdb: " << sqlite3_errmsg(db) ;
+        return false;
+    }
+
+    mInitialized = true;
+
+    return true;
+}
+
+bool TransferInfoIOWriter::doRemove(std::shared_ptr<TransferInfo> transferInfo)
+{
+    char buf[128];
+    sprintf(buf, "DELETE FROM transferInfo WHERE objectId = \"%s\"" , transferInfo->getId().getObjectID().c_str());
+
+    auto rc = sqlite3_exec(db, buf, nullptr, nullptr, nullptr);
+    if (rc)
+    {
+        LOG_err << "Error removing transferInfo from DB " << sqlite3_errmsg(db) ;
+    }
+
+    return !rc;
+}
+
+TransferInfoIOWriter& TransferInfoIOWriter::Instance() {
+    static TransferInfoIOWriter myInstance;
+    return myInstance;
+}
+
+bool TransferInfoIOWriter::start()
+{
+    auto ret = initializeSqlite();
+    //TODO: read this from configurations
+//    mIOScheduleMs = ConfigurationManager::Instance().getConfigurationValue("disk_io_schedule_milliseconds", 30000);
+//    mIOMaxActionBeforeNotifying = ConfigurationManager::Instance().getConfigurationValue("max_write_transferInfos_delayed", 10000);
+
+    mIOScheduleMs = 3000;
+    mIOMaxActionBeforeNotifying = 100;
+
+    if (!ret)
+    {
+        return false;
+    }
+
+    mThreadIoProcessor.reset(new std::thread([this]()
+    {
+        this->loopIOActionProcessor();
+    }
+    ));
+
+    return true;
+}
+
+void TransferInfoIOWriter::shutdown()
+{
+    if (mThreadIoProcessor)
+    {
+        end();
+        mThreadIoProcessor->join();
+        mThreadIoProcessor.reset();
+    }
 }
 
 }

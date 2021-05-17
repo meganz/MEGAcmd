@@ -5023,6 +5023,8 @@ int main(int argc, char* argv[])
     api->addGlobalListener(megaCmdGlobalListener);
     api->addListener(megaCmdMegaListener);
 
+    TransferInfoIOWriter::Instance().start(); //TODO: make this configurable and also destroy at program end
+
     // set up the console
 #ifdef _WIN32
     console = new CONSOLE_CLASS;

@@ -31,6 +31,7 @@
 
 #include <sqlite3.h> //TODO: move all these to a separate source file
 #include <condition_variable>
+#include <thread>
 
 using namespace mega;
 using std::map;
@@ -69,32 +70,58 @@ public:
 };
 
 
+
+
+class DataBaseEntry
+{
+public:
+    constexpr static int INVALID_DB_ID = 0;
+
+    int64_t dbid() const;
+    void setDbid(const int64_t &dbid);
+private:
+    int64_t mDbid = INVALID_DB_ID;
+
+};
+
 /**
  * @brief The information we want to keep of a transfer
  */
-class TransferInfo
+class TransferInfo :  public DataBaseEntry
 {
     long mSubTransfersStarted = 0;
     long mSubTransfersFinishedOk = 0;
     long mSubTransfersFinishedWithFailure = 0;
-
-    map<int, std::unique_ptr<TransferInfo>> mSubTransfersInfo; //subtransferInfo by tag
-
     int mFinalError = -1;
 
-    bool firstUpdate = true; //TODO: set false when loaded from db!
     string mSourcePath; //full path for files
+
+
+    map<int, std::shared_ptr<TransferInfo>> mSubTransfersInfo; //subtransferInfo by tag
+
 
     std::unique_ptr<MegaTransfer> mTransfer; // a copy of a transfer
 
     DownloadId mId; //For main transfers
 
+    std::string mParentOId; // for child transfers
+
+    int64_t mLastUpdate; //timestamp of the last update
+
 public:
 
+    //Despite receiving transfer object here, updateTransfer(transfer) will be required afterwards
+    // Reason: updateTransfer will trigger IO writer update, and that requires a shared pointer from this class,
+    // which is not available in ctor.
     TransferInfo(MegaApi * api, MegaTransfer *transfer, DownloadId *id = nullptr);
+    TransferInfo(MegaApi * api, MegaTransfer *transfer, const std::string &parentObjectId);
 
-    // updates TransferInfo
-    void onTransferUpdate(MegaTransfer *transfer);
+    //ctor for loading from db
+    TransferInfo(const std::string &serializedTransfer, int64_t lastUpdate,
+                 std::string parentObjectId = string());
+
+    // updates TransferInfo, requires a shared pointer to it
+    void updateTransfer(MegaTransfer *transfer, const std::shared_ptr<TransferInfo> &transferInfo);
 
     void onTransferUpdate(MegaApi *api, MegaTransfer *transfer);
 
@@ -109,6 +136,8 @@ public:
 
     void print(OUTSTREAMTYPE &os, std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions, bool printHeader = true);
     void addToColumnDisplayer(ColumnDisplayer &cd);
+
+    std::string serializedTransferData();
 
     //MegaTransfer interface
     int getType() const;
@@ -148,28 +177,33 @@ public:
     bool getTargetOverride() const;
 
 
+    DownloadId getId() const;
+    std::string getParentOId() const;
+    int64_t getLastUpdate() const;
+
+    void onPersisted();
 };
 
 OUTSTREAMTYPE &operator<<(OUTSTREAMTYPE &os, const DownloadId &p);
 
+using MapOfDlTransfers = std::map<DownloadId, std::shared_ptr<TransferInfo>>;
 
 class DownloadsManager
 {
 private:
-    std::map<DownloadId, std::unique_ptr<TransferInfo>> mTransfers; //here's the ownership of the objects
+     MapOfDlTransfers mTransfers; //here's the ownership of the objects
 
-    std::map<int, std::map<DownloadId, std::unique_ptr<TransferInfo>>::iterator> mActiveTransfers; //All active transfers added
-    std::map<int, std::map<DownloadId, std::unique_ptr<TransferInfo>>::iterator> mFinishedTransfers; //All finished transfers in current run
+    std::map<int, MapOfDlTransfers::iterator> mActiveTransfers; //All active transfers added
+    std::map<int, MapOfDlTransfers::iterator> mFinishedTransfers; //All finished transfers in current run
 
     //Map betwen OID -> TransferInfo
     // since 2 transfer can have the same OID, it will be keep the last recently updated
-    std::map<std::string, std::map<DownloadId, std::unique_ptr<TransferInfo>>::iterator> mTransfersInMemory;
+    std::map<std::string, MapOfDlTransfers::iterator> mTransfersInMemory;
 
 public:
     static DownloadsManager& Instance();
 
-    std::map<DownloadId, std::unique_ptr<TransferInfo>>::iterator addNewTopLevelTransfer(MegaApi *api, MegaTransfer *transfer,
-                                                                                         int tag, const std::string &path);
+    MapOfDlTransfers::iterator addNewTopLevelTransfer(MegaApi *api, MegaTransfer *transfer,int tag, const std::string &path);
 
     void onTransferStart(MegaApi *api, MegaTransfer *transfer);
 
@@ -277,7 +311,7 @@ public:
 template <typename T>
 ParamWriter& operator<<(ParamWriter& x, const T &s)
 {
-//    static_assert(!std::is_pointer<T>::value, "Param writer not implemented for this type of pointer");
+    static_assert(!std::is_pointer<T>::value, "Param writer not implemented for this type of pointer");
 
     x.mOut.append(reinterpret_cast<const char *>(&s), sizeof(T));
 
@@ -517,6 +551,129 @@ public:
 
 
 
+class CommitGuard
+{
+private:
+    sqlite3 *mDb = nullptr;
+    bool mVacuum = false;
+
+public:
+    CommitGuard(sqlite3 *db, bool shrinkDb = false)
+        :mDb(db), mVacuum(shrinkDb)
+    {
+        sqlite3_exec(mDb, "BEGIN", 0, 0, NULL);
+    }
+
+    ~CommitGuard()
+    {
+        sqlite3_exec(mDb, "COMMIT", 0, 0, NULL);
+
+        if (mVacuum)
+        {
+            sqlite3_exec(mDb, "VACUUM", 0, 0, NULL);
+        }
+    }
+};
+
+
+/**
+ * @brief Transfer Info persistency action
+ */
+class TransferInfoIOAction
+{
+public:
+    enum Action
+    {
+        Write = 0,
+        Remove = 1,
+        Select = 2,
+    };
+private:
+    Action mAction;
+    std::weak_ptr<TransferInfo> mTransferInfo;
+    std::shared_ptr<TransferInfo> mTransferInfoOwned;
+public:
+    TransferInfoIOAction(Action action, std::shared_ptr<TransferInfo> transferInfo, bool giveOwnership = false)
+        : mAction(action), mTransferInfo(transferInfo)
+    {
+        if (giveOwnership)
+        {
+            mTransferInfoOwned = transferInfo; //thus, we keep a reference of the transferInfo
+        }
+    }
+    Action action() const;
+    std::weak_ptr<TransferInfo> transferInfo() const;
+};
+
+/**
+ * @brief Class for persisting data transferInfos
+ */
+class TransferInfoIOWriter
+{
+private:
+    std::deque<TransferInfoIOAction> mActions;
+    TransferInfoIOAction getNextAction();
+    bool hasActions();
+    std::mutex mActionsMutex;
+    std::mutex mIOMutex;
+    std::condition_variable mIOcv;
+    bool mFinished = false;
+    int64_t mIOScheduleMs;
+    int64_t mIOMaxActionBeforeNotifying = 0;
+    std::unique_ptr<std::thread> mThreadIoProcessor;
+
+    std::string mTransferInfoDbPath;
+
+//    std::shared_ptr<LRUListCache<TransferInfo, std::string>> mTransferInfoCache;
+
+    //sqlite3 specific:
+    bool initializeSqlite();
+    bool doWrite(std::shared_ptr<TransferInfo> transferInfo);
+    std::shared_ptr<std::string> doRead(std::shared_ptr<TransferInfo> transferInfo);
+    bool doRemove(std::shared_ptr<TransferInfo> transferInfo);
+    sqlite3 *db = nullptr;
+    int64_t mLastId = 0;
+
+    bool mInitialized = false;
+
+    std::shared_ptr<TransferInfo> loadTransferInfo(const std::string &objectId);
+
+public:
+
+    static TransferInfoIOWriter& Instance();
+    bool start();
+    void shutdown();
+    void end();
+    void loopIOActionProcessor();
+
+    std::string transferInfoDbPath() const;
+
+    ~TransferInfoIOWriter();
+
+    /**
+     * @brief queues writting a transferInfo
+     * @param transferInfo
+     * @return
+     */
+    bool write(std::shared_ptr<TransferInfo> transferInfo);
+
+    /**
+     * @brief queues removing a transferInfo
+     * @param transferInfo
+     * @return
+     */
+    bool remove(std::shared_ptr<TransferInfo> transferInfo, bool delayNotification = false);
+
+    void forceExecution();
+
+    /**
+     * @brief reads synchronously from db
+     * @param transferInfo
+     * @return
+     */
+    std::shared_ptr<TransferInfo> read(const std::string &objectId);
+
+};
 
 
 }//end namespace
