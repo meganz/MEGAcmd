@@ -18,13 +18,10 @@
 
 #pragma once
 
-//#include "megacmdlogger.h"
-//#include "megacmdsandbox.h"
-//#include "listeners.h"
 #include "megacmdcommonutils.h"
 
-#include "megaapi.h"
 #include "mega/types.h" //make_unique
+#include "megaapi.h"
 
 
 #include <memory>

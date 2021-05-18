@@ -19,10 +19,9 @@
 #ifndef LISTENERS_H
 #define LISTENERS_H
 
-#include "megacmdtransfermanager.h"
-
 #include "megacmdlogger.h"
 #include "megacmdsandbox.h"
+#include "megacmdtransfermanager.h"
 
 
 namespace megacmd {
