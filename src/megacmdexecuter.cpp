@@ -2442,9 +2442,9 @@ int MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
         }
 #endif
 
-        bool downloads_db_enabled = ConfigurationManager::getConfigurationValue("downloads_db_enabled", false);
+        bool downloads_tracking_enabled = ConfigurationManager::getConfigurationValue("downloads_tracking_enabled", false);
 
-        if (downloads_db_enabled)
+        if (downloads_tracking_enabled)
         {
             DownloadsManager::Instance().start();
         }
@@ -9817,9 +9817,42 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
         return;
     }
-    else if (words[0] == "transfers")
+    else if (words[0] == "downloads")
     {
-        if (getFlag(clflags, "download-report-all"))
+        bool queryEnabled = getFlag(clflags, "query-enabled");
+        if (getFlag(clflags, "enable-tracking"))
+        {
+            bool downloads_tracking_enabled_before = ConfigurationManager::getConfigurationValue("downloads_tracking_enabled", false);
+
+            if (!downloads_tracking_enabled_before)
+            {
+                ConfigurationManager::savePropertyValue("downloads_tracking_enabled", true);
+                DownloadsManager::Instance().start();
+            }
+
+            queryEnabled = true;
+        }
+        else if (getFlag(clflags, "disable-tracking"))
+        {
+            bool downloads_tracking_enabled_before = ConfigurationManager::getConfigurationValue("downloads_tracking_enabled", false);
+
+            if (downloads_tracking_enabled_before)
+            {
+                ConfigurationManager::savePropertyValue("downloads_tracking_enabled", false);
+                DownloadsManager::Instance().shutdown(true);
+            }
+
+            queryEnabled = true;
+        }
+
+        if (queryEnabled)
+        {
+            bool downloads_tracking_enabled = ConfigurationManager::getConfigurationValue("downloads_tracking_enabled", false);
+            OUTSTREAM << "Download tracking is " << (downloads_tracking_enabled ? "enabled" : "disabled") << endl;
+            return;
+        }
+
+        if (getFlag(clflags, "report-all"))
         {
             OUTSTRINGSTREAM oss;
             DownloadsManager::Instance().printAll(oss, clflags, cloptions);
@@ -9827,15 +9860,26 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             return;
         }
 
-        auto reportDl = getOption(cloptions, "download-report", "");
-        if (!reportDl.empty())
+        /// report:
+        if (words.size() < 2)
         {
-            OUTSTRINGSTREAM oss;
-            DownloadsManager::Instance().printOne(oss, reportDl, clflags, cloptions);
-            OUTSTREAM << oss.str();
+            setCurrentOutCode(MCMD_EARGS);
+            LOG_err << "      " << getUsageStr(words[0].c_str());
             return;
         }
 
+        for (unsigned i = 1 ; i < words.size(); i++)
+        {
+            if (!words[i].empty())
+            {
+                OUTSTRINGSTREAM oss;
+                DownloadsManager::Instance().printOne(oss, words[i], clflags, cloptions);
+                OUTSTREAM << oss.str();
+            }
+        }
+    }
+    else if (words[0] == "transfers")
+    {
         bool showcompleted = getFlag(clflags, "show-completed");
         bool onlycompleted = getFlag(clflags, "only-completed");
         bool onlyuploads = getFlag(clflags, "only-uploads");

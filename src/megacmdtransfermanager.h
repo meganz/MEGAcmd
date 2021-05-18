@@ -43,7 +43,7 @@ class DownloadId
 {
 public:
     int mTag; //tag for active/finished transfers in current execution
-    std::string mPath; // the path used to initiate the dl
+    std::string mPath; // the path used to initiate the dl (or the objectId if loaded from db)
 
 
     DownloadId(int tag, const std::string &path)
@@ -105,14 +105,17 @@ class TransferInfo :  public DataBaseEntry
 
 public:
 
+    //regular ctors
     //Despite receiving transfer object here, updateTransfer(transfer) will be required afterwards
     // Reason: updateTransfer will trigger IO writer update, and that requires a shared pointer from this class,
     // which is not available in ctor.
     TransferInfo(MegaApi * api, MegaTransfer *transfer, DownloadId *id = nullptr);
     TransferInfo(MegaApi * api, MegaTransfer *transfer, TransferInfo *parent); //ctor for subtransfers
+    void initialize(MegaApi *api, MegaTransfer *transfer, DownloadId *id);
+
 
     //ctor for loading from db
-    TransferInfo(const std::string &serializedTransfer, int64_t lastUpdate, TransferInfo *parent);
+    TransferInfo(const std::string &serializedTransfer, int64_t lastUpdate, TransferInfo *parent, const std::string &objectId);
 
     // updates TransferInfo, requires a shared pointer to it
     void updateTransfer(MegaTransfer *transfer, const std::shared_ptr<TransferInfo> &transferInfo);
@@ -187,6 +190,8 @@ using MapOfDlTransfers = std::map<DownloadId, std::shared_ptr<TransferInfo>>;
 class DownloadsManager
 {
 private:
+    std::recursive_mutex mTransfersMutex;
+
     MapOfDlTransfers mTransfers; //here's the ownership of the objects
 
     std::map<int, MapOfDlTransfers::iterator> mActiveTransfers; //All active transfers added
@@ -232,7 +237,6 @@ private:
     char *mP; //position of the buffer
     char *mEnd; //end of the buffer
 
-    //TODO: rename the following (yieldOwnership? expectedToYield?)
     bool mDuplicateConstCharPointers; //whether to dup const char * or just use pointers to the buffer
 
 public:
@@ -337,7 +341,7 @@ private:
     string mSerialized;
 
     int mType;
-    const char * mTransferString = nullptr; //TODO: review this one
+    const char * mTransferString = nullptr;
 //    const char * mtoString = nullptr;
 //    const char * m__str__ = nullptr;
 //    const char * m__toString = nullptr;

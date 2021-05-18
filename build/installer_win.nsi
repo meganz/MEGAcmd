@@ -594,6 +594,10 @@ modeselected:
   AccessControl::SetFileOwner "$INSTDIR\mega-transfers.bat" "$USERNAME"
   AccessControl::GrantOnFile "$INSTDIR\mega-transfers.bat" "$USERNAME" "GenericRead + GenericWrite"
 
+  File "${SRCDIR_BATFILES}\mega-downloads.bat"
+  AccessControl::SetFileOwner "$INSTDIR\mega-downloads.bat" "$USERNAME"
+  AccessControl::GrantOnFile "$INSTDIR\mega-downloads.bat" "$USERNAME" "GenericRead + GenericWrite"
+
   File "${SRCDIR_BATFILES}\mega-import.bat"
   AccessControl::SetFileOwner "$INSTDIR\mega-import.bat" "$USERNAME"
   AccessControl::GrantOnFile "$INSTDIR\mega-import.bat" "$USERNAME" "GenericRead + GenericWrite"
@@ -952,6 +956,7 @@ Section Uninstall
   Delete "$INSTDIR\mega-webdav.bat"
   Delete "$INSTDIR\mega-deleteversions.bat"
   Delete "$INSTDIR\mega-transfers.bat"
+  Delete "$INSTDIR\mega-downloads.bat"
   Delete "$INSTDIR\mega-import.bat"
   Delete "$INSTDIR\mega-invite.bat"
   Delete "$INSTDIR\mega-ipc.bat"

@@ -425,9 +425,6 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
 
     validOptValues->insert("client-width");
 
-    validOptValues->insert("col-separator");
-    validOptValues->insert("output-cols");
-
     if ("ls" == thecommand)
     {
         validParams->insert("R");
@@ -593,6 +590,9 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
 
         validParams->insert("show-handles");
         validOptValues->insert("path-display-size");
+        validOptValues->insert("col-separator");
+        validOptValues->insert("output-cols");
+
     }
     else if ("export" == thecommand)
     {
@@ -728,6 +728,19 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     {
         validOptValues->insert("clientID");
     }
+
+    else if ("downloads" == thecommand)
+    {
+        validParams->insert("show-subtransfers");
+        validParams->insert("report-all");
+        validParams->insert("disable-tracking");
+        validParams->insert("enable-tracking");
+        validParams->insert("query-enabled");
+
+        validOptValues->insert("path-display-size");
+        validOptValues->insert("col-separator");
+        validOptValues->insert("output-cols");
+    }
     else if ("transfers" == thecommand)
     {
         validParams->insert("show-completed");
@@ -736,14 +749,14 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validParams->insert("only-completed");
         validParams->insert("only-downloads");
         validParams->insert("show-syncs");
-        validParams->insert("download-report-all");
-        validOptValues->insert("download-report");
         validParams->insert("c");
         validParams->insert("a");
         validParams->insert("p");
         validParams->insert("r");
         validOptValues->insert("limit");
         validOptValues->insert("path-display-size");
+        validOptValues->insert("col-separator");
+        validOptValues->insert("output-cols");
     }
     else if ("proxy" == thecommand)
     {
@@ -1855,6 +1868,10 @@ const char * getUsageStr(const char *command)
     {
         return "transfers [-c TAG|-a] | [-r TAG|-a]  | [-p TAG|-a] [--only-downloads | --only-uploads] [SHOWOPTIONS]";
     }
+    if (!strcmp(command, "downloads"))
+    {
+        return "downloads [--enable-tracking|--disable-tracking|query-enabled|report-all| [id_1 id_2 ... id_n]]  [SHOWOPTIONS]";
+    }
 #if defined(_WIN32) && defined(NO_READLINE)
     if (!strcmp(command, "autocomplete"))
     {
@@ -1901,6 +1918,14 @@ void printTimeFormatHelp(ostringstream &os)
     os << "               CUSTOM. e.g: --time-format=\"%Y %b\": "<< " Example: 2018 Apr" << endl;
     os << "                 You can use any strftime compliant format: http://www.cplusplus.com/reference/ctime/strftime/" << endl;
 }
+
+void printColumnDisplayerHelp(ostringstream &os)
+{
+    os << " --col-separator=X" << "\t" << "Tt will use X as column separator. Otherwise the output will use" << endl;
+    os << "                     " << "\t" << " spaces to tabulate in an easy to read output:" << endl;
+    os << " --output-cols=COLUMN_NAME_1,COLUMN_NAME2,..." << "\t" << "You can select which columns to show (and their order) with this option" << endl;
+}
+
 
 string getHelpStr(const char *command)
 {
@@ -2407,6 +2432,7 @@ string getHelpStr(const char *command)
         os << "-r | --enable" << " " << "ID|localpath" << "\t" << "resumes a synchronization" << endl;
         os << " --path-display-size=N" << "\t" << "Use at least N characters for displaying paths" << endl;
         os << " --show-handles" << "\t" << "Prints remote nodes handles (H:XXXXXXXX)" << endl;
+        printColumnDisplayerHelp(os);
         os << endl;
         os << "DISPLAYED columns:" << endl;
         os << " " << "ID: an unique identifier of the sync:" << endl;
@@ -2783,6 +2809,83 @@ string getHelpStr(const char *command)
             os << "To only exit current shell and keep server running, use \"exit --only-shell\"" << endl;
         }
     }
+    else if (!strcmp(command, "downloads"))
+    {
+        os << "Lists or configure downloads tracking and reporting." << endl;
+        os << endl;
+        os << "It will print the information regarding one or more downloads give their tags or object ids"<< endl;
+        os << "      (both will be reported when using \"get\" with -q)." << endl;
+        os << "IMPORTANT: it is disabled by default, you need to enable it with \"downloads --enable-tracking\"." << endl;
+        os << endl;
+        os << "Options:" << endl;
+        os << " --query-enabled"  << "\t" << "Indicates if download tracking is enabled" << endl;
+        os << " --enable-tracking"  << "\t" << "Starts tracking downloads. It will store the information in a sqlite3 db" << endl;
+        os << " --disable-tracking"  << "\t" << "Stops tracking downloads. Notice, it will remove the associated database" << endl;
+        os << endl;
+        os << "Show options:" << endl;
+        os << " --report-all" << "\t" << "Prints a report of all active and finished downloads kept in memory" << endl;
+        os << " --show-subtransfers" << "\t" << "Show information regarding transfers" << endl;
+        os << " --path-display-size=N" << "\t" << "Use at least N characters for displaying paths" << endl;
+        printColumnDisplayerHelp(os);
+        os << endl;
+        os << "Displaying cols:" << endl;
+        os << " OBJECT_ID"  << "\t" << "Id of the object (it will always be the same for the same download)" << endl;
+        os << " SUB_STARTED"  << "\t" << "Number of subtransfers started" << endl;
+        os << " SUB_OK"  << "\t" << "Number of subtransfers that completed ok" << endl;
+        os << " SUB_FAIL"  << "\t" << "Number of subtransfers that completed with some error" << endl;
+        os << " SUBTRANSFER"  << "\t" << "Tag of the subtransfers (only when using --show-subtransfers)" << endl;
+        os << " ERROR_CODE"  << "\t" << "Error of the transfer (if any)" << endl;
+        os << " TYPE"  << "\t" << "Type of transfer (see below)" << endl;
+        os << " TAG"  << "\t" << "A tag that uniquely identifies a tranfer in current execution of MEGAcmd" << endl;
+        os << " SOURCEPATH"  << "\t" << "Path of the folder/file downloaded" << endl;
+        os << " DESTINYPATH"  << "\t" << "Local path for the downloaded file/folder" << endl;
+        os << " PROGRESS"  << "\t" << "Human readable progress of the download" << endl;
+        os << " STATE"  << "\t" << "State of the transfer. " << endl;
+        os << "      "  << "\t" << " Values:" << endl;
+        os << "      "  << "\t" << "  QUEUED:" << "\t" << "queued in the system, waiting for an slot to be assigned" << endl;
+        os << "      "  << "\t" << "  ACTIVE:" << "\t" << "doing I/O" << endl;
+        os << "      "  << "\t" << "  PAUSED:" << "\t" << "paused" << endl;
+        os << "      "  << "\t" << "  RETRYING:" << "\t" << "retrying after some potentially recoverable error" << endl;
+        os << "      "  << "\t" << "  COMPLETING:" << "\t" << "final stages (e.g: moving temporal transfer file to its final destination)" << endl;
+        os << "      "  << "\t" << "  COMPLETED:" << "\t" << "finished ok" << endl;
+        os << "      "  << "\t" << "  CANCELLED:" << "\t" << "cancelled" << endl;
+        os << "      "  << "\t" << "  FAILED:" << "\t" << "Failed (or subtransfers failed)" << endl;
+
+        os << " TRANSFERRED"  << "\t" << "Number of bytes transferred" << endl;
+        os << " TOTAL"  << "\t" << "Number of total bytes to be transferred" << endl;
+        os << endl;
+        os << "TYPE legend correspondence:" << endl;
+#ifdef _WIN32
+
+        const string cD = getutf8fromUtf16(L"\u25bc");
+        const string cU = getutf8fromUtf16(L"\u25b2");
+        const string cS = getutf8fromUtf16(L"\u21a8");
+        const string cB = getutf8fromUtf16(L"\u2191");
+#else
+        const string cD = "\u21d3";
+        const string cU = "\u21d1";
+        const string cS = "\u21f5";
+        const string cB = "\u23eb";
+#endif
+        os << "  " << cD <<" = \t" << "Download transfer" << endl;
+        os << "  " << cU <<" = \t" << "Upload transfer" << endl;
+        os << "  " << cS <<" = \t" << "Sync transfer. The transfer is done in the context of a synchronization" << endl;
+        os << "  " << cB <<" = \t" << "Backup transfer. The transfer is done in the context of a backup" << endl;
+
+        os << endl;
+        os << "Configuration values" << endl;
+        os << "In your configuration folder (HOME/Appdata) there is megacmd.cfg configuration file." << endl;
+        os << "This are the properties used in the downloads tracking & report mechanism:" << endl;
+        os << " downloads_tracking_enabled"  << "\t" << "If downloads tracking is enabled. Default=0 (false)!" << endl;
+        os << " downloads_tracking_max_finished_in_memory_high_threshold"  << "\t" << "Max number of downloads to keep in memory. It this is surpassed, " << endl;
+        os << "                                                         "  << "\t" << "finished transfers will start to be deleted (first the least recently updated)." << endl;
+        os << "                                                         "  << "\t" << "Note: you can still get the information from the db using OJBECT_ID." << endl;
+        os << "                                                         "  << "\t" << "Default=40000" << endl;
+        os << " downloads_tracking_max_finished_in_memory_low_threshold"  << "\t" << "When pruning is executed it will clean until this threshold. Default=20000" << endl;
+        os << " downloads_db_path"  << "\t" << "Path to store tracking information of downloads. Default: ~/.megaCmd/downloads.db" << endl;
+        os << " downloads_db_io_frequency_ms"  << "\t" << "Frequency in milliseconds to commit pending changes in the database. Default=10000" << endl;
+        os << " downloads_db_max_queued_changes"  << "\t" << "Max allowed number of changes to be queued before writting. Default=1000" << endl;
+    }
     else if (!strcmp(command, "transfers"))
     {
         os << "List or operate with transfers" << endl;
@@ -2802,6 +2905,7 @@ string getHelpStr(const char *command)
         os << " --only-completed" << "\t" << "Show only completed download" << endl;
         os << " --limit=N" << "\t" << "Show only first N transfers" << endl;
         os << " --path-display-size=N" << "\t" << "Use at least N characters for displaying paths" << endl;
+        printColumnDisplayerHelp(os);
         os << endl;
         os << "TYPE legend correspondence:" << endl;
 #ifdef _WIN32
@@ -2822,6 +2926,7 @@ string getHelpStr(const char *command)
         os << "  " << cB <<" = \t" << "Backup transfer. The transfer is done in the context of a backup" << endl;
 
     }
+
 #if defined(_WIN32) && defined(NO_READLINE)
     else if (!strcmp(command, "autocomplete"))
     {

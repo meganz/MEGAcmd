@@ -20,6 +20,7 @@
 #include "configurationmanager.h"
 #include "megacmd.h"
 #include "megacmdutils.h"
+#include "megacmdlogger.h"
 
 
 #include <memory>
@@ -65,7 +66,7 @@ void printTransferColumnDisplayer(ColumnDisplayer *cd, MegaTransfer *transfer, c
 #endif
 
     cd->addValue("TYPE",type);
-    cd->addValue("TAG", std::to_string(transfer->getTag())); //TODO: do SSTR within ColumnDisplayer
+    cd->addValue("TAG", std::to_string(transfer->getTag()));
 
     if (transfer->getType() == MegaTransfer::TYPE_DOWNLOAD)
     {
@@ -136,8 +137,6 @@ void printTransferColumnDisplayer(ColumnDisplayer *cd, MegaTransfer *transfer, c
     cd->addValue("TRANSFERRED", std::to_string(transfer->getTransferredBytes()));
     cd->addValue("TOTAL", std::to_string(transfer->getTotalBytes()));
 
-
-
 }
 
 
@@ -149,9 +148,8 @@ DownloadsManager &DownloadsManager::Instance()
 
 void DownloadsManager::start()
 {
-    //TODO: doc this somewhere (and allow for setting?)
-    mMaxAllowedTransfer = ConfigurationManager::getConfigurationValue("downloads_db_max_finished_in_memory_high_threshold", 40000u);
-    mLowthresholdMaxAllowedTransfers = ConfigurationManager::getConfigurationValue("downloads_db_max_finished_in_memory_low_threshold", 20000u);
+    mMaxAllowedTransfer = ConfigurationManager::getConfigurationValue("downloads_tracking_max_finished_in_memory_high_threshold", 40000u);
+    mLowthresholdMaxAllowedTransfers = ConfigurationManager::getConfigurationValue("downloads_tracking_max_finished_in_memory_low_threshold", 20000u);
 
     TransferInfoIOWriter::Instance().start();
 }
@@ -161,6 +159,8 @@ void DownloadsManager::shutdown(bool loginout)
 {
     TransferInfoIOWriter::Instance().shutdown(loginout);
 
+    std::lock_guard<std::recursive_mutex> g(mTransfersMutex);
+
     mFinishedTransfers.clear();
     mActiveTransfers.clear();
     mTransfersInMemory.clear();
@@ -169,6 +169,8 @@ void DownloadsManager::shutdown(bool loginout)
 
 MapOfDlTransfers::iterator DownloadsManager::addNewTopLevelTransfer(MegaApi *api, MegaTransfer *transfer, int tag, const std::string &path)
 {
+    std::lock_guard<std::recursive_mutex> g(mTransfersMutex);
+
     DownloadId id(tag, path);
     auto transferInfo = std::make_shared<TransferInfo>(api, transfer, &id);
     transferInfo->updateTransfer(transfer, transferInfo); // we need to call this after creating a TransferInfo object, because IO writer  requires a shared_ptr, which is not available from ctor
@@ -214,6 +216,7 @@ MapOfDlTransfers::iterator DownloadsManager::addNewTopLevelTransfer(MegaApi *api
 
 void DownloadsManager::onTransferStart(MegaApi *api, MegaTransfer *transfer)
 {
+    std::lock_guard<std::recursive_mutex> g(mTransfersMutex);
     auto parentTag = transfer->getFolderTransferTag();
     if (parentTag != -1)
     {
@@ -226,16 +229,12 @@ void DownloadsManager::onTransferStart(MegaApi *api, MegaTransfer *transfer)
     }
     else //not a child! //already handled via addNewTopLevelTransfer...
     {
-        //            auto it = mActiveTransfers.find(transfer->getTag());
-        //            if (it != mActiveTransfers.end())
-        //            {
-        //                it->second->second->onTransferUpdate(transfer);
-        //            }
     }
 }
 
 void DownloadsManager::onTransferUpdate(MegaTransfer *transfer)
 {
+    std::lock_guard<std::recursive_mutex> g(mTransfersMutex);
     auto parentTag = transfer->getFolderTransferTag();
     if (parentTag != -1)
     {
@@ -247,7 +246,9 @@ void DownloadsManager::onTransferUpdate(MegaTransfer *transfer)
         }
         else // not active one present (transfer resumption?)
         {
-            //TODO: need to load from db, but mark as _resumed_will_not_complete_
+            LOG_warn << "Transfer update for folder tag that matches no active transfer. Probably coming from transfer resumption";
+            //TODO: worst case scenario: we match a new folder tranfer that has nothing to do with
+            // those resumed transfers. Needs investigation and a way to mitigate if there's a bug here
         }
     }
     else //not a child!
@@ -273,6 +274,7 @@ void DownloadsManager::onTransferUpdate(MegaTransfer *transfer)
 
 void DownloadsManager::onTransferFinish(MegaTransfer *transfer, MegaError *error)
 {
+    std::lock_guard<std::recursive_mutex> g(mTransfersMutex);
     auto parentTag = transfer->getFolderTransferTag();
     if (parentTag != -1)
     {
@@ -308,6 +310,8 @@ void DownloadsManager::onTransferFinish(MegaTransfer *transfer, MegaError *error
 
 void DownloadsManager::printAll(OUTSTREAMTYPE &os, map<string, int> *clflags, map<string, string> *cloptions)
 {
+    std::lock_guard<std::recursive_mutex> g(mTransfersMutex);
+
     ColumnDisplayer cd(clflags, cloptions);
 
 
@@ -315,24 +319,21 @@ void DownloadsManager::printAll(OUTSTREAMTYPE &os, map<string, int> *clflags, ma
 
     for (auto & it : mActiveTransfers)
     {
-        os << it.second->first << "  ----> " << "\n";
         it.second->second->print(os, clflags, cloptions);
-        //os << *it.second->second.get();
     }
 
     os << "  -----   FINISHED -------- " << endl;
 
     for (auto & it : mFinishedTransfers)
     {
-        os << it.second->first << "  ----> " << "\n";
         it.second->second->print(os, clflags, cloptions);
-        //os << *it.second->second.get();
     }
 
 }
 
 void DownloadsManager::printOne(OUTSTREAMTYPE &os, std::string objectIDorTag, map<string, int> *clflags, map<string, string> *cloptions)
 {
+    std::lock_guard<std::recursive_mutex> g(mTransfersMutex);
     std::shared_ptr<TransferInfo> ti;
     DownloadId did;
 
@@ -378,30 +379,29 @@ void DownloadsManager::printOne(OUTSTREAMTYPE &os, std::string objectIDorTag, ma
         }
         catch (...)
         {
-            //TODO: set error and print out
-
+            setCurrentOutCode(MCMD_INVALIDTYPE);
+            LOG_err << " Invalid parameter: " << objectIDorTag;
+            return;
         }
     }
 
 
    if (ti)
    {
- //       ColumnDisplayer cd(clflags, cloptions);
-        os << did << "  ----> " << "\n";
         ti->print(os, clflags, cloptions);
    }
    else
    {
-       //TODO: add error code and print not found error
+       setCurrentOutCode(MCMD_NOTFOUND);
+       LOG_err << " Not found: " << objectIDorTag;
+       return;
    }
-
-
 }
 
 
 OUTSTREAMTYPE &operator<<(OUTSTREAMTYPE &os, const DownloadId &p)
 {
-    return os << "[" << p.mTag << ":" << p.mPath << "]";
+    return os << "[" << p.mTag << ":" << p.getObjectID() << "]";
 }
 
 
@@ -662,11 +662,15 @@ void TransferInfo::onPersisted()
 
 }
 
-TransferInfo::TransferInfo(MegaApi *api, MegaTransfer *transfer, DownloadId *id)
+void TransferInfo::initialize(MegaApi *api, MegaTransfer *transfer, DownloadId *id)
 {
     if (id)
     {
         mId = *id;
+    }
+    else
+    {
+        mId = DownloadId(transfer->getTag(), "");
     }
 
     if (api)
@@ -693,13 +697,21 @@ TransferInfo::TransferInfo(MegaApi *api, MegaTransfer *transfer, DownloadId *id)
 }
 
 
-TransferInfo::TransferInfo(MegaApi *api, MegaTransfer *transfer, TransferInfo * parent)
-    : TransferInfo(api,transfer)
+
+
+TransferInfo::TransferInfo(MegaApi *api, MegaTransfer *transfer, DownloadId *id)
 {
-    mParent = parent;
+    initialize(api, transfer, id);
 }
 
-TransferInfo::TransferInfo(const std::string &serializedContents, int64_t lastUpdate, TransferInfo * parent)
+
+TransferInfo::TransferInfo(MegaApi *api, MegaTransfer *transfer, TransferInfo * parent)
+{
+    mParent = parent;
+    initialize(api, transfer, nullptr);
+}
+
+TransferInfo::TransferInfo(const std::string &serializedContents, int64_t lastUpdate, TransferInfo * parent, const string &objectId)
     : mParent(parent),
       mLastUpdate(lastUpdate)
 {
@@ -712,7 +724,9 @@ TransferInfo::TransferInfo(const std::string &serializedContents, int64_t lastUp
     pr >> mFinalError;
     pr >> mSourcePath;
 
+    mId = DownloadId(mTransfer->getTag(), objectId);
 }
+
 
 void TransferInfo::onTransferFinish(MegaTransfer *subtransfer, MegaError *error) //TODO: have this called
 {
@@ -780,7 +794,8 @@ void TransferInfo::print(OUTSTREAMTYPE &os, std::map<std::string, int> *clflags,
     ColumnDisplayer cdSubTransfers(clflags, cloptions);
 
     //subtransfers
-    if (mSubTransfersInfo.size())
+    bool showSubtransfers = getFlag(clflags, "show-subtransfers");
+    if (showSubtransfers && mSubTransfersInfo.size())
     {
         auto colseparator = getOption(cloptions,"col-separator", "");
 
@@ -905,7 +920,7 @@ ParamReader& operator>>(ParamReader& x, MegaTransfer *&transfer)
     }
     else
     {
-        //TODO: log error!
+        LOG_err << "Issue reading transfer from db";
         transfer = nullptr;
     }
 
@@ -1078,6 +1093,11 @@ void ParamWriter::write(const char *buffer, size_t size)
 
 std::string DownloadId::getObjectID() const
 {
+    if (mPath.find("O:") == 0)
+    {
+        return mPath;
+    }
+
     if (isPublicLink(mPath))
     {
         auto linkHandle = getPublicLinkObjectId(mPath);
@@ -1148,8 +1168,8 @@ bool TransferInfoIOWriter::remove(std::shared_ptr<TransferInfo> transferInfo, bo
 {
     {
         std::lock_guard<std::mutex> g(mActionsMutex);
-        //TODO: look for write action in queue and remove if existing, instead of adding a removing action
-        // we could have a map transferInfoId -> action
+        //Ideally if there's an ongoing action for transferInfo, either write or remove, we should discard that and keep only this one
+        // anyway, using the commiter guard would make this fast enough to care much
         mActions.push_back(TransferInfoIOAction(TransferInfoIOAction::Action::Remove, transferInfo, true)); // we give ownership
     }
     if (!delayNotification)
@@ -1246,7 +1266,6 @@ TransferInfoIOAction::Action TransferInfoIOAction::action() const
     return mAction;
 }
 
-
 bool TransferInfoIOWriter::initializeSqlite()
 {
     if (mInitialized)
@@ -1263,7 +1282,7 @@ bool TransferInfoIOWriter::initializeSqlite()
     auto rc = sqlite3_open(mTransferInfoDbPath.c_str(), &db);
 
     std::string sql = "CREATE TABLE IF NOT EXISTS transferInfo (id INTEGER PRIMARY KEY ASC NOT NULL,"
-            " objectId TEXT, parentDbId INTEGER, lastUpdate DATETIME, content BLOB NOT NULL)"; //TODO add subtransfers failed/and other info
+            " objectId TEXT, parentDbId INTEGER, lastUpdate DATETIME, content BLOB NOT NULL)";
 
     rc = sqlite3_exec(db, sql.c_str(), NULL, NULL, NULL);
 
@@ -1329,7 +1348,7 @@ std::vector<std::shared_ptr<TransferInfo>> TransferInfoIOWriter::loadSubTransfer
             auto lastUpdate(sqlite3_column_int64(stmt, 2));
             std::string contents((char*)sqlite3_column_blob(stmt, 3), sqlite3_column_bytes(stmt, 3));
 
-            auto transferInfo = std::make_shared<TransferInfo>(contents, lastUpdate, parent );
+            auto transferInfo = std::make_shared<TransferInfo>(contents, lastUpdate, parent, objectId);
             transferInfo->setDbid(id);
 
             toret.push_back(transferInfo);
@@ -1388,7 +1407,8 @@ std::shared_ptr<TransferInfo> TransferInfoIOWriter::loadTransferInfo(const std::
             std::string contents((char*)sqlite3_column_blob(stmt, 4), sqlite3_column_bytes(stmt, 4));
 
             assert(parentDbId == DataBaseEntry::INVALID_DB_ID && "Reading some parent transfer with assigned parent db id");
-            auto transferInfo = std::make_shared<TransferInfo>(contents, lastUpdate, nullptr );
+
+            auto transferInfo = std::make_shared<TransferInfo>(contents, lastUpdate, nullptr, objectId);
             transferInfo->setDbid(id);
 
             auto subtransfers = loadSubTransfers(transferInfo.get());
@@ -1509,7 +1529,6 @@ bool TransferInfoIOWriter::start()
 {
     auto ret = initializeSqlite();
 
-    //TODO: doc this somewhere (and allow for setting?)
     mIOScheduleMs = ConfigurationManager::getConfigurationValue("downloads_db_io_frequency_ms", 10000);
     mIOMaxActionBeforeNotifying = ConfigurationManager::getConfigurationValue("downloads_db_max_queued_changes", 1000);
 

@@ -1079,8 +1079,9 @@ MegaCmdGlobalTransferListener::MegaCmdGlobalTransferListener(MegaApi *megaApi, M
 
 void MegaCmdGlobalTransferListener::onTransferFinish(MegaApi* api, MegaTransfer *transfer, MegaError* error)
 {
-    if (transfer->getType() == transfer->TYPE_DOWNLOAD)
+    if (transfer->getType() == transfer->TYPE_DOWNLOAD && ConfigurationManager::getConfigurationValue("downloads_tracking_enabled", false))
     {
+
         DownloadsManager::Instance().onTransferFinish(transfer, error);
     }
 
@@ -1110,7 +1111,7 @@ void MegaCmdGlobalTransferListener::onTransferFinish(MegaApi* api, MegaTransfer 
 
 void MegaCmdGlobalTransferListener::onTransferStart(MegaApi* api, MegaTransfer *transfer)
 {
-    if (transfer->getType() == transfer->TYPE_DOWNLOAD)
+    if (transfer->getType() == transfer->TYPE_DOWNLOAD && ConfigurationManager::getConfigurationValue("downloads_tracking_enabled", false))
     {
         DownloadsManager::Instance().onTransferStart(api, transfer);
     }
@@ -1118,7 +1119,7 @@ void MegaCmdGlobalTransferListener::onTransferStart(MegaApi* api, MegaTransfer *
 }
 void MegaCmdGlobalTransferListener::onTransferUpdate(MegaApi* api, MegaTransfer *transfer)
 {
-    if (transfer->getType() == transfer->TYPE_DOWNLOAD)
+    if (transfer->getType() == transfer->TYPE_DOWNLOAD && ConfigurationManager::getConfigurationValue("downloads_tracking_enabled", false))
     {
         DownloadsManager::Instance().onTransferUpdate(transfer);
     }
@@ -1139,7 +1140,7 @@ void MegaCmdGlobalTransferListener::onTransferTemporaryError(MegaApi *api, MegaT
         sandboxCMD->timeOfOverquota = m_time(NULL);
         sandboxCMD->secondsOverQuota=e->getValue();
     }
-    if (transfer->getType() == transfer->TYPE_DOWNLOAD)
+    if (transfer->getType() == transfer->TYPE_DOWNLOAD && ConfigurationManager::getConfigurationValue("downloads_tracking_enabled", false))
     {
         DownloadsManager::Instance().onTransferUpdate(transfer);
     }
@@ -1190,7 +1191,10 @@ ATransferListener::~ATransferListener()
 void ATransferListener::onTransferStart(MegaApi *api, MegaTransfer *transfer)
 {
     auto tag = transfer->getTag();
-    DownloadsManager::Instance().addNewTopLevelTransfer(api, transfer, tag, mPath);
+    if (transfer->getType() == transfer->TYPE_DOWNLOAD && ConfigurationManager::getConfigurationValue("downloads_tracking_enabled", false))
+    {
+        DownloadsManager::Instance().addNewTopLevelTransfer(api, transfer, tag, mPath);
+    }
     mMultiTransferListener->onTransferStarted(mPath, tag);
     mMultiTransferListener->onTransferStart(api, transfer);
 }
