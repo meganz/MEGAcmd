@@ -231,58 +231,139 @@ string getPublicLinkHandle(const string &link)
     }
 }
 
-string getPublicLinkHandlev2(const string &link)//TODO review v1 (only works for folders apparently)
+string getPublicLinkObjectId(const string &link)
 {
-    size_t posFolder = string::npos;
-    size_t posLastSep = link.rfind("?");
-//    if (posLastSep == string::npos )
-//    {
-//        string rest = link;
-//        int count = 0;
-//        size_t posExc = rest.find_first_of("!");
-//        while ( posExc != string::npos && (posExc +1) < rest.size())
-//        {
-//            count++;
-//            if (count <= 3 )
-//            {
-//                posLastSep += posExc + 1;
-//            }
+//    current format:
+//    https://mega.nz/#!ph!key
+//    https://mega.nz/#F!ph!key
+//    https://mega.nz/#F!ph!key!handle (folder inside a folder link)
+//    https://mega.nz/#F!ph!key?handle (file inside a folder link)
 
-//            rest = rest.substr(posExc + 1);
-//            posExc = rest.find("!");
-//        }
+//    new format:
+//    https://mega.nz/file/ph#key
+//    https://mega.nz/folder/ph#key
+//    https://mega.nz/folder/ph#key/folder/handle (folder inside a folder link)
+//    https://mega.nz/folder/ph#key/file/handle (file inside a folder link)
 
-//        if (count != 3)
-//        {
-//            posLastSep = string::npos;
-//        }
-//    }
 
-    posFolder = link.find("/folder/");
-    if (posFolder != string::npos)
+    size_t postBeginingOfPH = string::npos;
+    string remmaining;
+    const char *sep;
+
+    enum typeOfSeparator { NEWFOLDER, NEWFILE, OLDFOLDER, OLDFILE };
+    auto separators = {"/folder/", "/file/", "#F!", "#!"};
+    int iSeparator = 0;
+    for (auto &w : separators)
     {
-        posFolder+=strlen("/folder/");
+        postBeginingOfPH = link.find(w);
+        if (postBeginingOfPH != string::npos)
+        {
+            postBeginingOfPH += strlen(w);
+            sep = w;
+
+            break;
+        }
+        iSeparator++;
+    }
+    if (postBeginingOfPH == string::npos)
+    {
+        return string();
     }
 
-    if (posFolder == string::npos)
+    remmaining = link.substr(postBeginingOfPH);
+
+    size_t postEndOfPH = string::npos;
+    for (auto &w : {"#", "/", "!"})
     {
-        posFolder = link.find("/file/");
-        if (posFolder != string::npos)
+        postEndOfPH = remmaining.find(w);
+        if (postEndOfPH != string::npos)
         {
-            posFolder+=strlen("/file/");
+            postEndOfPH += strlen(w);
+            sep = w;
+            break;
         }
     }
 
-    if (posFolder != string::npos)
+    if (postEndOfPH == string::npos || postEndOfPH == 0)
     {
-        auto rest = link.substr(posFolder);
-        return rest.substr(0, rest.find("#"));
+        return remmaining;
     }
 
-    return string();
 
+    string ph = remmaining.substr(0, postEndOfPH - 1);
+
+    string handle;
+
+    if (postEndOfPH >= remmaining.size())
+    {
+        return ph;
+    }
+
+    remmaining = remmaining.substr(postEndOfPH - 1);
+
+
+    size_t postBeginingOfHandle = string::npos;
+    if (iSeparator == NEWFOLDER || iSeparator == NEWFILE)
+    {
+
+        for (auto &w : {"/folder/", "/file/"})
+        {
+            postBeginingOfHandle = remmaining.find(w);
+            if (postBeginingOfHandle != string::npos)
+            {
+                postBeginingOfHandle += strlen(w);
+                handle = remmaining.substr(postBeginingOfHandle);
+                break;
+            }
+        }
+    }
+    else //old style
+    {
+        //  remmaining could be:
+        //  !key!handle (folder inside a folder link)
+        //  !key?handle (file inside a folder link)
+        size_t posLastSep = remmaining.rfind("?"); //for folder handles we just check for ? presence
+
+        if (posLastSep == string::npos ) // for file handles, we ensure there are 2 extra !
+        {
+            string rest = remmaining;
+            int count = 0;
+            size_t posExc = rest.find("!");
+            while ( posExc != string::npos && (posExc +1) < rest.size())
+            {
+                count++;
+                if (count <= 2 )
+                {
+                    posLastSep += posExc + 1;
+                }
+
+                rest = rest.substr(posExc + 1);
+                posExc = rest.find("!");
+            }
+
+            if (count != 2)
+            {
+                posLastSep = string::npos;
+            }
+        }
+
+        if (( posLastSep != string::npos ) && ( posLastSep + 1 < remmaining.size()))
+        {
+            handle = remmaining.substr(posLastSep+1);
+
+        }
+    }
+
+
+    if (handle.empty())
+    {
+        return ph;
+    }
+    else
+    {
+        return ph.append("_").append(handle);
+    }
 }
-
 bool hasWildCards(string &what)
 {
     return what.find('*') != string::npos || what.find('?') != string::npos;

@@ -17,6 +17,7 @@
  */
 
 #include "megacmdtransfermanager.h"
+#include "configurationmanager.h"
 #include "megacmd.h"
 #include "megacmdutils.h"
 
@@ -73,7 +74,14 @@ void printTransferColumnDisplayer(ColumnDisplayer *cd, MegaTransfer *transfer, c
 
         //destination
         string dest = transfer->getParentPath() ? transfer->getParentPath() : "";
-        dest.append(transfer->getFileName());
+        if (transfer->getFileName())
+        {
+            dest.append(transfer->getFileName());
+        }
+        else
+        {
+            dest.append("MISSINGFILENAME");
+        }
         cd->addValue("DESTINYPATH",dest);
     }
     else
@@ -139,6 +147,26 @@ DownloadsManager &DownloadsManager::Instance()
     return myInstance;
 }
 
+void DownloadsManager::start()
+{
+    //TODO: doc this somewhere (and allow for setting?)
+    mMaxAllowedTransfer = ConfigurationManager::getConfigurationValue("downloads_db_max_finished_in_memory_high_threshold", 40000u);
+    mLowthresholdMaxAllowedTransfers = ConfigurationManager::getConfigurationValue("downloads_db_max_finished_in_memory_low_threshold", 20000u);
+
+    TransferInfoIOWriter::Instance().start();
+}
+
+
+void DownloadsManager::shutdown(bool loginout)
+{
+    TransferInfoIOWriter::Instance().shutdown(loginout);
+
+    mFinishedTransfers.clear();
+    mActiveTransfers.clear();
+    mTransfersInMemory.clear();
+    mTransfers.clear();
+}
+
 MapOfDlTransfers::iterator DownloadsManager::addNewTopLevelTransfer(MegaApi *api, MegaTransfer *transfer, int tag, const std::string &path)
 {
     DownloadId id(tag, path);
@@ -151,6 +179,34 @@ MapOfDlTransfers::iterator DownloadsManager::addNewTopLevelTransfer(MegaApi *api
     mActiveTransfers.emplace(tag, pair.first);
 
     mTransfersInMemory[id.getObjectID()] = pair.first; //Insert / replace the existing value
+
+    if (mTransfers.size() > mMaxAllowedTransfer)
+    {
+        while (!mFinishedTransfers.empty() && mTransfers.size() > mLowthresholdMaxAllowedTransfers)
+        {
+            auto finishedToDelete = mFinishedTransfersQueue.front();
+
+            auto itInFinished = mFinishedTransfers.find(finishedToDelete);
+
+            if (itInFinished != mFinishedTransfers.end())
+            {
+                auto itInGlobal = itInFinished->second;
+                auto oId = itInFinished->second->first.getObjectID();
+                auto itInMemory = mTransfersInMemory.find(oId);
+                if (itInMemory != mTransfersInMemory.end() && itInGlobal == itInMemory->second)
+                { //The one stored in memory map, is the one we are about to delete
+                    mTransfersInMemory.erase(itInMemory);
+                }
+
+                //Finally remove the actual element from the real container
+                mTransfers.erase(itInFinished->second);
+            }
+
+            mFinishedTransfers.erase(finishedToDelete);
+
+            mFinishedTransfersQueue.pop();
+        }
+    }
 
     assert(pair.second);
     return pair.first;
@@ -218,7 +274,7 @@ void DownloadsManager::onTransferUpdate(MegaTransfer *transfer)
 void DownloadsManager::onTransferFinish(MegaTransfer *transfer, MegaError *error)
 {
     auto parentTag = transfer->getFolderTransferTag();
-    if (parentTag)
+    if (parentTag != -1)
     {
         auto it = mActiveTransfers.find(parentTag);
 
@@ -239,6 +295,8 @@ void DownloadsManager::onTransferFinish(MegaTransfer *transfer, MegaError *error
             info->onTransferFinish(transfer, error);
 
             mFinishedTransfers.emplace(it->first, elementToMove);
+            mFinishedTransfersQueue.push(it->first);
+
             mActiveTransfers.erase(it);
         }
 
@@ -585,9 +643,13 @@ DownloadId TransferInfo::getId() const
     return mId;
 }
 
-std::string TransferInfo::getParentOId() const
+int64_t TransferInfo::getParentDbId() const
 {
-    return mParentOId;
+    if (mParent)
+    {
+        return mParent->dbid();
+    }
+    return DataBaseEntry::INVALID_DB_ID;
 }
 
 int64_t TransferInfo::getLastUpdate() const
@@ -631,14 +693,14 @@ TransferInfo::TransferInfo(MegaApi *api, MegaTransfer *transfer, DownloadId *id)
 }
 
 
-TransferInfo::TransferInfo(MegaApi *api, MegaTransfer *transfer, const std::string &parentObjectId)
+TransferInfo::TransferInfo(MegaApi *api, MegaTransfer *transfer, TransferInfo * parent)
     : TransferInfo(api,transfer)
 {
-    mParentOId = parentObjectId;
+    mParent = parent;
 }
 
-TransferInfo::TransferInfo(const std::string &serializedContents, int64_t lastUpdate, string parentObjectId)
-    : mParentOId(parentObjectId),
+TransferInfo::TransferInfo(const std::string &serializedContents, int64_t lastUpdate, TransferInfo * parent)
+    : mParent(parent),
       mLastUpdate(lastUpdate)
 {
     ParamReader pr(serializedContents, true);
@@ -670,10 +732,14 @@ void TransferInfo::onTransferFinish(MegaTransfer *subtransfer, MegaError *error)
 void TransferInfo::onSubTransferStarted(MegaApi *api, MegaTransfer *subtransfer)
 {
     mSubTransfersStarted++;
-    mSubTransfersInfo.emplace(std::make_pair(subtransfer->getTag(), std::make_shared<TransferInfo>(api, subtransfer, mId.getObjectID())));
+    mSubTransfersInfo.emplace(std::make_pair(subtransfer->getTag(), std::make_shared<TransferInfo>(api, subtransfer, this)));
 
     onSubTransferUpdate(subtransfer);
+}
 
+void TransferInfo::addSubTransfer(const std::shared_ptr<TransferInfo> &transferInfo)
+{
+    mSubTransfersInfo.emplace(std::make_pair(transferInfo->getTag(), transferInfo));
 }
 
 void TransferInfo::onSubTransferFinish(MegaTransfer *subtransfer, MegaError *error)
@@ -1014,7 +1080,7 @@ std::string DownloadId::getObjectID() const
 {
     if (isPublicLink(mPath))
     {
-        auto linkHandle = getPublicLinkHandlev2(mPath);
+        auto linkHandle = getPublicLinkObjectId(mPath);
         if (!linkHandle.empty())
         {
             return string("O:").append(linkHandle);
@@ -1135,7 +1201,7 @@ void TransferInfoIOWriter::loopIOActionProcessor()
                 auto weakTransferInfo = action.transferInfo();
                 auto transferInfo = weakTransferInfo.lock();
 
-                if (transferInfo)// otherwise we can dismiss the write: no Downloadable holds it anymore
+                if (transferInfo)// otherwise we can dismiss the write: no TransferInfo
                 {
                     switch(action.action())
                     {
@@ -1147,6 +1213,10 @@ void TransferInfoIOWriter::loopIOActionProcessor()
                         doRemove(transferInfo);
                         break;
                     }
+                }
+                else
+                {
+                    LOG_err << "IO writer found a deleted TansferInfo, its data may be lost";
                 }
 
             }
@@ -1184,17 +1254,16 @@ bool TransferInfoIOWriter::initializeSqlite()
         return true;
     }
 
-    //TODO: get db path from somewhere
-
-//    auto confFolder = ConfigurationManager::Instance().getConfigFolder();
-//    mTransferInfoDbPath = ConfigurationManager::Instance().getConfigurationValue("transferInfos_db_path", confFolder.append("/transferInfosdb"));
-
-    mTransferInfoDbPath = "/tmp/dl.db";
+    MegaFileSystemAccess fsAccess;
+    LocalPath defaultDlPath = LocalPath::fromPath(ConfigurationManager::getConfigFolder(), fsAccess);
+    auto extra = LocalPath::fromPath("downloads.db", fsAccess);
+    defaultDlPath.appendWithSeparator(extra, false);
+    mTransferInfoDbPath = ConfigurationManager::getConfigurationValue("downloads_db_path", defaultDlPath.toPath());
 
     auto rc = sqlite3_open(mTransferInfoDbPath.c_str(), &db);
 
     std::string sql = "CREATE TABLE IF NOT EXISTS transferInfo (id INTEGER PRIMARY KEY ASC NOT NULL,"
-            " objectId TEXT, parentObjectId TEXT, lastUpdate DATETIME, content BLOB NOT NULL)"; //TODO add subtransfers failed/and other info
+            " objectId TEXT, parentDbId INTEGER, lastUpdate DATETIME, content BLOB NOT NULL)"; //TODO add subtransfers failed/and other info
 
     rc = sqlite3_exec(db, sql.c_str(), NULL, NULL, NULL);
 
@@ -1215,17 +1284,206 @@ bool TransferInfoIOWriter::initializeSqlite()
     }
 
     // indexes
-    sql = "CREATE INDEX IF NOT EXISTS parentObjectId_index ON transferInfo (parentObjectId)";
+    sql = "CREATE INDEX IF NOT EXISTS parentDbId_index ON transferInfo (parentDbId)";
     rc = sqlite3_exec(db, sql.c_str(), NULL, NULL, NULL);
     if (rc)
     {
-        LOG_err << "Error creating index parentObjectId_index for transferInfosdb: " << sqlite3_errmsg(db) ;
+        LOG_err << "Error creating index parentDbId_index for transferInfosdb: " << sqlite3_errmsg(db) ;
         return false;
     }
 
     mInitialized = true;
 
     return true;
+}
+
+std::vector<std::shared_ptr<TransferInfo>> TransferInfoIOWriter::loadSubTransfers(TransferInfo *parent)
+{
+    initializeSqlite();
+    std::vector<std::shared_ptr<TransferInfo>>toret;
+    int rc = false;
+    std::string sql("SELECT id, objectId, lastUpdate, content FROM transferInfo where parentDbId = ?;");
+    sqlite3_stmt *stmt;
+
+
+    if (sqlite3_prepare(db, sql.data(), static_cast<int>(sql.size()), &stmt, nullptr) != SQLITE_OK)
+    {
+        LOG_err << "Error open DB " << sqlite3_errmsg(db) ;
+        return toret;
+    }
+    if (sqlite3_bind_int64(stmt, 1, parent->dbid()) != SQLITE_OK)
+    {
+        LOG_err << "Error binding parent dbid for subtransfers: " << sqlite3_errmsg(db) ;
+        return toret;
+    }
+
+    while (true)
+    {
+        rc = sqlite3_step(stmt);
+
+        if (rc == SQLITE_ROW)
+        {
+            int64_t id = sqlite3_column_int64(stmt, 0);
+            mLastId = std::max(id, mLastId);
+            std::string objectId((char*)sqlite3_column_text(stmt, 1), sqlite3_column_bytes(stmt, 1));
+            auto lastUpdate(sqlite3_column_int64(stmt, 2));
+            std::string contents((char*)sqlite3_column_blob(stmt, 3), sqlite3_column_bytes(stmt, 3));
+
+            auto transferInfo = std::make_shared<TransferInfo>(contents, lastUpdate, parent );
+            transferInfo->setDbid(id);
+
+            toret.push_back(transferInfo);
+        }
+        else //finished
+        {
+            if (rc != SQLITE_DONE)
+            {
+                LOG_err << "Error stepping for subtransfers: " << sqlite3_errmsg(db) ;
+            }
+
+            break;
+        }
+    }
+
+    return toret;
+}
+
+std::shared_ptr<TransferInfo> TransferInfoIOWriter::read(const std::string &objectId)
+{
+    std::lock_guard<std::mutex> g(mIOMutex);
+    return loadTransferInfo(objectId);
+}
+
+std::shared_ptr<TransferInfo> TransferInfoIOWriter::loadTransferInfo(const std::string &objectId)
+{
+    initializeSqlite();
+    std::shared_ptr<TransferInfo> toret;
+    int rc = false;
+    std::string sql("SELECT id, objectId, parentDbId, lastUpdate, content FROM transferInfo where objectId = ? order by lastUpdate DESC LIMIT 1;");
+    sqlite3_stmt *stmt;
+
+    if (sqlite3_prepare(db, sql.data(), static_cast<int>(sql.size()), &stmt, nullptr) != SQLITE_OK)
+    {
+        LOG_err << "Error open DB " << sqlite3_errmsg(db) ;
+        return toret;
+    }
+
+    if (sqlite3_bind_text(stmt, 1, objectId.data(), static_cast<int>(objectId.size()), nullptr) != SQLITE_OK)
+    {
+        LOG_err << "Error binding objectId transferInfos: " << sqlite3_errmsg(db) ;
+        return toret;
+    }
+
+    while (true)
+    {
+        rc = sqlite3_step(stmt);
+
+        if (rc == SQLITE_ROW)
+        {
+            int64_t id = sqlite3_column_int64(stmt, 0);
+            mLastId = std::max(id, mLastId);
+            std::string objectId((char*)sqlite3_column_text(stmt, 1), sqlite3_column_bytes(stmt, 1));
+            int64_t parentDbId = sqlite3_column_int64(stmt, 2);
+            auto lastUpdate(sqlite3_column_int64(stmt, 3));
+            std::string contents((char*)sqlite3_column_blob(stmt, 4), sqlite3_column_bytes(stmt, 4));
+
+            assert(parentDbId == DataBaseEntry::INVALID_DB_ID && "Reading some parent transfer with assigned parent db id");
+            auto transferInfo = std::make_shared<TransferInfo>(contents, lastUpdate, nullptr );
+            transferInfo->setDbid(id);
+
+            auto subtransfers = loadSubTransfers(transferInfo.get());
+            for (auto &sub : subtransfers)
+            {
+                transferInfo->addSubTransfer(sub);
+            }
+
+            return transferInfo; //we don't want to loop further!
+        }
+        else //finished
+        {
+            if (rc != SQLITE_DONE)
+            {
+                LOG_err << "Error stepping for transferInfos " << sqlite3_errmsg(db) ;
+            }
+            break;
+        }
+    }
+
+    return toret;
+}
+
+bool TransferInfoIOWriter::doWrite(std::shared_ptr<TransferInfo> transferInfo)
+{
+    sqlite3_stmt *stmt;
+    bool result = false;
+
+    auto id = transferInfo->dbid();
+    if (id == DataBaseEntry::INVALID_DB_ID)
+    {
+        id = ++mLastId;
+        transferInfo->setDbid(id);
+    }
+
+    auto transferInfoData = transferInfo->serializedTransferData();
+
+    if (sqlite3_prepare(db, "INSERT OR REPLACE INTO transferInfo (id, objectId, parentDbId, lastUpdate, content) VALUES (?, ?, ?, ?, ?)", -1, &stmt, nullptr) == SQLITE_OK)
+    {
+        if (sqlite3_bind_int64(stmt, 1, id) == SQLITE_OK)
+        {
+            auto objectid = transferInfo->getId().getObjectID();
+
+
+            if (sqlite3_bind_text(stmt, 2, objectid.data(), static_cast<int>(objectid.size()), nullptr) == SQLITE_OK)
+            {
+                auto parentDbId = transferInfo->getParentDbId();
+                if (sqlite3_bind_int64(stmt, 3, parentDbId) == SQLITE_OK)
+                {
+                    if (sqlite3_bind_int64(stmt, 4, transferInfo->getLastUpdate()) == SQLITE_OK)
+                    {
+                        if (sqlite3_bind_blob(stmt, 5, transferInfoData.data(), static_cast<int>(transferInfoData.size()), SQLITE_STATIC) == SQLITE_OK)
+                        {
+                            if (sqlite3_step(stmt) == SQLITE_DONE)
+                            {
+                                result = true;
+                            }
+                            else
+                            {
+                                LOG_err << "Error steping transferInfos: " << sqlite3_errmsg(db) ;
+                            }
+                        }
+                        else
+                        {
+                            LOG_err << "Error binding blob for transferInfos  " << sqlite3_errmsg(db) ;
+                        }
+                    }
+                    else
+                    {
+                        LOG_err << "Error binding lastupdate for transferInfos: " << sqlite3_errmsg(db) ;
+                    }
+                }
+                else
+                {
+                    LOG_err << "Error binding parentDbId for transferInfos: " << sqlite3_errmsg(db) ;
+                }
+            }
+            else
+            {
+                LOG_err << "Error binding objecit transferInfos: " << sqlite3_errmsg(db) ;
+            }
+        }
+        else
+        {
+            LOG_err << "Error binding dbid transferInfos: " << sqlite3_errmsg(db) ;
+        }
+    }
+    else
+    {
+        LOG_err << "Error preparing transferInfos: " << sqlite3_errmsg(db) ;
+    }
+
+    sqlite3_finalize(stmt);
+
+    return result;
 }
 
 bool TransferInfoIOWriter::doRemove(std::shared_ptr<TransferInfo> transferInfo)
@@ -1250,12 +1508,10 @@ TransferInfoIOWriter& TransferInfoIOWriter::Instance() {
 bool TransferInfoIOWriter::start()
 {
     auto ret = initializeSqlite();
-    //TODO: read this from configurations
-//    mIOScheduleMs = ConfigurationManager::Instance().getConfigurationValue("disk_io_schedule_milliseconds", 30000);
-//    mIOMaxActionBeforeNotifying = ConfigurationManager::Instance().getConfigurationValue("max_write_transferInfos_delayed", 10000);
 
-    mIOScheduleMs = 3000;
-    mIOMaxActionBeforeNotifying = 100;
+    //TODO: doc this somewhere (and allow for setting?)
+    mIOScheduleMs = ConfigurationManager::getConfigurationValue("downloads_db_io_frequency_ms", 10000);
+    mIOMaxActionBeforeNotifying = ConfigurationManager::getConfigurationValue("downloads_db_max_queued_changes", 1000);
 
     if (!ret)
     {
@@ -1271,7 +1527,7 @@ bool TransferInfoIOWriter::start()
     return true;
 }
 
-void TransferInfoIOWriter::shutdown()
+void TransferInfoIOWriter::shutdown(bool loginout)
 {
     if (mThreadIoProcessor)
     {
@@ -1279,6 +1535,27 @@ void TransferInfoIOWriter::shutdown()
         mThreadIoProcessor->join();
         mThreadIoProcessor.reset();
     }
+
+    if (mInitialized)
+    {
+        if (loginout)
+        {
+            sqlite3_close(db);
+            MegaFileSystemAccess fsAccess;
+            auto toremove = LocalPath::fromPath(mTransferInfoDbPath, fsAccess);
+            fsAccess.unlinklocal(toremove);
+        }
+    }
+
+    //Reset all variables:
+    mActions.clear();
+    mFinished = false;
+    mIOScheduleMs = 0;
+    mIOMaxActionBeforeNotifying = 0;
+    mTransferInfoDbPath = string();
+    db = nullptr;
+    mLastId = 0;
+    mInitialized = false;
 }
 
 }

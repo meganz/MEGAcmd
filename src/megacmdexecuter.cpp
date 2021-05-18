@@ -2442,6 +2442,13 @@ int MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
         }
 #endif
 
+        bool downloads_db_enabled = ConfigurationManager::getConfigurationValue("downloads_db_enabled", false);
+
+        if (downloads_db_enabled)
+        {
+            DownloadsManager::Instance().start();
+        }
+
         ConfigurationManager::migrateSyncConfig(api);
 
         LOG_info << "Fetching nodes ... ";
@@ -2742,6 +2749,9 @@ void MegaCmdExecuter::actUponLogout(SynchronousRequestListener *srl, bool keptSe
             ConfigurationManager::saveSyncs(&ConfigurationManager::oldConfiguredSyncs);
         }
         ConfigurationManager::clearConfigurationFile();
+
+        DownloadsManager::Instance().shutdown(true);
+
         mtxSyncMap.unlock();
     }
     updateprompt(api);

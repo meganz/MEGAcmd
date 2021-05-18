@@ -3794,6 +3794,12 @@ void finalize(bool waitForRestartSignal_param)
         return;
     alreadyfinalized = true;
     LOG_info << "closing application ...";
+
+    LOG_debug << "Shuting down downloads manager";
+    DownloadsManager::Instance().shutdown(false);
+    LOG_debug << "Downloads manager shut down";
+
+
     delete_finished_threads();
     if (!consoleFailed)
     {
@@ -5022,8 +5028,6 @@ int main(int argc, char* argv[])
     megaCmdMegaListener = new MegaCmdMegaListener(api, NULL, sandboxCMD);
     api->addGlobalListener(megaCmdGlobalListener);
     api->addListener(megaCmdMegaListener);
-
-    TransferInfoIOWriter::Instance().start(); //TODO: make this configurable and also destroy at program end
 
     // set up the console
 #ifdef _WIN32

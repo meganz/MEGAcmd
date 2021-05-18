@@ -144,7 +144,7 @@ bool isPublicLink(const std::string &link);
 bool isEncryptedLink(std::string link);
 
 std::string getPublicLinkHandle(const std::string &link);
-std::string getPublicLinkHandlev2(const std::string &link);
+std::string getPublicLinkObjectId(const std::string &link);
 
 bool hasWildCards(std::string &what);
 

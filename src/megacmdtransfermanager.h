@@ -98,13 +98,11 @@ class TransferInfo :  public DataBaseEntry
 
 
     map<int, std::shared_ptr<TransferInfo>> mSubTransfersInfo; //subtransferInfo by tag
-
+    TransferInfo *mParent = nullptr; //for child transfers
 
     std::unique_ptr<MegaTransfer> mTransfer; // a copy of a transfer
 
     DownloadId mId; //For main transfers
-
-    std::string mParentOId; // for child transfers
 
     int64_t mLastUpdate; //timestamp of the last update
 
@@ -114,11 +112,10 @@ public:
     // Reason: updateTransfer will trigger IO writer update, and that requires a shared pointer from this class,
     // which is not available in ctor.
     TransferInfo(MegaApi * api, MegaTransfer *transfer, DownloadId *id = nullptr);
-    TransferInfo(MegaApi * api, MegaTransfer *transfer, const std::string &parentObjectId);
+    TransferInfo(MegaApi * api, MegaTransfer *transfer, TransferInfo *parent); //ctor for subtransfers
 
     //ctor for loading from db
-    TransferInfo(const std::string &serializedTransfer, int64_t lastUpdate,
-                 std::string parentObjectId = string());
+    TransferInfo(const std::string &serializedTransfer, int64_t lastUpdate, TransferInfo *parent);
 
     // updates TransferInfo, requires a shared pointer to it
     void updateTransfer(MegaTransfer *transfer, const std::shared_ptr<TransferInfo> &transferInfo);
@@ -127,6 +124,8 @@ public:
 
 
     void onTransferFinish(MegaTransfer *subtransfer, MegaError *error);
+
+    void addSubTransfer(const std::shared_ptr<TransferInfo> &transferInfo);
 
     void onSubTransferStarted(MegaApi *api, MegaTransfer *subtransfer);
 
@@ -178,7 +177,7 @@ public:
 
 
     DownloadId getId() const;
-    std::string getParentOId() const;
+    int64_t getParentDbId() const;
     int64_t getLastUpdate() const;
 
     void onPersisted();
@@ -191,17 +190,26 @@ using MapOfDlTransfers = std::map<DownloadId, std::shared_ptr<TransferInfo>>;
 class DownloadsManager
 {
 private:
-     MapOfDlTransfers mTransfers; //here's the ownership of the objects
+    MapOfDlTransfers mTransfers; //here's the ownership of the objects
 
     std::map<int, MapOfDlTransfers::iterator> mActiveTransfers; //All active transfers added
+
     std::map<int, MapOfDlTransfers::iterator> mFinishedTransfers; //All finished transfers in current run
+    std::queue<int> mFinishedTransfersQueue; //Finished transfers in order of insertion
 
     //Map betwen OID -> TransferInfo
     // since 2 transfer can have the same OID, it will be keep the last recently updated
     std::map<std::string, MapOfDlTransfers::iterator> mTransfersInMemory;
 
+    unsigned mMaxAllowedTransfer = 9999999;
+    unsigned mLowthresholdMaxAllowedTransfers = 999999;
+
+
 public:
     static DownloadsManager& Instance();
+
+    void start();
+    void shutdown(bool loginout);
 
     MapOfDlTransfers::iterator addNewTopLevelTransfer(MegaApi *api, MegaTransfer *transfer,int tag, const std::string &path);
 
@@ -586,7 +594,6 @@ public:
     {
         Write = 0,
         Remove = 1,
-        Select = 2,
     };
 private:
     Action mAction;
@@ -618,7 +625,7 @@ private:
     std::mutex mIOMutex;
     std::condition_variable mIOcv;
     bool mFinished = false;
-    int64_t mIOScheduleMs;
+    int64_t mIOScheduleMs = 0;
     int64_t mIOMaxActionBeforeNotifying = 0;
     std::unique_ptr<std::thread> mThreadIoProcessor;
 
@@ -637,12 +644,13 @@ private:
     bool mInitialized = false;
 
     std::shared_ptr<TransferInfo> loadTransferInfo(const std::string &objectId);
+    std::vector<std::shared_ptr<TransferInfo>> loadSubTransfers(TransferInfo *parent);
 
 public:
 
     static TransferInfoIOWriter& Instance();
     bool start();
-    void shutdown();
+    void shutdown(bool loginout = false);
     void end();
     void loopIOActionProcessor();
 
