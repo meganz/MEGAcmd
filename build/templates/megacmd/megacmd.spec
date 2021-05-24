@@ -192,7 +192,7 @@ install -D mega-cmd-server %{buildroot}%{_bindir}/mega-cmd-server
 install -D mega-exec %{buildroot}%{_bindir}/mega-exec
 
 mkdir -p  %{buildroot}/etc/sysctl.d/
-echo "fs.inotify.max_user_watches = 524288" > %{buildroot}/etc/sysctl.d/100-megacmd-inotify-limit.conf
+echo "fs.inotify.max_user_watches = 524288" > %{buildroot}/etc/sysctl.d/99-megacmd-inotify-limit.conf
 
 mkdir -p  %{buildroot}/opt/mega/lib
 install -D deps/lib/libfreeimage.so.* %{buildroot}/opt/mega/lib
@@ -354,7 +354,7 @@ KEY
     fi
 fi
 
-sysctl -p /etc/sysctl.d/100-megacmd-inotify-limit.conf
+sysctl -p /etc/sysctl.d/99-megacmd-inotify-limit.conf
 
 ### END of POSTINST
 
@@ -443,7 +443,7 @@ killall -s SIGUSR2 mega-cmd-server 2> /dev/null || true
 %{_bindir}/mega-cmd
 %{_bindir}/mega-cmd-server
 %{_sysconfdir}/bash_completion.d/megacmd_completion.sh
-/etc/sysctl.d/100-megacmd-inotify-limit.conf
+/etc/sysctl.d/99-megacmd-inotify-limit.conf
 /opt/mega/lib/libfreeimage.so.3
 
 %changelog
