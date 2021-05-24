@@ -247,6 +247,8 @@ void DownloadsManager::onTransferUpdate(MegaTransfer *transfer)
         else // not active one present (transfer resumption?)
         {
             LOG_warn << "Transfer update for folder tag that matches no active transfer. Probably coming from transfer resumption";
+            assert(false && "Receiving a transfer update on a child of a finished parent");
+
             //TODO: worst case scenario: we match a new folder tranfer that has nothing to do with
             // those resumed transfers. Needs investigation and a way to mitigate if there's a bug here
         }
@@ -261,6 +263,9 @@ void DownloadsManager::onTransferUpdate(MegaTransfer *transfer)
         }
         else
         {
+            LOG_warn << "Received onTransferUpdate on a not active parent transfer";
+            assert(false && "Received onTransferUpdate on a not active parent transfer");
+
             auto it = mFinishedTransfers.find(transfer->getTag());
             if (it != mFinishedTransfers.end())
             {
@@ -268,7 +273,6 @@ void DownloadsManager::onTransferUpdate(MegaTransfer *transfer)
                 mTransfersInMemory[it->second->first.getObjectID()] = it->second; //Insert / replace the existing value
             }
         }
-
     }
 }
 
@@ -283,6 +287,17 @@ void DownloadsManager::onTransferFinish(MegaTransfer *transfer, MegaError *error
         if (it != mActiveTransfers.end()) //found an active one
         {
             it->second->second->onSubTransferFinish(transfer, error);
+            return; //the above will carry the update
+        }
+        else
+        {
+            LOG_warn << "Transfer finish for folder tag that matches no active transfer. Probably coming from transfer resumption";
+            assert(false && "Receiving a transfer finish update on a child of a finished parent");
+//            if (it != mFinishedTransfers.end()) //found a finished one
+//            {
+//                it->second->second->onSubTransferFinish(transfer, error);
+//            }
+            return;
         }
     }
     else // not a child
@@ -291,20 +306,23 @@ void DownloadsManager::onTransferFinish(MegaTransfer *transfer, MegaError *error
         if (it != mActiveTransfers.end())
         {
             auto &info = it->second->second;
-
             auto elementToMove = it->second;
 
-            info->onTransferFinish(transfer, error);
+            // update data
+            it->second->second->updateTransfer(transfer, info, error);
+            mTransfersInMemory[it->second->first.getObjectID()] = it->second; //Insert / replace the existing value
 
+            // move to finished ones
             mFinishedTransfers.emplace(it->first, elementToMove);
             mFinishedTransfersQueue.push(it->first);
 
             mActiveTransfers.erase(it);
         }
-
+        else
+        {
+            LOG_err << "Received onTransferFinish on a not active parent transfer";
+        }
     }
-
-    onTransferUpdate(transfer);
 }
 
 
@@ -625,11 +643,16 @@ bool TransferInfo::getTargetOverride() const
     return mTransfer->getTargetOverride();
 }
 
-void TransferInfo::updateTransfer(MegaTransfer *transfer, const std::shared_ptr<TransferInfo> &transferInfo)
+void TransferInfo::updateTransfer(MegaTransfer *transfer, const std::shared_ptr<TransferInfo> &transferInfo, MegaError *error)
 {
     if (!mTransfer || transfer != mTransfer.get())
     {
         mTransfer.reset(transfer->copy());
+    }
+
+    if (error)
+    {
+        mFinalError = error->getErrorCode();
     }
 
     mLastUpdate = time(nullptr);
@@ -727,22 +750,6 @@ TransferInfo::TransferInfo(const std::string &serializedContents, int64_t lastUp
     mId = DownloadId(mTransfer->getTag(), objectId);
 }
 
-
-void TransferInfo::onTransferFinish(MegaTransfer *subtransfer, MegaError *error) //TODO: have this called
-{
-    if (error->getErrorCode() == API_OK)
-    {
-        mSubTransfersFinishedOk++;
-    }
-    else
-    {
-        mSubTransfersFinishedWithFailure++;
-    }
-
-    mFinalError = error->getErrorCode();
-    onSubTransferUpdate(subtransfer);
-}
-
 void TransferInfo::onSubTransferStarted(MegaApi *api, MegaTransfer *subtransfer)
 {
     mSubTransfersStarted++;
@@ -770,7 +777,7 @@ void TransferInfo::onSubTransferFinish(MegaTransfer *subtransfer, MegaError *err
     auto it = mSubTransfersInfo.find(subtransfer->getTag());
     if (it != mSubTransfersInfo.end())
     {
-        it->second->onTransferFinish(subtransfer, error);
+        it->second->updateTransfer(subtransfer, it->second, error);
     }
 }
 

@@ -89,7 +89,7 @@ class TransferInfo :  public DataBaseEntry
     long mSubTransfersStarted = 0;
     long mSubTransfersFinishedOk = 0;
     long mSubTransfersFinishedWithFailure = 0;
-    int mFinalError = -1;
+    int mFinalError = API_OK;
 
     string mSourcePath; //full path for files
 
@@ -106,31 +106,22 @@ class TransferInfo :  public DataBaseEntry
 public:
 
     //regular ctors
-    //Despite receiving transfer object here, updateTransfer(transfer) will be required afterwards
+    //Despite receiving transfer object here, updateTransfer(transfer, ...) will be required afterwards
     // Reason: updateTransfer will trigger IO writer update, and that requires a shared pointer from this class,
     // which is not available in ctor.
     TransferInfo(MegaApi * api, MegaTransfer *transfer, DownloadId *id = nullptr);
     TransferInfo(MegaApi * api, MegaTransfer *transfer, TransferInfo *parent); //ctor for subtransfers
     void initialize(MegaApi *api, MegaTransfer *transfer, DownloadId *id);
 
-
     //ctor for loading from db
     TransferInfo(const std::string &serializedTransfer, int64_t lastUpdate, TransferInfo *parent, const std::string &objectId);
 
     // updates TransferInfo, requires a shared pointer to it
-    void updateTransfer(MegaTransfer *transfer, const std::shared_ptr<TransferInfo> &transferInfo);
-
-    void onTransferUpdate(MegaApi *api, MegaTransfer *transfer);
-
-
-    void onTransferFinish(MegaTransfer *subtransfer, MegaError *error);
+    void updateTransfer(MegaTransfer *transfer, const std::shared_ptr<TransferInfo> &transferInfo, MegaError *error = nullptr);
 
     void addSubTransfer(const std::shared_ptr<TransferInfo> &transferInfo);
-
     void onSubTransferStarted(MegaApi *api, MegaTransfer *subtransfer);
-
     void onSubTransferFinish(MegaTransfer *subtransfer, MegaError *error);
-
     void onSubTransferUpdate(MegaTransfer *subtransfer);
 
     void print(OUTSTREAMTYPE &os, std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions, bool printHeader = true);
