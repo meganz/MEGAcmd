@@ -42,6 +42,8 @@ KEY
 
 pacman-key --lsign-key 8F208FBF12FEE766AA32AEAF03C3AD3A7F068E5D
 
+sysctl -p /etc/sysctl.d/99-megacmd-inotify-limit.conf
+
 }
 
 pre_upgrade() {
@@ -49,7 +51,7 @@ killall -s SIGUSR1 mega-cmd-server 2> /dev/null || true
 }
 
 post_upgrade() {
-sysctl -p /etc/sysctl.d/100-megacmd-inotify-limit.conf
+sysctl -p /etc/sysctl.d/99-megacmd-inotify-limit.conf
 
 killall -s SIGUSR2 mega-cmd-server 2> /dev/null || true
 }

@@ -93,7 +93,7 @@ package() {
 	install -D mega-cmd-server $_bindir/mega-cmd-server
 	install -D mega-exec $_bindir/mega-exec
 	mkdir -p $pkgdir/etc/sysctl.d/
-	echo "fs.inotify.max_user_watches = 524288" > $pkgdir/etc/sysctl.d/100-megacmd-inotify-limit.conf
+	echo "fs.inotify.max_user_watches = 524288" > $pkgdir/etc/sysctl.d/99-megacmd-inotify-limit.conf
 	mkdir -p $pkgdir/opt/mega/lib
 	install -D deps/lib/libfreeimage.so.* $pkgdir/opt/mega/lib
 }
