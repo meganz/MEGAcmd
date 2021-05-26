@@ -453,10 +453,13 @@ std::string TransferInfo::serializedTransferData()
     string toret;
     ParamWriter pr(toret);
 
-    if (mTransfer)
     {
-        auto t = mTransfer.get();
-        pr << t;
+        std::lock_guard<std::mutex> g(mTransferMutex);
+        if (mTransfer)
+        {
+            auto t = mTransfer.get();
+            pr << t;
+        }
     }
 
     pr << mSubTransfersStarted;
@@ -645,9 +648,13 @@ bool TransferInfo::getTargetOverride() const
 
 void TransferInfo::updateTransfer(MegaTransfer *transfer, const std::shared_ptr<TransferInfo> &transferInfo, MegaError *error)
 {
-    if (!mTransfer || transfer != mTransfer.get())
     {
-        mTransfer.reset(transfer->copy());
+        std::lock_guard<std::mutex> g(mTransferMutex);
+
+        if (!mTransfer || transfer != mTransfer.get())
+        {
+            mTransfer.reset(transfer->copy());
+        }
     }
 
     if (error)
@@ -792,6 +799,8 @@ void TransferInfo::onSubTransferUpdate(MegaTransfer *subtransfer)
 
 void TransferInfo::print(OUTSTREAMTYPE &os, std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions, bool printHeader)
 {
+    std::lock_guard<std::mutex> g(mTransferMutex);
+
     ColumnDisplayer cd(clflags, cloptions);
 
     addToColumnDisplayer(cd);
