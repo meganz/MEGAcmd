@@ -321,7 +321,7 @@ void MegaCmdGlobalListener::onEvent(MegaApi *api, MegaEvent *event)
     {
         // we need to cancel transfers here, because, even if fetchnodes finished, the actual transfer resumption
         // won't happen until all action packets are received. And cancellation of transfers need them to be loaded already
-        std::thread([this](){sandboxCMD->cmdexecuter->cleanSlate();}).detach();
+        std::thread([this](){sandboxCMD->cmdexecuter->cleanSlateTranfers();}).detach();
     }
 }
 
