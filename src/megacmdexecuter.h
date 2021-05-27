@@ -205,6 +205,9 @@ public:
     bool printUserAttribute(int a, std::string user, bool onlylist = false);
     bool setProxy(const std::string &url, const std::string &username, const std::string &password, int proxyType);
     void fetchNodes(mega::MegaApi *api = nullptr, int clientID = -27);
+
+
+    void cleanSlate();
 };
 
 }//end namespace

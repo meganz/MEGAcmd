@@ -24,6 +24,7 @@
 
 
 #include <memory>
+#include <utility>
 
 
 using namespace mega;
@@ -167,6 +168,35 @@ void DownloadsManager::shutdown(bool loginout)
     mTransfers.clear();
 }
 
+void DownloadsManager::recoverUnHandleTransfer(MegaApi *api, MegaTransfer *transfer)
+{
+    auto tag = transfer->getTag();
+    auto itUnhandled = mNewUnHandledTransfers.find(tag);
+    assert (itUnhandled != mNewUnHandledTransfers.end());
+    if (itUnhandled != mNewUnHandledTransfers.end())
+    {
+        // we don't know the path that originated the download
+        // hence, we don't know the Object ID! Our best guess: use public handle
+        // Note: this is not correct for subfiles/folders
+        // TODO: if the tag were the same, we could look in our db for the object Id of the last transfer that had such tag
+        //    but that's not guaranteed. Hence, there's not much we can do (unless we change the cached transfer db)
+        string path;
+        if (transfer->getPublicMegaNode())
+        {
+            path = handleToBase64(transfer->getPublicMegaNode()->getHandle());
+        }
+        else
+        {
+             path = transfer->getFileName();
+        }
+
+        DownloadsManager::Instance().addNewTopLevelTransfer(api, transfer, tag, path );
+
+        mNewUnHandledTransfers.erase(itUnhandled);
+    }
+}
+
+
 MapOfDlTransfers::iterator DownloadsManager::addNewTopLevelTransfer(MegaApi *api, MegaTransfer *transfer, int tag, const std::string &path)
 {
     std::lock_guard<std::recursive_mutex> g(mTransfersMutex);
@@ -218,7 +248,7 @@ void DownloadsManager::onTransferStart(MegaApi *api, MegaTransfer *transfer)
 {
     std::lock_guard<std::recursive_mutex> g(mTransfersMutex);
     auto parentTag = transfer->getFolderTransferTag();
-    if (parentTag != -1)
+    if (parentTag > 0)
     {
         auto it = mActiveTransfers.find(parentTag);
 
@@ -229,14 +259,23 @@ void DownloadsManager::onTransferStart(MegaApi *api, MegaTransfer *transfer)
     }
     else //not a child! //already handled via addNewTopLevelTransfer...
     {
+        auto tag = transfer->getTag();
+
+        auto it = mActiveTransfers.find(tag);
+        if (it == mActiveTransfers.end()) //i.e. not handled via addNewTopLevelTransfer (transfer resumption)
+        {
+            std::unique_ptr<MegaTransfer> t(transfer->copy());
+            auto pair = std::make_pair<int, std::unique_ptr<MegaTransfer>>(std::move(tag), std::move(t));
+            mNewUnHandledTransfers.insert(std::move(pair));
+        }
     }
 }
 
-void DownloadsManager::onTransferUpdate(MegaTransfer *transfer)
+void DownloadsManager::onTransferUpdate(MegaApi *api, MegaTransfer *transfer)
 {
     std::lock_guard<std::recursive_mutex> g(mTransfersMutex);
     auto parentTag = transfer->getFolderTransferTag();
-    if (parentTag != -1)
+    if (parentTag > 0)
     {
         auto it = mActiveTransfers.find(parentTag);
 
@@ -247,7 +286,7 @@ void DownloadsManager::onTransferUpdate(MegaTransfer *transfer)
         else // not active one present (transfer resumption?)
         {
             LOG_warn << "Transfer update for folder tag that matches no active transfer. Probably coming from transfer resumption";
-            assert(false && "Receiving a transfer update on a child of a finished parent");
+//            assert(false && "Receiving a transfer update on a child of a finished parent");
 
             //TODO: worst case scenario: we match a new folder tranfer that has nothing to do with
             // those resumed transfers. Needs investigation and a way to mitigate if there's a bug here
@@ -255,7 +294,16 @@ void DownloadsManager::onTransferUpdate(MegaTransfer *transfer)
     }
     else //not a child!
     {
-        auto it = mActiveTransfers.find(transfer->getTag());
+        auto tag = transfer->getTag();
+        auto it = mActiveTransfers.find(tag);
+        if (it == mActiveTransfers.end())
+        {
+            LOG_warn << "Received onTransferUpdate on a not active parent transfer"; //can happen on transfer resumption
+            recoverUnHandleTransfer(api, transfer);
+            //search again
+            it = mActiveTransfers.find(parentTag);
+        }
+
         if (it != mActiveTransfers.end())
         {
             it->second->second->updateTransfer(transfer, it->second->second);
@@ -263,8 +311,8 @@ void DownloadsManager::onTransferUpdate(MegaTransfer *transfer)
         }
         else
         {
-            LOG_warn << "Received onTransferUpdate on a not active parent transfer";
-            assert(false && "Received onTransferUpdate on a not active parent transfer");
+            LOG_warn << "Received onTransferUpdate on a not active parent transfer"; //can happen on transfer resumption
+            //assert(false && "Received onTransferUpdate on a not active parent transfer");
 
             auto it = mFinishedTransfers.find(transfer->getTag());
             if (it != mFinishedTransfers.end())
@@ -276,14 +324,13 @@ void DownloadsManager::onTransferUpdate(MegaTransfer *transfer)
     }
 }
 
-void DownloadsManager::onTransferFinish(MegaTransfer *transfer, MegaError *error)
+void DownloadsManager::onTransferFinish(MegaApi *api, MegaTransfer *transfer, MegaError *error)
 {
     std::lock_guard<std::recursive_mutex> g(mTransfersMutex);
     auto parentTag = transfer->getFolderTransferTag();
-    if (parentTag != -1)
+    if (parentTag > 0)
     {
         auto it = mActiveTransfers.find(parentTag);
-
         if (it != mActiveTransfers.end()) //found an active one
         {
             it->second->second->onSubTransferFinish(transfer, error);
@@ -292,7 +339,7 @@ void DownloadsManager::onTransferFinish(MegaTransfer *transfer, MegaError *error
         else
         {
             LOG_warn << "Transfer finish for folder tag that matches no active transfer. Probably coming from transfer resumption";
-            assert(false && "Receiving a transfer finish update on a child of a finished parent");
+            //assert(false && "Receiving a transfer finish update on a child of a finished parent");
 //            if (it != mFinishedTransfers.end()) //found a finished one
 //            {
 //                it->second->second->onSubTransferFinish(transfer, error);
@@ -303,6 +350,15 @@ void DownloadsManager::onTransferFinish(MegaTransfer *transfer, MegaError *error
     else // not a child
     {
         auto it = mActiveTransfers.find(transfer->getTag());
+
+        if (it == mActiveTransfers.end())
+        {
+            LOG_warn << "Received onTransferUpdate on a not active parent transfer"; //can happen on transfer resumption
+            recoverUnHandleTransfer(api, transfer);
+            //search again
+            it = mActiveTransfers.find(parentTag);
+        }
+
         if (it != mActiveTransfers.end())
         {
             auto &info = it->second->second;
@@ -414,6 +470,20 @@ void DownloadsManager::printOne(OUTSTREAMTYPE &os, std::string objectIDorTag, ma
        LOG_err << " Not found: " << objectIDorTag;
        return;
    }
+}
+
+void DownloadsManager::purge()
+{
+    std::lock_guard<std::recursive_mutex> g(mTransfersMutex);
+
+    mActiveTransfers.clear();
+    mFinishedTransfers.clear();
+    mTransfersInMemory.clear();
+    mTransfers.clear();
+
+    mNewUnHandledTransfers.clear();
+
+    TransferInfoIOWriter::Instance().purge();
 }
 
 
@@ -1387,6 +1457,25 @@ std::shared_ptr<TransferInfo> TransferInfoIOWriter::read(const std::string &obje
 {
     std::lock_guard<std::mutex> g(mIOMutex);
     return loadTransferInfo(objectId);
+}
+
+bool TransferInfoIOWriter::purge()
+{
+    std::lock_guard<std::mutex> g(mIOMutex);
+
+    mActions.clear();
+    initializeSqlite();
+    std::shared_ptr<TransferInfo> toret;
+    std::string sql("DELETE FROM transferInfo;");
+
+    auto rc = sqlite3_exec(db, "DELETE FROM transferInfo", nullptr, nullptr, nullptr);
+    if (rc != SQLITE_OK)
+    {
+        LOG_err << "Error deleting transferInfos db: " << sqlite3_errmsg(db) ;
+        return false;
+    }
+
+    return true;
 }
 
 std::shared_ptr<TransferInfo> TransferInfoIOWriter::loadTransferInfo(const std::string &objectId)

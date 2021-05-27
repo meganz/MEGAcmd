@@ -198,9 +198,16 @@ private:
     // since 2 transfer can have the same OID, it will be keep the last recently updated
     std::map<std::string, MapOfDlTransfers::iterator> mTransfersInMemory;
 
+    //a collection of transfers that were initiated, but still are not added
+    // we need to store this because onTransferFinish of the listener created in downloadNode happens
+    // after the global onTransferFinish listener. i.e: we cannot tell if these transfers will
+    // be handled by the second or were added elswhere (from resumption) and have no associated path
+    std::map<int, std::unique_ptr<MegaTransfer>> mNewUnHandledTransfers;
+
+
+
     unsigned mMaxAllowedTransfer = 9999999;
     unsigned mLowthresholdMaxAllowedTransfers = 999999;
-
 
 public:
     static DownloadsManager& Instance();
@@ -208,16 +215,20 @@ public:
     void start();
     void shutdown(bool loginout);
 
+    void recoverUnHandleTransfer(MegaApi *api, MegaTransfer *transfer);
+
     MapOfDlTransfers::iterator addNewTopLevelTransfer(MegaApi *api, MegaTransfer *transfer,int tag, const std::string &path);
 
     void onTransferStart(MegaApi *api, MegaTransfer *transfer);
 
-    void onTransferUpdate(MegaTransfer *transfer);
+    void onTransferUpdate(MegaApi *api, MegaTransfer *transfer);
 
-    void onTransferFinish(::mega::MegaTransfer *transfer, ::mega::MegaError* error);
+    void onTransferFinish(MegaApi *api, ::mega::MegaTransfer *transfer, ::mega::MegaError* error);
 
     void printAll(OUTSTREAMTYPE &os, map<std::string, int> *clflags, map<std::string, std::string> *cloptions);
     void printOne(OUTSTREAMTYPE &os, std::string objectIDorTag, map<string, int> *clflags, map<string, string> *cloptions);
+
+    void purge();
 };
 
 
@@ -676,6 +687,9 @@ public:
      * @return
      */
     std::shared_ptr<TransferInfo> read(const std::string &objectId);
+
+    // clean queues and empties db
+    bool purge();
 
 };
 

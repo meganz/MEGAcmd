@@ -737,6 +737,10 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validParams->insert("enable-tracking");
         validParams->insert("query-enabled");
 
+        validParams->insert("enable-clean-slate");
+        validParams->insert("disable-clean-slate");
+        validParams->insert("purge");
+
         validOptValues->insert("path-display-size");
         validOptValues->insert("col-separator");
         validOptValues->insert("output-cols");
@@ -1870,7 +1874,7 @@ const char * getUsageStr(const char *command)
     }
     if (!strcmp(command, "downloads"))
     {
-        return "downloads [--enable-tracking|--disable-tracking|query-enabled|report-all| [id_1 id_2 ... id_n]]  [SHOWOPTIONS]";
+        return "downloads [--purge|--enable-clean-slate|--disable-clean-slate|--enable-tracking|--disable-tracking|query-enabled|report-all| [id_1 id_2 ... id_n]]  [SHOWOPTIONS]";
     }
 #if defined(_WIN32) && defined(NO_READLINE)
     if (!strcmp(command, "autocomplete"))
@@ -2821,6 +2825,10 @@ string getHelpStr(const char *command)
         os << " --query-enabled"  << "\t" << "Indicates if download tracking is enabled" << endl;
         os << " --enable-tracking"  << "\t" << "Starts tracking downloads. It will store the information in a sqlite3 db" << endl;
         os << " --disable-tracking"  << "\t" << "Stops tracking downloads. Notice, it will remove the associated database" << endl;
+        os << " --enable-clean-slate"  << "\t" << "Transfers from previous executions will be discarded upon restart" << endl;
+        os << " --disable-clean-slate"  << "\t" << "Transfers from previous executions will not be discarded upon restart" << endl;
+        os << " --purge"  << "\t" << "Cancells all onging transfers, and cleans all tracking (included persisted data)" << endl;
+
         os << endl;
         os << "Show options:" << endl;
         os << " --report-all" << "\t" << "Prints a report of all active and finished downloads kept in memory" << endl;
@@ -2885,6 +2893,7 @@ string getHelpStr(const char *command)
         os << " downloads_db_path"  << "\t" << "Path to store tracking information of downloads. Default: ~/.megaCmd/downloads.db" << endl;
         os << " downloads_db_io_frequency_ms"  << "\t" << "Frequency in milliseconds to commit pending changes in the database. Default=10000" << endl;
         os << " downloads_db_max_queued_changes"  << "\t" << "Max allowed number of changes to be queued before writting. Default=1000" << endl;
+        os << " downloads_cleanslate_enabled"  << "\t" << "If transfers from previous executions will be discarded upon restart. Default=0 (false)" << endl;
     }
     else if (!strcmp(command, "transfers"))
     {

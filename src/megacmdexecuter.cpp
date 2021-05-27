@@ -2718,6 +2718,37 @@ void MegaCmdExecuter::fetchNodes(MegaApi *api, int clientID)
 #endif
 }
 
+void MegaCmdExecuter::cleanSlateTranfers()
+{
+    bool downloads_cleanslate = ConfigurationManager::getConfigurationValue("downloads_cleanslate_enabled", false);
+
+    if (downloads_cleanslate)
+    {
+        auto megaCmdListener = ::mega::make_unique<MegaCmdListener>(nullptr);
+        api->cancelTransfers(MegaTransfer::TYPE_DOWNLOAD, megaCmdListener.get());
+        megaCmdListener->wait();
+        if (checkNoErrors(megaCmdListener->getError(), "cancel all download transfers"))
+        {
+            LOG_debug << "Download transfers cancelled successfully.";
+        }
+        megaCmdListener.reset(new MegaCmdListener(nullptr));
+        api->cancelTransfers(MegaTransfer::TYPE_UPLOAD, megaCmdListener.get());
+        megaCmdListener->wait();
+        if (checkNoErrors(megaCmdListener->getError(), "cancel all upload transfers"))
+        {
+            LOG_debug << "Upload transfers cancelled successfully.";
+        }
+
+        {
+            globalTransferListener->completedTransfersMutex.lock();
+            globalTransferListener->completedTransfers.clear();
+            globalTransferListener->completedTransfersMutex.unlock();
+        }
+
+        DownloadsManager::Instance().purge();
+    }
+}
+
 void MegaCmdExecuter::actUponLogout(SynchronousRequestListener *srl, bool keptSession, int timeout)
 {
     if (!timeout)
@@ -9819,6 +9850,38 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
     }
     else if (words[0] == "downloads")
     {
+        if (getFlag(clflags, "purge"))
+        {
+            OUTSTREAM << "Cancelling and cleaning all transfers and history ..." << endl;
+            cleanSlateTranfers();
+            OUTSTREAM << "... done" << endl;
+            return;
+        }
+        if (getFlag(clflags, "enable-clean-slate"))
+        {
+            bool downloads_cleanslate_enabled_before = ConfigurationManager::getConfigurationValue("downloads_cleanslate_enabled", false);
+
+            if (!downloads_cleanslate_enabled_before)
+            {
+                ConfigurationManager::savePropertyValue("downloads_cleanslate_enabled", true);
+            }
+
+            OUTSTREAM << "Enabled clean slate: transfers from previous executions will be discarded upon restart" << endl;
+            return;
+        }
+        else if (getFlag(clflags, "disable-clean-slate"))
+        {
+            bool downloads_cleanslate_enabled_before = ConfigurationManager::getConfigurationValue("downloads_cleanslate_enabled", false);
+
+            if (downloads_cleanslate_enabled_before)
+            {
+                ConfigurationManager::savePropertyValue("downloads_cleanslate_enabled", false);
+            }
+            OUTSTREAM << "Disabled clean slate: transfers from previous executions will not be discarded upon restart" << endl;
+            return;
+        }
+
+
         bool queryEnabled = getFlag(clflags, "query-enabled");
         if (getFlag(clflags, "enable-tracking"))
         {

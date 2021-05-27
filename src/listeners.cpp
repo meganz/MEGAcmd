@@ -317,6 +317,12 @@ void MegaCmdGlobalListener::onEvent(MegaApi *api, MegaEvent *event)
         removeGreetingMatching("Your syncs have been temporarily disabled");
         broadcastMessage("Your syncs have been re-enabled.", true);
     }
+    else if (event->getType() == MegaEvent::EVENT_NODES_CURRENT)
+    {
+        // we need to cancel transfers here, because, even if fetchnodes finished, the actual transfer resumption
+        // won't happen until all action packets are received. And cancellation of transfers need them to be loaded already
+        std::thread([this](){sandboxCMD->cmdexecuter->cleanSlate();}).detach();
+    }
 }
 
 
@@ -1082,7 +1088,7 @@ void MegaCmdGlobalTransferListener::onTransferFinish(MegaApi* api, MegaTransfer 
     if (transfer->getType() == transfer->TYPE_DOWNLOAD && ConfigurationManager::getConfigurationValue("downloads_tracking_enabled", false))
     {
 
-        DownloadsManager::Instance().onTransferFinish(transfer, error);
+        DownloadsManager::Instance().onTransferFinish(api, transfer, error);
     }
 
 
@@ -1121,7 +1127,7 @@ void MegaCmdGlobalTransferListener::onTransferUpdate(MegaApi* api, MegaTransfer 
 {
     if (transfer->getType() == transfer->TYPE_DOWNLOAD && ConfigurationManager::getConfigurationValue("downloads_tracking_enabled", false))
     {
-        DownloadsManager::Instance().onTransferUpdate(transfer);
+        DownloadsManager::Instance().onTransferUpdate(api, transfer);
     }
 }
 void MegaCmdGlobalTransferListener::onTransferTemporaryError(MegaApi *api, MegaTransfer *transfer, MegaError* e)
@@ -1142,7 +1148,7 @@ void MegaCmdGlobalTransferListener::onTransferTemporaryError(MegaApi *api, MegaT
     }
     if (transfer->getType() == transfer->TYPE_DOWNLOAD && ConfigurationManager::getConfigurationValue("downloads_tracking_enabled", false))
     {
-        DownloadsManager::Instance().onTransferUpdate(transfer);
+        DownloadsManager::Instance().onTransferUpdate(api, transfer);
     }
 }
 
