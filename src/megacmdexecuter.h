@@ -207,7 +207,7 @@ public:
     void fetchNodes(mega::MegaApi *api = nullptr, int clientID = -27);
 
 
-    void cleanSlate();
+    void cleanSlateTranfers();
 };
 
 }//end namespace
