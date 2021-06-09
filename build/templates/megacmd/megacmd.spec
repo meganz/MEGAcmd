@@ -164,7 +164,7 @@ ln -sfn libfreeimage.so.3 $PWD/deps/lib/libfreeimage.so
     export CPPFLAGS="$CPPFLAGS -DMEGACMD_DEPRECATED_OS"
 %endif
 
-CPPFLAGS="$CPPFLAGS %{fullreqs}" LDFLAGS="$LDFLAGS -Wl,-rpath,/opt/mega/lib" ./configure --disable-shared --enable-static \
+CPPFLAGS="$CPPFLAGS %{fullreqs}" LDFLAGS="$LDFLAGS -Wl,-rpath,/opt/megacmd/lib" ./configure --disable-shared --enable-static \
   --disable-silent-rules --disable-curl-checks %{with_cryptopp} %{with_libraw} --with-sodium=$PWD/deps --with-pcre \
   %{with_zlib} --with-sqlite=$PWD/deps --with-cares=$PWD/deps --with-libuv=$PWD/deps --with-pdfium \
   --with-curl=$PWD/deps --with-freeimage=$PWD/deps --with-readline=$PWD/deps \
@@ -173,7 +173,7 @@ CPPFLAGS="$CPPFLAGS %{fullreqs}" LDFLAGS="$LDFLAGS -Wl,-rpath,/opt/mega/lib" ./c
 if [ "x$CONFFAILED" == "x1" ]; then
     sed -i "s#.*CONFLICTIVEOLDAUTOTOOLS##g" sdk/configure.ac
     ./autogen.sh
-    CPPFLAGS="$CPPFLAGS %{fullreqs}" LDFLAGS="$LDFLAGS -Wl,-rpath,/opt/mega/lib" ./configure --disable-shared --enable-static \
+    CPPFLAGS="$CPPFLAGS %{fullreqs}" LDFLAGS="$LDFLAGS -Wl,-rpath,/opt/megacmd/lib" ./configure --disable-shared --enable-static \
       --disable-silent-rules --disable-curl-checks %{with_cryptopp} %{with_libraw} --with-sodium=$PWD/deps --with-pcre \
       %{with_zlib} --with-sqlite=$PWD/deps --with-cares=$PWD/deps --with-libuv=$PWD/deps --with-pdfium \
       --with-curl=$PWD/deps --with-freeimage=$PWD/deps --with-readline=$PWD/deps \
@@ -194,8 +194,8 @@ install -D mega-exec %{buildroot}%{_bindir}/mega-exec
 mkdir -p  %{buildroot}/etc/sysctl.d/
 echo "fs.inotify.max_user_watches = 524288" > %{buildroot}/etc/sysctl.d/99-megacmd-inotify-limit.conf
 
-mkdir -p  %{buildroot}/opt/mega/lib
-install -D deps/lib/libfreeimage.so.* %{buildroot}/opt/mega/lib
+mkdir -p  %{buildroot}/opt/megacmd/lib
+install -D deps/lib/libfreeimage.so.* %{buildroot}/opt/megacmd/lib
 
 %post
 #source bash_completion?
@@ -444,6 +444,6 @@ killall -s SIGUSR2 mega-cmd-server 2> /dev/null || true
 %{_bindir}/mega-cmd-server
 %{_sysconfdir}/bash_completion.d/megacmd_completion.sh
 /etc/sysctl.d/99-megacmd-inotify-limit.conf
-/opt/mega/lib/libfreeimage.so.3
+/opt/megacmd/lib/libfreeimage.so.3
 
 %changelog
