@@ -8,7 +8,7 @@ FULLREQS := $(shell cat /etc/issue | grep "Ubuntu 12.04" >/dev/null && echo "" |
 FPDFIUM := $(shell dpkg --print-architecture | grep -i "i386\|arm" >/dev/null && echo "" || echo '--with-pdfium')
 RPDFIUM := $(shell dpkg --print-architecture | grep -i "i386\|arm" >/dev/null && echo "" || echo '-DREQUIRE_HAVE_PDFIUM')
 INSTALL3RD := $(shell dpkg --print-architecture | grep -i "i386\|arm" >/dev/null && echo "" || echo 'install3rd')
-LDFLAGS := $(shell dpkg --print-architecture | grep -i "i386\|arm" >/dev/null && echo "" || echo "$$LDFLAGS -Wl,-rpath,/opt/mega/lib")
+LDFLAGS := $(shell dpkg --print-architecture | grep -i "i386\|arm" >/dev/null && echo "" || echo "$$LDFLAGS -Wl,-rpath,/opt/megacmd/lib")
 
 MEGA_BUILD_ID := $(shell cat MEGA_BUILD_ID || echo "1")
 
@@ -61,8 +61,8 @@ install: build
 	dh_install 99-megacmd-inotify-limit.conf /etc/sysctl.d/
 
 install3rd:
-	mkdir -p $(CURDIR)/debian/megacmd/opt/mega/lib
-	install $(CURDIR)/deps/lib/libfreeimage.so.* $(CURDIR)/debian/megacmd/opt/mega/lib
+	mkdir -p $(CURDIR)/debian/megacmd/opt/megacmd/lib
+	install $(CURDIR)/deps/lib/libfreeimage.so.* $(CURDIR)/debian/megacmd/opt/megacmd/lib
 
 # Build architecture-independent files here.
 binary-indep: build install $(INSTALL3RD)

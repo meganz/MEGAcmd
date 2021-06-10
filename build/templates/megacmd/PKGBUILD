@@ -60,7 +60,7 @@ build() {
 	ln -sfr $PWD/deps/lib/libfreeimage*.so $PWD/deps/lib/libfreeimage.so.3
 	ln -sfn libfreeimage.so.3 $PWD/deps/lib/libfreeimage.so
 
-	CPPFLAGS="$CPPFLAGS -DREQUIRE_HAVE_PDFIUM -DREQUIRE_HAVE_FFMPEG -DREQUIRE_HAVE_LIBUV -DREQUIRE_USE_MEDIAINFO -DREQUIRE_USE_PCRE" LDFLAGS="$LDFLAGS -Wl,-rpath,/opt/mega/lib" \
+	CPPFLAGS="$CPPFLAGS -DREQUIRE_HAVE_PDFIUM -DREQUIRE_HAVE_FFMPEG -DREQUIRE_HAVE_LIBUV -DREQUIRE_USE_MEDIAINFO -DREQUIRE_USE_PCRE" LDFLAGS="$LDFLAGS -Wl,-rpath,/opt/megacmd/lib" \
 	  ./configure --without-libraw --disable-shared --enable-static --disable-silent-rules \
 	  --disable-curl-checks --with-sodium=$PWD/deps --with-pcre --with-cryptopp=$PWD/deps \
 	  --with-curl=$PWD/deps --with-freeimage=$PWD/deps --with-readline=$PWD/deps \
@@ -94,6 +94,6 @@ package() {
 	install -D mega-exec $_bindir/mega-exec
 	mkdir -p $pkgdir/etc/sysctl.d/
 	echo "fs.inotify.max_user_watches = 524288" > $pkgdir/etc/sysctl.d/99-megacmd-inotify-limit.conf
-	mkdir -p $pkgdir/opt/mega/lib
-	install -D deps/lib/libfreeimage.so.* $pkgdir/opt/mega/lib
+	mkdir -p $pkgdir/opt/megacmd/lib
+	install -D deps/lib/libfreeimage.so.* $pkgdir/opt/megacmd/lib
 }
