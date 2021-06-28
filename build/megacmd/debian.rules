@@ -5,7 +5,7 @@ WCRYPTOPP := $(shell cat /etc/issue | grep "Ubuntu 19.10\|Ubuntu [2-9][0-9]" >/d
 FMEDIAINFO := $(shell dpkg -l | grep mediainfo >/dev/null && echo "-i" || echo " ")
 WMEDIAINFO := $(shell dpkg -l | grep mediainfo >/dev/null && echo " " || echo "--with-libmediainfo=$(CURDIR)/deps --with-libzen=$(CURDIR)/deps")
 FULLREQS := $(shell cat /etc/issue | grep "Ubuntu 12.04" >/dev/null && echo "" || echo '-DREQUIRE_HAVE_FFMPEG -DREQUIRE_HAVE_LIBUV -DREQUIRE_USE_MEDIAINFO -DREQUIRE_USE_PCRE')
-DEB_TESTING := $(shell cat /etc/issue | grep "Debian" > /dev/null && cat /etc/apt/sources.list | grep -v ^# | grep testing > /dev/null && echo "testing")
+DEB_TESTING := $(shell cat /etc/issue | grep "Debian" > /dev/null && cat /etc/apt/sources.list | grep -v "^\#" | grep testing > /dev/null && echo "testing")
 MEGA_BUILD_ID := $(shell cat MEGA_BUILD_ID || echo "1")
 
 build: build-stamp
