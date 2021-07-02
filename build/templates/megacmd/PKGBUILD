@@ -26,8 +26,8 @@ arch=('i686' 'x86_64')
 url="http://mega.nz/cmd"
 license=("https://github.com/meganz/megacmd/blob/master/LICENSE")
 groups=()
-depends=('glibc>=2.30' 'gcc-libs' 'sqlite' 'openssl>=1.1.1' 'zlib' 'libpsl' 'icu>=64.1' 'bash-completion' 'pcre' 'bzip2' 'xz')
-makedepends=('unzip' 'wget' 'ca-certificates' 'ffmpeg-mega' 'bzip2' 'xz')
+depends=('glibc>=2.33' 'gcc-libs>=10.2.0' 'sqlite' 'openssl>=1.1.1' 'zlib' 'libpsl' 'icu>=69.1' 'bash-completion' 'pcre' 'bzip2' 'xz')
+makedepends=('unzip' 'wget' 'ca-certificates' 'ffmpeg-mega' 'pdfium-mega' 'bzip2' 'xz')
 checkdepends=()
 optdepends=()
 provides=("megacmd=${pkgver}" 'ffmpeg-mega')
@@ -56,10 +56,15 @@ build() {
 	bash -x ./contrib/build_sdk.sh -o archives \
 	  -e -g -b -l -c -s -u -v -a -q -I -p deps/
 
-	CPPFLAGS="$CPPFLAGS -DREQUIRE_HAVE_FFMPEG -DREQUIRE_HAVE_LIBUV -DREQUIRE_USE_MEDIAINFO -DREQUIRE_USE_PCRE" ./configure --without-libraw --disable-shared --enable-static --disable-silent-rules \
-	  --disable-curl-checks --with-sodium=$PWD/deps --with-pcre --with-cryptopp=$PWD/deps\
+	# Link dynamically with freeimage
+	ln -sfr $PWD/deps/lib/libfreeimage*.so $PWD/deps/lib/libfreeimage.so.3
+	ln -sfn libfreeimage.so.3 $PWD/deps/lib/libfreeimage.so
+
+	CPPFLAGS="$CPPFLAGS -DREQUIRE_HAVE_PDFIUM -DREQUIRE_HAVE_FFMPEG -DREQUIRE_HAVE_LIBUV -DREQUIRE_USE_MEDIAINFO -DREQUIRE_USE_PCRE" LDFLAGS="$LDFLAGS -Wl,-rpath,/opt/megacmd/lib" \
+	  ./configure --without-libraw --disable-shared --enable-static --disable-silent-rules \
+	  --disable-curl-checks --with-sodium=$PWD/deps --with-pcre --with-cryptopp=$PWD/deps \
 	  --with-curl=$PWD/deps --with-freeimage=$PWD/deps --with-readline=$PWD/deps \
-	  --with-cares=$PWD/deps --with-libuv=$PWD/deps \
+	  --with-cares=$PWD/deps --with-libuv=$PWD/deps --with-pdfium \
 	  --with-termcap=$PWD/deps --prefix=$PWD/deps --disable-examples \
 	  --with-libmediainfo=$PWD/deps --with-libzen=$PWD/deps
 
@@ -88,5 +93,7 @@ package() {
 	install -D mega-cmd-server $_bindir/mega-cmd-server
 	install -D mega-exec $_bindir/mega-exec
 	mkdir -p $pkgdir/etc/sysctl.d/
-	echo "fs.inotify.max_user_watches = 524288" > $pkgdir/etc/sysctl.d/100-megacmd-inotify-limit.conf
+	echo "fs.inotify.max_user_watches = 524288" > $pkgdir/etc/sysctl.d/99-megacmd-inotify-limit.conf
+	mkdir -p $pkgdir/opt/megacmd/lib
+	install -D deps/lib/libfreeimage.so.* $pkgdir/opt/megacmd/lib
 }

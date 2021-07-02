@@ -10,7 +10,7 @@ Copy this folder tree into /toolkit
 `cd /toolkit`  
   
 Copy the MEGACmd folder (and sdk subfolder) into it also.  The sdk should already be in the 'sdk' subfolder of MEGAcmd  
-`cp -r ...git.../MEGAcmd /toolkit/source/megacmdpkg/`  
+`cp -r ...git.../MEGAcmd /toolkit/source/MEGAcmd/`  
   
 Get the Synology scripts  
 `git clone https://github.com/SynologyOpenSource/pkgscripts-ng`  
@@ -19,16 +19,16 @@ Download and install the cross-compile build enviroment for one or many targets.
 `./pkgscripts-ng/EnvDeploy -v 6.1 -p armada38x`  
   
 Adjust the package details, including version number.  Adjust OS version in 'depends' if building for a later OS than 6.1  
-`vi ./source/megacmdpkg/INFO.sh`  
-`vi ./source/megacmdpkg/SynoBuildConf/depends`  
+`vi ./source/MEGAcmd/INFO.sh`  
+`vi ./source/MEGAcmd/SynoBuildConf/depends`  
   
 Run the build process  
-`./pkgscripts-ng/PkgCreate.py megacmdpkg`  
-Results can now be seen in /toolkit/build_env/ds.armada38x-6.1/source/megacmdpkg/MEGAcmd  
+`./pkgscripts-ng/PkgCreate.py MEGAcmd`  
+Results can now be seen in /toolkit/build_env/ds.armada38x-6.1/source/MEGAcmd/MEGAcmd  
   
 Package up the executables and scripts, provided the build actually succeeded (though it may say it failed even though we force 'exit 0' from the build script)  
 For official releases we may sign with an RSA key at this point, but were we are skipping signing with -S  
-`./pkgscripts-ng/PkgCreate.py -i -S megacmdpkg`  
+`./pkgscripts-ng/PkgCreate.py -i -S MEGAcmd`  
 Package is now available at /toolkit/build_env/ds.armada38x-6.1/image/packages/  
 Install on your NAS from its web browser interface, Package Manager, Manual Install button which lets you choose a local file  
   

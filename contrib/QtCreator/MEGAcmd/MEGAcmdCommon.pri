@@ -1,3 +1,18 @@
+
+win32:THIRDPARTY_VCPKG_BASE_PATH = C:/Users/build/MEGA/build-MEGAsync/3rdParty_MSVC2017_20200529
+win32:contains(QMAKE_TARGET.arch, x86_64):VCPKG_TRIPLET = x64-windows-mega
+win32:!contains(QMAKE_TARGET.arch, x86_64):VCPKG_TRIPLET = x86-windows-mega
+
+macx:THIRDPARTY_VCPKG_BASE_PATH = $$PWD/../../../../3rdParty
+macx:VCPKG_TRIPLET = x64-osx
+
+unix:!macx:THIRDPARTY_VCPKG_BASE_PATH = $$PWD/../../../../3rdParty
+unix:!macx:VCPKG_TRIPLET = x64-linux
+
+message("THIRDPARTY_VCPKG_BASE_PATH: $$THIRDPARTY_VCPKG_BASE_PATH")
+message("VCPKG_TRIPLET: $$VCPKG_TRIPLET")
+
+
 packagesExist(libpcrecpp) | macx {
 LIBS += -lpcrecpp
 CONFIG += USE_PCRE
@@ -7,6 +22,20 @@ CONFIG += USE_MEDIAINFO
 CONFIG += USE_LIBUV
 DEFINES += ENABLE_BACKUPS
 CONFIG += USE_CONSOLE
+unix:!macx {
+        exists(/usr/include/fpdfview.h) {
+            CONFIG += USE_PDFIUM
+        }
+}
+else {
+    CONFIG += USE_PDFIUM
+}
+
+win32 {
+CONFIG += noreadline
+CONFIG += USE_AUTOCOMPLETE
+DEFINES += NO_READLINE
+}
 
 unix:!macx {
         exists(/usr/include/ffmpeg-mega)|exists(mega/bindings/qt/3rdparty/include/ffmpeg)|packagesExist(libavcodec) {

@@ -71,7 +71,7 @@ HANDLE ComunicationsManagerNamedPipes::create_new_namedPipe(int *pipeId)
 
     *pipeId = get_next_comm_id();
 
-    HANDLE thepipe;
+    HANDLE thepipe = INVALID_HANDLE_VALUE;
     wstring nameOfPipe;
     int attempts = 10;
     bool namedPipesucceded = false;
@@ -229,7 +229,7 @@ void ComunicationsManagerNamedPipes::returnAndClosePetition(CmdPetition *inf, OU
 {
     HANDLE outNamedPipe = ((CmdPetitionNamedPipes *)inf)->outNamedPipe;
 
-    LOG_verbose << "Output to write in namedPipe " << (long)outNamedPipe;
+    LOG_verbose << "Output to write in namedPipe " << *(long*)(&outNamedPipe);
 
     bool connectsucceeded = false;
     int attempts = 10;
@@ -348,7 +348,7 @@ void ComunicationsManagerNamedPipes::sendPartialOutput(CmdPetition *inf, OUTSTRI
         LOG_err << "ERROR writing output Code to namedPipe: " << ERRNO;
         return;
     }
-    if (!WriteFile(outNamedPipe,sutf8.data(), size, &n, NULL))
+    if (!WriteFile(outNamedPipe,sutf8.data(), DWORD(size), &n, NULL))
     {
         LOG_err << "ERROR writing to namedPipe: " << ERRNO;
     }
@@ -413,7 +413,7 @@ void ComunicationsManagerNamedPipes::sendPartialOutput(CmdPetition *inf, char *s
         LOG_err << "ERROR writing output Code to namedPipe: " << ERRNO;
         return;
     }
-    if (!WriteFile(outNamedPipe,s, thesize, &n, NULL))
+    if (!WriteFile(outNamedPipe,s, DWORD(thesize), &n, NULL))
     {
         LOG_err << "ERROR writing to namedPipe: " << ERRNO;
     }

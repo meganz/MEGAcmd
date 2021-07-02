@@ -1,0 +1,11 @@
+--- build_sdk.sh	2020-12-14 11:39:26.564794848 +1300
++++ /tmp/build_sdk.sh	2020-12-14 11:39:24.584790096 +1300
+@@ -845,7 +845,7 @@
+     fi
+ 
+     # freeimage's LibPNG has a problem with deciding to use neon on 64 bit arm, resulting in a missing symbol
+-    if [ "$ARCH" == "aarch64" ]; then
++    if [ "$ARCH" == "aarch64" -o "$ARCH" == "arm64" ]; then
+         export CFLAGS="$CFLAGS -DPNG_ARM_NEON_OPT=0"
+     fi 
+ 

@@ -19,6 +19,7 @@
 #include "configurationmanager.h"
 #include "megacmdversion.h"
 #include "megacmdutils.h"
+#include "listeners.h"
 #include "updater/Preferences.h"
 #include <fstream>
 
@@ -56,7 +57,7 @@ bool ConfigurationManager::hasBeenUpdated = false;
 #if !defined(_WIN32) && defined(LOCK_EX) && defined(LOCK_NB)
 int ConfigurationManager::fd;
 #endif
-map<string, sync_struct *> ConfigurationManager::configuredSyncs;
+map<string, sync_struct *> ConfigurationManager::oldConfiguredSyncs;
 string ConfigurationManager::session;
 std::set<std::string> ConfigurationManager::excludedNames;
 map<std::string, backup_struct *> ConfigurationManager::configuredBackups;
@@ -230,6 +231,51 @@ void ConfigurationManager::saveProperty(const char *property, const char *value)
     }
 }
 
+void ConfigurationManager::migrateSyncConfig(MegaApi *api)
+{
+    LOG_info << "copying sync config";
+    std::lock_guard<std::recursive_mutex> g(settingsMutex);
+
+    for (map<string, sync_struct *>::iterator itr = oldConfiguredSyncs.begin();
+         itr != oldConfiguredSyncs.end(); itr++)
+    {
+        sync_struct *thesync = ((sync_struct*)( *itr ).second );
+
+        api->copySyncDataToCache(thesync->localpath.c_str(), thesync->handle, nullptr,
+                                 thesync->fingerprint, thesync->active, false,
+                                 new MegaCmdListenerFuncExecuter([thesync](MegaApi* api,  MegaRequest *request, MegaError *e)
+        {// Note: we use MegaCmdListenerFuncExecuter, beucase this gets executed in sdk thread: hence, cannot use regular listener and do a wait
+            if (e->getErrorCode() == API_OK)
+            {
+                removeSyncConfig(thesync);
+            }
+            else
+            {
+                LOG_err << " fail to copy old sync cache data: " << thesync->localpath;
+            }
+        }, true));
+    }
+}
+
+void ConfigurationManager::removeSyncConfig(sync_struct *syncToRemove)
+{
+    std::lock_guard<std::recursive_mutex> g(settingsMutex);
+    for (map<string, sync_struct *>::iterator itr = oldConfiguredSyncs.begin();
+         itr != oldConfiguredSyncs.end(); itr++)
+    {
+        sync_struct *thesync = ((sync_struct*)( *itr ).second );
+
+        if (thesync == syncToRemove)
+        {
+            oldConfiguredSyncs.erase(itr);
+            delete thesync;
+            ConfigurationManager::saveSyncs(&ConfigurationManager::oldConfiguredSyncs);
+
+            return;
+        }
+    }
+}
+
 void ConfigurationManager::saveSyncs(map<string, sync_struct *> *syncsmap)
 {
     std::lock_guard<std::recursive_mutex> g(settingsMutex);
@@ -394,7 +440,7 @@ void ConfigurationManager::loadExcludedNames()
         excludedNamesFile << configFolder << "/" << "excluded";
         LOG_debug << "Excluded file: " << excludedNamesFile.str();
 
-        if (!is_file_exist(excludedNamesFile.str().c_str()) && !configuredSyncs.size()) //do not add defaults if syncs already configured
+        if (!is_file_exist(excludedNamesFile.str().c_str()) && !oldConfiguredSyncs.size()) //do not add defaults if syncs already configured
         {
             excludedNames.insert(".*");
             excludedNames.insert("desktop.ini");
@@ -432,10 +478,10 @@ void ConfigurationManager::unloadConfiguration()
 {
     std::lock_guard<std::recursive_mutex> g(settingsMutex);
 
-    for (map<string, sync_struct *>::iterator itr = configuredSyncs.begin(); itr != configuredSyncs.end(); )
+    for (map<string, sync_struct *>::iterator itr = oldConfiguredSyncs.begin(); itr != oldConfiguredSyncs.end(); )
     {
         sync_struct *thesync = ((sync_struct*)( *itr ).second );
-        configuredSyncs.erase(itr++);
+        oldConfiguredSyncs.erase(itr++);
         delete thesync;
     }
 
@@ -499,11 +545,11 @@ void ConfigurationManager::loadsyncs()
                 thesync->localpath.resize(lengthLocalPath);
                 fi.read((char*)thesync->localpath.c_str(), sizeof( char ) * lengthLocalPath);
 
-                if (configuredSyncs.find(thesync->localpath) != configuredSyncs.end())
+                if (oldConfiguredSyncs.find(thesync->localpath) != oldConfiguredSyncs.end())
                 {
-                    delete configuredSyncs[thesync->localpath];
+                    delete oldConfiguredSyncs[thesync->localpath];
                 }
-                configuredSyncs[thesync->localpath] = thesync;
+                oldConfiguredSyncs[thesync->localpath] = thesync;
 
                 if (versioncodeStoredValues != MEGACMD_CODE_VERSION)
                 {
@@ -512,7 +558,7 @@ void ConfigurationManager::loadsyncs()
             }
             if (updateSavedFormatRequired)
             {
-                ConfigurationManager::saveSyncs(&ConfigurationManager::configuredSyncs);
+                ConfigurationManager::saveSyncs(&ConfigurationManager::oldConfiguredSyncs);
             }
 
             if (fi.bad())

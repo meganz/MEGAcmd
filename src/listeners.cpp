@@ -31,35 +31,35 @@ void MegaCmdGlobalListener::onChatsUpdate(MegaApi*, MegaTextChatList*)
 }
 #endif
 
-void MegaCmdGlobalListener::onUsersUpdate(MegaApi *api, MegaUserList *users)
+void MegaCmdGlobalListener::onUsersUpdate(MegaApi *api, MegaUserList *users1)
 {
-    if (users)
+    if (users1)
     {
-        if (users->size() == 1)
+        if (users1->size() == 1)
         {
             LOG_debug << " 1 user received or updated";
         }
         else
         {
-            LOG_debug << users->size() << " users received or updated";
+            LOG_debug << users1->size() << " users received or updated";
         }
     }
     else //initial update or too many changes
     {
-        MegaUserList *users = api->getContacts();
+        MegaUserList *users2 = api->getContacts();
 
-        if (users && users->size())
+        if (users2 && users2->size())
         {
-            if (users->size() == 1)
+            if (users2->size() == 1)
             {
                 LOG_debug << " 1 user received or updated";
             }
             else
             {
-                LOG_debug << users->size() << " users received or updated";
+                LOG_debug << users2->size() << " users received or updated";
             }
 
-            delete users;
+            delete users2;
         }
     }
 }
@@ -172,7 +172,7 @@ void MegaCmdGlobalListener::onEvent(MegaApi *api, MegaEvent *event)
             LOG_debug << " receivied EVENT_ACCOUNT_BLOCKED: number = " << event->getNumber();
             return;
         }
-        setBlocked(event->getNumber()); //this should be true always
+        setBlocked(int(event->getNumber())); //this should be true always
 
         switch (event->getNumber())
         {
@@ -228,7 +228,7 @@ void MegaCmdGlobalListener::onEvent(MegaApi *api, MegaEvent *event)
         else
         {
             int previousStatus = sandboxCMD->storageStatus;
-            sandboxCMD->storageStatus = event->getNumber();
+            sandboxCMD->storageStatus = int(event->getNumber());
             if (sandboxCMD->storageStatus == MegaApi::STORAGE_STATE_PAYWALL || sandboxCMD->storageStatus == MegaApi::STORAGE_STATE_RED || sandboxCMD->storageStatus == MegaApi::STORAGE_STATE_ORANGE)
             {
                 ConfigurationManager::savePropertyValue("ask4storage",true);
@@ -302,6 +302,17 @@ void MegaCmdGlobalListener::onEvent(MegaApi *api, MegaEvent *event)
     else if (event->getType() == MegaEvent::EVENT_STORAGE_SUM_CHANGED)
     {
         sandboxCMD->receivedStorageSum = event->getNumber();
+    }
+    else if (event->getType() == MegaEvent::EVENT_SYNCS_DISABLED)
+    {
+        removeDelayedBroadcastMatching("Your sync has been temporarily disabled");
+        broadcastMessage(std::string("Your syncs have been temporarily disabled. Reason: ")
+                         .append(MegaSync::getMegaSyncErrorCode(int(event->getNumber())))), true;
+    }
+    else if (event->getType() == MegaEvent::EVENT_SYNCS_RESTORED)
+    {
+        removeGreetingMatching("Your syncs have been temporarily disabled");
+        broadcastMessage("Your syncs have been re-enabled.", true);
     }
 }
 
@@ -419,6 +430,49 @@ void MegaCmdMegaListener::onBackupTemporaryError(MegaApi *api, MegaBackup *backu
         LOG_err << "Backup temporary error: " << error->getErrorString();
     }
 }
+
+void MegaCmdMegaListener::onSyncAdded(MegaApi *api, MegaSync *sync, int additionState)
+{
+    LOG_verbose << "Sync added: " << sync->getLocalFolder() << " to " << sync->getLastKnownMegaFolder()
+                << ". Adding state = " << additionState;
+
+    if (!ConfigurationManager::getConfigurationValue("firstSyncConfigured", false))
+    {
+        api->sendEvent(MCMD_EVENT_FIRST_CONFIGURED_SYNC_ID,
+                   MCMD_EVENT_FIRST_CONFIGURED_SYNC_MESSAGE);
+        ConfigurationManager::savePropertyValue("firstSyncConfigured", true);
+    }
+}
+
+void MegaCmdMegaListener::onSyncDisabled(MegaApi *api, MegaSync *sync)
+{
+    if (sync->getError() != MegaSync::LOGGED_OUT
+           && (sync->getError() != MegaSync::NO_SYNC_ERROR || sync->isTemporaryDisabled()) )
+    {
+        string msg = "Your sync has been ";
+        msg.append(sync->isTemporaryDisabled() ? "temporarily": "permanently");
+        msg.append(" disabled: ");
+        msg.append(sync->getLocalFolder());
+        msg.append(" to: ");
+        msg.append(sync->getLastKnownMegaFolder());
+        msg.append(". Reason: ");
+        msg.append(sync->getMegaSyncErrorCode());
+        broadcastDelayedMessage(msg, true);
+    }
+    LOG_warn << "Sync disabled: " << sync->getLocalFolder() << " to " << sync->getLastKnownMegaFolder()
+             << ". Reason: " << sync->getMegaSyncErrorCode();
+}
+
+void MegaCmdMegaListener::onSyncEnabled(MegaApi *api, MegaSync *sync)
+{
+    LOG_verbose << "Sync re-enabled: " << sync->getLocalFolder() << " to " << sync->getLastKnownMegaFolder();
+}
+
+void MegaCmdMegaListener::onSyncDeleted(MegaApi *api, MegaSync *sync)
+{
+    LOG_verbose << "Sync deleted: " << sync->getLocalFolder() << " to " << sync->getLastKnownMegaFolder();
+}
+
 #endif
 ////////////////////////////////////////
 ///      MegaCmdListener methods     ///
@@ -449,44 +503,6 @@ void MegaCmdListener::doOnRequestFinish(MegaApi* api, MegaRequest *request, Mega
     {
         case MegaRequest::TYPE_FETCH_NODES:
         {
-            map<string, sync_struct *>::iterator itr;
-            int i = 0;
-#ifdef ENABLE_SYNC
-
-            std::shared_ptr<std::lock_guard<std::recursive_mutex>> g = std::make_shared<std::lock_guard<std::recursive_mutex>>(ConfigurationManager::settingsMutex);
-            // shared pointed lock_guard. will be freed when all resuming are complete
-
-            for (itr = ConfigurationManager::configuredSyncs.begin(); itr != ConfigurationManager::configuredSyncs.end(); ++itr, i++)
-            {
-                sync_struct *oldsync = ((sync_struct*)( *itr ).second );
-
-                MegaNode * node = api->getNodeByHandle(oldsync->handle);
-                api->resumeSync(oldsync->localpath.c_str(), node, oldsync->fingerprint, new MegaCmdListenerFuncExecuter([g, oldsync, node](mega::MegaApi* api, mega::MegaRequest *request, mega::MegaError *e)
-                {
-                    std::unique_ptr<char []>nodepath (api->getNodePath(node));
-
-                    if ( e->getErrorCode() == MegaError::API_OK )
-                    {
-                        if (request->getNumber())
-                        {
-                            oldsync->fingerprint = request->getNumber();
-                        }
-                        oldsync->active = true;
-                        oldsync->loadedok = true;
-
-                        LOG_info << "Loaded sync: " << oldsync->localpath << " to " << nodepath.get();
-                    }
-                    else
-                    {
-                        oldsync->loadedok = false;
-                        oldsync->active = false;
-
-                        LOG_err << "Failed to resume sync: " << oldsync->localpath << " to " << nodepath.get();
-                    }
-                    delete node;
-                }, true));
-            }
-#endif
             informProgressUpdate(PROGRESS_COMPLETE, request->getTotalBytes(), this->clientID, "Fetching nodes");
             break;
         }
