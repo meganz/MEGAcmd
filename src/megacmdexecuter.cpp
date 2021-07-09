@@ -3230,8 +3230,13 @@ bool MegaCmdExecuter::amIPro()
     return prolevel > 0;
 }
 
-void MegaCmdExecuter::exportNode(MegaNode *n, int64_t expireTime, std::string password, bool force, bool writable)
+void MegaCmdExecuter::exportNode(MegaNode *n, int64_t expireTime, std::string password,
+                                 std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions)
 {
+    bool force = getFlag(clflags,"f");
+    bool writable = getFlag(clflags,"writable");
+    bool megaHosted = getFlag(clflags,"mega-hosted");
+
     bool copyrightAccepted = false;
 
     copyrightAccepted = ConfigurationManager::getConfigurationValue("copyrightAccepted", false) || force;
@@ -3260,7 +3265,7 @@ void MegaCmdExecuter::exportNode(MegaNode *n, int64_t expireTime, std::string pa
     {
         ConfigurationManager::savePropertyValue("copyrightAccepted",true);
         MegaCmdListener *megaCmdListener = new MegaCmdListener(api, NULL);
-        api->exportNode(n, expireTime, writable, megaCmdListener);
+        api->exportNode(n, expireTime, writable, megaHosted, megaCmdListener);
         megaCmdListener->wait();
         if (checkNoErrors(megaCmdListener->getError(), "export node"))
         {
@@ -9187,7 +9192,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                             if (add)
                             {
                                 LOG_debug << " exporting ... " << n->getName() << " expireTime=" << expireTime;
-                                exportNode(n, expireTime, linkPass, getFlag(clflags,"f"), getFlag(clflags,"writable"));
+                                exportNode(n, expireTime, linkPass, clflags, cloptions);
                             }
                             else if (getFlag(clflags, "d"))
                             {
@@ -9222,7 +9227,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     if (add)
                     {
                         LOG_debug << " exporting ... " << n->getName();
-                        exportNode(n, expireTime, linkPass, getFlag(clflags,"f"), getFlag(clflags,"writable"));
+                        exportNode(n, expireTime, linkPass, clflags, cloptions);
                     }
                     else if (getFlag(clflags, "d"))
                     {

@@ -598,6 +598,7 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validParams->insert("d");
         validParams->insert("f");
         validParams->insert("writable");
+        validParams->insert("mega-hosted");
         validOptValues->insert("expire");
         validOptValues->insert("password");
 #ifdef USE_PCRE
