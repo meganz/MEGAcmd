@@ -9,6 +9,7 @@ FPDFIUM := $(shell dpkg --print-architecture | grep -i "i386\|arm" >/dev/null &&
 RPDFIUM := $(shell dpkg --print-architecture | grep -i "i386\|arm" >/dev/null && echo "" || echo '-DREQUIRE_HAVE_PDFIUM')
 INSTALL3RD := $(shell dpkg --print-architecture | grep -i "i386\|arm" >/dev/null && echo "" || echo 'install3rd')
 LDFLAGS := $(shell dpkg --print-architecture | grep -i "i386\|arm" >/dev/null && echo "" || echo "$$LDFLAGS -Wl,-rpath,/opt/megacmd/lib")
+DEB_TESTING := $(shell cat /etc/issue | grep "Debian" > /dev/null && cat /etc/apt/sources.list | grep -v "^\#" | grep testing > /dev/null && echo "testing")
 
 MEGA_BUILD_ID := $(shell cat MEGA_BUILD_ID || echo "1")
 
@@ -55,7 +56,7 @@ install: build
 	dh_install mega-exec /usr/bin/
 	dh_install src/client/megacmd_completion.sh /etc/bash_completion.d/
 	lsb_release -ds > distro
-	lsb_release -rs > version	
+	if [ -n "$(DEB_TESTING)" ]; then echo $(DEB_TESTING) > version; else lsb_release -rs > version;fi
 	dh_install distro /usr/share/doc/megacmd/
 	dh_install version /usr/share/doc/megacmd/
 	dh_install 99-megacmd-inotify-limit.conf /etc/sysctl.d/
