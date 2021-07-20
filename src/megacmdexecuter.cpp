@@ -3138,10 +3138,8 @@ void MegaCmdExecuter::downloadNode(string source, string path, MegaApi* api, Meg
         delete megaCmdListener;
     }
 
-    if (!background)
-    {
-        multiTransferListener->onNewTransfer();
-    }
+    multiTransferListener->onNewTransfer();
+
 #ifdef _WIN32
     replaceAll(path,"/","\\");
 #endif
@@ -6657,19 +6655,22 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     OUTSTREAM << "Started background transfer <" << dlId.mPath << ">. Tag = " << dlId.mTag << ". Object Identifier: " << dlId.getObjectID() << endl;
                 }
             }
-
-            megaCmdMultiTransferListener->waitMultiEnd();
-
-            if (megaCmdMultiTransferListener->getFinalerror() != MegaError::API_OK)
+            else
             {
-                setCurrentOutCode(megaCmdMultiTransferListener->getFinalerror());
-                LOG_err << "Download failed. error code: " << MegaError::getErrorString(megaCmdMultiTransferListener->getFinalerror());
+                megaCmdMultiTransferListener->waitMultiEnd();
+
+                if (megaCmdMultiTransferListener->getFinalerror() != MegaError::API_OK)
+                {
+                    setCurrentOutCode(megaCmdMultiTransferListener->getFinalerror());
+                    LOG_err << "Download failed. error code: " << MegaError::getErrorString(megaCmdMultiTransferListener->getFinalerror());
+                }
+
+                if (megaCmdMultiTransferListener->getProgressinformed() || getCurrentOutCode() == MCMD_OK )
+                {
+                    informProgressUpdate(PROGRESS_COMPLETE, megaCmdMultiTransferListener->getTotalbytes(), clientID);
+                }
             }
 
-            if (megaCmdMultiTransferListener->getProgressinformed() || getCurrentOutCode() == MCMD_OK )
-            {
-                informProgressUpdate(PROGRESS_COMPLETE, megaCmdMultiTransferListener->getTotalbytes(), clientID);
-            }
         }
         else
         {
