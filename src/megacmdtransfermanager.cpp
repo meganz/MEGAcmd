@@ -1632,6 +1632,12 @@ TransferInfoIOWriter& TransferInfoIOWriter::Instance() {
 
 bool TransferInfoIOWriter::start()
 {
+
+    if (mThreadIoProcessor)
+    {
+        return true;
+    }
+
     auto ret = initializeSqlite();
 
     mIOScheduleMs = ConfigurationManager::getConfigurationValue("downloads_db_io_frequency_ms", 10000);

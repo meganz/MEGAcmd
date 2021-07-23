@@ -653,12 +653,14 @@ private:
     std::shared_ptr<TransferInfo> loadTransferInfo(const std::string &objectId);
     std::vector<std::shared_ptr<TransferInfo>> loadSubTransfers(TransferInfo *parent);
 
+    // Initiates mThreadIoProcessor thread loop finish.
+    void end();
+
 public:
 
     static TransferInfoIOWriter& Instance();
     bool start();
     void shutdown(bool loginout = false);
-    void end();
     void loopIOActionProcessor();
 
     std::string transferInfoDbPath() const;
