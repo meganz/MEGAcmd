@@ -85,7 +85,7 @@ This will cancel all transfers and set the backup as ABORTED
 
 Similarly you can remove a backup, to no longer backup that folder with:
 ```
-backup -d /path/mega/folder
+backup -d TAG
 ``` 
 This will not remove the existing backups wich will be available in MEGA.
 
