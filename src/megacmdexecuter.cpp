@@ -3870,6 +3870,13 @@ void MegaCmdExecuter::signup(string name, string passwd, string email)
         lastname = name.substr(spos+1);
     }
 
+    if (lastname.empty())
+    {
+        setCurrentOutCode(MCMD_INVALIDSTATE);
+        LOG_err << "Please provide a valid name (with name and surname separated by \" \")";
+        return;
+    }
+
     OUTSTREAM << "Singinup up. name=" << firstname << ". surname=" << lastname<< endl;
 
     api->createAccount(email.c_str(), passwd.c_str(), firstname.c_str(), lastname.c_str(), megaCmdListener);
@@ -8952,16 +8959,19 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         else if (words.size() > 1)
         {
             string email = words[1];
+            string defaultName = email;
+            replaceAll(defaultName, "@"," ");
+
             if (words.size() > 2)
             {
-                string name = getOption(cloptions, "name", email);
+                string name = getOption(cloptions, "name", defaultName);
                 string passwd = words[2];
                 signup(name, passwd, email);
             }
             else
             {
                 login = words[1];
-                name = getOption(cloptions, "name", email);
+                name = getOption(cloptions, "name", defaultName);
                 signingup = true;
                 if (interactiveThread())
                 {

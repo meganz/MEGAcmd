@@ -4920,7 +4920,7 @@ int main(int argc, char* argv[])
 
         while (is_pid_running(processId))
         {
-            cerr << "Waiting for former server to end:  " << processId << endl;
+            cerr << "Waiting for former MEGAcmd server to end:  " << processId << endl;
             sleep(1);
         }
 #endif
