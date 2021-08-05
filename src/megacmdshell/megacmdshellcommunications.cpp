@@ -336,8 +336,8 @@ SOCKET MegaCmdShellCommunications::createSocket(int number, bool initializeserve
                     string pathtolog = createAndRetrieveConfigFolder()+"/megacmdserver.log";
                     CERR << "[Initiating server in background. Log: " << pathtolog << "]" << endl; //TODO: try this in windows with non unicode user name?
 
-                    dup2(fileno(stdout), fileno(stderr));  //redirects stderr to stdout below this line.
                     freopen(pathtolog.c_str(),"w",stdout);
+                    dup2(fileno(stdout), fileno(stderr));  //redirects stderr to stdout below this line.
 
 #ifndef NDEBUG
 
