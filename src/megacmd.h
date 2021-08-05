@@ -19,6 +19,8 @@
 #ifndef MEGACMD_H
 #define MEGACMD_H
 
+#include "megacmdcommonutils.h"
+
 #include <iostream>
 #include <iomanip>
 #ifdef _WIN32

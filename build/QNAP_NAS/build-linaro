@@ -115,6 +115,7 @@ $CXX $CXXFLAGS \
      src/megacmdsandbox.cpp \
      src/listeners.cpp \
      src/megacmdexecuter.cpp \
+     src/megacmdtransfermanager.cpp \
      src/comunicationsmanagerportsockets.cpp \
      src/comunicationsmanagerfilesockets.cpp \
      sdk/sdk_build/install/lib/libmega.a \

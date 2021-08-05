@@ -21,6 +21,8 @@
 
 #include "megacmdlogger.h"
 #include "megacmdsandbox.h"
+#include "megacmdtransfermanager.h"
+
 
 namespace megacmd {
 class MegaCmdSandbox;
@@ -131,7 +133,7 @@ private:
     float percentDownloaded;
     bool alreadyFinished;
     int clientID;
-    int started;
+    unsigned started;
     int finished;
     long long transferredbytes;
     std::map<int, long long> ongoingtransferredbytes;
@@ -144,6 +146,12 @@ private:
 
     bool progressinformed;
 
+    // string to tag map
+
+    std::mutex mAllStartedMutex; //will get locked in ctor, and only released once all are done
+    std::mutex mStartedTransfersMutex; //to protect mStartedTransfers
+    std::vector<DownloadId> mStartedTransfers;
+
 public:
     MegaCmdMultiTransferListener(mega::MegaApi *megaApi, MegaCmdSandbox * sandboxCMD, mega::MegaTransferListener *listener = NULL, int clientID=-1);
     virtual ~MegaCmdMultiTransferListener();
@@ -155,9 +163,14 @@ public:
     virtual void onTransferTemporaryError(mega::MegaApi *api, mega::MegaTransfer *transfer, mega::MegaError* e);
     virtual bool onTransferData(mega::MegaApi *api, mega::MegaTransfer *transfer, char *buffer, size_t size);
 
-    void onNewTransfer();
+    void onNewTransfer(/*const string &path*/);
+
+    void onTransferStarted(const std::string &path, int tag);
 
     void waitMultiEnd();
+
+    // waits untill all transfers have started
+    void waitMultiStart();
 
     int getFinalerror() const;
 
@@ -165,9 +178,34 @@ public:
 
     bool getProgressinformed() const;
 
+    std::vector<DownloadId> getStartedTransfers() const;
+
 protected:
     mega::MegaTransferListener *listener;
 };
+
+/**
+ * @brief TODO: document and rename
+ * Note: self destructive
+ */
+class ATransferListener : public mega::MegaTransferListener
+{
+private:
+    std::shared_ptr<MegaCmdMultiTransferListener> mMultiTransferListener;  //the listener this belongs too
+    const std::string mPath; //The path that originated the transfer
+
+public:
+    ATransferListener(const std::shared_ptr<MegaCmdMultiTransferListener> &mMultiTransferListener, const std::string &path);
+    virtual ~ATransferListener();
+
+    //Transfer callbacks
+    virtual void onTransferStart(mega::MegaApi* api, mega::MegaTransfer *transfer);
+    virtual void onTransferFinish(mega::MegaApi* api, mega::MegaTransfer *transfer, mega::MegaError* e);
+    virtual void onTransferUpdate(mega::MegaApi* api, mega::MegaTransfer *transfer);
+    virtual void onTransferTemporaryError(mega::MegaApi *api, mega::MegaTransfer *transfer, mega::MegaError* e);
+    virtual bool onTransferData(mega::MegaApi *api, mega::MegaTransfer *transfer, char *buffer, size_t size);
+};
+
 
 class MegaCmdGlobalListener : public mega::MegaGlobalListener
 {

@@ -404,6 +404,7 @@ killall -s SIGUSR2 mega-cmd-server 2> /dev/null || true
 %{_bindir}/mega-permissions
 %{_bindir}/mega-deleteversions
 %{_bindir}/mega-transfers
+%{_bindir}/mega-downloads
 %{_bindir}/mega-import
 %{_bindir}/mega-invite
 %{_bindir}/mega-ipc
