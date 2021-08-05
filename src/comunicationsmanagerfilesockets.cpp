@@ -536,6 +536,7 @@ CmdPetition * ComunicationsManagerFileSockets::getPetition()
     {
         LOG_fatal << "ERROR reading from socket at getPetition: " << errno;
         inf->line = strdup("ERROR");
+        close(newsockfd);
         return inf;
     }
 
@@ -545,6 +546,7 @@ CmdPetition * ComunicationsManagerFileSockets::getPetition()
     {
         LOG_fatal << "ERROR creating output socket at getPetition: " << errno;
         inf->line = strdup("ERROR");
+        close(newsockfd);
         return inf;
     }
 
@@ -553,6 +555,7 @@ CmdPetition * ComunicationsManagerFileSockets::getPetition()
     {
         LOG_fatal << "ERROR writing to socket at getPetition: " << errno;
         inf->line = strdup("ERROR");
+        close(newsockfd);
         return inf;
     }
     close(newsockfd);
