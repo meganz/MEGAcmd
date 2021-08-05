@@ -364,7 +364,7 @@ HANDLE MegaCmdShellCommunicationsNamedPipes::createNamedPipe(int number, bool in
             else
             {
                 //launch server
-                cerr << "Server not running. Initiating in the background..." << endl;
+                cerr << "MEGAcmd Server not running. Initiating in the background..." << endl;
                 STARTUPINFO si;
                 PROCESS_INFORMATION pi;
                 ZeroMemory( &si, sizeof(si) );
@@ -430,7 +430,7 @@ HANDLE MegaCmdShellCommunicationsNamedPipes::createNamedPipe(int number, bool in
                 }
                 if (attempts < 0)
                 {
-                    cerr << "Unable to connect to " << (number?("response namedPipe N "+number):"server") << ": error=" << ERRNO << endl;
+                    cerr << "Unable to connect to " << (number?("response namedPipe N "+number):"MEGAcmd server") << ": error=" << ERRNO << endl;
 
                     cerr << "Please ensure MEGAcmdServer is running" << endl;
                     return INVALID_HANDLE_VALUE;
@@ -799,7 +799,7 @@ int MegaCmdShellCommunicationsNamedPipes::listenToStateChanges(int receiveNamedP
             if (!timeout_notified_server_might_be_down)
             {
                 timeout_notified_server_might_be_down = 30;
-                cerr << endl << "Server is probably down. Executing anything will try to respawn or reconnect to it";
+                cerr << endl << "MEGAcmdServer.exe is probably down. Executing anything will try to respawn or reconnect to it";
             }
             timeout_notified_server_might_be_down--;
             if (!timeout_notified_server_might_be_down)
