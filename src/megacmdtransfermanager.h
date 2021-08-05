@@ -633,7 +633,7 @@ private:
     std::condition_variable mIOcv;
     bool mFinished = false;
     int64_t mIOScheduleMs = 0;
-    int64_t mIOMaxActionBeforeNotifying = 0;
+    uint64_t mIOMaxActionBeforeNotifying = 0;
     std::unique_ptr<std::thread> mThreadIoProcessor;
 
     std::string mTransferInfoDbPath;

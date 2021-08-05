@@ -133,7 +133,7 @@ private:
     float percentDownloaded;
     bool alreadyFinished;
     int clientID;
-    int started;
+    unsigned started;
     int finished;
     long long transferredbytes;
     std::map<int, long long> ongoingtransferredbytes;

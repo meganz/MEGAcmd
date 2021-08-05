@@ -1054,7 +1054,8 @@ bool MegaCmdMultiTransferListener::onTransferData(MegaApi *api, MegaTransfer *tr
 void MegaCmdMultiTransferListener::onNewTransfer(/*const string &path*/)
 {
     started ++;
-    mAllStartedMutex.try_lock();
+    auto lockedResult = mAllStartedMutex.try_lock();
+    LOG_verbose << " attempt to lock mAllStartedMutex: " << lockedResult;
 }
 
 void MegaCmdMultiTransferListener::onTransferStarted(const std::string &path, int tag)

@@ -89,10 +89,10 @@ void printTransferColumnDisplayer(ColumnDisplayer *cd, MegaTransfer *transfer, c
     else
     {
         //source
-        string source(transfer->getParentPath()?transfer->getParentPath():"");
-        source.append(transfer->getFileName());
+        string uploadsource(transfer->getParentPath()?transfer->getParentPath():"");
+        uploadsource.append(transfer->getFileName());
 
-        cd->addValue("SOURCEPATH",source);
+        cd->addValue("SOURCEPATH",uploadsource);
 
         //destination
         assert(false && "destination not available in global function");
@@ -1506,14 +1506,14 @@ std::shared_ptr<TransferInfo> TransferInfoIOWriter::loadTransferInfo(const std::
         {
             int64_t id = sqlite3_column_int64(stmt, 0);
             mLastId = std::max(id, mLastId);
-            std::string objectId((char*)sqlite3_column_text(stmt, 1), sqlite3_column_bytes(stmt, 1));
+            std::string objectIdRead((char*)sqlite3_column_text(stmt, 1), sqlite3_column_bytes(stmt, 1));
             int64_t parentDbId = sqlite3_column_int64(stmt, 2);
             auto lastUpdate(sqlite3_column_int64(stmt, 3));
             std::string contents((char*)sqlite3_column_blob(stmt, 4), sqlite3_column_bytes(stmt, 4));
 
             assert(parentDbId == DataBaseEntry::INVALID_DB_ID && "Reading some parent transfer with assigned parent db id");
 
-            auto transferInfo = std::make_shared<TransferInfo>(contents, lastUpdate, nullptr, objectId);
+            auto transferInfo = std::make_shared<TransferInfo>(contents, lastUpdate, nullptr, objectIdRead);
             transferInfo->setDbid(id);
 
             auto subtransfers = loadSubTransfers(transferInfo.get());
@@ -1641,7 +1641,7 @@ bool TransferInfoIOWriter::start()
     auto ret = initializeSqlite();
 
     mIOScheduleMs = ConfigurationManager::getConfigurationValue("downloads_db_io_frequency_ms", 10000);
-    mIOMaxActionBeforeNotifying = ConfigurationManager::getConfigurationValue("downloads_db_max_queued_changes", 1000);
+    mIOMaxActionBeforeNotifying = ConfigurationManager::getConfigurationValue("downloads_db_max_queued_changes", 1000u);
 
     if (!ret)
     {
