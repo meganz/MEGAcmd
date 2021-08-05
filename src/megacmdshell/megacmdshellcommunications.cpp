@@ -306,15 +306,15 @@ SOCKET MegaCmdShellCommunications::createSocket(int number, bool initializeserve
 
         bool unlinkAfter = false;
         bzero(socket_path, sizeof( socket_path ) * sizeof( *socket_path ));
-        if (number)
-        {
-            sprintf(socket_path, "/tmp/megaCMD_%d/srv_%d", getuid(), number);
-            unlinkAfter = true;
-        }
-        else
-        {
+//        if (number)
+//        {
+//            sprintf(socket_path, "/tmp/megaCMD_%d/srv_%d", getuid(), number);
+//            unlinkAfter = true;
+//        }
+//        else
+//        {
             sprintf(socket_path, "/tmp/megaCMD_%d/srv", getuid() );
-        }
+//        }
 
         struct sockaddr_un addr;
 
@@ -444,8 +444,8 @@ SOCKET MegaCmdShellCommunications::createSocket(int number, bool initializeserve
         }
 
 
-        //can unlink after connected:
-       if (unlinkAfter) unlink(socket_path);
+//        //can unlink after connected:
+//       if (unlinkAfter) unlink(socket_path);
 
         return thesock;
     }
@@ -620,19 +620,20 @@ int MegaCmdShellCommunications::executeCommand(string command, std::string (*rea
         return -1;
     }
 
-    int receiveSocket = SOCKET_ERROR ;
+//    int receiveSocket = SOCKET_ERROR ;
+//    n = recv(thesock, (char *)&receiveSocket, sizeof(receiveSocket), MSG_NOSIGNAL);
+//    if (n == SOCKET_ERROR)
+//    {
+//        cerr << "ERROR reading output socket" << endl;
+//        return -1;
+//    }
 
-    n = recv(thesock, (char *)&receiveSocket, sizeof(receiveSocket), MSG_NOSIGNAL);
-    if (n == SOCKET_ERROR)
-    {
-        cerr << "ERROR reading output socket" << endl;
-        return -1;
-    }
+//    SOCKET newsockfd = createSocket(receiveSocket);
+//    if (!socketValid(newsockfd))
+//        return -1;
 
-    SOCKET newsockfd = createSocket(receiveSocket);
-    if (!socketValid(newsockfd))
-        return -1;
 
+    SOCKET newsockfd = thesock; //TODO: use thesock everywhere and close it
     int outcode = -1;
 
     n = recv(newsockfd, (char *)&outcode, sizeof(outcode), MSG_NOSIGNAL);
@@ -767,7 +768,7 @@ int MegaCmdShellCommunications::executeCommand(string command, std::string (*rea
     }
 
     closeSocket(newsockfd);
-    closeSocket(thesock);
+//    closeSocket(thesock);
     return outcode;
 }
 
@@ -781,7 +782,8 @@ void *MegaCmdShellCommunications::listenToStateChangesEntry(void *slsc)
 
 int MegaCmdShellCommunications::listenToStateChanges(int receiveSocket, void (*statechangehandle)(string))
 {
-    newsockfd = createSocket(receiveSocket);
+//    newsockfd = createSocket(receiveSocket);
+    newsockfd = receiveSocket;
 
     int timeout_notified_server_might_be_down = 0;
     while (!stopListener)
@@ -919,18 +921,21 @@ int MegaCmdShellCommunications::registerForStateChanges(bool interactive, void (
     {
         cerr << "ERROR writing output Code to socket: " << ERRNO << endl;
         registerAgainRequired = true;
+        close(thesock);
         return -1;
     }
 
-    int receiveSocket = SOCKET_ERROR ;
+//    int receiveSocket = SOCKET_ERROR ;
 
-    n = recv(thesock, (char *)&receiveSocket, sizeof(receiveSocket), MSG_NOSIGNAL);
-    if (n == SOCKET_ERROR)
-    {
-        cerr << "ERROR reading output socket" << endl;
-        registerAgainRequired = true;
-        return -1;
-    }
+//    n = recv(thesock, (char *)&receiveSocket, sizeof(receiveSocket), MSG_NOSIGNAL);
+//    if (n == SOCKET_ERROR)
+//    {
+//        cerr << "ERROR reading output socket" << endl;
+//        registerAgainRequired = true;
+//        return -1;
+//    }
+
+    int receiveSocket = thesock; //TODO: remove receiveSocket references
 
     if (listenerThread != NULL)
     {
@@ -949,7 +954,7 @@ int MegaCmdShellCommunications::registerForStateChanges(bool interactive, void (
 
     registerAgainRequired = false;
 
-    closeSocket(thesock);
+//    closeSocket(thesock);
     return 0;
 }
 

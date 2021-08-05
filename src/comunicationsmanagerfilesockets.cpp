@@ -40,6 +40,7 @@ int ComunicationsManagerFileSockets::get_next_comm_id()
 
 int ComunicationsManagerFileSockets::create_new_socket(int *sockId)
 {
+    assert(false && "deprecated");
     int thesock;
     int attempts = 10;
     bool socketsucceded = false;
@@ -295,16 +296,18 @@ void ComunicationsManagerFileSockets::returnAndClosePetition(CmdPetition *inf, O
     LOG_verbose << "Output to write in socket " << ((CmdPetitionPosixSockets *)inf)->outSocket;
     sockaddr_in cliAddr;
     socklen_t cliLength = sizeof( cliAddr );
+    //TODO: remove acceptedOutSocket
+    ((CmdPetitionPosixSockets *)inf)->acceptedOutSocket = ((CmdPetitionPosixSockets *)inf)->outSocket;
     int connectedsocket = ((CmdPetitionPosixSockets *)inf)->acceptedOutSocket;
-    if (connectedsocket == -1)
-    {
-        connectedsocket = accept(((CmdPetitionPosixSockets *)inf)->outSocket, (struct sockaddr*)&cliAddr, &cliLength);
-        if (fcntl(connectedsocket, F_SETFD, FD_CLOEXEC) == -1)
-        {
-            LOG_err << "ERROR setting CLOEXEC to socket: " << errno;
-        }
-        ((CmdPetitionPosixSockets *)inf)->acceptedOutSocket = connectedsocket; //So that it gets closed in destructor
-    }
+//    if (connectedsocket == -1)
+//    {
+//        connectedsocket = accept(((CmdPetitionPosixSockets *)inf)->outSocket, (struct sockaddr*)&cliAddr, &cliLength);
+//        if (fcntl(connectedsocket, F_SETFD, FD_CLOEXEC) == -1)
+//        {
+//            LOG_err << "ERROR setting CLOEXEC to socket: " << errno;
+//        }
+//        ((CmdPetitionPosixSockets *)inf)->acceptedOutSocket = connectedsocket; //So that it gets closed in destructor
+//    }
     if (connectedsocket == -1)
     {
         LOG_fatal << "Return and close: Unable to accept on outsocket " << ((CmdPetitionPosixSockets *)inf)->outSocket << " error: " << errno;
@@ -337,6 +340,7 @@ void ComunicationsManagerFileSockets::sendPartialOutput(CmdPetition *inf, OUTSTR
 
     sockaddr_in cliAddr;
     socklen_t cliLength = sizeof( cliAddr );
+    ((CmdPetitionPosixSockets *)inf)->acceptedOutSocket = ((CmdPetitionPosixSockets *)inf)->outSocket; //TODO: remove acceptedOutSocket
     int connectedsocket = ((CmdPetitionPosixSockets *)inf)->acceptedOutSocket;
     if (connectedsocket == -1)
     {
@@ -400,36 +404,38 @@ int ComunicationsManagerFileSockets::informStateListener(CmdPetition *inf, strin
     int connectedsocket = -1;
     if (connectedsockets.find(((CmdPetitionPosixSockets *)inf)->outSocket) == connectedsockets.end())
     {
-        //select with timeout and accept non-blocking, so that things don't get stuck
-        fd_set set;
-        FD_ZERO(&set);
-        FD_SET(((CmdPetitionPosixSockets *)inf)->outSocket, &set);
+//        //select with timeout and accept non-blocking, so that things don't get stuck
+//        fd_set set;
+//        FD_ZERO(&set);
+//        FD_SET(((CmdPetitionPosixSockets *)inf)->outSocket, &set);
 
-        struct timeval timeout;
-        timeout.tv_sec = 4;
-        timeout.tv_usec = 0;
-        int rv = select(((CmdPetitionPosixSockets *)inf)->outSocket+1, &set, NULL, NULL, &timeout);
-        if(rv == -1)
-        {
-            LOG_err << "Informing state listener: Unable to select on outsocket " << ((CmdPetitionPosixSockets *)inf)->outSocket << " error: " << errno;
-            return -1;
-        }
-        else if(rv == 0)
-        {
-            LOG_warn << "Informing state listener: timeout in select on outsocket " << ((CmdPetitionPosixSockets *)inf)->outSocket;
-        }
-        else
-        {
-            int oldfl = fcntl(sockfd, F_GETFL);
-            fcntl(((CmdPetitionPosixSockets *)inf)->outSocket, F_SETFL, oldfl | O_NONBLOCK);
-            connectedsocket = accept(((CmdPetitionPosixSockets *)inf)->outSocket, (struct sockaddr*)&cliAddr, &cliLength);
-            if (fcntl(connectedsocket, F_SETFD, FD_CLOEXEC) == -1)
-            {
-                LOG_err << "ERROR setting CLOEXEC to socket: " << errno;
-            }
-            fcntl(((CmdPetitionPosixSockets *)inf)->outSocket, F_SETFL, oldfl);
-        }
+//        struct timeval timeout;
+//        timeout.tv_sec = 4;
+//        timeout.tv_usec = 0;
+//        int rv = select(((CmdPetitionPosixSockets *)inf)->outSocket+1, &set, NULL, NULL, &timeout);
+//        if(rv == -1)
+//        {
+//            LOG_err << "Informing state listener: Unable to select on outsocket " << ((CmdPetitionPosixSockets *)inf)->outSocket << " error: " << errno;
+//            return -1;
+//        }
+//        else if(rv == 0)
+//        {
+//            LOG_warn << "Informing state listener: timeout in select on outsocket " << ((CmdPetitionPosixSockets *)inf)->outSocket;
+//        }
+//        else
+//        {
+//            int oldfl = fcntl(sockfd, F_GETFL);
+//            fcntl(((CmdPetitionPosixSockets *)inf)->outSocket, F_SETFL, oldfl | O_NONBLOCK);
+//            connectedsocket = accept(((CmdPetitionPosixSockets *)inf)->outSocket, (struct sockaddr*)&cliAddr, &cliLength);
+//            if (fcntl(connectedsocket, F_SETFD, FD_CLOEXEC) == -1)
+//            {
+//                LOG_err << "ERROR setting CLOEXEC to socket: " << errno;
+//            }
+//            fcntl(((CmdPetitionPosixSockets *)inf)->outSocket, F_SETFL, oldfl);
+//        }
+        connectedsocket = ((CmdPetitionPosixSockets *)inf)->outSocket;
         connectedsockets[((CmdPetitionPosixSockets *)inf)->outSocket] = connectedsocket;
+        //TODO: review whole usage of connectedsockets
     }
     else
     {
@@ -540,25 +546,28 @@ CmdPetition * ComunicationsManagerFileSockets::getPetition()
         return inf;
     }
 
-    int socket_id = 0;
-    inf->outSocket = create_new_socket(&socket_id);
-    if (!inf->outSocket || !socket_id)
-    {
-        LOG_fatal << "ERROR creating output socket at getPetition: " << errno;
-        inf->line = strdup("ERROR");
-        close(newsockfd);
-        return inf;
-    }
+    //int socket_id = 0;
+//    inf->outSocket = create_new_socket(&socket_id);
 
-    n = write(newsockfd, &socket_id, sizeof( socket_id ));
-    if (n < 0)
-    {
-        LOG_fatal << "ERROR writing to socket at getPetition: " << errno;
-        inf->line = strdup("ERROR");
-        close(newsockfd);
-        return inf;
-    }
-    close(newsockfd);
+    inf->outSocket = newsockfd;
+
+//    if (!inf->outSocket || !socket_id)
+//    {
+//        LOG_fatal << "ERROR creating output socket at getPetition: " << errno;
+//        inf->line = strdup("ERROR");
+//        close(newsockfd);
+//        return inf;
+//    }
+
+//    n = write(newsockfd, &socket_id, sizeof( socket_id ));
+//    if (n < 0)
+//    {
+//        LOG_fatal << "ERROR writing to socket at getPetition: " << errno;
+//        inf->line = strdup("ERROR");
+//        close(newsockfd);
+//        return inf;
+//    }
+//    close(newsockfd);
 
 
     inf->line = strdup(wholepetition.c_str());
