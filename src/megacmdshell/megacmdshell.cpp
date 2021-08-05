@@ -256,7 +256,7 @@ void statechangehandle(string statestring)
             if (serverTryingToLog)
             {
                 std::unique_lock<std::mutex> lk(MegaCmdShellCommunications::megaCmdStdoutputing);
-                printCenteredContentsCerr(string(" Server is still trying to log in. Still, some commands are available.\n"
+                printCenteredContentsCerr(string("MEGAcmd Server is still trying to log in. Still, some commands are available.\n"
                              "Type \"help\", to list them.").c_str(), width);
             }
             changeprompt(newstate.substr(strlen("prompt:")).c_str(),true);

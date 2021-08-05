@@ -205,7 +205,7 @@ SOCKET MegaCmdShellCommunications::createSocket(int number, bool initializeserve
             if (!number && initializeserver)
             {
                 //launch server
-                cerr << "[Server not running. Initiating in the background]"<< endl;
+                cerr << "[MEGAcmd Server not running. Initiating in the background]"<< endl;
 #ifdef _WIN32
                 STARTUPINFO si;
                 PROCESS_INFORMATION pi;
@@ -267,7 +267,7 @@ SOCKET MegaCmdShellCommunications::createSocket(int number, bool initializeserve
                 }
                 if (attempts < 0) //TODO: check this whenever attempts is > 0
                 {
-                    cerr << "Unable to connect to " << (number?("response socket N "+SSTR(number)):"server") << ": error=" << ERRNO << endl;
+                    cerr << "Unable to connect to " << (number?("response socket N "+SSTR(number)):"MEGAcmd server") << ": error=" << ERRNO << endl;
 #ifdef __linux__
                     cerr << "Please ensure mega-cmd-server is running" << endl;
 #else
@@ -334,7 +334,7 @@ SOCKET MegaCmdShellCommunications::createSocket(int number, bool initializeserve
                     setsid(); //create new session so as not to receive parent's Ctrl+C
 
                     string pathtolog = createAndRetrieveConfigFolder()+"/megacmdserver.log";
-                    CERR << "[Initiating server in background. Log: " << pathtolog << "]" << endl; //TODO: try this in windows with non unicode user name?
+                    CERR << "[Initiating MEGAcmd server in background. Log: " << pathtolog << "]" << endl; //TODO: try this in windows with non unicode user name?
 
                     freopen(pathtolog.c_str(),"w",stdout);
                     dup2(fileno(stdout), fileno(stderr));  //redirects stderr to stdout below this line.
@@ -430,7 +430,7 @@ SOCKET MegaCmdShellCommunications::createSocket(int number, bool initializeserve
 #ifdef ECONNREFUSED
                 if (!initializeserver && ERRNO == ECONNREFUSED)
                 {
-                    cerr << "Server is not responding" << endl;
+                    cerr << "MEGAcmd Server is not responding" << endl;
                 }
                 else
 #endif
@@ -605,7 +605,7 @@ int MegaCmdShellCommunications::executeCommand(string command, std::string (*rea
     {
         if ( (!command.compare(0,5,"Xexit") || !command.compare(0,5,"Xquit") ) && (ERRNO == ENOTCONN) )
         {
-             cerr << "Could not send exit command to server (probably already down)" << endl;
+             cerr << "Could not send exit command to MEGAcmd server (probably already down)" << endl;
         }
         else
         {
@@ -799,7 +799,7 @@ int MegaCmdShellCommunications::listenToStateChanges(int receiveSocket, void (*s
 
         if (n == SOCKET_ERROR)
         {
-            cerr << "ERROR reading state from server: " << ERRNO << endl;
+            cerr << "ERROR reading state from MEGAcmd server: " << ERRNO << endl;
             closeSocket(newsockfd);
             return -1;
         }
@@ -811,7 +811,7 @@ int MegaCmdShellCommunications::listenToStateChanges(int receiveSocket, void (*s
                 timeout_notified_server_might_be_down = 30;
                 if (!stopListener && !updating)
                 {
-                    cerr << endl << "[Server is probably down. Type to respawn or reconnect to it]" << endl;
+                    cerr << endl << "[mega-cmd-server is probably down. Type to respawn or reconnect to it]" << endl;
                 }
                 else
                 {
