@@ -307,17 +307,8 @@ SOCKET MegaCmdShellCommunications::createSocket(int number, bool initializeserve
             cerr << "ERROR setting CLOEXEC to socket: " << errno << endl;
         }
 
-        bool unlinkAfter = false;
         bzero(socket_path, sizeof( socket_path ) * sizeof( *socket_path ));
-//        if (number)
-//        {
-//            sprintf(socket_path, "/tmp/megaCMD_%d/srv_%d", getuid(), number);
-//            unlinkAfter = true;
-//        }
-//        else
-//        {
-            sprintf(socket_path, "/tmp/megaCMD_%d/srv", getuid() );
-//        }
+        sprintf(socket_path, "/tmp/megaCMD_%d/srv", getuid() );
 
         struct sockaddr_un addr;
 
