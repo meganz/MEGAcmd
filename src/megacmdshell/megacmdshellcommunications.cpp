@@ -669,7 +669,6 @@ int MegaCmdShellCommunications::executeCommand(string command, std::string (*rea
             string confirmQuestion;
             char buffer[1025];
             do{
-                n = recv(thesock, buffer, BUFFERSIZE, MSG_NOSIGNAL);
 #ifdef _WIN32
                 n = recv(thesock, buffer, (int)BUFFERSIZE, MSG_NOSIGNAL);
 #else
