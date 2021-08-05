@@ -29,20 +29,15 @@ namespace megacmd {
 class CmdPetitionPosixSockets: public CmdPetition
 {
 public:
-    int outSocket;
-    int acceptedOutSocket;
+    int outSocket = -1;
 
     CmdPetitionPosixSockets(){
-        acceptedOutSocket = -1;
     }
 
     virtual ~CmdPetitionPosixSockets()
     {
         close(outSocket);
-        if (acceptedOutSocket != -1)
-        {
-            close(acceptedOutSocket);
-        }
+        outSocket = -1;
     }
 };
 
@@ -64,13 +59,6 @@ private:
     std::mutex mtx;
     std::mutex informerMutex;
 
-    /**
-     * @brief create_new_socket
-     * The caller is responsible for deleting the newly created socket
-     * @return
-     */
-    int create_new_socket(int *sockId);
-
 public:
     ComunicationsManagerFileSockets();
 
@@ -79,8 +67,6 @@ public:
     bool receivedPetition();
 
     int waitForPetition();
-
-    int get_next_comm_id();
 
     virtual void stopWaiting();
 
