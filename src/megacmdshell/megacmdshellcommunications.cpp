@@ -670,6 +670,11 @@ int MegaCmdShellCommunications::executeCommand(string command, std::string (*rea
             char buffer[1025];
             do{
                 n = recv(thesock, buffer, BUFFERSIZE, MSG_NOSIGNAL);
+#ifdef _WIN32
+                n = recv(thesock, buffer, (int)BUFFERSIZE, MSG_NOSIGNAL);
+#else
+                n = recv(thesock, buffer, BUFFERSIZE, MSG_NOSIGNAL);
+#endif
                 if (n)
                 {
                     buffer[n]='\0';
@@ -898,7 +903,7 @@ int MegaCmdShellCommunications::registerForStateChanges(bool interactive, void (
     {
         cerr << "ERROR writing output Code to socket: " << ERRNO << endl;
         registerAgainRequired = true;
-        close(thesock);
+        closeSocket(thesock);
         return -1;
     }
 
@@ -911,7 +916,11 @@ int MegaCmdShellCommunications::registerForStateChanges(bool interactive, void (
     stopListener = false;
 
     sListenStateChanges * slsc = new sListenStateChanges();
+#ifdef _WIN32
+    slsc->receiveSocket = (int)thesock;
+#else
     slsc->receiveSocket = thesock;
+#endif
     slsc->statechangehandle = statechangehandle;
 
     //store the socket to close connections when closing
