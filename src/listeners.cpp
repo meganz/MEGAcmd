@@ -876,7 +876,7 @@ void MegaCmdMultiTransferListener::doOnTransferFinish(MegaApi* api, MegaTransfer
 
 void MegaCmdMultiTransferListener::waitMultiEnd()
 {
-    for (int i=0; i < started; i++)
+    for (unsigned i = 0; i < started; i++)
     {
         wait();
     }
