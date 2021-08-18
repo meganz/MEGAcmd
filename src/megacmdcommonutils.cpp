@@ -371,9 +371,22 @@ bool hasWildCards(string &what)
 
 std::vector<std::string> split(const std::string& input, const std::string& pattern)
 {
-    std::regex re(pattern);
-    std::sregex_token_iterator first{input.begin(), input.end(), re, -1}, last;
-    return {first, last};
+    size_t start = 0, end;
+    std::vector<std::string> tokens;
+
+    do
+    {
+        end = input.find(pattern, start);
+        std::string token = input.substr(start, end - start);
+        if (token.size())
+        {
+            tokens.push_back(token);
+        }
+        start = end + pattern.size();
+
+    } while (end != std::string::npos);
+
+    return tokens;
 }
 
 long long charstoll(const char *instr)
