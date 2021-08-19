@@ -2,12 +2,12 @@
 # direct core dependencies of the SDK
 c-ares/c303dd024e2dc03a0665ddffbb12a1077933e649
 cryptopp/c303dd024e2dc03a0665ddffbb12a1077933e649
-curl/c303dd024e2dc03a0665ddffbb12a1077933e649:curl-empty-bindir.patch
+curl/c303dd024e2dc03a0665ddffbb12a1077933e649 all:curl-empty-bindir.patch
 libsodium/c303dd024e2dc03a0665ddffbb12a1077933e649
 openssl/c303dd024e2dc03a0665ddffbb12a1077933e649
 openssl-unix/c303dd024e2dc03a0665ddffbb12a1077933e649
 openssl-windows/c303dd024e2dc03a0665ddffbb12a1077933e649
-readline/8.0 osx
+readline/8.0 all:off osx:on
 pcre/c303dd024e2dc03a0665ddffbb12a1077933e649
 sqlite3/c303dd024e2dc03a0665ddffbb12a1077933e649
 zlib/c303dd024e2dc03a0665ddffbb12a1077933e649
@@ -21,7 +21,7 @@ libzen/0.4.37
 ffmpeg/c303dd024e2dc03a0665ddffbb12a1077933e649
 
 #freeimage and its dependencies (image preview/thumbnail generation)
-freeimage/c47216ac7904b09187c119c7e4d010dcf993e3d5:freeimage-bool-typedef-and-xbm-msvc-compiler-bug.patch
+freeimage/c47216ac7904b09187c119c7e4d010dcf993e3d5 all:freeimage-bool-typedef-and-xbm-msvc-compiler-bug.patch
 libpng/c303dd024e2dc03a0665ddffbb12a1077933e649
 libjpeg-turbo/c303dd024e2dc03a0665ddffbb12a1077933e649
 tiff/c303dd024e2dc03a0665ddffbb12a1077933e649
@@ -29,8 +29,8 @@ openjpeg/c303dd024e2dc03a0665ddffbb12a1077933e649
 libwebp/c303dd024e2dc03a0665ddffbb12a1077933e649
 libraw/c303dd024e2dc03a0665ddffbb12a1077933e649
 jxrlib/c303dd024e2dc03a0665ddffbb12a1077933e649
-openexr/c303dd024e2dc03a0665ddffbb12a1077933e649:openexr-no-python.patch
-jasper/c303dd024e2dc03a0665ddffbb12a1077933e649:jasper-no-freeglut.patch
+openexr/c303dd024e2dc03a0665ddffbb12a1077933e649 all:openexr-no-python.patch
+jasper/c303dd024e2dc03a0665ddffbb12a1077933e649 all:jasper-no-freeglut.patch
 liblzma/c303dd024e2dc03a0665ddffbb12a1077933e649
 #python3 not needed; it only provides python bindings to use openexr from python
 libffi/c303dd024e2dc03a0665ddffbb12a1077933e649
