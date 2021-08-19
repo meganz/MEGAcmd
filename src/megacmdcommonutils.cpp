@@ -374,18 +374,27 @@ std::vector<std::string> split(const std::string& input, const std::string& patt
     size_t start = 0, end;
     std::vector<std::string> tokens;
 
-    do
+    if (input.size())
     {
-        end = input.find(pattern, start);
-        std::string token = input.substr(start, end - start);
-        if (token.size())
+        if (pattern.size())
         {
-            tokens.push_back(token);
+            do
+            {
+                end = input.find(pattern, start);
+                std::string token = input.substr(start, end - start);
+                if (token.size())
+                {
+                    tokens.push_back(token);
+                }
+                start = end + pattern.size();
+
+            } while (end != std::string::npos);
         }
-        start = end + pattern.size();
-
-    } while (end != std::string::npos);
-
+        else
+        {
+            tokens.push_back(input);
+        }
+    }
     return tokens;
 }
 
