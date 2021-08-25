@@ -93,11 +93,11 @@ This will not remove the existing backups wich will be available in MEGA.
 
 Similarly you can change the period or the number of backups to keep with:
 ```
-backup 4 --period=2h
+backup /path/mega/folder --num-backups=1
 ```
 This will set our backup with TAG=4 to have a period of 2 hours.
 ```
-backup /path/mega/folder --num-backups=1
+backup 4 --period=2h
 ```
 This will configure the backup to only keep one instance. 
 Notice that in order not to lose data, older instances will not be deleted until
