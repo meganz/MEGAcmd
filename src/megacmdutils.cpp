@@ -385,31 +385,31 @@ const char * getTransferStateStr(int transferState)
 
 string backupSatetStr(int backupstate)
 {
-    if (backupstate == MegaBackup::BACKUP_FAILED)
+    if (backupstate == MegaScheduledCopy::SCHEDULED_COPY_FAILED)
     {
         return "FAILED";
     }
-    if (backupstate == MegaBackup::BACKUP_CANCELED)
+    if (backupstate == MegaScheduledCopy::SCHEDULED_COPY_CANCELED)
     {
         return "CANCELED";
     }
-    if (backupstate == MegaBackup::BACKUP_INITIALSCAN)
+    if (backupstate == MegaScheduledCopy::SCHEDULED_COPY_INITIALSCAN)
     {
         return "INITIALSCAN";
     }
-    if (backupstate == MegaBackup::BACKUP_ACTIVE)
+    if (backupstate == MegaScheduledCopy::SCHEDULED_COPY_ACTIVE)
     {
         return "ACTIVE";
     }
-    if (backupstate == MegaBackup::BACKUP_ONGOING)
+    if (backupstate == MegaScheduledCopy::SCHEDULED_COPY_ONGOING)
     {
         return "ONGOING";
     }
-    if (backupstate == MegaBackup::BACKUP_SKIPPING)
+    if (backupstate == MegaScheduledCopy::SCHEDULED_COPY_SKIPPING)
     {
         return "SKIPPING";
     }
-    if (backupstate == MegaBackup::BACKUP_REMOVING_EXCEEDING)
+    if (backupstate == MegaScheduledCopy::SCHEDULED_COPY_REMOVING_EXCEEDING)
     {
         return "EXCEEDREMOVAL";
     }
