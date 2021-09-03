@@ -1501,10 +1501,10 @@ void MegaCmdExecuter::createOrModifyBackup(string local, string remote, string s
 
     if (!speriod.size())
     {
-        MegaScheduledCopy *backup = api->getBackupByPath(local.c_str());
+        MegaScheduledCopy *backup = api->getScheduledCopyByPath(local.c_str());
         if (!backup)
         {
-            backup = api->getBackupByTag(toInteger(local, -1));
+            backup = api->getScheduledCopyByTag(toInteger(local, -1));
         }
         if (backup)
         {
@@ -1530,10 +1530,10 @@ void MegaCmdExecuter::createOrModifyBackup(string local, string remote, string s
 
     if (numBackups == -1)
     {
-        MegaScheduledCopy *backup = api->getBackupByPath(local.c_str());
+        MegaScheduledCopy *backup = api->getScheduledCopyByPath(local.c_str());
         if (!backup)
         {
-            backup = api->getBackupByTag(toInteger(local, -1));
+            backup = api->getScheduledCopyByTag(toInteger(local, -1));
         }
         if (backup)
         {
@@ -1555,10 +1555,10 @@ void MegaCmdExecuter::createOrModifyBackup(string local, string remote, string s
     }
     else
     {
-        MegaScheduledCopy *backup = api->getBackupByPath(local.c_str());
+        MegaScheduledCopy *backup = api->getScheduledCopyByPath(local.c_str());
         if (!backup)
         {
-            backup = api->getBackupByTag(toInteger(local, -1));
+            backup = api->getScheduledCopyByTag(toInteger(local, -1));
         }
         if (backup)
         {
@@ -4387,7 +4387,7 @@ void MegaCmdExecuter::printBackup(backup_struct *backupstruct, const char *timeF
 {
     if (backupstruct->tag >= 0)
     {
-        MegaScheduledCopy *backup = api->getBackupByTag(backupstruct->tag);
+        MegaScheduledCopy *backup = api->getScheduledCopyByTag(backupstruct->tag);
         if (backup)
         {
             printBackup(backupstruct->tag, backup, timeFormat, PATHSIZE, extendedinfo, showhistory);
@@ -6728,10 +6728,10 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             string local = words.at(1);
             unescapeifRequired(local);
 
-            MegaScheduledCopy *backup = api->getBackupByPath(local.c_str());
+            MegaScheduledCopy *backup = api->getScheduledCopyByPath(local.c_str());
             if (!backup)
             {
-                backup = api->getBackupByTag(toInteger(local, -1));
+                backup = api->getScheduledCopyByTag(toInteger(local, -1));
             }
             map<string, backup_struct *>::iterator itr;
             if (backup)
