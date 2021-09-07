@@ -1,6 +1,12 @@
 #[[
     Run this file from its current folder in script mode, with triplet as a defined parameter:
         cmake -DTRIPLET=<triplet> [-DTARGET=<target>[;<targets>...] ] -P build_from_scratch.cmake
+		
+	eg. for windows:
+	     cmake -DTRIPLET=x64-windows-mega -P build_from_scratch.cmake
+	     cmake -DTRIPLET=x86-windows-mega -P build_from_scratch.cmake
+		 (on a highly locked down machine you may need to run it from a git console so that sh.exe can be invoked)
+		
     It will set up and build 3rdparty in a folder next to the MEGAcmd repo, and also
     build MEGAcmd against those 3rd party libraries.
     pdfium must be supplied manually, or it can be commented out in preferred-ports-megacmd.txt
