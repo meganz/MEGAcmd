@@ -59,8 +59,10 @@ elif [[ $ver == 9.* ]]; then
     str="Debian_9.0"
 elif [[ $ver = 10* ]]; then
     str="Debian_10.0"
+elif [[ $ver = 11* ]]; then
+    str="Debian_11"
 elif [[ $ver = "testing" ]]; then
-    str="Debian_10.0"
+    str="Debian_testing"
 # Elementary OS Luna uses 12.04
 elif [[ $distro = "elementary OS Luna" ]]; then
     str="xUbuntu_12.04"

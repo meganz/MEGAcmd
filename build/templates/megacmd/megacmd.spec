@@ -263,13 +263,18 @@ DATA
         %define reponame openSUSE_Leap_42.1
     %endif
 
-    %if 0%{?sle_version} == 150000
+    %if 0%{?sle_version} == 150000 || 0%{?sle_version} == 150100 || 0%{?sle_version} == 150200
         %define reponame openSUSE_Leap_15.0
-    %else
-        %if 0%{?suse_version} > 1320
-            %define reponame openSUSE_Tumbleweed
-        %endif
     %endif
+
+    %if 0%{?sle_version} == 150300
+        %define reponame openSUSE_Leap_15.3
+    %endif
+
+    %if 0%{?sle_version} == 0 && 0%{?suse_version} >= 1550
+        %define reponame openSUSE_Tumbleweed
+    %endif
+
     %if 0%{?suse_version} == 1320
         %define reponame openSUSE_13.2
     %endif
@@ -399,6 +404,7 @@ killall -s SIGUSR2 mega-cmd-server 2> /dev/null || true
 %{_bindir}/mega-permissions
 %{_bindir}/mega-deleteversions
 %{_bindir}/mega-transfers
+%{_bindir}/mega-downloads
 %{_bindir}/mega-import
 %{_bindir}/mega-invite
 %{_bindir}/mega-ipc

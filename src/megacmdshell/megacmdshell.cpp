@@ -256,7 +256,7 @@ void statechangehandle(string statestring)
             if (serverTryingToLog)
             {
                 std::unique_lock<std::mutex> lk(MegaCmdShellCommunications::megaCmdStdoutputing);
-                printCenteredContentsCerr(string(" Server is still trying to log in. Still, some commands are available.\n"
+                printCenteredContentsCerr(string("MEGAcmd Server is still trying to log in. Still, some commands are available.\n"
                              "Type \"help\", to list them.").c_str(), width);
             }
             changeprompt(newstate.substr(strlen("prompt:")).c_str(),true);
@@ -1631,6 +1631,31 @@ void process_line(const char * line)
                     rl_clear_screen(0,0);
 #endif
                     return;
+                }
+                else if ( (words[0] == "downloads"))
+                {
+                    string toexec;
+
+                    if (!strstr (commandtoexec,"path-display-size"))
+                    {
+                        unsigned int width = getNumberOfCols(75);
+                        int pathSize = int((width-46)/2);
+
+                        toexec+=words[0];
+                        toexec+=" --path-display-size=";
+                        toexec+=SSTR(pathSize);
+                        toexec+=" ";
+                        if (strlen(commandtoexec)>(words[0].size()+1))
+                        {
+                            toexec+=commandtoexec+words[0].size()+1;
+                        }
+                    }
+                    else
+                    {
+                        toexec+=commandtoexec;
+                    }
+
+                    comms->executeCommand(toexec.c_str(), readresponse);
                 }
                 else if ( (words[0] == "transfers"))
                 {

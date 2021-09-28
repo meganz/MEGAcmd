@@ -25,6 +25,7 @@ include(../MEGAcmdCommon.pri)
 SOURCES += ../../../../src/megacmd.cpp \
     ../../../../src/listeners.cpp \
     ../../../../src/megacmdexecuter.cpp \
+    ../../../../src/megacmdtransfermanager.cpp \
     ../../../../src/megacmdlogger.cpp \
     ../../../../src/megacmdsandbox.cpp \
     ../../../../src/configurationmanager.cpp \
@@ -35,6 +36,7 @@ SOURCES += ../../../../src/megacmd.cpp \
 
 HEADERS += ../../../../src/megacmd.h \
     ../../../../src/megacmdexecuter.h \
+    ../../../../src/megacmdtransfermanager.h \
     ../../../../src/listeners.h \
     ../../../../src/megacmdlogger.h \
     ../../../../src/megacmdsandbox.h \
