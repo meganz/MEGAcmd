@@ -47,14 +47,17 @@ BuildRequires: ffmpeg-mega pdfium-mega
 
 #Fedora specific
 %if 0%{?fedora}
-    BuildRequires: openssl-devel, sqlite-devel, c-ares-devel, cryptopp-devel
+    BuildRequires: openssl-devel, sqlite-devel, c-ares-devel
+
+    %if 0%{?fedora_version} < 33
+        BuildRequires: cryptopp-devel
+
+        %if 0%{?fedora_version} >= 26
+            Requires: cryptopp >= 5.6.5
+        %endif
 
     %if 0%{?fedora_version} >= 31
         BuildRequires: bzip2-devel
-    %endif
-
-    %if 0%{?fedora_version} >= 26
-        Requires: cryptopp >= 5.6.5
     %endif
 
 %endif
@@ -95,7 +98,7 @@ BuildRequires: ffmpeg-mega pdfium-mega
 %define flag_cryptopp %{nil}
 %define with_cryptopp %{nil}
 
-%if 0%{?centos_version} || 0%{?scientificlinux_version} || 0%{?rhel_version} ||  0%{?suse_version} > 1320
+%if 0%{?centos_version} || 0%{?scientificlinux_version} || 0%{?rhel_version} ||  0%{?suse_version} > 1320 || 0%{?fedora_version} >= 33
     %define flag_cryptopp -q
     %define with_cryptopp --with-cryptopp=$PWD/deps
 %endif
@@ -139,7 +142,7 @@ sed -i -E "s/(^#define MEGACMD_BUILD_ID )[0-9]*/\1${mega_build_id}/g" src/megacm
 %build
 
 # Fedora uses system Crypto++ header files
-%if 0%{?fedora}
+%if 0%{?fedora_version} < 33
     rm -fr bindings/qt/3rdparty/include/cryptopp
 %endif
 
