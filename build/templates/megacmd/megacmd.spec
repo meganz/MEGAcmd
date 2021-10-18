@@ -55,6 +55,7 @@ BuildRequires: ffmpeg-mega pdfium-mega
         %if 0%{?fedora_version} >= 26
             Requires: cryptopp >= 5.6.5
         %endif
+    %endif
 
     %if 0%{?fedora_version} >= 31
         BuildRequires: bzip2-devel
