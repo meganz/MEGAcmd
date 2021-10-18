@@ -215,7 +215,7 @@ void ComunicationsManagerFileSockets::returnAndClosePetition(CmdPetition *inf, O
     {
         LOG_err << "ERROR writing output Code to socket: " << errno;
     }
-    n = send(connectedsocket, sout.data(), max(1ul,sout.size()), MSG_NOSIGNAL); // for some reason without the max recv never quits in the client for empty responses
+    n = send(connectedsocket, sout.data(), max(static_cast<size_t>(1), sout.size()), MSG_NOSIGNAL); // for some reason without the max recv never quits in the client for empty responses
     if (n < 0)
     {
         LOG_err << "ERROR writing to socket: " << errno;
@@ -434,7 +434,7 @@ string ComunicationsManagerFileSockets::getUserResponse(CmdPetition *inf, string
     {
         LOG_err << "ERROR writing output Code to socket: " << errno;
     }
-    n = send(connectedsocket, message.data(), max(1ul,message.size()), MSG_NOSIGNAL); // for some reason without the max recv never quits in the client for empty responses
+    n = send(connectedsocket, message.data(), max(static_cast<size_t>(1), message.size()), MSG_NOSIGNAL); // for some reason without the max recv never quits in the client for empty responses
     if (n < 0)
     {
         LOG_err << "ERROR writing to socket: " << errno;
