@@ -1156,13 +1156,6 @@ void MegaCmdExecuter::dumpNode(MegaNode* n, const char *timeFormat, std::map<std
         {
             case MegaNode::TYPE_FILE:
                 OUTSTREAM << sizeToText(n->getSize(), false);
-
-                const char* p;
-                if (( p = strchr(n->getAttrString()->c_str(), ':')))
-                {
-                    OUTSTREAM << ", has attributes " << p + 1;
-                }
-
                 if (INVALID_HANDLE != n->getPublicHandle())
 //            if (n->isExported())
                 {
