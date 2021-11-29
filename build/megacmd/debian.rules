@@ -5,7 +5,7 @@ WCRYPTOPP := $(shell cat /etc/issue | grep "Ubuntu 1[4-8]\|Ubuntu 19.04\|Debian.
 DPKGXZ := $(shell cat /etc/issue | grep "Ubuntu 21.10" >/dev/null && echo "-- -Zxz" || echo "")
 FMEDIAINFO := $(shell dpkg -l | grep mediainfo >/dev/null && echo "-i" || echo " ")
 WMEDIAINFO := $(shell dpkg -l | grep mediainfo >/dev/null && echo " " || echo "--with-libmediainfo=$(CURDIR)/deps --with-libzen=$(CURDIR)/deps")
-FULLREQS := $(shell cat /etc/issue | grep "Ubuntu 12.04" >/dev/null && echo "" || echo '-DREQUIRE_HAVE_FFMPEG -DREQUIRE_HAVE_LIBUV -DREQUIRE_USE_MEDIAINFO -DREQUIRE_USE_PCRE')
+RFFMPEG := $(shell cat /etc/issue | grep "Raspbian" >/dev/null && echo "" || echo '-DREQUIRE_HAVE_FFMPEG')
 FPDFIUM := $(shell dpkg --print-architecture | grep -i "i386\|arm" >/dev/null && echo "" || echo '--with-pdfium')
 RPDFIUM := $(shell dpkg --print-architecture | grep -i "i386\|arm" >/dev/null && echo "" || echo '-DREQUIRE_HAVE_PDFIUM')
 INSTALL3RD := $(shell dpkg --print-architecture | grep -i "i386\|arm" >/dev/null && echo "" || echo 'install3rd')
@@ -34,7 +34,7 @@ build-stamp:
 	  rm $(CURDIR)/deps/lib/libfreeimage.so $(CURDIR)/deps/lib/libfreeimage.so.3 || : ; \
 	fi
 
-	CPPFLAGS="$(CPPFLAGS) $(RPDFIUM) $(FULLREQS)" LDFLAGS="$(LDFLAGS)" \
+	CPPFLAGS="$(CPPFLAGS) $(RPDFIUM) $(RFFMPEG) -DREQUIRE_HAVE_LIBUV -DREQUIRE_USE_MEDIAINFO -DREQUIRE_USE_PCRE" LDFLAGS="$(LDFLAGS)" \
 	   ./configure --without-libraw --disable-shared --enable-static --disable-silent-rules \
 	  --disable-curl-checks --with-sodium=$(CURDIR)/deps --with-libuv=$(CURDIR)/deps --with-pcre $(FPDFIUM) \
 	  --with-curl=$(CURDIR)/deps --with-freeimage=$(CURDIR)/deps --with-readline=$(CURDIR)/deps \
