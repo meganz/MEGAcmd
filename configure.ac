@@ -21,6 +21,7 @@
 m4_include([sdk/m4/ax_check_compile_flag.m4])
 m4_include([sdk/m4/ax_check_link_flag.m4])
 m4_include([sdk/m4/ax_cxx_compile_stdcxx.m4])
+m4_include([sdk/m4/ax_atomic.m4])
 
 m4_define([megacmd_major_version], [$(cat src/megacmdversion.h | grep "define MEGACMD_MAJOR" | cut -d" " -f 3)])
 m4_define([megacmd_minor_version], [$(cat src/megacmdversion.h | grep "define MEGACMD_MINOR" | cut -d" " -f 3)])
@@ -535,6 +536,9 @@ if test "$HAVE_PTHREAD" = "yes"; then
     fi    
 fi
 AM_CONDITIONAL([HAVE_PTHREAD], [test "${HAVE_PTHREAD}" = "yes"])
+
+# Add -latomic to LDFLAGS if needed
+CHECK_ATOMIC()
 
 #This will simulate compilation of sdk and extract the includes defined for it. Thus we can
 # take care of the configuration done for the subproject withtout having to recheck here
