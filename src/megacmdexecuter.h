@@ -165,9 +165,9 @@ public:
 
     void printBackupHeader(const unsigned int PATHSIZE);
     void printBackupSummary(int tag, const char *localfolder, const char *remoteparentfolder, std::string status, const unsigned int PATHSIZE);
-    void printBackupHistory(mega::MegaBackup *backup, const char *timeFormat, mega::MegaNode *parentnode, const unsigned int PATHSIZE);
-    void printBackupDetails(mega::MegaBackup *backup, const char *timeFormat);
-    void printBackup(int tag, mega::MegaBackup *backup, const char *timeFormat, const unsigned int PATHSIZE, bool extendedinfo = false, bool showhistory = false, mega::MegaNode *parentnode = NULL);
+    void printBackupHistory(mega::MegaScheduledCopy *backup, const char *timeFormat, mega::MegaNode *parentnode, const unsigned int PATHSIZE);
+    void printBackupDetails(mega::MegaScheduledCopy *backup, const char *timeFormat);
+    void printBackup(int tag, mega::MegaScheduledCopy *backup, const char *timeFormat, const unsigned int PATHSIZE, bool extendedinfo = false, bool showhistory = false, mega::MegaNode *parentnode = NULL);
     void printBackup(backup_struct *backupstruct, const char *timeFormat, const unsigned int PATHSIZE, bool extendedinfo = false, bool showhistory = false);
 #endif
     void printSyncHeader(ColumnDisplayer &cd);

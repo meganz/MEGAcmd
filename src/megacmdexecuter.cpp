@@ -1156,13 +1156,6 @@ void MegaCmdExecuter::dumpNode(MegaNode* n, const char *timeFormat, std::map<std
         {
             case MegaNode::TYPE_FILE:
                 OUTSTREAM << sizeToText(n->getSize(), false);
-
-                const char* p;
-                if (( p = strchr(n->getAttrString()->c_str(), ':')))
-                {
-                    OUTSTREAM << ", has attributes " << p + 1;
-                }
-
                 if (INVALID_HANDLE != n->getPublicHandle())
 //            if (n->isExported())
                 {
@@ -1501,10 +1494,10 @@ void MegaCmdExecuter::createOrModifyBackup(string local, string remote, string s
 
     if (!speriod.size())
     {
-        MegaBackup *backup = api->getBackupByPath(local.c_str());
+        MegaScheduledCopy *backup = api->getScheduledCopyByPath(local.c_str());
         if (!backup)
         {
-            backup = api->getBackupByTag(toInteger(local, -1));
+            backup = api->getScheduledCopyByTag(toInteger(local, -1));
         }
         if (backup)
         {
@@ -1530,10 +1523,10 @@ void MegaCmdExecuter::createOrModifyBackup(string local, string remote, string s
 
     if (numBackups == -1)
     {
-        MegaBackup *backup = api->getBackupByPath(local.c_str());
+        MegaScheduledCopy *backup = api->getScheduledCopyByPath(local.c_str());
         if (!backup)
         {
-            backup = api->getBackupByTag(toInteger(local, -1));
+            backup = api->getScheduledCopyByTag(toInteger(local, -1));
         }
         if (backup)
         {
@@ -1555,10 +1548,10 @@ void MegaCmdExecuter::createOrModifyBackup(string local, string remote, string s
     }
     else
     {
-        MegaBackup *backup = api->getBackupByPath(local.c_str());
+        MegaScheduledCopy *backup = api->getScheduledCopyByPath(local.c_str());
         if (!backup)
         {
-            backup = api->getBackupByTag(toInteger(local, -1));
+            backup = api->getScheduledCopyByTag(toInteger(local, -1));
         }
         if (backup)
         {
@@ -4221,7 +4214,7 @@ void MegaCmdExecuter::printBackupSummary(int tag, const char * localfolder, cons
               << endl;
 }
 
-void MegaCmdExecuter::printBackupDetails(MegaBackup *backup, const char *timeFormat)
+void MegaCmdExecuter::printBackupDetails(MegaScheduledCopy *backup, const char *timeFormat)
 {
     if (backup)
     {
@@ -4261,7 +4254,7 @@ void MegaCmdExecuter::printBackupDetails(MegaBackup *backup, const char *timeFor
     }
 }
 
-void MegaCmdExecuter::printBackupHistory(MegaBackup *backup, const char *timeFormat, MegaNode *parentnode, const unsigned int PATHSIZE)
+void MegaCmdExecuter::printBackupHistory(MegaScheduledCopy *backup, const char *timeFormat, MegaNode *parentnode, const unsigned int PATHSIZE)
 {
     bool firstinhistory = true;
     MegaStringList *msl = api->getBackupFolders(backup->getTag());
@@ -4339,7 +4332,7 @@ void MegaCmdExecuter::printBackupHistory(MegaBackup *backup, const char *timeFor
     }
 }
 
-void MegaCmdExecuter::printBackup(int tag, MegaBackup *backup, const char *timeFormat, const unsigned int PATHSIZE, bool extendedinfo, bool showhistory, MegaNode *parentnode)
+void MegaCmdExecuter::printBackup(int tag, MegaScheduledCopy *backup, const char *timeFormat, const unsigned int PATHSIZE, bool extendedinfo, bool showhistory, MegaNode *parentnode)
 {
     if (backup)
     {
@@ -4387,7 +4380,7 @@ void MegaCmdExecuter::printBackup(backup_struct *backupstruct, const char *timeF
 {
     if (backupstruct->tag >= 0)
     {
-        MegaBackup *backup = api->getBackupByTag(backupstruct->tag);
+        MegaScheduledCopy *backup = api->getScheduledCopyByTag(backupstruct->tag);
         if (backup)
         {
             printBackup(backupstruct->tag, backup, timeFormat, PATHSIZE, extendedinfo, showhistory);
@@ -4880,7 +4873,7 @@ bool MegaCmdExecuter::establishBackup(string pathToBackup, MegaNode *n, int64_t 
     fsAccessCMD->expanselocalpath(localrelativepath, localabsolutepath);
 
     MegaCmdListener *megaCmdListener = new MegaCmdListener(api, NULL);
-    api->setBackup(localabsolutepath.toPath(*fsAccessCMD).c_str(), n, attendpastbackups, period, speriod.c_str(), numBackups, megaCmdListener);
+    api->setScheduledCopy(localabsolutepath.toPath(*fsAccessCMD).c_str(), n, attendpastbackups, period, speriod.c_str(), numBackups, megaCmdListener);
     megaCmdListener->wait();
     if (checkNoErrors(megaCmdListener->getError(), "establish backup"))
     {
@@ -6728,10 +6721,10 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             string local = words.at(1);
             unescapeifRequired(local);
 
-            MegaBackup *backup = api->getBackupByPath(local.c_str());
+            MegaScheduledCopy *backup = api->getScheduledCopyByPath(local.c_str());
             if (!backup)
             {
-                backup = api->getBackupByTag(toInteger(local, -1));
+                backup = api->getScheduledCopyByTag(toInteger(local, -1));
             }
             map<string, backup_struct *>::iterator itr;
             if (backup)
@@ -6753,7 +6746,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 if (dodelete)
                 {
                     MegaCmdListener *megaCmdListener = new MegaCmdListener(api, NULL);
-                    api->removeBackup(backup->getTag(), megaCmdListener);
+                    api->removeScheduledCopy(backup->getTag(), megaCmdListener);
                     megaCmdListener->wait();
                     if (checkNoErrors(megaCmdListener->getError(), "remove backup"))
                     {
@@ -6770,7 +6763,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 else if (abort)
                 {
                     MegaCmdListener *megaCmdListener = new MegaCmdListener(api, NULL);
-                    api->abortCurrentBackup(backup->getTag(), megaCmdListener);
+                    api->abortCurrentScheduledCopy(backup->getTag(), megaCmdListener);
                     megaCmdListener->wait();
                     if (checkNoErrors(megaCmdListener->getError(), "abort backup"))
                     {

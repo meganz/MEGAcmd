@@ -403,17 +403,17 @@ void MegaCmdMegaListener::onChatsUpdate(MegaApi *api, MegaTextChatList *chats)
 
 #ifdef ENABLE_BACKUPS
 //backup callbacks:
-void MegaCmdMegaListener::onBackupStateChanged(MegaApi *api,  MegaBackup *backup)
+void MegaCmdMegaListener::onBackupStateChanged(MegaApi *api,  MegaScheduledCopy *backup)
 {
     LOG_verbose << " At onBackupStateChanged: " << backupSatetStr(backup->getState());
 }
 
-void MegaCmdMegaListener::onBackupStart(MegaApi *api, MegaBackup *backup)
+void MegaCmdMegaListener::onBackupStart(MegaApi *api, MegaScheduledCopy *backup)
 {
     LOG_verbose << " At onBackupStart";
 }
 
-void MegaCmdMegaListener::onBackupFinish(MegaApi* api, MegaBackup *backup, MegaError* error)
+void MegaCmdMegaListener::onBackupFinish(MegaApi* api, MegaScheduledCopy *backup, MegaError* error)
 {
     LOG_verbose << " At onBackupFinish";
     if (error->getErrorCode() == MegaError::API_EEXPIRED)
@@ -426,12 +426,12 @@ void MegaCmdMegaListener::onBackupFinish(MegaApi* api, MegaBackup *backup, MegaE
     }
 }
 
-void MegaCmdMegaListener::onBackupUpdate(MegaApi *api, MegaBackup *backup)
+void MegaCmdMegaListener::onBackupUpdate(MegaApi *api, MegaScheduledCopy *backup)
 {
     LOG_verbose << " At onBackupUpdate";
 }
 
-void MegaCmdMegaListener::onBackupTemporaryError(MegaApi *api, MegaBackup *backup, MegaError* error)
+void MegaCmdMegaListener::onBackupTemporaryError(MegaApi *api, MegaScheduledCopy *backup, MegaError* error)
 {
     LOG_verbose << " At onBackupTemporaryError";
     if (error->getErrorCode() != MegaError::API_OK)
