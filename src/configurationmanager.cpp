@@ -235,12 +235,18 @@ void ConfigurationManager::saveProperty(const char *property, const char *value)
 
 void ConfigurationManager::migrateSyncConfig(MegaApi *api)
 {
-    LOG_info << "copying sync config";
+    bool informed = false;
     std::lock_guard<std::recursive_mutex> g(settingsMutex);
 
     for (map<string, sync_struct *>::iterator itr = oldConfiguredSyncs.begin();
          itr != oldConfiguredSyncs.end(); itr++)
     {
+        if (!informed)
+        {
+            LOG_debug << "copying sync config";
+            informed = true;
+        }
+
         sync_struct *thesync = ((sync_struct*)( *itr ).second );
 
         api->copySyncDataToCache(thesync->localpath.c_str(), thesync->handle, nullptr,
