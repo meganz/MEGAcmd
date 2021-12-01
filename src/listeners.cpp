@@ -879,7 +879,10 @@ void MegaCmdMultiTransferListener::waitMultiEnd()
 
 void MegaCmdMultiTransferListener::waitMultiStart()
 {
-    mAllStartedMutex.lock();
+    std::unique_lock<std::mutex> lock(mStartedTransfersMutex);
+    mStartedConditionVariable.wait(lock, [this]() {
+            return (mStartedTransfersCount >= created);
+    });
 }
 
 
@@ -1048,32 +1051,21 @@ bool MegaCmdMultiTransferListener::onTransferData(MegaApi *api, MegaTransfer *tr
     return true;
 }
 
-void MegaCmdMultiTransferListener::onNewTransfer(/*const string &path*/)
+void MegaCmdMultiTransferListener::onNewTransfer()
 {
     std::lock_guard<std::mutex> g(mStartedTransfersMutex);
     created ++;
-    auto lockedResult = mAllStartedMutex.try_lock();
-    LOG_verbose << " attempt to lock mAllStartedMutex: " << lockedResult;
 }
 
 void MegaCmdMultiTransferListener::onTransferStarted(const std::string &path, int tag)
 {
-    bool allStarted = false;
-
     {
         std::lock_guard<std::mutex> g(mStartedTransfersMutex);
         mStartedTransfersCount++;
 #ifdef HAVE_DOWNLOADS_COMMAND
         mStartedTransfers.emplace_back(DownloadId(tag,path));
 #endif
-        if (mStartedTransfersCount >= created)
-        {
-            allStarted = true;
-        }
-    }
-    if (allStarted)
-    {
-        mAllStartedMutex.unlock();
+        mStartedConditionVariable.notify_one();
     }
 }
 
