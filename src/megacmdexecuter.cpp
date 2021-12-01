@@ -2435,13 +2435,13 @@ int MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
         }
 #endif
 
+#ifdef HAVE_DOWNLOADS_COMMAND
         bool downloads_tracking_enabled = ConfigurationManager::getConfigurationValue("downloads_tracking_enabled", false);
-
         if (downloads_tracking_enabled)
         {
             DownloadsManager::Instance().start();
         }
-
+#endif
         ConfigurationManager::migrateSyncConfig(api);
 
         LOG_info << "Fetching nodes ... ";
@@ -2713,6 +2713,7 @@ void MegaCmdExecuter::fetchNodes(MegaApi *api, int clientID)
 
 void MegaCmdExecuter::cleanSlateTranfers()
 {
+#ifdef HAVE_DOWNLOADS_COMMAND
     bool downloads_cleanslate = ConfigurationManager::getConfigurationValue("downloads_cleanslate_enabled", false);
 
     if (downloads_cleanslate)
@@ -2740,6 +2741,7 @@ void MegaCmdExecuter::cleanSlateTranfers()
 
         DownloadsManager::Instance().purge();
     }
+#endif
 }
 
 void MegaCmdExecuter::actUponLogout(SynchronousRequestListener *srl, bool keptSession, int timeout)
@@ -2774,8 +2776,9 @@ void MegaCmdExecuter::actUponLogout(SynchronousRequestListener *srl, bool keptSe
         }
         ConfigurationManager::clearConfigurationFile();
 
+#ifdef HAVE_DOWNLOADS_COMMAND
         DownloadsManager::Instance().shutdown(true);
-
+#endif
         mtxSyncMap.unlock();
     }
     updateprompt(api);
@@ -3138,14 +3141,7 @@ void MegaCmdExecuter::downloadNode(string source, string path, MegaApi* api, Meg
 #endif
     LOG_debug << "Starting download: " << node->getName() << " to : " << path;
 
-    if (multiTransferListener && !background)
-    {
-        api->startDownload(node, path.c_str(), new ATransferListener(multiTransferListener, source));
-    }
-    else
-    {
-        api->startDownload(node, path.c_str(), new ATransferListener(multiTransferListener, source));
-    }
+    api->startDownload(node, path.c_str(), new ATransferListener(multiTransferListener, source));
 }
 
 void MegaCmdExecuter::uploadNode(string path, MegaApi* api, MegaNode *node, string newname, bool background, bool ignorequotawarn, int clientID, MegaCmdMultiTransferListener *multiTransferListener)
@@ -6648,12 +6644,14 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
             if (background) //TODO: do the same for uploads?
             {
+#ifdef HAVE_DOWNLOADS_COMMAND
                 megaCmdMultiTransferListener->waitMultiStart();
 
                 for (auto & dlId : megaCmdMultiTransferListener->getStartedTransfers())
                 {
                     OUTSTREAM << "Started background transfer <" << dlId.mPath << ">. Tag = " << dlId.mTag << ". Object Identifier: " << dlId.getObjectID() << endl;
                 }
+#endif
             }
             else
             {
@@ -9852,6 +9850,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
         return;
     }
+#ifdef HAVE_DOWNLOADS_COMMAND
     else if (words[0] == "downloads")
     {
         if (getFlag(clflags, "purge"))
@@ -9945,6 +9944,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             }
         }
     }
+#endif
     else if (words[0] == "transfers")
     {
         bool showcompleted = getFlag(clflags, "show-completed");
