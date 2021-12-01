@@ -25,7 +25,6 @@ const char * const megacmdchangelog =
         "Improve communications with server in POSIX: no longer create multiple sockets""\n"
         "Renew and improve sync management and improve status reporting""\n"
         "Commands sync and transfers now allow for selecting --output-cols""\n"
-        "Add a new command to track \"downloads\" rather than individual \"transfers\"""\n"
         "Add creation time to ls""\n"
         "Fix issue running from php (due to a dangling file descriptor)""\n"
         "Fix several crashes, leaks and major performance improvements""\n"
