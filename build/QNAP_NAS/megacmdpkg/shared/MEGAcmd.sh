@@ -1,33 +1,56 @@
 #!/bin/sh
-CONF=/etc/config/qpkg.conf
-QPKG_NAME="MEGAcmd"
-QPKG_ROOT=`/sbin/getcfg $QPKG_NAME Install_Path -f ${CONF}`
-export QNAP_QPKG=$QPKG_NAME
+
+service_start()
+{
+        web_config_add
+        web_config_reload
+}
+
+service_stop()
+{
+        web_config_remove
+        web_config_reload
+}
+
+web_config_add()
+{
+        local getcfg="/sbin/getcfg"
+        local name="MEGAcmd"
+        local conf="/etc/config/qpkg.conf"
+        local root="$($getcfg $name Install_Path -f $conf)"
+
+        ln -sf $root /home/httpd/cgi-bin/qpkg
+        ln -sf $root/web/apache-megacmd.conf /etc/default_config/apache/extra
+}
+
+web_config_reload()
+{
+        /etc/init.d/thttpd.sh reload
+        /etc/init.d/stunnel.sh reload
+}
+
+web_config_remove()
+{
+        rm -f /etc/default_config/apache/extra/apache-megacmd.conf
+        rm -f /home/httpd/cgi-bin/qpkg/MEGAcmd
+}
 
 case "$1" in
-  start)
-    ENABLED=$(/sbin/getcfg $QPKG_NAME Enable -u -d FALSE -f $CONF)
-    if [ "$ENABLED" != "TRUE" ]; then
-        echo "$QPKG_NAME is disabled."
+start)
+        service_start
+        ;;
+stop)
+        service_stop
+        ;;
+restart)
+        service_stop
+        service_start
+        ;;
+*)
+        echo "Usage: $@ {start|stop|restart}"
         exit 1
-    fi
-    echo "MEGA-cmd is a console tool, and can be invoked via an ssh connection.  Executables are at %QPKG_ROOT"
-    sed -i -e "s#%%%#$QPKG_ROOT#" $QPKG_ROOT/web/index.html
-    ln -s $QPKG_ROOT/web /home/Qhttpd/Web/MEGAcmd
-    ;;
-
-  stop)
-    echo "MEGA-cmd is a console tool"
-    ;;
-
-  restart)
-    $0 stop
-    $0 start
-    ;;
-
-  *)
-    echo "Usage: $0 {start|stop|restart}"
-    exit 1
+        ;;
 esac
 
 exit 0
+
