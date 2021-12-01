@@ -7879,7 +7879,6 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             cd.print(oss);
             OUTSTREAM << oss.str();
         }
-        mtxSyncMap.unlock();
         return;
     }
 #endif
