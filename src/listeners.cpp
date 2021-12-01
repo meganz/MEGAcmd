@@ -308,14 +308,9 @@ void MegaCmdGlobalListener::onEvent(MegaApi *api, MegaEvent *event)
     }
     else if (event->getType() == MegaEvent::EVENT_SYNCS_DISABLED)
     {
-        removeDelayedBroadcastMatching("Your sync has been temporarily disabled");
-        broadcastMessage(std::string("Your syncs have been temporarily disabled. Reason: ")
+        removeDelayedBroadcastMatching("Your sync has been disabled");
+        broadcastMessage(std::string("Your syncs have been disabled. Reason: ")
                          .append(MegaSync::getMegaSyncErrorCode(int(event->getNumber())))), true;
-    }
-    else if (event->getType() == MegaEvent::EVENT_SYNCS_RESTORED)
-    {
-        removeGreetingMatching("Your syncs have been temporarily disabled");
-        broadcastMessage("Your syncs have been re-enabled.", true);
     }
     else if (event->getType() == MegaEvent::EVENT_NODES_CURRENT)
     {
