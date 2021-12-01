@@ -15,6 +15,7 @@
  * You should have received a copy of the license along with this
  * program.
  */
+#ifdef HAVE_DOWNLOADS_COMMAND
 
 #include "megacmdtransfermanager.h"
 #include "configurationmanager.h"
@@ -1689,3 +1690,4 @@ void TransferInfoIOWriter::shutdown(bool loginout)
 }
 
 }
+#endif

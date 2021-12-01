@@ -133,7 +133,7 @@ private:
     float percentDownloaded;
     bool alreadyFinished;
     int clientID;
-    unsigned started;
+    unsigned created;
     int finished;
     long long transferredbytes;
     std::map<int, long long> ongoingtransferredbytes;
@@ -150,8 +150,10 @@ private:
 
     std::mutex mAllStartedMutex; //will get locked in ctor, and only released once all are done
     std::mutex mStartedTransfersMutex; //to protect mStartedTransfers
+#ifdef HAVE_DOWNLOADS_COMMAND
     std::vector<DownloadId> mStartedTransfers;
-
+#endif
+    unsigned mStartedTransfersCount = 0;
 public:
     MegaCmdMultiTransferListener(mega::MegaApi *megaApi, MegaCmdSandbox * sandboxCMD, mega::MegaTransferListener *listener = NULL, int clientID=-1);
     virtual ~MegaCmdMultiTransferListener();
@@ -178,7 +180,9 @@ public:
 
     bool getProgressinformed() const;
 
+#ifdef HAVE_DOWNLOADS_COMMAND
     std::vector<DownloadId> getStartedTransfers() const;
+#endif
 
 protected:
     mega::MegaTransferListener *listener;

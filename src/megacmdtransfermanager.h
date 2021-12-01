@@ -16,6 +16,8 @@
  * program.
  */
 
+
+#ifdef HAVE_DOWNLOADS_COMMAND
 #pragma once
 
 #include "megacmdcommonutils.h"
@@ -697,3 +699,5 @@ public:
 
 
 }//end namespace
+
+#endif

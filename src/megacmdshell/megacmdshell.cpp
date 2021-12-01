@@ -1632,6 +1632,7 @@ void process_line(const char * line)
 #endif
                     return;
                 }
+#ifdef HAVE_DOWNLOADS_COMMAND
                 else if ( (words[0] == "downloads"))
                 {
                     string toexec;
@@ -1657,6 +1658,7 @@ void process_line(const char * line)
 
                     comms->executeCommand(toexec.c_str(), readresponse);
                 }
+#endif
                 else if ( (words[0] == "transfers"))
                 {
                     string toexec;
