@@ -2336,6 +2336,15 @@ bool MegaCmdExecuter::actUponFetchNodes(MegaApi *api, SynchronousRequestListener
     }
     else if (checkNoErrors(srl->getError(), "fetch nodes"))
     {
+        // Let's save the session for future resumptions
+        // Note: when logged into folders,
+        // folder session depends on node handle,
+        // which requires fetch nodes to be complete
+        // i.e. dumpSession won't be valid after login
+        session = srl->getApi()->dumpSession();
+        ConfigurationManager::saveSession(session);
+
+
         LOG_verbose << "actUponFetchNodes ok";
 
         return true;
@@ -2389,9 +2398,20 @@ int MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
     else if (checkNoErrors(srl->getError(), "Login")) //login success:
     {
         LOG_debug << "Login correct ... " << (srl->getRequest()->getEmail()?srl->getRequest()->getEmail():"");
+
+        if (srl->getRequest()->getEmail()) // login with email
+        {
+            // If login with email, here we will have a valid new session
+            // otherwise, we can asume that session is already stored.
+            //
+            // Note, if logging into a folder (no email),
+            // the dumpSession reported by the SDK at this point is not valid:
+            // folder session depends on node handle, which requires fetching nodes
+            session = srl->getApi()->dumpSession();
+            ConfigurationManager::saveSession(session);
+        }
+
         /* Restoring configured values */
-        session = srl->getApi()->dumpSession();
-        ConfigurationManager::saveSession(session);
         mtxSyncMap.lock();
         ConfigurationManager::loadsyncs();
         mtxSyncMap.unlock();
@@ -7991,18 +8011,13 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     }
                     else
                     {
-                        unsigned char session[64];
-
-                        if (words[1].size() < sizeof session * 4 / 3)
-                        {
-                            LOG_info << "Resuming session...";
-                            MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
-                            sandboxCMD->resetSandBox();
-                            api->fastLogin(words[1].c_str(), megaCmdListener);
-                            actUponLogin(megaCmdListener);
-                            delete megaCmdListener;
-                            return;
-                        }
+                        LOG_info << "Resuming session...";
+                        MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
+                        sandboxCMD->resetSandBox();
+                        api->fastLogin(words[1].c_str(), megaCmdListener);
+                        actUponLogin(megaCmdListener);
+                        delete megaCmdListener;
+                        return;
                     }
                     setCurrentOutCode(MCMD_EARGS);
                     LOG_err << "Invalid argument. Please specify a valid e-mail address, "
