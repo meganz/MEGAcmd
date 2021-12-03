@@ -21,8 +21,9 @@
 namespace megacmd {
 
 const char * const megacmdchangelog =
-        "Add support for pdfs (uploading them will create thumbnails)""\n"
+        "Add support for pdfs (uploading them will create thumbnails/previews)""\n"
         "Improve communications with server in POSIX: no longer create multiple sockets""\n"
+        "Support resuming session when logged into a folder""\n"
         "Renew and improve sync management and improve status reporting""\n"
         "Commands sync and transfers now allow for selecting --output-cols""\n"
         "Add creation time to ls""\n"
