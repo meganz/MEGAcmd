@@ -146,14 +146,14 @@ private:
 
     bool progressinformed;
 
-    // string to tag map
-
-    std::mutex mAllStartedMutex; //will get locked in ctor, and only released once all are done
     std::mutex mStartedTransfersMutex; //to protect mStartedTransfers
+    std::condition_variable mStartedConditionVariable;
+    unsigned mStartedTransfersCount = 0;
+
 #ifdef HAVE_DOWNLOADS_COMMAND
+    // string to tag map
     std::vector<DownloadId> mStartedTransfers;
 #endif
-    unsigned mStartedTransfersCount = 0;
 public:
     MegaCmdMultiTransferListener(mega::MegaApi *megaApi, MegaCmdSandbox * sandboxCMD, mega::MegaTransferListener *listener = NULL, int clientID=-1);
     virtual ~MegaCmdMultiTransferListener();
@@ -165,7 +165,7 @@ public:
     virtual void onTransferTemporaryError(mega::MegaApi *api, mega::MegaTransfer *transfer, mega::MegaError* e);
     virtual bool onTransferData(mega::MegaApi *api, mega::MegaTransfer *transfer, char *buffer, size_t size);
 
-    void onNewTransfer(/*const string &path*/);
+    void onNewTransfer();
 
     void onTransferStarted(const std::string &path, int tag);
 
