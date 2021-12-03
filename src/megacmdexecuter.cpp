@@ -3144,7 +3144,8 @@ void MegaCmdExecuter::downloadNode(string source, string path, MegaApi* api, Meg
     api->startDownload(node, path.c_str(), new ATransferListener(multiTransferListener, source));
 }
 
-void MegaCmdExecuter::uploadNode(string path, MegaApi* api, MegaNode *node, string newname, bool background, bool ignorequotawarn, int clientID, MegaCmdMultiTransferListener *multiTransferListener)
+void MegaCmdExecuter::uploadNode(string path, MegaApi* api, MegaNode *node, string newname,
+                                 bool background, bool ignorequotawarn, int clientID, MegaCmdMultiTransferListener *multiTransferListener)
 {
     if (!ignorequotawarn)
     { //TODO: reenable this if ever queryBandwidthQuota applies to uploads as well
@@ -3172,14 +3173,24 @@ void MegaCmdExecuter::uploadNode(string path, MegaApi* api, MegaNode *node, stri
         return;
     }
 
-    MegaCmdTransferListener *megaCmdTransferListener = NULL;
+    MegaTransferListener *thelistener = nullptr;
+    std::unique_ptr<MegaCmdTransferListener> singleNonBackgroundTransferListener;
     if (!background)
     {
         if (!multiTransferListener)
         {
-            megaCmdTransferListener = new MegaCmdTransferListener(api, sandboxCMD, multiTransferListener, clientID);
+            singleNonBackgroundTransferListener.reset(new MegaCmdTransferListener(api, sandboxCMD, nullptr, clientID));
+            thelistener = singleNonBackgroundTransferListener.get();
         }
-        multiTransferListener->onNewTransfer();
+        else
+        {
+            multiTransferListener->onNewTransfer();
+            thelistener = multiTransferListener;
+        }
+    }
+    else
+    {
+        thelistener = nullptr;
     }
 
 #ifdef _WIN32
@@ -3188,16 +3199,6 @@ void MegaCmdExecuter::uploadNode(string path, MegaApi* api, MegaNode *node, stri
 
     LOG_debug << "Starting upload: " << path << " to : " << node->getName() << (newname.size()?"/":"") << newname;
 
-
-    MegaTransferListener *thelistener;
-    if (multiTransferListener && !background)
-    {
-       thelistener = multiTransferListener;
-    }
-    else
-    {
-        thelistener = megaCmdTransferListener;
-    }
 
     if (newname.size())
     {
@@ -3208,24 +3209,25 @@ void MegaCmdExecuter::uploadNode(string path, MegaApi* api, MegaNode *node, stri
     {
         api->startUpload(removeTrailingSeparators(path).c_str(), node, thelistener);
     }
-    if (megaCmdTransferListener)
+
+    if (singleNonBackgroundTransferListener)
     {
-        megaCmdTransferListener->wait();
+        assert(!background);
+        singleNonBackgroundTransferListener->wait();
 #ifdef _WIN32
             Sleep(100); //give a while to print end of transfer
 #endif
-        if (megaCmdTransferListener->getError()->getErrorCode() == API_EREAD)
+        if (singleNonBackgroundTransferListener->getError()->getErrorCode() == API_EREAD)
         {
             setCurrentOutCode(MCMD_NOTFOUND);
             LOG_err << "Could not find local path: " << path;
         }
-        else if (checkNoErrors(megaCmdTransferListener->getError(), "Upload node"))
+        else if (checkNoErrors(singleNonBackgroundTransferListener->getError(), "Upload node"))
         {
             char * destinyPath = api->getNodePath(node);
             LOG_info << "Upload complete: " << path << " to " << destinyPath << newname;
             delete []destinyPath;
         }
-        delete megaCmdTransferListener;
     }
 }
 
@@ -7877,7 +7879,6 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             cd.print(oss);
             OUTSTREAM << oss.str();
         }
-        mtxSyncMap.unlock();
         return;
     }
 #endif
