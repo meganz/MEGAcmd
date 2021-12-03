@@ -8020,10 +8020,6 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         delete megaCmdListener;
                         return;
                     }
-                    setCurrentOutCode(MCMD_EARGS);
-                    LOG_err << "Invalid argument. Please specify a valid e-mail address, "
-                              << "a folder link containing the folder key "
-                              << "or a valid session.";
                 }
             }
             else
