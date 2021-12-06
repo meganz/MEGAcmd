@@ -5,7 +5,7 @@ cryptopp/c303dd024e2dc03a0665ddffbb12a1077933e649
 curl/7375bb408f2278d2f1875c259beef93332697ba7 
 libsodium/c303dd024e2dc03a0665ddffbb12a1077933e649
 openssl/c303dd024e2dc03a0665ddffbb12a1077933e649
-openssl-unix/c303dd024e2dc03a0665ddffbb12a1077933e649
+openssl-unix/c303dd024e2dc03a0665ddffbb12a1077933e649  windows:off
 openssl-windows/c303dd024e2dc03a0665ddffbb12a1077933e649
 readline/8.0 all:off osx:on
 pcre/c303dd024e2dc03a0665ddffbb12a1077933e649
