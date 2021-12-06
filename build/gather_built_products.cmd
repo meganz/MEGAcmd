@@ -15,16 +15,16 @@ REM cmake --build . --config Release
 mkdir built32
 mkdir built64
 
-copy ..\x64-windows-mega\Release\MEGAcmdServer.exe built64
-copy ..\x64-windows-mega\Release\MEGAcmdShell.exe built64
-copy ..\x64-windows-mega\Release\MEGAclient.exe built64
-copy ..\x64-windows-mega\Release\MEGAcmdUpdater.exe built64
+copy ..\build-x64-windows-mega\Release\MEGAcmdServer.exe built64
+copy ..\build-x64-windows-mega\Release\MEGAcmdShell.exe built64
+copy ..\build-x64-windows-mega\Release\MEGAclient.exe built64
+copy ..\build-x64-windows-mega\Release\MEGAcmdUpdater.exe built64
 
-copy ..\x86-windows-mega\Release\MEGAcmdServer.exe built32
-copy ..\x86-windows-mega\Release\MEGAcmdShell.exe built32
-copy ..\x86-windows-mega\Release\MEGAclient.exe built32
-copy ..\x86-windows-mega\Release\MEGAcmdUpdater.exe built32
+copy ..\build-x86-windows-mega\Release\MEGAcmdServer.exe built32
+copy ..\build-x86-windows-mega\Release\MEGAcmdShell.exe built32
+copy ..\build-x86-windows-mega\Release\MEGAclient.exe built32
+copy ..\build-x86-windows-mega\Release\MEGAcmdUpdater.exe built32
 
-copy C:\Users\build\MEGA\build-MEGAcmd\3rdParty_MSVC2017_20210809\3rdParty_megacmd\vcpkg\installed\x64-windows-mega\bin_signed\*.* built64
-copy C:\Users\build\MEGA\build-MEGAcmd\3rdParty_MSVC2017_20210809\3rdParty_megacmd\vcpkg\installed\x86-windows-mega\bin_signed\*.* built32
+copy C:\Users\build\MEGA\build-MEGAcmd\3rdParty_MSVC2019_20211206\3rdParty_megacmd\vcpkg\installed\x64-windows-mega\bin_signed\*.* built64
+copy C:\Users\build\MEGA\build-MEGAcmd\3rdParty_MSVC2019_20211206\3rdParty_megacmd\vcpkg\installed\x86-windows-mega\bin_signed\*.* built32
 
