@@ -236,33 +236,46 @@ void ConfigurationManager::saveProperty(const char *property, const char *value)
 void ConfigurationManager::migrateSyncConfig(MegaApi *api)
 {
     bool informed = false;
-    std::lock_guard<std::recursive_mutex> g(settingsMutex);
 
-    for (map<string, sync_struct *>::iterator itr = oldConfiguredSyncs.begin();
-         itr != oldConfiguredSyncs.end(); itr++)
+    std::map<sync_struct*, std::unique_ptr<MegaCmdListener>> listeners;
+
     {
-        if (!informed)
+        std::lock_guard<std::recursive_mutex> g(settingsMutex);
+        for (auto itr = oldConfiguredSyncs.begin();
+             itr != oldConfiguredSyncs.end(); itr++)
         {
-            LOG_debug << "copying sync config";
-            informed = true;
+            if (!informed)
+            {
+                LOG_debug << "copying sync config";
+                informed = true;
+            }
+
+            sync_struct *thesync = ((sync_struct*)( *itr ).second );
+
+            auto newListenerPair = listeners.emplace(thesync, ::make_unique<MegaCmdListener>(api));
+
+            api->copySyncDataToCache(thesync->localpath.c_str(), thesync->handle, nullptr,
+                                     thesync->fingerprint, thesync->active, false, newListenerPair.first->second.get());
         }
-
-        sync_struct *thesync = ((sync_struct*)( *itr ).second );
-
-        api->copySyncDataToCache(thesync->localpath.c_str(), thesync->handle, nullptr,
-                                 thesync->fingerprint, thesync->active, false,
-                                 new MegaCmdListenerFuncExecuter([thesync](MegaApi* api,  MegaRequest *request, MegaError *e)
-        {// Note: we use MegaCmdListenerFuncExecuter, beucase this gets executed in sdk thread: hence, cannot use regular listener and do a wait
-            if (e->getErrorCode() == API_OK)
-            {
-                removeSyncConfig(thesync);
-            }
-            else
-            {
-                LOG_err << " fail to copy old sync cache data: " << thesync->localpath;
-            }
-        }, true));
     }
+
+    for (auto &lPair : listeners)
+    {
+        auto &thesync = lPair.first;
+        auto &listener = lPair.second;
+        listener->wait();
+        auto e = listener->getError();
+
+        if (e && e->getErrorCode() == API_OK)
+        {
+            removeSyncConfig(thesync);
+        }
+        else
+        {
+            LOG_err << " fail to copy old sync cache data: " << thesync->localpath;
+        }
+    }
+
 }
 
 void ConfigurationManager::removeSyncConfig(sync_struct *syncToRemove)
