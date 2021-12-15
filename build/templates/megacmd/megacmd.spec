@@ -61,6 +61,11 @@ BuildRequires: ffmpeg-mega pdfium-mega
         BuildRequires: bzip2-devel
     %endif
 
+    # allowing for rpaths (taken as invalid, as if they were not absolute paths when they are)
+    %if 0%{?fedora_version} >= 35
+        %define __brp_check_rpaths QA_RPATHS=0x0002 /usr/lib/rpm/check-rpaths
+    %endif
+
 %endif
 
 #centos/scientific linux
