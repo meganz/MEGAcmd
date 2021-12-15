@@ -444,7 +444,13 @@ compare_find('/')
 currentTest=33 #thumbnails
 #Test 33 #ensure thumnail generation
 #1st get images selection
-cmd_ef(GET+" https://mega.nz/folder/bxomFKwL#3V1dUJFzL98t1GqXX29IXg localtmp/")
+try:
+    imagesUrl=os.environ['MEGACMD_TESTS_IMAGES_URL']
+except:
+    imagesUrl="https://mega.nz/folder/bxomFKwL#3V1dUJFzL98t1GqXX29IXg"
+if VERBOSE:
+    print "Using this imagesUrl: ",imagesUrl
+cmd_ef(GET+" "+imagesUrl+" localtmp/")
 #2nd, upload folder
 cmd_ef(PUT+" localtmp/images")
 #3rd, for each file, download thumbnail
@@ -467,7 +473,14 @@ check_failed_and_clear(fullout,fullStatus)
 currentTest=34 #pdf thumbnails
 #Test 33 #ensure thumnail generation
 #1st get pdfs selection
-cmd_ef(GET+" https://mega.nz/folder/D0w0nYiY#egvjqP5R-anbBdsJg8QRVg localtmp/")
+try:
+    pdfsURL=os.environ['MEGACMD_TESTS_PDFS_URL']
+except:
+    pdfsURL="https://mega.nz/folder/D0w0nYiY#egvjqP5R-anbBdsJg8QRVg"
+if VERBOSE:
+    print "Using this pdfsURL: ",pdfsURL
+cmd_ef(GET+" "+pdfsURL+" localtmp/")
+
 #2nd, upload folder
 cmd_ef(PUT+" localtmp/pdfs")
 #3rd, for each file, download thumbnail
