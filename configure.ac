@@ -38,8 +38,6 @@ m4_define([megacmd_lt_age], [0])
 
 AC_INIT([MEGAcmd], m4_esyscmd([ grep define < src/megacmdversion.h | awk '{print $3}' | awk 'BEGIN { RS = "" ; FS = "\n" } {printf $1"."$2"."$3}']), [https://github.com/meganz/megacmd])
 
-AM_INIT_AUTOMAKE
-
 AC_PROG_CC
 AC_CONFIG_FILES(Makefile)
 AC_OUTPUT
