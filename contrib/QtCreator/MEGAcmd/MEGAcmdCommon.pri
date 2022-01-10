@@ -35,6 +35,7 @@ win32 {
 CONFIG += noreadline
 CONFIG += USE_AUTOCOMPLETE
 DEFINES += NO_READLINE
+CONFIG+=c++17
 }
 
 unix:!macx {

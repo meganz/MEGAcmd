@@ -1156,13 +1156,6 @@ void MegaCmdExecuter::dumpNode(MegaNode* n, const char *timeFormat, std::map<std
         {
             case MegaNode::TYPE_FILE:
                 OUTSTREAM << sizeToText(n->getSize(), false);
-
-                const char* p;
-                if (( p = strchr(n->getAttrString()->c_str(), ':')))
-                {
-                    OUTSTREAM << ", has attributes " << p + 1;
-                }
-
                 if (INVALID_HANDLE != n->getPublicHandle())
 //            if (n->isExported())
                 {
@@ -2343,6 +2336,15 @@ bool MegaCmdExecuter::actUponFetchNodes(MegaApi *api, SynchronousRequestListener
     }
     else if (checkNoErrors(srl->getError(), "fetch nodes"))
     {
+        // Let's save the session for future resumptions
+        // Note: when logged into folders,
+        // folder session depends on node handle,
+        // which requires fetch nodes to be complete
+        // i.e. dumpSession won't be valid after login
+        session = srl->getApi()->dumpSession();
+        ConfigurationManager::saveSession(session);
+
+
         LOG_verbose << "actUponFetchNodes ok";
 
         return true;
@@ -2396,9 +2398,20 @@ int MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
     else if (checkNoErrors(srl->getError(), "Login")) //login success:
     {
         LOG_debug << "Login correct ... " << (srl->getRequest()->getEmail()?srl->getRequest()->getEmail():"");
+
+        if (srl->getRequest()->getEmail()) // login with email
+        {
+            // If login with email, here we will have a valid new session
+            // otherwise, we can asume that session is already stored.
+            //
+            // Note, if logging into a folder (no email),
+            // the dumpSession reported by the SDK at this point is not valid:
+            // folder session depends on node handle, which requires fetching nodes
+            session = srl->getApi()->dumpSession();
+            ConfigurationManager::saveSession(session);
+        }
+
         /* Restoring configured values */
-        session = srl->getApi()->dumpSession();
-        ConfigurationManager::saveSession(session);
         mtxSyncMap.lock();
         ConfigurationManager::loadsyncs();
         mtxSyncMap.unlock();
@@ -2442,13 +2455,13 @@ int MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
         }
 #endif
 
+#ifdef HAVE_DOWNLOADS_COMMAND
         bool downloads_tracking_enabled = ConfigurationManager::getConfigurationValue("downloads_tracking_enabled", false);
-
         if (downloads_tracking_enabled)
         {
             DownloadsManager::Instance().start();
         }
-
+#endif
         ConfigurationManager::migrateSyncConfig(api);
 
         LOG_info << "Fetching nodes ... ";
@@ -2720,6 +2733,7 @@ void MegaCmdExecuter::fetchNodes(MegaApi *api, int clientID)
 
 void MegaCmdExecuter::cleanSlateTranfers()
 {
+#ifdef HAVE_DOWNLOADS_COMMAND
     bool downloads_cleanslate = ConfigurationManager::getConfigurationValue("downloads_cleanslate_enabled", false);
 
     if (downloads_cleanslate)
@@ -2747,6 +2761,7 @@ void MegaCmdExecuter::cleanSlateTranfers()
 
         DownloadsManager::Instance().purge();
     }
+#endif
 }
 
 void MegaCmdExecuter::actUponLogout(SynchronousRequestListener *srl, bool keptSession, int timeout)
@@ -2781,8 +2796,9 @@ void MegaCmdExecuter::actUponLogout(SynchronousRequestListener *srl, bool keptSe
         }
         ConfigurationManager::clearConfigurationFile();
 
+#ifdef HAVE_DOWNLOADS_COMMAND
         DownloadsManager::Instance().shutdown(true);
-
+#endif
         mtxSyncMap.unlock();
     }
     updateprompt(api);
@@ -3145,17 +3161,11 @@ void MegaCmdExecuter::downloadNode(string source, string path, MegaApi* api, Meg
 #endif
     LOG_debug << "Starting download: " << node->getName() << " to : " << path;
 
-    if (multiTransferListener && !background)
-    {
-        api->startDownload(node, path.c_str(), new ATransferListener(multiTransferListener, source));
-    }
-    else
-    {
-        api->startDownload(node, path.c_str(), new ATransferListener(multiTransferListener, source));
-    }
+    api->startDownload(node, path.c_str(), new ATransferListener(multiTransferListener, source));
 }
 
-void MegaCmdExecuter::uploadNode(string path, MegaApi* api, MegaNode *node, string newname, bool background, bool ignorequotawarn, int clientID, MegaCmdMultiTransferListener *multiTransferListener)
+void MegaCmdExecuter::uploadNode(string path, MegaApi* api, MegaNode *node, string newname,
+                                 bool background, bool ignorequotawarn, int clientID, MegaCmdMultiTransferListener *multiTransferListener)
 {
     if (!ignorequotawarn)
     { //TODO: reenable this if ever queryBandwidthQuota applies to uploads as well
@@ -3183,14 +3193,24 @@ void MegaCmdExecuter::uploadNode(string path, MegaApi* api, MegaNode *node, stri
         return;
     }
 
-    MegaCmdTransferListener *megaCmdTransferListener = NULL;
+    MegaTransferListener *thelistener = nullptr;
+    std::unique_ptr<MegaCmdTransferListener> singleNonBackgroundTransferListener;
     if (!background)
     {
         if (!multiTransferListener)
         {
-            megaCmdTransferListener = new MegaCmdTransferListener(api, sandboxCMD, multiTransferListener, clientID);
+            singleNonBackgroundTransferListener.reset(new MegaCmdTransferListener(api, sandboxCMD, nullptr, clientID));
+            thelistener = singleNonBackgroundTransferListener.get();
         }
-        multiTransferListener->onNewTransfer();
+        else
+        {
+            multiTransferListener->onNewTransfer();
+            thelistener = multiTransferListener;
+        }
+    }
+    else
+    {
+        thelistener = nullptr;
     }
 
 #ifdef _WIN32
@@ -3199,16 +3219,6 @@ void MegaCmdExecuter::uploadNode(string path, MegaApi* api, MegaNode *node, stri
 
     LOG_debug << "Starting upload: " << path << " to : " << node->getName() << (newname.size()?"/":"") << newname;
 
-
-    MegaTransferListener *thelistener;
-    if (multiTransferListener && !background)
-    {
-       thelistener = multiTransferListener;
-    }
-    else
-    {
-        thelistener = megaCmdTransferListener;
-    }
 
     if (newname.size())
     {
@@ -3219,24 +3229,25 @@ void MegaCmdExecuter::uploadNode(string path, MegaApi* api, MegaNode *node, stri
     {
         api->startUpload(removeTrailingSeparators(path).c_str(), node, thelistener);
     }
-    if (megaCmdTransferListener)
+
+    if (singleNonBackgroundTransferListener)
     {
-        megaCmdTransferListener->wait();
+        assert(!background);
+        singleNonBackgroundTransferListener->wait();
 #ifdef _WIN32
             Sleep(100); //give a while to print end of transfer
 #endif
-        if (megaCmdTransferListener->getError()->getErrorCode() == API_EREAD)
+        if (singleNonBackgroundTransferListener->getError()->getErrorCode() == API_EREAD)
         {
             setCurrentOutCode(MCMD_NOTFOUND);
             LOG_err << "Could not find local path: " << path;
         }
-        else if (checkNoErrors(megaCmdTransferListener->getError(), "Upload node"))
+        else if (checkNoErrors(singleNonBackgroundTransferListener->getError(), "Upload node"))
         {
             char * destinyPath = api->getNodePath(node);
             LOG_info << "Upload complete: " << path << " to " << destinyPath << newname;
             delete []destinyPath;
         }
-        delete megaCmdTransferListener;
     }
 }
 
@@ -6660,12 +6671,14 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
             if (background) //TODO: do the same for uploads?
             {
+#ifdef HAVE_DOWNLOADS_COMMAND
                 megaCmdMultiTransferListener->waitMultiStart();
 
                 for (auto & dlId : megaCmdMultiTransferListener->getStartedTransfers())
                 {
                     OUTSTREAM << "Started background transfer <" << dlId.mPath << ">. Tag = " << dlId.mTag << ". Object Identifier: " << dlId.getObjectID() << endl;
                 }
+#endif
             }
             else
             {
@@ -7891,7 +7904,6 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             cd.print(oss);
             OUTSTREAM << oss.str();
         }
-        mtxSyncMap.unlock();
         return;
     }
 #endif
@@ -8005,23 +8017,14 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     }
                     else
                     {
-                        unsigned char session[64];
-
-                        if (words[1].size() < sizeof session * 4 / 3)
-                        {
-                            LOG_info << "Resuming session...";
-                            MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
-                            sandboxCMD->resetSandBox();
-                            api->fastLogin(words[1].c_str(), megaCmdListener);
-                            actUponLogin(megaCmdListener);
-                            delete megaCmdListener;
-                            return;
-                        }
+                        LOG_info << "Resuming session...";
+                        MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
+                        sandboxCMD->resetSandBox();
+                        api->fastLogin(words[1].c_str(), megaCmdListener);
+                        actUponLogin(megaCmdListener);
+                        delete megaCmdListener;
+                        return;
                     }
-                    setCurrentOutCode(MCMD_EARGS);
-                    LOG_err << "Invalid argument. Please specify a valid e-mail address, "
-                              << "a folder link containing the folder key "
-                              << "or a valid session.";
                 }
             }
             else
@@ -9864,6 +9867,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
         return;
     }
+#ifdef HAVE_DOWNLOADS_COMMAND
     else if (words[0] == "downloads")
     {
         if (getFlag(clflags, "purge"))
@@ -9957,6 +9961,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             }
         }
     }
+#endif
     else if (words[0] == "transfers")
     {
         bool showcompleted = getFlag(clflags, "show-completed");

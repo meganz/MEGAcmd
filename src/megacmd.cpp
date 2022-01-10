@@ -729,7 +729,7 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     {
         validOptValues->insert("clientID");
     }
-
+#ifdef HAVE_DOWNLOADS_COMMAND
     else if ("downloads" == thecommand)
     {
         validParams->insert("show-subtransfers");
@@ -746,6 +746,7 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validOptValues->insert("col-separator");
         validOptValues->insert("output-cols");
     }
+#endif
     else if ("transfers" == thecommand)
     {
         validParams->insert("show-completed");
@@ -1873,10 +1874,12 @@ const char * getUsageStr(const char *command)
     {
         return "transfers [-c TAG|-a] | [-r TAG|-a]  | [-p TAG|-a] [--only-downloads | --only-uploads] [SHOWOPTIONS]";
     }
+#ifdef HAVE_DOWNLOADS_COMMAND
     if (!strcmp(command, "downloads"))
     {
         return "downloads [--purge|--enable-clean-slate|--disable-clean-slate|--enable-tracking|--disable-tracking|query-enabled|report-all| [id_1 id_2 ... id_n]]  [SHOWOPTIONS]";
     }
+#endif
 #if defined(_WIN32) && defined(NO_READLINE)
     if (!strcmp(command, "autocomplete"))
     {
@@ -2814,6 +2817,7 @@ string getHelpStr(const char *command)
             os << "To only exit current shell and keep server running, use \"exit --only-shell\"" << endl;
         }
     }
+#ifdef HAVE_DOWNLOADS_COMMAND
     else if (!strcmp(command, "downloads"))
     {
         os << "Lists or configure downloads tracking and reporting." << endl;
@@ -2896,6 +2900,7 @@ string getHelpStr(const char *command)
         os << " downloads_db_max_queued_changes"  << "\t" << "Max allowed number of changes to be queued before writting. Default=1000" << endl;
         os << " downloads_cleanslate_enabled"  << "\t" << "If transfers from previous executions will be discarded upon restart. Default=0 (false)" << endl;
     }
+#endif
     else if (!strcmp(command, "transfers"))
     {
         os << "List or operate with transfers" << endl;
@@ -3910,10 +3915,11 @@ void finalize(bool waitForRestartSignal_param)
     alreadyfinalized = true;
     LOG_info << "closing application ...";
 
+#ifdef HAVE_DOWNLOADS_COMMAND
     LOG_debug << "Shuting down downloads manager";
     DownloadsManager::Instance().shutdown(false);
     LOG_debug << "Downloads manager shut down";
-
+#endif
 
     delete_finished_threads();
     if (!consoleFailed)

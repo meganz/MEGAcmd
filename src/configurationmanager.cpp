@@ -133,7 +133,9 @@ void ConfigurationManager::loadConfigDir()
     MegaFileSystemAccess *fsAccess = new MegaFileSystemAccess();
     fsAccess->setdefaultfolderpermissions(0700);
     LocalPath localConfigFolder = LocalPath::fromPath(configFolder, *fsAccess);
-    if (!is_file_exist(configFolder.c_str()) && !fsAccess->mkdirlocal(localConfigFolder, true))
+    constexpr bool isHidden = true;
+    constexpr bool reportExisting = false;
+    if (!is_file_exist(configFolder.c_str()) && !fsAccess->mkdirlocal(localConfigFolder, isHidden, reportExisting))
     {
         LOG_err << "Config folder not created";
     }
@@ -233,28 +235,47 @@ void ConfigurationManager::saveProperty(const char *property, const char *value)
 
 void ConfigurationManager::migrateSyncConfig(MegaApi *api)
 {
-    LOG_info << "copying sync config";
-    std::lock_guard<std::recursive_mutex> g(settingsMutex);
+    bool informed = false;
 
-    for (map<string, sync_struct *>::iterator itr = oldConfiguredSyncs.begin();
-         itr != oldConfiguredSyncs.end(); itr++)
+    std::map<sync_struct*, std::unique_ptr<MegaCmdListener>> listeners;
+
     {
-        sync_struct *thesync = ((sync_struct*)( *itr ).second );
+        std::lock_guard<std::recursive_mutex> g(settingsMutex);
+        for (auto itr = oldConfiguredSyncs.begin();
+             itr != oldConfiguredSyncs.end(); itr++)
+        {
+            if (!informed)
+            {
+                LOG_debug << "copying sync config";
+                informed = true;
+            }
 
-        api->copySyncDataToCache(thesync->localpath.c_str(), thesync->handle, nullptr,
-                                 thesync->fingerprint, thesync->active, false,
-                                 new MegaCmdListenerFuncExecuter([thesync](MegaApi* api,  MegaRequest *request, MegaError *e)
-        {// Note: we use MegaCmdListenerFuncExecuter, beucase this gets executed in sdk thread: hence, cannot use regular listener and do a wait
-            if (e->getErrorCode() == API_OK)
-            {
-                removeSyncConfig(thesync);
-            }
-            else
-            {
-                LOG_err << " fail to copy old sync cache data: " << thesync->localpath;
-            }
-        }, true));
+            sync_struct *thesync = ((sync_struct*)( *itr ).second );
+
+            auto newListenerPair = listeners.emplace(thesync, ::make_unique<MegaCmdListener>(api));
+
+            api->copySyncDataToCache(thesync->localpath.c_str(), thesync->handle, nullptr,
+                                     thesync->fingerprint, thesync->active, false, newListenerPair.first->second.get());
+        }
     }
+
+    for (auto &lPair : listeners)
+    {
+        auto &thesync = lPair.first;
+        auto &listener = lPair.second;
+        listener->wait();
+        auto e = listener->getError();
+
+        if (e && e->getErrorCode() == API_OK)
+        {
+            removeSyncConfig(thesync);
+        }
+        else
+        {
+            LOG_err << " fail to copy old sync cache data: " << thesync->localpath;
+        }
+    }
+
 }
 
 void ConfigurationManager::removeSyncConfig(sync_struct *syncToRemove)

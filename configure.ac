@@ -21,6 +21,7 @@
 m4_include([sdk/m4/ax_check_compile_flag.m4])
 m4_include([sdk/m4/ax_check_link_flag.m4])
 m4_include([sdk/m4/ax_cxx_compile_stdcxx.m4])
+m4_include([sdk/m4/ax_atomic.m4])
 
 m4_define([megacmd_major_version], [$(cat src/megacmdversion.h | grep "define MEGACMD_MAJOR" | cut -d" " -f 3)])
 m4_define([megacmd_minor_version], [$(cat src/megacmdversion.h | grep "define MEGACMD_MINOR" | cut -d" " -f 3)])
@@ -36,8 +37,6 @@ m4_define([megacmd_lt_current], [$(grep define <src/megacmdversion.h | awk '{pri
 m4_define([megacmd_lt_age], [0])
 
 AC_INIT([MEGAcmd], m4_esyscmd([ grep define < src/megacmdversion.h | awk '{print $3}' | awk 'BEGIN { RS = "" ; FS = "\n" } {printf $1"."$2"."$3}']), [https://github.com/meganz/megacmd])
-
-AM_INIT_AUTOMAKE
 
 AC_PROG_CC
 AC_CONFIG_FILES(Makefile)
@@ -535,6 +534,9 @@ if test "$HAVE_PTHREAD" = "yes"; then
     fi    
 fi
 AM_CONDITIONAL([HAVE_PTHREAD], [test "${HAVE_PTHREAD}" = "yes"])
+
+# Add -latomic to LDFLAGS if needed
+CHECK_ATOMIC()
 
 #This will simulate compilation of sdk and extract the includes defined for it. Thus we can
 # take care of the configuration done for the subproject withtout having to recheck here

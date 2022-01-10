@@ -47,14 +47,23 @@ BuildRequires: ffmpeg-mega pdfium-mega
 
 #Fedora specific
 %if 0%{?fedora}
-    BuildRequires: openssl-devel, sqlite-devel, c-ares-devel, cryptopp-devel
+    BuildRequires: openssl-devel, sqlite-devel, c-ares-devel
+
+    %if 0%{?fedora_version} < 33
+        BuildRequires: cryptopp-devel
+
+        %if 0%{?fedora_version} >= 26
+            Requires: cryptopp >= 5.6.5
+        %endif
+    %endif
 
     %if 0%{?fedora_version} >= 31
         BuildRequires: bzip2-devel
     %endif
 
-    %if 0%{?fedora_version} >= 26
-        Requires: cryptopp >= 5.6.5
+    # allowing for rpaths (taken as invalid, as if they were not absolute paths when they are)
+    %if 0%{?fedora_version} >= 35
+        %define __brp_check_rpaths QA_RPATHS=0x0002 /usr/lib/rpm/check-rpaths
     %endif
 
 %endif
@@ -95,7 +104,7 @@ BuildRequires: ffmpeg-mega pdfium-mega
 %define flag_cryptopp %{nil}
 %define with_cryptopp %{nil}
 
-%if 0%{?centos_version} || 0%{?scientificlinux_version} || 0%{?rhel_version} ||  0%{?suse_version} > 1320
+%if 0%{?centos_version} || 0%{?scientificlinux_version} || 0%{?rhel_version} ||  0%{?suse_version} > 1320 || 0%{?fedora_version} >= 33
     %define flag_cryptopp -q
     %define with_cryptopp --with-cryptopp=$PWD/deps
 %endif
@@ -139,7 +148,7 @@ sed -i -E "s/(^#define MEGACMD_BUILD_ID )[0-9]*/\1${mega_build_id}/g" src/megacm
 %build
 
 # Fedora uses system Crypto++ header files
-%if 0%{?fedora}
+%if 0%{?fedora_version} < 33
     rm -fr bindings/qt/3rdparty/include/cryptopp
 %endif
 
@@ -404,7 +413,6 @@ killall -s SIGUSR2 mega-cmd-server 2> /dev/null || true
 %{_bindir}/mega-permissions
 %{_bindir}/mega-deleteversions
 %{_bindir}/mega-transfers
-%{_bindir}/mega-downloads
 %{_bindir}/mega-import
 %{_bindir}/mega-invite
 %{_bindir}/mega-ipc
