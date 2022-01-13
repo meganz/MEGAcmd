@@ -25,9 +25,6 @@
 #define strdup _strdup
 #else
 #define ERRNO errno
-#ifndef INVALID_SOCKET
-#define INVALID_SOCKET -1
-#endif
 #endif
 
 #ifndef SOCKET_ERROR
@@ -73,7 +70,7 @@ int ComunicationsManagerPortSockets::get_next_comm_id()
 
 SOCKET ComunicationsManagerPortSockets::create_new_socket(int *sockId)
 {
-    SOCKET thesock;
+    SOCKET thesock = INVALID_SOCKET;
     int attempts = 10;
     bool socketsucceded = false;
     while (--attempts && !socketsucceded)
@@ -101,7 +98,7 @@ SOCKET ComunicationsManagerPortSockets::create_new_socket(int *sockId)
     }
     if (!socketValid(thesock))
     {
-        return -1;
+        return INVALID_SOCKET;
     }
 
     int portno=MEGACMDINITIALPORTNUMBER;
@@ -216,7 +213,7 @@ int ComunicationsManagerPortSockets::initialize()
         {
             LOG_fatal << "ERROR on binding socket at port: " << portno << ": " << ERRNO;
         }
-        sockfd = -1;
+        sockfd = INVALID_SOCKET;
 
     }
     else
@@ -474,7 +471,8 @@ CmdPetition * ComunicationsManagerPortSockets::getPetition()
         wstring ws=wbuffer;
         localwtostring(&ws,&receivedutf8);
 #else
-        localwtostring(&std::wstring(wbuffer),&receivedutf8);
+        std::wstring wstr(wbuffer);
+        localwtostring(&wstr, &receivedutf8);
 #endif
     }
     else

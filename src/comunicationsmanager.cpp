@@ -73,6 +73,8 @@ bool ComunicationsManager::informStateListeners(string &s)
 {
     s+=(char)0x1F;
 
+    //TODO: stateListenersPetitions could use mutex protection! ComunicationsManagerFileSockets::informStateListener does have a mutex,
+    // but is non-recursive...
     for (std::vector< CmdPetition * >::iterator it = stateListenersPetitions.begin(); it != stateListenersPetitions.end();)
     {
         if (informStateListener((CmdPetition *)*it, s) <0)

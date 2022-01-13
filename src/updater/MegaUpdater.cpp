@@ -1,4 +1,5 @@
 #ifdef _WIN32
+#define _SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING
 #include <winsock2.h>
 #include <Windows.h>
 #include <lzexpand.h>
@@ -52,14 +53,14 @@ void utf8ToUtf16(const char* utf8data, string* utf16string)
         return;
     }
 
-    int size = strlen(utf8data) + 1;
+    DWORD size = (DWORD)strlen(utf8data) + 1;
 
     // make space for the worst case
     utf16string->resize(size * sizeof(wchar_t));
 
     // resize to actual result
     utf16string->resize(sizeof(wchar_t) * MultiByteToWideChar(CP_UTF8, 0, utf8data, size, (wchar_t*)utf16string->data(),
-                                                              utf16string->size() / sizeof(wchar_t) + 1));
+                                                              int(utf16string->size() / sizeof(wchar_t) + 1)));
     if (utf16string->size())
     {
         utf16string->resize(utf16string->size() - 1);
@@ -83,7 +84,7 @@ void utf16ToUtf8(const wchar_t* utf16data, int utf16size, string* utf8string)
     utf8string->resize(WideCharToMultiByte(CP_UTF8, 0, utf16data,
         utf16size,
         (char*)utf8string->data(),
-        utf8string->size() + 1,
+        int(utf8string->size()) + 1,
         NULL, NULL));
 }
 #endif
@@ -201,7 +202,11 @@ void unlockExecution()
         flock(fdMcmdUpdaterLockFile, LOCK_UN | LOCK_NB);
         close(fdMcmdUpdaterLockFile);
 #endif
+#ifdef WIN32        
+        _unlink(thelockfile.c_str());
+#else
         unlink(thelockfile.c_str());
+#endif
     }
     else
     {
@@ -214,6 +219,7 @@ void unlockExecution()
 using namespace megacmdupdater;
 
 #ifdef _WIN32
+
 #include <stdio.h>
 #include <io.h>
 #include <fcntl.h>
@@ -221,6 +227,7 @@ using namespace megacmdupdater;
 #include <windows.h>
 #include <locale>
 #include <codecvt>
+
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR szCmdLine,int iCmdShow)
 {
@@ -263,7 +270,7 @@ int main(int argc, char *argv[])
 
     time_t currentTime = time(NULL);
     cout << "Process started at " << ctime(&currentTime) << endl;
-    srand(currentTime);
+    srand(unsigned(currentTime));
 
     UpdateTask updater;
     bool updated = updater.checkForUpdates(emergencyupdate, doNotInstall);

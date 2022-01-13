@@ -15,7 +15,6 @@
  * You should have received a copy of the license along with this
  * program.
  */
-
 #ifndef WIN32
 
 #include "comunicationsmanagerfilesockets.h"
@@ -33,103 +32,6 @@
 using namespace mega;
 
 namespace megacmd {
-int ComunicationsManagerFileSockets::get_next_comm_id()
-{
-    std::lock_guard<std::mutex> g(informerMutex);
-    return ++count;
-}
-
-int ComunicationsManagerFileSockets::create_new_socket(int *sockId)
-{
-    int thesock;
-    int attempts = 10;
-    bool socketsucceded = false;
-    while (--attempts && !socketsucceded)
-    {
-       thesock = socket(AF_UNIX, SOCK_STREAM, 0);
-
-        if (thesock < 0)
-        {
-            if (errno == EMFILE)
-            {
-                LOG_verbose << " Trying to reduce number of used files by sending ACK to listeners to discard disconnected ones.";
-                string sack="ack";
-                informStateListeners(sack);
-            }
-            if (attempts !=10)
-            {
-                LOG_fatal << "ERROR opening socket ID=" << sockId << " errno: " << errno << ". Attempts: " << attempts;
-            }
-            sleepMilliSeconds(500);
-        }
-        else
-        {
-            socketsucceded = true;
-        }
-        if (fcntl(thesock, F_SETFD, FD_CLOEXEC) == -1)
-        {
-            LOG_err << "ERROR setting CLOEXEC to socket: " << errno;
-        }
-    }
-    if (thesock < 0)
-    {
-        return -1;
-    }
-
-    char socket_path[60];
-    *sockId = get_next_comm_id();
-    bzero(socket_path, sizeof( socket_path ) * sizeof( *socket_path ));
-    sprintf(socket_path, "/tmp/megaCMD_%d/srv_%d", getuid(), *sockId);
-
-    struct sockaddr_un addr;
-    socklen_t saddrlen = sizeof( addr );
-
-    memset(&addr, 0, sizeof( addr ));
-    addr.sun_family = AF_UNIX;
-    strncpy(addr.sun_path, socket_path, sizeof( addr.sun_path ) - 1);
-
-    unlink(socket_path);
-
-    bool bindsucceeded = false;
-
-    attempts = 10;
-    while (--attempts && !bindsucceeded)
-    {
-        if (::bind(thesock, (struct sockaddr*)&addr, saddrlen))
-        {
-            if (errno == EADDRINUSE)
-            {
-                LOG_warn << "ERROR on binding socket: Already in use. Attempts: " << attempts;
-            }
-            else
-            {
-                LOG_fatal << "ERROR on binding socket " << socket_path << " errno: " << errno << ". Attempts: " << attempts;
-            }
-            sleepMilliSeconds(500);
-        }
-        else
-        {
-            bindsucceeded = true;
-        }
-    }
-
-
-    if (bindsucceeded)
-    {
-        if (thesock)
-        {
-            int returned = listen(thesock, 150);
-            if (returned)
-            {
-                LOG_fatal << "ERROR on listen socket: " << errno;
-            }
-        }
-        return thesock;
-    }
-
-    return 0;
-}
-
 
 ComunicationsManagerFileSockets::ComunicationsManagerFileSockets()
 {
@@ -142,12 +44,14 @@ int ComunicationsManagerFileSockets::initialize()
     MegaFileSystemAccess *fsAccess = new MegaFileSystemAccess();
     char csocketsFolder[34]; // enough to hold all numbers up to 64-bits
     sprintf(csocketsFolder, "/tmp/megaCMD_%d", getuid());
-    LocalPath socketsFolder = LocalPath::fromLocalname(csocketsFolder);
+    LocalPath socketsFolder = LocalPath::fromPlatformEncoded(csocketsFolder);
 
     fsAccess->setdefaultfolderpermissions(0700);
     fsAccess->rmdirlocal(socketsFolder);
-    LOG_debug << "CREATING sockets folder: " << socketsFolder.toPath(*fsAccess) << "!!!";
-    if (!fsAccess->mkdirlocal(socketsFolder, false))
+    LOG_debug << "CREATING sockets folder: " << socketsFolder.toPath() << "!!!";
+    constexpr bool isHidden = false;
+    constexpr bool logExisting  = false;
+    if (!fsAccess->mkdirlocal(socketsFolder, isHidden, logExisting))
     {
         LOG_fatal << "ERROR CREATING sockets folder: " << socketsFolder.toPath(*fsAccess) << ": " << errno;
     }
@@ -188,6 +92,7 @@ int ComunicationsManagerFileSockets::initialize()
             LOG_fatal << "ERROR on binding socket: " << socketPath << ": " << errno;
             sockfd = -1;
         }
+        close(sockfd);
     }
     else
     {
@@ -195,6 +100,7 @@ int ComunicationsManagerFileSockets::initialize()
         if (returned)
         {
             LOG_fatal << "ERROR on listen socket initializing communications manager: " << socketPath << ": " << errno;
+            close(sockfd);
             return errno;
         }
     }
@@ -294,33 +200,24 @@ void ComunicationsManagerFileSockets::registerStateListener(CmdPetition *inf)
 void ComunicationsManagerFileSockets::returnAndClosePetition(CmdPetition *inf, OUTSTRINGSTREAM *s, int outCode)
 {
     LOG_verbose << "Output to write in socket " << ((CmdPetitionPosixSockets *)inf)->outSocket;
-    sockaddr_in cliAddr;
-    socklen_t cliLength = sizeof( cliAddr );
-    int connectedsocket = ((CmdPetitionPosixSockets *)inf)->acceptedOutSocket;
+
+    int connectedsocket = ((CmdPetitionPosixSockets *)inf)->outSocket;
+    assert(connectedsocket != -1);
     if (connectedsocket == -1)
     {
-        connectedsocket = accept(((CmdPetitionPosixSockets *)inf)->outSocket, (struct sockaddr*)&cliAddr, &cliLength);
-        if (fcntl(connectedsocket, F_SETFD, FD_CLOEXEC) == -1)
-        {
-            LOG_err << "ERROR setting CLOEXEC to socket: " << errno;
-        }
-        ((CmdPetitionPosixSockets *)inf)->acceptedOutSocket = connectedsocket; //So that it gets closed in destructor
-    }
-    if (connectedsocket == -1)
-    {
-        LOG_fatal << "Return and close: Unable to accept on outsocket " << ((CmdPetitionPosixSockets *)inf)->outSocket << " error: " << errno;
+        LOG_fatal << "Return and close: not valid outsocket " << ((CmdPetitionPosixSockets *)inf)->outSocket;
         delete inf;
         return;
     }
 
     string sout = s->str();
 
-    int n = send(connectedsocket, (void*)&outCode, sizeof( outCode ), MSG_NOSIGNAL);
+    auto n = send(connectedsocket, (void*)&outCode, sizeof( outCode ), MSG_NOSIGNAL);
     if (n < 0)
     {
         LOG_err << "ERROR writing output Code to socket: " << errno;
     }
-    n = send(connectedsocket, sout.data(), max(1,(int)sout.size()), MSG_NOSIGNAL); // for some reason without the max recv never quits in the client for empty responses
+    n = send(connectedsocket, sout.data(), max(static_cast<size_t>(1), sout.size()), MSG_NOSIGNAL); // for some reason without the max recv never quits in the client for empty responses
     if (n < 0)
     {
         LOG_err << "ERROR writing to socket: " << errno;
@@ -336,21 +233,11 @@ void ComunicationsManagerFileSockets::sendPartialOutput(CmdPetition *inf, OUTSTR
         return;
     }
 
-    sockaddr_in cliAddr;
-    socklen_t cliLength = sizeof( cliAddr );
-    int connectedsocket = ((CmdPetitionPosixSockets *)inf)->acceptedOutSocket;
+    int connectedsocket = ((CmdPetitionPosixSockets *)inf)->outSocket;
+    assert(connectedsocket != -1);
     if (connectedsocket == -1)
     {
-        connectedsocket = accept(((CmdPetitionPosixSockets *)inf)->outSocket, (struct sockaddr*)&cliAddr, &cliLength);
-        if (fcntl(connectedsocket, F_SETFD, FD_CLOEXEC) == -1)
-        {
-            std::cerr << "ERROR setting CLOEXEC to socket: " << errno << endl; // we do not log this stuff, because that would cause some loop sending more partial output
-        }
-        ((CmdPetitionPosixSockets *)inf)->acceptedOutSocket = connectedsocket; //So that it gets closed in destructor
-    }
-    if (connectedsocket == -1)
-    {
-        std::cerr << "Return and close: Unable to accept on outsocket " << ((CmdPetitionPosixSockets *)inf)->outSocket << " error: " << errno << endl;
+        std::cerr << "Return and close: no valid outsocket " << ((CmdPetitionPosixSockets *)inf)->outSocket << endl;
         return;
     }
 
@@ -359,7 +246,7 @@ void ComunicationsManagerFileSockets::sendPartialOutput(CmdPetition *inf, OUTSTR
         size_t size = s->size();
 
         int outCode = MCMD_PARTIALOUT;
-        int n = send(connectedsocket, (void*)&outCode, sizeof( outCode ), MSG_NOSIGNAL);
+        auto n = send(connectedsocket, (void*)&outCode, sizeof( outCode ), MSG_NOSIGNAL);
         if (n < 0)
         {
             std::cerr << "ERROR writing MCMD_PARTIALOUT to socket: " << errno << endl;
@@ -393,62 +280,18 @@ int ComunicationsManagerFileSockets::informStateListener(CmdPetition *inf, strin
     std::lock_guard<std::mutex> g(informerMutex);
     LOG_verbose << "Inform State Listener: Output to write in socket " << ((CmdPetitionPosixSockets *)inf)->outSocket << ": <<" << s << ">>";
 
-    sockaddr_in cliAddr;
-    socklen_t cliLength = sizeof( cliAddr );
+    static set<int> connectedsockets;
 
-    static map<int,int> connectedsockets;
-
-    int connectedsocket = -1;
-    if (connectedsockets.find(((CmdPetitionPosixSockets *)inf)->outSocket) == connectedsockets.end())
-    {
-        //select with timeout and accept non-blocking, so that things don't get stuck
-        fd_set set;
-        FD_ZERO(&set);
-        FD_SET(((CmdPetitionPosixSockets *)inf)->outSocket, &set);
-
-        struct timeval timeout;
-        timeout.tv_sec = 4;
-        timeout.tv_usec = 0;
-        int rv = select(((CmdPetitionPosixSockets *)inf)->outSocket+1, &set, NULL, NULL, &timeout);
-        if(rv == -1)
-        {
-            LOG_err << "Informing state listener: Unable to select on outsocket " << ((CmdPetitionPosixSockets *)inf)->outSocket << " error: " << errno;
-            return -1;
-        }
-        else if(rv == 0)
-        {
-            LOG_warn << "Informing state listener: timeout in select on outsocket " << ((CmdPetitionPosixSockets *)inf)->outSocket;
-        }
-        else
-        {
-            int oldfl = fcntl(sockfd, F_GETFL);
-            fcntl(((CmdPetitionPosixSockets *)inf)->outSocket, F_SETFL, oldfl | O_NONBLOCK);
-            connectedsocket = accept(((CmdPetitionPosixSockets *)inf)->outSocket, (struct sockaddr*)&cliAddr, &cliLength);
-            if (fcntl(connectedsocket, F_SETFD, FD_CLOEXEC) == -1)
-            {
-                LOG_err << "ERROR setting CLOEXEC to socket: " << errno;
-            }
-            fcntl(((CmdPetitionPosixSockets *)inf)->outSocket, F_SETFL, oldfl);
-        }
-        connectedsockets[((CmdPetitionPosixSockets *)inf)->outSocket] = connectedsocket;
-    }
-    else
-    {
-        connectedsocket = connectedsockets[((CmdPetitionPosixSockets *)inf)->outSocket];
+    int connectedsocket = ((CmdPetitionPosixSockets *)inf)->outSocket;
+    assert(connectedsocket != -1);
+    if (connectedsocket != -1 && connectedsockets.find(connectedsocket) == connectedsockets.end())
+    { // if new, insert into the collection, to keep track and allow closing dangling sockets
+        connectedsockets.insert(connectedsocket);
     }
 
     if (connectedsocket == -1)
     {
-        if (errno == 32) //socket closed
-        {
-            LOG_debug << "Unregistering no longer listening client. Original petition: " << inf->line;
-            connectedsockets.erase(((CmdPetitionPosixSockets *)inf)->outSocket);
-            return -1;
-        }
-        else
-        {
-            LOG_err << "Informing state listener: Unable to accept on outsocket " << ((CmdPetitionPosixSockets *)inf)->outSocket << " error: " << errno;
-        }
+        LOG_err << "Informing state listener: Not valid on outsocket " << ((CmdPetitionPosixSockets *)inf)->outSocket;
         return 0;
     }
 
@@ -456,14 +299,14 @@ int ComunicationsManagerFileSockets::informStateListener(CmdPetition *inf, strin
 #define MSG_NOSIGNAL 0
 #endif
 
-    int n = send(connectedsocket, s.data(), s.size(), MSG_NOSIGNAL);
+    auto n = send(connectedsocket, s.data(), s.size(), MSG_NOSIGNAL);
     if (n < 0)
     {
         if (errno == 32) //socket closed
         {
             LOG_debug << "Unregistering no longer listening client. Original petition: " << inf->line;
             close(connectedsocket);
-            connectedsockets.erase(((CmdPetitionPosixSockets *)inf)->outSocket);
+            connectedsockets.erase(connectedsocket);
             return -1;
         }
         else
@@ -537,28 +380,11 @@ CmdPetition * ComunicationsManagerFileSockets::getPetition()
     {
         LOG_fatal << "ERROR reading from socket at getPetition: " << errno;
         inf->line = strdup("ERROR");
+        close(newsockfd);
         return inf;
     }
 
-    int socket_id = 0;
-    inf->outSocket = create_new_socket(&socket_id);
-    if (!inf->outSocket || !socket_id)
-    {
-        LOG_fatal << "ERROR creating output socket at getPetition: " << errno;
-        inf->line = strdup("ERROR");
-        return inf;
-    }
-
-    n = write(newsockfd, &socket_id, sizeof( socket_id ));
-    if (n < 0)
-    {
-        LOG_fatal << "ERROR writing to socket at getPetition: " << errno;
-        inf->line = strdup("ERROR");
-        return inf;
-    }
-    close(newsockfd);
-
-
+    inf->outSocket = newsockfd;
     inf->line = strdup(wholepetition.c_str());
 
     return inf;
@@ -566,27 +392,17 @@ CmdPetition * ComunicationsManagerFileSockets::getPetition()
 
 int ComunicationsManagerFileSockets::getConfirmation(CmdPetition *inf, string message)
 {
-    sockaddr_in cliAddr;
-    socklen_t cliLength = sizeof( cliAddr );
-    int connectedsocket = ((CmdPetitionPosixSockets *)inf)->acceptedOutSocket;
+    int connectedsocket = ((CmdPetitionPosixSockets *)inf)->outSocket;
+    assert(connectedsocket != -1);
     if (connectedsocket == -1)
     {
-        connectedsocket = accept(((CmdPetitionPosixSockets *)inf)->outSocket, (struct sockaddr*)&cliAddr, &cliLength);
-        if (fcntl(connectedsocket, F_SETFD, FD_CLOEXEC) == -1)
-        {
-            LOG_err << "ERROR setting CLOEXEC to socket: " << errno;
-        }
-    }
-    ((CmdPetitionPosixSockets *)inf)->acceptedOutSocket = connectedsocket;
-    if (connectedsocket == -1)
-    {
-        LOG_fatal << "Getting Confirmation: Unable to accept on outsocket " << ((CmdPetitionPosixSockets *)inf)->outSocket << " error: " << errno;
+        LOG_fatal << "Getting Confirmation: invalid outsocket " << ((CmdPetitionPosixSockets *)inf)->outSocket;
         delete inf;
         return false;
     }
 
     int outCode = MCMD_REQCONFIRM;
-    int n = send(connectedsocket, (void*)&outCode, sizeof( outCode ), MSG_NOSIGNAL);
+    auto n = send(connectedsocket, (void*)&outCode, sizeof( outCode ), MSG_NOSIGNAL);
     if (n < 0)
     {
         LOG_err << "ERROR writing output Code to socket: " << errno;
@@ -605,32 +421,22 @@ int ComunicationsManagerFileSockets::getConfirmation(CmdPetition *inf, string me
 
 string ComunicationsManagerFileSockets::getUserResponse(CmdPetition *inf, string message)
 {
-    sockaddr_in cliAddr;
-    socklen_t cliLength = sizeof( cliAddr );
-    int connectedsocket = ((CmdPetitionPosixSockets *)inf)->acceptedOutSocket;
+    int connectedsocket = ((CmdPetitionPosixSockets *)inf)->outSocket;
+    assert(connectedsocket != -1);
     if (connectedsocket == -1)
     {
-        connectedsocket = accept(((CmdPetitionPosixSockets *)inf)->outSocket, (struct sockaddr*)&cliAddr, &cliLength);
-        if (fcntl(connectedsocket, F_SETFD, FD_CLOEXEC) == -1)
-        {
-            LOG_err << "ERROR setting CLOEXEC to socket: " << errno;
-        }
-    }
-    ((CmdPetitionPosixSockets *)inf)->acceptedOutSocket = connectedsocket;
-    if (connectedsocket == -1)
-    {
-        LOG_fatal << "Getting Confirmation: Unable to accept on outsocket " << ((CmdPetitionPosixSockets *)inf)->outSocket << " error: " << errno;
+        LOG_fatal << "Getting Confirmation: Invalid outsocket " << ((CmdPetitionPosixSockets *)inf)->outSocket;
         delete inf;
         return "FAILED";
     }
 
     int outCode = MCMD_REQSTRING;
-    int n = send(connectedsocket, (void*)&outCode, sizeof( outCode ), MSG_NOSIGNAL);
+    auto n = send(connectedsocket, (void*)&outCode, sizeof( outCode ), MSG_NOSIGNAL);
     if (n < 0)
     {
         LOG_err << "ERROR writing output Code to socket: " << errno;
     }
-    n = send(connectedsocket, message.data(), max(1,(int)message.size()), MSG_NOSIGNAL); // for some reason without the max recv never quits in the client for empty responses
+    n = send(connectedsocket, message.data(), max(static_cast<size_t>(1), message.size()), MSG_NOSIGNAL); // for some reason without the max recv never quits in the client for empty responses
     if (n < 0)
     {
         LOG_err << "ERROR writing to socket: " << errno;

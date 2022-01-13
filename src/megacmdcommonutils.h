@@ -74,9 +74,6 @@ void utf16ToUtf8(const wchar_t* utf16data, int utf16size, std::string* utf8strin
 
 #endif
 
-#define OUTSTREAM COUT
-
-
 /* commands */
 static std::vector<std::string> validGlobalParameters {"v", "help"};
 static std::vector<std::string> localremotefolderpatterncommands {"sync"};
@@ -112,7 +109,11 @@ static std::vector<std::string> loginInValidCommands { "log", "debug", "speedlim
 static std::vector<std::string> allValidCommands { "login", "signup", "confirm", "session", "mount", "ls", "cd", "log", "debug", "pwd", "lcd", "lpwd", "import", "masterkey",
                              "put", "get", "attr", "userattr", "mkdir", "rm", "du", "mv", "cp", "sync", "export", "share", "invite", "ipc", "df",
                              "showpcr", "users", "speedlimit", "killsession", "whoami", "help", "passwd", "reload", "logout", "version", "quit",
-                             "thumbnail", "preview", "find", "completion", "clear", "https", "transfers", "exclude", "exit", "errorcode", "graphics",
+                             "thumbnail", "preview", "find", "completion", "clear", "https"
+#ifdef HAVE_DOWNLOADS_COMMAND
+                                                   , "downloads"
+#endif
+                             , "transfers", "exclude", "exit", "errorcode", "graphics",
                              "cancel", "confirmcancel", "cat", "tree", "psa", "proxy"
                              , "mediainfo"
 #ifdef HAVE_LIBUV
@@ -142,11 +143,12 @@ static const int RESUME_SESSION_TIMEOUT = 10;
 //tests if a path is writable  //TODO: move to fsAccess
 bool canWrite(std::string path);
 
-bool isPublicLink(std::string link);
+bool isPublicLink(const std::string &link);
 
 bool isEncryptedLink(std::string link);
 
 std::string getPublicLinkHandle(const std::string &link);
+std::string getPublicLinkObjectId(const std::string &link);
 
 bool hasWildCards(std::string &what);
 
@@ -154,6 +156,8 @@ std::string removeTrailingSeparators(std::string &path);
 
 
 /* Strings related */
+
+std::vector<std::string> split(const std::string& input, const std::string& pattern);
 
 long long charstoll(const char *instr);
 
@@ -205,6 +209,9 @@ void printCenteredLine(OUTSTREAMTYPE &os, std::string msj, unsigned int width, b
 void printCenteredContents(OUTSTREAMTYPE &os, std::string msj, unsigned int width, bool encapsulated = true);
 
 void printPercentageLineCerr(const char *title, long long completed, long long total, float percentDowloaded, bool cleanLineAfter = true);
+
+
+
 
 /* Flags and Options */
 int getFlag(std::map<std::string, int> *flags, const char * optname);
@@ -274,16 +281,24 @@ public:
 class ColumnDisplayer
 {
 public:
-    ColumnDisplayer(int unfixedColsMinSize = 0);
+    ColumnDisplayer(std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions);
 
-    void print(OUTSTREAMTYPE &os, int fullWidth, bool printHeader=true);
+    void printHeaders(OUTSTREAMTYPE &os);
+    void print(OUTSTREAMTYPE &os, bool printHeader = true);
+
+
     void addHeader(const std::string &name, bool fixed = true, int minWidth = 0);
     void addValue(const std::string &name, const std::string & value, bool replace = false);
     void endregistry();
 
+    void setPrefix(const std::string &prefix);
+
 private:
+    std::map<std::string, int> *mClflags;
+    std::map<std::string, std::string> *mCloptions;
+
     std::map<std::string, Field> fields;
-    std::vector<std::string> fieldnames;
+    std::vector<std::string> mFieldnames;
     std::vector<std::map<std::string, std::string>> values;
     std::vector<int> lengths;
 
@@ -292,7 +307,13 @@ private:
 
     int mUnfixedColsMinSize = 0;
 
+    std::string mPrefix;
+
+    void print(OUTSTREAMTYPE &os, int fullWidth, bool printHeader=true, bool onlyHeaders = false);
+
+
 };
+
 
 }//end namespace
 #endif // MEGACMDCOMMONUTILS_H

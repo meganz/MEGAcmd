@@ -12,6 +12,12 @@ elif [[ $distro = "Raspbian GNU/Linux 9"* ]]; then
 elif [[ $distro = "Raspbian GNU/Linux 8"* ]]; then
     str="Raspbian_8.0"
 # Ubuntu
+elif [[ $ver = "21.10" ]]; then
+    str="xUbuntu_21.10"
+elif [[ $ver = "21.04" ]]; then
+    str="xUbuntu_21.04"
+elif [[ $ver = "20.10" ]]; then
+    str="xUbuntu_20.10"
 elif [[ $ver = "20.04" ]]; then
     str="xUbuntu_20.04"
 elif [[ $ver = "19.10" ]]; then
@@ -55,8 +61,10 @@ elif [[ $ver == 9.* ]]; then
     str="Debian_9.0"
 elif [[ $ver = 10* ]]; then
     str="Debian_10.0"
+elif [[ $ver = 11* ]]; then
+    str="Debian_11"
 elif [[ $ver = "testing" ]]; then
-    str="Debian_10.0"
+    str="Debian_testing"
 # Elementary OS Luna uses 12.04
 elif [[ $distro = "elementary OS Luna" ]]; then
     str="xUbuntu_12.04"
@@ -105,6 +113,8 @@ Jjiho4rUEW8c1EUPvK8v1jRGwjYED3ihJ6510eblYFPl+6k91OWlScnxuVVAmSn4
 =fp/e
 -----END PGP PUBLIC KEY BLOCK-----
 KEY
+
+sysctl -p /etc/sysctl.d/99-megacmd-inotify-limit.conf || true
 
 if [[ $str == "Debian_10.0" ]]; then
 sed -i "s#Buster#Debian_10#g" /var/lib/apt/lists/mega.nz_linux_MEGAsync_Debian%5f10.0_._InRelease 2>/dev/null || true

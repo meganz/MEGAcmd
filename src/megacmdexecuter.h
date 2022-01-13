@@ -19,6 +19,8 @@
 #ifndef MEGACMDEXECUTER_H
 #define MEGACMDEXECUTER_H
 
+#include "megacmdtransfermanager.h"
+
 #include "megacmdlogger.h"
 #include "megacmdsandbox.h"
 #include "listeners.h"
@@ -94,7 +96,7 @@ public:
     void dumpNodeSummaryHeader(const char *timeFormat, std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions);
     void dumpNodeSummary(mega::MegaNode* n, const char *timeFormat, std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions, bool humanreadable = false, const char* title = NULL);
     void dumpTreeSummary(mega::MegaNode* n, const char *timeFormat, std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions, int recurse, bool show_versions, int depth = 0, bool humanreadable = false, std::string pathRelativeTo = "NULL");
-    mega::MegaContactRequest * getPcrByContact(std::string contactEmail);
+    std::unique_ptr<mega::MegaContactRequest> getPcrByContact(std::string contactEmail);
     bool TestCanWriteOnContainingFolder(std::string *path);
     std::string getDisplayPath(std::string givenPath, mega::MegaNode* n);
     int dumpListOfExported(mega::MegaNode* n, const char *timeFormat, std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions, std::string givenPath);
@@ -117,9 +119,9 @@ public:
     int actUponCreateFolder(mega::SynchronousRequestListener  *srl, int timeout = 0);
     int deleteNode(mega::MegaNode *nodeToDelete, mega::MegaApi* api, int recursive, int force = 0);
     int deleteNodeVersions(mega::MegaNode *nodeToDelete, mega::MegaApi* api, int force = 0);
-    void downloadNode(std::string localPath, mega::MegaApi* api, mega::MegaNode *node, bool background, bool ignorequotawar, int clientID, MegaCmdMultiTransferListener *listener = NULL);
+    void downloadNode(std::string source, std::string localPath, mega::MegaApi* api, mega::MegaNode *node, bool background, bool ignorequotawar, int clientID, std::shared_ptr<MegaCmdMultiTransferListener> listener);
     void uploadNode(std::string localPath, mega::MegaApi* api, mega::MegaNode *node, std::string newname, bool background, bool ignorequotawarn, int clientID, MegaCmdMultiTransferListener *multiTransferListener = NULL);
-    void exportNode(mega::MegaNode *n, int64_t expireTime, std::string password = std::string(), bool force = false);
+    void exportNode(mega::MegaNode *n, int64_t expireTime, std::string password = std::string(), bool force = false, bool writable = false);
     void disableExport(mega::MegaNode *n);
     void shareNode(mega::MegaNode *n, std::string with, int level = mega::MegaShare::ACCESS_READ);
     void disableShare(mega::MegaNode *n, std::string with);
@@ -163,13 +165,13 @@ public:
 
     void printBackupHeader(const unsigned int PATHSIZE);
     void printBackupSummary(int tag, const char *localfolder, const char *remoteparentfolder, std::string status, const unsigned int PATHSIZE);
-    void printBackupHistory(mega::MegaBackup *backup, const char *timeFormat, mega::MegaNode *parentnode, const unsigned int PATHSIZE);
-    void printBackupDetails(mega::MegaBackup *backup, const char *timeFormat);
-    void printBackup(int tag, mega::MegaBackup *backup, const char *timeFormat, const unsigned int PATHSIZE, bool extendedinfo = false, bool showhistory = false, mega::MegaNode *parentnode = NULL);
+    void printBackupHistory(mega::MegaScheduledCopy *backup, const char *timeFormat, mega::MegaNode *parentnode, const unsigned int PATHSIZE);
+    void printBackupDetails(mega::MegaScheduledCopy *backup, const char *timeFormat);
+    void printBackup(int tag, mega::MegaScheduledCopy *backup, const char *timeFormat, const unsigned int PATHSIZE, bool extendedinfo = false, bool showhistory = false, mega::MegaNode *parentnode = NULL);
     void printBackup(backup_struct *backupstruct, const char *timeFormat, const unsigned int PATHSIZE, bool extendedinfo = false, bool showhistory = false);
 #endif
-    void printSyncHeader(const unsigned int PATHSIZE, ColumnDisplayer *cd = nullptr);
-    void printSync(int i, std::string key, const char *nodepath, sync_struct * thesync, mega::MegaNode *n, long long nfiles, long long nfolders, const unsigned int PATHSIZE, ColumnDisplayer *cd = nullptr);
+    void printSyncHeader(ColumnDisplayer &cd);
+    void printSync(mega::MegaSync *sync, long long nfiles, long long nfolders, ColumnDisplayer &cd, std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions);
 
     void doFind(mega::MegaNode* nodeBase, const char *timeFormat, std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions, std::string word, int printfileinfo, std::string pattern, bool usepcre, mega::m_time_t minTime, mega::m_time_t maxTime, int64_t minSize, int64_t maxSize);
 
@@ -184,7 +186,7 @@ public:
     bool checkAndInformPSA(CmdPetition *inf, bool enforce = false);
 
     bool checkNoErrors(int errorCode, std::string message = "");
-    bool checkNoErrors(mega::MegaError *error, std::string message = "");
+    bool checkNoErrors(mega::MegaError *error, std::string message = "", mega::SyncError syncError = mega::SyncError::NO_SYNC_ERROR);
 
     void confirmCancel(const char* confirmlink, const char* pass);
     bool amIPro();
@@ -203,6 +205,9 @@ public:
     bool printUserAttribute(int a, std::string user, bool onlylist = false);
     bool setProxy(const std::string &url, const std::string &username, const std::string &password, int proxyType);
     void fetchNodes(mega::MegaApi *api = nullptr, int clientID = -27);
+
+
+    void cleanSlateTranfers();
 };
 
 }//end namespace

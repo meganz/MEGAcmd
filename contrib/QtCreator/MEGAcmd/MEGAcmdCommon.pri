@@ -22,12 +22,20 @@ CONFIG += USE_MEDIAINFO
 CONFIG += USE_LIBUV
 DEFINES += ENABLE_BACKUPS
 CONFIG += USE_CONSOLE
-
+unix:!macx {
+        exists(/usr/include/fpdfview.h) {
+            CONFIG += USE_PDFIUM
+        }
+}
+else {
+    CONFIG += USE_PDFIUM
+}
 
 win32 {
 CONFIG += noreadline
 CONFIG += USE_AUTOCOMPLETE
 DEFINES += NO_READLINE
+CONFIG+=c++17
 }
 
 unix:!macx {

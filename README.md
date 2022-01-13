@@ -42,8 +42,10 @@ In order to have support for thumbnails and previews, it is highly recommended t
 
 * **Windows**
 
-	* For Windows, here is a bundle with all the 3rd party dependencies required to build:
-	https://mega.nz/#!MkZmVazb!fffUvFV9pIQhr__dVipwWqFfvjDEEp0JUsT8WBKAbRg
+	* For Windows, we have recently overhauled the build system and now all the steps are captured in this one script that will acquire and build all dependencies, as well as building MEGAcmd itself, using vcpkg and cmake.  To get and use this script, follow these steps in a command prompt: 
+	* git clone --recurse-submodules --branch tag/youChoose https://github.com/meganz/MEGAcmd.git
+	* cd megacmd/build/cmake
+	* fullBuildFromScratchOnWindows x64-windows-mega
 
 * **MacOS**
 

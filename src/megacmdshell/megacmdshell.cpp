@@ -192,7 +192,7 @@ bool serverTryingToLog = false;
 
 static char dynamicprompt[PROMPT_MAX_SIZE];
 
-static char* line;
+static char* g_line;
 
 static prompttype prompt = COMMAND;
 
@@ -256,7 +256,7 @@ void statechangehandle(string statestring)
             if (serverTryingToLog)
             {
                 std::unique_lock<std::mutex> lk(MegaCmdShellCommunications::megaCmdStdoutputing);
-                printCenteredContentsCerr(string(" Server is still trying to log in. Still, some commands are available.\n"
+                printCenteredContentsCerr(string("MEGAcmd Server is still trying to log in. Still, some commands are available.\n"
                              "Type \"help\", to list them.").c_str(), width);
             }
             changeprompt(newstate.substr(strlen("prompt:")).c_str(),true);
@@ -547,7 +547,7 @@ void setprompt(prompttype p, string arg)
     }
 #else
     console->setecho(p == COMMAND);
-    
+
     if (p != COMMAND)
     {
         pw_buf_pos = 0;
@@ -582,7 +582,7 @@ static void store_line(char* l)
         add_history(l);
     }
 
-    line = l;
+    g_line = l;
 }
 #endif
 
@@ -600,8 +600,8 @@ bool validoptionforreadline(const string& string)
         if (0x00 <= c && c <= 0x7f) n=0; // 0bbbbbbb
         else if ((c & 0xE0) == 0xC0) n=1; // 110bbbbb
         else if ( c==0xed && i<(ix-1) && ((unsigned char)string[i+1] & 0xa0)==0xa0) return false; //U+d800 to U+dfff
-        else if ((c & 0xF0) == 0xE0) {return false; n=2;} // 1110bbbb
-        else if ((c & 0xF8) == 0xF0) {return false; n=3;} // 11110bbb
+        else if ((c & 0xF0) == 0xE0) {return false; /*n=2;*/} // 1110bbbb
+        else if ((c & 0xF8) == 0xF0) {return false; /*n=3;*/} // 11110bbb
         //else if (($c & 0xFC) == 0xF8) n=4; // 111110bb //byte 5, unnecessary in 4 byte UTF-8
         //else if (($c & 0xFE) == 0xFC) n=5; // 1111110b //byte 6, unnecessary in 4 byte UTF-8
         else return false;
@@ -1632,6 +1632,33 @@ void process_line(const char * line)
 #endif
                     return;
                 }
+#ifdef HAVE_DOWNLOADS_COMMAND
+                else if ( (words[0] == "downloads"))
+                {
+                    string toexec;
+
+                    if (!strstr (commandtoexec,"path-display-size"))
+                    {
+                        unsigned int width = getNumberOfCols(75);
+                        int pathSize = int((width-46)/2);
+
+                        toexec+=words[0];
+                        toexec+=" --path-display-size=";
+                        toexec+=SSTR(pathSize);
+                        toexec+=" ";
+                        if (strlen(commandtoexec)>(words[0].size()+1))
+                        {
+                            toexec+=commandtoexec+words[0].size()+1;
+                        }
+                    }
+                    else
+                    {
+                        toexec+=commandtoexec;
+                    }
+
+                    comms->executeCommand(toexec.c_str(), readresponse);
+                }
+#endif
                 else if ( (words[0] == "transfers"))
                 {
                     string toexec;
@@ -1909,10 +1936,10 @@ void readloop()
             }
             else
             {
-                console_readpwchar(pw_buf, sizeof pw_buf, &pw_buf_pos, &line);
+                console_readpwchar(pw_buf, sizeof pw_buf, &pw_buf_pos, &g_line);
             }
 
-            if (line)
+            if (g_line)
             {
                 break;
             }
@@ -1934,15 +1961,15 @@ void readloop()
         rl_redisplay();
 
         mutexPrompt.unlock();
-        if (line)
+        if (g_line)
         {
-            if (strlen(line))
+            if (strlen(g_line))
             {
                 alreadyFinished = false;
                 percentDowloaded = 0.0;
 
                 handlerOverridenByExternalThread = false;
-                process_line(line);
+                process_line(g_line);
 
                 {
                     //after processing the line, we want to reinstall the handler (except if during the process, or due to it,
@@ -1965,8 +1992,8 @@ void readloop()
                 // this is not 100% guaranteed to happen
                 sleepSeconds(0);
             }
-            free(line);
-            line = NULL;
+            free(g_line);
+            g_line = NULL;
         }
         if (doExit)
         {
@@ -2008,10 +2035,10 @@ void readloop()
         // command editing loop - exits when a line is submitted
         for (;; )
         {
-            line = console->checkForCompletedInputLine();
+            g_line = console->checkForCompletedInputLine();
 
 
-            if (line)
+            if (g_line)
             {
                 break;
             }
@@ -2037,14 +2064,14 @@ void readloop()
 
         cleanLastMessage();// clean last message that avoids broadcasts repetitions
 
-        if (line)
+        if (g_line)
         {
-            if (strlen(line))
+            if (strlen(g_line))
             {
                 alreadyFinished = false;
                 percentDowloaded = 0.0;
 //                mutexPrompt.lock();
-                process_line(line);
+                process_line(g_line);
                 requirepromptinstall = true;
 //                mutexPrompt.unlock();
 
@@ -2059,8 +2086,8 @@ void readloop()
                 // this is not 100% guaranteed to happen
                 sleepSeconds(0);
             }
-            free(line);
-            line = NULL;
+            free(g_line);
+            g_line = NULL;
         }
         if (doExit)
         {
@@ -2154,9 +2181,10 @@ bool runningInBackground()
 #ifdef _WIN32
 void mycompletefunct(char **c, int num_matches, int max_length)
 {
-    int rows = 1, cols = 80;
+    int cols = 80;
 
 #if defined( RL_ISSTATE ) && defined( RL_STATE_INITIALIZED )
+    int rows = 1;
 
             if (RL_ISSTATE(RL_STATE_INITIALIZED))
             {

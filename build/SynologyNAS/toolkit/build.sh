@@ -126,14 +126,6 @@ check_directory $TOOLKIT_DIR/toolkit_tarballs
 # Clear prior build results.
 rm -rf ${TOOLKIT_DIR}/results
 
-# Make sure SDK build script doesn't use NEON on ARM64.
-patch --forward \
-      --reject-file=- \
-      --silent \
-      --strip=0 \
-      ${TOOLKIT_DIR}/source/MEGAcmd/MEGAcmd/sdk/contrib/build_sdk.sh \
-      ${TOOLKIT_DIR}/disable-neon-on-arm64.patch
-
 # Try and build the packages.
 for platform in $(build_platforms); do
     build ${platform}

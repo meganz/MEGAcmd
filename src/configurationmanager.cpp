@@ -19,6 +19,7 @@
 #include "configurationmanager.h"
 #include "megacmdversion.h"
 #include "megacmdutils.h"
+#include "listeners.h"
 #include "updater/Preferences.h"
 #include <fstream>
 
@@ -56,7 +57,7 @@ bool ConfigurationManager::hasBeenUpdated = false;
 #if !defined(_WIN32) && defined(LOCK_EX) && defined(LOCK_NB)
 int ConfigurationManager::fd;
 #endif
-map<string, sync_struct *> ConfigurationManager::configuredSyncs;
+map<string, sync_struct *> ConfigurationManager::oldConfiguredSyncs;
 string ConfigurationManager::session;
 std::set<std::string> ConfigurationManager::excludedNames;
 map<std::string, backup_struct *> ConfigurationManager::configuredBackups;
@@ -132,7 +133,9 @@ void ConfigurationManager::loadConfigDir()
     MegaFileSystemAccess *fsAccess = new MegaFileSystemAccess();
     fsAccess->setdefaultfolderpermissions(0700);
     LocalPath localConfigFolder = LocalPath::fromPath(configFolder, *fsAccess);
-    if (!is_file_exist(configFolder.c_str()) && !fsAccess->mkdirlocal(localConfigFolder, true))
+    constexpr bool isHidden = true;
+    constexpr bool reportExisting = false;
+    if (!is_file_exist(configFolder.c_str()) && !fsAccess->mkdirlocal(localConfigFolder, isHidden, reportExisting))
     {
         LOG_err << "Config folder not created";
     }
@@ -226,6 +229,70 @@ void ConfigurationManager::saveProperty(const char *property, const char *value)
                 fo << property << "=" << value << endl;
             }
             fo.close();
+        }
+    }
+}
+
+void ConfigurationManager::migrateSyncConfig(MegaApi *api)
+{
+    bool informed = false;
+
+    std::map<sync_struct*, std::unique_ptr<MegaCmdListener>> listeners;
+
+    {
+        std::lock_guard<std::recursive_mutex> g(settingsMutex);
+        for (auto itr = oldConfiguredSyncs.begin();
+             itr != oldConfiguredSyncs.end(); itr++)
+        {
+            if (!informed)
+            {
+                LOG_debug << "copying sync config";
+                informed = true;
+            }
+
+            sync_struct *thesync = ((sync_struct*)( *itr ).second );
+
+            auto newListenerPair = listeners.emplace(thesync, ::make_unique<MegaCmdListener>(api));
+
+            api->copySyncDataToCache(thesync->localpath.c_str(), thesync->handle, nullptr,
+                                     thesync->fingerprint, thesync->active, false, newListenerPair.first->second.get());
+        }
+    }
+
+    for (auto &lPair : listeners)
+    {
+        auto &thesync = lPair.first;
+        auto &listener = lPair.second;
+        listener->wait();
+        auto e = listener->getError();
+
+        if (e && e->getErrorCode() == API_OK)
+        {
+            removeSyncConfig(thesync);
+        }
+        else
+        {
+            LOG_err << " fail to copy old sync cache data: " << thesync->localpath;
+        }
+    }
+
+}
+
+void ConfigurationManager::removeSyncConfig(sync_struct *syncToRemove)
+{
+    std::lock_guard<std::recursive_mutex> g(settingsMutex);
+    for (map<string, sync_struct *>::iterator itr = oldConfiguredSyncs.begin();
+         itr != oldConfiguredSyncs.end(); itr++)
+    {
+        sync_struct *thesync = ((sync_struct*)( *itr ).second );
+
+        if (thesync == syncToRemove)
+        {
+            oldConfiguredSyncs.erase(itr);
+            delete thesync;
+            ConfigurationManager::saveSyncs(&ConfigurationManager::oldConfiguredSyncs);
+
+            return;
         }
     }
 }
@@ -394,7 +461,7 @@ void ConfigurationManager::loadExcludedNames()
         excludedNamesFile << configFolder << "/" << "excluded";
         LOG_debug << "Excluded file: " << excludedNamesFile.str();
 
-        if (!is_file_exist(excludedNamesFile.str().c_str()) && !configuredSyncs.size()) //do not add defaults if syncs already configured
+        if (!is_file_exist(excludedNamesFile.str().c_str()) && !oldConfiguredSyncs.size()) //do not add defaults if syncs already configured
         {
             excludedNames.insert(".*");
             excludedNames.insert("desktop.ini");
@@ -432,10 +499,10 @@ void ConfigurationManager::unloadConfiguration()
 {
     std::lock_guard<std::recursive_mutex> g(settingsMutex);
 
-    for (map<string, sync_struct *>::iterator itr = configuredSyncs.begin(); itr != configuredSyncs.end(); )
+    for (map<string, sync_struct *>::iterator itr = oldConfiguredSyncs.begin(); itr != oldConfiguredSyncs.end(); )
     {
         sync_struct *thesync = ((sync_struct*)( *itr ).second );
-        configuredSyncs.erase(itr++);
+        oldConfiguredSyncs.erase(itr++);
         delete thesync;
     }
 
@@ -499,11 +566,11 @@ void ConfigurationManager::loadsyncs()
                 thesync->localpath.resize(lengthLocalPath);
                 fi.read((char*)thesync->localpath.c_str(), sizeof( char ) * lengthLocalPath);
 
-                if (configuredSyncs.find(thesync->localpath) != configuredSyncs.end())
+                if (oldConfiguredSyncs.find(thesync->localpath) != oldConfiguredSyncs.end())
                 {
-                    delete configuredSyncs[thesync->localpath];
+                    delete oldConfiguredSyncs[thesync->localpath];
                 }
-                configuredSyncs[thesync->localpath] = thesync;
+                oldConfiguredSyncs[thesync->localpath] = thesync;
 
                 if (versioncodeStoredValues != MEGACMD_CODE_VERSION)
                 {
@@ -512,7 +579,7 @@ void ConfigurationManager::loadsyncs()
             }
             if (updateSavedFormatRequired)
             {
-                ConfigurationManager::saveSyncs(&ConfigurationManager::configuredSyncs);
+                ConfigurationManager::saveSyncs(&ConfigurationManager::oldConfiguredSyncs);
             }
 
             if (fi.bad())

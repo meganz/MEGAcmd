@@ -137,32 +137,6 @@ const char* getSyncPathStateStr(int state)
     return "undefined";
 }
 
-const char* getSyncStateStr(int state)
-{
-    switch (state)
-    {
-        case MegaSync::SYNC_FAILED:
-            return "Failed";
-
-            break;
-
-        case MegaSync::SYNC_CANCELED:
-            return "Canceled";
-
-            break;
-
-        case MegaSync::SYNC_INITIALSCAN:
-            return "InitScan";
-
-            break;
-
-        case MegaSync::SYNC_ACTIVE:
-            return "Active";
-
-            break;
-    }
-    return "undefined";
-}
 
 string visibilityToString(int visibility)
 {
@@ -411,31 +385,31 @@ const char * getTransferStateStr(int transferState)
 
 string backupSatetStr(int backupstate)
 {
-    if (backupstate == MegaBackup::BACKUP_FAILED)
+    if (backupstate == MegaScheduledCopy::SCHEDULED_COPY_FAILED)
     {
         return "FAILED";
     }
-    if (backupstate == MegaBackup::BACKUP_CANCELED)
+    if (backupstate == MegaScheduledCopy::SCHEDULED_COPY_CANCELED)
     {
         return "CANCELED";
     }
-    if (backupstate == MegaBackup::BACKUP_INITIALSCAN)
+    if (backupstate == MegaScheduledCopy::SCHEDULED_COPY_INITIALSCAN)
     {
         return "INITIALSCAN";
     }
-    if (backupstate == MegaBackup::BACKUP_ACTIVE)
+    if (backupstate == MegaScheduledCopy::SCHEDULED_COPY_ACTIVE)
     {
         return "ACTIVE";
     }
-    if (backupstate == MegaBackup::BACKUP_ONGOING)
+    if (backupstate == MegaScheduledCopy::SCHEDULED_COPY_ONGOING)
     {
         return "ONGOING";
     }
-    if (backupstate == MegaBackup::BACKUP_SKIPPING)
+    if (backupstate == MegaScheduledCopy::SCHEDULED_COPY_SKIPPING)
     {
         return "SKIPPING";
     }
-    if (backupstate == MegaBackup::BACKUP_REMOVING_EXCEEDING)
+    if (backupstate == MegaScheduledCopy::SCHEDULED_COPY_REMOVING_EXCEEDING)
     {
         return "EXCEEDREMOVAL";
     }
@@ -594,7 +568,7 @@ string secondsToText(m_time_t seconds, bool humanreadable)
 const char *getTimeFormatFromSTR(string formatName)
 {
     string lformatName = formatName;
-    transform(lformatName.begin(), lformatName.end(), lformatName.begin(), ::tolower);
+    transform(lformatName.begin(), lformatName.end(), lformatName.begin(), [](char c) { return (char)::tolower(c); });
 
     if (lformatName == "rfc2822")
     {
@@ -1016,10 +990,11 @@ bool isRegExp(string what)
     bool isregex = strcmp(what.c_str(), ns.c_str());
     return isregex;
 
-#elif __cplusplus >= 201103L && !defined(__MINGW32__)
+//TODO: #elif __cplusplus >= 201103L && !defined(__MINGW32__)
     //TODO??
-#endif
+#else
     return hasWildCards(what);
+#endif
 }
 
 string unquote(string what)
@@ -1056,15 +1031,16 @@ string unquote(string what)
 
     return pref+ns;
 
-#endif
+#else
     return what;
+#endif
 }
 
 bool megacmdWildcardMatch(const char *pszString, const char *pszMatch)
 //  cf. http://www.planet-source-code.com/vb/scripts/ShowCode.asp?txtCodeId=1680&lngWId=3
 {
-    const char *cp;
-    const char *mp;
+    const char *cp = nullptr;
+    const char *mp = nullptr;
 
     while ((*pszString) && (*pszMatch != '*'))
     {
@@ -1141,9 +1117,10 @@ bool patternMatches(const char *what, const char *pattern, bool usepcre)
             LOG_warn << "Couldn't compile regex: " << pattern;
             return false;
         }
-#endif
+#else
         LOG_warn << " PCRE not supported";
         return false;
+#endif
     }
 
     return megacmdWildcardMatch(what,pattern);
@@ -1274,5 +1251,27 @@ int permissionsFromReadable(string permissions)
     return -1;
 }
 #endif
+
+std::string handleToBase64(const MegaHandle &handle)
+{
+    char *base64Handle = MegaApi::handleToBase64(handle);
+    std::string toret{base64Handle};
+    delete [] base64Handle;
+    return toret;
+}
+
+
+std::string syncBackupIdToBase64(const MegaHandle &handle)
+{
+    char *base64Handle = MegaApi::userHandleToBase64(handle);
+    std::string toret{base64Handle};
+    delete [] base64Handle;
+    return toret;
+}
+
+mega::MegaHandle base64ToSyncBackupId(const std::string &shandle)
+{
+    return MegaApi::base64ToUserHandle(shandle.c_str());
+}
 
 }//end namespace

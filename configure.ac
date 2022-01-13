@@ -21,6 +21,7 @@
 m4_include([sdk/m4/ax_check_compile_flag.m4])
 m4_include([sdk/m4/ax_check_link_flag.m4])
 m4_include([sdk/m4/ax_cxx_compile_stdcxx.m4])
+m4_include([sdk/m4/ax_atomic.m4])
 
 m4_define([megacmd_major_version], [$(cat src/megacmdversion.h | grep "define MEGACMD_MAJOR" | cut -d" " -f 3)])
 m4_define([megacmd_minor_version], [$(cat src/megacmdversion.h | grep "define MEGACMD_MINOR" | cut -d" " -f 3)])
@@ -36,8 +37,6 @@ m4_define([megacmd_lt_current], [$(grep define <src/megacmdversion.h | awk '{pri
 m4_define([megacmd_lt_age], [0])
 
 AC_INIT([MEGAcmd], m4_esyscmd([ grep define < src/megacmdversion.h | awk '{print $3}' | awk 'BEGIN { RS = "" ; FS = "\n" } {printf $1"."$2"."$3}']), [https://github.com/meganz/megacmd])
-
-AM_INIT_AUTOMAKE
 
 AC_PROG_CC
 AC_CONFIG_FILES(Makefile)
@@ -425,6 +424,96 @@ AC_SUBST(RL_LDFLAGS)
 AC_SUBST(RL_LIBS)
 AC_SUBST(RL_CXXFLAGS)
 
+# SQLite3
+sqlite=false
+AC_MSG_CHECKING(for SQLite)
+AC_ARG_WITH(sqlite,
+  AS_HELP_STRING(--with-sqlite=PATH, base of SQLite installation),
+  [AC_MSG_RESULT($with_sqlite)
+   case $with_sqlite in
+   no)
+    sqlite=false
+     ;;
+   yes)
+    AC_CHECK_HEADERS([sqlite3.h],, [
+        AC_MSG_ERROR([sqlite3.h header not found or not usable])
+    ])
+    AC_CHECK_LIB(sqlite3, [sqlite3_open], [DB_LIBS="-lsqlite3"],[
+            AC_MSG_ERROR([Could not find libsqlite3])
+    ])
+    AC_SUBST(DB_LIBS)
+    sqlite=true
+     ;;
+   *)
+
+    # determine if library is installed
+    if test -d "$with_sqlite/lib"; then
+        LDFLAGS="-L$with_sqlite/lib $LDFLAGS"
+        CXXFLAGS="-I$with_sqlite/include $CXXFLAGS"
+
+        AC_CHECK_HEADERS(sqlite3.h,[
+         DB_LDFLAGS="-L$with_sqlite/lib"
+         DB_CXXFLAGS="-I$with_sqlite/include"
+         DB_CPPFLAGS="-I$with_sqlite/include"],
+         AC_MSG_ERROR([sqlite3.h header not found or not usable])
+        )
+
+        # use sqlite3 library
+        AC_CHECK_LIB(sqlite3, [main], [DB_LIBS="-lsqlite3"],[
+                AC_MSG_ERROR([Could not find libsqlite3])
+        ])
+        AC_SUBST(DB_LIBS)
+    else
+        LDFLAGS="-L$with_sqlite $LDFLAGS"
+        CXXFLAGS="-I$with_sqlite $CXXFLAGS"
+
+        AC_CHECK_HEADERS(sqlite3.h,[
+         DB_LDFLAGS="-L$with_sqlite"
+         DB_CXXFLAGS="-I$with_sqlite"
+         DB_CPPFLAGS="-I$with_sqlite"],
+         AC_MSG_ERROR([sqlite3.h header not found or not usable])
+        )
+        DB_LIBS="-lsqlite3"
+        AC_SUBST(DB_LIBS)
+    fi
+
+    sqlite=true
+
+    #restore
+    LDFLAGS=$SAVE_LDFLAGS
+    CXXFLAGS=$SAVE_CXXFLAGS
+    CPPFLAGS=$SAVE_CPPFLAGS
+    ;;
+   esac
+  ],
+  [AC_MSG_RESULT([--with-sqlite not specified])]
+  )
+AM_CONDITIONAL(USE_SQLITE, test x$sqlite = xtrue)
+AC_SUBST(DB_CXXFLAGS)
+AC_SUBST(DB_CPPFLAGS)
+AC_SUBST(DB_LDFLAGS)
+
+# check if no DB layer is selected, use SQLite by the default
+if test "x$sqlite" = "xfalse" ; then
+    AC_MSG_NOTICE([Using SQLite3 as the default DB access layer.])
+
+    AC_CHECK_HEADERS([sqlite3.h],, [
+        AC_MSG_ERROR([sqlite3.h header not found or not usable])
+    ])
+    AC_CHECK_LIB(sqlite3, [sqlite3_open], [DB_LIBS="-lsqlite3"],[
+            AC_MSG_ERROR([Could not find libsqlite3])
+    ])
+    sqlite=true
+
+    AM_CONDITIONAL(USE_SQLITE, test x$sqlite = xtrue)
+    AC_SUBST(DB_LIBS)
+fi
+
+if test "x$sqlite" = "xtrue" ; then
+    AC_DEFINE(USE_SQLITE, [1], [Define to use SQLite])
+fi
+
+
 #PTHREAD
 
 # check for Pthreads
@@ -445,6 +534,9 @@ if test "$HAVE_PTHREAD" = "yes"; then
     fi    
 fi
 AM_CONDITIONAL([HAVE_PTHREAD], [test "${HAVE_PTHREAD}" = "yes"])
+
+# Add -latomic to LDFLAGS if needed
+CHECK_ATOMIC()
 
 #This will simulate compilation of sdk and extract the includes defined for it. Thus we can
 # take care of the configuration done for the subproject withtout having to recheck here

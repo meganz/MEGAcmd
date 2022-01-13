@@ -21,6 +21,8 @@
 
 #include "megacmdlogger.h"
 #include "megacmdsandbox.h"
+#include "megacmdtransfermanager.h"
+
 
 namespace megacmd {
 class MegaCmdSandbox;
@@ -131,7 +133,7 @@ private:
     float percentDownloaded;
     bool alreadyFinished;
     int clientID;
-    int started;
+    unsigned created;
     int finished;
     long long transferredbytes;
     std::map<int, long long> ongoingtransferredbytes;
@@ -144,6 +146,14 @@ private:
 
     bool progressinformed;
 
+    std::mutex mStartedTransfersMutex; //to protect mStartedTransfers
+    std::condition_variable mStartedConditionVariable;
+    unsigned mStartedTransfersCount = 0;
+
+#ifdef HAVE_DOWNLOADS_COMMAND
+    // string to tag map
+    std::vector<DownloadId> mStartedTransfers;
+#endif
 public:
     MegaCmdMultiTransferListener(mega::MegaApi *megaApi, MegaCmdSandbox * sandboxCMD, mega::MegaTransferListener *listener = NULL, int clientID=-1);
     virtual ~MegaCmdMultiTransferListener();
@@ -157,7 +167,12 @@ public:
 
     void onNewTransfer();
 
+    void onTransferStarted(const std::string &path, int tag);
+
     void waitMultiEnd();
+
+    // waits untill all transfers have started
+    void waitMultiStart();
 
     int getFinalerror() const;
 
@@ -165,9 +180,36 @@ public:
 
     bool getProgressinformed() const;
 
+#ifdef HAVE_DOWNLOADS_COMMAND
+    std::vector<DownloadId> getStartedTransfers() const;
+#endif
+
 protected:
     mega::MegaTransferListener *listener;
 };
+
+/**
+ * @brief TODO: document and rename
+ * Note: self destructive
+ */
+class ATransferListener : public mega::MegaTransferListener
+{
+private:
+    std::shared_ptr<MegaCmdMultiTransferListener> mMultiTransferListener;  //the listener this belongs too
+    const std::string mPath; //The path that originated the transfer
+
+public:
+    ATransferListener(const std::shared_ptr<MegaCmdMultiTransferListener> &mMultiTransferListener, const std::string &path);
+    virtual ~ATransferListener();
+
+    //Transfer callbacks
+    virtual void onTransferStart(mega::MegaApi* api, mega::MegaTransfer *transfer);
+    virtual void onTransferFinish(mega::MegaApi* api, mega::MegaTransfer *transfer, mega::MegaError* e);
+    virtual void onTransferUpdate(mega::MegaApi* api, mega::MegaTransfer *transfer);
+    virtual void onTransferTemporaryError(mega::MegaApi *api, mega::MegaTransfer *transfer, mega::MegaError* e);
+    virtual bool onTransferData(mega::MegaApi *api, mega::MegaTransfer *transfer, char *buffer, size_t size);
+};
+
 
 class MegaCmdGlobalListener : public mega::MegaGlobalListener
 {
@@ -203,12 +245,17 @@ public:
 #endif
 
 #ifdef ENABLE_BACKUPS
-    virtual void onBackupStateChanged(mega::MegaApi *api,  mega::MegaBackup *backup);
-    virtual void onBackupStart(mega::MegaApi *api, mega::MegaBackup *backup);
-    virtual void onBackupFinish(mega::MegaApi* api, mega::MegaBackup *backup, mega::MegaError* error);
-    virtual void onBackupUpdate(mega::MegaApi *api, mega::MegaBackup *backup);
-    virtual void onBackupTemporaryError(mega::MegaApi *api, mega::MegaBackup *backup, mega::MegaError* error);
+    virtual void onBackupStateChanged(mega::MegaApi *api,  mega::MegaScheduledCopy *backup);
+    virtual void onBackupStart(mega::MegaApi *api, mega::MegaScheduledCopy *backup);
+    virtual void onBackupFinish(mega::MegaApi* api, mega::MegaScheduledCopy *backup, mega::MegaError* error);
+    virtual void onBackupUpdate(mega::MegaApi *api, mega::MegaScheduledCopy *backup);
+    virtual void onBackupTemporaryError(mega::MegaApi *api, mega::MegaScheduledCopy *backup, mega::MegaError* error);
 #endif
+
+    virtual void onSyncAdded(mega::MegaApi *api, mega::MegaSync *sync, int additionState);
+    virtual void onSyncDisabled(mega::MegaApi *api, mega::MegaSync *sync);
+    virtual void onSyncEnabled(mega::MegaApi *api, mega::MegaSync *sync);
+    virtual void onSyncDeleted(mega::MegaApi *api, mega::MegaSync *sync);
 
 protected:
     mega::MegaApi *megaApi;

@@ -32,6 +32,12 @@ SOURCES += ../../../../src/megacmd.cpp \
     ../../../../src/megacmdutils.cpp \
     ../../../../src/megacmdcommonutils.cpp
 
+CONFIG(USE_DOWNLOADS_COMMAND) {
+DEFINES+=HAVE_DOWNLOADS_COMMAND
+SOURCES += ../../../../src/megacmdtransfermanager.cpp
+HEADERS += ../../../../src/megacmdtransfermanager.h
+
+}
 
 HEADERS += ../../../../src/megacmd.h \
     ../../../../src/megacmdexecuter.h \

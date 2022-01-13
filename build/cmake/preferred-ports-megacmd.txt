@@ -1,14 +1,13 @@
-
 # direct core dependencies of the SDK
 c-ares/c303dd024e2dc03a0665ddffbb12a1077933e649
 cryptopp/c303dd024e2dc03a0665ddffbb12a1077933e649
-curl/c303dd024e2dc03a0665ddffbb12a1077933e649:curl-empty-bindir.patch
+curl/7375bb408f2278d2f1875c259beef93332697ba7
 libsodium/c303dd024e2dc03a0665ddffbb12a1077933e649
-openssl/c303dd024e2dc03a0665ddffbb12a1077933e649
-openssl-unix/c303dd024e2dc03a0665ddffbb12a1077933e649
-openssl-windows/c303dd024e2dc03a0665ddffbb12a1077933e649
-readline/8.0 osx
-pcre/c303dd024e2dc03a0665ddffbb12a1077933e649
+openssl/c303dd024e2dc03a0665ddffbb12a1077933e649 osx:off
+openssl-unix/c303dd024e2dc03a0665ddffbb12a1077933e649 all:off linux:on
+openssl-windows/c303dd024e2dc03a0665ddffbb12a1077933e649 all:off windows:on
+readline/8.0 all:off osx:on
+pcre/61b3046e513d189495ee37247e6cc550ee75e471
 sqlite3/c303dd024e2dc03a0665ddffbb12a1077933e649
 zlib/c303dd024e2dc03a0665ddffbb12a1077933e649
 libuv/c303dd024e2dc03a0665ddffbb12a1077933e649
@@ -21,21 +20,22 @@ libzen/0.4.37
 ffmpeg/c303dd024e2dc03a0665ddffbb12a1077933e649
 
 #freeimage and its dependencies (image preview/thumbnail generation)
-freeimage/c47216ac7904b09187c119c7e4d010dcf993e3d5:freeimage-bool-typedef-and-xbm-msvc-compiler-bug.patch
-libpng/c303dd024e2dc03a0665ddffbb12a1077933e649
-libjpeg-turbo/c303dd024e2dc03a0665ddffbb12a1077933e649
-tiff/c303dd024e2dc03a0665ddffbb12a1077933e649
-openjpeg/c303dd024e2dc03a0665ddffbb12a1077933e649
-libwebp/c303dd024e2dc03a0665ddffbb12a1077933e649
-libraw/c303dd024e2dc03a0665ddffbb12a1077933e649
-jxrlib/c303dd024e2dc03a0665ddffbb12a1077933e649
-openexr/c303dd024e2dc03a0665ddffbb12a1077933e649:openexr-no-python.patch
-jasper/c303dd024e2dc03a0665ddffbb12a1077933e649:jasper-no-freeglut.patch
-liblzma/c303dd024e2dc03a0665ddffbb12a1077933e649
-#python3 not needed; it only provides python bindings to use openexr from python
-libffi/c303dd024e2dc03a0665ddffbb12a1077933e649
-opengl/c303dd024e2dc03a0665ddffbb12a1077933e649
-#freeglut (cross platform window manager) not needed; problematic on some platforms, pulling in many, many dependencies
+freeimage/7375bb408f2278d2f1875c259beef93332697ba7 osx:freeimage-bool-typedef-xcode-compiler.patch
+libpng/7375bb408f2278d2f1875c259beef93332697ba7
+libjpeg-turbo/7375bb408f2278d2f1875c259beef93332697ba7
+tiff/7375bb408f2278d2f1875c259beef93332697ba7
+libwebp/7375bb408f2278d2f1875c259beef93332697ba7 all:libwebp-no-freeglut-no-avx.patch
+libraw/7375bb408f2278d2f1875c259beef93332697ba7 ios:libraw-ios.patch
+jxrlib/7375bb408f2278d2f1875c259beef93332697ba7 ios:jxrlib-ios-guiddef-fix.patch
+openexr/7375bb408f2278d2f1875c259beef93332697ba7 ios:openexr-ios.patch
+jasper/7375bb408f2278d2f1875c259beef93332697ba7 all:jasper-no-freeglut.patch
+liblzma/7375bb408f2278d2f1875c259beef93332697ba7 ios:liblzma-ios.patch
+libffi/7375bb408f2278d2f1875c259beef93332697ba7
+opengl/7375bb408f2278d2f1875c259beef93332697ba7
+
+# cmake\vcpkg toolchain dependencies
+vcpkg-cmake-config/7375bb408f2278d2f1875c259beef93332697ba7
+vcpkg-cmake/7375bb408f2278d2f1875c259beef93332697ba7
 
 # pdfium libraries, specific version for build stability  (preview/thumbnail generation for pdfs)
 # (see 3rdParty_deps.txt on instructions on how to get source)
@@ -46,13 +46,9 @@ pdfium-freetype/2-8-73
 # dependencies of pdfium
 icu/c303dd024e2dc03a0665ddffbb12a1077933e649
 lcms/c303dd024e2dc03a0665ddffbb12a1077933e649
-libjpeg-turbo/c303dd024e2dc03a0665ddffbb12a1077933e649
-openjpeg/c303dd024e2dc03a0665ddffbb12a1077933e649
-# bzip2 and libpng will be used by pdfium if present, though there are no build errors if either are absent (except bzip2 on mac)
+openjpeg/7375bb408f2278d2f1875c259beef93332697ba7
 bzip2/c303dd024e2dc03a0665ddffbb12a1077933e649
-libpng/c303dd024e2dc03a0665ddffbb12a1077933e649
 
 # tests and tools
 asio/c303dd024e2dc03a0665ddffbb12a1077933e649
-gtest/c303dd024e2dc03a0665ddffbb12a1077933e649
-
+gtest/7375bb408f2278d2f1875c259beef93332697ba7

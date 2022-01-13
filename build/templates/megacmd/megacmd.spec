@@ -11,7 +11,7 @@ Packager:	MEGA Linux Team <linux@mega.co.nz>
 
 BuildRequires: zlib-devel, autoconf, automake, libtool, gcc-c++, pcre-devel
 BuildRequires: hicolor-icon-theme, unzip, wget
-BuildRequires: ffmpeg-mega
+BuildRequires: ffmpeg-mega pdfium-mega
 
 #OpenSUSE
 %if 0%{?suse_version} || 0%{?sle_version}
@@ -47,14 +47,23 @@ BuildRequires: ffmpeg-mega
 
 #Fedora specific
 %if 0%{?fedora}
-    BuildRequires: openssl-devel, sqlite-devel, c-ares-devel, cryptopp-devel
+    BuildRequires: openssl-devel, sqlite-devel, c-ares-devel
+
+    %if 0%{?fedora_version} < 33
+        BuildRequires: cryptopp-devel
+
+        %if 0%{?fedora_version} >= 26
+            Requires: cryptopp >= 5.6.5
+        %endif
+    %endif
 
     %if 0%{?fedora_version} >= 31
         BuildRequires: bzip2-devel
     %endif
 
-    %if 0%{?fedora_version} >= 26
-        Requires: cryptopp >= 5.6.5
+    # allowing for rpaths (taken as invalid, as if they were not absolute paths when they are)
+    %if 0%{?fedora_version} >= 35
+        %define __brp_check_rpaths QA_RPATHS=0x0002 /usr/lib/rpm/check-rpaths
     %endif
 
 %endif
@@ -76,11 +85,6 @@ BuildRequires: ffmpeg-mega
     %endif
 %endif
 
-##Pdfium: required for 64 bits only
-#%if %{_target_cpu} != "i586" &&  %{_target_cpu} != "i686"
-#    BuildRequires: pdfium-mega
-#%endif
-
 ### Specific buildable dependencies ###
 
 #Media info
@@ -100,7 +104,7 @@ BuildRequires: ffmpeg-mega
 %define flag_cryptopp %{nil}
 %define with_cryptopp %{nil}
 
-%if 0%{?centos_version} || 0%{?scientificlinux_version} || 0%{?rhel_version} ||  0%{?suse_version} > 1320
+%if 0%{?centos_version} || 0%{?scientificlinux_version} || 0%{?rhel_version} ||  0%{?suse_version} > 1320 || 0%{?fedora_version} >= 33
     %define flag_cryptopp -q
     %define with_cryptopp --with-cryptopp=$PWD/deps
 %endif
@@ -144,7 +148,7 @@ sed -i -E "s/(^#define MEGACMD_BUILD_ID )[0-9]*/\1${mega_build_id}/g" src/megacm
 %build
 
 # Fedora uses system Crypto++ header files
-%if 0%{?fedora}
+%if 0%{?fedora_version} < 33
     rm -fr bindings/qt/3rdparty/include/cryptopp
 %endif
 
@@ -153,8 +157,7 @@ sed -i -E "s/(^#define MEGACMD_BUILD_ID )[0-9]*/\1${mega_build_id}/g" src/megacm
     sed -i "s#AC_INIT#m4_pattern_allow(AC_PROG_OBJCXX)\nAC_INIT#g" sdk/configure.ac
 %endif
 
-%define fullreqs -DREQUIRE_HAVE_FFMPEG -DREQUIRE_HAVE_LIBUV -DREQUIRE_USE_MEDIAINFO -DREQUIRE_USE_PCRE
-
+%define fullreqs -DREQUIRE_HAVE_PDFIUM -DREQUIRE_HAVE_FFMPEG -DREQUIRE_HAVE_LIBUV -DREQUIRE_USE_MEDIAINFO -DREQUIRE_USE_PCRE
 
 ./autogen.sh
 
@@ -163,22 +166,25 @@ mkdir deps || :
 bash -x ./contrib/build_sdk.sh %{flag_cryptopp} %{flag_libraw} %{flag_cares} -o archives \
   -g %{flag_disablezlib} %{flag_disablemediainfo} -b -l -c -s -u -v -a -I -p deps/
 
-%if ( 0%{?fedora_version} && 0%{?fedora_version}<=28 ) || ( 0%{?centos_version} == 600 ) || ( 0%{?suse_version} && 0%{?suse_version} < 1550 && !0%{?sle_version} ) || ( 0%{?sle_version} && 0%{?sle_version} <= 120300 )
+ln -sfr $PWD/deps/lib/libfreeimage*.so $PWD/deps/lib/libfreeimage.so.3
+ln -sfn libfreeimage.so.3 $PWD/deps/lib/libfreeimage.so
+
+%if ( 0%{?fedora_version} && 0%{?fedora_version}<=31 ) || ( 0%{?centos_version} == 600 ) || ( 0%{?sle_version} && 0%{?sle_version} < 150000 )
     export CPPFLAGS="$CPPFLAGS -DMEGACMD_DEPRECATED_OS"
 %endif
 
-CPPFLAGS="$CPPFLAGS %{fullreqs}" ./configure --disable-shared --enable-static --disable-silent-rules \
-  --disable-curl-checks %{with_cryptopp} %{with_libraw} --with-sodium=$PWD/deps --with-pcre \
-  %{with_zlib} --with-sqlite=$PWD/deps --with-cares=$PWD/deps --with-libuv=$PWD/deps \
+CPPFLAGS="$CPPFLAGS %{fullreqs}" LDFLAGS="$LDFLAGS -Wl,-rpath,/opt/megacmd/lib" ./configure --disable-shared --enable-static \
+  --disable-silent-rules --disable-curl-checks %{with_cryptopp} %{with_libraw} --with-sodium=$PWD/deps --with-pcre \
+  %{with_zlib} --with-sqlite=$PWD/deps --with-cares=$PWD/deps --with-libuv=$PWD/deps --with-pdfium \
   --with-curl=$PWD/deps --with-freeimage=$PWD/deps --with-readline=$PWD/deps \
   --with-termcap=$PWD/deps --prefix=$PWD/deps --disable-examples %{with_mediainfo} || export CONFFAILED=1
 
 if [ "x$CONFFAILED" == "x1" ]; then
     sed -i "s#.*CONFLICTIVEOLDAUTOTOOLS##g" sdk/configure.ac
     ./autogen.sh
-    CPPFLAGS="$CPPFLAGS %{fullreqs}" ./configure --disable-shared --enable-static --disable-silent-rules \
-      --disable-curl-checks %{with_cryptopp} %{with_libraw} --with-sodium=$PWD/deps --with-pcre \
-      %{with_zlib} --with-sqlite=$PWD/deps --with-cares=$PWD/deps --with-libuv=$PWD/deps \
+    CPPFLAGS="$CPPFLAGS %{fullreqs}" LDFLAGS="$LDFLAGS -Wl,-rpath,/opt/megacmd/lib" ./configure --disable-shared --enable-static \
+      --disable-silent-rules --disable-curl-checks %{with_cryptopp} %{with_libraw} --with-sodium=$PWD/deps --with-pcre \
+      %{with_zlib} --with-sqlite=$PWD/deps --with-cares=$PWD/deps --with-libuv=$PWD/deps --with-pdfium \
       --with-curl=$PWD/deps --with-freeimage=$PWD/deps --with-readline=$PWD/deps \
       --with-termcap=$PWD/deps --prefix=$PWD/deps --disable-examples %{with_mediainfo} || cat sdk/configure
 fi
@@ -195,7 +201,10 @@ install -D mega-cmd-server %{buildroot}%{_bindir}/mega-cmd-server
 install -D mega-exec %{buildroot}%{_bindir}/mega-exec
 
 mkdir -p  %{buildroot}/etc/sysctl.d/
-echo "fs.inotify.max_user_watches = 524288" > %{buildroot}/etc/sysctl.d/100-megacmd-inotify-limit.conf
+echo "fs.inotify.max_user_watches = 524288" > %{buildroot}/etc/sysctl.d/99-megacmd-inotify-limit.conf
+
+mkdir -p  %{buildroot}/opt/megacmd/lib
+install -D deps/lib/libfreeimage.so.* %{buildroot}/opt/megacmd/lib
 
 %post
 #source bash_completion?
@@ -263,13 +272,18 @@ DATA
         %define reponame openSUSE_Leap_42.1
     %endif
 
-    %if 0%{?sle_version} == 150000
+    %if 0%{?sle_version} == 150000 || 0%{?sle_version} == 150100 || 0%{?sle_version} == 150200
         %define reponame openSUSE_Leap_15.0
-    %else
-        %if 0%{?suse_version} > 1320
-            %define reponame openSUSE_Tumbleweed
-        %endif
     %endif
+
+    %if 0%{?sle_version} == 150300
+        %define reponame openSUSE_Leap_15.3
+    %endif
+
+    %if 0%{?sle_version} == 0 && 0%{?suse_version} >= 1550
+        %define reponame openSUSE_Tumbleweed
+    %endif
+
     %if 0%{?suse_version} == 1320
         %define reponame openSUSE_13.2
     %endif
@@ -354,7 +368,7 @@ KEY
     fi
 fi
 
-sysctl -p /etc/sysctl.d/100-megacmd-inotify-limit.conf
+sysctl -p /etc/sysctl.d/99-megacmd-inotify-limit.conf
 
 ### END of POSTINST
 
@@ -443,6 +457,7 @@ killall -s SIGUSR2 mega-cmd-server 2> /dev/null || true
 %{_bindir}/mega-cmd
 %{_bindir}/mega-cmd-server
 %{_sysconfdir}/bash_completion.d/megacmd_completion.sh
-/etc/sysctl.d/100-megacmd-inotify-limit.conf
+/etc/sysctl.d/99-megacmd-inotify-limit.conf
+/opt/megacmd/lib/libfreeimage.so.3
 
 %changelog

@@ -261,12 +261,18 @@ string parseArgs(int argc, char* argv[])
                 || !strcmp(argv[1],"du")
                 || !strcmp(argv[1],"mediainfo")
                 || !strcmp(argv[1],"sync")
+                || !strcmp(argv[1],"downloads")
                 || !strcmp(argv[1],"transfers") )
         {
             unsigned int width = getNumberOfCols(80);
             int pathSize = width/2;
 
-            if ( !strcmp(argv[1],"transfers") )
+
+            if ( !strcmp(argv[1],"downloads") )
+            {
+                pathSize = int((width-46)/2);
+            }
+            else if ( !strcmp(argv[1],"transfers") )
             {
                 pathSize = int((width-46)/2);
             }
@@ -488,12 +494,17 @@ wstring parsewArgs(int argc, wchar_t* argv[])
                 || !wcscmp(argv[1],L"du")
                 || !wcscmp(argv[1],L"mediainfo")
                 || !wcscmp(argv[1],L"sync")
+                || !wcscmp(argv[1],L"downloads")
                 || !wcscmp(argv[1],L"transfers") )
         {
             unsigned int width = getNumberOfCols(80);
             int pathSize = width/2;
 
-            if ( !wcscmp(argv[1],L"transfers") )
+            if ( !wcscmp(argv[1],L"downloads") )
+            {
+                pathSize = int((width-46)/2);
+            }
+            else if ( !wcscmp(argv[1],L"transfers") )
             {
                 pathSize = int((width-46)/2);
             }

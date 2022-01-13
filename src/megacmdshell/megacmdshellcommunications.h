@@ -24,6 +24,10 @@
 
 #include "../megacmdcommonutils.h"
 
+// In the server, OUTSTREAM is defined in megacmdlogger.h: #define OUTSTREAM getCurrentOut()
+// However in the exec and cmd apps:
+#define OUTSTREAM COUT
+
 #include <string>
 #include <iostream>
 #include <mutex>
