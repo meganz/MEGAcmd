@@ -1697,6 +1697,7 @@ const char * getUsageStr(const char *command)
     {
         return "export [-d|-a"
                " [--writable]"
+               " [--mega-hosted]"
                " [--password=PASSWORD] [--expire=TIMEDELAY] [-f]] [remotepath]"
         #ifdef USE_PCRE
                " [--use-pcre]"
@@ -2543,6 +2544,7 @@ string getHelpStr(const char *command)
 #endif
         os << " -a" << "\t" << "Adds an export (or modifies it if existing)" << endl;
         os << " --writable" << "\t" << "Makes the exported folder writable" << endl;
+        os << " --mega-hosted" << "\t" << "Has the share key shared with MEGA." << endl;
         os << " --password=PASSWORD" << "\t" << "Protects link with password. Please, avoid using passwords containing \" or '" << endl;
         os << " --expire=TIMEDELAY" << "\t" << "Determines the expiration time of a node." << endl;
         os << "                   " << "\t" << "   It indicates the delay in hours(h), days(d), " << endl;
