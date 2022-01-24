@@ -132,7 +132,7 @@ void ConfigurationManager::loadConfigDir()
 
     MegaFileSystemAccess *fsAccess = new MegaFileSystemAccess();
     fsAccess->setdefaultfolderpermissions(0700);
-    LocalPath localConfigFolder = LocalPath::fromPath(configFolder, *fsAccess);
+    LocalPath localConfigFolder = LocalPath::fromAbsolutePath(configFolder);
     constexpr bool isHidden = true;
     constexpr bool reportExisting = false;
     if (!is_file_exist(configFolder.c_str()) && !fsAccess->mkdirlocal(localConfigFolder, isHidden, reportExisting))
