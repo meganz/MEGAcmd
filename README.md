@@ -232,6 +232,13 @@ source /Applications/MEGAcmd.app/Contents/MacOS/megacmd_completion.sh
 ## NAS systems
 Currently we have build scripts for **Synology** and **QNAP**, which can be found in the `build/<system>` folder along with instructions on how to set up the build.  Typically this results in a 'package' which can then be manually installed in the NAS.   To use MEGAcmd on those systems, ssh into the device and run the commands as normal (having first added their folder to your `PATH` variable).
 
+## Docker
+There is an included `Dockerfile` that can be used to build and run MEGAcmd. It can be used with the following syntax:
+```
+docker build -t megacmd .
+docker run --rm -ti -v ${HOME}/.megaCmd:/root/.megaCmd -v /path/to/download:/download megacmd mega-get "https://mega.nz/folder/<code>" /download/
+```
+
 *Important note for MacOS Catalina or above: since Catalina, MacOS uses `zsh` as default shell. If you want to have auto completion, we strongly recommend you to use `bash` shell (just execute `bash` in your terminal).
 
 # Features:
