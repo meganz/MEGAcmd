@@ -4284,7 +4284,7 @@ void MegaCmdExecuter::printBackupHistory(MegaScheduledCopy *backup, const char *
 
             if (firstinhistory)
             {
-                OUTSTREAM << "  " << " -- SAVED BACKUPS --" << endl;
+                OUTSTREAM << "  " << " -- HISTORY OF BACKUPS --" << endl;
 
                 // print header
                 OUTSTREAM << "  " << getFixLengthString("NAME", PATHSIZE) << " ";
