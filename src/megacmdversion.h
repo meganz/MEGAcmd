@@ -5,10 +5,10 @@
 #define MEGACMD_MAJOR_VERSION 1
 #endif
 #ifndef MEGACMD_MINOR_VERSION
-#define MEGACMD_MINOR_VERSION 4
+#define MEGACMD_MINOR_VERSION 5
 #endif
 #ifndef MEGACMD_MICRO_VERSION
-#define MEGACMD_MICRO_VERSION 1
+#define MEGACMD_MICRO_VERSION 0
 #endif
 
 #ifndef MEGACMD_BUILD_ID
@@ -21,21 +21,14 @@
 namespace megacmd {
 
 const char * const megacmdchangelog =
-    #ifdef _WIN64
-        "64 bits support in Windows""\n"
-    #endif
-        "Fix issues with backups timestamps in Raspbian and other OS""\n"
-        "Allow uploads when reached bandwidth overquota""\n"
-        "Fix for syncing mounted drives in Windows""\n"
-        "Fix issues in sync resumption for MacOS""\n"
-        "Improvements in filename escaping""\n"
-        "Improvements in transfers cancellation""\n"
-        "Improve uploads stalling in Windows""\n"
-        "Fix crash in MEGAcmd shell when typing CTRL+D while inserting 2FA code""\n"
-        "Warn incoming Windows XP deprecation""\n"
-        "Improvements in information messages""\n"
-        "Fix issues with too long paths in MEGAcmd server""\n"
-        "Prepare for over storage quota announcements""\n"
+        "Add support for pdfs (uploading them will create thumbnails/previews)""\n"
+        "Improve communications with server in POSIX: no longer create multiple sockets""\n"
+        "Support resuming session when logged into a folder""\n"
+        "Renew and improve sync management and improve status reporting""\n"
+        "Commands sync and transfers now allow for selecting --output-cols""\n"
+        "Add creation time to ls""\n"
+        "Fix issue running from php (due to a dangling file descriptor)""\n"
+        "Fix several crashes, leaks and major performance improvements""\n"
         "Other fixes & adjustments"
         ;
 
