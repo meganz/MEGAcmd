@@ -4993,11 +4993,6 @@ int main(int argc, char* argv[])
     initializeMacOSStuff(argc,argv);
 #endif
 
-    NullBuffer null_buffer;
-    std::ostream null_stream(&null_buffer);
-#ifndef ENABLE_LOG_PERFORMANCE
-    SimpleLogger::setAllOutputs(&null_stream);
-#endif
     SimpleLogger::setLogLevel(logMax); // do not filter anything here, log level checking is done by loggerCMD
 
     loggerCMD = new MegaCMDLogger();
