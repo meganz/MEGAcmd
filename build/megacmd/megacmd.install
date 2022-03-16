@@ -16,6 +16,9 @@ Server = https://mega.nz/linux/repo/Arch_Extra/\$arch
 ###END REPO for MEGA###
 EOF
 
+# Remove old key
+pacman-key -l 8F208FBF12FEE766AA32AEAF03C3AD3A7F068E5D &> /dev/null && pacman-key -d 8F208FBF12FEE766AA32AEAF03C3AD3A7F068E5D || :
+
 #Add public key used for signing
 pacman-key --add - <<KEY
 -----BEGIN PGP PUBLIC KEY BLOCK-----
@@ -83,8 +86,12 @@ killall -s SIGUSR1 mega-cmd-server 2> /dev/null || true
 }
 
 post_upgrade() {
+
+# Remove old key
+pacman-key -l 8F208FBF12FEE766AA32AEAF03C3AD3A7F068E5D &> /dev/null && pacman-key -d 8F208FBF12FEE766AA32AEAF03C3AD3A7F068E5D || :
+
 # Check if new key has been added
-if ! (pacman-key -l | grep B01C811880480C854C73EC7E1A664B787094A482 > /dev/null); then
+if ! (pacman-key -l B01C811880480C854C73EC7E1A664B787094A482 &> /dev/null); then
 
 #remove repo if existing
 sed -n '1h;1!H;${g;s/\n###REPO for MEGA###\n.*###END REPO for MEGA###//;p;}' -i /etc/pacman.conf
