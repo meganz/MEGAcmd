@@ -325,13 +325,10 @@ if (rpm -q gpg-pubkey-7f068e5d-563dc081 &> /dev/null); then
     mv /var/lib/rpm/.rpm.lock /var/lib/rpm/.rpm.lock_moved || : #to allow key management.
     %if 0%{?suse_version}
         #Key management would fail due to lock in /var/lib/rpm/Packages. We create a copy
-        mv /var/lib/rpm/Packages{,_moved}
-        cp /var/lib/rpm/Packages{_moved,}
+        cp /var/lib/rpm/Packages{,_moved}
+        mv /var/lib/rpm/Packages{_moved,}
     %endif
     rpm -e gpg-pubkey-7f068e5d-563dc081
-    %if 0%{?suse_version}
-        rm /var/lib/rpm/Packages_moved  #remove the old one
-    %endif
     mv /var/lib/rpm/.rpm.lock_moved /var/lib/rpm/.rpm.lock || : #take it back
 fi
 
@@ -401,14 +398,11 @@ KEY
 
         %if 0%{?suse_version}
             #Key import would hang and fail due to lock in /var/lib/rpm/Packages. We create a copy
-            mv /var/lib/rpm/Packages{,_moved}
-            cp /var/lib/rpm/Packages{_moved,}
+            cp /var/lib/rpm/Packages{,_moved}
+            mv /var/lib/rpm/Packages{_moved,}
         %endif
 
         rpm --import "$KEYFILE" 2>&1 || FAILED_IMPORT=1
-        %if 0%{?suse_version}
-            rm /var/lib/rpm/Packages_moved  #remove the old one
-        %endif
 
         mv /var/lib/rpm/.rpm.lock_moved /var/lib/rpm/.rpm.lock || : #take it back
 
