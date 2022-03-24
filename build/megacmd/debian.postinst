@@ -5,7 +5,9 @@ distro=$(cat /usr/share/doc/megacmd/distro)
 #ver=$(lsb_release -rs)
 ver=$(cat /usr/share/doc/megacmd/version)
 
-if [[ $distro = "Raspbian GNU/Linux 10"* ]]; then
+if [[ $distro = "Raspbian GNU/Linux 11"* ]]; then
+    str="Raspbian_11"
+elif [[ $distro = "Raspbian GNU/Linux 10"* ]]; then
     str="Raspbian_10.0"
 elif [[ $distro = "Raspbian GNU/Linux 9"* ]]; then
     str="Raspbian_9.0"
@@ -87,11 +89,15 @@ fi
 
 if [ -d /etc/apt/sources.list.d ]; then
 cat >/etc/apt/sources.list.d/megasync.list <<EOF
-deb https://mega.nz/linux/repo/$str/ ./
+deb [signed-by=/usr/share/keyrings/meganz-archive-keyring.gpg] https://mega.nz/linux/repo/$str/ ./
 EOF
 fi
 
-apt-key add - >/dev/null 2>&1 <<KEY
+## Remove keys from main keyring
+apt-key del 03C3AD3A7F068E5D &>/dev/null || :
+apt-key del 1A664B787094A482 &>/dev/null || :
+
+echo "
 -----BEGIN PGP PUBLIC KEY BLOCK-----
 
 mQINBGHe0SkBEADd5u7XBExxSg6stILhfNTNfhtTQ3ZSTLW0JZrni1inMS+P8aEM
@@ -144,7 +150,7 @@ cqHV7UnrSsJ2fzCOSOWULzW1ZhAGCP1I/kldxm1t5uzr0msZ9VFGlHYSkIAwBcys
 sAdVa6xer/c=
 =F8S0
 -----END PGP PUBLIC KEY BLOCK-----
-KEY
+" | gpg --dearmor > /usr/share/keyrings/meganz-archive-keyring.gpg
 
 sysctl -p /etc/sysctl.d/99-megacmd-inotify-limit.conf || true
 
