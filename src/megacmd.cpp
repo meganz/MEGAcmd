@@ -600,6 +600,7 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validParams->insert("d");
         validParams->insert("f");
         validParams->insert("writable");
+        validParams->insert("mega-hosted");
         validOptValues->insert("expire");
         validOptValues->insert("password");
 #ifdef USE_PCRE
@@ -1696,6 +1697,7 @@ const char * getUsageStr(const char *command)
     {
         return "export [-d|-a"
                " [--writable]"
+               " [--mega-hosted]"
                " [--password=PASSWORD] [--expire=TIMEDELAY] [-f]] [remotepath]"
         #ifdef USE_PCRE
                " [--use-pcre]"
@@ -2542,6 +2544,9 @@ string getHelpStr(const char *command)
 #endif
         os << " -a" << "\t" << "Adds an export (or modifies it if existing)" << endl;
         os << " --writable" << "\t" << "Makes the exported folder writable" << endl;
+        os << " --mega-hosted" << "\t" << "The share key of this specific folder will be shared with MEGA." << endl;
+        os << "              " << "\t" << "This is intended to be used for folders accessible though MEGA's S4 service." << endl;
+        os << "              " << "\t" << "Encryption will occur nonetheless within MEGA's S4 service." << endl;
         os << " --password=PASSWORD" << "\t" << "Protects link with password. Please, avoid using passwords containing \" or '" << endl;
         os << " --expire=TIMEDELAY" << "\t" << "Determines the expiration time of a node." << endl;
         os << "                   " << "\t" << "   It indicates the delay in hours(h), days(d), " << endl;
@@ -4988,11 +4993,6 @@ int main(int argc, char* argv[])
     initializeMacOSStuff(argc,argv);
 #endif
 
-    NullBuffer null_buffer;
-    std::ostream null_stream(&null_buffer);
-#ifndef ENABLE_LOG_PERFORMANCE
-    SimpleLogger::setAllOutputs(&null_stream);
-#endif
     SimpleLogger::setLogLevel(logMax); // do not filter anything here, log level checking is done by loggerCMD
 
     loggerCMD = new MegaCMDLogger();
