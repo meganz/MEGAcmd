@@ -116,7 +116,7 @@ mkdir -p $megacmd_NAME/contrib/
 ln -s $BASEPATH/sdk/contrib/build_sdk.sh $megacmd_NAME/contrib/
 
 ln -s $archives $megacmd_NAME/archives
-tar czfh $megacmd_NAME.tar.gz $megacmd_NAME
+tar czfh $megacmd_NAME.tar.gz --exclude-vcs $megacmd_NAME
 rm -rf $megacmd_NAME
 
 # delete any previous archive
