@@ -319,6 +319,19 @@ DATA
 # Install new key if it's not present
 # Notice, for openSuse, postinst is checked (and therefore executed) when creating the rpm
 # we need to ensure no command results in fail (returns !=0)
+
+# Remove old key if present.
+if (rpm -q gpg-pubkey-7f068e5d-563dc081 &> /dev/null); then
+    mv /var/lib/rpm/.rpm.lock /var/lib/rpm/.rpm.lock_moved || : #to allow key management.
+    %if 0%{?suse_version}
+        #Key management would fail due to lock in /var/lib/rpm/Packages. We create a copy
+        cp /var/lib/rpm/Packages{,_moved}
+        mv /var/lib/rpm/Packages{_moved,}
+    %endif
+    rpm -e gpg-pubkey-7f068e5d-563dc081
+    mv /var/lib/rpm/.rpm.lock_moved /var/lib/rpm/.rpm.lock || : #take it back
+fi
+
 rpm -q gpg-pubkey-7094a482-61ded129 > /dev/null 2>&1 || KEY_NOT_FOUND=1
 
 if [ ! -z "$KEY_NOT_FOUND" ]; then
@@ -385,14 +398,11 @@ KEY
 
         %if 0%{?suse_version}
             #Key import would hang and fail due to lock in /var/lib/rpm/Packages. We create a copy
-            mv /var/lib/rpm/Packages{,_moved}
-            cp /var/lib/rpm/Packages{_moved,}
+            cp /var/lib/rpm/Packages{,_moved}
+            mv /var/lib/rpm/Packages{_moved,}
         %endif
 
         rpm --import "$KEYFILE" 2>&1 || FAILED_IMPORT=1
-        %if 0%{?suse_version}
-            rm /var/lib/rpm/Packages_moved  #remove the old one
-        %endif
 
         mv /var/lib/rpm/.rpm.lock_moved /var/lib/rpm/.rpm.lock || : #take it back
 
