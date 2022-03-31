@@ -7,7 +7,7 @@ Notice: the commands listed here assume you are using the interactive interactio
 Example: 
 backup /path/mega/folder /remote/path --period="0 0 4 * * *" --num-backups=10
 
-This will configure a backup of "myfolder" into /remote/path that will be carried out
+This will configure a backup of "folder" into /remote/path that will be carried out
  at 4:00 A.M. (UTC) every day. It will store the last 10 copies. 
  Notice a first backup will be carried out immediately.
  In this example we are using cron-time expresions. 
@@ -15,9 +15,9 @@ This will configure a backup of "myfolder" into /remote/path that will be carrie
  
 Backups will be stored as:
 ```
- /remote/path/myfolder_bk_TIME1
- /remote/path/myfolder_bk_TIME2
- /remote/path/myfolder_bk_TIME3
+ /remote/path/folder_bk_TIME1
+ /remote/path/folder_bk_TIME2
+ /remote/path/folder_bk_TIME3
  ...
 ```
 
@@ -60,10 +60,10 @@ TAG   LOCALPATH                 REMOTEPARENTPATH                  STATUS
 4     /path/mega/folder            /remote/path                  ONGOING
    -- SAVED BACKUPS --
   NAME                             DATE                    STATUS  FILES FOLDERS
-  myfolder_bk_20180115175811       15Jan2018 17:58:11    COMPLETE     33      10
-  myfolder_bk_20180116182611       16Jan2018 18:26:11    COMPLETE     33      10
-  myfolder_bk_20180117182711       17Jan2018 18:27:11     ABORTED     13      10
-  myfolder_bk_20180118182911       18Jan2018 18:29:11     ONGOING     23      10
+  folder_bk_20180115175811       15Jan2018 17:58:11    COMPLETE     33      10
+  folder_bk_20180116182611       16Jan2018 18:26:11    COMPLETE     33      10
+  folder_bk_20180117182711       17Jan2018 18:27:11     ABORTED     13      10
+  folder_bk_20180118182911       18Jan2018 18:29:11     ONGOING     23      10
 ```
 
 Tip: If you are using linux/mac you can monitor the status actively in non-interactive mode with:
