@@ -2,7 +2,7 @@
 CPPFLAGS := $(shell cat /etc/issue | grep "Ubuntu 1[234579]\|Debian.* [78]\|Ubuntu 1[68].10" >/dev/null && echo "$$CPPFLAGS -DMEGACMD_DEPRECATED_OS" || echo "")
 FCRYPTOPP := $(shell cat /etc/issue | grep "Ubuntu 1[4-8]\|Ubuntu 19.04\|Debian.* [89]" >/dev/null && echo "" || echo "-q")
 WCRYPTOPP := $(shell cat /etc/issue | grep "Ubuntu 1[4-8]\|Ubuntu 19.04\|Debian.* [89]" >/dev/null && echo "" || echo "--with-cryptopp=$(CURDIR)/deps")
-DPKGXZ := $(shell cat /etc/issue | grep "Ubuntu 21.10" >/dev/null && echo "-- -Zxz" || echo "")
+DPKGXZ := $(shell cat /etc/issue | grep "Ubuntu 22\|Jammy Jellyfish\|Ubuntu 21.10" >/dev/null && echo "-- -Zxz" || echo "")
 FMEDIAINFO := $(shell dpkg -l | grep mediainfo >/dev/null && echo "-i" || echo " ")
 WMEDIAINFO := $(shell dpkg -l | grep mediainfo >/dev/null && echo " " || echo "--with-libmediainfo=$(CURDIR)/deps --with-libzen=$(CURDIR)/deps")
 RFFMPEG := $(shell cat /etc/issue | grep "Raspbian" >/dev/null && echo "" || echo '-DREQUIRE_HAVE_FFMPEG')
