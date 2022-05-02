@@ -5093,28 +5093,7 @@ int main(int argc, char* argv[])
 
     LOG_debug << "MEGAcmd version: " << MEGACMD_MAJOR_VERSION << "." << MEGACMD_MINOR_VERSION << "." << MEGACMD_MICRO_VERSION << "." << MEGACMD_BUILD_ID << ": code " << MEGACMD_CODE_VERSION;
 
-#if defined(__MACH__) && defined(ENABLE_SYNC)
-    int fd = -1;
-    if (argc)
-    {
-        long int value = strtol(argv[argc-1], NULL, 10);
-        if (value > 0 && value < INT_MAX)
-        {
-            fd = value;
-        }
-    }
-
-    if (fd >= 0)
-    {
-        api = new MegaApi("BdARkQSQ", ConfigurationManager::getConfigFolder().c_str(), userAgent, fd);
-    }
-    else
-    {
-        api = new MegaApi("BdARkQSQ", (MegaGfxProcessor*)NULL, ConfigurationManager::getConfigFolder().c_str(), userAgent);
-    }
-#else
     api = new MegaApi("BdARkQSQ", (MegaGfxProcessor*)NULL, ConfigurationManager::getConfigFolder().c_str(), userAgent);
-#endif
 
     if (setapiurl)
     {
