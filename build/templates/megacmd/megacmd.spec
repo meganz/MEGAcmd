@@ -27,13 +27,13 @@ BuildRequires: ffmpeg-mega pdfium-mega
         BuildRequires: libcurl4
     %endif
 
-    %if 0%{?suse_version}>=1550
+    %if 0%{?suse_version} > 1500
         BuildRequires: pkgconf-pkg-config
     %else
         BuildRequires: pkg-config
     %endif
 
-    %if 0%{?suse_version}>=1550 || (0%{?is_opensuse} && 0%{?sle_version} > 120300 )
+    %if 0%{?suse_version} > 1500 || 0%{?sle_version} >= 150300 || (0%{?is_opensuse} && 0%{?sle_version} >= 150000)
         BuildRequires: c-ares-devel
     %else
         BuildRequires: libcares-devel
@@ -278,6 +278,10 @@ DATA
 
     %if 0%{?sle_version} == 150300
         %define reponame openSUSE_Leap_15.3
+    %endif
+
+    %if 0%{?sle_version} == 150400
+        %define reponame openSUSE_Leap_15.4
     %endif
 
     %if 0%{?sle_version} == 0 && 0%{?suse_version} >= 1550
