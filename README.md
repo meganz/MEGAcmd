@@ -40,6 +40,10 @@ In order to have support for thumbnails and previews, it is highly recommended t
 	* In some instanances you may need to run
 		 `apt install --reinstall build-essential`
 
+ * **Debian 11**
+
+	* `build-essential libcrypto++8 libpcrecpp0v5 libc-ares-dev zlib1g-dev libuv1 libssl-dev libsodium-dev readline-common sqlite3 curl autoconf libtool g++ libcrypto++-dev libz-dev libsqlite3-dev libssl-dev libcurl4-gnutls-dev libreadline-dev libpcre++-dev libsodium-dev libc-ares-dev libfreeimage-dev libavcodec-dev libavutil-dev libavformat-dev libswscale-dev libmediainfo-dev libzen-dev`
+
 * **Windows**
 
 	* For Windows, we have recently overhauled the build system and now all the steps are captured in this one script that will acquire and build all dependencies, as well as building MEGAcmd itself, using vcpkg and cmake.  To get and use this script, follow these steps in a command prompt: 
@@ -70,6 +74,8 @@ For platforms with Autotools, MEGAcmd can be built and installed with:
     make install
     
 * You will need to run `make install` as root
+
+* On some systems (such as Debian 11), you will need to run `ldconfig` (as root)
 
 `Note`: if you use a prefix in configure, autocompletion from non-interactive usage
 won't work. You would need to `source /YOUR/PREFIX/etc/bash_completion.d/megacmd_completion.sh` 
