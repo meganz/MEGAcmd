@@ -3,7 +3,7 @@
 source /pkgscripts/include/pkg_util.sh
 
 package="megacmdpkg"
-version="1.5.0"
+version="1.5.1"
 displayname="MEGAcmd"
 maintainer="Mega NZ"
 
