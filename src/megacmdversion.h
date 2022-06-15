@@ -8,7 +8,7 @@
 #define MEGACMD_MINOR_VERSION 5
 #endif
 #ifndef MEGACMD_MICRO_VERSION
-#define MEGACMD_MICRO_VERSION 0
+#define MEGACMD_MICRO_VERSION 1
 #endif
 
 #ifndef MEGACMD_BUILD_ID
@@ -21,6 +21,7 @@
 namespace megacmd {
 
 const char * const megacmdchangelog =
+#ifdef __MACH__
         "Add support for pdfs (uploading them will create thumbnails/previews)""\n"
         "Improve communications with server in POSIX: no longer create multiple sockets""\n"
         "Support resuming session when logged into a folder""\n"
@@ -29,7 +30,8 @@ const char * const megacmdchangelog =
         "Add creation time to ls""\n"
         "Fix issue running from php (due to a dangling file descriptor)""\n"
         "Fix several crashes, leaks and major performance improvements""\n"
-        "Other fixes & adjustments"
+#endif
+        "Security adjustments"
         ;
 
 }//end namespace
