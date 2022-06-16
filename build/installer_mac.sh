@@ -197,8 +197,9 @@ if [ ${build} -eq 1 -o ${build_cmake} -eq 1 ]; then
 
     if [ ${build_cmake} -ne 1 ]; then
 
-        # Remove unneded Qt plugins
+        # Remove unneded Qt stuff
         rm -rf ${SERVER_PREFIX}MEGAcmd.app/Contents/Plugins
+        rm -rf ${SERVER_PREFIX}MEGAcmd.app/Contents/Resources/qt.conf
 
         [ ! -f MEGAcmdServer/MEGAcmd.app/Contents/Frameworks/$AVCODEC_VERSION ] && cp -L $AVCODEC_PATH MEGAcmdServer/MEGAcmd.app/Contents/Frameworks/
         [ ! -f MEGAcmdServer/MEGAcmd.app/Contents/Frameworks/$AVFORMAT_VERSION ] && cp -L $AVFORMAT_PATH MEGAcmdServer/MEGAcmd.app/Contents/Frameworks/
