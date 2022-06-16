@@ -24,6 +24,9 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <dirent.h>
+
+#include <sys/utsname.h>
+#include <fstream>
 #endif
 
 #include "UpdateTask.h"
@@ -477,6 +480,154 @@ bool UpdateTask::checkForUpdates(bool emergencyUpdater, bool doNotInstall)
     }
 }
 
+#ifndef WIN32
+
+
+#ifdef __linux__
+string &ltrimEtcProperty(string &s, const char &c)
+{
+    size_t pos = s.find_first_not_of(c);
+    s = s.substr(pos == string::npos ? s.length() : pos, s.length());
+    return s;
+}
+
+string &rtrimEtcProperty(string &s, const char &c)
+{
+    size_t pos = s.find_last_not_of(c);
+    if (pos != string::npos)
+    {
+        pos++;
+    }
+    s = s.substr(0, pos);
+    return s;
+}
+
+string &trimEtcproperty(string &what)
+{
+    rtrimEtcProperty(what,' ');
+    ltrimEtcProperty(what,' ');
+    if (what.size() > 1)
+    {
+        if (what[0] == '\'' || what[0] == '"')
+        {
+            rtrimEtcProperty(what, what[0]);
+            ltrimEtcProperty(what, what[0]);
+        }
+    }
+    return what;
+}
+
+string getPropertyFromEtcFile(const char *configFile, const char *propertyName)
+{
+    std::ifstream infile(configFile);
+    string line;
+
+    while (getline(infile, line))
+    {
+        if (line.length() > 0 && line[0] != '#')
+        {
+            if (!strlen(propertyName)) //if empty return first line
+            {
+                return trimEtcproperty(line);
+            }
+            string key, value;
+            size_t pos = line.find("=");
+            if (pos != string::npos && ((pos + 1) < line.size()))
+            {
+                key = line.substr(0, pos);
+                rtrimEtcProperty(key, ' ');
+
+                if (!strcmp(key.c_str(), propertyName))
+                {
+                    value = line.substr(pos + 1);
+                    return trimEtcproperty(value);
+                }
+            }
+        }
+    }
+
+    return string();
+}
+
+string getDistro()
+{
+    string distro;
+    distro = getPropertyFromEtcFile("/etc/lsb-release", "DISTRIB_ID");
+    if (!distro.size())
+    {
+        distro = getPropertyFromEtcFile("/etc/os-release", "ID");
+    }
+    if (!distro.size())
+    {
+        distro = getPropertyFromEtcFile("/etc/redhat-release", "");
+    }
+    if (!distro.size())
+    {
+        distro = getPropertyFromEtcFile("/etc/debian-release", "");
+    }
+    if (distro.size() > 20)
+    {
+        distro = distro.substr(0, 20);
+    }
+    transform(distro.begin(), distro.end(), distro.begin(), ::tolower);
+    return distro;
+}
+
+string getDistroVersion()
+{
+    string version;
+    version = getPropertyFromEtcFile("/etc/lsb-release", "DISTRIB_RELEASE");
+    if (!version.size())
+    {
+        version = getPropertyFromEtcFile("/etc/os-release", "VERSION_ID");
+    }
+    if (version.size() > 10)
+    {
+        version = version.substr(0, 10);
+    }
+    transform(version.begin(), version.end(), version.begin(), ::tolower);
+    return version;
+}
+#endif
+
+string osversion()
+{
+    string toret;
+    auto u = &toret;
+#ifdef __linux__
+    string distro = getDistro();
+    if (distro.size())
+    {
+        u->append(distro);
+        string distroversion = getDistroVersion();
+        if (distroversion.size())
+        {
+            u->append(" ");
+            u->append(distroversion);
+            u->append("/");
+        }
+        else
+        {
+            u->append("/");
+        }
+    }
+#endif
+
+    utsname uts;
+
+    if (!uname(&uts))
+    {
+        u->append(uts.sysname);
+        u->append(" ");
+        u->append(uts.release);
+        u->append(" ");
+        u->append(uts.machine);
+    }
+    return toret;
+}
+#endif
+
+
 bool UpdateTask::downloadFile(string url, string dstPath)
 {
     LOG(LOG_LEVEL_INFO, "Downloading updated file from: %s",  url.c_str());
@@ -521,6 +672,10 @@ bool UpdateTask::downloadFile(string url, string dstPath)
     }
 #else
     string dlcommand = "curl ";
+    dlcommand.append(" -A ");
+    dlcommand.append(" \"MEGAcmdUpdater ");
+    dlcommand.append(osversion());
+    dlcommand.append("\" ");
     dlcommand.append(url.c_str());
     dlcommand.append(" -o ");
     dlcommand.append(dstPath);
