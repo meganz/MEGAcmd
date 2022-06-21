@@ -1,3 +1,59 @@
+megacmd (1.5.1) stable; urgency=low
+
+  * Security adjustments
+
+ -- MEGA Team <linux@mega.co.nz>  Wed, 15 Jun 2022 17:55:34 +0200
+
+megacmd (1.5.0) stable; urgency=low
+
+  * Add support for pdfs (uploading them will create thumbnails/previews)
+  * Improve communications with server in POSIX: no longer create multiple sockets
+  * Support resuming session when logged into a folder
+  * Renew and improve sync management and improve status reporting
+  * Commands sync and transfers now allow for selecting --output-cols
+  * Add creation time to ls
+  * Fix issue running from php (due to a dangling file descriptor)
+  * Fix several crashes, leaks and major performance improvements
+  * Other fixes & adjustments
+
+ -- MEGA Team <linux@mega.co.nz>  Fri, 3 Dec 2021 13:44:32 +0100
+
+megacmd (1.4.1) stable; urgency=low
+
+  * Fix issues with backups timestamps in Raspbian and other OS
+  * Allow uploads when reached bandwidth overquota
+  * Fix for syncing mounted drives in Windows
+  * Fix issues in sync resumption for MacOS
+  * Improvements in filename escaping
+  * Improvements in transfers cancellation
+  * Improve uploads stalling in Windows
+  * Fix crash in MEGAcmd shell when typing CTRL+D while inserting 2FA code
+  * Warn incoming Windows XP deprecation
+  * Improvements in information messages
+  * Fix issues with too long paths in MEGAcmd server
+  * Prepare for over storage quota announcements
+  * Other fixes & adjustments
+
+ -- MEGA Team <linux@mega.co.nz>  Thu, 22 Oct 2020 13:21:02 +0200
+
+megacmd (1.4.0) stable; urgency=low
+
+  * Fix issues with backups timestamps in Raspbian and other OS
+  * Allow uploads when reached bandwidth overquota
+  * Fix for syncing mounted drives in Windows
+  * Fix issues in sync resumption for MacOS
+  * Improvements in filename escaping
+  * Improvements in transfers cancellation
+  * Improve uploads stalling in Windows
+  * Fix crash in MEGAcmd shell when typing CTRL+D while inserting 2FA code
+  * Warn incoming Windows XP deprecation
+  * Improvements in information messages
+  * Fix issues with too long paths in MEGAcmd server
+  * Prepare for over storage quota announcements
+  * Other fixes & adjustments
+
+ -- MEGA Team <linux@mega.co.nz>  Fri, 21 Aug 2020 17:54:49 +0200
+
 megacmd (1.3.0) stable; urgency=low
 
   * Fix --path-display-size for commands that use it and improve display for "transfer" & "sync"
