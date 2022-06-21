@@ -1,17 +1,26 @@
+isEmpty(THIRDPARTY_VCPKG_BASE_PATH){
+    THIRDPARTY_VCPKG_BASE_PATH = $$PWD/../../../3rdParty_megacmd
+}
 
-win32:THIRDPARTY_VCPKG_BASE_PATH = C:/Users/build/MEGA/build-MEGAsync/3rdParty_MSVC2017_20200529
-win32:contains(QMAKE_TARGET.arch, x86_64):VCPKG_TRIPLET = x64-windows-mega
-win32:!contains(QMAKE_TARGET.arch, x86_64):VCPKG_TRIPLET = x86-windows-mega
+win32 {
+    contains(QMAKE_TARGET.arch, x86_64):VCPKG_TRIPLET = x64-windows-mega
+    !contains(QMAKE_TARGET.arch, x86_64):VCPKG_TRIPLET = x86-windows-mega
+}
 
-macx:THIRDPARTY_VCPKG_BASE_PATH = $$PWD/../../../../3rdParty
-macx:VCPKG_TRIPLET = x64-osx
+macx{
+    isEmpty(VCPKG_TRIPLET){
+        contains(QT_ARCH, x86_64):VCPKG_TRIPLET = x64-osx-mega
+        contains(QT_ARCH, arm64):VCPKG_TRIPLET = arm64-osx-mega
+    }
+    contains(VCPKG_TRIPLET, arm64-osx-mega):contains(QMAKE_HOST.arch, arm64):QMAKE_APPLE_DEVICE_ARCHS=arm64
 
-unix:!macx:THIRDPARTY_VCPKG_BASE_PATH = $$PWD/../../../../3rdParty
+    message("Building for macOS $$QT_ARCH in a $$QMAKE_HOST.arch host.")
+}
+
 unix:!macx:VCPKG_TRIPLET = x64-linux
 
 message("THIRDPARTY_VCPKG_BASE_PATH: $$THIRDPARTY_VCPKG_BASE_PATH")
 message("VCPKG_TRIPLET: $$VCPKG_TRIPLET")
-
 
 packagesExist(libpcrecpp) | macx {
 LIBS += -lpcrecpp
@@ -72,7 +81,7 @@ macx {
     ICON = app.icns
     QMAKE_INFO_PLIST = Info_MEGA.plist
 
-    QMAKE_MACOSX_DEPLOYMENT_TARGET = 10.9
+    QMAKE_MACOSX_DEPLOYMENT_TARGET = 10.12
 
     LIBS += -framework Cocoa -framework SystemConfiguration -framework CoreFoundation -framework Foundation -framework Security
     LIBS += -lncurses

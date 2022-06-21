@@ -9675,6 +9675,8 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 replaceAll(thechangelog,"\n","\n * ");
                 OUTSTREAM << " * " << thechangelog << endl << endl;
             }
+
+            OUTSTREAM << "Full changelog available at https://github.com/meganz/MEGAcmd/blob/master/build/megacmd/megacmd.changes" << endl << endl;
         }
         if (getFlag(clflags,"l"))
         {

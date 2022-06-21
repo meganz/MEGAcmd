@@ -44,8 +44,10 @@ win32 {
 }
 
 macx {
-    INCLUDEPATH += $$PWD/../../../../sdk/bindings/qt/3rdparty/include
-    LIBS += $$PWD/../../../../sdk/bindings/qt/3rdparty/libs/libreadline.a
+    !vcpkg {
+        INCLUDEPATH += $$PWD/../../../../sdk/bindings/qt/3rdparty/include
+        LIBS += $$PWD/../../../../sdk/bindings/qt/3rdparty/libs/libreadline.a
+    }
     LIBS += -framework Cocoa -framework SystemConfiguration -framework CoreFoundation -framework Foundation -framework Security
     LIBS += -lncurses
 }
