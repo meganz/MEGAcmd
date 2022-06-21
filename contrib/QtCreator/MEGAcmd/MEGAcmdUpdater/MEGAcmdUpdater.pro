@@ -1,9 +1,23 @@
-win32:THIRDPARTY_VCPKG_BASE_PATH =  C:/Users/build/MEGA/build-MEGAsync/3rdParty_MSVC2017_20200529
-win32:contains(QMAKE_TARGET.arch, x86_64):VCPKG_TRIPLET = x64-windows-mega
-win32:!contains(QMAKE_TARGET.arch, x86_64):VCPKG_TRIPLET = x86-windows-mega
+isEmpty(THIRDPARTY_VCPKG_BASE_PATH){
+    THIRDPARTY_VCPKG_BASE_PATH = $$PWD/../../../3rdParty_megacmd
+}
 
-macx:THIRDPARTY_VCPKG_BASE_PATH = $$PWD/../../../../3rdParty
-macx:VCPKG_TRIPLET = x64-osx
+win32 {
+    contains(QMAKE_TARGET.arch, x86_64):VCPKG_TRIPLET = x64-windows-mega
+    !contains(QMAKE_TARGET.arch, x86_64):VCPKG_TRIPLET = x86-windows-mega
+}
+
+macx{
+    isEmpty(VCPKG_TRIPLET){
+        contains(QT_ARCH, x86_64):VCPKG_TRIPLET = x64-osx-mega
+        contains(QT_ARCH, arm64):VCPKG_TRIPLET = arm64-osx-mega
+    }
+    contains(VCPKG_TRIPLET, arm64-osx-mega):contains(QMAKE_HOST.arch, arm64):QMAKE_APPLE_DEVICE_ARCHS=arm64
+
+    message("Building for macOS $$QT_ARCH in a $$QMAKE_HOST.arch host.")
+}
+
+unix:!macx:VCPKG_TRIPLET = x64-linux
 
 message("THIRDPARTY_VCPKG_BASE_PATH: $$THIRDPARTY_VCPKG_BASE_PATH")
 message("VCPKG_TRIPLET: $$VCPKG_TRIPLET")
@@ -44,10 +58,10 @@ SOURCES += ../../../../src/updater/MegaUpdater.cpp \
 vcpkg:INCLUDEPATH += $$THIRDPARTY_VCPKG_PATH/include
 else:INCLUDEPATH += $$MEGASDK_BASE_PATH/bindings/qt/3rdparty/include
 
-macx {    
+macx {
     OBJECTIVE_SOURCES +=  ../../../../src/updater/MacUtils.mm
     DEFINES += _DARWIN_FEATURE_64_BIT_INODE CRYPTOPP_DISABLE_ASM
-    QMAKE_MACOSX_DEPLOYMENT_TARGET = 10.9
+    QMAKE_MACOSX_DEPLOYMENT_TARGET = 10.12
     !vcpkg:LIBS += -L$$MEGASDK_BASE_PATH/bindings/qt/3rdparty/libs/
     vcpkg:debug:LIBS += -L$$THIRDPARTY_VCPKG_PATH/debug/lib/
     vcpkg:release:LIBS += -L$$THIRDPARTY_VCPKG_PATH/lib/

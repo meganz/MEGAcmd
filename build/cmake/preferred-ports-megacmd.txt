@@ -1,29 +1,40 @@
 # direct core dependencies of the SDK
-c-ares/c303dd024e2dc03a0665ddffbb12a1077933e649
+c-ares/c303dd024e2dc03a0665ddffbb12a1077933e649 all:on ios:off
 cryptopp/c303dd024e2dc03a0665ddffbb12a1077933e649
 curl/7375bb408f2278d2f1875c259beef93332697ba7
-libsodium/c303dd024e2dc03a0665ddffbb12a1077933e649
-openssl/c303dd024e2dc03a0665ddffbb12a1077933e649 osx:off
+libsodium/c303dd024e2dc03a0665ddffbb12a1077933e649 all:on ios:libsodium-ios.patch
+openssl/c303dd024e2dc03a0665ddffbb12a1077933e649 ios:off osx:off
 openssl-unix/c303dd024e2dc03a0665ddffbb12a1077933e649 all:off linux:on
 openssl-windows/c303dd024e2dc03a0665ddffbb12a1077933e649 all:off windows:on
+
+# cmake\vcpkg toolchain dependencies
+vcpkg-cmake-config/7375bb408f2278d2f1875c259beef93332697ba7
+vcpkg-cmake/7375bb408f2278d2f1875c259beef93332697ba7
+
+# needed by external projects which still rely on SDK to fetch and build it; SDK no longer uses PCRE
+# this is the minimum version after PCRE's ftp server switched
+pcre/d6bd10b9af6f6197711222a0ac827e52e0247e30 all:off linux:on osx:on
+
 readline/8.0 all:off osx:on
-pcre/61b3046e513d189495ee37247e6cc550ee75e471
 sqlite3/c303dd024e2dc03a0665ddffbb12a1077933e649
-zlib/c303dd024e2dc03a0665ddffbb12a1077933e649
-libuv/c303dd024e2dc03a0665ddffbb12a1077933e649
+zlib/9b064ff07b987c8f213fdbf4358122fd4fe38ef1
+
+# needed by the SDK if enabling serving/streaming (outgoing) files via http/s or include a an ftp server
+libuv/c303dd024e2dc03a0665ddffbb12a1077933e649 ios:off
 
 # mediainfo, customized with constrained functionality (determine media properties such as track length, codec, etc)
 libmediainfo/19.09
 libzen/0.4.37
 
 # ffmpeg (video preview/thumbnail generation)
-ffmpeg/c303dd024e2dc03a0665ddffbb12a1077933e649
+ffmpeg/c303dd024e2dc03a0665ddffbb12a1077933e649 all:on ios:off
 
 #freeimage and its dependencies (image preview/thumbnail generation)
 freeimage/7375bb408f2278d2f1875c259beef93332697ba7 osx:freeimage-bool-typedef-xcode-compiler.patch
 libpng/7375bb408f2278d2f1875c259beef93332697ba7
 libjpeg-turbo/7375bb408f2278d2f1875c259beef93332697ba7
 tiff/7375bb408f2278d2f1875c259beef93332697ba7
+openjpeg/7375bb408f2278d2f1875c259beef93332697ba7
 libwebp/7375bb408f2278d2f1875c259beef93332697ba7 all:libwebp-no-freeglut-no-avx.patch
 libraw/7375bb408f2278d2f1875c259beef93332697ba7 ios:libraw-ios.patch
 jxrlib/7375bb408f2278d2f1875c259beef93332697ba7 ios:jxrlib-ios-guiddef-fix.patch
@@ -32,10 +43,6 @@ jasper/7375bb408f2278d2f1875c259beef93332697ba7 all:jasper-no-freeglut.patch
 liblzma/7375bb408f2278d2f1875c259beef93332697ba7 ios:liblzma-ios.patch
 libffi/7375bb408f2278d2f1875c259beef93332697ba7
 opengl/7375bb408f2278d2f1875c259beef93332697ba7
-
-# cmake\vcpkg toolchain dependencies
-vcpkg-cmake-config/7375bb408f2278d2f1875c259beef93332697ba7
-vcpkg-cmake/7375bb408f2278d2f1875c259beef93332697ba7
 
 # pdfium libraries, specific version for build stability  (preview/thumbnail generation for pdfs)
 # (see 3rdParty_deps.txt on instructions on how to get source)
@@ -46,9 +53,11 @@ pdfium-freetype/2-8-73
 # dependencies of pdfium
 icu/c303dd024e2dc03a0665ddffbb12a1077933e649
 lcms/c303dd024e2dc03a0665ddffbb12a1077933e649
+libjpeg-turbo/7375bb408f2278d2f1875c259beef93332697ba7
 openjpeg/7375bb408f2278d2f1875c259beef93332697ba7
 bzip2/c303dd024e2dc03a0665ddffbb12a1077933e649
+libpng/7375bb408f2278d2f1875c259beef93332697ba7
 
 # tests and tools
 asio/c303dd024e2dc03a0665ddffbb12a1077933e649
-gtest/7375bb408f2278d2f1875c259beef93332697ba7
+gtest/c303dd024e2dc03a0665ddffbb12a1077933e649
