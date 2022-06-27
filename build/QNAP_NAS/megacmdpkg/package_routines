@@ -135,6 +135,7 @@
 #
 #pkg_install(){
 #}
-#
-#pkg_post_install(){
-#}
+
+pkg_post_install(){
+        /usr/sbin/dbus-uuidgen --ensure=/etc/machine-id
+}
