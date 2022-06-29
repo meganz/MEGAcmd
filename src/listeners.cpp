@@ -314,9 +314,11 @@ void MegaCmdGlobalListener::onEvent(MegaApi *api, MegaEvent *event)
     }
     else if (event->getType() == MegaEvent::EVENT_NODES_CURRENT)
     {
+#ifdef HAVE_DOWNLOADS_COMMAND
         // we need to cancel transfers here, because, even if fetchnodes finished, the actual transfer resumption
         // won't happen until all action packets are received. And cancellation of transfers need them to be loaded already
         std::thread([this](){sandboxCMD->cmdexecuter->cleanSlateTranfers();}).detach();
+#endif
     }
 }
 
