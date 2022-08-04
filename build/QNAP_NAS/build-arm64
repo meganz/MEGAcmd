@@ -68,7 +68,7 @@ rm -rf ${MEGA_CMD_DIR}/sdk/sdk_build/build
 rm -rf ${MEGA_CMD_DIR}/sdk/sdk_build/install
 rm -f ${MEGA_CMD_DIR}/mega-exec
 rm -f ${MEGA_CMD_DIR}/mega-cmd
-rm -f ${MEGA_CMD_DIR}/mega-cmd-srver
+rm -f ${MEGA_CMD_DIR}/mega-cmd-server
 rm -f ${MEGA_CMD_DIR}/sdk/sdk_build/*.success
 
 cd $MEGA_CMD_DIR/sdk
