@@ -68,7 +68,7 @@ build() {
 	  --with-termcap=$PWD/deps --prefix=$PWD/deps --disable-examples \
 	  --with-libmediainfo=$PWD/deps --with-libzen=$PWD/deps
 
-	make
+    make ${BUILD_PARALLEL_JOBS}
 
 	touch build-stamp
 }
