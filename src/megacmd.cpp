@@ -4140,7 +4140,7 @@ void megacmd()
 
     LOG_info << "Listening to petitions ... ";
 
-    for (;; )
+    for (;;)
     {
         cm->waitForPetition();
 
