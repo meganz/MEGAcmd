@@ -25,9 +25,9 @@ export CUSTOM_CONFIG_ARGS="--host=${TARGET} --disable-dependency-tracking"
 export CC=${CROSS_COMPILE}gcc
 export CXX=${CROSS_COMPILE}g++
 export LD=${CROSS_COMPILE}ld
-export CFLAGS="$CFLAGS -fPIC -fexceptions -fvisibility=hidden -fsigned-char"
-export CPPFLAGS="-DNDEBUG"
-export CXXFLAGS="$CXXFLAGS $CFLAGS -DNDEBUG -DENABLE_BACKUPS -DMEGACMD_USERAGENT_SUFFIX=QNAP -DHAVE_LIBUV"
+export CFLAGS="$CFLAGS -O1 -fPIC -fstack-protector -fexceptions -fvisibility=hidden -fsigned-char"
+export CPPFLAGS="-DNDEBUG -D_FORTIFY_SOURCE=1"
+export CXXFLAGS="$CXXFLAGS $CFLAGS -D_FORTIFY_SOURCE=1 -DNDEBUG -DENABLE_BACKUPS -DMEGACMD_USERAGENT_SUFFIX=QNAP -DHAVE_LIBUV"
 export AR=${CROSS_COMPILE}ar
 export NM=${CROSS_COMPILE}nm
 export STRIP=${CROSS_COMPILE}strip
@@ -63,6 +63,14 @@ find sdk/include -name "*.h" | xargs dos2unix
 find sdk/src -name "*.c" | xargs dos2unix
 find sdk/src -name "*.cpp" | xargs dos2unix
 
+echo "Cleaning up stale build artifacts..."
+rm -rf ${MEGA_CMD_DIR}/install
+rm -rf ${MEGA_CMD_DIR}/sdk/sdk_build/build
+rm -rf ${MEGA_CMD_DIR}/sdk/sdk_build/install
+rm -f ${MEGA_CMD_DIR}/mega-exec
+rm -f ${MEGA_CMD_DIR}/mega-cmd
+rm -f ${MEGA_CMD_DIR}/mega-cmd-server
+rm -f ${MEGA_CMD_DIR}/sdk/sdk_build/*.success
 
 cd $MEGA_CMD_DIR/sdk
 pwd
@@ -84,16 +92,13 @@ echo -------------------------------------------------------- sdk end ----------
 
 echo about to build megacmd ---------------------------
 
-rm -f mega-cmd-server
-rm -f mega-cmd
-rm -f mega-cmd-exec
-
 export INCLUDES="-I${MEGA_CMD_DIR}/sdk/sdk_build/install/include"
 export INCLUDES="${INCLUDES} -I${MEGA_CMD_DIR}/sdk/include"
 export INCLUDES="${INCLUDES} -I${MEGA_CMD_DIR}/sdk/include/mega/posix"
 export CXXFLAGS="${CXXFLAGS} -std=c++11 ${INCLUDES}"
 
 $CXX $CXXFLAGS \
+     -pie \
      src/megacmd.cpp \
      src/comunicationsmanager.cpp \
      src/megacmdutils.cpp \
@@ -125,6 +130,7 @@ $CXX $CXXFLAGS \
      -o mega-cmd-server || exit -1
 
 $CXX $CXXFLAGS \
+     -pie \
      src/megacmdcommonutils.cpp \
      src/megacmdshell/*.cpp \
      sdk/sdk_build/install/lib/libmega.a \
@@ -143,6 +149,7 @@ $CXX $CXXFLAGS \
      -o mega-cmd || exit -1
 
 $CXX $CXXFLAGS \
+     -pie \
      src/megacmdcommonutils.cpp \
      src/client/*.cpp \
      src/megacmdshell/megacmdshellcommunications.cpp \
