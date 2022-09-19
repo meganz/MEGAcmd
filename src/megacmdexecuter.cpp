@@ -7830,7 +7830,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             else if (remove)
             {
                 auto megaCmdListener = ::mega::make_unique<MegaCmdListener>(nullptr);
-                api->removeSync(sync.get(), megaCmdListener.get());
+                api->removeSync(sync->getBackupId(), INVALID_HANDLE, megaCmdListener.get());
                 megaCmdListener->wait();
                 if (checkNoErrors(megaCmdListener->getError(), "remove sync", static_cast<SyncError>(megaCmdListener->getRequest()->getNumDetails())))
                 {
