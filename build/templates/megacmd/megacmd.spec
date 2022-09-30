@@ -189,7 +189,7 @@ if [ "x$CONFFAILED" == "x1" ]; then
       --with-termcap=$PWD/deps --prefix=$PWD/deps --disable-examples %{with_mediainfo} || cat sdk/configure
 fi
 
-make
+make %{?_smp_mflags}
 
 
 %install
