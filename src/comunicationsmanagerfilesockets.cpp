@@ -48,12 +48,12 @@ int ComunicationsManagerFileSockets::initialize()
 
     fsAccess->setdefaultfolderpermissions(0700);
     fsAccess->rmdirlocal(socketsFolder);
-    LOG_debug << "CREATING sockets folder: " << socketsFolder.toPath() << "!!!";
+    LOG_debug << "CREATING sockets folder: " << socketsFolder.toPath(false) << "!!!";
     constexpr bool isHidden = false;
     constexpr bool logExisting  = false;
     if (!fsAccess->mkdirlocal(socketsFolder, isHidden, logExisting))
     {
-        LOG_fatal << "ERROR CREATING sockets folder: " << socketsFolder.toPath() << ": " << errno;
+        LOG_fatal << "ERROR CREATING sockets folder: " << socketsFolder.toPath(false) << ": " << errno;
     }
     delete fsAccess;
 

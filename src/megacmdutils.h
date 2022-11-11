@@ -36,7 +36,23 @@ std::string getUserInSharedNode(mega::MegaNode *n, mega::MegaApi *api);
 /* code translation*/
 const char* getAccessLevelStr(int level);
 
+
+// Parameters:
+// - name
+// - ShortName
+// - Description
+#define GENERATE_FROM_SYNC_RUN_STATE(GENERATOR_MACRO) \
+    GENERATOR_MACRO(RUNSTATE_PENDING, "Pending", "Sync config has loaded but we have not attempted to start it yet")\
+    GENERATOR_MACRO(RUNSTATE_LOADING, "Loading", "Sync is in the process of loading from disk")\
+    GENERATOR_MACRO(RUNSTATE_RUNNING, "Running", "Sync loaded and active")\
+    GENERATOR_MACRO(RUNSTATE_PAUSED, "Paused", "Sync loaded but sync logic is suspended for now.")\
+    GENERATOR_MACRO(RUNSTATE_SUSPENDED, "Suspended", "Sync is not loaded, but it is on disk with the last known sync state")\
+    GENERATOR_MACRO(RUNSTATE_DISABLED, "Disabled", "Sync has been disabled (no state cached). Starting it is like configuring a brand new sync with those settings")\
+
+
 const char* getSyncPathStateStr(int state);
+
+const char * syncRunStateStr(unsigned e);
 
 std::string visibilityToString(int visibility);
 

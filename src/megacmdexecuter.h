@@ -135,8 +135,6 @@ public:
     std::vector<std::string> getsessions();
     std::vector<std::string> getlistfilesfolders(std::string location);
 
-    void restartsyncs();
-
     void executecommand(std::vector<std::string> words, std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions);
 
     //doomedtodie

@@ -450,23 +450,22 @@ void MegaCmdMegaListener::onSyncAdded(MegaApi *api, MegaSync *sync, int addition
     }
 }
 
-void MegaCmdMegaListener::onSyncDisabled(MegaApi *api, MegaSync *sync)
+void MegaCmdMegaListener::onSyncStateChanged(MegaApi *api, MegaSync *sync)
 {
-    if (sync->getError() != MegaSync::LOGGED_OUT
-           && (sync->getError() != MegaSync::NO_SYNC_ERROR || sync->isTemporaryDisabled()) )
+    std::stringstream ss;
+    ss << "Your sync " << sync->getLocalFolder() << " to: " << sync->getLastKnownMegaFolder()
+    << " has transitioned to state " << syncRunStateStr(sync->getRunState());
+    if (sync->getError())
     {
-        string msg = "Your sync has been ";
-        msg.append(sync->isTemporaryDisabled() ? "temporarily": "permanently");
-        msg.append(" disabled: ");
-        msg.append(sync->getLocalFolder());
-        msg.append(" to: ");
-        msg.append(sync->getLastKnownMegaFolder());
-        msg.append(". Reason: ");
-        msg.append(sync->getMegaSyncErrorCode());
+        ss << ". ErrorCode: " << sync->getMegaSyncErrorCode();
+    }
+    auto msg = ss.str();
+
+    if (sync->getError() || sync->getRunState() >= MegaSync::RUNSTATE_PAUSED)
+    {
         broadcastDelayedMessage(msg, true);
     }
-    LOG_warn << "Sync disabled: " << sync->getLocalFolder() << " to " << sync->getLastKnownMegaFolder()
-             << ". Reason: " << sync->getMegaSyncErrorCode();
+    LOG_debug << msg;
 }
 
 void MegaCmdMegaListener::onSyncEnabled(MegaApi *api, MegaSync *sync)
@@ -1081,7 +1080,7 @@ MegaCmdGlobalTransferListener::MegaCmdGlobalTransferListener(MegaApi *megaApi, M
     this->megaApi = megaApi;
     this->sandboxCMD = sandboxCMD;
     this->listener = parent;
-};
+}
 
 void MegaCmdGlobalTransferListener::onTransferFinish(MegaApi* api, MegaTransfer *transfer, MegaError* error)
 {

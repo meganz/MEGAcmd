@@ -137,6 +137,20 @@ const char* getSyncPathStateStr(int state)
     return "undefined";
 }
 
+const char * syncRunStateStr(unsigned e)
+{
+    static std::vector<const char*> svalue {
+#define SOME_GENERATOR_MACRO(_, ShortName, __) ShortName,
+      GENERATE_FROM_SYNC_RUN_STATE(SOME_GENERATOR_MACRO)
+#undef SOME_GENERATOR_MACRO
+    };
+    if (e < svalue.size())
+    {
+        return svalue[e];
+    }
+    return "Unknown";
+}
+
 
 string visibilityToString(int visibility)
 {

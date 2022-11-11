@@ -253,7 +253,7 @@ public:
 #endif
 
     virtual void onSyncAdded(mega::MegaApi *api, mega::MegaSync *sync, int additionState);
-    virtual void onSyncDisabled(mega::MegaApi *api, mega::MegaSync *sync);
+    virtual void onSyncStateChanged(mega::MegaApi *api, mega::MegaSync *sync);
     virtual void onSyncEnabled(mega::MegaApi *api, mega::MegaSync *sync);
     virtual void onSyncDeleted(mega::MegaApi *api, mega::MegaSync *sync);
 
