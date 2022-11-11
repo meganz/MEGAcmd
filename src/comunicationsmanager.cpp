@@ -44,6 +44,7 @@ bool ComunicationsManager::receivedPetition()
 
 void ComunicationsManager::registerStateListener(CmdPetition *inf)
 {
+    std::lock_guard<std::recursive_mutex> g(mStateListenersMutex);
     stateListenersPetitions.push_back(inf);
     if (stateListenersPetitions.size() >MAXCMDSTATELISTENERS && stateListenersPetitions.size()%10 == 0)
     {
@@ -72,9 +73,8 @@ int ComunicationsManager::get_next_comm_id()
 bool ComunicationsManager::informStateListeners(string &s)
 {
     s+=(char)0x1F;
+    std::lock_guard<std::recursive_mutex> g(mStateListenersMutex);
 
-    //TODO: stateListenersPetitions could use mutex protection! ComunicationsManagerFileSockets::informStateListener does have a mutex,
-    // but is non-recursive...
     for (std::vector< CmdPetition * >::iterator it = stateListenersPetitions.begin(); it != stateListenersPetitions.end();)
     {
         if (informStateListener((CmdPetition *)*it, s) <0)
@@ -99,6 +99,7 @@ void ComunicationsManager::informStateListenerByClientId(string &s, int clientID
 {
     s+=(char)0x1F;
 
+    std::lock_guard<std::recursive_mutex> g(mStateListenersMutex);
     for (std::vector< CmdPetition * >::iterator it = stateListenersPetitions.begin(); it != stateListenersPetitions.end();)
     {
         if ((clientID == ((CmdPetition *)*it)->clientID ) && informStateListener((CmdPetition *)*it, s) <0)
@@ -163,6 +164,7 @@ string ComunicationsManager::get_petition_details(CmdPetition *inf)
 
 ComunicationsManager::~ComunicationsManager()
 {
+    std::lock_guard<std::recursive_mutex> g(mStateListenersMutex);
     for (std::vector< CmdPetition * >::iterator it = stateListenersPetitions.begin(); it != stateListenersPetitions.end();)
     {
         delete *it;
