@@ -665,6 +665,7 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     {
         validParams->insert("d");
         validParams->insert("s");
+        validParams->insert("force-non-official");
     }
     else if ("userattr" == thecommand)
     {
@@ -1609,7 +1610,7 @@ const char * getUsageStr(const char *command)
     }
     if (!strcmp(command, "attr"))
     {
-        return "attr remotepath [-s attribute value|-d attribute]";
+        return "attr remotepath [--force-non-officialficial] [-s attribute value|-d attribute]";
     }
     if (!strcmp(command, "userattr"))
     {
@@ -2241,11 +2242,14 @@ string getHelpStr(const char *command)
     }
     if (!strcmp(command, "attr"))
     {
-        os << "Lists/updates node attributes" << endl;
+        os << "Lists/updates node attributes." << endl;
         os << endl;
         os << "Options:" << endl;
-        os << " -s" << "\tattribute value \t" << "sets an attribute to a value" << endl;
-        os << " -d" << "\tattribute       \t" << "removes the attribute" << endl;
+        os << " -s" << "\tattribute value \t" << "Sets an attribute to a value" << endl;
+        os << " -d" << "\tattribute       \t" << "Removes the attribute" << endl;
+        os << " --force-non-official"<< "\t" << "Forces using the custom attribute version for officially recognized attributes." << endl;
+        os << "                     "<< "\t" << "Note that custom attributes are internally stored with a `_` prefix." << endl;
+        os << "                     "<< "\t" << "Use this option to show, modify or delete a custom attribute with the same name as one official." << endl;
     }
     if (!strcmp(command, "userattr"))
     {
