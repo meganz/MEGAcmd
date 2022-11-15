@@ -265,6 +265,8 @@ struct criteriaNodeVector
     int64_t maxSize;
     int64_t minSize;
 
+    int mType = MegaNode::TYPE_UNKNOWN;
+
     vector<MegaNode*> *nodesMatching;
 };
 
@@ -283,6 +285,11 @@ bool MegaCmdExecuter::includeIfMatchesPattern(MegaApi *api, MegaNode * n, void *
 bool MegaCmdExecuter::includeIfMatchesCriteria(MegaApi *api, MegaNode * n, void *arg)
 {
     struct criteriaNodeVector *pnv = (struct criteriaNodeVector*)arg;
+
+    if (pnv->mType != MegaNode::TYPE_UNKNOWN && n->getType() != pnv->mType )
+    {
+        return false;
+    }
 
     if ( pnv->maxTime != -1 && (n->getModificationTime() >= pnv->maxTime) )
     {
@@ -4485,6 +4492,8 @@ void MegaCmdExecuter::doFind(MegaNode* nodeBase, const char *timeFormat, std::ma
     pnv.maxTime = maxTime;
     pnv.minSize = minSize;
     pnv.maxSize = maxSize;
+    auto opt = getOption(cloptions, "type", "");
+    pnv.mType = opt == "f" ? MegaNode::TYPE_FILE : (opt == "d" ? MegaNode::TYPE_FOLDER : MegaNode::TYPE_UNKNOWN);
 
 
     processTree(nodeBase, includeIfMatchesCriteria, (void*)&pnv);
@@ -4507,7 +4516,11 @@ void MegaCmdExecuter::doFind(MegaNode* nodeBase, const char *timeFormat, std::ma
             {
                 pathToShow = getDisplayPath("", n);
             }
-            if (printfileinfo)
+            if (getFlag(clflags, "print-only-handles"))
+            {
+                OUTSTREAM << "H:" << handleToBase64(n->getHandle()) << "" << endl;
+            }
+            else if (printfileinfo)
             {
                 dumpNode(n, timeFormat, clflags, cloptions, 3, false, 1, pathToShow.c_str());
             }
@@ -8476,7 +8489,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         if (words.size() <= 1)
         {
             setCurrentOutCode(MCMD_EARGS);
-            LOG_err << "      " << getUsageStr("attr");
+            LOG_err << "      " << getUsageStr(words[0].c_str());
             return;
         }
 
@@ -8516,7 +8529,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             {
                 setCurrentOutCode(MCMD_EARGS);
                 LOG_err << "Attribute not specified";
-                LOG_err << "      " << getUsageStr("attr");
+                LOG_err << "      " << getUsageStr(words[0].c_str());
                 return;
             }
 
@@ -8568,7 +8581,14 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 if (listAll || ( attribute == iattr && (forceCustom || !isOfficial(iattr))))
                 {
                     const char* iattrval = node->getCustomAttr(iattr.c_str());
-                    OUTSTREAM << "\t" << iattr << " = " << ( iattrval ? iattrval : "NULL" ) << endl;
+                    if (getFlag(clflags, "print-only-value"))
+                    {
+                        OUTSTREAM << ( iattrval ? iattrval : "NULL" ) << endl;
+                    }
+                    else
+                    {
+                        OUTSTREAM << "\t" << iattr << " = " << ( iattrval ? iattrval : "NULL" ) << endl;
+                    }
                 }
             }
         }
@@ -8595,7 +8615,14 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         OUTSTREAM << "Official attributes:" << endl;
                         showOficialsHeader = false;
                     }
-                    OUTSTREAM << "\t" << pair.first << " = " << pair.second(node.get()) << endl;
+                    if (getFlag(clflags, "print-only-value"))
+                    {
+                        OUTSTREAM << ( pair.second(node.get()) ) << endl;
+                    }
+                    else
+                    {
+                        OUTSTREAM << "\t" << pair.first << " = " << pair.second(node.get()) << endl;
+                    }
                 }
             }
         }
@@ -8710,7 +8737,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         else
         {
             setCurrentOutCode(MCMD_EARGS);
-            LOG_err << "      " << getUsageStr("attr");
+            LOG_err << "      " << getUsageStr(words[0].c_str());
             return;
         }
         return;
@@ -8752,7 +8779,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         else
         {
             setCurrentOutCode(MCMD_EARGS);
-            LOG_err << "      " << getUsageStr("attr");
+            LOG_err << "      " << getUsageStr(words[0].c_str());
             return;
         }
         return;
