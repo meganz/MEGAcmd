@@ -252,10 +252,9 @@ public:
     virtual void onBackupTemporaryError(mega::MegaApi *api, mega::MegaScheduledCopy *backup, mega::MegaError* error);
 #endif
 
-    virtual void onSyncAdded(mega::MegaApi *api, mega::MegaSync *sync, int additionState);
-    virtual void onSyncStateChanged(mega::MegaApi *api, mega::MegaSync *sync);
-    virtual void onSyncEnabled(mega::MegaApi *api, mega::MegaSync *sync);
-    virtual void onSyncDeleted(mega::MegaApi *api, mega::MegaSync *sync);
+    void onSyncAdded(mega::MegaApi *api, mega::MegaSync *sync) override;
+    void onSyncStateChanged(mega::MegaApi *api, mega::MegaSync *sync) override;
+    void onSyncDeleted(mega::MegaApi *api, mega::MegaSync *sync) override;
 
 protected:
     mega::MegaApi *megaApi;

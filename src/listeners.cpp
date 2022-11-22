@@ -437,10 +437,9 @@ void MegaCmdMegaListener::onBackupTemporaryError(MegaApi *api, MegaScheduledCopy
     }
 }
 
-void MegaCmdMegaListener::onSyncAdded(MegaApi *api, MegaSync *sync, int additionState)
+void MegaCmdMegaListener::onSyncAdded(MegaApi *api, MegaSync *sync)
 {
-    LOG_verbose << "Sync added: " << sync->getLocalFolder() << " to " << sync->getLastKnownMegaFolder()
-                << ". Adding state = " << additionState;
+    LOG_verbose << "Sync added: " << sync->getLocalFolder() << " to " << sync->getLastKnownMegaFolder();
 
     if (!ConfigurationManager::getConfigurationValue("firstSyncConfigured", false))
     {
@@ -466,11 +465,6 @@ void MegaCmdMegaListener::onSyncStateChanged(MegaApi *api, MegaSync *sync)
         broadcastDelayedMessage(msg, true);
     }
     LOG_debug << msg;
-}
-
-void MegaCmdMegaListener::onSyncEnabled(MegaApi *api, MegaSync *sync)
-{
-    LOG_verbose << "Sync re-enabled: " << sync->getLocalFolder() << " to " << sync->getLastKnownMegaFolder();
 }
 
 void MegaCmdMegaListener::onSyncDeleted(MegaApi *api, MegaSync *sync)
