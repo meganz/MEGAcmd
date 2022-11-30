@@ -2431,7 +2431,7 @@ int MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
         ConfigurationManager::loadExcludedNames();
         ConfigurationManager::loadConfiguration(false);
         std::vector<string> vexcludednames(ConfigurationManager::excludedNames.begin(), ConfigurationManager::excludedNames.end());
-        api->setExcludedNames(&vexcludednames);
+        api->setLegacyExcludedNames(&vexcludednames);
 
         long long maxspeeddownload = ConfigurationManager::getConfigurationValue("maxspeeddownload", -1);
         if (maxspeeddownload != -1) api->setMaxDownloadSpeed(maxspeeddownload);
@@ -7626,7 +7626,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             if (words.size()>1)
             {
                 std::vector<string> vexcludednames(ConfigurationManager::excludedNames.begin(), ConfigurationManager::excludedNames.end());
-                api->setExcludedNames(&vexcludednames);
+                api->setLegacyExcludedNames(&vexcludednames);
             }
             else
             {
@@ -7644,7 +7644,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             if (words.size()>1)
             {
                 std::vector<string> vexcludednames(ConfigurationManager::excludedNames.begin(), ConfigurationManager::excludedNames.end());
-                api->setExcludedNames(&vexcludednames);
+                api->setLegacyExcludedNames(&vexcludednames);
             }
             else
             {
