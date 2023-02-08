@@ -237,14 +237,14 @@ void printPercentageLineCerr(const char *title, long long completed, long long t
 
 
 /* Flags and Options */
-int getFlag(std::map<std::string, int> *flags, const char * optname);
+int getFlag(const std::map<std::string, int> *flags, const char * optname);
 
-std::string getOption(std::map<std::string, std::string> *cloptions, const char * optname, std::string defaultValue = "");
+std::string getOption(const std::map<std::string, std::string> *cloptions, const char * optname, std::string defaultValue = "");
 
 // TODO C++17 Use std::optional<string> instead
 std::pair<std::string, bool> getOptionOrFalse(const std::map<std::string, std::string>& cloptions, const char * optname);
 
-int getintOption(std::map<std::string, std::string> *cloptions, const char * optname, int defaultValue = 0);
+int getintOption(const std::map<std::string, std::string> *cloptions, const char * optname, int defaultValue = 0);
 
 void discardOptionsAndFlags(std::vector<std::string> *ws);
 
