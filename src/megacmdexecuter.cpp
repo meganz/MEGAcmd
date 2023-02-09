@@ -10918,6 +10918,32 @@ static string fuseToString(const MegaMountFlags& flags)
     return ostream.str();
 }
 
+static string fuseToString(MegaApi& api, const MegaMount& mount)
+{
+    // Convenience.
+    using CharPtr = unique_ptr<char[]>;
+
+    CharPtr handle(api.handleToBase64(mount.getHandle()));
+    CharPtr path(api.getNodePathByNodeHandle(mount.getHandle()));
+
+    ostringstream ostream;
+
+    ostream << "Mount \""
+            << mount.getPath()
+            << "\":\n"
+            << "Remote Handle: "
+            << handle.get()
+            << "\n"
+            << "Remote Path: "
+            << (path ? "\"" : "")
+            << (path ? path.get() : "N/A")
+            << (path ? "\"" : "")
+            << "\n"
+            << fuseToString(*mount.getFlags());
+
+    return ostream.str();
+}
+
 void MegaCmdExecuter::fuseAddMount(const StringVector& arguments,
                                    const FromStringMap<int>& flags,
                                    const FromStringMap<std::string>& options)
@@ -11112,6 +11138,36 @@ void MegaCmdExecuter::fuseMountFlags(const StringVector& arguments,
             << localPath
             << "\" due to error: "
             << MegaMount::UNSUPPORTED;
+}
+
+void MegaCmdExecuter::fuseMountInfo(const StringVector& arguments,
+                                    const FromStringMap<int>& flags,
+                                    const FromStringMap<std::string>& options)
+{
+    // Convenience.
+    using MountPtr = unique_ptr<MegaMount>;
+
+    // Make sure we've been provided two arguments.
+    if (arguments.size() != 2)
+        return fuseBadArgument(arguments.front());
+
+    auto& localPath = arguments.back();
+
+    // Try and retrieve a description of the specified mount.
+    MountPtr mount(api->mountInfo(localPath.c_str()));
+
+    // Mount doesn't exist or we couldn't retrieve its description.
+    if (!mount)
+    {
+        LOG_err << "Unable to describe the mount at \""
+                << localPath
+                << "\".";
+
+        return;
+    }
+
+    OUTSTREAM << fuseToString(*api, *mount)
+              << endl;
 }
 
 void MegaCmdExecuter::fuseOperate(const StringVector& arguments,

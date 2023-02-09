@@ -117,6 +117,10 @@ private:
                         const FromStringMap<int>& flags,
                         const FromStringMap<std::string>& options);
 
+    void fuseMountInfo(const StringVector& arguments,
+                       const FromStringMap<int>& flags,
+                       const FromStringMap<std::string>& options);
+
     void fuseOperate(const StringVector& arguments,
                      const FromStringMap<int>& flags,
                      const FuseOperation operation,
