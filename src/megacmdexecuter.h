@@ -113,6 +113,10 @@ private:
                          const FromStringMap<int>& flags,
                          const FromStringMap<std::string>& options);
 
+    void fuseListMounts(const StringVector& arguments,
+                        const FromStringMap<int>& flags,
+                        const FromStringMap<std::string>& options);
+
     void fuseMountFlags(const StringVector& arguments,
                         const FromStringMap<int>& flags,
                         const FromStringMap<std::string>& options);

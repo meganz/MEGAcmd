@@ -11058,6 +11058,49 @@ void MegaCmdExecuter::fuseEnableMount(const StringVector& arguments,
     fuseOperate(arguments, flags, &MegaApi::mountEnable, options);
 }
 
+void MegaCmdExecuter::fuseListMounts(const StringVector& arguments,
+                                     const FromStringMap<int>& flags,
+                                     const FromStringMap<std::string>& options)
+{
+    // Convenience.
+    using MountListPtr = unique_ptr<MegaMountList>;
+
+    // Should we only list enabled mounts?
+    auto onlyEnabled = getFlag(&flags, "only-enabled");
+
+    // Try and get a list of mounts.
+    MountListPtr mounts(api->mountList(onlyEnabled));
+
+    // Couldn't retrieve the mount list.
+    if (!mounts)
+    {
+        LOG_err << "Unable to retrieve a list of mounts.";
+
+        return;
+    }
+
+    // There are no mounts to list.
+    if (!mounts->size())
+    {
+        OUTSTREAM << "There are no "
+                  << (onlyEnabled ? "enabled " : "")
+                  << "mounts.";
+
+        return;
+    }
+
+    // Display each mount in turn.
+    size_t i = 0;
+
+    OUTSTREAM << fuseToString(*api, *mounts->get(i));
+
+    while (++i < mounts->size())
+        OUTSTREAM << "\n"
+                  << fuseToString(*api, *mounts->get(i));
+
+    OUTSTREAM << std::flush;
+}
+
 void MegaCmdExecuter::fuseMountFlags(const StringVector& arguments,
                                      const FromStringMap<int>& flags,
                                      const FromStringMap<std::string>& options)
