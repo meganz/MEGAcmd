@@ -10888,6 +10888,20 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         }
 
     }
+    else if (words[0] == "add-mount")
+        fuseAddMount(words, *clflags, *cloptions);
+    else if (words[0] == "disable-mount")
+        fuseDisableMount(words, *clflags, *cloptions);
+    else if (words[0] == "enable-mount")
+        fuseEnableMount(words, *clflags, *cloptions);
+    else if (words[0] == "list-mounts")
+        fuseListMounts(words, *clflags, *cloptions);
+    else if (words[0] == "mount-flags")
+        fuseMountFlags(words, *clflags, *cloptions);
+    else if (words[0] == "mount-info")
+        fuseMountInfo(words, *clflags, *cloptions);
+    else if (words[0] == "remove-mount")
+        fuseRemoveMount(words, *clflags, *cloptions);
     else
     {
         setCurrentOutCode(MCMD_EARGS);
