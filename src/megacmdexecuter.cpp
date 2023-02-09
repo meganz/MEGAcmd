@@ -10953,7 +10953,8 @@ static string fuseToString(MegaApi& api, const MegaMount& mount)
             << (path ? path.get() : "N/A")
             << (path ? "\"" : "")
             << "\n"
-            << fuseToString(*mount.getFlags());
+            << fuseToString(*mount.getFlags())
+            << "\n";
 
     return ostream.str();
 }
@@ -11112,7 +11113,7 @@ void MegaCmdExecuter::fuseListMounts(const StringVector& arguments,
         OUTSTREAM << "\n"
                   << fuseToString(*api, *mounts->get(i));
 
-    OUTSTREAM << std::flush;
+    OUTSTREAM << flush;
 }
 
 void MegaCmdExecuter::fuseMountFlags(const StringVector& arguments,
@@ -11224,7 +11225,7 @@ void MegaCmdExecuter::fuseMountInfo(const StringVector& arguments,
     }
 
     OUTSTREAM << fuseToString(*api, *mount)
-              << endl;
+              << flush;
 }
 
 void MegaCmdExecuter::fuseOperate(const StringVector& arguments,
