@@ -815,6 +815,25 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     {
         validParams->insert("show-handles");
     }
+
+    // FUSE commands.
+    if (thecommand == "add-mount" || thecommand == "mount-flags")
+    {
+        validOptValues->emplace("persistent");
+        validOptValues->emplace("read-only");
+
+        if (thecommand == "mount-flags")
+        {
+            validOptValues->emplace("transient");
+            validOptValues->emplace("writable");
+        }
+
+        validParams->emplace("name");
+    }
+    else if (thecommand == "list-mounts")
+    {
+        validOptValues->emplace("only-enabled");
+    }
 }
 
 void escapeEspace(string &orig)
