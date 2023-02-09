@@ -10911,8 +10911,8 @@ void MegaCmdExecuter::fuseAddMount(const StringVector& arguments,
     using MountPtr = unique_ptr<MegaMount>;
     using NodePtr = unique_ptr<MegaNode>;
 
-    // Make sure the user's given us at least three arguments.
-    if (arguments.size() < 3)
+    // Make sure the user's given us three arguments.
+    if (arguments.size() != 3)
         return fuseBadArgument(arguments.front());
 
     // Clarity.
@@ -11000,6 +11000,75 @@ void MegaCmdExecuter::fuseAddMount(const StringVector& arguments,
             << localPath
             << "\" due to error: "
             << listener->getError()->getMountResult();
+}
+
+void MegaCmdExecuter::fuseDisableMount(const StringVector& arguments,
+                                       const FromStringMap<int>& flags,
+                                       const FromStringMap<string>& options)
+{
+    fuseOperate(arguments, flags, &MegaApi::mountDisable, options);
+}
+
+void MegaCmdExecuter::fuseEnableMount(const StringVector& arguments,
+                                      const FromStringMap<int>& flags,
+                                      const FromStringMap<string>& options)
+{
+    fuseOperate(arguments, flags, &MegaApi::mountEnable, options);
+}
+
+void MegaCmdExecuter::fuseOperate(const StringVector& arguments,
+                                  const FromStringMap<int>& flags,
+                                  const FuseOperation operation,
+                                  const FromStringMap<std::string>& options)
+{
+    // Convenience.
+    using ListenerPtr = unique_ptr<MegaCmdListener>;
+
+    auto& command = arguments.front();
+    auto& localPath = arguments.back();
+
+    // Make sure hte user's given us two arguments.
+    if (arguments.size() != 2)
+        return fuseBadArgument(command);
+
+    // What kind of operation are we performing?
+    auto type = command.substr(0, command.find_first_of('-'));
+
+    // Execute the operation.
+    ListenerPtr listener(new MegaCmdListener(nullptr));
+
+    (api->*operation)(localPath.c_str(), listener.get());
+
+    // Wait for the operation to complete.
+    listener->wait();
+
+    // Operation was successful.
+    if (checkNoErrors(listener->getError(), command))
+    {
+        OUTSTREAM << "Successfully "
+                  << type
+                  << "d the mount on \""
+                  << localPath
+                  << "\"."
+                  << endl;
+
+        return;
+    }
+
+    // Operation failed.
+    LOG_err << "Unable to "
+            << type
+            << " the mount on \""
+            << localPath
+            << "\" due to error: "
+            << listener->getError()->getMountResult();
+}
+
+void MegaCmdExecuter::fuseRemoveMount(const StringVector& arguments,
+                                      const FromStringMap<int>& flags,
+                                      const FromStringMap<string>& options)
+{
+    fuseOperate(arguments, flags, &MegaApi::mountRemove, options);
 }
 
 }//end namespace

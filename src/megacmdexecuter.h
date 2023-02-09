@@ -27,9 +27,9 @@
 #include "deferred_single_trigger.h"
 
 namespace megacmd {
-class MegaCmdSandbox;
-class MegaCmdMultiTransferListener;
 class MegaCmdGlobalTransferListener;
+class MegaCmdMultiTransferListener;
+class MegaCmdSandbox;
 
 class MegaCmdExecuter
 {
@@ -95,12 +95,32 @@ private:
     template<typename T>
     using FromStringMap = std::map<std::string, T>;
 
+    using FuseOperation =
+      void (mega::MegaApi::*)(const char*, mega::MegaRequestListener*);
+
     using StringVector = std::vector<std::string>;
 
     // FUSE operations.
     void fuseAddMount(const StringVector& arguments,
                       const FromStringMap<int>& flags,
                       const FromStringMap<std::string>& options);
+
+    void fuseDisableMount(const StringVector& arguments,
+                          const FromStringMap<int>& flags,
+                          const FromStringMap<std::string>& options);
+
+    void fuseEnableMount(const StringVector& arguments,
+                         const FromStringMap<int>& flags,
+                         const FromStringMap<std::string>& options);
+
+    void fuseOperate(const StringVector& arguments,
+                     const FromStringMap<int>& flags,
+                     const FuseOperation operation,
+                     const FromStringMap<std::string>& options);
+
+    void fuseRemoveMount(const StringVector& arguments,
+                         const FromStringMap<int>& flags,
+                         const FromStringMap<std::string>& options);
 
 public:
     bool signingup;
