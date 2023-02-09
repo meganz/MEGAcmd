@@ -148,6 +148,14 @@ static std::vector<std::string> allValidCommands { "login", "signup", "confirm",
 #if defined(_WIN32) || defined(__APPLE__)
                              , "update"
 #endif
+                             // FUSE commands
+                             , "add-mount"
+                             , "disable-mount"
+                             , "enable-mount"
+                             , "list-mounts"
+                             , "mount-flags"
+                             , "mount-info"
+                             , "remove-mount"
                            };
 
 
