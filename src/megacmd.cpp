@@ -819,20 +819,20 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     // FUSE commands.
     if (thecommand == "add-mount" || thecommand == "mount-flags")
     {
-        validOptValues->emplace("persistent");
-        validOptValues->emplace("read-only");
+        validParams->emplace("persistent");
+        validParams->emplace("read-only");
 
         if (thecommand == "mount-flags")
         {
-            validOptValues->emplace("transient");
-            validOptValues->emplace("writable");
+            validParams->emplace("transient");
+            validParams->emplace("writable");
         }
 
-        validParams->emplace("name");
+        validOptValues->emplace("name");
     }
     else if (thecommand == "list-mounts")
     {
-        validOptValues->emplace("only-enabled");
+        validParams->emplace("only-enabled");
     }
 }
 
