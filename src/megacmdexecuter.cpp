@@ -10895,4 +10895,111 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
     }
 }
 
+static void fuseBadArgument(const string& command)
+{
+    setCurrentOutCode(MCMD_EARGS);
+
+    LOG_err << getUsageStr(command.c_str());
+}
+
+void MegaCmdExecuter::fuseAddMount(const StringVector& arguments,
+                                   const FromStringMap<int>& flags,
+                                   const FromStringMap<std::string>& options)
+{
+    // Convenience.
+    using ListenerPtr = unique_ptr<MegaCmdListener>;
+    using MountPtr = unique_ptr<MegaMount>;
+    using NodePtr = unique_ptr<MegaNode>;
+
+    // Make sure the user's given us at least three arguments.
+    if (arguments.size() < 3)
+        return fuseBadArgument(arguments.front());
+
+    // Clarity.
+    auto& localPath = arguments[2];
+    auto& remotePath = arguments[1];
+    auto name = getOption(&options, "name");
+    auto persistent = getFlag(&flags, "persistent");
+    auto readOnly = getFlag(&flags, "read-only");
+
+    // Try and locate the specified remote node.
+    NodePtr remoteNode(nodebypath(localPath.c_str()));
+
+    // Determine remote node handle.
+    MegaHandle remoteHandle = UNDEF;
+
+    // Node was found.
+    if (remoteNode)
+    {
+        // Latch the remote node's handle.
+        remoteHandle = remoteNode->getHandle();
+
+        // Compute the mount's name if not specified.
+        if (name.empty())
+        {
+            switch (remoteNode->getType())
+            {
+            case MegaNode::TYPE_FILE:
+            case MegaNode::TYPE_FOLDER:
+                name = remoteNode->getName();
+                break;
+            case MegaNode::TYPE_ROOT:
+                name = "MEGA";
+                break;
+            case MegaNode::TYPE_RUBBISH:
+                name = "MEGA Rubbish";
+                break;
+            case MegaNode::TYPE_VAULT:
+                name = "MEGA Vault";
+                break;
+            case MegaNode::TYPE_UNKNOWN:
+                name = "Unknown";
+                break;
+            }
+        }
+    }
+
+    // Describe the new mount.
+    MountPtr mount(MegaMount::create());
+
+    // Specify mapping.
+    mount->setHandle(remoteHandle);
+    mount->setPath(localPath.c_str());
+
+    // Populate flags.
+    auto* flags_ = mount->getFlags();
+
+    flags_->setName(name.c_str());
+    flags_->setPersistent(persistent);
+    flags_->setReadOnly(readOnly);
+
+    // Try and add the new mount.
+    ListenerPtr listener(new MegaCmdListener(nullptr));
+
+    api->mountAdd(mount.get(), listener.get());
+
+    // Wait for a result.
+    listener->wait();
+    
+    // Mount was added successfully.
+    if (checkNoErrors(listener->getError(), "add-mount"))
+    {
+        OUTSTREAM << "Successfully added a new mount from \""
+                  << remotePath
+                  << "\" to \""
+                  << localPath
+                  << "\"."
+                  << endl;
+
+        return;
+    }
+
+    LOG_err << "Unable to add mount from \""
+            << remotePath
+            << "\" to \""
+            << localPath
+            << "\" due to error: "
+            << listener->getError()->getMountResult();
+}
+
 }//end namespace

@@ -91,6 +91,17 @@ private:
         }
     }
 
+    // Convenience.
+    template<typename T>
+    using FromStringMap = std::map<std::string, T>;
+
+    using StringVector = std::vector<std::string>;
+
+    // FUSE operations.
+    void fuseAddMount(const StringVector& arguments,
+                      const FromStringMap<int>& flags,
+                      const FromStringMap<std::string>& options);
+
 public:
     bool signingup;
     bool confirming;
