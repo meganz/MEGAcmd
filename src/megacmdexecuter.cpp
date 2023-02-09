@@ -10902,6 +10902,22 @@ static void fuseBadArgument(const string& command)
     LOG_err << getUsageStr(command.c_str());
 }
 
+static string fuseToString(const MegaMountFlags& flags)
+{
+    ostringstream ostream;
+
+    ostream << "Name: "
+            << flags.getName()
+            << "\n"
+            << "Persistent: "
+            << (flags.getPersistent() ? "YES" : "NO")
+            << "\n"
+            << "Read only: "
+            << (flags.getReadOnly() ? "YES" : "NO");
+
+    return ostream.str();
+}
+
 void MegaCmdExecuter::fuseAddMount(const StringVector& arguments,
                                    const FromStringMap<int>& flags,
                                    const FromStringMap<std::string>& options)
@@ -11014,6 +11030,88 @@ void MegaCmdExecuter::fuseEnableMount(const StringVector& arguments,
                                       const FromStringMap<string>& options)
 {
     fuseOperate(arguments, flags, &MegaApi::mountEnable, options);
+}
+
+void MegaCmdExecuter::fuseMountFlags(const StringVector& arguments,
+                                     const FromStringMap<int>& flags,
+                                     const FromStringMap<std::string>& options)
+{
+    // Convenience.
+    using FlagsPtr = unique_ptr<MegaMountFlags>;
+
+    // Make sure we've been passed two arguments.
+    if (arguments.size() != 2)
+        return fuseBadArgument(arguments.front());
+
+    // Check for mutually exclusive flags.
+    if (flags.count("persistent") && flags.count("transient"))
+    {
+        setCurrentOutCode(MCMD_EARGS);
+
+        LOG_err << "A mount cannot be both persistent and transient.";
+
+        return;
+    }
+
+    if (flags.count("read-only") && flags.count("writable"))
+    {
+        setCurrentOutCode(MCMD_EARGS);
+
+        LOG_err << "A mount cannot be both read-only and writable.";
+
+        return;
+    }
+
+    auto& localPath = arguments.back();
+
+    // Try and retrieve the specified mount's flags.
+    FlagsPtr flags_(api->mountFlags(localPath.c_str()));
+
+    // Mount doesn't exist or couldn't determine the flags.
+    if (!flags_)
+    {
+        LOG_err << "Unable to retrieve flags for the mount at \""
+                << localPath
+                << "\".";
+
+        return;
+    }
+    
+    // Are we changing the mount's flags?
+    auto changing = false;
+
+    if (options.count("name"))
+        changing = (flags_->setName(options.at("name").c_str()), true);
+
+    if (options.count("persistent"))
+        changing = (flags_->setPersistent(true), true);
+
+    if (options.count("read-only"))
+        changing = (flags_->setReadOnly(true), true);
+
+    if (options.count("transient"))
+        changing = (flags_->setPersistent(false), true);
+
+    if (options.count("writable"))
+        changing = (flags_->setReadOnly(false), true);
+
+    // Not changing the mount's flags.
+    if (!changing)
+    {
+        OUTSTREAM << "Mount \""
+                  << localPath
+                  << "\" has the following flags:\n"
+                  << fuseToString(*flags_)
+                  << endl;
+
+        return;
+    }
+
+    // API doesn't let us change a mount's flags yet.
+    LOG_err << "Unable to change the flags of mount \""
+            << localPath
+            << "\" due to error: "
+            << MegaMount::UNSUPPORTED;
 }
 
 void MegaCmdExecuter::fuseOperate(const StringVector& arguments,
