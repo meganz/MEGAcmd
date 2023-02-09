@@ -1931,6 +1931,29 @@ const char * getUsageStr(const char *command)
         return "update [--auto=on|off|query]";
     }
 #endif
+
+    // FUSE commands.
+    if (!strcmp(command, "add-mount"))
+        return "add-mount [--name=name] [--persistent] [--read-only] remotePath localPath";
+
+    if (!strcmp(command, "disable-mount"))
+        return "disable-mount localPath";
+
+    if (!strcmp(command, "enable-mount"))
+        return "enable-mount localPath";
+
+    if (!strcmp(command, "list-mounts"))
+        return "list-mounts [--only-enabled]";
+
+    if (!strcmp(command, "mount-flags"))
+        return "mount-flags [--name=name] [--persistent|--transient] [--read-only|--writable] localPath";
+
+    if (!strcmp(command, "mount-info"))
+        return "mount-info localPath";
+
+    if (!strcmp(command, "remove-mount"))
+        return "remove-mount localPath";
+
     return "command not found: ";
 }
 
