@@ -10979,7 +10979,7 @@ void MegaCmdExecuter::fuseAddMount(const StringVector& arguments,
     auto readOnly = getFlag(&flags, "read-only");
 
     // Try and locate the specified remote node.
-    NodePtr remoteNode(nodebypath(localPath.c_str()));
+    NodePtr remoteNode(nodebypath(remotePath.c_str()));
 
     // Determine remote node handle.
     MegaHandle remoteHandle = UNDEF;
