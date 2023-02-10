@@ -254,6 +254,10 @@ public:
                       const mega::MegaMount* mount,
                       int result) override;
 
+    void onMountChanged(mega::MegaApi* api,
+                        const mega::MegaMount* mount,
+                        int result) override;
+
     void onMountDisabled(mega::MegaApi* api,
                          const mega::MegaMount* mount,
                          int result) override;

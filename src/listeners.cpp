@@ -555,6 +555,13 @@ void MegaCmdMegaListener::onMountAdded(mega::MegaApi* api,
     onMountEvent(api, mount, "added", "add", result);
 }
 
+void MegaCmdMegaListener::onMountChanged(mega::MegaApi* api,
+                                         const mega::MegaMount* mount,
+                                         int result)
+{
+    onMountEvent(api, mount, "changed", "change", result);
+}
+
 void MegaCmdMegaListener::onMountDisabled(mega::MegaApi* api,
                                           const mega::MegaMount* mount,
                                           int result)

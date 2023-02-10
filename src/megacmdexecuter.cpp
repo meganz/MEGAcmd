@@ -11039,7 +11039,7 @@ void MegaCmdExecuter::fuseAddMount(const StringVector& arguments,
     listener->wait();
     
     // Mount was added successfully.
-    if (checkNoErrors(listener->getError(), "add-mount"))
+    if (checkNoErrors(listener->getError(), arguments.front()))
     {
         OUTSTREAM << "Successfully added a new mount from \""
                   << remotePath
@@ -11123,6 +11123,7 @@ void MegaCmdExecuter::fuseMountFlags(const StringVector& arguments,
 {
     // Convenience.
     using FlagsPtr = unique_ptr<MegaMountFlags>;
+    using ListenerPtr = unique_ptr<MegaCmdListener>;
 
     // Make sure we've been passed two arguments.
     if (arguments.size() != 2)
@@ -11168,16 +11169,16 @@ void MegaCmdExecuter::fuseMountFlags(const StringVector& arguments,
     if (options.count("name"))
         changing = (flags_->setName(options.at("name").c_str()), true);
 
-    if (options.count("persistent"))
+    if (flags.count("persistent"))
         changing = (flags_->setPersistent(true), true);
 
-    if (options.count("read-only"))
+    if (flags.count("read-only"))
         changing = (flags_->setReadOnly(true), true);
 
-    if (options.count("transient"))
+    if (flags.count("transient"))
         changing = (flags_->setPersistent(false), true);
 
-    if (options.count("writable"))
+    if (flags.count("writable"))
         changing = (flags_->setReadOnly(false), true);
 
     // Not changing the mount's flags.
@@ -11186,6 +11187,26 @@ void MegaCmdExecuter::fuseMountFlags(const StringVector& arguments,
         OUTSTREAM << "Mount \""
                   << localPath
                   << "\" has the following flags:\n"
+                  << fuseToString(*flags_)
+                  << endl;
+
+        return;
+    }
+
+    // Try and update the mount's flags.
+    ListenerPtr listener(new MegaCmdListener(nullptr));
+
+    api->setMountFlags(flags_.get(), localPath.c_str(), listener.get());
+
+    // Wait for the operation to complete.
+    listener->wait();
+
+    // Were we able to update the mount's flags?
+    if (checkNoErrors(listener->getError(), arguments.front()))
+    {
+        OUTSTREAM << "Mount \""
+                  << localPath
+                  << "\" now has the following flags:\n"
                   << fuseToString(*flags_)
                   << endl;
 
