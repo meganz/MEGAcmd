@@ -548,6 +548,59 @@ void MegaCmdMegaListener::onSyncDeleted(MegaApi *api, MegaSync *sync)
     LOG_verbose << "Sync deleted: " << sync->getLocalFolder() << " to " << sync->getLastKnownMegaFolder();
 }
 
+void MegaCmdMegaListener::onMountAdded(mega::MegaApi* api,
+                                       const mega::MegaMount* mount,
+                                       int result)
+{
+    onMountEvent(api, mount, "added", "add", result);
+}
+
+void MegaCmdMegaListener::onMountDisabled(mega::MegaApi* api,
+                                          const mega::MegaMount* mount,
+                                          int result)
+{
+    onMountEvent(api, mount, "disabled", "disable", result);
+}
+
+void MegaCmdMegaListener::onMountEnabled(mega::MegaApi* api,
+                                         const mega::MegaMount* mount,
+                                         int result)
+{
+    onMountEvent(api, mount, "enabled", "enable", result);
+}
+
+void MegaCmdMegaListener::onMountRemoved(mega::MegaApi* api,
+                                         const mega::MegaMount* mount,
+                                         int result)
+{
+    onMountEvent(api, mount, "removed", "remove", result);
+}
+
+void MegaCmdMegaListener::onMountEvent(mega::MegaApi*,
+                                       const mega::MegaMount* mount,
+                                       const char* pastTense,
+                                       const char* presentTense,
+                                       int result)
+{
+    if (result != MegaMount::SUCCESS)
+    {
+        LOG_err << "Unable to "
+                << presentTense
+                << " mount \""
+                << mount->getPath()
+                << "\" due to error: "
+                << result;
+
+        return;
+    }
+
+    LOG_verbose << "Successfully "
+                << pastTense
+                << " mount \""
+                << mount->getPath()
+                << "\".";
+}
+
 ////////////////////////////////////////
 ///      MegaCmdListener methods     ///
 ////////////////////////////////////////

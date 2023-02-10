@@ -250,11 +250,33 @@ public:
     virtual void onBackupUpdate(mega::MegaApi *api, mega::MegaScheduledCopy *backup);
     virtual void onBackupTemporaryError(mega::MegaApi *api, mega::MegaScheduledCopy *backup, mega::MegaError* error);
 
+    void onMountAdded(mega::MegaApi* api,
+                      const mega::MegaMount* mount,
+                      int result) override;
+
+    void onMountDisabled(mega::MegaApi* api,
+                         const mega::MegaMount* mount,
+                         int result) override;
+
+    void onMountEnabled(mega::MegaApi* api,
+                        const mega::MegaMount* mount,
+                        int result) override;
+
+    void onMountRemoved(mega::MegaApi* api,
+                        const mega::MegaMount* mount,
+                        int result) override;
+
     void onSyncAdded(mega::MegaApi *api, mega::MegaSync *sync) override;
     void onSyncStateChanged(mega::MegaApi *api, mega::MegaSync *sync) override;
     void onSyncDeleted(mega::MegaApi *api, mega::MegaSync *sync) override;
 
 protected:
+    void onMountEvent(mega::MegaApi* api,
+                      const mega::MegaMount* mount,
+                      const char* pastTense,
+                      const char* presentTense,
+                      int result);
+
     mega::MegaApi *megaApi;
     mega::MegaListener *listener;
     MegaCmdSandbox *sandboxCMD;
