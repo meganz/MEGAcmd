@@ -11033,7 +11033,7 @@ void MegaCmdExecuter::fuseAddMount(const StringVector& arguments,
     // Try and add the new mount.
     ListenerPtr listener(new MegaCmdListener(nullptr));
 
-    api->mountAdd(mount.get(), listener.get());
+    api->addMount(mount.get(), listener.get());
 
     // Wait for a result.
     listener->wait();
@@ -11063,14 +11063,14 @@ void MegaCmdExecuter::fuseDisableMount(const StringVector& arguments,
                                        const FromStringMap<int>& flags,
                                        const FromStringMap<string>& options)
 {
-    fuseOperate(arguments, flags, &MegaApi::mountDisable, options);
+    fuseOperate(arguments, flags, &MegaApi::disableMount, options);
 }
 
 void MegaCmdExecuter::fuseEnableMount(const StringVector& arguments,
                                       const FromStringMap<int>& flags,
                                       const FromStringMap<string>& options)
 {
-    fuseOperate(arguments, flags, &MegaApi::mountEnable, options);
+    fuseOperate(arguments, flags, &MegaApi::enableMount, options);
 }
 
 void MegaCmdExecuter::fuseListMounts(const StringVector& arguments,
@@ -11084,7 +11084,7 @@ void MegaCmdExecuter::fuseListMounts(const StringVector& arguments,
     auto onlyEnabled = getFlag(&flags, "only-enabled");
 
     // Try and get a list of mounts.
-    MountListPtr mounts(api->mountList(onlyEnabled));
+    MountListPtr mounts(api->listMounts(onlyEnabled));
 
     // Couldn't retrieve the mount list.
     if (!mounts)
@@ -11149,7 +11149,7 @@ void MegaCmdExecuter::fuseMountFlags(const StringVector& arguments,
     auto& localPath = arguments.back();
 
     // Try and retrieve the specified mount's flags.
-    FlagsPtr flags_(api->mountFlags(localPath.c_str()));
+    FlagsPtr flags_(api->getMountFlags(localPath.c_str()));
 
     // Mount doesn't exist or couldn't determine the flags.
     if (!flags_)
@@ -11212,7 +11212,7 @@ void MegaCmdExecuter::fuseMountInfo(const StringVector& arguments,
     auto& localPath = arguments.back();
 
     // Try and retrieve a description of the specified mount.
-    MountPtr mount(api->mountInfo(localPath.c_str()));
+    MountPtr mount(api->getMountInfo(localPath.c_str()));
 
     // Mount doesn't exist or we couldn't retrieve its description.
     if (!mount)
@@ -11280,7 +11280,7 @@ void MegaCmdExecuter::fuseRemoveMount(const StringVector& arguments,
                                       const FromStringMap<int>& flags,
                                       const FromStringMap<string>& options)
 {
-    fuseOperate(arguments, flags, &MegaApi::mountRemove, options);
+    fuseOperate(arguments, flags, &MegaApi::removeMount, options);
 }
 
 }//end namespace
