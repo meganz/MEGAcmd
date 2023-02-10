@@ -11039,7 +11039,9 @@ void MegaCmdExecuter::fuseAddMount(const StringVector& arguments,
     listener->wait();
     
     // Mount was added successfully.
-    if (checkNoErrors(listener->getError(), arguments.front()))
+    auto* result = listener->getError();
+
+    if (checkNoErrors(result, arguments.front()))
     {
         OUTSTREAM << "Successfully added a new mount from \""
                   << remotePath
@@ -11056,7 +11058,7 @@ void MegaCmdExecuter::fuseAddMount(const StringVector& arguments,
             << "\" to \""
             << localPath
             << "\" due to error: "
-            << listener->getError()->getMountResult();
+            << MegaMount::getResultString(result->getMountResult());
 }
 
 void MegaCmdExecuter::fuseDisableMount(const StringVector& arguments,
@@ -11202,7 +11204,9 @@ void MegaCmdExecuter::fuseMountFlags(const StringVector& arguments,
     listener->wait();
 
     // Were we able to update the mount's flags?
-    if (checkNoErrors(listener->getError(), arguments.front()))
+    auto* result = listener->getError();
+
+    if (checkNoErrors(result, arguments.front()))
     {
         OUTSTREAM << "Mount \""
                   << localPath
@@ -11217,7 +11221,7 @@ void MegaCmdExecuter::fuseMountFlags(const StringVector& arguments,
     LOG_err << "Unable to change the flags of mount \""
             << localPath
             << "\" due to error: "
-            << MegaMount::UNSUPPORTED;
+            << MegaMount::getResultString(result->getMountResult());
 }
 
 void MegaCmdExecuter::fuseMountInfo(const StringVector& arguments,
@@ -11277,7 +11281,9 @@ void MegaCmdExecuter::fuseOperate(const StringVector& arguments,
     listener->wait();
 
     // Operation was successful.
-    if (checkNoErrors(listener->getError(), command))
+    auto* result = listener->getError();
+
+    if (checkNoErrors(result, command))
     {
         OUTSTREAM << "Successfully "
                   << type
@@ -11295,7 +11301,7 @@ void MegaCmdExecuter::fuseOperate(const StringVector& arguments,
             << " the mount on \""
             << localPath
             << "\" due to error: "
-            << listener->getError()->getMountResult();
+            << MegaMount::getResultString(result->getMountResult());
 }
 
 void MegaCmdExecuter::fuseRemoveMount(const StringVector& arguments,

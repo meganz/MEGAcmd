@@ -596,7 +596,7 @@ void MegaCmdMegaListener::onMountEvent(mega::MegaApi*,
                 << " mount \""
                 << mount->getPath()
                 << "\" due to error: "
-                << result;
+                << MegaMount::getResultString(result);
 
         return;
     }
