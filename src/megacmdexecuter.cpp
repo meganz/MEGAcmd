@@ -11099,7 +11099,8 @@ void MegaCmdExecuter::fuseListMounts(const StringVector& arguments,
     {
         OUTSTREAM << "There are no "
                   << (onlyEnabled ? "enabled " : "")
-                  << "mounts.";
+                  << "mounts."
+                  << endl;
 
         return;
     }
