@@ -41,7 +41,8 @@ build-stamp:
 	   ./configure --without-libraw --disable-shared --enable-static --disable-silent-rules \
 	  --disable-curl-checks --with-sodium=$(CURDIR)/deps --with-libuv=$(CURDIR)/deps --with-pcre $(FPDFIUM) \
 	  --with-curl=$(CURDIR)/deps --with-freeimage=$(CURDIR)/deps --with-readline=$(CURDIR)/deps \
-	  --with-termcap=$(CURDIR)/deps $(WCRYPTOPP) --prefix=$(CURDIR)/deps --disable-examples $(WMEDIAINFO)
+	  --with-termcap=$(CURDIR)/deps $(WCRYPTOPP) --prefix=$(CURDIR)/deps --disable-examples $(WMEDIAINFO) \
+	  --enable-fuse
 
 	make -j$(NJOBS)
 	echo "fs.inotify.max_user_watches = 524288" > 99-megacmd-inotify-limit.conf
