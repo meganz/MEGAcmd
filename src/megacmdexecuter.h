@@ -125,6 +125,9 @@ private:
                        const FromStringMap<int>& flags,
                        const FromStringMap<std::string>& options);
 
+    std::string fuseNameOrPath(const std::string& command,
+                               const FromStringMap<std::string>& options);
+
     void fuseOperate(const StringVector& arguments,
                      const FromStringMap<int>& flags,
                      const FuseOperation operation,

@@ -11127,9 +11127,12 @@ void MegaCmdExecuter::fuseMountFlags(const StringVector& arguments,
     using FlagsPtr = unique_ptr<MegaMountFlags>;
     using ListenerPtr = unique_ptr<MegaCmdListener>;
 
-    // Make sure we've been passed two arguments.
-    if (arguments.size() != 2)
-        return fuseBadArgument(arguments.front());
+    // Make sure the user's selected a mount by name or by path.
+    auto path = fuseNameOrPath(arguments.front(), options);
+
+    // No mount exists with the specified name.
+    if (path.empty())
+        return;
 
     // Check for mutually exclusive flags.
     if (flags.count("persistent") && flags.count("transient"))
@@ -11150,16 +11153,14 @@ void MegaCmdExecuter::fuseMountFlags(const StringVector& arguments,
         return;
     }
 
-    auto& localPath = arguments.back();
-
     // Try and retrieve the specified mount's flags.
-    FlagsPtr flags_(api->getMountFlags(localPath.c_str()));
+    FlagsPtr flags_(api->getMountFlags(path.c_str()));
 
     // Mount doesn't exist or couldn't determine the flags.
     if (!flags_)
     {
         LOG_err << "Unable to retrieve flags for the mount at \""
-                << localPath
+                << path
                 << "\".";
 
         return;
@@ -11187,7 +11188,7 @@ void MegaCmdExecuter::fuseMountFlags(const StringVector& arguments,
     if (!changing)
     {
         OUTSTREAM << "Mount \""
-                  << localPath
+                  << path
                   << "\" has the following flags:\n"
                   << fuseToString(*flags_)
                   << endl;
@@ -11198,7 +11199,7 @@ void MegaCmdExecuter::fuseMountFlags(const StringVector& arguments,
     // Try and update the mount's flags.
     ListenerPtr listener(new MegaCmdListener(nullptr));
 
-    api->setMountFlags(flags_.get(), localPath.c_str(), listener.get());
+    api->setMountFlags(flags_.get(), path.c_str(), listener.get());
 
     // Wait for the operation to complete.
     listener->wait();
@@ -11209,7 +11210,7 @@ void MegaCmdExecuter::fuseMountFlags(const StringVector& arguments,
     if (checkNoErrors(result, arguments.front()))
     {
         OUTSTREAM << "Mount \""
-                  << localPath
+                  << path
                   << "\" now has the following flags:\n"
                   << fuseToString(*flags_)
                   << endl;
@@ -11219,7 +11220,7 @@ void MegaCmdExecuter::fuseMountFlags(const StringVector& arguments,
 
     // API doesn't let us change a mount's flags yet.
     LOG_err << "Unable to change the flags of mount \""
-            << localPath
+            << path
             << "\" due to error: "
             << MegaMount::getResultString(result->getMountResult());
 }
@@ -11231,20 +11232,21 @@ void MegaCmdExecuter::fuseMountInfo(const StringVector& arguments,
     // Convenience.
     using MountPtr = unique_ptr<MegaMount>;
 
-    // Make sure we've been provided two arguments.
-    if (arguments.size() != 2)
-        return fuseBadArgument(arguments.front());
+    // Make sure the user's selected a mount by name or by path.
+    auto path = fuseNameOrPath(arguments.front(), options);
 
-    auto& localPath = arguments.back();
-
+    // No mounts with the specified name.
+    if (path.empty())
+        return;
+    
     // Try and retrieve a description of the specified mount.
-    MountPtr mount(api->getMountInfo(localPath.c_str()));
+    MountPtr mount(api->getMountInfo(path.c_str()));
 
     // Mount doesn't exist or we couldn't retrieve its description.
     if (!mount)
     {
         LOG_err << "Unable to describe the mount at \""
-                << localPath
+                << path
                 << "\".";
 
         return;
@@ -11252,6 +11254,37 @@ void MegaCmdExecuter::fuseMountInfo(const StringVector& arguments,
 
     OUTSTREAM << fuseToString(*api, *mount)
               << flush;
+}
+
+std::string MegaCmdExecuter::fuseNameOrPath(const std::string& command,
+                                            const FromStringMap<std::string>& options)
+{
+    // By name or path but never both.
+    auto byName = options.find("by-name");
+    auto byPath = options.find("by-path");
+
+    if (byName != options.end() && byPath != options.end())
+        return fuseBadArgument(command), std::string();
+
+    // Mount selected by path.
+    if (byPath != options.end())
+        return byPath->second;
+
+    // No name specified.
+    if (byName == options.end())
+        return std::string();
+
+    // Mount selected by name.
+    unique_ptr<char[]> path(api->getMountPath(byName->second.c_str()));
+
+    if (path)
+        return std::string(path.get());
+
+    LOG_err << "There are no mounts named \""
+            << byName->second
+            << "\".";
+
+    return std::string();
 }
 
 void MegaCmdExecuter::fuseOperate(const StringVector& arguments,
@@ -11263,11 +11296,13 @@ void MegaCmdExecuter::fuseOperate(const StringVector& arguments,
     using ListenerPtr = unique_ptr<MegaCmdListener>;
 
     auto& command = arguments.front();
-    auto& localPath = arguments.back();
 
-    // Make sure hte user's given us two arguments.
-    if (arguments.size() != 2)
-        return fuseBadArgument(command);
+    // Make sure the user's selected a mount by name or by path.
+    auto path = fuseNameOrPath(command, options);
+
+    // No mount exists with the specified name.
+    if (path.empty())
+        return;
 
     // What kind of operation are we performing?
     auto type = command.substr(0, command.find_first_of('-'));
@@ -11275,7 +11310,7 @@ void MegaCmdExecuter::fuseOperate(const StringVector& arguments,
     // Execute the operation.
     ListenerPtr listener(new MegaCmdListener(nullptr));
 
-    (api->*operation)(localPath.c_str(), listener.get());
+    (api->*operation)(path.c_str(), listener.get());
 
     // Wait for the operation to complete.
     listener->wait();
@@ -11288,7 +11323,7 @@ void MegaCmdExecuter::fuseOperate(const StringVector& arguments,
         OUTSTREAM << "Successfully "
                   << type
                   << "d the mount on \""
-                  << localPath
+                  << path
                   << "\"."
                   << endl;
 
@@ -11299,7 +11334,7 @@ void MegaCmdExecuter::fuseOperate(const StringVector& arguments,
     LOG_err << "Unable to "
             << type
             << " the mount on \""
-            << localPath
+            << path
             << "\" due to error: "
             << MegaMount::getResultString(result->getMountResult());
 }

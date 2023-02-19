@@ -817,22 +817,47 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     }
 
     // FUSE commands.
-    if (thecommand == "add-mount" || thecommand == "mount-flags")
+    if (thecommand == "add-mount")
     {
+        validOptValues->emplace("name");
+
         validParams->emplace("persistent");
         validParams->emplace("read-only");
-
-        if (thecommand == "mount-flags")
-        {
-            validParams->emplace("transient");
-            validParams->emplace("writable");
-        }
-
-        validOptValues->emplace("name");
+    }
+    else if (thecommand == "disable-mount")
+    {
+        validOptValues->emplace("by-name");
+        validOptValues->emplace("by-path");
+    }
+    else if (thecommand == "enable-mount")
+    {
+        validOptValues->emplace("by-name");
+        validOptValues->emplace("by-path");
     }
     else if (thecommand == "list-mounts")
     {
         validParams->emplace("only-enabled");
+    }
+    else if (thecommand == "mount-flags")
+    {
+        validOptValues->emplace("by-name");
+        validOptValues->emplace("by-path");
+        validOptValues->emplace("name");
+
+        validParams->emplace("persistent");
+        validParams->emplace("read-only");
+        validParams->emplace("transient");
+        validParams->emplace("writable");
+    }
+    else if (thecommand == "mount-info")
+    {
+        validOptValues->emplace("by-name");
+        validOptValues->emplace("by-path");
+    }
+    else if (thecommand == "remove-mount")
+    {
+        validOptValues->emplace("by-name");
+        validOptValues->emplace("by-path");
     }
 }
 
@@ -1956,22 +1981,23 @@ const char * getUsageStr(const char *command)
         return "add-mount [--name=name] [--persistent] [--read-only] remotePath localPath";
 
     if (!strcmp(command, "disable-mount"))
-        return "disable-mount localPath";
+        return "disable-mount (--by-name=name | --by-path=path)";
 
     if (!strcmp(command, "enable-mount"))
-        return "enable-mount localPath";
+        return "enable-mount (--by-name=name | --by-path=path)";
 
     if (!strcmp(command, "list-mounts"))
         return "list-mounts [--only-enabled]";
 
     if (!strcmp(command, "mount-flags"))
-        return "mount-flags [--name=name] [--persistent|--transient] [--read-only|--writable] localPath";
+        return "mount-flags (--by-name=name | --by-path=path) "
+               "[--name=name] [--persistent|--transient] [--read-only|--writable]";
 
     if (!strcmp(command, "mount-info"))
-        return "mount-info localPath";
+        return "mount-info (--by-name=name | --by-path=path)";
 
     if (!strcmp(command, "remove-mount"))
-        return "remove-mount localPath";
+        return "remove-mount (--by-name=name | --by-path=path)";
 
     return "command not found: ";
 }
