@@ -10945,6 +10945,9 @@ static string fuseToString(MegaApi& api, const MegaMount& mount)
     ostream << "Mount \""
             << mount.getPath()
             << "\":\n"
+            << "Enabled: "
+            << (api.isMountEnabled(mount.getPath()) ? "YES" : "NO")
+            << "\n"
             << "Remote Handle: "
             << handle.get()
             << "\n"
