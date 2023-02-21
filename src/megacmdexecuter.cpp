@@ -10978,6 +10978,10 @@ void MegaCmdExecuter::fuseAddMount(const StringVector& arguments,
     // Clarity.
     auto& localPath = arguments[2];
     auto& remotePath = arguments[1];
+
+    if (localPath.empty() || remotePath.empty())
+        return fuseBadArgument(arguments.front());
+
     auto name = getOption(&options, "name");
     auto persistent = getFlag(&flags, "persistent");
     auto readOnly = getFlag(&flags, "read-only");
@@ -11271,11 +11275,16 @@ std::string MegaCmdExecuter::fuseNameOrPath(const std::string& command,
 
     // Mount selected by path.
     if (byPath != options.end())
+    {
+        if (byPath->second.empty())
+            return fuseBadArgument(command), std::string();
+
         return byPath->second;
+    }
 
     // No name specified.
-    if (byName == options.end())
-        return std::string();
+    if (byName == options.end() || byName->second.empty())
+        return fuseBadArgument(command), std::string();
 
     // Mount selected by name.
     unique_ptr<char[]> path(api->getMountPath(byName->second.c_str()));
