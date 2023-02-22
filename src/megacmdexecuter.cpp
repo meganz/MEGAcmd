@@ -11072,14 +11072,28 @@ void MegaCmdExecuter::fuseDisableMount(const StringVector& arguments,
                                        const FromStringMap<int>& flags,
                                        const FromStringMap<string>& options)
 {
-    fuseOperate(arguments, flags, &MegaApi::disableMount, options);
+    fuseOperate(arguments,
+                flags,
+                std::bind(&MegaApi::disableMount,
+                          api,
+                          std::placeholders::_1,
+                          std::placeholders::_2,
+                          std::placeholders::_3),
+                options);
 }
 
 void MegaCmdExecuter::fuseEnableMount(const StringVector& arguments,
                                       const FromStringMap<int>& flags,
                                       const FromStringMap<string>& options)
 {
-    fuseOperate(arguments, flags, &MegaApi::enableMount, options);
+    fuseOperate(arguments,
+                flags,
+                std::bind(&MegaApi::enableMount,
+                          api,
+                          std::placeholders::_1,
+                          std::placeholders::_2,
+                          std::placeholders::_3),
+                options);
 }
 
 void MegaCmdExecuter::fuseListMounts(const StringVector& arguments,
@@ -11319,10 +11333,18 @@ void MegaCmdExecuter::fuseOperate(const StringVector& arguments,
     // What kind of operation are we performing?
     auto type = command.substr(0, command.find_first_of('-'));
 
+    // Should the new mount's state be remembered?
+    //
+    // That is, if we disable a mount, should it remain disabled when
+    // we next start up the application?
+    //
+    // Note that this flag has no meaning for remove operations.
+    auto remember = flags.count("remember") > 0;
+
     // Execute the operation.
     ListenerPtr listener(new MegaCmdListener(nullptr));
 
-    (api->*operation)(path.c_str(), listener.get());
+    operation(path.c_str(), listener.get(), remember);
 
     // Wait for the operation to complete.
     listener->wait();
@@ -11355,7 +11377,13 @@ void MegaCmdExecuter::fuseRemoveMount(const StringVector& arguments,
                                       const FromStringMap<int>& flags,
                                       const FromStringMap<string>& options)
 {
-    fuseOperate(arguments, flags, &MegaApi::removeMount, options);
+    fuseOperate(arguments,
+                flags,
+                std::bind(&MegaApi::removeMount,
+                          api,
+                          std::placeholders::_1,
+                          std::placeholders::_2),
+                options);
 }
 
 }//end namespace

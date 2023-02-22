@@ -96,7 +96,9 @@ private:
     using FromStringMap = std::map<std::string, T>;
 
     using FuseOperation =
-      void (mega::MegaApi::*)(const char*, mega::MegaRequestListener*);
+      std::function<void(const char*,
+                         mega::MegaRequestListener*,
+                         bool)>;
 
     using StringVector = std::vector<std::string>;
 

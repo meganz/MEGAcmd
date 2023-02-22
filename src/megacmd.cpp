@@ -828,11 +828,15 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     {
         validOptValues->emplace("by-name");
         validOptValues->emplace("by-path");
+
+        validParams->emplace("remember");
     }
     else if (thecommand == "enable-mount")
     {
         validOptValues->emplace("by-name");
         validOptValues->emplace("by-path");
+
+        validParams->emplace("remember");
     }
     else if (thecommand == "list-mounts")
     {
@@ -1981,10 +1985,10 @@ const char * getUsageStr(const char *command)
         return "add-mount [--name=name] [--persistent] [--read-only] remotePath localPath";
 
     if (!strcmp(command, "disable-mount"))
-        return "disable-mount (--by-name=name | --by-path=path)";
+        return "disable-mount (--by-name=name | --by-path=path) [--remember]";
 
     if (!strcmp(command, "enable-mount"))
-        return "enable-mount (--by-name=name | --by-path=path)";
+        return "enable-mount (--by-name=name | --by-path=path) [--remember]";
 
     if (!strcmp(command, "list-mounts"))
         return "list-mounts [--only-enabled]";
