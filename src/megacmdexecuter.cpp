@@ -11037,8 +11037,10 @@ void MegaCmdExecuter::fuseAddMount(const StringVector& arguments,
     auto* flags_ = mount->getFlags();
 
     flags_->setName(name.c_str());
-    flags_->setPersistent(persistent);
     flags_->setReadOnly(readOnly);
+
+    if (persistent)
+        flags_->setEnableAtStartup(true);
 
     // Try and add the new mount.
     ListenerPtr listener(new MegaCmdListener(nullptr));
