@@ -770,6 +770,10 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validOptValues->insert("username");
         validOptValues->insert("password");
     }
+    else if ("confirm" == thecommand)
+    {
+        validParams->insert("security");
+    }
     else if ("exit" == thecommand || "quit" == thecommand)
     {
         validParams->insert("only-shell");

@@ -9478,6 +9478,19 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
     }
     else if (words[0] == "confirm")
     {
+        if (getFlag(clflags, "security"))
+        {
+            auto megaCmdListener = ::mega::make_unique<MegaCmdListener>(nullptr);
+            api->upgradeSecurity(megaCmdListener.get());
+            megaCmdListener->wait();
+            if (checkNoErrors(megaCmdListener->getError(), "confirm security upgrade"))
+            {
+                removeGreetingMatching("Your account's security needs upgrading");
+                OUTSTREAM << "Account security upgrade. You shall no longer see an account security warning." << endl;
+            }
+            return;
+        }
+
         if (words.size() > 2)
         {
             string link = words[1];
