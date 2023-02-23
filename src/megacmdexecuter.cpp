@@ -10920,7 +10920,10 @@ static string fuseToString(const MegaMountFlags& flags)
 {
     ostringstream ostream;
 
-    ostream << "Name: "
+    ostream << "Enable at Startup: "
+            << (flags.getEnableAtStartup() ? "YES" : "NO")
+            << "\n"
+            << "Name: "
             << flags.getName()
             << "\n"
             << "Persistent: "
@@ -11155,24 +11158,40 @@ void MegaCmdExecuter::fuseMountFlags(const StringVector& arguments,
     if (path.empty())
         return;
 
+    // Convenience.
+    auto disableAtStartup = flags.count("disabled-at-startup");
+    auto enableAtStartup = flags.count("enabled-at-startup");
+    auto persistent = flags.count("persistent");
+    auto readOnly = flags.count("read-only");
+    auto transient = flags.count("transient");
+    auto writable = flags.count("writable");
+
     // Check for mutually exclusive flags.
-    if (flags.count("persistent") && flags.count("transient"))
-    {
+    auto invalidArguments = [&](const char* message) {
         setCurrentOutCode(MCMD_EARGS);
 
-        LOG_err << "A mount cannot be both persistent and transient.";
+        LOG_err << message;
 
         return;
-    }
+    };
 
-    if (flags.count("read-only") && flags.count("writable"))
+    // Transient mounts are always disabled on startup.
+    disableAtStartup -= disableAtStartup * transient;
+
+    if (enableAtStartup)
     {
-        setCurrentOutCode(MCMD_EARGS);
+        if (disableAtStartup)
+            return invalidArguments("A mount is either disabled or enabled at startup.");
 
-        LOG_err << "A mount cannot be both read-only and writable.";
-
-        return;
+        if (transient)
+            return invalidArguments("A transient mount cannot be enabled at startup.");
     }
+
+    if (transient && persistent)
+        return invalidArguments("A mount is either persistent or transient.");
+
+    if (readOnly && writable)
+       return invalidArguments("A mount is either read-only or writable.");
 
     // Try and retrieve the specified mount's flags.
     FlagsPtr flags_(api->getMountFlags(path.c_str()));
@@ -11193,17 +11212,14 @@ void MegaCmdExecuter::fuseMountFlags(const StringVector& arguments,
     if (options.count("name"))
         changing = (flags_->setName(options.at("name").c_str()), true);
 
-    if (flags.count("persistent"))
-        changing = (flags_->setPersistent(true), true);
+    if (persistent || transient)
+        changing = (flags_->setPersistent(persistent), true);
 
-    if (flags.count("read-only"))
-        changing = (flags_->setReadOnly(true), true);
+    if (disableAtStartup || enableAtStartup)
+        changing = (flags_->setEnableAtStartup(enableAtStartup), true);
 
-    if (flags.count("transient"))
-        changing = (flags_->setPersistent(false), true);
-
-    if (flags.count("writable"))
-        changing = (flags_->setReadOnly(false), true);
+    if (readOnly || writable)
+        changing = (flags_->setReadOnly(readOnly), true);
 
     // Not changing the mount's flags.
     if (!changing)

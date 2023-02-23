@@ -848,6 +848,8 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validOptValues->emplace("by-path");
         validOptValues->emplace("name");
 
+        validParams->emplace("disabled-at-startup");
+        validParams->emplace("enabled-at-startup");
         validParams->emplace("persistent");
         validParams->emplace("read-only");
         validParams->emplace("transient");
@@ -1995,7 +1997,10 @@ const char * getUsageStr(const char *command)
 
     if (!strcmp(command, "mount-flags"))
         return "mount-flags (--by-name=name | --by-path=path) "
-               "[--name=name] [--persistent|--transient] [--read-only|--writable]";
+               "[--disabled-at-startup | --enabled-at-startup] "
+               "[--name=name] "
+               "[--persistent | --transient] "
+               "[--read-only | --writable]";
 
     if (!strcmp(command, "mount-info"))
         return "mount-info (--by-name=name | --by-path=path)";
