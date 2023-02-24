@@ -2308,6 +2308,36 @@ void MegaCmdExecuter::actUponGetExtendedAccountDetails(SynchronousRequestListene
     }
 }
 
+void MegaCmdExecuter::verifySharedFolders(MegaApi *api)
+{
+    auto getInstructions = [](const char *intro)
+    {
+        std::stringstream ss;
+        ss << intro << ". ";
+        ss << "You need to verify your contacts. Use ";
+        ss << commandPrefixBasedOnMode();
+        ss << "users --help-verify to get instructions";
+        return ss.str();
+    };
+
+    {
+        std::unique_ptr<MegaShareList> shares(api->getUnverifiedInShares());
+        if (shares && shares->size())
+        {
+            appendGreetingStatusAllListener(std::string("message:")+getInstructions("Some not verified contact is sharing a folder with you"));
+            return;
+        }
+    }
+    {
+        std::unique_ptr<MegaShareList> shares(api->getUnverifiedOutShares());
+        if (shares && shares->size())
+        {
+            appendGreetingStatusAllListener(std::string("message:")+getInstructions("You are sharing a folder with some unverified contact"));
+            return;
+        }
+    }
+}
+
 bool MegaCmdExecuter::actUponFetchNodes(MegaApi *api, SynchronousRequestListener *srl, int timeout)
 {
     if (timeout == -1)
@@ -2344,6 +2374,7 @@ bool MegaCmdExecuter::actUponFetchNodes(MegaApi *api, SynchronousRequestListener
         session = srl->getApi()->dumpSession();
         ConfigurationManager::saveSession(session);
 
+        verifySharedFolders(api);
 
         LOG_verbose << "actUponFetchNodes ok";
 
@@ -3403,11 +3434,32 @@ void MegaCmdExecuter::disableExport(MegaNode *n)
 
 void MegaCmdExecuter::shareNode(MegaNode *n, string with, int level)
 {
-    MegaCmdListener *megaCmdListener = new MegaCmdListener(api, NULL);
-
-    api->share(n, with.c_str(), level, megaCmdListener);
+    std::unique_ptr<MegaCmdListener> megaCmdListener(new MegaCmdListener(api));
+    api->openShareDialog(n, megaCmdListener.get());
     megaCmdListener->wait();
-    if (checkNoErrors(megaCmdListener->getError(), ( level != MegaShare::ACCESS_UNKNOWN ) ? "share node" : "disable share"))
+    if (megaCmdListener->getError()->getErrorCode() == MegaError::API_EINCOMPLETE)
+    {
+        setCurrentOutCode(MCMD_NOTPERMITTED);
+        LOG_err << "Unable to share folder. Your account security may need upgrading. Type \"confirm --security\"";
+        return;
+    }
+    else if (!checkNoErrors(megaCmdListener->getError(), "prepare sharing"))
+    {
+        return;
+    }
+
+
+    megaCmdListener.reset(new MegaCmdListener(api));
+    api->share(n, with.c_str(), level, megaCmdListener.get());
+    megaCmdListener->wait();
+
+    if (megaCmdListener->getError()->getErrorCode() == MegaError::API_EINCOMPLETE)
+    {
+        setCurrentOutCode(MCMD_NOTPERMITTED);
+        LOG_err << "Unable to share folder. Your account security may need upgrading. Type \"confirm --security\"";
+        return;
+    }
+    else if (checkNoErrors(megaCmdListener->getError(), ( level != MegaShare::ACCESS_UNKNOWN ) ? "share node" : "disable share"))
     {
         MegaNode *nshared = api->getNodeByHandle(megaCmdListener->getRequest()->getNodeHandle());
         if (nshared)
@@ -3432,7 +3484,6 @@ void MegaCmdExecuter::shareNode(MegaNode *n, string with, int level)
         }
     }
 
-    delete megaCmdListener;
 }
 
 void MegaCmdExecuter::disableShare(MegaNode *n, string with)
@@ -5308,6 +5359,32 @@ bool MegaCmdExecuter::setProxy(const std::string &url, const std::string &userna
     }
 
     return !failed;
+}
+
+bool checkAtLeastNArgs(const vector<string> &words, size_t n)
+{
+    if (words.size() < n)
+    {
+        setCurrentOutCode(MCMD_EARGS);
+        assert(!words.empty());
+        LOG_err << words[0] << ": Invalid number of arguments";
+        LOG_err << "Usage: " << getUsageStr(words[0].c_str());
+        return false;
+    }
+    return true;
+}
+
+bool checkExactlyNArgs(const vector<string> &words, size_t n)
+{
+    if (words.size() != n)
+    {
+        setCurrentOutCode(MCMD_EARGS);
+        assert(!words.empty());
+        LOG_err << words[0] << ": Invalid number of arguments";
+        LOG_err << "Usage: " << getUsageStr(words[0].c_str());
+        return false;
+    }
+    return true;
 }
 
 void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clflags, map<string, string> *cloptions)
@@ -8232,6 +8309,130 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             LOG_err << "Not logged in.";
             return;
         }
+
+        bool verify = getFlag(clflags, "verify");
+        bool unverify = getFlag(clflags, "unverify");
+
+        if (verify || unverify)
+        {
+            if (!checkExactlyNArgs(words, 2))
+            {
+                return;
+            }
+            const auto &contact = words[1];
+            std::unique_ptr<MegaUser> user(api->getContact(contact.c_str()));
+            if (!user)
+            {
+                setCurrentOutCode(MCMD_NOTFOUND);
+                LOG_err << "Contact not found.";
+                return;
+            }
+
+            auto megaCmdListener = ::mega::make_unique<MegaCmdListener>(nullptr);
+            if (unverify)
+            {
+                api->resetCredentials(user.get(), megaCmdListener.get());
+            }
+            else
+            {
+                api->verifyCredentials(user.get(), megaCmdListener.get());
+            }
+            megaCmdListener->wait();
+
+            if (checkNoErrors(megaCmdListener->getError(), unverify ? "unverify credentials" : "verify credentials"))
+            {
+                OUTSTREAM << "Contact " << contact << " set as " << (unverify ? "no longer " : "") << "verified." << endl;
+            }
+            return;
+        }
+
+        if (getFlag(clflags, "help-verify"))
+        {
+            if (words.size() == 1) //general information
+            {
+                OUTSTREAM << "In order to share data with your contacts you will need to verify them" << endl;
+                OUTSTREAM << endl << "You can list your contacts using \"" << commandPrefixBasedOnMode() << "users -n\"" << endl;
+                OUTSTREAM << endl << "If you want the above listing to include information regarding your share folders," << endl
+                          << " type \"" <<commandPrefixBasedOnMode() << "users -sn" << endl;
+                return;
+            }
+
+            // Listing credentials and instructions for an specific contact:
+            if (!checkExactlyNArgs(words, 2))
+            {
+                return;
+            }
+            const auto &contact = words[1];
+            std::unique_ptr<MegaUser> user(api->getContact(contact.c_str()));
+            if (!user)
+            {
+                setCurrentOutCode(MCMD_NOTFOUND);
+                LOG_err << "Contact not found.";
+                return;
+            }
+
+            auto megaCmdListener = ::mega::make_unique<MegaCmdListener>(nullptr);
+            api->getUserCredentials(user.get(), megaCmdListener.get());
+            megaCmdListener->wait();
+            if (!checkNoErrors(megaCmdListener->getError(), "get user credentials"))
+            {
+                return;
+            }
+
+            auto contactCredentials = megaCmdListener->getRequest()->getPassword();
+            if (!contactCredentials)
+            {
+                setCurrentOutCode(MCMD_NOTFOUND);
+                LOG_err << "Contact credentials not found.";
+                return;
+            }
+
+            std::unique_ptr<char[]> myCredentials(api->getMyCredentials());
+            if (!myCredentials)
+            {
+                setCurrentOutCode(MCMD_NOTFOUND);
+                LOG_err << "Own credentials not found.";
+                return;
+            }
+
+            auto beautifyCreds = [](std::string x)
+            {
+                auto nspaces = x.size() / 4;
+                for (size_t i = 1 ; i < nspaces ;  i++)
+                {
+                    x.insert( i * 4 + i - 1, i == (nspaces / 2) ? "\n" : " ");
+                }
+                return x;
+            };
+
+            OUTSTREAM << "Updated verification credentials were received for your contact: ";
+
+            OUTSTREAM << contact << endl;
+
+            {
+                OUTSTRINGSTREAM ss;
+                ss << "Your Contact's credentials:\n";
+                ss << beautifyCreds(contactCredentials);
+                printCenteredContentsT(OUTSTREAM, ss.str(), 32, true);
+            }
+            {
+                OUTSTRINGSTREAM ss;
+                ss << "Your credentials:\n";
+                ss << beautifyCreds(myCredentials.get());
+                printCenteredContentsT(OUTSTREAM, ss.str(), 32, true);
+            }
+
+            OUTSTREAM << "Compare the listed credentials with the ones reported by your contact." << endl;
+
+            OUTSTREAM << "This is best done in real life by meeting face to face.\n"
+                         "If you have another already-verified channel such as verified OTR or PGP, you may also use that.";
+
+            OUTSTREAM << endl << "If both credentials match, type \"" << commandPrefixBasedOnMode() << "users --verify " << contact << "\" to set the contact as verified." << endl;
+
+            OUTSTREAM << endl << "Important: verification is two sided. You need to tell your contact to do the same for you, using MEGAcmd our MEGA website to verify your credentials" << endl;
+
+            return;
+        }
         if (getFlag(clflags, "d") && ( words.size() <= 1 ))
         {
             setCurrentOutCode(MCMD_EARGS);
@@ -8260,80 +8461,163 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 {
                     if (!(( user->getVisibility() != MegaUser::VISIBILITY_VISIBLE ) && !getFlag(clflags, "h")))
                     {
-                        if (getFlag(clflags,"n"))
+                        auto email = user->getEmail();
+                        std::string nameOrEmail;
+
+                        if (getFlag(clflags,"n")) //Show Names
                         {
-                            string name;
-                            MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
-                            api->getUserAttribute(user, ATTR_FIRSTNAME, megaCmdListener);
+                            // name:
+                            auto megaCmdListener = ::mega::make_unique<MegaCmdListener>(nullptr);
+                            api->getUserAttribute(user, ATTR_FIRSTNAME, megaCmdListener.get());
                             megaCmdListener->wait();
-                            if (megaCmdListener->getError()->getErrorCode() == MegaError::API_OK)
+                            if (megaCmdListener->getError()->getErrorCode() == MegaError::API_OK
+                                    && megaCmdListener->getRequest()->getText()
+                                    && *megaCmdListener->getRequest()->getText() // not empty
+                                    )
                             {
-                                if (megaCmdListener->getRequest()->getText() && strlen(megaCmdListener->getRequest()->getText()))
-                                {
-                                    name += megaCmdListener->getRequest()->getText();
-                                }
+                                nameOrEmail += megaCmdListener->getRequest()->getText();
                             }
-                            delete megaCmdListener;
-
-                            megaCmdListener = new MegaCmdListener(NULL);
-                            api->getUserAttribute(user, ATTR_LASTNAME, megaCmdListener);
+                            // surname:
+                            megaCmdListener.reset(new MegaCmdListener(nullptr));
+                            api->getUserAttribute(user, ATTR_LASTNAME, megaCmdListener.get());
                             megaCmdListener->wait();
-                            if (megaCmdListener->getError()->getErrorCode() == MegaError::API_OK)
+                            if (megaCmdListener->getError()->getErrorCode() == MegaError::API_OK
+                                    && megaCmdListener->getRequest()->getText()
+                                    && *megaCmdListener->getRequest()->getText() // not empty
+                                    )
                             {
-                                if (megaCmdListener->getRequest()->getText() && strlen(megaCmdListener->getRequest()->getText()))
+                                if (!nameOrEmail.empty())
                                 {
-                                    if (name.size())
-                                    {
-                                        name+=" ";
-                                    }
-                                    name+=megaCmdListener->getRequest()->getText();
+                                    nameOrEmail+=" ";
                                 }
-                            }
-                            if (name.size())
-                            {
-                                OUTSTREAM << name << ": ";
+                                nameOrEmail += megaCmdListener->getRequest()->getText();
                             }
 
-                            delete megaCmdListener;
+                            if (!nameOrEmail.empty())
+                            {
+                                OUTSTREAM << "[" << nameOrEmail << "] ";
+                            }
                         }
 
+                        if (nameOrEmail.empty())
+                        {
+                            nameOrEmail = email;
+                        }
 
-                        OUTSTREAM << user->getEmail() << ", " << visibilityToString(user->getVisibility());
+                        OUTSTREAM << email;
+
                         if (user->getTimestamp())
                         {
-                            OUTSTREAM << " since " << getReadableTime(user->getTimestamp(), getTimeFormatFromSTR(getOption(cloptions, "time-format","RFC2822")));
+                            OUTSTREAM << ". Contact since " << getReadableTime(user->getTimestamp(), getTimeFormatFromSTR(getOption(cloptions, "time-format","RFC2822")));
                         }
-                        OUTSTREAM << endl;
 
-                        if (getFlag(clflags, "s"))
+                        OUTSTREAM << ". " << visibilityToString(user->getVisibility())
+                                  << endl;
+
+                        bool printedSomeUnverifiedShare = false;
+                        bool printedSomeOutShareWithNoKey = false;
+                        auto printShares = [&, this](std::unique_ptr<MegaShareList> &shares, const std::string &title, bool isOutshare = false)
                         {
-                            MegaShareList *shares = api->getOutShares();
-                            if (shares)
+                            if (!shares)
                             {
-                                bool first_share = true;
-                                for (int j = 0; j < shares->size(); j++)
-                                {
-                                    if (!strcmp(shares->get(j)->getUser(), user->getEmail()))
-                                    {
-                                        MegaNode * n = api->getNodeByHandle(shares->get(j)->getNodeHandle());
-                                        if (n)
-                                        {
-                                            if (first_share)
-                                            {
-                                                OUTSTREAM << "\tSharing:" << endl;
-                                                first_share = false;
-                                            }
+                                return false;
+                            }
 
-                                            OUTSTREAM << "\t";
-                                            dumpNode(n, getTimeFormatFromSTR(getOption(cloptions, "time-format","RFC2822")), clflags, cloptions, 2, false, 0, getDisplayPath("/", n).c_str());
-                                            delete n;
+                            bool first_share = true;
+
+                            for (int j = 0, total = shares->size(); j < total; j++)
+                            {
+                                auto share = shares->get(j);
+                                assert(share);
+                                if (!strcmp(share->getUser(), email))
+                                {
+                                    bool thisOneisUnverified = !share->isVerified();
+                                    printedSomeUnverifiedShare |= thisOneisUnverified;
+                                    std::unique_ptr<MegaNode> n (api->getNodeByHandle(shares->get(j)->getNodeHandle()) );
+                                    if (n)
+                                    {
+                                        if (first_share)
+                                        {
+                                            OUTSTREAM << "> " << title << ":" << endl;
+                                            first_share = false;
+                                        }
+
+                                        printedSomeOutShareWithNoKey |= !n->isNodeKeyDecrypted();
+
+                                        if (thisOneisUnverified)
+                                        {
+                                            OUTSTREAM << "  (*)";
+                                        }
+                                        else if(!n->isNodeKeyDecrypted())
+                                        {
+                                            OUTSTREAM << " (**)";
+                                        }
+                                        else
+                                        {
+                                            OUTSTREAM << "  ";
+                                        }
+
+                                        if (isOutshare)
+                                        {
+                                            OUTSTREAM << "//from/";
+                                        }
+
+                                        if (n->isNodeKeyDecrypted())
+                                        {
+                                            dumpNode(n.get(), getTimeFormatFromSTR(getOption(cloptions, "time-format","RFC2822")), clflags, cloptions, 2, false, 0, getDisplayPath("/", n.get()).c_str());
+                                        }
+                                        else if (isOutshare)
+                                        {
+                                            OUTSTREAM << nameOrEmail << ":SOME_UNKNOWN_FOLDER_PENDING_CONTACT_VERIFICATION" << endl;
                                         }
                                     }
                                 }
-
-                                delete shares;
                             }
+                        };
+
+
+
+                        bool isUserVerified = api->areCredentialsVerified(user);
+                        bool doPrint(getFlag(clflags, "s"));
+                        if (doPrint)
+                        {
+                            std::unique_ptr<MegaShareList> outSharesByAllUsers (api->getOutShares());
+                            std::unique_ptr<MegaShareList> inSharesByAllUsers (api->getInSharesList());
+                            printShares(outSharesByAllUsers, std::string("Folders shared with ") + nameOrEmail);
+                            printShares(inSharesByAllUsers , std::string("Folders shared by ") + nameOrEmail, true);
                         }
+                        assert(!printedSomeUnverifiedShare || !isUserVerified);
+
+                        if (!isUserVerified)
+                        {
+                            OUTSTRINGSTREAM ss;
+                            ss << "CONTACT [" << nameOrEmail << "] IS NOT VERIFIED";
+
+                            if (printedSomeUnverifiedShare)
+                            {
+                                ss << "\nShares marked with (*) will not be accessible by your contact.\n";
+                            }
+
+                            ss << "\nType \"" << commandPrefixBasedOnMode() <<"users --help-verify " << email
+                               << "\" to get instructions on verification" << endl;
+
+                            printCenteredContentsT(OUTSTREAM, ss.str(), 80, true);
+                        }
+
+                        if (printedSomeOutShareWithNoKey)
+                        {
+                            OUTSTRINGSTREAM ss;
+                            ss << "CONTACT [" << nameOrEmail << "] HAS NOT VERIFIED YOU";
+
+                            ss << "\nShares marked with (**) will not be accessible.\n";
+
+                            ss << "\nType \"" << commandPrefixBasedOnMode() <<"users --help-verify " << email
+                               << "\" to get instructions on verification" << endl;
+
+                            printCenteredContentsT(OUTSTREAM, ss.str(), 80, true);
+                        }
+
+                        OUTSTREAM << endl;
                     }
                 }
             }

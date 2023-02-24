@@ -318,7 +318,7 @@ void MegaCmdGlobalListener::onEvent(MegaApi *api, MegaEvent *event)
         ss << "message:"
               "Your account's security needs upgrading.\n"
               "Please execute: ";
-        ss << std::string(interactiveThread() ? "" : "mega-");
+        ss << commandPrefixBasedOnMode();
         ss <<  "confirm --security""\n"
                "This will happen only once. If you have seen this message for \n"
                "this account before, please exit MEGAcmd";

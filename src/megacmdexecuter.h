@@ -110,6 +110,7 @@ public:
 
 
     //acting
+    void verifySharedFolders(mega::MegaApi * api);
     void loginWithPassword(char *password);
     void changePassword(const char *newpassword, std::string pin2fa = "");
     void actUponGetExtendedAccountDetails(mega::SynchronousRequestListener  *srl, int timeout = -1);

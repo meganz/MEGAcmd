@@ -637,6 +637,9 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     }
     else if ("users" == thecommand)
     {
+        validParams->insert("help-verify");
+        validParams->insert("verify");
+        validParams->insert("unverify");
         validParams->insert("s");
         validParams->insert("h");
         validParams->insert("d");
@@ -1733,7 +1736,7 @@ const char * getUsageStr(const char *command)
     }
     if (!strcmp(command, "users"))
     {
-        return "users [-s] [-h] [-n] [-d contact@email] [--time-format=FORMAT]";
+        return "users [-s] [-h] [-n] [-d contact@email] [--time-format=FORMAT] [--verify|--unverify contact@email.com] [--help-verify [contact@email.com]]";
     }
     if (!strcmp(command, "getua"))
     {
