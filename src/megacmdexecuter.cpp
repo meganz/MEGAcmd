@@ -1209,10 +1209,12 @@ void MegaCmdExecuter::dumpNode(MegaNode* n, const char *timeFormat, std::map<std
                 {
                     for (int i = 0; i < outShares->size(); i++)
                     {
-                        if (outShares->get(i)->getNodeHandle() == n->getHandle())
+                        auto outShare = outShares->get(i);
+                        if (outShare->getNodeHandle() == n->getHandle())
                         {
-                            OUTSTREAM << ", shared with " << outShares->get(i)->getUser() << ", access "
-                                      << getAccessLevelStr(outShares->get(i)->getAccess());
+                            OUTSTREAM << ", shared with " << outShare->getUser() << ", access "
+                                      << getAccessLevelStr(outShare->getAccess())
+                                      << (outShare->isVerified() ? "" : "[UNVERIFIED]");
                         }
                     }
 
@@ -1221,14 +1223,16 @@ void MegaCmdExecuter::dumpNode(MegaNode* n, const char *timeFormat, std::map<std
                     {
                         for (int i = 0; i < pendingoutShares->size(); i++)
                         {
-                            if (pendingoutShares->get(i)->getNodeHandle() == n->getHandle())
+                            auto pendingoutShare = pendingoutShares->get(i);
+                            if (pendingoutShare->getNodeHandle() == n->getHandle())
                             {
                                 OUTSTREAM << ", shared (still pending)";
-                                if (pendingoutShares->get(i)->getUser())
+                                if (pendingoutShare->getUser())
                                 {
-                                    OUTSTREAM << " with " << pendingoutShares->get(i)->getUser();
+                                    OUTSTREAM << " with " << pendingoutShare->getUser();
                                 }
-                                OUTSTREAM << " access " << getAccessLevelStr(pendingoutShares->get(i)->getAccess());
+                                OUTSTREAM << " access " << getAccessLevelStr(pendingoutShare->getAccess())
+                                              << (pendingoutShare->isVerified() ? "" : "[UNVERIFIED]");
                             }
                         }
 
@@ -1990,11 +1994,13 @@ void MegaCmdExecuter::listnodeshares(MegaNode* n, string name)
     {
         for (int i = 0; i < outShares->size(); i++)
         {
+            auto outShare = outShares->get(i);
             OUTSTREAM << (name.size() ? name : n->getName());
 
-            if (outShares->get(i))
+            if (outShare)
             {
-                OUTSTREAM << ", shared with " << outShares->get(i)->getUser() << " (" << getAccessLevelStr(outShares->get(i)->getAccess()) << ")"
+                OUTSTREAM << ", shared with " << outShare->getUser() << " (" << getAccessLevelStr(outShare->getAccess()) << ")"
+                             << (outShare->isVerified() ? "" : "[UNVERIFIED]")
                           << endl;
             }
             else
@@ -2313,8 +2319,8 @@ void MegaCmdExecuter::verifySharedFolders(MegaApi *api)
     auto getInstructions = [](const char *intro)
     {
         std::stringstream ss;
-        ss << intro << ". ";
-        ss << "You need to verify your contacts. Use ";
+        ss << intro << ".\n";
+        ss << "You need to verify your contacts. \nUse ";
         ss << commandPrefixBasedOnMode();
         ss << "users --help-verify to get instructions";
         return ss.str();
@@ -2324,7 +2330,7 @@ void MegaCmdExecuter::verifySharedFolders(MegaApi *api)
         std::unique_ptr<MegaShareList> shares(api->getUnverifiedInShares());
         if (shares && shares->size())
         {
-            appendGreetingStatusAllListener(std::string("message:")+getInstructions("Some not verified contact is sharing a folder with you"));
+            broadcastMessage(getInstructions("Some not verified contact is sharing a folder with you"), true);
             return;
         }
     }
@@ -2332,8 +2338,7 @@ void MegaCmdExecuter::verifySharedFolders(MegaApi *api)
         std::unique_ptr<MegaShareList> shares(api->getUnverifiedOutShares());
         if (shares && shares->size())
         {
-            appendGreetingStatusAllListener(std::string("message:")+getInstructions("You are sharing a folder with some unverified contact"));
-            return;
+            broadcastMessage(getInstructions("You are sharing a folder with some unverified contact"), true);
         }
     }
 }
@@ -2831,6 +2836,10 @@ void MegaCmdExecuter::actUponLogout(SynchronousRequestListener *srl, bool keptSe
         DownloadsManager::Instance().shutdown(true);
 #endif
         mtxSyncMap.unlock();
+
+        // clear greetings (asuming they are account-related)
+        clearGreetingStatusAllListener();
+        clearGreetingStatusFirstListener();
     }
     updateprompt(api);
 }
@@ -8514,9 +8523,9 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         OUTSTREAM << ". " << visibilityToString(user->getVisibility())
                                   << endl;
 
-                        bool printedSomeUnverifiedShare = false;
-                        bool printedSomeOutShareWithNoKey = false;
-                        auto printShares = [&, this](std::unique_ptr<MegaShareList> &shares, const std::string &title, bool isOutshare = false)
+                        bool printedSomeUnaccesibleInShare = false;
+                        bool printedSomeUnaccesibleOutShare = false;
+                        auto printShares = [&, this](std::unique_ptr<MegaShareList> &shares, const std::string &title, bool isInShare = false)
                         {
                             if (!shares)
                             {
@@ -8532,7 +8541,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                                 if (!strcmp(share->getUser(), email))
                                 {
                                     bool thisOneisUnverified = !share->isVerified();
-                                    printedSomeUnverifiedShare |= thisOneisUnverified;
+
                                     std::unique_ptr<MegaNode> n (api->getNodeByHandle(shares->get(j)->getNodeHandle()) );
                                     if (n)
                                     {
@@ -8542,79 +8551,79 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                                             first_share = false;
                                         }
 
-                                        printedSomeOutShareWithNoKey |= !n->isNodeKeyDecrypted();
-
-                                        if (thisOneisUnverified)
+                                        if (thisOneisUnverified || !n->isNodeKeyDecrypted())
                                         {
-                                            OUTSTREAM << "  (*)";
-                                        }
-                                        else if(!n->isNodeKeyDecrypted())
-                                        {
-                                            OUTSTREAM << " (**)";
+                                            if (isInShare)
+                                            {
+                                                printedSomeUnaccesibleOutShare = true;
+                                                OUTSTREAM << " (**)";
+                                            }
+                                            else
+                                            {
+                                                printedSomeUnaccesibleInShare = true;
+                                                OUTSTREAM << "  (*)";
+                                            }
                                         }
                                         else
                                         {
                                             OUTSTREAM << "  ";
                                         }
 
-                                        if (isOutshare)
+                                        if (isInShare)
                                         {
                                             OUTSTREAM << "//from/";
                                         }
 
-                                        if (n->isNodeKeyDecrypted())
+                                        if (!n->isNodeKeyDecrypted() && isInShare)
+                                        {
+                                            OUTSTREAM << nameOrEmail << ":[UNVERIFIED]" << endl;
+                                        }
+                                        else
                                         {
                                             dumpNode(n.get(), getTimeFormatFromSTR(getOption(cloptions, "time-format","RFC2822")), clflags, cloptions, 2, false, 0, getDisplayPath("/", n.get()).c_str());
-                                        }
-                                        else if (isOutshare)
-                                        {
-                                            OUTSTREAM << nameOrEmail << ":SOME_UNKNOWN_FOLDER_PENDING_CONTACT_VERIFICATION" << endl;
                                         }
                                     }
                                 }
                             }
                         };
 
-
-
                         bool isUserVerified = api->areCredentialsVerified(user);
                         bool doPrint(getFlag(clflags, "s"));
                         if (doPrint)
                         {
-                            std::unique_ptr<MegaShareList> outSharesByAllUsers (api->getOutShares());
-                            std::unique_ptr<MegaShareList> inSharesByAllUsers (api->getInSharesList());
+                            std::unique_ptr<MegaShareList> outSharesByAllUsers (api->getOutShares()); // this one retrieves both verified & unverified ones
                             printShares(outSharesByAllUsers, std::string("Folders shared with ") + nameOrEmail);
+
+                            std::unique_ptr<MegaShareList> inSharesByAllUsers (api->getInSharesList()); // this one does not return unverified ones
                             printShares(inSharesByAllUsers , std::string("Folders shared by ") + nameOrEmail, true);
+
+                            std::unique_ptr<MegaShareList> unverifiedInShares (api->getUnverifiedInShares());
+                            printShares(unverifiedInShares , std::string("Folders shared by ") + nameOrEmail, true);
                         }
-                        assert(!printedSomeUnverifiedShare || !isUserVerified);
+                        assert(!printedSomeUnaccesibleInShare || !isUserVerified);
 
                         if (!isUserVerified)
                         {
                             OUTSTRINGSTREAM ss;
                             ss << "CONTACT [" << nameOrEmail << "] IS NOT VERIFIED";
 
-                            if (printedSomeUnverifiedShare)
+                            if (printedSomeUnaccesibleInShare || printedSomeUnaccesibleOutShare)
                             {
-                                ss << "\nShares marked with (*) will not be accessible by your contact.\n";
+                                ss << "\n";
+                                if (printedSomeUnaccesibleInShare)
+                                {
+                                    ss << "Shares marked with (*) may not be accessible by your contact.\n";
+                                }
+                                if (printedSomeUnaccesibleOutShare)
+                                {
+                                    ss << "Shares marked with (**) may not be accessible by you.\n";
+                                }
                             }
 
                             ss << "\nType \"" << commandPrefixBasedOnMode() <<"users --help-verify " << email
                                << "\" to get instructions on verification" << endl;
 
-                            printCenteredContentsT(OUTSTREAM, ss.str(), 80, true);
-                        }
-
-                        if (printedSomeOutShareWithNoKey)
-                        {
-                            OUTSTRINGSTREAM ss;
-                            ss << "CONTACT [" << nameOrEmail << "] HAS NOT VERIFIED YOU";
-
-                            ss << "\nShares marked with (**) will not be accessible.\n";
-
-                            ss << "\nType \"" << commandPrefixBasedOnMode() <<"users --help-verify " << email
-                               << "\" to get instructions on verification" << endl;
-
-                            printCenteredContentsT(OUTSTREAM, ss.str(), 80, true);
+                            printCenteredContentsT(OUTSTREAM, ss.str(), 78, true);
                         }
 
                         OUTSTREAM << endl;

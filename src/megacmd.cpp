@@ -119,9 +119,10 @@ std::vector<MegaThread *> petitionThreads;
 std::vector<MegaThread *> endedPetitionThreads;
 MegaThread *threadRetryConnections;
 
+std::mutex greetingsmsgsMutex;
 std::deque<std::string> greetingsFirstClientMsgs; // to be given on first client to register as state listener
 std::deque<std::string> greetingsAllClientMsgs; // to be given on all clients when registering as state listener
-std::mutex greetingsmsgsMutex;
+
 
 std::deque<std::string> delayedBroadCastMessages; // messages to be brodcasted in a while
 std::mutex delayedBroadcastMutex;
@@ -199,6 +200,18 @@ void appendGreetingStatusAllListener(const std::string &msj)
 {
     std::lock_guard<std::mutex> g(greetingsmsgsMutex);
     greetingsAllClientMsgs.push_front(msj);
+}
+
+void clearGreetingStatusAllListener()
+{
+    std::lock_guard<std::mutex> g(greetingsmsgsMutex);
+    greetingsAllClientMsgs.clear();
+}
+
+void clearGreetingStatusFirstListener()
+{
+    std::lock_guard<std::mutex> g(greetingsmsgsMutex);
+    greetingsFirstClientMsgs.clear();
 }
 
 void removeGreetingStatusAllListener(const std::string &msj)
@@ -5209,7 +5222,7 @@ int main(int argc, char* argv[])
         api->sendEvent(MCMD_EVENT_UPDATE_ID,MCMD_EVENT_UPDATE_MESSAGE);
         stringstream ss;
         ss << "MEGAcmd has been updated to version " << MEGACMD_MAJOR_VERSION << "." << MEGACMD_MINOR_VERSION << "." << MEGACMD_MICRO_VERSION << "." << MEGACMD_BUILD_ID << " - code " << MEGACMD_CODE_VERSION << endl;
-        broadcastMessage(ss.str() ,true);
+        broadcastMessage(ss.str(), true);
     }
 
     if (!ConfigurationManager::session.empty())
