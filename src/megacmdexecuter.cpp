@@ -2333,6 +2333,28 @@ void MegaCmdExecuter::verifySharedFolders(MegaApi *api)
             broadcastMessage(getInstructions("Some not verified contact is sharing a folder with you"), true);
             return;
         }
+        {   // Just in case
+            std::unique_ptr<MegaShareList> inSharesByAllUsers (api->getInSharesList());// this one should not return unverified ones
+            if (inSharesByAllUsers)
+            {
+                for (int i = 0, total = inSharesByAllUsers->size(); i < total; i++)
+                {
+                    auto share = inSharesByAllUsers->get(i);
+                    if (!share->isVerified())
+                    {
+                        broadcastMessage(getInstructions("Found some not verified share"), true);
+                        return;
+                    }
+
+                    std::unique_ptr<MegaNode> n (api->getNodeByHandle(share->getNodeHandle()));
+                    if (n && !n->isNodeKeyDecrypted())
+                    {
+                        broadcastMessage(getInstructions("Found some inaccessible share"), true);
+                        return;
+                    }
+                }
+            }
+        }
     }
     {
         std::unique_ptr<MegaShareList> shares(api->getUnverifiedOutShares());
@@ -8550,7 +8572,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                                 {
                                     bool thisOneisUnverified = !share->isVerified();
 
-                                    std::unique_ptr<MegaNode> n (api->getNodeByHandle(shares->get(j)->getNodeHandle()) );
+                                    std::unique_ptr<MegaNode> n (api->getNodeByHandle(shares->get(j)->getNodeHandle()));
                                     if (n)
                                     {
                                         if (first_share)
