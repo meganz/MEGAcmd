@@ -7699,7 +7699,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         SyncError syncError = static_cast<SyncError>(megaCmdListener->getRequest()->getNumDetails());
 
                         char * nodepath = api->getNodePath(n);
-                        LOG_info << "Added sync: " << expansedAbsolutePath << " to " << nodepath;
+                        OUTSTREAM << "Added sync: " << localpath << " to " << nodepath << endl;
                         if (syncError != NO_SYNC_ERROR)
                         {
                             LOG_err << "Sync added as temporarily disabled. Reason: " << MegaSync::getMegaSyncErrorCode(syncError);

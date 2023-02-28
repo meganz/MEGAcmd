@@ -312,7 +312,6 @@ void MegaCmdGlobalListener::onEvent(MegaApi *api, MegaEvent *event)
         broadcastMessage(std::string("Your syncs have been disabled. Reason: ")
                          .append(MegaSync::getMegaSyncErrorCode(int(event->getNumber()))), true);
     }
-    }
     else if (event->getType() == MegaEvent::EVENT_NODES_CURRENT)
     {
 #ifdef HAVE_DOWNLOADS_COMMAND

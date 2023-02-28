@@ -50,6 +50,19 @@ const char* getAccessLevelStr(int level);
     GENERATOR_MACRO(RUNSTATE_DISABLED, "Disabled", "Sync has been disabled (no state cached). Starting it is like configuring a brand new sync with those settings")\
 
 
+// Parameters:
+// - name
+// - ShortName
+// - Description
+#define GENERATE_FROM_SYNC_PATH_STATE(GENERATOR_MACRO) \
+    GENERATOR_MACRO(STATE_NONE, "NONE", "Status unknown")\
+    GENERATOR_MACRO(STATE_SYNCED, "Synced", "Synced, no transfers/pending actions are ongoing")\
+    GENERATOR_MACRO(STATE_PENDING, "Pending", "Sync engine is doing some calculations")\
+    GENERATOR_MACRO(STATE_SYNCING, "Syncing", "Transfers/pending actions are being carried out")\
+    GENERATOR_MACRO(STATE_IGNORED, "Processing", "State cannot be determined (too busy, try again later)")
+                                           // Note: STATE_IGNORED can happen when attempting to get the state, but it fails to block the sdk in a timely attempt.
+                                           //       Also with excluded paths, but root shall not be excluded.
+
 const char* getSyncPathStateStr(int state);
 
 const char * syncRunStateStr(unsigned e);

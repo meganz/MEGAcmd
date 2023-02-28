@@ -107,32 +107,14 @@ const char* getAccessLevelStr(int level)
 
 const char* getSyncPathStateStr(int state)
 {
-    switch (state)
+    static std::vector<const char*> svalue {
+#define SOME_GENERATOR_MACRO(_, ShortName, __) ShortName,
+      GENERATE_FROM_SYNC_PATH_STATE(SOME_GENERATOR_MACRO)
+#undef SOME_GENERATOR_MACRO
+    };
+    if (state < static_cast<int>(svalue.size()))
     {
-        case MegaApi::STATE_NONE:
-            return "NONE";
-
-            break;
-
-        case MegaApi::STATE_SYNCED:
-            return "Synced";
-
-            break;
-
-        case MegaApi::STATE_PENDING:
-            return "Pending";
-
-            break;
-
-        case MegaApi::STATE_SYNCING:
-            return "Syncing";
-
-            break;
-
-        case MegaApi::STATE_IGNORED:
-            return "Ignored";
-
-            break;
+        return svalue[state];
     }
     return "undefined";
 }
