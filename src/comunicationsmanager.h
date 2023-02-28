@@ -66,6 +66,8 @@ class ComunicationsManager
 {
 private:
     fd_set fds;
+
+    std::recursive_mutex mStateListenersMutex;
     std::vector<CmdPetition *> stateListenersPetitions;
 
 public:
