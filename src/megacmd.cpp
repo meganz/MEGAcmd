@@ -2602,12 +2602,14 @@ string getHelpStr(const char *command)
         os << " of no option selected, it will display all the shares existing " << endl;
         os << " in the tree of that path" << endl;
         os << endl;
-        os << "When sharing a folder with a user that is not a contact (see \"users --help\")" << endl;
+        os << "When sharing a folder with a user that is not a contact (see \"" << commandPrefixBasedOnMode() << "users --help\")" << endl;
         os << "  the share will be in a pending state. You can list pending shares with" << endl;
-        os << " \"share -p\". He would need to accept your invitation (see \"ipc\")" << endl;
+        os << " \"share -p\". He would need to accept your invitation (see \"" << commandPrefixBasedOnMode() << "ipc\")" << endl;
+        os << endl;
+        os << "Sharing folders will require contact verification (see \"" << commandPrefixBasedOnMode() << "users --help-verify\")" << endl;
         os << endl;
         os << "If someone has shared something with you, it will be listed as a root folder" << endl;
-        os << " Use \"mount\" to list folders shared with you" << endl;
+        os << " Use \"" << commandPrefixBasedOnMode() << "mount\" to list folders shared with you" << endl;
     }
     else if (!strcmp(command, "invite"))
     {
@@ -2631,9 +2633,9 @@ string getHelpStr(const char *command)
         os << " -d" << "\t" << "Rejects invitation" << endl;
         os << " -i" << "\t" << "Ignores invitation [WARNING: do not use unless you know what you are doing]" << endl;
         os << endl;
-        os << "Use \"invite\" to send/remove invitations to other users" << endl;
-        os << "Use \"showpcr\" to browse incoming/outgoing invitations" << endl;
-        os << "Use \"users\" to see contacts" << endl;
+        os << "Use \"" << commandPrefixBasedOnMode() << "invite\" to send/remove invitations to other users" << endl;
+        os << "Use \"" << commandPrefixBasedOnMode() << "showpcr\" to browse incoming/outgoing invitations" << endl;
+        os << "Use \"" << commandPrefixBasedOnMode() << "users\" to see contacts" << endl;
     }
     if (!strcmp(command, "masterkey"))
     {
@@ -2656,24 +2658,33 @@ string getHelpStr(const char *command)
         os << " --out" << "\t" << "Shows outgoing invitations" << endl;
         printTimeFormatHelp(os);
         os << endl;
-        os << "Use \"ipc\" to manage invitations received" << endl;
-        os << "Use \"users\" to see contacts" << endl;
+        os << "Use \"" << commandPrefixBasedOnMode() << "ipc\" to manage invitations received" << endl;
+        os << "Use \"" << commandPrefixBasedOnMode() << "users\" to see contacts" << endl;
     }
     else if (!strcmp(command, "users"))
     {
         os << "List contacts" << endl;
         os << endl;
         os << "Options:" << endl;
+        os << " -d" << "\tcontact@email   " << "Deletes the specified contact" << endl;
+        os << "--help-verify              " << "\t" << "Prints general information regarding contact verification." << endl
+           << "--help-verify contact@email" << "\t" << "This will show credentials of both own user and contact" << endl
+           << "                           " << "\t" << " and instructions in order to proceed with the verifcation." << endl;
+        os << "--verify contact@email     " << "\t" << "Verifies contact@email."  << endl
+           << "                           " << "\t" << " CAVEAT: First you would need to manually ensure credentials match!" << endl;
+        os << "--unverify contact@email   " << "\t" << "Sets contact@email as no longer verified. New shares with that user " << endl
+           << "                           " << "\t" << " will require verification." << endl;
+        os << "Listing Options:" << endl;
         os << " -s" << "\t" << "Show shared folders with listed contacts" << endl;
         os << " -h" << "\t" << "Show all contacts (hidden, blocked, ...)" << endl;
         os << " -n" << "\t" << "Show users names" << endl;
-        os << " -d" << "\tcontact@email " << "Deletes the specified contact" << endl;
+
         printTimeFormatHelp(os);
         os << endl;
-        os << "Use \"invite\" to send/remove invitations to other users" << endl;
-        os << "Use \"showpcr\" to browse incoming/outgoing invitations" << endl;
-        os << "Use \"ipc\" to manage invitations received" << endl;
-        os << "Use \"users\" to see contacts" << endl;
+        os << "Use \"" << commandPrefixBasedOnMode() << "invite\" to send/remove invitations to other users" << endl;
+        os << "Use \"" << commandPrefixBasedOnMode() << "showpcr\" to browse incoming/outgoing invitations" << endl;
+        os << "Use \"" << commandPrefixBasedOnMode() << "ipc\" to manage invitations received" << endl;
+        os << "Use \"" << commandPrefixBasedOnMode() << "users\" to see contacts" << endl;
     }
     else if (!strcmp(command, "speedlimit"))
     {

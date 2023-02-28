@@ -3449,7 +3449,7 @@ void MegaCmdExecuter::shareNode(MegaNode *n, string with, int level)
     if (megaCmdListener->getError()->getErrorCode() == MegaError::API_EINCOMPLETE)
     {
         setCurrentOutCode(MCMD_NOTPERMITTED);
-        LOG_err << "Unable to share folder. Your account security may need upgrading. Type \"confirm --security\"";
+        LOG_err << "Unable to share folder. Your account security may need upgrading. Type \"" <<commandPrefixBasedOnMode() << "confirm --security\"";
         return;
     }
     else if (!checkNoErrors(megaCmdListener->getError(), "prepare sharing"))
@@ -3465,7 +3465,7 @@ void MegaCmdExecuter::shareNode(MegaNode *n, string with, int level)
     if (megaCmdListener->getError()->getErrorCode() == MegaError::API_EINCOMPLETE)
     {
         setCurrentOutCode(MCMD_NOTPERMITTED);
-        LOG_err << "Unable to share folder. Your account security may need upgrading. Type \"confirm --security\"";
+        LOG_err << "Unable to share folder. Your account security may need upgrading. Type \"" <<commandPrefixBasedOnMode() << "confirm --security\"";
         return;
     }
     else if (checkNoErrors(megaCmdListener->getError(), ( level != MegaShare::ACCESS_UNKNOWN ) ? "share node" : "disable share"))
@@ -8357,12 +8357,20 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
         if (getFlag(clflags, "help-verify"))
         {
-            if (words.size() == 1) //general information
+            if (words.size() == 1) // General information
             {
-                OUTSTREAM << "In order to share data with your contacts you will need to verify them" << endl;
-                OUTSTREAM << endl << "You can list your contacts using \"" << commandPrefixBasedOnMode() << "users -n\"" << endl;
-                OUTSTREAM << endl << "If you want the above listing to include information regarding your share folders," << endl
-                          << " type \"" <<commandPrefixBasedOnMode() << "users -sn" << endl;
+                OUTSTREAM << "In order to share data with your contacts you will need to verify them." << endl
+                          << endl
+                          << "Verifying means ensuring that the contact is who he claims to be." << endl
+                          << "To ensure that, you will need to share some credentials, i.e. some numbers that uniquely" << endl
+                          << " identify you." << endl
+                          << "You can see a contact's credentials (and yours) and instructions on verifying," << endl
+                          << " by typing \"" << commandPrefixBasedOnMode() << "users --help-verify contact@email\"." << endl
+                          << endl
+                          << "To see which contacts are not verified, you list them using \"" << commandPrefixBasedOnMode() << "users -n\"" << endl
+                          << "If you want the above listing to include information regarding your share folders," << endl
+                          << " type \"" <<commandPrefixBasedOnMode() << "users -sn\"." << endl
+                          << endl;
                 return;
             }
 
@@ -8438,7 +8446,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
             OUTSTREAM << endl << "If both credentials match, type \"" << commandPrefixBasedOnMode() << "users --verify " << contact << "\" to set the contact as verified." << endl;
 
-            OUTSTREAM << endl << "Important: verification is two sided. You need to tell your contact to do the same for you, using MEGAcmd our MEGA website to verify your credentials" << endl;
+            OUTSTREAM << endl << "Important: verification is two sided. You need to tell your contact to do the same for you, using MEGAcmd our MEGA website to verify your credentials." << endl;
 
             return;
         }
