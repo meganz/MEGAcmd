@@ -185,7 +185,8 @@ void MegaCmdExecuter::listtrees()
         MegaShare *share = msl->get(i);
         MegaNode *n = api->getNodeByHandle(share->getNodeHandle());
 
-        OUTSTREAM << "INSHARE on //from/" << share->getUser() << ":" << n->getName() << " (" << getAccessLevelStr(share->getAccess()) << ")" << endl;
+        OUTSTREAM << "INSHARE on //from/" << share->getUser() << ":" << n->getName() << " (" << getAccessLevelStr(share->getAccess()) << ")"
+                  << (!share->isVerified() ? " [UNVERIFIED]" : "") << endl;
         delete n;
     }
 
@@ -1210,7 +1211,7 @@ void MegaCmdExecuter::dumpNode(MegaNode* n, const char *timeFormat, std::map<std
                     for (int i = 0; i < outShares->size(); i++)
                     {
                         auto outShare = outShares->get(i);
-                        if (outShare->getNodeHandle() == n->getHandle())
+                        if (outShare->getNodeHandle() == n->getHandle() && !outShare->isPending()/*shall be listed via getPendingOutShares*/)
                         {
                             OUTSTREAM << ", shared with " << outShare->getUser() << ", access "
                                       << getAccessLevelStr(outShare->getAccess())
@@ -8125,6 +8126,9 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             return;
         }
         listtrees();
+
+        verifySharedFolders(api);
+
         return;
     }
     else if (words[0] == "share")
@@ -8168,6 +8172,9 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         {
             words.push_back(string(".")); //cwd
         }
+
+        verifySharedFolders(api);
+
         for (int i = 1; i < (int)words.size(); i++)
         {
             unescapeifRequired(words[i]);
@@ -8585,12 +8592,12 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                                         {
                                             if (isInShare)
                                             {
-                                                printedSomeUnaccesibleOutShare = true;
+                                                printedSomeUnaccesibleInShare = true;
                                                 OUTSTREAM << " (**)";
                                             }
                                             else
                                             {
-                                                printedSomeUnaccesibleInShare = true;
+                                                printedSomeUnaccesibleOutShare = true;
                                                 OUTSTREAM << "  (*)";
                                             }
                                         }
@@ -8640,11 +8647,11 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                             if (printedSomeUnaccesibleInShare || printedSomeUnaccesibleOutShare)
                             {
                                 ss << "\n";
-                                if (printedSomeUnaccesibleInShare)
+                                if (printedSomeUnaccesibleOutShare)
                                 {
                                     ss << "Shares marked with (*) may not be accessible by your contact.\n";
                                 }
-                                if (printedSomeUnaccesibleOutShare)
+                                if (printedSomeUnaccesibleInShare)
                                 {
                                     ss << "Shares marked with (**) may not be accessible by you.\n";
                                 }
