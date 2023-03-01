@@ -125,6 +125,7 @@ public:
     void exportNode(mega::MegaNode *n, int64_t expireTime, std::string password = std::string(),
                     std::map<std::string, int> *clflags = nullptr, std::map<std::string, std::string> *cloptions = nullptr);
     void disableExport(mega::MegaNode *n);
+    bool isShareVerified(mega::MegaNode *n, const char *email) const;
     void shareNode(mega::MegaNode *n, std::string with, int level = mega::MegaShare::ACCESS_READ);
     void disableShare(mega::MegaNode *n, std::string with);
     void createOrModifyBackup(std::string local, std::string remote, std::string speriod, int numBackups);

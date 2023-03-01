@@ -3464,6 +3464,36 @@ void MegaCmdExecuter::disableExport(MegaNode *n)
     delete megaCmdListener;
 }
 
+bool MegaCmdExecuter::isShareVerified(MegaNode* n, const char *email) const
+{
+    std::unique_ptr<MegaShareList> outShares (api->getOutShares(n));
+    if (outShares)
+    {
+        for (int i = 0; i < outShares->size(); i++)
+        {
+            auto outShare = outShares->get(i);
+            if (outShare->getUser() && email && !strcmp(email, outShare->getUser()))
+            {
+                return outShare->isVerified();
+            }
+        }
+    }
+
+    std::unique_ptr<MegaShareList> pendingoutShares (api->getPendingOutShares(n));
+    if (pendingoutShares)
+    {
+        for (int i = 0; i < pendingoutShares->size(); i++)
+        {
+            auto pendingoutShare = pendingoutShares->get(i);
+            if (pendingoutShare->getUser() && email && !strcmp(email, pendingoutShare->getUser()))
+            {
+                return pendingoutShare->isVerified();
+            }
+        }
+    }
+    return false;
+}
+
 void MegaCmdExecuter::shareNode(MegaNode *n, string with, int level)
 {
     std::unique_ptr<MegaCmdListener> megaCmdListener(new MegaCmdListener(api));
@@ -3499,12 +3529,14 @@ void MegaCmdExecuter::shareNode(MegaNode *n, string with, int level)
             char *nodepath = api->getNodePath(nshared);
             if (megaCmdListener->getRequest()->getAccess() == MegaShare::ACCESS_UNKNOWN)
             {
-                OUTSTREAM << "Stopped sharing " << nodepath << " with " << megaCmdListener->getRequest()->getEmail() << endl;
+                OUTSTREAM << "Stopped sharing " << nodepath << " with " << megaCmdListener->getRequest()->getEmail()
+                          << (!isShareVerified(n, megaCmdListener->getRequest()->getEmail()) ? " [UNVERIFIED]" : "")  << endl;
             }
             else
             {
                 OUTSTREAM << "Shared " << nodepath << " : " << megaCmdListener->getRequest()->getEmail()
-                          << " accessLevel=" << megaCmdListener->getRequest()->getAccess() << endl;
+                          << " accessLevel=" << megaCmdListener->getRequest()->getAccess()
+                          << (!isShareVerified(n, megaCmdListener->getRequest()->getEmail()) ? " [UNVERIFIED]" : "") << endl;
             }
             delete[] nodepath;
             delete nshared;
@@ -8173,8 +8205,6 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             words.push_back(string(".")); //cwd
         }
 
-        verifySharedFolders(api);
-
         for (int i = 1; i < (int)words.size(); i++)
         {
             unescapeifRequired(words[i]);
@@ -8336,6 +8366,8 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 }
             }
         }
+
+        verifySharedFolders(api);
 
         return;
     }
