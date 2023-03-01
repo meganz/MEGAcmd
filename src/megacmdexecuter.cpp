@@ -266,6 +266,8 @@ struct criteriaNodeVector
     int64_t maxSize;
     int64_t minSize;
 
+    int mType = MegaNode::TYPE_UNKNOWN;
+
     vector<MegaNode*> *nodesMatching;
 };
 
@@ -284,6 +286,11 @@ bool MegaCmdExecuter::includeIfMatchesPattern(MegaApi *api, MegaNode * n, void *
 bool MegaCmdExecuter::includeIfMatchesCriteria(MegaApi *api, MegaNode * n, void *arg)
 {
     struct criteriaNodeVector *pnv = (struct criteriaNodeVector*)arg;
+
+    if (pnv->mType != MegaNode::TYPE_UNKNOWN && n->getType() != pnv->mType )
+    {
+        return false;
+    }
 
     if ( pnv->maxTime != -1 && (n->getModificationTime() >= pnv->maxTime) )
     {
@@ -4606,6 +4613,8 @@ void MegaCmdExecuter::doFind(MegaNode* nodeBase, const char *timeFormat, std::ma
     pnv.maxTime = maxTime;
     pnv.minSize = minSize;
     pnv.maxSize = maxSize;
+    auto opt = getOption(cloptions, "type", "");
+    pnv.mType = opt == "f" ? MegaNode::TYPE_FILE : (opt == "d" ? MegaNode::TYPE_FOLDER : MegaNode::TYPE_UNKNOWN);
 
 
     processTree(nodeBase, includeIfMatchesCriteria, (void*)&pnv);
@@ -4628,7 +4637,11 @@ void MegaCmdExecuter::doFind(MegaNode* nodeBase, const char *timeFormat, std::ma
             {
                 pathToShow = getDisplayPath("", n);
             }
-            if (printfileinfo)
+            if (getFlag(clflags, "print-only-handles"))
+            {
+                OUTSTREAM << "H:" << handleToBase64(n->getHandle()) << "" << endl;
+            }
+            else if (printfileinfo)
             {
                 dumpNode(n, timeFormat, clflags, cloptions, 3, false, 1, pathToShow.c_str());
             }
@@ -8840,81 +8853,147 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             LOG_err << "Not logged in.";
             return;
         }
-        if (words.size() > 1)
-        {
-            int cancel = getFlag(clflags, "d");
-            bool settingattr = getFlag(clflags, "s");
 
-            string nodePath = words.size() > 1 ? words[1] : "";
-            string attribute = words.size() > 2 ? words[2] : "";
-            string attrValue = words.size() > 3 ? words[3] : "";
-            n = nodebypath(nodePath.c_str());
-
-            if (n)
-            {
-                if (settingattr || cancel)
-                {
-                    if (attribute.size())
-                    {
-                        const char *cattrValue = cancel ? NULL : attrValue.c_str();
-                        MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
-                        api->setCustomNodeAttribute(n, attribute.c_str(), cattrValue, megaCmdListener);
-                        megaCmdListener->wait();
-                        if (checkNoErrors(megaCmdListener->getError(), "set node attribute: " + attribute))
-                        {
-                            OUTSTREAM << "Node attribute " << attribute << ( cancel ? " removed" : " updated" ) << " correctly" << endl;
-                            delete n;
-                            n = api->getNodeByHandle(megaCmdListener->getRequest()->getNodeHandle());
-                        }
-                        delete megaCmdListener;
-                    }
-                    else
-                    {
-                        setCurrentOutCode(MCMD_EARGS);
-                        LOG_err << "Attribute not specified";
-                        LOG_err << "      " << getUsageStr("attr");
-                        return;
-                    }
-                }
-
-                //List node custom attributes
-                MegaStringList *attrlist = n->getCustomAttrNames();
-                if (attrlist)
-                {
-                    if (!attribute.size())
-                    {
-                        OUTSTREAM << "The node has " << attrlist->size() << " attributes" << endl;
-                    }
-                    for (int a = 0; a < attrlist->size(); a++)
-                    {
-                        string iattr = attrlist->get(a);
-                        if (!attribute.size() || ( attribute == iattr ))
-                        {
-                            const char* iattrval = n->getCustomAttr(iattr.c_str());
-                            OUTSTREAM << "\t" << iattr << " = " << ( iattrval ? iattrval : "NULL" ) << endl;
-                        }
-                    }
-
-                    delete attrlist;
-                }
-
-                delete n;
-            }
-            else
-            {
-                setCurrentOutCode(MCMD_NOTFOUND);
-                LOG_err << "Couldn't find node: " << nodePath;
-                return;
-            }
-        }
-        else
+        if (words.size() <= 1)
         {
             setCurrentOutCode(MCMD_EARGS);
-            LOG_err << "      " << getUsageStr("attr");
+            LOG_err << "      " << getUsageStr(words[0].c_str());
             return;
         }
 
+        bool removingAttr(getFlag(clflags, "d"));
+        bool settingattr(getFlag(clflags, "s"));
+        bool forceCustom = getFlag(clflags, "force-non-official");
 
+        string nodePath = words.size() > 1 ? words[1] : "";
+        string attribute = words.size() > 2 ? words[2] : "";
+        string attrValue = words.size() > 3 ? words[3] : "";
+
+        bool listAll(attribute.empty());
+
+        std::unique_ptr<MegaNode> node (nodebypath(nodePath.c_str()) );
+        if (!node)
+        {
+            setCurrentOutCode(MCMD_NOTFOUND);
+            LOG_err << "Couldn't find node: " << nodePath;
+            return;
+        }
+
+        auto isOfficial = [](const std::string &what)
+        {
+            for ( auto &a : {"s4"})
+            {
+                if (what == a)
+                {
+                    return true;
+                }
+            }
+            return false;
+        };
+
+        if (settingattr || removingAttr)
+        {
+            if (attribute.empty())
+            {
+                setCurrentOutCode(MCMD_EARGS);
+                LOG_err << "Attribute not specified";
+                LOG_err << "      " << getUsageStr(words[0].c_str());
+                return;
+            }
+
+            auto megaCmdListener = ::mega::make_unique<MegaCmdListener>(nullptr);
+            if (forceCustom || !isOfficial(attribute))
+            {
+                const char *cattrValue = removingAttr ? NULL : attrValue.c_str();
+                api->setCustomNodeAttribute(node.get(), attribute.c_str(), cattrValue, megaCmdListener.get());
+            }
+            else if (attribute == "s4")
+            {
+                const char *cattrValue = removingAttr ? NULL : attrValue.c_str();
+                api->setNodeS4(node.get(), cattrValue, megaCmdListener.get());
+            }
+            else
+            {
+                assert(false);
+                LOG_err << "Not implemented official attribute support";
+                setCurrentOutCode(MCMD_INVALIDTYPE);
+                return;
+            }
+
+            megaCmdListener->wait();
+            if (checkNoErrors(megaCmdListener->getError(), "set node attribute: " + attribute))
+            {
+                OUTSTREAM << "Node attribute " << attribute << ( removingAttr ? " removed" : " updated" ) << " correctly" << endl;
+                //reload the node for printing updated values
+                node.reset(api->getNodeByHandle(megaCmdListener->getRequest()->getNodeHandle()));
+                if (!node)
+                {
+                    setCurrentOutCode(MCMD_NOTFOUND);
+                    LOG_err << "Couldn't find node after updating its attribute: " << nodePath;
+                    return;
+                }
+            }
+        }
+
+        //List node custom attributes
+        std::unique_ptr<MegaStringList> attrlist (node->getCustomAttrNames());
+        if (attrlist)
+        {
+            if (listAll)
+            {
+                OUTSTREAM << "The node has " << attrlist->size() << " custom attributes:" << endl;
+            }
+            for (int a = 0; a < attrlist->size(); a++)
+            {
+                string iattr = attrlist->get(a);
+                if (listAll || ( attribute == iattr && (forceCustom || !isOfficial(iattr))))
+                {
+                    const char* iattrval = node->getCustomAttr(iattr.c_str());
+                    if (getFlag(clflags, "print-only-value"))
+                    {
+                        OUTSTREAM << ( iattrval ? iattrval : "NULL" ) << endl;
+                    }
+                    else
+                    {
+                        OUTSTREAM << "\t" << iattr << " = " << ( iattrval ? iattrval : "NULL" ) << endl;
+                    }
+                }
+            }
+        }
+
+        // List official node attributes:
+        if (listAll || !forceCustom) //otherwise no sense in listing official ones
+        {
+            bool showOficialsHeader(listAll);
+            using NameGetter = std::pair<const char *, std::function<const char *(MegaNode *)>>;
+            for (auto & pair : {
+                 NameGetter{"s4", [](MegaNode *node){return node->getS4();}}
+                })
+            {
+                if (!listAll && ( attribute != pair.first ))
+                {
+                    continue; // looking for another one
+                }
+                auto officialAttrValue = pair.second(node.get());
+
+                if (officialAttrValue && strlen(officialAttrValue))
+                {
+                    if (showOficialsHeader)
+                    {
+                        OUTSTREAM << "Official attributes:" << endl;
+                        showOficialsHeader = false;
+                    }
+                    if (getFlag(clflags, "print-only-value"))
+                    {
+                        OUTSTREAM << ( pair.second(node.get()) ) << endl;
+                    }
+                    else
+                    {
+                        OUTSTREAM << "\t" << pair.first << " = " << pair.second(node.get()) << endl;
+                    }
+                }
+            }
+        }
         return;
     }
     else if (words[0] == "userattr")
@@ -9026,7 +9105,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         else
         {
             setCurrentOutCode(MCMD_EARGS);
-            LOG_err << "      " << getUsageStr("attr");
+            LOG_err << "      " << getUsageStr(words[0].c_str());
             return;
         }
         return;
@@ -9068,7 +9147,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         else
         {
             setCurrentOutCode(MCMD_EARGS);
-            LOG_err << "      " << getUsageStr("attr");
+            LOG_err << "      " << getUsageStr(words[0].c_str());
             return;
         }
         return;

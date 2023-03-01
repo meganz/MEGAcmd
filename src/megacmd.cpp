@@ -637,12 +637,14 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validOptValues->insert("pattern");
         validOptValues->insert("l");
         validParams->insert("show-handles");
+        validParams->insert("print-only-handles");
 #ifdef USE_PCRE
         validParams->insert("use-pcre");
 #endif
         validOptValues->insert("mtime");
         validOptValues->insert("size");
         validOptValues->insert("time-format");
+        validOptValues->insert("type");
     }
     else if ("mkdir" == thecommand)
     {
@@ -681,6 +683,8 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     {
         validParams->insert("d");
         validParams->insert("s");
+        validParams->insert("force-non-official");
+        validParams->insert("print-only-value");
     }
     else if ("userattr" == thecommand)
     {
@@ -1629,7 +1633,7 @@ const char * getUsageStr(const char *command)
     }
     if (!strcmp(command, "attr"))
     {
-        return "attr remotepath [-s attribute value|-d attribute]";
+        return "attr remotepath [--force-non-officialficial] [-s attribute value|-d attribute [--print-only-value]";
     }
     if (!strcmp(command, "userattr"))
     {
@@ -1876,11 +1880,11 @@ const char * getUsageStr(const char *command)
     }
     if (!strcmp(command, "find"))
     {
+        return "find [remotepath] [-l] [--pattern=PATTERN] [--type=d|f] [--mtime=TIMECONSTRAIN] [--size=SIZECONSTRAIN] "
 #ifdef USE_PCRE
-        return "find [remotepath] [-l] [--pattern=PATTERN] [--mtime=TIMECONSTRAIN] [--size=SIZECONSTRAIN] [--use-pcre] [--time-format=FORMAT] [--show-handles]";
-#else
-        return "find [remotepath] [-l] [--pattern=PATTERN] [--mtime=TIMECONSTRAIN] [--size=SIZECONSTRAIN] [--time-format=FORMAT] [--show-handles]";
+         "[--use-pcre] "
 #endif
+        "[--time-format=FORMAT] [--show-handles|--print-only-handles]";
     }
     if (!strcmp(command, "help"))
     {
@@ -2261,11 +2265,15 @@ string getHelpStr(const char *command)
     }
     if (!strcmp(command, "attr"))
     {
-        os << "Lists/updates node attributes" << endl;
+        os << "Lists/updates node attributes." << endl;
         os << endl;
         os << "Options:" << endl;
-        os << " -s" << "\tattribute value \t" << "sets an attribute to a value" << endl;
-        os << " -d" << "\tattribute       \t" << "removes the attribute" << endl;
+        os << " -s" << "\tattribute value \t" << "Sets an attribute to a value" << endl;
+        os << " -d" << "\tattribute       \t" << "Removes the attribute" << endl;
+        os << " --print-only-value  "<< "\t" << "When listing attributes, print only the values, not the attribute names." << endl;
+        os << " --force-non-official"<< "\t" << "Forces using the custom attribute version for officially recognized attributes." << endl;
+        os << "                     "<< "\t" << "Note that custom attributes are internally stored with a `_` prefix." << endl;
+        os << "                     "<< "\t" << "Use this option to show, modify or delete a custom attribute with the same name as one official." << endl;
     }
     if (!strcmp(command, "userattr"))
     {
@@ -2806,6 +2814,7 @@ string getHelpStr(const char *command)
         os << "Options:" << endl;
         os << " --pattern=PATTERN" << "\t" << "Pattern to match";
         os << " (" << getsupportedregexps() << ") " << endl;
+        os << " --type=d|f           " << "\t" << "Determines type. (d) for folder, f for files" << endl;
         os << " --mtime=TIMECONSTRAIN" << "\t" << "Determines time constrains, in the form: [+-]TIMEVALUE" << endl;
         os << "                      " << "\t" << "  TIMEVALUE may include hours(h), days(d), minutes(M)," << endl;
         os << "                      " << "\t" << "   seconds(s), months(m) or years(y)" << endl;
@@ -2821,6 +2830,7 @@ string getHelpStr(const char *command)
         os << "                      " << "\t" << "   \"-3M\" shows files smaller than 3 Megabytes" << endl;
         os << "                      " << "\t" << "   \"-4M+100K\" shows files smaller than 4 Mbytes and bigger than 100 Kbytes" << endl;
         os << " --show-handles" << "\t" << "Prints files/folders handles (H:XXXXXXXX). You can address a file/folder by its handle" << endl;
+        os << " --print-only-handles" << "\t" << "Prints only files/folders handles (H:XXXXXXXX). You can address a file/folder by its handle" << endl;
 #ifdef USE_PCRE
         os << " --use-pcre" << "\t" << "use PCRE expressions" << endl;
 #endif
