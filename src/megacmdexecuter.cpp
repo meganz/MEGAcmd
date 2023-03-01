@@ -3466,13 +3466,18 @@ void MegaCmdExecuter::disableExport(MegaNode *n)
 
 bool MegaCmdExecuter::isShareVerified(MegaNode* n, const char *email) const
 {
+    if (!email)
+    {
+        return false;
+    }
     std::unique_ptr<MegaShareList> outShares (api->getOutShares(n));
     if (outShares)
     {
         for (int i = 0; i < outShares->size(); i++)
         {
             auto outShare = outShares->get(i);
-            if (outShare->getUser() && email && !strcmp(email, outShare->getUser()))
+            auto shareEmail = outShare->getUser();
+            if (shareEmail && !strcmp(email, shareEmail))
             {
                 return outShare->isVerified();
             }
@@ -3485,7 +3490,8 @@ bool MegaCmdExecuter::isShareVerified(MegaNode* n, const char *email) const
         for (int i = 0; i < pendingoutShares->size(); i++)
         {
             auto pendingoutShare = pendingoutShares->get(i);
-            if (pendingoutShare->getUser() && email && !strcmp(email, pendingoutShare->getUser()))
+            auto shareEmail = pendingoutShare->getUser();
+            if (shareEmail && !strcmp(email, shareEmail))
             {
                 return pendingoutShare->isVerified();
             }
