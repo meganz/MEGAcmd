@@ -138,25 +138,25 @@ string visibilityToString(int visibility)
 {
     if (visibility == MegaUser::VISIBILITY_VISIBLE)
     {
-        return "visible";
+        return "Visible";
     }
     if (visibility == MegaUser::VISIBILITY_HIDDEN)
     {
-        return "hidden";
+        return "Hidden";
     }
     if (visibility == MegaUser::VISIBILITY_UNKNOWN)
     {
-        return "unkown visibility";
+        return "Unkown visibility";
     }
     if (visibility == MegaUser::VISIBILITY_INACTIVE)
     {
-        return "inactive";
+        return "Inactive";
     }
     if (visibility == MegaUser::VISIBILITY_BLOCKED)
     {
-        return "blocked";
+        return "Blocked";
     }
-    return "undefined visibility";
+    return "Undefined visibility";
 }
 
 const char * getMCMDErrorString(int errorCode)

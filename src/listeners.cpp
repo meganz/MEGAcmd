@@ -312,6 +312,19 @@ void MegaCmdGlobalListener::onEvent(MegaApi *api, MegaEvent *event)
         broadcastMessage(std::string("Your syncs have been disabled. Reason: ")
                          .append(MegaSync::getMegaSyncErrorCode(int(event->getNumber()))), true);
     }
+    else if (event->getType() == MegaEvent::EVENT_UPGRADE_SECURITY)
+    {
+        std::stringstream ss;
+        ss << "message:"
+              "Your account's security needs upgrading.\n"
+              "Please execute: ";
+        ss << commandPrefixBasedOnMode();
+        ss <<  "confirm --security""\n"
+               "This will happen only once. If you have seen this message for \n"
+               "this account before, please exit MEGAcmd";
+
+        appendGreetingStatusAllListener(ss.str());
+    }
     else if (event->getType() == MegaEvent::EVENT_NODES_CURRENT)
     {
 #ifdef HAVE_DOWNLOADS_COMMAND

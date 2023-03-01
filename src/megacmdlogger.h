@@ -86,6 +86,7 @@ protected:
 
 LoggedStream &getCurrentOut();
 bool interactiveThread();
+const char *commandPrefixBasedOnMode();
 void setCurrentThreadOutStream(LoggedStream *);
 int getCurrentOutCode();
 void setCurrentOutCode(int);
