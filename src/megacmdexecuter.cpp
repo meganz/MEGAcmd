@@ -8507,13 +8507,13 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             OUTSTREAM << contact << endl;
 
             {
-                OUTSTRINGSTREAM ss;
+                std::stringstream ss;
                 ss << "Your Contact's credentials:\n";
                 ss << beautifyCreds(contactCredentials);
                 printCenteredContentsT(OUTSTREAM, ss.str(), 32, true);
             }
             {
-                OUTSTRINGSTREAM ss;
+                std::stringstream ss;
                 ss << "Your credentials:\n";
                 ss << beautifyCreds(myCredentials.get());
                 printCenteredContentsT(OUTSTREAM, ss.str(), 32, true);
@@ -8692,7 +8692,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
                         if (!isUserVerified)
                         {
-                            OUTSTRINGSTREAM ss;
+                            std::stringstream ss;
                             ss << "CONTACT [" << nameOrEmail << "] IS NOT VERIFIED";
 
                             if (printedSomeUnaccesibleInShare || printedSomeUnaccesibleOutShare)

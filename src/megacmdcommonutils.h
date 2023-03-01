@@ -208,8 +208,8 @@ void printCenteredContentsCerr(std::string msj, unsigned int width, bool encapsu
 void printCenteredLine(OUTSTREAMTYPE &os, std::string msj, unsigned int width, bool encapsulated = true);
 void printCenteredContents(OUTSTREAMTYPE &os, std::string msj, unsigned int width, bool encapsulated = true);
 
-template <typename OUT>
-void printCenteredContentsT(OUT &&o, std::string msj, unsigned int width, bool encapsulated)
+template <typename WHERE>
+void printCenteredContentsT(WHERE &&o, const std::string &msj, unsigned int width, bool encapsulated)
 {
     OUTSTRINGSTREAM os;
     printCenteredContents(os, msj, width, encapsulated);
