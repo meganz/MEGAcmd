@@ -4475,57 +4475,6 @@ void printWelcomeMsg()
 
 }
 
-#ifdef __MACH__
-
-
-bool enableSetuidBit()
-{
-    char *response = runWithRootPrivileges("do shell script \"chown root /Applications/MEGAcmd.app/Contents/MacOS/MEGAcmdLoader && chmod 4755 /Applications/MEGAcmd.app/Contents/MacOS/MEGAcmdLoader && echo true\"");
-    if (!response)
-    {
-        return NULL;
-    }
-    bool result = strlen(response) >= 4 && !strncmp(response, "true", 4);
-    delete response;
-    return result;
-}
-
-
-void initializeMacOSStuff(int argc, char* argv[])
-{
-#ifndef NDEBUG
-        return;
-#endif
-
-    int fd = -1;
-    if (argc)
-    {
-        long int value = strtol(argv[argc-1], NULL, 10);
-        if (value > 0 && value < INT_MAX)
-        {
-            fd = value;
-        }
-    }
-
-    if (fd < 0)
-    {
-        if (!enableSetuidBit())
-        {
-            ::exit(0);
-        }
-
-        //Reboot
-        if (fork() )
-        {
-            execv("/Applications/MEGAcmd.app/Contents/MacOS/MEGAcmdLoader",argv);
-        }
-        sleep(10);
-        ::exit(0);
-    }
-}
-
-#endif
-
 string getLocaleCode()
 {
 #if defined(_WIN32) && defined(LOCALE_SISO639LANGNAME)
@@ -4947,7 +4896,6 @@ void reset()
     setBlocked(false);
 }
 
-
 #ifdef _WIN32
 void uninstall()
 {
@@ -5023,10 +4971,6 @@ int main(int argc, char* argv[])
 #endif
     mcmdMainArgv = argv;
     mcmdMainArgc = argc;
-
-#ifdef __MACH__
-    initializeMacOSStuff(argc,argv);
-#endif
 
     SimpleLogger::setLogLevel(logMax); // do not filter anything here, log level checking is done by loggerCMD
 
