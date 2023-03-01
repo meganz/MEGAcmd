@@ -8617,7 +8617,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         {
                             if (!shares)
                             {
-                                return false;
+                                return;
                             }
 
                             bool first_share = true;
