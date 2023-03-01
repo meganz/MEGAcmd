@@ -2439,40 +2439,40 @@ string getHelpStr(const char *command)
     }
     else if (!strcmp(command, "sync"))
     {
-        os << "Controls synchronizations" << endl;
+        os << "Controls synchronizations." << endl;
         os << endl;
-        os << "If no argument is provided, it lists current configured synchronizations" << endl;
+        os << "If no argument is provided, it lists current configured synchronizations." << endl;
         os << endl;
         os << "If provided local and remote paths, it will start synchronizing " << endl;
-        os << " a local folder into a remote folder" << endl;
+        os << " a local folder into a remote folder." << endl;
         os << endl;
         os << "If an ID/local path is provided, it will list such synchronization " << endl;
         os << " unless an option is specified." << endl;
         os << endl;
         os << "Options:" << endl;
-        os << "-d | --remove" << " " << "ID|localpath" << "\t" << "deletes a synchronization" << endl;
-        os << "-s | --disable" << " " << "ID|localpath" << "\t" << "stops(pauses) a synchronization" << endl;
-        os << "-r | --enable" << " " << "ID|localpath" << "\t" << "resumes a synchronization" << endl;
-        os << " --path-display-size=N" << "\t" << "Use at least N characters for displaying paths" << endl;
-        os << " --show-handles" << "\t" << "Prints remote nodes handles (H:XXXXXXXX)" << endl;
+        os << "-d | --remove" << " " << "ID|localpath" << "\t" << "deletes a synchronization." << endl;
+        os << "-s | --disable" << " " << "ID|localpath" << "\t" << "stops(pauses) a synchronization." << endl;
+        os << "-r | --enable" << " " << "ID|localpath" << "\t" << "resumes a synchronization." << endl;
+        os << " --path-display-size=N" << "\t" << "Use at least N characters for displaying paths." << endl;
+        os << " --show-handles" << "\t" << "Prints remote nodes handles (H:XXXXXXXX)." << endl;
         printColumnDisplayerHelp(os);
         os << endl;
         os << "DISPLAYED columns:" << endl;
-        os << " " << "ID: an unique identifier of the sync:" << endl;
-        os << " " << "LOCALPATH: local synced path" << endl;
-        os << " " << "REMOTEPATH: remote synced path (in MEGA):" << endl;
+        os << " " << "ID: an unique identifier of the sync." << endl;
+        os << " " << "LOCALPATH: local synced path." << endl;
+        os << " " << "REMOTEPATH: remote synced path (in MEGA)." << endl;
         os << " " << "RUN_STATE: Indication of running state, possible values: " << endl;
 #define SOME_GENERATOR_MACRO(_, ShortName, Description) \
     os << " " << "\t" << ShortName << ": " << Description << "." << endl;
       GENERATE_FROM_SYNC_RUN_STATE(SOME_GENERATOR_MACRO)
 #undef SOME_GENERATOR_MACRO
         os << " " << "STATUS: State of the sync, possible values: " << endl;
-        os << " " << "\t" << "NONE: Status unknown" << endl;
-        os << " " << "\t" << "Synced: synced, no transfers/pending actions are ongoing" << endl;
-        os << " " << "\t" << "Pending: sync engine is doing some calculations" << endl;
-        os << " " << "\t" << "Syncing: transfers/pending actions are being carried out" << endl;
-        os << " " << "ERROR: Error, if any: " << endl;
-        os << " " << "SIZE, FILE & DIRS: size, number of files and number of dirs in the remote folder" << endl;
+#define SOME_GENERATOR_MACRO(_, ShortName, Description) \
+    os << " " << "\t" << ShortName << ": " << Description << "." << endl;
+      GENERATE_FROM_SYNC_PATH_STATE(SOME_GENERATOR_MACRO)
+#undef SOME_GENERATOR_MACRO
+        os << " " << "ERROR: Error, if any." << endl;
+        os << " " << "SIZE, FILE & DIRS: size, number of files and number of dirs in the remote folder." << endl;
     }
     else if (!strcmp(command, "backup"))
     {
