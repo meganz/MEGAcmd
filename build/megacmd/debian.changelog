@@ -1,3 +1,14 @@
+megacmd (1.6.0) stable; urgency=low
+
+  * Improvements in "find" to search by type, or print only handles (to ease automation)
+  * Improved state management and reporting in synchronizations
+  * Improved information on shares
+  * Improvements in "attr"
+  * Security adjustments
+  * Other fixes and adjustments
+
+ -- MEGA Team <linux@mega.co.nz>  Wed, 01 Mar 2023 13:26:37 +0100
+
 megacmd (1.5.1) stable; urgency=low
 
   * Security adjustments
