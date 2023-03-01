@@ -8613,7 +8613,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
                                         if (!n->isNodeKeyDecrypted() && isInShare)
                                         {
-                                            OUTSTREAM << nameOrEmail << ":[UNVERIFIED]" << endl;
+                                            OUTSTREAM << email << ":[UNVERIFIED]" << endl;
                                         }
                                         else
                                         {
