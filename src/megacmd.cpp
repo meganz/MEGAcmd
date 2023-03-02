@@ -2674,7 +2674,7 @@ string getHelpStr(const char *command)
         os << "List contacts" << endl;
         os << endl;
         os << "Options:" << endl;
-        os << " -d" << "\tcontact@email   " << "Deletes the specified contact" << endl;
+        os << " -d" << "\tcontact@email   " << "\t" << "Deletes the specified contact." << endl;
         os << "--help-verify              " << "\t" << "Prints general information regarding contact verification." << endl
            << "--help-verify contact@email" << "\t" << "This will show credentials of both own user and contact" << endl
            << "                           " << "\t" << " and instructions in order to proceed with the verifcation." << endl;
