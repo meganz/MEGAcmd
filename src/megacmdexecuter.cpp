@@ -6595,6 +6595,16 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                             }
                         }
                         delete megaCmdListener2;
+
+                        {
+                            std::unique_ptr<MegaCmdListener> megaCmdListener(new MegaCmdListener(apiFolder));
+                            apiFolder->logout(false, megaCmdListener.get());
+                            megaCmdListener->wait();
+                            if (megaCmdListener->getError()->getErrorCode() != MegaError::API_OK)
+                            {
+                                LOG_err << "Couldn't logout from apiFolder";
+                            }
+                        }
                     }
                     delete megaCmdListener;
                     freeApiFolder(apiFolder);
@@ -9851,6 +9861,16 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                                     {
                                         LOG_err << "Failed to get node corresponding to handle within public link " << shandle;
                                     }
+                                }
+                            }
+
+                            {
+                                std::unique_ptr<MegaCmdListener> megaCmdListener(new MegaCmdListener(apiFolder));
+                                apiFolder->logout(false, megaCmdListener.get());
+                                megaCmdListener->wait();
+                                if (megaCmdListener->getError()->getErrorCode() != MegaError::API_OK)
+                                {
+                                    LOG_err << "Couldn't logout from apiFolder";
                                 }
                             }
                             delete megaCmdListener2;
