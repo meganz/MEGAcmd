@@ -6595,6 +6595,16 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                             }
                         }
                         delete megaCmdListener2;
+
+                        {
+                            std::unique_ptr<MegaCmdListener> megaCmdListener(new MegaCmdListener(apiFolder));
+                            apiFolder->logout(false, megaCmdListener.get());
+                            megaCmdListener->wait();
+                            if (megaCmdListener->getError()->getErrorCode() != MegaError::API_OK)
+                            {
+                                LOG_err << "Couldn't logout from apiFolder";
+                            }
+                        }
                     }
                     delete megaCmdListener;
                     freeApiFolder(apiFolder);
@@ -8428,7 +8438,12 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             }
             megaCmdListener->wait();
 
-            if (checkNoErrors(megaCmdListener->getError(), unverify ? "unverify credentials" : "verify credentials"))
+            if (megaCmdListener->getError()->getErrorCode() == MegaError::API_EINCOMPLETE)
+            {
+                setCurrentOutCode(megaCmdListener->getError()->getErrorCode());
+                LOG_err << "Failed to " << " set contact as " << (unverify ? "no longer " : "") << "verified, your account's security may need upgrading";
+            }
+            else if (checkNoErrors(megaCmdListener->getError(), unverify ? "unverify credentials" : "verify credentials"))
             {
                 OUTSTREAM << "Contact " << contact << " set as " << (unverify ? "no longer " : "") << "verified." << endl;
             }
@@ -8441,13 +8456,13 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             {
                 OUTSTREAM << "In order to share data with your contacts you will need to verify them." << endl
                           << endl
-                          << "Verifying means ensuring that the contact is who he claims to be." << endl
-                          << "To ensure that, you will need to share some credentials, i.e. some numbers that uniquely" << endl
-                          << " identify you." << endl
+                          << "Verifying means ensuring that the contact is who he/she claims to be." << endl
+                          << "To ensure that, both of you will need to share your credentials," << endl
+                          << " i.e. some numbers that uniquely identify you." << endl
                           << "You can see a contact's credentials (and yours) and instructions on verifying," << endl
                           << " by typing \"" << commandPrefixBasedOnMode() << "users --help-verify contact@email\"." << endl
                           << endl
-                          << "To see which contacts are not verified, you list them using \"" << commandPrefixBasedOnMode() << "users -n\"" << endl
+                          << "To see which contacts are not verified, you can list them using \"" << commandPrefixBasedOnMode() << "users -n\"" << endl
                           << "If you want the above listing to include information regarding your share folders," << endl
                           << " type \"" <<commandPrefixBasedOnMode() << "users -sn\"." << endl
                           << endl;
@@ -8507,13 +8522,13 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             OUTSTREAM << contact << endl;
 
             {
-                OUTSTRINGSTREAM ss;
+                std::stringstream ss;
                 ss << "Your Contact's credentials:\n";
                 ss << beautifyCreds(contactCredentials);
                 printCenteredContentsT(OUTSTREAM, ss.str(), 32, true);
             }
             {
-                OUTSTRINGSTREAM ss;
+                std::stringstream ss;
                 ss << "Your credentials:\n";
                 ss << beautifyCreds(myCredentials.get());
                 printCenteredContentsT(OUTSTREAM, ss.str(), 32, true);
@@ -8526,7 +8541,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
             OUTSTREAM << endl << "If both credentials match, type \"" << commandPrefixBasedOnMode() << "users --verify " << contact << "\" to set the contact as verified." << endl;
 
-            OUTSTREAM << endl << "Important: verification is two sided. You need to tell your contact to do the same for you, using MEGAcmd our MEGA website to verify your credentials." << endl;
+            OUTSTREAM << endl << "Important: verification is two sided. You need to tell your contact to do the same for you, using MEGAcmd or MEGA website to verify your credentials." << endl;
 
             return;
         }
@@ -8617,7 +8632,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         {
                             if (!shares)
                             {
-                                return false;
+                                return;
                             }
 
                             bool first_share = true;
@@ -8692,7 +8707,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
                         if (!isUserVerified)
                         {
-                            OUTSTRINGSTREAM ss;
+                            std::stringstream ss;
                             ss << "CONTACT [" << nameOrEmail << "] IS NOT VERIFIED";
 
                             if (printedSomeUnaccesibleInShare || printedSomeUnaccesibleOutShare)
@@ -9846,6 +9861,16 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                                     {
                                         LOG_err << "Failed to get node corresponding to handle within public link " << shandle;
                                     }
+                                }
+                            }
+
+                            {
+                                std::unique_ptr<MegaCmdListener> megaCmdListener(new MegaCmdListener(apiFolder));
+                                apiFolder->logout(false, megaCmdListener.get());
+                                megaCmdListener->wait();
+                                if (megaCmdListener->getError()->getErrorCode() != MegaError::API_OK)
+                                {
+                                    LOG_err << "Couldn't logout from apiFolder";
                                 }
                             }
                             delete megaCmdListener2;

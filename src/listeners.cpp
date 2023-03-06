@@ -315,15 +315,15 @@ void MegaCmdGlobalListener::onEvent(MegaApi *api, MegaEvent *event)
     else if (event->getType() == MegaEvent::EVENT_UPGRADE_SECURITY)
     {
         std::stringstream ss;
-        ss << "message:"
+        ss << ""
               "Your account's security needs upgrading.\n"
-              "Please execute: ";
-        ss << commandPrefixBasedOnMode();
-        ss <<  "confirm --security""\n"
-               "This will happen only once. If you have seen this message for \n"
-               "this account before, please exit MEGAcmd";
+              "Please execute: \"confirm --security\".\n"
+              "This only needs to be done once. If you have seen this message for\n"
+              "this account before, please exit MEGAcmd.";
 
-        appendGreetingStatusAllListener(ss.str());
+        auto msg = ss.str();
+        appendGreetingStatusAllListener(std::string("message:") + msg);
+        broadcastMessage(std::move(msg)); // broadcast the message, so that it reaches currently open shell too!
     }
     else if (event->getType() == MegaEvent::EVENT_NODES_CURRENT)
     {

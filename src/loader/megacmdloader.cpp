@@ -15,20 +15,11 @@
  * You should have received a copy of the license along with this
  * program.
  */
-#include <stdio.h>
-#include <stdlib.h>
 #include <unistd.h>
-#include <fcntl.h>
-#include <sys/types.h>
-#include <sys/stat.h>
 
 int main(int argc, char *argv[])
 {
-    char buf[16];
-    int fd = open("/dev/fsevents", O_RDONLY);
-    seteuid(getuid());
-    snprintf(buf, sizeof(buf), "%d", fd);
-    execl("/Applications/MEGAcmd.app/Contents/MacOS/mega-cmd", buf, NULL);
+    execl("/Applications/MEGAcmd.app/Contents/MacOS/mega-cmd", NULL);
     return 0;
 }
 

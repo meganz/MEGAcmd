@@ -5,7 +5,6 @@ namespace megacmd {
 
 #ifdef __MACH__
 
-char *runWithRootPrivileges(char *command);
 bool registerUpdateDaemon();
 
 #endif

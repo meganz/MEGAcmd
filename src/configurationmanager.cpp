@@ -143,6 +143,29 @@ void ConfigurationManager::loadConfigDir()
 }
 
 
+std::string ConfigurationManager::getConfFolderSubdir(const string &utf8Name)
+{
+    if (!configFolder.size())
+    {
+        ConfigurationManager::loadConfigDir();
+    }
+
+    MegaFileSystemAccess fsAccess;
+    fsAccess.setdefaultfolderpermissions(0700);
+    LocalPath confSubdir = LocalPath::fromAbsolutePath(configFolder);
+
+    confSubdir.appendWithSeparator(LocalPath::fromRelativePath(utf8Name), true);
+
+    constexpr bool isHidden = true;
+    constexpr bool reportExisting = false;
+    if (!is_file_exist(confSubdir.toPath(false).c_str()) && !fsAccess.mkdirlocal(confSubdir, isHidden, reportExisting))
+    {
+        LOG_err << "Config subfolder not created";
+    }
+
+    return confSubdir.toPath(false);
+}
+
 void ConfigurationManager::saveSession(const char*session)
 {
     std::lock_guard<std::recursive_mutex> g(settingsMutex);
