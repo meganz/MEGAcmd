@@ -1,7 +1,8 @@
 #!/usr/bin/make -f
+NJOBS := $(shell echo ${DEB_BUILD_OPTIONS} | sed -rn 's/.*parallel=([0-9]*).*/\1/p')
 CPPFLAGS := $(shell cat /etc/issue | grep "Ubuntu 1[234579]\|Debian.* [78]\|Ubuntu 1[68].10" >/dev/null && echo "$$CPPFLAGS -DMEGACMD_DEPRECATED_OS" || echo "")
-FCRYPTOPP := $(shell cat /etc/issue | grep "Ubuntu 1[4-8]\|Ubuntu 19.04\|Debian.* [89]" >/dev/null && echo "" || echo "-q")
-WCRYPTOPP := $(shell cat /etc/issue | grep "Ubuntu 1[4-8]\|Ubuntu 19.04\|Debian.* [89]" >/dev/null && echo "" || echo "--with-cryptopp=$(CURDIR)/deps")
+FCRYPTOPP := $(shell cat /etc/issue | grep "Ubuntu 1[4-8]\|Ubuntu 19.04\|Debian.* [8]" >/dev/null && echo "" || echo "-q")
+WCRYPTOPP := $(shell cat /etc/issue | grep "Ubuntu 1[4-8]\|Ubuntu 19.04\|Debian.* [8]" >/dev/null && echo "" || echo "--with-cryptopp=$(CURDIR)/deps")
 DPKGXZ := $(shell cat /etc/issue | grep "Ubuntu 22\|Jammy Jellyfish\|Ubuntu 21.10" >/dev/null && echo "-- -Zxz" || echo "")
 FMEDIAINFO := $(shell dpkg -l | grep mediainfo >/dev/null && echo "-i" || echo " ")
 WMEDIAINFO := $(shell dpkg -l | grep mediainfo >/dev/null && echo " " || echo "--with-libmediainfo=$(CURDIR)/deps --with-libzen=$(CURDIR)/deps")
@@ -40,7 +41,7 @@ build-stamp:
 	  --with-curl=$(CURDIR)/deps --with-freeimage=$(CURDIR)/deps --with-readline=$(CURDIR)/deps \
 	  --with-termcap=$(CURDIR)/deps $(WCRYPTOPP) --prefix=$(CURDIR)/deps --disable-examples $(WMEDIAINFO)
 
-	make
+	make -j$(NJOBS)
 	echo "fs.inotify.max_user_watches = 524288" > 99-megacmd-inotify-limit.conf
 	touch build-stamp
 

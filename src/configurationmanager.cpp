@@ -132,7 +132,7 @@ void ConfigurationManager::loadConfigDir()
 
     MegaFileSystemAccess *fsAccess = new MegaFileSystemAccess();
     fsAccess->setdefaultfolderpermissions(0700);
-    LocalPath localConfigFolder = LocalPath::fromPath(configFolder, *fsAccess);
+    LocalPath localConfigFolder = LocalPath::fromAbsolutePath(configFolder);
     constexpr bool isHidden = true;
     constexpr bool reportExisting = false;
     if (!is_file_exist(configFolder.c_str()) && !fsAccess->mkdirlocal(localConfigFolder, isHidden, reportExisting))
@@ -142,6 +142,29 @@ void ConfigurationManager::loadConfigDir()
     delete fsAccess;
 }
 
+
+std::string ConfigurationManager::getConfFolderSubdir(const string &utf8Name)
+{
+    if (!configFolder.size())
+    {
+        ConfigurationManager::loadConfigDir();
+    }
+
+    MegaFileSystemAccess fsAccess;
+    fsAccess.setdefaultfolderpermissions(0700);
+    LocalPath confSubdir = LocalPath::fromAbsolutePath(configFolder);
+
+    confSubdir.appendWithSeparator(LocalPath::fromRelativePath(utf8Name), true);
+
+    constexpr bool isHidden = true;
+    constexpr bool reportExisting = false;
+    if (!is_file_exist(confSubdir.toPath(false).c_str()) && !fsAccess.mkdirlocal(confSubdir, isHidden, reportExisting))
+    {
+        LOG_err << "Config subfolder not created";
+    }
+
+    return confSubdir.toPath(false);
+}
 
 void ConfigurationManager::saveSession(const char*session)
 {

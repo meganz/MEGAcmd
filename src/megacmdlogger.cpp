@@ -82,6 +82,18 @@ bool interactiveThread()
     }
 }
 
+const char *commandPrefixBasedOnMode()
+{
+    if (interactiveThread())
+    {
+        return "";
+    }
+    else
+    {
+        return "mega-";
+    }
+}
+
 int getCurrentOutCode()
 {
     unsigned long long currentThread = MegaThread::currentThreadId();

@@ -107,34 +107,30 @@ const char* getAccessLevelStr(int level)
 
 const char* getSyncPathStateStr(int state)
 {
-    switch (state)
+    static std::vector<const char*> svalue {
+#define SOME_GENERATOR_MACRO(_, ShortName, __) ShortName,
+      GENERATE_FROM_SYNC_PATH_STATE(SOME_GENERATOR_MACRO)
+#undef SOME_GENERATOR_MACRO
+    };
+    if (state < static_cast<int>(svalue.size()))
     {
-        case MegaApi::STATE_NONE:
-            return "NONE";
-
-            break;
-
-        case MegaApi::STATE_SYNCED:
-            return "Synced";
-
-            break;
-
-        case MegaApi::STATE_PENDING:
-            return "Pending";
-
-            break;
-
-        case MegaApi::STATE_SYNCING:
-            return "Syncing";
-
-            break;
-
-        case MegaApi::STATE_IGNORED:
-            return "Ignored";
-
-            break;
+        return svalue[state];
     }
     return "undefined";
+}
+
+const char * syncRunStateStr(unsigned e)
+{
+    static std::vector<const char*> svalue {
+#define SOME_GENERATOR_MACRO(_, ShortName, __) ShortName,
+      GENERATE_FROM_SYNC_RUN_STATE(SOME_GENERATOR_MACRO)
+#undef SOME_GENERATOR_MACRO
+    };
+    if (e < svalue.size())
+    {
+        return svalue[e];
+    }
+    return "Unknown";
 }
 
 
@@ -142,25 +138,25 @@ string visibilityToString(int visibility)
 {
     if (visibility == MegaUser::VISIBILITY_VISIBLE)
     {
-        return "visible";
+        return "Visible";
     }
     if (visibility == MegaUser::VISIBILITY_HIDDEN)
     {
-        return "hidden";
+        return "Hidden";
     }
     if (visibility == MegaUser::VISIBILITY_UNKNOWN)
     {
-        return "unkown visibility";
+        return "Unkown visibility";
     }
     if (visibility == MegaUser::VISIBILITY_INACTIVE)
     {
-        return "inactive";
+        return "Inactive";
     }
     if (visibility == MegaUser::VISIBILITY_BLOCKED)
     {
-        return "blocked";
+        return "Blocked";
     }
-    return "undefined visibility";
+    return "Undefined visibility";
 }
 
 const char * getMCMDErrorString(int errorCode)

@@ -44,16 +44,16 @@ int ComunicationsManagerFileSockets::initialize()
     MegaFileSystemAccess *fsAccess = new MegaFileSystemAccess();
     char csocketsFolder[34]; // enough to hold all numbers up to 64-bits
     sprintf(csocketsFolder, "/tmp/megaCMD_%d", getuid());
-    LocalPath socketsFolder = LocalPath::fromPlatformEncoded(csocketsFolder);
+    LocalPath socketsFolder = LocalPath::fromPlatformEncodedAbsolute(csocketsFolder);
 
     fsAccess->setdefaultfolderpermissions(0700);
     fsAccess->rmdirlocal(socketsFolder);
-    LOG_debug << "CREATING sockets folder: " << socketsFolder.toPath() << "!!!";
+    LOG_debug << "CREATING sockets folder: " << socketsFolder.toPath(false) << "!!!";
     constexpr bool isHidden = false;
     constexpr bool logExisting  = false;
     if (!fsAccess->mkdirlocal(socketsFolder, isHidden, logExisting))
     {
-        LOG_fatal << "ERROR CREATING sockets folder: " << socketsFolder.toPath(*fsAccess) << ": " << errno;
+        LOG_fatal << "ERROR CREATING sockets folder: " << socketsFolder.toPath(false) << ": " << errno;
     }
     delete fsAccess;
 

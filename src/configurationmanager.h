@@ -238,6 +238,9 @@ public:
 
     static std::string getConfigFolder();
 
+    // creates a subfolder within config dir and returns it (utf8)
+    static std::string getConfFolderSubdir(const std::string &utf8Name);
+
     static bool getHasBeenUpdated();
 
     static void unloadConfiguration();

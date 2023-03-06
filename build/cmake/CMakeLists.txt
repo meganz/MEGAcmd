@@ -81,6 +81,11 @@ add_executable(mega-cmd-updater WIN32
     "${ProjectDir}/contrib/QtCreator/MEGAcmd/MEGAcmdUpdater/icon.rc"
 )
 
+if (APPLE)
+    target_sources(mega-cmd-server  PRIVATE "${ProjectDir}/src/megacmdplatform.mm")
+    target_sources(mega-cmd-updater PRIVATE "${ProjectDir}/src/updater/MacUtils.mm")
+endif ()
+
 if (WIN32)
 set_target_properties(mega-exec PROPERTIES OUTPUT_NAME MEGAclient)
 set_target_properties(mega-cmd PROPERTIES OUTPUT_NAME MEGAcmdShell)

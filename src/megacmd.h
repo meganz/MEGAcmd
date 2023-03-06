@@ -131,6 +131,8 @@ void broadcastDelayedMessage(std::string message, bool keepIfNoListeners);
 void appendGreetingStatusFirstListener(const std::string &msj);
 void removeGreetingStatusFirstListener(const std::string &msj);
 void appendGreetingStatusAllListener(const std::string &msj);
+void clearGreetingStatusAllListener();
+void clearGreetingStatusFirstListener();
 void removeGreetingStatusAllListener(const std::string &msj);
 void removeGreetingMatching(const std::string &toMatch);
 void removeDelayedBroadcastMatching(const std::string &toMatch);

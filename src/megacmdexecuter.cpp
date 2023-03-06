@@ -185,7 +185,8 @@ void MegaCmdExecuter::listtrees()
         MegaShare *share = msl->get(i);
         MegaNode *n = api->getNodeByHandle(share->getNodeHandle());
 
-        OUTSTREAM << "INSHARE on //from/" << share->getUser() << ":" << n->getName() << " (" << getAccessLevelStr(share->getAccess()) << ")" << endl;
+        OUTSTREAM << "INSHARE on //from/" << share->getUser() << ":" << n->getName() << " (" << getAccessLevelStr(share->getAccess()) << ")"
+                  << (!share->isVerified() ? " [UNVERIFIED]" : "") << endl;
         delete n;
     }
 
@@ -265,6 +266,8 @@ struct criteriaNodeVector
     int64_t maxSize;
     int64_t minSize;
 
+    int mType = MegaNode::TYPE_UNKNOWN;
+
     vector<MegaNode*> *nodesMatching;
 };
 
@@ -283,6 +286,11 @@ bool MegaCmdExecuter::includeIfMatchesPattern(MegaApi *api, MegaNode * n, void *
 bool MegaCmdExecuter::includeIfMatchesCriteria(MegaApi *api, MegaNode * n, void *arg)
 {
     struct criteriaNodeVector *pnv = (struct criteriaNodeVector*)arg;
+
+    if (pnv->mType != MegaNode::TYPE_UNKNOWN && n->getType() != pnv->mType )
+    {
+        return false;
+    }
 
     if ( pnv->maxTime != -1 && (n->getModificationTime() >= pnv->maxTime) )
     {
@@ -1209,10 +1217,12 @@ void MegaCmdExecuter::dumpNode(MegaNode* n, const char *timeFormat, std::map<std
                 {
                     for (int i = 0; i < outShares->size(); i++)
                     {
-                        if (outShares->get(i)->getNodeHandle() == n->getHandle())
+                        auto outShare = outShares->get(i);
+                        if (outShare->getNodeHandle() == n->getHandle() && !outShare->isPending()/*shall be listed via getPendingOutShares*/)
                         {
-                            OUTSTREAM << ", shared with " << outShares->get(i)->getUser() << ", access "
-                                      << getAccessLevelStr(outShares->get(i)->getAccess());
+                            OUTSTREAM << ", shared with " << outShare->getUser() << ", access "
+                                      << getAccessLevelStr(outShare->getAccess())
+                                      << (outShare->isVerified() ? "" : "[UNVERIFIED]");
                         }
                     }
 
@@ -1221,14 +1231,16 @@ void MegaCmdExecuter::dumpNode(MegaNode* n, const char *timeFormat, std::map<std
                     {
                         for (int i = 0; i < pendingoutShares->size(); i++)
                         {
-                            if (pendingoutShares->get(i)->getNodeHandle() == n->getHandle())
+                            auto pendingoutShare = pendingoutShares->get(i);
+                            if (pendingoutShare->getNodeHandle() == n->getHandle())
                             {
                                 OUTSTREAM << ", shared (still pending)";
-                                if (pendingoutShares->get(i)->getUser())
+                                if (pendingoutShare->getUser())
                                 {
-                                    OUTSTREAM << " with " << pendingoutShares->get(i)->getUser();
+                                    OUTSTREAM << " with " << pendingoutShare->getUser();
                                 }
-                                OUTSTREAM << " access " << getAccessLevelStr(pendingoutShares->get(i)->getAccess());
+                                OUTSTREAM << " access " << getAccessLevelStr(pendingoutShare->getAccess())
+                                              << (pendingoutShare->isVerified() ? "" : "[UNVERIFIED]");
                             }
                         }
 
@@ -1480,7 +1492,7 @@ void MegaCmdExecuter::dumpNodeSummary(MegaNode *n, const char *timeFormat, std::
 
 void MegaCmdExecuter::createOrModifyBackup(string local, string remote, string speriod, int numBackups)
 {
-    LocalPath locallocal = LocalPath::fromPath(local, *fsAccessCMD);
+    LocalPath locallocal = LocalPath::fromAbsolutePath(local);
     std::unique_ptr<FileAccess> fa = fsAccessCMD->newfileaccess();
     if (!fa->isfolder(locallocal))
     {
@@ -1803,10 +1815,10 @@ bool MegaCmdExecuter::TestCanWriteOnContainingFolder(string *path)
     replaceAll(*path,"/","\\");
 #endif
 
-    auto containingFolder = LocalPath::fromPath(*path, *fsAccessCMD);
+    auto containingFolder = LocalPath::fromAbsolutePath(*path);
 
     // Where does our name begin?
-    auto index = containingFolder.getLeafnameByteIndex(*fsAccessCMD);
+    auto index = containingFolder.getLeafnameByteIndex();
 
     // We have a parent.
     if (index)
@@ -1816,21 +1828,21 @@ bool MegaCmdExecuter::TestCanWriteOnContainingFolder(string *path)
     }
     else
     {
-        containingFolder = LocalPath::fromPath(".", *fsAccessCMD);
+        containingFolder = LocalPath::fromAbsolutePath(".");
     }
 
     std::unique_ptr<FileAccess> fa = fsAccessCMD->newfileaccess();
     if (!fa->isfolder(containingFolder))
     {
         setCurrentOutCode(MCMD_INVALIDTYPE);
-        LOG_err << containingFolder.toPath(*fsAccessCMD) << " is not a valid Download Folder";
+        LOG_err << containingFolder.toPath(false) << " is not a valid Download Folder";
         return false;
     }
 
     if (!canWrite(containingFolder.platformEncoded()))
     {
         setCurrentOutCode(MCMD_NOTPERMITTED);
-        LOG_err << "Write not allowed in " << containingFolder.toPath(*fsAccessCMD);
+        LOG_err << "Write not allowed in " << containingFolder.toPath(false);
         return false;
     }
 
@@ -1990,11 +2002,13 @@ void MegaCmdExecuter::listnodeshares(MegaNode* n, string name)
     {
         for (int i = 0; i < outShares->size(); i++)
         {
+            auto outShare = outShares->get(i);
             OUTSTREAM << (name.size() ? name : n->getName());
 
-            if (outShares->get(i))
+            if (outShare)
             {
-                OUTSTREAM << ", shared with " << outShares->get(i)->getUser() << " (" << getAccessLevelStr(outShares->get(i)->getAccess()) << ")"
+                OUTSTREAM << ", shared with " << outShare->getUser() << " (" << getAccessLevelStr(outShare->getAccess()) << ")"
+                             << (outShare->isVerified() ? "" : "[UNVERIFIED]")
                           << endl;
             }
             else
@@ -2308,6 +2322,57 @@ void MegaCmdExecuter::actUponGetExtendedAccountDetails(SynchronousRequestListene
     }
 }
 
+void MegaCmdExecuter::verifySharedFolders(MegaApi *api)
+{
+    auto getInstructions = [](const char *intro)
+    {
+        std::stringstream ss;
+        ss << intro << ".\n";
+        ss << "You need to verify your contacts. \nUse ";
+        ss << commandPrefixBasedOnMode();
+        ss << "users --help-verify to get instructions";
+        return ss.str();
+    };
+
+    {
+        std::unique_ptr<MegaShareList> shares(api->getUnverifiedInShares());
+        if (shares && shares->size())
+        {
+            broadcastMessage(getInstructions("Some not verified contact is sharing a folder with you"), true);
+            return;
+        }
+        {   // Just in case
+            std::unique_ptr<MegaShareList> inSharesByAllUsers (api->getInSharesList());// this one should not return unverified ones
+            if (inSharesByAllUsers)
+            {
+                for (int i = 0, total = inSharesByAllUsers->size(); i < total; i++)
+                {
+                    auto share = inSharesByAllUsers->get(i);
+                    if (!share->isVerified())
+                    {
+                        broadcastMessage(getInstructions("Found some not verified share"), true);
+                        return;
+                    }
+
+                    std::unique_ptr<MegaNode> n (api->getNodeByHandle(share->getNodeHandle()));
+                    if (n && !n->isNodeKeyDecrypted())
+                    {
+                        broadcastMessage(getInstructions("Found some inaccessible share"), true);
+                        return;
+                    }
+                }
+            }
+        }
+    }
+    {
+        std::unique_ptr<MegaShareList> shares(api->getUnverifiedOutShares());
+        if (shares && shares->size())
+        {
+            broadcastMessage(getInstructions("You are sharing a folder with some unverified contact"), true);
+        }
+    }
+}
+
 bool MegaCmdExecuter::actUponFetchNodes(MegaApi *api, SynchronousRequestListener *srl, int timeout)
 {
     if (timeout == -1)
@@ -2344,6 +2409,7 @@ bool MegaCmdExecuter::actUponFetchNodes(MegaApi *api, SynchronousRequestListener
         session = srl->getApi()->dumpSession();
         ConfigurationManager::saveSession(session);
 
+        verifySharedFolders(api);
 
         LOG_verbose << "actUponFetchNodes ok";
 
@@ -2800,6 +2866,10 @@ void MegaCmdExecuter::actUponLogout(SynchronousRequestListener *srl, bool keptSe
         DownloadsManager::Instance().shutdown(true);
 #endif
         mtxSyncMap.unlock();
+
+        // clear greetings (asuming they are account-related)
+        clearGreetingStatusAllListener();
+        clearGreetingStatusFirstListener();
     }
     updateprompt(api);
 }
@@ -3161,7 +3231,14 @@ void MegaCmdExecuter::downloadNode(string source, string path, MegaApi* api, Meg
 #endif
     LOG_debug << "Starting download: " << node->getName() << " to : " << path;
 
-    api->startDownload(node, path.c_str(), new ATransferListener(multiTransferListener, source));
+    api->startDownload(
+                node, //MegaNode* node,
+                path.c_str(),//const char* localPath,
+                nullptr,//const char *customName,
+                nullptr,//const char *appData,
+                false,//bool startFirst,
+                nullptr,//MegaCancelToken *cancelToken,
+                new ATransferListener(multiTransferListener, source));
 }
 
 void MegaCmdExecuter::uploadNode(string path, MegaApi* api, MegaNode *node, string newname,
@@ -3184,7 +3261,7 @@ void MegaCmdExecuter::uploadNode(string path, MegaApi* api, MegaNode *node, stri
     }
     unescapeifRequired(path);
 
-    LocalPath locallocal = LocalPath::fromPath(path, *fsAccessCMD);
+    LocalPath locallocal = LocalPath::fromAbsolutePath(path);
     std::unique_ptr<FileAccess> fa = fsAccessCMD->newfileaccess();
     if (!fa->fopen(locallocal, true, false))
     {
@@ -3219,16 +3296,16 @@ void MegaCmdExecuter::uploadNode(string path, MegaApi* api, MegaNode *node, stri
 
     LOG_debug << "Starting upload: " << path << " to : " << node->getName() << (newname.size()?"/":"") << newname;
 
-
-    if (newname.size())
-    {
-
-        api->startUpload(removeTrailingSeparators(path).c_str(), node, newname.c_str(), thelistener);
-    }
-    else
-    {
-        api->startUpload(removeTrailingSeparators(path).c_str(), node, thelistener);
-    }
+    api->startUpload(
+                removeTrailingSeparators(path).c_str(),//const char *localPath,
+                node,//MegaNode *parent,
+                 newname.size() ? newname.c_str() : nullptr,//const char *fileName,
+                MegaApi::INVALID_CUSTOM_MOD_TIME,//int64_t mtime,
+                nullptr,//const char *appData,
+                false, //bool isSourceTemporary,
+                false, //bool startFirst,
+                nullptr,//MegaCancelToken *cancelToken,
+                thelistener);
 
     if (singleNonBackgroundTransferListener)
     {
@@ -3267,8 +3344,13 @@ bool MegaCmdExecuter::amIPro()
     return prolevel > 0;
 }
 
-void MegaCmdExecuter::exportNode(MegaNode *n, int64_t expireTime, std::string password, bool force, bool writable)
+void MegaCmdExecuter::exportNode(MegaNode *n, int64_t expireTime, std::string password,
+                                 std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions)
 {
+    bool force = getFlag(clflags,"f");
+    bool writable = getFlag(clflags,"writable");
+    bool megaHosted = getFlag(clflags,"mega-hosted");
+
     bool copyrightAccepted = false;
 
     copyrightAccepted = ConfigurationManager::getConfigurationValue("copyrightAccepted", false) || force;
@@ -3297,7 +3379,7 @@ void MegaCmdExecuter::exportNode(MegaNode *n, int64_t expireTime, std::string pa
     {
         ConfigurationManager::savePropertyValue("copyrightAccepted",true);
         MegaCmdListener *megaCmdListener = new MegaCmdListener(api, NULL);
-        api->exportNode(n, expireTime, writable, megaCmdListener);
+        api->exportNode(n, expireTime, writable, megaHosted, megaCmdListener);
         megaCmdListener->wait();
         if (checkNoErrors(megaCmdListener->getError(), "export node"))
         {
@@ -3389,13 +3471,70 @@ void MegaCmdExecuter::disableExport(MegaNode *n)
     delete megaCmdListener;
 }
 
+bool MegaCmdExecuter::isShareVerified(MegaNode* n, const char *email) const
+{
+    if (!email)
+    {
+        return false;
+    }
+    std::unique_ptr<MegaShareList> outShares (api->getOutShares(n));
+    if (outShares)
+    {
+        for (int i = 0; i < outShares->size(); i++)
+        {
+            auto outShare = outShares->get(i);
+            auto shareEmail = outShare->getUser();
+            if (shareEmail && !strcmp(email, shareEmail))
+            {
+                return outShare->isVerified();
+            }
+        }
+    }
+
+    std::unique_ptr<MegaShareList> pendingoutShares (api->getPendingOutShares(n));
+    if (pendingoutShares)
+    {
+        for (int i = 0; i < pendingoutShares->size(); i++)
+        {
+            auto pendingoutShare = pendingoutShares->get(i);
+            auto shareEmail = pendingoutShare->getUser();
+            if (shareEmail && !strcmp(email, shareEmail))
+            {
+                return pendingoutShare->isVerified();
+            }
+        }
+    }
+    return false;
+}
+
 void MegaCmdExecuter::shareNode(MegaNode *n, string with, int level)
 {
-    MegaCmdListener *megaCmdListener = new MegaCmdListener(api, NULL);
-
-    api->share(n, with.c_str(), level, megaCmdListener);
+    std::unique_ptr<MegaCmdListener> megaCmdListener(new MegaCmdListener(api));
+    api->openShareDialog(n, megaCmdListener.get());
     megaCmdListener->wait();
-    if (checkNoErrors(megaCmdListener->getError(), ( level != MegaShare::ACCESS_UNKNOWN ) ? "share node" : "disable share"))
+    if (megaCmdListener->getError()->getErrorCode() == MegaError::API_EINCOMPLETE)
+    {
+        setCurrentOutCode(MCMD_NOTPERMITTED);
+        LOG_err << "Unable to share folder. Your account security may need upgrading. Type \"" <<commandPrefixBasedOnMode() << "confirm --security\"";
+        return;
+    }
+    else if (!checkNoErrors(megaCmdListener->getError(), "prepare sharing"))
+    {
+        return;
+    }
+
+
+    megaCmdListener.reset(new MegaCmdListener(api));
+    api->share(n, with.c_str(), level, megaCmdListener.get());
+    megaCmdListener->wait();
+
+    if (megaCmdListener->getError()->getErrorCode() == MegaError::API_EINCOMPLETE)
+    {
+        setCurrentOutCode(MCMD_NOTPERMITTED);
+        LOG_err << "Unable to share folder. Your account security may need upgrading. Type \"" <<commandPrefixBasedOnMode() << "confirm --security\"";
+        return;
+    }
+    else if (checkNoErrors(megaCmdListener->getError(), ( level != MegaShare::ACCESS_UNKNOWN ) ? "share node" : "disable share"))
     {
         MegaNode *nshared = api->getNodeByHandle(megaCmdListener->getRequest()->getNodeHandle());
         if (nshared)
@@ -3403,12 +3542,14 @@ void MegaCmdExecuter::shareNode(MegaNode *n, string with, int level)
             char *nodepath = api->getNodePath(nshared);
             if (megaCmdListener->getRequest()->getAccess() == MegaShare::ACCESS_UNKNOWN)
             {
-                OUTSTREAM << "Stopped sharing " << nodepath << " with " << megaCmdListener->getRequest()->getEmail() << endl;
+                OUTSTREAM << "Stopped sharing " << nodepath << " with " << megaCmdListener->getRequest()->getEmail()
+                          << (!isShareVerified(n, megaCmdListener->getRequest()->getEmail()) ? " [UNVERIFIED]" : "")  << endl;
             }
             else
             {
                 OUTSTREAM << "Shared " << nodepath << " : " << megaCmdListener->getRequest()->getEmail()
-                          << " accessLevel=" << megaCmdListener->getRequest()->getAccess() << endl;
+                          << " accessLevel=" << megaCmdListener->getRequest()->getAccess()
+                          << (!isShareVerified(n, megaCmdListener->getRequest()->getEmail()) ? " [UNVERIFIED]" : "") << endl;
             }
             delete[] nodepath;
             delete nshared;
@@ -3420,7 +3561,6 @@ void MegaCmdExecuter::shareNode(MegaNode *n, string with, int level)
         }
     }
 
-    delete megaCmdListener;
 }
 
 void MegaCmdExecuter::disableShare(MegaNode *n, string with)
@@ -3964,7 +4104,7 @@ bool MegaCmdExecuter::IsFolder(string path)
 #ifdef _WIN32
     replaceAll(path,"/","\\");
 #endif
-    LocalPath localpath = LocalPath::fromPath(path, *fsAccessCMD);
+    LocalPath localpath = LocalPath::fromAbsolutePath(path);
     std::unique_ptr<FileAccess> fa = fsAccessCMD->newfileaccess();
     return fa->isfolder(localpath);
 }
@@ -4284,7 +4424,7 @@ void MegaCmdExecuter::printBackupHistory(MegaScheduledCopy *backup, const char *
 
             if (firstinhistory)
             {
-                OUTSTREAM << "  " << " -- SAVED BACKUPS --" << endl;
+                OUTSTREAM << "  " << " -- HISTORY OF BACKUPS --" << endl;
 
                 // print header
                 OUTSTREAM << "  " << getFixLengthString("NAME", PATHSIZE) << " ";
@@ -4435,43 +4575,19 @@ void MegaCmdExecuter::printSync(MegaSync *sync, long long nfiles, long long nfol
 
     cd.addValue("REMOTEPATH", sync->getLastKnownMegaFolder());
 
-    string state;
-    if (sync->isTemporaryDisabled())
-    {
-        state = "TempDisabled";
-    }
-    else if (sync->isActive())
-    {
-        state = "Enabled";
-    }
-    else if (!sync->isEnabled())
-    {
-        state = "Disabled";
-    }
-    else
-    {
-        state = "Failed";
-    }
-    cd.addValue("ACTIVE", state);
+    cd.addValue("RUN_STATE", syncRunStateStr(sync->getRunState()));
 
     string pathstate;
-    if (!sync->isActive())
-    {
-        pathstate = "Inactive";
-    }
-    else
-    {
-        string pathLocalFolder(sync->getLocalFolder());
-        pathLocalFolder = rtrim(pathLocalFolder, '/');
-    #ifdef _WIN32
-        pathLocalFolder = rtrim(pathLocalFolder, '\\');
-    #endif
-        string localizedLocalPath;
-        fsAccessCMD->path2local(&pathLocalFolder,&localizedLocalPath);
+    string pathLocalFolder(sync->getLocalFolder());
+    pathLocalFolder = rtrim(pathLocalFolder, '/');
+#ifdef _WIN32
+    pathLocalFolder = rtrim(pathLocalFolder, '\\');
+#endif
+    string localizedLocalPath;
+    LocalPath::path2local(&pathLocalFolder,&localizedLocalPath);
 
-        int statepath = api->syncPathState(&localizedLocalPath);
-        pathstate = getSyncPathStateStr(statepath);
-    }
+    int statepath = api->syncPathState(&localizedLocalPath);
+    pathstate = getSyncPathStateStr(statepath);
     cd.addValue("STATUS", pathstate);
 
     cd.addValue("ERROR", sync->getError() ? sync->getMegaSyncErrorCode() : "NO");
@@ -4497,6 +4613,8 @@ void MegaCmdExecuter::doFind(MegaNode* nodeBase, const char *timeFormat, std::ma
     pnv.maxTime = maxTime;
     pnv.minSize = minSize;
     pnv.maxSize = maxSize;
+    auto opt = getOption(cloptions, "type", "");
+    pnv.mType = opt == "f" ? MegaNode::TYPE_FILE : (opt == "d" ? MegaNode::TYPE_FOLDER : MegaNode::TYPE_UNKNOWN);
 
 
     processTree(nodeBase, includeIfMatchesCriteria, (void*)&pnv);
@@ -4519,7 +4637,11 @@ void MegaCmdExecuter::doFind(MegaNode* nodeBase, const char *timeFormat, std::ma
             {
                 pathToShow = getDisplayPath("", n);
             }
-            if (printfileinfo)
+            if (getFlag(clflags, "print-only-handles"))
+            {
+                OUTSTREAM << "H:" << handleToBase64(n->getHandle()) << "" << endl;
+            }
+            else if (printfileinfo)
             {
                 dumpNode(n, timeFormat, clflags, cloptions, 3, false, 1, pathToShow.c_str());
             }
@@ -4546,15 +4668,15 @@ void MegaCmdExecuter::doFind(MegaNode* nodeBase, const char *timeFormat, std::ma
 string MegaCmdExecuter::getLPWD()
 {
     string relativePath = ".";
-    string absolutePath = "Unknown";
-    LocalPath localRelativePath = LocalPath::fromPath(relativePath, *fsAccessCMD);
+    LocalPath localRelativePath = LocalPath::fromRelativePath(relativePath);
     LocalPath localAbsolutePath;
-    if (fsAccessCMD->expanselocalpath(localRelativePath, localAbsolutePath))
+    if (!fsAccessCMD->expanselocalpath(localRelativePath, localAbsolutePath))
     {
-        absolutePath = localAbsolutePath.toPath(*fsAccessCMD);
+        LOG_err << " Unable to expanse local path . ";
+        return "UNKNOWN";
     }
-
-    return absolutePath;
+    LOG_verbose << "LocalPath localRelativePath = LocalPath::fromRelativePath(" << relativePath << "): " << localAbsolutePath.toPath(false);
+    return localAbsolutePath.toPath(false);
 }
 
 
@@ -4709,43 +4831,6 @@ bool MegaCmdExecuter::isValidFolder(string destiny)
     return isdestinyavalidfolder;
 }
 
-void MegaCmdExecuter::restartsyncs()
-{
-    std::unique_ptr<MegaSyncList> syncs{api->getSyncs()};
-    for (int i = 0; i < syncs->size(); i++)
-    {
-        MegaSync *sync = syncs->get(i);
-        if (sync->isActive())
-        {
-            LOG_info << "Restarting sync "<< sync->getLocalFolder() << " to " << sync->getLastKnownMegaFolder();
-
-            auto megaCmdListener = ::mega::make_unique<MegaCmdListener>(nullptr);
-            api->disableSync(sync, megaCmdListener.get());
-            megaCmdListener->wait();
-
-            if (checkNoErrors(megaCmdListener->getError(), "disable sync"))
-            {
-                LOG_verbose << "Disabled sync "<< sync->getLocalFolder() << " to " << sync->getLastKnownMegaFolder();
-
-                auto megaCmdListener = ::mega::make_unique<MegaCmdListener>(nullptr);
-                api->enableSync(sync, megaCmdListener.get());
-                megaCmdListener->wait();
-
-                if (checkNoErrors(megaCmdListener->getError(), "re-enable sync"))
-                {
-                    LOG_verbose << "Re-enabled sync "<< sync->getLocalFolder() << " to " << sync->getLastKnownMegaFolder();
-                }
-                else
-                {
-                    setCurrentOutCode(MCMD_INVALIDSTATE);
-                    LOG_err << "Failed to restart sync: " << sync->getLocalFolder() << " to " << sync->getLastKnownMegaFolder()
-                            << ". You will need to manually reenable or restart MEGAcmd";
-                }
-            }
-        }
-    }
-}
-
 std::string MegaCmdExecuter::getNodePathString(MegaNode *n)
 {
     const char *path = api->getNodePath(n);
@@ -4886,12 +4971,16 @@ bool MegaCmdExecuter::establishBackup(string pathToBackup, MegaNode *n, int64_t 
 {
     bool attendpastbackups = true; //TODO: receive as parameter
     static int backupcounter = 0;
-    LocalPath localrelativepath = LocalPath::fromPath(pathToBackup, *fsAccessCMD);
-    LocalPath localabsolutepath;
-    fsAccessCMD->expanselocalpath(localrelativepath, localabsolutepath);
+    LocalPath localAbsolutePath = LocalPath::fromAbsolutePath(pathToBackup); //this one would converts it to absolute if it's relative
+    LocalPath expansedAbsolutePath;
+    if (!fsAccessCMD->expanselocalpath(localAbsolutePath, expansedAbsolutePath))
+    {
+        setCurrentOutCode(MCMD_NOTFOUND);
+        LOG_err << " Failed to expanse path";
+    }
 
     MegaCmdListener *megaCmdListener = new MegaCmdListener(api, NULL);
-    api->setScheduledCopy(localabsolutepath.toPath(*fsAccessCMD).c_str(), n, attendpastbackups, period, speriod.c_str(), numBackups, megaCmdListener);
+    api->setScheduledCopy(expansedAbsolutePath.toPath(false).c_str(), n, attendpastbackups, period, speriod.c_str(), numBackups, megaCmdListener);
     megaCmdListener->wait();
     if (checkNoErrors(megaCmdListener->getError(), "establish backup"))
     {
@@ -5353,6 +5442,32 @@ bool MegaCmdExecuter::setProxy(const std::string &url, const std::string &userna
     }
 
     return !failed;
+}
+
+bool checkAtLeastNArgs(const vector<string> &words, size_t n)
+{
+    if (words.size() < n)
+    {
+        setCurrentOutCode(MCMD_EARGS);
+        assert(!words.empty());
+        LOG_err << words[0] << ": Invalid number of arguments";
+        LOG_err << "Usage: " << getUsageStr(words[0].c_str());
+        return false;
+    }
+    return true;
+}
+
+bool checkExactlyNArgs(const vector<string> &words, size_t n)
+{
+    if (words.size() != n)
+    {
+        setCurrentOutCode(MCMD_EARGS);
+        assert(!words.empty());
+        LOG_err << words[0] << ": Invalid number of arguments";
+        LOG_err << "Usage: " << getUsageStr(words[0].c_str());
+        return false;
+    }
+    return true;
 }
 
 void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clflags, map<string, string> *cloptions)
@@ -6480,6 +6595,16 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                             }
                         }
                         delete megaCmdListener2;
+
+                        {
+                            std::unique_ptr<MegaCmdListener> megaCmdListener(new MegaCmdListener(apiFolder));
+                            apiFolder->logout(false, megaCmdListener.get());
+                            megaCmdListener->wait();
+                            if (megaCmdListener->getError()->getErrorCode() != MegaError::API_OK)
+                            {
+                                LOG_err << "Couldn't logout from apiFolder";
+                            }
+                        }
                     }
                     delete megaCmdListener;
                     freeApiFolder(apiFolder);
@@ -7077,7 +7202,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
     {
         if (words.size() > 1)
         {
-            LocalPath localpath = LocalPath::fromPath(words[1], *fsAccessCMD);
+            LocalPath localpath = LocalPath::fromAbsolutePath(words[1]);
             if (fsAccessCMD->chdirlocal(localpath)) // maybe this is already checked in chdir
             {
                 LOG_debug << "Local folder changed to: " << words[1];
@@ -7659,10 +7784,6 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             {
                 std::vector<string> vexcludednames(ConfigurationManager::excludedNames.begin(), ConfigurationManager::excludedNames.end());
                 api->setExcludedNames(&vexcludednames);
-                if (getFlag(clflags, "restart-syncs"))
-                {
-                    restartsyncs();
-                }
             }
             else
             {
@@ -7681,10 +7802,6 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             {
                 std::vector<string> vexcludednames(ConfigurationManager::excludedNames.begin(), ConfigurationManager::excludedNames.end());
                 api->setExcludedNames(&vexcludednames);
-                if (getFlag(clflags, "restart-syncs"))
-                {
-                    restartsyncs();
-                }
             }
             else
             {
@@ -7702,11 +7819,6 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             OUTSTREAM << *it << endl;
         }
 
-        if ( !getFlag(clflags, "restart-syncs") && (getFlag(clflags, "a") || getFlag(clflags, "d")) )
-        {
-            OUTSTREAM << endl <<  "Changes will not be applied immediately to operations being performed in active syncs."
-                      << " See \"exclude --help\" for further info" << endl;
-        }
     }
     else if (words[0] == "sync")
     {
@@ -7735,9 +7847,9 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         bool headershown = false;
         if (words.size() == 3) //add a sync
         {
-            LocalPath localRelativePath = LocalPath::fromPath(words[1], *fsAccessCMD);
-            LocalPath localAbsolutePath = localRelativePath;
-            fsAccessCMD->expanselocalpath(localRelativePath, localAbsolutePath);
+            LocalPath localAbsolutePath = LocalPath::fromAbsolutePath(words[1]); //this one would converts it to absolute if it's relative
+            LocalPath expansedAbsolutePath;
+            fsAccessCMD->expanselocalpath(localAbsolutePath, expansedAbsolutePath);
 
             MegaNode* n = nodebypath(words[2].c_str());
             if (n)
@@ -7749,7 +7861,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 else if (api->getAccess(n) >= MegaShare::ACCESS_FULL)
                 {
                     MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
-                    api->syncFolder(MegaSync::TYPE_TWOWAY, localAbsolutePath.toPath(*fsAccessCMD).c_str(), nullptr, n->getHandle(), nullptr, megaCmdListener);
+                    api->syncFolder(MegaSync::TYPE_TWOWAY, expansedAbsolutePath.toPath(false).c_str(), nullptr, n->getHandle(), nullptr, megaCmdListener);
                     megaCmdListener->wait();
                     if (checkNoErrors(megaCmdListener->getError(), "sync folder", static_cast<SyncError>(megaCmdListener->getRequest()->getNumDetails())))
                     {
@@ -7757,7 +7869,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         SyncError syncError = static_cast<SyncError>(megaCmdListener->getRequest()->getNumDetails());
 
                         char * nodepath = api->getNodePath(n);
-                        LOG_info << "Added sync: " << localpath << " to " << nodepath;
+                        OUTSTREAM << "Added sync: " << localpath << " to " << nodepath << endl;
                         if (syncError != NO_SYNC_ERROR)
                         {
                             LOG_err << "Sync added as temporarily disabled. Reason: " << MegaSync::getMegaSyncErrorCode(syncError);
@@ -7806,7 +7918,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             if (stop)
             {
                 auto megaCmdListener = ::mega::make_unique<MegaCmdListener>(nullptr);
-                api->disableSync(sync.get(), megaCmdListener.get());
+                api->setSyncRunState(sync.get()->getBackupId(), MegaSync::RUNSTATE_DISABLED , megaCmdListener.get());
                 megaCmdListener->wait();
                 if (checkNoErrors(megaCmdListener->getError(), "stop sync", static_cast<SyncError>(megaCmdListener->getRequest()->getNumDetails())))
                 {
@@ -7816,7 +7928,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             else if (resume)
             {
                 auto megaCmdListener = ::mega::make_unique<MegaCmdListener>(nullptr);
-                api->enableSync(sync.get(), megaCmdListener.get());
+                api->setSyncRunState(sync.get()->getBackupId(), MegaSync::RUNSTATE_RUNNING, megaCmdListener.get());
                 megaCmdListener->wait();
                 if (checkNoErrors(megaCmdListener->getError(), "enable sync", static_cast<SyncError>(megaCmdListener->getRequest()->getNumDetails())))
                 {
@@ -7826,7 +7938,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             else if (remove)
             {
                 auto megaCmdListener = ::mega::make_unique<MegaCmdListener>(nullptr);
-                api->removeSync(sync.get(), megaCmdListener.get());
+                api->removeSync(sync->getBackupId(), megaCmdListener.get());
                 megaCmdListener->wait();
                 if (checkNoErrors(megaCmdListener->getError(), "remove sync", static_cast<SyncError>(megaCmdListener->getRequest()->getNumDetails())))
                 {
@@ -8075,6 +8187,9 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             return;
         }
         listtrees();
+
+        verifySharedFolders(api);
+
         return;
     }
     else if (words[0] == "share")
@@ -8118,6 +8233,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         {
             words.push_back(string(".")); //cwd
         }
+
         for (int i = 1; i < (int)words.size(); i++)
         {
             unescapeifRequired(words[i]);
@@ -8280,6 +8396,8 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             }
         }
 
+        verifySharedFolders(api);
+
         return;
     }
     else if (words[0] == "users")
@@ -8288,6 +8406,143 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         {
             setCurrentOutCode(MCMD_NOTLOGGEDIN);
             LOG_err << "Not logged in.";
+            return;
+        }
+
+        bool verify = getFlag(clflags, "verify");
+        bool unverify = getFlag(clflags, "unverify");
+
+        if (verify || unverify)
+        {
+            if (!checkExactlyNArgs(words, 2))
+            {
+                return;
+            }
+            const auto &contact = words[1];
+            std::unique_ptr<MegaUser> user(api->getContact(contact.c_str()));
+            if (!user)
+            {
+                setCurrentOutCode(MCMD_NOTFOUND);
+                LOG_err << "Contact not found.";
+                return;
+            }
+
+            auto megaCmdListener = ::mega::make_unique<MegaCmdListener>(nullptr);
+            if (unverify)
+            {
+                api->resetCredentials(user.get(), megaCmdListener.get());
+            }
+            else
+            {
+                api->verifyCredentials(user.get(), megaCmdListener.get());
+            }
+            megaCmdListener->wait();
+
+            if (megaCmdListener->getError()->getErrorCode() == MegaError::API_EINCOMPLETE)
+            {
+                setCurrentOutCode(megaCmdListener->getError()->getErrorCode());
+                LOG_err << "Failed to " << " set contact as " << (unverify ? "no longer " : "") << "verified, your account's security may need upgrading";
+            }
+            else if (checkNoErrors(megaCmdListener->getError(), unverify ? "unverify credentials" : "verify credentials"))
+            {
+                OUTSTREAM << "Contact " << contact << " set as " << (unverify ? "no longer " : "") << "verified." << endl;
+            }
+            return;
+        }
+
+        if (getFlag(clflags, "help-verify"))
+        {
+            if (words.size() == 1) // General information
+            {
+                OUTSTREAM << "In order to share data with your contacts you will need to verify them." << endl
+                          << endl
+                          << "Verifying means ensuring that the contact is who he/she claims to be." << endl
+                          << "To ensure that, both of you will need to share your credentials," << endl
+                          << " i.e. some numbers that uniquely identify you." << endl
+                          << "You can see a contact's credentials (and yours) and instructions on verifying," << endl
+                          << " by typing \"" << commandPrefixBasedOnMode() << "users --help-verify contact@email\"." << endl
+                          << endl
+                          << "To see which contacts are not verified, you can list them using \"" << commandPrefixBasedOnMode() << "users -n\"" << endl
+                          << "If you want the above listing to include information regarding your share folders," << endl
+                          << " type \"" <<commandPrefixBasedOnMode() << "users -sn\"." << endl
+                          << endl;
+                return;
+            }
+
+            // Listing credentials and instructions for an specific contact:
+            if (!checkExactlyNArgs(words, 2))
+            {
+                return;
+            }
+            const auto &contact = words[1];
+            std::unique_ptr<MegaUser> user(api->getContact(contact.c_str()));
+            if (!user)
+            {
+                setCurrentOutCode(MCMD_NOTFOUND);
+                LOG_err << "Contact not found.";
+                return;
+            }
+
+            auto megaCmdListener = ::mega::make_unique<MegaCmdListener>(nullptr);
+            api->getUserCredentials(user.get(), megaCmdListener.get());
+            megaCmdListener->wait();
+            if (!checkNoErrors(megaCmdListener->getError(), "get user credentials"))
+            {
+                return;
+            }
+
+            auto contactCredentials = megaCmdListener->getRequest()->getPassword();
+            if (!contactCredentials)
+            {
+                setCurrentOutCode(MCMD_NOTFOUND);
+                LOG_err << "Contact credentials not found.";
+                return;
+            }
+
+            std::unique_ptr<char[]> myCredentials(api->getMyCredentials());
+            if (!myCredentials)
+            {
+                setCurrentOutCode(MCMD_NOTFOUND);
+                LOG_err << "Own credentials not found.";
+                return;
+            }
+
+            auto beautifyCreds = [](std::string x)
+            {
+                auto nspaces = x.size() / 4;
+                for (size_t i = 1 ; i < nspaces ;  i++)
+                {
+                    x.insert( i * 4 + i - 1, i == (nspaces / 2) ? "\n" : " ");
+                }
+                return x;
+            };
+
+            OUTSTREAM << "Updated verification credentials were received for your contact: ";
+
+            OUTSTREAM << contact << endl;
+
+            {
+                std::stringstream ss;
+                ss << "Your Contact's credentials:\n";
+                ss << beautifyCreds(contactCredentials);
+                printCenteredContentsT(OUTSTREAM, ss.str(), 32, true);
+            }
+            {
+                std::stringstream ss;
+                ss << "Your credentials:\n";
+                ss << beautifyCreds(myCredentials.get());
+                printCenteredContentsT(OUTSTREAM, ss.str(), 32, true);
+            }
+
+            OUTSTREAM << "Compare the listed credentials with the ones reported by your contact." << endl;
+
+            OUTSTREAM << "This is best done in real life by meeting face to face.\n"
+                         "If you have another already-verified channel such as verified OTR or PGP, you may also use that.";
+
+            OUTSTREAM << endl << "If both credentials match, type \"" << commandPrefixBasedOnMode() << "users --verify " << contact << "\" to set the contact as verified." << endl;
+
+            OUTSTREAM << endl << "Important: verification is two sided. You need to tell your contact to do the same for you, using MEGAcmd or MEGA website to verify your credentials." << endl;
+
             return;
         }
         if (getFlag(clflags, "d") && ( words.size() <= 1 ))
@@ -8318,80 +8573,163 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 {
                     if (!(( user->getVisibility() != MegaUser::VISIBILITY_VISIBLE ) && !getFlag(clflags, "h")))
                     {
-                        if (getFlag(clflags,"n"))
+                        auto email = user->getEmail();
+                        std::string nameOrEmail;
+
+                        if (getFlag(clflags,"n")) //Show Names
                         {
-                            string name;
-                            MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
-                            api->getUserAttribute(user, ATTR_FIRSTNAME, megaCmdListener);
+                            // name:
+                            auto megaCmdListener = ::mega::make_unique<MegaCmdListener>(nullptr);
+                            api->getUserAttribute(user, ATTR_FIRSTNAME, megaCmdListener.get());
                             megaCmdListener->wait();
-                            if (megaCmdListener->getError()->getErrorCode() == MegaError::API_OK)
+                            if (megaCmdListener->getError()->getErrorCode() == MegaError::API_OK
+                                    && megaCmdListener->getRequest()->getText()
+                                    && *megaCmdListener->getRequest()->getText() // not empty
+                                    )
                             {
-                                if (megaCmdListener->getRequest()->getText() && strlen(megaCmdListener->getRequest()->getText()))
-                                {
-                                    name += megaCmdListener->getRequest()->getText();
-                                }
+                                nameOrEmail += megaCmdListener->getRequest()->getText();
                             }
-                            delete megaCmdListener;
-
-                            megaCmdListener = new MegaCmdListener(NULL);
-                            api->getUserAttribute(user, ATTR_LASTNAME, megaCmdListener);
+                            // surname:
+                            megaCmdListener.reset(new MegaCmdListener(nullptr));
+                            api->getUserAttribute(user, ATTR_LASTNAME, megaCmdListener.get());
                             megaCmdListener->wait();
-                            if (megaCmdListener->getError()->getErrorCode() == MegaError::API_OK)
+                            if (megaCmdListener->getError()->getErrorCode() == MegaError::API_OK
+                                    && megaCmdListener->getRequest()->getText()
+                                    && *megaCmdListener->getRequest()->getText() // not empty
+                                    )
                             {
-                                if (megaCmdListener->getRequest()->getText() && strlen(megaCmdListener->getRequest()->getText()))
+                                if (!nameOrEmail.empty())
                                 {
-                                    if (name.size())
-                                    {
-                                        name+=" ";
-                                    }
-                                    name+=megaCmdListener->getRequest()->getText();
+                                    nameOrEmail+=" ";
                                 }
-                            }
-                            if (name.size())
-                            {
-                                OUTSTREAM << name << ": ";
+                                nameOrEmail += megaCmdListener->getRequest()->getText();
                             }
 
-                            delete megaCmdListener;
+                            if (!nameOrEmail.empty())
+                            {
+                                OUTSTREAM << "[" << nameOrEmail << "] ";
+                            }
                         }
 
+                        if (nameOrEmail.empty())
+                        {
+                            nameOrEmail = email;
+                        }
 
-                        OUTSTREAM << user->getEmail() << ", " << visibilityToString(user->getVisibility());
+                        OUTSTREAM << email;
+
                         if (user->getTimestamp())
                         {
-                            OUTSTREAM << " since " << getReadableTime(user->getTimestamp(), getTimeFormatFromSTR(getOption(cloptions, "time-format","RFC2822")));
+                            OUTSTREAM << ". Contact since " << getReadableTime(user->getTimestamp(), getTimeFormatFromSTR(getOption(cloptions, "time-format","RFC2822")));
                         }
-                        OUTSTREAM << endl;
 
-                        if (getFlag(clflags, "s"))
+                        OUTSTREAM << ". " << visibilityToString(user->getVisibility())
+                                  << endl;
+
+                        bool printedSomeUnaccesibleInShare = false;
+                        bool printedSomeUnaccesibleOutShare = false;
+                        auto printShares = [&, this](std::unique_ptr<MegaShareList> &shares, const std::string &title, bool isInShare = false)
                         {
-                            MegaShareList *shares = api->getOutShares();
-                            if (shares)
+                            if (!shares)
                             {
-                                bool first_share = true;
-                                for (int j = 0; j < shares->size(); j++)
-                                {
-                                    if (!strcmp(shares->get(j)->getUser(), user->getEmail()))
-                                    {
-                                        MegaNode * n = api->getNodeByHandle(shares->get(j)->getNodeHandle());
-                                        if (n)
-                                        {
-                                            if (first_share)
-                                            {
-                                                OUTSTREAM << "\tSharing:" << endl;
-                                                first_share = false;
-                                            }
+                                return;
+                            }
 
-                                            OUTSTREAM << "\t";
-                                            dumpNode(n, getTimeFormatFromSTR(getOption(cloptions, "time-format","RFC2822")), clflags, cloptions, 2, false, 0, getDisplayPath("/", n).c_str());
-                                            delete n;
+                            bool first_share = true;
+
+                            for (int j = 0, total = shares->size(); j < total; j++)
+                            {
+                                auto share = shares->get(j);
+                                assert(share);
+                                if (!strcmp(share->getUser(), email))
+                                {
+                                    bool thisOneisUnverified = !share->isVerified();
+
+                                    std::unique_ptr<MegaNode> n (api->getNodeByHandle(shares->get(j)->getNodeHandle()));
+                                    if (n)
+                                    {
+                                        if (first_share)
+                                        {
+                                            OUTSTREAM << "> " << title << ":" << endl;
+                                            first_share = false;
+                                        }
+
+                                        if (thisOneisUnverified || !n->isNodeKeyDecrypted())
+                                        {
+                                            if (isInShare)
+                                            {
+                                                printedSomeUnaccesibleInShare = true;
+                                                OUTSTREAM << " (**)";
+                                            }
+                                            else
+                                            {
+                                                printedSomeUnaccesibleOutShare = true;
+                                                OUTSTREAM << "  (*)";
+                                            }
+                                        }
+                                        else
+                                        {
+                                            OUTSTREAM << "  ";
+                                        }
+
+                                        if (isInShare)
+                                        {
+                                            OUTSTREAM << "//from/";
+                                        }
+
+                                        if (!n->isNodeKeyDecrypted() && isInShare)
+                                        {
+                                            OUTSTREAM << email << ":[UNVERIFIED]" << endl;
+                                        }
+                                        else
+                                        {
+                                            dumpNode(n.get(), getTimeFormatFromSTR(getOption(cloptions, "time-format","RFC2822")), clflags, cloptions, 2, false, 0, getDisplayPath("/", n.get()).c_str());
                                         }
                                     }
                                 }
-
-                                delete shares;
                             }
+                        };
+
+                        bool isUserVerified = api->areCredentialsVerified(user);
+                        bool doPrint(getFlag(clflags, "s"));
+                        if (doPrint)
+                        {
+                            std::unique_ptr<MegaShareList> outSharesByAllUsers (api->getOutShares()); // this one retrieves both verified & unverified ones
+                            printShares(outSharesByAllUsers, std::string("Folders shared with ") + nameOrEmail);
+
+                            std::unique_ptr<MegaShareList> inSharesByAllUsers (api->getInSharesList()); // this one does not return unverified ones
+                            printShares(inSharesByAllUsers , std::string("Folders shared by ") + nameOrEmail, true);
+
+                            std::unique_ptr<MegaShareList> unverifiedInShares (api->getUnverifiedInShares());
+                            printShares(unverifiedInShares , std::string("Folders shared by ") + nameOrEmail, true);
                         }
+                        assert(!printedSomeUnaccesibleInShare || !isUserVerified);
+
+                        if (!isUserVerified)
+                        {
+                            std::stringstream ss;
+                            ss << "CONTACT [" << nameOrEmail << "] IS NOT VERIFIED";
+
+                            if (printedSomeUnaccesibleInShare || printedSomeUnaccesibleOutShare)
+                            {
+                                ss << "\n";
+                                if (printedSomeUnaccesibleOutShare)
+                                {
+                                    ss << "Shares marked with (*) may not be accessible by your contact.\n";
+                                }
+                                if (printedSomeUnaccesibleInShare)
+                                {
+                                    ss << "Shares marked with (**) may not be accessible by you.\n";
+                                }
+                            }
+
+                            ss << "\nType \"" << commandPrefixBasedOnMode() <<"users --help-verify " << email
+                               << "\" to get instructions on verification" << endl;
+
+                            printCenteredContentsT(OUTSTREAM, ss.str(), 78, true);
+                        }
+
+                        OUTSTREAM << endl;
                     }
                 }
             }
@@ -8530,81 +8868,147 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             LOG_err << "Not logged in.";
             return;
         }
-        if (words.size() > 1)
-        {
-            int cancel = getFlag(clflags, "d");
-            bool settingattr = getFlag(clflags, "s");
 
-            string nodePath = words.size() > 1 ? words[1] : "";
-            string attribute = words.size() > 2 ? words[2] : "";
-            string attrValue = words.size() > 3 ? words[3] : "";
-            n = nodebypath(nodePath.c_str());
-
-            if (n)
-            {
-                if (settingattr || cancel)
-                {
-                    if (attribute.size())
-                    {
-                        const char *cattrValue = cancel ? NULL : attrValue.c_str();
-                        MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
-                        api->setCustomNodeAttribute(n, attribute.c_str(), cattrValue, megaCmdListener);
-                        megaCmdListener->wait();
-                        if (checkNoErrors(megaCmdListener->getError(), "set node attribute: " + attribute))
-                        {
-                            OUTSTREAM << "Node attribute " << attribute << ( cancel ? " removed" : " updated" ) << " correctly" << endl;
-                            delete n;
-                            n = api->getNodeByHandle(megaCmdListener->getRequest()->getNodeHandle());
-                        }
-                        delete megaCmdListener;
-                    }
-                    else
-                    {
-                        setCurrentOutCode(MCMD_EARGS);
-                        LOG_err << "Attribute not specified";
-                        LOG_err << "      " << getUsageStr("attr");
-                        return;
-                    }
-                }
-
-                //List node custom attributes
-                MegaStringList *attrlist = n->getCustomAttrNames();
-                if (attrlist)
-                {
-                    if (!attribute.size())
-                    {
-                        OUTSTREAM << "The node has " << attrlist->size() << " attributes" << endl;
-                    }
-                    for (int a = 0; a < attrlist->size(); a++)
-                    {
-                        string iattr = attrlist->get(a);
-                        if (!attribute.size() || ( attribute == iattr ))
-                        {
-                            const char* iattrval = n->getCustomAttr(iattr.c_str());
-                            OUTSTREAM << "\t" << iattr << " = " << ( iattrval ? iattrval : "NULL" ) << endl;
-                        }
-                    }
-
-                    delete attrlist;
-                }
-
-                delete n;
-            }
-            else
-            {
-                setCurrentOutCode(MCMD_NOTFOUND);
-                LOG_err << "Couldn't find node: " << nodePath;
-                return;
-            }
-        }
-        else
+        if (words.size() <= 1)
         {
             setCurrentOutCode(MCMD_EARGS);
-            LOG_err << "      " << getUsageStr("attr");
+            LOG_err << "      " << getUsageStr(words[0].c_str());
             return;
         }
 
+        bool removingAttr(getFlag(clflags, "d"));
+        bool settingattr(getFlag(clflags, "s"));
+        bool forceCustom = getFlag(clflags, "force-non-official");
 
+        string nodePath = words.size() > 1 ? words[1] : "";
+        string attribute = words.size() > 2 ? words[2] : "";
+        string attrValue = words.size() > 3 ? words[3] : "";
+
+        bool listAll(attribute.empty());
+
+        std::unique_ptr<MegaNode> node (nodebypath(nodePath.c_str()) );
+        if (!node)
+        {
+            setCurrentOutCode(MCMD_NOTFOUND);
+            LOG_err << "Couldn't find node: " << nodePath;
+            return;
+        }
+
+        auto isOfficial = [](const std::string &what)
+        {
+            for ( auto &a : {"s4"})
+            {
+                if (what == a)
+                {
+                    return true;
+                }
+            }
+            return false;
+        };
+
+        if (settingattr || removingAttr)
+        {
+            if (attribute.empty())
+            {
+                setCurrentOutCode(MCMD_EARGS);
+                LOG_err << "Attribute not specified";
+                LOG_err << "      " << getUsageStr(words[0].c_str());
+                return;
+            }
+
+            auto megaCmdListener = ::mega::make_unique<MegaCmdListener>(nullptr);
+            if (forceCustom || !isOfficial(attribute))
+            {
+                const char *cattrValue = removingAttr ? NULL : attrValue.c_str();
+                api->setCustomNodeAttribute(node.get(), attribute.c_str(), cattrValue, megaCmdListener.get());
+            }
+            else if (attribute == "s4")
+            {
+                const char *cattrValue = removingAttr ? NULL : attrValue.c_str();
+                api->setNodeS4(node.get(), cattrValue, megaCmdListener.get());
+            }
+            else
+            {
+                assert(false);
+                LOG_err << "Not implemented official attribute support";
+                setCurrentOutCode(MCMD_INVALIDTYPE);
+                return;
+            }
+
+            megaCmdListener->wait();
+            if (checkNoErrors(megaCmdListener->getError(), "set node attribute: " + attribute))
+            {
+                OUTSTREAM << "Node attribute " << attribute << ( removingAttr ? " removed" : " updated" ) << " correctly" << endl;
+                //reload the node for printing updated values
+                node.reset(api->getNodeByHandle(megaCmdListener->getRequest()->getNodeHandle()));
+                if (!node)
+                {
+                    setCurrentOutCode(MCMD_NOTFOUND);
+                    LOG_err << "Couldn't find node after updating its attribute: " << nodePath;
+                    return;
+                }
+            }
+        }
+
+        //List node custom attributes
+        std::unique_ptr<MegaStringList> attrlist (node->getCustomAttrNames());
+        if (attrlist)
+        {
+            if (listAll)
+            {
+                OUTSTREAM << "The node has " << attrlist->size() << " custom attributes:" << endl;
+            }
+            for (int a = 0; a < attrlist->size(); a++)
+            {
+                string iattr = attrlist->get(a);
+                if (listAll || ( attribute == iattr && (forceCustom || !isOfficial(iattr))))
+                {
+                    const char* iattrval = node->getCustomAttr(iattr.c_str());
+                    if (getFlag(clflags, "print-only-value"))
+                    {
+                        OUTSTREAM << ( iattrval ? iattrval : "NULL" ) << endl;
+                    }
+                    else
+                    {
+                        OUTSTREAM << "\t" << iattr << " = " << ( iattrval ? iattrval : "NULL" ) << endl;
+                    }
+                }
+            }
+        }
+
+        // List official node attributes:
+        if (listAll || !forceCustom) //otherwise no sense in listing official ones
+        {
+            bool showOficialsHeader(listAll);
+            using NameGetter = std::pair<const char *, std::function<const char *(MegaNode *)>>;
+            for (auto & pair : {
+                 NameGetter{"s4", [](MegaNode *node){return node->getS4();}}
+                })
+            {
+                if (!listAll && ( attribute != pair.first ))
+                {
+                    continue; // looking for another one
+                }
+                auto officialAttrValue = pair.second(node.get());
+
+                if (officialAttrValue && strlen(officialAttrValue))
+                {
+                    if (showOficialsHeader)
+                    {
+                        OUTSTREAM << "Official attributes:" << endl;
+                        showOficialsHeader = false;
+                    }
+                    if (getFlag(clflags, "print-only-value"))
+                    {
+                        OUTSTREAM << ( pair.second(node.get()) ) << endl;
+                    }
+                    else
+                    {
+                        OUTSTREAM << "\t" << pair.first << " = " << pair.second(node.get()) << endl;
+                    }
+                }
+            }
+        }
         return;
     }
     else if (words[0] == "userattr")
@@ -8716,7 +9120,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         else
         {
             setCurrentOutCode(MCMD_EARGS);
-            LOG_err << "      " << getUsageStr("attr");
+            LOG_err << "      " << getUsageStr(words[0].c_str());
             return;
         }
         return;
@@ -8758,7 +9162,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         else
         {
             setCurrentOutCode(MCMD_EARGS);
-            LOG_err << "      " << getUsageStr("attr");
+            LOG_err << "      " << getUsageStr(words[0].c_str());
             return;
         }
         return;
@@ -9229,7 +9633,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                             if (add)
                             {
                                 LOG_debug << " exporting ... " << n->getName() << " expireTime=" << expireTime;
-                                exportNode(n, expireTime, linkPass, getFlag(clflags,"f"), getFlag(clflags,"writable"));
+                                exportNode(n, expireTime, linkPass, clflags, cloptions);
                             }
                             else if (getFlag(clflags, "d"))
                             {
@@ -9264,7 +9668,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     if (add)
                     {
                         LOG_debug << " exporting ... " << n->getName();
-                        exportNode(n, expireTime, linkPass, getFlag(clflags,"f"), getFlag(clflags,"writable"));
+                        exportNode(n, expireTime, linkPass, clflags, cloptions);
                     }
                     else if (getFlag(clflags, "d"))
                     {
@@ -9459,6 +9863,16 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                                     }
                                 }
                             }
+
+                            {
+                                std::unique_ptr<MegaCmdListener> megaCmdListener(new MegaCmdListener(apiFolder));
+                                apiFolder->logout(false, megaCmdListener.get());
+                                megaCmdListener->wait();
+                                if (megaCmdListener->getError()->getErrorCode() != MegaError::API_OK)
+                                {
+                                    LOG_err << "Couldn't logout from apiFolder";
+                                }
+                            }
                             delete megaCmdListener2;
                         }
                         delete megaCmdListener;
@@ -9536,6 +9950,19 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
     }
     else if (words[0] == "confirm")
     {
+        if (getFlag(clflags, "security"))
+        {
+            auto megaCmdListener = ::mega::make_unique<MegaCmdListener>(nullptr);
+            api->upgradeSecurity(megaCmdListener.get());
+            megaCmdListener->wait();
+            if (checkNoErrors(megaCmdListener->getError(), "confirm security upgrade"))
+            {
+                removeGreetingMatching("Your account's security needs upgrading");
+                OUTSTREAM << "Account security upgrade. You shall no longer see an account security warning." << endl;
+            }
+            return;
+        }
+
         if (words.size() > 2)
         {
             string link = words[1];

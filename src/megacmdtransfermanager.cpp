@@ -1361,8 +1361,8 @@ bool TransferInfoIOWriter::initializeSqlite()
     }
 
     MegaFileSystemAccess fsAccess;
-    LocalPath defaultDlPath = LocalPath::fromPath(ConfigurationManager::getConfigFolder(), fsAccess);
-    auto extra = LocalPath::fromPath("downloads.db", fsAccess);
+    LocalPath defaultDlPath = LocalPath::fromAbsolutePath(ConfigurationManager::getConfigFolder());
+    auto extra = LocalPath::fromRelativePath("downloads.db");
     defaultDlPath.appendWithSeparator(extra, false);
     mTransferInfoDbPath = ConfigurationManager::getConfigurationValue("downloads_db_path", defaultDlPath.toPath());
 
@@ -1673,7 +1673,7 @@ void TransferInfoIOWriter::shutdown(bool loginout)
         {
             sqlite3_close(db);
             MegaFileSystemAccess fsAccess;
-            auto toremove = LocalPath::fromPath(mTransferInfoDbPath, fsAccess);
+            auto toremove = LocalPath::fromAbsolutePath(mTransferInfoDbPath);
             fsAccess.unlinklocal(toremove);
         }
     }

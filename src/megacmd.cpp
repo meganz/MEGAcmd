@@ -119,9 +119,10 @@ std::vector<MegaThread *> petitionThreads;
 std::vector<MegaThread *> endedPetitionThreads;
 MegaThread *threadRetryConnections;
 
+std::mutex greetingsmsgsMutex;
 std::deque<std::string> greetingsFirstClientMsgs; // to be given on first client to register as state listener
 std::deque<std::string> greetingsAllClientMsgs; // to be given on all clients when registering as state listener
-std::mutex greetingsmsgsMutex;
+
 
 std::deque<std::string> delayedBroadCastMessages; // messages to be brodcasted in a while
 std::mutex delayedBroadcastMutex;
@@ -199,6 +200,18 @@ void appendGreetingStatusAllListener(const std::string &msj)
 {
     std::lock_guard<std::mutex> g(greetingsmsgsMutex);
     greetingsAllClientMsgs.push_front(msj);
+}
+
+void clearGreetingStatusAllListener()
+{
+    std::lock_guard<std::mutex> g(greetingsmsgsMutex);
+    greetingsAllClientMsgs.clear();
+}
+
+void clearGreetingStatusFirstListener()
+{
+    std::lock_guard<std::mutex> g(greetingsmsgsMutex);
+    greetingsFirstClientMsgs.clear();
 }
 
 void removeGreetingStatusAllListener(const std::string &msj)
@@ -533,7 +546,6 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     {
         validParams->insert("a");
         validParams->insert("d");
-        validParams->insert("restart-syncs");
     }
 #ifdef HAVE_LIBUV
     else if ("webdav" == thecommand)
@@ -600,6 +612,7 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validParams->insert("d");
         validParams->insert("f");
         validParams->insert("writable");
+        validParams->insert("mega-hosted");
         validOptValues->insert("expire");
         validOptValues->insert("password");
 #ifdef USE_PCRE
@@ -624,12 +637,14 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validOptValues->insert("pattern");
         validOptValues->insert("l");
         validParams->insert("show-handles");
+        validParams->insert("print-only-handles");
 #ifdef USE_PCRE
         validParams->insert("use-pcre");
 #endif
         validOptValues->insert("mtime");
         validOptValues->insert("size");
         validOptValues->insert("time-format");
+        validOptValues->insert("type");
     }
     else if ("mkdir" == thecommand)
     {
@@ -637,6 +652,9 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     }
     else if ("users" == thecommand)
     {
+        validParams->insert("help-verify");
+        validParams->insert("verify");
+        validParams->insert("unverify");
         validParams->insert("s");
         validParams->insert("h");
         validParams->insert("d");
@@ -665,6 +683,8 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     {
         validParams->insert("d");
         validParams->insert("s");
+        validParams->insert("force-non-official");
+        validParams->insert("print-only-value");
     }
     else if ("userattr" == thecommand)
     {
@@ -769,6 +789,10 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validParams->insert("none");
         validOptValues->insert("username");
         validOptValues->insert("password");
+    }
+    else if ("confirm" == thecommand)
+    {
+        validParams->insert("security");
     }
     else if ("exit" == thecommand || "quit" == thecommand)
     {
@@ -1609,7 +1633,7 @@ const char * getUsageStr(const char *command)
     }
     if (!strcmp(command, "attr"))
     {
-        return "attr remotepath [-s attribute value|-d attribute]";
+        return "attr remotepath [--force-non-officialficial] [-s attribute value|-d attribute [--print-only-value]";
     }
     if (!strcmp(command, "userattr"))
     {
@@ -1654,7 +1678,7 @@ const char * getUsageStr(const char *command)
     }
     if (!strcmp(command, "exclude"))
     {
-        return "exclude [(-a|-d) pattern1 pattern2 pattern3 [--restart-syncs]]";
+        return "exclude [(-a|-d) pattern1 pattern2 pattern3]";
     }
 #ifdef HAVE_LIBUV
     if (!strcmp(command, "webdav"))
@@ -1696,6 +1720,7 @@ const char * getUsageStr(const char *command)
     {
         return "export [-d|-a"
                " [--writable]"
+               " [--mega-hosted]"
                " [--password=PASSWORD] [--expire=TIMEDELAY] [-f]] [remotepath]"
         #ifdef USE_PCRE
                " [--use-pcre]"
@@ -1728,7 +1753,7 @@ const char * getUsageStr(const char *command)
     }
     if (!strcmp(command, "users"))
     {
-        return "users [-s] [-h] [-n] [-d contact@email] [--time-format=FORMAT]";
+        return "users [-s] [-h] [-n] [-d contact@email] [--time-format=FORMAT] [--verify|--unverify contact@email.com] [--help-verify [contact@email.com]]";
     }
     if (!strcmp(command, "getua"))
     {
@@ -1855,11 +1880,11 @@ const char * getUsageStr(const char *command)
     }
     if (!strcmp(command, "find"))
     {
+        return "find [remotepath] [-l] [--pattern=PATTERN] [--type=d|f] [--mtime=TIMECONSTRAIN] [--size=SIZECONSTRAIN] "
 #ifdef USE_PCRE
-        return "find [remotepath] [-l] [--pattern=PATTERN] [--mtime=TIMECONSTRAIN] [--size=SIZECONSTRAIN] [--use-pcre] [--time-format=FORMAT] [--show-handles]";
-#else
-        return "find [remotepath] [-l] [--pattern=PATTERN] [--mtime=TIMECONSTRAIN] [--size=SIZECONSTRAIN] [--time-format=FORMAT] [--show-handles]";
+         "[--use-pcre] "
 #endif
+        "[--time-format=FORMAT] [--show-handles|--print-only-handles]";
     }
     if (!strcmp(command, "help"))
     {
@@ -2240,11 +2265,15 @@ string getHelpStr(const char *command)
     }
     if (!strcmp(command, "attr"))
     {
-        os << "Lists/updates node attributes" << endl;
+        os << "Lists/updates node attributes." << endl;
         os << endl;
         os << "Options:" << endl;
-        os << " -s" << "\tattribute value \t" << "sets an attribute to a value" << endl;
-        os << " -d" << "\tattribute       \t" << "removes the attribute" << endl;
+        os << " -s" << "\tattribute value \t" << "Sets an attribute to a value" << endl;
+        os << " -d" << "\tattribute       \t" << "Removes the attribute" << endl;
+        os << " --print-only-value  "<< "\t" << "When listing attributes, print only the values, not the attribute names." << endl;
+        os << " --force-non-official"<< "\t" << "Forces using the custom attribute version for officially recognized attributes." << endl;
+        os << "                     "<< "\t" << "Note that custom attributes are internally stored with a `_` prefix." << endl;
+        os << "                     "<< "\t" << "Use this option to show, modify or delete a custom attribute with the same name as one official." << endl;
     }
     if (!strcmp(command, "userattr"))
     {
@@ -2409,54 +2438,49 @@ string getHelpStr(const char *command)
         os << " -a pattern1 pattern2 ..." << "\t" << "adds pattern(s) to the exclusion list" << endl;
         os << "                         " << "\t" << "          (* and ? wildcards allowed)" << endl;
         os << " -d pattern1 pattern2 ..." << "\t" << "deletes pattern(s) from the exclusion list" << endl;
-        os << " --restart-syncs" << "\t" << "Try to restart synchronizations." << endl;
 
         os << endl;
-        os << "Changes will not be applied immediately to actions being performed in active syncs. " << endl;
-        os << "After adding/deleting patterns, you might want to: " << endl;
+        os << "Caveat: removal of patterns may not trigger sync transfers right away. " << endl;
+        os << "Consider: " << endl;
         os << " a) disable/reenable synchronizations manually" << endl;
         os << " b) restart MEGAcmd server" << endl;
-        os << " c) use --restart-syncs flag. Caveats:" << endl;
-        os << "  This will cause active transfers to be restarted" << endl;
-        os << "  In certain cases --restart-syncs might be unable to re-enable a synchronization. " << endl;
-        os << "  In such case, you will need to manually resume it or restart MEGAcmd server." << endl;
     }
     else if (!strcmp(command, "sync"))
     {
-        os << "Controls synchronizations" << endl;
+        os << "Controls synchronizations." << endl;
         os << endl;
-        os << "If no argument is provided, it lists current configured synchronizations" << endl;
+        os << "If no argument is provided, it lists current configured synchronizations." << endl;
         os << endl;
         os << "If provided local and remote paths, it will start synchronizing " << endl;
-        os << " a local folder into a remote folder" << endl;
+        os << " a local folder into a remote folder." << endl;
         os << endl;
         os << "If an ID/local path is provided, it will list such synchronization " << endl;
         os << " unless an option is specified." << endl;
         os << endl;
         os << "Options:" << endl;
-        os << "-d | --remove" << " " << "ID|localpath" << "\t" << "deletes a synchronization" << endl;
-        os << "-s | --disable" << " " << "ID|localpath" << "\t" << "stops(pauses) a synchronization" << endl;
-        os << "-r | --enable" << " " << "ID|localpath" << "\t" << "resumes a synchronization" << endl;
-        os << " --path-display-size=N" << "\t" << "Use at least N characters for displaying paths" << endl;
-        os << " --show-handles" << "\t" << "Prints remote nodes handles (H:XXXXXXXX)" << endl;
+        os << "-d | --remove" << " " << "ID|localpath" << "\t" << "deletes a synchronization." << endl;
+        os << "-s | --disable" << " " << "ID|localpath" << "\t" << "stops(pauses) a synchronization." << endl;
+        os << "-r | --enable" << " " << "ID|localpath" << "\t" << "resumes a synchronization." << endl;
+        os << " --path-display-size=N" << "\t" << "Use at least N characters for displaying paths." << endl;
+        os << " --show-handles" << "\t" << "Prints remote nodes handles (H:XXXXXXXX)." << endl;
         printColumnDisplayerHelp(os);
         os << endl;
         os << "DISPLAYED columns:" << endl;
-        os << " " << "ID: an unique identifier of the sync:" << endl;
-        os << " " << "LOCALPATH: local synced path" << endl;
-        os << " " << "REMOTEPATH: remote synced path (in MEGA):" << endl;
-        os << " " << "ACTIVE: Indication of activation status, possible values: " << endl;
-        os << " " << "\t" << "TempDisabled: Sync temporarily disabled: " << endl;
-        os << " " << "\t" << "Enabled: Sync active: the sync engine is working: " << endl;
-        os << " " << "\t" << "Disabled: Sync disabled by the user" << endl;
-        os << " " << "\t" << "Failed: Sync permanently disabled due to an error" << endl;
+        os << " " << "ID: an unique identifier of the sync." << endl;
+        os << " " << "LOCALPATH: local synced path." << endl;
+        os << " " << "REMOTEPATH: remote synced path (in MEGA)." << endl;
+        os << " " << "RUN_STATE: Indication of running state, possible values: " << endl;
+#define SOME_GENERATOR_MACRO(_, ShortName, Description) \
+    os << " " << "\t" << ShortName << ": " << Description << "." << endl;
+      GENERATE_FROM_SYNC_RUN_STATE(SOME_GENERATOR_MACRO)
+#undef SOME_GENERATOR_MACRO
         os << " " << "STATUS: State of the sync, possible values: " << endl;
-        os << " " << "\t" << "NONE: Status unknown: " << endl;
-        os << " " << "\t" << "Synced: synced, no transfers/pending actions are ongoing" << endl;
-        os << " " << "\t" << "Pending: sync engine is doing some calculations" << endl;
-        os << " " << "\t" << "Syncing: transfers/pending actions are being carried out" << endl;
-        os << " " << "ERROR: Error, if any: " << endl;
-        os << " " << "SIZE, FILE & DIRS: size, number of files and number of dirs in the remote folder" << endl;
+#define SOME_GENERATOR_MACRO(_, ShortName, Description) \
+    os << " " << "\t" << ShortName << ": " << Description << "." << endl;
+      GENERATE_FROM_SYNC_PATH_STATE(SOME_GENERATOR_MACRO)
+#undef SOME_GENERATOR_MACRO
+        os << " " << "ERROR: Error, if any." << endl;
+        os << " " << "SIZE, FILE & DIRS: size, number of files and number of dirs in the remote folder." << endl;
     }
     else if (!strcmp(command, "backup"))
     {
@@ -2542,6 +2566,9 @@ string getHelpStr(const char *command)
 #endif
         os << " -a" << "\t" << "Adds an export (or modifies it if existing)" << endl;
         os << " --writable" << "\t" << "Makes the exported folder writable" << endl;
+        os << " --mega-hosted" << "\t" << "The share key of this specific folder will be shared with MEGA." << endl;
+        os << "              " << "\t" << "This is intended to be used for folders accessible though MEGA's S4 service." << endl;
+        os << "              " << "\t" << "Encryption will occur nonetheless within MEGA's S4 service." << endl;
         os << " --password=PASSWORD" << "\t" << "Protects link with password. Please, avoid using passwords containing \" or '" << endl;
         os << " --expire=TIMEDELAY" << "\t" << "Determines the expiration time of a node." << endl;
         os << "                   " << "\t" << "   It indicates the delay in hours(h), days(d), " << endl;
@@ -2583,12 +2610,14 @@ string getHelpStr(const char *command)
         os << " of no option selected, it will display all the shares existing " << endl;
         os << " in the tree of that path" << endl;
         os << endl;
-        os << "When sharing a folder with a user that is not a contact (see \"users --help\")" << endl;
+        os << "When sharing a folder with a user that is not a contact (see \"" << commandPrefixBasedOnMode() << "users --help\")" << endl;
         os << "  the share will be in a pending state. You can list pending shares with" << endl;
-        os << " \"share -p\". He would need to accept your invitation (see \"ipc\")" << endl;
+        os << " \"share -p\". He would need to accept your invitation (see \"" << commandPrefixBasedOnMode() << "ipc\")" << endl;
+        os << endl;
+        os << "Sharing folders will require contact verification (see \"" << commandPrefixBasedOnMode() << "users --help-verify\")" << endl;
         os << endl;
         os << "If someone has shared something with you, it will be listed as a root folder" << endl;
-        os << " Use \"mount\" to list folders shared with you" << endl;
+        os << " Use \"" << commandPrefixBasedOnMode() << "mount\" to list folders shared with you" << endl;
     }
     else if (!strcmp(command, "invite"))
     {
@@ -2612,9 +2641,9 @@ string getHelpStr(const char *command)
         os << " -d" << "\t" << "Rejects invitation" << endl;
         os << " -i" << "\t" << "Ignores invitation [WARNING: do not use unless you know what you are doing]" << endl;
         os << endl;
-        os << "Use \"invite\" to send/remove invitations to other users" << endl;
-        os << "Use \"showpcr\" to browse incoming/outgoing invitations" << endl;
-        os << "Use \"users\" to see contacts" << endl;
+        os << "Use \"" << commandPrefixBasedOnMode() << "invite\" to send/remove invitations to other users" << endl;
+        os << "Use \"" << commandPrefixBasedOnMode() << "showpcr\" to browse incoming/outgoing invitations" << endl;
+        os << "Use \"" << commandPrefixBasedOnMode() << "users\" to see contacts" << endl;
     }
     if (!strcmp(command, "masterkey"))
     {
@@ -2637,24 +2666,33 @@ string getHelpStr(const char *command)
         os << " --out" << "\t" << "Shows outgoing invitations" << endl;
         printTimeFormatHelp(os);
         os << endl;
-        os << "Use \"ipc\" to manage invitations received" << endl;
-        os << "Use \"users\" to see contacts" << endl;
+        os << "Use \"" << commandPrefixBasedOnMode() << "ipc\" to manage invitations received" << endl;
+        os << "Use \"" << commandPrefixBasedOnMode() << "users\" to see contacts" << endl;
     }
     else if (!strcmp(command, "users"))
     {
         os << "List contacts" << endl;
         os << endl;
         os << "Options:" << endl;
+        os << " -d" << "\tcontact@email   " << "\t" << "Deletes the specified contact." << endl;
+        os << "--help-verify              " << "\t" << "Prints general information regarding contact verification." << endl
+           << "--help-verify contact@email" << "\t" << "This will show credentials of both own user and contact" << endl
+           << "                           " << "\t" << " and instructions in order to proceed with the verifcation." << endl;
+        os << "--verify contact@email     " << "\t" << "Verifies contact@email."  << endl
+           << "                           " << "\t" << " CAVEAT: First you would need to manually ensure credentials match!" << endl;
+        os << "--unverify contact@email   " << "\t" << "Sets contact@email as no longer verified. New shares with that user " << endl
+           << "                           " << "\t" << " will require verification." << endl;
+        os << "Listing Options:" << endl;
         os << " -s" << "\t" << "Show shared folders with listed contacts" << endl;
         os << " -h" << "\t" << "Show all contacts (hidden, blocked, ...)" << endl;
         os << " -n" << "\t" << "Show users names" << endl;
-        os << " -d" << "\tcontact@email " << "Deletes the specified contact" << endl;
+
         printTimeFormatHelp(os);
         os << endl;
-        os << "Use \"invite\" to send/remove invitations to other users" << endl;
-        os << "Use \"showpcr\" to browse incoming/outgoing invitations" << endl;
-        os << "Use \"ipc\" to manage invitations received" << endl;
-        os << "Use \"users\" to see contacts" << endl;
+        os << "Use \"" << commandPrefixBasedOnMode() << "invite\" to send/remove invitations to other users" << endl;
+        os << "Use \"" << commandPrefixBasedOnMode() << "showpcr\" to browse incoming/outgoing invitations" << endl;
+        os << "Use \"" << commandPrefixBasedOnMode() << "ipc\" to manage invitations received" << endl;
+        os << "Use \"" << commandPrefixBasedOnMode() << "users\" to see contacts" << endl;
     }
     else if (!strcmp(command, "speedlimit"))
     {
@@ -2776,6 +2814,7 @@ string getHelpStr(const char *command)
         os << "Options:" << endl;
         os << " --pattern=PATTERN" << "\t" << "Pattern to match";
         os << " (" << getsupportedregexps() << ") " << endl;
+        os << " --type=d|f           " << "\t" << "Determines type. (d) for folder, f for files" << endl;
         os << " --mtime=TIMECONSTRAIN" << "\t" << "Determines time constrains, in the form: [+-]TIMEVALUE" << endl;
         os << "                      " << "\t" << "  TIMEVALUE may include hours(h), days(d), minutes(M)," << endl;
         os << "                      " << "\t" << "   seconds(s), months(m) or years(y)" << endl;
@@ -2791,6 +2830,7 @@ string getHelpStr(const char *command)
         os << "                      " << "\t" << "   \"-3M\" shows files smaller than 3 Megabytes" << endl;
         os << "                      " << "\t" << "   \"-4M+100K\" shows files smaller than 4 Mbytes and bigger than 100 Kbytes" << endl;
         os << " --show-handles" << "\t" << "Prints files/folders handles (H:XXXXXXXX). You can address a file/folder by its handle" << endl;
+        os << " --print-only-handles" << "\t" << "Prints only files/folders handles (H:XXXXXXXX). You can address a file/folder by its handle" << endl;
 #ifdef USE_PCRE
         os << " --use-pcre" << "\t" << "use PCRE expressions" << endl;
 #endif
@@ -4435,57 +4475,6 @@ void printWelcomeMsg()
 
 }
 
-#ifdef __MACH__
-
-
-bool enableSetuidBit()
-{
-    char *response = runWithRootPrivileges("do shell script \"chown root /Applications/MEGAcmd.app/Contents/MacOS/MEGAcmdLoader && chmod 4755 /Applications/MEGAcmd.app/Contents/MacOS/MEGAcmdLoader && echo true\"");
-    if (!response)
-    {
-        return NULL;
-    }
-    bool result = strlen(response) >= 4 && !strncmp(response, "true", 4);
-    delete response;
-    return result;
-}
-
-
-void initializeMacOSStuff(int argc, char* argv[])
-{
-#ifndef NDEBUG
-        return;
-#endif
-
-    int fd = -1;
-    if (argc)
-    {
-        long int value = strtol(argv[argc-1], NULL, 10);
-        if (value > 0 && value < INT_MAX)
-        {
-            fd = value;
-        }
-    }
-
-    if (fd < 0)
-    {
-        if (!enableSetuidBit())
-        {
-            ::exit(0);
-        }
-
-        //Reboot
-        if (fork() )
-        {
-            execv("/Applications/MEGAcmd.app/Contents/MacOS/MEGAcmdLoader",argv);
-        }
-        sleep(10);
-        ::exit(0);
-    }
-}
-
-#endif
-
 string getLocaleCode()
 {
 #if defined(_WIN32) && defined(LOCALE_SISO639LANGNAME)
@@ -4907,7 +4896,6 @@ void reset()
     setBlocked(false);
 }
 
-
 #ifdef _WIN32
 void uninstall()
 {
@@ -4984,15 +4972,6 @@ int main(int argc, char* argv[])
     mcmdMainArgv = argv;
     mcmdMainArgc = argc;
 
-#ifdef __MACH__
-    initializeMacOSStuff(argc,argv);
-#endif
-
-    NullBuffer null_buffer;
-    std::ostream null_stream(&null_buffer);
-#ifndef ENABLE_LOG_PERFORMANCE
-    SimpleLogger::setAllOutputs(&null_stream);
-#endif
     SimpleLogger::setLogLevel(logMax); // do not filter anything here, log level checking is done by loggerCMD
 
     loggerCMD = new MegaCMDLogger();
@@ -5093,28 +5072,7 @@ int main(int argc, char* argv[])
 
     LOG_debug << "MEGAcmd version: " << MEGACMD_MAJOR_VERSION << "." << MEGACMD_MINOR_VERSION << "." << MEGACMD_MICRO_VERSION << "." << MEGACMD_BUILD_ID << ": code " << MEGACMD_CODE_VERSION;
 
-#if defined(__MACH__) && defined(ENABLE_SYNC)
-    int fd = -1;
-    if (argc)
-    {
-        long int value = strtol(argv[argc-1], NULL, 10);
-        if (value > 0 && value < INT_MAX)
-        {
-            fd = value;
-        }
-    }
-
-    if (fd >= 0)
-    {
-        api = new MegaApi("BdARkQSQ", ConfigurationManager::getConfigFolder().c_str(), userAgent, fd);
-    }
-    else
-    {
-        api = new MegaApi("BdARkQSQ", (MegaGfxProcessor*)NULL, ConfigurationManager::getConfigFolder().c_str(), userAgent);
-    }
-#else
     api = new MegaApi("BdARkQSQ", (MegaGfxProcessor*)NULL, ConfigurationManager::getConfigFolder().c_str(), userAgent);
-#endif
 
     if (setapiurl)
     {
@@ -5126,7 +5084,9 @@ int main(int argc, char* argv[])
 
     for (int i = 0; i < 5; i++)
     {
-        MegaApi *apiFolder = new MegaApi("BdARkQSQ", (MegaGfxProcessor*)NULL, (const char*)NULL, userAgent);
+        MegaApi *apiFolder = new MegaApi("BdARkQSQ", (MegaGfxProcessor*)NULL,
+                                         ConfigurationManager::getConfFolderSubdir(std::string("apiFolder_").append(std::to_string(i))).c_str()
+                                         , userAgent);
         apiFolder->setLanguage(localecode.c_str());
         apiFolders.push(apiFolder);
         apiFolder->setLogLevel(MegaApi::LOG_LEVEL_MAX);
@@ -5229,7 +5189,7 @@ int main(int argc, char* argv[])
         api->sendEvent(MCMD_EVENT_UPDATE_ID,MCMD_EVENT_UPDATE_MESSAGE);
         stringstream ss;
         ss << "MEGAcmd has been updated to version " << MEGACMD_MAJOR_VERSION << "." << MEGACMD_MINOR_VERSION << "." << MEGACMD_MICRO_VERSION << "." << MEGACMD_BUILD_ID << " - code " << MEGACMD_CODE_VERSION << endl;
-        broadcastMessage(ss.str() ,true);
+        broadcastMessage(ss.str(), true);
     }
 
     if (!ConfigurationManager::session.empty())
