@@ -2596,7 +2596,7 @@ string getHelpStr(const char *command)
 #ifdef USE_PCRE
         os << " --use-pcre" << "\t" << "use PCRE expressions" << endl;
 #endif
-        os << " -p" << "\t" << "Show pending shares" << endl;
+        os << " -p" << "\t" << "Show pending shares too" << endl;
         os << " --with=email" << "\t" << "Determines the email of the user to [no longer] share with" << endl;
         os << " -d" << "\t" << "Stop sharing with the selected user" << endl;
         os << " -a" << "\t" << "Adds a share (or modifies it if existing)" << endl;
