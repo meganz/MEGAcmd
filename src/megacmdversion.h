@@ -8,7 +8,7 @@
 #define MEGACMD_MINOR_VERSION 6
 #endif
 #ifndef MEGACMD_MICRO_VERSION
-#define MEGACMD_MICRO_VERSION 0
+#define MEGACMD_MICRO_VERSION 1
 #endif
 
 #ifndef MEGACMD_BUILD_ID
@@ -21,12 +21,8 @@
 namespace megacmd {
 
 const char * const megacmdchangelog =
-        "Improvements in \"find\" to search by type, or print only handles (to ease automation)""\n"
-        "Improved state management and reporting in synchronizations""\n"
-        "Improved information on shares""\n"
-        "Improvements in \"attr\"""\n"
-        "Security adjustments""\n"
-        "Other fixes and adjustments"
+        "Ease establishing shares""\n"
+        "Improvements shares management"
         ;
 
 }//end namespace

@@ -1,3 +1,9 @@
+Thu Mar 9 19:15:04 CET 2023 - linux@mega.co.nz
+- Update to version 1.6.1:
+  * Ease establishing shares
+  * Improvements shares management
+
+-------------------------------------------------------------------
 Wed Mar 1 13:26:37 CET 2023 - linux@mega.co.nz
 - Update to version 1.6.0:
   * Improvements in "find" to search by type, or print only handles (to ease automation)

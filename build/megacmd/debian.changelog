@@ -1,3 +1,10 @@
+megacmd (1.6.1) stable; urgency=low
+
+  * Ease establishing shares
+  * Improvements shares management
+
+ -- MEGA Team <linux@mega.co.nz>  Thu, 09 Mar 2023 19:15:04 +0100
+
 megacmd (1.6.0) stable; urgency=low
 
   * Improvements in "find" to search by type, or print only handles (to ease automation)
