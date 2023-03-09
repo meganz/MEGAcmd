@@ -2021,6 +2021,8 @@ void printOutShareInfo(const char *pathOrName, const char *email, int accessLeve
  */
 void MegaCmdExecuter::listnodeshares(MegaNode* n, string name, bool listPending = false, bool onlyPending = false)
 {
+    assert(listPending || !onlyPending);
+
     auto printOutShares = [n, &name](MegaShareList * outShares, bool skipPending = false)
     {
         if (outShares)
@@ -2413,9 +2415,14 @@ void MegaCmdExecuter::verifySharedFolders(MegaApi *api)
     }
     {
         std::unique_ptr<MegaShareList> shares(api->getUnverifiedOutShares());
-        if (shares && shares->size())
+
+        for (int i = 0; shares && i < shares->size(); i++)
         {
-            broadcastMessage(getInstructionsNeedsVerification("You are sharing a folder with some unverified contact"), true);
+            if (!shares->get(i)->isPending())
+            {
+                broadcastMessage(getInstructionsNeedsVerification("You are sharing a folder with some unverified contact"), true);
+                return;
+            }
         }
     }
 }
