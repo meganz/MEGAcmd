@@ -11,7 +11,7 @@ FPDFIUM := $(shell dpkg --print-architecture | grep -i "i386\|arm" >/dev/null &&
 RPDFIUM := $(shell dpkg --print-architecture | grep -i "i386\|arm" >/dev/null && echo "" || echo '-DREQUIRE_HAVE_PDFIUM')
 INSTALL3RD := $(shell dpkg --print-architecture | grep -i "i386\|arm" >/dev/null && echo "" || echo 'install3rd')
 LDFLAGS := $(shell dpkg --print-architecture | grep -i "i386\|arm" >/dev/null && echo "" || echo "$$LDFLAGS -Wl,-rpath,/opt/megacmd/lib")
-DEB_TESTING := $(shell cat /etc/issue | grep "Debian" > /dev/null && cat /etc/apt/sources.list | grep -v "^\#" | grep testing > /dev/null && echo "testing")
+DEB_TESTING := $(shell cat /etc/issue | grep "Debian" > /dev/null && cat /etc/apt/sources.list.d/debian.sources | grep -v "^\#" | grep testing > /dev/null && echo "testing")
 
 MEGA_BUILD_ID := $(shell cat MEGA_BUILD_ID || echo "1")
 
