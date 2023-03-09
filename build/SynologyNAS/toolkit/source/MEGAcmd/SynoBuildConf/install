@@ -17,12 +17,21 @@ create_inner_tarball() {
     ### clear destination directory
     rm -rf $inner_tarball_dir && mkdir -p $inner_tarball_dir
 
-    cd MEGAcmd
+    pushd MEGAcmd
 
-    cp mega-cmd mega-exec mega-cmd-server "$inner_tarball_dir"
-    cp src/client/mega-* "$inner_tarball_dir"
+    cp mega-cmd \
+       mega-cmd-server \
+       mega-exec \
+       src/client/mega-* \
+       "$inner_tarball_dir"
 
-    cd ..
+    if [ -x "sdk/tests/test_integration" ]; then
+        cp sdk/tests/test_integration \
+           sdk/tests/test_unit \
+           "$inner_tarball_dir"
+    fi
+
+    popd
 
     ### create package.txz: $1=source_dir, $2=dest_dir
     pkg_make_package $inner_tarball_dir "${PKG_DIR}"

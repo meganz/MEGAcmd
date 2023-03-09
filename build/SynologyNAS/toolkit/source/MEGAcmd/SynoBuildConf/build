@@ -1,275 +1,217 @@
-# SynoBuildConf/build
+#!/usr/bin/env bash
 
-mkdir -p MEGAcmd/sdk/sdk_build/install/lib
+apply_patches()
+{
+    test -d /tmp/megapatches || return
 
-AUTOMAKE_OPTIONS="no-dependencies"
+    for patch in $(ls /tmp/megapatches/* 2> /dev/null); do
+        patch -d / -i $patch -p 0 || return
+    done
+}
 
-#achine=armada38x for DS218j.  This variable short-circuits ./config for those projects that use it.
-export MACHINE=$PLATFORM_ABBR
-export CUSTOM_CONFIG_ARGS="$ConfigOpt"
-export SPECIAL_OPENSSL_CONFIG_PARAMS=""
+build_cmd()
+{
+    pushd MEGAcmd || return
 
-export CC=$CC
-export CXX=$CXX
-export LD=$LD
-export CFLAGS="$CFLAGS -O2 -fexceptions -fvisibility=hidden -static"
-export CPPFLAGS="$CPPFLAGS -DNDEBUG"
-export CXXFLAGS="-std=c++14 -Wno-psabi $CFLAGS -DNDEBUG -DENABLE_BACKUPS -DMEGACMD_USERAGENT_SUFFIX=QNAP -DHAVE_LIBUV"
-export AR=$AR
-export NM=$NM
-export STRIP=$STRIP
-export RANLIB=$RANLIB
-export OBJDUMP=$OBJDUMP
-export LDFLAGS=$LDFLAGS
-export ConfigOpt=$ConfigOpt
-export ARCH=$ARCH
-export SYNO_PLATFORM=$SYNO_PLATFORM
-export DSM_SHLIB_MAJOR=$DSM_SHLIB_MAJOR
-export DSM_SHLIB_MINOR=$DSM_SHLIB_MINOR
-export DSM_SHLIB_NUM=$DSM_SHLIB_NUM
-export ToolChainSysRoot=$ToolChainSysRoot
-export SysRootPrefix=$SysRootPrefix
-export SysRootInclude=$SysRootInclude
-export SysRootLib=$SysRootLib
+    local prefix="$PWD/sdk/sdk_build/install"
+    local flag_gtest="--with-gtest=$prefix"
+    local flag_freeimage="--with-freeimage=$prefix"
+    local flag_tests="--enable-tests"
+    local result=0
 
-#sdk configure doesn't like defines in the CFLAGS.  Nor does it like -I include paths.  We can move those to CPPFLAGS for the preprocessor
-echo $0
-echo "CFLAGS was $CFLAGS"
-echo "CPPFLAGS was $CPPFLAGS"
-export defines=`echo $CFLAGS | grep -o -- '-D[^ ][^ ]*' | tr "\n" " " `
-export includes=`echo $CFLAGS | grep -o -- '-I[^ ][^ ]*' | tr "\n" " " `
-echo "defines:$defines"
-echo "includes:$includes"
-export CPPFLAGS="$CPPFLAGS $defines $includes"
-export defines=
-export includes=
-export CFLAGS=`echo $CFLAGS | sed -e 's/-D[^ ][^ ]*//g' `
-export CFLAGS=`echo $CFLAGS | sed -e 's/-I[^ ][^ ]*//g' `
-echo "CFLAGS now $CFLAGS"
-echo "CPPFLAGS now $CPPFLAGS"
+    ./autogen.sh
 
-suppress_freeimage_flag=""
+    result=$?
 
-echo "BUILD_ARCH: $BUILD_ARCH"
+    if [ $result -ne 0 ]; then
+        popd
+        return $result
+    fi
 
-#we need to specify the platform specially for OpenSSL
-if [ $BUILD_ARCH -eq 32 ] ; then
-  export OS_COMPILER_FOR_OPENSSL=linux-generic32
-else
-  export OS_COMPILER_FOR_OPENSSL=linux-generic64
-fi
+    use_freeimage || flag_freeimage="--without-freeimage"
 
-# Strip packager's home directory from system .la files
-find /usr -type f -name '*.la' \
-    | xargs sed -i -e 's!\(/[^/]\+\)\+\(/usr.*\)!\2!g'
+    if ! use_gtest; then
+        flag_gtest="--without-gtest"
+        flag_tests="--disable-tests"
+    fi
 
-find /usr -type f -name '*.la' \
-    | xargs sed -i -e 's!/home/cpt/hi3535/x-tools!/usr/local!g'
+    env AR=$AR \
+        ARCH=$ARCH \
+        CC=$CC \
+        CFLAGS="$(compiler_flags $CFLAGS)" \
+        CPPFLAGS="$(preprocessor_flags $CFLAGS $CPPFLAGS)" \
+        CXX=$CXX \
+        CXXFLAGS="$(compiler_flags -std=c++14 $CXXFLAGS)" \
+        LD=$LD \
+        NM=$NM \
+        OBJCXX=$CXX \
+        OBJDUMP=$OBJDUMP \
+        RANLIB=$RANLIB \
+        STRIP=$STRIP \
+      ./configure $ConfigOpt \
+                  --disable-curl-checks \
+                  --disable-examples \
+                  --disable-shared \
+                  --enable-inotify \
+                  --enable-static \
+                  --enable-sync \
+                  --with-cares="$prefix" \
+                  --with-cryptopp="$prefix" \
+                  --with-curl="$prefix" \
+                  --with-libmediainfo="$prefix" \
+                  --with-libuv="$prefix" \
+                  --with-libzen="$prefix" \
+                  --with-openssl="$prefix" \
+                  --with-readline="$prefix" \
+                  --with-sodium="$prefix" \
+                  --with-sqlite="$prefix" \
+                  --with-termcap="$prefix" \
+                  --with-zlib="$prefix" \
+                  --without-ffmpeg \
+                  --without-libraw \
+                  --without-pcre \
+                  --without-pdfium \
+                  $flag_gtest \
+                  $flag_freeimage \
+                  $flag_tests
 
-# Some platforms require us to explicitly link against libstdc++fs in
-# order to make use of the C++17 filesystem library.
-LIBSTDCXXFS='-lstdc++fs'
+    result=$?
 
-case $PLATFORM_ABBR in
-6281)
-  # it doens't like -std=c++11
-  export CXXFLAGS=`echo $CXXFLAGS | sed -e 's/-std=c[^ ]+11//g' `
-  ;;
-armada37xx)
-  export CFLAGS=`echo $CFLAGS | sed -e 's/-mfpu=neon[^ ]*//g' `
-  export CXXFLAGS=`echo $CXXFLAGS | sed -e 's/-mfpu=neon[^ ]*//g' `
-  ;;
-armada38x)
-  ;;
-armadaxp)
-  ;;
-cedarview)
-  export SPECIAL_OPENSSL_CONFIG_PARAMS="no-asm"
-  ;;
-comcerto2k)
-  #freeimage tries to use an undefined symbol if it uses neon
-  export CFLAGS=`echo $CFLAGS | sed -e 's/-mfpu=neon[^ ]*//g' `
-  export CXXFLAGS=`echo $CXXFLAGS | sed -e 's/-mfpu=neon[^ ]*//g' `
-  LIBSTDCXXFS=""
-  ;;
-braswell)
-  export SPECIAL_OPENSSL_CONFIG_PARAMS="no-asm"
-  ;;
-broadwell)
-  export SPECIAL_OPENSSL_CONFIG_PARAMS="no-asm"
-  ;;
-bromolow)
-  export SPECIAL_OPENSSL_CONFIG_PARAMS="no-asm"
-  ;;
-x64)
-  export SPECIAL_OPENSSL_CONFIG_PARAMS="no-asm"
-  ;;
-alpine)
-  #freeimage tries to use an undefined symbol if it uses neon
-  export CFLAGS=`echo $CFLAGS | sed -e 's/-mfpu=neon[^ ]*//g' `
-  export CXXFLAGS=`echo $CXXFLAGS | sed -e 's/-mfpu=neon[^ ]*//g' `
-  ;;
-alpine4k)
-  #freeimage tries to use an undefined symbol if it uses neon
-  export CFLAGS=`echo $CFLAGS | sed -e 's/-mfpu=neon[^ ]*//g' `
-  export CXXFLAGS=`echo $CXXFLAGS | sed -e 's/-mfpu=neon[^ ]*//g' `
-  ;;
-avoton)
-  export SPECIAL_OPENSSL_CONFIG_PARAMS="no-asm"
-  ;;
-denverton)
-  export SPECIAL_OPENSSL_CONFIG_PARAMS="no-asm"
-  ;;
-dockerx64)
-  export SPECIAL_OPENSSL_CONFIG_PARAMS="no-asm"
-  ;;
-grantley)
-  export SPECIAL_OPENSSL_CONFIG_PARAMS="no-asm"
-  ;;
-kvmx64)
-  export SPECIAL_OPENSSL_CONFIG_PARAMS="no-asm"
-  ;;
-monaco)
-  #freeimage tries to use an undefined symbol if it uses neon
-  export CFLAGS=`echo $CFLAGS | sed -e 's/-mfpu=neon[^ ]*//g' `
-  export CXXFLAGS=`echo $CXXFLAGS | sed -e 's/-mfpu=neon[^ ]*//g' `
-  ;;
-qoriq)
-  suppress_freeimage_flag="-f"
-  ;;
-rtd1296)
-  #freeimage tries to use an undefined symbol if it uses neon
-  export CFLAGS=`echo $CFLAGS | sed -e 's/-mfpu=neon[^ ]*//g' `
-  export CXXFLAGS=`echo $CXXFLAGS | sed -e 's/-mfpu=neon[^ ]*//g' `
-  ;;
-apollolake)
-  export SPECIAL_OPENSSL_CONFIG_PARAMS="no-asm"
-  ;;
-esac
+    if [ $result -ne 0 ]; then
+        popd
+        return $result
+    fi
 
+    make
 
-echo "after platform adjustments CFLAGS now $CFLAGS"
-echo "after platform adjustments CPPFLAGS now $CPPFLAGS"
+    result=$?
 
+    popd
 
-echo ---------- env set up --------------------
-env
-echo ---------- env set up --------------------
+    return $result
+}
 
+build_sdk()
+{
+    local flag_configure_only="-c"
+    local flag_cross_compiling="-X"
+    local flag_disable_examples="-n"
+    local flag_disable_freeimage=""
+    local flag_enable_cares="-e"
+    local flag_enable_cryptopp="-q"
+    local flag_enable_curl="-g"
+    local flag_enable_megaapi="-a"
+    local flag_enable_sodium="-u"
+    local flag_enable_tests="-T"
+    local flag_enable_uv="-v"
+    local flag_openssl_assembly=""
+    local flag_openssl_compiler="linux-generic$BUILD_ARCH"
+    local result=0
 
-cd MEGAcmd/sdk
-pwd
+    pushd MEGAcmd/sdk || return
 
-mkdir -p norecurse
-mv norecurse/* .
+    mkdir -p sdk_build/build || return
+    mkdir -p sdk_build/install/lib || return
 
-./contrib/build_sdk.sh -a -e $suppress_freeimage_flag -g -I -n -q -R -u -v -X -0 -C "$CUSTOM_CONFIG_ARGS" -O $OS_COMPILER_FOR_OPENSSL -S "$SPECIAL_OPENSSL_CONFIG_PARAMS" |& tee /mybuildlogs-sdkbuild.out
+    use_assembly  || flag_openssl_assembly="no-asm"
+    use_gtest     || flag_enable_tests=""
+    use_freeimage || flag_disable_freeimage="-f"
 
-if ! [ -e ./src/libmega.la ] ; then
-   echo "SDK build failed"
-   exit 1
-fi
+    env AR=$AR \
+        ARCH=$ARCH \
+        CC=$CC \
+        CFLAGS="$(compiler_flags $CFLAGS)" \
+        CPPFLAGS="$(preprocessor_flags $CFLAGS $CPPFLAGS)" \
+        CXX=$CXX \
+        CXXFLAGS="$(compiler_flags $CXXFLAGS)" \
+        LD=$LD \
+        NM=$NM \
+        OBJCXX=$CXX \
+        OBJDUMP=$OBJDUMP \
+        RANLIB=$RANLIB \
+        STRIP=$STRIP \
+      ./contrib/build_sdk.sh -C "$ConfigOpt" \
+                             -O "$flag_openssl_compiler" \
+                             -S "$flag_openssl_assembly" \
+                             $flag_configure_only \
+                             $flag_cross_compiling \
+                             $flag_disable_examples \
+                             $flag_disable_freeimage \
+                             $flag_enable_cares \
+                             $flag_enable_cryptopp \
+                             $flag_enable_curl \
+                             $flag_enable_megaapi \
+                             $flag_enable_sodium \
+                             $flag_enable_tests \
+                             $flag_enable_uv
 
-mv ./Makefile* norecurse
-mv ./config* norecurse
-cd ..
+    local result=$?
 
-echo -------------------------------------------------------- sdk end --------------------------------------
-echo about to build megacmd ---------------------------
+    popd
 
-freeimagelib=${suppress_freeimage_flag:-"sdk/sdk_build/install/lib/libfreeimage.a"}
-freeimagelib=${freeimagelib/-f/-lz}
+    return $result
+}
 
-export CXXFLAGS="$CXXFLAGS -I$PWD/sdk/sdk_build/install/include"
-export CXXFLAGS="$CXXFLAGS -I$PWD/sdk/include"
-export CXXFLAGS="$CXXFLAGS -I$PWD/sdk/include/mega/posix"
+die()
+{
+    echo "ERROR: $1"
+    exit 1
+}
 
-$CXX $CXXFLAGS \
-     src/megacmd.cpp \
-     src/comunicationsmanager.cpp \
-     src/megacmdutils.cpp \
-     src/megacmdcommonutils.cpp \
-     src/configurationmanager.cpp \
-     src/megacmdlogger.cpp \
-     src/megacmdsandbox.cpp \
-     src/listeners.cpp \
-     src/megacmdexecuter.cpp \
-     src/megacmdtransfermanager.cpp \
-     src/comunicationsmanagerportsockets.cpp \
-     src/comunicationsmanagerfilesockets.cpp \
-     sdk/sdk_build/install/lib/libmega.a \
-     sdk/sdk_build/install/lib/libcryptopp.a \
-     sdk/sdk_build/install/lib/libcurl.a \
-     sdk/sdk_build/install/lib/libcares.a \
-     sdk/sdk_build/install/lib/libssl.a \
-     sdk/sdk_build/install/lib/libcrypto.a \
-     sdk/sdk_build/install/lib/libsqlite3.a \
-     $freeimagelib \
-     sdk/sdk_build/install/lib/libmediainfo.a \
-     sdk/sdk_build/install/lib/libzen.a \
-     sdk/sdk_build/install/lib/libuv.a \
-     -pthread \
-     -latomic \
-     ${LIBSTDCXXFS} \
-     -ldl \
-     -lrt \
-     sdk/sdk_build/install/lib/libsodium.a \
-     sdk/sdk_build/install/lib/libz.a \
-     -o mega-cmd-server || exit -1
+compiler_flags()
+{
+    local result="$*"
 
-$CXX $CXXFLAGS \
-     src/megacmdcommonutils.cpp \
-     src/megacmdshell/*.cpp \
-     sdk/sdk_build/install/lib/libmega.a \
-     sdk/sdk_build/install/lib/libcryptopp.a \
-     sdk/sdk_build/install/lib/libcurl.a \
-     sdk/sdk_build/install/lib/libcares.a \
-     sdk/sdk_build/install/lib/libssl.a \
-     sdk/sdk_build/install/lib/libcrypto.a \
-     sdk/sdk_build/install/lib/libsqlite3.a \
-     -pthread \
-     -latomic \
-     ${LIBSTDCXXFS} \
-     -ldl \
-     -lrt \
-     sdk/sdk_build/install/lib/libz.a \
-     sdk/sdk_build/install/lib/libreadline.a \
-     sdk/sdk_build/install/lib/libtermcap.a \
-     -o mega-cmd || exit -1
+    # Strip preprocessor flags.
+    result="$(echo $result | sed -e 's/ *-[DI][^ ]\+//g')"
 
-$CXX $CXXFLAGS \
-     src/megacmdcommonutils.cpp \
-     src/client/*.cpp \
-     src/megacmdshell/megacmdshellcommunications.cpp \
-     sdk/sdk_build/install/lib/libmega.a \
-     sdk/sdk_build/install/lib/libcryptopp.a \
-     sdk/sdk_build/install/lib/libcurl.a \
-     sdk/sdk_build/install/lib/libcares.a \
-     sdk/sdk_build/install/lib/libssl.a \
-     sdk/sdk_build/install/lib/libcrypto.a \
-     sdk/sdk_build/install/lib/libsqlite3.a \
-     -pthread \
-     -latomic \
-     ${LIBSTDCXXFS} \
-     -ldl \
-     -lrt \
-     sdk/sdk_build/install/lib/libz.a \
-     -o mega-exec || exit -1
- 
-echo "final return code: $?"
-echo "outputs should be 3 files: mega-cmd mega-cmd-server mega-exec.  ls output: "
-ls mega-*
+    # Strip NEON flags (as it breaks freeimage.)
+    result="$(echo $result | sed -e 's/-mfpu=neon[^ ]*//g')"
 
-echo checkiing we build the right 32/64bit target
-export built_arch=`file mega-exec | grep -o "[0-9]*-bit" `
+    # GCC's ARM ABI changed between 7.0 and 7.1.
+    result="$result -Wno-psabi"
 
-if [ "$built_arch" == "$BUILD_ARCH-bit" ] ; then
-    echo "Correct buildarch: $BUILD_ARCH"
-else
-    echo "wrong buildarch: $BUILD_ARCH"
-    file mega-exec 
-    rm mega-exec
-fi
+    echo "$result"
+}
 
-exit 0
+fix_environment()
+{
+    find /usr -type f -name '*.la' \
+        | xargs sed -i -e 's!\(/[^/]\+\)\+\(/usr.*\)!\2!g'
+
+    find /usr -type f -name '*.la' \
+        | xargs sed -i -e 's!/home/cpt/hi3535/x-tools!/usr/local!g'
+}
+
+preprocessor_flags()
+{
+    echo "$*" | grep -o -E -- '-[DI][^ ]+' | xargs
+}
+
+use_assembly()
+{
+    # kvmx64 doesn't support AESNI instructions.
+    test "$PLATFORM_ABBR" != "kvmx64" \
+         -a "$PLATFORM_ABBR" != "apollolake"
+}
+
+use_gtest()
+{
+    # The comcerto toolchain doesn't support all of C++11.
+    test "$PLATFORM_ABBR" != "comcerto2k"
+}
+
+use_freeimage()
+{
+    true
+}
+
+printenv
+
+apply_patches || die "Couldn't apply SDK patches"
+
+fix_environment
+
+build_sdk || die "Couldn't build the SDK"
+build_cmd || die "Couldn't build MEGAcmd"
 

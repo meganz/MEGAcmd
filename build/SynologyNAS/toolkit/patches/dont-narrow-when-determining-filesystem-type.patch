@@ -1,0 +1,75 @@
+--- /source/MEGAcmd/MEGAcmd/sdk/src/posix/fs.cpp	2023-03-10 12:08:15.194850748 +1300
++++ /tmp/fs.cpp	2023-03-10 14:03:58.700180814 +1300
+@@ -50,51 +50,51 @@
+ #include <sys/vfs.h>
+ 
+ #ifndef FUSEBLK_SUPER_MAGIC
+-#define FUSEBLK_SUPER_MAGIC 0x65735546
++#define FUSEBLK_SUPER_MAGIC 0x65735546ul
+ #endif /* ! FUSEBLK_SUPER_MAGIC */
+ 
+ #ifndef FUSECTL_SUPER_MAGIC
+-#define FUSECTL_SUPER_MAGIC 0x65735543
++#define FUSECTL_SUPER_MAGIC 0x65735543ul
+ #endif /* ! FUSECTL_SUPER_MAGIC */
+ 
+ #ifndef HFS_SUPER_MAGIC
+-#define HFS_SUPER_MAGIC 0x4244
++#define HFS_SUPER_MAGIC 0x4244ul
+ #endif /* ! HFS_SUPER_MAGIC */
+ 
+ #ifndef HFSPLUS_SUPER_MAGIC
+-#define HFSPLUS_SUPER_MAGIC 0x482B
++#define HFSPLUS_SUPER_MAGIC 0x482Bul
+ #endif /* ! HFSPLUS_SUPER_MAGIC */
+ 
+ #ifndef NTFS_SB_MAGIC
+-#define NTFS_SB_MAGIC 0x5346544E
++#define NTFS_SB_MAGIC 0x5346544Eul
+ #endif /* ! NTFS_SB_MAGIC */
+ 
+ #ifndef SDCARDFS_SUPER_MAGIC
+-#define SDCARDFS_SUPER_MAGIC 0x5DCA2DF5
++#define SDCARDFS_SUPER_MAGIC 0x5DCA2DF5ul
+ #endif /* ! SDCARDFS_SUPER_MAGIC */
+ 
+ #ifndef F2FS_SUPER_MAGIC
+-#define F2FS_SUPER_MAGIC 0xF2F52010
++#define F2FS_SUPER_MAGIC 0xF2F52010ul
+ #endif /* ! F2FS_SUPER_MAGIC */
+ 
+ #ifndef XFS_SUPER_MAGIC
+-#define XFS_SUPER_MAGIC 0x58465342
++#define XFS_SUPER_MAGIC 0x58465342ul
+ #endif /* ! XFS_SUPER_MAGIC */
+ 
+ #ifndef CIFS_MAGIC_NUMBER
+-#define CIFS_MAGIC_NUMBER 0xFF534D42
++#define CIFS_MAGIC_NUMBER 0xFF534D42ul
+ #endif // ! CIFS_MAGIC_NUMBER
+ 
+ #ifndef NFS_SUPER_MAGIC
+-#define NFS_SUPER_MAGIC 0x6969
++#define NFS_SUPER_MAGIC 0x6969ul
+ #endif // ! NFS_SUPER_MAGIC
+ 
+ #ifndef SMB_SUPER_MAGIC
+-#define SMB_SUPER_MAGIC 0x517B
++#define SMB_SUPER_MAGIC 0x517Bul
+ #endif // ! SMB_SUPER_MAGIC
+ 
+ #ifndef SMB2_MAGIC_NUMBER
+-#define SMB2_MAGIC_NUMBER 0xfe534d42
++#define SMB2_MAGIC_NUMBER 0xfe534d42ul
+ #endif // ! SMB2_MAGIC_NUMBER
+ 
+ #endif /* __linux__ */
+@@ -2022,7 +2022,7 @@
+ 
+     if (!statfs(path.localpath.c_str(), &statbuf))
+     {
+-        switch (statbuf.f_type)
++        switch (static_cast<unsigned long>(statbuf.f_type))
+         {
+         case EXT2_SUPER_MAGIC:
+             type = FS_EXT;
