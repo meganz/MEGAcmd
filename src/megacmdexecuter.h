@@ -100,10 +100,10 @@ public:
     bool TestCanWriteOnContainingFolder(std::string *path);
     std::string getDisplayPath(std::string givenPath, mega::MegaNode* n);
     int dumpListOfExported(mega::MegaNode* n, const char *timeFormat, std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions, std::string givenPath);
-    void listnodeshares(mega::MegaNode* n, std::string name);
+    void listnodeshares(mega::MegaNode* n, std::string name, bool listPending, bool onlyPending);
     void dumpListOfShared(mega::MegaNode* n, std::string givenPath);
-    void dumpListOfAllShared(mega::MegaNode* n, const char *timeFormat, std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions, std::string givenPath);
-    void dumpListOfPendingShares(mega::MegaNode* n, const char *timeFormat, std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions, std::string givenPath);
+    void dumpListOfAllShared(mega::MegaNode* n, std::string givenPath);
+    void dumpListOfPendingShares(mega::MegaNode* n, std::string givenPath);
     std::string getCurrentPath();
     long long getVersionsSize(mega::MegaNode* n);
     void getInfoFromFolder(mega::MegaNode *, mega::MegaApi *, long long *nfiles, long long *nfolders, long long *nversions = NULL);
@@ -125,7 +125,7 @@ public:
     void exportNode(mega::MegaNode *n, int64_t expireTime, std::string password = std::string(),
                     std::map<std::string, int> *clflags = nullptr, std::map<std::string, std::string> *cloptions = nullptr);
     void disableExport(mega::MegaNode *n);
-    bool isShareVerified(mega::MegaNode *n, const char *email) const;
+    std::pair<bool, bool> isSharePendingAndVerified(mega::MegaNode *n, const char *email) const;
     void shareNode(mega::MegaNode *n, std::string with, int level = mega::MegaShare::ACCESS_READ);
     void disableShare(mega::MegaNode *n, std::string with);
     void createOrModifyBackup(std::string local, std::string remote, std::string speriod, int numBackups);
