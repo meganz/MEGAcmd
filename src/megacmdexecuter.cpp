@@ -2463,11 +2463,54 @@ bool MegaCmdExecuter::actUponFetchNodes(MegaApi *api, SynchronousRequestListener
         session = srl->getApi()->dumpSession();
         ConfigurationManager::saveSession(session);
 
-        verifySharedFolders(api);
+        LOG_verbose << "ActUponFetchNodes ok. Let's wait for nodes current:";
 
-        LOG_verbose << "actUponFetchNodes ok";
+        auto futureNodesCurrent = sandboxCMD->mNodesCurrentPromise.getFuture();
+        bool discardGet = false;
+
+        LOG_debug << "Waiting for nodes current ...";
+
+        if (futureNodesCurrent.wait_for(std::chrono::seconds(30)) == std::future_status::timeout)
+        {
+            LOG_warn << "Getting up to date with last changes in your account is taking long ...";
+            if (futureNodesCurrent.wait_for(std::chrono::seconds(120)) == std::future_status::timeout)
+            {
+                LOG_err << "Getting up to date with last changes in your account is taking more than expected. MEGAcmd will continue. "
+                           "Caveat: you may be interacting with an out-dated version of your account.";
+                api->sendEvent(MCMD_EVENT_WAITED_TOO_LONG_FOR_NODES_CURRENT,
+                           MCMD_EVENT_WAITED_TOO_LONG_FOR_NODES_CURRENT_MESSAGE);
+
+                discardGet = true;
+            }
+        }
+
+        if (!discardGet)
+        {
+            auto eventCurrentArrivedOk = futureNodesCurrent.get();
+            assert(eventCurrentArrivedOk);
+            LOG_debug << "Waited for nodes current ... " << eventCurrentArrivedOk;
+        }
+
+        std::string sessionString(session ? session : "");
+        if (!sessionString.empty())
+        {
+            std::thread([this, api, sessionString]() {
+                // Give a few seconds in order for key sharing to happen ...
+                sleepSeconds(5);
+                // ... and verify shares folders to brodcast caveat messages if required:
+                std::unique_ptr<char[]> newSession(api->dumpSession());
+                if (newSession && sessionString == newSession.get() ) // To avoid race conditions after quick switches of accounts
+                {
+                    verifySharedFolders(api);
+                }
+            }).detach();
+        }
 
         return true;
+    }
+    else
+    {
+        sandboxCMD->mNodesCurrentPromise.reset();
     }
     return false;
 }
@@ -2645,8 +2688,11 @@ int MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
 void MegaCmdExecuter::fetchNodes(MegaApi *api, int clientID)
 {
     if (!api) api = this->api;
+
+    sandboxCMD->mNodesCurrentPromise.initiatePromise();
     MegaCmdListener * megaCmdListener = new MegaCmdListener(api, NULL, clientID);
     api->fetchNodes(megaCmdListener);
+
     if (!actUponFetchNodes(api, megaCmdListener))
     {
         //Ideally we should enter an state that indicates that we are not fully logged.
@@ -9973,6 +10019,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
         OUTSTREAM << "Reloading account..." << endl;
         MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL, NULL, clientID);
+        sandboxCMD->mNodesCurrentPromise.initiatePromise();
         api->fetchNodes(megaCmdListener);
         actUponFetchNodes(api, megaCmdListener);
         delete megaCmdListener;

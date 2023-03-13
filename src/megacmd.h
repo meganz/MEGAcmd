@@ -52,6 +52,8 @@ const int MCMD_EVENT_UPDATE_RESTART_ID = 98902;
 const char MCMD_EVENT_UPDATE_RESTART_MESSAGE[] = "MEGAcmd updated requiring restart";
 const int MCMD_EVENT_FIRST_CONFIGURED_SYNC_ID = 98903;
 const char MCMD_EVENT_FIRST_CONFIGURED_SYNC_MESSAGE[] = "MEGAcmd first sync configured";
+const int MCMD_EVENT_WAITED_TOO_LONG_FOR_NODES_CURRENT = 98904;
+const char MCMD_EVENT_WAITED_TOO_LONG_FOR_NODES_CURRENT_MESSAGE[] = "MEGAcmd nodes current wait timed out";
 
 typedef struct sync_struct
 {
