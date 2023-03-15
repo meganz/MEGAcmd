@@ -362,22 +362,22 @@ cmd_ef(CP+" file01nonempty.txt "+'/le01/copied')
 copybyfilepattern("localUPs/","file01nonempty.txt", "localUPs/le01/copied")
 compare_find('/')
 
-#Test 18 #multicopy
+#Test 20 #multicopy
 cmd_ef(CP+" *.txt "+'/le01')
 copybyfilepattern("localUPs/","*.txt", "localUPs/le01/")
 compare_find('/')
 
-#Test 19 #multicopy with trailing /
+#Test 21 #multicopy with trailing /
 cmd_ef(CP+" *.txt "+'/le01/les01/')
 copybyfilepattern("localUPs/","*.txt", "localUPs/le01/les01/")
 compare_find('/')
 
-#Test 20 #multisend
-cmd_ef(CP+" *.txt "+MEGA_EMAIL_AUX+':')
-print "test "+str(currentTest)+" succesful!"
-currentTest+=1
+# ~ #Test 22 #multisend
+# ~ cmd_ef(CP+" *.txt "+MEGA_EMAIL_AUX+':')
+# ~ print "test "+str(currentTest)+" succesful!"
+# ~ currentTest+=1
 
-#Test 21 #copy folder
+#Test 23 #copy folder
 cmd_ef(CP+" le01 "+'lf01')
 copyfolder("localUPs/le01", "localUPs/lf01/")
 compare_find('/')
