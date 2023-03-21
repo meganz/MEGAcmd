@@ -783,7 +783,7 @@ int MegaCmdShellCommunicationsNamedPipes::listenToStateChanges(int receiveNamedP
             {
                 if (!stopListener && !updating)
                 {
-                    cerr << "ERROR reading output (state change): The sever problably exited."<< endl;
+                    cerr << "ERROR reading output (state change): The server probably exited."<< endl;
                 }
             }
             else
