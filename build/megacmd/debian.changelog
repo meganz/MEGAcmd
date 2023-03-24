@@ -1,9 +1,12 @@
 megacmd (1.6.1) stable; urgency=low
 
+  * Support login into a password protected link
   * Ease establishing shares
+  * Fixes in tranfer resumption
+  * Fixes in password protected links
   * Improvements shares management
 
- -- MEGA Team <linux@mega.co.nz>  Thu, 09 Mar 2023 19:15:04 +0100
+ -- MEGA Team <linux@mega.co.nz>  Fri, 24 Mar 2023 13:02:52 +0100
 
 megacmd (1.6.0) stable; urgency=low
 

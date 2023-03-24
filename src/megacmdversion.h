@@ -12,7 +12,7 @@
 #endif
 
 #ifndef MEGACMD_BUILD_ID
-#define MEGACMD_BUILD_ID 0
+#define MEGACMD_BUILD_ID 4
 #endif
 
 #ifndef MEGACMD_CODE_VERSION
@@ -21,7 +21,10 @@
 namespace megacmd {
 
 const char * const megacmdchangelog =
+        "Support login into a password protected link""\n"
         "Ease establishing shares""\n"
+        "Fixes in tranfer resumption""\n"
+        "Fixes in password protected links""\n"
         "Improvements shares management"
         ;
 

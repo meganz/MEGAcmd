@@ -1,6 +1,9 @@
-Thu Mar 9 19:15:04 CET 2023 - linux@mega.co.nz
+Fri Mar 24 13:02:52 CET 2023 - linux@mega.co.nz
 - Update to version 1.6.1:
+  * Support login into a password protected link
   * Ease establishing shares
+  * Fixes in tranfer resumption
+  * Fixes in password protected links
   * Improvements shares management
 
 -------------------------------------------------------------------
