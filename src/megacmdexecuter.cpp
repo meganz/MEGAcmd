@@ -935,6 +935,42 @@ void MegaCmdExecuter::getPathParts(string path, deque<string> *c)
     } while (path.size());
 }
 
+bool MegaCmdExecuter::decryptLinkIfEncrypted(MegaApi *api, std::string &publicLink, std::map<string, string> *cloptions)
+{
+    if (isEncryptedLink(publicLink))
+    {
+        string linkPass = getOption(cloptions, "password", "");
+        if (!linkPass.size())
+        {
+            linkPass = askforUserResponse("Enter password: ");
+        }
+
+        if (linkPass.size())
+        {
+            std::unique_ptr<MegaCmdListener>megaCmdListener = ::mega::make_unique<MegaCmdListener>(nullptr);
+            api->decryptPasswordProtectedLink(publicLink.c_str(), linkPass.c_str(), megaCmdListener.get());
+            megaCmdListener->wait();
+            if (checkNoErrors(megaCmdListener->getError(), "decrypt password protected link"))
+            {
+                publicLink = megaCmdListener->getRequest()->getText();
+            }
+            else
+            {
+                setCurrentOutCode(MCMD_NOTPERMITTED);
+                LOG_err << "Invalid password";
+                return false;
+            }
+        }
+        else
+        {
+            setCurrentOutCode(MCMD_EARGS);
+            LOG_err << "Need a password to decrypt provided link (--password=PASSWORD)";
+            return false;
+        }
+    }
+    return true;
+}
+
 bool MegaCmdExecuter::checkAndInformPSA(CmdPetition *inf, bool enforce)
 {
     bool toret = false;
@@ -6283,38 +6319,9 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             if (isPublicLink(words[i]))
             {
                 string publicLink = words[i];
-                if (isEncryptedLink(publicLink))
+                if (!decryptLinkIfEncrypted(api, publicLink, cloptions))
                 {
-                    string linkPass = getOption(cloptions, "password", "");
-                    if (!linkPass.size())
-                    {
-                        linkPass = askforUserResponse("Enter password: ");
-                    }
-
-                    if (linkPass.size())
-                    {
-                        MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
-                        api->decryptPasswordProtectedLink(publicLink.c_str(), linkPass.c_str(), megaCmdListener);
-                        megaCmdListener->wait();
-                        if (checkNoErrors(megaCmdListener->getError(), "decrypt password protected link"))
-                        {
-                            publicLink = megaCmdListener->getRequest()->getText();
-                            delete megaCmdListener;
-                        }
-                        else
-                        {
-                            setCurrentOutCode(MCMD_NOTPERMITTED);
-                            LOG_err << "Invalid password";
-                            delete megaCmdListener;
-                            return;
-                        }
-                    }
-                    else
-                    {
-                        setCurrentOutCode(MCMD_EARGS);
-                        LOG_err << "Need a password to decrypt provided link (--password=PASSWORD)";
-                        return;
-                    }
+                    return;
                 }
 
                 if (getLinkType(publicLink) == MegaNode::TYPE_FILE)
@@ -6492,38 +6499,9 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             if (isPublicLink(words[1]))
             {
                 string publicLink = words[1];
-                if (isEncryptedLink(publicLink))
+                if (!decryptLinkIfEncrypted(api, publicLink, cloptions))
                 {
-                    string linkPass = getOption(cloptions, "password", "");
-                    if (!linkPass.size())
-                    {
-                        linkPass = askforUserResponse("Enter password: ");
-                    }
-
-                    if (linkPass.size())
-                    {
-                        MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
-                        api->decryptPasswordProtectedLink(publicLink.c_str(), linkPass.c_str(), megaCmdListener);
-                        megaCmdListener->wait();
-                        if (checkNoErrors(megaCmdListener->getError(), "decrypt password protected link"))
-                        {
-                            publicLink = megaCmdListener->getRequest()->getText();
-                            delete megaCmdListener;
-                        }
-                        else
-                        {
-                            setCurrentOutCode(MCMD_NOTPERMITTED);
-                            LOG_err << "Invalid password";
-                            delete megaCmdListener;
-                            return;
-                        }
-                    }
-                    else
-                    {
-                        setCurrentOutCode(MCMD_EARGS);
-                        LOG_err << "Need a password to decrypt provided link (--password=PASSWORD)";
-                        return;
-                    }
+                    return;
                 }
 
                 if (getLinkType(publicLink) == MegaNode::TYPE_FILE)
@@ -8208,17 +8186,23 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     const char* ptr;
                     if (( ptr = strchr(words[1].c_str(), '#')))  // folder link indicator
                     {
+                        string publicLink = words[1];
+                        if (!decryptLinkIfEncrypted(api, publicLink, cloptions))
+                        {
+                            return;
+                        }
+
                         MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
                         sandboxCMD->resetSandBox();
 
                         string authKey = getOption(cloptions, "auth-key", "");
                         if (authKey.empty())
                         {
-                            api->loginToFolder(words[1].c_str(), megaCmdListener);
+                            api->loginToFolder(publicLink.c_str(), megaCmdListener);
                         }
                         else
                         {
-                            api->loginToFolder(words[1].c_str(), authKey.c_str(), megaCmdListener);
+                            api->loginToFolder(publicLink.c_str(), authKey.c_str(), megaCmdListener);
                         }
 
                         actUponLogin(megaCmdListener);
@@ -9827,38 +9811,9 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             if (isPublicLink(words[1]))
             {
                 string publicLink = words[1];
-                if (isEncryptedLink(publicLink))
+                if (!decryptLinkIfEncrypted(api, publicLink, cloptions))
                 {
-                    string linkPass = getOption(cloptions, "password", "");
-                    if (!linkPass.size())
-                    {
-                        linkPass = askforUserResponse("Enter password: ");
-                    }
-
-                    if (linkPass.size())
-                    {
-                        MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
-                        api->decryptPasswordProtectedLink(publicLink.c_str(), linkPass.c_str(), megaCmdListener);
-                        megaCmdListener->wait();
-                        if (checkNoErrors(megaCmdListener->getError(), "decrypt password protected link"))
-                        {
-                            publicLink = megaCmdListener->getRequest()->getText();
-                            delete megaCmdListener;
-                        }
-                        else
-                        {
-                            setCurrentOutCode(MCMD_NOTPERMITTED);
-                            LOG_err << "Invalid password";
-                            delete megaCmdListener;
-                            return;
-                        }
-                    }
-                    else
-                    {
-                        setCurrentOutCode(MCMD_EARGS);
-                        LOG_err << "Need a password to decrypt provided link (--password=PASSWORD)";
-                        return;
-                    }
+                    return;
                 }
 
                 if (words.size() > 2)
