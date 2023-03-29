@@ -8,11 +8,11 @@
 #define MEGACMD_MINOR_VERSION 6
 #endif
 #ifndef MEGACMD_MICRO_VERSION
-#define MEGACMD_MICRO_VERSION 0
+#define MEGACMD_MICRO_VERSION 1
 #endif
 
 #ifndef MEGACMD_BUILD_ID
-#define MEGACMD_BUILD_ID 0
+#define MEGACMD_BUILD_ID 4
 #endif
 
 #ifndef MEGACMD_CODE_VERSION
@@ -21,12 +21,11 @@
 namespace megacmd {
 
 const char * const megacmdchangelog =
-        "Improvements in \"find\" to search by type, or print only handles (to ease automation)""\n"
-        "Improved state management and reporting in synchronizations""\n"
-        "Improved information on shares""\n"
-        "Improvements in \"attr\"""\n"
-        "Security adjustments""\n"
-        "Other fixes and adjustments"
+        "Support login into a password protected link""\n"
+        "Ease establishing shares""\n"
+        "Fixes in tranfer resumption""\n"
+        "Fixes in password protected links""\n"
+        "Improvements shares management"
         ;
 
 }//end namespace

@@ -935,6 +935,42 @@ void MegaCmdExecuter::getPathParts(string path, deque<string> *c)
     } while (path.size());
 }
 
+bool MegaCmdExecuter::decryptLinkIfEncrypted(MegaApi *api, std::string &publicLink, std::map<string, string> *cloptions)
+{
+    if (isEncryptedLink(publicLink))
+    {
+        string linkPass = getOption(cloptions, "password", "");
+        if (!linkPass.size())
+        {
+            linkPass = askforUserResponse("Enter password: ");
+        }
+
+        if (linkPass.size())
+        {
+            std::unique_ptr<MegaCmdListener>megaCmdListener = ::mega::make_unique<MegaCmdListener>(nullptr);
+            api->decryptPasswordProtectedLink(publicLink.c_str(), linkPass.c_str(), megaCmdListener.get());
+            megaCmdListener->wait();
+            if (checkNoErrors(megaCmdListener->getError(), "decrypt password protected link"))
+            {
+                publicLink = megaCmdListener->getRequest()->getText();
+            }
+            else
+            {
+                setCurrentOutCode(MCMD_NOTPERMITTED);
+                LOG_err << "Invalid password";
+                return false;
+            }
+        }
+        else
+        {
+            setCurrentOutCode(MCMD_EARGS);
+            LOG_err << "Need a password to decrypt provided link (--password=PASSWORD)";
+            return false;
+        }
+    }
+    return true;
+}
+
 bool MegaCmdExecuter::checkAndInformPSA(CmdPetition *inf, bool enforce)
 {
     bool toret = false;
@@ -1283,7 +1319,7 @@ void MegaCmdExecuter::dumpNode(MegaNode* n, const char *timeFormat, std::map<std
 
                 if (n->isInShare())
                 {
-                    OUTSTREAM << ", inbound " << api->getAccess(n) << " share";
+                    OUTSTREAM << ", inbound " << getAccessLevelStr(api->getAccess(n)) << " share";
                 }
                 break;
             }
@@ -1990,34 +2026,65 @@ int MegaCmdExecuter::dumpListOfExported(MegaNode* n_param, const char *timeForma
     return toret;
 }
 
+void printOutShareInfo(const char *pathOrName, const char *email, int accessLevel, bool pending, bool verified)
+{
+    OUTSTREAM << pathOrName;
+    OUTSTREAM << ",";
+    if (email)
+    {
+        OUTSTREAM << " shared";
+    }
+    if (pending)
+    {
+        OUTSTREAM << " (still pending)";
+    }
+    if (email)
+    {
+        OUTSTREAM << " with " << email;
+    }
+    OUTSTREAM << " (" << getAccessLevelStr(accessLevel) << ")";
+    if (!verified && !pending /*Do not indicate lack of verification for pending out shares*/)
+    {
+         OUTSTREAM << "[UNVERIFIED]";
+    }
+    OUTSTREAM << endl;
+}
+
 /**
  * @brief listnodeshares For a node, it prints all the shares it has
  * @param n
  * @param name
  */
-void MegaCmdExecuter::listnodeshares(MegaNode* n, string name)
+void MegaCmdExecuter::listnodeshares(MegaNode* n, string name, bool listPending = false, bool onlyPending = false)
 {
-    MegaShareList* outShares = api->getOutShares(n);
-    if (outShares)
-    {
-        for (int i = 0; i < outShares->size(); i++)
-        {
-            auto outShare = outShares->get(i);
-            OUTSTREAM << (name.size() ? name : n->getName());
+    assert(listPending || !onlyPending);
 
-            if (outShare)
+    auto printOutShares = [n, &name](MegaShareList * outShares, bool skipPending = false)
+    {
+        if (outShares)
+        {
+            for (int i = 0; i < outShares->size(); i++)
             {
-                OUTSTREAM << ", shared with " << outShare->getUser() << " (" << getAccessLevelStr(outShare->getAccess()) << ")"
-                             << (outShare->isVerified() ? "" : "[UNVERIFIED]")
-                          << endl;
-            }
-            else
-            {
-                OUTSTREAM << ", shared as exported folder link" << endl;
+                auto outShare = outShares->get(i);
+                if (outShare && (!skipPending || !outShare->isPending()))
+                {
+                    printOutShareInfo(name.empty() ? n->getName() : name.c_str(), outShare->getUser(),
+                                      outShare->getAccess(), outShare->isPending(), outShare->isVerified());
+                }
             }
         }
+    };
 
-        delete outShares;
+    if (!onlyPending)
+    {
+        std::unique_ptr<MegaShareList> allOutShares (api->getOutShares(n));
+        printOutShares(allOutShares.get(), true /*to not list them twice*/);
+    }
+
+    if (listPending)
+    {
+        std::unique_ptr<MegaShareList> pendingOutShares (api->getPendingOutShares(n));
+        printOutShares(pendingOutShares.get());
     }
 }
 
@@ -2036,7 +2103,6 @@ void MegaCmdExecuter::dumpListOfShared(MegaNode* n_param, string givenPath)
         if (n)
         {
             string pathToShow = getDisplayPath(givenPath, n);
-            //dumpNode(n, 3, 1,pathToShow.c_str());
             listnodeshares(n, pathToShow);
 
             delete n;
@@ -2047,7 +2113,7 @@ void MegaCmdExecuter::dumpListOfShared(MegaNode* n_param, string givenPath)
 }
 
 //includes pending and normal shares
-void MegaCmdExecuter::dumpListOfAllShared(MegaNode* n_param, const char *timeFormat, std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions, string givenPath)
+void MegaCmdExecuter::dumpListOfAllShared(MegaNode* n_param, string givenPath)
 {
     vector<MegaNode *> listOfShared;
     processTree(n_param, includeIfIsSharedOrPendingOutShare, (void*)&listOfShared);
@@ -2057,9 +2123,7 @@ void MegaCmdExecuter::dumpListOfAllShared(MegaNode* n_param, const char *timeFor
         if (n)
         {
             string pathToShow = getDisplayPath(givenPath, n);
-            dumpNode(n, timeFormat, clflags, cloptions, 3, false, 1, pathToShow.c_str());
-            //notice: some nodes may be dumped twice
-
+            listnodeshares(n, pathToShow, true);
             delete n;
         }
     }
@@ -2067,7 +2131,7 @@ void MegaCmdExecuter::dumpListOfAllShared(MegaNode* n_param, const char *timeFor
     listOfShared.clear();
 }
 
-void MegaCmdExecuter::dumpListOfPendingShares(MegaNode* n_param, const char *timeFormat, std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions, string givenPath)
+void MegaCmdExecuter::dumpListOfPendingShares(MegaNode* n_param, string givenPath)
 {
     vector<MegaNode *> listOfShared;
     processTree(n_param, includeIfIsPendingOutShare, (void*)&listOfShared);
@@ -2078,8 +2142,7 @@ void MegaCmdExecuter::dumpListOfPendingShares(MegaNode* n_param, const char *tim
         if (n)
         {
             string pathToShow = getDisplayPath(givenPath, n);
-            dumpNode(n, timeFormat, clflags, cloptions, 3, false, 1, pathToShow.c_str());
-
+            listnodeshares(n, pathToShow, true, true);
             delete n;
         }
     }
@@ -2324,7 +2387,7 @@ void MegaCmdExecuter::actUponGetExtendedAccountDetails(SynchronousRequestListene
 
 void MegaCmdExecuter::verifySharedFolders(MegaApi *api)
 {
-    auto getInstructions = [](const char *intro)
+    auto getInstructionsNeedsVerification = [](const char *intro)
     {
         std::stringstream ss;
         ss << intro << ".\n";
@@ -2334,41 +2397,68 @@ void MegaCmdExecuter::verifySharedFolders(MegaApi *api)
         return ss.str();
     };
 
+    auto getInstructionsNeedsLogin = [](const char *intro, const std::set<std::string> &emails)
+    {
+        std::stringstream ss;
+        ss << intro << ".";
+        for (auto &email : emails)
+        {
+            ss << "\nYour contact " << email << " may need to resume using his MEGA application.";
+        }
+        return ss.str();
+    };
+
     {
         std::unique_ptr<MegaShareList> shares(api->getUnverifiedInShares());
         if (shares && shares->size())
         {
-            broadcastMessage(getInstructions("Some not verified contact is sharing a folder with you"), true);
+            broadcastMessage(getInstructionsNeedsVerification("Some not verified contact is sharing a folder with you"), true);
             return;
         }
-        {   // Just in case
-            std::unique_ptr<MegaShareList> inSharesByAllUsers (api->getInSharesList());// this one should not return unverified ones
-            if (inSharesByAllUsers)
-            {
-                for (int i = 0, total = inSharesByAllUsers->size(); i < total; i++)
-                {
-                    auto share = inSharesByAllUsers->get(i);
-                    if (!share->isVerified())
-                    {
-                        broadcastMessage(getInstructions("Found some not verified share"), true);
-                        return;
-                    }
 
-                    std::unique_ptr<MegaNode> n (api->getNodeByHandle(share->getNodeHandle()));
-                    if (n && !n->isNodeKeyDecrypted())
-                    {
-                        broadcastMessage(getInstructions("Found some inaccessible share"), true);
-                        return;
-                    }
+        std::set<std::string> usersWithNonDecryptable;
+
+        std::unique_ptr<MegaShareList> inSharesByAllUsers (api->getInSharesList());// this one should not return unverified ones
+        if (inSharesByAllUsers)
+        {
+            for (int i = 0, total = inSharesByAllUsers->size(); i < total; i++)
+            {
+                auto share = inSharesByAllUsers->get(i);
+                if (!share->isVerified()) // Just in case
+                {
+                    broadcastMessage(getInstructionsNeedsVerification("Found some not verified share"), true);
+                    return;
+                }
+
+                std::unique_ptr<MegaNode> n (api->getNodeByHandle(share->getNodeHandle()));
+                if (n && !n->isNodeKeyDecrypted() && share->getUser())
+                {
+                    usersWithNonDecryptable.insert(share->getUser());
                 }
             }
+        }
+
+        if (!usersWithNonDecryptable.empty())
+        {
+            std::string title("Found some inaccessible (in)share");
+            if (usersWithNonDecryptable.size() > 1)
+            {
+                title.append("s");
+            }
+            broadcastMessage(getInstructionsNeedsLogin(title.c_str(), usersWithNonDecryptable), true);
+            return;
         }
     }
     {
         std::unique_ptr<MegaShareList> shares(api->getUnverifiedOutShares());
-        if (shares && shares->size())
+
+        for (int i = 0; shares && i < shares->size(); i++)
         {
-            broadcastMessage(getInstructions("You are sharing a folder with some unverified contact"), true);
+            if (!shares->get(i)->isPending())
+            {
+                broadcastMessage(getInstructionsNeedsVerification("You are sharing a folder with some unverified contact"), true);
+                return;
+            }
         }
     }
 }
@@ -2409,11 +2499,54 @@ bool MegaCmdExecuter::actUponFetchNodes(MegaApi *api, SynchronousRequestListener
         session = srl->getApi()->dumpSession();
         ConfigurationManager::saveSession(session);
 
-        verifySharedFolders(api);
+        LOG_verbose << "ActUponFetchNodes ok. Let's wait for nodes current:";
 
-        LOG_verbose << "actUponFetchNodes ok";
+        auto futureNodesCurrent = sandboxCMD->mNodesCurrentPromise.getFuture();
+        bool discardGet = false;
+
+        LOG_debug << "Waiting for nodes current ...";
+
+        if (futureNodesCurrent.wait_for(std::chrono::seconds(30)) == std::future_status::timeout)
+        {
+            LOG_warn << "Getting up to date with last changes in your account is taking long ...";
+            if (futureNodesCurrent.wait_for(std::chrono::seconds(120)) == std::future_status::timeout)
+            {
+                LOG_err << "Getting up to date with last changes in your account is taking more than expected. MEGAcmd will continue. "
+                           "Caveat: you may be interacting with an out-dated version of your account.";
+                api->sendEvent(MCMD_EVENT_WAITED_TOO_LONG_FOR_NODES_CURRENT,
+                           MCMD_EVENT_WAITED_TOO_LONG_FOR_NODES_CURRENT_MESSAGE);
+
+                discardGet = true;
+            }
+        }
+
+        if (!discardGet)
+        {
+            auto eventCurrentArrivedOk = futureNodesCurrent.get();
+            assert(eventCurrentArrivedOk);
+            LOG_debug << "Waited for nodes current ... " << eventCurrentArrivedOk;
+        }
+
+        std::string sessionString(session ? session : "");
+        if (!sessionString.empty())
+        {
+            std::thread([this, api, sessionString]() {
+                // Give a few seconds in order for key sharing to happen ...
+                sleepSeconds(5);
+                // ... and verify shares folders to brodcast caveat messages if required:
+                std::unique_ptr<char[]> newSession(api->dumpSession());
+                if (newSession && sessionString == newSession.get() ) // To avoid race conditions after quick switches of accounts
+                {
+                    verifySharedFolders(api);
+                }
+            }).detach();
+        }
 
         return true;
+    }
+    else
+    {
+        sandboxCMD->mNodesCurrentPromise.reset();
     }
     return false;
 }
@@ -2591,8 +2724,11 @@ int MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
 void MegaCmdExecuter::fetchNodes(MegaApi *api, int clientID)
 {
     if (!api) api = this->api;
+
+    sandboxCMD->mNodesCurrentPromise.initiatePromise();
     MegaCmdListener * megaCmdListener = new MegaCmdListener(api, NULL, clientID);
     api->fetchNodes(megaCmdListener);
+
     if (!actUponFetchNodes(api, megaCmdListener))
     {
         //Ideally we should enter an state that indicates that we are not fully logged.
@@ -3471,11 +3607,11 @@ void MegaCmdExecuter::disableExport(MegaNode *n)
     delete megaCmdListener;
 }
 
-bool MegaCmdExecuter::isShareVerified(MegaNode* n, const char *email) const
+std::pair<bool/*pending*/, bool /*verified*/> MegaCmdExecuter::isSharePendingAndVerified(MegaNode* n, const char *email) const
 {
     if (!email)
     {
-        return false;
+        return std::make_pair(false, false);
     }
     std::unique_ptr<MegaShareList> outShares (api->getOutShares(n));
     if (outShares)
@@ -3486,11 +3622,12 @@ bool MegaCmdExecuter::isShareVerified(MegaNode* n, const char *email) const
             auto shareEmail = outShare->getUser();
             if (shareEmail && !strcmp(email, shareEmail))
             {
-                return outShare->isVerified();
+                return std::make_pair(outShare->isPending(), outShare->isVerified());
             }
         }
     }
 
+    // just in case: loop pending ones too:
     std::unique_ptr<MegaShareList> pendingoutShares (api->getPendingOutShares(n));
     if (pendingoutShares)
     {
@@ -3500,11 +3637,11 @@ bool MegaCmdExecuter::isShareVerified(MegaNode* n, const char *email) const
             auto shareEmail = pendingoutShare->getUser();
             if (shareEmail && !strcmp(email, shareEmail))
             {
-                return pendingoutShare->isVerified();
+                return std::make_pair(true, pendingoutShare->isVerified());
             }
         }
     }
-    return false;
+    return std::make_pair(false, false);
 }
 
 void MegaCmdExecuter::shareNode(MegaNode *n, string with, int level)
@@ -3542,14 +3679,16 @@ void MegaCmdExecuter::shareNode(MegaNode *n, string with, int level)
             char *nodepath = api->getNodePath(nshared);
             if (megaCmdListener->getRequest()->getAccess() == MegaShare::ACCESS_UNKNOWN)
             {
-                OUTSTREAM << "Stopped sharing " << nodepath << " with " << megaCmdListener->getRequest()->getEmail()
-                          << (!isShareVerified(n, megaCmdListener->getRequest()->getEmail()) ? " [UNVERIFIED]" : "")  << endl;
+                OUTSTREAM << "Stopped sharing " << nodepath << " with " << megaCmdListener->getRequest()->getEmail() << endl;
             }
             else
             {
-                OUTSTREAM << "Shared " << nodepath << " : " << megaCmdListener->getRequest()->getEmail()
-                          << " accessLevel=" << megaCmdListener->getRequest()->getAccess()
-                          << (!isShareVerified(n, megaCmdListener->getRequest()->getEmail()) ? " [UNVERIFIED]" : "") << endl;
+                auto pendingAndVerified = isSharePendingAndVerified(n, megaCmdListener->getRequest()->getEmail());
+                auto pending = pendingAndVerified.first;
+                auto verified = pendingAndVerified.second;
+                OUTSTREAM << "New share: ";
+                printOutShareInfo(nodepath, megaCmdListener->getRequest()->getEmail(),
+                                  megaCmdListener->getRequest()->getAccess(), pending, verified);
             }
             delete[] nodepath;
             delete nshared;
@@ -6180,38 +6319,9 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             if (isPublicLink(words[i]))
             {
                 string publicLink = words[i];
-                if (isEncryptedLink(publicLink))
+                if (!decryptLinkIfEncrypted(api, publicLink, cloptions))
                 {
-                    string linkPass = getOption(cloptions, "password", "");
-                    if (!linkPass.size())
-                    {
-                        linkPass = askforUserResponse("Enter password: ");
-                    }
-
-                    if (linkPass.size())
-                    {
-                        MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
-                        api->decryptPasswordProtectedLink(publicLink.c_str(), linkPass.c_str(), megaCmdListener);
-                        megaCmdListener->wait();
-                        if (checkNoErrors(megaCmdListener->getError(), "decrypt password protected link"))
-                        {
-                            publicLink = megaCmdListener->getRequest()->getText();
-                            delete megaCmdListener;
-                        }
-                        else
-                        {
-                            setCurrentOutCode(MCMD_NOTPERMITTED);
-                            LOG_err << "Invalid password";
-                            delete megaCmdListener;
-                            return;
-                        }
-                    }
-                    else
-                    {
-                        setCurrentOutCode(MCMD_EARGS);
-                        LOG_err << "Need a password to decrypt provided link (--password=PASSWORD)";
-                        return;
-                    }
+                    return;
                 }
 
                 if (getLinkType(publicLink) == MegaNode::TYPE_FILE)
@@ -6389,38 +6499,9 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             if (isPublicLink(words[1]))
             {
                 string publicLink = words[1];
-                if (isEncryptedLink(publicLink))
+                if (!decryptLinkIfEncrypted(api, publicLink, cloptions))
                 {
-                    string linkPass = getOption(cloptions, "password", "");
-                    if (!linkPass.size())
-                    {
-                        linkPass = askforUserResponse("Enter password: ");
-                    }
-
-                    if (linkPass.size())
-                    {
-                        MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
-                        api->decryptPasswordProtectedLink(publicLink.c_str(), linkPass.c_str(), megaCmdListener);
-                        megaCmdListener->wait();
-                        if (checkNoErrors(megaCmdListener->getError(), "decrypt password protected link"))
-                        {
-                            publicLink = megaCmdListener->getRequest()->getText();
-                            delete megaCmdListener;
-                        }
-                        else
-                        {
-                            setCurrentOutCode(MCMD_NOTPERMITTED);
-                            LOG_err << "Invalid password";
-                            delete megaCmdListener;
-                            return;
-                        }
-                    }
-                    else
-                    {
-                        setCurrentOutCode(MCMD_EARGS);
-                        LOG_err << "Need a password to decrypt provided link (--password=PASSWORD)";
-                        return;
-                    }
+                    return;
                 }
 
                 if (getLinkType(publicLink) == MegaNode::TYPE_FILE)
@@ -8105,17 +8186,23 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     const char* ptr;
                     if (( ptr = strchr(words[1].c_str(), '#')))  // folder link indicator
                     {
+                        string publicLink = words[1];
+                        if (!decryptLinkIfEncrypted(api, publicLink, cloptions))
+                        {
+                            return;
+                        }
+
                         MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
                         sandboxCMD->resetSandBox();
 
                         string authKey = getOption(cloptions, "auth-key", "");
                         if (authKey.empty())
                         {
-                            api->loginToFolder(words[1].c_str(), megaCmdListener);
+                            api->loginToFolder(publicLink.c_str(), megaCmdListener);
                         }
                         else
                         {
-                            api->loginToFolder(words[1].c_str(), authKey.c_str(), megaCmdListener);
+                            api->loginToFolder(publicLink.c_str(), authKey.c_str(), megaCmdListener);
                         }
 
                         actUponLogin(megaCmdListener);
@@ -8311,7 +8398,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                                 }
                                 else if (listPending)
                                 {
-                                    dumpListOfPendingShares(n, getTimeFormatFromSTR(getOption(cloptions, "time-format","RFC2822")), clflags, cloptions, words[i]);
+                                    dumpListOfAllShared(n, words[i]);
                                 }
                                 else
                                 {
@@ -8379,7 +8466,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         }
                         else if (listPending)
                         {
-                            dumpListOfPendingShares(n, getTimeFormatFromSTR(getOption(cloptions, "time-format","RFC2822")), clflags, cloptions, words[i]);
+                            dumpListOfAllShared(n, words[i]);
                         }
                         else
                         {
@@ -8454,7 +8541,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         {
             if (words.size() == 1) // General information
             {
-                OUTSTREAM << "In order to share data with your contacts you will need to verify them." << endl
+                OUTSTREAM << "In order to share data with your contacts you may need to verify them." << endl
                           << endl
                           << "Verifying means ensuring that the contact is who he/she claims to be." << endl
                           << "To ensure that, both of you will need to share your credentials," << endl
@@ -8645,7 +8732,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                                 {
                                     bool thisOneisUnverified = !share->isVerified();
 
-                                    std::unique_ptr<MegaNode> n (api->getNodeByHandle(shares->get(j)->getNodeHandle()));
+                                    std::unique_ptr<MegaNode> n (api->getNodeByHandle(share->getNodeHandle()));
                                     if (n)
                                     {
                                         if (first_share)
@@ -8654,7 +8741,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                                             first_share = false;
                                         }
 
-                                        if (thisOneisUnverified || !n->isNodeKeyDecrypted())
+                                        if (thisOneisUnverified)
                                         {
                                             if (isInShare)
                                             {
@@ -8677,13 +8764,18 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                                             OUTSTREAM << "//from/";
                                         }
 
-                                        if (!n->isNodeKeyDecrypted() && isInShare)
+                                        if (isInShare && (thisOneisUnverified || !n->isNodeKeyDecrypted()))
                                         {
-                                            OUTSTREAM << email << ":[UNVERIFIED]" << endl;
+                                            OUTSTREAM << email << (thisOneisUnverified ? ":[UNVERIFIED]" : "[UNDECRYPTABLE]") << endl;
                                         }
-                                        else
+                                        else if (isInShare)
                                         {
                                             dumpNode(n.get(), getTimeFormatFromSTR(getOption(cloptions, "time-format","RFC2822")), clflags, cloptions, 2, false, 0, getDisplayPath("/", n.get()).c_str());
+                                        }
+                                        else //outShare:
+                                        {
+                                            string path = getDisplayPath("", n.get());
+                                            printOutShareInfo(path.c_str(), nullptr/*dont print email*/, share->getAccess(), share->isPending(), share->isVerified());
                                         }
                                     }
                                 }
@@ -8708,7 +8800,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         if (!isUserVerified)
                         {
                             std::stringstream ss;
-                            ss << "CONTACT [" << nameOrEmail << "] IS NOT VERIFIED";
+                            ss << "Contact [" << nameOrEmail << "] is not verified";
 
                             if (printedSomeUnaccesibleInShare || printedSomeUnaccesibleOutShare)
                             {
@@ -8727,9 +8819,8 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                                << "\" to get instructions on verification" << endl;
 
                             printCenteredContentsT(OUTSTREAM, ss.str(), 78, true);
+                            OUTSTREAM << endl;
                         }
-
-                        OUTSTREAM << endl;
                     }
                 }
             }
@@ -9720,38 +9811,9 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             if (isPublicLink(words[1]))
             {
                 string publicLink = words[1];
-                if (isEncryptedLink(publicLink))
+                if (!decryptLinkIfEncrypted(api, publicLink, cloptions))
                 {
-                    string linkPass = getOption(cloptions, "password", "");
-                    if (!linkPass.size())
-                    {
-                        linkPass = askforUserResponse("Enter password: ");
-                    }
-
-                    if (linkPass.size())
-                    {
-                        MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
-                        api->decryptPasswordProtectedLink(publicLink.c_str(), linkPass.c_str(), megaCmdListener);
-                        megaCmdListener->wait();
-                        if (checkNoErrors(megaCmdListener->getError(), "decrypt password protected link"))
-                        {
-                            publicLink = megaCmdListener->getRequest()->getText();
-                            delete megaCmdListener;
-                        }
-                        else
-                        {
-                            setCurrentOutCode(MCMD_NOTPERMITTED);
-                            LOG_err << "Invalid password";
-                            delete megaCmdListener;
-                            return;
-                        }
-                    }
-                    else
-                    {
-                        setCurrentOutCode(MCMD_EARGS);
-                        LOG_err << "Need a password to decrypt provided link (--password=PASSWORD)";
-                        return;
-                    }
+                    return;
                 }
 
                 if (words.size() > 2)
@@ -9912,6 +9974,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
         OUTSTREAM << "Reloading account..." << endl;
         MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL, NULL, clientID);
+        sandboxCMD->mNodesCurrentPromise.initiatePromise();
         api->fetchNodes(megaCmdListener);
         actUponFetchNodes(api, megaCmdListener);
         delete megaCmdListener;

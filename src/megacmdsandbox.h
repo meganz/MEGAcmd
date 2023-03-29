@@ -28,6 +28,64 @@
 namespace megacmd {
 class MegaCmdExecuter;
 
+
+class NodesCurrentPromise
+{
+    using Promise_t = std::promise<bool>;
+    using Future_t = std::future<bool>;
+    std::mutex mMutex;
+    std::shared_ptr<Promise_t> mAccountUpToDatePromise;
+    bool pendingCompletion = false;
+
+
+public:
+    void initiatePromise()
+    {
+        std::lock_guard<std::mutex> g(mMutex);
+        assert(!pendingCompletion);
+        mAccountUpToDatePromise = std::make_shared<Promise_t>();
+        pendingCompletion = true;
+    }
+
+    void setCompleted()
+    {
+        std::lock_guard<std::mutex> g(mMutex);
+        mAccountUpToDatePromise->set_value(true);
+    }
+
+    Future_t getFuture()
+    {
+        std::lock_guard<std::mutex> g(mMutex);
+        assert(mAccountUpToDatePromise);
+        return mAccountUpToDatePromise->get_future();
+    }
+
+    void reset()
+    {
+        std::lock_guard<std::mutex> g(mMutex);
+        if (mAccountUpToDatePromise && pendingCompletion)
+        {
+            mAccountUpToDatePromise->set_value(false);
+            pendingCompletion = false;
+        }
+    }
+
+    void fulfil()
+    {
+        std::lock_guard<std::mutex> g(mMutex);
+        if (mAccountUpToDatePromise && pendingCompletion)
+        {
+            mAccountUpToDatePromise->set_value(true);
+            pendingCompletion = false;
+        }
+    }
+
+    ~NodesCurrentPromise()
+    {
+        reset();
+    }
+};
+
 class MegaCmdSandbox
 {
 private:
@@ -40,6 +98,8 @@ private:
     void doSetReasonBlocked(const std::string &value);
 
 public:
+    NodesCurrentPromise mNodesCurrentPromise;
+
     bool istemporalbandwidthvalid;
     long long temporalbandwidth;
     long long temporalbandwithinterval;
