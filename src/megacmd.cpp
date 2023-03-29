@@ -739,6 +739,7 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validOptValues->insert("clientID");
         validOptValues->insert("auth-code");
         validOptValues->insert("auth-key");
+        validOptValues->insert("password");
     }
     else if ("psa" == thecommand)
     {
@@ -1486,13 +1487,13 @@ const char * getUsageStr(const char *command)
         if (interactiveThread())
         {
             return "login [--auth-code=XXXX] [email [password]] | exportedfolderurl#key"
-                    " [--auth-key=XXXX]"
+                    " [--auth-key=XXXX] | passwordprotectedlink [--password=PASSWORD]"
                    " | session";
         }
         else
         {
             return "login [--auth-code=XXXX] email password | exportedfolderurl#key"
-                    " [--auth-key=XXXX]"
+                    " [--auth-key=XXXX] | passwordprotectedlink [--password=PASSWORD]"
                    " | session";
         }
     }
@@ -1969,7 +1970,7 @@ string getHelpStr(const char *command)
         os << "Logs into a MEGA account" << endl;
         os << " You can log in either with email and password, with session ID," << endl;
         os << " or into a folder (an exported/public folder)" << endl;
-        os << " If logging into a folder indicate url#key" << endl;
+        os << " If logging into a folder indicate url#key (or pasword protected link)" << endl;
         os << "   Pass --auth-key=XXXX" << "\t" << "with the authentication key (last part of the Auth Token)" << endl;
         os << "   to be able to write into the accessed folder" << endl;
         os << endl;
@@ -1977,6 +1978,8 @@ string getHelpStr(const char *command)
         os << endl;
         os << "Options:" << endl;
         os << " --auth-code=XXXX" << "\t" << "Two-factor Authentication code. More info: https://mega.nz/blog_48" << endl;
+        os << " --password=XXXX" << " \t" << "Password to decrypt password protected links (See \""
+                                             << commandPrefixBasedOnMode() << "export --help\")" << endl;
     }
     else if (!strcmp(command, "cancel"))
     {
@@ -2570,6 +2573,8 @@ string getHelpStr(const char *command)
         os << "              " << "\t" << "This is intended to be used for folders accessible though MEGA's S4 service." << endl;
         os << "              " << "\t" << "Encryption will occur nonetheless within MEGA's S4 service." << endl;
         os << " --password=PASSWORD" << "\t" << "Protects link with password. Please, avoid using passwords containing \" or '" << endl;
+        os << "                    " << "\t" << "  Caveat: a password protected link will be printed only after exporting it." << endl;
+        os << "                    " << "\t" << "  If you use \"" << commandPrefixBasedOnMode() << "export\" to print it again, it will be shown unenctypted." << endl;
         os << " --expire=TIMEDELAY" << "\t" << "Determines the expiration time of a node." << endl;
         os << "                   " << "\t" << "   It indicates the delay in hours(h), days(d), " << endl;
         os << "                   " << "\t"  << "   minutes(M), seconds(s), months(m) or years(y)" << endl;
