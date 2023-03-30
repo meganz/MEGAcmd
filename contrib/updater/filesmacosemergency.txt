@@ -1,0 +1,4 @@
+#version=1060200
+#baseurl=http://g.static.mega.co.nz/eupd/mcmd/MEGAcmd.app/
+#Hash: note this is the hash of the public key assuming an "\n" at the end
+#pubkeysha256sum=1d3a6360832e193cb98707692c3816b5022ec976e2915cee60994ba20e292b4a
