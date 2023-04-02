@@ -104,29 +104,39 @@ void ConfigurationManager::loadConfigDir()
         }
     }
 #else
-    const char *homedir = NULL;
-
-    homedir = getenv("HOME");
-    if (!homedir)
-    {
-        struct passwd pd;
-        struct passwd* pwdptr = &pd;
-        struct passwd* tempPwdPtr;
-        char pwdbuffer[200];
-        int pwdlinelen = sizeof( pwdbuffer );
-
-        if (( getpwuid_r(22, pwdptr, pwdbuffer, pwdlinelen, &tempPwdPtr)) != 0)
-        {
-            LOG_fatal << "Couldnt get HOME folder";
-            return;
-        }
-        else
-        {
-            homedir = pwdptr->pw_dir;
-        }
-    }
     stringstream sconfigDir;
-    sconfigDir << homedir << "/" << ".megaCmd";
+    const char *xdg_data_home = NULL;
+
+    xdg_data_home = getenv("XDG_DATA_HOME");
+    if (xdg_data_home)
+    {
+        sconfigDir << xdg_data_home << "/" << "megaCmd";
+    }
+    else
+    {
+        const char *homedir = NULL;
+
+        homedir = getenv("HOME");
+        if (!homedir)
+        {
+            struct passwd pd;
+            struct passwd* pwdptr = &pd;
+            struct passwd* tempPwdPtr;
+            char pwdbuffer[200];
+            int pwdlinelen = sizeof( pwdbuffer );
+
+            if (( getpwuid_r(22, pwdptr, pwdbuffer, pwdlinelen, &tempPwdPtr)) != 0)
+            {
+                LOG_fatal << "Couldnt get HOME folder";
+                return;
+            }
+            else
+            {
+                homedir = pwdptr->pw_dir;
+            }
+        }
+        sconfigDir << homedir << "/" << ".megaCmd";
+    }
     configFolder = sconfigDir.str();
 #endif
 

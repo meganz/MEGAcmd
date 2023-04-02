@@ -2939,7 +2939,7 @@ string getHelpStr(const char *command)
         os << "                                                         "  << "\t" << "Note: you can still get the information from the db using OJBECT_ID." << endl;
         os << "                                                         "  << "\t" << "Default=40000" << endl;
         os << " downloads_tracking_max_finished_in_memory_low_threshold"  << "\t" << "When pruning is executed it will clean until this threshold. Default=20000" << endl;
-        os << " downloads_db_path"  << "\t" << "Path to store tracking information of downloads. Default: ~/.megaCmd/downloads.db" << endl;
+        os << " downloads_db_path"  << "\t" << "Path to store tracking information of downloads. Default: $XDG_DATA_HOME/megaCmd/downloads.db (or $HOME/.megaCmd/downloads.db if $XDG_DATA_HOME is not set)" << endl;
         os << " downloads_db_io_frequency_ms"  << "\t" << "Frequency in milliseconds to commit pending changes in the database. Default=10000" << endl;
         os << " downloads_db_max_queued_changes"  << "\t" << "Max allowed number of changes to be queued before writting. Default=1000" << endl;
         os << " downloads_cleanslate_enabled"  << "\t" << "If transfers from previous executions will be discarded upon restart. Default=0 (false)" << endl;
