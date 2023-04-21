@@ -1,3 +1,9 @@
+Fri Apr 21 13:48:14 CEST 2023 - linux@mega.co.nz
+- Update to version 1.6.3:
+  * Improvements in session resumption
+  * Fixes for undecryptable nodes
+
+-------------------------------------------------------------------
 Fri Mar 24 13:02:52 CET 2023 - linux@mega.co.nz
 - Update to version 1.6.1:
   * Support login into a password protected link
