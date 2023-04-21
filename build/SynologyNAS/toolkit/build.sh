@@ -6,15 +6,18 @@ declare -r TOOLKIT_DIR=/toolkit
 # Where builds are performed.
 declare -r BUILD_DIR=${TOOLKIT_DIR}/build_env
 
+# Where we can find necessary patches.
+declare -r PATCH_DIR=$TOOLKIT_DIR/patches
+
 # Where we can find Synology's package scripts.
 declare -r PKGSCRIPTS_DIR=${TOOLKIT_DIR}/pkgscripts-ng
 
 # What version of DSM are we targeting?
-declare -r DSM_VERSION=7.0
+declare -r DSM_VERSION=7.2
 
 # For convenience.
-declare -r ENVDEPLOY="${PKGSCRIPTS_DIR}/EnvDeploy -v 7.0"
-declare -r PKGCREATE="${PKGSCRIPTS_DIR}/PkgCreate.py -v 7.0"
+declare -r ENVDEPLOY="${PKGSCRIPTS_DIR}/EnvDeploy -v ${DSM_VERSION}"
+declare -r PKGCREATE="${PKGSCRIPTS_DIR}/PkgCreate.py -v ${DSM_VERSION}"
 
 # Full list of platforms.
 all_platforms()
@@ -41,6 +44,17 @@ build()
     # Avoid downloading SDK's dependencies.
     cp ${TOOLKIT_DIR}/sdk_dep_tarballs/* \
        ${env_dir}/tmp/megasdkbuild
+
+    # Create a standard place where patches can be found.
+    mkdir -p ${env_dir}/tmp/megapatches
+
+    # Make sure no stale patches are present.
+    rm ${env_dir}/tmp/megapatches/*
+
+    # Copy patches into environment, if any.
+    if [ -d "${PATCH_DIR}" ]; then
+        cp ${PATCH_DIR}/*.patch ${env_dir}/tmp/megapatches
+    fi
 
     # Kick off the build.
     if ${PKGCREATE} -p ${platform} MEGAcmd; then
@@ -125,14 +139,15 @@ check_directory $TOOLKIT_DIR/toolkit_tarballs
 
 # Clear prior build results.
 rm -rf ${TOOLKIT_DIR}/results
+platforms=$(build_platforms)
 
 # Try and build the packages.
-for platform in $(build_platforms); do
+for platform in ${platforms}; do
     build ${platform}
 done
 
 # Check whether all the packages were built.
-for platform in $(build_platforms); do
+for platform in ${platforms}; do
     echo -n "${platform}: "
 
     if [ -d "${TOOLKIT_DIR}/results/${platform}" ]; then
