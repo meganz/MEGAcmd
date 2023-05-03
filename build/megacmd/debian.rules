@@ -1,6 +1,6 @@
 #!/usr/bin/make -f
 NJOBS := $(shell echo ${DEB_BUILD_OPTIONS} | sed -rn 's/.*parallel=([0-9]*).*/\1/p')
-CPPFLAGS := $(shell cat /etc/issue | grep "Ubuntu 1[234579]\|Debian.* [78]\|Ubuntu 1[68].10" >/dev/null && echo "$$CPPFLAGS -DMEGACMD_DEPRECATED_OS" || echo "")
+CPPFLAGS := $(shell cat /etc/issue | grep "Ubuntu 1[234579]\|Ubuntu 18.10\|Ubuntu 20.10\|Ubuntu 21\|Debian.* [789]\|Debian.* 10" >/dev/null && echo "$$CPPFLAGS -DMEGACMD_DEPRECATED_OS" || echo "")
 FCRYPTOPP := $(shell cat /etc/issue | grep "Ubuntu 1[4-8]\|Ubuntu 19.04\|Debian.* [8]" >/dev/null && echo "" || echo "-q")
 WCRYPTOPP := $(shell cat /etc/issue | grep "Ubuntu 1[4-8]\|Ubuntu 19.04\|Debian.* [8]" >/dev/null && echo "" || echo "--with-cryptopp=$(CURDIR)/deps")
 DPKGXZ := $(shell cat /etc/issue | grep "Ubuntu 23\|Lunar Lobster\|Ubuntu 22\|Jammy Jellyfish\|Ubuntu 21.10" >/dev/null && echo "-- -Zxz" || echo "")
