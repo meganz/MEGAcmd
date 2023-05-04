@@ -2,8 +2,9 @@ megacmd (1.6.3) stable; urgency=low
 
   * Improvements in session resumption
   * Fixes for undecryptable nodes
+  * Stability and preformance fixes
 
- -- MEGA Team <linux@mega.co.nz>  Fri, 21 Apr 2023 13:48:14 +0200
+ -- MEGA Team <linux@mega.co.nz>  Thu, 04 May 2023 16:18:29 +0200
 
 megacmd (1.6.1) stable; urgency=low
 

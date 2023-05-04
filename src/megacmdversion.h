@@ -22,7 +22,8 @@ namespace megacmd {
 
 const char * const megacmdchangelog =
         "Improvements in session resumption""\n"
-        "Fixes for undecryptable nodes"
+        "Fixes for undecryptable nodes""\n"
+        "Stability and preformance fixes"
         ;
 
 }//end namespace
