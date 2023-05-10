@@ -151,6 +151,7 @@ public:
 
     int makedir(std::string remotepath, bool recursive, mega::MegaNode *parentnode = NULL);
     bool IsFolder(std::string path);
+    bool pathExists(const std::string &path);
     void doDeleteNode(mega::MegaNode *nodeToDelete, mega::MegaApi* api);
 
     void confirmDelete();

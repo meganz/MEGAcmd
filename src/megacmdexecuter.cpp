@@ -3397,9 +3397,7 @@ void MegaCmdExecuter::uploadNode(string path, MegaApi* api, MegaNode *node, stri
     }
     unescapeifRequired(path);
 
-    LocalPath locallocal = LocalPath::fromAbsolutePath(path);
-    std::unique_ptr<FileAccess> fa = fsAccessCMD->newfileaccess();
-    if (!fa->fopen(locallocal, true, false))
+    if (!pathExists(path))
     {
         setCurrentOutCode(MCMD_NOTFOUND);
         LOG_err << "Unable to open local path: " << path;
@@ -4236,6 +4234,13 @@ void MegaCmdExecuter::confirm(string passwd, string email, string link)
 void MegaCmdExecuter::confirmWithPassword(string passwd)
 {
     return confirm(passwd, login, link);
+}
+
+bool MegaCmdExecuter::pathExists(const std::string &path)
+{
+    LocalPath localPath = LocalPath::fromAbsolutePath(path);
+    std::unique_ptr<FileAccess> fa(fsAccessCMD->newfileaccess());
+    return fa->isfolder(localPath) || fa->isfile(localPath);
 }
 
 bool MegaCmdExecuter::IsFolder(string path)
