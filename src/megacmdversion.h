@@ -8,7 +8,7 @@
 #define MEGACMD_MINOR_VERSION 6
 #endif
 #ifndef MEGACMD_MICRO_VERSION
-#define MEGACMD_MICRO_VERSION 2
+#define MEGACMD_MICRO_VERSION 3
 #endif
 
 #ifndef MEGACMD_BUILD_ID
@@ -21,11 +21,9 @@
 namespace megacmd {
 
 const char * const megacmdchangelog =
-        "Support login into a password protected link""\n"
-        "Ease establishing shares""\n"
-        "Fixes in tranfer resumption""\n"
-        "Fixes in password protected links""\n"
-        "Improvements shares management"
+        "Improvements in session resumption""\n"
+        "Fixes for undecryptable nodes""\n"
+        "Stability and preformance fixes"
         ;
 
 }//end namespace

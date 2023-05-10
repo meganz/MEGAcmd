@@ -26,7 +26,7 @@ arch=('i686' 'x86_64')
 url="http://mega.nz/cmd"
 license=("https://github.com/meganz/megacmd/blob/master/LICENSE")
 groups=()
-depends=('glibc>=2.33' 'gcc-libs>=10.2.0' 'sqlite' 'openssl>=1.1.1' 'zlib' 'libpsl' 'icu>=69.1' 'bash-completion' 'pcre' 'bzip2' 'xz')
+depends=('glibc>=2.37' 'gcc-libs>=13.1.1' 'sqlite' 'openssl>=1.1.1' 'zlib' 'libpsl' 'icu>=69.1' 'bash-completion' 'pcre' 'bzip2' 'xz')
 makedepends=('unzip' 'wget' 'ca-certificates' 'ffmpeg-mega' 'pdfium-mega' 'bzip2' 'xz')
 checkdepends=()
 optdepends=()
