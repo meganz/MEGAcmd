@@ -71,6 +71,8 @@ elif [[ $ver = 10* ]]; then
     str="Debian_10.0"
 elif [[ $ver = 11* ]]; then
     str="Debian_11"
+elif [[ $ver = 12* ]]; then
+    str="Debian_12"
 elif [[ $ver = "testing" ]]; then
     str="Debian_testing"
 # Elementary OS Luna uses 12.04
