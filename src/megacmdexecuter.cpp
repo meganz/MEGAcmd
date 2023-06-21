@@ -11319,14 +11319,26 @@ std::string MegaCmdExecuter::fuseNameOrPath(const std::string& command,
         return fuseBadArgument(command), std::string();
 
     // Mount selected by name.
-    unique_ptr<char[]> path(api->getMountPath(byName->second.c_str()));
+    unique_ptr<MegaStringList> paths(api->getMountPaths(byName->second.c_str()));
 
-    if (path)
-        return std::string(path.get());
+    // Only a single mount is known by this name.
+    if (paths->size() == 1)
+        return std::string(paths->get(0));
 
-    LOG_err << "There are no mounts named \""
-            << byName->second
-            << "\".";
+    if (paths->size() > 1)
+    {
+        // Multiple mounts are known by this name.
+        LOG_err << "Multiple mounts are known by the name \""
+                << byName->second
+                << "\".";
+    }
+    else
+    {
+        // No mounts are known by this name,
+        LOG_err << "There are no mounts named \""
+                << byName->second
+                << "\".";
+    }
 
     return std::string();
 }

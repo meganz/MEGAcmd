@@ -251,23 +251,23 @@ public:
     virtual void onBackupTemporaryError(mega::MegaApi *api, mega::MegaScheduledCopy *backup, mega::MegaError* error);
 
     void onMountAdded(mega::MegaApi* api,
-                      const mega::MegaMount* mount,
+                      const char* path,
                       int result) override;
 
     void onMountChanged(mega::MegaApi* api,
-                        const mega::MegaMount* mount,
+                        const char* path,
                         int result) override;
 
     void onMountDisabled(mega::MegaApi* api,
-                         const mega::MegaMount* mount,
+                         const char* path,
                          int result) override;
 
     void onMountEnabled(mega::MegaApi* api,
-                        const mega::MegaMount* mount,
+                        const char* path,
                         int result) override;
 
     void onMountRemoved(mega::MegaApi* api,
-                        const mega::MegaMount* mount,
+                        const char* path,
                         int result) override;
 
     void onSyncAdded(mega::MegaApi *api, mega::MegaSync *sync) override;
@@ -276,9 +276,9 @@ public:
 
 protected:
     void onMountEvent(mega::MegaApi* api,
-                      const mega::MegaMount* mount,
                       const char* pastTense,
                       const char* presentTense,
+                      const char* path,
                       int result);
 
     mega::MegaApi *megaApi;

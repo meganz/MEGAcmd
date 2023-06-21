@@ -549,44 +549,44 @@ void MegaCmdMegaListener::onSyncDeleted(MegaApi *api, MegaSync *sync)
 }
 
 void MegaCmdMegaListener::onMountAdded(mega::MegaApi* api,
-                                       const mega::MegaMount* mount,
+                                       const char* path,
                                        int result)
 {
-    onMountEvent(api, mount, "added", "add", result);
+    onMountEvent(api, "added", "add", path, result);
 }
 
 void MegaCmdMegaListener::onMountChanged(mega::MegaApi* api,
-                                         const mega::MegaMount* mount,
+                                         const char* path,
                                          int result)
 {
-    onMountEvent(api, mount, "changed", "change", result);
+    onMountEvent(api, "changed", "change", path, result);
 }
 
 void MegaCmdMegaListener::onMountDisabled(mega::MegaApi* api,
-                                          const mega::MegaMount* mount,
+                                          const char* path,
                                           int result)
 {
-    onMountEvent(api, mount, "disabled", "disable", result);
+    onMountEvent(api, "disabled", "disable", path, result);
 }
 
 void MegaCmdMegaListener::onMountEnabled(mega::MegaApi* api,
-                                         const mega::MegaMount* mount,
+                                         const char* path,
                                          int result)
 {
-    onMountEvent(api, mount, "enabled", "enable", result);
+    onMountEvent(api, "enabled", "enable", path, result);
 }
 
 void MegaCmdMegaListener::onMountRemoved(mega::MegaApi* api,
-                                         const mega::MegaMount* mount,
+                                         const char* path,
                                          int result)
 {
-    onMountEvent(api, mount, "removed", "remove", result);
+    onMountEvent(api, "removed", "remove", path, result);
 }
 
 void MegaCmdMegaListener::onMountEvent(mega::MegaApi*,
-                                       const mega::MegaMount* mount,
                                        const char* pastTense,
                                        const char* presentTense,
+                                       const char* path,
                                        int result)
 {
     if (result != MegaMount::SUCCESS)
@@ -594,7 +594,7 @@ void MegaCmdMegaListener::onMountEvent(mega::MegaApi*,
         LOG_err << "Unable to "
                 << presentTense
                 << " mount \""
-                << mount->getPath()
+                << path
                 << "\" due to error: "
                 << MegaMount::getResultString(result);
 
@@ -604,7 +604,7 @@ void MegaCmdMegaListener::onMountEvent(mega::MegaApi*,
     LOG_verbose << "Successfully "
                 << pastTense
                 << " mount \""
-                << mount->getPath()
+                << path
                 << "\".";
 }
 
