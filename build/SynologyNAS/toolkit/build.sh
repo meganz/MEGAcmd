@@ -49,11 +49,14 @@ build()
     mkdir -p ${env_dir}/tmp/megapatches
 
     # Make sure no stale patches are present.
-    rm ${env_dir}/tmp/megapatches/*
+    rm -f ${env_dir}/tmp/megapatches/*
 
     # Copy patches into environment, if any.
     if [ -d "${PATCH_DIR}" ]; then
-        cp ${PATCH_DIR}/*.patch ${env_dir}/tmp/megapatches
+        find ${PATCH_DIR} \
+             -type f \
+             -name '*.patch' \
+             -exec cp {} ${env_dir}/tmp/megapatches \;
     fi
 
     # Kick off the build.
