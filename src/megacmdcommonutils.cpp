@@ -444,7 +444,7 @@ vector<string> getlistOfWords(char *ptr, bool escapeBackSlashInCompletion, bool 
     char* wptr;
 
     // split line into words with quoting and escaping
-    for (;; )
+    for (;;)
     {
         // skip leading blank space
         while (*(const signed char*)ptr > 0 && *ptr <= ' ' && (ignoreTrailingSpaces || *(ptr+1)))
@@ -464,7 +464,7 @@ vector<string> getlistOfWords(char *ptr, bool escapeBackSlashInCompletion, bool 
             wptr = ptr;
             words.push_back(string());
 
-            for (;; )
+            for (;;)
             {
                 if (( *ptr == '"' ) || ( *ptr == '\\' ) || !*ptr)
                 {
@@ -489,7 +489,7 @@ vector<string> getlistOfWords(char *ptr, bool escapeBackSlashInCompletion, bool 
             wptr = ptr;
             words.push_back(string());
 
-            for (;; )
+            for (;;)
             {
                 if (( *ptr == '\'' ) || ( *ptr == '\\' ) || !*ptr)
                 {

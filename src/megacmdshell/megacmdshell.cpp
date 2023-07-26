@@ -1873,7 +1873,7 @@ void readloop()
     sleepMilliSeconds(1);
 #endif
 
-    for (;; )
+    for (;;)
     {
         if (prompt == COMMAND)
         {
@@ -1899,7 +1899,7 @@ void readloop()
 
 
         // command editing loop - exits when a line is submitted
-        for (;; )
+        for (;;)
         {
             if (prompt == COMMAND || prompt == AREYOUSURE)
             {
@@ -2025,7 +2025,7 @@ void readloop()
     sleepMilliSeconds(1);
 #endif
 
-    for (;; )
+    for (;;)
     {
         if (prompt == COMMAND)
         {
@@ -2033,7 +2033,7 @@ void readloop()
         }
 
         // command editing loop - exits when a line is submitted
-        for (;; )
+        for (;;)
         {
             g_line = console->checkForCompletedInputLine();
 

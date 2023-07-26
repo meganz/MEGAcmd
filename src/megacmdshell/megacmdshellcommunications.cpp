@@ -837,7 +837,7 @@ int MegaCmdShellCommunications::listenToStateChanges(int receiveSocket, void (*s
 int MegaCmdShellCommunications::readconfirmationloop(const char *question, string (*readresponse)(const char *))
 {
     bool firstime = true;
-    for (;; )
+    for (;;)
     {
         string response;
 
