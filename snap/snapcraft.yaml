@@ -1,0 +1,71 @@
+name: mega-cmd # you probably want to 'snapcraft register <name>'
+base: core22 # the base snap is the execution environment for this snap
+version: '1.6.3' # just for humans, typically '1.2+git' or '1.3.2'
+summary: Command Line Interactive and Scriptable Application to access MEGA 
+description: |
+  MEGAcmd provides non UI access to MEGA services. It intends to offer all the
+  functionality with your MEGA account via commands. It features 
+  synchronization, backup of local folders into your MEGA account and a 
+  webdav/streaming server.
+
+grade: devel # must be 'stable' to release into candidate/stable channels
+confinement: strict # use 'strict' once you have the right plugs and slots
+
+parts:
+  mega-cmd:
+    plugin: autotools
+    autotools-configure-parameters: ["--without-ffmpeg"]
+    source: .
+    source-type: git
+    build-packages:
+      - autoconf
+      - libtool
+      - g++ 
+      - libcrypto++-dev 
+      - libz-dev 
+      - libsqlite3-dev 
+      - libssl-dev 
+      - libcurl4-gnutls-dev 
+      - libreadline-dev 
+      - libpcre++-dev 
+      - libsodium-dev 
+      - libc-ares-dev 
+      - libfreeimage-dev 
+      - libavcodec-dev 
+      - libavutil-dev 
+      - libavformat-dev 
+      - libswscale-dev 
+      - libmediainfo-dev 
+      - libzen-dev 
+      - libuv1-dev
+    stage-packages:
+      - libpcrecpp0v5
+      - libcrypto++8
+      - libraw20
+      #- libwebp7
+      #- libwebpmux3
+      #- libopenjp2-7
+      #- libtiff5
+      #- libilmbase25
+      #- libopenexr25
+      - libc-ares2
+      - libcurl4-gnutls-dev
+      #- libdeflate0
+      - libfreeimage3
+      #- libgomp1
+      #- libjbig0
+      #- libjpeg8
+      #- libjxr0
+      #- liblcms2-2
+      - libmediainfo0v5
+      - libsodium23
+      - libuv1
+
+apps:
+  mega-cmd: 
+    command: usr/local/bin/mega-cmd
+    environment:
+       LD_LIBRARY_PATH: $SNAP/usr/local/lib:$LD_LIBRARY_PATH
+    plugs:
+      - network-bind
+      - home
