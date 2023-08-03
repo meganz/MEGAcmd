@@ -56,6 +56,14 @@ parts:
       - -usr/lib/x86_64-linux-gnu/libIlmImfUtil-2_5.so.25.0.6
       - -usr/lib/x86_64-linux-gnu/libraw_r.so.20.0.0
 
+  license:
+    plugin: dump
+    source: https://github.com/meganz/MEGAcmd.git
+    source-tag: "1.6.3_Linux"
+    source-type: git
+    prime: 
+      - LICENSE
+
 apps:
   mega-cmd: 
     command: usr/local/bin/mega-cmd
