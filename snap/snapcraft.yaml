@@ -56,6 +56,7 @@ parts:
       - -usr/lib/x86_64-linux-gnu/libIlmImfUtil-2_5.so.25.0.6
       - -usr/lib/x86_64-linux-gnu/libraw_r.so.20.0.0
 
+  # Add licensing into the snap 
   license:
     plugin: dump
     source: https://github.com/meganz/MEGAcmd.git
