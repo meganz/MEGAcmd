@@ -32,7 +32,8 @@ export PATH=/Applications/MEGAcmd.app/Contents/MacOS:$PATH
 
 ### Linux
 By default, whenever MEGAcmdServer is executed, it will log the output into 
-$HOME/.megaCmd/megacmdserver.log. 
+`$XDG_DATA_HOME/megaCmd/megacmdserver.log` (or `$HOME/.megaCmd/megacmdserver.log`
+if `$XDG_DATA_HOME` is not set).
 
 If you want to launch it manually execute in a terminal:
 
