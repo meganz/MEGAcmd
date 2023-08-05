@@ -40,6 +40,10 @@ In order to have support for thumbnails and previews, it is highly recommended t
 	* In some instanances you may need to run
 		 `apt install --reinstall build-essential`
 
+ * **openSUSE Leap 15.4**
+
+	* `autoconf automake make libtool gcc gcc-c++ readline-devel sqllite3-devel libcryptopp-devel zlib-devel libopenssl-devel c-ares-devel libsodium-devel libcurl-devel freeimage-devel libavutil-devel libzen-devel libavformat-devel libswscale-devel libmediainfo-devel`
+
 * **Windows**
 
 	* For Windows, we have recently overhauled the build system and now all the steps are captured in this one script that will acquire and build all dependencies, as well as building MEGAcmd itself, using vcpkg and cmake.  To get and use this script, follow these steps in a command prompt: 
