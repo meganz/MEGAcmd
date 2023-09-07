@@ -169,7 +169,7 @@ bash -x ./contrib/build_sdk.sh %{flag_cryptopp} %{flag_libraw} %{flag_cares} -o 
 ln -sfr $PWD/deps/lib/libfreeimage*.so $PWD/deps/lib/libfreeimage.so.3
 ln -sfn libfreeimage.so.3 $PWD/deps/lib/libfreeimage.so
 
-%if ( 0%{?fedora_version} && 0%{?fedora_version}<=35 ) || ( 0%{?centos_version} == 600 ) || ( 0%{?centos_version} == 800 ) || ( 0%{?sle_version} && 0%{?sle_version} < 150400 )
+%if ( 0%{?fedora_version} && 0%{?fedora_version}<=36 ) || ( 0%{?centos_version} == 600 ) || ( 0%{?centos_version} == 800 ) || ( 0%{?sle_version} && 0%{?sle_version} < 150400 )
     export CPPFLAGS="$CPPFLAGS -DMEGACMD_DEPRECATED_OS"
 %endif
 
