@@ -103,6 +103,12 @@ private:
     using StringVector = std::vector<std::string>;
 
     // FUSE operations.
+    template<typename T>
+    bool fuseArgument(const StringVector& arguments,
+                      const FromStringMap<std::string>& options,
+                      T& destination,
+                      const std::string& name);
+
     void fuseAddMount(const StringVector& arguments,
                       const FromStringMap<int>& flags,
                       const FromStringMap<std::string>& options);
@@ -114,6 +120,10 @@ private:
     void fuseEnableMount(const StringVector& arguments,
                          const FromStringMap<int>& flags,
                          const FromStringMap<std::string>& options);
+
+    void fuseFlags(const StringVector& arguments,
+                   const FromStringMap<int>& flags,
+                   const FromStringMap<std::string>& options);
 
     void fuseListMounts(const StringVector& arguments,
                         const FromStringMap<int>& flags,

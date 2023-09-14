@@ -31,6 +31,7 @@
 
 #include "mega/version.h" // TO GET SDK's version
 
+#include <exception>
 #include <iomanip>
 #include <limits>
 #include <string>
@@ -10894,6 +10895,8 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         fuseDisableMount(words, *clflags, *cloptions);
     else if (words[0] == "enable-mount")
         fuseEnableMount(words, *clflags, *cloptions);
+    else if (words[0] == "fuse-flags")
+        fuseFlags(words, *clflags, *cloptions);
     else if (words[0] == "list-mounts")
         fuseListMounts(words, *clflags, *cloptions);
     else if (words[0] == "mount-flags")
@@ -11100,6 +11103,249 @@ void MegaCmdExecuter::fuseEnableMount(const StringVector& arguments,
                           std::placeholders::_3),
                 options);
 }
+
+template<typename T>
+bool MegaCmdExecuter::fuseArgument(const StringVector& arguments,
+                                   const FromStringMap<std::string>& options,
+                                   T& destination,
+                                   const std::string& name)
+{
+    // Has the argument been specified?
+    auto i = options.find(name);
+
+    // Argument hasn't been specified.
+    if (i == options.end())
+        return true;
+
+    std::istringstream istream(i->second);
+
+    // Try and extract argument value.
+    if (!(istream >> destination))
+        return fuseBadArgument(arguments.front()), false;
+
+    // Skip trailing whitespace.
+    while (istream && std::isspace(istream.get()))
+        ;
+
+    // Argument must be an atom.
+    if (istream.bad() || !istream.eof())
+        return fuseBadArgument(arguments.front()), false;
+
+    return true;
+}
+
+// Convenience.
+#define DEFINE_LOG_LEVELS(expander) \
+    expander(ERROR) \
+    expander(WARNING) \
+    expander(INFO) \
+    expander(DEBUG)
+
+void MegaCmdExecuter::fuseFlags(const StringVector& arguments,
+                                const FromStringMap<int>&,
+                                const FromStringMap<std::string>& options)
+{
+    static std::map<int, std::string> fromLogLevel = {
+#define FROM_LOG_LEVEL(name) {MegaFuseFlags::LOG_LEVEL_##name, #name},
+        DEFINE_LOG_LEVELS(FROM_LOG_LEVEL)
+#undef FROM_LOG_LEVEL
+    }; // fromLogLevel
+
+    static std::map<std::string, int> toLogLevel = {
+#define TO_LOG_LEVEL(name) {#name, MegaFuseFlags::LOG_LEVEL_##name},
+        DEFINE_LOG_LEVELS(TO_LOG_LEVEL)
+#undef TO_LOG_LEVEL
+    }; // toLogLevel
+
+    auto displayCacheFlags = [&](MegaFuseInodeCacheFlags& flags) {
+        OUTSTREAM << "Cache Clean Age Threshold: "
+                  << flags.getCleanAgeThreshold()
+                  << " second(s)\n"
+                  << "Cache Clean Interval: "
+                  << flags.getCleanInterval()
+                  << " second(s)\n"
+                  << "Cache Clean Size Threshold: "
+                  << flags.getCleanSizeThreshold()
+                  << " inode(s)\n"
+                  << "Cache Max Size: "
+                  << flags.getMaxSize()
+                  << " inode(s)\n"
+                  << flush;
+    }; // displayCacheFlags
+
+    auto displayExecutorFlags =
+      [&](MegaFuseExecutorFlags& flags, const std::string& prefix) {
+        OUTSTREAM << prefix
+                  << " Max Thread Count: "
+                  << flags.getMaxThreadCount()
+                  << "\n"
+                  << prefix
+                  << " Max Thread Idle Time: "
+                  << flags.getMaxThreadIdleTime()
+                  << " second(s)\n"
+                  << prefix
+                  << " Min Thread Count: "
+                  << flags.getMinThreadCount()
+                  << "\n"
+                  << flush;
+    }; // displayExecutorFlags
+
+    auto displayServiceFlags = [&](MegaFuseFlags& flags) {
+        auto* cache = flags.getInodeCacheFlags();
+        auto* mount = flags.getMountExecutorFlags();
+        auto* subsystem = flags.getSubsystemExecutorFlags();
+
+        displayCacheFlags(*cache);
+
+        OUTSTREAM << "Flush Delay: "
+                  << flags.getFlushDelay()
+                  << " second(s)\n"
+                  << "Log Level: "
+                  << fromLogLevel[flags.getLogLevel()]
+                  << "\n"
+                  << flush;
+
+        displayExecutorFlags(*mount, "Mount");
+        displayExecutorFlags(*subsystem, "Subsystem");
+    }; // displayServiceFlags
+
+    auto updateCacheFlags = [&](MegaFuseInodeCacheFlags& flags) {
+        // Latch current flag values.
+        auto cleanAgeThreshold = flags.getCleanAgeThreshold();
+        auto cleanInterval = flags.getCleanInterval();
+        auto cleanSizeThreshold = flags.getCleanSizeThreshold();
+        auto maxSize = flags.getMaxSize();
+
+        // Try and get new flag values.
+        if (!fuseArgument(arguments,
+                          options,
+                          cleanAgeThreshold,
+                          "cache-clean-age-threshold"))
+            return false;
+
+        if (!fuseArgument(arguments,
+                          options,
+                          cleanInterval,
+                          "cache-clean-interval"))
+            return false;
+
+        if (!fuseArgument(arguments,
+                          options,
+                          cleanSizeThreshold,
+                          "cache-clean-size-threshold"))
+            return false;
+
+        if (!fuseArgument(arguments,
+                          options,
+                          maxSize,
+                          "cache-max-size"))
+            return false;
+
+        // Update flag values.
+        flags.setCleanAgeThreshold(cleanAgeThreshold);
+        flags.setCleanInterval(cleanInterval);
+        flags.setCleanSizeThreshold(cleanSizeThreshold);
+        flags.setMaxSize(maxSize);
+
+        // We're all done.
+        return true;
+    }; // updateCacheFlags
+ 
+    auto updateExecutorFlags =
+      [&](MegaFuseExecutorFlags& flags, const std::string& prefix) {
+        // Latch current flag values.
+        auto maxThreadCount = flags.getMaxThreadCount();
+        auto maxThreadIdleTime = flags.getMaxThreadIdleTime();
+        auto minThreadCount = flags.getMinThreadCount();
+
+        // Try and latch new flag values.
+        if (!fuseArgument(arguments,
+                          options,
+                          maxThreadCount,
+                          prefix + "-max-thread-count"))
+            return false;
+
+        if (!fuseArgument(arguments,
+                          options,
+                          maxThreadCount,
+                          prefix + "-max-thread-idle-time"))
+            return false;
+
+        if (!fuseArgument(arguments,
+                          options,
+                          maxThreadCount,
+                          prefix + "-min-thread-count"))
+            return false;
+
+        // Update flag values.
+        flags.setMaxThreadCount(maxThreadCount);
+        flags.setMaxThreadIdleTime(maxThreadIdleTime);
+        flags.setMinThreadCount(minThreadCount);
+
+        // We're all done.
+        return true;
+    }; // updateExecutorFlags
+
+    auto updateServiceFlags = [&](MegaFuseFlags& flags) {
+        auto* cache = flags.getInodeCacheFlags();
+        auto* mount = flags.getMountExecutorFlags();
+        auto* subsystem = flags.getSubsystemExecutorFlags();
+
+        // Try and update cache flags.
+        if (!updateCacheFlags(*cache))
+            return false;
+
+        // Try and update mount executor flags.
+        if (!updateExecutorFlags(*mount, "mount"))
+            return false;
+
+        // Try and update subsystem executor flags.
+        if (!updateExecutorFlags(*subsystem, "subsystem"))
+            return false;
+
+        // Get current values of top-level flags.
+        auto flushDelay = flags.getFlushDelay();
+        auto logLevel = fromLogLevel[flags.getLogLevel()];
+
+        // Get new flag values.
+        if (!fuseArgument(arguments,
+                          options,
+                          flushDelay,
+                          "flush-delay"))
+            return false;
+
+        if (!fuseArgument(arguments,
+                          options,
+                          logLevel,
+                          "log-level"))
+            return false;
+
+        if (!toLogLevel.count(logLevel))
+            return fuseBadArgument(arguments.front()), false;
+
+        // Update flag values.
+        flags.setFlushDelay(flushDelay);
+        flags.setLogLevel(toLogLevel[logLevel]);
+
+        // We're all done.
+        return true;
+    }; // updateServiceFlags
+
+    // Convenience.
+    using FlagsPtr = std::unique_ptr<MegaFuseFlags>;
+
+    // Get our hands on FUSE's current flags.
+    FlagsPtr flags(api->getFUSEFlags());
+
+    // Try and update FUSE's flags.
+    if (!updateServiceFlags(*flags))
+        return;
+
+    // Display updated flags.
+    displayServiceFlags(*flags);
+}
+
+#undef DEFINE_LOG_LEVELS
 
 void MegaCmdExecuter::fuseListMounts(const StringVector& arguments,
                                      const FromStringMap<int>& flags,
