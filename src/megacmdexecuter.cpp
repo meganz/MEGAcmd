@@ -3374,6 +3374,8 @@ void MegaCmdExecuter::downloadNode(string source, string path, MegaApi* api, Meg
                 nullptr,//const char *appData,
                 false,//bool startFirst,
                 nullptr,//MegaCancelToken *cancelToken,
+                MegaTransfer::COLLISION_CHECK_FINGERPRINT,//int collisionCheck,
+                MegaTransfer::COLLISION_RESOLUTION_NEW_WITH_N,//int collisionResolution,
                 new ATransferListener(multiTransferListener, source));
 }
 
