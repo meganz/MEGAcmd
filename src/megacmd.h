@@ -181,6 +181,7 @@ prompttype getprompt();
 void printHistory();
 
 int askforConfirmation(std::string message);
+bool booleanAskForConfirmation(std::string messageHeading);
 
 std::string askforUserResponse(std::string message);
 

@@ -3862,7 +3862,6 @@ void * doProcessLine(void *pointer)
     return NULL;
 }
 
-
 int askforConfirmation(string message)
 {
     CmdPetition *inf = getCurrentPetition();
@@ -3876,6 +3875,13 @@ int askforConfirmation(string message)
     }
 
     return MCMDCONFIRM_NO;
+}
+
+bool booleanAskForConfirmation(string messageHeading)
+{
+    std::string confirmationQuery = messageHeading + "? ([y]es/[n]o): ";
+    auto confirmationResponse = askforConfirmation(confirmationQuery);
+    return (confirmationResponse == MCMDCONFIRM_YES || confirmationResponse == MCMDCONFIRM_ALL);
 }
 
 string askforUserResponse(string message)
