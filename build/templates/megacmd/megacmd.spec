@@ -9,7 +9,7 @@ Source0:	megacmd_%{version}.tar.gz
 Vendor:		MEGA Limited
 Packager:	MEGA Linux Team <linux@mega.co.nz>
 
-BuildRequires: zlib-devel, autoconf, automake, libtool, gcc-c++, pcre-devel
+BuildRequires: zlib-devel, autoconf, automake, libtool, gcc-c++, pcre-devel, libicu-devel
 BuildRequires: hicolor-icon-theme, unzip, wget
 BuildRequires: ffmpeg-mega pdfium-mega
 
