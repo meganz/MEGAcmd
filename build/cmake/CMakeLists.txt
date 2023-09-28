@@ -28,7 +28,7 @@ if(WIN32)
 endif()
 
 #specify where 3rd party libraries are available
-set(Mega3rdPartyDir "${CMAKE_CURRENT_LIST_DIR}/../../../3rdparty" CACHE STRING "")
+set(Mega3rdPartyDir "${CMAKE_CURRENT_LIST_DIR}/../../../3rdparty_megacmd" CACHE STRING "")
 
 # this line could also point to an sdk repo outside this one, or you can use the submodule in ./sdk folder
 include(${CMAKE_CURRENT_LIST_DIR}/../../sdk/contrib/cmake/CMakeLists.txt)
