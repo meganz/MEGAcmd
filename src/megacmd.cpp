@@ -3495,12 +3495,9 @@ bool executeUpdater(bool *restartRequired, bool doNotInstall = false)
     }
 #endif
 
-
     if (*restartRequired && api)
     {
-        std::unique_ptr<MegaCmdListener> megaCmdListener{new MegaCmdListener(api, NULL)};
-        api->sendEvent(MCMD_EVENT_UPDATE_RESTART_ID,MCMD_EVENT_UPDATE_RESTART_MESSAGE, false/*JourneyId*/, nullptr/*viewId*/, megaCmdListener.get());
-        megaCmdListener->wait();
+        sendEvent(StatsManager::MegacmdEvent::UPDATE_RESTART, api);
     }
 
     return true;
@@ -4111,9 +4108,7 @@ void* checkForUpdates(void *param)
 
             if (stopcheckingforUpdaters) break;
 
-            std::unique_ptr<MegaCmdListener> megaCmdListener{new MegaCmdListener(api, NULL)};
-            api->sendEvent(MCMD_EVENT_UPDATE_START_ID,MCMD_EVENT_UPDATE_START_MESSAGE, false/*JourneyId*/, nullptr/*viewId*/, megaCmdListener.get());
-            megaCmdListener->wait();
+            sendEvent(StatsManager::MegacmdEvent::UPDATE_START, api);
 
             broadcastMessage("  Executing update    !");
             LOG_info << " Applying update";
@@ -4901,6 +4896,55 @@ void reset()
     setBlocked(false);
 }
 
+const char *StatsManager::defaultEventMsg(MegacmdEvent ev)
+{
+    static auto sDefaultMsgs = []()
+    {
+        std::array<const char *, static_cast<int>(MegacmdEvent::LastEvent) - FIRST_EVENT_NUMBER> defaultMsgs;
+#define SOME_GENERATOR_MACRO(name, _, msg) defaultMsgs[static_cast<int>(MegacmdEvent::name) - FIRST_EVENT_NUMBER] = msg;
+        GENERATE_FROM_MEGACMD_EVENTS(SOME_GENERATOR_MACRO)
+        #undef SOME_GENERATOR_MACRO
+        return defaultMsgs;
+    }();
+
+    return sDefaultMsgs[static_cast<int>(ev) - FIRST_EVENT_NUMBER];
+}
+
+const char *StatsManager::eventName(MegacmdEvent ev)
+{
+    static auto sNames = []()
+    {
+        std::array<const char *, static_cast<int>(MegacmdEvent::LastEvent) - FIRST_EVENT_NUMBER> names;
+#define SOME_GENERATOR_MACRO(name, _, __) names[static_cast<int>(MegacmdEvent::name) - FIRST_EVENT_NUMBER] = #name;
+        GENERATE_FROM_MEGACMD_EVENTS(SOME_GENERATOR_MACRO)
+        #undef SOME_GENERATOR_MACRO
+        return names;
+    }();
+
+    return sNames[static_cast<int>(ev) - FIRST_EVENT_NUMBER];
+}
+
+void sendEvent(StatsManager::MegacmdEvent event, const char *msg, ::mega::MegaApi *megaApi, bool wait)
+{
+    std::unique_ptr<MegaCmdListener> megaCmdListener (wait ? new MegaCmdListener(megaApi) : nullptr);
+    megaApi->sendEvent(static_cast<int>(event), msg, false /*JourneyId*/, nullptr /*viewId*/, megaCmdListener.get());
+    if (wait)
+    {
+        megaCmdListener->wait();
+        assert(megaCmdListener->getError());
+        if (megaCmdListener->getError()->getErrorCode() != MegaError::API_OK)
+        {
+            LOG_err << "Failed to log event " << StatsManager::eventName(event) << ": "
+                    << msg << ", error: " << megaCmdListener->getError()->getErrorString();
+        }
+    }
+}
+
+void sendEvent(StatsManager::MegacmdEvent event, ::mega::MegaApi *megaApi, bool wait)
+{
+    return sendEvent(event, StatsManager::defaultEventMsg(event), megaApi, wait);
+}
+
 #ifdef _WIN32
 void uninstall()
 {
@@ -5191,7 +5235,8 @@ int main(int argc, char* argv[])
 
     if (ConfigurationManager::getHasBeenUpdated())
     {
-        api->sendEvent(MCMD_EVENT_UPDATE_ID,MCMD_EVENT_UPDATE_MESSAGE, false/*JourneyId*/, nullptr/*viewId*/);
+        sendEvent(StatsManager::MegacmdEvent::UPDATE, api, false);
+
         stringstream ss;
         ss << "MEGAcmd has been updated to version " << MEGACMD_MAJOR_VERSION << "." << MEGACMD_MINOR_VERSION << "." << MEGACMD_MICRO_VERSION << "." << MEGACMD_BUILD_ID << " - code " << MEGACMD_CODE_VERSION << endl;
         broadcastMessage(ss.str(), true);

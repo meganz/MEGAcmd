@@ -43,17 +43,37 @@ using std::exception;
 #define PROGRESS_COMPLETE -2
 namespace megacmd {
 
-// Events
-const int MCMD_EVENT_UPDATE_ID = 98900;
-const char MCMD_EVENT_UPDATE_MESSAGE[] = "MEGAcmd update";
-const int MCMD_EVENT_UPDATE_START_ID = 98901;
-const char MCMD_EVENT_UPDATE_START_MESSAGE[] = "MEGAcmd auto-update start";
-const int MCMD_EVENT_UPDATE_RESTART_ID = 98902;
-const char MCMD_EVENT_UPDATE_RESTART_MESSAGE[] = "MEGAcmd updated requiring restart";
-const int MCMD_EVENT_FIRST_CONFIGURED_SYNC_ID = 98903;
-const char MCMD_EVENT_FIRST_CONFIGURED_SYNC_MESSAGE[] = "MEGAcmd first sync configured";
-const int MCMD_EVENT_WAITED_TOO_LONG_FOR_NODES_CURRENT = 98904;
-const char MCMD_EVENT_WAITED_TOO_LONG_FOR_NODES_CURRENT_MESSAGE[] = "MEGAcmd nodes current wait timed out";
+struct StatsManager {
+
+    /** MEGAcmd events **/
+    // Allocated ranges:
+    //    - regular: [98'900,98'999]
+    //    - extended [860'000,879'999]
+    // Params:
+    //   - event name
+    //   - number
+    //   - Default message
+
+    #define GENERATE_FROM_MEGACMD_EVENTS(GENERATOR_MACRO) \
+        GENERATOR_MACRO(UPDATE                                          , 98900, "MEGAcmd update") \
+        GENERATOR_MACRO(UPDATE_START                                    , 98901, "MEGAcmd auto-update start") \
+        GENERATOR_MACRO(UPDATE_RESTART                                  , 98902, "MEGAcmd updated requiring restart") \
+        GENERATOR_MACRO(FIRST_CONFIGURED_SYNC                           , 98903, "MEGAcmd first sync configured") \
+        GENERATOR_MACRO(WAITED_TOO_LONG_FOR_NODES_CURRENT               , 98904, "MEGAcmd nodes current wait timed out")
+
+    static constexpr auto FIRST_EVENT_NUMBER = 98900u;
+
+    enum class MegacmdEvent
+    {
+    #define SOME_GENERATOR_MACRO(name, num, __) name = num,
+      GENERATE_FROM_MEGACMD_EVENTS(SOME_GENERATOR_MACRO)
+    #undef SOME_GENERATOR_MACRO
+        LastEvent
+    };
+
+    static const char *defaultEventMsg(MegacmdEvent ev);
+    static const char *eventName(MegacmdEvent ev);
+};
 
 typedef struct sync_struct
 {
@@ -194,6 +214,9 @@ void informStateListenerByClientId(int clientID, std::string s);
 
 
 void informProgressUpdate(long long transferred, long long total, int clientID, std::string title = "");
+
+void sendEvent(StatsManager::MegacmdEvent event, mega::MegaApi *megaApi, bool wait = true);
+void sendEvent(StatsManager::MegacmdEvent event, const char *msg, mega::MegaApi *megaApi, bool wait = true);
 
 }//end namespace
 #endif
