@@ -3499,7 +3499,7 @@ bool executeUpdater(bool *restartRequired, bool doNotInstall = false)
     if (*restartRequired && api)
     {
         std::unique_ptr<MegaCmdListener> megaCmdListener{new MegaCmdListener(api, NULL)};
-        api->sendEvent(MCMD_EVENT_UPDATE_RESTART_ID,MCMD_EVENT_UPDATE_RESTART_MESSAGE, megaCmdListener.get());
+        api->sendEvent(MCMD_EVENT_UPDATE_RESTART_ID,MCMD_EVENT_UPDATE_RESTART_MESSAGE, false/*JourneyId*/, nullptr/*viewId*/, megaCmdListener.get());
         megaCmdListener->wait();
     }
 
@@ -4112,7 +4112,7 @@ void* checkForUpdates(void *param)
             if (stopcheckingforUpdaters) break;
 
             std::unique_ptr<MegaCmdListener> megaCmdListener{new MegaCmdListener(api, NULL)};
-            api->sendEvent(MCMD_EVENT_UPDATE_START_ID,MCMD_EVENT_UPDATE_START_MESSAGE, megaCmdListener.get());
+            api->sendEvent(MCMD_EVENT_UPDATE_START_ID,MCMD_EVENT_UPDATE_START_MESSAGE, false/*JourneyId*/, nullptr/*viewId*/, megaCmdListener.get());
             megaCmdListener->wait();
 
             broadcastMessage("  Executing update    !");
@@ -5191,7 +5191,7 @@ int main(int argc, char* argv[])
 
     if (ConfigurationManager::getHasBeenUpdated())
     {
-        api->sendEvent(MCMD_EVENT_UPDATE_ID,MCMD_EVENT_UPDATE_MESSAGE);
+        api->sendEvent(MCMD_EVENT_UPDATE_ID,MCMD_EVENT_UPDATE_MESSAGE, false/*JourneyId*/, nullptr/*viewId*/);
         stringstream ss;
         ss << "MEGAcmd has been updated to version " << MEGACMD_MAJOR_VERSION << "." << MEGACMD_MINOR_VERSION << "." << MEGACMD_MICRO_VERSION << "." << MEGACMD_BUILD_ID << " - code " << MEGACMD_CODE_VERSION << endl;
         broadcastMessage(ss.str(), true);
