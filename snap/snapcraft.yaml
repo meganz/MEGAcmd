@@ -73,6 +73,7 @@ apps:
     plugs:
       - network-bind
       - home
+      - removable-media
 
   megacli: 
     command: usr/local/bin/megacli
@@ -82,6 +83,7 @@ apps:
     plugs:
       - network-bind
       - home
+      - removable-media
   
   mega-cmd-server: 
     command: usr/local/bin/mega-cmd-server
@@ -90,6 +92,7 @@ apps:
     plugs:
       - network-bind
       - home
+      - removable-media
 
   mega-signup: 
     command: usr/local/bin/mega-signup
@@ -291,6 +294,7 @@ apps:
     plugs:
       - network-bind
       - home
+      - removable-media
 
   mega-get: 
     command: usr/local/bin/mega-get
@@ -300,6 +304,7 @@ apps:
     plugs:
       - network-bind
       - home
+      - removable-media
 
   mega-preview: 
     command: usr/local/bin/mega-preview
@@ -309,6 +314,7 @@ apps:
     plugs:
       - network-bind
       - home
+      - removable-media
 
   mega-thumbnail: 
     command: usr/local/bin/mega-thumbnail
@@ -318,6 +324,7 @@ apps:
     plugs:
       - network-bind
       - home 
+      - removable-media
    
   mega-mv: 
     command: usr/local/bin/mega-mv
@@ -359,6 +366,7 @@ apps:
     plugs:
       - network-bind
       - home
+      - removable-media
 
   mega-exclude: 
     command: usr/local/bin/mega-exclude
@@ -376,6 +384,7 @@ apps:
     plugs:
       - network-bind
       - home
+      - removable-media
 
   mega-export: 
     command: usr/local/bin/mega-export
@@ -409,6 +418,7 @@ apps:
     plugs:
       - network-bind
       - home
+      - removable-media
 
   mega-help: 
     command: usr/local/bin/mega-help
@@ -426,6 +436,7 @@ apps:
     plugs:
       - network-bind
       - home
+      - removable-media
 
   mega-deleteversions: 
     command: usr/local/bin/mega-deleteversions
@@ -531,6 +542,7 @@ apps:
     plugs:
       - network-bind
       - home
+      - removable-media
 
   mega-graphics: 
     command: usr/local/bin/mega-graphics
@@ -572,6 +584,7 @@ apps:
     plugs:
       - network-bind
       - home
+      - removable-media
 
   mega-tree: 
     command: usr/local/bin/mega-tree
