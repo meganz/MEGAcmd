@@ -1,5 +1,5 @@
 isEmpty(THIRDPARTY_VCPKG_BASE_PATH){
-    THIRDPARTY_VCPKG_BASE_PATH = $$PWD/../../../3rdParty_megacmd
+    THIRDPARTY_VCPKG_BASE_PATH = $$PWD/../../../../3rdParty_megacmd
 }
 
 win32 {

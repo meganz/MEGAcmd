@@ -1,5 +1,5 @@
 isEmpty(THIRDPARTY_VCPKG_BASE_PATH){
-    THIRDPARTY_VCPKG_BASE_PATH = $$PWD/../../../3rdParty_megacmd
+    THIRDPARTY_VCPKG_BASE_PATH = $$PWD/../../../../../3rdParty_megacmd
 }
 
 win32 {
@@ -96,17 +96,11 @@ win32 {
     }
 
     DEFINES += UNICODE _UNICODE NTDDI_VERSION=0x06000000 _WIN32_WINNT=0x0600
-    vcpkg:LIBS += -lurlmon -lShlwapi -lShell32 -lAdvapi32 -lcryptopp-staticcrt
+    vcpkg:LIBS += -lurlmon -lShlwapi -lShell32 -lAdvapi32 -lcryptopp-static
     else:LIBS += -lurlmon -lShlwapi -lShell32 -lAdvapi32 -lcryptoppmt
 
     QMAKE_CXXFLAGS_RELEASE = $$QMAKE_CFLAGS_RELEASE_WITH_DEBUGINFO
     QMAKE_LFLAGS_RELEASE = $$QMAKE_LFLAGS_RELEASE_WITH_DEBUGINFO
-
-    QMAKE_CXXFLAGS_RELEASE += -MT
-    QMAKE_CXXFLAGS_DEBUG += -MTd
-
-    QMAKE_CXXFLAGS_RELEASE -= -MD
-    QMAKE_CXXFLAGS_DEBUG -= -MDd
 
     RC_FILE = icon.rc
     QMAKE_LFLAGS += /LARGEADDRESSAWARE
