@@ -1089,7 +1089,7 @@ bool MegaCmdExecuter::checkNoErrors(MegaError *error, const string &message, Syn
     return false;
 }
 
-bool MegaCmdExecuter::checkNoErrors(::mega::SynchronousRequestListener *listener, const std::string &message, mega::SyncError syncError)
+bool MegaCmdExecuter::checkNoErrors(::mega::SynchronousRequestListener *listener, const std::string &message, ::mega::SyncError syncError)
 {
     assert(listener);
     listener->wait();
