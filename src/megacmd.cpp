@@ -4946,11 +4946,7 @@ void uninstall()
 
 #endif
 
-} //end namespace
-
-using namespace megacmd;
-
-int main(int argc, char* argv[])
+int executeServer(int argc, char* argv[])
 {
 #ifdef __linux__
     // Ensure interesting signals are unblocked.
@@ -5209,3 +5205,11 @@ int main(int argc, char* argv[])
     megacmd::megacmd();
     finalize(waitForRestartSignal);
 }
+
+void stopServer()
+{
+    LOG_debug << "Executing ... mega-quit ...";
+    processCommandLinePetitionQueues("quit"); //TODO: have set doExit instead, and wake the loop.
+}
+
+} //end namespace
