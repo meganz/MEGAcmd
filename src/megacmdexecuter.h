@@ -82,7 +82,7 @@ public:
 
     bool processTree(mega::MegaNode * n, bool(mega::MegaApi *, mega::MegaNode *, void *), void *( arg ));
 
-    mega::MegaNode* nodebypath(const char* ptr, std::string* user = NULL, std::string* namepart = NULL);
+    std::unique_ptr<mega::MegaNode> nodebypath(const char* ptr, std::string* user = nullptr, std::string* namepart = nullptr);
     std::vector<std::unique_ptr<mega::MegaNode>> nodesbypath(const char* ptr, bool usepcre, std::string* user = nullptr);
     void getNodesMatching(mega::MegaNode* parentNode, std::deque<std::string> pathParts, std::vector<std::unique_ptr<mega::MegaNode>>& nodesMatching, bool usepcre);
 

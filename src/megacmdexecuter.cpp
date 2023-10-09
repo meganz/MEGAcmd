@@ -350,12 +350,12 @@ bool MegaCmdExecuter::processTree(MegaNode *n, bool processor(MegaApi *, MegaNod
 // * H:HANDLE is node with handle HANDLE
 // * : and / filename components, as well as the \, must be escaped by \.
 // (correct UTF-8 encoding is assumed)
-// returns NULL if path malformed or not found
-MegaNode* MegaCmdExecuter::nodebypath(const char* ptr, string* user, string* namepart)
+// returns nullptr if path malformed or not found
+std::unique_ptr<MegaNode> MegaCmdExecuter::nodebypath(const char* ptr, string* user, string* namepart)
 {
     if (ptr && ptr[0] == 'H' && ptr[1] == ':')
     {
-        MegaNode * n = api->getNodeByHandle(api->base64ToHandle(ptr+2));
+        auto n = std::unique_ptr<MegaNode>(api->getNodeByHandle(api->base64ToHandle(ptr+2)));
         if (n)
         {
             return n;
@@ -363,7 +363,7 @@ MegaNode* MegaCmdExecuter::nodebypath(const char* ptr, string* user, string* nam
     }
 
     string rest;
-    MegaNode *baseNode = getBaseNode(ptr, rest);
+    auto baseNode = std::unique_ptr<MegaNode>(getBaseNode(ptr, rest));
 
     if (baseNode && !rest.size())
     {
@@ -389,10 +389,10 @@ MegaNode* MegaCmdExecuter::nodebypath(const char* ptr, string* user, string* nam
 
         if (curName != ".")
         {
-            MegaNode * nextNode = NULL;
+            std::unique_ptr<MegaNode> nextNode;
             if (curName == "..")
             {
-                nextNode = api->getParentNode(baseNode);
+                nextNode = std::unique_ptr<MegaNode>(api->getParentNode(baseNode.get()));
             }
             else
             {
@@ -401,47 +401,41 @@ MegaNode* MegaCmdExecuter::nodebypath(const char* ptr, string* user, string* nam
                 bool isversion = nodeNameIsVersion(curName);
                 if (isversion)
                 {
-                    MegaNode *childNode = api->getChildNode(baseNode, curName.substr(0,curName.size()-11).c_str());
+                    auto childNode = std::unique_ptr<MegaNode>(api->getChildNode(baseNode.get(), curName.substr(0,curName.size()-11).c_str()));
                     if (childNode)
                     {
-                        MegaNodeList *versionNodes = api->getVersions(childNode);
+                        auto versionNodes = std::unique_ptr<MegaNodeList>(api->getVersions(childNode.get()));
                         if (versionNodes)
                         {
                             for (int i = 0; i < versionNodes->size(); i++)
                             {
-                                MegaNode *versionNode = versionNodes->get(i);
-                                if ( curName.substr(curName.size()-10) == SSTR(versionNode->getModificationTime()) )
+                                MegaNode* versionNode = versionNodes->get(i);
+                                if (curName.substr(curName.size()-10) == SSTR(versionNode->getModificationTime()))
                                 {
-                                    nextNode = versionNode->copy();
+                                    nextNode = std::unique_ptr<MegaNode>(versionNode->copy());
                                     break;
                                 }
                             }
-                            delete versionNodes;
                         }
-                        delete childNode;
                     }
                 }
                 else
                 {
-                    nextNode = api->getChildNode(baseNode,curName.c_str());
+                    nextNode = std::unique_ptr<MegaNode>(api->getChildNode(baseNode.get(), curName.c_str()));
                 }
             }
 
             // mv command target? return name part of not found
-            if (namepart && !nextNode && ( possep == string::npos)) //if this is the last part, we will pass that one, so that a mv command know the name to give the new node
+            if (namepart && !nextNode && (possep == string::npos)) //if this is the last part, we will pass that one, so that a mv command know the name to give the new node
             {
                 *namepart = rest;
                 return baseNode;
             }
 
-            if (nextNode != baseNode)
-            {
-                delete baseNode;
-            }
-            baseNode = nextNode;
+            baseNode = std::move(nextNode);
         }
 
-        if (possep != string::npos && possep != (rest.size() - 1) )
+        if (possep != string::npos && possep != (rest.size() - 1))
         {
             rest = rest.substr(possep+1);
         }
@@ -451,7 +445,7 @@ MegaNode* MegaCmdExecuter::nodebypath(const char* ptr, string* user, string* nam
         }
     }
 
-    return NULL;
+    return nullptr;
 }
 
 /**
@@ -1575,6 +1569,7 @@ void MegaCmdExecuter::createOrModifyBackup(string local, string remote, string s
             delete backup;
         }
     }
+
     if (numBackups == -1)
     {
         setCurrentOutCode(MCMD_EARGS);
@@ -1582,22 +1577,22 @@ void MegaCmdExecuter::createOrModifyBackup(string local, string remote, string s
         return;
     }
 
-    MegaNode *n = NULL;
+    std::unique_ptr<MegaNode> n;
     if (remote.size())
     {
         n = nodebypath(remote.c_str());
     }
     else
     {
-        MegaScheduledCopy *backup = api->getScheduledCopyByPath(local.c_str());
+        auto backup = std::unique_ptr<MegaScheduledCopy>(api->getScheduledCopyByPath(local.c_str()));
         if (!backup)
         {
-            backup = api->getScheduledCopyByTag(toInteger(local, -1));
+            backup = std::unique_ptr<MegaScheduledCopy>(api->getScheduledCopyByTag(toInteger(local, -1)));
         }
+
         if (backup)
         {
-            n = api->getNodeByHandle(backup->getMegaHandle());
-            delete backup;
+            n = std::unique_ptr<MegaNode>(api->getNodeByHandle(backup->getMegaHandle()));
         }
     }
 
@@ -1610,7 +1605,7 @@ void MegaCmdExecuter::createOrModifyBackup(string local, string remote, string s
         }
         else
         {
-            if (establishBackup(local, n, period, speriod, numBackups) )
+            if (establishBackup(local, n.get(), period, speriod, numBackups))
             {
                 mtxBackupsMap.lock();
                 ConfigurationManager::saveBackups(&ConfigurationManager::configuredBackups);
@@ -1620,7 +1615,6 @@ void MegaCmdExecuter::createOrModifyBackup(string local, string remote, string s
                           << " Number-of-Backups=" << numBackups << endl;
             }
         }
-        delete n;
     }
     else
     {
@@ -2828,11 +2822,11 @@ void MegaCmdExecuter::fetchNodes(MegaApi *api, int clientID)
                 string pathToServe = *it;
                 if (pathToServe.size())
                 {
-                    MegaNode *n = nodebypath(pathToServe.c_str());
+                    std::unique_ptr<MegaNode> n = nodebypath(pathToServe.c_str());
                     if (n)
                     {
-                        char *l = api->httpServerGetLocalWebDavLink(n);
-                        char *actualNodePath = api->getNodePath(n);
+                        char* l = api->httpServerGetLocalWebDavLink(n.get());
+                        char* actualNodePath = api->getNodePath(n.get());
                         LOG_debug << "Serving via webdav: " << actualNodePath << ": " << l;
 
                         if (pathToServe != actualNodePath)
@@ -2843,7 +2837,6 @@ void MegaCmdExecuter::fetchNodes(MegaApi *api, int clientID)
                         }
                         delete []l;
                         delete []actualNodePath;
-                        delete n;
                     }
                     else
                     {
@@ -2888,11 +2881,11 @@ void MegaCmdExecuter::fetchNodes(MegaApi *api, int clientID)
                 string pathToServe = *it;
                 if (pathToServe.size())
                 {
-                    MegaNode *n = nodebypath(pathToServe.c_str());
+                    std::unique_ptr<MegaNode> n = nodebypath(pathToServe.c_str());
                     if (n)
                     {
-                        char *l = api->ftpServerGetLocalLink(n);
-                        char *actualNodePath = api->getNodePath(n);
+                        char* l = api->ftpServerGetLocalLink(n.get());
+                        char* actualNodePath = api->getNodePath(n.get());
                         LOG_debug << "Serving via ftp: " << pathToServe << ": " << l << ". Data Channel Port Range: " << dataPortRangeBegin << "-" << dataPortRangeEnd;
 
                         if (pathToServe != actualNodePath)
@@ -2903,7 +2896,6 @@ void MegaCmdExecuter::fetchNodes(MegaApi *api, int clientID)
                         }
                         delete []l;
                         delete []actualNodePath;
-                        delete n;
                     }
                     else
                     {
@@ -3864,19 +3856,17 @@ vector<string> MegaCmdExecuter::listpaths(bool usepcre, string askedPath, bool d
                 MegaNode *ncwd = api->getNodeByHandle(cwd);
                 if (ncwd)
                 {
-                    MegaNode * n = nodebypath(nodepath.c_str());
+                    std::unique_ptr<MegaNode> n = nodebypath(nodepath.c_str());
                     if (n)
                     {
                         if (n->getType() != MegaNode::TYPE_FILE)
                         {
                             nodepath += "/";
                         }
-                        if (!( discardFiles && ( n->getType() == MegaNode::TYPE_FILE )))
+                        if (!(discardFiles && (n->getType() == MegaNode::TYPE_FILE)))
                         {
                             paths.push_back(nodepath);
                         }
-
-                        delete n;
                     }
                     else
                     {
@@ -4046,7 +4036,7 @@ vector<string> MegaCmdExecuter::getNodeAttrs(string nodePath)
 {
     vector<string> attrs;
 
-    MegaNode *n = nodebypath(nodePath.c_str());
+    std::unique_ptr<MegaNode> n = nodebypath(nodePath.c_str());
     if (n)
     {
         //List node custom attributes
@@ -4060,7 +4050,6 @@ vector<string> MegaCmdExecuter::getNodeAttrs(string nodePath)
 
             delete attrlist;
         }
-        delete n;
     }
     return attrs;
 }
@@ -4594,16 +4583,13 @@ void MegaCmdExecuter::printBackupHistory(MegaScheduledCopy *backup, const char *
             long long nfolders = 0;
             if (parentnode)
             {
-                MegaNode *backupInstanceNode = nodebypath(msl->get(i));
+                std::unique_ptr<MegaNode> backupInstanceNode = nodebypath(msl->get(i));
                 if (backupInstanceNode)
                 {
                     backupInstanceStatus = backupInstanceNode->getCustomAttr("BACKST");
 
-                    getNumFolderFiles(backupInstanceNode, api, &nfiles, &nfolders);
-
+                    getNumFolderFiles(backupInstanceNode.get(), api, &nfiles, &nfolders);
                 }
-
-                delete backupInstanceNode;
             }
 
             OUTSTREAM << "  " << getFixLengthString(backupInstanceName, PATHSIZE) << " ";
@@ -4813,7 +4799,7 @@ void MegaCmdExecuter::moveToDestination(std::unique_ptr<MegaNode> n, string dest
 {
     assert(n);
 
-    MegaNode* tn; //target node
+    std::unique_ptr<MegaNode> tn; //target node
     string newname;
 
     char* nodepath = api->getNodePath(n.get());
@@ -4825,7 +4811,7 @@ void MegaCmdExecuter::moveToDestination(std::unique_ptr<MegaNode> n, string dest
     // 2. target node exists and is folder - move
     // 3. target node exists and is file - delete and rename (unless same)
     // 4. target path exists, but filename does not - rename
-    if (( tn = nodebypath(destiny.c_str(), NULL, &newname)))
+    if ((tn = nodebypath(destiny.c_str(), nullptr, &newname)))
     {
         if (tn->getHandle() == n->getHandle())
         {
@@ -4839,18 +4825,17 @@ void MegaCmdExecuter::moveToDestination(std::unique_ptr<MegaNode> n, string dest
                 {
                     setCurrentOutCode(MCMD_INVALIDTYPE);
                     LOG_err << destiny << ": Not a directory";
-                    delete tn;
                     return;
                 }
                 else //move and rename!
                 {
-                    MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
-                    api->moveNode(n.get(), tn, megaCmdListener);
+                    MegaCmdListener *megaCmdListener = new MegaCmdListener(nullptr);
+                    api->moveNode(n.get(), tn.get(), megaCmdListener);
                     megaCmdListener->wait();
 
                     if (checkNoErrors(megaCmdListener->getError(), "move"))
                     {
-                        MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
+                        MegaCmdListener *megaCmdListener = new MegaCmdListener(nullptr);
                         api->renameNode(n.get(), newname.c_str(), megaCmdListener);
                         megaCmdListener->wait();
 
@@ -4869,13 +4854,11 @@ void MegaCmdExecuter::moveToDestination(std::unique_ptr<MegaNode> n, string dest
                 if (tn->getType() == MegaNode::TYPE_FILE) //move & remove old & rename new
                 {
                     // (there should never be any orphaned filenodes)
-                    MegaNode *tnParentNode = api->getNodeByHandle(tn->getParentHandle());
+                    auto tnParentNode = std::unique_ptr<MegaNode>(api->getNodeByHandle(tn->getParentHandle()));
                     if (tnParentNode)
                     {
-                        delete tnParentNode;
-
                         //move into the parent of target node
-                        MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
+                        MegaCmdListener *megaCmdListener = new MegaCmdListener(nullptr);
                         std::unique_ptr<MegaNode> parentNode {api->getNodeByHandle(tn->getParentHandle())};
                         api->moveNode(n.get(), parentNode.get(), megaCmdListener);
                         megaCmdListener->wait();
@@ -4885,10 +4868,10 @@ void MegaCmdExecuter::moveToDestination(std::unique_ptr<MegaNode> n, string dest
                             const char* name_to_replace = tn->getName();
 
                             //remove (replaced) target node
-                            if (n.get() != tn) //just in case moving to same location
+                            if (n.get() != tn.get()) //just in case moving to same location
                             {
                                 MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
-                                api->remove(tn, megaCmdListener); //remove target node
+                                api->remove(tn.get(), megaCmdListener); //remove target node
                                 megaCmdListener->wait();
 
                                 if (!checkNoErrors(megaCmdListener->getError(), "remove target node"))
@@ -4922,8 +4905,8 @@ void MegaCmdExecuter::moveToDestination(std::unique_ptr<MegaNode> n, string dest
                 }
                 else // target is a folder
                 {
-                    MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
-                    api->moveNode(n.get(), tn, megaCmdListener);
+                    MegaCmdListener *megaCmdListener = new MegaCmdListener(nullptr);
+                    api->moveNode(n.get(), tn.get(), megaCmdListener);
                     megaCmdListener->wait();
 
                     checkNoErrors(megaCmdListener->getError(), "move node");
@@ -4931,7 +4914,6 @@ void MegaCmdExecuter::moveToDestination(std::unique_ptr<MegaNode> n, string dest
                 }
             }
         }
-        delete tn;
     }
     else //target not found (not even its folder), cant move
     {
@@ -4944,14 +4926,13 @@ void MegaCmdExecuter::moveToDestination(std::unique_ptr<MegaNode> n, string dest
 bool MegaCmdExecuter::isValidFolder(string destiny)
 {
     bool isdestinyavalidfolder = true;
-    MegaNode *ndestiny = nodebypath(destiny.c_str());;
+    std::unique_ptr<MegaNode> ndestiny = nodebypath(destiny.c_str());;
     if (ndestiny)
     {
         if (ndestiny->getType() == MegaNode::TYPE_FILE)
         {
             isdestinyavalidfolder = false;
         }
-        delete ndestiny;
     }
     else
     {
@@ -5233,18 +5214,16 @@ void MegaCmdExecuter::processPath(string path, bool usepcre, bool& firstone, voi
     }
     else // non-regexp
     {
-        MegaNode *n = nodebypath(path.c_str());
+        std::unique_ptr<MegaNode> n = nodebypath(path.c_str());
         if (n)
         {
-            nodeprocessor(context, n, firstone);
+            nodeprocessor(context, n.get(), firstone);
             firstone = false;
-            delete n;
         }
         else
         {
             setCurrentOutCode(MCMD_NOTFOUND);
             LOG_err << "Path not found: " << path;
-            return;
         }
     }
 }
@@ -5589,7 +5568,6 @@ bool checkExactlyNArgs(const vector<string> &words, size_t n)
 
 void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clflags, map<string, string> *cloptions)
 {
-    MegaNode* n = NULL;
     if (words[0] == "ls")
     {
         if (!api->isFilesystemAvailable())
@@ -5636,7 +5614,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         MegaNode *ncwd = api->getNodeByHandle(cwd);
                         if (ncwd)
                         {
-                            MegaNode * n = nodebypath(nodepath.c_str());
+                            std::unique_ptr<MegaNode> n = nodebypath(nodepath.c_str());
                             if (n)
                             {
                                 if (!n->getType() == MegaNode::TYPE_FILE)
@@ -5650,18 +5628,17 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                                         dumpNodeSummaryHeader(getTimeFormatFromSTR(getOption(cloptions, "time-format","SHORT")), clflags, cloptions);
                                         firstprint = false;
                                     }
-                                    dumpTreeSummary(n, getTimeFormatFromSTR(getOption(cloptions, "time-format","SHORT")), clflags, cloptions, recursive, show_versions, 0, humanreadable, rNpath);
+                                    dumpTreeSummary(n.get(), getTimeFormatFromSTR(getOption(cloptions, "time-format","SHORT")), clflags, cloptions, recursive, show_versions, 0, humanreadable, rNpath);
                                 }
                                 else
                                 {
                                     vector<bool> lfs;
-                                    dumptree(n, treelike, lfs, getTimeFormatFromSTR(getOption(cloptions, "time-format","RFC2822")), clflags, cloptions, recursive, extended_info, show_versions, 0, rNpath);
+                                    dumptree(n.get(), treelike, lfs, getTimeFormatFromSTR(getOption(cloptions, "time-format","RFC2822")), clflags, cloptions, recursive, extended_info, show_versions, 0, rNpath);
                                 }
-                                if (( !n->getType() == MegaNode::TYPE_FILE ) && (( it + 1 ) != pathsToList->end()))
+                                if ((!n->getType() == MegaNode::TYPE_FILE ) && ((it + 1) != pathsToList->end()))
                                 {
                                     OUTSTREAM << endl;
                                 }
-                                delete n;
                             }
                             else
                             {
@@ -5686,7 +5663,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             }
             else
             {
-                n = nodebypath(words[1].c_str());
+                std::unique_ptr<MegaNode> n = nodebypath(words[1].c_str());
                 if (n)
                 {
                     if (summary)
@@ -5696,15 +5673,14 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                             dumpNodeSummaryHeader(getTimeFormatFromSTR(getOption(cloptions, "time-format","SHORT")), clflags, cloptions);
                             firstprint = false;
                         }
-                        dumpTreeSummary(n, getTimeFormatFromSTR(getOption(cloptions, "time-format","SHORT")), clflags, cloptions, recursive, show_versions, 0, humanreadable, rNpath);
+                        dumpTreeSummary(n.get(), getTimeFormatFromSTR(getOption(cloptions, "time-format","SHORT")), clflags, cloptions, recursive, show_versions, 0, humanreadable, rNpath);
                     }
                     else
                     {
                         if (treelike) OUTSTREAM << words[1] << endl;
                         vector<bool> lfs;
-                        dumptree(n, treelike, lfs, getTimeFormatFromSTR(getOption(cloptions, "time-format","RFC2822")), clflags, cloptions, recursive, extended_info, show_versions, 0, rNpath);
+                        dumptree(n.get(), treelike, lfs, getTimeFormatFromSTR(getOption(cloptions, "time-format","RFC2822")), clflags, cloptions, recursive, extended_info, show_versions, 0, rNpath);
                     }
-                    delete n;
                 }
                 else
                 {
@@ -5715,7 +5691,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         }
         else
         {
-            n = api->getNodeByHandle(cwd);
+            std::unique_ptr<MegaNode> n = std::unique_ptr<MegaNode>(api->getNodeByHandle(cwd));
             if (n)
             {
                 if (summary)
@@ -5725,15 +5701,14 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         dumpNodeSummaryHeader(getTimeFormatFromSTR(getOption(cloptions, "time-format","SHORT")), clflags, cloptions);
                         firstprint = false;
                     }
-                    dumpTreeSummary(n, getTimeFormatFromSTR(getOption(cloptions, "time-format","SHORT")), clflags, cloptions, recursive, show_versions, 0, humanreadable);
+                    dumpTreeSummary(n.get(), getTimeFormatFromSTR(getOption(cloptions, "time-format","SHORT")), clflags, cloptions, recursive, show_versions, 0, humanreadable);
                 }
                 else
                 {
                     if (treelike) OUTSTREAM << "." << endl;
                     vector<bool> lfs;
-                    dumptree(n, treelike, lfs, getTimeFormatFromSTR(getOption(cloptions, "time-format","RFC2822")), clflags, cloptions, recursive, extended_info, show_versions);
+                    dumptree(n.get(), treelike, lfs, getTimeFormatFromSTR(getOption(cloptions, "time-format","RFC2822")), clflags, cloptions, recursive, extended_info, show_versions);
                 }
-                delete n;
             }
         }
         return;
@@ -5773,9 +5748,8 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
         if (words.size() <= 1)
         {
-            n = api->getNodeByHandle(cwd);
-            doFind(n, getTimeFormatFromSTR(getOption(cloptions, "time-format","RFC2822")), clflags, cloptions, "", printfileinfo, pattern, getFlag(clflags,"use-pcre"), minTime, maxTime, minSize, maxSize);
-            delete n;
+            std::unique_ptr<MegaNode> n = std::unique_ptr<MegaNode>(api->getNodeByHandle(cwd));
+            doFind(n.get(), getTimeFormatFromSTR(getOption(cloptions, "time-format","RFC2822")), clflags, cloptions, "", printfileinfo, pattern, getFlag(clflags,"use-pcre"), minTime, maxTime, minSize, maxSize);
         }
         for (int i = 1; i < (int)words.size(); i++)
         {
@@ -5798,7 +5772,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             }
             else
             {
-                n = nodebypath(words[i].c_str());
+                std::unique_ptr<MegaNode> n = nodebypath(words[i].c_str());
                 if (!n)
                 {
                     setCurrentOutCode(MCMD_NOTFOUND);
@@ -5806,8 +5780,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 }
                 else
                 {
-                    doFind(n, getTimeFormatFromSTR(getOption(cloptions, "time-format","RFC2822")), clflags, cloptions, words[i], printfileinfo, pattern, getFlag(clflags,"use-pcre"), minTime, maxTime, minSize, maxSize);
-                    delete n;
+                    doFind(n.get(), getTimeFormatFromSTR(getOption(cloptions, "time-format","RFC2822")), clflags, cloptions, words[i], printfileinfo, pattern, getFlag(clflags,"use-pcre"), minTime, maxTime, minSize, maxSize);
                 }
             }
         }
@@ -5851,7 +5824,8 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         }
         if (words.size() > 1)
         {
-            if (( n = nodebypath(words[1].c_str())))
+            std::unique_ptr<MegaNode> n = nodebypath(words[1].c_str());
+            if (n)
             {
                 if (n->getType() == MegaNode::TYPE_FILE)
                 {
@@ -5861,10 +5835,8 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 else
                 {
                     cwd = n->getHandle();
-
                     updateprompt(api);
                 }
-                delete n;
             }
             else
             {
@@ -5940,11 +5912,10 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 }
                 else if (!none)
                 {
-                    MegaNode * nodeToDelete = nodebypath(words[i].c_str());
+                    std::unique_ptr<MegaNode> nodeToDelete = nodebypath(words[i].c_str());
                     if (nodeToDelete)
                     {
-                        // @wip - nodebypath refactor
-                        int confirmationCode = deleteNode(std::unique_ptr<MegaNode>(nodeToDelete), api, getFlag(clflags, "r"), force);
+                        int confirmationCode = deleteNode(std::move(nodeToDelete), api, getFlag(clflags, "r"), force);
                         if (confirmationCode == MCMDCONFIRM_ALL)
                         {
                             force = true;
@@ -6023,11 +5994,10 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 }
                 else
                 {
-                    if (( n = nodebypath(source.c_str())) )
+                    std::unique_ptr<MegaNode> n = nodebypath(source.c_str());
+                    if (n)
                     {
-                        // @wip nodebypath refactor
-                        moveToDestination(std::unique_ptr<MegaNode>(n), destiny);
-                        delete n;
+                        moveToDestination(std::move(n), destiny);
                     }
                     else
                     {
@@ -6059,7 +6029,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             string destiny = words[words.size()-1];
             string targetuser;
             string newname;
-            MegaNode *tn = nodebypath(destiny.c_str(), &targetuser, &newname);
+            std::unique_ptr<MegaNode> tn = nodebypath(destiny.c_str(), &targetuser, &newname);
 
             if (words.size() > 3 && !isValidFolder(destiny) && !targetuser.size())
             {
@@ -6094,22 +6064,24 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         for (const auto& n : nodesToCopy)
                         {
                             assert(n);
-                            copyNode(n.get(), destiny, tn, targetuser, newname);
+                            copyNode(n.get(), destiny, tn.get(), targetuser, newname);
                         }
                     }
                 }
-                else if (( n = nodebypath(source.c_str())))
-                {
-                    copyNode(n, destiny, tn, targetuser, newname);
-                    delete n;
-                }
                 else
                 {
-                    setCurrentOutCode(MCMD_NOTFOUND);
-                    LOG_err << source << ": No such file or directory";
+                    std::unique_ptr<MegaNode> n = nodebypath(source.c_str());
+                    if (n)
+                    {
+                        copyNode(n.get(), destiny, tn.get(), targetuser, newname);
+                    }
+                    else
+                    {
+                        setCurrentOutCode(MCMD_NOTFOUND);
+                        LOG_err << source << ": No such file or directory";
+                    }
                 }
             }
-            delete tn;
         }
         else
         {
@@ -6187,16 +6159,17 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             }
             else
             {
-                if (!( n = nodebypath(words[i].c_str())))
+                std::unique_ptr<MegaNode> n = nodebypath(words[i].c_str());
+                if (!n)
                 {
                     setCurrentOutCode(MCMD_NOTFOUND);
                     LOG_err << words[i] << ": No such file or directory";
                     return;
                 }
 
-                currentSize = api->getSize(n);
+                currentSize = api->getSize(n.get());
                 totalSize += currentSize;
-                dpath = getDisplayPath(words[i], n);
+                dpath = getDisplayPath(words[i], n.get());
                 if (dpath.size())
                 {
                     if (firstone)//print header
@@ -6213,14 +6186,13 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     OUTSTREAM << getFixLengthString(dpath+":",PATHSIZE) << getFixLengthString(sizeToText(currentSize, true, humanreadable), 12, ' ', true);
                     if (show_versions_size)
                     {
-                        long long sizeWithVersions = getVersionsSize(n);
+                        long long sizeWithVersions = getVersionsSize(n.get());
                         OUTSTREAM << getFixLengthString(sizeToText(sizeWithVersions, true, humanreadable), 12, ' ', true);
                         totalVersionsSize += sizeWithVersions;
                     }
                     OUTSTREAM << endl;
 
                 }
-                delete n;
             }
         }
 
@@ -6329,11 +6301,10 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 }
                 else
                 {
-                    MegaNode *n = nodebypath(words[i].c_str());
+                    std::unique_ptr<MegaNode> n = nodebypath(words[i].c_str());
                     if (n)
                     {
-                        catFile(n);
-                        delete n;
+                        catFile(n.get());
                     }
                     else
                     {
@@ -6389,11 +6360,10 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             }
             else
             {
-                MegaNode *n = nodebypath(words[i].c_str());
+                std::unique_ptr<MegaNode> n = nodebypath(words[i].c_str());
                 if (n)
                 {
-                    printInfoFile(n, firstone, PATHSIZE);
-                    delete n;
+                    printInfoFile(n.get(), firstone, PATHSIZE);
                 }
                 else
                 {
@@ -6693,7 +6663,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 }
                 else //not regexp
                 {
-                    MegaNode *n = nodebypath(words[1].c_str());
+                    std::unique_ptr<MegaNode> n = nodebypath(words[1].c_str());
                     if (n)
                     {
                         if (words.size() > 2)
@@ -6763,8 +6733,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                                 path=path.substr(0,path.size()-1);
                             }
                         }
-                        downloadNode(words[1], path, api, n, background, ignorequotawarn, clientID, megaCmdMultiTransferListener);
-                        delete n;
+                        downloadNode(words[1], path, api, n.get(), background, ignorequotawarn, clientID, megaCmdMultiTransferListener);
                     }
                     else
                     {
@@ -7006,7 +6975,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             string newname = "";
             string destination = "";
 
-            MegaNode *n = NULL;
+            std::unique_ptr<MegaNode> n;
 
             if (words.size() > 2)
             {
@@ -7025,9 +6994,10 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             }
             else
             {
-                n = api->getNodeByHandle(cwd);
+                n = std::unique_ptr<MegaNode>(api->getNodeByHandle(cwd));
                 words.push_back(".");
             }
+
             if (n)
             {
                 if (n->getType() != MegaNode::TYPE_FILE)
@@ -7054,13 +7024,13 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                             }
                             for (auto path : paths)
                             {
-                                uploadNode(path, api, n, newname, background, ignorequotawarn, clientID, megaCmdMultiTransferListener);
+                                uploadNode(path, api, n.get(), newname, background, ignorequotawarn, clientID, megaCmdMultiTransferListener);
                             }
                         }
                         else
 #endif
                         {
-                            uploadNode(words[i], api, n, newname, background, ignorequotawarn, clientID, megaCmdMultiTransferListener);
+                            uploadNode(words[i], api, n.get(), newname, background, ignorequotawarn, clientID, megaCmdMultiTransferListener);
                         }
                     }
                 }
@@ -7092,8 +7062,6 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     setCurrentOutCode(MCMD_INVALIDTYPE);
                     LOG_err << "Destination is not valid (expected folder or alike)";
                 }
-                delete n;
-
 
                 megaCmdMultiTransferListener->waitMultiEnd();
 
@@ -7462,11 +7430,10 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 }
                 else // non-regexp
                 {
-                    MegaNode *n = nodebypath(words[i].c_str());
+                    std::unique_ptr<MegaNode> n = nodebypath(words[i].c_str());
                     if (n)
                     {
-                        // @wip nodebypath refactor
-                        int ret = deleteNodeVersions(std::unique_ptr<MegaNode>(n), api, forcedelete);
+                        int ret = deleteNodeVersions(std::move(n), api, forcedelete);
                         forcedelete = forcedelete || (ret == MCMDCONFIRM_ALL);
                     }
                     else
@@ -7474,7 +7441,6 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         setCurrentOutCode(MCMD_NOTFOUND);
                         LOG_err << "Node not found: " << words[i];
                     }
-                    delete n;
                 }
             }
         }
@@ -7834,24 +7800,25 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             LocalPath expansedAbsolutePath;
             fsAccessCMD->expanselocalpath(localAbsolutePath, expansedAbsolutePath);
 
-            MegaNode* n = nodebypath(words[2].c_str());
+            std::unique_ptr<MegaNode> n = nodebypath(words[2].c_str());
             if (n)
             {
                 if (n->getType() == MegaNode::TYPE_FILE)
                 {
                     LOG_err << words[2] << ": Remote sync root must be folder.";
                 }
-                else if (api->getAccess(n) >= MegaShare::ACCESS_FULL)
+                else if (api->getAccess(n.get()) >= MegaShare::ACCESS_FULL)
                 {
                     MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
                     api->syncFolder(MegaSync::TYPE_TWOWAY, expansedAbsolutePath.toPath(false).c_str(), nullptr, n->getHandle(), nullptr, megaCmdListener);
                     megaCmdListener->wait();
+
                     if (checkNoErrors(megaCmdListener->getError(), "sync folder", static_cast<SyncError>(megaCmdListener->getRequest()->getNumDetails())))
                     {
                         string localpath(megaCmdListener->getRequest()->getFile());
                         SyncError syncError = static_cast<SyncError>(megaCmdListener->getRequest()->getNumDetails());
 
-                        char * nodepath = api->getNodePath(n);
+                        char* nodepath = api->getNodePath(n.get());
                         OUTSTREAM << "Added sync: " << localpath << " to " << nodepath << endl;
                         if (syncError != NO_SYNC_ERROR)
                         {
@@ -7866,9 +7833,8 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 else
                 {
                     setCurrentOutCode(MCMD_NOTPERMITTED);
-                    LOG_err << words[2] << ": Syncing requires full access to path, current access: " << api->getAccess(n);
+                    LOG_err << words[2] << ": Syncing requires full access to path, current access: " << api->getAccess(n.get());
                 }
-                delete n;
             }
             else
             {
@@ -8309,7 +8275,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             }
             else // non-regexp
             {
-                MegaNode *n = nodebypath(words[i].c_str());
+                std::unique_ptr<MegaNode> n = nodebypath(words[i].c_str());
                 if (n)
                 {
                     if (getFlag(clflags, "a"))
@@ -8319,18 +8285,18 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         {
                             level = MegaShare::ACCESS_READ;
                         }
-                        shareNode(n, with, level);
+                        shareNode(n.get(), with, level);
                     }
                     else if (getFlag(clflags, "d"))
                     {
                         if ("" != with)
                         {
                             LOG_debug << " deleting share ... " << n->getName() << " with " << with;
-                            disableShare(n, with);
+                            disableShare(n.get(), with);
                         }
                         else
                         {
-                            MegaShareList* outShares = api->getOutShares(n);
+                            auto outShares = std::unique_ptr<MegaShareList>(api->getOutShares(n.get()));
                             if (outShares)
                             {
                                 for (int i = 0; i < outShares->size(); i++)
@@ -8338,31 +8304,28 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                                     if (outShares->get(i)->getNodeHandle() == n->getHandle())
                                     {
                                         LOG_debug << " deleting share ... " << n->getName() << " with " << outShares->get(i)->getUser();
-                                        disableShare(n, outShares->get(i)->getUser());
+                                        disableShare(n.get(), outShares->get(i)->getUser());
                                     }
                                 }
-
-                                delete outShares;
                             }
                         }
                     }
                     else
                     {
-                        if (( level != level_NOT_present_value ) || ( with != "" ))
+                        if ((level != level_NOT_present_value ) || ( with != "" ))
                         {
                             setCurrentOutCode(MCMD_EARGS);
                             LOG_err << "Unexpected option received. To create/modify a share use -a";
                         }
                         else if (listPending)
                         {
-                            dumpListOfAllShared(n, words[i]);
+                            dumpListOfAllShared(n.get(), words[i]);
                         }
                         else
                         {
-                            dumpListOfShared(n, words[i]);
+                            dumpListOfShared(n.get(), words[i]);
                         }
                     }
-                    delete n;
                 }
                 else
                 {
@@ -9075,18 +9038,18 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         {
             string nodepath = words[1];
             string path = words.size() > 2 ? words[2] : "./";
-            n = nodebypath(nodepath.c_str());
+            std::unique_ptr<MegaNode> n = nodebypath(nodepath.c_str());
             if (n)
             {
                 MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
                 bool setting = getFlag(clflags, "s");
                 if (setting)
                 {
-                    api->setThumbnail(n, path.c_str(), megaCmdListener);
+                    api->setThumbnail(n.get(), path.c_str(), megaCmdListener);
                 }
                 else
                 {
-                    api->getThumbnail(n, path.c_str(), megaCmdListener);
+                    api->getThumbnail(n.get(), path.c_str(), megaCmdListener);
                 }
                 megaCmdListener->wait();
                 if (checkNoErrors(megaCmdListener->getError(), ( setting ? "set thumbnail " : "get thumbnail " ) + nodepath + " to " + path))
@@ -9094,7 +9057,6 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     OUTSTREAM << "Thumbnail for " << nodepath << ( setting ? " loaded from " : " saved in " ) << megaCmdListener->getRequest()->getFile() << endl;
                 }
                 delete megaCmdListener;
-                delete n;
             }
         }
         else
@@ -9117,18 +9079,18 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         {
             string nodepath = words[1];
             string path = words.size() > 2 ? words[2] : "./";
-            n = nodebypath(nodepath.c_str());
+            std::unique_ptr<MegaNode> n = nodebypath(nodepath.c_str());
             if (n)
             {
                 MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
                 bool setting = getFlag(clflags, "s");
                 if (setting)
                 {
-                    api->setPreview(n, path.c_str(), megaCmdListener);
+                    api->setPreview(n.get(), path.c_str(), megaCmdListener);
                 }
                 else
                 {
-                    api->getPreview(n, path.c_str(), megaCmdListener);
+                    api->getPreview(n.get(), path.c_str(), megaCmdListener);
                 }
                 megaCmdListener->wait();
                 if (checkNoErrors(megaCmdListener->getError(), ( setting ? "set preview " : "get preview " ) + nodepath + " to " + path))
@@ -9136,7 +9098,6 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     OUTSTREAM << "Preview for " << nodepath << ( setting ? " loaded from " : " saved in " ) << megaCmdListener->getRequest()->getFile() << endl;
                 }
                 delete megaCmdListener;
-                delete n;
             }
         }
         else
@@ -9492,7 +9453,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     {
                         for (int i = 0; i < inShares->size(); i++)
                         {
-                            n = inShares->get(i);
+                            auto n = std::unique_ptr<MegaNode>(inShares->get(i));
                             long long thisinshareStorage = details->getStorageUsed(n->getHandle());
                             insharesStorage += thisinshareStorage;
                             if (i == 0)
@@ -9519,7 +9480,6 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     string sof= percentageToText(percent);
                     sof +=  " of ";
                     sof +=  sizeToText(storageMax, true, humanreadable);
-
 
                     for (int i = 0; i < 75 ; i++)
                     {
@@ -9629,22 +9589,22 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             }
             else
             {
-                MegaNode *n = nodebypath(words[i].c_str());
+                std::unique_ptr<MegaNode> n = nodebypath(words[i].c_str());
                 if (n)
                 {
                     if (add)
                     {
                         LOG_debug << " exporting ... " << n->getName();
-                        exportNode(n, expireTime, linkPass, clflags, cloptions);
+                        exportNode(n.get(), expireTime, linkPass, clflags, cloptions);
                     }
                     else if (getFlag(clflags, "d"))
                     {
                         LOG_debug << " deleting export ... " << n->getName();
-                        disableExport(n);
+                        disableExport(n.get());
                     }
                     else
                     {
-                        if (dumpListOfExported(n, getTimeFormatFromSTR(getOption(cloptions, "time-format","RFC2822")), clflags, cloptions, words[i]) == 0 )
+                        if (dumpListOfExported(n.get(), getTimeFormatFromSTR(getOption(cloptions, "time-format","RFC2822")), clflags, cloptions, words[i]) == 0 )
                         {
                             OUTSTREAM << "Couldn't find anything exported below ";
                             if (words[i] == ".")
@@ -9660,7 +9620,6 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                             OUTSTREAM << ". Use -a to export " << (words[i].size()?"it":"something") << endl;
                         }
                     }
-                    delete n;
                 }
                 else
                 {
@@ -9681,7 +9640,8 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             return;
         }
         string remotePath = "";
-        MegaNode *dstFolder = NULL;
+        std::unique_ptr<MegaNode> dstFolder;
+
         if (words.size() > 1) //link
         {
             if (isPublicLink(words[1]))
@@ -9699,17 +9659,17 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 }
                 else
                 {
-                    dstFolder = api->getNodeByHandle(cwd);
+                    dstFolder = std::unique_ptr<MegaNode>(api->getNodeByHandle(cwd));
                     remotePath = "."; //just to inform (alt: getpathbynode)
                 }
-                if (dstFolder && ( !dstFolder->getType() == MegaNode::TYPE_FILE ))
+                if (dstFolder && (!dstFolder->getType() == MegaNode::TYPE_FILE))
                 {
                     if (getLinkType(publicLink) == MegaNode::TYPE_FILE)
                     {
-                        MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
-
-                        api->importFileLink(publicLink.c_str(), dstFolder, megaCmdListener);
+                        MegaCmdListener *megaCmdListener = new MegaCmdListener(nullptr);
+                        api->importFileLink(publicLink.c_str(), dstFolder.get(), megaCmdListener);
                         megaCmdListener->wait();
+
                         if (checkNoErrors(megaCmdListener->getError(), "import node"))
                         {
                             MegaNode *imported = api->getNodeByHandle(megaCmdListener->getRequest()->getNodeHandle());
@@ -9765,8 +9725,9 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                                     if (authorizedNode != NULL)
                                     {
                                         MegaCmdListener *megaCmdListener3 = new MegaCmdListener(apiFolder, NULL);
-                                        api->copyNode(authorizedNode, dstFolder, megaCmdListener3);
+                                        api->copyNode(authorizedNode, dstFolder.get(), megaCmdListener3);
                                         megaCmdListener3->wait();
+
                                         if (checkNoErrors(megaCmdListener->getError(), "import folder node"))
                                         {
                                             MegaNode *importedFolderNode = api->getNodeByHandle(megaCmdListener3->getRequest()->getNodeHandle());
@@ -9828,7 +9789,6 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     setCurrentOutCode(MCMD_INVALIDTYPE);
                     LOG_err << "Invalid destiny: " << remotePath;
                 }
-                delete dstFolder;
             }
             else
             {
