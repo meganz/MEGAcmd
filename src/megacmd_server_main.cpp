@@ -17,5 +17,5 @@
 
 int main(int argc, char* argv[])
 {
-    megacmd::executeServer(argc, argv);
+    return megacmd::executeServer(argc, argv);
 }

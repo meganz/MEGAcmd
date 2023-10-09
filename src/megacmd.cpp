@@ -5010,7 +5010,7 @@ int executeServer(int argc, char* argv[])
     {
         MegaApi::removeRecursively(ConfigurationManager::getConfigFolder().c_str());
         uninstall();
-        exit(0);
+        return 0;
     }
 #endif
 
@@ -5062,7 +5062,7 @@ int executeServer(int argc, char* argv[])
     {
         cerr << "Another instance of MEGAcmd Server is running. Execute with --skip-lock-check to force running (NOT RECOMMENDED)" << endl;
         sleepSeconds(5);
-        exit(-2);
+        return -2;
     }
 
     char userAgent[40];
@@ -5204,6 +5204,8 @@ int executeServer(int argc, char* argv[])
 
     megacmd::megacmd();
     finalize(waitForRestartSignal);
+
+    return 0;
 }
 
 void stopServer()
