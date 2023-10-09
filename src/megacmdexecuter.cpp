@@ -355,7 +355,7 @@ std::unique_ptr<MegaNode> MegaCmdExecuter::nodebypath(const char* ptr, string* u
 {
     if (ptr && ptr[0] == 'H' && ptr[1] == ':')
     {
-        auto n = std::unique_ptr<MegaNode>(api->getNodeByHandle(api->base64ToHandle(ptr+2)));
+        std::unique_ptr<MegaNode> n(api->getNodeByHandle(api->base64ToHandle(ptr+2)));
         if (n)
         {
             return n;
@@ -363,7 +363,7 @@ std::unique_ptr<MegaNode> MegaCmdExecuter::nodebypath(const char* ptr, string* u
     }
 
     string rest;
-    auto baseNode = std::unique_ptr<MegaNode>(getBaseNode(ptr, rest));
+    std::unique_ptr<MegaNode> baseNode(getBaseNode(ptr, rest));
 
     if (baseNode && !rest.size())
     {
@@ -401,10 +401,10 @@ std::unique_ptr<MegaNode> MegaCmdExecuter::nodebypath(const char* ptr, string* u
                 bool isversion = nodeNameIsVersion(curName);
                 if (isversion)
                 {
-                    auto childNode = std::unique_ptr<MegaNode>(api->getChildNode(baseNode.get(), curName.substr(0,curName.size()-11).c_str()));
+                    std::unique_ptr<MegaNode> childNode(api->getChildNode(baseNode.get(), curName.substr(0,curName.size()-11).c_str()));
                     if (childNode)
                     {
-                        auto versionNodes = std::unique_ptr<MegaNodeList>(api->getVersions(childNode.get()));
+                        std::unique_ptr<MegaNodeList> versionNodes(api->getVersions(childNode.get()));
                         if (versionNodes)
                         {
                             for (int i = 0; i < versionNodes->size(); i++)
@@ -1112,7 +1112,7 @@ vector<std::unique_ptr<MegaNode>> MegaCmdExecuter::nodesbypath(const char* ptr, 
 
     string rest;
 
-    auto baseNode = std::unique_ptr<MegaNode>(getBaseNode(ptr, rest));
+    std::unique_ptr<MegaNode> baseNode(getBaseNode(ptr, rest));
     if (baseNode)
     {
         if (rest.empty())
@@ -1143,7 +1143,7 @@ vector<std::unique_ptr<MegaNode>> MegaCmdExecuter::nodesbypath(const char* ptr, 
 
             for (int i = 0; i < inShares->size(); i++)
             {
-                auto n = std::unique_ptr<MegaNode>(api->getNodeByHandle(inShares->get(i)->getNodeHandle()));
+                std::unique_ptr<MegaNode> n(api->getNodeByHandle(inShares->get(i)->getNodeHandle()));
                 if (!n) continue;
 
                 string tomatch = string("//from/") + inShares->get(i)->getUser() + ":" + n->getName();
@@ -1584,7 +1584,7 @@ void MegaCmdExecuter::createOrModifyBackup(string local, string remote, string s
     }
     else
     {
-        auto backup = std::unique_ptr<MegaScheduledCopy>(api->getScheduledCopyByPath(local.c_str()));
+        std::unique_ptr<MegaScheduledCopy> backup(api->getScheduledCopyByPath(local.c_str()));
         if (!backup)
         {
             backup = std::unique_ptr<MegaScheduledCopy>(api->getScheduledCopyByTag(toInteger(local, -1)));
@@ -3095,7 +3095,7 @@ void MegaCmdExecuter::doDeleteNode(std::unique_ptr<MegaNode> nodeToDelete, MegaA
     }
 
     MegaCmdListener* megaCmdListener = new MegaCmdListener(api, nullptr);
-    auto parent = std::unique_ptr<MegaNode>(api->getParentNode(nodeToDelete.get()));
+    std::unique_ptr<MegaNode> parent(api->getParentNode(nodeToDelete.get()));
     if (parent && parent->getType() == MegaNode::TYPE_FILE)
     {
         api->removeVersion(nodeToDelete.get(), megaCmdListener);
@@ -4854,7 +4854,7 @@ void MegaCmdExecuter::moveToDestination(std::unique_ptr<MegaNode> n, string dest
                 if (tn->getType() == MegaNode::TYPE_FILE) //move & remove old & rename new
                 {
                     // (there should never be any orphaned filenodes)
-                    auto tnParentNode = std::unique_ptr<MegaNode>(api->getNodeByHandle(tn->getParentHandle()));
+                    std::unique_ptr<MegaNode> tnParentNode(api->getNodeByHandle(tn->getParentHandle()));
                     if (tnParentNode)
                     {
                         //move into the parent of target node
@@ -5691,7 +5691,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         }
         else
         {
-            std::unique_ptr<MegaNode> n = std::unique_ptr<MegaNode>(api->getNodeByHandle(cwd));
+            std::unique_ptr<MegaNode> n(api->getNodeByHandle(cwd));
             if (n)
             {
                 if (summary)
@@ -5748,7 +5748,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
         if (words.size() <= 1)
         {
-            std::unique_ptr<MegaNode> n = std::unique_ptr<MegaNode>(api->getNodeByHandle(cwd));
+            std::unique_ptr<MegaNode> n(api->getNodeByHandle(cwd));
             doFind(n.get(), getTimeFormatFromSTR(getOption(cloptions, "time-format","RFC2822")), clflags, cloptions, "", printfileinfo, pattern, getFlag(clflags,"use-pcre"), minTime, maxTime, minSize, maxSize);
         }
         for (int i = 1; i < (int)words.size(); i++)
@@ -8296,7 +8296,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         }
                         else
                         {
-                            auto outShares = std::unique_ptr<MegaShareList>(api->getOutShares(n.get()));
+                            std::unique_ptr<MegaShareList> outShares(api->getOutShares(n.get()));
                             if (outShares)
                             {
                                 for (int i = 0; i < outShares->size(); i++)
@@ -9453,7 +9453,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     {
                         for (int i = 0; i < inShares->size(); i++)
                         {
-                            auto n = std::unique_ptr<MegaNode>(inShares->get(i));
+                            std::unique_ptr<MegaNode> n(inShares->get(i));
                             long long thisinshareStorage = details->getStorageUsed(n->getHandle());
                             insharesStorage += thisinshareStorage;
                             if (i == 0)
