@@ -1,4 +1,4 @@
-/**
+﻿/**
  * (c) 2013 by Mega Limited, Auckland, New Zealand
  *
  * This file is part of MEGAcmd.
@@ -13,9 +13,4 @@
  * program.
  */
 
-#include "megacmd.h"
-
-int main(int argc, char* argv[])
-{
-    megacmd::executeServer(argc, argv);
-}
+#include "MegaCmdTestingTools.h"

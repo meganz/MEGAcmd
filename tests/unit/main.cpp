@@ -13,9 +13,10 @@
  * program.
  */
 
-#include "megacmd.h"
+#include <gtest/gtest.h>
 
-int main(int argc, char* argv[])
+int main (int argc, char *argv[])
 {
-    megacmd::executeServer(argc, argv);
+    testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
 }
