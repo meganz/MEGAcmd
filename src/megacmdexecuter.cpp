@@ -4799,19 +4799,19 @@ void MegaCmdExecuter::moveToDestination(std::unique_ptr<MegaNode> n, string dest
 {
     assert(n);
 
-    std::unique_ptr<MegaNode> tn; //target node
-    string newname;
-
     char* nodepath = api->getNodePath(n.get());
     LOG_debug << "Moving : " << nodepath << " to " << destiny;
     delete []nodepath;
+
+    string newname;
+    std::unique_ptr<MegaNode> tn = nodebypath(destiny.c_str(), nullptr, &newname); // target node
 
     // we have four situations:
     // 1. target path does not exist - fail
     // 2. target node exists and is folder - move
     // 3. target node exists and is file - delete and rename (unless same)
     // 4. target path exists, but filename does not - rename
-    if ((tn = nodebypath(destiny.c_str(), nullptr, &newname)))
+    if (tn)
     {
         if (tn->getHandle() == n->getHandle())
         {
@@ -4859,7 +4859,7 @@ void MegaCmdExecuter::moveToDestination(std::unique_ptr<MegaNode> n, string dest
                     {
                         //move into the parent of target node
                         MegaCmdListener *megaCmdListener = new MegaCmdListener(nullptr);
-                        std::unique_ptr<MegaNode> parentNode {api->getNodeByHandle(tn->getParentHandle())};
+                        std::unique_ptr<MegaNode> parentNode(api->getNodeByHandle(tn->getParentHandle()));
                         api->moveNode(n.get(), parentNode.get(), megaCmdListener);
                         megaCmdListener->wait();
 
@@ -5756,7 +5756,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             if (isRegExp(words[i]))
             {
                 vector<std::unique_ptr<MegaNode>> nodesToFind = nodesbypath(words[i].c_str(), getFlag(clflags,"use-pcre"));
-                if (!nodesToFind.empty())
+                if (nodesToFind.size())
                 {
                     for (const auto& node : nodesToFind)
                     {
@@ -5887,33 +5887,36 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 if (isRegExp(words[i]))
                 {
                     vector<std::unique_ptr<MegaNode>> nodesToDelete = nodesbypath(words[i].c_str(), getFlag(clflags,"use-pcre"));
-                    if (nodesToDelete.size())
-                    {
-                        for (auto& node : nodesToDelete)
-                        {
-                            assert(node);
-
-                            int confirmationCode = deleteNode(std::move(node), api, getFlag(clflags, "r"), force);
-                            if (confirmationCode == MCMDCONFIRM_ALL)
-                            {
-                                force = true;
-                            }
-                            else if (confirmationCode == MCMDCONFIRM_NONE)
-                            {
-                                none = true;
-                            }
-                        }
-                    }
-                    else
+                    if (nodesToDelete.empty())
                     {
                         setCurrentOutCode(MCMD_NOTFOUND);
                         LOG_err << words[i] << ": No such file or directory";
+                    }
+
+                    for (auto& node : nodesToDelete)
+                    {
+                        assert(node);
+
+                        int confirmationCode = deleteNode(std::move(node), api, getFlag(clflags, "r"), force);
+                        if (confirmationCode == MCMDCONFIRM_ALL)
+                        {
+                            force = true;
+                        }
+                        else if (confirmationCode == MCMDCONFIRM_NONE)
+                        {
+                            none = true;
+                        }
                     }
                 }
                 else if (!none)
                 {
                     std::unique_ptr<MegaNode> nodeToDelete = nodebypath(words[i].c_str());
-                    if (nodeToDelete)
+                    if (!nodeToDelete)
+                    {
+                        setCurrentOutCode(MCMD_NOTFOUND);
+                        LOG_err << words[i] << ": No such file or directory";
+                    }
+                    else
                     {
                         int confirmationCode = deleteNode(std::move(nodeToDelete), api, getFlag(clflags, "r"), force);
                         if (confirmationCode == MCMDCONFIRM_ALL)
@@ -5924,11 +5927,6 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         {
                             none = true;
                         }
-                    }
-                    else
-                    {
-                        setCurrentOutCode(MCMD_NOTFOUND);
-                        LOG_err << words[i] << ": No such file or directory";
                     }
                 }
             }
@@ -6633,10 +6631,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         }
                         else //destiny non existing or a file
                         {
-                            if (!TestCanWriteOnContainingFolder(&path))
-                            {
-                                return;
-                            }
+                            if (!TestCanWriteOnContainingFolder(&path)) return;
                         }
                     }
 
