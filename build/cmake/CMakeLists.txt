@@ -57,7 +57,7 @@ if (ENABLE_BACKUP)
 endif (ENABLE_BACKUP)
 
 
-add_library(MegacmdServer STATIC
+add_library(LMegacmdServer STATIC
     "${ProjectDir}/src/megacmd.cpp"
     "${ProjectDir}/src/megacmdexecuter.cpp"
     "${ProjectDir}/src/megacmdtransfermanager.cpp"
@@ -110,7 +110,7 @@ add_executable(mega-cmd-tests-integration
 )
 set_property(TARGET mega-cmd-tests-integration PROPERTY COMPILE_FLAGS ${TESTS_COMPILATION_FLAGS})
 target_include_directories(mega-cmd-tests-integration PUBLIC ${ProjectDir}/src ${ProjectDir}/tests/common)
-target_link_libraries(mega-cmd-tests-integration gmock gtest MegacmdServer )
+target_link_libraries(mega-cmd-tests-integration gmock gtest LMegacmdServer )
 if(APPLE)
     target_link_libraries(mega-cmd-tests-integration "-framework Security" )
 endif()
@@ -122,7 +122,7 @@ add_executable(mega-cmd-tests-unit
 )
 set_property(TARGET mega-cmd-tests-unit PROPERTY COMPILE_FLAGS ${TESTS_COMPILATION_FLAGS})
 target_include_directories(mega-cmd-tests-unit PUBLIC ${ProjectDir}/src ${ProjectDir}/tests/common)
-target_link_libraries(mega-cmd-tests-unit gmock gtest MegacmdServer )
+target_link_libraries(mega-cmd-tests-unit gmock gtest LMegacmdServer )
 if(APPLE)
     target_link_libraries(mega-cmd-tests-unit "-framework Security" )
 endif()
@@ -152,12 +152,12 @@ target_link_libraries(mega-exec Mega)
 target_link_libraries(mega-cmd Mega)
 target_link_libraries(mega-cmd-updater Mega)
 if (WIN32)
-  target_link_libraries(MegacmdServer Mega Lz32.lib Taskschd.lib)
+  target_link_libraries(LMegacmdServer Mega Lz32.lib Taskschd.lib)
   target_link_libraries(mega-cmd-updater Mega Lz32.lib Urlmon.lib)
 else()
-  target_link_libraries(MegacmdServer Mega)
+  target_link_libraries(LMegacmdServer Mega)
 endif()
-target_link_libraries(mega-cmd-server MegacmdServer)
+target_link_libraries(mega-cmd-server LMegacmdServer)
 if (NOT NO_READLINE)
     target_link_libraries(mega-cmd readline)
 endif (NOT NO_READLINE)
