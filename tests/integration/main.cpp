@@ -15,7 +15,9 @@
 
 #include <gtest/gtest.h>
 
+#ifdef __linux__
 #include <sched.h>
+#endif
 
 bool extractargvalue(std::vector<const char*>& args, const char *what, std::string& param)
 {
@@ -45,6 +47,7 @@ static void setUpUnixSignals()
 
 int main (int argc, char *argv[])
 {
+#ifdef __linux__
     if (getenv("MEGA_INTEGRATION_TEST_ENFORCE_SINGLE_CPU"))
     {
         cpu_set_t set;
@@ -57,7 +60,6 @@ int main (int argc, char *argv[])
         }
     }
 
-#ifdef __linux__
     setUpUnixSignals();
 #endif
 
