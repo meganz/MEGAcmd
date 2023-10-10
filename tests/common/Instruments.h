@@ -64,7 +64,7 @@ public:
     //
     enum class Event
     {
-        SOME_MEGACMD_INSTRUMENT_EVENT,
+        SERVER_ABOUT_TO_START_WAITING_FOR_PETITIONS,
     };
 
     typedef std::function<void()> EventCallback;

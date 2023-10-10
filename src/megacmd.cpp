@@ -29,6 +29,11 @@
 #include "megacmdplatform.h"
 #include "megacmdversion.h"
 
+#ifdef MEGACMD_TESTING_CODE
+    #include "../tests/common/Instruments.h"
+#endif
+
+
 #define USE_VARARGS
 #define PREFER_STDARG
 
@@ -4184,6 +4189,10 @@ void megacmd()
     threadRetryConnections->start(retryConnections, NULL);
 
     LOG_info << "Listening to petitions ... ";
+
+#ifdef MEGACMD_TESTING_CODE
+    TestInstruments::Instance().fireEvent(TestInstruments::Event::SERVER_ABOUT_TO_START_WAITING_FOR_PETITIONS);
+#endif
 
     for (;; )
     {

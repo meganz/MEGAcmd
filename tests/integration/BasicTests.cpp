@@ -22,25 +22,37 @@
 #include <gtest/gtest.h>
 #include "Instruments.h"
 
+#include <chrono>
+#include <future>
+
 class BasicGenericTest : public ::testing::Test
 {
+    std::thread mServerThread;
     void SetUp() override
     {
-        std::thread t([](){
+        mServerThread = std::thread([](){
             char **args = new char*[2];
             args[0]=(char *)"argv0_INTEGRATION_TESTS";
             args[1] = NULL;
             megacmd::executeServer(1, args);
         });
 
-        megacmd::sleepSeconds(2); //TODO: have this properly orchestrated
+        using TI = TestInstruments;
 
-        t.detach();
+        std::promise<void> serverWaitingPromise;
+        TI::Instance().onEventOnce(TI::Event::SERVER_ABOUT_TO_START_WAITING_FOR_PETITIONS,
+                [&serverWaitingPromise]() {
+                    serverWaitingPromise.set_value();
+                });
+
+        ASSERT_NE(serverWaitingPromise.get_future().wait_for(std::chrono::seconds(10))
+                    , std::future_status::timeout);
     }
 
     void TearDown() override
     {
         megacmd::stopServer();
+        mServerThread.join();
     }
 };
 
