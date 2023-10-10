@@ -17,7 +17,9 @@
 
 #include <stdio.h>
 #include <stdarg.h>
+#ifndef _WIN32
 #include <unistd.h>
+#endif
 
 #include <memory>
 #include <future>
