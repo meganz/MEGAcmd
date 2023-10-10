@@ -50,7 +50,12 @@ namespace gti
         va_list args;
         va_start(args, fmt);
 
+#ifdef WIN32
+        static const bool in_color_mode = isatty(_fileno(stdout)) != 0;
+#else
         static const bool in_color_mode = isatty(STDOUT_FILENO) != 0;
+#endif
+
         const bool use_color = in_color_mode && (color != GTestColor::COLOR_DEFAULT);
 
         if (use_color)
