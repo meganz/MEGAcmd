@@ -16,6 +16,7 @@
 #include "MegaCmdTestingTools.h"
 #include "TestUtils.h"
 
+#include "megacmdcommonutils.h"
 #include "megacmd.h"
 
 #include <gtest/gtest.h>
@@ -32,7 +33,7 @@ class BasicGenericTest : public ::testing::Test
             megacmd::executeServer(1, args);
         });
 
-        sleep(2); //TODO: have this properly orchestrated
+        megacmd::sleepSeconds(2); //TODO: have this properly orchestrated
 
         t.detach();
     }
