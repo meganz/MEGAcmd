@@ -1496,7 +1496,7 @@ void MegaCmdExecuter::dumpNodeSummary(MegaNode *n, const char *timeFormat, std::
         }
         else
         {
-            OUTSTREAM << getFixLengthString(SSTR(n->getSize()), 10, ' ', true);
+            OUTSTREAM << SSTR(n->getSize());
         }
     }
     else
