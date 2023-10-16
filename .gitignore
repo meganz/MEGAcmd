@@ -120,6 +120,11 @@ contrib/QtCreator/*/*/Makefile
 contrib/QtCreator/*/*/*/Makefile
 test_integration
 test_unit
+.qtc_clangd
+CMakeFiles
+build-x64-windows-mega
+Makefile.Debug
+Makefile.Release
 
 /Makefile*
 build/Release_x64

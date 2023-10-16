@@ -31,9 +31,8 @@
 
 using MegaCmdEvent = int; //TODO: instead have MEGAcmd events used
 
-struct InstrumentsException : public std::system_error
+struct InstrumentsException : public std::exception
 {
-    using std::system_error::system_error;
     virtual ~InstrumentsException() = default;
 };
 

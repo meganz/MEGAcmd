@@ -12,7 +12,7 @@ TARGET = test_integration
 TEMPLATE = app
 
 CONFIG -= qt
-CONFIG += object_parallel_to_source
+!win32:CONFIG += object_parallel_to_source
 CONFIG += console
 
 DEFINES += MEGACMD_TESTING_CODE
@@ -21,7 +21,6 @@ win32 {
     LIBS +=  -lshlwapi -lws2_32
     LIBS +=  -lshell32 -luser32 -ladvapi32
 
-    RC_FILE = icon.rc
     QMAKE_LFLAGS += /LARGEADDRESSAWARE
     QMAKE_LFLAGS_WINDOWS += /SUBSYSTEM:WINDOWS,5.01
     QMAKE_LFLAGS_CONSOLE += /SUBSYSTEM:CONSOLE,5.01

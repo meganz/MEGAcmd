@@ -6,15 +6,11 @@ CONFIG(release, debug|release) {
     CONFIG -= debug release
     CONFIG += release
 }
-
-MEGACMD_BASE_PATH_RELATIVE = ../../../../..
-MEGACMD_BASE_PATH = $$PWD/$$MEGACMD_BASE_PATH_RELATIVE
-
 TARGET = test_unit
 TEMPLATE = app
 
 CONFIG -= qt
-CONFIG += object_parallel_to_source
+!win32:CONFIG += object_parallel_to_source
 CONFIG += console
 
 DEFINES += MEGACMD_TESTING_CODE
@@ -23,7 +19,6 @@ win32 {
     LIBS +=  -lshlwapi -lws2_32
     LIBS +=  -lshell32 -luser32 -ladvapi32
 
-    RC_FILE = icon.rc
     QMAKE_LFLAGS += /LARGEADDRESSAWARE
     QMAKE_LFLAGS_WINDOWS += /SUBSYSTEM:WINDOWS,5.01
     QMAKE_LFLAGS_CONSOLE += /SUBSYSTEM:CONSOLE,5.01
@@ -49,21 +44,26 @@ QMAKE_CXXFLAGS-=-std=c++11
 CONFIG += c++17
 QMAKE_CXXFLAGS+=-std=c++17
 
-QMAKE_CXXFLAGS += "-fsanitize=address"
-QMAKE_LFLAGS += "-fsanitize=address"
-QMAKE_CXXFLAGS_DEBUG += "-fsanitize=address"
-
-INCLUDEPATH += \
-$$MEGACMD_BASE_PATH_RELATIVE/sdk/include \
-$$MEGACMD_BASE_PATH_RELATIVE/src \
+!win32 {
+    QMAKE_CXXFLAGS += "-fsanitize=address"
+    QMAKE_LFLAGS += "-fsanitize=address"
+    QMAKE_CXXFLAGS_DEBUG += "-fsanitize=address"
+}
 
 include(../MEGAcmdTest_common/MEGAcmdTest_common.pri)
 
+MEGACMD_BASE_PATH_RELATIVE = ../../../../..
+MEGACMD_BASE_PATH = $$PWD/$$MEGACMD_BASE_PATH_RELATIVE
+
+INCLUDEPATH += \
+    $$MEGACMD_BASE_PATH/sdk/include \
+    $$MEGACMD_BASE_PATH/src \
+
+
 SOURCES += \
-$$MEGACMD_BASE_PATH_RELATIVE/tests/unit/StringUtilsTests.cpp \
-$$MEGACMD_BASE_PATH_RELATIVE/tests/unit/main.cpp
+    $$MEGACMD_BASE_PATH/tests/unit/StringUtilsTests.cpp \
+    $$MEGACMD_BASE_PATH/tests/unit/main.cpp
 
 #Dependencies:
 SOURCES += \
-$$MEGACMD_BASE_PATH_RELATIVE/src/megacmdcommonutils.cpp
-
+    $$MEGACMD_BASE_PATH/src/megacmdcommonutils.cpp

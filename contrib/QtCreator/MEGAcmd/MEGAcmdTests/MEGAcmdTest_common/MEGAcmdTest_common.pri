@@ -1,3 +1,4 @@
+include(../../vcpkg_inclusion.pri)
 
 MEGACMD_BASE_PATH_RELATIVE = ../../../../..
 MEGACMD_BASE_PATH = $$PWD/$$MEGACMD_BASE_PATH_RELATIVE
