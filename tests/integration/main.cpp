@@ -19,22 +19,6 @@
 #include <sched.h>
 #endif
 
-bool extractargvalue(std::vector<const char*>& args, const char *what, std::string& param)
-{
-    auto len = strlen(what);
-    for (int i = int(args.size()); i--; )
-    {
-        if (strlen(args[i]) > (len + 1) && !strncmp(args[i], what, len) && args[i][len] == '=')
-        {
-            param=&args[i][len+1];
-
-            args.erase(args.begin() + i);
-            return true;
-        }
-    }
-    return false;
-}
-
 #ifdef __linux__
 static void setUpUnixSignals()
 {

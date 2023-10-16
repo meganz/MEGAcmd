@@ -18,7 +18,7 @@
 #include "TestUtils.h"
 #include "megacmdcommonutils.h"
 
-struct StringUtilsTest
+namespace StringUtilsTest
 {
     static void trimming()
     {
