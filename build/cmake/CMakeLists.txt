@@ -129,7 +129,7 @@ add_executable(mega-cmd-tests-unit
 )
 set_property(TARGET mega-cmd-tests-unit PROPERTY COMPILE_FLAGS ${TESTS_COMPILATION_FLAGS})
 target_include_directories(mega-cmd-tests-unit PUBLIC ${ProjectDir}/src ${ProjectDir}/tests/common)
-target_link_libraries(mega-cmd-tests-unit gmock gtest LMegacmdServer LMegacmdTestsCommon)
+target_link_libraries(mega-cmd-tests-unit LMegacmdServer LMegacmdTestsCommon)
 if(APPLE)
     target_link_libraries(mega-cmd-tests-unit "-framework Security" )
 endif()
