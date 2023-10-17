@@ -8,6 +8,7 @@ INCLUDEPATH += \
 
 SOURCES += \
     $$MEGACMD_BASE_PATH/tests/common/Instruments.cpp \
+    $$MEGACMD_BASE_PATH/tests/common/TestUtils.cpp \
 
 HEADERS += \
     $$MEGACMD_BASE_PATH/tests/common/Instruments.h \
