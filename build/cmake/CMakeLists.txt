@@ -103,6 +103,13 @@ add_executable(mega-cmd-updater WIN32
 #Tests compilation flags:
 string(REPLACE "-std=c++11" "-std=c++17" TESTS_COMPILATION_FLAGS ${CMAKE_CXX_FLAGS})
 
+#Test Common:
+add_library(LMegacmdTestsCommon STATIC
+    "${ProjectDir}/tests/common/Instruments.cpp"
+    "${ProjectDir}/tests/common/TestUtils.cpp"
+)
+target_link_libraries(LMegacmdTestsCommon gmock gtest)
+
 #Integration tests:
 add_executable(mega-cmd-tests-integration
     "${ProjectDir}/tests/integration/BasicTests.cpp"
@@ -110,7 +117,7 @@ add_executable(mega-cmd-tests-integration
 )
 set_property(TARGET mega-cmd-tests-integration PROPERTY COMPILE_FLAGS ${TESTS_COMPILATION_FLAGS})
 target_include_directories(mega-cmd-tests-integration PUBLIC ${ProjectDir}/src ${ProjectDir}/tests/common)
-target_link_libraries(mega-cmd-tests-integration gmock gtest LMegacmdServer )
+target_link_libraries(mega-cmd-tests-integration LMegacmdServer LMegacmdTestsCommon)
 if(APPLE)
     target_link_libraries(mega-cmd-tests-integration "-framework Security" )
 endif()
@@ -122,7 +129,7 @@ add_executable(mega-cmd-tests-unit
 )
 set_property(TARGET mega-cmd-tests-unit PROPERTY COMPILE_FLAGS ${TESTS_COMPILATION_FLAGS})
 target_include_directories(mega-cmd-tests-unit PUBLIC ${ProjectDir}/src ${ProjectDir}/tests/common)
-target_link_libraries(mega-cmd-tests-unit gmock gtest LMegacmdServer )
+target_link_libraries(mega-cmd-tests-unit LMegacmdServer LMegacmdTestsCommon)
 if(APPLE)
     target_link_libraries(mega-cmd-tests-unit "-framework Security" )
 endif()
