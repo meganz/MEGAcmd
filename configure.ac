@@ -535,6 +535,23 @@ if test "$HAVE_PTHREAD" = "yes"; then
 fi
 AM_CONDITIONAL([HAVE_PTHREAD], [test "${HAVE_PTHREAD}" = "yes"])
 
+
+## Tests
+AC_MSG_CHECKING([if building MEGAcmd tests])
+AC_ARG_ENABLE(megacmd-tests,
+    AS_HELP_STRING([--enable-megacmd-tests], [build MEGAcmd test applications]),
+    [], [enable_megacmd_tests=no])
+if test "x$enable_megacmd_tests" = "xyes" ; then
+    AC_ARG_WITH(gtest,
+        AS_HELP_STRING(--with-gtest=PATH, specify GTest location),
+        [AC_SUBST([GTEST_DIR],[$with_gtest])],
+        [AC_MSG_ERROR([GTest location must be specified])]
+    )
+fi
+AM_CONDITIONAL([BUILD_MEGACMD_TESTS], [test "$enable_megacmd_tests" = "yes"])
+AC_MSG_RESULT([$enable_megacmd_tests])
+
+
 # Add -latomic to LDFLAGS if needed
 CHECK_ATOMIC()
 
@@ -568,4 +585,6 @@ AC_MSG_NOTICE([MEGAcmd configuration:
   Termcap:          $TERMCAP_CXXFLAGS $TERMCAP_LDFLAGS $TERMCAP_LIBS
   PCRE:             $PCRE_CXXFLAGS $PCRE_LDFLAGS $PCRE_LIBS
   SDK includes:     $LMEGAINC
+  
+  MEGAcmd Tests:    $enable_megacmd_tests
 ])
