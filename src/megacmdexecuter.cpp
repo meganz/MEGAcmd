@@ -3475,6 +3475,7 @@ bool MegaCmdExecuter::amIPro()
     {
         MegaAccountDetails *details = megaCmdListener->getRequest()->getMegaAccountDetails();
         prolevel = details->getProLevel();
+        delete details;
     }
     delete megaCmdListener;
     return prolevel > 0;
