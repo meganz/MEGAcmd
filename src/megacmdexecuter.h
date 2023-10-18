@@ -57,8 +57,8 @@ private:
     //delete confirmation
     std::vector<mega::MegaNode *> nodesToConfirmDelete;
 
-
     std::string getNodePathString(mega::MegaNode *n);
+    void forEachFileInNode(mega::MegaNode *n, bool recurse, std::function<void(mega::MegaNode *node)> cb);
 
 public:
     bool signingup;
@@ -93,9 +93,9 @@ public:
     void printTreeSuffix(int depth, std::vector<bool> &lastleaf);
     void dumpNode(mega::MegaNode* n, const char *timeFormat, std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions, int extended_info, bool showversions = false, int depth = 0, const char* title = NULL);
     void dumptree(mega::MegaNode* n, bool treelike, std::vector<bool> &lastleaf, const char *timeFormat, std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions, int recurse, int extended_info, bool showversions = false, int depth = 0, std::string pathRelativeTo = "NULL");
-    void dumpNodeSummaryHeader(const char *timeFormat, std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions);
-    void dumpNodeSummary(mega::MegaNode* n, const char *timeFormat, std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions, bool humanreadable = false, const char* title = NULL);
-    void dumpTreeSummary(mega::MegaNode* n, const char *timeFormat, std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions, int recurse, bool show_versions, int depth = 0, bool humanreadable = false, std::string pathRelativeTo = "NULL");
+    void dumpNodeSummaryHeader(const char *timeFormat, std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions, size_t max_size_len);
+    void dumpNodeSummary(mega::MegaNode* n, const char *timeFormat, std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions, size_t max_size_len, bool humanreadable = false, const char* title = NULL);
+    void dumpTreeSummary(mega::MegaNode* n, const char *timeFormat, std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions, int recurse, bool show_versions, size_t max_size_len, int depth = 0, bool humanreadable = false, std::string pathRelativeTo = "NULL");
     std::unique_ptr<mega::MegaContactRequest> getPcrByContact(std::string contactEmail);
     bool TestCanWriteOnContainingFolder(std::string *path);
     std::string getDisplayPath(std::string givenPath, mega::MegaNode* n);
