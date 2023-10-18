@@ -9,8 +9,8 @@ openssl-unix/c303dd024e2dc03a0665ddffbb12a1077933e649 all:off linux:on
 openssl-windows/c303dd024e2dc03a0665ddffbb12a1077933e649 all:off windows:on
 
 # cmake\vcpkg toolchain dependencies
-vcpkg-cmake-config/94ce0dab56f4d8ba6bd631ba59ed682b02d45c46
-vcpkg-cmake/94ce0dab56f4d8ba6bd631ba59ed682b02d45c46
+vcpkg-cmake-config/7476f0d4e77d3333fbb249657df8251c28c4faae
+vcpkg-cmake/7476f0d4e77d3333fbb249657df8251c28c4faae
 
 # needed by external projects which still rely on SDK to fetch and build it; SDK no longer uses PCRE
 # this is the minimum version after PCRE's ftp server switched
@@ -31,21 +31,20 @@ libzen/0.4.37
 ffmpeg/c303dd024e2dc03a0665ddffbb12a1077933e649 all:on osx:ffmpeg-fix-osx-cross-compilation.patch ios:off
 
 #freeimage and its dependencies (image preview/thumbnail generation)
-freeimage/94ce0dab56f4d8ba6bd631ba59ed682b02d45c46 osx:freeimage-bool-typedef-xcode-compiler.patch
-libpng/94ce0dab56f4d8ba6bd631ba59ed682b02d45c46
-libjpeg-turbo/94ce0dab56f4d8ba6bd631ba59ed682b02d45c46
-tiff/94ce0dab56f4d8ba6bd631ba59ed682b02d45c46
-openjpeg/94ce0dab56f4d8ba6bd631ba59ed682b02d45c46
-libwebp/7375bb408f2278d2f1875c259beef93332697ba7 all:libwebp-no-freeglut-no-avx.patch
-libraw/7375bb408f2278d2f1875c259beef93332697ba7 ios:libraw-ios.patch
-jxrlib/94ce0dab56f4d8ba6bd631ba59ed682b02d45c46 ios:jxrlib-ios-guiddef-fix.patch
-openexr/94ce0dab56f4d8ba6bd631ba59ed682b02d45c46 ios:openexr-ios.patch
-imath/94ce0dab56f4d8ba6bd631ba59ed682b02d45c46
-jasper/94ce0dab56f4d8ba6bd631ba59ed682b02d45c46 all:jasper-no-freeglut.patch
-liblzma/94ce0dab56f4d8ba6bd631ba59ed682b02d45c46 ios:liblzma-ios.patch
-#python3 not needed; it only provides python bindings to use openexr from python
-libffi/94ce0dab56f4d8ba6bd631ba59ed682b02d45c46
-opengl/94ce0dab56f4d8ba6bd631ba59ed682b02d45c46
+freeimage/7476f0d4e77d3333fbb249657df8251c28c4faae osx:freeimage-bool-typedef-xcode-compiler.patch
+libpng/7476f0d4e77d3333fbb249657df8251c28c4faae
+libjpeg-turbo/7476f0d4e77d3333fbb249657df8251c28c4faae
+tiff/7476f0d4e77d3333fbb249657df8251c28c4faae
+openjpeg/7476f0d4e77d3333fbb249657df8251c28c4faae
+libwebp/7476f0d4e77d3333fbb249657df8251c28c4faae
+libraw/7476f0d4e77d3333fbb249657df8251c28c4faae
+jxrlib/7476f0d4e77d3333fbb249657df8251c28c4faae
+openexr/7476f0d4e77d3333fbb249657df8251c28c4faae
+imath/7476f0d4e77d3333fbb249657df8251c28c4faae
+jasper/7476f0d4e77d3333fbb249657df8251c28c4faae all:jasper-no-freeglut.patch
+liblzma/7476f0d4e77d3333fbb249657df8251c28c4faae
+libffi/7476f0d4e77d3333fbb249657df8251c28c4faae
+opengl/7476f0d4e77d3333fbb249657df8251c28c4faae
 #freeglut (cross platform window manager) not needed; problematic on some platforms, pulling in many, many dependencies
 #vcpkg-cmake-config already added above for SDK
 #vcpkg-cmake already added above for SDK
@@ -58,7 +57,7 @@ pdfium-freetype/2-12-1
 # dependencies of pdfium
 icu/979a5197b3389cfdf91d0ac5d98b6066ce73fd7a all:off osx:on linux:on
 icu/cb91b416cb8f85f0a55853baad23fb18d306148a all:on osx:off linux:off
-lcms/c303dd024e2dc03a0665ddffbb12a1077933e649
+lcms/7476f0d4e77d3333fbb249657df8251c28c4faae
 #libjpeg-turbo already added above for freeimage
 #openjpeg already added above for freeimage
 bzip2/c303dd024e2dc03a0665ddffbb12a1077933e649
