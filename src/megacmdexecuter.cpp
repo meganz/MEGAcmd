@@ -1392,7 +1392,9 @@ void MegaCmdExecuter::dumpNodeSummaryHeader(const char *timeFormat, std::map<std
     OUTSTREAM << " ";
     OUTSTREAM << getFixLengthString("VERS", 4);
     OUTSTREAM << " ";
-    OUTSTREAM << getFixLengthString("SIZE  ", (max_size_len > 10 ? max_size_len : 10 ) -1, ' ', true); //-1 because of "FLAGS"
+    OUTSTREAM << getFixLengthString("SIZE  ",
+                                    (unsigned int)(max_size_len > 10 ? max_size_len : 10) - 1, ' ',
+                                    true); //-1 because of "FLAGS"
     OUTSTREAM << " ";
     OUTSTREAM << getFixLengthString("DATE      ", datelength+1, ' ', true);
     if (getFlag(clflags, "show-handles"))
@@ -1496,7 +1498,7 @@ void MegaCmdExecuter::dumpNodeSummary(MegaNode *n, const char *timeFormat, std::
         }
         else
         {
-            OUTSTREAM << getFixLengthString(SSTR(n->getSize()), max_size_len > 10 ? max_size_len : 10, ' ', true);
+            OUTSTREAM << getFixLengthString(SSTR(n->getSize()), (unsigned int)(max_size_len > 10 ? max_size_len : 10), ' ', true);
         }
     }
     else
@@ -5659,7 +5661,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 	size_t max_size = 0;
         auto set_max_size = [&max_size](MegaNode *node) mutable
         {
-            if (node->getSize() > max_size)
+            if (static_cast<size_t>(node->getSize()) > max_size)
             {
                 max_size = node->getSize();
             }
