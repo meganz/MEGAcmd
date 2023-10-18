@@ -145,7 +145,16 @@ std::string syncBackupIdToBase64(const mega::MegaHandle &handle); //sync handles
 
 mega::MegaHandle base64ToSyncBackupId(const std::string &shandle);
 
-
+template <typename T> size_t numberOfDigits(T num)
+{
+    size_t digits = num < 0 ? 1 : 0;
+    while (num != 0)
+    {
+        digits++;
+        num /= 10;
+    }
+    return digits;
+}
 
 /* Flags and Options */
 bool setOptionsAndFlags(std::map<std::string, std::string> *opts, std::map<std::string, int> *flags, std::vector<std::string> *ws,
