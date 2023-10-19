@@ -63,7 +63,7 @@ pipeline {
                 }
             }
         }
-        stage('Checkout SDK and MEGAchat'){
+        stage('Checkout SDK'){
             steps {
                 //Clone MEGAcmd
                 sh "echo Cloning MEGAcmd with prebuildmerge"
@@ -96,8 +96,8 @@ pipeline {
         stage('Build docker image'){
             //todo: integrate this to docker registry, and only run this stage when needed. Image should be downloaded from artifactory registry.
             steps {
-                dir("build-with-qt"){
-                    sh "docker build . -t meganz/megacmd_qt_builder:${env.BUILD_NUMBER}"
+                dir("build-with-docker"){
+                    sh "docker build . -t meganz/megacmd_builder:${env.BUILD_NUMBER}"
                 }
             }
         
@@ -108,11 +108,11 @@ pipeline {
                 timeout(time: 3, unit: 'HOURS')
             }
             steps{
-                sh "docker run --name megaproxy_qt_builder-${env.BUILD_NUMBER} --tty --ulimit core=-1 --security-opt seccomp=unconfined --cpus=2 --rm -v ${WORKSPACE}:/opt/megacmd meganz/megacmd_qt_builder:${env.BUILD_NUMBER}"
+                sh "docker run --name megacmd_builder-${env.BUILD_NUMBER} --tty --ulimit core=-1 --security-opt seccomp=unconfined --cpus=2 --rm -v ${WORKSPACE}:/opt/megacmd meganz/megacmd_builder:${env.BUILD_NUMBER}"
             }
             post{
                 aborted {
-                    sh "docker kill megaproxy_qt_builder-${env.BUILD_NUMBER}" 
+                    sh "docker kill megacmd_builder-${env.BUILD_NUMBER}" 
                 }
             } 
         }
@@ -120,7 +120,7 @@ pipeline {
 
     post{
         always{
-            sh "docker image rm meganz/megacmd_qt_builder:${env.BUILD_NUMBER}"
+            sh "docker image rm meganz/megacmd_builder:${env.BUILD_NUMBER}"
             script{
                 if (currentBuild.currentResult == 'SUCCESS'){
                     addGitLabMRComment(comment: ":white_check_mark: ${currentBuild.projectName} :penguin: <b>Linux</b> SUCCEEDED :muscle:<br/>Build results: [Jenkins [${currentBuild.displayName}]](${currentBuild.absoluteUrl})<br/>Commit: ${env.GIT_COMMIT}" )

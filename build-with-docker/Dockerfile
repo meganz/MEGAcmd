@@ -1,3 +1,4 @@
+
 FROM debian:11-slim
 
 
@@ -7,7 +8,7 @@ RUN chmod +x /opt/builder.sh
 # install all build dependencies
 RUN apt-get update; \
 apt-get install -y libzen-dev libmediainfo-dev pkg-config debhelper libcrypto++-dev libpcre3-dev libc-ares-dev libssl-dev \
-libsqlite3-dev zlib1g-dev wget dh-autoreconf libtool-bin qt5-qmake qtbase5-dev libreadline-dev libfreeimage-dev \
+libsqlite3-dev zlib1g-dev wget dh-autoreconf libtool-bin libreadline-dev libfreeimage-dev \
 libsodium-dev libuv1-dev libavcodec-dev libavutil-dev libavformat-dev libswscale-dev libmediainfo-dev libzen-dev zip libicu-dev
 
 #Install pdfium

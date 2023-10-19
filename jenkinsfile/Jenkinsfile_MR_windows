@@ -99,7 +99,6 @@ pipeline {
         stage('Build MEGAcmd'){
             environment{
                 VCPKGPATH  = "${windows_sources_workspace}\\..\\3rdparty"
-                QTPATH = "C:\\Qt\\Qt5.12.12\\5.12.12\\msvc2017_64"
             }
             options{
                 timeout(time: 3, unit: 'HOURS')
@@ -107,7 +106,7 @@ pipeline {
             steps{
                 sh "sed -i 's/-2_3/-2_5/g' sdk/contrib/cmake/CMakeLists.txt"
                 sh "mkdir build\\\\cmake\\\\build_dir\\\\"
-                sh "cmake -DCMAKE_VERBOSE_MAKEFILE=1 -DCMAKE_GENERATOR_PLATFORM=x64 -DCMAKE_PREFIX_PATH='${QTPATH}' -DUSE_PREBUILT_3RDPARTY=0 -DUSE_THIRDPARTY_FROM_VCPKG=1 -DMega3rdPartyDir='${VCPKGPATH}' ${env.BUILD_OPTIONS} -S '${windows_sources_workspace}'\\\\build\\\\cmake\\\\ -B '${windows_sources_workspace}'\\\\build\\\\cmake\\\\build_dir\\\\"
+                sh "cmake -DCMAKE_VERBOSE_MAKEFILE=1 -DCMAKE_GENERATOR_PLATFORM=x64 -DUSE_PREBUILT_3RDPARTY=0 -DUSE_THIRDPARTY_FROM_VCPKG=1 -DMega3rdPartyDir='${VCPKGPATH}' ${env.BUILD_OPTIONS} -S '${windows_sources_workspace}'\\\\build\\\\cmake\\\\ -B '${windows_sources_workspace}'\\\\build\\\\cmake\\\\build_dir\\\\"
                 sh "cmake --build '${windows_sources_workspace}'\\\\build\\\\cmake\\\\build_dir\\\\ --config Debug --target mega-cmd-server -j 1"
                 sh "cmake --build '${windows_sources_workspace}'\\\\build\\\\cmake\\\\build_dir\\\\ --config Debug --target mega-cmd -j 1"
                 sh "cmake --build '${windows_sources_workspace}'\\\\build\\\\cmake\\\\build_dir\\\\ --config Debug --target mega-exec -j 1"
