@@ -74,6 +74,8 @@ mega_cmd_server_LDADD = $(DB_LDFLAGS) $(DB_LIBS) $(LIBS_EXTRA) $(top_builddir)/s
 if DARWIN
 mega_cmd_server_LDFLAGS = -framework Cocoa -framework Security
 endif
+
+mega_cmd_server_CXXFLAGS = $(LMEGAINC) $(DB_CXXFLAGS)
 ##############################################################################################
 
 #############################   COMMS AND COMMON UTILS LIBRARY  ##############################
@@ -86,6 +88,8 @@ src_libmegacmdcomms_la_SOURCES += src/megacmdshell/megacmdshellcommunicationsnam
 else
 src_libmegacmdcomms_la_SOURCES += sdk/src/thread/posixthread.cpp sdk/src/logging.cpp
 endif
+
+src_libmegacmdcomms_la_CXXFLAGS = $(LMEGAINC) $(DB_CXXFLAGS)
 ##############################################################################################
 
 ####################################   CLIENT  ###############################################
