@@ -18,6 +18,7 @@
 #ifndef COMUNICATIONSMANAGERFILESOCKETS_H
 #define COMUNICATIONSMANAGERFILESOCKETS_H
 
+#include <sstream>
 #ifndef WIN32
 
 #include "comunicationsmanager.h"
@@ -38,6 +39,13 @@ public:
     {
         close(outSocket);
         outSocket = -1;
+    }
+
+    std::string getPetitionDetails() const override
+    {
+        std::ostringstream os;
+        os << "socket output: " << outSocket;
+        return os.str();
     }
 };
 
@@ -92,12 +100,6 @@ public:
     virtual int getConfirmation(CmdPetition *inf, std::string message);
 
     virtual std::string getUserResponse(CmdPetition *inf, std::string message);
-
-    /**
-     * @brief get_petition_details
-     * @return a string describing details of the petition
-     */
-    std::string get_petition_details(CmdPetition *inf);
 
     ~ComunicationsManagerFileSockets();
 };

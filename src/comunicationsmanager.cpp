@@ -156,12 +156,6 @@ std::string ComunicationsManager::getUserResponse(CmdPetition *inf, string messa
     return string();
 }
 
-string ComunicationsManager::get_petition_details(CmdPetition *inf)
-{
-    return "";
-}
-
-
 ComunicationsManager::~ComunicationsManager()
 {
     std::lock_guard<std::recursive_mutex> g(mStateListenersMutex);

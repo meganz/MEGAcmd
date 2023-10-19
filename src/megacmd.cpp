@@ -3830,7 +3830,7 @@ void * doProcessLine(void *pointer)
         setCurrentThreadIsCmdShell(false);
     }
 
-    LOG_verbose << " Processing " << inf->line << " in thread: " << MegaThread::currentThreadId() << " " << cm->get_petition_details(inf);
+    LOG_verbose << " Processing " << inf->line << " in thread: " << MegaThread::currentThreadId() << " " << inf->getPetitionDetails();
 
     doExit = process_line(inf->getLine());
 
@@ -3840,7 +3840,7 @@ void * doProcessLine(void *pointer)
         LOG_verbose << " Exit registered upon process_line: " ;
     }
 
-    LOG_verbose << " Procesed " << inf->line << " in thread: " << MegaThread::currentThreadId() << " " << cm->get_petition_details(inf);
+    LOG_verbose << " Procesed " << inf->line << " in thread: " << MegaThread::currentThreadId() << " " << inf->getPetitionDetails();
 
     MegaThread * petitionThread = inf->getPetitionThread();
 

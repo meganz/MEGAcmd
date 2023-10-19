@@ -20,6 +20,7 @@
 
 #include "comunicationsmanager.h"
 
+#include <sstream>
 #include <sys/types.h>
 #ifdef _WIN32
 #include <WinSock2.h>
@@ -51,6 +52,12 @@ public:
         {
             closeSocket(acceptedOutSocket);
         }
+    }
+    std::string getPetitionDetails() const override
+    {
+        std::ostringstream os;
+        os << "socket output: " << outSocket;
+        return os.str();
     }
 };
 
@@ -113,12 +120,6 @@ public:
 
     virtual int getConfirmation(CmdPetition *inf, std::string message);
     virtual std::string getUserResponse(CmdPetition *inf, std::string message);
-
-    /**
-     * @brief get_petition_details
-     * @return a string describing details of the petition
-     */
-    std::string get_petition_details(CmdPetition *inf);
 
     ~ComunicationsManagerPortSockets();
 };
