@@ -25,5 +25,5 @@ make
 make install
 
 #now run the unit tests
-$volume_dest/installdir/mega-cmd-unit-tests
+$volume_dest/installdir/bin/mega-cmd-unit-tests
 "
