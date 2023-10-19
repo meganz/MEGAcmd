@@ -545,7 +545,7 @@ if test "x$enable_megacmd_tests" = "xyes" ; then
     AC_ARG_WITH(gtest,
         AS_HELP_STRING(--with-gtest=PATH, specify GTest location),
         [AC_SUBST([GTEST_DIR],[$with_gtest])],
-        [AC_MSG_ERROR([GTest location must be specified])]
+        [AC_MSG_ERROR([GTest location must be specified. You can pass simply "--with-gtest" if expected to be in your include path])]
     )
 fi
 AM_CONDITIONAL([BUILD_MEGACMD_TESTS], [test "$enable_megacmd_tests" = "yes"])
