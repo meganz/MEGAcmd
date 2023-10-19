@@ -11,6 +11,7 @@ openssl-windows/c303dd024e2dc03a0665ddffbb12a1077933e649 all:off windows:on
 # cmake\vcpkg toolchain dependencies
 vcpkg-cmake-config/7476f0d4e77d3333fbb249657df8251c28c4faae
 vcpkg-cmake/7476f0d4e77d3333fbb249657df8251c28c4faae
+vcpkg-cmake-get-vars/7476f0d4e77d3333fbb249657df8251c28c4faae
 
 # needed by external projects which still rely on SDK to fetch and build it; SDK no longer uses PCRE
 # this is the minimum version after PCRE's ftp server switched
@@ -43,16 +44,15 @@ openexr/7476f0d4e77d3333fbb249657df8251c28c4faae
 imath/7476f0d4e77d3333fbb249657df8251c28c4faae
 jasper/7476f0d4e77d3333fbb249657df8251c28c4faae all:jasper-no-freeglut.patch
 liblzma/7476f0d4e77d3333fbb249657df8251c28c4faae
-libffi/7476f0d4e77d3333fbb249657df8251c28c4faae
+egl-registry/7476f0d4e77d3333fbb249657df8251c28c4faae
+opengl-registry/7476f0d4e77d3333fbb249657df8251c28c4faae
 opengl/7476f0d4e77d3333fbb249657df8251c28c4faae
 #freeglut (cross platform window manager) not needed; problematic on some platforms, pulling in many, many dependencies
-#vcpkg-cmake-config already added above for SDK
-#vcpkg-cmake already added above for SDK
 
 # pdfium libraries, specific version for build stability  (preview/thumbnail generation for pdfs)
 # no v8 (javascript execution) etc
 pdfium/5247
-pdfium-freetype/2-12-1
+freetype[core,bzip2,png,zlib]/6bf5ffffe875f2f824ca68eade4149587357880e
 
 # dependencies of pdfium
 icu/979a5197b3389cfdf91d0ac5d98b6066ce73fd7a all:off osx:on linux:on
