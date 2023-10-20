@@ -30,8 +30,23 @@ endif()
 #specify where 3rd party libraries are available
 set(Mega3rdPartyDir "${CMAKE_CURRENT_LIST_DIR}/../../../3rdparty_megacmd" CACHE STRING "")
 
+# Include SDK's CMakeLists.txt
 # this line could also point to an sdk repo outside this one, or you can use the submodule in ./sdk folder
 include(${CMAKE_CURRENT_LIST_DIR}/../../sdk/contrib/cmake/CMakeLists.txt)
+
+
+#Substract not needed avfilter/avdevice when not using vcpkg (linux' system ones)
+if (NOT USE_THIRDPARTY_FROM_VCPKG) #vcpkg or system
+    get_target_property(OVERRIDING_TARGET_LIBRARIES Mega INTERFACE_LINK_LIBRARIES)
+    LIST(REMOVE_ITEM OVERRIDING_TARGET_LIBRARIES $<${HAVE_FFMPEG}:avfilter> )
+    LIST(REMOVE_ITEM OVERRIDING_TARGET_LIBRARIES $<${HAVE_FFMPEG}:avdevice> )
+    set_property(TARGET Mega PROPERTY INTERFACE_LINK_LIBRARIES  ${OVERRIDING_TARGET_LIBRARIES} )
+endif()
+
+#ensure NDEBUG is set when not debugging
+if (NOT CMAKE_BUILD_TYPE EQUAL "Debug")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DNDEBUG")
+endif ()
 
 set(ProjectDir "${CMAKE_CURRENT_LIST_DIR}/../..")
 
@@ -42,7 +57,7 @@ if (ENABLE_BACKUP)
 endif (ENABLE_BACKUP)
 
 
-add_executable(mega-cmd-server
+add_library(LMegacmdServer STATIC
     "${ProjectDir}/src/megacmd.cpp"
     "${ProjectDir}/src/megacmdexecuter.cpp"
     "${ProjectDir}/src/megacmdtransfermanager.cpp"
@@ -56,6 +71,10 @@ add_executable(mega-cmd-server
     "${ProjectDir}/src/comunicationsmanagerportsockets.cpp"
     "${ProjectDir}/src/configurationmanager.cpp"
     "${ProjectDir}/src/listeners.cpp"
+)
+
+add_executable(mega-cmd-server
+    "${ProjectDir}/src/megacmd_server_main.cpp"
     "${ProjectDir}/contrib/QtCreator/MEGAcmd/MEGAcmdServer/icon.rc"
 )
 
@@ -80,6 +99,40 @@ add_executable(mega-cmd-updater WIN32
     "${ProjectDir}/src/updater/UpdateTask.cpp"
     "${ProjectDir}/contrib/QtCreator/MEGAcmd/MEGAcmdUpdater/icon.rc"
 )
+
+#Tests compilation flags:
+string(REPLACE "-std=c++11" "-std=c++17" TESTS_COMPILATION_FLAGS ${CMAKE_CXX_FLAGS})
+
+#Test Common:
+add_library(LMegacmdTestsCommon STATIC
+    "${ProjectDir}/tests/common/Instruments.cpp"
+    "${ProjectDir}/tests/common/TestUtils.cpp"
+)
+target_link_libraries(LMegacmdTestsCommon gmock gtest)
+
+#Integration tests:
+add_executable(mega-cmd-tests-integration
+    "${ProjectDir}/tests/integration/BasicTests.cpp"
+    "${ProjectDir}/tests/integration/main.cpp"
+)
+set_property(TARGET mega-cmd-tests-integration PROPERTY COMPILE_FLAGS ${TESTS_COMPILATION_FLAGS})
+target_include_directories(mega-cmd-tests-integration PUBLIC ${ProjectDir}/src ${ProjectDir}/tests/common)
+target_link_libraries(mega-cmd-tests-integration LMegacmdServer LMegacmdTestsCommon)
+if(APPLE)
+    target_link_libraries(mega-cmd-tests-integration "-framework Security" )
+endif()
+
+#Unit tests:
+add_executable(mega-cmd-tests-unit
+    "${ProjectDir}/tests/unit/StringUtilsTests.cpp"
+    "${ProjectDir}/tests/unit/main.cpp"
+)
+set_property(TARGET mega-cmd-tests-unit PROPERTY COMPILE_FLAGS ${TESTS_COMPILATION_FLAGS})
+target_include_directories(mega-cmd-tests-unit PUBLIC ${ProjectDir}/src ${ProjectDir}/tests/common)
+target_link_libraries(mega-cmd-tests-unit LMegacmdServer LMegacmdTestsCommon)
+if(APPLE)
+    target_link_libraries(mega-cmd-tests-unit "-framework Security" )
+endif()
 
 if (APPLE)
     target_sources(mega-cmd-server  PRIVATE "${ProjectDir}/src/megacmdplatform.mm")
@@ -106,11 +159,12 @@ target_link_libraries(mega-exec Mega)
 target_link_libraries(mega-cmd Mega)
 target_link_libraries(mega-cmd-updater Mega)
 if (WIN32)
-  target_link_libraries(mega-cmd-server Mega Lz32.lib Taskschd.lib)
+  target_link_libraries(LMegacmdServer Mega Lz32.lib Taskschd.lib)
   target_link_libraries(mega-cmd-updater Mega Lz32.lib Urlmon.lib)
 else()
-  target_link_libraries(mega-cmd-server Mega)
+  target_link_libraries(LMegacmdServer Mega)
 endif()
+target_link_libraries(mega-cmd-server LMegacmdServer)
 if (NOT NO_READLINE)
     target_link_libraries(mega-cmd readline)
 endif (NOT NO_READLINE)

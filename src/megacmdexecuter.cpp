@@ -1037,17 +1037,18 @@ bool MegaCmdExecuter::checkAndInformPSA(CmdPetition *inf, bool enforce)
 }
 
 
-bool MegaCmdExecuter::checkNoErrors(int errorCode, string message)
+bool MegaCmdExecuter::checkNoErrors(int errorCode, const string &message)
 {
     MegaErrorPrivate e(errorCode);
     return checkNoErrors(&e, message);
 }
 
-bool MegaCmdExecuter::checkNoErrors(MegaError *error, string message, SyncError syncError)
+bool MegaCmdExecuter::checkNoErrors(MegaError *error, const string &message, SyncError syncError)
 {
     if (!error)
     {
         LOG_fatal << "No MegaError at request: " << message;
+        assert(false);
         return false;
     }
     if (error->getErrorCode() == MegaError::API_OK)
@@ -1086,6 +1087,14 @@ bool MegaCmdExecuter::checkNoErrors(MegaError *error, string message, SyncError 
     }
 
     return false;
+}
+
+bool MegaCmdExecuter::checkNoErrors(::mega::SynchronousRequestListener *listener, const std::string &message, ::mega::SyncError syncError)
+{
+    assert(listener);
+    listener->wait();
+    assert(listener->getError());
+    return checkNoErrors(listener->getError(), message, syncError);
 }
 
 /**
