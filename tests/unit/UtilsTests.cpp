@@ -30,9 +30,9 @@ namespace UtilsTest
         }
         {
             G_SUBTEST << "Negative integers";
-            ASSERT_EQ(megacmd::numberOfDigits(-1), 1);
-            ASSERT_EQ(megacmd::numberOfDigits(-10), 2);
-            ASSERT_EQ(megacmd::numberOfDigits(-100), 3);
+            ASSERT_EQ(megacmd::numberOfDigits(-1), 2);
+            ASSERT_EQ(megacmd::numberOfDigits(-10), 3);
+            ASSERT_EQ(megacmd::numberOfDigits(-100), 4);
         }
     }
 }; // namespace UtilsTest
