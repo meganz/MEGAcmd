@@ -15,6 +15,7 @@ ulimit -c unlimited
 rm -rf installdir || :
 
 exec su - jenkins -c "
+set -e
 ./autogen.sh
 ./sdk/contrib/build_sdk.sh -b -g -f -I -i -s -n -z -o ./3rd_pkgs -p ./3rd_deps
 rm ./3rd_deps/include/sqlite* ./3rd_deps/lib/libsqlite* || :
