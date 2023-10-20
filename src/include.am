@@ -1,84 +1,154 @@
 
 # applications
-bin_PROGRAMS = 
+bin_PROGRAMS =
 
 # rules
 noinst_HEADERS=
 
+# executables definition:
 MEGACMD = mega-cmd mega-exec mega-cmd-server
-bin_PROGRAMS += $(MEGACMD)
+if BUILD_MEGACMD_TESTS
+TESTS = mega-cmd-unit-tests mega-cmd-integration-tests
+endif
+bin_PROGRAMS += $(MEGACMD) $(TESTS)
+
+# establish dependency with libmega
 $(MEGACMD): $(top_builddir)/sdk/src/libmega.la
-noinst_HEADERS += src/comunicationsmanager.h src/configurationmanager.h src/megacmd.h src/megacmdlogger.h src/megacmdsandbox.h src/megacmdutils.h src/megacmdcommonutils.h src/listeners.h src/megacmdexecuter.h src/megacmdtransfermanager.h src/megacmdversion.h src/megacmdplatform.h src/comunicationsmanagerportsockets.h
+
+#scripst (to install and where)
 megacmdcompletiondir = $(sysconfdir)/bash_completion.d/
 megacmdcompletion_DATA = src/client/megacmd_completion.sh
 megacmdscripts_bindir = $(bindir)
-
 megacmdscripts_bin_SCRIPTS = src/client/mega-attr src/client/mega-cd src/client/mega-confirm src/client/mega-cp src/client/mega-debug src/client/mega-du src/client/mega-df src/client/mega-proxy src/client/mega-export src/client/mega-find src/client/mega-get src/client/mega-help src/client/mega-https src/client/mega-webdav src/client/mega-permissions src/client/mega-deleteversions src/client/mega-transfers src/client/mega-import src/client/mega-invite src/client/mega-ipc src/client/mega-killsession src/client/mega-lcd src/client/mega-log src/client/mega-login src/client/mega-logout src/client/mega-lpwd src/client/mega-ls src/client/mega-backup src/client/mega-mkdir src/client/mega-mount src/client/mega-mv src/client/mega-passwd src/client/mega-preview src/client/mega-put src/client/mega-speedlimit src/client/mega-pwd src/client/mega-quit src/client/mega-reload src/client/mega-rm src/client/mega-session src/client/mega-share src/client/mega-showpcr src/client/mega-signup src/client/mega-sync src/client/mega-exclude src/client/mega-thumbnail src/client/mega-userattr src/client/mega-users src/client/mega-version src/client/mega-whoami src/client/mega-cat src/client/mega-tree src/client/mega-mediainfo src/client/mega-graphics src/client/mega-ftp src/client/mega-cancel src/client/mega-confirmcancel src/client/mega-errorcode
 
-mega_cmd_server_SOURCES = src/megacmd.cpp src/comunicationsmanager.cpp src/megacmdutils.cpp src/megacmdcommonutils.cpp src/configurationmanager.cpp src/megacmdlogger.cpp src/megacmdsandbox.cpp src/listeners.cpp src/megacmdexecuter.cpp src/megacmd_server_main.cpp src/megacmdtransfermanager.cpp src/comunicationsmanagerportsockets.cpp  
+lib_LTLIBRARIES =
+noinst_LTLIBRARIES  =
 
-mega_cmddir=examples
+if BUILD_MEGACMD_TESTS
+############################    INSTRUMENTS LIBRARY      #####################################
+noinst_LTLIBRARIES += src/libmegacmdinstruments.la
+noinst_HEADERS += tests/common/Instruments.h
 
-#CMDCLIENT
-noinst_HEADERS += src/megacmdcommonutils.h src/megacmdshell/megacmdshellcommunications.h src/megacmdshell/megacmdshell.h sdk/include/mega/thread.h
-
-mega_exec_SOURCES = src/megacmdcommonutils.cpp src/client/megacmdclient.cpp src/megacmdshell/megacmdshellcommunications.cpp
-mega_execdir=examples
-#mega_exec_CXXFLAGS = -std=c++11 -DUSE_CPPTHREAD=1 -Iinclude/
-#mega_exec_CXXFLAGS = -Iinclude/
-mega_exec_CXXFLAGS = -Isdk/include/ $(LMEGAINC)
-
-#CMDSHELL
-noinst_HEADERS += src/megacmdcommonutils.h src/megacmdshell/megacmdshellcommunications.h src/megacmdshell/megacmdshell.h sdk/include/mega/thread.h
-mega_cmd_SOURCES = src/megacmdcommonutils.cpp src/megacmdshell/megacmdshellcommunications.cpp src/megacmdshell/megacmdshell.cpp 
-
-mega_cmd_CXXFLAGS = $(RL_CXXFLAGS) -Isdk/include/ $(LMEGAINC)
-mega_cmd_LDADD = $(RL_LDFLAGS) $(RL_LIBS) $(TERMCAP_LDFLAGS) $(TERMCAP_LIBS) 
-
-mega_cmd_server_CXXFLAGS = $(LMEGAINC) $(DB_CXXFLAGS)
-if USE_PCRE
-mega_cmd_server_CXXFLAGS += -DUSE_PCRE=1
+src_libmegacmdinstruments_la_CXXFLAGS = -std=c++17 #required for instruments stuff
+src_libmegacmdinstruments_la_SOURCES = tests/common/Instruments.cpp
+##############################################################################################
 endif
 
-if WIN32
-noinst_HEADERS += src/megacmdshell/megacmdshellcommunicationsnamedpipes.h sdk/include/mega/thread.h sdk/include/mega/thread/win32thread.h sdk/include/mega/logging.h
-mega_cmd_SOURCES += src/megacmdshell/megacmdshellcommunicationsnamedpipes.cpp sdk/src/thread/win32thread.cpp sdk/src/logging.cpp
-mega_exec_SOURCES += src/megacmdshell/megacmdshellcommunicationsnamedpipes.cpp sdk/src/thread/win32thread.cpp sdk/src/logging.cpp
-mega_cmd_server_SOURCES += src/comunicationsmanagernamedpipes.cpp
+###############################    SERVER LIBRARY        #####################################
+noinst_LTLIBRARIES += src/libmegacmdserver.la
+src_libmegacmdserver_la_LDFLAGS=
 
-mega_cmd_server_CXXFLAGS += -D_WIN32=1 -Isdk/include/ -Isdk/include/mega/win32
-mega_cmd_server_LDADD = $(DB_LDFLAGS) $(DB_LIBS) $(LIBS_EXTRA) $(top_builddir)/src/libmega.la $(LIBS_EXTRA)
+noinst_HEADERS += src/comunicationsmanager.h src/configurationmanager.h src/megacmd.h src/megacmdlogger.h src/megacmdsandbox.h src/megacmdutils.h src/megacmdcommonutils.h src/listeners.h src/megacmdexecuter.h src/megacmdtransfermanager.h src/megacmdversion.h src/megacmdplatform.h src/comunicationsmanagerportsockets.h
+src_libmegacmdserver_la_SOURCES = src/megacmd.cpp src/megacmd_server_main.cpp src/comunicationsmanager.cpp src/megacmdutils.cpp src/megacmdcommonutils.cpp src/configurationmanager.cpp src/megacmdlogger.cpp src/megacmdsandbox.cpp src/listeners.cpp src/megacmdexecuter.cpp src/megacmdtransfermanager.cpp src/comunicationsmanagerportsockets.cpp
+src_libmegacmdserver_la_CXXFLAGS = $(LMEGAINC) $(DB_CXXFLAGS)
 
-mega_exec_CXXFLAGS += -D_WIN32=1
-mega_exec_LDADD = $(LIBS_EXTRA)
-mega_cmd_LDADD += $(LIBS_EXTRA)
+if USE_PCRE
+src_libmegacmdserver_la_CXXFLAGS += -DUSE_PCRE=1
+endif
 
+src_libmegacmdserver_la_LIBADD = $(DB_LDFLAGS) $(DB_LIBS) $(PCRE_LIBS) $(top_builddir)/sdk/src/libmega.la
 
-else
-
-mega_cmd_server_LDADD=$(DB_LDFLAGS) $(DB_LIBS) $(PCRE_LIBS) $(top_builddir)/sdk/src/libmega.la
-
-mega_cmd_server_SOURCES += src/comunicationsmanagerfilesockets.cpp
+if !WIN32
+src_libmegacmdserver_la_SOURCES += src/comunicationsmanagerfilesockets.cpp
 noinst_HEADERS += src/comunicationsmanagerfilesockets.h sdk/include/mega/thread/posixthread.h sdk/include/mega/logging.h
-mega_cmd_SOURCES += sdk/src/thread/posixthread.cpp sdk/src/logging.cpp
-mega_exec_SOURCES += sdk/src/thread/posixthread.cpp sdk/src/logging.cpp
-
-#mega_cmd_CXXFLAGS += -DUSE_PTHREAD=1
-#mega_exec_CXXFLAGS += -DUSE_PTHREAD=1
-
+else
+src_libmegacmdserver_la_SOURCES += src/comunicationsmanagernamedpipes.cpp
+src_libmegacmdserver_la_CXXFLAGS += -D_WIN32=1 -Isdk/include/ -Isdk/include/mega/win32
 endif
 
 if DARWIN
-mega_cmd_server_SOURCES += src/megacmdplatform.mm
+src_libmegacmdserver_la_SOURCES += src/megacmdplatform.mm
+endif
+
+if BUILD_MEGACMD_TESTS
+src_libmegacmdserver_la_CXXFLAGS += -DMEGACMD_TESTING_CODE=1
+src_libmegacmdserver_la_CXXFLAGS += -std=c++17 #required for instruments stuff
+src_libmegacmdserver_la_LIBADD += $(top_builddir)/src/libmegacmdinstruments.la
+endif
+##############################################################################################
+
+###############################          SERVER         ######################################
+mega_cmd_server_SOURCES = src/megacmd_server_main.cpp
+mega_cmd_server_LDADD = $(DB_LDFLAGS) $(DB_LIBS) $(LIBS_EXTRA) $(top_builddir)/src/libmegacmdserver.la
+
+if DARWIN
 mega_cmd_server_LDFLAGS = -framework Cocoa -framework Security
+endif
+
+mega_cmd_server_CXXFLAGS = $(LMEGAINC) $(DB_CXXFLAGS)
+##############################################################################################
+
+#############################   COMMS AND COMMON UTILS LIBRARY  ##############################
+noinst_LTLIBRARIES += src/libmegacmdcomms.la
+noinst_HEADERS += src/megacmdcommonutils.h src/megacmdshell/megacmdshellcommunications.h src/megacmdshell/megacmdshell.h
+src_libmegacmdcomms_la_SOURCES = src/megacmdcommonutils.cpp src/megacmdshell/megacmdshellcommunications.cpp
+
+if WIN32
+src_libmegacmdcomms_la_SOURCES += src/megacmdshell/megacmdshellcommunicationsnamedpipes.cpp sdk/src/thread/win32thread.cpp sdk/src/logging.cpp
 else
-
-if ENABLE_STATIC
-#mega_cmd_server_LDFLAGS = -Wl,-static -all-static
-mega_cmd_server_LDFLAGS = -pthread
-mega_exec_LDFLAGS = -pthread
-mega_cmd_LDFLAGS = -pthread
+src_libmegacmdcomms_la_SOURCES += sdk/src/thread/posixthread.cpp sdk/src/logging.cpp
 endif
 
-endif
+src_libmegacmdcomms_la_CXXFLAGS = $(LMEGAINC) $(DB_CXXFLAGS)
+##############################################################################################
+
+####################################   CLIENT  ###############################################
+noinst_HEADERS +=
+mega_exec_SOURCES =src/client/megacmdclient.cpp
+
+mega_exec_CXXFLAGS = -Isdk/include/ $(LMEGAINC)
+mega_exec_LDADD = $(top_builddir)/src/libmegacmdcomms.la
+##############################################################################################
+
+###############################   SHELL  #####################################################
+noinst_HEADERS += src/megacmdshell/megacmdshell.h
+mega_cmd_SOURCES = src/megacmdshell/megacmdshell.cpp
+
+mega_cmd_CXXFLAGS = $(RL_CXXFLAGS) -Isdk/include/ $(LMEGAINC)
+mega_cmd_LDADD = $(RL_LDFLAGS) $(RL_LIBS) $(TERMCAP_LDFLAGS) $(TERMCAP_LIBS)
+mega_cmd_LDADD += $(top_builddir)/src/libmegacmdcomms.la
+
+##############################################################################################
+
+if BUILD_MEGACMD_TESTS
+###################    Common Tests LIBRARY        ###########################################
+noinst_LTLIBRARIES += src/libmegacmdtestscommon.la
+noinst_HEADERS += tests/common/TestUtils.h
+
+src_libmegacmdtestscommon_la_CXXFLAGS = -std=c++17 #required for testscommon stuff
+src_libmegacmdtestscommon_la_SOURCES = \
+    tests/common/TestUtils.cpp
+##############################################################################################
+
+############################### Unit Tests  ##################################################
+mega_cmd_unit_tests_SOURCES = \
+    tests/unit/StringUtilsTests.cpp \
+    tests/unit/main.cpp
+
+mega_cmd_unit_tests_CXXFLAGS = -Itests/common/ -Itests/unit/ -Isdk/include/ $(LMEGAINC)
+mega_cmd_unit_tests_CXXFLAGS += -std=c++17
+
+mega_cmd_unit_tests_LDADD = -L/$(GTEST_DIR)/lib/ -lgtest -lgtest_main # Note, the trailing / in GTEST_DIR is to allow simple --with-gtest (evalving to "yes")
+mega_cmd_unit_tests_LDADD += $(top_builddir)/src/libmegacmdserver.la #to include dependencies of unit-tested code
+mega_cmd_unit_tests_LDADD += $(top_builddir)/src/libmegacmdinstruments.la
+mega_cmd_unit_tests_LDADD += $(top_builddir)/src/libmegacmdtestscommon.la
+##############################################################################################
+
+##############################  Integration Tests  ###########################################
+mega_cmd_integration_tests_SOURCES = \
+    tests/integration/BasicTests.cpp \
+    tests/integration/MegaCmdTestingTools.cpp \
+    tests/integration/main.cpp
+
+mega_cmd_integration_tests_CXXFLAGS = -Itests/common/ -Itests/integration/ -Isdk/include/ $(LMEGAINC)
+mega_cmd_integration_tests_CXXFLAGS += -std=c++17
+
+mega_cmd_integration_tests_LDADD = -L/$(GTEST_DIR)/lib/ -lgtest -lgtest_main # Note, the trailing / is to allow simple --with-gtest (evalving to "yes")
+mega_cmd_integration_tests_LDADD += $(top_builddir)/src/libmegacmdserver.la
+mega_cmd_integration_tests_LDADD += $(top_builddir)/src/libmegacmdinstruments.la
+mega_cmd_integration_tests_LDADD += $(top_builddir)/src/libmegacmdtestscommon.la
+
+##############################################################################################
+endif #BUILD_MEGACMD_TESTS
+
 
