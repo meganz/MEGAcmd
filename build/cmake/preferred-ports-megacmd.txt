@@ -8,9 +8,12 @@ openssl/c303dd024e2dc03a0665ddffbb12a1077933e649 ios:off osx:off
 openssl-unix/c303dd024e2dc03a0665ddffbb12a1077933e649 all:off linux:on
 openssl-windows/c303dd024e2dc03a0665ddffbb12a1077933e649 all:off windows:on
 
-# cmake\vcpkg toolchain dependencies
+# Common cmake\vcpkg toolchain dependencies
 vcpkg-cmake-config/7476f0d4e77d3333fbb249657df8251c28c4faae
 vcpkg-cmake/7476f0d4e77d3333fbb249657df8251c28c4faae
+pkgconf/7476f0d4e77d3333fbb249657df8251c28c4faae
+vcpkg-pkgconfig-get-modules/7476f0d4e77d3333fbb249657df8251c28c4faae
+vcpkg-tool-meson/7476f0d4e77d3333fbb249657df8251c28c4faae
 vcpkg-cmake-get-vars/7476f0d4e77d3333fbb249657df8251c28c4faae
 
 # needed by external projects which still rely on SDK to fetch and build it; SDK no longer uses PCRE
@@ -29,7 +32,7 @@ libmediainfo/19.09
 libzen/0.4.37
 
 # ffmpeg (video preview/thumbnail generation)
-ffmpeg/c303dd024e2dc03a0665ddffbb12a1077933e649 all:on osx:ffmpeg-fix-osx-cross-compilation.patch ios:off
+ffmpeg/c67a3059bbdb19799d402085e7323f71e7d68656 all:on ios:off osx:ffmpeg-osx-linker.patch
 
 #freeimage and its dependencies (image preview/thumbnail generation)
 freeimage/7476f0d4e77d3333fbb249657df8251c28c4faae osx:freeimage-bool-typedef-xcode-compiler.patch
