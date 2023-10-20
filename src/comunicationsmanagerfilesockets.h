@@ -18,7 +18,6 @@
 #ifndef COMUNICATIONSMANAGERFILESOCKETS_H
 #define COMUNICATIONSMANAGERFILESOCKETS_H
 
-#include <sstream>
 #ifndef WIN32
 
 #include "comunicationsmanager.h"

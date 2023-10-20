@@ -20,7 +20,6 @@
 
 #include "comunicationsmanager.h"
 
-#include <sstream>
 #include <sys/types.h>
 #include <winsock2.h>
 #include <windows.h>
