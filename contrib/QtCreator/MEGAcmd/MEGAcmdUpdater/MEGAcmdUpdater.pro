@@ -1,5 +1,3 @@
-include(../vcpkg_inclusion.pri)
-
 CONFIG -= qt
 MEGASDK_BASE_PATH = $$PWD/../../../../sdk
 
@@ -10,6 +8,7 @@ CONFIG(debug, debug|release) {
 CONFIG(release, debug|release) {
     CONFIG -= debug release
     CONFIG += release
+    DEFINES += NDEBUG
 }
 
 TARGET = MEGAcmdUpdater
@@ -17,6 +16,8 @@ TEMPLATE = app
 !win32 {
 CONFIG += console
 }
+
+include(../vcpkg_inclusion.pri)
 
 HEADERS += ../../../../src/updater/UpdateTask.h \
     ../../../../src/updater/Preferences.h \
