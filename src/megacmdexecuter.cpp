@@ -1675,23 +1675,22 @@ void MegaCmdExecuter::printTreeSuffix(int depth, vector<bool> &lastleaf)
 
 void MegaCmdExecuter::forEachFileInNode(MegaNode *n, bool recurse, std::function<void(MegaNode *node)> f)
 {
-    MegaNodeList *children = api->getChildren(n);
+    auto children = std::unique_ptr<MegaNodeList>(api->getChildren(n));
     if (children)
     {
         for (int i = 0; i < children->size(); i++)
         {
-	    auto child = children->get(i);
-	    if (child->getType() == MegaNode::TYPE_FILE)
+            auto child = children->get(i);
+            if (child->getType() == MegaNode::TYPE_FILE)
             {
                 f(children->get(i));
             }
-	    else if (recurse)
-	    {
-		forEachFileInNode(child, true, f);
-	    }
+            else if (recurse)
+            {
+                forEachFileInNode(child, true, f);
+            }
         }
     }
-    delete children;
 }
 
 void MegaCmdExecuter::dumptree(MegaNode* n, bool treelike, vector<bool> &lastleaf, const char *timeFormat, std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions, int recurse, int extended_info, bool showversions, int depth, string pathRelativeTo)
