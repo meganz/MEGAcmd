@@ -1393,7 +1393,7 @@ void MegaCmdExecuter::dumpNodeSummaryHeader(const char *timeFormat, std::map<std
     OUTSTREAM << getFixLengthString("VERS", 4);
     OUTSTREAM << " ";
     OUTSTREAM << getFixLengthString("SIZE  ",
-                                    (unsigned int)(max_size_len > 10 ? max_size_len : 10) - 1, ' ',
+                                    (unsigned int)((max_size_len - 1) > 0 ? max_size_len - 1 : 0), ' ',
                                     true); //-1 because of "FLAGS"
     OUTSTREAM << " ";
     OUTSTREAM << getFixLengthString("DATE      ", datelength+1, ' ', true);
@@ -1498,12 +1498,12 @@ void MegaCmdExecuter::dumpNodeSummary(MegaNode *n, const char *timeFormat, std::
         }
         else
         {
-            OUTSTREAM << getFixLengthString(SSTR(n->getSize()), (unsigned int)(max_size_len > 10 ? max_size_len : 10), ' ', true);
+            OUTSTREAM << getFixLengthString(SSTR(n->getSize()), (unsigned int)max_size_len, ' ', true);
         }
     }
     else
     {
-        OUTSTREAM << getFixLengthString("-", 10, ' ', true);
+        OUTSTREAM << getFixLengthString("-", (unsigned int)max_size_len, ' ', true);
     }
 
     if (n->isFile() && !getFlag(clflags, "show-creation-time"))
@@ -5658,7 +5658,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         bool humanreadable = getFlag(clflags, "h");
         bool treelike = getFlag(clflags,"tree");
         recursive += treelike?1:0;
-	size_t max_size = 0;
+        size_t max_size = 0;
         auto set_max_size = [&max_size](MegaNode *node) mutable
         {
             if (static_cast<size_t>(node->getSize()) > max_size)
@@ -5705,7 +5705,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                                 }
                                 if (summary)
                                 {
-				    forEachFileInNode(n, recursive, set_max_size);
+                                    forEachFileInNode(n, recursive, set_max_size);
                                     if (firstprint)
                                     {
                                         dumpNodeSummaryHeader(getTimeFormatFromSTR(getOption(cloptions, "time-format","SHORT")), clflags, cloptions, numberOfDigits(max_size));
