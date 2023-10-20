@@ -15,6 +15,9 @@ libsodium-dev libuv1-dev libavcodec-dev libavutil-dev libavformat-dev libswscale
 RUN wget https://artifactory.developers.mega.co.nz/artifactory/debian-dev/private/Debian_11/amd64/pdfium-mega_5247.0-4.1_amd64.deb
 RUN apt-get install -y $PWD/pdfium-mega_5247.0-4.1_amd64.deb
 
+#Install gtest
+RUN apt-get install -y libgtest-dev
+
 RUN apt-get clean && rm -rf /var/lib/apt/lists/*
 
 ENTRYPOINT /opt/builder.sh
