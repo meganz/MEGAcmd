@@ -3581,7 +3581,7 @@ void MegaCmdExecuter::exportNode(MegaNode *n, int64_t expireTime, std::string pa
                 LOG_err << "Exported node not found!";
             }
         }
-        else if (error != nullptr & error->getErrorCode() == API_EACCESS)
+        else if (error != nullptr && error->getErrorCode() == API_EACCESS)
         {
             auto path = std::unique_ptr<char>(api->getNodePath(n));
             if (!amIPro() && expireTime != 0)
