@@ -123,6 +123,7 @@ src_libmegacmdtestscommon_la_SOURCES = \
 ############################### Unit Tests  ##################################################
 mega_cmd_unit_tests_SOURCES = \
     tests/unit/StringUtilsTests.cpp \
+    tests/unit/FileSocketCommunicationsTests.cpp \
     tests/unit/main.cpp
 
 mega_cmd_unit_tests_CXXFLAGS = -Itests/common/ -Itests/unit/ -Isdk/include/ $(LMEGAINC)
