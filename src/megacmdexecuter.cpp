@@ -3526,7 +3526,8 @@ void MegaCmdExecuter::exportNode(MegaNode *n, int64_t expireTime, std::string pa
         MegaCmdListener *megaCmdListener = new MegaCmdListener(api, NULL);
         api->exportNode(n, expireTime, writable, megaHosted, megaCmdListener);
         megaCmdListener->wait();
-        if (checkNoErrors(megaCmdListener->getError(), "export node"))
+        auto error = megaCmdListener->getError();
+        if (checkNoErrors(error, "export node"))
         {
             MegaNode *nexported = api->getNodeByHandle(megaCmdListener->getRequest()->getNodeHandle());
             if (nexported)
@@ -3578,6 +3579,18 @@ void MegaCmdExecuter::exportNode(MegaNode *n, int64_t expireTime, std::string pa
             {
                 setCurrentOutCode(MCMD_NOTFOUND);
                 LOG_err << "Exported node not found!";
+            }
+        }
+        else if (error != nullptr & error->getErrorCode() == API_EACCESS)
+        {
+            auto path = std::unique_ptr<char>(api->getNodePath(n));
+            if (!amIPro() && expireTime != 0)
+            {
+                LOG_err << "Only PRO users can set an expiry time for links";
+            }
+            if (path != nullptr && strcmp(path.get(), "/") == 0)
+            {
+                LOG_err << "The root folder cannot be exported";
             }
         }
         delete megaCmdListener;
@@ -9716,6 +9729,9 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
         if (words.size() <= 1)
         {
+            OUTSTREAM << "warning: no file/folder argument provided, will export the current "
+                         "working folder"
+                      << std::endl;
             words.push_back(string(".")); //cwd
         }
 
