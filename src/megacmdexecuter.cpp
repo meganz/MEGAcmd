@@ -3025,7 +3025,7 @@ void MegaCmdExecuter::confirmDelete()
     {
         std::unique_ptr<MegaNode> nodeToConfirmDelete = std::move(mNodesToConfirmDelete.front());
         mNodesToConfirmDelete.erase(mNodesToConfirmDelete.begin());
-        doDeleteNode(std::move(nodeToConfirmDelete), api);
+        doDeleteNode(nodeToConfirmDelete, api);
     }
 
 
@@ -3069,7 +3069,7 @@ void MegaCmdExecuter::confirmDeleteAll()
     {
         std::unique_ptr<MegaNode> nodeToConfirmDelete = std::move(mNodesToConfirmDelete.front());
         mNodesToConfirmDelete.erase(mNodesToConfirmDelete.begin());
-        doDeleteNode(std::move(nodeToConfirmDelete), api);
+        doDeleteNode(nodeToConfirmDelete, api);
     }
 
     setprompt(COMMAND);
@@ -3082,7 +3082,7 @@ void MegaCmdExecuter::discardDeleteAll()
 }
 
 
-void MegaCmdExecuter::doDeleteNode(std::unique_ptr<MegaNode> nodeToDelete, MegaApi* api)
+void MegaCmdExecuter::doDeleteNode(const std::unique_ptr<MegaNode>& nodeToDelete, MegaApi* api)
 {
     char* nodePath = api->getNodePath(nodeToDelete.get());
     if (nodePath)
@@ -3120,7 +3120,7 @@ void MegaCmdExecuter::doDeleteNode(std::unique_ptr<MegaNode> nodeToDelete, MegaA
     delete []nodePath;
 }
 
-int MegaCmdExecuter::deleteNodeVersions(std::unique_ptr<MegaNode> nodeToDelete, MegaApi* api, int force)
+int MegaCmdExecuter::deleteNodeVersions(const std::unique_ptr<MegaNode>& nodeToDelete, MegaApi* api, int force)
 {
     if (nodeToDelete->getType() == MegaNode::TYPE_FILE && api->getNumVersions(nodeToDelete.get()) < 2)
     {
@@ -3148,8 +3148,8 @@ int MegaCmdExecuter::deleteNodeVersions(std::unique_ptr<MegaNode> nodeToDelete, 
             {
                 for (int i = 0; i < children->size(); i++)
                 {
-                    MegaNode* child = children->get(i);
-                    deleteNodeVersions(std::unique_ptr<MegaNode>(child), api, true);
+                    auto child = std::unique_ptr<MegaNode>(children->get(i));
+                    deleteNodeVersions(child, api, true);
                 }
                 delete children;
             }
@@ -3203,9 +3203,9 @@ int MegaCmdExecuter::deleteNodeVersions(std::unique_ptr<MegaNode> nodeToDelete, 
  * @param force
  * @return confirmation code
  */
-int MegaCmdExecuter::deleteNode(std::unique_ptr<MegaNode> nodeToDelete, MegaApi* api, int recursive, int force)
+int MegaCmdExecuter::deleteNode(const std::unique_ptr<MegaNode>& nodeToDelete, MegaApi* api, int recursive, int force)
 {
-    if (( nodeToDelete->getType() != MegaNode::TYPE_FILE ) && !recursive)
+    if (nodeToDelete->getType() != MegaNode::TYPE_FILE && !recursive)
     {
         char* nodePath = api->getNodePath(nodeToDelete.get());
         setCurrentOutCode(MCMD_INVALIDTYPE);
@@ -3233,7 +3233,7 @@ int MegaCmdExecuter::deleteNode(std::unique_ptr<MegaNode> nodeToDelete, MegaApi*
                     newprompt += " ? (Yes/No/All/None): ";
                     setprompt(AREYOUSURETODELETE, newprompt);
                 }
-                mNodesToConfirmDelete.emplace_back(std::move(nodeToDelete));
+                mNodesToConfirmDelete.emplace_back(nodeToDelete->copy());
             }
 
             return MCMDCONFIRM_NO; //default return
@@ -3241,15 +3241,15 @@ int MegaCmdExecuter::deleteNode(std::unique_ptr<MegaNode> nodeToDelete, MegaApi*
         else if (!force && nodeToDelete->getType() != MegaNode::TYPE_FILE)
         {
             string confirmationQuery("Are you sure to delete ");
-            confirmationQuery+=nodeToDelete->getName();
-            confirmationQuery+=" ? (Yes/No/All/None): ";
+            confirmationQuery += nodeToDelete->getName();
+            confirmationQuery += " ? (Yes/No/All/None): ";
 
             int confirmationResponse = askforConfirmation(confirmationQuery);
 
             if (confirmationResponse == MCMDCONFIRM_YES || confirmationResponse == MCMDCONFIRM_ALL)
             {
                 LOG_debug << "confirmation received";
-                doDeleteNode(std::move(nodeToDelete), api);
+                doDeleteNode(nodeToDelete, api);
             }
             else
             {
@@ -3259,7 +3259,7 @@ int MegaCmdExecuter::deleteNode(std::unique_ptr<MegaNode> nodeToDelete, MegaApi*
         }
         else //force
         {
-            doDeleteNode(std::move(nodeToDelete), api);
+            doDeleteNode(nodeToDelete, api);
             return MCMDCONFIRM_ALL;
         }
     }
@@ -4795,7 +4795,7 @@ string MegaCmdExecuter::getLPWD()
 }
 
 
-void MegaCmdExecuter::moveToDestination(std::unique_ptr<MegaNode> n, string destiny)
+void MegaCmdExecuter::moveToDestination(const std::unique_ptr<MegaNode>& n, string destiny)
 {
     assert(n);
 
@@ -5893,11 +5893,11 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         LOG_err << words[i] << ": No such file or directory";
                     }
 
-                    for (auto& node : nodesToDelete)
+                    for (const auto& node : nodesToDelete)
                     {
                         assert(node);
 
-                        int confirmationCode = deleteNode(std::move(node), api, getFlag(clflags, "r"), force);
+                        int confirmationCode = deleteNode(node, api, getFlag(clflags, "r"), force);
                         if (confirmationCode == MCMDCONFIRM_ALL)
                         {
                             force = true;
@@ -5918,7 +5918,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     }
                     else
                     {
-                        int confirmationCode = deleteNode(std::move(nodeToDelete), api, getFlag(clflags, "r"), force);
+                        int confirmationCode = deleteNode(nodeToDelete, api, getFlag(clflags, "r"), force);
                         if (confirmationCode == MCMDCONFIRM_ALL)
                         {
                             force = true;
@@ -5983,10 +5983,10 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
                     if (destinyisok)
                     {
-                        for (auto& node : nodesToList)
+                        for (const auto& node : nodesToList)
                         {
                             assert(node);
-                            moveToDestination(std::move(node), destiny);
+                            moveToDestination(node, destiny);
                         }
                     }
                 }
@@ -5995,7 +5995,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     std::unique_ptr<MegaNode> n = nodebypath(source.c_str());
                     if (n)
                     {
-                        moveToDestination(std::move(n), destiny);
+                        moveToDestination(n, destiny);
                     }
                     else
                     {
@@ -7409,11 +7409,11 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     vector<std::unique_ptr<MegaNode>> nodesToDeleteVersions = nodesbypath(words[i].c_str(), getFlag(clflags,"use-pcre"));
                     if (nodesToDeleteVersions.size())
                     {
-                        for (auto& node : nodesToDeleteVersions)
+                        for (const auto& node : nodesToDeleteVersions)
                         {
                             assert(node);
 
-                            int ret = deleteNodeVersions(std::move(node), api, forcedelete);
+                            int ret = deleteNodeVersions(node, api, forcedelete);
                             forcedelete = forcedelete || (ret == MCMDCONFIRM_ALL);
                         }
                     }
@@ -7428,7 +7428,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     std::unique_ptr<MegaNode> n = nodebypath(words[i].c_str());
                     if (n)
                     {
-                        int ret = deleteNodeVersions(std::move(n), api, forcedelete);
+                        int ret = deleteNodeVersions(n, api, forcedelete);
                         forcedelete = forcedelete || (ret == MCMDCONFIRM_ALL);
                     }
                     else

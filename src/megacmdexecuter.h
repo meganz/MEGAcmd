@@ -117,8 +117,8 @@ public:
     int actUponLogin(mega::SynchronousRequestListener  *srl, int timeout = -1);
     void actUponLogout(mega::SynchronousRequestListener  *srl, bool deletedSession, int timeout = 0);
     int actUponCreateFolder(mega::SynchronousRequestListener  *srl, int timeout = 0);
-    int deleteNode(std::unique_ptr<mega::MegaNode> nodeToDelete, mega::MegaApi* api, int recursive, int force = 0);
-    int deleteNodeVersions(std::unique_ptr<mega::MegaNode> nodeToDelete, mega::MegaApi* api, int force = 0);
+    int deleteNode(const std::unique_ptr<mega::MegaNode>& nodeToDelete, mega::MegaApi* api, int recursive, int force = 0);
+    int deleteNodeVersions(const std::unique_ptr<mega::MegaNode>& nodeToDelete, mega::MegaApi* api, int force = 0);
     void downloadNode(std::string source, std::string localPath, mega::MegaApi* api, mega::MegaNode *node, bool background, bool ignorequotawar, int clientID, std::shared_ptr<MegaCmdMultiTransferListener> listener);
     void uploadNode(std::string localPath, mega::MegaApi* api, mega::MegaNode *node, std::string newname, bool background, bool ignorequotawarn, int clientID, MegaCmdMultiTransferListener *multiTransferListener = NULL);
     void exportNode(mega::MegaNode *n, int64_t expireTime, std::string password = std::string(),
@@ -151,7 +151,7 @@ public:
     int makedir(std::string remotepath, bool recursive, mega::MegaNode *parentnode = NULL);
     bool IsFolder(std::string path);
     bool pathExists(const std::string &path);
-    void doDeleteNode(std::unique_ptr<mega::MegaNode> nodeToDelete, mega::MegaApi* api);
+    void doDeleteNode(const std::unique_ptr<mega::MegaNode>& nodeToDelete, mega::MegaApi* api);
 
     void confirmDelete();
     void discardDelete();
@@ -176,7 +176,7 @@ public:
 
     void doFind(mega::MegaNode* nodeBase, const char *timeFormat, std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions, std::string word, int printfileinfo, std::string pattern, bool usepcre, mega::m_time_t minTime, mega::m_time_t maxTime, int64_t minSize, int64_t maxSize);
 
-    void moveToDestination(std::unique_ptr<mega::MegaNode> n, std::string destiny);
+    void moveToDestination(const std::unique_ptr<mega::MegaNode>& n, std::string destiny);
     void copyNode(mega::MegaNode *n, std::string destiny, mega::MegaNode *tn, std::string &targetuser, std::string &newname);
     std::string getLPWD();
     bool isValidFolder(std::string destiny);
