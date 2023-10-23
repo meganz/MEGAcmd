@@ -392,7 +392,7 @@ std::unique_ptr<MegaNode> MegaCmdExecuter::nodebypath(const char* ptr, string* u
             std::unique_ptr<MegaNode> nextNode;
             if (curName == "..")
             {
-                nextNode = std::unique_ptr<MegaNode>(api->getParentNode(baseNode.get()));
+                nextNode.reset(api->getParentNode(baseNode.get()));
             }
             else
             {
@@ -412,7 +412,7 @@ std::unique_ptr<MegaNode> MegaCmdExecuter::nodebypath(const char* ptr, string* u
                                 MegaNode* versionNode = versionNodes->get(i);
                                 if (curName.substr(curName.size()-10) == SSTR(versionNode->getModificationTime()))
                                 {
-                                    nextNode = std::unique_ptr<MegaNode>(versionNode->copy());
+                                    nextNode.reset(versionNode->copy());
                                     break;
                                 }
                             }
@@ -421,7 +421,7 @@ std::unique_ptr<MegaNode> MegaCmdExecuter::nodebypath(const char* ptr, string* u
                 }
                 else
                 {
-                    nextNode = std::unique_ptr<MegaNode>(api->getChildNode(baseNode.get(), curName.c_str()));
+                    nextNode.reset(api->getChildNode(baseNode.get(), curName.c_str()));
                 }
             }
 
@@ -1596,7 +1596,7 @@ void MegaCmdExecuter::createOrModifyBackup(string local, string remote, string s
         std::unique_ptr<MegaScheduledCopy> backup(api->getScheduledCopyByPath(local.c_str()));
         if (!backup)
         {
-            backup = std::unique_ptr<MegaScheduledCopy>(api->getScheduledCopyByTag(toInteger(local, -1)));
+            backup.reset(api->getScheduledCopyByTag(toInteger(local, -1)));
         }
 
         if (backup)
@@ -3152,15 +3152,15 @@ int MegaCmdExecuter::deleteNodeVersions(const std::unique_ptr<MegaNode>& nodeToD
 
         if (confirmationResponse == MCMDCONFIRM_YES || confirmationResponse == MCMDCONFIRM_ALL)
         {
-            MegaNodeList *children = api->getChildren(nodeToDelete.get());
+            auto children = std::unique_ptr<MegaNodeList>(api->getChildren(nodeToDelete.get()));
             if (children)
             {
                 for (int i = 0; i < children->size(); i++)
                 {
-                    auto child = std::unique_ptr<MegaNode>(children->get(i));
+                    auto child = std::unique_ptr<MegaNode>(children->get(i)); // wrap the pointer into the expected type by deleteNodeVersion
                     deleteNodeVersions(child, api, true);
+                    child.release(); // the MegaNodeList owns the child, we don't want to double free it
                 }
-                delete children;
             }
         }
     }
@@ -6640,7 +6640,10 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         }
                         else //destiny non existing or a file
                         {
-                            if (!TestCanWriteOnContainingFolder(&path)) return;
+                            if (!TestCanWriteOnContainingFolder(&path))
+                            {
+                                return;
+                            }
                         }
                     }
 
@@ -6998,7 +7001,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             }
             else
             {
-                n = std::unique_ptr<MegaNode>(api->getNodeByHandle(cwd));
+                n.reset(api->getNodeByHandle(cwd));
                 words.push_back(".");
             }
 
@@ -9663,7 +9666,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 }
                 else
                 {
-                    dstFolder = std::unique_ptr<MegaNode>(api->getNodeByHandle(cwd));
+                    dstFolder.reset(api->getNodeByHandle(cwd));
                     remotePath = "."; //just to inform (alt: getpathbynode)
                 }
                 if (dstFolder && (!dstFolder->getType() == MegaNode::TYPE_FILE))
