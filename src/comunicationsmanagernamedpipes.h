@@ -43,7 +43,9 @@ public:
     }
     std::string getPetitionDetails() const override
     {
-        return std::string("namedPipe output: ").append(std::to_string(outNamedPipe));
+        std::ostringstream details;
+        details << "namedPipe output: " << outNamedPipe;
+        return details.str();
     }
 };
 

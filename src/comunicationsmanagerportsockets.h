@@ -54,7 +54,9 @@ public:
     }
     std::string getPetitionDetails() const override
     {
-        return std::string("socket output: ").append(std::to_string(outSocket));
+        std::ostringstream details;
+        details << "socket output: " << outSocket;
+        return details.str();
     }
 };
 
