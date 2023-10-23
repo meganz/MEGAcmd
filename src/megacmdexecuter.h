@@ -189,8 +189,9 @@ public:
 
     bool checkAndInformPSA(CmdPetition *inf, bool enforce = false);
 
-    bool checkNoErrors(int errorCode, std::string message = "");
-    bool checkNoErrors(mega::MegaError *error, std::string message = "", mega::SyncError syncError = mega::SyncError::NO_SYNC_ERROR);
+    bool checkNoErrors(int errorCode, const std::string &message = "");
+    bool checkNoErrors(mega::MegaError *error, const std::string &message = "", mega::SyncError syncError = mega::SyncError::NO_SYNC_ERROR);
+    bool checkNoErrors(::mega::SynchronousRequestListener *listener, const std::string &message = "", mega::SyncError syncError = mega::SyncError::NO_SYNC_ERROR);
 
     void confirmCancel(const char* confirmlink, const char* pass);
     bool amIPro();

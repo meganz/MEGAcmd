@@ -29,6 +29,11 @@
 #include "megacmdplatform.h"
 #include "megacmdversion.h"
 
+#ifdef MEGACMD_TESTING_CODE
+    #include "../tests/common/Instruments.h"
+#endif
+
+
 #define USE_VARARGS
 #define PREFER_STDARG
 
@@ -3862,7 +3867,6 @@ void * doProcessLine(void *pointer)
     return NULL;
 }
 
-
 int askforConfirmation(string message)
 {
     CmdPetition *inf = getCurrentPetition();
@@ -3876,6 +3880,13 @@ int askforConfirmation(string message)
     }
 
     return MCMDCONFIRM_NO;
+}
+
+bool booleanAskForConfirmation(string messageHeading)
+{
+    std::string confirmationQuery = messageHeading + "? ([y]es/[n]o): ";
+    auto confirmationResponse = askforConfirmation(confirmationQuery);
+    return (confirmationResponse == MCMDCONFIRM_YES || confirmationResponse == MCMDCONFIRM_ALL);
 }
 
 string askforUserResponse(string message)
@@ -4184,6 +4195,10 @@ void megacmd()
     threadRetryConnections->start(retryConnections, NULL);
 
     LOG_info << "Listening to petitions ... ";
+
+#ifdef MEGACMD_TESTING_CODE
+    TestInstruments::Instance().fireEvent(TestInstruments::Event::SERVER_ABOUT_TO_START_WAITING_FOR_PETITIONS);
+#endif
 
     for (;; )
     {
@@ -4946,11 +4961,7 @@ void uninstall()
 
 #endif
 
-} //end namespace
-
-using namespace megacmd;
-
-int main(int argc, char* argv[])
+int executeServer(int argc, char* argv[])
 {
 #ifdef __linux__
     // Ensure interesting signals are unblocked.
@@ -5014,7 +5025,7 @@ int main(int argc, char* argv[])
     {
         MegaApi::removeRecursively(ConfigurationManager::getConfigFolder().c_str());
         uninstall();
-        exit(0);
+        return 0;
     }
 #endif
 
@@ -5066,7 +5077,7 @@ int main(int argc, char* argv[])
     {
         cerr << "Another instance of MEGAcmd Server is running. Execute with --skip-lock-check to force running (NOT RECOMMENDED)" << endl;
         sleepSeconds(5);
-        exit(-2);
+        return -2;
     }
 
     char userAgent[40];
@@ -5208,4 +5219,14 @@ int main(int argc, char* argv[])
 
     megacmd::megacmd();
     finalize(waitForRestartSignal);
+
+    return 0;
 }
+
+void stopServer()
+{
+    LOG_debug << "Executing ... mega-quit ...";
+    processCommandLinePetitionQueues("quit"); //TODO: have set doExit instead, and wake the loop.
+}
+
+} //end namespace

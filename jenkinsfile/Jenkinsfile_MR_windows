@@ -1,0 +1,159 @@
+pipeline {
+    agent { label "windows && amd64" }
+
+    environment {
+        BUILD_OPTIONS = ''
+    }
+
+    options {
+        buildDiscarder(logRotator(numToKeepStr: '135', daysToKeepStr: '21'))
+        gitLabConnection('GitLabConnectionJenkins')
+    }
+
+    stages {
+        stage('clean previous runs and update gitlab commit status'){
+            steps{
+                deleteDir()
+                updateGitlabCommitStatus(name: 'Build windows', state: 'running')
+            }
+        }
+
+        stage('Get build parameters'){
+            parallel{
+                stage('Get build options'){
+                    when {
+                        allOf {
+                            expression { env.gitlabTriggerPhrase != null }
+                            expression { env.gitlabTriggerPhrase.contains('BUILD_OPTIONS') }
+                        }
+                    }
+                    steps {
+                        script{
+                            env.BUILD_OPTIONS = sh(script: 'echo "$gitlabTriggerPhrase" | grep BUILD_OPTIONS | awk -F "BUILD_OPTIONS="  \'{print \$2}\' | cut -d"\"" -f2', returnStdout: true).trim()
+                            println BUILD_OPTIONS
+                        }
+                    }
+                    post{
+                        always {
+                            script{                        
+                                if (currentBuild.currentResult == 'FAILURE'){
+                                    addGitLabMRComment(comment: ":red_circle: ${env.JOB_NAME} FAILURE when getting the additional build parameters :worried:<br/>Build results: [Jenkins [${env.JOB_NAME} ${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>Commit: ${env.GIT_COMMIT}" )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                stage('Get SDK branch'){
+                    steps {
+                        script{
+                            env.SDK_BRANCH = sh(script: 'echo "$gitlabMergeRequestDescription" | grep SDK_SUBMODULE_TEST | awk -F "SDK_SUBMODULE_TEST="  \'{print \$2}\' | cut -d" " -f1', returnStdout: true).trim()
+                            if (SDK_BRANCH == ""){
+                                echo "SDK_BRANCH was not found on description so develop will be used by default"
+                                env.SDK_BRANCH = "develop"
+                            }
+                            println SDK_BRANCH
+                        }
+                    }
+                    post{
+                        always {
+                            script{                        
+                                if (currentBuild.currentResult == 'FAILURE'){
+                                    addGitLabMRComment(comment: ":red_circle: ${env.JOB_NAME} FAILURE when getting the SDK branch :worried:<br/>Build results: [Jenkins [${env.JOB_NAME} ${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>Commit: ${env.GIT_COMMIT}" )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        stage('Checkout SDK and MEGAchat'){
+            steps {
+                //Clone MEGAcmd
+                sh "echo Cloning MEGAcmd with prebuildmerge"
+                checkout([
+                    $class: 'GitSCM', 
+                    branches: [[name: "origin/${env.gitlabSourceBranch}"]],
+                    userRemoteConfigs: [[ url: "${env.GIT_URL_MEGACMD}", credentialsId: "12492eb8-0278-4402-98f0-4412abfb65c1" ]],
+                    extensions: [
+                        [$class: "UserIdentity",name: "jenkins", email: "jenkins@jenkins"],
+                        [$class: 'PreBuildMerge', options: [fastForwardMode: 'FF', mergeRemote: "origin", mergeStrategy: 'DEFAULT', mergeTarget: "${env.gitlabTargetBranch}"]]
+                        ]
+                ])
+                dir('sdk'){  
+                    checkout([
+                        $class: 'GitSCM', 
+                        branches: [[name: "origin/${SDK_BRANCH}"]],
+                        userRemoteConfigs: [[ url: "${env.GIT_URL_SDK}", credentialsId: "12492eb8-0278-4402-98f0-4412abfb65c1" ]],
+                        extensions: [
+                            [$class: "UserIdentity",name: "jenkins", email: "jenkins@jenkins"]
+                            ]
+                    ])
+                }
+                script{
+                    windows_sources_workspace = WORKSPACE
+                }
+            }
+        }
+
+        stage('Build MEGAcmd'){
+            environment{
+                VCPKGPATH  = "${windows_sources_workspace}\\..\\3rdparty"
+            }
+            options{
+                timeout(time: 3, unit: 'HOURS')
+            }
+            steps{
+                sh "sed -i 's/-2_3/-2_5/g' sdk/contrib/cmake/CMakeLists.txt"
+                sh "mkdir build\\\\cmake\\\\build_dir\\\\"
+                sh "cmake -DCMAKE_VERBOSE_MAKEFILE=1 -DCMAKE_GENERATOR_PLATFORM=x64 -DUSE_PREBUILT_3RDPARTY=0 -DUSE_THIRDPARTY_FROM_VCPKG=1 -DMega3rdPartyDir='${VCPKGPATH}' ${env.BUILD_OPTIONS} -S '${windows_sources_workspace}'\\\\build\\\\cmake\\\\ -B '${windows_sources_workspace}'\\\\build\\\\cmake\\\\build_dir\\\\"
+                sh "cmake --build '${windows_sources_workspace}'\\\\build\\\\cmake\\\\build_dir\\\\ --config Debug --target mega-cmd-server -j 1"
+                sh "cmake --build '${windows_sources_workspace}'\\\\build\\\\cmake\\\\build_dir\\\\ --config Debug --target mega-cmd -j 1"
+                sh "cmake --build '${windows_sources_workspace}'\\\\build\\\\cmake\\\\build_dir\\\\ --config Debug --target mega-exec -j 1"
+                sh "cmake --build '${windows_sources_workspace}'\\\\build\\\\cmake\\\\build_dir\\\\ --config Debug --target mega-cmd-tests-unit -j 1"
+                sh "cmake --build '${windows_sources_workspace}'\\\\build\\\\cmake\\\\build_dir\\\\ --config Debug --target mega-cmd-tests-integration -j 1"            
+            }
+        }
+
+        stage('Run tests'){
+            environment{
+                PATH = "${windows_sources_workspace}\\\\..\\\\vcpkg\\\\installed\\\\x64-windows-mega\\\\debug\\\\bin;${env.PATH}"
+            }
+            options{
+                timeout(time: 3, unit: 'HOURS')
+            }
+            steps{
+                sh "echo Running tests"
+                bat """
+                build\\\\cmake\\\\build_dir\\\\Debug\\\\mega-cmd-tests-unit.exe
+                if %ERRORLEVEL% NEQ 0 exit 1
+                exit %ERROR_VAL%
+                """
+            }
+        }
+    }
+
+    post{
+        always{
+            //archiveArtifacts artifacts: 'build_dir/archives_*.tar.gz, build_dir/test_config_folder/logs/*log*', fingerprint: true
+            script{
+                if (currentBuild.currentResult == 'SUCCESS'){
+                    addGitLabMRComment(comment: ":white_check_mark: ${currentBuild.projectName} <b>Windows</b> SUCCEEDED :muscle:<br/>Build results: [Jenkins [${currentBuild.displayName}]](${currentBuild.absoluteUrl})<br/>Commit: ${env.GIT_COMMIT}" )
+                    updateGitlabCommitStatus(name: 'Build windows', state: 'success')
+                }                                
+                if (currentBuild.currentResult == 'FAILURE'){
+                    addGitLabMRComment(comment: ":red_circle: ${currentBuild.projectName} <b>Windows</b> FAILURE  :worried:<br/>Build results: [Jenkins [${currentBuild.displayName}]](${currentBuild.absoluteUrl})<br/>Commit: ${env.GIT_COMMIT}" )
+                    updateGitlabCommitStatus(name: 'Build windows', state: 'failed')
+                }
+                if (currentBuild.currentResult == 'ABORTED'){
+                    addGitLabMRComment(comment: ":interrobang: ${currentBuild.projectName} <b>Windows</b> ABORTED  :confused:<br/>Build results: [Jenkins [${currentBuild.displayName}]](${currentBuild.absoluteUrl})<br/>Commit: ${env.GIT_COMMIT}" )
+                    updateGitlabCommitStatus(name: 'Build windows', state: 'canceled')
+                }                                
+                if (currentBuild.currentResult == 'UNSTABLE'){
+                    addGitLabMRComment(comment: ":interrobang: ${currentBuild.projectName} <b>Windows</b> UNSTABLE  :confused:<br/>Build results: [Jenkins [${currentBuild.displayName}]](${currentBuild.absoluteUrl})<br/>Commit: ${env.GIT_COMMIT}" )
+                    updateGitlabCommitStatus(name: 'Build windows', state: 'failed')
+                }
+            }
+        }
+    }
+}
