@@ -99,6 +99,11 @@ public:
      */
     std::string get_petition_details(CmdPetition *inf);
 
+    /**
+     * @brief getSocketPath
+     * @return a string containing the path to the server socket
+     */
+    static std::string getSocketPath(bool ensure);
     ~ComunicationsManagerFileSockets();
 };
 

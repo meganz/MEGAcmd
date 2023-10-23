@@ -296,7 +296,6 @@ SOCKET MegaCmdShellCommunications::createSocket(int number, bool initializeserve
     else
     {
         SOCKET thesock = socket(AF_UNIX, SOCK_STREAM, 0);
-        char socket_path[60];
         if (!socketValid(thesock))
         {
             cerr << "ERROR opening socket: " << ERRNO << endl;
@@ -306,15 +305,29 @@ SOCKET MegaCmdShellCommunications::createSocket(int number, bool initializeserve
         {
             cerr << "ERROR setting CLOEXEC to socket: " << errno << endl;
         }
-
-        bzero(socket_path, sizeof( socket_path ) * sizeof( *socket_path ));
-        sprintf(socket_path, "/tmp/megaCMD_%d/srv", getuid() );
+        // TODO: We cannot use getSocketPath from communicationsmanagerfilesockets.h to get the
+        // socket path string due to duplicate definitions.
+        char *workingDir = getenv("MEGACMD_WORKING_DIR");
+        workingDir = workingDir == nullptr ? getenv("XDG_RUNTIME_DIR") : workingDir;
+        std::string socketPath;
+        if (workingDir == nullptr)
+        {
+            char *homeDir = getenv("HOME");
+            socketPath = homeDir == nullptr
+                             ? std::string("/tmp/megaCMD_").append(std::to_string(getuid()))
+                             : std::string(homeDir).append("/.megaCmd");
+        }
+        else
+        {
+            socketPath = std::string(workingDir);
+        }
+        socketPath += "/megaCMD.socket";
 
         struct sockaddr_un addr;
 
         memset(&addr, 0, sizeof( addr ));
         addr.sun_family = AF_UNIX;
-        strncpy(addr.sun_path, socket_path, sizeof( addr.sun_path ) - 1);
+        strncpy(addr.sun_path, socketPath.c_str(), socketPath.size());
 
 
         if (::connect(thesock, (struct sockaddr*)&addr, sizeof( addr )) == SOCKET_ERROR)

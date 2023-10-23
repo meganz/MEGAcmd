@@ -74,6 +74,8 @@ void utf16ToUtf8(const wchar_t* utf16data, int utf16size, std::string* utf8strin
 
 #endif
 
+#define ARRAYSIZE(a) (sizeof((a)) / sizeof(*(a)))
+
 /* commands */
 static std::vector<std::string> validGlobalParameters {"v", "help"};
 static std::vector<std::string> localremotefolderpatterncommands {"sync"};
