@@ -852,11 +852,11 @@ int MegaCmdShellCommunications::readconfirmationloop(const char *question, strin
 
         firstime = false;
 
-        if (response == "yes" || response == "y" || response == "YES" || response == "Y")
+        if (response == "yes" || response == "y" || response == "YES" || response == "Y" || response == "Yes")
         {
             return MCMDCONFIRM_YES;
         }
-        if (response == "no" || response == "n" || response == "NO" || response == "N")
+        if (response == "no" || response == "n" || response == "NO" || response == "N" || response == "No")
         {
             return MCMDCONFIRM_NO;
         }

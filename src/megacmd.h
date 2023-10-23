@@ -181,6 +181,7 @@ prompttype getprompt();
 void printHistory();
 
 int askforConfirmation(std::string message);
+bool booleanAskForConfirmation(std::string messageHeading);
 
 std::string askforUserResponse(std::string message);
 
@@ -194,6 +195,9 @@ void informStateListenerByClientId(int clientID, std::string s);
 
 
 void informProgressUpdate(long long transferred, long long total, int clientID, std::string title = "");
+
+int executeServer(int argc, char* argv[]);
+void stopServer();
 
 }//end namespace
 #endif
