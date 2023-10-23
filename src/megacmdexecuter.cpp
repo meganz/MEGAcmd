@@ -1592,7 +1592,7 @@ void MegaCmdExecuter::createOrModifyBackup(string local, string remote, string s
 
         if (backup)
         {
-            n = std::unique_ptr<MegaNode>(api->getNodeByHandle(backup->getMegaHandle()));
+            n.reset(api->getNodeByHandle(backup->getMegaHandle()));
         }
     }
 
@@ -3226,14 +3226,14 @@ int MegaCmdExecuter::deleteNode(std::unique_ptr<MegaNode> nodeToDelete, MegaApi*
             }
             if (!alreadythere)
             {
-                mNodesToConfirmDelete.emplace_back(std::move(nodeToDelete));
                 if (getprompt() != AREYOUSURETODELETE)
                 {
                     string newprompt("Are you sure to delete ");
-                    newprompt+=nodeToDelete->getName();
-                    newprompt+=" ? (Yes/No/All/None): ";
-                    setprompt(AREYOUSURETODELETE,newprompt);
+                    newprompt += nodeToDelete->getName();
+                    newprompt += " ? (Yes/No/All/None): ";
+                    setprompt(AREYOUSURETODELETE, newprompt);
                 }
+                mNodesToConfirmDelete.emplace_back(std::move(nodeToDelete));
             }
 
             return MCMDCONFIRM_NO; //default return
