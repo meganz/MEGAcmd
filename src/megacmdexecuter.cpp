@@ -2736,16 +2736,19 @@ void MegaCmdExecuter::fetchNodes(MegaApi *api, int clientID)
     //automatic now:
     //api->enableTransferResumption();
 
-    MegaNode *cwdNode = ( cwd == UNDEF ) ? NULL : api->getNodeByHandle(cwd);
-    if (( cwd == UNDEF ) || !cwdNode)
+    auto cwdNode = (cwd == UNDEF) ? nullptr : std::unique_ptr<MegaNode>(api->getNodeByHandle(cwd));
+    if (cwd == UNDEF || !cwdNode)
     {
-        MegaNode *rootNode = api->getRootNode();
-        cwd = rootNode->getHandle();
-        delete rootNode;
-    }
-    if (cwdNode)
-    {
-        delete cwdNode;
+        auto rootNode = std::unique_ptr<MegaNode>(api->getRootNode());
+        if (rootNode)
+        {
+            cwd = rootNode->getHandle();
+        }
+        else
+        {
+            LOG_err << "Root node was not found after fetching nodes";
+            sendEvent(StatsManager::MegacmdEvent::ROOT_NODE_NOT_FOUND_AFTER_FETCHING, api);
+        }
     }
 
     setloginInAtStartup(false); //to enable all commands before giving clients the green light!
