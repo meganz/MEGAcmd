@@ -201,6 +201,7 @@ prompttype getprompt();
 void printHistory();
 
 int askforConfirmation(std::string message);
+bool booleanAskForConfirmation(std::string messageHeading);
 
 std::string askforUserResponse(std::string message);
 
@@ -217,6 +218,9 @@ void informProgressUpdate(long long transferred, long long total, int clientID, 
 
 void sendEvent(StatsManager::MegacmdEvent event, mega::MegaApi *megaApi, bool wait = true);
 void sendEvent(StatsManager::MegacmdEvent event, const char *msg, mega::MegaApi *megaApi, bool wait = true);
+
+int executeServer(int argc, char* argv[]);
+void stopServer();
 
 }//end namespace
 #endif
