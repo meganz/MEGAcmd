@@ -2509,8 +2509,7 @@ bool MegaCmdExecuter::actUponFetchNodes(MegaApi *api, SynchronousRequestListener
             {
                 LOG_err << "Getting up to date with last changes in your account is taking more than expected. MEGAcmd will continue. "
                            "Caveat: you may be interacting with an out-dated version of your account.";
-                api->sendEvent(MCMD_EVENT_WAITED_TOO_LONG_FOR_NODES_CURRENT,
-                           MCMD_EVENT_WAITED_TOO_LONG_FOR_NODES_CURRENT_MESSAGE, false/*JourneyId*/, nullptr/*viewId*/);
+                sendEvent(StatsManager::MegacmdEvent::WAITED_TOO_LONG_FOR_NODES_CURRENT, api, false);
 
                 discardGet = true;
             }
