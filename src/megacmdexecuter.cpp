@@ -2744,6 +2744,11 @@ void MegaCmdExecuter::fetchNodes(MegaApi *api, int clientID)
         {
             cwd = rootNode->getHandle();
         }
+        else
+        {
+            LOG_err << "Root node was not found after fetching nodes";
+            sendEvent(StatsManager::MegacmdEvent::ROOT_NODE_NOT_FOUND_AFTER_FETCHING, api);
+        }
     }
 
     setloginInAtStartup(false); //to enable all commands before giving clients the green light!
