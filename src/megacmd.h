@@ -36,44 +36,11 @@ using std::locale;
 using std::stringstream;
 using std::exception;
 
-
-
 #include "megaapi_impl.h"
+#include "megacmd_events.h"
 
 #define PROGRESS_COMPLETE -2
 namespace megacmd {
-
-struct StatsManager {
-
-    /** MEGAcmd events **/
-    // Allocated ranges:
-    //    - regular: [98'900,98'999]
-    //    - extended [860'000,879'999]
-    // Params:
-    //   - event name
-    //   - number
-    //   - Default message
-
-    #define GENERATE_FROM_MEGACMD_EVENTS(GENERATOR_MACRO) \
-        GENERATOR_MACRO(UPDATE                                          , 98900, "MEGAcmd update") \
-        GENERATOR_MACRO(UPDATE_START                                    , 98901, "MEGAcmd auto-update start") \
-        GENERATOR_MACRO(UPDATE_RESTART                                  , 98902, "MEGAcmd updated requiring restart") \
-        GENERATOR_MACRO(FIRST_CONFIGURED_SYNC                           , 98903, "MEGAcmd first sync configured") \
-        GENERATOR_MACRO(WAITED_TOO_LONG_FOR_NODES_CURRENT               , 98904, "MEGAcmd nodes current wait timed out")
-
-    static constexpr auto FIRST_EVENT_NUMBER = 98900u;
-
-    enum class MegacmdEvent
-    {
-    #define SOME_GENERATOR_MACRO(name, num, __) name = num,
-      GENERATE_FROM_MEGACMD_EVENTS(SOME_GENERATOR_MACRO)
-    #undef SOME_GENERATOR_MACRO
-        LastEvent
-    };
-
-    static const char *defaultEventMsg(MegacmdEvent ev);
-    static const char *eventName(MegacmdEvent ev);
-};
 
 typedef struct sync_struct
 {

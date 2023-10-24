@@ -4911,34 +4911,6 @@ void reset()
     setBlocked(false);
 }
 
-const char *StatsManager::defaultEventMsg(MegacmdEvent ev)
-{
-    static auto sDefaultMsgs = []()
-    {
-        std::array<const char *, static_cast<int>(MegacmdEvent::LastEvent) - FIRST_EVENT_NUMBER> defaultMsgs;
-#define SOME_GENERATOR_MACRO(name, _, msg) defaultMsgs[static_cast<int>(MegacmdEvent::name) - FIRST_EVENT_NUMBER] = msg;
-        GENERATE_FROM_MEGACMD_EVENTS(SOME_GENERATOR_MACRO)
-        #undef SOME_GENERATOR_MACRO
-        return defaultMsgs;
-    }();
-
-    return sDefaultMsgs[static_cast<int>(ev) - FIRST_EVENT_NUMBER];
-}
-
-const char *StatsManager::eventName(MegacmdEvent ev)
-{
-    static auto sNames = []()
-    {
-        std::array<const char *, static_cast<int>(MegacmdEvent::LastEvent) - FIRST_EVENT_NUMBER> names;
-#define SOME_GENERATOR_MACRO(name, _, __) names[static_cast<int>(MegacmdEvent::name) - FIRST_EVENT_NUMBER] = #name;
-        GENERATE_FROM_MEGACMD_EVENTS(SOME_GENERATOR_MACRO)
-        #undef SOME_GENERATOR_MACRO
-        return names;
-    }();
-
-    return sNames[static_cast<int>(ev) - FIRST_EVENT_NUMBER];
-}
-
 void sendEvent(StatsManager::MegacmdEvent event, const char *msg, ::mega::MegaApi *megaApi, bool wait)
 {
     std::unique_ptr<MegaCmdListener> megaCmdListener (wait ? new MegaCmdListener(megaApi) : nullptr);
