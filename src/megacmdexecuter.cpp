@@ -1036,6 +1036,35 @@ bool MegaCmdExecuter::checkAndInformPSA(CmdPetition *inf, bool enforce)
     return toret;
 }
 
+std::string MegaCmdExecuter::formatError(const MegaError &error)
+{
+    auto code = error.getErrorCode();
+    if (code == MegaError::API_OK)
+    {
+        return std::string();
+    }
+
+    setCurrentOutCode(code);
+    if (code == MegaError::API_EBLOCKED)
+    {
+        auto reason = sandboxCMD->getReasonblocked();
+        auto reasonStr = std::string("Account blocked.");
+        if (reason.empty())
+        {
+            reasonStr.append("Reason: ").append(reason);
+        }
+        return reasonStr;
+    }
+    else if (code == MegaError::API_EPAYWALL ||
+             (code == MegaError::API_EOVERQUOTA &&
+              sandboxCMD->storageStatus == MegaApi::STORAGE_STATE_RED))
+    {
+        return "Reached storage quota. You can change your account plan to increase your quota "
+               "limit. See \"help --upgrade\" for further details";
+    }
+
+    return error.getErrorString();
+}
 
 bool MegaCmdExecuter::checkNoErrors(int errorCode, const string &message)
 {
@@ -1060,32 +1089,12 @@ bool MegaCmdExecuter::checkNoErrors(MegaError *error, const string &message, Syn
         return true;
     }
 
-    setCurrentOutCode(error->getErrorCode());
-    if (error->getErrorCode() == MegaError::API_EBLOCKED)
+    auto errMessage = formatError(*error);
+    LOG_err << "Failed to " << message <<": " << errMessage;
+    if (syncError)
     {
-        auto reason = sandboxCMD->getReasonblocked();
-        LOG_err << "Failed to " << message << ". Account blocked." <<( reason.empty()?"":" Reason: "+reason);
+        LOG_err << ". " << MegaSync::getMegaSyncErrorCode(syncError);
     }
-    else if ((error->getErrorCode() == MegaError::API_EPAYWALL) || (error->getErrorCode() == MegaError::API_EOVERQUOTA && sandboxCMD->storageStatus == MegaApi::STORAGE_STATE_RED))
-    {
-        LOG_err << "Failed to " << message << ": Reached storage quota. "
-                         "You can change your account plan to increase your quota limit. "
-                         "See \"help --upgrade\" for further details";
-    }
-    else
-    {
-        if (syncError)
-        {
-            LOG_err << "Failed to " << message << ": " << error->getErrorString()
-                    << ". " << MegaSync::getMegaSyncErrorCode(syncError);
-        }
-        else
-        {
-            LOG_err << "Failed to " << message << ": " << error->getErrorString();
-        }
-
-    }
-
     return false;
 }
 
@@ -3527,9 +3536,34 @@ void MegaCmdExecuter::exportNode(MegaNode *n, int64_t expireTime, std::string pa
         api->exportNode(n, expireTime, writable, megaHosted, megaCmdListener);
         megaCmdListener->wait();
         auto error = megaCmdListener->getError();
-        if (checkNoErrors(error, "export node"))
+        assert(error != nullptr);
+        if (error->getErrorCode() != MegaError::API_OK)
         {
-            MegaNode *nexported = api->getNodeByHandle(megaCmdListener->getRequest()->getNodeHandle());
+            auto path = std::unique_ptr<char[]>(api->getNodePath(n));
+            std::string msg = std::string("Failed to export node");
+
+            if (path != nullptr)
+            {
+                msg.append(" ").append(path.get());
+            }
+            if (expireTime != 0 && !amIPro())
+            {
+                msg.append(": Only PRO users can set an expiry time for links");
+            }
+            else if (path != nullptr && strcmp(path.get(), "/") == 0)
+            {
+                msg.append(": The root folder cannot be exported");
+            }
+            else
+            {
+                msg.append(": ").append(formatError(*error));
+            }
+            LOG_err << msg;
+        }
+        else
+        {
+            MegaNode *nexported =
+                api->getNodeByHandle(megaCmdListener->getRequest()->getNodeHandle());
             if (nexported)
             {
                 char *nodepath = api->getNodePath(nexported);
@@ -3579,18 +3613,6 @@ void MegaCmdExecuter::exportNode(MegaNode *n, int64_t expireTime, std::string pa
             {
                 setCurrentOutCode(MCMD_NOTFOUND);
                 LOG_err << "Exported node not found!";
-            }
-        }
-        else if (error != nullptr && error->getErrorCode() == API_EACCESS)
-        {
-            auto path = std::unique_ptr<char>(api->getNodePath(n));
-            if (!amIPro() && expireTime != 0)
-            {
-                LOG_err << "Only PRO users can set an expiry time for links";
-            }
-            if (path != nullptr && strcmp(path.get(), "/") == 0)
-            {
-                LOG_err << "The root folder cannot be exported";
             }
         }
         delete megaCmdListener;
