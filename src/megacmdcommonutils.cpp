@@ -1471,16 +1471,16 @@ std::unique_ptr<PlatformDirectories> PlatformDirectories::getPlatformSpecificDir
 {
 #ifdef __APPLE__
     return std::unique_ptr<PlatformDirectories>(new MacOSDirectories);
-#elif __unix__
+#elif defined(_POSIX_VERSION)
     return std::unique_ptr<PlatformDirectories>(new XDGDirectories);
-#elif _WIN32
-    return nullptr;
+#elif defined(_WIN32)
+    return std::unique_ptr<PlatformDirectories>(new WindowsDirectories);
 #else
 #error "unsupported platform"
 #endif
 }
 
-#ifdef __unix__
+#ifdef _POSIX_VERSION
 std::string PosixDirectories::homeDirPath()
 {
     char *homedir = getenv("HOME");
@@ -1628,7 +1628,7 @@ std::string getSocketPath(bool ensure)
     std::string sockname = sockname_c != nullptr ? std::string(sockname_c) : "megacmd.socket";
     return runtimedir.empty() ? std::string() : runtimedir.append("/").append(sockname);
 }
-#endif // __unix__
+#endif // _POSIX_VERSION
 #ifdef _WIN32
 std::string WindowsDirectories::configDir()
 {

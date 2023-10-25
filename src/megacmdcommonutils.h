@@ -360,7 +360,7 @@ public:
     }
 };
 
-#ifdef __unix__
+#if defined(_POSIX_VERSION)
 class PosixDirectories : public PlatformDirectories
 {
 public:
@@ -399,7 +399,7 @@ class XDGDirectories : public PosixDirectories
 };
 #endif // defined(__APPLE__)
 std::string getSocketPath(bool ensure);
-#endif // __unix__
+#endif // _POSIX_VERSION
 #ifdef _WIN32
 class WindowsDirectories : public PlatformDirectories
 {
