@@ -18,7 +18,6 @@
 #ifndef COMUNICATIONSMANAGERFILESOCKETS_H
 #define COMUNICATIONSMANAGERFILESOCKETS_H
 
-#include <sstream>
 #ifndef WIN32
 
 #include "comunicationsmanager.h"
@@ -43,9 +42,7 @@ public:
 
     std::string getPetitionDetails() const override
     {
-        std::ostringstream details;
-        details << "socket output: " << outSocket;
-        return details.str();
+        return std::string("socket output: ").append(std::to_string(outSocket));
     }
 };
 
