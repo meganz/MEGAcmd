@@ -1528,7 +1528,7 @@ bool PosixDirectories::legacyConfigDirExists()
 }
 
 #ifdef __APPLE__
-std::string MacOSDirectories::CcacheDirPath()
+std::string MacOSDirectories::cacheDirPath()
 {
     std::string homedir = homeDirPath();
     return homedir.empty() ? std::string() : homedir.append("/Library/Caches/megacmd.mac");
