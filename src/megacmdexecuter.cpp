@@ -1402,7 +1402,7 @@ void MegaCmdExecuter::dumpNodeSummaryHeader(const char *timeFormat, std::map<std
     OUTSTREAM << getFixLengthString("VERS", 4);
     OUTSTREAM << " ";
     OUTSTREAM << getFixLengthString("SIZE  ",
-                                    (unsigned int)((max_size_len - 1) > 0 ? max_size_len - 1 : 0), ' ',
+                                    (unsigned int)((max_size_len - 1) > 6 ? max_size_len - 1 : 6), ' ',
                                     true); //-1 because of "FLAGS"
     OUTSTREAM << " ";
     OUTSTREAM << getFixLengthString("DATE      ", datelength+1, ' ', true);
@@ -1507,12 +1507,15 @@ void MegaCmdExecuter::dumpNodeSummary(MegaNode *n, const char *timeFormat, std::
         }
         else
         {
-            OUTSTREAM << getFixLengthString(SSTR(n->getSize()), (unsigned int)max_size_len, ' ', true);
+            OUTSTREAM << getFixLengthString(
+                SSTR(n->getSize()), (unsigned int)(max_size_len > 6 ? max_size_len : 6),
+                ' ', true);
         }
     }
     else
     {
-        OUTSTREAM << getFixLengthString("-", (unsigned int)max_size_len, ' ', true);
+        OUTSTREAM << getFixLengthString(
+            "-", (unsigned int)(max_size_len > 6 ? max_size_len : 6), ' ', true);
     }
 
     if (n->isFile() && !getFlag(clflags, "show-creation-time"))
