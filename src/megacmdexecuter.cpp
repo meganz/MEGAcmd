@@ -1663,9 +1663,9 @@ void MegaCmdExecuter::printTreeSuffix(int depth, vector<bool> &lastleaf)
     }
 }
 
-void MegaCmdExecuter::forEachFileInNode(MegaNode *n, bool recurse, std::function<void(MegaNode *node)> f)
+void MegaCmdExecuter::forEachFileInNode(MegaNode &n, bool recurse, std::function<void(MegaNode *node)> f)
 {
-    auto children = std::unique_ptr<MegaNodeList>(api->getChildren(n));
+    auto children = std::unique_ptr<MegaNodeList>(api->getChildren(&n));
     if (children)
     {
         for (int i = 0; i < children->size(); i++)
@@ -1677,7 +1677,7 @@ void MegaCmdExecuter::forEachFileInNode(MegaNode *n, bool recurse, std::function
             }
             else if (recurse)
             {
-                forEachFileInNode(child, true, f);
+                forEachFileInNode(*child, true, f);
             }
         }
     }
@@ -5667,13 +5667,13 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                                 }
                                 if (summary)
                                 {
-                                    forEachFileInNode(n, recursive, set_max_size);
+                                    forEachFileInNode(*n, recursive, set_max_size);
                                     if (firstprint)
                                     {
                                         dumpNodeSummaryHeader(getTimeFormatFromSTR(getOption(cloptions, "time-format","SHORT")), clflags, cloptions, numberOfDigits(max_size));
                                         firstprint = false;
                                     }
-                                    dumpTreeSummary(n, getTimeFormatFromSTR(getOption(cloptions, "time-format","SHORT")), clflags, cloptions, recursive, show_versions, numberOfDigits(max_size), 0, humanreadable, rNpath);
+                                    dumpTreeSummary(n.get(), getTimeFormatFromSTR(getOption(cloptions, "time-format","SHORT")), clflags, cloptions, recursive, show_versions, numberOfDigits(max_size), 0, humanreadable, rNpath);
                                 }
                                 else
                                 {
@@ -5713,13 +5713,17 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 {
                     if (summary)
                     {
-			forEachFileInNode(n, recursive, set_max_size);
+			forEachFileInNode(*n, recursive, set_max_size);
 			if (firstprint)
                         {
                             dumpNodeSummaryHeader(getTimeFormatFromSTR(getOption(cloptions, "time-format","SHORT")), clflags, cloptions, numberOfDigits(max_size));
                             firstprint = false;
                         }
-                        dumpTreeSummary(n, getTimeFormatFromSTR(getOption(cloptions, "time-format","SHORT")), clflags, cloptions, recursive, show_versions, numberOfDigits(max_size), 0, humanreadable, rNpath);
+                        dumpTreeSummary(
+                            n.get(),
+                            getTimeFormatFromSTR(getOption(cloptions, "time-format", "SHORT")),
+                            clflags, cloptions, recursive, show_versions, numberOfDigits(max_size),
+                            0, humanreadable, rNpath);
                     }
                     else
                     {
@@ -5742,13 +5746,16 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             {
                 if (summary)
                 {
-		    forEachFileInNode(n, recursive, set_max_size);
+		    forEachFileInNode(*n, recursive, set_max_size);
 		    if (firstprint)
                     {
                         dumpNodeSummaryHeader(getTimeFormatFromSTR(getOption(cloptions, "time-format","SHORT")), clflags, cloptions, numberOfDigits(max_size));
                         firstprint = false;
                     }
-                    dumpTreeSummary(n, getTimeFormatFromSTR(getOption(cloptions, "time-format","SHORT")), clflags, cloptions, recursive, show_versions, numberOfDigits(max_size), 0, humanreadable, "NULL");
+                    dumpTreeSummary(
+                        n.get(), getTimeFormatFromSTR(getOption(cloptions, "time-format", "SHORT")),
+                        clflags, cloptions, recursive, show_versions, numberOfDigits(max_size), 0,
+                        humanreadable, "NULL");
                 }
                 else
                 {

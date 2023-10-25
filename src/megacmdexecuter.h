@@ -58,7 +58,7 @@ private:
     std::vector<std::unique_ptr<mega::MegaNode>> mNodesToConfirmDelete;
 
     std::string getNodePathString(mega::MegaNode *n);
-    void forEachFileInNode(mega::MegaNode *n, bool recurse, std::function<void(mega::MegaNode *node)> cb);
+    void forEachFileInNode(mega::MegaNode &n, bool recurse, std::function<void(mega::MegaNode *node)> cb);
 
 public:
     bool signingup;
