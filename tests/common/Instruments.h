@@ -298,6 +298,49 @@ public:
     }
 };
 
+class TestInstrumentsEnvVarGuard
+{
+  private:
+    std::string mVar;
+    bool mHasInitValue;
+    std::string mInitValue;
+
+  public:
+    TestInstrumentsEnvVarGuard(std::string variable, const std::string &value)
+        : mVar(std::move(variable)), mHasInitValue(false), mInitValue()
+    {
+        char *initValue = getenv(mVar.c_str());
+        if (initValue != nullptr)
+        {
+            mHasInitValue = true;
+            mInitValue = std::string(initValue);
+        }
+        setenv(mVar.c_str(), value.c_str(), 1);
+    }
+    explicit TestInstrumentsEnvVarGuard(std::string variable)
+        : mVar(std::move(variable)), mHasInitValue(false), mInitValue()
+    {
+        char *initValue = getenv(mVar.c_str());
+        if (initValue != nullptr)
+        {
+            mHasInitValue = true;
+            mInitValue = std::string(initValue);
+        }
+        unsetenv(mVar.c_str());
+    }
+    ~TestInstrumentsEnvVarGuard()
+    {
+        if (mHasInitValue)
+        {
+            setenv(mVar.c_str(), mInitValue.c_str(), 1);
+        }
+        else
+        {
+            unsetenv(mVar.c_str());
+        }
+    }
+};
+
 /**
  * Convenience class that tracks the occurrence of events within its lifetime.
  *
