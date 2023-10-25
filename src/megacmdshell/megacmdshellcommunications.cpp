@@ -305,24 +305,12 @@ SOCKET MegaCmdShellCommunications::createSocket(int number, bool initializeserve
         {
             cerr << "ERROR setting CLOEXEC to socket: " << errno << endl;
         }
-        // TODO: We cannot use getSocketPath from communicationsmanagerfilesockets.h to get the
-        // socket path string due to duplicate definitions.
-        char *workingDir = getenv("MEGACMD_WORKING_DIR");
-        workingDir = workingDir == nullptr ? getenv("XDG_RUNTIME_DIR") : workingDir;
-        std::string socketPath;
-        if (workingDir == nullptr)
+        std::string socketPath = getSocketPath(false);
+        if (socketPath.empty())
         {
-            char *homeDir = getenv("HOME");
-            socketPath = homeDir == nullptr
-                             ? std::string("/tmp/megaCMD_").append(std::to_string(getuid()))
-                             : std::string(homeDir).append("/.megaCmd");
+            std::cerr << "Error creating runtime directory for socket file: " << strerror(errno) << std::endl;
+            return INVALID_SOCKET;
         }
-        else
-        {
-            socketPath = std::string(workingDir);
-        }
-        socketPath += "/megaCMD.socket";
-
         struct sockaddr_un addr;
 
         memset(&addr, 0, sizeof( addr ));

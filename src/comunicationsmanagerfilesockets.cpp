@@ -15,6 +15,7 @@
  * You should have received a copy of the license along with this
  * program.
  */
+#include "megacmdcommonutils.h"
 #ifndef WIN32
 
 #include "comunicationsmanagerfilesockets.h"
@@ -39,39 +40,15 @@ ComunicationsManagerFileSockets::ComunicationsManagerFileSockets()
     initialize();
 }
 
-std::string ComunicationsManagerFileSockets::getSocketPath(bool create)
-{
-    char *workingDir = getenv("MEGACMD_WORKING_DIR");
-    workingDir = workingDir == nullptr ? getenv("XDG_RUNTIME_DIR") : workingDir;
-    if (workingDir == nullptr)
-    {
-        char *homeDir = getenv("HOME");
-        std::string dir = homeDir == nullptr
-                          ? std::string("/tmp/megaCMD_").append(std::to_string(getuid()))
-                          : std::string(homeDir).append("/.megaCmd");
-        if (homeDir == nullptr && create)
-        {
-            auto fsAccess = std::unique_ptr<MegaFileSystemAccess>(new MegaFileSystemAccess());
-            LocalPath tmpSocketDir = LocalPath::fromPlatformEncodedAbsolute(dir);
-
-            fsAccess->setdefaultfolderpermissions(0700);
-            fsAccess->rmdirlocal(tmpSocketDir);
-            if (!fsAccess->mkdirlocal(tmpSocketDir, false, false))
-            {
-                LOG_fatal << "Error creating sockets folder: " << tmpSocketDir.toPath(false) << ": "
-                          << errno;
-            }
-        }
-        return dir.append("/megaCMD.socket");
-    }
-    return std::string(workingDir).append("/megaCMD.socket");
-}
-
 int ComunicationsManagerFileSockets::initialize()
 {
     auto socketPath = getSocketPath(true);
     struct sockaddr_un addr;
 
+    if (socketPath.empty())
+    {
+        LOG_fatal  << "Could not create runtime directory for socket file: " << strerror(errno);
+    }
     if (socketPath.size() >= (ARRAYSIZE(addr.sun_path) - 1))
     {
         LOG_fatal << "Server socket path is too long: '" << socketPath << "'";
@@ -476,7 +453,6 @@ string ComunicationsManagerFileSockets::get_petition_details(CmdPetition *inf)
     os << "socket output: " << ((CmdPetitionPosixSockets *)inf)->outSocket;
     return os.str();
 }
-
 
 ComunicationsManagerFileSockets::~ComunicationsManagerFileSockets()
 {

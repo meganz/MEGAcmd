@@ -19,7 +19,10 @@
 #ifndef MEGACMDCOMMONUTILS_H
 #define MEGACMDCOMMONUTILS_H
 
+#include <memory>
+#include <pwd.h>
 #include <string>
+#include <unistd.h>
 #include <vector>
 #include <iomanip>
 #include <map>
@@ -324,6 +327,92 @@ private:
 
 };
 
+class PlatformDirectories
+{
+public:
+    static std::unique_ptr<PlatformDirectories> getPlatformSpecificDirectories();
+    /**
+     * @brief RuntimeDirPath returns the base path for storing non-essential runtime files.
+     */
+    virtual std::string runtimeDirPath() = 0;
+    /**
+     * @brief CacheDirPath returns the base path for storing non-essential data files.
+     */
+    virtual std::string cacheDirPath() = 0;
+    /**
+     * @brief ConfigDirPath returns the base path for storing configuration files.
+     */
+    virtual std::string configDirPath() = 0;
+    /**
+     * @brief DataDirPath returns the base path for storing data files.
+     */
+    virtual std::string dataDirPath()
+    {
+        return configDirPath();
+    }
+    /**
+     * @brief StateDirPath returns the base path for storing state files. Specifically, data that
+     * can persist between restarts, but not significant enough for DataDirPath().
+     */
+    virtual std::string stateDirPath()
+    {
+        return runtimeDirPath();
+    }
+};
 
+#ifdef __unix__
+class PosixDirectories : public PlatformDirectories
+{
+public:
+    std::string homeDirPath();
+    std::string runtimeDirPath() override;
+    std::string cacheDirPath() override
+    {
+        return PosixDirectories::configDirPath();
+    };
+    std::string configDirPath() override;
+    std::string dataDirPath() override
+    {
+        return PosixDirectories::configDirPath();
+    }
+    std::string stateDirPath() override
+    {
+        return PosixDirectories::runtimeDirPath();
+    }
+    bool legacyConfigDirExists();
+};
+#ifdef __APPLE__
+class MacOSDirectories : public PosixDirectories
+{
+    std::string cacheDirPath() override;
+    std::string configDirPath() override;
+    std::string dataDirPath() override;
+};
+#else // !defined(__APPLE__)
+class XDGDirectories : public PosixDirectories
+{
+    std::string runtimeDirPath() override;
+    std::string cacheDirPath() override;
+    std::string configDirPath() override;
+    std::string dataDirPath() override;
+    std::string stateDirPath() override;
+};
+#endif // defined(__APPLE__)
+std::string getSocketPath(bool ensure);
+#endif // __unix__
+#ifdef _WIN32
+class WindowsDirectories : public PlatformDirectories
+{
+    std::string runtimeDirPath() override
+    {
+        return ConfigDirPath();
+    }
+    std::string cacheDirPath() override
+    {
+        return ConfigDirPath();
+    }
+    std::string configDirPath() override;
+};
+#endif
 }//end namespace
 #endif // MEGACMDCOMMONUTILS_H
