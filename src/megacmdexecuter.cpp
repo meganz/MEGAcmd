@@ -3467,21 +3467,25 @@ bool MegaCmdExecuter::amIPro()
 void MegaCmdExecuter::exportNode(MegaNode *n, int64_t expireTime, std::string password,
                                  std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions)
 {
-    bool force = getFlag(clflags,"f");
-    bool writable = getFlag(clflags,"writable");
-    bool megaHosted = getFlag(clflags,"mega-hosted");
+    const bool force = getFlag(clflags,"f");
+    const bool writable = getFlag(clflags,"writable");
+    const bool megaHosted = getFlag(clflags,"mega-hosted");
+    const bool isPro = amIPro();
 
-    bool copyrightAccepted = false;
-
-    copyrightAccepted = ConfigurationManager::getConfigurationValue("copyrightAccepted", false) || force;
-    if (!copyrightAccepted)
+    if (!isPro && expireTime > 0)
     {
-        MegaNodeList * mnl = api->getPublicLinks();
-        copyrightAccepted = mnl->size();
-        delete mnl;
+        LOG_err << "Only PRO users can add an expiration time";
+        return;
     }
 
-    int confirmationResponse = copyrightAccepted?MCMDCONFIRM_YES:MCMDCONFIRM_NO;
+    bool copyrightAccepted = ConfigurationManager::getConfigurationValue("copyrightAccepted", false) || force;
+    if (!copyrightAccepted)
+    {
+        auto publicLinks = std::unique_ptr<MegaNodeList>(api->getPublicLinks());
+        copyrightAccepted = (publicLinks && publicLinks->size());
+    }
+
+    int confirmationResponse = copyrightAccepted ? MCMDCONFIRM_YES : MCMDCONFIRM_NO;
     if (!copyrightAccepted)
     {
         string confirmationQuery("MEGA respects the copyrights of others and requires that users of the MEGA cloud service comply with the laws of copyright.\n"
@@ -3490,73 +3494,88 @@ void MegaCmdExecuter::exportNode(MegaNode *n, int64_t expireTime, std::string pa
                                  "transmit or otherwise make available any files, data or content that infringes any copyright "
                                  "or other proprietary rights of any person or entity.");
 
-        confirmationQuery+=" Do you accept this terms? (Yes/No): ";
-
+        confirmationQuery += " Do you accept this terms? (Yes/No): ";
         confirmationResponse = askforConfirmation(confirmationQuery);
     }
 
-    if (confirmationResponse == MCMDCONFIRM_YES || confirmationResponse == MCMDCONFIRM_ALL)
+    if (confirmationResponse != MCMDCONFIRM_YES && confirmationResponse != MCMDCONFIRM_ALL)
     {
-        ConfigurationManager::savePropertyValue("copyrightAccepted",true);
-        MegaCmdListener *megaCmdListener = new MegaCmdListener(api, NULL);
-        api->exportNode(n, expireTime, writable, megaHosted, megaCmdListener);
-        megaCmdListener->wait();
-        if (checkNoErrors(megaCmdListener->getError(), "export node"))
+        return;
+    }
+
+    ConfigurationManager::savePropertyValue("copyrightAccepted",true);
+
+    auto megaCmdListener = std::unique_ptr<MegaCmdListener>(new MegaCmdListener(api, nullptr));
+    api->exportNode(n, expireTime, writable, megaHosted, megaCmdListener.get());
+    megaCmdListener->wait();
+
+    if (!checkNoErrors(megaCmdListener->getError(), "export node"))
+    {
+        return;
+    }
+
+    auto nexported = std::unique_ptr<MegaNode>(api->getNodeByHandle(megaCmdListener->getRequest()->getNodeHandle()));
+    if (!nexported)
+    {
+        setCurrentOutCode(MCMD_NOTFOUND);
+        LOG_err << "Exported node not found";
+        return;
+    }
+
+    auto publicLink = std::unique_ptr<char[]>(nexported->getPublicLink());
+    if (!publicLink)
+    {
+        LOG_err << "Node has not been exported";
+        return;
+    }
+
+    auto nodepath = std::unique_ptr<char[]>(api->getNodePath(nexported.get()));
+    if (!nodepath)
+    {
+        LOG_err << "Node path not found";
+        return;
+    }
+
+    string publicPassProtectedLink;
+
+    if (password.size())
+    {
+        if (isPro)
         {
-            MegaNode *nexported = api->getNodeByHandle(megaCmdListener->getRequest()->getNodeHandle());
-            if (nexported)
+            megaCmdListener.reset(new MegaCmdListener(api, nullptr));
+            api->encryptLinkWithPassword(publicLink.get(), password.c_str(), megaCmdListener.get());
+            megaCmdListener->wait();
+
+            if (checkNoErrors(megaCmdListener->getError(), "protect public link with password"))
             {
-                char *nodepath = api->getNodePath(nexported);
-                char *publiclink = nexported->getPublicLink();
-                string publicPassProtectedLink = string();
-
-                if (amIPro() && password.size() )
-                {
-                    MegaCmdListener *megaCmdListener2 = new MegaCmdListener(api, NULL);
-                    api->encryptLinkWithPassword(publiclink, password.c_str(), megaCmdListener2);
-                    megaCmdListener2->wait();
-                    if (checkNoErrors(megaCmdListener2->getError(), "protect public link with password"))
-                    {
-                        publicPassProtectedLink = megaCmdListener2->getRequest()->getText();
-                    }
-                    delete megaCmdListener2;
-                }
-                else if (password.size())
-                {
-                    LOG_err << "Only PRO users can protect links with passwords. Showing UNPROTECTED link";
-                }
-
-                OUTSTREAM << "Exported " << nodepath << ": "
-                          << (publicPassProtectedLink.size()?publicPassProtectedLink:publiclink);
-
-                if (nexported->getWritableLinkAuthKey())
-                {
-                    string authKey(nexported->getWritableLinkAuthKey());
-                    if (authKey.size())
-                    {
-                        string authToken((publicPassProtectedLink.size()?publicPassProtectedLink:publiclink));
-                        authToken = authToken.substr(strlen("https://mega.nz/folder/")).append(":").append(authKey);
-                        OUTSTREAM << "\n          AuthToken = " << authToken;
-                    }
-                }
-
-                if (nexported->getExpirationTime())
-                {
-                    OUTSTREAM << " expires at " << getReadableTime(nexported->getExpirationTime());
-                }
-                OUTSTREAM << endl;
-                delete[] nodepath;
-                delete[] publiclink;
-                delete nexported;
-            }
-            else
-            {
-                setCurrentOutCode(MCMD_NOTFOUND);
-                LOG_err << "Exported node not found!";
+                publicPassProtectedLink = megaCmdListener->getRequest()->getText();
             }
         }
-        delete megaCmdListener;
+        else
+        {
+            LOG_err << "Only PRO users can protect links with passwords. Showing UNPROTECTED link";
+        }
     }
+
+    OUTSTREAM << "Exported " << nodepath.get() << ": "
+              << (publicPassProtectedLink.size() ? publicPassProtectedLink : publicLink.get());
+
+    if (nexported->getWritableLinkAuthKey())
+    {
+        string authKey(nexported->getWritableLinkAuthKey());
+        if (authKey.size())
+        {
+            string authToken = (publicPassProtectedLink.size() ? publicPassProtectedLink : publicLink.get());
+            authToken = authToken.substr(strlen("https://mega.nz/folder/")).append(":").append(authKey);
+            OUTSTREAM << "\n          AuthToken = " << authToken;
+        }
+    }
+
+    if (nexported->getExpirationTime())
+    {
+        OUTSTREAM << " expires at " << getReadableTime(nexported->getExpirationTime());
+    }
+    OUTSTREAM << endl;
 }
 
 void MegaCmdExecuter::disableExport(MegaNode *n)
@@ -9547,10 +9566,11 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         string linkPass = getOption(cloptions, "password", "");
         bool add = getFlag(clflags, "a");
 
-        if (linkPass.size() && !add)
+        if (!add && (linkPass.size() || expireTime > 0 || getFlag(clflags, "f") || getFlag(clflags, "writable") || getFlag(clflags, "mega-hosted")))
         {
             setCurrentOutCode(MCMD_EARGS);
-            LOG_err << "You need to use -a to add an export. Usage: " << getUsageStr("export");
+            LOG_err << "Option can only be used when adding an export (with -a)";
+            LOG_err << "Usage: " << getUsageStr("export");
             return;
         }
 
@@ -9559,7 +9579,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             words.push_back(string(".")); //cwd
         }
 
-        for (int i = 1; i < (int)words.size(); i++)
+        for (size_t i = 1; i < words.size(); i++)
         {
             unescapeifRequired(words[i]);
             if (isRegExp(words[i]))
@@ -9577,8 +9597,15 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
                     if (add)
                     {
-                        LOG_debug << " exporting ... " << n->getName() << " expireTime=" << expireTime;
-                        exportNode(n.get(), expireTime, linkPass, clflags, cloptions);
+                        if (!n->isExported())
+                        {
+                            LOG_debug << " exporting ... " << n->getName() << " expireTime=" << expireTime;
+                            exportNode(n.get(), expireTime, linkPass, clflags, cloptions);
+                        }
+                        else
+                        {
+                            LOG_err << "Node " << words[i] << " is already exported";
+                        }
                     }
                     else if (getFlag(clflags, "d"))
                     {
@@ -9587,7 +9614,8 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     }
                     else
                     {
-                        if (dumpListOfExported(n.get(), getTimeFormatFromSTR(getOption(cloptions, "time-format","RFC2822")), clflags, cloptions, words[i]) == 0 )
+                        int exportedCount = dumpListOfExported(n.get(), getTimeFormatFromSTR(getOption(cloptions, "time-format","RFC2822")), clflags, cloptions, words[i]);
+                        if (exportedCount == 0)
                         {
                             OUTSTREAM << words[i] << " is not exported. Use -a to export it" << endl;
                         }
@@ -9599,10 +9627,19 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 std::unique_ptr<MegaNode> n = nodebypath(words[i].c_str());
                 if (n)
                 {
+                    const string nodeName = (words[i] == "." ? "current folder" : "<" + words[i] + ">");
+
                     if (add)
                     {
-                        LOG_debug << " exporting ... " << n->getName();
-                        exportNode(n.get(), expireTime, linkPass, clflags, cloptions);
+                        if (!n->isExported())
+                        {
+                            LOG_debug << " exporting ... " << n->getName();
+                            exportNode(n.get(), expireTime, linkPass, clflags, cloptions);
+                        }
+                        else
+                        {
+                            LOG_err << nodeName << " is already exported";
+                        }
                     }
                     else if (getFlag(clflags, "d"))
                     {
@@ -9611,20 +9648,11 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     }
                     else
                     {
-                        if (dumpListOfExported(n.get(), getTimeFormatFromSTR(getOption(cloptions, "time-format","RFC2822")), clflags, cloptions, words[i]) == 0 )
+                        int exportedCount = dumpListOfExported(n.get(), getTimeFormatFromSTR(getOption(cloptions, "time-format","RFC2822")), clflags, cloptions, words[i]);
+                        if (exportedCount == 0)
                         {
-                            OUTSTREAM << "Couldn't find anything exported below ";
-                            if (words[i] == ".")
-                            {
-                                OUTSTREAM << "current folder";
-                            }
-                            else
-                            {
-                                OUTSTREAM << "<";
-                                OUTSTREAM << words[i];
-                                OUTSTREAM << ">";
-                            }
-                            OUTSTREAM << ". Use -a to export " << (words[i].size()?"it":"something") << endl;
+                            OUTSTREAM << "Couldn't find anything exported below " << nodeName
+                                      << ". Use -a to export " << (words[i].size()?"it":"something") << endl;
                         }
                     }
                 }
@@ -9635,8 +9663,6 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 }
             }
         }
-
-        return;
     }
     else if (words[0] == "import")
     {
