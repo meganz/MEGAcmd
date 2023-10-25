@@ -457,8 +457,7 @@ void MegaCmdMegaListener::onSyncAdded(MegaApi *api, MegaSync *sync)
 
     if (!ConfigurationManager::getConfigurationValue("firstSyncConfigured", false))
     {
-        api->sendEvent(MCMD_EVENT_FIRST_CONFIGURED_SYNC_ID,
-                   MCMD_EVENT_FIRST_CONFIGURED_SYNC_MESSAGE, false/*JourneyId*/, nullptr/*viewId*/);
+        sendEvent(StatsManager::MegacmdEvent::FIRST_CONFIGURED_SYNC, api, false);
         ConfigurationManager::savePropertyValue("firstSyncConfigured", true);
     }
 }
