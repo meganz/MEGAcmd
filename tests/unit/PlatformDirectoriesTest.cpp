@@ -27,7 +27,7 @@ TEST(PlatformDirectoriesTest, runtimeDirPath)
     auto dirs = PlatformDirectories::getPlatformSpecificDirectories();
     ASSERT_TRUE(dirs != nullptr);
 
-#if defined(__unix__) && !defined(__APPLE__)
+#if defined(_POSIX_VERSION) && !defined(__APPLE__)
     {
         G_SUBTEST << "With $XDG_RUNTIME_DIR";
         auto guard = TestInstrumentsEnvVarGuard("XDG_RUNTIME_DIR", "/tmp/test");
@@ -49,7 +49,7 @@ TEST(PlatformDirectoriesTest, configDirPath)
 
     auto dirs = PlatformDirectories::getPlatformSpecificDirectories();
     ASSERT_TRUE(dirs != nullptr);
-#if defined(__unix__) && !defined(__APPLE__)
+#if defined(_POSIX_VERSION) && !defined(__APPLE__)
     {
         G_SUBTEST << "With $XDG_CONFIG_HOME";
         auto homeGuard = TestInstrumentsEnvVarGuard("HOME", "/home/test");
@@ -72,7 +72,7 @@ TEST(PlatformDirectoriesTest, cacheDirPath)
     auto dirs = PlatformDirectories::getPlatformSpecificDirectories();
     ASSERT_TRUE(dirs != nullptr);
 
-#if defined(__unix__) && !defined(__APPLE__)
+#if defined(_POSIX_VERSION) && !defined(__APPLE__)
     {
         G_SUBTEST << "With $XDG_CACHE_HOME";
         auto homeGuard = TestInstrumentsEnvVarGuard("HOME", "/home/test");
@@ -88,7 +88,7 @@ TEST(PlatformDirectoriesTest, cacheDirPath)
 #endif
 }
 
-#ifdef __unix__
+#ifdef _POSIX_VERSION
 TEST(PlatformDirectoriesTest, getSocketPath)
 {
     using megacmd::getSocketPath;
