@@ -62,7 +62,7 @@ INCLUDEPATH += \
 
 SOURCES += \
     $$MEGACMD_BASE_PATH/tests/unit/StringUtilsTests.cpp \
-    $$MEGACMD_BASE_PATH/tests/unit/FileSocketCommunicationTests.cpp \
+    $$MEGACMD_BASE_PATH/tests/unit/PlatformDirectoriesTest.cpp \
     $$MEGACMD_BASE_PATH/tests/unit/main.cpp
 
 #Dependencies:

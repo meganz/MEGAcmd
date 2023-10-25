@@ -125,7 +125,7 @@ endif()
 #Unit tests:
 add_executable(mega-cmd-tests-unit
     "${ProjectDir}/tests/unit/StringUtilsTests.cpp"
-    "${ProjectDir}/tests/unit/FileSocketCommunicationTests.cpp"
+    "${ProjectDir}/tests/unit/PlatformDirectoriesTest.cpp"
     "${ProjectDir}/tests/unit/main.cpp"
 )
 set_property(TARGET mega-cmd-tests-unit PROPERTY COMPILE_FLAGS ${TESTS_COMPILATION_FLAGS})
