@@ -1383,13 +1383,14 @@ void MegaCmdExecuter::dumpNode(MegaNode* n, const char *timeFormat, std::map<std
 void MegaCmdExecuter::dumpNodeSummaryHeader(const char *timeFormat, std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions, size_t max_size_len)
 {
     int datelength = int(getReadableTime(m_time(), timeFormat).size());
+    size_t size_header_width = std::max((max_size_len - 1), strlen("SIZE  "));
 
     OUTSTREAM << "FLAGS";
     OUTSTREAM << " ";
     OUTSTREAM << getFixLengthString("VERS", 4);
     OUTSTREAM << " ";
     OUTSTREAM << getFixLengthString("SIZE  ",
-                                    (unsigned int)((max_size_len - 1) > 6 ? max_size_len - 1 : 6), ' ',
+                                    (unsigned int)size_header_width, ' ',
                                     true); //-1 because of "FLAGS"
     OUTSTREAM << " ";
     OUTSTREAM << getFixLengthString("DATE      ", datelength+1, ' ', true);
