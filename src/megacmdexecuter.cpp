@@ -1495,15 +1495,15 @@ void MegaCmdExecuter::dumpNodeSummary(MegaNode *n, const char *timeFormat, std::
         }
         else
         {
-            OUTSTREAM << getFixLengthString(
-                SSTR(n->getSize()), (unsigned int)(max_size_len > 6 ? max_size_len : 6),
-                ' ', true);
+            OUTSTREAM << getFixLengthString(SSTR(n->getSize()),
+                                            (unsigned int)std::max(max_size_len, strlen("SIZE  ")),
+                                            ' ', true);
         }
     }
     else
     {
         OUTSTREAM << getFixLengthString(
-            "-", (unsigned int)(max_size_len > 6 ? max_size_len : 6), ' ', true);
+            "-", (unsigned int)std::max(max_size_len, strlen("SIZE  ")), ' ', true);
     }
 
     if (n->isFile() && !getFlag(clflags, "show-creation-time"))
