@@ -5727,7 +5727,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         dumpTreeSummary(
                             n.get(),
                             getTimeFormatFromSTR(getOption(cloptions, "time-format", "SHORT")),
-                            clflags, cloptions, recursive, show_versions, max_size,
+                            clflags, cloptions, recursive, show_versions, max_size_len,
                             0, humanreadable, rNpath);
                     }
                     else
@@ -5751,8 +5751,8 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             {
                 if (summary)
                 {
-                    auto max_size_len = numberOfDigits(max_size);
                     forEachFileInNode(*n, recursive, set_max_size);
+                    auto max_size_len = numberOfDigits(max_size);
                     if (firstprint)
                     {
                         dumpNodeSummaryHeader(
