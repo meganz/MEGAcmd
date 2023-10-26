@@ -20,7 +20,7 @@
 #define MEGACMDCOMMONUTILS_H
 
 #include <memory>
-#ifdef _POSIX_VERSION
+#if defined(__unix__) || defined(__APPLE__)
 #include <pwd.h>
 #include <unistd.h>
 #endif
