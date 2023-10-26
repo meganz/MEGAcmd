@@ -20,9 +20,11 @@
 #define MEGACMDCOMMONUTILS_H
 
 #include <memory>
+#ifdef _POSIX_VERSION
 #include <pwd.h>
-#include <string>
 #include <unistd.h>
+#endif
+#include <string>
 #include <vector>
 #include <iomanip>
 #include <map>
