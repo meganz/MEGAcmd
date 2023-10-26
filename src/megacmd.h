@@ -36,24 +36,11 @@ using std::locale;
 using std::stringstream;
 using std::exception;
 
-
-
 #include "megaapi_impl.h"
+#include "megacmd_events.h"
 
 #define PROGRESS_COMPLETE -2
 namespace megacmd {
-
-// Events
-const int MCMD_EVENT_UPDATE_ID = 98900;
-const char MCMD_EVENT_UPDATE_MESSAGE[] = "MEGAcmd update";
-const int MCMD_EVENT_UPDATE_START_ID = 98901;
-const char MCMD_EVENT_UPDATE_START_MESSAGE[] = "MEGAcmd auto-update start";
-const int MCMD_EVENT_UPDATE_RESTART_ID = 98902;
-const char MCMD_EVENT_UPDATE_RESTART_MESSAGE[] = "MEGAcmd updated requiring restart";
-const int MCMD_EVENT_FIRST_CONFIGURED_SYNC_ID = 98903;
-const char MCMD_EVENT_FIRST_CONFIGURED_SYNC_MESSAGE[] = "MEGAcmd first sync configured";
-const int MCMD_EVENT_WAITED_TOO_LONG_FOR_NODES_CURRENT = 98904;
-const char MCMD_EVENT_WAITED_TOO_LONG_FOR_NODES_CURRENT_MESSAGE[] = "MEGAcmd nodes current wait timed out";
 
 typedef struct sync_struct
 {
@@ -195,6 +182,9 @@ void informStateListenerByClientId(int clientID, std::string s);
 
 
 void informProgressUpdate(long long transferred, long long total, int clientID, std::string title = "");
+
+void sendEvent(StatsManager::MegacmdEvent event, mega::MegaApi *megaApi, bool wait = true);
+void sendEvent(StatsManager::MegacmdEvent event, const char *msg, mega::MegaApi *megaApi, bool wait = true);
 
 int executeServer(int argc, char* argv[]);
 void stopServer();
