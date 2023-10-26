@@ -5668,12 +5668,13 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                                 if (summary)
                                 {
                                     forEachFileInNode(*n, recursive, set_max_size);
+                                    auto max_size_len = numberOfDigits(max_size);
                                     if (firstprint)
                                     {
-                                        dumpNodeSummaryHeader(getTimeFormatFromSTR(getOption(cloptions, "time-format","SHORT")), clflags, cloptions, numberOfDigits(max_size));
+                                        dumpNodeSummaryHeader(getTimeFormatFromSTR(getOption(cloptions, "time-format","SHORT")), clflags, cloptions, max_size_len);
                                         firstprint = false;
                                     }
-                                    dumpTreeSummary(n.get(), getTimeFormatFromSTR(getOption(cloptions, "time-format","SHORT")), clflags, cloptions, recursive, show_versions, numberOfDigits(max_size), 0, humanreadable, rNpath);
+                                    dumpTreeSummary(n.get(), getTimeFormatFromSTR(getOption(cloptions, "time-format","SHORT")), clflags, cloptions, recursive, show_versions, max_size_len, 0, humanreadable, rNpath);
                                 }
                                 else
                                 {
@@ -5713,16 +5714,19 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 {
                     if (summary)
                     {
-			forEachFileInNode(*n, recursive, set_max_size);
-			if (firstprint)
+                        forEachFileInNode(*n, recursive, set_max_size);
+                        auto max_size_len = numberOfDigits(max_size);
+                        if (firstprint)
                         {
-                            dumpNodeSummaryHeader(getTimeFormatFromSTR(getOption(cloptions, "time-format","SHORT")), clflags, cloptions, numberOfDigits(max_size));
+                            dumpNodeSummaryHeader(
+                                getTimeFormatFromSTR(getOption(cloptions, "time-format", "SHORT")),
+                                clflags, cloptions, max_size_len);
                             firstprint = false;
                         }
                         dumpTreeSummary(
                             n.get(),
                             getTimeFormatFromSTR(getOption(cloptions, "time-format", "SHORT")),
-                            clflags, cloptions, recursive, show_versions, numberOfDigits(max_size),
+                            clflags, cloptions, recursive, show_versions, max_size,
                             0, humanreadable, rNpath);
                     }
                     else
@@ -5746,15 +5750,18 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             {
                 if (summary)
                 {
-		    forEachFileInNode(*n, recursive, set_max_size);
-		    if (firstprint)
+                    auto max_size_len = numberOfDigits(max_size);
+                    forEachFileInNode(*n, recursive, set_max_size);
+                    if (firstprint)
                     {
-                        dumpNodeSummaryHeader(getTimeFormatFromSTR(getOption(cloptions, "time-format","SHORT")), clflags, cloptions, numberOfDigits(max_size));
+                        dumpNodeSummaryHeader(
+                            getTimeFormatFromSTR(getOption(cloptions, "time-format", "SHORT")),
+                            clflags, cloptions, max_size_len);
                         firstprint = false;
                     }
                     dumpTreeSummary(
                         n.get(), getTimeFormatFromSTR(getOption(cloptions, "time-format", "SHORT")),
-                        clflags, cloptions, recursive, show_versions, numberOfDigits(max_size), 0,
+                        clflags, cloptions, recursive, show_versions, max_size_len, 0,
                         humanreadable, "NULL");
                 }
                 else
