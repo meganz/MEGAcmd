@@ -20,8 +20,9 @@ set (HAVE_FFMPEG 1 CACHE STRING "Used to create previews/thumbnails for video fi
 set (USE_FFMPEG 1 CACHE STRING "Used to create previews/thumbnails for video files")
 
 # Flags for enabling runtime checks
-option (ENABLE_ASAN "Build megaCMD with AddressSanitizer" OFF)
-option (ENABLE_UBSAN "Build megaCMD with UndefinedBehaviorSanitizer" OFF)
+option (ENABLE_ASAN "Build MEGAcmd with AddressSanitizer" OFF)
+option (ENABLE_UBSAN "Build MEGAcmd with UndefinedBehaviorSanitizer" OFF)
+option (ENABLE_TSAN "Build MEGAcmd with ThreadSanitizer" OFF)
 
 if(WIN32)
     add_definitions( -DUNICODE -D_UNICODE )  # needed for visual studio projects to use the unicode runtime libraries
@@ -60,6 +61,9 @@ if (ENABLE_UBSAN)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=undefined")
 endif()
 
+if (ENABLE_TSAN)
+   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=thread")
+endif()
 
 set(ProjectDir "${CMAKE_CURRENT_LIST_DIR}/../..")
 
