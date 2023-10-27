@@ -27,33 +27,33 @@ static const int MAXCMDSTATELISTENERS = 300;
 
 class CmdPetition
 {
-    public:
-        char * line;
-        mega::MegaThread * petitionThread;
-        int clientID = -27;
-        bool clientDisconnected;
+public:
+    char *line;
+    mega::MegaThread *petitionThread;
+    int clientID = -27;
+    bool clientDisconnected;
 
-        CmdPetition()
-        {
-            line = NULL;
-            petitionThread = NULL;
-            clientDisconnected = false;
-        }
+    CmdPetition()
+    {
+        line = NULL;
+        petitionThread = NULL;
+        clientDisconnected = false;
+    }
 
-        char *getLine()
+    char *getLine()
+    {
+        return line;
+    }
+    virtual ~CmdPetition()
+    {
+        if (line != NULL)
         {
-            return line;
+            free(line);
         }
-        virtual ~CmdPetition()
-        {
-            if ( line != NULL )
-            {
-                free(line);
-            }
-        }
-        mega::MegaThread *getPetitionThread() const;
-        void setPetitionThread(mega::MegaThread *value);
-
+    }
+    mega::MegaThread *getPetitionThread() const;
+    void setPetitionThread(mega::MegaThread *value);
+    virtual std::string getPetitionDetails() const { return {}; }
 };
 
 OUTSTREAMTYPE &operator<<(OUTSTREAMTYPE &os, CmdPetition const &p);
@@ -112,7 +112,6 @@ public:
     virtual int informStateListener(CmdPetition *inf, std::string &s);
 
 
-
     /**
      * @brief getPetition
      * @return pointer to new CmdPetition. Petition returned must be properly deleted (this can be calling returnAndClosePetition)
@@ -121,12 +120,6 @@ public:
 
     virtual int getConfirmation(CmdPetition *inf, std::string message);
     virtual std::string getUserResponse(CmdPetition *inf, std::string message);
-
-    /**
-     * @brief get_petition_details
-     * @return a std::string describing details of the petition
-     */
-    virtual std::string get_petition_details(CmdPetition *inf);
 
     virtual ~ComunicationsManager();
 };
