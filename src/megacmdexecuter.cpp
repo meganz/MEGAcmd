@@ -1049,7 +1049,7 @@ std::string MegaCmdExecuter::formatError(const MegaError &error)
     {
         auto reason = sandboxCMD->getReasonblocked();
         auto reasonStr = std::string("Account blocked.");
-        if (reason.empty())
+        if (!reason.empty())
         {
             reasonStr.append("Reason: ").append(reason);
         }
