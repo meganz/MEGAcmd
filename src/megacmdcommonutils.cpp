@@ -1479,7 +1479,7 @@ std::unique_ptr<PlatformDirectories> PlatformDirectories::getPlatformSpecificDir
 }
 
 #ifdef _WIN32
-std::string WindowsDirectories::configDir()
+std::string WindowsDirectories::configDirPath()
 {
     TCHAR szPath[MAX_PATH];
     std::string folder;
