@@ -317,6 +317,19 @@ class TestInstrumentsEnvVarGuard
         }
         setenv(mVar.c_str(), value.c_str(), 1);
     }
+    virtual ~TestInstrumentsEnvVarGuard()
+    {
+        if (mHasInitValue)
+        {
+            setenv(mVar.c_str(), mInitValue.c_str(), 1);
+        }
+        else
+        {
+            unsetenv(mVar.c_str());
+        }
+    }
+
+protected:
     explicit TestInstrumentsEnvVarGuard(std::string variable)
         : mVar(std::move(variable)), mHasInitValue(false), mInitValue()
     {
@@ -328,16 +341,14 @@ class TestInstrumentsEnvVarGuard
         }
         unsetenv(mVar.c_str());
     }
-    ~TestInstrumentsEnvVarGuard()
+};
+
+class TestInstrumentsUnsetEnvVarGuard : TestInstrumentsEnvVarGuard
+{
+public:
+    explicit TestInstrumentsUnsetEnvVarGuard(std::string variable)
+        : TestInstrumentsEnvVarGuard(variable)
     {
-        if (mHasInitValue)
-        {
-            setenv(mVar.c_str(), mInitValue.c_str(), 1);
-        }
-        else
-        {
-            unsetenv(mVar.c_str());
-        }
     }
 };
 

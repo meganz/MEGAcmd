@@ -35,7 +35,7 @@ TEST(PlatformDirectoriesTest, runtimeDirPath)
     }
     {
         G_SUBTEST << "Without $XDG_RUNTIME_DIR";
-        auto guard = TestInstrumentsEnvVarGuard("XDG_RUNTIME_DIR");
+        auto guard = TestInstrumentsUnsetEnvVarGuard("XDG_RUNTIME_DIR");
         auto homeGuard = TestInstrumentsEnvVarGuard("HOME", "/home/test");
         EXPECT_EQ(dirs->runtimeDirPath(),
                   std::string("/tmp/megacmd-").append(std::to_string(getuid())));
@@ -58,7 +58,7 @@ TEST(PlatformDirectoriesTest, configDirPath)
     }
     {
         G_SUBTEST << "Without $XDG_CONFIG_HOME";
-        auto guard = TestInstrumentsEnvVarGuard("XDG_CONFIG_HOME");
+        auto guard = TestInstrumentsUnsetEnvVarGuard("XDG_CONFIG_HOME");
         auto homeGuard= TestInstrumentsEnvVarGuard("HOME", "/home/test");
         EXPECT_EQ(dirs->configDirPath(), "/home/test/.megaCmd");
     }
@@ -82,7 +82,7 @@ TEST(PlatformDirectoriesTest, cacheDirPath)
     {
         G_SUBTEST << "Without $XDG_CACHE_HOME";
         auto homeGuard = TestInstrumentsEnvVarGuard("HOME", "/home/test");
-        auto guard = TestInstrumentsEnvVarGuard("XDG_CACHE_HOME");
+        auto guard = TestInstrumentsUnsetEnvVarGuard("XDG_CACHE_HOME");
         EXPECT_EQ(dirs->cacheDirPath(), "/home/test/.megaCmd");
     }
 #endif
@@ -104,7 +104,7 @@ TEST(PlatformDirectoriesTest, getSocketPath)
     }
     {
         G_SUBTEST << "With $MEGACMD_SOCKET_NAME";
-        auto guard = TestInstrumentsEnvVarGuard("MEGACMD_SOCKET_NAME");
+        auto guard = TestInstrumentsUnsetEnvVarGuard("MEGACMD_SOCKET_NAME");
         EXPECT_EQ(getSocketPath(false), runtimeDir + "/megacmd.socket");
     }
 }
