@@ -20,7 +20,7 @@
 #define MEGACMDCOMMONUTILS_H
 
 #include <memory>
-#if defined(__unix__) || defined(__APPLE__)
+#ifndef _WIN32
 #include <pwd.h>
 #include <unistd.h>
 #endif
@@ -362,7 +362,20 @@ public:
     }
 };
 
-#if defined(_POSIX_VERSION)
+#ifdef _WIN32
+class WindowsDirectories : public PlatformDirectories
+{
+    std::string runtimeDirPath() override
+    {
+        return configDirPath();
+    }
+    std::string cacheDirPath() override
+    {
+        return configDirPath();
+    }
+    std::string configDirPath() override;
+};
+#else // !defined(_WIN32)
 class PosixDirectories : public PlatformDirectories
 {
 public:
@@ -401,20 +414,6 @@ class XDGDirectories : public PosixDirectories
 };
 #endif // defined(__APPLE__)
 std::string getSocketPath(bool ensure);
-#endif // _POSIX_VERSION
-#ifdef _WIN32
-class WindowsDirectories : public PlatformDirectories
-{
-    std::string runtimeDirPath() override
-    {
-        return configDirPath();
-    }
-    std::string cacheDirPath() override
-    {
-        return configDirPath();
-    }
-    std::string configDirPath() override;
-};
-#endif
+#endif // _WIN32
 }//end namespace
 #endif // MEGACMDCOMMONUTILS_H

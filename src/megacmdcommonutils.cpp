@@ -1469,18 +1469,39 @@ void Field::updateMaxValue(int newcandidate)
 
 std::unique_ptr<PlatformDirectories> PlatformDirectories::getPlatformSpecificDirectories()
 {
-#ifdef __APPLE__
-    return std::unique_ptr<PlatformDirectories>(new MacOSDirectories);
-#elif defined(_POSIX_VERSION)
-    return std::unique_ptr<PlatformDirectories>(new XDGDirectories);
-#elif defined(_WIN32)
+#ifdef _WIN32
     return std::unique_ptr<PlatformDirectories>(new WindowsDirectories);
+#elif defined(__APPLE__)
+    return std::unique_ptr<PlatformDirectories>(new MacOSDirectories);
 #else
-#error "unsupported platform"
+    return std::unique_ptr<PlatformDirectories>(new XDGDirectories);
 #endif
 }
 
-#ifdef _POSIX_VERSION
+#ifdef _WIN32
+std::string WindowsDirectories::configDir()
+{
+    TCHAR szPath[MAX_PATH];
+    std::string folder;
+
+    if (!SUCCEEDED(GetModuleFileName(NULL, szPath, MAX_PATH)))
+    {
+        return std::string();
+    }
+    else
+    {
+        if (SUCCEEDED(PathRemoveFileSpec(szPath)))
+        {
+            if (PathAppend(szPath, TEXT(".megaCmd")))
+            {
+                utf16ToUtf8(szPath, lstrlen(szPath), &folder);
+            }
+        }
+    }
+
+    return folder;
+}
+#else // !defined(_WIN32)
 std::string PosixDirectories::homeDirPath()
 {
     char *homedir = getenv("HOME");
@@ -1628,29 +1649,5 @@ std::string getSocketPath(bool ensure)
     std::string sockname = sockname_c != nullptr ? std::string(sockname_c) : "megacmd.socket";
     return runtimedir.empty() ? std::string() : runtimedir.append("/").append(sockname);
 }
-#endif // _POSIX_VERSION
-#ifdef _WIN32
-std::string WindowsDirectories::configDir()
-{
-    TCHAR szPath[MAX_PATH];
-    std::string folder;
-
-    if (!SUCCEEDED(GetModuleFileName(NULL, szPath, MAX_PATH)))
-    {
-        return std::string();
-    }
-    else
-    {
-        if (SUCCEEDED(PathRemoveFileSpec(szPath)))
-        {
-            if (PathAppend(szPath, TEXT(".megaCmd")))
-            {
-                utf16ToUtf8(szPath, lstrlen(szPath), &folder);
-            }
-        }
-    }
-
-    return folder;
-}
-#endif
+#endif // _WIN32
 } //end namespace
