@@ -1089,12 +1089,14 @@ bool MegaCmdExecuter::checkNoErrors(MegaError *error, const string &message, Syn
         return true;
     }
 
-    auto errMessage = formatError(*error);
-    LOG_err << "Failed to " << message <<": " << errMessage;
+    auto logErrMessage = std::string("Failed to ").append(message).append(": ").append(formatError(*error));
     if (syncError)
     {
-        LOG_err << ". " << MegaSync::getMegaSyncErrorCode(syncError);
+        auto errCode =
+            std::unique_ptr<const char[]>(MegaSync::getMegaSyncErrorCode(syncError));
+        logErrMessage.append(errCode.get());
     }
+    LOG_err << logErrMessage;
     return false;
 }
 
