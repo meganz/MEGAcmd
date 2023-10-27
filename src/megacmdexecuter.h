@@ -190,8 +190,8 @@ public:
 
     bool checkAndInformPSA(CmdPetition *inf, bool enforce = false);
 
-    // Provide a helpful error message for the provided error.
-    std::string formatError(const mega::MegaError &error);
+    // Provide a helpful error message for the provided error, setting the current error code in case of an error.
+    std::string formatErrorAndMaySetErrorCode(const mega::MegaError &error);
     bool checkNoErrors(int errorCode, const std::string &message = "");
     bool checkNoErrors(mega::MegaError *error, const std::string &message = "", mega::SyncError syncError = mega::SyncError::NO_SYNC_ERROR);
     bool checkNoErrors(::mega::SynchronousRequestListener *listener, const std::string &message = "", mega::SyncError syncError = mega::SyncError::NO_SYNC_ERROR);

@@ -1036,7 +1036,7 @@ bool MegaCmdExecuter::checkAndInformPSA(CmdPetition *inf, bool enforce)
     return toret;
 }
 
-std::string MegaCmdExecuter::formatError(const MegaError &error)
+std::string MegaCmdExecuter::formatErrorAndMaySetErrorCode(const MegaError &error)
 {
     auto code = error.getErrorCode();
     if (code == MegaError::API_OK)
@@ -1089,7 +1089,7 @@ bool MegaCmdExecuter::checkNoErrors(MegaError *error, const string &message, Syn
         return true;
     }
 
-    auto logErrMessage = std::string("Failed to ").append(message).append(": ").append(formatError(*error));
+    auto logErrMessage = std::string("Failed to ").append(message).append(": ").append(formatErrorAndMaySetErrorCode(*error));
     if (syncError)
     {
         auto errCode =
@@ -3558,7 +3558,7 @@ void MegaCmdExecuter::exportNode(MegaNode *n, int64_t expireTime, std::string pa
             }
             else
             {
-                msg.append(": ").append(formatError(*error));
+                msg.append(": ").append(formatErrorAndMaySetErrorCode(*error));
             }
             LOG_err << msg;
         }
