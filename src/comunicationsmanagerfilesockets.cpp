@@ -83,9 +83,9 @@ int ComunicationsManagerFileSockets::initialize()
         else
         {
             LOG_fatal << "ERROR on binding socket: " << socketPath << ": " << strerror(errno);
-            sockfd = -1;
         }
         close(sockfd);
+        sockfd = -1;
     }
     else
     {
