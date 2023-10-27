@@ -9753,9 +9753,9 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
         if (words.size() <= 1)
         {
-            LOG_err << "warning: no file/folder argument provided, will export the current "
-                       "working folder";
-            words.push_back(string(".")); //cwd
+            LOG_warn << "no file/folder argument provided, will export the current "
+                        "working folder";
+            words.push_back(string(".")); // cwd
         }
 
         for (int i = 1; i < (int)words.size(); i++)
