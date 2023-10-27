@@ -20,6 +20,7 @@
 #include "megacmd.h"
 
 #include "megacmdutils.h"
+#include "megacmdcommonutils.h"
 #include "megacmdtransfermanager.h"
 #include "configurationmanager.h"
 #include "megacmdlogger.h"

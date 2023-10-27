@@ -16,7 +16,7 @@
 #include <gtest/gtest.h>
 
 #include "TestUtils.h"
-#include "megacmdutils.h"
+#include "megacmdcommonutils.h"
 
 namespace UtilsTest
 {

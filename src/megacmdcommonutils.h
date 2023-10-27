@@ -322,6 +322,16 @@ private:
 
 };
 
+template <typename T> size_t numberOfDigits(T num)
+{
+    size_t digits = num < 0 ? 1 : 0;
+    while (num != 0)
+    {
+        digits++;
+        num /= 10;
+    }
+    return digits;
+}
 
 }//end namespace
 #endif // MEGACMDCOMMONUTILS_H
