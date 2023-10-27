@@ -160,6 +160,7 @@ do
       CHECKS_CPPFLAGS="-fsanitize=undefined $CHECKS_CPPFLAGS"
       CHECKS_LDFLAGS="-fsanitize=undefined $CHECKS_LDFLAGS"
       enable_debug="yes"
+      ;;
     tsan)
       CHECKS_CXXFLAGS="-fsanitize=thread $CHECKS_CXXFLAGS"
       CHECKS_CPPFLAGS="-fsanitize=thread $CHECKS_CPPFLAGS"
