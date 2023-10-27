@@ -407,11 +407,11 @@ class WindowsDirectories : public PlatformDirectories
 {
     std::string runtimeDirPath() override
     {
-        return ConfigDirPath();
+        return configDirPath();
     }
     std::string cacheDirPath() override
     {
-        return ConfigDirPath();
+        return configDirPath();
     }
     std::string configDirPath() override;
 };

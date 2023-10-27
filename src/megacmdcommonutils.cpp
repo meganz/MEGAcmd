@@ -1645,7 +1645,7 @@ std::string WindowsDirectories::configDir()
         {
             if (PathAppend(szPath, TEXT(".megaCmd")))
             {
-                MegaApi::utf16ToUtf8(szPath, lstrlen(szPath), &folder);
+                utf16ToUtf8(szPath, lstrlen(szPath), &folder);
             }
         }
     }
