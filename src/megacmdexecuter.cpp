@@ -11327,6 +11327,8 @@ void MegaCmdExecuter::fuseFlags(const StringVector& arguments,
         flags.setFlushDelay(flushDelay);
         flags.setLogLevel(toLogLevel[logLevel]);
 
+        api->setFUSEFlags(&flags);
+
         // We're all done.
         return true;
     }; // updateServiceFlags
