@@ -592,14 +592,6 @@ string ComunicationsManagerPortSockets::getUserResponse(CmdPetition *inf, string
     return response;
 }
 
-string ComunicationsManagerPortSockets::get_petition_details(CmdPetition *inf)
-{
-    ostringstream os;
-    os << "socket output: " << ((CmdPetitionPortSockets *)inf)->outSocket;
-    return os.str();
-}
-
-
 ComunicationsManagerPortSockets::~ComunicationsManagerPortSockets()
 {
 #if _WIN32
