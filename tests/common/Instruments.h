@@ -18,6 +18,7 @@
 //#include "EventsDefinitions.h"
 //TODO: Have the above use MEGAcmd definitions!
 
+#include <cstdlib>
 #include <unordered_set>
 #include <functional>
 #include <mutex>
