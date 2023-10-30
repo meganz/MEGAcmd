@@ -18,6 +18,7 @@
 
 #include "megacmdcommonutils.h"
 #include "megacmd.h"
+#include "client/megacmdclient.h"
 
 #include <gtest/gtest.h>
 #include "Instruments.h"
@@ -28,6 +29,8 @@
 class BasicGenericTest : public ::testing::Test
 {
     std::thread mServerThread;
+    std::thread mClientThread;
+
     void SetUp() override
     {
         mServerThread = std::thread([](){
@@ -35,6 +38,14 @@ class BasicGenericTest : public ::testing::Test
             args[0]=(char *)"argv0_INTEGRATION_TESTS";
             args[1] = NULL;
             megacmd::executeServer(1, args);
+        });
+
+        mClientThread = std::thread([](){
+            char **args = new char*[2];
+            args[0] = (char*) "mega-cmd"; // executeClient only works if argc > 2
+            args[1] = (char*) "version";
+            args[2] = NULL;
+            megacmd::executeClient(2, args);
         });
 
         using TI = TestInstruments;
@@ -51,6 +62,8 @@ class BasicGenericTest : public ::testing::Test
 
     void TearDown() override
     {
+        mClientThread.join();
+
         megacmd::stopServer();
         mServerThread.join();
     }

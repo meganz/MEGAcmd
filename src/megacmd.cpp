@@ -4604,7 +4604,7 @@ bool extractargparam(vector<const char*>& args, const char *what, std::string& p
 
 #ifndef _WIN32
 #include <sys/wait.h>
-bool is_pid_running(pid_t pid) {
+static bool is_pid_running(pid_t pid) {
 
     while(waitpid(-1, 0, WNOHANG) > 0) {
         // Wait for defunct....
