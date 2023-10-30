@@ -79,11 +79,15 @@ add_executable(mega-cmd-server
     "${ProjectDir}/contrib/QtCreator/MEGAcmd/MEGAcmdServer/icon.rc"
 )
 
-add_executable(mega-exec
+add_library(LMegacmdClient STATIC
     "${ProjectDir}/src/client/megacmdclient.cpp"
     "${ProjectDir}/src/megacmdshell/megacmdshellcommunicationsnamedpipes.cpp"
     "${ProjectDir}/src/megacmdshell/megacmdshellcommunications.cpp"
     "${ProjectDir}/src/megacmdcommonutils.cpp"
+)
+
+add_executable(mega-exec
+    "${ProjectDir}/src/client/megacmd_client_main.cpp"
     "${ProjectDir}/contrib/QtCreator/MEGAcmd/MEGAcmdClient/icon.rc"
 )
 
@@ -118,7 +122,7 @@ add_executable(mega-cmd-tests-integration
 )
 set_property(TARGET mega-cmd-tests-integration PROPERTY COMPILE_FLAGS ${TESTS_COMPILATION_FLAGS})
 target_include_directories(mega-cmd-tests-integration PUBLIC ${ProjectDir}/src ${ProjectDir}/tests/common)
-target_link_libraries(mega-cmd-tests-integration LMegacmdServer LMegacmdTestsCommon)
+target_link_libraries(mega-cmd-tests-integration LMegacmdServer LMegacmdClient LMegacmdTestsCommon)
 if(APPLE)
     target_link_libraries(mega-cmd-tests-integration "-framework Security" )
 endif()
@@ -156,7 +160,7 @@ set_target_properties(mega-cmd-server  PROPERTIES VS_DEBUGGER_ENVIRONMENT "${3RD
 endif()
 
 
-target_link_libraries(mega-exec Mega)
+target_link_libraries(mega-exec LMegacmdClient Mega)
 target_link_libraries(mega-cmd Mega)
 target_link_libraries(mega-cmd-updater Mega)
 if (WIN32)
