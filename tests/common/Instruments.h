@@ -301,12 +301,12 @@ public:
 
 class TestInstrumentsEnvVarGuard
 {
-  private:
+private:
     std::string mVar;
     bool mHasInitValue;
     std::string mInitValue;
 
-  public:
+public:
     TestInstrumentsEnvVarGuard(std::string variable, const std::string &value)
         : mVar(std::move(variable)), mHasInitValue(false), mInitValue()
     {
@@ -316,17 +316,32 @@ class TestInstrumentsEnvVarGuard
             mHasInitValue = true;
             mInitValue = std::string(initValue);
         }
+#ifdef _WIN32
+        auto envStr = std::string(mVar).append("=").append(value);
+        _putenv(envStr);
+#else
         setenv(mVar.c_str(), value.c_str(), 1);
+#endif
     }
     virtual ~TestInstrumentsEnvVarGuard()
     {
         if (mHasInitValue)
         {
+#ifdef _WIN32
+            auto envStr = std::string(mVar).append("=").append(mInitValue);
+            _putenv(envStr);
+#else
             setenv(mVar.c_str(), mInitValue.c_str(), 1);
+#endif
         }
         else
         {
+#ifdef _WIN32
+            auto envStr = std::string(mVar).append("=");
+            _putenv(envStr);
+#else
             unsetenv(mVar.c_str());
+#endif
         }
     }
 
@@ -340,7 +355,12 @@ protected:
             mHasInitValue = true;
             mInitValue = std::string(initValue);
         }
+#ifdef _WIN32
+        auto envStr = std::string(mVar).append("=");
+        _putenv(envStr);
+#else
         unsetenv(mVar.c_str());
+#endif
     }
 };
 
