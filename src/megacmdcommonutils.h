@@ -79,7 +79,9 @@ void utf16ToUtf8(const wchar_t* utf16data, int utf16size, std::string* utf8strin
 
 #endif
 
+#ifndef _WIN32
 #define ARRAYSIZE(a) (sizeof((a)) / sizeof(*(a)))
+#endif
 
 /* commands */
 static std::vector<std::string> validGlobalParameters {"v", "help"};
