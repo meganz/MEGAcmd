@@ -309,6 +309,7 @@ SOCKET MegaCmdShellCommunications::createSocket(int number, bool initializeserve
         if (socketPath.empty())
         {
             std::cerr << "Error creating runtime directory for socket file: " << strerror(errno) << std::endl;
+            close(thesock);
             return INVALID_SOCKET;
         }
         struct sockaddr_un addr;
