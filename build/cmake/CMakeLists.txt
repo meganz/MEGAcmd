@@ -160,7 +160,8 @@ set_target_properties(mega-cmd-server  PROPERTIES VS_DEBUGGER_ENVIRONMENT "${3RD
 endif()
 
 
-target_link_libraries(mega-exec LMegacmdClient Mega)
+target_link_libraries(LMegacmdClient Mega)
+target_link_libraries(mega-exec LMegacmdClient)
 target_link_libraries(mega-cmd Mega)
 target_link_libraries(mega-cmd-updater Mega)
 if (WIN32)
