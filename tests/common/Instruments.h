@@ -318,7 +318,7 @@ public:
         }
 #ifdef _WIN32
         auto envStr = std::string(mVar).append("=").append(value);
-        _putenv(envStr);
+        _putenv(envStr.c_str());
 #else
         setenv(mVar.c_str(), value.c_str(), 1);
 #endif
@@ -329,7 +329,7 @@ public:
         {
 #ifdef _WIN32
             auto envStr = std::string(mVar).append("=").append(mInitValue);
-            _putenv(envStr);
+            _putenv(envStr.c_str());
 #else
             setenv(mVar.c_str(), mInitValue.c_str(), 1);
 #endif
@@ -338,7 +338,7 @@ public:
         {
 #ifdef _WIN32
             auto envStr = std::string(mVar).append("=");
-            _putenv(envStr);
+            _putenv(envStr.c_str());
 #else
             unsetenv(mVar.c_str());
 #endif
@@ -357,7 +357,7 @@ protected:
         }
 #ifdef _WIN32
         auto envStr = std::string(mVar).append("=");
-        _putenv(envStr);
+        _putenv(envStr.c_str());
 #else
         unsetenv(mVar.c_str());
 #endif
