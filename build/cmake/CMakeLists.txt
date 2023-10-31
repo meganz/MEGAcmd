@@ -77,6 +77,7 @@ endif (ENABLE_BACKUP)
 add_library(LMegacmdServer STATIC
     "${ProjectDir}/src/megacmd.cpp"
     "${ProjectDir}/src/megacmdexecuter.cpp"
+    "${ProjectDir}/src/megacmd_events.cpp"
     "${ProjectDir}/src/megacmdtransfermanager.cpp"
     "${ProjectDir}/src/megacmdlogger.cpp"
     "${ProjectDir}/src/megacmdsandbox.cpp"

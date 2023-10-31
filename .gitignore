@@ -74,6 +74,8 @@ megaclient_statecache*
 mega-cmd
 mega-exec
 mega-cmd-server
+mega-cmd-integration-tests
+mega-cmd-unit-tests
 
 /contrib/QtCreator/MEGAcmd/MEGAcmd.pro.user
 /contrib/QtCreator/MEGAcmd/MEGAcmd

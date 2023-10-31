@@ -54,9 +54,8 @@ private:
     // signup name
     std::string name;
 
-    //delete confirmation
-    std::vector<mega::MegaNode *> nodesToConfirmDelete;
-
+    // delete confirmation
+    std::vector<std::unique_ptr<mega::MegaNode>> mNodesToConfirmDelete;
 
     std::string getNodePathString(mega::MegaNode *n);
 
@@ -83,9 +82,9 @@ public:
 
     bool processTree(mega::MegaNode * n, bool(mega::MegaApi *, mega::MegaNode *, void *), void *( arg ));
 
-    mega::MegaNode* nodebypath(const char* ptr, std::string* user = NULL, std::string* namepart = NULL);
-    std::vector <mega::MegaNode*> * nodesbypath(const char* ptr, bool usepcre, std::string* user = NULL);
-    void getNodesMatching(mega::MegaNode *parentNode, std::deque<std::string> pathParts, std::vector<mega::MegaNode *> *nodesMatching, bool usepcre);
+    std::unique_ptr<mega::MegaNode> nodebypath(const char* ptr, std::string* user = nullptr, std::string* namepart = nullptr);
+    std::vector<std::unique_ptr<mega::MegaNode>> nodesbypath(const char* ptr, bool usepcre, std::string* user = nullptr);
+    void getNodesMatching(mega::MegaNode* parentNode, std::deque<std::string> pathParts, std::vector<std::unique_ptr<mega::MegaNode>>& nodesMatching, bool usepcre);
 
     std::vector <std::string> * nodesPathsbypath(const char* ptr, bool usepcre, std::string* user = NULL, std::string* namepart = NULL);
     void getPathsMatching(mega::MegaNode *parentNode, std::deque<std::string> pathParts, std::vector<std::string> *pathsMatching, bool usepcre, std::string pathPrefix = "");
@@ -118,8 +117,8 @@ public:
     int actUponLogin(mega::SynchronousRequestListener  *srl, int timeout = -1);
     void actUponLogout(mega::SynchronousRequestListener  *srl, bool deletedSession, int timeout = 0);
     int actUponCreateFolder(mega::SynchronousRequestListener  *srl, int timeout = 0);
-    int deleteNode(mega::MegaNode *nodeToDelete, mega::MegaApi* api, int recursive, int force = 0);
-    int deleteNodeVersions(mega::MegaNode *nodeToDelete, mega::MegaApi* api, int force = 0);
+    int deleteNode(const std::unique_ptr<mega::MegaNode>& nodeToDelete, mega::MegaApi* api, int recursive, int force = 0);
+    int deleteNodeVersions(const std::unique_ptr<mega::MegaNode>& nodeToDelete, mega::MegaApi* api, int force = 0);
     void downloadNode(std::string source, std::string localPath, mega::MegaApi* api, mega::MegaNode *node, bool background, bool ignorequotawar, int clientID, std::shared_ptr<MegaCmdMultiTransferListener> listener);
     void uploadNode(std::string localPath, mega::MegaApi* api, mega::MegaNode *node, std::string newname, bool background, bool ignorequotawarn, int clientID, MegaCmdMultiTransferListener *multiTransferListener = NULL);
     void exportNode(mega::MegaNode *n, int64_t expireTime, std::string password = std::string(),
@@ -152,7 +151,7 @@ public:
     int makedir(std::string remotepath, bool recursive, mega::MegaNode *parentnode = NULL);
     bool IsFolder(std::string path);
     bool pathExists(const std::string &path);
-    void doDeleteNode(mega::MegaNode *nodeToDelete, mega::MegaApi* api);
+    void doDeleteNode(const std::unique_ptr<mega::MegaNode>& nodeToDelete, mega::MegaApi* api);
 
     void confirmDelete();
     void discardDelete();
@@ -177,7 +176,7 @@ public:
 
     void doFind(mega::MegaNode* nodeBase, const char *timeFormat, std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions, std::string word, int printfileinfo, std::string pattern, bool usepcre, mega::m_time_t minTime, mega::m_time_t maxTime, int64_t minSize, int64_t maxSize);
 
-    void move(mega::MegaNode *n, std::string destiny);
+    void moveToDestination(const std::unique_ptr<mega::MegaNode>& n, std::string destiny);
     void copyNode(mega::MegaNode *n, std::string destiny, mega::MegaNode *tn, std::string &targetuser, std::string &newname);
     std::string getLPWD();
     bool isValidFolder(std::string destiny);
@@ -197,7 +196,7 @@ public:
     void confirmCancel(const char* confirmlink, const char* pass);
     bool amIPro();
 
-    void processPath(std::string path, bool usepcre, bool &firstone, void (*nodeprocessor)(MegaCmdExecuter *, mega::MegaNode *, bool), MegaCmdExecuter *context = NULL);
+    void processPath(std::string path, bool usepcre, bool& firstone, void (*nodeprocessor)(MegaCmdExecuter *, mega::MegaNode *, bool), MegaCmdExecuter *context = NULL);
     void catFile(mega::MegaNode *n);
     void printInfoFile(mega::MegaNode *n, bool &firstone, int PATHSIZE);
 

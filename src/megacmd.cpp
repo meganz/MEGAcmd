@@ -3500,12 +3500,9 @@ bool executeUpdater(bool *restartRequired, bool doNotInstall = false)
     }
 #endif
 
-
     if (*restartRequired && api)
     {
-        std::unique_ptr<MegaCmdListener> megaCmdListener{new MegaCmdListener(api, NULL)};
-        api->sendEvent(MCMD_EVENT_UPDATE_RESTART_ID,MCMD_EVENT_UPDATE_RESTART_MESSAGE, false/*JourneyId*/, nullptr/*viewId*/, megaCmdListener.get());
-        megaCmdListener->wait();
+        sendEvent(StatsManager::MegacmdEvent::UPDATE_RESTART, api);
     }
 
     return true;
@@ -3830,7 +3827,7 @@ void * doProcessLine(void *pointer)
         setCurrentThreadIsCmdShell(false);
     }
 
-    LOG_verbose << " Processing " << inf->line << " in thread: " << MegaThread::currentThreadId() << " " << cm->get_petition_details(inf);
+    LOG_verbose << " Processing " << inf->line << " in thread: " << MegaThread::currentThreadId() << " " << inf->getPetitionDetails();
 
     doExit = process_line(inf->getLine());
 
@@ -3840,7 +3837,7 @@ void * doProcessLine(void *pointer)
         LOG_verbose << " Exit registered upon process_line: " ;
     }
 
-    LOG_verbose << " Procesed " << inf->line << " in thread: " << MegaThread::currentThreadId() << " " << cm->get_petition_details(inf);
+    LOG_verbose << " Procesed " << inf->line << " in thread: " << MegaThread::currentThreadId() << " " << inf->getPetitionDetails();
 
     MegaThread * petitionThread = inf->getPetitionThread();
 
@@ -4122,9 +4119,7 @@ void* checkForUpdates(void *param)
 
             if (stopcheckingforUpdaters) break;
 
-            std::unique_ptr<MegaCmdListener> megaCmdListener{new MegaCmdListener(api, NULL)};
-            api->sendEvent(MCMD_EVENT_UPDATE_START_ID,MCMD_EVENT_UPDATE_START_MESSAGE, false/*JourneyId*/, nullptr/*viewId*/, megaCmdListener.get());
-            megaCmdListener->wait();
+            sendEvent(StatsManager::MegacmdEvent::UPDATE_START, api);
 
             broadcastMessage("  Executing update    !");
             LOG_info << " Applying update";
@@ -4916,6 +4911,27 @@ void reset()
     setBlocked(false);
 }
 
+void sendEvent(StatsManager::MegacmdEvent event, const char *msg, ::mega::MegaApi *megaApi, bool wait)
+{
+    std::unique_ptr<MegaCmdListener> megaCmdListener (wait ? new MegaCmdListener(megaApi) : nullptr);
+    megaApi->sendEvent(static_cast<int>(event), msg, false /*JourneyId*/, nullptr /*viewId*/, megaCmdListener.get());
+    if (wait)
+    {
+        megaCmdListener->wait();
+        assert(megaCmdListener->getError());
+        if (megaCmdListener->getError()->getErrorCode() != MegaError::API_OK)
+        {
+            LOG_err << "Failed to log event " << StatsManager::eventName(event) << ": "
+                    << msg << ", error: " << megaCmdListener->getError()->getErrorString();
+        }
+    }
+}
+
+void sendEvent(StatsManager::MegacmdEvent event, ::mega::MegaApi *megaApi, bool wait)
+{
+    return sendEvent(event, StatsManager::defaultEventMsg(event), megaApi, wait);
+}
+
 #ifdef _WIN32
 void uninstall()
 {
@@ -5202,7 +5218,8 @@ int executeServer(int argc, char* argv[])
 
     if (ConfigurationManager::getHasBeenUpdated())
     {
-        api->sendEvent(MCMD_EVENT_UPDATE_ID,MCMD_EVENT_UPDATE_MESSAGE, false/*JourneyId*/, nullptr/*viewId*/);
+        sendEvent(StatsManager::MegacmdEvent::UPDATE, api, false);
+
         stringstream ss;
         ss << "MEGAcmd has been updated to version " << MEGACMD_MAJOR_VERSION << "." << MEGACMD_MINOR_VERSION << "." << MEGACMD_MICRO_VERSION << "." << MEGACMD_BUILD_ID << " - code " << MEGACMD_CODE_VERSION << endl;
         broadcastMessage(ss.str(), true);
