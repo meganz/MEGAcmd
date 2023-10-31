@@ -32,7 +32,7 @@ else:INCLUDEPATH += $$MEGASDK_BASE_PATH/bindings/qt/3rdparty/include
 macx {
     OBJECTIVE_SOURCES +=  ../../../../src/updater/MacUtils.mm
     DEFINES += _DARWIN_FEATURE_64_BIT_INODE CRYPTOPP_DISABLE_ASM
-    QMAKE_MACOSX_DEPLOYMENT_TARGET = 10.12
+    QMAKE_MACOSX_DEPLOYMENT_TARGET = 10.13
     !vcpkg:LIBS += -L$$MEGASDK_BASE_PATH/bindings/qt/3rdparty/libs/
     vcpkg:debug:LIBS += -L$$THIRDPARTY_VCPKG_PATH/debug/lib/
     vcpkg:release:LIBS += -L$$THIRDPARTY_VCPKG_PATH/lib/
