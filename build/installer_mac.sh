@@ -118,20 +118,13 @@ if [ ${build} -eq 1 -o ${build_cmake} -eq 1 ]; then
     echo "  VCPKGPATH  : ${VCPKGPATH}"
 
     if [ ${build_cmake} -ne 1 ]; then
-        AVCODEC_VERSION=libavcodec.58.dylib
-        AVFORMAT_VERSION=libavformat.58.dylib
-        AVUTIL_VERSION=libavutil.56.dylib
-        SWSCALE_VERSION=libswscale.5.dylib
         CARES_VERSION=libcares.2.dylib
         CURL_VERSION=libcurl.dylib
 
-        AVCODEC_PATH=${VCPKGPATH}/vcpkg/installed/x64-osx-mega/lib/$AVCODEC_VERSION
-        AVFORMAT_PATH=${VCPKGPATH}/vcpkg/installed/x64-osx-mega/lib/$AVFORMAT_VERSION
-        AVUTIL_PATH=${VCPKGPATH}/vcpkg/installed/x64-osx-mega/lib/$AVUTIL_VERSION
-        SWSCALE_PATH=${VCPKGPATH}/vcpkg/installed/x64-osx-mega/lib/$SWSCALE_VERSION
-        CARES_PATH=${VCPKGPATH}/vcpkg/installed/x64-osx-mega/lib/$CARES_VERSION
-        CURL_PATH=${VCPKGPATH}/vcpkg/installed/x64-osx-mega/lib/$CURL_VERSION
+        CARES_PATH=${VCPKGPATH}/vcpkg/installed/${target_arch//x86_64/x64}-osx-mega/lib/$CARES_VERSION
+        CURL_PATH=${VCPKGPATH}/vcpkg/installed/${target_arch//x86_64/x64}-osx-mega/lib/$CURL_VERSION
     fi
+
 
     # Clean previous build
     rm -rf Release_x64
