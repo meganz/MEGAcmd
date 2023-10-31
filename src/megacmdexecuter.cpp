@@ -29,6 +29,7 @@
 #include "megacmdversion.h"
 
 #include <iomanip>
+#include <limits>
 #include <string>
 #include <ctime>
 
@@ -1662,26 +1663,6 @@ void MegaCmdExecuter::printTreeSuffix(int depth, vector<bool> &lastleaf)
     if (lastleaf.size())
     {
         OUTSTREAM << (lastleaf.back()?c2:c3) << c4 << " ";
-    }
-}
-
-void MegaCmdExecuter::forEachFileInNode(MegaNode &n, bool recurse, std::function<void(MegaNode *node)> f)
-{
-    auto children = std::unique_ptr<MegaNodeList>(api->getChildren(&n));
-    if (children)
-    {
-        for (int i = 0; i < children->size(); i++)
-        {
-            auto child = children->get(i);
-            if (child->getType() == MegaNode::TYPE_FILE)
-            {
-                f(children->get(i));
-            }
-            else if (recurse)
-            {
-                forEachFileInNode(*child, true, f);
-            }
-        }
     }
 }
 
@@ -5622,14 +5603,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         bool humanreadable = getFlag(clflags, "h");
         bool treelike = getFlag(clflags,"tree");
         recursive += treelike?1:0;
-        size_t max_size = 0;
-        auto set_max_size = [&max_size](MegaNode *node) mutable
-        {
-            if (static_cast<size_t>(node->getSize()) > max_size)
-            {
-                max_size = node->getSize();
-            }
-        };
+        int64_t max_size = std::numeric_limits<int64_t>::max();
 
         if ((int)words.size() > 1)
         {
@@ -5669,7 +5643,6 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                                 }
                                 if (summary)
                                 {
-                                    forEachFileInNode(*n, recursive, set_max_size);
                                     auto max_size_len = numberOfDigits(max_size);
                                     if (firstprint)
                                     {
@@ -5716,7 +5689,6 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 {
                     if (summary)
                     {
-                        forEachFileInNode(*n, recursive, set_max_size);
                         auto max_size_len = numberOfDigits(max_size);
                         if (firstprint)
                         {
@@ -5752,7 +5724,6 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             {
                 if (summary)
                 {
-                    forEachFileInNode(*n, recursive, set_max_size);
                     auto max_size_len = numberOfDigits(max_size);
                     if (firstprint)
                     {
