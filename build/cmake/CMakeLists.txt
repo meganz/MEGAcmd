@@ -166,5 +166,6 @@ else()
 endif()
 target_link_libraries(mega-cmd-server LMegacmdServer)
 if (NOT NO_READLINE)
-    target_link_libraries(mega-cmd readline)
+    target_link_libraries(mega-cmd ${readline_LIBRARIES})
 endif (NOT NO_READLINE)
+
