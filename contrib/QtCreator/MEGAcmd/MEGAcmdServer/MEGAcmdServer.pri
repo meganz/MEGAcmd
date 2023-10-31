@@ -8,6 +8,7 @@ MEGACMD_BASE_PATH = $$PWD/$$MEGACMD_BASE_PATH_RELATIVE
 SOURCES += $$MEGACMD_BASE_PATH/src/megacmd.cpp \
     $$MEGACMD_BASE_PATH/src/listeners.cpp \
     $$MEGACMD_BASE_PATH/src/megacmdexecuter.cpp \
+    $$MEGACMD_BASE_PATH/src/megacmd_events.cpp \
     $$MEGACMD_BASE_PATH/src/megacmdlogger.cpp \
     $$MEGACMD_BASE_PATH/src/megacmdsandbox.cpp \
     $$MEGACMD_BASE_PATH/src/configurationmanager.cpp \
@@ -23,6 +24,7 @@ HEADERS += $$MEGACMD_BASE_PATH/src/megacmdtransfermanager.h
 
 HEADERS += $$MEGACMD_BASE_PATH/src/megacmd.h \
     $$MEGACMD_BASE_PATH/src/megacmdexecuter.h \
+    $$MEGACMD_BASE_PATH/src/megacmd_events.h \
     $$MEGACMD_BASE_PATH/src/listeners.h \
     $$MEGACMD_BASE_PATH/src/megacmdlogger.h \
     $$MEGACMD_BASE_PATH/src/megacmdsandbox.h \

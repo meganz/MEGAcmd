@@ -616,13 +616,6 @@ string ComunicationsManagerNamedPipes::getUserResponse(CmdPetition *inf, string 
     return receivedutf8;
 }
 
-string ComunicationsManagerNamedPipes::get_petition_details(CmdPetition *inf)
-{
-    ostringstream os;
-    os << "namedPipe output: " << ((CmdPetitionNamedPipes *)inf)->outNamedPipe;
-    return os.str();
-}
-
 ComunicationsManagerNamedPipes::~ComunicationsManagerNamedPipes()
 {
     delete mtx;
