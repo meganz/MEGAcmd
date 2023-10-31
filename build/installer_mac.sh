@@ -45,6 +45,12 @@ notarize=0
 
 while [ "$1" != "" ]; do
     case $1 in
+        --arch )
+            shift
+            target_arch="${1}"
+            if [ "${target_arch}" != "arm64" ] && [ "${target_arch}" != "x86_64" ]; then Usage; echo "Error: Invalid arch value."; exit 1; fi
+            ;;
+
         --build )
             build=1
             if [ ${build_cmake} -eq 1 ]; then Usage; echo "Error: --build and --build-cmake are mutually exclusive."; exit 1; fi
