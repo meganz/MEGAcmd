@@ -118,6 +118,7 @@ target_link_libraries(LMegacmdTestsCommon gmock gtest)
 #Integration tests:
 add_executable(mega-cmd-tests-integration
     "${ProjectDir}/tests/integration/BasicTests.cpp"
+    "${ProjectDir}/tests/integration/MegaCmdTestingTools.cpp"
     "${ProjectDir}/tests/integration/main.cpp"
 )
 set_property(TARGET mega-cmd-tests-integration PROPERTY COMPILE_FLAGS ${TESTS_COMPILATION_FLAGS})

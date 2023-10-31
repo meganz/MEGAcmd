@@ -18,6 +18,8 @@
 
 #pragma once
 
+#include "../megacmdcommonutils.h"
+
 namespace megacmd {
-    int executeClient(int argc, char* argv[]);
+    int executeClient(int argc, char* argv[], OUTSTREAMTYPE &outstream);
 } // end namespace

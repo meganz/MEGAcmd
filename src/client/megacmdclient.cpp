@@ -895,7 +895,7 @@ void statechangehandle(string statestring)
     }
 }
 
-int executeClient(int argc, char* argv[])
+int executeClient(int argc, char* argv[], OUTSTREAMTYPE & outstream)
 {
 #ifdef _WIN32
     setlocale(LC_ALL, "en-US");
@@ -957,9 +957,9 @@ int executeClient(int argc, char* argv[])
 
 
 #ifdef _WIN32
-    int outcode = comms->executeCommandW(wParsedArgs, readresponse, COUT, false);
+    int outcode = comms->executeCommandW(wParsedArgs, readresponse, outstream, false);
 #else
-    int outcode = comms->executeCommand(parsedArgs, readresponse, COUT, false);
+    int outcode = comms->executeCommand(parsedArgs, readresponse, outstream, false);
 #endif
 
     delete comms;

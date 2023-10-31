@@ -4020,6 +4020,8 @@ void finalize(bool waitForRestartSignal_param)
 #endif
     delete cm; //this needs to go after restartServer();
     LOG_debug << "resources have been cleaned ...";
+
+    MegaApi::removeLoggerObject(loggerCMD);
     delete loggerCMD;
     ConfigurationManager::unlockExecution();
     ConfigurationManager::unloadConfiguration();

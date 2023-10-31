@@ -17,3 +17,43 @@
 
 #include <gtest/gtest.h>
 
+#include "megacmdcommonutils.h"
+#include "megacmd.h"
+#include "client/megacmdclient.h"
+
+#include <gtest/gtest.h>
+#include "Instruments.h"
+
+#include <chrono>
+#include <future>
+
+struct ClientResponse
+{
+    int mStatus = -1;
+    OUTSTRING mOut;
+    OUTSTRING mErr;
+};
+
+ClientResponse executeInClient(std::list<std::string> command, bool nonInteractive = true);
+void ensureLoggedIn();
+void ensureReadStructure();
+
+class BasicGenericTest : public ::testing::Test
+{
+};
+
+class LoggedInTest : public BasicGenericTest
+{
+    void SetUp() override
+    {
+        ensureLoggedIn();
+    }
+};
+
+class ReadTest : public LoggedInTest
+{
+    void SetUp() override
+    {
+        ensureReadStructure();
+    }
+};

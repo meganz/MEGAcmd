@@ -20,5 +20,5 @@
 
 int main(int argc, char* argv[])
 {
-    return megacmd::executeClient(argc, argv);
+    return megacmd::executeClient(argc, argv, COUT);
 }
