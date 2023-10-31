@@ -133,19 +133,23 @@ if [ ${build} -eq 1 -o ${build_cmake} -eq 1 ]; then
 
     # Build binaries
     if [ ${build_cmake} -eq 1 ]; then
-        #cmake -DUSE_THIRDPARTY_FROM_VCPKG=1 -DUSE_PREBUILT_3RDPARTY=0 -DCMAKE_PREFIX_PATH=${MEGAQTPATH} -DVCPKG_TRIPLET=x64-osx-mega -DMega3rdPartyDir=${VCPKGPATH} -S ../contrib/cmake
-        #cmake --build ./ --target MEGAcmd -j`sysctl -n hw.ncpu`
-        #cmake --build ./ --target MEGAclient -j`sysctl -n hw.ncpu`
-        #cmake --build ./ --target MEGAcmdShell -j`sysctl -n hw.ncpu`
-        #cmake --build ./ --target MEGAcmdLoader -j`sysctl -n hw.ncpu`
-        #cmake --build ./ --target MEGAcmdUpdater -j`sysctl -n hw.ncpu`
+        # Detect crosscompilation and set CMAKE_OSX_ARCHITECTURES.
+        if  [ "${target_arch}" != "${host_arch}" ]; then
+            CMAKE_EXTRA="-DCMAKE_OSX_ARCHITECTURES=${target_arch}"
+        fi
+
+        cmake -DUSE_THIRDPARTY_FROM_VCPKG=1  -DCMAKE_PREFIX_PATH=${MEGAQTPATH} -DVCPKG_TRIPLET=x64-osx-mega -DMega3rdPartyDir=${VCPKGPATH} -DCMAKE_BUILD_TYPE=RelWithDebInfo ${CMAKE_EXTRA} -S ..//cmake
+        cmake --build ./ --target mega-cmd -j`sysctl -n hw.ncpu`
+        cmake --build ./ --target mega-exec -j`sysctl -n hw.ncpu`
+        cmake --build ./ --target mega-cmd-server -j`sysctl -n hw.ncpu`
+        cmake --build ./ --target mega-cmd-updater -j`sysctl -n hw.ncpu`
         SERVER_PREFIX=""
         CLIENT_PREFIX=""
         SHELL_PREFIX=""
         LOADER_PREFIX=""
         UPDATER_PREFIX=""
     else
-        [ ! -f ../../sdk/include/mega/config.h ] && cp ../../sdk/contrib/official_build_configs/macos/config.h ../../sdk/include/mega/config.h
+        cp ../../sdk/contrib/official_build_configs/macos/config.h ../../sdk/include/mega/config.h
         ${MEGAQTPATH}/bin/qmake "THIRDPARTY_VCPKG_BASE_PATH=${VCPKGPATH}" -r ../../contrib/QtCreator/MEGAcmd/ -spec macx-clang CONFIG+=release CONFIG+=x86_64 -nocache
         make -j`sysctl -n hw.ncpu`
     fi
@@ -200,19 +204,13 @@ if [ ${build} -eq 1 -o ${build_cmake} -eq 1 ]; then
         rm -rf ${SERVER_PREFIX}MEGAcmd.app/Contents/Plugins
         rm -rf ${SERVER_PREFIX}MEGAcmd.app/Contents/Resources/qt.conf
 
-        [ ! -f MEGAcmdServer/MEGAcmd.app/Contents/Frameworks/$AVCODEC_VERSION ] && cp -L $AVCODEC_PATH MEGAcmdServer/MEGAcmd.app/Contents/Frameworks/
-        [ ! -f MEGAcmdServer/MEGAcmd.app/Contents/Frameworks/$AVFORMAT_VERSION ] && cp -L $AVFORMAT_PATH MEGAcmdServer/MEGAcmd.app/Contents/Frameworks/
-        [ ! -f MEGAcmdServer/MEGAcmd.app/Contents/Frameworks/$AVUTIL_VERSION ] && cp -L $AVUTIL_PATH MEGAcmdServer/MEGAcmd.app/Contents/Frameworks/
-        [ ! -f MEGAcmdServer/MEGAcmd.app/Contents/Frameworks/$SWSCALE_VERSION ] && cp -L $SWSCALE_PATH MEGAcmdServer/MEGAcmd.app/Contents/Frameworks/
         [ ! -f MEGAcmdServer/MEGAcmd.app/Contents/Frameworks/$CARES_VERSION ] && cp -L $CARES_PATH MEGAcmdServer/MEGAcmd.app/Contents/Frameworks/
         [ ! -f MEGAcmdServer/MEGAcmd.app/Contents/Frameworks/$CURL_VERSION ] && cp -L $CURL_PATH MEGAcmdServer/MEGAcmd.app/Contents/Frameworks/
 
-        if [ ! -f MEGAcmdServer/MEGAcmd.app/Contents/Frameworks/$AVCODEC_VERSION ]  \
-            || [ ! -f MEGAcmdServer/MEGAcmd.app/Contents/Frameworks/$AVFORMAT_VERSION ]  \
-            || [ ! -f MEGAcmdServer/MEGAcmd.app/Contents/Frameworks/$AVUTIL_VERSION ]  \
-            || [ ! -f MEGAcmdServer/MEGAcmd.app/Contents/Frameworks/$SWSCALE_VERSION ];
+        if [ ! -f MEGAcmdServer/MEGAcmd.app/Contents/Frameworks/$CURL_VERSION ]  \
+            || [ ! -f MEGAcmdServer/MEGAcmd.app/Contents/Frameworks/$CARES_VERSION ];
         then
-            echo "Error copying FFmpeg libs to app bundle."
+            echo "Error copying libs to app bundle."
             exit 1
         fi
     fi
