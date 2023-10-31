@@ -112,6 +112,25 @@ pipeline {
                 sh "cmake --build ${mac_sources_workspace}/${BUILD_DIR} --target mega-cmd-server -j 1"
                 sh "cmake --build ${mac_sources_workspace}/${BUILD_DIR} --target mega-cmd -j 1"
                 sh "cmake --build ${mac_sources_workspace}/${BUILD_DIR} --target mega-exec -j 1"
+                sh "cmake --build ${mac_sources_workspace}/${BUILD_DIR} --target mega-cmd-tests-unit -j 1"
+                sh "cmake --build ${mac_sources_workspace}/${BUILD_DIR} --target mega-cmd-tests-integration -j 1"
+            }
+        }
+
+        stage('Run tests'){
+            environment {
+                BUILD_DIR = "build/cmake/build_dir"
+            }
+            options{
+                timeout(time: 5, unit: 'MINUTES')
+            }
+            steps{
+                sh "echo Running tests"
+                sh """#!/bin/zsh
+                set -x
+                cd ${env.BUILD_DIR}
+                ./mega-cmd-tests-unit
+                """
             }
         }
     }
