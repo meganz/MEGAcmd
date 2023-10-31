@@ -58,7 +58,34 @@ private:
     std::vector<std::unique_ptr<mega::MegaNode>> mNodesToConfirmDelete;
 
     std::string getNodePathString(mega::MegaNode *n);
-    void forEachFileInNode(mega::MegaNode &n, bool recurse, std::function<void(mega::MegaNode *node)> cb);
+    /**
+     * @name forEachFileInNode
+     * @brief Traverses through all files in the given node with the provided callback.
+     * @param n - the node object to traverse
+     * @param recurse - whether to recursively traverse directories in this node
+     * @param callback - the callback which receives child entries. Should be of the form `void
+     * (MegaNode *)`
+     */
+    template <typename Cb>
+    void forEachFileInNode(mega::MegaNode &n, bool recurse, Cb &&callback)
+    {
+        auto children = std::unique_ptr<mega::MegaNodeList>(api->getChildren(&n));
+        if (children != nullptr)
+        {
+            for (int i = 0; i < children->size(); i++)
+            {
+                auto child = children->get(i);
+                if (child->getType() == mega::MegaNode::TYPE_FILE)
+                {
+                    callback(children->get(i));
+                }
+                else if (recurse)
+                {
+                    forEachFileInNode(*child, true, std::forward<Cb>(callback));
+                }
+            }
+        }
+    }
 
 public:
     bool signingup;
