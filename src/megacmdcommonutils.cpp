@@ -1606,12 +1606,15 @@ std::string XDGDirectories::configDirPath()
 std::string XDGDirectories::dataDirPath()
 {
     char *datadir = getenv("XDG_DATA_HOME");
-    if (datadir != nullptr)
+    if (legacyConfigDirExists())
     {
-        return std::string(datadir).append("/megacmd");
+        return PosixDirectories::configDirPath();
+    } else if (datadir == nullptr)
+    {
+        return PosixDirectories::dataDirPath();
     }
 
-    return PosixDirectories::dataDirPath();
+    return std::string(datadir).append("/megacmd");
 }
 
 std::string XDGDirectories::stateDirPath()
