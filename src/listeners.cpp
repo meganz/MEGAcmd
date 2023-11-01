@@ -114,19 +114,20 @@ void MegaCmdGlobalListener::onNodesUpdate(MegaApi *api, MegaNodeList *nodes)
     {
         if (loggerCMD->getMaxLogLevel() >= logInfo)
         {
-            MegaNode * nodeRoot = api->getRootNode();
-            getNumFolderFiles(nodeRoot, api, &nfiles, &nfolders);
-            delete nodeRoot;
+            {
+                auto nodeRoot = std::unique_ptr<MegaNode>(api->getRootNode());
+                getNumFolderFiles(nodeRoot.get(), api, &nfiles, &nfolders);
+            }
+            {
+                auto inboxNode = std::unique_ptr<MegaNode>(api->getInboxNode());
+                getNumFolderFiles(inboxNode.get(), api, &nfiles, &nfolders);
+            }
+            {
+                auto rubbishNode = std::unique_ptr<MegaNode>(api->getRubbishNode());
+                getNumFolderFiles(rubbishNode.get(), api, &nfiles, &nfolders);
+            }
 
-            MegaNode * inboxNode = api->getInboxNode();
-            getNumFolderFiles(inboxNode, api, &nfiles, &nfolders);
-            delete inboxNode;
-
-            MegaNode * rubbishNode = api->getRubbishNode();
-            getNumFolderFiles(rubbishNode, api, &nfiles, &nfolders);
-            delete rubbishNode;
-
-            MegaNodeList *inshares = api->getInShares();
+            auto inshares = std::unique_ptr<MegaNodeList>(api->getInShares());
             if (inshares)
             {
                 for (int i = 0; i < inshares->size(); i++)
@@ -135,7 +136,6 @@ void MegaCmdGlobalListener::onNodesUpdate(MegaApi *api, MegaNodeList *nodes)
                     getNumFolderFiles(inshares->get(i), api, &nfiles, &nfolders);
                 }
             }
-            delete inshares;
         }
 
         if (nfolders)
