@@ -243,40 +243,52 @@ void MegaCmdGlobalListener::onEvent(MegaApi *api, MegaEvent *event)
                         api->getUserData(new MegaCmdListenerFuncExecuter(
                                         [this](mega::MegaApi* api, mega::MegaRequest *request, mega::MegaError *e)
                         {
-                            if (e->getValue() == MegaError::API_OK)
+                            if (e->getValue() != MegaError::API_OK)
                             {
-                                std::unique_ptr<char[]> myEmail(api->getMyEmail());
-                                std::unique_ptr<MegaIntegerList> warningsList(api->getOverquotaWarningsTs());
-                                std::string s;
-                                s += "We have contacted you by email to " + string(myEmail.get()) + " on ";
-                                s += getReadableTime(warningsList->get(0),"%b %e %Y");
-                                if (warningsList->size() > 1)
-                                {
-                                    for (int i = 1; i < warningsList->size() - 1; i++)
-                                    {
-                                        s += ", " + getReadableTime(warningsList->get(i),"%b %e %Y");
-                                    }
-                                    s += " and " + getReadableTime(warningsList->get(warningsList->size() - 1),"%b %e %Y");
-                                }
-                                std::unique_ptr<MegaNode> rootNode(api->getRootNode());
-                                long long totalFiles = 0;
-                                long long totalFolders = 0;
-                                getNumFolderFiles(rootNode.get(),api,&totalFiles,&totalFolders);
-                                s += ", but you still have " + std::to_string(totalFiles) + " files taking up " + sizeToText(sandboxCMD->receivedStorageSum);
-                                s += " in your MEGA account, which requires you to upgrade your account.\n\n";
-                                long long daysLeft = (api->getOverquotaDeadlineTs() - m_time(NULL)) / 86400;
-                                if (daysLeft > 0)
-                                {
-                                     s += "You have " + std::to_string(daysLeft) + " days left to upgrade. ";
-                                     s += "After that, your data is subject to deletion.\n";
-                                }
-                                else
-                                {
-                                     s += "You must act immediately to save your data. From now on, your data is subject to deletion.\n";
-                                }
-                                s += "See \"help --upgrade\" for further details.";
-                                broadcastMessage(s);
+                                return;
                             }
+                            api->getAccountDetails(new MegaCmdListenerFuncExecuter(
+                                [this](mega::MegaApi *api, mega::MegaRequest *request, mega::MegaError *e)
+                                {
+                                    if (e->getValue() != MegaError::API_OK)
+                                    {
+                                        return;
+                                    }
+                                    std::unique_ptr<char[]> myEmail(api->getMyEmail());
+                                    std::unique_ptr<MegaIntegerList> warningsList(api->getOverquotaWarningsTs());
+                                    std::string s;
+                                    s += "We have contacted you by email to " + string(myEmail.get()) + " on ";
+                                    s += getReadableTime(warningsList->get(0), "%b %e %Y");
+                                    if (warningsList->size() > 1)
+                                    {
+                                        for (int i = 1; i < warningsList->size() - 1; i++)
+                                        {
+                                            s += ", " + getReadableTime(warningsList->get(i), "%b %e %Y");
+                                        }
+                                        s += " and " + getReadableTime(warningsList->get(warningsList->size() - 1), "%b %e %Y");
+                                    }
+
+                                    std::unique_ptr<MegaNode> rootNode(api->getRootNode());
+                                    auto rootNodeHandle = rootNode->getHandle();
+                                    std::unique_ptr<MegaAccountDetails> details(request->getMegaAccountDetails());
+                                    long long totalFiles = details->getNumFiles(rootNodeHandle);
+                                    long long totalFolders = details->getNumFolders(rootNodeHandle);
+                                    s += ", but you still have " + std::to_string(totalFiles) + "files and " + std::to_string(totalFolders) + " folders taking up " +
+                                         sizeToText(sandboxCMD->receivedStorageSum);
+                                    s += " in your MEGA account, which requires you to upgrade your account.\n\n";
+                                    long long daysLeft = (api->getOverquotaDeadlineTs() - m_time(nullptr)) / 86400;
+                                    if (daysLeft > 0)
+                                    {
+                                        s += "You have " + std::to_string(daysLeft) + " days left to upgrade. ";
+                                        s += "After that, your data is subject to deletion.\n";
+                                    }
+                                    else
+                                    {
+                                        s += "You must act immediately to save your data. From now on, your data is subject to deletion.\n";
+                                    }
+                                    s += "See \"help --upgrade\" for further details.";
+                                    broadcastMessage(s);
+                                }));
                         },true));
                     }
                     else
