@@ -4598,8 +4598,13 @@ void MegaCmdExecuter::printBackupHistory(MegaScheduledCopy *backup, const char *
                 if (backupInstanceNode)
                 {
                     backupInstanceStatus = backupInstanceNode->getCustomAttr("BACKST");
-
-                    getNumFolderFiles(backupInstanceNode.get(), api, &nfiles, &nfolders);
+                    auto listener = ::mega::make_unique<MegaCmdListener>();
+                    api->getAccountDetails(listener.get());
+                    listener->wait();
+                    auto details = listener->getRequest()->getMegaAccountDetails();
+                    auto handle = backupInstanceNode->getHandle();
+                    nfiles += details->getNumFiles(handle);
+                    nfolders += details->getNumFolders(handle);
                 }
             }
 
