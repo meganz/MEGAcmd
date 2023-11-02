@@ -114,45 +114,62 @@ void MegaCmdGlobalListener::onNodesUpdate(MegaApi *api, MegaNodeList *nodes)
     {
         if (loggerCMD->getMaxLogLevel() >= logInfo)
         {
-            {
-                auto nodeRoot = std::unique_ptr<MegaNode>(api->getRootNode());
-                getNumFolderFiles(nodeRoot.get(), api, &nfiles, &nfolders);
-            }
-            {
-                auto inboxNode = std::unique_ptr<MegaNode>(api->getInboxNode());
-                getNumFolderFiles(inboxNode.get(), api, &nfiles, &nfolders);
-            }
-            {
-                auto rubbishNode = std::unique_ptr<MegaNode>(api->getRubbishNode());
-                getNumFolderFiles(rubbishNode.get(), api, &nfiles, &nfolders);
-            }
-
-            auto inshares = std::unique_ptr<MegaNodeList>(api->getInShares());
-            if (inshares)
-            {
-                for (int i = 0; i < inshares->size(); i++)
+            api->getAccountDetails(new MegaCmdListenerFuncExecuter(
+                [nfiles, nfolders](mega::MegaApi *api, mega::MegaRequest *request, mega::MegaError *e)
                 {
-                    nfolders++; //add the share itself
-                    getNumFolderFiles(inshares->get(i), api, &nfiles, &nfolders);
-                }
+                    auto details = std::unique_ptr<mega::MegaAccountDetails>(request->getMegaAccountDetails());
+                    auto nodeRoot = std::unique_ptr<MegaNode>(api->getRootNode());
+                    auto inboxNode = std::unique_ptr<MegaNode>(api->getInboxNode());
+                    auto rubbishNode = std::unique_ptr<MegaNode>(api->getRubbishNode());
+                    auto nFiles =
+                        nfiles + details->getNumFiles(nodeRoot->getHandle()) + details->getNumFiles(inboxNode->getHandle()) + details->getNumFiles(rubbishNode->getHandle());
+                    auto nFolders = nfolders + details->getNumFolders(nodeRoot->getHandle()) + details->getNumFolders(inboxNode->getHandle()) +
+                                    details->getNumFolders(rubbishNode->getHandle());
+                    auto inshares = std::unique_ptr<MegaNodeList>(api->getInShares());
+                    if (inshares)
+                    {
+                        for (int i = 0; i < inshares->size(); i++)
+                        {
+                            nFolders++; // add the share itself
+                            auto handle = inshares->get(i)->getHandle();
+                            nFiles += details->getNumFiles(handle);
+                            nFolders += details->getNumFolders(handle);
+                        }
+                    }
+                    if (nFolders)
+                    {
+                        LOG_debug << nfolders << " folders "
+                                  << "added or updated ";
+                    }
+                    if (nFiles)
+                    {
+                        LOG_debug << nfiles << " files "
+                                  << "added or updated ";
+                    }
+                }));
+        }
+        else
+        {
+            if (nfolders)
+            {
+                LOG_debug << nfolders << " folders "
+                          << "added or updated ";
             }
-        }
-
-        if (nfolders)
-        {
-            LOG_debug << nfolders << " folders " << "added or updated ";
-        }
-        if (nfiles)
-        {
-            LOG_debug << nfiles << " files " << "added or updated ";
+            if (nfiles)
+            {
+                LOG_debug << nfiles << " files "
+                          << "added or updated ";
+            }
         }
         if (rfolders)
         {
-            LOG_debug << rfolders << " folders " << "removed";
+            LOG_debug << rfolders << " folders "
+                      << "removed";
         }
         if (rfiles)
         {
-            LOG_debug << rfiles << " files " << "removed";
+            LOG_debug << rfiles << " files "
+                      << "removed";
         }
     }
 }
