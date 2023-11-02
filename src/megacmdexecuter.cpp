@@ -17,6 +17,7 @@
  */
 
 #include "megacmdexecuter.h"
+#include "megaapi.h"
 #include "megacmd.h"
 
 #include "megacmdutils.h"
@@ -4598,13 +4599,15 @@ void MegaCmdExecuter::printBackupHistory(MegaScheduledCopy *backup, const char *
                 if (backupInstanceNode)
                 {
                     backupInstanceStatus = backupInstanceNode->getCustomAttr("BACKST");
-                    auto listener = ::mega::make_unique<MegaCmdListener>(nullptr);
-                    api->getAccountDetails(listener.get());
+                    auto listener = ::mega::make_unique<SynchronousRequestListener>(nullptr);
+                    api->getFolderInfo(backupInstanceNode.get(), listener.get());
                     listener->wait();
-                    auto details = listener->getRequest()->getMegaAccountDetails();
-                    auto handle = backupInstanceNode->getHandle();
-                    nfiles += details->getNumFiles(handle);
-                    nfolders += details->getNumFolders(handle);
+                    if (checkNoErrors(listener->getError(), "get folder info"))
+                    {
+                        auto info = listener->getRequest()->getMegaFolderInfo();
+                        nfiles += info->getNumFiles();
+                        nfolders += info->getNumFolders();
+                    }
                 }
             }
 
