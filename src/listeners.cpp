@@ -146,7 +146,7 @@ void MegaCmdGlobalListener::onNodesUpdate(MegaApi *api, MegaNodeList *nodes)
                         LOG_debug << nfiles << " files "
                                   << "added or updated ";
                     }
-                }));
+                }, true));
         }
         else
         {
