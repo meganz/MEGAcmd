@@ -4598,7 +4598,7 @@ void MegaCmdExecuter::printBackupHistory(MegaScheduledCopy *backup, const char *
                 if (backupInstanceNode)
                 {
                     backupInstanceStatus = backupInstanceNode->getCustomAttr("BACKST");
-                    auto listener = ::mega::make_unique<MegaCmdListener>();
+                    auto listener = ::mega::make_unique<MegaCmdListener>(nullptr);
                     api->getAccountDetails(listener.get());
                     listener->wait();
                     auto details = listener->getRequest()->getMegaAccountDetails();
