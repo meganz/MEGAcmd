@@ -17,8 +17,8 @@
 
 ClientResponse executeInClient(std::list<std::string> command, bool /*nonInteractive: TODO: give support to shell execs*/)
 {
-    char **args = new char*[1 + command.size()];
-    int i =0;
+    char **args = new char*[2 + command.size()];
+    int i = 0;
     args[i++] = (char*) "args0_test_client";
     for (auto & word :command)
     {

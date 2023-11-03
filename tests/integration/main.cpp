@@ -16,6 +16,7 @@
 #include <gtest/gtest.h>
 
 #include "megacmd.h"
+#include "megacmdlogger.h"
 #include "Instruments.h"
 
 #ifdef __linux__
@@ -60,7 +61,9 @@ int main (int argc, char *argv[])
             char **args = new char*[2];
             args[0]=(char *)"argv0_INTEGRATION_TESTS";
             args[1] = NULL;
-            megacmd::executeServer(1, args);
+            megacmd::executeServer(1, args,
+                                   ::mega::make_unique<megacmd::LoggedStreamDefaultFile>());
+            delete []args;
         });
 
     using TI = TestInstruments;

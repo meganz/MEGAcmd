@@ -4576,48 +4576,6 @@ bool runningInBackground()
 #define MEGACMD_STRINGIZE(x) MEGACMD_STRINGIZE2(x)
 #endif
 
-bool extractarg(vector<const char*>& args, const char *what)
-{
-    for (int i = int(args.size()); i--; )
-    {
-        if (!strcmp(args[i], what))
-        {
-            args.erase(args.begin() + i);
-            return true;
-        }
-    }
-    return false;
-}
-
-bool extractargparam(vector<const char*>& args, const char *what, std::string& param)
-{
-    for (int i = int(args.size()) - 1; --i >= 0; )
-    {
-        if (!strcmp(args[i], what) && args.size() > i)
-        {
-            param = args[i + 1];
-            args.erase(args.begin() + i, args.begin() + i + 2);
-            return true;
-        }
-    }
-    return false;
-}
-
-
-#ifndef _WIN32
-#include <sys/wait.h>
-static bool is_pid_running(pid_t pid) {
-
-    while(waitpid(-1, 0, WNOHANG) > 0) {
-        // Wait for defunct....
-    }
-
-    if (0 == kill(pid, 0))
-        return 1; // Process exists
-
-    return 0;
-}
-#endif
 
 #ifdef _WIN32
 LPTSTR getCurrentSid()
@@ -4979,8 +4937,14 @@ void uninstall()
 
 #endif
 
-int executeServer(int argc, char* argv[])
+int executeServer(int argc, char* argv[],
+                  std::unique_ptr<LoggedStream> loggerStream,
+                  int sdkLogLevel, int cmdLogLevel,
+                  bool skiplockcheck, std::string debug_api_url, bool disablepkp)
 {
+
+    Instance<DefaultLoggedStream> sDefaultLoggedStream; // own the default one here
+
 #ifdef __linux__
     // Ensure interesting signals are unblocked.
     sigset_t signalstounblock;
@@ -4995,7 +4959,7 @@ int executeServer(int argc, char* argv[])
     }
     if (signal(SIGUSR2, LinuxSignalHandler))
     {
-        LOG_debug << " Failed to register signal SIGUSR2 ";
+        cerr << " Failed to register signal SIGUSR2 " << endl;
     }
 #endif
     string localecode = getLocaleCode();
@@ -5003,94 +4967,24 @@ int executeServer(int argc, char* argv[])
     // Set Environment's default locale
     setlocale(LC_ALL, "en-US");
 #endif
+
+    // keep a copy of argc & argv in order to allow restarts
     mcmdMainArgv = argv;
     mcmdMainArgc = argc;
 
+    //// A logged stream for stdout
+    if (loggerStream)
+    {
+        Instance<megacmd::DefaultLoggedStream>::Get().setLoggedStream(std::move(loggerStream));
+    }
+
+    // Establish the logger
     SimpleLogger::setLogLevel(logMax); // do not filter anything here, log level checking is done by loggerCMD
-
     loggerCMD = new MegaCMDLogger();
+    loggerCMD->setApiLoggerLevel(sdkLogLevel);
+    loggerCMD->setCmdLoggerLevel(cmdLogLevel);
 
-    loggerCMD->setApiLoggerLevel(MegaApi::LOG_LEVEL_ERROR);
-    loggerCMD->setCmdLoggerLevel(MegaApi::LOG_LEVEL_INFO);
-#if defined(DEBUG) && !defined(_WIN32)
-    loggerCMD->setApiLoggerLevel(MegaApi::LOG_LEVEL_DEBUG);
-    loggerCMD->setCmdLoggerLevel(MegaApi::LOG_LEVEL_DEBUG);
-#endif
-    string loglevelenv;
-#ifndef _WIN32
-    loglevelenv = (getenv ("MEGACMD_LOGLEVEL") == NULL)?"":getenv ("MEGACMD_LOGLEVEL");
-#endif
-
-    vector<const char*> args;
-    if (argc > 1)
-    {
-        args = vector<const char*>(argv + 1, argv + argc);
-    }
-
-    string debug_api_url;
-    bool debug = extractarg(args, "--debug");
-    bool debugfull = extractarg(args, "--debug-full");
-    bool verbose = extractarg(args, "--verbose");
-    bool verbosefull = extractarg(args, "--verbose-full");
-    bool skiplockcheck = extractarg(args, "--skip-lock-check");
-    bool setapiurl = extractargparam(args, "--apiurl", debug_api_url);  // only for debugging
-    bool disablepkp = extractarg(args, "--disablepkp");  // only for debugging
-
-
-#ifdef _WIN32
-    bool buninstall = extractarg(args, "--uninstall") || extractarg(args, "/uninstall");
-    if (buninstall)
-    {
-        MegaApi::removeRecursively(ConfigurationManager::getConfigFolder().c_str());
-        uninstall();
-        return 0;
-    }
-#endif
-
-    string shandletowait;
-    bool dowaitforhandle = extractargparam(args, "--wait-for", shandletowait);
-    if (dowaitforhandle)
-    {
-#ifdef _WIN32
-        DWORD processId = atoi(shandletowait.c_str());
-
-        HANDLE processHandle = OpenProcess(PROCESS_ALL_ACCESS, FALSE, processId);
-
-        cout << "Waiting for former server to end" << endl;
-        WaitForSingleObject( processHandle, INFINITE );
-        CloseHandle(processHandle);
-#else
-
-        pid_t processId = atoi(shandletowait.c_str());
-
-        while (is_pid_running(processId))
-        {
-            cerr << "Waiting for former MEGAcmd server to end:  " << processId << endl;
-            sleep(1);
-        }
-#endif
-    }
-
-    if (!loglevelenv.compare("DEBUG") || debug )
-    {
-        loggerCMD->setCmdLoggerLevel(MegaApi::LOG_LEVEL_DEBUG);
-    }
-    if (!loglevelenv.compare("FULLDEBUG") || debugfull )
-    {
-        loggerCMD->setApiLoggerLevel(MegaApi::LOG_LEVEL_DEBUG);
-        loggerCMD->setCmdLoggerLevel(MegaApi::LOG_LEVEL_DEBUG);
-    }
-    if (!loglevelenv.compare("VERBOSE") || verbose )
-    {
-        loggerCMD->setCmdLoggerLevel(MegaApi::LOG_LEVEL_MAX);
-    }
-    if (!loglevelenv.compare("FULLVERBOSE") || verbosefull )
-    {
-        loggerCMD->setApiLoggerLevel(MegaApi::LOG_LEVEL_MAX);
-        loggerCMD->setCmdLoggerLevel(MegaApi::LOG_LEVEL_MAX);
-    }
-
-    ConfigurationManager::loadConfiguration(( argc > 1 ) && debug);
+    ConfigurationManager::loadConfiguration(cmdLogLevel >= MegaApi::LOG_LEVEL_DEBUG);
     if (!ConfigurationManager::lockExecution() && !skiplockcheck)
     {
         cerr << "Another instance of MEGAcmd Server is running. Execute with --skip-lock-check to force running (NOT RECOMMENDED)" << endl;
@@ -5101,6 +4995,7 @@ int executeServer(int argc, char* argv[])
     char userAgent[40];
     sprintf(userAgent, "MEGAcmd" MEGACMD_STRINGIZE(MEGACMD_USERAGENT_SUFFIX) "/%d.%d.%d.%d", MEGACMD_MAJOR_VERSION,MEGACMD_MINOR_VERSION,MEGACMD_MICRO_VERSION,MEGACMD_BUILD_ID);
 
+    //TODO: move before!
     MegaApi::addLoggerObject(loggerCMD);
     MegaApi::setLogLevel(MegaApi::LOG_LEVEL_MAX);
 
@@ -5108,11 +5003,10 @@ int executeServer(int argc, char* argv[])
 
     api = new MegaApi("BdARkQSQ", (MegaGfxProcessor*)NULL, ConfigurationManager::getConfigFolder().c_str(), userAgent);
 
-    if (setapiurl)
+    if (!debug_api_url.empty())
     {
         api->changeApiUrl(debug_api_url.c_str(), disablepkp);
     }
-
 
     api->setLanguage(localecode.c_str());
 

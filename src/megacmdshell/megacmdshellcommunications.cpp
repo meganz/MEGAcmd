@@ -329,39 +329,40 @@ SOCKET MegaCmdShellCommunications::createSocket(int number, bool initializeserve
                     signal(SIGINT, SIG_IGN); //ignore Ctrl+C in the server
                     setsid(); //create new session so as not to receive parent's Ctrl+C
 
+                    // Give an indication of where the logs will be find:
                     string pathtolog = createAndRetrieveConfigFolder()+"/megacmdserver.log";
-                    CERR << "[Initiating MEGAcmd server in background. Log: " << pathtolog << "]" << endl; //TODO: try this in windows with non unicode user name?
+                    CERR << "[Initiating MEGAcmd server in background. Log: " << pathtolog << "]" << endl;
 
-                    freopen(pathtolog.c_str(),"w",stdout);
-                    dup2(fileno(stdout), fileno(stderr));  //redirects stderr to stdout below this line.
+                    freopen(std::string(pathtolog).append(".out").c_str(),"w",stdout);
+                    freopen(std::string(pathtolog).append(".err").c_str(),"w",stderr);
+    #ifndef NDEBUG
 
-#ifndef NDEBUG
-
-#ifdef __MACH__
+        #ifdef __MACH__
                     const char executable[] = "../../../../MEGAcmdServer/MEGAcmd.app/Contents/MacOS/MEGAcmd";
-#else
+        #else
                     const char executable[] = "../MEGAcmdServer/MEGAcmd";
-#endif
+        #endif
                     const char executable2[] = "./mega-cmd-server";
-
-#else
-    #ifdef __MACH__
+    #else
+        #ifdef __MACH__
                     const char executable[] = "/Applications/MEGAcmd.app/Contents/MacOS/MEGAcmdLoader";
                     const char executable2[] = "./MEGAcmdLoader";
-    #else
+        #else
                     const char executable[] = "mega-cmd-server";
-        #ifdef __linux__
+            #ifdef __linux__
                     char executable2[PATH_MAX];
                     sprintf(executable2, "%s/mega-cmd-server", getCurrentExecPath().c_str());
-        #else
+            #else
                     const char executable2[] = "./mega-cmd-server";
+            #endif
         #endif
     #endif
-#endif
 
-                    char **args = new char*[2];
-                    args[0]=(char *)executable;
-                    args[1] = NULL;
+                    char **args = new char*[3];
+                    int i = 0;
+                    args[i++]=(char *)executable;
+                    args[i++]=(char *)"--log-to-file";
+                    args[i] = NULL;
 
                     int ret = execvp(executable,args);
 
