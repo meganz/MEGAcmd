@@ -63,7 +63,7 @@ INCLUDEPATH += \
 SOURCES += \
     $$MEGACMD_BASE_PATH/tests/integration/BasicTests.cpp \
     $$MEGACMD_BASE_PATH/tests/integration/MEGAcmdTestingTools.cpp \
-	$$MEGACMD_BASE_PATH/tests/integration/main.cpp
+    $$MEGACMD_BASE_PATH/tests/integration/main.cpp
 
 HEADERS += \
     $$MEGACMD_BASE_PATH/tests/integration/MegaCmdTestingTools.h

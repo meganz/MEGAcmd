@@ -17,8 +17,8 @@ SOURCES += \
 
 CONFIG(USE_DOWNLOADS_COMMAND) {
     DEFINES += HAVE_DOWNLOADS_COMMAND
-	SOURCES += $$MEGACMD_BASE_PATH/src/megacmdtransfermanager.cpp
-	HEADERS += $$MEGACMD_BASE_PATH/src/megacmdtransfermanager.h
+    SOURCES += $$MEGACMD_BASE_PATH/src/megacmdtransfermanager.cpp
+    HEADERS += $$MEGACMD_BASE_PATH/src/megacmdtransfermanager.h
 }
 
 HEADERS += \
@@ -40,5 +40,5 @@ win32 {
 }
 else {
     SOURCES += $$MEGACMD_BASE_PATH/src/comunicationsmanagerfilesockets.cpp
-	HEADERS += $$MEGACMD_BASE_PATH/src/comunicationsmanagerfilesockets.h
+    HEADERS += $$MEGACMD_BASE_PATH/src/comunicationsmanagerfilesockets.h
 }
