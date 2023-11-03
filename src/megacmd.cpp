@@ -4895,6 +4895,8 @@ void sendEvent(StatsManager::MegacmdEvent event, ::mega::MegaApi *megaApi, bool 
 #ifdef _WIN32
 void uninstall()
 {
+    MegaApi::removeRecursively(megacmd::ConfigurationManager::getConfigFolder().c_str());
+
     ITaskService *pService = NULL;
     ITaskFolder *pRootFolder = NULL;
     ITaskFolder *pMEGAFolder = NULL;
@@ -4904,7 +4906,7 @@ void uninstall()
     stringSID = getCurrentSid();
     if (!stringSID)
     {
-        MegaApi::log(MegaApi::LOG_LEVEL_ERROR, "Unable to get the current SID");
+        std::cerr << "ERROR UNINSTALLING: Unable to get the current SID" << std::endl;
         return;
     }
     _bstr_t taskName = taskBaseName + stringSID;

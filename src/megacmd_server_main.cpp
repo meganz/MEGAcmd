@@ -102,15 +102,14 @@ std::pair<int/*sdk*/, int/*cmd*/> getLogLevels(std::vector<const char*>& args)
     return {sdkLogLevel, cmdLogLevel};
 }
 
-// returns true is unistalled
+// returns true if attempted to uninstall
 bool mayUninstall(std::vector<const char*> &args)
 {
 #ifdef _WIN32
     bool buninstall = extractarg(args, "--uninstall") || extractarg(args, "/uninstall");
     if (buninstall)
     {
-        MegaApi::removeRecursively(ConfigurationManager::getConfigFolder().c_str());
-        uninstall();
+        megacmd::uninstall();
         return true;
     }
 #endif
