@@ -27,11 +27,36 @@
 #include <chrono>
 #include <future>
 
-struct ClientResponse
+class ClientResponse
 {
     int mStatus = -1;
-    OUTSTRING mOut;
     OUTSTRING mErr;
+    OUTSTRING mOut;
+#ifdef _WIN32
+    std::string mUtf8String;
+#endif
+
+public:
+    ClientResponse(int status, OUTSTRINGSTREAM &streamOut)
+        : mStatus(status)
+        , mOut (streamOut.str())
+    #ifdef _WIN32
+        , mUtf8String(getutf8fromUtf16(mOut.c_str()))
+    #endif
+    {}
+
+    int status() { return mStatus; }
+    bool ok() { return !mStatus; }
+
+    // returns an utf8 std::string with the response from the server
+    std::string &out()
+    {
+#ifdef _WIN32
+        return mUtf8String;
+#else
+        return mOut;
+#endif
+    }
 };
 
 ClientResponse executeInClient(std::list<std::string> command, bool nonInteractive = true);

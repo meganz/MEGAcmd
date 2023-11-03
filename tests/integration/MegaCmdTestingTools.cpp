@@ -17,7 +17,7 @@
 
 ClientResponse executeInClient(std::list<std::string> command, bool /*nonInteractive: TODO: give support to shell execs*/)
 {
-    char **args = new char*[1 + command.size()];
+    char **args = new char*[2 + command.size()];
     int i =0;
     args[i++] = (char*) "args0_test_client";
     for (auto & word :command)
@@ -27,16 +27,13 @@ ClientResponse executeInClient(std::list<std::string> command, bool /*nonInterac
     args[i] = nullptr;
     OUTSTRINGSTREAM stream;
     auto code = megacmd::executeClient(i, args, stream);
-    ClientResponse r;
-    r.mStatus = code;
-    r.mOut = stream.str();
-    //TODO: have output handled
+    ClientResponse r(code, stream);
     return r;
 }
 
 bool isServerLogged()
 {
-    return !executeInClient({"whoami"}).mStatus;
+    return executeInClient({"whoami"}).ok();
 }
 
 void ensureLoggedIn()
@@ -54,13 +51,13 @@ void ensureLoggedIn()
 
         auto result = executeInClient({"login",user,pass});
 
-        ASSERT_EQ(0, result.mStatus);
+        ASSERT_EQ(0, result.status());
     }
 }
 
 bool hasReadStructure()
 {
-    return !executeInClient({"ls testReadingFolder01"}).mStatus;
+    return executeInClient({"ls testReadingFolder01"}).ok();
 }
 
 void ensureReadStructure()
@@ -68,7 +65,7 @@ void ensureReadStructure()
     if (!hasReadStructure())
     {
         auto result = executeInClient({"import","https://mega.nz/folder/1NYSDSDZ#slJ2xyjgDMqJ5rHFM-YCSw", "testReadingFolder01"}); //TODO: procure the means to generate this one.
-        ASSERT_EQ(0, result.mStatus);
+        ASSERT_EQ(0, result.status());
     }
 }
 

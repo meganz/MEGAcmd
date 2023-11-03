@@ -33,12 +33,12 @@ TEST_F(NOINTERACTIVEBasicTest, Help)
 TEST_F(NOINTERACTIVELoggedInTest, Whoami)
 {
     auto r = executeInClient({"whoami"});
-    ASSERT_STREQ(r.mOut.c_str(), OUTSTRING("Account e-mail: ").append(getenv("MEGACMD_TEST_USER")).append("\n").c_str());
+    ASSERT_STREQ(r.out().c_str(), std::string("Account e-mail: ").append(getenv("MEGACMD_TEST_USER")).append("\n").c_str());
 }
 
 TEST_F(NOINTERACTIVEReadTest, Find)
 {
     auto r = executeInClient({"find"});
     //TODO: CMD-308: provide find coverage.
-    ASSERT_NE(r.mOut.find("/testReadingFolder01/folder02/subfolder02/file02.txt"), OUTSTRING::npos);
+    ASSERT_NE(r.out().find("/testReadingFolder01/folder02/subfolder02/file02.txt"), std::string::npos);
 }

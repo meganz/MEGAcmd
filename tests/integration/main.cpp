@@ -26,6 +26,8 @@
 #include <chrono>
 #include <cassert>
 
+#define UNUSED(x) (void)(x)
+
 #ifdef __linux__
 static void setUpUnixSignals()
 {
@@ -72,6 +74,7 @@ int main (int argc, char *argv[])
     });
 
     auto waitReturn = serverWaitingPromise.get_future().wait_for(std::chrono::seconds(10));
+    UNUSED(waitReturn);
     assert(waitReturn != std::future_status::timeout);
 
     auto exitCode = RUN_ALL_TESTS();
