@@ -41,7 +41,7 @@ public:
         : mStatus(status)
         , mOut (streamOut.str())
     #ifdef _WIN32
-        , mUtf8String(getutf8fromUtf16(mOut.c_str()))
+        , mUtf8String(megacmd::getutf8fromUtf16(mOut.c_str()))
     #endif
     {}
 
