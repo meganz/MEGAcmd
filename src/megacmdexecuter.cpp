@@ -4599,7 +4599,7 @@ void MegaCmdExecuter::printBackupHistory(MegaScheduledCopy *backup, const char *
                 if (backupInstanceNode)
                 {
                     backupInstanceStatus = backupInstanceNode->getCustomAttr("BACKST");
-                    auto listener = ::mega::make_unique<SynchronousRequestListener>(nullptr);
+                    auto listener = ::mega::make_unique<SynchronousRequestListener>();
                     api->getFolderInfo(backupInstanceNode.get(), listener.get());
                     listener->wait();
                     if (checkNoErrors(listener->getError(), "get folder info"))
