@@ -109,68 +109,65 @@ void MegaCmdGlobalListener::onNodesUpdate(MegaApi *api, MegaNodeList *nodes)
                 }
             }
         }
+
+        if (nfolders)
+        {
+            LOG_debug << nfolders << " folders "
+                      << "added or updated ";
+        }
+        if (nfiles)
+        {
+            LOG_debug << nfiles << " files "
+                      << "added or updated ";
+        }
     }
-    else //initial update or too many changes
+    else if (loggerCMD->getMaxLogLevel() >= logInfo)  //initial update or too many changes
     {
-        if (loggerCMD->getMaxLogLevel() >= logInfo)
-        {
-            api->getAccountDetails(new MegaCmdListenerFuncExecuter(
-                [nfiles, nfolders](mega::MegaApi *api, mega::MegaRequest *request, mega::MegaError *e)
+        api->getAccountDetails(new MegaCmdListenerFuncExecuter(
+            [nfiles, nfolders](mega::MegaApi *api, mega::MegaRequest *request, mega::MegaError *e)
+            {
+                auto details = std::unique_ptr<mega::MegaAccountDetails>(request->getMegaAccountDetails());
+                auto nodeRoot = std::unique_ptr<MegaNode>(api->getRootNode());
+                auto inboxNode = std::unique_ptr<MegaNode>(api->getInboxNode());
+                auto rubbishNode = std::unique_ptr<MegaNode>(api->getRubbishNode());
+                auto nFiles =
+                    nfiles + details->getNumFiles(nodeRoot->getHandle()) + details->getNumFiles(inboxNode->getHandle()) + details->getNumFiles(rubbishNode->getHandle());
+                auto nFolders = nfolders + details->getNumFolders(nodeRoot->getHandle()) + details->getNumFolders(inboxNode->getHandle()) +
+                                details->getNumFolders(rubbishNode->getHandle());
+                auto inshares = std::unique_ptr<MegaNodeList>(api->getInShares());
+                if (inshares)
                 {
-                    auto details = std::unique_ptr<mega::MegaAccountDetails>(request->getMegaAccountDetails());
-                    auto nodeRoot = std::unique_ptr<MegaNode>(api->getRootNode());
-                    auto inboxNode = std::unique_ptr<MegaNode>(api->getInboxNode());
-                    auto rubbishNode = std::unique_ptr<MegaNode>(api->getRubbishNode());
-                    auto nFiles =
-                        nfiles + details->getNumFiles(nodeRoot->getHandle()) + details->getNumFiles(inboxNode->getHandle()) + details->getNumFiles(rubbishNode->getHandle());
-                    auto nFolders = nfolders + details->getNumFolders(nodeRoot->getHandle()) + details->getNumFolders(inboxNode->getHandle()) +
-                                    details->getNumFolders(rubbishNode->getHandle());
-                    auto inshares = std::unique_ptr<MegaNodeList>(api->getInShares());
-                    if (inshares)
+                    for (int i = 0; i < inshares->size(); i++)
                     {
-                        for (int i = 0; i < inshares->size(); i++)
-                        {
-                            nFolders++; // add the share itself
-                            auto handle = inshares->get(i)->getHandle();
-                            nFiles += details->getNumFiles(handle);
-                            nFolders += details->getNumFolders(handle);
-                        }
+                        nFolders++; // add the share itself
+                        auto handle = inshares->get(i)->getHandle();
+                        nFiles += details->getNumFiles(handle);
+                        nFolders += details->getNumFolders(handle);
                     }
-                    if (nFolders)
-                    {
-                        LOG_debug << nfolders << " folders "
-                                  << "added or updated ";
-                    }
-                    if (nFiles)
-                    {
-                        LOG_debug << nfiles << " files "
-                                  << "added or updated ";
-                    }
-                }, true));
-        }
-        else
-        {
-            if (nfolders)
-            {
-                LOG_debug << nfolders << " folders "
-                          << "added or updated ";
-            }
-            if (nfiles)
-            {
-                LOG_debug << nfiles << " files "
-                          << "added or updated ";
-            }
-        }
-        if (rfolders)
-        {
-            LOG_debug << rfolders << " folders "
-                      << "removed";
-        }
-        if (rfiles)
-        {
-            LOG_debug << rfiles << " files "
-                      << "removed";
-        }
+                }
+                if (nFolders)
+                {
+                    LOG_debug << nfolders << " folders "
+                              << "added or updated ";
+                }
+                if (nFiles)
+                {
+                    LOG_debug << nfiles << " files "
+                              << "added or updated ";
+                }
+            },
+            true));
+    }
+
+    if (rfolders)
+    {
+        LOG_debug << rfolders << " folders "
+                  << "removed";
+    }
+    if (rfiles)
+    {
+        LOG_debug << rfiles << " files "
+                  << "removed";
     }
 }
 
