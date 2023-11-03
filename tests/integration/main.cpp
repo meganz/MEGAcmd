@@ -27,7 +27,10 @@
 #include <chrono>
 #include <cassert>
 
-#define UNUSED(x) (void)(x)
+#ifndef UNUSED
+    #define UNUSED(x) (void)(x)
+#endif
+
 
 #ifdef __linux__
 static void setUpUnixSignals()

@@ -33,6 +33,10 @@
 #include <condition_variable>
 #include <cassert>
 
+#ifndef UNUSED
+    #define UNUSED(x) (void)(x)
+#endif
+
 using std::setw;
 using std::left;
 
@@ -402,6 +406,7 @@ public:
     ~Instance()
     {
         bool explicitDependentsFinishedInTime = waitForExplicitDependents();
+        UNUSED(explicitDependentsFinishedInTime);
         assert(explicitDependentsFinishedInTime);
     }
 
