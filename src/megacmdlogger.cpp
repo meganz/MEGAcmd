@@ -284,7 +284,29 @@ int MegaCMDLogger::getMaxLogLevel()
 OUTFSTREAMTYPE streamForDefaultFile()
 {
     //TODO: get this one from new dirs folders utilities (pending CMD-307) and refactor the .log retrieval
+
     OUTSTRING path;
+#ifdef _WIN32
+
+    TCHAR szPath[MAX_PATH];
+     if (!SUCCEEDED(GetModuleFileName(NULL, szPath , MAX_PATH)))
+     {
+         LOG_fatal << "Couldnt get EXECUTABLE folder";
+     }
+     else
+     {
+         if (SUCCEEDED(PathRemoveFileSpec(szPath)))
+         {
+             if (PathAppend(szPath,TEXT(".megaCmd")))
+             {
+                 if (PathAppend(szPath,TEXT("megacmdserver.log")))
+                 {
+                     path = szPath;
+                 }
+             }
+         }
+     }
+#else
     const char* home = getenv("HOME");
     if (home)
     {
@@ -292,6 +314,7 @@ OUTFSTREAMTYPE streamForDefaultFile()
         path.append("/.megaCmd/");
         path.append("/megacmdserver.log");
     }
+#endif
 
     return OUTFSTREAMTYPE(path);
 }

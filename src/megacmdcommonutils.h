@@ -25,6 +25,7 @@
 #include <map>
 #include <set>
 #include <stdint.h>
+#include <fstream>
 #include <sstream>
 #include <iostream>
 #include <iomanip>
