@@ -52,7 +52,6 @@ QMAKE_CXXFLAGS+=-std=c++17
 
 include(../MEGAcmdTest_common/MEGAcmdTest_common.pri)
 
-MEGACMD_BASE_PATH_RELATIVE = ../../../../..
 MEGACMD_BASE_PATH = $$PWD/$$MEGACMD_BASE_PATH_RELATIVE
 
 INCLUDEPATH += \
@@ -64,6 +63,5 @@ SOURCES += \
     $$MEGACMD_BASE_PATH/tests/unit/StringUtilsTests.cpp \
     $$MEGACMD_BASE_PATH/tests/unit/main.cpp
 
-#Dependencies:
 SOURCES += \
     $$MEGACMD_BASE_PATH/src/megacmdcommonutils.cpp

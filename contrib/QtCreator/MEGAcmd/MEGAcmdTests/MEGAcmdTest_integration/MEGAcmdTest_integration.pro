@@ -42,7 +42,7 @@ else {
 }
 
 include(../../MEGAcmdServer/MEGAcmdServer.pri)
-
+include(../../MEGAcmdClient/MEGAcmdClient.pri)
 
 CONFIG -= c++11
 QMAKE_CXXFLAGS-=-std=c++11
@@ -55,15 +55,15 @@ QMAKE_CXXFLAGS+=-std=c++17
 
 include(../MEGAcmdTest_common/MEGAcmdTest_common.pri)
 
-INCLUDEPATH += \
-$$MEGACMD_BASE_PATH/src
-
-MEGACMD_BASE_PATH_RELATIVE = ../../../../..
 MEGACMD_BASE_PATH = $$PWD/$$MEGACMD_BASE_PATH_RELATIVE
 
+INCLUDEPATH += \
+    $$MEGACMD_BASE_PATH/src
+
 SOURCES += \
-$$MEGACMD_BASE_PATH/tests/integration/BasicTests.cpp \
-$$MEGACMD_BASE_PATH/tests/integration/main.cpp
+    $$MEGACMD_BASE_PATH/tests/integration/BasicTests.cpp \
+    $$MEGACMD_BASE_PATH/tests/integration/MEGAcmdTestingTools.cpp \
+    $$MEGACMD_BASE_PATH/tests/integration/main.cpp
 
 HEADERS += \
-$$MEGACMD_BASE_PATH/tests/integration/MegaCmdTestingTools.h
+    $$MEGACMD_BASE_PATH/tests/integration/MegaCmdTestingTools.h

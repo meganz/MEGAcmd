@@ -15,9 +15,18 @@
 
 #include <gtest/gtest.h>
 
+#include "megacmd.h"
+#include "Instruments.h"
+
 #ifdef __linux__
 #include <sched.h>
 #endif
+
+
+#include <chrono>
+#include <cassert>
+
+#define UNUSED(x) (void)(x)
 
 #ifdef __linux__
 static void setUpUnixSignals()
@@ -49,7 +58,29 @@ int main (int argc, char *argv[])
 
     testing::InitGoogleTest(&argc, argv);
 
+    std::thread serverThread([](){
+            char **args = new char*[2];
+            args[0]=(char *)"argv0_INTEGRATION_TESTS";
+            args[1] = NULL;
+            megacmd::executeServer(1, args);
+        });
+
+    using TI = TestInstruments;
+
+    std::promise<void> serverWaitingPromise;
+    TI::Instance().onEventOnce(TI::Event::SERVER_ABOUT_TO_START_WAITING_FOR_PETITIONS,
+                               [&serverWaitingPromise]() {
+        serverWaitingPromise.set_value();
+    });
+
+    auto waitReturn = serverWaitingPromise.get_future().wait_for(std::chrono::seconds(10));
+    UNUSED(waitReturn);
+    assert(waitReturn != std::future_status::timeout);
+
     auto exitCode = RUN_ALL_TESTS();
 
+    megacmd::stopServer();
+
+    serverThread.join();
     return exitCode;
 }
