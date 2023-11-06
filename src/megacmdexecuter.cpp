@@ -1046,8 +1046,7 @@ std::string MegaCmdExecuter::formatErrorAndMaySetErrorCode(const MegaError &erro
     }
     else if (code == MegaError::API_EPAYWALL || (code == MegaError::API_EOVERQUOTA && sandboxCMD->storageStatus == MegaApi::STORAGE_STATE_RED))
     {
-        return "Reached storage quota. You can change your account plan to increase your quota "
-               "limit. See \"help --upgrade\" for further details";
+        return "Reached storage quota. You can change your account plan to increase your quota limit. See \"help --upgrade\" for further details";
     }
 
     return error.getErrorString();
@@ -3538,8 +3537,7 @@ void MegaCmdExecuter::exportNode(MegaNode *n, int64_t expireTime, std::string pa
         }
         else
         {
-            MegaNode *nexported =
-                api->getNodeByHandle(megaCmdListener->getRequest()->getNodeHandle());
+            MegaNode *nexported = api->getNodeByHandle(megaCmdListener->getRequest()->getNodeHandle());
             if (nexported)
             {
                 char *nodepath = api->getNodePath(nexported);
@@ -9592,8 +9590,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
         if (words.size() <= 1)
         {
-            LOG_warn << "no file/folder argument provided, will export the current "
-                        "working folder";
+            LOG_warn << "no file/folder argument provided, will export the current working folder";
             words.push_back(string(".")); // cwd
         }
 
