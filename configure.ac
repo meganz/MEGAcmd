@@ -128,7 +128,7 @@ AC_TYPE_SIZE_T
 AC_CHECK_HEADERS([arpa/inet.h netdb.h netinet/in.h stddef.h stdint.h stdlib.h sys/socket.h sys/timeb.h htonl glob.h malloc.h sys/malloc.h malloc/malloc.h])
 
 # Runtime checks
-AC_ARG_ENABLE(checks,
+AC_ARG_ENABLE(sanitizer,
     AS_HELP_STRING([--enable-sanitizer@<:@=LIST@:>@],
                    [compile with (potentially expensive) runtime checks enabled. LIST can be used to enable only certain checks.
                    Available checks are: asan, ubsan, tsan, all (enables ubsan, asan), none.]),
