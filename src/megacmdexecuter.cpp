@@ -1044,9 +1044,7 @@ std::string MegaCmdExecuter::formatErrorAndMaySetErrorCode(const MegaError &erro
         }
         return reasonStr;
     }
-    else if (code == MegaError::API_EPAYWALL ||
-             (code == MegaError::API_EOVERQUOTA &&
-              sandboxCMD->storageStatus == MegaApi::STORAGE_STATE_RED))
+    else if (code == MegaError::API_EPAYWALL || (code == MegaError::API_EOVERQUOTA && sandboxCMD->storageStatus == MegaApi::STORAGE_STATE_RED))
     {
         return "Reached storage quota. You can change your account plan to increase your quota "
                "limit. See \"help --upgrade\" for further details";
@@ -1081,9 +1079,8 @@ bool MegaCmdExecuter::checkNoErrors(MegaError *error, const string &message, Syn
     auto logErrMessage = std::string("Failed to ").append(message).append(": ").append(formatErrorAndMaySetErrorCode(*error));
     if (syncError)
     {
-        auto errCode =
-            std::unique_ptr<const char[]>(MegaSync::getMegaSyncErrorCode(syncError));
-        logErrMessage.append(errCode.get());
+        auto errCode = std::unique_ptr<const char[]>(MegaSync::getMegaSyncErrorCode(syncError));
+        logErrMessage.append(". ").append(errCode.get());
     }
     LOG_err << logErrMessage;
     return false;
