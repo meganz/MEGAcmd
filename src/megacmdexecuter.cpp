@@ -1025,6 +1025,32 @@ bool MegaCmdExecuter::checkAndInformPSA(CmdPetition *inf, bool enforce)
     return toret;
 }
 
+std::string MegaCmdExecuter::formatErrorAndMaySetErrorCode(const MegaError &error)
+{
+    auto code = error.getErrorCode();
+    if (code == MegaError::API_OK)
+    {
+        return std::string();
+    }
+
+    setCurrentOutCode(code);
+    if (code == MegaError::API_EBLOCKED)
+    {
+        auto reason = sandboxCMD->getReasonblocked();
+        auto reasonStr = std::string("Account blocked.");
+        if (!reason.empty())
+        {
+            reasonStr.append("Reason: ").append(reason);
+        }
+        return reasonStr;
+    }
+    else if (code == MegaError::API_EPAYWALL || (code == MegaError::API_EOVERQUOTA && sandboxCMD->storageStatus == MegaApi::STORAGE_STATE_RED))
+    {
+        return "Reached storage quota. You can change your account plan to increase your quota limit. See \"help --upgrade\" for further details";
+    }
+
+    return error.getErrorString();
+}
 
 bool MegaCmdExecuter::checkNoErrors(int errorCode, const string &message)
 {
@@ -1049,32 +1075,13 @@ bool MegaCmdExecuter::checkNoErrors(MegaError *error, const string &message, Syn
         return true;
     }
 
-    setCurrentOutCode(error->getErrorCode());
-    if (error->getErrorCode() == MegaError::API_EBLOCKED)
+    auto logErrMessage = std::string("Failed to ").append(message).append(": ").append(formatErrorAndMaySetErrorCode(*error));
+    if (syncError)
     {
-        auto reason = sandboxCMD->getReasonblocked();
-        LOG_err << "Failed to " << message << ". Account blocked." <<( reason.empty()?"":" Reason: "+reason);
+        auto errCode = std::unique_ptr<const char[]>(MegaSync::getMegaSyncErrorCode(syncError));
+        logErrMessage.append(". ").append(errCode.get());
     }
-    else if ((error->getErrorCode() == MegaError::API_EPAYWALL) || (error->getErrorCode() == MegaError::API_EOVERQUOTA && sandboxCMD->storageStatus == MegaApi::STORAGE_STATE_RED))
-    {
-        LOG_err << "Failed to " << message << ": Reached storage quota. "
-                         "You can change your account plan to increase your quota limit. "
-                         "See \"help --upgrade\" for further details";
-    }
-    else
-    {
-        if (syncError)
-        {
-            LOG_err << "Failed to " << message << ": " << error->getErrorString()
-                    << ". " << MegaSync::getMegaSyncErrorCode(syncError);
-        }
-        else
-        {
-            LOG_err << "Failed to " << message << ": " << error->getErrorString();
-        }
-
-    }
-
+    LOG_err << logErrMessage;
     return false;
 }
 
@@ -3503,7 +3510,32 @@ void MegaCmdExecuter::exportNode(MegaNode *n, int64_t expireTime, std::string pa
         MegaCmdListener *megaCmdListener = new MegaCmdListener(api, NULL);
         api->exportNode(n, expireTime, writable, megaHosted, megaCmdListener);
         megaCmdListener->wait();
-        if (checkNoErrors(megaCmdListener->getError(), "export node"))
+        auto error = megaCmdListener->getError();
+        assert(error != nullptr);
+        if (error->getErrorCode() != MegaError::API_OK)
+        {
+            auto path = std::unique_ptr<char[]>(api->getNodePath(n));
+            std::string msg = std::string("Failed to export node");
+
+            if (path != nullptr)
+            {
+                msg.append(" ").append(path.get());
+            }
+            if (expireTime != 0 && !amIPro())
+            {
+                msg.append(": Only PRO users can set an expiry time for links");
+            }
+            else if (path != nullptr && strcmp(path.get(), "/") == 0)
+            {
+                msg.append(": The root folder cannot be exported");
+            }
+            else
+            {
+                msg.append(": ").append(formatErrorAndMaySetErrorCode(*error));
+            }
+            LOG_err << msg;
+        }
+        else
         {
             MegaNode *nexported = api->getNodeByHandle(megaCmdListener->getRequest()->getNodeHandle());
             if (nexported)
@@ -9558,7 +9590,8 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
         if (words.size() <= 1)
         {
-            words.push_back(string(".")); //cwd
+            LOG_warn << "no file/folder argument provided, will export the current working folder";
+            words.push_back(string(".")); // cwd
         }
 
         for (int i = 1; i < (int)words.size(); i++)
