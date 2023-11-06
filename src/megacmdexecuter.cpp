@@ -1034,6 +1034,7 @@ bool MegaCmdExecuter::checkNoErrors(int errorCode, const string &message)
 
 bool MegaCmdExecuter::checkNoErrors(MegaError *error, const string &message, SyncError syncError)
 {
+    std::unique_ptr<const char[]> megaSyncErrorCode;
     if (!error)
     {
         LOG_fatal << "No MegaError at request: " << message;
@@ -1044,7 +1045,8 @@ bool MegaCmdExecuter::checkNoErrors(MegaError *error, const string &message, Syn
     {
         if (syncError)
         {
-            LOG_info << "Able to " << message << ", but received syncError: " << MegaSync::getMegaSyncErrorCode(syncError);
+            megaSyncErrorCode.reset(MegaSync::getMegaSyncErrorCode(syncError));
+            LOG_info << "Able to " << message << ", but received syncError: " << megaSyncErrorCode.get();
         }
         return true;
     }
@@ -1065,8 +1067,9 @@ bool MegaCmdExecuter::checkNoErrors(MegaError *error, const string &message, Syn
     {
         if (syncError)
         {
+            megaSyncErrorCode.reset(MegaSync::getMegaSyncErrorCode(syncError));
             LOG_err << "Failed to " << message << ": " << error->getErrorString()
-                    << ". " << MegaSync::getMegaSyncErrorCode(syncError);
+                    << ". " << megaSyncErrorCode.get();
         }
         else
         {
@@ -4716,7 +4719,15 @@ void MegaCmdExecuter::printSync(MegaSync *sync, long long nfiles, long long nfol
     pathstate = getSyncPathStateStr(statepath);
     cd.addValue("STATUS", pathstate);
 
-    cd.addValue("ERROR", sync->getError() ? sync->getMegaSyncErrorCode() : "NO");
+    if ( sync->getError() )
+    {
+        std::unique_ptr<const char[]> megaSyncErrorCode {sync->getMegaSyncErrorCode()};
+        cd.addValue("ERROR", megaSyncErrorCode.get());
+    }
+    else
+    {
+        cd.addValue("ERROR", "NO");
+    }
 
     std::unique_ptr<MegaNode> n{api->getNodeByHandle(sync->getMegaHandle())};
     cd.addValue("SIZE", sizeToText(api->getSize(n.get())));
@@ -7831,7 +7842,8 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         OUTSTREAM << "Added sync: " << localpath << " to " << nodepath << endl;
                         if (syncError != NO_SYNC_ERROR)
                         {
-                            LOG_err << "Sync added as temporarily disabled. Reason: " << MegaSync::getMegaSyncErrorCode(syncError);
+                            std::unique_ptr<const char[]> megaSyncErrorCode {MegaSync::getMegaSyncErrorCode(syncError)};
+                            LOG_err << "Sync added as temporarily disabled. Reason: " << megaSyncErrorCode.get();
                         }
 
                         delete []nodepath;
