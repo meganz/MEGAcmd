@@ -49,9 +49,11 @@ QMAKE_CXXFLAGS-=-std=c++11
 CONFIG += c++17
 QMAKE_CXXFLAGS+=-std=c++17
 
-#QMAKE_CXXFLAGS += "-fsanitize=address"
-#QMAKE_CXXFLAGS_DEBUG += "-fsanitize=address"
-#QMAKE_LFLAGS += "-fsanitize=address"
+!win32 {
+    QMAKE_CXXFLAGS += "-fsanitize=address -fsanitizer=undefined -fno-omit-frame-pointer -fno-common"
+    QMAKE_LFLAGS += "-fsanitize=address -fsanitizer=undefined"
+    QMAKE_CXXFLAGS_DEBUG += "-fsanitize=address -fsanitizer=undefined -fno-omit-frame-pointer -fno-common"
+}
 
 include(../MEGAcmdTest_common/MEGAcmdTest_common.pri)
 
