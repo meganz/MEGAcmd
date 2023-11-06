@@ -5603,7 +5603,8 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         bool humanreadable = getFlag(clflags, "h");
         bool treelike = getFlag(clflags,"tree");
         recursive += treelike?1:0;
-        int64_t max_size = std::numeric_limits<int64_t>::max();
+        // 12 is the length of "999000000000" i.e 999 GiB.
+        static constexpr int64_t MAX_SIZE_LEN = 12;
 
         if ((int)words.size() > 1)
         {
@@ -5643,13 +5644,12 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                                 }
                                 if (summary)
                                 {
-                                    auto max_size_len = numberOfDigits(max_size);
                                     if (firstprint)
                                     {
-                                        dumpNodeSummaryHeader(getTimeFormatFromSTR(getOption(cloptions, "time-format","SHORT")), clflags, cloptions, max_size_len);
+                                        dumpNodeSummaryHeader(getTimeFormatFromSTR(getOption(cloptions, "time-format","SHORT")), clflags, cloptions, MAX_SIZE_LEN);
                                         firstprint = false;
                                     }
-                                    dumpTreeSummary(n.get(), getTimeFormatFromSTR(getOption(cloptions, "time-format","SHORT")), clflags, cloptions, recursive, show_versions, max_size_len, 0, humanreadable, rNpath);
+                                    dumpTreeSummary(n.get(), getTimeFormatFromSTR(getOption(cloptions, "time-format","SHORT")), clflags, cloptions, recursive, show_versions, MAX_SIZE_LEN, 0, humanreadable, rNpath);
                                 }
                                 else
                                 {
@@ -5689,18 +5689,17 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 {
                     if (summary)
                     {
-                        auto max_size_len = numberOfDigits(max_size);
                         if (firstprint)
                         {
                             dumpNodeSummaryHeader(
                                 getTimeFormatFromSTR(getOption(cloptions, "time-format", "SHORT")),
-                                clflags, cloptions, max_size_len);
+                                clflags, cloptions, MAX_SIZE_LEN);
                             firstprint = false;
                         }
                         dumpTreeSummary(
                             n.get(),
                             getTimeFormatFromSTR(getOption(cloptions, "time-format", "SHORT")),
-                            clflags, cloptions, recursive, show_versions, max_size_len,
+                            clflags, cloptions, recursive, show_versions, MAX_SIZE_LEN,
                             0, humanreadable, rNpath);
                     }
                     else
