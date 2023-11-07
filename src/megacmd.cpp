@@ -3827,7 +3827,7 @@ void * doProcessLine(void *pointer)
         setCurrentThreadIsCmdShell(false);
     }
 
-    LOG_verbose << " Processing " << inf->line << " in thread: " << MegaThread::currentThreadId() << " " << cm->get_petition_details(inf);
+    LOG_verbose << " Processing " << inf->line << " in thread: " << MegaThread::currentThreadId() << " " << inf->getPetitionDetails();
 
     doExit = process_line(inf->getLine());
 
@@ -3837,7 +3837,7 @@ void * doProcessLine(void *pointer)
         LOG_verbose << " Exit registered upon process_line: " ;
     }
 
-    LOG_verbose << " Procesed " << inf->line << " in thread: " << MegaThread::currentThreadId() << " " << cm->get_petition_details(inf);
+    LOG_verbose << " Procesed " << inf->line << " in thread: " << MegaThread::currentThreadId() << " " << inf->getPetitionDetails();
 
     MegaThread * petitionThread = inf->getPetitionThread();
 
@@ -4020,6 +4020,8 @@ void finalize(bool waitForRestartSignal_param)
 #endif
     delete cm; //this needs to go after restartServer();
     LOG_debug << "resources have been cleaned ...";
+
+    MegaApi::removeLoggerObject(loggerCMD);
     delete loggerCMD;
     ConfigurationManager::unlockExecution();
     ConfigurationManager::unloadConfiguration();
@@ -4604,7 +4606,7 @@ bool extractargparam(vector<const char*>& args, const char *what, std::string& p
 
 #ifndef _WIN32
 #include <sys/wait.h>
-bool is_pid_running(pid_t pid) {
+static bool is_pid_running(pid_t pid) {
 
     while(waitpid(-1, 0, WNOHANG) > 0) {
         // Wait for defunct....

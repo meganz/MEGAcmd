@@ -16,6 +16,8 @@
  * program.
  */
 
+#include "megacmdclient.h"
+
 #include "../megacmdcommonutils.h"
 #include "../megacmdshell/megacmdshellcommunications.h"
 #include "../megacmdshell/megacmdshellcommunicationsnamedpipes.h"
@@ -893,11 +895,7 @@ void statechangehandle(string statestring)
     }
 }
 
-} //end namespace
-
-using namespace megacmd;
-
-int main(int argc, char* argv[])
+int executeClient(int argc, char* argv[], OUTSTREAMTYPE & outstream)
 {
 #ifdef _WIN32
     setlocale(LC_ALL, "en-US");
@@ -959,9 +957,9 @@ int main(int argc, char* argv[])
 
 
 #ifdef _WIN32
-    int outcode = comms->executeCommandW(wParsedArgs, readresponse, COUT, false);
+    int outcode = comms->executeCommandW(wParsedArgs, readresponse, outstream, false);
 #else
-    int outcode = comms->executeCommand(parsedArgs, readresponse, COUT, false);
+    int outcode = comms->executeCommand(parsedArgs, readresponse, outstream, false);
 #endif
 
     delete comms;
@@ -974,3 +972,5 @@ int main(int argc, char* argv[])
 
     return outcode;
 }
+
+} //end namespace

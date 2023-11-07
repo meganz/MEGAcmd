@@ -16,51 +16,29 @@
 #include "MegaCmdTestingTools.h"
 #include "TestUtils.h"
 
-#include "megacmdcommonutils.h"
-#include "megacmd.h"
-
-#include <gtest/gtest.h>
-#include "Instruments.h"
-
-#include <chrono>
-#include <future>
-
-class BasicGenericTest : public ::testing::Test
-{
-    std::thread mServerThread;
-    void SetUp() override
-    {
-        mServerThread = std::thread([](){
-            char **args = new char*[2];
-            args[0]=(char *)"argv0_INTEGRATION_TESTS";
-            args[1] = NULL;
-            megacmd::executeServer(1, args);
-        });
-
-        using TI = TestInstruments;
-
-        std::promise<void> serverWaitingPromise;
-        TI::Instance().onEventOnce(TI::Event::SERVER_ABOUT_TO_START_WAITING_FOR_PETITIONS,
-                [&serverWaitingPromise]() {
-                    serverWaitingPromise.set_value();
-                });
-
-        ASSERT_NE(serverWaitingPromise.get_future().wait_for(std::chrono::seconds(10))
-                    , std::future_status::timeout);
-    }
-
-    void TearDown() override
-    {
-        megacmd::stopServer();
-        mServerThread.join();
-    }
-};
-
 class NOINTERACTIVEBasicTest : public BasicGenericTest{};
+class NOINTERACTIVELoggedInTest : public LoggedInTest{};
+class NOINTERACTIVEReadTest : public ReadTest{};
 
-TEST_F(NOINTERACTIVEBasicTest, BasicGenericTest)
+TEST_F(NOINTERACTIVEBasicTest, Version)
 {
-    bool t = true;
+    executeInClient({"version"});
+}
 
-    ASSERT_EQ(true, t);
+TEST_F(NOINTERACTIVEBasicTest, Help)
+{
+    executeInClient({"help"});
+}
+
+TEST_F(NOINTERACTIVELoggedInTest, Whoami)
+{
+    auto r = executeInClient({"whoami"});
+    ASSERT_STREQ(r.out().c_str(), std::string("Account e-mail: ").append(getenv("MEGACMD_TEST_USER")).append("\n").c_str());
+}
+
+TEST_F(NOINTERACTIVEReadTest, Find)
+{
+    auto r = executeInClient({"find"});
+    //TODO: CMD-308: provide find coverage.
+    ASSERT_NE(r.out().find("/testReadingFolder01/folder02/subfolder02/file02.txt"), std::string::npos);
 }

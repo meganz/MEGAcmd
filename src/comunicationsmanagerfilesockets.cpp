@@ -457,14 +457,6 @@ string ComunicationsManagerFileSockets::getUserResponse(CmdPetition *inf, string
     return response;
 }
 
-string ComunicationsManagerFileSockets::get_petition_details(CmdPetition *inf)
-{
-    ostringstream os;
-    os << "socket output: " << ((CmdPetitionPosixSockets *)inf)->outSocket;
-    return os.str();
-}
-
-
 ComunicationsManagerFileSockets::~ComunicationsManagerFileSockets()
 {
 }
