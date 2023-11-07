@@ -19,6 +19,11 @@ set (USE_PCRE 1 CACHE STRING "Provides pattern matching functionality for sync r
 set (HAVE_FFMPEG 1 CACHE STRING "Used to create previews/thumbnails for video files")
 set (USE_FFMPEG 1 CACHE STRING "Used to create previews/thumbnails for video files")
 
+# Flags for enabling runtime checks
+option (ENABLE_ASAN "Build MEGAcmd with AddressSanitizer" OFF)
+option (ENABLE_UBSAN "Build MEGAcmd with UndefinedBehaviorSanitizer" OFF)
+option (ENABLE_TSAN "Build MEGAcmd with ThreadSanitizer" OFF)
+
 if(WIN32)
     add_definitions( -DUNICODE -D_UNICODE )  # needed for visual studio projects to use the unicode runtime libraries
 
@@ -47,6 +52,18 @@ endif()
 if (NOT CMAKE_BUILD_TYPE EQUAL "Debug")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DNDEBUG")
 endif ()
+
+if (ENABLE_ASAN)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address -fno-omit-frame-pointer -fno-common")
+endif()
+
+if (ENABLE_UBSAN)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=undefined")
+endif()
+
+if (ENABLE_TSAN)
+   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=thread")
+endif()
 
 set(ProjectDir "${CMAKE_CURRENT_LIST_DIR}/../..")
 
@@ -79,11 +96,15 @@ add_executable(mega-cmd-server
     "${ProjectDir}/contrib/QtCreator/MEGAcmd/MEGAcmdServer/icon.rc"
 )
 
-add_executable(mega-exec
+add_library(LMegacmdClient STATIC
     "${ProjectDir}/src/client/megacmdclient.cpp"
     "${ProjectDir}/src/megacmdshell/megacmdshellcommunicationsnamedpipes.cpp"
     "${ProjectDir}/src/megacmdshell/megacmdshellcommunications.cpp"
     "${ProjectDir}/src/megacmdcommonutils.cpp"
+)
+
+add_executable(mega-exec
+    "${ProjectDir}/src/client/megacmd_client_main.cpp"
     "${ProjectDir}/contrib/QtCreator/MEGAcmd/MEGAcmdClient/icon.rc"
 )
 
@@ -101,27 +122,32 @@ add_executable(mega-cmd-updater WIN32
     "${ProjectDir}/contrib/QtCreator/MEGAcmd/MEGAcmdUpdater/icon.rc"
 )
 
-#Tests compilation flags:
-string(REPLACE "-std=c++11" "-std=c++17" TESTS_COMPILATION_FLAGS ${CMAKE_CXX_FLAGS})
-
 #Test Common:
 add_library(LMegacmdTestsCommon STATIC
     "${ProjectDir}/tests/common/Instruments.cpp"
     "${ProjectDir}/tests/common/TestUtils.cpp"
 )
+
 target_link_libraries(LMegacmdTestsCommon gmock gtest)
+if (NOT WIN32)
+target_link_libraries(LMegacmdTestsCommon -pthread)
+endif()
+
+list(APPEND c++17targets LMegacmdTestsCommon)
 
 #Integration tests:
 add_executable(mega-cmd-tests-integration
     "${ProjectDir}/tests/integration/BasicTests.cpp"
+    "${ProjectDir}/tests/integration/MegaCmdTestingTools.cpp"
     "${ProjectDir}/tests/integration/main.cpp"
 )
-set_property(TARGET mega-cmd-tests-integration PROPERTY COMPILE_FLAGS ${TESTS_COMPILATION_FLAGS})
 target_include_directories(mega-cmd-tests-integration PUBLIC ${ProjectDir}/src ${ProjectDir}/tests/common)
-target_link_libraries(mega-cmd-tests-integration LMegacmdServer LMegacmdTestsCommon)
+target_link_libraries(mega-cmd-tests-integration LMegacmdServer LMegacmdClient LMegacmdTestsCommon)
 if(APPLE)
     target_link_libraries(mega-cmd-tests-integration "-framework Security" )
 endif()
+
+list(APPEND c++17targets mega-cmd-tests-integration)
 
 #Unit tests:
 add_executable(mega-cmd-tests-unit
@@ -129,15 +155,18 @@ add_executable(mega-cmd-tests-unit
     "${ProjectDir}/tests/unit/PlatformDirectoriesTest.cpp"
     "${ProjectDir}/tests/unit/main.cpp"
 )
-set_property(TARGET mega-cmd-tests-unit PROPERTY COMPILE_FLAGS ${TESTS_COMPILATION_FLAGS})
+
 target_include_directories(mega-cmd-tests-unit PUBLIC ${ProjectDir}/src ${ProjectDir}/tests/common)
 target_link_libraries(mega-cmd-tests-unit LMegacmdServer LMegacmdTestsCommon)
 if(APPLE)
     target_link_libraries(mega-cmd-tests-unit "-framework Security" )
 endif()
 
+list(APPEND c++17targets mega-cmd-tests-unit)
+
+
 if (APPLE)
-    target_sources(mega-cmd-server  PRIVATE "${ProjectDir}/src/megacmdplatform.mm")
+    target_sources(LMegacmdServer  PRIVATE "${ProjectDir}/src/megacmdplatform.mm")
     target_sources(mega-cmd-updater PRIVATE "${ProjectDir}/src/updater/MacUtils.mm")
 endif ()
 
@@ -156,8 +185,8 @@ set_target_properties(mega-cmd-updater PROPERTIES VS_DEBUGGER_ENVIRONMENT "${3RD
 set_target_properties(mega-cmd-server  PROPERTIES VS_DEBUGGER_ENVIRONMENT "${3RDPARTY_RUNTIME_PATH_DEBUG}")
 endif()
 
-
-target_link_libraries(mega-exec Mega)
+target_link_libraries(LMegacmdClient Mega)
+target_link_libraries(mega-exec LMegacmdClient)
 target_link_libraries(mega-cmd Mega)
 target_link_libraries(mega-cmd-updater Mega)
 if (WIN32)
@@ -168,5 +197,38 @@ else()
 endif()
 target_link_libraries(mega-cmd-server LMegacmdServer)
 if (NOT NO_READLINE)
-    target_link_libraries(mega-cmd readline)
+    target_link_libraries(mega-cmd ${readline_LIBRARIES})
 endif (NOT NO_READLINE)
+
+
+if (NOT WIN32)
+    # Magic to selectively replace c++11 flags:
+    macro(useCompileOptionsInsteadOfCXXFlagsForAllTargets)
+        separate_arguments(_global_cxx_flags_list UNIX_COMMAND ${CMAKE_CXX_FLAGS})
+        get_property(_targets DIRECTORY PROPERTY BUILDSYSTEM_TARGETS)
+        foreach(_target ${_targets})
+            set_target_properties(${_target} PROPERTIES COMPILE_OPTIONS "${_global_cxx_flags_list}")
+            set_target_properties(${_target} PROPERTIES CXX_EXTENSIONS OFF)  #this one causes the addition of -std+gnu++11
+        endforeach()
+        unset(CMAKE_CXX_FLAGS)
+        unset(CMAKE_CXX_STANDARD)
+        set(_flag_sync_required TRUE)
+    endmacro()
+
+    macro(passfrom11to17 _target)
+        get_target_property(_target_cxx_flags ${_target} COMPILE_OPTIONS)
+        if(_target_cxx_flags)
+            list(REMOVE_ITEM _target_cxx_flags "-std=c++11") #the SDK adds this one explicitly
+            #list(APPEND _target_cxx_flags -std=c++17) #instead of doing this explicitly we will use the target_compile_features
+            set_target_properties(${_target} PROPERTIES COMPILE_OPTIONS "${_target_cxx_flags}")
+            target_compile_features(${_target} PUBLIC cxx_std_17)
+        endif()
+    endmacro()
+
+    useCompileOptionsInsteadOfCXXFlagsForAllTargets()
+
+    foreach(_target ${c++17targets})
+       passfrom11to17(${_target})
+    endforeach()
+
+endif() #NOT WIN32

@@ -1,5 +1,3 @@
-include(../vcpkg_inclusion.pri)
-
 CONFIG -= qt
 MEGASDK_BASE_PATH = $$PWD/../../../../sdk
 
@@ -10,6 +8,7 @@ CONFIG(debug, debug|release) {
 CONFIG(release, debug|release) {
     CONFIG -= debug release
     CONFIG += release
+    DEFINES += NDEBUG
 }
 
 TARGET = MEGAcmdUpdater
@@ -17,6 +16,8 @@ TEMPLATE = app
 !win32 {
 CONFIG += console
 }
+
+include(../vcpkg_inclusion.pri)
 
 HEADERS += ../../../../src/updater/UpdateTask.h \
     ../../../../src/updater/Preferences.h \
@@ -31,7 +32,7 @@ else:INCLUDEPATH += $$MEGASDK_BASE_PATH/bindings/qt/3rdparty/include
 macx {
     OBJECTIVE_SOURCES +=  ../../../../src/updater/MacUtils.mm
     DEFINES += _DARWIN_FEATURE_64_BIT_INODE CRYPTOPP_DISABLE_ASM
-    QMAKE_MACOSX_DEPLOYMENT_TARGET = 10.12
+    QMAKE_MACOSX_DEPLOYMENT_TARGET = 10.13
     !vcpkg:LIBS += -L$$MEGASDK_BASE_PATH/bindings/qt/3rdparty/libs/
     vcpkg:debug:LIBS += -L$$THIRDPARTY_VCPKG_PATH/debug/lib/
     vcpkg:release:LIBS += -L$$THIRDPARTY_VCPKG_PATH/lib/
