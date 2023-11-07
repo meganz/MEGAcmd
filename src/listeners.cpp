@@ -280,6 +280,9 @@ void MegaCmdGlobalListener::onEvent(MegaApi *api, MegaEvent *event)
                         {
                             if (e->getValue() != MegaError::API_OK)
                             {
+                                // We don't have access to MegaCmdExecuter's error handling methods here
+                                std::string errorString(e->getErrorString());
+                                LOG_err << "Failed to get user data: " << errorString;
                                 return;
                             }
                             api->getAccountDetails(new MegaCmdListenerFuncExecuter(
@@ -287,6 +290,8 @@ void MegaCmdGlobalListener::onEvent(MegaApi *api, MegaEvent *event)
                                 {
                                     if (e->getValue() != MegaError::API_OK)
                                     {
+                                        std::string errorString(e->getErrorString());
+                                        LOG_err << "Failed to get account details: " << errorString;
                                         return;
                                     }
                                     std::unique_ptr<char[]> myEmail(api->getMyEmail());
