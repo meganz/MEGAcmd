@@ -2728,10 +2728,10 @@ void MegaCmdExecuter::fetchNodes(MegaApi *api, int clientID)
     if (!api) api = this->api;
 
     sandboxCMD->mNodesCurrentPromise.initiatePromise();
-    MegaCmdListener * megaCmdListener = new MegaCmdListener(api, NULL, clientID);
-    api->fetchNodes(megaCmdListener);
+    auto megaCmdListener = ::mega::make_unique<MegaCmdListener>(api, nullptr, clientID);
+    api->fetchNodes(megaCmdListener.get());
 
-    if (!actUponFetchNodes(api, megaCmdListener))
+    if (!actUponFetchNodes(api, megaCmdListener.get()))
     {
         //Ideally we should enter an state that indicates that we are not fully logged.
         //Specially when the account is blocked
@@ -2773,8 +2773,8 @@ void MegaCmdExecuter::fetchNodes(MegaApi *api, int clientID)
     if (ConfigurationManager::getConfigurationValue("ask4storage", true))
     {
         ConfigurationManager::savePropertyValue("ask4storage",false);
-        MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
-        api->getAccountDetails(megaCmdListener);
+        auto megaCmdListener = ::mega::make_unique<MegaCmdListener>(nullptr);
+        api->getAccountDetails(megaCmdListener.get());
         megaCmdListener->wait();
         // we don't call getAccountDetails on startup always: we ask on first login (no "ask4storage") or previous state was STATE_RED | STATE_ORANGE
         // if we were green, don't need to ask: if there are changes they will be received via action packet indicating STATE_CHANGE
