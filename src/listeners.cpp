@@ -127,13 +127,34 @@ void MegaCmdGlobalListener::onNodesUpdate(MegaApi *api, MegaNodeList *nodes)
             [nfiles, nfolders](mega::MegaApi *api, mega::MegaRequest *request, mega::MegaError *e)
             {
                 auto details = std::unique_ptr<mega::MegaAccountDetails>(request->getMegaAccountDetails());
+                if (details == nullptr)
+                {
+                    LOG_err << "could not get account details";
+                    return;
+                }
+                auto nFiles = nfiles;
+                auto nFolders = nfolders;
                 auto nodeRoot = std::unique_ptr<MegaNode>(api->getRootNode());
+                if (nodeRoot != nullptr)
+                {
+                    auto handle = nodeRoot->getHandle();
+                    nFiles += details->getNumFiles(handle);
+                    nFolders += details->getNumFolders(handle);
+                }
                 auto inboxNode = std::unique_ptr<MegaNode>(api->getInboxNode());
+                if (inboxNode != nullptr)
+                {
+                    auto handle = inboxNode->getHandle();
+                    nFiles += details->getNumFiles(handle);
+                    nFolders += details->getNumFolders(handle);
+                }
                 auto rubbishNode = std::unique_ptr<MegaNode>(api->getRubbishNode());
-                auto nFiles =
-                    nfiles + details->getNumFiles(nodeRoot->getHandle()) + details->getNumFiles(inboxNode->getHandle()) + details->getNumFiles(rubbishNode->getHandle());
-                auto nFolders = nfolders + details->getNumFolders(nodeRoot->getHandle()) + details->getNumFolders(inboxNode->getHandle()) +
-                                details->getNumFolders(rubbishNode->getHandle());
+                if (rubbishNode != nullptr)
+                {
+                    auto handle = rubbishNode->getHandle();
+                    nFiles += details->getNumFiles(handle);
+                    nFolders += details->getNumFolders(handle);
+                }
                 auto inshares = std::unique_ptr<MegaNodeList>(api->getInShares());
                 if (inshares)
                 {
@@ -283,13 +304,21 @@ void MegaCmdGlobalListener::onEvent(MegaApi *api, MegaEvent *event)
                                     }
 
                                     std::unique_ptr<MegaNode> rootNode(api->getRootNode());
-                                    auto rootNodeHandle = rootNode->getHandle();
                                     std::unique_ptr<MegaAccountDetails> details(request->getMegaAccountDetails());
-                                    long long totalFiles = details->getNumFiles(rootNodeHandle);
-                                    long long totalFolders = details->getNumFolders(rootNodeHandle);
-                                    s += ", but you still have " + std::to_string(totalFiles) + "files and " + std::to_string(totalFolders) + " folders taking up " +
-                                         sizeToText(sandboxCMD->receivedStorageSum);
-                                    s += " in your MEGA account, which requires you to upgrade your account.\n\n";
+                                    if (details != nullptr && rootNode != nullptr)
+                                    {
+                                        auto rootNodeHandle = rootNode->getHandle();
+                                        long long totalFiles = details->getNumFiles(rootNodeHandle);
+                                        long long totalFolders = details->getNumFolders(rootNodeHandle);
+                                        s += ", but you still have " + std::to_string(totalFiles) + " files and " + std::to_string(totalFolders) + " folders taking up " +
+                                             sizeToText(sandboxCMD->receivedStorageSum);
+                                        s += " in your MEGA account, which requires you to upgrade your account.\n\n";
+                                    }
+                                    else // If we weren't able to get the root node or details object, lets just display the total storage used.
+                                    {
+                                        s += ", but your MEGA account still uses " + sizeToText(sandboxCMD->receivedStorageSum) +
+                                             ", which requires you to upgrade your account.\n\n";
+                                    }
                                     long long daysLeft = (api->getOverquotaDeadlineTs() - m_time(nullptr)) / 86400;
                                     if (daysLeft > 0)
                                     {
