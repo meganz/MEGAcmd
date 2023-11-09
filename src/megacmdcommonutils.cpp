@@ -1629,15 +1629,15 @@ std::string XDGDirectories::stateDirPath()
 }
 #endif // !defined(__APPLE__)
 
-std::string getOrCreateSocketPath(bool ensure)
+std::string getOrCreateSocketPath(bool createDirectory)
 {
     auto dirs = PlatformDirectories::getPlatformSpecificDirectories();
     auto runtimedir = dirs->runtimeDirPath();
     struct stat path_stat = {};
-    if (ensure)
+    if (createDirectory)
     {
         bool exists = !stat(runtimedir.c_str(), &path_stat) && S_ISDIR(path_stat.st_mode);
-        if (!exists && ensure)
+        if (!exists && createDirectory)
         {
             mode_t mode = umask(0);
             bool failed = mkdir(runtimedir.c_str(), 0700) != 0;
