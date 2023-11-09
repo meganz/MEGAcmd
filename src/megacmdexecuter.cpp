@@ -2773,8 +2773,8 @@ void MegaCmdExecuter::fetchNodes(MegaApi *api, int clientID)
     if (ConfigurationManager::getConfigurationValue("ask4storage", true))
     {
         ConfigurationManager::savePropertyValue("ask4storage",false);
-        MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
-        api->getAccountDetails(megaCmdListener);
+        auto megaCmdListener = ::mega::make_unique<MegaCmdListener>(nullptr);
+        api->getAccountDetails(megaCmdListener.get());
         megaCmdListener->wait();
         // we don't call getAccountDetails on startup always: we ask on first login (no "ask4storage") or previous state was STATE_RED | STATE_ORANGE
         // if we were green, don't need to ask: if there are changes they will be received via action packet indicating STATE_CHANGE
@@ -3483,7 +3483,7 @@ void MegaCmdExecuter::exportNode(MegaNode *n, int64_t expireTime, std::string pa
     // TODO Cache this result the first time it's called
     auto isPro = [this] () { return amIPro(); };
 
-    bool copyrightAccepted = ConfigurationManager::getConfigurationValue("copyrightAccepted", false) || force;
+    bool copyrightAccepted = force || ConfigurationManager::getConfigurationValue("copyrightAccepted", false);
     if (!copyrightAccepted)
     {
         auto publicLinks = std::unique_ptr<MegaNodeList>(api->getPublicLinks());
@@ -3570,29 +3570,23 @@ void MegaCmdExecuter::exportNode(MegaNode *n, int64_t expireTime, std::string pa
     string publicPassProtectedLink;
     if (password.size())
     {
-        megaCmdListener.reset(new MegaCmdListener(api, nullptr));
-        api->encryptLinkWithPassword(publicLink.get(), password.c_str(), megaCmdListener.get());
-        megaCmdListener->wait();
-
-        auto error = megaCmdListener->getError();
-        assert(error != nullptr);
-
-        if (error->getErrorCode() == MegaError::API_OK)
+        // Encrypting links with passwords is a client-side operation that will be done regardless
+        // of PRO status of the account. So we need to manually check for it before calling
+        // `encryptLinkWithPassword`; the function itself will not fail check this.
+        if (isPro())
         {
-            publicPassProtectedLink = megaCmdListener->getRequest()->getText();
+            megaCmdListener.reset(new MegaCmdListener(api, nullptr));
+            api->encryptLinkWithPassword(publicLink.get(), password.c_str(), megaCmdListener.get());
+            megaCmdListener->wait();
+
+            if (checkNoErrors(megaCmdListener->getError(), "protect public link with password"))
+            {
+                publicPassProtectedLink = megaCmdListener->getRequest()->getText();
+            }
         }
         else
         {
-            std::string msg = "Failed to protect link with password (showing UNPROTECTED link). Reason: ";
-            if (!isPro())
-            {
-                msg.append("Only PRO users can do this");
-            }
-            else
-            {
-                msg.append(formatErrorAndMaySetErrorCode(*error));
-            }
-            LOG_err << msg;
+            LOG_err << "Only PRO users can protect links with passwords. Showing UNPROTECTED link";
         }
     }
 
