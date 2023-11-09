@@ -3482,14 +3482,18 @@ void MegaCmdExecuter::exportNode(MegaNode *n, int64_t expireTime, std::string pa
     const bool writable = getFlag(clflags,"writable");
     const bool megaHosted = getFlag(clflags,"mega-hosted");
 
-    bool copyrightAccepted = force || ConfigurationManager::getConfigurationValue("copyrightAccepted", false);
+    bool alreadyAcceptedBefore = false;
+    bool copyrightAccepted = force ||
+            [&alreadyAcceptedBefore]() { return alreadyAcceptedBefore = ConfigurationManager::getConfigurationValue("copyrightAccepted", false); }();
+
     if (!copyrightAccepted)
     {
         auto publicLinks = std::unique_ptr<MegaNodeList>(api->getPublicLinks());
+
+        // Implicit acceptance (the user already has public links)
         copyrightAccepted = (publicLinks && publicLinks->size());
     }
 
-    int confirmationResponse = copyrightAccepted ? MCMDCONFIRM_YES : MCMDCONFIRM_NO;
     if (!copyrightAccepted)
     {
         string confirmationQuery("MEGA respects the copyrights of others and requires that users of the MEGA cloud service comply with the laws of copyright.\n"
@@ -3499,15 +3503,22 @@ void MegaCmdExecuter::exportNode(MegaNode *n, int64_t expireTime, std::string pa
                                  "or other proprietary rights of any person or entity.");
 
         confirmationQuery += " Do you accept this terms? (Yes/No): ";
-        confirmationResponse = askforConfirmation(confirmationQuery);
+
+        auto confirmationResponse = askforConfirmation(confirmationQuery);
+        if (confirmationResponse != MCMDCONFIRM_YES && confirmationResponse != MCMDCONFIRM_ALL)
+        {
+            return;
+        }
+
+        // Explicit acceptance. Skipping the assignment (variable won't be used below)
+        //alreadyAcceptedBefore = true;
     }
 
-    if (confirmationResponse != MCMDCONFIRM_YES && confirmationResponse != MCMDCONFIRM_ALL)
+    if (!alreadyAcceptedBefore)
     {
-        return;
+        // Save as accepted regardless of the source of acceptance
+        ConfigurationManager::savePropertyValue("copyrightAccepted", true);
     }
-
-    ConfigurationManager::savePropertyValue("copyrightAccepted", true);
 
     auto megaCmdListener = ::mega::make_unique<MegaCmdListener>(api, nullptr);
     api->exportNode(n, expireTime, writable, megaHosted, megaCmdListener.get());
