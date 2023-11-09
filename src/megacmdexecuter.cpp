@@ -3504,7 +3504,7 @@ void MegaCmdExecuter::exportNode(MegaNode *n, int64_t expireTime, std::string pa
 
         confirmationQuery += " Do you accept this terms? (Yes/No): ";
 
-        auto confirmationResponse = askforConfirmation(confirmationQuery);
+        const int confirmationResponse = askforConfirmation(confirmationQuery);
         if (confirmationResponse != MCMDCONFIRM_YES && confirmationResponse != MCMDCONFIRM_ALL)
         {
             return;
@@ -3599,24 +3599,33 @@ void MegaCmdExecuter::exportNode(MegaNode *n, int64_t expireTime, std::string pa
         }
     }
 
+    const int64_t actualExpireTime = nexported->getExpirationTime();
+    if (expireTime != 0 && !actualExpireTime)
+    {
+        LOG_err << "Could not add expiration date to exported node";
+    }
+
+    const string authKey = nexported->getWritableLinkAuthKey();
+    if (writable && authKey.empty())
+    {
+        LOG_err << "Failed to generate writable folder: missing auth key. Showing readable link";
+    }
+
     OUTSTREAM << "Exported " << nodepath.get() << ": "
               << (publicPassProtectedLink.size() ? publicPassProtectedLink : publicLink.get());
 
-    if (nexported->getWritableLinkAuthKey())
+    if (authKey.size())
     {
-        string authKey(nexported->getWritableLinkAuthKey());
-        if (authKey.size())
-        {
-            string authToken = (publicPassProtectedLink.size() ? publicPassProtectedLink : publicLink.get());
-            authToken = authToken.substr(strlen("https://mega.nz/folder/")).append(":").append(authKey);
-            OUTSTREAM << "\n          AuthToken = " << authToken;
-        }
+        string authToken = (publicPassProtectedLink.size() ? publicPassProtectedLink : publicLink.get());
+        authToken = authToken.substr(strlen("https://mega.nz/folder/")).append(":").append(authKey);
+        OUTSTREAM << "\n          AuthToken = " << authToken;
     }
 
-    if (nexported->getExpirationTime())
+    if (actualExpireTime)
     {
         OUTSTREAM << " expires at " << getReadableTime(nexported->getExpirationTime());
     }
+
     OUTSTREAM << endl;
 }
 
@@ -9670,7 +9679,8 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 std::unique_ptr<MegaNode> n = nodebypath(words[i].c_str());
                 if (n)
                 {
-                    const string nodeName = (words[i] == "." ? "current folder" : "<" + words[i] + ">");
+                    // In C++17, we can do [&words = std::as_const(words), i] to capture by const reference instead
+                    auto nodeName = [&words, i] { return (words[i] == "." ? "current folder" : "<" + words[i] + ">"); };
 
                     if (add)
                     {
@@ -9681,7 +9691,8 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         }
                         else
                         {
-                            LOG_err << nodeName << " is already exported";
+                            LOG_err << nodeName() << " is already exported. "
+                                    << "Use -d to delete it if you want to change its parameters. Note: the new link may differ";
                         }
                     }
                     else if (getFlag(clflags, "d"))
@@ -9694,8 +9705,8 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         int exportedCount = dumpListOfExported(n.get(), getTimeFormatFromSTR(getOption(cloptions, "time-format","RFC2822")), clflags, cloptions, words[i]);
                         if (exportedCount == 0)
                         {
-                            OUTSTREAM << "Couldn't find anything exported below " << nodeName
-                                      << ". Use -a to export " << (words[i].size()?"it":"something") << endl;
+                            OUTSTREAM << "Couldn't find anything exported below " << nodeName()
+                                      << ". Use -a to export " << (words[i].size() ? "it" : "something") << endl;
                         }
                     }
                 }
