@@ -1514,7 +1514,7 @@ std::string PosixDirectories::homeDirPath()
     struct passwd *pwdresult = nullptr;
     long int bufsize = sysconf(_SC_GETPW_R_SIZE_MAX);
     bufsize = bufsize == -1 ? 1024 : bufsize;
-    std::unique_ptr<char[]> pwdbuf = std::unique_ptr<char[]>(new char[bufsize]);
+    auto pwdbuf = std::unique_ptr<char[]>(new char[bufsize]);
     auto err = getpwuid_r(getuid(), &pwd, pwdbuf.get(), bufsize, &pwdresult);
 
     if (err != 0)
