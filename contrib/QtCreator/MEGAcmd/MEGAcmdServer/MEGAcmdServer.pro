@@ -30,8 +30,5 @@ win32 {
 
 include(MEGAcmdServer.pri)
 
-MEGACMD_BASE_PATH_RELATIVE = ../../../..
-MEGACMD_BASE_PATH = $$PWD/$$MEGACMD_BASE_PATH_RELATIVE
-
 SOURCES += \
     $$MEGACMD_BASE_PATH/src/megacmd_server_main.cpp

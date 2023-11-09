@@ -1025,6 +1025,32 @@ bool MegaCmdExecuter::checkAndInformPSA(CmdPetition *inf, bool enforce)
     return toret;
 }
 
+std::string MegaCmdExecuter::formatErrorAndMaySetErrorCode(const MegaError &error)
+{
+    auto code = error.getErrorCode();
+    if (code == MegaError::API_OK)
+    {
+        return std::string();
+    }
+
+    setCurrentOutCode(code);
+    if (code == MegaError::API_EBLOCKED)
+    {
+        auto reason = sandboxCMD->getReasonblocked();
+        auto reasonStr = std::string("Account blocked.");
+        if (!reason.empty())
+        {
+            reasonStr.append("Reason: ").append(reason);
+        }
+        return reasonStr;
+    }
+    else if (code == MegaError::API_EPAYWALL || (code == MegaError::API_EOVERQUOTA && sandboxCMD->storageStatus == MegaApi::STORAGE_STATE_RED))
+    {
+        return "Reached storage quota. You can change your account plan to increase your quota limit. See \"help --upgrade\" for further details";
+    }
+
+    return error.getErrorString();
+}
 
 bool MegaCmdExecuter::checkNoErrors(int errorCode, const string &message)
 {
@@ -1049,32 +1075,13 @@ bool MegaCmdExecuter::checkNoErrors(MegaError *error, const string &message, Syn
         return true;
     }
 
-    setCurrentOutCode(error->getErrorCode());
-    if (error->getErrorCode() == MegaError::API_EBLOCKED)
+    auto logErrMessage = std::string("Failed to ").append(message).append(": ").append(formatErrorAndMaySetErrorCode(*error));
+    if (syncError)
     {
-        auto reason = sandboxCMD->getReasonblocked();
-        LOG_err << "Failed to " << message << ". Account blocked." <<( reason.empty()?"":" Reason: "+reason);
+        auto errCode = std::unique_ptr<const char[]>(MegaSync::getMegaSyncErrorCode(syncError));
+        logErrMessage.append(". ").append(errCode.get());
     }
-    else if ((error->getErrorCode() == MegaError::API_EPAYWALL) || (error->getErrorCode() == MegaError::API_EOVERQUOTA && sandboxCMD->storageStatus == MegaApi::STORAGE_STATE_RED))
-    {
-        LOG_err << "Failed to " << message << ": Reached storage quota. "
-                         "You can change your account plan to increase your quota limit. "
-                         "See \"help --upgrade\" for further details";
-    }
-    else
-    {
-        if (syncError)
-        {
-            LOG_err << "Failed to " << message << ": " << error->getErrorString()
-                    << ". " << MegaSync::getMegaSyncErrorCode(syncError);
-        }
-        else
-        {
-            LOG_err << "Failed to " << message << ": " << error->getErrorString();
-        }
-
-    }
-
+    LOG_err << logErrMessage;
     return false;
 }
 
@@ -2721,10 +2728,10 @@ void MegaCmdExecuter::fetchNodes(MegaApi *api, int clientID)
     if (!api) api = this->api;
 
     sandboxCMD->mNodesCurrentPromise.initiatePromise();
-    MegaCmdListener * megaCmdListener = new MegaCmdListener(api, NULL, clientID);
-    api->fetchNodes(megaCmdListener);
+    auto megaCmdListener = ::mega::make_unique<MegaCmdListener>(api, nullptr, clientID);
+    api->fetchNodes(megaCmdListener.get());
 
-    if (!actUponFetchNodes(api, megaCmdListener))
+    if (!actUponFetchNodes(api, megaCmdListener.get()))
     {
         //Ideally we should enter an state that indicates that we are not fully logged.
         //Specially when the account is blocked
@@ -2736,16 +2743,19 @@ void MegaCmdExecuter::fetchNodes(MegaApi *api, int clientID)
     //automatic now:
     //api->enableTransferResumption();
 
-    MegaNode *cwdNode = ( cwd == UNDEF ) ? NULL : api->getNodeByHandle(cwd);
-    if (( cwd == UNDEF ) || !cwdNode)
+    auto cwdNode = (cwd == UNDEF) ? nullptr : std::unique_ptr<MegaNode>(api->getNodeByHandle(cwd));
+    if (cwd == UNDEF || !cwdNode)
     {
-        MegaNode *rootNode = api->getRootNode();
-        cwd = rootNode->getHandle();
-        delete rootNode;
-    }
-    if (cwdNode)
-    {
-        delete cwdNode;
+        auto rootNode = std::unique_ptr<MegaNode>(api->getRootNode());
+        if (rootNode)
+        {
+            cwd = rootNode->getHandle();
+        }
+        else
+        {
+            LOG_err << "Root node was not found after fetching nodes";
+            sendEvent(StatsManager::MegacmdEvent::ROOT_NODE_NOT_FOUND_AFTER_FETCHING, api);
+        }
     }
 
     setloginInAtStartup(false); //to enable all commands before giving clients the green light!
@@ -3456,7 +3466,7 @@ bool MegaCmdExecuter::amIPro()
     megaCmdListener->wait();
     if (checkNoErrors(megaCmdListener->getError(), "export node"))
     {
-        MegaAccountDetails *details = megaCmdListener->getRequest()->getMegaAccountDetails();
+        std::unique_ptr<MegaAccountDetails> details(megaCmdListener->getRequest()->getMegaAccountDetails());
         prolevel = details->getProLevel();
     }
     delete megaCmdListener;
@@ -3469,13 +3479,9 @@ void MegaCmdExecuter::exportNode(MegaNode *n, int64_t expireTime, std::string pa
     const bool force = getFlag(clflags,"f");
     const bool writable = getFlag(clflags,"writable");
     const bool megaHosted = getFlag(clflags,"mega-hosted");
-    const bool isPro = amIPro();
 
-    if (!isPro && expireTime > 0)
-    {
-        LOG_err << "Only PRO users can add an expiration time";
-        return;
-    }
+    // TODO Cache this result the first time it's called
+    auto isPro = [this] () { return amIPro(); };
 
     bool copyrightAccepted = ConfigurationManager::getConfigurationValue("copyrightAccepted", false) || force;
     if (!copyrightAccepted)
@@ -3502,14 +3508,40 @@ void MegaCmdExecuter::exportNode(MegaNode *n, int64_t expireTime, std::string pa
         return;
     }
 
-    ConfigurationManager::savePropertyValue("copyrightAccepted",true);
+    ConfigurationManager::savePropertyValue("copyrightAccepted", true);
 
-    auto megaCmdListener = std::unique_ptr<MegaCmdListener>(new MegaCmdListener(api, nullptr));
+    auto megaCmdListener = ::mega::make_unique<MegaCmdListener>(api, nullptr);
     api->exportNode(n, expireTime, writable, megaHosted, megaCmdListener.get());
     megaCmdListener->wait();
 
-    if (!checkNoErrors(megaCmdListener->getError(), "export node"))
+    auto error = megaCmdListener->getError();
+    assert(error != nullptr);
+
+    if (error->getErrorCode() != MegaError::API_OK)
     {
+        auto path = std::unique_ptr<char[]>(api->getNodePath(n));
+        std::string msg = "Failed to export node";
+
+        if (path != nullptr)
+        {
+            msg.append(" ").append(path.get());
+        }
+
+        // TODO: Cache `amIPro` using a lambda since it's an expensive operation
+        if (expireTime != 0 && !isPro())
+        {
+            msg.append(": Only PRO users can set an expiry time for links");
+        }
+        else if (path != nullptr && strcmp(path.get(), "/") == 0)
+        {
+            msg.append(": The root folder cannot be exported");
+        }
+        else
+        {
+            msg.append(": ").append(formatErrorAndMaySetErrorCode(*error));
+        }
+        LOG_err << msg;
+
         return;
     }
 
@@ -3536,23 +3568,31 @@ void MegaCmdExecuter::exportNode(MegaNode *n, int64_t expireTime, std::string pa
     }
 
     string publicPassProtectedLink;
-
     if (password.size())
     {
-        if (isPro)
-        {
-            megaCmdListener.reset(new MegaCmdListener(api, nullptr));
-            api->encryptLinkWithPassword(publicLink.get(), password.c_str(), megaCmdListener.get());
-            megaCmdListener->wait();
+        megaCmdListener.reset(new MegaCmdListener(api, nullptr));
+        api->encryptLinkWithPassword(publicLink.get(), password.c_str(), megaCmdListener.get());
+        megaCmdListener->wait();
 
-            if (checkNoErrors(megaCmdListener->getError(), "protect public link with password"))
-            {
-                publicPassProtectedLink = megaCmdListener->getRequest()->getText();
-            }
+        auto error = megaCmdListener->getError();
+        assert(error != nullptr);
+
+        if (error->getErrorCode() == MegaError::API_OK)
+        {
+            publicPassProtectedLink = megaCmdListener->getRequest()->getText();
         }
         else
         {
-            LOG_err << "Only PRO users can protect links with passwords. Showing UNPROTECTED link";
+            std::string msg = "Failed to protect link with password (showing UNPROTECTED link). Reason: ";
+            if (!isPro())
+            {
+                msg.append("Only PRO users can do this");
+            }
+            else
+            {
+                msg.append(formatErrorAndMaySetErrorCode(*error));
+            }
+            LOG_err << msg;
         }
     }
 
@@ -9575,7 +9615,8 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
         if (words.size() <= 1)
         {
-            words.push_back(string(".")); //cwd
+            LOG_warn << "No file/folder argument provided, will export the current working folder";
+            words.push_back(string("."));
         }
 
         for (size_t i = 1; i < words.size(); i++)

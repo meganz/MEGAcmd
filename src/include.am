@@ -91,13 +91,27 @@ endif
 
 src_libmegacmdcomms_la_CXXFLAGS = $(LMEGAINC) $(DB_CXXFLAGS)
 ##############################################################################################
+###############################   CLIENT LIBRARY #############################################
+noinst_LTLIBRARIES += src/libmegacmdclient.la
+src_libmegacmdclient_la_LDFLAGS=
+
+noinst_HEADERS += src/client/megacmdclient.h src/megacmdcommonutils.h
+src_libmegacmdclient_la_SOURCES = src/client/megacmdclient.cpp src/megacmdcommonutils.cpp
+
+src_libmegacmdclient_la_LIBADD = $(top_builddir)/src/libmegacmdcomms.la
+
+if BUILD_MEGACMD_TESTS
+src_libmegacmdclient_la_CXXFLAGS = -DMEGACMD_TESTING_CODE=1
+src_libmegacmdclient_la_CXXFLAGS = -std=c++17 #required for instruments stuff
+src_libmegacmdclient_la_LIBADD += $(top_builddir)/src/libmegacmdinstruments.la
+endif
 
 ####################################   CLIENT  ###############################################
 noinst_HEADERS +=
-mega_exec_SOURCES =src/client/megacmdclient.cpp
+mega_exec_SOURCES = src/client/megacmd_client_main.cpp
 
 mega_exec_CXXFLAGS = -Isdk/include/ $(LMEGAINC)
-mega_exec_LDADD = $(top_builddir)/src/libmegacmdcomms.la
+mega_exec_LDADD = $(top_builddir)/src/libmegacmdclient.la
 ##############################################################################################
 
 ###############################   SHELL  #####################################################
@@ -145,6 +159,7 @@ mega_cmd_integration_tests_CXXFLAGS += -std=c++17
 
 mega_cmd_integration_tests_LDADD = -L/$(GTEST_DIR)/lib/ -lgtest -lgtest_main # Note, the trailing / is to allow simple --with-gtest (evalving to "yes")
 mega_cmd_integration_tests_LDADD += $(top_builddir)/src/libmegacmdserver.la
+mega_cmd_integration_tests_LDADD += $(top_builddir)/src/libmegacmdclient.la
 mega_cmd_integration_tests_LDADD += $(top_builddir)/src/libmegacmdinstruments.la
 mega_cmd_integration_tests_LDADD += $(top_builddir)/src/libmegacmdtestscommon.la
 
