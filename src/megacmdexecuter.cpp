@@ -3466,7 +3466,7 @@ bool MegaCmdExecuter::amIPro()
     megaCmdListener->wait();
     if (checkNoErrors(megaCmdListener->getError(), "export node"))
     {
-        MegaAccountDetails *details = megaCmdListener->getRequest()->getMegaAccountDetails();
+        std::unique_ptr<MegaAccountDetails> details(megaCmdListener->getRequest()->getMegaAccountDetails());
         prolevel = details->getProLevel();
     }
     delete megaCmdListener;
