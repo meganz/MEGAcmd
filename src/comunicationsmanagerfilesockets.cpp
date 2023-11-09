@@ -151,6 +151,11 @@ void ComunicationsManagerFileSockets::stopWaiting()
             }
 
             struct sockaddr_un addr;
+            if (socketPath.size() >= (ARRAYSIZE(addr.sun_path) - 1))
+            {
+                LOG_fatal << "Server socket path is too long: '" << socketPath << "'";
+                return;
+            }
             memset(&addr, 0, sizeof( addr ));
             addr.sun_family = AF_UNIX;
             strncpy(addr.sun_path, socketPath.c_str(), socketPath.size());
