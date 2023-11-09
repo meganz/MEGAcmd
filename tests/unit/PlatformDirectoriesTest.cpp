@@ -17,7 +17,6 @@
 
 #include "Instruments.h"
 #include "TestUtils.h"
-#include "comunicationsmanagerfilesockets.h"
 #include "megacmdcommonutils.h"
 
 TEST(PlatformDirectoriesTest, runtimeDirPath)
