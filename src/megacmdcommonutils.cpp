@@ -1504,7 +1504,7 @@ std::string WindowsDirectories::configDirPath()
 #else // !defined(_WIN32)
 std::string PosixDirectories::homeDirPath()
 {
-    char *homedir = getenv("HOME");
+    const char *homedir = getenv("HOME");
     if (homedir != nullptr)
     {
         return homedir;
@@ -1512,8 +1512,8 @@ std::string PosixDirectories::homeDirPath()
 
     struct passwd pwd = {};
     struct passwd *pwdresult = nullptr;
-    size_t bufsize = sysconf(_SC_GETPW_R_SIZE_MAX);
-    bufsize = bufsize == -1 ? 1000 : bufsize;
+    long int bufsize = sysconf(_SC_GETPW_R_SIZE_MAX);
+    bufsize = bufsize == -1 ? 1024 : bufsize;
     std::unique_ptr<char[]> pwdbuf = std::unique_ptr<char[]>(new char[bufsize]);
     auto err = getpwuid_r(getuid(), &pwd, pwdbuf.get(), bufsize, &pwdresult);
 
@@ -1573,7 +1573,7 @@ std::string MacOSDirectories::dataDirPath()
 #else // !defined(__APPLE__)
 std::string XDGDirectories::runtimeDirPath()
 {
-    char *runtimedir = getenv("XDG_RUNTIME_DIR");
+    const char *runtimedir = getenv("XDG_RUNTIME_DIR");
     if (runtimedir != nullptr)
     {
         return std::string(runtimedir).append("/megacmd");
@@ -1584,7 +1584,7 @@ std::string XDGDirectories::runtimeDirPath()
 
 std::string XDGDirectories::cacheDirPath()
 {
-    char *cachedir = getenv("XDG_CACHE_HOME");
+    const char *cachedir = getenv("XDG_CACHE_HOME");
     if (cachedir != nullptr)
     {
         return std::string(cachedir).append("/megacmd");
@@ -1595,7 +1595,7 @@ std::string XDGDirectories::cacheDirPath()
 
 std::string XDGDirectories::configDirPath()
 {
-    char *configdir = getenv("XDG_CONFIG_HOME");
+    const char *configdir = getenv("XDG_CONFIG_HOME");
     if (legacyConfigDirExists() || configdir == nullptr)
     {
         return PosixDirectories::configDirPath();
@@ -1605,7 +1605,7 @@ std::string XDGDirectories::configDirPath()
 
 std::string XDGDirectories::dataDirPath()
 {
-    char *datadir = getenv("XDG_DATA_HOME");
+    const char *datadir = getenv("XDG_DATA_HOME");
     if (legacyConfigDirExists())
     {
         return PosixDirectories::configDirPath();
@@ -1619,7 +1619,7 @@ std::string XDGDirectories::dataDirPath()
 
 std::string XDGDirectories::stateDirPath()
 {
-    char *statedir = getenv("XDG_STATE_HOME");
+    const char *statedir = getenv("XDG_STATE_HOME");
     if (statedir != nullptr)
     {
         return std::string(statedir).append("/megacmd");
@@ -1648,7 +1648,7 @@ std::string getSocketPath(bool ensure)
         }
     }
 
-    char *sockname_c = getenv("MEGACMD_SOCKET_NAME");
+    const char *sockname_c = getenv("MEGACMD_SOCKET_NAME");
     std::string sockname = sockname_c != nullptr ? std::string(sockname_c) : "megacmd.socket";
     return runtimedir.empty() ? std::string() : runtimedir.append("/").append(sockname);
 }
