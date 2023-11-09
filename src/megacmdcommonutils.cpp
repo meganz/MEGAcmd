@@ -881,6 +881,15 @@ string getOption(map<string, string> *cloptions, const char * optname, string de
     return cloptions->count(optname) ? ( *cloptions )[optname] : defaultValue;
 }
 
+std::pair<string, bool> getOptionOrFalse(const map<string, string>& cloptions, const char * optname)
+{
+    if (cloptions.find(optname) == cloptions.end())
+    {
+        return {"", false};
+    }
+    return {cloptions.at(optname), true};
+}
+
 int getintOption(map<string, string> *cloptions, const char * optname, int defaultValue)
 {
     if (cloptions->count(optname))

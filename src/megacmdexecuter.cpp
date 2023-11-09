@@ -9614,14 +9614,30 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             return;
         }
 
-        string linkPass = getOption(cloptions, "password", "");
-        bool add = getFlag(clflags, "a");
+        const bool add = getFlag(clflags, "a");
 
-        if (!add && (linkPass.size() || expireTime > 0 || getFlag(clflags, "f") || getFlag(clflags, "writable") || getFlag(clflags, "mega-hosted")))
+        auto passwordPair = getOptionOrFalse(*cloptions, "password");
+        const string linkPass = passwordPair.first;
+
+        // When the user passes "--password" without "=" it gets treated as a flag, so
+        // it's inserted into `clflags`. We'll treat this as hasPassword=true as well
+        // to ensure we log the "password is empty" error to the user.
+        const bool hasPassword = passwordPair.second || getFlag(clflags, "password");
+
+        if (!add && (hasPassword || expireTime > 0 || getFlag(clflags, "f") || getFlag(clflags, "writable") || getFlag(clflags, "mega-hosted")))
         {
             setCurrentOutCode(MCMD_EARGS);
             LOG_err << "Option can only be used when adding an export (with -a)";
             LOG_err << "Usage: " << getUsageStr("export");
+            return;
+        }
+
+        // This will be true for '--password', '--password=', and '--password=""'
+        // Note: --password='' will use the '' string as the actual password
+        if (hasPassword && linkPass.empty())
+        {
+            setCurrentOutCode(MCMD_EARGS);
+            LOG_err << "Password cannot be empty";
             return;
         }
 
