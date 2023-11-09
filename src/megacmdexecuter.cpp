@@ -3461,15 +3461,17 @@ void MegaCmdExecuter::uploadNode(string path, MegaApi* api, MegaNode *node, stri
 bool MegaCmdExecuter::amIPro()
 {
     int prolevel = -1;
-    MegaCmdListener *megaCmdListener = new MegaCmdListener(api, NULL);
-    api->getAccountDetails(megaCmdListener);
+
+    auto megaCmdListener = ::mega::make_unique<MegaCmdListener>(api, nullptr);
+    api->getAccountDetails(megaCmdListener.get());
     megaCmdListener->wait();
-    if (checkNoErrors(megaCmdListener->getError(), "export node"))
+
+    if (checkNoErrors(megaCmdListener->getError(), "get account details"))
     {
         std::unique_ptr<MegaAccountDetails> details(megaCmdListener->getRequest()->getMegaAccountDetails());
         prolevel = details->getProLevel();
     }
-    delete megaCmdListener;
+
     return prolevel > 0;
 }
 
@@ -3479,9 +3481,6 @@ void MegaCmdExecuter::exportNode(MegaNode *n, int64_t expireTime, std::string pa
     const bool force = getFlag(clflags,"f");
     const bool writable = getFlag(clflags,"writable");
     const bool megaHosted = getFlag(clflags,"mega-hosted");
-
-    // TODO Cache this result the first time it's called
-    auto isPro = [this] () { return amIPro(); };
 
     bool copyrightAccepted = force || ConfigurationManager::getConfigurationValue("copyrightAccepted", false);
     if (!copyrightAccepted)
@@ -3527,8 +3526,7 @@ void MegaCmdExecuter::exportNode(MegaNode *n, int64_t expireTime, std::string pa
             msg.append(" ").append(path.get());
         }
 
-        // TODO: Cache `amIPro` using a lambda since it's an expensive operation
-        if (expireTime != 0 && !isPro())
+        if (expireTime != 0 && !amIPro())
         {
             msg.append(": Only PRO users can set an expiry time for links");
         }
@@ -3573,7 +3571,7 @@ void MegaCmdExecuter::exportNode(MegaNode *n, int64_t expireTime, std::string pa
         // Encrypting links with passwords is a client-side operation that will be done regardless
         // of PRO status of the account. So we need to manually check for it before calling
         // `encryptLinkWithPassword`; the function itself will not fail check this.
-        if (isPro())
+        if (amIPro())
         {
             megaCmdListener.reset(new MegaCmdListener(api, nullptr));
             api->encryptLinkWithPassword(publicLink.get(), password.c_str(), megaCmdListener.get());
