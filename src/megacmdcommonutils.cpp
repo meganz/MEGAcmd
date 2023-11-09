@@ -1629,7 +1629,7 @@ std::string XDGDirectories::stateDirPath()
 }
 #endif // !defined(__APPLE__)
 
-std::string getSocketPath(bool ensure)
+std::string getOrCreateSocketPath(bool ensure)
 {
     auto dirs = PlatformDirectories::getPlatformSpecificDirectories();
     auto runtimedir = dirs->runtimeDirPath();

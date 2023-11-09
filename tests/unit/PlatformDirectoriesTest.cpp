@@ -88,9 +88,9 @@ TEST(PlatformDirectoriesTest, cacheDirPath)
 }
 
 #ifndef _WIN32
-TEST(PlatformDirectoriesTest, getSocketPath)
+TEST(PlatformDirectoriesTest, getOrCreateSocketPath)
 {
-    using megacmd::getSocketPath;
+    using megacmd::getOrCreateSocketPath;
     using megacmd::PlatformDirectories;
 
     auto dirs = PlatformDirectories::getPlatformSpecificDirectories();
@@ -99,12 +99,12 @@ TEST(PlatformDirectoriesTest, getSocketPath)
     {
         G_SUBTEST << "With $MEGACMD_SOCKET_NAME";
         auto guard = TestInstrumentsEnvVarGuard("MEGACMD_SOCKET_NAME", "megacmd-test.socket");
-        EXPECT_EQ(getSocketPath(false), runtimeDir + "/megacmd-test.socket");
+        EXPECT_EQ(getOrCreateSocketPath(false), runtimeDir + "/megacmd-test.socket");
     }
     {
         G_SUBTEST << "With $MEGACMD_SOCKET_NAME";
         auto guard = TestInstrumentsUnsetEnvVarGuard("MEGACMD_SOCKET_NAME");
-        EXPECT_EQ(getSocketPath(false), runtimeDir + "/megacmd.socket");
+        EXPECT_EQ(getOrCreateSocketPath(false), runtimeDir + "/megacmd.socket");
     }
 }
 #endif

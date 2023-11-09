@@ -305,7 +305,7 @@ SOCKET MegaCmdShellCommunications::createSocket(int number, bool initializeserve
         {
             cerr << "ERROR setting CLOEXEC to socket: " << errno << endl;
         }
-        std::string socketPath = getSocketPath(false);
+        std::string socketPath = getOrCreateSocketPath(false);
         if (socketPath.empty())
         {
             std::cerr << "Error creating runtime directory for socket file: " << strerror(errno) << std::endl;

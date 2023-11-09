@@ -42,7 +42,7 @@ ComunicationsManagerFileSockets::ComunicationsManagerFileSockets()
 
 int ComunicationsManagerFileSockets::initialize()
 {
-    auto socketPath = getSocketPath(true);
+    auto socketPath = getOrCreateSocketPath(true);
     struct sockaddr_un addr;
 
     if (socketPath.empty())
@@ -136,7 +136,7 @@ void ComunicationsManagerFileSockets::stopWaiting()
     { //shutdown failed. we need to send something to the blocked thread so as to wake up from select
 
         int clientsocket = socket(AF_UNIX, SOCK_STREAM, 0);
-        auto socketPath = getSocketPath(false);
+        auto socketPath = getOrCreateSocketPath(false);
         LOG_info << "listening at " << socketPath;
         if (clientsocket < 0 )
         {
