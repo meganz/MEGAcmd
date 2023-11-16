@@ -1,0 +1,115 @@
+# syntax=docker/dockerfile:1
+FROM debian:12-slim as base
+
+ADD https://artifactory.developers.mega.co.nz/artifactory/debian-dev/private/Debian_11/amd64/pdfium-mega_5247.0-4.1_amd64.deb /tmp/pdfium-mega.deb
+
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    rm -f /etc/apt/apt.conf.d/docker-clean \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends \
+    googletest \
+    libasan8 \
+    libavcodec59 \
+    libavformat59 \
+    libavutil57 \
+    libc6 \
+    libpcrecpp0v5 \
+    libc-ares2 \
+    libcrypto++8 \
+    libfreeimage3 \
+    libgcc-s1 \
+    libicu72 \
+    libmediainfo0v5 \
+    libpcre3 \
+    libpcre32-3 \
+    libreadline8 \
+    libsodium23 \
+    libsqlite3-0 \
+    libssl3 \
+    libstdc++6 \
+    libswscale6 \
+    libubsan1 \
+    libuv1 \
+    libzen0v5 \
+    zlib1g \
+    gpg \
+    && apt-get install -y /tmp/pdfium-mega.deb \
+    && rm /tmp/pdfium-mega.deb \
+    && apt-get clean
+
+FROM base as build-deps
+
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update \
+    && apt-get install -y --no-install-recommends \
+    build-essential \
+    ccache \
+    cmake \
+    debhelper dh-autoreconf \
+    libavcodec-dev \
+    libavformat-dev \
+    libavutil-dev \
+    libc-ares-dev \
+    libcrypto++-dev \
+    libfreeimage-dev \
+    libgmock-dev \
+    libgtest-dev \
+    libicu-dev \
+    libmediainfo-dev \
+    libpcre3-dev \
+    libreadline-dev \
+    libsodium-dev \
+    libsqlite3-dev \
+    libssl-dev \
+    libswscale-dev \
+    libtool-bin \
+    libuv1-dev \
+    libzen-dev \
+    libzen-dev \
+    pkg-config \
+    zip \
+    zlib1g-dev \
+    && apt-get clean
+
+FROM scratch as src
+
+WORKDIR /usr/src/megacmd
+COPY sdk ./sdk
+COPY src ./src
+COPY tests ./tests
+COPY build ./build
+COPY contrib ./contrib
+COPY Makefile.am autogen.sh clean.sh configure.ac ./
+
+FROM build-deps as build
+
+WORKDIR /usr/src/megacmd
+COPY --from=src /usr/src/megacmd ./
+
+ENV CC "ccache gcc-12"
+ENV CXX "ccache g++-12"
+ENV CCACHE_DIR /tmp/ccache
+ARG ENABLE_ASAN=ON
+ARG ENABLE_UBSAN=ON
+ARG ENABLE_TSAN=OFF
+
+RUN --mount=type=cache,target=/tmp/ccache \
+    --mount=type=tmpfs,target=/tmp/build \
+    cmake -S build/cmake -B /tmp/build \
+    -D ENABLE_ASAN=${ENABLE_ASAN} -D \
+    ENABLE_UBSAN=${ENABLE_UBSAN} -D \
+    ENABLE_TSAN=${ENABLE_TSAN} \
+    && make -C /tmp/build -j$(nproc) \
+    && cd /tmp/build \
+    && install mega-cmd mega-cmd-server \
+    mega-cmd-tests-integration mega-cmd-tests-unit \
+    mega-cmd-updater mega-exec \
+    megacli megasimplesync \
+    test_integration test_unit \
+    /usr/local/bin/
+
+FROM base as final
+
+COPY --from=build /usr/local/ /usr/local/
