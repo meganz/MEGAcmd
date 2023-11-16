@@ -40,7 +40,7 @@ body:
   - type: input
     id: platform-version
     attributes:
-      label: "Platform version"
+      label: "Platform version. In the case of Linux, please enter the Linux distribution you are using."
       placeholder: "ex. Windows 11 Pro"
     validations:
       required: true
