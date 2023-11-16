@@ -1633,6 +1633,10 @@ std::string getOrCreateSocketPath(bool createDirectory)
 {
     auto dirs = PlatformDirectories::getPlatformSpecificDirectories();
     auto runtimedir = dirs->runtimeDirPath();
+    if (runtimedir.empty())
+    {
+        return std::string();
+    }
     struct stat path_stat = {};
     if (createDirectory)
     {
@@ -1650,7 +1654,7 @@ std::string getOrCreateSocketPath(bool createDirectory)
 
     const char *sockname_c = getenv("MEGACMD_SOCKET_NAME");
     std::string sockname = sockname_c != nullptr ? std::string(sockname_c) : "megacmd.socket";
-    return runtimedir.empty() ? std::string() : runtimedir.append("/").append(sockname);
+    return runtimedir.append("/").append(sockname);
 }
 #endif // _WIN32
 } //end namespace
