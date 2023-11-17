@@ -111,14 +111,13 @@ pipeline {
                 dir('test-results') {
                     sh "docker run --rm --mount type=bind,src='${megacmd_sources_workspace}/test-results',target=/tmp/test-results -- meganz/megacmd:${env.BUILD_NUMBER} /usr/local/bin/mega-cmd-unit-tests --gtest_output=xml:/tmp/test-results/megacmd-unit-tests.xml"   
                 }
-                xunit (tools: [ GoogleTest(pattern: '${megacmd_sources_workspace}/test-results/*.xml') ])
-
             }
         }
     }
 
     post{
         always{
+            junit "${megacmd_sources_workspace}/test-results/*.xml"
             script{
                 if (currentBuild.currentResult == 'SUCCESS'){
                     addGitLabMRComment(comment: ":white_check_mark: ${currentBuild.projectName} :penguin: <b>Linux</b> SUCCEEDED :muscle:<br/>Build results: [Jenkins [${currentBuild.displayName}]](${currentBuild.absoluteUrl})<br/>Commit: ${env.GIT_COMMIT}" )
