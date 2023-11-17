@@ -106,7 +106,6 @@ pipeline {
 
     post{
         always{
-            sh "docker image rm meganz/megacmd_builder:${env.BUILD_NUMBER}"
             script{
                 if (currentBuild.currentResult == 'SUCCESS'){
                     addGitLabMRComment(comment: ":white_check_mark: ${currentBuild.projectName} :penguin: <b>Linux</b> SUCCEEDED :muscle:<br/>Build results: [Jenkins [${currentBuild.displayName}]](${currentBuild.absoluteUrl})<br/>Commit: ${env.GIT_COMMIT}" )
