@@ -1,10 +1,15 @@
 # syntax=docker/dockerfile:1
+FROM scratch as pdfium
+ADD https://artifactory.developers.mega.co.nz/artifactory/debian-dev/private/Debian_11/amd64/pdfium-mega_5247.0-4.1_amd64.deb /tmp/pdfium/pdfium-mega.deb
+
 FROM debian:12-slim as base
 
-ADD https://artifactory.developers.mega.co.nz/artifactory/debian-dev/private/Debian_11/amd64/pdfium-mega_5247.0-4.1_amd64.deb /tmp/pdfium-mega.deb
+RUN rm -f /etc/apt/apt.conf.d/docker-clean; \
+    echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.conf.d/keep-cache
 
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    --mount=type=bind,from=pdfium,source=/tmp/pdfium/pdfium-mega.deb,target=/tmp/pdfium/pdfium-mega.deb \
     rm -f /etc/apt/apt.conf.d/docker-clean \
     && apt-get update \
     && apt-get install -y --no-install-recommends \
@@ -34,9 +39,8 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     libzen0v5 \
     zlib1g \
     gpg \
-    && apt-get install -y /tmp/pdfium-mega.deb \
-    && rm /tmp/pdfium-mega.deb \
-    && apt-get clean
+    /tmp/pdfium/pdfium-mega.deb
+RUN apt-get clean
 
 FROM base as build-deps
 
@@ -68,11 +72,10 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     libzen-dev \
     pkg-config \
     zip \
-    zlib1g-dev \
-    && apt-get clean
+    zlib1g-dev
+RUN apt-get clean
 
 FROM scratch as src
-
 WORKDIR /usr/src/megacmd
 COPY sdk ./sdk
 COPY src ./src
@@ -84,7 +87,6 @@ COPY Makefile.am autogen.sh clean.sh configure.ac ./
 FROM build-deps as build
 
 WORKDIR /usr/src/megacmd
-COPY --from=src /usr/src/megacmd ./
 
 ENV CC "ccache gcc-12"
 ENV CXX "ccache g++-12"
@@ -92,12 +94,12 @@ ENV CCACHE_DIR /tmp/ccache
 ARG BUILD_OPT_SANITIZERS=all
 
 RUN --mount=type=cache,target=/tmp/ccache \
+    --mount=type=bind,from=src,source=/usr/src/megacmd,target=/usr/src/megacmd,rw \
     ./autogen.sh \
     && ./configure --disable-silent-rules --prefix=/usr/local \
     --disable-examples --enable-megacmd-tests --with-gtest \
     --enable-sanitizer=${BUILD_OPT_SANITIZERS} --enable-debug \
-    && make -j$(nproc)
-RUN make install
+    && make -j$(nproc) && make install
 
 FROM base as final
 
