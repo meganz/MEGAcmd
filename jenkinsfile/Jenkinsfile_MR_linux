@@ -109,7 +109,7 @@ pipeline {
             }
             steps {
                 dir('test-results') {
-                    sh "docker run --rm -- meganz/megacmd:${env.BUILD_NUMBER} --mount type=bind,src='${megacmd_sources_workspace}/test-results',target=/tmp/test-results -- /usr/local/bin/mega-cmd-unit-tests --gtest_output=xml:/tmp/test-results/megacmd-unit-tests.xml"   
+                    sh "docker run --rm --mount type=bind,src='${megacmd_sources_workspace}/test-results',target=/tmp/test-results -- meganz/megacmd:${env.BUILD_NUMBER} /usr/local/bin/mega-cmd-unit-tests --gtest_output=xml:/tmp/test-results/megacmd-unit-tests.xml"   
                 }
                 xunit (tools: [ GoogleTest(pattern: '${megacmd_sources_workspace}/test-results/*.xml') ])
 
