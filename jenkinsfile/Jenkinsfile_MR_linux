@@ -93,28 +93,14 @@ pipeline {
             }
         }
 
-        stage('Build docker image'){
+        stage('Build MEGAcmd container image'){
             //todo: integrate this to docker registry, and only run this stage when needed. Image should be downloaded from artifactory registry.
-            steps {
-                dir("build-with-docker"){
-                    sh "docker build . -t meganz/megacmd_builder:${env.BUILD_NUMBER}"
-                }
-            }
-        
-        }
-
-        stage('Build MEGAcmd'){
             options{
                 timeout(time: 3, unit: 'HOURS')
             }
-            steps{
-                sh "docker run --name megacmd_builder-${env.BUILD_NUMBER} --tty --ulimit core=-1 --security-opt seccomp=unconfined --cpus=2 --rm -v ${WORKSPACE}:/opt/megacmd meganz/megacmd_builder:${env.BUILD_NUMBER}"
+            steps {
+                sh "docker build -t meganz/megacmd:${env.BUILD_NUMBER} -f ${megacmd_sources_workspace}/build-with-docker/Dockerfile.autotools --ulimit=core=-1 --cpuset-cpus=0,1 -- ${megacmd_sources_workspace}"
             }
-            post{
-                aborted {
-                    sh "docker kill megacmd_builder-${env.BUILD_NUMBER}" 
-                }
-            } 
         }
     }
 
