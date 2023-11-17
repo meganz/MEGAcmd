@@ -99,7 +99,7 @@ pipeline {
                 timeout(time: 3, unit: 'HOURS')
             }
             steps {
-                sh "docker build -t meganz/megacmd:${env.BUILD_NUMBER} -f ${megacmd_sources_workspace}/build-with-docker/Dockerfile.autotools --ulimit=core=-1 --cpuset-cpus=0,1 -- ${megacmd_sources_workspace}"
+                sh "DOCKER_BUILDKIT=1 docker build -t meganz/megacmd:${env.BUILD_NUMBER} -f ${megacmd_sources_workspace}/build-with-docker/Dockerfile.autotools --ulimit=core=-1 --cpuset-cpus=0,1 -- ${megacmd_sources_workspace}"
             }
         }
     }
