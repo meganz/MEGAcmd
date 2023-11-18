@@ -135,7 +135,7 @@ pipeline {
                     updateGitlabCommitStatus(name: 'Build linux', state: 'failed')
                 }
             }
-            junit "${megacmd_sources_workspace}/test-results/megacmd-unit-tests.xml"
+            junit "**/test-results/*.xml"
         }
 
     }
