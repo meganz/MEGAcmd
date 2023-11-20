@@ -931,13 +931,23 @@ int executeClient(int argc, char* argv[], OUTSTREAMTYPE & outstream)
         return -2;
     }
 
-#ifdef _WIN32
+#if defined _WIN32 && !defined MEGACMD_TESTING_CODE
     int wargc;
-    LPWSTR *szArglist = CommandLineToArgvW(GetCommandLineW(),&wargc);
-    wstring wParsedArgs = parsewArgs(wargc,szArglist);
+
+    // This function (i.e., `executeClient`) should not deal with the command line arguments directly; that's above its responsability now.
+    // For now we'll disable this call to `CommandLineToArgvW` in integration tests (the only other consumer of `executeClient` that's not main) because it was causing issues.
+    // TODO: In the future we should refactor this to move the responsability away from `executeClient`. We should also avoid having two separate `parseArgs` functions.
+    LPWSTR *szArglist = CommandLineToArgvW(GetCommandLineW(), &wargc);
+    if (szArglist == NULL)
+    {
+        return -3;
+    }
+    wstring wParsedArgs = parsewArgs(wargc, szArglist);
+    LocalFree(szArglist);
 #else
     string parsedArgs = parseArgs(argc,argv);
 #endif
+
     bool isInloginInValidCommands = false;
     if (argc>1)
     {
@@ -955,8 +965,7 @@ int executeClient(int argc, char* argv[], OUTSTREAMTYPE & outstream)
         }
     } while (serverTryingToLog && !isInloginInValidCommands);
 
-
-#ifdef _WIN32
+#if defined _WIN32 && !defined MEGACMD_TESTING_CODE
     int outcode = comms->executeCommandW(wParsedArgs, readresponse, outstream, false);
 #else
     int outcode = comms->executeCommand(parsedArgs, readresponse, outstream, false);
