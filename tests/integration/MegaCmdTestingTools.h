@@ -27,6 +27,20 @@
 #include <chrono>
 #include <future>
 
+#define ASSERT_CONTAINS(container, item) \
+    ASSERT_NE(std::find(container.begin(), container.end(), item), container.end())
+
+#define ASSERT_NCONTAINS(container, item) \
+    ASSERT_EQ(std::find(container.begin(), container.end(), item), container.end())
+
+#define EXPECT_CONTAINS(container, item) \
+    EXPECT_NE(std::find(container.begin(), container.end(), item), container.end())
+
+#define EXPECT_NCONTAINS(container, item) \
+    EXPECT_EQ(std::find(container.begin(), container.end(), item), container.end())
+
+std::vector<std::string> splitByNewline(const std::string& str);
+
 class ClientResponse
 {
     int mStatus = -1;

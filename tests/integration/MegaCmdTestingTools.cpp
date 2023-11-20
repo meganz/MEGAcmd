@@ -15,6 +15,19 @@
 
 #include "MegaCmdTestingTools.h"
 
+std::vector<std::string> splitByNewline(const std::string& str)
+{
+    std::vector<std::string> result;
+    std::string line;
+    std::istringstream iss(str);
+
+    while (std::getline(iss, line))
+    {
+        result.push_back(line);
+    }
+    return result;
+}
+
 ClientResponse executeInClient(const std::vector<std::string>& command, bool /*nonInteractive: TODO: give support to shell execs*/)
 {
     // To manage the memory of the first arg
@@ -51,21 +64,20 @@ void ensureLoggedIn()
         }
 
         auto result = executeInClient({"login", user, pass});
-
         ASSERT_EQ(0, result.status());
     }
 }
 
 bool hasReadStructure()
 {
-    return executeInClient({"ls testReadingFolder01"}).ok();
+    return executeInClient({"ls", "testReadingFolder01"}).ok();
 }
 
 void ensureReadStructure()
 {
     if (!hasReadStructure())
     {
-        auto result = executeInClient({"import","https://mega.nz/folder/1NYSDSDZ#slJ2xyjgDMqJ5rHFM-YCSw", "testReadingFolder01"}); //TODO: procure the means to generate this one.
+        auto result = executeInClient({"import", "https://mega.nz/folder/gflVFLhC#6neMkeJrt4dWboRTc1NLUg"});
         ASSERT_EQ(0, result.status());
     }
 }
