@@ -59,7 +59,7 @@ public:
     }
 };
 
-ClientResponse executeInClient(std::list<std::string> command, bool nonInteractive = true);
+ClientResponse executeInClient(const std::vector<std::string>& command, bool nonInteractive = true);
 void ensureLoggedIn();
 void ensureReadStructure();
 
