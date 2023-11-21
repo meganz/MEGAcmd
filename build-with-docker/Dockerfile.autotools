@@ -91,8 +91,9 @@ ENV CXX "ccache g++-12"
 ENV CCACHE_DIR /tmp/ccache
 ARG BUILD_OPT_SANITIZERS=all
 
+COPY --from=src /usr/src/megacmd /usr/src/megacmd
+
 RUN --mount=type=cache,target=/tmp/ccache \
-    --mount=type=bind,from=src,source=/usr/src/megacmd,target=/usr/src/megacmd,rw \
     ./autogen.sh \
     && ./configure --disable-silent-rules --prefix=/usr/local \
     --disable-examples --enable-megacmd-tests --with-gtest \
