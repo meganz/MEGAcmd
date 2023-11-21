@@ -27,17 +27,30 @@
 #include <chrono>
 #include <future>
 
-#define ASSERT_CONTAINS(container, item) \
-    ASSERT_NE(std::find(container.begin(), container.end(), item), container.end())
+template<typename C, typename I>
+testing::AssertionResult AssertContains(const char* container_expr, const char* item_expr, C container, I item)
+{
+    if (std::find(container.begin(), container.end(), item) != container.end())
+    {
+        return testing::AssertionSuccess();
+    }
+    return testing::AssertionFailure() << "`" << container_expr << "` does not contain item " << item_expr;
+}
 
-#define ASSERT_NCONTAINS(container, item) \
-    ASSERT_EQ(std::find(container.begin(), container.end(), item), container.end())
+template<typename C, typename I>
+testing::AssertionResult AssertNotContains(const char* container_expr, const char* item_expr, C container, I item)
+{
+    if (std::find(container.begin(), container.end(), item) == container.end())
+    {
+        return testing::AssertionSuccess();
+    }
+    return testing::AssertionFailure() << "`" << container_expr << "` contains item " << item_expr;
+}
 
-#define EXPECT_CONTAINS(container, item) \
-    EXPECT_NE(std::find(container.begin(), container.end(), item), container.end())
-
-#define EXPECT_NCONTAINS(container, item) \
-    EXPECT_EQ(std::find(container.begin(), container.end(), item), container.end())
+#define ASSERT_CONTAINS(container, item)  ASSERT_PRED_FORMAT2(AssertContains, container, item)
+#define ASSERT_NCONTAINS(container, item) ASSERT_PRED_FORMAT2(AssertNotContains, container, item)
+#define EXPECT_CONTAINS(container, item)  EXPECT_PRED_FORMAT2(AssertContains, container, item)
+#define EXPECT_NCONTAINS(container, item) EXPECT_PRED_FORMAT2(AssertNotContains, container, item)
 
 std::vector<std::string> splitByNewline(const std::string& str);
 
