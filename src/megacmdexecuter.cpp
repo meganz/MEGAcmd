@@ -2207,183 +2207,143 @@ void str_localtime(char s[32], ::mega::m_time_t t)
     strftime(s, 32, "%c", m_localtime(t, &tms));
 }
 
-
-void MegaCmdExecuter::actUponGetExtendedAccountDetails(SynchronousRequestListener *srl, int timeout)
+void MegaCmdExecuter::actUponGetExtendedAccountDetails(std::unique_ptr<::mega::MegaAccountDetails> storageDetails,
+                                                       std::unique_ptr<::mega::MegaAccountDetails> extAccountDetails)
 {
-    if (timeout == -1)
+    char timebuf[32], timebuf2[32];
+
+    LOG_verbose << "actUponGetExtendedAccountDetails ok";
+
+    if (storageDetails)
     {
-        srl->wait();
-    }
-    else
-    {
-        int trywaitout = srl->trywait(timeout);
-        if (trywaitout)
+        OUTSTREAM << "    Available storage: " << getFixLengthString(sizeToText(storageDetails->getStorageMax()), 9, ' ', true) << "ytes" << endl;
+        std::unique_ptr<MegaNode> n(api->getRootNode());
+        if (n)
         {
-            LOG_err << "GetExtendedAccountDetails took too long, it may have failed. No further actions performed";
-            return;
+            OUTSTREAM << "        In ROOT:      " << getFixLengthString(sizeToText(storageDetails->getStorageUsed(n->getHandle())), 9, ' ', true) << "ytes in "
+                      << getFixLengthString(SSTR(storageDetails->getNumFiles(n->getHandle())), 5, ' ', true) << " file(s) and "
+                      << getFixLengthString(SSTR(storageDetails->getNumFolders(n->getHandle())), 5, ' ', true) << " folder(s)" << endl;
+        }
+
+        n = std::unique_ptr<MegaNode>(api->getInboxNode());
+        if (n)
+        {
+            OUTSTREAM << "        In INBOX:     " << getFixLengthString(sizeToText(storageDetails->getStorageUsed(n->getHandle())), 9, ' ', true) << "ytes in "
+                      << getFixLengthString(SSTR(storageDetails->getNumFiles(n->getHandle())), 5, ' ', true) << " file(s) and "
+                      << getFixLengthString(SSTR(storageDetails->getNumFolders(n->getHandle())), 5, ' ', true) << " folder(s)" << endl;
+        }
+
+        n = std::unique_ptr<MegaNode>(api->getRubbishNode());
+        if (n)
+        {
+            OUTSTREAM << "        In RUBBISH:   " << getFixLengthString(sizeToText(storageDetails->getStorageUsed(n->getHandle())), 9, ' ', true) << "ytes in "
+                      << getFixLengthString(SSTR(storageDetails->getNumFiles(n->getHandle())), 5, ' ', true) << " file(s) and "
+                      << getFixLengthString(SSTR(storageDetails->getNumFolders(n->getHandle())), 5, ' ', true) << " folder(s)" << endl;
+        }
+
+        long long usedinVersions = storageDetails->getVersionStorageUsed();
+
+        OUTSTREAM << "        Total size taken up by file versions: " << getFixLengthString(sizeToText(usedinVersions), 12, ' ', true) << "ytes" << endl;
+
+        std::unique_ptr<MegaNodeList> inshares(api->getInShares());
+        if (inshares)
+        {
+            for (int i = 0; i < inshares->size(); i++)
+            {
+                auto node = inshares->get(i);
+                OUTSTREAM << "        In INSHARE " << node->getName() << ": " << getFixLengthString(sizeToText(storageDetails->getStorageUsed(node->getHandle())), 9, ' ', true)
+                          << "ytes in " << getFixLengthString(SSTR(storageDetails->getNumFiles(node->getHandle())), 5, ' ', true) << " file(s) and "
+                          << getFixLengthString(SSTR(storageDetails->getNumFolders(node->getHandle())), 5, ' ', true) << " folder(s)" << endl;
+            }
+        }
+        OUTSTREAM << "    Pro level: " << storageDetails->getProLevel() << endl;
+        if (storageDetails->getProLevel())
+        {
+            if (storageDetails->getProExpiration())
+            {
+                str_localtime(timebuf, storageDetails->getProExpiration());
+                OUTSTREAM << "        "
+                          << "Pro expiration date: " << timebuf << endl;
+            }
         }
     }
-
-    if (checkNoErrors(srl->getError(), "failed to GetExtendedAccountDetails"))
+    if (extAccountDetails)
     {
-        char timebuf[32], timebuf2[32];
-
-        LOG_verbose << "actUponGetExtendedAccountDetails ok";
-
-        MegaAccountDetails *details = srl->getRequest()->getMegaAccountDetails();
-        if (details)
+        std::unique_ptr<char[]> subscriptionMethod(extAccountDetails->getSubscriptionMethod());
+        OUTSTREAM << "    Subscription type: " << subscriptionMethod.get() << endl;
+        OUTSTREAM << "    Account balance:" << endl;
+        for (int i = 0; i < extAccountDetails->getNumBalances(); i++)
         {
-            OUTSTREAM << "    Available storage: "
-                      << getFixLengthString(sizeToText(details->getStorageMax()), 9, ' ', true)
-                      << "ytes" << endl;
-            MegaNode *n = api->getRootNode();
-            if (n)
+            std::unique_ptr<MegaAccountBalance> balance(extAccountDetails->getBalance(i));
+            char sbalance[50];
+
+            sprintf(sbalance, "    Balance: %.3s %.02f", balance->getCurrency(), balance->getAmount());
+            OUTSTREAM << "    "
+                      << "Balance: " << sbalance << endl;
+        }
+
+        if (extAccountDetails->getNumPurchases())
+        {
+            OUTSTREAM << "Purchase history:" << endl;
+            for (int i = 0; i < extAccountDetails->getNumPurchases(); i++)
             {
-                OUTSTREAM << "        In ROOT:      "
-                          << getFixLengthString(sizeToText(details->getStorageUsed(n->getHandle())), 9, ' ', true) << "ytes in "
-                          << getFixLengthString(SSTR(details->getNumFiles(n->getHandle())),5,' ',true) << " file(s) and "
-                          << getFixLengthString(SSTR(details->getNumFolders(n->getHandle())),5,' ',true) << " folder(s)" << endl;
-                delete n;
+                std::unique_ptr<MegaAccountPurchase> purchase(extAccountDetails->getPurchase(i));
+                char spurchase[150];
+
+                str_localtime(timebuf, purchase->getTimestamp());
+                sprintf(spurchase, "ID: %.11s Time: %s Amount: %.3s %.02f Payment method: %d\n", purchase->getHandle(), timebuf, purchase->getCurrency(),
+                        purchase->getAmount(), purchase->getMethod());
+                OUTSTREAM << "    " << spurchase << endl;
             }
+        }
 
-            n = api->getInboxNode();
-            if (n)
+        if (extAccountDetails->getNumTransactions())
+        {
+            OUTSTREAM << "Transaction history:" << endl;
+            for (int i = 0; i < extAccountDetails->getNumTransactions(); i++)
             {
-                OUTSTREAM << "        In INBOX:     "
-                          << getFixLengthString( sizeToText(details->getStorageUsed(n->getHandle())), 9, ' ', true ) << "ytes in "
-                          << getFixLengthString(SSTR(details->getNumFiles(n->getHandle())),5,' ',true) << " file(s) and "
-                          << getFixLengthString(SSTR(details->getNumFolders(n->getHandle())),5,' ',true) << " folder(s)" << endl;
-                delete n;
+                std::unique_ptr<MegaAccountTransaction> transaction(extAccountDetails->getTransaction(i));
+                char stransaction[100];
+
+                str_localtime(timebuf, transaction->getTimestamp());
+                sprintf(stransaction, "ID: %.11s Time: %s Amount: %.3s %.02f\n", transaction->getHandle(), timebuf, transaction->getCurrency(), transaction->getAmount());
+                OUTSTREAM << "    " << stransaction << endl;
             }
+        }
 
-            n = api->getRubbishNode();
-            if (n)
+        int alive_sessions = 0;
+        OUTSTREAM << "Current Active Sessions:" << endl;
+        char sdetails[500];
+        for (int i = 0; i < extAccountDetails->getNumSessions(); i++)
+        {
+            std::unique_ptr<MegaAccountSession> session(extAccountDetails->getSession(i));
+            if (session->isAlive())
             {
-                OUTSTREAM << "        In RUBBISH:   "
-                          << getFixLengthString(sizeToText(details->getStorageUsed(n->getHandle())), 9, ' ', true) << "ytes in "
-                          << getFixLengthString(SSTR(details->getNumFiles(n->getHandle())),5,' ',true) << " file(s) and "
-                          << getFixLengthString(SSTR(details->getNumFolders(n->getHandle())),5,' ',true) << " folder(s)" << endl;
-                delete n;
-            }
+                sdetails[0] = '\0';
+                str_localtime(timebuf, session->getCreationTimestamp());
+                str_localtime(timebuf2, session->getMostRecentUsage());
 
-            long long usedinVersions = details->getVersionStorageUsed();
+                std::unique_ptr<char[]> sid(api->userHandleToBase64(session->getHandle()));
 
-            OUTSTREAM << "        Total size taken up by file versions: "
-                      << getFixLengthString(sizeToText(usedinVersions), 12, ' ', true) << "ytes"<< endl;
-
-
-            MegaNodeList *inshares = api->getInShares();
-            if (inshares)
-            {
-                for (int i = 0; i < inshares->size(); i++)
+                if (session->isCurrent())
                 {
-                    n = inshares->get(i);
-                    OUTSTREAM << "        In INSHARE " << n->getName() << ": "
-                              << getFixLengthString(sizeToText(details->getStorageUsed(n->getHandle())), 9, ' ', true) << "ytes in "
-                              << getFixLengthString(SSTR(details->getNumFiles(n->getHandle())),5,' ',true) << " file(s) and "
-                              << getFixLengthString(SSTR(details->getNumFolders(n->getHandle())),5,' ',true) << " folder(s)" << endl;
+                    sprintf(sdetails, "    * Current Session\n");
                 }
+
+                std::unique_ptr<char[]> userAgent(session->getUserAgent());
+                std::unique_ptr<char[]> country(session->getCountry());
+                std::unique_ptr<char[]> ip(session->getIP());
+
+                sprintf(sdetails, "%s    Session ID: %s\n    Session start: %s\n    Most recent activity: %s\n    IP: %s\n    Country: %.2s\n    User-Agent: %s\n    -----\n",
+                        sdetails, sid.get(), timebuf, timebuf2, ip.get(), country.get(), userAgent.get());
+                OUTSTREAM << sdetails;
+                alive_sessions++;
             }
-            delete inshares;
+        }
 
-            OUTSTREAM << "    Pro level: " << details->getProLevel() << endl;
-            if (details->getProLevel())
-            {
-                if (details->getProExpiration())
-                {
-                    str_localtime(timebuf, details->getProExpiration());
-                    OUTSTREAM << "        " << "Pro expiration date: " << timebuf << endl;
-                }
-            }
-            char * subscriptionMethod = details->getSubscriptionMethod();
-            OUTSTREAM << "    Subscription type: " << subscriptionMethod << endl;
-            delete []subscriptionMethod;
-            OUTSTREAM << "    Account balance:" << endl;
-            for (int i = 0; i < details->getNumBalances(); i++)
-            {
-                MegaAccountBalance * balance = details->getBalance(i);
-                char sbalance[50];
-                sprintf(sbalance, "    Balance: %.3s %.02f", balance->getCurrency(), balance->getAmount());
-                OUTSTREAM << "    " << "Balance: " << sbalance << endl;
-            }
-
-            if (details->getNumPurchases())
-            {
-                OUTSTREAM << "Purchase history:" << endl;
-                for (int i = 0; i < details->getNumPurchases(); i++)
-                {
-                    MegaAccountPurchase *purchase = details->getPurchase(i);
-
-                    char spurchase[150];
-
-                    str_localtime(timebuf, purchase->getTimestamp());
-                    sprintf(spurchase, "ID: %.11s Time: %s Amount: %.3s %.02f Payment method: %d\n",
-                        purchase->getHandle(), timebuf, purchase->getCurrency(), purchase->getAmount(), purchase->getMethod());
-                    OUTSTREAM << "    " << spurchase << endl;
-                }
-            }
-
-            if (details->getNumTransactions())
-            {
-                OUTSTREAM << "Transaction history:" << endl;
-                for (int i = 0; i < details->getNumTransactions(); i++)
-                {
-                    MegaAccountTransaction *transaction = details->getTransaction(i);
-                    char stransaction[100];
-                    str_localtime(timebuf, transaction->getTimestamp());
-                    sprintf(stransaction, "ID: %.11s Time: %s Amount: %.3s %.02f\n",
-                        transaction->getHandle(), timebuf, transaction->getCurrency(), transaction->getAmount());
-                    OUTSTREAM << "    " << stransaction << endl;
-                }
-            }
-
-            int alive_sessions = 0;
-            OUTSTREAM << "Current Active Sessions:" << endl;
-            char sdetails[500];
-            for (int i = 0; i < details->getNumSessions(); i++)
-            {
-                MegaAccountSession * session = details->getSession(i);
-                if (session->isAlive())
-                {
-                    sdetails[0]='\0';
-                    str_localtime(timebuf, session->getCreationTimestamp());
-                    str_localtime(timebuf2, session->getMostRecentUsage());
-
-                    char *sid = api->userHandleToBase64(session->getHandle());
-
-                    if (session->isCurrent())
-                    {
-                        sprintf(sdetails, "    * Current Session\n");
-                    }
-
-                    char * userAgent = session->getUserAgent();
-                    char * country = session->getCountry();
-                    char * ip = session->getIP();
-
-                    sprintf(sdetails, "%s    Session ID: %s\n    Session start: %s\n    Most recent activity: %s\n    IP: %s\n    Country: %.2s\n    User-Agent: %s\n    -----\n",
-                    sdetails,
-                    sid,
-                    timebuf,
-                    timebuf2,
-                    ip,
-                    country,
-                    userAgent
-                    );
-                    OUTSTREAM << sdetails;
-                    delete []sid;
-                    delete []userAgent;
-                    delete []country;
-                    delete []ip;
-                    alive_sessions++;
-                }
-                delete session;
-            }
-
-            if (alive_sessions)
-            {
-                OUTSTREAM << alive_sessions << " active sessions opened" << endl;
-            }
-            delete details;
+        if (alive_sessions)
+        {
+            OUTSTREAM << alive_sessions << " active sessions opened" << endl;
         }
     }
 }
@@ -9418,10 +9378,28 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             OUTSTREAM << "Account e-mail: " << u->getEmail() << endl;
             if (getFlag(clflags, "l"))
             {
-                MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
-                api->getExtendedAccountDetails(true, true, true, megaCmdListener);
-                actUponGetExtendedAccountDetails(megaCmdListener);
-                delete megaCmdListener;
+                std::unique_ptr<::mega::MegaAccountDetails> storageDetails;
+                std::unique_ptr<::mega::MegaAccountDetails> extAccountDetails;
+                {
+                    auto megaCmdListener = ::mega::make_unique<MegaCmdListener>(nullptr);
+                    api->getAccountDetails(megaCmdListener.get());
+                    megaCmdListener->wait();
+                    if (checkNoErrors(megaCmdListener->getError(), "failed to get account details"))
+                    {
+                        storageDetails = std::unique_ptr<::mega::MegaAccountDetails>(megaCmdListener->getRequest()->getMegaAccountDetails());
+                    }
+                }
+                {
+                    auto megaCmdListener = ::mega::make_unique<MegaCmdListener>(nullptr);
+                    api->getExtendedAccountDetails(true, true, true, megaCmdListener.get());
+                    megaCmdListener->wait();
+                    if (checkNoErrors(megaCmdListener->getError(), "failed to get extended account details"))
+                    {
+                        extAccountDetails = std::unique_ptr<::mega::MegaAccountDetails>(megaCmdListener->getRequest()->getMegaAccountDetails());
+                    }
+                }
+
+                actUponGetExtendedAccountDetails(std::move(storageDetails), std::move(extAccountDetails));
             }
             delete u;
         }
