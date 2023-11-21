@@ -47,7 +47,7 @@ namespace megacmd {
 
 bool MegaCmdShellCommunicationsNamedPipes::confirmResponse; //TODO: do all this only in parent class
 bool MegaCmdShellCommunicationsNamedPipes::stopListener;
-mega::Thread *MegaCmdShellCommunicationsNamedPipes::listenerThread;
+std::unique_ptr<std::thread> MegaCmdShellCommunicationsNamedPipes::listenerThread;
 HANDLE MegaCmdShellCommunicationsNamedPipes::newNamedPipe;
 
 bool MegaCmdShellCommunicationsNamedPipes::namedPipeValid(HANDLE namedPipe)
@@ -461,7 +461,6 @@ MegaCmdShellCommunicationsNamedPipes::MegaCmdShellCommunicationsNamedPipes()
     registerAgainRequired = false;
 
     stopListener = false;
-    listenerThread = NULL;
     redirectedstdout = false;
 }
 
@@ -852,7 +851,7 @@ int MegaCmdShellCommunicationsNamedPipes::registerForStateChanges(bool interacti
         return -1;
     }
 
-    if (listenerThread != NULL)
+    if (listenerThread != nullptr)
     {
         stopListener = true;
         listenerThread->join();
@@ -863,8 +862,7 @@ int MegaCmdShellCommunicationsNamedPipes::registerForStateChanges(bool interacti
     sListenStateChangesNamedPipe * slsc = new sListenStateChangesNamedPipe();
     slsc->receiveNamedPipeNum = receiveNamedPipeNum;
     slsc->statechangehandle = statechangehandle;
-    listenerThread = new MegaThread();
-    listenerThread->start(listenToStateChangesEntryNamedPipe,slsc);
+    listenerThread = std::unique_ptr<std::thread>(new std::thread(listenToStateChangesEntryNamedPipe, slsc));
 
     registerAgainRequired = false;
 
@@ -879,15 +877,20 @@ void MegaCmdShellCommunicationsNamedPipes::setResponseConfirmation(bool confirma
 
 MegaCmdShellCommunicationsNamedPipes::~MegaCmdShellCommunicationsNamedPipes()
 {
-    if (listenerThread != NULL) //TODO: use heritage for whatever we can
+    if (listenerThread != nullptr) //TODO: use heritage for whatever we can
     {
         stopListener = true;
 
+        // This is a virtual method being executed in the destructor (bypasses virtual dispatch)
+        // TODO: Try to get rid of this when we fix this class
         executeCommand("sendack");
 
         listenerThread->join();
     }
-    delete (MegaThread *)listenerThread;
+
+    // Needed to reset this pointer for integration tests, which use this class several times in a row
+    // TODO: We need to fix this class completely; it shouldn't have so many static like these
+    listenerThread = nullptr;
 }
 
 } //end namespace
