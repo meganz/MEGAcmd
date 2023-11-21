@@ -139,6 +139,9 @@ pipeline {
                     }
                 }
             }
+        }
+
+        stage("Fix test-results permissions"){
             steps{
                 sh "chmod -R 777 ${megacmd_sources_workspace}/test-results"
             }
