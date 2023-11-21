@@ -140,12 +140,6 @@ pipeline {
                 }
             }
         }
-
-        stage("Fix test-results permissions"){
-            steps{
-                sh "chmod -R 777 ${megacmd_sources_workspace}/test-results"
-            }
-        }
     }
 
     post{
@@ -168,6 +162,7 @@ pipeline {
                     updateGitlabCommitStatus(name: 'Build linux', state: 'failed')
                 }
             }
+            sh "chmod -R 777 ${megacmd_sources_workspace}/test-results"
             junit "**/test-results/*.xml"
             archiveArtifacts artifacts: "**/test-results/megacmd-*-tests-asan-report.*"
         }
