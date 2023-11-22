@@ -35,7 +35,7 @@ class MegaCmdExecuter
 private:
     mega::MegaApi *api;
     mega::handle cwd;
-    char *session;
+    std::unique_ptr<char[]> session;
     mega::MegaFileSystemAccess *fsAccessCMD;
     MegaCMDLogger *loggerCMD;
     MegaCmdSandbox *sandboxCMD;

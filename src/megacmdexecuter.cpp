@@ -158,7 +158,6 @@ MegaCmdExecuter::MegaCmdExecuter(MegaApi *api, MegaCMDLogger *loggerCMD, MegaCmd
 MegaCmdExecuter::~MegaCmdExecuter()
 {
     delete fsAccessCMD;
-    delete []session;
     delete globalTransferListener;
 }
 
@@ -2499,8 +2498,8 @@ bool MegaCmdExecuter::actUponFetchNodes(MegaApi *api, SynchronousRequestListener
         // folder session depends on node handle,
         // which requires fetch nodes to be complete
         // i.e. dumpSession won't be valid after login
-        session = srl->getApi()->dumpSession();
-        ConfigurationManager::saveSession(session);
+        session = std::unique_ptr<char[]>(srl->getApi()->dumpSession());
+        ConfigurationManager::saveSession(session.get());
 
         LOG_verbose << "ActUponFetchNodes ok. Let's wait for nodes current:";
 
@@ -2529,7 +2528,7 @@ bool MegaCmdExecuter::actUponFetchNodes(MegaApi *api, SynchronousRequestListener
             LOG_debug << "Waited for nodes current ... " << eventCurrentArrivedOk;
         }
 
-        std::string sessionString(session ? session : "");
+        std::string sessionString(session ? session.get() : "");
         if (!sessionString.empty())
         {
             std::thread([this, api, sessionString]() {
@@ -2608,8 +2607,8 @@ int MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
             // Note, if logging into a folder (no email),
             // the dumpSession reported by the SDK at this point is not valid:
             // folder session depends on node handle, which requires fetching nodes
-            session = srl->getApi()->dumpSession();
-            ConfigurationManager::saveSession(session);
+            session = std::unique_ptr<char[]>(srl->getApi()->dumpSession());
+            ConfigurationManager::saveSession(session.get());
         }
 
         /* Restoring configured values */
@@ -2989,8 +2988,7 @@ void MegaCmdExecuter::actUponLogout(SynchronousRequestListener *srl, bool keptSe
     {
         LOG_verbose << "actUponLogout logout ok";
         cwd = UNDEF;
-        delete []session;
-        session = NULL;
+        session.reset();
         mtxSyncMap.lock();
         ConfigurationManager::unloadConfiguration();
         if (!keptSession)
