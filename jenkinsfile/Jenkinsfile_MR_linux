@@ -101,18 +101,18 @@ pipeline {
                         values 'asan', 'tsan'
                     }
                 }
-            }
-            stages{
-                stage('Build MEGAcmd container image'){
-                    //todo: integrate this to docker registry, and only run this stage when needed. Image should be downloaded from artifactory registry.
-                    options{
-                        timeout(time: 3, unit: 'HOURS')
-                    }
-                    environment{
-                        DOCKER_BUILDKIT=1
-                    }
-                    steps {
-                        sh "docker build -t meganz/megacmd-${SANITIZERS}:${env.BUILD_NUMBER} -f ${megacmd_sources_workspace}/build-with-docker/Dockerfile.autotools --build-arg=BUILD_OPT_SANITIZERS=ubsan,${SANITIZERS} --ulimit=core=-1 --cpuset-cpus=0,1 -- ${megacmd_sources_workspace}"
+                stages{
+                    stage('Build MEGAcmd container image'){
+                        //todo: integrate this to docker registry, and only run this stage when needed. Image should be downloaded from artifactory registry.
+                        options{
+                            timeout(time: 3, unit: 'HOURS')
+                        }
+                        environment{
+                            DOCKER_BUILDKIT=1
+                        }
+                        steps {
+                            sh "docker build -t meganz/megacmd-${SANITIZERS}:${env.BUILD_NUMBER} -f ${megacmd_sources_workspace}/build-with-docker/Dockerfile.autotools --build-arg=BUILD_OPT_SANITIZERS=ubsan,${SANITIZERS} --ulimit=core=-1 --cpuset-cpus=0,1 -- ${megacmd_sources_workspace}"
+                        }
                     }
                 }
             }
