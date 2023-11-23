@@ -93,6 +93,29 @@ pipeline {
             }
         }
 
+        stage("Build MEGAcmd"){
+            matrix {
+                axes {
+                    axis {
+                        name 'SANITIZERS'
+                        values 'asan', 'tsan'
+                    }
+                }
+            }
+            stage('Build MEGAcmd container image'){
+                //todo: integrate this to docker registry, and only run this stage when needed. Image should be downloaded from artifactory registry.
+                options{
+                    timeout(time: 3, unit: 'HOURS')
+                }
+                environment{
+                    DOCKER_BUILDKIT=1
+                }
+                steps {
+                    sh "docker build -t meganz/megacmd-${SANITIZERS}:${env.BUILD_NUMBER} -f ${megacmd_sources_workspace}/build-with-docker/Dockerfile.autotools --build-arg=BUILD_OPT_SANITIZERS=ubsan,${SANITIZERS} --ulimit=core=-1 --cpuset-cpus=0,1 -- ${megacmd_sources_workspace}"
+                }
+            }
+        }
+
         stage('Build and test MEGAcmd') {
             matrix {
                 axes {
@@ -106,19 +129,6 @@ pipeline {
                     }
                 }
                 stages {
-                    stage('Build MEGAcmd container image'){
-                        //todo: integrate this to docker registry, and only run this stage when needed. Image should be downloaded from artifactory registry.
-                        options{
-                            timeout(time: 3, unit: 'HOURS')
-                        }
-                        environment{
-                            DOCKER_BUILDKIT=1
-                        }
-                        steps {
-                            sh "docker build -t meganz/megacmd-${SANITIZERS}:${env.BUILD_NUMBER} -f ${megacmd_sources_workspace}/build-with-docker/Dockerfile.autotools --build-arg=BUILD_OPT_SANITIZERS=ubsan,${SANITIZERS} --ulimit=core=-1 --cpuset-cpus=0,1 -- ${megacmd_sources_workspace}"
-                        }
-                    }
-
                     stage('Run MEGAcmd unit tests'){
                         when{
                             expression {
@@ -130,7 +140,7 @@ pipeline {
                         }
                         environment{
                             ASAN_OPTIONS='atexit=1,print_stats=1,log_path=/tmp/test-results/megacmd-unit-tests-asan-report'
-                            TSAN_OPTIONS='log_path=/tmp/test-results/megacmd-integration-tests-tsan-report'
+                            TSAN_OPTIONS='log_path=/tmp/test-results/megacmd-unit-tests-tsan-report'
                         }
                         steps {
                             dir('test-results') {
