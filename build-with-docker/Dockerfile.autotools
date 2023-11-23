@@ -10,11 +10,11 @@ RUN rm -f /etc/apt/apt.conf.d/docker-clean; \
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     --mount=type=bind,from=pdfium,source=/tmp/pdfium/pdfium-mega.deb,target=/tmp/pdfium/pdfium-mega.deb \
-    rm -f /etc/apt/apt.conf.d/docker-clean \
-    && apt-get update \
+    apt-get update \
     && apt-get install -y --no-install-recommends \
     googletest \
     libasan8 \
+    libtsan2 \
     libavcodec59 \
     libavformat59 \
     libavutil57 \
