@@ -93,47 +93,63 @@ pipeline {
             }
         }
 
-        stage('Build MEGAcmd container image'){
-            //todo: integrate this to docker registry, and only run this stage when needed. Image should be downloaded from artifactory registry.
-            options{
-                timeout(time: 3, unit: 'HOURS')
-            }
-            environment{
-                DOCKER_BUILDKIT=1
-            }
-            steps {
-                sh "docker build -t meganz/megacmd:${env.BUILD_NUMBER} -f ${megacmd_sources_workspace}/build-with-docker/Dockerfile.autotools --ulimit=core=-1 --cpuset-cpus=0,1 -- ${megacmd_sources_workspace}"
-            }
-        }
-
-        stage('Run MEGAcmd tests'){
-            parallel{
-                stage('Run MEGAcmd unit tests'){
-                    options{
-                        timeout(time: 3, unit: 'HOURS')
-                    }
-                    environment{
-                        ASAN_OPTIONS='atexit=1,print_stats=1,log_path=/tmp/test-results/megacmd-unit-tests-asan-report'
-                    }
-                    steps {
-                        dir('test-results') {
-                            sh "docker run --user \$(id -u):\$(id -g) --env HOME=/tmp --env ASAN_OPTIONS --rm --mount type=bind,src='${megacmd_sources_workspace}/test-results',target=/tmp/test-results -- meganz/megacmd:${env.BUILD_NUMBER} /usr/local/bin/mega-cmd-unit-tests --gtest_output=xml:/tmp/test-results/megacmd-unit-tests.xml"
+        stages {
+            stage('Build and test MEGAcmd') {
+                matrix {
+                    axes {
+                        axis {
+                            name 'SANITIZERS'
+                            values 'asan', 'tsan'
                         }
                     }
-                }
-                stage('Run MEGAcmd integration tests'){
-                    options{
-                        timeout(time: 3, unit: 'HOURS')
-                    }
-                    environment{
-                        MEGACMD_TEST_USER=''
-                        MEGACMD_TEST_PASS=credentials('MEGACMD_TESTS_PASSWORD')
-                        ASAN_OPTIONS='atexit=1,print_stats=1,log_path=/tmp/test-results/megacmd-integration-tests-asan-report'
-                    }
-                    steps {
-                        lock(label: 'testing_accounts_megacmd', variable: 'MEGACMD_TEST_USER', quantity: 1, resource: null){
-                            dir('test-results') {
-                                sh "docker run --user \$(id -u):\$(id -g) --env HOME=/tmp --env MEGACMD_TEST_PASS --env MEGACMD_TEST_USER --env ASAN_OPTIONS --rm --mount type=bind,src='${megacmd_sources_workspace}/test-results',target=/tmp/test-results -- meganz/megacmd:${env.BUILD_NUMBER} /usr/local/bin/mega-cmd-integration-tests --gtest_output=xml:/tmp/test-results/megacmd-integration-tests.xml"
+                    stages {
+                        stage('Build MEGAcmd container image'){
+                            //todo: integrate this to docker registry, and only run this stage when needed. Image should be downloaded from artifactory registry.
+                            options{
+                                timeout(time: 3, unit: 'HOURS')
+                            }
+                            environment{
+                                DOCKER_BUILDKIT=1
+                            }
+                            steps {
+                                sh "docker build -t meganz/megacmd-${SANITIZERS}:${env.BUILD_NUMBER} -f ${megacmd_sources_workspace}/build-with-docker/Dockerfile.autotools --build-arg=BUILD_OPT_SANITIZERS=ubsan,${SANITIZERS} --ulimit=core=-1 --cpuset-cpus=0,1 -- ${megacmd_sources_workspace}"
+                            }
+                        }
+
+                        stage('Run MEGAcmd tests'){
+                            parallel{
+                                stage('Run MEGAcmd unit tests'){
+                                    options{
+                                        timeout(time: 3, unit: 'HOURS')
+                                    }
+                                    environment{
+                                        ASAN_OPTIONS='atexit=1,print_stats=1,log_path=/tmp/test-results/megacmd-unit-tests-asan-report'
+                                        TSAN_OPTIONS='log_path=/tmp/test-results/megacmd-integration-tests-tsan-report'
+                                    }
+                                    steps {
+                                        dir('test-results') {
+                                            sh "docker run --user \$(id -u):\$(id -g) --env HOME=/tmp --env ASAN_OPTIONS --env TSAN_OPTIONS--rm --mount type=bind,src='${megacmd_sources_workspace}/test-results',target=/tmp/test-results -- meganz/megacmd-${SANITIZERS}:${env.BUILD_NUMBER} /usr/local/bin/mega-cmd-unit-tests --gtest_output=xml:/tmp/test-results/megacmd-unit-tests-${SANITIZERS}.xml"
+                                        }
+                                    }
+                                }
+                                stage('Run MEGAcmd integration tests'){
+                                    options{
+                                        timeout(time: 3, unit: 'HOURS')
+                                    }
+                                    environment{
+                                        MEGACMD_TEST_USER=''
+                                        MEGACMD_TEST_PASS=credentials('MEGACMD_TESTS_PASSWORD')
+                                        ASAN_OPTIONS='atexit=1,print_stats=1,log_path=/tmp/test-results/megacmd-integration-tests-asan-report'
+                                        TSAN_OPTIONS='log_path=/tmp/test-results/megacmd-integration-tests-tsan-report'
+                                    }
+                                    steps {
+                                        lock(label: 'testing_accounts_megacmd', variable: 'MEGACMD_TEST_USER', quantity: 1, resource: null){
+                                            dir('test-results') {
+                                                sh "docker run --user \$(id -u):\$(id -g) --env HOME=/tmp --env MEGACMD_TEST_PASS --env MEGACMD_TEST_USER --env ASAN_OPTIONS --env TSAN_OPTIONS --rm --mount type=bind,src='${megacmd_sources_workspace}/test-results',target=/tmp/test-results -- meganz/megacmd:${env.BUILD_NUMBER} /usr/local/bin/mega-cmd-integration-tests --gtest_output=xml:/tmp/test-results/megacmd-integration-tests-${SANITIZERS}.xml"
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
