@@ -2318,15 +2318,15 @@ void MegaCmdExecuter::actUponGetExtendedAccountDetails(std::unique_ptr<::mega::M
             std::unique_ptr<MegaAccountSession> session(extAccountDetails->getSession(i));
             if (session->isAlive())
             {
-                sdetails[0] = '\0';
                 str_localtime(timebuf, session->getCreationTimestamp());
                 str_localtime(timebuf2, session->getMostRecentUsage());
 
                 std::unique_ptr<char[]> sid(api->userHandleToBase64(session->getHandle()));
 
+                const char *current_session = "";
                 if (session->isCurrent())
                 {
-                    sprintf(sdetails, "    * Current Session\n");
+                    current_session = "    * Current Session\n";
                 }
 
                 std::unique_ptr<char[]> userAgent(session->getUserAgent());
@@ -2334,7 +2334,7 @@ void MegaCmdExecuter::actUponGetExtendedAccountDetails(std::unique_ptr<::mega::M
                 std::unique_ptr<char[]> ip(session->getIP());
 
                 sprintf(sdetails, "%s    Session ID: %s\n    Session start: %s\n    Most recent activity: %s\n    IP: %s\n    Country: %.2s\n    User-Agent: %s\n    -----\n",
-                        sdetails, sid.get(), timebuf, timebuf2, ip.get(), country.get(), userAgent.get());
+                        current_session, sid.get(), timebuf, timebuf2, ip.get(), country.get(), userAgent.get());
                 OUTSTREAM << sdetails;
                 alive_sessions++;
             }
