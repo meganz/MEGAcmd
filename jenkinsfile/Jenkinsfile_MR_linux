@@ -216,7 +216,6 @@ pipeline {
                     updateGitlabCommitStatus(name: 'Build linux', state: 'failed')
                 }
             }
-            sh "chmod -R 777 ${megacmd_sources_workspace}/test-results"
             junit "**/test-results/ubsan-*.xml"
             archiveArtifacts artifacts: "**/test-results/megacmd-*-tests-*-report.*"
         }
