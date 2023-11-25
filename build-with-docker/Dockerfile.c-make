@@ -109,7 +109,7 @@ RUN --mount=type=cache,target=/tmp/ccache \
     && install mega-cmd mega-cmd-server \
     mega-cmd-tests-integration mega-cmd-tests-unit \
     mega-cmd-updater mega-exec \
-    megacli megasimplesync \
+    megacli \
     test_integration test_unit \
     /usr/local/bin/
 
