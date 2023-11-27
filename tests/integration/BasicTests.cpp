@@ -39,6 +39,13 @@ TEST_F(NOINTERACTIVELoggedInTest, Whoami)
 TEST_F(NOINTERACTIVEReadTest, Find)
 {
     auto r = executeInClient({"find"});
-    //TODO: CMD-308: provide find coverage.
-    ASSERT_NE(r.out().find("/testReadingFolder01/folder02/subfolder02/file02.txt"), std::string::npos);
+
+    std::vector<std::string> result_paths = splitByNewline(r.out());
+    ASSERT_FALSE(result_paths.empty());
+
+    EXPECT_CONTAINS(result_paths, ".");
+    EXPECT_CONTAINS(result_paths, "testReadingFolder01");
+    EXPECT_CONTAINS(result_paths, "testReadingFolder01/file03.txt");
+    EXPECT_CONTAINS(result_paths, "testReadingFolder01/folder01/file03.txt");
+    EXPECT_CONTAINS(result_paths, "testReadingFolder01/folder02/subfolder03/file02.txt");
 }
