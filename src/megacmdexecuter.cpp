@@ -1060,7 +1060,6 @@ bool MegaCmdExecuter::checkNoErrors(int errorCode, const string &message)
 
 bool MegaCmdExecuter::checkNoErrors(MegaError *error, const string &message, SyncError syncError)
 {
-    std::unique_ptr<const char[]> megaSyncErrorCode;
     if (!error)
     {
         LOG_fatal << "No MegaError at request: " << message;
@@ -1071,7 +1070,7 @@ bool MegaCmdExecuter::checkNoErrors(MegaError *error, const string &message, Syn
     {
         if (syncError)
         {
-            megaSyncErrorCode.reset(MegaSync::getMegaSyncErrorCode(syncError));
+            std::unique_ptr<const char[]> megaSyncErrorCode(MegaSync::getMegaSyncErrorCode(syncError));
             LOG_info << "Able to " << message << ", but received syncError: " << megaSyncErrorCode.get();
         }
         return true;
@@ -1080,7 +1079,7 @@ bool MegaCmdExecuter::checkNoErrors(MegaError *error, const string &message, Syn
     auto logErrMessage = std::string("Failed to ").append(message).append(": ").append(formatErrorAndMaySetErrorCode(*error));
     if (syncError)
     {
-        megaSyncErrorCode.reset(MegaSync::getMegaSyncErrorCode(syncError));
+        std::unique_ptr<const char[]> megaSyncErrorCode(MegaSync::getMegaSyncErrorCode(syncError));
         logErrMessage.append(". ").append(megaSyncErrorCode.get());
     }
     LOG_err << logErrMessage;
