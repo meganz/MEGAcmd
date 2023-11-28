@@ -40,17 +40,8 @@ In order to have support for thumbnails and previews, it is highly recommended t
 	* In some instanances you may need to run
 		 `apt install --reinstall build-essential`
 
-* **Windows**
-
-	* For Windows, we have recently overhauled the build system and now all the steps are captured in this one script that will acquire and build all dependencies, as well as building MEGAcmd itself, using vcpkg and cmake.  To get and use this script, follow these steps in a command prompt: 
-	* git clone --recurse-submodules --branch tag/youChoose https://github.com/meganz/MEGAcmd.git
-	* cd megacmd/build/cmake
-	* fullBuildFromScratchOnWindows x64-windows-mega
-
-* **MacOS**
-
-	* For MacOS, here is a bundle with all the 3rd party dependencies required to build, plus a `config.h` file to be placed at `sdk/include/mega/config.h`:
-	https://mega.nz/#F!WwZyBZRL!1vXiBr7pJZLINpSRErBxvA
+* **Windows and MacOS**
+	* The simplest way to build on Windows and MacOS is to use CMake. In that case, all required dependencies will be downloaded and compiled automatically.
 
 ## Getting the source
 
@@ -62,6 +53,7 @@ cd MEGAcmd && git submodule update --init --recursive
 
 ## Building and installing
 
+### With Autotools
 For platforms with Autotools, MEGAcmd can be built and installed with:
 
     sh autogen.sh
@@ -75,9 +67,26 @@ For platforms with Autotools, MEGAcmd can be built and installed with:
 won't work. You would need to `source /YOUR/PREFIX/etc/bash_completion.d/megacmd_completion.sh` 
 (or link it at /etc/bash_completion.d)
 
-Alternatively you can build using Qt project located at `contrib/QtCreator/MEGAcmd/MEGAcmd.pro`.
+### With CMake
+With CMake, all third-party libraries and dependencies will be downloaded and compiled automatically in `../3rdparty_megacmd/`. Nothing else is required; the `build_from_scratch` script takes care of everything. Just navigate to `build/cmake/` and run:
+```
+cmake -DTRIPLET=<triplet> -P build_from_scratch.cmake
+```
 
-For Windows/MacOS you will need to place the `3rdparty` folder (included in the dependency bundle referenced [`above`](#requirements)) into `sdk/bindings/qt/`.
+Some notes on the above command:
+* The `<triplet>` options are (depending on OS and architecture):
+	* For Windows, either `x64-windows-mega` or `x86-windows-mega`
+	* For MacOS, either `arm64-osx-mega` or `x64-osx-mega`
+* After third-party dependencies are downloaded, the build of the project itself may be controlled with an optional `-DTARGET` parameter (or multiple targets separated by semicolons)
+	* If not provided, everything will be built (equivalent to `make all`)
+* On Windows
+	* You can use a CMake version from a newer Visual Studio using the `-G` option (e.g., `-G Visual Studio 16 2019`)
+	* The directory `../3rdparty_megacmd/vcpkg/installed/<triplet>/debug/bin/` (or `../3rdparty_megacmd/vcpkg/installed/<triplet>/bin` for release) must be added to `PATH` _as an absolute path_ to be able to run the executables properly
+
+If the build is successful, the binaries will be located in `build-<triplet>/`.
+
+### With QtCreator
+You can build with QtCreator by opening the Qt project file at `contrib/QtCreator/MEGAcmd/MEGAcmd.pro`.
 
 # Usage
 
