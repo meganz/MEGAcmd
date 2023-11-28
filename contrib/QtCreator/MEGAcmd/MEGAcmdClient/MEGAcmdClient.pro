@@ -49,8 +49,8 @@ else{
 
 macx {
     !vcpkg{
-	    INCLUDEPATH += $$MEGACMD_BASE_PATH/sdk/bindings/qt/3rdparty/include
-		LIBS += $$MEGACMD_BASE_PATH/sdk/bindings/qt/3rdparty/libs/libreadline.a
+        INCLUDEPATH += $$MEGACMD_BASE_PATH/sdk/bindings/qt/3rdparty/include
+        LIBS += $$MEGACMD_BASE_PATH/sdk/bindings/qt/3rdparty/libs/libreadline.a
     }
     LIBS += -framework Cocoa -framework SystemConfiguration -framework CoreFoundation -framework Foundation -framework Security
     LIBS += -lncurses

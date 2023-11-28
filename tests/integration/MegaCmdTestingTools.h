@@ -27,6 +27,33 @@
 #include <chrono>
 #include <future>
 
+template<typename C, typename I>
+testing::AssertionResult AssertContains(const char* container_expr, const char* item_expr, C container, I item)
+{
+    if (std::find(container.begin(), container.end(), item) != container.end())
+    {
+        return testing::AssertionSuccess();
+    }
+    return testing::AssertionFailure() << "`" << container_expr << "` does not contain item " << item_expr;
+}
+
+template<typename C, typename I>
+testing::AssertionResult AssertNotContains(const char* container_expr, const char* item_expr, C container, I item)
+{
+    if (std::find(container.begin(), container.end(), item) == container.end())
+    {
+        return testing::AssertionSuccess();
+    }
+    return testing::AssertionFailure() << "`" << container_expr << "` contains item " << item_expr;
+}
+
+#define ASSERT_CONTAINS(container, item)  ASSERT_PRED_FORMAT2(AssertContains, container, item)
+#define ASSERT_NCONTAINS(container, item) ASSERT_PRED_FORMAT2(AssertNotContains, container, item)
+#define EXPECT_CONTAINS(container, item)  EXPECT_PRED_FORMAT2(AssertContains, container, item)
+#define EXPECT_NCONTAINS(container, item) EXPECT_PRED_FORMAT2(AssertNotContains, container, item)
+
+std::vector<std::string> splitByNewline(const std::string& str);
+
 class ClientResponse
 {
     int mStatus = -1;
@@ -41,7 +68,7 @@ public:
         : mStatus(status)
         , mOut (streamOut.str())
     #ifdef _WIN32
-        , mUtf8String(getutf8fromUtf16(mOut.c_str()))
+        , mUtf8String(megacmd::getutf8fromUtf16(mOut.c_str()))
     #endif
     {}
 
@@ -59,7 +86,7 @@ public:
     }
 };
 
-ClientResponse executeInClient(std::list<std::string> command, bool nonInteractive = true);
+ClientResponse executeInClient(const std::vector<std::string>& command, bool nonInteractive = true);
 void ensureLoggedIn();
 void ensureReadStructure();
 

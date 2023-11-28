@@ -19,6 +19,11 @@ set (USE_PCRE 1 CACHE STRING "Provides pattern matching functionality for sync r
 set (HAVE_FFMPEG 1 CACHE STRING "Used to create previews/thumbnails for video files")
 set (USE_FFMPEG 1 CACHE STRING "Used to create previews/thumbnails for video files")
 
+# Flags for enabling runtime checks
+option (ENABLE_ASAN "Build MEGAcmd with AddressSanitizer" OFF)
+option (ENABLE_UBSAN "Build MEGAcmd with UndefinedBehaviorSanitizer" OFF)
+option (ENABLE_TSAN "Build MEGAcmd with ThreadSanitizer" OFF)
+
 if(WIN32)
     add_definitions( -DUNICODE -D_UNICODE )  # needed for visual studio projects to use the unicode runtime libraries
 
@@ -47,6 +52,18 @@ endif()
 if (NOT CMAKE_BUILD_TYPE EQUAL "Debug")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DNDEBUG")
 endif ()
+
+if (ENABLE_ASAN)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address -fno-omit-frame-pointer -fno-common")
+endif()
+
+if (ENABLE_UBSAN)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=undefined")
+endif()
+
+if (ENABLE_TSAN)
+   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=thread")
+endif()
 
 set(ProjectDir "${CMAKE_CURRENT_LIST_DIR}/../..")
 

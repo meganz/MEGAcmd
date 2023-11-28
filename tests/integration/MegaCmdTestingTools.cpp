@@ -15,20 +15,34 @@
 
 #include "MegaCmdTestingTools.h"
 
-ClientResponse executeInClient(std::list<std::string> command, bool /*nonInteractive: TODO: give support to shell execs*/)
+std::vector<std::string> splitByNewline(const std::string& str)
 {
-    char **args = new char*[2 + command.size()];
-    int i = 0;
-    args[i++] = (char*) "args0_test_client";
-    for (auto & word :command)
+    std::vector<std::string> result;
+    std::string line;
+    std::istringstream iss(str);
+
+    while (std::getline(iss, line))
     {
-        args[i++] = (char*) word.c_str();
+        result.push_back(line);
     }
-    args[i] = nullptr;
+    return result;
+}
+
+ClientResponse executeInClient(const std::vector<std::string>& command, bool /*nonInteractive: TODO: give support to shell execs*/)
+{
+    // To manage the memory of the first arg
+    const std::string firstArg("args0_test_client");
+
+    std::vector<char*> args{const_cast<char*>(firstArg.c_str())};
+    for (const auto& word : command)
+    {
+        args.push_back(const_cast<char*>(word.c_str()));
+    }
+    args.push_back(nullptr);
+
     OUTSTRINGSTREAM stream;
-    auto code = megacmd::executeClient(i, args, stream);
-    ClientResponse r(code, stream);
-    return r;
+    auto code = megacmd::executeClient(static_cast<int>(args.size() - 1), args.data(), stream);
+    return {code, stream};
 }
 
 bool isServerLogged()
@@ -40,8 +54,8 @@ void ensureLoggedIn()
 {
     if (!isServerLogged())
     {
-        auto user = getenv("MEGACMD_TEST_USER");
-        auto pass = getenv("MEGACMD_TEST_PASS");
+        const char* user = getenv("MEGACMD_TEST_USER");
+        const char* pass = getenv("MEGACMD_TEST_PASS");
 
         if (!user || !pass)
         {
@@ -49,22 +63,21 @@ void ensureLoggedIn()
             ASSERT_FALSE("MISSING USER/PASS env variables");
         }
 
-        auto result = executeInClient({"login",user,pass});
-
+        auto result = executeInClient({"login", user, pass});
         ASSERT_EQ(0, result.status());
     }
 }
 
 bool hasReadStructure()
 {
-    return executeInClient({"ls testReadingFolder01"}).ok();
+    return executeInClient({"ls", "testReadingFolder01"}).ok();
 }
 
 void ensureReadStructure()
 {
     if (!hasReadStructure())
     {
-        auto result = executeInClient({"import","https://mega.nz/folder/1NYSDSDZ#slJ2xyjgDMqJ5rHFM-YCSw", "testReadingFolder01"}); //TODO: procure the means to generate this one.
+        auto result = executeInClient({"import", "https://mega.nz/folder/gflVFLhC#6neMkeJrt4dWboRTc1NLUg"});
         ASSERT_EQ(0, result.status());
     }
 }

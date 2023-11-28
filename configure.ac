@@ -127,6 +127,54 @@ AC_TYPE_SIZE_T
 
 AC_CHECK_HEADERS([arpa/inet.h netdb.h netinet/in.h stddef.h stdint.h stdlib.h sys/socket.h sys/timeb.h htonl glob.h malloc.h sys/malloc.h malloc/malloc.h])
 
+# Runtime checks
+AC_ARG_ENABLE(sanitizer,
+    AS_HELP_STRING([--enable-sanitizer@<:@=LIST@:>@],
+                   [compile with (potentially expensive) runtime checks enabled. LIST can be used to enable only certain checks.
+                   Available checks are: asan, ubsan, tsan, all (enables ubsan, asan), none.]),
+    [ac_checks="${enableval}"], [])
+IFS="${IFS= 	}"; ac_save_IFS="$IFS"; IFS="$IFS,"
+for check in $ac_checks
+do
+    case $check in
+    no)
+     CHECKS_CXXFLAGS=""
+     CHECKS_CPPFLAGS=""
+     CHECKS_LDFLAGS=""
+      ;;
+    all)
+     # Only enable Address and UB Sanitizer, as ThreadSanitizer cannot be enabled with ASan.
+     CHECKS_CXXFLAGS="-fsanitize=address -fsanitize=undefined -fno-omit-frame-pointer -fno-common"
+     CHECKS_CPPFLAGS="-fsanitize=address -fsanitize=undefined -fno-omit-frame-pointer -fno-common"
+     CHECKS_LDFLAGS="-fsanitize=address -fsanitize=undefined"
+     enable_debug="yes"
+      ;;
+    asan)
+      CHECKS_CXXFLAGS="-fsanitize=address -fno-omit-frame-pointer -fno-common $CHECKS_CXXFLAGS"
+      CHECKS_CPPFLAGS="-fsanitize=address -fno-omit-frame-pointer -fno-common $CHECKS_CPPFLAGS"
+      CHECKS_LDFLAGS="-fsanitize=address $CHECKS_LDFLAGS"
+      enable_debug="yes"
+      ;;
+    ubsan)
+      CHECKS_CXXFLAGS="-fsanitize=undefined $CHECKS_CXXFLAGS"
+      CHECKS_CPPFLAGS="-fsanitize=undefined $CHECKS_CPPFLAGS"
+      CHECKS_LDFLAGS="-fsanitize=undefined $CHECKS_LDFLAGS"
+      enable_debug="yes"
+      ;;
+    tsan)
+      CHECKS_CXXFLAGS="-fsanitize=thread $CHECKS_CXXFLAGS"
+      CHECKS_CPPFLAGS="-fsanitize=thread $CHECKS_CPPFLAGS"
+      CHECKS_LDFLAGS="-fsanitize=thread $CHECKS_LDFLAGS"
+      enable_debug="yes"
+      ;;
+    *) AC_MSG_ERROR([unknown check $check]) ;;
+    esac
+done
+IFS="$ac_save_IFS"
+CXXFLAGS="$CHECKS_CXXFLAGS $CXXFLAGS"
+CPPFLAGS="$CHECKS_CPPFLAGS $CPPFLAGS"
+LDFLAGS="$CHECKS_LDFLAGS $LDFLAGS"
+
 # Debug
 AC_ARG_ENABLE(debug,
     AS_HELP_STRING([--enable-debug], [enable support for running in debug mode]),

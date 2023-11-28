@@ -7,7 +7,7 @@ include(vcpkg_inclusion.pri)
 
 packagesExist(libpcrecpp) | macx {
     LIBS += -lpcrecpp
-	CONFIG += USE_PCRE
+    CONFIG += USE_PCRE
 }
 
 CONFIG += USE_MEDIAINFO
@@ -16,8 +16,8 @@ DEFINES += ENABLE_BACKUPS
 CONFIG += USE_CONSOLE
 unix:!macx {
     exists(/usr/include/fpdfview.h) {
-	    CONFIG += USE_PDFIUM
-	}
+        CONFIG += USE_PDFIUM
+    }
 }
 else {
     CONFIG += USE_PDFIUM
@@ -32,8 +32,8 @@ CONFIG+=c++17
 
 unix:!macx {
     exists(/usr/include/ffmpeg-mega)|exists(mega/bindings/qt/3rdparty/include/ffmpeg)|packagesExist(libavcodec) {
-	    CONFIG += USE_FFMPEG
-	}
+        CONFIG += USE_FFMPEG
+    }
 }
 else {
     CONFIG += USE_FFMPEG
@@ -63,7 +63,7 @@ MEGACMD_COMMON_BASE_PATH = $$PWD/../../..
 
 macx {
     HEADERS +=  $$MEGACMD_COMMON_BASE_PATH/src/megacmdplatform.h
-	OBJECTIVE_SOURCES += $$MEGACMD_COMMON_BASE_PATH/src/megacmdplatform.mm
+    OBJECTIVE_SOURCES += $$MEGACMD_COMMON_BASE_PATH/src/megacmdplatform.mm
     ICON = app.icns
     QMAKE_INFO_PLIST = Info_MEGA.plist
 
@@ -88,14 +88,14 @@ SOURCES -= bindings/qt/QTMegaEvent.cpp
 
 CONFIG(FULLREQUIREMENTS) {
     DEFINES += REQUIRE_HAVE_FFMPEG
-	DEFINES += REQUIRE_HAVE_LIBUV
-	#DEFINES += REQUIRE_HAVE_LIBRAW
-	#DEFINES += REQUIRE_ENABLE_CHAT
-	DEFINES += REQUIRE_ENABLE_BACKUPS
-	#DEFINES += REQUIRE_ENABLE_WEBRTC
-	#DEFINES += REQUIRE_ENABLE_EVT_TLS
-	DEFINES += REQUIRE_USE_MEDIAINFO
-	DEFINES += REQUIRE_USE_PCRE
+    DEFINES += REQUIRE_HAVE_LIBUV
+    #DEFINES += REQUIRE_HAVE_LIBRAW
+    #DEFINES += REQUIRE_ENABLE_CHAT
+    DEFINES += REQUIRE_ENABLE_BACKUPS
+    #DEFINES += REQUIRE_ENABLE_WEBRTC
+    #DEFINES += REQUIRE_ENABLE_EVT_TLS
+    DEFINES += REQUIRE_USE_MEDIAINFO
+    DEFINES += REQUIRE_USE_PCRE
 }
 
 SOURCES += \

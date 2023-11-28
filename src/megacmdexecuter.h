@@ -35,7 +35,7 @@ class MegaCmdExecuter
 private:
     mega::MegaApi *api;
     mega::handle cwd;
-    char *session;
+    std::unique_ptr<char[]> session;
     mega::MegaFileSystemAccess *fsAccessCMD;
     MegaCMDLogger *loggerCMD;
     MegaCmdSandbox *sandboxCMD;
@@ -189,6 +189,8 @@ public:
 
     bool checkAndInformPSA(CmdPetition *inf, bool enforce = false);
 
+    // Provide a helpful error message for the provided error, setting the current error code in case of an error.
+    std::string formatErrorAndMaySetErrorCode(const mega::MegaError &error);
     bool checkNoErrors(int errorCode, const std::string &message = "");
     bool checkNoErrors(mega::MegaError *error, const std::string &message = "", mega::SyncError syncError = mega::SyncError::NO_SYNC_ERROR);
     bool checkNoErrors(::mega::SynchronousRequestListener *listener, const std::string &message = "", mega::SyncError syncError = mega::SyncError::NO_SYNC_ERROR);

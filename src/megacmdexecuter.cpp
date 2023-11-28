@@ -158,7 +158,6 @@ MegaCmdExecuter::MegaCmdExecuter(MegaApi *api, MegaCMDLogger *loggerCMD, MegaCmd
 MegaCmdExecuter::~MegaCmdExecuter()
 {
     delete fsAccessCMD;
-    delete []session;
     delete globalTransferListener;
 }
 
@@ -1025,6 +1024,32 @@ bool MegaCmdExecuter::checkAndInformPSA(CmdPetition *inf, bool enforce)
     return toret;
 }
 
+std::string MegaCmdExecuter::formatErrorAndMaySetErrorCode(const MegaError &error)
+{
+    auto code = error.getErrorCode();
+    if (code == MegaError::API_OK)
+    {
+        return std::string();
+    }
+
+    setCurrentOutCode(code);
+    if (code == MegaError::API_EBLOCKED)
+    {
+        auto reason = sandboxCMD->getReasonblocked();
+        auto reasonStr = std::string("Account blocked.");
+        if (!reason.empty())
+        {
+            reasonStr.append("Reason: ").append(reason);
+        }
+        return reasonStr;
+    }
+    else if (code == MegaError::API_EPAYWALL || (code == MegaError::API_EOVERQUOTA && sandboxCMD->storageStatus == MegaApi::STORAGE_STATE_RED))
+    {
+        return "Reached storage quota. You can change your account plan to increase your quota limit. See \"help --upgrade\" for further details";
+    }
+
+    return error.getErrorString();
+}
 
 bool MegaCmdExecuter::checkNoErrors(int errorCode, const string &message)
 {
@@ -1049,32 +1074,13 @@ bool MegaCmdExecuter::checkNoErrors(MegaError *error, const string &message, Syn
         return true;
     }
 
-    setCurrentOutCode(error->getErrorCode());
-    if (error->getErrorCode() == MegaError::API_EBLOCKED)
+    auto logErrMessage = std::string("Failed to ").append(message).append(": ").append(formatErrorAndMaySetErrorCode(*error));
+    if (syncError)
     {
-        auto reason = sandboxCMD->getReasonblocked();
-        LOG_err << "Failed to " << message << ". Account blocked." <<( reason.empty()?"":" Reason: "+reason);
+        auto errCode = std::unique_ptr<const char[]>(MegaSync::getMegaSyncErrorCode(syncError));
+        logErrMessage.append(". ").append(errCode.get());
     }
-    else if ((error->getErrorCode() == MegaError::API_EPAYWALL) || (error->getErrorCode() == MegaError::API_EOVERQUOTA && sandboxCMD->storageStatus == MegaApi::STORAGE_STATE_RED))
-    {
-        LOG_err << "Failed to " << message << ": Reached storage quota. "
-                         "You can change your account plan to increase your quota limit. "
-                         "See \"help --upgrade\" for further details";
-    }
-    else
-    {
-        if (syncError)
-        {
-            LOG_err << "Failed to " << message << ": " << error->getErrorString()
-                    << ". " << MegaSync::getMegaSyncErrorCode(syncError);
-        }
-        else
-        {
-            LOG_err << "Failed to " << message << ": " << error->getErrorString();
-        }
-
-    }
-
+    LOG_err << logErrMessage;
     return false;
 }
 
@@ -2492,8 +2498,8 @@ bool MegaCmdExecuter::actUponFetchNodes(MegaApi *api, SynchronousRequestListener
         // folder session depends on node handle,
         // which requires fetch nodes to be complete
         // i.e. dumpSession won't be valid after login
-        session = srl->getApi()->dumpSession();
-        ConfigurationManager::saveSession(session);
+        session = std::unique_ptr<char[]>(srl->getApi()->dumpSession());
+        ConfigurationManager::saveSession(session.get());
 
         LOG_verbose << "ActUponFetchNodes ok. Let's wait for nodes current:";
 
@@ -2522,7 +2528,7 @@ bool MegaCmdExecuter::actUponFetchNodes(MegaApi *api, SynchronousRequestListener
             LOG_debug << "Waited for nodes current ... " << eventCurrentArrivedOk;
         }
 
-        std::string sessionString(session ? session : "");
+        std::string sessionString(session ? session.get() : "");
         if (!sessionString.empty())
         {
             std::thread([this, api, sessionString]() {
@@ -2601,8 +2607,8 @@ int MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
             // Note, if logging into a folder (no email),
             // the dumpSession reported by the SDK at this point is not valid:
             // folder session depends on node handle, which requires fetching nodes
-            session = srl->getApi()->dumpSession();
-            ConfigurationManager::saveSession(session);
+            session = std::unique_ptr<char[]>(srl->getApi()->dumpSession());
+            ConfigurationManager::saveSession(session.get());
         }
 
         /* Restoring configured values */
@@ -2618,7 +2624,7 @@ int MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
         ConfigurationManager::loadExcludedNames();
         ConfigurationManager::loadConfiguration(false);
         std::vector<string> vexcludednames(ConfigurationManager::excludedNames.begin(), ConfigurationManager::excludedNames.end());
-        api->setExcludedNames(&vexcludednames);
+        api->setLegacyExcludedNames(&vexcludednames);
 
         long long maxspeeddownload = ConfigurationManager::getConfigurationValue("maxspeeddownload", -1);
         if (maxspeeddownload != -1) api->setMaxDownloadSpeed(maxspeeddownload);
@@ -2721,10 +2727,10 @@ void MegaCmdExecuter::fetchNodes(MegaApi *api, int clientID)
     if (!api) api = this->api;
 
     sandboxCMD->mNodesCurrentPromise.initiatePromise();
-    MegaCmdListener * megaCmdListener = new MegaCmdListener(api, NULL, clientID);
-    api->fetchNodes(megaCmdListener);
+    auto megaCmdListener = ::mega::make_unique<MegaCmdListener>(api, nullptr, clientID);
+    api->fetchNodes(megaCmdListener.get());
 
-    if (!actUponFetchNodes(api, megaCmdListener))
+    if (!actUponFetchNodes(api, megaCmdListener.get()))
     {
         //Ideally we should enter an state that indicates that we are not fully logged.
         //Specially when the account is blocked
@@ -2766,8 +2772,8 @@ void MegaCmdExecuter::fetchNodes(MegaApi *api, int clientID)
     if (ConfigurationManager::getConfigurationValue("ask4storage", true))
     {
         ConfigurationManager::savePropertyValue("ask4storage",false);
-        MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
-        api->getAccountDetails(megaCmdListener);
+        auto megaCmdListener = ::mega::make_unique<MegaCmdListener>(nullptr);
+        api->getAccountDetails(megaCmdListener.get());
         megaCmdListener->wait();
         // we don't call getAccountDetails on startup always: we ask on first login (no "ask4storage") or previous state was STATE_RED | STATE_ORANGE
         // if we were green, don't need to ask: if there are changes they will be received via action packet indicating STATE_CHANGE
@@ -2982,8 +2988,7 @@ void MegaCmdExecuter::actUponLogout(SynchronousRequestListener *srl, bool keptSe
     {
         LOG_verbose << "actUponLogout logout ok";
         cwd = UNDEF;
-        delete []session;
-        session = NULL;
+        session.reset();
         mtxSyncMap.lock();
         ConfigurationManager::unloadConfiguration();
         if (!keptSession)
@@ -3459,7 +3464,7 @@ bool MegaCmdExecuter::amIPro()
     megaCmdListener->wait();
     if (checkNoErrors(megaCmdListener->getError(), "export node"))
     {
-        MegaAccountDetails *details = megaCmdListener->getRequest()->getMegaAccountDetails();
+        std::unique_ptr<MegaAccountDetails> details(megaCmdListener->getRequest()->getMegaAccountDetails());
         prolevel = details->getProLevel();
     }
     delete megaCmdListener;
@@ -3503,7 +3508,32 @@ void MegaCmdExecuter::exportNode(MegaNode *n, int64_t expireTime, std::string pa
         MegaCmdListener *megaCmdListener = new MegaCmdListener(api, NULL);
         api->exportNode(n, expireTime, writable, megaHosted, megaCmdListener);
         megaCmdListener->wait();
-        if (checkNoErrors(megaCmdListener->getError(), "export node"))
+        auto error = megaCmdListener->getError();
+        assert(error != nullptr);
+        if (error->getErrorCode() != MegaError::API_OK)
+        {
+            auto path = std::unique_ptr<char[]>(api->getNodePath(n));
+            std::string msg = std::string("Failed to export node");
+
+            if (path != nullptr)
+            {
+                msg.append(" ").append(path.get());
+            }
+            if (expireTime != 0 && !amIPro())
+            {
+                msg.append(": Only PRO users can set an expiry time for links");
+            }
+            else if (path != nullptr && strcmp(path.get(), "/") == 0)
+            {
+                msg.append(": The root folder cannot be exported");
+            }
+            else
+            {
+                msg.append(": ").append(formatErrorAndMaySetErrorCode(*error));
+            }
+            LOG_err << msg;
+        }
+        else
         {
             MegaNode *nexported = api->getNodeByHandle(megaCmdListener->getRequest()->getNodeHandle());
             if (nexported)
@@ -7741,7 +7771,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             if (words.size()>1)
             {
                 std::vector<string> vexcludednames(ConfigurationManager::excludedNames.begin(), ConfigurationManager::excludedNames.end());
-                api->setExcludedNames(&vexcludednames);
+                api->setLegacyExcludedNames(&vexcludednames);
             }
             else
             {
@@ -7759,7 +7789,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             if (words.size()>1)
             {
                 std::vector<string> vexcludednames(ConfigurationManager::excludedNames.begin(), ConfigurationManager::excludedNames.end());
-                api->setExcludedNames(&vexcludednames);
+                api->setLegacyExcludedNames(&vexcludednames);
             }
             else
             {
@@ -9558,7 +9588,8 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
         if (words.size() <= 1)
         {
-            words.push_back(string(".")); //cwd
+            LOG_warn << "no file/folder argument provided, will export the current working folder";
+            words.push_back(string(".")); // cwd
         }
 
         for (int i = 1; i < (int)words.size(); i++)

@@ -19,15 +19,15 @@ MEGACMD_BASE_PATH = $$PWD/$$MEGACMD_BASE_PATH_RELATIVE
 
 SOURCES += \
     $$MEGACMD_BASE_PATH/src/megacmdshell/megacmdshell.cpp \
-	$$MEGACMD_BASE_PATH/src/megacmdshell/megacmdshellcommunications.cpp \
-	$$MEGACMD_BASE_PATH/src/megacmdshell/megacmdshellcommunicationsnamedpipes.cpp
+    $$MEGACMD_BASE_PATH/src/megacmdshell/megacmdshellcommunications.cpp \
+    $$MEGACMD_BASE_PATH/src/megacmdshell/megacmdshellcommunicationsnamedpipes.cpp
 
 
 HEADERS += \
     $$MEGACMD_BASE_PATH/src/megacmdshell/megacmdshell.h \
-	$$MEGACMD_BASE_PATH/src/megacmdshell/megacmdshellcommunications.h \
-	$$MEGACMD_BASE_PATH/src/megacmdshell/megacmdshellcommunicationsnamedpipes.h \
-	$$MEGACMD_BASE_PATH/sdk/include/mega/thread.h
+    $$MEGACMD_BASE_PATH/src/megacmdshell/megacmdshellcommunications.h \
+    $$MEGACMD_BASE_PATH/src/megacmdshell/megacmdshellcommunicationsnamedpipes.h \
+    $$MEGACMD_BASE_PATH/sdk/include/mega/thread.h
 
 win32{
     RC_FILE = icon.rc
@@ -44,8 +44,8 @@ win32 {
 
 macx {
     !vcpkg {
-	    INCLUDEPATH += $$MEGACMD_BASE_PATH/sdk/bindings/qt/3rdparty/include
-		LIBS += $$MEGACMD_BASE_PATH/sdk/bindings/qt/3rdparty/libs/libreadline.a
+        INCLUDEPATH += $$MEGACMD_BASE_PATH/sdk/bindings/qt/3rdparty/include
+        LIBS += $$MEGACMD_BASE_PATH/sdk/bindings/qt/3rdparty/libs/libreadline.a
     }
     LIBS += -framework Cocoa -framework SystemConfiguration -framework CoreFoundation -framework Foundation -framework Security
     LIBS += -lncurses
