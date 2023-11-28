@@ -358,11 +358,13 @@ SOCKET MegaCmdShellCommunications::createSocket(int number, bool initializeserve
         #endif
     #endif
 
-                    char **args = new char*[3];
-                    int i = 0;
-                    args[i++]=(char *)executable;
-                    args[i++]=(char *)"--log-to-file";
-                    args[i] = NULL;
+                    std::vector<char*> argsVector{
+                        (char *)executable,
+                        (char *)"--log-to-file",
+                        nullptr
+                    };
+
+                    auto args = const_cast<char* const*>(argsVector.data());
 
                     int ret = execvp(executable,args);
 
@@ -370,7 +372,7 @@ SOCKET MegaCmdShellCommunications::createSocket(int number, bool initializeserve
                     {
                         cerr << "Couln't initiate MEGAcmd server: executable not found: " << executable << endl;
                         cerr << "Trying to use alternative executable: " << executable2 << endl;
-                        args[0]=(char *)executable2;
+                        argsVector[0]=(char *)executable2;
                         ret = execvp(executable2,args);
                         if (ret && errno == 2 )
                         {

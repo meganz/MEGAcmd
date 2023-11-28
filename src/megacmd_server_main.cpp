@@ -70,7 +70,7 @@ std::pair<int/*sdk*/, int/*cmd*/> getLogLevels(std::vector<const char*>& args)
     bool verbosefull = extractarg(args, "--verbose-full");
 
 // overridance by environment variable
-    auto envCmdLogLevel = getenv("MEGACMD_LOGLEVEL");
+    const char *envCmdLogLevel = getenv("MEGACMD_LOGLEVEL");
     if (envCmdLogLevel)
     {
         std::string loglevelenv(envCmdLogLevel);
@@ -102,19 +102,19 @@ std::pair<int/*sdk*/, int/*cmd*/> getLogLevels(std::vector<const char*>& args)
     return {sdkLogLevel, cmdLogLevel};
 }
 
+#ifdef _WIN32
 // returns true if attempted to uninstall
 bool mayUninstall(std::vector<const char*> &args)
 {
-#ifdef _WIN32
     bool buninstall = extractarg(args, "--uninstall") || extractarg(args, "/uninstall");
     if (buninstall)
     {
         megacmd::uninstall();
         return true;
     }
-#endif
     return false;
 }
+#endif
 
 #ifndef _WIN32
 #include <sys/wait.h>
@@ -125,7 +125,9 @@ static bool is_pid_running(pid_t pid) {
     }
 
     if (0 == kill(pid, 0))
-        return 1; // Process exists
+    {
+        return true; // Process exists
+    }
 
     return 0;
 }
@@ -172,11 +174,12 @@ int main(int argc, char* argv[])
     {
         args = std::vector<const char*>(argv + 1, argv + argc);
     }
-
+#ifdef _WIN32
     if (mayUninstall(args))
     {
         return 0;
     }
+#endif
 
     waitIfRequired(args);
 

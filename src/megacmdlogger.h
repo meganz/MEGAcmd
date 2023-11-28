@@ -54,20 +54,20 @@ protected:
 
 class LoggedStreamNull : public LoggedStream {
 public:
-    virtual const LoggedStream& operator<<(const char& v) const override { return *this; }
-  virtual const LoggedStream& operator<<(const char* v) const override { return *this; }
+  const LoggedStream& operator<<(const char& v) const override { return *this; }
+  const LoggedStream& operator<<(const char* v) const override { return *this; }
 #ifdef _WIN32
   virtual const LoggedStream& operator<<(std::wstring v) const override { return *this; }
 #endif
-  virtual const LoggedStream& operator<<(std::string v) const override { return *this; }
-  virtual const LoggedStream& operator<<(int v) const override { return *this; }
-  virtual const LoggedStream& operator<<(unsigned int v) const override { return *this; }
-  virtual const LoggedStream& operator<<(long unsigned int v) const override { return *this; }
-  virtual const LoggedStream& operator<<(long long int v) const override { return *this; }
-  virtual const LoggedStream& operator<<(std::ios_base v) const override { return *this; }
-  virtual const LoggedStream& operator<<(std::ios_base *v) const override { return *this; }
+  const LoggedStream& operator<<(std::string v) const override { return *this; }
+  const LoggedStream& operator<<(int v) const override { return *this; }
+  const LoggedStream& operator<<(unsigned int v) const override { return *this; }
+  const LoggedStream& operator<<(long unsigned int v) const override { return *this; }
+  const LoggedStream& operator<<(long long int v) const override { return *this; }
+  const LoggedStream& operator<<(std::ios_base v) const override { return *this; }
+  const LoggedStream& operator<<(std::ios_base *v) const override { return *this; }
 
-  virtual LoggedStream const& operator<<(OUTSTREAMTYPE& (*F)(OUTSTREAMTYPE&)) const override { return *this; }
+  LoggedStream const& operator<<(OUTSTREAMTYPE& (*F)(OUTSTREAMTYPE&)) const override { return *this; }
 
   virtual ~LoggedStreamNull() = default;
 
