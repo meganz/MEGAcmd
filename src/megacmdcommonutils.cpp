@@ -29,6 +29,7 @@
 #include <unistd.h>
 #endif
 
+#include <cstring>
 #include <iomanip>
 #include <fstream>
 #include <string.h>
@@ -1645,6 +1646,10 @@ std::string getOrCreateSocketPath(bool createDirectory)
         {
             mode_t mode = umask(0);
             bool failed = mkdir(runtimedir.c_str(), 0700) != 0;
+            if (failed)
+            {
+                std::cerr << "Failed to create folder for unix socket: " << runtimedir << ": " << std::strerror(errno) << std::endl;
+            }
             umask(mode);
 
             if (failed)
