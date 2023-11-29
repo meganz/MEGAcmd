@@ -343,25 +343,25 @@ class PlatformDirectories
 public:
     static std::unique_ptr<PlatformDirectories> getPlatformSpecificDirectories();
     /**
-     * @brief RuntimeDirPath returns the base path for storing non-essential runtime files.
+     * @brief runtimeDirPath returns the base path for storing non-essential runtime files.
      *
      * Meant for sockets, named pipes, file locks, etc.
      */
     virtual std::string runtimeDirPath() = 0;
     /**
-     * @brief CacheDirPath returns the base path for storing non-essential data files.
+     * @brief cacheDirPath returns the base path for storing non-essential data files.
      *
      * Meant for cached data which can be safely deleted.
      */
     virtual std::string cacheDirPath() = 0;
     /**
-     * @brief ConfigDirPath returns the base path for storing configuration files.
+     * @brief configDirPath returns the base path for storing configuration files.
      *
      * Solely for user-editable configuration files.
      */
     virtual std::string configDirPath() = 0;
     /**
-     * @brief DataDirPath returns the base path for storing data files.
+     * @brief dataDirPath returns the base path for storing data files.
      *
      * For user data files that should not be deleted (session credentials, SDK workding directory,
      * etc).
@@ -371,7 +371,7 @@ public:
         return configDirPath();
     }
     /**
-     * @brief StateDirPath returns the base path for storing state files. Specifically, data that
+     * @brief stateDirPath returns the base path for storing state files. Specifically, data that
      * can persist between restarts, but not significant enough for DataDirPath().
      *
      * Meant for recent command history, logs, crash dumps, etc.
