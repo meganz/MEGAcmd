@@ -1606,11 +1606,13 @@ std::string XDGDirectories::configDirPath()
 
 std::string XDGDirectories::dataDirPath()
 {
-    const char *datadir = getenv("XDG_DATA_HOME");
     if (legacyConfigDirExists())
     {
         return PosixDirectories::configDirPath();
-    } else if (datadir == nullptr)
+    }
+
+    const char *datadir = getenv("XDG_DATA_HOME");
+    if (datadir == nullptr)
     {
         return PosixDirectories::dataDirPath();
     }
@@ -1661,5 +1663,5 @@ std::string getOrCreateSocketPath(bool createDirectory)
     std::string sockname = sockname_c != nullptr ? std::string(sockname_c) : "megacmd.socket";
     return runtimedir.append("/").append(sockname);
 }
-#endif // _WIN32
+#endif // ifdef(_WIN32) else
 } //end namespace
