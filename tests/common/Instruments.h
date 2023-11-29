@@ -310,7 +310,7 @@ public:
     TestInstrumentsEnvVarGuard(std::string variable, const std::string &value)
         : mVar(std::move(variable)), mHasInitValue(false), mInitValue()
     {
-        char *initValue = getenv(mVar.c_str());
+        const char *initValue = getenv(mVar.c_str());
         if (initValue != nullptr)
         {
             mHasInitValue = true;
@@ -349,7 +349,7 @@ protected:
     explicit TestInstrumentsEnvVarGuard(std::string variable)
         : mVar(std::move(variable)), mHasInitValue(false), mInitValue()
     {
-        char *initValue = getenv(mVar.c_str());
+        const char *initValue = getenv(mVar.c_str());
         if (initValue != nullptr)
         {
             mHasInitValue = true;
