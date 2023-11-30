@@ -87,7 +87,8 @@ pipeline {
 				branches: [[name: "origin/${SDK_BRANCH}"]],
 				userRemoteConfigs: [[ url: "${env.GIT_URL_SDK}", credentialsId: "12492eb8-0278-4402-98f0-4412abfb65c1" ]],
 				extensions: [
-				    [$class: "UserIdentity",name: "jenkins", email: "jenkins@jenkins"]
+				    [$class: "UserIdentity",name: "jenkins", email: "jenkins@jenkins"],
+				    [$class: "CloneOption", depth: 1, shallow: true, noTags: false, reference: '']
 				]
 			    ])
 			}
