@@ -64,36 +64,38 @@ pipeline {
             }
         }
 
-	parallel{
-	    stage('Checkout MEGAcmd with prebuildmerge'){
-		steps{
-		    checkout([
-			$class: 'GitSCM', 
-			branches: [[name: "origin/${env.gitlabSourceBranch}"]],
-			userRemoteConfigs: [[ url: "${env.GIT_URL_MEGACMD}", credentialsId: "12492eb8-0278-4402-98f0-4412abfb65c1" ]],
-			extensions: [
-                            [$class: "UserIdentity",name: "jenkins", email: "jenkins@jenkins"],
-                            [$class: 'PreBuildMerge', options: [fastForwardMode: 'FF', mergeRemote: "origin", mergeStrategy: 'DEFAULT', mergeTarget: "${env.gitlabTargetBranch}"]]
-                        ]
-                    ])
-		}
-	    }
-	    stage('Checkout SDK'){
-		steps{
-		    dir('sdk'){  
+	stage('Checkout sources'){
+	    parallel{
+		stage('Checkout MEGAcmd with prebuildmerge'){
+		    steps{
 			checkout([
-                            $class: 'GitSCM', 
-                            branches: [[name: "origin/${SDK_BRANCH}"]],
-                            userRemoteConfigs: [[ url: "${env.GIT_URL_SDK}", credentialsId: "12492eb8-0278-4402-98f0-4412abfb65c1" ]],
-                            extensions: [
-				[$class: "UserIdentity",name: "jenkins", email: "jenkins@jenkins"]
+			    $class: 'GitSCM',
+			    branches: [[name: "origin/${env.gitlabSourceBranch}"]],
+			    userRemoteConfigs: [[ url: "${env.GIT_URL_MEGACMD}", credentialsId: "12492eb8-0278-4402-98f0-4412abfb65c1" ]],
+			    extensions: [
+				[$class: "UserIdentity",name: "jenkins", email: "jenkins@jenkins"],
+				[$class: 'PreBuildMerge', options: [fastForwardMode: 'FF', mergeRemote: "origin", mergeStrategy: 'DEFAULT', mergeTarget: "${env.gitlabTargetBranch}"]]
                             ]
 			])
-                    }
-                    script{
-			megacmd_sources_workspace = WORKSPACE
-			sdk_sources_workspace = "${megacmd_sources_workspace}/sdk"
-                    }
+		    }
+		}
+		stage('Checkout SDK'){
+		    steps{
+			dir('sdk'){
+			    checkout([
+				$class: 'GitSCM',
+				branches: [[name: "origin/${SDK_BRANCH}"]],
+				userRemoteConfigs: [[ url: "${env.GIT_URL_SDK}", credentialsId: "12492eb8-0278-4402-98f0-4412abfb65c1" ]],
+				extensions: [
+				    [$class: "UserIdentity",name: "jenkins", email: "jenkins@jenkins"]
+				]
+			    ])
+			}
+			script{
+			    megacmd_sources_workspace = WORKSPACE
+			    sdk_sources_workspace = "${megacmd_sources_workspace}/sdk"
+			}
+		    }
 		}
 	    }
 	}
