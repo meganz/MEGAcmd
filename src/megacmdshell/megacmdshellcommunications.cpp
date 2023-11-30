@@ -296,7 +296,6 @@ SOCKET MegaCmdShellCommunications::createSocket(int number, bool initializeserve
     else
     {
         SOCKET thesock = socket(AF_UNIX, SOCK_STREAM, 0);
-        char socket_path[60];
         if (!socketValid(thesock))
         {
             cerr << "ERROR opening socket: " << ERRNO << endl;
@@ -306,15 +305,18 @@ SOCKET MegaCmdShellCommunications::createSocket(int number, bool initializeserve
         {
             cerr << "ERROR setting CLOEXEC to socket: " << errno << endl;
         }
-
-        bzero(socket_path, sizeof( socket_path ) * sizeof( *socket_path ));
-        sprintf(socket_path, "/tmp/megaCMD_%d/srv", getuid() );
-
+        std::string socketPath = getOrCreateSocketPath(false);
+        if (socketPath.empty())
+        {
+            std::cerr << "Error creating runtime directory for socket file: " << strerror(errno) << std::endl;
+            close(thesock);
+            return INVALID_SOCKET;
+        }
         struct sockaddr_un addr;
 
         memset(&addr, 0, sizeof( addr ));
         addr.sun_family = AF_UNIX;
-        strncpy(addr.sun_path, socket_path, sizeof( addr.sun_path ) - 1);
+        strncpy(addr.sun_path, socketPath.c_str(), socketPath.size());
 
 
         if (::connect(thesock, (struct sockaddr*)&addr, sizeof( addr )) == SOCKET_ERROR)
