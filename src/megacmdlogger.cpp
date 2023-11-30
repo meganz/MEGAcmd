@@ -45,16 +45,13 @@ map<uint64_t, int> threadoutCode;
 map<uint64_t, CmdPetition *> threadpetition;
 map<uint64_t, bool> threadIsCmdShell;
 
-LoggedStream LCOUT(&COUT);
-
-
 LoggedStream &getCurrentOut()
 {
     std::lock_guard<std::mutex> g(threadLookups);
     uint64_t currentThread = MegaThread::currentThreadId();
     if (outstreams.find(currentThread) == outstreams.end())
     {
-        return LCOUT;
+        return Instance<DefaultLoggedStream>::Get().getLoggedStream();
     }
     else
     {
@@ -155,7 +152,6 @@ bool getCurrentThreadIsCmdShell()
     }
 }
 
-
 void setCurrentThreadLogLevel(int level)
 {
     std::lock_guard<std::mutex> g(threadLookups);
@@ -188,8 +184,8 @@ void setCurrentPetition(CmdPetition *petition)
 
 
 MegaCMDLogger::MegaCMDLogger()
+    : mLoggedStream(Instance<DefaultLoggedStream>::Get().getLoggedStream())
 {
-    this->output = &LCOUT;
     this->apiLoggerLevel = MegaApi::LOG_LEVEL_ERROR;
     this->outputmutex = new std::mutex();
 }
@@ -199,14 +195,37 @@ MegaCMDLogger::~MegaCMDLogger()
     delete this->outputmutex;
 }
 
+bool isMEGAcmdSource(const char *source)
+{
+    //TODO: this seem to be broken. source does not have the entire path but just leaf names
+    return (string(source).find("src/megacmd") != string::npos)
+            || (string(source).find("src\\megacmd") != string::npos)
+            || (string(source).find("listeners.cpp") != string::npos)
+            || (string(source).find("configurationmanager.cpp") != string::npos)
+            || (string(source).find("comunicationsmanager") != string::npos)
+            || (string(source).find("megacmd") != string::npos); // added this one
+}
+
 void MegaCMDLogger::log(const char *time, int loglevel, const char *source, const char *message)
 {
-    if ( (string(source).find("src/megacmd") != string::npos)
-         || (string(source).find("src\\megacmd") != string::npos)
-         || (string(source).find("listeners.cpp") != string::npos)
-         || (string(source).find("configurationmanager.cpp") != string::npos)
-         || (string(source).find("comunicationsmanager") != string::npos)
-         )
+    // If comming from this logger current thread
+    bool outputIsAlreadyOUTSTREAM = &OUTSTREAM == &mLoggedStream;
+    auto needsLoggingToClient = [outputIsAlreadyOUTSTREAM, loglevel](int defaultLogLevel)
+    {
+        if (outputIsAlreadyOUTSTREAM)
+        {
+            return false;
+        }
+        int currentThreadLogLevel = getCurrentThreadLogLevel();
+        if (currentThreadLogLevel < 0) // this thread has no log level assigned
+        {
+            currentThreadLogLevel = defaultLogLevel; // use CMD's level
+        }
+
+        return loglevel <= currentThreadLogLevel;
+    };
+
+    if (isMEGAcmdSource(source))
     {
         if (loglevel <= cmdLoggerLevel)
         {
@@ -214,25 +233,19 @@ void MegaCMDLogger::log(const char *time, int loglevel, const char *source, cons
             std::lock_guard<std::mutex> g(*outputmutex);
             int oldmode;
             oldmode = _setmode(_fileno(stdout), _O_U8TEXT);
-            *output << "[" << SimpleLogger::toStr(LogLevel(loglevel)) << ": " << time << "] " << message << endl;
+            mLoggedStream << "[" << SimpleLogger::toStr(LogLevel(loglevel)) << ": " << time << "] " << message << endl;
             _setmode(_fileno(stdout), oldmode);
 #else
-            *output << "[" << SimpleLogger::toStr(LogLevel(loglevel)) << ": " << time << "] " << message << endl;
+            mLoggedStream << "[" << SimpleLogger::toStr(LogLevel(loglevel)) << ": " << time << "] " << message << endl;
 #endif
-
         }
 
-        int currentThreadLogLevel = getCurrentThreadLogLevel();
-        if (currentThreadLogLevel < 0)
-        {
-            currentThreadLogLevel = cmdLoggerLevel;
-        }
-        if (( loglevel <= currentThreadLogLevel ) && ( &OUTSTREAM != output ))
+        if (needsLoggingToClient(cmdLoggerLevel))
         {
             OUTSTREAM << "[" << SimpleLogger::toStr(LogLevel(loglevel)) << ": " << time << "] " << message << endl;
         }
     }
-    else
+    else // SDK's
     {
         if (loglevel <= apiLoggerLevel)
         {
@@ -248,21 +261,16 @@ void MegaCMDLogger::log(const char *time, int loglevel, const char *source, cons
             std::lock_guard<std::mutex> g(*outputmutex);
             int oldmode;
             oldmode = _setmode(_fileno(stdout), _O_U8TEXT);
-            *output << "[API:" << SimpleLogger::toStr(LogLevel(loglevel)) << ": " << time << "] " << message << endl;
+            mLoggedStream << "[API:" << SimpleLogger::toStr(LogLevel(loglevel)) << ": " << time << "] " << message << endl;
             _setmode(_fileno(stdout), oldmode);
 #else
-            *output << "[API:" << SimpleLogger::toStr(LogLevel(loglevel)) << ": " << time << "] " << message << endl;
+            mLoggedStream << "[API:" << SimpleLogger::toStr(LogLevel(loglevel)) << ": " << time << "] " << message << endl;
 #endif
         }
 
-        int currentThreadLogLevel = getCurrentThreadLogLevel();
-
-        if (currentThreadLogLevel < 0)
+        if (needsLoggingToClient(apiLoggerLevel))
         {
-            currentThreadLogLevel = apiLoggerLevel;
-        }
-        if (( loglevel <= currentThreadLogLevel ) && ( &OUTSTREAM != output )) //since it happens in the sdk thread, this shall be false
-        {
+            assert(false); //since it happens in the sdk thread, this shall be false
             OUTSTREAM << "[API:" << SimpleLogger::toStr(LogLevel(loglevel)) << ": " << time << "] " << message << endl;
         }
     }
@@ -271,6 +279,50 @@ void MegaCMDLogger::log(const char *time, int loglevel, const char *source, cons
 int MegaCMDLogger::getMaxLogLevel()
 {
     return max(max(getCurrentThreadLogLevel(), cmdLoggerLevel), apiLoggerLevel);
+}
+
+OUTFSTREAMTYPE streamForDefaultFile()
+{
+    //TODO: get this one from new dirs folders utilities (pending CMD-307) and refactor the .log retrieval
+
+    OUTSTRING path;
+#ifdef _WIN32
+
+    TCHAR szPath[MAX_PATH];
+     if (!SUCCEEDED(GetModuleFileName(NULL, szPath , MAX_PATH)))
+     {
+         LOG_fatal << "Couldnt get EXECUTABLE folder";
+     }
+     else
+     {
+         if (SUCCEEDED(PathRemoveFileSpec(szPath)))
+         {
+             if (PathAppend(szPath,TEXT(".megaCmd")))
+             {
+                 if (PathAppend(szPath,TEXT("megacmdserver.log")))
+                 {
+                     path = szPath;
+                 }
+             }
+         }
+     }
+#else
+    const char* home = getenv("HOME");
+    if (home)
+    {
+        path.append(home);
+        path.append("/.megaCmd/");
+        path.append("/megacmdserver.log");
+    }
+#endif
+
+    return OUTFSTREAMTYPE(path);
+}
+
+LoggedStreamDefaultFile::LoggedStreamDefaultFile() :
+    mFstream(streamForDefaultFile()),
+    LoggedStreamOutStream (&mFstream)
+{
 }
 
 }//end namespace
