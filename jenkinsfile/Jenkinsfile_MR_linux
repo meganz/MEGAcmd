@@ -74,8 +74,7 @@ pipeline {
 			    userRemoteConfigs: [[ url: "${env.GIT_URL_MEGACMD}", credentialsId: "12492eb8-0278-4402-98f0-4412abfb65c1" ]],
 			    extensions: [
 				[$class: "UserIdentity",name: "jenkins", email: "jenkins@jenkins"],
-				[$class: 'PreBuildMerge', options: [fastForwardMode: 'FF', mergeRemote: "origin", mergeStrategy: 'DEFAULT', mergeTarget: "${env.gitlabTargetBranch}"]],
-				[$class: "CloneOption", depth: 1, shallow: true, noTags: false, reference: '']
+				[$class: 'PreBuildMerge', options: [fastForwardMode: 'FF', mergeRemote: "origin", mergeStrategy: 'DEFAULT', mergeTarget: "${env.gitlabTargetBranch}"]]
                             ]
 			])
 		    }
