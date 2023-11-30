@@ -119,7 +119,6 @@ pipeline {
                 }
                 stages{
                     stage('Build MEGAcmd container image'){
-                        //todo: integrate this to docker registry, and only run this stage when needed. Image should be downloaded from artifactory registry.
                         options{
                             timeout(time: 3, unit: 'HOURS')
                         }
@@ -154,7 +153,7 @@ pipeline {
                             }
                         }
                         options{
-                            timeout(time: 3, unit: 'HOURS')
+                            timeout(time: 10, unit: 'MINUTES')
                         }
                         environment{
                             ASAN_OPTIONS='atexit=1,print_stats=1,log_path=/tmp/test-results/megacmd-unit-tests-asan-report'
@@ -174,7 +173,7 @@ pipeline {
                             }
                         }
                         options{
-                            timeout(time: 3, unit: 'HOURS')
+                            timeout(time: 10, unit: 'MINUTES')
                         }
                         environment{
                             MEGACMD_TEST_USER=''
