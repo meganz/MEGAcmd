@@ -49,7 +49,7 @@ void MegaCmdGlobalListener::onUsersUpdate(MegaApi *api, MegaUserList *users1)
     }
     else //initial update or too many changes
     {
-        MegaUserList *users2 = api->getContacts();
+        std::unique_ptr<MegaUserList> users2(api->getContacts());
 
         if (users2 && users2->size())
         {
@@ -61,8 +61,6 @@ void MegaCmdGlobalListener::onUsersUpdate(MegaApi *api, MegaUserList *users1)
             {
                 LOG_debug << users2->size() << " users received or updated";
             }
-
-            delete users2;
         }
     }
 }

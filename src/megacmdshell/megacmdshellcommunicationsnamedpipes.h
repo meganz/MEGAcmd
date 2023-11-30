@@ -75,7 +75,7 @@ private:
     static HANDLE newNamedPipe;
 
     static bool stopListener;
-    static mega::Thread *listenerThread;
+    static std::unique_ptr<std::thread> listenerThread;
 
     static HANDLE createNamedPipe(int number = 0,bool initializeserver = true);
 
