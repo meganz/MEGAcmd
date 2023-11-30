@@ -3507,9 +3507,6 @@ void MegaCmdExecuter::exportNode(MegaNode *n, int64_t expireTime, std::string pa
         {
             return;
         }
-
-        // Explicit acceptance. Skipping the assignment (variable won't be used below)
-        //alreadyAcceptedBefore = true;
     }
 
     if (!alreadyAcceptedBefore)
@@ -3561,18 +3558,10 @@ void MegaCmdExecuter::exportNode(MegaNode *n, int64_t expireTime, std::string pa
     }
 
     auto publicLink = std::unique_ptr<char[]>(nexported->getPublicLink());
-    if (!publicLink)
-    {
-        LOG_err << "Node has not been exported";
-        return;
-    }
+    assert(publicLink != nullptr);
 
     auto nodepath = std::unique_ptr<char[]>(api->getNodePath(nexported.get()));
-    if (!nodepath)
-    {
-        LOG_err << "Node path not found";
-        return;
-    }
+    assert(nodepath != nullptr);
 
     string publicPassProtectedLink;
     if (password.size())
@@ -3606,7 +3595,8 @@ void MegaCmdExecuter::exportNode(MegaNode *n, int64_t expireTime, std::string pa
     const string authKey = nexported->getWritableLinkAuthKey();
     if (writable && authKey.empty())
     {
-        LOG_err << "Failed to generate writable folder: missing auth key. Showing readable link";
+        setCurrentOutCode(MCMD_INVALIDSTATE);
+        LOG_err << "Failed to generate writable folder: missing auth key. Showing read-only link";
     }
 
     OUTSTREAM << "Exported " << nodepath.get() << ": "
@@ -9615,7 +9605,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         const bool add = getFlag(clflags, "a");
 
         auto passwordPair = getOptionOrFalse(*cloptions, "password");
-        const string linkPass = passwordPair.first;
+        const auto &linkPass = passwordPair.first;
 
         // When the user passes "--password" without "=" it gets treated as a flag, so
         // it's inserted into `clflags`. We'll treat this as hasPassword=true as well
