@@ -3361,14 +3361,16 @@ void MegaCmdExecuter::downloadNode(string source, string path, MegaApi* api, Meg
 
     api->startDownload(
                 node, //MegaNode* node,
-                path.c_str(),//const char* localPath,
-                nullptr,//const char *customName,
-                nullptr,//const char *appData,
-                false,//bool startFirst,
-                nullptr,//MegaCancelToken *cancelToken,
-                MegaTransfer::COLLISION_CHECK_FINGERPRINT,//int collisionCheck,
-                MegaTransfer::COLLISION_RESOLUTION_NEW_WITH_N,//int collisionResolution,
-                new ATransferListener(multiTransferListener, source));
+                path.c_str(), // const char* localPath,
+                nullptr, // const char *customName,
+                nullptr, // const char *appData,
+                false, // bool startFirst,
+                nullptr, // MegaCancelToken *cancelToken,
+                MegaTransfer::COLLISION_CHECK_FINGERPRINT, // int collisionCheck,
+                MegaTransfer::COLLISION_RESOLUTION_NEW_WITH_N, // int collisionResolution,
+                false, // bool undelete
+                new ATransferListener(multiTransferListener, source) // MegaTransferListener *listener
+     );
 }
 
 void MegaCmdExecuter::uploadNode(string path, MegaApi* api, MegaNode *node, string newname,
