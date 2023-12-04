@@ -61,5 +61,6 @@ TEST_F(NOINTERACTIVELoggedInTest, WhoamiLCMD283)
     std::vector<std::string> details_out = splitByNewline(r.out());
     ASSERT_THAT(details_out, testing::Not(testing::IsEmpty()));
 
-    EXPECT_THAT(details_out, testing::Not(testing::Contains(testing::ContainsRegex("Available storage:\\s+0\\.00\\s+Bytes"))));    
+    EXPECT_THAT(details_out, testing::Not(testing::Contains(testing::ContainsRegex("Available storage:\\s+0\\.00\\s+Bytes"))));
+    EXPECT_THAT(details_out, testing::Not(testing::Contains(testing::ContainsRegex("In ROOT:\\s+0\\.00\\s+Bytes"))));
 }
