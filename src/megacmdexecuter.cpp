@@ -20,6 +20,7 @@
 #include "megacmd.h"
 
 #include "megacmdutils.h"
+#include "megacmdcommonutils.h"
 #include "megacmdtransfermanager.h"
 #include "configurationmanager.h"
 #include "megacmdlogger.h"
@@ -28,6 +29,7 @@
 #include "megacmdversion.h"
 
 #include <iomanip>
+#include <limits>
 #include <string>
 #include <ctime>
 
@@ -1387,15 +1389,21 @@ void MegaCmdExecuter::dumpNode(MegaNode* n, const char *timeFormat, std::map<std
     }
 }
 
+// 12 is the length of "999000000000" i.e 999 GiB.
+static constexpr size_t MAX_SIZE_LEN = 12;
+
 void MegaCmdExecuter::dumpNodeSummaryHeader(const char *timeFormat, std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions)
 {
     int datelength = int(getReadableTime(m_time(), timeFormat).size());
+    size_t size_header_width = std::max((MAX_SIZE_LEN - 1), strlen("SIZE  "));
 
     OUTSTREAM << "FLAGS";
     OUTSTREAM << " ";
     OUTSTREAM << getFixLengthString("VERS", 4);
     OUTSTREAM << " ";
-    OUTSTREAM << getFixLengthString("SIZE  ", 10 -1, ' ', true); //-1 because of "FLAGS"
+    OUTSTREAM << getFixLengthString("SIZE  ",
+                                    (unsigned int)size_header_width, ' ',
+                                    true); //-1 because of "FLAGS"
     OUTSTREAM << " ";
     OUTSTREAM << getFixLengthString("DATE      ", datelength+1, ' ', true);
     if (getFlag(clflags, "show-handles"))
@@ -1499,12 +1507,15 @@ void MegaCmdExecuter::dumpNodeSummary(MegaNode *n, const char *timeFormat, std::
         }
         else
         {
-            OUTSTREAM << getFixLengthString(SSTR(n->getSize()), 10, ' ', true);
+            OUTSTREAM << getFixLengthString(SSTR(n->getSize()),
+                                            (unsigned int)std::max(MAX_SIZE_LEN, strlen("SIZE  ")),
+                                            ' ', true);
         }
     }
     else
     {
-        OUTSTREAM << getFixLengthString("-", 10, ' ', true);
+        OUTSTREAM << getFixLengthString(
+            "-", (unsigned int)std::max(MAX_SIZE_LEN, strlen("SIZE  ")), ' ', true);
     }
 
     if (n->isFile() && !getFlag(clflags, "show-creation-time"))
@@ -1831,7 +1842,7 @@ void MegaCmdExecuter::dumpTreeSummary(MegaNode *n, const char *timeFormat, std::
                     for (int i = 0; i < vers->size(); i++)
                     {
                         string nametoshow = n->getName()+string("#")+SSTR(vers->get(i)->getModificationTime());
-                        dumpNodeSummary(vers->get(i), timeFormat, clflags, cloptions, humanreadable, nametoshow.c_str() );
+                        dumpNodeSummary(vers->get(i), timeFormat, clflags, cloptions, humanreadable, nametoshow.c_str());
                     }
                 }
                 delete vers;
@@ -5720,10 +5731,16 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     {
                         if (firstprint)
                         {
-                            dumpNodeSummaryHeader(getTimeFormatFromSTR(getOption(cloptions, "time-format","SHORT")), clflags, cloptions);
+                            dumpNodeSummaryHeader(
+                                getTimeFormatFromSTR(getOption(cloptions, "time-format", "SHORT")),
+                                clflags, cloptions);
                             firstprint = false;
                         }
-                        dumpTreeSummary(n.get(), getTimeFormatFromSTR(getOption(cloptions, "time-format","SHORT")), clflags, cloptions, recursive, show_versions, 0, humanreadable, rNpath);
+                        dumpTreeSummary(
+                            n.get(),
+                            getTimeFormatFromSTR(getOption(cloptions, "time-format", "SHORT")),
+                            clflags, cloptions, recursive, show_versions,
+                            0, humanreadable, rNpath);
                     }
                     else
                     {
@@ -5748,10 +5765,13 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 {
                     if (firstprint)
                     {
-                        dumpNodeSummaryHeader(getTimeFormatFromSTR(getOption(cloptions, "time-format","SHORT")), clflags, cloptions);
+                        dumpNodeSummaryHeader(
+                            getTimeFormatFromSTR(getOption(cloptions, "time-format", "SHORT")),
+                            clflags, cloptions);
                         firstprint = false;
                     }
-                    dumpTreeSummary(n.get(), getTimeFormatFromSTR(getOption(cloptions, "time-format","SHORT")), clflags, cloptions, recursive, show_versions, 0, humanreadable);
+                    dumpTreeSummary(n.get(), getTimeFormatFromSTR(getOption(cloptions, "time-format", "SHORT")), clflags, cloptions, recursive, show_versions, 0,
+                                    humanreadable, "NULL");
                 }
                 else
                 {

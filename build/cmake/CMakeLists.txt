@@ -152,6 +152,7 @@ list(APPEND c++17targets mega-cmd-tests-integration)
 #Unit tests:
 add_executable(mega-cmd-tests-unit
     "${ProjectDir}/tests/unit/StringUtilsTests.cpp"
+    "${ProjectDir}/tests/unit/UtilsTests.cpp"
     "${ProjectDir}/tests/unit/PlatformDirectoriesTest.cpp"
     "${ProjectDir}/tests/unit/main.cpp"
 )
