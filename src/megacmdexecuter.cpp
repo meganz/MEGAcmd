@@ -3564,7 +3564,7 @@ void MegaCmdExecuter::exportNode(MegaNode *n, int64_t expireTime, std::string pa
                 OUTSTREAM << "Exported " << nodepath << ": "
                           << (publicPassProtectedLink.size()?publicPassProtectedLink:publiclink);
 
-                if (nexported->getWritableLinkAuthKey())
+                if (nexported->isFolder() && nexported->getWritableLinkAuthKey())
                 {
                     string authKey(nexported->getWritableLinkAuthKey());
                     if (authKey.size())
