@@ -24,8 +24,12 @@
 #else
 #include <sys/ioctl.h> // console size
 #include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 #endif
 
+#include <cstring>
 #include <iomanip>
 #include <fstream>
 #include <string.h>
@@ -1464,4 +1468,200 @@ void Field::updateMaxValue(int newcandidate)
     }
 }
 
+std::unique_ptr<PlatformDirectories> PlatformDirectories::getPlatformSpecificDirectories()
+{
+#ifdef _WIN32
+    return std::unique_ptr<PlatformDirectories>(new WindowsDirectories);
+#elif defined(__APPLE__)
+    return std::unique_ptr<PlatformDirectories>(new MacOSDirectories);
+#else
+    return std::unique_ptr<PlatformDirectories>(new XDGDirectories);
+#endif
+}
+
+#ifdef _WIN32
+std::string WindowsDirectories::configDirPath()
+{
+    TCHAR szPath[MAX_PATH];
+    std::string folder;
+
+    if (!SUCCEEDED(GetModuleFileName(NULL, szPath, MAX_PATH)))
+    {
+        return std::string();
+    }
+    else
+    {
+        if (SUCCEEDED(PathRemoveFileSpec(szPath)))
+        {
+            if (PathAppend(szPath, TEXT(".megaCmd")))
+            {
+                utf16ToUtf8(szPath, lstrlen(szPath), &folder);
+            }
+        }
+    }
+
+    return folder;
+}
+#else // !defined(_WIN32)
+std::string PosixDirectories::homeDirPath()
+{
+    const char *homedir = getenv("HOME");
+    if (homedir != nullptr)
+    {
+        return homedir;
+    }
+
+    struct passwd pwd = {};
+    struct passwd *pwdresult = nullptr;
+    long int bufsize = sysconf(_SC_GETPW_R_SIZE_MAX);
+    bufsize = bufsize == -1 ? 1024 : bufsize;
+    auto pwdbuf = std::unique_ptr<char[]>(new char[bufsize]);
+    auto err = getpwuid_r(getuid(), &pwd, pwdbuf.get(), bufsize, &pwdresult);
+
+    if (err != 0)
+    {
+        return std::string();
+    }
+    return std::string(pwd.pw_dir);
+}
+
+std::string PosixDirectories::runtimeDirPath()
+{
+    std::string dir = PosixDirectories::configDirPath();
+    struct stat path_stat = {};
+    bool exists = !stat(dir.c_str(), &path_stat) && S_ISDIR(path_stat.st_mode);
+
+    return (dir.empty() || !exists) ? std::string("/tmp/megacmd-").append(std::to_string(getuid()))
+                                    : dir;
+}
+
+std::string PosixDirectories::configDirPath()
+{
+    std::string home = homeDirPath();
+    return home.empty() ? std::string() : home.append("/.megaCmd");
+}
+
+bool PosixDirectories::legacyConfigDirExists()
+{
+    std::string dir = PosixDirectories::configDirPath();
+    struct stat path_stat = {};
+
+    return !stat(dir.c_str(), &path_stat) && S_ISDIR(path_stat.st_mode);
+}
+
+#ifdef __APPLE__
+std::string MacOSDirectories::cacheDirPath()
+{
+    std::string homedir = homeDirPath();
+    return homedir.empty() ? std::string() : homedir.append("/Library/Caches/megacmd.mac");
+}
+
+std::string MacOSDirectories::configDirPath()
+{
+    if (legacyConfigDirExists())
+    {
+        return PosixDirectories::configDirPath();
+    }
+    std::string homedir = homeDirPath();
+    return homedir.empty() ? std::string() : homedir.append("/Library/Preferences/megacmd.mac");
+}
+
+std::string MacOSDirectories::dataDirPath()
+{
+    std::string homedir = homeDirPath();
+    return homedir.empty() ? std::string() : homedir.append("/Library/MEGA CMD");
+}
+#else // !defined(__APPLE__)
+std::string XDGDirectories::runtimeDirPath()
+{
+    const char *runtimedir = getenv("XDG_RUNTIME_DIR");
+    if (runtimedir != nullptr)
+    {
+        return std::string(runtimedir).append("/megacmd");
+    }
+
+    return PosixDirectories::runtimeDirPath();
+}
+
+std::string XDGDirectories::cacheDirPath()
+{
+    const char *cachedir = getenv("XDG_CACHE_HOME");
+    if (cachedir != nullptr)
+    {
+        return std::string(cachedir).append("/megacmd");
+    }
+
+    return PosixDirectories::cacheDirPath();
+}
+
+std::string XDGDirectories::configDirPath()
+{
+    const char *configdir = getenv("XDG_CONFIG_HOME");
+    if (legacyConfigDirExists() || configdir == nullptr)
+    {
+        return PosixDirectories::configDirPath();
+    }
+    return std::string(configdir).append("/megacmd");
+}
+
+std::string XDGDirectories::dataDirPath()
+{
+    if (legacyConfigDirExists())
+    {
+        return PosixDirectories::configDirPath();
+    }
+
+    const char *datadir = getenv("XDG_DATA_HOME");
+    if (datadir == nullptr)
+    {
+        return PosixDirectories::dataDirPath();
+    }
+
+    return std::string(datadir).append("/megacmd");
+}
+
+std::string XDGDirectories::stateDirPath()
+{
+    const char *statedir = getenv("XDG_STATE_HOME");
+    if (statedir != nullptr)
+    {
+        return std::string(statedir).append("/megacmd");
+    }
+
+    return PosixDirectories::stateDirPath();
+}
+#endif // !defined(__APPLE__)
+
+std::string getOrCreateSocketPath(bool createDirectory)
+{
+    auto dirs = PlatformDirectories::getPlatformSpecificDirectories();
+    auto runtimedir = dirs->runtimeDirPath();
+    if (runtimedir.empty())
+    {
+        return std::string();
+    }
+    struct stat path_stat = {};
+    if (createDirectory)
+    {
+        bool exists = !stat(runtimedir.c_str(), &path_stat) && S_ISDIR(path_stat.st_mode);
+        if (!exists && createDirectory)
+        {
+            mode_t mode = umask(0);
+            bool failed = mkdir(runtimedir.c_str(), 0700) != 0;
+            if (failed)
+            {
+                std::cerr << "Failed to create folder for unix socket: " << runtimedir << ": " << std::strerror(errno) << std::endl;
+            }
+            umask(mode);
+
+            if (failed)
+                return std::string();
+        }
+    }
+
+    const char *sockname_c = getenv("MEGACMD_SOCKET_NAME");
+    std::string sockname = sockname_c != nullptr ? std::string(sockname_c) : "megacmd.socket";
+    return runtimedir.append("/").append(sockname);
+}
+#endif // ifdef(_WIN32) else
 } //end namespace

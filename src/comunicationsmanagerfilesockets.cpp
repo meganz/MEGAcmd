@@ -15,6 +15,7 @@
  * You should have received a copy of the license along with this
  * program.
  */
+#include "megacmdcommonutils.h"
 #ifndef WIN32
 
 #include "comunicationsmanagerfilesockets.h"
@@ -41,21 +42,18 @@ ComunicationsManagerFileSockets::ComunicationsManagerFileSockets()
 
 int ComunicationsManagerFileSockets::initialize()
 {
-    MegaFileSystemAccess *fsAccess = new MegaFileSystemAccess();
-    char csocketsFolder[34]; // enough to hold all numbers up to 64-bits
-    sprintf(csocketsFolder, "/tmp/megaCMD_%d", getuid());
-    LocalPath socketsFolder = LocalPath::fromPlatformEncodedAbsolute(csocketsFolder);
+    auto socketPath = getOrCreateSocketPath(true);
+    struct sockaddr_un addr;
 
-    fsAccess->setdefaultfolderpermissions(0700);
-    fsAccess->rmdirlocal(socketsFolder);
-    LOG_debug << "CREATING sockets folder: " << socketsFolder.toPath(false) << "!!!";
-    constexpr bool isHidden = false;
-    constexpr bool logExisting  = false;
-    if (!fsAccess->mkdirlocal(socketsFolder, isHidden, logExisting))
+    if (socketPath.empty())
     {
-        LOG_fatal << "ERROR CREATING sockets folder: " << socketsFolder.toPath(false) << ": " << errno;
+        LOG_fatal  << "Could not create runtime directory for socket file: " << strerror(errno);
     }
-    delete fsAccess;
+    if (socketPath.size() >= (ARRAYSIZE(addr.sun_path) - 1))
+    {
+        LOG_fatal << "Server socket path is too long: '" << socketPath << "'";
+        return -1;
+    }
 
     sockfd = socket(AF_UNIX, SOCK_STREAM, 0);
 
@@ -68,20 +66,15 @@ int ComunicationsManagerFileSockets::initialize()
         LOG_err << "ERROR setting CLOEXEC to socket: " << errno;
     }
 
-    struct sockaddr_un addr;
     socklen_t saddrlen = sizeof( addr );
     memset(&addr, 0, sizeof( addr ));
     addr.sun_family = AF_UNIX;
 
-    char socketPath[60];
-    bzero(socketPath, sizeof( socketPath ) * sizeof( *socketPath ));
-    sprintf(socketPath, "/tmp/megaCMD_%d/srv", getuid());
+    strncpy(addr.sun_path, socketPath.c_str(), socketPath.size());
+    unlink(addr.sun_path);
 
-    strncpy(addr.sun_path, socketPath, sizeof( addr.sun_path ) - 1);
-
-    unlink(socketPath);
-
-    if (::bind(sockfd, (struct sockaddr*)&addr, saddrlen))
+    LOG_debug << "Binding socket to path " << socketPath;
+    if (::bind(sockfd, (struct sockaddr *)&addr, saddrlen))
     {
         if (errno == EADDRINUSE)
         {
@@ -89,17 +82,18 @@ int ComunicationsManagerFileSockets::initialize()
         }
         else
         {
-            LOG_fatal << "ERROR on binding socket: " << socketPath << ": " << errno;
-            sockfd = -1;
+            LOG_fatal << "ERROR on binding socket: " << socketPath << ": " << strerror(errno);
         }
         close(sockfd);
+        sockfd = -1;
     }
     else
     {
+        LOG_debug << "Listening for commands at socket path " << socketPath;
         int returned = listen(sockfd, 150);
         if (returned)
         {
-            LOG_fatal << "ERROR on listen socket initializing communications manager: " << socketPath << ": " << errno;
+            LOG_fatal << "ERROR on listen socket initializing communications manager: " << socketPath << ": " << strerror(errno);
             close(sockfd);
             return errno;
         }
@@ -142,7 +136,8 @@ void ComunicationsManagerFileSockets::stopWaiting()
     { //shutdown failed. we need to send something to the blocked thread so as to wake up from select
 
         int clientsocket = socket(AF_UNIX, SOCK_STREAM, 0);
-        char socket_path[60];
+        auto socketPath = getOrCreateSocketPath(false);
+        LOG_info << "listening at " << socketPath;
         if (clientsocket < 0 )
         {
             LOG_err << "ERROR opening client socket to exit select: " << errno;
@@ -154,16 +149,16 @@ void ComunicationsManagerFileSockets::stopWaiting()
             {
                 LOG_err << "ERROR setting CLOEXEC to socket: " << errno;
             }
-            bzero(socket_path, sizeof( socket_path ) * sizeof( *socket_path ));
-            {
-                sprintf(socket_path, "/tmp/megaCMD_%d/srv", getuid() );
-            }
 
             struct sockaddr_un addr;
-
+            if (socketPath.size() >= (ARRAYSIZE(addr.sun_path) - 1))
+            {
+                LOG_fatal << "Server socket path is too long: '" << socketPath << "'";
+                return;
+            }
             memset(&addr, 0, sizeof( addr ));
             addr.sun_family = AF_UNIX;
-            strncpy(addr.sun_path, socket_path, sizeof( addr.sun_path ) - 1);
+            strncpy(addr.sun_path, socketPath.c_str(), socketPath.size());
 
             if (::connect(clientsocket, (struct sockaddr*)&addr, sizeof( addr )) != -1)
             {
