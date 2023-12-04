@@ -13,6 +13,9 @@
  * program.
  */
 
+#include <gtest/gtest.h>
+#include <gmock/gmock.h>
+
 #include "MegaCmdTestingTools.h"
 #include "TestUtils.h"
 
@@ -48,4 +51,15 @@ TEST_F(NOINTERACTIVEReadTest, Find)
     EXPECT_CONTAINS(result_paths, "testReadingFolder01/file03.txt");
     EXPECT_CONTAINS(result_paths, "testReadingFolder01/folder01/file03.txt");
     EXPECT_CONTAINS(result_paths, "testReadingFolder01/folder02/subfolder03/file02.txt");
+}
+
+TEST_F(NOINTERACTIVELoggedInTest, WhoamiLCMD283)
+{
+    // CMD-283: whoami -l reports wrong details about account storage use
+    auto r = executeInClient({"whoami", "-l"});
+
+    std::vector<std::string> details_out = splitByNewline(r.out());
+    ASSERT_THAT(details_out, testing::Not(testing::IsEmpty()));
+
+    EXPECT_THAT(details_out, testing::Not(testing::Contains(testing::ContainsRegex("Available storage:\\s+0\\.00\\s+Bytes"))));    
 }
