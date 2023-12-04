@@ -145,8 +145,6 @@ std::string syncBackupIdToBase64(const mega::MegaHandle &handle); //sync handles
 
 mega::MegaHandle base64ToSyncBackupId(const std::string &shandle);
 
-
-
 /* Flags and Options */
 bool setOptionsAndFlags(std::map<std::string, std::string> *opts, std::map<std::string, int> *flags, std::vector<std::string> *ws,
                         std::set<std::string> vvalidOptions, bool global = false);
