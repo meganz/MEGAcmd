@@ -49,7 +49,7 @@ void MegaCmdGlobalListener::onUsersUpdate(MegaApi *api, MegaUserList *users1)
     }
     else //initial update or too many changes
     {
-        MegaUserList *users2 = api->getContacts();
+        std::unique_ptr<MegaUserList> users2(api->getContacts());
 
         if (users2 && users2->size())
         {
@@ -61,8 +61,6 @@ void MegaCmdGlobalListener::onUsersUpdate(MegaApi *api, MegaUserList *users1)
             {
                 LOG_debug << users2->size() << " users received or updated";
             }
-
-            delete users2;
         }
     }
 }
@@ -308,9 +306,10 @@ void MegaCmdGlobalListener::onEvent(MegaApi *api, MegaEvent *event)
     }
     else if (event->getType() == MegaEvent::EVENT_SYNCS_DISABLED)
     {
+        std::unique_ptr<const char[]> megaSyncErrorCode {MegaSync::getMegaSyncErrorCode(int(event->getNumber()))};
         removeDelayedBroadcastMatching("Your sync has been disabled");
         broadcastMessage(std::string("Your syncs have been disabled. Reason: ")
-                         .append(MegaSync::getMegaSyncErrorCode(int(event->getNumber()))), true);
+                         .append(megaSyncErrorCode.get()), true);
     }
     else if (event->getType() == MegaEvent::EVENT_UPGRADE_SECURITY)
     {
@@ -469,7 +468,8 @@ void MegaCmdMegaListener::onSyncStateChanged(MegaApi *api, MegaSync *sync)
     << " has transitioned to state " << syncRunStateStr(sync->getRunState());
     if (sync->getError())
     {
-        ss << ". ErrorCode: " << sync->getMegaSyncErrorCode();
+        std::unique_ptr<const char[]> megaSyncErrorCode {sync->getMegaSyncErrorCode()};
+        ss << ". ErrorCode: " << megaSyncErrorCode.get();
     }
     auto msg = ss.str();
 

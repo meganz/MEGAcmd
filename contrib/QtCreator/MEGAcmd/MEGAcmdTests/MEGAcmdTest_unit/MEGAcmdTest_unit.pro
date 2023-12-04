@@ -45,9 +45,9 @@ CONFIG += c++17
 QMAKE_CXXFLAGS+=-std=c++17
 
 !win32 {
-    QMAKE_CXXFLAGS += "-fsanitize=address -fsanitizer=undefined -fno-omit-frame-pointer -fno-common"
-    QMAKE_LFLAGS += "-fsanitize=address -fsanitizer=undefined"
-    QMAKE_CXXFLAGS_DEBUG += "-fsanitize=address -fsanitizer=undefined -fno-omit-frame-pointer -fno-common"
+    QMAKE_CXXFLAGS += "-fsanitize=address -fsanitize=undefined -fno-omit-frame-pointer -fno-common"
+    QMAKE_LFLAGS += "-fsanitize=address -fsanitize=undefined"
+    QMAKE_CXXFLAGS_DEBUG += "-fsanitize=address -fsanitize=undefined -fno-omit-frame-pointer -fno-common"
 }
 
 include(../MEGAcmdTest_common/MEGAcmdTest_common.pri)
@@ -62,6 +62,7 @@ INCLUDEPATH += \
 SOURCES += \
     $$MEGACMD_BASE_PATH/tests/unit/StringUtilsTests.cpp \
     $$MEGACMD_BASE_PATH/tests/unit/UtilsTests.cpp \
+    $$MEGACMD_BASE_PATH/tests/unit/PlatformDirectoriesTest.cpp \
     $$MEGACMD_BASE_PATH/tests/unit/main.cpp
 
 SOURCES += \

@@ -186,7 +186,18 @@ void informProgressUpdate(long long transferred, long long total, int clientID, 
 void sendEvent(StatsManager::MegacmdEvent event, mega::MegaApi *megaApi, bool wait = true);
 void sendEvent(StatsManager::MegacmdEvent event, const char *msg, mega::MegaApi *megaApi, bool wait = true);
 
-int executeServer(int argc, char* argv[]);
+#ifdef _WIN32
+void uninstall();
+#endif
+
+class LoggedStream; // forward delaration
+int executeServer(int argc, char* argv[],
+                  std::unique_ptr<megacmd::LoggedStream> logStream = nullptr,
+                  int sdkLogLevel = mega::MegaApi::LOG_LEVEL_DEBUG,
+                  int cmdLogLevel = mega::MegaApi::LOG_LEVEL_DEBUG,
+                  bool skiplockcheck = false,
+                  std::string debug_api_url = {},
+                  bool disablepkp/*only for debugging*/ = false);
 void stopServer();
 
 }//end namespace
