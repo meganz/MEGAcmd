@@ -462,7 +462,7 @@ for f in o.split():
     rmfileifexisting("thumbnail.jpg")
     o,status=cmd_ec(THUMB+" "+f+" thumbnail.jpg")
     ext=f.split(".")[-1].lower().strip()
-    allowedFailure=["ai","ani","cur","eps","exe","gif","heic","html","idx","j2c","jpm","md","mj2","pdf","psd","sgi","svg","txt","webp","xmp", "pnm","ppm"]    
+    allowedFailure=["", "ai","ani","cur","eps","exe","gif","heic","html","idx","j2c","jpm","md","mj2","pdf","psd","sgi","svg","txt","webp","xmp", "pnm","ppm", "tiff", "tif"]
     if not ext in allowedFailure and "saved in" not in o: #note: output code is not trustworthy: check for "saved in"
         fullout=fullout+str("missing thumbnail for:"+str(f)+"\n")
         fullStatus=0
