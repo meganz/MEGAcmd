@@ -1302,21 +1302,20 @@ void MegaCmdExecuter::dumpNode(MegaNode* n, const char *timeFormat, std::map<std
                         OUTSTREAM << " folder link";
                         if (extended_info > 1)
                         {
-                            char * publicLink = n->getPublicLink();
-                            OUTSTREAM << ": " << publicLink;
+                            std::unique_ptr<char[]> publicLink(n->getPublicLink());
+                            OUTSTREAM << ": " << publicLink.get();
 
                             if (n->getWritableLinkAuthKey())
                             {
+                                const char *prefix = "https://mega.nz/folder/";
                                 string authKey(n->getWritableLinkAuthKey());
-                                if (authKey.size())
+                                if (authKey.size() && authKey.rfind(prefix) == 0)
                                 {
-                                    string authToken(publicLink);
-                                    authToken = authToken.substr(strlen("https://mega.nz/folder/")).append(":").append(authKey);
+                                    string authToken(publicLink.get());
+                                    authToken = authToken.substr(strlen(prefix)).append(":").append(authKey);
                                     OUTSTREAM << " AuthToken="<< authToken;
                                 }
                             }
-
-                            delete []publicLink;
                         }
                     }
                     delete outShares;
@@ -3577,11 +3576,12 @@ void MegaCmdExecuter::exportNode(MegaNode *n, int64_t expireTime, std::string pa
 
                 if (nexported->isFolder() && nexported->getWritableLinkAuthKey())
                 {
+                    const char *prefix = "https://mega.nz/folder/";
                     string authKey(nexported->getWritableLinkAuthKey());
-                    if (authKey.size())
+                    if (authKey.size() && authKey.rfind(prefix) == 0)
                     {
                         string authToken((publicPassProtectedLink.size()?publicPassProtectedLink:publiclink));
-                        authToken = authToken.substr(strlen("https://mega.nz/folder/")).append(":").append(authKey);
+                        authToken = authToken.substr(strlen(prefix)).append(":").append(authKey);
                         OUTSTREAM << "\n          AuthToken = " << authToken;
                     }
                 }
