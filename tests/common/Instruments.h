@@ -18,6 +18,7 @@
 //#include "EventsDefinitions.h"
 //TODO: Have the above use MEGAcmd definitions!
 
+#include <cstdlib>
 #include <unordered_set>
 #include <functional>
 #include <mutex>
@@ -295,6 +296,80 @@ public:
             }
         }
         return true;
+    }
+};
+
+class TestInstrumentsEnvVarGuard
+{
+private:
+    std::string mVar;
+    bool mHasInitValue;
+    std::string mInitValue;
+
+public:
+    TestInstrumentsEnvVarGuard(std::string variable, const std::string &value)
+        : mVar(std::move(variable)), mHasInitValue(false), mInitValue()
+    {
+        const char *initValue = getenv(mVar.c_str());
+        if (initValue != nullptr)
+        {
+            mHasInitValue = true;
+            mInitValue = std::string(initValue);
+        }
+#ifdef _WIN32
+        auto envStr = std::string(mVar).append("=").append(value);
+        _putenv(envStr.c_str());
+#else
+        setenv(mVar.c_str(), value.c_str(), 1);
+#endif
+    }
+    virtual ~TestInstrumentsEnvVarGuard()
+    {
+        if (mHasInitValue)
+        {
+#ifdef _WIN32
+            auto envStr = std::string(mVar).append("=").append(mInitValue);
+            _putenv(envStr.c_str());
+#else
+            setenv(mVar.c_str(), mInitValue.c_str(), 1);
+#endif
+        }
+        else
+        {
+#ifdef _WIN32
+            auto envStr = std::string(mVar).append("=");
+            _putenv(envStr.c_str());
+#else
+            unsetenv(mVar.c_str());
+#endif
+        }
+    }
+
+protected:
+    explicit TestInstrumentsEnvVarGuard(std::string variable)
+        : mVar(std::move(variable)), mHasInitValue(false), mInitValue()
+    {
+        const char *initValue = getenv(mVar.c_str());
+        if (initValue != nullptr)
+        {
+            mHasInitValue = true;
+            mInitValue = std::string(initValue);
+        }
+#ifdef _WIN32
+        auto envStr = std::string(mVar).append("=");
+        _putenv(envStr.c_str());
+#else
+        unsetenv(mVar.c_str());
+#endif
+    }
+};
+
+class TestInstrumentsUnsetEnvVarGuard : TestInstrumentsEnvVarGuard
+{
+public:
+    explicit TestInstrumentsUnsetEnvVarGuard(std::string variable)
+        : TestInstrumentsEnvVarGuard(variable)
+    {
     }
 };
 
