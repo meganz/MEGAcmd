@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 FROM scratch as pdfium
-ADD https://artifactory.developers.mega.co.nz/artifactory/debian-dev/private/Debian_11/amd64/pdfium-mega_5247.0-4.1_amd64.deb /tmp/pdfium/pdfium-mega.deb
+ADD https://artifactory.developers.mega.co.nz/artifactory/debian-dev/private/Debian_12/amd64/pdfium-mega_5247.0-4.1_amd64.deb /tmp/pdfium/pdfium-mega.deb
 
 FROM debian:12-slim as base
 
