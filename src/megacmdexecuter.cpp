@@ -2275,9 +2275,10 @@ void MegaCmdExecuter::actUponGetExtendedAccountDetails(std::unique_ptr<::mega::M
         for (int i = 0; i < extAccountDetails->getNumBalances(); i++)
         {
             std::unique_ptr<MegaAccountBalance> balance(extAccountDetails->getBalance(i));
+            std::unique_ptr<char[]> currency(balance->getCurrency());
             char sbalance[50];
 
-            sprintf(sbalance, "    Balance: %.3s %.02f", balance->getCurrency(), balance->getAmount());
+            sprintf(sbalance, "    Balance: %.3s %.02f", currency.get(), balance->getAmount());
             OUTSTREAM << "    "
                       << "Balance: " << sbalance << endl;
         }
@@ -2288,10 +2289,12 @@ void MegaCmdExecuter::actUponGetExtendedAccountDetails(std::unique_ptr<::mega::M
             for (int i = 0; i < extAccountDetails->getNumPurchases(); i++)
             {
                 std::unique_ptr<MegaAccountPurchase> purchase(extAccountDetails->getPurchase(i));
+                std::unique_ptr<char[]> currency(purchase->getCurrency());
+                std::unique_ptr<char[]> handle(purchase->getHandle());
                 char spurchase[150];
 
                 str_localtime(timebuf, purchase->getTimestamp());
-                sprintf(spurchase, "ID: %.11s Time: %s Amount: %.3s %.02f Payment method: %d\n", purchase->getHandle(), timebuf, purchase->getCurrency(),
+                sprintf(spurchase, "ID: %.11s Time: %s Amount: %.3s %.02f Payment method: %d\n", handle.get(), timebuf, currency.get(),
                         purchase->getAmount(), purchase->getMethod());
                 OUTSTREAM << "    " << spurchase << endl;
             }
@@ -2303,10 +2306,11 @@ void MegaCmdExecuter::actUponGetExtendedAccountDetails(std::unique_ptr<::mega::M
             for (int i = 0; i < extAccountDetails->getNumTransactions(); i++)
             {
                 std::unique_ptr<MegaAccountTransaction> transaction(extAccountDetails->getTransaction(i));
+                std::unique_ptr<char[]> currency(transaction->getCurrency());
                 char stransaction[100];
 
                 str_localtime(timebuf, transaction->getTimestamp());
-                sprintf(stransaction, "ID: %.11s Time: %s Amount: %.3s %.02f\n", transaction->getHandle(), timebuf, transaction->getCurrency(), transaction->getAmount());
+                sprintf(stransaction, "ID: %.11s Time: %s Amount: %.3s %.02f\n", transaction->getHandle(), timebuf, currency.get(), transaction->getAmount());
                 OUTSTREAM << "    " << stransaction << endl;
             }
         }
@@ -9401,7 +9405,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     auto megaCmdListener = ::mega::make_unique<MegaCmdListener>(nullptr);
                     api->getExtendedAccountDetails(true, true, true, megaCmdListener.get());
                     megaCmdListener->wait();
-                    if (checkNoErrors(megaCmdListener->getError(), "failed to get extended account details"))
+                    if (checkNoErrors(megaCmdListener->getError(), "get extended account details"))
                     {
                         extAccountDetails = std::unique_ptr<::mega::MegaAccountDetails>(megaCmdListener->getRequest()->getMegaAccountDetails());
                     }
