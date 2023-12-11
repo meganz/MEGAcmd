@@ -141,7 +141,7 @@ pipeline {
             }
         }
 
-        stage('Build and test MEGAcmd') {
+        stage('Test MEGAcmd') {
             matrix {
                 axes {
                     axis {
