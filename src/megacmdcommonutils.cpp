@@ -522,16 +522,17 @@ vector<string> getlistOfWords(char *ptr, bool escapeBackSlashInCompletion, bool 
             //while ((unsigned char)*ptr > ' ')
             while ((*ptr != '\0') && !(*ptr ==' ' && *prev !='\\'))
             {
-                if (*ptr == '"')
+                if (*ptr == '"') // if quote is found, look for the ending quote
                 {
-                    while (*++ptr != '"' && *ptr != '\0')
-                    { }
+                    while (*(ptr + 1) != '"' && *(ptr + 1))
+                    {
+                        ptr++;
+                    }
                 }
-                prev=ptr;
+                prev = ptr;
                 ptr++;
             }
-                string newword(wptr, ptr - wptr);
-                words.push_back(newword);
+            words.emplace_back(wptr, ptr - wptr);
         }
     }
 
