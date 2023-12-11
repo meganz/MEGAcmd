@@ -34,6 +34,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     libssl3 \
     libstdc++6 \
     libswscale6 \
+    libtinyxml2-9 \
     libubsan1 \
     libuv1 \
     libzen0v5 \
@@ -67,9 +68,9 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     libsqlite3-dev \
     libssl-dev \
     libswscale-dev \
+    libtinyxml-dev \
     libtool-bin \
     libuv1-dev \
-    libzen-dev \
     libzen-dev \
     pkg-config \
     zip \
