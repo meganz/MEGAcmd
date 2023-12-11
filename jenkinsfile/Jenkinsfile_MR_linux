@@ -110,19 +110,7 @@ pipeline {
                     }
                     axis {
                         name 'BUILD_SYSTEM'
-                        values 'c-make', 'autotools'
-                    }
-                }
-                excludes {
-                    exclude {
-                        axis {
-                            name 'BUILD_SYSTEM'
-                            values 'c-make'
-                        }
-                        axis {
-                            name 'SANITIZERS'
-                            notValues 'ubsan'
-                        }
+                        values 'autotools'
                     }
                 }
                 stages{
@@ -223,7 +211,7 @@ pipeline {
                     updateGitlabCommitStatus(name: 'Build linux', state: 'failed')
                 }
             }
-	    sh "docker image rm -- meganz/megacmd-autotools-ubsan:${env.BUILD_NUMBER} meganz/megacmd-autotools-asan:${env.BUILD_NUMBER} meganz/megacmd-autotools-tsan:${env.BUILD_NUMBER} meganz/megacmd-c-make-ubsan:${env.BUILD_NUMBER} || true"
+	    sh "docker image rm -- meganz/megacmd-autotools-ubsan:${env.BUILD_NUMBER} meganz/megacmd-autotools-asan:${env.BUILD_NUMBER} meganz/megacmd-autotools-tsan:${env.BUILD_NUMBER} || true"
             junit "**/test-results/ubsan-*.xml"
             archiveArtifacts artifacts: "**/test-results/megacmd-*-tests-*-report.*"
         }
