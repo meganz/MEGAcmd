@@ -205,7 +205,7 @@ pipeline {
 
     post{
         always{
-            script{
+	    script{
                 if (currentBuild.currentResult == 'SUCCESS'){
                     addGitLabMRComment(comment: ":white_check_mark: ${currentBuild.projectName} :penguin: <b>Linux</b> SUCCEEDED :muscle:<br/>Build results: [Jenkins [${currentBuild.displayName}]](${currentBuild.absoluteUrl})<br/>Commit: ${env.GIT_COMMIT}" )
                     updateGitlabCommitStatus(name: 'Build linux', state: 'success')
@@ -225,6 +225,7 @@ pipeline {
             }
             junit "**/test-results/ubsan-*.xml"
             archiveArtifacts artifacts: "**/test-results/megacmd-*-tests-*-report.*"
+	    sh "docker image rm meganz/megacmd-autotools-ubsan:${env.BUILD_NUMBER} meganz/megacmd-autotools-asan:${env.BUILD_NUMBER} meganz/megacmd-autotools-tsan:${env.BUILD_NUMBER} meganz/megacmd-c-make-ubsan:${env.BUILD_NUMBER}"
         }
 
     }
