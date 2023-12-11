@@ -33,12 +33,6 @@ TEST_F(NOINTERACTIVEBasicTest, Help)
     executeInClient({"help"});
 }
 
-TEST_F(NOINTERACTIVELoggedInTest, Whoami)
-{
-    auto r = executeInClient({"whoami"});
-    ASSERT_STREQ(r.out().c_str(), std::string("Account e-mail: ").append(getenv("MEGACMD_TEST_USER")).append("\n").c_str());
-}
-
 TEST_F(NOINTERACTIVEReadTest, Find)
 {
     auto r = executeInClient({"find"});
@@ -53,14 +47,24 @@ TEST_F(NOINTERACTIVEReadTest, Find)
     EXPECT_CONTAINS(result_paths, "testReadingFolder01/folder02/subfolder03/file02.txt");
 }
 
-TEST_F(NOINTERACTIVELoggedInTest, WhoamiLCMD283)
+TEST_F(NOINTERACTIVELoggedInTest, Whoami)
 {
-    // CMD-283: whoami -l reports wrong details about account storage use
-    auto r = executeInClient({"whoami", "-l"});
 
-    std::vector<std::string> details_out = splitByNewline(r.out());
-    ASSERT_THAT(details_out, testing::Not(testing::IsEmpty()));
+    {
+        G_SUBTEST << "basic whoami";
+        auto r = executeInClient({"whoami"});
 
-    EXPECT_THAT(details_out, testing::Not(testing::Contains(testing::ContainsRegex("Available storage:\\s+0\\.00\\s+Bytes"))));
-    EXPECT_THAT(details_out, testing::Not(testing::Contains(testing::ContainsRegex("In ROOT:\\s+0\\.00\\s+Bytes"))));
+        ASSERT_STREQ(r.out().c_str(), std::string("Account e-mail: ").append(getenv("MEGACMD_TEST_USER")).append("\n").c_str());
+    }
+
+    {
+        G_SUBTEST << "extended whoami";
+        auto r = executeInClient({"whoami", "-l"});
+        std::vector<std::string> details_out = splitByNewline(r.out());
+
+        ASSERT_THAT(details_out, testing::Not(testing::IsEmpty()));
+
+        EXPECT_THAT(details_out, testing::Not(testing::Contains(testing::ContainsRegex("Available storage:\\s+0\\.00\\s+Bytes"))));
+        EXPECT_THAT(details_out, testing::Not(testing::Contains(testing::ContainsRegex("In ROOT:\\s+0\\.00\\s+Bytes"))));
+    }
 }
