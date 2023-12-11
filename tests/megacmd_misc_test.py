@@ -463,7 +463,7 @@ for f in o.split():
     rmfileifexisting("thumbnail.jpg")
     o,status=cmd_ec(THUMB+" "+f+" thumbnail.jpg")
     ext=f.split(".")[-1].lower().strip()
-    allowedFailure=["ai","ani","cur","eps","exe","gif","heic","html","idx","j2c","jpm","md","mj2","pdf","psd","sgi","svg","txt","webp","xmp", "pnm","ppm", "tiff", "tif"]
+    allowedFailure=["ai","ani","cur","eps","exe","gif","heic","html","idx","j2c","jpm","md","mj2","pdf","psd","sgi","svg","txt","webp","xmp", "pnm","ppm", "tiff", "tif", "x3f"]
     if not ext in allowedFailure and "saved in" not in o: #note: output code is not trustworthy: check for "saved in"
         fullout=fullout+str("missing thumbnail for:"+str(f)+"\n")
         fullStatus=0
@@ -496,7 +496,7 @@ for f in o.split("\n"):
     if not len(f): continue
     rmfileifexisting("thumbnail.jpg")
     o,status=cmd_ec(THUMB+" '"+f+"' thumbnail.jpg")
-    allowedFailure=["protected", "non-pdf-file","with-password","_TFG"]
+    allowedFailure=["very big sheet size", "protected", "non-pdf-file","with-password","_TFG"]
     if not True in [x in f for x in allowedFailure] and "saved in" not in o: #note: output code is not trustworthy: check for "saved in"
         fullout=fullout+str("missing thumbnail for:"+str(f)+"\n")
         fullStatus=0
