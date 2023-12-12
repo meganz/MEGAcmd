@@ -294,16 +294,22 @@ void MegaCmdGlobalListener::onEvent(MegaApi *api, MegaEvent *event)
                                     }
                                     std::unique_ptr<char[]> myEmail(api->getMyEmail());
                                     std::unique_ptr<MegaIntegerList> warningsList(api->getOverquotaWarningsTs());
-                                    std::string s;
-                                    s += "We have contacted you by email to " + string(myEmail.get()) + " on ";
-                                    s += getReadableTime(warningsList->get(0), "%b %e %Y");
-                                    if (warningsList->size() > 1)
+                                    std::string s("We have contacted you by email");
+                                    if (myEmail != nullptr)
                                     {
-                                        for (int i = 1; i < warningsList->size() - 1; i++)
+                                        s.append(" to ").append(myEmail.get());
+                                    }
+                                    if (warningsList != nullptr)
+                                    {
+                                        s.append(" on ").append(getReadableTime(warningsList->get(0), "%b %e %Y"));
+                                        if (warningsList->size() > 1)
                                         {
-                                            s += ", " + getReadableTime(warningsList->get(i), "%b %e %Y");
+                                            for (int i = 1; i < warningsList->size() - 1; i++)
+                                            {
+                                                s += ", " + getReadableTime(warningsList->get(i), "%b %e %Y");
+                                            }
+                                            s += " and " + getReadableTime(warningsList->get(warningsList->size() - 1), "%b %e %Y");
                                         }
-                                        s += " and " + getReadableTime(warningsList->get(warningsList->size() - 1), "%b %e %Y");
                                     }
 
                                     std::unique_ptr<MegaNode> rootNode(api->getRootNode());
