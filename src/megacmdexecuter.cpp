@@ -3558,10 +3558,20 @@ void MegaCmdExecuter::exportNode(MegaNode *n, int64_t expireTime, std::string pa
     }
 
     auto publicLink = std::unique_ptr<char[]>(nexported->getPublicLink());
-    assert(publicLink != nullptr);
+    if (!publicLink)
+    {
+        setCurrentOutCode(MCMD_NOTFOUND);
+        LOG_err << "Public link for exported node not found";
+        return;
+    }
 
     auto nodepath = std::unique_ptr<char[]>(api->getNodePath(nexported.get()));
-    assert(nodepath != nullptr);
+    if (!nodepath)
+    {
+        setCurrentOutCode(MCMD_NOTFOUND);
+        LOG_err << "Path for exported node not found";
+        return;
+    }
 
     string publicPassProtectedLink;
     if (password.size())
