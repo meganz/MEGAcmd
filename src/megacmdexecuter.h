@@ -43,6 +43,9 @@ private:
     std::mutex mtxSyncMap;
     std::mutex mtxWebDavLocations;
     std::mutex mtxFtpLocations;
+    std::unique_ptr<std::thread> mOngoingVerification;
+    std::condition_variable mOngoingVerificationCV;
+    std::mutex mtxOngoingVerification;
 
 #ifdef ENABLE_BACKUPS
     std::recursive_mutex mtxBackupsMap;

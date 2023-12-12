@@ -161,6 +161,12 @@ MegaCmdExecuter::~MegaCmdExecuter()
 {
     delete fsAccessCMD;
     delete globalTransferListener;
+
+    if (mOngoingVerification)
+    {
+        mOngoingVerificationCV.notify_one();
+        mOngoingVerification->join();
+    }
 }
 
 // list available top-level nodes and contacts/incoming shares
@@ -2542,16 +2548,26 @@ bool MegaCmdExecuter::actUponFetchNodes(MegaApi *api, SynchronousRequestListener
         std::string sessionString(session ? session.get() : "");
         if (!sessionString.empty())
         {
-            std::thread([this, api, sessionString]() {
+            if (mOngoingVerification)
+            {
+                // If there's already an ongoing verification, stop it
+                mOngoingVerificationCV.notify_one();
+                mOngoingVerification->join();
+            }
+
+            mOngoingVerification.reset(new std::thread([this, api] () {
+                std::unique_lock<std::mutex> lock(mtxOngoingVerification);
+
                 // Give a few seconds in order for key sharing to happen ...
-                sleepSeconds(5);
-                // ... and verify shares folders to brodcast caveat messages if required:
-                std::unique_ptr<char[]> newSession(api->dumpSession());
-                if (newSession && sessionString == newSession.get() ) // To avoid race conditions after quick switches of accounts
+                auto status = mOngoingVerificationCV.wait_for(lock, std::chrono::seconds(5));
+                if (status == std::cv_status::no_timeout)
                 {
-                    verifySharedFolders(api);
+                    return;
                 }
-            }).detach();
+
+                // ... and verify shares folders to brodcast caveat messages if required:
+                verifySharedFolders(api);
+            }));
         }
 
         return true;
