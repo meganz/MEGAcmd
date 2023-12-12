@@ -3589,6 +3589,7 @@ void MegaCmdExecuter::exportNode(MegaNode *n, int64_t expireTime, std::string pa
     const int64_t actualExpireTime = nexported->getExpirationTime();
     if (expireTime != 0 && !actualExpireTime)
     {
+        setCurrentOutCode(MCMD_INVALIDSTATE);
         LOG_err << "Could not add expiration date to exported node";
     }
 
@@ -9660,7 +9661,9 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         }
                         else
                         {
-                            LOG_err << "Node " << words[i] << " is already exported";
+                            setCurrentOutCode(MCMD_EXISTS);
+                            LOG_err << "Node " << words[i] << " is already exported. "
+                                    << "Use -d to delete it if you want to change its parameters. Note: the new link may differ";
                         }
                     }
                     else if (getFlag(clflags, "d"))
@@ -9673,6 +9676,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         int exportedCount = dumpListOfExported(n.get(), getTimeFormatFromSTR(getOption(cloptions, "time-format","RFC2822")), clflags, cloptions, words[i]);
                         if (exportedCount == 0)
                         {
+                            setCurrentOutCode(MCMD_NOTFOUND);
                             OUTSTREAM << words[i] << " is not exported. Use -a to export it" << endl;
                         }
                     }
@@ -9695,6 +9699,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         }
                         else
                         {
+                            setCurrentOutCode(MCMD_EXISTS);
                             LOG_err << nodeName() << " is already exported. "
                                     << "Use -d to delete it if you want to change its parameters. Note: the new link may differ";
                         }
@@ -9709,6 +9714,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         int exportedCount = dumpListOfExported(n.get(), getTimeFormatFromSTR(getOption(cloptions, "time-format","RFC2822")), clflags, cloptions, words[i]);
                         if (exportedCount == 0)
                         {
+                            setCurrentOutCode(MCMD_NOTFOUND);
                             OUTSTREAM << "Couldn't find anything exported below " << nodeName()
                                       << ". Use -a to export " << (words[i].size() ? "it" : "something") << endl;
                         }
