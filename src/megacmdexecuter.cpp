@@ -21,6 +21,7 @@
 #include "megacmd.h"
 
 #include "megacmdutils.h"
+#include "megacmdcommonutils.h"
 #include "megacmdtransfermanager.h"
 #include "configurationmanager.h"
 #include "megacmdlogger.h"
@@ -29,6 +30,7 @@
 #include "megacmdversion.h"
 
 #include <iomanip>
+#include <limits>
 #include <string>
 #include <ctime>
 
@@ -159,7 +161,6 @@ MegaCmdExecuter::MegaCmdExecuter(MegaApi *api, MegaCMDLogger *loggerCMD, MegaCmd
 MegaCmdExecuter::~MegaCmdExecuter()
 {
     delete fsAccessCMD;
-    delete []session;
     delete globalTransferListener;
 }
 
@@ -1071,7 +1072,8 @@ bool MegaCmdExecuter::checkNoErrors(MegaError *error, const string &message, Syn
     {
         if (syncError)
         {
-            LOG_info << "Able to " << message << ", but received syncError: " << MegaSync::getMegaSyncErrorCode(syncError);
+            std::unique_ptr<const char[]> megaSyncErrorCode(MegaSync::getMegaSyncErrorCode(syncError));
+            LOG_info << "Able to " << message << ", but received syncError: " << megaSyncErrorCode.get();
         }
         return true;
     }
@@ -1079,8 +1081,8 @@ bool MegaCmdExecuter::checkNoErrors(MegaError *error, const string &message, Syn
     auto logErrMessage = std::string("Failed to ").append(message).append(": ").append(formatErrorAndMaySetErrorCode(*error));
     if (syncError)
     {
-        auto errCode = std::unique_ptr<const char[]>(MegaSync::getMegaSyncErrorCode(syncError));
-        logErrMessage.append(". ").append(errCode.get());
+        std::unique_ptr<const char[]> megaSyncErrorCode(MegaSync::getMegaSyncErrorCode(syncError));
+        logErrMessage.append(". ").append(megaSyncErrorCode.get());
     }
     LOG_err << logErrMessage;
     return false;
@@ -1388,15 +1390,21 @@ void MegaCmdExecuter::dumpNode(MegaNode* n, const char *timeFormat, std::map<std
     }
 }
 
+// 12 is the length of "999000000000" i.e 999 GiB.
+static constexpr size_t MAX_SIZE_LEN = 12;
+
 void MegaCmdExecuter::dumpNodeSummaryHeader(const char *timeFormat, std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions)
 {
     int datelength = int(getReadableTime(m_time(), timeFormat).size());
+    size_t size_header_width = std::max((MAX_SIZE_LEN - 1), strlen("SIZE  "));
 
     OUTSTREAM << "FLAGS";
     OUTSTREAM << " ";
     OUTSTREAM << getFixLengthString("VERS", 4);
     OUTSTREAM << " ";
-    OUTSTREAM << getFixLengthString("SIZE  ", 10 -1, ' ', true); //-1 because of "FLAGS"
+    OUTSTREAM << getFixLengthString("SIZE  ",
+                                    (unsigned int)size_header_width, ' ',
+                                    true); //-1 because of "FLAGS"
     OUTSTREAM << " ";
     OUTSTREAM << getFixLengthString("DATE      ", datelength+1, ' ', true);
     if (getFlag(clflags, "show-handles"))
@@ -1500,12 +1508,15 @@ void MegaCmdExecuter::dumpNodeSummary(MegaNode *n, const char *timeFormat, std::
         }
         else
         {
-            OUTSTREAM << getFixLengthString(SSTR(n->getSize()), 10, ' ', true);
+            OUTSTREAM << getFixLengthString(SSTR(n->getSize()),
+                                            (unsigned int)std::max(MAX_SIZE_LEN, strlen("SIZE  ")),
+                                            ' ', true);
         }
     }
     else
     {
-        OUTSTREAM << getFixLengthString("-", 10, ' ', true);
+        OUTSTREAM << getFixLengthString(
+            "-", (unsigned int)std::max(MAX_SIZE_LEN, strlen("SIZE  ")), ' ', true);
     }
 
     if (n->isFile() && !getFlag(clflags, "show-creation-time"))
@@ -1832,7 +1843,7 @@ void MegaCmdExecuter::dumpTreeSummary(MegaNode *n, const char *timeFormat, std::
                     for (int i = 0; i < vers->size(); i++)
                     {
                         string nametoshow = n->getName()+string("#")+SSTR(vers->get(i)->getModificationTime());
-                        dumpNodeSummary(vers->get(i), timeFormat, clflags, cloptions, humanreadable, nametoshow.c_str() );
+                        dumpNodeSummary(vers->get(i), timeFormat, clflags, cloptions, humanreadable, nametoshow.c_str());
                     }
                 }
                 delete vers;
@@ -2500,8 +2511,8 @@ bool MegaCmdExecuter::actUponFetchNodes(MegaApi *api, SynchronousRequestListener
         // folder session depends on node handle,
         // which requires fetch nodes to be complete
         // i.e. dumpSession won't be valid after login
-        session = srl->getApi()->dumpSession();
-        ConfigurationManager::saveSession(session);
+        session = std::unique_ptr<char[]>(srl->getApi()->dumpSession());
+        ConfigurationManager::saveSession(session.get());
 
         LOG_verbose << "ActUponFetchNodes ok. Let's wait for nodes current:";
 
@@ -2530,7 +2541,7 @@ bool MegaCmdExecuter::actUponFetchNodes(MegaApi *api, SynchronousRequestListener
             LOG_debug << "Waited for nodes current ... " << eventCurrentArrivedOk;
         }
 
-        std::string sessionString(session ? session : "");
+        std::string sessionString(session ? session.get() : "");
         if (!sessionString.empty())
         {
             std::thread([this, api, sessionString]() {
@@ -2609,8 +2620,8 @@ int MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
             // Note, if logging into a folder (no email),
             // the dumpSession reported by the SDK at this point is not valid:
             // folder session depends on node handle, which requires fetching nodes
-            session = srl->getApi()->dumpSession();
-            ConfigurationManager::saveSession(session);
+            session = std::unique_ptr<char[]>(srl->getApi()->dumpSession());
+            ConfigurationManager::saveSession(session.get());
         }
 
         /* Restoring configured values */
@@ -2626,7 +2637,7 @@ int MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
         ConfigurationManager::loadExcludedNames();
         ConfigurationManager::loadConfiguration(false);
         std::vector<string> vexcludednames(ConfigurationManager::excludedNames.begin(), ConfigurationManager::excludedNames.end());
-        api->setExcludedNames(&vexcludednames);
+        api->setLegacyExcludedNames(&vexcludednames);
 
         long long maxspeeddownload = ConfigurationManager::getConfigurationValue("maxspeeddownload", -1);
         if (maxspeeddownload != -1) api->setMaxDownloadSpeed(maxspeeddownload);
@@ -2990,8 +3001,7 @@ void MegaCmdExecuter::actUponLogout(SynchronousRequestListener *srl, bool keptSe
     {
         LOG_verbose << "actUponLogout logout ok";
         cwd = UNDEF;
-        delete []session;
-        session = NULL;
+        session.reset();
         mtxSyncMap.lock();
         ConfigurationManager::unloadConfiguration();
         if (!keptSession)
@@ -3467,7 +3477,7 @@ bool MegaCmdExecuter::amIPro()
     megaCmdListener->wait();
     if (checkNoErrors(megaCmdListener->getError(), "export node"))
     {
-        MegaAccountDetails *details = megaCmdListener->getRequest()->getMegaAccountDetails();
+        std::unique_ptr<MegaAccountDetails> details(megaCmdListener->getRequest()->getMegaAccountDetails());
         prolevel = details->getProLevel();
     }
     delete megaCmdListener;
@@ -4756,7 +4766,15 @@ void MegaCmdExecuter::printSync(MegaSync *sync, long long nfiles, long long nfol
     pathstate = getSyncPathStateStr(statepath);
     cd.addValue("STATUS", pathstate);
 
-    cd.addValue("ERROR", sync->getError() ? sync->getMegaSyncErrorCode() : "NO");
+    if ( sync->getError() )
+    {
+        std::unique_ptr<const char[]> megaSyncErrorCode {sync->getMegaSyncErrorCode()};
+        cd.addValue("ERROR", megaSyncErrorCode.get());
+    }
+    else
+    {
+        cd.addValue("ERROR", "NO");
+    }
 
     std::unique_ptr<MegaNode> n{api->getNodeByHandle(sync->getMegaHandle())};
     cd.addValue("SIZE", sizeToText(api->getSize(n.get())));
@@ -5721,10 +5739,16 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     {
                         if (firstprint)
                         {
-                            dumpNodeSummaryHeader(getTimeFormatFromSTR(getOption(cloptions, "time-format","SHORT")), clflags, cloptions);
+                            dumpNodeSummaryHeader(
+                                getTimeFormatFromSTR(getOption(cloptions, "time-format", "SHORT")),
+                                clflags, cloptions);
                             firstprint = false;
                         }
-                        dumpTreeSummary(n.get(), getTimeFormatFromSTR(getOption(cloptions, "time-format","SHORT")), clflags, cloptions, recursive, show_versions, 0, humanreadable, rNpath);
+                        dumpTreeSummary(
+                            n.get(),
+                            getTimeFormatFromSTR(getOption(cloptions, "time-format", "SHORT")),
+                            clflags, cloptions, recursive, show_versions,
+                            0, humanreadable, rNpath);
                     }
                     else
                     {
@@ -5749,10 +5773,13 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 {
                     if (firstprint)
                     {
-                        dumpNodeSummaryHeader(getTimeFormatFromSTR(getOption(cloptions, "time-format","SHORT")), clflags, cloptions);
+                        dumpNodeSummaryHeader(
+                            getTimeFormatFromSTR(getOption(cloptions, "time-format", "SHORT")),
+                            clflags, cloptions);
                         firstprint = false;
                     }
-                    dumpTreeSummary(n.get(), getTimeFormatFromSTR(getOption(cloptions, "time-format","SHORT")), clflags, cloptions, recursive, show_versions, 0, humanreadable);
+                    dumpTreeSummary(n.get(), getTimeFormatFromSTR(getOption(cloptions, "time-format", "SHORT")), clflags, cloptions, recursive, show_versions, 0,
+                                    humanreadable, "NULL");
                 }
                 else
                 {
@@ -7781,7 +7808,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             if (words.size()>1)
             {
                 std::vector<string> vexcludednames(ConfigurationManager::excludedNames.begin(), ConfigurationManager::excludedNames.end());
-                api->setExcludedNames(&vexcludednames);
+                api->setLegacyExcludedNames(&vexcludednames);
             }
             else
             {
@@ -7799,7 +7826,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             if (words.size()>1)
             {
                 std::vector<string> vexcludednames(ConfigurationManager::excludedNames.begin(), ConfigurationManager::excludedNames.end());
-                api->setExcludedNames(&vexcludednames);
+                api->setLegacyExcludedNames(&vexcludednames);
             }
             else
             {
@@ -7871,7 +7898,8 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         OUTSTREAM << "Added sync: " << localpath << " to " << nodepath << endl;
                         if (syncError != NO_SYNC_ERROR)
                         {
-                            LOG_err << "Sync added as temporarily disabled. Reason: " << MegaSync::getMegaSyncErrorCode(syncError);
+                            std::unique_ptr<const char[]> megaSyncErrorCode {MegaSync::getMegaSyncErrorCode(syncError)};
+                            LOG_err << "Sync added as temporarily disabled. Reason: " << megaSyncErrorCode.get();
                         }
 
                         delete []nodepath;

@@ -16,6 +16,7 @@
 #include <gtest/gtest.h>
 
 #include "megacmd.h"
+#include "megacmdlogger.h"
 #include "Instruments.h"
 
 #ifdef __linux__
@@ -26,7 +27,10 @@
 #include <chrono>
 #include <cassert>
 
-#define UNUSED(x) (void)(x)
+#ifndef UNUSED
+    #define UNUSED(x) (void)(x)
+#endif
+
 
 #ifdef __linux__
 static void setUpUnixSignals()
@@ -59,11 +63,15 @@ int main (int argc, char *argv[])
     testing::InitGoogleTest(&argc, argv);
 
     std::thread serverThread([](){
-            char **args = new char*[2];
-            args[0]=(char *)"argv0_INTEGRATION_TESTS";
-            args[1] = NULL;
-            megacmd::executeServer(1, args);
-        });
+
+        std::vector<char*> args{
+            (char *)"argv0_INTEGRATION_TESTS",
+            nullptr
+        };
+
+        megacmd::executeServer(1, args.data(),
+                               ::mega::make_unique<megacmd::LoggedStreamDefaultFile>());
+    });
 
     using TI = TestInstruments;
 

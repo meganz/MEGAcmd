@@ -296,7 +296,6 @@ SOCKET MegaCmdShellCommunications::createSocket(int number, bool initializeserve
     else
     {
         SOCKET thesock = socket(AF_UNIX, SOCK_STREAM, 0);
-        char socket_path[60];
         if (!socketValid(thesock))
         {
             cerr << "ERROR opening socket: " << ERRNO << endl;
@@ -306,15 +305,18 @@ SOCKET MegaCmdShellCommunications::createSocket(int number, bool initializeserve
         {
             cerr << "ERROR setting CLOEXEC to socket: " << errno << endl;
         }
-
-        bzero(socket_path, sizeof( socket_path ) * sizeof( *socket_path ));
-        sprintf(socket_path, "/tmp/megaCMD_%d/srv", getuid() );
-
+        std::string socketPath = getOrCreateSocketPath(false);
+        if (socketPath.empty())
+        {
+            std::cerr << "Error creating runtime directory for socket file: " << strerror(errno) << std::endl;
+            close(thesock);
+            return INVALID_SOCKET;
+        }
         struct sockaddr_un addr;
 
         memset(&addr, 0, sizeof( addr ));
         addr.sun_family = AF_UNIX;
-        strncpy(addr.sun_path, socket_path, sizeof( addr.sun_path ) - 1);
+        strncpy(addr.sun_path, socketPath.c_str(), socketPath.size());
 
 
         if (::connect(thesock, (struct sockaddr*)&addr, sizeof( addr )) == SOCKET_ERROR)
@@ -329,39 +331,42 @@ SOCKET MegaCmdShellCommunications::createSocket(int number, bool initializeserve
                     signal(SIGINT, SIG_IGN); //ignore Ctrl+C in the server
                     setsid(); //create new session so as not to receive parent's Ctrl+C
 
+                    // Give an indication of where the logs will be find:
                     string pathtolog = createAndRetrieveConfigFolder()+"/megacmdserver.log";
-                    CERR << "[Initiating MEGAcmd server in background. Log: " << pathtolog << "]" << endl; //TODO: try this in windows with non unicode user name?
+                    CERR << "[Initiating MEGAcmd server in background. Log: " << pathtolog << "]" << endl;
 
-                    freopen(pathtolog.c_str(),"w",stdout);
-                    dup2(fileno(stdout), fileno(stderr));  //redirects stderr to stdout below this line.
+                    freopen(std::string(pathtolog).append(".out").c_str(),"w",stdout);
+                    freopen(std::string(pathtolog).append(".err").c_str(),"w",stderr);
+    #ifndef NDEBUG
 
-#ifndef NDEBUG
-
-#ifdef __MACH__
+        #ifdef __MACH__
                     const char executable[] = "../../../../MEGAcmdServer/MEGAcmd.app/Contents/MacOS/MEGAcmd";
-#else
+        #else
                     const char executable[] = "../MEGAcmdServer/MEGAcmd";
-#endif
+        #endif
                     const char executable2[] = "./mega-cmd-server";
-
-#else
-    #ifdef __MACH__
+    #else
+        #ifdef __MACH__
                     const char executable[] = "/Applications/MEGAcmd.app/Contents/MacOS/MEGAcmdLoader";
                     const char executable2[] = "./MEGAcmdLoader";
-    #else
+        #else
                     const char executable[] = "mega-cmd-server";
-        #ifdef __linux__
+            #ifdef __linux__
                     char executable2[PATH_MAX];
                     sprintf(executable2, "%s/mega-cmd-server", getCurrentExecPath().c_str());
-        #else
+            #else
                     const char executable2[] = "./mega-cmd-server";
+            #endif
         #endif
     #endif
-#endif
 
-                    char **args = new char*[2];
-                    args[0]=(char *)executable;
-                    args[1] = NULL;
+                    std::vector<char*> argsVector{
+                        (char *)executable,
+                        (char *)"--log-to-file",
+                        nullptr
+                    };
+
+                    auto args = const_cast<char* const*>(argsVector.data());
 
                     int ret = execvp(executable,args);
 
@@ -369,7 +374,7 @@ SOCKET MegaCmdShellCommunications::createSocket(int number, bool initializeserve
                     {
                         cerr << "Couln't initiate MEGAcmd server: executable not found: " << executable << endl;
                         cerr << "Trying to use alternative executable: " << executable2 << endl;
-                        args[0]=(char *)executable2;
+                        argsVector[0]=(char *)executable2;
                         ret = execvp(executable2,args);
                         if (ret && errno == 2 )
                         {
