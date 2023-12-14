@@ -43,9 +43,12 @@ private:
     std::mutex mtxSyncMap;
     std::mutex mtxWebDavLocations;
     std::mutex mtxFtpLocations;
+
     std::unique_ptr<std::thread> mOngoingVerification;
     std::condition_variable mOngoingVerificationCV;
-    std::mutex mtxOngoingVerification;
+    std::mutex mtxOngoingVerificationCV;
+    std::mutex mtxOngoingVerificationThread;
+    int mOngoingVerificationCount;
 
 #ifdef ENABLE_BACKUPS
     std::recursive_mutex mtxBackupsMap;
@@ -61,6 +64,9 @@ private:
     std::vector<std::unique_ptr<mega::MegaNode>> mNodesToConfirmDelete;
 
     std::string getNodePathString(mega::MegaNode *n);
+
+    void cancelOngoingVerification(mega::MegaApi* api, bool start_new_verification);
+
     /**
      * @name forEachFileInNode
      * @brief Traverses through all files in the given node with the provided callback.
