@@ -24,6 +24,7 @@
 #include "megacmdlogger.h"
 #include "megacmdsandbox.h"
 #include "listeners.h"
+#include "deferred_single_trigger.h"
 
 namespace megacmd {
 class MegaCmdSandbox;
@@ -44,11 +45,7 @@ private:
     std::mutex mtxWebDavLocations;
     std::mutex mtxFtpLocations;
 
-    std::unique_ptr<std::thread> mOngoingVerification;
-    std::condition_variable mOngoingVerificationCV;
-    std::mutex mtxOngoingVerificationCV;
-    std::mutex mtxOngoingVerificationThread;
-    int mOngoingVerificationCount;
+    DeferredSingleTrigger mDeferredSharedFoldersVerifier;
 
 #ifdef ENABLE_BACKUPS
     std::recursive_mutex mtxBackupsMap;

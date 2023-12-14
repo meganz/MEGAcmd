@@ -142,7 +142,9 @@ void MegaCmdExecuter::updateprompt(MegaApi *api)
     changeprompt(newprompt.c_str());
 }
 
-MegaCmdExecuter::MegaCmdExecuter(MegaApi *api, MegaCMDLogger *loggerCMD, MegaCmdSandbox *sandboxCMD)
+MegaCmdExecuter::MegaCmdExecuter(MegaApi *api, MegaCMDLogger *loggerCMD, MegaCmdSandbox *sandboxCMD) :
+    // Give a few seconds in order for key sharing to happen
+    mDeferredSharedFoldersVerifier(std::chrono::seconds(5))
 {
     signingup = false;
     confirming = false;
@@ -155,14 +157,10 @@ MegaCmdExecuter::MegaCmdExecuter(MegaApi *api, MegaCMDLogger *loggerCMD, MegaCmd
     cwd = UNDEF;
     fsAccessCMD = new MegaFileSystemAccess();
     session = NULL;
-
-    mOngoingVerificationCount = 0;
 }
 
 MegaCmdExecuter::~MegaCmdExecuter()
 {
-    cancelOngoingVerification(api, false);
-
     delete fsAccessCMD;
     delete globalTransferListener;
 }
@@ -2546,7 +2544,8 @@ bool MegaCmdExecuter::actUponFetchNodes(MegaApi *api, SynchronousRequestListener
         std::string sessionString(session ? session.get() : "");
         if (!sessionString.empty())
         {
-            cancelOngoingVerification(api, true);
+            // Verify shared folders to brodcast caveat messages if required
+            mDeferredSharedFoldersVerifier.triggerDeferredSingleShot([this, api] { verifySharedFolders(api); });
         }
 
         return true;
@@ -5005,44 +5004,6 @@ std::string MegaCmdExecuter::getNodePathString(MegaNode *n)
     string toret(path);
     delete[] path;
     return toret;
-}
-
-void MegaCmdExecuter::cancelOngoingVerification(MegaApi* api, bool start_new_verification)
-{
-    std::unique_lock<std::mutex> lock(mtxOngoingVerificationThread);
-
-    if (mOngoingVerification)
-    {
-        {
-            // Since the count is used for the CV predicate, writes should also be protected with the CV mutex
-            std::unique_lock<std::mutex> count_lock(mtxOngoingVerificationCV);
-            ++mOngoingVerificationCount;
-        }
-
-        mOngoingVerificationCV.notify_one();
-        mOngoingVerification->join();
-    }
-
-    if (start_new_verification)
-    {
-        // No need to use the CV mutex here since it's not a write; the thread mutex is enough
-        const int id = mOngoingVerificationCount;
-
-        mOngoingVerification.reset(new std::thread([this, api, id] () {
-            std::unique_lock<std::mutex> lock(mtxOngoingVerificationCV);
-
-            // Give a few seconds in order for key sharing to happen ...
-            bool timeout = mOngoingVerificationCV.wait_for(lock, std::chrono::seconds(5), [this, id]
-            {
-                return id != mOngoingVerificationCount;
-            });
-
-            if (timeout) return;
-
-            // ... and verify shared folders to brodcast caveat messages if required:
-            verifySharedFolders(api);
-        }));
-    }
 }
 
 void MegaCmdExecuter::copyNode(MegaNode *n, string destiny, MegaNode * tn, string &targetuser, string &newname)
