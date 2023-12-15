@@ -46,6 +46,13 @@ class DeferredSingleTrigger
         mDestroyed = true;
     }
 
+    bool isDestroyed()
+    {
+        // Since the destroyed flag is used in the CV predicate, it must be protected with the CV mutex
+        std::unique_lock<std::mutex> lock(mConditionVariableMutex);
+        return mDestroyed;
+    }
+
     std::unique_lock<std::mutex> ensureThreadIsStopped()
     {
         std::unique_lock<std::mutex> lock(mThreadMutex);
@@ -75,6 +82,13 @@ public:
     {
         const size_t id = incrementCounter();
         std::unique_lock<std::mutex> lock = ensureThreadIsStopped();
+
+        if (isDestroyed())
+        {
+            // Without this check, we might spawn a new thread after the destructor is done
+            // (i.e., if the lock above is waiting on the destructor's lock)
+            return;
+        }
 
         mThread.reset(new std::thread([this, id, callback] () {
             std::unique_lock<std::mutex> lock(mConditionVariableMutex);
