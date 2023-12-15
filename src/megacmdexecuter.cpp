@@ -3610,7 +3610,7 @@ void MegaCmdExecuter::exportNode(MegaNode *n, int64_t expireTime, std::string pa
         LOG_err << "Could not add expiration date to exported node";
     }
 
-    const string authKey = nexported->getWritableLinkAuthKey();
+    const string authKey(nexported->getWritableLinkAuthKey() ? nexported->getWritableLinkAuthKey() : "");
     if (writable && authKey.empty())
     {
         setCurrentOutCode(MCMD_INVALIDSTATE);
