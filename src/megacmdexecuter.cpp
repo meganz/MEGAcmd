@@ -1354,7 +1354,7 @@ void MegaCmdExecuter::dumpNode(MegaNode* n, const char *timeFormat, std::map<std
 
     if (showversions && n->getType() == MegaNode::TYPE_FILE)
     {
-        MegaNodeList *versionNodes = api->getVersions(n);
+        std::unique_ptr<MegaNodeList> versionNodes(api->getVersions(n));
         if (versionNodes)
         {
             for (int i = 0; i < versionNodes->size(); i++)
