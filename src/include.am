@@ -102,7 +102,7 @@ src_libmegacmdclient_la_LIBADD = $(top_builddir)/src/libmegacmdcomms.la
 
 if BUILD_MEGACMD_TESTS
 src_libmegacmdclient_la_CXXFLAGS = -DMEGACMD_TESTING_CODE=1
-src_libmegacmdclient_la_CXXFLAGS = -std=c++17 #required for instruments stuff
+src_libmegacmdclient_la_CXXFLAGS += -std=c++17 #required for instruments stuff
 src_libmegacmdclient_la_LIBADD += $(top_builddir)/src/libmegacmdinstruments.la
 endif
 

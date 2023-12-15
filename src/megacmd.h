@@ -90,11 +90,12 @@ enum
     MCMD_NOFETCH = -58,       ///< Nodes not fetched
     MCMD_EUNEXPECTED = -59,   ///< Unexpected failure
 
-    MCMD_REQCONFIRM = -60,     ///< Confirmation required
+    MCMD_REQCONFIRM = -60,    ///< Confirmation required
     MCMD_REQSTRING = -61,     ///< String required
-    MCMD_PARTIALOUT = -62,     ///< Partial output provided
+    MCMD_PARTIALOUT = -62,    ///< Partial output provided
+    MCMD_EXISTS = -63,        ///< Resource already exists
 
-    MCMD_REQRESTART = -71,     ///< Restart required
+    MCMD_REQRESTART = -71,    ///< Restart required
 
 };
 
