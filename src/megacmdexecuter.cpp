@@ -3491,7 +3491,6 @@ void MegaCmdExecuter::exportNode(MegaNode *n, int64_t expireTime, std::string pa
     bool copyrightAccepted = force ||
             [&alreadyAcceptedBefore]() { return alreadyAcceptedBefore = ConfigurationManager::getConfigurationValue("copyrightAccepted", false); }();
 
-    copyrightAccepted = ConfigurationManager::getConfigurationValue("copyrightAccepted", false) || force;
     if (!copyrightAccepted)
     {
         auto publicLinks = std::unique_ptr<MegaNodeList>(api->getPublicLinks());
@@ -3500,7 +3499,6 @@ void MegaCmdExecuter::exportNode(MegaNode *n, int64_t expireTime, std::string pa
         copyrightAccepted = (publicLinks && publicLinks->size());
     }
 
-    int confirmationResponse = copyrightAccepted?MCMDCONFIRM_YES:MCMDCONFIRM_NO;
     if (!copyrightAccepted)
     {
         string confirmationQuery("MEGA respects the copyrights of others and requires that users of the MEGA cloud service comply with the laws of copyright.\n"
@@ -9765,8 +9763,6 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 }
             }
         }
-
-        return;
     }
     else if (words[0] == "import")
     {
