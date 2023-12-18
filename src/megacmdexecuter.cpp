@@ -1309,9 +1309,9 @@ void MegaCmdExecuter::dumpNode(MegaNode* n, const char *timeFormat, std::map<std
 
                             if (n->getWritableLinkAuthKey())
                             {
-                                const char *prefix = "https://mega.nz/folder/";
+                                static constexpr char *prefix = "https://mega.nz/folder/";
                                 string authKey(n->getWritableLinkAuthKey());
-                                if (authKey.size() && authKey.rfind(prefix) == 0)
+                                if (authKey.size() && authKey.rfind(prefix, 0) == 0)
                                 {
                                     string authToken(publicLink.get());
                                     authToken = authToken.substr(strlen(prefix)).append(":").append(authKey);
@@ -3620,8 +3620,8 @@ void MegaCmdExecuter::exportNode(MegaNode *n, int64_t expireTime, std::string pa
     OUTSTREAM << "Exported " << nodepath.get() << ": "
               << (publicPassProtectedLink.size() ? publicPassProtectedLink : publicLink.get());
 
-    const char* prefix = "https://mega.nz/folder/";
-    if (authKey.size() && authKey.rfind(prefix) == 0)
+    static constexpr char* prefix = "https://mega.nz/folder/";
+    if (authKey.size() && authKey.rfind(prefix, 0) == 0)
     {
         string authToken = (publicPassProtectedLink.size() ? publicPassProtectedLink : publicLink.get());
         authToken = authToken.substr(strlen(prefix)).append(":").append(authKey);

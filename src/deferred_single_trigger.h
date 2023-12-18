@@ -93,13 +93,13 @@ public:
         mThread.reset(new std::thread([this, id, callback] () {
             std::unique_lock<std::mutex> lock(mConditionVariableMutex);
 
-            bool timeout = mConditionVariable.wait_for(lock, mSecondsToWait, [this, id]
+            bool cancelled = mConditionVariable.wait_for(lock, mSecondsToWait, [this, id]
             {
                 assert(mCounter >= id);
                 return mDestroyed || id != mCounter;
             });
 
-            if (!timeout)
+            if (!cancelled)
             {
                 callback();
             }
