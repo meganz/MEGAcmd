@@ -109,7 +109,6 @@ execute_checked_command(
     COMMAND ${_3rdparty_tool_exe}
         --setup
         --removeunusedports
-        --nopkgconfig
         ${_3rdparty_tool_common_args}
     WORKING_DIRECTORY ${_3rdparty_dir}
 )
@@ -193,7 +192,7 @@ if(WIN32)
                 --build ${_build_dir}
                 ${_cmake_target_args}
                 --config ${_config}
-                --parallel 4
+                --parallel 12
         )
     endforeach()
 else()
@@ -213,7 +212,7 @@ else()
             COMMAND ${_cmake}
                 --build ${_build_dir}
                 ${_cmake_target_args}
-                --parallel 4
+                --parallel 12
         )
     endforeach()
 endif()
