@@ -142,7 +142,9 @@ void MegaCmdExecuter::updateprompt(MegaApi *api)
     changeprompt(newprompt.c_str());
 }
 
-MegaCmdExecuter::MegaCmdExecuter(MegaApi *api, MegaCMDLogger *loggerCMD, MegaCmdSandbox *sandboxCMD)
+MegaCmdExecuter::MegaCmdExecuter(MegaApi *api, MegaCMDLogger *loggerCMD, MegaCmdSandbox *sandboxCMD) :
+    // Give a few seconds in order for key sharing to happen
+    mDeferredSharedFoldersVerifier(std::chrono::seconds(5))
 {
     signingup = false;
     confirming = false;
@@ -1302,21 +1304,20 @@ void MegaCmdExecuter::dumpNode(MegaNode* n, const char *timeFormat, std::map<std
                         OUTSTREAM << " folder link";
                         if (extended_info > 1)
                         {
-                            char * publicLink = n->getPublicLink();
-                            OUTSTREAM << ": " << publicLink;
+                            std::unique_ptr<char[]> publicLink(n->getPublicLink());
+                            OUTSTREAM << ": " << publicLink.get();
 
                             if (n->getWritableLinkAuthKey())
                             {
+                                static constexpr char *prefix = "https://mega.nz/folder/";
                                 string authKey(n->getWritableLinkAuthKey());
-                                if (authKey.size())
+                                if (authKey.size() && authKey.rfind(prefix, 0) == 0)
                                 {
-                                    string authToken(publicLink);
-                                    authToken = authToken.substr(strlen("https://mega.nz/folder/")).append(":").append(authKey);
+                                    string authToken(publicLink.get());
+                                    authToken = authToken.substr(strlen(prefix)).append(":").append(authKey);
                                     OUTSTREAM << " AuthToken="<< authToken;
                                 }
                             }
-
-                            delete []publicLink;
                         }
                     }
                     delete outShares;
@@ -1353,7 +1354,7 @@ void MegaCmdExecuter::dumpNode(MegaNode* n, const char *timeFormat, std::map<std
 
     if (showversions && n->getType() == MegaNode::TYPE_FILE)
     {
-        MegaNodeList *versionNodes = api->getVersions(n);
+        std::unique_ptr<MegaNodeList> versionNodes(api->getVersions(n));
         if (versionNodes)
         {
             for (int i = 0; i < versionNodes->size(); i++)
@@ -2543,16 +2544,8 @@ bool MegaCmdExecuter::actUponFetchNodes(MegaApi *api, SynchronousRequestListener
         std::string sessionString(session ? session.get() : "");
         if (!sessionString.empty())
         {
-            std::thread([this, api, sessionString]() {
-                // Give a few seconds in order for key sharing to happen ...
-                sleepSeconds(5);
-                // ... and verify shares folders to brodcast caveat messages if required:
-                std::unique_ptr<char[]> newSession(api->dumpSession());
-                if (newSession && sessionString == newSession.get() ) // To avoid race conditions after quick switches of accounts
-                {
-                    verifySharedFolders(api);
-                }
-            }).detach();
+            // Verify shared folders to brodcast caveat messages if required
+            mDeferredSharedFoldersVerifier.triggerDeferredSingleShot([this, api] { verifySharedFolders(api); });
         }
 
         return true;
@@ -3372,14 +3365,16 @@ void MegaCmdExecuter::downloadNode(string source, string path, MegaApi* api, Meg
 
     api->startDownload(
                 node, //MegaNode* node,
-                path.c_str(),//const char* localPath,
-                nullptr,//const char *customName,
-                nullptr,//const char *appData,
-                false,//bool startFirst,
-                nullptr,//MegaCancelToken *cancelToken,
-                MegaTransfer::COLLISION_CHECK_FINGERPRINT,//int collisionCheck,
-                MegaTransfer::COLLISION_RESOLUTION_NEW_WITH_N,//int collisionResolution,
-                new ATransferListener(multiTransferListener, source));
+                path.c_str(), // const char* localPath,
+                nullptr, // const char *customName,
+                nullptr, // const char *appData,
+                false, // bool startFirst,
+                nullptr, // MegaCancelToken *cancelToken,
+                MegaTransfer::COLLISION_CHECK_FINGERPRINT, // int collisionCheck,
+                MegaTransfer::COLLISION_RESOLUTION_NEW_WITH_N, // int collisionResolution,
+                false, // bool undelete
+                new ATransferListener(multiTransferListener, source) // MegaTransferListener *listener
+     );
 }
 
 void MegaCmdExecuter::uploadNode(string path, MegaApi* api, MegaNode *node, string newname,
@@ -3615,7 +3610,7 @@ void MegaCmdExecuter::exportNode(MegaNode *n, int64_t expireTime, std::string pa
         LOG_err << "Could not add expiration date to exported node";
     }
 
-    const string authKey = nexported->getWritableLinkAuthKey();
+    const string authKey(nexported->getWritableLinkAuthKey() ? nexported->getWritableLinkAuthKey() : "");
     if (writable && authKey.empty())
     {
         setCurrentOutCode(MCMD_INVALIDSTATE);
@@ -3625,10 +3620,11 @@ void MegaCmdExecuter::exportNode(MegaNode *n, int64_t expireTime, std::string pa
     OUTSTREAM << "Exported " << nodepath.get() << ": "
               << (publicPassProtectedLink.size() ? publicPassProtectedLink : publicLink.get());
 
-    if (authKey.size())
+    static constexpr char* prefix = "https://mega.nz/folder/";
+    if (authKey.size() && authKey.rfind(prefix, 0) == 0)
     {
         string authToken = (publicPassProtectedLink.size() ? publicPassProtectedLink : publicLink.get());
-        authToken = authToken.substr(strlen("https://mega.nz/folder/")).append(":").append(authKey);
+        authToken = authToken.substr(strlen(prefix)).append(":").append(authKey);
         OUTSTREAM << "\n          AuthToken = " << authToken;
     }
 

@@ -24,6 +24,7 @@
 #include "megacmdlogger.h"
 #include "megacmdsandbox.h"
 #include "listeners.h"
+#include "deferred_single_trigger.h"
 
 namespace megacmd {
 class MegaCmdSandbox;
@@ -44,6 +45,8 @@ private:
     std::mutex mtxWebDavLocations;
     std::mutex mtxFtpLocations;
 
+    DeferredSingleTrigger mDeferredSharedFoldersVerifier;
+
 #ifdef ENABLE_BACKUPS
     std::recursive_mutex mtxBackupsMap;
 #endif
@@ -58,6 +61,9 @@ private:
     std::vector<std::unique_ptr<mega::MegaNode>> mNodesToConfirmDelete;
 
     std::string getNodePathString(mega::MegaNode *n);
+
+    void cancelOngoingVerification(mega::MegaApi* api, bool start_new_verification);
+
     /**
      * @name forEachFileInNode
      * @brief Traverses through all files in the given node with the provided callback.

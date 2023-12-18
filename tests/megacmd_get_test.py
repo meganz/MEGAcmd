@@ -11,7 +11,7 @@ RM="mega-rm"
 CD="mega-cd"
 LCD="mega-lcd"
 MKDIR="mega-mkdir"
-EXPORT="mega-export -f"
+EXPORT="mega-export"
 SHARE="mega-share"
 FIND="mega-find"
 WHOAMI="mega-whoami"
@@ -125,6 +125,32 @@ def check_failed_and_clear(o,status):
     cmd_ef(CD+" /")
 
 
+def safe_export(path):
+    command = EXPORT + ' ' + path
+    stdout, code = cmd_esc(command + ' -f -a')
+
+    if code == 0:
+        return stdout.split(' ')[-1]
+
+    # Run export without the `-a` option (also need to remove `-f` or it'll fail)
+    # Output is slightly different in this case:
+    #   * Link is surrounded by parenthesis, so we need to remove the trailing ')'
+    #   * If path is a folder it'll also return the list of nodes inside, so we
+    #   need to keep only the first line
+    if 'already exported' in stdout:
+        stdout = cmd_ef(command).split('\n')[0].strip(')')
+        if 'AuthKey=' in stdout:
+            # In this case the authkey is the last word,
+            # so the link is second from the right
+            return stdout.split(' ')[-2]
+        else:
+            return stdout.split(' ')[-1]
+    else:
+        print >>sys.stderr, 'FAILED trying to export ' + path
+        print >>sys.stderr, out
+        exit(code)
+
+
 def initialize_contents():
     global URIFOREIGNEXPORTEDFOLDER
     global URIFOREIGNEXPORTEDFILE
@@ -153,8 +179,9 @@ def initialize_contents():
 
     cmd_ef(PUT+' foreign /')
     cmd_ef(SHARE+' foreign -a --with='+osvar("MEGA_EMAIL"))
-    URIFOREIGNEXPORTEDFOLDER=cmd_ef(EXPORT+' foreign/sub01 -a').split(' ')[-1]
-    URIFOREIGNEXPORTEDFILE=cmd_ef(EXPORT+' foreign/sub02/fileatsub02.txt -a').split(' ')[-1]
+
+    URIFOREIGNEXPORTEDFOLDER=safe_export('foreign/sub01')
+    URIFOREIGNEXPORTEDFILE=safe_export('foreign/sub02/fileatsub02.txt')
     
     if VERBOSE:
         print "URIFOREIGNEXPORTEDFOLDER=",URIFOREIGNEXPORTEDFILE
@@ -173,8 +200,8 @@ def initialize_contents():
     #~ mega-put bin0* //bin
     cmd_ef(PUT+" bin01 bin02 //bin")
 
-    URIEXPORTEDFOLDER=cmd_ef(EXPORT+' cloud01/c01s01 -a').split(' ')[-1]
-    URIEXPORTEDFILE=cmd_ef(EXPORT+' cloud02/fileatcloud02.txt -a').split(' ')[-1]
+    URIEXPORTEDFOLDER=safe_export('cloud01/c01s01')
+    URIEXPORTEDFILE=safe_export('cloud02/fileatcloud02.txt')
     
     if VERBOSE:
         print "URIEXPORTEDFOLDER=",URIEXPORTEDFOLDER
@@ -194,8 +221,8 @@ makedir('localDls')
 
 ABSMEGADLFOLDER=ABSPWD+'/megaDls'
 
-URIEXPORTEDFOLDER=cmd_ef(EXPORT+' cloud01/c01s01 -a').split(' ')[-1]
-URIEXPORTEDFILE=cmd_ef(EXPORT+' cloud02/fileatcloud02.txt -a').split(' ')[-1]
+URIEXPORTEDFOLDER=safe_export('cloud01/c01s01')
+URIEXPORTEDFILE=safe_export('cloud02/fileatcloud02.txt')
 
 
 clear_dls()
