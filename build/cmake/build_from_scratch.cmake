@@ -47,9 +47,13 @@ set(_triplet ${TRIPLET})
 set(_cmd_dir "${_script_cwd}/../..")
 set(_sdk_dir "${_cmd_dir}/sdk")
 
-message(STATUS "Building for triplet ${_triplet} with CMD ${_cmd_dir} and SDK ${_sdk_dir}")
-
+if(3RDPARTY_DIR)
+set (_3rdparty_dir ${3RDPARTY_DIR})
+else()
 set (_3rdparty_dir "${_cmd_dir}/../3rdparty_megacmd")
+endif()
+
+message(STATUS "Building for triplet ${_triplet} with CMD ${_cmd_dir} and SDK ${_sdk_dir} into ${_3rdparty_dir}")
 
 file(MAKE_DIRECTORY ${_3rdparty_dir})
 
@@ -139,6 +143,10 @@ endforeach()
 
 if(NOT _triplet_file_found)
     message(FATAL_ERROR "Could not find triplet ${_triplet} in Mega vcpkg_extra_triplets nor in vcpkg triplet folders")
+endif()
+
+if(SKIP_PROJECT_BUILD)
+    return()
 endif()
 
 # Now set up to build this repo

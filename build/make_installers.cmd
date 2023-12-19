@@ -15,9 +15,9 @@ SET KITVER=10.0.22621.0
 IF "%MEGA_SIGN%" EQU "sign" (
 	echo "Info: Signed installer(s) will be generated. Checking if sources are signed"
 	
-	"C:\Program Files (x86)\Windows Kits\10\bin\%KITVER%\x64\signtool.exe" verify /pa built64/*.exe || exit /b
+	"C:\Program Files (x86)\Windows Kits\10\bin\%KITVER%\x64\signtool.exe" verify /pa built64/*.exe || exit 1 /b
 	IF NOT "%MEGA_SKIP_32_BIT_BUILD%" == "true" (
-		"C:\Program Files (x86)\Windows Kits\10\bin\%KITVER%\x64\signtool.exe" verify /pa built32/*.exe || exit /b
+		"C:\Program Files (x86)\Windows Kits\10\bin\%KITVER%\x64\signtool.exe" verify /pa built32/*.exe || exit 1 /b
 	)
 ) ELSE (
 	IF "%MEGA_SIGN%" EQU "nosign" (
@@ -44,4 +44,4 @@ exit /B
 :Usage
 echo "Usage: %~0 [-help] [sign|nosign]"
 echo Script for making the installer, expecting files in built folders"
-exit /B
+exit 2 /b

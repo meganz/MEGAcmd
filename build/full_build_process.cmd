@@ -1,7 +1,5 @@
 @echo off 
 
-echo %QT_DIR%
-
 IF "%1%" EQU "-help" (
 	goto Usage
 )
@@ -102,25 +100,34 @@ IF EXIST build-x86-windows-mega (
     rmdir /s /q build-x86-windows-mega
 )
 
+IF [%SKIP_BUILD_THIRD_PARTIES%]==[] (
+echo calling build_3rd_parties.cmd %MEGA_ARCH%
+call build_3rd_parties.cmd %MEGA_ARCH% || exit 1 /b
+)
+
+IF [%ONLY_BUILD_THIRD_PARTIES%]==[] (
+exit /b
+)
+
 echo calling production_build.cmd
-call production_build.cmd || exit /b
+call production_build.cmd || exit 1 /b
 
 echo calling gather_built_products.cmd
-call gather_built_products.cmd || exit /b
+call gather_built_products.cmd || exit 1 /b
 
 echo calling make_uninstallers.cmd
-call make_uninstallers.cmd || exit /b
+call make_uninstallers.cmd || exit 1 /b
 
 IF "%MEGA_SIGN%" EQU "sign" (
 echo time to sign the executables in built32/64 folders
 REM TODO: here in case of IF "%MEGA_SIGN%" EQU "sign" , the signing would need to take place, replacing the built .exes with the signed ones
 
 echo gathering signed executables in the built folders
-call gathered_signed_products.cmd || exit /b
+call gathered_signed_products.cmd || exit 1 /b
 )
 
 echo calling make_installers.cmd
-call make_installers.cmd %MEGA_SIGN% || exit /b
+call make_installers.cmd %MEGA_SIGN% || exit 1 /b
 
 exit /B
 
@@ -135,5 +142,6 @@ echo 	- Sign: sign or nosign if the binaries must be signed or not
 echo 	- Cores: the number of cores to build the project, or 0 for default value (number of logical cores on the machine)
 echo 	- Suffix for installer: The installer will add this suffix to the version. [OPTIONAl]
 echo MEGA_VCPKGPATH environment variable should be set to the root of the 3rd party dir.
-echo MEGA_QTPATH environment variable should be set to the Qt install dir. Takes the value of MEGAQTPATH, or defaults to C:\Qt\5.15.2\x64
+echo SKIP_BUILD_THIRD_PARTIES environment variable can be used to skip the attempt to build vcpkg 3rd parties
+echo ONLY_BUILD_THIRD_PARTIES environment variable can be used to stop after building 3rd parties
 exit /B
