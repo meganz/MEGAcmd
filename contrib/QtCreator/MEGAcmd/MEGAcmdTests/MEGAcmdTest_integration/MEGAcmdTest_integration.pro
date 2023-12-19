@@ -37,7 +37,7 @@ else {
         LIBS += -L/opt/gtest/gtest-1.10.0/lib
         INCLUDEPATH += /opt/gtest/gtest-1.10.0/include
     }
-    LIBS += -lgtest
+    LIBS += -lgtest -lgmock
     LIBS += -lpthread
 }
 
