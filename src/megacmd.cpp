@@ -120,7 +120,7 @@ std::mutex mutexapiFolders;
 MegaCMDLogger *loggerCMD;
 
 std::mutex mutexEndedPetitionThreads;
-std::vector<MegaThread *> petitionThreads;
+std::vector<std::unique_ptr<MegaThread>> petitionThreads;
 std::vector<MegaThread *> endedPetitionThreads;
 MegaThread *threadRetryConnections;
 
@@ -3905,27 +3905,24 @@ string askforUserResponse(string message)
 
 void delete_finished_threads()
 {
-    mutexEndedPetitionThreads.lock();
-    for (std::vector<MegaThread *>::iterator it = endedPetitionThreads.begin(); it != endedPetitionThreads.end(); )
+    std::unique_lock<std::mutex> lock(mutexEndedPetitionThreads);
+
+    for (MegaThread *mt : endedPetitionThreads)
     {
-        MegaThread *mt = (MegaThread*)*it;
-        for (std::vector<MegaThread *>::iterator it2 = petitionThreads.begin(); it2 != petitionThreads.end(); )
+        for (auto it = petitionThreads.begin(); it != petitionThreads.end(); )
         {
-            if (mt == (MegaThread*)*it2)
+            if (mt == it->get())
             {
-                it2 = petitionThreads.erase(it2);
+                (*it)->join();
+                it = petitionThreads.erase(it);
             }
             else
             {
-                ++it2;
+                ++it;
             }
         }
-
-        mt->join();
-        delete mt;
-        it = endedPetitionThreads.erase(it);
     }
-    mutexEndedPetitionThreads.unlock();
+    endedPetitionThreads.clear();
 }
 
 void processCommandInPetitionQueues(CmdPetition *inf);
@@ -4114,7 +4111,7 @@ void* checkForUpdates(void *param)
 
             while(petitionThreads.size() && !stopcheckingforUpdaters)
             {
-                LOG_fatal << " waiting for petitions to end to initiate upload " << petitionThreads.size() << petitionThreads.at(0);
+                LOG_fatal << " waiting for petitions to end to initiate upload " << petitionThreads.size() << petitionThreads.at(0).get();
                 sleepSeconds(2);
                 delete_finished_threads();
             }
@@ -4166,9 +4163,9 @@ void processCommandInPetitionQueues(CmdPetition *inf)
     semaphoreClients.wait();
 
     //append new one
-    MegaThread * petitionThread = new MegaThread();
+    auto petitionThread = new MegaThread();
 
-    petitionThreads.push_back(petitionThread);
+    petitionThreads.emplace_back(petitionThread);
     inf->setPetitionThread(petitionThread);
 
     LOG_verbose << "starting processing: <" << inf->line << ">";

@@ -16,7 +16,7 @@ RUN wget https://artifactory.developers.mega.co.nz/artifactory/debian-dev/privat
 RUN apt-get install -y $PWD/pdfium-mega_5247.0-4.1_amd64.deb
 
 #Install gtest
-RUN apt-get install -y libgtest-dev
+RUN apt-get install -y libgtest-dev libgmock-dev
 
 RUN apt-get clean && rm -rf /var/lib/apt/lists/*
 

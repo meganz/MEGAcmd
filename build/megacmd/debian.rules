@@ -12,6 +12,7 @@ RPDFIUM := $(shell dpkg --print-architecture | grep -i "i386\|arm" >/dev/null &&
 INSTALL3RD := $(shell dpkg --print-architecture | grep -i "i386\|arm" >/dev/null && echo "" || echo 'install3rd')
 LDFLAGS := $(shell dpkg --print-architecture | grep -i "i386\|arm" >/dev/null && echo "" || echo "$$LDFLAGS -Wl,-rpath,/opt/megacmd/lib")
 DEB_TESTING := $(shell cat /etc/issue | grep "Debian" > /dev/null && cat /etc/apt/sources.list.d/debian.sources | grep -v "^\#" | grep testing > /dev/null && echo "testing")
+EXPORTCCMFPU := $(shell cat /etc/issue | grep "Raspbian GNU/Linux 12" >/dev/null && echo "export CC='cc -mfpu=vfp'" || echo ":")
 
 MEGA_BUILD_ID := $(shell cat MEGA_BUILD_ID || echo "1")
 
@@ -24,8 +25,8 @@ build-stamp:
 
 	#build dependencies into folder deps
 	mkdir deps || :
-	bash -x ./sdk/contrib/build_sdk.sh -o archives \
-	  -g -b $(FMEDIAINFO) $(FCRYPTOPP) -l -c -s -u -v -a -z -I -p deps/
+	( $(EXPORTCCMFPU) ; bash -x ./sdk/contrib/build_sdk.sh -o archives \
+	  -g -b $(FMEDIAINFO) $(FCRYPTOPP) -l -c -s -u -v -a -z -I -p deps/ )
 
 	# Link dynamically with freeimage if pdfium is required.
 	if [ -n "$(INSTALL3RD)" ]; then  \
