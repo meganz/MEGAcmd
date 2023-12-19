@@ -29,15 +29,24 @@ IF "%MEGA_SIGN%" EQU "sign" (
 	)
 )
 
-erase MEGAcmdSetup64.exe
-"C:\Program Files (x86)\NSIS\makensis.exe" /DWINKITVER=%KITVER% /DBUILD_X64_VERSION %SUFFIX_DEF% installer_win.nsi
+erase MEGAcmdSetup64.exe 2>nul
+erase MEGAcmdSetup64_unsigned.exe 2>nul
+"C:\Program Files (x86)\NSIS\makensis.exe" /DWINKITVER=%KITVER% /DBUILD_X64_VERSION %SUFFIX_DEF% installer_win.nsi || exit 1 /b
+IF "%MEGA_SIGN%" EQU "nosign" (
+ren MEGAcmdSetup64.exe MEGAcmdSetup64_unsigned.exe
+)
 
 IF "%MEGA_SKIP_32_BIT_BUILD%" == "true" (
 	GOTO :EOF
 )
 
-erase MEGAcmdSetup32.exe
-"C:\Program Files (x86)\NSIS\makensis.exe" /DWINKITVER=%KITVER%  %SUFFIX_DEF% installer_win.nsi
+erase MEGAcmdSetup32.exe >nul
+erase MEGAcmdSetup32_unsigned.exe >nul
+"C:\Program Files (x86)\NSIS\makensis.exe" /DWINKITVER=%KITVER%  %SUFFIX_DEF% installer_win.nsi || exit 1 /b
+IF "%MEGA_SIGN%" EQU "nosign" (
+ren MEGAcmdSetup32.exe MEGAcmdSetup32_unsigned.exe
+)
+
 
 exit /B
 

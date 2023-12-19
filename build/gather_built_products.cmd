@@ -10,7 +10,7 @@ IF [%MEGA_THIRD_PARTY_DLL_DIR%]==[] (
 mkdir built64
 mkdir sign64
 
-SET BASEMEGACMDPATH=..
+SET BASEMEGACMDPATH=.
 
 copy %BASEMEGACMDPATH%\build-x64-windows-mega\Release\*.dll built64
 copy %BASEMEGACMDPATH%\build-x64-windows-mega\Release\MEGAclient.exe built64

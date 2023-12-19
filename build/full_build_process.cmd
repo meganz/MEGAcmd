@@ -93,11 +93,14 @@ IF EXIST built64 (
 IF EXIST sign64 (
     rmdir /s /q sign64
 )
+
+IF [%SKIP_BUILD_PRODUCTS%]==[] (
 IF EXIST build-x64-windows-mega (
     rmdir /s /q build-x64-windows-mega
 )
 IF EXIST build-x86-windows-mega (
     rmdir /s /q build-x86-windows-mega
+)
 )
 
 IF [%SKIP_BUILD_THIRD_PARTIES%]==[] (
@@ -105,12 +108,14 @@ echo calling build_3rd_parties.cmd %MEGA_ARCH%
 call build_3rd_parties.cmd %MEGA_ARCH% || exit 1 /b
 )
 
-IF [%ONLY_BUILD_THIRD_PARTIES%]==[] (
+IF NOT [%ONLY_BUILD_THIRD_PARTIES%]==[] (
 exit /b
 )
 
+IF [%SKIP_BUILD_PRODUCTS%]==[] (
 echo calling production_build.cmd
 call production_build.cmd || exit 1 /b
+)
 
 echo calling gather_built_products.cmd
 call gather_built_products.cmd || exit 1 /b
@@ -128,6 +133,8 @@ call gathered_signed_products.cmd || exit 1 /b
 
 echo calling make_installers.cmd
 call make_installers.cmd %MEGA_SIGN% || exit 1 /b
+
+REM TODO: Pending signing the installers themselves!
 
 exit /B
 
