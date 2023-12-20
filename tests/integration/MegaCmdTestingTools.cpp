@@ -13,6 +13,8 @@
  * program.
  */
 
+#include <gmock/gmock.h>
+
 #include "MegaCmdTestingTools.h"
 
 std::vector<std::string> splitByNewline(const std::string& str)
@@ -57,14 +59,16 @@ void ensureLoggedIn()
         const char* user = getenv("MEGACMD_TEST_USER");
         const char* pass = getenv("MEGACMD_TEST_PASS");
 
-        if (!user || !pass)
-        {
-            std::cerr << "ENSURE MEGACMD_TEST_USER and MEGACMD_TEST_PASS are set!" << std::endl;
-            ASSERT_FALSE("MISSING USER/PASS env variables");
-        }
+        ASSERT_THAT(user, testing::AllOf(testing::NotNull(), testing::Not(testing::IsEmpty()))) << "Missing testing user env variable. Ensure that MEGACMD_TEST_USER is set!";
+        ASSERT_THAT(user, testing::AllOf(testing::NotNull(), testing::Not(testing::IsEmpty())))
+            << "Missing testing user password env variable. Ensure that MEGACMD_TEST_PASS is set!";
 
         auto result = executeInClient({"login", user, pass});
         ASSERT_EQ(0, result.status());
+
+        result = executeInClient({"whoami"});
+        ASSERT_EQ(0, result.status());
+        ASSERT_THAT(result.out(), testing::HasSubstr(user));
     }
 }
 
