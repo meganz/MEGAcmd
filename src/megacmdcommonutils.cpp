@@ -522,16 +522,17 @@ vector<string> getlistOfWords(char *ptr, bool escapeBackSlashInCompletion, bool 
             //while ((unsigned char)*ptr > ' ')
             while ((*ptr != '\0') && !(*ptr ==' ' && *prev !='\\'))
             {
-                if (*ptr == '"')
+                if (*ptr == '"') // if quote is found, look for the ending quote
                 {
-                    while (*++ptr != '"' && *ptr != '\0')
-                    { }
+                    while (*(ptr + 1) != '"' && *(ptr + 1))
+                    {
+                        ptr++;
+                    }
                 }
-                prev=ptr;
+                prev = ptr;
                 ptr++;
             }
-                string newword(wptr, ptr - wptr);
-                words.push_back(newword);
+            words.emplace_back(wptr, ptr - wptr);
         }
     }
 
@@ -883,6 +884,15 @@ int getFlag(map<string, int> *flags, const char * optname)
 string getOption(map<string, string> *cloptions, const char * optname, string defaultValue)
 {
     return cloptions->count(optname) ? ( *cloptions )[optname] : defaultValue;
+}
+
+std::pair<string, bool> getOptionOrFalse(const map<string, string>& cloptions, const char * optname)
+{
+    if (cloptions.find(optname) == cloptions.end())
+    {
+        return {"", false};
+    }
+    return {cloptions.at(optname), true};
 }
 
 int getintOption(map<string, string> *cloptions, const char * optname, int defaultValue)

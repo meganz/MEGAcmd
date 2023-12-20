@@ -5,7 +5,9 @@ distro=$(cat /usr/share/doc/megacmd/distro)
 #ver=$(lsb_release -rs)
 ver=$(cat /usr/share/doc/megacmd/version)
 
-if [[ $distro = "Raspbian GNU/Linux 11"* ]]; then
+if [[ $distro = "Raspbian GNU/Linux 12"* ]]; then
+    str="Raspbian_12"
+elif [[ $distro = "Raspbian GNU/Linux 11"* ]]; then
     str="Raspbian_11"
 elif [[ $distro = "Raspbian GNU/Linux 10"* ]]; then
     str="Raspbian_10.0"

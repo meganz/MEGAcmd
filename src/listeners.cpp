@@ -843,15 +843,14 @@ void MegaCmdMultiTransferListener::doOnTransferFinish(MegaApi* api, MegaTransfer
         s+=":";
         if (transfer->getType() == MegaTransfer::TYPE_UPLOAD)
         {
-            MegaNode *n = api->getNodeByHandle(transfer->getNodeHandle());
+            std::unique_ptr<MegaNode> n(api->getNodeByHandle(transfer->getNodeHandle()));
             if (n)
             {
-                const char *path = api->getNodePath(n);
+                std::unique_ptr<char[]> path(api->getNodePath(n.get()));
                 if (path)
                 {
-                    s+=path;
+                    s += path.get();
                 }
-                delete [] path;
             }
         }
         else
