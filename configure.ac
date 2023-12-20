@@ -144,14 +144,14 @@ do
       ;;
     all)
      # Only enable Address and UB Sanitizer, as ThreadSanitizer cannot be enabled with ASan.
-     CHECKS_CXXFLAGS="-fsanitize=address -fsanitize=undefined -fno-omit-frame-pointer -fno-common"
-     CHECKS_CPPFLAGS="-fsanitize=address -fsanitize=undefined -fno-omit-frame-pointer -fno-common"
+     CHECKS_CXXFLAGS="-fsanitize=address -fsanitize=undefined -fno-common"
+     CHECKS_CPPFLAGS="-fsanitize=address -fsanitize=undefined -fno-common"
      CHECKS_LDFLAGS="-fsanitize=address -fsanitize=undefined"
      enable_debug="yes"
       ;;
     asan)
-      CHECKS_CXXFLAGS="-fsanitize=address -fno-omit-frame-pointer -fno-common $CHECKS_CXXFLAGS"
-      CHECKS_CPPFLAGS="-fsanitize=address -fno-omit-frame-pointer -fno-common $CHECKS_CPPFLAGS"
+      CHECKS_CXXFLAGS="-fsanitize=address -fno-common $CHECKS_CXXFLAGS"
+      CHECKS_CPPFLAGS="-fsanitize=address -fno-common $CHECKS_CPPFLAGS"
       CHECKS_LDFLAGS="-fsanitize=address $CHECKS_LDFLAGS"
       enable_debug="yes"
       ;;
@@ -182,8 +182,8 @@ AC_ARG_ENABLE(debug,
 
 # Enable debug flags / build
 if test "x$enable_debug" = "xyes" ; then
-    AM_CXXFLAGS="-Wall -g -ggdb3 -O0"
-    CXXFLAGS="-Wall -g -ggdb3 -O0"
+    AM_CXXFLAGS="-Wall -ggdb3 -Og -fno-omit-frame-pointer"
+    CXXFLAGS="-Wall -ggdb3 -Og -fno-omit-frame-pointer"
     AC_SUBST([AM_CXXFLAGS])
     AC_DEFINE(DEBUG, 1, [Define to enable debug logging])
 else

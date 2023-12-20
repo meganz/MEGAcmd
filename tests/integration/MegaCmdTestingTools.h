@@ -96,16 +96,20 @@ class BasicGenericTest : public ::testing::Test
 
 class LoggedInTest : public BasicGenericTest
 {
+protected:
     void SetUp() override
     {
+        BasicGenericTest::SetUp();
         ensureLoggedIn();
     }
 };
 
 class ReadTest : public LoggedInTest
 {
+protected:
     void SetUp() override
     {
+        LoggedInTest::SetUp();
         ensureReadStructure();
     }
 };

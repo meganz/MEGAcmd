@@ -58,6 +58,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     libc-ares-dev \
     libcrypto++-dev \
     libfreeimage-dev \
+    libgmock-dev \
     libgtest-dev \
     libicu-dev \
     libmediainfo-dev \

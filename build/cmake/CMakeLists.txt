@@ -59,12 +59,12 @@ if (ENABLE_ASAN)
 endif()
 
 if (ENABLE_UBSAN)
-    add_compile_options("-fsanitize=undefined")
+    add_compile_options("-fsanitize=undefined -fno-omit-frame-pointer")
     link_libraries("-fsanitize=undefined")
 endif()
 
 if (ENABLE_TSAN)
-   add_compile_options("-fsanitize=thread")
+   add_compile_options("-fsanitize=thread -fno-omit-frame-pointer")
 endif()
 
 set(ProjectDir "${CMAKE_CURRENT_LIST_DIR}/../..")

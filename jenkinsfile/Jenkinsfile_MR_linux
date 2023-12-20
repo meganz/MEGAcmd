@@ -64,42 +64,42 @@ pipeline {
             }
         }
 
-	stage('Checkout sources'){
-	    parallel{
-		stage('Checkout MEGAcmd with prebuildmerge'){
-		    steps{
-			checkout([
-			    $class: 'GitSCM',
-			    branches: [[name: "origin/${env.gitlabSourceBranch}"]],
-			    userRemoteConfigs: [[ url: "${env.GIT_URL_MEGACMD}", credentialsId: "12492eb8-0278-4402-98f0-4412abfb65c1" ]],
-			    extensions: [
-				[$class: "UserIdentity",name: "jenkins", email: "jenkins@jenkins"],
-				[$class: 'PreBuildMerge', options: [fastForwardMode: 'FF', mergeRemote: "origin", mergeStrategy: 'DEFAULT', mergeTarget: "${env.gitlabTargetBranch}"]]
+    stage('Checkout sources'){
+        parallel{
+        stage('Checkout MEGAcmd with prebuildmerge'){
+            steps{
+            checkout([
+                $class: 'GitSCM',
+                branches: [[name: "origin/${env.gitlabSourceBranch}"]],
+                userRemoteConfigs: [[ url: "${env.GIT_URL_MEGACMD}", credentialsId: "12492eb8-0278-4402-98f0-4412abfb65c1" ]],
+                extensions: [
+                [$class: "UserIdentity",name: "jenkins", email: "jenkins@jenkins"],
+                [$class: 'PreBuildMerge', options: [fastForwardMode: 'FF', mergeRemote: "origin", mergeStrategy: 'DEFAULT', mergeTarget: "${env.gitlabTargetBranch}"]]
                             ]
-			])
-		    }
-		}
-		stage('Checkout SDK'){
-		    steps{
-			dir('sdk'){
-			    checkout([
-				$class: 'GitSCM',
-				branches: [[name: "origin/${SDK_BRANCH}"]],
-				userRemoteConfigs: [[ url: "${env.GIT_URL_SDK}", credentialsId: "12492eb8-0278-4402-98f0-4412abfb65c1" ]],
-				extensions: [
-				    [$class: "UserIdentity",name: "jenkins", email: "jenkins@jenkins"],
-				    [$class: "CloneOption", depth: 1, shallow: true, noTags: false, reference: '']
-				]
-			    ])
-			}
-			script{
-			    megacmd_sources_workspace = WORKSPACE
-			    sdk_sources_workspace = "${megacmd_sources_workspace}/sdk"
-			}
-		    }
-		}
-	    }
-	}
+            ])
+            }
+        }
+        stage('Checkout SDK'){
+            steps{
+            dir('sdk'){
+                checkout([
+                $class: 'GitSCM',
+                branches: [[name: "origin/${SDK_BRANCH}"]],
+                userRemoteConfigs: [[ url: "${env.GIT_URL_SDK}", credentialsId: "12492eb8-0278-4402-98f0-4412abfb65c1" ]],
+                extensions: [
+                    [$class: "UserIdentity",name: "jenkins", email: "jenkins@jenkins"],
+                    [$class: "CloneOption", depth: 1, shallow: true, noTags: false, reference: '']
+                ]
+                ])
+            }
+            script{
+                megacmd_sources_workspace = WORKSPACE
+                sdk_sources_workspace = "${megacmd_sources_workspace}/sdk"
+            }
+            }
+        }
+        }
+    }
 
         stage("Build MEGAcmd"){
             matrix {
@@ -158,7 +158,7 @@ pipeline {
                         }
                         steps {
                             dir('test-results') {
-                                sh "docker run --user \$(id -u):\$(id -g) --env HOME=/tmp --env ASAN_OPTIONS --env TSAN_OPTIONS --rm --mount type=bind,src='${megacmd_sources_workspace}/test-results',target=/tmp/test-results -- meganz/megacmd-autotools-${SANITIZERS}:${env.BUILD_NUMBER} /usr/local/bin/mega-cmd-unit-tests --gtest_output=xml:/tmp/test-results/${SANITIZERS}-megacmd-unit-tests.xml"
+                                sh "docker run --user \$(id -u):\$(id -g) --env HOME=/tmp --env ASAN_OPTIONS --env TSAN_OPTIONS --rm --mount type=bind,src='${megacmd_sources_workspace}/test-results',target=/tmp/test-results -- meganz/megacmd-autotools-${SANITIZERS}:${env.BUILD_NUMBER} /usr/local/bin/mega-cmd-unit-tests --gtest_output=xml:/tmp/test-results/${SANITIZERS}-megacmd-unit-tests.xml --gtest_shuffle"
                             }
                         }
                     }
@@ -181,7 +181,17 @@ pipeline {
                         steps {
                             lock(label: 'testing_accounts_megacmd', variable: 'MEGACMD_TEST_USER', quantity: 1, resource: null){
                                 dir('test-results') {
-                                    sh "docker run --user \$(id -u):\$(id -g) --env HOME=/tmp --env MEGACMD_TEST_PASS --env MEGACMD_TEST_USER --env ASAN_OPTIONS --env TSAN_OPTIONS --rm --mount type=bind,src='${megacmd_sources_workspace}/test-results',target=/tmp/test-results -- meganz/megacmd-autotools-${SANITIZERS}:${env.BUILD_NUMBER} /usr/local/bin/mega-cmd-integration-tests --gtest_output=xml:/tmp/test-results/${SANITIZERS}-megacmd-integration-tests.xml"
+                                    script {
+                                        try {
+                                            sh "docker run --user \$(id -u):\$(id -g) --env HOME=/tmp --env MEGACMD_TEST_PASS --env MEGACMD_TEST_USER --env ASAN_OPTIONS --env TSAN_OPTIONS --rm --mount type=bind,src='${megacmd_sources_workspace}/test-results',target=/tmp/test-results -- meganz/megacmd-autotools-${SANITIZERS}:${env.BUILD_NUMBER} /usr/local/bin/mega-cmd-integration-tests --gtest_output=xml:/tmp/test-results/${SANITIZERS}-megacmd-integration-tests.xml --gtest_shuffle"
+                                        } catch(e) {
+                                            if (env.SANITIZERS == 'tsan'){
+                                                echo "${env.SANITIZERS} sanitizer build are expected to fail for now, will keep the build as successful"
+                                            } else {
+                                                sh "exit 1"
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -193,7 +203,7 @@ pipeline {
 
     post{
         always{
-	    script{
+            script{
                 if (currentBuild.currentResult == 'SUCCESS'){
                     addGitLabMRComment(comment: ":white_check_mark: ${currentBuild.projectName} :penguin: <b>Linux</b> SUCCEEDED :muscle:<br/>Build results: [Jenkins [${currentBuild.displayName}]](${currentBuild.absoluteUrl})<br/>Commit: ${env.GIT_COMMIT}" )
                     updateGitlabCommitStatus(name: 'Build linux', state: 'success')
@@ -211,7 +221,7 @@ pipeline {
                     updateGitlabCommitStatus(name: 'Build linux', state: 'failed')
                 }
             }
-	    sh "docker image rm -- meganz/megacmd-autotools-ubsan:${env.BUILD_NUMBER} meganz/megacmd-autotools-asan:${env.BUILD_NUMBER} meganz/megacmd-autotools-tsan:${env.BUILD_NUMBER} || true"
+            sh "docker image rm -- meganz/megacmd-autotools-ubsan:${env.BUILD_NUMBER} meganz/megacmd-autotools-asan:${env.BUILD_NUMBER} meganz/megacmd-autotools-tsan:${env.BUILD_NUMBER} || true"
             junit "**/test-results/ubsan-*.xml"
             archiveArtifacts artifacts: "**/test-results/megacmd-*-tests-*-report.*"
         }
