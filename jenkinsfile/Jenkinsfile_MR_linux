@@ -158,7 +158,7 @@ pipeline {
                         }
                         steps {
                             dir('test-results') {
-                                sh "docker run --user \$(id -u):\$(id -g) --env HOME=/tmp --env ASAN_OPTIONS --env TSAN_OPTIONS --rm --mount type=bind,src='${megacmd_sources_workspace}/test-results',target=/tmp/test-results -- meganz/megacmd-autotools-${SANITIZERS}:${env.BUILD_NUMBER} /usr/local/bin/mega-cmd-unit-tests --gtest_output=xml:/tmp/test-results/${SANITIZERS}-megacmd-unit-tests.xml"
+                                sh "docker run --user \$(id -u):\$(id -g) --env HOME=/tmp --env ASAN_OPTIONS --env TSAN_OPTIONS --rm --mount type=bind,src='${megacmd_sources_workspace}/test-results',target=/tmp/test-results -- meganz/megacmd-autotools-${SANITIZERS}:${env.BUILD_NUMBER} /usr/local/bin/mega-cmd-unit-tests --gtest_output=xml:/tmp/test-results/${SANITIZERS}-megacmd-unit-tests.xml --gtest_shuffle"
                             }
                         }
                     }
@@ -183,7 +183,7 @@ pipeline {
                                 dir('test-results') {
                                     script {
                                         try {
-                                            sh "docker run --user \$(id -u):\$(id -g) --env HOME=/tmp --env MEGACMD_TEST_PASS --env MEGACMD_TEST_USER --env ASAN_OPTIONS --env TSAN_OPTIONS --rm --mount type=bind,src='${megacmd_sources_workspace}/test-results',target=/tmp/test-results -- meganz/megacmd-autotools-${SANITIZERS}:${env.BUILD_NUMBER} /usr/local/bin/mega-cmd-integration-tests --gtest_output=xml:/tmp/test-results/${SANITIZERS}-megacmd-integration-tests.xml"
+                                            sh "docker run --user \$(id -u):\$(id -g) --env HOME=/tmp --env MEGACMD_TEST_PASS --env MEGACMD_TEST_USER --env ASAN_OPTIONS --env TSAN_OPTIONS --rm --mount type=bind,src='${megacmd_sources_workspace}/test-results',target=/tmp/test-results -- meganz/megacmd-autotools-${SANITIZERS}:${env.BUILD_NUMBER} /usr/local/bin/mega-cmd-integration-tests --gtest_output=xml:/tmp/test-results/${SANITIZERS}-megacmd-integration-tests.xml --gtest_shuffle"
                                         } catch(e) {
                                             if (env.SANITIZERS == 'tsan'){
                                                 echo "${env.SANITIZERS} sanitizer build are expected to fail for now, will keep the build as successful"
