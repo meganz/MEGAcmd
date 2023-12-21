@@ -14,6 +14,7 @@
  */
 
 #include <gmock/gmock.h>
+#include <gtest/gtest.h>
 
 #include "MegaCmdTestingTools.h"
 
@@ -59,9 +60,11 @@ void ensureLoggedIn()
         const char* user = getenv("MEGACMD_TEST_USER");
         const char* pass = getenv("MEGACMD_TEST_PASS");
 
-        ASSERT_THAT(user, testing::AllOf(testing::NotNull(), testing::Not(testing::IsEmpty()))) << "Missing testing user env variable. Ensure that MEGACMD_TEST_USER is set!";
-        ASSERT_THAT(user, testing::AllOf(testing::NotNull(), testing::Not(testing::IsEmpty())))
-            << "Missing testing user password env variable. Ensure that MEGACMD_TEST_PASS is set!";
+        ASSERT_THAT(user, testing::NotNull()) << "Missing testing user env variable. Ensure that MEGACMD_TEST_USER is set!";
+        ASSERT_STRNE(user, "") << "Missing testing user env variable. Ensure that MEGACMD_TEST_USER is set!";
+
+        ASSERT_THAT(pass, testing::NotNull()) << "Missing testing user password env variable. Ensure that MEGACMD_TEST_PASS is set!";
+        ASSERT_STRNE(pass, "") << "Missing testing user password env variable. Ensure that MEGACMD_TEST_PASS is set!";
 
         auto result = executeInClient({"login", user, pass});
         ASSERT_EQ(0, result.status());
