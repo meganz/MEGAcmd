@@ -38,13 +38,13 @@ TEST_F(NOINTERACTIVEReadTest, Find)
     auto r = executeInClient({"find"});
 
     std::vector<std::string> result_paths = splitByNewline(r.out());
-    ASSERT_FALSE(result_paths.empty());
+    ASSERT_THAT(result_paths, testing::Not(testing::IsEmpty()));
 
-    EXPECT_CONTAINS(result_paths, ".");
-    EXPECT_CONTAINS(result_paths, "testReadingFolder01");
-    EXPECT_CONTAINS(result_paths, "testReadingFolder01/file03.txt");
-    EXPECT_CONTAINS(result_paths, "testReadingFolder01/folder01/file03.txt");
-    EXPECT_CONTAINS(result_paths, "testReadingFolder01/folder02/subfolder03/file02.txt");
+    EXPECT_THAT(result_paths, testing::Contains("."));
+    EXPECT_THAT(result_paths, testing::Contains("testReadingFolder01"));
+    EXPECT_THAT(result_paths, testing::Contains("testReadingFolder01/file03.txt"));
+    EXPECT_THAT(result_paths, testing::Contains("testReadingFolder01/folder01/file03.txt"));
+    EXPECT_THAT(result_paths, testing::Contains("testReadingFolder01/folder02/subfolder03/file02.txt"));
 }
 
 TEST_F(NOINTERACTIVELoggedInTest, Whoami)
