@@ -3,7 +3,7 @@
 Usage () {
     echo "Usage: installer_mac.sh [[--arch [arm64|x86_64]] [--build | --build-cmake] | [--sign] | [--create-dmg] | [--notarize] | [--full-pkg | --full-pkg-cmake]]"
     echo "    --arch [arm64|x86_64]  : Arch target. It will build for the host arch if not defined."
-    echo "    --build                : Builds the app and creates the bundle using qmake."
+    echo "    --build                : Builds the app and creates the bundle using qmake. DEPRECATED AND UNLIKELY TO WORK"
     echo "    --build-cmake          : Idem but using cmake"
     echo "    --sign                 : Sign the app"
     echo "    --create-dmg           : Create the dmg package"
@@ -138,14 +138,6 @@ if [ ${build} -eq 1 -o ${build_cmake} -eq 1 ]; then
     echo "  MEGAQTPATH : ${MEGAQTPATH}"
     echo "  VCPKGPATH  : ${VCPKGPATH}"
 
-    if [ ${build_cmake} -ne 1 ]; then
-        CARES_VERSION=libcares.2.dylib
-        CURL_VERSION=libcurl.dylib
-
-        CARES_PATH=${VCPKGPATH}/vcpkg/installed/${target_arch//x86_64/x64}-osx-mega/lib/$CARES_VERSION
-        CURL_PATH=${VCPKGPATH}/vcpkg/installed/${target_arch//x86_64/x64}-osx-mega/lib/$CURL_VERSION
-    fi
-
     # Clean previous build
     [ -z "${SKIP_REMOVAL}" ]  && rm -rf Release_${target_arch}
     mkdir Release_${target_arch} || true
@@ -169,88 +161,138 @@ if [ ${build} -eq 1 -o ${build_cmake} -eq 1 ]; then
         SHELL_PREFIX=""
         LOADER_PREFIX=""
         UPDATER_PREFIX=""
-    else
-	#qmake build (should be deprecated)
+    else #qmake build (should be deprecated)
         cp ../../sdk/contrib/official_build_configs/macos/config.h ../../sdk/include/mega/config.h
-#        ${MEGAQTPATH}/bin/qmake "THIRDPARTY_VCPKG_BASE_PATH=${VCPKGPATH}" -r ../../contrib/QtCreator/MEGAcmd/ -spec macx-clang CONFIG+=release CONFIG+=x86_64 -nocache
         ${MEGAQTPATH}/bin/qmake "THIRDPARTY_VCPKG_BASE_PATH=${VCPKGPATH}" -r ../../contrib/QtCreator/MEGAcmd/ -spec macx-clang CONFIG+=release -nocache
         make -j`sysctl -n hw.ncpu`
     fi
 
-    # Prepare MEGAcmd (server, mega-cmd) bundle
-    cp -R ${SERVER_PREFIX}MEGAcmd.app ${SERVER_PREFIX}MEGAcmd_orig.app
-    ${MEGAQTPATH}/bin/macdeployqt ${SERVER_PREFIX}MEGAcmd.app -no-strip
-    dsymutil ${SERVER_PREFIX}MEGAcmd.app/Contents/MacOS/MEGAcmd -o MEGAcmd.app.dSYM
-    strip ${SERVER_PREFIX}MEGAcmd.app/Contents/MacOS/MEGAcmd
 
-    # Prepare MEGAclient (mega-exec) bundle
-    ${MEGAQTPATH}/bin/macdeployqt ${CLIENT_PREFIX}MEGAclient.app -no-strip
-    dsymutil ${CLIENT_PREFIX}MEGAclient.app/Contents/MacOS/MEGAclient -o MEGAclient.dSYM
-    strip ${CLIENT_PREFIX}MEGAclient.app/Contents/MacOS/MEGAclient
+    if [ ${build_cmake} -eq 1 ]; then # Manually prepare the .app folder
 
-    # Prepare MEGAcmdSell bundle
-    ${MEGAQTPATH}/bin/macdeployqt ${SHELL_PREFIX}MEGAcmdShell.app -no-strip
-    dsymutil ${SHELL_PREFIX}MEGAcmdShell.app/Contents/MacOS/MEGAcmdShell -o MEGAcmdShell.dSYM
-    strip ${SHELL_PREFIX}MEGAcmdShell.app/Contents/MacOS/MEGAcmdShell
+        # create folder structure
+        mkdir -p ${APP_NAME}.app/Contents/Frameworks
+        mkdir -p ${APP_NAME}.app/Contents/MacOS
+        mkdir -p ${APP_NAME}.app/Contents/Resources
 
-    # Prepare MEGAcmdLoader bundle
-    ${MEGAQTPATH}/bin/macdeployqt ${LOADER_PREFIX}MEGAcmdLoader.app -no-strip
-    dsymutil ${LOADER_PREFIX}MEGAcmdLoader.app/Contents/MacOS/MEGAcmdLoader -o MEGAcmdLoader.dSYM
-    strip ${LOADER_PREFIX}MEGAcmdLoader.app/Contents/MacOS/MEGAcmdLoader
+        #place (and strip) executables
+        typeset -A execOriginTarget
+        execOriginTarget[mega-exec]=mega-exec
+        execOriginTarget[mega-cmd]=MEGAcmdShell
+        execOriginTarget[mega-cmd-updater]=MEGAcmdUpdater
+        execOriginTarget[mega-cmd-server]=mega-cmd
 
-    # Prepare MEGAcmdUpdater bundle
-    ${MEGAQTPATH}/bin/macdeployqt ${UPDATER_PREFIX}MEGAcmdUpdater.app -no-strip
-    dsymutil ${UPDATER_PREFIX}MEGAcmdUpdater.app/Contents/MacOS/MEGAcmdUpdater -o MEGAcmdUpdater.dSYM
-    strip ${UPDATER_PREFIX}MEGAcmdUpdater.app/Contents/MacOS/MEGAcmdUpdater
+        for k in "${(@k)execOriginTarget}"; do
+            dsymutil $k -o $execOriginTarget[$k].dSYM
+            cp $k ${APP_NAME}.app/Contents/MacOS/$execOriginTarget[$k]
+            strip ${APP_NAME}.app/Contents/MacOS/$execOriginTarget[$k]
+            # have dylibs use relative paths:
+             for i in $(otool -L ${APP_NAME}.app/Contents/MacOS/$execOriginTarget[$k] | grep dylib | grep -v "\t/usr/lib"  | awk '{print $1}'); do
+                install_name_tool -change $i "@executable_path/../Frameworks/"$(basename $i) ${APP_NAME}.app/Contents/MacOS/$execOriginTarget[$k];
+             done
+        done
 
-    # Copy client scripts and completion into package contents
-    cp ../../src/client/mega-* ${SERVER_PREFIX}MEGAcmd.app/Contents/MacOS/
-    cp ../../src/client/megacmd_completion.sh  ${SERVER_PREFIX}MEGAcmd.app/Contents/MacOS/
+        # Copy initialize script (it will simple launch MEGAcmdLoader in a terminal) as the new main executable: MEGAcmd
+        cp ../installer/MEGAcmd.sh ${APP_NAME}.app/Contents/MacOS/MEGAcmd
 
-    # Rename exec MEGAcmd (aka: MEGAcmdServer) to mega-cmd and add it to package contents
-    mv ${SERVER_PREFIX}MEGAcmd.app/Contents/MacOS/MEGAcmd ${SERVER_PREFIX}MEGAcmd.app/Contents/MacOS/mega-cmd
-    # Copy initialize script (it will simple launch MEGAcmdLoader in a terminal) as the new main executable: MEGAcmd
-    cp ../installer/MEGAcmd.sh ${SERVER_PREFIX}MEGAcmd.app/Contents/MacOS/MEGAcmd
-    # Rename MEGAClient to mega-exec and add it to package contents
-    mv ${CLIENT_PREFIX}MEGAclient.app/Contents/MacOS/MEGAclient ${SERVER_PREFIX}MEGAcmd.app/Contents/MacOS/mega-exec
-    # Add MEGAcmdLoader into package contents
-    mv ${LOADER_PREFIX}MEGAcmdLoader.app/Contents/MacOS/MEGAcmdLoader ${SERVER_PREFIX}MEGAcmd.app/Contents/MacOS/MEGAcmdLoader
-    # Add MEGAcmdUpdater into package contents
-    mv ${UPDATER_PREFIX}MEGAcmdUpdater.app/Contents/MacOS/MEGAcmdUpdater ${SERVER_PREFIX}MEGAcmd.app/Contents/MacOS/MEGAcmdUpdater
-    # Add MEGAcmdShell into package contents
-    mv ${SHELL_PREFIX}MEGAcmdShell.app/Contents/MacOS/MEGAcmdShell ${SERVER_PREFIX}MEGAcmd.app/Contents/MacOS/MEGAcmdShell
+        #place commands and completion scripts
+        cp ../../src/client/mega-* ${APP_NAME}.app/Contents/MacOS/
+        cp ../../src/client/megacmd_completion.sh  ${APP_NAME}.app/Contents/MacOS/
 
+        # place dylibs
+         for i in $(otool -L ./mega-cmd ./mega-cmd-server ./mega-cmd-updater ./mega-exec | grep dylib | grep -v "\t/usr/lib" | sort | uniq | grep -o "lib[a-x0-9\.]*dylib"); do
+            cp "${VCPKGPATH}"/vcpkg/installed/${target_arch//x86_64/x64}-osx-mega/lib/$i ${APP_NAME}.app/Contents/Frameworks/;
+         done;
 
-    if [ ${build_cmake} -ne 1 ]; then
+        # place icns
+        cp ../../contrib/QtCreator/MEGAcmd/MEGAcmdServer/app.icns ${APP_NAME}.app/Contents/Resources/app.icns
+
+        #place PkgInfo
+        echo 'APPL????' > ${APP_NAME}.app/Contents/PkgInfo
+
+        #place empty empty.lproj
+        touch ${APP_NAME}.app/Contents/Resources/empty.lproj
+
+        #place Info.plist
+        cp ../installer/Info.plist ${APP_NAME}.app/Contents/Info.plist
+
+    else #qt
+        # Prepare MEGAcmd (server, mega-cmd) bundle
+        cp -R ${SERVER_PREFIX}${APP_NAME}.app ${SERVER_PREFIX}MEGAcmd_orig.app
+        ${MEGAQTPATH}/bin/macdeployqt ${SERVER_PREFIX}${APP_NAME}.app -no-strip
+        dsymutil ${SERVER_PREFIX}${APP_NAME}.app/Contents/MacOS/MEGAcmd -o ${APP_NAME}.app.dSYM
+        strip ${SERVER_PREFIX}${APP_NAME}.app/Contents/MacOS/MEGAcmd
+
+        # Prepare MEGAclient (mega-exec) bundle
+        ${MEGAQTPATH}/bin/macdeployqt ${CLIENT_PREFIX}MEGAclient.app -no-strip
+        dsymutil ${CLIENT_PREFIX}MEGAclient.app/Contents/MacOS/MEGAclient -o MEGAclient.dSYM
+        strip ${CLIENT_PREFIX}MEGAclient.app/Contents/MacOS/MEGAclient
+
+        # Prepare MEGAcmdSell bundle
+        ${MEGAQTPATH}/bin/macdeployqt ${SHELL_PREFIX}MEGAcmdShell.app -no-strip
+        dsymutil ${SHELL_PREFIX}MEGAcmdShell.app/Contents/MacOS/MEGAcmdShell -o MEGAcmdShell.dSYM
+        strip ${SHELL_PREFIX}MEGAcmdShell.app/Contents/MacOS/MEGAcmdShell
+
+        # Prepare MEGAcmdLoader bundle
+        ${MEGAQTPATH}/bin/macdeployqt ${LOADER_PREFIX}MEGAcmdLoader.app -no-strip
+        dsymutil ${LOADER_PREFIX}MEGAcmdLoader.app/Contents/MacOS/MEGAcmdLoader -o MEGAcmdLoader.dSYM
+        strip ${LOADER_PREFIX}MEGAcmdLoader.app/Contents/MacOS/MEGAcmdLoader
+
+        # Prepare MEGAcmdUpdater bundle
+        ${MEGAQTPATH}/bin/macdeployqt ${UPDATER_PREFIX}MEGAcmdUpdater.app -no-strip
+        dsymutil ${UPDATER_PREFIX}MEGAcmdUpdater.app/Contents/MacOS/MEGAcmdUpdater -o MEGAcmdUpdater.dSYM
+        strip ${UPDATER_PREFIX}MEGAcmdUpdater.app/Contents/MacOS/MEGAcmdUpdater
+
+        # Copy client scripts and completion into package contents
+        cp ../../src/client/mega-* ${SERVER_PREFIX}${APP_NAME}.app/Contents/MacOS/
+        cp ../../src/client/megacmd_completion.sh  ${SERVER_PREFIX}${APP_NAME}.app/Contents/MacOS/
+
+        # Rename exec MEGAcmd (aka: MEGAcmdServer) to mega-cmd and add it to package contents
+        mv ${SERVER_PREFIX}${APP_NAME}.app/Contents/MacOS/MEGAcmd ${SERVER_PREFIX}${APP_NAME}.app/Contents/MacOS/mega-cmd
+        # Copy initialize script (it will simple launch MEGAcmdLoader in a terminal) as the new main executable: MEGAcmd
+        cp ../installer/MEGAcmd.sh ${SERVER_PREFIX}${APP_NAME}.app/Contents/MacOS/MEGAcmd
+        # Rename MEGAClient to mega-exec and add it to package contents
+        mv ${CLIENT_PREFIX}MEGAclient.app/Contents/MacOS/MEGAclient ${SERVER_PREFIX}${APP_NAME}.app/Contents/MacOS/mega-exec
+        # Add MEGAcmdLoader into package contents
+        mv ${LOADER_PREFIX}MEGAcmdLoader.app/Contents/MacOS/MEGAcmdLoader ${SERVER_PREFIX}${APP_NAME}.app/Contents/MacOS/MEGAcmdLoader
+        # Add MEGAcmdUpdater into package contents
+        mv ${UPDATER_PREFIX}MEGAcmdUpdater.app/Contents/MacOS/MEGAcmdUpdater ${SERVER_PREFIX}${APP_NAME}.app/Contents/MacOS/MEGAcmdUpdater
+        # Add MEGAcmdShell into package contents
+        mv ${SHELL_PREFIX}MEGAcmdShell.app/Contents/MacOS/MEGAcmdShell ${SERVER_PREFIX}${APP_NAME}.app/Contents/MacOS/MEGAcmdShell
 
         # Remove unneded Qt stuff
-        rm -rf ${SERVER_PREFIX}MEGAcmd.app/Contents/Plugins
-        rm -rf ${SERVER_PREFIX}MEGAcmd.app/Contents/Resources/qt.conf
+        rm -rf ${SERVER_PREFIX}${APP_NAME}.app/Contents/Plugins
+        rm -rf ${SERVER_PREFIX}${APP_NAME}.app/Contents/Resources/qt.conf
 
-        [ ! -f MEGAcmdServer/MEGAcmd.app/Contents/Frameworks/$CARES_VERSION ] && cp -L $CARES_PATH MEGAcmdServer/MEGAcmd.app/Contents/Frameworks/
-        [ ! -f MEGAcmdServer/MEGAcmd.app/Contents/Frameworks/$CURL_VERSION ] && cp -L $CURL_PATH MEGAcmdServer/MEGAcmd.app/Contents/Frameworks/
+        # cares and curl dylibs that need manualy copying:
+        CARES_VERSION=libcares.2.dylib
+        CURL_VERSION=libcurl.dylib
+        CARES_PATH=${VCPKGPATH}/vcpkg/installed/${target_arch//x86_64/x64}-osx-mega/lib/$CARES_VERSION
+        CURL_PATH=${VCPKGPATH}/vcpkg/installed/${target_arch//x86_64/x64}-osx-mega/lib/$CURL_VERSION
+        [ ! -f ${SERVER_PREFIX}/${APP_NAME}.app/Contents/Frameworks/$CARES_VERSION ] && cp -L $CARES_PATH ${SERVER_PREFIX}/${APP_NAME}.app/Contents/Frameworks/
+        [ ! -f ${SERVER_PREFIX}/${APP_NAME}.app/Contents/Frameworks/$CURL_VERSION ] && cp -L $CURL_PATH ${SERVER_PREFIX}/${APP_NAME}.app/Contents/Frameworks/
 
-        if [ ! -f MEGAcmdServer/MEGAcmd.app/Contents/Frameworks/$CURL_VERSION ]  \
-            || [ ! -f MEGAcmdServer/MEGAcmd.app/Contents/Frameworks/$CARES_VERSION ];
+        if [ ! -f MEGAcmdServer/${APP_NAME}.app/Contents/Frameworks/$CURL_VERSION ]  \
+            || [ ! -f MEGAcmdServer/${APP_NAME}.app/Contents/Frameworks/$CARES_VERSION ];
         then
             echo "Error copying libs to app bundle."
             exit 1
         fi
-    fi
 
-    MEGACMD_VERSION=`grep -o "[0-9][0-9]*$" ../../src/megacmdversion.h | head -n 3 | paste -s -d '.' -`
-    /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $MEGACMD_VERSION" "${SERVER_PREFIX}$APP_NAME.app/Contents/Info.plist"
-
-    if [ ${build_cmake} -ne 1 ]; then
+        # replace final app bundle with server's:
         rm -r $APP_NAME.app || :
         mv ${SERVER_PREFIX}$APP_NAME.app ./
     fi
 
-    otool -L MEGAcmd.app/Contents/MacOS/mega-cmd
-    otool -L MEGAcmd.app/Contents/MacOS/mega-exec
-    otool -L MEGAcmd.app/Contents/MacOS/MEGAcmdLoader
-    otool -L MEGAcmd.app/Contents/MacOS/MEGAcmdUpdater
-    otool -L MEGAcmd.app/Contents/MacOS/MEGAcmdShell
+    # update version into Info.plist
+    MEGACMD_VERSION=`grep -o "[0-9][0-9]*$" ../../src/megacmdversion.h | head -n 3 | paste -s -d '.' -`
+    /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $MEGACMD_VERSION" "$APP_NAME.app/Contents/Info.plist"
+
+    otool -L ${APP_NAME}.app/Contents/MacOS/mega-cmd
+    otool -L ${APP_NAME}.app/Contents/MacOS/mega-exec
+    otool -L ${APP_NAME}.app/Contents/MacOS/MEGAcmdLoader || true
+    otool -L ${APP_NAME}.app/Contents/MacOS/MEGAcmdUpdater
+    otool -L ${APP_NAME}.app/Contents/MacOS/MEGAcmdShell
 
     cd ..
 
@@ -258,77 +300,77 @@ if [ ${build} -eq 1 -o ${build_cmake} -eq 1 ]; then
 fi
 
 if [ "$sign" = "1" ]; then
-	sign_time_start=`date +%s`
-	cd Release_${target_arch}
-	cp -R $APP_NAME.app ${APP_NAME}_unsigned.app
-	echo "Signing 'APPBUNDLE'"
-	codesign --force --verify --verbose --preserve-metadata=entitlements --options runtime --sign "Developer ID Application: Mega Limited" --deep $APP_NAME.app
-	echo "Checking signature"
-	spctl -vv -a $APP_NAME.app
-	cd ..
-	sign_time=`expr $(date +%s) - $sign_time_start`
+    sign_time_start=`date +%s`
+    cd Release_${target_arch}
+    cp -R $APP_NAME.app ${APP_NAME}_unsigned.app
+    echo "Signing 'APPBUNDLE'"
+    codesign --force --verify --verbose --preserve-metadata=entitlements --options runtime --sign "Developer ID Application: Mega Limited" --deep $APP_NAME.app
+    echo "Checking signature"
+    spctl -vv -a $APP_NAME.app
+    cd ..
+    sign_time=`expr $(date +%s) - $sign_time_start`
 fi
 
 if [ "$createdmg" = "1" ]; then
     dmg_time_start=`date +%s`
-	cd Release_${target_arch}
-	[ -f $APP_NAME.dmg ] && rm $APP_NAME.dmg
-	echo "DMG CREATION PROCESS..."
-	echo "Creating temporary Disk Image (1/7)"
-	#Create a temporary Disk Image
-	/usr/bin/hdiutil create -srcfolder $APP_NAME.app/ -volname $VOLUME_NAME -ov $APP_NAME-tmp.dmg -fs HFS+ -format UDRW >/dev/null
+    cd Release_${target_arch}
+    [ -f $APP_NAME.dmg ] && rm $APP_NAME.dmg
+    echo "DMG CREATION PROCESS..."
+    echo "Creating temporary Disk Image (1/7)"
+    #Create a temporary Disk Image
+    /usr/bin/hdiutil create -srcfolder $APP_NAME.app/ -volname $VOLUME_NAME -ov $APP_NAME-tmp.dmg -fs HFS+ -format UDRW >/dev/null
 
-	echo "Attaching the temporary image (2/7)"
-	#Attach the temporary image
-	mkdir $MOUNTDIR
-	/usr/bin/hdiutil attach $APP_NAME-tmp.dmg -mountroot $MOUNTDIR >/dev/null
+    echo "Attaching the temporary image (2/7)"
+    #Attach the temporary image
+    mkdir $MOUNTDIR
+    /usr/bin/hdiutil attach $APP_NAME-tmp.dmg -mountroot $MOUNTDIR >/dev/null
 
-	echo "Copying resources (3/7)"
-	#Copy the background, the volume icon and DS_Store files
-	unzip -d $MOUNTDIR/$VOLUME_NAME ../$RESOURCES.zip
-	/usr/bin/SetFile -a C $MOUNTDIR/$VOLUME_NAME
+    echo "Copying resources (3/7)"
+    #Copy the background, the volume icon and DS_Store files
+    unzip -d $MOUNTDIR/$VOLUME_NAME ../$RESOURCES.zip
+    /usr/bin/SetFile -a C $MOUNTDIR/$VOLUME_NAME
 
-	echo "Adding symlinks (4/7)"
-	#Add a symbolic link to the Applications directory
-	ln -s /Applications/ $MOUNTDIR/$VOLUME_NAME/Applications
+    echo "Adding symlinks (4/7)"
+    #Add a symbolic link to the Applications directory
+    ln -s /Applications/ $MOUNTDIR/$VOLUME_NAME/Applications
 
-	# Delete unnecessary file system events log if possible
-	echo "Deleting .fseventsd"
-	rm -rf $MOUNTDIR/$VOLUME_NAME/.fseventsd || true
+    # Delete unnecessary file system events log if possible
+    echo "Deleting .fseventsd"
+    rm -rf $MOUNTDIR/$VOLUME_NAME/.fseventsd || true
 
-	echo "Detaching temporary Disk Image (5/7)"
-	#Detach the temporary image
-	/usr/bin/hdiutil detach $MOUNTDIR/$VOLUME_NAME >/dev/null
+    echo "Detaching temporary Disk Image (5/7)"
+    #Detach the temporary image
+    /usr/bin/hdiutil detach $MOUNTDIR/$VOLUME_NAME >/dev/null
 
-	echo "Compressing Image (6/7)"
-	#Compress it to a new image
-	/usr/bin/hdiutil convert $APP_NAME-tmp.dmg -format UDZO -o $APP_NAME.dmg >/dev/null
+    echo "Compressing Image (6/7)"
+    #Compress it to a new image
+    /usr/bin/hdiutil convert $APP_NAME-tmp.dmg -format UDZO -o $APP_NAME.dmg >/dev/null
 
-	echo "Deleting temporary image (7/7)"
-	#Delete the temporary image
-	rm $APP_NAME-tmp.dmg
-	rmdir $MOUNTDIR
-	cd ..
-	dmg_time=`expr $(date +%s) - $dmg_time_start`
+    echo "Deleting temporary image (7/7)"
+    #Delete the temporary image
+    rm $APP_NAME-tmp.dmg
+    rmdir $MOUNTDIR
+    cd ..
+    dmg_time=`expr $(date +%s) - $dmg_time_start`
 fi
 
 if [ "$notarize" = "1" ]; then
-	notarize_time_start=`date +%s`
-	cd Release_${target_arch}
-	if [ ! -f $APP_NAME.dmg ];then
-		echo ""
-		echo "There is no dmg to be notarized."
-		echo ""
-		exit 1
-	fi
+    notarize_time_start=`date +%s`
+    cd Release_${target_arch}
+    if [ ! -f $APP_NAME.dmg ];then
+        echo ""
+        echo "There is no dmg to be notarized."
+        echo ""
+        exit 1
+    fi
 
-	echo "Sending dmg for notarization (1/3)"
+    echo "Sending dmg for notarization (1/3)"
 
-	xcrun notarytool submit $APP_NAME.dmg  --keychain-profile "AC_PASSWORD" --wait 2>&1 | tee notarylog.txt
+    xcrun notarytool submit $APP_NAME.dmg  --keychain-profile "AC_PASSWORD" --wait 2>&1 | tee notarylog.txt
     echo >> notarylog.txt
 
-	xcrun stapler staple -v $APP_NAME.dmg 2>&1 | tee -a notarylog.txt
-    
+    xcrun stapler staple -v $APP_NAME.dmg 2>&1 | tee -a notarylog.txt
+
     echo "Stapling ok (2/3)"
 
     #Mount dmg volume to check if app bundle is notarized
@@ -339,7 +381,7 @@ if [ "$notarize" = "1" ]; then
     hdiutil detach $MOUNTDIR/$VOLUME_NAME >/dev/null
     rmdir $MOUNTDIR
 
-	cd ..
+    cd ..
     notarize_time=`expr $(date +%s) - $notarize_time_start`
 fi
 
