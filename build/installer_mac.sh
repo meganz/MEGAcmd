@@ -1,14 +1,15 @@
 #!/bin/zsh -e
 
 Usage () {
-    echo "Usage: installer_mac.sh [[--build | --build-cmake] | [--sign] | [--create-dmg] | [--notarize] | [--full-pkg | --full-pkg-cmake]]"
-    echo "    --build          : Builds the app and creates the bundle using qmake."
-    echo "    --build-cmake    : Idem but using cmake"
-    echo "    --sign           : Sign the app"
-    echo "    --create-dmg     : Create the dmg package"
-    echo "    --notarize       : Notarize package against Apple systems."
-    echo "    --full-pkg       : Implies and overrides all the above using qmake"
-    echo "    --full-pkg-cmake : Idem but using cmake"
+    echo "Usage: installer_mac.sh [[--arch [arm64|x86_64]] [--build | --build-cmake] | [--sign] | [--create-dmg] | [--notarize] | [--full-pkg | --full-pkg-cmake]]"
+    echo "    --arch [arm64|x86_64]  : Arch target. It will build for the host arch if not defined."
+    echo "    --build                : Builds the app and creates the bundle using qmake."
+    echo "    --build-cmake          : Idem but using cmake"
+    echo "    --sign                 : Sign the app"
+    echo "    --create-dmg           : Create the dmg package"
+    echo "    --notarize             : Notarize package against Apple systems."
+    echo "    --full-pkg             : Implies and overrides all the above using qmake"
+    echo "    --full-pkg-cmake       : Idem but using cmake"
     echo ""
     echo "Environment variables needed to build:"
     echo "    MEGAQTPATH : Point it to a valid Qt installation path"
@@ -25,6 +26,7 @@ if [ $# -eq 0 ]; then
 fi
 
 APP_NAME=MEGAcmd
+VOLUME_NAME="InstallMEGAcmd"
 ID_BUNDLE=mega.mac
 MOUNTDIR=tmp
 RESOURCES=installer/resourcesDMG
@@ -35,6 +37,8 @@ SHELL_PREFIX=MEGAcmdShell/
 LOADER_PREFIX=MEGAcmdLoader/
 UPDATER_PREFIX=MEGAcmdUpdater/
 
+host_arch=`uname -m`
+target_arch=${host_arch}
 full_pkg=0
 full_pkg_cmake=0
 build=0
@@ -43,6 +47,12 @@ sign=0
 createdmg=0
 notarize=0
 
+build_time=0
+sign_time=0
+dmg_time=0
+notarize_time=0
+total_time=0
+
 while [ "$1" != "" ]; do
     case $1 in
         --arch )
@@ -50,7 +60,6 @@ while [ "$1" != "" ]; do
             target_arch="${1}"
             if [ "${target_arch}" != "arm64" ] && [ "${target_arch}" != "x86_64" ]; then Usage; echo "Error: Invalid arch value."; exit 1; fi
             ;;
-
         --build )
             build=1
             if [ ${build_cmake} -eq 1 ]; then Usage; echo "Error: --build and --build-cmake are mutually exclusive."; exit 1; fi
@@ -82,6 +91,7 @@ while [ "$1" != "" ]; do
             ;;
         * )
             Usage
+            echo "Unknown parameter: ${1}"
             exit 1
     esac
     shift
@@ -94,6 +104,7 @@ if [ ${full_pkg} -eq 1 ]; then
     createdmg=1
     notarize=1
 fi
+
 if [ ${full_pkg_cmake} -eq 1 ]; then
     build=0
     build_cmake=1
@@ -102,10 +113,20 @@ if [ ${full_pkg_cmake} -eq 1 ]; then
     notarize=1
 fi
 
+if [ ${build} -ne 1 -a ${build_cmake} -ne 1 -a ${sign} -ne 1 -a ${createdmg} -ne 1 -a ${notarize} -ne 1 ]; then
+   Usage
+   echo "Error: No action selected. Nothing to do."
+   exit 1
+fi
+
 if [ ${build} -eq 1 -o ${build_cmake} -eq 1 ]; then
-    if [ -z "${MEGAQTPATH}" ] || [ ! -d "${MEGAQTPATH}/bin" ]; then
+    build_time_start=`date +%s`
+
+    if [ ${build_cmake} -ne 1 ]; then
+      if [ -z "${MEGAQTPATH}" ] || [ ! -d "${MEGAQTPATH}/bin" ]; then
         echo "Please set MEGAQTPATH env variable to a valid QT installation path!"
         exit 1;
+      fi
     fi
     if [ -z "${VCPKGPATH}" ] || [ ! -d "${VCPKGPATH}/vcpkg/installed" ]; then
         echo "Please set VCPKGPATH env variable to a directory containing a valid vcpkg installation!"
@@ -125,11 +146,10 @@ if [ ${build} -eq 1 -o ${build_cmake} -eq 1 ]; then
         CURL_PATH=${VCPKGPATH}/vcpkg/installed/${target_arch//x86_64/x64}-osx-mega/lib/$CURL_VERSION
     fi
 
-
     # Clean previous build
-    rm -rf Release_x64
-    mkdir Release_x64
-    cd Release_x64
+    [ -z "${SKIP_REMOVAL}" ]  && rm -rf Release_${target_arch}
+    mkdir Release_${target_arch} || true
+    cd Release_${target_arch}
 
     # Build binaries
     if [ ${build_cmake} -eq 1 ]; then
@@ -138,7 +158,8 @@ if [ ${build} -eq 1 -o ${build_cmake} -eq 1 ]; then
             CMAKE_EXTRA="-DCMAKE_OSX_ARCHITECTURES=${target_arch}"
         fi
 
-        cmake -DUSE_THIRDPARTY_FROM_VCPKG=1  -DCMAKE_PREFIX_PATH=${MEGAQTPATH} -DVCPKG_TRIPLET=x64-osx-mega -DMega3rdPartyDir=${VCPKGPATH} -DCMAKE_BUILD_TYPE=RelWithDebInfo ${CMAKE_EXTRA} -S ..//cmake
+#        cmake -DUSE_THIRDPARTY_FROM_VCPKG=1  -DCMAKE_PREFIX_PATH=${MEGAQTPATH} -DVCPKG_TRIPLET=x64-osx-mega -DMega3rdPartyDir=${VCPKGPATH} -DCMAKE_BUILD_TYPE=RelWithDebInfo ${CMAKE_EXTRA} -S ..//cmake
+        cmake -DUSE_THIRDPARTY_FROM_VCPKG=1  -DCMAKE_PREFIX_PATH=${MEGAQTPATH} -DMega3rdPartyDir=${VCPKGPATH} -DCMAKE_BUILD_TYPE=RelWithDebInfo ${CMAKE_EXTRA} -S ..//cmake
         cmake --build ./ --target mega-cmd -j`sysctl -n hw.ncpu`
         cmake --build ./ --target mega-exec -j`sysctl -n hw.ncpu`
         cmake --build ./ --target mega-cmd-server -j`sysctl -n hw.ncpu`
@@ -149,8 +170,10 @@ if [ ${build} -eq 1 -o ${build_cmake} -eq 1 ]; then
         LOADER_PREFIX=""
         UPDATER_PREFIX=""
     else
+	#qmake build (should be deprecated)
         cp ../../sdk/contrib/official_build_configs/macos/config.h ../../sdk/include/mega/config.h
-        ${MEGAQTPATH}/bin/qmake "THIRDPARTY_VCPKG_BASE_PATH=${VCPKGPATH}" -r ../../contrib/QtCreator/MEGAcmd/ -spec macx-clang CONFIG+=release CONFIG+=x86_64 -nocache
+#        ${MEGAQTPATH}/bin/qmake "THIRDPARTY_VCPKG_BASE_PATH=${VCPKGPATH}" -r ../../contrib/QtCreator/MEGAcmd/ -spec macx-clang CONFIG+=release CONFIG+=x86_64 -nocache
+        ${MEGAQTPATH}/bin/qmake "THIRDPARTY_VCPKG_BASE_PATH=${VCPKGPATH}" -r ../../contrib/QtCreator/MEGAcmd/ -spec macx-clang CONFIG+=release -nocache
         make -j`sysctl -n hw.ncpu`
     fi
 
@@ -215,8 +238,8 @@ if [ ${build} -eq 1 -o ${build_cmake} -eq 1 ]; then
         fi
     fi
 
-    #MEGASYNC_VERSION=`grep "const QString Preferences::VERSION_STRING" ../src/MEGASync/control/Preferences.cpp | awk -F '"' '{print $2}'`
-    #/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $MEGASYNC_VERSION" "${MSYNC_PREFIX}$APP_NAME.app/Contents/Info.plist"
+    MEGACMD_VERSION=`grep -o "[0-9][0-9]*$" ../../src/megacmdversion.h | head -n 3 | paste -s -d '.' -`
+    /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $MEGACMD_VERSION" "${SERVER_PREFIX}$APP_NAME.app/Contents/Info.plist"
 
     if [ ${build_cmake} -ne 1 ]; then
         rm -r $APP_NAME.app || :
@@ -230,25 +253,30 @@ if [ ${build} -eq 1 -o ${build_cmake} -eq 1 ]; then
     otool -L MEGAcmd.app/Contents/MacOS/MEGAcmdShell
 
     cd ..
+
+    build_time=`expr $(date +%s) - $build_time_start`
 fi
 
 if [ "$sign" = "1" ]; then
-	cd Release_x64
+	sign_time_start=`date +%s`
+	cd Release_${target_arch}
 	cp -R $APP_NAME.app ${APP_NAME}_unsigned.app
 	echo "Signing 'APPBUNDLE'"
 	codesign --force --verify --verbose --preserve-metadata=entitlements --options runtime --sign "Developer ID Application: Mega Limited" --deep $APP_NAME.app
 	echo "Checking signature"
 	spctl -vv -a $APP_NAME.app
 	cd ..
+	sign_time=`expr $(date +%s) - $sign_time_start`
 fi
 
 if [ "$createdmg" = "1" ]; then
-	cd Release_x64
+    dmg_time_start=`date +%s`
+	cd Release_${target_arch}
 	[ -f $APP_NAME.dmg ] && rm $APP_NAME.dmg
 	echo "DMG CREATION PROCESS..."
 	echo "Creating temporary Disk Image (1/7)"
 	#Create a temporary Disk Image
-	/usr/bin/hdiutil create -srcfolder $APP_NAME.app/ -volname $APP_NAME -ov $APP_NAME-tmp.dmg -fs HFS+ -format UDRW >/dev/null
+	/usr/bin/hdiutil create -srcfolder $APP_NAME.app/ -volname $VOLUME_NAME -ov $APP_NAME-tmp.dmg -fs HFS+ -format UDRW >/dev/null
 
 	echo "Attaching the temporary image (2/7)"
 	#Attach the temporary image
@@ -257,16 +285,20 @@ if [ "$createdmg" = "1" ]; then
 
 	echo "Copying resources (3/7)"
 	#Copy the background, the volume icon and DS_Store files
-	unzip -d $MOUNTDIR/$APP_NAME ../$RESOURCES.zip
-	/usr/bin/SetFile -a C $MOUNTDIR/$APP_NAME
+	unzip -d $MOUNTDIR/$VOLUME_NAME ../$RESOURCES.zip
+	/usr/bin/SetFile -a C $MOUNTDIR/$VOLUME_NAME
 
 	echo "Adding symlinks (4/7)"
 	#Add a symbolic link to the Applications directory
-	ln -s /Applications/ $MOUNTDIR/$APP_NAME/Applications
+	ln -s /Applications/ $MOUNTDIR/$VOLUME_NAME/Applications
+
+	# Delete unnecessary file system events log if possible
+	echo "Deleting .fseventsd"
+	rm -rf $MOUNTDIR/$VOLUME_NAME/.fseventsd || true
 
 	echo "Detaching temporary Disk Image (5/7)"
 	#Detach the temporary image
-	/usr/bin/hdiutil detach $MOUNTDIR/$APP_NAME >/dev/null
+	/usr/bin/hdiutil detach $MOUNTDIR/$VOLUME_NAME >/dev/null
 
 	echo "Compressing Image (6/7)"
 	#Compress it to a new image
@@ -277,11 +309,12 @@ if [ "$createdmg" = "1" ]; then
 	rm $APP_NAME-tmp.dmg
 	rmdir $MOUNTDIR
 	cd ..
+	dmg_time=`expr $(date +%s) - $dmg_time_start`
 fi
 
 if [ "$notarize" = "1" ]; then
-
-	cd Release_x64
+	notarize_time_start=`date +%s`
+	cd Release_${target_arch}
 	if [ ! -f $APP_NAME.dmg ];then
 		echo ""
 		echo "There is no dmg to be notarized."
@@ -289,67 +322,31 @@ if [ "$notarize" = "1" ]; then
 		exit 1
 	fi
 
-	rm querystatus.txt staple.txt || :
+	echo "Sending dmg for notarization (1/3)"
 
-	echo "NOTARIZATION PROCESS..."
-	echo "Getting USERNAME for notarization commands (1/7)"
+	xcrun notarytool submit $APP_NAME.dmg  --keychain-profile "AC_PASSWORD" --wait 2>&1 | tee notarylog.txt
+    echo >> notarylog.txt
 
-	AC_USERNAME=$(security find-generic-password -s AC_PASSWORD | grep  acct | cut -d '"' -f 4)
-	if [[ -z "$AC_USERNAME" ]]; then
-		echo "Error USERNAME not found for notarization process. You should add item named AC_PASSWORD with and account value matching the username to macOS keychain"
-		false
-	fi
+	xcrun stapler staple -v $APP_NAME.dmg 2>&1 | tee -a notarylog.txt
+    
+    echo "Stapling ok (2/3)"
 
-	echo "Sending dmg for notarization (2/7)"
-	xcrun altool --notarize-app -t osx -f $APP_NAME.dmg --primary-bundle-id $ID_BUNDLE -u $AC_USERNAME -p "@keychain:AC_PASSWORD" --output-format xml 2>&1 > staple.txt
-	RUUID=$(cat staple.txt | grep RequestUUID -A 1 | tail -n 1 | awk -F "[<>]" '{print $3}')
-	echo $RUUID
-	if [ ! -z "$RUUID" ] ; then
-		echo "Received UUID for notarization request. Checking state... (3/7)"
-		attempts=60
-		while [ $attempts -gt 0 ]
-		do
-			echo "Querying state of notarization..."
-			xcrun altool --notarization-info $RUUID -u $AC_USERNAME -p "@keychain:AC_PASSWORD" --output-format xml  2>&1 > querystatus.txt
-			RUUIDQUERY=$(cat querystatus.txt | grep RequestUUID -A 1 | tail -n 1 | awk -F "[<>]" '{print $3}')
-			if [[ "$RUUID" != "$RUUIDQUERY" ]]; then
-				echo "UUIDs missmatch"
-				false
-			fi
+    #Mount dmg volume to check if app bundle is notarized
+    echo "Checking signature and notarization (3/3)"
+    mkdir $MOUNTDIR || :
+    hdiutil attach $APP_NAME.dmg -mountroot $MOUNTDIR >/dev/null
+    spctl --assess -vv -a $MOUNTDIR/$VOLUME_NAME/$APP_NAME.app
+    hdiutil detach $MOUNTDIR/$VOLUME_NAME >/dev/null
+    rmdir $MOUNTDIR
 
-			STATUS=$(cat querystatus.txt  | grep -i ">Status<" -A 1 | tail -n 1  | awk -F "[<>]" '{print $3}')
-
-			if [[ $STATUS == "invalid" ]]; then
-				echo "INVALID status. Check file querystatus.txt for further information"
-				echo $STATUS
-				break
-			elif [[ $STATUS == "success" ]]; then
-				echo "Notarized ok. Stapling dmg file..."
-				xcrun stapler staple -v $APP_NAME.dmg
-				echo "Stapling ok"
-
-				#Mount dmg volume to check if app bundle is notarized
-				echo "Checking signature and notarization"
-				mkdir $MOUNTDIR || :
-				hdiutil attach $APP_NAME.dmg -mountroot $MOUNTDIR >/dev/null
-				spctl -v -a $MOUNTDIR/$APP_NAME/$APP_NAME.app
-				hdiutil detach $MOUNTDIR/$APP_NAME >/dev/null
-				rmdir $MOUNTDIR
-				break
-			else
-				echo $STATUS
-			fi
-
-			attempts=$((attempts - 1))
-			sleep 30
-		done
-
-		if [[ $attempts -eq 0 ]]; then
-			echo "Notarization still in process, timed out waiting for the process to end"
-			false
-		fi
-	fi
 	cd ..
+    notarize_time=`expr $(date +%s) - $notarize_time_start`
 fi
 
-echo "DONE"
+echo ""
+if [ ${build} -eq 1 -o ${build_cmake} -eq 1 ]; then echo "Build:        ${build_time} s"; fi
+if [ ${sign} -eq 1 ]; then echo "Sign:         ${sign_time} s"; fi
+if [ ${createdmg} -eq 1 ]; then echo "dmg:          ${dmg_time} s"; fi
+if [ ${notarize} -eq 1 ]; then echo "Notarization: ${notarize_time} s"; fi
+echo ""
+echo "DONE in       "`expr ${build_time} + ${sign_time} + ${dmg_time} + ${notarize_time}`" s"
