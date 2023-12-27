@@ -156,9 +156,9 @@ void MegaCmdGlobalListener::onNodesUpdate(MegaApi *api, MegaNodeList *nodes)
                 auto inshares = std::unique_ptr<MegaNodeList>(api->getInShares());
                 if (inshares)
                 {
+                    nFolders += inshares->size(); // add the shares themselves.
                     for (int i = 0; i < inshares->size(); i++)
                     {
-                        nFolders++; // add the share itself
                         auto handle = inshares->get(i)->getHandle();
                         nFiles += details->getNumFiles(handle);
                         nFolders += details->getNumFolders(handle);
@@ -166,13 +166,11 @@ void MegaCmdGlobalListener::onNodesUpdate(MegaApi *api, MegaNodeList *nodes)
                 }
                 if (nFolders)
                 {
-                    LOG_debug << nfolders << " folders "
-                              << "added or updated ";
+                    LOG_debug << nFolders << " folders added or updated";
                 }
                 if (nFiles)
                 {
-                    LOG_debug << nfiles << " files "
-                              << "added or updated ";
+                    LOG_debug << nFiles << " files added or updated";
                 }
             },
             true));
