@@ -1,14 +1,7 @@
-# direct core dependencies of the SDK
-c-ares/c303dd024e2dc03a0665ddffbb12a1077933e649 all:on ios:off
-cryptopp/c303dd024e2dc03a0665ddffbb12a1077933e649
-curl/7375bb408f2278d2f1875c259beef93332697ba7 all:on ios:off
-curl[core,sectransp]/7375bb408f2278d2f1875c259beef93332697ba7 all:off ios:curl-for-ios.patch
-libsodium/92adeffbce95847e141411177248ed04ac49ea9b all:on ios:libsodium-ios.patch
-openssl/c303dd024e2dc03a0665ddffbb12a1077933e649 ios:off osx:off
-openssl-unix/c303dd024e2dc03a0665ddffbb12a1077933e649 all:off linux:on
-openssl-windows/c303dd024e2dc03a0665ddffbb12a1077933e649 all:off windows:on
+# PREFERRED PORTS FOR MEGACMD. This is a modified snapshot of SDK's preferred-ports-sdk.txt
+# Read instructions on the above if you want to introduce changes in this file
 
-# Common cmake\vcpkg toolchain dependencies
+# Common dependencies
 vcpkg-cmake-config/7476f0d4e77d3333fbb249657df8251c28c4faae
 vcpkg-cmake/7476f0d4e77d3333fbb249657df8251c28c4faae
 pkgconf/7476f0d4e77d3333fbb249657df8251c28c4faae
@@ -16,11 +9,19 @@ vcpkg-pkgconfig-get-modules/7476f0d4e77d3333fbb249657df8251c28c4faae
 vcpkg-tool-meson/7476f0d4e77d3333fbb249657df8251c28c4faae
 vcpkg-cmake-get-vars/7476f0d4e77d3333fbb249657df8251c28c4faae
 
-# needed by external projects which still rely on SDK to fetch and build it; SDK no longer uses PCRE
-# this is the minimum version after PCRE's ftp server switched
-pcre/d6bd10b9af6f6197711222a0ac827e52e0247e30 all:on
+# direct core dependencies of the SDK
+c-ares/c303dd024e2dc03a0665ddffbb12a1077933e649 all:on ios:off
+cryptopp/a42af01b72c28a8e1d7b48107b33e4f286a55ef6
+curl/a42af01b72c28a8e1d7b48107b33e4f286a55ef6 all:on ios:off
+curl[core,sectransp]/7375bb408f2278d2f1875c259beef93332697ba7 all:off ios:curl-for-ios.patch
+libsodium/92adeffbce95847e141411177248ed04ac49ea9b all:on ios:libsodium-ios.patch
+openssl/6172c4b5a08aecf5755f753c6338fa74103d39cf ios:off osx:off
 
-readline/8.0 all:off osx:on
+# needed by MEGAcmd:
+pcre/d6bd10b9af6f6197711222a0ac827e52e0247e30
+
+readline-unix/7476f0d4e77d3333fbb249657df8251c28c4faae all:off osx:on
+ncurses/7476f0d4e77d3333fbb249657df8251c28c4faae all:off osx:on
 sqlite3/c303dd024e2dc03a0665ddffbb12a1077933e649
 zlib/e0a9559a9b24af116388eae242d675bf9fde025c
 
@@ -28,13 +29,14 @@ zlib/e0a9559a9b24af116388eae242d675bf9fde025c
 libuv/c303dd024e2dc03a0665ddffbb12a1077933e649 ios:off
 
 # mediainfo, customized with constrained functionality (determine media properties such as track length, codec, etc)
-libmediainfo/19.09
-libzen/0.4.37
+libmediainfo/23.4
+tinyxml2/7476f0d4e77d3333fbb249657df8251c28c4faae
+libzen/7476f0d4e77d3333fbb249657df8251c28c4faae
 
 # ffmpeg (video preview/thumbnail generation)
 ffmpeg/c67a3059bbdb19799d402085e7323f71e7d68656 all:on ios:off osx:ffmpeg-osx-linker.patch
 
-#freeimage and its dependencies (image preview/thumbnail generation)
+# freeimage and its dependencies (image preview/thumbnail generation)
 freeimage/7476f0d4e77d3333fbb249657df8251c28c4faae osx:freeimage-bool-typedef-xcode-compiler.patch
 libpng/7476f0d4e77d3333fbb249657df8251c28c4faae
 libjpeg-turbo/7476f0d4e77d3333fbb249657df8251c28c4faae
@@ -66,6 +68,8 @@ lcms/7476f0d4e77d3333fbb249657df8251c28c4faae
 bzip2/c303dd024e2dc03a0665ddffbb12a1077933e649
 #libpng already added above for freeimage
 
+
 # tests and tools
 asio/c303dd024e2dc03a0665ddffbb12a1077933e649
 gtest/c303dd024e2dc03a0665ddffbb12a1077933e649 all:gtest-warnings-are-not-errors.patch
+
