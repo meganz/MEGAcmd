@@ -26,7 +26,7 @@ if [ $# -eq 0 ]; then
 fi
 
 APP_NAME=MEGAcmd
-VOLUME_NAME="InstallMEGAcmd"
+VOLUME_NAME="Install MEGAcmd"
 ID_BUNDLE=mega.mac
 MOUNTDIR=tmp
 RESOURCES=installer/resourcesDMG
