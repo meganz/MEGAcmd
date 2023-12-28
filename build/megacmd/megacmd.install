@@ -75,6 +75,7 @@ sAdVa6xer/c=
 -----END PGP PUBLIC KEY BLOCK-----
 KEY
 
+pacman-key --init  || true
 pacman-key --lsign-key B01C811880480C854C73EC7E1A664B787094A482
 
 sysctl -p /etc/sysctl.d/99-megacmd-inotify-limit.conf
@@ -165,6 +166,7 @@ sAdVa6xer/c=
 -----END PGP PUBLIC KEY BLOCK-----
 KEY
 
+pacman-key --init  || true
 pacman-key --lsign-key B01C811880480C854C73EC7E1A664B787094A482
 
 fi

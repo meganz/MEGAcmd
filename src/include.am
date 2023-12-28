@@ -38,7 +38,7 @@ endif
 noinst_LTLIBRARIES += src/libmegacmdserver.la
 src_libmegacmdserver_la_LDFLAGS=
 
-noinst_HEADERS += src/comunicationsmanager.h src/configurationmanager.h src/megacmd.h src/megacmdlogger.h src/megacmdsandbox.h src/megacmdutils.h src/megacmdcommonutils.h src/listeners.h src/megacmdexecuter.h src/megacmd_events.h src/megacmdtransfermanager.h src/megacmdversion.h src/megacmdplatform.h src/comunicationsmanagerportsockets.h
+noinst_HEADERS += src/comunicationsmanager.h src/configurationmanager.h src/megacmd.h src/megacmdlogger.h src/megacmdsandbox.h src/megacmdutils.h src/megacmdcommonutils.h src/listeners.h src/megacmdexecuter.h src/deferred_single_trigger.h src/megacmd_events.h src/megacmdtransfermanager.h src/megacmdversion.h src/megacmdplatform.h src/comunicationsmanagerportsockets.h
 src_libmegacmdserver_la_SOURCES = src/megacmd.cpp src/megacmd_server_main.cpp src/comunicationsmanager.cpp src/megacmdutils.cpp src/megacmdcommonutils.cpp src/configurationmanager.cpp src/megacmdlogger.cpp src/megacmdsandbox.cpp src/listeners.cpp src/megacmdexecuter.cpp src/megacmd_events.cpp src/megacmdtransfermanager.cpp src/comunicationsmanagerportsockets.cpp
 src_libmegacmdserver_la_CXXFLAGS = $(LMEGAINC) $(DB_CXXFLAGS)
 
@@ -144,7 +144,7 @@ mega_cmd_unit_tests_SOURCES = \
 mega_cmd_unit_tests_CXXFLAGS = -Itests/common/ -Itests/unit/ -Isdk/include/ $(LMEGAINC)
 mega_cmd_unit_tests_CXXFLAGS += -std=c++17
 
-mega_cmd_unit_tests_LDADD = -L/$(GTEST_DIR)/lib/ -lgtest -lgtest_main # Note, the trailing / in GTEST_DIR is to allow simple --with-gtest (evalving to "yes")
+mega_cmd_unit_tests_LDADD = -L/$(GTEST_DIR)/lib/ -lgtest -lgtest_main -lgmock # Note, the trailing / in GTEST_DIR is to allow simple --with-gtest (evalving to "yes")
 mega_cmd_unit_tests_LDADD += $(top_builddir)/src/libmegacmdserver.la #to include dependencies of unit-tested code
 mega_cmd_unit_tests_LDADD += $(top_builddir)/src/libmegacmdinstruments.la
 mega_cmd_unit_tests_LDADD += $(top_builddir)/src/libmegacmdtestscommon.la
@@ -159,7 +159,7 @@ mega_cmd_integration_tests_SOURCES = \
 mega_cmd_integration_tests_CXXFLAGS = -Itests/common/ -Itests/integration/ -Isdk/include/ $(LMEGAINC)
 mega_cmd_integration_tests_CXXFLAGS += -std=c++17
 
-mega_cmd_integration_tests_LDADD = -L/$(GTEST_DIR)/lib/ -lgtest -lgtest_main # Note, the trailing / is to allow simple --with-gtest (evalving to "yes")
+mega_cmd_integration_tests_LDADD = -L/$(GTEST_DIR)/lib/ -lgtest -lgtest_main -lgmock # Note, the trailing / is to allow simple --with-gtest (evalving to "yes")
 mega_cmd_integration_tests_LDADD += $(top_builddir)/src/libmegacmdserver.la
 mega_cmd_integration_tests_LDADD += $(top_builddir)/src/libmegacmdclient.la
 mega_cmd_integration_tests_LDADD += $(top_builddir)/src/libmegacmdinstruments.la

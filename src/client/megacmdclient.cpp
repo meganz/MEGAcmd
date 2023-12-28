@@ -919,9 +919,9 @@ int executeClient(int argc, char* argv[], OUTSTREAMTYPE & outstream)
         return -1;
     }
 #ifdef _WIN32
-    MegaCmdShellCommunications *comms = new MegaCmdShellCommunicationsNamedPipes(redirectedoutput);
+    std::unique_ptr<MegaCmdShellCommunications> comms(new MegaCmdShellCommunicationsNamedPipes(redirectedoutput));
 #else
-    MegaCmdShellCommunications *comms = new MegaCmdShellCommunications();
+    std::unique_ptr<MegaCmdShellCommunications> comms(new MegaCmdShellCommunications());
 #endif
 
     string command = argv[1];
@@ -970,8 +970,6 @@ int executeClient(int argc, char* argv[], OUTSTREAMTYPE & outstream)
 #else
     int outcode = comms->executeCommand(parsedArgs, readresponse, outstream, false);
 #endif
-
-    delete comms;
 
     // do always return positive error codes (POSIX compliant)
     if (outcode < 0)

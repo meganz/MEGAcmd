@@ -54,15 +54,17 @@ if (NOT CMAKE_BUILD_TYPE EQUAL "Debug")
 endif ()
 
 if (ENABLE_ASAN)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address -fno-omit-frame-pointer -fno-common")
+    add_compile_options("-fsanitize=address -fno-omit-frame-pointer -fno-common")
+    link_libraries("-fsanitize=address")
 endif()
 
 if (ENABLE_UBSAN)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=undefined")
+    add_compile_options("-fsanitize=undefined -fno-omit-frame-pointer")
+    link_libraries("-fsanitize=undefined")
 endif()
 
 if (ENABLE_TSAN)
-   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=thread")
+   add_compile_options("-fsanitize=thread -fno-omit-frame-pointer")
 endif()
 
 set(ProjectDir "${CMAKE_CURRENT_LIST_DIR}/../..")

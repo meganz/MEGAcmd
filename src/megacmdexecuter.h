@@ -24,6 +24,7 @@
 #include "megacmdlogger.h"
 #include "megacmdsandbox.h"
 #include "listeners.h"
+#include "deferred_single_trigger.h"
 
 namespace megacmd {
 class MegaCmdSandbox;
@@ -44,6 +45,8 @@ private:
     std::mutex mtxWebDavLocations;
     std::mutex mtxFtpLocations;
 
+    DeferredSingleTrigger mDeferredSharedFoldersVerifier;
+
 #ifdef ENABLE_BACKUPS
     std::recursive_mutex mtxBackupsMap;
 #endif
@@ -58,6 +61,9 @@ private:
     std::vector<std::unique_ptr<mega::MegaNode>> mNodesToConfirmDelete;
 
     std::string getNodePathString(mega::MegaNode *n);
+
+    void cancelOngoingVerification(mega::MegaApi* api, bool start_new_verification);
+
     /**
      * @name forEachFileInNode
      * @brief Traverses through all files in the given node with the provided callback.
@@ -140,7 +146,7 @@ public:
     void verifySharedFolders(mega::MegaApi * api); //verifies unverified shares and broadcasts warning accordingly
     void loginWithPassword(char *password);
     void changePassword(const char *newpassword, std::string pin2fa = "");
-    void actUponGetExtendedAccountDetails(mega::SynchronousRequestListener  *srl, int timeout = -1);
+    void actUponGetExtendedAccountDetails(std::unique_ptr<mega::MegaAccountDetails> storageDetails, std::unique_ptr<mega::MegaAccountDetails> extAccountDetails);
     bool actUponFetchNodes(mega::MegaApi * api, mega::SynchronousRequestListener  *srl, int timeout = -1);
     int actUponLogin(mega::SynchronousRequestListener  *srl, int timeout = -1);
     void actUponLogout(mega::SynchronousRequestListener  *srl, bool deletedSession, int timeout = 0);

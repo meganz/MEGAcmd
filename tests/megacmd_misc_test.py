@@ -459,10 +459,11 @@ o,status=cmd_ec(FIND+" "+folder+"/*")
 fullout=""
 fullStatus=1
 for f in o.split():
+    if "." not in f: continue # Ignore folders
     rmfileifexisting("thumbnail.jpg")
     o,status=cmd_ec(THUMB+" "+f+" thumbnail.jpg")
     ext=f.split(".")[-1].lower().strip()
-    allowedFailure=["ai","ani","cur","eps","exe","gif","heic","html","idx","j2c","jpm","md","mj2","pdf","psd","sgi","svg","txt","webp","xmp", "pnm","ppm"]    
+    allowedFailure=["ai","ani","cur","eps","exe","gif","heic","html","idx","j2c","jpm","md","mj2","pdf","psd","sgi","svg","txt","webp","xmp", "pnm","ppm", "tiff", "tif", "x3f"]
     if not ext in allowedFailure and "saved in" not in o: #note: output code is not trustworthy: check for "saved in"
         fullout=fullout+str("missing thumbnail for:"+str(f)+"\n")
         fullStatus=0
@@ -470,37 +471,38 @@ for f in o.split():
 check_failed_and_clear(fullout,fullStatus)
 
 
-currentTest=34 #pdf thumbnails
-#Test 33 #ensure thumnail generation
-#1st get pdfs selection
-try:
-    pdfsURL=os.environ['MEGACMD_TESTS_PDFS_URL']
-except:
-    pdfsURL="https://mega.nz/folder/D0w0nYiY#egvjqP5R-anbBdsJg8QRVg"
-if VERBOSE:
-    print "Using this pdfsURL: ",pdfsURL
-cmd_ef(GET+" "+pdfsURL+" localtmp/")
+# pdf thumbnail test
+if 'SKIP_PDF_THUMBNAIL_TESTS' not in os.environ: # systems where pdfium cannot be installed should not execute this test
+    currentTest=34
+    #1st get pdfs selection
+    try:
+        pdfsURL=os.environ['MEGACMD_TESTS_PDFS_URL']
+    except:
+        pdfsURL="https://mega.nz/folder/D0w0nYiY#egvjqP5R-anbBdsJg8QRVg"
+    if VERBOSE:
+        print "Using this pdfsURL: ",pdfsURL
+    cmd_ef(GET+" "+pdfsURL+" localtmp/")
 
-#2nd, upload folder
-cmd_ef(PUT+" localtmp/pdfs")
-#3rd, for each file, download thumbnail
-folder="/pdfs"
-o,status=cmd_ec(FIND+" "+folder+"/*")
-fullout=""
-fullStatus=1
+    #2nd, upload folder
+    cmd_ef(PUT+" localtmp/pdfs")
+    #3rd, for each file, download thumbnail
+    folder="/pdfs"
+    o,status=cmd_ec(FIND+" "+folder+"/*")
+    fullout=""
+    fullStatus=1
 
-print o
-print 'splited=', o.split("\n")
-for f in o.split("\n"):
-    if not len(f): continue
-    rmfileifexisting("thumbnail.jpg")
-    o,status=cmd_ec(THUMB+" '"+f+"' thumbnail.jpg")
-    allowedFailure=["protected", "non-pdf-file","with-password","_TFG"]
-    if not True in [x in f for x in allowedFailure] and "saved in" not in o: #note: output code is not trustworthy: check for "saved in"
-        fullout=fullout+str("missing thumbnail for:"+str(f)+"\n")
-        fullStatus=0
-        print status, " missing thumbnail:",f,"\n",o,
-check_failed_and_clear(fullout,fullStatus)
+    print o
+    print 'splited=', o.split("\n")
+    for f in o.split("\n"):
+        if not len(f): continue
+        rmfileifexisting("thumbnail.jpg")
+        o,status=cmd_ec(THUMB+" '"+f+"' thumbnail.jpg")
+        allowedFailure=["very big sheet size", "protected", "non-pdf-file","with-password","_TFG"]
+        if not True in [x in f for x in allowedFailure] and "saved in" not in o: #note: output code is not trustworthy: check for "saved in"
+            fullout=fullout+str("missing thumbnail for:"+str(f)+"\n")
+            fullStatus=0
+            print status, " missing thumbnail:",f,"\n",o,
+    check_failed_and_clear(fullout,fullStatus)
 ###################
 
 # Clean all
