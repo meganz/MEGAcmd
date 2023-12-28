@@ -1,22 +1,17 @@
 #!/bin/zsh -e
 
 Usage () {
-    echo "Usage: installer_mac.sh [[--arch [arm64|x86_64|universal]] [--build | --build-cmake] | [--sign] | [--create-dmg] | [--notarize] | [--full-pkg | --full-pkg-cmake]]"
-    echo "    --arch [arm64|x86_64]  : Arch target. It will build for the host arch if not defined."
-    echo "    --build                : Builds the app and creates the bundle using qmake. DEPRECATED AND UNLIKELY TO WORK"
-    echo "    --build-cmake          : Idem but using cmake"
+    echo "Usage: installer_mac.sh [[--arch [arm64|x86_64|universal]] [--build] | [--sign] | [--create-dmg] | [--notarize] | [--full-pkg]]"
+    echo "    --arch [arm64|x86_64|universal]  : Arch target. It will build for the host arch if not defined."
+    echo "    --build          : Builds the app and creates the bundle using cmake"
     echo "    --sign                 : Sign the app"
     echo "    --create-dmg           : Create the dmg package"
     echo "    --notarize             : Notarize package against Apple systems."
     echo "    --full-pkg             : Implies and overrides all the above using qmake"
-    echo "    --full-pkg-cmake       : Idem but using cmake"
+    echo "    --full-pkg       : Idem but using cmake"
     echo ""
     echo "Environment variables needed to build:"
-    echo "    MEGAQTPATH : Point it to a valid Qt installation path"
     echo "    VCPKGPATH : Point it to a directory containing a valid vcpkg installation"
-    echo ""
-    echo "Note: --build and --build-cmake are mutually exclusive."
-    echo "      --full-pkg and --full-pkg-cmake are mutually exclusive."
     echo ""
 }
 
@@ -27,7 +22,6 @@ fi
 
 APP_NAME=MEGAcmd
 VOLUME_NAME="Install MEGAcmd"
-ID_BUNDLE=mega.mac
 MOUNTDIR=tmp
 RESOURCES=installer/resourcesDMG
 
@@ -40,9 +34,7 @@ UPDATER_PREFIX=MEGAcmdUpdater/
 host_arch=`uname -m`
 target_arch=${host_arch}
 full_pkg=0
-full_pkg_cmake=0
 build=0
-build_cmake=0
 sign=0
 createdmg=0
 notarize=0
@@ -61,11 +53,6 @@ while [ "$1" != "" ]; do
             ;;
         --build )
             build=1
-            if [ ${build_cmake} -eq 1 ]; then Usage; echo "Error: --build and --build-cmake are mutually exclusive."; exit 1; fi
-            ;;
-        --build-cmake )
-            build_cmake=1
-            if [ ${build} -eq 1 ]; then Usage; echo "Error: --build and --build-cmake are mutually exclusive."; exit 1; fi
             ;;
         --sign )
             sign=1
@@ -77,12 +64,7 @@ while [ "$1" != "" ]; do
             notarize=1
             ;;
         --full-pkg )
-            if [ ${full_pkg_cmake} -eq 1 ]; then Usage; echo "Error: --full-pkg and --full-pkg-cmake are mutually exclusive."; exit 1; fi
             full_pkg=1
-            ;;
-        --full-pkg-cmake )
-            if [ ${full_pkg} -eq 1 ]; then Usage; echo "Error: --full-pkg and --full-pkg-cmake are mutually exclusive."; exit 1; fi
-            full_pkg_cmake=1
             ;;
         -h | --help )
             Usage
@@ -98,21 +80,12 @@ done
 
 if [ ${full_pkg} -eq 1 ]; then
     build=1
-    build_cmake=0
     sign=1
     createdmg=1
     notarize=1
 fi
 
-if [ ${full_pkg_cmake} -eq 1 ]; then
-    build=0
-    build_cmake=1
-    sign=1
-    createdmg=1
-    notarize=1
-fi
-
-if [ ${build} -ne 1 -a ${build_cmake} -ne 1 -a ${sign} -ne 1 -a ${createdmg} -ne 1 -a ${notarize} -ne 1 ]; then
+if [ ${build} -ne 1 -a ${sign} -ne 1 -a ${createdmg} -ne 1 -a ${notarize} -ne 1 ]; then
    Usage
    echo "Error: No action selected. Nothing to do."
    exit 1
@@ -127,17 +100,11 @@ for build_arch in $build_archs; do
     eval build_time_${build_arch}=0
 done
 
-if [ ${build} -eq 1 -o ${build_cmake} -eq 1 ]; then
+if [ ${build} -eq 1 ]; then
     for build_arch in $build_archs; do
 
     build_time_start=`date +%s`
 
-    if [ ${build_cmake} -ne 1 ]; then
-      if [ -z "${MEGAQTPATH}" ] || [ ! -d "${MEGAQTPATH}/bin" ]; then
-        echo "Please set MEGAQTPATH env variable to a valid QT installation path!"
-        exit 1;
-      fi
-    fi
     if [ -z "${VCPKGPATH}" ] || [ ! -d "${VCPKGPATH}/vcpkg/installed" ]; then
         echo "Please set VCPKGPATH env variable to a directory containing a valid vcpkg installation!"
         exit 1;
@@ -154,154 +121,78 @@ if [ ${build} -eq 1 -o ${build_cmake} -eq 1 ]; then
     cd Release_${build_arch}
 
     # Build binaries
-    if [ ${build_cmake} -eq 1 ]; then
-        # Detect crosscompilation and set CMAKE_OSX_ARCHITECTURES.
-        if  [ "${build_arch}" != "${host_arch}" ]; then
-            CMAKE_EXTRA="-DCMAKE_OSX_ARCHITECTURES=${build_arch}"
-        fi
-
-        cmake -DUSE_THIRDPARTY_FROM_VCPKG=1  -DCMAKE_PREFIX_PATH=${MEGAQTPATH} -DMega3rdPartyDir=${VCPKGPATH} -DCMAKE_BUILD_TYPE=RelWithDebInfo ${CMAKE_EXTRA} -S ..//cmake
-        cmake --build ./ --target mega-cmd -j`sysctl -n hw.ncpu`
-        cmake --build ./ --target mega-exec -j`sysctl -n hw.ncpu`
-        cmake --build ./ --target mega-cmd-server -j`sysctl -n hw.ncpu`
-        cmake --build ./ --target mega-cmd-updater -j`sysctl -n hw.ncpu`
-        SERVER_PREFIX=""
-        CLIENT_PREFIX=""
-        SHELL_PREFIX=""
-        LOADER_PREFIX=""
-        UPDATER_PREFIX=""
-    else #qmake build (should be deprecated)
-        cp ../../sdk/contrib/official_build_configs/macos/config.h ../../sdk/include/mega/config.h
-        ${MEGAQTPATH}/bin/qmake "THIRDPARTY_VCPKG_BASE_PATH=${VCPKGPATH}" -r ../../contrib/QtCreator/MEGAcmd/ -spec macx-clang CONFIG+=release -nocache
-        make -j`sysctl -n hw.ncpu`
+    # Detect crosscompilation and set CMAKE_OSX_ARCHITECTURES.
+    if  [ "${build_arch}" != "${host_arch}" ]; then
+        CMAKE_EXTRA="-DCMAKE_OSX_ARCHITECTURES=${build_arch}"
     fi
 
+    cmake -DUSE_THIRDPARTY_FROM_VCPKG=1  -DCMAKE_PREFIX_PATH=${MEGAQTPATH} -DMega3rdPartyDir=${VCPKGPATH} -DCMAKE_BUILD_TYPE=RelWithDebInfo ${CMAKE_EXTRA} -S ..//cmake
+    cmake --build ./ --target mega-cmd -j`sysctl -n hw.ncpu`
+    cmake --build ./ --target mega-exec -j`sysctl -n hw.ncpu`
+    cmake --build ./ --target mega-cmd-server -j`sysctl -n hw.ncpu`
+    cmake --build ./ --target mega-cmd-updater -j`sysctl -n hw.ncpu`
+    SERVER_PREFIX=""
+    CLIENT_PREFIX=""
+    SHELL_PREFIX=""
+    LOADER_PREFIX=""
+    UPDATER_PREFIX=""
 
-    if [ ${build_cmake} -eq 1 ]; then # Manually prepare the .app folder
+    # create folder structure
+    mkdir -p ${APP_NAME}.app/Contents/Frameworks
+    mkdir -p ${APP_NAME}.app/Contents/MacOS
+    mkdir -p ${APP_NAME}.app/Contents/Resources
 
-        # create folder structure
-        mkdir -p ${APP_NAME}.app/Contents/Frameworks
-        mkdir -p ${APP_NAME}.app/Contents/MacOS
-        mkdir -p ${APP_NAME}.app/Contents/Resources
+    # place (and strip) executables
+    typeset -A execOriginTarget
+    execOriginTarget[mega-exec]=mega-exec
+    execOriginTarget[mega-cmd]=MEGAcmdShell
+    execOriginTarget[mega-cmd-updater]=MEGAcmdUpdater
+    execOriginTarget[mega-cmd-server]=mega-cmd
 
-        # place (and strip) executables
-        typeset -A execOriginTarget
-        execOriginTarget[mega-exec]=mega-exec
-        execOriginTarget[mega-cmd]=MEGAcmdShell
-        execOriginTarget[mega-cmd-updater]=MEGAcmdUpdater
-        execOriginTarget[mega-cmd-server]=mega-cmd
+    for k in "${(@k)execOriginTarget}"; do
+        dsymutil $k -o $execOriginTarget[$k].dSYM
+        cp $k ${APP_NAME}.app/Contents/MacOS/$execOriginTarget[$k]
+        strip ${APP_NAME}.app/Contents/MacOS/$execOriginTarget[$k]
+        # have dylibs use relative paths:
+         for i in $(otool -L ${APP_NAME}.app/Contents/MacOS/$execOriginTarget[$k] | grep dylib | grep -v "\t/usr/lib"  | awk '{print $1}'); do
+            install_name_tool -change $i "@executable_path/../Frameworks/"$(basename $i) ${APP_NAME}.app/Contents/MacOS/$execOriginTarget[$k];
+         done
+    done
 
-        for k in "${(@k)execOriginTarget}"; do
-            dsymutil $k -o $execOriginTarget[$k].dSYM
-            cp $k ${APP_NAME}.app/Contents/MacOS/$execOriginTarget[$k]
-            strip ${APP_NAME}.app/Contents/MacOS/$execOriginTarget[$k]
-            # have dylibs use relative paths:
-             for i in $(otool -L ${APP_NAME}.app/Contents/MacOS/$execOriginTarget[$k] | grep dylib | grep -v "\t/usr/lib"  | awk '{print $1}'); do
-                install_name_tool -change $i "@executable_path/../Frameworks/"$(basename $i) ${APP_NAME}.app/Contents/MacOS/$execOriginTarget[$k];
-             done
-        done
+    # copy initialize script (it will simple launch MEGAcmdLoader in a terminal) as the new main executable: MEGAcmd
+    cp ../installer/MEGAcmd.sh ${APP_NAME}.app/Contents/MacOS/MEGAcmd
 
-        # copy initialize script (it will simple launch MEGAcmdLoader in a terminal) as the new main executable: MEGAcmd
-        cp ../installer/MEGAcmd.sh ${APP_NAME}.app/Contents/MacOS/MEGAcmd
+    # place commands and completion scripts
+    cp ../../src/client/mega-* ${APP_NAME}.app/Contents/MacOS/
+    cp ../../src/client/megacmd_completion.sh  ${APP_NAME}.app/Contents/MacOS/
 
-        # place commands and completion scripts
-        cp ../../src/client/mega-* ${APP_NAME}.app/Contents/MacOS/
-        cp ../../src/client/megacmd_completion.sh  ${APP_NAME}.app/Contents/MacOS/
+    # place dylibs
+     for i in $(otool -L ./mega-cmd ./mega-cmd-server ./mega-cmd-updater ./mega-exec | grep dylib | grep -v "\t/usr/lib" | sort | uniq | grep -o "lib[a-x0-9\.]*dylib"); do
+        # copy dylib into its place
+        libinAppPath=${APP_NAME}.app/Contents/Frameworks/$i
+        cp "${VCPKGPATH}"/vcpkg/installed/${build_arch//x86_64/x64}-osx-mega/lib/$i $libinAppPath;
 
-        # place dylibs
-         for i in $(otool -L ./mega-cmd ./mega-cmd-server ./mega-cmd-updater ./mega-exec | grep dylib | grep -v "\t/usr/lib" | sort | uniq | grep -o "lib[a-x0-9\.]*dylib"); do
-            # copy dylib into its place
-            libinAppPath=${APP_NAME}.app/Contents/Frameworks/$i
-            cp "${VCPKGPATH}"/vcpkg/installed/${build_arch//x86_64/x64}-osx-mega/lib/$i $libinAppPath;
+        # have their ids matching the relative one that will be set in the executable
+        install_name_tool -id "@executable_path/../Frameworks/"$(basename $i) ${libinAppPath};
 
-            # have their ids matching the relative one that will be set in the executable
-            install_name_tool -id "@executable_path/../Frameworks/"$(basename $i) ${libinAppPath};
+         # and have their linked dylibs use relative paths too:
+         for l in $(otool -L ${libinAppPath} | grep dylib | grep "^\t" | grep -v "\t/usr/lib" | grep -v "executable_path" | awk '{print $1}'); do
+            install_name_tool -change $l "@executable_path/../Frameworks/"$(basename $l) ${libinAppPath};
+         done
+     done;
 
-             # and have their linked dylibs use relative paths too:
-             for l in $(otool -L ${libinAppPath} | grep dylib | grep "^\t" | grep -v "\t/usr/lib" | grep -v "executable_path" | awk '{print $1}'); do
-                install_name_tool -change $l "@executable_path/../Frameworks/"$(basename $l) ${libinAppPath};
-             done
-         done;
+    # place icns
+    cp ../../contrib/QtCreator/MEGAcmd/MEGAcmdServer/app.icns ${APP_NAME}.app/Contents/Resources/app.icns
 
-        # place icns
-        cp ../../contrib/QtCreator/MEGAcmd/MEGAcmdServer/app.icns ${APP_NAME}.app/Contents/Resources/app.icns
+    #place PkgInfo
+    echo 'APPL????' > ${APP_NAME}.app/Contents/PkgInfo
 
-        #place PkgInfo
-        echo 'APPL????' > ${APP_NAME}.app/Contents/PkgInfo
+    #place empty empty.lproj
+    touch ${APP_NAME}.app/Contents/Resources/empty.lproj
 
-        #place empty empty.lproj
-        touch ${APP_NAME}.app/Contents/Resources/empty.lproj
+    #place Info.plist
+    cp ../installer/Info.plist ${APP_NAME}.app/Contents/Info.plist
 
-        #place Info.plist
-        cp ../installer/Info.plist ${APP_NAME}.app/Contents/Info.plist
-
-    else #qt
-        # Prepare MEGAcmd (server, mega-cmd) bundle
-        cp -R ${SERVER_PREFIX}${APP_NAME}.app ${SERVER_PREFIX}MEGAcmd_orig.app
-        ${MEGAQTPATH}/bin/macdeployqt ${SERVER_PREFIX}${APP_NAME}.app -no-strip
-        dsymutil ${SERVER_PREFIX}${APP_NAME}.app/Contents/MacOS/MEGAcmd -o ${APP_NAME}.app.dSYM
-        strip ${SERVER_PREFIX}${APP_NAME}.app/Contents/MacOS/MEGAcmd
-
-        # Prepare MEGAclient (mega-exec) bundle
-        ${MEGAQTPATH}/bin/macdeployqt ${CLIENT_PREFIX}MEGAclient.app -no-strip
-        dsymutil ${CLIENT_PREFIX}MEGAclient.app/Contents/MacOS/MEGAclient -o MEGAclient.dSYM
-        strip ${CLIENT_PREFIX}MEGAclient.app/Contents/MacOS/MEGAclient
-
-        # Prepare MEGAcmdSell bundle
-        ${MEGAQTPATH}/bin/macdeployqt ${SHELL_PREFIX}MEGAcmdShell.app -no-strip
-        dsymutil ${SHELL_PREFIX}MEGAcmdShell.app/Contents/MacOS/MEGAcmdShell -o MEGAcmdShell.dSYM
-        strip ${SHELL_PREFIX}MEGAcmdShell.app/Contents/MacOS/MEGAcmdShell
-
-        # Prepare MEGAcmdLoader bundle
-        ${MEGAQTPATH}/bin/macdeployqt ${LOADER_PREFIX}MEGAcmdLoader.app -no-strip
-        dsymutil ${LOADER_PREFIX}MEGAcmdLoader.app/Contents/MacOS/MEGAcmdLoader -o MEGAcmdLoader.dSYM
-        strip ${LOADER_PREFIX}MEGAcmdLoader.app/Contents/MacOS/MEGAcmdLoader
-
-        # Prepare MEGAcmdUpdater bundle
-        ${MEGAQTPATH}/bin/macdeployqt ${UPDATER_PREFIX}MEGAcmdUpdater.app -no-strip
-        dsymutil ${UPDATER_PREFIX}MEGAcmdUpdater.app/Contents/MacOS/MEGAcmdUpdater -o MEGAcmdUpdater.dSYM
-        strip ${UPDATER_PREFIX}MEGAcmdUpdater.app/Contents/MacOS/MEGAcmdUpdater
-
-        # Copy client scripts and completion into package contents
-        cp ../../src/client/mega-* ${SERVER_PREFIX}${APP_NAME}.app/Contents/MacOS/
-        cp ../../src/client/megacmd_completion.sh  ${SERVER_PREFIX}${APP_NAME}.app/Contents/MacOS/
-
-        # Rename exec MEGAcmd (aka: MEGAcmdServer) to mega-cmd and add it to package contents
-        mv ${SERVER_PREFIX}${APP_NAME}.app/Contents/MacOS/MEGAcmd ${SERVER_PREFIX}${APP_NAME}.app/Contents/MacOS/mega-cmd
-        # Copy initialize script (it will simple launch MEGAcmdLoader in a terminal) as the new main executable: MEGAcmd
-        cp ../installer/MEGAcmd.sh ${SERVER_PREFIX}${APP_NAME}.app/Contents/MacOS/MEGAcmd
-        # Rename MEGAClient to mega-exec and add it to package contents
-        mv ${CLIENT_PREFIX}MEGAclient.app/Contents/MacOS/MEGAclient ${SERVER_PREFIX}${APP_NAME}.app/Contents/MacOS/mega-exec
-        # Add MEGAcmdLoader into package contents
-        mv ${LOADER_PREFIX}MEGAcmdLoader.app/Contents/MacOS/MEGAcmdLoader ${SERVER_PREFIX}${APP_NAME}.app/Contents/MacOS/MEGAcmdLoader
-        # Add MEGAcmdUpdater into package contents
-        mv ${UPDATER_PREFIX}MEGAcmdUpdater.app/Contents/MacOS/MEGAcmdUpdater ${SERVER_PREFIX}${APP_NAME}.app/Contents/MacOS/MEGAcmdUpdater
-        # Add MEGAcmdShell into package contents
-        mv ${SHELL_PREFIX}MEGAcmdShell.app/Contents/MacOS/MEGAcmdShell ${SERVER_PREFIX}${APP_NAME}.app/Contents/MacOS/MEGAcmdShell
-
-        # Remove unneded Qt stuff
-        rm -rf ${SERVER_PREFIX}${APP_NAME}.app/Contents/Plugins
-        rm -rf ${SERVER_PREFIX}${APP_NAME}.app/Contents/Resources/qt.conf
-
-        # cares and curl dylibs that need manualy copying:
-        CARES_VERSION=libcares.2.dylib
-        CURL_VERSION=libcurl.dylib
-        CARES_PATH=${VCPKGPATH}/vcpkg/installed/${build_arch//x86_64/x64}-osx-mega/lib/$CARES_VERSION
-        CURL_PATH=${VCPKGPATH}/vcpkg/installed/${build_arch//x86_64/x64}-osx-mega/lib/$CURL_VERSION
-        [ ! -f ${SERVER_PREFIX}/${APP_NAME}.app/Contents/Frameworks/$CARES_VERSION ] && cp -L $CARES_PATH ${SERVER_PREFIX}/${APP_NAME}.app/Contents/Frameworks/
-        [ ! -f ${SERVER_PREFIX}/${APP_NAME}.app/Contents/Frameworks/$CURL_VERSION ] && cp -L $CURL_PATH ${SERVER_PREFIX}/${APP_NAME}.app/Contents/Frameworks/
-
-        if [ ! -f MEGAcmdServer/${APP_NAME}.app/Contents/Frameworks/$CURL_VERSION ]  \
-            || [ ! -f MEGAcmdServer/${APP_NAME}.app/Contents/Frameworks/$CARES_VERSION ];
-        then
-            echo "Error copying libs to app bundle."
-            exit 1
-        fi
-
-        # replace final app bundle with server's:
-        rm -r $APP_NAME.app || :
-        mv ${SERVER_PREFIX}$APP_NAME.app ./
-    fi
 
     # update version into Info.plist
     MEGACMD_VERSION=`grep -o "[0-9][0-9]*$" ../../src/megacmdversion.h | head -n 3 | paste -s -d '.' -`
@@ -427,7 +318,7 @@ if [ "$notarize" = "1" ]; then
 fi
 
 echo ""
-if [ ${build} -eq 1 -o ${build_cmake} -eq 1 ]; then for build_arch in $build_archs; do echo "Build ${build_arch}:   ${(P)$(echo build_time_${build_arch})} s";  done; fi
+if [ ${build} -eq 1 ]; then for build_arch in $build_archs; do echo "Build ${build_arch}:   ${(P)$(echo build_time_${build_arch})} s";  done; fi
 if [ ${sign} -eq 1 ]; then echo "Sign:         ${sign_time} s"; fi
 if [ ${createdmg} -eq 1 ]; then echo "dmg:          ${dmg_time} s"; fi
 if [ ${notarize} -eq 1 ]; then echo "Notarization: ${notarize_time} s"; fi
