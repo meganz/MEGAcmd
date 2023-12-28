@@ -1,7 +1,7 @@
 #!/bin/zsh -e
 
 Usage () {
-    echo "Usage: installer_mac.sh [[--arch [arm64|x86_64]] [--build | --build-cmake] | [--sign] | [--create-dmg] | [--notarize] | [--full-pkg | --full-pkg-cmake]]"
+    echo "Usage: installer_mac.sh [[--arch [arm64|x86_64|universal]] [--build | --build-cmake] | [--sign] | [--create-dmg] | [--notarize] | [--full-pkg | --full-pkg-cmake]]"
     echo "    --arch [arm64|x86_64]  : Arch target. It will build for the host arch if not defined."
     echo "    --build                : Builds the app and creates the bundle using qmake. DEPRECATED AND UNLIKELY TO WORK"
     echo "    --build-cmake          : Idem but using cmake"
@@ -47,7 +47,6 @@ sign=0
 createdmg=0
 notarize=0
 
-build_time=0
 sign_time=0
 dmg_time=0
 notarize_time=0
@@ -58,7 +57,7 @@ while [ "$1" != "" ]; do
         --arch )
             shift
             target_arch="${1}"
-            if [ "${target_arch}" != "arm64" ] && [ "${target_arch}" != "x86_64" ]; then Usage; echo "Error: Invalid arch value."; exit 1; fi
+            if [ "${target_arch}" != "arm64" ] && [ "${target_arch}" != "x86_64" ] && [ "${target_arch}" != "universal" ]; then Usage; echo "Error: Invalid arch value."; exit 1; fi
             ;;
         --build )
             build=1
@@ -119,7 +118,18 @@ if [ ${build} -ne 1 -a ${build_cmake} -ne 1 -a ${sign} -ne 1 -a ${createdmg} -ne
    exit 1
 fi
 
+build_archs=${target_arch}
+if [ "$target_arch" = "universal" ]; then
+    build_archs=(arm64 x86_64)
+fi
+
+for build_arch in $build_archs; do
+    eval build_time_${build_arch}=0
+done
+
 if [ ${build} -eq 1 -o ${build_cmake} -eq 1 ]; then
+    for build_arch in $build_archs; do
+
     build_time_start=`date +%s`
 
     if [ ${build_cmake} -ne 1 ]; then
@@ -139,18 +149,17 @@ if [ ${build} -eq 1 -o ${build_cmake} -eq 1 ]; then
     echo "  VCPKGPATH  : ${VCPKGPATH}"
 
     # Clean previous build
-    [ -z "${SKIP_REMOVAL}" ]  && rm -rf Release_${target_arch}
-    mkdir Release_${target_arch} || true
-    cd Release_${target_arch}
+    [ -z "${SKIP_REMOVAL}" ]  && rm -rf Release_${build_arch}
+    mkdir Release_${build_arch} || true
+    cd Release_${build_arch}
 
     # Build binaries
     if [ ${build_cmake} -eq 1 ]; then
         # Detect crosscompilation and set CMAKE_OSX_ARCHITECTURES.
-        if  [ "${target_arch}" != "${host_arch}" ]; then
-            CMAKE_EXTRA="-DCMAKE_OSX_ARCHITECTURES=${target_arch}"
+        if  [ "${build_arch}" != "${host_arch}" ]; then
+            CMAKE_EXTRA="-DCMAKE_OSX_ARCHITECTURES=${build_arch}"
         fi
 
-#        cmake -DUSE_THIRDPARTY_FROM_VCPKG=1  -DCMAKE_PREFIX_PATH=${MEGAQTPATH} -DVCPKG_TRIPLET=x64-osx-mega -DMega3rdPartyDir=${VCPKGPATH} -DCMAKE_BUILD_TYPE=RelWithDebInfo ${CMAKE_EXTRA} -S ..//cmake
         cmake -DUSE_THIRDPARTY_FROM_VCPKG=1  -DCMAKE_PREFIX_PATH=${MEGAQTPATH} -DMega3rdPartyDir=${VCPKGPATH} -DCMAKE_BUILD_TYPE=RelWithDebInfo ${CMAKE_EXTRA} -S ..//cmake
         cmake --build ./ --target mega-cmd -j`sysctl -n hw.ncpu`
         cmake --build ./ --target mega-exec -j`sysctl -n hw.ncpu`
@@ -175,7 +184,7 @@ if [ ${build} -eq 1 -o ${build_cmake} -eq 1 ]; then
         mkdir -p ${APP_NAME}.app/Contents/MacOS
         mkdir -p ${APP_NAME}.app/Contents/Resources
 
-        #place (and strip) executables
+        # place (and strip) executables
         typeset -A execOriginTarget
         execOriginTarget[mega-exec]=mega-exec
         execOriginTarget[mega-cmd]=MEGAcmdShell
@@ -192,16 +201,26 @@ if [ ${build} -eq 1 -o ${build_cmake} -eq 1 ]; then
              done
         done
 
-        # Copy initialize script (it will simple launch MEGAcmdLoader in a terminal) as the new main executable: MEGAcmd
+        # copy initialize script (it will simple launch MEGAcmdLoader in a terminal) as the new main executable: MEGAcmd
         cp ../installer/MEGAcmd.sh ${APP_NAME}.app/Contents/MacOS/MEGAcmd
 
-        #place commands and completion scripts
+        # place commands and completion scripts
         cp ../../src/client/mega-* ${APP_NAME}.app/Contents/MacOS/
         cp ../../src/client/megacmd_completion.sh  ${APP_NAME}.app/Contents/MacOS/
 
         # place dylibs
          for i in $(otool -L ./mega-cmd ./mega-cmd-server ./mega-cmd-updater ./mega-exec | grep dylib | grep -v "\t/usr/lib" | sort | uniq | grep -o "lib[a-x0-9\.]*dylib"); do
-            cp "${VCPKGPATH}"/vcpkg/installed/${target_arch//x86_64/x64}-osx-mega/lib/$i ${APP_NAME}.app/Contents/Frameworks/;
+            # copy dylib into its place
+            libinAppPath=${APP_NAME}.app/Contents/Frameworks/$i
+            cp "${VCPKGPATH}"/vcpkg/installed/${build_arch//x86_64/x64}-osx-mega/lib/$i $libinAppPath;
+
+            # have their ids matching the relative one that will be set in the executable
+            install_name_tool -id "@executable_path/../Frameworks/"$(basename $i) ${libinAppPath};
+
+             # and have their linked dylibs use relative paths too:
+             for l in $(otool -L ${libinAppPath} | grep dylib | grep "^\t" | grep -v "\t/usr/lib" | grep -v "executable_path" | awk '{print $1}'); do
+                install_name_tool -change $l "@executable_path/../Frameworks/"$(basename $l) ${libinAppPath};
+             done
          done;
 
         # place icns
@@ -267,8 +286,8 @@ if [ ${build} -eq 1 -o ${build_cmake} -eq 1 ]; then
         # cares and curl dylibs that need manualy copying:
         CARES_VERSION=libcares.2.dylib
         CURL_VERSION=libcurl.dylib
-        CARES_PATH=${VCPKGPATH}/vcpkg/installed/${target_arch//x86_64/x64}-osx-mega/lib/$CARES_VERSION
-        CURL_PATH=${VCPKGPATH}/vcpkg/installed/${target_arch//x86_64/x64}-osx-mega/lib/$CURL_VERSION
+        CARES_PATH=${VCPKGPATH}/vcpkg/installed/${build_arch//x86_64/x64}-osx-mega/lib/$CARES_VERSION
+        CURL_PATH=${VCPKGPATH}/vcpkg/installed/${build_arch//x86_64/x64}-osx-mega/lib/$CURL_VERSION
         [ ! -f ${SERVER_PREFIX}/${APP_NAME}.app/Contents/Frameworks/$CARES_VERSION ] && cp -L $CARES_PATH ${SERVER_PREFIX}/${APP_NAME}.app/Contents/Frameworks/
         [ ! -f ${SERVER_PREFIX}/${APP_NAME}.app/Contents/Frameworks/$CURL_VERSION ] && cp -L $CURL_PATH ${SERVER_PREFIX}/${APP_NAME}.app/Contents/Frameworks/
 
@@ -296,7 +315,29 @@ if [ ${build} -eq 1 -o ${build_cmake} -eq 1 ]; then
 
     cd ..
 
-    build_time=`expr $(date +%s) - $build_time_start`
+    eval build_time_${build_arch}=`expr $(date +%s) - $build_time_start`
+    unset build_time_start
+    done
+fi
+
+if [ "$target_arch" = "universal" ]; then
+    # Remove Release_universal folder (despite SKIP_REMOVAL, since it does not contain previous compilation results)
+    rm -rf Release_${target_arch} || true
+    for i in `find Release_arm64/MEGAcmd.app -type d`; do mkdir -p $i ${i/Release_arm64/Release_universal}; done
+    # copy x86_64 files
+    for i in `find Release_x86_64/MEGAcmd.app -type f`; do
+        cp $i ${i/Release_x86_64/Release_universal}
+    done
+
+    # replace them by arm64
+    for i in `find Release_arm64/MEGAcmd.app -type f`; do
+        cp $i ${i/Release_arm64/Release_universal};
+    done
+
+    # merge binaries:
+    for i in `find Release_arm64/MEGAcmd.app -type f ! -size 0 ! -name app.icns | perl -lne 'print if -B'`; do
+        lipo -create $i ${i/Release_arm64/Release_x86_64} -output ${i/Release_arm64/Release_universal} || true;
+    done
 fi
 
 if [ "$sign" = "1" ]; then
@@ -386,9 +427,9 @@ if [ "$notarize" = "1" ]; then
 fi
 
 echo ""
-if [ ${build} -eq 1 -o ${build_cmake} -eq 1 ]; then echo "Build:        ${build_time} s"; fi
+if [ ${build} -eq 1 -o ${build_cmake} -eq 1 ]; then for build_arch in $build_archs; do echo "Build ${build_arch}:   ${(P)$(echo build_time_${build_arch})} s";  done; fi
 if [ ${sign} -eq 1 ]; then echo "Sign:         ${sign_time} s"; fi
 if [ ${createdmg} -eq 1 ]; then echo "dmg:          ${dmg_time} s"; fi
 if [ ${notarize} -eq 1 ]; then echo "Notarization: ${notarize_time} s"; fi
 echo ""
-echo "DONE in       "`expr ${build_time} + ${sign_time} + ${dmg_time} + ${notarize_time}`" s"
+echo "DONE in       "`expr $(for build_arch in $build_archs; do echo "${(P)$(echo build_time_${build_arch})} + "; done) ${sign_time} + ${dmg_time} + ${notarize_time}`" s"
