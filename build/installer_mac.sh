@@ -1,14 +1,13 @@
 #!/bin/zsh -e
 
 Usage () {
-    echo "Usage: installer_mac.sh [[--arch [arm64|x86_64|universal]] [--build] | [--sign] | [--create-dmg] | [--notarize] | [--full-pkg]]"
-    echo "    --arch [arm64|x86_64|universal]  : Arch target. It will build for the host arch if not defined."
-    echo "    --build          : Builds the app and creates the bundle using cmake"
-    echo "    --sign                 : Sign the app"
-    echo "    --create-dmg           : Create the dmg package"
-    echo "    --notarize             : Notarize package against Apple systems."
-    echo "    --full-pkg             : Implies and overrides all the above using qmake"
-    echo "    --full-pkg       : Idem but using cmake"
+    echo "Usage: installer_mac.sh [--arch [arm64|x86_64|universal]] [--build] | [--sign] | [--create-dmg] | [--notarize] | [--full-pkg]"
+    echo "    --build                          : Builds the app and creates the bundle using cmake"
+    echo "    --sign                           : Sign the app"
+    echo "    --create-dmg                     : Create the dmg package"
+    echo "    --notarize                       : Notarize package against Apple systems."
+    echo "    --full-pkg                       : Implies and overrides all the above"
+    echo "    --arch [arm64|x86_64|universal]  : Arch target. It will use the host arch if none specified."
     echo ""
     echo "Environment variables needed to build:"
     echo "    VCPKGPATH : Point it to a directory containing a valid vcpkg installation"
@@ -110,9 +109,7 @@ if [ ${build} -eq 1 ]; then
         exit 1;
     fi
 
-    MEGAQTPATH="$(cd "$MEGAQTPATH" && pwd -P)"
     echo "Building with:"
-    echo "  MEGAQTPATH : ${MEGAQTPATH}"
     echo "  VCPKGPATH  : ${VCPKGPATH}"
 
     # Clean previous build
@@ -126,7 +123,7 @@ if [ ${build} -eq 1 ]; then
         CMAKE_EXTRA="-DCMAKE_OSX_ARCHITECTURES=${build_arch}"
     fi
 
-    cmake -DUSE_THIRDPARTY_FROM_VCPKG=1  -DCMAKE_PREFIX_PATH=${MEGAQTPATH} -DMega3rdPartyDir=${VCPKGPATH} -DCMAKE_BUILD_TYPE=RelWithDebInfo ${CMAKE_EXTRA} -S ..//cmake
+    cmake -DUSE_THIRDPARTY_FROM_VCPKG=1  -DMega3rdPartyDir=${VCPKGPATH} -DCMAKE_BUILD_TYPE=RelWithDebInfo ${CMAKE_EXTRA} -S ..//cmake
     cmake --build ./ --target mega-cmd -j`sysctl -n hw.ncpu`
     cmake --build ./ --target mega-exec -j`sysctl -n hw.ncpu`
     cmake --build ./ --target mega-cmd-server -j`sysctl -n hw.ncpu`
