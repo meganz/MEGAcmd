@@ -1,5 +1,3 @@
-SET MEGA_SIGN=%1
-
 REM TODO: Have this unified (env variable?)
 SET KITVER=10.0.22621.0
 

@@ -128,7 +128,7 @@ echo time to sign the executables in built32/64 folders
 REM TODO: here in case of IF "%MEGA_SIGN%" EQU "sign" , the signing would need to take place, replacing the built .exes with the signed ones
 
 echo gathering signed executables in the built folders
-call gathered_signed_products.cmd || exit 1 /b
+call gather_signed_products.cmd || exit 1 /b
 )
 
 echo calling make_installers.cmd
