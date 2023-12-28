@@ -28,6 +28,8 @@
 #include "listeners.h"
 #include "megacmdversion.h"
 
+#include "mega/version.h" // TO GET SDK's version
+
 #include <iomanip>
 #include <limits>
 #include <string>
@@ -2521,6 +2523,15 @@ bool MegaCmdExecuter::actUponFetchNodes(MegaApi *api, SynchronousRequestListener
     return false;
 }
 
+void setExcludeNames(MegaApi *api, std::vector<string> &vexcludednames)
+{
+#if (MEGA_MAJOR_VERSION < 5)
+    api->setExcludedNames(&vexcludednames);
+#else
+    api->setLegacyExcludedNames(&vexcludednames);
+#endif
+}
+
 int MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
 {
     if (timeout == -1)
@@ -2593,7 +2604,7 @@ int MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
         ConfigurationManager::loadExcludedNames();
         ConfigurationManager::loadConfiguration(false);
         std::vector<string> vexcludednames(ConfigurationManager::excludedNames.begin(), ConfigurationManager::excludedNames.end());
-        api->setLegacyExcludedNames(&vexcludednames);
+        setExcludeNames(api, vexcludednames);
 
         long long maxspeeddownload = ConfigurationManager::getConfigurationValue("maxspeeddownload", -1);
         if (maxspeeddownload != -1) api->setMaxDownloadSpeed(maxspeeddownload);
@@ -7797,7 +7808,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             if (words.size()>1)
             {
                 std::vector<string> vexcludednames(ConfigurationManager::excludedNames.begin(), ConfigurationManager::excludedNames.end());
-                api->setLegacyExcludedNames(&vexcludednames);
+                setExcludeNames(api, vexcludednames);
             }
             else
             {
@@ -7815,7 +7826,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             if (words.size()>1)
             {
                 std::vector<string> vexcludednames(ConfigurationManager::excludedNames.begin(), ConfigurationManager::excludedNames.end());
-                api->setLegacyExcludedNames(&vexcludednames);
+                setExcludeNames(api, vexcludednames);
             }
             else
             {
