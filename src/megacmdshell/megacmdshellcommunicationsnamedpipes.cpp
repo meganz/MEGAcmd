@@ -21,7 +21,7 @@
 
 #ifdef _WIN32
 #include "megacmdshellcommunicationsnamedpipes.h"
-#include "megacmdcommonutils.h"
+#include "../megacmdcommonutils.h"
 
 #include <iostream>
 #include <thread>
