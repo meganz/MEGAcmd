@@ -21,6 +21,8 @@
 #ifdef _WIN32
 #include <Shlwapi.h> //PathAppend
 #include <Shellapi.h> //CommandLineToArgvW
+#include <windows.h> //GetUserName
+#include <Lmcons.h> //UNLEN
 #else
 #include <sys/ioctl.h> // console size
 #include <unistd.h>
