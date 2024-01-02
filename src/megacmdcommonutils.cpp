@@ -1512,6 +1512,26 @@ std::string WindowsDirectories::configDirPath()
 
     return folder;
 }
+
+std::wstring getNamedPipeName()
+{
+    std::wstring name = L"\\\\.\\pipe\\megacmdpipe_";
+    wchar_t username[UNLEN + 1];
+    DWORD username_len = UNLEN + 1;
+    wchar_t *suffix;
+
+    GetUserNameW(username, &username_len);
+    name += username;
+
+    suffix = _wgetenv(L"MEGACMD_PIPE_SUFFIX");
+    if (suffix != nullptr)
+    {
+        name += L"_";
+        name += suffix;
+    }
+
+    return name;
+}
 #else // !defined(_WIN32)
 std::string PosixDirectories::homeDirPath()
 {
