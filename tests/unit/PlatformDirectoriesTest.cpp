@@ -117,14 +117,14 @@ TEST(PlatformDirectoriesTest, getNamedPipeName)
         G_SUBTEST << "With $MEGACMD_PIPE_SUFFIX";
         auto guard = TestInstrumentsEnvVarGuard("MEGACMD_PIPE_SUFFIX", "foobar");
         auto name = getNamedPipeName();
-        EXPECT_THAT(name, testing::EndsWith("foobar"));
+        EXPECT_THAT(name, testing::EndsWith(L"foobar"));
     }
 
     {
         G_SUBTEST << "Without $MEGACMD_PIPE_SUFFIX";
         auto guard = TestInstrumentsUnsetEnvVarGuard("MEGACMD_PIPE_SUFFIX");
         auto name = getNamedPipeName();
-        EXPECT_THAT(name, testing::Not(testing::EndsWith("foobar")));
+        EXPECT_THAT(name, testing::Not(testing::EndsWith(L"foobar")));
     }
 }
 #endif
