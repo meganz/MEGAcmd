@@ -14,6 +14,7 @@
  */
 
 #include <gtest/gtest.h>
+#include <gmock/gmock.h>
 
 #include "Instruments.h"
 #include "TestUtils.h"
@@ -102,9 +103,28 @@ TEST(PlatformDirectoriesTest, getOrCreateSocketPath)
         EXPECT_EQ(getOrCreateSocketPath(false), runtimeDir + "/megacmd-test.socket");
     }
     {
-        G_SUBTEST << "With $MEGACMD_SOCKET_NAME";
+        G_SUBTEST << "Without $MEGACMD_SOCKET_NAME";
         auto guard = TestInstrumentsUnsetEnvVarGuard("MEGACMD_SOCKET_NAME");
         EXPECT_EQ(getOrCreateSocketPath(false), runtimeDir + "/megacmd.socket");
+    }
+}
+#else
+TEST(PlatformDirectoriesTest, getNamedPipeName)
+{
+    using megacmd::getNamedPipeName;
+
+    {
+        G_SUBTEST << "With $MEGACMD_PIPE_SUFFIX";
+        auto guard = TestInstrumentsEnvVarGuard("MEGACMD_PIPE_SUFFIX", "foobar");
+        auto name = getNamedPipeName();
+        EXPECT_THAT(name, testing::EndsWith("foobar"));
+    }
+
+    {
+        G_SUBTEST << "Without $MEGACMD_PIPE_SUFFIX";
+        auto guard = TestInstrumentsUnsetEnvVarGuard("MEGACMD_PIPE_SUFFIX");
+        auto name = getNamedPipeName();
+        EXPECT_THAT(name, testing::Not(testing::EndsWith("foobar")));
     }
 }
 #endif
