@@ -1,5 +1,5 @@
 name: Bug Report
-description: "Report an issue with MegaCMD"
+description: "Report an issue with MEGAcmd"
 labels: ["bug"]
 body:
   - type: markdown
@@ -8,8 +8,8 @@ body:
   - type: dropdown
     id: version
     attributes:
-      label: "MegaCMD version"
-      description: "Which version of MegaCMD did you encountered this issue? (Can be looked up using the `version` command)"
+      label: "MEGAcmd version"
+      description: "Which version of MEGAcmd did you encountered this issue? (Can be looked up using the `version` command)"
       options:
         - 1.6.3
         - 1.6.2
@@ -28,7 +28,7 @@ body:
     id: platform
     attributes:
       label: "Operating System/Platform"
-      description: "What platform are you using MegaCMD on?"
+      description: "What platform are you using MEGAcmd on?"
       options:
         - Windows
         - Linux
