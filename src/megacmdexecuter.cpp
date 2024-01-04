@@ -9548,7 +9548,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     {
                         for (int i = 0; i < inShares->size(); i++)
                         {
-                            std::unique_ptr<MegaNode> n(inShares->get(i));
+                            MegaNode *n = inShares->get(i);
                             long long thisinshareStorage = details->getStorageUsed(n->getHandle());
                             insharesStorage += thisinshareStorage;
                             if (i == 0)
