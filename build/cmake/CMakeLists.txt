@@ -1,6 +1,26 @@
 # For convenient building on windows, eg via generating Visual Studio projects and solutions.  Adjust the 'include' line to refer to your repo of MegaSDK
 
 cmake_minimum_required(VERSION 3.8)
+
+# Set min OSX version
+if(CMAKE_HOST_APPLE)
+    # Minimum deployment target differs if we are building for intel or arm64 targets
+    # CMAKE_SYSTEM_PROCESSOR and CMAKE_HOST_SYSTEM_PROCESSOR are only available after project()
+    execute_process(
+        COMMAND uname -m
+        OUTPUT_VARIABLE HOST_ARCHITECTURE
+        OUTPUT_STRIP_TRAILING_WHITESPACE)
+
+    # Setup CMAKE_OSX_DEPLOYMENT_TARGET before project()
+    if(CMAKE_OSX_ARCHITECTURES STREQUAL "arm64" OR (NOT CMAKE_OSX_ARCHITECTURES AND HOST_ARCHITECTURE STREQUAL "arm64"))
+        set(CMAKE_OSX_DEPLOYMENT_TARGET "11.1" CACHE STRING "Minimum OS X deployment version")
+    else()
+        set(CMAKE_OSX_DEPLOYMENT_TARGET "10.13" CACHE STRING "Minimum OS X deployment version")
+    endif()
+    message(STATUS "Minimum OS X deployment version is set to ${CMAKE_OSX_DEPLOYMENT_TARGET}")
+    unset(HOST_ARCHITECTURE)
+endif()
+
 project(MEGAcmd)
 
 # Turn on SDK flags which might be off by default in the SDK, but should be on for MEGAcmd, also set to 0 flags we want to be aware of but not use yet

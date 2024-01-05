@@ -347,8 +347,8 @@ SOCKET MegaCmdShellCommunications::createSocket(int number, bool initializeserve
                     const char executable2[] = "./mega-cmd-server";
     #else
         #ifdef __MACH__
-                    const char executable[] = "/Applications/MEGAcmd.app/Contents/MacOS/MEGAcmdLoader";
-                    const char executable2[] = "./MEGAcmdLoader";
+                    const char executable[] = "/Applications/MEGAcmd.app/Contents/MacOS/mega-cmd";
+                    const char executable2[] = "./mega-cmd";
         #else
                     const char executable[] = "mega-cmd-server";
             #ifdef __linux__
