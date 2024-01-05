@@ -109,6 +109,7 @@ megacmdconfig.h.in
 /build/megacmd/megacmd_*.tar.gz
 /build/build-cmake-*
 /build/cmake/CMakeLists.txt.user
+build/cmake/build_dir
 contrib/QtCreator/MEGAcmd/MEGAcmdServer/Makefile.Debug
 contrib/QtCreator/MEGAcmd/.qmake.stash
 contrib/QtCreator/MEGAcmd/MEGAcmdClient/Makefile.Debug
@@ -125,12 +126,16 @@ test_unit
 .qtc_clangd
 CMakeFiles
 build-x64-windows-mega
+build-x86-windows-mega
 Makefile.Debug
 Makefile.Release
 
 /Makefile*
 build/Release_x64
 /build/megacmd/megacmd*.dsc
+
+build/built64
+build/built32
 
 #git stuff
 *_BACKUP_*
