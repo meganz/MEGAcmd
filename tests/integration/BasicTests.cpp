@@ -67,10 +67,10 @@ TEST_F(NOINTERACTIVELoggedInTest, Whoami)
         std::vector<std::string> details_out = splitByNewline(r.out());
 
         ASSERT_THAT(details_out, testing::Not(testing::IsEmpty()));
-        ASSERT_THAT(details_out, testing::Contains(testing::ContainsRegex("Available storage:")));
-        ASSERT_THAT(details_out, testing::Contains(testing::ContainsRegex("Pro level:")));
-        ASSERT_THAT(details_out, testing::Contains(testing::ContainsRegex("Current Session")));
-        ASSERT_THAT(details_out, testing::Contains(testing::ContainsRegex("In RUBBISH")));
+        ASSERT_THAT(details_out, testing::Contains(testing::HasSubstr("Available storage:")));
+        ASSERT_THAT(details_out, testing::Contains(testing::HasSubstr("Pro level:")));
+        ASSERT_THAT(details_out, testing::Contains(testing::HasSubstr("Current Session")));
+        ASSERT_THAT(details_out, testing::Contains(testing::HasSubstr("In RUBBISH:")));
 
         EXPECT_THAT(details_out, testing::Not(testing::Contains(testing::ContainsRegex("Available storage:\\s+0\\.00\\s+Bytes"))));
         EXPECT_THAT(details_out, testing::Not(testing::Contains(testing::ContainsRegex("In ROOT:\\s+0\\.00\\s+Bytes"))));

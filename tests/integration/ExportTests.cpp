@@ -29,22 +29,28 @@ TEST_F(ExportTest, Basic)
 
         auto rExport = executeInClient({"export", file_path});
         ASSERT_FALSE(rExport.ok());
-        EXPECT_THAT(rExport.out(), testing::ContainsRegex(file_path + " is not exported"));
-        EXPECT_THAT(rExport.out(), testing::ContainsRegex("Use -a to export it"));
+        EXPECT_THAT(rExport.out(), testing::HasSubstr(file_path + " is not exported"));
+        EXPECT_THAT(rExport.out(), testing::HasSubstr("Use -a to export it"));
 
         auto rCreate = executeInClient({"export", "-a", "-f", file_path});
         ASSERT_TRUE(rCreate.ok());
-        EXPECT_THAT(rCreate.out(), testing::ContainsRegex("Exported /" + file_path));
+        EXPECT_THAT(rCreate.out(), testing::HasSubstr("Exported /" + file_path));
+
+        // Verify it shows up as exported
+        rExport = executeInClient({"export", file_path});
+        ASSERT_TRUE(rExport.ok());
+        EXPECT_THAT(rExport.out(), testing::HasSubstr(file_path));
+        EXPECT_THAT(rExport.out(), testing::HasSubstr("shared as exported permanent file link"));
 
         auto rDisable = executeInClient({"export", "-d", file_path});
         ASSERT_TRUE(rDisable.ok());
         EXPECT_THAT(rDisable.out(), testing::StartsWith("Disabled export: /" + file_path));
 
-        // Verify it's not exported again
+        // Again, verify it's not exported
         rExport = executeInClient({"export", file_path});
         ASSERT_FALSE(rExport.ok());
-        EXPECT_THAT(rExport.out(), testing::ContainsRegex(file_path + " is not exported"));
-        EXPECT_THAT(rExport.out(), testing::ContainsRegex("Use -a to export it"));
+        EXPECT_THAT(rExport.out(), testing::HasSubstr(file_path + " is not exported"));
+        EXPECT_THAT(rExport.out(), testing::HasSubstr("Use -a to export it"));
     }
 
     {
@@ -53,24 +59,30 @@ TEST_F(ExportTest, Basic)
 
         auto rExport = executeInClient({"export", dir_path});
         ASSERT_FALSE(rExport.ok());
-        EXPECT_THAT(rExport.out(), testing::ContainsRegex("Couldn't find anything exported below"));
-        EXPECT_THAT(rExport.out(), testing::ContainsRegex(dir_path));
-        EXPECT_THAT(rExport.out(), testing::ContainsRegex("Use -a to export it"));
+        EXPECT_THAT(rExport.out(), testing::HasSubstr("Couldn't find anything exported below"));
+        EXPECT_THAT(rExport.out(), testing::HasSubstr(dir_path));
+        EXPECT_THAT(rExport.out(), testing::HasSubstr("Use -a to export it"));
 
         auto rCreate = executeInClient({"export", "-a", "-f", dir_path});
         ASSERT_TRUE(rCreate.ok());
-        EXPECT_THAT(rCreate.out(), testing::ContainsRegex("Exported /" + dir_path));
+        EXPECT_THAT(rCreate.out(), testing::HasSubstr("Exported /" + dir_path));
+
+        // Verify it shows up as exported
+        rExport = executeInClient({"export", dir_path});
+        ASSERT_TRUE(rExport.ok());
+        EXPECT_THAT(rExport.out(), testing::HasSubstr(dir_path));
+        EXPECT_THAT(rExport.out(), testing::HasSubstr("shared as exported permanent folder link"));
 
         auto rDisable = executeInClient({"export", "-d", dir_path});
         ASSERT_TRUE(rDisable.ok());
         EXPECT_THAT(rDisable.out(), testing::StartsWith("Disabled export: /" + dir_path));
 
-        // Verify it's not exported again
+        // Again, verify it's not exported
         rExport = executeInClient({"export", dir_path});
         ASSERT_FALSE(rExport.ok());
-        EXPECT_THAT(rExport.out(), testing::ContainsRegex("Couldn't find anything exported below"));
-        EXPECT_THAT(rExport.out(), testing::ContainsRegex(dir_path));
-        EXPECT_THAT(rExport.out(), testing::ContainsRegex("Use -a to export it"));
+        EXPECT_THAT(rExport.out(), testing::HasSubstr("Couldn't find anything exported below"));
+        EXPECT_THAT(rExport.out(), testing::HasSubstr(dir_path));
+        EXPECT_THAT(rExport.out(), testing::HasSubstr("Use -a to export it"));
     }
 }
 
@@ -81,11 +93,11 @@ TEST_F(ExportTest, FailedRecreation)
 
     auto rCreate = executeInClient(createCommand);
     ASSERT_TRUE(rCreate.ok());
-    EXPECT_THAT(rCreate.out(), testing::ContainsRegex("Exported /" + file_path));
+    EXPECT_THAT(rCreate.out(), testing::HasSubstr("Exported /" + file_path));
 
     rCreate = executeInClient(createCommand);
     ASSERT_FALSE(rCreate.ok());
-    EXPECT_THAT(rCreate.out(), testing::ContainsRegex(file_path + " is already exported"));
+    EXPECT_THAT(rCreate.out(), testing::HasSubstr(file_path + " is already exported"));
 
     auto rDisable = executeInClient({"export", "-d", file_path});
     ASSERT_TRUE(rDisable.ok());
