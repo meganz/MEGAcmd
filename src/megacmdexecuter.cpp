@@ -39,6 +39,11 @@
 
 #include <signal.h>
 
+#ifdef MEGACMD_TESTING_CODE
+    #include "../tests/common/Instruments.h"
+    using TI = TestInstruments;
+#endif
+
 
 #if (__cplusplus >= 201700L)
     #include <filesystem>
@@ -3441,6 +3446,16 @@ void MegaCmdExecuter::uploadNode(string path, MegaApi* api, MegaNode *node, stri
 bool MegaCmdExecuter::amIPro()
 {
     int prolevel = -1;
+
+#ifdef MEGACMD_TESTING_CODE
+    auto proLevelOpt = TI::Instance().testValue(TI::TestValue::AMIPRO_LEVEL);
+    if (proLevelOpt)
+    {
+        prolevel = static_cast<int>(std::get<int64_t>(*proLevelOpt));
+        LOG_debug << "Enforced test value for Pro Level: " << prolevel;
+        return prolevel;
+    }
+#endif
 
     auto megaCmdListener = ::mega::make_unique<MegaCmdListener>(api, nullptr);
     api->getAccountDetails(megaCmdListener.get());

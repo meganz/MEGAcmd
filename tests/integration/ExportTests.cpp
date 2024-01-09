@@ -19,6 +19,8 @@
 #include "MegaCmdTestingTools.h"
 #include "TestUtils.h"
 
+using TI = TestInstruments;
+
 class ExportTest : public NOINTERACTIVELoggedInTest {};
 
 namespace {
@@ -28,6 +30,7 @@ namespace {
     // Since GTest uses a very simple Regex implementation on Windows, we cannot use groups or brackets (see: https://google.github.io/googletest/advanced.html#regular-expression-syntax)
     const std::string megaFileLinkRegex("https:\\/\\/mega.nz\\/file\\/\\w+\\#\\S+");
     const std::string megaFolderLinkRegex("https:\\/\\/mega.nz\\/folder\\/\\w+\\#\\S+");
+    const std::string megaPasswordLinkRegex("https:\\/\\/mega.nz\\/\\S+");
     const std::string authTokenRegex("\\w+\\#\\S+\\:\\w+");
 }
 
@@ -146,3 +149,41 @@ TEST_F(ExportTest, Writable)
     EXPECT_THAT(rDisable.out(), testing::StartsWith("Disabled export: /" + dir_path));
 }
 
+TEST_F(ExportTest, PasswordProtected)
+{
+    const std::string file_path = "file01.txt";
+    const std::vector<std::string> createCommand{"export", "-a", "-f", "--password=SomePassword", file_path};
+    const std::vector<std::string> disableCommand{"export", "-d", file_path};
+
+    {
+        G_SUBTEST << "Non-pro account";
+        TestInstrumentsTestValueGuard proLevelValueGuard(TI::TestValue::AMIPRO_LEVEL, int64_t(0));
+
+        auto rCreate = executeInClient(createCommand);
+        ASSERT_TRUE(rCreate.ok());
+        EXPECT_THAT(rCreate.out(), testing::HasSubstr("Only PRO users can protect links with passwords"));
+        EXPECT_THAT(rCreate.out(), testing::HasSubstr("Showing UNPROTECTED link"));
+        EXPECT_THAT(rCreate.out(), testing::HasSubstr("Exported /" + file_path));
+        EXPECT_THAT(rCreate.out(), testing::ContainsRegex(megaFileLinkRegex));
+
+        auto rDisable = executeInClient(disableCommand);
+        ASSERT_TRUE(rDisable.ok());
+        EXPECT_THAT(rDisable.out(), testing::StartsWith("Disabled export: /" + file_path));
+    }
+
+    {
+        G_SUBTEST << "Pro account";
+        TestInstrumentsTestValueGuard proLevelValueGuard(TI::TestValue::AMIPRO_LEVEL, int64_t(1));
+
+        auto rCreate = executeInClient(createCommand);
+        ASSERT_TRUE(rCreate.ok());
+        EXPECT_THAT(rCreate.out(), testing::Not(testing::HasSubstr("Only PRO users can protect links with passwords")));
+        EXPECT_THAT(rCreate.out(), testing::Not(testing::HasSubstr("Showing UNPROTECTED link")));
+        EXPECT_THAT(rCreate.out(), testing::HasSubstr("Exported /" + file_path));
+        EXPECT_THAT(rCreate.out(), testing::ContainsRegex(megaPasswordLinkRegex));
+
+        auto rDisable = executeInClient(disableCommand);
+        ASSERT_TRUE(rDisable.ok());
+        EXPECT_THAT(rDisable.out(), testing::StartsWith("Disabled export: /" + file_path));
+    }
+}

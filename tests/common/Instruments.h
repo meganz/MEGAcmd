@@ -81,7 +81,7 @@ public:
     //
     enum class TestValue
     {
-        SOME_MEGACMD_INSTRUMENT_TEST_VALUE,
+        AMIPRO_LEVEL,
     };
 
     using TestValue_t = std::variant<
