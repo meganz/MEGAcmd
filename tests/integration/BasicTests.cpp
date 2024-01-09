@@ -32,6 +32,7 @@ TEST_F(NOINTERACTIVEBasicTest, Help)
 TEST_F(NOINTERACTIVEReadTest, Find)
 {
     auto r = executeInClient({"find"});
+    ASSERT_TRUE(r.ok());
 
     std::vector<std::string> result_paths = splitByNewline(r.out());
     ASSERT_THAT(result_paths, testing::Not(testing::IsEmpty()));
@@ -47,18 +48,22 @@ TEST_F(NOINTERACTIVELoggedInTest, Whoami)
 {
 
     {
-        G_SUBTEST << "basic whoami";
+        G_SUBTEST << "Basic";
+
         auto r = executeInClient({"whoami"});
+        ASSERT_TRUE(r.ok());
+
         auto out = r.out();
-
         ASSERT_THAT(out, testing::Not(testing::IsEmpty()));
-
         EXPECT_EQ(out, std::string("Account e-mail: ").append(getenv("MEGACMD_TEST_USER")).append("\n"));
     }
 
     {
-        G_SUBTEST << "extended whoami";
+        G_SUBTEST << "Extended";
+
         auto r = executeInClient({"whoami", "-l"});
+        ASSERT_TRUE(r.ok());
+
         std::vector<std::string> details_out = splitByNewline(r.out());
 
         ASSERT_THAT(details_out, testing::Not(testing::IsEmpty()));
