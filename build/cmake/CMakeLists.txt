@@ -140,6 +140,7 @@ list(APPEND c++17targets LMegacmdTestsCommon)
 #Integration tests:
 add_executable(mega-cmd-tests-integration
     "${ProjectDir}/tests/integration/BasicTests.cpp"
+    "${ProjectDir}/tests/integration/ExportTests.cpp"
     "${ProjectDir}/tests/integration/MegaCmdTestingTools.cpp"
     "${ProjectDir}/tests/integration/main.cpp"
 )

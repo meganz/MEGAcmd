@@ -19,10 +19,6 @@
 #include "MegaCmdTestingTools.h"
 #include "TestUtils.h"
 
-class NOINTERACTIVEBasicTest : public BasicGenericTest{};
-class NOINTERACTIVELoggedInTest : public LoggedInTest{};
-class NOINTERACTIVEReadTest : public ReadTest{};
-
 TEST_F(NOINTERACTIVEBasicTest, Version)
 {
     executeInClient({"version"});

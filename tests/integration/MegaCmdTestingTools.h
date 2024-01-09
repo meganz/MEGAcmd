@@ -88,3 +88,7 @@ protected:
         ensureReadStructure();
     }
 };
+
+class NOINTERACTIVEBasicTest : public BasicGenericTest{};
+class NOINTERACTIVELoggedInTest : public LoggedInTest{};
+class NOINTERACTIVEReadTest : public ReadTest{};
