@@ -27,15 +27,15 @@ win32 {
     QMAKE_CXXFLAGS_RELEASE = $$QMAKE_CFLAGS_RELEASE_WITH_DEBUGINFO
     QMAKE_LFLAGS_RELEASE = $$QMAKE_LFLAGS_RELEASE_WITH_DEBUGINFO
 
-    debug:LIBS += -lgtestd
-    !debug:LIBS += -lgtest
+    debug:LIBS += -lgtestd -lgmockd
+    !debug:LIBS += -lgtest -lgmock
 }
 else {
     exists(/opt/gtest/gtest-1.10.0/lib) {
         LIBS += -L/opt/gtest/gtest-1.10.0/lib
         INCLUDEPATH += /opt/gtest/gtest-1.10.0/include
     }
-    LIBS += -lgtest
+    LIBS += -lgtest -lgmock
     LIBS += -lpthread
 }
 
