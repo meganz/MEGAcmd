@@ -1311,12 +1311,12 @@ void MegaCmdExecuter::dumpNode(MegaNode* n, const char *timeFormat, std::map<std
 
                             if (n->getWritableLinkAuthKey())
                             {
-                                static constexpr char *prefix = "https://mega.nz/folder/";
+                                constexpr const char *prefix = "https://mega.nz/folder/";
                                 string authKey(n->getWritableLinkAuthKey());
-                                if (authKey.size() && authKey.rfind(prefix, 0) == 0)
+                                string nodeLink(publicLink.get());
+                                if (authKey.size() && nodeLink.rfind(prefix, 0) == 0)
                                 {
-                                    string authToken(publicLink.get());
-                                    authToken = authToken.substr(strlen(prefix)).append(":").append(authKey);
+                                    string authToken = nodeLink.substr(strlen(prefix)).append(":").append(authKey);
                                     OUTSTREAM << " AuthToken="<< authToken;
                                 }
                             }
@@ -3592,14 +3592,13 @@ void MegaCmdExecuter::exportNode(MegaNode *n, int64_t expireTime, std::string pa
         LOG_err << "Failed to generate writable folder: missing auth key. Showing read-only link";
     }
 
-    OUTSTREAM << "Exported " << nodepath.get() << ": "
-              << (publicPassProtectedLink.size() ? publicPassProtectedLink : publicLink.get());
+    const string nodeLink(publicPassProtectedLink.size() ? publicPassProtectedLink : publicLink.get());
+    OUTSTREAM << "Exported " << nodepath.get() << ": " << nodeLink;
 
-    static constexpr char* prefix = "https://mega.nz/folder/";
-    if (authKey.size() && authKey.rfind(prefix, 0) == 0)
+    constexpr const char* prefix = "https://mega.nz/folder/";
+    if (authKey.size() && nodeLink.rfind(prefix, 0) == 0)
     {
-        string authToken = (publicPassProtectedLink.size() ? publicPassProtectedLink : publicLink.get());
-        authToken = authToken.substr(strlen(prefix)).append(":").append(authKey);
+        string authToken = nodeLink.substr(strlen(prefix)).append(":").append(authKey);
         OUTSTREAM << "\n          AuthToken = " << authToken;
     }
 
