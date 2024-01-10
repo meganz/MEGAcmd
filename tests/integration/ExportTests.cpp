@@ -149,6 +149,49 @@ TEST_F(ExportTest, Writable)
     EXPECT_THAT(rDisable.out(), testing::StartsWith("Disabled export: /" + dir_path));
 }
 
+TEST_F(ExportTest, NestedDirectoryStructure)
+{
+    {
+        G_SUBTEST << "Directory";
+        const std::string dir_path = "testExportFolder/subDirectoryExport";
+
+        auto rCreate = executeInClient({"export", "-a", "-f", dir_path});
+        ASSERT_TRUE(rCreate.ok());
+        EXPECT_THAT(rCreate.out(), testing::HasSubstr("Exported /" + dir_path));
+        EXPECT_THAT(rCreate.out(), testing::ContainsRegex(megaFolderLinkRegex));
+
+        auto rExport = executeInClient({"export", dir_path});
+        ASSERT_TRUE(rExport.ok());
+        EXPECT_THAT(rExport.out(), testing::HasSubstr(dir_path));
+        EXPECT_THAT(rExport.out(), testing::HasSubstr("shared as exported permanent folder link"));
+        EXPECT_THAT(rExport.out(), testing::ContainsRegex(megaFolderLinkRegex));
+
+        auto rDisable = executeInClient({"export", "-d", dir_path});
+        ASSERT_TRUE(rDisable.ok());
+        EXPECT_THAT(rDisable.out(), testing::StartsWith("Disabled export: /" + dir_path));
+    }
+
+    {
+        G_SUBTEST << "File";
+        const std::string file_path = "testExportFolder/subDirectoryExport/file01.txt";
+
+        auto rCreate = executeInClient({"export", "-a", "-f", file_path});
+        ASSERT_TRUE(rCreate.ok());
+        EXPECT_THAT(rCreate.out(), testing::HasSubstr("Exported /" + file_path));
+        EXPECT_THAT(rCreate.out(), testing::ContainsRegex(megaFileLinkRegex));
+
+        auto rExport = executeInClient({"export", file_path});
+        ASSERT_TRUE(rExport.ok());
+        EXPECT_THAT(rExport.out(), testing::HasSubstr(file_path));
+        EXPECT_THAT(rExport.out(), testing::HasSubstr("shared as exported permanent file link"));
+        EXPECT_THAT(rExport.out(), testing::ContainsRegex(megaFileLinkRegex));
+
+        auto rDisable = executeInClient({"export", "-d", file_path});
+        ASSERT_TRUE(rDisable.ok());
+        EXPECT_THAT(rDisable.out(), testing::StartsWith("Disabled export: /" + file_path));
+    }
+}
+
 TEST_F(ExportTest, PasswordProtected)
 {
     const std::string file_path = "file01.txt";
