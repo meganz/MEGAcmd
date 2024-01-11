@@ -3477,7 +3477,7 @@ void MegaCmdExecuter::exportNode(MegaNode *n, int64_t expireTime, std::string pa
     if (!copyrightAccepted)
     {
         string confirmationQuery("MEGA respects the copyrights of others and requires that users of the MEGA cloud service comply with the laws of copyright.\n"
-                                 "You are strictly prohibited from using the MEGA cloud service to infringe copyrights.\n"
+                                 "You are strictly prohibited from using the MEGA cloud service to infringe copyright.\n"
                                  "You may not upload, download, store, share, display, stream, distribute, email, link to, "
                                  "transmit or otherwise make available any files, data or content that infringes any copyright "
                                  "or other proprietary rights of any person or entity.");
