@@ -4980,7 +4980,7 @@ int executeServer(int argc, char* argv[],
     // Establish the logger
     SimpleLogger::setLogLevel(logMax); // do not filter anything here, log level checking is done by loggerCMD
     loggerCMD = new MegaCMDLogger();
-    loggerCMD->setApiLoggerLevel(sdkLogLevel);
+    loggerCMD->setSdkLoggerLevel(sdkLogLevel);
     loggerCMD->setCmdLoggerLevel(cmdLogLevel);
 
     ConfigurationManager::loadConfiguration(cmdLogLevel >= MegaApi::LOG_LEVEL_DEBUG);

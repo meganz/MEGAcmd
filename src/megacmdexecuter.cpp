@@ -7170,11 +7170,11 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             if (!getFlag(clflags, "s") && !getFlag(clflags, "c"))
             {
                 OUTSTREAM << "MEGAcmd log level = " << getLogLevelStr(loggerCMD->getCmdLoggerLevel()) << endl;
-                OUTSTREAM << "SDK log level = " << getLogLevelStr(loggerCMD->getApiLoggerLevel()) << endl;
+                OUTSTREAM << "SDK log level = " << getLogLevelStr(loggerCMD->getSdkLoggerLevel()) << endl;
             }
             else if (getFlag(clflags, "s"))
             {
-                OUTSTREAM << "SDK log level = " << getLogLevelStr(loggerCMD->getApiLoggerLevel()) << endl;
+                OUTSTREAM << "SDK log level = " << getLogLevelStr(loggerCMD->getSdkLoggerLevel()) << endl;
             }
             else if (getFlag(clflags, "c"))
             {
@@ -7195,14 +7195,14 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             if (!getFlag(clflags, "s") && !getFlag(clflags, "c"))
             {
                 loggerCMD->setCmdLoggerLevel(newLogLevel);
-                loggerCMD->setApiLoggerLevel(newLogLevel);
+                loggerCMD->setSdkLoggerLevel(newLogLevel);
                 OUTSTREAM << "MEGAcmd log level = " << getLogLevelStr(loggerCMD->getCmdLoggerLevel()) << endl;
-                OUTSTREAM << "SDK log level = " << getLogLevelStr(loggerCMD->getApiLoggerLevel()) << endl;
+                OUTSTREAM << "SDK log level = " << getLogLevelStr(loggerCMD->getSdkLoggerLevel()) << endl;
             }
             else if (getFlag(clflags, "s"))
             {
-                loggerCMD->setApiLoggerLevel(newLogLevel);
-                OUTSTREAM << "SDK log level = " << getLogLevelStr(loggerCMD->getApiLoggerLevel()) << endl;
+                loggerCMD->setSdkLoggerLevel(newLogLevel);
+                OUTSTREAM << "SDK log level = " << getLogLevelStr(loggerCMD->getSdkLoggerLevel()) << endl;
             }
             else if (getFlag(clflags, "c"))
             {
