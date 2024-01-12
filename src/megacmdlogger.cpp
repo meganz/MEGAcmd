@@ -186,7 +186,7 @@ void setCurrentPetition(CmdPetition *petition)
 MegaCMDLogger::MegaCMDLogger()
     : mLoggedStream(Instance<DefaultLoggedStream>::Get().getLoggedStream())
 {
-    this->apiLoggerLevel = MegaApi::LOG_LEVEL_ERROR;
+    this->sdkLoggerLevel = MegaApi::LOG_LEVEL_ERROR;
     this->outputmutex = new std::mutex();
 }
 
@@ -247,13 +247,13 @@ void MegaCMDLogger::log(const char *time, int loglevel, const char *source, cons
     }
     else // SDK's
     {
-        if (loglevel <= apiLoggerLevel)
+        if (loglevel <= sdkLoggerLevel)
         {
-            if (( apiLoggerLevel <= MegaApi::LOG_LEVEL_DEBUG ) && !strcmp(message, "Request (RETRY_PENDING_CONNECTIONS) starting"))
+            if (( sdkLoggerLevel <= MegaApi::LOG_LEVEL_DEBUG ) && !strcmp(message, "Request (RETRY_PENDING_CONNECTIONS) starting"))
             {
                 return;
             }
-            if (( apiLoggerLevel <= MegaApi::LOG_LEVEL_DEBUG ) && !strcmp(message, "Request (RETRY_PENDING_CONNECTIONS) finished"))
+            if (( sdkLoggerLevel <= MegaApi::LOG_LEVEL_DEBUG ) && !strcmp(message, "Request (RETRY_PENDING_CONNECTIONS) finished"))
             {
                 return;
             }
@@ -268,7 +268,7 @@ void MegaCMDLogger::log(const char *time, int loglevel, const char *source, cons
 #endif
         }
 
-        if (needsLoggingToClient(apiLoggerLevel))
+        if (needsLoggingToClient(sdkLoggerLevel))
         {
             assert(false); //since it happens in the sdk thread, this shall be false
             OUTSTREAM << "[API:" << SimpleLogger::toStr(LogLevel(loglevel)) << ": " << time << "] " << message << endl;
@@ -278,7 +278,7 @@ void MegaCMDLogger::log(const char *time, int loglevel, const char *source, cons
 
 int MegaCMDLogger::getMaxLogLevel()
 {
-    return max(max(getCurrentThreadLogLevel(), cmdLoggerLevel), apiLoggerLevel);
+    return max(max(getCurrentThreadLogLevel(), cmdLoggerLevel), sdkLoggerLevel);
 }
 
 OUTFSTREAMTYPE streamForDefaultFile()
