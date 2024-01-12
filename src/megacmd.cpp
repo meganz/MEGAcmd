@@ -2579,21 +2579,24 @@ string getHelpStr(const char *command)
         os << "           " << "\t" << "Only works on folders; files are considered immutable. Different versions of the same file will have different export links." << endl;
         os << "           " << "\t" << "The AuthToken shown has the following format <handle>#<key>:<auth-key>." << endl;
         os << " --mega-hosted" << "\t" << "The share key of this specific folder will be shared with MEGA." << endl;
-        os << "              " << "\t" << "This is intended to be used for folders accessible though MEGA's S4 service." << endl;
+        os << "              " << "\t" << "This is intended to be used for folders accessible through MEGA's S4 service." << endl;
         os << "              " << "\t" << "Encryption will occur nonetheless within MEGA's S4 service." << endl;
         os << " --password=PASSWORD" << "\t" << "Protects the export with a password. Passwords cannot contain \" or '." << endl;
         os << "                    " << "\t" << "A password-protected link will be printed only after exporting it." << endl;
         os << "                    " << "\t" << "If \"" << commandPrefixBasedOnMode() << "export\" is used to print it again, it will be shown unencrypted." << endl;
+        os << "                    " << "\t" << "Note: only PRO users can protect an export with a password." << endl;
         os << " --expire=TIMEDELAY" << "\t" << "Sets the expiration time of the export." << endl;
         os << "                   " << "\t" << "The time format can contain hours(h), days(d), minutes(M), seconds(s), months(m) or years(y)." << endl;
         os << "                   " << "\t" << "E.g., \"1m12d3h\" will set an expiration time of 1 month, 12 days and 3 hours (relative to the current time)." << endl;
+        os << "                   " << "\t" << "Note: only PRO users can set an expiration time for an export." << endl;
         os << " -f" << "\t" << "Implicitly accepts copyright terms (only shown the first time an export is made)." << endl;
         os << "   " << "\t" << "MEGA respects the copyrights of others and requires that users of the MEGA cloud service comply with the laws of copyright." << endl;
         os << "   " << "\t" << "You are strictly prohibited from using the MEGA cloud service to infringe copyright." << endl;
         os << "   " << "\t" << "You may not upload, download, store, share, display, stream, distribute, email, link to, "
                                "transmit or otherwise make available any files, data or content that infringes any copyright "
                                "or other proprietary rights of any person or entity." << endl;
-        os << " -d" << "\t" << "Deletes an export" << endl;
+        os << " -d" << "\t" << "Deletes an export." << endl;
+        os << "   " << "\t" << "The file/folder itself is not deleted, only the export link." << endl;
         printTimeFormatHelp(os);
         os << endl;
         os << "If a remote path is provided without the add/delete options, all existing exports within its tree will be displayed." << endl;
