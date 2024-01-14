@@ -810,6 +810,10 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validOptValues->insert("auto");
     }
 #endif
+    else if ("tree" == thecommand)
+    {
+        validParams->insert("show-handles");
+    }
 }
 
 void escapeEspace(string &orig)
