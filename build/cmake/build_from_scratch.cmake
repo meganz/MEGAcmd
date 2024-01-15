@@ -128,7 +128,7 @@ execute_checked_command(
 # Allows use of the VCPKG_XXXX variables defined in the triplet file
 # We search our own custom triplet folder, and then the standard ones searched by vcpkg
 foreach(_triplet_dir
-    "${_sdk_dir}/contrib/cmake/vcpkg_extra_triplets/"
+    "${_sdk_dir}/contrib/cmake/vcpkg_overlay_triplets/"
     "${_3rdparty_vcpkg_dir}/triplets/"
     "${_3rdparty_vcpkg_dir}/triplets/community"
 )
@@ -142,7 +142,7 @@ foreach(_triplet_dir
 endforeach()
 
 if(NOT _triplet_file_found)
-    message(FATAL_ERROR "Could not find triplet ${_triplet} in Mega vcpkg_extra_triplets nor in vcpkg triplet folders")
+    message(FATAL_ERROR "Could not find triplet ${_triplet} in Mega vcpkg_overlay_triplets nor in vcpkg triplet folders")
 endif()
 
 if(SKIP_PROJECT_BUILD)
