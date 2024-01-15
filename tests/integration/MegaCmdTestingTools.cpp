@@ -67,10 +67,10 @@ void ensureLoggedIn()
         ASSERT_STRNE(pass, "") << "Missing testing user password env variable. Ensure that MEGACMD_TEST_PASS is set!";
 
         auto result = executeInClient({"login", user, pass});
-        ASSERT_EQ(0, result.status());
+        ASSERT_TRUE(result.ok());
 
         result = executeInClient({"whoami"});
-        ASSERT_EQ(0, result.status());
+        ASSERT_TRUE(result.ok());
         ASSERT_THAT(result.out(), testing::HasSubstr(user));
     }
 }
@@ -85,7 +85,6 @@ void ensureReadStructure()
     if (!hasReadStructure())
     {
         auto result = executeInClient({"import", "https://mega.nz/folder/gflVFLhC#6neMkeJrt4dWboRTc1NLUg"});
-        ASSERT_EQ(0, result.status());
+        ASSERT_TRUE(result.ok());
     }
 }
-
