@@ -157,6 +157,13 @@ sed -i -E "s/(^#define MEGACMD_BUILD_ID )[0-9]*/\1${mega_build_id}/g" src/megacm
     sed -i "s#AC_INIT#m4_pattern_allow(AC_PROG_OBJCXX)\nAC_INIT#g" sdk/configure.ac
 %endif
 
+# Build SQLite3
+%define flag_buildsqlite3 %{nil}
+
+%if 0%{?centos_version} != 700
+    %define flag_buildsqlite3 -L
+%endif
+
 %define fullreqs -DREQUIRE_HAVE_PDFIUM -DREQUIRE_HAVE_FFMPEG -DREQUIRE_HAVE_LIBUV -DREQUIRE_USE_MEDIAINFO -DREQUIRE_USE_PCRE
 
 ./autogen.sh
@@ -164,7 +171,7 @@ sed -i -E "s/(^#define MEGACMD_BUILD_ID )[0-9]*/\1${mega_build_id}/g" src/megacm
 #build dependencies into folder deps
 mkdir deps || :
 bash -x ./contrib/build_sdk.sh %{flag_cryptopp} %{flag_libraw} %{flag_cares} -o archives \
-  -g %{flag_disablezlib} %{flag_disablemediainfo} -b -l -c -s -u -v -a -I -p deps/
+  -g %{flag_disablezlib} %{flag_disablemediainfo} %{flag_buildsqlite3} -b -l -c -s -u -v -a -I -p deps/
 
 ln -sfr $PWD/deps/lib/libfreeimage*.so $PWD/deps/lib/libfreeimage.so.3
 ln -sfn libfreeimage.so.3 $PWD/deps/lib/libfreeimage.so
