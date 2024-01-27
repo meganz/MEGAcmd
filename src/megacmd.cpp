@@ -2344,7 +2344,7 @@ string getHelpStr(const char *command)
         os << " --s XXX" << "\t" << "To set new permissions for newly created files/folder. " << endl;
         os << "        " << "\t" << " Notice that for files minimum permissions is 600," << endl;
         os << "        " << "\t" << " for folders minimum permissions is 700." << endl;
-        os << "        " << "\t" << " Further restrictions to owner are not allowed (to avoid missfunctioning)." << endl;
+        os << "        " << "\t" << " Further restrictions to owner are not allowed (to avoid misfunctioning)." << endl;
         os << "        " << "\t" << " Notice that permissions of already existing files/folders will not change." << endl;
         os << "        " << "\t" << " Notice that permissions of already existing files/folders will not change." << endl;
         os << endl;
