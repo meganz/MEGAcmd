@@ -2337,7 +2337,7 @@ string getHelpStr(const char *command)
     {
         os << "Shows/Establish default permissions for files and folders created by MEGAcmd." << endl;
         os << endl;
-        os << "Permissions are unix-like permissions, with 3 numbers: one for owner, one for group and one for others" << endl;
+        os << "Permissions are Unix-like permissions, with 3 numbers: one for owner, one for group and one for others" << endl;
         os << "Options:" << endl;
         os << " --files" << "\t" << "To show/set files default permissions." << endl;
         os << " --folders" << "\t" << "To show/set folders default permissions." << endl;
