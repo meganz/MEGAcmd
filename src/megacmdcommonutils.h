@@ -415,6 +415,7 @@ class WindowsDirectories : public PlatformDirectories
     }
     std::string configDirPath() override;
 };
+std::wstring getNamedPipeName();
 #else // !defined(_WIN32)
 class PosixDirectories : public PlatformDirectories
 {
