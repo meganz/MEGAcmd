@@ -40,7 +40,6 @@ private:
 
     static void loadConfigDir();
 
-
     static void removeSyncConfig(sync_struct *syncToRemove);
 public:
     static std::map<std::string, sync_struct *> oldConfiguredSyncs; //This will refer to old syncs from now on
@@ -238,8 +237,10 @@ public:
 
     static std::string getConfigFolder();
 
-    // creates a subfolder within config dir and returns it (utf8)
-    static std::string getConfFolderSubdir(const std::string &utf8Name);
+    // creates a subfolder within the state dir and returns it (utf8)
+    static std::string getDataFolderSubdir(const std::string &utf8Name);
+    static std::string getStateDir();
+    static std::string getDataDir();
 
     static bool getHasBeenUpdated();
 

@@ -17,6 +17,7 @@
  */
 
 #include "megacmdlogger.h"
+#include "megacmdcommonutils.h"
 
 #include <map>
 
@@ -307,13 +308,17 @@ OUTFSTREAMTYPE streamForDefaultFile()
          }
      }
 #else
-    const char* home = getenv("HOME");
-    if (home)
+    auto dirs = PlatformDirectories::getPlatformSpecificDirectories();
+    path = dirs->stateDirPath();
+
+    auto fsAccess = ::mega::make_unique<MegaFileSystemAccess>();
+    fsAccess->setdefaultfolderpermissions(0700);
+    LocalPath local_data_dir = LocalPath::fromAbsolutePath(path);
+    if (!fsAccess->mkdirlocal(local_data_dir, false, false))
     {
-        path.append(home);
-        path.append("/.megaCmd/");
-        path.append("/megacmdserver.log");
+        LOG_err << "State directory not created";
     }
+    path.append("/megacmdserver.log");
 #endif
 
     return OUTFSTREAMTYPE(path);
