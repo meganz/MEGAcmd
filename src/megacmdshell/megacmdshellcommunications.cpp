@@ -20,7 +20,7 @@
  */
 
 #include "megacmdshellcommunications.h"
-#include "megacmdcommonutils.h"
+#include "../megacmdcommonutils.h"
 
 #include <iostream>
 #include <sstream>
