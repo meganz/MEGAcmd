@@ -38,7 +38,7 @@ private:
     mega::handle cwd;
     std::unique_ptr<char[]> session;
     mega::MegaFileSystemAccess *fsAccessCMD;
-    MegaCMDLogger *loggerCMD;
+    MegaCmdLogger *loggerCMD;
     MegaCmdSandbox *sandboxCMD;
     MegaCmdGlobalTransferListener *globalTransferListener;
     std::mutex mtxSyncMap;
@@ -100,7 +100,7 @@ public:
     // link to confirm
     std::string link;
 
-    MegaCmdExecuter(mega::MegaApi *api, MegaCMDLogger *loggerCMD, MegaCmdSandbox *sandboxCMD);
+    MegaCmdExecuter(mega::MegaApi *api, MegaCmdLogger *loggerCMD, MegaCmdSandbox *sandboxCMD);
     ~MegaCmdExecuter();
 
     void updateprompt(mega::MegaApi *api = nullptr);

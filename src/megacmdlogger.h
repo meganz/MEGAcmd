@@ -151,7 +151,7 @@ public:
 
   LoggedStream const& operator<<(OUTSTREAMTYPE& (*F)(OUTSTREAMTYPE&)) const
   {
-      OUTSTRINGSTREAM os; os << F; OUTSTRING s = os.str(); cm->sendPartialOutput(inf, &s); 
+      OUTSTRINGSTREAM os; os << F; OUTSTRING s = os.str(); cm->sendPartialOutput(inf, &s);
       return *this;
   }
 
@@ -179,41 +179,39 @@ void setCurrentThreadIsCmdShell(bool isit);
 bool getCurrentThreadIsCmdShell();
 
 
-class MegaCMDLogger : public mega::MegaLogger
+class MegaCmdLogger : public mega::MegaLogger
 {
-private:
-    int sdkLoggerLevel;
-    int cmdLoggerLevel;
-    LoggedStream &mLoggedStream;
-    std::mutex *outputmutex;
-
+    int mSdkLoggerLevel;
+    int mCmdLoggerLevel;
 public:
-    MegaCMDLogger();
-    ~MegaCMDLogger();
-
-    void log(const char *time, int loglevel, const char *source, const char *message);
-
-    void setSdkLoggerLevel(int sdkLoggerLevel)
+    MegaCmdLogger() :
+        mSdkLoggerLevel(mega::MegaApi::LOG_LEVEL_ERROR),
+        mCmdLoggerLevel(mega::MegaApi::LOG_LEVEL_ERROR)
     {
-        this->sdkLoggerLevel = sdkLoggerLevel;
     }
 
-    void setCmdLoggerLevel(int cmdLoggerLevel)
-    {
-        this->cmdLoggerLevel = cmdLoggerLevel;
-    }
+    virtual ~MegaCmdLogger() = default;
 
-    int getMaxLogLevel();
+    virtual void log(const char *time, int loglevel, const char *source, const char *message) override = 0;
 
-    int getSdkLoggerLevel()
-    {
-        return this->sdkLoggerLevel;
-    }
+    void setSdkLoggerLevel(int sdkLoggerLevel) { mSdkLoggerLevel = sdkLoggerLevel; }
+    void setCmdLoggerLevel(int cmdLoggerLevel) { mCmdLoggerLevel = cmdLoggerLevel; }
 
-    int getCmdLoggerLevel()
-    {
-        return this->cmdLoggerLevel;
-    }
+    int getSdkLoggerLevel() const { return mSdkLoggerLevel; }
+    int getCmdLoggerLevel() const { return mCmdLoggerLevel; }
+
+    virtual int getMaxLogLevel() const { return std::max(mSdkLoggerLevel, mCmdLoggerLevel); }
+};
+
+class MegaCmdSimpleLogger final : public MegaCmdLogger
+{
+    LoggedStream &mLoggedStream;
+public:
+    MegaCmdSimpleLogger();
+
+    void log(const char *time, int loglevel, const char *source, const char *message) override;
+
+    int getMaxLogLevel() const override;
 };
 
 }//end namespace

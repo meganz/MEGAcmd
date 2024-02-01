@@ -182,19 +182,6 @@ void setCurrentPetition(CmdPetition *petition)
     threadpetition[MegaThread::currentThreadId()] = petition;
 }
 
-
-MegaCMDLogger::MegaCMDLogger()
-    : mLoggedStream(Instance<DefaultLoggedStream>::Get().getLoggedStream())
-{
-    this->sdkLoggerLevel = MegaApi::LOG_LEVEL_ERROR;
-    this->outputmutex = new std::mutex();
-}
-
-MegaCMDLogger::~MegaCMDLogger()
-{
-    delete this->outputmutex;
-}
-
 bool isMEGAcmdSource(const char *source)
 {
     //TODO: this seem to be broken. source does not have the entire path but just leaf names
@@ -206,7 +193,18 @@ bool isMEGAcmdSource(const char *source)
             || (string(source).find("megacmd") != string::npos); // added this one
 }
 
-void MegaCMDLogger::log(const char *time, int loglevel, const char *source, const char *message)
+MegaCmdSimpleLogger::MegaCmdSimpleLogger() :
+    MegaCmdLogger(),
+    mLoggedStream(Instance<DefaultLoggedStream>::Get().getLoggedStream())
+{
+}
+
+int MegaCmdSimpleLogger::getMaxLogLevel() const
+{
+    return std::max(getCurrentThreadLogLevel(), MegaCmdLogger::getMaxLogLevel());
+}
+
+void MegaCmdSimpleLogger::log(const char *time, int loglevel, const char *source, const char *message)
 {
     // If comming from this logger current thread
     bool outputIsAlreadyOUTSTREAM = &OUTSTREAM == &mLoggedStream;
@@ -224,6 +222,9 @@ void MegaCMDLogger::log(const char *time, int loglevel, const char *source, cons
 
         return loglevel <= currentThreadLogLevel;
     };
+
+    const int sdkLoggerLevel = getSdkLoggerLevel();
+    const int cmdLoggerLevel = getCmdLoggerLevel();
 
     if (isMEGAcmdSource(source))
     {
@@ -274,11 +275,6 @@ void MegaCMDLogger::log(const char *time, int loglevel, const char *source, cons
             OUTSTREAM << "[API:" << SimpleLogger::toStr(LogLevel(loglevel)) << ": " << time << "] " << message << endl;
         }
     }
-}
-
-int MegaCMDLogger::getMaxLogLevel()
-{
-    return max(max(getCurrentThreadLogLevel(), cmdLoggerLevel), sdkLoggerLevel);
 }
 
 OUTFSTREAMTYPE streamForDefaultFile()

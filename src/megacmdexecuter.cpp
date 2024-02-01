@@ -149,7 +149,7 @@ void MegaCmdExecuter::updateprompt(MegaApi *api)
     changeprompt(newprompt.c_str());
 }
 
-MegaCmdExecuter::MegaCmdExecuter(MegaApi *api, MegaCMDLogger *loggerCMD, MegaCmdSandbox *sandboxCMD) :
+MegaCmdExecuter::MegaCmdExecuter(MegaApi *api, MegaCmdLogger *loggerCMD, MegaCmdSandbox *sandboxCMD) :
     // Give a few seconds in order for key sharing to happen
     mDeferredSharedFoldersVerifier(std::chrono::seconds(5))
 {

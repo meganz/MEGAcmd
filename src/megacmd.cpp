@@ -117,7 +117,7 @@ std::vector<MegaApi *> occupiedapiFolders;
 MegaSemaphore semaphoreapiFolders;
 std::mutex mutexapiFolders;
 
-MegaCMDLogger *loggerCMD;
+MegaCmdLogger *loggerCMD;
 
 std::mutex mutexEndedPetitionThreads;
 std::vector<std::unique_ptr<MegaThread>> petitionThreads;
@@ -4987,7 +4987,7 @@ int executeServer(int argc, char* argv[],
 
     // Establish the logger
     SimpleLogger::setLogLevel(logMax); // do not filter anything here, log level checking is done by loggerCMD
-    loggerCMD = new MegaCMDLogger();
+    loggerCMD = new MegaCmdSimpleLogger();
     loggerCMD->setSdkLoggerLevel(sdkLogLevel);
     loggerCMD->setCmdLoggerLevel(cmdLogLevel);
 
