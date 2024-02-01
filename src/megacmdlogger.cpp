@@ -37,149 +37,109 @@
 using namespace mega;
 
 namespace megacmd {
-// different outstreams for every thread. to gather all the output data
-std::mutex threadLookups;
-map<uint64_t, LoggedStream *> outstreams;
-map<uint64_t, int> threadLogLevel;
-map<uint64_t, int> threadoutCode;
-map<uint64_t, CmdPetition *> threadpetition;
-map<uint64_t, bool> threadIsCmdShell;
 
-LoggedStream &getCurrentOut()
+ThreadLookupTable::ThreadData::ThreadData() :
+    outStream(&Instance<DefaultLoggedStream>::Get().getLoggedStream()),
+    logLevel(-1),
+    outCode(0),
+    cmdPetition(nullptr),
+    isCmdShell(false)
 {
-    std::lock_guard<std::mutex> g(threadLookups);
-    uint64_t currentThread = MegaThread::currentThreadId();
-    if (outstreams.find(currentThread) == outstreams.end())
-    {
-        return Instance<DefaultLoggedStream>::Get().getLoggedStream();
-    }
-    else
-    {
-        return *outstreams[currentThread];
-    }
 }
 
-bool interactiveThread()
+ThreadLookupTable::ThreadData ThreadLookupTable::getThreadData(uint64_t id) const
 {
-    if (getCurrentThreadIsCmdShell())
+    std::lock_guard<std::mutex> lock(mMapMutex);
+    auto it = mThreadMap.find(id);
+    if (it == mThreadMap.end())
+    {
+        return {};
+    }
+    return it->second;
+}
+
+ThreadLookupTable::ThreadData ThreadLookupTable::getCurrentThreadData() const
+{
+    return getThreadData(MegaThread::currentThreadId());
+}
+
+bool ThreadLookupTable::threadDataExists(uint64_t id) const
+{
+    std::lock_guard<std::mutex> lock(mMapMutex);
+    return (mThreadMap.find(id) != mThreadMap.end());
+}
+
+LoggedStream& ThreadLookupTable::getCurrentOutStream() const
+{
+    return *getCurrentThreadData().outStream;
+}
+
+int ThreadLookupTable::getCurrentLogLevel() const
+{
+    return getCurrentThreadData().logLevel;
+}
+
+int ThreadLookupTable::getCurrentOutCode() const
+{
+    return getCurrentThreadData().outCode;
+}
+
+CmdPetition* ThreadLookupTable::getCurrentCmdPetition() const
+{
+    return getCurrentThreadData().cmdPetition;
+}
+
+bool ThreadLookupTable::isCurrentCmdShell() const
+{
+    return getCurrentThreadData().isCmdShell;
+}
+
+void ThreadLookupTable::setCurrentOutStream(LoggedStream &outStream)
+{
+    std::lock_guard<std::mutex> lock(mMapMutex);
+    mThreadMap[MegaThread::currentThreadId()].outStream = &outStream;
+}
+
+void ThreadLookupTable::setCurrentLogLevel(int logLevel)
+{
+    std::lock_guard<std::mutex> lock(mMapMutex);
+    mThreadMap[MegaThread::currentThreadId()].logLevel = logLevel;
+}
+
+void ThreadLookupTable::setCurrentOutCode(int outCode)
+{
+    std::lock_guard<std::mutex> lock(mMapMutex);
+    mThreadMap[MegaThread::currentThreadId()].outCode = outCode;
+}
+
+void ThreadLookupTable::setCurrentCmdPetition(CmdPetition *cmdPetition)
+{
+    std::lock_guard<std::mutex> lock(mMapMutex);
+    mThreadMap[MegaThread::currentThreadId()].cmdPetition = cmdPetition;
+}
+
+void ThreadLookupTable::setCurrentIsCmdShell(bool isCmdShell)
+{
+    std::lock_guard<std::mutex> lock(mMapMutex);
+    mThreadMap[MegaThread::currentThreadId()].isCmdShell = isCmdShell;
+}
+
+bool ThreadLookupTable::isCurrentThreadInteractive() const
+{
+    if (isCurrentCmdShell())
     {
         return true;
     }
-
-    unsigned long long currentThread = MegaThread::currentThreadId();
-
-    std::lock_guard<std::mutex> g(threadLookups);
-    if (outstreams.find(currentThread) == outstreams.end())
-    {
-        return true;
-    }
-    else
-    {
-        return false;
-    }
+    return !threadDataExists(MegaThread::currentThreadId());
 }
 
-const char *commandPrefixBasedOnMode()
+const char* ThreadLookupTable::getModeCommandPrefix() const
 {
-    if (interactiveThread())
+    if (isCurrentThreadInteractive())
     {
         return "";
     }
-    else
-    {
-        return "mega-";
-    }
-}
-
-int getCurrentOutCode()
-{
-    unsigned long long currentThread = MegaThread::currentThreadId();
-
-    std::lock_guard<std::mutex> g(threadLookups);
-    if (threadoutCode.find(currentThread) == threadoutCode.end())
-    {
-        return 0; //default OK
-    }
-    else
-    {
-        return threadoutCode[currentThread];
-    }
-}
-
-
-CmdPetition * getCurrentPetition()
-{
-    unsigned long long currentThread = MegaThread::currentThreadId();
-
-    std::lock_guard<std::mutex> g(threadLookups);
-    if (threadpetition.find(currentThread) == threadpetition.end())
-    {
-        return NULL;
-    }
-    else
-    {
-        return threadpetition[currentThread];
-    }
-}
-
-int getCurrentThreadLogLevel()
-{
-    unsigned long long currentThread = MegaThread::currentThreadId();
-
-    std::lock_guard<std::mutex> g(threadLookups);
-    if (threadLogLevel.find(currentThread) == threadLogLevel.end())
-    {
-        return -1;
-    }
-    else
-    {
-        return threadLogLevel[currentThread];
-    }
-}
-
-bool getCurrentThreadIsCmdShell()
-{
-    unsigned long long currentThread = MegaThread::currentThreadId();
-
-    std::lock_guard<std::mutex> g(threadLookups);
-    if (threadIsCmdShell.find(currentThread) == threadIsCmdShell.end())
-    {
-        return false; //default not
-    }
-    else
-    {
-        return threadIsCmdShell[currentThread];
-    }
-}
-
-void setCurrentThreadLogLevel(int level)
-{
-    std::lock_guard<std::mutex> g(threadLookups);
-    threadLogLevel[MegaThread::currentThreadId()] = level;
-}
-
-void setCurrentThreadOutStream(LoggedStream *s)
-{
-    std::lock_guard<std::mutex> g(threadLookups);
-    outstreams[MegaThread::currentThreadId()] = s;
-}
-
-void setCurrentThreadIsCmdShell(bool isit)
-{
-    std::lock_guard<std::mutex> g(threadLookups);
-    threadIsCmdShell[MegaThread::currentThreadId()] = isit;
-}
-
-void setCurrentOutCode(int outCode)
-{
-    std::lock_guard<std::mutex> g(threadLookups);
-    threadoutCode[MegaThread::currentThreadId()] = outCode;
-}
-
-void setCurrentPetition(CmdPetition *petition)
-{
-    std::lock_guard<std::mutex> g(threadLookups);
-    threadpetition[MegaThread::currentThreadId()] = petition;
+    return "mega-";
 }
 
 bool isMEGAcmdSource(const char *source)

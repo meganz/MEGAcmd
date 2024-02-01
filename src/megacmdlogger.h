@@ -22,10 +22,11 @@
 #include "megacmd.h"
 #include "comunicationsmanager.h"
 
-#define OUTSTREAM getCurrentOut()
+#define OUTSTREAM Instance<ThreadLookupTable>::Get().getCurrentOutStream()
 
 namespace megacmd {
-class LoggedStream {
+class LoggedStream
+{
 public:
     LoggedStream(){out = NULL;}
     LoggedStream(OUTSTREAMTYPE *_out):out(_out){
@@ -52,7 +53,8 @@ protected:
   OUTSTREAMTYPE * out;
 };
 
-class LoggedStreamNull : public LoggedStream {
+class LoggedStreamNull : public LoggedStream
+{
 public:
   const LoggedStream& operator<<(const char& v) const override { return *this; }
   const LoggedStream& operator<<(const char* v) const override { return *this; }
@@ -128,7 +130,8 @@ public:
     virtual ~LoggedStreamDefaultFile() = default;
 };
 
-class LoggedStreamPartialOutputs : public LoggedStream{
+class LoggedStreamPartialOutputs : public LoggedStream
+{
 public:
 
   LoggedStreamPartialOutputs(ComunicationsManager *_cm, CmdPetition *_inf):cm(_cm),inf(_inf){}
@@ -162,22 +165,56 @@ protected:
   ComunicationsManager *cm;
 };
 
-LoggedStream &getCurrentOut();
-bool interactiveThread();
-const char *commandPrefixBasedOnMode();
-void setCurrentThreadOutStream(LoggedStream *);
-int getCurrentOutCode();
-void setCurrentOutCode(int);
-int getCurrentThreadLogLevel();
-void setCurrentThreadLogLevel(int);
+class ThreadLookupTable final
+{
+    struct ThreadData
+    {
+        LoggedStream *outStream;
+        int logLevel;
+        int outCode;
+        CmdPetition *cmdPetition;
+        bool isCmdShell;
 
-CmdPetition * getCurrentPetition();
-void setCurrentPetition(CmdPetition *petition);
+        ThreadData();
+    };
 
+    mutable std::mutex mMapMutex;
+    std::map<uint64_t, ThreadData> mThreadMap;
 
-void setCurrentThreadIsCmdShell(bool isit);
-bool getCurrentThreadIsCmdShell();
+    ThreadData getThreadData(uint64_t id) const;
+    ThreadData getCurrentThreadData() const;
+    bool threadDataExists(uint64_t id) const;
 
+public:
+    LoggedStream &getCurrentOutStream() const;
+    int getCurrentLogLevel() const;
+    int getCurrentOutCode() const;
+    CmdPetition *getCurrentCmdPetition() const;
+    bool isCurrentCmdShell() const;
+
+    void setCurrentOutStream(LoggedStream &outStream);
+    void setCurrentLogLevel(int logLevel);
+    void setCurrentOutCode(int outCode);
+    void setCurrentCmdPetition(CmdPetition *cmdPetition);
+    void setCurrentIsCmdShell(bool isCmdShell);
+
+    bool isCurrentThreadInteractive() const;
+    const char* getModeCommandPrefix() const;
+};
+
+inline int getCurrentThreadLogLevel()             { return Instance<ThreadLookupTable>::Get().getCurrentLogLevel(); }
+inline int getCurrentThreadOutCode()              { return Instance<ThreadLookupTable>::Get().getCurrentOutCode(); }
+inline CmdPetition *getCurrentThreadCmdPetition() { return Instance<ThreadLookupTable>::Get().getCurrentCmdPetition(); }
+inline bool isCurrentThreadCmdShell()             { return Instance<ThreadLookupTable>::Get().isCurrentCmdShell(); }
+
+inline void setCurrentThreadOutStream(LoggedStream &outStream)    { Instance<ThreadLookupTable>::Get().setCurrentOutStream(outStream); }
+inline void setCurrentThreadOutCode(int outCode)                  { Instance<ThreadLookupTable>::Get().setCurrentOutCode(outCode); }
+inline void setCurrentThreadLogLevel(int logLevel)                { Instance<ThreadLookupTable>::Get().setCurrentLogLevel(logLevel); }
+inline void setCurrentThreadCmdPetition(CmdPetition *cmdPetition) { Instance<ThreadLookupTable>::Get().setCurrentCmdPetition(cmdPetition); }
+inline void setCurrentThreadIsCmdShell(bool isCmdShell)           { Instance<ThreadLookupTable>::Get().setCurrentIsCmdShell(isCmdShell); }
+
+inline bool isCurrentThreadInteractive()         { return Instance<ThreadLookupTable>::Get().isCurrentThreadInteractive(); }
+inline const char *getCommandPrefixBasedOnMode() { return Instance<ThreadLookupTable>::Get().getModeCommandPrefix(); }
 
 class MegaCmdLogger : public mega::MegaLogger
 {

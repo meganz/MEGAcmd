@@ -860,7 +860,7 @@ char* generic_completion(const char* text, int state, vector<string> validOption
         name = validOptions.at(list_index);
         //Notice: do not escape options for cmdshell. Plus, we won't filter here, because we don't know if the value of rl_completion_quote_chararcter of cmdshell
         // The filtering and escaping will be performed by the completion function in cmdshell
-        if (interactiveThread() && !getCurrentThreadIsCmdShell()) {
+        if (isCurrentThreadInteractive() && !isCurrentThreadCmdShell()) {
             escapeEspace(name);
         }
 
@@ -868,7 +868,7 @@ char* generic_completion(const char* text, int state, vector<string> validOption
 
         if (!( strcmp(text, ""))
                 || (( name.size() >= len ) && ( strlen(text) >= len ) &&  ( name.find(text) == 0 ) )
-                || getCurrentThreadIsCmdShell()  //do not filter if cmdshell (it will be filter there)
+                || isCurrentThreadCmdShell()  //do not filter if cmdshell (it will be filter there)
                 )
         {
             foundone = true;
@@ -909,7 +909,7 @@ char * flags_completion(const char*text, int state)
     {
         validparams.clear();
         char *saved_line = strdup(getCurrentThreadLine().c_str());
-        vector<string> words = getlistOfWords(saved_line, !getCurrentThreadIsCmdShell());
+        vector<string> words = getlistOfWords(saved_line, !isCurrentThreadCmdShell());
         free(saved_line);
         if (words.size())
         {
@@ -968,7 +968,7 @@ char * flags_value_completion(const char*text, int state)
         validValues.clear();
 
         char *saved_line = strdup(getCurrentThreadLine().c_str());
-        vector<string> words = getlistOfWords(saved_line, !getCurrentThreadIsCmdShell());
+        vector<string> words = getlistOfWords(saved_line, !isCurrentThreadCmdShell());
         free(saved_line);
         saved_line = NULL;
         if (words.size() > 1)
@@ -1060,7 +1060,7 @@ char * flags_value_completion(const char*text, int state)
 
 void unescapeifRequired(string &what)
 {
-    if (interactiveThread() ) {
+    if (isCurrentThreadInteractive() ) {
         return unescapeEspace(what);
     }
 }
@@ -1089,7 +1089,7 @@ char* remotepaths_completion(const char* text, int state, bool onlyfolders)
         validpaths = cmdexecuter->listpaths(usepcre, wildtext, onlyfolders);
 
         // we need to escape '\' to fit what's done when parsing words
-        if (!getCurrentThreadIsCmdShell())
+        if (!isCurrentThreadCmdShell())
         {
             for (int i = 0; i < (int)validpaths.size(); i++)
             {
@@ -1204,7 +1204,7 @@ char* nodeattrs_completion(const char* text, int state)
     {
         validAttrs.clear();
         char *saved_line = strdup(getCurrentThreadLine().c_str());
-        vector<string> words = getlistOfWords(saved_line, !getCurrentThreadIsCmdShell());
+        vector<string> words = getlistOfWords(saved_line, !isCurrentThreadCmdShell());
         free(saved_line);
         saved_line = NULL;
         if (words.size() > 1)
@@ -1402,7 +1402,7 @@ string getListOfCompletionValues(vector<string> words, char separator = ' ', con
     completionfunction_t * compfunction = getCompletionFunction(words);
     if (compfunction == local_completion)
     {
-        if (!interactiveThread())
+        if (!isCurrentThreadInteractive())
         {
             return "MEGACMD_USE_LOCAL_COMPLETION";
         }
@@ -1493,7 +1493,7 @@ const char * getUsageStr(const char *command)
 {
     if (!strcmp(command, "login"))
     {
-        if (interactiveThread())
+        if (isCurrentThreadInteractive())
         {
             return "login [--auth-code=XXXX] [email [password]] | exportedfolderurl#key"
                     " [--auth-key=XXXX] | passwordprotectedlink [--password=PASSWORD]"
@@ -1516,7 +1516,7 @@ const char * getUsageStr(const char *command)
     }
     if (!strcmp(command, "confirmcancel"))
     {
-        if (interactiveThread())
+        if (isCurrentThreadInteractive())
         {
             return "confirmcancel link [password]";
         }
@@ -1531,7 +1531,7 @@ const char * getUsageStr(const char *command)
     }
     if (!strcmp(command, "signup"))
     {
-        if (interactiveThread())
+        if (isCurrentThreadInteractive())
         {
             return "signup email [password] [--name=\"Your Name\"]";
         }
@@ -1542,7 +1542,7 @@ const char * getUsageStr(const char *command)
     }
     if (!strcmp(command, "confirm"))
     {
-        if (interactiveThread())
+        if (isCurrentThreadInteractive())
         {
             return "confirm link email [password]";
         }
@@ -1803,7 +1803,7 @@ const char * getUsageStr(const char *command)
     }
     if (!strcmp(command, "passwd"))
     {
-        if (interactiveThread())
+        if (isCurrentThreadInteractive())
         {
             return "passwd [-f]  [--auth-code=XXXX] [newpassword]";
         }
@@ -1988,7 +1988,7 @@ string getHelpStr(const char *command)
         os << "Options:" << endl;
         os << " --auth-code=XXXX" << "\t" << "Two-factor Authentication code. More info: https://mega.nz/blog_48" << endl;
         os << " --password=XXXX" << " \t" << "Password to decrypt password protected links (See \""
-                                             << commandPrefixBasedOnMode() << "export --help\")" << endl;
+                                             << getCommandPrefixBasedOnMode() << "export --help\")" << endl;
     }
     else if (!strcmp(command, "cancel"))
     {
@@ -2587,7 +2587,7 @@ string getHelpStr(const char *command)
         os << "              " << "\t" << "Encryption will occur nonetheless within MEGA's S4 service." << endl;
         os << " --password=PASSWORD" << "\t" << "Protects the export with a password. Passwords cannot contain \" or '." << endl;
         os << "                    " << "\t" << "A password-protected link will be printed only after exporting it." << endl;
-        os << "                    " << "\t" << "If \"" << commandPrefixBasedOnMode() << "export\" is used to print it again, it will be shown unencrypted." << endl;
+        os << "                    " << "\t" << "If \"" << getCommandPrefixBasedOnMode() << "export\" is used to print it again, it will be shown unencrypted." << endl;
         os << "                    " << "\t" << "Note: only PRO users can protect an export with a password." << endl;
         os << " --expire=TIMEDELAY" << "\t" << "Sets the expiration time of the export." << endl;
         os << "                   " << "\t" << "The time format can contain hours(h), days(d), minutes(M), seconds(s), months(m) or years(y)." << endl;
@@ -2628,14 +2628,14 @@ string getHelpStr(const char *command)
         os << " of no option selected, it will display all the shares existing " << endl;
         os << " in the tree of that path" << endl;
         os << endl;
-        os << "When sharing a folder with a user that is not a contact (see \"" << commandPrefixBasedOnMode() << "users --help\")" << endl;
+        os << "When sharing a folder with a user that is not a contact (see \"" << getCommandPrefixBasedOnMode() << "users --help\")" << endl;
         os << "  the share will be in a pending state. You can list pending shares with" << endl;
-        os << " \"share -p\". He would need to accept your invitation (see \"" << commandPrefixBasedOnMode() << "ipc\")" << endl;
+        os << " \"share -p\". He would need to accept your invitation (see \"" << getCommandPrefixBasedOnMode() << "ipc\")" << endl;
         os << endl;
-        os << "Sharing folders will require contact verification (see \"" << commandPrefixBasedOnMode() << "users --help-verify\")" << endl;
+        os << "Sharing folders will require contact verification (see \"" << getCommandPrefixBasedOnMode() << "users --help-verify\")" << endl;
         os << endl;
         os << "If someone has shared something with you, it will be listed as a root folder" << endl;
-        os << " Use \"" << commandPrefixBasedOnMode() << "mount\" to list folders shared with you" << endl;
+        os << " Use \"" << getCommandPrefixBasedOnMode() << "mount\" to list folders shared with you" << endl;
     }
     else if (!strcmp(command, "invite"))
     {
@@ -2659,9 +2659,9 @@ string getHelpStr(const char *command)
         os << " -d" << "\t" << "Rejects invitation" << endl;
         os << " -i" << "\t" << "Ignores invitation [WARNING: do not use unless you know what you are doing]" << endl;
         os << endl;
-        os << "Use \"" << commandPrefixBasedOnMode() << "invite\" to send/remove invitations to other users" << endl;
-        os << "Use \"" << commandPrefixBasedOnMode() << "showpcr\" to browse incoming/outgoing invitations" << endl;
-        os << "Use \"" << commandPrefixBasedOnMode() << "users\" to see contacts" << endl;
+        os << "Use \"" << getCommandPrefixBasedOnMode() << "invite\" to send/remove invitations to other users" << endl;
+        os << "Use \"" << getCommandPrefixBasedOnMode() << "showpcr\" to browse incoming/outgoing invitations" << endl;
+        os << "Use \"" << getCommandPrefixBasedOnMode() << "users\" to see contacts" << endl;
     }
     if (!strcmp(command, "masterkey"))
     {
@@ -2684,8 +2684,8 @@ string getHelpStr(const char *command)
         os << " --out" << "\t" << "Shows outgoing invitations" << endl;
         printTimeFormatHelp(os);
         os << endl;
-        os << "Use \"" << commandPrefixBasedOnMode() << "ipc\" to manage invitations received" << endl;
-        os << "Use \"" << commandPrefixBasedOnMode() << "users\" to see contacts" << endl;
+        os << "Use \"" << getCommandPrefixBasedOnMode() << "ipc\" to manage invitations received" << endl;
+        os << "Use \"" << getCommandPrefixBasedOnMode() << "users\" to see contacts" << endl;
     }
     else if (!strcmp(command, "users"))
     {
@@ -2707,10 +2707,10 @@ string getHelpStr(const char *command)
 
         printTimeFormatHelp(os);
         os << endl;
-        os << "Use \"" << commandPrefixBasedOnMode() << "invite\" to send/remove invitations to other users" << endl;
-        os << "Use \"" << commandPrefixBasedOnMode() << "showpcr\" to browse incoming/outgoing invitations" << endl;
-        os << "Use \"" << commandPrefixBasedOnMode() << "ipc\" to manage invitations received" << endl;
-        os << "Use \"" << commandPrefixBasedOnMode() << "users\" to see contacts" << endl;
+        os << "Use \"" << getCommandPrefixBasedOnMode() << "invite\" to send/remove invitations to other users" << endl;
+        os << "Use \"" << getCommandPrefixBasedOnMode() << "showpcr\" to browse incoming/outgoing invitations" << endl;
+        os << "Use \"" << getCommandPrefixBasedOnMode() << "ipc\" to manage invitations received" << endl;
+        os << "Use \"" << getCommandPrefixBasedOnMode() << "users\" to see contacts" << endl;
     }
     else if (!strcmp(command, "speedlimit"))
     {
@@ -2867,7 +2867,7 @@ string getHelpStr(const char *command)
         os << endl;
         os << "Notice that the session will still be active, and local caches available" << endl;
         os << "The session will be resumed when the service is restarted" << endl;
-        if (getCurrentThreadIsCmdShell())
+        if (isCurrentThreadCmdShell())
         {
             os << endl;
             os << "Be aware that this will exit both the interactive shell and the server." << endl;
@@ -3101,7 +3101,7 @@ void checkBlockStatus(bool waitcompletion = true)
 
 void executecommand(char* ptr)
 {
-    vector<string> words = getlistOfWords(ptr, !getCurrentThreadIsCmdShell());
+    vector<string> words = getlistOfWords(ptr, !isCurrentThreadCmdShell());
     if (!words.size())
     {
         return;
@@ -3142,7 +3142,7 @@ void executecommand(char* ptr)
     {
         if (!api->isFilesystemAvailable())
         {
-            setCurrentOutCode(MCMD_NOTLOGGEDIN);
+            setCurrentThreadOutCode(MCMD_NOTLOGGEDIN);
         }
         return;
     }
@@ -3175,7 +3175,7 @@ void executecommand(char* ptr)
         return;
     }
 
-    words = getlistOfWords(ptr, !getCurrentThreadIsCmdShell(), true); //Get words again ignoring trailing spaces (only reasonable for completion)
+    words = getlistOfWords(ptr, !isCurrentThreadCmdShell(), true); //Get words again ignoring trailing spaces (only reasonable for completion)
 
     map<string, string> cloptions;
     map<string, int> clflags;
@@ -3185,7 +3185,7 @@ void executecommand(char* ptr)
 
     if (setOptionsAndFlags(&cloptions, &clflags, &words, validParams, true))
     {
-        setCurrentOutCode(MCMD_EARGS);
+        setCurrentThreadOutCode(MCMD_EARGS);
         LOG_err << "      " << getUsageStr(thecommand.c_str());
         return;
     }
@@ -3194,7 +3194,7 @@ void executecommand(char* ptr)
 
     if (!validCommand(thecommand))   //unknown command
     {
-        setCurrentOutCode(MCMD_EARGS);
+        setCurrentThreadOutCode(MCMD_EARGS);
         if (loginInAtStartup)
         {
             LOG_err << "Command not valid while login in: " << thecommand;
@@ -3208,7 +3208,7 @@ void executecommand(char* ptr)
 
     if (setOptionsAndFlags(&cloptions, &clflags, &words, validParams))
     {
-        setCurrentOutCode(MCMD_EARGS);
+        setCurrentThreadOutCode(MCMD_EARGS);
         LOG_err << "      " << getUsageStr(thecommand.c_str());
         return;
     }
@@ -3244,7 +3244,7 @@ void executecommand(char* ptr)
                  }
                  else
                  {
-                     setCurrentOutCode(MCMD_EUNEXPECTED);
+                     setCurrentThreadOutCode(MCMD_EUNEXPECTED);
                      LOG_warn << "Unable to get session transfer url: " << megaCmdListener->getError()->getErrorString();
                  }
                  delete megaCmdListener;
@@ -3606,7 +3606,7 @@ bool restartServer()
 #endif
 
     LOG_debug << "Server restarted, indicating the shell to restart also";
-    setCurrentOutCode(MCMD_REQRESTART);
+    setCurrentThreadOutCode(MCMD_REQRESTART);
 
     string s = "restart";
     cm->informStateListeners(s);
@@ -3627,7 +3627,7 @@ bool isBareCommand(const char *l, const string &command)
         return false;
     }
 
-   vector<string> words = getlistOfWords((char *)l, !getCurrentThreadIsCmdShell());
+   vector<string> words = getlistOfWords((char *)l, !isCurrentThreadCmdShell());
    for (int i = 1; i<words.size(); i++)
    {
        if (words[i].empty()) continue;
@@ -3815,10 +3815,10 @@ void * doProcessLine(void *pointer)
     OUTSTRINGSTREAM s;
 
     setCurrentThreadLogLevel(MegaApi::LOG_LEVEL_ERROR);
-    setCurrentOutCode(MCMD_OK);
-    setCurrentPetition(inf);
+    setCurrentThreadOutCode(MCMD_OK);
+    setCurrentThreadCmdPetition(inf);
     LoggedStreamPartialOutputs ls(cm, inf);
-    setCurrentThreadOutStream(&ls);
+    setCurrentThreadOutStream(ls);
 
     bool isInteractive = false;
 
@@ -3855,12 +3855,12 @@ void * doProcessLine(void *pointer)
     }
     else
     {
-        cm->returnAndClosePetition(inf, &s, getCurrentOutCode());
+        cm->returnAndClosePetition(inf, &s, getCurrentThreadOutCode());
     }
 
     semaphoreClients.release();
 
-    if (doExit && (!interactiveThread() || getCurrentThreadIsCmdShell() ))
+    if (doExit && (!isCurrentThreadInteractive() || isCurrentThreadCmdShell() ))
     {
         cm->stopWaiting();
     }
@@ -3874,7 +3874,7 @@ void * doProcessLine(void *pointer)
 
 int askforConfirmation(string message)
 {
-    CmdPetition *inf = getCurrentPetition();
+    CmdPetition *inf = getCurrentThreadCmdPetition();
     if (inf)
     {
         return cm->getConfirmation(inf,message);
@@ -3896,7 +3896,7 @@ bool booleanAskForConfirmation(string messageHeading)
 
 string askforUserResponse(string message)
 {
-    CmdPetition *inf = getCurrentPetition();
+    CmdPetition *inf = getCurrentThreadCmdPetition();
     if (inf)
     {
         return cm->getUserResponse(inf,message);
@@ -4949,8 +4949,9 @@ int executeServer(int argc, char* argv[],
                   int sdkLogLevel, int cmdLogLevel,
                   bool skiplockcheck, std::string debug_api_url, bool disablepkp)
 {
-
-    Instance<DefaultLoggedStream> sDefaultLoggedStream; // own the default one here
+    // Own global server instances here
+    Instance<DefaultLoggedStream> sDefaultLoggedStream;
+    Instance<ThreadLookupTable> sThreadLookupTable;
 
 #ifdef __linux__
     // Ensure interesting signals are unblocked.
