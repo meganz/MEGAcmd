@@ -66,7 +66,7 @@ ThreadLookupTable::ThreadData ThreadLookupTable::getCurrentThreadData() const
 bool ThreadLookupTable::threadDataExists(uint64_t id) const
 {
     std::lock_guard<std::mutex> lock(mMapMutex);
-    return (mThreadMap.find(id) != mThreadMap.end());
+    return mThreadMap.find(id) != mThreadMap.end();
 }
 
 LoggedStream& ThreadLookupTable::getCurrentOutStream() const
@@ -142,15 +142,78 @@ const char* ThreadLookupTable::getModeCommandPrefix() const
     return "mega-";
 }
 
-bool isMEGAcmdSource(const char *source)
+MegaCmdLogger::MegaCmdLogger() :
+    mSdkLoggerLevel(mega::MegaApi::LOG_LEVEL_ERROR),
+    mCmdLoggerLevel(mega::MegaApi::LOG_LEVEL_ERROR)
+{
+}
+
+bool MegaCmdLogger::isMegaCmdSource(const std::string &source)
 {
     //TODO: this seem to be broken. source does not have the entire path but just leaf names
-    return (string(source).find("src/megacmd") != string::npos)
-            || (string(source).find("src\\megacmd") != string::npos)
-            || (string(source).find("listeners.cpp") != string::npos)
-            || (string(source).find("configurationmanager.cpp") != string::npos)
-            || (string(source).find("comunicationsmanager") != string::npos)
-            || (string(source).find("megacmd") != string::npos); // added this one
+    return source.find("src/megacmd") != string::npos ||
+           source.find("src\\megacmd") != string::npos ||
+           source.find("listeners.cpp") != string::npos ||
+           source.find("configurationmanager.cpp") != string::npos ||
+           source.find("comunicationsmanager") != string::npos ||
+           source.find("megacmd") != string::npos;
+}
+
+void MegaCmdLogger::formatLogToStream(LoggedStream &stream, const char *time, int logLevel, const char *source, const char *message)
+{
+    stream << "[";
+    if (!isMegaCmdSource(source))
+    {
+        stream << "API:";
+    }
+    stream << SimpleLogger::toStr(LogLevel(logLevel)) << ": " << time << "] " << message << endl;
+}
+
+bool MegaCmdLogger::shouldIgnoreMessage(int logLevel, const char *source, const char *message) const
+{
+    UNUSED(logLevel);
+
+    if (!isMegaCmdSource(source))
+    {
+        const int sdkLoggerLevel = getSdkLoggerLevel();
+        if (sdkLoggerLevel <= MegaApi::LOG_LEVEL_DEBUG && !strcmp(message, "Request (RETRY_PENDING_CONNECTIONS) starting"))
+        {
+            return true;
+        }
+        if (sdkLoggerLevel <= MegaApi::LOG_LEVEL_DEBUG && !strcmp(message, "Request (RETRY_PENDING_CONNECTIONS) finished"))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool MegaCmdSimpleLogger::shouldLogToStream(int logLevel, const char* source) const
+{
+    if (isMegaCmdSource(source))
+    {
+        return logLevel <= getCmdLoggerLevel();
+    }
+    return logLevel <= getSdkLoggerLevel();
+}
+
+bool MegaCmdSimpleLogger::shouldLogToClient(int logLevel, const char* source) const
+{
+    // If comming from this logger current thread
+    if (&OUTSTREAM == &mLoggedStream)
+    {
+        return false;
+    }
+
+    const int defaultLogLevel = isMegaCmdSource(source) ? getCmdLoggerLevel() : getSdkLoggerLevel();
+
+    int currentThreadLogLevel = getCurrentThreadLogLevel();
+    if (currentThreadLogLevel < 0) // this thread has no log level assigned
+    {
+        currentThreadLogLevel = defaultLogLevel;
+    }
+
+    return logLevel <= currentThreadLogLevel;
 }
 
 MegaCmdSimpleLogger::MegaCmdSimpleLogger() :
@@ -164,76 +227,30 @@ int MegaCmdSimpleLogger::getMaxLogLevel() const
     return std::max(getCurrentThreadLogLevel(), MegaCmdLogger::getMaxLogLevel());
 }
 
-void MegaCmdSimpleLogger::log(const char *time, int loglevel, const char *source, const char *message)
+void MegaCmdSimpleLogger::log(const char *time, int logLevel, const char *source, const char *message)
 {
-    // If comming from this logger current thread
-    bool outputIsAlreadyOUTSTREAM = &OUTSTREAM == &mLoggedStream;
-    auto needsLoggingToClient = [outputIsAlreadyOUTSTREAM, loglevel](int defaultLogLevel)
+    if (shouldIgnoreMessage(logLevel, source, message))
     {
-        if (outputIsAlreadyOUTSTREAM)
-        {
-            return false;
-        }
-        int currentThreadLogLevel = getCurrentThreadLogLevel();
-        if (currentThreadLogLevel < 0) // this thread has no log level assigned
-        {
-            currentThreadLogLevel = defaultLogLevel; // use CMD's level
-        }
-
-        return loglevel <= currentThreadLogLevel;
-    };
-
-    const int sdkLoggerLevel = getSdkLoggerLevel();
-    const int cmdLoggerLevel = getCmdLoggerLevel();
-
-    if (isMEGAcmdSource(source))
-    {
-        if (loglevel <= cmdLoggerLevel)
-        {
-#ifdef _WIN32
-            std::lock_guard<std::mutex> g(*outputmutex);
-            int oldmode;
-            oldmode = _setmode(_fileno(stdout), _O_U8TEXT);
-            mLoggedStream << "[" << SimpleLogger::toStr(LogLevel(loglevel)) << ": " << time << "] " << message << endl;
-            _setmode(_fileno(stdout), oldmode);
-#else
-            mLoggedStream << "[" << SimpleLogger::toStr(LogLevel(loglevel)) << ": " << time << "] " << message << endl;
-#endif
-        }
-
-        if (needsLoggingToClient(cmdLoggerLevel))
-        {
-            OUTSTREAM << "[" << SimpleLogger::toStr(LogLevel(loglevel)) << ": " << time << "] " << message << endl;
-        }
+        return;
     }
-    else // SDK's
-    {
-        if (loglevel <= sdkLoggerLevel)
-        {
-            if (( sdkLoggerLevel <= MegaApi::LOG_LEVEL_DEBUG ) && !strcmp(message, "Request (RETRY_PENDING_CONNECTIONS) starting"))
-            {
-                return;
-            }
-            if (( sdkLoggerLevel <= MegaApi::LOG_LEVEL_DEBUG ) && !strcmp(message, "Request (RETRY_PENDING_CONNECTIONS) finished"))
-            {
-                return;
-            }
-#ifdef _WIN32
-            std::lock_guard<std::mutex> g(*outputmutex);
-            int oldmode;
-            oldmode = _setmode(_fileno(stdout), _O_U8TEXT);
-            mLoggedStream << "[API:" << SimpleLogger::toStr(LogLevel(loglevel)) << ": " << time << "] " << message << endl;
-            _setmode(_fileno(stdout), oldmode);
-#else
-            mLoggedStream << "[API:" << SimpleLogger::toStr(LogLevel(loglevel)) << ": " << time << "] " << message << endl;
-#endif
-        }
 
-        if (needsLoggingToClient(sdkLoggerLevel))
-        {
-            assert(false); //since it happens in the sdk thread, this shall be false
-            OUTSTREAM << "[API:" << SimpleLogger::toStr(LogLevel(loglevel)) << ": " << time << "] " << message << endl;
-        }
+    if (shouldLogToStream(logLevel, source))
+    {
+#ifdef _WIN32
+        std::lock_guard<std::mutex> g(mOutputMutex);
+        int oldmode = _setmode(_fileno(stdout), _O_U8TEXT);
+#endif
+        formatLogToStream(mLoggedStream, time, logLevel, source, message);
+
+#ifdef _WIN32
+        _setmode(_fileno(stdout), oldmode);
+#endif
+    }
+
+    if (shouldLogToClient(logLevel, source))
+    {
+        assert(isMegaCmdSource(source)); // if this happens in the sdk thread, this shall be false
+        formatLogToStream(OUTSTREAM, time, logLevel, source, message);
     }
 }
 

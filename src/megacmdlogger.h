@@ -161,8 +161,8 @@ public:
   virtual ~LoggedStreamPartialOutputs() = default;
 
 protected:
-  CmdPetition *inf;
   ComunicationsManager *cm;
+  CmdPetition *inf;
 };
 
 class ThreadLookupTable final
@@ -220,13 +220,15 @@ class MegaCmdLogger : public mega::MegaLogger
 {
     int mSdkLoggerLevel;
     int mCmdLoggerLevel;
-public:
-    MegaCmdLogger() :
-        mSdkLoggerLevel(mega::MegaApi::LOG_LEVEL_ERROR),
-        mCmdLoggerLevel(mega::MegaApi::LOG_LEVEL_ERROR)
-    {
-    }
 
+protected:
+    static bool isMegaCmdSource(const std::string &source);
+    static void formatLogToStream(LoggedStream& stream, const char *time, int logLevel, const char *source, const char *message);
+
+    bool shouldIgnoreMessage(int logLevel, const char *source, const char *message) const;
+
+public:
+    MegaCmdLogger();
     virtual ~MegaCmdLogger() = default;
 
     virtual void log(const char *time, int loglevel, const char *source, const char *message) override = 0;
@@ -242,7 +244,14 @@ public:
 
 class MegaCmdSimpleLogger final : public MegaCmdLogger
 {
+#ifdef _WIN32
+    std::mutex mOutputMutex;
+#endif
     LoggedStream &mLoggedStream;
+
+    bool shouldLogToStream(int logLevel, const char *source) const;
+    bool shouldLogToClient(int logLevel, const char *source) const;
+
 public:
     MegaCmdSimpleLogger();
 
