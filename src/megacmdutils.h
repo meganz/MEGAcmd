@@ -27,9 +27,6 @@
 namespace megacmd {
 using ::mega::m_time_t;
 
-/* mega::MegaNode info extracting*/
-void getNumFolderFiles(mega::MegaNode *, mega::MegaApi *, long long *nfiles, long long *nfolders);
-
 std::string getUserInSharedNode(mega::MegaNode *n, mega::MegaApi *api);
 
 
