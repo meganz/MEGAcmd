@@ -41,6 +41,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     libzen0v5 \
     zlib1g \
     gpg \
+    rsync \
     /tmp/pdfium/pdfium-mega.deb
 
 FROM base as build-deps
@@ -107,3 +108,5 @@ FROM base as final
 
 ENV LD_LIBRARY_PATH /usr/local/lib
 COPY --from=build /usr/local/ /usr/local/
+COPY --from=src /usr/src/megacmd/tests/*.py /usr/local/bin/
+COPY --from=src /usr/src/megacmd/tests/*.sh /usr/local/bin/
