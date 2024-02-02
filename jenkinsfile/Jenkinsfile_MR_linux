@@ -128,7 +128,32 @@ pipeline {
                 }
             }
         }
-
+	stage('Run legacy MEGAcmd integration test') {
+	    matrix {
+		axes {
+		    axis {
+			name 'TEST_SCRIPTS'
+			// megacmd_get_test.sh is disabled for now, as it needs two MEGA accounts
+			values 'megacmd_find_test.sh', 'megacmd_put_test.sh', 'megacmd_rm_test.sh'
+		    }
+		}
+		stages{
+		    stage('Run MEGAcmd integration test scripts') {
+			environment{
+			    MEGA_EMAIL=''
+			    MEGA_PWD=credentials('MEGACMD_TESTS_PASSWORD')
+			}
+			steps{
+			    lock(label: 'testing_accounts_megacmd', variable: 'MEGACMD_TEST_USER', quantity: 1, resource: null){
+				script {
+				    sh "docker run --user \$(id -u):\$(id -g) --env HOME=/tmp --env MEGA_EMAIL --env MEGA_PWD --rm -- meganz/megacmd-autotools-ubsan:${env.BUILD_NUMBER} /usr/bin/bash -c '/usr/local/bin/mega-cmd-server > /dev/null & sleep 5 && mkdir /tmp/tests && cd /tmp/tests && bash -x /usr/local/bin/${TEST_SCRIPTS}'"
+				}
+			    }
+			}
+		    }
+		}
+	    }
+	}
         stage('Test MEGAcmd') {
             matrix {
                 axes {
@@ -199,32 +224,6 @@ pipeline {
                 }
             }
         }
-	stage('Run legacy MEGAcmd integration test') {
-	    matrix {
-		axes {
-		    axis {
-			name 'TEST_SCRIPTS'
-			// megacmd_get_test.sh is disabled for now, as it needs two MEGA accounts
-			values 'megacmd_find_test.sh', 'megacmd_put_test.sh', 'megacmd_rm_test.sh'
-		    }
-		}
-		stages{
-		    stage('Run MEGAcmd integration test scripts') {
-			environment{
-			    MEGA_EMAIL=''
-			    MEGA_PWD=credentials('MEGACMD_TESTS_PASSWORD')
-			}
-			steps{
-			    lock(label: 'testing_accounts_megacmd', variable: 'MEGACMD_TEST_USER', quantity: 1, resource: null){
-				script {
-				    sh "docker run --user \$(id -u):\$(id -g) --env HOME=/tmp --env MEGA_EMAIL --env MEGA_PWD --rm -- meganz/megacmd-autotools-ubsan:${env.BUILD_NUMBER} /usr/bin/bash -c '/usr/local/bin/mega-cmd-server > /dev/null & sleep 5 && mkdir /tmp/tests && cd /tmp/tests && bash -x /usr/local/bin/${TEST_SCRIPTS}'"
-				}
-			    }
-			}
-		    }
-		}
-	    }
-	}
     }
 
     post{
