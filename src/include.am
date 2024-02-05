@@ -38,8 +38,8 @@ endif
 noinst_LTLIBRARIES += src/libmegacmdserver.la
 src_libmegacmdserver_la_LDFLAGS=
 
-noinst_HEADERS += src/comunicationsmanager.h src/configurationmanager.h src/megacmd.h src/megacmdlogger.h src/megacmdsandbox.h src/megacmdutils.h src/megacmdcommonutils.h src/listeners.h src/megacmdexecuter.h src/deferred_single_trigger.h src/megacmd_events.h src/megacmdtransfermanager.h src/megacmdversion.h src/megacmdplatform.h src/comunicationsmanagerportsockets.h
-src_libmegacmdserver_la_SOURCES = src/megacmd.cpp src/megacmd_server_main.cpp src/comunicationsmanager.cpp src/megacmdutils.cpp src/megacmdcommonutils.cpp src/configurationmanager.cpp src/megacmdlogger.cpp src/megacmdsandbox.cpp src/listeners.cpp src/megacmdexecuter.cpp src/megacmd_events.cpp src/megacmdtransfermanager.cpp src/comunicationsmanagerportsockets.cpp
+noinst_HEADERS += src/comunicationsmanager.h src/configurationmanager.h src/megacmd.h src/megacmdlogger.h src/megacmdsandbox.h src/megacmdutils.h src/megacmdcommonutils.h src/listeners.h src/megacmdexecuter.h src/megacmd_rotating_logger.h src/deferred_single_trigger.h src/megacmd_events.h src/megacmdtransfermanager.h src/megacmdversion.h src/megacmdplatform.h src/comunicationsmanagerportsockets.h
+src_libmegacmdserver_la_SOURCES = src/megacmd.cpp src/megacmd_server_main.cpp src/comunicationsmanager.cpp src/megacmdutils.cpp src/megacmdcommonutils.cpp src/configurationmanager.cpp src/megacmdlogger.cpp src/megacmdsandbox.cpp src/listeners.cpp src/megacmdexecuter.cpp src/megacmd_rotating_logger.cpp src/megacmd_events.cpp src/megacmdtransfermanager.cpp src/comunicationsmanagerportsockets.cpp
 src_libmegacmdserver_la_CXXFLAGS = $(LMEGAINC) $(DB_CXXFLAGS)
 
 if USE_PCRE

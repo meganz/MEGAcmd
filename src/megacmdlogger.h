@@ -49,6 +49,8 @@ public:
     virtual const LoggedStream& operator<<(std::ios_base *v) const = 0;
 
     virtual LoggedStream const& operator<<(OUTSTREAMTYPE& (*F)(OUTSTREAMTYPE&)) const = 0;
+
+    virtual void flush() {}
 protected:
   OUTSTREAMTYPE * out;
 };
@@ -118,6 +120,7 @@ public:
   virtual LoggedStream const& operator<<(OUTSTREAMTYPE& (*F)(OUTSTREAMTYPE&)) const override { if (out) F(*out); return *this; }
 
   virtual ~LoggedStreamOutStream() = default;
+  virtual void flush() override { out->flush(); }
 protected:
   OUTSTREAMTYPE * out;
 };
@@ -220,11 +223,12 @@ class MegaCmdLogger : public mega::MegaLogger
 {
     int mSdkLoggerLevel;
     int mCmdLoggerLevel;
+    int mFlushOnLevel;
 
 protected:
     static bool isMegaCmdSource(const std::string &source);
-    static void formatLogToStream(LoggedStream& stream, const char *time, int logLevel, const char *source, const char *message);
 
+    void formatLogToStream(LoggedStream& stream, const char *time, int logLevel, const char *source, const char *message);
     bool shouldIgnoreMessage(int logLevel, const char *source, const char *message) const;
 
 public:
@@ -235,11 +239,15 @@ public:
 
     void setSdkLoggerLevel(int sdkLoggerLevel) { mSdkLoggerLevel = sdkLoggerLevel; }
     void setCmdLoggerLevel(int cmdLoggerLevel) { mCmdLoggerLevel = cmdLoggerLevel; }
+    void setFlushOnLevel(int flushOnLevel)     { mFlushOnLevel = flushOnLevel; }
 
     int getSdkLoggerLevel() const { return mSdkLoggerLevel; }
     int getCmdLoggerLevel() const { return mCmdLoggerLevel; }
+    int getFlushOnLevel()   const { return mFlushOnLevel; }
 
     virtual int getMaxLogLevel() const { return std::max(mSdkLoggerLevel, mCmdLoggerLevel); }
+
+    static OUTSTRING getDefaultFilePath();
 };
 
 class MegaCmdSimpleLogger final : public MegaCmdLogger

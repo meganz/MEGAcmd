@@ -144,8 +144,45 @@ const char* ThreadLookupTable::getModeCommandPrefix() const
 
 MegaCmdLogger::MegaCmdLogger() :
     mSdkLoggerLevel(mega::MegaApi::LOG_LEVEL_ERROR),
-    mCmdLoggerLevel(mega::MegaApi::LOG_LEVEL_ERROR)
+    mCmdLoggerLevel(mega::MegaApi::LOG_LEVEL_ERROR),
+    mFlushOnLevel(mega::MegaApi::LOG_LEVEL_WARNING)
 {
+}
+
+OUTSTRING MegaCmdLogger::getDefaultFilePath()
+{
+    //TODO: get this one from new dirs folders utilities (pending CMD-307) and refactor the .log retrieval
+
+    OUTSTRING path;
+#ifdef _WIN32
+    TCHAR szPath[MAX_PATH];
+     if (!SUCCEEDED(GetModuleFileName(NULL, szPath , MAX_PATH)))
+     {
+         LOG_fatal << "Couldnt get EXECUTABLE folder";
+     }
+     else
+     {
+         if (SUCCEEDED(PathRemoveFileSpec(szPath)))
+         {
+             if (PathAppend(szPath,TEXT(".megaCmd")))
+             {
+                 if (PathAppend(szPath,TEXT("megacmdserver.log")))
+                 {
+                     path = szPath;
+                 }
+             }
+         }
+     }
+#else
+    const char* home = getenv("HOME");
+    if (home)
+    {
+        path.append(home);
+        path.append("/.megaCmd/");
+        path.append("/megacmdserver.log");
+    }
+#endif
+    return path;
 }
 
 bool MegaCmdLogger::isMegaCmdSource(const std::string &source)
@@ -166,7 +203,12 @@ void MegaCmdLogger::formatLogToStream(LoggedStream &stream, const char *time, in
     {
         stream << "API:";
     }
-    stream << SimpleLogger::toStr(LogLevel(logLevel)) << ": " << time << "] " << message << endl;
+    stream << SimpleLogger::toStr(LogLevel(logLevel)) << ": " << time << "] " << message << '\n';
+
+    if (logLevel <= mFlushOnLevel)
+    {
+        stream.flush();
+    }
 }
 
 bool MegaCmdLogger::shouldIgnoreMessage(int logLevel, const char *source, const char *message) const
@@ -254,46 +296,8 @@ void MegaCmdSimpleLogger::log(const char *time, int logLevel, const char *source
     }
 }
 
-OUTFSTREAMTYPE streamForDefaultFile()
-{
-    //TODO: get this one from new dirs folders utilities (pending CMD-307) and refactor the .log retrieval
-
-    OUTSTRING path;
-#ifdef _WIN32
-
-    TCHAR szPath[MAX_PATH];
-     if (!SUCCEEDED(GetModuleFileName(NULL, szPath , MAX_PATH)))
-     {
-         LOG_fatal << "Couldnt get EXECUTABLE folder";
-     }
-     else
-     {
-         if (SUCCEEDED(PathRemoveFileSpec(szPath)))
-         {
-             if (PathAppend(szPath,TEXT(".megaCmd")))
-             {
-                 if (PathAppend(szPath,TEXT("megacmdserver.log")))
-                 {
-                     path = szPath;
-                 }
-             }
-         }
-     }
-#else
-    const char* home = getenv("HOME");
-    if (home)
-    {
-        path.append(home);
-        path.append("/.megaCmd/");
-        path.append("/megacmdserver.log");
-    }
-#endif
-
-    return OUTFSTREAMTYPE(path);
-}
-
 LoggedStreamDefaultFile::LoggedStreamDefaultFile() :
-    mFstream(streamForDefaultFile()),
+    mFstream(OUTFSTREAMTYPE(MegaCmdLogger::getDefaultFilePath())),
     LoggedStreamOutStream (&mFstream)
 {
 }

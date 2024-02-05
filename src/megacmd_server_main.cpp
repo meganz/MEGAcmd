@@ -18,6 +18,7 @@
 
 
 #include "megacmdlogger.h"
+#include "megacmd_rotating_logger.h"
 
 #include <vector>
 
@@ -196,15 +197,7 @@ int main(int argc, char* argv[])
     bool logToFile = extractarg(args, "--log-to-file");  // only for debugging
 
     std::unique_ptr<megacmd::LoggedStream> loggedStream;
-    if (logToFile)
-    {
-        loggedStream = ::mega::make_unique<megacmd::LoggedStreamDefaultFile>();
-    }
-    else
-    {
-        // log to stdout
-        loggedStream = ::mega::make_unique<megacmd::LoggedStreamOutStream>(&COUT);
-    }
+    loggedStream = ::mega::make_unique<megacmd::FileRotatingLoggedStream>(megacmd::MegaCmdLogger::getDefaultFilePath());
 
     return megacmd::executeServer(argc, argv, std::move(loggedStream),
                                   sdkLogLevel, cmdLogLevel, skiplockcheck, debug_api_url, disablepkp);

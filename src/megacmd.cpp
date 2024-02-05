@@ -4950,8 +4950,8 @@ int executeServer(int argc, char* argv[],
                   bool skiplockcheck, std::string debug_api_url, bool disablepkp)
 {
     // Own global server instances here
-    Instance<DefaultLoggedStream> sDefaultLoggedStream;
     Instance<ThreadLookupTable> sThreadLookupTable;
+    Instance<DefaultLoggedStream> sDefaultLoggedStream;
 
 #ifdef __linux__
     // Ensure interesting signals are unblocked.
