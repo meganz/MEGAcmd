@@ -133,131 +133,35 @@ protected:
     mega::MegaFileSystemAccess mFsAccess;
 
 public:
-    std::string popErrors()
-    {
-        std::string errorString = mErrorStream.str();
-        mErrorStream.str("");
-        return errorString;
-    }
-
-    ArchiveEngine(const std::string &archiveExtension) :
-        mArchiveExt(archiveExtension)
-    {
-    }
-
+    ArchiveEngine(const std::string &archiveExtension);
     virtual ~ArchiveEngine() = default;
 
-    virtual void cleanupFiles(const mega::LocalPath &dir, const mega::LocalPath &baseFilename)
-    {
-        const std::string baseFileStr = baseFilename.toName(mFsAccess);
+    std::string popErrors();
 
-        mega::LocalPath dirPathCopy(dir);
-        mega::LocalPath leafPath;
-        mega::nodetype_t entryType;
-
-        auto da = mFsAccess.newdiraccess();
-        da->dopen(&dirPathCopy, nullptr, false);
-
-        while (da->dnext(dirPathCopy, leafPath, false, &entryType))
-        {
-            // Ignore non-files
-            if (entryType != mega::FILENODE) continue;
-
-            // Ignore files that don't start with the base filename
-            const std::string leafName = leafPath.toName(mFsAccess);
-            if (leafName.rfind(baseFileStr, 0) != 0) continue;
-
-            mega::LocalPath leafFullPath(dir);
-            leafFullPath.appendWithSeparator(leafPath, false);
-
-            if (!mFsAccess.unlinklocal(leafFullPath))
-            {
-                mErrorStream << "Error removing archive file " << leafName << std::endl;
-            }
-        }
-    }
-
+    virtual void cleanupFiles(const mega::LocalPath &dir, const mega::LocalPath &baseFilename);
     virtual void rotateFiles(const mega::LocalPath &dir, const mega::LocalPath &baseFilename) = 0;
 };
 
 class NumberedArchiveEngine final : public ArchiveEngine
 {
     const int mMaxFilesToKeep;
-
-    mega::LocalPath getFilePath(const mega::LocalPath &directory, const mega::LocalPath &baseFilename, int i)
-    {
-        mega::LocalPath filePath = directory;
-        filePath.appendWithSeparator(baseFilename, false);
-
-        // The "zero file" does not have an index or an archive extension
-        if (i != 0)
-        {
-            filePath.append(mega::LocalPath::fromRelativePath("." + std::to_string(i)));
-
-            // The first rotated file (which comes from the zero file), does not have an archive
-            // extension, since for that it first needs to be sent over to the compression queue
-            if (i != 1)
-            {
-                filePath.append(mega::LocalPath::fromRelativePath(mArchiveExt));
-            }
-        }
-        return filePath;
-    }
+    mega::LocalPath getFilePath(const mega::LocalPath &directory, const mega::LocalPath &baseFilename, int i);
 
 public:
-    NumberedArchiveEngine(const std::string &archiveExt, int maxFilesToKeep) :
-        ArchiveEngine(archiveExt),
-        mMaxFilesToKeep(maxFilesToKeep)
-    {
-        // Numbered archive does not support keeping unlimited files
-        assert(mMaxFilesToKeep >= 0);
-    }
+    NumberedArchiveEngine(const std::string &archiveExt, int maxFilesToKeep);
 
-    void rotateFiles(const mega::LocalPath &dir, const mega::LocalPath &baseFilePath) override
-    {
-        for (int i = mMaxFilesToKeep - 1; i >= 0; --i)
-        {
-            auto oldFilePath = getFilePath(dir, baseFilePath, i);
-
-            // Quietly ignore any numbered files that don't exist
-            if (!mFsAccess.fileExistsAt(oldFilePath)) continue;
-
-            // Delete the last file, which is the one with number == maxFilesToKeep
-            if (i == mMaxFilesToKeep - 1)
-            {
-                if (!mFsAccess.unlinklocal(oldFilePath))
-                {
-                    mErrorStream << "Error removing arhive file " << oldFilePath.toPath(true) << std::endl;
-                }
-                continue;
-            }
-
-            // For the rest, rename them to effectively do number++ (e.g., file.3.gz => file.4.gz)
-            auto newFilePath = getFilePath(dir, baseFilePath, i + 1);
-            if (!mFsAccess.renamelocal(oldFilePath, newFilePath, true))
-            {
-                mErrorStream << "Error renaming archive file " << oldFilePath.toPath(true) << std::endl;
-            }
-        }
-    }
+    void rotateFiles(const mega::LocalPath &dir, const mega::LocalPath &baseFilePath) override;
 };
 
 class TimestampArchiveEngine final : public ArchiveEngine
 {
     const int mMaxFilesToKeep;
     const std::chrono::seconds mMaxFileAge;
-public:
-    TimestampArchiveEngine(const std::string &archiveExt, int maxFilesToKeep, std::chrono::seconds maxFileAge) :
-        ArchiveEngine(archiveExt),
-        mMaxFilesToKeep(maxFilesToKeep),
-        mMaxFileAge(maxFileAge)
-    {
-        assert(false); // not yet implemented
-    }
 
-    void rotateFiles(const mega::LocalPath &dir, const mega::LocalPath &baseFilename) override
-    {
-    }
+public:
+    TimestampArchiveEngine(const std::string &archiveExt, int maxFilesToKeep, std::chrono::seconds maxFileAge);
+
+    void rotateFiles(const mega::LocalPath &dir, const mega::LocalPath &baseFilename) override;
 };
 
 RotatingFileManager::Config::Config() :
@@ -500,4 +404,115 @@ void FileRotatingLoggedStream::flush()
     mFlush = true;
     mWriteCV.notify_one();
 }
+
+ArchiveEngine::ArchiveEngine(const std::string &archiveExtension) :
+    mArchiveExt(archiveExtension)
+{
+}
+
+std::string ArchiveEngine::popErrors()
+{
+    std::string errorString = mErrorStream.str();
+    mErrorStream.str("");
+    return errorString;
+}
+
+void ArchiveEngine::cleanupFiles(const mega::LocalPath &dir, const mega::LocalPath &baseFilename)
+{
+    const std::string baseFileStr = baseFilename.toName(mFsAccess);
+
+    mega::LocalPath dirPathCopy(dir);
+    mega::LocalPath leafPath;
+    mega::nodetype_t entryType;
+
+    auto da = mFsAccess.newdiraccess();
+    da->dopen(&dirPathCopy, nullptr, false);
+
+    while (da->dnext(dirPathCopy, leafPath, false, &entryType))
+    {
+        // Ignore non-files
+        if (entryType != mega::FILENODE) continue;
+
+        // Ignore files that don't start with the base filename
+        const std::string leafName = leafPath.toName(mFsAccess);
+        if (leafName.rfind(baseFileStr, 0) != 0) continue;
+
+        mega::LocalPath leafFullPath(dir);
+        leafFullPath.appendWithSeparator(leafPath, false);
+
+        if (!mFsAccess.unlinklocal(leafFullPath))
+        {
+            mErrorStream << "Error removing archive file " << leafName << std::endl;
+        }
+    }
+}
+
+mega::LocalPath NumberedArchiveEngine::getFilePath(const mega::LocalPath &directory, const mega::LocalPath &baseFilename, int i)
+{
+    mega::LocalPath filePath = directory;
+    filePath.appendWithSeparator(baseFilename, false);
+
+    // The "zero file" does not have an index or an archive extension
+    if (i != 0)
+    {
+        filePath.append(mega::LocalPath::fromRelativePath("." + std::to_string(i)));
+
+        // The first rotated file (which comes from the zero file), does not have an archive
+        // extension, since for that it first needs to be sent over to the compression queue
+        if (i != 1)
+        {
+            filePath.append(mega::LocalPath::fromRelativePath(mArchiveExt));
+        }
+    }
+    return filePath;
+}
+
+NumberedArchiveEngine::NumberedArchiveEngine(const std::string &archiveExt, int maxFilesToKeep) :
+    ArchiveEngine(archiveExt),
+    mMaxFilesToKeep(maxFilesToKeep)
+{
+    // Numbered archive does not support keeping unlimited files
+    assert(mMaxFilesToKeep >= 0);
+}
+
+void NumberedArchiveEngine::rotateFiles(const mega::LocalPath &dir, const mega::LocalPath &baseFilePath)
+{
+    for (int i = mMaxFilesToKeep - 1; i >= 0; --i)
+    {
+        auto oldFilePath = getFilePath(dir, baseFilePath, i);
+
+        // Quietly ignore any numbered files that don't exist
+        if (!mFsAccess.fileExistsAt(oldFilePath)) continue;
+
+        // Delete the last file, which is the one with number == maxFilesToKeep
+        if (i == mMaxFilesToKeep - 1)
+        {
+            if (!mFsAccess.unlinklocal(oldFilePath))
+            {
+                mErrorStream << "Error removing arhive file " << oldFilePath.toPath(true) << std::endl;
+            }
+            continue;
+        }
+
+        // For the rest, rename them to effectively do number++ (e.g., file.3.gz => file.4.gz)
+        auto newFilePath = getFilePath(dir, baseFilePath, i + 1);
+        if (!mFsAccess.renamelocal(oldFilePath, newFilePath, true))
+        {
+            mErrorStream << "Error renaming archive file " << oldFilePath.toPath(true) << std::endl;
+        }
+    }
+}
+
+TimestampArchiveEngine::TimestampArchiveEngine(const std::string &archiveExt, int maxFilesToKeep, std::chrono::seconds maxFileAge) :
+    ArchiveEngine(archiveExt),
+    mMaxFilesToKeep(maxFilesToKeep),
+    mMaxFileAge(maxFileAge)
+{
+    assert(false); // not yet implemented
+}
+
+void TimestampArchiveEngine::rotateFiles(const mega::LocalPath &dir, const mega::LocalPath &baseFilename)
+{
+}
+
 }
