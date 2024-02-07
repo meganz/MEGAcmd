@@ -64,10 +64,53 @@ private:
     MemoryBlockList mList;
 };
 
+class ArchiveEngine;
+
+class RotatingFileManager final
+{
+public:
+    enum class ArchiveType
+    {
+        Numbered,
+        Timestamp
+    };
+
+    struct Config
+    {
+        size_t maxBaseFileSize;
+
+        ArchiveType archiveType;
+        std::chrono::seconds maxArchiveAge;
+        int maxArchivesToKeep;
+
+        Config();
+    };
+
+public:
+    RotatingFileManager(const std::string &filePath, const Config &config = {});
+
+    bool shouldRotateFile(size_t fileSize) const;
+
+    void cleanupFiles();
+    void rotateFiles();
+
+    std::string popErrors();
+
+private:
+    const Config mConfig;
+    const mega::LocalPath mDirectory;
+    const mega::LocalPath mBaseFilename;
+
+    std::unique_ptr<ArchiveEngine> mArchiveEngine;
+};
+
 class FileRotatingLoggedStream final : public LoggedStream
 {
     mutable MessageBuffer mMessageBuffer;
+
+    const std::string mOutputFilePath;
     mutable OUTFSTREAMTYPE mOutputFile;
+    RotatingFileManager mFileManager;
 
     mutable std::mutex mWriteMutex;
     mutable std::condition_variable mWriteCV;
@@ -80,14 +123,18 @@ class FileRotatingLoggedStream final : public LoggedStream
     std::thread mWriteThread;
 
 private:
-    bool shouldForceRenew() const;
+    bool shouldRenew() const;
     bool shouldExit() const;
     bool shouldFlush() const;
 
+    void setForceRenew(bool forceRenew);
+
     void writeToBuffer(const char* msg, size_t size) const;
+
+    void writeMessagesToFile();
     void flushToFile();
 
-    void writeToFileLoop();
+    void mainLoop();
 
 public:
     FileRotatingLoggedStream(const std::string &outputFilePath);

@@ -17,6 +17,28 @@
 
 #include <cassert>
 
+#include "mega/filesystem.h"
+
+namespace {
+class ReopenScope final
+{
+    OUTFSTREAMTYPE& mOutFile;
+    const std::string mOutFilePath;
+public:
+    ReopenScope(OUTFSTREAMTYPE& outFile, const std::string &outFilePath) :
+        mOutFile(outFile),
+        mOutFilePath(outFilePath)
+    {
+        mOutFile.close();
+    }
+
+    ~ReopenScope()
+    {
+        mOutFile.open(mOutFilePath, std::ofstream::out);
+    }
+};
+}
+
 namespace megacmd {
 
 MessageBuffer::MemoryBlock::MemoryBlock(size_t capacity) :
@@ -102,7 +124,196 @@ bool MessageBuffer::isNearLastBlockCapacity() const
     return !mList.empty() && mList.back().isNearCapacity();
 }
 
-bool FileRotatingLoggedStream::shouldForceRenew() const
+class ArchiveEngine
+{
+protected:
+    OUTSTRINGSTREAM mErrorStream;
+
+    const std::string mArchiveExt;
+    mega::MegaFileSystemAccess mFsAccess;
+
+public:
+    std::string popErrors()
+    {
+        std::string errorString = mErrorStream.str();
+        mErrorStream.str("");
+        return errorString;
+    }
+
+    ArchiveEngine(const std::string &archiveExtension) :
+        mArchiveExt(archiveExtension)
+    {
+    }
+
+    virtual ~ArchiveEngine() = default;
+
+    virtual void cleanupFiles(const mega::LocalPath &dir, const mega::LocalPath &baseFilename)
+    {
+        const std::string baseFileStr = baseFilename.toName(mFsAccess);
+
+        mega::LocalPath dirPathCopy(dir);
+        mega::LocalPath leafPath;
+        mega::nodetype_t entryType;
+
+        auto da = mFsAccess.newdiraccess();
+        da->dopen(&dirPathCopy, nullptr, false);
+
+        while (da->dnext(dirPathCopy, leafPath, false, &entryType))
+        {
+            // Ignore non-files
+            if (entryType != mega::FILENODE) continue;
+
+            // Ignore files that don't start with the base filename
+            const std::string leafName = leafPath.toName(mFsAccess);
+            if (leafName.rfind(baseFileStr, 0) != 0) continue;
+
+            mega::LocalPath leafFullPath(dir);
+            leafFullPath.appendWithSeparator(leafPath, false);
+
+            if (!mFsAccess.unlinklocal(leafFullPath))
+            {
+                mErrorStream << "Error removing archive file " << leafName << std::endl;
+            }
+        }
+    }
+
+    virtual void rotateFiles(const mega::LocalPath &dir, const mega::LocalPath &baseFilename) = 0;
+};
+
+class NumberedArchiveEngine final : public ArchiveEngine
+{
+    const int mMaxFilesToKeep;
+
+    mega::LocalPath getFilePath(const mega::LocalPath &directory, const mega::LocalPath &baseFilename, int i)
+    {
+        mega::LocalPath filePath = directory;
+        filePath.appendWithSeparator(baseFilename, false);
+
+        // The "zero file" does not have an index or an archive extension
+        if (i != 0)
+        {
+            filePath.append(mega::LocalPath::fromRelativePath("." + std::to_string(i)));
+
+            // The first rotated file (which comes from the zero file), does not have an archive
+            // extension, since for that it first needs to be sent over to the compression queue
+            if (i != 1)
+            {
+                filePath.append(mega::LocalPath::fromRelativePath(mArchiveExt));
+            }
+        }
+        return filePath;
+    }
+
+public:
+    NumberedArchiveEngine(const std::string &archiveExt, int maxFilesToKeep) :
+        ArchiveEngine(archiveExt),
+        mMaxFilesToKeep(maxFilesToKeep)
+    {
+        // Numbered archive does not support keeping unlimited files
+        assert(mMaxFilesToKeep >= 0);
+    }
+
+    void rotateFiles(const mega::LocalPath &dir, const mega::LocalPath &baseFilePath) override
+    {
+        for (int i = mMaxFilesToKeep - 1; i >= 0; --i)
+        {
+            auto oldFilePath = getFilePath(dir, baseFilePath, i);
+
+            // Quietly ignore any numbered files that don't exist
+            if (!mFsAccess.fileExistsAt(oldFilePath)) continue;
+
+            // Delete the last file, which is the one with number == maxFilesToKeep
+            if (i == mMaxFilesToKeep - 1)
+            {
+                if (!mFsAccess.unlinklocal(oldFilePath))
+                {
+                    mErrorStream << "Error removing arhive file " << oldFilePath.toPath(true) << std::endl;
+                }
+                continue;
+            }
+
+            // For the rest, rename them to effectively do number++ (e.g., file.3.gz => file.4.gz)
+            auto newFilePath = getFilePath(dir, baseFilePath, i + 1);
+            if (!mFsAccess.renamelocal(oldFilePath, newFilePath, true))
+            {
+                mErrorStream << "Error renaming archive file " << oldFilePath.toPath(true) << std::endl;
+            }
+        }
+    }
+};
+
+class TimestampArchiveEngine final : public ArchiveEngine
+{
+    const int mMaxFilesToKeep;
+    const std::chrono::seconds mMaxFileAge;
+public:
+    TimestampArchiveEngine(const std::string &archiveExt, int maxFilesToKeep, std::chrono::seconds maxFileAge) :
+        ArchiveEngine(archiveExt),
+        mMaxFilesToKeep(maxFilesToKeep),
+        mMaxFileAge(maxFileAge)
+    {
+        assert(false); // not yet implemented
+    }
+
+    void rotateFiles(const mega::LocalPath &dir, const mega::LocalPath &baseFilename) override
+    {
+    }
+};
+
+RotatingFileManager::Config::Config() :
+    maxBaseFileSize(50 * 1024 * 1024), // 50 MB
+    archiveType(ArchiveType::Numbered),
+    maxArchiveAge(30 * 86400), // one month (in C++20 we can use `std::chrono::month(1)`)
+    maxArchivesToKeep(50)
+{
+}
+
+RotatingFileManager::RotatingFileManager(const std::string &filePath, const Config &config) :
+    mConfig(config),
+    mDirectory(mega::LocalPath::fromAbsolutePath(filePath).parentPath()),
+    mBaseFilename(mega::LocalPath::fromAbsolutePath(filePath).leafName())
+{
+    constexpr const char* archiveExt = "";
+
+    ArchiveEngine* archiveEngine = nullptr;
+    switch (mConfig.archiveType)
+    {
+        case ArchiveType::Numbered:
+        {
+            archiveEngine = new NumberedArchiveEngine(archiveExt, mConfig.maxArchivesToKeep);
+            break;
+        }
+        case ArchiveType::Timestamp:
+        {
+            archiveEngine = new TimestampArchiveEngine(archiveExt, mConfig.maxArchivesToKeep, mConfig.maxArchiveAge);
+            break;
+        }
+    }
+    assert(archiveEngine);
+    mArchiveEngine = std::unique_ptr<ArchiveEngine>(archiveEngine);
+}
+
+bool RotatingFileManager::shouldRotateFile(size_t fileSize) const
+{
+    return fileSize > mConfig.maxBaseFileSize;
+}
+
+void RotatingFileManager::cleanupFiles()
+{
+    mArchiveEngine->cleanupFiles(mDirectory, mBaseFilename);
+}
+
+void RotatingFileManager::rotateFiles()
+{
+    mArchiveEngine->rotateFiles(mDirectory, mBaseFilename);
+}
+
+std::string RotatingFileManager::popErrors()
+{
+    return mArchiveEngine->popErrors();
+}
+
+bool FileRotatingLoggedStream::shouldRenew() const
 {
     std::lock_guard<std::mutex> lock(mWriteMutex);
     return mForceRenew;
@@ -120,6 +331,12 @@ bool FileRotatingLoggedStream::shouldFlush() const
     return mFlush || mNextFlushTime <= std::chrono::steady_clock::now();
 }
 
+void FileRotatingLoggedStream::setForceRenew(bool forceRenew)
+{
+    std::lock_guard<std::mutex> lock(mWriteMutex);
+    mForceRenew = forceRenew;
+}
+
 void FileRotatingLoggedStream::writeToBuffer(const char *msg, size_t size) const
 {
     if (shouldExit())
@@ -135,6 +352,22 @@ void FileRotatingLoggedStream::writeToBuffer(const char *msg, size_t size) const
     }
 }
 
+void FileRotatingLoggedStream::writeMessagesToFile()
+{
+    auto memoryBlockList = mMessageBuffer.popMemoryBlockList();
+    for (const auto& memoryBlock : memoryBlockList)
+    {
+        if (!memoryBlock.isOutOfMemory())
+        {
+            mOutputFile << memoryBlock.getBuffer();
+        }
+        else
+        {
+            mOutputFile << "<log gap - out of logging memory at this point>\n";
+        }
+    }
+}
+
 void FileRotatingLoggedStream::flushToFile()
 {
     {
@@ -145,10 +378,39 @@ void FileRotatingLoggedStream::flushToFile()
     mNextFlushTime = std::chrono::steady_clock::now() + mFlushPeriod;
 }
 
-void FileRotatingLoggedStream::writeToFileLoop()
+void FileRotatingLoggedStream::mainLoop()
 {
     while (!shouldExit() || !mMessageBuffer.isEmpty())
     {
+        const size_t outFileSize = mOutputFile ? static_cast<size_t>(mOutputFile.tellp()) : 0;
+        std::string errorMessages;
+
+        if (!mOutputFile)
+        {
+            errorMessages += "Error writing to log file " + mOutputFilePath + '\n';
+            errorMessages += "Forcing a renew...\n";
+            setForceRenew(true);
+        }
+
+        if (shouldRenew())
+        {
+            ReopenScope s(mOutputFile, mOutputFilePath);
+            mFileManager.cleanupFiles();
+            setForceRenew(false);
+        }
+        else if (mFileManager.shouldRotateFile(outFileSize))
+        {
+            ReopenScope s(mOutputFile, mOutputFilePath);
+            mFileManager.rotateFiles();
+        }
+
+        errorMessages += mFileManager.popErrors();
+        if (!errorMessages.empty())
+        {
+            mOutputFile << errorMessages;
+            std::cerr << errorMessages;
+        }
+
         bool writeMessages = false;
         {
             std::unique_lock<std::mutex> lock(mWriteMutex);
@@ -160,17 +422,7 @@ void FileRotatingLoggedStream::writeToFileLoop()
 
         if (writeMessages)
         {
-            auto memoryBlockList = mMessageBuffer.popMemoryBlockList();
-            for (const auto& memoryBlock : memoryBlockList)
-            {
-                if (memoryBlock.isOutOfMemory())
-                {
-                    mOutputFile << "<log gap - out of logging memory at this point>\n";
-                    continue;
-                }
-
-                mOutputFile << memoryBlock.getBuffer();
-            }
+            writeMessagesToFile();
         }
 
         if (shouldFlush())
@@ -182,15 +434,16 @@ void FileRotatingLoggedStream::writeToFileLoop()
 
 FileRotatingLoggedStream::FileRotatingLoggedStream(const std::string &outputFilePath) :
     mMessageBuffer(2048),
+    mOutputFilePath(outputFilePath),
     mOutputFile(outputFilePath, std::ofstream::out | std::ofstream::app),
+    mFileManager(outputFilePath),
     mForceRenew(false), // maybe this should be true by default?
     mExit(false),
     mFlush(false),
     mFlushPeriod(std::chrono::seconds(10)),
     mNextFlushTime(std::chrono::steady_clock::now() + mFlushPeriod),
-    mWriteThread([this] () { writeToFileLoop(); })
+    mWriteThread([this] () { mainLoop(); })
 {
-    mOutputFile << "----------------------------- program start -----------------------------\n";
 }
 
 FileRotatingLoggedStream::~FileRotatingLoggedStream()
