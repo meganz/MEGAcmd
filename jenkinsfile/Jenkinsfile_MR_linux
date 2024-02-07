@@ -233,7 +233,7 @@ pipeline {
                             lock(label: 'testing_accounts_megacmd', variable: 'MEGACMD_TEST_USER', quantity: 1, resource: null){
                                 dir('test-results') {
                                     script {
-					sh "docker run --user \$(id -u):\$(id -g) --env HOME=/tmp --env MEGACMD_TEST_PASS --env MEGA_TEST_USER --rm -- meganz/megacmd-autotools-ubsan:${env.BUILD_NUMBER} /usr/bin/bash -c '/usr/local/bin/mega-cmd-server > /dev/null & sleep 1 && bash -x /usr/local/bin/megacmd_create_dir_tree.sh'"
+					sh "docker run --user \$(id -u):\$(id -g) --env HOME=/tmp --env MEGACMD_TEST_PASS --env MEGACMD_TEST_USER --rm -- meganz/megacmd-autotools-ubsan:${env.BUILD_NUMBER} /usr/bin/bash -c '/usr/local/bin/mega-cmd-server > /dev/null & sleep 1 && bash -x /usr/local/bin/megacmd_create_dir_tree.sh'"
                                         try {
                                             sh "docker run --user \$(id -u):\$(id -g) --env HOME=/tmp --env MEGACMD_TEST_PASS --env MEGACMD_TEST_USER --env ASAN_OPTIONS --env TSAN_OPTIONS --rm --mount type=bind,src='${megacmd_sources_workspace}/test-results',target=/tmp/test-results -- meganz/megacmd-autotools-${SANITIZERS}:${env.BUILD_NUMBER} /usr/local/bin/mega-cmd-integration-tests --gtest_output=xml:/tmp/test-results/${SANITIZERS}-megacmd-integration-tests.xml --gtest_shuffle"
                                         } catch(e) {
