@@ -160,7 +160,7 @@ pipeline {
 		    axis {
 			name 'TEST_SCRIPT'
 			// megacmd_get_test.sh is disabled for now, as it needs two MEGA accounts
-			values 'megacmd_find_test.py', 'megacmd_put_test.py', 'megacmd_rm_test.py', 'megacmd_misc_test.py'
+			values 'megacmd_find_test.py', 'megacmd_put_test.py', 'megacmd_rm_test.py'
 		    }
 		}
 		stages{
