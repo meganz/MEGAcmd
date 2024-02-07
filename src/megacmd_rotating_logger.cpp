@@ -178,21 +178,46 @@ public:
 
     virtual std::string getExtension() const { return ""; }
 
-    virtual void waitForAll() {}
     virtual void cancelAll() {}
     virtual void compressFile(const mega::LocalPath &filePath) {}
 };
 
 class GzipCompressionEngine final : public CompressionEngine
 {
-    mega::MegaFileSystemAccess mFsAccess;
+    struct GzipJobData
+    {
+        // When we have C++17 we can use an optional for this instead
+        bool valid = false;
 
-    void gzipFile(const mega::LocalPath &srcFilePath, const mega::LocalPath &destFilePath);
+        mega::LocalPath srcFilePath;
+        mega::LocalPath dstFilePath;
+
+        GzipJobData() = default;
+        GzipJobData(const mega::LocalPath &_srcFilePath, const mega::LocalPath &_dstFilePath);
+    };
+    std::queue<GzipJobData> mQueue;
+
+    mutable std::mutex mQueueMutex;
+    std::condition_variable mQueueCV;
+    bool mCancelOngoingJobs;
+    bool mExit;
+
+    std::thread mGzipThread;
+
+private:
+    bool shouldCancelOngoingJobs() const;
+
+    void pushToQueue(const mega::LocalPath &srcFilePath, const mega::LocalPath &dstFilePath);
+    void gzipFile(const mega::LocalPath &srcFilePath, const mega::LocalPath &dstFilePath);
+
+    void mainLoop();
 
 public:
+    GzipCompressionEngine();
+    ~GzipCompressionEngine();
+
     std::string getExtension() const override;
 
-    void waitForAll() override;
     void cancelAll() override;
     void compressFile(const mega::LocalPath &filePath);
 };
@@ -228,8 +253,6 @@ void RotatingFileManager::cleanupFiles()
 
 void RotatingFileManager::rotateFiles()
 {
-    mCompressionEngine->waitForAll();
-
     auto newlyRotatedFilePath = mRotationEngine->rotateFiles(mDirectory, mBaseFilename);
     mCompressionEngine->compressFile(newlyRotatedFilePath);
 }
@@ -592,7 +615,27 @@ mega::LocalPath TimestampRotationEngine::rotateFiles(const mega::LocalPath &dir,
     return mega::LocalPath::fromRelativePath("");
 }
 
-void GzipCompressionEngine::gzipFile(const mega::LocalPath &srcFilePath, const mega::LocalPath &destFilePath)
+GzipCompressionEngine::GzipJobData::GzipJobData(const mega::LocalPath &_srcFilePath, const mega::LocalPath &_dstFilePath) :
+    valid(true),
+    srcFilePath(_srcFilePath),
+    dstFilePath(_dstFilePath)
+{
+}
+
+bool GzipCompressionEngine::shouldCancelOngoingJobs() const
+{
+    std::lock_guard<std::mutex> lock(mQueueMutex);
+    return mCancelOngoingJobs;
+}
+
+void GzipCompressionEngine::pushToQueue(const mega::LocalPath &srcFilePath, const mega::LocalPath &dstFilePath)
+{
+    std::lock_guard<std::mutex> lock(mQueueMutex);
+    mQueue.emplace(srcFilePath, dstFilePath);
+    mQueueCV.notify_one();
+}
+
+void GzipCompressionEngine::gzipFile(const mega::LocalPath &srcFilePath, const mega::LocalPath &dstFilePath)
 {
     auto srcFilePathStr = srcFilePath.platformEncoded();
     std::ifstream file(srcFilePathStr, std::ofstream::out);
@@ -602,7 +645,7 @@ void GzipCompressionEngine::gzipFile(const mega::LocalPath &srcFilePath, const m
         return;
     }
 
-    auto destFilePathStr = destFilePath.platformEncoded();
+    auto destFilePathStr = dstFilePath.platformEncoded();
 
     auto gzdeleter = [] (gzFile_s* f) { if (f) gzclose(f); };
     std::unique_ptr<gzFile_s, decltype(gzdeleter)> gzFile(gzopen(destFilePathStr.c_str(), "wb"), gzdeleter);
@@ -615,8 +658,12 @@ void GzipCompressionEngine::gzipFile(const mega::LocalPath &srcFilePath, const m
     std::string line;
     while (std::getline(file, line))
     {
-        line += '\n';
+        if (shouldCancelOngoingJobs())
+        {
+            return;
+        }
 
+        line += '\n';
         if (gzputs(gzFile.get(), line.c_str()) == -1)
         {
             mErrorStream << "Failed to gzip " << srcFilePathStr << std::endl;
@@ -633,17 +680,65 @@ void GzipCompressionEngine::gzipFile(const mega::LocalPath &srcFilePath, const m
     }
 }
 
+void GzipCompressionEngine::mainLoop()
+{
+    while (true)
+    {
+        GzipJobData jobData;
+
+        {
+            std::unique_lock<std::mutex> lock(mQueueMutex);
+            mQueueCV.wait(lock, [this] () { return mExit || mCancelOngoingJobs || !mQueue.empty(); });
+
+            if (mExit && mQueue.empty())
+            {
+                return;
+            }
+            else if (mCancelOngoingJobs)
+            {
+                mQueue = std::queue<GzipJobData>(); // clear the queue
+                mCancelOngoingJobs = false;
+                continue;
+            }
+
+            assert(!mQueue.empty());
+
+            jobData = mQueue.front();
+            mQueue.pop();
+        }
+
+        assert(jobData.valid);
+        gzipFile(jobData.srcFilePath, jobData.dstFilePath);
+    }
+}
+
+GzipCompressionEngine::GzipCompressionEngine() :
+    mCancelOngoingJobs(false),
+    mExit(false),
+    mGzipThread([this] () { mainLoop(); })
+{
+}
+
+GzipCompressionEngine::~GzipCompressionEngine()
+{
+    {
+        std::lock_guard<std::mutex> lock(mQueueMutex);
+        mExit = true;
+        mQueueCV.notify_one();
+    }
+    mGzipThread.join();
+}
+
 std::string GzipCompressionEngine::getExtension() const
 {
     return ".gz";
 }
 
-void GzipCompressionEngine::waitForAll()
-{
-}
-
 void GzipCompressionEngine::cancelAll()
 {
+    std::lock_guard<std::mutex> lock(mQueueMutex);
+    mCancelOngoingJobs = true;
+    mQueueCV.notify_one();
 }
 
 void GzipCompressionEngine::compressFile(const mega::LocalPath &filePath)
@@ -667,7 +762,6 @@ void GzipCompressionEngine::compressFile(const mega::LocalPath &filePath)
     mega::LocalPath targetFilePath(filePath);
     targetFilePath.append(mega::LocalPath::fromRelativePath(getExtension()));
 
-    gzipFile(tmpFilePath, targetFilePath);
+    pushToQueue(tmpFilePath, targetFilePath);
 }
-
 }

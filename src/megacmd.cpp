@@ -5007,7 +5007,7 @@ int executeServer(int argc, char* argv[],
     MegaApi::addLoggerObject(loggerCMD);
     MegaApi::setLogLevel(MegaApi::LOG_LEVEL_MAX);
 
-    LOG_debug << "----------------------------- program start -----------------------------\n";
+    LOG_debug << "----------------------------- program start -----------------------------";
     LOG_debug << "MEGAcmd version: " << MEGACMD_MAJOR_VERSION << "." << MEGACMD_MINOR_VERSION << "." << MEGACMD_MICRO_VERSION << "." << MEGACMD_BUILD_ID << ": code " << MEGACMD_CODE_VERSION;
 
     api = new MegaApi("BdARkQSQ", (MegaGfxProcessor*)NULL, ConfigurationManager::getConfigFolder().c_str(), userAgent);
