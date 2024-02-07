@@ -256,6 +256,7 @@ class MegaCmdSimpleLogger final : public MegaCmdLogger
     std::mutex mOutputMutex;
 #endif
     LoggedStream &mLoggedStream;
+    LoggedStreamOutStream mOutStream;
 
     bool shouldLogToStream(int logLevel, const char *source) const;
     bool shouldLogToClient(int logLevel, const char *source) const;

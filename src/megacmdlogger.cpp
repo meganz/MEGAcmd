@@ -260,7 +260,8 @@ bool MegaCmdSimpleLogger::shouldLogToClient(int logLevel, const char* source) co
 
 MegaCmdSimpleLogger::MegaCmdSimpleLogger() :
     MegaCmdLogger(),
-    mLoggedStream(Instance<DefaultLoggedStream>::Get().getLoggedStream())
+    mLoggedStream(Instance<DefaultLoggedStream>::Get().getLoggedStream()),
+    mOutStream(&std::cout)
 {
 }
 
@@ -282,7 +283,9 @@ void MegaCmdSimpleLogger::log(const char *time, int logLevel, const char *source
         std::lock_guard<std::mutex> g(mOutputMutex);
         int oldmode = _setmode(_fileno(stdout), _O_U8TEXT);
 #endif
+
         formatLogToStream(mLoggedStream, time, logLevel, source, message);
+        formatLogToStream(mOutStream, time, logLevel, source, message);
 
 #ifdef _WIN32
         _setmode(_fileno(stdout), oldmode);
