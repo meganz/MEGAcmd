@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 #better run in an empty folder
 
-import sys, os, subprocess, shutil, distutils, distutils.dir_util, platform
+import sys, os, subprocess, shutil, distutils, platform
 from megacmd_tests_common import *
 
 GET="mega-get"
