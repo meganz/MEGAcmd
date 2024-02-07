@@ -128,11 +128,11 @@ pipeline {
                 }
             }
         }
-	stage('Run legacy MEGAcmd integration test') {
+	stage('Run legacy MEGAcmd integration shell tests') {
 	    matrix {
 		axes {
 		    axis {
-			name 'TEST_SCRIPTS'
+			name 'TEST_SCRIPT'
 			// megacmd_get_test.sh is disabled for now, as it needs two MEGA accounts
 			values 'megacmd_find_test.sh', 'megacmd_put_test.sh', 'megacmd_rm_test.sh'
 		    }
@@ -146,7 +146,33 @@ pipeline {
 			steps{
 			    lock(label: 'testing_accounts_megacmd', variable: 'MEGA_EMAIL', quantity: 1, resource: null){
 				script {
-				    sh "docker run --user \$(id -u):\$(id -g) --env HOME=/tmp --env MEGA_EMAIL --env MEGA_PWD --rm -- meganz/megacmd-autotools-ubsan:${env.BUILD_NUMBER} /usr/bin/bash -c '/usr/local/bin/mega-cmd-server > /dev/null & sleep 5 && mkdir /tmp/tests && cd /tmp/tests && bash -x /usr/local/bin/${TEST_SCRIPTS}'"
+				    sh "docker run --user \$(id -u):\$(id -g) --env HOME=/tmp --env MEGA_EMAIL --env MEGA_PWD --rm -- meganz/megacmd-autotools-ubsan:${env.BUILD_NUMBER} /usr/bin/bash -c '/usr/local/bin/mega-cmd-server > /dev/null & sleep 5 && mkdir /tmp/tests && cd /tmp/tests && bash -x /usr/local/bin/${TEST_SCRIPT}'"
+				}
+			    }
+			}
+		    }
+		}
+	    }
+	}
+	stage('Run legacy MEGAcmd integration Python tests') {
+	    matrix {
+		axes {
+		    axis {
+			name 'TEST_SCRIPT'
+			// megacmd_get_test.sh is disabled for now, as it needs two MEGA accounts
+			values 'megacmd_find_test.py', 'megacmd_put_test.py', 'megacmd_rm_test.py', 'megacmd_misc_test.py'
+		    }
+		}
+		stages{
+		    stage('Run MEGAcmd integration test scripts') {
+			environment{
+			    MEGA_EMAIL=''
+			    MEGA_PWD=credentials('MEGACMD_TESTS_PASSWORD')
+			}
+			steps{
+			    lock(label: 'testing_accounts_megacmd', variable: 'MEGA_EMAIL', quantity: 1, resource: null){
+				script {
+				    sh "docker run --user \$(id -u):\$(id -g) --env HOME=/tmp --env MEGA_EMAIL --env MEGA_PWD --rm -- meganz/megacmd-autotools-ubsan:${env.BUILD_NUMBER} /usr/bin/bash -c '/usr/local/bin/mega-cmd-server > /dev/null & sleep 1 && mkdir /tmp/tests && cd /tmp/tests && python3 /usr/local/bin/${TEST_SCRIPT}'"
 				}
 			    }
 			}
@@ -207,6 +233,7 @@ pipeline {
                             lock(label: 'testing_accounts_megacmd', variable: 'MEGACMD_TEST_USER', quantity: 1, resource: null){
                                 dir('test-results') {
                                     script {
+					sh "docker run --user \$(id -u):\$(id -g) --env HOME=/tmp --env MEGACMD_TEST_PASS --env MEGA_TEST_USER --rm -- meganz/megacmd-autotools-ubsan:${env.BUILD_NUMBER} /usr/bin/bash -c '/usr/local/bin/mega-cmd-server > /dev/null & sleep 1 && bash -x /usr/local/bin/megacmd_create_dir_tree.sh'"
                                         try {
                                             sh "docker run --user \$(id -u):\$(id -g) --env HOME=/tmp --env MEGACMD_TEST_PASS --env MEGACMD_TEST_USER --env ASAN_OPTIONS --env TSAN_OPTIONS --rm --mount type=bind,src='${megacmd_sources_workspace}/test-results',target=/tmp/test-results -- meganz/megacmd-autotools-${SANITIZERS}:${env.BUILD_NUMBER} /usr/local/bin/mega-cmd-integration-tests --gtest_output=xml:/tmp/test-results/${SANITIZERS}-megacmd-integration-tests.xml --gtest_shuffle"
                                         } catch(e) {
