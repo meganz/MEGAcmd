@@ -42,6 +42,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     zlib1g \
     gpg \
     rsync \
+    python3 \
     /tmp/pdfium/pdfium-mega.deb
 
 FROM base as build-deps
@@ -79,12 +80,12 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 
 FROM scratch as src
 WORKDIR /usr/src/megacmd
+COPY Makefile.am autogen.sh clean.sh configure.ac ./
 COPY sdk ./sdk
 COPY src ./src
-COPY tests ./tests
-COPY build ./build
-COPY contrib ./contrib
-COPY Makefile.am autogen.sh clean.sh configure.ac ./
+COPY tests/common ./tests/common
+COPY tests/integration ./tests/integration
+COPY tests/unit ./tests/unit
 
 FROM build-deps as build
 
@@ -108,5 +109,4 @@ FROM base as final
 
 ENV LD_LIBRARY_PATH /usr/local/lib
 COPY --from=build /usr/local/ /usr/local/
-COPY --from=src /usr/src/megacmd/tests/*.py /usr/local/bin/
-COPY --from=src /usr/src/megacmd/tests/*.sh /usr/local/bin/
+COPY tests/*.py tests/*.sh /usr/local/bin/
