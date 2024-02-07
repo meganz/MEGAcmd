@@ -16,6 +16,7 @@
 #include "megacmd_rotating_logger.h"
 
 #include <cassert>
+#include <zlib.h>
 
 #include "mega/filesystem.h"
 
@@ -124,51 +125,84 @@ bool MessageBuffer::isNearLastBlockCapacity() const
     return !mList.empty() && mList.back().isNearCapacity();
 }
 
-class ArchiveEngine
+class BaseEngine
 {
 protected:
     OUTSTRINGSTREAM mErrorStream;
-
-    const std::string mArchiveExt;
     mega::MegaFileSystemAccess mFsAccess;
 
 public:
-    ArchiveEngine(const std::string &archiveExtension);
-    virtual ~ArchiveEngine() = default;
-
     std::string popErrors();
-
-    virtual void cleanupFiles(const mega::LocalPath &dir, const mega::LocalPath &baseFilename);
-    virtual void rotateFiles(const mega::LocalPath &dir, const mega::LocalPath &baseFilename) = 0;
 };
 
-class NumberedArchiveEngine final : public ArchiveEngine
+class RotationEngine : public BaseEngine
 {
-    const int mMaxFilesToKeep;
-    mega::LocalPath getFilePath(const mega::LocalPath &directory, const mega::LocalPath &baseFilename, int i);
+protected:
+    const std::string mCompressionExt;
 
 public:
-    NumberedArchiveEngine(const std::string &archiveExt, int maxFilesToKeep);
+    RotationEngine(const std::string &compressionExt);
+    virtual ~RotationEngine() = default;
 
-    void rotateFiles(const mega::LocalPath &dir, const mega::LocalPath &baseFilePath) override;
+    virtual void cleanupFiles(const mega::LocalPath &dir, const mega::LocalPath &baseFilename);
+    virtual mega::LocalPath rotateFiles(const mega::LocalPath &dir, const mega::LocalPath &baseFilename) = 0;
 };
 
-class TimestampArchiveEngine final : public ArchiveEngine
+class NumberedRotationEngine final : public RotationEngine
+{
+    const int mMaxFilesToKeep;
+    mega::LocalPath getSrcFilePath(const mega::LocalPath &directory, const mega::LocalPath &baseFilename, int i) const;
+    mega::LocalPath getDstFilePath(const mega::LocalPath &directory, const mega::LocalPath &baseFilename, int i) const;
+
+public:
+    NumberedRotationEngine(const std::string &compressionExt, int maxFilesToKeep);
+
+    mega::LocalPath rotateFiles(const mega::LocalPath &dir, const mega::LocalPath &baseFilePath) override;
+};
+
+class TimestampRotationEngine final : public RotationEngine
 {
     const int mMaxFilesToKeep;
     const std::chrono::seconds mMaxFileAge;
 
 public:
-    TimestampArchiveEngine(const std::string &archiveExt, int maxFilesToKeep, std::chrono::seconds maxFileAge);
+    TimestampRotationEngine(const std::string &archiveExt, int maxFilesToKeep, std::chrono::seconds maxFileAge);
 
-    void rotateFiles(const mega::LocalPath &dir, const mega::LocalPath &baseFilename) override;
+    mega::LocalPath rotateFiles(const mega::LocalPath &dir, const mega::LocalPath &baseFilename) override;
+};
+
+class CompressionEngine : public BaseEngine
+{
+public:
+    virtual ~CompressionEngine() = default;
+
+    virtual std::string getExtension() const { return ""; }
+
+    virtual void waitForAll() {}
+    virtual void cancelAll() {}
+    virtual void compressFile(const mega::LocalPath &filePath) {}
+};
+
+class GzipCompressionEngine final : public CompressionEngine
+{
+    mega::MegaFileSystemAccess mFsAccess;
+
+    void gzipFile(const mega::LocalPath &srcFilePath, const mega::LocalPath &destFilePath);
+
+public:
+    std::string getExtension() const override;
+
+    void waitForAll() override;
+    void cancelAll() override;
+    void compressFile(const mega::LocalPath &filePath);
 };
 
 RotatingFileManager::Config::Config() :
     maxBaseFileSize(50 * 1024 * 1024), // 50 MB
-    archiveType(ArchiveType::Numbered),
-    maxArchiveAge(30 * 86400), // one month (in C++20 we can use `std::chrono::month(1)`)
-    maxArchivesToKeep(50)
+    rotationType(RotationType::Numbered),
+    maxFileAge(30 * 86400), // one month (in C++20 we can use `std::chrono::month(1)`)
+    maxFilesToKeep(50),
+    compressionType(CompressionType::Gzip)
 {
 }
 
@@ -177,44 +211,75 @@ RotatingFileManager::RotatingFileManager(const std::string &filePath, const Conf
     mDirectory(mega::LocalPath::fromAbsolutePath(filePath).parentPath()),
     mBaseFilename(mega::LocalPath::fromAbsolutePath(filePath).leafName())
 {
-    constexpr const char* archiveExt = "";
-
-    ArchiveEngine* archiveEngine = nullptr;
-    switch (mConfig.archiveType)
-    {
-        case ArchiveType::Numbered:
-        {
-            archiveEngine = new NumberedArchiveEngine(archiveExt, mConfig.maxArchivesToKeep);
-            break;
-        }
-        case ArchiveType::Timestamp:
-        {
-            archiveEngine = new TimestampArchiveEngine(archiveExt, mConfig.maxArchivesToKeep, mConfig.maxArchiveAge);
-            break;
-        }
-    }
-    assert(archiveEngine);
-    mArchiveEngine = std::unique_ptr<ArchiveEngine>(archiveEngine);
+    initializeCompressionEngine();
+    initializeRotationEngine();
 }
 
-bool RotatingFileManager::shouldRotateFile(size_t fileSize) const
+bool RotatingFileManager::shouldRotateFiles(size_t fileSize) const
 {
     return fileSize > mConfig.maxBaseFileSize;
 }
 
 void RotatingFileManager::cleanupFiles()
 {
-    mArchiveEngine->cleanupFiles(mDirectory, mBaseFilename);
+    mCompressionEngine->cancelAll();
+    mRotationEngine->cleanupFiles(mDirectory, mBaseFilename);
 }
 
 void RotatingFileManager::rotateFiles()
 {
-    mArchiveEngine->rotateFiles(mDirectory, mBaseFilename);
+    mCompressionEngine->waitForAll();
+
+    auto newlyRotatedFilePath = mRotationEngine->rotateFiles(mDirectory, mBaseFilename);
+    mCompressionEngine->compressFile(newlyRotatedFilePath);
 }
 
 std::string RotatingFileManager::popErrors()
 {
-    return mArchiveEngine->popErrors();
+    return mRotationEngine->popErrors() + mCompressionEngine->popErrors();
+}
+
+void RotatingFileManager::initializeCompressionEngine()
+{
+    CompressionEngine* compressionEngine = nullptr;
+    switch(mConfig.compressionType)
+    {
+        case CompressionType::None:
+        {
+            compressionEngine = new CompressionEngine();
+            break;
+        }
+        case CompressionType::Gzip:
+        {
+            compressionEngine = new GzipCompressionEngine();
+            break;
+        }
+    }
+    assert(compressionEngine);
+    mCompressionEngine = std::unique_ptr<CompressionEngine>(compressionEngine);
+}
+
+void RotatingFileManager::initializeRotationEngine()
+{
+    assert(mCompressionEngine);
+    const std::string compressionExt = mCompressionEngine->getExtension();
+
+    RotationEngine* rotationEngine = nullptr;
+    switch (mConfig.rotationType)
+    {
+        case RotationType::Numbered:
+        {
+            rotationEngine = new NumberedRotationEngine(compressionExt, mConfig.maxFilesToKeep);
+            break;
+        }
+        case RotationType::Timestamp:
+        {
+            rotationEngine = new TimestampRotationEngine(compressionExt, mConfig.maxFilesToKeep, mConfig.maxFileAge);
+            break;
+        }
+    }
+    assert(rotationEngine);
+    mRotationEngine = std::unique_ptr<RotationEngine>(rotationEngine);
 }
 
 bool FileRotatingLoggedStream::shouldRenew() const
@@ -302,7 +367,7 @@ void FileRotatingLoggedStream::mainLoop()
             mFileManager.cleanupFiles();
             setForceRenew(false);
         }
-        else if (mFileManager.shouldRotateFile(outFileSize))
+        else if (mFileManager.shouldRotateFiles(outFileSize))
         {
             ReopenScope s(mOutputFile, mOutputFilePath);
             mFileManager.rotateFiles();
@@ -405,19 +470,19 @@ void FileRotatingLoggedStream::flush()
     mWriteCV.notify_one();
 }
 
-ArchiveEngine::ArchiveEngine(const std::string &archiveExtension) :
-    mArchiveExt(archiveExtension)
-{
-}
-
-std::string ArchiveEngine::popErrors()
+std::string BaseEngine::popErrors()
 {
     std::string errorString = mErrorStream.str();
     mErrorStream.str("");
     return errorString;
 }
 
-void ArchiveEngine::cleanupFiles(const mega::LocalPath &dir, const mega::LocalPath &baseFilename)
+RotationEngine::RotationEngine(const std::string &compressionExt) :
+    mCompressionExt(compressionExt)
+{
+}
+
+void RotationEngine::cleanupFiles(const mega::LocalPath &dir, const mega::LocalPath &baseFilename)
 {
     const std::string baseFileStr = baseFilename.toName(mFsAccess);
 
@@ -447,72 +512,162 @@ void ArchiveEngine::cleanupFiles(const mega::LocalPath &dir, const mega::LocalPa
     }
 }
 
-mega::LocalPath NumberedArchiveEngine::getFilePath(const mega::LocalPath &directory, const mega::LocalPath &baseFilename, int i)
+mega::LocalPath NumberedRotationEngine::getSrcFilePath(const mega::LocalPath &directory, const mega::LocalPath &baseFilename, int i) const
 {
     mega::LocalPath filePath = directory;
     filePath.appendWithSeparator(baseFilename, false);
 
-    // The "zero file" does not have an index or an archive extension
+    // The source path for the base file does not have an index or compression extension
     if (i != 0)
     {
-        filePath.append(mega::LocalPath::fromRelativePath("." + std::to_string(i)));
-
-        // The first rotated file (which comes from the zero file), does not have an archive
-        // extension, since for that it first needs to be sent over to the compression queue
-        if (i != 1)
-        {
-            filePath.append(mega::LocalPath::fromRelativePath(mArchiveExt));
-        }
+        filePath.append(mega::LocalPath::fromRelativePath("." + std::to_string(i) + mCompressionExt));
     }
     return filePath;
 }
 
-NumberedArchiveEngine::NumberedArchiveEngine(const std::string &archiveExt, int maxFilesToKeep) :
-    ArchiveEngine(archiveExt),
+mega::LocalPath NumberedRotationEngine::getDstFilePath(const mega::LocalPath &directory, const mega::LocalPath &baseFilename, int i) const
+{
+    mega::LocalPath filePath = directory;
+    filePath.appendWithSeparator(baseFilename, false);
+
+    // The destination path for the base file has an index, but doesn't have a compression extension
+    // (since the file still needs to be sent to the compression engine)
+    filePath.append(mega::LocalPath::fromRelativePath("." + std::to_string(i + 1)));
+    if (i != 0)
+    {
+        filePath.append(mega::LocalPath::fromRelativePath(mCompressionExt));
+    }
+    return filePath;
+}
+
+NumberedRotationEngine::NumberedRotationEngine(const std::string &compressionExt, int maxFilesToKeep) :
+    RotationEngine(compressionExt),
     mMaxFilesToKeep(maxFilesToKeep)
 {
     // Numbered archive does not support keeping unlimited files
     assert(mMaxFilesToKeep >= 0);
 }
 
-void NumberedArchiveEngine::rotateFiles(const mega::LocalPath &dir, const mega::LocalPath &baseFilePath)
+mega::LocalPath NumberedRotationEngine::rotateFiles(const mega::LocalPath &dir, const mega::LocalPath &baseFilePath)
 {
     for (int i = mMaxFilesToKeep - 1; i >= 0; --i)
     {
-        auto oldFilePath = getFilePath(dir, baseFilePath, i);
+        auto srcFilePath = getSrcFilePath(dir, baseFilePath, i);
 
         // Quietly ignore any numbered files that don't exist
-        if (!mFsAccess.fileExistsAt(oldFilePath)) continue;
+        if (!mFsAccess.fileExistsAt(srcFilePath)) continue;
 
         // Delete the last file, which is the one with number == maxFilesToKeep
         if (i == mMaxFilesToKeep - 1)
         {
-            if (!mFsAccess.unlinklocal(oldFilePath))
+            if (!mFsAccess.unlinklocal(srcFilePath))
             {
-                mErrorStream << "Error removing arhive file " << oldFilePath.toPath(true) << std::endl;
+                mErrorStream << "Error removing file " << srcFilePath.toPath(true) << std::endl;
             }
             continue;
         }
 
         // For the rest, rename them to effectively do number++ (e.g., file.3.gz => file.4.gz)
-        auto newFilePath = getFilePath(dir, baseFilePath, i + 1);
-        if (!mFsAccess.renamelocal(oldFilePath, newFilePath, true))
+        auto dstFilePath = getDstFilePath(dir, baseFilePath, i);
+        if (!mFsAccess.renamelocal(srcFilePath, dstFilePath, true))
         {
-            mErrorStream << "Error renaming archive file " << oldFilePath.toPath(true) << std::endl;
+            mErrorStream << "Error renaming file " << srcFilePath.toPath(true) << " to " << dstFilePath.toPath(true) << std::endl;
         }
     }
+
+    // The newly-rotated file is the destination path of the base file
+    return getDstFilePath(dir, baseFilePath, 0);
 }
 
-TimestampArchiveEngine::TimestampArchiveEngine(const std::string &archiveExt, int maxFilesToKeep, std::chrono::seconds maxFileAge) :
-    ArchiveEngine(archiveExt),
+TimestampRotationEngine::TimestampRotationEngine(const std::string &archiveExt, int maxFilesToKeep, std::chrono::seconds maxFileAge) :
+    RotationEngine(archiveExt),
     mMaxFilesToKeep(maxFilesToKeep),
     mMaxFileAge(maxFileAge)
 {
     assert(false); // not yet implemented
 }
 
-void TimestampArchiveEngine::rotateFiles(const mega::LocalPath &dir, const mega::LocalPath &baseFilename)
+mega::LocalPath TimestampRotationEngine::rotateFiles(const mega::LocalPath &dir, const mega::LocalPath &baseFilePath)
 {
+    return mega::LocalPath::fromRelativePath("");
+}
+
+void GzipCompressionEngine::gzipFile(const mega::LocalPath &srcFilePath, const mega::LocalPath &destFilePath)
+{
+    auto srcFilePathStr = srcFilePath.platformEncoded();
+    std::ifstream file(srcFilePathStr, std::ofstream::out);
+    if (!file)
+    {
+        mErrorStream << "Failed to open " << srcFilePathStr << " for compression" << std::endl;
+        return;
+    }
+
+    auto destFilePathStr = destFilePath.platformEncoded();
+
+    auto gzdeleter = [] (gzFile_s* f) { if (f) gzclose(f); };
+    std::unique_ptr<gzFile_s, decltype(gzdeleter)> gzFile(gzopen(destFilePathStr.c_str(), "wb"), gzdeleter);
+    if (!gzFile)
+    {
+        mErrorStream << "Failed to open gzfile " << destFilePathStr << " for writing" << std::endl;
+        return;
+    }
+
+    std::string line;
+    while (std::getline(file, line))
+    {
+        line += '\n';
+
+        if (gzputs(gzFile.get(), line.c_str()) == -1)
+        {
+            mErrorStream << "Failed to gzip " << srcFilePathStr << std::endl;
+            return;
+        }
+    }
+
+    // Explicitly release the open file handle (otherwise the unlink below will fail)
+    file.close();
+
+    if (!mFsAccess.unlinklocal(srcFilePath))
+    {
+        mErrorStream << "Failed to remove temporary file " << srcFilePathStr << " after compression" << std::endl;
+    }
+}
+
+std::string GzipCompressionEngine::getExtension() const
+{
+    return ".gz";
+}
+
+void GzipCompressionEngine::waitForAll()
+{
+}
+
+void GzipCompressionEngine::cancelAll()
+{
+}
+
+void GzipCompressionEngine::compressFile(const mega::LocalPath &filePath)
+{
+    mega::LocalPath tmpFilePath(filePath);
+    tmpFilePath.append(mega::LocalPath::fromRelativePath(".zipping"));
+
+    // Ensure there is not a clashing .zipping file
+    if (!mFsAccess.unlinklocal(tmpFilePath) && errno != ENOENT /* ignore if file doesn't exist */)
+    {
+        mErrorStream << "Failed to unlink temporary compression file " << tmpFilePath.toPath(true) << std::endl;
+        return;
+    }
+
+    if (!mFsAccess.renamelocal(filePath, tmpFilePath, true))
+    {
+        mErrorStream << "Failed to rename file " << filePath.toPath(true) << " to " << tmpFilePath.toPath(true) << std::endl;
+        return;
+    }
+
+    mega::LocalPath targetFilePath(filePath);
+    targetFilePath.append(mega::LocalPath::fromRelativePath(getExtension()));
+
+    gzipFile(tmpFilePath, targetFilePath);
 }
 
 }

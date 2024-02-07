@@ -64,24 +64,33 @@ private:
     MemoryBlockList mList;
 };
 
-class ArchiveEngine;
+class RotationEngine;
+class CompressionEngine;
 
 class RotatingFileManager final
 {
 public:
-    enum class ArchiveType
+    enum class RotationType
     {
         Numbered,
         Timestamp
+    };
+
+    enum class CompressionType
+    {
+        None,
+        Gzip
     };
 
     struct Config
     {
         size_t maxBaseFileSize;
 
-        ArchiveType archiveType;
-        std::chrono::seconds maxArchiveAge;
-        int maxArchivesToKeep;
+        RotationType rotationType;
+        std::chrono::seconds maxFileAge;
+        int maxFilesToKeep;
+
+        CompressionType compressionType;
 
         Config();
     };
@@ -89,7 +98,7 @@ public:
 public:
     RotatingFileManager(const std::string &filePath, const Config &config = {});
 
-    bool shouldRotateFile(size_t fileSize) const;
+    bool shouldRotateFiles(size_t fileSize) const;
 
     void cleanupFiles();
     void rotateFiles();
@@ -97,11 +106,16 @@ public:
     std::string popErrors();
 
 private:
+    void initializeCompressionEngine();
+    void initializeRotationEngine();
+
+private:
     const Config mConfig;
     const mega::LocalPath mDirectory;
     const mega::LocalPath mBaseFilename;
 
-    std::unique_ptr<ArchiveEngine> mArchiveEngine;
+    std::unique_ptr<CompressionEngine> mCompressionEngine;
+    std::unique_ptr<RotationEngine> mRotationEngine;
 };
 
 class FileRotatingLoggedStream final : public LoggedStream
@@ -126,7 +140,6 @@ private:
     bool shouldRenew() const;
     bool shouldExit() const;
     bool shouldFlush() const;
-
     void setForceRenew(bool forceRenew);
 
     void writeToBuffer(const char* msg, size_t size) const;
