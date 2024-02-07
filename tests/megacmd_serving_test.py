@@ -1,7 +1,7 @@
 #!/usr/bin/python2.7
 # -*- coding: utf-8 -*-
 
-import sys, os, subprocess, shutil
+import sys, os, subprocess, shutil, logging
 import ftplib
 from megacmd_tests_common import *
 
@@ -41,7 +41,7 @@ try:
  #   MEGA_PWD_AUX=os.environ["MEGA_PWD_AUX"]
 except:
     #print >>sys.stderr, "You must define variables MEGA_EMAIL MEGA_PWD MEGA_EMAIL_AUX MEGA_PWD_AUX. WARNING: Use an empty account for $MEGA_EMAIL"
-    print >>sys.stderr, "You must define variables MEGA_EMAIL MEGA_PWD. WARNING: Use an empty account for $MEGA_EMAIL"
+    logging.error("You must define variables MEGA_EMAIL MEGA_PWD. WARNING: Use an empty account for $MEGA_EMAIL")
 
     exit(1)
 
@@ -94,24 +94,24 @@ def compare_and_clear() :
     localDls=sort(find('localDls'))
 
     if (megaDls == localDls):
-        print "test "+str(currentTest)+" succesful!"
+        print("test "+str(currentTest)+" succesful!")
         if VERBOSE:
-            print "test "+str(currentTest)
-            print "megaDls:"
-            print megaDls
-            print
-            print "localDls:"
-            print localDls
-            print
+            print("test "+str(currentTest))
+            print("megaDls:")
+            print(megaDls)
+            print()
+            print("localDls:")
+            print(localDls)
+            print()
     else:
-        print "test "+str(currentTest)+" failed!"
+        print("test "+str(currentTest)+" failed!")
 
-        print "megaDls:"
-        print megaDls
-        print
-        print "localDls:"
-        print localDls
-        print
+        print("megaDls:")
+        print(megaDls)
+        print()
+        print("localDls:")
+        print(localDls)
+        print()
         exit(1)
 
     clear_dls()
@@ -122,11 +122,11 @@ def check_failed_and_clear(o,status):
     global currentTest
 
     if status == 0:
-        print "test "+str(currentTest)+" failed!"
-        print o
+        print("test "+str(currentTest)+" failed!")
+        print(o)
         exit(1)
     else:
-        print "test "+str(currentTest)+" succesful!"
+        print("test "+str(currentTest)+" succesful!")
 
     clear_dls()
     currentTest+=1
@@ -143,12 +143,12 @@ def initialize():
         cmd_ef(LOGIN+" " +osvar("MEGA_EMAIL")+" "+osvar("MEGA_PWD"))
 
     if len(os.listdir(".")):
-        print >>sys.stderr, "initialization folder not empty!"
+        logging.error("initialization folder not empty!")
         #~ cd $ABSPWD
         exit(1)
 
-    if cmd_es(FIND+" /") != "/":
-        print >>sys.stderr, "REMOTE Not empty, please clear it before starting!"
+    if cmd_es(FIND+" /") != b"/":
+        logging.error("REMOTE Not empty, please clear it before starting!")
         #~ cd $ABSPWD
         exit(1)
 
@@ -209,14 +209,14 @@ ABSMEGADLFOLDER=ABSPWD+'/megaDls'
 def compare_find(what, localFindPrefix='localUPs'):
     global currentTest
     if VERBOSE:
-        print "test "+str(currentTest)
+        print("test "+str(currentTest))
 
     if not isinstance(what, list):
         what = [what]
-    megafind=""
+    megafind=b""
     localfind=""
     for w in what:
-        megafind+=cmd_ef(FIND+" "+w)+"\n"
+        megafind+=cmd_ef(FIND+" "+w)+b"\n"
         localfind+=find(localFindPrefix+'/'+w,w)+"\n"
 
     megafind=sort(megafind).strip()
@@ -226,21 +226,21 @@ def compare_find(what, localFindPrefix='localUPs'):
     #~ (cd localUPs 2>/dev/null; find "$@" | sed "s#\./##g" | sort) > $ABSPWD/localfind.txt
     if (megafind == localfind):
         if VERBOSE:
-            print "diff megafind vs localfind:"
+            print("diff megafind vs localfind:")
             #diff --side-by-side megafind.txt localfind.txt#TODO: do this
-            print "MEGAFIND:"
-            print megafind
-            print "LOCALFIND"
-            print localfind
-        print "test "+str(currentTest)+" succesful!"
+            print("MEGAFIND:")
+            print(megafind)
+            print("LOCALFIND")
+            print(localfind)
+        print("test "+str(currentTest)+" succesful!")
     else:
-        print "test "+str(currentTest)+" failed!"
-        print "diff megafind vs localfind:"
+        print("test "+str(currentTest)+" failed!")
+        print("diff megafind vs localfind:")
         #~ diff --side-by-side megafind.txt localfind.txt #TODO: do this
-        print "MEGAFIND:"
-        print megafind
-        print "LOCALFIND"
-        print localfind
+        print("MEGAFIND:")
+        print(megafind)
+        print("LOCALFIND")
+        print(localfind)
 
         #cd $ABSPWD #TODO: consider this
         exit(1)
@@ -251,21 +251,21 @@ def compare_remote_local(megafind, localfind):
     global currentTest
     if (megafind == localfind):
         if VERBOSE:
-            print "diff megafind vs localfind:"
+            print("diff megafind vs localfind:")
             #diff --side-by-side megafind.txt localfind.txt#TODO: do this
-            print "MEGAFIND:"
-            print megafind
-            print "LOCALFIND"
-            print localfind
-        print "test "+str(currentTest)+" succesful!"
+            print("MEGAFIND:")
+            print(megafind)
+            print("LOCALFIND")
+            print(localfind)
+        print("test "+str(currentTest)+" succesful!")
     else:
-        print "test "+str(currentTest)+" failed!"
-        print "diff megafind vs localfind:"
+        print("test "+str(currentTest)+" failed!")
+        print("diff megafind vs localfind:")
         #~ diff --side-by-side megafind.txt localfind.txt #TODO: do this
-        print "MEGAFIND:"
-        print megafind
-        print "LOCALFIND"
-        print localfind
+        print("MEGAFIND:")
+        print(megafind)
+        print("LOCALFIND")
+        print(localfind)
 
         exit(1)
 
@@ -276,7 +276,7 @@ def getFile(ftp, filename, destiny):
     try:
         ftp.retrbinary("RETR " + filename ,open(destiny, 'wb').write)
     except Exception as ex:
-        print "Error: "+str(ex)
+        print("Error: "+str(ex))
         exit(1)
 
 def upload(ftp, source, destination):
@@ -294,7 +294,7 @@ def lsftp():
         toret+=l[49:]+"\n"
     return toret
 
-if VERBOSE: print "STARTING..."
+if VERBOSE: print("STARTING...")
 
 #INITIALIZATION
 clean_all()
@@ -303,17 +303,17 @@ initialize()
 
 #ftp initialize connection
 cmd_ec(FTP+' -d --all')
-url=cmd_ef(FTP+' /').split(' ')[-1]
-server=url.split("//")[1].split(":")[0]
-port=url.split("//")[1].split(":")[1].split("/")[0]
-subpath="/"+"/".join(url.split("//")[1].split(":")[1].split("/")[1:])
-subpath=subpath.replace('%20',' ')
+url=cmd_ef(FTP+' /').split(b' ')[-1]
+server=url.split(b"//")[1].split(b":")[0]
+port=url.split(b"//")[1].split(b":")[1].split(b"/")[0]
+subpath=b"/"+b"/".join(url.split(b"//")[1].split(b":")[1].split(b"/")[1:])
+subpath=subpath.replace(b'%20',b' ')
 if VERBOSE:
-    print " connecting ... to "+server+" port="+port+" path="+subpath
+    print(" connecting ... to "+server.decode()+" port="+port.decode()+" path="+subpath.decode())
 ftp=ftplib.FTP()
-ftp.connect(server,port, timeout=30)
+ftp.connect(server.decode(),int(port.decode()), timeout=30)
 ftp.login("anonymous", "nomatter")
-ftp.cwd(subpath)
+ftp.cwd(subpath.decode())
 
 currentTest=1
 

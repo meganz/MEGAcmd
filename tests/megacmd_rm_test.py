@@ -1,4 +1,4 @@
-#!/usr/bin/python2.7
+#!/usr/bin/python3
 # -*- coding: utf-8 -*-
 #better run in an empty folder
 
@@ -27,7 +27,7 @@ try:
     MEGA_EMAIL=os.environ["MEGA_EMAIL"]
     MEGA_PWD=os.environ["MEGA_PWD"]
 except:
-    print >>sys.stderr, "You must define variables MEGA_EMAIL MEGA_PWD. WARNING: Use an empty account for $MEGA_EMAIL"
+    logging.error("You must define variables MEGA_EMAIL MEGA_PWD. WARNING: Use an empty account for $MEGA_EMAIL")
     exit(1)
 
 try:
@@ -71,7 +71,7 @@ currentTest=1
 def compare_and_clear() :
     global currentTest
     if VERBOSE:
-        print "test $currentTest"
+        print("test $currentTest")
     
     megafind=sort(cmd_ef(FIND))
     localfind=sort(find('localUPs','.'))
@@ -79,21 +79,21 @@ def compare_and_clear() :
     #~ if diff --side-by-side megafind.txt localfind.txt 2>/dev/null >/dev/null; then
     if (megafind == localfind):
         if VERBOSE:
-            print "diff megafind vs localfind:"
+            print("diff megafind vs localfind:")
             #diff --side-by-side megafind.txt localfind.txt#TODO: do this
-            print "MEGAFIND:"
-            print megafind
-            print "LOCALFIND"
-            print localfind
-        print "test "+str(currentTest)+" succesful!"     
+            print("MEGAFIND:")
+            print(megafind)
+            print("LOCALFIND")
+            print(localfind)
+        print("test "+str(currentTest)+" succesful!")     
     else:
-        print "test "+str(currentTest)+" failed!"
-        print "diff megafind vs localfind:"
+        print("test "+str(currentTest)+" failed!")
+        print("diff megafind vs localfind:")
         #~ diff --side-by-side megafind.txt localfind.txt #TODO: do this
-        print "MEGAFIND:"
-        print megafind
-        print "LOCALFIND"
-        print localfind
+        print("MEGAFIND:")
+        print(megafind)
+        print("LOCALFIND")
+        print(localfind)
         
         #cd $ABSPWD #TODO: consider this
         exit(1)
@@ -107,11 +107,11 @@ def check_failed_and_clear(o,status):
     global currentTest
 
     if status == 0: 
-        print "test "+str(currentTest)+" failed!"
-        print o
+        print("test "+str(currentTest)+" failed!")
+        print(o)
         exit(1)
     else:
-        print "test "+str(currentTest)+" succesful!"
+        print("test "+str(currentTest)+" succesful!")
 
     clear_local_and_remote()
     currentTest+=1
@@ -124,12 +124,12 @@ def initialize():
         
 
     if len(os.listdir(".")):
-        print >>sys.stderr, "initialization folder not empty!"
+        logging.error("initialization folder not empty!")
         #~ cd $ABSPWD
         exit(1)
 
     if cmd_es(FIND+" /") != "/":
-        print >>sys.stderr, "REMOTE Not empty, please clear it before starting!"
+        logging.error("REMOTE Not empty, please clear it before starting!")
         #~ cd $ABSPWD
         exit(1)
 

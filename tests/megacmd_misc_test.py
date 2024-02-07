@@ -1,4 +1,4 @@
-#!/usr/bin/python2.7
+#!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
 import sys, os, subprocess, shutil
@@ -39,7 +39,7 @@ try:
     MEGA_EMAIL_AUX=os.environ["MEGA_EMAIL_AUX"]
     MEGA_PWD_AUX=os.environ["MEGA_PWD_AUX"]
 except:
-    print >>sys.stderr, "You must define variables MEGA_EMAIL MEGA_PWD MEGA_EMAIL_AUX MEGA_PWD_AUX. WARNING: Use an empty account for $MEGA_EMAIL"
+    logging.error("You must define variables MEGA_EMAIL MEGA_PWD MEGA_EMAIL_AUX MEGA_PWD_AUX. WARNING: Use an empty account for $MEGA_EMAIL")
     exit(1)
 
 
@@ -92,7 +92,7 @@ def clear_local_and_remote():
 def compare_and_clear() :
     global currentTest
     if VERBOSE:
-        print "test $currentTest"
+        print("test $currentTest")
     
     megafind=sort(cmd_ef(FIND))
     localfind=sort(find('localUPs'))
@@ -100,21 +100,21 @@ def compare_and_clear() :
     #~ if diff --side-by-side megafind.txt localfind.txt 2>/dev/null >/dev/null; then
     if (megafind == localfind):
         if VERBOSE:
-            print "diff megafind vs localfind:"
+            print("diff megafind vs localfind:")
             #diff --side-by-side megafind.txt localfind.txt#TODO: do this
-            print "MEGAFIND:"
-            print megafind
-            print "LOCALFIND"
-            print localfind
-        print "test "+str(currentTest)+" succesful!"     
+            print("MEGAFIND:")
+            print(megafind)
+            print("LOCALFIND")
+            print(localfind)
+        print("test "+str(currentTest)+" succesful!")     
     else:
-        print "test "+str(currentTest)+" failed!"
-        print "diff megafind vs localfind:"
+        print("test "+str(currentTest)+" failed!")
+        print("diff megafind vs localfind:")
         #~ diff --side-by-side megafind.txt localfind.txt #TODO: do this
-        print "MEGAFIND:"
-        print megafind
-        print "LOCALFIND"
-        print localfind
+        print("MEGAFIND:")
+        print(megafind)
+        print("LOCALFIND")
+        print(localfind)
         
         #cd $ABSPWD #TODO: consider this
         exit(1)
@@ -127,11 +127,11 @@ def check_failed_and_clear(o,status):
     global currentTest
 
     if status == 0:
-        print "test "+str(currentTest)+" failed!"
-        print o
+        print("test "+str(currentTest)+" failed!")
+        print(o)
         exit(1)
     else:
-        print "test "+str(currentTest)+" succesful!"
+        print("test "+str(currentTest)+" succesful!")
 
     currentTest+=1
     cmd_ef(CD+" /")
@@ -147,12 +147,12 @@ def initialize():
         cmd_ef(LOGIN+" " +osvar("MEGA_EMAIL")+" "+osvar("MEGA_PWD"))
 
     if len(os.listdir(".")) and ( len(os.listdir(".")) != 1 and os.listdir(".")[0] != 'images'):
-        print >>sys.stderr, "initialization folder not empty!", "\n",os.listdir(".")
+        logging.error("initialization folder not empty!", "\n",os.listdir("."))
         #~ cd $ABSPWD
         exit(1)
 
     if cmd_es(FIND+" /") != "/":
-        print >>sys.stderr, "REMOTE Not empty, please clear it before starting!"
+        logging.error("REMOTE Not empty, please clear it before starting!")
         #~ cd $ABSPWD
         exit(1)
 
@@ -212,14 +212,14 @@ def initialize():
 def compare_find(what, localFindPrefix='localUPs'):
     global currentTest
     if VERBOSE:
-        print "test "+str(currentTest)
+        print("test "+str(currentTest))
 
     if not isinstance(what, list):
         what = [what]
-    megafind=""
+    megafind=b""
     localfind=""
     for w in what:
-        megafind+=cmd_ef(FIND+" "+w)+"\n"
+        megafind+=cmd_ef(FIND+" "+w)+b"\n"
         localfind+=find(localFindPrefix+'/'+w,w)+"\n"
     
     megafind=sort(megafind).strip()
@@ -229,21 +229,21 @@ def compare_find(what, localFindPrefix='localUPs'):
     #~ (cd localUPs 2>/dev/null; find "$@" | sed "s#\./##g" | sort) > $ABSPWD/localfind.txt
     if (megafind == localfind):
         if VERBOSE:
-            print "diff megafind vs localfind:"
+            print("diff megafind vs localfind:")
             #diff --side-by-side megafind.txt localfind.txt#TODO: do this
-            print "MEGAFIND:"
-            print megafind
-            print "LOCALFIND"
-            print localfind
-        print "test "+str(currentTest)+" succesful!"     
+            print("MEGAFIND:")
+            print(megafind)
+            print("LOCALFIND")
+            print(localfind)
+        print("test "+str(currentTest)+" succesful!")     
     else:
-        print "test "+str(currentTest)+" failed!"
-        print "diff megafind vs localfind:"
+        print("test "+str(currentTest)+" failed!")
+        print("diff megafind vs localfind:")
         #~ diff --side-by-side megafind.txt localfind.txt #TODO: do this
-        print "MEGAFIND:"
-        print megafind
-        print "LOCALFIND"
-        print localfind
+        print("MEGAFIND:")
+        print(megafind)
+        print("LOCALFIND")
+        print(localfind)
         
         #cd $ABSPWD #TODO: consider this
         exit(1)
@@ -254,28 +254,28 @@ def compare_remote_local(megafind, localfind):
     global currentTest
     if (megafind == localfind):
         if VERBOSE:
-            print "diff megafind vs localfind:"
+            print("diff megafind vs localfind:")
             #diff --side-by-side megafind.txt localfind.txt#TODO: do this
-            print "MEGAFIND:"
-            print megafind
-            print "LOCALFIND"
-            print localfind
-        print "test "+str(currentTest)+" succesful!"     
+            print("MEGAFIND:")
+            print(megafind)
+            print("LOCALFIND")
+            print(localfind)
+        print("test "+str(currentTest)+" succesful!")     
     else:
-        print "test "+str(currentTest)+" failed!"
-        print "diff megafind vs localfind:"
+        print("test "+str(currentTest)+" failed!")
+        print("diff megafind vs localfind:")
         #~ diff --side-by-side megafind.txt localfind.txt #TODO: do this
-        print "MEGAFIND:"
-        print megafind
-        print "LOCALFIND"
-        print localfind
+        print("MEGAFIND:")
+        print(megafind)
+        print("LOCALFIND")
+        print(localfind)
         
         exit(1)
        
     currentTest+=1
 
 
-if VERBOSE: print "STARTING..."
+if VERBOSE: print("STARTING...")
 
 #INITIALIZATION
 clean_all()
@@ -353,7 +353,7 @@ if os.name != 'nt':
     ]:
         i+=1
         touch("localUPs/"+fname)
-        cmd_ef(PUT+" "+"localUPs/"+fname.encode('utf-8')+" "+"/")
+        cmd_ef(PUT+" "+"localUPs/"+fname+" "+"/")
     compare_find('/')
 
 currentTest=19
@@ -449,7 +449,7 @@ try:
 except:
     imagesUrl="https://mega.nz/folder/bxomFKwL#3V1dUJFzL98t1GqXX29IXg"
 if VERBOSE:
-    print "Using this imagesUrl: ",imagesUrl
+    print("Using this imagesUrl: "+imagesUrl)
 cmd_ef(GET+" "+imagesUrl+" localtmp/")
 #2nd, upload folder
 cmd_ef(PUT+" localtmp/images")
@@ -459,16 +459,16 @@ o,status=cmd_ec(FIND+" "+folder+"/*")
 fullout=""
 fullStatus=1
 for f in o.split():
-    if "." not in f: continue # Ignore folders
+    if b"." not in f: continue # Ignore folders
     rmfileifexisting("thumbnail.jpg")
-    o,status=cmd_ec(THUMB+" "+f+" thumbnail.jpg")
-    ext=f.split(".")[-1].lower().strip()
+    o,status=cmd_ec(THUMB+" "+f.decode()+" thumbnail.jpg")
+    ext=f.split(b".")[-1].lower().strip()
     allowedFailure=["ai","ani","cur","eps","exe","gif","heic","html","idx","j2c","jpm","md","mj2","pdf","psd","sgi","svg","txt","webp","xmp", "pnm","ppm", "tiff", "tif", "x3f"]
-    if not ext in allowedFailure and "saved in" not in o: #note: output code is not trustworthy: check for "saved in"
+    if not ext in allowedFailure and b"saved in" not in o: #note: output code is not trustworthy: check for "saved in"
         fullout=fullout+str("missing thumbnail for:"+str(f)+"\n")
         fullStatus=0
-        print status, ext," missing thumbnail:",f,"\n",o,
-check_failed_and_clear(fullout,fullStatus)
+        print (status, ext," missing thumbnail:",f,"\n",o,
+               check_failed_and_clear(fullout,fullStatus))
 
 
 # pdf thumbnail test
@@ -480,7 +480,7 @@ if 'SKIP_PDF_THUMBNAIL_TESTS' not in os.environ: # systems where pdfium cannot b
     except:
         pdfsURL="https://mega.nz/folder/D0w0nYiY#egvjqP5R-anbBdsJg8QRVg"
     if VERBOSE:
-        print "Using this pdfsURL: ",pdfsURL
+        print("Using this pdfsURL: ",pdfsURL)
     cmd_ef(GET+" "+pdfsURL+" localtmp/")
 
     #2nd, upload folder
@@ -491,18 +491,18 @@ if 'SKIP_PDF_THUMBNAIL_TESTS' not in os.environ: # systems where pdfium cannot b
     fullout=""
     fullStatus=1
 
-    print o
-    print 'splited=', o.split("\n")
-    for f in o.split("\n"):
+    print(o)
+    print('splited=', o.split(b"\n"))
+    for f in o.split(b"\n"):
         if not len(f): continue
         rmfileifexisting("thumbnail.jpg")
-        o,status=cmd_ec(THUMB+" '"+f+"' thumbnail.jpg")
+        o,status=cmd_ec(THUMB+" '"+f.decode()+"' thumbnail.jpg")
         allowedFailure=["very big sheet size", "protected", "non-pdf-file","with-password","_TFG"]
-        if not True in [x in f for x in allowedFailure] and "saved in" not in o: #note: output code is not trustworthy: check for "saved in"
+        if not True in [x.encode() in f for x in allowedFailure] and b"saved in" not in o: #note: output code is not trustworthy: check for "saved in"
             fullout=fullout+str("missing thumbnail for:"+str(f)+"\n")
             fullStatus=0
-            print status, " missing thumbnail:",f,"\n",o,
-    check_failed_and_clear(fullout,fullStatus)
+            print(status, " missing thumbnail:",f,"\n",o,
+                  check_failed_and_clear(fullout,fullStatus))
 ###################
 
 # Clean all

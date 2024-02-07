@@ -1,7 +1,7 @@
-#!/usr/bin/python2.7
+#!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
-import sys, os, subprocess, shutil
+import sys, os, subprocess, shutil, logging
 from megacmd_tests_common import *
 
 GET="mega-get"
@@ -32,7 +32,7 @@ try:
     MEGA_EMAIL=os.environ["MEGA_EMAIL"]
     MEGA_PWD=os.environ["MEGA_PWD"]
 except:
-    print >>sys.stderr, "You must define variables MEGA_EMAIL MEGA_PWD. WARNING: Use an empty account for $MEGA_EMAIL"
+    logging.fatal("You must define variables MEGA_EMAIL MEGA_PWD. WARNING: Use an empty account for $MEGA_EMAIL")
     exit(1)
 
 
@@ -76,7 +76,7 @@ def clear_local_and_remote():
 def compare_and_clear() :
     global currentTest
     if VERBOSE:
-        print "test "+str(currentTest)
+        print("test "+str(currentTest))
     
     megafind=sort(cmd_ef(FIND))
     localfind=sort(find('localUPs'))
@@ -84,22 +84,22 @@ def compare_and_clear() :
     #~ if diff --side-by-side megafind.txt localfind.txt 2>/dev/null >/dev/null; then
     if (megafind == localfind):
         if VERBOSE:
-            print "diff megafind vs localfind:"
+            print("diff megafind vs localfind:")
             #diff --side-by-side megafind.txt localfind.txt#TODO: do this
-            print "MEGAFIND:"
-            print megafind
-            print "LOCALFIND"
-            print localfind
-        print "test "+str(currentTest)+" succesful!"     
+            print("MEGAFIND:")
+            print(megafind)
+            print("LOCALFIND")
+            print(localfind)
+        print("test "+str(currentTest)+" succesful!")     
     else:
-        print "test "+str(currentTest)+" failed!"
-        print "diff megafind vs localfind:"
+        print("test "+str(currentTest)+" failed!")
+        print ("diff megafind vs localfind:")
         #~ diff --side-by-side megafind.txt localfind.txt #TODO: do this
-        print "MEGAFIND:"
-        print megafind
-        print "LOCALFIND"
-        print localfind
-        
+        print("MEGAFIND:")
+        print(megafind)
+        print("LOCALFIND")
+        print(localfind)
+
         #cd $ABSPWD #TODO: consider this
         exit(1)
 
@@ -114,12 +114,12 @@ def initialize():
         cmd_ef(LOGIN+" " +osvar("MEGA_EMAIL")+" "+osvar("MEGA_PWD"))
 
     if len(os.listdir(".")):
-        print >>sys.stderr, "initialization folder not empty!"
+        print("initialization folder not empty!")
         #~ cd $ABSPWD
         exit(1)
 
-    if cmd_es(FIND+" /") != "/":
-        print >>sys.stderr, "REMOTE Not empty, please clear it before starting!"
+    if cmd_es(FIND+" /") != b"/":
+        print("REMOTE Not empty, please clear it before starting!")
         #~ cd $ABSPWD
         exit(1)
 
@@ -172,14 +172,14 @@ def initialize():
 def compare_find(what, localFindPrefix='localUPs'):
     global currentTest
     if VERBOSE:
-        print "test "+str(currentTest)
+        print("test "+str(currentTest))
 
     if not isinstance(what, list):
         what = [what]
-    megafind=""
+    megafind=b""
     localfind=""
     for w in what:
-        megafind+=cmd_ef(FIND+" "+w)+"\n"
+        megafind+=cmd_ef(FIND+" "+w)+b"\n"
         localfind+=find(localFindPrefix+'/'+w,w)+"\n"
     
     megafind=sort(megafind).strip()
@@ -189,21 +189,21 @@ def compare_find(what, localFindPrefix='localUPs'):
     #~ (cd localUPs 2>/dev/null; find "$@" | sed "s#\./##g" | sort) > $ABSPWD/localfind.txt
     if (megafind == localfind):
         if VERBOSE:
-            print "diff megafind vs localfind:"
+            print("diff megafind vs localfind:")
             #diff --side-by-side megafind.txt localfind.txt#TODO: do this
-            print "MEGAFIND:"
-            print megafind
-            print "LOCALFIND"
-            print localfind
-        print "test "+str(currentTest)+" succesful!"     
+            print("MEGAFIND:")
+            print(megafind)
+            print("LOCALFIND")
+            print(localfind)
+        print("test "+str(currentTest)+" succesful!")     
     else:
-        print "test "+str(currentTest)+" failed!"
-        print "diff megafind vs localfind:"
+        print("test "+str(currentTest)+" failed!")
+        print("diff megafind vs localfind:")
         #~ diff --side-by-side megafind.txt localfind.txt #TODO: do this
-        print "MEGAFIND:"
-        print megafind
-        print "LOCALFIND"
-        print localfind
+        print("MEGAFIND:")
+        print(megafind)
+        print("LOCALFIND")
+        print(localfind)
         
         #cd $ABSPWD #TODO: consider this
         exit(1)
@@ -214,28 +214,28 @@ def compare_remote_local(megafind, localfind):
     global currentTest
     if (megafind == localfind):
         if VERBOSE:
-            print "diff megafind vs localfind:"
+            print("diff megafind vs localfind:")
             #diff --side-by-side megafind.txt localfind.txt#TODO: do this
-            print "MEGAFIND:"
-            print megafind
-            print "LOCALFIND"
-            print localfind
-        print "test "+str(currentTest)+" succesful!"     
+            print("MEGAFIND:")
+            print(megafind)
+            print("LOCALFIND")
+            print(localfind)
+        print("test "+str(currentTest)+" succesful!")     
     else:
-        print "test "+str(currentTest)+" failed!"
-        print "diff megafind vs localfind:"
+        print("test "+str(currentTest)+" failed!")
+        print("diff megafind vs localfind:")
         #~ diff --side-by-side megafind.txt localfind.txt #TODO: do this
-        print "MEGAFIND:"
-        print megafind
-        print "LOCALFIND"
-        print localfind
+        print("MEGAFIND:")
+        print(megafind)
+        print("LOCALFIND")
+        print(localfind)
         
         exit(1)
        
     currentTest+=1
 
 
-if VERBOSE: print "STARTING..."
+if VERBOSE: print("STARTING...")
 
 #INITIALIZATION
 clean_all()
@@ -298,10 +298,10 @@ if not CMDSHELL: #TODO: currently there is no way to know last CMSHELL status co
     #Test 13 #file01.txt/non-existent
     megafind,status=cmd_ec(FIND+" "+"file01.txt/non-existent")
     if status == 0: 
-        print "test "+str(currentTest)+" failed!"
+        print("test "+str(currentTest)+" failed!")
         exit(1)
     else:
-        print "test "+str(currentTest)+" succesful!"
+        print("test "+str(currentTest)+" succesful!")
 
 currentTest=14
 

@@ -1,8 +1,9 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
 import sys, os, subprocess, shutil, re
 import fnmatch
+import logging
 
 try:
     os.environ['VERBOSE']
@@ -20,13 +21,13 @@ except:
 #execute command
 def ec(what):
     if VERBOSE:
-        print "Executing "+what
+        print("Executing "+what)
     process = subprocess.Popen(what, shell=True, stdout=subprocess.PIPE)
     stdoutdata, stderrdata = process.communicate()
 
-    stdoutdata=stdoutdata.replace('\r\n','\n')
+    stdoutdata=stdoutdata.replace(b'\r\n',b'\n')
     if VERBOSE:
-        print stdoutdata.strip()
+        print(stdoutdata.strip())
 
     return stdoutdata,process.returncode
 
@@ -48,8 +49,8 @@ def esc(what):
 def ef(what):
     out,code=esc(what)
     if code != 0:
-        print >>sys.stderr, "FAILED trying ", what
-        print >>sys.stderr, out #TODO: stderr?
+        logging.error("FAILED trying "+ what)
+        logging.error(out) #TODO: stderr?
         
         exit(code)
     return out    
@@ -57,33 +58,33 @@ def ef(what):
 def cmdshell_ec(what):
     what=re.sub("^mega-","",what)
     if VERBOSE:
-        print "Executing in cmdshell: "+what
+        print("Executing in cmdshell: "+what)
     towrite="lcd "+os.getcwd()+"\n"+what
     out(towrite+"\n",'/tmp/shellin')
     with open('/tmp/shellin') as shellin:
         if VERBOSE:
-            print "Launching in cmdshell ... " + MEGACMDSHELL
+            print("Launching in cmdshell ... " + MEGACMDSHELL)
         process = subprocess.Popen(MEGACMDSHELL, shell=True, stdin=shellin, stdout=subprocess.PIPE)
         stdoutdata, stderrdata = process.communicate()
         realout =[]
         equallines=0
         afterwelcomemsg=False
         afterorder=False
-        for l in stdoutdata.split('\n'):
-            l=re.sub(".*\x1b\[K","",l) #replace non printable stuff(erase line controls)
-            l=re.sub(".*\r","",l) #replace non printable stuff
+        for l in stdoutdata.split(b'\n'):
+            l=re.sub(b".*\x1b\[K",b"",l) #replace non printable stuff(erase line controls)
+            l=re.sub(b".*\r",b"",l) #replace non printable stuff
             if afterorder:
-                if "Exiting ..." in l: break
+                if b"Exiting ..." in l: break
                 realout+=[l]
             elif afterwelcomemsg:
-                if what in l: afterorder = True
-            elif "="*20 in l:
+                if what.encode() in l: afterorder = True
+            elif b"="*20 in l:
                 equallines+=1
                 if equallines==2: afterwelcomemsg = True
         
-        realout="\n".join(realout)
+        realout=b"\n".join(realout)
         if VERBOSE:
-            print realout.strip()
+            print(realout.strip())
 
         return realout,process.returncode
 
@@ -105,8 +106,8 @@ def cmdshell_esc(what):
 def cmdshell_ef(what):
     out,code=cmdshell_ec(what)
     if code != 0:
-        print >>sys.stderr, "FALLO en "+str(what) #TODO: stderr?
-        print >>sys.stderr, out #TODO: stderr?
+        logging.error("FALLO en "+str(what)) #TODO: stderr?
+        logging.error(out) #TODO: stderr?
         
         exit(code)
     return out
@@ -169,6 +170,8 @@ def osvar(what):
         return ""
 
 def sort(what):
+    if isinstance(what, bytes):
+        return b"\n".join(sorted(what.split(b"\n"))).decode()
     return "\n".join(sorted(what.split("\n")))
 
 def findR(where, prefix=""):
@@ -184,7 +187,7 @@ def findR(where, prefix=""):
 
 def find(where, prefix=""):
     if not os.path.exists(where):
-        if VERBOSE: print "file not found in find:", where, os.getcwd()
+        if VERBOSE: print("file not found in find: {}, {} ".format(where, os.getcwd()))
 
         return ""
     
@@ -205,7 +208,7 @@ def find(where, prefix=""):
 
 def ls(where, prefix=""):
     if not os.path.exists(where):
-        if VERBOSE: print "file not found in find:", where, os.getcwd()
+        if VERBOSE: print("file not found in find: {}, {}".format(where, os.getcwd()))
         return ""
     toret=".\n"
     for f in os.listdir(where):

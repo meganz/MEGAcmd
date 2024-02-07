@@ -1,8 +1,8 @@
-#!/usr/bin/python2.7
+#!/usr/bin/python3
 # -*- coding: utf-8 -*-
 #better run in an empty folder
 
-import sys, os, subprocess, shutil, distutils, distutils.dir_util
+import sys, os, subprocess, shutil, distutils, distutils.dir_util, logging
 from megacmd_tests_common import *
 
 GET="mega-get"
@@ -29,7 +29,7 @@ try:
     MEGA_EMAIL_AUX=os.environ["MEGA_EMAIL_AUX"]
     MEGA_PWD_AUX=os.environ["MEGA_PWD_AUX"]
 except:
-    print >>sys.stderr, "You must define variables MEGA_EMAIL MEGA_PWD MEGA_EMAIL_AUX MEGA_PWD_AUX. WARNING: Use an empty account for $MEGA_EMAIL"
+    logging.error("You must define variables MEGA_EMAIL MEGA_PWD MEGA_EMAIL_AUX MEGA_PWD_AUX. WARNING: Use an empty account for $MEGA_EMAIL")
     exit(1)
 
 try:
@@ -47,11 +47,6 @@ try:
 
 except:
     CMDSHELL=False
-
-def initialize_contents():
-    contents=" ".join(['"localtmp/'+x+'"' for x in os.listdir('localtmp/')])
-    cmd_ef(PUT+" "+contents+" /")
-    shutil.copytree('localtmp', 'localUPs')
 
 def clean_all(): 
     
@@ -85,24 +80,22 @@ def compare_and_clear():
     
     #~ if diff megaDls localDls 2>/dev/null >/dev/null; then
     if (megaDls == localDls):
-        print "test "+str(currentTest)+" succesful!"     
+        print("test "+str(currentTest)+" succesful!")     
         if VERBOSE:
-            print "test "+str(currentTest)
-            print "megaDls:"
-            print megaDls
-            print
-            print "localDls:"
-            print localDls
-            print
+            print("test "+str(currentTest))
+            print("megaDls:")
+            print(megaDls)
+            print("")
+            print("localDls:")
+            print(localDls)
     else:
-        print "test "+str(currentTest)+" failed!"
+        print("test "+str(currentTest)+" failed!")
 
-        print "megaDls:"
-        print megaDls
-        print
-        print "localDls:"
-        print localDls
-        print
+        print("megaDls:")
+        print(megaDls)
+        print("")
+        print("localDls:")
+        print(localDls)
         exit(1)
 
     clear_dls()
@@ -114,11 +107,11 @@ def check_failed_and_clear(o,status):
     global currentTest
 
     if status == 0: 
-        print "test "+str(currentTest)+" failed!"
-        print o
+        print("test "+str(currentTest)+" failed!")
+        print(o)
         exit(1)
     else:
-        print "test "+str(currentTest)+" succesful!"
+        print("test "+str(currentTest)+" succesful!")
 
     clear_dls()
     currentTest+=1
@@ -130,24 +123,24 @@ def safe_export(path):
     stdout, code = cmd_esc(command + ' -f -a')
 
     if code == 0:
-        return stdout.split(' ')[-1]
+        return stdout.split(b' ')[-1]
 
     # Run export without the `-a` option (also need to remove `-f` or it'll fail)
     # Output is slightly different in this case:
     #   * Link is surrounded by parenthesis, so we need to remove the trailing ')'
     #   * If path is a folder it'll also return the list of nodes inside, so we
     #   need to keep only the first line
-    if 'already exported' in stdout:
-        stdout = cmd_ef(command).split('\n')[0].strip(')')
-        if 'AuthKey=' in stdout:
+    if b'already exported' in stdout:
+        stdout = cmd_ef(command).split(b'\n')[0].strip(b')')
+        if b'AuthKey=' in stdout:
             # In this case the authkey is the last word,
             # so the link is second from the right
-            return stdout.split(' ')[-2]
+            return stdout.split(b' ')[-2]
         else:
-            return stdout.split(' ')[-1]
+            return stdout.split(b' ')[-1]
     else:
-        print >>sys.stderr, 'FAILED trying to export ' + path
-        print >>sys.stderr, out
+        logging.error('FAILED trying to export ' + path)
+        logging.error(out)
         exit(code)
 
 
@@ -162,7 +155,7 @@ def initialize_contents():
         cmd_ef(LOGIN+" " +osvar("MEGA_EMAIL_AUX")+" "+osvar("MEGA_PWD_AUX"))
 
     if len(os.listdir(".")):
-        print >>sys.stderr, "initialization folder not empty!"
+        logging.error("initialization folder not empty!")
         exit(1)
         
     #initialize localtmp estructure:
@@ -180,12 +173,12 @@ def initialize_contents():
     cmd_ef(PUT+' foreign /')
     cmd_ef(SHARE+' foreign -a --with='+osvar("MEGA_EMAIL"))
 
-    URIFOREIGNEXPORTEDFOLDER=safe_export('foreign/sub01')
-    URIFOREIGNEXPORTEDFILE=safe_export('foreign/sub02/fileatsub02.txt')
+    URIFOREIGNEXPORTEDFOLDER=safe_export('foreign/sub01').decode()
+    URIFOREIGNEXPORTEDFILE=safe_export('foreign/sub02/fileatsub02.txt').decode()
     
     if VERBOSE:
-        print "URIFOREIGNEXPORTEDFOLDER=",URIFOREIGNEXPORTEDFILE
-        print "URIFOREIGNEXPORTEDFILE=",URIFOREIGNEXPORTEDFILE
+        print("URIFOREIGNEXPORTEDFOLDER="+URIFOREIGNEXPORTEDFILE)
+        print("URIFOREIGNEXPORTEDFILE="+URIFOREIGNEXPORTEDFILE)
     
 
     cmd_ef(LOGOUT)
@@ -200,17 +193,17 @@ def initialize_contents():
     #~ mega-put bin0* //bin
     cmd_ef(PUT+" bin01 bin02 //bin")
 
-    URIEXPORTEDFOLDER=safe_export('cloud01/c01s01')
-    URIEXPORTEDFILE=safe_export('cloud02/fileatcloud02.txt')
+    URIEXPORTEDFOLDER=safe_export('cloud01/c01s01').decode()
+    URIEXPORTEDFILE=safe_export('cloud02/fileatcloud02.txt').decode()
     
     if VERBOSE:
-        print "URIEXPORTEDFOLDER=",URIEXPORTEDFOLDER
-        print "URIEXPORTEDFILE=",URIEXPORTEDFILE
+        print("URIEXPORTEDFOLDER="+URIEXPORTEDFOLDER)
+        print("URIEXPORTEDFILE=",URIEXPORTEDFILE)
     
-if VERBOSE: print "STARTING..."
+if VERBOSE: print("STARTING...")
 
 #INITIALIZATION
-clean_all
+clean_all()
 makedir('origin')
 os.chdir('origin')
 initialize_contents()
@@ -221,8 +214,8 @@ makedir('localDls')
 
 ABSMEGADLFOLDER=ABSPWD+'/megaDls'
 
-URIEXPORTEDFOLDER=safe_export('cloud01/c01s01')
-URIEXPORTEDFILE=safe_export('cloud02/fileatcloud02.txt')
+URIEXPORTEDFOLDER=safe_export('cloud01/c01s01').decode()
+URIEXPORTEDFILE=safe_export('cloud02/fileatcloud02.txt').decode()
 
 
 clear_dls()
