@@ -36,4 +36,4 @@ echo /file01.txt > $TMP/file01.txt
 mkdir -p $TMP/testExportFolder/subDirectoryExport
 echo /testExportFoldersubDirectoryExport/file01.txt > $TMP/testExportFolder/subDirectoryExport/file01.txt
 
-mega-put $TMP/ /
+cd $TMP && mega-put * /
