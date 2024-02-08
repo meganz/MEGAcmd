@@ -72,6 +72,11 @@ const char *MessageBuffer::MemoryBlock::getBuffer() const
     return mBuffer.get();
 }
 
+void MessageBuffer::MemoryBlock::markAsOutOfMemory()
+{
+    mOutOfMemory = true;
+}
+
 void MessageBuffer::MemoryBlock::appendData(const char *data, size_t size)
 {
     assert(canAppendData(size));
@@ -86,7 +91,8 @@ void MessageBuffer::MemoryBlock::appendData(const char *data, size_t size)
 }
 
 MessageBuffer::MessageBuffer(size_t defaultBlockCapacity) :
-    mDefaultBlockCapacity(defaultBlockCapacity)
+    mDefaultBlockCapacity(defaultBlockCapacity),
+    mOutOfMemory(false)
 {
 }
 
@@ -97,7 +103,27 @@ void MessageBuffer::append(const char *data, size_t size)
     auto* lastBlock = mList.empty() ? nullptr : &mList.back();
     if (!lastBlock || !lastBlock->canAppendData(size))
     {
-        mList.emplace_back(mDefaultBlockCapacity);
+        try
+        {
+            mList.emplace_back(mDefaultBlockCapacity);
+        }
+        catch (const std::bad_alloc&)
+        {
+            if (lastBlock)
+            {
+                // If there's a bad_alloc exception when adding to a vector, it remains unchanged
+                // So we mark the existing last block as O.O.M.
+                lastBlock->markAsOutOfMemory();
+            }
+            else
+            {
+               // If there's not even a last block, we declare the whole message buffer as O.O.M.
+                mOutOfMemory = true;
+            }
+            return;
+        }
+
+        mOutOfMemory = false;
         lastBlock = &mList.back();
     }
 
@@ -107,9 +133,11 @@ void MessageBuffer::append(const char *data, size_t size)
     }
 }
 
-MessageBuffer::MemoryBlockList MessageBuffer::popMemoryBlockList()
+MessageBuffer::MemoryBlockList MessageBuffer::popMemoryBlockList(bool& outOfMemory)
 {
     std::lock_guard<std::mutex> lock(mListMutex);
+    outOfMemory = mOutOfMemory;
+    mOutOfMemory = false;
     return std::move(mList);
 }
 
@@ -346,7 +374,15 @@ void FileRotatingLoggedStream::writeToBuffer(const char *msg, size_t size) const
 
 void FileRotatingLoggedStream::writeMessagesToFile()
 {
-    auto memoryBlockList = mMessageBuffer.popMemoryBlockList();
+    bool outOfMemory = false;
+    auto memoryBlockList = mMessageBuffer.popMemoryBlockList(outOfMemory);
+
+    if (outOfMemory)
+    {
+        mOutputFile << "<log gap - out of logging memory at this point>\n";
+        return;
+    }
+
     for (const auto& memoryBlock : memoryBlockList)
     {
         if (!memoryBlock.isOutOfMemory())
@@ -362,12 +398,12 @@ void FileRotatingLoggedStream::writeMessagesToFile()
 
 void FileRotatingLoggedStream::flushToFile()
 {
+    mOutputFile.flush();
+    mNextFlushTime = std::chrono::steady_clock::now() + mFlushPeriod;
     {
         std::lock_guard<std::mutex> lock(mWriteMutex);
         mFlush = false;
     }
-    mOutputFile.flush();
-    mNextFlushTime = std::chrono::steady_clock::now() + mFlushPeriod;
 }
 
 void FileRotatingLoggedStream::mainLoop()
