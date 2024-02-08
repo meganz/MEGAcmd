@@ -54,9 +54,8 @@ public:
     MessageBuffer();
 
     void append(const char *data, size_t size);
-    MemoryBlockList popMemoryBlockList();
+    MemoryBlockList popMemoryBlockList(bool &outOfMemory); // when we have C++17 we can use optional for this
 
-    bool isOutOfMemory() const;
     bool isEmpty() const;
     bool isNearLastBlockCapacity() const;
 
@@ -271,18 +270,12 @@ void MessageBuffer<BlockSize>::append(const char *data, size_t size)
 }
 
 template<size_t BlockSize>
-typename MessageBuffer<BlockSize>::MemoryBlockList MessageBuffer<BlockSize>::popMemoryBlockList()
+typename MessageBuffer<BlockSize>::MemoryBlockList MessageBuffer<BlockSize>::popMemoryBlockList(bool &outOfMemory)
 {
     std::lock_guard<std::mutex> lock(mListMutex);
+    outOfMemory = mOutOfMemory;
     mOutOfMemory = false;
     return std::move(mList);
-}
-
-template<size_t BlockSize>
-bool MessageBuffer<BlockSize>::isOutOfMemory() const
-{
-    std::lock_guard<std::mutex> lock(mListMutex);
-    return mOutOfMemory;
 }
 
 template<size_t BlockSize>

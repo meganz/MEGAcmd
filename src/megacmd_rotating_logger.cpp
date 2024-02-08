@@ -263,8 +263,8 @@ void FileRotatingLoggedStream::writeToBuffer(const char *msg, size_t size) const
 
 void FileRotatingLoggedStream::writeMessagesToFile()
 {
-    const bool outOfMemory = mMessageBuffer.isOutOfMemory();
-    auto memoryBlockList = mMessageBuffer.popMemoryBlockList();
+    bool outOfMemory = false;
+    auto memoryBlockList = mMessageBuffer.popMemoryBlockList(outOfMemory);
 
     if (outOfMemory)
     {
