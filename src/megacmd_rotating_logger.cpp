@@ -42,89 +42,6 @@ public:
 
 namespace megacmd {
 
-MessageBuffer::MemoryBlock::MemoryBlock(size_t capacity) :
-    mBuffer(new char[capacity]()),
-    mSize(0),
-    mCapacity(capacity),
-    mOutOfMemory(mBuffer == nullptr)
-{
-    assert(mCapacity > 0);
-}
-
-bool MessageBuffer::MemoryBlock::canAppendData(size_t dataSize) const
-{
-    // The last byte of buffer is reserved for '\0'
-    return !mOutOfMemory && mSize + dataSize < mCapacity;
-}
-
-bool MessageBuffer::MemoryBlock::isNearCapacity() const
-{
-    return mSize + mCapacity/8 > mCapacity;
-}
-
-bool MessageBuffer::MemoryBlock::isOutOfMemory() const
-{
-    return mOutOfMemory;
-}
-
-const char *MessageBuffer::MemoryBlock::getBuffer() const
-{
-    return mBuffer.get();
-}
-
-void MessageBuffer::MemoryBlock::appendData(const char *data, size_t size)
-{
-    assert(canAppendData(size));
-    assert(data && size > 0);
-
-    std::memcpy(mBuffer.get() + mSize, data, size);
-    mSize += size;
-
-    // Append null after the last character so the buffer
-    // is properly treated as a C-string
-    mBuffer[mSize] = '\0';
-}
-
-MessageBuffer::MessageBuffer(size_t defaultBlockCapacity) :
-    mDefaultBlockCapacity(defaultBlockCapacity)
-{
-}
-
-void MessageBuffer::append(const char *data, size_t size)
-{
-    std::lock_guard<std::mutex> lock(mListMutex);
-
-    auto* lastBlock = mList.empty() ? nullptr : &mList.back();
-    if (!lastBlock || !lastBlock->canAppendData(size))
-    {
-        mList.emplace_back(mDefaultBlockCapacity);
-        lastBlock = &mList.back();
-    }
-
-    if (lastBlock->canAppendData(size))
-    {
-        lastBlock->appendData(data, size);
-    }
-}
-
-MessageBuffer::MemoryBlockList MessageBuffer::popMemoryBlockList()
-{
-    std::lock_guard<std::mutex> lock(mListMutex);
-    return std::move(mList);
-}
-
-bool MessageBuffer::isEmpty() const
-{
-    std::lock_guard<std::mutex> lock(mListMutex);
-    return mList.empty();
-}
-
-bool MessageBuffer::isNearLastBlockCapacity() const
-{
-    std::lock_guard<std::mutex> lock(mListMutex);
-    return !mList.empty() && mList.back().isNearCapacity();
-}
-
 class BaseEngine
 {
 protected:
@@ -346,7 +263,15 @@ void FileRotatingLoggedStream::writeToBuffer(const char *msg, size_t size) const
 
 void FileRotatingLoggedStream::writeMessagesToFile()
 {
+    const bool outOfMemory = mMessageBuffer.isOutOfMemory();
     auto memoryBlockList = mMessageBuffer.popMemoryBlockList();
+
+    if (outOfMemory)
+    {
+        mOutputFile << "<log gap - out of logging memory at this point>\n";
+        return;
+    }
+
     for (const auto& memoryBlock : memoryBlockList)
     {
         if (!memoryBlock.isOutOfMemory())
@@ -425,7 +350,6 @@ void FileRotatingLoggedStream::mainLoop()
 }
 
 FileRotatingLoggedStream::FileRotatingLoggedStream(const std::string &outputFilePath) :
-    mMessageBuffer(2048),
     mOutputFilePath(outputFilePath),
     mOutputFile(outputFilePath, std::ofstream::out | std::ofstream::app),
     mFileManager(outputFilePath),

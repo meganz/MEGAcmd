@@ -27,41 +27,43 @@
 
 namespace megacmd {
 
+template<size_t BlockSize>
 class MessageBuffer final
 {
 public:
     class MemoryBlock final
     {
-        std::unique_ptr<char[]> mBuffer;
         size_t mSize;
-        const size_t mCapacity;
-        const bool mOutOfMemory;
+        bool mOutOfMemory;
+        char mBuffer[BlockSize];
     public:
-        MemoryBlock(size_t capacity);
+        MemoryBlock();
 
         bool canAppendData(size_t dataSize) const;
         bool isNearCapacity() const;
         bool isOutOfMemory() const;
         const char *getBuffer() const;
 
+        void markAsOutOfMemory();
         void appendData(const char *data, size_t size);
 
     };
     using MemoryBlockList = std::vector<MemoryBlock>;
 
 public:
-    MessageBuffer(size_t defaultBlockCapacity);
+    MessageBuffer();
 
     void append(const char *data, size_t size);
     MemoryBlockList popMemoryBlockList();
 
+    bool isOutOfMemory() const;
     bool isEmpty() const;
     bool isNearLastBlockCapacity() const;
 
 private:
-    const size_t mDefaultBlockCapacity;
     mutable std::mutex mListMutex;
     MemoryBlockList mList;
+    bool mOutOfMemory;
 };
 
 class RotationEngine;
@@ -120,7 +122,7 @@ private:
 
 class FileRotatingLoggedStream final : public LoggedStream
 {
-    mutable MessageBuffer mMessageBuffer;
+    mutable MessageBuffer<1024> mMessageBuffer;
 
     const std::string mOutputFilePath;
     mutable OUTFSTREAMTYPE mOutputFile;
@@ -171,4 +173,129 @@ public:
 
     virtual void flush() override;
 };
+
+template<size_t BlockSize>
+MessageBuffer<BlockSize>::MemoryBlock::MemoryBlock() :
+    mSize(0),
+    mOutOfMemory(false)
+{
+}
+
+template<size_t BlockSize>
+bool MessageBuffer<BlockSize>::MemoryBlock::canAppendData(size_t dataSize) const
+{
+    // The last byte of buffer is reserved for '\0'
+    return !mOutOfMemory && mSize + dataSize < BlockSize;
+}
+
+template<size_t BlockSize>
+bool MessageBuffer<BlockSize>::MemoryBlock::isNearCapacity() const
+{
+    return mSize + BlockSize/8 > BlockSize;
+}
+
+template<size_t BlockSize>
+bool MessageBuffer<BlockSize>::MemoryBlock::isOutOfMemory() const
+{
+    return mOutOfMemory;
+}
+
+template<size_t BlockSize>
+const char *MessageBuffer<BlockSize>::MemoryBlock::getBuffer() const
+{
+    return mBuffer;
+}
+
+template<size_t BlockSize>
+void MessageBuffer<BlockSize>::MemoryBlock::markAsOutOfMemory()
+{
+    mOutOfMemory = true;
+}
+
+template<size_t BlockSize>
+void MessageBuffer<BlockSize>::MemoryBlock::appendData(const char *data, size_t size)
+{
+    assert(canAppendData(size));
+    assert(data && size > 0);
+
+    std::memcpy(&mBuffer[mSize], data, size);
+    mSize += size;
+
+    // Append null after the last character so the buffer
+    // is properly treated as a C-string
+    mBuffer[mSize] = '\0';
+}
+
+template<size_t BlockSize>
+MessageBuffer<BlockSize>::MessageBuffer() :
+    mOutOfMemory(false)
+{
+}
+
+template<size_t BlockSize>
+void MessageBuffer<BlockSize>::append(const char *data, size_t size)
+{
+    std::lock_guard<std::mutex> lock(mListMutex);
+
+    auto* lastBlock = mList.empty() ? nullptr : &mList.back();
+    if (!lastBlock || !lastBlock->canAppendData(size))
+    {
+        try
+        {
+            mList.emplace_back();
+        }
+        catch (const std::bad_alloc&)
+        {
+            if (lastBlock)
+            {
+                // If there's a bad_alloc exception when adding to a vector, it remains unchanged
+                // So we mark the existing last block as O.O.M.
+                lastBlock->markAsOutOfMemory();
+            }
+            else
+            {
+                // If there's not even a last block, we declare the whole message buffer as O.O.M.
+                mOutOfMemory = true;
+            }
+            return;
+        }
+
+        mOutOfMemory = false;
+        lastBlock = &mList.back();
+    }
+
+    if (lastBlock->canAppendData(size))
+    {
+        lastBlock->appendData(data, size);
+    }
+}
+
+template<size_t BlockSize>
+typename MessageBuffer<BlockSize>::MemoryBlockList MessageBuffer<BlockSize>::popMemoryBlockList()
+{
+    std::lock_guard<std::mutex> lock(mListMutex);
+    mOutOfMemory = false;
+    return std::move(mList);
+}
+
+template<size_t BlockSize>
+bool MessageBuffer<BlockSize>::isOutOfMemory() const
+{
+    std::lock_guard<std::mutex> lock(mListMutex);
+    return mOutOfMemory;
+}
+
+template<size_t BlockSize>
+bool MessageBuffer<BlockSize>::isEmpty() const
+{
+    std::lock_guard<std::mutex> lock(mListMutex);
+    return mList.empty();
+}
+
+template<size_t BlockSize>
+bool MessageBuffer<BlockSize>::isNearLastBlockCapacity() const
+{
+    std::lock_guard<std::mutex> lock(mListMutex);
+    return !mList.empty() && mList.back().isNearCapacity();
+}
 }
