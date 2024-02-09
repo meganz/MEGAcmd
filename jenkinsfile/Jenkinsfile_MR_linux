@@ -132,6 +132,10 @@ pipeline {
 	    matrix {
 		axes {
 		    axis {
+			name 'SANITIZERS'
+			values 'ubsan', 'asan', 'tsan'
+		    }
+		    axis {
 			name 'TEST_SCRIPT'
 			// megacmd_get_test.sh is disabled for now, as it needs two MEGA accounts
 			values 'megacmd_find_test.sh', 'megacmd_put_test.sh', 'megacmd_rm_test.sh'
@@ -142,11 +146,22 @@ pipeline {
 			environment{
 			    MEGA_EMAIL=''
 			    MEGA_PWD=credentials('MEGACMD_TESTS_PASSWORD')
+			    ASAN_OPTIONS="atexit=1,print_stats=1,log_path=/tmp/test-results/megacmd-${TEST_SCRIPT}-asan-report"
+                            TSAN_OPTIONS="log_path=/tmp/test-results/megacmd-${TEST_SCRIPT}-tsan-report"
+                            UBSAN_OPTIONS="log_path=/tmp/test-results/megacmd-${TEST_SCRIPT}-ubsan-report"
 			}
 			steps{
 			    lock(label: 'testing_accounts_megacmd', variable: 'MEGA_EMAIL', quantity: 1, resource: null){
 				script {
-				    sh "docker run --user \$(id -u):\$(id -g) --env HOME=/tmp --env MEGA_EMAIL --env MEGA_PWD --rm -- meganz/megacmd-autotools-ubsan:${env.BUILD_NUMBER} /usr/bin/bash -c '/usr/local/bin/mega-cmd-server > /dev/null & sleep 5 && mkdir /tmp/tests && cd /tmp/tests && bash -x /usr/local/bin/${TEST_SCRIPT}'"
+				    try {
+					sh "docker run --user \$(id -u):\$(id -g) --env ASAN_OPTIONS --env TSAN_OPTIONS --env HOME=/tmp --env MEGA_EMAIL --env MEGA_PWD --rm -- meganz/megacmd-autotools-${SANITIZERS}:${env.BUILD_NUMBER} /usr/bin/bash -c '/usr/local/bin/mega-cmd-server > /dev/null & sleep 5 && mkdir /tmp/tests && cd /tmp/tests && bash -x /usr/local/bin/${TEST_SCRIPT}'"
+				    } catch(e) {
+					if (env.SANITIZERS == 'tsan'){
+                                            echo "${env.SANITIZERS} sanitizer build are expected to fail for now, will keep the build as successful"
+                                        } else {
+                                            sh "exit 1"
+                                        }
+				    }
 				}
 			    }
 			}
@@ -158,6 +173,10 @@ pipeline {
 	    matrix {
 		axes {
 		    axis {
+			name 'SANITIZERS'
+			values 'ubsan', 'asan', 'tsan'
+		    }
+		    axis {
 			name 'TEST_SCRIPT'
 			// megacmd_get_test.sh is disabled for now, as it needs two MEGA accounts
 			values 'megacmd_find_test.py', 'megacmd_put_test.py', 'megacmd_rm_test.py'
@@ -168,11 +187,22 @@ pipeline {
 			environment{
 			    MEGA_EMAIL=''
 			    MEGA_PWD=credentials('MEGACMD_TESTS_PASSWORD')
+			    ASAN_OPTIONS="atexit=1,print_stats=1,log_path=/tmp/test-results/megacmd-${TEST_SCRIPT}-asan-report"
+                            TSAN_OPTIONS="log_path=/tmp/test-results/megacmd-${TEST_SCRIPT}-tsan-report"
+                            UBSAN_OPTIONS="log_path=/tmp/test-results/megacmd-${TEST_SCRIPT}-ubsan-report"
 			}
 			steps{
 			    lock(label: 'testing_accounts_megacmd', variable: 'MEGA_EMAIL', quantity: 1, resource: null){
 				script {
-				    sh "docker run --user \$(id -u):\$(id -g) --env HOME=/tmp --env MEGA_EMAIL --env MEGA_PWD --rm -- meganz/megacmd-autotools-ubsan:${env.BUILD_NUMBER} /usr/bin/bash -c '/usr/local/bin/mega-cmd-server > /dev/null & sleep 1 && mkdir /tmp/tests && cd /tmp/tests && python3 /usr/local/bin/${TEST_SCRIPT}'"
+				    try {
+					sh "docker run --user \$(id -u):\$(id -g) --env ASAN_OPTIONS --env TSAN_OPTIONS --env HOME=/tmp --env MEGA_EMAIL --env MEGA_PWD --rm -- meganz/megacmd-autotools-${SANITIZERS}:${env.BUILD_NUMBER} /usr/bin/bash -c '/usr/local/bin/mega-cmd-server > /dev/null & sleep 1 && mkdir /tmp/tests && cd /tmp/tests && python3 /usr/local/bin/${TEST_SCRIPT}'"
+				    } catch(e) {
+					if (env.SANITIZERS == 'tsan'){
+                                            echo "${env.SANITIZERS} sanitizer build are expected to fail for now, will keep the build as successful"
+                                        } else {
+                                            sh "exit 1"
+                                        }
+				    }
 				}
 			    }
 			}
@@ -275,7 +305,7 @@ pipeline {
             }
             sh "docker image rm -- meganz/megacmd-autotools-ubsan:${env.BUILD_NUMBER} meganz/megacmd-autotools-asan:${env.BUILD_NUMBER} meganz/megacmd-autotools-tsan:${env.BUILD_NUMBER} || true"
             junit "**/test-results/ubsan-*.xml"
-            archiveArtifacts artifacts: "**/test-results/megacmd-*-tests-*-report.*"
+            archiveArtifacts artifacts: "**/test-results/megacmd-*-report.*"
         }
 
     }
