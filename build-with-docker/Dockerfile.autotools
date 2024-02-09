@@ -94,10 +94,10 @@ WORKDIR /usr/src/megacmd
 ENV CC "ccache gcc-12"
 ENV CXX "ccache g++-12"
 ENV CCACHE_DIR /tmp/ccache
-ARG BUILD_OPT_SANITIZERS=all
 
 COPY --from=src /usr/src/megacmd /usr/src/megacmd
 
+ARG BUILD_OPT_SANITIZERS=all
 RUN --mount=type=cache,target=/tmp/ccache \
     ./autogen.sh \
     && ./configure --disable-silent-rules --prefix=/usr/local \
