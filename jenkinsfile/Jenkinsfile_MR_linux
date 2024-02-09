@@ -146,7 +146,7 @@ pipeline {
 			environment{
 			    MEGA_EMAIL=''
 			    MEGA_PWD=credentials('MEGACMD_TESTS_PASSWORD')
-			    ASAN_OPTIONS="atexit=1,print_stats=1,log_path=/tmp/test-results/megacmd-${TEST_SCRIPT}-asan-report"
+			    ASAN_OPTIONS="log_path=/tmp/test-results/megacmd-${TEST_SCRIPT}-asan-report"
                             TSAN_OPTIONS="log_path=/tmp/test-results/megacmd-${TEST_SCRIPT}-tsan-report"
                             UBSAN_OPTIONS="log_path=/tmp/test-results/megacmd-${TEST_SCRIPT}-ubsan-report"
 			}
@@ -189,7 +189,7 @@ pipeline {
 			environment{
 			    MEGA_EMAIL=''
 			    MEGA_PWD=credentials('MEGACMD_TESTS_PASSWORD')
-			    ASAN_OPTIONS="atexit=1,print_stats=1,log_path=/tmp/test-results/megacmd-${TEST_SCRIPT}-asan-report"
+			    ASAN_OPTIONS="log_path=/tmp/test-results/megacmd-${TEST_SCRIPT}-asan-report"
                             TSAN_OPTIONS="log_path=/tmp/test-results/megacmd-${TEST_SCRIPT}-tsan-report"
                             UBSAN_OPTIONS="log_path=/tmp/test-results/megacmd-${TEST_SCRIPT}-ubsan-report"
 			}
