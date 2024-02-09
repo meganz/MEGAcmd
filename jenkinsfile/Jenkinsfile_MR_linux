@@ -101,7 +101,7 @@ pipeline {
         }
     }
 
-        stage("Build MEGAcmd and run legacy integration tests"){
+        stage("Build MEGAcmd"){
             matrix {
                 axes {
                     axis {
