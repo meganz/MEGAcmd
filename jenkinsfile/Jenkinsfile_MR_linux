@@ -101,7 +101,7 @@ pipeline {
         }
     }
 
-        stage("Build MEGAcmd"){
+        stage("Build MEGAcmd and run legacy integration tests"){
             matrix {
                 axes {
                     axis {
@@ -128,7 +128,7 @@ pipeline {
                 }
             }
         }
-	stage('Run legacy MEGAcmd integration shell tests') {
+	stage('Run legacy MEGAcmd integration tests') {
 	    matrix {
 		axes {
 		    axis {
@@ -137,16 +137,15 @@ pipeline {
 		    }
 		    axis {
 			name 'TEST_SCRIPT'
-			// megacmd_get_test.sh is disabled for now, as it needs two MEGA accounts
-			values 'megacmd_find_test.sh', 'megacmd_put_test.sh', 'megacmd_rm_test.sh'
+			values 'megacmd_find_test.sh', 'megacmd_put_test.sh', 'megacmd_rm_test.sh', 'megacmd_find_test.py', 'megacmd_put_test.py', 'megacmd_rm_test.py'
 		    }
 		}
 		stages{
-		    stage('Run MEGAcmd integration test scripts') {
+		    stage('Run MEGAcmd integration test scripts requiring a single account') {
 			environment{
 			    MEGA_EMAIL=''
 			    MEGA_PWD=credentials('MEGACMD_TESTS_PASSWORD')
-			    ASAN_OPTIONS="log_path=/tmp/test-results/megacmd-${TEST_SCRIPT}-asan-report"
+			    ASAN_OPTIONS="atexit=1,print_stats=1,log_path=/tmp/test-results/megacmd-${TEST_SCRIPT}-asan-report"
                             TSAN_OPTIONS="log_path=/tmp/test-results/megacmd-${TEST_SCRIPT}-tsan-report"
                             UBSAN_OPTIONS="log_path=/tmp/test-results/megacmd-${TEST_SCRIPT}-ubsan-report"
 			}
@@ -155,7 +154,7 @@ pipeline {
 				dir('test-results') {
 				    script {
 					try {
-					    sh "docker run --user \$(id -u):\$(id -g) --env ASAN_OPTIONS --env TSAN_OPTIONS --env HOME=/tmp --env MEGA_EMAIL --env MEGA_PWD --rm --mount type=bind,src='${megacmd_sources_workspace}/test-results',target=/tmp/test-results -- meganz/megacmd-autotools-${SANITIZERS}:${env.BUILD_NUMBER} /usr/bin/bash -c '/usr/local/bin/mega-cmd-server > /dev/null & sleep 5 && mkdir /tmp/tests && cd /tmp/tests && bash -x /usr/local/bin/${TEST_SCRIPT}'"
+					    sh "docker run --user \$(id -u):\$(id -g) --env ASAN_OPTIONS --env TSAN_OPTIONS --env HOME=/tmp --env MEGA_EMAIL --env MEGA_PWD --rm -- meganz/megacmd-autotools-${SANITIZERS}:${env.BUILD_NUMBER} /usr/bin/bash -c '/usr/local/bin/mega-cmd-server > /dev/null & sleep 1 && mkdir /tmp/tests && cd /tmp/tests && /usr/local/bin/${TEST_SCRIPT}'"
 					} catch(e) {
 					    if (env.SANITIZERS == 'tsan'){
 						echo "${env.SANITIZERS} sanitizer build are expected to fail for now, will keep the build as successful"
@@ -171,50 +170,7 @@ pipeline {
 		}
 	    }
 	}
-	stage('Run legacy MEGAcmd integration Python tests') {
-	    matrix {
-		axes {
-		    axis {
-			name 'SANITIZERS'
-			values 'ubsan', 'asan', 'tsan'
-		    }
-		    axis {
-			name 'TEST_SCRIPT'
-			// megacmd_get_test.sh is disabled for now, as it needs two MEGA accounts
-			values 'megacmd_find_test.py', 'megacmd_put_test.py', 'megacmd_rm_test.py'
-		    }
-		}
-		stages{
-		    stage('Run MEGAcmd integration test scripts') {
-			environment{
-			    MEGA_EMAIL=''
-			    MEGA_PWD=credentials('MEGACMD_TESTS_PASSWORD')
-			    ASAN_OPTIONS="log_path=/tmp/test-results/megacmd-${TEST_SCRIPT}-asan-report"
-                            TSAN_OPTIONS="log_path=/tmp/test-results/megacmd-${TEST_SCRIPT}-tsan-report"
-                            UBSAN_OPTIONS="log_path=/tmp/test-results/megacmd-${TEST_SCRIPT}-ubsan-report"
-			}
-			steps{
-			    lock(label: 'testing_accounts_megacmd', variable: 'MEGA_EMAIL', quantity: 1, resource: null){
-				dir('test-results') {
-				    script {
-					try {
-					    sh "docker run --user \$(id -u):\$(id -g) --env ASAN_OPTIONS --env TSAN_OPTIONS --env HOME=/tmp --env MEGA_EMAIL --env MEGA_PWD --rm --mount type=bind,src='${megacmd_sources_workspace}/test-results',target=/tmp/test-results -- meganz/megacmd-autotools-${SANITIZERS}:${env.BUILD_NUMBER} /usr/bin/bash -c '/usr/local/bin/mega-cmd-server > /dev/null & sleep 1 && mkdir /tmp/tests && cd /tmp/tests && python3 /usr/local/bin/${TEST_SCRIPT}'"
-					} catch(e) {
-					    if (env.SANITIZERS == 'tsan'){
-						echo "${env.SANITIZERS} sanitizer build are expected to fail for now, will keep the build as successful"
-                                            } else {
-						sh "exit 1"
-                                            }
-					}
-				    }
-				}
-			    }
-			}
-		    }
-		}
-	    }
-	}
-        stage('Test MEGAcmd') {
+        stage('Run GTest MEGAcmd tests') {
             matrix {
                 axes {
                     axis {

@@ -109,4 +109,4 @@ FROM base as final
 
 ENV LD_LIBRARY_PATH /usr/local/lib
 COPY --from=build /usr/local/ /usr/local/
-COPY tests/*.py tests/*.sh /usr/local/bin/
+COPY --chmod=654 tests/*.py tests/*.sh /usr/local/bin/
