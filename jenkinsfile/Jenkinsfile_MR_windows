@@ -67,32 +67,39 @@ pipeline {
                 }
             }
         }
-        stage('Checkout SDK and MEGAchat'){
-            steps {
-                //Clone MEGAcmd
-                sh "echo Cloning MEGAcmd with prebuildmerge"
-                checkout([
-                    $class: 'GitSCM', 
-                    branches: [[name: "origin/${env.gitlabSourceBranch}"]],
-                    userRemoteConfigs: [[ url: "${env.GIT_URL_MEGACMD}", credentialsId: "12492eb8-0278-4402-98f0-4412abfb65c1" ]],
-                    extensions: [
-                        [$class: "UserIdentity",name: "jenkins", email: "jenkins@jenkins"],
-                        [$class: 'PreBuildMerge', options: [fastForwardMode: 'FF', mergeRemote: "origin", mergeStrategy: 'DEFAULT', mergeTarget: "${env.gitlabTargetBranch}"]]
-                        ]
-                ])
-                dir('sdk'){  
-                    checkout([
-                        $class: 'GitSCM', 
-                        branches: [[name: "origin/${SDK_BRANCH}"]],
-                        userRemoteConfigs: [[ url: "${env.GIT_URL_SDK}", credentialsId: "12492eb8-0278-4402-98f0-4412abfb65c1" ]],
-                        extensions: [
-                            [$class: "UserIdentity",name: "jenkins", email: "jenkins@jenkins"]
+        stage('Checkout sources'){
+            parallel{
+		stage('Checkout MEGAcmd with prebuildmerge'){
+		    steps{
+			checkout([
+			    $class: 'GitSCM',
+			    branches: [[name: "origin/${env.gitlabSourceBranch}"]],
+			    userRemoteConfigs: [[ url: "${env.GIT_URL_MEGACMD}", credentialsId: "12492eb8-0278-4402-98f0-4412abfb65c1" ]],
+			    extensions: [
+				[$class: "UserIdentity",name: "jenkins", email: "jenkins@jenkins"],
+				[$class: 'PreBuildMerge', options: [fastForwardMode: 'FF', mergeRemote: "origin", mergeStrategy: 'DEFAULT', mergeTarget: "${env.gitlabTargetBranch}"]]
                             ]
-                    ])
-                }
-                script{
-                    windows_sources_workspace = WORKSPACE
-                }
+			])
+		    }
+		}
+		stage('Checkout SDK'){
+		    steps{
+			dir('sdk'){
+			    checkout([
+				$class: 'GitSCM',
+				branches: [[name: "origin/${SDK_BRANCH}"]],
+				userRemoteConfigs: [[ url: "${env.GIT_URL_SDK}", credentialsId: "12492eb8-0278-4402-98f0-4412abfb65c1" ]],
+				extensions: [
+				    [$class: "UserIdentity",name: "jenkins", email: "jenkins@jenkins"],
+				    [$class: "CloneOption", depth: 1, shallow: true, noTags: false, reference: '']
+				]
+			    ])
+			}
+			script{
+			    windows_sources_workspace = WORKSPACE
+			}
+		    }
+		}
             }
         }
 
