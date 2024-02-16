@@ -68,7 +68,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     libsqlite3-dev \
     libssl-dev \
     libswscale-dev \
-    libtinyxml-dev \
+    libtinyxml2-dev \
     libtool-bin \
     libuv1-dev \
     libzen-dev \
@@ -116,7 +116,6 @@ RUN --mount=type=cache,target=/tmp/ccache \
     ENABLE_UBSAN=${ENABLE_UBSAN} -D \
     ENABLE_TSAN=${ENABLE_TSAN} -D \
     ENABLE_MEGACMD_TESTS=${ENABLE_MEGACMD_TESTS} \
-    && cat /tmp/build/CMakeFiles/mega-cmd.dir/link.txt \
     && make -C /tmp/build -j$(nproc) mega-cmd mega-cmd-server mega-exec \
     mega-cmd-updater mega-cmd-tests-integration mega-cmd-tests-unit \
     mega-cmd-updater mega-exec \
