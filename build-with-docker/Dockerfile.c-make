@@ -2,7 +2,7 @@
 FROM scratch as pdfium
 ADD https://artifactory.developers.mega.co.nz/artifactory/debian-dev/private/Debian_12/amd64/pdfium-mega_5247.0-4.1_amd64.deb /tmp/pdfium/pdfium-mega.deb
 
-FROM debian:12.5-slim as base
+FROM debian:12-slim as base
 
 RUN rm -f /etc/apt/apt.conf.d/docker-clean; \
     echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.conf.d/keep-cache
@@ -116,13 +116,13 @@ RUN --mount=type=cache,target=/tmp/ccache \
     ENABLE_UBSAN=${ENABLE_UBSAN} -D \
     ENABLE_TSAN=${ENABLE_TSAN} -D \
     ENABLE_MEGACMD_TESTS=${ENABLE_MEGACMD_TESTS} \
-    && make -C /tmp/build -j$(nproc) \
+    && make -C /tmp/build -j$(nproc) mega-cmd mega-cmd-server mega-exec \
+    mega-cmd-updater mega-cmd-tests-integration mega-cmd-tests-unit \
+    mega-cmd-updater mega-exec \
     && cd /tmp/build \
     && install mega-cmd mega-cmd-server \
     mega-cmd-tests-integration mega-cmd-tests-unit \
     mega-cmd-updater mega-exec \
-    megacli \
-    test_integration test_unit \
     /usr/local/bin/
 
 FROM base as final
