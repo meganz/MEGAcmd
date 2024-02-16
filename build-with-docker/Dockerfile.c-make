@@ -78,14 +78,15 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     zlib1g-dev
 
 FROM scratch as src
-
 WORKDIR /usr/src/megacmd
+COPY Makefile.am autogen.sh clean.sh configure.ac ./
 COPY sdk ./sdk
 COPY src ./src
-COPY tests ./tests
 COPY build ./build
 COPY contrib ./contrib
-COPY Makefile.am autogen.sh clean.sh configure.ac ./
+COPY tests/common ./tests/common
+COPY tests/integration ./tests/integration
+COPY tests/unit ./tests/unit
 
 FROM build-deps as build
 
@@ -97,6 +98,7 @@ ENV CCACHE_DIR /tmp/ccache
 ARG ENABLE_ASAN=ON
 ARG ENABLE_UBSAN=ON
 ARG ENABLE_TSAN=OFF
+ARG ENABLE_MEGACMD_TESTS=ON
 
 COPY --from=src /usr/src/megacmd /usr/src/megacmd
 
@@ -105,7 +107,8 @@ RUN --mount=type=cache,target=/tmp/ccache \
     cmake -S build/cmake -B /tmp/build \
     -D ENABLE_ASAN=${ENABLE_ASAN} -D \
     ENABLE_UBSAN=${ENABLE_UBSAN} -D \
-    ENABLE_TSAN=${ENABLE_TSAN} \
+    ENABLE_TSAN=${ENABLE_TSAN} -D \
+    ENABLE_MEGACMD_TESTS=${ENABLE_MEGACMD_TESTS} \
     && make -C /tmp/build -j$(nproc) \
     && cd /tmp/build \
     && install mega-cmd mega-cmd-server \
