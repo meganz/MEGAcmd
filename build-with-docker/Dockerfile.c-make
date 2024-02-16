@@ -2,7 +2,7 @@
 FROM scratch as pdfium
 ADD https://artifactory.developers.mega.co.nz/artifactory/debian-dev/private/Debian_12/amd64/pdfium-mega_5247.0-4.1_amd64.deb /tmp/pdfium/pdfium-mega.deb
 
-FROM debian:12-slim as base
+FROM debian:12.5-slim as base
 
 RUN rm -f /etc/apt/apt.conf.d/docker-clean; \
     echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.conf.d/keep-cache
@@ -51,7 +51,6 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     && apt-get install -y --no-install-recommends \
     build-essential \
     ccache \
-    cmake \
     debhelper dh-autoreconf \
     libavcodec-dev \
     libavformat-dev \
@@ -77,7 +76,15 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     zip \
     zlib1g-dev
 
+FROM build-deps as build-deps-cmake
+
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update \
+    && apt-get install -y --no-install-recommends cmake
+
 FROM scratch as src
+
 WORKDIR /usr/src/megacmd
 COPY Makefile.am autogen.sh clean.sh configure.ac ./
 COPY sdk ./sdk
@@ -88,7 +95,7 @@ COPY tests/common ./tests/common
 COPY tests/integration ./tests/integration
 COPY tests/unit ./tests/unit
 
-FROM build-deps as build
+FROM build-deps-cmake as build
 
 WORKDIR /usr/src/megacmd
 
