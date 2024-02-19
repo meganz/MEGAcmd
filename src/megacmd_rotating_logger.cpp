@@ -287,12 +287,12 @@ void FileRotatingLoggedStream::writeMessagesToFile()
 
 void FileRotatingLoggedStream::flushToFile()
 {
+    mOutputFile.flush();
+    mNextFlushTime = std::chrono::steady_clock::now() + mFlushPeriod;
     {
         std::lock_guard<std::mutex> lock(mWriteMutex);
         mFlush = false;
     }
-    mOutputFile.flush();
-    mNextFlushTime = std::chrono::steady_clock::now() + mFlushPeriod;
 }
 
 void FileRotatingLoggedStream::mainLoop()
