@@ -197,7 +197,7 @@ pipeline {
 				dir('test-results') {
 				    script {
 					try {
-					    sh "docker run --user \$(id -u):\$(id -g) --env ASAN_OPTIONS --env TSAN_OPTIONS --env HOME=/tmp --env MEGA_EMAIL=${MEGA_EMAIL0} --env=MEGA_EMAIL_AUX=${MEGA_EMAIL1} --env MEGA_PWD --env MEGA_PWD_AUX--env MEGA_PWD --rm -- meganz/megacmd-autotools-${SANITIZERS}:${env.BUILD_NUMBER} /usr/bin/bash -c '/usr/local/bin/mega-cmd-server > /dev/null & sleep 1 && mkdir /tmp/tests && cd /tmp/tests && /usr/local/bin/mega-rm -r -f / && /usr/local/bin/${TEST_SCRIPT}'"
+					    sh "docker run --user \$(id -u):\$(id -g) --env ASAN_OPTIONS --env TSAN_OPTIONS --env HOME=/tmp --env MEGA_EMAIL=${MEGA_EMAIL0} --env=MEGA_EMAIL_AUX=${MEGA_EMAIL1} --env MEGA_PWD --env MEGA_PWD_AUX --rm -- meganz/megacmd-autotools-${SANITIZERS}:${env.BUILD_NUMBER} /usr/bin/bash -c '/usr/local/bin/mega-cmd-server > /dev/null & sleep 1 && mkdir /tmp/tests && cd /tmp/tests && /usr/local/bin/mega-rm -r -f / && /usr/local/bin/${TEST_SCRIPT}'"
 					} catch(e) {
 					    if (env.SANITIZERS == 'tsan'){
 						echo "${env.SANITIZERS} sanitizer build are expected to fail for now, will keep the build as successful"
