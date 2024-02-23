@@ -2,6 +2,6 @@
 
 set -e
 
-mega-login $MEGACMD_TEST_USER $MEGACMD_TEST_PASS
+mega-login $MEGA_EMAIL $MEGA_PWD
 
 mega-rm -r -f /*
