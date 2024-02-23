@@ -182,27 +182,28 @@ pipeline {
 			values 'megacmd_get_test.py', 'megacmd_misc_test.py'
 		    }
 		}
-	    }
-	    stages {
-		stage('') {
-		    environment {
-			MEGA_PWD=credentials('MEGACMD_TESTS_PASSWORD')
-			MEGA_PWD_AUX=credentials('MEGACMD_TESTS_PASSWORD')
-			ASAN_OPTIONS="atexit=1,print_stats=1,log_path=/tmp/test-results/megacmd-${TEST_SCRIPT}-asan-report"
-			TSAN_OPTIONS="log_path=/tmp/test-results/megacmd-${TEST_SCRIPT}-tsan-report"
-			UBSAN_OPTIONS="log_path=/tmp/test-results/megacmd-${TEST_SCRIPT}-ubsan-report"
-		    }
-		    steps {
-			lock(label: 'testing_accounts_megacmd', variable: 'MEGA_EMAIL', quantity: 2, resource: null) {
-			    dir('test-results') {
-				script {
-				    try {
-					sh "docker run --user \$(id -u):\$(id -g) --env ASAN_OPTIONS --env TSAN_OPTIONS --env HOME=/tmp --env MEGA_EMAIL=${MEGA_EMAIL0} --env=MEGA_EMAIL_AUX=${MEGA_EMAIL1} --env MEGA_PWD --env MEGA_PWD_AUX--env MEGA_PWD --rm -- meganz/megacmd-autotools-${SANITIZERS}:${env.BUILD_NUMBER} /usr/bin/bash -c '/usr/local/bin/mega-cmd-server > /dev/null & sleep 1 && mkdir /tmp/tests && cd /tmp/tests && /usr/local/bin/mega-rm -r -f / && /usr/local/bin/${TEST_SCRIPT}'"
-				    } catch(e) {
-					if (env.SANITIZERS == 'tsan'){
-					    echo "${env.SANITIZERS} sanitizer build are expected to fail for now, will keep the build as successful"
-					} else {
-					    sh "exit 1"
+
+		stages {
+		    stage('') {
+			environment {
+			    MEGA_PWD=credentials('MEGACMD_TESTS_PASSWORD')
+			    MEGA_PWD_AUX=credentials('MEGACMD_TESTS_PASSWORD')
+			    ASAN_OPTIONS="atexit=1,print_stats=1,log_path=/tmp/test-results/megacmd-${TEST_SCRIPT}-asan-report"
+			    TSAN_OPTIONS="log_path=/tmp/test-results/megacmd-${TEST_SCRIPT}-tsan-report"
+			    UBSAN_OPTIONS="log_path=/tmp/test-results/megacmd-${TEST_SCRIPT}-ubsan-report"
+			}
+			steps {
+			    lock(label: 'testing_accounts_megacmd', variable: 'MEGA_EMAIL', quantity: 2, resource: null) {
+				dir('test-results') {
+				    script {
+					try {
+					    sh "docker run --user \$(id -u):\$(id -g) --env ASAN_OPTIONS --env TSAN_OPTIONS --env HOME=/tmp --env MEGA_EMAIL=${MEGA_EMAIL0} --env=MEGA_EMAIL_AUX=${MEGA_EMAIL1} --env MEGA_PWD --env MEGA_PWD_AUX--env MEGA_PWD --rm -- meganz/megacmd-autotools-${SANITIZERS}:${env.BUILD_NUMBER} /usr/bin/bash -c '/usr/local/bin/mega-cmd-server > /dev/null & sleep 1 && mkdir /tmp/tests && cd /tmp/tests && /usr/local/bin/mega-rm -r -f / && /usr/local/bin/${TEST_SCRIPT}'"
+					} catch(e) {
+					    if (env.SANITIZERS == 'tsan'){
+						echo "${env.SANITIZERS} sanitizer build are expected to fail for now, will keep the build as successful"
+					    } else {
+						sh "exit 1"
+					    }
 					}
 				    }
 				}
