@@ -33,6 +33,8 @@
 #include "Preferences.h"
 #include "MacUtils.h"
 
+#include "../megacmdversion.h"
+
 using std::string;
 using CryptoPP::Integer;
 
@@ -332,6 +334,7 @@ UpdateTask::UpdateTask()
     }
     signatureChecker = new SignatureChecker(updatePublicKey.c_str());
     currentFile = 0;
+    updateVersion = 0;
     appDataFolder = getAppDataDir();
     appFolder = getAppDir();
     updateFolder = appDataFolder + UPDATE_FOLDER_NAME + MEGA_SEPARATOR;
@@ -696,12 +699,7 @@ bool UpdateTask::processUpdateFile(FILE *fd)
         return false;
     }
 
-    int currentVersion = readVersion();
-    if (currentVersion == -1)
-    {
-        LOG(LOG_LEVEL_INFO, "Error reading file version (megacmd.version)");
-        return false;
-    }
+    int currentVersion = MEGACMD_CODE_VERSION;
 
     updateVersion = atoi(version.c_str());
     if (updateVersion <= currentVersion)
@@ -1014,21 +1012,6 @@ string UpdateTask::readNextLine(FILE *fd)
 
     line[strcspn(line, "\n")] = '\0';
     return string(line);
-}
-
-int UpdateTask::readVersion()
-{
-    int version = -1;
-    FILE *fp = mega_fopen((appDataFolder + VERSION_FILE_NAME).c_str(), "r");
-    if (fp == NULL)
-    {
-        LOG(LOG_LEVEL_INFO, "Couldn't open file version file: %s", (appDataFolder + VERSION_FILE_NAME).c_str());
-        return version;
-    }
-
-    fscanf(fp, "%d", &version);
-    fclose(fp);
-    return version;
 }
 
 #ifdef _WIN32

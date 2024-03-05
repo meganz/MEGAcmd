@@ -72,7 +72,6 @@ protected:
     void finalCleanup();
     bool setPermissions(const char *path);
     bool removeRecursively(std::string path);
-    int readVersion();
     std::string getAppDataDir();
     std::string getAppDir();
     std::string readNextLine(FILE *fd);
