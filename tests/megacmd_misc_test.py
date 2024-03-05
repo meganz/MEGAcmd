@@ -151,7 +151,7 @@ def initialize():
         #~ cd $ABSPWD
         exit(1)
 
-    if cmd_es(FIND+" /") != "/":
+    if cmd_es(FIND+" /") != b"/":
         logging.error("REMOTE Not empty, please clear it before starting!")
         #~ cd $ABSPWD
         exit(1)
