@@ -249,6 +249,10 @@ def compare_find(what, localFindPrefix='localUPs'):
 
 def compare_remote_local(megafind, localfind):
     global currentTest
+    if (isinstance(megafind, bytes)):
+        megafind = megafind.decode()
+    if (isinstance(localfind, bytes)):
+        localfind = localfind.decode()
     if (megafind == localfind):
         if VERBOSE:
             print("diff megafind vs localfind:")
