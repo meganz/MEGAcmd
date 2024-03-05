@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 #better run in an empty folder
 
-import sys, os, subprocess, shutil, distutils, logging
+import sys, os, subprocess, shutil, logging
 from megacmd_tests_common import *
 
 GET="mega-get"
@@ -275,12 +275,12 @@ compare_and_clear()
 
 #~ #Test 11
 cmd_ef(GET+' cloud01/c01s01 '+ABSMEGADLFOLDER+' -m')
-distutils.dir_util.copy_tree('origin/cloud01/c01s01/', 'localDls/')
+shutil.copytree('origin/cloud01/c01s01/', 'localDls/', dirs_exist_ok=True)
 compare_and_clear()
 
 #Test 12
 cmd_ef(GET+' cloud01/c01s01 '+ABSMEGADLFOLDER+'/ -m')
-distutils.dir_util.copy_tree('origin/cloud01/c01s01/', 'localDls/')
+shutil.copytree('origin/cloud01/c01s01/', 'localDls/', dirs_exist_ok=True)
 compare_and_clear()
 
 #Test 13
@@ -295,7 +295,7 @@ compare_and_clear()
 
 #Test 15
 cmd_ef(GET+' "'+URIEXPORTEDFOLDER+'" '+ABSMEGADLFOLDER+' -m')
-distutils.dir_util.copy_tree('origin/cloud01/c01s01/', 'localDls/')
+shutil.copytree('origin/cloud01/c01s01/', 'localDls/', dirs_exist_ok=True)
 compare_and_clear()
 
 #Test 16
@@ -307,7 +307,7 @@ compare_and_clear()
 #Test 17
 cmd_ef(CD+' /cloud01/c01s01')
 cmd_ef(GET+' . '+ABSMEGADLFOLDER+' -m')
-distutils.dir_util.copy_tree('origin/cloud01/c01s01/', 'localDls/')
+shutil.copytree('origin/cloud01/c01s01/', 'localDls/', dirs_exist_ok=True)
 compare_and_clear()
 
 #Test 18
@@ -319,13 +319,13 @@ compare_and_clear()
 #Test 19
 cmd_ef(CD+' /cloud01/c01s01')
 cmd_ef(GET+' ./ '+ABSMEGADLFOLDER+' -m')
-distutils.dir_util.copy_tree('origin/cloud01/c01s01/', 'localDls/')
+shutil.copytree('origin/cloud01/c01s01/', 'localDls/', dirs_exist_ok=True)
 compare_and_clear()
 
 #Test 20
 cmd_ef(CD+' /cloud01/c01s01')
 cmd_ef(GET+' .. '+ABSMEGADLFOLDER+' -m')
-distutils.dir_util.copy_tree('origin/cloud01/', 'localDls/')
+shutil.copytree('origin/cloud01/', 'localDls/', dirs_exist_ok=True)
 compare_and_clear()
 
 #Test 21
