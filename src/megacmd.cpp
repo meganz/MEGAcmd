@@ -151,7 +151,7 @@ string newpasswd;
 bool doExit = false;
 bool consoleFailed = false;
 bool alreadyCheckingForUpdates = false;
-bool stopcheckingforUpdaters = false;
+std::atomic_bool stopCheckingforUpdaters(false);
 
 string dynamicprompt = "MEGA CMD> ";
 
@@ -264,7 +264,7 @@ void sigint_handler(int signum)
     LOG_verbose << "Received signal: " << signum;
     LOG_debug << "Exiting due to SIGINT";
 
-    stopcheckingforUpdaters = true;
+    stopCheckingforUpdaters = true;
     doExit = true;
 }
 
@@ -3842,7 +3842,7 @@ void * doProcessLine(void *pointer)
 
     if (doExit)
     {
-        stopcheckingforUpdaters = true;
+        stopCheckingforUpdaters = true;
         LOG_verbose << " Exit registered upon process_line: " ;
     }
 
@@ -3958,7 +3958,7 @@ void LinuxSignalHandler(int signum)
         {
             waitForRestartSignal = true;
             LOG_debug << "Preparing MEGAcmd to restart: ";
-            stopcheckingforUpdaters = true;
+            stopCheckingforUpdaters = true;
             doExit = true;
         }
     }
@@ -4066,7 +4066,7 @@ void startcheckingForUpdates()
         alreadyCheckingForUpdates = true;
         LOG_info << "Starting autoupdate check mechanism";
         MegaThread *checkupdatesThread = new MegaThread();
-        checkupdatesThread->start(checkForUpdates,checkupdatesThread);
+        checkupdatesThread->start(checkForUpdates, checkupdatesThread);
     }
 }
 
@@ -4074,22 +4074,22 @@ void stopcheckingForUpdates()
 {
     ConfigurationManager::savePropertyValue("autoupdate", 0);
 
-    stopcheckingforUpdaters = true;
+    stopCheckingforUpdaters = true;
 }
 
 void* checkForUpdates(void *param)
 {
-    stopcheckingforUpdaters = false;
+    stopCheckingforUpdaters = false;
     LOG_debug << "Initiating recurrent checkForUpdates";
 
     int secstosleep = 60;
-    while (secstosleep>0 && !stopcheckingforUpdaters)
+    while (secstosleep > 0 && !stopCheckingforUpdaters)
     {
         sleepSeconds(2);
-        secstosleep-=2;
+        secstosleep -= 2;
     }
 
-    while (!doExit && !stopcheckingforUpdaters)
+    while (!doExit && !stopCheckingforUpdaters)
     {
         bool restartRequired = false;
         if (!executeUpdater(&restartRequired, true)) //only download & check
@@ -4102,30 +4102,30 @@ void* checkForUpdates(void *param)
 
             broadcastMessage("A new update has been downloaded. It will be performed in 60 seconds");
             int secstosleep = 57;
-            while (secstosleep>0 && !stopcheckingforUpdaters)
+            while (secstosleep > 0 && !stopCheckingforUpdaters)
             {
                 sleepSeconds(2);
-                secstosleep-=2;
+                secstosleep -= 2;
             }
-            if (stopcheckingforUpdaters) break;
+            if (stopCheckingforUpdaters) break;
             broadcastMessage("  Executing update in 3");
             sleepSeconds(1);
-            if (stopcheckingforUpdaters) break;
+            if (stopCheckingforUpdaters) break;
             broadcastMessage("  Executing update in 2");
             sleepSeconds(1);
-            if (stopcheckingforUpdaters) break;
+            if (stopCheckingforUpdaters) break;
             broadcastMessage("  Executing update in 1");
             sleepSeconds(1);
-            if (stopcheckingforUpdaters) break;
+            if (stopCheckingforUpdaters) break;
 
-            while(petitionThreads.size() && !stopcheckingforUpdaters)
+            while(petitionThreads.size() && !stopCheckingforUpdaters)
             {
                 LOG_fatal << " waiting for petitions to end to initiate upload " << petitionThreads.size() << petitionThreads.at(0).get();
                 sleepSeconds(2);
                 delete_finished_threads();
             }
 
-            if (stopcheckingforUpdaters) break;
+            if (stopCheckingforUpdaters) break;
 
             sendEvent(StatsManager::MegacmdEvent::UPDATE_START, api);
 
@@ -4138,13 +4138,13 @@ void* checkForUpdates(void *param)
             LOG_verbose << " There is no pending update";
         }
 
-        if (stopcheckingforUpdaters) break;
+        if (stopCheckingforUpdaters) break;
         if (restartRequired && restartServer())
         {
-            int attempts=20; //give a while for ingoin petitions to end before killing the server
-            while(petitionThreads.size() && attempts--)
+            int attempts = 20; //give a while for ingoin petitions to end before killing the server
+            while(petitionThreads.size() && --attempts)
             {
-                sleepSeconds(20-attempts);
+                sleepSeconds(20 - attempts);
                 delete_finished_threads();
             }
 
@@ -4154,10 +4154,10 @@ void* checkForUpdates(void *param)
         }
 
         int secstosleep = 7200;
-        while (secstosleep>0 && !stopcheckingforUpdaters)
+        while (secstosleep > 0 && !stopCheckingforUpdaters)
         {
             sleepSeconds(2);
-            secstosleep-=2;
+            secstosleep -= 2;
         }
     }
 
