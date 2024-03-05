@@ -754,6 +754,10 @@ void ConfigurationManager::loadConfiguration(bool debug)
             fo << MEGACMD_CODE_VERSION;
             fo.close();
         }
+        else
+        {
+            std::cerr << "Could not write MEGAcmd version to " << versionionfile.str() << std::endl;
+        }
     }
     else
     {
