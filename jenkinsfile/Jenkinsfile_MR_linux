@@ -309,9 +309,8 @@ pipeline {
                 }
             }
             sh "docker image rm -- meganz/megacmd-autotools-ubsan:${env.BUILD_NUMBER} meganz/megacmd-autotools-asan:${env.BUILD_NUMBER} meganz/megacmd-autotools-tsan:${env.BUILD_NUMBER} || true"
-            junit "**/test-results/ubsan-*.xml"
             archiveArtifacts artifacts: "**/test-results/megacmd-*-report.*"
+            junit "**/test-results/ubsan-*.xml"
         }
-
     }
 }
