@@ -699,9 +699,18 @@ bool UpdateTask::processUpdateFile(FILE *fd)
         return false;
     }
 
+    try
+    {
+        updateVersion = std::stoi(version);
+    }
+    catch (const std::exception& e)
+    {
+        LOG(LOG_LEVEL_ERROR, "Error converting the version string to an integer");
+        return false;
+    }
+
     int currentVersion = MEGACMD_CODE_VERSION;
 
-    updateVersion = atoi(version.c_str());
     if (updateVersion <= currentVersion)
     {
         LOG(LOG_LEVEL_INFO, "Update not needed. Last version: %d - Current version: %d", updateVersion, currentVersion);
