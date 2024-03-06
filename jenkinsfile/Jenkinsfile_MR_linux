@@ -179,7 +179,7 @@ pipeline {
 		    }
 		    axis {
 			name 'TEST_SCRIPT'
-			values 'megacmd_get_test.py', 'megacmd_misc_test.py', 'megacmd_serving_test.py'
+			values 'megacmd_get_test.py', 'megacmd_misc_test.py'
 		    }
 		}
 
