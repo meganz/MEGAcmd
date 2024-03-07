@@ -2,6 +2,8 @@
 # -*- coding: utf-8 -*-
 
 import sys, os, subprocess, shutil, logging
+import unittest
+import xmlrunner
 from megacmd_tests_common import *
 
 GET="mega-get"
@@ -49,20 +51,20 @@ def initialize_contents():
     cmd_ef(PUT+" "+contents+" /")
     shutil.copytree('localtmp', 'localUPs')
 
-def clean_all(): 
-    
+def clean_all():
+
     if cmd_es(WHOAMI) != osvar("MEGA_EMAIL"):
         cmd_ef(LOGOUT)
         cmd_ef(LOGIN+" " +osvar("MEGA_EMAIL")+" "+osvar("MEGA_PWD"))
-        
+
     #~ rm pipe > /dev/null 2>/dev/null || :
 
     cmd_ec(RM+' -rf "*"')
     cmd_ec(RM+' -rf "//bin/*"')
-    
+
     rmfolderifexisting("localUPs")
     rmfolderifexisting("localtmp")
-    
+
     rmfileifexisting("megafind.txt")
     rmfileifexisting("localfind.txt")
 
@@ -73,55 +75,18 @@ def clear_local_and_remote():
     cmd_ec(RM+' -rf "/*"')
     initialize_contents()
 
-def compare_and_clear() :
-    global currentTest
-    if VERBOSE:
-        print("test "+str(currentTest))
-    
-    megafind=sort(cmd_ef(FIND))
-    localfind=sort(find('localUPs'))
-    
-    #~ if diff --side-by-side megafind.txt localfind.txt 2>/dev/null >/dev/null; then
-    if (megafind == localfind):
-        if VERBOSE:
-            print("diff megafind vs localfind:")
-            #diff --side-by-side megafind.txt localfind.txt#TODO: do this
-            print("MEGAFIND:")
-            print(megafind)
-            print("LOCALFIND")
-            print(localfind)
-        print("test "+str(currentTest)+" succesful!")     
-    else:
-        print("test "+str(currentTest)+" failed!")
-        print ("diff megafind vs localfind:")
-        #~ diff --side-by-side megafind.txt localfind.txt #TODO: do this
-        print("MEGAFIND:")
-        print(megafind)
-        print("LOCALFIND")
-        print(localfind)
-
-        #cd $ABSPWD #TODO: consider this
-        exit(1)
-
-    clear_local_and_remote()
-    currentTest+=1
-    cmd_ef(CD+" /")
-
 def initialize():
-     
+
     if cmd_es(WHOAMI) != osvar("MEGA_EMAIL"):
         cmd_es(LOGOUT)
         cmd_ef(LOGIN+" " +osvar("MEGA_EMAIL")+" "+osvar("MEGA_PWD"))
 
     if len(os.listdir(".")):
-        print("initialization folder not empty!")
+        raise Exception("initialization folder not empty!")
         #~ cd $ABSPWD
-        exit(1)
 
     if cmd_es(FIND+" /") != b"/":
-        print("REMOTE Not empty, please clear it before starting!")
-        #~ cd $ABSPWD
-        exit(1)
+        raise Exception("REMOTE Not empty, please clear it before starting!")
 
 
     #initialize localtmp estructure:
@@ -169,11 +134,7 @@ def initialize():
     clear_local_and_remote()
 
 
-def compare_find(what, localFindPrefix='localUPs'):
-    global currentTest
-    if VERBOSE:
-        print("test "+str(currentTest))
-
+def compare_find(testcase: unittest.TestCase, what, localFindPrefix='localUPs'):
     if not isinstance(what, list):
         what = [what]
     megafind=b""
@@ -181,137 +142,94 @@ def compare_find(what, localFindPrefix='localUPs'):
     for w in what:
         megafind+=cmd_ef(FIND+" "+w)+b"\n"
         localfind+=find(localFindPrefix+'/'+w,w)+"\n"
-    
+
     megafind=sort(megafind).strip()
     localfind=sort(localfind).strip()
-    
+
     #~ megafind=$FIND "$@"  | sort > $ABSPWD/megafind.txt
     #~ (cd localUPs 2>/dev/null; find "$@" | sed "s#\./##g" | sort) > $ABSPWD/localfind.txt
-    if (megafind == localfind):
-        if VERBOSE:
-            print("diff megafind vs localfind:")
-            #diff --side-by-side megafind.txt localfind.txt#TODO: do this
-            print("MEGAFIND:")
-            print(megafind)
-            print("LOCALFIND")
-            print(localfind)
-        print("test "+str(currentTest)+" succesful!")     
-    else:
-        print("test "+str(currentTest)+" failed!")
-        print("diff megafind vs localfind:")
-        #~ diff --side-by-side megafind.txt localfind.txt #TODO: do this
-        print("MEGAFIND:")
-        print(megafind)
-        print("LOCALFIND")
-        print(localfind)
-        
-        #cd $ABSPWD #TODO: consider this
-        exit(1)
-    
-    currentTest+=1
+    testcase.assertEqual(megafind, localfind)
 
-def compare_remote_local(megafind, localfind):
-    global currentTest
-    if (megafind == localfind):
-        if VERBOSE:
-            print("diff megafind vs localfind:")
-            #diff --side-by-side megafind.txt localfind.txt#TODO: do this
-            print("MEGAFIND:")
-            print(megafind)
-            print("LOCALFIND")
-            print(localfind)
-        print("test "+str(currentTest)+" succesful!")     
-    else:
-        print("test "+str(currentTest)+" failed!")
-        print("diff megafind vs localfind:")
-        #~ diff --side-by-side megafind.txt localfind.txt #TODO: do this
-        print("MEGAFIND:")
-        print(megafind)
-        print("LOCALFIND")
-        print(localfind)
-        
-        exit(1)
-       
-    currentTest+=1
+class MEGAcmdFindTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        #INITIALIZATION
+        clean_all()
+        initialize()
 
+    @classmethod
+    def tearDownClass(cls):
+        if not VERBOSE:
+            clean_all()
 
-if VERBOSE: print("STARTING...")
+    def test_empty_file(self):
+        compare_find(self, 'file01.txt')
 
-#INITIALIZATION
-clean_all()
-initialize()
+    def test_entire_empty_folders(self):
+        compare_find(self, 'le01/les01/less01')
 
-#Test 01 #destiny empty file
-compare_find('file01.txt')
+    def test_1_file_folder(self):
+        compare_find(self, 'lf01/lfs01/lfss01')
 
-#Test 02  #entire empty folders
-compare_find('le01/les01/less01')
+    def test_entire_non_empty_folders_structure(self):
+        compare_find(self, 'lf01')
 
-#Test 03 #1 file folder
-compare_find('lf01/lfs01/lfss01')
+    def test_multiple_names(self):
+        compare_find(self, ['lf01','le01/les01'])
 
-#Test 04 #entire non empty folders structure
-compare_find('lf01')
+    def test_current_wd(self):
+        """."""
+        cmd_ef(CD+" le01")
+        compare_find(self, '.','localUPs/le01')
+        cmd_ef(CD+" /")
 
-#Test 05 #multiple
-compare_find(['lf01','le01/les01'])
+    def test_current_wd_global(self):
+        """. global"""
+        compare_find(self, '.')
 
-#Test 06 #.
-cmd_ef(CD+" le01")
-compare_find('.','localUPs/le01')
-cmd_ef(CD+" /")
+    def test_spaced(self):
+        megafind=sort(cmd_ef(FIND+" "+"ls\ 01"))
+        localfind=sort(find('localUPs/ls 01',"ls 01"))
+        self.assertEqual(megafind,localfind)
 
-#Test 07 #. global
-compare_find('.')
+    def test_multiple(self):
+        """XX/.."""
+        megafind=sort(cmd_ef(FIND+" "+"ls\ 01/.."))
+        localfind=sort(find('localUPs/',"/"))
+        self.assertEqual(megafind,localfind)
 
-#Test 08 #spaced
-megafind=sort(cmd_ef(FIND+" "+"ls\ 01"))
-localfind=sort(find('localUPs/ls 01',"ls 01"))
-compare_remote_local(megafind,localfind)
+    def test_multiple_2(self):
+        cmd_ef(CD+' le01')
+        megafind=sort(cmd_ef(FIND+" "+".."))
+        cmd_ef(CD+' /')
+        localfind=sort(find('localUPs/',"/"))
+        self.assertEqual(megafind,localfind)
 
-#Test 09 #XX/..
-currentTest=9
-megafind=sort(cmd_ef(FIND+" "+"ls\ 01/.."))
-localfind=sort(find('localUPs/',"/"))
-compare_remote_local(megafind,localfind)
+    def test_complex(self):
+        megafind=sort(cmd_ef(FIND+" "+"ls\ 01/../le01/les01" +" " +"lf01/../ls\ *01/ls\ s02"))
+        localfind=sort(find('localUPs/le01/les01',"/le01/les01"))
+        localfind+="\n"+sort(find('localUPs/ls 01/ls s02',"/ls 01/ls s02"))
+        self.assertEqual(megafind,localfind)
 
-#Test 10 #..
-cmd_ef(CD+' le01')
-megafind=sort(cmd_ef(FIND+" "+".."))
-cmd_ef(CD+' /')
-localfind=sort(find('localUPs/',"/"))
-compare_remote_local(megafind,localfind)
+    def test_inside_folder(self):
+        megafind=sort(cmd_ef(FIND+" "+"le01/"))
+        localfind=sort(find('localUPs/le01',"le01"))
+        self.assertEqual(megafind,localfind)
 
-#Test 11 #complex stuff
-megafind=sort(cmd_ef(FIND+" "+"ls\ 01/../le01/les01" +" " +"lf01/../ls\ *01/ls\ s02"))
-localfind=sort(find('localUPs/le01/les01',"/le01/les01"))
-localfind+="\n"+sort(find('localUPs/ls 01/ls s02',"/ls 01/ls s02"))
-compare_remote_local(megafind,localfind)
+    @unittest.skipIf(CMDSHELL, "only for non-CMDSHELL")
+    def test_non_existent(self):
+            #Test 13 #file01.txt/non-existent
+            megafind,status=cmd_ec(FIND+" "+"file01.txt/non-existent")
+            self.assertNotEqual(status, 0);
 
-#Test 12 #folder/
-megafind=sort(cmd_ef(FIND+" "+"le01/"))
-localfind=sort(find('localUPs/le01',"le01"))
-compare_remote_local(megafind,localfind)
+    def test_root(self):
+        compare_find(self, '/')
 
-if not CMDSHELL: #TODO: currently there is no way to know last CMSHELL status code
-
-    #Test 13 #file01.txt/non-existent
-    megafind,status=cmd_ec(FIND+" "+"file01.txt/non-existent")
-    if status == 0: 
-        print("test "+str(currentTest)+" failed!")
-        exit(1)
-    else:
-        print("test "+str(currentTest)+" succesful!")
-
-currentTest=14
-
-#Test 14 #/
-compare_find('/')
 
 ###TODO: do stuff in shared folders...
 
-###################
-
-# Clean all
-if not VERBOSE:
-    clean_all()
+if __name__ == '__main__':
+    if "OUT_DIR_JUNIT_XML" in os.environ:
+        unittest.main(testRunner=xmlrunner.XMLTestRunner(output=os.environ["OUT_DIR_JUNIT_XML"]), failfast=False, buffer=False, catchbreak=False, exit=False)
+    else:
+        unittest.main()

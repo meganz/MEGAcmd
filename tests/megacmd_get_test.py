@@ -3,6 +3,8 @@
 #better run in an empty folder
 
 import sys, os, subprocess, shutil, logging
+import unittest
+import xmlrunner
 from megacmd_tests_common import *
 
 GET="mega-get"
@@ -48,74 +50,27 @@ try:
 except:
     CMDSHELL=False
 
-def clean_all(): 
-    
+def clean_all():
+
     if cmd_es(WHOAMI) != osvar("MEGA_EMAIL"):
         cmd_ef(LOGOUT)
         cmd_ef(LOGIN+" " +osvar("MEGA_EMAIL")+" "+osvar("MEGA_PWD"))
-        
+
     cmd_ec(RM+' -rf "*"')
     cmd_ec(RM+' -rf "//bin/*"')
-    
+
     rmfolderifexisting("localUPs")
     rmfolderifexisting("localtmp")
     rmfolderifexisting("origin")
     rmfolderifexisting("megaDls")
     rmfolderifexisting("localDls")
-    
+
     rmfileifexisting("megafind.txt")
     rmfileifexisting("localfind.txt")
 
 def clear_dls():
     rmcontentsifexisting("megaDls")
     rmcontentsifexisting("localDls")
-
-currentTest=1
-
-def compare_and_clear():
-    global currentTest
-        
-    megaDls=sort(find('megaDls'))
-    localDls=sort(find('localDls'))
-    
-    #~ if diff megaDls localDls 2>/dev/null >/dev/null; then
-    if (megaDls == localDls):
-        print("test "+str(currentTest)+" succesful!")     
-        if VERBOSE:
-            print("test "+str(currentTest))
-            print("megaDls:")
-            print(megaDls)
-            print("")
-            print("localDls:")
-            print(localDls)
-    else:
-        print("test "+str(currentTest)+" failed!")
-
-        print("megaDls:")
-        print(megaDls)
-        print("")
-        print("localDls:")
-        print(localDls)
-        exit(1)
-
-    clear_dls()
-    currentTest+=1
-    cmd_ef(CD+" /")
-
-
-def check_failed_and_clear(o,status):
-    global currentTest
-
-    if status == 0: 
-        print("test "+str(currentTest)+" failed!")
-        print(o)
-        exit(1)
-    else:
-        print("test "+str(currentTest)+" succesful!")
-
-    clear_dls()
-    currentTest+=1
-    cmd_ef(CD+" /")
 
 
 def safe_export(path):
@@ -139,9 +94,7 @@ def safe_export(path):
         else:
             return stdout.split(b' ')[-1]
     else:
-        logging.error('FAILED trying to export ' + path)
-        logging.error(out)
-        exit(code)
+        raise Exception(f"Failed trying to export '{path}': '{out}'")
 
 
 def initialize_contents():
@@ -149,15 +102,14 @@ def initialize_contents():
     global URIFOREIGNEXPORTEDFILE
     global URIEXPORTEDFOLDER
     global URIEXPORTEDFILE
-    
+
     if cmd_es(WHOAMI) != osvar("MEGA_EMAIL_AUX"):
         cmd_ef(LOGOUT)
         cmd_ef(LOGIN+" " +osvar("MEGA_EMAIL_AUX")+" "+osvar("MEGA_PWD_AUX"))
 
     if len(os.listdir(".")):
-        logging.error("initialization folder not empty!")
-        exit(1)
-        
+        raise Exception("initialization folder not empty!")
+
     #initialize localtmp estructure:
     makedir('foreign')
 
@@ -175,18 +127,16 @@ def initialize_contents():
 
     URIFOREIGNEXPORTEDFOLDER=safe_export('foreign/sub01').decode()
     URIFOREIGNEXPORTEDFILE=safe_export('foreign/sub02/fileatsub02.txt').decode()
-    
-    if VERBOSE:
-        print("URIFOREIGNEXPORTEDFOLDER="+URIFOREIGNEXPORTEDFILE)
-        print("URIFOREIGNEXPORTEDFILE="+URIFOREIGNEXPORTEDFILE)
-    
+
+    logging.debug("URIFOREIGNEXPORTEDFOLDER="+URIFOREIGNEXPORTEDFILE)
+    logging.debug("URIFOREIGNEXPORTEDFILE="+URIFOREIGNEXPORTEDFILE)
 
     cmd_ef(LOGOUT)
     cmd_ef(LOGIN+" " +osvar("MEGA_EMAIL")+" "+osvar("MEGA_PWD"))
     cmd_ec(IPC+" -a "+osvar("MEGA_EMAIL_AUX"))
 
     cmd_ef(PUT+' foreign /')
-    
+
     #~ mega-put cloud0* /
     cmd_ef(PUT+" cloud01 cloud02 /")
 
@@ -195,261 +145,281 @@ def initialize_contents():
 
     URIEXPORTEDFOLDER=safe_export('cloud01/c01s01').decode()
     URIEXPORTEDFILE=safe_export('cloud02/fileatcloud02.txt').decode()
-    
-    if VERBOSE:
-        print("URIEXPORTEDFOLDER="+URIEXPORTEDFOLDER)
-        print("URIEXPORTEDFILE=",URIEXPORTEDFILE)
-    
-if VERBOSE: print("STARTING...")
 
-#INITIALIZATION
-clean_all()
-makedir('origin')
-os.chdir('origin')
-initialize_contents()
-os.chdir(ABSPWD)
+    logging.debug("URIEXPORTEDFOLDER="+URIEXPORTEDFOLDER)
+    logging.debug("URIEXPORTEDFILE=",URIEXPORTEDFILE)
 
-makedir('megaDls')
-makedir('localDls')
 
 ABSMEGADLFOLDER=ABSPWD+'/megaDls'
 
-URIEXPORTEDFOLDER=safe_export('cloud01/c01s01').decode()
-URIEXPORTEDFILE=safe_export('cloud02/fileatcloud02.txt').decode()
+class MEGAcmdGetTest(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        global URIEXPORTEDFOLDER
+        global URIEXPORTEDFILE
+        clean_all()
+        makedir('origin')
+        os.chdir('origin')
+        initialize_contents()
+        os.chdir(ABSPWD)
+
+        makedir('megaDls')
+        makedir('localDls')
+
+        URIEXPORTEDFOLDER=safe_export('cloud01/c01s01').decode()
+        URIEXPORTEDFILE=safe_export('cloud02/fileatcloud02.txt').decode()
+
+        clear_dls()
+
+    @classmethod
+    def tearDownClass(cls):
+        clean_all()
+
+    def tearDown(self):
+        clear_dls()
+        cmd_ef(CD+" /")
+
+    def check_failed(self, o, status):
+        self.assertNotEqual(status, 0, o)
+
+    def compare(self):
+        megaDls=sort(find('megaDls'))
+        localDls=sort(find('localDls'))
+        self.assertEqual(megaDls, localDls)
+        logging.debug(f"megaDls: {megaDls}, localDls: {localDls}")
+
+    def test_01(self):
+        cmd_ef(GET+' /cloud01/fileatcloud01.txt '+ABSMEGADLFOLDER+'/')
+        shutil.copy2('origin/cloud01/fileatcloud01.txt','localDls/')
+        self.compare()
+
+    def test_02(self):
+        cmd_ef(GET+' //bin/bin01/fileatbin01.txt '+ABSMEGADLFOLDER)
+        shutil.copy2('origin/bin01/fileatbin01.txt','localDls/')
+        self.compare()
+
+    def test_03(self):
+        #Test 03
+        cmd_ef(GET+' //bin/bin01/fileatbin01.txt '+ABSMEGADLFOLDER+'/')
+        shutil.copy2('origin/bin01/fileatbin01.txt','localDls/')
+        self.compare()
+
+    def test_04(self):
+        cmd_ef(GET+' '+osvar('MEGA_EMAIL_AUX')+':foreign/fileatforeign.txt '+ABSMEGADLFOLDER+'/')
+        shutil.copy2('origin/foreign/fileatforeign.txt','localDls/')
+        self.compare()
+
+    def test_05(self):
+        cmd_ef(GET+' '+osvar('MEGA_EMAIL_AUX')+':foreign/fileatforeign.txt '+ABSMEGADLFOLDER+'/')
+        shutil.copy2('origin/foreign/fileatforeign.txt','localDls/')
+        self.compare()
+
+    def test_06(self):
+        cmd_ef(CD+' cloud01')
+        cmd_ef(GET+' "*.txt" '+ABSMEGADLFOLDER+'')
+        copybyfilepattern('origin/cloud01/','*.txt','localDls/')
+        self.compare()
+
+    def test_07(self):
+        cmd_ef(CD+' //bin/bin01')
+        cmd_ef(GET+' "*.txt" '+ABSMEGADLFOLDER+'')
+        copybyfilepattern('origin/bin01/','*.txt','localDls/')
+        self.compare()
+
+    def test_08(self):
+        cmd_ef(CD+' '+osvar('MEGA_EMAIL_AUX')+':foreign')
+        cmd_ef(GET+' "*.txt" '+ABSMEGADLFOLDER+'')
+        copybyfilepattern('origin/foreign/','*.txt','localDls/')
+        self.compare()
+
+    def test_09(self):
+        cmd_ef(GET+' cloud01/c01s01 '+ABSMEGADLFOLDER+'')
+        copyfolder('origin/cloud01/c01s01','localDls/')
+        self.compare()
+
+    def test_10(self):
+        cmd_ef(GET+' cloud01/c01s01 '+ABSMEGADLFOLDER+'/')
+        copyfolder('origin/cloud01/c01s01','localDls/')
+        self.compare()
+
+    def test_11(self):
+        cmd_ef(GET+' cloud01/c01s01 '+ABSMEGADLFOLDER+' -m')
+        shutil.copytree('origin/cloud01/c01s01/', 'localDls/', dirs_exist_ok=True)
+        self.compare()
 
 
-clear_dls()
+    def test_12(self):
+        cmd_ef(GET+' cloud01/c01s01 '+ABSMEGADLFOLDER+'/ -m')
+        shutil.copytree('origin/cloud01/c01s01/', 'localDls/', dirs_exist_ok=True)
+        self.compare()
 
-#Test 01
-cmd_ef(GET+' /cloud01/fileatcloud01.txt '+ABSMEGADLFOLDER+'/')
-shutil.copy2('origin/cloud01/fileatcloud01.txt','localDls/')
-compare_and_clear()
+    def test_13(self):
+        #Test 13
+        cmd_ef(GET+' "'+URIEXPORTEDFOLDER+'" '+ABSMEGADLFOLDER+'')
+        copyfolder('origin/cloud01/c01s01','localDls/')
+        self.compare()
 
-#Test 02
-cmd_ef(GET+' //bin/bin01/fileatbin01.txt '+ABSMEGADLFOLDER)
-shutil.copy2('origin/bin01/fileatbin01.txt','localDls/')
-compare_and_clear()
+    def test_14(self):
+        cmd_ef(GET+' "'+URIEXPORTEDFILE+'" '+ABSMEGADLFOLDER+'')
+        shutil.copy2('origin/cloud02/fileatcloud02.txt','localDls/')
+        self.compare()
 
-#Test 03
-cmd_ef(GET+' //bin/bin01/fileatbin01.txt '+ABSMEGADLFOLDER+'/')
-shutil.copy2('origin/bin01/fileatbin01.txt','localDls/')
-compare_and_clear()
+    def test_15(self):
+        cmd_ef(GET+' "'+URIEXPORTEDFOLDER+'" '+ABSMEGADLFOLDER+' -m')
+        shutil.copytree('origin/cloud01/c01s01/', 'localDls/', dirs_exist_ok=True)
+        self.compare()
 
-#Test 04
-cmd_ef(GET+' '+osvar('MEGA_EMAIL_AUX')+':foreign/fileatforeign.txt '+ABSMEGADLFOLDER+'/')
-shutil.copy2('origin/foreign/fileatforeign.txt','localDls/')
-compare_and_clear()
+    def test_16(self):
+        cmd_ef(CD+' /cloud01/c01s01')
+        cmd_ef(GET+' . '+ABSMEGADLFOLDER+'')
+        copyfolder('origin/cloud01/c01s01','localDls/')
+        self.compare()
 
-#Test 05
-cmd_ef(GET+' '+osvar('MEGA_EMAIL_AUX')+':foreign/fileatforeign.txt '+ABSMEGADLFOLDER+'/')
-shutil.copy2('origin/foreign/fileatforeign.txt','localDls/')
-compare_and_clear()
+    def test_17(self):
+        cmd_ef(CD+' /cloud01/c01s01')
+        cmd_ef(GET+' . '+ABSMEGADLFOLDER+' -m')
+        shutil.copytree('origin/cloud01/c01s01/', 'localDls/', dirs_exist_ok=True)
+        self.compare()
 
-#~ #Test 06
-cmd_ef(CD+' cloud01')
-cmd_ef(GET+' "*.txt" '+ABSMEGADLFOLDER+'')
-copybyfilepattern('origin/cloud01/','*.txt','localDls/')
-compare_and_clear()
+    def test_18(self):
+        cmd_ef(CD+' /cloud01/c01s01')
+        cmd_ef(GET+' ./ '+ABSMEGADLFOLDER+'')
+        copyfolder('origin/cloud01/c01s01','localDls/')
+        self.compare()
 
-#Test 07
-cmd_ef(CD+' //bin/bin01')
-cmd_ef(GET+' "*.txt" '+ABSMEGADLFOLDER+'')
-copybyfilepattern('origin/bin01/','*.txt','localDls/')
-compare_and_clear()
+    def test_19(self):
+        cmd_ef(CD+' /cloud01/c01s01')
+        cmd_ef(GET+' ./ '+ABSMEGADLFOLDER+' -m')
+        shutil.copytree('origin/cloud01/c01s01/', 'localDls/', dirs_exist_ok=True)
+        self.compare()
 
-#Test 08
-cmd_ef(CD+' '+osvar('MEGA_EMAIL_AUX')+':foreign')
-cmd_ef(GET+' "*.txt" '+ABSMEGADLFOLDER+'')
-copybyfilepattern('origin/foreign/','*.txt','localDls/')
-compare_and_clear()
+    def test_20(self):
+        cmd_ef(CD+' /cloud01/c01s01')
+        cmd_ef(GET+' .. '+ABSMEGADLFOLDER+' -m')
+        shutil.copytree('origin/cloud01/', 'localDls/', dirs_exist_ok=True)
+        self.compare()
 
-#Test 09
-cmd_ef(GET+' cloud01/c01s01 '+ABSMEGADLFOLDER+'')
-copyfolder('origin/cloud01/c01s01','localDls/')
-compare_and_clear()
+    def test_21(self):
+        cmd_ef(CD+' /cloud01/c01s01')
+        cmd_ef(GET+' ../ '+ABSMEGADLFOLDER+'')
+        copyfolder('origin/cloud01','localDls/')
+        self.compare()
 
-#Test 10
-cmd_ef(GET+' cloud01/c01s01 '+ABSMEGADLFOLDER+'/')
-copyfolder('origin/cloud01/c01s01','localDls/')
-compare_and_clear()
+    def test_22(self):
+        out("existing",ABSMEGADLFOLDER+'/existing')
+        cmd_ef(GET+' /cloud01/fileatcloud01.txt '+ABSMEGADLFOLDER+'/existing')
+        shutil.copy2('origin/cloud01/fileatcloud01.txt','localDls/existing (1)')
+        out("existing",'localDls/existing')
+        self.compare()
 
-#~ #Test 11
-cmd_ef(GET+' cloud01/c01s01 '+ABSMEGADLFOLDER+' -m')
-shutil.copytree('origin/cloud01/c01s01/', 'localDls/', dirs_exist_ok=True)
-compare_and_clear()
+    def test_23(self):
+        out("existing",'megaDls/existing')
+        cmd_ef(GET+' /cloud01/fileatcloud01.txt megaDls/existing')
+        shutil.copy2('origin/cloud01/fileatcloud01.txt','localDls/existing (1)')
+        out("existing",'localDls/existing')
+        self.compare()
 
-#Test 12
-cmd_ef(GET+' cloud01/c01s01 '+ABSMEGADLFOLDER+'/ -m')
-shutil.copytree('origin/cloud01/c01s01/', 'localDls/', dirs_exist_ok=True)
-compare_and_clear()
-
-#Test 13
-cmd_ef(GET+' "'+URIEXPORTEDFOLDER+'" '+ABSMEGADLFOLDER+'')
-copyfolder('origin/cloud01/c01s01','localDls/')
-compare_and_clear()
-
-#Test 14
-cmd_ef(GET+' "'+URIEXPORTEDFILE+'" '+ABSMEGADLFOLDER+'')
-shutil.copy2('origin/cloud02/fileatcloud02.txt','localDls/')
-compare_and_clear()
-
-#Test 15
-cmd_ef(GET+' "'+URIEXPORTEDFOLDER+'" '+ABSMEGADLFOLDER+' -m')
-shutil.copytree('origin/cloud01/c01s01/', 'localDls/', dirs_exist_ok=True)
-compare_and_clear()
-
-#Test 16
-cmd_ef(CD+' /cloud01/c01s01')
-cmd_ef(GET+' . '+ABSMEGADLFOLDER+'')
-copyfolder('origin/cloud01/c01s01','localDls/')
-compare_and_clear()
-
-#Test 17
-cmd_ef(CD+' /cloud01/c01s01')
-cmd_ef(GET+' . '+ABSMEGADLFOLDER+' -m')
-shutil.copytree('origin/cloud01/c01s01/', 'localDls/', dirs_exist_ok=True)
-compare_and_clear()
-
-#Test 18
-cmd_ef(CD+' /cloud01/c01s01')
-cmd_ef(GET+' ./ '+ABSMEGADLFOLDER+'')
-copyfolder('origin/cloud01/c01s01','localDls/')
-compare_and_clear()
-
-#Test 19
-cmd_ef(CD+' /cloud01/c01s01')
-cmd_ef(GET+' ./ '+ABSMEGADLFOLDER+' -m')
-shutil.copytree('origin/cloud01/c01s01/', 'localDls/', dirs_exist_ok=True)
-compare_and_clear()
-
-#Test 20
-cmd_ef(CD+' /cloud01/c01s01')
-cmd_ef(GET+' .. '+ABSMEGADLFOLDER+' -m')
-shutil.copytree('origin/cloud01/', 'localDls/', dirs_exist_ok=True)
-compare_and_clear()
-
-#Test 21
-cmd_ef(CD+' /cloud01/c01s01')
-cmd_ef(GET+' ../ '+ABSMEGADLFOLDER+'')
-copyfolder('origin/cloud01','localDls/')
-compare_and_clear()
-
-#Test 22
-out("existing",ABSMEGADLFOLDER+'/existing')
-cmd_ef(GET+' /cloud01/fileatcloud01.txt '+ABSMEGADLFOLDER+'/existing')
-shutil.copy2('origin/cloud01/fileatcloud01.txt','localDls/existing (1)')
-out("existing",'localDls/existing')
-compare_and_clear()
-
-#Test 23
-out("existing",'megaDls/existing')
-cmd_ef(GET+' /cloud01/fileatcloud01.txt megaDls/existing')
-shutil.copy2('origin/cloud01/fileatcloud01.txt','localDls/existing (1)')
-out("existing",'localDls/existing')
-compare_and_clear()
-
-#Test 24
-cmd_ef(GET+' cloud01/c01s01 megaDls')
-copyfolder('origin/cloud01/c01s01','localDls/')
-compare_and_clear()
-
-currentTest=25
-
-#Test 25
-cmd_ef(GET+' cloud01/fileatcloud01.txt megaDls')
-shutil.copy2('origin/cloud01/fileatcloud01.txt','localDls/')
-compare_and_clear()
-
-if not CMDSHELL: #TODO: currently there is no way to know last CMSHELL status code
-    #Test 26
-    o,status=cmd_ec(GET+' cloud01/fileatcloud01.txt /no/where')
-    check_failed_and_clear(o,status)
-
-    #Test 27
-    o,status=cmd_ec(GET+' /cloud01/cloud01/fileatcloud01.txt /no/where')
-    check_failed_and_clear(o,status)
-
-currentTest=28
-
-#Test 28
-cmd_ef(GET+' /cloud01/fileatcloud01.txt '+ABSMEGADLFOLDER+'/newfile')
-shutil.copy2('origin/cloud01/fileatcloud01.txt','localDls/newfile')
-compare_and_clear()
-
-#Test 29
-os.chdir(ABSMEGADLFOLDER)
-cmd_ef(GET+' /cloud01/fileatcloud01.txt .')
-os.chdir(ABSPWD)
-shutil.copy2('origin/cloud01/fileatcloud01.txt','localDls/')
-compare_and_clear()
-
-#Test 30
-os.chdir(ABSMEGADLFOLDER)
-cmd_ef(GET+' /cloud01/fileatcloud01.txt ./')
-os.chdir(ABSPWD)
-shutil.copy2('origin/cloud01/fileatcloud01.txt','localDls/')
-compare_and_clear()
-
-#Test 31
-makedir(ABSMEGADLFOLDER+'/newfol')
-os.chdir(ABSMEGADLFOLDER+'/newfol')
-cmd_ef(GET+' /cloud01/fileatcloud01.txt ..')
-os.chdir(ABSPWD)
-makedir('localDls/newfol')
-shutil.copy2('origin/cloud01/fileatcloud01.txt','localDls/')
-compare_and_clear()
-
-#Test 32
-makedir(ABSMEGADLFOLDER+'/newfol')
-os.chdir(ABSMEGADLFOLDER+'/newfol')
-cmd_ef(GET+' /cloud01/fileatcloud01.txt ../')
-os.chdir(ABSPWD)
-makedir('localDls/newfol')
-shutil.copy2('origin/cloud01/fileatcloud01.txt','localDls/')
-compare_and_clear()
-
-if not CMDSHELL: #TODO: currently there is no way to know last CMSHELL status code
-    #Test 33
-    o,status=cmd_ec(GET+' path/to/nowhere '+ABSMEGADLFOLDER+' > /dev/null')
-    check_failed_and_clear(o,status)
-
-    #Test 34
-    o,status=cmd_ec(GET+' /path/to/nowhere '+ABSMEGADLFOLDER+' > /dev/null')
-    check_failed_and_clear(o,status)
-
-currentTest=35
-
-#Test 35
-os.chdir(ABSMEGADLFOLDER)
-cmd_ef(GET+' /cloud01/fileatcloud01.txt')
-os.chdir(ABSPWD)
-shutil.copy2('origin/cloud01/fileatcloud01.txt','localDls/')
-compare_and_clear()
-
-currentTest=36
-
-#Test 36 # imported stuff (to test import folder)
-cmd_ex(RM+' -rf /imported')
-cmd_ef(MKDIR+' -p /imported')
-cmd_ef(IMPORT+' '+URIFOREIGNEXPORTEDFOLDER+' /imported')
-cmd_ef(GET+' /imported/* '+ABSMEGADLFOLDER+'')
-copyfolder('origin/foreign/sub01','localDls/')
-compare_and_clear()
-
-#Test 37 # imported stuff (to test import file)
-cmd_ex(RM+' -rf /imported')
-cmd_ef(MKDIR+' -p /imported')
-cmd_ef(IMPORT+' '+URIFOREIGNEXPORTEDFILE+' /imported')
-cmd_ef(GET+' /imported/fileatsub02.txt '+ABSMEGADLFOLDER+'')
-shutil.copy2('origin/foreign/sub02/fileatsub02.txt','localDls/')
-compare_and_clear()
+    def test_24(self):
+        cmd_ef(GET+' cloud01/c01s01 megaDls')
+        copyfolder('origin/cloud01/c01s01','localDls/')
+        self.compare()
 
 
-#Test 38 # get from //from/XXX
-cmd_ex(GET+' //from/'+osvar('MEGA_EMAIL_AUX')+':foreign/sub02/fileatsub02.txt '+ABSMEGADLFOLDER+'')
-shutil.copy2('origin/foreign/sub02/fileatsub02.txt','localDls/')
-compare_and_clear()
+    def test_25(self):
+        cmd_ef(GET+' cloud01/fileatcloud01.txt megaDls')
+        shutil.copy2('origin/cloud01/fileatcloud01.txt','localDls/')
+        self.compare()
+
+    @unittest.skipIf(CMDSHELL, "only for non-CMDSHELL")
+    def test_26(self):
+        o,status=cmd_ec(GET+' cloud01/fileatcloud01.txt /no/where')
+        self.check_failed(o,status)
+
+    @unittest.skipIf(CMDSHELL, "only for non-CMDSHELL")
+    def test_27(self):
+        o,status=cmd_ec(GET+' /cloud01/cloud01/fileatcloud01.txt /no/where')
+        self.check_failed(o,status)
+
+    def test_28(self):
+        cmd_ef(GET+' /cloud01/fileatcloud01.txt '+ABSMEGADLFOLDER+'/newfile')
+        shutil.copy2('origin/cloud01/fileatcloud01.txt','localDls/newfile')
+        self.compare()
+
+    def test_29(self):
+        os.chdir(ABSMEGADLFOLDER)
+        cmd_ef(GET+' /cloud01/fileatcloud01.txt .')
+        os.chdir(ABSPWD)
+        shutil.copy2('origin/cloud01/fileatcloud01.txt','localDls/')
+        self.compare()
+
+    def test_30(self):
+        os.chdir(ABSMEGADLFOLDER)
+        cmd_ef(GET+' /cloud01/fileatcloud01.txt ./')
+        os.chdir(ABSPWD)
+        shutil.copy2('origin/cloud01/fileatcloud01.txt','localDls/')
+        self.compare()
+
+    def test_31(self):
+        makedir(ABSMEGADLFOLDER+'/newfol')
+        os.chdir(ABSMEGADLFOLDER+'/newfol')
+        cmd_ef(GET+' /cloud01/fileatcloud01.txt ..')
+        os.chdir(ABSPWD)
+        makedir('localDls/newfol')
+        shutil.copy2('origin/cloud01/fileatcloud01.txt','localDls/')
+        self.compare()
+
+    def test_32(self):
+        makedir(ABSMEGADLFOLDER+'/newfol')
+        os.chdir(ABSMEGADLFOLDER+'/newfol')
+        cmd_ef(GET+' /cloud01/fileatcloud01.txt ../')
+        os.chdir(ABSPWD)
+        makedir('localDls/newfol')
+        shutil.copy2('origin/cloud01/fileatcloud01.txt','localDls/')
+        self.compare()
+
+    @unittest.skipIf(CMDSHELL, "only for non-CMDSHELL")
+    def test_33(self):
+        o,status=cmd_ec(GET+' path/to/nowhere '+ABSMEGADLFOLDER+' > /dev/null')
+        self.check_failed(o,status)
+
+    @unittest.skipIf(CMDSHELL, "only for non-CMDSHELL")
+    def test_34(self):
+        o,status=cmd_ec(GET+' /path/to/nowhere '+ABSMEGADLFOLDER+' > /dev/null')
+        self.check_failed(o,status)
+
+    def test_35(self):
+        os.chdir(ABSMEGADLFOLDER)
+        cmd_ef(GET+' /cloud01/fileatcloud01.txt')
+        os.chdir(ABSPWD)
+        shutil.copy2('origin/cloud01/fileatcloud01.txt','localDls/')
+        self.compare()
+
+    def test_36_import_folder(self):
+        cmd_ex(RM+' -rf /imported')
+        cmd_ef(MKDIR+' -p /imported')
+        cmd_ef(IMPORT+' '+URIFOREIGNEXPORTEDFOLDER+' /imported')
+        cmd_ef(GET+' /imported/* '+ABSMEGADLFOLDER+'')
+        copyfolder('origin/foreign/sub01','localDls/')
+        self.compare()
+
+    def test_37_import_file(self):
+        cmd_ex(RM+' -rf /imported')
+        cmd_ef(MKDIR+' -p /imported')
+        cmd_ef(IMPORT+' '+URIFOREIGNEXPORTEDFILE+' /imported')
+        cmd_ef(GET+' /imported/fileatsub02.txt '+ABSMEGADLFOLDER+'')
+        shutil.copy2('origin/foreign/sub02/fileatsub02.txt','localDls/')
+        self.compare()
 
 
-# Clean all
-clean_all()
+    def test_37(self):
+        """get from //from/XXX"""
+        cmd_ex(GET+' //from/'+osvar('MEGA_EMAIL_AUX')+':foreign/sub02/fileatsub02.txt '+ABSMEGADLFOLDER+'')
+        shutil.copy2('origin/foreign/sub02/fileatsub02.txt','localDls/')
+        self.compare()
+
+if __name__ == '__main__':
+    if "OUT_DIR_JUNIT_XML" in os.environ:
+        unittest.main(testRunner=xmlrunner.XMLTestRunner(output=os.environ["OUT_DIR_JUNIT_XML"]), failfast=False, buffer=False, catchbreak=False, exit=False)
+    else:
+        unittest.main()

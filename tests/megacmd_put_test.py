@@ -3,6 +3,8 @@
 #better run in an empty folder
 
 import os, subprocess, shutil, platform
+import unittest
+import xmlrunner
 from megacmd_tests_common import *
 
 GET="mega-get"
@@ -53,13 +55,13 @@ def clean_all():
     if cmd_es(WHOAMI) != osvar("MEGA_EMAIL"):
         cmd_ef(LOGOUT)
         cmd_ef(LOGIN+" " +osvar("MEGA_EMAIL")+" "+osvar("MEGA_PWD"))
-    
+
     cmd_ec(RM+' -rf "*"')
     cmd_ec(RM+' -rf "//bin/*"')
-    
+
     rmfolderifexisting("localUPs")
     rmfolderifexisting("localtmp")
-    
+
     rmfileifexisting("megafind.txt")
     rmfileifexisting("localfind.txt")
 
@@ -71,44 +73,10 @@ def clear_local_and_remote():
 
 currentTest=1
 
-def compare_and_clear() :
-    global currentTest
-    if VERBOSE:
-        print("test $currentTest")
-    
-    megafind=sort(cmd_ef(FIND))
-    localfind=sort(find('localUPs','.'))
-    
-    #~ if diff --side-by-side megafind.txt localfind.txt 2>/dev/null >/dev/null; then
-    if (megafind == localfind):
-        if VERBOSE:
-            print("diff megafind vs localfind:")
-            #diff --side-by-side megafind.txt localfind.txt#TODO: do this
-            print("MEGAFIND:")
-            print(megafind)
-            print("LOCALFIND")
-            print(localfind)
-        print("test "+str(currentTest)+" succesful!")     
-    else:
-        print("test "+str(currentTest)+" failed!")
-        print("diff megafind vs localfind:")
-        #~ diff --side-by-side megafind.txt localfind.txt #TODO: do this
-        print("MEGAFIND:")
-        print(megafind)
-        print("LOCALFIND")
-        print(localfind)
-        
-        #cd $ABSPWD #TODO: consider this
-        exit(1)
-
-    clear_local_and_remote()
-    currentTest+=1
-    cmd_ef(CD+" /")
-
 def check_failed_and_clear(o,status):
     global currentTest
 
-    if status == 0: 
+    if status == 0:
         print("test "+str(currentTest)+" failed!")
         print(o)
         exit(1)
@@ -123,7 +91,7 @@ def initialize():
     if cmd_es(WHOAMI) != osvar("MEGA_EMAIL"):
         cmd_ef(LOGOUT)
         cmd_ef(LOGIN+" " +osvar("MEGA_EMAIL")+" "+osvar("MEGA_PWD"))
-        
+
 
     if len(os.listdir(".")):
         logging.error("initialization folder not empty!")
@@ -185,112 +153,148 @@ def initialize_contents():
     cmd_ef(MKDIR+" -p "+" ".join(remotefolders))
     for f in ['localUPs/01/'+a for a in ['s01/ss01']+ ['s02/ss0'+z for z in ['1','2']] ]: makedir(f)
 
-#INITIALIZATION
-clean_all()
-initialize()
-
 ABSMEGADLFOLDER=ABSPWD+'/megaDls'
 
-clear_local_and_remote()
+class MEGAcmdPutTests(unittest.TestCase):
 
-#Test 01 #clean comparison
-compare_and_clear()
+    @classmethod
+    def setUpClass(cls):
+        clean_all()
+        initialize()
+        clear_local_and_remote()
 
-#Test 02 #no destiny empty file upload
-cmd_ef(PUT+' '+'localtmp/file01.txt')
-shutil.copy2('localtmp/file01.txt','localUPs/')
-compare_and_clear()
+    @classmethod
+    def tearDownClass(cls):
+        if not VERBOSE:
+            clean_all()
 
-#Test 03 #/ destiny empty file upload
-cmd_ef(PUT+' '+'localtmp/file01.txt /')
-shutil.copy2('localtmp/file01.txt','localUPs/')
-compare_and_clear()
 
-#Test 04 #no destiny non empty file upload
-cmd_ef(PUT+' '+'localtmp/file01nonempty.txt')
-shutil.copy2('localtmp/file01nonempty.txt','localUPs/')
-compare_and_clear()
+    def compare_and_clear(self) :
+        def cleanup():
+            clear_local_and_remote()
+            cmd_ef(CD+ " /")
 
-#Test 05 #update non empty file upload
-out('newfile01contents', 'localtmp/file01nonempty.txt')
-cmd_ef(PUT+' '+'localtmp/file01nonempty.txt')
-shutil.copy2('localtmp/file01nonempty.txt','localUPs/file01nonempty.txt')
-compare_and_clear()
+        megafind=sort(cmd_ef(FIND))
+        localfind=sort(find('localUPs','.'))
+        self.addCleanup(cleanup)
+        self.assertEqual(megafind, localfind)
 
-#Test 06 #empty folder
-cmd_ef(PUT+' '+'localtmp/le01/les01/less01')
-copyfolder('localtmp/le01/les01/less01','localUPs/')
-compare_and_clear()
+    def test_clean_comparison(self):
+        #Test 01 #clean comparison
+        self.compare_and_clear()
 
-#Test 07 #1 file folder
-cmd_ef(PUT+' '+'localtmp/lf01/lfs01/lfss01')
-copyfolder('localtmp/lf01/lfs01/lfss01','localUPs/')
-compare_and_clear()
+    def test_no_dest_empty_file_upload(self):
+        #Test 02 #no destiny empty file upload
+        cmd_ef(PUT+' '+'localtmp/file01.txt')
+        shutil.copy2('localtmp/file01.txt','localUPs/')
+        self.compare_and_clear()
 
-#Test 08 #entire empty folders structure
-cmd_ef(PUT+' '+'localtmp/le01')
-copyfolder('localtmp/le01','localUPs/')
-compare_and_clear()
+    def test_dest_empty_file_upload(self):
+        #Test 03 #/ destiny empty file upload
+        cmd_ef(PUT+' '+'localtmp/file01.txt /')
+        shutil.copy2('localtmp/file01.txt','localUPs/')
+        self.compare_and_clear()
 
-#Test 09 #entire non empty folders structure
-cmd_ef(PUT+' '+'localtmp/lf01')
-copyfolder('localtmp/lf01','localUPs/')
-compare_and_clear()
+    def test_no_dest_non_empty_file_upload(self):
+        #Test 04 #no destiny non empty file upload
+        cmd_ef(PUT+' '+'localtmp/file01nonempty.txt')
+        shutil.copy2('localtmp/file01nonempty.txt','localUPs/')
+        self.compare_and_clear()
 
-#Test 10 #copy structure into subfolder
-cmd_ef(PUT+' '+'localtmp/le01 /01/s01')
-copyfolder('localtmp/le01','localUPs/01/s01')
-compare_and_clear()
+    def test_update_non_empty_file_upload(self):
+        #Test 05 #update non empty file upload
+        out('newfile01contents', 'localtmp/file01nonempty.txt')
+        cmd_ef(PUT+' '+'localtmp/file01nonempty.txt')
+        shutil.copy2('localtmp/file01nonempty.txt','localUPs/file01nonempty.txt')
+        self.compare_and_clear()
 
-#~ #Test 11 #copy exact structure
-makedir('auxx')
-copyfolder('localUPs/01','auxx')
-cmd_ef(PUT+' '+'auxx/01/s01 /01/s01')
-copyfolder('auxx/01/s01','localUPs/01/s01')
-rmfolderifexisting("auxx")
-compare_and_clear()
+    def test_empty_folder(self):
+        #Test 06 #empty folder
+        cmd_ef(PUT+' '+'localtmp/le01/les01/less01')
+        copyfolder('localtmp/le01/les01/less01','localUPs/')
+        self.compare_and_clear()
 
-#~ #Test 12 #merge increased structure
-makedir('auxx')
-copyfolder('localUPs/01','auxx')
-touch('auxx/01/s01/another.txt')
-cmd_ef(PUT+' '+'auxx/01/s01 /01/')
-shutil.copy2('auxx/01/s01/another.txt','localUPs/01/s01')
-compare_and_clear()
-rmfolderifexisting("auxx")
+    def test_1_file_folder(self):
+        #Test 07 #1 file folder
+        cmd_ef(PUT+' '+'localtmp/lf01/lfs01/lfss01')
+        copyfolder('localtmp/lf01/lfs01/lfss01','localUPs/')
+        self.compare_and_clear()
 
-#Test 13 #multiple upload
-cmd_ef(PUT+' '+'localtmp/le01 localtmp/lf01 /01/s01')
-copyfolder('localtmp/le01','localUPs/01/s01')
-copyfolder('localtmp/lf01','localUPs/01/s01')
-compare_and_clear()
+    def test_entire_empty_folder_structure(self):
+        #Test 08 #entire empty folders structure
+        cmd_ef(PUT+' '+'localtmp/le01')
+        copyfolder('localtmp/le01','localUPs/')
+        self.compare_and_clear()
 
-currentTest=14
-#Test 14 #local regexp
-if (platform.system() != "Windows" and not CMDSHELL):
-    cmd_ef(PUT+' '+'localtmp/*txt /01/s01')
-    copybyfilepattern('localtmp/','*.txt','localUPs/01/s01')
-    compare_and_clear()
+    def test_entire_non_empty_folder_structure(self):
+        #Test 09 #entire non empty folders structure
+        cmd_ef(PUT+' '+'localtmp/lf01')
+        copyfolder('localtmp/lf01','localUPs/')
+        self.compare_and_clear()
 
-currentTest=15
-#Test 15 #../
-cmd_ef(CD+' 01')
-cmd_ef(PUT+' '+'localtmp/le01 ../01/s01')
-cmd_ef(CD+' /')
-copyfolder('localtmp/le01','localUPs/01/s01')
-compare_and_clear()
+    def test_copy_structure_into_subfolder(self):
+        #Test 10 #copy structure into subfolder
+        cmd_ef(PUT+' '+'localtmp/le01 /01/s01')
+        copyfolder('localtmp/le01','localUPs/01/s01')
+        self.compare_and_clear()
 
-currentTest=16
+    def test_copy_exact_structure(self):
+        #~ #Test 11 #copy exact structure
+        makedir('auxx')
+        copyfolder('localUPs/01','auxx')
+        cmd_ef(PUT+' '+'auxx/01/s01 /01/s01')
+        copyfolder('auxx/01/s01','localUPs/01/s01')
+        rmfolderifexisting("auxx")
+        self.compare_and_clear()
 
-#Test 16 #spaced stuff
-if CMDSHELL: #TODO: think about this again
-    cmd_ef(PUT+' '+'localtmp/ls\ 01')
-else:
-    cmd_ef(PUT+' '+'"localtmp/ls 01"')
+    def test_merge_increased_structure(self):
+        #~ #Test 12 #merge increased structure
+        makedir('auxx')
+        copyfolder('localUPs/01','auxx')
+        touch('auxx/01/s01/another.txt')
+        cmd_ef(PUT+' '+'auxx/01/s01 /01/')
+        shutil.copy2('auxx/01/s01/another.txt','localUPs/01/s01')
+        self.compare_and_clear()
+        rmfolderifexisting("auxx")
 
-copyfolder('localtmp/ls 01','localUPs')
-compare_and_clear()
+    def test_multiple_upload(self):
+        #Test 13 #multiple upload
+        cmd_ef(PUT+' '+'localtmp/le01 localtmp/lf01 /01/s01')
+        copyfolder('localtmp/le01','localUPs/01/s01')
+        copyfolder('localtmp/lf01','localUPs/01/s01')
+        self.compare_and_clear()
 
+    @unittest.skipIf(platform.system() == "Windows" or CMDSHELL, "skipping test")
+    def test_local_regexp(self):
+        #Test 14 #local regexp
+        cmd_ef(PUT+' '+'localtmp/*txt /01/s01')
+        copybyfilepattern('localtmp/','*.txt','localUPs/01/s01')
+        self.compare_and_clear()
+
+    def test_prev_dir(self):
+        """../"""
+        #Test 15 #../
+        cmd_ef(CD+' 01')
+        cmd_ef(PUT+' '+'localtmp/le01 ../01/s01')
+        cmd_ef(CD+' /')
+        copyfolder('localtmp/le01','localUPs/01/s01')
+        self.compare_and_clear()
+
+
+    def test_spaces(self):
+        #Test 16 #spaced stuff
+        if CMDSHELL: #TODO: think about this again
+            cmd_ef(PUT+' '+'localtmp/ls\ 01')
+        else:
+            cmd_ef(PUT+' '+'"localtmp/ls 01"')
+        copyfolder('localtmp/ls 01','localUPs')
+        self.compare_and_clear()
+
+if __name__ == '__main__':
+    if "OUT_DIR_JUNIT_XML" in os.environ:
+        unittest.main(testRunner=xmlrunner.XMLTestRunner(output=os.environ["OUT_DIR_JUNIT_XML"]), failfast=False, buffer=False, catchbreak=False, exit=False)
+    else:
+        unittest.main()
 
 ###TODO: do stuff in shared folders...
 
@@ -304,7 +308,7 @@ compare_and_clear()
 #touch aux/01/s01/another.txt
 #cmd_ef(PUT+' '+'aux/01/s01 /01/')
 #rsync -aLp aux/01/s01/ localUPs/01/s01/
-#echo "newcontents" > aux/01/s01/another.txt 
+#echo "newcontents" > aux/01/s01/another.txt
 #cmd_ef(PUT+' '+'aux/01/s01 /01/')
 #rsync -aLp aux/01/s01/ localUPs/01/s01/
 #rm -r aux
@@ -312,5 +316,3 @@ compare_and_clear()
 
 
 # Clean all
-if not VERBOSE:
-    clean_all()
