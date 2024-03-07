@@ -667,6 +667,12 @@ bool GzipCompressionEngine::shouldCancelOngoingJobs() const
 void GzipCompressionEngine::pushToQueue(const mega::LocalPath &srcFilePath, const mega::LocalPath &dstFilePath)
 {
     std::lock_guard<std::mutex> lock(mQueueMutex);
+
+    if (mExit)
+    {
+        return;
+    }
+
     mQueue.emplace(srcFilePath, dstFilePath);
     mQueueCV.notify_one();
 }
