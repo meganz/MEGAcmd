@@ -227,13 +227,13 @@ class GzipCompressionEngine final : public CompressionEngine
 
     mutable std::mutex mQueueMutex;
     std::condition_variable mQueueCV;
-    bool mCancelOngoingJobs;
+    bool mCancelOngoingJob;
     bool mExit;
 
     std::thread mGzipThread;
 
 private:
-    bool shouldCancelOngoingJobs() const;
+    bool shouldCancelOngoingJob() const;
 
     void pushToQueue(const mega::LocalPath &srcFilePath, const mega::LocalPath &dstFilePath);
     void gzipFile(const mega::LocalPath &srcFilePath, const mega::LocalPath &dstFilePath);
@@ -658,10 +658,10 @@ GzipCompressionEngine::GzipJobData::GzipJobData(const mega::LocalPath &_srcFileP
 {
 }
 
-bool GzipCompressionEngine::shouldCancelOngoingJobs() const
+bool GzipCompressionEngine::shouldCancelOngoingJob() const
 {
     std::lock_guard<std::mutex> lock(mQueueMutex);
-    return mCancelOngoingJobs;
+    return mCancelOngoingJob;
 }
 
 void GzipCompressionEngine::pushToQueue(const mega::LocalPath &srcFilePath, const mega::LocalPath &dstFilePath)
@@ -700,7 +700,7 @@ void GzipCompressionEngine::gzipFile(const mega::LocalPath &srcFilePath, const m
     std::string line;
     while (std::getline(file, line))
     {
-        if (shouldCancelOngoingJobs())
+        if (shouldCancelOngoingJob())
         {
             return;
         }
@@ -730,23 +730,18 @@ void GzipCompressionEngine::mainLoop()
 
         {
             std::unique_lock<std::mutex> lock(mQueueMutex);
-            mQueueCV.wait(lock, [this] () { return mExit || mCancelOngoingJobs || !mQueue.empty(); });
+            mQueueCV.wait(lock, [this] () { return mExit || !mQueue.empty(); });
 
             if (mExit && mQueue.empty())
             {
                 return;
             }
-            else if (mCancelOngoingJobs)
-            {
-                mQueue = std::queue<GzipJobData>(); // clear the queue
-                mCancelOngoingJobs = false;
-                continue;
-            }
-
             assert(!mQueue.empty());
 
             jobData = mQueue.front();
             mQueue.pop();
+
+            mCancelOngoingJob = false;
         }
 
         assert(jobData.valid);
@@ -755,7 +750,7 @@ void GzipCompressionEngine::mainLoop()
 }
 
 GzipCompressionEngine::GzipCompressionEngine() :
-    mCancelOngoingJobs(false),
+    mCancelOngoingJob(false),
     mExit(false),
     mGzipThread([this] () { mainLoop(); })
 {
@@ -767,6 +762,8 @@ GzipCompressionEngine::~GzipCompressionEngine()
         std::lock_guard<std::mutex> lock(mQueueMutex);
         mExit = true;
         mQueueCV.notify_one();
+
+        // We want to exit gracefull, so we don't call `cancelAll`
     }
     mGzipThread.join();
 }
@@ -779,8 +776,13 @@ std::string GzipCompressionEngine::getExtension() const
 void GzipCompressionEngine::cancelAll()
 {
     std::lock_guard<std::mutex> lock(mQueueMutex);
-    mCancelOngoingJobs = true;
-    mQueueCV.notify_one();
+
+    // Clear the queue
+    mQueue = std::queue<GzipJobData>();
+
+    // This flag will ensure `gzipFile` returns as soon as possible (if it's running)
+    // It'll be unset the next time we pop an item from the queue
+    mCancelOngoingJob = true;
 }
 
 void GzipCompressionEngine::compressFile(const mega::LocalPath &filePath)
