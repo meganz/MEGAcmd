@@ -259,6 +259,11 @@ pipeline {
                                 sh "docker run --user \$(id -u):\$(id -g) --env HOME=/tmp --env ASAN_OPTIONS --env TSAN_OPTIONS --rm --mount type=bind,src='${megacmd_sources_workspace}/test-results',target=/tmp/test-results -- meganz/megacmd-autotools-${SANITIZERS}:${env.BUILD_NUMBER} /usr/local/bin/mega-cmd-unit-tests --gtest_output=xml:/tmp/test-results/${SANITIZERS}-megacmd-unit-tests.xml --gtest_shuffle"
                             }
                         }
+			post {
+			    always {
+				junit "**/test-results/${SANITIZERS}-megacmd-unit-tests.xml"
+			    }
+			}
                     }
                     stage('Run MEGAcmd integration tests'){
                         when{
@@ -294,6 +299,11 @@ pipeline {
                                 }
                             }
                         }
+			post {
+			    always {
+				junit "**/test-results/${SANITIZERS}-megacmd-integration-tests.xml"
+			    }
+			}
                     }
                 }
             }
@@ -322,7 +332,6 @@ pipeline {
             }
             sh "docker image rm -- meganz/megacmd-autotools-ubsan:${env.BUILD_NUMBER} meganz/megacmd-autotools-asan:${env.BUILD_NUMBER} meganz/megacmd-autotools-tsan:${env.BUILD_NUMBER} || true"
             archiveArtifacts artifacts: "**/test-results/megacmd-*-report.*"
-            junit "**/test-results/ubsan-*.xml"
         }
     }
 }
