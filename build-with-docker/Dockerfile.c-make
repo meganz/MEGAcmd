@@ -41,6 +41,9 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     libzen0v5 \
     zlib1g \
     gpg \
+    rsync \
+    python3 \
+    python3-xmlrunner \
     /tmp/pdfium/pdfium-mega.deb
 
 FROM base as build-deps
