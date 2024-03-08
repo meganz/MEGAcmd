@@ -22,30 +22,28 @@ LOGIN="mega-login"
 IPC="mega-ipc"
 IMPORT="mega-import"
 
-ABSPWD=os.getcwd()
-currentTest=1
+def setUpModule():
+    global VERBOSE
+    global MEGA_PWD
+    global MEGA_EMAIL
+    global MEGACMDSHELL
+    global CMDSHELL
+    global ABSPWD
+    global ABSMEGADLFOLDER
 
-try:
-    MEGA_EMAIL=os.environ["MEGA_EMAIL"]
-    MEGA_PWD=os.environ["MEGA_PWD"]
-except:
-    logging.error("You must define variables MEGA_EMAIL MEGA_PWD. WARNING: Use an empty account for $MEGA_EMAIL")
-    exit(1)
+    ABSPWD = os.getcwd()
+    ABSMEGADLFOLDER = ABSPWD+'/megaDls'
 
-try:
-    os.environ['VERBOSE']
-    VERBOSE=True
-except:
-    VERBOSE=False
+    VERBOSE = 'VERBOSE' in os.environ
+    if "MEGA_EMAIL" in os.environ and "MEGA_PWD" in os.environ:
+        MEGA_EMAIL=os.environ["MEGA_EMAIL"]
+        MEGA_PWD=os.environ["MEGA_PWD"]
+    else:
+        raise Exception("Environment variables MEGA_EMAIL or MEGA_PWD are not defined")
 
-#VERBOSE=True
-
-try:
-    MEGACMDSHELL=os.environ['MEGACMDSHELL']
-    CMDSHELL=True
-    #~ FIND="executeinMEGASHELL find" #TODO
-except:
-    CMDSHELL=False
+    CMDSHELL= "MEGACMDSHELL" in os.environ
+    if CMDSHELL:
+        MEGACMDSHELL=os.environ["MEGACMDSHELL"]
 
 def clean_all():
 
@@ -152,8 +150,6 @@ def initialize_contents():
     cmd_ef(PUT+" "+contents+" /")
     makedir('localUPs')
     copybypattern('localtmp/','*','localUPs')
-
-ABSMEGADLFOLDER=ABSPWD+'/megaDls'
 
 class MEGAcmdRmTest(unittest.TestCase):
 

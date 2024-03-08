@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
-import sys, os, subprocess, shutil, logging
+import os, shutil
 import unittest
 import xmlrunner
 from megacmd_tests_common import *
@@ -17,34 +17,27 @@ FIND="mega-find"
 WHOAMI="mega-whoami"
 LOGOUT="mega-logout"
 LOGIN="mega-login"
-ABSPWD=os.getcwd()
-currentTest=1
 
+def setUpModule():
+    global VERBOSE
+    global MEGA_PWD
+    global MEGA_EMAIL
+    global MEGACMDSHELL
+    global CMDSHELL
+    global ABSPWD
 
-try:
-    os.environ['VERBOSE']
-    VERBOSE=True
-except:
-    VERBOSE=False
+    ABSPWD = os.getcwd()
 
-#VERBOSE=True
+    VERBOSE = 'VERBOSE' in os.environ
+    if "MEGA_EMAIL" in os.environ and "MEGA_PWD" in os.environ:
+        MEGA_EMAIL=os.environ["MEGA_EMAIL"]
+        MEGA_PWD=os.environ["MEGA_PWD"]
+    else:
+        raise Exception("Environment variables MEGA_EMAIL or MEGA_PWD are not defined")
 
-
-try:
-    MEGA_EMAIL=os.environ["MEGA_EMAIL"]
-    MEGA_PWD=os.environ["MEGA_PWD"]
-except:
-    logging.fatal("You must define variables MEGA_EMAIL MEGA_PWD. WARNING: Use an empty account for $MEGA_EMAIL")
-    exit(1)
-
-
-try:
-    MEGACMDSHELL=os.environ['MEGACMDSHELL']
-    CMDSHELL=True
-    #~ FIND="executeinMEGASHELL find" #TODO
-
-except:
-    CMDSHELL=False
+    CMDSHELL= "MEGACMDSHELL" in os.environ
+    if CMDSHELL:
+        MEGACMDSHELL=os.environ["MEGACMDSHELL"]
 
 def initialize_contents():
     contents=" ".join(['"localtmp/'+x+'"' for x in os.listdir('localtmp/')])
@@ -68,15 +61,12 @@ def clean_all():
     rmfileifexisting("megafind.txt")
     rmfileifexisting("localfind.txt")
 
-
-
 def clear_local_and_remote():
     rmfolderifexisting("localUPs")
     cmd_ec(RM+' -rf "/*"')
     initialize_contents()
 
 def initialize():
-
     if cmd_es(WHOAMI) != osvar("MEGA_EMAIL"):
         cmd_es(LOGOUT)
         cmd_ef(LOGIN+" " +osvar("MEGA_EMAIL")+" "+osvar("MEGA_PWD"))
@@ -133,23 +123,6 @@ def initialize():
     #initialize dynamic contents:
     clear_local_and_remote()
 
-
-def compare_find(testcase: unittest.TestCase, what, localFindPrefix='localUPs'):
-    if not isinstance(what, list):
-        what = [what]
-    megafind=b""
-    localfind=""
-    for w in what:
-        megafind+=cmd_ef(FIND+" "+w)+b"\n"
-        localfind+=find(localFindPrefix+'/'+w,w)+"\n"
-
-    megafind=sort(megafind).strip()
-    localfind=sort(localfind).strip()
-
-    #~ megafind=$FIND "$@"  | sort > $ABSPWD/megafind.txt
-    #~ (cd localUPs 2>/dev/null; find "$@" | sed "s#\./##g" | sort) > $ABSPWD/localfind.txt
-    testcase.assertEqual(megafind, localfind)
-
 class MEGAcmdFindTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -162,30 +135,46 @@ class MEGAcmdFindTest(unittest.TestCase):
         if not VERBOSE:
             clean_all()
 
+    def compare_find(self, what, localFindPrefix='localUPs'):
+        if not isinstance(what, list):
+            what = [what]
+        megafind=b""
+        localfind=""
+        for w in what:
+            megafind+=cmd_ef(FIND+" "+w)+b"\n"
+            localfind+=find(localFindPrefix+'/'+w,w)+"\n"
+
+        megafind=sort(megafind).strip()
+        localfind=sort(localfind).strip()
+
+        #~ megafind=$FIND "$@"  | sort > $ABSPWD/megafind.txt
+        #~ (cd localUPs 2>/dev/null; find "$@" | sed "s#\./##g" | sort) > $ABSPWD/localfind.txt
+        self.assertEqual(megafind, localfind)
+
     def test_empty_file(self):
-        compare_find(self, 'file01.txt')
+        self.compare_find('file01.txt')
 
     def test_entire_empty_folders(self):
-        compare_find(self, 'le01/les01/less01')
+        self.compare_find('le01/les01/less01')
 
     def test_1_file_folder(self):
-        compare_find(self, 'lf01/lfs01/lfss01')
+        self.compare_find('lf01/lfs01/lfss01')
 
     def test_entire_non_empty_folders_structure(self):
-        compare_find(self, 'lf01')
+        self.compare_find('lf01')
 
     def test_multiple_names(self):
-        compare_find(self, ['lf01','le01/les01'])
+        self.compare_find(['lf01','le01/les01'])
 
     def test_current_wd(self):
         """."""
         cmd_ef(CD+" le01")
-        compare_find(self, '.','localUPs/le01')
+        self.compare_find('.','localUPs/le01')
         cmd_ef(CD+" /")
 
     def test_current_wd_global(self):
         """. global"""
-        compare_find(self, '.')
+        self.compare_find('.')
 
     def test_spaced(self):
         megafind=sort(cmd_ef(FIND+" "+"ls\ 01"))
@@ -218,13 +207,12 @@ class MEGAcmdFindTest(unittest.TestCase):
 
     @unittest.skipIf(CMDSHELL, "only for non-CMDSHELL")
     def test_non_existent(self):
-            #Test 13 #file01.txt/non-existent
-            megafind,status=cmd_ec(FIND+" "+"file01.txt/non-existent")
-            self.assertNotEqual(status, 0);
+        #Test 13 #file01.txt/non-existent
+        megafind,status=cmd_ec(FIND+" "+"file01.txt/non-existent")
+        self.assertNotEqual(status, 0)
 
     def test_root(self):
-        compare_find(self, '/')
-
+        self.compare_find('/')
 
 ###TODO: do stuff in shared folders...
 

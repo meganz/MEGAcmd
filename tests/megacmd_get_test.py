@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 #better run in an empty folder
 
-import sys, os, subprocess, shutil, logging
+import os, shutil, logging
 import unittest
 import xmlrunner
 from megacmd_tests_common import *
@@ -22,36 +22,34 @@ LOGIN="mega-login"
 IPC="mega-ipc"
 IMPORT="mega-import"
 
-ABSPWD=os.getcwd()
-currentTest=1
+def setUpModule():
+    global VERBOSE
+    global MEGA_PWD
+    global MEGA_EMAIL
+    global MEGA_EMAIL_AUX
+    global MEGA_PWD_AUX
+    global MEGACMDSHELL
+    global CMDSHELL
+    global ABSPWD
+    global ABSMEGADLFOLDER
 
-try:
-    MEGA_EMAIL=os.environ["MEGA_EMAIL"]
-    MEGA_PWD=os.environ["MEGA_PWD"]
-    MEGA_EMAIL_AUX=os.environ["MEGA_EMAIL_AUX"]
-    MEGA_PWD_AUX=os.environ["MEGA_PWD_AUX"]
-except:
-    logging.error("You must define variables MEGA_EMAIL MEGA_PWD MEGA_EMAIL_AUX MEGA_PWD_AUX. WARNING: Use an empty account for $MEGA_EMAIL")
-    exit(1)
+    ABSPWD = os.getcwd()
+    ABSMEGADLFOLDER=ABSPWD+'/megaDls'
+    VERBOSE = 'VERBOSE' in os.environ
 
-try:
-    os.environ['VERBOSE']
-    VERBOSE=True
-except:
-    VERBOSE=False
+    if "MEGA_EMAIL" in os.environ and "MEGA_PWD" in os.environ and "MEGA_EMAIL_AUX" in os.environ and "MEGA_PWD_AUX" in os.environ:
+        MEGA_EMAIL=os.environ["MEGA_EMAIL"]
+        MEGA_PWD=os.environ["MEGA_PWD"]
+        MEGA_EMAIL_AUX=os.environ["MEGA_EMAIL_AUX"]
+        MEGA_PWD_AUX=os.environ["MEGA_PWD_AUX"]
+    else:
+        raise Exception("Environment variables MEGA_EMAIL, MEGA_PWD, MEGA_EMAIL_AUX, MEGA_PWD_AUX are not defined. WARNING: Use an empty account for $MEGA_EMAIL")
 
-#VERBOSE=True
-
-try:
-    MEGACMDSHELL=os.environ['MEGACMDSHELL']
-    CMDSHELL=True
-    #~ FIND="executeinMEGASHELL find" #TODO
-
-except:
-    CMDSHELL=False
+    CMDSHELL= "MEGACMDSHELL" in os.environ
+    if CMDSHELL:
+        MEGACMDSHELL=os.environ["MEGACMDSHELL"]
 
 def clean_all():
-
     if cmd_es(WHOAMI) != osvar("MEGA_EMAIL"):
         cmd_ef(LOGOUT)
         cmd_ef(LOGIN+" " +osvar("MEGA_EMAIL")+" "+osvar("MEGA_PWD"))
@@ -149,8 +147,6 @@ def initialize_contents():
     logging.debug("URIEXPORTEDFOLDER="+URIEXPORTEDFOLDER)
     logging.debug("URIEXPORTEDFILE=",URIEXPORTEDFILE)
 
-
-ABSMEGADLFOLDER=ABSPWD+'/megaDls'
 
 class MEGAcmdGetTest(unittest.TestCase):
 

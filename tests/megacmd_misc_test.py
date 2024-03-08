@@ -22,36 +22,33 @@ IPC="mega-ipc"
 WHOAMI="mega-whoami"
 LOGOUT="mega-logout"
 LOGIN="mega-login"
-ABSPWD=os.getcwd()
-currentTest=1
 
-try:
-    os.environ['VERBOSE']
-    VERBOSE=True
-except:
-    VERBOSE=False
+def setUpModule():
+    global VERBOSE
+    global MEGA_PWD
+    global MEGA_EMAIL
+    global MEGA_EMAIL_AUX
+    global MEGA_PWD_AUX
+    global MEGACMDSHELL
+    global CMDSHELL
+    global ABSPWD
+    global ABSMEGADLFOLDER
 
-#VERBOSE=True
+    ABSPWD = os.getcwd()
+    ABSMEGADLFOLDER=ABSPWD+'/megaDls'
+    VERBOSE = 'VERBOSE' in os.environ
 
+    if "MEGA_EMAIL" in os.environ and "MEGA_PWD" in os.environ and "MEGA_EMAIL_AUX" in os.environ and "MEGA_PWD_AUX" in os.environ:
+        MEGA_EMAIL=os.environ["MEGA_EMAIL"]
+        MEGA_PWD=os.environ["MEGA_PWD"]
+        MEGA_EMAIL_AUX=os.environ["MEGA_EMAIL_AUX"]
+        MEGA_PWD_AUX=os.environ["MEGA_PWD_AUX"]
+    else:
+        raise Exception("Environment variables MEGA_EMAIL, MEGA_PWD, MEGA_EMAIL_AUX, MEGA_PWD_AUX are not defined. WARNING: Use an empty account for $MEGA_EMAIL")
 
-try:
-    MEGA_EMAIL=os.environ["MEGA_EMAIL"]
-    MEGA_PWD=os.environ["MEGA_PWD"]
-    MEGA_EMAIL_AUX=os.environ["MEGA_EMAIL_AUX"]
-    MEGA_PWD_AUX=os.environ["MEGA_PWD_AUX"]
-except:
-    logging.error("You must define variables MEGA_EMAIL MEGA_PWD MEGA_EMAIL_AUX MEGA_PWD_AUX. WARNING: Use an empty account for $MEGA_EMAIL")
-    exit(1)
-
-
-try:
-    MEGACMDSHELL=os.environ['MEGACMDSHELL']
-    CMDSHELL=True
-    #~ FIND="executeinMEGASHELL find" #TODO
-
-except:
-    CMDSHELL=False
-
+    CMDSHELL= "MEGACMDSHELL" in os.environ
+    if CMDSHELL:
+        MEGACMDSHELL=os.environ["MEGACMDSHELL"]
 def initialize_contents():
     cmd_ec(INVITE+" "+osvar("MEGA_EMAIL_AUX"))
     cmd_ef(LOGOUT)
