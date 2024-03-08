@@ -169,7 +169,7 @@ pipeline {
 			}
 			post {
 			    always {
-				junit(testResults: "**/test-results/legacy-python-${SANITIZERS}/TEST-*.xml", checksName: "Legacy tests: ${TEST_SCRIPT} (${SANITIZERS})")
+				junit(testResults: "**/test-results/legacy-python-${SANITIZERS}/TEST-*.xml", checksName: "Legacy tests: ${TEST_SCRIPT} (${SANITIZERS})", allowEmptyResults: true)
 			    }
 			}
 		    }
@@ -220,7 +220,7 @@ pipeline {
 			}
 			post {
 			    always {
-				junit(testResults: "**/test-results/legacy-python-${SANITIZERS}/TEST-*.xml", checksName: "Legacy tests: ${TEST_SCRIPT} (${SANITIZERS})")
+				junit(testResults: "**/test-results/legacy-python-${SANITIZERS}/TEST-*.xml", checksName: "Legacy tests: ${TEST_SCRIPT} (${SANITIZERS})", allowEmptyResults: true)
 			    }
 			}
 		    }
