@@ -168,6 +168,9 @@ class RotationEngine : public BaseEngine
 protected:
     const std::string mCompressionExt;
 
+    template<typename F>
+    void walkRotatedFiles(mega::LocalPath dir, const mega::LocalPath &baseFilename, F&& walker);
+
 public:
     RotationEngine(const std::string &compressionExt);
     virtual ~RotationEngine() = default;
@@ -193,8 +196,31 @@ class TimestampRotationEngine final : public RotationEngine
     const int mMaxFilesToKeep;
     const std::chrono::seconds mMaxFileAge;
 
+private:
+    using Clock = std::chrono::high_resolution_clock;
+    using Timestamp = std::chrono::time_point<Clock>;
+
+    struct TimestampFile
+    {
+        mega::LocalPath fullPath;
+        Timestamp timestamp;
+
+        TimestampFile(const mega::LocalPath &dir, const mega::LocalPath &filename, const Timestamp &_timestamp);
+        bool operator>(const TimestampFile &other) const { return timestamp > other.timestamp; }
+    };
+    using TimestampFileQueue = std::priority_queue<TimestampFile, std::vector<TimestampFile>, std::greater<TimestampFile>>;
+
+private:
+    static std::string timestampToString(const Timestamp &timestamp);
+    static Timestamp stringToTimestamp(const std::string &timestampStr, bool &success); // in C++17 we can use `std::optional` instead
+
+    mega::LocalPath rotateBaseFile(const mega::LocalPath &directory, const mega::LocalPath &baseFilename);
+    TimestampFileQueue getTimestampFileQueue(const mega::LocalPath &dir, const mega::LocalPath &baseFilename);
+
+    void popAndRemoveFile(TimestampFileQueue &fileQueue);
+
 public:
-    TimestampRotationEngine(const std::string &archiveExt, int maxFilesToKeep, std::chrono::seconds maxFileAge);
+    TimestampRotationEngine(const std::string &compressionExt, int maxFilesToKeep, std::chrono::seconds maxFileAge);
 
     mega::LocalPath rotateFiles(const mega::LocalPath &dir, const mega::LocalPath &baseFilename) override;
 };
@@ -252,7 +278,7 @@ public:
 
 RotatingFileManager::Config::Config() :
     maxBaseFileSize(50 * 1024 * 1024), // 50 MB
-    rotationType(RotationType::Numbered),
+    rotationType(RotationType::Timestamp),
     maxFileAge(30 * 86400), // one month (in C++20 we can use `std::chrono::month(1)`)
     maxFilesToKeep(50),
     compressionType(CompressionType::Gzip)
@@ -536,23 +562,18 @@ std::string BaseEngine::popErrors()
     return errorString;
 }
 
-RotationEngine::RotationEngine(const std::string &compressionExt) :
-    mCompressionExt(compressionExt)
-{
-}
-
-void RotationEngine::cleanupFiles(const mega::LocalPath &dir, const mega::LocalPath &baseFilename)
+template<typename F>
+void RotationEngine::walkRotatedFiles(mega::LocalPath dir, const mega::LocalPath &baseFilename, F&& walker)
 {
     const std::string baseFileStr = baseFilename.toName(mFsAccess);
 
-    mega::LocalPath dirPathCopy(dir);
     mega::LocalPath leafPath;
     mega::nodetype_t entryType;
 
     auto da = mFsAccess.newdiraccess();
-    da->dopen(&dirPathCopy, nullptr, false);
+    da->dopen(&dir, nullptr, false);
 
-    while (da->dnext(dirPathCopy, leafPath, false, &entryType))
+    while (da->dnext(dir, leafPath, false, &entryType))
     {
         // Ignore non-files
         if (entryType != mega::FILENODE) continue;
@@ -561,14 +582,27 @@ void RotationEngine::cleanupFiles(const mega::LocalPath &dir, const mega::LocalP
         const std::string leafName = leafPath.toName(mFsAccess);
         if (leafName.rfind(baseFileStr, 0) != 0) continue;
 
+        walker(dir, leafPath);
+    }
+}
+
+RotationEngine::RotationEngine(const std::string &compressionExt) :
+    mCompressionExt(compressionExt)
+{
+}
+
+void RotationEngine::cleanupFiles(const mega::LocalPath &dir, const mega::LocalPath &baseFilename)
+{
+    walkRotatedFiles(dir, baseFilename, [this] (const mega::LocalPath &dir, const mega::LocalPath &leafPath)
+    {
         mega::LocalPath leafFullPath(dir);
         leafFullPath.appendWithSeparator(leafPath, false);
 
         if (!mFsAccess.unlinklocal(leafFullPath))
         {
-            mErrorStream << "Error removing archive file " << leafName << std::endl;
+            mErrorStream << "Error removing rotated file " << leafPath.toName(mFsAccess) << std::endl;
         }
-    }
+    });
 }
 
 mega::LocalPath NumberedRotationEngine::getSrcFilePath(const mega::LocalPath &directory, const mega::LocalPath &baseFilename, int i) const
@@ -603,15 +637,15 @@ NumberedRotationEngine::NumberedRotationEngine(const std::string &compressionExt
     RotationEngine(compressionExt),
     mMaxFilesToKeep(maxFilesToKeep)
 {
-    // Numbered archive does not support keeping unlimited files
+    // Numbered rotation does not support keeping unlimited files
     assert(mMaxFilesToKeep >= 0);
 }
 
-mega::LocalPath NumberedRotationEngine::rotateFiles(const mega::LocalPath &dir, const mega::LocalPath &baseFilePath)
+mega::LocalPath NumberedRotationEngine::rotateFiles(const mega::LocalPath &dir, const mega::LocalPath &baseFilename)
 {
     for (int i = mMaxFilesToKeep - 1; i >= 0; --i)
     {
-        auto srcFilePath = getSrcFilePath(dir, baseFilePath, i);
+        auto srcFilePath = getSrcFilePath(dir, baseFilename, i);
 
         // Quietly ignore any numbered files that don't exist
         if (!mFsAccess.fileExistsAt(srcFilePath)) continue;
@@ -627,7 +661,7 @@ mega::LocalPath NumberedRotationEngine::rotateFiles(const mega::LocalPath &dir, 
         }
 
         // For the rest, rename them to effectively do number++ (e.g., file.3.gz => file.4.gz)
-        auto dstFilePath = getDstFilePath(dir, baseFilePath, i);
+        auto dstFilePath = getDstFilePath(dir, baseFilename, i);
         if (!mFsAccess.renamelocal(srcFilePath, dstFilePath, true))
         {
             mErrorStream << "Error renaming file " << srcFilePath.toPath(true) << " to " << dstFilePath.toPath(true) << std::endl;
@@ -635,20 +669,138 @@ mega::LocalPath NumberedRotationEngine::rotateFiles(const mega::LocalPath &dir, 
     }
 
     // The newly-rotated file is the destination path of the base file
-    return getDstFilePath(dir, baseFilePath, 0);
+    return getDstFilePath(dir, baseFilename, 0);
 }
 
-TimestampRotationEngine::TimestampRotationEngine(const std::string &archiveExt, int maxFilesToKeep, std::chrono::seconds maxFileAge) :
-    RotationEngine(archiveExt),
+TimestampRotationEngine::TimestampFile::TimestampFile(const mega::LocalPath &dir, const mega::LocalPath &filename, const Timestamp &_timestamp) :
+    fullPath(dir),
+    timestamp(_timestamp)
+{
+    fullPath.appendWithSeparator(filename, false);
+}
+
+std::string TimestampRotationEngine::timestampToString(const Timestamp &timestamp)
+{
+    std::ostringstream oss;
+    std::time_t time = Clock::to_time_t(timestamp);
+    oss << std::put_time(std::localtime(&time), "%Y%m%d_%H%M%S");
+    return oss.str();
+}
+
+TimestampRotationEngine::Timestamp TimestampRotationEngine::stringToTimestamp(const std::string &timestampStr, bool &success)
+{
+    std::tm timeInfo = {};
+    std::istringstream iss(timestampStr);
+    iss >> std::get_time(&timeInfo, "%Y%m%d_%H%M%S");
+
+    success = !iss.fail();
+    return Clock::from_time_t(std::mktime(&timeInfo));
+}
+
+mega::LocalPath TimestampRotationEngine::rotateBaseFile(const mega::LocalPath &directory, const mega::LocalPath &baseFilename)
+{
+    const std::string timestampStr = timestampToString(Clock::now());
+
+    mega::LocalPath srcFilePath = directory;
+    srcFilePath.appendWithSeparator(baseFilename, false);
+
+    mega::LocalPath dstFilePath = srcFilePath;
+    dstFilePath.append(mega::LocalPath::fromRelativePath("." + timestampStr));
+
+    if (!mFsAccess.renamelocal(srcFilePath, dstFilePath, true))
+    {
+        mErrorStream << "Error renaming file " << srcFilePath.toPath(true) << " to " << dstFilePath.toPath(true) << std::endl;
+    }
+
+    return dstFilePath;
+}
+
+TimestampRotationEngine::TimestampFileQueue TimestampRotationEngine::getTimestampFileQueue(const mega::LocalPath &dir, const mega::LocalPath &baseFilename)
+{
+    TimestampFileQueue fileQueue;
+    std::unordered_set<std::string> addedFiles;
+
+    const std::string baseFilenameStr = baseFilename.toName(mFsAccess);
+
+    walkRotatedFiles(dir, baseFilename, [this, &baseFilenameStr, &fileQueue, &addedFiles] (const mega::LocalPath &dir, const mega::LocalPath &leafPath)
+    {
+        static const std::string exampleTimestampStr = "19970907_193040"; // example timestamp to get the string size
+        const std::string leafPathStr = leafPath.toName(mFsAccess);
+
+        const std::string timestampStr = leafPathStr.substr(baseFilenameStr.size() + 1, exampleTimestampStr.size());
+
+        bool success = false;
+        Timestamp timestamp = stringToTimestamp(timestampStr, success);
+        if (!success)
+        {
+            // Ignore if there's not timestamp or it has a different format
+            return;
+        }
+
+        if (addedFiles.find(timestampStr) != addedFiles.end())
+        {
+            // Otherwise, in the rare case that a file finishes being zipped while this function is executing,
+            // we might add it twice: one with "zipping" prefix and one without. This would lead to an incorrect number
+            // of files, which would messs up the max file calculation. Regardless, the zipping file is the newest one so it won't be deleted.
+            return;
+        }
+
+        addedFiles.emplace(timestampStr);
+        fileQueue.emplace(dir, leafPath, timestamp);
+    });
+
+    return fileQueue;
+}
+
+void TimestampRotationEngine::popAndRemoveFile(TimestampFileQueue &fileQueue)
+{
+    const TimestampFile file = fileQueue.top();
+    fileQueue.pop();
+
+    if (!mFsAccess.unlinklocal(file.fullPath))
+    {
+        mErrorStream << "Error removing rotated file " << file.fullPath.toName(mFsAccess) << std::endl;
+    }
+}
+
+TimestampRotationEngine::TimestampRotationEngine(const std::string &compressionExt, int maxFilesToKeep, std::chrono::seconds maxFileAge) :
+    RotationEngine(compressionExt),
     mMaxFilesToKeep(maxFilesToKeep),
     mMaxFileAge(maxFileAge)
 {
-    assert(false); // not yet implemented
 }
 
-mega::LocalPath TimestampRotationEngine::rotateFiles(const mega::LocalPath &dir, const mega::LocalPath &baseFilePath)
+mega::LocalPath TimestampRotationEngine::rotateFiles(const mega::LocalPath &dir, const mega::LocalPath &baseFilename)
 {
-    return mega::LocalPath::fromRelativePath("");
+    auto newlyRotatedFile = rotateBaseFile(dir, baseFilename);
+
+    if (mMaxFileAge <= std::chrono::seconds(0) && mMaxFilesToKeep < 0)
+    {
+        return newlyRotatedFile;
+    }
+
+    auto fileQueue = getTimestampFileQueue(dir, baseFilename);
+
+    // Rotate by timestamp
+    if (mMaxFileAge > std::chrono::seconds(0))
+    {
+        const Timestamp minFileTimestamp = Clock::now() - mMaxFileAge;
+        while (!fileQueue.empty() && fileQueue.top().timestamp < minFileTimestamp)
+        {
+            popAndRemoveFile(fileQueue);
+        }
+    }
+
+    // Rotate by file count
+    if (mMaxFilesToKeep >= 0)
+    {
+        while (fileQueue.size() > static_cast<size_t>(mMaxFilesToKeep))
+        {
+            popAndRemoveFile(fileQueue);
+        }
+    }
+
+    return newlyRotatedFile;
 }
 
 GzipCompressionEngine::GzipJobData::GzipJobData(const mega::LocalPath &_srcFilePath, const mega::LocalPath &_dstFilePath) :
