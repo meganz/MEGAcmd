@@ -118,7 +118,6 @@ RUN --mount=type=cache,target=/tmp/ccache \
     ENABLE_MEGACMD_TESTS=${ENABLE_MEGACMD_TESTS} \
     && make -C /tmp/build -j$(nproc) mega-cmd mega-cmd-server mega-exec \
     mega-cmd-updater mega-cmd-tests-integration mega-cmd-tests-unit \
-    mega-cmd-updater mega-exec \
     && cd /tmp/build \
     && install mega-cmd mega-cmd-server \
     mega-cmd-tests-integration mega-cmd-tests-unit \
