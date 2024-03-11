@@ -166,13 +166,10 @@ public:
 class RotationEngine : public BaseEngine
 {
 protected:
-    const std::string mCompressionExt;
-
     template<typename F>
     void walkRotatedFiles(mega::LocalPath dir, const mega::LocalPath &baseFilename, F&& walker);
 
 public:
-    RotationEngine(const std::string &compressionExt);
     virtual ~RotationEngine() = default;
 
     virtual void cleanupFiles(const mega::LocalPath &dir, const mega::LocalPath &baseFilename);
@@ -181,7 +178,9 @@ public:
 
 class NumberedRotationEngine final : public RotationEngine
 {
+    const std::string mCompressionExt;
     const int mMaxFilesToKeep;
+
     mega::LocalPath getSrcFilePath(const mega::LocalPath &directory, const mega::LocalPath &baseFilename, int i) const;
     mega::LocalPath getDstFilePath(const mega::LocalPath &directory, const mega::LocalPath &baseFilename, int i) const;
 
@@ -220,7 +219,7 @@ private:
     void popAndRemoveFile(TimestampFileQueue &fileQueue);
 
 public:
-    TimestampRotationEngine(const std::string &compressionExt, int maxFilesToKeep, std::chrono::seconds maxFileAge);
+    TimestampRotationEngine(int maxFilesToKeep, std::chrono::seconds maxFileAge);
 
     mega::LocalPath rotateFiles(const mega::LocalPath &dir, const mega::LocalPath &baseFilename) override;
 };
@@ -351,7 +350,7 @@ void RotatingFileManager::initializeRotationEngine()
         }
         case RotationType::Timestamp:
         {
-            rotationEngine = new TimestampRotationEngine(compressionExt, mConfig.maxFilesToKeep, mConfig.maxFileAge);
+            rotationEngine = new TimestampRotationEngine(mConfig.maxFilesToKeep, mConfig.maxFileAge);
             break;
         }
     }
@@ -586,11 +585,6 @@ void RotationEngine::walkRotatedFiles(mega::LocalPath dir, const mega::LocalPath
     }
 }
 
-RotationEngine::RotationEngine(const std::string &compressionExt) :
-    mCompressionExt(compressionExt)
-{
-}
-
 void RotationEngine::cleanupFiles(const mega::LocalPath &dir, const mega::LocalPath &baseFilename)
 {
     walkRotatedFiles(dir, baseFilename, [this] (const mega::LocalPath &dir, const mega::LocalPath &leafPath)
@@ -634,7 +628,7 @@ mega::LocalPath NumberedRotationEngine::getDstFilePath(const mega::LocalPath &di
 }
 
 NumberedRotationEngine::NumberedRotationEngine(const std::string &compressionExt, int maxFilesToKeep) :
-    RotationEngine(compressionExt),
+    mCompressionExt(compressionExt),
     mMaxFilesToKeep(maxFilesToKeep)
 {
     // Numbered rotation does not support keeping unlimited files
@@ -763,8 +757,7 @@ void TimestampRotationEngine::popAndRemoveFile(TimestampFileQueue &fileQueue)
     }
 }
 
-TimestampRotationEngine::TimestampRotationEngine(const std::string &compressionExt, int maxFilesToKeep, std::chrono::seconds maxFileAge) :
-    RotationEngine(compressionExt),
+TimestampRotationEngine::TimestampRotationEngine(int maxFilesToKeep, std::chrono::seconds maxFileAge) :
     mMaxFilesToKeep(maxFilesToKeep),
     mMaxFileAge(maxFileAge)
 {
