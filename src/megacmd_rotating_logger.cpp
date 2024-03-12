@@ -570,7 +570,11 @@ void RotationEngine::walkRotatedFiles(mega::LocalPath dir, const mega::LocalPath
     mega::nodetype_t entryType;
 
     auto da = mFsAccess.newdiraccess();
-    da->dopen(&dir, nullptr, false);
+    if (!da->dopen(&dir, nullptr, false))
+    {
+        mErrorStream << "Failed to walk directory " << dir.toName(mFsAccess) << std::endl;
+        return;
+    }
 
     while (da->dnext(dir, leafPath, false, &entryType))
     {
