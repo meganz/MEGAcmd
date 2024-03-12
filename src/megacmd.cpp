@@ -4945,7 +4945,7 @@ void uninstall()
 #endif
 
 int executeServer(int argc, char* argv[],
-                  std::unique_ptr<LoggedStream> loggerStream,
+                  std::function<LoggedStream*()> createLoggedStream,
                   int sdkLogLevel, int cmdLogLevel,
                   bool skiplockcheck, std::string debug_api_url, bool disablepkp)
 {
@@ -4980,18 +4980,6 @@ int executeServer(int argc, char* argv[],
     mcmdMainArgv = argv;
     mcmdMainArgc = argc;
 
-    //// A logged stream for stdout
-    if (loggerStream)
-    {
-        Instance<megacmd::DefaultLoggedStream>::Get().setLoggedStream(std::move(loggerStream));
-    }
-
-    // Establish the logger
-    SimpleLogger::setLogLevel(logMax); // do not filter anything here, log level checking is done by loggerCMD
-    loggerCMD = new MegaCmdSimpleLogger();
-    loggerCMD->setSdkLoggerLevel(sdkLogLevel);
-    loggerCMD->setCmdLoggerLevel(cmdLogLevel);
-
     ConfigurationManager::loadConfiguration(cmdLogLevel >= MegaApi::LOG_LEVEL_DEBUG);
     if (!ConfigurationManager::lockExecution() && !skiplockcheck)
     {
@@ -5000,12 +4988,22 @@ int executeServer(int argc, char* argv[],
         return -2;
     }
 
-    char userAgent[40];
-    sprintf(userAgent, "MEGAcmd" MEGACMD_STRINGIZE(MEGACMD_USERAGENT_SUFFIX) "/%d.%d.%d.%d", MEGACMD_MAJOR_VERSION,MEGACMD_MINOR_VERSION,MEGACMD_MICRO_VERSION,MEGACMD_BUILD_ID);
+    // The logger stream must be created after the configuration is loaded
+    if (createLoggedStream)
+    {
+        Instance<megacmd::DefaultLoggedStream>::Get().setLoggedStream(std::unique_ptr<LoggedStream>(createLoggedStream()));
+    }
 
-    //TODO: move before!
+    SimpleLogger::setLogLevel(logMax); // do not filter anything here, log level checking is done by loggerCMD
+    loggerCMD = new MegaCmdSimpleLogger();
+    loggerCMD->setSdkLoggerLevel(sdkLogLevel);
+    loggerCMD->setCmdLoggerLevel(cmdLogLevel);
+
     MegaApi::addLoggerObject(loggerCMD);
     MegaApi::setLogLevel(MegaApi::LOG_LEVEL_MAX);
+
+    char userAgent[40];
+    sprintf(userAgent, "MEGAcmd" MEGACMD_STRINGIZE(MEGACMD_USERAGENT_SUFFIX) "/%d.%d.%d.%d", MEGACMD_MAJOR_VERSION,MEGACMD_MINOR_VERSION,MEGACMD_MICRO_VERSION,MEGACMD_BUILD_ID);
 
     LOG_debug << "----------------------------- program start -----------------------------";
     LOG_debug << "MEGAcmd version: " << MEGACMD_MAJOR_VERSION << "." << MEGACMD_MINOR_VERSION << "." << MEGACMD_MICRO_VERSION << "." << MEGACMD_BUILD_ID << ": code " << MEGACMD_CODE_VERSION;

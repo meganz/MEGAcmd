@@ -62,15 +62,15 @@ int main (int argc, char *argv[])
 
     testing::InitGoogleTest(&argc, argv);
 
-    std::thread serverThread([](){
+    std::thread serverThread([] {
 
         std::vector<char*> args{
             (char *)"argv0_INTEGRATION_TESTS",
             nullptr
         };
 
-        megacmd::executeServer(1, args.data(),
-                               ::mega::make_unique<megacmd::LoggedStreamDefaultFile>());
+        auto createDefaultStream = [] { return new megacmd::LoggedStreamDefaultFile(); };
+        megacmd::executeServer(1, args.data(), createDefaultStream);
     });
 
     using TI = TestInstruments;
