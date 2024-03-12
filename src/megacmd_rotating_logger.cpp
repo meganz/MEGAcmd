@@ -681,18 +681,29 @@ std::string TimestampRotationEngine::timestampToString(const Timestamp &timestam
 {
     std::ostringstream oss;
     std::time_t time = Clock::to_time_t(timestamp);
-    oss << std::put_time(std::localtime(&time), "%Y%m%d_%H%M%S");
+    oss << std::put_time(std::localtime(&time), "%Y%m%d_%H%M%S_");
+
+    auto milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(timestamp.time_since_epoch()) % 1000;
+    oss << std::setfill('0') << std::setw(3) << milliseconds.count();
+
     return oss.str();
 }
 
 TimestampRotationEngine::Timestamp TimestampRotationEngine::stringToTimestamp(const std::string &timestampStr, bool &success)
 {
     std::tm timeInfo = {};
-    std::istringstream iss(timestampStr);
-    iss >> std::get_time(&timeInfo, "%Y%m%d_%H%M%S");
+    int milliseconds = -1;
 
-    success = !iss.fail();
-    return Clock::from_time_t(std::mktime(&timeInfo));
+    std::istringstream iss(timestampStr);
+    iss >> std::get_time(&timeInfo, "%Y%m%d_%H%M%S_") >> milliseconds;
+
+    success = milliseconds >= 0 && milliseconds < 1000 && !iss.fail();
+    if (!success)
+    {
+        return {};
+    }
+
+    return Clock::from_time_t(std::mktime(&timeInfo)) + std::chrono::milliseconds(milliseconds);
 }
 
 mega::LocalPath TimestampRotationEngine::rotateBaseFile(const mega::LocalPath &directory, const mega::LocalPath &baseFilename)
@@ -722,7 +733,7 @@ TimestampRotationEngine::TimestampFileQueue TimestampRotationEngine::getTimestam
 
     walkRotatedFiles(dir, baseFilename, [this, &baseFilenameStr, &fileQueue, &addedFiles] (const mega::LocalPath &dir, const mega::LocalPath &leafPath)
     {
-        static const std::string exampleTimestampStr = "19970907_193040"; // example timestamp to get the string size
+        static const std::string exampleTimestampStr = "19970907_193040_000"; // example timestamp to get the string size
         const std::string leafPathStr = leafPath.toName(mFsAccess);
 
         const std::string timestampStr = leafPathStr.substr(baseFilenameStr.size() + 1, exampleTimestampStr.size());
