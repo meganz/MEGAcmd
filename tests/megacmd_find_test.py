@@ -45,6 +45,8 @@ def initialize_contents():
     shutil.copytree('localtmp', 'localUPs')
 
 def clean_all():
+    if not clean_root_confirmed_by_user():
+        raise Exception("Tests need to be run with YES_I_KNOW_THIS_WILL_CLEAR_MY_MEGA_ACCOUNT=1")
 
     if cmd_es(WHOAMI) != osvar("MEGA_EMAIL"):
         cmd_ef(LOGOUT)
@@ -52,6 +54,7 @@ def clean_all():
 
     #~ rm pipe > /dev/null 2>/dev/null || :
 
+    cmd_ec(RM+' -rf "/*"')
     cmd_ec(RM+' -rf "*"')
     cmd_ec(RM+' -rf "//bin/*"')
 

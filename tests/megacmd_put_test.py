@@ -46,11 +46,14 @@ def setUpModule():
         MEGACMDSHELL=os.environ["MEGACMDSHELL"]
 
 def clean_all():
+    if not clean_root_confirmed_by_user():
+        raise Exception("Tests need to be run with YES_I_KNOW_THIS_WILL_CLEAR_MY_MEGA_ACCOUNT=1")
 
     if cmd_es(WHOAMI) != osvar("MEGA_EMAIL"):
         cmd_ef(LOGOUT)
         cmd_ef(LOGIN+" " +osvar("MEGA_EMAIL")+" "+osvar("MEGA_PWD"))
 
+    cmd_ec(RM+' -rf "/*"')
     cmd_ec(RM+' -rf "*"')
     cmd_ec(RM+' -rf "//bin/*"')
 

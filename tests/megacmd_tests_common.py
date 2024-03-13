@@ -223,3 +223,10 @@ def out(what, where):
     #~ print(what, file=where)
     with open(where, 'w') as f:
         f.write(what)
+
+def clean_root_confirmed_by_user():
+    if "YES_I_KNOW_THIS_WILL_CLEAR_MY_MEGA_ACCOUNT" in os.environ:
+        val = os.environ["YES_I_KNOW_THIS_WILL_CLEAR_MY_MEGA_ACCOUNT"]
+        return bool(int(val))
+    else:
+        return False
