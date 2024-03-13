@@ -137,7 +137,7 @@ pipeline {
 		    }
 		    axis {
 			name 'TEST_SCRIPT'
-			values 'megacmd_find_test.sh', 'megacmd_put_test.sh', 'megacmd_rm_test.sh', 'megacmd_find_test.py', 'megacmd_put_test.py', 'megacmd_rm_test.py'
+			values 'megacmd_find_test.py', 'megacmd_put_test.py', 'megacmd_rm_test.py'
 		    }
 		}
 		stages {
