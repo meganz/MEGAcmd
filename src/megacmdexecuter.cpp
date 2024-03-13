@@ -5899,7 +5899,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         }
         else
         {
-            setCurrentOutCode(MCMD_EARGS);
+            setCurrentThreadOutCode(MCMD_EARGS);
             LOG_err << "      " << getUsageStr("update");
         }
 
@@ -10409,7 +10409,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         /// report:
         if (words.size() < 2)
         {
-            setCurrentOutCode(MCMD_EARGS);
+            setCurrentThreadOutCode(MCMD_EARGS);
             LOG_err << "      " << getUsageStr(words[0].c_str());
             return;
         }

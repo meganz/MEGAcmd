@@ -3399,7 +3399,7 @@ bool executeUpdater(bool *restartRequired, bool doNotInstall = false)
     if (!SUCCEEDED(GetModuleFileName(NULL, szPath , MAX_PATH)))
     {
         LOG_err << "Couldnt get EXECUTABLE folder: " << wstring(szPath);
-        setCurrentOutCode(MCMD_EUNEXPECTED);
+        setCurrentThreadOutCode(MCMD_EUNEXPECTED);
         return false;
     }
 
@@ -3408,14 +3408,14 @@ bool executeUpdater(bool *restartRequired, bool doNotInstall = false)
         if (!PathAppend(szPath,TEXT("MEGAcmdUpdater.exe")))
         {
             LOG_err << "Couldnt append MEGAcmdUpdater exec: " << wstring(szPath);
-            setCurrentOutCode(MCMD_EUNEXPECTED);
+            setCurrentThreadOutCode(MCMD_EUNEXPECTED);
             return false;
         }
     }
     else
     {
         LOG_err << "Couldnt remove file spec: " << wstring(szPath);
-        setCurrentOutCode(MCMD_EUNEXPECTED);
+        setCurrentThreadOutCode(MCMD_EUNEXPECTED);
         return false;
     }
 #endif
@@ -3442,7 +3442,7 @@ bool executeUpdater(bool *restartRequired, bool doNotInstall = false)
                         &si,&pi) )
     {
         LOG_err << "Unable to execute: <" << wstring(szPath) << "> errno = : " << ERRNO;
-        setCurrentOutCode(MCMD_EUNEXPECTED);
+        setCurrentThreadOutCode(MCMD_EUNEXPECTED);
         return false;
     }
 
@@ -3543,7 +3543,7 @@ bool restartServer()
         if (!SUCCEEDED(GetModuleFileName(NULL, szPathServer , MAX_PATH)))
         {
             LOG_err << "Couldnt get EXECUTABLE folder: " << wstring(szPathServer);
-            setCurrentOutCode(MCMD_EUNEXPECTED);
+            setCurrentThreadOutCode(MCMD_EUNEXPECTED);
             return false;
         }
 
@@ -3772,14 +3772,14 @@ static bool process_line(char* l)
 
                 if (confirmationResponse != MCMDCONFIRM_YES && confirmationResponse != MCMDCONFIRM_ALL)
                 {
-                    setCurrentOutCode(MCMD_INVALIDSTATE); // so as not to indicate already updated
+                    setCurrentThreadOutCode(MCMD_INVALIDSTATE); // so as not to indicate already updated
                     return false;
                 }
                 bool restartRequired = false;
 
                 if (!executeUpdater(&restartRequired))
                 {
-                    setCurrentOutCode(MCMD_INVALIDSTATE); // so as not to indicate already updated
+                    setCurrentThreadOutCode(MCMD_INVALIDSTATE); // so as not to indicate already updated
                     return false;
                 }
 

@@ -454,7 +454,7 @@ void DownloadsManager::printOne(OUTSTREAMTYPE &os, std::string objectIDorTag, ma
         }
         catch (...)
         {
-            setCurrentOutCode(MCMD_INVALIDTYPE);
+            setCurrentThreadOutCode(MCMD_INVALIDTYPE);
             LOG_err << " Invalid parameter: " << objectIDorTag;
             return;
         }
@@ -467,7 +467,7 @@ void DownloadsManager::printOne(OUTSTREAMTYPE &os, std::string objectIDorTag, ma
    }
    else
    {
-       setCurrentOutCode(MCMD_NOTFOUND);
+       setCurrentThreadOutCode(MCMD_NOTFOUND);
        LOG_err << " Not found: " << objectIDorTag;
        return;
    }
