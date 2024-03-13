@@ -96,6 +96,7 @@ ENV CC "ccache gcc-12"
 ENV CXX "ccache g++-12"
 ENV CCACHE_DIR /tmp/ccache
 ENV CCACHE_NOINODECACHE true
+ARG BUILD_OPT_SANITIZERS=all
 
 COPY --from=src /usr/src/megacmd /usr/src/megacmd
 
