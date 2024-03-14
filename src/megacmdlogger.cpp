@@ -201,7 +201,7 @@ void MegaCmdLogger::formatLogToStream(LoggedStream &stream, const char *time, in
     stream << "[";
     if (!isMegaCmdSource(source))
     {
-        stream << "API:";
+        stream << "SDK:";
     }
     stream << SimpleLogger::toStr(LogLevel(logLevel)) << ": " << time << "] " << message << '\n';
 
