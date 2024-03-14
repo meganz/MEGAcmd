@@ -161,6 +161,8 @@ WIN32=no
 DARWIN=no
 ANDROID=no
 LINUX=no
+DRAGONFLY=no
+NETBSD=no
 AC_MSG_CHECKING([if building for Win32 platform])
 case $host in
   *-*-cygwin*)
@@ -183,6 +185,12 @@ case $host in
   *-linux*)
     LINUX=yes
     ;;
+  *-dragonfly*)
+    DRAGONFLY=yes
+    ;;
+  *-netbsd*)
+    NETBSD=yes
+    ;;
   *)
     LIBS_EXTRA=""
     ;;
@@ -192,6 +200,8 @@ AM_CONDITIONAL([WIN32], [test "${WIN32}" = "yes"])
 AM_CONDITIONAL([DARWIN], [test "${DARWIN}" = "yes"])
 AM_CONDITIONAL([ANDROID], [test "${ANDROID}" = "yes"])
 AM_CONDITIONAL([LINUX], [test "${LINUX}" = "yes"])
+AM_CONDITIONAL([DRAGONFLY], [test "${DRAGONFLY}" = "yes"])
+AM_CONDITIONAL([NETBSD], [test "${NETBSD}" = "yes"])
 
 SAVE_LDFLAGS=$LDFLAGS
 SAVE_CXXFLAGS=$CXXFLAGS
