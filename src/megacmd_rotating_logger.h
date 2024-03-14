@@ -34,17 +34,17 @@ public:
     class MemoryBlock final
     {
         size_t mSize;
-        bool mOutOfMemory;
+        bool mMemoryGap;
         char mBuffer[BlockSize];
     public:
         MemoryBlock();
 
         bool canAppendData(size_t dataSize) const;
         bool isNearCapacity() const;
-        bool isOutOfMemory() const;
+        bool hasMemoryGap() const;
         const char *getBuffer() const;
 
-        void markAsOutOfMemory();
+        void markMemoryGap();
         void appendData(const char *data, size_t size);
 
     };
@@ -54,7 +54,7 @@ public:
     MessageBuffer();
 
     void append(const char *data, size_t size);
-    MemoryBlockList popMemoryBlockList(bool &outOfMemory); // when we have C++17 we can use optional for this
+    MemoryBlockList popMemoryBlockList(bool &initialMemoryGap);
 
     bool isEmpty() const;
     bool isNearLastBlockCapacity() const;
@@ -62,7 +62,7 @@ public:
 private:
     mutable std::mutex mListMutex;
     MemoryBlockList mList;
-    bool mOutOfMemory;
+    bool mInitialMemoryGap;
 };
 
 class RotationEngine;
@@ -176,7 +176,7 @@ public:
 template<size_t BlockSize>
 MessageBuffer<BlockSize>::MemoryBlock::MemoryBlock() :
     mSize(0),
-    mOutOfMemory(false)
+    mMemoryGap(false)
 {
 }
 
@@ -184,7 +184,7 @@ template<size_t BlockSize>
 bool MessageBuffer<BlockSize>::MemoryBlock::canAppendData(size_t dataSize) const
 {
     // The last byte of buffer is reserved for '\0'
-    return !mOutOfMemory && mSize + dataSize < BlockSize;
+    return !mMemoryGap && mSize + dataSize < BlockSize;
 }
 
 template<size_t BlockSize>
@@ -194,9 +194,9 @@ bool MessageBuffer<BlockSize>::MemoryBlock::isNearCapacity() const
 }
 
 template<size_t BlockSize>
-bool MessageBuffer<BlockSize>::MemoryBlock::isOutOfMemory() const
+bool MessageBuffer<BlockSize>::MemoryBlock::hasMemoryGap() const
 {
-    return mOutOfMemory;
+    return mMemoryGap;
 }
 
 template<size_t BlockSize>
@@ -206,9 +206,9 @@ const char *MessageBuffer<BlockSize>::MemoryBlock::getBuffer() const
 }
 
 template<size_t BlockSize>
-void MessageBuffer<BlockSize>::MemoryBlock::markAsOutOfMemory()
+void MessageBuffer<BlockSize>::MemoryBlock::markMemoryGap()
 {
-    mOutOfMemory = true;
+    mMemoryGap = true;
 }
 
 template<size_t BlockSize>
@@ -227,7 +227,7 @@ void MessageBuffer<BlockSize>::MemoryBlock::appendData(const char *data, size_t 
 
 template<size_t BlockSize>
 MessageBuffer<BlockSize>::MessageBuffer() :
-    mOutOfMemory(false)
+    mInitialMemoryGap(false)
 {
 }
 
@@ -248,18 +248,17 @@ void MessageBuffer<BlockSize>::append(const char *data, size_t size)
             if (lastBlock)
             {
                 // If there's a bad_alloc exception when adding to a vector, it remains unchanged
-                // So we mark the existing last block as O.O.M.
-                lastBlock->markAsOutOfMemory();
+                // So we note that the existing last block has a gap in memory
+                lastBlock->markMemoryGap();
             }
             else
             {
-                // If there's not even a last block, we declare the whole message buffer as O.O.M.
-                mOutOfMemory = true;
+                // If there's not even a last block, then there is a memory gap at the start
+                mInitialMemoryGap = true;
             }
             return;
         }
 
-        mOutOfMemory = false;
         lastBlock = &mList.back();
     }
 
@@ -270,11 +269,11 @@ void MessageBuffer<BlockSize>::append(const char *data, size_t size)
 }
 
 template<size_t BlockSize>
-typename MessageBuffer<BlockSize>::MemoryBlockList MessageBuffer<BlockSize>::popMemoryBlockList(bool &outOfMemory)
+typename MessageBuffer<BlockSize>::MemoryBlockList MessageBuffer<BlockSize>::popMemoryBlockList(bool &initialMemoryGap)
 {
     std::lock_guard<std::mutex> lock(mListMutex);
-    outOfMemory = mOutOfMemory;
-    mOutOfMemory = false;
+    initialMemoryGap = mInitialMemoryGap;
+    mInitialMemoryGap = false;
     return std::move(mList);
 }
 

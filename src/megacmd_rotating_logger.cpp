@@ -263,18 +263,17 @@ void FileRotatingLoggedStream::writeToBuffer(const char *msg, size_t size) const
 
 void FileRotatingLoggedStream::writeMessagesToFile()
 {
-    bool outOfMemory = false;
-    auto memoryBlockList = mMessageBuffer.popMemoryBlockList(outOfMemory);
+    bool initialMemoryGap = false;
+    auto memoryBlockList = mMessageBuffer.popMemoryBlockList(initialMemoryGap);
 
-    if (outOfMemory)
+    if (initialMemoryGap)
     {
         mOutputFile << "<log gap - out of logging memory at this point>\n";
-        return;
     }
 
     for (const auto& memoryBlock : memoryBlockList)
     {
-        if (!memoryBlock.isOutOfMemory())
+        if (!memoryBlock.hasMemoryGap())
         {
             mOutputFile << memoryBlock.getBuffer();
         }
