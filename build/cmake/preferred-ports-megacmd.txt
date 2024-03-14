@@ -2,12 +2,12 @@
 # Read instructions on the above if you want to introduce changes in this file
 
 # Common dependencies
-vcpkg-cmake-config/7476f0d4e77d3333fbb249657df8251c28c4faae
-vcpkg-cmake/7476f0d4e77d3333fbb249657df8251c28c4faae
-pkgconf/7476f0d4e77d3333fbb249657df8251c28c4faae
-vcpkg-pkgconfig-get-modules/7476f0d4e77d3333fbb249657df8251c28c4faae
-vcpkg-tool-meson/7476f0d4e77d3333fbb249657df8251c28c4faae
-vcpkg-cmake-get-vars/7476f0d4e77d3333fbb249657df8251c28c4faae
+vcpkg-cmake-config/a664e41ee50b61adcc90a44a761eca139a4b7dd7
+vcpkg-cmake/a664e41ee50b61adcc90a44a761eca139a4b7dd7
+pkgconf/a664e41ee50b61adcc90a44a761eca139a4b7dd7
+vcpkg-pkgconfig-get-modules/a664e41ee50b61adcc90a44a761eca139a4b7dd7
+vcpkg-tool-meson/a664e41ee50b61adcc90a44a761eca139a4b7dd7
+vcpkg-cmake-get-vars/a664e41ee50b61adcc90a44a761eca139a4b7dd7
 
 # direct core dependencies of the SDK
 c-ares/7476f0d4e77d3333fbb249657df8251c28c4faae all:on ios:off
