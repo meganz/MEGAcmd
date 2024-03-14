@@ -35,16 +35,16 @@ public:
         std::unique_ptr<char[]> mBuffer;
         size_t mSize;
         const size_t mCapacity;
-        bool mOutOfMemory;
+        bool mMemoryGap;
     public:
         MemoryBlock(size_t capacity);
 
         bool canAppendData(size_t dataSize) const;
         bool isNearCapacity() const;
-        bool isOutOfMemory() const;
+        bool hasMemoryGap() const;
         const char *getBuffer() const;
 
-        void markAsOutOfMemory();
+        void markMemoryGap();
         void appendData(const char *data, size_t size);
 
     };
@@ -54,7 +54,7 @@ public:
     MessageBuffer(size_t defaultBlockCapacity);
 
     void append(const char *data, size_t size);
-    MemoryBlockList popMemoryBlockList(bool &outOfMemory); // when we have C++17 we can use optional for this
+    MemoryBlockList popMemoryBlockList(bool &initialMemoryGap);
 
     bool isEmpty() const;
     bool isNearLastBlockCapacity() const;
@@ -63,7 +63,7 @@ private:
     const size_t mDefaultBlockCapacity;
     mutable std::mutex mListMutex;
     MemoryBlockList mList;
-    bool mOutOfMemory;
+    bool mInitialMemoryGap;
 };
 
 class RotationEngine;

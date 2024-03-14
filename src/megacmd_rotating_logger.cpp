@@ -46,7 +46,7 @@ MessageBuffer::MemoryBlock::MemoryBlock(size_t capacity) :
     mBuffer(new char[capacity]()),
     mSize(0),
     mCapacity(capacity),
-    mOutOfMemory(mBuffer == nullptr)
+    mMemoryGap(mBuffer == nullptr)
 {
     assert(mCapacity > 0);
 }
@@ -54,7 +54,7 @@ MessageBuffer::MemoryBlock::MemoryBlock(size_t capacity) :
 bool MessageBuffer::MemoryBlock::canAppendData(size_t dataSize) const
 {
     // The last byte of buffer is reserved for '\0'
-    return !mOutOfMemory && mSize + dataSize < mCapacity;
+    return !mMemoryGap && mSize + dataSize < mCapacity;
 }
 
 bool MessageBuffer::MemoryBlock::isNearCapacity() const
@@ -62,9 +62,9 @@ bool MessageBuffer::MemoryBlock::isNearCapacity() const
     return mSize + mCapacity/8 > mCapacity;
 }
 
-bool MessageBuffer::MemoryBlock::isOutOfMemory() const
+bool MessageBuffer::MemoryBlock::hasMemoryGap() const
 {
-    return mOutOfMemory;
+    return mMemoryGap;
 }
 
 const char *MessageBuffer::MemoryBlock::getBuffer() const
@@ -72,9 +72,9 @@ const char *MessageBuffer::MemoryBlock::getBuffer() const
     return mBuffer.get();
 }
 
-void MessageBuffer::MemoryBlock::markAsOutOfMemory()
+void MessageBuffer::MemoryBlock::markMemoryGap()
 {
-    mOutOfMemory = true;
+    mMemoryGap = true;
 }
 
 void MessageBuffer::MemoryBlock::appendData(const char *data, size_t size)
@@ -92,7 +92,7 @@ void MessageBuffer::MemoryBlock::appendData(const char *data, size_t size)
 
 MessageBuffer::MessageBuffer(size_t defaultBlockCapacity) :
     mDefaultBlockCapacity(defaultBlockCapacity),
-    mOutOfMemory(false)
+    mInitialMemoryGap(false)
 {
 }
 
@@ -112,18 +112,17 @@ void MessageBuffer::append(const char *data, size_t size)
             if (lastBlock)
             {
                 // If there's a bad_alloc exception when adding to a vector, it remains unchanged
-                // So we mark the existing last block as O.O.M.
-                lastBlock->markAsOutOfMemory();
+                // So we note that the existing last block has a gap in memory
+                lastBlock->markMemoryGap();
             }
             else
             {
-               // If there's not even a last block, we declare the whole message buffer as O.O.M.
-                mOutOfMemory = true;
+               // If there's not even a last block, then there is a memory gap at the start
+                mInitialMemoryGap = true;
             }
             return;
         }
 
-        mOutOfMemory = false;
         lastBlock = &mList.back();
     }
 
@@ -133,11 +132,11 @@ void MessageBuffer::append(const char *data, size_t size)
     }
 }
 
-MessageBuffer::MemoryBlockList MessageBuffer::popMemoryBlockList(bool& outOfMemory)
+MessageBuffer::MemoryBlockList MessageBuffer::popMemoryBlockList(bool &initialMemoryGap)
 {
     std::lock_guard<std::mutex> lock(mListMutex);
-    outOfMemory = mOutOfMemory;
-    mOutOfMemory = false;
+    initialMemoryGap = mInitialMemoryGap;
+    mInitialMemoryGap = false;
     return std::move(mList);
 }
 
@@ -399,18 +398,17 @@ void FileRotatingLoggedStream::writeToBuffer(const char *msg, size_t size) const
 
 void FileRotatingLoggedStream::writeMessagesToFile()
 {
-    bool outOfMemory = false;
-    auto memoryBlockList = mMessageBuffer.popMemoryBlockList(outOfMemory);
+    bool initialMemoryGap = false;
+    auto memoryBlockList = mMessageBuffer.popMemoryBlockList(initialMemoryGap);
 
-    if (outOfMemory)
+    if (initialMemoryGap)
     {
         mOutputFile << "<log gap - out of logging memory at this point>\n";
-        return;
     }
 
     for (const auto& memoryBlock : memoryBlockList)
     {
-        if (!memoryBlock.isOutOfMemory())
+        if (!memoryBlock.hasMemoryGap())
         {
             mOutputFile << memoryBlock.getBuffer();
         }
