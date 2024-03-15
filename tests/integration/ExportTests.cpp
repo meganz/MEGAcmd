@@ -31,15 +31,15 @@ protected:
         ASSERT_TRUE(result.ok()) << "could not import testExportFolder";
         ASSERT_TRUE(executeInClient({"ls", "testExportFolder"}).ok()) << "could not find folder testExportFolder";
 
-        result = executeInClient({"import", "https://mega.nz/file/9ulylKib#MnhgOsSwvHsjPVdoH2r3n1H_n_fDQ2_ooeFGrOOzmGE"});
+        result = executeInClient({"import", "https://mega.nz/file/U2M0iAiI#qk9THHhxbakddRmt_tLR8OhInexzVCpPPG6M6feFfZg"});
         ASSERT_TRUE(result.ok()) << "could not import file01.txt";
         ASSERT_TRUE(executeInClient({"ls", "file01.txt"}).ok()) << "could not find file file01.txt";
     }
 
     void TearDown() override
     {
-        ASSERT_TRUE(executeInClient({"rm", "-r", "-f", "testExportFolder"})) << "could not delete folder testExportFolder";
-        ASSERT_TRUE(executeInClient({"rm", "-f", "file01.txt"})) << "could not delete file file01.txt";
+        ASSERT_TRUE(executeInClient({"rm", "-r", "-f", "testExportFolder"}).ok()) << "could not delete folder testExportFolder";
+        ASSERT_TRUE(executeInClient({"rm", "-f", "file01.txt"}).ok()) << "could not delete file file01.txt";
         NOINTERACTIVELoggedInTest::TearDown();
     }
 };
