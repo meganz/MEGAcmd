@@ -949,9 +949,9 @@ void GzipCompressionEngine::compressFile(const mega::LocalPath &filePath)
     tmpFilePath.append(mega::LocalPath::fromRelativePath(".zipping"));
 
     // Ensure there is not a clashing .zipping file
-    if (!mFsAccess.unlinklocal(tmpFilePath) && errno != ENOENT /* ignore if file doesn't exist */)
+    if (mFsAccess.fileExistsAt(tmpFilePath) && !mFsAccess.unlinklocal(tmpFilePath))
     {
-        mErrorStream << "Failed to unlink temporary compression file " << tmpFilePath.toPath(true) << std::endl;
+        mErrorStream << "Failed to remove temporary compression file " << tmpFilePath.toPath(true) << std::endl;
         return;
     }
 
