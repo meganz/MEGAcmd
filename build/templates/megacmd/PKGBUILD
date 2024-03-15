@@ -54,7 +54,7 @@ build() {
 	#build dependencies into folder deps
 	mkdir deps || :
 	bash -x ./contrib/build_sdk.sh -o archives \
-	  -e -g -b -l -c -s -u -v -a -q -I -p deps/
+	  -e -g -b -l -c -s -u -v -a -q -I -p -L deps/
 
 	# Link dynamically with freeimage
 	ln -sfr $PWD/deps/lib/libfreeimage*.so $PWD/deps/lib/libfreeimage.so.3
