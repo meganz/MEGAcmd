@@ -21,7 +21,28 @@
 
 using TI = TestInstruments;
 
-class ExportTest : public NOINTERACTIVELoggedInTest {};
+class ExportTest : public NOINTERACTIVELoggedInTest
+{
+protected:
+    void SetUp() override
+    {
+        NOINTERACTIVELoggedInTest::SetUp();
+        auto result = executeInClient({"import", "https://mega.nz/folder/F6VghaZQ#r1EadW_wJA5gAMtO76ZVGA"});
+        ASSERT_TRUE(result.ok()) << "could not import testExportFolder";
+        ASSERT_TRUE(executeInClient({"ls", "testExportFolder"}).ok()) << "could not find folder testExportFolder";
+
+        result = executeInClient({"import", "https://mega.nz/file/9ulylKib#MnhgOsSwvHsjPVdoH2r3n1H_n_fDQ2_ooeFGrOOzmGE"});
+        ASSERT_TRUE(result.ok()) << "could not import file01.txt";
+        ASSERT_TRUE(executeInClient({"ls", "file01.txt"}).ok()) << "could not find file file01.txt";
+    }
+
+    void TearDown() override
+    {
+        ASSERT_TRUE(executeInClient({"rm", "-r", "-f", "testExportFolder"})) << "could not delete folder testExportFolder";
+        ASSERT_TRUE(executeInClient({"rm", "-f", "file01.txt"})) << "could not delete file file01.txt";
+        NOINTERACTIVELoggedInTest::TearDown();
+    }
+};
 
 namespace {
     // We'll use these regex to verify the links and authentication keys are well-formed
