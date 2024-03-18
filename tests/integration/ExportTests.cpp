@@ -27,19 +27,19 @@ protected:
     void SetUp() override
     {
         NOINTERACTIVELoggedInTest::SetUp();
-        auto result = executeInClient({"import", "https://mega.nz/folder/F6VghaZQ#r1EadW_wJA5gAMtO76ZVGA"});
+        auto result = executeInClient({"import", "https://mega.nz/folder/8L80QKyL#glRTp6Zc0gppwp03IG03tA"});
         ASSERT_TRUE(result.ok()) << "could not import testExportFolder";
         ASSERT_TRUE(executeInClient({"ls", "testExportFolder"}).ok()) << "could not find folder testExportFolder";
 
-        result = executeInClient({"import", "https://mega.nz/file/U2M0iAiI#qk9THHhxbakddRmt_tLR8OhInexzVCpPPG6M6feFfZg"});
-        ASSERT_TRUE(result.ok()) << "could not import file01.txt";
-        ASSERT_TRUE(executeInClient({"ls", "file01.txt"}).ok()) << "could not find file file01.txt";
+        result = executeInClient({"import", "https://mega.nz/file/MGk2WKwL#qk9THHhxbakddRmt_tLR8OhInexzVCpPPG6M6feFfZg"});
+        ASSERT_TRUE(result.ok()) << "could not import testExportFile01.txt";
+        ASSERT_TRUE(executeInClient({"ls", "testExportFile01.txt"}).ok()) << "could not find file testExportFile01.txt";
     }
 
     void TearDown() override
     {
         ASSERT_TRUE(executeInClient({"rm", "-r", "-f", "testExportFolder"}).ok()) << "could not delete folder testExportFolder";
-        ASSERT_TRUE(executeInClient({"rm", "-f", "file01.txt"}).ok()) << "could not delete file file01.txt";
+        ASSERT_TRUE(executeInClient({"rm", "-f", "testExportFile01.txt"}).ok()) << "could not delete file testExportFile01.txt";
         NOINTERACTIVELoggedInTest::TearDown();
     }
 };
@@ -59,7 +59,7 @@ TEST_F(ExportTest, Basic)
 {
     {
         G_SUBTEST << "File";
-        const std::string file_path = "file01.txt";
+        const std::string file_path = "testExportFile01.txt";
 
         auto rExport = executeInClient({"export", file_path});
         ASSERT_FALSE(rExport.ok());
@@ -126,7 +126,7 @@ TEST_F(ExportTest, Basic)
 
 TEST_F(ExportTest, FailedRecreation)
 {
-    const std::string file_path = "file01.txt";
+    const std::string file_path = "testExportFile01.txt";
     const std::vector<std::string> createCommand{"export", "-a", "-f", file_path};
 
     auto rCreate = executeInClient(createCommand);
@@ -215,7 +215,7 @@ TEST_F(ExportTest, NestedDirectoryStructure)
 
 TEST_F(ExportTest, PasswordProtected)
 {
-    const std::string file_path = "file01.txt";
+    const std::string file_path = "testExportFile01.txt";
     const std::vector<std::string> createCommand{"export", "-a", "-f", "--password=SomePassword", file_path};
     const std::vector<std::string> disableCommand{"export", "-d", file_path};
 
