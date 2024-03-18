@@ -21,6 +21,7 @@
 
 #ifdef _WIN32
 #include "megacmdshellcommunicationsnamedpipes.h"
+#include "../megacmdcommonutils.h"
 
 #include <iostream>
 #include <thread>
@@ -270,12 +271,7 @@ bool MegaCmdShellCommunicationsNamedPipes::isFileOwnerCurrentUser(HANDLE hFile)
 
 HANDLE MegaCmdShellCommunicationsNamedPipes::doOpenPipe(wstring nameOfPipe)
 {
-    wchar_t username[UNLEN+1];
-    DWORD username_len = UNLEN+1;
-    GetUserNameW(username, &username_len);
-    wstring serverPipeName(L"\\\\.\\pipe\\megacmdpipe");
-    serverPipeName += L"_";
-    serverPipeName += username;
+    wstring serverPipeName = getNamedPipeName();
 
     if (nameOfPipe != serverPipeName)
     {
@@ -309,15 +305,7 @@ HANDLE MegaCmdShellCommunicationsNamedPipes::doOpenPipe(wstring nameOfPipe)
 
 HANDLE MegaCmdShellCommunicationsNamedPipes::createNamedPipe(int number, bool initializeserver)
 {
-    wstring nameOfPipe;
-
-    wchar_t username[UNLEN+1];
-    DWORD username_len = UNLEN+1;
-    GetUserNameW(username, &username_len);
-
-    nameOfPipe += L"\\\\.\\pipe\\megacmdpipe";
-    nameOfPipe += L"_";
-    nameOfPipe += username;
+    wstring nameOfPipe = getNamedPipeName();
 
     if (number)
     {

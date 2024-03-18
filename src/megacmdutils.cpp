@@ -36,24 +36,6 @@
 using namespace mega;
 
 namespace megacmd {
-void getNumFolderFiles(MegaNode *n, MegaApi *api, long long *nfiles, long long *nfolders)
-{
-    MegaNodeList *totalnodes = api->getChildren(n);
-    for (int i = 0; i < totalnodes->size(); i++)
-    {
-        if (totalnodes->get(i)->getType() == MegaNode::TYPE_FILE)
-        {
-            (*nfiles)++;
-        }
-        else
-        {
-            (*nfolders)++;
-            getNumFolderFiles(totalnodes->get(i), api, nfiles, nfolders);
-        }
-    }
-    delete totalnodes;
-}
-
 string getUserInSharedNode(MegaNode *n, MegaApi *api)
 {
     MegaShareList * msl = api->getInSharesList();

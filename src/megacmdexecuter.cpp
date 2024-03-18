@@ -17,6 +17,7 @@
  */
 
 #include "megacmdexecuter.h"
+#include "megaapi.h"
 #include "megacmd.h"
 
 #include "megacmdutils.h"
@@ -38,6 +39,11 @@
 #include <set>
 
 #include <signal.h>
+
+#ifdef MEGACMD_TESTING_CODE
+    #include "../tests/common/Instruments.h"
+    using TI = TestInstruments;
+#endif
 
 
 #if (__cplusplus >= 201700L)
@@ -1311,12 +1317,12 @@ void MegaCmdExecuter::dumpNode(MegaNode* n, const char *timeFormat, std::map<std
 
                             if (n->getWritableLinkAuthKey())
                             {
-                                static constexpr const char *prefix = "https://mega.nz/folder/";
+                                constexpr const char *prefix = "https://mega.nz/folder/";
                                 string authKey(n->getWritableLinkAuthKey());
-                                if (authKey.size() && authKey.rfind(prefix, 0) == 0)
+                                string nodeLink(publicLink.get());
+                                if (authKey.size() && nodeLink.rfind(prefix, 0) == 0)
                                 {
-                                    string authToken(publicLink.get());
-                                    authToken = authToken.substr(strlen(prefix)).append(":").append(authKey);
+                                    string authToken = nodeLink.substr(strlen(prefix)).append(":").append(authKey);
                                     OUTSTREAM << " AuthToken="<< authToken;
                                 }
                             }
@@ -3442,6 +3448,16 @@ bool MegaCmdExecuter::amIPro()
 {
     int prolevel = -1;
 
+#ifdef MEGACMD_TESTING_CODE
+    auto proLevelOpt = TI::Instance().testValue(TI::TestValue::AMIPRO_LEVEL);
+    if (proLevelOpt)
+    {
+        prolevel = static_cast<int>(std::get<int64_t>(*proLevelOpt));
+        LOG_debug << "Enforced test value for Pro Level: " << prolevel;
+        return prolevel;
+    }
+#endif
+
     auto megaCmdListener = ::mega::make_unique<MegaCmdListener>(api, nullptr);
     api->getAccountDetails(megaCmdListener.get());
     megaCmdListener->wait();
@@ -3477,7 +3493,7 @@ void MegaCmdExecuter::exportNode(MegaNode *n, int64_t expireTime, std::string pa
     if (!copyrightAccepted)
     {
         string confirmationQuery("MEGA respects the copyrights of others and requires that users of the MEGA cloud service comply with the laws of copyright.\n"
-                                 "You are strictly prohibited from using the MEGA cloud service to infringe copyrights.\n"
+                                 "You are strictly prohibited from using the MEGA cloud service to infringe copyright.\n"
                                  "You may not upload, download, store, share, display, stream, distribute, email, link to, "
                                  "transmit or otherwise make available any files, data or content that infringes any copyright "
                                  "or other proprietary rights of any person or entity.");
@@ -3592,14 +3608,13 @@ void MegaCmdExecuter::exportNode(MegaNode *n, int64_t expireTime, std::string pa
         LOG_err << "Failed to generate writable folder: missing auth key. Showing read-only link";
     }
 
-    OUTSTREAM << "Exported " << nodepath.get() << ": "
-              << (publicPassProtectedLink.size() ? publicPassProtectedLink : publicLink.get());
+    const string nodeLink(publicPassProtectedLink.size() ? publicPassProtectedLink : publicLink.get());
+    OUTSTREAM << "Exported " << nodepath.get() << ": " << nodeLink;
 
-    static constexpr const char* prefix = "https://mega.nz/folder/";
-    if (authKey.size() && authKey.rfind(prefix, 0) == 0)
+    constexpr const char* prefix = "https://mega.nz/folder/";
+    if (authKey.size() && nodeLink.rfind(prefix, 0) == 0)
     {
-        string authToken = (publicPassProtectedLink.size() ? publicPassProtectedLink : publicLink.get());
-        authToken = authToken.substr(strlen(prefix)).append(":").append(authKey);
+        string authToken = nodeLink.substr(strlen(prefix)).append(":").append(authKey);
         OUTSTREAM << "\n          AuthToken = " << authToken;
     }
 
@@ -4648,8 +4663,15 @@ void MegaCmdExecuter::printBackupHistory(MegaScheduledCopy *backup, const char *
                 if (backupInstanceNode)
                 {
                     backupInstanceStatus = backupInstanceNode->getCustomAttr("BACKST");
-
-                    getNumFolderFiles(backupInstanceNode.get(), api, &nfiles, &nfolders);
+                    auto listener = ::mega::make_unique<SynchronousRequestListener>();
+                    api->getFolderInfo(backupInstanceNode.get(), listener.get());
+                    listener->wait();
+                    if (checkNoErrors(listener->getError(), "get folder info"))
+                    {
+                        auto info = listener->getRequest()->getMegaFolderInfo();
+                        nfiles += info->getNumFiles();
+                        nfolders += info->getNumFolders();
+                    }
                 }
             }
 
@@ -7170,11 +7192,11 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             if (!getFlag(clflags, "s") && !getFlag(clflags, "c"))
             {
                 OUTSTREAM << "MEGAcmd log level = " << getLogLevelStr(loggerCMD->getCmdLoggerLevel()) << endl;
-                OUTSTREAM << "SDK log level = " << getLogLevelStr(loggerCMD->getApiLoggerLevel()) << endl;
+                OUTSTREAM << "SDK log level = " << getLogLevelStr(loggerCMD->getSdkLoggerLevel()) << endl;
             }
             else if (getFlag(clflags, "s"))
             {
-                OUTSTREAM << "SDK log level = " << getLogLevelStr(loggerCMD->getApiLoggerLevel()) << endl;
+                OUTSTREAM << "SDK log level = " << getLogLevelStr(loggerCMD->getSdkLoggerLevel()) << endl;
             }
             else if (getFlag(clflags, "c"))
             {
@@ -7195,14 +7217,14 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             if (!getFlag(clflags, "s") && !getFlag(clflags, "c"))
             {
                 loggerCMD->setCmdLoggerLevel(newLogLevel);
-                loggerCMD->setApiLoggerLevel(newLogLevel);
+                loggerCMD->setSdkLoggerLevel(newLogLevel);
                 OUTSTREAM << "MEGAcmd log level = " << getLogLevelStr(loggerCMD->getCmdLoggerLevel()) << endl;
-                OUTSTREAM << "SDK log level = " << getLogLevelStr(loggerCMD->getApiLoggerLevel()) << endl;
+                OUTSTREAM << "SDK log level = " << getLogLevelStr(loggerCMD->getSdkLoggerLevel()) << endl;
             }
             else if (getFlag(clflags, "s"))
             {
-                loggerCMD->setApiLoggerLevel(newLogLevel);
-                OUTSTREAM << "SDK log level = " << getLogLevelStr(loggerCMD->getApiLoggerLevel()) << endl;
+                loggerCMD->setSdkLoggerLevel(newLogLevel);
+                OUTSTREAM << "SDK log level = " << getLogLevelStr(loggerCMD->getSdkLoggerLevel()) << endl;
             }
             else if (getFlag(clflags, "c"))
             {

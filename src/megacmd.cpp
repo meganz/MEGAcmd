@@ -18,6 +18,7 @@
 
 #include "megacmd.h"
 
+#include "megaapi.h"
 #include "megacmdsandbox.h"
 #include "megacmdexecuter.h"
 #include "megacmdutils.h"
@@ -810,6 +811,10 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validOptValues->insert("auto");
     }
 #endif
+    else if ("tree" == thecommand)
+    {
+        validParams->insert("show-handles");
+    }
 }
 
 void escapeEspace(string &orig)
@@ -2570,33 +2575,37 @@ string getHelpStr(const char *command)
         os << endl;
         os << "Options:" << endl;
 #ifdef USE_PCRE
-        os << " --use-pcre" << "\t" << "use PCRE expressions" << endl;
+        os << " --use-pcre" << "\t" << "The provided path will use Perl Compatible Regular Expressions (PCRE)" << endl;
 #endif
-        os << " -a" << "\t" << "Adds an export (or modifies it if existing)" << endl;
-        os << " --writable" << "\t" << "Makes the exported folder writable" << endl;
+        os << " -a" << "\t" << "Adds an export." << endl;
+        os << "   " << "\t" << "Returns an error if the export already exists." << endl;
+        os << "   " << "\t" << "To modify an existing export (e.g., to change expiration time, password, etc.), it must be deleted and then re-added." << endl;
+        os << " --writable" << "\t" << "Makes the export writable." << endl;
+        os << "           " << "\t" << "Only works on folders; files are considered immutable. Different versions of the same file will have different export links." << endl;
+        os << "           " << "\t" << "The AuthToken shown has the following format <handle>#<key>:<auth-key>." << endl;
         os << " --mega-hosted" << "\t" << "The share key of this specific folder will be shared with MEGA." << endl;
-        os << "              " << "\t" << "This is intended to be used for folders accessible though MEGA's S4 service." << endl;
+        os << "              " << "\t" << "This is intended to be used for folders accessible through MEGA's S4 service." << endl;
         os << "              " << "\t" << "Encryption will occur nonetheless within MEGA's S4 service." << endl;
-        os << " --password=PASSWORD" << "\t" << "Protects link with password. Please, avoid using passwords containing \" or '" << endl;
-        os << "                    " << "\t" << "  Caveat: a password protected link will be printed only after exporting it." << endl;
-        os << "                    " << "\t" << "  If you use \"" << commandPrefixBasedOnMode() << "export\" to print it again, it will be shown unenctypted." << endl;
-        os << " --expire=TIMEDELAY" << "\t" << "Determines the expiration time of a node." << endl;
-        os << "                   " << "\t" << "   It indicates the delay in hours(h), days(d), " << endl;
-        os << "                   " << "\t"  << "   minutes(M), seconds(s), months(m) or years(y)" << endl;
-        os << "                   " << "\t" << "   e.g. \"1m12d3h\" establish an expiration time 1 month, " << endl;
-        os << "                   " << "\t"  << "   12 days and 3 hours after the current moment" << endl;
-        os << " -f" << "\t" << "Implicitly accept copyright terms (only shown the first time an export is made)" << endl;
-        os << "   " << "\t" << "MEGA respects the copyrights of others and requires that users of the MEGA cloud service " << endl;
-        os << "   " << "\t" << "comply with the laws of copyright." << endl;
-        os << "   " << "\t" << "You are strictly prohibited from using the MEGA cloud service to infringe copyrights." << endl;
-        os << "   " << "\t" << "You may not upload, download, store, share, display, stream, distribute, email, link to, " << endl;
-        os << "   " << "\t" << "transmit or otherwise make available any files, data or content that infringes any copyright " << endl;
-        os << "   " << "\t" << "or other proprietary rights of any person or entity." << endl;
-        os << " -d" << "\t" << "Deletes an export" << endl;
+        os << " --password=PASSWORD" << "\t" << "Protects the export with a password. Passwords cannot contain \" or '." << endl;
+        os << "                    " << "\t" << "A password-protected link will be printed only after exporting it." << endl;
+        os << "                    " << "\t" << "If \"" << commandPrefixBasedOnMode() << "export\" is used to print it again, it will be shown unencrypted." << endl;
+        os << "                    " << "\t" << "Note: only PRO users can protect an export with a password." << endl;
+        os << " --expire=TIMEDELAY" << "\t" << "Sets the expiration time of the export." << endl;
+        os << "                   " << "\t" << "The time format can contain hours(h), days(d), minutes(M), seconds(s), months(m) or years(y)." << endl;
+        os << "                   " << "\t" << "E.g., \"1m12d3h\" will set an expiration time of 1 month, 12 days and 3 hours (relative to the current time)." << endl;
+        os << "                   " << "\t" << "Note: only PRO users can set an expiration time for an export." << endl;
+        os << " -f" << "\t" << "Implicitly accepts copyright terms (only shown the first time an export is made)." << endl;
+        os << "   " << "\t" << "MEGA respects the copyrights of others and requires that users of the MEGA cloud service comply with the laws of copyright." << endl;
+        os << "   " << "\t" << "You are strictly prohibited from using the MEGA cloud service to infringe copyright." << endl;
+        os << "   " << "\t" << "You may not upload, download, store, share, display, stream, distribute, email, link to, "
+                               "transmit or otherwise make available any files, data or content that infringes any copyright "
+                               "or other proprietary rights of any person or entity." << endl;
+        os << " -d" << "\t" << "Deletes an export." << endl;
+        os << "   " << "\t" << "The file/folder itself is not deleted, only the export link." << endl;
         printTimeFormatHelp(os);
         os << endl;
-        os << "If a remote path is given it'll be used to add/delete or in case of no option selected," << endl;
-        os << " it will display all the exports existing in the tree of that path" << endl;
+        os << "If a remote path is provided without the add/delete options, all existing exports within its tree will be displayed." << endl;
+        os << "If no remote path is given, the current working directory will be used.";
     }
     else if (!strcmp(command, "share"))
     {
@@ -4365,10 +4374,27 @@ void megacmd()
                             s += " and " + getReadableTime(warningsList->get(warningsList->size() - 1),"%b %e %Y");
                         }
                         std::unique_ptr<MegaNode> rootNode(api->getRootNode());
-                        long long totalFiles = 0;
-                        long long totalFolders = 0;
-                        getNumFolderFiles(rootNode.get(),api,&totalFiles,&totalFolders);
-                        s += ", but you still have " + std::to_string(totalFiles) + " files taking up " + sizeToText(sandboxCMD->receivedStorageSum);
+                        auto listener = ::mega::make_unique<SynchronousRequestListener>();
+                        api->getFolderInfo(rootNode.get(), listener.get());
+                        listener->wait();
+                        auto error = listener->getError();
+                        assert(error != nullptr);
+                        if (error->getErrorCode() == MegaError::API_OK)
+                        {
+                            long long totalFiles = 0;
+
+                            auto info = listener->getRequest()->getMegaFolderInfo();
+                            if (info != nullptr)
+                            {
+                                totalFiles += info->getNumFolders();
+                            }
+                            s += ", but you still have " + std::to_string(totalFiles) + " files taking up " + sizeToText(sandboxCMD->receivedStorageSum);
+                        }
+                        else
+                        {
+                            s += ", but you still have files taking up" + sizeToText(sandboxCMD->receivedStorageSum);
+                        }
+
                         s += " in your MEGA account, which requires you to upgrade your account.\n\n";
                         long long daysLeft = (api->getOverquotaDeadlineTs() - m_time(NULL)) / 86400;
                         if (daysLeft > 0)
@@ -4980,7 +5006,7 @@ int executeServer(int argc, char* argv[],
     // Establish the logger
     SimpleLogger::setLogLevel(logMax); // do not filter anything here, log level checking is done by loggerCMD
     loggerCMD = new MegaCMDLogger();
-    loggerCMD->setApiLoggerLevel(sdkLogLevel);
+    loggerCMD->setSdkLoggerLevel(sdkLogLevel);
     loggerCMD->setCmdLoggerLevel(cmdLogLevel);
 
     ConfigurationManager::loadConfiguration(cmdLogLevel >= MegaApi::LOG_LEVEL_DEBUG);
