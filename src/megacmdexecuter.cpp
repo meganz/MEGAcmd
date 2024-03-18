@@ -6605,6 +6605,10 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     }
 
                     MegaApi* apiFolder = getFreeApiFolder();
+                    char *accountAuth = api->getAccountAuth();
+                    apiFolder->setAccountAuth(accountAuth);
+                    delete []accountAuth;
+
                     MegaCmdListener *megaCmdListener = new MegaCmdListener(apiFolder, NULL);
                     apiFolder->loginToFolder(publicLink.c_str(), megaCmdListener);
                     megaCmdListener->wait();
@@ -9835,6 +9839,10 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     else if (getLinkType(publicLink) == MegaNode::TYPE_FOLDER)
                     {
                         MegaApi* apiFolder = getFreeApiFolder();
+                        char *accountAuth = api->getAccountAuth();
+                        apiFolder->setAccountAuth(accountAuth);
+                        delete []accountAuth;
+
                         MegaCmdListener *megaCmdListener = new MegaCmdListener(apiFolder, NULL);
                         apiFolder->loginToFolder(publicLink.c_str(), megaCmdListener);
                         megaCmdListener->wait();
