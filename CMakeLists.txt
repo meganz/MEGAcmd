@@ -111,9 +111,6 @@ target_compile_definitions(LMegacmdServer
 )
 
 
-# Load 3rd parties #TODO: consider splitting by target?
-load_megacmdserver_libraries()
-
 add_executable(mega-cmd-server
     "${ProjectDir}/src/megacmd_server_main.cpp"
     "${ProjectDir}/contrib/QtCreator/MEGAcmd/MEGAcmdServer/icon.rc"
@@ -151,11 +148,6 @@ add_library(LMegacmdTestsCommon STATIC
     "${ProjectDir}/tests/common/TestUtils.cpp"
 )
 
-target_link_libraries(LMegacmdTestsCommon gmock gtest)
-if (NOT WIN32)
-target_link_libraries(LMegacmdTestsCommon -pthread)
-endif()
-
 #Integration tests:
 add_executable(mega-cmd-tests-integration
     "${ProjectDir}/tests/integration/BasicTests.cpp"
@@ -166,7 +158,7 @@ add_executable(mega-cmd-tests-integration
 target_include_directories(mega-cmd-tests-integration PUBLIC ${ProjectDir}/src ${ProjectDir}/tests/common)
 target_link_libraries(mega-cmd-tests-integration PUBLIC LMegacmdServer LMegacmdClient LMegacmdTestsCommon)
 if(APPLE)
-    target_link_libraries(mega-cmd-tests-integration "-framework Security" )
+    target_link_libraries(mega-cmd-tests-integration PRIVATE "-framework Security" )
 endif()
 
 #Unit tests:
@@ -178,7 +170,7 @@ add_executable(mega-cmd-tests-unit
 )
 
 if(APPLE)
-    target_link_libraries(mega-cmd-tests-unit "-framework Security" )
+    target_link_libraries(mega-cmd-tests-unit PRIVATE "-framework Security" )
 endif()
 
 if (APPLE)
@@ -220,4 +212,9 @@ endif (NOT NO_READLINE)
 
 target_include_directories(mega-cmd-tests-unit PUBLIC ${ProjectDir}/src ${ProjectDir}/tests/common)
 target_link_libraries(mega-cmd-tests-unit PUBLIC LMegacmdServer LMegacmdTestsCommon)
+
+
+
+# Load 3rd parties #TODO: consider splitting by target?
+load_megacmdserver_libraries()
 

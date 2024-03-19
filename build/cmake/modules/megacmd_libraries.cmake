@@ -6,6 +6,11 @@ macro(load_megacmdserver_libraries)
             target_link_libraries(LMegacmdServer PRIVATE unofficial::pcre::pcrecpp)
             set(USE_PCRE 1)
         endif()
+
+        #LMegacmdTestsCommon: TODO: make dependent on test build (see PRX-336)
+        find_package(GTest CONFIG REQUIRED)
+        target_link_libraries(LMegacmdTestsCommon PUBLIC GTest::gtest GTest::gmock)
+
     else() # No VCPKG usage. Use pkg-config
         find_package(PkgConfig REQUIRED) # For libraries loaded using pkg-config
 
