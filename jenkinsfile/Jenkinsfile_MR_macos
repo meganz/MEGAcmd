@@ -135,7 +135,7 @@ pipeline {
 	    }
 	    post {
 		always {
-		    junit("**/test-results/megacmd-unit-tests.xml", keepProperties: true)
+		    junit(testResults: "**/test-results/megacmd-unit-tests.xml", keepProperties: true)
 		}
 	    }
         }
@@ -165,7 +165,7 @@ pipeline {
 	    }
 	    post {
 		always {
-		    junit("**/test-results/megacmd-integration-tests.xml", keepProperties: true)
+		    junit(testResults: "**/test-results/megacmd-integration-tests.xml", keepProperties: true)
 		}
 	    }
 	}
