@@ -77,22 +77,15 @@ add_source_and_corresponding_header_to_target(LMegacmdServer
     "${ProjectDir}/src/listeners.cpp"
 )
 
+target_sources_conditional(LMegacmdServer
+    FLAG APPLE
+    PRIVATE
+    "${ProjectDir}/src/megacmdplatform.h"
+    "${ProjectDir}/src/megacmdplatform.mm"
+)
+
 # Given we are no longer including the sdk, and some sources use certain defines without including SDK's config.h, 
 # We need to explicitly pass the copmiling options.
-# TODO: REVIEW THE BELLOW LIST: a hint:
-# megacmd/src$ grep ifdef `find . -name "*.cpp"` | awk -F : '{print $NF}' | awk '{$1=$1};1' | sort  | uniq | grep -v "WIN32\|WINDOWS_PHONE\|USE_IOS\|MINGW32\|WIN64\|__linux__\|__MACH\|__APPLE\|__FreeBSD"
-# or without megacmdexecuter (that eventually includes sdk's config.h):
-#ifdef ECONNREFUSED #comming from libs includes
-#ifdef ENABLE_BACKUPS #
-#ifdef ENABLE_CHAT
-#ifdef HAVE_DOWNLOADS_COMMAND #no
-#ifdef HAVE_LIBUV
-#ifdef MEGACMD_DEPRECATED_OS #TODO: THIS ONE SHOULD BE defined by debian.rules and others
-#ifdef NO_READLINE #not for server, handled for mega-cmd (Shell)
-#ifdef _TRUNCATE #win internal stuff, coming from compiler/libs includes
-#ifdef USE_PCRE
-#ifdef USE_PORT_COMMS #no apply/deprecated
-
 target_compile_definitions(LMegacmdServer
     PUBLIC
     $<$<BOOL:${ENABLE_CHAT}>:ENABLE_CHAT>
@@ -140,6 +133,13 @@ add_source_and_corresponding_header_to_target(mega-cmd-updater PRIVATE
     "${ProjectDir}/contrib/QtCreator/MEGAcmd/MEGAcmdUpdater/icon.rc"
 )
 
+target_sources_conditional(mega-cmd-updater
+    FLAG APPLE
+    PRIVATE
+    "${ProjectDir}/src/updater/MacUtils.h"
+    "${ProjectDir}/src/updater/MacUtils.mm"
+)
+
 #Test Common:
 add_library(LMegacmdTestsCommon STATIC)
 add_source_and_corresponding_header_to_target(LMegacmdTestsCommon PRIVATE
@@ -173,14 +173,6 @@ add_source_and_corresponding_header_to_target(mega-cmd-tests-unit PRIVATE
 if(APPLE)
     target_link_libraries(mega-cmd-tests-unit PRIVATE "-framework Security" )
 endif()
-
-target_sources_conditional(LMegacmdServer
-    APPLE
-    PRIVATE
-    "${ProjectDir}/src/megacmdplatform.mm"
-    "${ProjectDir}/src/updater/MacUtils.h"
-    "${ProjectDir}/src/updater/MacUtils.mm"
-)
 
 if (WIN32)
 set_target_properties(mega-exec PROPERTIES OUTPUT_NAME MEGAclient)
