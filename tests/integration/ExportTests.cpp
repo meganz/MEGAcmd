@@ -60,6 +60,7 @@ TEST_F(ExportTest, Basic)
     {
         G_SUBTEST << "File";
         const std::string file_path = "testExportFile01.txt";
+        EXPECT_THAT(std::string("2020"), ::testing::MatchesRegex("\\d+"));
 
         auto rExport = executeInClient({"export", file_path});
         ASSERT_FALSE(rExport.ok());
