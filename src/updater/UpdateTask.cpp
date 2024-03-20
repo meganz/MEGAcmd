@@ -335,6 +335,7 @@ UpdateTask::UpdateTask()
     signatureChecker = new SignatureChecker(updatePublicKey.c_str());
     currentFile = 0;
     updateVersion = 0;
+    currentVersion = MEGACMD_CODE_VERSION;
     appDataFolder = getAppDataDir();
     appFolder = getAppDir();
     updateFolder = appDataFolder + UPDATE_FOLDER_NAME + MEGA_SEPARATOR;
@@ -363,9 +364,27 @@ UpdateTask::~UpdateTask()
     delete signatureChecker;
 }
 
-bool UpdateTask::checkForUpdates(bool emergencyUpdater, bool doNotInstall)
+bool UpdateTask::checkForUpdates(bool emergencyUpdater, bool doNotInstall, int _currentVersion)
 {
     LOG(LOG_LEVEL_INFO, "Starting update check");
+
+    bool hasOverride = getenv("MEGACMD_VERSION_OVERRIDE");
+    if (hasOverride)
+    {
+        try
+        {
+            currentVersion = std::stoi(getenv("MEGACMD_VERSION_OVERRIDE"));
+        }
+        catch (...)
+        {
+            hasOverride = false;
+        }
+    }
+
+    if (!hasOverride && _currentVersion != -1)
+    {
+        currentVersion = _currentVersion;
+    }
 
     // Create random sequence for http request
     string randomSec("?");

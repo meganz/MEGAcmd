@@ -38,6 +38,29 @@ bool extractarg(vector<const char*>& args, const char *what)
     return false;
 }
 
+int extractVersionArg(vector<const char*>& args)
+{
+    auto it = std::find_if(args.begin(), args.end(),
+                           [] (const char* s) { return !strcmp(s, "--version"); });
+
+    if (it == args.end() || std::next(it) == args.end())
+    {
+        return -1;
+    }
+
+    const char* versionStr = *std::next(it);
+    args.erase(it, std::advance(it, 2));
+
+    try
+    {
+        return std::stoi(versionStr);
+    }
+    catch (const std::exception& e)
+    {
+        return -1;
+    }
+}
+
 #if !defined(_WIN32) && defined(LOCK_EX) && defined(LOCK_NB)
     static int fdMcmdUpdaterLockFile;
 #endif
@@ -253,6 +276,7 @@ int main(int argc, char *argv[])
     bool doNotInstall = extractarg(args, "--do-not-install");
     bool emergencyupdate = extractarg(args, "--emergency-update");
     bool skiplockcheck = extractarg(args, "--skip-lock-check");
+    int currentVersion = extractVersionArg(args);
 
 #ifdef _WIN32
     if(!emergencyupdate)
@@ -273,7 +297,7 @@ int main(int argc, char *argv[])
     srand(unsigned(currentTime));
 
     UpdateTask updater;
-    bool updated = updater.checkForUpdates(emergencyupdate, doNotInstall);
+    bool updated = updater.checkForUpdates(emergencyupdate, doNotInstall, currentVersion);
 
     currentTime = time(NULL);
     cout << "Process finished at " << ctime(&currentTime) << endl;

@@ -3430,11 +3430,11 @@ bool executeUpdater(bool *restartRequired, bool doNotInstall = false)
     TCHAR szPathUpdaterCL[MAX_PATH+30];
     if (doNotInstall)
     {
-        wsprintfW(szPathUpdaterCL,L"%ls --normal-update --do-not-install", szPath);
+        wsprintfW(szPathUpdaterCL, L"%ls --normal-update --do-not-install --version %d", szPath, MEGACMD_CODE_VERSION);
     }
     else
     {
-        wsprintfW(szPathUpdaterCL,L"%ls --normal-update", szPath);
+        wsprintfW(szPathUpdaterCL, L"%ls --normal-update --version %d", szPath, MEGACMD_CODE_VERSION);
     }
     LOG_verbose << "Executing: " << wstring(szPathUpdaterCL);
     if (!CreateProcess( szPath,(LPWSTR) szPathUpdaterCL,NULL,NULL,TRUE,
@@ -3469,17 +3469,20 @@ bool executeUpdater(bool *restartRequired, bool doNotInstall = false)
             donotinstallstr = "--do-not-install";
         }
 
+        auto versionStr = std::to_string(MEGACMD_CODE_VERSION);
+        char* version = const_cast<char*>(versionStr.c_str());
+
 #ifdef __MACH__
 #ifndef NDEBUG
-        char * args[] = {"../../../../MEGAcmdUpdater/MEGAcmdUpdater.app/Contents/MacOS/MEGAcmdUpdater", "--normal-update", donotinstallstr, NULL};
+        char * args[] = {"../../../../MEGAcmdUpdater/MEGAcmdUpdater.app/Contents/MacOS/MEGAcmdUpdater", "--normal-update", donotinstallstr, "--version", version, NULL};
 #else
-        char * args[] = {"/Applications/MEGAcmd.app/Contents/MacOS/MEGAcmdUpdater", "--normal-update", donotinstallstr, NULL};
+        char * args[] = {"/Applications/MEGAcmd.app/Contents/MacOS/MEGAcmdUpdater", "--normal-update", donotinstallstr, "--version", version, NULL};
 #endif
 #else //linux don't use autoupdater: this is just for testing
 #ifndef NDEBUG
-        char * args[] = {"../MEGAcmdUpdater/MEGAcmdUpdater", "--normal-update", donotinstallstr, NULL}; // notice: won't work after lcd
+        char * args[] = {"../MEGAcmdUpdater/MEGAcmdUpdater", "--normal-update", donotinstallstr, "--version", version, NULL}; // notice: won't work after lcd
 #else
-        char * args[] = {"mega-cmd-updater", "--normal-update", donotinstallstr, NULL};
+        char * args[] = {"mega-cmd-updater", "--normal-update", donotinstallstr, "--version", version, NULL};
 #endif
 #endif
 

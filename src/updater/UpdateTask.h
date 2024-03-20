@@ -54,7 +54,7 @@ class UpdateTask
 public:
     explicit UpdateTask();
     ~UpdateTask();
-    bool checkForUpdates(bool emergencyUpdater = false, bool doNotInstall = false);
+    bool checkForUpdates(bool emergencyUpdater = false, bool doNotInstall = false, int _currentVersion = -1);
 
 protected:
     bool downloadFile(std::string url, std::string dstPath);
@@ -85,6 +85,7 @@ protected:
     SignatureChecker *signatureChecker;
     unsigned int currentFile;
     int updateVersion;
+    int currentVersion;
     std::vector<std::string> downloadURLs;
     std::vector<std::string> localPaths;
     std::vector<std::string> fileSignatures;
