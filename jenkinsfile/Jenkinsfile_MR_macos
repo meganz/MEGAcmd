@@ -117,22 +117,58 @@ pipeline {
             }
         }
 
-        stage('Run tests'){
+        stage('Run unit tests'){
             environment {
                 BUILD_DIR = "build/cmake/build_dir"
             }
             options{
                 timeout(time: 5, unit: 'MINUTES')
             }
-            steps{
-                sh "echo Running tests"
-                sh """#!/bin/zsh
+	    steps{
+		dir('test-results') {
+                    sh """#!/bin/zsh
                 set -x
                 cd ${env.BUILD_DIR}
-                ./mega-cmd-tests-unit
+                ./mega-cmd-tests-unit --gtest_output=xml:${mac_sources_workspace}/test-results/megacmd-unit-tests.xml --gtest_shuffle
                 """
-            }
+		}
+	    }
+	    post {
+		always {
+		    junit("**/test-results/megacmd-unit-tests.xml", keepProperties: true)
+		}
+	    }
         }
+	stage('Run integration tests'){
+	    environment {
+		BUILD_DIR = "build/cmake/build_dir"
+	    }
+	    options {
+		timeout(time: 5, unit: 'MINUTES')
+	    }
+	    steps{
+		dir('test-results') {
+                    sh """#!/bin/zsh
+                set -x
+                export TMP=$(mktemp -d)
+                export HOME=\$TMP
+                cleanup() {
+                    ARG=$?
+                    rm -rf \$TMP
+                    exit \$ARG
+                }
+                trap cleanup EXIT
+                cd ${env.BUILD_DIR}
+                ./mega-cmd-tests-integration --gtest_output=xml:${mac_sources_workspace}/test-results/megacmd-integration-tests.xml --gtest_shuffle
+                """
+		}
+	    }
+	    post {
+		always {
+		    junit("**/test-results/megacmd-integration-tests.xml", keepProperties: true)
+		}
+	    }
+	}
     }
 
     post{
