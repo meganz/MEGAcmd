@@ -146,9 +146,14 @@ pipeline {
             options {
                 timeout(time: 10, unit: 'MINUTES')
             }
+            environment{
+                MEGACMD_TEST_USER=''
+                MEGACMD_TEST_PASS=credentials('MEGACMD_TESTS_PASSWORD')
+            }
             steps{
-                dir('test-results') {
-                    sh """#!/bin/zsh
+                lock(label: 'testing_accounts_megacmd', variable: 'MEGACMD_TEST_USER', quantity: 1, resource: null){
+                    dir('test-results') {
+                        sh """#!/bin/zsh
                 set -x
                 export TMP=\$(mktemp -d)
                 export HOME=\$TMP
@@ -160,6 +165,7 @@ pipeline {
                 trap cleanup EXIT
                 ${mac_sources_workspace}/build/cmake/build_dir/mega-cmd-tests-integration --gtest_output=xml:${mac_sources_workspace}/test-results/megacmd-integration-tests.xml --gtest_shuffle
                 """
+                    }
                 }
             }
             post {
