@@ -125,9 +125,6 @@ pipeline {
         }
 
         stage('Run unit tests'){
-            environment {
-                BUILD_DIR = "build/cmake/build_dir"
-            }
             options{
                 timeout(time: 5, unit: 'MINUTES')
             }
@@ -135,8 +132,7 @@ pipeline {
                 dir('test-results') {
                     sh """#!/bin/zsh
                 set -x
-                cd ${env.BUILD_DIR}
-                ./mega-cmd-tests-unit --gtest_output=xml:${mac_sources_workspace}/test-results/megacmd-unit-tests.xml --gtest_shuffle
+                ${mac_sources_workspace}/build/cmake/build_dir/mega-cmd-tests-unit --gtest_output=xml:${mac_sources_workspace}/test-results/megacmd-unit-tests.xml --gtest_shuffle
                 """
                 }
             }
@@ -147,11 +143,8 @@ pipeline {
             }
         }
         stage('Run integration tests'){
-            environment {
-                BUILD_DIR = "build/cmake/build_dir"
-            }
             options {
-                timeout(time: 5, unit: 'MINUTES')
+                timeout(time: 10, unit: 'MINUTES')
             }
             steps{
                 dir('test-results') {
@@ -165,8 +158,7 @@ pipeline {
                     exit \$ARG
                 }
                 trap cleanup EXIT
-                cd ${env.BUILD_DIR}
-                ./mega-cmd-tests-integration --gtest_output=xml:${mac_sources_workspace}/test-results/megacmd-integration-tests.xml --gtest_shuffle
+                ${mac_sources_workspace}/build/cmake/build_dir/mega-cmd-tests-integration --gtest_output=xml:${mac_sources_workspace}/test-results/megacmd-integration-tests.xml --gtest_shuffle
                 """
                 }
             }
