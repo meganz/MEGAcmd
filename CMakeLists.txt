@@ -16,9 +16,6 @@ include(sdklib_options) #load default sdk's
 
 message(STATUS "Using VCPKG_ROOT = ${VCPKG_ROOT}")
 
-# Main modules location
-list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/sdk/contrib/cmake/modules)
-
 if(VCPKG_ROOT)
     # Include VCPKG management tools.
     include(vcpkg_management)
@@ -31,7 +28,7 @@ else()
 endif()
 
 project(MEGAcmd
-    VERSION 1.7.0
+    VERSION 1.7.0 #TODO: have this gathered from megacmdversion.h
     DESCRIPTION "MEGAcmd"
     )
 
@@ -55,20 +52,15 @@ add_subdirectory(sdk)
 #LOAD MEGACMD modules:
 include(megacmd_configuration) ## Load global CMake configuration for the project
 include(megacmd_libraries) # to load libraries dependencies by target
+include(megacmd_utility_functions) # utility functions
 
-#TODO: CONSIDER SPLITTING TARGET IN FILES and have add_subdirectory(src) , ...
+#TODO: CONSIDER SPLITTING TARGET IN FILES and have add_subdirectory(src) , ... See MR !682
 
 set(ProjectDir "${CMAKE_CURRENT_LIST_DIR}")
 
-
-#TODO: Move this to option too
-set (ENABLE_BACKUP 1 CACHE STRING "")
-if (ENABLE_BACKUP)
-    add_definitions( -DENABLE_BACKUPS )
-endif (ENABLE_BACKUP)
-
-
-add_library(LMegacmdServer STATIC
+add_library(LMegacmdServer STATIC)
+add_source_and_corresponding_header_to_target(LMegacmdServer
+    PUBLIC
     "${ProjectDir}/src/megacmd.cpp"
     "${ProjectDir}/src/megacmdexecuter.cpp"
     "${ProjectDir}/src/megacmd_events.cpp"
@@ -91,7 +83,7 @@ add_library(LMegacmdServer STATIC
 # megacmd/src$ grep ifdef `find . -name "*.cpp"` | awk -F : '{print $NF}' | awk '{$1=$1};1' | sort  | uniq | grep -v "WIN32\|WINDOWS_PHONE\|USE_IOS\|MINGW32\|WIN64\|__linux__\|__MACH\|__APPLE\|__FreeBSD"
 # or without megacmdexecuter (that eventually includes sdk's config.h):
 #ifdef ECONNREFUSED #comming from libs includes
-#ifdef ENABLE_BACKUPS
+#ifdef ENABLE_BACKUPS #
 #ifdef ENABLE_CHAT
 #ifdef HAVE_DOWNLOADS_COMMAND #no
 #ifdef HAVE_LIBUV
@@ -104,31 +96,34 @@ add_library(LMegacmdServer STATIC
 target_compile_definitions(LMegacmdServer
     PUBLIC
     $<$<BOOL:${ENABLE_CHAT}>:ENABLE_CHAT>
-    $<$<BOOL:${ENABLE_BACKUPS}>:ENABLE_BACKUPS>
+    $<$<BOOL:${ENABLE_BACKUPS}>:ENABLE_BACKUPS> #TODO: The SDK no longer has this flag, we can simply remove the conditionality of it.
     $<$<BOOL:${USE_LIBUV}>:HAVE_LIBUV>
     $<$<BOOL:${USE_PCRE}>:USE_PCRE>
     $<$<CONFIG:Debug>:DEBUG,NDEBUG>
 )
 
-
-add_executable(mega-cmd-server
+add_executable(mega-cmd-server)
+add_source_and_corresponding_header_to_target(mega-cmd-server PRIVATE
     "${ProjectDir}/src/megacmd_server_main.cpp"
     "${ProjectDir}/contrib/QtCreator/MEGAcmd/MEGAcmdServer/icon.rc"
 )
 
-add_library(LMegacmdClient STATIC
+add_library(LMegacmdClient STATIC)
+add_source_and_corresponding_header_to_target(LMegacmdClient PUBLIC
     "${ProjectDir}/src/client/megacmdclient.cpp"
     "${ProjectDir}/src/megacmdshell/megacmdshellcommunicationsnamedpipes.cpp"
     "${ProjectDir}/src/megacmdshell/megacmdshellcommunications.cpp"
     "${ProjectDir}/src/megacmdcommonutils.cpp"
 )
 
-add_executable(mega-exec
+add_executable(mega-exec)
+add_source_and_corresponding_header_to_target(mega-exec PRIVATE
     "${ProjectDir}/src/client/megacmd_client_main.cpp"
     "${ProjectDir}/contrib/QtCreator/MEGAcmd/MEGAcmdClient/icon.rc"
 )
 
-add_executable(mega-cmd
+add_executable(mega-cmd)
+add_source_and_corresponding_header_to_target(mega-cmd PRIVATE
     "${ProjectDir}/src/megacmdshell/megacmdshellcommunications.cpp"
     "${ProjectDir}/src/megacmdshell/megacmdshellcommunicationsnamedpipes.cpp"
     "${ProjectDir}/src/megacmdshell/megacmdshell.cpp"
@@ -136,20 +131,25 @@ add_executable(mega-cmd
     "${ProjectDir}/contrib/QtCreator/MEGAcmd/MEGAcmdShell/icon.rc"
 )
 
-add_executable(mega-cmd-updater WIN32
+add_executable(mega-cmd-updater WIN32)
+add_source_and_corresponding_header_to_target(mega-cmd-updater PRIVATE
     "${ProjectDir}/src/updater/MegaUpdater.cpp"
+)
+add_source_and_corresponding_header_to_target(mega-cmd-updater PRIVATE
     "${ProjectDir}/src/updater/UpdateTask.cpp"
     "${ProjectDir}/contrib/QtCreator/MEGAcmd/MEGAcmdUpdater/icon.rc"
 )
 
 #Test Common:
-add_library(LMegacmdTestsCommon STATIC
+add_library(LMegacmdTestsCommon STATIC)
+add_source_and_corresponding_header_to_target(LMegacmdTestsCommon PRIVATE
     "${ProjectDir}/tests/common/Instruments.cpp"
     "${ProjectDir}/tests/common/TestUtils.cpp"
 )
 
 #Integration tests:
-add_executable(mega-cmd-tests-integration
+add_executable(mega-cmd-tests-integration)
+add_source_and_corresponding_header_to_target(mega-cmd-tests-integration PRIVATE
     "${ProjectDir}/tests/integration/BasicTests.cpp"
     "${ProjectDir}/tests/integration/ExportTests.cpp"
     "${ProjectDir}/tests/integration/MegaCmdTestingTools.cpp"
@@ -162,7 +162,8 @@ if(APPLE)
 endif()
 
 #Unit tests:
-add_executable(mega-cmd-tests-unit
+add_executable(mega-cmd-tests-unit)
+add_source_and_corresponding_header_to_target(mega-cmd-tests-unit PRIVATE
     "${ProjectDir}/tests/unit/StringUtilsTests.cpp"
     "${ProjectDir}/tests/unit/UtilsTests.cpp"
     "${ProjectDir}/tests/unit/PlatformDirectoriesTest.cpp"
@@ -173,10 +174,13 @@ if(APPLE)
     target_link_libraries(mega-cmd-tests-unit PRIVATE "-framework Security" )
 endif()
 
-if (APPLE)
-    target_sources(LMegacmdServer  PRIVATE "${ProjectDir}/src/megacmdplatform.mm")
-    target_sources(mega-cmd-updater PRIVATE "${ProjectDir}/src/updater/MacUtils.mm")
-endif ()
+target_sources_conditional(LMegacmdServer
+    APPLE
+    PRIVATE
+    "${ProjectDir}/src/megacmdplatform.mm"
+    "${ProjectDir}/src/updater/MacUtils.h"
+    "${ProjectDir}/src/updater/MacUtils.mm"
+)
 
 if (WIN32)
 set_target_properties(mega-exec PROPERTIES OUTPUT_NAME MEGAclient)
@@ -198,7 +202,6 @@ target_link_libraries(LMegacmdClient PUBLIC MEGA::SDKlib)
 target_link_libraries(mega-exec LMegacmdClient)
 target_link_libraries(mega-cmd PUBLIC MEGA::SDKlib)
 target_link_libraries(mega-cmd-updater PUBLIC MEGA::SDKlib)
-
 target_link_libraries(LMegacmdServer PUBLIC MEGA::SDKlib)
 
 if (WIN32)
@@ -206,14 +209,9 @@ if (WIN32)
   target_link_libraries(mega-cmd-updater PUBLIC Lz32.lib Urlmon.lib)
 endif()
 target_link_libraries(mega-cmd-server PUBLIC LMegacmdServer)
-if (NOT NO_READLINE)
-    target_link_libraries(mega-cmd PRIVATE ${readline_LIBRARIES})
-endif (NOT NO_READLINE)
 
 target_include_directories(mega-cmd-tests-unit PUBLIC ${ProjectDir}/src ${ProjectDir}/tests/common)
 target_link_libraries(mega-cmd-tests-unit PUBLIC LMegacmdServer LMegacmdTestsCommon)
-
-
 
 # Load 3rd parties #TODO: consider splitting by target?
 load_megacmdserver_libraries()

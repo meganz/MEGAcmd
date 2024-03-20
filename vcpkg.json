@@ -59,7 +59,8 @@
       "sqlite3",
       { "name": "curl", "version>=": "8.4.0" },
       "icu",
-      "pcre"
+      "pcre",
+      "gtest"
     ],
     "builtin-baseline" : "7476f0d4e77d3333fbb249657df8251c28c4faae"
 }
