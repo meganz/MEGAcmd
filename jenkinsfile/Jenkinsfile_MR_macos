@@ -150,10 +150,10 @@ pipeline {
 		dir('test-results') {
                     sh """#!/bin/zsh
                 set -x
-                export TMP=$(mktemp -d)
+                export TMP=\$(mktemp -d)
                 export HOME=\$TMP
                 cleanup() {
-                    ARG=$?
+                    ARG=\$?
                     rm -rf \$TMP
                     exit \$ARG
                 }
