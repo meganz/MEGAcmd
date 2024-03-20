@@ -49,7 +49,7 @@ int extractVersionArg(vector<const char*>& args)
     }
 
     const char* versionStr = *std::next(it);
-    args.erase(it, std::advance(it, 2));
+    args.erase(it, std::next(it, 2));
 
     try
     {

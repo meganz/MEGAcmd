@@ -728,8 +728,6 @@ bool UpdateTask::processUpdateFile(FILE *fd)
         return false;
     }
 
-    int currentVersion = MEGACMD_CODE_VERSION;
-
     if (updateVersion <= currentVersion)
     {
         LOG(LOG_LEVEL_INFO, "Update not needed. Last version: %d - Current version: %d", updateVersion, currentVersion);
