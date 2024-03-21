@@ -43,6 +43,7 @@ set (USE_FFMPEG 1 CACHE STRING "Used to create previews/thumbnails for video fil
 option (ENABLE_ASAN "Build MEGAcmd with AddressSanitizer" OFF)
 option (ENABLE_UBSAN "Build MEGAcmd with UndefinedBehaviorSanitizer" OFF)
 option (ENABLE_TSAN "Build MEGAcmd with ThreadSanitizer" OFF)
+option (ENABLE_MEGACMD_TESTS "Build MEGAcmd with tests" OFF)
 
 if(WIN32)
     add_definitions( -DUNICODE -D_UNICODE )  # needed for visual studio projects to use the unicode runtime libraries
@@ -95,7 +96,6 @@ if (ENABLE_BACKUP)
     add_definitions( -DENABLE_BACKUPS )
 endif (ENABLE_BACKUP)
 
-
 add_library(LMegacmdServer STATIC
     "${ProjectDir}/src/megacmd.cpp"
     "${ProjectDir}/src/megacmdexecuter.cpp"
@@ -113,6 +113,12 @@ add_library(LMegacmdServer STATIC
     "${ProjectDir}/src/listeners.cpp"
 )
 
+if (ENABLE_MEGACMD_TESTS)
+  target_compile_definitions(LMegacmdServer PUBLIC MEGACMD_TESTING_CODE=1)
+  list(APPEND c++17targets LMegacmdServer)
+  target_link_libraries(LMegacmdServer LMegacmdTestsCommon)
+endif()
+
 add_executable(mega-cmd-server
     "${ProjectDir}/src/megacmd_server_main.cpp"
     "${ProjectDir}/contrib/QtCreator/MEGAcmd/MEGAcmdServer/icon.rc"
@@ -124,6 +130,10 @@ add_library(LMegacmdClient STATIC
     "${ProjectDir}/src/megacmdshell/megacmdshellcommunications.cpp"
     "${ProjectDir}/src/megacmdcommonutils.cpp"
 )
+
+if (ENABLE_MEGACMD_TESTS)
+  target_compile_definitions(LMegacmdClient PUBLIC MEGACMD_TESTING_CODE=1)
+endif()
 
 add_executable(mega-exec
     "${ProjectDir}/src/client/megacmd_client_main.cpp"
@@ -144,50 +154,50 @@ add_executable(mega-cmd-updater WIN32
     "${ProjectDir}/contrib/QtCreator/MEGAcmd/MEGAcmdUpdater/icon.rc"
 )
 
+if (ENABLE_MEGACMD_TESTS)
 #Test Common:
-add_library(LMegacmdTestsCommon STATIC
+  add_library(LMegacmdTestsCommon STATIC
     "${ProjectDir}/tests/common/Instruments.cpp"
     "${ProjectDir}/tests/common/TestUtils.cpp"
-)
+  )
+  target_link_libraries(LMegacmdTestsCommon gmock gtest)
+  if (NOT WIN32)
+    target_link_libraries(LMegacmdTestsCommon -pthread)
+  endif()
 
-target_link_libraries(LMegacmdTestsCommon gmock gtest)
-if (NOT WIN32)
-target_link_libraries(LMegacmdTestsCommon -pthread)
-endif()
+  list(APPEND c++17targets LMegacmdTestsCommon)
 
-list(APPEND c++17targets LMegacmdTestsCommon)
-
-#Integration tests:
-add_executable(mega-cmd-tests-integration
+  #Integration tests:
+  add_executable(mega-cmd-tests-integration
     "${ProjectDir}/tests/integration/BasicTests.cpp"
     "${ProjectDir}/tests/integration/ExportTests.cpp"
     "${ProjectDir}/tests/integration/MegaCmdTestingTools.cpp"
     "${ProjectDir}/tests/integration/main.cpp"
-)
-target_include_directories(mega-cmd-tests-integration PUBLIC ${ProjectDir}/src ${ProjectDir}/tests/common)
-target_link_libraries(mega-cmd-tests-integration LMegacmdServer LMegacmdClient LMegacmdTestsCommon)
-if(APPLE)
+  )
+  target_include_directories(mega-cmd-tests-integration PUBLIC ${ProjectDir}/src ${ProjectDir}/tests/common)
+  target_link_libraries(mega-cmd-tests-integration LMegacmdServer LMegacmdClient LMegacmdTestsCommon)
+  if(APPLE)
     target_link_libraries(mega-cmd-tests-integration "-framework Security" )
-endif()
+  endif()
 
-list(APPEND c++17targets mega-cmd-tests-integration)
+  list(APPEND c++17targets mega-cmd-tests-integration)
 
-#Unit tests:
-add_executable(mega-cmd-tests-unit
+  #Unit tests:
+  add_executable(mega-cmd-tests-unit
     "${ProjectDir}/tests/unit/StringUtilsTests.cpp"
     "${ProjectDir}/tests/unit/UtilsTests.cpp"
     "${ProjectDir}/tests/unit/PlatformDirectoriesTest.cpp"
     "${ProjectDir}/tests/unit/main.cpp"
-)
+  )
 
-target_include_directories(mega-cmd-tests-unit PUBLIC ${ProjectDir}/src ${ProjectDir}/tests/common)
-target_link_libraries(mega-cmd-tests-unit LMegacmdServer LMegacmdTestsCommon)
-if(APPLE)
+  target_include_directories(mega-cmd-tests-unit PUBLIC ${ProjectDir}/src ${ProjectDir}/tests/common)
+  target_link_libraries(mega-cmd-tests-unit LMegacmdServer LMegacmdTestsCommon)
+  if(APPLE)
     target_link_libraries(mega-cmd-tests-unit "-framework Security" )
+  endif()
+
+  list(APPEND c++17targets mega-cmd-tests-unit)
 endif()
-
-list(APPEND c++17targets mega-cmd-tests-unit)
-
 
 if (APPLE)
     target_sources(LMegacmdServer  PRIVATE "${ProjectDir}/src/megacmdplatform.mm")
