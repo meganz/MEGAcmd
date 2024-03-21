@@ -242,36 +242,20 @@ void unlockExecution()
 using namespace megacmdupdater;
 
 #ifdef _WIN32
-
-#include <stdio.h>
-#include <io.h>
-#include <fcntl.h>
-#include <winsock2.h>
-#include <windows.h>
-#include <locale>
-#include <codecvt>
-
-
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR szCmdLine,int iCmdShow)
 {
-    int argc;
-    LPWSTR *argv = CommandLineToArgvW(GetCommandLineW(),&argc);
-    vector<const char*> args;
-    for (int i = 0; i < argc; i++)
-    {
-        std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> convert;
-        args.push_back(convert.to_bytes(argv[i]).c_str());
-    }
-
+    int argc = __argc;
+    char** argv = __argv;
 #else
 int main(int argc, char *argv[])
 {
+#endif
+
     vector<const char*> args;
     if (argc > 1)
     {
         args = vector<const char*>(argv + 1, argv + argc);
     }
-#endif
 
     bool doNotInstall = extractarg(args, "--do-not-install");
     bool emergencyupdate = extractarg(args, "--emergency-update");
