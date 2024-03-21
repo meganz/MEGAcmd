@@ -4662,8 +4662,10 @@ bool registerUpdater()
     }
 
     time(&currentTime);
+    currentTime += 60; // ensure task is triggered properly the first time
     currentTimeInfo = localtime(&currentTime);
     wcsftime(currentTimeString, 128,  L"%Y-%m-%dT%H:%M:%S", currentTimeInfo);
+
     _bstr_t taskName = taskBaseName + stringSID;
     _bstr_t userId = stringSID;
     LocalFree(stringSID);
