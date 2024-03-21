@@ -67,12 +67,12 @@ TEST(PlatformDirectoriesTest, configDirPath)
     {
         G_SUBTEST << "With $MEGACMD_WORKING_FOLDER_SUFFIX";
         auto guard = TestInstrumentsEnvVarGuard("MEGACMD_WORKING_FOLDER_SUFFIX", "foobar");
-        EXPECT_THAT(dirs->configDirPath(), testing::EndsWith(L".megaCmd_foobar"));
+        EXPECT_THAT(dirs->configDirPath(), testing::EndsWith(".megaCmd_foobar"));
     }
     {
         G_SUBTEST << "Without $MEGACMD_WORKING_FOLDER_SUFFIX";
         auto guard = TestInstrumentsUnsetEnvVarGuard("MEGACMD_WORKING_FOLDER_SUFFIX");
-        EXPECT_THAT(dirs->configDirPath(), testing::EndsWith(L".megaCmd"));
+        EXPECT_THAT(dirs->configDirPath(), testing::EndsWith(".megaCmd"));
     }
 #endif    
 }
