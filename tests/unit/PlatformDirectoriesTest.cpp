@@ -62,6 +62,18 @@ TEST(PlatformDirectoriesTest, configDirPath)
         auto homeGuard= TestInstrumentsEnvVarGuard("HOME", "/home/test");
         EXPECT_EQ(dirs->configDirPath(), "/home/test/.megaCmd");
     }
+#endif
+#ifdef _WIN32
+    {
+        G_SUBTEST << "With $MEGACMD_WORKING_FOLDER_SUFFIX";
+        auto guard = TestInstrumentsEnvVarGuard("MEGACMD_WORKING_FOLDER_SUFFIX", "foobar");
+        EXPECT_THAT(dirs->configDirPath(), testing::EndsWith(L".megaCmd_foobar"));
+    }
+    {
+        G_SUBTEST << "Without $MEGACMD_WORKING_FOLDER_SUFFIX";
+        auto guard = TestInstrumentsUnsetEnvVarGuard("MEGACMD_WORKING_FOLDER_SUFFIX");
+        EXPECT_THAT(dirs->configDirPath(), testing::EndsWith(L".megaCmd"));
+    }
 #endif    
 }
 
