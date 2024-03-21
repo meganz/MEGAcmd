@@ -1512,7 +1512,7 @@ std::string WindowsDirectories::configDirPath()
         }
     }
 
-    auto suffix = _getenv("MEGACMD_WORKING_FOLDER_SUFFIX");
+    auto suffix = getenv("MEGACMD_WORKING_FOLDER_SUFFIX");
     if (suffix != nullptr)
     {
         folder += "_";
