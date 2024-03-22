@@ -163,12 +163,12 @@ public:
     const LoggedStream &operator<<(long long v) const override;
     const LoggedStream &operator<<(unsigned long v) const override;
 
-    const LoggedStream& operator<<(std::ios_base v)                     const override { return *this; }
-    const LoggedStream& operator<<(std::ios_base *v)                    const override { return *this; }
-    const LoggedStream& operator<<(OUTSTREAMTYPE& (*F)(OUTSTREAMTYPE&)) const override { return *this; }
+    const LoggedStream &operator<<(std::ios_base)                      const override { return *this; }
+    const LoggedStream &operator<<(std::ios_base*)                     const override { return *this; }
+    const LoggedStream &operator<<(OUTSTREAMTYPE& (*)(OUTSTREAMTYPE&)) const override { return *this; }
 
 #ifdef _WIN32
-    virtual const LoggedStream& operator<<(std::wstring v) const = 0;
+    const LoggedStream &operator<<(std::wstring v) const override;
 #endif
 
     virtual void flush() override;

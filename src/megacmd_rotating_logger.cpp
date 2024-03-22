@@ -545,6 +545,16 @@ const LoggedStream &FileRotatingLoggedStream::operator<<(unsigned long v) const
     return operator<<(std::to_string(v));
 }
 
+#ifdef _WIN32
+const LoggedStream &FileRotatingLoggedStream::operator<<(std::wstring wstr) const
+{
+    std::string str;
+    localwtostring(&wstr, &str);
+    writeToBuffer(str.c_str(), str.size());
+    return *this;
+}
+#endif
+
 void FileRotatingLoggedStream::flush()
 {
     std::lock_guard<std::mutex> lock(mWriteMutex);
