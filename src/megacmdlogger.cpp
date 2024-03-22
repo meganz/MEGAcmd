@@ -261,7 +261,7 @@ bool MegaCmdSimpleLogger::shouldLogToClient(int logLevel, const char* source) co
 MegaCmdSimpleLogger::MegaCmdSimpleLogger() :
     MegaCmdLogger(),
     mLoggedStream(Instance<DefaultLoggedStream>::Get().getLoggedStream()),
-    mOutStream(&std::cout)
+    mOutStream(&COUT)
 {
 }
 

@@ -155,7 +155,7 @@ bool MessageBuffer::isNearLastBlockCapacity() const
 class BaseEngine
 {
 protected:
-    OUTSTRINGSTREAM mErrorStream;
+    std::stringstream mErrorStream;
     mega::MegaFileSystemAccess mFsAccess;
 
 public:
@@ -231,7 +231,7 @@ public:
     virtual std::string getExtension() const { return ""; }
 
     virtual void cancelAll() {}
-    virtual void compressFile(const mega::LocalPath &filePath) {}
+    virtual void compressFile(const mega::LocalPath&) {}
 };
 
 class GzipCompressionEngine final : public CompressionEngine
@@ -271,7 +271,7 @@ public:
     std::string getExtension() const override;
 
     void cancelAll() override;
-    void compressFile(const mega::LocalPath &filePath);
+    void compressFile(const mega::LocalPath &filePath) override;
 };
 
 RotatingFileManager::Config::Config() :
@@ -283,10 +283,10 @@ RotatingFileManager::Config::Config() :
 {
 }
 
-RotatingFileManager::RotatingFileManager(const std::string &filePath, const Config &config) :
+RotatingFileManager::RotatingFileManager(const mega::LocalPath &filePath, const Config &config) :
     mConfig(config),
-    mDirectory(mega::LocalPath::fromAbsolutePath(filePath).parentPath()),
-    mBaseFilename(mega::LocalPath::fromAbsolutePath(filePath).leafName())
+    mDirectory(filePath.parentPath()),
+    mBaseFilename(filePath.leafName())
 {
     initializeCompressionEngine();
     initializeRotationEngine();
@@ -483,11 +483,10 @@ void FileRotatingLoggedStream::mainLoop()
     }
 }
 
-FileRotatingLoggedStream::FileRotatingLoggedStream(const std::string &outputFilePath) :
+FileRotatingLoggedStream::FileRotatingLoggedStream(const OUTSTRING &outputFilePath) :
     mMessageBuffer(2048),
-    mOutputFilePath(outputFilePath),
     mOutputFile(outputFilePath, std::ofstream::out | std::ofstream::app),
-    mFileManager(outputFilePath),
+    mFileManager((megacmd::localwtostring(&outputFilePath, &mOutputFilePath), mega::LocalPath::fromAbsolutePath(mOutputFilePath))),
     mForceRenew(false), // maybe this should be true by default?
     mExit(false),
     mFlush(false),
@@ -847,7 +846,7 @@ void GzipCompressionEngine::pushToQueue(const mega::LocalPath &srcFilePath, cons
 
 void GzipCompressionEngine::gzipFile(const mega::LocalPath &srcFilePath, const mega::LocalPath &dstFilePath)
 {
-    auto srcFilePathStr = srcFilePath.platformEncoded();
+    std::string srcFilePathStr = srcFilePath.toName(mFsAccess);
     std::ifstream file(srcFilePathStr, std::ofstream::out);
     if (!file)
     {
@@ -855,13 +854,13 @@ void GzipCompressionEngine::gzipFile(const mega::LocalPath &srcFilePath, const m
         return;
     }
 
-    auto destFilePathStr = dstFilePath.platformEncoded();
+    std::string dstFilePathStr = dstFilePath.toName(mFsAccess);
 
     auto gzdeleter = [] (gzFile_s* f) { if (f) gzclose(f); };
-    std::unique_ptr<gzFile_s, decltype(gzdeleter)> gzFile(gzopen(destFilePathStr.c_str(), "wb"), gzdeleter);
+    std::unique_ptr<gzFile_s, decltype(gzdeleter)> gzFile(gzopen(dstFilePathStr.c_str(), "wb"), gzdeleter);
     if (!gzFile)
     {
-        mErrorStream << "Failed to open gzfile " << destFilePathStr << " for writing" << std::endl;
+        mErrorStream << "Failed to open gzfile " << dstFilePathStr << " for writing" << std::endl;
         return;
     }
 

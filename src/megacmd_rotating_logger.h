@@ -98,7 +98,7 @@ public:
     };
 
 public:
-    RotatingFileManager(const std::string &filePath, const Config &config = {});
+    RotatingFileManager(const mega::LocalPath &filePath, const Config &config = {});
 
     bool shouldRotateFiles(size_t fileSize) const;
 
@@ -124,7 +124,7 @@ class FileRotatingLoggedStream final : public LoggedStream
 {
     mutable MessageBuffer mMessageBuffer;
 
-    const std::string mOutputFilePath;
+    std::string mOutputFilePath;
     mutable OUTFSTREAMTYPE mOutputFile;
     RotatingFileManager mFileManager;
 
@@ -152,7 +152,7 @@ private:
     void mainLoop();
 
 public:
-    FileRotatingLoggedStream(const std::string &outputFilePath);
+    FileRotatingLoggedStream(const OUTSTRING &outputFilePath);
     ~FileRotatingLoggedStream();
 
     const LoggedStream &operator<<(const char &c) const override;
