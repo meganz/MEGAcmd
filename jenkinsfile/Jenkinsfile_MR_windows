@@ -119,7 +119,7 @@ pipeline {
             }
         }
 
-        stage('Run tests'){
+        stage('Run unit tests'){
             environment{
                 PATH = "${windows_sources_workspace}\\\\..\\\\vcpkg\\\\installed\\\\x64-windows-mega\\\\debug\\\\bin;${env.PATH}"
             }
@@ -135,6 +135,27 @@ pipeline {
                 """
             }
         }
+
+	stage('Run integration tests'){
+	    environment{
+                PATH = "${windows_sources_workspace}\\\\..\\\\vcpkg\\\\installed\\\\x64-windows-mega\\\\debug\\\\bin;${env.PATH}"
+		MEGACMD_TEST_USER=''
+		MEGACMD_TEST_PASS=credentials('MEGACMD_TESTS_PASSWORD')
+            }
+            options{
+                timeout(time: 3, unit: 'HOURS')
+            }
+            steps{
+		lock(label: 'testing_accounts_megacmd', variable: 'MEGACMD_TEST_USER', quantity: 1, resource: null) {
+		    bat """
+                build\\\\cmake\\\\build_dir\\\\Debug\\\\mega-cmd-tests-integration.exe
+                rmdir build\\\\cmake\\\\build_dir\\\\Debug\\\\.megaCmd /s /q
+                if %ERRORLEVEL% NEQ 0 exit 1
+                exit %ERROR_VAL%
+                """
+		}
+            }
+	}
     }
 
     post{
