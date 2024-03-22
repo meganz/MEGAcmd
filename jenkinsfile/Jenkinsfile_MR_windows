@@ -149,11 +149,15 @@ pipeline {
 		lock(label: 'testing_accounts_megacmd', variable: 'MEGACMD_TEST_USER', quantity: 1, resource: null) {
 		    bat """
                 build\\\\cmake\\\\build_dir\\\\Debug\\\\mega-cmd-tests-integration.exe
-                rmdir build\\\\cmake\\\\build_dir\\\\Debug\\\\.megaCmd /s /q
                 if %ERRORLEVEL% NEQ 0 exit 1
                 exit %ERROR_VAL%
                 """
 		}
+            }
+            post{
+                always{
+                    bat "rmdir build\\\\cmake\\\\build_dir\\\\Debug\\\\.megaCmd /s /q"
+                }
             }
 	}
     }
