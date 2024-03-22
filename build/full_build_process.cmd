@@ -36,6 +36,10 @@ IF NOT "%1" == "" (
 	)
 )
 
+IF [%MEGA_WIN_KITVER%]==[] (
+	SET MEGA_WIN_KITVER=10.0.22621.0
+)
+
 :: CHECK ARCHITECTURE
 IF "%MEGA_ARCH%" EQU "64" (
 	echo "Info: Building x64 only"
@@ -151,4 +155,5 @@ echo 	- Suffix for installer: The installer will add this suffix to the version.
 echo MEGA_VCPKGPATH environment variable should be set to the root of the 3rd party dir.
 echo SKIP_BUILD_THIRD_PARTIES environment variable can be used to skip the attempt to build vcpkg 3rd parties
 echo ONLY_BUILD_THIRD_PARTIES environment variable can be used to stop after building 3rd parties
+echo MEGA_WIN_KITVER environment variable can be used to set the Windows sdk to use. Value defaults to "10.0.22621.0". Set to "." to use the Universal Kit
 exit /B
