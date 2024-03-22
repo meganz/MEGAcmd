@@ -195,7 +195,7 @@ class TimestampRotationEngine final : public RotationEngine
     const std::chrono::seconds mMaxFileAge;
 
 private:
-    using Clock = std::chrono::high_resolution_clock;
+    using Clock = std::chrono::system_clock;
     using Timestamp = std::chrono::time_point<Clock>;
 
     struct TimestampFile
