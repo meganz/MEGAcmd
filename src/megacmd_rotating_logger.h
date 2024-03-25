@@ -51,16 +51,18 @@ public:
     using MemoryBlockList = std::vector<MemoryBlock>;
 
 public:
-    MessageBuffer(size_t defaultBlockCapacity);
+    MessageBuffer(size_t defaultBlockCapacity, size_t failSafeSize);
 
     void append(const char *data, size_t size);
     MemoryBlockList popMemoryBlockList(bool &initialMemoryGap);
 
     bool isEmpty() const;
     bool isNearLastBlockCapacity() const;
+    bool reachedFailSafeSize() const;
 
 private:
     const size_t mDefaultBlockCapacity;
+    const size_t mFailSafeSize;
     mutable std::mutex mListMutex;
     MemoryBlockList mList;
     bool mInitialMemoryGap;

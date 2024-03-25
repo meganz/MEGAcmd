@@ -101,10 +101,14 @@ void MessageBuffer::MemoryBlock::appendData(const char *data, size_t size)
     mBuffer[mSize] = '\0';
 }
 
-MessageBuffer::MessageBuffer(size_t defaultBlockCapacity) :
+MessageBuffer::MessageBuffer(size_t defaultBlockCapacity, size_t failSafeSize) :
     mDefaultBlockCapacity(defaultBlockCapacity),
+    mFailSafeSize(failSafeSize),
     mInitialMemoryGap(false)
 {
+    assert(mDefaultBlockCapacity > 0);
+    assert(mFailSafeSize > 0);
+    assert(mFailSafeSize > mDefaultBlockCapacity);
 }
 
 void MessageBuffer::append(const char *data, size_t size)
@@ -161,6 +165,12 @@ bool MessageBuffer::isNearLastBlockCapacity() const
 {
     std::lock_guard<std::mutex> lock(mListMutex);
     return !mList.empty() && mList.back().isNearCapacity();
+}
+
+bool MessageBuffer::reachedFailSafeSize() const
+{
+    std::lock_guard<std::mutex> lock(mListMutex);
+    return mList.size() > mFailSafeSize / mDefaultBlockCapacity;
 }
 
 class BaseEngine
@@ -446,7 +456,7 @@ bool FileRotatingLoggedStream::waitForOutputFile()
     thread_local const int waitTimes[waitTimesSize] = {0, 1, 5, 20, 60};
     thread_local int i = 0;
 
-    if (!mOutputFile.fail())
+    if (mOutputFile)
     {
         i = 0;
         return true;
@@ -491,8 +501,10 @@ void FileRotatingLoggedStream::mainLoop()
         errorMessages += mFileManager.popErrors();
         std::cerr << errorMessages;
 
-        if (!mOutputFile)
+        if (!mOutputFile && !mMessageBuffer.reachedFailSafeSize())
         {
+            // If we've reached the fail-safe size, try to write to file anyway
+            // This clears the buffer, ensuring it doesn't grow beyond a certain threshold
             continue;
         }
         mOutputFile << errorMessages;
@@ -519,7 +531,7 @@ void FileRotatingLoggedStream::mainLoop()
 }
 
 FileRotatingLoggedStream::FileRotatingLoggedStream(const OUTSTRING &outputFilePath) :
-    mMessageBuffer(2048),
+    mMessageBuffer(2048 /* 2KB */, 500 * 1024 * 1024 /* 500MB */),
     mOutputFilePath(outstringToString(outputFilePath)),
     mOutputFile(outputFilePath, std::ofstream::out | std::ofstream::app),
     mFileManager(mega::LocalPath::fromAbsolutePath(mOutputFilePath)),
