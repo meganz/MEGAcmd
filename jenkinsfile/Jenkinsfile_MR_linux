@@ -110,14 +110,14 @@ pipeline {
                     }
                     axis {
                         name 'BUILD_SYSTEM'
-                        values 'autotools', 'c-make'
+                        values 'c-make-v2'
                     }
                 }
 		excludes {
 		    exclude {
 			axis {
 			    name 'BUILD_SYSTEM'
-			    values 'c-make'
+			    values 'c-make-v2'
 			}
 			axis {
 			    name 'SANITIZERS'
