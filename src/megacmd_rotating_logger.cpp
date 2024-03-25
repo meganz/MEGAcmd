@@ -38,6 +38,17 @@ public:
         mOutFile.open(mOutFilePath, std::ofstream::out);
     }
 };
+
+std::string outstringToString(const OUTSTRING &outstring)
+{
+#ifdef _WIN32
+    std::string str;
+    megacmd::localwtostring(&outstring, &str);
+    return str;
+#else
+    return outstring;
+#endif
+}
 }
 
 namespace megacmd {
@@ -485,8 +496,9 @@ void FileRotatingLoggedStream::mainLoop()
 
 FileRotatingLoggedStream::FileRotatingLoggedStream(const OUTSTRING &outputFilePath) :
     mMessageBuffer(2048),
+    mOutputFilePath(outstringToString(outputFilePath)),
     mOutputFile(outputFilePath, std::ofstream::out | std::ofstream::app),
-    mFileManager((megacmd::localwtostring(&outputFilePath, &mOutputFilePath), mega::LocalPath::fromAbsolutePath(mOutputFilePath))),
+    mFileManager(mega::LocalPath::fromAbsolutePath(mOutputFilePath)),
     mForceRenew(false), // maybe this should be true by default?
     mExit(false),
     mFlush(false),
