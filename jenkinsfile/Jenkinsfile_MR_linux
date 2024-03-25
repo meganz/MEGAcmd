@@ -113,18 +113,6 @@ pipeline {
                         values 'c-make-v2'
                     }
                 }
-                excludes {
-                    exclude {
-                        axis {
-                            name 'BUILD_SYSTEM'
-                            values 'c-make-v2'
-                        }
-                        axis {
-                            name 'SANITIZERS'
-                            notValues 'ubsan'
-                        }
-                    }
-                }
                 stages{
                     stage('Build MEGAcmd container image'){
                         options{
@@ -151,14 +139,6 @@ pipeline {
                     axis {
                         name 'TYPE'
                         values 'unit', 'integration'
-                    }
-                }
-                excludes {
-                    exclude {
-                        axis {
-                            name 'SANITIZERS'
-                            notValues 'ubsan'
-                        }
                     }
                 }
                 stages {
