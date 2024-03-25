@@ -153,6 +153,14 @@ pipeline {
                         values 'unit', 'integration'
                     }
                 }
+                excludes {
+                    exclude {
+                        axis {
+                            name 'SANITIZERS'
+                            notValues 'ubsan'
+                        }
+                    }
+                }
                 stages {
                     stage('Run MEGAcmd unit tests'){
                         when{
