@@ -110,7 +110,7 @@ pipeline {
                     }
                     axis {
                         name 'BUILD_SYSTEM'
-                        values 'c-make-v2'
+                        values 'cmake-v2'
                     }
                 }
                 stages{

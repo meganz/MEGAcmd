@@ -34,7 +34,7 @@ COPY CMakeLists.txt ./CMakeLists.txt
 COPY vcpkg.json ./vcpkg.json
 
 FROM build-deps-cmake as build
-
+LABEL stage=autocleanable-intermediate-stage
 WORKDIR /usr/src/megacmd
 
 # setting ccache as env variables breaks latest vcpkg libsodium compilation
