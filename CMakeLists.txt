@@ -208,3 +208,22 @@ target_link_libraries(mega-cmd-tests-unit PUBLIC LMegacmdServer LMegacmdTestsCom
 # Load 3rd parties #TODO: consider splitting by target?
 load_megacmdserver_libraries()
 
+# Install stuff
+if (NOT WIN32)
+  install(TARGETS mega-exec mega-cmd mega-cmd-server mega-cmd-tests-unit mega-cmd-tests-integration
+      RUNTIME
+      LIBRARY
+      PUBLIC_HEADER
+      ARCHIVE
+      INCLUDES DESTINATION
+  )
+install(DIRECTORY "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/lib/" #TODO: missing /debug
+        DESTINATION lib
+        FILES_MATCHING
+        PATTERN "libav*.so*"
+        PATTERN "libsw*.so*"
+        EXCLUDE #TODO: below is not working
+        PATTERN "manual-link"
+        PATTERN "pkgconfig") #TODO: this installs more than requires!
+endif()
+
