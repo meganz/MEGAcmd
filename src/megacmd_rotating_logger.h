@@ -148,6 +148,7 @@ private:
 
     void writeMessagesToFile();
     void flushToFile();
+    bool waitForOutputFile();
 
     void mainLoop();
 

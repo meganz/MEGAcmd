@@ -440,20 +440,37 @@ void FileRotatingLoggedStream::flushToFile()
     }
 }
 
+bool FileRotatingLoggedStream::waitForOutputFile()
+{
+    constexpr int waitTimesSize = 5; // In C++17 we can use `std::size(waitTimes)`
+    thread_local const int waitTimes[waitTimesSize] = {0, 1, 5, 20, 60};
+    thread_local int i = 0;
+
+    if (!mOutputFile.fail())
+    {
+        i = 0;
+        return true;
+    }
+
+    std::this_thread::sleep_for(std::chrono::seconds(waitTimes[i]));
+    if (i < waitTimesSize - 1) ++i;
+    return false;
+}
+
 void FileRotatingLoggedStream::mainLoop()
 {
     while (!shouldExit() || !mMessageBuffer.isEmpty())
     {
-        const size_t outFileSize = mOutputFile ? static_cast<size_t>(mOutputFile.tellp()) : 0;
         std::string errorMessages;
 
-        if (!mOutputFile)
+        if (!waitForOutputFile())
         {
             errorMessages += "Error writing to log file " + mOutputFilePath + '\n';
             errorMessages += "Forcing a renew...\n";
             setForceRenew(true);
         }
 
+        const size_t outFileSize = mOutputFile ? static_cast<size_t>(mOutputFile.tellp()) : 0;
         if (shouldRenew())
         {
             ReopenScope s(mOutputFile, mOutputFilePath);
