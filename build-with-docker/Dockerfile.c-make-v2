@@ -41,6 +41,7 @@ WORKDIR /usr/src/megacmd
 #ENV CC "ccache gcc-12"
 #ENV CXX "ccache g++-12"
 ENV CCACHE_DIR /tmp/ccache
+ENV VCPKG_DEFAULT_BINARY_CACHE /tmp/vcpkgcache
 ARG ENABLE_ASAN=ON
 ARG ENABLE_UBSAN=ON
 ARG ENABLE_TSAN=OFF
@@ -50,13 +51,11 @@ COPY --from=src /usr/src/megacmd /usr/src/megacmd
 
 RUN git clone https://github.com/microsoft/vcpkg /vcpkg
 
-#TODO: we should make use of vcpkg cache too (below is not working)
 RUN --mount=type=cache,target=/tmp/ccache \
     --mount=type=cache,target=/tmp/vcpkgcache \
-    --mount=type=tmpfs,target=/tmp/build_RENAME_ME \
+    --mount=type=tmpfs,target=/tmp/build \
      cmake -B /tmp/build \
     -DVCPKG_ROOT=/vcpkg \
-    -DVCPKG_DEFAULT_BINARY_CACHE=/tmp/vcpkgcache \
     -DCMAKE_CXX_COMPILER=g++ \
     -DCMAKE_C_COMPILER=gcc \
     -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
