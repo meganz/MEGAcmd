@@ -35,7 +35,7 @@ public:
 
     ~ReopenScope()
     {
-        mOutFile.open(mOutFilePath, std::ofstream::out);
+        mOutFile.open(mOutFilePath, std::ofstream::out | std::ofstream::app);
     }
 };
 
@@ -462,16 +462,21 @@ void FileRotatingLoggedStream::mainLoop()
     while (!shouldExit() || !mMessageBuffer.isEmpty())
     {
         std::string errorMessages;
+        bool reopenFile = false;
 
         if (!waitForOutputFile())
         {
             errorMessages += "Error writing to log file " + mOutputFilePath + '\n';
-            errorMessages += "Forcing a renew...\n";
-            setForceRenew(true);
+            errorMessages += "Re-opening...\n";
+            reopenFile = true;
         }
 
         const size_t outFileSize = mOutputFile ? static_cast<size_t>(mOutputFile.tellp()) : 0;
-        if (shouldRenew())
+        if (reopenFile)
+        {
+            ReopenScope s(mOutputFile, mOutputFilePath);
+        }
+        else if (shouldRenew())
         {
             ReopenScope s(mOutputFile, mOutputFilePath);
             mFileManager.cleanupFiles();
@@ -484,11 +489,13 @@ void FileRotatingLoggedStream::mainLoop()
         }
 
         errorMessages += mFileManager.popErrors();
-        if (!errorMessages.empty())
+        std::cerr << errorMessages;
+
+        if (!mOutputFile)
         {
-            mOutputFile << errorMessages;
-            std::cerr << errorMessages;
+            continue;
         }
+        mOutputFile << errorMessages;
 
         bool writeMessages = false;
         {
