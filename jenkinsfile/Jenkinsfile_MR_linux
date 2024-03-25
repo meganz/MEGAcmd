@@ -152,13 +152,13 @@ pipeline {
                             timeout(time: 10, unit: 'MINUTES')
                         }
                         environment{
-                            ASAN_OPTIONS='atexit=1,print_stats=1,log_path=/tmp/test-results/megacmd-unit-tests-asan-report'
-                            TSAN_OPTIONS='log_path=/tmp/test-results/megacmd-unit-tests-tsan-report'
-                            UBSAN_OPTIONS='log_path=/tmp/test-results/megacmd-unit-tests-ubsan-report'
+                            ASAN_OPTIONS='atexit=1,print_stats=1,log_path=/tmp/test-results/megacmd-unit-unit-asan-report'
+                            TSAN_OPTIONS='log_path=/tmp/test-results/megacmd-unit-unit-tsan-report'
+                            UBSAN_OPTIONS='log_path=/tmp/test-results/megacmd-unit-unit-ubsan-report'
                         }
                         steps {
                             dir('test-results') {
-                                sh "docker run --user \$(id -u):\$(id -g) --env HOME=/tmp --env ASAN_OPTIONS --env TSAN_OPTIONS --rm --mount type=bind,src='${megacmd_sources_workspace}/test-results',target=/tmp/test-results -- meganz/megacmd-cmake-v2-${SANITIZERS}:${env.BUILD_NUMBER} /usr/local/bin/mega-cmd-unit-tests --gtest_output=xml:/tmp/test-results/${SANITIZERS}-megacmd-unit-tests.xml --gtest_shuffle"
+                                sh "docker run --user \$(id -u):\$(id -g) --env HOME=/tmp --env ASAN_OPTIONS --env TSAN_OPTIONS --rm --mount type=bind,src='${megacmd_sources_workspace}/test-results',target=/tmp/test-results -- meganz/megacmd-cmake-v2-${SANITIZERS}:${env.BUILD_NUMBER} /usr/local/bin/mega-cmd-unit-unit --gtest_output=xml:/tmp/test-results/${SANITIZERS}-megacmd-unit-unit.xml --gtest_shuffle"
                             }
                         }
                     }
@@ -174,16 +174,16 @@ pipeline {
                         environment{
                             MEGACMD_TEST_USER=''
                             MEGACMD_TEST_PASS=credentials('MEGACMD_TESTS_PASSWORD')
-                            ASAN_OPTIONS='atexit=1,print_stats=1,log_path=/tmp/test-results/megacmd-integration-tests-asan-report'
-                            TSAN_OPTIONS='log_path=/tmp/test-results/megacmd-integration-tests-tsan-report'
-                            UBSAN_OPTIONS='log_path=/tmp/test-results/megacmd-unit-integration-ubsan-report'
+                            ASAN_OPTIONS='atexit=1,print_stats=1,log_path=/tmp/test-results/megacmd-tests-integration-asan-report'
+                            TSAN_OPTIONS='log_path=/tmp/test-results/megacmd-tests-integration-tsan-report'
+                            UBSAN_OPTIONS='log_path=/tmp/test-results/megacmd-tests-unit-integration-ubsan-report'
                         }
                         steps {
                             lock(label: 'testing_accounts_megacmd', variable: 'MEGACMD_TEST_USER', quantity: 1, resource: null){
                                 dir('test-results') {
                                     script {
                                         try {
-                                            sh "docker run --user \$(id -u):\$(id -g) --env HOME=/tmp --env MEGACMD_TEST_PASS --env MEGACMD_TEST_USER --env ASAN_OPTIONS --env TSAN_OPTIONS --rm --mount type=bind,src='${megacmd_sources_workspace}/test-results',target=/tmp/test-results -- meganz/megacmd-cmake-v2-${SANITIZERS}:${env.BUILD_NUMBER} /usr/local/bin/mega-cmd-integration-tests --gtest_output=xml:/tmp/test-results/${SANITIZERS}-megacmd-integration-tests.xml --gtest_shuffle"
+                                            sh "docker run --user \$(id -u):\$(id -g) --env HOME=/tmp --env MEGACMD_TEST_PASS --env MEGACMD_TEST_USER --env ASAN_OPTIONS --env TSAN_OPTIONS --rm --mount type=bind,src='${megacmd_sources_workspace}/test-results',target=/tmp/test-results -- meganz/megacmd-cmake-v2-${SANITIZERS}:${env.BUILD_NUMBER} /usr/local/bin/mega-cmd-tests-integration --gtest_output=xml:/tmp/test-results/${SANITIZERS}-megacmd-tests-integration.xml --gtest_shuffle"
                                         } catch(e) {
                                             if (env.SANITIZERS == 'tsan'){
                                                 echo "${env.SANITIZERS} sanitizer build are expected to fail for now, will keep the build as successful"
