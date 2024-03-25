@@ -127,6 +127,7 @@ CMakeFiles
 build-x64-windows-mega
 Makefile.Debug
 Makefile.Release
+build-MEGAcmd-*
 
 build/Release_x64
 /build/megacmd/megacmd*.dsc
