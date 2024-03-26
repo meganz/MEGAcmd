@@ -150,7 +150,7 @@ pipeline {
                 sh "echo Running tests"
                 sh """#!/bin/zsh
                 set -x
-                export PATH="${env.INSTALL_DIR}:PATH"
+                export PATH="${env.INSTALL_DIR}/bin:$PATH"
                 mega-cmd-tests-unit
                 """
             }
