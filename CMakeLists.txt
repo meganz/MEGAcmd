@@ -92,7 +92,7 @@ target_compile_definitions(LMegacmdServer
     $<$<BOOL:${ENABLE_BACKUPS}>:ENABLE_BACKUPS> #TODO: The SDK no longer has this flag, we can simply remove the conditionality of it.
     $<$<BOOL:${USE_LIBUV}>:HAVE_LIBUV>
     $<$<BOOL:${USE_PCRE}>:USE_PCRE>
-    $<$<CONFIG:Debug>:DEBUG,NDEBUG>
+    $<IF:$<CONFIG:Debug>,DEBUG,NDEBUG>
 )
 
 add_executable(mega-cmd-server)
