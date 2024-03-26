@@ -92,7 +92,7 @@ pipeline {
                         userRemoteConfigs: [[ url: "https://github.com/microsoft/vcpkg" ]],
                         extensions: [
                             [$class: "UserIdentity",name: "jenkins", email: "jenkins@jenkins"],
-                            [$class: "CloneOption", depth: 1, shallow: true, noTags: false, reference: '']
+                            [$class: "CloneOption", noTags: false, reference: '']
                         ]
                         ])
                     }
@@ -126,7 +126,7 @@ pipeline {
         stage('Build MEGAcmd'){
             environment{
                 PATH = "cmdinstall/bin:${env.PATH}"
-                BUILD_DIR = "build/cmake/build_dir"
+                BUILD_DIR = "cmdbuild"
             }
             options{
                 timeout(time: 3, unit: 'HOURS')
