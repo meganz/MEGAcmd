@@ -14,3 +14,8 @@ endif()
 if(FULL_REQS)
     add_compile_definitions(REQUIRE_HAVE_PDFIUM REQUIRE_HAVE_FFMPEG REQUIRE_HAVE_LIBUV REQUIRE_USE_MEDIAINFO REQUIRE_USE_PCRE)
 endif()
+option(ENABLE_MEGACMD_TESTS "Enable MEGAcmd testing code" OFF)
+
+if(ENABLE_MEGACMD_TESTS)
+    add_compile_definitions(MEGACMD_TESTING_CODE=1)
+endif()

@@ -204,6 +204,10 @@ target_link_libraries(mega-cmd PUBLIC MEGA::SDKlib)
 target_link_libraries(mega-cmd-updater PUBLIC MEGA::SDKlib)
 target_link_libraries(LMegacmdServer PUBLIC MEGA::SDKlib)
 
+if (ENABLE_MEGACMD_TESTS)
+  target_link_libraries(LMegacmdServer PUBLIC LMegacmdTestsCommon)
+endif()
+
 if (WIN32)
   target_link_libraries(LMegacmdServer PUBLIC Lz32.lib Taskschd.lib)
   target_link_libraries(mega-cmd-updater PUBLIC Lz32.lib Urlmon.lib)
