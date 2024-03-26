@@ -89,7 +89,7 @@ pipeline {
                         checkout([
                         $class: 'GitSCM',
                         branches: [[name: "origin/master"]],
-                        userRemoteConfigs: [[ url: "https://github.com/microsoft/vcpkg" ],
+                        userRemoteConfigs: [[ url: "https://github.com/microsoft/vcpkg" ]],
                         extensions: [
                             [$class: "UserIdentity",name: "jenkins", email: "jenkins@jenkins"],
                             [$class: "CloneOption", depth: 1, shallow: true, noTags: false, reference: '']
