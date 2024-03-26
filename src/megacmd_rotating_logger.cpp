@@ -16,6 +16,7 @@
 #include "megacmd_rotating_logger.h"
 
 #include <cassert>
+#include <unordered_set>
 #include <zlib.h>
 
 #include "mega/filesystem.h"
