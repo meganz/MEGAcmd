@@ -223,7 +223,7 @@ pipeline {
             }
             sh "docker image rm -- meganz/megacmd-cmake-v2-tsan:${env.BUILD_NUMBER} || true"
             junit "**/test-results/ubsan-*.xml"
-            archiveArtifacts artifacts: "**/test-results/megacmd-*-tests-*-report.*"
+            archiveArtifacts artifacts: "**/test-results/mega*cmd-*-tests-*-report.*"
         }
 
     }
