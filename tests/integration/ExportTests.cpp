@@ -47,12 +47,12 @@ protected:
 namespace {
     // We'll use these regex to verify the links and authentication keys are well-formed
     // Links end in <handle>#<key>, whereas tokens end in <handle>#<key>:<auth-key>
-    // <handle> and <auth-key> are simply alphanumeric, and <key> can also contain '-'
+    // <handle> is simply alphanumeric, while <auth-key> and <key> can also contain '-' or '_'
     // Since GTest uses a very simple Regex implementation on Windows, we cannot use groups or brackets (see: https://google.github.io/googletest/advanced.html#regular-expression-syntax)
-    const std::string megaFileLinkRegex("https:\\/\\/mega.nz\\/file\\/\\w+\\#\\S+");
-    const std::string megaFolderLinkRegex("https:\\/\\/mega.nz\\/folder\\/\\w+\\#\\S+");
-    const std::string megaPasswordLinkRegex("https:\\/\\/mega.nz\\/\\S+");
-    const std::string authTokenRegex("\\w+\\#\\S+\\:\\w+");
+    const std::string megaFileLinkRegex(R"(https:\/\/mega.nz\/file\/\w+\#\S+)");
+    const std::string megaFolderLinkRegex(R"(https:\/\/mega.nz\/folder\/\w+\#\S+)");
+    const std::string megaPasswordLinkRegex(R"(https:\/\/mega.nz\/\S+)");
+    const std::string authTokenRegex(R"(\w+\#\S+\:\S+)");
 }
 
 TEST_F(ExportTest, Basic)

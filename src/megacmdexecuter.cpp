@@ -9713,7 +9713,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         else
                         {
                             setCurrentOutCode(MCMD_EXISTS);
-                            LOG_err << "Node " << words[i] << " is already exported. "
+                            LOG_err << "Node " << n->getName() << " is already exported. "
                                     << "Use -d to delete it if you want to change its parameters. Note: the new link may differ";
                         }
                     }
@@ -9728,7 +9728,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         if (exportedCount == 0)
                         {
                             setCurrentOutCode(MCMD_NOTFOUND);
-                            OUTSTREAM << words[i] << " is not exported. Use -a to export it" << endl;
+                            OUTSTREAM << n->getName() << " is not exported. Use -a to export it" << endl;
                         }
                     }
                 }
