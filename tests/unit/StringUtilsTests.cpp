@@ -38,7 +38,7 @@ namespace StringUtilsTest
             ASSERT_STREQ(rtrim(s, '6').c_str(), "12345");
         }
     }
-};
+}
 
 TEST(StringUtilsTest, trimming)
 {
