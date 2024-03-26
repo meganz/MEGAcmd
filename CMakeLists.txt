@@ -221,10 +221,6 @@ load_megacmdserver_libraries()
 
 # Install stuff
 if (NOT WIN32)
-  install(TARGETS mega-exec mega-cmd mega-cmd-server mega-cmd-tests-unit mega-cmd-tests-integration
-      RUNTIME
-      DESTINATION ${CMAKE_INSTALL_BINDIR}
-  )
     #Install vcpkg dynamic libraries in locations defined by GNUInstallDirs. Note: CMAKE_INSTALL_PREFIX would need to be /usr for
     # CMAKE_INSTALL_LIBDIR to be set correctly in Debian based systems
     if(CMAKE_BUILD_TYPE STREQUAL "Debug")
@@ -232,7 +228,15 @@ if (NOT WIN32)
     else()
         SET(vcpkg_lib_folder "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/lib/")
     endif()
-    set(CMAKE_INSTALL_RPATH ${CMAKE_INSTALL_LIBDIR}) #for macOS
+    if(APPLE)
+        set(CMAKE_INSTALL_RPATH ${CMAKE_INSTALL_LIBDIR}) #for macOS
+        message(STATUS "Added CMAKE_INSTALL_LIBDIR=${CMAKE_INSTALL_LIBDIR} to rpath: ${CMAKE_INSTALL_RPATH}")
+    endif()
+
+    install(TARGETS mega-exec mega-cmd mega-cmd-server mega-cmd-tests-unit mega-cmd-tests-integration
+        RUNTIME
+        DESTINATION ${CMAKE_INSTALL_BINDIR}
+    )
     install(DIRECTORY "${vcpkg_lib_folder}"
             DESTINATION ${CMAKE_INSTALL_LIBDIR}
             FILES_MATCHING
