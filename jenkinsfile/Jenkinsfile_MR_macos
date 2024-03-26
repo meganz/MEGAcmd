@@ -96,6 +96,10 @@ pipeline {
                         ]
                         ])
                     }
+                    script{
+                        megacmd_sources_workspace = WORKSPACE
+                        vcpkg_sources_workspace = "${megacmd_sources_workspace}/vcpkg"
+                    }
                 }
                 }
                 stage('Checkout SDK'){
@@ -129,7 +133,7 @@ pipeline {
             }
             steps{
                 sh "rm -rf ${BUILD_DIR}; mkdir ${BUILD_DIR}"
-                sh "cmake -DCMAKE_VERBOSE_MAKEFILE=1 -DENABLE_MEGACMD_TESTS=1 -DCMAKE_BUILD_TYPE=Debug -DVCPKG_ROOT=../vcpkg -DCMAKE_INSTALL_PREFIX=cmdinstall -S '${megacmd_sources_workspace}'/build/cmake/ -B ${BUILD_DIR} '${env.BUILD_OPTIONS}'"
+                sh "cmake -DCMAKE_VERBOSE_MAKEFILE=1 -DENABLE_MEGACMD_TESTS=1 -DCMAKE_BUILD_TYPE=Debug -DVCPKG_ROOT=${vcpkg_sources_workspace} -DCMAKE_INSTALL_PREFIX=cmdinstall -S '${megacmd_sources_workspace}'/build/cmake/ -B ${BUILD_DIR} '${env.BUILD_OPTIONS}'"
                 sh "cmake --build ${megacmd_sources_workspace}/${BUILD_DIR} -j 2"
                 sh "cmake --install ${megacmd_sources_workspace}/${BUILD_DIR}"
             }
