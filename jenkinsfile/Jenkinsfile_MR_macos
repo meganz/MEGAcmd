@@ -67,59 +67,77 @@ pipeline {
                 }
             }
         }
-        stage('Checkout SDK and MEGAchat'){
-            steps {
-                //Clone MEGAcmd
-                sh "echo Cloning MEGAcmd with prebuildmerge"
-                checkout([
-                    $class: 'GitSCM', 
-                    branches: [[name: "origin/${env.gitlabSourceBranch}"]],
-                    userRemoteConfigs: [[ url: "${env.GIT_URL_MEGACMD}", credentialsId: "12492eb8-0278-4402-98f0-4412abfb65c1" ]],
-                    extensions: [
+
+        stage('Checkout sources'){
+            parallel{
+                stage('Checkout MEGAcmd with prebuildmerge'){
+                    steps{
+                    checkout([
+                        $class: 'GitSCM',
+                        branches: [[name: "origin/${env.gitlabSourceBranch}"]],
+                        userRemoteConfigs: [[ url: "${env.GIT_URL_MEGACMD}", credentialsId: "12492eb8-0278-4402-98f0-4412abfb65c1" ]],
+                        extensions: [
                         [$class: "UserIdentity",name: "jenkins", email: "jenkins@jenkins"],
                         [$class: 'PreBuildMerge', options: [fastForwardMode: 'FF', mergeRemote: "origin", mergeStrategy: 'DEFAULT', mergeTarget: "${env.gitlabTargetBranch}"]]
+                                    ]
+                    ])
+                    }
+                }
+                stage('Checkout VCPKG'){
+                    steps{
+                    dir('vcpkg'){
+                        checkout([
+                        $class: 'GitSCM',
+                        branches: [[name: "origin/master"]],
+                        userRemoteConfigs: [[ url: "https://github.com/microsoft/vcpkg" ],
+                        extensions: [
+                            [$class: "UserIdentity",name: "jenkins", email: "jenkins@jenkins"],
+                            [$class: "CloneOption", depth: 1, shallow: true, noTags: false, reference: '']
                         ]
-                ])
-                dir('sdk'){  
-                    checkout([
-                        $class: 'GitSCM', 
+                        ])
+                    }
+                }
+                }
+                stage('Checkout SDK'){
+                    steps{
+                    dir('sdk'){
+                        checkout([
+                        $class: 'GitSCM',
                         branches: [[name: "origin/${SDK_BRANCH}"]],
                         userRemoteConfigs: [[ url: "${env.GIT_URL_SDK}", credentialsId: "12492eb8-0278-4402-98f0-4412abfb65c1" ]],
                         extensions: [
-                            [$class: "UserIdentity",name: "jenkins", email: "jenkins@jenkins"]
-                            ]
-                    ])
-                }
-                script{
-                    mac_sources_workspace = WORKSPACE
+                            [$class: "UserIdentity",name: "jenkins", email: "jenkins@jenkins"],
+                            [$class: "CloneOption", depth: 1, shallow: true, noTags: false, reference: '']
+                        ]
+                        ])
+                    }
+                    script{
+                        megacmd_sources_workspace = WORKSPACE
+                        sdk_sources_workspace = "${megacmd_sources_workspace}/sdk"
+                    }
+                    }
                 }
             }
         }
-
         stage('Build MEGAcmd'){
             environment{
-                PATH = "/usr/local/bin:${env.PATH}"
-                VCPKGPATH = "${env.HOME}/jenkins/3rdparty"
+                PATH = "cmdinstall/bin:${env.PATH}"
                 BUILD_DIR = "build/cmake/build_dir"
             }
             options{
                 timeout(time: 3, unit: 'HOURS')
             }
             steps{
-                sh '''sed -i '' 's/-2_3/-2_5/g' sdk/contrib/cmake/CMakeLists.txt'''
                 sh "rm -rf ${BUILD_DIR}; mkdir ${BUILD_DIR}"
-                sh "cmake -DCMAKE_VERBOSE_MAKEFILE=1 -DENABLE_MEGACMD_TESTS=1 -DCMAKE_BUILD_TYPE=Debug -DUSE_PREBUILT_3RDPARTY=0 -DUSE_THIRDPARTY_FROM_VCPKG=1 -DMega3rdPartyDir='${VCPKGPATH}' '${env.BUILD_OPTIONS}' -S '${mac_sources_workspace}'/build/cmake/ -B '${mac_sources_workspace}'/build/cmake/build_dir/"
-                sh "cmake --build ${mac_sources_workspace}/${BUILD_DIR} --target mega-cmd-server -j 1"
-                sh "cmake --build ${mac_sources_workspace}/${BUILD_DIR} --target mega-cmd -j 1"
-                sh "cmake --build ${mac_sources_workspace}/${BUILD_DIR} --target mega-exec -j 1"
-                sh "cmake --build ${mac_sources_workspace}/${BUILD_DIR} --target mega-cmd-tests-unit -j 1"
-                sh "cmake --build ${mac_sources_workspace}/${BUILD_DIR} --target mega-cmd-tests-integration -j 1"
+                sh "cmake -DCMAKE_VERBOSE_MAKEFILE=1 -DENABLE_MEGACMD_TESTS=1 -DCMAKE_BUILD_TYPE=Debug -DVCPKG_ROOT=../vcpkg -DCMAKE_INSTALL_PREFIX=cmdinstall -S '${megacmd_sources_workspace}'/build/cmake/ -B ${BUILD_DIR} '${env.BUILD_OPTIONS}'"
+                sh "cmake --build ${megacmd_sources_workspace}/${BUILD_DIR} -j 2"
+                sh "cmake --install ${megacmd_sources_workspace}/${BUILD_DIR}"
             }
         }
 
         stage('Run tests'){
             environment {
-                BUILD_DIR = "build/cmake/build_dir"
+                INSTALL_DIR = "cmdinstall"
             }
             options{
                 timeout(time: 5, unit: 'MINUTES')
@@ -128,7 +146,7 @@ pipeline {
                 sh "echo Running tests"
                 sh """#!/bin/zsh
                 set -x
-                cd ${env.BUILD_DIR}
+                cd ${env.INSTALL_DIR}
                 ./mega-cmd-tests-unit
                 """
             }

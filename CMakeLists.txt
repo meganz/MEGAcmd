@@ -232,10 +232,12 @@ if (NOT WIN32)
     else()
         SET(vcpkg_lib_folder "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/lib/")
     endif()
+    set(CMAKE_INSTALL_RPATH ${CMAKE_INSTALL_LIBDIR}) #for macOS
     install(DIRECTORY "${vcpkg_lib_folder}"
             DESTINATION ${CMAKE_INSTALL_LIBDIR}
             FILES_MATCHING
             PATTERN "lib*.so*"
+            PATTERN "*dylib*" #macOS
             PATTERN "manual-link" EXCLUDE
             PATTERN "pkgconfig" EXCLUDE)
 endif() #not WIN32
