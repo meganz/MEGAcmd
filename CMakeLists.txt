@@ -208,22 +208,34 @@ target_link_libraries(mega-cmd-tests-unit PUBLIC LMegacmdServer LMegacmdTestsCom
 # Load 3rd parties #TODO: consider splitting by target?
 load_megacmdserver_libraries()
 
+#file(GET_RUNTIME_DEPENDENCIES ... _deps)
+#foreach(_dep IN LISTS _deps)
+#    message( "es una dependencia")
+##  if("${_dep}" SAME_FILE "/some/file/built/by/cmake.so") # if(SAME_FILE) doesn't currently exist, we'd have to create it
+##    # Target install rules for this CMake-built target
+#  #else()
+##    # Standard install rules for external runtime dependencies
+##  endif()
+#endforeach()
+
+
 # Install stuff
 if (NOT WIN32)
   install(TARGETS mega-exec mega-cmd mega-cmd-server mega-cmd-tests-unit mega-cmd-tests-integration
       RUNTIME
-      LIBRARY
-      PUBLIC_HEADER
-      ARCHIVE
-      INCLUDES DESTINATION
+      DESTINATION ${CMAKE_INSTALL_BINDIR}
   )
-install(DIRECTORY "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/lib/" #TODO: missing /debug
-        DESTINATION lib
-        FILES_MATCHING
-        PATTERN "libav*.so*"
-        PATTERN "libsw*.so*"
-        EXCLUDE #TODO: below is not working
-        PATTERN "manual-link"
-        PATTERN "pkgconfig") #TODO: this installs more than requires!
-endif()
-
+    #Install vcpkg dynamic libraries in locations defined by GNUInstallDirs. Note: CMAKE_INSTALL_PREFIX would need to be /usr for
+    # CMAKE_INSTALL_LIBDIR to be set correctly in Debian based systems
+    if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+        SET(vcpkg_lib_folder "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/debug/lib/")
+    else()
+        SET(vcpkg_lib_folder "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/lib/")
+    endif()
+    install(DIRECTORY "${vcpkg_lib_folder}"
+            DESTINATION ${CMAKE_INSTALL_LIBDIR}
+            FILES_MATCHING
+            PATTERN "lib*.so*"
+            PATTERN "manual-link" EXCLUDE
+            PATTERN "pkgconfig" EXCLUDE)
+endif() #not WIN32
