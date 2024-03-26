@@ -27,6 +27,9 @@
 #include <future>
 
 #include <sstream>
+#include <regex>
+#include <gtest/gtest.h>
+#include <gmock/gmock.h>
 
 #define ULOG_COLOR(color, fmt, ...) \
     do { if (isatty(1)) printf(color fmt "\033[0m\n", ##__VA_ARGS__); \
@@ -126,4 +129,14 @@ public:
 #define G_SUBTEST    GTestMessager(gti::COLOR_GREEN, "SUBTEST")
 #define G_SUBSUBTEST GTestMessager(gti::COLOR_GREEN, "SSUBTEST")
 
+namespace testing {
+MATCHER_P(MatchesStdRegex, pattern, "MatchesRegex using std::regex") {
+    std::regex regex(pattern);
+    return std::regex_match(arg, regex);
+}
 
+MATCHER_P(ContainsStdRegex, pattern, "ContainsRegex using std::regex") {
+    std::regex regex(pattern);
+    return std::regex_search(arg, regex);
+}
+} // end namespace testing

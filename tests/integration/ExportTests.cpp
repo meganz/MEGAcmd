@@ -69,14 +69,14 @@ TEST_F(ExportTest, Basic)
         auto rCreate = executeInClient({"export", "-a", "-f", file_path});
         ASSERT_TRUE(rCreate.ok());
         EXPECT_THAT(rCreate.out(), testing::HasSubstr("Exported /" + file_path));
-        EXPECT_THAT(rCreate.out(), testing::ContainsRegex(megaFileLinkRegex));
+        EXPECT_THAT(rCreate.out(), testing::ContainsStdRegex(megaFileLinkRegex));
 
         // Verify it shows up as exported
         rExport = executeInClient({"export", file_path});
         ASSERT_TRUE(rExport.ok());
         EXPECT_THAT(rExport.out(), testing::HasSubstr(file_path));
         EXPECT_THAT(rExport.out(), testing::HasSubstr("shared as exported permanent file link"));
-        EXPECT_THAT(rExport.out(), testing::ContainsRegex(megaFileLinkRegex));
+        EXPECT_THAT(rExport.out(), testing::ContainsStdRegex(megaFileLinkRegex));
 
         auto rDisable = executeInClient({"export", "-d", file_path});
         ASSERT_TRUE(rDisable.ok());
@@ -102,14 +102,14 @@ TEST_F(ExportTest, Basic)
         auto rCreate = executeInClient({"export", "-a", "-f", dir_path});
         ASSERT_TRUE(rCreate.ok());
         EXPECT_THAT(rCreate.out(), testing::HasSubstr("Exported /" + dir_path));
-        EXPECT_THAT(rCreate.out(), testing::ContainsRegex(megaFolderLinkRegex));
+        EXPECT_THAT(rCreate.out(), testing::ContainsStdRegex(megaFolderLinkRegex));
 
         // Verify it shows up as exported
         rExport = executeInClient({"export", dir_path});
         ASSERT_TRUE(rExport.ok());
         EXPECT_THAT(rExport.out(), testing::HasSubstr(dir_path));
         EXPECT_THAT(rExport.out(), testing::HasSubstr("shared as exported permanent folder link"));
-        EXPECT_THAT(rExport.out(), testing::ContainsRegex(megaFolderLinkRegex));
+        EXPECT_THAT(rExport.out(), testing::ContainsStdRegex(megaFolderLinkRegex));
 
         auto rDisable = executeInClient({"export", "-d", dir_path});
         ASSERT_TRUE(rDisable.ok());
@@ -132,7 +132,7 @@ TEST_F(ExportTest, FailedRecreation)
     auto rCreate = executeInClient(createCommand);
     ASSERT_TRUE(rCreate.ok());
     EXPECT_THAT(rCreate.out(), testing::HasSubstr("Exported /" + file_path));
-    EXPECT_THAT(rCreate.out(), testing::ContainsRegex(megaFileLinkRegex));
+    EXPECT_THAT(rCreate.out(), testing::ContainsStdRegex(megaFileLinkRegex));
 
     rCreate = executeInClient(createCommand);
     ASSERT_FALSE(rCreate.ok());
@@ -154,16 +154,16 @@ TEST_F(ExportTest, Writable)
     auto rCreate = executeInClient({"export", "-a", "-f", "--writable", dir_path});
     ASSERT_TRUE(rCreate.ok());
     EXPECT_THAT(rCreate.out(), testing::HasSubstr("Exported /" + dir_path));
-    EXPECT_THAT(rCreate.out(), testing::ContainsRegex(megaFolderLinkRegex));
-    EXPECT_THAT(rCreate.out(), testing::ContainsRegex("AuthToken = " + authTokenRegex));
+    EXPECT_THAT(rCreate.out(), testing::ContainsStdRegex(megaFolderLinkRegex));
+    EXPECT_THAT(rCreate.out(), testing::ContainsStdRegex("AuthToken = " + authTokenRegex));
 
     // Verify the authToken is also present when checking the export (not just when creating it)
     auto rCheck = executeInClient({"export", dir_path});
     ASSERT_TRUE(rCheck.ok());
     EXPECT_THAT(rCheck.out(), testing::HasSubstr(dir_path));
     EXPECT_THAT(rCheck.out(), testing::HasSubstr("shared as exported permanent folder link"));
-    EXPECT_THAT(rCheck.out(), testing::ContainsRegex(megaFolderLinkRegex));
-    EXPECT_THAT(rCheck.out(), testing::ContainsRegex("AuthToken=" + authTokenRegex));
+    EXPECT_THAT(rCheck.out(), testing::ContainsStdRegex(megaFolderLinkRegex));
+    EXPECT_THAT(rCheck.out(), testing::ContainsStdRegex("AuthToken=" + authTokenRegex));
 
     auto rDisable = executeInClient({"export", "-d", dir_path});
     ASSERT_TRUE(rDisable.ok());
@@ -179,13 +179,13 @@ TEST_F(ExportTest, NestedDirectoryStructure)
         auto rCreate = executeInClient({"export", "-a", "-f", dir_path});
         ASSERT_TRUE(rCreate.ok());
         EXPECT_THAT(rCreate.out(), testing::HasSubstr("Exported /" + dir_path));
-        EXPECT_THAT(rCreate.out(), testing::ContainsRegex(megaFolderLinkRegex));
+        EXPECT_THAT(rCreate.out(), testing::ContainsStdRegex(megaFolderLinkRegex));
 
         auto rExport = executeInClient({"export", dir_path});
         ASSERT_TRUE(rExport.ok());
         EXPECT_THAT(rExport.out(), testing::HasSubstr(dir_path));
         EXPECT_THAT(rExport.out(), testing::HasSubstr("shared as exported permanent folder link"));
-        EXPECT_THAT(rExport.out(), testing::ContainsRegex(megaFolderLinkRegex));
+        EXPECT_THAT(rExport.out(), testing::ContainsStdRegex(megaFolderLinkRegex));
 
         auto rDisable = executeInClient({"export", "-d", dir_path});
         ASSERT_TRUE(rDisable.ok());
@@ -199,13 +199,13 @@ TEST_F(ExportTest, NestedDirectoryStructure)
         auto rCreate = executeInClient({"export", "-a", "-f", file_path});
         ASSERT_TRUE(rCreate.ok());
         EXPECT_THAT(rCreate.out(), testing::HasSubstr("Exported /" + file_path));
-        EXPECT_THAT(rCreate.out(), testing::ContainsRegex(megaFileLinkRegex));
+        EXPECT_THAT(rCreate.out(), testing::ContainsStdRegex(megaFileLinkRegex));
 
         auto rExport = executeInClient({"export", file_path});
         ASSERT_TRUE(rExport.ok());
         EXPECT_THAT(rExport.out(), testing::HasSubstr(file_path));
         EXPECT_THAT(rExport.out(), testing::HasSubstr("shared as exported permanent file link"));
-        EXPECT_THAT(rExport.out(), testing::ContainsRegex(megaFileLinkRegex));
+        EXPECT_THAT(rExport.out(), testing::ContainsStdRegex(megaFileLinkRegex));
 
         auto rDisable = executeInClient({"export", "-d", file_path});
         ASSERT_TRUE(rDisable.ok());
@@ -228,7 +228,7 @@ TEST_F(ExportTest, PasswordProtected)
         EXPECT_THAT(rCreate.out(), testing::HasSubstr("Only PRO users can protect links with passwords"));
         EXPECT_THAT(rCreate.out(), testing::HasSubstr("Showing UNPROTECTED link"));
         EXPECT_THAT(rCreate.out(), testing::HasSubstr("Exported /" + file_path));
-        EXPECT_THAT(rCreate.out(), testing::ContainsRegex(megaFileLinkRegex));
+        EXPECT_THAT(rCreate.out(), testing::ContainsStdRegex(megaFileLinkRegex));
 
         auto rDisable = executeInClient(disableCommand);
         ASSERT_TRUE(rDisable.ok());
@@ -244,7 +244,7 @@ TEST_F(ExportTest, PasswordProtected)
         EXPECT_THAT(rCreate.out(), testing::Not(testing::HasSubstr("Only PRO users can protect links with passwords")));
         EXPECT_THAT(rCreate.out(), testing::Not(testing::HasSubstr("Showing UNPROTECTED link")));
         EXPECT_THAT(rCreate.out(), testing::HasSubstr("Exported /" + file_path));
-        EXPECT_THAT(rCreate.out(), testing::ContainsRegex(megaPasswordLinkRegex));
+        EXPECT_THAT(rCreate.out(), testing::ContainsStdRegex(megaPasswordLinkRegex));
 
         auto rDisable = executeInClient(disableCommand);
         ASSERT_TRUE(rDisable.ok());
