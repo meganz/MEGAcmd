@@ -119,46 +119,49 @@ pipeline {
             }
         }
 
-        stage('Run unit tests'){
-            environment{
-                PATH = "${windows_sources_workspace}\\\\..\\\\vcpkg\\\\installed\\\\x64-windows-mega\\\\debug\\\\bin;${env.PATH}"
-            }
-            options{
-                timeout(time: 3, unit: 'HOURS')
-            }
-            steps{
-                sh "echo Running tests"
-                bat """
+	parallel {
+	    stage('Run unit tests'){
+		environment{
+                    PATH = "${windows_sources_workspace}\\\\..\\\\vcpkg\\\\installed\\\\x64-windows-mega\\\\debug\\\\bin;${env.PATH}"
+		}
+		options{
+                    timeout(time: 3, unit: 'HOURS')
+		}
+		steps{
+                    sh "echo Running tests"
+                    bat """
                 build\\\\cmake\\\\build_dir\\\\Debug\\\\mega-cmd-tests-unit.exe
-                if %ERRORLEVEL% NEQ 0 exit 1
-                exit %ERROR_VAL%
-                """
-            }
-        }
-
-	stage('Run integration tests'){
-	    environment{
-                PATH = "${windows_sources_workspace}\\\\..\\\\vcpkg\\\\installed\\\\x64-windows-mega\\\\debug\\\\bin;${env.PATH}"
-		MEGACMD_TEST_USER=''
-		MEGACMD_TEST_PASS=credentials('MEGACMD_TESTS_PASSWORD')
-            }
-            options{
-                timeout(time: 3, unit: 'HOURS')
-            }
-            steps{
-		lock(label: 'testing_accounts_megacmd', variable: 'MEGACMD_TEST_USER', quantity: 1, resource: null) {
-		    bat """
-                build\\\\cmake\\\\build_dir\\\\Debug\\\\mega-cmd-tests-integration.exe
                 if %ERRORLEVEL% NEQ 0 exit 1
                 exit %ERROR_VAL%
                 """
 		}
             }
-            post{
-                always{
-                    bat "rmdir build\\\\cmake\\\\build_dir\\\\Debug\\\\.megaCmd /s /q"
-                }
-            }
+
+	    stage('Run integration tests'){
+		environment{
+                    PATH = "${windows_sources_workspace}\\\\..\\\\vcpkg\\\\installed\\\\x64-windows-mega\\\\debug\\\\bin;${env.PATH}"
+		    MEGACMD_TEST_USER=''
+		    MEGACMD_TEST_PASS=credentials('MEGACMD_TESTS_PASSWORD')
+		}
+		options{
+                    timeout(time: 3, unit: 'HOURS')
+		}
+		steps{
+		    lock(label: 'testing_accounts_megacmd', variable: 'MEGACMD_TEST_USER', quantity: 1, resource: null) {
+			bat "dir ${windows_sources_workspace}\\\\..\\\\vcpkg\\\\installed\\\\x64-windows-mega\\\\debug\\\\bin"
+			bat """
+                build\\\\cmake\\\\build_dir\\\\Debug\\\\mega-cmd-tests-integration.exe
+                if %ERRORLEVEL% NEQ 0 exit 1
+                exit %ERROR_VAL%
+                """
+		    }
+		}
+		post{
+                    always{
+			bat "rmdir build\\\\cmake\\\\build_dir\\\\Debug\\\\.megaCmd /s /q"
+                    }
+		}
+	    }
 	}
     }
 
