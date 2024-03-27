@@ -51,15 +51,17 @@ public:
     using MemoryBlockList = std::vector<MemoryBlock>;
 
 public:
-    MessageBuffer();
+    MessageBuffer(size_t failSafeSize);
 
     void append(const char *data, size_t size);
     MemoryBlockList popMemoryBlockList(bool &initialMemoryGap);
 
     bool isEmpty() const;
     bool isNearLastBlockCapacity() const;
+    bool reachedFailSafeSize() const;
 
 private:
+    const size_t mFailSafeSize;
     mutable std::mutex mListMutex;
     MemoryBlockList mList;
     bool mInitialMemoryGap;
@@ -97,7 +99,7 @@ public:
     };
 
 public:
-    RotatingFileManager(const std::string &filePath, const Config &config = {});
+    RotatingFileManager(const mega::LocalPath &filePath, const Config &config = {});
 
     bool shouldRotateFiles(size_t fileSize) const;
 
@@ -123,15 +125,15 @@ class FileRotatingLoggedStream final : public LoggedStream
 {
     mutable MessageBuffer<1024> mMessageBuffer;
 
-    const std::string mOutputFilePath;
-    mutable OUTFSTREAMTYPE mOutputFile;
+    std::string mOutputFilePath;
+    OUTFSTREAMTYPE mOutputFile;
     RotatingFileManager mFileManager;
 
     mutable std::mutex mWriteMutex;
     mutable std::condition_variable mWriteCV;
     bool mForceRenew;
     bool mExit;
-    mutable bool mFlush;
+    bool mFlush;
     std::chrono::seconds mFlushPeriod;
     std::chrono::steady_clock::time_point mNextFlushTime;
 
@@ -147,11 +149,12 @@ private:
 
     void writeMessagesToFile();
     void flushToFile();
+    bool waitForOutputFile();
 
     void mainLoop();
 
 public:
-    FileRotatingLoggedStream(const std::string &outputFilePath);
+    FileRotatingLoggedStream(const OUTSTRING &outputFilePath);
     ~FileRotatingLoggedStream();
 
     const LoggedStream &operator<<(const char &c) const override;
@@ -162,12 +165,12 @@ public:
     const LoggedStream &operator<<(long long v) const override;
     const LoggedStream &operator<<(unsigned long v) const override;
 
-    const LoggedStream& operator<<(std::ios_base v)                     const override { return *this; }
-    const LoggedStream& operator<<(std::ios_base *v)                    const override { return *this; }
-    const LoggedStream& operator<<(OUTSTREAMTYPE& (*F)(OUTSTREAMTYPE&)) const override { return *this; }
+    const LoggedStream &operator<<(std::ios_base)                      const override { return *this; }
+    const LoggedStream &operator<<(std::ios_base*)                     const override { return *this; }
+    const LoggedStream &operator<<(OUTSTREAMTYPE& (*)(OUTSTREAMTYPE&)) const override { return *this; }
 
 #ifdef _WIN32
-    virtual const LoggedStream& operator<<(std::wstring v) const = 0;
+    const LoggedStream &operator<<(std::wstring v) const override;
 #endif
 
     virtual void flush() override;
@@ -226,9 +229,12 @@ void MessageBuffer<BlockSize>::MemoryBlock::appendData(const char *data, size_t 
 }
 
 template<size_t BlockSize>
-MessageBuffer<BlockSize>::MessageBuffer() :
+MessageBuffer<BlockSize>::MessageBuffer(size_t failSafeSize) :
+    mFailSafeSize(failSafeSize),
     mInitialMemoryGap(false)
 {
+    assert(mFailSafeSize > 0);
+    assert(mFailSafeSize > BlockSize);
 }
 
 template<size_t BlockSize>
@@ -289,5 +295,12 @@ bool MessageBuffer<BlockSize>::isNearLastBlockCapacity() const
 {
     std::lock_guard<std::mutex> lock(mListMutex);
     return !mList.empty() && mList.back().isNearCapacity();
+}
+
+template<size_t BlockSize>
+bool MessageBuffer<BlockSize>::reachedFailSafeSize() const
+{
+    std::lock_guard<std::mutex> lock(mListMutex);
+    return mList.size() > mFailSafeSize / BlockSize;
 }
 }

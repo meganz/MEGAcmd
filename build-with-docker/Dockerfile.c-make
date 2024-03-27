@@ -51,7 +51,6 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     && apt-get install -y --no-install-recommends \
     build-essential \
     ccache \
-    cmake \
     debhelper dh-autoreconf \
     libavcodec-dev \
     libavformat-dev \
@@ -69,7 +68,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     libsqlite3-dev \
     libssl-dev \
     libswscale-dev \
-    libtinyxml-dev \
+    libtinyxml2-dev \
     libtool-bin \
     libuv1-dev \
     libzen-dev \
@@ -77,17 +76,26 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     zip \
     zlib1g-dev
 
+FROM build-deps as build-deps-cmake
+
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update \
+    && apt-get install -y --no-install-recommends cmake
+
 FROM scratch as src
 
 WORKDIR /usr/src/megacmd
+COPY Makefile.am autogen.sh clean.sh configure.ac ./
 COPY sdk ./sdk
 COPY src ./src
-COPY tests ./tests
 COPY build ./build
 COPY contrib ./contrib
-COPY Makefile.am autogen.sh clean.sh configure.ac ./
+COPY tests/common ./tests/common
+COPY tests/integration ./tests/integration
+COPY tests/unit ./tests/unit
 
-FROM build-deps as build
+FROM build-deps-cmake as build
 
 WORKDIR /usr/src/megacmd
 
@@ -97,6 +105,7 @@ ENV CCACHE_DIR /tmp/ccache
 ARG ENABLE_ASAN=ON
 ARG ENABLE_UBSAN=ON
 ARG ENABLE_TSAN=OFF
+ARG ENABLE_MEGACMD_TESTS=ON
 
 COPY --from=src /usr/src/megacmd /usr/src/megacmd
 
@@ -105,14 +114,14 @@ RUN --mount=type=cache,target=/tmp/ccache \
     cmake -S build/cmake -B /tmp/build \
     -D ENABLE_ASAN=${ENABLE_ASAN} -D \
     ENABLE_UBSAN=${ENABLE_UBSAN} -D \
-    ENABLE_TSAN=${ENABLE_TSAN} \
-    && make -C /tmp/build -j$(nproc) \
+    ENABLE_TSAN=${ENABLE_TSAN} -D \
+    ENABLE_MEGACMD_TESTS=${ENABLE_MEGACMD_TESTS} \
+    && make -C /tmp/build -j$(nproc) mega-cmd mega-cmd-server mega-exec \
+    mega-cmd-updater mega-cmd-tests-integration mega-cmd-tests-unit \
     && cd /tmp/build \
     && install mega-cmd mega-cmd-server \
     mega-cmd-tests-integration mega-cmd-tests-unit \
     mega-cmd-updater mega-exec \
-    megacli \
-    test_integration test_unit \
     /usr/local/bin/
 
 FROM base as final

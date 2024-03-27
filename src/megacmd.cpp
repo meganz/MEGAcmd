@@ -18,6 +18,7 @@
 
 #include "megacmd.h"
 
+#include "megaapi.h"
 #include "megacmdsandbox.h"
 #include "megacmdexecuter.h"
 #include "megacmdutils.h"
@@ -3399,7 +3400,7 @@ bool executeUpdater(bool *restartRequired, bool doNotInstall = false)
     if (!SUCCEEDED(GetModuleFileName(NULL, szPath , MAX_PATH)))
     {
         LOG_err << "Couldnt get EXECUTABLE folder: " << wstring(szPath);
-        setCurrentOutCode(MCMD_EUNEXPECTED);
+        setCurrentThreadOutCode(MCMD_EUNEXPECTED);
         return false;
     }
 
@@ -3408,14 +3409,14 @@ bool executeUpdater(bool *restartRequired, bool doNotInstall = false)
         if (!PathAppend(szPath,TEXT("MEGAcmdUpdater.exe")))
         {
             LOG_err << "Couldnt append MEGAcmdUpdater exec: " << wstring(szPath);
-            setCurrentOutCode(MCMD_EUNEXPECTED);
+            setCurrentThreadOutCode(MCMD_EUNEXPECTED);
             return false;
         }
     }
     else
     {
         LOG_err << "Couldnt remove file spec: " << wstring(szPath);
-        setCurrentOutCode(MCMD_EUNEXPECTED);
+        setCurrentThreadOutCode(MCMD_EUNEXPECTED);
         return false;
     }
 #endif
@@ -3442,7 +3443,7 @@ bool executeUpdater(bool *restartRequired, bool doNotInstall = false)
                         &si,&pi) )
     {
         LOG_err << "Unable to execute: <" << wstring(szPath) << "> errno = : " << ERRNO;
-        setCurrentOutCode(MCMD_EUNEXPECTED);
+        setCurrentThreadOutCode(MCMD_EUNEXPECTED);
         return false;
     }
 
@@ -3543,7 +3544,7 @@ bool restartServer()
         if (!SUCCEEDED(GetModuleFileName(NULL, szPathServer , MAX_PATH)))
         {
             LOG_err << "Couldnt get EXECUTABLE folder: " << wstring(szPathServer);
-            setCurrentOutCode(MCMD_EUNEXPECTED);
+            setCurrentThreadOutCode(MCMD_EUNEXPECTED);
             return false;
         }
 
@@ -3772,14 +3773,14 @@ static bool process_line(char* l)
 
                 if (confirmationResponse != MCMDCONFIRM_YES && confirmationResponse != MCMDCONFIRM_ALL)
                 {
-                    setCurrentOutCode(MCMD_INVALIDSTATE); // so as not to indicate already updated
+                    setCurrentThreadOutCode(MCMD_INVALIDSTATE); // so as not to indicate already updated
                     return false;
                 }
                 bool restartRequired = false;
 
                 if (!executeUpdater(&restartRequired))
                 {
-                    setCurrentOutCode(MCMD_INVALIDSTATE); // so as not to indicate already updated
+                    setCurrentThreadOutCode(MCMD_INVALIDSTATE); // so as not to indicate already updated
                     return false;
                 }
 
@@ -4373,10 +4374,27 @@ void megacmd()
                             s += " and " + getReadableTime(warningsList->get(warningsList->size() - 1),"%b %e %Y");
                         }
                         std::unique_ptr<MegaNode> rootNode(api->getRootNode());
-                        long long totalFiles = 0;
-                        long long totalFolders = 0;
-                        getNumFolderFiles(rootNode.get(),api,&totalFiles,&totalFolders);
-                        s += ", but you still have " + std::to_string(totalFiles) + " files taking up " + sizeToText(sandboxCMD->receivedStorageSum);
+                        auto listener = ::mega::make_unique<SynchronousRequestListener>();
+                        api->getFolderInfo(rootNode.get(), listener.get());
+                        listener->wait();
+                        auto error = listener->getError();
+                        assert(error != nullptr);
+                        if (error->getErrorCode() == MegaError::API_OK)
+                        {
+                            long long totalFiles = 0;
+
+                            auto info = listener->getRequest()->getMegaFolderInfo();
+                            if (info != nullptr)
+                            {
+                                totalFiles += info->getNumFolders();
+                            }
+                            s += ", but you still have " + std::to_string(totalFiles) + " files taking up " + sizeToText(sandboxCMD->receivedStorageSum);
+                        }
+                        else
+                        {
+                            s += ", but you still have files taking up" + sizeToText(sandboxCMD->receivedStorageSum);
+                        }
+
                         s += " in your MEGA account, which requires you to upgrade your account.\n\n";
                         long long daysLeft = (api->getOverquotaDeadlineTs() - m_time(NULL)) / 86400;
                         if (daysLeft > 0)
@@ -4945,7 +4963,7 @@ void uninstall()
 #endif
 
 int executeServer(int argc, char* argv[],
-                  std::unique_ptr<LoggedStream> loggerStream,
+                  std::function<LoggedStream*()> createLoggedStream,
                   int sdkLogLevel, int cmdLogLevel,
                   bool skiplockcheck, std::string debug_api_url, bool disablepkp)
 {
@@ -4980,18 +4998,6 @@ int executeServer(int argc, char* argv[],
     mcmdMainArgv = argv;
     mcmdMainArgc = argc;
 
-    //// A logged stream for stdout
-    if (loggerStream)
-    {
-        Instance<megacmd::DefaultLoggedStream>::Get().setLoggedStream(std::move(loggerStream));
-    }
-
-    // Establish the logger
-    SimpleLogger::setLogLevel(logMax); // do not filter anything here, log level checking is done by loggerCMD
-    loggerCMD = new MegaCmdSimpleLogger();
-    loggerCMD->setSdkLoggerLevel(sdkLogLevel);
-    loggerCMD->setCmdLoggerLevel(cmdLogLevel);
-
     ConfigurationManager::loadConfiguration(cmdLogLevel >= MegaApi::LOG_LEVEL_DEBUG);
     if (!ConfigurationManager::lockExecution() && !skiplockcheck)
     {
@@ -5000,12 +5006,22 @@ int executeServer(int argc, char* argv[],
         return -2;
     }
 
-    char userAgent[40];
-    sprintf(userAgent, "MEGAcmd" MEGACMD_STRINGIZE(MEGACMD_USERAGENT_SUFFIX) "/%d.%d.%d.%d", MEGACMD_MAJOR_VERSION,MEGACMD_MINOR_VERSION,MEGACMD_MICRO_VERSION,MEGACMD_BUILD_ID);
+    // The logger stream must be created after the configuration is loaded
+    if (createLoggedStream)
+    {
+        Instance<megacmd::DefaultLoggedStream>::Get().setLoggedStream(std::unique_ptr<LoggedStream>(createLoggedStream()));
+    }
 
-    //TODO: move before!
+    SimpleLogger::setLogLevel(logMax); // do not filter anything here, log level checking is done by loggerCMD
+    loggerCMD = new MegaCmdSimpleLogger();
+    loggerCMD->setSdkLoggerLevel(sdkLogLevel);
+    loggerCMD->setCmdLoggerLevel(cmdLogLevel);
+
     MegaApi::addLoggerObject(loggerCMD);
     MegaApi::setLogLevel(MegaApi::LOG_LEVEL_MAX);
+
+    char userAgent[40];
+    sprintf(userAgent, "MEGAcmd" MEGACMD_STRINGIZE(MEGACMD_USERAGENT_SUFFIX) "/%d.%d.%d.%d", MEGACMD_MAJOR_VERSION,MEGACMD_MINOR_VERSION,MEGACMD_MICRO_VERSION,MEGACMD_BUILD_ID);
 
     LOG_debug << "----------------------------- program start -----------------------------";
     LOG_debug << "MEGAcmd version: " << MEGACMD_MAJOR_VERSION << "." << MEGACMD_MINOR_VERSION << "." << MEGACMD_MICRO_VERSION << "." << MEGACMD_BUILD_ID << ": code " << MEGACMD_CODE_VERSION;

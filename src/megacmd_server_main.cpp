@@ -194,11 +194,11 @@ int main(int argc, char* argv[])
     extractargparam(args, "--apiurl", debug_api_url);  // only for debugging
     bool disablepkp = extractarg(args, "--disablepkp");  // only for debugging
 
-    bool logToFile = extractarg(args, "--log-to-file");  // only for debugging
+    auto createLoggerStream = []
+    {
+        return new megacmd::FileRotatingLoggedStream(megacmd::MegaCmdLogger::getDefaultFilePath());
+    };
 
-    std::unique_ptr<megacmd::LoggedStream> loggedStream;
-    loggedStream = ::mega::make_unique<megacmd::FileRotatingLoggedStream>(megacmd::MegaCmdLogger::getDefaultFilePath());
-
-    return megacmd::executeServer(argc, argv, std::move(loggedStream),
+    return megacmd::executeServer(argc, argv, createLoggerStream,
                                   sdkLogLevel, cmdLogLevel, skiplockcheck, debug_api_url, disablepkp);
 }
