@@ -171,7 +171,7 @@ pipeline {
                     set -x
                     export PATH="${env.INSTALL_DIR}/bin:$PATH"
                     mkdir test-wd
-                    export $HOME="$PWD"/test-wd
+                    export HOME="${megacmd_sources_workspace}/test-wd"
                     mega-cmd-tests-integration
                     """
                 }
