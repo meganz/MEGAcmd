@@ -127,14 +127,14 @@ class FileRotatingLoggedStream final : public LoggedStream
     mutable MessageBuffer mMessageBuffer;
 
     std::string mOutputFilePath;
-    mutable OUTFSTREAMTYPE mOutputFile;
+    OUTFSTREAMTYPE mOutputFile;
     RotatingFileManager mFileManager;
 
     mutable std::mutex mWriteMutex;
     mutable std::condition_variable mWriteCV;
     bool mForceRenew;
     bool mExit;
-    mutable bool mFlush;
+    bool mFlush;
     std::chrono::seconds mFlushPeriod;
     std::chrono::steady_clock::time_point mNextFlushTime;
 
