@@ -132,6 +132,7 @@ pipeline {
 			sh "echo Running tests"
 			bat """
                 build\\\\cmake\\\\build_dir\\\\Debug\\\\mega-cmd-tests-unit.exe --gtest_shuffle --gtest_output=xml:${windows_sources_workspace}\\megacmd-unit-tests.xml
+                ls ${windows_sources_workspace}
                 if %ERRORLEVEL% NEQ 0 exit 1
                 exit %ERROR_VAL%
                 """
