@@ -132,14 +132,14 @@ pipeline {
 			sh "echo Running tests"
 			bat """
                 build\\\\cmake\\\\build_dir\\\\Debug\\\\mega-cmd-tests-unit.exe --gtest_shuffle --gtest_output=xml:${windows_sources_workspace}\\megacmd-unit-tests.xml
-                ls ${windows_sources_workspace}
                 if %ERRORLEVEL% NEQ 0 exit 1
                 exit %ERROR_VAL%
                 """
 		    }
 		    post{
 			always{
-			    junit(testResults: "${windows_sources_workspace}\\megacmd-unit-tests.xml")
+			    bat "ls ${windows_sources_workspace}"
+			    junit(testResults: "${windows_sources_workspace}\\*-unit-*.xml")
 			}
 		    }
 		}
@@ -165,7 +165,7 @@ pipeline {
 		    }
 		    post{
 			always{
-			    junit(testResults: "${windows_sources_workspace}\\megacmd-integration-tests.xml")
+			    junit(testResults: "${windows_sources_workspace}\\*-integration-*.xml")
 			    bat "rmdir build\\\\cmake\\\\build_dir\\\\Debug\\\\.megaCmd /s /q"
 			}
 		    }
