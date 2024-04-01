@@ -139,7 +139,7 @@ pipeline {
 		    post{
 			always{
 			    bat "ls ${windows_sources_workspace}"
-			    junit(testResults: "${windows_sources_workspace}\\*-unit-*.xml")
+			    junit(testResults: "**/*-unit-*.xml")
 			}
 		    }
 		}
