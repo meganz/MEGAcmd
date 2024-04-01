@@ -131,7 +131,7 @@ pipeline {
 		    steps{
 			sh "echo Running tests"
 			bat """
-                build\\\\cmake\\\\build_dir\\\\Debug\\\\mega-cmd-tests-unit.exe --gtest_shuffle --gtest_output=megacmd-unit-tests.xml
+                build\\\\cmake\\\\build_dir\\\\Debug\\\\mega-cmd-tests-unit.exe --gtest_shuffle --gtest_output=xml:megacmd-unit-tests.xml
                 if %ERRORLEVEL% NEQ 0 exit 1
                 exit %ERROR_VAL%
                 """
@@ -156,7 +156,7 @@ pipeline {
 			lock(label: 'testing_accounts_megacmd', variable: 'MEGACMD_TEST_USER', quantity: 1, resource: null) {
 			    bat "dir ${windows_sources_workspace}\\..\\3rdparty\\\\vcpkg\\\\installed\\\\x64-windows-mega\\\\debug\\\\bin"
 			    bat """
-                build\\\\cmake\\\\build_dir\\\\Debug\\\\mega-cmd-tests-integration.exe --gtest_stack_trace_depth=10 --gmock_verbose=info --gtest_shuffle --gtest_output=megacmd-integration-tests.xml
+                build\\\\cmake\\\\build_dir\\\\Debug\\\\mega-cmd-tests-integration.exe --gtest_stack_trace_depth=10 --gmock_verbose=info --gtest_shuffle --gtest_output=xml:megacmd-integration-tests.xml
                 if %ERRORLEVEL% NEQ 0 exit 1
                 exit %ERROR_VAL%
                 """
