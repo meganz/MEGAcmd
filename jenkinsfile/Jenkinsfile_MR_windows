@@ -151,7 +151,7 @@ pipeline {
 			lock(label: 'testing_accounts_megacmd', variable: 'MEGACMD_TEST_USER', quantity: 1, resource: null) {
 			    bat "dir ${windows_sources_workspace}\\..\\3rdparty\\\\vcpkg\\\\installed\\\\x64-windows-mega\\\\debug\\\\bin"
 			    bat """
-                build\\\\cmake\\\\build_dir\\\\Debug\\\\mega-cmd-tests-integration.exe
+                build\\\\cmake\\\\build_dir\\\\Debug\\\\mega-cmd-tests-integration.exe --gtest_stack_trace_depth=10 --gmock_verbose=info
                 if %ERRORLEVEL% NEQ 0 exit 1
                 exit %ERROR_VAL%
                 """
