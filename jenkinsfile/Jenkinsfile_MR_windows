@@ -170,7 +170,7 @@ pipeline {
 		    }
 		    post{
 			always{
-			    junit(testResults: "${windows_sources_workspace}\\*-integration-*.xml")
+			    junit(testResults: "**/*-integration-*.xml", allowEmptyResults: true)
 			    bat "rmdir build\\\\cmake\\\\build_dir\\\\Debug\\\\.megaCmd /s /q"
 			}
 		    }
