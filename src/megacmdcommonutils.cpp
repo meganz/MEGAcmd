@@ -1661,6 +1661,10 @@ std::string XDGDirectories::dataDirPath()
 
 std::string XDGDirectories::stateDirPath()
 {
+    if (legacyConfigDirExists())
+    {
+        return PosixDirectories::configDirPath();
+    }
     const char *statedir = getenv("XDG_STATE_HOME");
     if (statedir != nullptr)
     {
