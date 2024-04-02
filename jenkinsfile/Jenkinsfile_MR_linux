@@ -110,9 +110,21 @@ pipeline {
                     }
                     axis {
                         name 'BUILD_SYSTEM'
-                        values 'autotools'
+                        values 'autotools', 'c-make'
                     }
                 }
+		excludes {
+		    exclude {
+			axis {
+			    name 'BUILD_SYSTEM'
+			    values 'c-make'
+			}
+			axis {
+			    name 'SANITIZERS'
+			    notValues 'ubsan'
+			}
+		    }
+		}
                 stages{
                     stage('Build MEGAcmd container image'){
                         options{
