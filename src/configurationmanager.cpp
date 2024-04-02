@@ -17,7 +17,6 @@
  */
 
 #include "configurationmanager.h"
-#include "mega/types.h"
 #include "megacmdcommonutils.h"
 #include "megacmdversion.h"
 #include "megacmdutils.h"
