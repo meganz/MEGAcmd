@@ -126,8 +126,9 @@ string createAndRetrieveStateFolder()
 {
     auto dirs = PlatformDirectories::getPlatformSpecificDirectories();
 #ifdef _WIN32
+    // We don't create the folder: Windowow is currently using the folder
+    // of the executable.
     return dirs->stateDirPath();
-    //TODO: create folder (not required currently)
 #else
     auto dir = dirs->stateDirPath();
     struct stat st = {};
