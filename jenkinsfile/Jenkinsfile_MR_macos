@@ -35,7 +35,7 @@ pipeline {
                     }
                     post{
                         always {
-                            script{                        
+                            script{
                                 if (currentBuild.currentResult == 'FAILURE'){
                                     addGitLabMRComment(comment: ":red_circle: ${env.JOB_NAME} FAILURE when getting the additional build parameters :worried:<br/>Build results: [Jenkins [${env.JOB_NAME} ${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>Commit: ${env.GIT_COMMIT}" )
                                 }
@@ -57,7 +57,7 @@ pipeline {
                     }
                     post{
                         always {
-                            script{                        
+                            script{
                                 if (currentBuild.currentResult == 'FAILURE'){
                                     addGitLabMRComment(comment: ":red_circle: ${env.JOB_NAME} FAILURE when getting the SDK branch :worried:<br/>Build results: [Jenkins [${env.JOB_NAME} ${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>Commit: ${env.GIT_COMMIT}" )
                                 }
@@ -67,31 +67,38 @@ pipeline {
                 }
             }
         }
-        stage('Checkout SDK and MEGAchat'){
-            steps {
-                //Clone MEGAcmd
-                sh "echo Cloning MEGAcmd with prebuildmerge"
-                checkout([
-                    $class: 'GitSCM', 
-                    branches: [[name: "origin/${env.gitlabSourceBranch}"]],
-                    userRemoteConfigs: [[ url: "${env.GIT_URL_MEGACMD}", credentialsId: "12492eb8-0278-4402-98f0-4412abfb65c1" ]],
-                    extensions: [
-                        [$class: "UserIdentity",name: "jenkins", email: "jenkins@jenkins"],
-                        [$class: 'PreBuildMerge', options: [fastForwardMode: 'FF', mergeRemote: "origin", mergeStrategy: 'DEFAULT', mergeTarget: "${env.gitlabTargetBranch}"]]
-                        ]
-                ])
-                dir('sdk'){  
-                    checkout([
-                        $class: 'GitSCM', 
-                        branches: [[name: "origin/${SDK_BRANCH}"]],
-                        userRemoteConfigs: [[ url: "${env.GIT_URL_SDK}", credentialsId: "12492eb8-0278-4402-98f0-4412abfb65c1" ]],
-                        extensions: [
-                            [$class: "UserIdentity",name: "jenkins", email: "jenkins@jenkins"]
+        stage('Checkout sources'){
+            parallel{
+                stage('Checkout MEGAcmd with prebuildmerge'){
+                    steps{
+                        checkout([
+                            $class: 'GitSCM',
+                            branches: [[name: "origin/${env.gitlabSourceBranch}"]],
+                            userRemoteConfigs: [[ url: "${env.GIT_URL_MEGACMD}", credentialsId: "12492eb8-0278-4402-98f0-4412abfb65c1" ]],
+                            extensions: [
+                                [$class: "UserIdentity",name: "jenkins", email: "jenkins@jenkins"],
+                                [$class: 'PreBuildMerge', options: [fastForwardMode: 'FF', mergeRemote: "origin", mergeStrategy: 'DEFAULT', mergeTarget: "${env.gitlabTargetBranch}"]]
                             ]
-                    ])
+                        ])
+                    }
                 }
-                script{
-                    mac_sources_workspace = WORKSPACE
+                stage('Checkout SDK'){
+                    steps{
+                        dir('sdk'){
+                            checkout([
+                                $class: 'GitSCM',
+                                branches: [[name: "origin/${SDK_BRANCH}"]],
+                                userRemoteConfigs: [[ url: "${env.GIT_URL_SDK}", credentialsId: "12492eb8-0278-4402-98f0-4412abfb65c1" ]],
+                                extensions: [
+                                    [$class: "UserIdentity",name: "jenkins", email: "jenkins@jenkins"],
+                                    [$class: "CloneOption", depth: 1, shallow: true, noTags: false, reference: '']
+                                ]
+                            ])
+                        }
+                        script{
+                            mac_sources_workspace = WORKSPACE
+                        }
+                    }
                 }
             }
         }
@@ -117,20 +124,54 @@ pipeline {
             }
         }
 
-        stage('Run tests'){
-            environment {
-                BUILD_DIR = "build/cmake/build_dir"
-            }
+        stage('Run unit tests'){
             options{
                 timeout(time: 5, unit: 'MINUTES')
             }
             steps{
-                sh "echo Running tests"
-                sh """#!/bin/zsh
+                dir('test-results') {
+                    sh """#!/bin/zsh
                 set -x
-                cd ${env.BUILD_DIR}
-                ./mega-cmd-tests-unit
+                ${mac_sources_workspace}/build/cmake/build_dir/mega-cmd-tests-unit --gtest_output=xml:${mac_sources_workspace}/test-results/megacmd-unit-tests.xml --gtest_shuffle
                 """
+                }
+            }
+            post {
+                always {
+                    junit(testResults: "**/test-results/megacmd-unit-tests.xml", keepProperties: true)
+                }
+            }
+        }
+        stage('Run integration tests'){
+            options {
+                timeout(time: 10, unit: 'MINUTES')
+            }
+            environment{
+                MEGACMD_TEST_USER=''
+                MEGACMD_TEST_PASS=credentials('MEGACMD_TESTS_PASSWORD')
+            }
+            steps{
+                lock(label: 'testing_accounts_megacmd', variable: 'MEGACMD_TEST_USER', quantity: 1, resource: null){
+                    dir('test-results') {
+                        sh """#!/bin/zsh
+                set -x
+                export TMP=\$(mktemp -d)
+                export HOME=\$TMP
+                cleanup() {
+                    ARG=\$?
+                    rm -rf \$TMP
+                    exit \$ARG
+                }
+                trap cleanup EXIT
+                ${mac_sources_workspace}/build/cmake/build_dir/mega-cmd-tests-integration --gtest_output=xml:${mac_sources_workspace}/test-results/megacmd-integration-tests.xml --gtest_shuffle
+                """
+                    }
+                }
+            }
+            post {
+                always {
+                    junit(testResults: "**/test-results/megacmd-integration-tests.xml", keepProperties: true)
+                }
             }
         }
     }
@@ -142,7 +183,7 @@ pipeline {
                 if (currentBuild.currentResult == 'SUCCESS'){
                     addGitLabMRComment(comment: ":white_check_mark: ${currentBuild.projectName} :green_apple: <b>macOS</b> SUCCEEDED :muscle:<br/>Build results: [Jenkins [${currentBuild.displayName}]](${currentBuild.absoluteUrl})<br/>Commit: ${env.GIT_COMMIT}" )
                     updateGitlabCommitStatus(name: 'Build macos', state: 'success')
-                }                                
+                }
                 if (currentBuild.currentResult == 'FAILURE'){
                     addGitLabMRComment(comment: ":red_circle: ${currentBuild.projectName} :green_apple: <b>macOS</b> FAILURE  :worried:<br/>Build results: [Jenkins [${currentBuild.displayName}]](${currentBuild.absoluteUrl})<br/>Commit: ${env.GIT_COMMIT}" )
                     updateGitlabCommitStatus(name: 'Build macos', state: 'failed')
@@ -150,7 +191,7 @@ pipeline {
                 if (currentBuild.currentResult == 'ABORTED'){
                     addGitLabMRComment(comment: ":interrobang: ${currentBuild.projectName} :green_apple: <b>macOS</b> ABORTED  :confused:<br/>Build results: [Jenkins [${currentBuild.displayName}]](${currentBuild.absoluteUrl})<br/>Commit: ${env.GIT_COMMIT}" )
                     updateGitlabCommitStatus(name: 'Build macos', state: 'canceled')
-                }                                
+                }
                 if (currentBuild.currentResult == 'UNSTABLE'){
                     addGitLabMRComment(comment: ":interrobang: ${currentBuild.projectName} :green_apple: <b>macOS</b> UNSTABLE  :confused:<br/>Build results: [Jenkins [${currentBuild.displayName}]](${currentBuild.absoluteUrl})<br/>Commit: ${env.GIT_COMMIT}" )
                     updateGitlabCommitStatus(name: 'Build macos', state: 'failed')
