@@ -684,11 +684,11 @@ void ConfigurationManager::loadConfiguration(bool debug)
     std::lock_guard<std::recursive_mutex> g(settingsMutex);
 
     // SESSION
-    stringstream sessionfile;
     auto data_dir = getDataDir();
 
     if (!data_dir.empty())
     {
+        stringstream sessionfile;
         sessionfile << data_dir << "/"
                     << "session";
 
