@@ -32,7 +32,7 @@ namespace megacmd {
 class ConfigurationManager
 {
 private:
-    static std::string configFolder;
+    static std::string mConfigFolder;
     static bool hasBeenUpdated;
 #if !defined(_WIN32) && defined(LOCK_EX) && defined(LOCK_NB)
     static int fd;
