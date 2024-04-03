@@ -20,6 +20,7 @@
  */
 
 #include "megacmdshellcommunications.h"
+#include "../megacmdcommonutils.h"
 
 #include <iostream>
 #include <sstream>
@@ -105,61 +106,39 @@ void MegaCmdShellCommunications::closeSocket(SOCKET socket){
 
 string createAndRetrieveConfigFolder()
 {
-    string configFolder;
-
+    auto dirs = PlatformDirectories::getPlatformSpecificDirectories();
 #ifdef _WIN32
-
-   TCHAR szPath[MAX_PATH];
-    if (!SUCCEEDED(GetModuleFileName(NULL, szPath , MAX_PATH)))
-    {
-        cerr << "Couldnt get EXECUTABLE folder" << endl;
-    }
-    else
-    {
-        if (SUCCEEDED(PathRemoveFileSpec(szPath)))
-        {
-            if (PathAppend(szPath,TEXT(".megaCmd")))
-            {
-                utf16ToUtf8(szPath, lstrlen(szPath), &configFolder);
-            }
-        }
-    }
+    return dirs->configDirPath();
     //TODO: create folder (not required currently)
 #else
-    const char *homedir = NULL;
+    auto dir = dirs->configDirPath();
+    struct stat st = {};
 
-    homedir = getenv("HOME");
-    if (!homedir)
+    if (stat(dir.c_str(), &st) == -1)
     {
-        struct passwd pd;
-        struct passwd* pwdptr = &pd;
-        struct passwd* tempPwdPtr;
-        char pwdbuffer[200];
-        int pwdlinelen = sizeof( pwdbuffer );
-
-        if (( getpwuid_r(22, pwdptr, pwdbuffer, pwdlinelen, &tempPwdPtr)) != 0)
-        {
-            cerr << "Couldnt get HOME folder" << endl;
-            return "/tmp";
-        }
-        else
-        {
-            homedir = pwdptr->pw_dir;
-        }
+        mkdir(dir.c_str(), 0700);
     }
-    stringstream sconfigDir;
-    sconfigDir << homedir << "/" << ".megaCmd";
-    configFolder = sconfigDir.str();
-
-
-    struct stat st;
-    if (stat(configFolder.c_str(), &st) == -1) {
-        mkdir(configFolder.c_str(), 0700);
-    }
-
+    return dir;
 #endif
+}
 
-    return configFolder;
+string createAndRetrieveStateFolder()
+{
+    auto dirs = PlatformDirectories::getPlatformSpecificDirectories();
+#ifdef _WIN32
+    // We don't create the folder: Windowow is currently using the folder
+    // of the executable.
+    return dirs->stateDirPath();
+#else
+    auto dir = dirs->stateDirPath();
+    struct stat st = {};
+
+    if (stat(dir.c_str(), &st) == -1)
+    {
+        mkdir(dir.c_str(), 0700);
+    }
+    return dir;
+#endif
 }
 
 
@@ -332,7 +311,7 @@ SOCKET MegaCmdShellCommunications::createSocket(int number, bool initializeserve
                     setsid(); //create new session so as not to receive parent's Ctrl+C
 
                     // Give an indication of where the logs will be find:
-                    string pathtolog = createAndRetrieveConfigFolder()+"/megacmdserver.log";
+                    string pathtolog = createAndRetrieveStateFolder()+"/megacmdserver.log";
                     CERR << "[Initiating MEGAcmd server in background. Log: " << pathtolog << "]" << endl;
 
                     freopen(std::string(pathtolog).append(".out").c_str(),"w",stdout);

@@ -32,14 +32,13 @@ namespace megacmd {
 class ConfigurationManager
 {
 private:
-    static std::string configFolder;
+    static std::string mConfigFolder;
     static bool hasBeenUpdated;
 #if !defined(_WIN32) && defined(LOCK_EX) && defined(LOCK_NB)
     static int fd;
 #endif
 
     static void loadConfigDir();
-
 
     static void removeSyncConfig(sync_struct *syncToRemove);
 public:
@@ -238,8 +237,10 @@ public:
 
     static std::string getConfigFolder();
 
-    // creates a subfolder within config dir and returns it (utf8)
-    static std::string getConfFolderSubdir(const std::string &utf8Name);
+    // creates a subfolder within the state dir and returns it (utf8)
+    static std::string getDataFolderSubdir(const std::string &utf8Name);
+    static std::string getStateDir();
+    static std::string getDataDir();
 
     static bool getHasBeenUpdated();
 

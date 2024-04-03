@@ -119,22 +119,64 @@ pipeline {
             }
         }
 
-        stage('Run tests'){
-            environment{
-                PATH = "${windows_sources_workspace}\\\\..\\\\vcpkg\\\\installed\\\\x64-windows-mega\\\\debug\\\\bin;${env.PATH}"
-            }
-            options{
-                timeout(time: 3, unit: 'HOURS')
-            }
-            steps{
-                sh "echo Running tests"
-                bat """
-                build\\\\cmake\\\\build_dir\\\\Debug\\\\mega-cmd-tests-unit.exe
+	stage('Run tests'){
+	    parallel {
+		stage('Run unit tests'){
+		    environment{
+			PATH = "${windows_sources_workspace}\\\\..\\\\vcpkg\\\\installed\\\\x64-windows-mega\\\\debug\\\\bin;${env.PATH}"
+		    }
+		    options{
+			timeout(time: 3, unit: 'HOURS')
+		    }
+		    steps{
+			sh "echo Running tests"
+			bat """
+                build\\\\cmake\\\\build_dir\\\\Debug\\\\mega-cmd-tests-unit.exe --gtest_shuffle --gtest_output=xml:${windows_sources_workspace}\\megacmd-unit-tests.xml
                 if %ERRORLEVEL% NEQ 0 exit 1
                 exit %ERROR_VAL%
                 """
-            }
-        }
+		    }
+		    post{
+			always{
+			    junit(testResults: "**/*-unit-*.xml")
+			}
+		    }
+		}
+
+		stage('Run integration tests'){
+		    environment{
+			PATH = "${windows_sources_workspace}\\..\\3rdparty\\\\vcpkg\\\\installed\\\\x64-windows-mega\\\\debug\\\\bin;${env.PATH}"
+			MEGACMD_TEST_USER=''
+			MEGACMD_TEST_PASS=credentials('MEGACMD_TESTS_PASSWORD')
+		    }
+		    options{
+			timeout(time: 3, unit: 'HOURS')
+		    }
+		    steps{
+			bat "dir ${windows_sources_workspace}\\..\\3rdparty\\\\vcpkg\\\\installed\\\\x64-windows-mega\\\\debug\\\\bin"
+			lock(label: 'testing_accounts_megacmd', variable: 'MEGACMD_TEST_USER', quantity: 1, resource: null) {
+			    script {
+				try {
+				    bat """
+                build\\\\cmake\\\\build_dir\\\\Debug\\\\mega-cmd-tests-integration.exe --gtest_stack_trace_depth=10 --gmock_verbose=info --gtest_shuffle --gtest_output=xml:${windows_sources_workspace}\\megacmd-integration-tests.xml
+                if %ERRORLEVEL% NEQ 0 exit 1
+                exit %ERROR_VAL%
+                """
+				} catch (e) {
+				    echo "Integration tests on Windows are expected to fail for now."
+				}
+			    }
+			}
+		    }
+		    post{
+			always{
+			    junit(testResults: "**/*-integration-*.xml", allowEmptyResults: true)
+			    bat "rmdir build\\\\cmake\\\\build_dir\\\\Debug\\\\.megaCmd /s /q"
+			}
+		    }
+		}
+	    }
+	}
     }
 
     post{

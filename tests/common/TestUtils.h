@@ -52,6 +52,7 @@ namespace gti
     };
     static void ColoredPrintf(GTestColor color, const char* fmt, ...)
     {
+#ifndef _WIN32
         va_list args;
         va_start(args, fmt);
 
@@ -73,6 +74,7 @@ namespace gti
             printf("\033[m");
         }
         va_end(args);
+#endif
     }
 }
 

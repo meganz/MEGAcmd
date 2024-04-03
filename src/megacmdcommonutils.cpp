@@ -1512,6 +1512,13 @@ std::string WindowsDirectories::configDirPath()
         }
     }
 
+    auto suffix = getenv("MEGACMD_WORKING_FOLDER_SUFFIX");
+    if (suffix != nullptr)
+    {
+        folder += "_";
+        folder += suffix;
+    }
+
     return folder;
 }
 
@@ -1654,6 +1661,10 @@ std::string XDGDirectories::dataDirPath()
 
 std::string XDGDirectories::stateDirPath()
 {
+    if (legacyConfigDirExists())
+    {
+        return PosixDirectories::configDirPath();
+    }
     const char *statedir = getenv("XDG_STATE_HOME");
     if (statedir != nullptr)
     {
