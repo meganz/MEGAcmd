@@ -10141,7 +10141,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 OUTSTREAM << " * " << thechangelog << endl << endl;
             }
 
-            OUTSTREAM << "Full changelog available at https://github.com/meganz/MEGAcmd/blob/master/build/megacmd/megacmd.changes" << endl << endl;
+            OUTSTREAM << "Full changelog available at https://github.com/meganz/MEGAcmd/releases/tag/v1.7.0" << endl << endl;
         }
         if (getFlag(clflags,"l"))
         {

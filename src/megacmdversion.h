@@ -21,9 +21,12 @@
 namespace megacmd {
 
 const char * const megacmdchangelog =
-        "Improvements in session resumption""\n"
-        "Fixes for undecryptable nodes""\n"
-        "Stability and preformance fixes"
+        "Improved startup time""\n"
+        "Parallel run allowance""\n"
+        "Improved the export command""\n"
+        "Fixed several memory leaks and improved overall memory consumption""\n"
+        "Fixed file permissions on Linux""\n"
+        "Many other fixes and improvements"
         ;
 
 }//end namespace

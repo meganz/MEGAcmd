@@ -1,3 +1,13 @@
+Mon Apr 8 12:52:37 CEST 2024 - linux@mega.co.nz
+- Update to version 1.7.0:
+  * Improved startup time
+  * Parallel run allowance
+  * Improved the export command
+  * Fixed several memory leaks and improved overall memory consumption
+  * Fixed file permissions on Linux
+  * Many other fixes and improvements
+
+-------------------------------------------------------------------
 Thu May 4 16:18:29 CEST 2023 - linux@mega.co.nz
 - Update to version 1.6.3:
   * Improvements in session resumption
