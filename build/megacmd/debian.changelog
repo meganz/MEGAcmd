@@ -1,13 +1,13 @@
 megacmd (1.7.0) stable; urgency=low
 
   * Improved startup time
-  * Parallel run allowance
-  * Improved the export command
+  * Reduced memory consumption: cached metadata is no longer loaded at startup
+  * Fixes and improvements in whoami, ls, backup and export commands
   * Fixed several memory leaks and improved overall memory consumption
-  * Fixed file permissions on Linux
+  * Fixed file permissions on Unix
   * Many other fixes and improvements
 
- -- MEGA Team <linux@mega.co.nz>  Mon, 08 Apr 2024 12:52:37 +0200
+ -- MEGA Team <linux@mega.co.nz>  Mon, 08 Apr 2024 14:11:51 +0200
 
 megacmd (1.6.3) stable; urgency=low
 

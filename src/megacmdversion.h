@@ -22,10 +22,10 @@ namespace megacmd {
 
 const char * const megacmdchangelog =
         "Improved startup time""\n"
-        "Parallel run allowance""\n"
-        "Improved the export command""\n"
+        "Reduced memory consumption: cached metadata is no longer loaded at startup""\n"
+        "Fixes and improvements in whoami, ls, backup and export commands""\n"
         "Fixed several memory leaks and improved overall memory consumption""\n"
-        "Fixed file permissions on Linux""\n"
+        "Fixed file permissions on Unix""\n"
         "Many other fixes and improvements"
         ;
 
