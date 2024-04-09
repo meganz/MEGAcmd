@@ -67,7 +67,6 @@ pipeline {
                 }
             }
         }
-
         stage('Checkout sources'){
             parallel{
                 stage('Checkout MEGAcmd with prebuildmerge'){
@@ -138,42 +137,61 @@ pipeline {
                 sh "cmake --install ${megacmd_sources_workspace}/${BUILD_DIR}"
             }
         }
-
         stage('Run UNIT tests'){
             environment {
-                INSTALL_DIR = "cmdinstall"
+                INSTALL_DIR = "megacmd_sources_workspace/cmdinstall"
             }
             options{
                 timeout(time: 5, unit: 'MINUTES')
             }
             steps{
-                sh "echo Running tests"
-                sh """#!/bin/zsh
-                set -x
-                export PATH="${env.INSTALL_DIR}/bin:$PATH"
-                mega-cmd-tests-unit
-                """
-            }
-        }
-        stage('Run INTEGRATION tests'){
-            environment {
-                INSTALL_DIR = "cmdinstall"
-                MEGACMD_TEST_USER=''
-                MEGACMD_TEST_PASS=credentials('MEGACMD_TESTS_PASSWORD')
-            }
-            options{
-                timeout(time: 15, unit: 'MINUTES')
-            }
-            steps{
-                lock(label: 'testing_accounts_megacmd', variable: 'MEGACMD_TEST_USER', quantity: 1, resource: null){
+                dir('test-results') {
                     sh "echo Running tests"
                     sh """#!/bin/zsh
                     set -x
                     export PATH="${env.INSTALL_DIR}/bin:$PATH"
-                    mkdir test-wd
-                    export HOME="${megacmd_sources_workspace}/test-wd"
-                    mega-cmd-tests-integration
+                    mega-cmd-tests-unit  --gtest_output=xml:${megacmd_sources_workspace}/test-results/megacmd-unit-tests.xml --gtest_shuffle
                     """
+                }
+            }
+            post {
+                always {
+                    junit(testResults: "**/test-results/megacmd-unit-tests.xml", keepProperties: true)
+                }
+            }
+        }
+        stage('Run INTEGRATION tests'){
+            options{
+                timeout(time: 15, unit: 'MINUTES')
+            }
+            environment {
+                INSTALL_DIR = "${megacmd_sources_workspace}/cmdinstall"
+                MEGACMD_TEST_USER=''
+                MEGACMD_TEST_PASS=credentials('MEGACMD_TESTS_PASSWORD')
+            }
+            steps{
+                lock(label: 'testing_accounts_megacmd', variable: 'MEGACMD_TEST_USER', quantity: 1, resource: null){
+                    dir('test-results') {
+                        sh "echo Running tests"
+                        sh """#!/bin/zsh
+                        set -x
+                        export PATH="${env.INSTALL_DIR}/bin:$PATH"
+                        export TMP=\$(mktemp -d)
+                        export HOME=\$TMP
+                        cleanup() {
+                            ARG=\$?
+                            rm -rf \$TMP
+                            exit \$ARG
+                        }
+                        trap cleanup EXIT
+                        mega-cmd-tests-integration --gtest_output=xml:${megacmd_sources_workspace}/test-results/megacmd-integration-tests.xml --gtest_shuffle
+                        """
+                    }
+                }
+            }
+            post {
+                always {
+                    junit(testResults: "**/test-results/megacmd-integration-tests.xml", keepProperties: true)
                 }
             }
         }
@@ -181,7 +199,7 @@ pipeline {
 
     post{
         always{
-            archiveArtifacts artifacts: 'test-wd/.megaCmd/*.log', fingerprint: true, allowEmptyArchive: true
+            archiveArtifacts artifacts: 'test-results/.megaCmd/*.log', fingerprint: true, allowEmptyArchive: true
             script{
                 if (currentBuild.currentResult == 'SUCCESS'){
                     addGitLabMRComment(comment: ":white_check_mark: ${currentBuild.projectName} :green_apple: <b>macOS</b> SUCCEEDED :muscle:<br/>Build results: [Jenkins [${currentBuild.displayName}]](${currentBuild.absoluteUrl})<br/>Commit: ${env.GIT_COMMIT}" )

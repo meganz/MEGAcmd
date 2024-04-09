@@ -151,7 +151,7 @@ string newpasswd;
 bool doExit = false;
 bool consoleFailed = false;
 bool alreadyCheckingForUpdates = false;
-bool stopcheckingforUpdaters = false;
+std::atomic_bool stopCheckingforUpdaters(false);
 
 string dynamicprompt = "MEGA CMD> ";
 
@@ -264,7 +264,7 @@ void sigint_handler(int signum)
     LOG_verbose << "Received signal: " << signum;
     LOG_debug << "Exiting due to SIGINT";
 
-    stopcheckingforUpdaters = true;
+    stopCheckingforUpdaters = true;
     doExit = true;
 }
 
@@ -3430,11 +3430,11 @@ bool executeUpdater(bool *restartRequired, bool doNotInstall = false)
     TCHAR szPathUpdaterCL[MAX_PATH+30];
     if (doNotInstall)
     {
-        wsprintfW(szPathUpdaterCL,L"%ls --normal-update --do-not-install", szPath);
+        wsprintfW(szPathUpdaterCL, L"%ls --normal-update --do-not-install --version %d", szPath, MEGACMD_CODE_VERSION);
     }
     else
     {
-        wsprintfW(szPathUpdaterCL,L"%ls --normal-update", szPath);
+        wsprintfW(szPathUpdaterCL, L"%ls --normal-update --version %d", szPath, MEGACMD_CODE_VERSION);
     }
     LOG_verbose << "Executing: " << wstring(szPathUpdaterCL);
     if (!CreateProcess( szPath,(LPWSTR) szPathUpdaterCL,NULL,NULL,TRUE,
@@ -3469,17 +3469,20 @@ bool executeUpdater(bool *restartRequired, bool doNotInstall = false)
             donotinstallstr = "--do-not-install";
         }
 
+        auto versionStr = std::to_string(MEGACMD_CODE_VERSION);
+        char* version = const_cast<char*>(versionStr.c_str());
+
 #ifdef __MACH__
 #ifndef NDEBUG
-        char * args[] = {"../../../../MEGAcmdUpdater/MEGAcmdUpdater.app/Contents/MacOS/MEGAcmdUpdater", "--normal-update", donotinstallstr, NULL};
+        char * args[] = {"../../../../MEGAcmdUpdater/MEGAcmdUpdater.app/Contents/MacOS/MEGAcmdUpdater", "--normal-update", donotinstallstr, "--version", version, NULL};
 #else
-        char * args[] = {"/Applications/MEGAcmd.app/Contents/MacOS/MEGAcmdUpdater", "--normal-update", donotinstallstr, NULL};
+        char * args[] = {"/Applications/MEGAcmd.app/Contents/MacOS/MEGAcmdUpdater", "--normal-update", donotinstallstr, "--version", version, NULL};
 #endif
 #else //linux don't use autoupdater: this is just for testing
 #ifndef NDEBUG
-        char * args[] = {"../MEGAcmdUpdater/MEGAcmdUpdater", "--normal-update", donotinstallstr, NULL}; // notice: won't work after lcd
+        char * args[] = {"../MEGAcmdUpdater/MEGAcmdUpdater", "--normal-update", donotinstallstr, "--version", version, NULL}; // notice: won't work after lcd
 #else
-        char * args[] = {"mega-cmd-updater", "--normal-update", donotinstallstr, NULL};
+        char * args[] = {"mega-cmd-updater", "--normal-update", donotinstallstr, "--version", version, NULL};
 #endif
 #endif
 
@@ -3842,7 +3845,7 @@ void * doProcessLine(void *pointer)
 
     if (doExit)
     {
-        stopcheckingforUpdaters = true;
+        stopCheckingforUpdaters = true;
         LOG_verbose << " Exit registered upon process_line: " ;
     }
 
@@ -3958,7 +3961,7 @@ void LinuxSignalHandler(int signum)
         {
             waitForRestartSignal = true;
             LOG_debug << "Preparing MEGAcmd to restart: ";
-            stopcheckingforUpdaters = true;
+            stopCheckingforUpdaters = true;
             doExit = true;
         }
     }
@@ -4066,7 +4069,7 @@ void startcheckingForUpdates()
         alreadyCheckingForUpdates = true;
         LOG_info << "Starting autoupdate check mechanism";
         MegaThread *checkupdatesThread = new MegaThread();
-        checkupdatesThread->start(checkForUpdates,checkupdatesThread);
+        checkupdatesThread->start(checkForUpdates, checkupdatesThread);
     }
 }
 
@@ -4074,22 +4077,22 @@ void stopcheckingForUpdates()
 {
     ConfigurationManager::savePropertyValue("autoupdate", 0);
 
-    stopcheckingforUpdaters = true;
+    stopCheckingforUpdaters = true;
 }
 
 void* checkForUpdates(void *param)
 {
-    stopcheckingforUpdaters = false;
+    stopCheckingforUpdaters = false;
     LOG_debug << "Initiating recurrent checkForUpdates";
 
     int secstosleep = 60;
-    while (secstosleep>0 && !stopcheckingforUpdaters)
+    while (secstosleep > 0 && !stopCheckingforUpdaters)
     {
         sleepSeconds(2);
-        secstosleep-=2;
+        secstosleep -= 2;
     }
 
-    while (!doExit && !stopcheckingforUpdaters)
+    while (!doExit && !stopCheckingforUpdaters)
     {
         bool restartRequired = false;
         if (!executeUpdater(&restartRequired, true)) //only download & check
@@ -4102,30 +4105,30 @@ void* checkForUpdates(void *param)
 
             broadcastMessage("A new update has been downloaded. It will be performed in 60 seconds");
             int secstosleep = 57;
-            while (secstosleep>0 && !stopcheckingforUpdaters)
+            while (secstosleep > 0 && !stopCheckingforUpdaters)
             {
                 sleepSeconds(2);
-                secstosleep-=2;
+                secstosleep -= 2;
             }
-            if (stopcheckingforUpdaters) break;
+            if (stopCheckingforUpdaters) break;
             broadcastMessage("  Executing update in 3");
             sleepSeconds(1);
-            if (stopcheckingforUpdaters) break;
+            if (stopCheckingforUpdaters) break;
             broadcastMessage("  Executing update in 2");
             sleepSeconds(1);
-            if (stopcheckingforUpdaters) break;
+            if (stopCheckingforUpdaters) break;
             broadcastMessage("  Executing update in 1");
             sleepSeconds(1);
-            if (stopcheckingforUpdaters) break;
+            if (stopCheckingforUpdaters) break;
 
-            while(petitionThreads.size() && !stopcheckingforUpdaters)
+            while(petitionThreads.size() && !stopCheckingforUpdaters)
             {
                 LOG_fatal << " waiting for petitions to end to initiate upload " << petitionThreads.size() << petitionThreads.at(0).get();
                 sleepSeconds(2);
                 delete_finished_threads();
             }
 
-            if (stopcheckingforUpdaters) break;
+            if (stopCheckingforUpdaters) break;
 
             sendEvent(StatsManager::MegacmdEvent::UPDATE_START, api);
 
@@ -4138,13 +4141,13 @@ void* checkForUpdates(void *param)
             LOG_verbose << " There is no pending update";
         }
 
-        if (stopcheckingforUpdaters) break;
+        if (stopCheckingforUpdaters) break;
         if (restartRequired && restartServer())
         {
-            int attempts=20; //give a while for ingoin petitions to end before killing the server
-            while(petitionThreads.size() && attempts--)
+            int attempts = 20; //give a while for ingoin petitions to end before killing the server
+            while(petitionThreads.size() && --attempts)
             {
-                sleepSeconds(20-attempts);
+                sleepSeconds(20 - attempts);
                 delete_finished_threads();
             }
 
@@ -4154,10 +4157,10 @@ void* checkForUpdates(void *param)
         }
 
         int secstosleep = 7200;
-        while (secstosleep>0 && !stopcheckingforUpdaters)
+        while (secstosleep > 0 && !stopCheckingforUpdaters)
         {
             sleepSeconds(2);
-            secstosleep-=2;
+            secstosleep -= 2;
         }
     }
 
@@ -4659,8 +4662,10 @@ bool registerUpdater()
     }
 
     time(&currentTime);
+    currentTime += 60; // ensure task is triggered properly the first time
     currentTimeInfo = localtime(&currentTime);
     wcsftime(currentTimeString, 128,  L"%Y-%m-%dT%H:%M:%S", currentTimeInfo);
+
     _bstr_t taskName = taskBaseName + stringSID;
     _bstr_t userId = stringSID;
     LocalFree(stringSID);
@@ -5026,7 +5031,7 @@ int executeServer(int argc, char* argv[],
 
     LOG_debug << "MEGAcmd version: " << MEGACMD_MAJOR_VERSION << "." << MEGACMD_MINOR_VERSION << "." << MEGACMD_MICRO_VERSION << "." << MEGACMD_BUILD_ID << ": code " << MEGACMD_CODE_VERSION;
 
-    api = new MegaApi("BdARkQSQ", (MegaGfxProcessor*)NULL, ConfigurationManager::getConfigFolder().c_str(), userAgent);
+    api = new MegaApi("BdARkQSQ", (MegaGfxProcessor*)NULL, ConfigurationManager::getDataDir().c_str(), userAgent);
 
     if (!debug_api_url.empty())
     {
@@ -5038,7 +5043,7 @@ int executeServer(int argc, char* argv[],
     for (int i = 0; i < 5; i++)
     {
         MegaApi *apiFolder = new MegaApi("BdARkQSQ", (MegaGfxProcessor*)NULL,
-                                         ConfigurationManager::getConfFolderSubdir(std::string("apiFolder_").append(std::to_string(i))).c_str()
+                                         ConfigurationManager::getDataFolderSubdir(std::string("apiFolder_").append(std::to_string(i))).c_str()
                                          , userAgent);
         apiFolder->setLanguage(localecode.c_str());
         apiFolders.push(apiFolder);

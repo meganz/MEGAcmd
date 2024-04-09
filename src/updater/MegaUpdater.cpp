@@ -38,6 +38,29 @@ bool extractarg(vector<const char*>& args, const char *what)
     return false;
 }
 
+int extractVersionArg(vector<const char*>& args)
+{
+    auto it = std::find_if(args.begin(), args.end(),
+                           [] (const char* s) { return !strcmp(s, "--version"); });
+
+    if (it == args.end() || std::next(it) == args.end())
+    {
+        return -1;
+    }
+
+    const char* versionStr = *std::next(it);
+    args.erase(it, std::next(it, 2));
+
+    try
+    {
+        return std::stoi(versionStr);
+    }
+    catch (const std::exception& e)
+    {
+        return -1;
+    }
+}
+
 #if !defined(_WIN32) && defined(LOCK_EX) && defined(LOCK_NB)
     static int fdMcmdUpdaterLockFile;
 #endif
@@ -219,40 +242,25 @@ void unlockExecution()
 using namespace megacmdupdater;
 
 #ifdef _WIN32
-
-#include <stdio.h>
-#include <io.h>
-#include <fcntl.h>
-#include <winsock2.h>
-#include <windows.h>
-#include <locale>
-#include <codecvt>
-
-
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR szCmdLine,int iCmdShow)
 {
-    int argc;
-    LPWSTR *argv = CommandLineToArgvW(GetCommandLineW(),&argc);
-    vector<const char*> args;
-    for (int i = 0; i < argc; i++)
-    {
-        std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> convert;
-        args.push_back(convert.to_bytes(argv[i]).c_str());
-    }
-
+    int argc = __argc;
+    char** argv = __argv;
 #else
 int main(int argc, char *argv[])
 {
+#endif
+
     vector<const char*> args;
     if (argc > 1)
     {
         args = vector<const char*>(argv + 1, argv + argc);
     }
-#endif
 
     bool doNotInstall = extractarg(args, "--do-not-install");
     bool emergencyupdate = extractarg(args, "--emergency-update");
     bool skiplockcheck = extractarg(args, "--skip-lock-check");
+    int currentVersion = extractVersionArg(args);
 
 #ifdef _WIN32
     if(!emergencyupdate)
@@ -273,7 +281,7 @@ int main(int argc, char *argv[])
     srand(unsigned(currentTime));
 
     UpdateTask updater;
-    bool updated = updater.checkForUpdates(emergencyupdate, doNotInstall);
+    bool updated = updater.checkForUpdates(emergencyupdate, doNotInstall, currentVersion);
 
     currentTime = time(NULL);
     cout << "Process finished at " << ctime(&currentTime) << endl;

@@ -15,6 +15,7 @@
 
 #pragma once
 
+#include <regex>
 #include <stdio.h>
 #include <stdarg.h>
 #ifdef _WIN32
@@ -27,8 +28,7 @@
 #include <future>
 
 #include <sstream>
-#include <regex>
-#include <gtest/gtest.h>
+
 #include <gmock/gmock.h>
 
 #define ULOG_COLOR(color, fmt, ...) \
@@ -52,6 +52,7 @@ namespace gti
     };
     static void ColoredPrintf(GTestColor color, const char* fmt, ...)
     {
+#ifndef _WIN32
         va_list args;
         va_start(args, fmt);
 
@@ -73,6 +74,7 @@ namespace gti
             printf("\033[m");
         }
         va_end(args);
+#endif
     }
 }
 
@@ -129,14 +131,21 @@ public:
 #define G_SUBTEST    GTestMessager(gti::COLOR_GREEN, "SUBTEST")
 #define G_SUBSUBTEST GTestMessager(gti::COLOR_GREEN, "SSUBTEST")
 
-namespace testing {
-MATCHER_P(MatchesStdRegex, pattern, "MatchesRegex using std::regex") {
+// For some reason, the regex matches included with GTest fail to match against
+// regex expressions using ERE syntax. The following two custom matchers use std::regex,
+// which provides consistent, cross-platform behavior, as opposed to GTest's regex
+// peculiarities (https://google.github.io/googletest/advanced.html#regular-expression-syntax)
+
+MATCHER_P(MatchesStdRegex, pattern, "") {
+    *result_listener << "where the string '" << arg << "' matches the std::regex '" << pattern << "'";
     std::regex regex(pattern);
     return std::regex_match(arg, regex);
 }
 
-MATCHER_P(ContainsStdRegex, pattern, "ContainsRegex using std::regex") {
+MATCHER_P(ContainsStdRegex, pattern, "")
+{
+    *result_listener << "where the string '" << arg << "' contains the std::regex '" << pattern << "'";
     std::regex regex(pattern);
     return std::regex_search(arg, regex);
+
 }
-} // end namespace testing
