@@ -82,6 +82,25 @@ pipeline {
                         ])
                     }
                 }
+                stage('Checkout VCPKG'){
+                    steps{
+                        dir('vcpkg'){
+                            checkout([
+                            $class: 'GitSCM',
+                            branches: [[name: "origin/master"]],
+                            userRemoteConfigs: [[ url: "https://github.com/microsoft/vcpkg" ]],
+                            extensions: [
+                                [$class: "UserIdentity",name: "jenkins", email: "jenkins@jenkins"],
+                                [$class: "CloneOption", noTags: false, reference: '']
+                            ]
+                            ])
+                        }
+                        script{
+                            megacmd_sources_workspace = WORKSPACE
+                            vcpkg_sources_workspace = "${megacmd_sources_workspace}\\vcpkg"
+                        }
+                    }
+                }
                 stage('Checkout SDK'){
                     steps{
                         dir('sdk'){
@@ -96,7 +115,8 @@ pipeline {
                             ])
                         }
                         script{
-                            windows_sources_workspace = WORKSPACE
+                            megacmd_sources_workspace = WORKSPACE
+                            sdk_sources_workspace = "${megacmd_sources_workspace}\\sdk"
                         }
                     }
                 }
@@ -105,34 +125,74 @@ pipeline {
 
         stage('Build MEGAcmd'){
             environment{
-                VCPKGPATH  = "${windows_sources_workspace}\\..\\3rdparty"
+                BUILD_DIR = "cmdbuild"
             }
             options{
                 timeout(time: 3, unit: 'HOURS')
             }
             steps{
-                sh "sed -i 's/-2_3/-2_5/g' sdk/contrib/cmake/CMakeLists.txt"
-                sh "mkdir build\\\\cmake\\\\build_dir\\\\"
-                sh "cmake -DCMAKE_VERBOSE_MAKEFILE=1 -DCMAKE_GENERATOR_PLATFORM=x64 -DENABLE_MEGACMD_TESTS=1 -DUSE_PREBUILT_3RDPARTY=0 -DUSE_THIRDPARTY_FROM_VCPKG=1 -DMega3rdPartyDir='${VCPKGPATH}' ${env.BUILD_OPTIONS} -S '${windows_sources_workspace}'\\\\build\\\\cmake\\\\ -B '${windows_sources_workspace}'\\\\build\\\\cmake\\\\build_dir\\\\"
-                sh "cmake --build '${windows_sources_workspace}'\\\\build\\\\cmake\\\\build_dir\\\\ --config Debug --target mega-cmd-server mega-cmd mega-exec -j 2"
-                sh "cmake --build '${windows_sources_workspace}'\\\\build\\\\cmake\\\\build_dir\\\\ --config Debug --target mega-cmd-tests-integration mega-cmd-tests-unit -j 2"
+                sh "rm -rf ${BUILD_DIR}; mkdir ${BUILD_DIR}"
+                sh "cmake -DCMAKE_VERBOSE_MAKEFILE=1 -DENABLE_MEGACMD_TESTS=ON -DCMAKE_BUILD_TYPE=Debug -DVCPKG_ROOT=${vcpkg_sources_workspace} -DCMAKE_INSTALL_PREFIX=cmdinstall -S '${megacmd_sources_workspace}' -B ${BUILD_DIR} '${env.BUILD_OPTIONS}'"
+                sh "cmake --build ${megacmd_sources_workspace}/${BUILD_DIR} -j 2"
+                sh "cmake --install ${megacmd_sources_workspace}/${BUILD_DIR}"
             }
         }
-
         stage('Run tests'){
-            environment{
-                PATH = "${windows_sources_workspace}\\\\..\\\\vcpkg\\\\installed\\\\x64-windows-mega\\\\debug\\\\bin;${env.PATH}"
-            }
-            options{
-                timeout(time: 3, unit: 'HOURS')
-            }
-            steps{
-                sh "echo Running tests"
-                bat """
-                build\\\\cmake\\\\build_dir\\\\Debug\\\\mega-cmd-tests-unit.exe
-                if %ERRORLEVEL% NEQ 0 exit 1
-                exit %ERROR_VAL%
-                """
+            parallel {
+                stage('Run unit tests'){
+                    environment{
+                            PATH = "cmdinstall\\bin:${env.PATH}"
+                    }
+                    options{
+                        timeout(time: 3, unit: 'HOURS')
+                    }
+                    steps{
+                        sh "echo Running tests"
+                        bat """
+                            build_dir\\\\bin\\\\mega-cmd-tests-unit.exe --gtest_shuffle --gtest_output=xml:${windows_sources_workspace}\\megacmd-unit-tests.xml
+                            if %ERRORLEVEL% NEQ 0 exit 1
+                            exit %ERROR_VAL%
+                            """
+                        }
+                        post{
+                        always{
+                            junit(testResults: "**/*-unit-*.xml")
+                        }
+                    }
+                }
+
+                stage('Run integration tests'){
+                    environment{
+                        PATH = "cmdinstall\\bin:${env.PATH}"
+                        MEGACMD_TEST_USER=''
+                        MEGACMD_TEST_PASS=credentials('MEGACMD_TESTS_PASSWORD')
+                    }
+                    options{
+                        timeout(time: 3, unit: 'HOURS')
+                    }
+                    steps{
+                        //bat "dir ${windows_sources_workspace}\\..\\3rdparty\\\\vcpkg\\\\installed\\\\x64-windows-mega\\\\debug\\\\bin"
+                        lock(label: 'testing_accounts_megacmd', variable: 'MEGACMD_TEST_USER', quantity: 1, resource: null) {
+                            script {
+                                try {
+                                    bat """
+                                    build_dir\\\\bin\\\\mega-cmd-tests-integration.exe --gtest_stack_trace_depth=10 --gmock_verbose=info --gtest_shuffle --gtest_output=xml:${windows_sources_workspace}\\megacmd-integration-tests.xml
+                                    if %ERRORLEVEL% NEQ 0 exit 1
+                                    exit %ERROR_VAL%
+                                    """
+                                } catch (e) {
+                                    echo "Integration tests on Windows are expected to fail for now."
+                                }
+                            }
+                        }
+                    }
+                    post{
+                        always{
+                            junit(testResults: "**/*-integration-*.xml", allowEmptyResults: true)
+                            bat "rmdir build\\\\cmake\\\\build_dir\\\\Debug\\\\.megaCmd /s /q"
+                        }
+                    }
+                }
             }
         }
     }
