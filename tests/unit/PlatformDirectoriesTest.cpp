@@ -36,9 +36,14 @@ TEST(PlatformDirectoriesTest, runtimeDirPath)
     {
         G_SUBTEST << "Without $XDG_RUNTIME_DIR";
         auto guard = TestInstrumentsUnsetEnvVarGuard("XDG_RUNTIME_DIR");
-        auto homeGuard = TestInstrumentsEnvVarGuard("HOME", "/home/test");
-        EXPECT_EQ(dirs->runtimeDirPath(),
-                  std::string("/tmp/megacmd-").append(std::to_string(getuid())));
+        {
+            auto homeGuard = TestInstrumentsEnvVarGuard("HOME", "/non-existent-dir");
+            EXPECT_EQ(dirs->runtimeDirPath(), std::string("/tmp/megacmd-").append(std::to_string(getuid())));
+        }
+        {
+            auto homeGuard = TestInstrumentsEnvVarGuard("HOME", "/tmp");
+            EXPECT_EQ(dirs->runtimeDirPath(), "/tmp/.megaCmd");
+        }
     }
 #endif
 }
@@ -59,8 +64,14 @@ TEST(PlatformDirectoriesTest, configDirPath)
     {
         G_SUBTEST << "Without $XDG_CONFIG_HOME";
         auto guard = TestInstrumentsUnsetEnvVarGuard("XDG_CONFIG_HOME");
-        auto homeGuard= TestInstrumentsEnvVarGuard("HOME", "/home/test");
-        EXPECT_EQ(dirs->configDirPath(), "/home/test/.megaCmd");
+        {
+            auto homeGuard = TestInstrumentsEnvVarGuard("HOME", "/tmp");
+            EXPECT_EQ(dirs->configDirPath(), "/tmp/.megaCmd");
+        }
+        {
+            auto homeGuard = TestInstrumentsEnvVarGuard("HOME", "/non-existent-dir");
+            EXPECT_EQ(dirs->configDirPath(), std::string("/tmp/megacmd-").append(std::to_string(getuid())));
+        }
     }
 #endif
 #ifdef _WIN32
@@ -93,9 +104,15 @@ TEST(PlatformDirectoriesTest, cacheDirPath)
     }
     {
         G_SUBTEST << "Without $XDG_CACHE_HOME";
-        auto homeGuard = TestInstrumentsEnvVarGuard("HOME", "/home/test");
         auto guard = TestInstrumentsUnsetEnvVarGuard("XDG_CACHE_HOME");
-        EXPECT_EQ(dirs->cacheDirPath(), "/home/test/.megaCmd");
+        {
+            auto homeGuard = TestInstrumentsEnvVarGuard("HOME", "/tmp");
+            EXPECT_EQ(dirs->cacheDirPath(), "/tmp/.megaCmd");
+        }
+        {
+            auto homeGuard = TestInstrumentsEnvVarGuard("HOME", "/non-existent-dir");
+            EXPECT_EQ(dirs->configDirPath(), std::string("/tmp/megacmd-").append(std::to_string(getuid())));
+        }
     }
 #endif
 }
