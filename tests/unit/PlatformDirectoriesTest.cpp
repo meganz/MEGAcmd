@@ -36,9 +36,14 @@ TEST(PlatformDirectoriesTest, runtimeDirPath)
     {
         G_SUBTEST << "Without $XDG_RUNTIME_DIR";
         auto guard = TestInstrumentsUnsetEnvVarGuard("XDG_RUNTIME_DIR");
-        auto homeGuard = TestInstrumentsEnvVarGuard("HOME", "/home/test");
-        EXPECT_EQ(dirs->runtimeDirPath(),
-                  std::string("/tmp/megacmd-").append(std::to_string(getuid())));
+        {
+            auto homeGuard = TestInstrumentsEnvVarGuard("HOME", "/non-existent-dir");
+            EXPECT_EQ(dirs->runtimeDirPath(), std::string("/tmp/megacmd-").append(std::to_string(getuid())));
+        }
+        {
+            auto homeGuard = TestInstrumentsEnvVarGuard("HOME", "/tmp");
+            EXPECT_EQ(dirs->runtimeDirPath(), "/tmp/.megaCmd");
+        }
     }
 #endif
 }
