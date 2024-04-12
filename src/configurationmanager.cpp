@@ -714,6 +714,10 @@ void ConfigurationManager::loadConfiguration(bool debug)
 
         // Check if version has been updated.
         stringstream versionionfile;
+        if (mConfigFolder.empty())
+        {
+            loadConfigDir();
+        }
         versionionfile << mConfigFolder << "/" << VERSION_FILE_NAME;
 
         // Get latest version if any.
