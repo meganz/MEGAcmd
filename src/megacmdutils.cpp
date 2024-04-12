@@ -17,6 +17,7 @@
  */
 
 #include "megacmdutils.h"
+#include "mega/types.h"
 
 #ifdef USE_PCRE
 #include <pcrecpp.h>
@@ -1258,8 +1259,8 @@ bool pathIsExistingDir(std::string path)
     replaceAll(path, "/", "\\");
 #endif
     LocalPath abs = LocalPath::fromAbsolutePath(path);
-    std::unique_ptr<mega::MegaFileSystemAccess> fsa = ::mega::make_unique<mega::MegaFileSystemAccess>();
-    std::unique_ptr<FileAccess> fa = fsa->newfileaccess();
+    std::unique_ptr<::mega::MegaFileSystemAccess> fsa = ::mega::make_unique<::mega::MegaFileSystemAccess>();
+    std::unique_ptr<::mega::FileAccess> fa = fsa->newfileaccess();
     return fa->isfolder(abs);
 }
 }//end namespace
