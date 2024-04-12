@@ -119,15 +119,16 @@ TEST(UtilsTest, getListOfWords)
 
 TEST(UtilsTest, pathIsExistingDirValidDirPath)
 {
-    std::unique_ptr<char[]> buf;
+    char *buf;
 #ifdef _WIN32
-    buf.reset(_getcwd(nullptr, 0));
+    buf = _getcwd(nullptr, 0);
 #else
-    buf.reset(getcwd(nullptr, 0));
+    buf = getcwd(nullptr, 0);
 #endif
     ASSERT_THAT(buf, testing::NotNull()) << "could not get current working directory: " << std::strerror(errno);
 
-    EXPECT_THAT(buf.get(), testing::ResultOf(::megacmd::pathIsExistingDir, testing::IsTrue()));
+    EXPECT_THAT(buf, testing::ResultOf(::megacmd::pathIsExistingDir, testing::IsTrue()));
+    free(buf);
 }
 
 TEST(UtilsTest, pathIsExistingDirInvalidPath)
