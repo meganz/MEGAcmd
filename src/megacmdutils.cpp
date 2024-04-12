@@ -1252,4 +1252,14 @@ mega::MegaHandle base64ToSyncBackupId(const std::string &shandle)
     return MegaApi::base64ToUserHandle(shandle.c_str());
 }
 
+bool pathIsExistingDir(std::string path)
+{
+#ifdef _WIN32
+    replaceAll(path, "/", "\\");
+#endif
+    LocalPath abs = LocalPath::fromAbsolutePath(path);
+    std::unique_ptr<mega::MegaFileSystemAccess> fsa = ::mega::make_unique<mega::MegaFileSystemAccess>();
+    std::unique_ptr<FileAccess> fa = fsa->newfileaccess();
+    return fa->isfolder(abs);
+}
 }//end namespace

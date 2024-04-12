@@ -13,6 +13,16 @@
  * program.
  */
 
+#include "megacmdutils.h"
+#include <cstring>
+#include <cerrno>
+#ifdef _WIN32
+#include <direct.h>
+#include <windows.h>
+#else
+#include <unistd.h>
+#endif
+
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
@@ -105,4 +115,38 @@ TEST(UtilsTest, getListOfWords)
         words = megacmd::getlistOfWords(str, false, true);
         EXPECT_THAT(words, testing::ElementsAre("export", "-f", "--writable", "some_dir/some_file.txt"));
     }
+}
+
+TEST(UtilsTest, pathIsExistingDirValidDirPath)
+{
+    std::unique_ptr<char[]> buf;
+#ifdef _WIN32
+    buf.reset(_getcwd(nullptr, 0));
+#else
+    buf.reset(getcwd(nullptr, 0));
+#endif
+    ASSERT_THAT(buf, testing::NotNull()) << "could not get current working directory: " << std::strerror(errno);
+
+    EXPECT_THAT(buf.get(), testing::ResultOf(::megacmd::pathIsExistingDir, testing::IsTrue()));
+}
+
+TEST(UtilsTest, pathIsExistingDirInvalidPath)
+{
+    EXPECT_FALSE(::megacmd::pathIsExistingDir("/path/to/invalid/dir"));
+}
+
+TEST(UtilsTest, pathIsExistingDirFilePath)
+{
+#ifdef _WIN32
+    TCHAR u16Path[MAX_PATH];
+    std::string u8Path;
+
+    ASSERT_TRUE(SUCCEEDED(GetModuleFileName(nullptr, u16Path, MAX_PATH)));
+    megacmd::utf16ToUtf8(u16Path, lstrlen(u16Path), &u8Path);
+
+    ASSERT_THAT(u8Path, testing::Not(testing::IsEmpty()));
+    EXPECT_THAT(u8Path, testing::ResultOf(::megacmd::pathIsExistingDir, testing::IsTrue()));
+#else
+    EXPECT_FALSE(::megacmd::pathIsExistingDir("/dev/null"));
+#endif
 }
