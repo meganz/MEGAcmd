@@ -123,7 +123,7 @@ pipeline {
 	    parallel {
 		stage('Run unit tests'){
 		    environment{
-			PATH = "${windows_sources_workspace}\\\\..\\\\vcpkg\\\\installed\\\\x64-windows-mega\\\\debug\\\\bin;${env.PATH}"
+			PATH = "${windows_sources_workspace}\\..\\3rdparty\\\\vcpkg\\\\installed\\\\x64-windows-mega\\\\debug\\\\bin;${env.PATH}"
 		    }
 		    options{
 			timeout(time: 3, unit: 'HOURS')
