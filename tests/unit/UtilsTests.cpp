@@ -146,7 +146,7 @@ TEST(UtilsTest, pathIsExistingDirFilePath)
     megacmd::utf16ToUtf8(u16Path, lstrlen(u16Path), &u8Path);
 
     ASSERT_THAT(u8Path, testing::Not(testing::IsEmpty()));
-    EXPECT_THAT(u8Path, testing::ResultOf(::megacmd::pathIsExistingDir, testing::IsTrue()));
+    EXPECT_THAT(u8Path, testing::ResultOf(::megacmd::pathIsExistingDir, testing::IsFalse()));
 #else
     EXPECT_FALSE(::megacmd::pathIsExistingDir("/dev/null"));
 #endif
