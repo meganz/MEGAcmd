@@ -26,6 +26,10 @@ class ExportTest : public NOINTERACTIVELoggedInTest
 protected:
     void SetUp() override
     {
+        // Do not assert the output of this; we just want to ensure a clean state in the setup
+        executeInClient({"rm", "-r", "-f", "testExportFolder"});
+        executeInClient({"rm", "-f", "testExportFile01.txt"});
+
         NOINTERACTIVELoggedInTest::SetUp();
         auto result = executeInClient({"import", "https://mega.nz/folder/8L80QKyL#glRTp6Zc0gppwp03IG03tA"});
         ASSERT_TRUE(result.ok()) << "could not import testExportFolder";
