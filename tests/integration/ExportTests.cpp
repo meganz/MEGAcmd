@@ -86,6 +86,8 @@ TEST_F(ExportTest, Basic)
         ASSERT_TRUE(rDisable.ok());
         EXPECT_THAT(rDisable.out(), testing::StartsWith("Disabled export: /" + file_path));
 
+        std::this_thread::sleep_for(std::chrono::milliseconds(300)); // otherwise check below would fail
+
         // Again, verify it's not exported
         rExport = executeInClient({"export", file_path});
         ASSERT_FALSE(rExport.ok());
@@ -118,6 +120,8 @@ TEST_F(ExportTest, Basic)
         auto rDisable = executeInClient({"export", "-d", dir_path});
         ASSERT_TRUE(rDisable.ok());
         EXPECT_THAT(rDisable.out(), testing::StartsWith("Disabled export: /" + dir_path));
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(300)); // otherwise check below would fail
 
         // Again, verify it's not exported
         rExport = executeInClient({"export", dir_path});
