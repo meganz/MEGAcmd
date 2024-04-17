@@ -1400,7 +1400,7 @@ void MegaCmdExecuter::dumpNode(MegaNode* n, const char *timeFormat, std::map<std
 
 // 12 is the length of "999000000000" i.e 999 GiB.
 static constexpr size_t MAX_SIZE_LEN = 12;
-static constexpr unsigned DUMPNODE_SIZE_WIDTH = (MAX_SIZE_LEN > strlen("SIZE  ")) ? MAX_SIZE_LEN : strlen("SIZE  ");
+static unsigned DUMPNODE_SIZE_WIDTH = (MAX_SIZE_LEN > strlen("SIZE  ")) ? MAX_SIZE_LEN : strlen("SIZE  ");
 
 void MegaCmdExecuter::dumpNodeSummaryHeader(const char *timeFormat, std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions)
 {
