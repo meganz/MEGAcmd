@@ -1259,8 +1259,8 @@ bool pathIsExistingDir(std::string path)
     replaceAll(path, "/", "\\");
 #endif
     LocalPath abs = LocalPath::fromAbsolutePath(path);
-    std::unique_ptr<::mega::MegaFileSystemAccess> fsa = ::mega::make_unique<::mega::MegaFileSystemAccess>();
-    std::unique_ptr<::mega::FileAccess> fa = fsa->newfileaccess();
+    ::mega::MegaFileSystemAccess fsa;
+    std::unique_ptr<::mega::FileAccess> fa = fsa.newfileaccess();
     return fa->isfolder(abs);
 }
 }//end namespace
