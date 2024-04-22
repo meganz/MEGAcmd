@@ -19,6 +19,9 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     ccache \
     cmake zip pkg-config curl python3 autoconf-archive nasm libgtest-dev libgmock-dev git g++ make unzip autoconf  ca-certificates automake ninja-build
 
+
+RUN git clone https://github.com/microsoft/vcpkg /vcpkg
+
 FROM scratch as src
 
 WORKDIR /usr/src/megacmd
@@ -49,9 +52,11 @@ ARG ENABLE_MEGACMD_TESTS=ON
 
 COPY --from=src /usr/src/megacmd /usr/src/megacmd
 
-RUN git clone https://github.com/microsoft/vcpkg /vcpkg
 
-RUN --mount=type=cache,target=/tmp/ccache \
+#We don't wont a potential config coming from host machine to meddle with the build:
+RUN rm ./sdk/include/mega/config.h || true
+
+RUN  --mount=type=cache,target=/tmp/ccache \
     --mount=type=cache,target=/tmp/vcpkgcache \
     --mount=type=tmpfs,target=/tmp/build \
      cmake -B /tmp/build \
@@ -61,6 +66,7 @@ RUN --mount=type=cache,target=/tmp/ccache \
     -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
     -DCMAKE_C_COMPILER_LAUNCHER=ccache \
     -DCMAKE_BUILD_TYPE=Debug \
+    -DCMAKE_VERBOSE_MAKEFILE=ON \
     -DCMAKE_INSTALL_PREFIX=/usr \
     -D ENABLE_ASAN=${ENABLE_ASAN} -D \
     ENABLE_UBSAN=${ENABLE_UBSAN} -D \

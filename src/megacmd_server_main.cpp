@@ -198,12 +198,12 @@ int main(int argc, char* argv[])
     std::unique_ptr<megacmd::LoggedStream> loggedStream;
     if (logToFile)
     {
-        loggedStream = ::mega::make_unique<megacmd::LoggedStreamDefaultFile>();
+        loggedStream = std::make_unique<megacmd::LoggedStreamDefaultFile>();
     }
     else
     {
         // log to stdout
-        loggedStream = ::mega::make_unique<megacmd::LoggedStreamOutStream>(&COUT);
+        loggedStream = std::make_unique<megacmd::LoggedStreamOutStream>(&COUT);
     }
 
     return megacmd::executeServer(argc, argv, std::move(loggedStream),

@@ -12,10 +12,30 @@ if(USE_PCRE)
 endif()
 
 if(FULL_REQS)
-    add_compile_definitions(REQUIRE_HAVE_PDFIUM REQUIRE_HAVE_FFMPEG REQUIRE_HAVE_LIBUV REQUIRE_USE_MEDIAINFO REQUIRE_USE_PCRE)
+ #On by default in the SDK, but let's enforce anyway
+    option(USE_PDFIUM "Used to create previews/thumbnails for PDF files" ON)
+    option(USE_FFMPEG "Used to create previews/thumbnails for video files" ON)
+    option(USE_MEDIAINFO "Used to determine media properties and set those as node attributes" ON)
+
+    #make compilation fail in case those are not fully available:
+    add_compile_definitions(
+        REQUIRE_HAVE_FFMPEG
+        REQUIRE_HAVE_PDFIUM
+        REQUIRE_USE_MEDIAINFO
+        REQUIRE_HAVE_LIBUV
+        REQUIRE_USE_PCRE
+    )
+else()
+    option(USE_PDFIUM "Used to create previews/thumbnails for PDF files" OFF)
+    option(USE_FFMPEG "Used to create previews/thumbnails for video files" OFF)
+    option(USE_MEDIAINFO "Used to determine media properties and set those as node attributes" OFF)
 endif()
+
 option(ENABLE_MEGACMD_TESTS "Enable MEGAcmd testing code" OFF)
 
 if(ENABLE_MEGACMD_TESTS)
     add_compile_definitions(MEGACMD_TESTING_CODE=1)
 endif()
+
+#Override SDK's options:
+option(ENABLE_ISOLATED_GFX "Turns on isolated GFX processor" OFF)

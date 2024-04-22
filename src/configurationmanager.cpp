@@ -94,7 +94,7 @@ void ConfigurationManager::loadConfigDir()
         return;
     }
 
-    auto fsAccess = ::mega::make_unique<MegaFileSystemAccess>();
+    auto fsAccess = std::make_unique<MegaFileSystemAccess>();
     fsAccess->setdefaultfolderpermissions(0700);
     LocalPath localConfigFolder = LocalPath::fromAbsolutePath(mConfigFolder);
     constexpr bool isHidden = true;
@@ -110,7 +110,7 @@ std::string ConfigurationManager::getDataDir()
     auto dirs = PlatformDirectories::getPlatformSpecificDirectories();
     auto data_dir = dirs->dataDirPath();
 
-    auto fsAccess = ::mega::make_unique<MegaFileSystemAccess>();
+    auto fsAccess = std::make_unique<MegaFileSystemAccess>();
     fsAccess->setdefaultfolderpermissions(0700);
     LocalPath local_data_dir = LocalPath::fromAbsolutePath(data_dir);
     if (!is_file_exist(data_dir.c_str()) && !fsAccess->mkdirlocal(local_data_dir, false, false))
@@ -126,7 +126,7 @@ std::string ConfigurationManager::getStateDir()
     auto dirs = PlatformDirectories::getPlatformSpecificDirectories();
     auto state_dir = dirs->stateDirPath();
 
-    auto fsAccess = ::mega::make_unique<MegaFileSystemAccess>();
+    auto fsAccess = std::make_unique<MegaFileSystemAccess>();
     fsAccess->setdefaultfolderpermissions(0700);
     LocalPath local_data_dir = LocalPath::fromAbsolutePath(state_dir);
     if (!is_file_exist(state_dir.c_str()) && !fsAccess->mkdirlocal(local_data_dir, false, false))
@@ -264,7 +264,7 @@ void ConfigurationManager::migrateSyncConfig(MegaApi *api)
 
             sync_struct *thesync = ((sync_struct*)( *itr ).second );
 
-            auto newListenerPair = listeners.emplace(thesync, ::make_unique<MegaCmdListener>(api));
+            auto newListenerPair = listeners.emplace(thesync, std::make_unique<MegaCmdListener>(api));
 
             api->copySyncDataToCache(thesync->localpath.c_str(), thesync->handle, nullptr,
                                      thesync->fingerprint, thesync->active, false, newListenerPair.first->second.get());

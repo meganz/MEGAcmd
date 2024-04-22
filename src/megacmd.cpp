@@ -4377,7 +4377,7 @@ void megacmd()
                             s += " and " + getReadableTime(warningsList->get(warningsList->size() - 1),"%b %e %Y");
                         }
                         std::unique_ptr<MegaNode> rootNode(api->getRootNode());
-                        auto listener = ::mega::make_unique<SynchronousRequestListener>();
+                        auto listener = std::make_unique<SynchronousRequestListener>();
                         api->getFolderInfo(rootNode.get(), listener.get());
                         listener->wait();
                         auto error = listener->getError();

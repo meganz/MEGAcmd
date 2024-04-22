@@ -72,7 +72,7 @@ TEST_F(NOINTERACTIVELoggedInTest, Whoami)
         ASSERT_THAT(details_out, testing::Contains(testing::HasSubstr("Current Session")));
         ASSERT_THAT(details_out, testing::Contains(testing::HasSubstr("In RUBBISH:")));
 
-        EXPECT_THAT(details_out, testing::Not(testing::Contains(testing::ContainsStdRegex("Available storage:\\s+0\\.00\\s+Bytes"))));
-        EXPECT_THAT(details_out, testing::Not(testing::Contains(testing::ContainsStdRegex("In ROOT:\\s+0\\.00\\s+Bytes"))));
+        EXPECT_THAT(details_out, testing::Not(testing::Contains(ContainsStdRegex("Available storage:\\s+0\\.00\\s+Bytes"))));
+        EXPECT_THAT(details_out, testing::Not(testing::Contains(ContainsStdRegex("In ROOT:\\s+0\\.00\\s+Bytes"))));
     }
 }
