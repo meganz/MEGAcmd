@@ -1566,18 +1566,21 @@ std::string PosixDirectories::homeDirPath()
 
 std::string PosixDirectories::runtimeDirPath()
 {
-    std::string dir = PosixDirectories::configDirPath();
-    struct stat path_stat = {};
-    bool exists = !stat(dir.c_str(), &path_stat) && S_ISDIR(path_stat.st_mode);
-
-    return (dir.empty() || !exists) ? std::string("/tmp/megacmd-").append(std::to_string(getuid()))
-                                    : dir;
+    return PosixDirectories::configDirPath();
 }
 
 std::string PosixDirectories::configDirPath()
 {
     std::string home = homeDirPath();
-    return home.empty() ? std::string() : home.append("/.megaCmd");
+    if (home.empty())
+    {
+        return std::string("/tmp/megacmd-").append(std::to_string(getuid()));
+    }
+
+    struct stat path_stat = {};
+    bool exists = !stat(home.c_str(), &path_stat) && S_ISDIR(path_stat.st_mode);
+
+    return !exists ? std::string("/tmp/megacmd-").append(std::to_string(getuid())) : home.append("/.megaCmd");
 }
 
 bool PosixDirectories::legacyConfigDirExists()

@@ -160,7 +160,6 @@ pipeline {
                         }
                     }
                 }
-
                 stage('Run integration tests'){
                     environment{
                         PATH = "cmdinstall\\bin:${env.PATH}"

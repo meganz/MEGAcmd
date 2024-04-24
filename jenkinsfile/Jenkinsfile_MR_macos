@@ -178,6 +178,8 @@ pipeline {
                         export PATH="${env.INSTALL_DIR}/bin:$PATH"
                         export TMP=\$(mktemp -d)
                         export HOME=\$TMP
+                        mkdir -p \$HOME/Library/Preferences
+                        mkdir -p \$HOME/Library/Caches
                         cleanup() {
                             ARG=\$?
                             rm -rf \$TMP

@@ -1400,19 +1400,17 @@ void MegaCmdExecuter::dumpNode(MegaNode* n, const char *timeFormat, std::map<std
 
 // 12 is the length of "999000000000" i.e 999 GiB.
 static constexpr size_t MAX_SIZE_LEN = 12;
+static unsigned int DUMPNODE_SIZE_WIDTH = static_cast<unsigned>((MAX_SIZE_LEN > strlen("SIZE  ")) ? MAX_SIZE_LEN : strlen("SIZE  "));
 
 void MegaCmdExecuter::dumpNodeSummaryHeader(const char *timeFormat, std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions)
 {
     int datelength = int(getReadableTime(m_time(), timeFormat).size());
-    size_t size_header_width = std::max((MAX_SIZE_LEN - 1), strlen("SIZE  "));
 
     OUTSTREAM << "FLAGS";
     OUTSTREAM << " ";
     OUTSTREAM << getFixLengthString("VERS", 4);
     OUTSTREAM << " ";
-    OUTSTREAM << getFixLengthString("SIZE  ",
-                                    (unsigned int)size_header_width, ' ',
-                                    true); //-1 because of "FLAGS"
+    OUTSTREAM << getFixLengthString("SIZE  ", DUMPNODE_SIZE_WIDTH - 1 /*-1 to compensate FLAGS header*/, ' ', true);
     OUTSTREAM << " ";
     OUTSTREAM << getFixLengthString("DATE      ", datelength+1, ' ', true);
     if (getFlag(clflags, "show-handles"))
@@ -1512,13 +1510,11 @@ void MegaCmdExecuter::dumpNodeSummary(MegaNode *n, const char *timeFormat, std::
     {
         if (humanreadable)
         {
-            OUTSTREAM << getFixLengthString(sizeToText(n->getSize()), 10, ' ', true);
+            OUTSTREAM << getFixLengthString(sizeToText(n->getSize()), DUMPNODE_SIZE_WIDTH, ' ', true);
         }
         else
         {
-            OUTSTREAM << getFixLengthString(SSTR(n->getSize()),
-                                            (unsigned int)std::max(MAX_SIZE_LEN, strlen("SIZE  ")),
-                                            ' ', true);
+            OUTSTREAM << getFixLengthString(SSTR(n->getSize()), DUMPNODE_SIZE_WIDTH, ' ', true);
         }
     }
     else

@@ -99,9 +99,9 @@ void ConfigurationManager::loadConfigDir()
     LocalPath localConfigFolder = LocalPath::fromAbsolutePath(mConfigFolder);
     constexpr bool isHidden = true;
     constexpr bool reportExisting = false;
-    if (!is_file_exist(mConfigFolder.c_str()) && !fsAccess->mkdirlocal(localConfigFolder, isHidden, reportExisting))
+    if (!pathIsExistingDir(mConfigFolder.c_str()) && !fsAccess->mkdirlocal(localConfigFolder, isHidden, reportExisting))
     {
-        LOG_err << "Config folder not created";
+        LOG_err << "Config directory not created";
     }
 }
 
@@ -113,7 +113,7 @@ std::string ConfigurationManager::getDataDir()
     auto fsAccess = std::make_unique<MegaFileSystemAccess>();
     fsAccess->setdefaultfolderpermissions(0700);
     LocalPath local_data_dir = LocalPath::fromAbsolutePath(data_dir);
-    if (!is_file_exist(data_dir.c_str()) && !fsAccess->mkdirlocal(local_data_dir, false, false))
+    if (!pathIsExistingDir(data_dir.c_str()) && !fsAccess->mkdirlocal(local_data_dir, false, false))
     {
         LOG_err << "Data directory not created";
     }
@@ -129,7 +129,7 @@ std::string ConfigurationManager::getStateDir()
     auto fsAccess = std::make_unique<MegaFileSystemAccess>();
     fsAccess->setdefaultfolderpermissions(0700);
     LocalPath local_data_dir = LocalPath::fromAbsolutePath(state_dir);
-    if (!is_file_exist(state_dir.c_str()) && !fsAccess->mkdirlocal(local_data_dir, false, false))
+    if (!pathIsExistingDir(state_dir.c_str()) && !fsAccess->mkdirlocal(local_data_dir, false, false))
     {
         LOG_err << "State directory not created";
     }
@@ -150,7 +150,7 @@ std::string ConfigurationManager::getDataFolderSubdir(const string &utf8Name)
 
     constexpr bool isHidden = true;
     constexpr bool reportExisting = false;
-    if (!is_file_exist(dataSubDir.toPath(false).c_str()) && !fsAccess.mkdirlocal(dataSubDir, isHidden, reportExisting))
+    if (!pathIsExistingDir(dataSubDir.toPath(false).c_str()) && !fsAccess.mkdirlocal(dataSubDir, isHidden, reportExisting))
     {
         LOG_err << "State subfolder not created";
     }
@@ -714,6 +714,10 @@ void ConfigurationManager::loadConfiguration(bool debug)
 
         // Check if version has been updated.
         stringstream versionionfile;
+        if (mConfigFolder.empty())
+        {
+            loadConfigDir();
+        }
         versionionfile << mConfigFolder << "/" << VERSION_FILE_NAME;
 
         // Get latest version if any.
