@@ -36,6 +36,7 @@ if(WIN32)
     add_definitions( -DNTDDI_VERSION=NTDDI_WIN7 )
     add_definitions( -D_WIN32_WINNT=0x0601 ) # 0601: windows 7
     add_definitions( -DUSE_CPPTHREAD ) # For win32, we need this to be defined explicitly (used directly in different targets). TODO: remove in CMD-318
+    add_definitions( -DNOMINMAX )
 endif()
 
 ## Configurable options ##
