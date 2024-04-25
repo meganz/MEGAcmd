@@ -127,6 +127,7 @@ target_compile_definitions(LMegacmdServer
     $<$<BOOL:${ENABLE_BACKUPS}>:ENABLE_BACKUPS> #TODO: The SDK no longer has this flag, we can simply remove the conditionality of it.
     $<$<BOOL:${USE_LIBUV}>:HAVE_LIBUV>
     $<$<BOOL:${USE_PCRE}>:USE_PCRE>
+    $<$<BOOL:${WIN32}>:USE_CPPTHREAD> #For win32, we need this to be defined explicitly (used directly)
     $<IF:$<CONFIG:Debug>,DEBUG,NDEBUG>
 )
 
