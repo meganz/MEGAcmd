@@ -80,9 +80,9 @@ pipeline {
                                 [$class: 'PreBuildMerge', options: [fastForwardMode: 'FF', mergeRemote: "origin", mergeStrategy: 'DEFAULT', mergeTarget: "${env.gitlabTargetBranch}"]]
                             ]
                         ])
-                    }
-                    script{
-                        megacmd_sources_workspace = WORKSPACE
+                        script{
+                            megacmd_sources_workspace = WORKSPACE
+                        }
                     }
                 }
                 stage('Checkout VCPKG'){
