@@ -10,6 +10,33 @@ list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/sdk/contrib/cmake/module
 
 set(VCPKG_ROOT "" CACHE PATH "If set, it will build and use the VCPKG packages defined in the manifest file")
 
+#TODO: Review the following, move to a separate module and add add_executable WIN32/MACOSX_BUNDLE properties
+# Set min OSX version
+if(CMAKE_HOST_APPLE)
+    # Minimum deployment target differs if we are building for intel or arm64 targets
+    # CMAKE_SYSTEM_PROCESSOR and CMAKE_HOST_SYSTEM_PROCESSOR are only available after project()
+    execute_process(
+        COMMAND uname -m
+        OUTPUT_VARIABLE HOST_ARCHITECTURE
+        OUTPUT_STRIP_TRAILING_WHITESPACE)
+
+    # Setup CMAKE_OSX_DEPLOYMENT_TARGET before project()
+    if(CMAKE_OSX_ARCHITECTURES STREQUAL "arm64" OR (NOT CMAKE_OSX_ARCHITECTURES AND HOST_ARCHITECTURE STREQUAL "arm64"))
+        set(CMAKE_OSX_DEPLOYMENT_TARGET "11.1" CACHE STRING "Minimum OS X deployment version")
+    else()
+        set(CMAKE_OSX_DEPLOYMENT_TARGET "10.13" CACHE STRING "Minimum OS X deployment version")
+    endif()
+    message(STATUS "Minimum OS X deployment version is set to ${CMAKE_OSX_DEPLOYMENT_TARGET}")
+    unset(HOST_ARCHITECTURE)
+endif()
+if(WIN32)
+    add_definitions( -DUNICODE -D_UNICODE )  # needed for visual studio projects to use the unicode runtime libraries
+
+    #supported windows version: 7 and beyond
+    add_definitions( -DNTDDI_VERSION=NTDDI_WIN7 )
+    add_definitions( -D_WIN32_WINNT=0x0601 ) # 0601: windows 7
+endif()
+
 ## Configurable options ##
 include(megacmd_options) #Load first MEGAcmd's options (that we have prevalescence over SDK (e.g libuv)
 include(sdklib_options) #load default sdk's
