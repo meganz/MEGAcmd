@@ -130,14 +130,14 @@ pipeline {
                 sh "rm -rf ${BUILD_DIR}; mkdir ${BUILD_DIR}"
                 sh "cmake -DCMAKE_VERBOSE_MAKEFILE=1 -DENABLE_MEGACMD_TESTS=ON -DCMAKE_BUILD_TYPE=Debug -DVCPKG_ROOT='${VCPKGPATH}' -DCMAKE_INSTALL_PREFIX=cmdinstall -S '${megacmd_sources_workspace}' -B ${BUILD_DIR} '${env.BUILD_OPTIONS}'"
                 sh "cmake --build ${BUILD_DIR} -j 2"
-                sh "cmake --install ${BUILD_DIR}"
+                sh "cmake --install ${BUILD_DIR}" --config Debug
             }
         }
         stage('Run tests'){
             parallel {
                 stage('Run unit tests'){
                     environment{
-                        PATH = "cmdbuild\\Debug:${env.PATH}"
+                        INSTALL_DIR  = "${megacmd_sources_workspace}\\cmdinstall"
                     }
                     options{
                         timeout(time: 3, unit: 'HOURS')
@@ -145,7 +145,7 @@ pipeline {
                     steps{
                         sh "echo Running tests"
                         bat """
-                            mega-cmd-tests-unit.exe --gtest_shuffle --gtest_output=xml:${megacmd_sources_workspace}\\megacmd-unit-tests.xml
+                            ${INSTALL_DIR}\\mega-cmd-tests-unit.exe --gtest_shuffle --gtest_output=xml:${megacmd_sources_workspace}\\megacmd-unit-tests.xml
                             if %ERRORLEVEL% NEQ 0 exit 1
                             exit %ERROR_VAL%
                             """
@@ -158,7 +158,7 @@ pipeline {
                 }
                 stage('Run integration tests'){
                     environment{
-                        PATH = "cmdbuild\\Debug:${env.PATH}"
+                        INSTALL_DIR  = "${megacmd_sources_workspace}\\cmdinstall"
                         MEGACMD_TEST_USER=''
                         MEGACMD_TEST_PASS=credentials('MEGACMD_TESTS_PASSWORD')
                     }
@@ -171,7 +171,7 @@ pipeline {
                             script {
                                 try {
                                     bat """
-                                    mega-cmd-tests-integration.exe --gtest_stack_trace_depth=10 --gmock_verbose=info --gtest_shuffle --gtest_output=xml:${megacmd_sources_workspace}\\megacmd-integration-tests.xml
+                                    ${INSTALL_DIR}\\mega-cmd-tests-integration.exe --gtest_stack_trace_depth=10 --gmock_verbose=info --gtest_shuffle --gtest_output=xml:${megacmd_sources_workspace}\\megacmd-integration-tests.xml
                                     if %ERRORLEVEL% NEQ 0 exit 1
                                     exit %ERROR_VAL%
                                     """
