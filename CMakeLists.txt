@@ -35,6 +35,7 @@ if(WIN32)
     #supported windows version: 7 and beyond
     add_definitions( -DNTDDI_VERSION=NTDDI_WIN7 )
     add_definitions( -D_WIN32_WINNT=0x0601 ) # 0601: windows 7
+    add_definitions( -DUSE_CPPTHREAD ) # For win32, we need this to be defined explicitly (used directly in different targets). TODO: remove in CMD-318
 endif()
 
 ## Configurable options ##
@@ -127,7 +128,6 @@ target_compile_definitions(LMegacmdServer
     $<$<BOOL:${ENABLE_BACKUPS}>:ENABLE_BACKUPS> #TODO: The SDK no longer has this flag, we can simply remove the conditionality of it.
     $<$<BOOL:${USE_LIBUV}>:HAVE_LIBUV>
     $<$<BOOL:${USE_PCRE}>:USE_PCRE>
-    $<$<BOOL:${WIN32}>:USE_CPPTHREAD> #For win32, we need this to be defined explicitly (used directly)
     $<IF:$<CONFIG:Debug>,DEBUG,NDEBUG>
 )
 
