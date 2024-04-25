@@ -97,7 +97,7 @@ pipeline {
                         }
                         script{
                             megacmd_sources_workspace = WORKSPACE
-                            vcpkg_sources_workspace = "${megacmd_sources_workspace}\\vcpkg"
+                            vcpkg_sources_workspace = '${megacmd_sources_workspace}\\vcpkg'
                         }
                     }
                 }

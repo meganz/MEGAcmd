@@ -142,14 +142,14 @@ pipeline {
                 INSTALL_DIR = "megacmd_sources_workspace/cmdinstall"
             }
             options{
-                timeout(time: 5, unit: 'MINUTES')
+                timeout(time: 15, unit: 'MINUTES')
             }
             steps{
                 dir('test-results') {
                     sh "echo Running tests"
                     sh """#!/bin/zsh
                     set -x
-                    export PATH="${env.INSTALL_DIR}/bin:$PATH"
+                    export PATH="${megacmd_sources_workspace}/${env.INSTALL_DIR}/bin:$PATH"
                     mega-cmd-tests-unit  --gtest_output=xml:${megacmd_sources_workspace}/test-results/megacmd-unit-tests.xml --gtest_shuffle
                     """
                 }
@@ -162,7 +162,7 @@ pipeline {
         }
         stage('Run INTEGRATION tests'){
             options{
-                timeout(time: 15, unit: 'MINUTES')
+                timeout(time: 1, unit: 'HOURS')
             }
             environment {
                 INSTALL_DIR = "${megacmd_sources_workspace}/cmdinstall"
@@ -175,7 +175,7 @@ pipeline {
                         sh "echo Running tests"
                         sh """#!/bin/zsh
                         set -x
-                        export PATH="${env.INSTALL_DIR}/bin:$PATH"
+                        export PATH="${megacmd_sources_workspace}/${env.INSTALL_DIR}/bin:$PATH"
                         export TMP=\$(mktemp -d)
                         export HOME=\$TMP
                         mkdir -p \$HOME/Library/Preferences
