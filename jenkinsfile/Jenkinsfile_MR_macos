@@ -139,7 +139,7 @@ pipeline {
         }
         stage('Run UNIT tests'){
             environment {
-                INSTALL_DIR = megacmd_sources_workspace + "/cmdinstall"
+                INSTALL_DIR = "${megacmd_sources_workspace}/cmdinstall"
             }
             options{
                 timeout(time: 15, unit: 'MINUTES')

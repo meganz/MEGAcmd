@@ -81,6 +81,9 @@ pipeline {
                             ]
                         ])
                     }
+                    script{
+                        megacmd_sources_workspace = WORKSPACE
+                    }
                 }
                 stage('Checkout VCPKG'){
                     steps{
@@ -94,10 +97,6 @@ pipeline {
                                 [$class: "CloneOption", noTags: false, reference: '']
                             ]
                             ])
-                        }
-                        script{
-                            megacmd_sources_workspace = WORKSPACE
-                            vcpkg_sources_workspace = megacmd_sources_workspace + '\\\\vcpkg'
                         }
                     }
                 }
@@ -114,10 +113,6 @@ pipeline {
                                 ]
                             ])
                         }
-                        script{
-                            megacmd_sources_workspace = WORKSPACE
-                            sdk_sources_workspace = megacmd_sources_workspace + "\\\\sdk"
-                        }
                     }
                 }
             }
@@ -125,6 +120,7 @@ pipeline {
 
         stage('Build MEGAcmd'){
             environment{
+                VCPKGPATH  = "${megacmd_sources_workspace}\\vcpkg"
                 BUILD_DIR = "cmdbuild"
             }
             options{
@@ -141,7 +137,7 @@ pipeline {
             parallel {
                 stage('Run unit tests'){
                     environment{
-                            PATH = "cmdinstall\\bin:${env.PATH}"
+                        PATH = "cmdinstall\\bin:${env.PATH}"
                     }
                     options{
                         timeout(time: 3, unit: 'HOURS')
@@ -149,7 +145,7 @@ pipeline {
                     steps{
                         sh "echo Running tests"
                         bat """
-                            build_dir\\\\bin\\\\mega-cmd-tests-unit.exe --gtest_shuffle --gtest_output=xml:${windows_sources_workspace}\\megacmd-unit-tests.xml
+                            build_dir\\\\bin\\\\mega-cmd-tests-unit.exe --gtest_shuffle --gtest_output=xml:${megacmd_sources_workspace}\\megacmd-unit-tests.xml
                             if %ERRORLEVEL% NEQ 0 exit 1
                             exit %ERROR_VAL%
                             """
@@ -175,7 +171,7 @@ pipeline {
                             script {
                                 try {
                                     bat """
-                                    build_dir\\\\bin\\\\mega-cmd-tests-integration.exe --gtest_stack_trace_depth=10 --gmock_verbose=info --gtest_shuffle --gtest_output=xml:${windows_sources_workspace}\\megacmd-integration-tests.xml
+                                    build_dir\\\\bin\\\\mega-cmd-tests-integration.exe --gtest_stack_trace_depth=10 --gmock_verbose=info --gtest_shuffle --gtest_output=xml:${megacmd_sources_workspace}\\megacmd-integration-tests.xml
                                     if %ERRORLEVEL% NEQ 0 exit 1
                                     exit %ERROR_VAL%
                                     """
