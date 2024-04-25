@@ -139,7 +139,7 @@ pipeline {
         }
         stage('Run UNIT tests'){
             environment {
-                INSTALL_DIR = "megacmd_sources_workspace/cmdinstall"
+                INSTALL_DIR = megacmd_sources_workspace + "/cmdinstall"
             }
             options{
                 timeout(time: 15, unit: 'MINUTES')
@@ -149,7 +149,7 @@ pipeline {
                     sh "echo Running tests"
                     sh """#!/bin/zsh
                     set -x
-                    export PATH="${megacmd_sources_workspace}/${env.INSTALL_DIR}/bin:$PATH"
+                    export PATH="${env.INSTALL_DIR}/bin:$PATH"
                     mega-cmd-tests-unit  --gtest_output=xml:${megacmd_sources_workspace}/test-results/megacmd-unit-tests.xml --gtest_shuffle
                     """
                 }
@@ -175,7 +175,7 @@ pipeline {
                         sh "echo Running tests"
                         sh """#!/bin/zsh
                         set -x
-                        export PATH="${megacmd_sources_workspace}/${env.INSTALL_DIR}/bin:$PATH"
+                        export PATH="${env.INSTALL_DIR}/bin:$PATH"
                         export TMP=\$(mktemp -d)
                         export HOME=\$TMP
                         mkdir -p \$HOME/Library/Preferences
