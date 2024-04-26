@@ -171,6 +171,7 @@ pipeline {
                             script {
                                 try {
                                     bat """
+                                    if %ERRORLEVEL% NEQ 0 set ERRORLEVEL=0
                                     ${INSTALL_DIR}\\mega-cmd-tests-integration.exe --gtest_stack_trace_depth=10 --gmock_verbose=info --gtest_shuffle --gtest_output=xml:${megacmd_sources_workspace}\\megacmd-integration-tests.xml
                                     if %ERRORLEVEL% NEQ 0 exit 1
                                     exit %ERROR_VAL%
