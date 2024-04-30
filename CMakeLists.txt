@@ -5,7 +5,7 @@ cmake_minimum_required(VERSION 3.16)
 set(QT_CREATOR_SKIP_VCPKG_SETUP TRUE CACHE BOOL "")
 
 ## Modules location
-list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/build/cmake/modules) # Modules from MEGAcmd #TODO: place/fill these
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/build/cmake/modules) # Modules from MEGAcmd
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/sdk/contrib/cmake/modules) # Modules from MEGAsdk
 
 set(VCPKG_ROOT "${CMAKE_CURRENT_LIST_DIR}/../vcpkg" CACHE PATH "If set, it will build and use the VCPKG packages defined in the manifest file")
@@ -148,7 +148,6 @@ target_sources_conditional(LMegacmdServer
 target_compile_definitions(LMegacmdServer
     PUBLIC
     $<$<BOOL:${ENABLE_CHAT}>:ENABLE_CHAT>
-    $<$<BOOL:${ENABLE_BACKUPS}>:ENABLE_BACKUPS> #TODO: The SDK no longer has this flag, we can simply remove the conditionality of it.
     $<$<BOOL:${USE_LIBUV}>:HAVE_LIBUV>
     $<$<BOOL:${USE_PCRE}>:USE_PCRE>
     $<IF:$<CONFIG:Debug>,DEBUG,NDEBUG>

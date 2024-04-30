@@ -7,9 +7,8 @@ macro(load_megacmdserver_libraries)
             set(USE_PCRE 1)
         endif()
 
-        #LMegacmdTestsCommon: TODO: make dependent on test build (see PRX-336)
-        find_package(GTest CONFIG REQUIRED)
         if (ENABLE_MEGACMD_TESTS)
+            find_package(GTest CONFIG REQUIRED)
             target_link_libraries(LMegacmdTestsCommon PUBLIC GTest::gtest GTest::gmock)
         endif()
 

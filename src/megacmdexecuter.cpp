@@ -1541,10 +1541,6 @@ void MegaCmdExecuter::dumpNodeSummary(MegaNode *n, const char *timeFormat, std::
     OUTSTREAM << endl;
 }
 
-
-
-#ifdef ENABLE_BACKUPS
-
 void MegaCmdExecuter::createOrModifyBackup(string local, string remote, string speriod, int numBackups)
 {
     LocalPath locallocal = LocalPath::fromAbsolutePath(local);
@@ -1654,7 +1650,6 @@ void MegaCmdExecuter::createOrModifyBackup(string local, string remote, string s
         LOG_err << remote << " not found";
     }
 }
-#endif
 
 void MegaCmdExecuter::printTreeSuffix(int depth, vector<bool> &lastleaf)
 {
@@ -2597,11 +2592,10 @@ int MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
         mtxSyncMap.lock();
         ConfigurationManager::loadsyncs();
         mtxSyncMap.unlock();
-#ifdef ENABLE_BACKUPS
+
         mtxBackupsMap.lock();
         ConfigurationManager::loadbackups();
         mtxBackupsMap.unlock();
-#endif
 
         ConfigurationManager::loadExcludedNames();
         ConfigurationManager::loadConfiguration(false);
@@ -2764,7 +2758,6 @@ void MegaCmdExecuter::fetchNodes(MegaApi *api, int clientID)
     checkAndInformPSA(NULL); // this needs broacasting in case there's another Shell running.
     // no need to enforce, because time since last check should has been restored
 
-#ifdef ENABLE_BACKUPS
     mtxBackupsMap.lock();
     if (ConfigurationManager::configuredBackups.size())
     {
@@ -2797,7 +2790,6 @@ void MegaCmdExecuter::fetchNodes(MegaApi *api, int clientID)
         ConfigurationManager::saveBackups(&ConfigurationManager::configuredBackups);
     }
     mtxBackupsMap.unlock();
-#endif
 
 #ifdef HAVE_LIBUV
     // restart webdav
@@ -4329,7 +4321,6 @@ void MegaCmdExecuter::printTransfer(MegaTransfer *transfer, const unsigned int P
         OUTSTREAM << "\u21f5";
 #endif
     }
-#ifdef ENABLE_BACKUPS
     else if (transfer->isBackupTransfer())
     {
 #ifdef _WIN32
@@ -4338,7 +4329,6 @@ void MegaCmdExecuter::printTransfer(MegaTransfer *transfer, const unsigned int P
         OUTSTREAM << "\u23eb";
 #endif
     }
-#endif
     else
     {
         OUTSTREAM << " " ;
@@ -4445,7 +4435,6 @@ void MegaCmdExecuter::printTransferColumnDisplayer(ColumnDisplayer *cd, MegaTran
         type += "\u21f5";
 #endif
     }
-#ifdef ENABLE_BACKUPS
     else if (transfer->isBackupTransfer())
     {
 #ifdef _WIN32
@@ -4454,7 +4443,6 @@ void MegaCmdExecuter::printTransferColumnDisplayer(ColumnDisplayer *cd, MegaTran
         type += "\u23eb";
 #endif
     }
-#endif
 
     cd->addValue("TYPE",type);
     cd->addValue("TAG", SSTR(transfer->getTag())); //TODO: do SSTR within ColumnDisplayer
@@ -4541,8 +4529,6 @@ void MegaCmdExecuter::printSyncHeader(ColumnDisplayer &cd)
 
 }
 
-#ifdef ENABLE_BACKUPS
-
 void MegaCmdExecuter::printBackupHeader(const unsigned int PATHSIZE)
 {
     OUTSTREAM << "TAG  " << " ";
@@ -4551,7 +4537,6 @@ void MegaCmdExecuter::printBackupHeader(const unsigned int PATHSIZE)
     OUTSTREAM << getRightAlignedString("STATUS", 14);
     OUTSTREAM << endl;
 }
-
 
 void MegaCmdExecuter::printBackupSummary(int tag, const char * localfolder, const char *remoteparentfolder, string status, const unsigned int PATHSIZE)
 {
@@ -4754,7 +4739,6 @@ void MegaCmdExecuter::printBackup(backup_struct *backupstruct, const char *timeF
         }
     }
 }
-#endif
 
 void MegaCmdExecuter::printSync(MegaSync *sync, long long nfiles, long long nfolders, megacmd::ColumnDisplayer &cd,  std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions)
 {
@@ -5162,8 +5146,6 @@ void MegaCmdExecuter::copyNode(MegaNode *n, string destiny, MegaNode * tn, strin
     }
 }
 
-
-#ifdef ENABLE_BACKUPS
 bool MegaCmdExecuter::establishBackup(string pathToBackup, MegaNode *n, int64_t period, string speriod,  int numBackups)
 {
     bool attendpastbackups = true; //TODO: receive as parameter
@@ -5253,7 +5235,6 @@ bool MegaCmdExecuter::establishBackup(string pathToBackup, MegaNode *n, int64_t 
     delete megaCmdListener;
     return false;
 }
-#endif
 
 void MegaCmdExecuter::confirmCancel(const char* confirmlink, const char* pass)
 {
@@ -6873,8 +6854,6 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
         return;
     }
-#ifdef ENABLE_BACKUPS
-
     else if (words[0] == "backup")
     {
         bool dodelete = getFlag(clflags,"d");
@@ -7041,7 +7020,6 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             LOG_err << "      " << getUsageStr("backup");
         }
     }
-#endif
     else if (words[0] == "put")
     {
         int clientID = getintOption(cloptions, "clientID", -1);

@@ -136,9 +136,7 @@ static std::vector<std::string> allValidCommands { "login", "signup", "confirm",
 #ifdef HAVE_LIBUV
                              , "webdav", "ftp"
 #endif
-#ifdef ENABLE_BACKUPS
                              , "backup"
-#endif
                              , "deleteversions"
 #if defined(_WIN32) && defined(NO_READLINE)
                              , "autocomplete", "codepage"

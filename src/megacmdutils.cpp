@@ -360,7 +360,6 @@ const char * getTransferStateStr(int transferState)
     }
 
 }
-#ifdef ENABLE_BACKUPS
 
 string backupSatetStr(int backupstate)
 {
@@ -395,7 +394,6 @@ string backupSatetStr(int backupstate)
 
     return "UNDEFINED";
 }
-#endif
 
 const char * getProxyTypeStr(int proxyType)
 {

@@ -56,7 +56,6 @@ void printTransferColumnDisplayer(ColumnDisplayer *cd, MegaTransfer *transfer, c
         type += "\u21f5";
 #endif
     }
-#ifdef ENABLE_BACKUPS
     else if (transfer->isBackupTransfer())
     {
 #ifdef _WIN32
@@ -65,7 +64,6 @@ void printTransferColumnDisplayer(ColumnDisplayer *cd, MegaTransfer *transfer, c
         type += "\u23eb";
 #endif
     }
-#endif
 
     cd->addValue("TYPE",type);
     cd->addValue("TAG", std::to_string(transfer->getTag()));
