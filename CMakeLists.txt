@@ -68,6 +68,10 @@ endif()
 message(STATUS "Using VCPKG_ROOT = ${VCPKG_ROOT}")
 
 if(VCPKG_ROOT)
+    if (ENABLE_MEGACMD_TESTS)
+        list(APPEND VCPKG_MANIFEST_FEATURES "megacmd-enable-tests")
+    endif()
+
     # Include VCPKG management tools.
     include(vcpkg_management)
     list(APPEND vcpkg_overlay ${CMAKE_CURRENT_LIST_DIR}/sdk/contrib/cmake) # MEGAsdk overlays

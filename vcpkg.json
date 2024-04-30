@@ -51,7 +51,11 @@
         "sdk-tests": {
             "description": "gtests library for the integration and unit tests",
             "dependencies": [ "gtest" ]
-        }
+        },
+        "megacmd-enable-tests": {
+           "description": "Compile MEGAcmd tests",
+           "dependencies": [ "gtest" ]
+         }
     },
     "dependencies": [
       { "name": "cryptopp", "version>=": "8.9.0" },
@@ -59,8 +63,7 @@
       "sqlite3",
       { "name": "curl", "version>=": "8.4.0" },
       "icu",
-      "pcre",
-      "gtest"
+      "pcre"
     ],
     "builtin-baseline" : "7476f0d4e77d3333fbb249657df8251c28c4faae"
 }
