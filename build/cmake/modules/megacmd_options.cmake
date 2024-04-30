@@ -31,7 +31,11 @@ else()
     option(USE_MEDIAINFO "Used to determine media properties and set those as node attributes" OFF)
 endif()
 
-option(ENABLE_MEGACMD_TESTS "Enable MEGAcmd testing code" OFF)
+if (CMAKE_BUILD_TYPE STREQUAL "Debug" )
+    option(ENABLE_MEGACMD_TESTS "Enable MEGAcmd testing code" ON)
+else()
+    option(ENABLE_MEGACMD_TESTS "Enable MEGAcmd testing code" OFF)
+endif()
 
 if(ENABLE_MEGACMD_TESTS)
     add_compile_definitions(MEGACMD_TESTING_CODE=1)
@@ -39,3 +43,4 @@ endif()
 
 #Override SDK's options:
 option(ENABLE_ISOLATED_GFX "Turns on isolated GFX processor" OFF)
+option(ENABLE_SDKLIB_WERROR "Enable warnings as errors" OFF)

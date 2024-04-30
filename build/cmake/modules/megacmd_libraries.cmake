@@ -9,7 +9,9 @@ macro(load_megacmdserver_libraries)
 
         #LMegacmdTestsCommon: TODO: make dependent on test build (see PRX-336)
         find_package(GTest CONFIG REQUIRED)
-        target_link_libraries(LMegacmdTestsCommon PUBLIC GTest::gtest GTest::gmock)
+        if (ENABLE_MEGACMD_TESTS)
+            target_link_libraries(LMegacmdTestsCommon PUBLIC GTest::gtest GTest::gmock)
+        endif()
 
     else() # No VCPKG usage. Use pkg-config
         find_package(PkgConfig REQUIRED) # For libraries loaded using pkg-config

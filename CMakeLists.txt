@@ -8,7 +8,24 @@ set(QT_CREATOR_SKIP_VCPKG_SETUP TRUE CACHE BOOL "")
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/build/cmake/modules) # Modules from MEGAcmd #TODO: place/fill these
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/sdk/contrib/cmake/modules) # Modules from MEGAsdk
 
-set(VCPKG_ROOT "" CACHE PATH "If set, it will build and use the VCPKG packages defined in the manifest file")
+set(VCPKG_ROOT "${CMAKE_CURRENT_LIST_DIR}/../vcpkg" CACHE PATH "If set, it will build and use the VCPKG packages defined in the manifest file")
+
+if(NOT WIN32 AND NOT EXISTS ${VCPKG_ROOT})
+    message(STATUS "vcpkg will be cloned into ${VCPKG_ROOT}")
+    execute_process(
+        #TODO: have the same for windows ... or at least check if bash is available
+        COMMAND "${CMAKE_CURRENT_LIST_DIR}/build/clone_vcpkg_from_baseline.sh" "${VCPKG_ROOT}"
+        WORKING_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}"
+        ERROR_VARIABLE resulte
+        OUTPUT_VARIABLE result
+        RESULT_VARIABLE status
+    )
+    if(NOT status EQUAL "0")
+        message(FATAL_ERROR "Failed to run the clone_vcpkg_from_baseline. ${resulte}")
+    endif()
+    message(STATUS "vcpkg cloned successfully: ${status}")
+endif()
+
 
 #TODO: Review the following, move to a separate module and add add_executable WIN32/MACOSX_BUNDLE properties
 # Set min OSX version
@@ -43,6 +60,10 @@ endif()
 ## Configurable options ##
 include(megacmd_options) #Load first MEGAcmd's options (that we have prevalescence over SDK (e.g libuv)
 include(sdklib_options) #load default sdk's
+
+if (EXISTS ${CMAKE_CURRENT_LIST_DIR}/sdk/include/mega/config.h)
+    file(RENAME ${CMAKE_CURRENT_LIST_DIR}/sdk/include/mega/config.h ${CMAKE_CURRENT_LIST_DIR}/sdk/include/mega/config.h_non_cmake_bk)
+endif()
 
 message(STATUS "Using VCPKG_ROOT = ${VCPKG_ROOT}")
 
@@ -178,38 +199,40 @@ target_sources_conditional(mega-cmd-updater
     "${ProjectDir}/src/updater/MacUtils.mm"
 )
 
-#Test Common:
-add_library(LMegacmdTestsCommon STATIC)
-add_source_and_corresponding_header_to_target(LMegacmdTestsCommon PRIVATE
-    "${ProjectDir}/tests/common/Instruments.cpp"
-    "${ProjectDir}/tests/common/TestUtils.cpp"
-)
+if (ENABLE_MEGACMD_TESTS)
+    #Test Common:
+    add_library(LMegacmdTestsCommon STATIC)
+    add_source_and_corresponding_header_to_target(LMegacmdTestsCommon PRIVATE
+        "${ProjectDir}/tests/common/Instruments.cpp"
+        "${ProjectDir}/tests/common/TestUtils.cpp"
+    )
 
-#Integration tests:
-add_executable(mega-cmd-tests-integration)
-add_source_and_corresponding_header_to_target(mega-cmd-tests-integration PRIVATE
-    "${ProjectDir}/tests/integration/BasicTests.cpp"
-    "${ProjectDir}/tests/integration/ExportTests.cpp"
-    "${ProjectDir}/tests/integration/MegaCmdTestingTools.cpp"
-    "${ProjectDir}/tests/integration/main.cpp"
-)
-target_include_directories(mega-cmd-tests-integration PUBLIC ${ProjectDir}/src ${ProjectDir}/tests/common)
-target_link_libraries(mega-cmd-tests-integration PUBLIC LMegacmdServer LMegacmdClient LMegacmdTestsCommon)
-if(APPLE)
-    target_link_libraries(mega-cmd-tests-integration PRIVATE "-framework Security" )
-endif()
+    #Integration tests:
+    add_executable(mega-cmd-tests-integration)
+    add_source_and_corresponding_header_to_target(mega-cmd-tests-integration PRIVATE
+        "${ProjectDir}/tests/integration/BasicTests.cpp"
+        "${ProjectDir}/tests/integration/ExportTests.cpp"
+        "${ProjectDir}/tests/integration/MegaCmdTestingTools.cpp"
+        "${ProjectDir}/tests/integration/main.cpp"
+    )
+    target_include_directories(mega-cmd-tests-integration PUBLIC ${ProjectDir}/src ${ProjectDir}/tests/common)
+    target_link_libraries(mega-cmd-tests-integration PUBLIC LMegacmdServer LMegacmdClient LMegacmdTestsCommon)
+    if(APPLE)
+        target_link_libraries(mega-cmd-tests-integration PRIVATE "-framework Security" )
+    endif()
 
-#Unit tests:
-add_executable(mega-cmd-tests-unit)
-add_source_and_corresponding_header_to_target(mega-cmd-tests-unit PRIVATE
-    "${ProjectDir}/tests/unit/StringUtilsTests.cpp"
-    "${ProjectDir}/tests/unit/UtilsTests.cpp"
-    "${ProjectDir}/tests/unit/PlatformDirectoriesTest.cpp"
-    "${ProjectDir}/tests/unit/main.cpp"
-)
+    #Unit tests:
+    add_executable(mega-cmd-tests-unit)
+    add_source_and_corresponding_header_to_target(mega-cmd-tests-unit PRIVATE
+        "${ProjectDir}/tests/unit/StringUtilsTests.cpp"
+        "${ProjectDir}/tests/unit/UtilsTests.cpp"
+        "${ProjectDir}/tests/unit/PlatformDirectoriesTest.cpp"
+        "${ProjectDir}/tests/unit/main.cpp"
+    )
 
-if(APPLE)
-    target_link_libraries(mega-cmd-tests-unit PRIVATE "-framework Security" )
+    if(APPLE)
+        target_link_libraries(mega-cmd-tests-unit PRIVATE "-framework Security" )
+    endif()
 endif()
 
 if (WIN32)
@@ -244,8 +267,10 @@ if (WIN32)
 endif()
 target_link_libraries(mega-cmd-server PUBLIC LMegacmdServer)
 
-target_include_directories(mega-cmd-tests-unit PUBLIC ${ProjectDir}/src ${ProjectDir}/tests/common)
-target_link_libraries(mega-cmd-tests-unit PUBLIC LMegacmdServer LMegacmdTestsCommon)
+if (ENABLE_MEGACMD_TESTS)
+    target_include_directories(mega-cmd-tests-unit PUBLIC ${ProjectDir}/src ${ProjectDir}/tests/common)
+    target_link_libraries(mega-cmd-tests-unit PUBLIC LMegacmdServer LMegacmdTestsCommon)
+endif()
 
 # Load 3rd parties #TODO: consider splitting by target?
 load_megacmdserver_libraries()
@@ -261,9 +286,13 @@ load_megacmdserver_libraries()
 #endforeach()
 
 
+list(APPEND all_targets mega-exec mega-cmd mega-cmd-server)
+if(ENABLE_MEGACMD_TESTS)
+    list(APPEND all_targets mega-cmd-tests-unit mega-cmd-tests-integration)
+endif()
 # Install stuff
 if (NOT WIN32)
-    install(TARGETS mega-exec mega-cmd mega-cmd-server mega-cmd-tests-unit mega-cmd-tests-integration
+    install(TARGETS ${all_targets}
         RUNTIME
         DESTINATION ${CMAKE_INSTALL_BINDIR}
     )
