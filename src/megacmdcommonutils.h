@@ -369,6 +369,10 @@ public:
      * Solely for user-editable configuration files.
      */
     virtual std::string configDirPath() = 0;
+    virtual std::string configDirPathNoLegacyCheck()
+    {
+        return configDirPath();
+    }
     /**
      * @brief dataDirPath returns the base path for storing data files.
      *
@@ -383,11 +387,16 @@ public:
      * @brief stateDirPath returns the base path for storing state files. Specifically, data that
      * can persist between restarts, but not significant enough for DataDirPath().
      *
-     * Meant for recent command history, logs, crash dumps, etc.
+     * Meant for recent command history, locks, crash dumps, etc.
      */
     virtual std::string stateDirPath()
     {
         return runtimeDirPath();
+    }
+
+    virtual std::pair<bool/*exists*/, std::string> legacyFolderConfig()
+    {
+        return std::make_pair<bool, std::string>(false, std::string());
     }
 };
 
@@ -421,27 +430,47 @@ class PosixDirectories : public PlatformDirectories
 {
 public:
     std::string homeDirPath();
-    std::string runtimeDirPath() override;
-    std::string cacheDirPath() override
+    virtual std::string runtimeDirPath() override
     {
-        return PosixDirectories::configDirPath();
-    };
-    std::string configDirPath() override;
-    std::string dataDirPath() override
-    {
-        return PosixDirectories::configDirPath();
+        // Note: not explicitly checking for legacy path here: only for runtime
+
+        return configDirPathNoLegacyCheck();
     }
-    std::string stateDirPath() override
+
+    virtual std::string cacheDirPath() override
     {
-        return PosixDirectories::runtimeDirPath();
+        // Note: this one is new, no need for legacy fallback
+
+        // Note: given all implementations override this one, we are not using polimorphism here (to actually skip the legacy check):
+        return PosixDirectories::configDirPathNoLegacyCheck();
     }
-    bool legacyConfigDirExists();
+    virtual std::string configDirPath() override;
+    virtual std::string configDirPathNoLegacyCheck() override;
+    virtual std::string dataDirPath() override
+    {
+        return configDirPath();
+    }
+    virtual std::string stateDirPath() override
+    {
+        // Note: state includes lock file, checking for legacy path (just in case there's an unexpectedly running old server)
+        auto legacyFolder = legacyFolderConfig();
+        if (legacyFolder.first) // exists
+        {
+            return std::move(legacyFolder.second);
+        }
+
+        return runtimeDirPath();
+    }
+
+    virtual std::pair<bool/*exists*/, std::string> legacyFolderConfig() override;
+
 };
 #ifdef __APPLE__
 class MacOSDirectories : public PosixDirectories
 {
     std::string cacheDirPath() override;
     std::string configDirPath() override;
+    std::string configDirPathNoLegacyCheck() override;
     std::string dataDirPath() override;
 };
 #else // !defined(__APPLE__)
@@ -450,6 +479,7 @@ class XDGDirectories : public PosixDirectories
     std::string runtimeDirPath() override;
     std::string cacheDirPath() override;
     std::string configDirPath() override;
+    std::string configDirPathNoLegacyCheck() override;
     std::string dataDirPath() override;
     std::string stateDirPath() override;
 };

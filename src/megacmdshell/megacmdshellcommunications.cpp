@@ -122,15 +122,15 @@ string createAndRetrieveConfigFolder()
 #endif
 }
 
-string createAndRetrieveStateFolder()
+string createAndRetrieveDataFolder()
 {
     auto dirs = PlatformDirectories::getPlatformSpecificDirectories();
 #ifdef _WIN32
-    // We don't create the folder: Windowow is currently using the folder
+    // We don't create the folder: Windows is currently using the folder
     // of the executable.
-    return dirs->stateDirPath();
+    return dirs->dataDirPath();
 #else
-    auto dir = dirs->stateDirPath();
+    auto dir = dirs->dataDirPath();
     struct stat st = {};
 
     if (stat(dir.c_str(), &st) == -1)
@@ -297,7 +297,6 @@ SOCKET MegaCmdShellCommunications::createSocket(int number, bool initializeserve
         addr.sun_family = AF_UNIX;
         strncpy(addr.sun_path, socketPath.c_str(), socketPath.size());
 
-
         if (::connect(thesock, (struct sockaddr*)&addr, sizeof( addr )) == SOCKET_ERROR)
         {
             if (!number && initializeserver)
@@ -311,7 +310,7 @@ SOCKET MegaCmdShellCommunications::createSocket(int number, bool initializeserve
                     setsid(); //create new session so as not to receive parent's Ctrl+C
 
                     // Give an indication of where the logs will be find:
-                    string pathtolog = createAndRetrieveStateFolder()+"/megacmdserver.log";
+                    string pathtolog = createAndRetrieveDataFolder()+"/megacmdserver.log";
                     CERR << "[Initiating MEGAcmd server in background. Log: " << pathtolog << "]" << endl;
 
                     freopen(std::string(pathtolog).append(".out").c_str(),"w",stdout);

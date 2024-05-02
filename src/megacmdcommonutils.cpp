@@ -1564,12 +1564,17 @@ std::string PosixDirectories::homeDirPath()
     return std::string(pwd.pw_dir);
 }
 
-std::string PosixDirectories::runtimeDirPath()
+std::string PosixDirectories::configDirPath()
 {
-    return PosixDirectories::configDirPath();
+    auto legacyFolder = legacyFolderConfig();
+    if (legacyFolder.first) // exists
+    {
+        return std::move(legacyFolder.second);
+    }
+    return configDirPathNoLegacyCheck();
 }
 
-std::string PosixDirectories::configDirPath()
+std::string PosixDirectories::configDirPathNoLegacyCheck()
 {
     std::string home = homeDirPath();
     if (home.empty())
@@ -1583,79 +1588,124 @@ std::string PosixDirectories::configDirPath()
     return !exists ? std::string("/tmp/megacmd-").append(std::to_string(getuid())) : home.append("/.megaCmd");
 }
 
-bool PosixDirectories::legacyConfigDirExists()
+
+std::pair<bool/*exists*/, std::string> PosixDirectories::legacyFolderConfig()
 {
-    std::string dir = PosixDirectories::configDirPath();
+    std::string legacyFolder = homeDirPath();
+    if (legacyFolder.empty())
+    {
+        return std::make_pair<bool, std::string>(false, std::move(legacyFolder));
+    }
+
+    legacyFolder.append("/.megaCmd");
+
     struct stat path_stat = {};
 
-    return !stat(dir.c_str(), &path_stat) && S_ISDIR(path_stat.st_mode);
+    bool exists = !stat(legacyFolder.c_str(), &path_stat) && S_ISDIR(path_stat.st_mode);
+
+    return std::pair<bool, std::string>(exists, exists ? std::move(legacyFolder) : std::string());
 }
 
 #ifdef __APPLE__
 std::string MacOSDirectories::cacheDirPath()
 {
+    // Note: this one is new, no need for legacy fallback
+
     std::string homedir = homeDirPath();
     return homedir.empty() ? std::string() : homedir.append("/Library/Caches/megacmd.mac");
 }
 
 std::string MacOSDirectories::configDirPath()
 {
-    if (legacyConfigDirExists())
+    auto legacyFolder = legacyFolderConfig();
+    if (legacyFolder.first) // exists
     {
-        return PosixDirectories::configDirPath();
+        return std::move(legacyFolder.second);
     }
+    return configDirPathNoLegacyCheck();
+}
+
+std::string MacOSDirectories::configDirPathNoLegacyCheck()
+{
     std::string homedir = homeDirPath();
     return homedir.empty() ? std::string() : homedir.append("/Library/Preferences/megacmd.mac");
 }
 
 std::string MacOSDirectories::dataDirPath()
 {
+    auto legacyFolder = legacyFolderConfig();
+    if (legacyFolder.first) // exists
+    {
+        return std::move(legacyFolder.second);
+    }
+
     std::string homedir = homeDirPath();
-    return homedir.empty() ? std::string() : homedir.append("/Library/MEGA CMD");
+    return homedir.empty() ? std::string() : homedir.append("/Library/MEGAcmd");
 }
 #else // !defined(__APPLE__)
 std::string XDGDirectories::runtimeDirPath()
 {
+    //Note: not checking for legacy path here: only for runtime
+
     const char *runtimedir = getenv("XDG_RUNTIME_DIR");
-    if (runtimedir != nullptr)
+    if (!runtimedir)
     {
-        return std::string(runtimedir).append("/megacmd");
+        // If no XDG env variable, fallback to POSIX
+        return PosixDirectories::runtimeDirPath();
     }
 
-    return PosixDirectories::runtimeDirPath();
+    return std::string(runtimedir).append("/megacmd");
 }
 
 std::string XDGDirectories::cacheDirPath()
 {
+    // Note: this one is new, no need for legacy fallback
+
     const char *cachedir = getenv("XDG_CACHE_HOME");
-    if (cachedir != nullptr)
+    if (!cachedir)
     {
-        return std::string(cachedir).append("/megacmd");
+        // If no XDG env variable, fallback to POSIX
+        return PosixDirectories::cacheDirPath();
     }
 
-    return PosixDirectories::cacheDirPath();
+    return std::string(cachedir).append("/megacmd");
 }
 
 std::string XDGDirectories::configDirPath()
 {
-    const char *configdir = getenv("XDG_CONFIG_HOME");
-    if (legacyConfigDirExists() || configdir == nullptr)
+    auto legacyFolder = legacyFolderConfig();
+    if (legacyFolder.first) // exists
     {
-        return PosixDirectories::configDirPath();
+        return std::move(legacyFolder.second);
     }
+
+    return configDirPathNoLegacyCheck();
+}
+
+std::string XDGDirectories::configDirPathNoLegacyCheck()
+{
+    const char *configdir = getenv("XDG_CONFIG_HOME");
+    if (!configdir)
+    {
+        // If no XDG env variable, fallback to POSIX
+        return PosixDirectories::configDirPathNoLegacyCheck();
+    }
+
     return std::string(configdir).append("/megacmd");
 }
 
 std::string XDGDirectories::dataDirPath()
 {
-    if (legacyConfigDirExists())
+    auto legacyFolder = legacyFolderConfig();
+    if (legacyFolder.first) // exists
     {
-        return PosixDirectories::configDirPath();
+        return std::move(legacyFolder.second);
     }
 
     const char *datadir = getenv("XDG_DATA_HOME");
-    if (datadir == nullptr)
+    if (!datadir)
     {
+        // If no XDG env variable, fallback to POSIX
         return PosixDirectories::dataDirPath();
     }
 
@@ -1664,17 +1714,20 @@ std::string XDGDirectories::dataDirPath()
 
 std::string XDGDirectories::stateDirPath()
 {
-    if (legacyConfigDirExists())
+    auto legacyFolder = legacyFolderConfig();
+    if (legacyFolder.first) // exists
     {
-        return PosixDirectories::configDirPath();
-    }
-    const char *statedir = getenv("XDG_STATE_HOME");
-    if (statedir != nullptr)
-    {
-        return std::string(statedir).append("/megacmd");
+        return std::move(legacyFolder.second);
     }
 
-    return PosixDirectories::stateDirPath();
+    const char *statedir = getenv("XDG_STATE_HOME");
+    if (!statedir)
+    {
+        // If no XDG env variable, fallback to POSIX
+        return PosixDirectories::stateDirPath();
+    }
+
+    return std::string(statedir).append("/megacmd");
 }
 #endif // !defined(__APPLE__)
 
