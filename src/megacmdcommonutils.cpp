@@ -1585,7 +1585,7 @@ std::string PosixDirectories::configDirPathNoLegacyCheck()
     struct stat path_stat = {};
     bool exists = !stat(home.c_str(), &path_stat) && S_ISDIR(path_stat.st_mode);
 
-    return !exists ? std::string("/tmp/megacmd-").append(std::to_string(getuid())) : home.append("/.megaCmd");
+    return !exists ? std::string("/tmp/megacmd-").append(std::to_string(getuid())) : home.append("/.megacmd");
 }
 
 

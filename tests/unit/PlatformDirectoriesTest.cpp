@@ -61,7 +61,7 @@ TEST(PlatformDirectoriesTest, configDirPath)
         auto guard = TestInstrumentsUnsetEnvVarGuard("XDG_CONFIG_HOME");
         {
             auto homeGuard = TestInstrumentsEnvVarGuard("HOME", "/tmp");
-            EXPECT_EQ(dirs->configDirPath(), "/tmp/.megaCmd");
+            EXPECT_EQ(dirs->configDirPath(), "/tmp/.megacmd");
         }
         {
             auto homeGuard = TestInstrumentsEnvVarGuard("HOME", "/non-existent-dir");
@@ -102,7 +102,7 @@ TEST(PlatformDirectoriesTest, cacheDirPath)
         auto guard = TestInstrumentsUnsetEnvVarGuard("XDG_CACHE_HOME");
         {
             auto homeGuard = TestInstrumentsEnvVarGuard("HOME", "/tmp");
-            EXPECT_EQ(dirs->cacheDirPath(), "/tmp/.megaCmd");
+            EXPECT_EQ(dirs->cacheDirPath(), "/tmp/.megacmd");
         }
         {
             auto homeGuard = TestInstrumentsEnvVarGuard("HOME", "/non-existent-dir");
