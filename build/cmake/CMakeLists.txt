@@ -228,6 +228,7 @@ if (WIN32)
   target_link_libraries(mega-cmd-updater Mega Lz32.lib Urlmon.lib)
 else()
   target_link_libraries(LMegacmdServer Mega)
+  target_link_libraries(mega-cmd-updater LMegacmdServer) # Required for Platform dirs
 endif()
 target_link_libraries(mega-cmd-server LMegacmdServer)
 if (NOT NO_READLINE)
