@@ -159,6 +159,7 @@ pipeline {
                 export HOME=\$TMP
                 mkdir -p \$HOME/Library/Preferences
                 mkdir -p \$HOME/Library/Caches
+                mkdir -p \$HOME/Library/MEGAcmd
                 cleanup() {
                     ARG=\$?
                     rm -rf \$TMP
