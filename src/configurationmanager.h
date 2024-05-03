@@ -35,7 +35,7 @@ private:
     static std::string mConfigFolder;
     static bool hasBeenUpdated;
 #ifdef WIN32
-    HANDLE mLockFileHandle;
+    static HANDLE mLockFileHandle;
 #elif defined(LOCK_EX) && defined(LOCK_NB)
     static int fd;
 #endif
