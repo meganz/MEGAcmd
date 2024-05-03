@@ -22,6 +22,11 @@
 
 #include "configurationmanager.h"
 
+#ifndef WIN32
+#include <filesystem>
+    namespace fs = std::filesystem;
+#endif
+
 TEST(PlatformDirectoriesTest, runtimeDirPath)
 {
     using megacmd::PlatformDirectories;
@@ -93,19 +98,33 @@ TEST(PlatformDirectoriesTest, lockExecution)
     }
 
 #ifndef _WIN32
+
+    using megacmd::PlatformDirectories;
+    auto dirs = PlatformDirectories::getPlatformSpecificDirectories();
     {
         G_SUBTEST << "Another HOME";
 
-        auto homeGuard = TestInstrumentsEnvVarGuard("HOME", "/tmp");
+        std::string tmpFolder = std::tmpnam(nullptr);
+        fs::path tempDir = fs::path(tmpFolder);
+        fs::create_directory(tempDir);
+
+        auto homeGuard = TestInstrumentsEnvVarGuard("HOME", tmpFolder);
+
+#ifdef __APPLE__
+        fs::path subDir = tempDir / "Library" / "Caches" / "megacmd.mac";
+        EXPECT_STRNE(dirs->runtimeDirPath().c_str(), subDir.string().c_str());
+
+        fs::create_directories(subDir);
+#endif
         ASSERT_TRUE(ConfigurationManager::lockExecution());
         ASSERT_TRUE(ConfigurationManager::unlockExecution());
+
+        fs::remove_all(tempDir);
     }
 
     {
         G_SUBTEST << "With legacy one";
 
-        using megacmd::PlatformDirectories;
-        auto dirs = PlatformDirectories::getPlatformSpecificDirectories();
         auto legacyLockFolder = ConfigurationManager::getConfigFolder();
         EXPECT_STRNE(dirs->runtimeDirPath().c_str(), legacyLockFolder.c_str());
 
