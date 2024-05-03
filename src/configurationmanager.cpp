@@ -70,7 +70,9 @@ bool is_file_exist(const char *fileName)
 
 string ConfigurationManager::mConfigFolder;
 bool ConfigurationManager::hasBeenUpdated = false;
-#if !defined(_WIN32) && defined(LOCK_EX) && defined(LOCK_NB)
+#ifdef WIN32
+HANDLE ConfigurationManager::mLockFileHandle;
+#elif defined(LOCK_EX) && defined(LOCK_NB)
 int ConfigurationManager::fd;
 #endif
 map<string, sync_struct *> ConfigurationManager::oldConfiguredSyncs;
