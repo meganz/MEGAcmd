@@ -24,6 +24,17 @@
 #include "updater/Preferences.h"
 #include <fstream>
 
+
+#ifndef ERRNO
+#ifdef _WIN32
+#include <windows.h>
+#define ERRNO WSAGetLastError()
+#else
+#define ERRNO errno
+#endif
+#endif
+
+
 #ifdef _WIN32
 #include <shlobj.h> //SHGetFolderPath
 #include <Shlwapi.h> //PathAppend
@@ -810,13 +821,16 @@ bool ConfigurationManager::lockExecution(const std::string &lockFileFolder)
 #else
         lockfile << lockFileFolder << "/" << LOCK_FILE_NAME;
 #endif
-        LOG_err << "Lock file: " << lockfile.str();
+        LOG_info << "Lock file: " << lockfile.str();
 
 #ifdef _WIN32
         string wlockfile;
         MegaApi::utf8ToUtf16(lockfile.str().c_str(), &wlockfile);
-        if (CreateFileW((LPCWSTR)(wlockfile).data(), GENERIC_READ | GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL) == INVALID_HANDLE_VALUE)
+        mLockFileHandle = CreateFileW((LPCWSTR)(wlockfile).data(), GENERIC_READ | GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+        if (mLockFileHandle == INVALID_HANDLE_VALUE)
         {
+            LOG_err << "ERROR creating lock file: " << ERRNO;
+
             return false;
         }
 #elif defined(LOCK_EX) && defined(LOCK_NB)
@@ -824,6 +838,8 @@ bool ConfigurationManager::lockExecution(const std::string &lockFileFolder)
         //check open success...
         if (flock(fd, LOCK_EX | LOCK_NB))
         {
+            LOG_err << "ERROR locking lock fd: " << errno;
+            close(fd);
             return false;
         }
 
@@ -835,6 +851,7 @@ bool ConfigurationManager::lockExecution(const std::string &lockFileFolder)
 #else
         ifstream fi(thelockfile.c_str());
         if(!fi.fail()){
+            close(fd);
             return false;
         }
         if (fi.is_open())
@@ -869,7 +886,9 @@ bool ConfigurationManager::unlockExecution(const std::string &lockFileFolder)
         stringstream lockfile;
         lockfile << lockFileFolder << LocalPath::localPathSeparator_utf8 << LOCK_FILE_NAME;
 
-#if !defined(_WIN32) && defined(LOCK_EX) && defined(LOCK_NB)
+#ifdef _WIN32
+        CloseHandle(mLockFileHandle);
+#elif defined(LOCK_EX) && defined(LOCK_NB)
         flock(fd, LOCK_UN | LOCK_NB);
         close(fd);
 #endif

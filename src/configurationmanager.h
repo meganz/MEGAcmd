@@ -34,7 +34,9 @@ class ConfigurationManager
 private:
     static std::string mConfigFolder;
     static bool hasBeenUpdated;
-#if !defined(_WIN32) && defined(LOCK_EX) && defined(LOCK_NB)
+#ifdef WIN32
+    HANDLE mLockFileHandle;
+#elif defined(LOCK_EX) && defined(LOCK_NB)
     static int fd;
 #endif
 
