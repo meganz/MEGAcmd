@@ -806,7 +806,7 @@ bool ConfigurationManager::lockExecution(const std::string &lockFileFolder)
         stringstream lockfile;
 #ifdef _WIN32
         lockfile << "\\\\?\\";
-        lockfile << lockFileFolder << "\\" << lockFileName;
+        lockfile << lockFileFolder << "\\" << LOCK_FILE_NAME;
 #else
         lockfile << lockFileFolder << "/" << LOCK_FILE_NAME;
 #endif

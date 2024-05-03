@@ -45,6 +45,10 @@ option (ENABLE_UBSAN "Build MEGAcmd with UndefinedBehaviorSanitizer" OFF)
 option (ENABLE_TSAN "Build MEGAcmd with ThreadSanitizer" OFF)
 option (ENABLE_MEGACMD_TESTS "Build MEGAcmd with tests" OFF)
 
+if(ENABLE_MEGACMD_TESTS)
+    add_definitions( -DMEGACMD_TESTING_CODE )
+endif()
+
 if(WIN32)
     add_definitions( -DUNICODE -D_UNICODE )  # needed for visual studio projects to use the unicode runtime libraries
 
@@ -114,7 +118,6 @@ add_library(LMegacmdServer STATIC
 )
 
 if (ENABLE_MEGACMD_TESTS)
-  target_compile_definitions(LMegacmdServer PUBLIC MEGACMD_TESTING_CODE=1)
   list(APPEND c++17targets LMegacmdServer)
   target_link_libraries(LMegacmdServer LMegacmdTestsCommon)
 endif()
@@ -130,10 +133,6 @@ add_library(LMegacmdClient STATIC
     "${ProjectDir}/src/megacmdshell/megacmdshellcommunications.cpp"
     "${ProjectDir}/src/megacmdcommonutils.cpp"
 )
-
-if (ENABLE_MEGACMD_TESTS)
-  target_compile_definitions(LMegacmdClient PUBLIC MEGACMD_TESTING_CODE=1)
-endif()
 
 add_executable(mega-exec
     "${ProjectDir}/src/client/megacmd_client_main.cpp"
