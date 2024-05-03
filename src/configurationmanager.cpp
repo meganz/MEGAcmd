@@ -46,6 +46,10 @@
 using namespace mega;
 
 namespace megacmd {
+
+static const char* const LOCK_FILE_NAME = "lockMCMD";
+
+
 using namespace std;
 bool is_file_exist(const char *fileName)
 {
@@ -105,7 +109,7 @@ void ConfigurationManager::loadConfigDir()
     }
 }
 
-std::string ConfigurationManager::getDataDir()
+std::string ConfigurationManager::getAndCreateDataDir()
 {
     auto dirs = PlatformDirectories::getPlatformSpecificDirectories();
     auto data_dir = dirs->dataDirPath();
@@ -121,7 +125,7 @@ std::string ConfigurationManager::getDataDir()
     return data_dir;
 }
 
-std::string ConfigurationManager::getStateDir()
+std::string ConfigurationManager::getAndCreateStateDir()
 {
     auto dirs = PlatformDirectories::getPlatformSpecificDirectories();
     auto state_dir = dirs->stateDirPath();
@@ -161,7 +165,7 @@ std::string ConfigurationManager::getDataFolderSubdir(const string &utf8Name)
 void ConfigurationManager::saveSession(const char*session)
 {
     std::lock_guard<std::recursive_mutex> g(settingsMutex);
-    auto data_dir = getDataDir();
+    auto data_dir = getAndCreateDataDir();
 
     stringstream sessionfile;
     if (!data_dir.empty())
@@ -684,7 +688,7 @@ void ConfigurationManager::loadConfiguration(bool debug)
     std::lock_guard<std::recursive_mutex> g(settingsMutex);
 
     // SESSION
-    auto data_dir = getDataDir();
+    auto data_dir = getAndCreateDataDir();
 
     if (!data_dir.empty())
     {
@@ -761,15 +765,50 @@ void ConfigurationManager::loadConfiguration(bool debug)
 
 bool ConfigurationManager::lockExecution()
 {
-    auto state_dir = getStateDir();
-    if (!state_dir.empty())
+    // Check for legacy lock (in config path)
+    auto dirs = PlatformDirectories::getPlatformSpecificDirectories();
+    auto configDir = dirs->configDirPath();
+    auto stateDir = getAndCreateStateDir();
+    if (stateDir != configDir)
+    {
+        auto lockFileAtConfigDir = configDir.append(1, LocalPath::localPathSeparator_utf8).append(LOCK_FILE_NAME);
+
+        static MegaFileSystemAccess fsAccess;
+        LocalPath localPath = LocalPath::fromAbsolutePath(lockFileAtConfigDir);
+        static std::unique_ptr<FileAccess> fa(fsAccess.newfileaccess());
+        bool lockFileAtConfigDirExists = fa->isfile(localPath);
+        if (lockFileAtConfigDirExists)
+        {
+            LOG_warn << "Found a lock file from a previous MEGAcmd version. Will try to acquire the lock and remove it";
+            bool legacyLockResult = lockExecution(configDir);
+            if (!legacyLockResult)
+            {
+                LOG_err << "Failed to acquire lock from a previous version. You may need to ensure there is "
+                           "no MEGAcmd Server running and try again or manually remove lock file: " <<  lockFileAtConfigDir;
+                return false;
+            }
+            if (!unlockExecution(configDir))
+            {
+                LOG_err << "Failed to release lock from a previous version. You may need to ensure there is "
+                           "no MEGAcmd Server running and try again or manually remove lock file: " <<  lockFileAtConfigDir;
+                return false;
+            }
+        }
+    }
+
+    return lockExecution(stateDir);
+}
+
+bool ConfigurationManager::lockExecution(const std::string &lockFileFolder)
+{
+    if (!lockFileFolder.empty())
     {
         stringstream lockfile;
 #ifdef _WIN32
         lockfile << "\\\\?\\";
-        lockfile << state_dir << "\\" << "lockMCMD";
+        lockfile << lockFileFolder << "\\" << lockFileName;
 #else
-        lockfile << state_dir << "/" << "lockMCMD";
+        lockfile << lockFileFolder << "/" << LOCK_FILE_NAME;
 #endif
         LOG_err << "Lock file: " << lockfile.str();
 
@@ -813,30 +852,40 @@ bool ConfigurationManager::lockExecution()
     }
     else
     {
-        LOG_err  << "Couldnt access state folder ";
+        LOG_err  << "Could not access lock file folder";
     }
     return false;
 }
 
-void ConfigurationManager::unlockExecution()
+bool ConfigurationManager::unlockExecution()
 {
-    auto state_dir = getStateDir();
-    if (!state_dir.empty())
+    return unlockExecution(getAndCreateStateDir());
+}
+
+bool ConfigurationManager::unlockExecution(const std::string &lockFileFolder)
+{
+    if (!lockFileFolder.empty())
     {
         stringstream lockfile;
-        lockfile << state_dir << "/" << "lockMCMD";
+        lockfile << lockFileFolder << LocalPath::localPathSeparator_utf8 << LOCK_FILE_NAME;
 
 #if !defined(_WIN32) && defined(LOCK_EX) && defined(LOCK_NB)
         flock(fd, LOCK_UN | LOCK_NB);
         close(fd);
 #endif
-        unlink(lockfile.str().c_str());
+        bool succeeded = !unlink(lockfile.str().c_str());
+        if (!succeeded)
+        {
+            LOG_err << " Failed to remove lock file, errno = " << errno;
+        }
+
+        return succeeded;
     }
-    else
-    {
-        LOG_err  << "Couldnt access state folder ";
-    }
+
+    LOG_err  << "Could not access lock file folder";
+    return false;
 }
+
 string ConfigurationManager::getConfigurationSValue(string propertyName)
 {
     std::lock_guard<std::recursive_mutex> g(settingsMutex);

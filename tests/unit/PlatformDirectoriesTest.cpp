@@ -20,6 +20,8 @@
 #include "TestUtils.h"
 #include "megacmdcommonutils.h"
 
+#include "configurationmanager.h"
+
 TEST(PlatformDirectoriesTest, runtimeDirPath)
 {
     using megacmd::PlatformDirectories;
@@ -36,9 +38,15 @@ TEST(PlatformDirectoriesTest, runtimeDirPath)
     {
         G_SUBTEST << "Without $XDG_RUNTIME_DIR";
         auto guard = TestInstrumentsUnsetEnvVarGuard("XDG_RUNTIME_DIR");
-        auto homeGuard = TestInstrumentsEnvVarGuard("HOME", "/home/test");
-        EXPECT_EQ(dirs->runtimeDirPath(),
-                  std::string("/tmp/megacmd-").append(std::to_string(getuid())));
+        {
+            auto homeGuard = TestInstrumentsEnvVarGuard("HOME", "/home/test");
+            EXPECT_EQ(dirs->runtimeDirPath(),
+                      std::string("/tmp/megacmd-").append(std::to_string(getuid())));
+        }
+        {
+            auto homeGuard = TestInstrumentsEnvVarGuard("HOME", "/non-existent-dir");
+            EXPECT_EQ(dirs->runtimeDirPath(), std::string("/tmp/megacmd-").append(std::to_string(getuid())));
+        }
     }
 #endif
 }
@@ -51,22 +59,14 @@ TEST(PlatformDirectoriesTest, configDirPath)
     ASSERT_TRUE(dirs != nullptr);
 #if !defined(_WIN32) && !defined(__APPLE__)
     {
-        G_SUBTEST << "With $XDG_CONFIG_HOME";
-        auto homeGuard = TestInstrumentsEnvVarGuard("HOME", "/home/test");
-        auto guard = TestInstrumentsEnvVarGuard("XDG_CONFIG_HOME", "/tmp/test");
-        EXPECT_EQ(dirs->configDirPath(), "/tmp/test/megacmd");
+        G_SUBTEST << "With alternative existing HOME";
+        auto homeGuard = TestInstrumentsEnvVarGuard("HOME", "/tmp");
+        EXPECT_EQ(dirs->configDirPath(), "/tmp/.megaCmd");
     }
     {
-        G_SUBTEST << "Without $XDG_CONFIG_HOME";
-        auto guard = TestInstrumentsUnsetEnvVarGuard("XDG_CONFIG_HOME");
-        {
-            auto homeGuard = TestInstrumentsEnvVarGuard("HOME", "/tmp");
-            EXPECT_EQ(dirs->configDirPath(), "/tmp/.megacmd");
-        }
-        {
-            auto homeGuard = TestInstrumentsEnvVarGuard("HOME", "/non-existent-dir");
-            EXPECT_EQ(dirs->configDirPath(), std::string("/tmp/megacmd-").append(std::to_string(getuid())));
-        }
+        G_SUBTEST << "With alternative NON existing HOME";
+        auto homeGuard = TestInstrumentsEnvVarGuard("HOME", "/non-existent-dir");
+        EXPECT_EQ(dirs->configDirPath(), std::string("/tmp/megacmd-").append(std::to_string(getuid())));
     }
 #endif
 #ifdef _WIN32
@@ -83,31 +83,41 @@ TEST(PlatformDirectoriesTest, configDirPath)
 #endif    
 }
 
-TEST(PlatformDirectoriesTest, cacheDirPath)
+TEST(PlatformDirectoriesTest, lockExecution)
 {
-    using megacmd::PlatformDirectories;
-
-    auto dirs = PlatformDirectories::getPlatformSpecificDirectories();
-    ASSERT_TRUE(dirs != nullptr);
-
-#if !defined(_WIN32) && !defined(__APPLE__)
+    using megacmd::ConfigurationManager;
     {
-        G_SUBTEST << "With $XDG_CACHE_HOME";
-        auto homeGuard = TestInstrumentsEnvVarGuard("HOME", "/home/test");
-        auto guard = TestInstrumentsEnvVarGuard("XDG_CACHE_HOME", "/tmp/test");
-        EXPECT_EQ(dirs->cacheDirPath(), "/tmp/test/megacmd");
+        G_SUBTEST << "With default paths:";
+        ASSERT_TRUE(ConfigurationManager::lockExecution());
+        ASSERT_TRUE(ConfigurationManager::unlockExecution());
     }
+
+#ifndef _WIN32
     {
-        G_SUBTEST << "Without $XDG_CACHE_HOME";
-        auto guard = TestInstrumentsUnsetEnvVarGuard("XDG_CACHE_HOME");
-        {
-            auto homeGuard = TestInstrumentsEnvVarGuard("HOME", "/tmp");
-            EXPECT_EQ(dirs->cacheDirPath(), "/tmp/.megacmd");
-        }
-        {
-            auto homeGuard = TestInstrumentsEnvVarGuard("HOME", "/non-existent-dir");
-            EXPECT_EQ(dirs->configDirPath(), std::string("/tmp/megacmd-").append(std::to_string(getuid())));
-        }
+        G_SUBTEST << "Another HOME";
+
+        auto homeGuard = TestInstrumentsEnvVarGuard("HOME", "/tmp");
+        ASSERT_TRUE(ConfigurationManager::lockExecution());
+        ASSERT_TRUE(ConfigurationManager::unlockExecution());
+    }
+
+    {
+        G_SUBTEST << "With legacy one";
+
+        using megacmd::PlatformDirectories;
+        auto dirs = PlatformDirectories::getPlatformSpecificDirectories();
+        auto legacyLockFolder = ConfigurationManager::getConfigFolder();
+        EXPECT_STRNE(dirs->runtimeDirPath().c_str(), legacyLockFolder.c_str());
+
+        ASSERT_TRUE(ConfigurationManager::lockExecution(legacyLockFolder));
+
+        ASSERT_FALSE(ConfigurationManager::lockExecution());
+
+        ASSERT_TRUE(ConfigurationManager::unlockExecution(legacyLockFolder));
+
+        // All good after that
+        ASSERT_TRUE(ConfigurationManager::lockExecution());
+        ASSERT_TRUE(ConfigurationManager::unlockExecution());
     }
 #endif
 }

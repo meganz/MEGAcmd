@@ -41,6 +41,13 @@ private:
     static void loadConfigDir();
 
     static void removeSyncConfig(sync_struct *syncToRemove);
+
+#ifdef MEGACMD_TESTING_CODE
+public:
+#endif
+    static bool lockExecution(const std::string &lockFileFolder);
+    static bool unlockExecution(const std::string &lockFileFolder);
+
 public:
     static std::map<std::string, sync_struct *> oldConfiguredSyncs; //This will refer to old syncs from now on
     static std::map<std::string, backup_struct *> configuredBackups;
@@ -54,7 +61,7 @@ public:
     static void loadConfiguration(bool debug);
     static void clearConfigurationFile();
     static bool lockExecution();
-    static void unlockExecution();
+    static bool unlockExecution();
 
     static void loadsyncs();
     static void loadbackups();
@@ -239,8 +246,8 @@ public:
 
     // creates a subfolder within the state dir and returns it (utf8)
     static std::string getDataFolderSubdir(const std::string &utf8Name);
-    static std::string getStateDir();
-    static std::string getDataDir();
+    static std::string getAndCreateStateDir();
+    static std::string getAndCreateDataDir();
 
     static bool getHasBeenUpdated();
 

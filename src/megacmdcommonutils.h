@@ -346,6 +346,8 @@ private:
  * MegaCMD.
  * To preserve backwards compatibility with existing setups, all implementations of
  * PlatformDirectories should return the legacy config directory (~/.megaCmd on UNIX), if it exists.
+ *
+ * Note: returned values are encoded in utf-8
  */
 class PlatformDirectories
 {
@@ -356,27 +358,30 @@ public:
      *
      * Meant for sockets, named pipes, file locks, etc.
      */
-    virtual std::string runtimeDirPath() = 0;
+    virtual std::string runtimeDirPath()
+    {
+        return configDirPath();
+    }
     /**
      * @brief cacheDirPath returns the base path for storing non-essential data files.
      *
      * Meant for cached data which can be safely deleted.
      */
-    virtual std::string cacheDirPath() = 0;
+    virtual std::string cacheDirPath()
+    {
+        // Note: this one is new, can use virtual runtime dir if defined
+        return runtimeDirPath();
+    }
     /**
      * @brief configDirPath returns the base path for storing configuration files.
      *
-     * Solely for user-editable configuration files.
+     * Meant for user-editable configuration files.
      */
     virtual std::string configDirPath() = 0;
-    virtual std::string configDirPathNoLegacyCheck()
-    {
-        return configDirPath();
-    }
     /**
      * @brief dataDirPath returns the base path for storing data files.
      *
-     * For user data files that should not be deleted (session credentials, SDK workding directory,
+     * For user data files that should not be deleted (session credentials, SDK workding directory, logs,
      * etc).
      */
     virtual std::string dataDirPath()
@@ -392,11 +397,6 @@ public:
     virtual std::string stateDirPath()
     {
         return runtimeDirPath();
-    }
-
-    virtual std::pair<bool/*exists*/, std::string> legacyFolderConfig()
-    {
-        return std::make_pair<bool, std::string>(false, std::string());
     }
 };
 
@@ -414,14 +414,6 @@ template <typename T> size_t numberOfDigits(T num)
 #ifdef _WIN32
 class WindowsDirectories : public PlatformDirectories
 {
-    std::string runtimeDirPath() override
-    {
-        return configDirPath();
-    }
-    std::string cacheDirPath() override
-    {
-        return configDirPath();
-    }
     std::string configDirPath() override;
 };
 std::wstring getNamedPipeName();
@@ -430,58 +422,18 @@ class PosixDirectories : public PlatformDirectories
 {
 public:
     std::string homeDirPath();
-    virtual std::string runtimeDirPath() override
-    {
-        // Note: not explicitly checking for legacy path here: only for runtime
-
-        return configDirPathNoLegacyCheck();
-    }
-
-    virtual std::string cacheDirPath() override
-    {
-        // Note: this one is new, no need for legacy fallback
-
-        // Note: given all implementations override this one, we are not using polimorphism here (to actually skip the legacy check):
-        return PosixDirectories::configDirPathNoLegacyCheck();
-    }
     virtual std::string configDirPath() override;
-    virtual std::string configDirPathNoLegacyCheck() override;
-    virtual std::string dataDirPath() override
-    {
-        return configDirPath();
-    }
-    virtual std::string stateDirPath() override
-    {
-        // Note: state includes lock file, checking for legacy path (just in case there's an unexpectedly running old server)
-        auto legacyFolder = legacyFolderConfig();
-        if (legacyFolder.first) // exists
-        {
-            return std::move(legacyFolder.second);
-        }
-
-        return runtimeDirPath();
-    }
-
-    virtual std::pair<bool/*exists*/, std::string> legacyFolderConfig() override;
 
 };
 #ifdef __APPLE__
 class MacOSDirectories : public PosixDirectories
 {
-    std::string cacheDirPath() override;
-    std::string configDirPath() override;
-    std::string configDirPathNoLegacyCheck() override;
-    std::string dataDirPath() override;
+    std::string runtimeDirPath() override;
 };
 #else // !defined(__APPLE__)
 class XDGDirectories : public PosixDirectories
 {
     std::string runtimeDirPath() override;
-    std::string cacheDirPath() override;
-    std::string configDirPath() override;
-    std::string configDirPathNoLegacyCheck() override;
-    std::string dataDirPath() override;
-    std::string stateDirPath() override;
 };
 #endif // defined(__APPLE__)
 std::string getOrCreateSocketPath(bool createDirectory);
