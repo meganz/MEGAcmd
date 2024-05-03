@@ -158,7 +158,7 @@ sed -i -E "s/(^#define MEGACMD_BUILD_ID )[0-9]*/\1${mega_build_id}/g" src/megacm
 %endif
 
 # Build SQLite3
-%define flag_disablesqlite3 -L
+%define flag_disablesqlite3 `grep -- -L ./contrib/build_sdk.sh >/dev/null && echo "-L"`
 
 %if 0%{?centos_version} == 700
     %define flag_disablesqlite3 %{nil}
