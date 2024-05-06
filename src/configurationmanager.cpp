@@ -784,7 +784,7 @@ bool ConfigurationManager::lockExecution()
     auto stateDir = getAndCreateStateDir();
     if (stateDir != configDir)
     {
-        auto lockFileAtConfigDir = configDir.append(1, LocalPath::localPathSeparator_utf8).append(LOCK_FILE_NAME);
+        auto lockFileAtConfigDir = std::string(configDir).append(1, LocalPath::localPathSeparator_utf8).append(LOCK_FILE_NAME);
 
         static MegaFileSystemAccess fsAccess;
         LocalPath localPath = LocalPath::fromAbsolutePath(lockFileAtConfigDir);
