@@ -111,7 +111,7 @@ TEST(PlatformDirectoriesTest, lockExecution)
 
 #ifdef __APPLE__
         fs::path subDir = tempDir / "Library" / "Caches" / "megacmd.mac";
-        EXPECT_STRNE(dirs->runtimeDirPath().c_str(), subDir.string().c_str());
+        EXPECT_STREQ(dirs->runtimeDirPath().c_str(), subDir.string().c_str());
 
         fs::create_directories(subDir);
 #endif
@@ -123,6 +123,22 @@ TEST(PlatformDirectoriesTest, lockExecution)
 
     {
         G_SUBTEST << "With legacy one";
+
+#ifndef __APPLE__
+        auto xdgruntime = getenv("XDG_RUNTIME_DIR");
+
+        std::unique_ptr<TestInstrumentsEnvVarGuard> guardRuntimeDir;
+        std::unique_ptr<fs::path> tempDir;
+
+        if (!xdgruntime)
+        {
+            std::string tmpFolder = std::tmpnam(nullptr);
+            tempDir.reset(new fs::path(tmpFolder));
+            fs::create_directory(*tempDir);
+            guardRuntimeDir.reset(new TestInstrumentsEnvVarGuard("XDG_RUNTIME_DIR", tempDir->string()));
+            G_TEST_INFO << "Missing XDG_RUNTIME_DIR, set to " << tempDir->string();
+        }
+#endif
 
         auto legacyLockFolder = ConfigurationManager::getConfigFolder();
         EXPECT_STRNE(dirs->runtimeDirPath().c_str(), legacyLockFolder.c_str());
@@ -136,6 +152,14 @@ TEST(PlatformDirectoriesTest, lockExecution)
         // All good after that
         ASSERT_TRUE(ConfigurationManager::lockExecution());
         ASSERT_TRUE(ConfigurationManager::unlockExecution());
+
+#ifndef __APPLE__
+        if (tempDir)
+        {
+            fs::remove_all(*tempDir);
+        }
+#endif
+
     }
 #endif
 }
