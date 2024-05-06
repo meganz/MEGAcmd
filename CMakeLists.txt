@@ -151,10 +151,7 @@ target_sources_conditional(LMegacmdServer
 # We need to explicitly pass the copmiling options.
 target_compile_definitions(LMegacmdServer
     PUBLIC
-    $<$<BOOL:${ENABLE_CHAT}>:ENABLE_CHAT>
-    $<$<BOOL:${USE_LIBUV}>:HAVE_LIBUV>
     $<$<BOOL:${USE_PCRE}>:USE_PCRE>
-    $<IF:$<CONFIG:Debug>,DEBUG,NDEBUG>
 )
 
 add_executable(mega-cmd-server)
