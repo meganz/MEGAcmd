@@ -8,10 +8,8 @@ pipeline {
     parameters {
         booleanParam(name: 'IS_RELEASE_CANDIDATE', defaultValue: false, description: 'Is it a Release Candidate?')
         string(name: 'RELEASE_CANDIDATE_NAME', defaultValue: '', description: 'i.e: RC2, RC3 (only needed if IS_RELEASE_CANDIDATE is true)')
-        booleanParam(name: 'ARM64', defaultValue: true, description: 'Build for ARM64?')
-        booleanParam(name: 'X86_64', defaultValue: false, description: 'Build for X86_64?')
         string(name: 'MEGACMD_BRANCH', defaultValue: "${env.BRANCH_NAME}", description: 'Which version of MEGAcmd should we build? Default is current branch.')
-        string(name: 'SDK_BRANCH', defaultValue: ' ', description: 'Optionally, define a custom SDK branch.')
+        string(name: 'SDK_BRANCH', defaultValue: 'develop', description: 'Optionally, define a custom SDK branch.')
     }
     environment {
         gitlab_token = credentials('jenkins_sdk_token')
@@ -71,14 +69,7 @@ pipeline {
                 dir(macos_sources_workspace + '/build'){
                     script {
                         def commonArgs = params.IS_RELEASE_CANDIDATE == true ? "--build --create-dmg" : "--build"
-
-                        if (params.ARM64 == true) {
-                            sh "./installer_mac.sh ${commonArgs}"
-                        }
-
-                        if (params.X86_64 == true) {
-                            sh "./installer_mac.sh ${commonArgs} --arch x86_64"
-                        }
+                        sh "./installer_mac.sh ${commonArgs} --arch universal"
                     }
 
                 }
@@ -105,26 +96,35 @@ pipeline {
                             returnStdout: true
                         ).trim()
                         sh "echo $MEGACMD_VERSION > version.txt"
-                        if (params.ARM64 == true){
-                            sh "jf rt del MEGAcmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/macOS/arm64"
-                            sh """
-                                cd build/Release_arm64
-                                zip -r mega-cmd.dSYM.zip mega-cmd.dSYM
-                                jf rt upload \
-                                    --regexp '(MEGAcmd.*dmg|mega-cmd.*zip)' \
-                                    MEGAcmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/macOS/arm64/
-                            """
-                        }
-                        if (params.X86_64 == true){
-                            sh "jf rt del MEGAcmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/macOS/x86_64"
-                            sh """
-                                cd build/Release_x86_64
-                                zip -r  mega-cmd.dSYM.zip mega-cmd.dSYM
-                                jf rt upload \
-                                    --regexp '(MEGAcmd.*dmg|mega-cmd.*zip)' \
-                                    MEGAcmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/macOS/x86_64/
-                            """
-                        }
+                        sh "jf rt del MEGAcmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/macOS/"
+                        // arm64 files
+                        sh """
+                            cd build/Release_arm64
+                            zip -r mega-cmd.dSYM.zip mega-cmd.dSYM
+                            zip -r MEGAcmdUpdater.dSYM.zip MEGAcmdUpdater.dSYM
+                            zip -r mega-exec.dSYM.zip mega-exec.dSYM
+                            zip -r MEGAcmdShell.dSYM.zip MEGAcmdShell.dSYM
+                            jf rt upload \
+                                --regexp '(MEGAcmd.*dmg|.*zip)' \
+                                MEGAcmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/macOS/arm64/
+                        """
+                        // x86_64 files
+                        sh """
+                            cd build/Release_x86_64
+                            zip -r mega-cmd.dSYM.zip mega-cmd.dSYM
+                            zip -r MEGAcmdUpdater.dSYM.zip MEGAcmdUpdater.dSYM
+                            zip -r mega-exec.dSYM.zip mega-exec.dSYM
+                            zip -r MEGAcmdShell.dSYM.zip MEGAcmdShell.dSYM
+                            jf rt upload \
+                                --regexp '(MEGAcmd.*dmg|.*zip)' \
+                                MEGAcmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/macOS/x86_64/
+                        """
+                        // universal files
+                        sh """
+                            cd build/Release_universal
+                            jf rt upload MEGAcmd.dmg \
+                                MEGAcmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/macOS/universal/
+                        """
                     }
                     archiveArtifacts artifacts: 'version.txt', onlyIfSuccessful: true
                 }
