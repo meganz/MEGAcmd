@@ -436,7 +436,12 @@ class XDGDirectories : public PosixDirectories
     std::string runtimeDirPath() override;
 };
 #endif // defined(__APPLE__)
-std::string getOrCreateSocketPath(bool createDirectory);
+std::string getOrCreateSocketPath(bool createDirectory
+                                  #ifdef MEGACMD_TESTING_CODE
+                                  , bool allowExceeding = false
+                                  #endif
+
+                                  );
 #endif // _WIN32
 
 /**

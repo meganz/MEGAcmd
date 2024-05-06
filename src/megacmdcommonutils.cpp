@@ -1604,7 +1604,11 @@ std::string XDGDirectories::runtimeDirPath()
 
 #endif // !defined(__APPLE__)
 
-std::string getOrCreateSocketPath(bool createDirectory)
+std::string getOrCreateSocketPath(bool createDirectory
+#ifdef MEGACMD_TESTING_CODE
+                                , bool allowExceeding
+#endif
+                                  )
 {
     auto dirs = PlatformDirectories::getPlatformSpecificDirectories();
     auto socketFolder = dirs->runtimeDirPath();
@@ -1618,7 +1622,12 @@ std::string getOrCreateSocketPath(bool createDirectory)
 
     static auto MAX_SOCKET_PATH = sizeof(sockaddr_un::sun_path) / sizeof(decltype(sockaddr_un::sun_path[0]));
 
-    if ((socketFolder.size() + 1 + sockname.size()) >= (MAX_SOCKET_PATH - 1))
+    if (
+        #ifdef MEGACMD_TESTING_CODE
+              !allowExceeding &&
+        #endif
+        (socketFolder.size() + 1 + sockname.size()) >= (MAX_SOCKET_PATH - 1)
+        )
     {
         std::cerr << "WARN: socket path in runtime dir would exceed max size. Falling back to /tmp" << std::endl;
         socketFolder = "/tmp/megacmd";

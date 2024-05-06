@@ -175,13 +175,13 @@ TEST(PlatformDirectoriesTest, getOrCreateSocketPath)
 
     {
         G_SUBTEST << "With $MEGACMD_SOCKET_NAME";
-        auto guard = TestInstrumentsEnvVarGuard("MEGACMD_SOCKET_NAME", "megacmd-test.socket");
-        EXPECT_EQ(getOrCreateSocketPath(false), runtimeDir + "/megacmd-test.socket");
+        auto guard = TestInstrumentsEnvVarGuard("MEGACMD_SOCKET_NAME", "test.sock");
+        EXPECT_EQ(getOrCreateSocketPath(false), runtimeDir + "/test.sock");
     }
     {
         G_SUBTEST << "Without $MEGACMD_SOCKET_NAME";
         auto guard = TestInstrumentsUnsetEnvVarGuard("MEGACMD_SOCKET_NAME");
-        EXPECT_EQ(getOrCreateSocketPath(false), runtimeDir + "/megacmd.socket");
+        EXPECT_EQ(getOrCreateSocketPath(false, true), runtimeDir + "/megacmd.socket");
     }
 }
 #else
