@@ -166,6 +166,7 @@ pipeline {
                 set -x
                 export TMP=\$(mktemp -d)
                 export HOME=\$TMP
+                export MEGACMD_SOCKET_NAME=cmd.sock
                 mkdir -p \$HOME/Library/Caches
                 cleanup() {
                     ARG=\$?
