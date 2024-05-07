@@ -247,9 +247,9 @@ public:
     static std::string getConfigFolder();
 
     // creates a subfolder within the state dir and returns it (utf8)
-    static std::string getDataFolderSubdir(const std::string &utf8Name);
-    static std::string getAndCreateStateDir();
-    static std::string getAndCreateDataDir();
+    static std::string getConfigFolderSubdir(const std::string &utf8Name);
+    static std::string getAndCreateRuntimeDir();
+    static std::string getAndCreateConfigDir();
 
     static bool getHasBeenUpdated();
 

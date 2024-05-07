@@ -34,24 +34,27 @@ TEST(PlatformDirectoriesTest, runtimeDirPath)
     auto dirs = PlatformDirectories::getPlatformSpecificDirectories();
     ASSERT_TRUE(dirs != nullptr);
 
-#if !defined(_WIN32) && !defined(__APPLE__)
+#ifndef __APPLE__
+    EXPECT_EQ(dirs->runtimeDirPath(), dirs->configDirPath());
+#endif
+
+#ifndef WIN32
     {
-        G_SUBTEST << "With $XDG_RUNTIME_DIR";
-        auto guard = TestInstrumentsEnvVarGuard("XDG_RUNTIME_DIR", "/tmp/test");
-        EXPECT_EQ(dirs->runtimeDirPath(), "/tmp/test/megacmd");
+        auto homeGuard = TestInstrumentsEnvVarGuard("HOME", "/non-existent-dir");
+        EXPECT_STREQ(dirs->runtimeDirPath().c_str(), megacmd::PosixDirectories::noHomeFallbackFolder().c_str());
     }
+
+    #ifdef __APPLE__
     {
-        G_SUBTEST << "Without $XDG_RUNTIME_DIR";
-        auto guard = TestInstrumentsUnsetEnvVarGuard("XDG_RUNTIME_DIR");
-        {
-            auto homeGuard = TestInstrumentsEnvVarGuard("HOME", "/non-existent-dir");
-            EXPECT_EQ(dirs->runtimeDirPath(), std::string("/tmp/megacmd-").append(std::to_string(getuid())));
-        }
-        {
-            auto homeGuard = TestInstrumentsEnvVarGuard("HOME", "/tmp");
-            EXPECT_EQ(dirs->runtimeDirPath(), "/tmp/.megaCmd");
-        }
+        auto homeGuard = TestInstrumentsEnvVarGuard("HOME", "/tmp");
+        EXPECT_STREQ(dirs->runtimeDirPath().c_str(), "/tmp/Library/Caches/megacmd.mac");
     }
+    #else
+    {
+        auto homeGuard = TestInstrumentsEnvVarGuard("HOME", "/tmp");
+        EXPECT_EQ(dirs->runtimeDirPath(), "/tmp/.megaCmd");
+    }
+    #endif
 #endif
 }
 
@@ -61,19 +64,8 @@ TEST(PlatformDirectoriesTest, configDirPath)
 
     auto dirs = PlatformDirectories::getPlatformSpecificDirectories();
     ASSERT_TRUE(dirs != nullptr);
-#if !defined(_WIN32) && !defined(__APPLE__)
-    {
-        G_SUBTEST << "With alternative existing HOME";
-        auto homeGuard = TestInstrumentsEnvVarGuard("HOME", "/tmp");
-        EXPECT_EQ(dirs->configDirPath(), "/tmp/.megaCmd");
-    }
-    {
-        G_SUBTEST << "With alternative NON existing HOME";
-        auto homeGuard = TestInstrumentsEnvVarGuard("HOME", "/non-existent-dir");
-        EXPECT_EQ(dirs->configDirPath(), std::string("/tmp/megacmd-").append(std::to_string(getuid())));
-    }
-#endif
-#ifdef _WIN32
+
+#ifdef WIN32
     {
         G_SUBTEST << "With $MEGACMD_WORKING_FOLDER_SUFFIX";
         auto guard = TestInstrumentsEnvVarGuard("MEGACMD_WORKING_FOLDER_SUFFIX", "foobar");
@@ -84,7 +76,18 @@ TEST(PlatformDirectoriesTest, configDirPath)
         auto guard = TestInstrumentsUnsetEnvVarGuard("MEGACMD_WORKING_FOLDER_SUFFIX");
         EXPECT_THAT(dirs->configDirPath(), testing::EndsWith(".megaCmd"));
     }
-#endif    
+#else
+    {
+        G_SUBTEST << "With alternative existing HOME";
+        auto homeGuard = TestInstrumentsEnvVarGuard("HOME", "/tmp");
+        EXPECT_EQ(dirs->configDirPath(), "/tmp/.megaCmd");
+    }
+    {
+        G_SUBTEST << "With alternative NON existing HOME";
+        auto homeGuard = TestInstrumentsEnvVarGuard("HOME", "/non-existent-dir");
+        EXPECT_EQ(dirs->configDirPath(), megacmd::PosixDirectories::noHomeFallbackFolder());
+    }
+#endif
 }
 
 TEST(PlatformDirectoriesTest, lockExecution)
@@ -96,7 +99,7 @@ TEST(PlatformDirectoriesTest, lockExecution)
         ASSERT_TRUE(ConfigurationManager::unlockExecution());
     }
 
-#ifndef _WIN32
+#ifndef WIN32
 
     using megacmd::PlatformDirectories;
     auto dirs = PlatformDirectories::getPlatformSpecificDirectories();
@@ -124,65 +127,69 @@ TEST(PlatformDirectoriesTest, lockExecution)
     {
         G_SUBTEST << "With legacy one";
 
-#ifndef __APPLE__
-        auto xdgruntime = getenv("XDG_RUNTIME_DIR");
-
-        std::unique_ptr<TestInstrumentsEnvVarGuard> guardRuntimeDir;
-        std::unique_ptr<fs::path> tempDir;
-
-        if (!xdgruntime)
-        {
-            std::string tmpFolder = std::tmpnam(nullptr);
-            tempDir.reset(new fs::path(tmpFolder));
-            fs::create_directory(*tempDir);
-            guardRuntimeDir.reset(new TestInstrumentsEnvVarGuard("XDG_RUNTIME_DIR", tempDir->string()));
-            G_TEST_INFO << "Missing XDG_RUNTIME_DIR, set to " << tempDir->string();
-        }
-#endif
-
         auto legacyLockFolder = ConfigurationManager::getConfigFolder();
-        EXPECT_STRNE(dirs->runtimeDirPath().c_str(), legacyLockFolder.c_str());
-
-        ASSERT_TRUE(ConfigurationManager::lockExecution(legacyLockFolder));
-
-        ASSERT_FALSE(ConfigurationManager::lockExecution());
-
-        ASSERT_TRUE(ConfigurationManager::unlockExecution(legacyLockFolder));
-
-        // All good after that
-        ASSERT_TRUE(ConfigurationManager::lockExecution());
-        ASSERT_TRUE(ConfigurationManager::unlockExecution());
-
-#ifndef __APPLE__
-        if (tempDir)
+        if (dirs->runtimeDirPath() != legacyLockFolder)
         {
-            fs::remove_all(*tempDir);
-        }
-#endif
+            EXPECT_STRNE(dirs->runtimeDirPath().c_str(), legacyLockFolder.c_str());
 
+            ASSERT_TRUE(ConfigurationManager::lockExecution(legacyLockFolder));
+
+            ASSERT_FALSE(ConfigurationManager::lockExecution());
+
+            ASSERT_TRUE(ConfigurationManager::unlockExecution(legacyLockFolder));
+
+            // All good after that
+            ASSERT_TRUE(ConfigurationManager::lockExecution());
+            ASSERT_TRUE(ConfigurationManager::unlockExecution());
+        }
+        else
+        {
+            G_TEST_INFO << "LEGACY path is the same as runtime one. All good.";
+        }
     }
 #endif
 }
 
-#ifndef _WIN32
+#ifndef WIN32
 TEST(PlatformDirectoriesTest, getOrCreateSocketPath)
 {
     using megacmd::getOrCreateSocketPath;
     using megacmd::PlatformDirectories;
 
     auto dirs = PlatformDirectories::getPlatformSpecificDirectories();
-    auto runtimeDir = dirs->runtimeDirPath();
 
     {
         G_SUBTEST << "With $MEGACMD_SOCKET_NAME";
         auto guard = TestInstrumentsEnvVarGuard("MEGACMD_SOCKET_NAME", "test.sock");
-        EXPECT_EQ(getOrCreateSocketPath(false), runtimeDir + "/test.sock");
+        EXPECT_EQ(getOrCreateSocketPath(false), dirs->runtimeDirPath() + "/test.sock");
     }
     {
-        G_SUBTEST << "Without $MEGACMD_SOCKET_NAME";
-        auto guard = TestInstrumentsUnsetEnvVarGuard("MEGACMD_SOCKET_NAME");
-        EXPECT_EQ(getOrCreateSocketPath(false, true), runtimeDir + "/megacmd.socket");
+        G_SUBTEST << "Without $MEGACMD_SOCKET_NAME. normal or fallback case";
+        auto socketPath = getOrCreateSocketPath(false);
+
+        ASSERT_TRUE( socketPath == dirs->runtimeDirPath() + "/megacmd.socket" // normal case
+                     || socketPath == megacmd::PosixDirectories::noHomeFallbackFolder().append("/megacmd.socket")); //too lengthy case
     }
+
+    {
+        G_SUBTEST << "Without $MEGACMD_SOCKET_NAME, short path: no /tmp/megacmd-UID fallback";
+        auto homeGuard = TestInstrumentsEnvVarGuard("HOME", "/tmp");
+        auto guard = TestInstrumentsUnsetEnvVarGuard("MEGACMD_SOCKET_NAME");
+        auto runtimeDir = dirs->runtimeDirPath();
+        auto socketPath = getOrCreateSocketPath(false);
+        ASSERT_STREQ(socketPath.c_str(), std::string(dirs->runtimeDirPath()).append("/megacmd.socket").c_str());
+    }
+
+    {
+        G_SUBTEST << "Without $MEGACMD_SOCKET_NAME, longth path: /tmp/megacmd-UID fallback";
+        auto homeGuard = TestInstrumentsEnvVarGuard("HOME", "/tmp/this_is_a_very_very_very_lengthy_folder_name_meant_to_make_socket_path_exceed_max_unix_socket_path_allowance");
+        auto guard = TestInstrumentsUnsetEnvVarGuard("MEGACMD_SOCKET_NAME");
+        auto runtimeDir = dirs->runtimeDirPath();
+        auto socketPath = getOrCreateSocketPath(false);
+        ASSERT_STREQ(socketPath.c_str(), std::string(dirs->runtimeDirPath()).append("/megacmd.socket").c_str());
+        ASSERT_STREQ(socketPath.c_str(), megacmd::PosixDirectories::noHomeFallbackFolder().append("/megacmd.socket").c_str());
+    }
+
 }
 #else
 TEST(PlatformDirectoriesTest, getNamedPipeName)

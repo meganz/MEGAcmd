@@ -1489,7 +1489,7 @@ std::unique_ptr<PlatformDirectories> PlatformDirectories::getPlatformSpecificDir
 #elif defined(__APPLE__)
     return std::unique_ptr<PlatformDirectories>(new MacOSDirectories);
 #else
-    return std::unique_ptr<PlatformDirectories>(new XDGDirectories);
+    return std::unique_ptr<PlatformDirectories>(new PosixDirectories);
 #endif
 }
 
@@ -1557,10 +1557,9 @@ std::string PosixDirectories::homeDirPath()
     long int bufsize = sysconf(_SC_GETPW_R_SIZE_MAX);
     bufsize = bufsize == -1 ? 1024 : bufsize;
     auto pwdbuf = std::unique_ptr<char[]>(new char[bufsize]);
-    auto err = getpwuid_r(getuid(), &pwd, pwdbuf.get(), bufsize, &pwdresult);
-
-    if (err != 0)
+    if (getpwuid_r(getuid(), &pwd, pwdbuf.get(), bufsize, &pwdresult))
     {
+        std::cerr << "Warn: Could not get HOME folder from getpwuid_r. errno = " << errno << std::endl;
         return std::string();
     }
     return std::string(pwd.pw_dir);
@@ -1571,50 +1570,42 @@ std::string PosixDirectories::configDirPath()
     std::string home = homeDirPath();
     if (home.empty())
     {
-        return std::string("/tmp/megacmd-").append(std::to_string(getuid()));
+        return noHomeFallbackFolder();
     }
 
     struct stat path_stat = {};
     bool exists = !stat(home.c_str(), &path_stat) && S_ISDIR(path_stat.st_mode);
 
-    return !exists ? std::string("/tmp/megacmd-").append(std::to_string(getuid())) : home.append("/.megaCmd");
+    return !exists ? noHomeFallbackFolder() : home.append("/.megaCmd");
+}
+
+string PosixDirectories::noHomeFallbackFolder()
+{
+    return std::string("/tmp/megacmd-").append(std::to_string(getuid()));
 }
 
 #ifdef __APPLE__
 std::string MacOSDirectories::runtimeDirPath()
 {
     std::string homedir = homeDirPath();
-    return homedir.empty() ? std::string() : homedir.append("/Library/Caches/megacmd.mac");
-}
-
-#else // !defined(__APPLE__)
-std::string XDGDirectories::runtimeDirPath()
-{
-    //Note: not checking for legacy path here: only for runtime
-
-    const char *runtimedir = getenv("XDG_RUNTIME_DIR");
-    if (!runtimedir)
+    if (homedir.empty())
     {
-        // If no XDG env variable, fallback to POSIX
+        // fallback to Posix:
         return PosixDirectories::runtimeDirPath();
     }
 
-    return std::string(runtimedir).append("/megacmd");
+    return homedir.append("/Library/Caches/megacmd.mac");
 }
-
 #endif // !defined(__APPLE__)
 
-std::string getOrCreateSocketPath(bool createDirectory
-#ifdef MEGACMD_TESTING_CODE
-                                , bool allowExceeding
-#endif
-                                  )
+std::string getOrCreateSocketPath(bool createDirectory)
 {
     auto dirs = PlatformDirectories::getPlatformSpecificDirectories();
     auto socketFolder = dirs->runtimeDirPath();
     if (socketFolder.empty())
     {
-        return std::string();
+        std::cerr << "FATAL: Could not get runtime folder for socket path" << std::endl;
+        throw std::runtime_error("Could not get runtime folder for socket path");
     }
 
     const char *sockname_c = getenv("MEGACMD_SOCKET_NAME");
@@ -1622,17 +1613,11 @@ std::string getOrCreateSocketPath(bool createDirectory
 
     static auto MAX_SOCKET_PATH = sizeof(sockaddr_un::sun_path) / sizeof(decltype(sockaddr_un::sun_path[0]));
 
-    if (
-        #ifdef MEGACMD_TESTING_CODE
-              !allowExceeding &&
-        #endif
-        (socketFolder.size() + 1 + sockname.size()) >= (MAX_SOCKET_PATH - 1)
-        )
+    if ((socketFolder.size() + 1 + sockname.size()) >= (MAX_SOCKET_PATH - 1))
     {
         std::cerr << "WARN: socket path in runtime dir would exceed max size. Falling back to /tmp" << std::endl;
-        socketFolder = "/tmp/megacmd";
+        socketFolder = PosixDirectories::noHomeFallbackFolder();
     }
-
 
     struct stat path_stat = {};
     if (createDirectory)

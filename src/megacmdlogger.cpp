@@ -309,12 +309,12 @@ OUTFSTREAMTYPE streamForDefaultFile()
      }
 #else
     auto dirs = PlatformDirectories::getPlatformSpecificDirectories();
-    path = dirs->dataDirPath();
+    path = dirs->configDirPath();
 
     auto fsAccess = ::mega::make_unique<MegaFileSystemAccess>();
     fsAccess->setdefaultfolderpermissions(0700);
-    LocalPath local_data_dir = LocalPath::fromAbsolutePath(path);
-    if (!fsAccess->mkdirlocal(local_data_dir, false, false))
+    LocalPath localconfigDir = LocalPath::fromAbsolutePath(path);
+    if (!fsAccess->mkdirlocal(localconfigDir, false, false))
     {
         LOG_err << "Data directory not created";
     }

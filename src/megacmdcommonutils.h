@@ -343,61 +343,38 @@ private:
 /**
  * @name PlatformDirectories
  * @brief PlatformDirectories provides methods for accessing directories for storing user data for
- * MegaCMD.
- * To preserve backwards compatibility with existing setups, all implementations of
- * PlatformDirectories should return the legacy config directory (~/.megaCmd on UNIX), if it exists.
+ * MEGAcmd.
  *
- * Note: returned values are encoded in utf-8
+ * Note: returned values are encoded in utf-8.
+ *
+ * 	+---------------------------------------------------------------------------------------------------------------------+
+ * 	| DirPath | Windows              | Linux          | macOS                            | Linux/macOS (no HOME fallback) |
+ * 	|---------|----------------------|----------------|----------------------------------|--------------------------------|
+ * 	| runtime | $EXECFOLDER/.megaCmd | $HOME/.megaCmd | $HOME/Library/Caches/megacmd.mac | /tmp/megacmd-UID/.megacmd      |
+ * 	| config  | $EXECFOLDER/.megaCmd | $HOME/.megaCmd | $HOME/.megaCmd                   | /tmp/megacmd-UID/.megacmd      |
+ * 	+---------------------------------------------------------------------------------------------------------------------+
+ *
  */
 class PlatformDirectories
 {
 public:
     static std::unique_ptr<PlatformDirectories> getPlatformSpecificDirectories();
     /**
-     * @brief runtimeDirPath returns the base path for storing non-essential runtime files.
+     * @brief runtimeDirPath returns the base path for storing runtime files:
      *
-     * Meant for sockets, named pipes, file locks, etc.
+     * Meant for sockets, named pipes, file locks, command history, etc.
      */
     virtual std::string runtimeDirPath()
     {
         return configDirPath();
     }
     /**
-     * @brief cacheDirPath returns the base path for storing non-essential data files.
+     * @brief configDirPath returns the base path for storing configuration and data files.
      *
-     * Meant for cached data which can be safely deleted.
-     */
-    virtual std::string cacheDirPath()
-    {
-        // Note: this one is new, can use virtual runtime dir if defined
-        return runtimeDirPath();
-    }
-    /**
-     * @brief configDirPath returns the base path for storing configuration files.
-     *
-     * Meant for user-editable configuration files.
+     * Meant for user-editable configuration files, data files that should not be deleted
+     * (session credentials, SDK workding directory, logs, etc).
      */
     virtual std::string configDirPath() = 0;
-    /**
-     * @brief dataDirPath returns the base path for storing data files.
-     *
-     * For user data files that should not be deleted (session credentials, SDK workding directory, logs,
-     * etc).
-     */
-    virtual std::string dataDirPath()
-    {
-        return configDirPath();
-    }
-    /**
-     * @brief stateDirPath returns the base path for storing state files. Specifically, data that
-     * can persist between restarts, but not significant enough for DataDirPath().
-     *
-     * Meant for recent command history, locks, crash dumps, etc.
-     */
-    virtual std::string stateDirPath()
-    {
-        return runtimeDirPath();
-    }
 };
 
 template <typename T> size_t numberOfDigits(T num)
@@ -424,24 +401,16 @@ public:
     std::string homeDirPath();
     virtual std::string configDirPath() override;
 
+    static std::string noHomeFallbackFolder();
+
 };
 #ifdef __APPLE__
 class MacOSDirectories : public PosixDirectories
 {
     std::string runtimeDirPath() override;
 };
-#else // !defined(__APPLE__)
-class XDGDirectories : public PosixDirectories
-{
-    std::string runtimeDirPath() override;
-};
 #endif // defined(__APPLE__)
-std::string getOrCreateSocketPath(bool createDirectory
-                                  #ifdef MEGACMD_TESTING_CODE
-                                  , bool allowExceeding = false
-                                  #endif
-
-                                  );
+std::string getOrCreateSocketPath(bool createDirectory);
 #endif // _WIN32
 
 /**

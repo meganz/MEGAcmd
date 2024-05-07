@@ -267,7 +267,7 @@ int64_t mega_size(const char *path)
 string UpdateTask::getAppDataDir()
 {
     auto dirs = megacmd::PlatformDirectories::getPlatformSpecificDirectories();
-    return dirs->dataDirPath();
+    return dirs->configDirPath();
 }
 
 #define MEGA_TO_NATIVE_SEPARATORS(x) std::replace(x.begin(), x.end(), '\\', '/');
