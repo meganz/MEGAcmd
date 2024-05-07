@@ -83,7 +83,7 @@ TEST(PlatformDirectoriesTest, runtimeDirPath)
         SelftDeletingTmpFolder tmpFolder;
         auto homeGuard = TestInstrumentsEnvVarGuard("HOME", tmpFolder.string());
         fs::create_directories(tmpFolder.path() / "Library" / "Caches");
-        EXPECT_STREQ(dirs->runtimeDirPath().c_str(), tmpFolder.string().append("/Library/Caches/megacmd.mac"));
+        EXPECT_STREQ(dirs->runtimeDirPath().c_str(), tmpFolder.string().append("/Library/Caches/megacmd.mac").c_str());
     }
     #else
     {
@@ -147,7 +147,7 @@ TEST(PlatformDirectoriesTest, lockExecution)
 
 #ifdef __APPLE__
         fs::create_directories(tmpFolder.path() / "Library" / "Caches");
-        EXPECT_STREQ(dirs->runtimeDirPath().c_str(), tmpFolder.string().append("/Library/Caches/megacmd.mac"));
+        EXPECT_STREQ(dirs->runtimeDirPath().c_str(), tmpFolder.string().append("/Library/Caches/megacmd.mac").c_str());
 #endif
         ASSERT_TRUE(ConfigurationManager::lockExecution());
         ASSERT_TRUE(ConfigurationManager::unlockExecution());
