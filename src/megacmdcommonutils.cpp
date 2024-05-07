@@ -1576,7 +1576,7 @@ std::string PosixDirectories::configDirPath()
     struct stat path_stat = {};
     bool exists = !stat(home.c_str(), &path_stat) && S_ISDIR(path_stat.st_mode);
 
-    return !exists ? noHomeFallbackFolder() : home.append("/.megaCmd");
+    return exists ? home.append("/.megaCmd") : noHomeFallbackFolder();
 }
 
 string PosixDirectories::noHomeFallbackFolder()
@@ -1587,14 +1587,18 @@ string PosixDirectories::noHomeFallbackFolder()
 #ifdef __APPLE__
 std::string MacOSDirectories::runtimeDirPath()
 {
-    std::string homedir = homeDirPath();
-    if (homedir.empty())
+    std::string home = homeDirPath();
+    if (home.empty())
     {
         // fallback to Posix:
         return PosixDirectories::runtimeDirPath();
     }
 
-    return homedir.append("/Library/Caches/megacmd.mac");
+    auto cachesPath = std::string(home).append("/Library/Caches");
+    struct stat path_stat = {};
+    bool exists = !stat(cachesPath.c_str(), &path_stat) && S_ISDIR(path_stat.st_mode);
+
+    return exists ? cachesPath.append("/megacmd.mac") : noHomeFallbackFolder();
 }
 #endif // !defined(__APPLE__)
 

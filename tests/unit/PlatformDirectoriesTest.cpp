@@ -24,8 +24,36 @@
 
 #ifndef WIN32
 #include <filesystem>
-    namespace fs = std::filesystem;
+namespace fs = std::filesystem;
+
+struct SelftDeletingTmpFolder
+{
+    fs::path mTempDir;
+
+
+    SelftDeletingTmpFolder()
+    {
+        std::string tmpFolder = std::tmpnam(nullptr);
+        mTempDir = fs::path(tmpFolder);
+        fs::create_directory(mTempDir);
+    }
+
+    ~SelftDeletingTmpFolder()
+    {
+        fs::remove_all(mTempDir);
+    }
+
+    std::string string(){
+        return mTempDir.string();
+    }
+
+    fs::path path()
+    {
+        return mTempDir;
+    }
+};
 #endif
+
 
 TEST(PlatformDirectoriesTest, runtimeDirPath)
 {
@@ -40,14 +68,22 @@ TEST(PlatformDirectoriesTest, runtimeDirPath)
 
 #ifndef WIN32
     {
+        G_SUBTEST << "Non existing HOME folder";
         auto homeGuard = TestInstrumentsEnvVarGuard("HOME", "/non-existent-dir");
+        EXPECT_STREQ(dirs->runtimeDirPath().c_str(), megacmd::PosixDirectories::noHomeFallbackFolder().c_str());
+    }
+    {
+        G_SUBTEST << "Empty HOME folder";
+        auto homeGuard = TestInstrumentsEnvVarGuard("HOME", "");
         EXPECT_STREQ(dirs->runtimeDirPath().c_str(), megacmd::PosixDirectories::noHomeFallbackFolder().c_str());
     }
 
     #ifdef __APPLE__
     {
-        auto homeGuard = TestInstrumentsEnvVarGuard("HOME", "/tmp");
-        EXPECT_STREQ(dirs->runtimeDirPath().c_str(), "/tmp/Library/Caches/megacmd.mac");
+        SelftDeletingTmpFolder tmpFolder;
+        auto homeGuard = TestInstrumentsEnvVarGuard("HOME", tmpFolder.string());
+        fs::create_directories(tmpFolder.path() / "Library" / "Caches");
+        EXPECT_STREQ(dirs->runtimeDirPath().c_str(), tmpFolder.string().append("/Library/Caches/megacmd.mac"));
     }
     #else
     {
@@ -106,22 +142,16 @@ TEST(PlatformDirectoriesTest, lockExecution)
     {
         G_SUBTEST << "Another HOME";
 
-        std::string tmpFolder = std::tmpnam(nullptr);
-        fs::path tempDir = fs::path(tmpFolder);
-        fs::create_directory(tempDir);
-
-        auto homeGuard = TestInstrumentsEnvVarGuard("HOME", tmpFolder);
+        SelftDeletingTmpFolder tmpFolder;
+        auto homeGuard = TestInstrumentsEnvVarGuard("HOME", tmpFolder.string());
 
 #ifdef __APPLE__
-        fs::path subDir = tempDir / "Library" / "Caches" / "megacmd.mac";
-        EXPECT_STREQ(dirs->runtimeDirPath().c_str(), subDir.string().c_str());
-
-        fs::create_directories(subDir);
+        fs::create_directories(tmpFolder.path() / "Library" / "Caches");
+        EXPECT_STREQ(dirs->runtimeDirPath().c_str(), tmpFolder.string().append("/Library/Caches/megacmd.mac"));
 #endif
         ASSERT_TRUE(ConfigurationManager::lockExecution());
         ASSERT_TRUE(ConfigurationManager::unlockExecution());
 
-        fs::remove_all(tempDir);
     }
 
     {
@@ -182,14 +212,17 @@ TEST(PlatformDirectoriesTest, getOrCreateSocketPath)
 
     {
         G_SUBTEST << "Without $MEGACMD_SOCKET_NAME, longth path: /tmp/megacmd-UID fallback";
-        auto homeGuard = TestInstrumentsEnvVarGuard("HOME", "/tmp/this_is_a_very_very_very_lengthy_folder_name_meant_to_make_socket_path_exceed_max_unix_socket_path_allowance");
+
+        SelftDeletingTmpFolder tmpFolder;
+        fs::path lengthyHome = tmpFolder.path() / "this_is_a_very_very_very_lengthy_folder_name_meant_to_make_socket_path_exceed_max_unix_socket_path_allowance";
+        fs::create_directories(lengthyHome);
+        auto homeGuard = TestInstrumentsEnvVarGuard("HOME", lengthyHome.string());
         auto guard = TestInstrumentsUnsetEnvVarGuard("MEGACMD_SOCKET_NAME");
         auto runtimeDir = dirs->runtimeDirPath();
         auto socketPath = getOrCreateSocketPath(false);
-        ASSERT_STREQ(socketPath.c_str(), std::string(dirs->runtimeDirPath()).append("/megacmd.socket").c_str());
+        ASSERT_STRNE(socketPath.c_str(), std::string(dirs->runtimeDirPath()).append("/megacmd.socket").c_str());
         ASSERT_STREQ(socketPath.c_str(), megacmd::PosixDirectories::noHomeFallbackFolder().append("/megacmd.socket").c_str());
     }
-
 }
 #else
 TEST(PlatformDirectoriesTest, getNamedPipeName)
