@@ -882,28 +882,24 @@ bool ConfigurationManager::unlockExecution()
 
 bool ConfigurationManager::unlockExecution(const std::string &lockFileFolder)
 {
-    if (!lockFileFolder.empty())
-    {
-        stringstream lockfile;
-        lockfile << lockFileFolder << LocalPath::localPathSeparator_utf8 << LOCK_FILE_NAME;
+    assert(!lockFileFolder.empty());
+
+    stringstream lockfile;
+    lockfile << lockFileFolder << LocalPath::localPathSeparator_utf8 << LOCK_FILE_NAME;
 
 #ifdef _WIN32
-        CloseHandle(mLockFileHandle);
+    CloseHandle(mLockFileHandle);
 #elif defined(LOCK_EX) && defined(LOCK_NB)
-        flock(fd, LOCK_UN | LOCK_NB);
-        close(fd);
+    flock(fd, LOCK_UN | LOCK_NB);
+    close(fd);
 #endif
-        bool succeeded = !unlink(lockfile.str().c_str());
-        if (!succeeded)
-        {
-            LOG_err << " Failed to remove lock file, errno = " << errno;
-        }
-
-        return succeeded;
+    bool succeeded = !unlink(lockfile.str().c_str());
+    if (!succeeded)
+    {
+        LOG_err << " Failed to remove lock file, errno = " << errno;
     }
 
-    LOG_err  << "Could not access lock file folder";
-    return false;
+    return succeeded;
 }
 
 string ConfigurationManager::getConfigurationSValue(string propertyName)
