@@ -101,6 +101,26 @@ include(CMakePackageConfigHelpers) # For the CMake package
 include(target_sources_conditional) # To add files to the project without building them
 include(target_platform_compile_options) # To add compile options depeding on the platform
 
+if(UNIX AND NOT APPLE)
+    # Set rpath and location for dirs accordingly:
+    # If CMAKE_INSTALL_PREFIX is set (not default), it will set rpath to to such prefix plus /opt/....
+    # If CMAKE_INSTALL_PREFIX is not set, it will set rpath to /opt/....
+    # Note: using cmake --install --prefix /some/prefix will not set rpath relative to that prefix
+    # The above can be used for building packages: in which install dir is a path construction folder that will not be there in packages
+    set(CMAKE_INSTALL_LIBDIR "opt/megacmd/lib")
+    set(CMAKE_INSTALL_BINDIR "usr/bin") #override default "bin"
+
+    if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+        message(STATUS "Overriding default CMAKE_INSTALL_PREFIX to /")
+        set(CMAKE_INSTALL_PREFIX "/") # override default /usr/local
+        set(RPATH_FOR_DYNAMIC_LIBS "/{CMAKE_INSTALL_LIBDIR}")
+    else()
+        # If explicit cmake prefix at cmake call time, make rpath relative to install dir
+        set(RPATH_FOR_DYNAMIC_LIBS "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
+    endif()
+
+    list( APPEND CMAKE_INSTALL_RPATH "${RPATH_FOR_DYNAMIC_LIBS}")
+endif()
 if(APPLE)
     set(CMAKE_MACOSX_RPATH 1)
     get_filename_component(ABSOLUTE_RPATH_LIBS ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR} ABSOLUTE)
@@ -296,8 +316,7 @@ if (NOT WIN32)
         RUNTIME
         DESTINATION ${CMAKE_INSTALL_BINDIR}
     )
-    #Install vcpkg dynamic libraries in locations defined by GNUInstallDirs. Note: CMAKE_INSTALL_PREFIX would need to be /usr for
-    # CMAKE_INSTALL_LIBDIR to be set correctly in Debian based systems
+    #Install vcpkg dynamic libraries in locations defined by GNUInstallDirs.
     if(CMAKE_BUILD_TYPE STREQUAL "Debug")
         SET(vcpkg_lib_folder "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/debug/lib/")
     else()

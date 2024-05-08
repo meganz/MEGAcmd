@@ -69,7 +69,6 @@ RUN  --mount=type=cache,target=/tmp/ccache \
     -DCMAKE_C_COMPILER_LAUNCHER=ccache \
     -DCMAKE_BUILD_TYPE=Debug \
     -DCMAKE_VERBOSE_MAKEFILE=ON \
-    -DCMAKE_INSTALL_PREFIX=/usr \
     -D ENABLE_ASAN=${ENABLE_ASAN} -D \
     ENABLE_UBSAN=${ENABLE_UBSAN} -D \
     ENABLE_TSAN=${ENABLE_TSAN} -D \
