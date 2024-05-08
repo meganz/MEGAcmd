@@ -9,7 +9,7 @@ pipeline {
         booleanParam(name: 'IS_RELEASE_CANDIDATE', defaultValue: false, description: 'Is it a Release Candidate?')
         string(name: 'RELEASE_CANDIDATE_NAME', defaultValue: '', description: 'i.e: RC2, RC3 (only needed if IS_RELEASE_CANDIDATE is true)')
         string(name: 'MEGACMD_BRANCH', defaultValue: "${env.BRANCH_NAME}", description: 'Which version of MEGAcmd should we build? Default is current branch.')
-        string(name: 'SDK_BRANCH', defaultValue: 'develop', description: 'Optionally, define a custom SDK branch.')
+        string(name: 'SDK_BRANCH', defaultValue: ' ', description: 'Optionally, define a custom SDK branch.')
     }
     environment {
         gitlab_token = credentials('jenkins_sdk_token')
