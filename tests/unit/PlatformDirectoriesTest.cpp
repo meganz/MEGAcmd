@@ -216,6 +216,9 @@ TEST(PlatformDirectoriesTest, getOrCreateSocketPath)
         SelftDeletingTmpFolder tmpFolder;
         fs::path lengthyHome = tmpFolder.path() / "this_is_a_very_very_very_lengthy_folder_name_meant_to_make_socket_path_exceed_max_unix_socket_path_allowance";
         fs::create_directories(lengthyHome);
+#ifdef __APPLE__
+        fs::create_directories(lengthyHome / "Library" / "Caches");
+#endif
         auto homeGuard = TestInstrumentsEnvVarGuard("HOME", lengthyHome.string());
         auto guard = TestInstrumentsUnsetEnvVarGuard("MEGACMD_SOCKET_NAME");
         auto runtimeDir = dirs->runtimeDirPath();
