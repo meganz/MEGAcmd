@@ -51,7 +51,7 @@ int ComunicationsManagerFileSockets::initialize()
     }
     if (socketPath.size() >= (ARRAYSIZE(addr.sun_path) - 1))
     {
-        LOG_fatal << "Server socket path is too long: '" << socketPath << "'";
+        LOG_fatal << "Server socket path is too long: '" << socketPath << "'. Exceeds " << ARRAYSIZE(addr.sun_path) - 1 << " max allowance";
         return -1;
     }
 

@@ -1,0 +1,151 @@
+pipeline {
+    agent { label 'windows && amd64' }
+
+    options {
+        buildDiscarder(logRotator(numToKeepStr: '25', daysToKeepStr: '30'))
+        gitLabConnection('GitLabConnectionJenkins')
+        copyArtifactPermission('*');
+
+    }
+    parameters {
+        booleanParam(name: 'IS_RELEASE_CANDIDATE', defaultValue: false, description: 'Is it a Release Candidate?')
+        string(name: 'RELEASE_CANDIDATE_NAME', defaultValue: '', description: 'i.e: RC2, RC3 (only needed if IS_RELEASE_CANDIDATE is true)')
+        choice(name: 'ARCHITECTURE', choices: ['64', '32/64'], description: 'To build either for 64 bit or both 32 and 64 bit')
+        string(name: 'MEGACMD_BRANCH', defaultValue: "${env.BRANCH_NAME}", description: 'Which version of MEGAcmd should we build? Default is current branch.')
+        string(name: 'SDK_BRANCH', defaultValue: ' ', description: 'Optionally, define a custom SDK branch.')
+    }
+    environment {
+        gitlab_token = credentials('jenkins_sdk_token')
+        MEGACMD_BRANCH = "${params.MEGACMD_BRANCH}"
+        SDK_BRANCH = "${params.SDK_BRANCH}"
+    }
+
+    stages {
+        stage('Clean previous runs'){
+            steps{
+                deleteDir()
+            }
+        }
+
+        stage('Checkout windows'){
+            steps {
+                checkout([
+                    $class: 'GitSCM',
+                    branches: [[name: "${env.MEGACMD_BRANCH}"]],
+                    userRemoteConfigs: [[ url: "${env.GIT_URL_MEGACMD}", credentialsId: "12492eb8-0278-4402-98f0-4412abfb65c1" ]],
+                    extensions: [
+                        [$class: "UserIdentity",name: "jenkins", email: "jenkins@jenkins"]
+                        ]
+                ])
+                script {
+                    windows_sources_workspace = WORKSPACE
+                    def branchToCheckout = ''
+
+                    if (env.SDK_BRANCH && env.SDK_BRANCH != ' ') {
+                        branchToCheckout = env.SDK_BRANCH
+                        shouldCloneSDK = true
+                    } else if (env.MEGACMD_BRANCH in ['develop', 'master']) {
+                        branchToCheckout = "release/v6.0.0"
+                        shouldCloneSDK = true
+                    } else {
+                        def status = sh(script: "git submodule status", returnStdout: true).trim()
+                        branchToCheckout = status.tokenize(' ')[0].substring(1)
+                    }
+                    dir('sdk') {
+                        sh "echo Cloning SDK branch ${branchToCheckout}"
+                        checkout([
+                            $class: 'GitSCM',
+                            branches: [[name: branchToCheckout]],
+                            userRemoteConfigs: [[url: "${env.GIT_URL_SDK}", credentialsId: "12492eb8-0278-4402-98f0-4412abfb65c1"]],
+                            extensions: [
+                                [$class: "UserIdentity", name: "jenkins", email: "jenkins@jenkins"]
+                            ]
+                        ])
+                    }
+                }
+            }
+        }
+        stage ('Build Windows installers'){
+            environment{
+                MEGA_VCPKGPATH  = "${windows_sources_workspace}\\..\\3rdparty"
+                MEGA_THIRD_PARTY_DLL_DIR = "bin"
+                SKIP_BUILD_THIRD_PARTIES = "1"
+            }
+            steps {
+                dir(windows_sources_workspace + '\\build'){
+                    bat """
+                        mkdir tmp
+                        set _MSPDBSRV_ENDPOINT_= ${BUILD_TAG}
+                        set TMP=${Workspace}\\tmp
+                        set TEMP=${Workspace}\\tmp
+                        set TMPDIR=${Workspace}\\tmp
+                        full_build_process.cmd ${params.ARCHITECTURE} nosign 2
+                    """
+                }
+            }
+        }
+        stage ('Upload Installers') {
+            when {
+                beforeAgent true
+                anyOf {
+                    expression { params.IS_RELEASE_CANDIDATE == true}
+                }
+            }
+            environment{
+                JF_PATH  = "${windows_sources_workspace}\\.."
+            }
+            steps {
+                dir(windows_sources_workspace + '\\build'){
+                    script {
+                        def windows_artifactory_upload = { String ART_UPLOAD_PATH, String buildDir, String arch ->
+
+                            powershell """
+                                ${JF_PATH}\\jf config use artifactory
+                                ${JF_PATH}\\jf rt del ${ART_UPLOAD_PATH}
+                                ${JF_PATH}\\jf rt upload MEGAcmdSetup${arch}_unsigned.exe ${ART_UPLOAD_PATH}
+                                cd ${buildDir}
+                                ${JF_PATH}\\jf rt upload legacy.pdb ${ART_UPLOAD_PATH}
+                                ${JF_PATH}\\jf rt upload LMegacmdClient.pdb ${ART_UPLOAD_PATH}
+                                ${JF_PATH}\\jf rt upload LMegacmdServer.pdb ${ART_UPLOAD_PATH}
+                                ${JF_PATH}\\jf rt upload MegacmdServer.pdb ${ART_UPLOAD_PATH}
+                                ${JF_PATH}\\jf rt upload Mega.pdb ${ART_UPLOAD_PATH}
+                                ${JF_PATH}\\jf rt upload MEGAclient.exe ${ART_UPLOAD_PATH}
+                                ${JF_PATH}\\jf rt upload MEGAcmdServer.exe ${ART_UPLOAD_PATH}
+                                ${JF_PATH}\\jf rt upload MEGAcmdShell.exe ${ART_UPLOAD_PATH}
+                                ${JF_PATH}\\jf rt upload MEGAcmdUpdater.exe ${ART_UPLOAD_PATH}
+                            """
+                        }
+                        MEGACMD_VERSION = getVersionFromHeader("../src/megacmdversion.h")
+                        sh "echo $MEGACMD_VERSION > version.txt"
+                        if (params.ARCHITECTURE == "64") {
+                            windows_artifactory_upload("MEGAcmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/windows/", "built64", "64")
+                        } else if (params.ARCHITECTURE == "32/64") {
+                            windows_artifactory_upload("MEGAcmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/windows/built64/", "built64", "64")
+                            windows_artifactory_upload("MEGAcmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/windows/built32/", "built32", "32")
+                        }
+                    }
+                    archiveArtifacts artifacts: 'version.txt', onlyIfSuccessful: true
+                }
+            }
+            post {
+                success {
+                    script {
+                        echo "Installers successfully uploaded. URL: [${env.REPO_URL}/MEGAcmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/windows]"
+                    }
+                }
+            }
+        }
+    }
+}
+
+def getVersionFromHeader(String versionFilePath) {
+    return sh(script: """
+        awk  '/#define MEGACMD_MAJOR_VERSION/ { MAJOR=\$3 }; \
+              /#define MEGACMD_MINOR_VERSION/ { MINOR=\$3 }; \
+              /#define MEGACMD_MICRO_VERSION/ { MICRO=\$3 }; \
+              END { print MAJOR"."MINOR"."MICRO }' \
+              $versionFilePath
+        """
+        , returnStdout: true).trim()
+}
+
