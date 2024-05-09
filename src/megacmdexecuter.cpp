@@ -152,7 +152,8 @@ void MegaCmdExecuter::updateprompt(MegaApi *api)
 
 MegaCmdExecuter::MegaCmdExecuter(MegaApi *api, MegaCMDLogger *loggerCMD, MegaCmdSandbox *sandboxCMD) :
     // Give a few seconds in order for key sharing to happen
-    mDeferredSharedFoldersVerifier(std::chrono::seconds(5))
+    mDeferredSharedFoldersVerifier(std::chrono::seconds(5)),
+    mStalledIssuesManager(api)
 {
     signingup = false;
     confirming = false;
@@ -162,6 +163,7 @@ MegaCmdExecuter::MegaCmdExecuter(MegaApi *api, MegaCMDLogger *loggerCMD, MegaCmd
     this->sandboxCMD = sandboxCMD;
     this->globalTransferListener = new MegaCmdGlobalTransferListener(api, sandboxCMD);
     api->addTransferListener(globalTransferListener);
+    api->addGlobalListener(&mStalledIssuesManager);
     cwd = UNDEF;
     fsAccessCMD = new MegaFileSystemAccess();
     session = NULL;
@@ -10909,6 +10911,29 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             setProxy(urlProxy, username, password, proxyType);
         }
 
+    }
+    else if (words[0] == "stalled")
+    {
+        auto stalledIssuesCache = mStalledIssuesManager.getLockedCache();
+        if (stalledIssuesCache.empty())
+        {
+            OUTSTREAM << "There are no stalled issues" << endl;
+            return;
+        }
+
+        ColumnDisplayer cd(clflags, cloptions);
+
+        for (const auto& stalledIssue : stalledIssuesCache)
+        {
+            cd.addValue("ID", std::to_string(stalledIssue.getId()));
+            cd.addValue("Reason", stalledIssue.getSyncWaitReasonStr());
+            cd.addValue("Main Path", stalledIssue.getMainPath());
+            cd.addValue("Solvable", "NO" /* Until CMD-311 */);
+        }
+
+        OUTSTRINGSTREAM oss;
+        cd.print(oss);
+        OUTSTREAM << oss.str();
     }
     else
     {

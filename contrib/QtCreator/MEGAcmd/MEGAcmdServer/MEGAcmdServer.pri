@@ -8,6 +8,7 @@ SOURCES += \
     $$MEGACMD_BASE_PATH/src/megacmd.cpp \
     $$MEGACMD_BASE_PATH/src/listeners.cpp \
     $$MEGACMD_BASE_PATH/src/megacmdexecuter.cpp \
+    $$MEGACMD_BASE_PATH/src/stalled_issues.cpp \
     $$MEGACMD_BASE_PATH/src/megacmd_events.cpp \
     $$MEGACMD_BASE_PATH/src/megacmdlogger.cpp \
     $$MEGACMD_BASE_PATH/src/megacmdsandbox.cpp \
@@ -24,6 +25,7 @@ CONFIG(USE_DOWNLOADS_COMMAND) {
 HEADERS += \
     $$MEGACMD_BASE_PATH/src/megacmd.h \
     $$MEGACMD_BASE_PATH/src/megacmdexecuter.h \
+    $$MEGACMD_BASE_PATH/src/stalled_issues.h \
     $$MEGACMD_BASE_PATH/src/deferred_single_trigger.h \
     $$MEGACMD_BASE_PATH/src/megacmd_events.h \
     $$MEGACMD_BASE_PATH/src/listeners.h \

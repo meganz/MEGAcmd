@@ -25,6 +25,7 @@
 #include "megacmdsandbox.h"
 #include "listeners.h"
 #include "deferred_single_trigger.h"
+#include "stalled_issues.h"
 
 namespace megacmd {
 class MegaCmdSandbox;
@@ -46,6 +47,7 @@ private:
     std::mutex mtxFtpLocations;
 
     DeferredSingleTrigger mDeferredSharedFoldersVerifier;
+    StalledIssuesManager mStalledIssuesManager;
 
 #ifdef ENABLE_BACKUPS
     std::recursive_mutex mtxBackupsMap;
