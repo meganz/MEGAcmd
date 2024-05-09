@@ -39,6 +39,9 @@ else {
     LIBS += -lpthread
 }
 
+include(../../MEGAcmdServer/MEGAcmdServer.pri)
+include(../../MEGAcmdClient/MEGAcmdClient.pri)
+
 CONFIG -= c++11
 QMAKE_CXXFLAGS-=-std=c++11
 CONFIG += c++17
@@ -64,6 +67,3 @@ SOURCES += \
     $$MEGACMD_BASE_PATH/tests/unit/UtilsTests.cpp \
     $$MEGACMD_BASE_PATH/tests/unit/PlatformDirectoriesTest.cpp \
     $$MEGACMD_BASE_PATH/tests/unit/main.cpp
-
-SOURCES += \
-    $$MEGACMD_BASE_PATH/src/megacmdcommonutils.cpp

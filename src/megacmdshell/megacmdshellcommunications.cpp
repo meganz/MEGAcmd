@@ -108,29 +108,11 @@ string createAndRetrieveConfigFolder()
 {
     auto dirs = PlatformDirectories::getPlatformSpecificDirectories();
 #ifdef _WIN32
+    // We don't create the folder: Windows is currently using the folder
+    // of the executable.
     return dirs->configDirPath();
-    //TODO: create folder (not required currently)
 #else
     auto dir = dirs->configDirPath();
-    struct stat st = {};
-
-    if (stat(dir.c_str(), &st) == -1)
-    {
-        mkdir(dir.c_str(), 0700);
-    }
-    return dir;
-#endif
-}
-
-string createAndRetrieveStateFolder()
-{
-    auto dirs = PlatformDirectories::getPlatformSpecificDirectories();
-#ifdef _WIN32
-    // We don't create the folder: Windowow is currently using the folder
-    // of the executable.
-    return dirs->stateDirPath();
-#else
-    auto dir = dirs->stateDirPath();
     struct stat st = {};
 
     if (stat(dir.c_str(), &st) == -1)
@@ -297,7 +279,6 @@ SOCKET MegaCmdShellCommunications::createSocket(int number, bool initializeserve
         addr.sun_family = AF_UNIX;
         strncpy(addr.sun_path, socketPath.c_str(), socketPath.size());
 
-
         if (::connect(thesock, (struct sockaddr*)&addr, sizeof( addr )) == SOCKET_ERROR)
         {
             if (!number && initializeserver)
@@ -311,7 +292,7 @@ SOCKET MegaCmdShellCommunications::createSocket(int number, bool initializeserve
                     setsid(); //create new session so as not to receive parent's Ctrl+C
 
                     // Give an indication of where the logs will be find:
-                    string pathtolog = createAndRetrieveStateFolder()+"/megacmdserver.log";
+                    string pathtolog = createAndRetrieveConfigFolder()+"/megacmdserver.log";
                     CERR << "[Initiating MEGAcmd server in background. Log: " << pathtolog << "]" << endl;
 
                     freopen(std::string(pathtolog).append(".out").c_str(),"w",stdout);

@@ -132,6 +132,15 @@ pipeline {
                 dir('test-results') {
                     sh """#!/bin/zsh
                 set -x
+                export TMP=\$(mktemp -d)
+                export HOME=\$TMP
+                mkdir -p \$HOME/Library/Caches
+                cleanup() {
+                    ARG=\$?
+                    rm -rf \$TMP
+                    exit \$ARG
+                }
+                trap cleanup EXIT
                 ${mac_sources_workspace}/build/cmake/build_dir/mega-cmd-tests-unit --gtest_output=xml:${mac_sources_workspace}/test-results/megacmd-unit-tests.xml --gtest_shuffle
                 """
                 }
@@ -157,7 +166,7 @@ pipeline {
                 set -x
                 export TMP=\$(mktemp -d)
                 export HOME=\$TMP
-                mkdir -p \$HOME/Library/Preferences
+                export MEGACMD_SOCKET_NAME=cmd.sock
                 mkdir -p \$HOME/Library/Caches
                 cleanup() {
                     ARG=\$?
