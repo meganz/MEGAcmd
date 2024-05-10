@@ -19,6 +19,12 @@ CONFIG += console
 
 include(../vcpkg_inclusion.pri)
 
+!win32 {
+# These are required to have PlaftformDirectories stuff
+    include(../MEGAcmdServer/MEGAcmdServer.pri)
+    include(../MEGAcmdClient/MEGAcmdClient.pri)
+}
+
 HEADERS += ../../../../src/updater/UpdateTask.h \
     ../../../../src/updater/Preferences.h \
     ../../../../src/updater/MacUtils.h

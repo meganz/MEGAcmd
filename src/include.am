@@ -29,7 +29,7 @@ if BUILD_MEGACMD_TESTS
 noinst_LTLIBRARIES += src/libmegacmdinstruments.la
 noinst_HEADERS += tests/common/Instruments.h
 
-src_libmegacmdinstruments_la_CXXFLAGS = -std=c++17 #required for instruments stuff
+src_libmegacmdinstruments_la_CXXFLAGS = -DMEGACMD_TESTING_CODE=1 -std=c++17 #required for instruments stuff
 src_libmegacmdinstruments_la_SOURCES = tests/common/Instruments.cpp
 ##############################################################################################
 endif
@@ -90,6 +90,11 @@ src_libmegacmdcomms_la_SOURCES += sdk/src/thread/posixthread.cpp sdk/src/logging
 endif
 
 src_libmegacmdcomms_la_CXXFLAGS = $(LMEGAINC) $(DB_CXXFLAGS)
+
+if BUILD_MEGACMD_TESTS
+src_libmegacmdcomms_la_CXXFLAGS += -DMEGACMD_TESTING_CODE=1
+endif
+
 ##############################################################################################
 ###############################   CLIENT LIBRARY #############################################
 noinst_LTLIBRARIES += src/libmegacmdclient.la
@@ -129,7 +134,7 @@ if BUILD_MEGACMD_TESTS
 noinst_LTLIBRARIES += src/libmegacmdtestscommon.la
 noinst_HEADERS += tests/common/TestUtils.h
 
-src_libmegacmdtestscommon_la_CXXFLAGS = -std=c++17 #required for testscommon stuff
+src_libmegacmdtestscommon_la_CXXFLAGS = -DMEGACMD_TESTING_CODE=1 -std=c++17 #required for testscommon stuff
 src_libmegacmdtestscommon_la_SOURCES = \
     tests/common/TestUtils.cpp
 ##############################################################################################
@@ -141,7 +146,7 @@ mega_cmd_unit_tests_SOURCES = \
     tests/unit/PlatformDirectoriesTest.cpp \
     tests/unit/main.cpp
 
-mega_cmd_unit_tests_CXXFLAGS = -Itests/common/ -Itests/unit/ -Isdk/include/ $(LMEGAINC)
+mega_cmd_unit_tests_CXXFLAGS = -DMEGACMD_TESTING_CODE=1 -Itests/common/ -Itests/unit/ -Isdk/include/ $(LMEGAINC)
 mega_cmd_unit_tests_CXXFLAGS += -std=c++17
 
 mega_cmd_unit_tests_LDADD = -L/$(GTEST_DIR)/lib/ -lgtest -lgtest_main -lgmock # Note, the trailing / in GTEST_DIR is to allow simple --with-gtest (evalving to "yes")
@@ -157,7 +162,7 @@ mega_cmd_integration_tests_SOURCES = \
     tests/integration/MegaCmdTestingTools.cpp \
     tests/integration/main.cpp
 
-mega_cmd_integration_tests_CXXFLAGS = -Itests/common/ -Itests/integration/ -Isdk/include/ $(LMEGAINC)
+mega_cmd_integration_tests_CXXFLAGS = -DMEGACMD_TESTING_CODE=1 -Itests/common/ -Itests/integration/ -Isdk/include/ $(LMEGAINC)
 mega_cmd_integration_tests_CXXFLAGS += -std=c++17
 
 mega_cmd_integration_tests_LDADD = -L/$(GTEST_DIR)/lib/ -lgtest -lgtest_main -lgmock # Note, the trailing / is to allow simple --with-gtest (evalving to "yes")

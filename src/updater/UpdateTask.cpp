@@ -33,6 +33,10 @@
 #include "Preferences.h"
 #include "MacUtils.h"
 
+#ifndef WIN32
+#include "../megacmdcommonutils.h" // Platform dirs
+#endif
+
 #include "../megacmdversion.h"
 
 using std::string;
@@ -262,14 +266,8 @@ int64_t mega_size(const char *path)
 
 string UpdateTask::getAppDataDir()
 {
-    string path;
-    const char* home = getenv("HOME");
-    if (home)
-    {
-        path.append(home);
-        path.append("/.megaCmd/");
-    }
-    return path;
+    auto dirs = megacmd::PlatformDirectories::getPlatformSpecificDirectories();
+    return dirs->configDirPath();
 }
 
 #define MEGA_TO_NATIVE_SEPARATORS(x) std::replace(x.begin(), x.end(), '\\', '/');
