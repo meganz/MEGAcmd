@@ -10914,6 +10914,13 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
     }
     else if (words[0] == "stalled")
     {
+        if (!api->isFilesystemAvailable() || !api->isLoggedIn())
+        {
+            setCurrentOutCode(MCMD_NOTLOGGEDIN);
+            LOG_err << "Not logged in";
+            return;
+        }
+
         auto stalledIssuesCache = mStalledIssuesManager.getLockedCache();
         if (stalledIssuesCache.empty())
         {
