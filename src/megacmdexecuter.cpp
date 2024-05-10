@@ -10930,12 +10930,14 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
         ColumnDisplayer cd(clflags, cloptions);
 
+        cd.addHeader("MAIN PATH", false);
+
         for (const auto& stalledIssue : stalledIssuesCache)
         {
             cd.addValue("ID", std::to_string(stalledIssue.getId()));
-            cd.addValue("Reason", stalledIssue.getSyncWaitReasonStr());
-            cd.addValue("Main Path", stalledIssue.getMainPath());
-            cd.addValue("Solvable", "NO" /* Until CMD-311 */);
+            cd.addValue("REASON", stalledIssue.getSyncWaitReasonStr());
+            cd.addValue("MAIN PATH", stalledIssue.getMainPath());
+            cd.addValue("SOLVABLE", "NO" /* Until CMD-311 */);
         }
 
         OUTSTRINGSTREAM oss;
