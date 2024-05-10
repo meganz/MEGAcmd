@@ -65,6 +65,7 @@ INCLUDEPATH += \
 SOURCES += \
     $$MEGACMD_BASE_PATH/tests/integration/BasicTests.cpp \
     $$MEGACMD_BASE_PATH/tests/integration/ExportTests.cpp \
+    $$MEGACMD_BASE_PATH/tests/integration/StalledIssuesTests.cpp \
     $$MEGACMD_BASE_PATH/tests/integration/MegaCmdTestingTools.cpp \
     $$MEGACMD_BASE_PATH/tests/integration/main.cpp
 

@@ -65,6 +65,7 @@ public:
     enum class Event
     {
         SERVER_ABOUT_TO_START_WAITING_FOR_PETITIONS,
+        STALLED_ISSUES_LIST_UPDATED,
     };
 
     typedef std::function<void()> EventCallback;

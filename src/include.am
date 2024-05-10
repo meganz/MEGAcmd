@@ -159,6 +159,7 @@ mega_cmd_unit_tests_LDADD += $(top_builddir)/src/libmegacmdtestscommon.la
 mega_cmd_integration_tests_SOURCES = \
     tests/integration/BasicTests.cpp \
     tests/integration/ExportTests.cpp \
+    tests/integration/StalledIssuesTests.cpp \
     tests/integration/MegaCmdTestingTools.cpp \
     tests/integration/main.cpp
 

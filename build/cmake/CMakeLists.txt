@@ -171,6 +171,7 @@ if (ENABLE_MEGACMD_TESTS)
   add_executable(mega-cmd-tests-integration
     "${ProjectDir}/tests/integration/BasicTests.cpp"
     "${ProjectDir}/tests/integration/ExportTests.cpp"
+    "${ProjectDir}/tests/integration/StalledIssuesTests.cpp"
     "${ProjectDir}/tests/integration/MegaCmdTestingTools.cpp"
     "${ProjectDir}/tests/integration/main.cpp"
   )

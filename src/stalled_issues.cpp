@@ -19,6 +19,11 @@
 
 #include "megacmdlogger.h"
 
+#ifdef MEGACMD_TESTING_CODE
+    #include "../tests/common/Instruments.h"
+    using TI = TestInstruments;
+#endif
+
 StalledIssue::StalledIssue(size_t id, const mega::MegaSyncStall &stall) :
     mId(id),
     mMegaStall(stall.copy())
@@ -80,7 +85,7 @@ StalledIssueCache::StalledIssueCache(const StalledIssueList &stalledIssues, std:
 void StalledIssuesManager::onGlobalSyncStateChanged(mega::MegaApi *api)
 {
     bool syncStalled = api->isSyncStalled();
-    bool syncStalledChanged = (mSyncStalled != syncStalled || api->isSyncStalledChanged());
+    bool syncStalledChanged = (mSyncStalled != syncStalled || (syncStalled && api->isSyncStalledChanged()));
 
     if (syncStalledChanged)
     {
@@ -118,6 +123,10 @@ void StalledIssuesManager::populateStalledIssues(const mega::MegaSyncStallList& 
 
     std::lock_guard<std::mutex> lock(mStalledIssuesMutex);
     mStalledIssues = std::move(stalledIssues);
+
+#ifdef MEGACMD_TESTING_CODE
+    TI::Instance().fireEvent(TI::Event::STALLED_ISSUES_LIST_UPDATED);
+#endif
 }
 
 StalledIssuesManager::StalledIssuesManager(mega::MegaApi *api) :
