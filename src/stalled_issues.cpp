@@ -36,27 +36,12 @@ std::string StalledIssue::getSyncWaitReasonStr() const
 
     switch(mMegaStall->reason())
     {
-        case mega::MegaSyncStall::NoReason:                          return "No reason";
-        case mega::MegaSyncStall::FileIssue:                         return "File issue";
-        case mega::MegaSyncStall::MoveOrRenameCannotOccur:           return "Move/Rename cannot occur";
+    #define SOME_GENERATOR_MACRO(reason, str) case reason: return str;
+        GENERATE_FROM_STALL_REASON(SOME_GENERATOR_MACRO)
+    #undef SOME_GENERATOR_MACRO
 
-        case mega::MegaSyncStall::DeleteOrMoveWaitingOnScanning:     return "Delete waiting on scanning";
-        case mega::MegaSyncStall::DeleteWaitingOnMoves:              return "Delete waiting on move";
-
-        case mega::MegaSyncStall::UploadIssue:                       return "Upload issue";
-        case mega::MegaSyncStall::DownloadIssue:                     return "Download issue";
-        case mega::MegaSyncStall::CannotCreateFolder:                return "Cannot create folder";
-        case mega::MegaSyncStall::CannotPerformDeletion:             return "Cannot delete";
-        case mega::MegaSyncStall::SyncItemExceedsSupportedTreeDepth: return "Supported tree depth exceeded";
-        case mega::MegaSyncStall::FolderMatchedAgainstFile:          return "Folder matched against file";
-
-        case mega::MegaSyncStall::LocalAndRemoteChangedSinceLastSyncedState_userMustChoose:
-        case mega::MegaSyncStall::LocalAndRemotePreviouslyUnsyncedDiffer_userMustChoose:
-                                                                     return "Local and remote differ";
-
-        case mega::MegaSyncStall::NamesWouldClashWhenSynced:         return "Name clash";
-
-        default:                                                     return "<out-of-range>";
+        default:                                                     assert(false);
+                                                                     return "<unsupported>";
     }
 }
 

@@ -21,6 +21,22 @@
 
 #include "megaapi.h"
 
+#define GENERATE_FROM_STALL_REASON(GENERATOR_MACRO) \
+        GENERATOR_MACRO(mega::MegaSyncStall::NoReason,                                                  "No reason") \
+        GENERATOR_MACRO(mega::MegaSyncStall::FileIssue,                                                 "File issue") \
+        GENERATOR_MACRO(mega::MegaSyncStall::MoveOrRenameCannotOccur,                                   "Move/Rename cannot occur") \
+        GENERATOR_MACRO(mega::MegaSyncStall::DeleteOrMoveWaitingOnScanning,                             "Delete waiting on scanning") \
+        GENERATOR_MACRO(mega::MegaSyncStall::DeleteWaitingOnMoves,                                      "Delete waiting on move") \
+        GENERATOR_MACRO(mega::MegaSyncStall::UploadIssue,                                               "Upload issue") \
+        GENERATOR_MACRO(mega::MegaSyncStall::DownloadIssue,                                             "Download issue") \
+        GENERATOR_MACRO(mega::MegaSyncStall::CannotCreateFolder,                                        "Cannot create folder") \
+        GENERATOR_MACRO(mega::MegaSyncStall::CannotPerformDeletion,                                     "Cannot delete") \
+        GENERATOR_MACRO(mega::MegaSyncStall::SyncItemExceedsSupportedTreeDepth,                         "Supported tree depth exceeded") \
+        GENERATOR_MACRO(mega::MegaSyncStall::FolderMatchedAgainstFile,                                  "Folder matched against file") \
+        GENERATOR_MACRO(mega::MegaSyncStall::LocalAndRemoteChangedSinceLastSyncedState_userMustChoose,  "Local and remote differ") \
+        GENERATOR_MACRO(mega::MegaSyncStall::LocalAndRemotePreviouslyUnsyncedDiffer_userMustChoose,     "Local and remote differ") \
+        GENERATOR_MACRO(mega::MegaSyncStall::NamesWouldClashWhenSynced,                                 "Name clash")
+
 class StalledIssue
 {
     const size_t mId;
