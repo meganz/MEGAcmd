@@ -13,11 +13,13 @@
  * program.
  */
 
+#include <filesystem>
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
 #include "MegaCmdTestingTools.h"
 
+namespace fs = std::filesystem;
 using TI = TestInstruments;
 
 namespace {
@@ -31,8 +33,6 @@ namespace {
 
 class StalledIssuesTests : public NOINTERACTIVELoggedInTest
 {
-    mega::MegaFileSystemAccess mFsAccess;
-
     void removeAllSyncs()
     {
         auto result = executeInClient({"sync"});
@@ -58,7 +58,7 @@ class StalledIssuesTests : public NOINTERACTIVELoggedInTest
         auto result = executeInClient({"mkdir", syncDir}).ok();
         ASSERT_TRUE(result);
 
-        result = mFsAccess.mkdirlocal(mega::LocalPath::fromRelativePath(syncDir), false /*hidden*/, false /*logAlreadyExists*/);
+        result = fs::create_directory(syncDir);
         ASSERT_TRUE(result);
 
         result = executeInClient({"sync", syncDir, syncDir}).ok();
@@ -69,7 +69,7 @@ class StalledIssuesTests : public NOINTERACTIVELoggedInTest
     {
         removeAllSyncs();
 
-        mFsAccess.rmdirlocal(mega::LocalPath::fromRelativePath(syncDir));
+        fs::remove_all(syncDir);
         executeInClient({"rm", "-r", "-f", syncDir});
     }
 };
