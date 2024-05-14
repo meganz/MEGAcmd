@@ -106,6 +106,10 @@ pipeline {
         stage('Build MEGAcmd'){
             environment{
                 VCPKGPATH  = "${windows_sources_workspace}\\..\\3rdparty"
+                _MSPDBSRV_ENDPOINT_ = "${BUILD_TAG}"
+                TMP       = "${windows_sources_workspace}\\tmp"
+                TEMP      = "${windows_sources_workspace}\\tmp"
+                TMPDIR    = "${windows_sources_workspace}\\tmp"
             }
             options{
                 timeout(time: 3, unit: 'HOURS')
@@ -113,6 +117,7 @@ pipeline {
             steps{
                 sh "sed -i 's/-2_3/-2_5/g' sdk/contrib/cmake/CMakeLists.txt"
                 sh "mkdir build\\\\cmake\\\\build_dir\\\\"
+                sh "mkdir tmp"
                 sh "cmake -DCMAKE_VERBOSE_MAKEFILE=1 -DCMAKE_GENERATOR_PLATFORM=x64 -DENABLE_MEGACMD_TESTS=1 -DUSE_PREBUILT_3RDPARTY=0 -DUSE_THIRDPARTY_FROM_VCPKG=1 -DMega3rdPartyDir='${VCPKGPATH}' ${env.BUILD_OPTIONS} -S '${windows_sources_workspace}'\\\\build\\\\cmake\\\\ -B '${windows_sources_workspace}'\\\\build\\\\cmake\\\\build_dir\\\\"
                 sh "cmake --build '${windows_sources_workspace}'\\\\build\\\\cmake\\\\build_dir\\\\ --config Debug --target mega-cmd-server mega-cmd mega-exec -j 2"
                 sh "cmake --build '${windows_sources_workspace}'\\\\build\\\\cmake\\\\build_dir\\\\ --config Debug --target mega-cmd-tests-integration mega-cmd-tests-unit -j 2"
