@@ -53,7 +53,7 @@ build() {
 	./autogen.sh
 
 	#build dependencies into folder deps
-	SQLITE3=$(grep -- -L ./contrib/build_sdk.sh >/dev/null && echo "-L" || echo :)
+	SQLITE3=$(grep -- -L ./contrib/build_sdk.sh >/dev/null && echo "-L" || echo "")
 	mkdir deps || :
 	bash -x ./contrib/build_sdk.sh -o archives \
 	  -e -g -b -l -c -s -u -v -a -q -I -p $SQLITE3 deps/
