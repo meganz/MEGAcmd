@@ -111,7 +111,7 @@ void ConfigurationManager::loadConfigDir()
         return;
     }
 
-    auto fsAccess = ::mega::make_unique<MegaFileSystemAccess>();
+    auto fsAccess = std::make_unique<MegaFileSystemAccess>();
     fsAccess->setdefaultfolderpermissions(0700);
     LocalPath localConfigFolder = LocalPath::fromAbsolutePath(mConfigFolder);
     constexpr bool isHidden = true;
@@ -132,7 +132,7 @@ std::string ConfigurationManager::getAndCreateConfigDir()
         throw std::runtime_error("Could not get config directory path");
     }
 
-    auto fsAccess = ::mega::make_unique<MegaFileSystemAccess>();
+    auto fsAccess = std::make_unique<MegaFileSystemAccess>();
     fsAccess->setdefaultfolderpermissions(0700);
     LocalPath localConfigDir = LocalPath::fromAbsolutePath(configDir);
     if (!pathIsExistingDir(configDir.c_str()) && !fsAccess->mkdirlocal(localConfigDir, false, false))
@@ -153,7 +153,7 @@ std::string ConfigurationManager::getAndCreateRuntimeDir()
         throw std::runtime_error("Could not get runtime directory path");
     }
 
-    auto fsAccess = ::mega::make_unique<MegaFileSystemAccess>();
+    auto fsAccess = std::make_unique<MegaFileSystemAccess>();
     fsAccess->setdefaultfolderpermissions(0700);
     LocalPath localRuntimeDir = LocalPath::fromAbsolutePath(runtimeDir);
     if (!pathIsExistingDir(runtimeDir.c_str()) && !fsAccess->mkdirlocal(localRuntimeDir, false, false))
@@ -287,7 +287,7 @@ void ConfigurationManager::migrateSyncConfig(MegaApi *api)
 
             sync_struct *thesync = ((sync_struct*)( *itr ).second );
 
-            auto newListenerPair = listeners.emplace(thesync, ::make_unique<MegaCmdListener>(api));
+            auto newListenerPair = listeners.emplace(thesync, std::make_unique<MegaCmdListener>(api));
 
             api->copySyncDataToCache(thesync->localpath.c_str(), thesync->handle, nullptr,
                                      thesync->fingerprint, thesync->active, false, newListenerPair.first->second.get());

@@ -85,7 +85,7 @@ public:
     {
         if (!mTheStream)
         {
-            mTheStream = ::mega::make_unique<LoggedStreamNull>();
+            mTheStream = std::make_unique<LoggedStreamNull>();
         }
         assert(mTheStream);
         return *mTheStream.get();

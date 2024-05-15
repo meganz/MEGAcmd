@@ -947,7 +947,7 @@ bool MegaCmdExecuter::decryptLinkIfEncrypted(MegaApi *api, std::string &publicLi
 
         if (linkPass.size())
         {
-            std::unique_ptr<MegaCmdListener>megaCmdListener = ::mega::make_unique<MegaCmdListener>(nullptr);
+            std::unique_ptr<MegaCmdListener>megaCmdListener = std::make_unique<MegaCmdListener>(nullptr);
             api->decryptPasswordProtectedLink(publicLink.c_str(), linkPass.c_str(), megaCmdListener.get());
             megaCmdListener->wait();
             if (checkNoErrors(megaCmdListener->getError(), "decrypt password protected link"))
@@ -1541,10 +1541,6 @@ void MegaCmdExecuter::dumpNodeSummary(MegaNode *n, const char *timeFormat, std::
     OUTSTREAM << endl;
 }
 
-
-
-#ifdef ENABLE_BACKUPS
-
 void MegaCmdExecuter::createOrModifyBackup(string local, string remote, string speriod, int numBackups)
 {
     LocalPath locallocal = LocalPath::fromAbsolutePath(local);
@@ -1654,7 +1650,6 @@ void MegaCmdExecuter::createOrModifyBackup(string local, string remote, string s
         LOG_err << remote << " not found";
     }
 }
-#endif
 
 void MegaCmdExecuter::printTreeSuffix(int depth, vector<bool> &lastleaf)
 {
@@ -2597,11 +2592,10 @@ int MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
         mtxSyncMap.lock();
         ConfigurationManager::loadsyncs();
         mtxSyncMap.unlock();
-#ifdef ENABLE_BACKUPS
+
         mtxBackupsMap.lock();
         ConfigurationManager::loadbackups();
         mtxBackupsMap.unlock();
-#endif
 
         ConfigurationManager::loadExcludedNames();
         ConfigurationManager::loadConfiguration(false);
@@ -2709,7 +2703,7 @@ void MegaCmdExecuter::fetchNodes(MegaApi *api, int clientID)
     if (!api) api = this->api;
 
     sandboxCMD->mNodesCurrentPromise.initiatePromise();
-    auto megaCmdListener = ::mega::make_unique<MegaCmdListener>(api, nullptr, clientID);
+    auto megaCmdListener = std::make_unique<MegaCmdListener>(api, nullptr, clientID);
     api->fetchNodes(megaCmdListener.get());
 
     if (!actUponFetchNodes(api, megaCmdListener.get()))
@@ -2754,7 +2748,7 @@ void MegaCmdExecuter::fetchNodes(MegaApi *api, int clientID)
     if (ConfigurationManager::getConfigurationValue("ask4storage", true))
     {
         ConfigurationManager::savePropertyValue("ask4storage",false);
-        auto megaCmdListener = ::mega::make_unique<MegaCmdListener>(nullptr);
+        auto megaCmdListener = std::make_unique<MegaCmdListener>(nullptr);
         api->getAccountDetails(megaCmdListener.get());
         megaCmdListener->wait();
         // we don't call getAccountDetails on startup always: we ask on first login (no "ask4storage") or previous state was STATE_RED | STATE_ORANGE
@@ -2764,7 +2758,6 @@ void MegaCmdExecuter::fetchNodes(MegaApi *api, int clientID)
     checkAndInformPSA(NULL); // this needs broacasting in case there's another Shell running.
     // no need to enforce, because time since last check should has been restored
 
-#ifdef ENABLE_BACKUPS
     mtxBackupsMap.lock();
     if (ConfigurationManager::configuredBackups.size())
     {
@@ -2797,7 +2790,6 @@ void MegaCmdExecuter::fetchNodes(MegaApi *api, int clientID)
         ConfigurationManager::saveBackups(&ConfigurationManager::configuredBackups);
     }
     mtxBackupsMap.unlock();
-#endif
 
 #ifdef HAVE_LIBUV
     // restart webdav
@@ -2924,7 +2916,7 @@ void MegaCmdExecuter::cleanSlateTranfers()
 
     if (downloads_cleanslate)
     {
-        auto megaCmdListener = ::mega::make_unique<MegaCmdListener>(nullptr);
+        auto megaCmdListener = std::make_unique<MegaCmdListener>(nullptr);
         api->cancelTransfers(MegaTransfer::TYPE_DOWNLOAD, megaCmdListener.get());
         megaCmdListener->wait();
         if (checkNoErrors(megaCmdListener->getError(), "cancel all download transfers"))
@@ -3454,7 +3446,7 @@ bool MegaCmdExecuter::amIPro()
     }
 #endif
 
-    auto megaCmdListener = ::mega::make_unique<MegaCmdListener>(api, nullptr);
+    auto megaCmdListener = std::make_unique<MegaCmdListener>(api, nullptr);
     api->getAccountDetails(megaCmdListener.get());
     megaCmdListener->wait();
 
@@ -3509,7 +3501,7 @@ void MegaCmdExecuter::exportNode(MegaNode *n, int64_t expireTime, std::string pa
         ConfigurationManager::savePropertyValue("copyrightAccepted", true);
     }
 
-    auto megaCmdListener = ::mega::make_unique<MegaCmdListener>(api, nullptr);
+    auto megaCmdListener = std::make_unique<MegaCmdListener>(api, nullptr);
     api->exportNode(n, expireTime, writable, megaHosted, megaCmdListener.get());
     megaCmdListener->wait();
 
@@ -3894,7 +3886,7 @@ long long MegaCmdExecuter::getVersionsSize(MegaNode *n)
 
 void MegaCmdExecuter::getInfoFromFolder(MegaNode *n, MegaApi *api, long long *nfiles, long long *nfolders, long long *nversions)
 {
-    std::unique_ptr<MegaCmdListener>megaCmdListener = ::mega::make_unique<MegaCmdListener>(nullptr);
+    std::unique_ptr<MegaCmdListener>megaCmdListener = std::make_unique<MegaCmdListener>(nullptr);
     api->getFolderInfo(n, megaCmdListener.get());
     *nfiles = 0;
     *nfolders = 0;
@@ -4329,7 +4321,6 @@ void MegaCmdExecuter::printTransfer(MegaTransfer *transfer, const unsigned int P
         OUTSTREAM << "\u21f5";
 #endif
     }
-#ifdef ENABLE_BACKUPS
     else if (transfer->isBackupTransfer())
     {
 #ifdef _WIN32
@@ -4338,7 +4329,6 @@ void MegaCmdExecuter::printTransfer(MegaTransfer *transfer, const unsigned int P
         OUTSTREAM << "\u23eb";
 #endif
     }
-#endif
     else
     {
         OUTSTREAM << " " ;
@@ -4445,7 +4435,6 @@ void MegaCmdExecuter::printTransferColumnDisplayer(ColumnDisplayer *cd, MegaTran
         type += "\u21f5";
 #endif
     }
-#ifdef ENABLE_BACKUPS
     else if (transfer->isBackupTransfer())
     {
 #ifdef _WIN32
@@ -4454,7 +4443,6 @@ void MegaCmdExecuter::printTransferColumnDisplayer(ColumnDisplayer *cd, MegaTran
         type += "\u23eb";
 #endif
     }
-#endif
 
     cd->addValue("TYPE",type);
     cd->addValue("TAG", SSTR(transfer->getTag())); //TODO: do SSTR within ColumnDisplayer
@@ -4541,8 +4529,6 @@ void MegaCmdExecuter::printSyncHeader(ColumnDisplayer &cd)
 
 }
 
-#ifdef ENABLE_BACKUPS
-
 void MegaCmdExecuter::printBackupHeader(const unsigned int PATHSIZE)
 {
     OUTSTREAM << "TAG  " << " ";
@@ -4551,7 +4537,6 @@ void MegaCmdExecuter::printBackupHeader(const unsigned int PATHSIZE)
     OUTSTREAM << getRightAlignedString("STATUS", 14);
     OUTSTREAM << endl;
 }
-
 
 void MegaCmdExecuter::printBackupSummary(int tag, const char * localfolder, const char *remoteparentfolder, string status, const unsigned int PATHSIZE)
 {
@@ -4659,7 +4644,7 @@ void MegaCmdExecuter::printBackupHistory(MegaScheduledCopy *backup, const char *
                 if (backupInstanceNode)
                 {
                     backupInstanceStatus = backupInstanceNode->getCustomAttr("BACKST");
-                    auto listener = ::mega::make_unique<SynchronousRequestListener>();
+                    auto listener = std::make_unique<SynchronousRequestListener>();
                     api->getFolderInfo(backupInstanceNode.get(), listener.get());
                     listener->wait();
                     if (checkNoErrors(listener->getError(), "get folder info"))
@@ -4754,7 +4739,6 @@ void MegaCmdExecuter::printBackup(backup_struct *backupstruct, const char *timeF
         }
     }
 }
-#endif
 
 void MegaCmdExecuter::printSync(MegaSync *sync, long long nfiles, long long nfolders, megacmd::ColumnDisplayer &cd,  std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions)
 {
@@ -5162,8 +5146,6 @@ void MegaCmdExecuter::copyNode(MegaNode *n, string destiny, MegaNode * tn, strin
     }
 }
 
-
-#ifdef ENABLE_BACKUPS
 bool MegaCmdExecuter::establishBackup(string pathToBackup, MegaNode *n, int64_t period, string speriod,  int numBackups)
 {
     bool attendpastbackups = true; //TODO: receive as parameter
@@ -5253,7 +5235,6 @@ bool MegaCmdExecuter::establishBackup(string pathToBackup, MegaNode *n, int64_t 
     delete megaCmdListener;
     return false;
 }
-#endif
 
 void MegaCmdExecuter::confirmCancel(const char* confirmlink, const char* pass)
 {
@@ -6873,8 +6854,6 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
         return;
     }
-#ifdef ENABLE_BACKUPS
-
     else if (words[0] == "backup")
     {
         bool dodelete = getFlag(clflags,"d");
@@ -7041,7 +7020,6 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             LOG_err << "      " << getUsageStr("backup");
         }
     }
-#endif
     else if (words[0] == "put")
     {
         int clientID = getintOption(cloptions, "clientID", -1);
@@ -7961,7 +7939,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
             if (stop)
             {
-                auto megaCmdListener = ::mega::make_unique<MegaCmdListener>(nullptr);
+                auto megaCmdListener = std::make_unique<MegaCmdListener>(nullptr);
                 api->setSyncRunState(sync.get()->getBackupId(), MegaSync::RUNSTATE_DISABLED , megaCmdListener.get());
                 megaCmdListener->wait();
                 if (checkNoErrors(megaCmdListener->getError(), "stop sync", static_cast<SyncError>(megaCmdListener->getRequest()->getNumDetails())))
@@ -7971,7 +7949,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             }
             else if (resume)
             {
-                auto megaCmdListener = ::mega::make_unique<MegaCmdListener>(nullptr);
+                auto megaCmdListener = std::make_unique<MegaCmdListener>(nullptr);
                 api->setSyncRunState(sync.get()->getBackupId(), MegaSync::RUNSTATE_RUNNING, megaCmdListener.get());
                 megaCmdListener->wait();
                 if (checkNoErrors(megaCmdListener->getError(), "enable sync", static_cast<SyncError>(megaCmdListener->getRequest()->getNumDetails())))
@@ -7981,7 +7959,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             }
             else if (remove)
             {
-                auto megaCmdListener = ::mega::make_unique<MegaCmdListener>(nullptr);
+                auto megaCmdListener = std::make_unique<MegaCmdListener>(nullptr);
                 api->removeSync(sync->getBackupId(), megaCmdListener.get());
                 megaCmdListener->wait();
                 if (checkNoErrors(megaCmdListener->getError(), "remove sync", static_cast<SyncError>(megaCmdListener->getRequest()->getNumDetails())))
@@ -8461,7 +8439,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 return;
             }
 
-            auto megaCmdListener = ::mega::make_unique<MegaCmdListener>(nullptr);
+            auto megaCmdListener = std::make_unique<MegaCmdListener>(nullptr);
             if (unverify)
             {
                 api->resetCredentials(user.get(), megaCmdListener.get());
@@ -8517,7 +8495,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 return;
             }
 
-            auto megaCmdListener = ::mega::make_unique<MegaCmdListener>(nullptr);
+            auto megaCmdListener = std::make_unique<MegaCmdListener>(nullptr);
             api->getUserCredentials(user.get(), megaCmdListener.get());
             megaCmdListener->wait();
             if (!checkNoErrors(megaCmdListener->getError(), "get user credentials"))
@@ -8613,7 +8591,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         if (getFlag(clflags,"n")) //Show Names
                         {
                             // name:
-                            auto megaCmdListener = ::mega::make_unique<MegaCmdListener>(nullptr);
+                            auto megaCmdListener = std::make_unique<MegaCmdListener>(nullptr);
                             api->getUserAttribute(user, ATTR_FIRSTNAME, megaCmdListener.get());
                             megaCmdListener->wait();
                             if (megaCmdListener->getError()->getErrorCode() == MegaError::API_OK
@@ -8954,7 +8932,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 return;
             }
 
-            auto megaCmdListener = ::mega::make_unique<MegaCmdListener>(nullptr);
+            auto megaCmdListener = std::make_unique<MegaCmdListener>(nullptr);
             if (forceCustom || !isOfficial(attribute))
             {
                 const char *cattrValue = removingAttr ? NULL : attrValue.c_str();
@@ -9475,7 +9453,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 std::unique_ptr<::mega::MegaAccountDetails> storageDetails;
                 std::unique_ptr<::mega::MegaAccountDetails> extAccountDetails;
                 {
-                    auto megaCmdListener = ::mega::make_unique<MegaCmdListener>(nullptr);
+                    auto megaCmdListener = std::make_unique<MegaCmdListener>(nullptr);
                     api->getAccountDetails(megaCmdListener.get());
                     megaCmdListener->wait();
                     if (checkNoErrors(megaCmdListener->getError(), "failed to get account details"))
@@ -9484,7 +9462,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     }
                 }
                 {
-                    auto megaCmdListener = ::mega::make_unique<MegaCmdListener>(nullptr);
+                    auto megaCmdListener = std::make_unique<MegaCmdListener>(nullptr);
                     api->getExtendedAccountDetails(true, true, true, megaCmdListener.get());
                     megaCmdListener->wait();
                     if (checkNoErrors(megaCmdListener->getError(), "get extended account details"))
@@ -9995,7 +9973,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
     {
         if (getFlag(clflags, "security"))
         {
-            auto megaCmdListener = ::mega::make_unique<MegaCmdListener>(nullptr);
+            auto megaCmdListener = std::make_unique<MegaCmdListener>(nullptr);
             api->upgradeSecurity(megaCmdListener.get());
             megaCmdListener->wait();
             if (checkNoErrors(megaCmdListener->getError(), "confirm security upgrade"))
