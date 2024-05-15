@@ -87,15 +87,16 @@ MEGAcmdServer.pro.user
 /src/build/megacmd/megacmd.spec
 /src/build/megacmd/megacmd_*.tar.gz
 /src/build/megacmd/PKGBUILD
-/contrib/QtCreator/MEGAcmd/MEGAcmdClient/MEGAclient
-/contrib/QtCreator/MEGAcmd/MEGAcmdClient/Makefile
-/contrib/QtCreator/MEGAcmd/MEGAcmdShell/MEGAcmdShell
-/contrib/QtCreator/MEGAcmd/MEGAcmdUpdater/MEGAcmdUpdater
-/contrib/QtCreator/MEGAcmd/MEGAcmdServer/MEGAcmd
-/contrib/QtCreator/MEGAcmd/MEGAcmdServer/Makefile
-/contrib/QtCreator/MEGAcmd/MEGAcmdLoader/MEGAcmdLoader
-/contrib/QtCreator/MEGAcmd/MEGAcmdLoader/Makefile
-/contrib/QtCreator/build-*
+
+#QtCreator products
+/contrib/QtCreator
+!/contrib/QtCreator/MEGAcmd/MEGAcmdServer/Info_MEGA.plist
+!/contrib/QtCreator/MEGAcmd/MEGAcmdServer/icon.rc
+!/contrib/QtCreator/MEGAcmd/MEGAcmdServer/app.icns
+!/contrib/QtCreator/MEGAcmd/MEGAcmdClient/icon.rc
+!/contrib/QtCreator/MEGAcmd/MEGAcmdUpdater/icon.rc
+!/contrib/QtCreator/MEGAcmd/MEGAcmdShell/icon.rc
+
 
 
 #built stuff
@@ -109,17 +110,8 @@ megacmdconfig.h.in
 /build/megacmd/megacmd_*.tar.gz
 /build/build-cmake-*
 /build/cmake/CMakeLists.txt.user
-contrib/QtCreator/MEGAcmd/MEGAcmdServer/Makefile.Debug
-contrib/QtCreator/MEGAcmd/.qmake.stash
-contrib/QtCreator/MEGAcmd/MEGAcmdClient/Makefile.Debug
-contrib/QtCreator/MEGAcmd/MEGAcmdClient/Makefile.Release
-contrib/QtCreator/MEGAcmd/MEGAcmdServer/Makefile.Release
-contrib/QtCreator/MEGAcmd/MEGAcmdUpdateGenerator/Makefile*
-contrib/QtCreator/MEGAcmd/MEGAcmdUpdater/Makefile*
-contrib/QtCreator/MEGAcmd/build-*
-contrib/QtCreator/*/Makefile
-contrib/QtCreator/*/*/Makefile
-contrib/QtCreator/*/*/*/Makefile
+/sdk/contrib/QtCreator
+/sdk/contrib/sdk_build
 test_integration
 test_unit
 .qtc_clangd

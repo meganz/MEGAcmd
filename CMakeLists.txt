@@ -141,6 +141,12 @@ include(megacmd_utility_functions) # utility functions
 
 set(ProjectDir "${CMAKE_CURRENT_LIST_DIR}")
 
+add_library(LMEGAcmdCommonUtils STATIC)
+add_source_and_corresponding_header_to_target(LMEGAcmdCommonUtils
+    PUBLIC
+    "${ProjectDir}/src/megacmdcommonutils.cpp"
+)
+
 add_library(LMegacmdServer STATIC)
 add_source_and_corresponding_header_to_target(LMegacmdServer
     PUBLIC
@@ -151,7 +157,6 @@ add_source_and_corresponding_header_to_target(LMegacmdServer
     "${ProjectDir}/src/megacmdlogger.cpp"
     "${ProjectDir}/src/megacmdsandbox.cpp"
     "${ProjectDir}/src/megacmdutils.cpp"
-    "${ProjectDir}/src/megacmdcommonutils.cpp"
     "${ProjectDir}/src/comunicationsmanager.cpp"
     "${ProjectDir}/src/comunicationsmanagerfilesockets.cpp"
     "${ProjectDir}/src/comunicationsmanagernamedpipes.cpp"
@@ -185,7 +190,6 @@ add_source_and_corresponding_header_to_target(LMegacmdClient PUBLIC
     "${ProjectDir}/src/client/megacmdclient.cpp"
     "${ProjectDir}/src/megacmdshell/megacmdshellcommunicationsnamedpipes.cpp"
     "${ProjectDir}/src/megacmdshell/megacmdshellcommunications.cpp"
-    "${ProjectDir}/src/megacmdcommonutils.cpp"
 )
 
 add_executable(mega-exec)
@@ -199,7 +203,6 @@ add_source_and_corresponding_header_to_target(mega-cmd PRIVATE
     "${ProjectDir}/src/megacmdshell/megacmdshellcommunications.cpp"
     "${ProjectDir}/src/megacmdshell/megacmdshellcommunicationsnamedpipes.cpp"
     "${ProjectDir}/src/megacmdshell/megacmdshell.cpp"
-    "${ProjectDir}/src/megacmdcommonutils.cpp"
     "${ProjectDir}/contrib/QtCreator/MEGAcmd/MEGAcmdShell/icon.rc"
 )
 
@@ -271,11 +274,11 @@ set_target_properties(mega-cmd-server  PROPERTIES LINK_FLAGS "/LARGEADDRESSAWARE
 #set_target_properties(mega-cmd-server  PROPERTIES VS_DEBUGGER_ENVIRONMENT "${3RDPARTY_RUNTIME_PATH_DEBUG}")
 endif()
 
-target_link_libraries(LMegacmdClient PUBLIC MEGA::SDKlib)
+target_link_libraries(LMegacmdClient PUBLIC MEGA::SDKlib LMEGAcmdCommonUtils)
 target_link_libraries(mega-exec LMegacmdClient)
-target_link_libraries(mega-cmd PUBLIC MEGA::SDKlib)
-target_link_libraries(mega-cmd-updater PUBLIC MEGA::SDKlib)
-target_link_libraries(LMegacmdServer PUBLIC MEGA::SDKlib)
+target_link_libraries(mega-cmd PUBLIC MEGA::SDKlib LMEGAcmdCommonUtils)
+target_link_libraries(mega-cmd-updater PUBLIC MEGA::SDKlib LMEGAcmdCommonUtils)
+target_link_libraries(LMegacmdServer PUBLIC MEGA::SDKlib LMEGAcmdCommonUtils)
 
 if (ENABLE_MEGACMD_TESTS)
   target_link_libraries(LMegacmdServer PUBLIC LMegacmdTestsCommon)
