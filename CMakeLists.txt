@@ -112,7 +112,7 @@ if(UNIX AND NOT APPLE)
 
     if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
         message(STATUS "Overriding default CMAKE_INSTALL_PREFIX to /")
-        set(CMAKE_INSTALL_PREFIX "/") # override default /usr/local
+        set(CMAKE_INSTALL_PREFIX "/" CACHE PATH "Default install path" FORCE) # override default /usr/local
         set(RPATH_FOR_DYNAMIC_LIBS "/${CMAKE_INSTALL_LIBDIR}")
     else()
         # If explicit cmake prefix at cmake call time, make rpath relative to install dir
