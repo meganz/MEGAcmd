@@ -120,7 +120,7 @@ pipeline {
 
         stage('Build MEGAcmd'){
             environment{
-                VCPKGPATH  = "${megacmd_sources_workspace}\\vcpkg"
+                VCPKGPATH  = "${megacmd_sources_workspace}\\..\\vcpkg"
                 BUILD_DIR = "cmdbuild"
                 _MSPDBSRV_ENDPOINT_ = "${BUILD_TAG}"
                 TMP       = "${megacmd_sources_workspace}\\tmp"
