@@ -107,7 +107,7 @@ pipeline {
             environment{
                 PATH = "cmdinstall/bin:${env.PATH}"
                 BUILD_DIR = "cmdbuild"
-                VCPKGPATH = "/opt/vcpkg"
+                VCPKGPATH = "${env.HOME}/jenkins/vcpkg"
             }
             options{
                 timeout(time: 3, unit: 'HOURS')
