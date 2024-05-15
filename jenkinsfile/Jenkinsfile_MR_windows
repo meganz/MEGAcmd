@@ -122,12 +122,17 @@ pipeline {
             environment{
                 VCPKGPATH  = "${megacmd_sources_workspace}\\vcpkg"
                 BUILD_DIR = "cmdbuild"
+                _MSPDBSRV_ENDPOINT_ = "${BUILD_TAG}"
+                TMP       = "${megacmd_sources_workspace}\\tmp"
+                TEMP      = "${megacmd_sources_workspace}\\tmp"
+                TMPDIR    = "${megacmd_sources_workspace}\\tmp"
             }
             options{
                 timeout(time: 3, unit: 'HOURS')
             }
             steps{
                 sh "rm -rf ${BUILD_DIR}; mkdir ${BUILD_DIR}"
+                sh "mkdir tmp"
                 sh "cmake -DCMAKE_VERBOSE_MAKEFILE=1 -DENABLE_MEGACMD_TESTS=ON -DCMAKE_BUILD_TYPE=Debug -DVCPKG_ROOT='${VCPKGPATH}' -DCMAKE_INSTALL_PREFIX=cmdinstall -S '${megacmd_sources_workspace}' -B ${BUILD_DIR} '${env.BUILD_OPTIONS}'"
                 sh "cmake --build ${BUILD_DIR} -j 2"
                 sh "cmake --install ${BUILD_DIR} --config Debug"
