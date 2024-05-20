@@ -26,6 +26,7 @@ const char * const megacmdchangelog =
         "Fixes and improvements in whoami, ls, backup and export commands""\n"
         "Fixed several memory leaks and improved overall memory consumption""\n"
         "Fixed file permissions on Unix""\n"
+        "Added support for the Apple silicon (M1)""\n"
         "Many other fixes and improvements"
         ;
 
