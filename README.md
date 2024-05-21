@@ -44,7 +44,7 @@ install rpmfusion-free and rpmfusion-nonfree
 
 https://rpmfusion.org/Configuration/
 
-	 * `autoconf libtool gcc-c++ openssl openssl-devel zlib-devel sqlite-devel libcurl-devel readline-devel pcre-devel pcre2-devel libsodium-devel c-ares-devel freeimage-devel ffmpeg-devel libmediainfo-devel libzen-devel git`
+	 * `autoconf libtool gcc-c++ openssl openssl-devel zlib-devel sqlite-devel libcurl-devel readline-devel pcre-devel pcre2-devel libsodium-devel c-ares-devel freeimage-devel ffmpeg-devel libmediainfo-devel libzen-devel cryptopp-devel git`
 
  * **Debian 9**
 
