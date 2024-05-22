@@ -831,7 +831,7 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
 
         validParams->emplace("remember");
     }
-    else if (thecommand == "enable-mount")
+    else if (thecommand == "fuse-enable")
     {
         validOptValues->emplace("by-name");
         validOptValues->emplace("by-path");
@@ -2004,8 +2004,8 @@ const char * getUsageStr(const char *command)
     if (!strcmp(command, "fuse-disable"))
         return "fuse-disable (--by-name=name | --by-path=path) [--remember]";
 
-    if (!strcmp(command, "enable-mount"))
-        return "enable-mount (--by-name=name | --by-path=path) [--remember]";
+    if (!strcmp(command, "fuse-enable"))
+        return "fuse-enable (--by-name=name | --by-path=path) [--remember]";
 
     if (!strcmp(command, "fuse-flags"))
         return "fuse-flags "
