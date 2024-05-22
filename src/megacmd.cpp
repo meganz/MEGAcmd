@@ -853,8 +853,10 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validOptValues->emplace("service-max-thread-idle-time");
         validOptValues->emplace("service-min-thread-count");
     }
-    else if (thecommand == "list-mounts")
+    else if (thecommand == "fuse-show")
     {
+        validOptValues->emplace("by-name");
+        validOptValues->emplace("by-path");
         validParams->emplace("only-enabled");
     }
     else if (thecommand == "fuse-set")
@@ -869,11 +871,6 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validParams->emplace("read-only");
         validParams->emplace("transient");
         validParams->emplace("writable");
-    }
-    else if (thecommand == "mount-info")
-    {
-        validOptValues->emplace("by-name");
-        validOptValues->emplace("by-path");
     }
     else if (thecommand == "fuse-remove")
     {
@@ -1998,7 +1995,7 @@ const char * getUsageStr(const char *command)
 #endif
 
     // FUSE commands.
-    if (!strcmp(command, "add-mount"))
+    if (!strcmp(command, "fuse-add"))
         return "fuse-add [--name=name] [--persistent] [--read-only] remotePath localPath";
 
     if (!strcmp(command, "fuse-disable"))
@@ -2022,8 +2019,8 @@ const char * getUsageStr(const char *command)
                "[--service-max-thread-idle-time=seconds] "
                "[--service-min-thread-count=count]";
 
-    if (!strcmp(command, "list-mounts"))
-        return "list-mounts [--only-enabled]";
+    if (!strcmp(command, "fuse-show"))
+        return "fuse-show [--only-enabled | --by-name=name | --by-path=path]";
 
     if (!strcmp(command, "fuse-set"))
         return "fuse-set (--by-name=name | --by-path=path) "
@@ -2031,9 +2028,6 @@ const char * getUsageStr(const char *command)
                "[--name=name] "
                "[--persistent | --transient] "
                "[--read-only | --writable]";
-
-    if (!strcmp(command, "mount-info"))
-        return "mount-info (--by-name=name | --by-path=path)";
 
     if (!strcmp(command, "fuse-remove"))
         return "fuse-remove (--by-name=name | --by-path=path)";

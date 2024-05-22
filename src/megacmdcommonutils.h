@@ -153,9 +153,8 @@ static std::vector<std::string> allValidCommands { "login", "signup", "confirm",
                              , "fuse-disable"
                              , "fuse-enable"
                              , "fuse-flags"
-                             , "list-mounts"
+                             , "fuse-show"
                              , "fuse-set"
-                             , "mount-info"
                              , "fuse-remove"
                            };
 

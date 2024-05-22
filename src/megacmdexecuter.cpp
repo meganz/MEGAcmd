@@ -10897,12 +10897,10 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         fuseEnableMount(words, *clflags, *cloptions);
     else if (words[0] == "fuse-flags")
         fuseFlags(words, *clflags, *cloptions);
-    else if (words[0] == "list-mounts")
-        fuseListMounts(words, *clflags, *cloptions);
+    else if (words[0] == "fuse-show")
+        fuseShowMounts(words, *clflags, *cloptions);
     else if (words[0] == "fuse-set")
         fuseMountFlags(words, *clflags, *cloptions);
-    else if (words[0] == "mount-info")
-        fuseMountInfo(words, *clflags, *cloptions);
     else if (words[0] == "fuse-remove")
         fuseRemoveMount(words, *clflags, *cloptions);
     else
@@ -11348,6 +11346,32 @@ void MegaCmdExecuter::fuseFlags(const StringVector& arguments,
 }
 
 #undef DEFINE_LOG_LEVELS
+
+void MegaCmdExecuter::fuseShowMounts(const StringVector& arguments,
+                                     const FromStringMap<int>& flags,
+                                     const FromStringMap<std::string>& options)
+{
+    auto byName = options.count("by-name");
+    auto byPath = options.count("by-path");
+    auto onlyEnabled = flags.count("only-enabled");
+
+    // Only one of them is allowed
+    if (byName + byPath + onlyEnabled > 1)
+    {
+        fuseBadArgument(arguments.front());
+        return;
+    }
+
+    // One mount
+    if (byName || byPath)
+    {
+        fuseMountInfo(arguments, flags, options);
+        return;
+    }
+
+    // A list of mounts
+    fuseListMounts(arguments, flags, options);
+}
 
 void MegaCmdExecuter::fuseListMounts(const StringVector& arguments,
                                      const FromStringMap<int>& flags,
