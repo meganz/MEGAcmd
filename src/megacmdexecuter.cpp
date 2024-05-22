@@ -10899,11 +10899,11 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         fuseFlags(words, *clflags, *cloptions);
     else if (words[0] == "list-mounts")
         fuseListMounts(words, *clflags, *cloptions);
-    else if (words[0] == "mount-flags")
+    else if (words[0] == "fuse-set")
         fuseMountFlags(words, *clflags, *cloptions);
     else if (words[0] == "mount-info")
         fuseMountInfo(words, *clflags, *cloptions);
-    else if (words[0] == "remove-mount")
+    else if (words[0] == "fuse-remove")
         fuseRemoveMount(words, *clflags, *cloptions);
     else
     {

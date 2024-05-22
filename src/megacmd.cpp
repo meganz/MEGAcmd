@@ -857,7 +857,7 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     {
         validParams->emplace("only-enabled");
     }
-    else if (thecommand == "mount-flags")
+    else if (thecommand == "fuse-set")
     {
         validOptValues->emplace("by-name");
         validOptValues->emplace("by-path");
@@ -875,7 +875,7 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validOptValues->emplace("by-name");
         validOptValues->emplace("by-path");
     }
-    else if (thecommand == "remove-mount")
+    else if (thecommand == "fuse-remove")
     {
         validOptValues->emplace("by-name");
         validOptValues->emplace("by-path");
@@ -2025,8 +2025,8 @@ const char * getUsageStr(const char *command)
     if (!strcmp(command, "list-mounts"))
         return "list-mounts [--only-enabled]";
 
-    if (!strcmp(command, "mount-flags"))
-        return "mount-flags (--by-name=name | --by-path=path) "
+    if (!strcmp(command, "fuse-set"))
+        return "fuse-set (--by-name=name | --by-path=path) "
                "[--disabled-at-startup | --enabled-at-startup] "
                "[--name=name] "
                "[--persistent | --transient] "
@@ -2035,8 +2035,8 @@ const char * getUsageStr(const char *command)
     if (!strcmp(command, "mount-info"))
         return "mount-info (--by-name=name | --by-path=path)";
 
-    if (!strcmp(command, "remove-mount"))
-        return "remove-mount (--by-name=name | --by-path=path)";
+    if (!strcmp(command, "fuse-remove"))
+        return "fuse-remove (--by-name=name | --by-path=path)";
 
     return "command not found: ";
 }
