@@ -817,7 +817,7 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     }
 
     // FUSE commands.
-    if (thecommand == "add-mount")
+    if (thecommand == "fuse-add")
     {
         validOptValues->emplace("name");
 
@@ -1999,7 +1999,7 @@ const char * getUsageStr(const char *command)
 
     // FUSE commands.
     if (!strcmp(command, "add-mount"))
-        return "add-mount [--name=name] [--persistent] [--read-only] remotePath localPath";
+        return "fuse-add [--name=name] [--persistent] [--read-only] remotePath localPath";
 
     if (!strcmp(command, "disable-mount"))
         return "disable-mount (--by-name=name | --by-path=path) [--remember]";

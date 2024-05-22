@@ -10889,7 +10889,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         }
 
     }
-    else if (words[0] == "add-mount")
+    else if (words[0] == "fuse-add")
         fuseAddMount(words, *clflags, *cloptions);
     else if (words[0] == "disable-mount")
         fuseDisableMount(words, *clflags, *cloptions);
