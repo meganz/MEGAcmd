@@ -36,24 +36,11 @@ using std::locale;
 using std::stringstream;
 using std::exception;
 
-
-
 #include "megaapi_impl.h"
+#include "megacmd_events.h"
 
 #define PROGRESS_COMPLETE -2
 namespace megacmd {
-
-// Events
-const int MCMD_EVENT_UPDATE_ID = 98900;
-const char MCMD_EVENT_UPDATE_MESSAGE[] = "MEGAcmd update";
-const int MCMD_EVENT_UPDATE_START_ID = 98901;
-const char MCMD_EVENT_UPDATE_START_MESSAGE[] = "MEGAcmd auto-update start";
-const int MCMD_EVENT_UPDATE_RESTART_ID = 98902;
-const char MCMD_EVENT_UPDATE_RESTART_MESSAGE[] = "MEGAcmd updated requiring restart";
-const int MCMD_EVENT_FIRST_CONFIGURED_SYNC_ID = 98903;
-const char MCMD_EVENT_FIRST_CONFIGURED_SYNC_MESSAGE[] = "MEGAcmd first sync configured";
-const int MCMD_EVENT_WAITED_TOO_LONG_FOR_NODES_CURRENT = 98904;
-const char MCMD_EVENT_WAITED_TOO_LONG_FOR_NODES_CURRENT_MESSAGE[] = "MEGAcmd nodes current wait timed out";
 
 typedef struct sync_struct
 {
@@ -103,11 +90,12 @@ enum
     MCMD_NOFETCH = -58,       ///< Nodes not fetched
     MCMD_EUNEXPECTED = -59,   ///< Unexpected failure
 
-    MCMD_REQCONFIRM = -60,     ///< Confirmation required
+    MCMD_REQCONFIRM = -60,    ///< Confirmation required
     MCMD_REQSTRING = -61,     ///< String required
-    MCMD_PARTIALOUT = -62,     ///< Partial output provided
+    MCMD_PARTIALOUT = -62,    ///< Partial output provided
+    MCMD_EXISTS = -63,        ///< Resource already exists
 
-    MCMD_REQRESTART = -71,     ///< Restart required
+    MCMD_REQRESTART = -71,    ///< Restart required
 
 };
 
@@ -181,6 +169,7 @@ prompttype getprompt();
 void printHistory();
 
 int askforConfirmation(std::string message);
+bool booleanAskForConfirmation(std::string messageHeading);
 
 std::string askforUserResponse(std::string message);
 
@@ -194,6 +183,23 @@ void informStateListenerByClientId(int clientID, std::string s);
 
 
 void informProgressUpdate(long long transferred, long long total, int clientID, std::string title = "");
+
+void sendEvent(StatsManager::MegacmdEvent event, mega::MegaApi *megaApi, bool wait = true);
+void sendEvent(StatsManager::MegacmdEvent event, const char *msg, mega::MegaApi *megaApi, bool wait = true);
+
+#ifdef _WIN32
+void uninstall();
+#endif
+
+class LoggedStream; // forward delaration
+int executeServer(int argc, char* argv[],
+                  std::unique_ptr<megacmd::LoggedStream> logStream = nullptr,
+                  int sdkLogLevel = mega::MegaApi::LOG_LEVEL_DEBUG,
+                  int cmdLogLevel = mega::MegaApi::LOG_LEVEL_DEBUG,
+                  bool skiplockcheck = false,
+                  std::string debug_api_url = {},
+                  bool disablepkp/*only for debugging*/ = false);
+void stopServer();
 
 }//end namespace
 #endif

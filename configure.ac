@@ -127,6 +127,54 @@ AC_TYPE_SIZE_T
 
 AC_CHECK_HEADERS([arpa/inet.h netdb.h netinet/in.h stddef.h stdint.h stdlib.h sys/socket.h sys/timeb.h htonl glob.h malloc.h sys/malloc.h malloc/malloc.h])
 
+# Runtime checks
+AC_ARG_ENABLE(sanitizer,
+    AS_HELP_STRING([--enable-sanitizer@<:@=LIST@:>@],
+                   [compile with (potentially expensive) runtime checks enabled. LIST can be used to enable only certain checks.
+                   Available checks are: asan, ubsan, tsan, all (enables ubsan, asan), none.]),
+    [ac_checks="${enableval}"], [])
+IFS="${IFS= 	}"; ac_save_IFS="$IFS"; IFS="$IFS,"
+for check in $ac_checks
+do
+    case $check in
+    no)
+     CHECKS_CXXFLAGS=""
+     CHECKS_CPPFLAGS=""
+     CHECKS_LDFLAGS=""
+      ;;
+    all)
+     # Only enable Address and UB Sanitizer, as ThreadSanitizer cannot be enabled with ASan.
+     CHECKS_CXXFLAGS="-fsanitize=address -fsanitize=undefined -fno-common"
+     CHECKS_CPPFLAGS="-fsanitize=address -fsanitize=undefined -fno-common"
+     CHECKS_LDFLAGS="-fsanitize=address -fsanitize=undefined"
+     enable_debug="yes"
+      ;;
+    asan)
+      CHECKS_CXXFLAGS="-fsanitize=address -fno-common $CHECKS_CXXFLAGS"
+      CHECKS_CPPFLAGS="-fsanitize=address -fno-common $CHECKS_CPPFLAGS"
+      CHECKS_LDFLAGS="-fsanitize=address $CHECKS_LDFLAGS"
+      enable_debug="yes"
+      ;;
+    ubsan)
+      CHECKS_CXXFLAGS="-fsanitize=undefined $CHECKS_CXXFLAGS"
+      CHECKS_CPPFLAGS="-fsanitize=undefined $CHECKS_CPPFLAGS"
+      CHECKS_LDFLAGS="-fsanitize=undefined $CHECKS_LDFLAGS"
+      enable_debug="yes"
+      ;;
+    tsan)
+      CHECKS_CXXFLAGS="-fsanitize=thread $CHECKS_CXXFLAGS"
+      CHECKS_CPPFLAGS="-fsanitize=thread $CHECKS_CPPFLAGS"
+      CHECKS_LDFLAGS="-fsanitize=thread $CHECKS_LDFLAGS"
+      enable_debug="yes"
+      ;;
+    *) AC_MSG_ERROR([unknown check $check]) ;;
+    esac
+done
+IFS="$ac_save_IFS"
+CXXFLAGS="$CHECKS_CXXFLAGS $CXXFLAGS"
+CPPFLAGS="$CHECKS_CPPFLAGS $CPPFLAGS"
+LDFLAGS="$CHECKS_LDFLAGS $LDFLAGS"
+
 # Debug
 AC_ARG_ENABLE(debug,
     AS_HELP_STRING([--enable-debug], [enable support for running in debug mode]),
@@ -134,8 +182,8 @@ AC_ARG_ENABLE(debug,
 
 # Enable debug flags / build
 if test "x$enable_debug" = "xyes" ; then
-    AM_CXXFLAGS="-Wall -g -ggdb3 -O0"
-    CXXFLAGS="-Wall -g -ggdb3 -O0"
+    AM_CXXFLAGS="-Wall -ggdb3 -Og -fno-omit-frame-pointer"
+    CXXFLAGS="-Wall -ggdb3 -Og -fno-omit-frame-pointer"
     AC_SUBST([AM_CXXFLAGS])
     AC_DEFINE(DEBUG, 1, [Define to enable debug logging])
 else
@@ -535,6 +583,23 @@ if test "$HAVE_PTHREAD" = "yes"; then
 fi
 AM_CONDITIONAL([HAVE_PTHREAD], [test "${HAVE_PTHREAD}" = "yes"])
 
+
+## Tests
+AC_MSG_CHECKING([if building MEGAcmd tests])
+AC_ARG_ENABLE(megacmd-tests,
+    AS_HELP_STRING([--enable-megacmd-tests], [build MEGAcmd test applications]),
+    [], [enable_megacmd_tests=no])
+if test "x$enable_megacmd_tests" = "xyes" ; then
+    AC_ARG_WITH(gtest,
+        AS_HELP_STRING(--with-gtest=PATH, specify GTest location),
+        [AC_SUBST([GTEST_DIR],[$with_gtest])],
+        [AC_MSG_ERROR([GTest location must be specified. You can pass simply "--with-gtest" if expected to be in your include path])]
+    )
+fi
+AM_CONDITIONAL([BUILD_MEGACMD_TESTS], [test "$enable_megacmd_tests" = "yes"])
+AC_MSG_RESULT([$enable_megacmd_tests])
+
+
 # Add -latomic to LDFLAGS if needed
 CHECK_ATOMIC()
 
@@ -568,4 +633,6 @@ AC_MSG_NOTICE([MEGAcmd configuration:
   Termcap:          $TERMCAP_CXXFLAGS $TERMCAP_LDFLAGS $TERMCAP_LIBS
   PCRE:             $PCRE_CXXFLAGS $PCRE_LDFLAGS $PCRE_LIBS
   SDK includes:     $LMEGAINC
+  
+  MEGAcmd Tests:    $enable_megacmd_tests
 ])

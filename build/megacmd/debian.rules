@@ -1,9 +1,10 @@
 #!/usr/bin/make -f
 NJOBS := $(shell echo ${DEB_BUILD_OPTIONS} | sed -rn 's/.*parallel=([0-9]*).*/\1/p')
-CPPFLAGS := $(shell cat /etc/issue | grep "Ubuntu 1[234579]\|Ubuntu 18.10\|Ubuntu 20.10\|Ubuntu 21\|Debian.* [789]" >/dev/null && echo "$$CPPFLAGS -DMEGACMD_DEPRECATED_OS" || echo "")
+CPPFLAGS := $(shell cat /etc/issue | grep "Ubuntu 1[2345789]\|Ubuntu 20.10\|Ubuntu 21\|Ubuntu 22.10\|Ubuntu 23.04\|Debian.* [789]" >/dev/null && echo "$$CPPFLAGS -DMEGACMD_DEPRECATED_OS" || echo "")
 FCRYPTOPP := $(shell cat /etc/issue | grep "Ubuntu 1[4-8]\|Ubuntu 19.04\|Debian.* [8]" >/dev/null && echo "" || echo "-q")
 WCRYPTOPP := $(shell cat /etc/issue | grep "Ubuntu 1[4-8]\|Ubuntu 19.04\|Debian.* [8]" >/dev/null && echo "" || echo "--with-cryptopp=$(CURDIR)/deps")
-DPKGXZ := $(shell cat /etc/issue | grep "Ubuntu 23\|Lunar Lobster\|Ubuntu 22\|Jammy Jellyfish\|Ubuntu 21.10" >/dev/null && echo "-- -Zxz" || echo "")
+DPKGXZ := $(shell cat /etc/issue | grep "Ubuntu 24\|Noble Numbat\|Ubuntu 23\|Mantic Minotaur\|Lunar Lobster\|Ubuntu 22\|Jammy Jellyfish\|Ubuntu 21.10" >/dev/null && echo "-- -Zxz" || echo "")
+SQLITE3 := $(shell cat /etc/issue | grep "Ubuntu 18.04\|Ubuntu 20.04\|Debian.* \b\([0-9]\|10\)\b" >/dev/null && echo "" || (grep -- -L sdk/contrib/build_sdk.sh >/dev/null && echo "-L") )
 FMEDIAINFO := $(shell dpkg -l | grep mediainfo >/dev/null && echo "-i" || echo " ")
 WMEDIAINFO := $(shell dpkg -l | grep mediainfo >/dev/null && echo " " || echo "--with-libmediainfo=$(CURDIR)/deps --with-libzen=$(CURDIR)/deps")
 RFFMPEG := $(shell cat /etc/issue | grep "Raspbian" >/dev/null && echo "" || echo '-DREQUIRE_HAVE_FFMPEG')
@@ -12,6 +13,7 @@ RPDFIUM := $(shell dpkg --print-architecture | grep -i "i386\|arm" >/dev/null &&
 INSTALL3RD := $(shell dpkg --print-architecture | grep -i "i386\|arm" >/dev/null && echo "" || echo 'install3rd')
 LDFLAGS := $(shell dpkg --print-architecture | grep -i "i386\|arm" >/dev/null && echo "" || echo "$$LDFLAGS -Wl,-rpath,/opt/megacmd/lib")
 DEB_TESTING := $(shell cat /etc/issue | grep "Debian" > /dev/null && cat /etc/apt/sources.list.d/debian.sources | grep -v "^\#" | grep testing > /dev/null && echo "testing")
+EXPORTCCMFPU := $(shell cat /etc/issue | grep "Raspbian GNU/Linux 12" >/dev/null && echo "export CC='cc -mfpu=vfp'" || echo ":")
 
 MEGA_BUILD_ID := $(shell cat MEGA_BUILD_ID || echo "1")
 
@@ -24,8 +26,8 @@ build-stamp:
 
 	#build dependencies into folder deps
 	mkdir deps || :
-	bash -x ./sdk/contrib/build_sdk.sh -o archives \
-	  -g -b $(FMEDIAINFO) $(FCRYPTOPP) -l -c -s -u -v -a -z -I -p deps/
+	( $(EXPORTCCMFPU) ; bash -x ./sdk/contrib/build_sdk.sh -o archives \
+	  -g -b $(FMEDIAINFO) $(FCRYPTOPP) $(SQLITE3) -l -c -s -u -v -a -z -I -p deps/ )
 
 	# Link dynamically with freeimage if pdfium is required.
 	if [ -n "$(INSTALL3RD)" ]; then  \

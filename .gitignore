@@ -66,7 +66,7 @@ py-compile
 *~
 Debug
 Release
-*.pro.user
+*.pro.user*
 
 megaclient_statecache*
 
@@ -74,6 +74,8 @@ megaclient_statecache*
 mega-cmd
 mega-exec
 mega-cmd-server
+mega-cmd-integration-tests
+mega-cmd-unit-tests
 
 /contrib/QtCreator/MEGAcmd/MEGAcmd.pro.user
 /contrib/QtCreator/MEGAcmd/MEGAcmd
@@ -87,6 +89,8 @@ MEGAcmdServer.pro.user
 /src/build/megacmd/PKGBUILD
 /contrib/QtCreator/MEGAcmd/MEGAcmdClient/MEGAclient
 /contrib/QtCreator/MEGAcmd/MEGAcmdClient/Makefile
+/contrib/QtCreator/MEGAcmd/MEGAcmdShell/MEGAcmdShell
+/contrib/QtCreator/MEGAcmd/MEGAcmdUpdater/MEGAcmdUpdater
 /contrib/QtCreator/MEGAcmd/MEGAcmdServer/MEGAcmd
 /contrib/QtCreator/MEGAcmd/MEGAcmdServer/Makefile
 /contrib/QtCreator/MEGAcmd/MEGAcmdLoader/MEGAcmdLoader
@@ -105,6 +109,7 @@ megacmdconfig.h.in
 /build/megacmd/megacmd_*.tar.gz
 /build/build-cmake-*
 /build/cmake/CMakeLists.txt.user
+build/cmake/build_dir
 contrib/QtCreator/MEGAcmd/MEGAcmdServer/Makefile.Debug
 contrib/QtCreator/MEGAcmd/.qmake.stash
 contrib/QtCreator/MEGAcmd/MEGAcmdClient/Makefile.Debug
@@ -113,13 +118,30 @@ contrib/QtCreator/MEGAcmd/MEGAcmdServer/Makefile.Release
 contrib/QtCreator/MEGAcmd/MEGAcmdUpdateGenerator/Makefile*
 contrib/QtCreator/MEGAcmd/MEGAcmdUpdater/Makefile*
 contrib/QtCreator/MEGAcmd/build-*
+contrib/QtCreator/*/Makefile
+contrib/QtCreator/*/*/Makefile
+contrib/QtCreator/*/*/*/Makefile
+test_integration
+test_unit
+.qtc_clangd
+CMakeFiles
+build-x64-windows-mega
+build-x86-windows-mega
+Makefile.Debug
+Makefile.Release
 
 /Makefile*
 build/Release_x64
 /build/megacmd/megacmd*.dsc
+
+build/built64
+build/built32
 
 #git stuff
 *_BACKUP_*
 *_BASE_*
 *_LOCAL_*
 *_REMOTE_*
+
+#backups
+*_bk
