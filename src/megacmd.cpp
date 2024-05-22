@@ -824,7 +824,7 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validParams->emplace("persistent");
         validParams->emplace("read-only");
     }
-    else if (thecommand == "disable-mount")
+    else if (thecommand == "fuse-disable")
     {
         validOptValues->emplace("by-name");
         validOptValues->emplace("by-path");
@@ -2001,8 +2001,8 @@ const char * getUsageStr(const char *command)
     if (!strcmp(command, "add-mount"))
         return "fuse-add [--name=name] [--persistent] [--read-only] remotePath localPath";
 
-    if (!strcmp(command, "disable-mount"))
-        return "disable-mount (--by-name=name | --by-path=path) [--remember]";
+    if (!strcmp(command, "fuse-disable"))
+        return "fuse-disable (--by-name=name | --by-path=path) [--remember]";
 
     if (!strcmp(command, "enable-mount"))
         return "enable-mount (--by-name=name | --by-path=path) [--remember]";
