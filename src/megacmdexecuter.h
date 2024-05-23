@@ -147,6 +147,7 @@ private:
     void fuseOperate(const StringVector& arguments,
                      const FromStringMap<int>& flags,
                      const FuseOperation operation,
+                     const std::string& action,
                      const FromStringMap<std::string>& options);
 
     void fuseRemoveMount(const StringVector& arguments,

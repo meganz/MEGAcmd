@@ -11085,6 +11085,7 @@ void MegaCmdExecuter::fuseDisableMount(const StringVector& arguments,
                           std::placeholders::_1,
                           std::placeholders::_2,
                           std::placeholders::_3),
+                "disable",
                 options);
 }
 
@@ -11099,6 +11100,7 @@ void MegaCmdExecuter::fuseEnableMount(const StringVector& arguments,
                           std::placeholders::_1,
                           std::placeholders::_2,
                           std::placeholders::_3),
+                "enable",
                 options);
 }
 
@@ -11618,6 +11620,7 @@ std::string MegaCmdExecuter::fuseNameOrPath(const std::string& command,
 void MegaCmdExecuter::fuseOperate(const StringVector& arguments,
                                   const FromStringMap<int>& flags,
                                   const FuseOperation operation,
+                                  const std::string& action,
                                   const FromStringMap<std::string>& options)
 {
     // Convenience.
@@ -11631,9 +11634,6 @@ void MegaCmdExecuter::fuseOperate(const StringVector& arguments,
     // No mount exists with the specified name.
     if (path.empty())
         return;
-
-    // What kind of operation are we performing?
-    auto type = command.substr(0, command.find_first_of('-'));
 
     // Should the new mount's state be remembered?
     //
@@ -11657,7 +11657,7 @@ void MegaCmdExecuter::fuseOperate(const StringVector& arguments,
     if (checkNoErrors(result, command))
     {
         OUTSTREAM << "Successfully "
-                  << type
+                  << action
                   << "d the mount on \""
                   << path
                   << "\"."
@@ -11668,7 +11668,7 @@ void MegaCmdExecuter::fuseOperate(const StringVector& arguments,
 
     // Operation failed.
     LOG_err << "Unable to "
-            << type
+            << action
             << " the mount on \""
             << path
             << "\" due to error: "
@@ -11685,6 +11685,7 @@ void MegaCmdExecuter::fuseRemoveMount(const StringVector& arguments,
                           api,
                           std::placeholders::_1,
                           std::placeholders::_2),
+                "remove",
                 options);
 }
 
