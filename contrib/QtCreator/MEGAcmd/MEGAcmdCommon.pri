@@ -1,30 +1,13 @@
-isEmpty(THIRDPARTY_VCPKG_BASE_PATH){
-    THIRDPARTY_VCPKG_BASE_PATH = $$PWD/../../../3rdParty_megacmd
-}
+# This guard is needed to avoid a double-include of this file in the test
+# projects (since they include both the client and the server .pri files)
+isEmpty(MEGACMD_COMMON_INCLUDED) {
+MEGACMD_COMMON_INCLUDED = true
 
-win32 {
-    contains(QMAKE_TARGET.arch, x86_64):VCPKG_TRIPLET = x64-windows-mega
-    !contains(QMAKE_TARGET.arch, x86_64):VCPKG_TRIPLET = x86-windows-mega
-}
-
-macx{
-    isEmpty(VCPKG_TRIPLET){
-        contains(QT_ARCH, x86_64):VCPKG_TRIPLET = x64-osx-mega
-        contains(QT_ARCH, arm64):VCPKG_TRIPLET = arm64-osx-mega
-    }
-    contains(VCPKG_TRIPLET, arm64-osx-mega):contains(QMAKE_HOST.arch, arm64):QMAKE_APPLE_DEVICE_ARCHS=arm64
-
-    message("Building for macOS $$QT_ARCH in a $$QMAKE_HOST.arch host.")
-}
-
-unix:!macx:VCPKG_TRIPLET = x64-linux
-
-message("THIRDPARTY_VCPKG_BASE_PATH: $$THIRDPARTY_VCPKG_BASE_PATH")
-message("VCPKG_TRIPLET: $$VCPKG_TRIPLET")
+include(vcpkg_inclusion.pri)
 
 packagesExist(libpcrecpp) | macx {
-LIBS += -lpcrecpp
-CONFIG += USE_PCRE
+    LIBS += -lpcrecpp
+    CONFIG += USE_PCRE
 }
 
 CONFIG += USE_MEDIAINFO
@@ -32,9 +15,9 @@ CONFIG += USE_LIBUV
 DEFINES += ENABLE_BACKUPS
 CONFIG += USE_CONSOLE
 unix:!macx {
-        exists(/usr/include/fpdfview.h) {
-            CONFIG += USE_PDFIUM
-        }
+    exists(/usr/include/fpdfview.h) {
+        CONFIG += USE_PDFIUM
+    }
 }
 else {
     CONFIG += USE_PDFIUM
@@ -48,9 +31,9 @@ CONFIG+=c++17
 }
 
 unix:!macx {
-        exists(/usr/include/ffmpeg-mega)|exists(mega/bindings/qt/3rdparty/include/ffmpeg)|packagesExist(libavcodec) {
-            CONFIG += USE_FFMPEG
-        }
+    exists(/usr/include/ffmpeg-mega)|exists(mega/bindings/qt/3rdparty/include/ffmpeg)|packagesExist(libavcodec) {
+        CONFIG += USE_FFMPEG
+    }
 }
 else {
     CONFIG += USE_FFMPEG
@@ -75,20 +58,23 @@ else {
     LIBS += -lpcre
 }
 
+MEGACMD_BASE_PATH_RELATIVE = ../../../..
+MEGACMD_COMMON_BASE_PATH = $$PWD/../../..
+
 macx {
-    HEADERS += ../../../../src/megacmdplatform.h
-    OBJECTIVE_SOURCES += ../../../../src/megacmdplatform.mm
+    HEADERS +=  $$MEGACMD_COMMON_BASE_PATH/src/megacmdplatform.h
+    OBJECTIVE_SOURCES += $$MEGACMD_COMMON_BASE_PATH/src/megacmdplatform.mm
     ICON = app.icns
     QMAKE_INFO_PLIST = Info_MEGA.plist
 
-    QMAKE_MACOSX_DEPLOYMENT_TARGET = 10.12
+    QMAKE_MACOSX_DEPLOYMENT_TARGET = 10.13
 
     LIBS += -framework Cocoa -framework SystemConfiguration -framework CoreFoundation -framework Foundation -framework Security
     LIBS += -lncurses
     QMAKE_CXXFLAGS += -g
 }
 
-include(../../../sdk/bindings/qt/sdk.pri)
+include($$MEGACMD_COMMON_BASE_PATH/sdk/bindings/qt/sdk.pri)
 DEFINES -= USE_QT
 DEFINES -= MEGA_QT_LOGGING
 
@@ -100,15 +86,22 @@ SOURCES -= bindings/qt/QTMegaSyncListener.cpp
 SOURCES -= bindings/qt/QTMegaListener.cpp
 SOURCES -= bindings/qt/QTMegaEvent.cpp
 
-
 CONFIG(FULLREQUIREMENTS) {
-DEFINES += REQUIRE_HAVE_FFMPEG
-DEFINES += REQUIRE_HAVE_LIBUV
-#DEFINES += REQUIRE_HAVE_LIBRAW
-#DEFINES += REQUIRE_ENABLE_CHAT
-DEFINES += REQUIRE_ENABLE_BACKUPS
-#DEFINES += REQUIRE_ENABLE_WEBRTC
-#DEFINES += REQUIRE_ENABLE_EVT_TLS
-DEFINES += REQUIRE_USE_MEDIAINFO
-DEFINES += REQUIRE_USE_PCRE
+    DEFINES += REQUIRE_HAVE_FFMPEG
+    DEFINES += REQUIRE_HAVE_LIBUV
+    #DEFINES += REQUIRE_HAVE_LIBRAW
+    #DEFINES += REQUIRE_ENABLE_CHAT
+    DEFINES += REQUIRE_ENABLE_BACKUPS
+    #DEFINES += REQUIRE_ENABLE_WEBRTC
+    #DEFINES += REQUIRE_ENABLE_EVT_TLS
+    DEFINES += REQUIRE_USE_MEDIAINFO
+    DEFINES += REQUIRE_USE_PCRE
+}
+
+SOURCES += \
+    $$MEGACMD_COMMON_BASE_PATH/src/megacmdcommonutils.cpp
+
+HEADERS += \
+    $$MEGACMD_COMMON_BASE_PATH/src/megacmdcommonutils.h
+
 }

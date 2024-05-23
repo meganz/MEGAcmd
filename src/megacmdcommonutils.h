@@ -19,17 +19,28 @@
 #ifndef MEGACMDCOMMONUTILS_H
 #define MEGACMDCOMMONUTILS_H
 
+#include <memory>
+#ifndef _WIN32
+#include <pwd.h>
+#include <unistd.h>
+#endif
 #include <string>
 #include <vector>
 #include <iomanip>
 #include <map>
 #include <set>
 #include <stdint.h>
+#include <fstream>
 #include <sstream>
 #include <iostream>
 #include <iomanip>
 #include <mutex>
+#include <condition_variable>
+#include <cassert>
 
+#ifndef UNUSED
+    #define UNUSED(x) (void)(x)
+#endif
 
 using std::setw;
 using std::left;
@@ -51,6 +62,7 @@ namespace megacmd {
 #ifdef _WIN32
 
 #define OUTSTREAMTYPE std::wostream
+#define OUTFSTREAMTYPE std::wofstream
 #define OUTSTRINGSTREAM std::wostringstream
 #define OUTSTRING std::wstring
 #define COUT std::wcout
@@ -67,11 +79,16 @@ void utf16ToUtf8(const wchar_t* utf16data, int utf16size, std::string* utf8strin
 
 #else
 #define OUTSTREAMTYPE std::ostream
+#define OUTFSTREAMTYPE std::ofstream
 #define OUTSTRINGSTREAM std::ostringstream
 #define OUTSTRING std::string
 #define COUT std::cout
 #define CERR std::cerr
 
+#endif
+
+#ifndef _WIN32
+#define ARRAYSIZE(a) (sizeof((a)) / sizeof(*(a)))
 #endif
 
 /* commands */
@@ -226,6 +243,9 @@ int getFlag(std::map<std::string, int> *flags, const char * optname);
 
 std::string getOption(std::map<std::string, std::string> *cloptions, const char * optname, std::string defaultValue = "");
 
+// TODO C++17 Use std::optional<string> instead
+std::pair<std::string, bool> getOptionOrFalse(const std::map<std::string, std::string>& cloptions, const char * optname);
+
 int getintOption(std::map<std::string, std::string> *cloptions, const char * optname, int defaultValue = 0);
 
 void discardOptionsAndFlags(std::vector<std::string> *ws);
@@ -318,10 +338,184 @@ private:
     std::string mPrefix;
 
     void print(OUTSTREAMTYPE &os, int fullWidth, bool printHeader=true, bool onlyHeaders = false);
-
-
 };
 
+/**
+ * @name PlatformDirectories
+ * @brief PlatformDirectories provides methods for accessing directories for storing user data for
+ * MEGAcmd.
+ *
+ * Note: returned values are encoded in utf-8.
+ *
+ * 	+---------------------------------------------------------------------------------------------------------------------+
+ * 	| DirPath | Windows              | Linux          | macOS                            | Linux/macOS (no HOME fallback) |
+ * 	|---------|----------------------|----------------|----------------------------------|--------------------------------|
+ * 	| runtime | $EXECFOLDER/.megaCmd | $HOME/.megaCmd | $HOME/Library/Caches/megacmd.mac | /tmp/megacmd-UID/.megacmd      |
+ * 	| config  | $EXECFOLDER/.megaCmd | $HOME/.megaCmd | $HOME/.megaCmd                   | /tmp/megacmd-UID/.megacmd      |
+ * 	+---------------------------------------------------------------------------------------------------------------------+
+ *
+ */
+class PlatformDirectories
+{
+public:
+    static std::unique_ptr<PlatformDirectories> getPlatformSpecificDirectories();
+    /**
+     * @brief runtimeDirPath returns the base path for storing runtime files:
+     *
+     * Meant for sockets, named pipes, file locks, command history, etc.
+     */
+    virtual std::string runtimeDirPath()
+    {
+        return configDirPath();
+    }
+    /**
+     * @brief configDirPath returns the base path for storing configuration and data files.
+     *
+     * Meant for user-editable configuration files, data files that should not be deleted
+     * (session credentials, SDK workding directory, logs, etc).
+     */
+    virtual std::string configDirPath() = 0;
+};
+
+template <typename T> size_t numberOfDigits(T num)
+{
+    size_t digits = num < 0 ? 1 : 0;
+    while (num != 0)
+    {
+        digits++;
+        num /= 10;
+    }
+    return digits;
+}
+
+#ifdef _WIN32
+class WindowsDirectories : public PlatformDirectories
+{
+    std::string configDirPath() override;
+};
+std::wstring getNamedPipeName();
+#else // !defined(_WIN32)
+class PosixDirectories : public PlatformDirectories
+{
+public:
+    std::string homeDirPath();
+    virtual std::string configDirPath() override;
+
+    static std::string noHomeFallbackFolder();
+
+};
+#ifdef __APPLE__
+class MacOSDirectories : public PosixDirectories
+{
+    std::string runtimeDirPath() override;
+};
+#endif // defined(__APPLE__)
+std::string getOrCreateSocketPath(bool createDirectory);
+#endif // _WIN32
+
+/**
+* @brief Common infrastructure for classes that are designed to have a single instance for
+* the whole lifetime of the application. This approach is used instead of singletons,
+* in order to take control of the lifetime of the instance, and to avoid the inherent issues
+* of static initialization and destruction order.
+*/
+template <class T>
+class BaseInstance
+{
+protected:
+    inline static T* sInstance = nullptr;
+
+    virtual ~BaseInstance()
+    {
+        // having a base class allows to set sInstance to nullptr
+        // _after_ the (derived) Instance's destructor destroys mInstance,
+        // thus allowing T's destructor to still access Instance<T>::Get
+        sInstance = nullptr;
+    }
+};
+
+template <class T>
+class Instance : protected BaseInstance<T>
+{
+    T mInstance;
+
+    //TODO: afer CMD-316, we can have inline and inintialized these:
+    /*inline */static std::mutex sPendingRogueOnesMutex;
+    /*inline */static std::condition_variable sPendingRogueOnesCV;
+    /*inline */static unsigned sPendingRogueOnes/* = 0*/;
+    /*inline */static bool sAssertOnDestruction/* = false*/;
+public:
+    static bool waitForExplicitDependents()
+    {
+        // wait for rogue ones
+        std::unique_lock<std::mutex> lockGuard(sPendingRogueOnesMutex);
+        if (!sPendingRogueOnesCV.wait_for(lockGuard, std::chrono::seconds(20), [](){return !sPendingRogueOnes;}))
+        {
+            std::cerr << "Shutdown gracetime for explicit dependents for Instance<" << typeid(T).name()
+                      << "> passed without success. Rogue ones = " << sPendingRogueOnes
+                      << ". Will remove the instance anyway." << std::endl;
+            sAssertOnDestruction = true;
+            return false;
+        }
+        return true;
+    }
+
+    class ExplicitDependent
+    {
+    public:
+        ExplicitDependent()
+        {
+            std::lock_guard<std::mutex> g(Instance<T>::sPendingRogueOnesMutex);
+            Instance<T>::sPendingRogueOnes++;
+        }
+        virtual ~ExplicitDependent()
+        {
+            assert(!sAssertOnDestruction);
+            {
+                std::lock_guard<std::mutex> g(Instance<T>::sPendingRogueOnesMutex);
+                Instance<T>::sPendingRogueOnes--;
+            }
+            Instance<T>::sPendingRogueOnesCV.notify_one();
+        }
+    };
+
+
+    template<typename... Args>
+    Instance(Args&&... args) : mInstance(std::forward<Args>(args)...)
+    {
+        assert(!BaseInstance<T>::sInstance &&
+               "There must be one and only one instance of this class");
+        BaseInstance<T>::sInstance = &mInstance;
+    }
+    ~Instance()
+    {
+        bool explicitDependentsFinishedInTime = waitForExplicitDependents();
+        UNUSED(explicitDependentsFinishedInTime);
+        assert(explicitDependentsFinishedInTime);
+    }
+
+    static T& Get()
+    {
+        assert(BaseInstance<T>::sInstance &&
+               "Must create the unique instance before trying to retrieve it");
+        return *BaseInstance<T>::sInstance;
+    }
+#ifdef MEGACMD_TESTING_CODE
+    static bool exists()
+    {
+        return BaseInstance<T>::sInstance;
+    }
+#endif //MEGACMD_TESTING_CODE
+ };
+
+template <typename T>
+std::mutex Instance<T>::sPendingRogueOnesMutex;
+template <typename T>
+std::condition_variable Instance<T>::sPendingRogueOnesCV;
+template <typename T>
+unsigned Instance<T>::sPendingRogueOnes = 0;
+template <typename T>
+bool Instance<T>::sAssertOnDestruction = false;
 
 }//end namespace
 #endif // MEGACMDCOMMONUTILS_H

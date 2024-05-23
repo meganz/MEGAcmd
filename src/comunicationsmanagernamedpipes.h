@@ -41,6 +41,12 @@ public:
             CloseHandle(outNamedPipe);
         }
     }
+    std::string getPetitionDetails() const override
+    {
+        std::ostringstream details;
+        details << "namedPipe output: " << outNamedPipe;
+        return details.str();
+    }
 };
 
 OUTSTREAMTYPE &operator<<(OUTSTREAMTYPE &os, CmdPetitionNamedPipes &p);
@@ -105,12 +111,6 @@ public:
 
     virtual int getConfirmation(CmdPetition *inf, std::string message);
     virtual std::string getUserResponse(CmdPetition *inf, std::string message);
-
-    /**
-     * @brief get_petition_details
-     * @return a string describing details of the petition
-     */
-    std::string get_petition_details(CmdPetition *inf);
 
     ~ComunicationsManagerNamedPipes();
     HANDLE doCreatePipe(std::wstring nameOfPipe);

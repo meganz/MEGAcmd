@@ -19,6 +19,7 @@
 
 #include "comunicationsmanagernamedpipes.h"
 #include "megacmdutils.h"
+#include "megacmdcommonutils.h"
 
 
 #include <winsock2.h>
@@ -77,13 +78,7 @@ HANDLE ComunicationsManagerNamedPipes::create_new_namedPipe(int *pipeId)
     bool namedPipesucceded = false;
     while (--attempts && !namedPipesucceded)
     {
-        wchar_t username[UNLEN+1];
-        DWORD username_len = UNLEN+1;
-        GetUserNameW(username, &username_len);
-
-        nameOfPipe += L"\\\\.\\pipe\\megacmdpipe";
-        nameOfPipe += L"_";
-        nameOfPipe += username;
+        nameOfPipe += getNamedPipeName();
 
         if (*pipeId)
         {
@@ -139,13 +134,7 @@ int ComunicationsManagerNamedPipes::initialize()
 {
     petitionready = false;
 
-    wchar_t username[UNLEN+1];
-    DWORD username_len = UNLEN+1;
-    GetUserNameW(username, &username_len);
-    wstring nameOfPipe (L"\\\\.\\pipe\\megacmdpipe");
-    nameOfPipe += L"_";
-    nameOfPipe += username;
-
+    wstring nameOfPipe = getNamedPipeName();
     pipeGeneral = doCreatePipe(nameOfPipe);
 
     if (!namedPipeValid(pipeGeneral))
@@ -195,14 +184,8 @@ int ComunicationsManagerNamedPipes::waitForPetition()
 
 void ComunicationsManagerNamedPipes::stopWaiting()
 {
-    wstring nameOfPipe;
-    wchar_t username[UNLEN+1];
-    DWORD username_len = UNLEN+1;
-    GetUserNameW(username, &username_len);
+    wstring nameOfPipe = getNamedPipeName();
 
-    nameOfPipe += L"\\\\.\\pipe\\megacmdpipe";
-    nameOfPipe += L"_";
-    nameOfPipe += username;
     DeleteFile(nameOfPipe.c_str()); // without this, CloseHandle will hang, and loop will be stuck in ConnectNamedPipe
 
     if (pipeGeneral != INVALID_HANDLE_VALUE)
@@ -614,13 +597,6 @@ string ComunicationsManagerNamedPipes::getUserResponse(CmdPetition *inf, string 
     localwtostring(&wread,&receivedutf8);
 
     return receivedutf8;
-}
-
-string ComunicationsManagerNamedPipes::get_petition_details(CmdPetition *inf)
-{
-    ostringstream os;
-    os << "namedPipe output: " << ((CmdPetitionNamedPipes *)inf)->outNamedPipe;
-    return os.str();
 }
 
 ComunicationsManagerNamedPipes::~ComunicationsManagerNamedPipes()

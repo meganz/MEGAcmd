@@ -27,9 +27,6 @@
 namespace megacmd {
 using ::mega::m_time_t;
 
-/* mega::MegaNode info extracting*/
-void getNumFolderFiles(mega::MegaNode *, mega::MegaApi *, long long *nfiles, long long *nfolders);
-
 std::string getUserInSharedNode(mega::MegaNode *n, mega::MegaApi *api);
 
 
@@ -145,8 +142,6 @@ std::string syncBackupIdToBase64(const mega::MegaHandle &handle); //sync handles
 
 mega::MegaHandle base64ToSyncBackupId(const std::string &shandle);
 
-
-
 /* Flags and Options */
 bool setOptionsAndFlags(std::map<std::string, std::string> *opts, std::map<std::string, int> *flags, std::vector<std::string> *ws,
                         std::set<std::string> vvalidOptions, bool global = false);
@@ -156,6 +151,8 @@ bool getMinAndMaxSize(std::string sizestring, int64_t *minSize, int64_t *maxSize
 /* Others */
 std::string readablePermissions(int permvalue);
 int permissionsFromReadable(std::string permissions);
+
+bool pathIsExistingDir(std::string path);
 
 }//end namespace
 #endif // MEGACMDUTILS_H

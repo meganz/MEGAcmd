@@ -24,6 +24,7 @@
 #include "megacmdlogger.h"
 #include "megacmdsandbox.h"
 #include "listeners.h"
+#include "deferred_single_trigger.h"
 
 namespace megacmd {
 class MegaCmdSandbox;
@@ -35,7 +36,7 @@ class MegaCmdExecuter
 private:
     mega::MegaApi *api;
     mega::handle cwd;
-    char *session;
+    std::unique_ptr<char[]> session;
     mega::MegaFileSystemAccess *fsAccessCMD;
     MegaCMDLogger *loggerCMD;
     MegaCmdSandbox *sandboxCMD;
@@ -43,6 +44,8 @@ private:
     std::mutex mtxSyncMap;
     std::mutex mtxWebDavLocations;
     std::mutex mtxFtpLocations;
+
+    DeferredSingleTrigger mDeferredSharedFoldersVerifier;
 
 #ifdef ENABLE_BACKUPS
     std::recursive_mutex mtxBackupsMap;
@@ -54,11 +57,41 @@ private:
     // signup name
     std::string name;
 
-    //delete confirmation
-    std::vector<mega::MegaNode *> nodesToConfirmDelete;
-
+    // delete confirmation
+    std::vector<std::unique_ptr<mega::MegaNode>> mNodesToConfirmDelete;
 
     std::string getNodePathString(mega::MegaNode *n);
+
+    void cancelOngoingVerification(mega::MegaApi* api, bool start_new_verification);
+
+    /**
+     * @name forEachFileInNode
+     * @brief Traverses through all files in the given node with the provided callback.
+     * @param n - the node object to traverse
+     * @param recurse - whether to recursively traverse directories in this node
+     * @param callback - the callback which receives child entries. Should be of the form `void
+     * (MegaNode *)`
+     */
+    template <typename Cb>
+    void forEachFileInNode(mega::MegaNode &n, bool recurse, Cb &&callback)
+    {
+        auto children = std::unique_ptr<mega::MegaNodeList>(api->getChildren(&n));
+        if (children != nullptr)
+        {
+            for (int i = 0; i < children->size(); i++)
+            {
+                auto child = children->get(i);
+                if (child->getType() == mega::MegaNode::TYPE_FILE)
+                {
+                    callback(children->get(i));
+                }
+                else if (recurse)
+                {
+                    forEachFileInNode(*child, true, std::forward<Cb>(callback));
+                }
+            }
+        }
+    }
 
 public:
     bool signingup;
@@ -83,9 +116,9 @@ public:
 
     bool processTree(mega::MegaNode * n, bool(mega::MegaApi *, mega::MegaNode *, void *), void *( arg ));
 
-    mega::MegaNode* nodebypath(const char* ptr, std::string* user = NULL, std::string* namepart = NULL);
-    std::vector <mega::MegaNode*> * nodesbypath(const char* ptr, bool usepcre, std::string* user = NULL);
-    void getNodesMatching(mega::MegaNode *parentNode, std::deque<std::string> pathParts, std::vector<mega::MegaNode *> *nodesMatching, bool usepcre);
+    std::unique_ptr<mega::MegaNode> nodebypath(const char* ptr, std::string* user = nullptr, std::string* namepart = nullptr);
+    std::vector<std::unique_ptr<mega::MegaNode>> nodesbypath(const char* ptr, bool usepcre, std::string* user = nullptr);
+    void getNodesMatching(mega::MegaNode* parentNode, std::deque<std::string> pathParts, std::vector<std::unique_ptr<mega::MegaNode>>& nodesMatching, bool usepcre);
 
     std::vector <std::string> * nodesPathsbypath(const char* ptr, bool usepcre, std::string* user = NULL, std::string* namepart = NULL);
     void getPathsMatching(mega::MegaNode *parentNode, std::deque<std::string> pathParts, std::vector<std::string> *pathsMatching, bool usepcre, std::string pathPrefix = "");
@@ -113,13 +146,13 @@ public:
     void verifySharedFolders(mega::MegaApi * api); //verifies unverified shares and broadcasts warning accordingly
     void loginWithPassword(char *password);
     void changePassword(const char *newpassword, std::string pin2fa = "");
-    void actUponGetExtendedAccountDetails(mega::SynchronousRequestListener  *srl, int timeout = -1);
+    void actUponGetExtendedAccountDetails(std::unique_ptr<mega::MegaAccountDetails> storageDetails, std::unique_ptr<mega::MegaAccountDetails> extAccountDetails);
     bool actUponFetchNodes(mega::MegaApi * api, mega::SynchronousRequestListener  *srl, int timeout = -1);
     int actUponLogin(mega::SynchronousRequestListener  *srl, int timeout = -1);
     void actUponLogout(mega::SynchronousRequestListener  *srl, bool deletedSession, int timeout = 0);
     int actUponCreateFolder(mega::SynchronousRequestListener  *srl, int timeout = 0);
-    int deleteNode(mega::MegaNode *nodeToDelete, mega::MegaApi* api, int recursive, int force = 0);
-    int deleteNodeVersions(mega::MegaNode *nodeToDelete, mega::MegaApi* api, int force = 0);
+    int deleteNode(const std::unique_ptr<mega::MegaNode>& nodeToDelete, mega::MegaApi* api, int recursive, int force = 0);
+    int deleteNodeVersions(const std::unique_ptr<mega::MegaNode>& nodeToDelete, mega::MegaApi* api, int force = 0);
     void downloadNode(std::string source, std::string localPath, mega::MegaApi* api, mega::MegaNode *node, bool background, bool ignorequotawar, int clientID, std::shared_ptr<MegaCmdMultiTransferListener> listener);
     void uploadNode(std::string localPath, mega::MegaApi* api, mega::MegaNode *node, std::string newname, bool background, bool ignorequotawarn, int clientID, MegaCmdMultiTransferListener *multiTransferListener = NULL);
     void exportNode(mega::MegaNode *n, int64_t expireTime, std::string password = std::string(),
@@ -152,7 +185,7 @@ public:
     int makedir(std::string remotepath, bool recursive, mega::MegaNode *parentnode = NULL);
     bool IsFolder(std::string path);
     bool pathExists(const std::string &path);
-    void doDeleteNode(mega::MegaNode *nodeToDelete, mega::MegaApi* api);
+    void doDeleteNode(const std::unique_ptr<mega::MegaNode>& nodeToDelete, mega::MegaApi* api);
 
     void confirmDelete();
     void discardDelete();
@@ -177,7 +210,7 @@ public:
 
     void doFind(mega::MegaNode* nodeBase, const char *timeFormat, std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions, std::string word, int printfileinfo, std::string pattern, bool usepcre, mega::m_time_t minTime, mega::m_time_t maxTime, int64_t minSize, int64_t maxSize);
 
-    void move(mega::MegaNode *n, std::string destiny);
+    void moveToDestination(const std::unique_ptr<mega::MegaNode>& n, std::string destiny);
     void copyNode(mega::MegaNode *n, std::string destiny, mega::MegaNode *tn, std::string &targetuser, std::string &newname);
     std::string getLPWD();
     bool isValidFolder(std::string destiny);
@@ -190,13 +223,16 @@ public:
 
     bool checkAndInformPSA(CmdPetition *inf, bool enforce = false);
 
-    bool checkNoErrors(int errorCode, std::string message = "");
-    bool checkNoErrors(mega::MegaError *error, std::string message = "", mega::SyncError syncError = mega::SyncError::NO_SYNC_ERROR);
+    // Provide a helpful error message for the provided error, setting the current error code in case of an error.
+    std::string formatErrorAndMaySetErrorCode(const mega::MegaError &error);
+    bool checkNoErrors(int errorCode, const std::string &message = "");
+    bool checkNoErrors(mega::MegaError *error, const std::string &message = "", mega::SyncError syncError = mega::SyncError::NO_SYNC_ERROR);
+    bool checkNoErrors(::mega::SynchronousRequestListener *listener, const std::string &message = "", mega::SyncError syncError = mega::SyncError::NO_SYNC_ERROR);
 
     void confirmCancel(const char* confirmlink, const char* pass);
     bool amIPro();
 
-    void processPath(std::string path, bool usepcre, bool &firstone, void (*nodeprocessor)(MegaCmdExecuter *, mega::MegaNode *, bool), MegaCmdExecuter *context = NULL);
+    void processPath(std::string path, bool usepcre, bool& firstone, void (*nodeprocessor)(MegaCmdExecuter *, mega::MegaNode *, bool), MegaCmdExecuter *context = NULL);
     void catFile(mega::MegaNode *n);
     void printInfoFile(mega::MegaNode *n, bool &firstone, int PATHSIZE);
 
