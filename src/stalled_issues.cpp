@@ -28,8 +28,9 @@
 namespace {
 class StalledIssuesGlobalListener : public mega::MegaGlobalListener
 {
-    const StalledIssuesManager& mManager;
-    mega::MegaApi& mMegaApi;
+    using Callback = std::function<void()>;
+    Callback mCallback;
+
     bool mSyncStalled;
 
     void onGlobalSyncStateChanged(mega::MegaApi* api) override
@@ -39,16 +40,15 @@ class StalledIssuesGlobalListener : public mega::MegaGlobalListener
 
         if (syncStalledChanged)
         {
-            mMegaApi.getMegaSyncStallList(mManager.getRequestListener());
+            mCallback();
         }
 
         mSyncStalled = syncStalled;
     }
 
 public:
-    StalledIssuesGlobalListener(const StalledIssuesManager& manager, mega::MegaApi& api) :
-        mManager(manager),
-        mMegaApi(api),
+    StalledIssuesGlobalListener(Callback&& callback) :
+        mCallback(std::move(callback)),
         mSyncStalled(false) {}
 };
 
@@ -145,7 +145,9 @@ StalledIssuesManager::StalledIssuesManager(mega::MegaApi *api)
 {
     assert(api);
 
-    mGlobalListener = mega::make_unique<StalledIssuesGlobalListener>(*this, *api);
+
+    mGlobalListener = mega::make_unique<StalledIssuesGlobalListener>(
+         [this, api] { api->getMegaSyncStallList(mRequestListener.get()); });
 
     mRequestListener = mega::make_unique<StalledIssuesRequestListener>(
         [this] (const mega::MegaSyncStallList& stalls) { populateStalledIssues(stalls); });
