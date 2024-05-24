@@ -24,11 +24,6 @@ using TI = TestInstruments;
 
 namespace {
     const std::string syncDir("sync_dir");
-
-    TestInstrumentsWaitForEventGuard getStalledListUpdatedGuard()
-    {
-        return TestInstrumentsWaitForEventGuard(TI::Event::STALLED_ISSUES_LIST_UPDATED);
-    }
 }
 
 class StalledIssuesTests : public NOINTERACTIVELoggedInTest
@@ -45,7 +40,7 @@ class StalledIssuesTests : public NOINTERACTIVELoggedInTest
             ASSERT_TRUE(!words.empty());
 
             std::string syncId = words[0];
-            auto result = executeInClient({"sync", "--remove", syncId}).ok();
+            auto result = executeInClient({"sync", "--remove", "--", syncId}).ok();
             ASSERT_TRUE(result);
         }
     }
@@ -90,7 +85,7 @@ TEST_F(StalledIssuesTests, NameConflict)
 #endif
 
     // Register the event callback *before* causing the stalled issue
-    auto stallUpdatedGuard = getStalledListUpdatedGuard();
+    TestInstrumentsWaitForEventGuard stallUpdatedGuard(TI::Event::STALLED_ISSUES_LIST_UPDATED);
 
     // Cause the name conclict
     auto rMkdir = executeInClient({"mkdir", syncDir + "/f01"});
