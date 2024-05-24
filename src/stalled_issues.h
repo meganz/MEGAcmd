@@ -67,23 +67,22 @@ public:
     StalledIssueList::const_iterator end() const { return mStalledIssues.end(); }
 };
 
-class StalledIssuesManager : public mega::MegaGlobalListener, public mega::MegaRequestListener
+class StalledIssuesManager final
 {
-    mega::MegaApi* mMegaApi;
-
-    bool mSyncStalled;
-
     StalledIssueList mStalledIssues;
     std::mutex mStalledIssuesMutex;
 
-private:
-    void onGlobalSyncStateChanged(mega::MegaApi *api) override;
-    void onRequestFinish(mega::MegaApi*, mega::MegaRequest *request, mega::MegaError*) override;
+    std::unique_ptr<mega::MegaGlobalListener> mGlobalListener;
+    std::unique_ptr<mega::MegaRequestListener> mRequestListener;
 
+private:
     void populateStalledIssues(const mega::MegaSyncStallList &stalls);
 
 public:
     StalledIssuesManager(mega::MegaApi *api);
 
     StalledIssueCache getLockedCache();
+
+    mega::MegaGlobalListener* getGlobalListener() const { return mGlobalListener.get(); }
+    mega::MegaRequestListener* getRequestListener() const { return mRequestListener.get(); }
 };

@@ -163,7 +163,7 @@ MegaCmdExecuter::MegaCmdExecuter(MegaApi *api, MegaCMDLogger *loggerCMD, MegaCmd
     this->sandboxCMD = sandboxCMD;
     this->globalTransferListener = new MegaCmdGlobalTransferListener(api, sandboxCMD);
     api->addTransferListener(globalTransferListener);
-    api->addGlobalListener(&mStalledIssuesManager);
+    api->addGlobalListener(mStalledIssuesManager.getGlobalListener());
     cwd = UNDEF;
     fsAccessCMD = new MegaFileSystemAccess();
     session = NULL;

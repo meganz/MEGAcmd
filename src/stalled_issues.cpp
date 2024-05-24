@@ -16,6 +16,7 @@
 #include "stalled_issues.h"
 
 #include <cassert>
+#include <functional>
 
 #include "megacmdlogger.h"
 
@@ -23,6 +24,57 @@
     #include "../tests/common/Instruments.h"
     using TI = TestInstruments;
 #endif
+
+namespace {
+class StalledIssuesGlobalListener : public mega::MegaGlobalListener
+{
+    const StalledIssuesManager& mManager;
+    mega::MegaApi& mMegaApi;
+    bool mSyncStalled;
+
+    void onGlobalSyncStateChanged(mega::MegaApi* api) override
+    {
+        bool syncStalled = api->isSyncStalled();
+        bool syncStalledChanged = (mSyncStalled != syncStalled || (syncStalled && api->isSyncStalledChanged()));
+
+        if (syncStalledChanged)
+        {
+            mMegaApi.getMegaSyncStallList(mManager.getRequestListener());
+        }
+
+        mSyncStalled = syncStalled;
+    }
+
+public:
+    StalledIssuesGlobalListener(const StalledIssuesManager& manager, mega::MegaApi& api) :
+        mManager(manager),
+        mMegaApi(api),
+        mSyncStalled(false) {}
+};
+
+class StalledIssuesRequestListener : public mega::MegaRequestListener
+{
+   using Callback = std::function<void(const mega::MegaSyncStallList& stalls)>;
+   Callback mCallback;
+
+   void onRequestFinish(mega::MegaApi *api, mega::MegaRequest *request, mega::MegaError *e) override
+   {
+       assert(request && request->getType() == mega::MegaRequest::TYPE_GET_SYNC_STALL_LIST);
+
+        auto stalls = request->getMegaSyncStallList();
+        if (!stalls)
+        {
+            LOG_err << "Sync stall list pointer is null";
+            return;
+        }
+
+        mCallback(*stalls);
+   }
+public:
+   StalledIssuesRequestListener(Callback&& callback) :
+       mCallback(std::move(callback)) {}
+};
+}
 
 StalledIssue::StalledIssue(size_t id, const mega::MegaSyncStall &stall) :
     mId(id),
@@ -67,33 +119,6 @@ StalledIssueCache::StalledIssueCache(const StalledIssueList &stalledIssues, std:
 {
 }
 
-void StalledIssuesManager::onGlobalSyncStateChanged(mega::MegaApi *api)
-{
-    bool syncStalled = api->isSyncStalled();
-    bool syncStalledChanged = (mSyncStalled != syncStalled || (syncStalled && api->isSyncStalledChanged()));
-
-    if (syncStalledChanged)
-    {
-        mMegaApi->getMegaSyncStallList(this);
-    }
-
-    mSyncStalled = syncStalled;
-}
-
-void StalledIssuesManager::onRequestFinish(mega::MegaApi*, mega::MegaRequest *request, mega::MegaError*)
-{
-    assert(request && request->getType() == mega::MegaRequest::TYPE_GET_SYNC_STALL_LIST);
-
-    auto stalls = request->getMegaSyncStallList();
-    if (!stalls)
-    {
-        LOG_err << "Sync stall list pointer is null";
-        return;
-    }
-
-    populateStalledIssues(*stalls);
-}
-
 void StalledIssuesManager::populateStalledIssues(const mega::MegaSyncStallList& stalls)
 {
     StalledIssueList stalledIssues;
@@ -106,19 +131,24 @@ void StalledIssuesManager::populateStalledIssues(const mega::MegaSyncStallList& 
         stalledIssues.emplace_back(i + 1, *stall);
     }
 
-    std::lock_guard<std::mutex> lock(mStalledIssuesMutex);
-    mStalledIssues = std::move(stalledIssues);
+    {
+        std::lock_guard<std::mutex> lock(mStalledIssuesMutex);
+        mStalledIssues = std::move(stalledIssues);
+    }
 
 #ifdef MEGACMD_TESTING_CODE
     TI::Instance().fireEvent(TI::Event::STALLED_ISSUES_LIST_UPDATED);
 #endif
 }
 
-StalledIssuesManager::StalledIssuesManager(mega::MegaApi *api) :
-    mMegaApi(api),
-    mSyncStalled(false)
+StalledIssuesManager::StalledIssuesManager(mega::MegaApi *api)
 {
-    assert(mMegaApi);
+    assert(api);
+
+    mGlobalListener = mega::make_unique<StalledIssuesGlobalListener>(*this, *api);
+
+    mRequestListener = mega::make_unique<StalledIssuesRequestListener>(
+        [this] (const mega::MegaSyncStallList& stalls) { populateStalledIssues(stalls); });
 }
 
 StalledIssueCache StalledIssuesManager::getLockedCache()
