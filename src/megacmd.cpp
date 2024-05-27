@@ -3125,6 +3125,25 @@ string getHelpStr(const char *command)
         os << " M" << "\t" << "Sets the secondary codepage to M, which is used if the primary can't translate a character." << endl;
     }
 #endif
+    else if (!strcmp(command, "fuse-add"))
+    {
+        os << "Adds a new FUSE mount to the database." << endl;
+        os << endl;
+        os << "Mounts must be added to the database before they can be enabled." << endl;
+        os << "Mounts are transient and writable by default." << endl;
+        os << endl;
+        os << "Parameters:" << endl;
+        os << " localPath    Specifies where the files contained by remotePath should be visible on the local filesystem." << endl;
+        os << " remotePath   Specifies what directory (or share) should be exposed on the local filesystem." << endl;
+        os << endl;
+        os << "Options:" << endl;
+        os << " --name=name  A user friendly name which the mount can be identified by. If not provided, the display name" << endl;
+        os << "              of the entity specified by remotePath will be used. If remotePath specifies the entire cloud" << endl;
+        os << "              drive, the mount's name will be \"MEGA\". If remotePath specifies the rubbish bin, the mount's" << endl;
+        os << "              name will be \"MEGA Rubbish\"." << endl;
+        os << " --read-only  Specifies that the mount should be read-only. Otherwise, the mount is writable." << endl;
+        os << " --persistent Specifies that the mount should be persistent. Otherwise, the mount is transient." << endl;
+    }
     return os.str();
 }
 
