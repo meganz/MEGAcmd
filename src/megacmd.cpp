@@ -3144,6 +3144,71 @@ string getHelpStr(const char *command)
         os << " --read-only  Specifies that the mount should be read-only. Otherwise, the mount is writable." << endl;
         os << " --persistent Specifies that the mount should be persistent. Otherwise, the mount is transient." << endl;
     }
+    else if (!strcmp(command, "fuse-disable"))
+    {
+        os << "Disables a specified fuse mount." << endl;
+        os << endl;
+        os << "After a mount has been disabled, a user will no longer be able to access cloud entities via the mount's local path." << endl;
+        os << endl;
+        os << "Options:" << endl;
+        os << " --by-name=name Specifies which mount by name." << endl;
+        os << " --by-path=path Specifies which mount by path." << endl;
+        os << " --remember     Specifies whether to remember that this mount is disabled. Note that if you enable this option" << endl;
+        os << "                on a transient mount, that mount will become persistent." << endl;
+    }
+    else if (!strcmp(command, "fuse-enable"))
+    {
+        os << "Enables a specified fuse mount." << endl;
+        os << endl;
+        os << "After a mount has been enabled, a user will be able to access cloud entities via the mount's local path." << endl;
+        os << endl;
+        os << "Options:" << endl;
+        os << " --by-name=name Specifies which mount by name." << endl;
+        os << " --by-path=path Specifies which mount by path." << endl;
+        os << " --remember     Specifies whether to remember that this mount is enabled. Note that if you enable this option" << endl;
+        os << "                on a transient mount, that mount will become persistent." << endl;
+    }
+    else if (!strcmp(command, "fuse-remove"))
+    {
+        os << "Removes a specified FUSE mount from the database." << endl;
+        os << endl;
+        os << "A mount must be disabled before it can be removed." << endl;
+        os << endl;
+        os << "Options:" << endl;
+        os << " --by-name=name Specifies which mount by name." << endl;
+        os << " --by-path=path Specifies which mount by path." << endl;
+    }
+    else if (!strcmp(command, "fuse-set"))
+    {
+        os << "Displays the specified FUSE mount configurations if no options is given, or sets the specified FUSE mount configurations with the given options." << endl;
+        os << endl;
+        os << "Options:" << endl;
+        os << " --by-name=name Specifies which mount by name." << endl;
+        os << " --by-path=path Specifies which mount by path." << endl;
+        os << " --disabled-at-startup Disables the mount on startup, meaning the mount will not be active on restart." << endl;
+        os << " --enabled-at-startup  Enables the mount on startup, meaning the mount will be active on restart." << endl;
+        os << " --name=name           Sets the mount to the name." << endl;
+        os << " --persistent          Sets the mount as persistent, meaning it will remain across on restart." << endl;
+        os << " --transient           Sets the mount as transient, meaning it will lost on restart." << endl;
+        os << " --read-only           Sets the mount as read only." << endl;
+        os << " --writable            Sets the mount as writable." << endl;
+    }
+    else if (!strcmp(command, "fuse-show"))
+    {
+        os << "Displays the list of FUSE mounts and their information, or a FUSE mount and its information if specified by name or path." << endl;
+        os << endl;
+        os << "Options:" << endl;
+        os << " --by-name=name Specifies which mount by name." << endl;
+        os << " --by-path=path Specifies which mount by path." << endl;
+        os << " --only-enabled Shows enabled mounts." << endl;
+    }
+    else if (!strcmp(command, "fuse-flags"))
+    {
+        os << "Displays FUSE log level or sets FUSE log level" << endl;
+        os << endl;
+        os << "Options:" << endl;
+        os << "--log-level=(DEBUG|ERROR|INFO|WARNING)  Sets log level." << endl;
+    }
     return os.str();
 }
 
