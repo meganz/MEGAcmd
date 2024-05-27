@@ -146,10 +146,10 @@ StalledIssuesManager::StalledIssuesManager(mega::MegaApi *api)
     assert(api);
 
 
-    mGlobalListener = mega::make_unique<StalledIssuesGlobalListener>(
+    mGlobalListener = std::make_unique<StalledIssuesGlobalListener>(
          [this, api] { api->getMegaSyncStallList(mRequestListener.get()); });
 
-    mRequestListener = mega::make_unique<StalledIssuesRequestListener>(
+    mRequestListener = std::make_unique<StalledIssuesRequestListener>(
         [this] (const mega::MegaSyncStallList& stalls) { populateStalledIssues(stalls); });
 }
 
