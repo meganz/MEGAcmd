@@ -311,7 +311,7 @@ OUTFSTREAMTYPE streamForDefaultFile()
     auto dirs = PlatformDirectories::getPlatformSpecificDirectories();
     path = dirs->configDirPath();
 
-    auto fsAccess = ::mega::make_unique<MegaFileSystemAccess>();
+    auto fsAccess = std::make_unique<MegaFileSystemAccess>();
     fsAccess->setdefaultfolderpermissions(0700);
     LocalPath localconfigDir = LocalPath::fromAbsolutePath(path);
     if (!fsAccess->mkdirlocal(localconfigDir, false, false))

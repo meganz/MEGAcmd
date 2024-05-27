@@ -49,9 +49,7 @@ private:
     DeferredSingleTrigger mDeferredSharedFoldersVerifier;
     StalledIssuesManager mStalledIssuesManager;
 
-#ifdef ENABLE_BACKUPS
     std::recursive_mutex mtxBackupsMap;
-#endif
 
     // login/signup e-mail address
     std::string login;
@@ -198,15 +196,13 @@ public:
     void printTransfer(mega::MegaTransfer *transfer, const unsigned int PATHSIZE, bool printstate=true);
     void printTransferColumnDisplayer(ColumnDisplayer *cd, mega::MegaTransfer *transfer, bool printstate=true);
 
-#ifdef ENABLE_BACKUPS
-
     void printBackupHeader(const unsigned int PATHSIZE);
     void printBackupSummary(int tag, const char *localfolder, const char *remoteparentfolder, std::string status, const unsigned int PATHSIZE);
     void printBackupHistory(mega::MegaScheduledCopy *backup, const char *timeFormat, mega::MegaNode *parentnode, const unsigned int PATHSIZE);
     void printBackupDetails(mega::MegaScheduledCopy *backup, const char *timeFormat);
     void printBackup(int tag, mega::MegaScheduledCopy *backup, const char *timeFormat, const unsigned int PATHSIZE, bool extendedinfo = false, bool showhistory = false, mega::MegaNode *parentnode = NULL);
     void printBackup(backup_struct *backupstruct, const char *timeFormat, const unsigned int PATHSIZE, bool extendedinfo = false, bool showhistory = false);
-#endif
+
     void printSyncHeader(ColumnDisplayer &cd);
     void printSync(mega::MegaSync *sync, long long nfiles, long long nfolders, ColumnDisplayer &cd, std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions);
 
