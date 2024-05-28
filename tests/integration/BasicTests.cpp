@@ -55,6 +55,7 @@ TEST_F(NOINTERACTIVELoggedInTest, Whoami)
 
         auto out = r.out();
         ASSERT_THAT(out, testing::Not(testing::IsEmpty()));
+        ASSERT_THAT(getenv("MEGACMD_TEST_USER"), testing::NotNull());
         EXPECT_EQ(out, std::string("Account e-mail: ").append(getenv("MEGACMD_TEST_USER")).append("\n"));
     }
 

@@ -26,6 +26,7 @@
 
 #include <memory>
 #include <future>
+#include <filesystem>
 
 #include <sstream>
 
@@ -147,5 +148,39 @@ MATCHER_P(ContainsStdRegex, pattern, "")
     *result_listener << "where the string '" << arg << "' contains the std::regex '" << pattern << "'";
     std::regex regex(pattern);
     return std::regex_search(arg, regex);
-
 }
+
+namespace fs = std::filesystem;
+
+class SelfDeletingTmpFolder
+{
+    fs::path mTempDir;
+
+public:
+    SelfDeletingTmpFolder()
+    {
+        const char* filePath = std::tmpnam(nullptr);
+        if (!filePath)
+        {
+            throw std::runtime_error("No suitable temporary filename can be generated");
+        }
+
+        mTempDir = fs::path(filePath);
+        fs::create_directory(mTempDir);
+    }
+
+    ~SelfDeletingTmpFolder()
+    {
+        fs::remove_all(mTempDir);
+    }
+
+    std::string string() const
+    {
+        return mTempDir.string();
+    }
+
+    fs::path path() const
+    {
+        return mTempDir;
+    }
+};

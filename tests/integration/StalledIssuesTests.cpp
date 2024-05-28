@@ -17,17 +17,16 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
+#include "TestUtils.h"
 #include "MegaCmdTestingTools.h"
 
 namespace fs = std::filesystem;
 using TI = TestInstruments;
 
-namespace {
-    const std::string syncDir("sync_dir");
-}
-
 class StalledIssuesTests : public NOINTERACTIVELoggedInTest
 {
+    SelfDeletingTmpFolder mTmpDir;
+
     void removeAllSyncs()
     {
         auto result = executeInClient({"sync"});
@@ -50,13 +49,13 @@ class StalledIssuesTests : public NOINTERACTIVELoggedInTest
         NOINTERACTIVELoggedInTest::SetUp();
         TearDown();
 
-        auto result = executeInClient({"mkdir", syncDir}).ok();
+        auto result = executeInClient({"mkdir", "-p", syncDirCloud()}).ok();
         ASSERT_TRUE(result);
 
-        result = fs::create_directory(syncDir);
+        result = fs::create_directory(syncDirLocal());
         ASSERT_TRUE(result);
 
-        result = executeInClient({"sync", syncDir, syncDir}).ok();
+        result = executeInClient({"sync", syncDirLocal(), syncDirCloud()}).ok();
         ASSERT_TRUE(result);
     }
 
@@ -64,8 +63,19 @@ class StalledIssuesTests : public NOINTERACTIVELoggedInTest
     {
         removeAllSyncs();
 
-        fs::remove_all(syncDir);
-        executeInClient({"rm", "-r", "-f", syncDir});
+        fs::remove_all(syncDirLocal());
+        executeInClient({"rm", "-r", "-f", syncDirCloud()});
+    }
+
+protected:
+    std::string syncDirLocal() const
+    {
+        return mTmpDir.string() + "/sync_dir/";
+    }
+
+    std::string syncDirCloud() const
+    {
+        return "sync_dir/";
     }
 };
 
@@ -79,18 +89,18 @@ TEST_F(StalledIssuesTests, NoIssues)
 TEST_F(StalledIssuesTests, NameConflict)
 {
 #ifdef _WIN32
-    const char* conflictingName = "/F01";
+    const char* conflictingName = "F01";
 #else
-    const char* conflictingName = "/f%301";
+    const char* conflictingName = "f%301";
 #endif
 
     // Register the event callback *before* causing the stalled issue
     TestInstrumentsWaitForEventGuard stallUpdatedGuard(TI::Event::STALLED_ISSUES_LIST_UPDATED);
 
     // Cause the name conclict
-    auto rMkdir = executeInClient({"mkdir", syncDir + "/f01"});
+    auto rMkdir = executeInClient({"mkdir", syncDirCloud() + "f01"});
     ASSERT_TRUE(rMkdir.ok());
-    rMkdir = executeInClient({"mkdir", syncDir + conflictingName});
+    rMkdir = executeInClient({"mkdir", syncDirCloud() + conflictingName});
     ASSERT_TRUE(rMkdir.ok());
 
     stallUpdatedGuard.waitForEvent(std::chrono::seconds(10));
@@ -99,5 +109,6 @@ TEST_F(StalledIssuesTests, NameConflict)
     auto result = executeInClient({"stalled"});
     ASSERT_TRUE(result.ok());
     EXPECT_THAT(result.out(), testing::Not(testing::HasSubstr("There are no stalled issues")));
-    EXPECT_THAT(result.out(), testing::AnyOf(testing::HasSubstr(syncDir + "/f01"), testing::HasSubstr(syncDir + conflictingName)));
+    EXPECT_THAT(result.out(), testing::AnyOf(testing::HasSubstr(syncDirCloud() + "f01"), testing::HasSubstr(syncDirCloud() + conflictingName)));
+}
 }
