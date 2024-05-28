@@ -111,4 +111,3 @@ TEST_F(StalledIssuesTests, NameConflict)
     EXPECT_THAT(result.out(), testing::Not(testing::HasSubstr("There are no stalled issues")));
     EXPECT_THAT(result.out(), testing::AnyOf(testing::HasSubstr(syncDirCloud() + "f01"), testing::HasSubstr(syncDirCloud() + conflictingName)));
 }
-}
