@@ -1985,7 +1985,7 @@ const char * getUsageStr(const char *command)
 
     // FUSE commands.
     if (!strcmp(command, "fuse-add"))
-        return "fuse-add [--name=name] [--persistent] [--read-only] remotePath localPath";
+        return "fuse-add [--name=name] [--persistent] [--read-only] localPath remotePath";
 
     if (!strcmp(command, "fuse-disable"))
         return "fuse-disable (--by-name=name | --by-path=path) [--remember]";

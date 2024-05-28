@@ -10980,8 +10980,8 @@ void MegaCmdExecuter::fuseAddMount(const StringVector& arguments,
         return fuseBadArgument(arguments.front());
 
     // Clarity.
-    auto& localPath = arguments[2];
-    auto& remotePath = arguments[1];
+    auto& localPath = arguments[1];
+    auto& remotePath = arguments[2];
 
     if (localPath.empty() || remotePath.empty())
         return fuseBadArgument(arguments.front());
