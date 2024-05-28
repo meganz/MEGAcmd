@@ -3184,7 +3184,7 @@ string getHelpStr(const char *command)
         os << "Displays or sets FUSE flags." << endl;
         os << endl;
         os << "Options:" << endl;
-        os << "--log-level=(DEBUG|ERROR|INFO|WARNING)  Sets log level." << endl;
+        os << " --log-level=(DEBUG|ERROR|INFO|WARNING)  Sets log level." << endl;
     }
     return os.str();
 }
