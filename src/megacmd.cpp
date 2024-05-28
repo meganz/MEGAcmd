@@ -3157,14 +3157,14 @@ string getHelpStr(const char *command)
     }
     else if (!strcmp(command, "fuse-set"))
     {
-        os << "Displays the specified FUSE mount configurations if no options is given, or sets the specified FUSE mount configurations with the given options." << endl;
+        os << "Sets the specified FUSE mount configurations." << endl;
         os << endl;
         os << "Options:" << endl;
         os << " --by-name=name Specifies which mount by name." << endl;
         os << " --by-path=path Specifies which mount by path." << endl;
         os << " --disabled-at-startup Disables the mount on startup, meaning the mount will not be active on restart." << endl;
         os << " --enabled-at-startup  Enables the mount on startup, meaning the mount will be active on restart." << endl;
-        os << " --name=name           Sets the mount to the name." << endl;
+        os << " --name=name           Sets the name of the mount." << endl;
         os << " --persistent          Sets the mount as persistent, meaning it will remain across on restart." << endl;
         os << " --transient           Sets the mount as transient, meaning it will lost on restart." << endl;
         os << " --read-only           Sets the mount as read only." << endl;

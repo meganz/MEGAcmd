@@ -11352,9 +11352,10 @@ void MegaCmdExecuter::fuseMountFlags(const StringVector& arguments,
     // Not changing the mount's flags.
     if (!changing)
     {
-        OUTSTREAM << "Mount \""
+        OUTSTREAM << "No configuration has been changed.\n"
+                  << "Mount \""
                   << path
-                  << "\" has the following flags:\n"
+                  << "\" has the following configurations:\n"
                   << fuseToString(*flags_)
                   << endl;
 
