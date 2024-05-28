@@ -3181,7 +3181,7 @@ string getHelpStr(const char *command)
     }
     else if (!strcmp(command, "fuse-flags"))
     {
-        os << "Displays FUSE log level or sets FUSE log level" << endl;
+        os << "Displays or sets FUSE flags." << endl;
         os << endl;
         os << "Options:" << endl;
         os << "--log-level=(DEBUG|ERROR|INFO|WARNING)  Sets log level." << endl;
