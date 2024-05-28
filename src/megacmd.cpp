@@ -3125,24 +3125,24 @@ string getHelpStr(const char *command)
     {
         os << "Disables a specified fuse mount." << endl;
         os << endl;
-        os << "After a mount has been disabled, a user will no longer be able to access cloud entities via the mount's local path." << endl;
+        os << "After a mount has been disabled, its cloud entities will no longer be accessible via the mount's local path." << endl;
         os << endl;
         os << "Options:" << endl;
         os << " --by-name=name Specifies which mount by name." << endl;
         os << " --by-path=path Specifies which mount by path." << endl;
-        os << " --remember     Specifies whether to remember that this mount is disabled. Note that if you enable this option" << endl;
+        os << " --remember     Specifies whether to remember that this mount is disabled. Note that if this option is specified" << endl;
         os << "                on a transient mount, that mount will become persistent." << endl;
     }
     else if (!strcmp(command, "fuse-enable"))
     {
         os << "Enables a specified fuse mount." << endl;
         os << endl;
-        os << "After a mount has been enabled, a user will be able to access cloud entities via the mount's local path." << endl;
+        os << "After a mount has been enabled, its cloud entities will be accessible via the mount's local path." << endl;
         os << endl;
         os << "Options:" << endl;
         os << " --by-name=name Specifies which mount by name." << endl;
         os << " --by-path=path Specifies which mount by path." << endl;
-        os << " --remember     Specifies whether to remember that this mount is enabled. Note that if you enable this option" << endl;
+        os << " --remember     Specifies whether to remember that this mount is enabled. Note that if this option is specified" << endl;
         os << "                on a transient mount, that mount will become persistent." << endl;
     }
     else if (!strcmp(command, "fuse-remove"))
