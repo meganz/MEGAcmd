@@ -840,18 +840,7 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     }
     else if (thecommand == "fuse-flags")
     {
-        validOptValues->emplace("cache-clean-age-threshold");
-        validOptValues->emplace("cache-clean-interval");
-        validOptValues->emplace("cache-clean-size-threshold");
-        validOptValues->emplace("cache-max-size");
-        validOptValues->emplace("flush-delay");
         validOptValues->emplace("log-level");
-        validOptValues->emplace("mount-max-thread-count");
-        validOptValues->emplace("mount-max-thread-idle-time");
-        validOptValues->emplace("mount-min-thread-count");
-        validOptValues->emplace("service-max-thread-count");
-        validOptValues->emplace("service-max-thread-idle-time");
-        validOptValues->emplace("service-min-thread-count");
     }
     else if (thecommand == "fuse-show")
     {
@@ -2005,19 +1994,7 @@ const char * getUsageStr(const char *command)
         return "fuse-enable (--by-name=name | --by-path=path) [--remember]";
 
     if (!strcmp(command, "fuse-flags"))
-        return "fuse-flags "
-               "[--cache-clean-age-threshold=seconds] "
-               "[--cache-clean-interval=seconds] "
-               "[--cache-clean-size-threshold=size] "
-               "[--cache-max-size=size] "
-               "[--flush-delay=seconds] "
-               "[--log-level=(DEBUG|ERROR|INFO|WARNING)] "
-               "[--mount-max-thread-count=count] "
-               "[--mount-max-thread-idle-time=seconds] "
-               "[--mount-min-thread-count=count] "
-               "[--service-max-thread-count=count] "
-               "[--service-max-thread-idle-time=seconds] "
-               "[--service-min-thread-count=count]";
+        return "fuse-flags [--log-level=(DEBUG|ERROR|INFO|WARNING)]";
 
     if (!strcmp(command, "fuse-show"))
         return "fuse-show [--only-enabled | --by-name=name | --by-path=path]";
