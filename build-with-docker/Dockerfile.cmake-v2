@@ -8,7 +8,11 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     apt-get update \
     && apt-get install -y --no-install-recommends \
-    cmake zip pkg-config curl python3 autoconf-archive nasm git g++
+    cmake zip pkg-config curl python3 autoconf-archive nasm git g++ uuid-runtime
+
+RUN if [ ! -e /etc/machine-id ]; then \
+        uuidgen > /etc/machine-id; \
+    fi
 
 FROM base as build-deps-cmake
 
