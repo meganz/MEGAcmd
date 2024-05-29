@@ -815,7 +815,7 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     {
         validParams->insert("show-handles");
     }
-
+#if defined(WITH_FUSE)
     // FUSE commands.
     if (thecommand == "fuse-add")
     {
@@ -866,6 +866,7 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validOptValues->emplace("by-name");
         validOptValues->emplace("by-path");
     }
+#endif
 }
 
 void escapeEspace(string &orig)
@@ -1983,6 +1984,7 @@ const char * getUsageStr(const char *command)
     }
 #endif
 
+#if defined(WITH_FUSE)
     // FUSE commands.
     if (!strcmp(command, "fuse-add"))
         return "fuse-add [--name=name] [--persistent] [--read-only] localPath remotePath";
@@ -2008,6 +2010,7 @@ const char * getUsageStr(const char *command)
 
     if (!strcmp(command, "fuse-remove"))
         return "fuse-remove (--by-name=name | --by-path=path)";
+#endif
 
     return "command not found: ";
 }
@@ -3102,6 +3105,7 @@ string getHelpStr(const char *command)
         os << " M" << "\t" << "Sets the secondary codepage to M, which is used if the primary can't translate a character." << endl;
     }
 #endif
+#if defined(WITH_FUSE)
     else if (!strcmp(command, "fuse-add"))
     {
         os << "Adds a new FUSE mount to the database." << endl;
@@ -3186,6 +3190,7 @@ string getHelpStr(const char *command)
         os << "Options:" << endl;
         os << " --log-level=(DEBUG|ERROR|INFO|WARNING)  Sets log level." << endl;
     }
+#endif
     return os.str();
 }
 

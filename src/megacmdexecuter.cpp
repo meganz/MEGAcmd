@@ -10889,6 +10889,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         }
 
     }
+#if defined(WITH_FUSE)
     else if (words[0] == "fuse-add")
         fuseAddMount(words, *clflags, *cloptions);
     else if (words[0] == "fuse-disable")
@@ -10903,6 +10904,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         fuseMountFlags(words, *clflags, *cloptions);
     else if (words[0] == "fuse-remove")
         fuseRemoveMount(words, *clflags, *cloptions);
+#endif
     else
     {
         setCurrentOutCode(MCMD_EARGS);
