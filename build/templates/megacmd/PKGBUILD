@@ -27,7 +27,7 @@ url="http://mega.nz/cmd"
 license=("https://github.com/meganz/megacmd/blob/master/LICENSE")
 groups=()
 depends=('glibc>=2.37' 'sqlite' 'openssl>=1.1.1' 'zlib' 'libpsl' 'icu>=69.1' 'bash-completion' 'pcre' 'bzip2' 'xz')
-makedepends=('unzip' 'wget' 'ca-certificates' 'ffmpeg-mega' 'pdfium-mega' 'bzip2' 'xz')
+makedepends=('unzip' 'wget' 'ca-certificates' 'ffmpeg-mega' 'pdfium-mega' 'bzip2' 'xz' 'gcc13')
 checkdepends=()
 optdepends=()
 provides=("megacmd=${pkgver}" 'ffmpeg-mega')
@@ -49,6 +49,11 @@ prepare() {
 
 build() {
 	set -x
+
+	# Set env variables to use gcc 13 compiler instead of system's
+	export CC=/usr/bin/gcc-13
+	export CXX=/usr/bin/g++-13
+
 	cd "$pkgname-$pkgver"
 	./autogen.sh
 
