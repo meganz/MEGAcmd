@@ -70,7 +70,7 @@ int main (int argc, char *argv[])
         };
 
         megacmd::executeServer(1, args.data(),
-                               ::mega::make_unique<megacmd::LoggedStreamDefaultFile>());
+                               std::make_unique<megacmd::LoggedStreamDefaultFile>());
     });
 
     using TI = TestInstruments;
