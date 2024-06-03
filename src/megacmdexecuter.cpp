@@ -10989,7 +10989,7 @@ void MegaCmdExecuter::fuseAddMount(const StringVector& arguments,
         return fuseBadArgument(arguments.front());
 
     auto name = getOption(&options, "name");
-    auto persistent = getFlag(&flags, "persistent");
+    auto persistent = !getFlag(&flags, "transient");
     auto readOnly = getFlag(&flags, "read-only");
 
     // Try and locate the specified remote node.

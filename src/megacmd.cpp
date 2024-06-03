@@ -821,7 +821,7 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     {
         validOptValues->emplace("name");
 
-        validParams->emplace("persistent");
+        validParams->emplace("transient");
         validParams->emplace("read-only");
     }
     else if (thecommand == "fuse-disable")
@@ -1987,7 +1987,7 @@ const char * getUsageStr(const char *command)
 #if defined(WITH_FUSE)
     // FUSE commands.
     if (!strcmp(command, "fuse-add"))
-        return "fuse-add [--name=name] [--persistent] [--read-only] localPath remotePath";
+        return "fuse-add [--name=name] [--transient] [--read-only] localPath remotePath";
 
     if (!strcmp(command, "fuse-disable"))
         return "fuse-disable (--by-name=name | --by-path=path) [--remember]";
@@ -3110,8 +3110,8 @@ string getHelpStr(const char *command)
     {
         os << "Adds a new FUSE mount to the database." << endl;
         os << endl;
-        os << "Mounts must be added to the database before they can be enabled." << endl;
-        os << "Mounts are transient and writable by default." << endl;
+        os << "Mounts must be added to the database before they can be enabled. See fuse-enable." << endl;
+        os << "Mounts are persistent and writable by default." << endl;
         os << endl;
         os << "Parameters:" << endl;
         os << " localPath    Specifies where the files contained by remotePath should be visible on the local filesystem." << endl;
@@ -3123,7 +3123,8 @@ string getHelpStr(const char *command)
         os << "              drive, the mount's name will be \"MEGA\". If remotePath specifies the rubbish bin, the mount's" << endl;
         os << "              name will be \"MEGA Rubbish\"." << endl;
         os << " --read-only  Specifies that the mount should be read-only. Otherwise, the mount is writable." << endl;
-        os << " --persistent Specifies that the mount should be persistent. Otherwise, the mount is transient." << endl;
+        os << " --transient  Specifies that the mount should be transient, meaning it will lost on restart." << endl; 
+        os << "              Otherwise, the mount is persistent, meaning it will remain across on restart." << endl;
     }
     else if (!strcmp(command, "fuse-disable"))
     {
@@ -3153,7 +3154,7 @@ string getHelpStr(const char *command)
     {
         os << "Removes a specified FUSE mount from the database." << endl;
         os << endl;
-        os << "A mount must be disabled before it can be removed." << endl;
+        os << "A mount must be disabled before it can be removed. See fuse-disable." << endl;
         os << endl;
         os << "Options:" << endl;
         os << " --by-name=name Specifies which mount by name." << endl;
