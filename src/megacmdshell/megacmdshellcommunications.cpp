@@ -177,7 +177,7 @@ SOCKET MegaCmdShellCommunications::createSocket(int number, bool initializeserve
                 ZeroMemory( &pi, sizeof(pi) );
 
 #ifndef NDEBUG
-                LPCWSTR t = TEXT("..\\MEGAcmdServer\\debug\\MEGAcmdServer.exe");
+                LPCWSTR t = TEXT(".\\MEGAcmdServer.exe");
                 if (true)
                 {
 #else
@@ -297,14 +297,10 @@ SOCKET MegaCmdShellCommunications::createSocket(int number, bool initializeserve
 
                     freopen(std::string(pathtolog).append(".out").c_str(),"w",stdout);
                     freopen(std::string(pathtolog).append(".err").c_str(),"w",stderr);
-    #ifndef NDEBUG
 
-        #ifdef __MACH__
-                    const char executable[] = "../../../../MEGAcmdServer/MEGAcmd.app/Contents/MacOS/MEGAcmd";
-        #else
-                    const char executable[] = "../MEGAcmdServer/MEGAcmd";
-        #endif
-                    const char executable2[] = "./mega-cmd-server";
+    #ifndef NDEBUG
+                    const char executable[] = "./mega-cmd-server";
+                    const char executable2[] = "mega-cmd-server";
     #else
         #ifdef __MACH__
                     const char executable[] = "/Applications/MEGAcmd.app/Contents/MacOS/mega-cmd";
@@ -320,29 +316,30 @@ SOCKET MegaCmdShellCommunications::createSocket(int number, bool initializeserve
         #endif
     #endif
 
-                    std::vector<char*> argsVector{
-                        (char *)executable,
-                        (char *)"--log-to-file",
+                    std::vector<const char*> argsVector{
+                        executable,
+                        "--log-to-file",
                         nullptr
                     };
 
                     auto args = const_cast<char* const*>(argsVector.data());
+                    int ret = execvp(executable, args);
 
-                    int ret = execvp(executable,args);
-
-                    if (ret && errno == 2 )
+                    if (ret && errno == 2)
                     {
                         cerr << "Couln't initiate MEGAcmd server: executable not found: " << executable << endl;
+
                         cerr << "Trying to use alternative executable: " << executable2 << endl;
-                        argsVector[0]=(char *)executable2;
-                        ret = execvp(executable2,args);
-                        if (ret && errno == 2 )
+
+                        argsVector[0] = executable2;
+                        ret = execvp(executable2, args);
+                        if (ret && errno == 2)
                         {
                             cerr << "Couln't initiate MEGAcmd server: executable not found: " << executable2 << endl;
                         }
                     }
 
-                    if (ret && errno !=2 )
+                    if (ret && errno != 2)
                     {
                         cerr << "MEGAcmd server exit with code " << ret << " . errno = " << errno << endl;
                     }

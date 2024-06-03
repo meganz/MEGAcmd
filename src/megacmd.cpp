@@ -3393,7 +3393,7 @@ bool executeUpdater(bool *restartRequired, bool doNotInstall = false)
 #ifdef _WIN32
 
 #ifndef NDEBUG
-    LPCWSTR szPath = TEXT("..\\MEGAcmdUpdater\\debug\\MEGAcmdUpdater.exe");
+    LPCWSTR szPath = TEXT(".\\MEGAcmdUpdater.exe");
 #else
     TCHAR szPath[MAX_PATH];
 
