@@ -220,6 +220,17 @@ Verbosity: You can increase the amount of information given by any command by pa
 * [`backup`](#backup)`localpath remotepath --period="PERIODSTRING" --num-backups=N`  Set up a new backup folder and/or schedule
 * [`backup`](#backup)`[-lhda] [TAG|localpath] [--period="PERIODSTRING"] [--num-backups=N])`  View/Modify an existing backup schedule 
 
+### FUSE (mount your cloud folder to the local system)
+* [`fuse-add`](#fuse-add)`[--name=name] [--transient] [--read-only] localPath remotePath` Adds a new FUSE mount to the database
+* [`fuse-disable`](#fuse-disable)`(--by-name=name | --by-path=path) [--remember]` Disables a specified fuse mount
+* [`fuse-enable`](#fuse-enable)`(--by-name=name | --by-path=path) [--remember]` Enables a specified fuse mount
+* [`fuse-flags`](#fuse-flags)`[--log-level=(DEBUG|ERROR|INFO|WARNING)]` Displays or sets FUSE flags
+* [`fuse-remove`](#fuse-remove)`(--by-name=name | --by-path=path)` Removes a specified FUSE mount from the database
+* [`fuse-set`](#fuse-set)`(--by-name=name | --by-path=path) [--disabled-at-startup | --enabled-at-startup] [--name=name] [--persiste│
+nt | --transient] [--read-only | --writable]` Sets the specified FUSE mount configurations
+* [`fuse-show`](#fuse-show)`[--only-enabled | --by-name=name | --by-path=path]` Displays the list of FUSE mounts and their informatio
+n, or a FUSE mount and its information if specified by name or path
+
 ### Sharing (your own files, of course, without infringing any copyright)
 * [`cp`](#cp)`srcremotepath dstremotepath|dstemail` Moves a file/folder into a new location (all remotes)
 * [`export`](#export)`[-d|-a [--expire=TIMEDELAY]] [remotepath]` Prints/Modifies the status of current exports
@@ -496,6 +507,106 @@ Options:
                            "+1m12k3B" shows files bigger than 1 Mega, 12 Kbytes and 3Bytes
                            "-3M" shows files smaller than 3 Megabytes
                            "-4M+100K" shows files smaller than 4 Mbytes and bigger than 100 Kbytes
+</pre>
+
+### fuse-add
+Adds a new FUSE mount to the database.
+
+Usage: `fuse-add [--name=name] [--transient] [--read-only] localPath remotePath`
+<pre>
+Mounts must be added to the database before they can be enabled.
+Mounts are persistent and writable by default.
+
+Parameters:
+ localPath    Specifies where the files contained by remotePath should be visible on the local filesystem.
+ remotePath   Specifies what directory (or share) should be exposed on the local filesystem.
+
+Options:
+ --name=name  A user friendly name which the mount can be identified by. If not provided, the display name
+              of the entity specified by remotePath will be used. If remotePath specifies the entire cloud
+              drive, the mount's name will be "MEGA". If remotePath specifies the rubbish bin, the mount's
+              name will be "MEGA Rubbish".
+ --read-only  Specifies that the mount should be read-only. Otherwise, the mount is writable.
+ --transient  Specifies that the mount should be transient, meaning it will lost on restart.
+              Otherwise, the mount is persistent, meaning it will remain across on restart.
+</pre>
+
+### fuse-disable
+Disables a specified fuse mount.
+
+Usage: `fuse-disable (--by-name=name | --by-path=path) [--remember]`
+<pre>
+After a mount has been disabled, its cloud entities will no longer be accessible via the mount's local path.
+
+Options:
+ --by-name=name Specifies which mount by name.
+ --by-path=path Specifies which mount by path.
+ --remember     Specifies whether to remember that this mount is disabled. Note that if this option is specified
+                on a transient mount, that mount will become persistent.
+</pre>
+
+### fuse-enable
+Enables a specified fuse mount.
+
+Usage: `fuse-enable (--by-name=name | --by-path=path) [--remember]`
+<pre>
+After a mount has been enabled, its cloud entities will be accessible via the mount's local path.
+
+Options:
+ --by-name=name Specifies which mount by name.
+ --by-path=path Specifies which mount by path.
+ --remember     Specifies whether to remember that this mount is enabled. Note that if this option is specified
+                on a transient mount, that mount will become persistent.
+</pre>
+
+### fuse-flags
+Displays or sets FUSE flags.
+
+Usage: `fuse-flags [--log-level=(DEBUG|ERROR|INFO|WARNING)]`
+
+<pre>
+Options:
+ --log-level=(DEBUG|ERROR|INFO|WARNING)  Sets log level.
+</pre>
+
+### fuse-remove
+Removes a specified FUSE mount from the database.
+
+Usage: `fuse-remove (--by-name=name | --by-path=path)`
+<pre>
+A mount must be disabled before it can be removed.
+
+Options:
+ --by-name=name Specifies which mount by name.
+ --by-path=path Specifies which mount by path.
+</pre>
+
+### fuse-set
+Sets the specified FUSE mount configurations.
+
+Usage: `fuse-set (--by-name=name | --by-path=path) [--disabled-at-startup | --enabled-at-startup] [--name=name] [--persistent | --transient] [--read-only | --writable]`
+<pre>
+Options:
+ --by-name=name Specifies which mount by name.
+ --by-path=path Specifies which mount by path.
+ --disabled-at-startup Disables the mount on startup, meaning the mount will not be active on restart.
+ --enabled-at-startup  Enables the mount on startup, meaning the mount will be active on restart.
+ --name=name           Sets the name of the mount.
+ --persistent          Sets the mount as persistent, meaning it will remain across on restart.
+ --transient           Sets the mount as transient, meaning it will lost on restart.
+ --read-only           Sets the mount as read only.
+ --writable            Sets the mount as writable.
+</pre>
+
+### fuse-show
+Displays the list of FUSE mounts and their information, or a FUSE mount and its information if specified by name or path.
+
+Usage: `fuse-show [--only-enabled | --by-name=name | --by-path=path]`
+<pre>
+Options:
+ --by-name=name Specifies which mount by name.
+ --by-path=path Specifies which mount by path.
+ --only-enabled Shows enabled mounts.
 </pre>
 
 ### get
