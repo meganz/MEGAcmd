@@ -3473,17 +3473,17 @@ bool executeUpdater(bool *restartRequired, bool doNotInstall = false)
         char* version = const_cast<char*>(versionStr.c_str());
 
 #ifdef __MACH__
-#ifndef NDEBUG
-        char * args[] = {"../../../../MEGAcmdUpdater/MEGAcmdUpdater.app/Contents/MacOS/MEGAcmdUpdater", "--normal-update", donotinstallstr, "--version", version, NULL};
-#else
+    #ifndef NDEBUG
+        char * args[] = {"./mega-cmd-updater", "--normal-update", donotinstallstr, "--version", version, NULL};
+    #else
         char * args[] = {"/Applications/MEGAcmd.app/Contents/MacOS/MEGAcmdUpdater", "--normal-update", donotinstallstr, "--version", version, NULL};
-#endif
-#else //linux don't use autoupdater: this is just for testing
-#ifndef NDEBUG
-        char * args[] = {"../MEGAcmdUpdater/MEGAcmdUpdater", "--normal-update", donotinstallstr, "--version", version, NULL}; // notice: won't work after lcd
-#else
-        char * args[] = {"mega-cmd-updater", "--normal-update", donotinstallstr, "--version", version, NULL};
-#endif
+    #endif
+#else //linux doesn't use autoupdater: this is just for testing
+    #ifndef NDEBUG
+            char * args[] = {"./mega-cmd-updater", "--normal-update", donotinstallstr, "--version", version, NULL}; // notice: won't work after lcd
+    #else
+            char * args[] = {"mega-cmd-updater", "--normal-update", donotinstallstr, "--version", version, NULL};
+    #endif
 #endif
 
         LOG_verbose << "Exec updater line: " << args[0] << " " << args[1] << " " << args[2];
