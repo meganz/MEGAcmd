@@ -129,6 +129,7 @@ execute_checked_command(
 # We search our own custom triplet folder, and then the standard ones searched by vcpkg
 foreach(_triplet_dir
     "${_sdk_dir}/contrib/cmake/vcpkg_overlay_triplets/"
+    "${_sdk_dir}/contrib/cmake/vcpkg_extra_triplets/"
     "${_3rdparty_vcpkg_dir}/triplets/"
     "${_3rdparty_vcpkg_dir}/triplets/community"
 )

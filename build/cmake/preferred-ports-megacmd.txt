@@ -25,8 +25,9 @@ ncurses/7476f0d4e77d3333fbb249657df8251c28c4faae all:off osx:on
 sqlite3/7476f0d4e77d3333fbb249657df8251c28c4faae
 zlib/7476f0d4e77d3333fbb249657df8251c28c4faae
 
-# needed by the SDK if enabling serving/streaming (outgoing) files via http/s or include a an ftp server
-libuv/7476f0d4e77d3333fbb249657df8251c28c4faae ios:off
+# needed by the SDK if enabling serving/streaming (outgoing) files via http/s or include a ftp server
+libuv/293f090a9be5a88a2a77838c6346d5ef9d3df81b all:off windows:on
+libuv/7476f0d4e77d3333fbb249657df8251c28c4faae all:on windows:off
 
 # mediainfo, customized with constrained functionality (determine media properties such as track length, codec, etc)
 libmediainfo/23.4

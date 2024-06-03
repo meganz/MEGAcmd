@@ -5,10 +5,10 @@
 #define MEGACMD_MAJOR_VERSION 1
 #endif
 #ifndef MEGACMD_MINOR_VERSION
-#define MEGACMD_MINOR_VERSION 6
+#define MEGACMD_MINOR_VERSION 7
 #endif
 #ifndef MEGACMD_MICRO_VERSION
-#define MEGACMD_MICRO_VERSION 3
+#define MEGACMD_MICRO_VERSION 0
 #endif
 
 #ifndef MEGACMD_BUILD_ID
@@ -21,9 +21,13 @@
 namespace megacmd {
 
 const char * const megacmdchangelog =
-        "Improvements in session resumption""\n"
-        "Fixes for undecryptable nodes""\n"
-        "Stability and preformance fixes"
+        "Improved startup time""\n"
+        "Reduced memory consumption: cached metadata is no longer loaded at startup""\n"
+        "Fixes and improvements in whoami, ls, backup and export commands""\n"
+        "Fixed several memory leaks and improved overall memory consumption""\n"
+        "Fixed file permissions on Unix""\n"
+        "Added support for the Apple silicon (M1)""\n"
+        "Many other fixes and improvements"
         ;
 
 }//end namespace
