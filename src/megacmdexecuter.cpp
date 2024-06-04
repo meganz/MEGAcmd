@@ -3459,7 +3459,7 @@ bool MegaCmdExecuter::amIPro()
     return prolevel > 0;
 }
 
-void MegaCmdExecuter::exportNode(MegaNode *n, int64_t expireTime, std::string password,
+void MegaCmdExecuter::exportNode(MegaNode *n, int64_t expireTime, const std::optional<std::string>& password,
                                  std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions)
 {
     const bool force = getFlag(clflags,"f");
@@ -3560,7 +3560,7 @@ void MegaCmdExecuter::exportNode(MegaNode *n, int64_t expireTime, std::string pa
     }
 
     string publicPassProtectedLink;
-    if (password.size())
+    if (password)
     {
         // Encrypting links with passwords is a client-side operation that will be done regardless
         // of PRO status of the account. So we need to manually check for it before calling
@@ -3568,7 +3568,7 @@ void MegaCmdExecuter::exportNode(MegaNode *n, int64_t expireTime, std::string pa
         if (amIPro())
         {
             megaCmdListener.reset(new MegaCmdListener(api, nullptr));
-            api->encryptLinkWithPassword(publicLink.get(), password.c_str(), megaCmdListener.get());
+            api->encryptLinkWithPassword(publicLink.get(), password->c_str(), megaCmdListener.get());
             megaCmdListener->wait();
 
             if (checkNoErrors(megaCmdListener->getError(), "protect public link with password"))
@@ -9630,15 +9630,17 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
         const bool add = getFlag(clflags, "a");
 
-        auto passwordPair = getOptionOrFalse(*cloptions, "password");
-        const auto &linkPass = passwordPair.first;
+        auto passwordOpt = getOptionAsOptional(*cloptions, "password");
 
         // When the user passes "--password" without "=" it gets treated as a flag, so
         // it's inserted into `clflags`. We'll treat this as hasPassword=true as well
         // to ensure we log the "password is empty" error to the user.
-        const bool hasPassword = passwordPair.second || getFlag(clflags, "password");
+        if (!passwordOpt && getFlag(clflags, "password"))
+        {
+            passwordOpt = "";
+        }
 
-        if (!add && (hasPassword || expireTime > 0 || getFlag(clflags, "f") || getFlag(clflags, "writable") || getFlag(clflags, "mega-hosted")))
+        if (!add && (passwordOpt || expireTime > 0 || getFlag(clflags, "f") || getFlag(clflags, "writable") || getFlag(clflags, "mega-hosted")))
         {
             setCurrentOutCode(MCMD_EARGS);
             LOG_err << "Option can only be used when adding an export (with -a)";
@@ -9648,7 +9650,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
         // This will be true for '--password', '--password=', and '--password=""'
         // Note: --password='' will use the '' string as the actual password
-        if (hasPassword && linkPass.empty())
+        if (passwordOpt && passwordOpt->empty())
         {
             setCurrentOutCode(MCMD_EARGS);
             LOG_err << "Password cannot be empty";
@@ -9682,7 +9684,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         if (!n->isExported())
                         {
                             LOG_debug << " exporting ... " << n->getName() << " expireTime=" << expireTime;
-                            exportNode(n.get(), expireTime, linkPass, clflags, cloptions);
+                            exportNode(n.get(), expireTime, passwordOpt, clflags, cloptions);
                         }
                         else
                         {
@@ -9720,7 +9722,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         if (!n->isExported())
                         {
                             LOG_debug << " exporting ... " << n->getName();
-                            exportNode(n.get(), expireTime, linkPass, clflags, cloptions);
+                            exportNode(n.get(), expireTime, passwordOpt, clflags, cloptions);
                         }
                         else
                         {

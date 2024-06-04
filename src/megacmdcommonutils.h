@@ -37,6 +37,7 @@
 #include <mutex>
 #include <condition_variable>
 #include <cassert>
+#include <optional>
 
 #ifndef UNUSED
     #define UNUSED(x) (void)(x)
@@ -241,8 +242,7 @@ int getFlag(std::map<std::string, int> *flags, const char * optname);
 
 std::string getOption(std::map<std::string, std::string> *cloptions, const char * optname, std::string defaultValue = "");
 
-// TODO C++17 Use std::optional<string> instead
-std::pair<std::string, bool> getOptionOrFalse(const std::map<std::string, std::string>& cloptions, const char * optname);
+std::optional<std::string> getOptionAsOptional(const std::map<std::string, std::string>& cloptions, const char * optname);
 
 int getintOption(std::map<std::string, std::string> *cloptions, const char * optname, int defaultValue = 0);
 
