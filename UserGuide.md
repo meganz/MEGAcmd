@@ -527,8 +527,8 @@ Options:
               drive, the mount's name will be "MEGA". If remotePath specifies the rubbish bin, the mount's
               name will be "MEGA Rubbish".
  --read-only  Specifies that the mount should be read-only. Otherwise, the mount is writable.
- --transient  Specifies that the mount should be transient, meaning it will lost on restart.
-              Otherwise, the mount is persistent, meaning it will remain across on restart.
+ --transient  Specifies that the mount should be transient, meaning it will be lost on restart.
+              Otherwise, the mount is persistent, meaning it will remain across on restarts.
 </pre>
 
 ### fuse-disable
@@ -592,8 +592,8 @@ Options:
  --disabled-at-startup Disables the mount on startup, meaning the mount will not be active on restart.
  --enabled-at-startup  Enables the mount on startup, meaning the mount will be active on restart.
  --name=name           Sets the name of the mount.
- --persistent          Sets the mount as persistent, meaning it will remain across on restart.
- --transient           Sets the mount as transient, meaning it will lost on restart.
+ --persistent          Sets the mount as persistent, meaning it will remain across on restarts.
+ --transient           Sets the mount as transient, meaning it will be lost on restart.
  --read-only           Sets the mount as read only.
  --writable            Sets the mount as writable.
 </pre>
@@ -606,7 +606,7 @@ Usage: `fuse-show [--only-enabled | --by-name=name | --by-path=path]`
 Options:
  --by-name=name Specifies which mount by name.
  --by-path=path Specifies which mount by path.
- --only-enabled Shows enabled mounts.
+ --only-enabled Only shows mounts that are enabled.
 </pre>
 
 ### get

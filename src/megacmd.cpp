@@ -3123,8 +3123,8 @@ string getHelpStr(const char *command)
         os << "              drive, the mount's name will be \"MEGA\". If remotePath specifies the rubbish bin, the mount's" << endl;
         os << "              name will be \"MEGA Rubbish\"." << endl;
         os << " --read-only  Specifies that the mount should be read-only. Otherwise, the mount is writable." << endl;
-        os << " --transient  Specifies that the mount should be transient, meaning it will lost on restart." << endl; 
-        os << "              Otherwise, the mount is persistent, meaning it will remain across on restart." << endl;
+        os << " --transient  Specifies that the mount should be transient, meaning it will be lost on restart." << endl;
+        os << "              Otherwise, the mount is persistent, meaning it will remain across on restarts." << endl;
     }
     else if (!strcmp(command, "fuse-disable"))
     {
@@ -3170,8 +3170,8 @@ string getHelpStr(const char *command)
         os << " --disabled-at-startup Disables the mount on startup, meaning the mount will not be active on restart." << endl;
         os << " --enabled-at-startup  Enables the mount on startup, meaning the mount will be active on restart." << endl;
         os << " --name=name           Sets the name of the mount." << endl;
-        os << " --persistent          Sets the mount as persistent, meaning it will remain across on restart." << endl;
-        os << " --transient           Sets the mount as transient, meaning it will lost on restart." << endl;
+        os << " --persistent          Sets the mount as persistent, meaning it will remain across on restarts." << endl;
+        os << " --transient           Sets the mount as transient, meaning it will be lost on restart." << endl;
         os << " --read-only           Sets the mount as read only." << endl;
         os << " --writable            Sets the mount as writable." << endl;
     }
@@ -3182,7 +3182,7 @@ string getHelpStr(const char *command)
         os << "Options:" << endl;
         os << " --by-name=name Specifies which mount by name." << endl;
         os << " --by-path=path Specifies which mount by path." << endl;
-        os << " --only-enabled Shows enabled mounts." << endl;
+        os << " --only-enabled Only shows mounts that are enabled." << endl;
     }
     else if (!strcmp(command, "fuse-flags"))
     {
