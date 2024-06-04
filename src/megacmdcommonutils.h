@@ -37,10 +37,15 @@
 #include <mutex>
 #include <condition_variable>
 #include <cassert>
+#include <optional>
 
 #ifndef UNUSED
     #define UNUSED(x) (void)(x)
 #endif
+
+#define MOVE_CAPTURE(x) x{std::move(x)}
+#define FWD_CAPTURE(x) x{std::forward<decltype(x)>(x)}
+#define CONST_CAPTURE(x) &x = std::as_const(x)
 
 using std::setw;
 using std::left;
@@ -241,8 +246,7 @@ int getFlag(std::map<std::string, int> *flags, const char * optname);
 
 std::string getOption(std::map<std::string, std::string> *cloptions, const char * optname, std::string defaultValue = "");
 
-// TODO C++17 Use std::optional<string> instead
-std::pair<std::string, bool> getOptionOrFalse(const std::map<std::string, std::string>& cloptions, const char * optname);
+std::optional<std::string> getOptionAsOptional(const std::map<std::string, std::string>& cloptions, const char * optname);
 
 int getintOption(std::map<std::string, std::string> *cloptions, const char * optname, int defaultValue = 0);
 
@@ -437,11 +441,10 @@ class Instance : protected BaseInstance<T>
 {
     T mInstance;
 
-    //TODO: afer CMD-316, we can have inline and inintialized these:
-    /*inline */static std::mutex sPendingRogueOnesMutex;
-    /*inline */static std::condition_variable sPendingRogueOnesCV;
-    /*inline */static unsigned sPendingRogueOnes/* = 0*/;
-    /*inline */static bool sAssertOnDestruction/* = false*/;
+    inline static std::mutex sPendingRogueOnesMutex;
+    inline static std::condition_variable sPendingRogueOnesCV;
+    inline static unsigned sPendingRogueOnes = 0;
+    inline static bool sAssertOnDestruction = false;
 public:
     static bool waitForExplicitDependents()
     {
@@ -505,15 +508,6 @@ public:
     }
 #endif //MEGACMD_TESTING_CODE
  };
-
-template <typename T>
-std::mutex Instance<T>::sPendingRogueOnesMutex;
-template <typename T>
-std::condition_variable Instance<T>::sPendingRogueOnesCV;
-template <typename T>
-unsigned Instance<T>::sPendingRogueOnes = 0;
-template <typename T>
-bool Instance<T>::sAssertOnDestruction = false;
 
 }//end namespace
 #endif // MEGACMDCOMMONUTILS_H
