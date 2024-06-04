@@ -300,7 +300,6 @@ SOCKET MegaCmdShellCommunications::createSocket(int number, bool initializeserve
 
     #ifndef NDEBUG
                     const char executable[] = "./mega-cmd-server";
-                    const char executable2[] = "mega-cmd-server";
     #else
         #ifdef __MACH__
                     const char executable[] = "/Applications/MEGAcmd.app/Contents/MacOS/mega-cmd";
@@ -329,6 +328,7 @@ SOCKET MegaCmdShellCommunications::createSocket(int number, bool initializeserve
                     {
                         cerr << "Couln't initiate MEGAcmd server: executable not found: " << executable << endl;
 
+                    #ifdef NDEBUG
                         cerr << "Trying to use alternative executable: " << executable2 << endl;
 
                         argsVector[0] = executable2;
@@ -337,6 +337,7 @@ SOCKET MegaCmdShellCommunications::createSocket(int number, bool initializeserve
                         {
                             cerr << "Couln't initiate MEGAcmd server: executable not found: " << executable2 << endl;
                         }
+                    #endif
                     }
 
                     if (ret && errno != 2)
