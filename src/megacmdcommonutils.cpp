@@ -1485,11 +1485,11 @@ void Field::updateMaxValue(int newcandidate)
 std::unique_ptr<PlatformDirectories> PlatformDirectories::getPlatformSpecificDirectories()
 {
 #ifdef _WIN32
-    return std::unique_ptr<PlatformDirectories>(new WindowsDirectories);
+    return std::make_unique<WindowsDirectories>();
 #elif defined(__APPLE__)
-    return std::unique_ptr<PlatformDirectories>(new MacOSDirectories);
+    return std::make_unique<MacOSDirectories>();
 #else
-    return std::unique_ptr<PlatformDirectories>(new PosixDirectories);
+    return std::make_unique<PosixDirectories>();
 #endif
 }
 
