@@ -41,7 +41,8 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     libzen0v5 \
     zlib1g \
     gpg \
-    /tmp/pdfium/pdfium-mega.deb
+    /tmp/pdfium/pdfium-mega.deb \
+    fuse
 
 FROM base as build-deps
 
@@ -74,7 +75,8 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     libzen-dev \
     pkg-config \
     zip \
-    zlib1g-dev
+    zlib1g-dev \
+    libfuse-dev
 
 FROM build-deps as build-deps-cmake
 
