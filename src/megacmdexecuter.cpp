@@ -2073,7 +2073,7 @@ void MegaCmdExecuter::listnodeshares(MegaNode* n, string name, bool listPending 
 {
     assert(listPending || !onlyPending);
 
-    auto printOutShares = [n, &name](MegaShareList * outShares, bool skipPending = false)
+    auto printOutShares = [n, CONST_CAPTURE(name)](MegaShareList * outShares, bool skipPending = false)
     {
         if (outShares)
         {
@@ -9714,8 +9714,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 std::unique_ptr<MegaNode> n = nodebypath(words[i].c_str());
                 if (n)
                 {
-                    // In C++17, we can do [&words = std::as_const(words), i] to capture by const reference instead
-                    auto nodeName = [&words, i] { return (words[i] == "." ? "current folder" : "<" + words[i] + ">"); };
+                    auto nodeName = [CONST_CAPTURE(words), i] { return (words[i] == "." ? "current folder" : "<" + words[i] + ">"); };
 
                     if (add)
                     {
