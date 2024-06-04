@@ -43,5 +43,8 @@ option(ENABLE_ISOLATED_GFX "Turns on isolated GFX processor" OFF)
 option(ENABLE_SDKLIB_WERROR "Enable warnings as errors" OFF)
 if(NOT APPLE)
     option(WITH_FUSE "Build with FUSE support." ON)
+endif()
+
+if(WITH_FUSE)
     add_compile_definitions(WITH_FUSE=1)
 endif()
