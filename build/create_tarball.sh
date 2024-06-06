@@ -20,6 +20,7 @@
 
 set -euo pipefail
 IFS=$'\n\t'
+BASEPATH=$(pwd)/../
 
 # get current version
 megacmd_VERSION=$(cat $BASEPATH/src/megacmdversion.h  | grep define | grep _VERSION | grep -v CODE | head -n 3 | awk 'BEGIN{ORS=""; first=1}{if(first){first=0;}else{print ".";}print $3}')
