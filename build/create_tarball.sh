@@ -91,7 +91,6 @@ for i in $BASEPATH/{src,sdk}; do
 	ln -s $i $megacmd_NAME/
 done
 
-ln -s $archives $megacmd_NAME/archives
 tar czfh $megacmd_NAME.tar.gz --exclude-vcs $megacmd_NAME
 rm -rf $megacmd_NAME
 
@@ -106,4 +105,3 @@ sed "s/MD5SUM/$MD5SUM/g"  -i megacmd/PKGBUILD
 
 ######
 ######
-rm -fr $archives
