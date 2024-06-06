@@ -16,7 +16,10 @@
         "use-freeimage": {
             "description": "FreeImage library",
             "dependencies": [
-                "freeimage",
+                {
+                    "name": "freeimage",
+                    "version>=" : "3.18.0#27"
+                },
                 {
                     "name": "jasper",
                     "default-features": false
