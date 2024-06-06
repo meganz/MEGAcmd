@@ -21,27 +21,6 @@
 set -euo pipefail
 IFS=$'\n\t'
 
-# make sure the source tree is in "clean" state
-cwd=$(pwd)
-BASEPATH=$(pwd)/../
-cd ../src
-make clean 2> /dev/null || true
-
-#~ make distclean 2> /dev/null || true
-#~ cd megacmd
-#~ make distclean 2> /dev/null || true
-#~ cd mega
-#~ make distclean 2> /dev/null || true
-#~ rm -fr bindings/qt/3rdparty || true
-#~ ./clean.sh || true
-cd $cwd
-
-# download software archives
-archives=$cwd/archives
-rm -fr $archives
-mkdir $archives
-$BASEPATH/sdk/contrib/build_sdk.sh -q -e -g -w -s -v -u -o $archives
-
 # get current version
 megacmd_VERSION=$(cat $BASEPATH/src/megacmdversion.h  | grep define | grep _VERSION | grep -v CODE | head -n 3 | awk 'BEGIN{ORS=""; first=1}{if(first){first=0;}else{print ".";}print $3}')
 export megacmd_NAME=megacmd-$megacmd_VERSION
@@ -107,13 +86,9 @@ ln -s ../megacmd/debian.prerm $megacmd_NAME/debian.prerm
 ln -s ../megacmd/debian.postrm $megacmd_NAME/debian.postrm
 ln -s ../megacmd/debian.copyright $megacmd_NAME/debian.copyright
 
-for i in $BASEPATH/{autogen.sh,configure.ac,src,Makefile.am,sdk}; do
+for i in $BASEPATH/{src,sdk}; do
 	ln -s $i $megacmd_NAME/
 done
-mkdir $megacmd_NAME/m4 #create m4 empty folder required in older autotools
-
-mkdir -p $megacmd_NAME/contrib/
-ln -s $BASEPATH/sdk/contrib/build_sdk.sh $megacmd_NAME/contrib/
 
 ln -s $archives $megacmd_NAME/archives
 tar czfh $megacmd_NAME.tar.gz --exclude-vcs $megacmd_NAME

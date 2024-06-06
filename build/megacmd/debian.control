@@ -12,7 +12,8 @@ Build-Depends:  debhelper,
                 wget,
                 libtool,
                 dh-autoreconf,
-                cdbs
+                cdbs,
+                autoconf, autoconf-archive, nasm, cmake
 
 Package: megacmd
 Architecture: any
