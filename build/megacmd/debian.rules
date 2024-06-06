@@ -27,11 +27,6 @@ build-stamp:
 		mkdir -p $(VCPKG_DEFAULT_BINARY_CACHE); \
 	fi
 
-	#build dependencies into folder deps
-	mkdir deps || :
-	( $(EXPORTCCMFPU) ; bash -x ./sdk/contrib/build_sdk.sh -o archives \
-	  -g -b $(FMEDIAINFO) $(FCRYPTOPP) $(SQLITE3) -l -c -s -u -v -a -z -I -p deps/ )
-
 	if [ -f /opt/cmake.tar.gz ]; then echo "8dc99be7ba94ad6e14256b049e396b40  /opt/cmake.tar.gz" | md5sum -c -; fi
 	if [ -f /opt/cmake.tar.gz ]; then     \
 		tar xzf /opt/cmake.tar.gz;        \
