@@ -87,9 +87,12 @@ ln -s ../megacmd/debian.prerm $megacmd_NAME/debian.prerm
 ln -s ../megacmd/debian.postrm $megacmd_NAME/debian.postrm
 ln -s ../megacmd/debian.copyright $megacmd_NAME/debian.copyright
 
-for i in $BASEPATH/{src,sdk,tests,CMakeLists.txt,vcpkg.json,build}; do
+for i in $BASEPATH/{src,sdk,tests,CMakeLists.txt,vcpkg.json}; do
 	ln -s $i $megacmd_NAME/
 done
+
+mkdir $megacmd_NAME/build
+ln -sf $BASEPATH/build/cmake $megacmd_NAME/build/
 
 tar czfh $megacmd_NAME.tar.gz --exclude-vcs $megacmd_NAME
 rm -rf $megacmd_NAME
