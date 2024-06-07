@@ -87,7 +87,7 @@ ln -s ../megacmd/debian.prerm $megacmd_NAME/debian.prerm
 ln -s ../megacmd/debian.postrm $megacmd_NAME/debian.postrm
 ln -s ../megacmd/debian.copyright $megacmd_NAME/debian.copyright
 
-for i in $BASEPATH/{src,sdk}; do
+for i in $BASEPATH/{src,sdk,tests,CMakeLists.txt,vcpkg.json,build}; do
 	ln -s $i $megacmd_NAME/
 done
 
