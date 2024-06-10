@@ -65,7 +65,7 @@ build() {
 	fi
 
 	cmake --version
-	cmake ${VCPKG_ROOT} -DCMAKE_VERBOSE_MAKEFILE=ON -DCMAKE_BUILD_TYPE=Release -S "${megasrcdir}" -B "${megabuilddir}"
+	cmake ${vcpkg_root} -DCMAKE_VERBOSE_MAKEFILE=ON -DCMAKE_BUILD_TYPE=Release -S "${megasrcdir}" -B "${megabuilddir}"
 	cmake --build "${megabuilddir}" ${BUILD_PARALLEL_JOBS}
 
 
