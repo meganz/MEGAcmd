@@ -82,13 +82,4 @@ package() {
 	megabuilddir="${megasrcdir}/build_dir"
 
 	cmake --install "${megabuilddir}" --prefix $pkgdir
-
-	_bindir=$pkgdir/usr/bin
-	_confdir=$pkgdir/etc
-	mkdir -p $_confdir
-	#TODO: have these in cmake
-	for i in src/client/mega-*; do install -D $i $_bindir/${i/src\/client\//}; done
-	install -D src/client/megacmd_completion.sh $_confdir/bash_completion.d/megacmd_completion.sh
-	mkdir -p $_confdir/sysctl.d/
-	echo "fs.inotify.max_user_watches = 524288" > $pkgdir/etc/sysctl.d/99-megacmd-inotify-limit.conf
 }
