@@ -77,14 +77,6 @@ sed -i -E "s/(^#define MEGACMD_BUILD_ID )[0-9]*/\1${mega_build_id}/g" src/megacm
 #TODO: ensure these are met
 %define fullreqs -DREQUIRE_HAVE_PDFIUM -DREQUIRE_HAVE_FFMPEG -DREQUIRE_HAVE_LIBUV -DREQUIRE_USE_MEDIAINFO -DREQUIRE_USE_PCRE
 
-#build dependencies into folder deps
-mkdir deps || :
-bash -x ./contrib/build_sdk.sh %{flag_cryptopp} %{flag_libraw} %{flag_cares} -o archives \
-  -g %{flag_disablezlib} %{flag_disablemediainfo} %{flag_disablesqlite3} -b -l -c -s -u -v -a -I -p deps/
-
-ln -sfr $PWD/deps/lib/libfreeimage*.so $PWD/deps/lib/libfreeimage.so.3
-ln -sfn libfreeimage.so.3 $PWD/deps/lib/libfreeimage.so
-
 %if ( 0%{?fedora_version} && 0%{?fedora_version}<=38 ) || ( 0%{?centos_version} == 600 ) || ( 0%{?centos_version} == 800 ) || ( 0%{?sle_version} && 0%{?sle_version} < 150500 )
     %define extradefines -DMEGACMD_DEPRECATED_OS
 %else
