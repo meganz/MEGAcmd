@@ -55,8 +55,6 @@ build() {
 	set -x
 
 	cd "$pkgname-$pkgver"
-	./autogen.sh
-
 	megasrcdir="${PWD}"
 	megabuilddir="${megasrcdir}/build_dir"
 
