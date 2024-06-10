@@ -9,125 +9,33 @@ Source0:	megacmd_%{version}.tar.gz
 Vendor:		MEGA Limited
 Packager:	MEGA Linux Team <linux@mega.co.nz>
 
-BuildRequires: zlib-devel, autoconf, automake, libtool, gcc-c++, pcre-devel, libicu-devel
-BuildRequires: hicolor-icon-theme, unzip, wget
-BuildRequires: ffmpeg-mega pdfium-mega
+
+BuildRequires: autoconf, autoconf-archive, automake, libtool, gcc-c++
+BuildRequires: hicolor-icon-theme, zip, unzip, nasm, cmake, perl
+BuildRequires: (wget or (wget2 and wget2-wget))
+
+BuildRequires: (pkg-config or pkgconf-pkg-config)
 
 #OpenSUSE
 %if 0%{?suse_version} || 0%{?sle_version}
-
-    BuildRequires: libopenssl-devel, sqlite3-devel
-    BuildRequires: libbz2-devel
-
     # disabling post-build-checks that ocassionally prevent opensuse rpms from being generated
     # plus it speeds up building process
     #!BuildIgnore: post-build-checks
 
-    %if 0%{?sle_version} >= 150000
-        BuildRequires: libcurl4
-    %endif
-
-    %if 0%{?suse_version} > 1500
-        BuildRequires: pkgconf-pkg-config
-    %else
-        BuildRequires: pkg-config
-    %endif
-
-    %if 0%{?suse_version} > 1500 || 0%{?sle_version} >= 150300 || (0%{?is_opensuse} && 0%{?sle_version} >= 150000)
-        BuildRequires: c-ares-devel
-    %else
-        BuildRequires: libcares-devel
-    %endif
-
-    %if 0%{?suse_version} <= 1320
-        BuildRequires: libcryptopp-devel
+    # OpenSUSE leap features too old compiler by default:
+    %if 0%{?suse_version} && 0%{?suse_version} <= 1500
+        BuildRequires: gcc13 gcc13-c++
+        BuildRequires: python311
     %endif
 
 %endif
 
 #Fedora specific
 %if 0%{?fedora}
-    BuildRequires: openssl-devel, sqlite-devel, c-ares-devel
-
-    %if 0%{?fedora_version} < 33
-        BuildRequires: cryptopp-devel
-
-        %if 0%{?fedora_version} >= 26
-            Requires: cryptopp >= 5.6.5
-        %endif
-    %endif
-
-    %if 0%{?fedora_version} >= 31
-        BuildRequires: bzip2-devel
-    %endif
-
     # allowing for rpaths (taken as invalid, as if they were not absolute paths when they are)
     %if 0%{?fedora_version} >= 35
         %define __brp_check_rpaths QA_RPATHS=0x0002 /usr/lib/rpm/check-rpaths
     %endif
-
-%endif
-
-#centos/scientific linux
-%if 0%{?centos_version} || 0%{?scientificlinux_version}
-    BuildRequires: openssl-devel, sqlite-devel, c-ares-devel, bzip2-devel
-
-    %if 0%{?centos_version} >= 800
-        BuildRequires: bzip2-devel
-    %endif
-%endif
-
-#red hat
-%if 0%{?rhel_version}
-    BuildRequires: openssl-devel, sqlite-devel
-    %if 0%{?rhel_version} >= 800
-        BuildRequires: bzip2-devel
-    %endif
-%endif
-
-### Specific buildable dependencies ###
-
-#Media info
-%define flag_disablemediainfo -i
-%define with_mediainfo %{nil}
-
-%if 0%{?fedora_version}==21 || 0%{?fedora_version}==22 || 0%{?fedora_version}>=25 || !(0%{?sle_version} < 120300)
-    BuildRequires: libzen-devel, libmediainfo-devel
-%endif
-
-%if 0%{?fedora_version}==19 || 0%{?fedora_version}==20 || 0%{?fedora_version}==23 || 0%{?fedora_version}==24 || 0%{?centos_version} || 0%{?scientificlinux_version} || 0%{?rhel_version} || ( 0%{?suse_version} && 0%{?sle_version} < 120300)
-    %define flag_disablemediainfo %{nil}
-    %define with_mediainfo --with-libmediainfo=$PWD/deps --with-libzen=$PWD/deps
-%endif
-
-#Build cryptopp?
-%define flag_cryptopp %{nil}
-%define with_cryptopp %{nil}
-
-%if 0%{?centos_version} || 0%{?scientificlinux_version} || 0%{?rhel_version} ||  0%{?suse_version} > 1320 || 0%{?fedora_version} >= 33
-    %define flag_cryptopp -q
-    %define with_cryptopp --with-cryptopp=$PWD/deps
-%endif
-
-#Build cares?
-%define flag_cares %{nil}
-
-%if 0%{?rhel_version}
-    %define flag_cares -e
-    %define with_cares --with-cares=$PWD/deps
-%endif
-
-#Build libraw?
-%define flag_libraw %{nil}
-%define with_libraw --without-libraw
-
-#Build zlib?
-%define flag_disablezlib %{nil}
-%define with_zlib --with-zlib=$PWD/deps
-
-%if 0%{?fedora_version} == 23
-    %define flag_disablezlib -z
-    %define with_zlib %{nil}
 %endif
 
 %description
@@ -145,28 +53,8 @@ It features 2 modes of interaction:
 mega_build_id=`echo %{release} | cut -d'.' -f 1`
 sed -i -E "s/(^#define MEGACMD_BUILD_ID )[0-9]*/\1${mega_build_id}/g" src/megacmdversion.h
 
-%build
-
-# Fedora uses system Crypto++ header files
-%if 0%{?fedora_version} < 33
-    rm -fr bindings/qt/3rdparty/include/cryptopp
-%endif
-
-%if 0%{?centos_version} == 600
-    sed -i "s#AC_INIT#m4_pattern_allow(AC_PROG_OBJCXX)\nAC_INIT#g" configure.ac
-    sed -i "s#AC_INIT#m4_pattern_allow(AC_PROG_OBJCXX)\nAC_INIT#g" sdk/configure.ac
-%endif
-
-# Build SQLite3
-%define flag_disablesqlite3 `grep -- -L ./contrib/build_sdk.sh >/dev/null && echo "-L"`
-
-%if 0%{?centos_version} == 700
-    %define flag_disablesqlite3 %{nil}
-%endif
-
+#TODO: ensure these are met
 %define fullreqs -DREQUIRE_HAVE_PDFIUM -DREQUIRE_HAVE_FFMPEG -DREQUIRE_HAVE_LIBUV -DREQUIRE_USE_MEDIAINFO -DREQUIRE_USE_PCRE
-
-./autogen.sh
 
 #build dependencies into folder deps
 mkdir deps || :
@@ -177,44 +65,69 @@ ln -sfr $PWD/deps/lib/libfreeimage*.so $PWD/deps/lib/libfreeimage.so.3
 ln -sfn libfreeimage.so.3 $PWD/deps/lib/libfreeimage.so
 
 %if ( 0%{?fedora_version} && 0%{?fedora_version}<=38 ) || ( 0%{?centos_version} == 600 ) || ( 0%{?centos_version} == 800 ) || ( 0%{?sle_version} && 0%{?sle_version} < 150500 )
-    export CPPFLAGS="$CPPFLAGS -DMEGACMD_DEPRECATED_OS"
+    %define extradefines -DMEGACMD_DEPRECATED_OS
+%else
+    %define extradefines %{nil}
 %endif
 
-CPPFLAGS="$CPPFLAGS %{fullreqs}" LDFLAGS="$LDFLAGS -Wl,-rpath,/opt/megacmd/lib" ./configure --disable-shared --enable-static \
-  --disable-silent-rules --disable-curl-checks %{with_cryptopp} %{with_libraw} --with-sodium=$PWD/deps --with-pcre \
-  %{with_zlib} --with-sqlite=$PWD/deps --with-cares=$PWD/deps --with-libuv=$PWD/deps --with-pdfium \
-  --with-curl=$PWD/deps --with-freeimage=$PWD/deps --with-readline=$PWD/deps \
-  --with-termcap=$PWD/deps --prefix=$PWD/deps --disable-examples %{with_mediainfo} || export CONFFAILED=1
-
-if [ "x$CONFFAILED" == "x1" ]; then
-    sed -i "s#.*CONFLICTIVEOLDAUTOTOOLS##g" sdk/configure.ac
-    ./autogen.sh
-    CPPFLAGS="$CPPFLAGS %{fullreqs}" LDFLAGS="$LDFLAGS -Wl,-rpath,/opt/megacmd/lib" ./configure --disable-shared --enable-static \
-      --disable-silent-rules --disable-curl-checks %{with_cryptopp} %{with_libraw} --with-sodium=$PWD/deps --with-pcre \
-      %{with_zlib} --with-sqlite=$PWD/deps --with-cares=$PWD/deps --with-libuv=$PWD/deps --with-pdfium \
-      --with-curl=$PWD/deps --with-freeimage=$PWD/deps --with-readline=$PWD/deps \
-      --with-termcap=$PWD/deps --prefix=$PWD/deps --disable-examples %{with_mediainfo} || cat sdk/configure
+if [ -f /opt/vcpkg.tar.gz ]; then
+    export VCPKG_DEFAULT_BINARY_CACHE=/opt/persistent/vcpkg_cache
+    mkdir -p ${VCPKG_DEFAULT_BINARY_CACHE}
+    tar xzf /opt/vcpkg.tar.gz
+    vcpkg_root="-DVCPKG_ROOT=vcpkg"
 fi
 
-make %{?_smp_mflags}
+# use a custom cmake if required/available:
+if [ -f /opt/cmake.tar.gz ]; then
+    echo "8dc99be7ba94ad6e14256b049e396b40  /opt/cmake.tar.gz" | md5sum -c -
+    tar xzf /opt/cmake.tar.gz
+    ln -s cmake-*-Linux* cmake_inst
+    export PATH="${PWD}/cmake_inst/bin:${PATH}"
+fi
 
+# OpenSuse Leap 15.x defaults to gcc7.
+# Python>=10 needed for VCPKG pkgconf
+%if 0%{?suse_version} && 0%{?suse_version} <= 1500
+    export CC=gcc-13
+    export CXX=g++-13
+    mkdir python311
+    ln -sf /usr/bin/python3.11 python311/python3
+    export PATH=$PWD/python311:$PATH
+%endif
+
+if [ -n "%{extradefines}" ]; then
+    export CXXFLAGS="%{extradefines} ${CXXFLAGS}"
+fi
+cmake --version
+cmake ${vcpkg_root} -DCMAKE_VERBOSE_MAKEFILE=ON -DCMAKE_BUILD_TYPE=Release -S . -B %{_builddir}/build_dir
+
+%build
+
+%if 0%{?is_opensuse} && (0%{?sle_version} && 0%{?sle_version} <= 120300)
+    # ln to gcc/g++ v5, instead of default 4.8
+    mkdir userPath
+    ln -sf /usr/bin/gcc-5 userPath/gcc
+    ln -sf /usr/bin/g++-5 userPath/g++
+    export PATH=`pwd`/userPath:$PATH
+%endif
+
+if [ -f /opt/cmake.tar.gz ]; then
+    export PATH="${PWD}/cmake_inst/bin:${PATH}"
+fi
+
+cmake --build %{_builddir}/build_dir %{?_smp_mflags}
 
 %install
 
-for i in src/client/mega-*; do install -D $i %{buildroot}%{_bindir}/${i/src\/client\//}; done
-install -D src/client/megacmd_completion.sh %{buildroot}%{_sysconfdir}/bash_completion.d/megacmd_completion.sh
-install -D mega-cmd %{buildroot}%{_bindir}/mega-cmd
-install -D mega-cmd-server %{buildroot}%{_bindir}/mega-cmd-server
-install -D mega-exec %{buildroot}%{_bindir}/mega-exec
 
-mkdir -p  %{buildroot}/etc/sysctl.d/
-echo "fs.inotify.max_user_watches = 524288" > %{buildroot}/etc/sysctl.d/99-megacmd-inotify-limit.conf
+if [ -f /opt/cmake.tar.gz ]; then
+    export PATH="${PWD}/cmake_inst/bin:${PATH}"
+fi
 
-mkdir -p  %{buildroot}/opt/megacmd/lib
-install -D deps/lib/libfreeimage.so.* %{buildroot}/opt/megacmd/lib
+cmake --install %{_builddir}/build_dir --prefix %{buildroot}
 
 %post
-#source bash_completion?
+#TODO: source bash_completion?
 
 ## Configure repository ##
 
@@ -271,14 +184,6 @@ DATA
         %define reponame openSUSE_Leap_42.3
     %endif
 
-    %if 0%{?sle_version} == 120200
-        %define reponame openSUSE_Leap_42.2
-    %endif
-
-    %if 0%{?sle_version} == 120100
-        %define reponame openSUSE_Leap_42.1
-    %endif
-
     %if 0%{?sle_version} == 150000 || 0%{?sle_version} == 150100 || 0%{?sle_version} == 150200
         %define reponame openSUSE_Leap_15.0
     %endif
@@ -301,21 +206,6 @@ DATA
 
     %if 0%{?sle_version} == 0 && 0%{?suse_version} >= 1550
         %define reponame openSUSE_Tumbleweed
-    %endif
-
-    %if 0%{?suse_version} == 1320
-        %define reponame openSUSE_13.2
-    %endif
-
-    %if 0%{?suse_version} == 1310
-        %define reponame openSUSE_13.1
-    %endif
-
-    %if 0%{?suse_version} == 1230
-        %define reponame openSUSE_12.3
-    %endif
-    %if 0%{?suse_version} == 1220
-        %define reponame openSUSE_12.2
     %endif
 
     if [ -d "/etc/zypp/repos.d/" ]; then
@@ -456,69 +346,9 @@ killall -s SIGUSR2 mega-cmd-server 2> /dev/null || true
 
 %files
 %defattr(-,root,root)
-%{_bindir}/mega-attr
-%{_bindir}/mega-cd
-%{_bindir}/mega-confirm
-%{_bindir}/mega-cp
-%{_bindir}/mega-debug
-%{_bindir}/mega-du
-%{_bindir}/mega-df
-%{_bindir}/mega-proxy
-%{_bindir}/mega-exec
-%{_bindir}/mega-export
-%{_bindir}/mega-find
-%{_bindir}/mega-get
-%{_bindir}/mega-help
-%{_bindir}/mega-https
-%{_bindir}/mega-webdav
-%{_bindir}/mega-permissions
-%{_bindir}/mega-deleteversions
-%{_bindir}/mega-transfers
-%{_bindir}/mega-import
-%{_bindir}/mega-invite
-%{_bindir}/mega-ipc
-%{_bindir}/mega-killsession
-%{_bindir}/mega-lcd
-%{_bindir}/mega-log
-%{_bindir}/mega-login
-%{_bindir}/mega-logout
-%{_bindir}/mega-lpwd
-%{_bindir}/mega-ls
-%{_bindir}/mega-backup
-%{_bindir}/mega-mkdir
-%{_bindir}/mega-mount
-%{_bindir}/mega-mv
-%{_bindir}/mega-passwd
-%{_bindir}/mega-preview
-%{_bindir}/mega-put
-%{_bindir}/mega-pwd
-%{_bindir}/mega-quit
-%{_bindir}/mega-reload
-%{_bindir}/mega-rm
-%{_bindir}/mega-session
-%{_bindir}/mega-share
-%{_bindir}/mega-showpcr
-%{_bindir}/mega-signup
-%{_bindir}/mega-speedlimit
-%{_bindir}/mega-sync
-%{_bindir}/mega-exclude
-%{_bindir}/mega-thumbnail
-%{_bindir}/mega-userattr
-%{_bindir}/mega-users
-%{_bindir}/mega-version
-%{_bindir}/mega-whoami
-%{_bindir}/mega-cat
-%{_bindir}/mega-tree
-%{_bindir}/mega-mediainfo
-%{_bindir}/mega-graphics
-%{_bindir}/mega-ftp
-%{_bindir}/mega-cancel
-%{_bindir}/mega-confirmcancel
-%{_bindir}/mega-errorcode
-%{_bindir}/mega-cmd
-%{_bindir}/mega-cmd-server
-%{_sysconfdir}/bash_completion.d/megacmd_completion.sh
+%{_bindir}/*
+/opt/*
+/etc/bash_completion.d/megacmd_completion.sh
 /etc/sysctl.d/99-megacmd-inotify-limit.conf
-/opt/megacmd/lib/libfreeimage.so.3
 
 %changelog
