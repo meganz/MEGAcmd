@@ -2041,14 +2041,14 @@ string getHelpStr(const char *command)
         os << "Options:" << endl;
         os << " --name=\"Your Name\"" << "\t" << "Name to register. e.g. \"John Smith\"" << endl;
         os << endl;
-        os << " You will receive an email to confirm your account. " << endl;
-        os << " Once you have received the email, please proceed to confirm the link " << endl;
+        os << " You will receive an email to confirm your account." << endl;
+        os << " Once you have received the email, please proceed to confirm the link" << endl;
         os << " included in that email with \"confirm\"." << endl;
         os << endl;
-        os << "Warning: Due to our end-to-end encryption paradigm, you will not be able to access your data " << endl;
+        os << "Warning: Due to our end-to-end encryption paradigm, you will not be able to access your data" << endl;
         os << "without either your password or a backup of your Recovery Key (master key)." << endl;
-        os << "Exporting the master key and keeping it in a secure location enables you " << endl;
-        os << "to set a new password without data loss. Always keep physical control of " << endl;
+        os << "Exporting the master key and keeping it in a secure location enables you" << endl;
+        os << "to set a new password without data loss. Always keep physical control of" << endl;
         os << "your master key (e.g. on a client device, external storage, or print)." << endl;
         os << " See \"masterkey --help\" for further info." << endl;
     }
@@ -2082,7 +2082,7 @@ string getHelpStr(const char *command)
     {
         os << "Lists all the root nodes" << endl;
         os << endl;
-        os << "This includes the root node in your cloud drive, Inbox, Rubbish Bin " << endl;
+        os << "This includes the root node in your cloud drive, Inbox, Rubbish Bin" << endl;
         os << "and all the in-shares (nodes shares to you from other users)" << endl;
     }
 #if defined(_WIN32) && !defined(NO_READLINE)
@@ -2099,7 +2099,7 @@ string getHelpStr(const char *command)
     else if (!strcmp(command, "ls"))
     {
         os << "Lists files in a remote path" << endl;
-        os << " remotepath can be a pattern (" << getsupportedregexps() << ") " << endl;
+        os << " remotepath can be a pattern (" << getsupportedregexps() << ")" << endl;
         os << " Also, constructions like /PATTERN1/PATTERN2/PATTERN3 are allowed" << endl;
         os << endl;
         os << "Options:" << endl;
@@ -2166,7 +2166,7 @@ string getHelpStr(const char *command)
         os << "Prints/Modifies the current logs level" << endl;
         os << endl;
         os << "Options:" << endl;
-        os << " -c" << "\t" << "CMD log level (higher level messages). " << endl;
+        os << " -c" << "\t" << "CMD log level (higher level messages)." << endl;
         os << "   " << "\t" << " Messages captured by MEGAcmd server." << endl;
         os << " -s" << "\t" << "SDK log level (lower level messages)." << endl;
         os << "   " << "\t" << " Messages captured by the engine and libs" << endl;
@@ -2181,7 +2181,7 @@ string getHelpStr(const char *command)
     else if (!strcmp(command, "du"))
     {
         os << "Prints size used by files/folders" << endl;
-        os << " remotepath can be a pattern (" << getsupportedregexps() << ") " << endl;
+        os << " remotepath can be a pattern (" << getsupportedregexps() << ")" << endl;
         os << endl;
         os << "Options:" << endl;
         os << " -h" << "\t" << "Human readable" << endl;
@@ -2203,7 +2203,7 @@ string getHelpStr(const char *command)
         os << endl;
         os << "It will be used for uploads and downloads" << endl;
         os << endl;
-        os << "If not using interactive console, the current local folder will be " << endl;
+        os << "If not using interactive console, the current local folder will be" << endl;
         os << " that of the shell executing mega comands" << endl;
     }
     else if (!strcmp(command, "lpwd"))
@@ -2212,7 +2212,7 @@ string getHelpStr(const char *command)
         os << endl;
         os << "It will be used for uploads and downloads" << endl;
         os << endl;
-        os << "If not using interactive console, the current local folder will be " << endl;
+        os << "If not using interactive console, the current local folder will be" << endl;
         os << " that of the shell executing mega comands" << endl;
     }
     else if (!strcmp(command, "logout"))
@@ -2237,12 +2237,12 @@ string getHelpStr(const char *command)
         os << endl;
         os << "Options:" << endl;
         os << " -c" << "\t" << "Creates remote folder destination in case of not existing." << endl;
-        os << " -q" << "\t" << "queue upload: execute in the background. Don't wait for it to end' " << endl;
-        os << " --ignore-quota-warn" << "\t" << "ignore quota surpassing warning. " << endl;
+        os << " -q" << "\t" << "queue upload: execute in the background. Don't wait for it to end" << endl;
+        os << " --ignore-quota-warn" << "\t" << "ignore quota surpassing warning." << endl;
         os << "                    " << "\t" << "  The upload will be attempted anyway." << endl;
 
         os << endl;
-        os << "Notice that the dstremotepath can only be omitted when only one local path is provided. " << endl;
+        os << "Notice that the dstremotepath can only be omitted when only one local path is provided." << endl;
         os << " In such case, the current remote working dir will be the destination for the upload." << endl;
         os << " Mind that using wildcards for local paths in non-interactive mode in a supportive console (e.g. bash)," << endl;
         os << " could result in multiple paths being passed to MEGAcmd." << endl;
@@ -2251,10 +2251,10 @@ string getHelpStr(const char *command)
     {
         os << "Downloads a remote file/folder or a public link " << endl;
         os << endl;
-        os << "In case it is a file, the file will be downloaded at the specified folder " << endl;
+        os << "In case it is a file, the file will be downloaded at the specified folder" << endl;
         os << "                             (or at the current folder if none specified)." << endl;
         os << "  If the localpath (destination) already exists and is the same (same contents)" << endl;
-        os << "  nothing will be done. If differs, it will create a new file appending \" (NUM)\" " << endl;
+        os << "  nothing will be done. If differs, it will create a new file appending \" (NUM)\"" << endl;
         os << endl;
         os << "For folders, the entire contents (and the root folder itself) will be" << endl;
         os << "                    by default downloaded into the destination folder" << endl;
@@ -2265,10 +2265,10 @@ string getHelpStr(const char *command)
         os << "" << endl;
         os << endl;
         os << "Options:" << endl;
-        os << " -q" << "\t" << "queue download: execute in the background. Don't wait for it to end' " << endl;
-        os << " -m" << "\t" << "if the folder already exists, the contents will be merged with the " << endl;
+        os << " -q" << "\t" << "queue download: execute in the background. Don't wait for it to end" << endl;
+        os << " -m" << "\t" << "if the folder already exists, the contents will be merged with the" << endl;
         os << "                     downloaded one (preserving the existing files)" << endl;
-        os << " --ignore-quota-warn" << "\t" << "ignore quota surpassing warning. " << endl;
+        os << " --ignore-quota-warn" << "\t" << "ignore quota surpassing warning." << endl;
         os << "                    " << "\t" << "  The download will be attempted anyway." << endl;
         os << " --password=PASSWORD" << "\t" << "Password to decrypt the password-protected link. Please, avoid using passwords containing \" or '" << endl;
 #ifdef USE_PCRE
@@ -2351,7 +2351,7 @@ string getHelpStr(const char *command)
         os << "Options:" << endl;
         os << " --files" << "\t" << "To show/set files default permissions." << endl;
         os << " --folders" << "\t" << "To show/set folders default permissions." << endl;
-        os << " --s XXX" << "\t" << "To set new permissions for newly created files/folder. " << endl;
+        os << " --s XXX" << "\t" << "To set new permissions for newly created files/folder." << endl;
         os << "        " << "\t" << " Notice that for files minimum permissions is 600," << endl;
         os << "        " << "\t" << " for folders minimum permissions is 700." << endl;
         os << "        " << "\t" << " Further restrictions to owner are not allowed (to avoid missfunctioning)." << endl;
@@ -2375,7 +2375,7 @@ string getHelpStr(const char *command)
     {
         os << "Deletes previous versions." << endl;
         os << endl;
-        os << "This will permanently delete all historical versions of a file. " << endl;
+        os << "This will permanently delete all historical versions of a file." << endl;
         os << "The current version of the file will remain." << endl;
         os << "Note: any file version shared to you from a contact will need to be deleted by them." << endl;
 
@@ -2395,7 +2395,7 @@ string getHelpStr(const char *command)
     {
         os << "Configures a WEBDAV server to serve a location in MEGA" << endl;
         os << endl;
-        os << "This can also be used for streaming files. The server will be running as long as MEGAcmd Server is. " << endl;
+        os << "This can also be used for streaming files. The server will be running as long as MEGAcmd Server is." << endl;
         os << "If no argument is given, it will list the webdav enabled locations." << endl;
         os << endl;
         os << "Options:" << endl;
@@ -2420,7 +2420,7 @@ string getHelpStr(const char *command)
     {
         os << "Configures a FTP server to serve a location in MEGA" << endl;
         os << endl;
-        os << "This can also be used for streaming files. The server will be running as long as MEGAcmd Server is. " << endl;
+        os << "This can also be used for streaming files. The server will be running as long as MEGAcmd Server is." << endl;
         os << "If no argument is given, it will list the ftp enabled locations." << endl;
         os << endl;
         os << "Options:" << endl;
@@ -2453,8 +2453,8 @@ string getHelpStr(const char *command)
         os << " -d pattern1 pattern2 ..." << "\t" << "deletes pattern(s) from the exclusion list" << endl;
 
         os << endl;
-        os << "Caveat: removal of patterns may not trigger sync transfers right away. " << endl;
-        os << "Consider: " << endl;
+        os << "Caveat: removal of patterns may not trigger sync transfers right away." << endl;
+        os << "Consider:" << endl;
         os << " a) disable/reenable synchronizations manually" << endl;
         os << " b) restart MEGAcmd server" << endl;
     }
@@ -2464,10 +2464,10 @@ string getHelpStr(const char *command)
         os << endl;
         os << "If no argument is provided, it lists current configured synchronizations." << endl;
         os << endl;
-        os << "If provided local and remote paths, it will start synchronizing " << endl;
+        os << "If provided local and remote paths, it will start synchronizing" << endl;
         os << " a local folder into a remote folder." << endl;
         os << endl;
-        os << "If an ID/local path is provided, it will list such synchronization " << endl;
+        os << "If an ID/local path is provided, it will list such synchronization" << endl;
         os << " unless an option is specified." << endl;
         os << endl;
         os << "Options:" << endl;
@@ -2482,12 +2482,12 @@ string getHelpStr(const char *command)
         os << " " << "ID: an unique identifier of the sync." << endl;
         os << " " << "LOCALPATH: local synced path." << endl;
         os << " " << "REMOTEPATH: remote synced path (in MEGA)." << endl;
-        os << " " << "RUN_STATE: Indication of running state, possible values: " << endl;
+        os << " " << "RUN_STATE: Indication of running state, possible values:" << endl;
 #define SOME_GENERATOR_MACRO(_, ShortName, Description) \
     os << " " << "\t" << ShortName << ": " << Description << "." << endl;
       GENERATE_FROM_SYNC_RUN_STATE(SOME_GENERATOR_MACRO)
 #undef SOME_GENERATOR_MACRO
-        os << " " << "STATUS: State of the sync, possible values: " << endl;
+        os << " " << "STATUS: State of the sync, possible values:" << endl;
 #define SOME_GENERATOR_MACRO(_, ShortName, Description) \
     os << " " << "\t" << ShortName << ": " << Description << "." << endl;
       GENERATE_FROM_SYNC_PATH_STATE(SOME_GENERATOR_MACRO)
@@ -2499,7 +2499,7 @@ string getHelpStr(const char *command)
     {
         os << "Controls backups" << endl;
         os << endl;
-        os << "This command can be used to configure and control backups. " << endl;
+        os << "This command can be used to configure and control backups." << endl;
         os << "A tutorial can be found here: https://github.com/meganz/MEGAcmd/blob/master/contrib/docs/BACKUPS.md" << endl;
         os << endl;
         os << "If no argument is given it will list the configured backups" << endl;
@@ -2508,7 +2508,7 @@ string getHelpStr(const char *command)
         os << "When a backup of a folder (localfolder) is established in a remote folder (remotepath)" << endl;
         os << " MEGAcmd will create subfolder within the remote path with names like: \"localfoldername_bk_TIME\"" << endl;
         os << " which shall contain a backup of the local folder at that specific time" << endl;
-        os << "In order to configure a backup you need to specify the local and remote paths, " << endl;
+        os << "In order to configure a backup you need to specify the local and remote paths," << endl;
         os << "the period and max number of backups to store (see Configuration Options below)." << endl;
         os << "Once configured, you can see extended info asociated to the backup (See Display Options)" << endl;
         os << "Notice that MEGAcmd server need to be running for backups to be created." << endl;
@@ -2522,11 +2522,11 @@ string getHelpStr(const char *command)
         os << "  \t"  << "If a transfer is cancelled or fails, the backup will be considered INCOMPLETE" << endl;
         os << "  \t"  << "If a backup is aborted (see -a), all the transfers will be canceled and the backup be ABORTED" << endl;
         os << "  \t"  << "If MEGAcmd server stops during a transfer, it will be considered MISCARRIED" << endl;
-        os << "  \t"  << "  Notice that currently when MEGAcmd server is restarted, ongoing and scheduled transfers " << endl;
+        os << "  \t"  << "  Notice that currently when MEGAcmd server is restarted, ongoing and scheduled transfers" << endl;
         os << "  \t"  << "  will be carried out nevertheless." << endl;
         os << "  \t"  << "If MEGAcmd server is not running when a backup is scheduled and the time for the next one has already arrived," << endl;
         os << "  \t"  << " an empty BACKUP will be created with state SKIPPED" << endl;
-        os << "  \t"  << "If a backup(1) is ONGOING and the time for the next backup(2) arrives, it won't start untill the previous one(1) " << endl;
+        os << "  \t"  << "If a backup(1) is ONGOING and the time for the next backup(2) arrives, it won't start untill the previous one(1)" << endl;
         os << "  \t"  << " is completed, and if by the time the first one(1) ends the time for the next one(3) has already arrived," << endl;
         os << "  \t"  << " an empty BACKUP(2) will be created with state SKIPPED" << endl;
         os << " --path-display-size=N" << "\t" << "Use a fixed size of N characters for paths" << endl;
@@ -2548,7 +2548,7 @@ string getHelpStr(const char *command)
         os << "                       \t" << "  - daily at 04:00:00 (UTC): \"0 0 4 * * *\"" << endl;
         os << "                       \t" << "  - every 15th day at 00:00:00 (UTC) \"0 0 0 15 * *\"" << endl;
         os << "                       \t" << "  - mondays at 04.30.00 (UTC): \"0 30 4 * * 1\"" << endl;
-        os << "                       \t" << " TIMEFORMAT can be expressed in hours(h), days(d), " << endl;
+        os << "                       \t" << " TIMEFORMAT can be expressed in hours(h), days(d)," << endl;
         os << "                       \t"  << "   minutes(M), seconds(s), months(m) or years(y)" << endl;
         os << "                       \t" << "   e.g. \"1m12d3h\" indicates 1 month, 12 days and 3 hours" << endl;
         os << "                       \t" << "  Notice that this is an uncertain measure since not all months" << endl;
@@ -2625,8 +2625,8 @@ string getHelpStr(const char *command)
         os << "              " << "\t" << "2: " << "Full access" << endl;
         os << "              " << "\t" << "3: " << "Owner access" << endl;
         os << endl;
-        os << "If a remote path is given it'll be used to add/delete or in case " << endl;
-        os << " of no option selected, it will display all the shares existing " << endl;
+        os << "If a remote path is given it'll be used to add/delete or in case" << endl;
+        os << " of no option selected, it will display all the shares existing" << endl;
         os << " in the tree of that path" << endl;
         os << endl;
         os << "When sharing a folder with a user that is not a contact (see \"" << commandPrefixBasedOnMode() << "users --help\")" << endl;
@@ -2668,11 +2668,11 @@ string getHelpStr(const char *command)
     {
         os << "Shows your master key." << endl;
         os << endl;
-        os << "Your data is only readable through a chain of decryption operations that begins " << endl;
+        os << "Your data is only readable through a chain of decryption operations that begins" << endl;
         os << "with your master encryption key (Recovery Key), which MEGA stores encrypted with your password." << endl;
-        os << "This means that if you lose your password, your Recovery Key can no longer be decrypted, " << endl;
+        os << "This means that if you lose your password, your Recovery Key can no longer be decrypted," << endl;
         os << "and you can no longer decrypt your data." << endl;
-        os << "Exporting the Recovery Key and keeping it in a secure location " << endl;
+        os << "Exporting the Recovery Key and keeping it in a secure location" << endl;
         os << "enables you to set a new password without data loss." << endl;
         os << "Always keep physical control of your master key (e.g. on a client device, external storage, or print)" << endl;
     }
@@ -2699,7 +2699,7 @@ string getHelpStr(const char *command)
            << "                           " << "\t" << " and instructions in order to proceed with the verifcation." << endl;
         os << "--verify contact@email     " << "\t" << "Verifies contact@email."  << endl
            << "                           " << "\t" << " CAVEAT: First you would need to manually ensure credentials match!" << endl;
-        os << "--unverify contact@email   " << "\t" << "Sets contact@email as no longer verified. New shares with that user " << endl
+        os << "--unverify contact@email   " << "\t" << "Sets contact@email as no longer verified. New shares with that user" << endl
            << "                           " << "\t" << " will require verification." << endl;
         os << "Listing Options:" << endl;
         os << " -s" << "\t" << "Show shared folders with listed contacts" << endl;
@@ -2741,7 +2741,7 @@ string getHelpStr(const char *command)
         os << "Prints info of the user" << endl;
         os << endl;
         os << "Options:" << endl;
-        os << " -l" << "\t" << "Show extended info: total storage used, storage per main folder " << endl;
+        os << " -l" << "\t" << "Show extended info: total storage used, storage per main folder" << endl;
         os << "   " << "\t" << "(see mount), pro level, account balance, and also the active sessions" << endl;
     }
     else if (!strcmp(command, "df"))
@@ -2832,13 +2832,13 @@ string getHelpStr(const char *command)
         os << endl;
         os << "Options:" << endl;
         os << " --pattern=PATTERN" << "\t" << "Pattern to match";
-        os << " (" << getsupportedregexps() << ") " << endl;
+        os << " (" << getsupportedregexps() << ")" << endl;
         os << " --type=d|f           " << "\t" << "Determines type. (d) for folder, f for files" << endl;
         os << " --mtime=TIMECONSTRAIN" << "\t" << "Determines time constrains, in the form: [+-]TIMEVALUE" << endl;
         os << "                      " << "\t" << "  TIMEVALUE may include hours(h), days(d), minutes(M)," << endl;
         os << "                      " << "\t" << "   seconds(s), months(m) or years(y)" << endl;
         os << "                      " << "\t" << "  Examples:" << endl;
-        os << "                      " << "\t" << "   \"+1m12d3h\" shows files modified before 1 month, " << endl;
+        os << "                      " << "\t" << "   \"+1m12d3h\" shows files modified before 1 month," << endl;
         os << "                      " << "\t" << "    12 days and 3 hours the current moment" << endl;
         os << "                      " << "\t" << "   \"-3h\" shows files modified within the last 3 hours" << endl;
         os << "                      " << "\t" << "   \"-3d+1h\" shows files modified in the last 3 days prior to the last hour" << endl;
