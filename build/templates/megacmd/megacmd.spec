@@ -12,9 +12,25 @@ Packager:	MEGA Linux Team <linux@mega.co.nz>
 
 BuildRequires: autoconf, autoconf-archive, automake, libtool, gcc-c++
 BuildRequires: hicolor-icon-theme, zip, unzip, nasm, cmake, perl
-BuildRequires: (wget or (wget2 and wget2-wget))
 
-BuildRequires: (pkg-config or pkgconf-pkg-config)
+%if 0%{?fedora_version} >= 40
+    BuildRequires: wget2, wget2-wget
+%else
+    BuildRequires: wget
+%endif
+
+#TODO: try to simplify these:
+%if 0%{?suse_version} || 0%{?sle_version}
+    %if 0%{?suse_version} > 1500
+        BuildRequires: pkgconf-pkg-config
+    %else
+        BuildRequires: pkg-config
+    %endif
+%endif
+%if 0%{?fedora}
+    BuildRequires: pkgconf-pkg-config
+%endif
+
 
 #OpenSUSE
 %if 0%{?suse_version} || 0%{?sle_version}
@@ -22,12 +38,17 @@ BuildRequires: (pkg-config or pkgconf-pkg-config)
     # plus it speeds up building process
     #!BuildIgnore: post-build-checks
 
-    # OpenSUSE leap features too old compiler by default:
+    # OpenSUSE leap features too old compiler and python 3.10 by default:
     %if 0%{?suse_version} && 0%{?suse_version} <= 1500
         BuildRequires: gcc13 gcc13-c++
         BuildRequires: python311
     %endif
 
+#    %if 0%{?suse_version} > 1500
+#        BuildRequires: pkgconf-pkg-config
+#    %else
+#        BuildRequires: pkg-config
+#    %endif
 %endif
 
 #Fedora specific
@@ -103,14 +124,6 @@ cmake ${vcpkg_root} -DCMAKE_VERBOSE_MAKEFILE=ON -DCMAKE_BUILD_TYPE=Release -S . 
 
 %build
 
-%if 0%{?is_opensuse} && (0%{?sle_version} && 0%{?sle_version} <= 120300)
-    # ln to gcc/g++ v5, instead of default 4.8
-    mkdir userPath
-    ln -sf /usr/bin/gcc-5 userPath/gcc
-    ln -sf /usr/bin/g++-5 userPath/g++
-    export PATH=`pwd`/userPath:$PATH
-%endif
-
 if [ -f /opt/cmake.tar.gz ]; then
     export PATH="${PWD}/cmake_inst/bin:${PATH}"
 fi
@@ -180,10 +193,6 @@ DATA
 %endif
 
 %if 0%{?sle_version} || 0%{?suse_version}
-    %if 0%{?sle_version} == 120300
-        %define reponame openSUSE_Leap_42.3
-    %endif
-
     %if 0%{?sle_version} == 150000 || 0%{?sle_version} == 150100 || 0%{?sle_version} == 150200
         %define reponame openSUSE_Leap_15.0
     %endif
