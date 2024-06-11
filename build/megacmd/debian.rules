@@ -34,9 +34,9 @@ build-stamp:
 	fi
 
 	#TODO: ensure REQUIRE_USE_PCRE is defined
-	#TODO: ensure debug info is there (MEGAsync sets DCMAKE_BUILD_TYPE=RelWithDebInfo)
+	#TODO: ensure debug info is there after RelWithDebInfo
 	cmake --version
-	cmake $(VCPKG_ROOT) -DCMAKE_VERBOSE_MAKEFILE=ON -DCMAKE_BUILD_TYPE=Release -S $(CURDIR) -B $(CURDIR)/build_dir
+	cmake $(VCPKG_ROOT) -DCMAKE_VERBOSE_MAKEFILE=ON -DCMAKE_BUILD_TYPE=RelWithDebInfo -S $(CURDIR) -B $(CURDIR)/build_dir
 	cmake --build $(CURDIR)/build_dir -j$(NJOBS)
 	cmake --install $(CURDIR)/build_dir --prefix $(CURDIR)/install_dir
 

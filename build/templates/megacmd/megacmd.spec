@@ -112,7 +112,7 @@ if [ -n "%{extradefines}" ]; then
     export CXXFLAGS="%{extradefines} ${CXXFLAGS}"
 fi
 cmake --version
-cmake ${vcpkg_root} -DCMAKE_VERBOSE_MAKEFILE=ON -DCMAKE_BUILD_TYPE=Release -S . -B %{_builddir}/build_dir
+cmake ${vcpkg_root} -DCMAKE_VERBOSE_MAKEFILE=ON -DCMAKE_BUILD_TYPE=RelWithDebInfo -S . -B %{_builddir}/build_dir
 
 %build
 
