@@ -477,9 +477,10 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     else if ("help" == thecommand)
     {
         validParams->insert("f");
+        validParams->insert("ff");
         validParams->insert("non-interactive");
-        validParams->insert("paths");
         validParams->insert("upgrade");
+        validParams->insert("paths");
 #ifdef _WIN32
         validParams->insert("unicode");
 #endif
@@ -1899,7 +1900,7 @@ const char * getUsageStr(const char *command)
     }
     if (!strcmp(command, "help"))
     {
-        return "help [-f]";
+        return "help [-f|-ff|--non-interactive|--upgrade|--paths]";
     }
     if (!strcmp(command, "clear"))
     {
@@ -2061,7 +2062,11 @@ string getHelpStr(const char *command)
         os << "Prints list of commands" << endl;
         os << endl;
         os << "Options:" << endl;
-        os << " -f" << "\t" << "Include a brief description of the commands" << endl;
+        os << " -f" << " \t" << "Include a brief description of the commands" << endl;
+        os << " -ff" << "\t" << "Get a complete description of all commands" << endl;
+        os << " --non-interactive" << " " << "Display information on how to use MEGAcmd with scripts" << endl;
+        os << " --upgrade" << "         " << "Display information on PRO plans" << endl;
+        os << " --paths" << "           " << "Show caveats of local and remote paths" << endl;
     }
     else if (!strcmp(command, "history"))
     {
