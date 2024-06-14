@@ -254,85 +254,106 @@ Verbosity: You can increase the amount of information given by any command by pa
 * [`version`](docs/commands/version.md)`[-l][-c]` Prints MEGAcmd versioning and extra info
 
 ## Examples
+Some examples of typical MEGAcmd workflows and commands.
 
-### signup confirm invite showpcr ipc users userattr example
+**Note:** command output might differ. It could be slightly outdated, or it could've been manually re-formatted to better fit this markdown page.
+
+### Account management
+#### Creating new accounts
 <pre>
 MEGA CMD> <b>signup eg.email_1@example.co.nz --name="test1"</b>
 New Password:
 Retype New Password:
 Account <eg.email_1@example.co.nz> created succesfully. You will receive a confirmation link. Use "confirm" with the provided link to confirm that account
+
 MEGA CMD> <b>confirm https://mega.nz/#confirmQFSfjtUkExc5M2Us6q5d-klx60Rfx<REDACTED>Vbxjhk eg.email_1@example.co.nz</b>
 Password:
 Account eg.email_1@example.co.nz confirmed succesfully. You can login with it now
+
 MEGA CMD> <b>signup eg.email_2@example.co.nz --name="test2"</b>
 New Password:
 Retype New Password:
 Account <eg.email_2@example.co.nz> created succesfully. You will receive a confirmation link. Use "confirm" with the provided link to confirm that account
+
 MEGA CMD> <b>confirm https://mega.nz/#confirmcz7Ss68ChhMKk8WEFTQCqLMHJg8es<REDACTED>AEEpQE eg.email_2@example.co.nz</b>
 Password:
 Account eg.email_2@example.co.nz confirmed succesfully. You can login with it now
+</pre>
+
+#### Logging-in and contacts
+<pre>
 MEGA CMD> <b>login eg.email_1@example.co.nz</b>
 Password:
 [API:info: 23:19:14] Fetching nodes ...
+Fetching nodes ||########################################||(38/38 MB: 100.00 %)
 [API:info: 23:19:17] Loading transfers from local cache
 [API:info: 23:19:17] Login complete as eg.email_1@example.co.nz
-MEGA CMD>
+</pre>
+
+#### Adding a contact and viewing
+<pre>
 eg.email_1@example.co.nz:/$ <b>invite eg.email_2@example.co.nz</b>
 Invitation to user: eg.email_2@example.co.nz sent
+
 eg.email_1@example.co.nz:/$ <b>showpcr</b>
 Outgoing PCRs:
  eg.email_2@example.co.nz  (id: 47Xhz6wvVTk, creation: Thu, 26 Apr 2018 11:20:09 +1200, modification: Thu, 26 Apr 2018 11:20:09 +1200)
+
 eg.email_1@example.co.nz:/$ <b>logout</b>
 Logging out...
-eg.email_1@example.co.nz:/$
+
 MEGA CMD> <b>login eg.email_2@example.co.nz</b>
 Password:
 [API:info: 23:21:10] Fetching nodes ...
 [API:info: 23:21:12] Loading transfers from local cache
 [API:info: 23:21:12] Login complete as eg.email_2@example.co.nz
-MEGA CMD>
+
 eg.email_2@example.co.nz:/$ <b>showpcr</b>
 Incoming PCRs:
  eg.email_1@example.co.nz  (id: 47Xhz6wvVTk, creation: Thu, 26 Apr 2018 11:20:09 +1200, modification: Thu, 26 Apr 2018 11:20:09 +1200)
+
 eg.email_2@example.co.nz:/$ <b>ipc 47Xhz6wvVTk -a</b>
 Accepted invitation by eg.email_1@example.co.nz
+
 eg.email_2@example.co.nz:/$ <b>users</b>
 eg.email_1@example.co.nz, visible since Thu, 26 Apr 2018 11:22:02 +1200
+
 eg.email_2@example.co.nz:/$ <b>userattr --user=eg.email_1@example.co.nz</b>
         firstname = test1
         ed25519 = 5Xl2-mUtsZkaATmSS88Ncepju5805uw66Hfdh_-SwpE
         cu25519 = ejoYtpaJIZvlpmPsYviIa6tNvPTdVjfkYf9G1k8PKgM
         rsa = AAAAAFrhDPPMS1AXAhJwScpJ_GKqFUJ42uIIcwxLp5RIalkWtsa5j87u2LFhoZlI_rHIzGXrdsbywgs7Msisw0CjodrtwtME
         cu255 = AAAAAFrhDPPWUOP2tNByV72zU4M3EKNoddyVCT13VkkouMldniR2UZtLrPjUjUeOZOLvOL7H1C0W0Q_b3QqYSvAKo775pUwD
-eg.email_2@example.co.nz:/$ <b>showpcr</b>
+
 eg.email_2@example.co.nz:/$ <b>logout</b>
 Logging out...
+
 MEGA CMD> <b>login eg.email_1@example.co.nz</b>
 Password:
 [API:info: 23:24:26] Fetching nodes ...
 [API:info: 23:24:27] Loading transfers from local cache
 [API:info: 23:24:27] Login complete as eg.email_1@example.co.nz
-MEGA CMD>
-eg.email_1@example.co.nz:/$ <b>showpcr</b>
+
 eg.email_1@example.co.nz:/$ <b>users</b>
 eg.email_2@example.co.nz, visible
+
 eg.email_1@example.co.nz:/$ <b>userattr --user=eg.email_2@example.co.nz</b>
         firstname = test2
         ed25519 = M7SLy2RajwUAvynxJQaVkhe6hxGpbwJmvve3dgl8B1o
         cu25519 = VaXluGS2c5xbo0xOHHJciqLRxwMaWZHVK8iuxtlCBTk
         rsa = AAAAAFrhDWemabQ4JAOtP7zcoy6m74PsFTFCbj04Zh4G8K_TZB5Sm9T5Xj9CXYzwWnpfRd1McPdDouKdsASQ6Er7i4Y4LpEA
         cu255 = AAAAAFrhDWcXE_7AHZmvxk5Hk0G7V65UnvFO42tb1gM9SYy3BpsMCas0X-pbqkYwf6_2eBG-ZLvkonGfXB3DWonWNvnVehIB
-eg.email_1@example.co.nz:/$
 </pre>
 
-### login logout whoami mkdir cd get put du mount example
+### Node operations
+#### Getting user info
 <pre>
 MEGA CMD> <b>login eg.email_1@example.co.nz</b>
 Password:
 [API:info: 23:43:14] Fetching nodes ...
 [API:info: 23:43:14] Loading transfers from local cache
 [API:info: 23:43:14] Login complete as eg.email_1@example.co.nz
-MEGA CMD>
+
 eg.email_1@example.co.nz:/$ <b>whoami -l</b>
 Account e-mail: eg.email_1@example.co.nz
     Available storage: 50.00 GBytes
@@ -353,23 +374,46 @@ Current Active Sessions:
     User-Agent: MEGAcmd/0.9.9.0 (Windows 10.0.16299) MegaClient/3.3.5
     -----
 1 active sessions opened
+
 eg.email_1@example.co.nz:/$ <b>mount</b>
 ROOT on /
 INBOX on //in
 RUBBISH on //bin
+</pre>
+
+#### Downloading a file
+<pre>
 eg.email_1@example.co.nz:/$ <b>ls</b>
 Welcome to MEGA.pdf
+
 eg.email_1@example.co.nz:/$ <b>get "Welcome to MEGA.pdf"</b>
 TRANSFERING ||################################################################################||(1/1 MB: 100.00 %)
+Download finished: Welcome to MEGA.pdf
+TRANSFERING ||################################################################################||(1/1 MB: 100.00 %)
+</pre>
+
+#### Uploading a file
+<pre>
 eg.email_1@example.co.nz:/$ <b>mkdir my-pictures</b>
+
 eg.email_1@example.co.nz:/$ <b>cd my-pictures/</b>
+
 eg.email_1@example.co.nz:/my-pictures$ <b>put C:\Users\MYWINDOWSUSER\Pictures</b>
 TRANSFERING ||################################################################################||(1/1 MB: 100.00 %)
+Upload finished: C:\Users\MYWINDOWUSER\Pictures
+TRANSFERING ||################################################################################||(1/1 MB: 100.00 %)
+</pre>
+
+#### Creating and navigating directories
+<pre>
 eg.email_1@example.co.nz:/my-pictures$ <b>pwd</b>
 /my-pictures
+
 eg.email_1@example.co.nz:/my-pictures$ <b>ls</b>
 Pictures
+
 eg.email_1@example.co.nz:/my-pictures$ <b>cd Pictures/</b>
+
 eg.email_1@example.co.nz:/my-pictures/my-pictures$ <b>ls</b>
 Camera Roll
 Feedback
@@ -377,74 +421,92 @@ Saved Pictures
 megacmdpkg.gif
 megacmdpkg_80.gif
 megacmdpkg_gray.gif
+
 eg.email_1@example.co.nz:/my-pictures/my-pictures$ <b>pwd</b>
 /my-pictures/Pictures
+
 eg.email_1@example.co.nz:/my-pictures/my-pictures$ <b>cd /</b>
-eg.email_1@example.co.nz:/$ <b>du my-pictures/</b>
+
+eg.email_1@example.co.nz:/$ <b>du -h my-pictures/</b>
 FILENAME                                        SIZE
-my-pictures:                                 1376143
+my-pictures:                                 1.31 MB
 ----------------------------------------------------------------
-Total storage used:                          1376143
+Total storage used:                          1.31 MB
+</pre>
+
+#### Logging-out
+<pre>
 eg.email_1@example.co.nz:/$ <b>logout</b>
 Logging out...
 MEGA CMD>
 </pre>
 
-### sync example
+### Syncing
 <pre>
 email_1@example.co.nz:/$ <b>sync c:\Go go-backup/</b>
-email_1@example.co.nz:/$ <b>sync</b>
-ID LOCALPATH                                  REMOTEPATH                                 ActState   SyncState     SIZE  FILES   DIRS
- 0 \\?\c:\Go                                  /go-backup                                 InitScan   Syncing   119.13 KB     10     97
-email_1@example.co.nz:/$ <b>sync</b>
-ID LOCALPATH                                  REMOTEPATH                                 ActState   SyncState     SIZE  FILES   DIRS
- 0 \\?\c:\Go                                  /go-backup                                 InitScan   Syncing   61.22 MB   1252    463
-email_1@example.co.nz:/$ <b>sync</b>
-ID LOCALPATH                                  REMOTEPATH                                 ActState   SyncState     SIZE  FILES   DIRS
- 0 \\?\c:\Go                                  /go-backup                                 InitScan   Syncing   232.94 MB   4942    773
-email_1@example.co.nz:/$ <b>sync</b>
-ID LOCALPATH                                  REMOTEPATH                                 ActState   SyncState     SIZE  FILES   DIRS
- 0 \\?\c:\Go                                  /go-backup                                 Active     Synced    285.91 MB   7710   1003
+Added sync: //?\c:\Go to /go-backup
 
-[then on a windows cmd prompt]
-C:\Users\ME><b>rmdir /s c:\go\blog</b>
-c:\go\blog, Are you sure (Y/N)? <b>Y</b>
-
-[back in MEGAcmd- update has been applied to MEGA already]
 email_1@example.co.nz:/$ <b>sync</b>
-ID LOCALPATH                                  REMOTEPATH                                 ActState   SyncState     SIZE  FILES   DIRS
- 0 \\?\c:\Go                                  /go-backup                                 Active     Synced    268.53 MB   7306    961
+ID          LOCALPATH                   REMOTEPATH RUN_STATE STATUS  ERROR SIZE      FILES DIRS
+WOOmFwZfQwM \\?\c:\Go                   /go-backup Running   Syncing NO    119.13 KB 10    97
+
+email_1@example.co.nz:/$ <b>sync</b>
+ID          LOCALPATH                   REMOTEPATH RUN_STATE STATUS  ERROR SIZE     FILES DIRS
+WOOmFwZfQwM \\?\c:\Go                   /go-backup Running   Syncing NO    61.22 MB 1252  463
+
+email_1@example.co.nz:/$ <b>sync</b>
+ID          LOCALPATH                   REMOTEPATH RUN_STATE STATUS  ERROR SIZE      FILES DIRS
+WOOmFwZfQwM \\?\c:\Go                   /go-backup Running   Syncing NO    232.94 MB 4942  773
+
+email_1@example.co.nz:/$ <b>sync</b>
+ID          LOCALPATH                   REMOTEPATH RUN_STATE STATUS ERROR SIZE      FILES DIRS
+WOOmFwZfQwM \\?\c:\Go                   /go-backup Running   Synced NO    285.91 MB 7710  1003
 </pre>
 
-### backup example
+Then, on a windows cmd prompt:
+<pre>
+C:\Users\ME><b>rmdir /s c:\go\blog</b>
+c:\go\blog, Are you sure (Y/N)? <b>Y</b>
+</pre>
+
+Back in MEGAcmd (the update has been applied to MEGA already):
+<pre>
+email_1@example.co.nz:/$ <b>sync</b>
+ID          LOCALPATH                   REMOTEPATH RUN_STATE STATUS ERROR SIZE      FILES DIRS
+WOOmFwZfQwM \\?\c:\Go                   /go-backup Running   Synced NO    268.53 MB 7306  961
+</pre>
+
+### Backups
 <pre>
 eg.email@example.co.nz:/$ <b>backup c:/cmake /cmake-backup --period="0 0 4 * * *" --num-backups=3</b>
 Backup established: c:/cmake into /cmake-backup period="0 0 4 * * *" Number-of-Backups=3
+
 eg.email@example.co.nz:/$ <b>backup</b>
 TAG   LOCALPATH                                               REMOTEPARENTPATH                                                STATUS
-166   \\?\c:\cmake                                            /cmake-backup                                                  ONGOING
+166   \\?\c:\cmake                                            /cmake-backup                                                  COMPLETE
+
 eg.email@example.co.nz:/$ <b>backup -h</b>
 TAG   LOCALPATH                                               REMOTEPARENTPATH                                                STATUS
-166   \\?\c:\cmake                                            /cmake-backup                                                  ONGOING
-   -- SAVED BACKUPS --
-  NAME                                                    DATE                    STATUS  FILES FOLDERS
-  cmake_bk_20180426133300                                 26Apr2018 13:33:00     ONGOING      0      92
-eg.email@example.co.nz:/$
+166   \\?\c:\cmake                                            /cmake-backup                                                  COMPLETE
+   -- HISTORY OF BACKUPS --
+  NAME                                                    DATE                    STATUS   FILES FOLDERS
+  cmake_bk_20180426133300                                 26Apr2018 13:33:00      COMPLETE     0      92
 </pre>
 
-### webdav example
+### WebDAV
 <pre>
 eg.email@example.co.nz:/$ <b>webdav myfile.tif --port=1024</b>
 Serving via webdav myfile.tif: http://127.0.0.1:1024/5mYHQT4B/myfile.tif
+
 eg.email@example.co.nz:/$ <b>webdav</b>
 WEBDAV SERVED LOCATIONS:
 /myfile.tif: http://127.0.0.1:1024/5mYHQT4B/myfile.tif
+
 eg.email@example.co.nz:/$ <b>webdav -d myfile.tif</b>
 myfile.tif no longer served via webdav
-eg.email@example.co.nz:/$
 </pre>
 
-### export import example
+### Exporting and importing
 <pre>
 eg.email_1@example.co.nz:/$ <b>export -a Pictures/</b>
 MEGA respects the copyrights of others and requires that users of the MEGA cloud service comply with the laws of copyright.
@@ -452,25 +514,31 @@ You are strictly prohibited from using the MEGA cloud service to infringe copyri
 You may not upload, download, store, share, display, stream, distribute, email, link to, transmit or otherwise make available any files, data or content that infringes any copyright or other proprietary rights of any person or entity. Do you accept this terms? (Yes/No): Yes
 Please enter [y]es/[n]o/[a]ll/none:yes
 Exported /Pictures: https://mega.nz/#F!iaZlEBIL!mQD3rFuJhKov0sco-6s9xg
+
 eg.email_1@example.co.nz:/$ <b>export</b>
 Pictures (folder, shared as exported permanent folder link: https://mega.nz/#F!iaZlEBIL!mQD3rFuJhKov0sco-6s9xg)
+
 eg.email_1@example.co.nz:/$ <b>logout --keep-session</b>
 Logging out...
 Session closed but not deleted. Warning: it will be restored the next time you execute the application. Execute "logout" to delete the session permanently.
 You can also login with the session id: ARo7aiLAxK-jseOdVBYhj285Twb06ivWsFmT4XAnkTsiaDRRbm5oYS1zRm-V3I0FHHOvwj7P2RPvrSw_
+
 MEGA CMD> <b>login eg.email_2@example.co.nz</b>
 Password:
 [API:info: 01:55:04] Fetching nodes ...
 [API:info: 01:55:05] Loading transfers from local cache
 [API:info: 01:55:05] Login complete as eg.email_2@example.co.nz
-MEGA CMD>
+
 eg.email_2@example.co.nz:/$ <b>ls</b>
 Welcome to MEGA.pdf
+
 eg.email_2@example.co.nz:/$ <b>import https://mega.nz/#F!iaZlEBIL!mQD3rFuJhKov0sco-6s9xg</b>
 Imported folder complete: /Pictures
+
 eg.email_2@example.co.nz:/$ <b>ls</b>
 Pictures
 Welcome to MEGA.pdf
+
 eg.email_2@example.co.nz:/$ <b>ls Pictures/</b>
 Camera Roll
 Feedback
@@ -478,20 +546,22 @@ Saved Pictures
 megacmdpkg.gif
 megacmdpkg_80.gif
 megacmdpkg_gray.gif
+
 eg.email_2@example.co.nz:/$ <b>logout</b>
 Logging out...
-eg.email_2@example.co.nz:/$
+
 MEGA CMD> <b>login ARo7aiLAxK-jseOdVBYhj285Twb06ivWsFmT4XAnkTsiaDRRbm5oYS1zRm-V3I0FHHOvwj7P2RPvrSw_</b>
 eg.email_1@example.co.nz:/$ <b>export</b>
 Pictures (folder, shared as exported permanent folder link: https://mega.nz/#F!iaZlEBIL!mQD3rFuJhKov0sco-6s9xg)
+
 eg.email_1@example.co.nz:/$ <b>export -d Pictures/</b>
 Disabled export: /Pictures
+
 eg.email_1@example.co.nz:/$ <b>export</b>
 Couldn't find anything exported below current folder. Use -a to export it
-eg.email_1@example.co.nz:/$
 </pre>
 
-### transfers example
+### Transfers
 <pre>
 eg.email@example.co.nz:/tmp-test/Mega.dir$ <b>transfers</b>
 DIR/SYNC TAG  SOURCEPATH                         DESTINYPATH                              PROGRESS           STATE
@@ -506,10 +576,13 @@ DIR/SYNC TAG  SOURCEPATH                         DESTINYPATH                    
  U     17369 \\?\C:\Users\ME\...ntactrequest.obj /tmp-test/Mega.dir/Mega.dir/Debug      0.00% of  352.22 KB  QUEUED
  U     17370 \\?\C:\Users\ME\...\Debug\proxy.obj /tmp-test/Mega.dir/Mega.dir/Debug      0.00% of  203.57 KB  QUEUED
  ...  Showing first 10 transfers ...
+
 eg.email@example.co.nz:/tmp-test/Mega.dir$ <b>transfers -p 17367</b>
 Transfer 17367 paused successfully.
+
 eg.email@example.co.nz:/tmp-test/Mega.dir$ <b>transfers -c 17370</b>
 Transfer 17370 cancelled successfully.
+
 eg.email@example.co.nz:/tmp-test/Mega.dir$ <b>transfers</b>
 DIR/SYNC TAG  SOURCEPATH                         DESTINYPATH                              PROGRESS           STATE
  U     17362 \\?\C:\Users\ME\...megaapi_impl.obj /tmp-test/Mega.dir/Mega.dir/Debug     96.32% of   13.85 MB  ACTIVE
@@ -523,26 +596,25 @@ DIR/SYNC TAG  SOURCEPATH                         DESTINYPATH                    
  U     17371 \\?\C:\Users\ME\...pubkeyaction.obj /tmp-test/Mega.dir/Mega.dir/Debug      0.00% of  355.75 KB  QUEUED
  U     17372 \\?\C:\Users\ME\...ebug\request.obj /tmp-test/Mega.dir/Mega.dir/Debug      0.00% of  933.14 KB  QUEUED
  ...  Showing first 10 transfers ...
-eg.email@example.co.nz:/tmp-test/Mega.dir$
 </pre>
 
-### shared folders example
-
+### Shared folders
 <pre>
 eg.email@example.co.nz:/$ mount
 ROOT on /
 INBOX on //in
 RUBBISH on //bin
-INSHARE on family.member@example.co.nz:photos_Jan_1_2020 (read access)
-INSHARE on family.member@example.co.nz:other_folder (read access)
+INSHARE on //from/family.member@example.co.nz:photos_Jan_1_2020 (read access)
+INSHARE on //from/family.member@example.co.nz:other_folder (read access)
+
 eg.email@example.co.nz:/$ ls family.member@example.co.nz:photos_Jan_1_2020
 photo1.jpg
 photo2.jpg
+
 eg.email@example.co.nz:/$ get family.member@example.co.nz:photos_Jan_1_2020/photo1.jpg
 TRANSFERRING ||###########################################################################################||(5/5 MB: 100.00 %)
 Download finished: .\photo1.jpg
-eg.email@example.co.nz:/$ share  -a --with=family.member@example.co.nz --level=0  "/Camera Uploads/my_photos_from_that_day"
-Shared /Camera Uploads/my_photos_from_that_day : family.member@example.co.nz accessLevel=0
-eg.email@example.co.nz:/$
-</pre>
 
+eg.email@example.co.nz:/$ share -a --with=family.member@example.co.nz --level=0  "/Camera Uploads/my_photos_from_that_day"
+Shared /Camera Uploads/my_photos_from_that_day : family.member@example.co.nz accessLevel=0
+</pre>
