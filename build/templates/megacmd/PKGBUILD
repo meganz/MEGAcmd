@@ -50,10 +50,6 @@ prepare() {
 build() {
 	set -x
 
-	# Set env variables to use gcc 13 compiler instead of system's
-	export CC=/usr/bin/gcc-13
-	export CXX=/usr/bin/g++-13
-
 	cd "$pkgname-$pkgver"
 	./autogen.sh
 
