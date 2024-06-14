@@ -14,5 +14,5 @@ Options:
         	 Notice that permissions of already existing files/folders will not change.
         	 Notice that permissions of already existing files/folders will not change.
 
-Notice: this permissions will be saved for the next time you execute MEGAcmd server. They will be removed if you logout.
+Note: permissions will be saved for the next time you execute MEGAcmd server. They will be removed if you logout. Permissions are not available on Windows.
 </pre>

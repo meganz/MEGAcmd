@@ -20,5 +20,5 @@ Options:
 *If you serve more than one location, these parameters will be ignored and used those of the first location served.
  If you want to change those parameters, you need to stop serving all locations and configure them again.
 
-Caveat: This functionality is in BETA state. If you experience any issue with this, please contact: support@mega.nz
+Caveat: This functionality is in BETA state. It might not be available on all platforms. If you experience any issue with this, please contact: support@mega.nz
 </pre>

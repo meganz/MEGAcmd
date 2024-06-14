@@ -5,7 +5,7 @@ import subprocess
 
 def get_help_output(detail):
     det = '-ff' if detail else '-f'
-    return subprocess.run(['mega-exec', 'help', det], capture_output=True, text=True).stdout
+    return subprocess.run(['mega-exec', 'help', det, '--show-all-options'], capture_output=True, text=True).stdout
 
 class CommandSummary:
     def __init__(self, name, args, description):

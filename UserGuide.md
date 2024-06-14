@@ -34,7 +34,7 @@ done
 
 In addition to running commands on request, MEGAcmd can also be configured to [synchronise](#synchronisation-configurations) folders between your local device and your MEGA account, or perform regular [backups](#backup-configurations) from your device to your MEGA account.
 
-In order to enable synchronisation and backup features, and for efficiency running commands, MEGAcmd runs a server process in the background which the MEGAcmd shell or the script commands forward requests to.   The server keeps running in the background until it is told to close with the [`quit`](#quit) command.   If you want it to keep running when you quit the interactive shell (to keep sync and backup runnign for example), use `quit --only-shell`.
+In order to enable synchronisation and backup features, and for efficiency running commands, MEGAcmd runs a server process in the background which the MEGAcmd shell or the script commands forward requests to.   The server keeps running in the background until it is told to close with the [`quit`](#quit) command.   If you want it to keep running when you quit the interactive shell (to keep sync and backup running for example), use `quit --only-shell`.
 
 Working with your MEGA account requires signing in with your email and password using the [`login`](#login) command, though you can download public links or upload to public folders without logging in.  Logging in with your username and password starts a [Session](#session), and causes some of your account such as the folder structure to be downloaded to your [Local Cache](#local-cache).
 
@@ -226,9 +226,11 @@ Verbosity: You can increase the amount of information given by any command by pa
 * [`webdav`](docs/commands/webdav.md)`[-d (--all | remotepath ) ] [ remotepath [--port=PORT] [--public] [--tls --certificate=/path/to/certificate.pem --key=/path/to/certificate.key]] [--use-pcre]` Configures a WEBDAV server to serve a location in MEGA
 
 ### Misc.
+* [`autocomplete`](docs/commands/autocomplete.md)`[dos | unix]` Modifes how tab completion operates.
 * [`cancel`](docs/commands/cancel.md) Cancels your MEGA account
 * [`cat`](docs/commands/cat.md)`remotepath1 remotepath2 ...` Prints the contents of remote files
 * [`clear`](docs/commands/clear.md) Clear screen
+* [`codepage`](docs/commands/codepage.md)`[N [M]]` Switches the codepage used to decide which characters show on-screen.
 * [`confirmcancel`](docs/commands/confirmcancel.md)`link password` Confirms the cancellation of your MEGA account
 * [`debug`](docs/commands/debug.md) Enters debugging mode (HIGHLY VERBOSE)
 * [`deleteversions`](docs/commands/deleteversions.md)`[-f] (--all | remotepath1 remotepath2 ...)  [--use-pcre]` Deletes previous versions.
@@ -237,7 +239,7 @@ Verbosity: You can increase the amount of information given by any command by pa
 * [`exit`](docs/commands/exit.md)`[--only-shell]` Quits MEGAcmd
 * [`ftp`](docs/commands/ftp.md)`[-d ( --all | remotepath ) ] [ remotepath [--port=PORT] [--data-ports=BEGIN-END] [--public] [--tls --certificate=/path/to/certificate.pem --key=/path/to/certificate.key]] [--use-pcre]` Configures a FTP server to serve a location in MEGA
 * [`graphics`](docs/commands/graphics.md)`[on|off]` Shows if special features related to images and videos are enabled.
-* [`help`](docs/commands/help.md)`[-f|-ff|--non-interactive|--upgrade|--paths]` Prints list of commands
+* [`help`](docs/commands/help.md)`[-f|-ff|--non-interactive|--upgrade|--paths] [--show-all-options]` Prints list of commands
 * [`https`](docs/commands/https.md)`[on|off]` Shows if HTTPS is used for transfers. Use "https on" to enable it.
 * [`info`](docs/commands/info.md)`remotepath1 remotepath2 ...` Prints media info of remote files
 * [`log`](docs/commands/log.md)`[-sc] level` Prints/Modifies the current logs level
@@ -247,6 +249,8 @@ Verbosity: You can increase the amount of information given by any command by pa
 * [`quit`](docs/commands/quit.md)`[--only-shell]` Quits MEGAcmd
 * [`reload`](docs/commands/reload.md) Forces a reload of the remote files of the user
 * [`tree`](docs/commands/tree.md)`[remotepath]` Lists files in a remote path in a nested tree decorated output
+* [`unicode`](docs/commands/unicode.md) Toggle unicode input enabled/disabled in interactive shell
+* [`update`](docs/commands/update.md)`[--auto=on|off|query]` Updates MEGAcmd
 * [`version`](docs/commands/version.md)`[-l][-c]` Prints MEGAcmd versioning and extra info
 
 ## Examples
