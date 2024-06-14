@@ -114,6 +114,7 @@ mkdir $megacmd_NAME/m4 #create m4 empty folder required in older autotools
 
 mkdir -p $megacmd_NAME/contrib/
 ln -s $BASEPATH/sdk/contrib/build_sdk.sh $megacmd_NAME/contrib/
+ln -s $BASEPATH/sdk/contrib/FreeImageC99.diff $megacmd_NAME/contrib/
 
 ln -s $archives $megacmd_NAME/archives
 tar czfh $megacmd_NAME.tar.gz --exclude-vcs $megacmd_NAME
