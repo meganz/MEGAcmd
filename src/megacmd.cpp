@@ -2180,7 +2180,7 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << " If there is an update available, it will be downloaded and applied." << endl;
         os << " This will cause MEGAcmd to be restarted whenever the updates are applied." << endl;
         os << endl;
-        os << "Further info at https://github.com/meganz/megacmd#megacmd-updates";
+        os << "Further info at https://github.com/meganz/megacmd#megacmd-updates" << endl;
         os << "Note: this command is not available on Linux" << endl;
     }
     else if (!strcmp(command, "cd"))

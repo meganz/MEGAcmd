@@ -12,5 +12,6 @@ If auto updates are enabled it will be checked while MEGAcmd server is running.
  If there is an update available, it will be downloaded and applied.
  This will cause MEGAcmd to be restarted whenever the updates are applied.
 
-Further info at https://github.com/meganz/megacmd#megacmd-updatesNote: this command is not available on Linux
+Further info at https://github.com/meganz/megacmd#megacmd-updates
+Note: this command is not available on Linux
 </pre>
