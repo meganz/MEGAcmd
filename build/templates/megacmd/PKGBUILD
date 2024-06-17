@@ -49,6 +49,7 @@ prepare() {
 
 build() {
 	set -x
+
 	cd "$pkgname-$pkgver"
 	./autogen.sh
 
