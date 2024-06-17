@@ -1,0 +1,171 @@
+pipeline {
+    agent { label "amd64 && linux" }
+
+    options {
+        buildDiscarder(logRotator(numToKeepStr: '135', daysToKeepStr: '21'))
+        gitLabConnection('GitLabConnectionJenkins')
+    }
+
+    environment {
+        CHANGES_TO_COMMIT = ''
+    }
+
+    stages {
+        stage('Clean previous runs and update gitlab commit status') {
+            steps {
+                deleteDir()
+                updateGitlabCommitStatus(name: 'Generate command docs', state: 'running')
+            }
+        }
+
+        stage('Get build parameters') {
+            parallel {
+                stage('Get build options') {
+                    when {
+                        allOf {
+                            expression { env.gitlabTriggerPhrase != null }
+                            expression { env.gitlabTriggerPhrase.contains('BUILD_OPTIONS') }
+                        }
+                    }
+                    steps {
+                        script {
+                            BUILD_OPTIONS = sh(script: 'echo "$gitlabTriggerPhrase" | grep BUILD_OPTIONS | awk -F "BUILD_OPTIONS="  \'{print \$2}\' | cut -d"\"" -f2', returnStdout: true).trim()
+                            println BUILD_OPTIONS
+                        }
+                    }
+                    post {
+                        always {
+                            script {
+                                if (currentBuild.currentResult == 'FAILURE') {
+                                    addGitLabMRComment(comment: ":red_circle: ${env.JOB_NAME} FAILURE when getting the additional build parameters :worried:<br/>Build results: [Jenkins [${env.JOB_NAME} ${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>Commit: ${env.GIT_COMMIT}" )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                stage('Get SDK branch') {
+                    steps {
+                        script {
+                            env.SDK_BRANCH = sh(script: 'echo "$gitlabMergeRequestDescription" | grep SDK_SUBMODULE_TEST | awk -F "SDK_SUBMODULE_TEST="  \'{print \$2}\' | cut -d" " -f1', returnStdout: true).trim()
+                            if (SDK_BRANCH == "") {
+                                echo "SDK_BRANCH was not found on description so develop will be used by default"
+                                env.SDK_BRANCH = "develop"
+                            }
+                            println SDK_BRANCH
+                        }
+                    }
+                    post {
+                        always {
+                            script {
+                                if (currentBuild.currentResult == 'FAILURE') {
+                                    addGitLabMRComment(comment: ":red_circle: ${env.JOB_NAME} FAILURE when getting the SDK branch :worried:<br/>Build results: [Jenkins [${env.JOB_NAME} ${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>Commit: ${env.GIT_COMMIT}" )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Checkout sources') {
+            parallel {
+                stage('Checkout MEGAcmd') {
+                    steps {
+                        checkout([
+                            $class: 'GitSCM',
+                            branches: [[name: "origin/${env.gitlabTargetBranch}"]],
+                            userRemoteConfigs: [[url: "${env.GIT_URL_MEGACMD}", credentialsId: "12492eb8-0278-4402-98f0-4412abfb65c1"]],
+                            extensions: [[$class: "UserIdentity",name: "jenkins", email: "jenkins@jenkins"]]
+                        ])
+                    }
+                }
+                stage('Checkout SDK') {
+                    steps {
+                        dir('sdk') {
+                            checkout([
+                                $class: 'GitSCM',
+                                branches: [[name: "origin/${SDK_BRANCH}"]],
+                                userRemoteConfigs: [[url: "${env.GIT_URL_SDK}", credentialsId: "12492eb8-0278-4402-98f0-4412abfb65c1"]],
+                                extensions: [
+                                    [$class: "UserIdentity",name: "jenkins", email: "jenkins@jenkins"],
+                                    [$class: "CloneOption", depth: 1, shallow: true, noTags: false, reference: '']
+                                ]
+                            ])
+                        }
+                        script {
+                            megacmd_sources_workspace = WORKSPACE
+                            sdk_sources_workspace = "${megacmd_sources_workspace}/sdk"
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Build MEGAcmd') {
+            environment {
+                PATH = "cmdinstall/bin:${env.PATH}"
+                BUILD_DIR = "cmdbuild"
+                VCPKGPATH = "${env.HOME}/jenkins/vcpkg"
+            }
+            options {
+                timeout(time: 3, unit: 'HOURS')
+            }
+            steps {
+                sh "rm -rf ${BUILD_DIR}; mkdir ${BUILD_DIR}"
+                sh "cmake -DCMAKE_VERBOSE_MAKEFILE=1 -DCMAKE_BUILD_TYPE=Release -DVCPKG_ROOT=${VCPKGPATH} -DCMAKE_INSTALL_PREFIX=cmdinstall -S '${megacmd_sources_workspace}' -B ${BUILD_DIR} '${env.BUILD_OPTIONS}'"
+                sh "cmake --build ${megacmd_sources_workspace}/${BUILD_DIR} -j 2"
+                sh "cmake --install ${megacmd_sources_workspace}/${BUILD_DIR}"
+            }
+        }
+
+        stage('Generate command docs') {
+            environment {
+                PATH = "cmdinstall/bin:${env.PATH}"
+            }
+            steps {
+                script {
+                    try {
+                        // Stop the current server to ensure the script uses the version we just built
+                        sh "mega-exec quit"
+                    } finally {
+                        sh "python3 docs/generate_command_docs.py"
+                    }
+                }
+            }
+        }
+
+        stage('Commit changes') {
+            steps {
+                script {
+                    sh "git reset"
+                    sh "git add docs/commands/*.md"
+                    sh "git add UserGuide.md"
+
+                    CHANGES_TO_COMMIT = sh("git diff --cached --quiet", returnStatus: true)
+                    if (CHANGES_TO_COMMIT == '0') {
+                        sh "git commit -m 'Auto-update to command docs'"
+                        sh "git push origin ${env.gitlabTargetBranch}"
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            if (currentBuild.currentResult == 'FAILURE') {
+                addGitLabMRComment(comment: ":red_circle: <b>Generate command docs</b> :fax: FAILURE  :worried:<br/>Build results: [Jenkins [${currentBuild.displayName}]](${currentBuild.absoluteUrl})<br/>Commit: ${env.GIT_COMMIT}" )
+                updateGitlabCommitStatus(name: 'Generate command docs', state: 'failed')
+            }
+            else if (CHANGES_TO_COMMIT != '0') {
+                addGitLabMRComment(comment: ":white_check_mark: <b>Generate command docs</b> :fax: Nothing to commit  :grey_exclamation: :grey_exclamation:<br/>Build results: [Jenkins [${currentBuild.displayName}]](${currentBuild.absoluteUrl})<br/>Commit: ${env.GIT_COMMIT}" )
+                updateGitlabCommitStatus(name: 'Generate command docs', state: 'success')
+            }
+            else if (currentBuild.currentResult == 'SUCCESS') {
+                addGitLabMRComment(comment: ":white_check_mark: <b>Generate command docs</b> :fax: SUCCESS  :muscle:<br/>Build results: [Jenkins [${currentBuild.displayName}]](${currentBuild.absoluteUrl})<br/>Commit: ${env.GIT_COMMIT}" )
+                updateGitlabCommitStatus(name: 'Generate command docs', state: 'success')
+            }
+        }
+    }
+}
