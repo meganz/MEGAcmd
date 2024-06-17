@@ -9,15 +9,15 @@ Source0:	megacmd_%{version}.tar.gz
 Vendor:		MEGA Limited
 Packager:	MEGA Linux Team <linux@mega.co.nz>
 
-BuildRequires: zlib-devel, autoconf, automake, libtool, gcc-c++, pcre-devel, libicu-devel
-BuildRequires: hicolor-icon-theme, unzip, wget
+BuildRequires: autoconf, automake, libtool, gcc-c++, pcre-devel, libicu-devel
+BuildRequires: hicolor-icon-theme, unzip
 BuildRequires: ffmpeg-mega pdfium-mega
 
 #OpenSUSE
 %if 0%{?suse_version} || 0%{?sle_version}
 
     BuildRequires: libopenssl-devel, sqlite3-devel
-    BuildRequires: libbz2-devel
+    BuildRequires: libbz2-devel, zlib-devel, wget
 
     # disabling post-build-checks that ocassionally prevent opensuse rpms from being generated
     # plus it speeds up building process
@@ -48,6 +48,12 @@ BuildRequires: ffmpeg-mega pdfium-mega
 #Fedora specific
 %if 0%{?fedora}
     BuildRequires: openssl-devel, sqlite-devel, c-ares-devel
+
+    %if 0%{?fedora_version} >= 40
+        BuildRequires: wget2, wget2-wget, zlib-ng-compat
+    %else
+        BuildRequires: wget, zlib-devel
+    %endif
 
     %if 0%{?fedora_version} < 33
         BuildRequires: cryptopp-devel
