@@ -878,7 +878,7 @@ bool UpdateTask::performUpdate()
 void UpdateTask::rollbackUpdate(size_t fileNum)
 {
     LOG(LOG_LEVEL_INFO, "Uninstalling update...");
-    for (size_t i = fileNum; i >= 0; i--)
+    for (size_t i = fileNum; i-- > 0;)
     {
         string origFile = appFolder + localPaths[i];
         mega_rename(origFile.c_str(), (updateFolder + localPaths[i]).c_str());
