@@ -2579,10 +2579,13 @@ string getHelpStr(const char *command)
 #endif
         os << " -a" << "\t" << "Adds an export." << endl;
         os << "   " << "\t" << "Returns an error if the export already exists." << endl;
-        os << "   " << "\t" << "To modify an existing export (e.g., to change expiration time, password, etc.), it must be deleted and then re-added." << endl;
-        os << " --writable" << "\t" << "Makes the export writable." << endl;
-        os << "           " << "\t" << "Only works on folders; files are considered immutable. Different versions of the same file will have different export links." << endl;
-        os << "           " << "\t" << "The AuthToken shown has the following format <handle>#<key>:<auth-key>." << endl;
+        os << "   " << "\t" << "To modify an existing export (e.g. to change expiration time, password, etc.), it must be deleted and then re-added." << endl;
+        os << " --writable" << "\t" << "Turn an export folder into a writable folder link. You can use writable folder links to "
+                                       "share and receive files from anyone; including people who don’t have a MEGA account. " << endl;
+        os << "           " << "\t" << "This type of link is the same as a \"file request\" link that can be created through "
+                                       "the webclient, except that writable folder links are not write-only. Writable folder "
+                                       "links and file requests cannot be mixed, as they use different encryption schemes." << endl;
+        os << "           " << "\t" << "The auth-key shown has the following format <handle>#<key>:<auth-key>." << endl;
         os << " --mega-hosted" << "\t" << "The share key of this specific folder will be shared with MEGA." << endl;
         os << "              " << "\t" << "This is intended to be used for folders accessible through MEGA's S4 service." << endl;
         os << "              " << "\t" << "Encryption will occur nonetheless within MEGA's S4 service." << endl;
