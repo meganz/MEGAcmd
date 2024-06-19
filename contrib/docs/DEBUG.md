@@ -7,8 +7,8 @@ These messages will show information regarding the processing of user commands.
 
 - SDK based: those messages reported by the sdk and dependent libraries.
 
-These messages will show information regarding requests, transfers, network, etc. 
-They will be labeled with `API:`. 
+These messages will show information regarding requests, transfers, network, etc.
+They will be labeled with `SDK:`.
 
 MEGAcmdServer logs messages depending on the level of log adjusted to those
 two categories. You can adjust the level of logging for those kinds with `log` command.
@@ -16,12 +16,12 @@ Log levels range from FATAL (the lowest) to VERBOSE (the highest).
 
 ## How to access the logs
 
-Accessing the logs depends on the platform you are in. 
+Accessing the logs depends on the platform you are in.
 
 ### MacOS
 
-By default, whenever MEGAcmdServer is executed, it will log the output into 
-`$HOME/.megaCmd/megacmdserver.log`. 
+By default, whenever MEGAcmdServer is executed, it will log the output into
+`$HOME/.megaCmd/megacmdserver.log`.
 
 If you want to launch it manually execute in a terminal:
 
@@ -31,8 +31,8 @@ export PATH=/Applications/MEGAcmd.app/Contents/MacOS:$PATH
 ```
 
 ### Linux
-By default, whenever MEGAcmdServer is executed, it will log the output into 
-$HOME/.megaCmd/megacmdserver.log. 
+By default, whenever MEGAcmdServer is executed, it will log the output into
+$HOME/.megaCmd/megacmdserver.log.
 
 If you want to launch it manually execute in a terminal:
 
@@ -42,7 +42,7 @@ mega-cmd-server
 
 ### Windows
 
-MEGAcmdServer is executed in the background without saving the log into a file. If you want to 
+MEGAcmdServer is executed in the background without saving the log into a file. If you want to
 see the output you would need to execute the server (MEGAcmdServer.exe) manually.
 
 ## Verbosity on startup
@@ -89,6 +89,6 @@ SDK log level = VERBOSE
 
 ## Controlling verbosity of a single command
 
-You can pass `-v` (`-vv`, `-vvv`, and so on for a more verbose output) 
+You can pass `-v` (`-vv`, `-vvv`, and so on for a more verbose output)
 to an specific command and it will use higher level of verbosity of MEGAcmd based messages.
 
