@@ -2585,7 +2585,10 @@ string getHelpStr(const char *command)
         os << "           " << "\t" << "This type of link is the same as a \"file request\" link that can be created through "
                                        "the webclient, except that writable folder links are not write-only. Writable folder "
                                        "links and file requests cannot be mixed, as they use different encryption schemes." << endl;
-        os << "           " << "\t" << "The auth-key shown has the following format <handle>#<key>:<auth-key>." << endl;
+        os << "           " << "\t" << "The auth-key shown has the following format <handle>#<key>:<auth-key>. The "
+                                       "auth-key must be provided at login, otherwise you will log into this link with "
+                                       "read-only privileges. See \"" << commandPrefixBasedOnMode() << "login --help\" "
+                                       "for more details about logging into links." << endl;
         os << " --mega-hosted" << "\t" << "The share key of this specific folder will be shared with MEGA." << endl;
         os << "              " << "\t" << "This is intended to be used for folders accessible through MEGA's S4 service." << endl;
         os << "              " << "\t" << "Encryption will occur nonetheless within MEGA's S4 service." << endl;
