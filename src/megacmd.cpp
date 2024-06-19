@@ -1977,19 +1977,27 @@ string getHelpStr(const char *command)
     os << "Usage: " << getUsageStr(command) << endl;
     if (!strcmp(command, "login"))
     {
-        os << "Logs into a MEGA account" << endl;
-        os << " You can log in either with email and password, with session ID," << endl;
-        os << " or into a folder (an exported/public folder)" << endl;
-        os << " If logging into a folder indicate url#key (or pasword protected link)" << endl;
-        os << "   Pass --auth-key=XXXX" << "\t" << "with the authentication key (last part of the Auth Token)" << endl;
-        os << "   to be able to write into the accessed folder" << endl;
-        os << endl;
-        os << " Please, avoid using passwords containing \" or '." << endl;
-        os << endl;
+        os << "Logs into a MEGA account or folder link. You can only log into one entity at a time." << endl;
+        os << "Logging into a MEGA account:" << endl;
+        os << "\tYou can log into a MEGA account by providing either a session ID or a username and password. A session "
+              "ID simply identifies a session that you have previously logged in with using a username and password; "
+              "logging in with a session ID simply resumes that session. If this is your first time logging in, you "
+              "will need to do so with a username and password." << endl;
         os << "Options:" << endl;
-        os << " --auth-code=XXXX" << "\t" << "Two-factor Authentication code. More info: https://mega.nz/blog_48" << endl;
-        os << " --password=XXXX" << " \t" << "Password to decrypt password protected links (See \""
-                                             << commandPrefixBasedOnMode() << "export --help\")" << endl;
+        os << "\t--auth-code=XXXXXX: If you're logging in using a username and password, and this account has multifactor "
+              "authentication (MFA) enabled, then this option allows you to pass the MFA token in directly rather than "
+              "being prompted for it later on. For more information on this topic, please visit https://mega.nz/blog_48."
+              << endl;
+        os << endl;
+        os << "Logging into a MEGA folder link (an exported/public folder):" << endl;
+        os << "\tMEGA folder links have the form URL#KEY. To log into one, simply execute the login command with the link." << endl;
+        os << "Options:" << endl;
+        os << "\t--password=PASSWORD: If the link is a password protected link, then this option can be used to pass in "
+              "the password for that link." << endl;
+        os << "\t--auth-key=AUTHKEY: If the link is a writable folder link, then this option allows you to log in with "
+              "write privileges. Without this option, you will log into the link with read access only." << endl;
+        os << endl;
+        os << "For more information about MEGA folder links, see \"" << commandPrefixBasedOnMode() << "export --help\"." << endl;
     }
     else if (!strcmp(command, "cancel"))
     {
