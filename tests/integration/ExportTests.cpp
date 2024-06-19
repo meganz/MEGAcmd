@@ -161,7 +161,7 @@ TEST_F(ExportTest, Writable)
     ASSERT_TRUE(rCreate.ok());
     EXPECT_THAT(rCreate.out(), testing::HasSubstr("Exported /" + dir_path));
     EXPECT_THAT(rCreate.out(), ContainsStdRegex(megaFolderLinkRegex));
-    EXPECT_THAT(rCreate.out(), ContainsStdRegex("AuthToken = " + authTokenRegex));
+    EXPECT_THAT(rCreate.out(), ContainsStdRegex("auth-key = " + authTokenRegex));
 
     // Verify the authToken is also present when checking the export (not just when creating it)
     auto rCheck = executeInClient({"export", dir_path});
