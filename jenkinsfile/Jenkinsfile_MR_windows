@@ -154,9 +154,10 @@ pipeline {
                     """
                 }
                 post{
-                always{
-                    junit(testResults: "**/*-unit-*.xml")
-                }
+                    always{
+                        archiveArtifacts "${INSTALL_DIR}\\.megaCmd\\megacmdserver.log*"
+                        junit "megacmd-unit-tests.xml"
+                    }
             }
         }
         stage('Run integration tests'){
@@ -187,7 +188,8 @@ pipeline {
             }
             post{
                 always{
-                    junit(testResults: "**/*-integration-*.xml", allowEmptyResults: true)
+                    archiveArtifacts "${INSTALL_DIR}\\.megaCmd\\megacmdserver.log*"
+                    junit "megacmd-integration-tests.xml"
                     bat """
                         rmdir ${INSTALL_DIR}\\.megaCmd /s /q
                     """
