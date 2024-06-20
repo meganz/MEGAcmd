@@ -128,11 +128,15 @@ pipeline {
             }
             steps {
                 dir('unit-test-dir') {
-                    echo "Running tests"
-                    sh "export PATH=\$PATH${env.INSTALL_DIR}/bin"
-                    sh "export HOME=\$PWD/home"
-                    sh "mkdir -p \$HOME/Library/Caches"
-                    sh "mega-cmd-tests-unit --gtest_output=xml:${megacmd_sources_workspace}/unit-test-dir/mega-cmd-tests.xml --gtest_shuffle"
+                    def currentDir = pwd()
+                    withEnv([
+                        "PATH=\$PATH:${env.INSTALL_DIR}/bin",
+                        "HOME=${currentDir}/home"
+                    ]) {
+                        echo "Running tests"
+                        sh "mkdir -p \$HOME/Library/Caches"
+                        sh "mega-cmd-tests-unit --gtest_output=xml:${megacmd_sources_workspace}/unit-test-dir/mega-cmd-tests.xml --gtest_shuffle"
+                    }
                 }
             }
             post {
@@ -154,11 +158,15 @@ pipeline {
             steps {
                 lock(label: 'testing_accounts_megacmd', variable: 'MEGACMD_TEST_USER', quantity: 1, resource: null) {
                     dir('integration-test-dir') {
-                        echo "Running tests"
-                        sh "export PATH=\$PATH${env.INSTALL_DIR}/bin"
-                        sh "export HOME=\$PWD/home"
-                        sh "mkdir -p \$HOME/Library/Caches"
-                        sh "mega-cmd-tests-integration --gtest_output=xml:${megacmd_sources_workspace}/integration-test-dir/mega-cmd-tests.xml --gtest_shuffle"
+                        def currentDir = pwd()
+                        withEnv([
+                            "PATH=\$PATH:${env.INSTALL_DIR}/bin",
+                            "HOME=${currentDir}/home"
+                        ]) {
+                            echo "Running tests"
+                            sh "mkdir -p \$HOME/Library/Caches"
+                            sh "mega-cmd-tests-integration --gtest_output=xml:${megacmd_sources_workspace}/integration-test-dir/mega-cmd-tests.xml --gtest_shuffle"
+                        }
                     }
                 }
             }
