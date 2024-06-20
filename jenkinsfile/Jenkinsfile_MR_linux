@@ -158,7 +158,7 @@ pipeline {
                         }
                         steps {
                             dir('test-dir') {
-                                sh "docker run --user \$(id -u):\$(id -g) --env HOME=/tmp/test-dir-${SANITIZERS} --env ASAN_OPTIONS --env TSAN_OPTIONS --env UBSAN_OPTIONS --rm --mount type=bind,src='${megacmd_sources_workspace}/test-dir',target=/tmp/test-dir-${SANITIZERS} -- meganz/megacmd-cmake-v2-${SANITIZERS}:${env.BUILD_NUMBER} /usr/bin/mega-cmd-tests-unit --gtest_output=xml:/tmp/test-dir-${SANITIZERS}/results/mega-cmd-tests-unit.xml --gtest_shuffle"
+                                sh "docker run --user \$(id -u):\$(id -g) --env HOME=/tmp/test-dir-${SANITIZERS} --env ASAN_OPTIONS --env TSAN_OPTIONS --env UBSAN_OPTIONS --rm --mount type=bind,src='${megacmd_sources_workspace}/test-dir-${SANITIZERS}',target=/tmp/test-dir-${SANITIZERS} -- meganz/megacmd-cmake-v2-${SANITIZERS}:${env.BUILD_NUMBER} /usr/bin/mega-cmd-tests-unit --gtest_output=xml:/tmp/test-dir-${SANITIZERS}/results/mega-cmd-tests-unit.xml --gtest_shuffle"
                             }
                         }
                         post {
@@ -188,7 +188,7 @@ pipeline {
                             lock(label: 'testing_accounts_megacmd', variable: 'MEGACMD_TEST_USER', quantity: 1, resource: null){
                                 dir('test-dir') {
                                     script {
-                                        sh "docker run --user \$(id -u):\$(id -g) --env HOME=/tmp/test-dir-${SANITIZERS} --env MEGACMD_TEST_PASS --env MEGACMD_TEST_USER --env ASAN_OPTIONS --env TSAN_OPTIONS --env UBSAN_OPTIONS --rm --mount type=bind,src='${megacmd_sources_workspace}/test-dir',target=/tmp/test-dir-${SANITIZERS} -- meganz/megacmd-cmake-v2-${SANITIZERS}:${env.BUILD_NUMBER} /usr/bin/mega-cmd-tests-integration --gtest_output=xml:/tmp/test-dir-${SANITIZERS}/results/mega-cmd-tests-integration.xml --gtest_shuffle"
+                                        sh "docker run --user \$(id -u):\$(id -g) --env HOME=/tmp/test-dir-${SANITIZERS} --env MEGACMD_TEST_PASS --env MEGACMD_TEST_USER --env ASAN_OPTIONS --env TSAN_OPTIONS --env UBSAN_OPTIONS --rm --mount type=bind,src='${megacmd_sources_workspace}/test-dir-${SANITIZERS}',target=/tmp/test-dir-${SANITIZERS} -- meganz/megacmd-cmake-v2-${SANITIZERS}:${env.BUILD_NUMBER} /usr/bin/mega-cmd-tests-integration --gtest_output=xml:/tmp/test-dir-${SANITIZERS}/results/mega-cmd-tests-integration.xml --gtest_shuffle"
                                     }
                                 }
                             }
