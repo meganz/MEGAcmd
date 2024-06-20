@@ -164,7 +164,7 @@ pipeline {
                         post {
                             always {
                                 junit "test-dir-${SANITIZERS}/results/mega-cmd-tests-unit.xml"
-                                archiveArtifacts artifacts: "test-dir-${SANITIZERS}/.megaCmd/megacmdserver.log*", "test-dir-${SANITIZERS}/results/*", allowEmptyArchive: true
+                                archiveArtifacts artifacts: "test-dir-${SANITIZERS}/.megaCmd/megacmdserver.log*, test-dir-${SANITIZERS}/results/*", allowEmptyArchive: true
                             }
                         }
                     }
@@ -196,7 +196,7 @@ pipeline {
                         post {
                             always {
                                 junit "test-dir-${SANITIZERS}/results/mega-cmd-tests-integration.xml"
-                                archiveArtifacts "test-dir-${SANITIZERS}/.megaCmd/megacmdserver.log*", "test-dir-${SANITIZERS}/results/*"
+                                archiveArtifacts "test-dir-${SANITIZERS}/.megaCmd/megacmdserver.log*, test-dir-${SANITIZERS}/results/*"
                             }
                         }
                     }
