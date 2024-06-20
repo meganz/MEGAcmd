@@ -158,7 +158,12 @@ pipeline {
                         }
                         steps {
                             dir('test-dir') {
-                                sh "docker run --user \$(id -u):\$(id -g) --env HOME=/tmp/test-dir --env ASAN_OPTIONS --env TSAN_OPTIONS --rm --mount type=bind,src='${megacmd_sources_workspace}/test-dir',target=/tmp/test-dir -- meganz/megacmd-cmake-v2-${SANITIZERS}:${env.BUILD_NUMBER} /usr/bin/mega-cmd-tests-unit --gtest_output=xml:/tmp/test-dir/results/${SANITIZERS}-mega-cmd-tests-unit.xml --gtest_shuffle"
+                                sh "docker run --user \$(id -u):\$(id -g) --env HOME=/tmp/test-dir/${SANITIZERS} --env MEGACMD_PIPE_SUFFIX=${SANITIZERS} --env ASAN_OPTIONS --env TSAN_OPTIONS --rm --mount type=bind,src='${megacmd_sources_workspace}/test-dir',target=/tmp/test-dir -- meganz/megacmd-cmake-v2-${SANITIZERS}:${env.BUILD_NUMBER} /usr/bin/mega-cmd-tests-unit --gtest_output=xml:/tmp/test-dir/results/${SANITIZERS}-mega-cmd-tests-unit.xml --gtest_shuffle"
+                            }
+                        }
+                        post {
+                            always {
+                                archiveArtifacts artifacts: "test-dir/${SANITIZERS}/.megaCmd/megacmdserver.log*" allowEmptyArchive: true
                             }
                         }
                     }
@@ -182,22 +187,14 @@ pipeline {
                             lock(label: 'testing_accounts_megacmd', variable: 'MEGACMD_TEST_USER', quantity: 1, resource: null){
                                 dir('test-dir') {
                                     script {
-                                        try {
-                                            sh "docker run --user \$(id -u):\$(id -g) --env HOME=/tmp/test-dir --env MEGACMD_TEST_PASS --env MEGACMD_TEST_USER --env ASAN_OPTIONS --env TSAN_OPTIONS --rm --mount type=bind,src='${megacmd_sources_workspace}/test-dir',target=/tmp/test-dir -- meganz/megacmd-cmake-v2-${SANITIZERS}:${env.BUILD_NUMBER} /usr/bin/mega-cmd-tests-integration --gtest_output=xml:/tmp/test-dir/results/${SANITIZERS}-mega-cmd-tests-integration.xml --gtest_shuffle"
-                                        } catch(e) {
-                                            if (env.SANITIZERS == 'tsan'){
-                                                echo "${env.SANITIZERS} sanitizer build are expected to fail for now, will keep the build as successful"
-                                            } else {
-                                                sh "exit 1"
-                                            }
-                                        }
+                                        sh "docker run --user \$(id -u):\$(id -g) --env HOME=/tmp/test-dir/${SANITIZERS} --env MEGACMD_PIPE_SUFFIX=${SANITIZERS} --env MEGACMD_TEST_PASS --env MEGACMD_TEST_USER --env ASAN_OPTIONS --env TSAN_OPTIONS --rm --mount type=bind,src='${megacmd_sources_workspace}/test-dir',target=/tmp/test-dir -- meganz/megacmd-cmake-v2-${SANITIZERS}:${env.BUILD_NUMBER} /usr/bin/mega-cmd-tests-integration --gtest_output=xml:/tmp/test-dir/results/${SANITIZERS}-mega-cmd-tests-integration.xml --gtest_shuffle"
                                     }
                                 }
                             }
                         }
                         post {
                             always {
-                                archiveArtifacts "test-dir/.megaCmd/megacmdserver.log*"
+                                archiveArtifacts "test-dir/${SANITIZERS}/.megaCmd/megacmdserver.log*"
                             }
                         }
                     }
