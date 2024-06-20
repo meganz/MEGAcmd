@@ -196,7 +196,7 @@ pipeline {
                         post {
                             always {
                                 junit "test-dir-${SANITIZERS}/results/mega-cmd-tests-integration.xml"
-                                archiveArtifacts "test-dir-${SANITIZERS}/.megaCmd/megacmdserver.log*", "test-dir-${SANITIZERS}/results/*
+                                archiveArtifacts "test-dir-${SANITIZERS}/.megaCmd/megacmdserver.log*", "test-dir-${SANITIZERS}/results/*"
                             }
                         }
                     }
