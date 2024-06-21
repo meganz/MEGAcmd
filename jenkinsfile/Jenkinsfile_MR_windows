@@ -141,6 +141,7 @@ pipeline {
         stage('Run unit tests') {
             environment {
                 INSTALL_DIR = "${megacmd_sources_workspace}\\cmdbuild\\Debug"
+                MEGACMD_PIPE_SUFFIX = UUID.randomUUID().toString()
             }
             options {
                 timeout(time: 3, unit: 'HOURS')
@@ -165,6 +166,7 @@ pipeline {
         stage('Run integration tests') {
             environment {
                 INSTALL_DIR = "${megacmd_sources_workspace}\\cmdbuild\\Debug"
+                MEGACMD_PIPE_SUFFIX = UUID.randomUUID().toString()
                 MEGACMD_TEST_USER = ''
                 MEGACMD_TEST_PASS = credentials('MEGACMD_TESTS_PASSWORD')
             }
