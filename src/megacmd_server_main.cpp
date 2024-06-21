@@ -195,17 +195,17 @@ int main(int argc, char* argv[])
 
     bool logToFile = extractarg(args, "--log-to-file");  // only for debugging
 
-    std::unique_ptr<megacmd::LoggedStream> loggedStream;
+    std::function<megacmd::LoggedStream*()> createLoggedStream;
     if (logToFile)
     {
-        loggedStream = std::make_unique<megacmd::LoggedStreamDefaultFile>();
+        createLoggedStream = [] { return new megacmd::LoggedStreamDefaultFile(); };
     }
     else
     {
         // log to stdout
-        loggedStream = std::make_unique<megacmd::LoggedStreamOutStream>(&COUT);
+        createLoggedStream = [] { return new megacmd::LoggedStreamOutStream(&COUT); };
     }
 
-    return megacmd::executeServer(argc, argv, std::move(loggedStream),
+    return megacmd::executeServer(argc, argv, std::move(createLoggedStream),
                                   sdkLogLevel, cmdLogLevel, skiplockcheck, debug_api_url, disablepkp);
 }

@@ -69,8 +69,8 @@ int main (int argc, char *argv[])
             nullptr
         };
 
-        megacmd::executeServer(1, args.data(),
-                               std::make_unique<megacmd::LoggedStreamDefaultFile>());
+        auto createDefaultStream = [] { return new megacmd::LoggedStreamDefaultFile(); };
+        megacmd::executeServer(1, args.data(), std::move(createDefaultStream));
     });
 
     using TI = TestInstruments;
