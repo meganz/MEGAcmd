@@ -154,11 +154,11 @@ pipeline {
                         exit %ERROR_VAL%
                         """
                 }
-                post {
-                    always {
-                        junit "unit-test-dir\\mega-cmd-tests.xml"
-                        archiveArtifacts artifacts: "unit-test-dir\\.megaCmd\\megacmdserver.log*", allowEmptyArchive: true
-                    }
+            }
+            post {
+                always {
+                    junit "unit-test-dir\\mega-cmd-tests.xml"
+                    archiveArtifacts artifacts: "unit-test-dir\\.megaCmd\\megacmdserver.log*", allowEmptyArchive: true
                 }
             }
         }
