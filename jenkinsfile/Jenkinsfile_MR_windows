@@ -157,8 +157,8 @@ pipeline {
             }
             post {
                 always {
-                    junit "unit-test-dir\\mega-cmd-tests.xml"
                     archiveArtifacts artifacts: "unit-test-dir\\.megaCmd\\megacmdserver.log*", allowEmptyArchive: true
+                    junit "unit-test-dir\\mega-cmd-tests.xml"
                 }
             }
         }
@@ -186,8 +186,8 @@ pipeline {
             }
             post {
                 always {
-                    junit "integration-test-dir\\mega-cmd-tests.xml"
                     archiveArtifacts "integration-test-dir\\.megaCmd\\megacmdserver.log*"
+                    junit "integration-test-dir\\mega-cmd-tests.xml"
                 }
             }
         }

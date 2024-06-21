@@ -163,8 +163,8 @@ pipeline {
                         }
                         post {
                             always {
-                                junit "test-dir-${SANITIZERS}/results/mega-cmd-tests-unit.xml"
                                 archiveArtifacts artifacts: "test-dir-${SANITIZERS}/.megaCmd/megacmdserver.log*, test-dir-${SANITIZERS}/results/*", allowEmptyArchive: true
+                                junit "test-dir-${SANITIZERS}/results/mega-cmd-tests-unit.xml"
                             }
                         }
                     }
@@ -195,8 +195,8 @@ pipeline {
                         }
                         post {
                             always {
-                                junit "test-dir-${SANITIZERS}/results/mega-cmd-tests-integration.xml"
                                 archiveArtifacts "test-dir-${SANITIZERS}/.megaCmd/megacmdserver.log*, test-dir-${SANITIZERS}/results/*"
+                                junit "test-dir-${SANITIZERS}/results/mega-cmd-tests-integration.xml"
                             }
                         }
                     }
