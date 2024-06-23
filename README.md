@@ -34,6 +34,18 @@ In order to have support for thumbnails and previews, it is highly recommended t
  * **Ubuntu 18.04**
 	 * `autoconf libtool g++ libcrypto++-dev libz-dev libsqlite3-dev libssl-dev libcurl4-gnutls-dev libreadline-dev libpcre++-dev libsodium-dev libc-ares-dev libfreeimage-dev libavcodec-dev libavutil-dev libavformat-dev libswscale-dev libmediainfo-dev libzen-dev libuv1-dev`
 
+ * **RHEL,Fedora**
+
+install epel repository
+
+https://docs.fedoraproject.org/en-US/epel/
+
+install rpmfusion-free and rpmfusion-nonfree
+
+https://rpmfusion.org/Configuration/
+
+	 * `autoconf libtool gcc-c++ openssl openssl-devel zlib-devel sqlite-devel libcurl-devel readline-devel pcre-devel pcre2-devel libsodium-devel c-ares-devel freeimage-devel ffmpeg-devel libmediainfo-devel libzen-devel cryptopp-devel git`
+
  * **Debian 9**
 
 	* `libcrypto++ libpcrecpp0v5 libc-ares-dev zlib1g-dev libuv1 libssl-dev libsodium-dev readline-common sqlite3 curl autoconf libtool g++ libcrypto++-dev libz-dev libsqlite3-dev libssl-dev libcurl4-gnutls-dev libreadline-dev libpcre++-dev libsodium-dev libc-ares-dev libfreeimage-dev libavcodec-dev libavutil-dev libavformat-dev libswscale-dev libmediainfo-dev libzen-dev`
