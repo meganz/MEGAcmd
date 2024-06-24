@@ -1,0 +1,595 @@
+name: mega-cmd 
+title: MEGAcmd
+base: core22 
+version: 1.6.3
+summary: Command Line Interactive and Scriptable Application to access MEGA 
+description: |
+  MEGAcmd provides non UI access to MEGA services. It intends to offer all the
+  functionality with your MEGA account via commands. It features 
+  synchronization, backup of local folders into your MEGA account and a 
+  webdav/streaming server.
+
+grade: stable 
+confinement: strict 
+license: Proprietary
+
+parts:
+  mega-cmd:
+    plugin: autotools
+    autotools-configure-parameters: ["--without-ffmpeg"]
+    source: https://github.com/meganz/MEGAcmd.git
+    source-tag: "1.6.3_Linux"
+    source-type: git
+    build-packages:
+      - autoconf
+      - libtool
+      - g++ 
+      - libcrypto++-dev 
+      - libz-dev 
+      - libsqlite3-dev 
+      - libssl-dev 
+      - libcurl4-gnutls-dev 
+      - libreadline-dev 
+      - libpcre++-dev 
+      - libsodium-dev 
+      - libc-ares-dev 
+      - libfreeimage-dev 
+      - libavcodec-dev 
+      - libavutil-dev 
+      - libavformat-dev 
+      - libswscale-dev 
+      - libmediainfo-dev 
+      - libzen-dev 
+      - libuv1-dev
+    stage-packages:
+      - libpcrecpp0v5
+      - libcrypto++8
+      - libraw20
+      - libc-ares2
+      - libcurl4-gnutls-dev
+      - libfreeimage3
+      - libmediainfo0v5
+      - libsodium23
+      - libuv1
+    prime:
+      - -usr/lib/x86_64-linux-gnu/libIexMath-2_5.so.25.0.6
+      - -usr/lib/x86_64-linux-gnu/libIlmImfUtil-2_5.so.25.0.6
+      - -usr/lib/x86_64-linux-gnu/libraw_r.so.20.0.0
+
+  # Add licensing into the snap 
+  license:
+    plugin: dump
+    source: https://github.com/meganz/MEGAcmd.git
+    source-tag: "1.6.3_Linux"
+    source-type: git
+    prime: 
+      - LICENSE
+
+apps:
+  mega-cmd: 
+    command: usr/local/bin/mega-cmd
+    environment:
+       LD_LIBRARY_PATH: $SNAP/usr/local/lib:$LD_LIBRARY_PATH
+    plugs:
+      - network-bind
+      - home
+      - removable-media
+
+  megacli: 
+    command: usr/local/bin/megacli
+    environment:
+      PATH: $PATH:$SNAP/usr/local/bin
+      LD_LIBRARY_PATH: $SNAP/usr/local/lib:$LD_LIBRARY_PATH
+    plugs:
+      - network-bind
+      - home
+      - removable-media
+  
+  mega-cmd-server: 
+    command: usr/local/bin/mega-cmd-server
+    environment:
+       LD_LIBRARY_PATH: $SNAP/usr/local/lib:$LD_LIBRARY_PATH
+    plugs:
+      - network-bind
+      - home
+      - removable-media
+
+  mega-signup: 
+    command: usr/local/bin/mega-signup
+    environment:
+      PATH: $PATH:$SNAP/usr/local/bin
+      LD_LIBRARY_PATH: $SNAP/usr/local/lib:$LD_LIBRARY_PATH
+    plugs:
+      - network-bind
+  
+  mega-confirm: 
+    command: usr/local/bin/mega-confirm
+    environment:
+      PATH: $PATH:$SNAP/usr/local/bin
+      LD_LIBRARY_PATH: $SNAP/usr/local/lib:$LD_LIBRARY_PATH
+    plugs:
+      - network-bind
+   
+  mega-invite: 
+    command: usr/local/bin/mega-invite
+    environment:
+      PATH: $PATH:$SNAP/usr/local/bin
+      LD_LIBRARY_PATH: $SNAP/usr/local/lib:$LD_LIBRARY_PATH
+    plugs:
+      - network-bind
+
+  mega-showpcr: 
+    command: usr/local/bin/mega-showpcr
+    environment:
+      PATH: $PATH:$SNAP/usr/local/bin
+      LD_LIBRARY_PATH: $SNAP/usr/local/lib:$LD_LIBRARY_PATH
+    plugs:
+      - network-bind
+
+  mega-ipc: 
+    command: usr/local/bin/mega-ipc
+    environment:
+      PATH: $PATH:$SNAP/usr/local/bin
+      LD_LIBRARY_PATH: $SNAP/usr/local/lib:$LD_LIBRARY_PATH
+    plugs:
+      - network-bind
+
+  mega-users: 
+    command: usr/local/bin/mega-users
+    environment:
+      PATH: $PATH:$SNAP/usr/local/bin
+      LD_LIBRARY_PATH: $SNAP/usr/local/lib:$LD_LIBRARY_PATH
+    plugs:
+      - network-bind
+  
+  mega-userattr: 
+    command: usr/local/bin/mega-userattr
+    environment:
+      PATH: $PATH:$SNAP/usr/local/bin
+      LD_LIBRARY_PATH: $SNAP/usr/local/lib:$LD_LIBRARY_PATH
+    plugs:
+      - network-bind
+   
+  mega-passwd: 
+    command: usr/local/bin/mega-passwd
+    environment:
+      PATH: $PATH:$SNAP/usr/local/bin
+      LD_LIBRARY_PATH: $SNAP/usr/local/lib:$LD_LIBRARY_PATH
+    plugs:
+      - network-bind
+
+  mega-login: 
+    command: usr/local/bin/mega-login
+    environment:
+      PATH: $PATH:$SNAP/usr/local/bin
+      LD_LIBRARY_PATH: $SNAP/usr/local/lib:$LD_LIBRARY_PATH
+    plugs:
+      - network-bind
+  
+  mega-logout: 
+    command: usr/local/bin/mega-logout
+    environment:
+      PATH: $PATH:$SNAP/usr/local/bin
+      LD_LIBRARY_PATH: $SNAP/usr/local/lib:$LD_LIBRARY_PATH
+    plugs:
+      - network-bind
+   
+  mega-whoami: 
+    command: usr/local/bin/mega-whoami
+    environment:
+      PATH: $PATH:$SNAP/usr/local/bin
+      LD_LIBRARY_PATH: $SNAP/usr/local/lib:$LD_LIBRARY_PATH
+    plugs:
+      - network-bind
+
+  mega-session: 
+    command: usr/local/bin/mega-session
+    environment:
+      PATH: $PATH:$SNAP/usr/local/bin
+      LD_LIBRARY_PATH: $SNAP/usr/local/lib:$LD_LIBRARY_PATH
+    plugs:
+      - network-bind
+
+  mega-killsession: 
+    command: usr/local/bin/mega-killsession
+    environment:
+      PATH: $PATH:$SNAP/usr/local/bin
+      LD_LIBRARY_PATH: $SNAP/usr/local/lib:$LD_LIBRARY_PATH
+    plugs:
+      - network-bind
+
+  mega-cd: 
+    command: usr/local/bin/mega-cd
+    environment:
+      PATH: $PATH:$SNAP/usr/local/bin
+      LD_LIBRARY_PATH: $SNAP/usr/local/lib:$LD_LIBRARY_PATH
+    plugs:
+      - network-bind
+  
+  mega-lcd: 
+    command: usr/local/bin/mega-lcd
+    environment:
+      PATH: $PATH:$SNAP/usr/local/bin
+      LD_LIBRARY_PATH: $SNAP/usr/local/lib:$LD_LIBRARY_PATH
+    plugs:
+      - network-bind
+   
+  mega-ls: 
+    command: usr/local/bin/mega-ls
+    environment:
+      PATH: $PATH:$SNAP/usr/local/bin
+      LD_LIBRARY_PATH: $SNAP/usr/local/lib:$LD_LIBRARY_PATH
+    plugs:
+      - network-bind
+
+  mega-pwd: 
+    command: usr/local/bin/mega-pwd
+    environment:
+      PATH: $PATH:$SNAP/usr/local/bin
+      LD_LIBRARY_PATH: $SNAP/usr/local/lib:$LD_LIBRARY_PATH
+    plugs:
+      - network-bind
+
+  mega-lpwd: 
+    command: usr/local/bin/mega-lpwd
+    environment:
+      PATH: $PATH:$SNAP/usr/local/bin
+      LD_LIBRARY_PATH: $SNAP/usr/local/lib:$LD_LIBRARY_PATH
+    plugs:
+      - network-bind
+
+  mega-attr: 
+    command: usr/local/bin/mega-attr
+    environment:
+      PATH: $PATH:$SNAP/usr/local/bin
+      LD_LIBRARY_PATH: $SNAP/usr/local/lib:$LD_LIBRARY_PATH
+    plugs:
+      - network-bind
+   
+  mega-du: 
+    command: usr/local/bin/mega-du
+    environment:
+      PATH: $PATH:$SNAP/usr/local/bin
+      LD_LIBRARY_PATH: $SNAP/usr/local/lib:$LD_LIBRARY_PATH
+    plugs:
+      - network-bind
+
+  mega-find: 
+    command: usr/local/bin/mega-find
+    environment:
+      PATH: $PATH:$SNAP/usr/local/bin
+      LD_LIBRARY_PATH: $SNAP/usr/local/lib:$LD_LIBRARY_PATH
+    plugs:
+      - network-bind
+
+  mega-mount: 
+    command: usr/local/bin/mega-mount
+    environment:
+      PATH: $PATH:$SNAP/usr/local/bin
+      LD_LIBRARY_PATH: $SNAP/usr/local/lib:$LD_LIBRARY_PATH
+    plugs:
+      - network-bind
+
+  mega-mkdir: 
+    command: usr/local/bin/mega-mkdir
+    environment:
+      PATH: $PATH:$SNAP/usr/local/bin
+      LD_LIBRARY_PATH: $SNAP/usr/local/lib:$LD_LIBRARY_PATH
+    plugs:
+      - network-bind
+  
+  mega-cp: 
+    command: usr/local/bin/mega-cp
+    environment:
+      PATH: $PATH:$SNAP/usr/local/bin
+      LD_LIBRARY_PATH: $SNAP/usr/local/lib:$LD_LIBRARY_PATH
+    plugs:
+      - network-bind
+   
+  mega-put: 
+    command: usr/local/bin/mega-put
+    environment:
+      PATH: $PATH:$SNAP/usr/local/bin
+      LD_LIBRARY_PATH: $SNAP/usr/local/lib:$LD_LIBRARY_PATH
+    plugs:
+      - network-bind
+      - home
+      - removable-media
+
+  mega-get: 
+    command: usr/local/bin/mega-get
+    environment:
+      PATH: $PATH:$SNAP/usr/local/bin
+      LD_LIBRARY_PATH: $SNAP/usr/local/lib:$LD_LIBRARY_PATH
+    plugs:
+      - network-bind
+      - home
+      - removable-media
+
+  mega-preview: 
+    command: usr/local/bin/mega-preview
+    environment:
+      PATH: $PATH:$SNAP/usr/local/bin
+      LD_LIBRARY_PATH: $SNAP/usr/local/lib:$LD_LIBRARY_PATH
+    plugs:
+      - network-bind
+      - home
+      - removable-media
+
+  mega-thumbnail: 
+    command: usr/local/bin/mega-thumbnail
+    environment:
+      PATH: $PATH:$SNAP/usr/local/bin
+      LD_LIBRARY_PATH: $SNAP/usr/local/lib:$LD_LIBRARY_PATH
+    plugs:
+      - network-bind
+      - home 
+      - removable-media
+   
+  mega-mv: 
+    command: usr/local/bin/mega-mv
+    environment:
+      PATH: $PATH:$SNAP/usr/local/bin
+      LD_LIBRARY_PATH: $SNAP/usr/local/lib:$LD_LIBRARY_PATH
+    plugs:
+      - network-bind
+
+  mega-rm: 
+    command: usr/local/bin/mega-rm
+    environment:
+      PATH: $PATH:$SNAP/usr/local/bin
+      LD_LIBRARY_PATH: $SNAP/usr/local/lib:$LD_LIBRARY_PATH
+    plugs:
+      - network-bind
+
+  mega-transfers: 
+    command: usr/local/bin/mega-transfers
+    environment:
+      PATH: $PATH:$SNAP/usr/local/bin
+      LD_LIBRARY_PATH: $SNAP/usr/local/lib:$LD_LIBRARY_PATH
+    plugs:
+      - network-bind
+
+  mega-speedlimit: 
+    command: usr/local/bin/mega-speedlimit
+    environment:
+      PATH: $PATH:$SNAP/usr/local/bin
+      LD_LIBRARY_PATH: $SNAP/usr/local/lib:$LD_LIBRARY_PATH
+    plugs:
+      - network-bind
+
+  mega-sync: 
+    command: usr/local/bin/mega-sync
+    environment:
+      PATH: $PATH:$SNAP/usr/local/bin
+      LD_LIBRARY_PATH: $SNAP/usr/local/lib:$LD_LIBRARY_PATH
+    plugs:
+      - network-bind
+      - home
+      - removable-media
+
+  mega-exclude: 
+    command: usr/local/bin/mega-exclude
+    environment:
+      PATH: $PATH:$SNAP/usr/local/bin
+      LD_LIBRARY_PATH: $SNAP/usr/local/lib:$LD_LIBRARY_PATH
+    plugs:
+      - network-bind
+   
+  mega-backup: 
+    command: usr/local/bin/mega-backup
+    environment:
+      PATH: $PATH:$SNAP/usr/local/bin
+      LD_LIBRARY_PATH: $SNAP/usr/local/lib:$LD_LIBRARY_PATH
+    plugs:
+      - network-bind
+      - home
+      - removable-media
+
+  mega-export: 
+    command: usr/local/bin/mega-export
+    environment:
+      PATH: $PATH:$SNAP/usr/local/bin
+      LD_LIBRARY_PATH: $SNAP/usr/local/lib:$LD_LIBRARY_PATH
+    plugs:
+      - network-bind
+
+  mega-import: 
+    command: usr/local/bin/mega-import
+    environment:
+      PATH: $PATH:$SNAP/usr/local/bin
+      LD_LIBRARY_PATH: $SNAP/usr/local/lib:$LD_LIBRARY_PATH
+    plugs:
+      - network-bind
+
+  mega-share: 
+    command: usr/local/bin/mega-share
+    environment:
+      PATH: $PATH:$SNAP/usr/local/bin
+      LD_LIBRARY_PATH: $SNAP/usr/local/lib:$LD_LIBRARY_PATH
+    plugs:
+      - network-bind
+   
+  mega-webdav: 
+    command: usr/local/bin/mega-webdav
+    environment:
+      PATH: $PATH:$SNAP/usr/local/bin
+      LD_LIBRARY_PATH: $SNAP/usr/local/lib:$LD_LIBRARY_PATH
+    plugs:
+      - network-bind
+      - home
+      - removable-media
+
+  mega-help: 
+    command: usr/local/bin/mega-help
+    environment:
+      PATH: $PATH:$SNAP/usr/local/bin
+      LD_LIBRARY_PATH: $SNAP/usr/local/lib:$LD_LIBRARY_PATH
+    plugs:
+      - network-bind
+  
+  mega-version: 
+    command: usr/local/bin/mega-version
+    environment:
+      PATH: $PATH:$SNAP/usr/local/bin
+      LD_LIBRARY_PATH: $SNAP/usr/local/lib:$LD_LIBRARY_PATH
+    plugs:
+      - network-bind
+      - home
+      - removable-media
+
+  mega-deleteversions: 
+    command: usr/local/bin/mega-deleteversions
+    environment:
+      PATH: $PATH:$SNAP/usr/local/bin
+      LD_LIBRARY_PATH: $SNAP/usr/local/lib:$LD_LIBRARY_PATH
+    plugs:
+      - network-bind
+
+  mega-reload: 
+    command: usr/local/bin/mega-reload
+    environment:
+      PATH: $PATH:$SNAP/usr/local/bin
+      LD_LIBRARY_PATH: $SNAP/usr/local/lib:$LD_LIBRARY_PATH
+    plugs:
+      - network-bind
+  
+  mega-https: 
+    command: usr/local/bin/mega-https
+    environment:
+      PATH: $PATH:$SNAP/usr/local/bin
+      LD_LIBRARY_PATH: $SNAP/usr/local/lib:$LD_LIBRARY_PATH
+    plugs:
+      - network-bind
+
+  mega-log: 
+    command: usr/local/bin/mega-log
+    environment:
+      PATH: $PATH:$SNAP/usr/local/bin
+      LD_LIBRARY_PATH: $SNAP/usr/local/lib:$LD_LIBRARY_PATH
+    plugs:
+      - network-bind
+
+  mega-debug: 
+    command: usr/local/bin/mega-debug
+    environment:
+      PATH: $PATH:$SNAP/usr/local/bin
+      LD_LIBRARY_PATH: $SNAP/usr/local/lib:$LD_LIBRARY_PATH
+    plugs:
+      - network-bind
+
+  mega-quit: 
+    command: usr/local/bin/mega-quit
+    environment:
+      PATH: $PATH:$SNAP/usr/local/bin
+      LD_LIBRARY_PATH: $SNAP/usr/local/lib:$LD_LIBRARY_PATH
+    plugs:
+      - network-bind
+
+  mega-cancel: 
+    command: usr/local/bin/mega-cancel
+    environment:
+      PATH: $PATH:$SNAP/usr/local/bin
+      LD_LIBRARY_PATH: $SNAP/usr/local/lib:$LD_LIBRARY_PATH
+    plugs:
+      - network-bind
+
+  mega-cat: 
+    command: usr/local/bin/mega-cat
+    environment:
+      PATH: $PATH:$SNAP/usr/local/bin
+      LD_LIBRARY_PATH: $SNAP/usr/local/lib:$LD_LIBRARY_PATH
+    plugs:
+      - network-bind
+
+  mega-confirmcancel: 
+    command: usr/local/bin/mega-confirmcancel
+    environment:
+      PATH: $PATH:$SNAP/usr/local/bin
+      LD_LIBRARY_PATH: $SNAP/usr/local/lib:$LD_LIBRARY_PATH
+    plugs:
+      - network-bind
+
+  mega-df: 
+    command: usr/local/bin/mega-df
+    environment:
+      PATH: $PATH:$SNAP/usr/local/bin
+      LD_LIBRARY_PATH: $SNAP/usr/local/lib:$LD_LIBRARY_PATH
+    plugs:
+      - network-bind
+
+  mega-errorcode: 
+    command: usr/local/bin/mega-errorcode
+    environment:
+      PATH: $PATH:$SNAP/usr/local/bin
+      LD_LIBRARY_PATH: $SNAP/usr/local/lib:$LD_LIBRARY_PATH
+    plugs:
+      - network-bind
+
+  mega-exec: 
+    command: usr/local/bin/mega-exec
+    environment:
+      PATH: $PATH:$SNAP/usr/local/bin
+      LD_LIBRARY_PATH: $SNAP/usr/local/lib:$LD_LIBRARY_PATH
+    plugs:
+      - network-bind
+
+  mega-ftp: 
+    command: usr/local/bin/mega-ftp
+    environment:
+      PATH: $PATH:$SNAP/usr/local/bin
+      LD_LIBRARY_PATH: $SNAP/usr/local/lib:$LD_LIBRARY_PATH
+    plugs:
+      - network-bind
+      - home
+      - removable-media
+
+  mega-graphics: 
+    command: usr/local/bin/mega-graphics
+    environment:
+      PATH: $PATH:$SNAP/usr/local/bin
+      LD_LIBRARY_PATH: $SNAP/usr/local/lib:$LD_LIBRARY_PATH
+    plugs:
+      - network-bind
+
+  mega-mediainfo: 
+    command: usr/local/bin/mega-mediainfo
+    environment:
+      PATH: $PATH:$SNAP/usr/local/bin
+      LD_LIBRARY_PATH: $SNAP/usr/local/lib:$LD_LIBRARY_PATH
+    plugs:
+      - network-bind
+
+  mega-permissions: 
+    command: usr/local/bin/mega-permissions
+    environment:
+      PATH: $PATH:$SNAP/usr/local/bin
+      LD_LIBRARY_PATH: $SNAP/usr/local/lib:$LD_LIBRARY_PATH
+    plugs:
+      - network-bind
+
+  mega-proxy: 
+    command: usr/local/bin/mega-proxy
+    environment:
+      PATH: $PATH:$SNAP/usr/local/bin
+      LD_LIBRARY_PATH: $SNAP/usr/local/lib:$LD_LIBRARY_PATH
+    plugs:
+      - network-bind
+
+  megasimplesync: 
+    command: usr/local/bin/megasimplesync
+    environment:
+      PATH: $PATH:$SNAP/usr/local/bin
+      LD_LIBRARY_PATH: $SNAP/usr/local/lib:$LD_LIBRARY_PATH
+    plugs:
+      - network-bind
+      - home
+      - removable-media
+
+  mega-tree: 
+    command: usr/local/bin/mega-tree
+    environment:
+      PATH: $PATH:$SNAP/usr/local/bin
+      LD_LIBRARY_PATH: $SNAP/usr/local/lib:$LD_LIBRARY_PATH
+    plugs:
+      - network-bind
