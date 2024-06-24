@@ -34,7 +34,7 @@ done
 
 In addition to running commands on request, MEGAcmd can also be configured to [synchronise](#synchronisation-configurations) folders between your local device and your MEGA account, or perform regular [backups](#backup-configurations) from your device to your MEGA account.
 
-In order to enable synchronisation and backup features, and for efficiency running commands, MEGAcmd runs a server process in the background which the MEGAcmd shell or the script commands forward requests to.   The server keeps running in the background until it is told to close with the [`quit`](#quit) command.   If you want it to keep running when you quit the interactive shell (to keep sync and backup runnign for example), use `quit --only-shell`.
+In order to enable synchronisation and backup features, and for efficiency running commands, MEGAcmd runs a server process in the background which the MEGAcmd shell or the script commands forward requests to.   The server keeps running in the background until it is told to close with the [`quit`](#quit) command.   If you want it to keep running when you quit the interactive shell (to keep sync and backup running for example), use `quit --only-shell`.
 
 Working with your MEGA account requires signing in with your email and password using the [`login`](#login) command, though you can download public links or upload to public folders without logging in.  Logging in with your username and password starts a [Session](#session), and causes some of your account such as the folder structure to be downloaded to your [Local Cache](#local-cache).  
 
