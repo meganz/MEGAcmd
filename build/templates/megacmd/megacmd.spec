@@ -19,7 +19,6 @@ BuildRequires: hicolor-icon-theme, zip, unzip, nasm, cmake, perl
     BuildRequires: wget
 %endif
 
-#TODO: try to simplify these:
 %if 0%{?suse_version} || 0%{?sle_version}
     %if 0%{?suse_version} > 1500
         BuildRequires: pkgconf-pkg-config
@@ -43,12 +42,6 @@ BuildRequires: hicolor-icon-theme, zip, unzip, nasm, cmake, perl
         BuildRequires: gcc13 gcc13-c++
         BuildRequires: python311
     %endif
-
-#    %if 0%{?suse_version} > 1500
-#        BuildRequires: pkgconf-pkg-config
-#    %else
-#        BuildRequires: pkg-config
-#    %endif
 %endif
 
 #Fedora specific
@@ -74,7 +67,6 @@ It features 2 modes of interaction:
 mega_build_id=`echo %{release} | cut -d'.' -f 1`
 sed -i -E "s/(^#define MEGACMD_BUILD_ID )[0-9]*/\1${mega_build_id}/g" src/megacmdversion.h
 
-#TODO: ensure these are met
 %define fullreqs -DREQUIRE_HAVE_PDFIUM -DREQUIRE_HAVE_FFMPEG -DREQUIRE_HAVE_LIBUV -DREQUIRE_USE_MEDIAINFO -DREQUIRE_USE_PCRE
 
 %if ( 0%{?fedora_version} && 0%{?fedora_version}<=38 ) || ( 0%{?centos_version} == 600 ) || ( 0%{?centos_version} == 800 ) || ( 0%{?sle_version} && 0%{?sle_version} < 150500 )

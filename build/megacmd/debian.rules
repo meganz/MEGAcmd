@@ -33,8 +33,6 @@ build-stamp:
 		ln -s cmake-*-Linux* cmake_inst;  \
 	fi
 
-	#TODO: ensure REQUIRE_USE_PCRE is defined
-	#TODO: ensure debug info is there after RelWithDebInfo
 	cmake --version
 	cmake $(VCPKG_ROOT) -DCMAKE_VERBOSE_MAKEFILE=ON -DCMAKE_BUILD_TYPE=RelWithDebInfo -S $(CURDIR) -B $(CURDIR)/build_dir
 	cmake --build $(CURDIR)/build_dir -j$(NJOBS)
