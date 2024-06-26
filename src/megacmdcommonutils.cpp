@@ -708,6 +708,19 @@ string getRightAlignedString(const string origin, unsigned int minsize)
     return os.str();
 }
 
+std::string getAsciiValidString(const std::string &str)
+{
+    std::string validStr;
+    for (char c : str)
+    {
+        if (c >= 0 && c < 128)
+        {
+            validStr += c;
+        }
+    }
+    return validStr;
+}
+
 void printCenteredLine(OUTSTREAMTYPE &os, string msj, unsigned int width, bool encapsulated)
 {
     unsigned int msjsize = getstringutf8size(msj);
