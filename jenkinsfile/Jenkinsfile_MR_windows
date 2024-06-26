@@ -151,8 +151,7 @@ pipeline {
                     echo "Running tests"
                     bat """
                         ${INSTALL_DIR}\\mega-cmd-tests-unit.exe --gtest_shuffle --gtest_output=xml:${megacmd_sources_workspace}\\unit-test-dir\\mega-cmd-tests.xml
-                        if %ERRORLEVEL% NEQ 0 exit 1
-                        exit %ERROR_VAL%
+                        exit %ERRORLEVEL%
                         """
                 }
             }
@@ -181,10 +180,8 @@ pipeline {
                     dir('integration-test-dir') {
                         echo "Running tests"
                         bat """
-                            if %ERRORLEVEL% NEQ 0 set ERRORLEVEL=0
                             ${INSTALL_DIR}\\mega-cmd-tests-integration.exe --gtest_stack_trace_depth=10 --gmock_verbose=info --gtest_shuffle --gtest_output=xml:${megacmd_sources_workspace}\\integration-test-dir\\mega-cmd-tests.xml
-                            if %ERRORLEVEL% NEQ 0 exit 1
-                            exit %ERROR_VAL%
+                            exit %ERRORLEVEL%
                             """
                     }
                 }
