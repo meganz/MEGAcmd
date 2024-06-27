@@ -7,6 +7,10 @@ def get_help_output(detail):
     det = '-ff' if detail else '-f'
     return subprocess.run(['mega-exec', 'help', det, '--show-all-options'], capture_output=True, text=True).stdout
 
+def get_version():
+    out = subprocess.run(['mega-exec', 'version'], capture_output=True, text=True).stdout
+    return re.search(r'MEGAcmd version: (\d+\.\d+\.\d+)', out).group(1)
+
 class CommandSummary:
     def __init__(self, name, args, description):
         self.name = name
@@ -140,6 +144,11 @@ def write_to_user_guide(summary):
     with open('UserGuide.md', 'r') as f:
         contents = f.read()
 
+    # Write MEGAcmd version
+    version_sentence = 'This document relates to MEGAcmd version '
+    contents = re.sub(version_sentence + r'\d+\.\d+\.\d+', version_sentence + get_version(), contents)
+
+    # Write summary of all commands
     anchor = '<<<<<<<<<<<<<<<<ANCHOR>>>>>>>>>>>>>>>>'
     contents = contents.replace('### Account / Contacts\n', anchor)
     contents = contents.replace('## Examples', anchor + '## Examples')
