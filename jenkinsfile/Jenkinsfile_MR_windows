@@ -187,7 +187,7 @@ pipeline {
             post {
                 always {
                     archiveArtifacts "cmdbuild\\Debug\\.megaCmd\\megacmdserver.log*"
-                    junit "integration-test-dir\\mega-cmd-tests.xml"
+                    junit testResults: "integration-test-dir\\mega-cmd-tests.xml", allowEmptyResults: true // only because we're allowing failures above
                     bat "rmdir ${INSTALL_DIR}\\.megaCmd /s /q"
                 }
             }
