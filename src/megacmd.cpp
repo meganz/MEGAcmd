@@ -3117,18 +3117,19 @@ void printAvailableCommands(int extensive = 0, bool showAllOptions = false)
         const size_t third = (size / 3) + ((size % 3 > 0) ? 1 : 0);
         const size_t twoThirds = 2 * (size / 3) + size % 3;
 
-        auto it = validCommandSet.begin();
-        auto it2 = std::next(it, third);
-        auto it3 = std::next(it, twoThirds);
+        // iterators for each column
+        auto it1 = validCommandSet.begin();
+        auto it2 = std::next(it1, third);
+        auto it3 = std::next(it1, twoThirds);
 
-        for (; it != validCommandSet.end() && it2 != validCommandSet.end() && it3 != validCommandSet.end(); ++it, ++it2, ++it3)
+        for (; it1 != validCommandSet.end() && it2 != validCommandSet.end() && it3 != validCommandSet.end(); ++it1, ++it2, ++it3)
         {
-            OUTSTREAM << "      " << getLeftAlignedStr(*it, 20) <<  getLeftAlignedStr(*it2, 20)  <<  "      " << *it3 << endl;
+            OUTSTREAM << "      " << getLeftAlignedStr(*it1, 20) <<  getLeftAlignedStr(*it2, 20)  <<  "      " << *it3 << endl;
         }
 
         if (size % 3)
         {
-            OUTSTREAM << "      " << getLeftAlignedStr(*it, 20);
+            OUTSTREAM << "      " << getLeftAlignedStr(*it1, 20);
             if (size % 3 > 1 )
             {
                 OUTSTREAM << getLeftAlignedStr(*it2, 20);

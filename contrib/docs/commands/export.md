@@ -7,10 +7,10 @@ Options:
  --use-pcre	The provided path will use Perl Compatible Regular Expressions (PCRE)
  -a	Adds an export.
    	Returns an error if the export already exists.
-   	To modify an existing export (e.g., to change expiration time, password, etc.), it must be deleted and then re-added.
- --writable	Makes the export writable.
-           	Only works on folders; files are considered immutable. Different versions of the same file will have different export links.
-           	The AuthToken shown has the following format <handle>#<key>:<auth-key>.
+   	To modify an existing export (e.g. to change expiration time, password, etc.), it must be deleted and then re-added.
+ --writable	Turn an export folder into a writable folder link. You can use writable folder links to share and receive files from anyone; including people who don’t have a MEGA account. 
+           	This type of link is the same as a "file request" link that can be created through the webclient, except that writable folder links are not write-only. Writable folder links and file requests cannot be mixed, as they use different encryption schemes.
+           	The auth-key shown has the following format <handle>#<key>:<auth-key>. The auth-key must be provided at login, otherwise you will log into this link with read-only privileges. See "mega-login --help" for more details about logging into links.
  --mega-hosted	The share key of this specific folder will be shared with MEGA.
               	This is intended to be used for folders accessible through MEGA's S4 service.
               	Encryption will occur nonetheless within MEGA's S4 service.

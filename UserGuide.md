@@ -176,82 +176,82 @@ Commands referring to a [remote path](#remote-path) are talking about a file in 
 Verbosity: You can increase the amount of information given by any command by passing `-v` (`-vv`, `-vvv`, ...)
 
 ### Account / Contacts
-* [`signup`](docs/commands/signup.md)`email password [--name="Your Name"]` Register as user with a given email
-* [`confirm`](docs/commands/confirm.md)`link email password` Confirm an account using the link provided after the "signup" process.
-* [`invite`](docs/commands/invite.md)`[-d|-r] dstemail [--message="MESSAGE"]` Invites a contact / deletes an invitation
-* [`showpcr`](docs/commands/showpcr.md)`[--in | --out] [--time-format=FORMAT]` Shows incoming and outgoing contact requests.
-* [`ipc`](docs/commands/ipc.md)`email|handle -a|-d|-i` Manages contact incoming invitations.
-* [`users`](docs/commands/users.md)`[-s] [-h] [-n] [-d contact@email] [--time-format=FORMAT] [--verify|--unverify contact@email.com] [--help-verify [contact@email.com]]` List contacts
-* [`userattr`](docs/commands/userattr.md)`[-s attribute value|attribute|--list] [--user=user@email]` Lists/updates user attributes
-* [`passwd`](docs/commands/passwd.md)`[-f]  [--auth-code=XXXX] newpassword` Modifies user password
-* [`masterkey`](docs/commands/masterkey.md)`pathtosave` Shows your master key.
+* [`signup`](contrib/docs/commands/signup.md)`email password [--name="Your Name"]` Register as user with a given email
+* [`confirm`](contrib/docs/commands/confirm.md)`link email password` Confirm an account using the link provided after the "signup" process.
+* [`invite`](contrib/docs/commands/invite.md)`[-d|-r] dstemail [--message="MESSAGE"]` Invites a contact / deletes an invitation
+* [`showpcr`](contrib/docs/commands/showpcr.md)`[--in | --out] [--time-format=FORMAT]` Shows incoming and outgoing contact requests.
+* [`ipc`](contrib/docs/commands/ipc.md)`email|handle -a|-d|-i` Manages contact incoming invitations.
+* [`users`](contrib/docs/commands/users.md)`[-s] [-h] [-n] [-d contact@email] [--time-format=FORMAT] [--verify|--unverify contact@email.com] [--help-verify [contact@email.com]]` List contacts
+* [`userattr`](contrib/docs/commands/userattr.md)`[-s attribute value|attribute|--list] [--user=user@email]` Lists/updates user attributes
+* [`passwd`](contrib/docs/commands/passwd.md)`[-f]  [--auth-code=XXXX] newpassword` Modifies user password
+* [`masterkey`](contrib/docs/commands/masterkey.md)`pathtosave` Shows your master key.
 
 ### Login / Logout
-* [`login`](docs/commands/login.md)`[--auth-code=XXXX] email password | exportedfolderurl#key [--auth-key=XXXX] | passwordprotectedlink [--password=PASSWORD] | session` Logs into a MEGA account
-* [`logout`](docs/commands/logout.md)`[--keep-session]` Logs out
-* [`whoami`](docs/commands/whoami.md)`[-l]` Prints info of the user
-* [`session`](docs/commands/session.md) Prints (secret) session ID
-* [`killsession`](docs/commands/killsession.md)`[-a | sessionid1 sessionid2 ... ]` Kills a session of current user.
+* [`login`](contrib/docs/commands/login.md)`[--auth-code=XXXX] email password | exportedfolderurl#key [--auth-key=XXXX] | passwordprotectedlink [--password=PASSWORD] | session` Logs into a MEGA account or folder link. You can only log into one entity at a time.
+* [`logout`](contrib/docs/commands/logout.md)`[--keep-session]` Logs out
+* [`whoami`](contrib/docs/commands/whoami.md)`[-l]` Prints info of the user
+* [`session`](contrib/docs/commands/session.md) Prints (secret) session ID
+* [`killsession`](contrib/docs/commands/killsession.md)`[-a | sessionid1 sessionid2 ... ]` Kills a session of current user.
 
 ### Browse
-* [`cd`](docs/commands/cd.md)`[remotepath]` Changes the current remote folder
-* [`lcd`](docs/commands/lcd.md)`[localpath]` Changes the current local folder for the interactive console
-* [`ls`](docs/commands/ls.md)`[-halRr] [--show-handles] [--tree] [--versions] [remotepath] [--use-pcre] [--show-creation-time] [--time-format=FORMAT]` Lists files in a remote path
-* [`pwd`](docs/commands/pwd.md) Prints the current remote folder
-* [`lpwd`](docs/commands/lpwd.md) Prints the current local folder for the interactive console
-* [`attr`](docs/commands/attr.md)`remotepath [--force-non-officialficial] [-s attribute value|-d attribute [--print-only-value]` Lists/updates node attributes.
-* [`du`](docs/commands/du.md)`[-h] [--versions] [remotepath remotepath2 remotepath3 ... ] [--use-pcre]` Prints size used by files/folders
-* [`find`](docs/commands/find.md)`[remotepath] [-l] [--pattern=PATTERN] [--type=d|f] [--mtime=TIMECONSTRAIN] [--size=SIZECONSTRAIN] [--use-pcre] [--time-format=FORMAT] [--show-handles|--print-only-handles]` Find nodes matching a pattern
-* [`mount`](docs/commands/mount.md) Lists all the root nodes
+* [`cd`](contrib/docs/commands/cd.md)`[remotepath]` Changes the current remote folder
+* [`lcd`](contrib/docs/commands/lcd.md)`[localpath]` Changes the current local folder for the interactive console
+* [`ls`](contrib/docs/commands/ls.md)`[-halRr] [--show-handles] [--tree] [--versions] [remotepath] [--use-pcre] [--show-creation-time] [--time-format=FORMAT]` Lists files in a remote path
+* [`pwd`](contrib/docs/commands/pwd.md) Prints the current remote folder
+* [`lpwd`](contrib/docs/commands/lpwd.md) Prints the current local folder for the interactive console
+* [`attr`](contrib/docs/commands/attr.md)`remotepath [--force-non-officialficial] [-s attribute value|-d attribute [--print-only-value]` Lists/updates node attributes.
+* [`du`](contrib/docs/commands/du.md)`[-h] [--versions] [remotepath remotepath2 remotepath3 ... ] [--use-pcre]` Prints size used by files/folders
+* [`find`](contrib/docs/commands/find.md)`[remotepath] [-l] [--pattern=PATTERN] [--type=d|f] [--mtime=TIMECONSTRAIN] [--size=SIZECONSTRAIN] [--use-pcre] [--time-format=FORMAT] [--show-handles|--print-only-handles]` Find nodes matching a pattern
+* [`mount`](contrib/docs/commands/mount.md) Lists all the root nodes
 
 ### Moving / Copying files
-* [`mkdir`](docs/commands/mkdir.md)`[-p] remotepath` Creates a directory or a directories hierarchy
-* [`cp`](docs/commands/cp.md)`[--use-pcre] srcremotepath [srcremotepath2 srcremotepath3 ..] dstremotepath|dstemail` : Copies files/folders into a new location (all remotes)
-* [`put`](docs/commands/put.md)`[-c] [-q] [--ignore-quota-warn] localfile [localfile2 localfile3 ...] [dstremotepath]` Uploads files/folders to a remote folder
-* [`get`](docs/commands/get.md)`[-m] [-q] [--ignore-quota-warn] [--use-pcre] [--password=PASSWORD] exportedlink|remotepath [localpath]` Downloads a remote file/folder or a public link
-* [`preview`](docs/commands/preview.md)`[-s] remotepath localpath` To download/upload the preview of a file.
-* [`thumbnail`](docs/commands/thumbnail.md)`[-s] remotepath localpath` To download/upload the thumbnail of a file.
-* [`mv`](docs/commands/mv.md)`srcremotepath [--use-pcre] [srcremotepath2 srcremotepath3 ..] dstremotepath` Moves file(s)/folder(s) into a new location (all remotes)
-* [`rm`](docs/commands/rm.md)`[-r] [-f] [--use-pcre] remotepath` Deletes a remote file/folder
-* [`transfers`](docs/commands/transfers.md)`[-c TAG|-a] | [-r TAG|-a]  | [-p TAG|-a] [--only-downloads | --only-uploads] [SHOWOPTIONS]` List or operate with transfers
-* [`speedlimit`](docs/commands/speedlimit.md)`[-u|-d] [-h] [NEWLIMIT]` Displays/modifies upload/download rate limits
-* [`sync`](docs/commands/sync.md)`[localpath dstremotepath| [-dsr] [ID|localpath]` Controls synchronizations.
-* [`exclude`](docs/commands/exclude.md)`[(-a|-d) pattern1 pattern2 pattern3]` Manages exclusions in syncs.
-* [`backup`](docs/commands/backup.md)`(localpath remotepath --period="PERIODSTRING" --num-backups=N  | [-lhda] [TAG|localpath] [--period="PERIODSTRING"] [--num-backups=N]) [--time-format=FORMAT]` Controls backups
+* [`mkdir`](contrib/docs/commands/mkdir.md)`[-p] remotepath` Creates a directory or a directories hierarchy
+* [`cp`](contrib/docs/commands/cp.md)`[--use-pcre] srcremotepath [srcremotepath2 srcremotepath3 ..] dstremotepath|dstemail` : Copies files/folders into a new location (all remotes)
+* [`put`](contrib/docs/commands/put.md)`[-c] [-q] [--ignore-quota-warn] localfile [localfile2 localfile3 ...] [dstremotepath]` Uploads files/folders to a remote folder
+* [`get`](contrib/docs/commands/get.md)`[-m] [-q] [--ignore-quota-warn] [--use-pcre] [--password=PASSWORD] exportedlink|remotepath [localpath]` Downloads a remote file/folder or a public link
+* [`preview`](contrib/docs/commands/preview.md)`[-s] remotepath localpath` To download/upload the preview of a file.
+* [`thumbnail`](contrib/docs/commands/thumbnail.md)`[-s] remotepath localpath` To download/upload the thumbnail of a file.
+* [`mv`](contrib/docs/commands/mv.md)`srcremotepath [--use-pcre] [srcremotepath2 srcremotepath3 ..] dstremotepath` Moves file(s)/folder(s) into a new location (all remotes)
+* [`rm`](contrib/docs/commands/rm.md)`[-r] [-f] [--use-pcre] remotepath` Deletes a remote file/folder
+* [`transfers`](contrib/docs/commands/transfers.md)`[-c TAG|-a] | [-r TAG|-a]  | [-p TAG|-a] [--only-downloads | --only-uploads] [SHOWOPTIONS]` List or operate with transfers
+* [`speedlimit`](contrib/docs/commands/speedlimit.md)`[-u|-d] [-h] [NEWLIMIT]` Displays/modifies upload/download rate limits
+* [`sync`](contrib/docs/commands/sync.md)`[localpath dstremotepath| [-dsr] [ID|localpath]` Controls synchronizations.
+* [`exclude`](contrib/docs/commands/exclude.md)`[(-a|-d) pattern1 pattern2 pattern3]` Manages exclusions in syncs.
+* [`backup`](contrib/docs/commands/backup.md)`(localpath remotepath --period="PERIODSTRING" --num-backups=N  | [-lhda] [TAG|localpath] [--period="PERIODSTRING"] [--num-backups=N]) [--time-format=FORMAT]` Controls backups
 
 ### Sharing (your own files, of course, without infringing any copyright)
-* [`export`](docs/commands/export.md)`[-d|-a [--writable] [--mega-hosted] [--password=PASSWORD] [--expire=TIMEDELAY] [-f]] [remotepath] [--use-pcre] [--time-format=FORMAT]` Prints/Modifies the status of current exports
-* [`import`](docs/commands/import.md)`exportedlink [--password=PASSWORD] [remotepath]` Imports the contents of a remote link into user's cloud
-* [`share`](docs/commands/share.md)`[-p] [-d|-a --with=user@email.com [--level=LEVEL]] [remotepath] [--use-pcre] [--time-format=FORMAT]` Prints/Modifies the status of current shares
-* [`webdav`](docs/commands/webdav.md)`[-d (--all | remotepath ) ] [ remotepath [--port=PORT] [--public] [--tls --certificate=/path/to/certificate.pem --key=/path/to/certificate.key]] [--use-pcre]` Configures a WEBDAV server to serve a location in MEGA
+* [`export`](contrib/docs/commands/export.md)`[-d|-a [--writable] [--mega-hosted] [--password=PASSWORD] [--expire=TIMEDELAY] [-f]] [remotepath] [--use-pcre] [--time-format=FORMAT]` Prints/Modifies the status of current exports
+* [`import`](contrib/docs/commands/import.md)`exportedlink [--password=PASSWORD] [remotepath]` Imports the contents of a remote link into user's cloud
+* [`share`](contrib/docs/commands/share.md)`[-p] [-d|-a --with=user@email.com [--level=LEVEL]] [remotepath] [--use-pcre] [--time-format=FORMAT]` Prints/Modifies the status of current shares
+* [`webdav`](contrib/docs/commands/webdav.md)`[-d (--all | remotepath ) ] [ remotepath [--port=PORT] [--public] [--tls --certificate=/path/to/certificate.pem --key=/path/to/certificate.key]] [--use-pcre]` Configures a WEBDAV server to serve a location in MEGA
 
 ### Misc.
-* [`autocomplete`](docs/commands/autocomplete.md)`[dos | unix]` Modifes how tab completion operates.
-* [`cancel`](docs/commands/cancel.md) Cancels your MEGA account
-* [`cat`](docs/commands/cat.md)`remotepath1 remotepath2 ...` Prints the contents of remote files
-* [`clear`](docs/commands/clear.md) Clear screen
-* [`codepage`](docs/commands/codepage.md)`[N [M]]` Switches the codepage used to decide which characters show on-screen.
-* [`confirmcancel`](docs/commands/confirmcancel.md)`link password` Confirms the cancellation of your MEGA account
-* [`debug`](docs/commands/debug.md) Enters debugging mode (HIGHLY VERBOSE)
-* [`deleteversions`](docs/commands/deleteversions.md)`[-f] (--all | remotepath1 remotepath2 ...)  [--use-pcre]` Deletes previous versions.
-* [`df`](docs/commands/df.md)`[-h]` Shows storage info
-* [`errorcode`](docs/commands/errorcode.md)`number` Translate error code into string
-* [`exit`](docs/commands/exit.md)`[--only-shell]` Quits MEGAcmd
-* [`ftp`](docs/commands/ftp.md)`[-d ( --all | remotepath ) ] [ remotepath [--port=PORT] [--data-ports=BEGIN-END] [--public] [--tls --certificate=/path/to/certificate.pem --key=/path/to/certificate.key]] [--use-pcre]` Configures a FTP server to serve a location in MEGA
-* [`graphics`](docs/commands/graphics.md)`[on|off]` Shows if special features related to images and videos are enabled.
-* [`help`](docs/commands/help.md)`[-f|-ff|--non-interactive|--upgrade|--paths] [--show-all-options]` Prints list of commands
-* [`https`](docs/commands/https.md)`[on|off]` Shows if HTTPS is used for transfers. Use "https on" to enable it.
-* [`info`](docs/commands/info.md)`remotepath1 remotepath2 ...` Prints media info of remote files
-* [`log`](docs/commands/log.md)`[-sc] level` Prints/Modifies the current logs level
-* [`permissions`](docs/commands/permissions.md)`[(--files|--folders) [-s XXX]]` Shows/Establish default permissions for files and folders created by MEGAcmd.
-* [`proxy`](docs/commands/proxy.md)`[URL|--auto|--none] [--username=USERNAME --password=PASSWORD]` Show or sets proxy configuration
-* [`psa`](docs/commands/psa.md)`[--discard]` Shows the next available Public Service Announcement (PSA)
-* [`quit`](docs/commands/quit.md)`[--only-shell]` Quits MEGAcmd
-* [`reload`](docs/commands/reload.md) Forces a reload of the remote files of the user
-* [`tree`](docs/commands/tree.md)`[remotepath]` Lists files in a remote path in a nested tree decorated output
-* [`unicode`](docs/commands/unicode.md) Toggle unicode input enabled/disabled in interactive shell
-* [`update`](docs/commands/update.md)`[--auto=on|off|query]` Updates MEGAcmd
-* [`version`](docs/commands/version.md)`[-l][-c]` Prints MEGAcmd versioning and extra info
+* [`autocomplete`](contrib/docs/commands/autocomplete.md)`[dos | unix]` Modifes how tab completion operates.
+* [`cancel`](contrib/docs/commands/cancel.md) Cancels your MEGA account
+* [`cat`](contrib/docs/commands/cat.md)`remotepath1 remotepath2 ...` Prints the contents of remote files
+* [`clear`](contrib/docs/commands/clear.md) Clear screen
+* [`codepage`](contrib/docs/commands/codepage.md)`[N [M]]` Switches the codepage used to decide which characters show on-screen.
+* [`confirmcancel`](contrib/docs/commands/confirmcancel.md)`link password` Confirms the cancellation of your MEGA account
+* [`debug`](contrib/docs/commands/debug.md) Enters debugging mode (HIGHLY VERBOSE)
+* [`deleteversions`](contrib/docs/commands/deleteversions.md)`[-f] (--all | remotepath1 remotepath2 ...)  [--use-pcre]` Deletes previous versions.
+* [`df`](contrib/docs/commands/df.md)`[-h]` Shows storage info
+* [`errorcode`](contrib/docs/commands/errorcode.md)`number` Translate error code into string
+* [`exit`](contrib/docs/commands/exit.md)`[--only-shell]` Quits MEGAcmd
+* [`ftp`](contrib/docs/commands/ftp.md)`[-d ( --all | remotepath ) ] [ remotepath [--port=PORT] [--data-ports=BEGIN-END] [--public] [--tls --certificate=/path/to/certificate.pem --key=/path/to/certificate.key]] [--use-pcre]` Configures a FTP server to serve a location in MEGA
+* [`graphics`](contrib/docs/commands/graphics.md)`[on|off]` Shows if special features related to images and videos are enabled.
+* [`help`](contrib/docs/commands/help.md)`[-f|-ff|--non-interactive|--upgrade|--paths] [--show-all-options]` Prints list of commands
+* [`https`](contrib/docs/commands/https.md)`[on|off]` Shows if HTTPS is used for transfers. Use "https on" to enable it.
+* [`info`](contrib/docs/commands/info.md)`remotepath1 remotepath2 ...` Prints media info of remote files
+* [`log`](contrib/docs/commands/log.md)`[-sc] level` Prints/Modifies the current logs level
+* [`permissions`](contrib/docs/commands/permissions.md)`[(--files|--folders) [-s XXX]]` Shows/Establish default permissions for files and folders created by MEGAcmd.
+* [`proxy`](contrib/docs/commands/proxy.md)`[URL|--auto|--none] [--username=USERNAME --password=PASSWORD]` Show or sets proxy configuration
+* [`psa`](contrib/docs/commands/psa.md)`[--discard]` Shows the next available Public Service Announcement (PSA)
+* [`quit`](contrib/docs/commands/quit.md)`[--only-shell]` Quits MEGAcmd
+* [`reload`](contrib/docs/commands/reload.md) Forces a reload of the remote files of the user
+* [`tree`](contrib/docs/commands/tree.md)`[remotepath]` Lists files in a remote path in a nested tree decorated output
+* [`unicode`](contrib/docs/commands/unicode.md) Toggle unicode input enabled/disabled in interactive shell
+* [`update`](contrib/docs/commands/update.md)`[--auto=on|off|query]` Updates MEGAcmd
+* [`version`](contrib/docs/commands/version.md)`[-l][-c]` Prints MEGAcmd versioning and extra info
 
 ## Examples
 Some examples of typical MEGAcmd workflows and commands.
