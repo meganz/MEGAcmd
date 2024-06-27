@@ -15,7 +15,7 @@ class CommandSummary:
 
     def get_markdown_format(self):
         args = f'`{self.args}`' if self.args else ''
-        return f'* [`{self.name}`](docs/commands/{self.name}.md){args} {self.description}'
+        return f'* [`{self.name}`](contrib/docs/commands/{self.name}.md){args} {self.description}'
 
 class CommandDetail:
     def __init__(self, name, summary, usage, description):
@@ -152,7 +152,7 @@ def write_to_user_guide(summary):
 
 def write_command_files(command_details):
     for cd in command_details:
-        with open(f'docs/commands/{cd.name}.md', 'w') as f:
+        with open(f'contrib/docs/commands/{cd.name}.md', 'w') as f:
             f.write(cd.get_markdown_format() + '\n')
 
 if __name__=='__main__':
