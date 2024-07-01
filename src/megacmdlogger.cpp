@@ -232,13 +232,8 @@ void MegaCMDLogger::log(const char *time, int loglevel, const char *source, cons
         {
 #ifdef _WIN32
             std::lock_guard<std::mutex> g(*outputmutex);
-            int oldmode;
-            oldmode = _setmode(_fileno(stdout), _O_U8TEXT);
-            mLoggedStream << "[" << SimpleLogger::toStr(LogLevel(loglevel)) << ": " << time << "] " << message << endl;
-            _setmode(_fileno(stdout), oldmode);
-#else
-            mLoggedStream << "[" << SimpleLogger::toStr(LogLevel(loglevel)) << ": " << time << "] " << message << endl;
 #endif
+            mLoggedStream << "[" << SimpleLogger::toStr(LogLevel(loglevel)) << ": " << time << "] " << message << endl;
         }
 
         if (needsLoggingToClient(cmdLoggerLevel))
@@ -260,13 +255,8 @@ void MegaCMDLogger::log(const char *time, int loglevel, const char *source, cons
             }
 #ifdef _WIN32
             std::lock_guard<std::mutex> g(*outputmutex);
-            int oldmode;
-            oldmode = _setmode(_fileno(stdout), _O_U8TEXT);
-            mLoggedStream << "[API:" << SimpleLogger::toStr(LogLevel(loglevel)) << ": " << time << "] " << message << endl;
-            _setmode(_fileno(stdout), oldmode);
-#else
-            mLoggedStream << "[API:" << SimpleLogger::toStr(LogLevel(loglevel)) << ": " << time << "] " << message << endl;
 #endif
+            mLoggedStream << "[API:" << SimpleLogger::toStr(LogLevel(loglevel)) << ": " << time << "] " << message << endl;
         }
 
         if (needsLoggingToClient(sdkLoggerLevel))
