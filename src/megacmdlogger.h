@@ -190,7 +190,7 @@ class MegaCMDLogger : public mega::MegaLogger
     template <typename Cb>
     void performSafeLog(const LoggedStream &stream, Cb &&doLogCb)
     {
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(MEGACMD_TESTING_CODE)
         int oldmode = -1;
         std::unique_lock<std::mutex> setmodeLck(mSetmodeMtx, std::defer_lock);
         if (stream.isStdOut())
@@ -202,7 +202,7 @@ class MegaCMDLogger : public mega::MegaLogger
 
         doLogCb();
 
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(MEGACMD_TESTING_CODE)
         if (stream.isStdOut())
         {
             assert(oldmode != -1);
