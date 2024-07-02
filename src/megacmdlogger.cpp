@@ -187,13 +187,7 @@ void setCurrentPetition(CmdPetition *petition)
 MegaCMDLogger::MegaCMDLogger()
     : mLoggedStream(Instance<DefaultLoggedStream>::Get().getLoggedStream())
 {
-    this->sdkLoggerLevel = MegaApi::LOG_LEVEL_ERROR;
-    this->outputmutex = new std::mutex();
-}
-
-MegaCMDLogger::~MegaCMDLogger()
-{
-    delete this->outputmutex;
+    sdkLoggerLevel = MegaApi::LOG_LEVEL_ERROR;
 }
 
 bool isMEGAcmdSource(const char *source)
@@ -230,10 +224,10 @@ void MegaCMDLogger::log(const char *time, int loglevel, const char *source, cons
     {
         if (loglevel <= cmdLoggerLevel)
         {
-#ifdef _WIN32
-            std::lock_guard<std::mutex> g(*outputmutex);
-#endif
-            mLoggedStream << "[" << SimpleLogger::toStr(LogLevel(loglevel)) << ": " << time << "] " << message << endl;
+            performSafeLog(mLoggedStream, [this, time, loglevel, message]
+            {
+                mLoggedStream << "[" << SimpleLogger::toStr(LogLevel(loglevel)) << ": " << time << "] " << message << endl;
+            });
         }
 
         if (needsLoggingToClient(cmdLoggerLevel))
@@ -253,10 +247,11 @@ void MegaCMDLogger::log(const char *time, int loglevel, const char *source, cons
             {
                 return;
             }
-#ifdef _WIN32
-            std::lock_guard<std::mutex> g(*outputmutex);
-#endif
-            mLoggedStream << "[API:" << SimpleLogger::toStr(LogLevel(loglevel)) << ": " << time << "] " << message << endl;
+
+            performSafeLog(mLoggedStream, [this, time, loglevel, message]
+            {
+                mLoggedStream << "[API:" << SimpleLogger::toStr(LogLevel(loglevel)) << ": " << time << "] " << message << endl;
+            });
         }
 
         if (needsLoggingToClient(sdkLoggerLevel))
@@ -315,9 +310,10 @@ OUTFSTREAMTYPE streamForDefaultFile()
 }
 
 LoggedStreamDefaultFile::LoggedStreamDefaultFile() :
-    mFstream(streamForDefaultFile()),
-    LoggedStreamOutStream (&mFstream)
+    LoggedStreamOutStream(nullptr),
+    mFstream(streamForDefaultFile())
 {
+    out = &mFstream;
 }
 
 }//end namespace
