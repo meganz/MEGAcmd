@@ -202,7 +202,7 @@ class MegaCMDLogger : public mega::MegaLogger
 
         doLogCb();
 
-#if _WIN32
+#ifdef _WIN32
         if (stream.isStdOut())
         {
             assert(oldmode != -1);
