@@ -980,9 +980,9 @@ Password:
 Account eg.email_2@example.co.nz confirmed succesfully. You can login with it now
 MEGA CMD> <b>login eg.email_1@example.co.nz</b>
 Password:
-[API:info: 23:19:14] Fetching nodes ...
-[API:info: 23:19:17] Loading transfers from local cache
-[API:info: 23:19:17] Login complete as eg.email_1@example.co.nz
+[SDK:info: 23:19:14] Fetching nodes ...
+[SDK:info: 23:19:17] Loading transfers from local cache
+[SDK:info: 23:19:17] Login complete as eg.email_1@example.co.nz
 MEGA CMD>
 eg.email_1@example.co.nz:/$ <b>invite eg.email_2@example.co.nz</b>
 Invitation to user: eg.email_2@example.co.nz sent
@@ -994,9 +994,9 @@ Logging out...
 eg.email_1@example.co.nz:/$
 MEGA CMD> <b>login eg.email_2@example.co.nz</b>
 Password:
-[API:info: 23:21:10] Fetching nodes ...
-[API:info: 23:21:12] Loading transfers from local cache
-[API:info: 23:21:12] Login complete as eg.email_2@example.co.nz
+[SDK:info: 23:21:10] Fetching nodes ...
+[SDK:info: 23:21:12] Loading transfers from local cache
+[SDK:info: 23:21:12] Login complete as eg.email_2@example.co.nz
 MEGA CMD>
 eg.email_2@example.co.nz:/$ <b>showpcr</b>
 Incoming PCRs:
@@ -1016,9 +1016,9 @@ eg.email_2@example.co.nz:/$ <b>logout</b>
 Logging out...
 MEGA CMD> <b>login eg.email_1@example.co.nz</b>
 Password:
-[API:info: 23:24:26] Fetching nodes ...
-[API:info: 23:24:27] Loading transfers from local cache
-[API:info: 23:24:27] Login complete as eg.email_1@example.co.nz
+[SDK:info: 23:24:26] Fetching nodes ...
+[SDK:info: 23:24:27] Loading transfers from local cache
+[SDK:info: 23:24:27] Login complete as eg.email_1@example.co.nz
 MEGA CMD>
 eg.email_1@example.co.nz:/$ <b>showpcr</b>
 eg.email_1@example.co.nz:/$ <b>users</b>
@@ -1036,9 +1036,9 @@ eg.email_1@example.co.nz:/$
 <pre>
 MEGA CMD> <b>login eg.email_1@example.co.nz</b>
 Password:
-[API:info: 23:43:14] Fetching nodes ...
-[API:info: 23:43:14] Loading transfers from local cache
-[API:info: 23:43:14] Login complete as eg.email_1@example.co.nz
+[SDK:info: 23:43:14] Fetching nodes ...
+[SDK:info: 23:43:14] Loading transfers from local cache
+[SDK:info: 23:43:14] Login complete as eg.email_1@example.co.nz
 MEGA CMD>
 eg.email_1@example.co.nz:/$ <b>whoami -l</b>
 Account e-mail: eg.email_1@example.co.nz
@@ -1167,9 +1167,9 @@ Session closed but not deleted. Warning: it will be restored the next time you e
 You can also login with the session id: ARo7aiLAxK-jseOdVBYhj285Twb06ivWsFmT4XAnkTsiaDRRbm5oYS1zRm-V3I0FHHOvwj7P2RPvrSw_
 MEGA CMD> <b>login eg.email_2@example.co.nz</b>
 Password:
-[API:info: 01:55:04] Fetching nodes ...
-[API:info: 01:55:05] Loading transfers from local cache
-[API:info: 01:55:05] Login complete as eg.email_2@example.co.nz
+[SDK:info: 01:55:04] Fetching nodes ...
+[SDK:info: 01:55:05] Loading transfers from local cache
+[SDK:info: 01:55:05] Login complete as eg.email_2@example.co.nz
 MEGA CMD>
 eg.email_2@example.co.nz:/$ <b>ls</b>
 Welcome to MEGA.pdf
