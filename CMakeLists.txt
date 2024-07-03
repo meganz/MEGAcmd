@@ -319,6 +319,29 @@ if (NOT WIN32)
         RUNTIME
         DESTINATION ${CMAKE_INSTALL_BINDIR}
     )
+
+    install(DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/src/client"
+        DESTINATION ${CMAKE_INSTALL_BINDIR}
+        FILES_MATCHING
+        PATTERN "mega-*"
+        PATTERN "*.cpp" EXCLUDE
+        PATTERN "*.h" EXCLUDE
+        PATTERN "mega-exec" EXCLUDE
+        PATTERN "megacmd_completion.sh" EXCLUDE
+        PATTERN "python" EXCLUDE
+        PATTERN "win" EXCLUDE)
+
+    install(FILES "${CMAKE_CURRENT_LIST_DIR}/src/client/megacmd_completion.sh"
+        DESTINATION "etc/bash_completion.d"
+        )
+
+    # generate 100-megacmd-inotify-limit.conf file and have it installed
+    execute_process(COMMAND echo "fs.inotify.max_user_watches = 524288"
+                OUTPUT_FILE ${CMAKE_CURRENT_BINARY_DIR}/99-megacmd-inotify-limit.conf)
+    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/99-megacmd-inotify-limit.conf
+        DESTINATION "etc/sysctl.d"
+        )
+
     #Install vcpkg dynamic libraries in locations defined by GNUInstallDirs.
     if(CMAKE_BUILD_TYPE STREQUAL "Debug")
         SET(vcpkg_lib_folder "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/debug/lib/")
