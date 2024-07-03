@@ -262,17 +262,17 @@ void MegaCMDLogger::log(const char *time, int loglevel, const char *source, cons
             std::lock_guard<std::mutex> g(*outputmutex);
             int oldmode;
             oldmode = _setmode(_fileno(stdout), _O_U8TEXT);
-            mLoggedStream << "[API:" << SimpleLogger::toStr(LogLevel(loglevel)) << ": " << time << "] " << message << endl;
+            mLoggedStream << "[SDK:" << SimpleLogger::toStr(LogLevel(loglevel)) << ": " << time << "] " << message << endl;
             _setmode(_fileno(stdout), oldmode);
 #else
-            mLoggedStream << "[API:" << SimpleLogger::toStr(LogLevel(loglevel)) << ": " << time << "] " << message << endl;
+            mLoggedStream << "[SDK:" << SimpleLogger::toStr(LogLevel(loglevel)) << ": " << time << "] " << message << endl;
 #endif
         }
 
         if (needsLoggingToClient(sdkLoggerLevel))
         {
             assert(false); //since it happens in the sdk thread, this shall be false
-            OUTSTREAM << "[API:" << SimpleLogger::toStr(LogLevel(loglevel)) << ": " << time << "] " << message << endl;
+            OUTSTREAM << "[SDK:" << SimpleLogger::toStr(LogLevel(loglevel)) << ": " << time << "] " << message << endl;
         }
     }
 }
