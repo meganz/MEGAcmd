@@ -315,13 +315,25 @@ if(ENABLE_MEGACMD_TESTS)
 endif()
 # Install stuff
 if (NOT WIN32)
+    set(PERMISSIONS755
+         OWNER_READ
+         OWNER_WRITE
+         OWNER_EXECUTE
+         GROUP_READ
+         GROUP_EXECUTE
+         WORLD_READ
+         WORLD_EXECUTE
+         )
+     set(CMAKE_INSTALL_DEFAULT_DIRECTORY_PERMISSIONS ${PERMISSIONS755})
+
     install(TARGETS ${all_targets}
         RUNTIME
         DESTINATION ${CMAKE_INSTALL_BINDIR}
     )
 
-    install(DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/src/client"
+    install(DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/src/client/"
         DESTINATION ${CMAKE_INSTALL_BINDIR}
+        FILE_PERMISSIONS ${PERMISSIONS755}
         FILES_MATCHING
         PATTERN "mega-*"
         PATTERN "*.cpp" EXCLUDE
