@@ -320,7 +320,7 @@ if (NOT WIN32)
         DESTINATION ${CMAKE_INSTALL_BINDIR}
     )
 
-    install(DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/src/client"
+    install(DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/src/client/"
         DESTINATION ${CMAKE_INSTALL_BINDIR}
         FILES_MATCHING
         PATTERN "mega-*"
