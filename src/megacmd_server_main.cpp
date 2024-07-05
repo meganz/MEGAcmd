@@ -206,6 +206,6 @@ int main(int argc, char* argv[])
         createLoggedStream = [] { return new megacmd::LoggedStreamOutStream(&COUT); };
     }
 
-    return megacmd::executeServer(argc, argv, std::move(createLoggedStream),
+    return megacmd::executeServer(argc, argv, createLoggedStream,
                                   sdkLogLevel, cmdLogLevel, skiplockcheck, debug_api_url, disablepkp);
 }

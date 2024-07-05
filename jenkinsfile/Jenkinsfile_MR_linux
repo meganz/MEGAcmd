@@ -187,16 +187,15 @@ pipeline {
                         steps {
                             lock(label: 'testing_accounts_megacmd', variable: 'MEGACMD_TEST_USER', quantity: 1, resource: null) {
                                 dir("test-dir-${SANITIZERS}") {
-                                    script {
-                                        sh "docker run --user \$(id -u):\$(id -g) --env HOME=/tmp/test-dir-${SANITIZERS} --env MEGACMD_TEST_PASS --env MEGACMD_TEST_USER --env ASAN_OPTIONS --env TSAN_OPTIONS --env UBSAN_OPTIONS --rm --mount type=bind,src='${megacmd_sources_workspace}/test-dir-${SANITIZERS}',target=/tmp/test-dir-${SANITIZERS} -- meganz/megacmd-cmake-v2-${SANITIZERS}:${env.BUILD_NUMBER} /usr/bin/mega-cmd-tests-integration --gtest_output=xml:/tmp/test-dir-${SANITIZERS}/results/mega-cmd-tests-integration.xml --gtest_shuffle"
-                                    }
+                                    sh "docker run --user \$(id -u):\$(id -g) --env HOME=/tmp/test-dir-${SANITIZERS} --env MEGACMD_TEST_PASS --env MEGACMD_TEST_USER --env ASAN_OPTIONS --env TSAN_OPTIONS --env UBSAN_OPTIONS --rm --mount type=bind,src='${megacmd_sources_workspace}/test-dir-${SANITIZERS}',target=/tmp/test-dir-${SANITIZERS} -- meganz/megacmd-cmake-v2-${SANITIZERS}:${env.BUILD_NUMBER} /usr/bin/mega-cmd-tests-integration --gtest_output=xml:/tmp/test-dir-${SANITIZERS}/results/mega-cmd-tests-integration.xml --gtest_shuffle"
                                 }
                             }
                         }
                         post {
                             always {
-                                archiveArtifacts "test-dir-${SANITIZERS}/.megaCmd/megacmdserver.log*, test-dir-${SANITIZERS}/results/*"
+                                archiveArtifacts "test-dir-${SANITIZERS}/.megaCmd/megacmdserver.log*"
                                 junit "test-dir-${SANITIZERS}/results/mega-cmd-tests-integration.xml"
+                                sh "docker image rm -- meganz/megacmd-cmake-v2-${SANITIZERS}:${env.BUILD_NUMBER} || true"
                             }
                         }
                     }
@@ -225,9 +224,6 @@ pipeline {
                     updateGitlabCommitStatus(name: 'Build linux', state: 'failed')
                 }
             }
-            sh "docker image rm -- meganz/megacmd-cmake-v2-tsan:${env.BUILD_NUMBER} || true"
-            sh "docker image rm -- meganz/megacmd-cmake-v2-asan:${env.BUILD_NUMBER} || true"
-            sh "docker image rm -- meganz/megacmd-cmake-v2-ubsan:${env.BUILD_NUMBER} || true"
         }
     }
 }
