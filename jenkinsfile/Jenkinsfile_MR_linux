@@ -31,7 +31,7 @@ pipeline {
                     }
                     post{
                         always {
-                            script{                        
+                            script{
                                 if (currentBuild.currentResult == 'FAILURE'){
                                     addGitLabMRComment(comment: ":red_circle: ${env.JOB_NAME} FAILURE when getting the additional build parameters :worried:<br/>Build results: [Jenkins [${env.JOB_NAME} ${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>Commit: ${env.GIT_COMMIT}" )
                                 }
@@ -53,7 +53,7 @@ pipeline {
                     }
                     post{
                         always {
-                            script{                        
+                            script{
                                 if (currentBuild.currentResult == 'FAILURE'){
                                     addGitLabMRComment(comment: ":red_circle: ${env.JOB_NAME} FAILURE when getting the SDK branch :worried:<br/>Build results: [Jenkins [${env.JOB_NAME} ${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>Commit: ${env.GIT_COMMIT}" )
                                 }
@@ -142,57 +142,60 @@ pipeline {
                     }
                 }
                 stages {
-                    stage('Run MEGAcmd unit tests'){
-                        when{
+                    stage('Run MEGAcmd unit tests') {
+                        when {
                             expression {
                                 env.TYPE == "unit"
                             }
                         }
-                        options{
+                        options {
                             timeout(time: 10, unit: 'MINUTES')
                         }
-                        environment{
-                            ASAN_OPTIONS='atexit=1,print_stats=1,log_path=/tmp/test-results/mega-cmd-tests-unit-asan-report'
-                            TSAN_OPTIONS='log_path=/tmp/test-results/mega-cmd-tests-unit-tsan-report'
-                            UBSAN_OPTIONS='log_path=/tmp/test-results/mega-cmd-tests-unit-ubsan-report'
+                        environment {
+                            ASAN_OPTIONS="atexit=1,print_stats=1,log_path=/tmp/test-dir-${SANITIZERS}/results/mega-cmd-tests-unit-report"
+                            TSAN_OPTIONS="log_path=/tmp/test-dir-${SANITIZERS}/results/mega-cmd-tests-unit-report"
+                            UBSAN_OPTIONS="log_path=/tmp/test-dir-${SANITIZERS}/results/mega-cmd-tests-unit-report"
                         }
                         steps {
-                            dir('test-results') {
-                                sh "docker run --user \$(id -u):\$(id -g) --env HOME=/tmp --env ASAN_OPTIONS --env TSAN_OPTIONS --rm --mount type=bind,src='${megacmd_sources_workspace}/test-results',target=/tmp/test-results -- meganz/megacmd-cmake-v2-${SANITIZERS}:${env.BUILD_NUMBER} /usr/bin/mega-cmd-tests-unit --gtest_output=xml:/tmp/test-results/${SANITIZERS}-mega-cmd-tests-unit.xml --gtest_shuffle"
+                            dir("test-dir-${SANITIZERS}") {
+                                sh "docker run --user \$(id -u):\$(id -g) --env HOME=/tmp/test-dir-${SANITIZERS} --env ASAN_OPTIONS --env TSAN_OPTIONS --env UBSAN_OPTIONS --rm --mount type=bind,src='${megacmd_sources_workspace}/test-dir-${SANITIZERS}',target=/tmp/test-dir-${SANITIZERS} -- meganz/megacmd-cmake-v2-${SANITIZERS}:${env.BUILD_NUMBER} /usr/bin/mega-cmd-tests-unit --gtest_output=xml:/tmp/test-dir-${SANITIZERS}/results/mega-cmd-tests-unit.xml --gtest_shuffle"
+                            }
+                        }
+                        post {
+                            always {
+                                archiveArtifacts artifacts: "test-dir-${SANITIZERS}/.megaCmd/megacmdserver.log*, test-dir-${SANITIZERS}/results/*", allowEmptyArchive: true
+                                junit "test-dir-${SANITIZERS}/results/mega-cmd-tests-unit.xml"
                             }
                         }
                     }
-                    stage('Run MEGAcmd integration tests'){
-                        when{
+                    stage('Run MEGAcmd integration tests') {
+                        when {
                             expression {
                                 env.TYPE == "integration"
                             }
                         }
-                        options{
+                        options {
                             timeout(time: 10, unit: 'MINUTES')
                         }
-                        environment{
+                        environment {
                             MEGACMD_TEST_USER=''
                             MEGACMD_TEST_PASS=credentials('MEGACMD_TESTS_PASSWORD')
-                            ASAN_OPTIONS='atexit=1,print_stats=1,log_path=/tmp/test-results/mega-cmd-tests-integration-asan-report'
-                            TSAN_OPTIONS='log_path=/tmp/test-results/mega-cmd-tests-integration-tsan-report'
-                            UBSAN_OPTIONS='log_path=/tmp/test-results/mega-cmd-tests-unit-integration-ubsan-report'
+                            ASAN_OPTIONS="atexit=1,print_stats=1,log_path=/tmp/test-dir-${SANITIZERS}/results/mega-cmd-tests-integration-report"
+                            TSAN_OPTIONS="log_path=/tmp/test-dir-${SANITIZERS}/results/mega-cmd-tests-integration-report"
+                            UBSAN_OPTIONS="log_path=/tmp/test-dir-${SANITIZERS}/results/mega-cmd-tests-integration-report"
                         }
                         steps {
-                            lock(label: 'testing_accounts_megacmd', variable: 'MEGACMD_TEST_USER', quantity: 1, resource: null){
-                                dir('test-results') {
-                                    script {
-                                        try {
-                                            sh "docker run --user \$(id -u):\$(id -g) --env HOME=/tmp --env MEGACMD_TEST_PASS --env MEGACMD_TEST_USER --env ASAN_OPTIONS --env TSAN_OPTIONS --rm --mount type=bind,src='${megacmd_sources_workspace}/test-results',target=/tmp/test-results -- meganz/megacmd-cmake-v2-${SANITIZERS}:${env.BUILD_NUMBER} /usr/bin/mega-cmd-tests-integration --gtest_output=xml:/tmp/test-results/${SANITIZERS}-mega-cmd-tests-integration.xml --gtest_shuffle"
-                                        } catch(e) {
-                                            if (env.SANITIZERS == 'tsan'){
-                                                echo "${env.SANITIZERS} sanitizer build are expected to fail for now, will keep the build as successful"
-                                            } else {
-                                                sh "exit 1"
-                                            }
-                                        }
-                                    }
+                            lock(label: 'testing_accounts_megacmd', variable: 'MEGACMD_TEST_USER', quantity: 1, resource: null) {
+                                dir("test-dir-${SANITIZERS}") {
+                                    sh "docker run --user \$(id -u):\$(id -g) --env HOME=/tmp/test-dir-${SANITIZERS} --env MEGACMD_TEST_PASS --env MEGACMD_TEST_USER --env ASAN_OPTIONS --env TSAN_OPTIONS --env UBSAN_OPTIONS --rm --mount type=bind,src='${megacmd_sources_workspace}/test-dir-${SANITIZERS}',target=/tmp/test-dir-${SANITIZERS} -- meganz/megacmd-cmake-v2-${SANITIZERS}:${env.BUILD_NUMBER} /usr/bin/mega-cmd-tests-integration --gtest_output=xml:/tmp/test-dir-${SANITIZERS}/results/mega-cmd-tests-integration.xml --gtest_shuffle"
                                 }
+                            }
+                        }
+                        post {
+                            always {
+                                archiveArtifacts "test-dir-${SANITIZERS}/.megaCmd/megacmdserver.log*"
+                                junit "test-dir-${SANITIZERS}/results/mega-cmd-tests-integration.xml"
+                                sh "docker image rm -- meganz/megacmd-cmake-v2-${SANITIZERS}:${env.BUILD_NUMBER} || true"
                             }
                         }
                     }
@@ -201,32 +204,26 @@ pipeline {
         }
     }
 
-    post{
-        always{
-            script{
-                if (currentBuild.currentResult == 'SUCCESS'){
+    post {
+        always {
+            script {
+                if (currentBuild.currentResult == 'SUCCESS') {
                     addGitLabMRComment(comment: ":white_check_mark: ${currentBuild.projectName} :penguin: <b>Linux</b> SUCCEEDED :muscle:<br/>Build results: [Jenkins [${currentBuild.displayName}]](${currentBuild.absoluteUrl})<br/>Commit: ${env.GIT_COMMIT}" )
                     updateGitlabCommitStatus(name: 'Build linux', state: 'success')
-                }                                
-                if (currentBuild.currentResult == 'FAILURE'){
+                }
+                if (currentBuild.currentResult == 'FAILURE') {
                     addGitLabMRComment(comment: ":red_circle: ${currentBuild.projectName} :penguin: <b>Linux</b> FAILURE  :worried:<br/>Build results: [Jenkins [${currentBuild.displayName}]](${currentBuild.absoluteUrl})<br/>Commit: ${env.GIT_COMMIT}" )
                     updateGitlabCommitStatus(name: 'Build linux', state: 'failed')
                 }
-                if (currentBuild.currentResult == 'ABORTED'){
+                if (currentBuild.currentResult == 'ABORTED') {
                     addGitLabMRComment(comment: ":interrobang: ${currentBuild.projectName} :penguin: <b>Linux</b> ABORTED  :confused:<br/>Build results: [Jenkins [${currentBuild.displayName}]](${currentBuild.absoluteUrl})<br/>Commit: ${env.GIT_COMMIT}" )
                     updateGitlabCommitStatus(name: 'Build linux', state: 'canceled')
-                }                                
-                if (currentBuild.currentResult == 'UNSTABLE'){
+                }
+                if (currentBuild.currentResult == 'UNSTABLE') {
                     addGitLabMRComment(comment: ":interrobang: ${currentBuild.projectName} :penguin: <b>Linux</b> UNSTABLE  :confused:<br/>Build results: [Jenkins [${currentBuild.displayName}]](${currentBuild.absoluteUrl})<br/>Commit: ${env.GIT_COMMIT}" )
                     updateGitlabCommitStatus(name: 'Build linux', state: 'failed')
                 }
             }
-            sh "docker image rm -- meganz/megacmd-cmake-v2-tsan:${env.BUILD_NUMBER} || true"
-            sh "docker image rm -- meganz/megacmd-cmake-v2-asan:${env.BUILD_NUMBER} || true"
-            sh "docker image rm -- meganz/megacmd-cmake-v2-ubsan:${env.BUILD_NUMBER} || true"
-            junit "test-results/*san-*.xml"
-            archiveArtifacts artifacts: "test-results/*"
         }
-
     }
 }

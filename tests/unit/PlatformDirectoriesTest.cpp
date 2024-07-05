@@ -189,16 +189,20 @@ TEST(PlatformDirectoriesTest, getOrCreateSocketPath)
     auto dirs = PlatformDirectories::getPlatformSpecificDirectories();
 
     {
-        G_SUBTEST << "With $MEGACMD_SOCKET_NAME";
+        G_SUBTEST << "With $MEGACMD_SOCKET_NAME (normal or fallback case)";
         auto guard = TestInstrumentsEnvVarGuard("MEGACMD_SOCKET_NAME", "test.sock");
-        EXPECT_EQ(getOrCreateSocketPath(false), dirs->runtimeDirPath() + "/test.sock");
-    }
-    {
-        G_SUBTEST << "Without $MEGACMD_SOCKET_NAME. normal or fallback case";
         auto socketPath = getOrCreateSocketPath(false);
 
-        ASSERT_TRUE( socketPath == dirs->runtimeDirPath() + "/megacmd.socket" // normal case
-                     || socketPath == megacmd::PosixDirectories::noHomeFallbackFolder().append("/megacmd.socket")); //too lengthy case
+        ASSERT_TRUE(socketPath == dirs->runtimeDirPath() + "/test.sock" // normal case
+                    || socketPath == megacmd::PosixDirectories::noHomeFallbackFolder().append("/test.sock")); // too lengthy case
+    }
+
+    {
+        G_SUBTEST << "Without $MEGACMD_SOCKET_NAME (normal or fallback case)";
+        auto socketPath = getOrCreateSocketPath(false);
+
+        ASSERT_TRUE(socketPath == dirs->runtimeDirPath() + "/megacmd.socket" // normal case
+                    || socketPath == megacmd::PosixDirectories::noHomeFallbackFolder().append("/megacmd.socket")); // too lengthy case
     }
 
     {

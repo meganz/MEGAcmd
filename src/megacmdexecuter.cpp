@@ -998,18 +998,22 @@ bool MegaCmdExecuter::checkAndInformPSA(CmdPetition *inf, bool enforce)
         }
         else if(checkNoErrors(megaCmdListener->getError(), "get PSA"))
         {
-            sandboxCMD->lastPSAnumreceived = int(megaCmdListener->getRequest()->getNumber());
+            int number = static_cast<int>(megaCmdListener->getRequest()->getNumber());
+            std::string name = megaCmdListener->getRequest()->getName();
+            std::string text = megaCmdListener->getRequest()->getText();
 
-            LOG_debug << "Informing PSA #" << megaCmdListener->getRequest()->getNumber() << ": " << megaCmdListener->getRequest()->getName();
+            sandboxCMD->lastPSAnumreceived = number;
+
+            LOG_debug << "Informing PSA #" << number << ": " << name;
 
             stringstream oss;
 
-            oss << "<" << megaCmdListener->getRequest()->getName() << ">";
-            oss << megaCmdListener->getRequest()->getText();
+            oss << "<" << name << ">";
+            oss << text;
 
             string action = megaCmdListener->getRequest()->getPassword();
             string link = megaCmdListener->getRequest()->getLink();
-            if (!action.length())
+            if (action.empty())
             {
                 action = "read more: ";
             }
