@@ -4982,7 +4982,7 @@ void uninstall()
 #endif
 
 int executeServer(int argc, char* argv[],
-                  std::function<LoggedStream*()>&& createLoggedStream,
+                  const std::function<LoggedStream*()>& createLoggedStream,
                   int sdkLogLevel, int cmdLogLevel,
                   bool skiplockcheck, std::string debug_api_url, bool disablepkp)
 {

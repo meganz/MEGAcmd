@@ -193,7 +193,7 @@ void uninstall();
 
 class LoggedStream; // forward delaration
 int executeServer(int argc, char* argv[],
-                  std::function<LoggedStream*()>&& createLoggedStream = nullptr,
+                  const std::function<LoggedStream*()>& createLoggedStream = nullptr,
                   int sdkLogLevel = mega::MegaApi::LOG_LEVEL_DEBUG,
                   int cmdLogLevel = mega::MegaApi::LOG_LEVEL_DEBUG,
                   bool skiplockcheck = false,
