@@ -1004,7 +1004,7 @@ bool MegaCmdExecuter::checkAndInformPSA(CmdPetition *inf, bool enforce)
 
             sandboxCMD->lastPSAnumreceived = number;
 
-            LOG_debug << "Informing PSA #" << number << ": " << getAsciiValidString(name);
+            LOG_debug << "Informing PSA #" << number << ": " << name;
 
             stringstream oss;
 
