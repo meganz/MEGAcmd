@@ -193,8 +193,9 @@ pipeline {
                         }
                         post {
                             always {
-                                archiveArtifacts "test-dir-${SANITIZERS}/.megaCmd/megacmdserver.log*, test-dir-${SANITIZERS}/results/*"
+                                archiveArtifacts "test-dir-${SANITIZERS}/.megaCmd/megacmdserver.log*"
                                 junit "test-dir-${SANITIZERS}/results/mega-cmd-tests-integration.xml"
+                                sh "docker image rm -- meganz/megacmd-cmake-v2-${SANITIZERS}:${env.BUILD_NUMBER} || true"
                             }
                         }
                     }
@@ -223,9 +224,6 @@ pipeline {
                     updateGitlabCommitStatus(name: 'Build linux', state: 'failed')
                 }
             }
-            sh "docker image rm -- meganz/megacmd-cmake-v2-tsan:${env.BUILD_NUMBER} || true"
-            sh "docker image rm -- meganz/megacmd-cmake-v2-asan:${env.BUILD_NUMBER} || true"
-            sh "docker image rm -- meganz/megacmd-cmake-v2-ubsan:${env.BUILD_NUMBER} || true"
         }
     }
 }
