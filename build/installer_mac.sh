@@ -123,11 +123,11 @@ if [ ${build} -eq 1 ]; then
         CMAKE_EXTRA="-DCMAKE_OSX_ARCHITECTURES=${build_arch}"
     fi
 
-    cmake -DUSE_THIRDPARTY_FROM_VCPKG=1  -DMega3rdPartyDir=${VCPKGPATH} -DCMAKE_BUILD_TYPE=RelWithDebInfo ${CMAKE_EXTRA} -S ..//cmake
-    cmake --build ./ --target mega-cmd -j`sysctl -n hw.ncpu`
-    cmake --build ./ --target mega-exec -j`sysctl -n hw.ncpu`
-    cmake --build ./ --target mega-cmd-server -j`sysctl -n hw.ncpu`
-    cmake --build ./ --target mega-cmd-updater -j`sysctl -n hw.ncpu`
+    cmake -B build/build-cmake-Release -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_VERBOSE_MAKEFILE=ON ${CMAKE_EXTRA}
+    cmake --build build/build-cmake-Release --target mega-cmd -j $(sysctl -n hw.ncpu)
+    cmake --build build/build-cmake-Release --target mega-cmd -j $(sysctl -n hw.ncpu)
+    cmake --build build/build-cmake-Release --target mega-cmd-server -j $(sysctl -n hw.ncpu)
+    cmake --build build/build-cmake-Release --target mega-cmd-updater -j $(sysctl -n hw.ncpu)
     SERVER_PREFIX=""
     CLIENT_PREFIX=""
     SHELL_PREFIX=""

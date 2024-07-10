@@ -27,6 +27,26 @@ if(NOT WIN32 AND NOT EXISTS ${VCPKG_ROOT})
 endif()
 
 
+function(add_target_resources_per_paltform target)
+if (WIN32)
+    #TODO: fix this
+    set(RESOURCE_FILES
+        ${CMAKE_CURRENT_SOURCE_DIR}/icon.rc
+    )
+elseif (APPLE)
+    set(RESOURCE_FILES
+        ${CMAKE_CURRENT_SOURCE_DIR}/build/installer/app.icns
+    )
+
+    set_target_properties(${target} PROPERTIES
+        MACOSX_BUNDLE TRUE
+        MACOSX_BUNDLE_INFO_PLIST ${CMAKE_CURRENT_SOURCE_DIR}/build/installer/Info.plist
+        RESOURCE "${RESOURCE_FILES}"
+    )
+endif()
+endfunction()
+
+add_target_resources_per_paltform(mega-cmd)
 #TODO: Review the following, move to a separate module and add add_executable WIN32/MACOSX_BUNDLE properties
 # Set min OSX version
 if(CMAKE_HOST_APPLE)
