@@ -111,9 +111,6 @@ if [ ${build} -eq 1 ]; then
     if  [ "${build_arch}" != "${host_arch}" ]; then
         CMAKE_EXTRA="-DCMAKE_OSX_ARCHITECTURES=${build_arch}"
     fi
-    if  [ "${build_arch}" != "x86_64" ]; then
-        CMAKE_EXTRA="$CMAKE_EXTRA -DENFORCE_MEGACMDEXECUTER_FILESYSTEM_UNSETTING=1"
-    fi
 
 
     cmake -B build-cmake-Release_${build_arch} -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_VERBOSE_MAKEFILE=ON ${CMAKE_EXTRA} -S ../../

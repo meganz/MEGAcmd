@@ -69,6 +69,7 @@ if(CMAKE_HOST_APPLE)
         set(CMAKE_OSX_DEPLOYMENT_TARGET "11.1" CACHE STRING "Minimum OS X deployment version")
     else()
         set(CMAKE_OSX_DEPLOYMENT_TARGET "10.13" CACHE STRING "Minimum OS X deployment version")
+        add_compile_definitions(ENFORCE_MEGACMDEXECUTER_FILESYSTEM_UNSETTING=1) #This one requires 10.15
     endif()
     message(STATUS "Minimum OS X deployment version is set to ${CMAKE_OSX_DEPLOYMENT_TARGET}")
     unset(HOST_ARCHITECTURE)
