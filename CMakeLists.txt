@@ -27,7 +27,7 @@ if(NOT WIN32 AND NOT EXISTS ${VCPKG_ROOT})
 endif()
 
 
-function(add_target_resources_per_paltform target)
+function(add_target_resources_per_platform target)
 if (WIN32)
     #TODO: fix this
     set(RESOURCE_FILES
@@ -46,7 +46,6 @@ elseif (APPLE)
 endif()
 endfunction()
 
-add_target_resources_per_paltform(mega-cmd)
 #TODO: Review the following, move to a separate module and add add_executable WIN32/MACOSX_BUNDLE properties
 # Set min OSX version
 if(CMAKE_HOST_APPLE)
@@ -199,10 +198,16 @@ target_compile_definitions(LMegacmdServer
     $<$<BOOL:${USE_PCRE}>:USE_PCRE>
 )
 
-add_executable(mega-cmd-server)
+if (APPLE)
+    set(executablesType MACOSX_BUNDLE)
+elseif(WIN32)
+    set(executablesType WIN32)
+endif()
+
+add_executable(mega-cmd-server ${executablesType}
 add_source_and_corresponding_header_to_target(mega-cmd-server PRIVATE
     "${ProjectDir}/src/megacmd_server_main.cpp"
-    "${ProjectDir}/contrib/QtCreator/MEGAcmd/MEGAcmdServer/icon.rc"
+#    "${ProjectDir}/contrib/QtCreator/MEGAcmd/MEGAcmdServer/icon.rc" #TODO: fixme PRX-453
 )
 
 add_library(LMegacmdClient STATIC)
@@ -212,13 +217,13 @@ add_source_and_corresponding_header_to_target(LMegacmdClient PUBLIC
     "${ProjectDir}/src/megacmdshell/megacmdshellcommunications.cpp"
 )
 
-add_executable(mega-exec)
+add_executable(mega-exec ${executablesType})
 add_source_and_corresponding_header_to_target(mega-exec PRIVATE
     "${ProjectDir}/src/client/megacmd_client_main.cpp"
     "${ProjectDir}/contrib/QtCreator/MEGAcmd/MEGAcmdClient/icon.rc"
 )
 
-add_executable(mega-cmd)
+add_executable(mega-cmd ${executablesType})
 add_source_and_corresponding_header_to_target(mega-cmd PRIVATE
     "${ProjectDir}/src/megacmdshell/megacmdshellcommunications.cpp"
     "${ProjectDir}/src/megacmdshell/megacmdshellcommunicationsnamedpipes.cpp"
@@ -226,7 +231,7 @@ add_source_and_corresponding_header_to_target(mega-cmd PRIVATE
     "${ProjectDir}/contrib/QtCreator/MEGAcmd/MEGAcmdShell/icon.rc"
 )
 
-add_executable(mega-cmd-updater WIN32)
+add_executable(mega-cmd-updater ${executablesType})
 add_source_and_corresponding_header_to_target(mega-cmd-updater PRIVATE
     "${ProjectDir}/src/updater/MegaUpdater.cpp"
 )
@@ -334,7 +339,7 @@ if(ENABLE_MEGACMD_TESTS)
     list(APPEND all_targets mega-cmd-tests-unit mega-cmd-tests-integration)
 endif()
 # Install stuff
-if (NOT WIN32)
+if (UNIX AND NOT APPLE)
     set(PERMISSIONS755
          OWNER_READ
          OWNER_WRITE
@@ -388,3 +393,4 @@ if (NOT WIN32)
             PATTERN "manual-link" EXCLUDE
             PATTERN "pkgconfig" EXCLUDE)
 endif() #not WIN32
+add_target_resources_per_platform(mega-cmd-server)

@@ -112,7 +112,8 @@ if [ ${build} -eq 1 ]; then
         CMAKE_EXTRA="-DCMAKE_OSX_ARCHITECTURES=${build_arch}"
     fi
 
-    cmake -B build/build-cmake-Release -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_VERBOSE_MAKEFILE=ON ${CMAKE_EXTRA}
+
+    cmake -B build/build-cmake-Release -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_VERBOSE_MAKEFILE=ON ${CMAKE_EXTRA} -S ../
     cmake --build build/build-cmake-Release --target mega-cmd -j $(sysctl -n hw.ncpu)
     cmake --build build/build-cmake-Release --target mega-cmd -j $(sysctl -n hw.ncpu)
     cmake --build build/build-cmake-Release --target mega-cmd-server -j $(sysctl -n hw.ncpu)
