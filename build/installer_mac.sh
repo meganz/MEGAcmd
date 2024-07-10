@@ -9,9 +9,6 @@ Usage () {
     echo "    --full-pkg                       : Implies and overrides all the above"
     echo "    --arch [arm64|x86_64|universal]  : Arch target. It will use the host arch if none specified."
     echo ""
-    echo "Environment variables needed to build:"
-    echo "    VCPKGPATH : Point it to a directory containing a valid vcpkg installation"
-    echo ""
 }
 
 if [ $# -eq 0 ]; then
@@ -103,14 +100,6 @@ if [ ${build} -eq 1 ]; then
     for build_arch in $build_archs; do
 
     build_time_start=`date +%s`
-
-    if [ -z "${VCPKGPATH}" ] || [ ! -d "${VCPKGPATH}/vcpkg/installed" ]; then
-        echo "Please set VCPKGPATH env variable to a directory containing a valid vcpkg installation!"
-        exit 1;
-    fi
-
-    echo "Building with:"
-    echo "  VCPKGPATH  : ${VCPKGPATH}"
 
     # Clean previous build
     [ -z "${SKIP_REMOVAL}" ]  && rm -rf Release_${build_arch}
