@@ -35,25 +35,6 @@ if(NOT WIN32 AND NOT EXISTS ${VCPKG_ROOT})
     message(STATUS "vcpkg cloned successfully: ${status}")
 endif()
 
-function(add_target_resources_per_platform target)
-if (WIN32)
-    #TODO: fix this
-    set(RESOURCE_FILES
-        ${CMAKE_CURRENT_SOURCE_DIR}/icon.rc
-    )
-elseif (APPLE)
-    set(RESOURCE_FILES
-        ${CMAKE_CURRENT_SOURCE_DIR}/build/installer/app.icns
-    )
-
-    set_target_properties(${target} PROPERTIES
-        MACOSX_BUNDLE TRUE
-        MACOSX_BUNDLE_INFO_PLIST ${CMAKE_CURRENT_SOURCE_DIR}/build/installer/Info.plist
-        RESOURCE "${RESOURCE_FILES}"
-    )
-endif()
-endfunction()
-
 #TODO: Review the following, move to a separate module and add add_executable WIN32/MACOSX_BUNDLE properties
 # Set min OSX version
 if(CMAKE_HOST_APPLE)
@@ -214,8 +195,25 @@ elseif(WIN32)
 endif()
 
 add_executable(mega-cmd-server ${executablesType})
+if (WIN32)
+    #TODO: fix this
+    set(RESOURCE_FILES
+        ${CMAKE_CURRENT_SOURCE_DIR}/icon.rc
+    )
+elseif (APPLE)
+    set(RESOURCE_FILES
+        ${CMAKE_CURRENT_SOURCE_DIR}/build/installer/app.icns
+    )
+
+    set_target_properties(mega-cmd-server PROPERTIES
+        MACOSX_BUNDLE TRUE
+        MACOSX_BUNDLE_INFO_PLIST ${CMAKE_CURRENT_SOURCE_DIR}/build/installer/Info.plist
+        RESOURCE "${RESOURCE_FILES}"
+    )
+endif()
 add_source_and_corresponding_header_to_target(mega-cmd-server PRIVATE
     "${ProjectDir}/src/megacmd_server_main.cpp"
+    "${RESOURCE_FILES}"
 #    "${ProjectDir}/contrib/QtCreator/MEGAcmd/MEGAcmdServer/icon.rc" #TODO: fixme PRX-453
 )
 if (APPLE)
@@ -415,4 +413,3 @@ elseif(NOT WIN32)
             PATTERN "manual-link" EXCLUDE
             PATTERN "pkgconfig" EXCLUDE)
 endif() #not WIN32
-add_target_resources_per_platform(mega-cmd-server)

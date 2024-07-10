@@ -131,10 +131,13 @@ if [ ${build} -eq 1 ]; then
     execOriginTarget[MEGAcmd]=mega-cmd
 
     for k in "${(@k)execOriginTarget}"; do
-        prefix=$k.app/Contents/MacOS/
-        strip $prefix/$k 
-        mv $prefix/$k ${APP_NAME}.app/Contents/MacOS/$execOriginTarget[$k]
-        dsymutil ${APP_NAME}.app/Contents/MacOS/$execOriginTarget[$k] -o ${APP_NAME}.app/Contents/MacOS/$execOriginTarget[$k].dSYM
+        #Place it in  ${APP_NAME} with its final name
+        mv $k.app/Contents/MacOS/$k ${APP_NAME}.app/Contents/MacOS/$execOriginTarget[$k]
+        #get symbols out:
+        dsymutil ${APP_NAME}.app/Contents/MacOS/$execOriginTarget[$k] -o $execOriginTarget[$k].dSYM
+        #strip executable
+        strip ${APP_NAME}.app/Contents/MacOS/$execOriginTarget[$k]
+         # have dylibs use relative paths:
     done
 
     # copy initialize script (it will simple launch MEGAcmdLoader in a terminal) as the new main executable: MEGAcmd
