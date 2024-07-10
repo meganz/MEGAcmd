@@ -61,6 +61,10 @@
 #endif
 #endif
 
+#ifdef ENFORCE_MEGACMDEXECUTER_FILESYSTEM_UNSETTING
+#undef MEGACMDEXECUTER_FILESYSTEM
+#endif
+
 
 using namespace mega;
 

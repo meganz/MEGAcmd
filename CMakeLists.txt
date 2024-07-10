@@ -208,7 +208,6 @@ target_compile_definitions(LMegacmdServer
 
 if (APPLE)
     set(executablesType MACOSX_BUNDLE)
-    set_target_properties(mega-cmd-server PROPERTIES OUTPUT_NAME "MEGAcmd")
 elseif(WIN32)
     set(executablesType WIN32)
 endif()
@@ -218,6 +217,10 @@ add_source_and_corresponding_header_to_target(mega-cmd-server PRIVATE
     "${ProjectDir}/src/megacmd_server_main.cpp"
 #    "${ProjectDir}/contrib/QtCreator/MEGAcmd/MEGAcmdServer/icon.rc" #TODO: fixme PRX-453
 )
+if (APPLE)
+set_target_properties(mega-cmd-server PROPERTIES OUTPUT_NAME "MEGAcmd")
+endif()
+
 
 add_library(LMegacmdClient STATIC)
 add_source_and_corresponding_header_to_target(LMegacmdClient PUBLIC
@@ -355,7 +358,7 @@ endif()
 if (APPLE)
     install(TARGETS ${all_targets}
         BUNDLE
-        DESTINATION ""
+        DESTINATION "./"
     )
 elseif(NOT WIN32)
     set(PERMISSIONS755

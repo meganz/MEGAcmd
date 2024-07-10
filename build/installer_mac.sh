@@ -111,11 +111,14 @@ if [ ${build} -eq 1 ]; then
     if  [ "${build_arch}" != "${host_arch}" ]; then
         CMAKE_EXTRA="-DCMAKE_OSX_ARCHITECTURES=${build_arch}"
     fi
+    if  [ "${build_arch}" != "x86_64" ]; then
+        CMAKE_EXTRA="$CMAKE_EXTRA -DENFORCE_MEGACMDEXECUTER_FILESYSTEM_UNSETTING=1"
+    fi
 
 
-    cmake -B build-cmake-Release_${build_arch} -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_VERBOSE_MAKEFILE=ON ${CMAKE_EXTRA} -S ../
+    cmake -B build-cmake-Release_${build_arch} -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_VERBOSE_MAKEFILE=ON ${CMAKE_EXTRA} -S ../../
     cmake --build build-cmake-Release_${build_arch} -j $(sysctl -n hw.ncpu)
-    cmake --install build-cmake-Release_${build_arch} --prefix install_${build_arch}
+    cmake --install build-cmake-Release_${build_arch} --prefix ./
     SERVER_PREFIX=""
     CLIENT_PREFIX=""
     SHELL_PREFIX=""
@@ -123,7 +126,6 @@ if [ ${build} -eq 1 ]; then
     UPDATER_PREFIX=""
 
     # main bundle:
-    cd install_${build_arch}
     # place (and strip) executables
     typeset -A execOriginTarget
     execOriginTarget[mega-exec]=mega-exec
@@ -139,11 +141,11 @@ if [ ${build} -eq 1 ]; then
     done
 
     # copy initialize script (it will simple launch MEGAcmdLoader in a terminal) as the new main executable: MEGAcmd
-    cp ../../installer/MEGAcmd.sh ${APP_NAME}.app/Contents/MacOS/MEGAcmd
+    cp ../installer/MEGAcmd.sh ${APP_NAME}.app/Contents/MacOS/MEGAcmd
 
     # place commands and completion scripts
-    cp ../../../src/client/mega-* ${APP_NAME}.app/Contents/MacOS/
-    cp ../../../src/client/megacmd_completion.sh  ${APP_NAME}.app/Contents/MacOS/
+    cp ../../src/client/mega-* ${APP_NAME}.app/Contents/MacOS/
+    cp ../../src/client/megacmd_completion.sh  ${APP_NAME}.app/Contents/MacOS/
 
 
 
@@ -161,7 +163,6 @@ if [ ${build} -eq 1 ]; then
     otool -L ${APP_NAME}.app/Contents/MacOS/MEGAcmdUpdater
     otool -L ${APP_NAME}.app/Contents/MacOS/MEGAcmdShell
 
-    cd .. #popd install_XXXX
 
     cd .. #popd Release_${build_arch}
 

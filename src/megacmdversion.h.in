@@ -31,3 +31,5 @@ const char * const megacmdchangelog =
         ;
 
 }//end namespace
+#endif // VERSION_H
+
