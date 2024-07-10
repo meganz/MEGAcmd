@@ -1,6 +1,15 @@
 # CMakeLists.txt file to build the MEGAcmd
 cmake_minimum_required(VERSION 3.16)
 
+## Configure megacmdversion.h
+set(MEGACMD_MAJOR_VERSION 1)
+set(MEGACMD_MINOR_VERSION 7)
+set(MEGACMD_MICRO_VERSION 0)
+configure_file("${CMAKE_CURRENT_LIST_DIR}/src/megacmdversion.h.in" "${CMAKE_CURRENT_LIST_DIR}/src/megacmdversion.h" @ONLY)
+if (APPLE)
+configure_file("${CMAKE_CURRENT_LIST_DIR}/build/installer/Info.plist.in" "${CMAKE_CURRENT_LIST_DIR}/build/installer/Info.plist" @ONLY)
+endif()
+
 # Qt Creator configures VCPKG automatically. Disable it, we may want to use different tripplets, paths...
 set(QT_CREATOR_SKIP_VCPKG_SETUP TRUE CACHE BOOL "")
 
@@ -25,7 +34,6 @@ if(NOT WIN32 AND NOT EXISTS ${VCPKG_ROOT})
     endif()
     message(STATUS "vcpkg cloned successfully: ${status}")
 endif()
-
 
 function(add_target_resources_per_platform target)
 if (WIN32)
@@ -102,7 +110,7 @@ else()
 endif()
 
 project(MEGAcmd
-    VERSION 1.7.0 #TODO: have this gathered from megacmdversion.h
+    VERSION ${MEGACMD_MAJOR_VERSION}.${MEGACMD_MINOR_VERSION}.${MEGACMD_MICRO_VERSION}
     DESCRIPTION "MEGAcmd"
     )
 
@@ -200,11 +208,12 @@ target_compile_definitions(LMegacmdServer
 
 if (APPLE)
     set(executablesType MACOSX_BUNDLE)
+    set_target_properties(mega-cmd-server PROPERTIES OUTPUT_NAME "MEGAcmd")
 elseif(WIN32)
     set(executablesType WIN32)
 endif()
 
-add_executable(mega-cmd-server ${executablesType}
+add_executable(mega-cmd-server ${executablesType})
 add_source_and_corresponding_header_to_target(mega-cmd-server PRIVATE
     "${ProjectDir}/src/megacmd_server_main.cpp"
 #    "${ProjectDir}/contrib/QtCreator/MEGAcmd/MEGAcmdServer/icon.rc" #TODO: fixme PRX-453
@@ -335,11 +344,20 @@ load_megacmdserver_libraries()
 
 
 list(APPEND all_targets mega-exec mega-cmd mega-cmd-server)
+if (APPLE)
+    list(APPEND all_targets mega-cmd-updater)
+endif()
+
 if(ENABLE_MEGACMD_TESTS)
     list(APPEND all_targets mega-cmd-tests-unit mega-cmd-tests-integration)
 endif()
 # Install stuff
-if (UNIX AND NOT APPLE)
+if (APPLE)
+    install(TARGETS ${all_targets}
+        BUNDLE
+        DESTINATION ""
+    )
+elseif(NOT WIN32)
     set(PERMISSIONS755
          OWNER_READ
          OWNER_WRITE

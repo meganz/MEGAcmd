@@ -44,7 +44,7 @@ validpgpkeys=()
 
 prepare() {
 	cd "$pkgname-$pkgver"
-	sed -i -E "s/(^#define MEGACMD_BUILD_ID )[0-9]*/\1${pkgrel}/g" src/megacmdversion.h
+	sed -i -E "s/(^#define MEGACMD_BUILD_ID )[0-9]*/\1${pkgrel}/g" src/megacmdversion.h.in
 
 	if [ -f /opt/vcpkg.tar.gz ]; then
 		tar xzf /opt/vcpkg.tar.gz

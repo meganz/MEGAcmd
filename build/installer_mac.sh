@@ -113,77 +113,47 @@ if [ ${build} -eq 1 ]; then
     fi
 
 
-    cmake -B build/build-cmake-Release -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_VERBOSE_MAKEFILE=ON ${CMAKE_EXTRA} -S ../
-    cmake --build build/build-cmake-Release --target mega-cmd -j $(sysctl -n hw.ncpu)
-    cmake --build build/build-cmake-Release --target mega-cmd -j $(sysctl -n hw.ncpu)
-    cmake --build build/build-cmake-Release --target mega-cmd-server -j $(sysctl -n hw.ncpu)
-    cmake --build build/build-cmake-Release --target mega-cmd-updater -j $(sysctl -n hw.ncpu)
+    cmake -B build-cmake-Release_${build_arch} -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_VERBOSE_MAKEFILE=ON ${CMAKE_EXTRA} -S ../
+    cmake --build build-cmake-Release_${build_arch} -j $(sysctl -n hw.ncpu)
+    cmake --install build-cmake-Release_${build_arch} --prefix install_${build_arch}
     SERVER_PREFIX=""
     CLIENT_PREFIX=""
     SHELL_PREFIX=""
     LOADER_PREFIX=""
     UPDATER_PREFIX=""
 
-    # create folder structure
-    mkdir -p ${APP_NAME}.app/Contents/Frameworks
-    mkdir -p ${APP_NAME}.app/Contents/MacOS
-    mkdir -p ${APP_NAME}.app/Contents/Resources
-
+    # main bundle:
+    cd install_${build_arch}
     # place (and strip) executables
     typeset -A execOriginTarget
     execOriginTarget[mega-exec]=mega-exec
     execOriginTarget[mega-cmd]=MEGAcmdShell
     execOriginTarget[mega-cmd-updater]=MEGAcmdUpdater
-    execOriginTarget[mega-cmd-server]=mega-cmd
+    execOriginTarget[MEGAcmd]=mega-cmd
 
     for k in "${(@k)execOriginTarget}"; do
-        dsymutil $k -o $execOriginTarget[$k].dSYM
-        cp $k ${APP_NAME}.app/Contents/MacOS/$execOriginTarget[$k]
-        strip ${APP_NAME}.app/Contents/MacOS/$execOriginTarget[$k]
-        # have dylibs use relative paths:
-         for i in $(otool -L ${APP_NAME}.app/Contents/MacOS/$execOriginTarget[$k] | grep dylib | grep -v "\t/usr/lib"  | awk '{print $1}'); do
-            install_name_tool -change $i "@executable_path/../Frameworks/"$(basename $i) ${APP_NAME}.app/Contents/MacOS/$execOriginTarget[$k];
-         done
+        prefix=$k.app/Contents/MacOS/
+        strip $prefix/$k 
+        mv $prefix/$k ${APP_NAME}.app/Contents/MacOS/$execOriginTarget[$k]
+        dsymutil ${APP_NAME}.app/Contents/MacOS/$execOriginTarget[$k] -o ${APP_NAME}.app/Contents/MacOS/$execOriginTarget[$k].dSYM
     done
 
     # copy initialize script (it will simple launch MEGAcmdLoader in a terminal) as the new main executable: MEGAcmd
-    cp ../installer/MEGAcmd.sh ${APP_NAME}.app/Contents/MacOS/MEGAcmd
+    cp ../../installer/MEGAcmd.sh ${APP_NAME}.app/Contents/MacOS/MEGAcmd
 
     # place commands and completion scripts
-    cp ../../src/client/mega-* ${APP_NAME}.app/Contents/MacOS/
-    cp ../../src/client/megacmd_completion.sh  ${APP_NAME}.app/Contents/MacOS/
+    cp ../../../src/client/mega-* ${APP_NAME}.app/Contents/MacOS/
+    cp ../../../src/client/megacmd_completion.sh  ${APP_NAME}.app/Contents/MacOS/
 
-    # place dylibs
-     for i in $(otool -L ./mega-cmd ./mega-cmd-server ./mega-cmd-updater ./mega-exec | grep dylib | grep -v "\t/usr/lib" | sort | uniq | grep -o "lib[a-x0-9\.]*dylib"); do
-        # copy dylib into its place
-        libinAppPath=${APP_NAME}.app/Contents/Frameworks/$i
-        cp "${VCPKGPATH}"/vcpkg/installed/${build_arch//x86_64/x64}-osx-mega/lib/$i $libinAppPath;
 
-        # have their ids matching the relative one that will be set in the executable
-        install_name_tool -id "@executable_path/../Frameworks/"$(basename $i) ${libinAppPath};
 
-         # and have their linked dylibs use relative paths too:
-         for l in $(otool -L ${libinAppPath} | grep dylib | grep "^\t" | grep -v "\t/usr/lib" | grep -v "executable_path" | awk '{print $1}'); do
-            install_name_tool -change $l "@executable_path/../Frameworks/"$(basename $l) ${libinAppPath};
-         done
-     done;
 
-    # place icns
-    cp ../../contrib/QtCreator/MEGAcmd/MEGAcmdServer/app.icns ${APP_NAME}.app/Contents/Resources/app.icns
 
-    #place PkgInfo
-    echo 'APPL????' > ${APP_NAME}.app/Contents/PkgInfo
 
     #place empty empty.lproj
-    touch ${APP_NAME}.app/Contents/Resources/empty.lproj
-
-    #place Info.plist
-    cp ../installer/Info.plist ${APP_NAME}.app/Contents/Info.plist
 
 
-    # update version into Info.plist
-    MEGACMD_VERSION=`grep -o "[0-9][0-9]*$" ../../src/megacmdversion.h | head -n 3 | paste -s -d '.' -`
-    /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $MEGACMD_VERSION" "$APP_NAME.app/Contents/Info.plist"
+
 
     otool -L ${APP_NAME}.app/Contents/MacOS/mega-cmd
     otool -L ${APP_NAME}.app/Contents/MacOS/mega-exec
@@ -191,7 +161,9 @@ if [ ${build} -eq 1 ]; then
     otool -L ${APP_NAME}.app/Contents/MacOS/MEGAcmdUpdater
     otool -L ${APP_NAME}.app/Contents/MacOS/MEGAcmdShell
 
-    cd ..
+    cd .. #popd install_XXXX
+
+    cd .. #popd Release_${build_arch}
 
     eval build_time_${build_arch}=`expr $(date +%s) - $build_time_start`
     unset build_time_start
