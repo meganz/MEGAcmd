@@ -190,13 +190,11 @@ target_compile_definitions(LMegacmdServer
 
 if (APPLE)
     set(executablesType MACOSX_BUNDLE)
-elseif(WIN32)
-    set(executablesType WIN32)
 endif()
 
 add_executable(mega-cmd-server ${executablesType})
 if (WIN32)
-    set(MEGACMD_RESOURCE_NAME MEGAcmdServer)
+    set(MEGACMD_RESOURCE_NAME MEGAcmdServer) #TODO: do the same of other executables
     configure_file("${CMAKE_CURRENT_LIST_DIR}/build/installer/winversion.rc.in" "${CMAKE_CURRENT_LIST_DIR}/build/installer/mega-cmd-server_version.rc" @ONLY)
     set(RESOURCE_FILES
         "${CMAKE_CURRENT_LIST_DIR}/build/installer/mega-cmd-server_version.rc"
@@ -244,7 +242,11 @@ add_source_and_corresponding_header_to_target(mega-cmd PRIVATE
     "${ProjectDir}/contrib/QtCreator/MEGAcmd/MEGAcmdShell/icon.rc"
 )
 
-add_executable(mega-cmd-updater ${executablesType})
+if (WIN32)
+    add_executable(mega-cmd-updater WIN32)
+else()
+    add_executable(mega-cmd-updater ${executablesType})
+endif()
 add_source_and_corresponding_header_to_target(mega-cmd-updater PRIVATE
     "${ProjectDir}/src/updater/MegaUpdater.cpp"
 )
