@@ -196,13 +196,10 @@ endif()
 
 add_executable(mega-cmd-server ${executablesType})
 if (WIN32)
+    set(MEGACMD_RESOURCE_NAME MEGAcmdServer)
+    configure_file("${CMAKE_CURRENT_LIST_DIR}/build/installer/winversion.rc.in" "${CMAKE_CURRENT_LIST_DIR}/build/installer/mega-cmd-server_version.rc" @ONLY)
     set(RESOURCE_FILES
-        ${CMAKE_CURRENT_SOURCE_DIR}/build/installer/mega-cmd-server_version.rc
-        set(MEGACMD_RESOURCE_NAME MEGAcmdServer)
-        configure_file("${CMAKE_CURRENT_LIST_DIR}/build/installer/winversion.rc.in" "${CMAKE_CURRENT_LIST_DIR}/build/installer/mega-cmd-server_version.rc" @ONLY)
-        set(RESOURCE_FILES
-            "${CMAKE_CURRENT_LIST_DIR}/build/installer/mega-cmd-server_version.rc"
-        )
+        "${CMAKE_CURRENT_LIST_DIR}/build/installer/mega-cmd-server_version.rc"
     )
 elseif (APPLE)
     set(RESOURCE_FILES
