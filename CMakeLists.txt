@@ -196,9 +196,13 @@ endif()
 
 add_executable(mega-cmd-server ${executablesType})
 if (WIN32)
-    #TODO: fix this
     set(RESOURCE_FILES
-        ${CMAKE_CURRENT_SOURCE_DIR}/icon.rc
+        ${CMAKE_CURRENT_SOURCE_DIR}/build/installer/mega-cmd-server_version.rc
+        set(MEGACMD_RESOURCE_NAME MEGAcmdServer)
+        configure_file("${CMAKE_CURRENT_LIST_DIR}/build/installer/winversion.rc.in" "${CMAKE_CURRENT_LIST_DIR}/build/installer/mega-cmd-server_version.rc" @ONLY)
+        set(RESOURCE_FILES
+            "${CMAKE_CURRENT_LIST_DIR}/build/installer/mega-cmd-server_version.rc"
+        )
     )
 elseif (APPLE)
     set(RESOURCE_FILES
@@ -214,10 +218,11 @@ endif()
 add_source_and_corresponding_header_to_target(mega-cmd-server PRIVATE
     "${ProjectDir}/src/megacmd_server_main.cpp"
     "${RESOURCE_FILES}"
-#    "${ProjectDir}/contrib/QtCreator/MEGAcmd/MEGAcmdServer/icon.rc" #TODO: fixme PRX-453
 )
 if (APPLE)
 set_target_properties(mega-cmd-server PROPERTIES OUTPUT_NAME "MEGAcmd")
+elseif (WIN32)
+set_target_properties(mega-cmd-server PROPERTIES OUTPUT_NAME "MEGAcmdServer")
 endif()
 
 
