@@ -231,7 +231,7 @@ add_source_and_corresponding_header_to_target(LMegacmdClient PUBLIC
 add_executable(mega-exec ${executablesType})
 add_source_and_corresponding_header_to_target(mega-exec PRIVATE
     "${ProjectDir}/src/client/megacmd_client_main.cpp"
-    "${ProjectDir}/contrib/QtCreator/MEGAcmd/MEGAcmdClient/icon.rc"
+    #"${ProjectDir}/contrib/QtCreator/MEGAcmd/MEGAcmdClient/icon.rc"
 )
 
 add_executable(mega-cmd ${executablesType})
@@ -239,7 +239,7 @@ add_source_and_corresponding_header_to_target(mega-cmd PRIVATE
     "${ProjectDir}/src/megacmdshell/megacmdshellcommunications.cpp"
     "${ProjectDir}/src/megacmdshell/megacmdshellcommunicationsnamedpipes.cpp"
     "${ProjectDir}/src/megacmdshell/megacmdshell.cpp"
-    "${ProjectDir}/contrib/QtCreator/MEGAcmd/MEGAcmdShell/icon.rc"
+    #"${ProjectDir}/contrib/QtCreator/MEGAcmd/MEGAcmdShell/icon.rc"
 )
 
 if (WIN32)
@@ -252,7 +252,7 @@ add_source_and_corresponding_header_to_target(mega-cmd-updater PRIVATE
 )
 add_source_and_corresponding_header_to_target(mega-cmd-updater PRIVATE
     "${ProjectDir}/src/updater/UpdateTask.cpp"
-    "${ProjectDir}/contrib/QtCreator/MEGAcmd/MEGAcmdUpdater/icon.rc"
+    #"${ProjectDir}/contrib/QtCreator/MEGAcmd/MEGAcmdUpdater/icon.rc"
 )
 
 target_sources_conditional(mega-cmd-updater
