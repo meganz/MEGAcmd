@@ -23,7 +23,7 @@ IFS=$'\n\t'
 BASEPATH=$(pwd)/../
 
 # get current version
-megacmd_VERSION=$(cat CMakeLists.txt | grep -Po "MEGACMD_.*_VERSION [0-9]*"| awk '{print $2}' | paste -sd '.')
+megacmd_VERSION=$(cat $BASEPATH/CMakeLists.txt | grep -Po "MEGACMD_.*_VERSION [0-9]*"| awk '{print $2}' | paste -sd '.')
 export megacmd_NAME=megacmd-$megacmd_VERSION
 rm -rf $megacmd_NAME.tar.gz
 rm -rf $megacmd_NAME
