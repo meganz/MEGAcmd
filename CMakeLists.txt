@@ -19,7 +19,17 @@ list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/sdk/contrib/cmake/module
 
 set(VCPKG_ROOT "${CMAKE_CURRENT_LIST_DIR}/../vcpkg" CACHE PATH "If set, it will build and use the VCPKG packages defined in the manifest file")
 
-if(NOT WIN32 AND NOT EXISTS ${VCPKG_ROOT})
+
+if (WIN32)
+execute_process(
+    COMMAND bash --version
+    RESULT_VARIABLE BASH_VERSION_RESULT
+    OUTPUT_QUIET
+    ERROR_QUIET
+)
+endif()
+
+if((NOT WIN32 OR BASH_VERSION_RESULT EQUAL 0) AND NOT EXISTS ${VCPKG_ROOT})
     message(STATUS "vcpkg will be cloned into ${VCPKG_ROOT}")
     execute_process(
         #TODO: have the same for windows ... or at least check if bash is available
