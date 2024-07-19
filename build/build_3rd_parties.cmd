@@ -3,7 +3,8 @@ IF "%1%" EQU "-help" (
 )
 
 IF [%MEGA_VCPKGPATH%]==[] (
-	SET MEGA_VCPKGPATH="C:\mega\dev\3rdparty_megacmd"
+	SET "SCRIPT_DIR=%~dp0"
+	SET "MEGA_VCPKGPATH=%SCRIPT_DIR%..\..\"
 )
 
 SET MEGA_ARCH=%1
