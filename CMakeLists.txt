@@ -40,7 +40,7 @@ if((NOT WIN32 OR BASH_VERSION_RESULT EQUAL 0) AND NOT EXISTS ${VCPKG_ROOT})
         RESULT_VARIABLE status
     )
     if(NOT status EQUAL "0")
-        message(FATAL_ERROR "Failed to run the clone_vcpkg_from_baseline. ${resulte}")
+        message(FATAL_ERROR "Failed to run the clone_vcpkg_from_baseline. ${status} ${result} ${resulte} ")
     endif()
     message(STATUS "vcpkg cloned successfully: ${status}")
 endif()
