@@ -75,6 +75,7 @@ pipeline {
             steps {
                 dir(windows_sources_workspace + '\\build'){
                     bat """
+                        @echo on
                         mkdir tmp
                         set _MSPDBSRV_ENDPOINT_= ${BUILD_TAG}
                         set TMP=${Workspace}\\tmp
