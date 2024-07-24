@@ -1,6 +1,15 @@
 # CMakeLists.txt file to build the MEGAcmd
 cmake_minimum_required(VERSION 3.16)
 
+## Configure megacmdversion.h
+set(MEGACMD_MAJOR_VERSION 1)
+set(MEGACMD_MINOR_VERSION 7)
+set(MEGACMD_MICRO_VERSION 0)
+configure_file("${CMAKE_CURRENT_LIST_DIR}/src/megacmdversion.h.in" "${CMAKE_CURRENT_LIST_DIR}/src/megacmdversion.h" @ONLY)
+if (APPLE)
+configure_file("${CMAKE_CURRENT_LIST_DIR}/build/installer/Info.plist.in" "${CMAKE_CURRENT_LIST_DIR}/build/installer/Info.plist" @ONLY)
+endif()
+
 # Qt Creator configures VCPKG automatically. Disable it, we may want to use different tripplets, paths...
 set(QT_CREATOR_SKIP_VCPKG_SETUP TRUE CACHE BOOL "")
 
@@ -26,7 +35,6 @@ if(NOT WIN32 AND NOT EXISTS ${VCPKG_ROOT})
     message(STATUS "vcpkg cloned successfully: ${status}")
 endif()
 
-
 #TODO: Review the following, move to a separate module and add add_executable WIN32/MACOSX_BUNDLE properties
 # Set min OSX version
 if(CMAKE_HOST_APPLE)
@@ -42,6 +50,7 @@ if(CMAKE_HOST_APPLE)
         set(CMAKE_OSX_DEPLOYMENT_TARGET "11.1" CACHE STRING "Minimum OS X deployment version")
     else()
         set(CMAKE_OSX_DEPLOYMENT_TARGET "10.13" CACHE STRING "Minimum OS X deployment version")
+        add_compile_definitions(ENFORCE_MEGACMDEXECUTER_FILESYSTEM_UNSETTING=1) #This one requires 10.15
     endif()
     message(STATUS "Minimum OS X deployment version is set to ${CMAKE_OSX_DEPLOYMENT_TARGET}")
     unset(HOST_ARCHITECTURE)
@@ -83,7 +92,7 @@ else()
 endif()
 
 project(MEGAcmd
-    VERSION 1.7.0 #TODO: have this gathered from megacmdversion.h
+    VERSION ${MEGACMD_MAJOR_VERSION}.${MEGACMD_MINOR_VERSION}.${MEGACMD_MICRO_VERSION}
     DESCRIPTION "MEGAcmd"
     )
 
@@ -179,11 +188,38 @@ target_compile_definitions(LMegacmdServer
     $<$<BOOL:${USE_PCRE}>:USE_PCRE>
 )
 
-add_executable(mega-cmd-server)
+if (APPLE)
+    set(executablesType MACOSX_BUNDLE)
+endif()
+
+add_executable(mega-cmd-server ${executablesType})
+if (WIN32)
+    set(MEGACMD_RESOURCE_NAME MEGAcmdServer) #TODO: do the same of other executables
+    configure_file("${CMAKE_CURRENT_LIST_DIR}/build/installer/winversion.rc.in" "${CMAKE_CURRENT_LIST_DIR}/build/installer/mega-cmd-server_version.rc" @ONLY)
+    set(RESOURCE_FILES
+        "${CMAKE_CURRENT_LIST_DIR}/build/installer/mega-cmd-server_version.rc"
+    )
+elseif (APPLE)
+    set(RESOURCE_FILES
+        ${CMAKE_CURRENT_SOURCE_DIR}/build/installer/app.icns
+    )
+
+    set_target_properties(mega-cmd-server PROPERTIES
+        MACOSX_BUNDLE TRUE
+        MACOSX_BUNDLE_INFO_PLIST ${CMAKE_CURRENT_SOURCE_DIR}/build/installer/Info.plist
+        RESOURCE "${RESOURCE_FILES}"
+    )
+endif()
 add_source_and_corresponding_header_to_target(mega-cmd-server PRIVATE
     "${ProjectDir}/src/megacmd_server_main.cpp"
-    "${ProjectDir}/contrib/QtCreator/MEGAcmd/MEGAcmdServer/icon.rc"
+    "${RESOURCE_FILES}"
 )
+if (APPLE)
+set_target_properties(mega-cmd-server PROPERTIES OUTPUT_NAME "MEGAcmd")
+elseif (WIN32)
+set_target_properties(mega-cmd-server PROPERTIES OUTPUT_NAME "MEGAcmdServer")
+endif()
+
 
 add_library(LMegacmdClient STATIC)
 add_source_and_corresponding_header_to_target(LMegacmdClient PUBLIC
@@ -192,27 +228,31 @@ add_source_and_corresponding_header_to_target(LMegacmdClient PUBLIC
     "${ProjectDir}/src/megacmdshell/megacmdshellcommunications.cpp"
 )
 
-add_executable(mega-exec)
+add_executable(mega-exec ${executablesType})
 add_source_and_corresponding_header_to_target(mega-exec PRIVATE
     "${ProjectDir}/src/client/megacmd_client_main.cpp"
-    "${ProjectDir}/contrib/QtCreator/MEGAcmd/MEGAcmdClient/icon.rc"
+    #"${ProjectDir}/contrib/QtCreator/MEGAcmd/MEGAcmdClient/icon.rc"
 )
 
-add_executable(mega-cmd)
+add_executable(mega-cmd ${executablesType})
 add_source_and_corresponding_header_to_target(mega-cmd PRIVATE
     "${ProjectDir}/src/megacmdshell/megacmdshellcommunications.cpp"
     "${ProjectDir}/src/megacmdshell/megacmdshellcommunicationsnamedpipes.cpp"
     "${ProjectDir}/src/megacmdshell/megacmdshell.cpp"
-    "${ProjectDir}/contrib/QtCreator/MEGAcmd/MEGAcmdShell/icon.rc"
+    #"${ProjectDir}/contrib/QtCreator/MEGAcmd/MEGAcmdShell/icon.rc"
 )
 
-add_executable(mega-cmd-updater WIN32)
+if (WIN32)
+    add_executable(mega-cmd-updater WIN32)
+else()
+    add_executable(mega-cmd-updater ${executablesType})
+endif()
 add_source_and_corresponding_header_to_target(mega-cmd-updater PRIVATE
     "${ProjectDir}/src/updater/MegaUpdater.cpp"
 )
 add_source_and_corresponding_header_to_target(mega-cmd-updater PRIVATE
     "${ProjectDir}/src/updater/UpdateTask.cpp"
-    "${ProjectDir}/contrib/QtCreator/MEGAcmd/MEGAcmdUpdater/icon.rc"
+    #"${ProjectDir}/contrib/QtCreator/MEGAcmd/MEGAcmdUpdater/icon.rc"
 )
 
 target_sources_conditional(mega-cmd-updater
@@ -310,11 +350,20 @@ load_megacmdserver_libraries()
 
 
 list(APPEND all_targets mega-exec mega-cmd mega-cmd-server)
+if (APPLE)
+    list(APPEND all_targets mega-cmd-updater)
+endif()
+
 if(ENABLE_MEGACMD_TESTS)
     list(APPEND all_targets mega-cmd-tests-unit mega-cmd-tests-integration)
 endif()
 # Install stuff
-if (NOT WIN32)
+if (APPLE)
+    install(TARGETS ${all_targets}
+        BUNDLE
+        DESTINATION "./"
+    )
+elseif(NOT WIN32)
     set(PERMISSIONS755
          OWNER_READ
          OWNER_WRITE

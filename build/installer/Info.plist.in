@@ -8,11 +8,13 @@
     <string>app.icns</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>@MEGACMD_MAJOR_VERSION@.@MEGACMD_MINOR_VERSION@.@MEGACMD_MICRO_VERSION@</string>
     <key>CFBundleSignature</key>
     <string>????</string>
     <key>CFBundleExecutable</key>
     <string>MEGAcmd</string>
-	<key>LSUIElement</key>
+    <key>LSUIElement</key>
     <string>1</string>
     <key>CFBundleIdentifier</key>
     <string>megacmd.mac</string>
