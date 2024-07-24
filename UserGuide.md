@@ -239,7 +239,7 @@ Verbosity: You can increase the amount of information given by any command by pa
 * [`exit`](contrib/docs/commands/exit.md)`[--only-shell]` Quits MEGAcmd
 * [`ftp`](contrib/docs/commands/ftp.md)`[-d ( --all | remotepath ) ] [ remotepath [--port=PORT] [--data-ports=BEGIN-END] [--public] [--tls --certificate=/path/to/certificate.pem --key=/path/to/certificate.key]] [--use-pcre]` Configures a FTP server to serve a location in MEGA
 * [`graphics`](contrib/docs/commands/graphics.md)`[on|off]` Shows if special features related to images and videos are enabled.
-* [`help`](contrib/docs/commands/help.md)`[-f|-ff|--non-interactive|--upgrade|--paths] [--show-all-options]` Prints list of commands
+* [`help`](contrib/docs/commands/help.md)`[-f|-ff|--non-interactive|--upgrade|--paths]` Prints list of commands
 * [`https`](contrib/docs/commands/https.md)`[on|off]` Shows if HTTPS is used for transfers. Use "https on" to enable it.
 * [`info`](contrib/docs/commands/info.md)`remotepath1 remotepath2 ...` Prints media info of remote files
 * [`log`](contrib/docs/commands/log.md)`[-sc] level` Prints/Modifies the current logs level
