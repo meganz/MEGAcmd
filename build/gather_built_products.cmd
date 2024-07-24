@@ -24,9 +24,8 @@ copy %BASEMEGACMDPATH%\build-x64-windows-mega\Release\MEGAcmdServer.exe sign64
 copy %BASEMEGACMDPATH%\build-x64-windows-mega\Release\MEGAcmdShell.exe sign64
 copy %BASEMEGACMDPATH%\build-x64-windows-mega\Release\MEGAcmdUpdater.exe sign64
 
-set "MEGA_VCPKGPATH_COPYABLE=%MEGA_VCPKGPATH:/=\%"
 
-copy %MEGA_VCPKGPATH_COPYABLE%\vcpkg\installed\x64-windows-mega\%MEGA_THIRD_PARTY_DLL_DIR%\*.* built64
+copy %BASEMEGACMDPATH%\build-x64-windows-mega\vcpkg_installed\x64-windows-mega\%MEGA_THIRD_PARTY_DLL_DIR%\*.* built64
 
 IF "%MEGA_SKIP_32_BIT_BUILD%" == "true" (
 	GOTO :EOF
@@ -49,4 +48,4 @@ copy %BASEMEGACMDPATH%\build-x86-windows-mega\Release\MEGAcmdUpdater.exe sign32
 
 REM copy scritps??
 
-copy %MEGA_VCPKGPATH_COPYABLE%\vcpkg\installed\x86-windows-mega\%MEGA_THIRD_PARTY_DLL_DIR%\*.* built32
+copy %BASEMEGACMDPATH%\build-x64-windows-mega\vcpkg_installed\x86-windows-mega\%MEGA_THIRD_PARTY_DLL_DIR%\*.* built32
