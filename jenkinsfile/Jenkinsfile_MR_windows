@@ -175,13 +175,13 @@ pipeline {
                     dir('integration-test-dir') {
                         echo "Running tests"
                         script {
-                            def statusCode = bat script: "${INSTALL_DIR}\\mega-cmd-tests-integration.exe --gtest_shuffle --gtest_output=xml:${megacmd_sources_workspace}\\integration-test-dir\\mega-cmd-tests.xml", returnStatusCode: true
+                            def status = bat script: "${INSTALL_DIR}\\mega-cmd-tests-integration.exe --gtest_shuffle --gtest_output=xml:${megacmd_sources_workspace}\\integration-test-dir\\mega-cmd-tests.xml", returnStatus: true
 
                             // There is an unresolved issue on Windows that results in an incorrect status code being returned
                             // from the process above; so we use a file to get the actual value
                             def exitCode = readFile("cmdbuild\\Debug\\exit_code.txt").trim().toInteger()
-                            if (statusCode != exitCode) {
-                                echo "Incorrect status code detected (expected: ${exitCode} actual: ${statusCode})"
+                            if (status != exitCode) {
+                                echo "Incorrect status code detected (expected: ${exitCode} actual: ${status})"
                             }
                             if (exitCode != 0) {
                                 error "Integration tests failed with exit code ${exitCode}"

@@ -93,8 +93,7 @@ int main (int argc, char *argv[])
 #ifdef _WIN32
     // We use a file to pass the exit code to Jenkins,
     // since it fails to get the actual value otherwise
-    std::ofstream outFile("exit_code.txt");
-    outFile << exitCode;
+    std::ofstream("exit_code.txt") << exitCode;
 #endif
 
     return exitCode;
