@@ -64,6 +64,8 @@ namespace {
 TEST_F(ExportTest, Basic)
 {
     {
+        FAIL() << "Expected failure";
+
         G_SUBTEST << "File";
         const std::string file_path = "testExportFile01.txt";
 
