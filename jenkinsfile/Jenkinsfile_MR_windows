@@ -141,7 +141,7 @@ pipeline {
         stage('Run unit tests') {
             environment {
                 INSTALL_DIR = "${megacmd_sources_workspace}\\cmdbuild\\Debug"
-                MEGACMD_PIPE_SUFFIX = UUID.randomUUID().toString()
+                MEGACMD_PIPE_SUFFIX = "${env.BUILD_ID}"
             }
             options {
                 timeout(time: 3, unit: 'HOURS')
@@ -163,7 +163,7 @@ pipeline {
         stage('Run integration tests') {
             environment {
                 INSTALL_DIR = "${megacmd_sources_workspace}\\cmdbuild\\Debug"
-                MEGACMD_PIPE_SUFFIX = UUID.randomUUID().toString()
+                MEGACMD_PIPE_SUFFIX = "${env.BUILD_ID}"
                 MEGACMD_TEST_USER = ''
                 MEGACMD_TEST_PASS = credentials('MEGACMD_TESTS_PASSWORD')
             }
@@ -175,10 +175,16 @@ pipeline {
                     dir('integration-test-dir') {
                         echo "Running tests"
                         script {
-                            try {
-                                bat "${INSTALL_DIR}\\mega-cmd-tests-integration.exe --gtest_stack_trace_depth=10 --gmock_verbose=info --gtest_shuffle --gtest_output=xml:${megacmd_sources_workspace}\\integration-test-dir\\mega-cmd-tests.xml"
-                            } catch (e) {
-                                echo "Integration tests on Windows are expected to fail for now (pending CMD-425)"
+                            def status = bat script: "${INSTALL_DIR}\\mega-cmd-tests-integration.exe --gtest_shuffle --gtest_output=xml:${megacmd_sources_workspace}\\integration-test-dir\\mega-cmd-tests.xml", returnStatus: true
+
+                            // There is an unresolved issue on Windows that results in an incorrect status code being returned
+                            // from the process above; so we use a file to get the actual value
+                            def exitCode = readFile("exit_code.txt").trim().toInteger()
+                            if (status != exitCode) {
+                                echo "Incorrect status code detected (expected: ${exitCode} actual: ${status})"
+                            }
+                            if (exitCode != 0) {
+                                error "Integration tests failed with exit code ${exitCode}"
                             }
                         }
                     }
@@ -187,7 +193,7 @@ pipeline {
             post {
                 always {
                     archiveArtifacts "cmdbuild\\Debug\\.megaCmd\\megacmdserver.log*"
-                    junit testResults: "integration-test-dir\\mega-cmd-tests.xml", allowEmptyResults: true // only because we're allowing failures above
+                    junit "integration-test-dir\\mega-cmd-tests.xml"
                     bat "rmdir ${INSTALL_DIR}\\.megaCmd /s /q"
                 }
             }
