@@ -182,8 +182,8 @@ bool getCurrentThreadIsCmdShell();
 
 class MegaCMDLogger : public mega::MegaLogger
 {
-    int sdkLoggerLevel;
-    int cmdLoggerLevel;
+    int mSdkLoggerLevel;
+    int mCmdLoggerLevel;
     LoggedStream &mLoggedStream;
     std::mutex mSetmodeMtx;
 
@@ -212,30 +212,30 @@ class MegaCMDLogger : public mega::MegaLogger
     }
 
 public:
-    MegaCMDLogger();
+    MegaCMDLogger(int sdkLoggerLevel = mega::MegaApi::LOG_LEVEL_ERROR, int cmdLoggerLevel = mega::MegaApi::LOG_LEVEL_ERROR);
 
     void log(const char *time, int loglevel, const char *source, const char *message);
 
     void setSdkLoggerLevel(int sdkLoggerLevel)
     {
-        this->sdkLoggerLevel = sdkLoggerLevel;
+        mSdkLoggerLevel = sdkLoggerLevel;
     }
 
     void setCmdLoggerLevel(int cmdLoggerLevel)
     {
-        this->cmdLoggerLevel = cmdLoggerLevel;
+        mCmdLoggerLevel = cmdLoggerLevel;
     }
 
-    int getMaxLogLevel();
+    int getMaxLogLevel() const;
 
-    int getSdkLoggerLevel()
+    int getSdkLoggerLevel() const
     {
-        return this->sdkLoggerLevel;
+        return mSdkLoggerLevel;
     }
 
-    int getCmdLoggerLevel()
+    int getCmdLoggerLevel() const
     {
-        return this->cmdLoggerLevel;
+        return mCmdLoggerLevel;
     }
 };
 

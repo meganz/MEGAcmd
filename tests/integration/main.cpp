@@ -70,7 +70,7 @@ int main (int argc, char *argv[])
         };
 
         auto createDefaultStream = [] { return new megacmd::LoggedStreamDefaultFile(); };
-        megacmd::executeServer(1, args.data(), createDefaultStream, 5, 5);
+        megacmd::executeServer(1, args.data(), createDefaultStream, mega::MegaApi::LOG_LEVEL_MAX, mega::MegaApi::LOG_LEVEL_MAX);
     });
 
     using TI = TestInstruments;

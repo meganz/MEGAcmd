@@ -184,10 +184,11 @@ void setCurrentPetition(CmdPetition *petition)
 }
 
 
-MegaCMDLogger::MegaCMDLogger()
-    : mLoggedStream(Instance<DefaultLoggedStream>::Get().getLoggedStream())
+MegaCMDLogger::MegaCMDLogger(int sdkLoggerLevel, int cmdLoggerLevel) :
+    mSdkLoggerLevel(sdkLoggerLevel),
+    mCmdLoggerLevel(cmdLoggerLevel),
+    mLoggedStream(Instance<DefaultLoggedStream>::Get().getLoggedStream())
 {
-    sdkLoggerLevel = MegaApi::LOG_LEVEL_ERROR;
 }
 
 bool isMEGAcmdSource(const char *source)
@@ -222,7 +223,7 @@ void MegaCMDLogger::log(const char *time, int loglevel, const char *source, cons
 
     if (isMEGAcmdSource(source))
     {
-        if (loglevel <= cmdLoggerLevel)
+        if (loglevel <= mCmdLoggerLevel)
         {
             performSafeLog(mLoggedStream, [this, time, loglevel, message]
             {
@@ -230,20 +231,20 @@ void MegaCMDLogger::log(const char *time, int loglevel, const char *source, cons
             });
         }
 
-        if (needsLoggingToClient(cmdLoggerLevel))
+        if (needsLoggingToClient(mCmdLoggerLevel))
         {
             OUTSTREAM << "[" << SimpleLogger::toStr(LogLevel(loglevel)) << ": " << time << "] " << message << endl;
         }
     }
     else // SDK's
     {
-        if (loglevel <= sdkLoggerLevel)
+        if (loglevel <= mSdkLoggerLevel)
         {
-            if (( sdkLoggerLevel <= MegaApi::LOG_LEVEL_DEBUG ) && !strcmp(message, "Request (RETRY_PENDING_CONNECTIONS) starting"))
+            if (( mSdkLoggerLevel <= MegaApi::LOG_LEVEL_DEBUG ) && !strcmp(message, "Request (RETRY_PENDING_CONNECTIONS) starting"))
             {
                 return;
             }
-            if (( sdkLoggerLevel <= MegaApi::LOG_LEVEL_DEBUG ) && !strcmp(message, "Request (RETRY_PENDING_CONNECTIONS) finished"))
+            if (( mSdkLoggerLevel <= MegaApi::LOG_LEVEL_DEBUG ) && !strcmp(message, "Request (RETRY_PENDING_CONNECTIONS) finished"))
             {
                 return;
             }
@@ -254,7 +255,7 @@ void MegaCMDLogger::log(const char *time, int loglevel, const char *source, cons
             });
         }
 
-        if (needsLoggingToClient(sdkLoggerLevel))
+        if (needsLoggingToClient(mSdkLoggerLevel))
         {
             assert(false); //since it happens in the sdk thread, this shall be false
             OUTSTREAM << "[SDK:" << SimpleLogger::toStr(LogLevel(loglevel)) << ": " << time << "] " << message << endl;
@@ -262,9 +263,9 @@ void MegaCMDLogger::log(const char *time, int loglevel, const char *source, cons
     }
 }
 
-int MegaCMDLogger::getMaxLogLevel()
+int MegaCMDLogger::getMaxLogLevel() const
 {
-    return max(max(getCurrentThreadLogLevel(), cmdLoggerLevel), sdkLoggerLevel);
+    return max(max(getCurrentThreadLogLevel(), mCmdLoggerLevel), mSdkLoggerLevel);
 }
 
 OUTFSTREAMTYPE streamForDefaultFile()
