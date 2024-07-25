@@ -1,6 +1,5 @@
-IF [%MEGA_VCPKGPATH%]==[] (
-	SET "SCRIPT_DIR=%~dp0"
-	SET "MEGA_VCPKGPATH=%SCRIPT_DIR%..\..\"
+IF NOT [%MEGA_VCPKGPATH%]==[] (
+	SET "VCPKG_ROOT_ARG=-DVCPKG_ROOT=%MEGA_VCPKGPATH%"
 )
 
 IF [%MEGA_CORES%]==[] (
@@ -14,8 +13,8 @@ IF EXIST build-x64-windows-mega (
 
 mkdir build-x64-windows-mega
 cd build-x64-windows-mega
-cmake -G "Visual Studio 16 2019" -A x64 -DCMAKE_VERBOSE_MAKEFILE="ON" -DCMAKE_CXX_FLAGS_RELWITHDEBINFO="/Zi /O2 /Ob2 /DNDEBUG" -DVCPKG_ROOT=%MEGA_VCPKGPATH% -DCMAKE_C_FLAGS_RELWITHDEBINFO="/Zi /O2 /Ob2 /DNDEBUG" -S "..\.." -B . || exit 1 /b
-cmake --build . --config Release --target mega-exec --target mega-cmd-server --target mega-cmd --target  mega-cmd-updater -j%MEGA_CORES% || exit 1 /b
+cmake -G "Visual Studio 16 2019" -A x64 -DCMAKE_VERBOSE_MAKEFILE="ON" -DCMAKE_CXX_FLAGS_RELWITHDEBINFO="/Zi /O2 /Ob2 /DNDEBUG" %VCPKG_ROOT_ARG% -DCMAKE_C_FLAGS_RELWITHDEBINFO="/Zi /O2 /Ob2 /DNDEBUG" -S "..\.." -B . || exit 1 /b
+cmake --build . --config RelWithDebInfo --target mega-exec --target mega-cmd-server --target mega-cmd --target  mega-cmd-updater -j%MEGA_CORES% || exit 1 /b
 cd ..
 
 IF "%MEGA_SKIP_32_BIT_BUILD%" == "true" (
@@ -29,7 +28,6 @@ IF EXIST build-x86-windows-mega (
 
 mkdir build-x86-windows-mega
 cd build-x86-windows-mega
-cmake -G "Visual Studio 16 2019" -A Win32 -DCMAKE_VERBOSE_MAKEFILE="ON" -DCMAKE_CXX_FLAGS_RELWITHDEBINFO="/Zi /O2 /Ob2 /DNDEBUG" -DVCPKG_ROOT=%MEGA_VCPKGPATH% -DCMAKE_C_FLAGS_RELWITHDEBINFO="/Zi /O2 /Ob2 /DNDEBUG" -S "..\.." -B . || exit 1 /b
-cmake --build . --config Release --target mega-exec --target mega-cmd-server --target mega-cmd --target  mega-cmd-updater -j%MEGA_CORES% || exit 1 /b
-REM cmake --build . --config Release --target MEGAcmd --target MEGAcmdServer --target MEGAcmdShell --target MEGAcmdUpdater -j%MEGA_CORES%
+cmake -G "Visual Studio 16 2019" -A Win32 -DCMAKE_VERBOSE_MAKEFILE="ON" -DCMAKE_CXX_FLAGS_RELWITHDEBINFO="/Zi /O2 /Ob2 /DNDEBUG" %VCPKG_ROOT_ARG% -DCMAKE_C_FLAGS_RELWITHDEBINFO="/Zi /O2 /Ob2 /DNDEBUG" -S "..\.." -B . || exit 1 /b
+cmake --build . --config RelWithDebInfo --target mega-exec --target mega-cmd-server --target mega-cmd --target  mega-cmd-updater -j%MEGA_CORES% || exit 1 /b
 cd ..

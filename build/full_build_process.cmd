@@ -16,11 +16,6 @@ IF NOT "%1" == "" (
 	SET MEGA_CORES=%3
 	SET MEGA_VERSION_SUFFIX=%4
 	
-	IF [%MEGA_VCPKGPATH%]==[] (
-		echo "Error: MEGA_VCPKGPATH environment variable is not set. Please set it."
-		goto Usage
-	)
-	
 	:: CHECK NUMBER OF ARGUMENTS
 	IF "%3" == "" (
 		echo "Error: too few arguments"
@@ -29,11 +24,6 @@ IF NOT "%1" == "" (
 	IF NOT "%5" == "" (
 		echo "Error: too many arguments"
 		goto Usage
-	)
-) ELSE (
-	IF [%MEGA_VCPKGPATH%]==[] (
-		SET "SCRIPT_DIR=%~dp0"
-		SET "MEGA_VCPKGPATH=%SCRIPT_DIR%..\..\"
 	)
 )
 
@@ -60,7 +50,6 @@ IF "%MEGA_SIGN%" EQU "sign" (
 ) ELSE (
 	IF "%MEGA_SIGN%" EQU "nosign" (
 	echo "Info: Unsigned installer(s) will be generated"
-	SET MEGA_THIRD_PARTY_DLL_DIR=bin
 	) ELSE (
 		echo "Please add a correct sign argument: sign or nosign"
 		goto Usage
@@ -108,15 +97,6 @@ IF EXIST build-x86-windows-mega (
 )
 )
 
-IF [%SKIP_BUILD_THIRD_PARTIES%]==[] (
-echo calling build_3rd_parties.cmd %MEGA_ARCH%
-call build_3rd_parties.cmd %MEGA_ARCH% || exit 1 /b
-)
-
-IF NOT [%ONLY_BUILD_THIRD_PARTIES%]==[] (
-exit /b
-)
-
 IF [%SKIP_BUILD_PRODUCTS%]==[] (
 echo calling production_build.cmd
 call production_build.cmd || exit 1 /b
@@ -130,7 +110,7 @@ call make_uninstallers.cmd || exit 1 /b
 
 IF "%MEGA_SIGN%" EQU "sign" (
 echo time to sign the executables in built32/64 folders
-REM TODO: here in case of IF "%MEGA_SIGN%" EQU "sign" , the signing would need to take place, replacing the built .exes with the signed ones
+REM TODO: here in case of IF "%MEGA_SIGN%" EQU "sign" , the signing would need to take place, replacing the built .exes and .dlls with the signed ones
 
 echo gathering signed executables in the built folders
 call gather_signed_products.cmd || exit 1 /b
@@ -153,8 +133,6 @@ echo 	- Architecture : 64 or 32/64 to build either for 64 bit or both 32 and 64 
 echo 	- Sign: sign or nosign if the binaries must be signed or not
 echo 	- Cores: the number of cores to build the project, or 0 for default value (number of logical cores on the machine)
 echo 	- Suffix for installer: The installer will add this suffix to the version. [OPTIONAl]
-echo MEGA_VCPKGPATH environment variable should be set to the root of the 3rd party dir.
-echo SKIP_BUILD_THIRD_PARTIES environment variable can be used to skip the attempt to build vcpkg 3rd parties
-echo ONLY_BUILD_THIRD_PARTIES environment variable can be used to stop after building 3rd parties
+echo MEGA_VCPKGPATH environment variable may be set to the root of the vcpkg cloned (or to be cloned) folder.
 echo MEGA_WIN_KITVER environment variable can be used to set the Windows sdk to use. Value defaults to "10.0.22621.0". Set to "." to use the Universal Kit
 exit /B
