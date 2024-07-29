@@ -41,7 +41,7 @@ pipeline {
                     if (env.SDK_BRANCH && env.SDK_BRANCH != ' ') {
                         branchToCheckout = env.SDK_BRANCH
                     } else if (env.MEGACMD_BRANCH in ['develop', 'master']) {
-                        branchToCheckout = "release/v6.0.0"
+                        branchToCheckout = "develop"
                     } else {
                         def status = sh(script: "git submodule status", returnStdout: true).trim()
                         branchToCheckout = status.tokenize(' ')[0].substring(1)
