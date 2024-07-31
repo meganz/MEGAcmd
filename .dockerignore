@@ -51,10 +51,12 @@ megacmdversion.h
 /build/megacmd/megacmd_*.tar.gz
 
 # Windows packaging files and artifacts
-/build-x64-windows-mega
-/build-x86-windows-mega
+/build/build-x64-windows-mega
+/build/build-x86-windows-mega
 /build/built64
 /build/built32
+/build/sign32
+/build/sign64
 
 # Git
 *_BACKUP_*
