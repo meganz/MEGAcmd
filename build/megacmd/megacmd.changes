@@ -1,3 +1,14 @@
+Mon May 20 02:06:31 PM CEST 2024 - linux@mega.co.nz
+- Update to version 1.7.0:
+  * Improved startup time
+  * Reduced memory consumption: cached metadata is no longer loaded at startup
+  * Fixes and improvements in whoami, ls, backup and export commands
+  * Fixed several memory leaks and improved overall memory consumption
+  * Fixed file permissions on Unix
+  * Added support for the Apple silicon (M1)
+  * Many other fixes and improvements
+
+-------------------------------------------------------------------
 Thu May 4 16:18:29 CEST 2023 - linux@mega.co.nz
 - Update to version 1.6.3:
   * Improvements in session resumption

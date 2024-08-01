@@ -155,7 +155,7 @@ public:
     int deleteNodeVersions(const std::unique_ptr<mega::MegaNode>& nodeToDelete, mega::MegaApi* api, int force = 0);
     void downloadNode(std::string source, std::string localPath, mega::MegaApi* api, mega::MegaNode *node, bool background, bool ignorequotawar, int clientID, std::shared_ptr<MegaCmdMultiTransferListener> listener);
     void uploadNode(std::string localPath, mega::MegaApi* api, mega::MegaNode *node, std::string newname, bool background, bool ignorequotawarn, int clientID, MegaCmdMultiTransferListener *multiTransferListener = NULL);
-    void exportNode(mega::MegaNode *n, int64_t expireTime, std::string password = std::string(),
+    void exportNode(mega::MegaNode *n, int64_t expireTime, const std::optional<std::string>& password = {},
                     std::map<std::string, int> *clflags = nullptr, std::map<std::string, std::string> *cloptions = nullptr);
     void disableExport(mega::MegaNode *n);
     std::pair<bool, bool> isSharePendingAndVerified(mega::MegaNode *n, const char *email) const;

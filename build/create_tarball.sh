@@ -20,30 +20,10 @@
 
 set -euo pipefail
 IFS=$'\n\t'
-
-# make sure the source tree is in "clean" state
-cwd=$(pwd)
 BASEPATH=$(pwd)/../
-cd ../src
-make clean 2> /dev/null || true
-
-#~ make distclean 2> /dev/null || true
-#~ cd megacmd
-#~ make distclean 2> /dev/null || true
-#~ cd mega
-#~ make distclean 2> /dev/null || true
-#~ rm -fr bindings/qt/3rdparty || true
-#~ ./clean.sh || true
-cd $cwd
-
-# download software archives
-archives=$cwd/archives
-rm -fr $archives
-mkdir $archives
-$BASEPATH/sdk/contrib/build_sdk.sh -q -e -g -w -s -v -u -o $archives
 
 # get current version
-megacmd_VERSION=$(cat $BASEPATH/src/megacmdversion.h  | grep define | grep _VERSION | grep -v CODE | head -n 3 | awk 'BEGIN{ORS=""; first=1}{if(first){first=0;}else{print ".";}print $3}')
+megacmd_VERSION=$(cat $BASEPATH/CMakeLists.txt | grep -Po "MEGACMD_.*_VERSION [0-9]*"| awk '{print $2}' | paste -sd '.')
 export megacmd_NAME=megacmd-$megacmd_VERSION
 rm -rf $megacmd_NAME.tar.gz
 rm -rf $megacmd_NAME
@@ -107,15 +87,14 @@ ln -s ../megacmd/debian.prerm $megacmd_NAME/debian.prerm
 ln -s ../megacmd/debian.postrm $megacmd_NAME/debian.postrm
 ln -s ../megacmd/debian.copyright $megacmd_NAME/debian.copyright
 
-for i in $BASEPATH/{autogen.sh,configure.ac,src,Makefile.am,sdk}; do
+#contrib/QtCreator (TODO: remove these from cmake and here)
+for i in $BASEPATH/{src,sdk,tests,CMakeLists.txt,vcpkg.json,contrib}; do
 	ln -s $i $megacmd_NAME/
 done
-mkdir $megacmd_NAME/m4 #create m4 empty folder required in older autotools
 
-mkdir -p $megacmd_NAME/contrib/
-ln -s $BASEPATH/sdk/contrib/build_sdk.sh $megacmd_NAME/contrib/
+mkdir $megacmd_NAME/build
+ln -sf $BASEPATH/build/cmake $megacmd_NAME/build/
 
-ln -s $archives $megacmd_NAME/archives
 tar czfh $megacmd_NAME.tar.gz --exclude-vcs $megacmd_NAME
 rm -rf $megacmd_NAME
 
@@ -130,4 +109,3 @@ sed "s/MD5SUM/$MD5SUM/g"  -i megacmd/PKGBUILD
 
 ######
 ######
-rm -fr $archives

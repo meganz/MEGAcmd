@@ -21,6 +21,8 @@
 #include <condition_variable>
 #include <cassert>
 
+#include "megacmdcommonutils.h"
+
 class DeferredSingleTrigger
 {
     std::unique_ptr<std::thread> mThread;
@@ -90,7 +92,7 @@ public:
             return;
         }
 
-        mThread.reset(new std::thread([this, id, callback] () {
+        mThread.reset(new std::thread([this, id, FWD_CAPTURE(callback)] () {
             std::unique_lock<std::mutex> lock(mConditionVariableMutex);
 
             bool cancelled = mConditionVariable.wait_for(lock, mSecondsToWait, [this, id]

@@ -59,12 +59,6 @@ namespace {
     const std::string megaFolderLinkRegex(R"(https:\/\/mega.nz\/folder\/\w+\#\S+)");
     const std::string megaPasswordLinkRegex(R"(https:\/\/mega.nz\/\S+)");
     const std::string authTokenRegex(R"(\w+\#\S+\:\S+)");
-
-    void sleepAfterDisable()
-    {
-        // This should be removed in CMD-439, once we start using an SDK version where this is fixed
-        std::this_thread::sleep_for(std::chrono::milliseconds(300));
-    }
 }
 
 TEST_F(ExportTest, Basic)
@@ -93,7 +87,6 @@ TEST_F(ExportTest, Basic)
         auto rDisable = executeInClient({"export", "-d", file_path});
         ASSERT_TRUE(rDisable.ok());
         EXPECT_THAT(rDisable.out(), testing::StartsWith("Disabled export: /" + file_path));
-        sleepAfterDisable();
 
         // Again, verify it's not exported
         rExport = executeInClient({"export", file_path});
@@ -127,7 +120,6 @@ TEST_F(ExportTest, Basic)
         auto rDisable = executeInClient({"export", "-d", dir_path});
         ASSERT_TRUE(rDisable.ok());
         EXPECT_THAT(rDisable.out(), testing::StartsWith("Disabled export: /" + dir_path));
-        sleepAfterDisable();
 
         // Again, verify it's not exported
         rExport = executeInClient({"export", dir_path});
@@ -155,7 +147,6 @@ TEST_F(ExportTest, FailedRecreation)
     auto rDisable = executeInClient({"export", "-d", file_path});
     ASSERT_TRUE(rDisable.ok());
     EXPECT_THAT(rDisable.out(), testing::StartsWith("Disabled export: /" + file_path));
-    sleepAfterDisable();
 }
 
 TEST_F(ExportTest, Writable)
@@ -183,7 +174,6 @@ TEST_F(ExportTest, Writable)
     auto rDisable = executeInClient({"export", "-d", dir_path});
     ASSERT_TRUE(rDisable.ok());
     EXPECT_THAT(rDisable.out(), testing::StartsWith("Disabled export: /" + dir_path));
-    sleepAfterDisable();
 }
 
 TEST_F(ExportTest, NestedDirectoryStructure)
@@ -206,7 +196,6 @@ TEST_F(ExportTest, NestedDirectoryStructure)
         auto rDisable = executeInClient({"export", "-d", dir_path});
         ASSERT_TRUE(rDisable.ok());
         EXPECT_THAT(rDisable.out(), testing::StartsWith("Disabled export: /" + dir_path));
-        sleepAfterDisable();
     }
 
     {
@@ -227,7 +216,6 @@ TEST_F(ExportTest, NestedDirectoryStructure)
         auto rDisable = executeInClient({"export", "-d", file_path});
         ASSERT_TRUE(rDisable.ok());
         EXPECT_THAT(rDisable.out(), testing::StartsWith("Disabled export: /" + file_path));
-        sleepAfterDisable();
     }
 }
 
@@ -251,7 +239,6 @@ TEST_F(ExportTest, PasswordProtected)
         auto rDisable = executeInClient(disableCommand);
         ASSERT_TRUE(rDisable.ok());
         EXPECT_THAT(rDisable.out(), testing::StartsWith("Disabled export: /" + file_path));
-        sleepAfterDisable();
     }
 
     {
@@ -268,6 +255,5 @@ TEST_F(ExportTest, PasswordProtected)
         auto rDisable = executeInClient(disableCommand);
         ASSERT_TRUE(rDisable.ok());
         EXPECT_THAT(rDisable.out(), testing::StartsWith("Disabled export: /" + file_path));
-        sleepAfterDisable();
     }
 }

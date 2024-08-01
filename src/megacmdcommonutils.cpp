@@ -890,13 +890,13 @@ string getOption(map<string, string> *cloptions, const char * optname, string de
     return cloptions->count(optname) ? ( *cloptions )[optname] : defaultValue;
 }
 
-std::pair<string, bool> getOptionOrFalse(const map<string, string>& cloptions, const char * optname)
+std::optional<string> getOptionAsOptional(const map<string, string>& cloptions, const char * optname)
 {
     if (cloptions.find(optname) == cloptions.end())
     {
-        return {"", false};
+        return {};
     }
-    return {cloptions.at(optname), true};
+    return cloptions.at(optname);
 }
 
 int getintOption(map<string, string> *cloptions, const char * optname, int defaultValue)
@@ -1485,11 +1485,11 @@ void Field::updateMaxValue(int newcandidate)
 std::unique_ptr<PlatformDirectories> PlatformDirectories::getPlatformSpecificDirectories()
 {
 #ifdef _WIN32
-    return std::unique_ptr<PlatformDirectories>(new WindowsDirectories);
+    return std::make_unique<WindowsDirectories>();
 #elif defined(__APPLE__)
-    return std::unique_ptr<PlatformDirectories>(new MacOSDirectories);
+    return std::make_unique<MacOSDirectories>();
 #else
-    return std::unique_ptr<PlatformDirectories>(new PosixDirectories);
+    return std::make_unique<PosixDirectories>();
 #endif
 }
 
