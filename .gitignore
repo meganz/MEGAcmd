@@ -57,6 +57,10 @@ megacmdversion.h
 /build/built32
 /build/sign32
 /build/sign64
+mega-cmd-server_version.rc
+
+# macOS packaging files and artifacts
+Info.plist
 
 # Git
 *_BACKUP_*
