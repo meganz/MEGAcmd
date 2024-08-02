@@ -137,6 +137,7 @@ void StalledIssuesManager::populateStalledIssues(const mega::MegaSyncStallList& 
     }
 
 #ifdef MEGACMD_TESTING_CODE
+    TI::Instance().setTestValue(TI::TestValue::STALLED_ISSUES_LIST_SIZE, static_cast<uint64_t>(stalls.size()));
     TI::Instance().fireEvent(TI::Event::STALLED_ISSUES_LIST_UPDATED);
 #endif
 }

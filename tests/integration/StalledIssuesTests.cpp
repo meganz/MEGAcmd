@@ -111,3 +111,51 @@ TEST_F(StalledIssuesTests, NameConflict)
     EXPECT_THAT(result.out(), testing::Not(testing::HasSubstr("There are no stalled issues")));
     EXPECT_THAT(result.out(), testing::AnyOf(testing::HasSubstr(syncDirCloud() + "f01"), testing::HasSubstr(syncDirCloud() + conflictingName)));
 }
+
+TEST_F(StalledIssuesTests, SymLink)
+{
+    const std::string dirPath = syncDirLocal() + "some_dir";
+    ASSERT_TRUE(fs::create_directory(dirPath));
+
+    {
+        TestInstrumentsWaitForEventGuard guard(TI::Event::STALLED_ISSUES_LIST_UPDATED);
+        fs::create_directory_symlink(dirPath, syncDirLocal() + "some_link");
+    }
+
+    // Check the symlink in the list of stalled issues
+    auto result = executeInClient({"stalled"});
+    ASSERT_TRUE(result.ok());
+    EXPECT_THAT(result.out(), testing::Not(testing::HasSubstr("There are no stalled issues")));
+    EXPECT_THAT(result.out(), testing::HasSubstr(linkPath));
+}
+
+TEST_F(StalledIssuesTests, IncorrectStalledListSize)
+{
+    // This tests against an internal issue that caused the stalled list to have incorrect
+    // size for a brief period of time after creating a second symlink. This is unlikely to
+    // affect how users interact with MEGAcmd, since it happened over a short timespan. But the test
+    // is still useful to prove the internal correctness of our stalled issues is not broken.
+    // Maybe better as a unit test, but we don't have enough modularity yet to implement it as such :)
+
+    const std::string dirPath = syncDirLocal() + "some_dir";
+    ASSERT_TRUE(fs::create_directory(dirPath));
+
+    // The first link doesn't cause an issue, but we still need to wait for it
+    {
+        TestInstrumentsWaitForEventGuard guard(TI::Event::STALLED_ISSUES_LIST_UPDATED);
+        fs::create_directory_symlink(dirPath, syncDirLocal() + "link1");
+    }
+
+    // The second link causes the issue
+    {
+        TestInstrumentsWaitForEventGuard guard(TI::Event::STALLED_ISSUES_LIST_UPDATED);
+        fs::create_directory_symlink(dirPath, syncDirLocal() + "link2");
+    }
+
+    auto stalledListSizeOpt = TI::Instance().testValue(TI::TestValue::STALLED_ISSUES_LIST_SIZE);
+    ASSERT_TRUE(stalledListSizeOpt.has_value());
+
+    auto stalledListSize = std::get<uint64_t>(*stalledListSizeOpt);
+    EXPECT_EQ(stalledListSize, 2);
+}
+
