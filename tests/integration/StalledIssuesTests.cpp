@@ -117,9 +117,11 @@ TEST_F(StalledIssuesTests, SymLink)
     const std::string dirPath = syncDirLocal() + "some_dir";
     ASSERT_TRUE(fs::create_directory(dirPath));
 
+    const std::string linkPath = syncDirLocal() + "some_link";
+
     {
         TestInstrumentsWaitForEventGuard guard(TI::Event::STALLED_ISSUES_LIST_UPDATED);
-        fs::create_directory_symlink(dirPath, syncDirLocal() + "some_link");
+        fs::create_directory_symlink(dirPath, linkPath);
     }
 
     // Check the symlink in the list of stalled issues
