@@ -117,7 +117,11 @@ TEST_F(StalledIssuesTests, SymLink)
     const std::string dirPath = syncDirLocal() + "some_dir";
     ASSERT_TRUE(fs::create_directory(dirPath));
 
-    const std::string linkPath = syncDirLocal() + "some_link";
+    std::string linkPath = syncDirLocal() + "some_link";
+
+#ifdef _WIN32
+    megacmd::replaceAll(linkPath, "/", "\\");
+#endif
 
     {
         TestInstrumentsWaitForEventGuard guard(TI::Event::STALLED_ISSUES_LIST_UPDATED);
