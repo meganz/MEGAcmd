@@ -26,29 +26,63 @@
 #endif
 
 namespace {
+
 class StalledIssuesGlobalListener : public mega::MegaGlobalListener
 {
     using Callback = std::function<void()>;
     Callback mCallback;
 
+    bool mScanning;
+    bool mWaiting;
     bool mSyncStalled;
 
     void onGlobalSyncStateChanged(mega::MegaApi* api) override
     {
+        // Trigger for "scanning status changed"; ignore
+        bool scanning = api->isScanning();
+        if (mScanning != scanning)
+        {
+            mScanning = scanning;
+            return;
+        }
+
+        // Trigger for "waiting status changed"; ignore
+        bool waiting = (api->isWaiting() != mega::MegaApi::RETRY_NONE);
+        if (mWaiting != waiting)
+        {
+            mWaiting = waiting;
+            return;
+        }
+
         bool syncStalled = api->isSyncStalled();
         bool syncStalledChanged = (mSyncStalled != syncStalled || (syncStalled && api->isSyncStalledChanged()));
 
+        // Trigger for "stalled status changed"
         if (syncStalledChanged)
         {
-            mCallback();
-        }
+            bool syncBusy = mScanning || mWaiting;
+            bool notStalledToStalledTransition = syncStalled && !mSyncStalled;
 
-        mSyncStalled = syncStalled;
+            if (!syncBusy || notStalledToStalledTransition)
+            {
+                // Generally, we want to ignore triggers when we're in a "busy"
+                // state (scanning or waiting), since they might contain outdated info.
+                // Unless we're going from "not stalled" to "stalled"; in that case
+                // the info will always be up-to-date.
+                mCallback();
+            }
+
+            // Update mSyncStalled even if we're not triggering the callback,
+            // so it still matches the sync engine's internal value
+            mSyncStalled = syncStalled;
+        }
     }
 
 public:
     StalledIssuesGlobalListener(Callback&& callback) :
         mCallback(std::move(callback)),
+        mScanning(false),
+        mWaiting(false),
         mSyncStalled(false) {}
 };
 
@@ -70,6 +104,7 @@ class StalledIssuesRequestListener : public mega::MegaRequestListener
 
         mCallback(*stalls);
    }
+
 public:
    StalledIssuesRequestListener(Callback&& callback) :
        mCallback(std::move(callback)) {}
@@ -145,7 +180,6 @@ void StalledIssuesManager::populateStalledIssues(const mega::MegaSyncStallList& 
 StalledIssuesManager::StalledIssuesManager(mega::MegaApi *api)
 {
     assert(api);
-
 
     mGlobalListener = std::make_unique<StalledIssuesGlobalListener>(
          [this, api] { api->getMegaSyncStallList(mRequestListener.get()); });

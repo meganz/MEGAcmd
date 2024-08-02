@@ -137,6 +137,7 @@ TEST_F(StalledIssuesTests, IncorrectStalledListSize)
     // size for a brief period of time after creating a second symlink. This is unlikely to
     // affect how users interact with MEGAcmd, since it happened over a short timespan. But the test
     // is still useful to prove the internal correctness of our stalled issues is not broken.
+    // Note: required sdk fix (+our changes) to pass (see: SDK-4016)
     // Maybe better as a unit test, but we don't have enough modularity yet to implement it as such :)
 
     const std::string dirPath = syncDirLocal() + "some_dir";
