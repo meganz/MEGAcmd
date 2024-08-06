@@ -9,6 +9,10 @@ pipeline {
     stages {
         stage('Checkout SDK'){
             steps{
+                script {
+                    megacmd_scm = checkout scm
+                    megacmd_branch = megacmd_scm.GIT_BRANCH
+                }
                 dir('sdk'){
                     checkout([
                     $class: 'GitSCM',
@@ -134,7 +138,6 @@ pipeline {
             script {
                 sdk_commit = sh(script: "git -C ${sdk_sources_workspace} rev-parse HEAD", returnStdout: true).trim()
                 megacmd_commit = sh(script: "git -C ${megacmd_sources_workspace} rev-parse HEAD", returnStdout: true).trim()
-                megacmd_branch = sh(script: "git -C ${megacmd_sources_workspace} rev-parse --abbrev-ref HEAD", returnStdout: true).trim()
                 messageStatus = currentBuild.currentResult
                 messageColor = messageStatus == 'SUCCESS'? "#00FF00": "#FF0000" //green or red
                 message = """
@@ -166,6 +169,7 @@ pipeline {
                     """
                 }
             }
+            deleteDir()
         }
     }
 }
