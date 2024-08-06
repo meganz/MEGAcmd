@@ -131,6 +131,41 @@ pipeline {
             sh "docker image rm -- meganz/megacmd-branchstatus-cmake-v2-tsan:${env.BUILD_NUMBER} || true"
             sh "docker image rm -- meganz/megacmd-branchstatus-cmake-v2-asan:${env.BUILD_NUMBER} || true"
             sh "docker image rm -- meganz/megacmd-branchstatus-cmake-v2-ubsan:${env.BUILD_NUMBER} || true"
+            script {
+                sdk_commit = sh(script: "git -C ${sdk_sources_workspace} rev-parse HEAD", returnStdout: true).trim()
+                megacmd_commit = sh(script: "git -C ${megacmd_sources_workspace} rev-parse HEAD", returnStdout: true).trim()
+                megacmd_branch = sh(script: "git -C ${megacmd_sources_workspace} rev-parse --abbrev-ref HEAD", returnStdout: true).trim()
+                messageStatus = currentBuild.currentResult
+                messageColor = messageStatus == 'SUCCESS'? "#00FF00": "#FF0000" //green or red
+                message = """
+                    Jenkins job #${BUILD_ID} ended with status '${messageStatus}'.
+                    See: ${BUILD_URL}
+                    
+                    SDK branch: `${SDK_BRANCH}` commit: `${sdk_commit}`
+                    MEGAcmd branch: `${megacmd_branch}` commit: `${megacmd_commit}`
+                """.stripIndent()
+                withCredentials([string(credentialsId: 'megacmd_slack_webhook_url', variable: 'SLACK_WEBHOOK_URL')]) {
+                    sh """
+                        curl -X POST -H 'Content-type: application/json' --data '
+                            {
+                               "attachments": [
+                                  {
+                                      "color": "${messageColor}",
+                                      "blocks": [
+                                       {
+                                           "type": "section",
+                                           "text": {
+                                                "type": "mrkdwn",
+                                                "text": "${message}"
+                                           }
+                                       }
+                                     ]
+                                   }
+                                ]
+                            }' ${SLACK_WEBHOOK_URL}
+                    """
+                }
+            }
         }
     }
 }
