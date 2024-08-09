@@ -160,6 +160,10 @@ TEST_F(SyncIgnoreTests, NonDefaultIgnoreFile)
     SelfDeletingTmpFolder mTmpDir;
     std::string localDir = mTmpDir.string();
 
+#ifdef _WIN32
+    megacmd::replaceAll(localDir, "/", "\\");
+#endif
+
     std::string cloudDir = "cloud_dir";
     TI::ScopeGuard cloudRmGuard([&cloudDir] { executeInClient({"rm", "-r", "-f", cloudDir}); });
     executeInClient({"rm", "-r", "-f", cloudDir});
