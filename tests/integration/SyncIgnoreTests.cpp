@@ -39,6 +39,8 @@ class SyncIgnoreTests : public NOINTERACTIVELoggedInTest
     }
 
 protected:
+    SelfDeletingTmpFolder mTmpDir;
+
     void writeToDefaultFile(const std::vector<std::string>& lines = {})
     {
         auto platformDirs = PlatformDirectories::getPlatformSpecificDirectories();
@@ -157,7 +159,6 @@ TEST_F(SyncIgnoreTests, CannotRemoveIfDoesntExist)
 
 TEST_F(SyncIgnoreTests, NonDefaultIgnoreFile)
 {
-    SelfDeletingTmpFolder mTmpDir;
     std::string localDir = mTmpDir.string();
 
 #ifdef _WIN32
