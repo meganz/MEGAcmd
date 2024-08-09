@@ -29,6 +29,16 @@ namespace {
 #else
     const char* NL = "\n";
 #endif
+
+    void removeCarriageReturn(std::string& str)
+    {
+#ifdef _WIN32
+        if (!str.empty() && str.back() == '\r')
+        {
+            str.pop_back();
+        }
+#endif
+    }
 }
 
 bool MegaIgnoreFile::checkBOMAndSkip(std::ifstream& file)
@@ -50,6 +60,7 @@ void MegaIgnoreFile::loadFilters(std::ifstream& file)
     mFilters.clear();
     for (std::string line; getline(file, line);)
     {
+        removeCarriageReturn(line);
         if (line.empty() || line[0] == '#')
         {
             continue;
@@ -113,6 +124,7 @@ void MegaIgnoreFile::removeFilters(const std::set<std::string>& filters)
         hasBOM = checkBOMAndSkip(file);
         for (std::string line; getline(file, line);)
         {
+            removeCarriageReturn(line);
             if (filters.count(line))
             {
                 continue;
