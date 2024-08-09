@@ -161,8 +161,8 @@ TEST_F(SyncIgnoreTests, NonDefaultIgnoreFile)
 {
     std::string localDir = mTmpDir.string();
 
-#ifdef _WIN32
-    megacmd::replaceAll(localDir, "/", "\\");
+#ifdef __APPLE__
+    localDir = "/private" + localDir;
 #endif
 
     std::string cloudDir = "cloud_dir";
