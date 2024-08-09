@@ -616,9 +616,9 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     }
     else if ("sync-ignore" == thecommand)
     {
-        validOptValues->insert("show");
-        validOptValues->insert("add");
-        validOptValues->insert("remove");
+        validParams->insert("show");
+        validParams->insert("add");
+        validParams->insert("remove");
     }
     else if ("export" == thecommand)
     {
