@@ -112,7 +112,7 @@ static std::vector<std::string> remoteremotepatterncommands {"cp"};
 
 static std::vector<std::string> remotelocalpatterncommands {"get", "thumbnail", "preview"};
 
-static std::vector<std::string> localfolderpatterncommands {"lcd"};
+static std::vector<std::string> localfolderpatterncommands {"lcd", "sync-ignore"};
 
 static std::vector<std::string> emailpatterncommands {"invite", "signup", "ipc", "users"};
 
@@ -129,7 +129,7 @@ static std::vector<std::string> loginInValidCommands { "log", "debug", "speedlim
                            };
 
 static std::vector<std::string> allValidCommands { "login", "signup", "confirm", "session", "mount", "ls", "cd", "log", "debug", "pwd", "lcd", "lpwd", "import", "masterkey",
-                             "put", "get", "attr", "userattr", "mkdir", "rm", "du", "mv", "cp", "sync", "export", "share", "invite", "ipc", "df",
+                             "put", "get", "attr", "userattr", "mkdir", "rm", "du", "mv", "cp", "sync", "sync-ignore", "export", "share", "invite", "ipc", "df",
                              "showpcr", "users", "speedlimit", "killsession", "whoami", "help", "passwd", "reload", "logout", "version", "quit",
                              "thumbnail", "preview", "find", "completion", "clear", "https", "stalled"
 #ifdef HAVE_DOWNLOADS_COMMAND

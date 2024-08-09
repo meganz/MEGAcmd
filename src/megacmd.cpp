@@ -614,6 +614,12 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validOptValues->insert("output-cols");
 
     }
+    else if ("sync-ignore" == thecommand)
+    {
+        validOptValues->insert("show");
+        validOptValues->insert("add");
+        validOptValues->insert("remove");
+    }
     else if ("export" == thecommand)
     {
         validParams->insert("a");
@@ -1736,6 +1742,10 @@ const char * getUsageStr(const char *command, const HelpFlags& flags)
     if (!strcmp(command, "sync"))
     {
         return "sync [localpath dstremotepath| [-dsr] [ID|localpath]";
+    }
+    if (!strcmp(command, "sync-ignore"))
+    {
+        return "sync-ignore [--show|--add [filter1 filter2 ...]|--remove [filter1 filter2 ...]] (ID|localpath)";
     }
     if (!strcmp(command, "backup"))
     {

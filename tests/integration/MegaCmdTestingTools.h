@@ -72,6 +72,23 @@ class BasicGenericTest : public ::testing::Test
 class LoggedInTest : public BasicGenericTest
 {
 protected:
+    void removeAllSyncs()
+    {
+        auto result = executeInClient({"sync"});
+        ASSERT_TRUE(result.ok());
+
+        auto lines = splitByNewline(result.out());
+        for (size_t i = 1; i < lines.size(); ++i)
+        {
+            auto words = megacmd::split(lines[i], " ");
+            ASSERT_TRUE(!words.empty());
+
+            std::string syncId = words[0];
+            auto result = executeInClient({"sync", "--remove", "--", syncId}).ok();
+            ASSERT_TRUE(result);
+        }
+    }
+
     void SetUp() override
     {
         BasicGenericTest::SetUp();
