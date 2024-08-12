@@ -7802,55 +7802,34 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 #ifdef ENABLE_SYNC
     else if (words[0] == "exclude")
     {
-
-        // automatic now:
-        //api->enableTransferResumption();
-
-        if (getFlag(clflags, "a"))
+        bool excludeAdd = getFlag(clflags, "a");
+        bool excludeRemove = getFlag(clflags, "d");
+        if (excludeAdd == excludeRemove)
         {
-            for (unsigned int i=1;i<words.size(); i++)
-            {
-                ConfigurationManager::addExcludedName(words[i]);
-            }
-            if (words.size()>1)
-            {
-                std::vector<string> vexcludednames(ConfigurationManager::excludedNames.begin(), ConfigurationManager::excludedNames.end());
-                setExcludeNames(api, vexcludednames);
-            }
-            else
-            {
-                setCurrentOutCode(MCMD_EARGS);
-                LOG_err << "      " << getUsageStr("exclude");
-                return;
-            }
-        }
-        else if (getFlag(clflags, "d"))
-        {
-            for (unsigned int i=1;i<words.size(); i++)
-            {
-                ConfigurationManager::removeExcludedName(words[i]);
-            }
-            if (words.size()>1)
-            {
-                std::vector<string> vexcludednames(ConfigurationManager::excludedNames.begin(), ConfigurationManager::excludedNames.end());
-                setExcludeNames(api, vexcludednames);
-            }
-            else
-            {
-                setCurrentOutCode(MCMD_EARGS);
-                LOG_err << "      " << getUsageStr("exclude");
-                return;
-            }
+            setCurrentOutCode(MCMD_EARGS);
+            LOG_err << "      " << getUsageStr("exclude");
+            return;
         }
 
-
-        OUTSTREAM << "List of excluded names:" << endl;
-
-        for (set<string>::iterator it=ConfigurationManager::excludedNames.begin(); it!=ConfigurationManager::excludedNames.end(); ++it)
         {
-            OUTSTREAM << *it << endl;
+            SyncIgnore::Args args;
+            args.mAction = (excludeAdd ? SyncIgnore::Action::Add : SyncIgnore::Action::Remove);
+
+            std::transform(words.begin() + 1, words.end(),
+                           std::inserter(args.mFilters, args.mFilters.end()),
+                           [] (const string& word) { return "-:" + word; });
+
+            SyncIgnore::executeCommand(args);
         }
 
+        {
+            SyncIgnore::Args args;
+            args.mAction = SyncIgnore::Action::Show;
+
+            OUTSTREAM << endl;
+            OUTSTREAM << "Contents of .megaignore.default:" << endl;
+            SyncIgnore::executeCommand(args);
+        }
     }
     else if (words[0] == "sync")
     {
@@ -8069,16 +8048,24 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         if ((ignoreAdd && (ignoreRemove || ignoreShow)) || (ignoreRemove && ignoreShow))
         {
             setCurrentOutCode(MCMD_EARGS);
-            LOG_err << "Please specify only one option: show, add, or remove";
+            LOG_err << "Only one action (show, add, or remove) can be specified at a time";
+            LOG_err << "      " << getUsageStr("sync-ignore");
             return;
         }
 
-        if (!ignoreAdd && !ignoreRemove)
+        SyncIgnore::Args args;
+
+        args.mAction = SyncIgnore::Action::Show;
+        if (ignoreAdd)
         {
-            ignoreShow = true;
+            args.mAction = SyncIgnore::Action::Add;
+        }
+        else if (ignoreRemove)
+        {
+            args.mAction = SyncIgnore::Action::Remove;
         }
 
-        string pathOrId = words.back(); // the last word could be the [path|ID] or the last filters
+        string pathOrId = words.back(); // the last word could be the [path|ID], or the last filter
 
         std::unique_ptr<MegaSync> sync;
         sync.reset(api->getSyncByBackupId(base64ToSyncBackupId(pathOrId)));
@@ -8087,107 +8074,29 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             sync.reset(api->getSyncByPath(pathOrId.c_str()));
         }
 
-        string megaIgnoreFilePath;
+        auto filter_end = words.end();
         if (sync)
         {
-            megaIgnoreFilePath = std::string(sync->getLocalFolder()) + "/.megaignore";
-            words.pop_back(); // since the last word was the sync, remove it so only the name filters remain
+            args.mMegaIgnoreDirPath = std::string(sync->getLocalFolder());
+            --filter_end; // the last word is the sync [path|ID]; not a filter
         }
-        else
+        else if (!ignoreShow || words.size() == 1)
         {
-            if (ignoreShow && words.size() >= 2)
-            {
-                // If mode is 'show', then the last word cannot be a filter; so it's a sync that wasn't found
-                setCurrentOutCode(MCMD_NOTFOUND);
-                LOG_err << "Sync " << pathOrId << " was not found";
-                return;
-            }
-
-            megaIgnoreFilePath = MegaIgnoreFile::getDefaultPath();
             OUTSTREAM << "Note: Using default .megaignore file since no sync was specified" << endl << endl;
         }
-
-        if ((ignoreAdd || ignoreRemove) && words.size() == 1)
-        {
-            setCurrentOutCode(MCMD_EARGS);
-            LOG_err << "At least one name filter is required for add or remove";
-            return;
-        }
-
-        if (!fs::exists(megaIgnoreFilePath))
-        {
-            setCurrentOutCode(MCMD_NOTFOUND);
-            OUTSTREAM << "Mega ignore file \"" << megaIgnoreFilePath << "\" does not exist" << endl;
-            return;
-        }
-
-        MegaIgnoreFile megaIgnoreFile(megaIgnoreFilePath);
-        if (!megaIgnoreFile.isValid())
-        {
-            setCurrentOutCode(MCMD_INVALIDSTATE);
-            LOG_err << "There was an error opening mega ignore file \"" << megaIgnoreFilePath;
-            return;
-        }
-
-        if (ignoreShow)
-        {
-            OUTSTREAM << megaIgnoreFile.getFilterContents();
-            return;
-        }
-
-        for (string& word : words)
-        {
-            replaceAll(word, "`", "");
-        }
-        std::set<string> userFilters(words.begin() + 1, words.end());
-
-        if (ignoreAdd)
-        {
-            // Only check the format of the filters when adding, to allow users to remove invalid filters from the file
-            for (const string& filter : userFilters)
-            {
-                if (MegaIgnoreFile::isValidFilter(filter))
-                {
-                    continue;
-                }
-
-                // At least one incorrect filter format must cause the entire command to fail
-                // Otherwise, if we allowed partial filters to come through, it could result in unwanted sync states
-                setCurrentOutCode(MCMD_EARGS);
-                LOG_err << "The filter \"" << filter << "\" does not have valid format";
-                return;
-            }
-
-            std::set<string> toAdd;
-            for (const string& filter : userFilters)
-            {
-                if (megaIgnoreFile.containsFilter(filter))
-                {
-                    OUTSTREAM << "Cannot add filter \"" << filter << "\" because it's already in the .megaignore file (skipped)" << endl;
-                    continue;
-                }
-                OUTSTREAM << "Adding filter \"" << filter << "\"" << endl;
-                toAdd.insert(filter);
-            }
-            megaIgnoreFile.addFilters(toAdd);
-        }
         else
         {
-            assert(ignoreRemove);
-
-            std::set<string> toRemove;
-            for (const string& filter : userFilters)
-            {
-                if (!megaIgnoreFile.containsFilter(filter))
-                {
-                    OUTSTREAM << "Cannot remove filter \"" << filter << "\" because it's not in the .megaignore file (skipped)" << endl;
-                    continue;
-                }
-                OUTSTREAM << "Removing filter \"" << filter << "\"" << endl;
-                toRemove.insert(filter);
-            }
-            megaIgnoreFile.removeFilters(toRemove);
+            // If mode is 'show', then the last word cannot be a filter; so it must be a sync that wasn't found
+            setCurrentOutCode(MCMD_NOTFOUND);
+            LOG_err << "Sync " << pathOrId << " was not found";
+            return;
         }
+
+        std::transform(words.begin() + 1, filter_end,
+                       std::inserter(args.mFilters, args.mFilters.end()),
+                       [] (const string& word) { string f(word); replaceAll(f, "`", ""); return f; });
+
+        SyncIgnore::executeCommand(args);
     }
 #endif
     else if (words[0] == "cancel")

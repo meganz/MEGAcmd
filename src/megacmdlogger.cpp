@@ -194,12 +194,14 @@ MegaCMDLogger::MegaCMDLogger(int sdkLoggerLevel, int cmdLoggerLevel) :
 bool isMEGAcmdSource(const char *source)
 {
     //TODO: this seem to be broken. source does not have the entire path but just leaf names
-    return (string(source).find("src/megacmd") != string::npos)
-            || (string(source).find("src\\megacmd") != string::npos)
-            || (string(source).find("listeners.cpp") != string::npos)
-            || (string(source).find("configurationmanager.cpp") != string::npos)
-            || (string(source).find("comunicationsmanager") != string::npos)
-            || (string(source).find("megacmd") != string::npos); // added this one
+    const string source_str(source);
+    return (source_str.find("src/megacmd") != string::npos)
+            || (source_str.find("src\\megacmd") != string::npos)
+            || (source_str.find("listeners.cpp") != string::npos)
+            || (source_str.find("configurationmanager.cpp") != string::npos)
+            || (source_str.find("comunicationsmanager") != string::npos)
+            || (source_str.find("megacmd") != string::npos) // added this one
+            || (source_str.find("sync_ignore.cpp") != string::npos);
 }
 
 void MegaCMDLogger::log(const char *time, int loglevel, const char *source, const char *message)

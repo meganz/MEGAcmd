@@ -18,6 +18,25 @@
 #include <string>
 #include <set>
 
+namespace SyncIgnore
+{
+    enum class Action
+    {
+        Show,
+        Add,
+        Remove
+    };
+
+    struct Args
+    {
+        Action mAction;
+        std::string mMegaIgnoreDirPath;
+        std::set<std::string> mFilters;
+    };
+
+    void executeCommand(const Args& args);
+}
+
 class MegaIgnoreFile
 {
     std::set<std::string> mFilters;

@@ -101,11 +101,11 @@ TEST_F(SyncIgnoreTests, AddAndShow)
 
     auto result = executeInClient({"sync-ignore", "--add", w(filter1), w(filter2), w(filter3), w(filter4), w(filter5)});
     ASSERT_TRUE(result.ok());
-    EXPECT_THAT(result.out(), testing::HasSubstr("Adding filter " + qw(filter1)));
-    EXPECT_THAT(result.out(), testing::HasSubstr("Adding filter " + qw(filter2)));
-    EXPECT_THAT(result.out(), testing::HasSubstr("Adding filter " + qw(filter3)));
-    EXPECT_THAT(result.out(), testing::HasSubstr("Adding filter " + qw(filter4)));
-    EXPECT_THAT(result.out(), testing::HasSubstr("Adding filter " + qw(filter5)));
+    EXPECT_THAT(result.out(), testing::HasSubstr("Added filter " + qw(filter1)));
+    EXPECT_THAT(result.out(), testing::HasSubstr("Added filter " + qw(filter2)));
+    EXPECT_THAT(result.out(), testing::HasSubstr("Added filter " + qw(filter3)));
+    EXPECT_THAT(result.out(), testing::HasSubstr("Added filter " + qw(filter4)));
+    EXPECT_THAT(result.out(), testing::HasSubstr("Added filter " + qw(filter5)));
 
     result = executeInClient({"sync-ignore", "--show"});
     ASSERT_TRUE(result.ok());
@@ -122,11 +122,11 @@ TEST_F(SyncIgnoreTests, AddAndRemove)
 
     auto result = executeInClient({"sync-ignore", "--add", w(filter)});
     ASSERT_TRUE(result.ok());
-    EXPECT_THAT(result.out(), testing::HasSubstr("Adding filter " + qw(filter)));
+    EXPECT_THAT(result.out(), testing::HasSubstr("Added filter " + qw(filter)));
 
     result = executeInClient({"sync-ignore", "--remove", w(filter)});
     ASSERT_TRUE(result.ok());
-    EXPECT_THAT(result.out(), testing::HasSubstr("Removing filter " + qw(filter)));
+    EXPECT_THAT(result.out(), testing::HasSubstr("Removed filter " + qw(filter)));
 
     result = executeInClient({"sync-ignore", "--show"});
     ASSERT_TRUE(result.ok());
@@ -139,7 +139,7 @@ TEST_F(SyncIgnoreTests, CannotAddIfAlreadyExists)
 
     auto result = executeInClient({"sync-ignore", "--add", w(filter)});
     ASSERT_TRUE(result.ok());
-    EXPECT_THAT(result.out(), testing::HasSubstr("Adding filter " + qw(filter)));
+    EXPECT_THAT(result.out(), testing::HasSubstr("Added filter " + qw(filter)));
 
     result = executeInClient({"sync-ignore", "--add", w(filter)});
     ASSERT_TRUE(result.ok());
@@ -182,7 +182,7 @@ TEST_F(SyncIgnoreTests, NonDefaultIgnoreFile)
 
     result = executeInClient({"sync-ignore", "--add", w(filter), localDir});
     ASSERT_TRUE(result.ok());
-    EXPECT_THAT(result.out(), testing::HasSubstr("Adding filter " + qw(filter)));
+    EXPECT_THAT(result.out(), testing::HasSubstr("Added filter " + qw(filter)));
 
     result = executeInClient({"sync-ignore", "--show", localDir});
     ASSERT_TRUE(result.ok());
@@ -190,7 +190,7 @@ TEST_F(SyncIgnoreTests, NonDefaultIgnoreFile)
 
     result = executeInClient({"sync-ignore", "--remove", w(filter), localDir});
     ASSERT_TRUE(result.ok());
-    EXPECT_THAT(result.out(), testing::HasSubstr("Removing filter " + qw(filter)));
+    EXPECT_THAT(result.out(), testing::HasSubstr("Removed filter " + qw(filter)));
 }
 
 TEST_F(SyncIgnoreTests, NonExistingIgnoreFile)
@@ -221,10 +221,37 @@ TEST_F(SyncIgnoreTests, CommentsAndBOMNotRemoved)
 
     auto result = executeInClient({"sync-ignore", "--remove", w(filter)});
     ASSERT_TRUE(result.ok());
-    EXPECT_THAT(result.out(), testing::HasSubstr("Removing filter " + qw(filter)));
+    EXPECT_THAT(result.out(), testing::HasSubstr("Removed filter " + qw(filter)));
 
     std::string contents;
     readFromDefaultFile(contents);
     EXPECT_THAT(contents, testing::HasSubstr(BOM));
     EXPECT_THAT(contents, testing::HasSubstr(comment));
+}
+
+TEST_F(SyncIgnoreTests, UseExcludeInterface)
+{
+    std::string pattern = "*.pdf";
+
+    auto result = executeInClient({"sync-ignore", "--show"});
+    ASSERT_TRUE(result.ok());
+    EXPECT_THAT(result.out(), testing::Not(testing::HasSubstr(pattern)));
+
+    result = executeInClient({"exclude", "-a", pattern});
+    ASSERT_TRUE(result.ok());
+    EXPECT_THAT(result.out(), testing::HasSubstr("Added filter"));
+    EXPECT_THAT(result.out(), testing::HasSubstr(pattern));
+
+    result = executeInClient({"sync-ignore", "--show"});
+    ASSERT_TRUE(result.ok());
+    EXPECT_THAT(result.out(), testing::HasSubstr(pattern));
+
+    result = executeInClient({"exclude", "-d", pattern});
+    ASSERT_TRUE(result.ok());
+    EXPECT_THAT(result.out(), testing::HasSubstr("Removed filter"));
+    EXPECT_THAT(result.out(), testing::HasSubstr(pattern));
+
+    result = executeInClient({"sync-ignore", "--show"});
+    ASSERT_TRUE(result.ok());
+    EXPECT_THAT(result.out(), testing::Not(testing::HasSubstr(pattern)));
 }
