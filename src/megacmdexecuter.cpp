@@ -2531,15 +2531,6 @@ bool MegaCmdExecuter::actUponFetchNodes(MegaApi *api, SynchronousRequestListener
     return false;
 }
 
-void setExcludeNames(MegaApi *api, std::vector<string> &vexcludednames)
-{
-#if (MEGA_MAJOR_VERSION < 5)
-    api->setExcludedNames(&vexcludednames);
-#else
-    api->setLegacyExcludedNames(&vexcludednames);
-#endif
-}
-
 int MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
 {
     if (timeout == -1)
@@ -2608,10 +2599,7 @@ int MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
         ConfigurationManager::loadbackups();
         mtxBackupsMap.unlock();
 
-        ConfigurationManager::loadExcludedNames();
-        ConfigurationManager::loadConfiguration(false);
-        std::vector<string> vexcludednames(ConfigurationManager::excludedNames.begin(), ConfigurationManager::excludedNames.end());
-        setExcludeNames(api, vexcludednames);
+        ConfigurationManager::transitionLegacyExclusionRules();
 
         long long maxspeeddownload = ConfigurationManager::getConfigurationValue("maxspeeddownload", -1);
         if (maxspeeddownload != -1) api->setMaxDownloadSpeed(maxspeeddownload);
@@ -7817,7 +7805,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
             std::transform(words.begin() + 1, words.end(),
                            std::inserter(args.mFilters, args.mFilters.end()),
-                           [] (const string& word) { return "-:" + word; });
+                           SyncIgnore::getFilterFromLegacyPattern);
 
             SyncIgnore::executeCommand(args);
         }

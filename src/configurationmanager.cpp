@@ -22,8 +22,10 @@
 #include "megacmdutils.h"
 #include "listeners.h"
 #include "updater/Preferences.h"
-#include <fstream>
+#include "sync_ignore.h"
 
+#include <fstream>
+#include <filesystem>
 
 #ifndef ERRNO
 #ifdef _WIN32
@@ -55,6 +57,7 @@
 #endif
 
 using namespace mega;
+namespace fs = std::filesystem;
 
 namespace megacmd {
 
@@ -77,7 +80,6 @@ int ConfigurationManager::fd;
 #endif
 map<string, sync_struct *> ConfigurationManager::oldConfiguredSyncs;
 string ConfigurationManager::session;
-std::set<std::string> ConfigurationManager::excludedNames;
 map<std::string, backup_struct *> ConfigurationManager::configuredBackups;
 std::recursive_mutex ConfigurationManager::settingsMutex;
 
@@ -437,97 +439,69 @@ void ConfigurationManager::saveBackups(map<string, backup_struct *> *backupsmap)
     }
 }
 
-void ConfigurationManager::addExcludedName(string excludedName)
+void ConfigurationManager::transitionLegacyExclusionRules()
 {
-    std::lock_guard<std::recursive_mutex> g(settingsMutex);
-    LOG_verbose << "Adding: " << excludedName << " to exclusion list";
-    excludedNames.insert(excludedName);
-    saveExcludedNames();
-}
+    std::lock_guard g(settingsMutex);
 
-void ConfigurationManager::removeExcludedName(string excludedName)
-{
-    std::lock_guard<std::recursive_mutex> g(settingsMutex);
-    LOG_verbose << "Removing: " << excludedName << " from exclusion list";
-    excludedNames.erase(excludedName);
-    saveExcludedNames();
-}
-
-void ConfigurationManager::saveExcludedNames()
-{
-    std::lock_guard<std::recursive_mutex> g(settingsMutex);
-    stringstream excludedNamesFile;
-    if (mConfigFolder.empty())
+    const string defaultMegaIgnorePath = MegaIgnoreFile::getDefaultPath();
+    if (fs::exists(defaultMegaIgnorePath))
     {
-        loadConfigDir();
+        LOG_debug << "Default .megaignore file already exists. Skipping legacy transition";
+        return;
     }
-    if (!mConfigFolder.empty())
+
+    const string excludeFilePath = mConfigFolder + "/excluded";
+    if (!fs::exists(excludeFilePath))
     {
-        excludedNamesFile << mConfigFolder << "/" << "excluded";
-        LOG_debug << "Exclusion file: " << excludedNamesFile.str();
+        LOG_debug << "Missing legacy exclude file. Skipping transition";
+        return;
+    }
 
-        ofstream fo(excludedNamesFile.str().c_str(), ios::out | ios::binary);
+    LOG_debug << "Transitioning legacy exclusion rules from " << excludeFilePath << " to " << defaultMegaIgnorePath;
 
-        if (fo.is_open())
+    std::ifstream excludeFile(excludeFilePath);
+    if (!excludeFile.is_open() || excludeFile.fail())
+    {
+        LOG_err << "There was an error opening legacy exclude file " << excludeFilePath;
+        return;
+    }
+
+    MegaIgnoreFile megaIgnoreFile(defaultMegaIgnorePath);
+    if (!megaIgnoreFile.isValid())
+    {
+        LOG_err << "There was an error opening default .megaignore file " << defaultMegaIgnorePath;
+        return;
+    }
+
+    std::set<string> excludeFilters;
+    for (std::string line; getline(excludeFile, line);)
+    {
+        if (line.empty())
         {
-            for (set<string>::iterator it=ConfigurationManager::excludedNames.begin(); it!=ConfigurationManager::excludedNames.end(); ++it)
-            {
-                fo << *it << endl;
-            }
-            fo.close();
-        }
-    }
-    else
-    {
-        LOG_err << "Couldnt access configuration folder ";
-    }
-}
-
-void ConfigurationManager::loadExcludedNames()
-{
-    std::lock_guard<std::recursive_mutex> g(settingsMutex);
-    stringstream excludedNamesFile;
-    if (mConfigFolder.empty())
-    {
-        loadConfigDir();
-    }
-    if (!mConfigFolder.empty())
-    {
-        excludedNamesFile << mConfigFolder << "/" << "excluded";
-        LOG_debug << "Excluded file: " << excludedNamesFile.str();
-
-        if (!is_file_exist(excludedNamesFile.str().c_str()) && !oldConfiguredSyncs.size()) //do not add defaults if syncs already configured
-        {
-            excludedNames.insert(".*");
-            excludedNames.insert("desktop.ini");
-            excludedNames.insert("Thumbs.db");
-            excludedNames.insert("~*");
-            saveExcludedNames();
+            continue;
         }
 
-        ifstream fi(excludedNamesFile.str().c_str(), ios::in | ios::binary);
-
-        if (fi.is_open())
+        string filter = SyncIgnore::getFilterFromLegacyPattern(line);
+        if (!MegaIgnoreFile::isValidFilter(filter))
         {
-            if (fi.fail())
-            {
-                LOG_err << "fail with sync file";
-            }
-
-            if (fi.bad())
-            {
-                LOG_err << "fail with sync file  at the end";
-            }
-
-            string excludedName;
-            while (std::getline(fi, excludedName))
-            {
-                excludedNames.insert(excludedName);
-            }
-
-            fi.close();
+            LOG_debug << "Found invalid pattern \"" << line << "\" in legacy exclude file";
+            continue;
         }
+        excludeFilters.insert(filter);
     }
+
+    megaIgnoreFile.addFilters(excludeFilters);
+    LOG_debug << "Transition of legacy exclusion rules completed successfully. Deleting legacy exclude file";
+
+    if (!fs::remove(excludeFilePath))
+    {
+        LOG_err << "Could not remove legacy exclude file " << excludeFilePath;
+    }
+
+    string message = "Your legacy sync exclusion rules have been ported to \"" +
+                     defaultMegaIgnorePath + "\"\n" +
+                     "See `sync-ignore` for more info.";
+    broadcastMessage(message, true);
 }
 
 void ConfigurationManager::unloadConfiguration()
@@ -548,7 +522,6 @@ void ConfigurationManager::unloadConfiguration()
         delete thebackup;
     }
     ConfigurationManager::session = string();
-    ConfigurationManager::excludedNames.clear();
 }
 
 void ConfigurationManager::loadsyncs()

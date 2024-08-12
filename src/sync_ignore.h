@@ -35,6 +35,8 @@ namespace SyncIgnore
     };
 
     void executeCommand(const Args& args);
+
+    std::string getFilterFromLegacyPattern(const std::string& pattern);
 }
 
 class MegaIgnoreFile
@@ -53,6 +55,7 @@ public:
     MegaIgnoreFile(const std::string& path);
 
     void load();
+    void createWithBOM();
     void addFilters(const std::set<std::string>& filters);
     void removeFilters(const std::set<std::string>& filters);
 

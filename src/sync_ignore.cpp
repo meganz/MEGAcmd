@@ -166,6 +166,11 @@ void executeCommand(const Args& args)
     executeSyncIgnoreCommand(args, megaIgnoreFile);
 }
 
+std::string getFilterFromLegacyPattern(const std::string& pattern)
+{
+    return "-:" + pattern;
+}
+
 } // end namespace
 
 bool MegaIgnoreFile::checkBOMAndSkip(std::ifstream& file)
@@ -213,7 +218,14 @@ MegaIgnoreFile::MegaIgnoreFile(const std::string& path) :
     mPath(path),
     mValid(false)
 {
-    load();
+    if (fs::exists(mPath))
+    {
+        load();
+    }
+    else
+    {
+        createWithBOM();
+    }
 }
 
 void MegaIgnoreFile::load()
@@ -227,6 +239,19 @@ void MegaIgnoreFile::load()
     }
     checkBOMAndSkip(file);
     loadFilters(file);
+    mValid = true;
+}
+
+void MegaIgnoreFile::createWithBOM()
+{
+    auto fileLock = getFileLock(mPath);
+
+    std::ofstream file(mPath);
+    if (!file.is_open() || file.fail())
+    {
+        return;
+    }
+    file << BOMStr;
     mValid = true;
 }
 
