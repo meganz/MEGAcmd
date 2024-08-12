@@ -46,6 +46,15 @@ void removeCarriageReturn(std::string& str)
 #endif
 }
 
+std::unique_lock<std::mutex> getFileLock(const std::string& str)
+{
+    static std::mutex mapMutex;
+    static std::map<std::string, std::mutex> fileMutexMap;
+
+    std::lock_guard mapLock(mapMutex);
+    return std::unique_lock(fileMutexMap[str]);
+}
+
 void executeAdd(MegaIgnoreFile& megaIgnoreFile, const std::set<std::string>& filters)
 {
     // Only check the format of the filters when adding, to allow users to remove invalid filters from the file
@@ -209,6 +218,8 @@ MegaIgnoreFile::MegaIgnoreFile(const std::string& path) :
 
 void MegaIgnoreFile::load()
 {
+    auto fileLock = getFileLock(mPath);
+
     std::ifstream file(mPath);
     if (!file.is_open() || file.fail())
     {
@@ -222,6 +233,7 @@ void MegaIgnoreFile::load()
 void MegaIgnoreFile::addFilters(const std::set<std::string>& filters)
 {
     assert(mValid);
+    auto fileLock = getFileLock(mPath);
 
     std::ofstream file(mPath, std::ios_base::app);
     for (const std::string& filter : filters)
@@ -234,6 +246,7 @@ void MegaIgnoreFile::addFilters(const std::set<std::string>& filters)
 void MegaIgnoreFile::removeFilters(const std::set<std::string>& filters)
 {
     assert(mValid);
+    auto fileLock = getFileLock(mPath);
 
     std::string newContents;
     bool hasBOM = false;
