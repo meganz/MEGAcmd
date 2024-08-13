@@ -2599,7 +2599,7 @@ int MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
         ConfigurationManager::loadbackups();
         mtxBackupsMap.unlock();
 
-        ConfigurationManager::transitionLegacyExclusionRules();
+        ConfigurationManager::transitionLegacyExclusionRules(*api);
 
         long long maxspeeddownload = ConfigurationManager::getConfigurationValue("maxspeeddownload", -1);
         if (maxspeeddownload != -1) api->setMaxDownloadSpeed(maxspeeddownload);

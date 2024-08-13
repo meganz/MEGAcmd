@@ -69,7 +69,7 @@ public:
     static void saveSyncs(std::map<std::string, sync_struct *> *syncsmap);
     static void saveBackups(std::map<std::string, backup_struct *> *backupsmap);
 
-    static void transitionLegacyExclusionRules();
+    static void transitionLegacyExclusionRules(mega::MegaApi& api);
 
     static void saveSession(const char*session);
 

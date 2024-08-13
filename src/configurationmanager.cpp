@@ -439,7 +439,7 @@ void ConfigurationManager::saveBackups(map<string, backup_struct *> *backupsmap)
     }
 }
 
-void ConfigurationManager::transitionLegacyExclusionRules()
+void ConfigurationManager::transitionLegacyExclusionRules(mega::MegaApi& api)
 {
     std::lock_guard g(settingsMutex);
 
@@ -474,12 +474,14 @@ void ConfigurationManager::transitionLegacyExclusionRules()
     }
 
     std::set<string> excludeFilters;
+    std::vector<string> excludePatterns;
     for (std::string line; getline(excludeFile, line);)
     {
         if (line.empty())
         {
             continue;
         }
+        excludePatterns.push_back(line);
 
         string filter = SyncIgnore::getFilterFromLegacyPattern(line);
         if (!MegaIgnoreFile::isValidFilter(filter))
@@ -490,9 +492,13 @@ void ConfigurationManager::transitionLegacyExclusionRules()
         excludeFilters.insert(filter);
     }
 
-    megaIgnoreFile.addFilters(excludeFilters);
-    LOG_debug << "Transition of legacy exclusion rules completed successfully. Deleting legacy exclude file";
+    // This ensures transition works for active syncs
+    api.setLegacyExcludedNames(&excludePatterns);
 
+    // This ensures transition works in case there are no existing syncs
+    megaIgnoreFile.addFilters(excludeFilters);
+
+    LOG_debug << "Transition of legacy exclusion rules completed successfully. Deleting legacy exclude file";
     if (!fs::remove(excludeFilePath))
     {
         LOG_err << "Could not remove legacy exclude file " << excludeFilePath;

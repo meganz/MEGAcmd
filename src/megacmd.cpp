@@ -2561,7 +2561,7 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << "If no action is provided, filters will be shown for the selected sync." << endl;
         os << endl;
         os << "Options:" << endl;
-        os << "--show" << "\t" << "Show the mega ignore filters for the selected sync" << endl;
+        os << "--show" << "\t" << "Show the existing filters of the selected sync" << endl;
         os << "--add" << "\t" << "Add the specified filters to the selected sync" << endl;
         os << "--remove" << "\t" << "Remove the specified filters from the selected sync" << endl;
         os << endl;
