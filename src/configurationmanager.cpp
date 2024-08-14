@@ -439,7 +439,7 @@ void ConfigurationManager::saveBackups(map<string, backup_struct *> *backupsmap)
     }
 }
 
-void ConfigurationManager::transitionLegacyExclusionRules(mega::MegaApi& api)
+void ConfigurationManager::transitionLegacyExclusionRules(MegaApi& api)
 {
     std::lock_guard g(settingsMutex);
 
