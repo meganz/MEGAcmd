@@ -21,6 +21,7 @@
 
 #ifdef _WIN32
 #include "megacmdshellcommunicationsnamedpipes.h"
+#include "../megacmdcommonutils.h"
 
 #include <iostream>
 #include <thread>
@@ -47,7 +48,7 @@ namespace megacmd {
 
 bool MegaCmdShellCommunicationsNamedPipes::confirmResponse; //TODO: do all this only in parent class
 bool MegaCmdShellCommunicationsNamedPipes::stopListener;
-mega::Thread *MegaCmdShellCommunicationsNamedPipes::listenerThread;
+std::unique_ptr<std::thread> MegaCmdShellCommunicationsNamedPipes::listenerThread;
 HANDLE MegaCmdShellCommunicationsNamedPipes::newNamedPipe;
 
 bool MegaCmdShellCommunicationsNamedPipes::namedPipeValid(HANDLE namedPipe)
@@ -270,12 +271,7 @@ bool MegaCmdShellCommunicationsNamedPipes::isFileOwnerCurrentUser(HANDLE hFile)
 
 HANDLE MegaCmdShellCommunicationsNamedPipes::doOpenPipe(wstring nameOfPipe)
 {
-    wchar_t username[UNLEN+1];
-    DWORD username_len = UNLEN+1;
-    GetUserNameW(username, &username_len);
-    wstring serverPipeName(L"\\\\.\\pipe\\megacmdpipe");
-    serverPipeName += L"_";
-    serverPipeName += username;
+    wstring serverPipeName = getNamedPipeName();
 
     if (nameOfPipe != serverPipeName)
     {
@@ -309,15 +305,7 @@ HANDLE MegaCmdShellCommunicationsNamedPipes::doOpenPipe(wstring nameOfPipe)
 
 HANDLE MegaCmdShellCommunicationsNamedPipes::createNamedPipe(int number, bool initializeserver)
 {
-    wstring nameOfPipe;
-
-    wchar_t username[UNLEN+1];
-    DWORD username_len = UNLEN+1;
-    GetUserNameW(username, &username_len);
-
-    nameOfPipe += L"\\\\.\\pipe\\megacmdpipe";
-    nameOfPipe += L"_";
-    nameOfPipe += username;
+    wstring nameOfPipe = getNamedPipeName();
 
     if (number)
     {
@@ -461,7 +449,6 @@ MegaCmdShellCommunicationsNamedPipes::MegaCmdShellCommunicationsNamedPipes()
     registerAgainRequired = false;
 
     stopListener = false;
-    listenerThread = NULL;
     redirectedstdout = false;
 }
 
@@ -852,7 +839,7 @@ int MegaCmdShellCommunicationsNamedPipes::registerForStateChanges(bool interacti
         return -1;
     }
 
-    if (listenerThread != NULL)
+    if (listenerThread != nullptr)
     {
         stopListener = true;
         listenerThread->join();
@@ -863,8 +850,7 @@ int MegaCmdShellCommunicationsNamedPipes::registerForStateChanges(bool interacti
     sListenStateChangesNamedPipe * slsc = new sListenStateChangesNamedPipe();
     slsc->receiveNamedPipeNum = receiveNamedPipeNum;
     slsc->statechangehandle = statechangehandle;
-    listenerThread = new MegaThread();
-    listenerThread->start(listenToStateChangesEntryNamedPipe,slsc);
+    listenerThread = std::unique_ptr<std::thread>(new std::thread(listenToStateChangesEntryNamedPipe, slsc));
 
     registerAgainRequired = false;
 
@@ -879,15 +865,20 @@ void MegaCmdShellCommunicationsNamedPipes::setResponseConfirmation(bool confirma
 
 MegaCmdShellCommunicationsNamedPipes::~MegaCmdShellCommunicationsNamedPipes()
 {
-    if (listenerThread != NULL) //TODO: use heritage for whatever we can
+    if (listenerThread != nullptr) //TODO: use heritage for whatever we can
     {
         stopListener = true;
 
+        // This is a virtual method being executed in the destructor (bypasses virtual dispatch)
+        // TODO: Try to get rid of this when we fix this class
         executeCommand("sendack");
 
         listenerThread->join();
     }
-    delete (MegaThread *)listenerThread;
+
+    // Needed to reset this pointer for integration tests, which use this class several times in a row
+    // TODO: We need to fix this class completely; it shouldn't have so many static like these
+    listenerThread = nullptr;
 }
 
 } //end namespace

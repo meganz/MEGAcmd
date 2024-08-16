@@ -1,69 +1,74 @@
+# PREFERRED PORTS FOR MEGACMD. This is a modified snapshot of SDK's preferred-ports-sdk.txt
+# Read instructions on the above if you want to introduce changes in this file
+
+# Common dependencies
+vcpkg-cmake-config/a664e41ee50b61adcc90a44a761eca139a4b7dd7
+vcpkg-cmake/a664e41ee50b61adcc90a44a761eca139a4b7dd7
+pkgconf/a664e41ee50b61adcc90a44a761eca139a4b7dd7
+vcpkg-pkgconfig-get-modules/a664e41ee50b61adcc90a44a761eca139a4b7dd7
+vcpkg-tool-meson/a664e41ee50b61adcc90a44a761eca139a4b7dd7
+vcpkg-cmake-get-vars/a664e41ee50b61adcc90a44a761eca139a4b7dd7
+
 # direct core dependencies of the SDK
-c-ares/c303dd024e2dc03a0665ddffbb12a1077933e649 all:on ios:off
-cryptopp/c303dd024e2dc03a0665ddffbb12a1077933e649
-curl/7375bb408f2278d2f1875c259beef93332697ba7 all:on ios:off
+c-ares/7476f0d4e77d3333fbb249657df8251c28c4faae all:on ios:off
+cryptopp/a42af01b72c28a8e1d7b48107b33e4f286a55ef6
+curl/a42af01b72c28a8e1d7b48107b33e4f286a55ef6 all:on ios:off
 curl[core,sectransp]/7375bb408f2278d2f1875c259beef93332697ba7 all:off ios:curl-for-ios.patch
-libsodium/92adeffbce95847e141411177248ed04ac49ea9b all:on ios:libsodium-ios.patch
-openssl/c303dd024e2dc03a0665ddffbb12a1077933e649 ios:off osx:off
-openssl-unix/c303dd024e2dc03a0665ddffbb12a1077933e649 all:off linux:on
-openssl-windows/c303dd024e2dc03a0665ddffbb12a1077933e649 all:off windows:on
+libsodium/7476f0d4e77d3333fbb249657df8251c28c4faae all:on ios:libsodium-ios.patch
+openssl/7476f0d4e77d3333fbb249657df8251c28c4faae ios:off osx:off
 
-# cmake\vcpkg toolchain dependencies
-vcpkg-cmake-config/94ce0dab56f4d8ba6bd631ba59ed682b02d45c46
-vcpkg-cmake/94ce0dab56f4d8ba6bd631ba59ed682b02d45c46
+# needed by MEGAcmd:
+pcre/d6bd10b9af6f6197711222a0ac827e52e0247e30
 
-# needed by external projects which still rely on SDK to fetch and build it; SDK no longer uses PCRE
-# this is the minimum version after PCRE's ftp server switched
-pcre/d6bd10b9af6f6197711222a0ac827e52e0247e30 all:on
+readline-unix/7476f0d4e77d3333fbb249657df8251c28c4faae all:off osx:on
+ncurses/7476f0d4e77d3333fbb249657df8251c28c4faae all:off osx:on
+sqlite3/7476f0d4e77d3333fbb249657df8251c28c4faae
+zlib/7476f0d4e77d3333fbb249657df8251c28c4faae
 
-readline/8.0 all:off osx:on
-sqlite3/c303dd024e2dc03a0665ddffbb12a1077933e649
-zlib/e0a9559a9b24af116388eae242d675bf9fde025c
-
-# needed by the SDK if enabling serving/streaming (outgoing) files via http/s or include a an ftp server
-libuv/c303dd024e2dc03a0665ddffbb12a1077933e649 ios:off
+# needed by the SDK if enabling serving/streaming (outgoing) files via http/s or include a ftp server
+libuv/293f090a9be5a88a2a77838c6346d5ef9d3df81b all:off windows:on
+libuv/7476f0d4e77d3333fbb249657df8251c28c4faae all:on windows:off
 
 # mediainfo, customized with constrained functionality (determine media properties such as track length, codec, etc)
-libmediainfo/19.09
-libzen/0.4.37
+libmediainfo/23.4
+tinyxml2/7476f0d4e77d3333fbb249657df8251c28c4faae
+libzen/7476f0d4e77d3333fbb249657df8251c28c4faae
 
 # ffmpeg (video preview/thumbnail generation)
-ffmpeg/c303dd024e2dc03a0665ddffbb12a1077933e649 all:on osx:ffmpeg-fix-osx-cross-compilation.patch ios:off
+ffmpeg/c67a3059bbdb19799d402085e7323f71e7d68656 all:on ios:off osx:ffmpeg-osx-linker.patch
 
-#freeimage and its dependencies (image preview/thumbnail generation)
-freeimage/94ce0dab56f4d8ba6bd631ba59ed682b02d45c46 osx:freeimage-bool-typedef-xcode-compiler.patch
-libpng/94ce0dab56f4d8ba6bd631ba59ed682b02d45c46
-libjpeg-turbo/94ce0dab56f4d8ba6bd631ba59ed682b02d45c46
-tiff/94ce0dab56f4d8ba6bd631ba59ed682b02d45c46
-openjpeg/94ce0dab56f4d8ba6bd631ba59ed682b02d45c46
-libwebp/7375bb408f2278d2f1875c259beef93332697ba7 all:libwebp-no-freeglut-no-avx.patch
-libraw/7375bb408f2278d2f1875c259beef93332697ba7 ios:libraw-ios.patch
-jxrlib/94ce0dab56f4d8ba6bd631ba59ed682b02d45c46 ios:jxrlib-ios-guiddef-fix.patch
-openexr/94ce0dab56f4d8ba6bd631ba59ed682b02d45c46 ios:openexr-ios.patch
-imath/94ce0dab56f4d8ba6bd631ba59ed682b02d45c46
-jasper/94ce0dab56f4d8ba6bd631ba59ed682b02d45c46 all:jasper-no-freeglut.patch
-liblzma/94ce0dab56f4d8ba6bd631ba59ed682b02d45c46 ios:liblzma-ios.patch
-#python3 not needed; it only provides python bindings to use openexr from python
-libffi/94ce0dab56f4d8ba6bd631ba59ed682b02d45c46
-opengl/94ce0dab56f4d8ba6bd631ba59ed682b02d45c46
+# freeimage and its dependencies (image preview/thumbnail generation)
+freeimage/7476f0d4e77d3333fbb249657df8251c28c4faae osx:freeimage-bool-typedef-xcode-compiler.patch
+libpng/7476f0d4e77d3333fbb249657df8251c28c4faae
+libjpeg-turbo/7476f0d4e77d3333fbb249657df8251c28c4faae
+tiff/7476f0d4e77d3333fbb249657df8251c28c4faae
+openjpeg/7476f0d4e77d3333fbb249657df8251c28c4faae
+libwebp/7476f0d4e77d3333fbb249657df8251c28c4faae
+libraw/7476f0d4e77d3333fbb249657df8251c28c4faae
+jxrlib/7476f0d4e77d3333fbb249657df8251c28c4faae
+openexr/7476f0d4e77d3333fbb249657df8251c28c4faae
+imath/7476f0d4e77d3333fbb249657df8251c28c4faae
+jasper/7476f0d4e77d3333fbb249657df8251c28c4faae all:jasper-no-freeglut.patch
+liblzma/7476f0d4e77d3333fbb249657df8251c28c4faae
+egl-registry/7476f0d4e77d3333fbb249657df8251c28c4faae
+opengl-registry/7476f0d4e77d3333fbb249657df8251c28c4faae
+opengl/7476f0d4e77d3333fbb249657df8251c28c4faae
 #freeglut (cross platform window manager) not needed; problematic on some platforms, pulling in many, many dependencies
-#vcpkg-cmake-config already added above for SDK
-#vcpkg-cmake already added above for SDK
 
 # pdfium libraries, specific version for build stability  (preview/thumbnail generation for pdfs)
 # no v8 (javascript execution) etc
 pdfium/5247
-pdfium-freetype/2-12-1
+freetype[core,bzip2,png,zlib]/7476f0d4e77d3333fbb249657df8251c28c4faae
 
 # dependencies of pdfium
-icu/979a5197b3389cfdf91d0ac5d98b6066ce73fd7a all:off osx:on linux:on
-icu/cb91b416cb8f85f0a55853baad23fb18d306148a all:on osx:off linux:off
-lcms/c303dd024e2dc03a0665ddffbb12a1077933e649
+icu/7476f0d4e77d3333fbb249657df8251c28c4faae
+lcms/7476f0d4e77d3333fbb249657df8251c28c4faae
 #libjpeg-turbo already added above for freeimage
 #openjpeg already added above for freeimage
-bzip2/c303dd024e2dc03a0665ddffbb12a1077933e649
+bzip2/7476f0d4e77d3333fbb249657df8251c28c4faae
 #libpng already added above for freeimage
 
+
 # tests and tools
-asio/c303dd024e2dc03a0665ddffbb12a1077933e649
 gtest/c303dd024e2dc03a0665ddffbb12a1077933e649 all:gtest-warnings-are-not-errors.patch
+

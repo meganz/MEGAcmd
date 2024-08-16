@@ -26,7 +26,7 @@ arch=('i686' 'x86_64')
 url="http://mega.nz/cmd"
 license=("https://github.com/meganz/megacmd/blob/master/LICENSE")
 groups=()
-depends=('glibc>=2.37' 'gcc-libs>=13.1.1' 'sqlite' 'openssl>=1.1.1' 'zlib' 'libpsl' 'icu>=69.1' 'bash-completion' 'pcre' 'bzip2' 'xz')
+depends=('glibc>=2.37' 'sqlite' 'openssl>=1.1.1' 'zlib' 'libpsl' 'icu>=69.1' 'bash-completion' 'pcre' 'bzip2' 'xz')
 makedepends=('unzip' 'wget' 'ca-certificates' 'ffmpeg-mega' 'pdfium-mega' 'bzip2' 'xz')
 checkdepends=()
 optdepends=()
@@ -48,13 +48,16 @@ prepare() {
 }
 
 build() {
+	set -x
+
 	cd "$pkgname-$pkgver"
 	./autogen.sh
 
 	#build dependencies into folder deps
+	SQLITE3=$(grep -- -L ./contrib/build_sdk.sh >/dev/null && echo "-L" || echo "")
 	mkdir deps || :
 	bash -x ./contrib/build_sdk.sh -o archives \
-	  -e -g -b -l -c -s -u -v -a -q -I -p deps/
+	  -e -g -b -l -c -s -u -v -a -q -I -p $SQLITE3 deps/
 
 	# Link dynamically with freeimage
 	ln -sfr $PWD/deps/lib/libfreeimage*.so $PWD/deps/lib/libfreeimage.so.3

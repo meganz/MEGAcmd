@@ -9,15 +9,15 @@ Source0:	megacmd_%{version}.tar.gz
 Vendor:		MEGA Limited
 Packager:	MEGA Linux Team <linux@mega.co.nz>
 
-BuildRequires: zlib-devel, autoconf, automake, libtool, gcc-c++, pcre-devel
-BuildRequires: hicolor-icon-theme, unzip, wget
+BuildRequires: autoconf, automake, libtool, gcc-c++, pcre-devel, libicu-devel
+BuildRequires: hicolor-icon-theme, unzip
 BuildRequires: ffmpeg-mega pdfium-mega
 
 #OpenSUSE
 %if 0%{?suse_version} || 0%{?sle_version}
 
     BuildRequires: libopenssl-devel, sqlite3-devel
-    BuildRequires: libbz2-devel
+    BuildRequires: libbz2-devel, zlib-devel, wget
 
     # disabling post-build-checks that ocassionally prevent opensuse rpms from being generated
     # plus it speeds up building process
@@ -48,6 +48,12 @@ BuildRequires: ffmpeg-mega pdfium-mega
 #Fedora specific
 %if 0%{?fedora}
     BuildRequires: openssl-devel, sqlite-devel, c-ares-devel
+
+    %if 0%{?fedora_version} >= 40
+        BuildRequires: wget2, wget2-wget, zlib-ng-compat
+    %else
+        BuildRequires: wget, zlib-devel
+    %endif
 
     %if 0%{?fedora_version} < 33
         BuildRequires: cryptopp-devel
@@ -157,6 +163,13 @@ sed -i -E "s/(^#define MEGACMD_BUILD_ID )[0-9]*/\1${mega_build_id}/g" src/megacm
     sed -i "s#AC_INIT#m4_pattern_allow(AC_PROG_OBJCXX)\nAC_INIT#g" sdk/configure.ac
 %endif
 
+# Build SQLite3
+%define flag_disablesqlite3 `grep -- -L ./contrib/build_sdk.sh >/dev/null && echo "-L"`
+
+%if 0%{?centos_version} == 700
+    %define flag_disablesqlite3 %{nil}
+%endif
+
 %define fullreqs -DREQUIRE_HAVE_PDFIUM -DREQUIRE_HAVE_FFMPEG -DREQUIRE_HAVE_LIBUV -DREQUIRE_USE_MEDIAINFO -DREQUIRE_USE_PCRE
 
 ./autogen.sh
@@ -164,12 +177,12 @@ sed -i -E "s/(^#define MEGACMD_BUILD_ID )[0-9]*/\1${mega_build_id}/g" src/megacm
 #build dependencies into folder deps
 mkdir deps || :
 bash -x ./contrib/build_sdk.sh %{flag_cryptopp} %{flag_libraw} %{flag_cares} -o archives \
-  -g %{flag_disablezlib} %{flag_disablemediainfo} -b -l -c -s -u -v -a -I -p deps/
+  -g %{flag_disablezlib} %{flag_disablemediainfo} %{flag_disablesqlite3} -b -l -c -s -u -v -a -I -p deps/
 
 ln -sfr $PWD/deps/lib/libfreeimage*.so $PWD/deps/lib/libfreeimage.so.3
 ln -sfn libfreeimage.so.3 $PWD/deps/lib/libfreeimage.so
 
-%if ( 0%{?fedora_version} && 0%{?fedora_version}<=35 ) || ( 0%{?centos_version} == 600 ) || ( 0%{?centos_version} == 800 ) || ( 0%{?sle_version} && 0%{?sle_version} < 150400 )
+%if ( 0%{?fedora_version} && 0%{?fedora_version}<=37 ) || ( 0%{?centos_version} == 600 ) || ( 0%{?centos_version} == 800 ) || ( 0%{?sle_version} && 0%{?sle_version} < 150500 )
     export CPPFLAGS="$CPPFLAGS -DMEGACMD_DEPRECATED_OS"
 %endif
 
@@ -282,6 +295,14 @@ DATA
 
     %if 0%{?sle_version} == 150400
         %define reponame openSUSE_Leap_15.4
+    %endif
+
+    %if 0%{?sle_version} == 150500
+        %define reponame openSUSE_Leap_15.5
+    %endif
+
+    %if 0%{?sle_version} == 150600
+        %define reponame openSUSE_Leap_15.6
     %endif
 
     %if 0%{?sle_version} == 0 && 0%{?suse_version} >= 1550

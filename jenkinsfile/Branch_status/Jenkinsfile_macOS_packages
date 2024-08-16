@@ -1,0 +1,141 @@
+pipeline {
+    agent { label 'osx && arm64' }
+
+    options {
+        buildDiscarder(logRotator(numToKeepStr: '25', daysToKeepStr: '30'))
+        gitLabConnection('GitLabConnectionJenkins')
+    }
+    parameters {
+        booleanParam(name: 'IS_RELEASE_CANDIDATE', defaultValue: false, description: 'Is it a Release Candidate?')
+        string(name: 'RELEASE_CANDIDATE_NAME', defaultValue: '', description: 'i.e: RC2, RC3 (only needed if IS_RELEASE_CANDIDATE is true)')
+        string(name: 'MEGACMD_BRANCH', defaultValue: "${env.BRANCH_NAME}", description: 'Which version of MEGAcmd should we build? Default is current branch.')
+        string(name: 'SDK_BRANCH', defaultValue: ' ', description: 'Optionally, define a custom SDK branch.')
+    }
+    environment {
+        gitlab_token = credentials('jenkins_sdk_token')
+        MEGACMD_BRANCH = "${params.MEGACMD_BRANCH}"
+        SDK_BRANCH = "${params.SDK_BRANCH}"
+    }
+
+    stages {
+        stage('Clean previous runs'){
+            steps{
+                deleteDir()
+            }
+        }
+
+        stage('Checkout macOS'){
+            steps {
+                checkout([
+                    $class: 'GitSCM',
+                    branches: [[name: "${env.MEGACMD_BRANCH}"]],
+                    userRemoteConfigs: [[ url: "${env.GIT_URL_MEGACMD}", credentialsId: "12492eb8-0278-4402-98f0-4412abfb65c1" ]],
+                    extensions: [
+                        [$class: "UserIdentity",name: "jenkins", email: "jenkins@jenkins"]
+                        ]
+                ])
+                script {
+                    macos_sources_workspace = WORKSPACE
+                    def branchToCheckout = ''
+
+                    if (env.SDK_BRANCH && env.SDK_BRANCH != ' ') {
+                        branchToCheckout = env.SDK_BRANCH
+                    } else if (env.MEGACMD_BRANCH in ['develop', 'master']) {
+                        branchToCheckout = "release/v6.0.0"
+                    } else {
+                        def status = sh(script: "git submodule status", returnStdout: true).trim()
+                        branchToCheckout = status.tokenize(' ')[0].substring(1)
+                    }
+
+                    dir('sdk') {
+                        sh "echo Cloning SDK branch ${branchToCheckout}"
+                        checkout([
+                            $class: 'GitSCM',
+                            branches: [[name: branchToCheckout]],
+                            userRemoteConfigs: [[url: "${env.GIT_URL_SDK}", credentialsId: "12492eb8-0278-4402-98f0-4412abfb65c1"]],
+                            extensions: [
+                                [$class: "UserIdentity", name: "jenkins", email: "jenkins@jenkins"]
+                            ]
+                        ])
+                    }
+                }
+            }
+        }
+        stage ('Build macOS packages'){
+            environment{
+                VCPKGPATH  = "${env.HOME}/jenkins/3rdparty"
+            }
+            steps {
+                dir(macos_sources_workspace + '/build'){
+                    script {
+                        def commonArgs = params.IS_RELEASE_CANDIDATE == true ? "--build --create-dmg" : "--build"
+                        sh "./installer_mac.sh ${commonArgs} --arch universal"
+                    }
+
+                }
+            }
+        }
+        stage ('Upload Installers') {
+            when {
+                beforeAgent true
+                anyOf {
+                    expression { params.IS_RELEASE_CANDIDATE == true}
+                }
+            }
+            steps {
+                dir(macos_sources_workspace){
+                    script{
+                        MEGACMD_VERSION = sh (
+                            script: '''
+                                awk  '/#define MEGACMD_MAJOR_VERSION/ { MAJOR=\$3 }; \
+                                      /#define MEGACMD_MINOR_VERSION/ { MINOR=\$3 }; \
+                                      /#define MEGACMD_MICRO_VERSION/ { MICRO=\$3 }; \
+                                      END { print MAJOR"."MINOR"."MICRO }' \
+                                      src/megacmdversion.h
+                            ''',
+                            returnStdout: true
+                        ).trim()
+                        sh "echo $MEGACMD_VERSION > version.txt"
+                        sh "jf rt del MEGAcmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/macOS/"
+                        // arm64 files
+                        sh """
+                            cd build/Release_arm64
+                            zip -r mega-cmd.dSYM.zip mega-cmd.dSYM
+                            zip -r MEGAcmdUpdater.dSYM.zip MEGAcmdUpdater.dSYM
+                            zip -r mega-exec.dSYM.zip mega-exec.dSYM
+                            zip -r MEGAcmdShell.dSYM.zip MEGAcmdShell.dSYM
+                            jf rt upload \
+                                --regexp '(MEGAcmd.*dmg|.*zip)' \
+                                MEGAcmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/macOS/arm64/
+                        """
+                        // x86_64 files
+                        sh """
+                            cd build/Release_x86_64
+                            zip -r mega-cmd.dSYM.zip mega-cmd.dSYM
+                            zip -r MEGAcmdUpdater.dSYM.zip MEGAcmdUpdater.dSYM
+                            zip -r mega-exec.dSYM.zip mega-exec.dSYM
+                            zip -r MEGAcmdShell.dSYM.zip MEGAcmdShell.dSYM
+                            jf rt upload \
+                                --regexp '(MEGAcmd.*dmg|.*zip)' \
+                                MEGAcmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/macOS/x86_64/
+                        """
+                        // universal files
+                        sh """
+                            cd build/Release_universal
+                            jf rt upload MEGAcmd.dmg \
+                                MEGAcmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/macOS/universal/
+                        """
+                    }
+                    archiveArtifacts artifacts: 'version.txt', onlyIfSuccessful: true
+                }
+            }
+            post {
+                success {
+                    script {
+                        echo "Installers successfully uploaded. URL: [${env.REPO_URL}/MEGAcmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/macOS]"
+                    }
+                }
+            }
+        }
+    }
+}

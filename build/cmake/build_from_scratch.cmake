@@ -47,9 +47,13 @@ set(_triplet ${TRIPLET})
 set(_cmd_dir "${_script_cwd}/../..")
 set(_sdk_dir "${_cmd_dir}/sdk")
 
-message(STATUS "Building for triplet ${_triplet} with CMD ${_cmd_dir} and SDK ${_sdk_dir}")
-
+if(3RDPARTY_DIR)
+set (_3rdparty_dir ${3RDPARTY_DIR})
+else()
 set (_3rdparty_dir "${_cmd_dir}/../3rdparty_megacmd")
+endif()
+
+message(STATUS "Building for triplet ${_triplet} with CMD ${_cmd_dir} and SDK ${_sdk_dir} into ${_3rdparty_dir}")
 
 file(MAKE_DIRECTORY ${_3rdparty_dir})
 
@@ -109,7 +113,6 @@ execute_checked_command(
     COMMAND ${_3rdparty_tool_exe}
         --setup
         --removeunusedports
-        --nopkgconfig
         ${_3rdparty_tool_common_args}
     WORKING_DIRECTORY ${_3rdparty_dir}
 )
@@ -125,6 +128,7 @@ execute_checked_command(
 # Allows use of the VCPKG_XXXX variables defined in the triplet file
 # We search our own custom triplet folder, and then the standard ones searched by vcpkg
 foreach(_triplet_dir
+    "${_sdk_dir}/contrib/cmake/vcpkg_overlay_triplets/"
     "${_sdk_dir}/contrib/cmake/vcpkg_extra_triplets/"
     "${_3rdparty_vcpkg_dir}/triplets/"
     "${_3rdparty_vcpkg_dir}/triplets/community"
@@ -139,7 +143,11 @@ foreach(_triplet_dir
 endforeach()
 
 if(NOT _triplet_file_found)
-    message(FATAL_ERROR "Could not find triplet ${_triplet} in Mega vcpkg_extra_triplets nor in vcpkg triplet folders")
+    message(FATAL_ERROR "Could not find triplet ${_triplet} in Mega vcpkg_overlay_triplets nor in vcpkg triplet folders")
+endif()
+
+if(SKIP_PROJECT_BUILD)
+    return()
 endif()
 
 # Now set up to build this repo
@@ -193,7 +201,7 @@ if(WIN32)
                 --build ${_build_dir}
                 ${_cmake_target_args}
                 --config ${_config}
-                --parallel 4
+                --parallel 12
         )
     endforeach()
 else()
@@ -213,7 +221,7 @@ else()
             COMMAND ${_cmake}
                 --build ${_build_dir}
                 ${_cmake_target_args}
-                --parallel 4
+                --parallel 12
         )
     endforeach()
 endif()

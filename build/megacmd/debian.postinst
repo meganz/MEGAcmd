@@ -5,7 +5,9 @@ distro=$(cat /usr/share/doc/megacmd/distro)
 #ver=$(lsb_release -rs)
 ver=$(cat /usr/share/doc/megacmd/version)
 
-if [[ $distro = "Raspbian GNU/Linux 11"* ]]; then
+if [[ $distro = "Raspbian GNU/Linux 12"* ]]; then
+    str="Raspbian_12"
+elif [[ $distro = "Raspbian GNU/Linux 11"* ]]; then
     str="Raspbian_11"
 elif [[ $distro = "Raspbian GNU/Linux 10"* ]]; then
     str="Raspbian_10.0"
@@ -14,6 +16,10 @@ elif [[ $distro = "Raspbian GNU/Linux 9"* ]]; then
 elif [[ $distro = "Raspbian GNU/Linux 8"* ]]; then
     str="Raspbian_8.0"
 # Ubuntu
+elif [[ $ver = "24.04" ]]; then
+    str="xUbuntu_24.04"
+elif [[ $ver = "23.10" ]]; then
+    str="xUbuntu_23.10"
 elif [[ $ver = "23.04" ]]; then
     str="xUbuntu_23.04"
 elif [[ $ver = "22.10" ]]; then
@@ -71,6 +77,8 @@ elif [[ $ver = 10* ]]; then
     str="Debian_10.0"
 elif [[ $ver = 11* ]]; then
     str="Debian_11"
+elif [[ $ver = 12* ]]; then
+    str="Debian_12"
 elif [[ $ver = "testing" ]]; then
     str="Debian_testing"
 # Elementary OS Luna uses 12.04

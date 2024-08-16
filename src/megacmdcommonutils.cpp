@@ -21,11 +21,19 @@
 #ifdef _WIN32
 #include <Shlwapi.h> //PathAppend
 #include <Shellapi.h> //CommandLineToArgvW
+#include <windows.h> //GetUserName
+#include <Lmcons.h> //UNLEN
 #else
 #include <sys/ioctl.h> // console size
+#include <sys/socket.h>
+#include <sys/un.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <unistd.h>
 #endif
 
+#include <cstring>
 #include <iomanip>
 #include <fstream>
 #include <string.h>
@@ -518,16 +526,17 @@ vector<string> getlistOfWords(char *ptr, bool escapeBackSlashInCompletion, bool 
             //while ((unsigned char)*ptr > ' ')
             while ((*ptr != '\0') && !(*ptr ==' ' && *prev !='\\'))
             {
-                if (*ptr == '"')
+                if (*ptr == '"') // if quote is found, look for the ending quote
                 {
-                    while (*++ptr != '"' && *ptr != '\0')
-                    { }
+                    while (*(ptr + 1) != '"' && *(ptr + 1))
+                    {
+                        ptr++;
+                    }
                 }
-                prev=ptr;
+                prev = ptr;
                 ptr++;
             }
-                string newword(wptr, ptr - wptr);
-                words.push_back(newword);
+            words.emplace_back(wptr, ptr - wptr);
         }
     }
 
@@ -879,6 +888,15 @@ int getFlag(map<string, int> *flags, const char * optname)
 string getOption(map<string, string> *cloptions, const char * optname, string defaultValue)
 {
     return cloptions->count(optname) ? ( *cloptions )[optname] : defaultValue;
+}
+
+std::pair<string, bool> getOptionOrFalse(const map<string, string>& cloptions, const char * optname)
+{
+    if (cloptions.find(optname) == cloptions.end())
+    {
+        return {"", false};
+    }
+    return {cloptions.at(optname), true};
 }
 
 int getintOption(map<string, string> *cloptions, const char * optname, int defaultValue)
@@ -1464,4 +1482,167 @@ void Field::updateMaxValue(int newcandidate)
     }
 }
 
+std::unique_ptr<PlatformDirectories> PlatformDirectories::getPlatformSpecificDirectories()
+{
+#ifdef _WIN32
+    return std::unique_ptr<PlatformDirectories>(new WindowsDirectories);
+#elif defined(__APPLE__)
+    return std::unique_ptr<PlatformDirectories>(new MacOSDirectories);
+#else
+    return std::unique_ptr<PlatformDirectories>(new PosixDirectories);
+#endif
+}
+
+#ifdef _WIN32
+std::string WindowsDirectories::configDirPath()
+{
+    TCHAR szPath[MAX_PATH];
+    std::string folder;
+
+    if (!SUCCEEDED(GetModuleFileName(NULL, szPath, MAX_PATH)))
+    {
+        return std::string();
+    }
+    else
+    {
+        if (SUCCEEDED(PathRemoveFileSpec(szPath)))
+        {
+            if (PathAppend(szPath, TEXT(".megaCmd")))
+            {
+                utf16ToUtf8(szPath, lstrlen(szPath), &folder);
+            }
+        }
+    }
+
+    auto suffix = getenv("MEGACMD_WORKING_FOLDER_SUFFIX");
+    if (suffix != nullptr)
+    {
+        folder += "_";
+        folder += suffix;
+    }
+
+    return folder;
+}
+
+std::wstring getNamedPipeName()
+{
+    std::wstring name = L"\\\\.\\pipe\\megacmdpipe_";
+    wchar_t username[UNLEN + 1];
+    DWORD username_len = UNLEN + 1;
+    wchar_t *suffix;
+
+    GetUserNameW(username, &username_len);
+    name += username;
+
+    suffix = _wgetenv(L"MEGACMD_PIPE_SUFFIX");
+    if (suffix != nullptr)
+    {
+        name += L"_";
+        name += suffix;
+    }
+
+    return name;
+}
+#else // !defined(_WIN32)
+std::string PosixDirectories::homeDirPath()
+{
+    const char *homedir = getenv("HOME");
+    if (homedir != nullptr)
+    {
+        return homedir;
+    }
+
+    struct passwd pwd = {};
+    struct passwd *pwdresult = nullptr;
+    long int bufsize = sysconf(_SC_GETPW_R_SIZE_MAX);
+    bufsize = bufsize == -1 ? 1024 : bufsize;
+    auto pwdbuf = std::unique_ptr<char[]>(new char[bufsize]);
+    if (getpwuid_r(getuid(), &pwd, pwdbuf.get(), bufsize, &pwdresult))
+    {
+        std::cerr << "Warn: Could not get HOME folder from getpwuid_r. errno = " << errno << std::endl;
+        return std::string();
+    }
+    return std::string(pwd.pw_dir);
+}
+
+std::string PosixDirectories::configDirPath()
+{
+    std::string home = homeDirPath();
+    if (home.empty())
+    {
+        return noHomeFallbackFolder();
+    }
+
+    struct stat path_stat = {};
+    bool exists = !stat(home.c_str(), &path_stat) && S_ISDIR(path_stat.st_mode);
+
+    return exists ? home.append("/.megaCmd") : noHomeFallbackFolder();
+}
+
+string PosixDirectories::noHomeFallbackFolder()
+{
+    return std::string("/tmp/megacmd-").append(std::to_string(getuid()));
+}
+
+#ifdef __APPLE__
+std::string MacOSDirectories::runtimeDirPath()
+{
+    std::string home = homeDirPath();
+    if (home.empty())
+    {
+        // fallback to Posix:
+        return PosixDirectories::runtimeDirPath();
+    }
+
+    auto cachesPath = std::string(home).append("/Library/Caches");
+    struct stat path_stat = {};
+    bool exists = !stat(cachesPath.c_str(), &path_stat) && S_ISDIR(path_stat.st_mode);
+
+    return exists ? cachesPath.append("/megacmd.mac") : noHomeFallbackFolder();
+}
+#endif // !defined(__APPLE__)
+
+std::string getOrCreateSocketPath(bool createDirectory)
+{
+    auto dirs = PlatformDirectories::getPlatformSpecificDirectories();
+    auto socketFolder = dirs->runtimeDirPath();
+    if (socketFolder.empty())
+    {
+        std::cerr << "FATAL: Could not get runtime folder for socket path" << std::endl;
+        throw std::runtime_error("Could not get runtime folder for socket path");
+    }
+
+    const char *sockname_c = getenv("MEGACMD_SOCKET_NAME");
+    std::string sockname = sockname_c != nullptr ? std::string(sockname_c) : "megacmd.socket";
+
+    static auto MAX_SOCKET_PATH = sizeof(sockaddr_un::sun_path) / sizeof(decltype(sockaddr_un::sun_path[0]));
+
+    if ((socketFolder.size() + 1 + sockname.size()) >= (MAX_SOCKET_PATH - 1))
+    {
+        std::cerr << "WARN: socket path in runtime dir would exceed max size. Falling back to /tmp" << std::endl;
+        socketFolder = PosixDirectories::noHomeFallbackFolder();
+    }
+
+    struct stat path_stat = {};
+    if (createDirectory)
+    {
+        bool exists = !stat(socketFolder.c_str(), &path_stat) && S_ISDIR(path_stat.st_mode);
+        if (!exists && createDirectory)
+        {
+            mode_t mode = umask(0);
+            bool failed = mkdir(socketFolder.c_str(), 0700) != 0;
+            if (failed)
+            {
+                std::cerr << "Failed to create folder for unix socket: " << socketFolder << ": " << std::strerror(errno) << std::endl;
+            }
+            umask(mode);
+
+            if (failed)
+                return std::string();
+        }
+    }
+
+    return socketFolder.append("/").append(sockname);
+}
+#endif // ifdef(_WIN32) else
 } //end namespace

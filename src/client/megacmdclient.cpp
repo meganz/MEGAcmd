@@ -16,6 +16,8 @@
  * program.
  */
 
+#include "megacmdclient.h"
+
 #include "../megacmdcommonutils.h"
 #include "../megacmdshell/megacmdshellcommunications.h"
 #include "../megacmdshell/megacmdshellcommunicationsnamedpipes.h"
@@ -893,11 +895,7 @@ void statechangehandle(string statestring)
     }
 }
 
-} //end namespace
-
-using namespace megacmd;
-
-int main(int argc, char* argv[])
+int executeClient(int argc, char* argv[], OUTSTREAMTYPE & outstream)
 {
 #ifdef _WIN32
     setlocale(LC_ALL, "en-US");
@@ -921,9 +919,9 @@ int main(int argc, char* argv[])
         return -1;
     }
 #ifdef _WIN32
-    MegaCmdShellCommunications *comms = new MegaCmdShellCommunicationsNamedPipes(redirectedoutput);
+    std::unique_ptr<MegaCmdShellCommunications> comms(new MegaCmdShellCommunicationsNamedPipes(redirectedoutput));
 #else
-    MegaCmdShellCommunications *comms = new MegaCmdShellCommunications();
+    std::unique_ptr<MegaCmdShellCommunications> comms(new MegaCmdShellCommunications());
 #endif
 
     string command = argv[1];
@@ -933,13 +931,23 @@ int main(int argc, char* argv[])
         return -2;
     }
 
-#ifdef _WIN32
+#if defined _WIN32 && !defined MEGACMD_TESTING_CODE
     int wargc;
-    LPWSTR *szArglist = CommandLineToArgvW(GetCommandLineW(),&wargc);
-    wstring wParsedArgs = parsewArgs(wargc,szArglist);
+
+    // This function (i.e., `executeClient`) should not deal with the command line arguments directly; that's above its responsability now.
+    // For now we'll disable this call to `CommandLineToArgvW` in integration tests (the only other consumer of `executeClient` that's not main) because it was causing issues.
+    // TODO: In the future we should refactor this to move the responsability away from `executeClient`. We should also avoid having two separate `parseArgs` functions.
+    LPWSTR *szArglist = CommandLineToArgvW(GetCommandLineW(), &wargc);
+    if (szArglist == NULL)
+    {
+        return -3;
+    }
+    wstring wParsedArgs = parsewArgs(wargc, szArglist);
+    LocalFree(szArglist);
 #else
     string parsedArgs = parseArgs(argc,argv);
 #endif
+
     bool isInloginInValidCommands = false;
     if (argc>1)
     {
@@ -957,14 +965,11 @@ int main(int argc, char* argv[])
         }
     } while (serverTryingToLog && !isInloginInValidCommands);
 
-
-#ifdef _WIN32
-    int outcode = comms->executeCommandW(wParsedArgs, readresponse, COUT, false);
+#if defined _WIN32 && !defined MEGACMD_TESTING_CODE
+    int outcode = comms->executeCommandW(wParsedArgs, readresponse, outstream, false);
 #else
-    int outcode = comms->executeCommand(parsedArgs, readresponse, COUT, false);
+    int outcode = comms->executeCommand(parsedArgs, readresponse, outstream, false);
 #endif
-
-    delete comms;
 
     // do always return positive error codes (POSIX compliant)
     if (outcode < 0)
@@ -974,3 +979,5 @@ int main(int argc, char* argv[])
 
     return outcode;
 }
+
+} //end namespace

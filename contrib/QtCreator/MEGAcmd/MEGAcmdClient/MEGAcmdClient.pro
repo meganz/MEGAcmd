@@ -14,16 +14,9 @@ TARGET = MEGAclient
 TEMPLATE = app
 CONFIG += console
 
-include(../MEGAcmdCommon.pri)
+include(MEGAcmdClient.pri)
 
-SOURCES += ../../../../src/client/megacmdclient.cpp \
-    ../../../../src/megacmdshell/megacmdshellcommunications.cpp \
-    ../../../../src/megacmdshell/megacmdshellcommunicationsnamedpipes.cpp \
-    ../../../../src/megacmdcommonutils.cpp
-
-HEADERS += ../../../../src/megacmdshell/megacmdshellcommunications.h \
-    ../../../../src/megacmdshell/megacmdshellcommunicationsnamedpipes.h \
-    ../../../../src/megacmdcommonutils.h
+SOURCES += $$MEGACMD_BASE_PATH/src/client/megacmd_client_main.cpp
 
 #win32{
 #    DEFINES += USE_WIN32THREAD
@@ -54,14 +47,11 @@ else{
     QMAKE_CXXFLAGS_WARN_ON += -Wno-unused-parameter
 }
 
-
 macx {
     !vcpkg{
-        INCLUDEPATH += $$PWD/../../../../sdk/bindings/qt/3rdparty/include
-        LIBS += $$PWD/../../../../sdk/bindings/qt/3rdparty/libs/libreadline.a
+        INCLUDEPATH += $$MEGACMD_BASE_PATH/sdk/bindings/qt/3rdparty/include
+        LIBS += $$MEGACMD_BASE_PATH/sdk/bindings/qt/3rdparty/libs/libreadline.a
     }
     LIBS += -framework Cocoa -framework SystemConfiguration -framework CoreFoundation -framework Foundation -framework Security
     LIBS += -lncurses
 }
-
-

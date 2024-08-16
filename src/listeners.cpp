@@ -49,7 +49,7 @@ void MegaCmdGlobalListener::onUsersUpdate(MegaApi *api, MegaUserList *users1)
     }
     else //initial update or too many changes
     {
-        MegaUserList *users2 = api->getContacts();
+        std::unique_ptr<MegaUserList> users2(api->getContacts());
 
         if (users2 && users2->size())
         {
@@ -61,8 +61,6 @@ void MegaCmdGlobalListener::onUsersUpdate(MegaApi *api, MegaUserList *users1)
             {
                 LOG_debug << users2->size() << " users received or updated";
             }
-
-            delete users2;
         }
     }
 }
@@ -109,51 +107,84 @@ void MegaCmdGlobalListener::onNodesUpdate(MegaApi *api, MegaNodeList *nodes)
                 }
             }
         }
-    }
-    else //initial update or too many changes
-    {
-        if (loggerCMD->getMaxLogLevel() >= logInfo)
-        {
-            MegaNode * nodeRoot = api->getRootNode();
-            getNumFolderFiles(nodeRoot, api, &nfiles, &nfolders);
-            delete nodeRoot;
-
-            MegaNode * inboxNode = api->getInboxNode();
-            getNumFolderFiles(inboxNode, api, &nfiles, &nfolders);
-            delete inboxNode;
-
-            MegaNode * rubbishNode = api->getRubbishNode();
-            getNumFolderFiles(rubbishNode, api, &nfiles, &nfolders);
-            delete rubbishNode;
-
-            MegaNodeList *inshares = api->getInShares();
-            if (inshares)
-            {
-                for (int i = 0; i < inshares->size(); i++)
-                {
-                    nfolders++; //add the share itself
-                    getNumFolderFiles(inshares->get(i), api, &nfiles, &nfolders);
-                }
-            }
-            delete inshares;
-        }
 
         if (nfolders)
         {
-            LOG_debug << nfolders << " folders " << "added or updated ";
+            LOG_debug << nfolders << " folders "
+                      << "added or updated ";
         }
         if (nfiles)
         {
-            LOG_debug << nfiles << " files " << "added or updated ";
+            LOG_debug << nfiles << " files "
+                      << "added or updated ";
         }
-        if (rfolders)
-        {
-            LOG_debug << rfolders << " folders " << "removed";
-        }
-        if (rfiles)
-        {
-            LOG_debug << rfiles << " files " << "removed";
-        }
+    }
+    else if (loggerCMD->getMaxLogLevel() >= logInfo)  //initial update or too many changes
+    {
+        api->getAccountDetails(new MegaCmdListenerFuncExecuter(
+            [nfiles, nfolders](mega::MegaApi *api, mega::MegaRequest *request, mega::MegaError *e)
+            {
+                auto details = std::unique_ptr<mega::MegaAccountDetails>(request->getMegaAccountDetails());
+                if (details == nullptr)
+                {
+                    LOG_err << "could not get account details";
+                    return;
+                }
+                auto nFiles = nfiles;
+                auto nFolders = nfolders;
+                auto nodeRoot = std::unique_ptr<MegaNode>(api->getRootNode());
+                if (nodeRoot != nullptr)
+                {
+                    auto handle = nodeRoot->getHandle();
+                    nFiles += details->getNumFiles(handle);
+                    nFolders += details->getNumFolders(handle);
+                }
+                auto inboxNode = std::unique_ptr<MegaNode>(api->getInboxNode());
+                if (inboxNode != nullptr)
+                {
+                    auto handle = inboxNode->getHandle();
+                    nFiles += details->getNumFiles(handle);
+                    nFolders += details->getNumFolders(handle);
+                }
+                auto rubbishNode = std::unique_ptr<MegaNode>(api->getRubbishNode());
+                if (rubbishNode != nullptr)
+                {
+                    auto handle = rubbishNode->getHandle();
+                    nFiles += details->getNumFiles(handle);
+                    nFolders += details->getNumFolders(handle);
+                }
+                auto inshares = std::unique_ptr<MegaNodeList>(api->getInShares());
+                if (inshares)
+                {
+                    nFolders += inshares->size(); // add the shares themselves.
+                    for (int i = 0; i < inshares->size(); i++)
+                    {
+                        auto handle = inshares->get(i)->getHandle();
+                        nFiles += details->getNumFiles(handle);
+                        nFolders += details->getNumFolders(handle);
+                    }
+                }
+                if (nFolders)
+                {
+                    LOG_debug << nFolders << " folders added or updated";
+                }
+                if (nFiles)
+                {
+                    LOG_debug << nFiles << " files added or updated";
+                }
+            },
+            true));
+    }
+
+    if (rfolders)
+    {
+        LOG_debug << rfolders << " folders "
+                  << "removed";
+    }
+    if (rfiles)
+    {
+        LOG_debug << rfiles << " files "
+                  << "removed";
     }
 }
 
@@ -243,40 +274,71 @@ void MegaCmdGlobalListener::onEvent(MegaApi *api, MegaEvent *event)
                         api->getUserData(new MegaCmdListenerFuncExecuter(
                                         [this](mega::MegaApi* api, mega::MegaRequest *request, mega::MegaError *e)
                         {
-                            if (e->getValue() == MegaError::API_OK)
+                            if (e->getValue() != MegaError::API_OK)
                             {
-                                std::unique_ptr<char[]> myEmail(api->getMyEmail());
-                                std::unique_ptr<MegaIntegerList> warningsList(api->getOverquotaWarningsTs());
-                                std::string s;
-                                s += "We have contacted you by email to " + string(myEmail.get()) + " on ";
-                                s += getReadableTime(warningsList->get(0),"%b %e %Y");
-                                if (warningsList->size() > 1)
-                                {
-                                    for (int i = 1; i < warningsList->size() - 1; i++)
-                                    {
-                                        s += ", " + getReadableTime(warningsList->get(i),"%b %e %Y");
-                                    }
-                                    s += " and " + getReadableTime(warningsList->get(warningsList->size() - 1),"%b %e %Y");
-                                }
-                                std::unique_ptr<MegaNode> rootNode(api->getRootNode());
-                                long long totalFiles = 0;
-                                long long totalFolders = 0;
-                                getNumFolderFiles(rootNode.get(),api,&totalFiles,&totalFolders);
-                                s += ", but you still have " + std::to_string(totalFiles) + " files taking up " + sizeToText(sandboxCMD->receivedStorageSum);
-                                s += " in your MEGA account, which requires you to upgrade your account.\n\n";
-                                long long daysLeft = (api->getOverquotaDeadlineTs() - m_time(NULL)) / 86400;
-                                if (daysLeft > 0)
-                                {
-                                     s += "You have " + std::to_string(daysLeft) + " days left to upgrade. ";
-                                     s += "After that, your data is subject to deletion.\n";
-                                }
-                                else
-                                {
-                                     s += "You must act immediately to save your data. From now on, your data is subject to deletion.\n";
-                                }
-                                s += "See \"help --upgrade\" for further details.";
-                                broadcastMessage(s);
+                                // We don't have access to MegaCmdExecuter's error handling methods here
+                                std::string errorString(e->getErrorString());
+                                LOG_err << "Failed to get user data: " << errorString;
+                                return;
                             }
+                            api->getAccountDetails(new MegaCmdListenerFuncExecuter(
+                                [this](mega::MegaApi *api, mega::MegaRequest *request, mega::MegaError *e)
+                                {
+                                    if (e->getValue() != MegaError::API_OK)
+                                    {
+                                        std::string errorString(e->getErrorString());
+                                        LOG_err << "Failed to get account details: " << errorString;
+                                        return;
+                                    }
+                                    std::unique_ptr<char[]> myEmail(api->getMyEmail());
+                                    std::unique_ptr<MegaIntegerList> warningsList(api->getOverquotaWarningsTs());
+                                    std::string s("We have contacted you by email");
+                                    if (myEmail != nullptr)
+                                    {
+                                        s.append(" to ").append(myEmail.get());
+                                    }
+                                    if (warningsList != nullptr)
+                                    {
+                                        s.append(" on ").append(getReadableTime(warningsList->get(0), "%b %e %Y"));
+                                        if (warningsList->size() > 1)
+                                        {
+                                            for (int i = 1; i < warningsList->size() - 1; i++)
+                                            {
+                                                s += ", " + getReadableTime(warningsList->get(i), "%b %e %Y");
+                                            }
+                                            s += " and " + getReadableTime(warningsList->get(warningsList->size() - 1), "%b %e %Y");
+                                        }
+                                    }
+
+                                    std::unique_ptr<MegaNode> rootNode(api->getRootNode());
+                                    std::unique_ptr<MegaAccountDetails> details(request->getMegaAccountDetails());
+                                    if (details != nullptr && rootNode != nullptr)
+                                    {
+                                        auto rootNodeHandle = rootNode->getHandle();
+                                        long long totalFiles = details->getNumFiles(rootNodeHandle);
+                                        long long totalFolders = details->getNumFolders(rootNodeHandle);
+                                        s += ", but you still have " + std::to_string(totalFiles) + " files and " + std::to_string(totalFolders) + " folders taking up " +
+                                             sizeToText(sandboxCMD->receivedStorageSum);
+                                        s += " in your MEGA account, which requires you to upgrade your account.\n\n";
+                                    }
+                                    else // If we weren't able to get the root node or details object, lets just display the total storage used.
+                                    {
+                                        s += ", but your MEGA account still uses " + sizeToText(sandboxCMD->receivedStorageSum) +
+                                             ", which requires you to upgrade your account.\n\n";
+                                    }
+                                    long long daysLeft = (api->getOverquotaDeadlineTs() - m_time(nullptr)) / 86400;
+                                    if (daysLeft > 0)
+                                    {
+                                        s += "You have " + std::to_string(daysLeft) + " days left to upgrade. ";
+                                        s += "After that, your data is subject to deletion.\n";
+                                    }
+                                    else
+                                    {
+                                        s += "You must act immediately to save your data. From now on, your data is subject to deletion.\n";
+                                    }
+                                    s += "See \"help --upgrade\" for further details.";
+                                    broadcastMessage(s);
+                                }));
                         },true));
                     }
                     else
@@ -308,9 +370,10 @@ void MegaCmdGlobalListener::onEvent(MegaApi *api, MegaEvent *event)
     }
     else if (event->getType() == MegaEvent::EVENT_SYNCS_DISABLED)
     {
+        std::unique_ptr<const char[]> megaSyncErrorCode {MegaSync::getMegaSyncErrorCode(int(event->getNumber()))};
         removeDelayedBroadcastMatching("Your sync has been disabled");
         broadcastMessage(std::string("Your syncs have been disabled. Reason: ")
-                         .append(MegaSync::getMegaSyncErrorCode(int(event->getNumber()))), true);
+                         .append(megaSyncErrorCode.get()), true);
     }
     else if (event->getType() == MegaEvent::EVENT_UPGRADE_SECURITY)
     {
@@ -457,8 +520,7 @@ void MegaCmdMegaListener::onSyncAdded(MegaApi *api, MegaSync *sync)
 
     if (!ConfigurationManager::getConfigurationValue("firstSyncConfigured", false))
     {
-        api->sendEvent(MCMD_EVENT_FIRST_CONFIGURED_SYNC_ID,
-                   MCMD_EVENT_FIRST_CONFIGURED_SYNC_MESSAGE);
+        sendEvent(StatsManager::MegacmdEvent::FIRST_CONFIGURED_SYNC, api, false);
         ConfigurationManager::savePropertyValue("firstSyncConfigured", true);
     }
 }
@@ -470,7 +532,8 @@ void MegaCmdMegaListener::onSyncStateChanged(MegaApi *api, MegaSync *sync)
     << " has transitioned to state " << syncRunStateStr(sync->getRunState());
     if (sync->getError())
     {
-        ss << ". ErrorCode: " << sync->getMegaSyncErrorCode();
+        std::unique_ptr<const char[]> megaSyncErrorCode {sync->getMegaSyncErrorCode()};
+        ss << ". ErrorCode: " << megaSyncErrorCode.get();
     }
     auto msg = ss.str();
 
@@ -844,15 +907,14 @@ void MegaCmdMultiTransferListener::doOnTransferFinish(MegaApi* api, MegaTransfer
         s+=":";
         if (transfer->getType() == MegaTransfer::TYPE_UPLOAD)
         {
-            MegaNode *n = api->getNodeByHandle(transfer->getNodeHandle());
+            std::unique_ptr<MegaNode> n(api->getNodeByHandle(transfer->getNodeHandle()));
             if (n)
             {
-                const char *path = api->getNodePath(n);
+                std::unique_ptr<char[]> path(api->getNodePath(n.get()));
                 if (path)
                 {
-                    s+=path;
+                    s += path.get();
                 }
-                delete [] path;
             }
         }
         else

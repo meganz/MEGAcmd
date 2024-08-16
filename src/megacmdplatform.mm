@@ -34,12 +34,22 @@ bool registerUpdateDaemon()
         return false;
     }
 
-    NSString *fullpath = [homepath stringByAppendingString:@"/Library/LaunchAgents/megacmd.mac.megaupdater.plist"];
-    if ([plistd writeToFile:fullpath atomically:YES] == NO)
+    NSFileManager *fileManager = [NSFileManager defaultManager];
+
+    NSString *dirPath = [homepath stringByAppendingString:@"/Library/LaunchAgents/"];
+    NSURL *dirURL = [NSURL fileURLWithPath:dirPath isDirectory:YES];
+    if ([fileManager createDirectoryAtURL:dirURL withIntermediateDirectories:YES attributes:nil error:nil] == NO)
     {
         return false;
     }
-    std::string path = [fullpath UTF8String];
+
+    NSString *fullPath = [dirPath stringByAppendingString:@"megacmd.mac.megaupdater.plist"];
+    if ([plistd writeToFile:fullPath atomically:YES] == NO)
+    {
+        return false;
+    }
+
+    std::string path = [fullPath UTF8String];
     chmod(path.c_str(), S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
     int pid = fork();
     if (pid)
@@ -66,7 +76,7 @@ bool registerUpdateDaemon()
         argv[i++]="-c";
         std::string ls="launchctl unload ";
         ls.append(path);
-        ls.append(" && launchctl load ");
+        ls.append(" ; launchctl load -w ");
         ls.append(path);
         argv[i++]=(char *)ls.c_str();
         argv[i++]=NULL;

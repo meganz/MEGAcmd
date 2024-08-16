@@ -10,10 +10,11 @@ CONFIG(release, debug|release) {
 
 TEMPLATE = subdirs
 SUBDIRS =  MEGAcmdShell MEGAcmdClient \
-     MEGAcmdServer MEGAcmdUpdater
+     MEGAcmdServer MEGAcmdUpdater \
+     MEGAcmdTests
 
 macx {
     SUBDIRS += MEGAcmdLoader
     QMAKE_INFO_PLIST = Info_MEGA.plist
-    QMAKE_MACOSX_DEPLOYMENT_TARGET = 10.12
+    QMAKE_MACOSX_DEPLOYMENT_TARGET = 10.13
 }
