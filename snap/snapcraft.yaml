@@ -1,7 +1,7 @@
 name: mega-cmd 
 title: MEGAcmd
 base: core22 
-version: 1.6.3
+version: 1.7.0
 summary: Command Line Interactive and Scriptable Application to access MEGA 
 description: |
   MEGAcmd provides non UI access to MEGA services. It intends to offer all the
@@ -18,7 +18,7 @@ parts:
     plugin: autotools
     autotools-configure-parameters: ["--without-ffmpeg"]
     source: https://github.com/meganz/MEGAcmd.git
-    source-tag: "1.6.3_Linux"
+    source-tag: "1.7.0_Linux"
     source-type: git
     build-packages:
       - autoconf
@@ -41,6 +41,7 @@ parts:
       - libmediainfo-dev 
       - libzen-dev 
       - libuv1-dev
+      - libicu-dev
     stage-packages:
       - libpcrecpp0v5
       - libcrypto++8
@@ -51,10 +52,15 @@ parts:
       - libmediainfo0v5
       - libsodium23
       - libuv1
+      - libicu70
     prime:
       - -usr/lib/x86_64-linux-gnu/libIexMath-2_5.so.25.0.6
       - -usr/lib/x86_64-linux-gnu/libIlmImfUtil-2_5.so.25.0.6
       - -usr/lib/x86_64-linux-gnu/libraw_r.so.20.0.0
+      - -usr/lib/x86_64-linux-gnu/libicutest.so.70.1
+      - -usr/lib/x86_64-linux-gnu/libicuio.so.70.1
+      - -usr/lib/x86_64-linux-gnu/libicutu.so.70.1
+      - -usr/lib/x86_64-linux-gnu/libicui18n.so.70.1
 
   # Add licensing into the snap 
   license:
