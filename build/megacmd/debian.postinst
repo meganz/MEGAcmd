@@ -1,9 +1,9 @@
 #!/bin/bash
 
 #distro=$(lsb_release -ds)
-distro=$(cat /usr/share/doc/megacmd/distro)
+distro="@DISTRO@"
 #ver=$(lsb_release -rs)
-ver=$(cat /usr/share/doc/megacmd/version)
+ver="@VERSION@"
 
 if [[ $distro = "Raspbian GNU/Linux 12"* ]]; then
     str="Raspbian_12"

@@ -41,14 +41,6 @@ build-stamp:
 	#generate file that would increase inotify limit:
 	echo "fs.inotify.max_user_watches = 524288" > 99-megacmd-inotify-limit.conf
 
-	#Have distro & version files generated
-	lsb_release -ds > distro
-	if [ -n "$(DEB_TESTING)" ]; then   \
-		echo $(DEB_TESTING) > version; \
-	else                               \
-		lsb_release -rs > version;     \
-	fi
-
 	touch build-stamp
 
 clean:
@@ -60,9 +52,15 @@ install: build
 	###dh_auto_install --destdir=megacmd/megacmd
 	dh_install install_dir/* /
 
-	dh_install distro /usr/share/doc/megacmd
-	dh_install version /usr/share/doc/megacmd
-
+	distro=$(lsb_release -ds)
+	if [ -n "$(DEB_TESTING)" ]; then   \
+		ver=$(DEB_TESTING);            \
+	else                               \
+		ver=$(lsb_release -rs);        \
+	fi
+	sed -i "s|@DISTRO@|$$distro|g" debian.postinst
+	sed -i "s|@VERSION@|$$ver|g" debian.postinst
+	
 # Build architecture-independent files here.
 binary-indep: build install
 	# We have nothing to do by default.
