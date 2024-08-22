@@ -76,7 +76,7 @@ pipeline {
                     }
                     script{
                         if ( params.IS_RELEASE_CANDIDATE == true) {
-                            def MEGACMD_VERSION = getVersionFromHeader("src/megacmdversion.h.in")
+                            def MEGACMD_VERSION = getVersionFromHeader("src/megacmdversion.h")
                             sh "cd ${env.INTERNAL_REPO_PATH}/repo/private/$DISTRO_TO_BUILD && jf rt upload --regexp '((x86_64|amd64|i386)/megacmd.*deb\$|(x86_64|amd64|i386)/megacmd.*rpm\$|(x86_64|amd64|i386)/megacmd.*\\.pkg\\.tar\\.zst\$|(x86_64|amd64|i386)/megacmd.*\\.pkg\\.tar\\.xz\$)' MEGAcmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/linux/$DISTRO_TO_BUILD/"
                             echo "Packages successfully uploaded. URL: [${env.REPO_URL}/MEGAcmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/linux/$DISTRO_TO_BUILD/]"
                         }

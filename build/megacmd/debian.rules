@@ -9,7 +9,8 @@ SQLITE3 := $(shell cat /etc/issue | grep "Ubuntu 18.04\|Ubuntu 20.04\|Debian.* \
 DEB_TESTING := $(shell cat /etc/issue | grep "Debian" > /dev/null && cat /etc/apt/sources.list.d/debian.sources | grep -v "^\#" | grep testing > /dev/null && echo "testing")
 #TODO: Ensure raspbian builds with that export
 EXPORTCCMFPU := $(shell cat /etc/issue | grep "Raspbian GNU/Linux 12" >/dev/null && echo "export CC='cc -mfpu=vfp'" || echo ":")
-
+DISTRO := $(shell lsb_release -ds)
+VER := $(shell lsb_release -rs)
 export VCPKG_DEFAULT_BINARY_CACHE := $(shell [ -f /opt/vcpkg.tar.gz ] && echo "/opt/persistent/vcpkg_cache" || echo "")
 export PATH := $(shell [ -f /opt/cmake.tar.gz ] && echo "`pwd`/cmake_inst/bin:${PATH}" || echo "${PATH}")
 export CXXFLAGS := $(shell [ -n "${EXTRADEFINES}" ] && echo "${EXTRADEFINES} ${CXXFLAGS}" || echo "${CXXFLAGS}")
@@ -41,6 +42,13 @@ build-stamp:
 	#generate file that would increase inotify limit:
 	echo "fs.inotify.max_user_watches = 524288" > 99-megacmd-inotify-limit.conf
 
+	if [ -n "$(DEB_TESTING)" ]; then   							\
+		sed -i "s/@VERSION@/$(DEB_TESTING)/g" debian/postinst;	\
+	else                               							\
+		sed -i "s/@VERSION@/$(VER)/g" debian/postinst;        	\
+	fi
+	sed -i "s/@DISTRO@/$(DISTRO)/g" debian/postinst
+	
 	touch build-stamp
 
 clean:
@@ -51,15 +59,6 @@ clean:
 install: build
 	###dh_auto_install --destdir=megacmd/megacmd
 	dh_install install_dir/* /
-
-	distro=$(lsb_release -ds)
-	if [ -n "$(DEB_TESTING)" ]; then   \
-		ver=$(DEB_TESTING);            \
-	else                               \
-		ver=$(lsb_release -rs);        \
-	fi
-	sed -i "s|@DISTRO@|$$distro|g" debian.postinst
-	sed -i "s|@VERSION@|$$ver|g" debian.postinst
 	
 # Build architecture-independent files here.
 binary-indep: build install
