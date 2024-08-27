@@ -87,7 +87,7 @@ pipeline {
                     script{
                         MEGACMD_VERSION = sh (
                             script: '''
-                                grep -Po "(set.MEGACMD_MAJOR_VERSION \K\d+|set.MEGACMD_MINOR_VERSION \K\d+|set.MEGACMD_MICRO_VERSION \K\d+|)" CMakeLists.txt | paste -sd '.'
+                                grep -Po "set\\(MEGACMD_MAJOR_VERSION \\K\\d+|set.MEGACMD_MINOR_VERSION \\K\\d+|set\\(MEGACMD_MICRO_VERSION \\K\\d+)" CMakeLists.txt | paste -sd '.'
                             ''',
                             returnStdout: true
                         ).trim()
