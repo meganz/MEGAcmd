@@ -76,7 +76,7 @@ pipeline {
                     }
                     script{
                         if ( params.IS_RELEASE_CANDIDATE == true) {
-                            def MEGACMD_VERSION = getVersionFromHeader("src/megacmdversion.h")
+                            def MEGACMD_VERSION = getVersionFromHeader("CMakeLists.txt")
                             sh "cd ${env.INTERNAL_REPO_PATH}/repo/private/$DISTRO_TO_BUILD && jf rt upload --regexp '((x86_64|amd64|i386)/megacmd.*deb\$|(x86_64|amd64|i386)/megacmd.*rpm\$|(x86_64|amd64|i386)/megacmd.*\\.pkg\\.tar\\.zst\$|(x86_64|amd64|i386)/megacmd.*\\.pkg\\.tar\\.xz\$)' MEGAcmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/linux/$DISTRO_TO_BUILD/"
                             echo "Packages successfully uploaded. URL: [${env.REPO_URL}/MEGAcmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/linux/$DISTRO_TO_BUILD/]"
                         }
@@ -141,7 +141,7 @@ pipeline {
                         steps {
                             dir(linux_sources_workspace) {
                                 script{
-                                    def MEGACMD_VERSION = getVersionFromHeader("src/megacmdversion.h")
+                                    def MEGACMD_VERSION = getVersionFromHeader("CMakeLists.txt")
                                     sh "jf rt del MEGAcmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/linux/$DISTRO"
                                     sh "cd ${env.INTERNAL_REPO_PATH}/repo/private/$DISTRO && jf rt upload --regexp '((x86_64|amd64|i386)/megacmd.*deb\$|(x86_64|amd64|i386)/megacmd.*rpm\$|(x86_64|amd64|i386)/megacmd.*\\.pkg\\.tar\\.zst\$|(x86_64|amd64|i386)/megacmd.*\\.pkg\\.tar\\.xz\$)' MEGAcmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/linux/$DISTRO/"
                                     echo "Packages successfully uploaded. URL: [${env.REPO_URL}/MEGAcmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/linux/$DISTRO/]"
@@ -155,7 +155,6 @@ pipeline {
     }
 }
 
-
 def buildAndSignPackage(String distro, String architecture, String packageName) {
     sh "${env.BUILDTOOLS_PATH}/build/buildManager.sh -a ${architecture} -j 1 build ${distro} . ${packageName}"
     sh "${env.BUILDTOOLS_PATH}/repo/repoManager.sh add ${env.INTERNAL_REPO_PATH}/builder/results/${distro}/${architecture}/${packageName}/ ${distro}"
@@ -164,11 +163,7 @@ def buildAndSignPackage(String distro, String architecture, String packageName) 
 
 def getVersionFromHeader(String versionFilePath) {
     return sh(script: """
-        awk  '/#define MEGACMD_MAJOR_VERSION/ { MAJOR=\$3 }; \
-              /#define MEGACMD_MINOR_VERSION/ { MINOR=\$3 }; \
-              /#define MEGACMD_MICRO_VERSION/ { MICRO=\$3 }; \
-              END { print MAJOR"."MINOR"."MICRO }' \
-              $versionFilePath
+        grep -Po "(set\(MEGACMD_MAJOR_VERSION \K\d+|set\(MEGACMD_MINOR_VERSION \K\d+|set\(MEGACMD_MICRO_VERSION \K\d+|)" $versionFilePath | paste -sd '.'
         """
         , returnStdout: true).trim()
 }
