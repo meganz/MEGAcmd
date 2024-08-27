@@ -139,6 +139,7 @@ void executeCommand(const Args& args)
     }
 
     std::string megaIgnoreFilePath;
+    bool isDefault = true;
     if (args.mMegaIgnoreDirPath.empty())
     {
         megaIgnoreFilePath = MegaIgnoreFile::getDefaultPath();
@@ -146,12 +147,21 @@ void executeCommand(const Args& args)
     else
     {
         megaIgnoreFilePath = args.mMegaIgnoreDirPath + "/.megaignore";
+        isDefault = false;
     }
 
     if (!fs::exists(megaIgnoreFilePath))
     {
         setCurrentOutCode(MCMD_NOTFOUND);
-        LOG_err << "Mega ignore file \"" << megaIgnoreFilePath << "\" does not exist";
+        if (isDefault)
+        {
+            // For the default file to be created, a sync that DOES NOT already contain a .megaignore file has to be added
+            LOG_err << "Default .megaignore file does not exist (will be created when a new sync is added)";
+        }
+        else
+        {
+            LOG_err << "Mega ignore file \"" << megaIgnoreFilePath << "\" does not exist";
+        }
         return;
     }
 
