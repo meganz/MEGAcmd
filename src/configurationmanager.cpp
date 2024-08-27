@@ -506,7 +506,7 @@ void ConfigurationManager::transitionLegacyExclusionRules(MegaApi& api)
 
     string message = "Your legacy sync exclusion rules have been ported to \"" +
                      defaultMegaIgnorePath + "\"\n" +
-                     "See `sync-ignore` for more info.";
+                     "See \"sync-ignore\" for more info.";
     broadcastMessage(message, true);
 }
 
