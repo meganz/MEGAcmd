@@ -8068,7 +8068,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             args.mMegaIgnoreDirPath = std::string(sync->getLocalFolder());
             --filter_end; // the last word is the sync [path|ID]; not a filter
         }
-        else if (!ignoreShow || words.size() == 1)
+        else if (args.mAction != SyncIgnore::Action::Show || words.size() == 1)
         {
             OUTSTREAM << "Note: Using default .megaignore file since no sync was specified" << endl << endl;
         }
