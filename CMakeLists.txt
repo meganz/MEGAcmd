@@ -203,25 +203,35 @@ endif()
 
 add_executable(mega-cmd-server ${executablesType})
 if (WIN32)
-    set(MEGACMD_RESOURCE_NAME MEGAcmdServer) #TODO: do the same of other executables
+    set(MEGACMD_RESOURCE_NAME MEGAcmdServer)
     configure_file("${CMAKE_CURRENT_LIST_DIR}/build/installer/winversion.rc.in" "${CMAKE_CURRENT_LIST_DIR}/build/installer/mega-cmd-server_version.rc" @ONLY)
-    set(RESOURCE_FILES
-        "${CMAKE_CURRENT_LIST_DIR}/build/installer/mega-cmd-server_version.rc"
-    )
+    set(RESOURCE_FILES_MEGACMD_SERVER "${CMAKE_CURRENT_LIST_DIR}/build/installer/mega-cmd-server_version.rc")
+
+    set(MEGACMD_RESOURCE_NAME MEGAclient)
+    configure_file("${CMAKE_CURRENT_LIST_DIR}/build/installer/winversion.rc.in" "${CMAKE_CURRENT_LIST_DIR}/build/installer/mega-cmd-client_version.rc" @ONLY)
+    set(RESOURCE_FILES_MEGACMD_CLIENT "${CMAKE_CURRENT_LIST_DIR}/build/installer/mega-cmd-client_version.rc")
+
+    set(MEGACMD_RESOURCE_NAME MEGAcmdShell)
+    configure_file("${CMAKE_CURRENT_LIST_DIR}/build/installer/winversion.rc.in" "${CMAKE_CURRENT_LIST_DIR}/build/installer/mega-cmd-shell_version.rc" @ONLY)
+    set(RESOURCE_FILES_MEGACMD_SHELL "${CMAKE_CURRENT_LIST_DIR}/build/installer/mega-cmd-shell_version.rc")
+
+    set(MEGACMD_RESOURCE_NAME MEGAcmdUpdater)
+    configure_file("${CMAKE_CURRENT_LIST_DIR}/build/installer/winversion.rc.in" "${CMAKE_CURRENT_LIST_DIR}/build/installer/mega-cmd-updater_version.rc" @ONLY)
+    set(RESOURCE_FILES_MEGACMD_UPDATER "${CMAKE_CURRENT_LIST_DIR}/build/installer/mega-cmd-updater_version.rc")
 elseif (APPLE)
-    set(RESOURCE_FILES
+    set(RESOURCE_FILES_MEGACMD_SERVER
         ${CMAKE_CURRENT_SOURCE_DIR}/build/installer/app.icns
     )
 
     set_target_properties(mega-cmd-server PROPERTIES
         MACOSX_BUNDLE TRUE
         MACOSX_BUNDLE_INFO_PLIST ${CMAKE_CURRENT_SOURCE_DIR}/build/installer/Info.plist
-        RESOURCE "${RESOURCE_FILES}"
+        RESOURCE "${RESOURCE_FILES_MEGACMD_SERVER}"
     )
 endif()
 add_source_and_corresponding_header_to_target(mega-cmd-server PRIVATE
     "${ProjectDir}/src/megacmd_server_main.cpp"
-    "${RESOURCE_FILES}"
+    "${RESOURCE_FILES_MEGACMD_SERVER}"
 )
 if (APPLE)
 set_target_properties(mega-cmd-server PROPERTIES OUTPUT_NAME "MEGAcmd")
@@ -240,7 +250,7 @@ add_source_and_corresponding_header_to_target(LMegacmdClient PUBLIC
 add_executable(mega-exec ${executablesType})
 add_source_and_corresponding_header_to_target(mega-exec PRIVATE
     "${ProjectDir}/src/client/megacmd_client_main.cpp"
-    #"${ProjectDir}/contrib/QtCreator/MEGAcmd/MEGAcmdClient/icon.rc"
+    "${RESOURCE_FILES_MEGACMD_CLIENT}"
 )
 
 add_executable(mega-cmd ${executablesType})
@@ -248,7 +258,7 @@ add_source_and_corresponding_header_to_target(mega-cmd PRIVATE
     "${ProjectDir}/src/megacmdshell/megacmdshellcommunications.cpp"
     "${ProjectDir}/src/megacmdshell/megacmdshellcommunicationsnamedpipes.cpp"
     "${ProjectDir}/src/megacmdshell/megacmdshell.cpp"
-    #"${ProjectDir}/contrib/QtCreator/MEGAcmd/MEGAcmdShell/icon.rc"
+    "${RESOURCE_FILES_MEGACMD_SHELL}"
 )
 
 if (WIN32)
@@ -261,7 +271,7 @@ add_source_and_corresponding_header_to_target(mega-cmd-updater PRIVATE
 )
 add_source_and_corresponding_header_to_target(mega-cmd-updater PRIVATE
     "${ProjectDir}/src/updater/UpdateTask.cpp"
-    #"${ProjectDir}/contrib/QtCreator/MEGAcmd/MEGAcmdUpdater/icon.rc"
+    "${RESOURCE_FILES_MEGACMD_UPDATER}"
 )
 
 target_sources_conditional(mega-cmd-updater

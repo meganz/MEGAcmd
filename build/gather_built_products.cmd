@@ -33,14 +33,14 @@ copy %BASEMEGACMDPATH%\build-x86-windows-mega\RelWithDebInfo\MEGAcmdShell.exe bu
 copy %BASEMEGACMDPATH%\build-x86-windows-mega\RelWithDebInfo\MEGAcmdUpdater.exe built32
 copy %BASEMEGACMDPATH%\build-x86-windows-mega\RelWithDebInfo\*.pdb built32
 
-copy %BASEMEGACMDPATH%\build-x64-windows-mega\RelWithDebInfo\*.dll sign32
+copy %BASEMEGACMDPATH%\build-x86-windows-mega\RelWithDebInfo\*.dll sign32
 copy %BASEMEGACMDPATH%\build-x86-windows-mega\RelWithDebInfo\MEGAclient.exe sign32
 copy %BASEMEGACMDPATH%\build-x86-windows-mega\RelWithDebInfo\MEGAcmdServer.exe sign32
 copy %BASEMEGACMDPATH%\build-x86-windows-mega\RelWithDebInfo\MEGAcmdShell.exe sign32
 copy %BASEMEGACMDPATH%\build-x86-windows-mega\RelWithDebInfo\MEGAcmdUpdater.exe sign32
 
 REM copy debug symbols of 3rd parties. dlls were already copied
-copy %BASEMEGACMDPATH%\build-x64-windows-mega\vcpkg_installed\x86-windows-mega\bin\*.pdb built32
+copy %BASEMEGACMDPATH%\build-x86-windows-mega\vcpkg_installed\x86-windows-mega\bin\*.pdb built32
 
 REM copy scritps??
 

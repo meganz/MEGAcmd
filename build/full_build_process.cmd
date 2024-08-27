@@ -1,4 +1,4 @@
-REM @echo off
+@echo off
 
 IF "%1%" EQU "-help" (
 	goto Usage
