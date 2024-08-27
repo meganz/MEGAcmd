@@ -65,10 +65,6 @@ elif [[ $ver = "12.10" ]]; then
 elif [[ $ver = "12.04" ]]; then
     str="xUbuntu_12.04"
 # Debian
-elif [[ $ver == 6.* ]]; then
-    str="Debian_6.0"
-elif [[ $ver == 7.* ]]; then
-    str="Debian_7.0"
 elif [[ $ver == 8.* ]]; then
     str="Debian_8.0"
 elif [[ $ver == 9.* ]]; then
@@ -81,24 +77,40 @@ elif [[ $ver = 12* ]]; then
     str="Debian_12"
 elif [[ $ver = "testing" ]]; then
     str="Debian_testing"
-# Elementary OS Luna uses 12.04
-elif [[ $distro = "elementary OS Luna" ]]; then
-    str="xUbuntu_12.04"
 # Elementary OS Freya Ubuntu 14.04 LTS
 elif [[ $distro = "elementary OS Freya" ]]; then
     str="xUbuntu_14.04"
-# Linux Mint 13 Maya LTS (Ubuntu 12.04)
-elif [[ $distro = "Linux Mint 13 Maya" ]]; then
-    str="xUbuntu_12.04"
-# Linux Mint 17.1 Rebecca LTS (Ubuntu 14.04)
+elif [[ $distro = "elementary OS Loki" ]]; then
+    str="xUbuntu_16.04"
+elif [[ $distro = "elementary OS Juno" ]]; then
+    str="xUbuntu_18.04"
+elif [[ $distro = "elementary OS Odin" ]]; then
+    str="xUbuntu_20.04"
+elif [[ $distro = "elementary OS Horus" ]]; then
+    str="xUbuntu_22.04"
 elif [[ $distro = "Linux Mint 17.1 Rebecca" ]]; then
     str="xUbuntu_14.04"
-# Linux Mint 17.2 Rafaela LTS (Ubuntu 14.04)
 elif [[ $distro = "Linux Mint 17.1 Rafaela" ]]; then
     str="xUbuntu_14.04"
+elif [[ $distro = "Linux Mint 18 Sarah" ]]; then
+    str="xUbuntu_16.04"
+elif [[ $distro = "Linux Mint 19 Tara" ]]; then
+    str="xUbuntu_18.04"
+elif [[ $distro = "Linux Mint 20 Ulyina" ]]; then
+    str="xUbuntu_20.04"
+elif [[ $distro = "Linux Mint 21 Vanessa" ]]; then
+    str="xUbuntu_22.04"
+elif [[ $distro = "Linux Mint 21.1 Vera" ]]; then
+    str="xUbuntu_22.04"
+elif [[ $distro = "Linux Mint 21.2 Victoria" ]]; then
+    str="xUbuntu_22.04"
+elif [[ $distro = "Linux Mint 21.3 Virginia" ]]; then
+    str="xUbuntu_22.04"
+elif [[ $distro = "Linux Mint 22 Wilma" ]]; then
+    str="xUbuntu_24.04"
 # fallback to LTS version, unsupported
 else
-    str="xUbuntu_15.04"
+    str="xUbuntu_18.04"
 fi
 
 if [ -d /etc/apt/sources.list.d ]; then
