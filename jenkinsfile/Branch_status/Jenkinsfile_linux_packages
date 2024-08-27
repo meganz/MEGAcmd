@@ -163,7 +163,7 @@ def buildAndSignPackage(String distro, String architecture, String packageName) 
 
 def getVersionFromHeader(String versionFilePath) {
     return sh(script: """
-        grep -Po "(set\(MEGACMD_MAJOR_VERSION \K\d+|set\(MEGACMD_MINOR_VERSION \K\d+|set\(MEGACMD_MICRO_VERSION \K\d+|)" $versionFilePath | paste -sd '.'
+        grep -Po "(set.MEGACMD_MAJOR_VERSION \K\d+|set.MEGACMD_MINOR_VERSION \K\d+|set.MEGACMD_MICRO_VERSION \K\d+|)" $versionFilePath | paste -sd '.'
         """
         , returnStdout: true).trim()
 }

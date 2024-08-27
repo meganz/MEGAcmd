@@ -87,11 +87,7 @@ pipeline {
                     script{
                         MEGACMD_VERSION = sh (
                             script: '''
-                                awk  '/#define MEGACMD_MAJOR_VERSION/ { MAJOR=\$3 }; \
-                                      /#define MEGACMD_MINOR_VERSION/ { MINOR=\$3 }; \
-                                      /#define MEGACMD_MICRO_VERSION/ { MICRO=\$3 }; \
-                                      END { print MAJOR"."MINOR"."MICRO }' \
-                                      src/megacmdversion.h
+                                grep -Po "(set.MEGACMD_MAJOR_VERSION \K\d+|set.MEGACMD_MINOR_VERSION \K\d+|set.MEGACMD_MICRO_VERSION \K\d+|)" CMakeLists.txt | paste -sd '.'
                             ''',
                             returnStdout: true
                         ).trim()
