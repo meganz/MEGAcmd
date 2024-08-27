@@ -70,19 +70,24 @@ public:
 class StalledIssuesManager final
 {
     StalledIssueList mStalledIssues;
-    std::mutex mStalledIssuesMutex;
+    mutable std::mutex mStalledIssuesMutex;
+    bool mWarningEnabled;
 
     std::unique_ptr<mega::MegaGlobalListener> mGlobalListener;
     std::unique_ptr<mega::MegaRequestListener> mRequestListener;
 
 private:
     void populateStalledIssues(const mega::MegaSyncStallList &stalls);
+    void broadcastWarning();
 
 public:
     StalledIssuesManager(mega::MegaApi *api);
 
     StalledIssueCache getLockedCache();
+    bool hasStalledIssues() const;
+
+    void disableWarning();
+    void enableWarning();
 
     mega::MegaGlobalListener* getGlobalListener() const { return mGlobalListener.get(); }
-    mega::MegaRequestListener* getRequestListener() const { return mRequestListener.get(); }
 };

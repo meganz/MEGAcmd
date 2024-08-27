@@ -8010,6 +8010,12 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             OUTSTRINGSTREAM oss;
             cd.print(oss);
             OUTSTREAM << oss.str();
+
+            if (mStalledIssuesManager.hasStalledIssues())
+            {
+                OUTSTREAM << endl;
+                OUTSTREAM << "You have stalled issues. Use the \"" << commandPrefixBasedOnMode() << "stalled\" command to display them." << endl;
+            }
         }
         return;
     }
@@ -10949,6 +10955,26 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             return;
         }
 
+        bool disableWarning = getFlag(clflags, "disable-warning");
+        bool enableWarning = getFlag(clflags, "enable-warning");
+        if (disableWarning && enableWarning)
+        {
+            setCurrentOutCode(MCMD_EARGS);
+            LOG_err << "Only one warning action (enable/disable) can be specified at a time";
+            LOG_err << "      " << getUsageStr("stalled");
+            return;
+        }
+        if (disableWarning)
+        {
+            mStalledIssuesManager.disableWarning();
+            return;
+        }
+        if (enableWarning)
+        {
+            mStalledIssuesManager.enableWarning();
+            return;
+        }
+
         auto stalledIssuesCache = mStalledIssuesManager.getLockedCache();
         if (stalledIssuesCache.empty())
         {
@@ -10957,7 +10983,6 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         }
 
         ColumnDisplayer cd(clflags, cloptions);
-
         cd.addHeader("MAIN PATH", false);
 
         for (const auto& stalledIssue : stalledIssuesCache)

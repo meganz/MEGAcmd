@@ -19,11 +19,15 @@
 #include <functional>
 
 #include "megacmdlogger.h"
+#include "configurationmanager.h"
 
 #ifdef MEGACMD_TESTING_CODE
     #include "../tests/common/Instruments.h"
     using TI = TestInstruments;
 #endif
+
+using namespace megacmd;
+using namespace std::string_literals;
 
 namespace {
 
@@ -167,7 +171,13 @@ void StalledIssuesManager::populateStalledIssues(const mega::MegaSyncStallList& 
     }
 
     {
-        std::lock_guard<std::mutex> lock(mStalledIssuesMutex);
+        std::lock_guard lock(mStalledIssuesMutex);
+
+        if (mWarningEnabled && mStalledIssues.empty())
+        {
+            assert(!stalledIssues.empty());
+            broadcastWarning();
+        }
         mStalledIssues = std::move(stalledIssues);
     }
 
@@ -175,6 +185,13 @@ void StalledIssuesManager::populateStalledIssues(const mega::MegaSyncStallList& 
     TI::Instance().setTestValue(TI::TestValue::STALLED_ISSUES_LIST_SIZE, static_cast<uint64_t>(stalls.size()));
     TI::Instance().fireEvent(TI::Event::STALLED_ISSUES_LIST_UPDATED);
 #endif
+}
+
+void StalledIssuesManager::broadcastWarning()
+{
+    std::string message = "You have stalled issues. Use the \""s + commandPrefixBasedOnMode() + "stalled\" command to display them.\n" +
+                          "This message can be disabled with \"" + commandPrefixBasedOnMode() + "stalled --disable-warning\".";
+    broadcastMessage(message, true);
 }
 
 StalledIssuesManager::StalledIssuesManager(mega::MegaApi *api)
@@ -186,9 +203,39 @@ StalledIssuesManager::StalledIssuesManager(mega::MegaApi *api)
 
     mRequestListener = std::make_unique<StalledIssuesRequestListener>(
         [this] (const mega::MegaSyncStallList& stalls) { populateStalledIssues(stalls); });
+
+    mWarningEnabled = ConfigurationManager::getConfigurationValue("stalled_issues_warning", true);
 }
 
 StalledIssueCache StalledIssuesManager::getLockedCache()
 {
     return StalledIssueCache(mStalledIssues, mStalledIssuesMutex);
+}
+
+bool StalledIssuesManager::hasStalledIssues() const
+{
+    std::lock_guard lock(mStalledIssuesMutex);
+    return !mStalledIssues.empty();
+}
+
+void StalledIssuesManager::disableWarning()
+{
+    if (!mWarningEnabled)
+    {
+        OUTSTREAM << "Note: warning is already disabled" << endl;
+    }
+
+    mWarningEnabled = false;
+    ConfigurationManager::savePropertyValue("stalled_issues_warning", mWarningEnabled);
+}
+
+void StalledIssuesManager::enableWarning()
+{
+    if (mWarningEnabled)
+    {
+        OUTSTREAM << "Note: warning is already enabled" << endl;
+    }
+
+    mWarningEnabled = true;
+    ConfigurationManager::savePropertyValue("stalled_issues_warning", mWarningEnabled);
 }
