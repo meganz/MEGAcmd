@@ -116,7 +116,7 @@ pipeline {
                                 ${JF_PATH}\\jf rt upload MEGAcmdUpdater.exe ${ART_UPLOAD_PATH}
                             """
                         }
-                        MEGACMD_VERSION = getVersionFromHeader("../CMakeLists.txt")
+                        MEGACMD_VERSION = getVersionFromHeader("../src/megacmdversion.h")
                         sh "echo $MEGACMD_VERSION > version.txt"
                         if (params.ARCHITECTURE == "64") {
                             windows_artifactory_upload("MEGAcmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/windows/", "built64", "64")
@@ -141,7 +141,11 @@ pipeline {
 
 def getVersionFromHeader(String versionFilePath) {
     return sh(script: """
-        grep -Po "(set\\(MEGACMD_MAJOR_VERSION \\K\\d+|set.MEGACMD_MINOR_VERSION \\K\\d+|set\\(MEGACMD_MICRO_VERSION \\K\\d+)" $versionFilePath | paste -sd '.'
+        awk  '/#define MEGACMD_MAJOR_VERSION/ { MAJOR=\$3 }; \
+              /#define MEGACMD_MINOR_VERSION/ { MINOR=\$3 }; \
+              /#define MEGACMD_MICRO_VERSION/ { MICRO=\$3 }; \
+              END { print MAJOR"."MINOR"."MICRO }' \
+              $versionFilePath
         """
         , returnStdout: true).trim()
 }
