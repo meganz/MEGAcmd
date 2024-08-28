@@ -147,16 +147,6 @@ if [ ${build} -eq 1 ]; then
     cp ../../src/client/mega-* ${APP_NAME}.app/Contents/MacOS/
     cp ../../src/client/megacmd_completion.sh  ${APP_NAME}.app/Contents/MacOS/
 
-
-
-
-
-
-    #place empty empty.lproj
-
-
-
-
     otool -L ${APP_NAME}.app/Contents/MacOS/mega-cmd
     otool -L ${APP_NAME}.app/Contents/MacOS/mega-exec
     otool -L ${APP_NAME}.app/Contents/MacOS/MEGAcmdLoader || true
