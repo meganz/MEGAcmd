@@ -7,30 +7,37 @@ pipeline {
     }
 
     stages {
-        stage('Checkout SDK'){
-            steps{
+        stage('Clean previous runs') {
+            steps {
+                deleteDir()
+            }
+        }
+
+        stage('Checkout SDK') {
+            steps {
                 script {
                     megacmd_scm = checkout scm
                     megacmd_branch = megacmd_scm.GIT_BRANCH
                 }
-                dir('sdk'){
+                dir('sdk') {
                     checkout([
-                    $class: 'GitSCM',
-                    branches: [[name: "origin/${SDK_BRANCH}"]],
-                    userRemoteConfigs: [[ url: "${env.GIT_URL_SDK}", credentialsId: "12492eb8-0278-4402-98f0-4412abfb65c1" ]],
-                    extensions: [
-                        [$class: "UserIdentity",name: "jenkins", email: "jenkins@jenkins"],
-                        [$class: "CloneOption", depth: 1, shallow: true, noTags: false, reference: '']
-                    ]
+                        $class: 'GitSCM',
+                        branches: [[name: "origin/${SDK_BRANCH}"]],
+                        userRemoteConfigs: [[url: "${env.GIT_URL_SDK}", credentialsId: "12492eb8-0278-4402-98f0-4412abfb65c1"]],
+                        extensions: [
+                            [$class: "UserIdentity",name: "jenkins", email: "jenkins@jenkins"],
+                            [$class: "CloneOption", depth: 1, shallow: true, noTags: false, reference: '']
+                        ]
                     ])
                 }
-                script{
+                script {
                     megacmd_sources_workspace = WORKSPACE
                     sdk_sources_workspace = "${megacmd_sources_workspace}/sdk"
                 }
             }
         }
-        stage("Build MEGAcmd"){
+
+        stage("Build and test MEGAcmd") {
             matrix {
                 axes {
                     axis {
@@ -42,40 +49,19 @@ pipeline {
                         values 'cmake-v2'
                     }
                 }
-                stages{
-                    stage('Build MEGAcmd container image'){
-                        options{
+                stages {
+                    stage("Build MEGAcmd container image") {
+                        options {
                             timeout(time: 3, unit: 'HOURS')
                         }
-                        environment{
+                        environment {
                             DOCKER_BUILDKIT=1
                         }
                         steps {
                             sh "docker build -t meganz/megacmd-branchstatus-${BUILD_SYSTEM}-${SANITIZERS}:${env.BUILD_NUMBER} -f ${megacmd_sources_workspace}/build-with-docker/Dockerfile.${BUILD_SYSTEM} --build-arg=BUILD_OPT_SANITIZERS=${SANITIZERS} --ulimit=core=-1 --cpuset-cpus=0,1 -- ${megacmd_sources_workspace}"
                         }
                     }
-                }
-            }
-        }
-        stage('Test MEGAcmd') {
-            matrix {
-                axes {
-                    axis {
-                        name 'SANITIZERS'
-                        values 'ubsan', 'asan', 'tsan'
-                    }
-                    axis {
-                        name 'TYPE'
-                        values 'unit', 'integration'
-                    }
-                }
-                stages {
-                    stage('Run MEGAcmd unit tests') {
-                        when {
-                            expression {
-                                env.TYPE == "unit"
-                            }
-                        }
+                    stage("MEGAcmd unit tests") {
                         options {
                             timeout(time: 10, unit: 'MINUTES')
                         }
@@ -86,7 +72,7 @@ pipeline {
                         }
                         steps {
                             dir("test-dir-${SANITIZERS}") {
-                                sh "docker run --user \$(id -u):\$(id -g) --env HOME=/tmp/test-dir-${SANITIZERS} --env ASAN_OPTIONS --env TSAN_OPTIONS --env UBSAN_OPTIONS --rm --mount type=bind,src='${megacmd_sources_workspace}/test-dir-${SANITIZERS}',target=/tmp/test-dir-${SANITIZERS} -- meganz/megacmd-branchstatus-cmake-v2-${SANITIZERS}:${env.BUILD_NUMBER} /usr/bin/mega-cmd-tests-unit --gtest_output=xml:/tmp/test-dir-${SANITIZERS}/results/mega-cmd-tests-unit.xml --gtest_shuffle"
+                                sh "docker run --user \$(id -u):\$(id -g) --env HOME=/tmp/test-dir-${SANITIZERS} --env ASAN_OPTIONS --env TSAN_OPTIONS --env UBSAN_OPTIONS --rm --mount type=bind,src='${megacmd_sources_workspace}/test-dir-${SANITIZERS}',target=/tmp/test-dir-${SANITIZERS} -- meganz/megacmd-branchstatus-${BUILD_SYSTEM}-${SANITIZERS}:${env.BUILD_NUMBER} /usr/bin/mega-cmd-tests-unit --gtest_output=xml:/tmp/test-dir-${SANITIZERS}/results/mega-cmd-tests-unit.xml --gtest_shuffle"
                             }
                         }
                         post {
@@ -96,14 +82,9 @@ pipeline {
                             }
                         }
                     }
-                    stage('Run MEGAcmd integration tests') {
-                        when {
-                            expression {
-                                env.TYPE == "integration"
-                            }
-                        }
+                    stage("MEGAcmd integration tests") {
                         options {
-                            timeout(time: 10, unit: 'MINUTES')
+                            timeout(time: 1, unit: 'HOURS')
                         }
                         environment {
                             MEGACMD_TEST_USER=''
@@ -115,14 +96,15 @@ pipeline {
                         steps {
                             lock(label: 'testing_accounts_megacmd', variable: 'MEGACMD_TEST_USER', quantity: 1, resource: null) {
                                 dir("test-dir-${SANITIZERS}") {
-                                    sh "docker run --user \$(id -u):\$(id -g) --env HOME=/tmp/test-dir-${SANITIZERS} --env MEGACMD_TEST_PASS --env MEGACMD_TEST_USER --env ASAN_OPTIONS --env TSAN_OPTIONS --env UBSAN_OPTIONS --rm --mount type=bind,src='${megacmd_sources_workspace}/test-dir-${SANITIZERS}',target=/tmp/test-dir-${SANITIZERS} -- meganz/megacmd-branchstatus-cmake-v2-${SANITIZERS}:${env.BUILD_NUMBER} /usr/bin/mega-cmd-tests-integration --gtest_output=xml:/tmp/test-dir-${SANITIZERS}/results/mega-cmd-tests-integration.xml --gtest_shuffle"
+                                    sh "docker run --user \$(id -u):\$(id -g) --env HOME=/tmp/test-dir-${SANITIZERS} --env MEGACMD_TEST_PASS --env MEGACMD_TEST_USER --env ASAN_OPTIONS --env TSAN_OPTIONS --env UBSAN_OPTIONS --rm --mount type=bind,src='${megacmd_sources_workspace}/test-dir-${SANITIZERS}',target=/tmp/test-dir-${SANITIZERS} -- meganz/megacmd-branchstatus-${BUILD_SYSTEM}-${SANITIZERS}:${env.BUILD_NUMBER} /usr/bin/mega-cmd-tests-integration --gtest_output=xml:/tmp/test-dir-${SANITIZERS}/results/mega-cmd-tests-integration.xml --gtest_shuffle"
                                 }
                             }
                         }
                         post {
                             always {
-                                archiveArtifacts "test-dir-${SANITIZERS}/.megaCmd/megacmdserver.log*, test-dir-${SANITIZERS}/results/*"
+                                archiveArtifacts "test-dir-${SANITIZERS}/.megaCmd/megacmdserver.log*"
                                 junit "test-dir-${SANITIZERS}/results/mega-cmd-tests-integration.xml"
+                                sh "docker image rm -- meganz/megacmd-branchstatus-${BUILD_SYSTEM}-${SANITIZERS}:${env.BUILD_NUMBER} || true"
                             }
                         }
                     }
@@ -132,9 +114,6 @@ pipeline {
     }
     post {
         always {
-            sh "docker image rm -- meganz/megacmd-branchstatus-cmake-v2-tsan:${env.BUILD_NUMBER} || true"
-            sh "docker image rm -- meganz/megacmd-branchstatus-cmake-v2-asan:${env.BUILD_NUMBER} || true"
-            sh "docker image rm -- meganz/megacmd-branchstatus-cmake-v2-ubsan:${env.BUILD_NUMBER} || true"
             script {
                 sdk_commit = sh(script: "git -C ${sdk_sources_workspace} rev-parse HEAD", returnStdout: true).trim()
                 megacmd_commit = sh(script: "git -C ${megacmd_sources_workspace} rev-parse HEAD", returnStdout: true).trim()
@@ -143,7 +122,7 @@ pipeline {
                 message = """
                     Jenkins job #${BUILD_ID} ended with status '${messageStatus}'.
                     See: ${BUILD_URL}
-                    
+
                     SDK branch: `${SDK_BRANCH}` commit: `${sdk_commit}`
                     MEGAcmd branch: `${megacmd_branch}` commit: `${megacmd_commit}`
                 """.stripIndent()
@@ -169,7 +148,6 @@ pipeline {
                     """
                 }
             }
-            deleteDir()
         }
     }
 }
