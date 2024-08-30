@@ -129,6 +129,10 @@ build-x64-windows-mega
 build-x86-windows-mega
 Makefile.Debug
 Makefile.Release
+/build/installer/mega-cmd-server_version.rc
+/build/installer/mega-cmd-client_version.rc
+/build/installer/mega-cmd-shell_version.rc
+/build/installer/mega-cmd-updater_version.rc
 
 /Makefile*
 build/Release_x64

@@ -19,18 +19,28 @@ list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/sdk/contrib/cmake/module
 
 set(VCPKG_ROOT "${CMAKE_CURRENT_LIST_DIR}/../vcpkg" CACHE PATH "If set, it will build and use the VCPKG packages defined in the manifest file")
 
-if(NOT WIN32 AND NOT EXISTS ${VCPKG_ROOT})
+
+if (WIN32)
+execute_process(
+    COMMAND bash --version
+    RESULT_VARIABLE BASH_VERSION_RESULT
+    OUTPUT_QUIET
+    ERROR_QUIET
+)
+endif()
+
+if((NOT WIN32 OR BASH_VERSION_RESULT EQUAL 0) AND NOT EXISTS ${VCPKG_ROOT})
     message(STATUS "vcpkg will be cloned into ${VCPKG_ROOT}")
     execute_process(
         #TODO: have the same for windows ... or at least check if bash is available
-        COMMAND "${CMAKE_CURRENT_LIST_DIR}/build/clone_vcpkg_from_baseline.sh" "${VCPKG_ROOT}"
+        COMMAND "bash" "-x" "${CMAKE_CURRENT_LIST_DIR}/build/clone_vcpkg_from_baseline.sh" "${VCPKG_ROOT}"
         WORKING_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}"
         ERROR_VARIABLE resulte
         OUTPUT_VARIABLE result
         RESULT_VARIABLE status
     )
     if(NOT status EQUAL "0")
-        message(FATAL_ERROR "Failed to run the clone_vcpkg_from_baseline. ${resulte}")
+        message(FATAL_ERROR "Failed to run the clone_vcpkg_from_baseline. ${status} ${result} ${resulte} ")
     endif()
     message(STATUS "vcpkg cloned successfully: ${status}")
 endif()
@@ -59,8 +69,7 @@ if(WIN32)
     add_definitions( -DUNICODE -D_UNICODE )  # needed for visual studio projects to use the unicode runtime libraries
 
     #supported windows version: 7 and beyond
-    add_definitions( -DNTDDI_VERSION=NTDDI_WIN7 )
-    add_definitions( -D_WIN32_WINNT=0x0601 ) # 0601: windows 7
+    add_definitions( -D_WIN32_WINNT=0x0601 ) # 0601: windows 7. Note: NTDDI_VERSIO & WINVER shall be inferred from those by Win SDK
     add_definitions( -DNO_READLINE )  # This one is defined within SdkLib, but we need it too for MEGAcmd code.
     add_definitions( -DUSE_CPPTHREAD ) # For win32, we need this to be defined explicitly (used directly in different targets). TODO: remove in CMD-318
     add_definitions( -DNOMINMAX ) # To fix usages of std::min / std::max
@@ -195,25 +204,35 @@ endif()
 
 add_executable(mega-cmd-server ${executablesType})
 if (WIN32)
-    set(MEGACMD_RESOURCE_NAME MEGAcmdServer) #TODO: do the same of other executables
+    set(MEGACMD_RESOURCE_NAME MEGAcmdServer)
     configure_file("${CMAKE_CURRENT_LIST_DIR}/build/installer/winversion.rc.in" "${CMAKE_CURRENT_LIST_DIR}/build/installer/mega-cmd-server_version.rc" @ONLY)
-    set(RESOURCE_FILES
-        "${CMAKE_CURRENT_LIST_DIR}/build/installer/mega-cmd-server_version.rc"
-    )
+    set(RESOURCE_FILES_MEGACMD_SERVER "${CMAKE_CURRENT_LIST_DIR}/build/installer/mega-cmd-server_version.rc")
+
+    set(MEGACMD_RESOURCE_NAME MEGAclient)
+    configure_file("${CMAKE_CURRENT_LIST_DIR}/build/installer/winversion.rc.in" "${CMAKE_CURRENT_LIST_DIR}/build/installer/mega-cmd-client_version.rc" @ONLY)
+    set(RESOURCE_FILES_MEGACMD_CLIENT "${CMAKE_CURRENT_LIST_DIR}/build/installer/mega-cmd-client_version.rc")
+
+    set(MEGACMD_RESOURCE_NAME MEGAcmdShell)
+    configure_file("${CMAKE_CURRENT_LIST_DIR}/build/installer/winversion.rc.in" "${CMAKE_CURRENT_LIST_DIR}/build/installer/mega-cmd-shell_version.rc" @ONLY)
+    set(RESOURCE_FILES_MEGACMD_SHELL "${CMAKE_CURRENT_LIST_DIR}/build/installer/mega-cmd-shell_version.rc")
+
+    set(MEGACMD_RESOURCE_NAME MEGAcmdUpdater)
+    configure_file("${CMAKE_CURRENT_LIST_DIR}/build/installer/winversion.rc.in" "${CMAKE_CURRENT_LIST_DIR}/build/installer/mega-cmd-updater_version.rc" @ONLY)
+    set(RESOURCE_FILES_MEGACMD_UPDATER "${CMAKE_CURRENT_LIST_DIR}/build/installer/mega-cmd-updater_version.rc")
 elseif (APPLE)
-    set(RESOURCE_FILES
+    set(RESOURCE_FILES_MEGACMD_SERVER
         ${CMAKE_CURRENT_SOURCE_DIR}/build/installer/app.icns
     )
 
     set_target_properties(mega-cmd-server PROPERTIES
         MACOSX_BUNDLE TRUE
         MACOSX_BUNDLE_INFO_PLIST ${CMAKE_CURRENT_SOURCE_DIR}/build/installer/Info.plist
-        RESOURCE "${RESOURCE_FILES}"
+        RESOURCE "${RESOURCE_FILES_MEGACMD_SERVER}"
     )
 endif()
 add_source_and_corresponding_header_to_target(mega-cmd-server PRIVATE
     "${ProjectDir}/src/megacmd_server_main.cpp"
-    "${RESOURCE_FILES}"
+    "${RESOURCE_FILES_MEGACMD_SERVER}"
 )
 if (APPLE)
 set_target_properties(mega-cmd-server PROPERTIES OUTPUT_NAME "MEGAcmd")
@@ -232,7 +251,7 @@ add_source_and_corresponding_header_to_target(LMegacmdClient PUBLIC
 add_executable(mega-exec ${executablesType})
 add_source_and_corresponding_header_to_target(mega-exec PRIVATE
     "${ProjectDir}/src/client/megacmd_client_main.cpp"
-    #"${ProjectDir}/contrib/QtCreator/MEGAcmd/MEGAcmdClient/icon.rc"
+    "${RESOURCE_FILES_MEGACMD_CLIENT}"
 )
 
 add_executable(mega-cmd ${executablesType})
@@ -240,7 +259,7 @@ add_source_and_corresponding_header_to_target(mega-cmd PRIVATE
     "${ProjectDir}/src/megacmdshell/megacmdshellcommunications.cpp"
     "${ProjectDir}/src/megacmdshell/megacmdshellcommunicationsnamedpipes.cpp"
     "${ProjectDir}/src/megacmdshell/megacmdshell.cpp"
-    #"${ProjectDir}/contrib/QtCreator/MEGAcmd/MEGAcmdShell/icon.rc"
+    "${RESOURCE_FILES_MEGACMD_SHELL}"
 )
 
 if (WIN32)
@@ -253,7 +272,7 @@ add_source_and_corresponding_header_to_target(mega-cmd-updater PRIVATE
 )
 add_source_and_corresponding_header_to_target(mega-cmd-updater PRIVATE
     "${ProjectDir}/src/updater/UpdateTask.cpp"
-    #"${ProjectDir}/contrib/QtCreator/MEGAcmd/MEGAcmdUpdater/icon.rc"
+    "${RESOURCE_FILES_MEGACMD_UPDATER}"
 )
 
 target_sources_conditional(mega-cmd-updater
