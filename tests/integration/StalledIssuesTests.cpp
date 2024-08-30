@@ -23,6 +23,30 @@
 namespace fs = std::filesystem;
 using TI = TestInstruments;
 
+class StalledIssuesListGuard
+{
+    TestInstrumentsWaitForEventGuard mGuard;
+    const uint64_t mExpectedListSize;
+
+public:
+    StalledIssuesListGuard(uint64_t expectedListSize) :
+        mGuard(TI::Event::STALLED_ISSUES_LIST_UPDATED),
+        mExpectedListSize(expectedListSize)
+    {
+    }
+
+    ~StalledIssuesListGuard()
+    {
+        mGuard.waitForEvent(std::chrono::seconds(10));
+
+        auto stalledListSizeOpt = TI::Instance().testValue(TI::TestValue::STALLED_ISSUES_LIST_SIZE);
+        EXPECT_TRUE(stalledListSizeOpt.has_value());
+
+        auto stalledListSize = std::get<uint64_t>(*stalledListSizeOpt);
+        EXPECT_EQ(stalledListSize, mExpectedListSize);
+    }
+};
+
 class StalledIssuesTests : public NOINTERACTIVELoggedInTest
 {
     SelfDeletingTmpFolder mTmpDir;
@@ -77,16 +101,17 @@ TEST_F(StalledIssuesTests, NameConflict)
     const char* conflictingName = "f%301";
 #endif
 
-    // Register the event callback *before* causing the stalled issue
-    TestInstrumentsWaitForEventGuard stallUpdatedGuard(TI::Event::STALLED_ISSUES_LIST_UPDATED);
-
-    // Cause the name conclict
     auto rMkdir = executeInClient({"mkdir", syncDirCloud() + "f01"});
     ASSERT_TRUE(rMkdir.ok());
-    rMkdir = executeInClient({"mkdir", syncDirCloud() + conflictingName});
-    ASSERT_TRUE(rMkdir.ok());
 
-    stallUpdatedGuard.waitForEvent(std::chrono::seconds(10));
+    {
+        // Register the event callback *before* causing the stalled issue
+        StalledIssuesListGuard guard(1);
+
+        // Cause the name conclict
+        rMkdir = executeInClient({"mkdir", syncDirCloud() + conflictingName});
+        ASSERT_TRUE(rMkdir.ok());
+    }
 
     // Check the name conclict appears in the list of stalled issues
     auto result = executeInClient({"stalled"});
@@ -107,7 +132,7 @@ TEST_F(StalledIssuesTests, SymLink)
 #endif
 
     {
-        TestInstrumentsWaitForEventGuard guard(TI::Event::STALLED_ISSUES_LIST_UPDATED);
+        StalledIssuesListGuard guard(1);
         fs::create_directory_symlink(dirPath, linkPath);
     }
 
@@ -116,36 +141,38 @@ TEST_F(StalledIssuesTests, SymLink)
     ASSERT_TRUE(result.ok());
     EXPECT_THAT(result.out(), testing::Not(testing::HasSubstr("There are no stalled issues")));
     EXPECT_THAT(result.out(), testing::HasSubstr(linkPath));
+
+    {
+        StalledIssuesListGuard guard(0);
+        fs::remove(linkPath);
+    }
+
+    result = executeInClient({"stalled"});
+    ASSERT_TRUE(result.ok());
+    EXPECT_THAT(result.out(), testing::HasSubstr("There are no stalled issues"));
 }
 
-TEST_F(StalledIssuesTests, IncorrectStalledListSize)
+TEST_F(StalledIssuesTests, IncorrectStalledListSizeOnSecondSymlink)
 {
     // This tests against an internal issue that caused the stalled list to have incorrect
     // size for a brief period of time after creating a second symlink. This is unlikely to
     // affect how users interact with MEGAcmd, since it happened over a short timespan. But the test
     // is still useful to prove the internal correctness of our stalled issues is not broken.
     // Note: required sdk fix (+our changes) to pass (see: SDK-4016)
-    // Maybe better as a unit test, but we don't have enough modularity yet to implement it as such :)
 
     const std::string dirPath = syncDirLocal() + "some_dir";
     ASSERT_TRUE(fs::create_directory(dirPath));
 
     // The first link doesn't cause an issue, but we still need to wait for it
     {
-        TestInstrumentsWaitForEventGuard guard(TI::Event::STALLED_ISSUES_LIST_UPDATED);
+        StalledIssuesListGuard guard(1);
         fs::create_directory_symlink(dirPath, syncDirLocal() + "link1");
     }
 
     // The second link causes the issue
     {
-        TestInstrumentsWaitForEventGuard guard(TI::Event::STALLED_ISSUES_LIST_UPDATED);
+        StalledIssuesListGuard guard(2);
         fs::create_directory_symlink(dirPath, syncDirLocal() + "link2");
     }
-
-    auto stalledListSizeOpt = TI::Instance().testValue(TI::TestValue::STALLED_ISSUES_LIST_SIZE);
-    ASSERT_TRUE(stalledListSizeOpt.has_value());
-
-    auto stalledListSize = std::get<uint64_t>(*stalledListSizeOpt);
-    EXPECT_EQ(stalledListSize, 2);
 }
 

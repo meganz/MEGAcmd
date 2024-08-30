@@ -4,8 +4,10 @@
 echo Info: Checking if sources are signed
 
 "C:\Program Files (x86)\Windows Kits\10\bin\%MEGA_WIN_KITVER%\x64\signtool.exe" verify /pa sign64/*.exe >nul || goto SleepAndRetry
+"C:\Program Files (x86)\Windows Kits\10\bin\%MEGA_WIN_KITVER%\x64\signtool.exe" verify /pa sign64/*.dll >nul || goto SleepAndRetry
 IF NOT "%MEGA_SKIP_32_BIT_BUILD%" == "true" (
 	"C:\Program Files (x86)\Windows Kits\10\bin\%MEGA_WIN_KITVER%\x64\signtool.exe" verify /pa sign32/*.exe >nul || goto SleepAndRetry
+	"C:\Program Files (x86)\Windows Kits\10\bin\%MEGA_WIN_KITVER%\x64\signtool.exe" verify /pa sign32/*.dll >nul || goto SleepAndRetry
 )
 echo Signed executables found. Will copy them to builtXX folders
 
