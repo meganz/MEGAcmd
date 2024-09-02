@@ -71,7 +71,7 @@ public:
     }
 
     bool empty() const { return mSyncIssues.empty(); }
-    size_t size() const { return mSyncIssues.size(); }
+    unsigned int size() const { return mSyncIssues.size(); }
 
     SyncIssueList::const_iterator begin() const { return mSyncIssues.begin(); }
     SyncIssueList::const_iterator end() const { return mSyncIssues.end(); }

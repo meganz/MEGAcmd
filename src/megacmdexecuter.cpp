@@ -10917,7 +10917,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         }
         if (syncIssueCountLimit == 0)
         {
-            syncIssueCountLimit = std::numeric_limits<size_t>::max();
+            syncIssueCountLimit = std::numeric_limits<int>::max();
         }
 
         auto syncIssueCache = mSyncIssuesManager.getLockedCache();
