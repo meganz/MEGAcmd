@@ -45,17 +45,17 @@ cmake --build build/build-cmake-Debug
 ```
 To speed up compilation, we can use the `-j` option to specify a number of cores.
 
-## System-wide installation (Linux)
+## System-wide installation (Linux/macOS)
 On Unix-based systems, such as Linux or macOS, MEGAcmd can be installed with (after building):
 ```
 sudo cmake --install build/build-cmake-Release
 ```
 This will install `mega-cmd`, `mega-cmd-server`, and all `mega-*` commands such as `mega-put`, `mega-cd`, etc. It is recommended to avoid installing a Debug build, since some paths might not be properly setup.
 
-We can specify the default directory to install from by adding the `-DCMAKE_INSTALL_PREFIX` flag while configuring. In that case, we can simply install with `sudo cmake --install`.
+We can specify the default directory to install from by adding the `-DCMAKE_INSTALL_PREFIX` flag while configuring.
 
 # Usage
-Before explaining the two ways of interaction, it is important to understand how MEGAcmd works. When you login with MEGAcmd, your session, the list of synced folders, and some cache database are stored in your local home folder. MEGAcmd also stores some other configuration in that folder. Closing it does not delete those and restarting your computer will restore your previous session (the same as megasync won't ask for user/password once you restart your computer).
+Before explaining the two ways of interaction, it's important to understand how MEGAcmd works. When you login with MEGAcmd, your session, the list of synced folders, cache databases, and extra configuration are stored in your local home folder. Closing it does not delete those, and restarting the MEGAcmd server will restore your previous session (similary to the MEGA Desktop App, which won't ask for user/password once restarted).
 
 You will need to `logout` properly in order to clean your data.
 
