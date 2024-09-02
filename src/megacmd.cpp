@@ -614,6 +614,10 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validOptValues->insert("output-cols");
 
     }
+    else if ("sync-issues" == thecommand)
+    {
+        validOptValues->insert("limit");
+    }
     else if ("export" == thecommand)
     {
         validParams->insert("a");

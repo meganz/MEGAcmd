@@ -193,3 +193,23 @@ TEST_F(SyncIssuesTests, IncorrectSyncIssueListSizeOnSecondSymlink)
     }
 }
 
+TEST_F(SyncIssuesTests, LimitedSyncIssueList)
+{
+    const std::string dirPath = syncDirLocal() + "some_dir";
+    ASSERT_TRUE(fs::create_directory(dirPath));
+
+    // Create 5 sync issues
+    for (int i = 1; i <= 5; ++i)
+    {
+        SyncIssueListGuard guard(i);
+        fs::create_directory_symlink(dirPath, syncDirLocal() + "link" + std::to_string(i));
+    }
+
+    auto result = executeInClient({"sync-issues", "--limit=" + std::to_string(3)});
+    ASSERT_TRUE(result.ok());
+
+    // There should be 6 lines (column header + limit=3 + newline + limit-specific note)
+    auto lines = splitByNewline(result.out());
+    EXPECT_THAT(lines, testing::SizeIs(6));
+    EXPECT_THAT(lines.back(), testing::HasSubstr("showing 3 out of 5 issues"));
+}

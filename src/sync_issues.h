@@ -61,7 +61,17 @@ class SyncIssueCache
 public:
     SyncIssueCache(const SyncIssueList& syncIssues, std::mutex& syncIssuesMutex);
 
+    template<typename Cb>
+    void forEach(Cb&& callback, size_t sizeLimit)
+    {
+        for (size_t i = 0; i < size() && i < sizeLimit; ++i)
+        {
+            callback(mSyncIssues[i]);
+        }
+    }
+
     bool empty() const { return mSyncIssues.empty(); }
+    size_t size() const { return mSyncIssues.size(); }
 
     SyncIssueList::const_iterator begin() const { return mSyncIssues.begin(); }
     SyncIssueList::const_iterator end() const { return mSyncIssues.end(); }

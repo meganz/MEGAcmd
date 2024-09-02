@@ -10908,6 +10908,18 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             return;
         }
 
+        int syncIssueCountLimit = getintOption(cloptions, "limit", 10);
+        if (syncIssueCountLimit < 0)
+        {
+            setCurrentOutCode(MCMD_EARGS);
+            LOG_err << "Sync issue limit cannot be less than 0";
+            return;
+        }
+        if (syncIssueCountLimit == 0)
+        {
+            syncIssueCountLimit = std::numeric_limits<size_t>::max();
+        }
+
         auto syncIssueCache = mSyncIssuesManager.getLockedCache();
         if (syncIssueCache.empty())
         {
@@ -10916,20 +10928,26 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         }
 
         ColumnDisplayer cd(clflags, cloptions);
-
         cd.addHeader("MAIN PATH", false);
 
-        for (const auto& syncIssue : syncIssueCache)
+        syncIssueCache.forEach([&cd] (const SyncIssue& syncIssue)
         {
             cd.addValue("ID", std::to_string(syncIssue.getId()));
             cd.addValue("REASON", syncIssue.getSyncWaitReasonStr());
             cd.addValue("MAIN PATH", syncIssue.getMainPath());
             cd.addValue("SOLVABLE", "NO" /* Until CMD-311 */);
-        }
+        }, syncIssueCountLimit);
 
         OUTSTRINGSTREAM oss;
         cd.print(oss);
         OUTSTREAM << oss.str();
+
+        if (syncIssueCountLimit < syncIssueCache.size())
+        {
+            OUTSTREAM << endl;
+            OUTSTREAM << "Note: showing " << syncIssueCountLimit << " out of " << syncIssueCache.size() << " issues. "
+                      << "Use \"" << commandPrefixBasedOnMode() << "sync-issue --limit=0\" to see all issues." << endl;
+        }
     }
     else
     {
