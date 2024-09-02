@@ -57,7 +57,10 @@ megacmdversion.h
 /build/built32
 /build/sign32
 /build/sign64
-mega-cmd-server_version.rc
+/build/installer/mega-cmd-server_version.rc
+/build/installer/mega-cmd-client_version.rc
+/build/installer/mega-cmd-shell_version.rc
+/build/installer/mega-cmd-updater_version.rc
 
 # macOS packaging files and artifacts
 Info.plist

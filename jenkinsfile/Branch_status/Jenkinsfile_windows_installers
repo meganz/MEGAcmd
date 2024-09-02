@@ -45,7 +45,7 @@ pipeline {
                         branchToCheckout = env.SDK_BRANCH
                         shouldCloneSDK = true
                     } else if (env.MEGACMD_BRANCH in ['develop', 'master']) {
-                        branchToCheckout = "release/v6.0.0"
+                        branchToCheckout = "develop"
                         shouldCloneSDK = true
                     } else {
                         def status = sh(script: "git submodule status", returnStdout: true).trim()
@@ -67,14 +67,13 @@ pipeline {
         }
         stage ('Build Windows installers'){
             environment{
-                MEGA_VCPKGPATH  = "${windows_sources_workspace}\\..\\3rdparty"
-                MEGA_THIRD_PARTY_DLL_DIR = "bin"
-                SKIP_BUILD_THIRD_PARTIES = "1"
+                MEGA_VCPKGPATH  = "${windows_sources_workspace}\\..\\vcpkg_cmdins"
                 MEGA_WIN_KITVER = "10.0.19041.0"
             }
             steps {
                 dir(windows_sources_workspace + '\\build'){
                     bat """
+                        @echo on
                         mkdir tmp
                         set _MSPDBSRV_ENDPOINT_= ${BUILD_TAG}
                         set TMP=${Workspace}\\tmp
