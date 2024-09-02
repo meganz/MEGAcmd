@@ -40,6 +40,7 @@ class SyncIssuesGlobalListener : public mega::MegaGlobalListener
         const bool waiting = api->isWaiting();
         if (scanning || waiting)
         {
+            // Busy state (scanning or waiting); ignore
             return;
         }
 
@@ -121,14 +122,13 @@ std::string SyncIssue::getMainPath() const
     assert(mMegaStall);
 
     const char* cloudPath = mMegaStall->path(true, 0);
-    const char* localPath = mMegaStall->path(false, 0);
-
     if (cloudPath && strcmp(cloudPath, ""))
     {
         // We add a '/' at the start to distinguish between cloud and local absolute paths
         return std::string("/") + cloudPath;
     }
 
+    const char* localPath = mMegaStall->path(false, 0);
     return localPath ? localPath : "";
 }
 
