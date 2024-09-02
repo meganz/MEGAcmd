@@ -33,7 +33,7 @@ To build MEGAcmd, we first need to configure the project using CMake:
 ```
 cmake -B build/build-cmake-Debug -DCMAKE_BUILD_TYPE=Debug
 ```
-A different build type can be selected out of `Debug`, `Release`, `MinSizeRel`, or `RelWithDebInfo`. By convention, we use `build/build-cmake[Debug|Release|...]` as build directory, but any other path can be selected with the `-B` option.
+A different build type can be selected out of `Debug`, `Release`, `MinSizeRel`, or `RelWithDebInfo`. By convention, we use `build/build-cmake-[Debug|Release|...]` as build directory, but any other path can be selected with the `-B` option.
 
 To build unit and integration tests as well, we can add the `-DENABLE_MEGACMD_TESTS=ON` flag.
 
