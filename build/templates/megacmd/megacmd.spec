@@ -9,7 +9,7 @@ Source0:	megacmd_%{version}.tar.gz
 Vendor:		MEGA Limited
 Packager:	MEGA Linux Team <linux@mega.co.nz>
 
-
+Requires: procps-ng
 BuildRequires: autoconf, autoconf-archive, automake, libtool, gcc-c++
 BuildRequires: hicolor-icon-theme, zip, unzip, nasm, cmake, perl
 
