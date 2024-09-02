@@ -94,12 +94,12 @@ class SyncIssuesTests : public NOINTERACTIVELoggedInTest
 protected:
     std::string syncDirLocal() const
     {
-        return mTmpDir.string() + "/sync_dir/";
+        return mTmpDir.string() + "/tests_integration_sync_dir/";
     }
 
     std::string syncDirCloud() const
     {
-        return "sync_dir/";
+        return "tests_integration_sync_dir/";
     }
 };
 
