@@ -29,8 +29,8 @@ namespace {
 
 class SyncIssuesGlobalListener : public mega::MegaGlobalListener
 {
-    using Callback = std::function<void()>;
-    Callback mCallback;
+    using SyncStalledChangedCb = std::function<void()>;
+    SyncStalledChangedCb mSyncStalledChangedCb;
 
     bool mSyncStalled;
 
@@ -50,40 +50,47 @@ class SyncIssuesGlobalListener : public mega::MegaGlobalListener
             return;
         }
 
-        mCallback();
+        mSyncStalledChangedCb();
         mSyncStalled = syncStalled;
     }
 
 public:
-    template<typename Cb>
-    SyncIssuesGlobalListener(Cb&& callback) :
-        mCallback(std::move(callback)),
+    template<typename SyncStalledChangedCb>
+    SyncIssuesGlobalListener(SyncStalledChangedCb&& syncStalledChangedCb) :
+        mSyncStalledChangedCb(std::move(syncStalledChangedCb)),
         mSyncStalled(false) {}
 };
 
 class SyncIssuesRequestListener : public mega::MegaRequestListener
 {
-    using Callback = std::function<void(const mega::MegaSyncStallList& stalls)>;
-    Callback mCallback;
+    using PopulateSyncIssueListCb = std::function<void(const mega::MegaSyncStallList& stalls)>;
+    PopulateSyncIssueListCb mPopulateSyncIssueListCb;
 
     void onRequestFinish(mega::MegaApi *api, mega::MegaRequest *request, mega::MegaError *e) override
     {
+        assert(e);
+        if (e->getValue() != mega::MegaError::API_OK)
+        {
+            LOG_err << "Failed to get list of sync issues: " << e->getErrorString();
+            return;
+        }
+
         assert(request && request->getType() == mega::MegaRequest::TYPE_GET_SYNC_STALL_LIST);
 
         auto stalls = request->getMegaSyncStallList();
         if (!stalls)
         {
-            LOG_err << "Sync stall list pointer is null";
+            LOG_err << "Sync issue list pointer is null";
             return;
         }
 
-        mCallback(*stalls);
+        mPopulateSyncIssueListCb(*stalls);
     }
 
 public:
-    template<typename Cb>
-    SyncIssuesRequestListener(Cb&& callback) :
-        mCallback(std::move(callback)) {}
+    template<typename PopulateSyncIssueListCb>
+    SyncIssuesRequestListener(PopulateSyncIssueListCb&& populateSyncIssueListCb) :
+        mPopulateSyncIssueListCb(std::move(populateSyncIssueListCb)) {}
 };
 }
 
@@ -158,9 +165,14 @@ SyncIssuesManager::SyncIssuesManager(mega::MegaApi *api)
 {
     assert(api);
 
+    // The global listener will be triggered whenever there's a change in the sync state
+    // It'll check whether or not this change requires an update in the sync issue list
+    // If that's the case, it'll request the latest list of stalls from the API
     mGlobalListener = std::make_unique<SyncIssuesGlobalListener>(
          [this, api] { api->getMegaSyncStallList(mRequestListener.get()); });
 
+    // The request listener will be triggered whenever the api call above (to get the
+    // list of stalls) finishes; it will populate the internal list with its data
     mRequestListener = std::make_unique<SyncIssuesRequestListener>(
         [this] (const mega::MegaSyncStallList& stalls) { populateSyncIssues(stalls); });
 }

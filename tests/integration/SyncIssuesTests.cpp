@@ -23,19 +23,19 @@
 namespace fs = std::filesystem;
 using TI = TestInstruments;
 
-class SyncIssuesListGuard
+class SyncIssueListGuard
 {
     TestInstrumentsWaitForEventGuard mGuard;
     const uint64_t mExpectedListSize;
 
 public:
-    SyncIssuesListGuard(uint64_t expectedListSize) :
+    SyncIssueListGuard(uint64_t expectedListSize) :
         mGuard(TI::Event::SYNC_ISSUES_LIST_UPDATED),
         mExpectedListSize(expectedListSize)
     {
     }
 
-    ~SyncIssuesListGuard()
+    ~SyncIssueListGuard()
     {
         EXPECT_TRUE(mGuard.waitForEvent(std::chrono::seconds(10)));
 
@@ -123,7 +123,7 @@ TEST_F(SyncIssuesTests, NameConflict)
 
     {
         // Register the event callback *before* causing the sync issue
-        SyncIssuesListGuard guard(1);
+        SyncIssueListGuard guard(1);
 
         // Cause the name conclict
         rMkdir = executeInClient({"mkdir", syncDirCloud() + conflictingName});
@@ -149,7 +149,7 @@ TEST_F(SyncIssuesTests, SymLink)
 #endif
 
     {
-        SyncIssuesListGuard guard(1);
+        SyncIssueListGuard guard(1);
         fs::create_directory_symlink(dirPath, linkPath);
     }
 
@@ -160,7 +160,7 @@ TEST_F(SyncIssuesTests, SymLink)
     EXPECT_THAT(result.out(), testing::HasSubstr(linkPath));
 
     {
-        SyncIssuesListGuard guard(0);
+        SyncIssueListGuard guard(0);
         fs::remove(linkPath);
     }
 
@@ -182,13 +182,13 @@ TEST_F(SyncIssuesTests, IncorrectSyncIssueListSizeOnSecondSymlink)
 
     // The first link doesn't cause an issue, but we still need to wait for it
     {
-        SyncIssuesListGuard guard(1);
+        SyncIssueListGuard guard(1);
         fs::create_directory_symlink(dirPath, syncDirLocal() + "link1");
     }
 
     // The second link causes the issue
     {
-        SyncIssuesListGuard guard(2);
+        SyncIssueListGuard guard(2);
         fs::create_directory_symlink(dirPath, syncDirLocal() + "link2");
     }
 }
