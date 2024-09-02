@@ -181,7 +181,7 @@ add_source_and_corresponding_header_to_target(LMegacmdServer
     "${ProjectDir}/src/comunicationsmanagerportsockets.cpp"
     "${ProjectDir}/src/configurationmanager.cpp"
     "${ProjectDir}/src/listeners.cpp"
-    "${ProjectDir}/src/stalled_issues.cpp"
+    "${ProjectDir}/src/sync_issues.cpp"
 )
 
 target_sources_conditional(LMegacmdServer
@@ -191,7 +191,7 @@ target_sources_conditional(LMegacmdServer
     "${ProjectDir}/src/megacmdplatform.mm"
 )
 
-# Given we are no longer including the sdk, and some sources use certain defines without including SDK's config.h, 
+# Given we are no longer including the sdk, and some sources use certain defines without including SDK's config.h,
 # We need to explicitly pass the copmiling options.
 target_compile_definitions(LMegacmdServer
     PUBLIC
@@ -295,7 +295,7 @@ if (ENABLE_MEGACMD_TESTS)
     add_source_and_corresponding_header_to_target(mega-cmd-tests-integration PRIVATE
         "${ProjectDir}/tests/integration/BasicTests.cpp"
         "${ProjectDir}/tests/integration/ExportTests.cpp"
-        "${ProjectDir}/tests/integration/StalledIssuesTests.cpp"
+        "${ProjectDir}/tests/integration/SyncIssuesTests.cpp"
         "${ProjectDir}/tests/integration/MegaCmdTestingTools.cpp"
         "${ProjectDir}/tests/integration/main.cpp"
     )

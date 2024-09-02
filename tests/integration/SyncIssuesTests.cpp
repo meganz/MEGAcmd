@@ -23,31 +23,31 @@
 namespace fs = std::filesystem;
 using TI = TestInstruments;
 
-class StalledIssuesListGuard
+class SyncIssuesListGuard
 {
     TestInstrumentsWaitForEventGuard mGuard;
     const uint64_t mExpectedListSize;
 
 public:
-    StalledIssuesListGuard(uint64_t expectedListSize) :
-        mGuard(TI::Event::STALLED_ISSUES_LIST_UPDATED),
+    SyncIssuesListGuard(uint64_t expectedListSize) :
+        mGuard(TI::Event::SYNC_ISSUES_LIST_UPDATED),
         mExpectedListSize(expectedListSize)
     {
     }
 
-    ~StalledIssuesListGuard()
+    ~SyncIssuesListGuard()
     {
-        mGuard.waitForEvent(std::chrono::seconds(10));
+        EXPECT_TRUE(mGuard.waitForEvent(std::chrono::seconds(10)));
 
-        auto stalledListSizeOpt = TI::Instance().testValue(TI::TestValue::STALLED_ISSUES_LIST_SIZE);
-        EXPECT_TRUE(stalledListSizeOpt.has_value());
+        auto syncIssueListSizeOpt = TI::Instance().testValue(TI::TestValue::SYNC_ISSUES_LIST_SIZE);
+        EXPECT_TRUE(syncIssueListSizeOpt.has_value());
 
-        auto stalledListSize = std::get<uint64_t>(*stalledListSizeOpt);
-        EXPECT_EQ(stalledListSize, mExpectedListSize);
+        auto syncIssueListSize = std::get<uint64_t>(*syncIssueListSizeOpt);
+        EXPECT_EQ(syncIssueListSize, mExpectedListSize);
     }
 };
 
-class StalledIssuesTests : public NOINTERACTIVELoggedInTest
+class SyncIssuesTests : public NOINTERACTIVELoggedInTest
 {
     SelfDeletingTmpFolder mTmpDir;
 
@@ -103,14 +103,14 @@ protected:
     }
 };
 
-TEST_F(StalledIssuesTests, NoIssues)
+TEST_F(SyncIssuesTests, NoIssues)
 {
-    auto result = executeInClient({"stalled"});
+    auto result = executeInClient({"sync-issues"});
     ASSERT_TRUE(result.ok());
-    EXPECT_THAT(result.out(), testing::HasSubstr("There are no stalled issues"));
+    EXPECT_THAT(result.out(), testing::HasSubstr("There are no sync issues"));
 }
 
-TEST_F(StalledIssuesTests, NameConflict)
+TEST_F(SyncIssuesTests, NameConflict)
 {
 #ifdef _WIN32
     const char* conflictingName = "F01";
@@ -122,22 +122,22 @@ TEST_F(StalledIssuesTests, NameConflict)
     ASSERT_TRUE(rMkdir.ok());
 
     {
-        // Register the event callback *before* causing the stalled issue
-        StalledIssuesListGuard guard(1);
+        // Register the event callback *before* causing the sync issue
+        SyncIssuesListGuard guard(1);
 
         // Cause the name conclict
         rMkdir = executeInClient({"mkdir", syncDirCloud() + conflictingName});
         ASSERT_TRUE(rMkdir.ok());
     }
 
-    // Check the name conclict appears in the list of stalled issues
-    auto result = executeInClient({"stalled"});
+    // Check the name conclict appears in the list of sync issues
+    auto result = executeInClient({"sync-issues"});
     ASSERT_TRUE(result.ok());
-    EXPECT_THAT(result.out(), testing::Not(testing::HasSubstr("There are no stalled issues")));
+    EXPECT_THAT(result.out(), testing::Not(testing::HasSubstr("There are no sync issues")));
     EXPECT_THAT(result.out(), testing::AnyOf(testing::HasSubstr(syncDirCloud() + "f01"), testing::HasSubstr(syncDirCloud() + conflictingName)));
 }
 
-TEST_F(StalledIssuesTests, SymLink)
+TEST_F(SyncIssuesTests, SymLink)
 {
     const std::string dirPath = syncDirLocal() + "some_dir";
     ASSERT_TRUE(fs::create_directory(dirPath));
@@ -149,32 +149,32 @@ TEST_F(StalledIssuesTests, SymLink)
 #endif
 
     {
-        StalledIssuesListGuard guard(1);
+        SyncIssuesListGuard guard(1);
         fs::create_directory_symlink(dirPath, linkPath);
     }
 
-    // Check the symlink in the list of stalled issues
-    auto result = executeInClient({"stalled"});
+    // Check the symlink in the list of sync issues
+    auto result = executeInClient({"sync-issues"});
     ASSERT_TRUE(result.ok());
-    EXPECT_THAT(result.out(), testing::Not(testing::HasSubstr("There are no stalled issues")));
+    EXPECT_THAT(result.out(), testing::Not(testing::HasSubstr("There are no sync-issues issues")));
     EXPECT_THAT(result.out(), testing::HasSubstr(linkPath));
 
     {
-        StalledIssuesListGuard guard(0);
+        SyncIssuesListGuard guard(0);
         fs::remove(linkPath);
     }
 
-    result = executeInClient({"stalled"});
+    result = executeInClient({"sync-issues"});
     ASSERT_TRUE(result.ok());
-    EXPECT_THAT(result.out(), testing::HasSubstr("There are no stalled issues"));
+    EXPECT_THAT(result.out(), testing::HasSubstr("There are no sync issues"));
 }
 
-TEST_F(StalledIssuesTests, IncorrectStalledListSizeOnSecondSymlink)
+TEST_F(SyncIssuesTests, IncorrectSyncIssueListSizeOnSecondSymlink)
 {
-    // This tests against an internal issue that caused the stalled list to have incorrect
+    // This tests against an internal issue that caused the sync issue list to have incorrect
     // size for a brief period of time after creating a second symlink. This is unlikely to
     // affect how users interact with MEGAcmd, since it happened over a short timespan. But the test
-    // is still useful to prove the internal correctness of our stalled issues is not broken.
+    // is still useful to prove the internal correctness of our sync issues is not broken.
     // Note: required sdk fix (+our changes) to pass (see: SDK-4016)
 
     const std::string dirPath = syncDirLocal() + "some_dir";
@@ -182,13 +182,13 @@ TEST_F(StalledIssuesTests, IncorrectStalledListSizeOnSecondSymlink)
 
     // The first link doesn't cause an issue, but we still need to wait for it
     {
-        StalledIssuesListGuard guard(1);
+        SyncIssuesListGuard guard(1);
         fs::create_directory_symlink(dirPath, syncDirLocal() + "link1");
     }
 
     // The second link causes the issue
     {
-        StalledIssuesListGuard guard(2);
+        SyncIssuesListGuard guard(2);
         fs::create_directory_symlink(dirPath, syncDirLocal() + "link2");
     }
 }

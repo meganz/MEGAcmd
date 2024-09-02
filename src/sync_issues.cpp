@@ -13,7 +13,7 @@
  * program.
  */
 
-#include "stalled_issues.h"
+#include "sync_issues.h"
 
 #include <cassert>
 #include <functional>
@@ -27,7 +27,7 @@
 
 namespace {
 
-class StalledIssuesGlobalListener : public mega::MegaGlobalListener
+class SyncIssuesGlobalListener : public mega::MegaGlobalListener
 {
     using Callback = std::function<void()>;
     Callback mCallback;
@@ -56,12 +56,12 @@ class StalledIssuesGlobalListener : public mega::MegaGlobalListener
 
 public:
     template<typename Cb>
-    StalledIssuesGlobalListener(Cb&& callback) :
+    SyncIssuesGlobalListener(Cb&& callback) :
         mCallback(std::move(callback)),
         mSyncStalled(false) {}
 };
 
-class StalledIssuesRequestListener : public mega::MegaRequestListener
+class SyncIssuesRequestListener : public mega::MegaRequestListener
 {
     using Callback = std::function<void(const mega::MegaSyncStallList& stalls)>;
     Callback mCallback;
@@ -82,18 +82,18 @@ class StalledIssuesRequestListener : public mega::MegaRequestListener
 
 public:
     template<typename Cb>
-    StalledIssuesRequestListener(Cb&& callback) :
+    SyncIssuesRequestListener(Cb&& callback) :
         mCallback(std::move(callback)) {}
 };
 }
 
-StalledIssue::StalledIssue(size_t id, const mega::MegaSyncStall &stall) :
+SyncIssue::SyncIssue(size_t id, const mega::MegaSyncStall &stall) :
     mId(id),
     mMegaStall(stall.copy())
 {
 }
 
-std::string StalledIssue::getSyncWaitReasonStr() const
+std::string SyncIssue::getSyncWaitReasonStr() const
 {
     assert(mMegaStall);
 
@@ -103,12 +103,13 @@ std::string StalledIssue::getSyncWaitReasonStr() const
         GENERATE_FROM_STALL_REASON(SOME_GENERATOR_MACRO)
     #undef SOME_GENERATOR_MACRO
 
-        default:                                                     assert(false);
-                                                                     return "<unsupported>";
+        default:
+            assert(false);
+            return "<unsupported>";
     }
 }
 
-std::string StalledIssue::getMainPath() const
+std::string SyncIssue::getMainPath() const
 {
     assert(mMegaStall);
 
@@ -124,47 +125,47 @@ std::string StalledIssue::getMainPath() const
     return localPath ? localPath : "";
 }
 
-StalledIssueCache::StalledIssueCache(const StalledIssueList &stalledIssues, std::mutex &stalledIssuesMutex) :
-    mStalledIssues(stalledIssues),
-    mStalledIssuesLock(stalledIssuesMutex)
+SyncIssueCache::SyncIssueCache(const SyncIssueList &syncIssues, std::mutex &syncIssuesMutex) :
+    mSyncIssues(syncIssues),
+    mSyncIssuesLock(syncIssuesMutex)
 {
 }
 
-void StalledIssuesManager::populateStalledIssues(const mega::MegaSyncStallList& stalls)
+void SyncIssuesManager::populateSyncIssues(const mega::MegaSyncStallList& stalls)
 {
-    StalledIssueList stalledIssues;
+    SyncIssueList syncIssues;
 
     for (size_t i = 0; i < stalls.size(); ++i)
     {
         auto stall = stalls.get(i);
         assert(stall);
 
-        stalledIssues.emplace_back(i + 1, *stall);
+        syncIssues.emplace_back(i + 1, *stall);
     }
 
     {
-        std::lock_guard<std::mutex> lock(mStalledIssuesMutex);
-        mStalledIssues = std::move(stalledIssues);
+        std::lock_guard<std::mutex> lock(mSyncIssuesMutex);
+        mSyncIssues = std::move(syncIssues);
     }
 
 #ifdef MEGACMD_TESTING_CODE
-    TI::Instance().setTestValue(TI::TestValue::STALLED_ISSUES_LIST_SIZE, static_cast<uint64_t>(stalls.size()));
-    TI::Instance().fireEvent(TI::Event::STALLED_ISSUES_LIST_UPDATED);
+    TI::Instance().setTestValue(TI::TestValue::SYNC_ISSUES_LIST_SIZE, static_cast<uint64_t>(stalls.size()));
+    TI::Instance().fireEvent(TI::Event::SYNC_ISSUES_LIST_UPDATED);
 #endif
 }
 
-StalledIssuesManager::StalledIssuesManager(mega::MegaApi *api)
+SyncIssuesManager::SyncIssuesManager(mega::MegaApi *api)
 {
     assert(api);
 
-    mGlobalListener = std::make_unique<StalledIssuesGlobalListener>(
+    mGlobalListener = std::make_unique<SyncIssuesGlobalListener>(
          [this, api] { api->getMegaSyncStallList(mRequestListener.get()); });
 
-    mRequestListener = std::make_unique<StalledIssuesRequestListener>(
-        [this] (const mega::MegaSyncStallList& stalls) { populateStalledIssues(stalls); });
+    mRequestListener = std::make_unique<SyncIssuesRequestListener>(
+        [this] (const mega::MegaSyncStallList& stalls) { populateSyncIssues(stalls); });
 }
 
-StalledIssueCache StalledIssuesManager::getLockedCache()
+SyncIssueCache SyncIssuesManager::getLockedCache()
 {
-    return StalledIssueCache(mStalledIssues, mStalledIssuesMutex);
+    return SyncIssueCache(mSyncIssues, mSyncIssuesMutex);
 }
