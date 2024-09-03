@@ -199,10 +199,12 @@ TEST_F(SyncIssuesTests, LimitedSyncIssueList)
     ASSERT_TRUE(fs::create_directory(dirPath));
 
     // Create 5 sync issues
-    for (int i = 1; i <= 5; ++i)
     {
-        SyncIssueListGuard guard(i);
-        fs::create_directory_symlink(dirPath, syncDirLocal() + "link" + std::to_string(i));
+        SyncIssueListGuard guard(5);
+        for (int i = 0; i < 5; ++i)
+        {
+            fs::create_directory_symlink(dirPath, syncDirLocal() + "link" + std::to_string(i));
+        }
     }
 
     auto result = executeInClient({"sync-issues", "--limit=" + std::to_string(3)});
