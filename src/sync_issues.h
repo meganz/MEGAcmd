@@ -37,13 +37,13 @@
         GENERATOR_MACRO(mega::MegaSyncStall::LocalAndRemotePreviouslyUnsyncedDiffer_userMustChoose,     "Local and remote differ") \
         GENERATOR_MACRO(mega::MegaSyncStall::NamesWouldClashWhenSynced,                                 "Name clash")
 
-class StalledIssue
+class SyncIssue
 {
     const size_t mId;
     std::unique_ptr<const mega::MegaSyncStall> mMegaStall;
 
 public:
-    StalledIssue(size_t id, const mega::MegaSyncStall& stall);
+    SyncIssue(size_t id, const mega::MegaSyncStall& stall);
 
     inline size_t getId() const { return mId; }
 
@@ -51,37 +51,47 @@ public:
     std::string getMainPath() const;
 };
 
-using StalledIssueList = std::vector<StalledIssue>;
+using SyncIssueList = std::vector<SyncIssue>;
 
-class StalledIssueCache
+class SyncIssueCache
 {
-    const StalledIssueList& mStalledIssues;
-    std::unique_lock<std::mutex> mStalledIssuesLock;
+    const SyncIssueList& mSyncIssues;
+    std::unique_lock<std::mutex> mSyncIssuesLock;
 
 public:
-    StalledIssueCache(const StalledIssueList& stalledIssues, std::mutex& stalledIssuesMutex);
+    SyncIssueCache(const SyncIssueList& syncIssues, std::mutex& syncIssuesMutex);
 
-    bool empty() const { return mStalledIssues.empty(); }
+    template<typename Cb>
+    void forEach(Cb&& callback, size_t sizeLimit)
+    {
+        for (size_t i = 0; i < size() && i < sizeLimit; ++i)
+        {
+            callback(mSyncIssues[i]);
+        }
+    }
 
-    StalledIssueList::const_iterator begin() const { return mStalledIssues.begin(); }
-    StalledIssueList::const_iterator end() const { return mStalledIssues.end(); }
+    bool empty() const { return mSyncIssues.empty(); }
+    unsigned int size() const { return mSyncIssues.size(); }
+
+    SyncIssueList::const_iterator begin() const { return mSyncIssues.begin(); }
+    SyncIssueList::const_iterator end() const { return mSyncIssues.end(); }
 };
 
-class StalledIssuesManager final
+class SyncIssuesManager final
 {
-    StalledIssueList mStalledIssues;
-    std::mutex mStalledIssuesMutex;
+    SyncIssueList mSyncIssues;
+    std::mutex mSyncIssuesMutex;
 
     std::unique_ptr<mega::MegaGlobalListener> mGlobalListener;
     std::unique_ptr<mega::MegaRequestListener> mRequestListener;
 
 private:
-    void populateStalledIssues(const mega::MegaSyncStallList &stalls);
+    void populateSyncIssues(const mega::MegaSyncStallList &stalls);
 
 public:
-    StalledIssuesManager(mega::MegaApi *api);
+    SyncIssuesManager(mega::MegaApi *api);
 
-    StalledIssueCache getLockedCache();
+    SyncIssueCache getLockedCache();
 
     mega::MegaGlobalListener* getGlobalListener() const { return mGlobalListener.get(); }
     mega::MegaRequestListener* getRequestListener() const { return mRequestListener.get(); }
