@@ -23,6 +23,8 @@
 namespace fs = std::filesystem;
 using TI = TestInstruments;
 
+// This class ensures the *first* time the sync issue list is populated,
+// it has the expected size
 class SyncIssueListGuard
 {
     TestInstrumentsWaitForEventGuard mGuard;
@@ -44,6 +46,42 @@ public:
 
         auto syncIssueListSize = std::get<uint64_t>(*syncIssueListSizeOpt);
         EXPECT_EQ(syncIssueListSize, mExpectedListSize);
+    }
+};
+
+// This class ensures that the sync issue list reaches the expected
+// size before a certain timeout
+class SyncIssueListSoftGuard
+{
+    uint64_t mCurrentListSize;
+    const uint64_t mExpectedListSize;
+    std::mutex mMtx;
+    std::condition_variable mCv;
+
+public:
+    SyncIssueListSoftGuard(uint64_t expectedListSize) :
+        mCurrentListSize(0),
+        mExpectedListSize(expectedListSize)
+    {
+        TI::Instance().onEveryEvent(TI::Event::SYNC_ISSUES_LIST_UPDATED,
+        [this] {
+            std::lock_guard guard(mMtx);
+
+            auto syncIssueListSizeOpt = TI::Instance().testValue(TI::TestValue::SYNC_ISSUES_LIST_SIZE);
+            EXPECT_TRUE(syncIssueListSizeOpt.has_value());
+
+            mCurrentListSize = std::get<uint64_t>(*syncIssueListSizeOpt);
+            mCv.notify_all();
+        });
+    }
+
+    ~SyncIssueListSoftGuard()
+    {
+        std::unique_lock lock(mMtx);
+        mCv.wait_for(lock, std::chrono::seconds(10), [this] { return mCurrentListSize == mExpectedListSize; });
+
+        EXPECT_EQ(mCurrentListSize, mExpectedListSize);
+        TI::Instance().clearEvent(TI::Event::SYNC_ISSUES_LIST_UPDATED);
     }
 };
 
@@ -199,12 +237,10 @@ TEST_F(SyncIssuesTests, LimitedSyncIssueList)
     ASSERT_TRUE(fs::create_directory(dirPath));
 
     // Create 5 sync issues
+    for (int i = 1; i <= 5; ++i)
     {
-        SyncIssueListGuard guard(5);
-        for (int i = 0; i < 5; ++i)
-        {
-            fs::create_directory_symlink(dirPath, syncDirLocal() + "link" + std::to_string(i));
-        }
+        SyncIssueListSoftGuard guard(i);
+        fs::create_directory_symlink(dirPath, syncDirLocal() + "link" + std::to_string(i));
     }
 
     auto result = executeInClient({"sync-issues", "--limit=" + std::to_string(3)});
