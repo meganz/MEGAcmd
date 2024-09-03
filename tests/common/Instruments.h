@@ -65,7 +65,7 @@ public:
     enum class Event
     {
         SERVER_ABOUT_TO_START_WAITING_FOR_PETITIONS,
-        STALLED_ISSUES_LIST_UPDATED,
+        SYNC_ISSUES_LIST_UPDATED,
     };
 
     typedef std::function<void()> EventCallback;
@@ -83,7 +83,7 @@ public:
     enum class TestValue
     {
         AMIPRO_LEVEL,
-        STALLED_ISSUES_LIST_SIZE
+        SYNC_ISSUES_LIST_SIZE
     };
 
     using TestValue_t = std::variant<

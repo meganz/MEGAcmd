@@ -131,7 +131,7 @@ static std::vector<std::string> loginInValidCommands { "log", "debug", "speedlim
 static std::vector<std::string> allValidCommands { "login", "signup", "confirm", "session", "mount", "ls", "cd", "log", "debug", "pwd", "lcd", "lpwd", "import", "masterkey",
                              "put", "get", "attr", "userattr", "mkdir", "rm", "du", "mv", "cp", "sync", "sync-ignore", "export", "share", "invite", "ipc", "df",
                              "showpcr", "users", "speedlimit", "killsession", "whoami", "help", "passwd", "reload", "logout", "version", "quit",
-                             "thumbnail", "preview", "find", "completion", "clear", "https", "stalled"
+                             "thumbnail", "preview", "find", "completion", "clear", "https", "sync-issues"
 #ifdef HAVE_DOWNLOADS_COMMAND
                                                    , "downloads"
 #endif

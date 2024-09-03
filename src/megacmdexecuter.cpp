@@ -158,7 +158,7 @@ void MegaCmdExecuter::updateprompt(MegaApi *api)
 MegaCmdExecuter::MegaCmdExecuter(MegaApi *api, MegaCMDLogger *loggerCMD, MegaCmdSandbox *sandboxCMD) :
     // Give a few seconds in order for key sharing to happen
     mDeferredSharedFoldersVerifier(std::chrono::seconds(5)),
-    mStalledIssuesManager(api)
+    mSyncIssuesManager(api)
 {
     signingup = false;
     confirming = false;
@@ -168,7 +168,7 @@ MegaCmdExecuter::MegaCmdExecuter(MegaApi *api, MegaCMDLogger *loggerCMD, MegaCmd
     this->sandboxCMD = sandboxCMD;
     this->globalTransferListener = new MegaCmdGlobalTransferListener(api, sandboxCMD);
     api->addTransferListener(globalTransferListener);
-    api->addGlobalListener(mStalledIssuesManager.getGlobalListener());
+    api->addGlobalListener(mSyncIssuesManager.getGlobalListener());
     cwd = UNDEF;
     fsAccessCMD = new MegaFileSystemAccess();
     session = NULL;
@@ -8011,10 +8011,10 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             cd.print(oss);
             OUTSTREAM << oss.str();
 
-            if (mStalledIssuesManager.hasStalledIssues())
+            if (mSyncIssuesManager.hasSyncIssues())
             {
                 OUTSTREAM << endl;
-                OUTSTREAM << "You have stalled issues. Use the \"" << commandPrefixBasedOnMode() << "stalled\" command to display them." << endl;
+                OUTSTREAM << "You have sync issues. Use the \"" << commandPrefixBasedOnMode() << "sync-issues\" command to display them." << endl;
             }
         }
         return;
@@ -10946,7 +10946,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         }
 
     }
-    else if (words[0] == "stalled")
+    else if (words[0] == "sync-issues")
     {
         if (!api->isFilesystemAvailable() || !api->isLoggedIn())
         {
@@ -10964,38 +10964,59 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             LOG_err << "      " << getUsageStr("stalled");
             return;
         }
+
+        int syncIssueCountLimit = getintOption(cloptions, "limit", 10);
+        if (syncIssueCountLimit < 0)
+        {
+            setCurrentOutCode(MCMD_EARGS);
+            LOG_err << "Sync issue limit cannot be less than 0";
+            return;
+        }
+
         if (disableWarning)
         {
-            mStalledIssuesManager.disableWarning();
+            mSyncIssuesManager.disableWarning();
             return;
         }
         if (enableWarning)
         {
-            mStalledIssuesManager.enableWarning();
+            mSyncIssuesManager.enableWarning();
             return;
         }
 
-        auto stalledIssuesCache = mStalledIssuesManager.getLockedCache();
-        if (stalledIssuesCache.empty())
+        auto syncIssueCache = mSyncIssuesManager.getLockedCache();
+        if (syncIssueCache.empty())
         {
-            OUTSTREAM << "There are no stalled issues" << endl;
+            OUTSTREAM << "There are no sync issues" << endl;
             return;
+        }
+
+        if (syncIssueCountLimit == 0)
+        {
+            syncIssueCountLimit = std::numeric_limits<int>::max();
         }
 
         ColumnDisplayer cd(clflags, cloptions);
         cd.addHeader("MAIN PATH", false);
 
-        for (const auto& stalledIssue : stalledIssuesCache)
+        syncIssueCache.forEach([&cd] (const SyncIssue& syncIssue)
         {
-            cd.addValue("ID", std::to_string(stalledIssue.getId()));
-            cd.addValue("REASON", stalledIssue.getSyncWaitReasonStr());
-            cd.addValue("MAIN PATH", stalledIssue.getMainPath());
+            cd.addValue("ID", std::to_string(syncIssue.getId()));
+            cd.addValue("REASON", syncIssue.getSyncWaitReasonStr());
+            cd.addValue("MAIN PATH", syncIssue.getMainPath());
             cd.addValue("SOLVABLE", "NO" /* Until CMD-311 */);
-        }
+        }, syncIssueCountLimit);
 
         OUTSTRINGSTREAM oss;
         cd.print(oss);
         OUTSTREAM << oss.str();
+
+        if (syncIssueCountLimit < syncIssueCache.size())
+        {
+            OUTSTREAM << endl;
+            OUTSTREAM << "Note: showing " << syncIssueCountLimit << " out of " << syncIssueCache.size() << " issues. "
+                      << "Use \"" << commandPrefixBasedOnMode() << "sync-issue --limit=0\" to see all issues." << endl;
+        }
     }
     else
     {
