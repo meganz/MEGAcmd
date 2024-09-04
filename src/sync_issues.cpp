@@ -31,6 +31,11 @@ using namespace std::string_literals;
 
 namespace {
 
+bool startsWith(const char* str, const char* prefix)
+{
+    return std::strncmp(str, prefix, std::strlen(prefix)) == 0;
+}
+
 class SyncIssuesGlobalListener : public mega::MegaGlobalListener
 {
     using SyncStalledChangedCb = std::function<void()>;
@@ -136,10 +141,44 @@ std::string SyncIssue::getMainPath() const
     return localPath ? localPath : "";
 }
 
+bool SyncIssue::belongsToSync(const mega::MegaSync& sync) const
+{
+    const char* issueCloudPath = mMegaStall->path(true, 0);
+    const char* syncCloudPath = sync.getLastKnownMegaFolder();
+    assert(syncCloudPath);
+    if (startsWith(issueCloudPath, syncCloudPath))
+    {
+        return true;
+    }
+
+    const char* issueLocalPath = mMegaStall->path(false, 0);
+    const char* syncLocalPath = sync.getLocalFolder();
+    assert(syncLocalPath);
+    if (startsWith(issueLocalPath, syncLocalPath))
+    {
+        return true;
+    }
+
+    return false;
+}
+
 SyncIssueCache::SyncIssueCache(const SyncIssueList &syncIssues, std::mutex &syncIssuesMutex) :
     mSyncIssues(syncIssues),
     mSyncIssuesLock(syncIssuesMutex)
 {
+}
+
+unsigned int SyncIssueCache::getSyncIssueCount(const mega::MegaSync& sync) const
+{
+    unsigned int count = 0;
+    for (const auto& syncIssue : *this)
+    {
+        if (syncIssue.belongsToSync(sync))
+        {
+            ++count;
+        }
+    }
+    return count;
 }
 
 void SyncIssuesManager::populateSyncIssues(const mega::MegaSyncStallList& stalls)
@@ -200,12 +239,6 @@ SyncIssuesManager::SyncIssuesManager(mega::MegaApi *api)
 SyncIssueCache SyncIssuesManager::getLockedCache()
 {
     return SyncIssueCache(mSyncIssues, mSyncIssuesMutex);
-}
-
-bool SyncIssuesManager::hasSyncIssues() const
-{
-    std::lock_guard lock(mSyncIssuesMutex);
-    return !mSyncIssues.empty();
 }
 
 void SyncIssuesManager::disableWarning()

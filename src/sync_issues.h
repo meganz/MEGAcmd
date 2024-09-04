@@ -49,6 +49,8 @@ public:
 
     std::string getSyncWaitReasonStr() const;
     std::string getMainPath() const;
+
+    bool belongsToSync(const mega::MegaSync& sync) const;
 };
 
 using SyncIssueList = std::vector<SyncIssue>;
@@ -69,6 +71,8 @@ public:
             callback(mSyncIssues[i]);
         }
     }
+
+    unsigned int getSyncIssueCount(const mega::MegaSync& sync) const;
 
     bool empty() const { return mSyncIssues.empty(); }
     unsigned int size() const { return mSyncIssues.size(); }
@@ -94,7 +98,6 @@ public:
     SyncIssuesManager(mega::MegaApi *api);
 
     SyncIssueCache getLockedCache();
-    bool hasSyncIssues() const;
 
     void disableWarning();
     void enableWarning();

@@ -1008,7 +1008,7 @@ string sizeToText(long long totalSize, bool equalizeUnitsLength, bool humanreada
             unit = "KB";
         }
         os << fixed << reducedSize;
-        os << " " << unit;
+        os << " " << (reducedSize == 0.0 ? " " : "") << unit;
     }
     else
     {
