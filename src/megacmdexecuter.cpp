@@ -7985,6 +7985,8 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         {
             ColumnDisplayer cd(clflags, cloptions);
 
+            auto syncIssueCache = mSyncIssuesManager.getLockedCache();
+
             std::unique_ptr<MegaSyncList> syncs{api->getSyncs()};
             for (int i = 0; i < syncs->size(); i++)
             {
