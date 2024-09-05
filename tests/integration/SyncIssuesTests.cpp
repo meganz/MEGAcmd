@@ -234,3 +234,31 @@ TEST_F(SyncIssuesTests, LimitedSyncIssueList)
     EXPECT_THAT(lines, testing::SizeIs(6));
     EXPECT_THAT(lines.back(), testing::HasSubstr("showing 3 out of 5 issues"));
 }
+
+TEST_F(SyncIssuesTests, ShowSyncIssuesInSyncCommand)
+{
+    auto result = executeInClient({"sync"});
+    ASSERT_TRUE(result.ok());
+    EXPECT_THAT(result.out(), testing::HasSubstr("NO"));
+
+    const std::string dirPath = syncDirLocal() + "some_dir";
+    ASSERT_TRUE(fs::create_directory(dirPath));
+
+    {
+        SyncIssueListGuard guard(1);
+        fs::create_directory_symlink(dirPath, syncDirLocal() + "link1");
+    }
+    result = executeInClient({"sync"});
+    ASSERT_TRUE(result.ok());
+    EXPECT_THAT(result.out(), testing::HasSubstr("Sync Issues (1)"));
+    EXPECT_THAT(result.out(), testing::Not(testing::HasSubstr("NO")));
+
+    {
+        SyncIssueListGuard guard(2);
+        fs::create_directory_symlink(dirPath, syncDirLocal() + "link2");
+    }
+    result = executeInClient({"sync"});
+    ASSERT_TRUE(result.ok());
+    EXPECT_THAT(result.out(), testing::HasSubstr("Sync Issues (2)"));
+    EXPECT_THAT(result.out(), testing::Not(testing::HasSubstr("NO")));
+}
