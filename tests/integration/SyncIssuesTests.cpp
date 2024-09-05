@@ -55,14 +55,21 @@ class SyncIssueListSoftGuard
 {
     std::mutex mMtx;
     std::condition_variable mCv;
+    bool mListWasUpdated;
     const uint64_t mExpectedListSize;
 
 public:
     SyncIssueListSoftGuard(uint64_t expectedListSize) :
+        mListWasUpdated(false),
         mExpectedListSize(expectedListSize)
     {
+        TI::Instance().resetTestValue(TI::TestValue::SYNC_ISSUES_LIST_SIZE);
         TI::Instance().onEveryEvent(TI::Event::SYNC_ISSUES_LIST_UPDATED, [this]
         {
+            {
+                std::lock_guard lock(mMtx);
+                mListWasUpdated = true;
+            }
             mCv.notify_one();
         });
     }
@@ -74,6 +81,11 @@ public:
 
         mCv.wait_for(lock, std::chrono::seconds(10), [this, &currentListSize]
         {
+            if (!mListWasUpdated)
+            {
+                return false;
+            }
+
             auto syncIssueListSizeOpt = TI::Instance().testValue(TI::TestValue::SYNC_ISSUES_LIST_SIZE);
             EXPECT_TRUE(syncIssueListSizeOpt.has_value());
 
