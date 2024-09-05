@@ -53,34 +53,35 @@ public:
 // size before a certain timeout
 class SyncIssueListSoftGuard
 {
-    uint64_t mCurrentListSize;
-    const uint64_t mExpectedListSize;
     std::mutex mMtx;
     std::condition_variable mCv;
+    const uint64_t mExpectedListSize;
 
 public:
     SyncIssueListSoftGuard(uint64_t expectedListSize) :
-        mCurrentListSize(0),
         mExpectedListSize(expectedListSize)
     {
-        TI::Instance().onEveryEvent(TI::Event::SYNC_ISSUES_LIST_UPDATED,
-        [this] {
-            std::lock_guard guard(mMtx);
-
-            auto syncIssueListSizeOpt = TI::Instance().testValue(TI::TestValue::SYNC_ISSUES_LIST_SIZE);
-            EXPECT_TRUE(syncIssueListSizeOpt.has_value());
-
-            mCurrentListSize = std::get<uint64_t>(*syncIssueListSizeOpt);
-            mCv.notify_all();
+        TI::Instance().onEveryEvent(TI::Event::SYNC_ISSUES_LIST_UPDATED, [this]
+        {
+            mCv.notify_one();
         });
     }
 
     ~SyncIssueListSoftGuard()
     {
         std::unique_lock lock(mMtx);
-        mCv.wait_for(lock, std::chrono::seconds(10), [this] { return mCurrentListSize == mExpectedListSize; });
+        uint64_t currentListSize = 0;
 
-        EXPECT_EQ(mCurrentListSize, mExpectedListSize);
+        mCv.wait_for(lock, std::chrono::seconds(10), [this, &currentListSize]
+        {
+            auto syncIssueListSizeOpt = TI::Instance().testValue(TI::TestValue::SYNC_ISSUES_LIST_SIZE);
+            EXPECT_TRUE(syncIssueListSizeOpt.has_value());
+
+            currentListSize = std::get<uint64_t>(*syncIssueListSizeOpt);
+            return currentListSize == mExpectedListSize;
+        });
+
+        EXPECT_EQ(currentListSize, mExpectedListSize);
         TI::Instance().clearEvent(TI::Event::SYNC_ISSUES_LIST_UPDATED);
     }
 };
@@ -240,6 +241,7 @@ TEST_F(SyncIssuesTests, ShowSyncIssuesInSyncCommand)
     auto result = executeInClient({"sync"});
     ASSERT_TRUE(result.ok());
     EXPECT_THAT(result.out(), testing::HasSubstr("NO"));
+    EXPECT_THAT(result.out(), testing::Not(testing::HasSubstr("You have sync issues")));
 
     const std::string dirPath = syncDirLocal() + "some_dir";
     ASSERT_TRUE(fs::create_directory(dirPath));
@@ -252,6 +254,7 @@ TEST_F(SyncIssuesTests, ShowSyncIssuesInSyncCommand)
     ASSERT_TRUE(result.ok());
     EXPECT_THAT(result.out(), testing::HasSubstr("Sync Issues (1)"));
     EXPECT_THAT(result.out(), testing::Not(testing::HasSubstr("NO")));
+    EXPECT_THAT(result.out(), testing::HasSubstr("You have sync issues"));
 
     {
         SyncIssueListGuard guard(2);
@@ -261,4 +264,5 @@ TEST_F(SyncIssuesTests, ShowSyncIssuesInSyncCommand)
     ASSERT_TRUE(result.ok());
     EXPECT_THAT(result.out(), testing::HasSubstr("Sync Issues (2)"));
     EXPECT_THAT(result.out(), testing::Not(testing::HasSubstr("NO")));
+    EXPECT_THAT(result.out(), testing::HasSubstr("You have sync issues"));
 }
