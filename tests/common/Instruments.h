@@ -138,7 +138,6 @@ public:
         mMegaCmdSingleEventHandlers.insert_or_assign(event, std::forward<Cb>(handler));
     }
 
-    // Caveat, these occur with the mutex locked while looping the array, try not to include TI calls within callbacks!
     template <typename Cb>
     std::multimap<Event, EventCallback>::iterator
        onEveryEvent(Event event, Cb &&handler)

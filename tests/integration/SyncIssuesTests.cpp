@@ -55,21 +55,22 @@ class SyncIssueListSoftGuard
 {
     std::mutex mMtx;
     std::condition_variable mCv;
-    bool mListWasUpdated;
+    uint64_t mCurrentListSize;
     const uint64_t mExpectedListSize;
 
 public:
     SyncIssueListSoftGuard(uint64_t expectedListSize) :
-        mListWasUpdated(false),
+        mCurrentListSize(0),
         mExpectedListSize(expectedListSize)
     {
-        TI::Instance().resetTestValue(TI::TestValue::SYNC_ISSUES_LIST_SIZE);
         TI::Instance().onEveryEvent(TI::Event::SYNC_ISSUES_LIST_UPDATED, [this]
         {
-            {
-                std::lock_guard lock(mMtx);
-                mListWasUpdated = true;
-            }
+            std::lock_guard guard(mMtx);
+
+            auto syncIssueListSizeOpt = TI::Instance().testValue(TI::TestValue::SYNC_ISSUES_LIST_SIZE);
+            EXPECT_TRUE(syncIssueListSizeOpt.has_value());
+
+            mCurrentListSize = std::get<uint64_t>(*syncIssueListSizeOpt);
             mCv.notify_one();
         });
     }
@@ -77,23 +78,9 @@ public:
     ~SyncIssueListSoftGuard()
     {
         std::unique_lock lock(mMtx);
-        uint64_t currentListSize = 0;
+        mCv.wait_for(lock, std::chrono::seconds(10), [this] { return mCurrentListSize == mExpectedListSize; });
 
-        mCv.wait_for(lock, std::chrono::seconds(10), [this, &currentListSize]
-        {
-            if (!mListWasUpdated)
-            {
-                return false;
-            }
-
-            auto syncIssueListSizeOpt = TI::Instance().testValue(TI::TestValue::SYNC_ISSUES_LIST_SIZE);
-            EXPECT_TRUE(syncIssueListSizeOpt.has_value());
-
-            currentListSize = std::get<uint64_t>(*syncIssueListSizeOpt);
-            return currentListSize == mExpectedListSize;
-        });
-
-        EXPECT_EQ(currentListSize, mExpectedListSize);
+        EXPECT_EQ(mCurrentListSize, mExpectedListSize);
         TI::Instance().clearEvent(TI::Event::SYNC_ISSUES_LIST_UPDATED);
     }
 };
