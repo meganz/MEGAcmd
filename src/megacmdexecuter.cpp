@@ -4739,7 +4739,7 @@ void MegaCmdExecuter::printBackup(backup_struct *backupstruct, const char *timeF
     }
 }
 
-void MegaCmdExecuter::printSync(MegaSync *sync, long long nfiles, long long nfolders, megacmd::ColumnDisplayer &cd,  std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions, const SyncIssueCache& syncIssueCache)
+void MegaCmdExecuter::printSync(MegaSync *sync, long long nfiles, long long nfolders, megacmd::ColumnDisplayer &cd,  std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions, const SyncIssueList& syncIssueList)
 {
     cd.addValue("ID", syncBackupIdToBase64(sync->getBackupId()));
 
@@ -4775,7 +4775,7 @@ void MegaCmdExecuter::printSync(MegaSync *sync, long long nfiles, long long nfol
     else
     {
         string syncIssueMsg = "NO";
-        unsigned int syncIssueCount = syncIssueCache.getSyncIssueCount(*sync);
+        unsigned int syncIssueCount = syncIssueList.getSyncIssueCount(*sync);
         if (syncIssueCount > 0)
         {
             syncIssueMsg = "Sync Issues (" + std::to_string(syncIssueCount) + ")";
@@ -7974,7 +7974,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 printSyncHeader(cd);
             }
 
-            printSync(sync.get(), nfiles, nfolders, cd, clflags, cloptions, mSyncIssuesManager.getLockedCache());
+            printSync(sync.get(), nfiles, nfolders, cd, clflags, cloptions, mSyncIssuesManager.getSyncIssues());
 
            OUTSTRINGSTREAM oss;
            cd.print(oss);
@@ -7985,7 +7985,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         {
             ColumnDisplayer cd(clflags, cloptions);
 
-            auto syncIssueCache = mSyncIssuesManager.getLockedCache();
+            auto syncIssueList = mSyncIssuesManager.getSyncIssues();
 
             std::unique_ptr<MegaSyncList> syncs{api->getSyncs()};
             for (int i = 0; i < syncs->size(); i++)
@@ -8011,13 +8011,13 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     printSyncHeader(cd);
                 }
 
-                printSync(sync, nfiles, nfolders, cd, clflags, cloptions, syncIssueCache);
+                printSync(sync, nfiles, nfolders, cd, clflags, cloptions, syncIssueList);
             }
             OUTSTRINGSTREAM oss;
             cd.print(oss);
             OUTSTREAM << oss.str();
 
-            if (!syncIssueCache.empty())
+            if (!syncIssueList.empty())
             {
                 OUTSTREAM << endl;
                 OUTSTREAM << "You have sync issues. Use the \"" << commandPrefixBasedOnMode() << "sync-issues\" command to display them." << endl;
@@ -10990,7 +10990,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             return;
         }
 
-        auto syncIssueCache = mSyncIssuesManager.getLockedCache();
+        auto syncIssueCache = mSyncIssuesManager.getSyncIssues();
         if (syncIssueCache.empty())
         {
             OUTSTREAM << "There are no sync issues" << endl;

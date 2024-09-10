@@ -53,51 +53,45 @@ public:
     bool belongsToSync(const mega::MegaSync& sync) const;
 };
 
-using SyncIssueList = std::vector<SyncIssue>;
-
-class SyncIssueCache
+class SyncIssueList
 {
-    const SyncIssueList& mSyncIssues;
-    std::unique_lock<std::mutex> mSyncIssuesLock;
+    std::vector<SyncIssue> mIssuesVec;
+    friend class SyncIssuesRequestListener; // only one that can actually populate this
 
 public:
-    SyncIssueCache(const SyncIssueList& syncIssues, std::mutex& syncIssuesMutex);
-
     template<typename Cb>
     void forEach(Cb&& callback, size_t sizeLimit)
     {
         for (size_t i = 0; i < size() && i < sizeLimit; ++i)
         {
-            callback(mSyncIssues[i]);
+            callback(mIssuesVec[i]);
         }
     }
 
     unsigned int getSyncIssueCount(const mega::MegaSync& sync) const;
 
-    bool empty() const { return mSyncIssues.empty(); }
-    unsigned int size() const { return mSyncIssues.size(); }
+    bool empty() const { return mIssuesVec.empty(); }
+    unsigned int size() const { return mIssuesVec.size(); }
 
-    SyncIssueList::const_iterator begin() const { return mSyncIssues.begin(); }
-    SyncIssueList::const_iterator end() const { return mSyncIssues.end(); }
+    std::vector<SyncIssue>::const_iterator begin() const { return mIssuesVec.begin(); }
+    std::vector<SyncIssue>::const_iterator end() const { return mIssuesVec.end(); }
 };
 
 class SyncIssuesManager final
 {
-    SyncIssueList mSyncIssues;
-    mutable std::mutex mSyncIssuesMutex;
+    mega::MegaApi& mApi;
     bool mWarningEnabled;
 
     std::unique_ptr<mega::MegaGlobalListener> mGlobalListener;
     std::unique_ptr<mega::MegaRequestListener> mRequestListener;
 
 private:
-    void populateSyncIssues(const mega::MegaSyncStallList &stalls);
     void broadcastWarning();
 
 public:
     SyncIssuesManager(mega::MegaApi *api);
 
-    SyncIssueCache getLockedCache();
+    SyncIssueList getSyncIssues() const;
 
     void disableWarning();
     void enableWarning();

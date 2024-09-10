@@ -20,6 +20,7 @@
 
 #include "megacmdlogger.h"
 #include "configurationmanager.h"
+#include "listeners.h"
 
 #ifdef MEGACMD_TESTING_CODE
     #include "../tests/common/Instruments.h"
@@ -29,11 +30,12 @@
 using namespace megacmd;
 using namespace std::string_literals;
 
-namespace {
-
-bool startsWith(const char* str, const char* prefix)
+namespace
 {
-    return std::strncmp(str, prefix, std::strlen(prefix)) == 0;
+    bool startsWith(const char* str, const char* prefix)
+    {
+        return std::strncmp(str, prefix, std::strlen(prefix)) == 0;
+    }
 }
 
 class SyncIssuesGlobalListener : public mega::MegaGlobalListener
@@ -45,14 +47,6 @@ class SyncIssuesGlobalListener : public mega::MegaGlobalListener
 
     void onGlobalSyncStateChanged(mega::MegaApi* api) override
     {
-        const bool scanning = api->isScanning();
-        const bool waiting = api->isWaiting();
-        if (scanning || waiting)
-        {
-            // Busy state (scanning or waiting); ignore
-            return;
-        }
-
         const bool syncStalled = api->isSyncStalled();
         const bool syncStalledChanged = (syncStalled != mSyncStalled || (syncStalled && api->isSyncStalledChanged()));
         if (!syncStalledChanged)
@@ -71,12 +65,12 @@ public:
         mSyncStalled(false) {}
 };
 
-class SyncIssuesRequestListener : public mega::MegaRequestListener
+class SyncIssuesRequestListener : public mega::SynchronousRequestListener
 {
-    using PopulateSyncIssueListCb = std::function<void(const mega::MegaSyncStallList& stalls)>;
-    PopulateSyncIssueListCb mPopulateSyncIssueListCb;
+    std::mutex mSyncIssuesMtx;
+    SyncIssueList mSyncIssues;
 
-    void onRequestFinish(mega::MegaApi *api, mega::MegaRequest *request, mega::MegaError *e) override
+    void doOnRequestFinish(mega::MegaApi *api, mega::MegaRequest *request, mega::MegaError *e) override
     {
         assert(e);
         if (e->getValue() != mega::MegaError::API_OK)
@@ -94,15 +88,56 @@ class SyncIssuesRequestListener : public mega::MegaRequestListener
             return;
         }
 
-        mPopulateSyncIssueListCb(*stalls);
+        SyncIssueList syncIssues;
+        for (size_t i = 0; i < stalls->size(); ++i)
+        {
+            auto stall = stalls->get(i);
+            assert(stall);
+
+            syncIssues.mIssuesVec.emplace_back(i + 1, *stall);
+        }
+        onSyncIssuesChanged(syncIssues);
+
+        {
+            std::lock_guard lock(mSyncIssuesMtx);
+            mSyncIssues = std::move(syncIssues);
+        }
+    }
+
+protected:
+    virtual void onSyncIssuesChanged(const SyncIssueList& syncIssues) { }
+
+public:
+    virtual ~SyncIssuesRequestListener() = default;
+
+    SyncIssueList popSyncIssues() { return std::move(mSyncIssues); }
+};
+
+class SyncIssuesBroadcastListener : public SyncIssuesRequestListener
+{
+    using SyncStalledChangedCb = std::function<void()>;
+    SyncStalledChangedCb mBroadcastSyncIssuesCb;
+
+    void onSyncIssuesChanged(const SyncIssueList& syncIssues) override
+    {
+        if (!syncIssues.empty())
+        {
+            mBroadcastSyncIssuesCb();
+        }
+
+#ifdef MEGACMD_TESTING_CODE
+        TI::Instance().setTestValue(TI::TestValue::SYNC_ISSUES_LIST_SIZE, static_cast<uint64_t>(syncIssues.size()));
+        TI::Instance().fireEvent(TI::Event::SYNC_ISSUES_LIST_UPDATED);
+#endif
     }
 
 public:
-    template<typename PopulateSyncIssueListCb>
-    SyncIssuesRequestListener(PopulateSyncIssueListCb&& populateSyncIssueListCb) :
-        mPopulateSyncIssueListCb(std::move(populateSyncIssueListCb)) {}
+    template<typename BroadcastSyncIssuesCb>
+    SyncIssuesBroadcastListener(BroadcastSyncIssuesCb&& broadcastSyncIssuesCb) :
+        mBroadcastSyncIssuesCb(std::move(broadcastSyncIssuesCb)) {}
+
+    virtual ~SyncIssuesBroadcastListener() = default;
 };
-}
 
 SyncIssue::SyncIssue(size_t id, const mega::MegaSyncStall &stall) :
     mId(id),
@@ -162,13 +197,7 @@ bool SyncIssue::belongsToSync(const mega::MegaSync& sync) const
     return false;
 }
 
-SyncIssueCache::SyncIssueCache(const SyncIssueList &syncIssues, std::mutex &syncIssuesMutex) :
-    mSyncIssues(syncIssues),
-    mSyncIssuesLock(syncIssuesMutex)
-{
-}
-
-unsigned int SyncIssueCache::getSyncIssueCount(const mega::MegaSync& sync) const
+unsigned int SyncIssueList::getSyncIssueCount(const mega::MegaSync& sync) const
 {
     unsigned int count = 0;
     for (const auto& syncIssue : *this)
@@ -181,64 +210,43 @@ unsigned int SyncIssueCache::getSyncIssueCount(const mega::MegaSync& sync) const
     return count;
 }
 
-void SyncIssuesManager::populateSyncIssues(const mega::MegaSyncStallList& stalls)
-{
-    SyncIssueList syncIssues;
-
-    for (size_t i = 0; i < stalls.size(); ++i)
-    {
-        auto stall = stalls.get(i);
-        assert(stall);
-
-        syncIssues.emplace_back(i + 1, *stall);
-    }
-
-    {
-        std::lock_guard lock(mSyncIssuesMutex);
-
-        if (mWarningEnabled && mSyncIssues.empty())
-        {
-            assert(!syncIssues.empty());
-            broadcastWarning();
-        }
-        mSyncIssues = std::move(syncIssues);
-    }
-
-#ifdef MEGACMD_TESTING_CODE
-    TI::Instance().setTestValue(TI::TestValue::SYNC_ISSUES_LIST_SIZE, static_cast<uint64_t>(stalls.size()));
-    TI::Instance().fireEvent(TI::Event::SYNC_ISSUES_LIST_UPDATED);
-#endif
-}
-
 void SyncIssuesManager::broadcastWarning()
 {
+    if (!mWarningEnabled)
+    {
+        return;
+    }
+
     std::string message = "Sync issues detected: your syncs have encountered conflicts that may require your intervention.\n" +
                           "Use the \""s + commandPrefixBasedOnMode() + "sync-issues\" command to display them.\n" +
                           "This message can be disabled with \"" + commandPrefixBasedOnMode() + "sync-issues --disable-warning\".";
     broadcastMessage(message, true);
 }
 
-SyncIssuesManager::SyncIssuesManager(mega::MegaApi *api)
+SyncIssuesManager::SyncIssuesManager(mega::MegaApi *api) :
+    mApi(*api)
 {
-    assert(api);
-
     // The global listener will be triggered whenever there's a change in the sync state
-    // It'll check whether or not this change requires an update in the sync issue list
-    // If that's the case, it'll request the latest list of stalls from the API
+    // It'll request the sync issue list from the API (if the stalled state changed)
+    // This will be used to notify the user if they have sync issues
     mGlobalListener = std::make_unique<SyncIssuesGlobalListener>(
          [this, api] { api->getMegaSyncStallList(mRequestListener.get()); });
 
-    // The request listener will be triggered whenever the api call above (to get the
-    // list of stalls) finishes; it will populate the internal list with its data
-    mRequestListener = std::make_unique<SyncIssuesRequestListener>(
-        [this] (const mega::MegaSyncStallList& stalls) { populateSyncIssues(stalls); });
+    // The broadcast listener will be triggered whenever the api call above finishes
+    // getting the list of stalls; it'll be used to notify the user (and the integration tests)
+    mRequestListener = std::make_unique<SyncIssuesBroadcastListener>(
+        [this] { broadcastWarning(); });
 
     mWarningEnabled = ConfigurationManager::getConfigurationValue("stalled_issues_warning", true);
 }
 
-SyncIssueCache SyncIssuesManager::getLockedCache()
+SyncIssueList SyncIssuesManager::getSyncIssues() const
 {
-    return SyncIssueCache(mSyncIssues, mSyncIssuesMutex);
+    auto listener = std::make_unique<SyncIssuesRequestListener>();
+    mApi.getMegaSyncStallList(listener.get());
+    listener->wait();
+
+    return listener->popSyncIssues();
 }
 
 void SyncIssuesManager::disableWarning()

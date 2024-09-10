@@ -23,35 +23,9 @@
 namespace fs = std::filesystem;
 using TI = TestInstruments;
 
-// This class ensures the *first* time the sync issue list is populated,
-// it has the expected size
+// This class ensures that the sync issue list eventually
+// reaches the expected size (before a certain timeout)
 class SyncIssueListGuard
-{
-    TestInstrumentsWaitForEventGuard mGuard;
-    const uint64_t mExpectedListSize;
-
-public:
-    SyncIssueListGuard(uint64_t expectedListSize) :
-        mGuard(TI::Event::SYNC_ISSUES_LIST_UPDATED),
-        mExpectedListSize(expectedListSize)
-    {
-    }
-
-    ~SyncIssueListGuard()
-    {
-        EXPECT_TRUE(mGuard.waitForEvent(std::chrono::seconds(10)));
-
-        auto syncIssueListSizeOpt = TI::Instance().testValue(TI::TestValue::SYNC_ISSUES_LIST_SIZE);
-        EXPECT_TRUE(syncIssueListSizeOpt.has_value());
-
-        auto syncIssueListSize = std::get<uint64_t>(*syncIssueListSizeOpt);
-        EXPECT_EQ(syncIssueListSize, mExpectedListSize);
-    }
-};
-
-// This class ensures that the sync issue list reaches the expected
-// size before a certain timeout
-class SyncIssueListSoftGuard
 {
     std::mutex mMtx;
     std::condition_variable mCv;
@@ -59,7 +33,7 @@ class SyncIssueListSoftGuard
     const uint64_t mExpectedListSize;
 
 public:
-    SyncIssueListSoftGuard(uint64_t expectedListSize) :
+    SyncIssueListGuard(uint64_t expectedListSize) :
         mCurrentListSize(0),
         mExpectedListSize(expectedListSize)
     {
@@ -75,7 +49,7 @@ public:
         });
     }
 
-    ~SyncIssueListSoftGuard()
+    ~SyncIssueListGuard()
     {
         std::unique_lock lock(mMtx);
         mCv.wait_for(lock, std::chrono::seconds(10), [this] { return mCurrentListSize == mExpectedListSize; });
@@ -222,7 +196,7 @@ TEST_F(SyncIssuesTests, LimitedSyncIssueList)
     // Create 5 sync issues
     for (int i = 1; i <= 5; ++i)
     {
-        SyncIssueListSoftGuard guard(i);
+        SyncIssueListGuard guard(i);
         fs::create_directory_symlink(dirPath, syncDirLocal() + "link" + std::to_string(i));
     }
 
