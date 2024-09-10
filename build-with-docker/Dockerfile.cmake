@@ -27,7 +27,6 @@ RUN /clone_vcpkg_from_baseline.sh /vcpkg
 FROM scratch as src
 
 WORKDIR /usr/src/megacmd
-COPY Makefile.am autogen.sh clean.sh configure.ac ./
 COPY sdk ./sdk
 COPY src ./src
 COPY build ./build

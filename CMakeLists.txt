@@ -190,7 +190,7 @@ target_sources_conditional(LMegacmdServer
     "${ProjectDir}/src/megacmdplatform.mm"
 )
 
-# Given we are no longer including the sdk, and some sources use certain defines without including SDK's config.h, 
+# Given we are no longer including the sdk, and some sources use certain defines without including SDK's config.h,
 # We need to explicitly pass the copmiling options.
 target_compile_definitions(LMegacmdServer
     PUBLIC
