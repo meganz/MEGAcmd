@@ -94,7 +94,7 @@ class SyncIssuesRequestListener : public mega::SynchronousRequestListener
             auto stall = stalls->get(i);
             assert(stall);
 
-            syncIssues.mIssuesVec.emplace_back(i + 1, *stall);
+            syncIssues.mIssuesVec.emplace_back(*stall);
         }
         onSyncIssuesChanged(syncIssues);
 
@@ -187,10 +187,31 @@ public:
     }
 };
 
-SyncIssue::SyncIssue(size_t id, const mega::MegaSyncStall &stall) :
-    mId(id),
+SyncIssue::SyncIssue(const mega::MegaSyncStall &stall) :
     mMegaStall(stall.copy())
 {
+}
+
+const std::string& SyncIssue::getId() const
+{
+    if (mId.empty())
+    {
+        std::string combinedDataStr;
+        combinedDataStr += std::to_string(mMegaStall->reason());
+
+        for (bool isLocal : {true, false})
+        {
+            for (int i = 0; i < mMegaStall->pathCount(isLocal); ++i)
+            {
+                combinedDataStr += mMegaStall->path(isLocal, i);
+                combinedDataStr += std::to_string(mMegaStall->pathProblem(isLocal, i));
+            }
+        }
+
+        mId = mega::Base64::btoa(combinedDataStr).substr(0, 11); // same size as a sync ID
+        assert(!mId.empty());
+    }
+    return mId;
 }
 
 std::string SyncIssue::getSyncWaitReasonStr() const

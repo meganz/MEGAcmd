@@ -11007,7 +11007,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
         syncIssueCache.forEach([&cd] (const SyncIssue& syncIssue)
         {
-            cd.addValue("ID", std::to_string(syncIssue.getId()));
+            cd.addValue("ID", syncIssue.getId());
             cd.addValue("REASON", syncIssue.getSyncWaitReasonStr());
             cd.addValue("MAIN PATH", syncIssue.getMainPath());
             cd.addValue("SOLVABLE", "NO" /* Until CMD-311 */);

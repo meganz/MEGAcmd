@@ -39,13 +39,13 @@
 
 class SyncIssue
 {
-    const size_t mId;
+    mutable std::string mId;
     std::unique_ptr<const mega::MegaSyncStall> mMegaStall;
 
 public:
-    SyncIssue(size_t id, const mega::MegaSyncStall& stall);
+    SyncIssue(const mega::MegaSyncStall& stall);
 
-    inline size_t getId() const { return mId; }
+    const std::string& getId() const;
 
     std::string getSyncWaitReasonStr() const;
     std::string getMainPath() const;
