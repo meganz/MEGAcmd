@@ -105,7 +105,7 @@ class SyncIssuesRequestListener : public mega::SynchronousRequestListener
     }
 
 protected:
-    virtual void onSyncIssuesChanged(const SyncIssueList& syncIssues) { }
+    virtual void onSyncIssuesChanged(const SyncIssueList& syncIssues) {}
 
 public:
     virtual ~SyncIssuesRequestListener() = default;
@@ -113,30 +113,78 @@ public:
     SyncIssueList popSyncIssues() { return std::move(mSyncIssues); }
 };
 
+// Whenever a callback happens we start a timer. Any subsequent callbacks after the first
+// timer restart it. When the timer reaches a certain threshold, the broadcast is triggered.
+// This effectivelly "combines" near callbacks into a single trigger.
 class SyncIssuesBroadcastListener : public SyncIssuesRequestListener
 {
-    using SyncStalledChangedCb = std::function<void()>;
+    using SyncStalledChangedCb = std::function<void(unsigned int syncIssuesSize)>;
+    using Clock = std::chrono::high_resolution_clock;
+    using TimePoint = Clock::time_point;
+
     SyncStalledChangedCb mBroadcastSyncIssuesCb;
+    unsigned int mSyncIssuesSize;
+    bool mRunning;
+    TimePoint mLastTriggerTime;
+
+    std::mutex mDebouncerMtx;
+    std::condition_variable mDebouncerCv;
+    std::thread mDebouncerThread;
 
     void onSyncIssuesChanged(const SyncIssueList& syncIssues) override
     {
-        if (!syncIssues.empty())
         {
-            mBroadcastSyncIssuesCb();
+            std::lock_guard lock(mDebouncerMtx);
+            mSyncIssuesSize = syncIssues.size();
+            mLastTriggerTime = Clock::now();
         }
 
-#ifdef MEGACMD_TESTING_CODE
-        TI::Instance().setTestValue(TI::TestValue::SYNC_ISSUES_LIST_SIZE, static_cast<uint64_t>(syncIssues.size()));
-        TI::Instance().fireEvent(TI::Event::SYNC_ISSUES_LIST_UPDATED);
-#endif
+        mDebouncerCv.notify_one();
+    }
+
+    void debouncerLoop()
+    {
+        while (true)
+        {
+            std::unique_lock lock(mDebouncerMtx);
+            bool stopOrTrigger = mDebouncerCv.wait_for(lock, std::chrono::milliseconds(20), [this]
+            {
+                constexpr auto minTriggerTime = std::chrono::milliseconds(300);
+                return !mRunning || Clock::now() - mLastTriggerTime > minTriggerTime;
+            });
+
+            if (!mRunning) // stop
+            {
+                return;
+            }
+
+            if (stopOrTrigger) // trigger
+            {
+                mBroadcastSyncIssuesCb(mSyncIssuesSize);
+                mLastTriggerTime = TimePoint::max();
+            }
+        }
     }
 
 public:
     template<typename BroadcastSyncIssuesCb>
     SyncIssuesBroadcastListener(BroadcastSyncIssuesCb&& broadcastSyncIssuesCb) :
-        mBroadcastSyncIssuesCb(std::move(broadcastSyncIssuesCb)) {}
+        mBroadcastSyncIssuesCb(std::move(broadcastSyncIssuesCb)),
+        mSyncIssuesSize(0),
+        mRunning(true),
+        mLastTriggerTime(TimePoint::max()),
+        mDebouncerThread([this] { debouncerLoop(); }) {}
 
-    virtual ~SyncIssuesBroadcastListener() = default;
+    virtual ~SyncIssuesBroadcastListener()
+    {
+        {
+            std::lock_guard lock(mDebouncerMtx);
+            mRunning = false;
+        }
+
+        mDebouncerCv.notify_one();
+        mDebouncerThread.join();
+    }
 };
 
 SyncIssue::SyncIssue(size_t id, const mega::MegaSyncStall &stall) :
@@ -210,17 +258,20 @@ unsigned int SyncIssueList::getSyncIssueCount(const mega::MegaSync& sync) const
     return count;
 }
 
-void SyncIssuesManager::broadcastWarning()
+void SyncIssuesManager::onSyncIssuesChanged(unsigned int newSyncIssuesSize)
 {
-    if (!mWarningEnabled)
+    if (mWarningEnabled && newSyncIssuesSize > 0)
     {
-        return;
+        std::string message = "Sync issues detected: your syncs have encountered conflicts that may require your intervention.\n" +
+                            "Use the \""s + commandPrefixBasedOnMode() + "sync-issues\" command to display them.\n" +
+                            "This message can be disabled with \"" + commandPrefixBasedOnMode() + "sync-issues --disable-warning\".";
+        broadcastMessage(message, true);
     }
 
-    std::string message = "Sync issues detected: your syncs have encountered conflicts that may require your intervention.\n" +
-                          "Use the \""s + commandPrefixBasedOnMode() + "sync-issues\" command to display them.\n" +
-                          "This message can be disabled with \"" + commandPrefixBasedOnMode() + "sync-issues --disable-warning\".";
-    broadcastMessage(message, true);
+#ifdef MEGACMD_TESTING_CODE
+        TI::Instance().setTestValue(TI::TestValue::SYNC_ISSUES_LIST_SIZE, static_cast<uint64_t>(newSyncIssuesSize));
+        TI::Instance().fireEvent(TI::Event::SYNC_ISSUES_LIST_UPDATED);
+#endif
 }
 
 SyncIssuesManager::SyncIssuesManager(mega::MegaApi *api) :
@@ -235,7 +286,7 @@ SyncIssuesManager::SyncIssuesManager(mega::MegaApi *api) :
     // The broadcast listener will be triggered whenever the api call above finishes
     // getting the list of stalls; it'll be used to notify the user (and the integration tests)
     mRequestListener = std::make_unique<SyncIssuesBroadcastListener>(
-        [this] { broadcastWarning(); });
+        [this] (unsigned int newSyncIssuesSize) { onSyncIssuesChanged(newSyncIssuesSize); });
 
     mWarningEnabled = ConfigurationManager::getConfigurationValue("stalled_issues_warning", true);
 }

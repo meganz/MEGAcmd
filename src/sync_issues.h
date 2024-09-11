@@ -86,7 +86,7 @@ class SyncIssuesManager final
     std::unique_ptr<mega::MegaRequestListener> mRequestListener;
 
 private:
-    void broadcastWarning();
+    void onSyncIssuesChanged(unsigned int newSyncIssuesSize);
 
 public:
     SyncIssuesManager(mega::MegaApi *api);
