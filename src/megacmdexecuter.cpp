@@ -10979,6 +10979,8 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             return;
         }
 
+        bool disablePathCollapse = getFlag(clflags, "disable-path-collapse");
+
         if (disableWarning)
         {
             mSyncIssuesManager.disableWarning();
@@ -11003,7 +11005,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         }
 
         ColumnDisplayer cd(clflags, cloptions);
-        cd.addHeader("MAIN PATH", false);
+        cd.addHeader("MAIN PATH", disablePathCollapse);
 
         syncIssueCache.forEach([&cd] (const SyncIssue& syncIssue)
         {

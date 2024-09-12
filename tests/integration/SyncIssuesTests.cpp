@@ -95,12 +95,12 @@ class SyncIssuesTests : public NOINTERACTIVELoggedInTest
 protected:
     std::string syncDirLocal() const
     {
-        return mTmpDir.string() + "/sync_dir/";
+        return mTmpDir.string() + "/tests_integration_sync_dir/";
     }
 
     std::string syncDirCloud() const
     {
-        return "sync_dir/";
+        return "tests_integration_sync_dir/";
     }
 };
 
@@ -132,7 +132,7 @@ TEST_F(SyncIssuesTests, NameConflict)
     }
 
     // Check the name conclict appears in the list of sync issues
-    auto result = executeInClient({"sync-issues"});
+    auto result = executeInClient({"sync-issues", "--disable-path-collapse"});
     ASSERT_TRUE(result.ok());
     EXPECT_THAT(result.out(), testing::Not(testing::HasSubstr("There are no sync issues")));
     EXPECT_THAT(result.out(), testing::AnyOf(testing::HasSubstr(syncDirCloud() + "f01"), testing::HasSubstr(syncDirCloud() + conflictingName)));
@@ -155,7 +155,7 @@ TEST_F(SyncIssuesTests, SymLink)
     }
 
     // Check the symlink in the list of sync issues
-    auto result = executeInClient({"sync-issues"});
+    auto result = executeInClient({"sync-issues", "--disable-path-collapse"});
     ASSERT_TRUE(result.ok());
     EXPECT_THAT(result.out(), testing::Not(testing::HasSubstr("There are no sync-issues issues")));
     EXPECT_THAT(result.out(), testing::HasSubstr(linkPath));
