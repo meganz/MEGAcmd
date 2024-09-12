@@ -112,8 +112,12 @@ if [ ${build} -eq 1 ]; then
         CMAKE_EXTRA="-DCMAKE_OSX_ARCHITECTURES=${build_arch}"
     fi
 
+    # If VCPKGPATH environment variable set
+    if  [ -n "${VCPKGPATH}" ]; then
+        VCPKG_ROOT_ARGUMENT="-DVCPKG_ROOT=${VCPKGPATH}"
+    fi
 
-    cmake -B build-cmake-Release_${build_arch} -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_VERBOSE_MAKEFILE=ON ${CMAKE_EXTRA} -S ../../
+    cmake -B build-cmake-Release_${build_arch} -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_VERBOSE_MAKEFILE=ON ${VCPKG_ROOT_ARGUMENT} ${CMAKE_EXTRA} -S ../../
     cmake --build build-cmake-Release_${build_arch} -j $(sysctl -n hw.ncpu)
     cmake --install build-cmake-Release_${build_arch} --prefix ./
     SERVER_PREFIX=""

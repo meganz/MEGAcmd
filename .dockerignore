@@ -22,128 +22,58 @@
 *.out
 *.app
 
-# Autotool stuff
-.deps
-/Makefile
-/include/Makefile
-Makefile.in
-aclocal.m4
-autom4te.cache
-/include/mega/config.h
-/include/mega/config.h.in
-configure
-depcomp
-*.swp
-install-sh
-libtool
-ltmain.sh
-missing
-.libs
-stamp-h1
-.dirstamp
-libmega.pc
-*.db
-.ycm_extra_conf.py
-test-driver
-m4/libtool.m4
-m4/ltoptions.m4
-m4/ltsugar.m4
-m4/ltversion.m4
-m4/lt~obsolete.m4
-compile
-clean
-config.guess
-config.log
-config.status
-config.sub
-py-compile
-
-# Editor and IDE stuff
+# Editors and IDEs
 *~
 .project
 .cproject
 .settings
-*~
-Debug
-Release
 *.pro.user*
+.vscode
+CMakeLists.txt.user
 
-megaclient_statecache*
-
-
+# MEGAcmd-specific files
 mega-cmd
 mega-exec
 mega-cmd-server
-mega-cmd-integration-tests
-mega-cmd-unit-tests
+mega-cmd-updater
+mega-cmd-tests-integration
+mega-cmd-tests-unit
+megaclient_statecache*
+megacmdversion.h
 
-/contrib/QtCreator/MEGAcmd/MEGAcmd.pro.user
-/contrib/QtCreator/MEGAcmd/MEGAcmd
-/contrib/QtCreator/MEGAcmd/Makefile
-/contrib/QtCreator/MEGAcmd/moc_*.cpp
-src/build/Release_x64
-MEGAcmdServer.pro.user
-/src/build/megacmd/megacmd.dsc
-/src/build/megacmd/megacmd.spec
-/src/build/megacmd/megacmd_*.tar.gz
-/src/build/megacmd/PKGBUILD
+# Standard location of CMake builds
+/build/build-cmake-*
 
-#QtCreator products
-/contrib/QtCreator
-!/contrib/QtCreator/MEGAcmd/MEGAcmdServer/Info_MEGA.plist
-!/contrib/QtCreator/MEGAcmd/MEGAcmdServer/icon.rc
-!/contrib/QtCreator/MEGAcmd/MEGAcmdServer/app.icns
-!/contrib/QtCreator/MEGAcmd/MEGAcmdClient/icon.rc
-!/contrib/QtCreator/MEGAcmd/MEGAcmdUpdater/icon.rc
-!/contrib/QtCreator/MEGAcmd/MEGAcmdShell/icon.rc
-
-
-
-#built stuff
-build/archives
-build/megacmd-*
-megacmdconfig.h
-megacmdconfig.h.in
+# Linux packaging files and artifacts
 /build/megacmd/PKGBUILD
 /build/megacmd/megacmd.dsc
 /build/megacmd/megacmd.spec
 /build/megacmd/megacmd_*.tar.gz
-/build/build-cmake-*
-/build/cmake/CMakeLists.txt.user
-/sdk/contrib/QtCreator
-/sdk/contrib/sdk_build
-test_integration
-test_unit
-.qtc_clangd
-CMakeFiles
-build-x64-windows-mega
-Makefile.Debug
-Makefile.Release
-build-MEGAcmd-*
 
-build/Release_x64
-/build/megacmd/megacmd*.dsc
+# Windows packaging files and artifacts
+/build/build-x64-windows-mega
+/build/build-x86-windows-mega
+/build/built64
+/build/built32
+/build/sign32
+/build/sign64
+mega-cmd-server_version.rc
 
-#git stuff
+# macOS packaging files and artifacts
+Info.plist
+
+# Git
 *_BACKUP_*
 *_BASE_*
 *_LOCAL_*
 *_REMOTE_*
-.git
 
-#backups
+# Backups
 *_bk
-compile_commands.json
-build/cmake/.cmake/
-build/cmake/CMakeCache.txt
-build/cmake/CMakeCache.txt.prev
-build/cmake/Makefile
-build/cmake/Testing/
-build/cmake/cmake_install.cmake
-build/cmake/compile_commands.json
-build/cmake/qtcsettings.cmake
-# Created by configure
-config.cache
-# Created by clangd
-.cache
+
+# Docker-specific
+.git
 build-with-docker
+.cache
+/sdk/contrib/QtCreator
+/sdk/contrib/sdk_build

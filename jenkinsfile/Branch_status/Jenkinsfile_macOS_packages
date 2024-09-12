@@ -63,7 +63,7 @@ pipeline {
         }
         stage ('Build macOS packages'){
             environment{
-                VCPKGPATH  = "${env.HOME}/jenkins/3rdparty"
+                VCPKGPATH  = "${env.HOME}/jenkins/vcpkg"
             }
             steps {
                 dir(macos_sources_workspace + '/build'){

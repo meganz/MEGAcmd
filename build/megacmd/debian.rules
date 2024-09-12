@@ -42,12 +42,12 @@ build-stamp:
 	#generate file that would increase inotify limit:
 	echo "fs.inotify.max_user_watches = 524288" > 99-megacmd-inotify-limit.conf
 
-	if [ -n "$(DEB_TESTING)" ]; then   							\
-		sed -i "s/@VERSION@/$(DEB_TESTING)/g" debian/postinst;	\
-	else                               							\
-		sed -i "s/@VERSION@/$(VER)/g" debian/postinst;        	\
+	if [ -n "$(DEB_TESTING)" ]; then                            \
+		sed -i "s#@VERSION@#$(DEB_TESTING)#g" debian/postinst;  \
+	else                                                        \
+		sed -i "s#@VERSION@#$(VER)#g" debian/postinst;          \
 	fi
-	sed -i "s/@DISTRO@/$(DISTRO)/g" debian/postinst
+	sed -i "s#@DISTRO@#$(DISTRO)#g" debian/postinst
 	
 	touch build-stamp
 
