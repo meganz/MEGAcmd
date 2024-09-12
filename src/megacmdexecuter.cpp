@@ -11023,7 +11023,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         {
             OUTSTREAM << endl;
             OUTSTREAM << "Note: showing " << syncIssueCountLimit << " out of " << syncIssueCache.size() << " issues. "
-                      << "Use \"" << commandPrefixBasedOnMode() << "sync-issue --limit=0\" to see all issues." << endl;
+                      << "Use \"" << commandPrefixBasedOnMode() << "sync-issues --limit=0\" to see all issues." << endl;
         }
     }
     else
