@@ -237,8 +237,8 @@ std::string SyncIssue::getMainPath() const
     const char* cloudPath = mMegaStall->path(true, 0);
     if (cloudPath && strcmp(cloudPath, ""))
     {
-        // We add a '/' at the start to distinguish between cloud and local absolute paths
-        return std::string("/") + cloudPath;
+        // We add "<CLOUD>" at the start to distinguish between cloud and local absolute paths
+        return std::string("<CLOUD>") + cloudPath;
     }
 
     const char* localPath = mMegaStall->path(false, 0);
