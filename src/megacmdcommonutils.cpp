@@ -1280,6 +1280,13 @@ ColumnDisplayer::ColumnDisplayer(std::map<std::string, int> *clflags, std::map<s
 
 }
 
+std::string ColumnDisplayer::str(bool printHeader)
+{
+    OUTSTRINGSTREAM oss;
+    print(oss, printHeader);
+    return oss.str();
+}
+
 void ColumnDisplayer::printHeaders(OUTSTREAMTYPE &os)
 {
     print(os, getintOption(mCloptions, "client-width", getNumberOfCols(75)), true, true);

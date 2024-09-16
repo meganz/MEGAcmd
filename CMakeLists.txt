@@ -181,6 +181,7 @@ add_source_and_corresponding_header_to_target(LMegacmdServer
     "${ProjectDir}/src/comunicationsmanagerportsockets.cpp"
     "${ProjectDir}/src/configurationmanager.cpp"
     "${ProjectDir}/src/listeners.cpp"
+    "${ProjectDir}/src/sync_command.cpp"
     "${ProjectDir}/src/sync_issues.cpp"
     "${ProjectDir}/src/sync_ignore.cpp"
 )
