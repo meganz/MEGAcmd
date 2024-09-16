@@ -223,7 +223,7 @@ void addSync(mega::MegaApi& api, const fs::path& localPath, mega::MegaNode& node
     string errorStr = getErrorString(*megaCmdListener);
     if (!errorStr.empty())
     {
-        LOG_err << "Failed to sync " << localPath << " to " << nodePath << " (error: " << errorStr << ")";
+        LOG_err << "Failed to sync " << localPath.string() << " to " << nodePath << " (error: " << errorStr << ")";
         return;
     }
 
