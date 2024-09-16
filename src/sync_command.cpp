@@ -216,7 +216,7 @@ void addSync(mega::MegaApi& api, const fs::path& localPath, mega::MegaNode& node
     }
 
     auto megaCmdListener = std::make_unique<MegaCmdListener>(nullptr);
-    api.syncFolder(mega::MegaSync::TYPE_TWOWAY, localPath.c_str(), nullptr, node.getHandle(), nullptr, megaCmdListener.get());
+    api.syncFolder(mega::MegaSync::TYPE_TWOWAY, localPath.string().c_str(), nullptr, node.getHandle(), nullptr, megaCmdListener.get());
 
     megaCmdListener->wait();
 
