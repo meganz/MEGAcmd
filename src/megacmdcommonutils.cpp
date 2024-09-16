@@ -1280,7 +1280,7 @@ ColumnDisplayer::ColumnDisplayer(std::map<std::string, int> *clflags, std::map<s
 
 }
 
-std::string ColumnDisplayer::str(bool printHeader)
+OUTSTRING ColumnDisplayer::str(bool printHeader)
 {
     OUTSTRINGSTREAM oss;
     print(oss, printHeader);

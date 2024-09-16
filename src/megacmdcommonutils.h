@@ -313,7 +313,7 @@ class ColumnDisplayer
 public:
     ColumnDisplayer(std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions);
 
-    std::string str(bool printHeader = true);
+    OUTSTRING str(bool printHeader = true);
 
     void printHeaders(OUTSTREAMTYPE &os);
     void print(OUTSTREAMTYPE &os, bool printHeader = true);
