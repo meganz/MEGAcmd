@@ -42,13 +42,15 @@ public:
     {
         TI::Instance().onEveryEvent(TI::Event::SYNC_ISSUES_LIST_UPDATED, [this]
         {
-            std::lock_guard guard(mMtx);
+            {
+                std::lock_guard guard(mMtx);
 
-            auto syncIssueListSizeOpt = TI::Instance().testValue(TI::TestValue::SYNC_ISSUES_LIST_SIZE);
-            EXPECT_TRUE(syncIssueListSizeOpt.has_value());
+                auto syncIssueListSizeOpt = TI::Instance().testValue(TI::TestValue::SYNC_ISSUES_LIST_SIZE);
+                EXPECT_TRUE(syncIssueListSizeOpt.has_value());
 
-            mCurrentListSize = std::get<uint64_t>(*syncIssueListSizeOpt);
-            mTriggered = true;
+                mCurrentListSize = std::get<uint64_t>(*syncIssueListSizeOpt);
+                mTriggered = true;
+            }
             mCv.notify_one();
         });
     }
@@ -56,7 +58,7 @@ public:
     ~SyncIssueListGuard()
     {
         std::unique_lock lock(mMtx);
-        mCv.wait_for(lock, std::chrono::seconds(10), [this] { return mTriggered && mCurrentListSize == mExpectedListSize; });
+        mCv.wait_for(lock, std::chrono::seconds(5), [this] { return mTriggered && mCurrentListSize == mExpectedListSize; });
 
         EXPECT_EQ(mCurrentListSize, mExpectedListSize);
 
@@ -80,6 +82,7 @@ class SyncIssuesTests : public NOINTERACTIVELoggedInTest
         result = fs::create_directory(syncDirLocal());
         ASSERT_TRUE(result);
 
+        SyncIssueListGuard guard(0); // ensure there are no sync issues before we start the test
         result = executeInClient({"sync", syncDirLocal(), syncDirCloud()}).ok();
         ASSERT_TRUE(result);
     }
