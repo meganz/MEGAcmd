@@ -84,7 +84,10 @@ void printSingleSync(mega::MegaApi& api, mega::MegaSync& sync, long long nFiles,
     cd.addValue("REMOTEPATH", sync.getLastKnownMegaFolder());
     cd.addValue("RUN_STATE", syncRunStateStr(sync.getRunState()));
 
-    std::string localFolder = withoutTrailingSeparator(sync.getLocalFolder());
+    string folder = withoutTrailingSeparator(sync.getLocalFolder());
+    string localFolder;
+    mega::LocalPath::path2local(&folder, &localFolder);
+
     int statepath = api.syncPathState(&localFolder);
     cd.addValue("STATUS", getSyncPathStateStr(statepath));
 
