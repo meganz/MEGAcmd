@@ -10785,7 +10785,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         {
             setCurrentOutCode(MCMD_EARGS);
             LOG_err << "Only one warning action (enable/disable) can be specified at a time";
-            LOG_err << "      " << getUsageStr("stalled");
+            LOG_err << "      " << getUsageStr("sync-issues");
             return;
         }
 
