@@ -196,6 +196,8 @@ const std::string& SyncIssue::getId() const
 {
     if (mId.empty())
     {
+        std::hash<std::string> hasher;
+
         std::string combinedDataStr;
         combinedDataStr += std::to_string(mMegaStall->reason());
 
@@ -208,8 +210,13 @@ const std::string& SyncIssue::getId() const
             }
         }
 
-        mId = mega::Base64::btoa(combinedDataStr).substr(0, 11); // same size as a sync ID
-        assert(!mId.empty());
+        // Ensure the id has a size of 11, same as the sync ID
+        std::stringstream ss;
+        ss << std::setw(11) << std::setfill('0') << hasher(combinedDataStr);
+        mId = ss.str();
+
+        assert(mId.size() >= 11);
+        mId = mId.substr(0, 11);
     }
     return mId;
 }
