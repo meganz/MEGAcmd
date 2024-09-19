@@ -10856,7 +10856,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             if (listSizeLimit < pathProblems.size())
             {
                 OUTSTREAM << endl;
-                OUTSTREAM << "Note: showing " << listSizeLimit << " out of " << pathProblems.size() << " path problems. "
+                OUTSTREAM << "Note: showing " << listSizeLimit << " out of " << static_cast<unsigned int>(pathProblems.size()) << " path problems. "
                           << "Use \"" << commandPrefixBasedOnMode() << "sync-issues --detail " << syncIssueId << " --limit=0\" to see all of them." << endl;
             }
         }
