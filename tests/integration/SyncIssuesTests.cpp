@@ -248,3 +248,49 @@ TEST_F(SyncIssuesTests, ShowSyncIssuesInSyncCommand)
     EXPECT_THAT(result.out(), testing::Not(testing::HasSubstr("NO")));
     EXPECT_THAT(result.out(), testing::HasSubstr("You have sync issues"));
 }
+
+TEST_F(SyncIssuesTests, SyncIssueDetail)
+{
+    const std::string dirPath = syncDirLocal() + "some_dir";
+    ASSERT_TRUE(fs::create_directory(dirPath));
+
+    std::string linkPath = syncDirLocal() + "some_link";
+#ifdef _WIN32
+    megacmd::replaceAll(linkPath, "/", "\\");
+#endif
+
+    {
+        SyncIssueListGuard guard(1);
+        fs::create_directory_symlink(dirPath, linkPath);
+    }
+
+    // Get the sync issue id
+    auto result = executeInClient({"sync-issues"});
+    ASSERT_TRUE(result.ok());
+
+    auto lines = splitByNewline(result.out());
+    EXPECT_EQ(lines.size(), 2);
+
+    auto words = megacmd::split(lines[1], " ");
+    EXPECT_THAT(words, testing::Not(testing::IsEmpty()));
+
+    std::string syncIssueId = words[0];
+
+    // Get the parent sync ID
+    result = executeInClient({"sync"});
+    ASSERT_TRUE(result.ok());
+
+    lines = splitByNewline(result.out());
+    EXPECT_THAT(lines.size(), 4);
+
+    words = megacmd::split(lines[1], " ");
+    EXPECT_THAT(words, testing::Not(testing::IsEmpty()));
+
+    std::string parentSyncId = words[0];
+
+    result = executeInClient({"sync-issues", "--detail", syncIssueId});
+    ASSERT_TRUE(result.ok());
+    EXPECT_THAT(result.out(), testing::HasSubstr("Parent sync: " + parentSyncId));
+    EXPECT_THAT(result.out(), testing::HasSubstr("Symlink detected"));
+    EXPECT_THAT(result.out(), testing::HasSubstr(linkPath));
+}
