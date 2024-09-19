@@ -36,6 +36,20 @@ namespace
     {
         return std::strncmp(str, prefix, std::strlen(prefix)) == 0;
     }
+
+    std::string getPathProblemReasonStr(int _pathProblem)
+    {
+        switch(static_cast<mega::PathProblem>(_pathProblem))
+        {
+        #define SOME_GENERATOR_MACRO(pathProblem, str) case pathProblem: return str;
+            GENERATE_FROM_PATH_PROBLEM(SOME_GENERATOR_MACRO)
+        #undef SOME_GENERATOR_MACRO
+
+            default:
+                assert(false);
+                return "<unsupported>";
+        }
+    }
 }
 
 class SyncIssuesGlobalListener : public mega::MegaGlobalListener
@@ -252,6 +266,43 @@ std::string SyncIssue::getMainPath() const
     return localPath ? localPath : "";
 }
 
+std::vector<SyncIssue::PathProblem> SyncIssue::getPathProblems() const
+{
+    return getPathProblems(true) + getPathProblems(false);
+}
+
+std::vector<SyncIssue::PathProblem> SyncIssue::getPathProblems(bool local) const
+{
+    std::vector<SyncIssue::PathProblem> pathProblems;
+    for (int i = 0; i < mMegaStall->pathCount(local); ++i)
+    {
+        PathProblem pathProblem;
+        pathProblem.mPath = mMegaStall->path(local, i);
+        pathProblem.mProblem = getPathProblemReasonStr(mMegaStall->pathProblem(local, i));
+        pathProblems.emplace_back(std::move(pathProblem));
+    }
+    return pathProblems;
+}
+
+std::unique_ptr<mega::MegaSync> SyncIssue::getParentSync(mega::MegaApi& api) const
+{
+    auto syncList = std::unique_ptr<mega::MegaSyncList>(api.getSyncs());
+    assert(syncList);
+
+    for (int i = 0; i < syncList->size(); ++i)
+    {
+        mega::MegaSync* sync = syncList->get(i);
+        assert(sync);
+
+        if (belongsToSync(*sync))
+        {
+            return std::unique_ptr<mega::MegaSync>(sync->copy());
+        }
+    }
+
+    return nullptr;
+}
+
 bool SyncIssue::belongsToSync(const mega::MegaSync& sync) const
 {
     const char* issueCloudPath = mMegaStall->path(true, 0);
@@ -271,6 +322,18 @@ bool SyncIssue::belongsToSync(const mega::MegaSync& sync) const
     }
 
     return false;
+}
+
+SyncIssue const* SyncIssueList::getSyncIssue(const std::string& id) const
+{
+    for (const auto& syncIssue : *this)
+    {
+        if (syncIssue.getId() == id)
+        {
+            return &syncIssue;
+        }
+    }
+    return nullptr;
 }
 
 unsigned int SyncIssueList::getSyncIssueCount(const mega::MegaSync& sync) const

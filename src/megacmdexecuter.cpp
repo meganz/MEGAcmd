@@ -10789,12 +10789,17 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             return;
         }
 
-        int syncIssueCountLimit = getintOption(cloptions, "limit", 10);
-        if (syncIssueCountLimit < 0)
+        int listSizeLimit = getintOption(cloptions, "limit", 10);
+        if (listSizeLimit < 0)
         {
             setCurrentOutCode(MCMD_EARGS);
-            LOG_err << "Sync issue limit cannot be less than 0";
+            LOG_err << "List size limit cannot be less than 0";
             return;
+        }
+
+        if (listSizeLimit == 0)
+        {
+            listSizeLimit = std::numeric_limits<int>::max();
         }
 
         bool disablePathCollapse = getFlag(clflags, "disable-path-collapse");
@@ -10810,35 +10815,78 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             return;
         }
 
-        auto syncIssueCache = mSyncIssuesManager.getSyncIssues();
-        if (syncIssueCache.empty())
+        bool detailSyncIssue = getFlag(clflags, "detail");
+        if (detailSyncIssue) // get the detail of a single issue
         {
-            OUTSTREAM << "There are no sync issues" << endl;
-            return;
-        }
+            if (words.size() != 2)
+            {
+                LOG_err << getUsageStr("sync-issues");
+                return;
+            }
 
-        if (syncIssueCountLimit == 0)
-        {
-            syncIssueCountLimit = std::numeric_limits<int>::max();
-        }
+            auto syncIssueList = mSyncIssuesManager.getSyncIssues();
 
-        ColumnDisplayer cd(clflags, cloptions);
-        cd.addHeader("MAIN PATH", disablePathCollapse);
+            string syncIssueId = words.back();
+            auto syncIssuePtr = syncIssueList.getSyncIssue(syncIssueId);
+            if (!syncIssuePtr)
+            {
+                setCurrentOutCode(MCMD_NOTFOUND);
+                LOG_err << "Sync issue \"" << syncIssueId << "\" does not exist";
+                return;
+            }
 
-        syncIssueCache.forEach([&cd] (const SyncIssue& syncIssue)
-        {
-            cd.addValue("ID", syncIssue.getId());
-            cd.addValue("REASON", syncIssue.getSyncWaitReasonStr());
-            cd.addValue("MAIN PATH", syncIssue.getMainPath());
-            cd.addValue("SOLVABLE", "NO" /* Until CMD-311 */);
-        }, syncIssueCountLimit);
+            auto parentSync = syncIssuePtr->getParentSync(*api);
+            assert(parentSync);
 
-        OUTSTREAM << cd.str();
-        if (syncIssueCountLimit < syncIssueCache.size())
-        {
+            OUTSTREAM << "Parent sync: " << syncBackupIdToBase64(parentSync->getBackupId())
+                      << " (" << parentSync->getLocalFolder() << " to " << parentSync->getLastKnownMegaFolder() << ")" << endl;
             OUTSTREAM << endl;
-            OUTSTREAM << "Note: showing " << syncIssueCountLimit << " out of " << syncIssueCache.size() << " issues. "
-                      << "Use \"" << commandPrefixBasedOnMode() << "sync-issues --limit=0\" to see all issues." << endl;
+
+            ColumnDisplayer cd(clflags, cloptions);
+            cd.addHeader("PATH", disablePathCollapse);
+
+            auto pathProblems = syncIssuePtr->getPathProblems();
+            for (int i = 0; i < pathProblems.size() && i < listSizeLimit; ++i)
+            {
+                cd.addValue("PATH", pathProblems[i].mPath);
+                cd.addValue("PROBLEM", pathProblems[i].mProblem);
+            }
+
+            OUTSTREAM << cd.str();
+            if (listSizeLimit < pathProblems.size())
+            {
+                OUTSTREAM << endl;
+                OUTSTREAM << "Note: showing " << listSizeLimit << " out of " << pathProblems.size() << " path problems. "
+                          << "Use \"" << commandPrefixBasedOnMode() << "sync-issues --detail " << syncIssueId << " --limit=0\" to see all of them." << endl;
+            }
+        }
+        else // show all sync issues
+        {
+            auto syncIssueList = mSyncIssuesManager.getSyncIssues();
+            if (syncIssueList.empty())
+            {
+                OUTSTREAM << "There are no sync issues" << endl;
+                return;
+            }
+
+            ColumnDisplayer cd(clflags, cloptions);
+            cd.addHeader("MAIN PATH", disablePathCollapse);
+
+            syncIssueList.forEach([&cd] (const SyncIssue& syncIssue)
+            {
+                cd.addValue("ID", syncIssue.getId());
+                cd.addValue("REASON", syncIssue.getSyncWaitReasonStr());
+                cd.addValue("MAIN PATH", syncIssue.getMainPath());
+                cd.addValue("SOLVABLE", "NO" /* Until CMD-311 */);
+            }, listSizeLimit);
+
+            OUTSTREAM << cd.str();
+            if (listSizeLimit < syncIssueList.size())
+            {
+                OUTSTREAM << endl;
+                OUTSTREAM << "Note: showing " << listSizeLimit << " out of " << syncIssueList.size() << " issues. "
+                          << "Use \"" << commandPrefixBasedOnMode() << "sync-issues --limit=0\" to see all of them." << endl;
+            }
         }
     }
     else

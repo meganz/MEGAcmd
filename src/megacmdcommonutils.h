@@ -205,6 +205,15 @@ std::string getFixLengthString(const std::string &origin, unsigned int size, con
 
 std::string getRightAlignedString(const std::string origin, unsigned int minsize);
 
+/* Vector related */
+template <typename T>
+std::vector<T> operator+(const std::vector<T>& a, const std::vector<T>& b)
+{
+    std::vector<T> result = a;
+    result.insert(result.end(), b.begin(), b.end());
+    return result;
+}
+
 template<typename T>
 OUTSTRING getLeftAlignedStr(T what, int n)
 {

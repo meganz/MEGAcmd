@@ -37,12 +37,49 @@
         GENERATOR_MACRO(mega::MegaSyncStall::LocalAndRemotePreviouslyUnsyncedDiffer_userMustChoose,     "Local and remote differ") \
         GENERATOR_MACRO(mega::MegaSyncStall::NamesWouldClashWhenSynced,                                 "Name clash")
 
+#define GENERATE_FROM_PATH_PROBLEM(GENERATOR_MACRO) \
+        GENERATOR_MACRO(mega::PathProblem::NoProblem,                             "No Problem") \
+        GENERATOR_MACRO(mega::PathProblem::FileChangingFrequently,                "File is changing frequently") \
+        GENERATOR_MACRO(mega::PathProblem::IgnoreRulesUnknown,                    "Ignore rules are unknown") \
+        GENERATOR_MACRO(mega::PathProblem::DetectedHardLink,                      "Hard link detected") \
+        GENERATOR_MACRO(mega::PathProblem::DetectedSymlink,                       "Symlink detected") \
+        GENERATOR_MACRO(mega::PathProblem::DetectedSpecialFile,                   "Special file detected") \
+        GENERATOR_MACRO(mega::PathProblem::DifferentFileOrFolderIsAlreadyPresent, "A different file/folder is already present") \
+        GENERATOR_MACRO(mega::PathProblem::ParentFolderDoesNotExist,              "Parent folder does not exist") \
+        GENERATOR_MACRO(mega::PathProblem::FilesystemErrorDuringOperation,        "There was a filesystem error during operation") \
+        GENERATOR_MACRO(mega::PathProblem::NameTooLongForFilesystem,              "Name is too long for filesystem") \
+        GENERATOR_MACRO(mega::PathProblem::CannotFingerprintFile,                 "File fingerprint cannot be obtained") \
+        GENERATOR_MACRO(mega::PathProblem::DestinationPathInUnresolvedArea,       "Destination path (or one of its parents) is unresolved") \
+        GENERATOR_MACRO(mega::PathProblem::MACVerificationFailure,                "Failure verifying MAC") \
+        GENERATOR_MACRO(mega::PathProblem::DeletedOrMovedByUser,                  "Deleted or moved by user") \
+        GENERATOR_MACRO(mega::PathProblem::FileFolderDeletedByUser,               "File or folder deleted by user") \
+        GENERATOR_MACRO(mega::PathProblem::MoveToDebrisFolderFailed,              "Move to debris folder failed") \
+        GENERATOR_MACRO(mega::PathProblem::IgnoreFileMalformed,                   "Ignore file is malformed") \
+        GENERATOR_MACRO(mega::PathProblem::FilesystemErrorListingFolder,          "There was a filesystem error listing the folder") \
+        GENERATOR_MACRO(mega::PathProblem::WaitingForScanningToComplete,          "Waiting for scanning to complete") \
+        GENERATOR_MACRO(mega::PathProblem::WaitingForAnotherMoveToComplete,       "Waiting for another move to complete") \
+        GENERATOR_MACRO(mega::PathProblem::SourceWasMovedElsewhere,               "The source was moved somewhere else") \
+        GENERATOR_MACRO(mega::PathProblem::FilesystemCannotStoreThisName,         "The filesystem cannot store this name") \
+        GENERATOR_MACRO(mega::PathProblem::CloudNodeInvalidFingerprint,           "Cloud node has invalid fingerprint") \
+        GENERATOR_MACRO(mega::PathProblem::CloudNodeIsBlocked,                    "Cloud node is blocked") \
+        GENERATOR_MACRO(mega::PathProblem::PutnodeDeferredByController,           "Putnode deferred by controller") \
+        GENERATOR_MACRO(mega::PathProblem::PutnodeCompletionDeferredByController, "Putnode completion deferred by controller") \
+        GENERATOR_MACRO(mega::PathProblem::PutnodeCompletionPending,              "Putnode completion pending") \
+        GENERATOR_MACRO(mega::PathProblem::UploadDeferredByController,            "Upload deferred by controller") \
+        GENERATOR_MACRO(mega::PathProblem::DetectedNestedMount,                   "Nested mount detected")
+
 class SyncIssue
 {
     mutable std::string mId;
     std::unique_ptr<const mega::MegaSyncStall> mMegaStall;
 
 public:
+    struct PathProblem
+    {
+        std::string mPath;
+        std::string mProblem;
+    };
+
     SyncIssue(const mega::MegaSyncStall& stall);
 
     const std::string& getId() const;
@@ -50,6 +87,10 @@ public:
     std::string getSyncWaitReasonStr() const;
     std::string getMainPath() const;
 
+    std::vector<PathProblem> getPathProblems() const;
+    std::vector<PathProblem> getPathProblems(bool local) const;
+
+    std::unique_ptr<mega::MegaSync> getParentSync(mega::MegaApi& api) const;
     bool belongsToSync(const mega::MegaSync& sync) const;
 };
 
@@ -68,6 +109,7 @@ public:
         }
     }
 
+    SyncIssue const* getSyncIssue(const std::string& id) const;
     unsigned int getSyncIssueCount(const mega::MegaSync& sync) const;
 
     bool empty() const { return mIssuesVec.empty(); }
