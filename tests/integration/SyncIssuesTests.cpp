@@ -288,7 +288,7 @@ TEST_F(SyncIssuesTests, SyncIssueDetail)
 
     std::string parentSyncId = words[0];
 
-    result = executeInClient({"sync-issues", "--detail", syncIssueId});
+    result = executeInClient({"sync-issues", "--disable-path-collapse", "--detail", syncIssueId});
     ASSERT_TRUE(result.ok());
     EXPECT_THAT(result.out(), testing::HasSubstr("Parent sync: " + parentSyncId));
     EXPECT_THAT(result.out(), testing::HasSubstr("Symlink detected"));
