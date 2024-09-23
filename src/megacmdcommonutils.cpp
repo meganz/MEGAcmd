@@ -1619,7 +1619,10 @@ std::string getOrCreateSocketPath(bool createDirectory)
 
     if ((socketFolder.size() + 1 + sockname.size()) >= (MAX_SOCKET_PATH - 1))
     {
-        std::cerr << "WARN: socket path in runtime dir would exceed max size. Falling back to /tmp" << std::endl;
+        if (createDirectory)
+        {
+            std::cerr << "WARN: socket path in runtime dir would exceed max size. Falling back to /tmp" << std::endl;
+        }
         socketFolder = PosixDirectories::noHomeFallbackFolder();
     }
 
@@ -1638,7 +1641,9 @@ std::string getOrCreateSocketPath(bool createDirectory)
             umask(mode);
 
             if (failed)
+            {
                 return std::string();
+            }
         }
     }
 
