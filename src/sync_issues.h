@@ -38,7 +38,7 @@
         GENERATOR_MACRO(mega::MegaSyncStall::NamesWouldClashWhenSynced,                                 "Name clash")
 
 #define GENERATE_FROM_PATH_PROBLEM(GENERATOR_MACRO) \
-        GENERATOR_MACRO(mega::PathProblem::NoProblem,                             "No Problem") \
+        GENERATOR_MACRO(mega::PathProblem::NoProblem,                             "None") \
         GENERATOR_MACRO(mega::PathProblem::FileChangingFrequently,                "File is changing frequently") \
         GENERATOR_MACRO(mega::PathProblem::IgnoreRulesUnknown,                    "Ignore rules are unknown") \
         GENERATOR_MACRO(mega::PathProblem::DetectedHardLink,                      "Hard link detected") \
@@ -74,6 +74,9 @@ class SyncIssue
     std::unique_ptr<const mega::MegaSyncStall> mMegaStall;
 
 public:
+    // We add this prefix at the start to distinguish between cloud and local absolute paths
+    inline static std::string CloudPrefix = "<CLOUD>";
+
     struct PathProblem
     {
         std::string mPath;

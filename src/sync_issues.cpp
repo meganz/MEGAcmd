@@ -32,9 +32,6 @@ using namespace std::string_literals;
 
 namespace
 {
-    // We add this prefix at the start to distinguish between cloud and local absolute paths
-    const std::string CloudPrefix = "<CLOUD>";
-
     bool startsWith(const char* str, const char* prefix)
     {
         return std::strncmp(str, prefix, std::strlen(prefix)) == 0;

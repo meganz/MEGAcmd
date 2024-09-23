@@ -10838,8 +10838,10 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             auto parentSync = syncIssuePtr->getParentSync(*api);
             assert(parentSync);
 
+            OUTSTREAM << "Issue: " << syncIssuePtr->getSyncWaitReasonStr() << endl;
             OUTSTREAM << "Parent sync: " << syncBackupIdToBase64(parentSync->getBackupId())
-                      << " (" << parentSync->getLocalFolder() << " to " << parentSync->getLastKnownMegaFolder() << ")" << endl;
+                      << " (" << parentSync->getLocalFolder() << " to " << SyncIssue::CloudPrefix << parentSync->getLastKnownMegaFolder() << ")" << endl;
+
             OUTSTREAM << endl;
 
             ColumnDisplayer cd(clflags, cloptions);
