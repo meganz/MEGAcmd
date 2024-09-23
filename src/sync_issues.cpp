@@ -32,6 +32,9 @@ using namespace std::string_literals;
 
 namespace
 {
+    // We add this prefix at the start to distinguish between cloud and local absolute paths
+    const std::string CloudPrefix = "<CLOUD>";
+
     bool startsWith(const char* str, const char* prefix)
     {
         return std::strncmp(str, prefix, std::strlen(prefix)) == 0;
@@ -215,12 +218,12 @@ const std::string& SyncIssue::getId() const
         std::string combinedDataStr;
         combinedDataStr += std::to_string(mMegaStall->reason());
 
-        for (bool isLocal : {true, false})
+        for (bool isCloud : {false, true})
         {
-            for (int i = 0; i < mMegaStall->pathCount(isLocal); ++i)
+            for (int i = 0; i < mMegaStall->pathCount(isCloud); ++i)
             {
-                combinedDataStr += mMegaStall->path(isLocal, i);
-                combinedDataStr += std::to_string(mMegaStall->pathProblem(isLocal, i));
+                combinedDataStr += mMegaStall->path(isCloud, i);
+                combinedDataStr += std::to_string(mMegaStall->pathProblem(isCloud, i));
             }
         }
 
@@ -258,8 +261,7 @@ std::string SyncIssue::getMainPath() const
     const char* cloudPath = mMegaStall->path(true, 0);
     if (cloudPath && strcmp(cloudPath, ""))
     {
-        // We add "<CLOUD>" at the start to distinguish between cloud and local absolute paths
-        return std::string("<CLOUD>") + cloudPath;
+        return CloudPrefix + cloudPath;
     }
 
     const char* localPath = mMegaStall->path(false, 0);
@@ -268,17 +270,17 @@ std::string SyncIssue::getMainPath() const
 
 std::vector<SyncIssue::PathProblem> SyncIssue::getPathProblems() const
 {
-    return getPathProblems(true) + getPathProblems(false);
+    return getPathProblems(false) + getPathProblems(true);
 }
 
-std::vector<SyncIssue::PathProblem> SyncIssue::getPathProblems(bool local) const
+std::vector<SyncIssue::PathProblem> SyncIssue::getPathProblems(bool isCloud) const
 {
     std::vector<SyncIssue::PathProblem> pathProblems;
-    for (int i = 0; i < mMegaStall->pathCount(local); ++i)
+    for (int i = 0; i < mMegaStall->pathCount(isCloud); ++i)
     {
         PathProblem pathProblem;
-        pathProblem.mPath = mMegaStall->path(local, i);
-        pathProblem.mProblem = getPathProblemReasonStr(mMegaStall->pathProblem(local, i));
+        pathProblem.mPath = (isCloud ? CloudPrefix : "") + mMegaStall->path(isCloud, i);
+        pathProblem.mProblem = getPathProblemReasonStr(mMegaStall->pathProblem(isCloud, i));
         pathProblems.emplace_back(std::move(pathProblem));
     }
     return pathProblems;

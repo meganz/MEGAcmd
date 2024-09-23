@@ -88,7 +88,7 @@ public:
     std::string getMainPath() const;
 
     std::vector<PathProblem> getPathProblems() const;
-    std::vector<PathProblem> getPathProblems(bool local) const;
+    std::vector<PathProblem> getPathProblems(bool isCloud) const;
 
     std::unique_ptr<mega::MegaSync> getParentSync(mega::MegaApi& api) const;
     bool belongsToSync(const mega::MegaSync& sync) const;
