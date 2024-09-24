@@ -152,12 +152,10 @@ pipeline {
                 HOME = "${megacmd_sources_workspace}/integration-test-dir/home"
                 MEGACMD_TEST_USER = ''
                 MEGACMD_TEST_PASS = credentials('MEGACMD_TESTS_PASSWORD')
+                MEGACMD_SOCKET_NAME = "sock_${env.BUILD_ID}"
             }
             steps {
                 lock(label: 'testing_accounts_megacmd', variable: 'MEGACMD_TEST_USER', quantity: 1, resource: null) {
-                    script {
-                        env.MEGACMD_SOCKET_NAME = env.MEGACMD_TEST_USER
-                    }
                     dir('integration-test-dir') {
                         echo "Running tests"
                         sh "mkdir -p \$HOME/Library/Caches"
