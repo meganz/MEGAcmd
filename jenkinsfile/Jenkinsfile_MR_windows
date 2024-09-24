@@ -177,6 +177,10 @@ pipeline {
                         script {
                             def status = bat script: "${INSTALL_DIR}\\mega-cmd-tests-integration.exe --gtest_shuffle --gtest_output=xml:${megacmd_sources_workspace}\\integration-test-dir\\mega-cmd-tests.xml", returnStatus: true
 
+                            if (!fileExists("exit_code.txt")) {
+                                unstable "Exit code file does not exist"
+                            }
+
                             // There is an unresolved issue on Windows that results in an incorrect status code being returned
                             // from the process above; so we use a file to get the actual value
                             def exitCode = readFile("exit_code.txt").trim().toInteger()
