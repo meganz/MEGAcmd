@@ -159,6 +159,8 @@ include(megacmd_utility_functions) # utility functions
 
 set(ProjectDir "${CMAKE_CURRENT_LIST_DIR}")
 
+generate_megacmd_src_file_list("${ProjectDir}")
+
 add_library(LMEGAcmdCommonUtils STATIC)
 add_source_and_corresponding_header_to_target(LMEGAcmdCommonUtils
     PUBLIC
