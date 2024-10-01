@@ -23,32 +23,18 @@
 #include "megacmdcommonutils.h"
 
 namespace megacmd {
-class CmdPetition
+struct CmdPetition
 {
-public:
-    char *line;
-    mega::MegaThread *petitionThread;
+    std::string line;
+    mega::MegaThread *petitionThread = nullptr;
     int clientID = -27;
-    bool clientDisconnected;
+    bool clientDisconnected = false;
 
-    CmdPetition()
-    {
-        line = NULL;
-        petitionThread = NULL;
-        clientDisconnected = false;
-    }
+    virtual ~CmdPetition() = default;
 
-    char *getLine()
-    {
-        return line;
-    }
-    virtual ~CmdPetition()
-    {
-        if (line != NULL)
-        {
-            free(line);
-        }
-    }
+    // Remove the starting 'X' if present (petitions coming from interactive mode)
+    std::string getUniformLine() const;
+
     mega::MegaThread *getPetitionThread() const;
     void setPetitionThread(mega::MegaThread *value);
     virtual std::string getPetitionDetails() const { return {}; }

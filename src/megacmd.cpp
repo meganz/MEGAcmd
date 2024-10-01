@@ -3188,7 +3188,7 @@ void checkBlockStatus(bool waitcompletion = true)
     }
 }
 
-void executecommand(char* ptr)
+void executecommand(const char* ptr)
 {
     vector<string> words = getlistOfWords(ptr, !getCurrentThreadIsCmdShell());
     if (!words.size())
@@ -3733,7 +3733,7 @@ bool isBareCommand(const char *l, const string &command)
    return true;
 }
 
-static bool process_line(char* l)
+static bool process_line(const char* l)
 {
     switch (prompt)
     {
@@ -3913,12 +3913,11 @@ void * doProcessLine(void *pointer)
 
     bool isInteractive = false;
 
-    if (inf->getLine() && *(inf->getLine())=='X')
+    if (!inf->line.empty() && inf->line[0] == 'X')
     {
+        inf->line = inf->getUniformLine();
+
         setCurrentThreadIsCmdShell(true);
-        char * aux = inf->line;
-        inf->line=strdup(inf->line+1);
-        free(aux);
         isInteractive = true;
     }
     else
@@ -3928,7 +3927,7 @@ void * doProcessLine(void *pointer)
 
     LOG_verbose << " Processing " << inf->line << " in thread: " << MegaThread::currentThreadId() << " " << inf->getPetitionDetails();
 
-    doExit = process_line(inf->getLine());
+    doExit = process_line(inf->line.c_str());
 
     if (doExit)
     {
@@ -4317,19 +4316,15 @@ void megacmd()
             assert(inf);
 
             LOG_verbose << "petition registered: " << inf->line;
-
-            string line = inf->getLine();
-            ltrim(line, 'X');
-
             delete_finished_threads();
 
-            if (line == "ERROR")
+            if (inf->getUniformLine() == "ERROR")
             {
                 LOG_warn << "Petition couldn't be registered. Dismissing it.";
                 delete inf;
             }
             // if state register petition
-            else if (startsWith(line, "registerstatelistener"))
+            else if (startsWith(inf->getUniformLine(), "registerstatelistener"))
             {
                 bool registered = cm->registerStateListener(inf);
                 if (!registered)

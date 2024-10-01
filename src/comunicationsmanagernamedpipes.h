@@ -28,12 +28,10 @@
 #define MEGACMDINITIALPORTNUMBER 12300
 
 namespace megacmd {
-class CmdPetitionNamedPipes: public CmdPetition
+struct CmdPetitionNamedPipes: public CmdPetition
 {
-public:
     HANDLE outNamedPipe;
-    CmdPetitionNamedPipes(){
-    }
+
     virtual ~CmdPetitionNamedPipes()
     {
         if (outNamedPipe != INVALID_HANDLE_VALUE)
@@ -41,6 +39,7 @@ public:
             CloseHandle(outNamedPipe);
         }
     }
+
     std::string getPetitionDetails() const override
     {
         std::ostringstream details;

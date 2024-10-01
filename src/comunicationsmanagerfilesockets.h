@@ -26,23 +26,18 @@
 #include <sys/socket.h>
 
 namespace megacmd {
-class CmdPetitionPosixSockets: public CmdPetition
+struct CmdPetitionPosixSockets: public CmdPetition
 {
-public:
     int outSocket = -1;
-
-    CmdPetitionPosixSockets(){
-    }
 
     virtual ~CmdPetitionPosixSockets()
     {
         close(outSocket);
-        outSocket = -1;
     }
 
     std::string getPetitionDetails() const override
     {
-        return std::string("socket output: ").append(std::to_string(outSocket));
+        return "socket output: " + std::to_string(outSocket);
     }
 };
 

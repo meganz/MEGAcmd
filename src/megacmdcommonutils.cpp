@@ -445,11 +445,11 @@ string removeTrailingSeparators(string &path)
     return rtrim(rtrim(path,'/'),'\\');
 }
 
-vector<string> getlistOfWords(char *ptr, bool escapeBackSlashInCompletion, bool ignoreTrailingSpaces)
+vector<string> getlistOfWords(const char *ptr, bool escapeBackSlashInCompletion, bool ignoreTrailingSpaces)
 {
     vector<string> words;
 
-    char* wptr;
+    const char* wptr = "";
 
     // split line into words with quoting and escaping
     for (;; )
@@ -522,7 +522,7 @@ vector<string> getlistOfWords(char *ptr, bool escapeBackSlashInCompletion, bool 
 
             wptr = ptr;
 
-            char *prev = ptr;
+            const char *prev = ptr;
             //while ((unsigned char)*ptr > ' ')
             while ((*ptr != '\0') && !(*ptr ==' ' && *prev !='\\'))
             {

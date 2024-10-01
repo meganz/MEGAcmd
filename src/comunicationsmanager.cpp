@@ -169,6 +169,12 @@ ComunicationsManager::~ComunicationsManager()
     }
 }
 
+std::string CmdPetition::getUniformLine() const
+{
+    std::string str = line;
+    return ltrim(str, 'X');
+}
+
 MegaThread *CmdPetition::getPetitionThread() const
 {
     return petitionThread;

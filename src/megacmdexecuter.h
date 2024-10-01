@@ -142,7 +142,7 @@ public:
 
     //acting
     void verifySharedFolders(mega::MegaApi * api); //verifies unverified shares and broadcasts warning accordingly
-    void loginWithPassword(char *password);
+    void loginWithPassword(const char *password);
     void changePassword(const char *newpassword, std::string pin2fa = "");
     void actUponGetExtendedAccountDetails(std::unique_ptr<mega::MegaAccountDetails> storageDetails, std::unique_ptr<mega::MegaAccountDetails> extAccountDetails);
     bool actUponFetchNodes(mega::MegaApi * api, mega::SynchronousRequestListener  *srl, int timeout = -1);

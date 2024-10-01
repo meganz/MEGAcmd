@@ -36,14 +36,16 @@ typedef int SOCKET;
 namespace megacmd {
 void closeSocket(SOCKET socket);
 
-class CmdPetitionPortSockets: public CmdPetition
+struct CmdPetitionPortSockets: public CmdPetition
 {
-public:
     SOCKET outSocket;
     SOCKET acceptedOutSocket;
-    CmdPetitionPortSockets(){
+
+    CmdPetitionPortSockets()
+    {
         acceptedOutSocket = INVALID_SOCKET;
     }
+
     virtual ~CmdPetitionPortSockets()
     {
         closeSocket(outSocket);
@@ -52,6 +54,7 @@ public:
             closeSocket(acceptedOutSocket);
         }
     }
+
     std::string getPetitionDetails() const override
     {
         std::ostringstream details;
