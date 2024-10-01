@@ -23,8 +23,6 @@
 #include "megacmdcommonutils.h"
 
 namespace megacmd {
-static const int MAXCMDSTATELISTENERS = 300;
-
 class CmdPetition
 {
 public:
@@ -75,13 +73,17 @@ public:
 
     virtual bool receivedPetition();
 
-    void registerStateListener(CmdPetition *inf);
+    virtual bool registerStateListener(CmdPetition *inf);
 
     virtual int waitForPetition();
 
     virtual void stopWaiting();
 
     virtual int get_next_comm_id();
+
+    virtual int getMaxStateListeners() const;
+
+    void ackStateListenersAndRemoveClosed();
 
     /**
      * @brief returnAndClosePetition
@@ -98,9 +100,9 @@ public:
      * @param s
      * @returns if state listeners left
      */
-    bool informStateListeners(std::string &s);
+    bool informStateListeners(const std::string &s);
 
-    void informStateListenerByClientId(std::string &s, int clientID);
+    void informStateListenerByClientId(const std::string &s, int clientID);
 
     /**
      * @brief informStateListener
@@ -109,7 +111,7 @@ public:
      * @param s
      * @return -1 if connection closed by listener (removal required)
      */
-    virtual int informStateListener(CmdPetition *inf, std::string &s);
+    virtual int informStateListener(CmdPetition *inf, const std::string &s);
 
 
     /**

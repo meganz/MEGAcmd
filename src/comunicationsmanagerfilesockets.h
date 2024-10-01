@@ -71,11 +71,13 @@ public:
 
     bool receivedPetition();
 
-    int waitForPetition();
+    int waitForPetition() override;
 
     virtual void stopWaiting();
 
-    void registerStateListener(CmdPetition *inf);
+    bool registerStateListener(CmdPetition *inf) override;
+
+    int getMaxStateListeners() const override;
 
     /**
      * @brief returnAndClosePetition
@@ -85,7 +87,7 @@ public:
 
     virtual void sendPartialOutput(CmdPetition *inf, OUTSTRING *s);
 
-    int informStateListener(CmdPetition *inf, std::string &s);
+    int informStateListener(CmdPetition *inf, const std::string &s) override;
 
 
     /**

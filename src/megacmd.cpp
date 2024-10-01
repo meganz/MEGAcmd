@@ -3849,8 +3849,7 @@ static bool process_line(char* l)
             }
             else if (isBareCommand(l, "sendack"))
             {
-                string sack="ack";
-                cm->informStateListeners(sack);
+                cm->informStateListeners("ack");
                 break;
             }
 
@@ -4296,7 +4295,11 @@ void megacmd()
 
     for (;; )
     {
-        cm->waitForPetition();
+        int err = cm->waitForPetition();
+        if (err != 0)
+        {
+            continue;
+        }
 
         api->retryPendingConnections();
 
@@ -4308,26 +4311,32 @@ void megacmd()
 
         if (cm->receivedPetition())
         {
-
             LOG_verbose << "Client connected ";
 
             CmdPetition *inf = cm->getPetition();
+            assert(inf);
 
             LOG_verbose << "petition registered: " << inf->line;
 
+            string line = inf->getLine();
+            ltrim(line, 'X');
+
             delete_finished_threads();
 
-            if (!inf || !strcmp(inf->getLine(),"ERROR"))
+            if (line == "ERROR")
             {
                 LOG_warn << "Petition couldn't be registered. Dismissing it.";
                 delete inf;
             }
             // if state register petition
-            else  if (!strncmp(inf->getLine(),"registerstatelistener",strlen("registerstatelistener")) ||
-                      !strncmp(inf->getLine(),"Xregisterstatelistener",strlen("Xregisterstatelistener")))
+            else if (startsWith(line, "registerstatelistener"))
             {
-
-                cm->registerStateListener(inf);
+                bool registered = cm->registerStateListener(inf);
+                if (!registered)
+                {
+                    delete inf;
+                    continue;
+                }
 
                 // communicate client ID
                 string s = "clientID:";

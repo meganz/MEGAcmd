@@ -1843,11 +1843,9 @@ void readloop()
     readline_fd = fileno(rl_instream);
 
     procesingline = true;
-    comms->registerForStateChanges(true, statechangehandle);
-
-
-    //now we can relay on having a prompt received if the server is running
+    if (comms->registerForStateChanges(true, statechangehandle) == 0)
     {
+        // now we can rely on having a prompt received if the server is running
         std::unique_lock<std::mutex> lk(promptLogReceivedMutex);
         if (!promtpLogReceivedBool)
         {
@@ -1857,7 +1855,6 @@ void readloop()
             }
         }
     }
-
 
     procesingline = false;
     promptreinstalledwhenprocessingline = false;

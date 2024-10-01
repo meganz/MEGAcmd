@@ -95,13 +95,13 @@ public:
 
     bool receivedPetition();
 
-    int waitForPetition();
+    int waitForPetition() override;
 
     virtual void stopWaiting();
 
     int get_next_comm_id();
 
-    void registerStateListener(CmdPetition *inf);
+    bool registerStateListener(CmdPetition *inf) override;
 
     /**
      * @brief returnAndClosePetition
@@ -109,7 +109,7 @@ public:
      */
     void returnAndClosePetition(CmdPetition *inf, OUTSTRINGSTREAM *s, int);
 
-    int informStateListener(CmdPetition *inf, std::string &s);
+    int informStateListener(CmdPetition *inf, const std::string &s) override;
 
     /**
      * @brief getPetition

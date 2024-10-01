@@ -42,24 +42,27 @@ bool ComunicationsManager::receivedPetition()
     return false;
 }
 
-void ComunicationsManager::registerStateListener(CmdPetition *inf)
+bool ComunicationsManager::registerStateListener(CmdPetition *inf)
 {
     std::lock_guard<std::recursive_mutex> g(mStateListenersMutex);
-    stateListenersPetitions.push_back(inf);
-    if (stateListenersPetitions.size() >MAXCMDSTATELISTENERS && stateListenersPetitions.size()%10 == 0)
+
+    // Always remove closed listeners before a new one comes in
+    ackStateListenersAndRemoveClosed();
+
+    if (stateListenersPetitions.size() >= getMaxStateListeners())
     {
-        LOG_debug << " Number of register listeners has grown too much: " << stateListenersPetitions.size() << ". Sending an ACK to discard disconnected ones.";
-        string sack="ack";
-        informStateListeners(sack);
+        LOG_warn << "Max number of state listeners (" << stateListenersPetitions.size() << ") reached";
+        return false;
     }
-    return;
+
+    stateListenersPetitions.push_back(inf);
+    return true;
 }
 
 int ComunicationsManager::waitForPetition()
 {
     return 0;
 }
-
 
 void ComunicationsManager::stopWaiting()
 {
@@ -70,50 +73,50 @@ int ComunicationsManager::get_next_comm_id()
     return 0;
 }
 
-bool ComunicationsManager::informStateListeners(string &s)
+int ComunicationsManager::getMaxStateListeners() const
 {
-    s+=(char)0x1F;
-    std::lock_guard<std::recursive_mutex> g(mStateListenersMutex);
+    return 200; // default value
+}
 
-    for (std::vector< CmdPetition * >::iterator it = stateListenersPetitions.begin(); it != stateListenersPetitions.end();)
+void ComunicationsManager::ackStateListenersAndRemoveClosed()
+{
+    informStateListeners("ack");
+}
+
+bool ComunicationsManager::informStateListeners(const string &s)
+{
+    std::lock_guard<std::recursive_mutex> g(mStateListenersMutex);
+    for (auto it = stateListenersPetitions.begin(); it != stateListenersPetitions.end();)
     {
-        if (informStateListener((CmdPetition *)*it, s) <0)
+        if (informStateListener(*it, s + (char) 0x1F) < 0)
         {
             delete *it;
             it = stateListenersPetitions.erase(it);
+            continue;
         }
-        else
-        {
-             ++it;
-        }
+        ++it;
     }
-
-    if (!stateListenersPetitions.size())
-    {
-        return false;
-    }
-    return true;
+    return !stateListenersPetitions.empty();
 }
 
-void ComunicationsManager::informStateListenerByClientId(string &s, int clientID)
+void ComunicationsManager::informStateListenerByClientId(const string &s, int clientID)
 {
-    s+=(char)0x1F;
-
     std::lock_guard<std::recursive_mutex> g(mStateListenersMutex);
-    for (std::vector< CmdPetition * >::iterator it = stateListenersPetitions.begin(); it != stateListenersPetitions.end();)
+    for (auto it = stateListenersPetitions.begin(); it != stateListenersPetitions.end(); ++it)
     {
-        if ((clientID == ((CmdPetition *)*it)->clientID ) && informStateListener((CmdPetition *)*it, s) <0)
+        if (clientID == (*it)->clientID)
         {
-            delete *it;
-            it = stateListenersPetitions.erase(it);
-        }
-        else
-        {
-             ++it;
+            if (informStateListener(*it, s + (char) 0x1F) < 0)
+            {
+                delete *it;
+                stateListenersPetitions.erase(it);
+            }
+            return;
         }
     }
 }
-int ComunicationsManager::informStateListener(CmdPetition *inf, string &s)
+
+int ComunicationsManager::informStateListener(CmdPetition *inf, const string &s)
 {
     return 0;
 }

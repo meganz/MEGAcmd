@@ -82,8 +82,7 @@ SOCKET ComunicationsManagerPortSockets::create_new_socket(int *sockId)
             if (errno == EMFILE)
             {
                 LOG_verbose << " Trying to reduce number of used files by sending ACK to listeners to discard disconnected ones.";
-                string sack="ack";
-                informStateListeners(sack);
+                ackStateListenersAndRemoveClosed();
             }
             if (attempts !=10)
             {
@@ -274,10 +273,10 @@ void ComunicationsManagerPortSockets::stopWaiting()
 #endif
 }
 
-void ComunicationsManagerPortSockets::registerStateListener(CmdPetition *inf)
+bool ComunicationsManagerPortSockets::registerStateListener(CmdPetition *inf)
 {
     LOG_debug << "Registering state listener petition with socket: " << ((CmdPetitionPortSockets *) inf)->outSocket;
-    ComunicationsManager::registerStateListener(inf);
+    return ComunicationsManager::registerStateListener(inf);
 }
 
 //TODO: implement unregisterStateListener, not 100% necesary, since when a state listener is not accessible it is unregistered (to deal with sudden deaths).
@@ -335,7 +334,7 @@ void ComunicationsManagerPortSockets::returnAndClosePetition(CmdPetition *inf, O
     delete inf;
 }
 
-int ComunicationsManagerPortSockets::informStateListener(CmdPetition *inf, string &s)
+int ComunicationsManagerPortSockets::informStateListener(CmdPetition *inf, const string &s)
 {
     LOG_verbose << "Inform State Listener: Output to write in socket " << ((CmdPetitionPortSockets *)inf)->outSocket << ": <<" << s << ">>";
 
@@ -438,9 +437,7 @@ CmdPetition * ComunicationsManagerPortSockets::getPetition()
         if (ERRNO == EMFILE)
         {
             LOG_fatal << "ERROR on accept at getPetition: TOO many open files.";
-            //send state listeners an ACK command to see if they are responsive and close them otherwise
-            string sack = "ack";
-            informStateListeners(sack);
+            ackStateListenersAndRemoveClosed();
         }
         else
         {

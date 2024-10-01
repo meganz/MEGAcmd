@@ -205,6 +205,8 @@ std::string getFixLengthString(const std::string &origin, unsigned int size, con
 
 std::string getRightAlignedString(const std::string origin, unsigned int minsize);
 
+bool startsWith(const std::string& str, std::string_view prefix);
+
 template<typename T>
 OUTSTRING getLeftAlignedStr(T what, int n)
 {

@@ -21,6 +21,7 @@
 #include "comunicationsmanagerfilesockets.h"
 #include "megacmdutils.h"
 #include <sys/ioctl.h>
+#include <sys/resource.h>
 
 #ifdef __MACH__
 #define MSG_NOSIGNAL 0
@@ -182,10 +183,26 @@ void ComunicationsManagerFileSockets::stopWaiting()
 }
 
 
-void ComunicationsManagerFileSockets::registerStateListener(CmdPetition *inf)
+bool ComunicationsManagerFileSockets::registerStateListener(CmdPetition *inf)
 {
-    LOG_debug << "Registering state listener petition with socket: " << ((CmdPetitionPosixSockets *) inf)->outSocket;
-    ComunicationsManager::registerStateListener(inf);
+    const int socket = ((CmdPetitionPosixSockets *) inf)->outSocket;
+    LOG_debug << "Registering state listener petition with socket: " << socket;
+
+    int32_t registered = ComunicationsManager::registerStateListener(inf);
+    send(socket, &registered, sizeof(registered), MSG_NOSIGNAL);
+
+    return registered;
+}
+
+int ComunicationsManagerFileSockets::getMaxStateListeners() const
+{
+    struct rlimit limit;
+    if (getrlimit(RLIMIT_NOFILE, &limit) != 0)
+    {
+        LOG_err << "Failed to get ulimit -n (errno: " << errno << "); falling back to max state listeners default";
+        return ComunicationsManager::getMaxStateListeners();
+    }
+    return limit.rlim_cur * 0.80; // Leave 20% file descriptors for other processes, libraries, etc.
 }
 
 /**
@@ -270,7 +287,7 @@ void ComunicationsManagerFileSockets::sendPartialOutput(CmdPetition *inf, OUTSTR
     }
 }
 
-int ComunicationsManagerFileSockets::informStateListener(CmdPetition *inf, string &s)
+int ComunicationsManagerFileSockets::informStateListener(CmdPetition *inf, const string &s)
 {
     std::lock_guard<std::mutex> g(informerMutex);
     LOG_verbose << "Inform State Listener: Output to write in socket " << ((CmdPetitionPosixSockets *)inf)->outSocket << ": <<" << s << ">>";
@@ -320,7 +337,6 @@ int ComunicationsManagerFileSockets::informStateListener(CmdPetition *inf, strin
 CmdPetition * ComunicationsManagerFileSockets::getPetition()
 {
     CmdPetitionPosixSockets *inf = new CmdPetitionPosixSockets();
-
     clilen = sizeof( cli_addr );
 
     newsockfd = accept(sockfd, (struct sockaddr*)&cli_addr, &clilen);
@@ -328,14 +344,13 @@ CmdPetition * ComunicationsManagerFileSockets::getPetition()
     {
         LOG_err << "ERROR setting CLOEXEC to socket: " << errno;
     }
+
     if (newsockfd < 0)
     {
         if (errno == EMFILE)
         {
             LOG_fatal << "ERROR on accept at getPetition: TOO many open files.";
-            //send state listeners an ACK command to see if they are responsive and close them otherwise
-            string sack = "ack";
-            informStateListeners(sack);
+            ackStateListenersAndRemoveClosed();
         }
         else
         {

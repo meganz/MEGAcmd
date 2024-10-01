@@ -99,8 +99,7 @@ HANDLE ComunicationsManagerNamedPipes::create_new_namedPipe(int *pipeId)
             if (errno == EMFILE) //TODO: review possible out
             {
                 LOG_verbose << " Trying to reduce number of used files by sending ACK to listeners to discard disconnected ones.";
-                string sack="ack";
-                informStateListeners(sack);
+                ackStateListenersAndRemoveClosed();
             }
             if (attempts !=10)
             {
@@ -194,10 +193,10 @@ void ComunicationsManagerNamedPipes::stopWaiting()
     }
 }
 
-void ComunicationsManagerNamedPipes::registerStateListener(CmdPetition *inf)
+bool ComunicationsManagerNamedPipes::registerStateListener(CmdPetition *inf)
 {
     LOG_debug << "Registering state listener petition with namedPipe: " << ((CmdPetitionNamedPipes *) inf)->outNamedPipe;
-    ComunicationsManager::registerStateListener(inf);
+    return ComunicationsManager::registerStateListener(inf);
 }
 
 //TODO: implement unregisterStateListener, not 100% necesary, since when a state listener is not accessible it is unregistered (to deal with sudden deaths).
@@ -402,7 +401,7 @@ void ComunicationsManagerNamedPipes::sendPartialOutput(CmdPetition *inf, char *s
     }
 }
 
-int ComunicationsManagerNamedPipes::informStateListener(CmdPetition *inf, string &s)
+int ComunicationsManagerNamedPipes::informStateListener(CmdPetition *inf, const string &s)
 {
     std::lock_guard<std::mutex> g(*informerMutex);
 

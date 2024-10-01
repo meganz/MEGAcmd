@@ -869,6 +869,16 @@ int MegaCmdShellCommunications::registerForStateChanges(bool interactive, void (
         return -1;
     }
 
+    int32_t registered = -1;
+    n = recv(thesock, &registered, sizeof(registered), MSG_NOSIGNAL);
+    if (n == SOCKET_ERROR || registered <= 0)
+    {
+        cerr << "FAILED to register state listener (note: you can continue to use MEGAcmd, but some features might be missing)" << endl;
+        registerAgainRequired = true;
+        closeSocket(thesock);
+        return -1;
+    }
+
     if (listenerThread != NULL)
     {
         stopListener = true;
