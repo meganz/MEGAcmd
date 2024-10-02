@@ -194,7 +194,7 @@ void ComunicationsManagerNamedPipes::stopWaiting()
 
 CmdPetition* ComunicationsManagerNamedPipes::registerStateListener(std::unique_ptr<CmdPetition> inf)
 {
-    LOG_debug << "Registering state listener petition with namedPipe: " << ((CmdPetitionNamedPipes *) inf)->outNamedPipe;
+    LOG_debug << "Registering state listener petition with namedPipe: " << ((CmdPetitionNamedPipes*) inf.get())->outNamedPipe;
     return ComunicationsManager::registerStateListener(std::move(inf));
 }
 
