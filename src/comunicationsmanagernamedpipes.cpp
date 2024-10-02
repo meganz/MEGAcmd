@@ -172,12 +172,12 @@ int ComunicationsManagerNamedPipes::waitForPetition()
             LOG_fatal << "ERROR on connecting to namedPipe. errno: " << ERRNO;
             sleepMilliSeconds(1000);
             pipeGeneral = INVALID_HANDLE_VALUE;
-            return false;
+            return ERRNO;
         }
 
     }
     petitionready = true;
-    return true;
+    return 0;
 }
 
 void ComunicationsManagerNamedPipes::stopWaiting()
