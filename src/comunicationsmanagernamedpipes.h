@@ -87,13 +87,13 @@ public:
 
     int get_next_comm_id();
 
-    bool registerStateListener(CmdPetition *inf) override;
+    CmdPetition* registerStateListener(std::unique_ptr<CmdPetition> inf) override;
 
     /**
      * @brief returnAndClosePetition
      * I will clean struct and close the namedPipe within
      */
-    void returnAndClosePetition(CmdPetition *inf, OUTSTRINGSTREAM *s, int);
+    void returnAndClosePetition(std::unique_ptr<CmdPetition> inf, OUTSTRINGSTREAM *s, int) override;
 
     void sendPartialOutput(CmdPetition *inf, OUTSTRING *s);
 
@@ -106,7 +106,7 @@ public:
      * @brief getPetition
      * @return pointer to new CmdPetitionPosix. Petition returned must be properly deleted (this can be calling returnAndClosePetition)
      */
-    CmdPetition *getPetition();
+    std::unique_ptr<CmdPetition> getPetition() override;
 
     virtual int getConfirmation(CmdPetition *inf, std::string message);
     virtual std::string getUserResponse(CmdPetition *inf, std::string message);

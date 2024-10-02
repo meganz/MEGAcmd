@@ -192,10 +192,10 @@ void ComunicationsManagerNamedPipes::stopWaiting()
     }
 }
 
-bool ComunicationsManagerNamedPipes::registerStateListener(CmdPetition *inf)
+CmdPetition* ComunicationsManagerNamedPipes::registerStateListener(std::unique_ptr<CmdPetition> inf)
 {
     LOG_debug << "Registering state listener petition with namedPipe: " << ((CmdPetitionNamedPipes *) inf)->outNamedPipe;
-    return ComunicationsManager::registerStateListener(inf);
+    return ComunicationsManager::registerStateListener(std::move(inf));
 }
 
 //TODO: implement unregisterStateListener, not 100% necesary, since when a state listener is not accessible it is unregistered (to deal with sudden deaths).
@@ -206,9 +206,9 @@ bool ComunicationsManagerNamedPipes::registerStateListener(CmdPetition *inf)
  * @brief returnAndClosePetition
  * I will clean struct and close the namedPipe within
  */
-void ComunicationsManagerNamedPipes::returnAndClosePetition(CmdPetition *inf, OUTSTRINGSTREAM *s, int outCode)
+void ComunicationsManagerNamedPipes::returnAndClosePetition(std::unique_ptr<CmdPetition> inf, OUTSTRINGSTREAM *s, int outCode)
 {
-    HANDLE outNamedPipe = ((CmdPetitionNamedPipes *)inf)->outNamedPipe;
+    HANDLE outNamedPipe = ((CmdPetitionNamedPipes*) inf.get())->outNamedPipe;
 
     LOG_verbose << "Output to write in namedPipe " << *(long*)(&outNamedPipe);
 
@@ -239,7 +239,6 @@ void ComunicationsManagerNamedPipes::returnAndClosePetition(CmdPetition *inf, OU
     if (!connectsucceeded)
     {
         LOG_fatal << "Return and close: Unable to connect on outnamedPipe " << outNamedPipe << " error: " << ERRNO;
-        delete inf;
         return;
     }
 
@@ -259,7 +258,6 @@ void ComunicationsManagerNamedPipes::returnAndClosePetition(CmdPetition *inf, OU
         LOG_err << "ERROR writing to namedPipe: " << ERRNO;
     }
     DisconnectNamedPipe(outNamedPipe);
-    delete inf;
 }
 
 
@@ -446,9 +444,9 @@ int ComunicationsManagerNamedPipes::informStateListener(CmdPetition *inf, const 
  * @brief getPetition
  * @return pointer to new CmdPetitionPosix. Petition returned must be properly deleted (this can be calling returnAndClosePetition)
  */
-CmdPetition * ComunicationsManagerNamedPipes::getPetition()
+std::unique_ptr<CmdPetition> ComunicationsManagerNamedPipes::getPetition()
 {
-    CmdPetitionNamedPipes *inf = new CmdPetitionNamedPipes();
+    auto inf = std::make_unique<CmdPetitionNamedPipes>();
 
     wstring wread;
     wchar_t wbuffer[1024]= {};

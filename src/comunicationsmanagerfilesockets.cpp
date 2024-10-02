@@ -183,15 +183,17 @@ void ComunicationsManagerFileSockets::stopWaiting()
 }
 
 
-bool ComunicationsManagerFileSockets::registerStateListener(CmdPetition *inf)
+CmdPetition* ComunicationsManagerFileSockets::registerStateListener(std::unique_ptr<CmdPetition> inf)
 {
-    const int socket = ((CmdPetitionPosixSockets *) inf)->outSocket;
+    const int socket = ((CmdPetitionPosixSockets*) inf.get())->outSocket;
     LOG_debug << "Registering state listener petition with socket: " << socket;
 
-    int32_t registered = ComunicationsManager::registerStateListener(inf);
+    CmdPetition* infRaw = ComunicationsManager::registerStateListener(std::move(inf));
+
+    int32_t registered = (infRaw != nullptr);
     send(socket, &registered, sizeof(registered), MSG_NOSIGNAL);
 
-    return registered;
+    return infRaw;
 }
 
 int ComunicationsManagerFileSockets::getMaxStateListeners() const
@@ -209,33 +211,30 @@ int ComunicationsManagerFileSockets::getMaxStateListeners() const
  * @brief returnAndClosePetition
  * I will clean struct and close the socket within
  */
-void ComunicationsManagerFileSockets::returnAndClosePetition(CmdPetition *inf, OUTSTRINGSTREAM *s, int outCode)
+void ComunicationsManagerFileSockets::returnAndClosePetition(std::unique_ptr<CmdPetition> inf, OUTSTRINGSTREAM *s, int outCode)
 {
-    LOG_verbose << "Output to write in socket " << ((CmdPetitionPosixSockets *)inf)->outSocket;
+    const int socket = ((CmdPetitionPosixSockets *) inf.get())->outSocket;
+    assert(socket != -1);
 
-    int connectedsocket = ((CmdPetitionPosixSockets *)inf)->outSocket;
-    assert(connectedsocket != -1);
-    if (connectedsocket == -1)
+    LOG_verbose << "Output to write in socket " << socket;
+    if (socket == -1)
     {
-        LOG_fatal << "Return and close: not valid outsocket " << ((CmdPetitionPosixSockets *)inf)->outSocket;
-        delete inf;
+        LOG_fatal << "Return and close: not valid outsocket " << socket;
         return;
     }
 
     string sout = s->str();
 
-    auto n = send(connectedsocket, (void*)&outCode, sizeof( outCode ), MSG_NOSIGNAL);
+    auto n = send(socket, &outCode, sizeof(outCode), MSG_NOSIGNAL);
     if (n < 0)
     {
         LOG_err << "ERROR writing output Code to socket: " << errno;
     }
-    n = send(connectedsocket, sout.data(), max(static_cast<size_t>(1), sout.size()), MSG_NOSIGNAL); // for some reason without the max recv never quits in the client for empty responses
+    n = send(socket, sout.data(), max(static_cast<size_t>(1), sout.size()), MSG_NOSIGNAL); // for some reason without the max recv never quits in the client for empty responses
     if (n < 0)
     {
         LOG_err << "ERROR writing to socket: " << errno;
     }
-
-    delete inf;
 }
 
 void ComunicationsManagerFileSockets::sendPartialOutput(CmdPetition *inf, OUTSTRING *s)
@@ -334,12 +333,12 @@ int ComunicationsManagerFileSockets::informStateListener(CmdPetition *inf, const
  * @brief getPetition
  * @return pointer to new CmdPetitionPosix. Petition returned must be properly deleted (this can be calling returnAndClosePetition)
  */
-CmdPetition * ComunicationsManagerFileSockets::getPetition()
+std::unique_ptr<CmdPetition> ComunicationsManagerFileSockets::getPetition()
 {
-    CmdPetitionPosixSockets *inf = new CmdPetitionPosixSockets();
-    clilen = sizeof( cli_addr );
+    auto inf = std::make_unique<CmdPetitionPosixSockets>();
+    clilen = sizeof(cli_addr);
 
-    newsockfd = accept(sockfd, (struct sockaddr*)&cli_addr, &clilen);
+    newsockfd = accept(sockfd, (struct sockaddr*) &cli_addr, &clilen);
     if (fcntl(newsockfd, F_SETFD, FD_CLOEXEC) == -1)
     {
         LOG_err << "ERROR setting CLOEXEC to socket: " << errno;
@@ -373,6 +372,7 @@ CmdPetition * ComunicationsManagerFileSockets::getPetition()
             LOG_err << "Failed to PeekNamedPipe. errno: " << errno;
             break;
         }
+
         if (total_available_bytes == 0)
         {
             break;
@@ -408,7 +408,6 @@ int ComunicationsManagerFileSockets::getConfirmation(CmdPetition *inf, string me
     if (connectedsocket == -1)
     {
         LOG_fatal << "Getting Confirmation: invalid outsocket " << ((CmdPetitionPosixSockets *)inf)->outSocket;
-        delete inf;
         return false;
     }
 
@@ -437,7 +436,6 @@ string ComunicationsManagerFileSockets::getUserResponse(CmdPetition *inf, string
     if (connectedsocket == -1)
     {
         LOG_fatal << "Getting Confirmation: Invalid outsocket " << ((CmdPetitionPosixSockets *)inf)->outSocket;
-        delete inf;
         return "FAILED";
     }
 

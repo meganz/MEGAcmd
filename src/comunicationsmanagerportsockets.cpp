@@ -272,10 +272,12 @@ void ComunicationsManagerPortSockets::stopWaiting()
 #endif
 }
 
-bool ComunicationsManagerPortSockets::registerStateListener(CmdPetition *inf)
+CmdPetition* ComunicationsManagerPortSockets::registerStateListener(std::unique_ptr<CmdPetition> inf)
 {
-    LOG_debug << "Registering state listener petition with socket: " << ((CmdPetitionPortSockets *) inf)->outSocket;
-    return ComunicationsManager::registerStateListener(inf);
+    const int socket = ((CmdPetitionPortSockets*) inf.get())->outSocket;
+    LOG_debug << "Registering state listener petition with socket: " << socket;
+
+    return ComunicationsManager::registerStateListener(std::move(inf));
 }
 
 //TODO: implement unregisterStateListener, not 100% necesary, since when a state listener is not accessible it is unregistered (to deal with sudden deaths).
@@ -286,21 +288,24 @@ bool ComunicationsManagerPortSockets::registerStateListener(CmdPetition *inf)
  * @brief returnAndClosePetition
  * I will clean struct and close the socket within
  */
-void ComunicationsManagerPortSockets::returnAndClosePetition(CmdPetition *inf, OUTSTRINGSTREAM *s, int outCode)
+void ComunicationsManagerPortSockets::returnAndClosePetition(std::unique_ptr<CmdPetition> inf, OUTSTRINGSTREAM *s, int outCode)
 {
-    LOG_verbose << "Output to write in socket " << (long)((CmdPetitionPortSockets *)inf)->outSocket;
+    const int outSocket = ((CmdPetitionPortSockets*) inf.get())->outSocket;
+    LOG_verbose << "Output to write in socket " << outSocket;
+
     sockaddr_in cliAddr;
-    socklen_t cliLength = sizeof( cliAddr );
-    SOCKET connectedsocket = ((CmdPetitionPortSockets *)inf)->acceptedOutSocket;
-    if (connectedsocket == SOCKET_ERROR)
+    socklen_t cliLength = sizeof(cliAddr);
+
+    SOCKET connectedSocket = ((CmdPetitionPortSockets*) inf.get())->acceptedOutSocket;
+    if (connectedSocket == SOCKET_ERROR)
     {
-        connectedsocket = accept(((CmdPetitionPortSockets *)inf)->outSocket, (struct sockaddr*)&cliAddr, &cliLength);
-        ((CmdPetitionPortSockets *)inf)->acceptedOutSocket = connectedsocket; //So that it gets closed in destructor
+        connectedSocket = accept(outSocket, (struct sockaddr*) &cliAddr, &cliLength);
+        ((CmdPetitionPortSockets*) inf.get())->acceptedOutSocket = connectedSocket; // So that it gets closed in destructor
     }
-    if (connectedsocket == SOCKET_ERROR)
+
+    if (connectedSocket == SOCKET_ERROR)
     {
-        LOG_fatal << "Return and close: Unable to accept on outsocket " << (long)((CmdPetitionPortSockets *)inf)->outSocket << " error: " << ERRNO;
-        delete inf;
+        LOG_fatal << "Return and close: Unable to accept on outsocket " << outSocket << " error: " << ERRNO;
         return;
     }
 
@@ -310,7 +315,7 @@ void ComunicationsManagerPortSockets::returnAndClosePetition(CmdPetition *inf, O
 #elif _WIN32
 #define MSG_NOSIGNAL 0
 #endif
-    int n = send(connectedsocket, (const char*)&outCode, sizeof( outCode ), MSG_NOSIGNAL);
+    int n = send(connectedSocket, (const char*) &outCode, sizeof(outCode), MSG_NOSIGNAL);
     if (n == SOCKET_ERROR)
     {
         LOG_err << "ERROR writing output Code to socket: " << ERRNO;
@@ -319,18 +324,15 @@ void ComunicationsManagerPortSockets::returnAndClosePetition(CmdPetition *inf, O
 #ifdef _WIN32
    string sutf8;
    localwtostring(&sout,&sutf8);
-   n = send(connectedsocket, sutf8.data(), int(sutf8.size()), MSG_NOSIGNAL);
+   n = send(connectedSocket, sutf8.data(), (int) sutf8.size(), MSG_NOSIGNAL);
 #else
-   n = send(connectedsocket, sout.data(), max(1,(int)sout.size()), MSG_NOSIGNAL); //TODO: test this max and do it for windows
+   n = send(connectedSocket, sout.data(), max(1, (int) sout.size()), MSG_NOSIGNAL); //TODO: test this max and do it for windows
 #endif
 
     if (n == SOCKET_ERROR)
     {
         LOG_err << "ERROR writing to socket: " << ERRNO;
     }
-    closeSocket(connectedsocket);
-    closeSocket(((CmdPetitionPortSockets *)inf)->outSocket);
-    delete inf;
 }
 
 int ComunicationsManagerPortSockets::informStateListener(CmdPetition *inf, const string &s)
@@ -423,13 +425,12 @@ int ComunicationsManagerPortSockets::informStateListener(CmdPetition *inf, const
  * @brief getPetition
  * @return pointer to new CmdPetitionPosix. Petition returned must be properly deleted (this can be calling returnAndClosePetition)
  */
-CmdPetition * ComunicationsManagerPortSockets::getPetition()
+std::unique_ptr<CmdPetition> ComunicationsManagerPortSockets::getPetition()
 {
-    CmdPetitionPortSockets *inf = new CmdPetitionPortSockets();
+    auto inf = std::make_unique<CmdPetitionPortSockets>();
+    clilen = sizeof(cli_addr);
 
-    clilen = sizeof( cli_addr );
-
-    newsockfd = accept(sockfd, (struct sockaddr*)&cli_addr, &clilen);
+    newsockfd = accept(sockfd, (struct sockaddr*) &cli_addr, &clilen);
 
     if (!socketValid(newsockfd))
     {
@@ -524,7 +525,6 @@ int ComunicationsManagerPortSockets::getConfirmation(CmdPetition *inf, string me
     if (connectedsocket == -1)
     {
         LOG_fatal << "Getting Confirmation: Unable to accept on outsocket " << ((CmdPetitionPortSockets *)inf)->outSocket << " error: " << errno;
-        delete inf;
         return false;
     }
 
@@ -557,7 +557,6 @@ string ComunicationsManagerPortSockets::getUserResponse(CmdPetition *inf, string
     if (connectedsocket == -1)
     {
         LOG_fatal << "Getting Confirmation: Unable to accept on outsocket " << ((CmdPetitionPortSockets *)inf)->outSocket << " error: " << errno;
-        delete inf;
         return "FAILED";
     }
 

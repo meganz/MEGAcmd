@@ -52,14 +52,15 @@ private:
     fd_set fds;
 
     std::recursive_mutex mStateListenersMutex;
-    std::vector<CmdPetition *> stateListenersPetitions;
+    std::vector<std::unique_ptr<CmdPetition>> stateListenersPetitions;
 
 public:
     ComunicationsManager();
+    virtual ~ComunicationsManager() = default;
 
     virtual bool receivedPetition();
 
-    virtual bool registerStateListener(CmdPetition *inf);
+    virtual CmdPetition *registerStateListener(std::unique_ptr<CmdPetition> inf);
 
     virtual int waitForPetition();
 
@@ -75,7 +76,7 @@ public:
      * @brief returnAndClosePetition
      * It will clean struct and close the socket within
      */
-    virtual void returnAndClosePetition(CmdPetition *inf, OUTSTRINGSTREAM *s, int);
+    virtual void returnAndClosePetition(std::unique_ptr<CmdPetition> inf, OUTSTRINGSTREAM *s, int);
 
     virtual void sendPartialOutput(CmdPetition *inf, OUTSTRING *s);
     virtual void sendPartialOutput(CmdPetition *inf, char *s, size_t size);
@@ -104,12 +105,10 @@ public:
      * @brief getPetition
      * @return pointer to new CmdPetition. Petition returned must be properly deleted (this can be calling returnAndClosePetition)
      */
-    virtual CmdPetition *getPetition();
+    virtual std::unique_ptr<CmdPetition> getPetition();
 
     virtual int getConfirmation(CmdPetition *inf, std::string message);
     virtual std::string getUserResponse(CmdPetition *inf, std::string message);
-
-    virtual ~ComunicationsManager();
 };
 
 } //end namespace

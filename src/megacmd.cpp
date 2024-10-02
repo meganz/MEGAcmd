@@ -3894,16 +3894,16 @@ static bool process_line(const char* l)
     return false; //Do not exit
 }
 
-void * doProcessLine(void *pointer)
+void* doProcessLine(void* infRaw)
 {
-    CmdPetition *inf = (CmdPetition*)pointer;
+    auto inf = std::unique_ptr<CmdPetition>((CmdPetition*) infRaw);
 
     OUTSTRINGSTREAM s;
 
     setCurrentThreadLogLevel(MegaApi::LOG_LEVEL_ERROR);
     setCurrentOutCode(MCMD_OK);
-    setCurrentPetition(inf);
-    LoggedStreamPartialOutputs ls(cm, inf);
+    setCurrentPetition(inf.get());
+    LoggedStreamPartialOutputs ls(cm, inf.get());
     setCurrentThreadOutStream(&ls);
 
     bool isInteractive = false;
@@ -3934,13 +3934,9 @@ void * doProcessLine(void *pointer)
 
     MegaThread * petitionThread = inf->getPetitionThread();
 
-    if (inf->clientID == -3) //self client: no actual client
+    if (inf->clientID != -3) // -3 is self client (no actual client)
     {
-        delete inf;//simply delete the pointer
-    }
-    else
-    {
-        cm->returnAndClosePetition(inf, &s, getCurrentOutCode());
+        cm->returnAndClosePetition(std::move(inf), &s, getCurrentOutCode());
     }
 
     semaphoreClients.release();
@@ -3954,7 +3950,7 @@ void * doProcessLine(void *pointer)
     endedPetitionThreads.push_back(petitionThread);
     mutexEndedPetitionThreads.unlock();
 
-    return NULL;
+    return nullptr;
 }
 
 int askforConfirmation(string message)
@@ -4251,7 +4247,7 @@ void* checkForUpdates(void *param)
     return NULL;
 }
 
-void processCommandInPetitionQueues(CmdPetition *inf)
+void processCommandInPetitionQueues(std::unique_ptr<CmdPetition> inf)
 {
     semaphoreClients.wait();
 
@@ -4262,17 +4258,16 @@ void processCommandInPetitionQueues(CmdPetition *inf)
     inf->setPetitionThread(petitionThread);
 
     LOG_verbose << "starting processing: <" << inf->line << ">";
-
-    petitionThread->start(doProcessLine, (void*)inf);
+    petitionThread->start(doProcessLine, (void*) inf.release());
 }
 
 void processCommandLinePetitionQueues(std::string what)
 {
-    CmdPetition *inf = new CmdPetition();
+    auto inf = std::make_unique<CmdPetition>();
     inf->line = what;
     inf->clientDisconnected = true; // There's no actual client
     inf->clientID = -3;
-    processCommandInPetitionQueues(inf);
+    processCommandInPetitionQueues(std::move(inf));
 }
 
 // main loop
@@ -4307,8 +4302,10 @@ void megacmd()
         {
             LOG_verbose << "Client connected ";
 
-            CmdPetition *inf = cm->getPetition();
-            assert(inf);
+            auto infOwned = cm->getPetition();
+            assert(infOwned);
+
+            CmdPetition* inf = infOwned.get();
 
             LOG_verbose << "petition registered: " << inf->line;
             delete_finished_threads();
@@ -4316,15 +4313,13 @@ void megacmd()
             if (inf->getUniformLine() == "ERROR")
             {
                 LOG_warn << "Petition couldn't be registered. Dismissing it.";
-                delete inf;
             }
             // if state register petition
             else if (startsWith(inf->getUniformLine(), "registerstatelistener"))
             {
-                bool registered = cm->registerStateListener(inf);
-                if (!registered)
+                inf = cm->registerStateListener(std::move(infOwned));
+                if (!inf)
                 {
-                    delete inf;
                     continue;
                 }
 
@@ -4555,7 +4550,7 @@ void megacmd()
             }
             else
             { // normal petition
-                processCommandInPetitionQueues(inf);
+                processCommandInPetitionQueues(std::move(infOwned));
             }
         }
     }
