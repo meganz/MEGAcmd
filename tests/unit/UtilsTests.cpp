@@ -57,38 +57,38 @@ TEST(UtilsTest, getListOfWords)
 {
     {
             G_SUBTEST << "Simple";
-            std::vector<std::string> words = megacmd::getlistOfWords(const_cast<char*>("mega-share -a --with=some-email@mega.co.nz some_dir/some_file.txt"));
+            std::vector<std::string> words = megacmd::getlistOfWords("mega-share -a --with=some-email@mega.co.nz some_dir/some_file.txt");
             ASSERT_THAT(words, testing::ElementsAre("mega-share", "-a", "--with=some-email@mega.co.nz", "some_dir/some_file.txt"));
     }
 
     {
             G_SUBTEST << "Double quotes";
-            std::vector<std::string> words = megacmd::getlistOfWords(const_cast<char*>("mkdir \"some dir\" \"another dir\""));
+            std::vector<std::string> words = megacmd::getlistOfWords("mkdir \"some dir\" \"another dir\"");
             ASSERT_THAT(words, testing::ElementsAre("mkdir", "some dir", "another dir"));
     }
 
     {
             G_SUBTEST << "Double quotes without matching";
-            std::vector<std::string> words = megacmd::getlistOfWords(const_cast<char*>("find \"something with quotes\" odd/file\"01.txt"));
+            std::vector<std::string> words = megacmd::getlistOfWords("find \"something with quotes\" odd/file\"01.txt");
             ASSERT_THAT(words, testing::ElementsAre("find", "something with quotes", "odd/file\"01.txt"));
     }
 
     {
             G_SUBTEST << "Single quotes";
-            std::vector<std::string> words = megacmd::getlistOfWords(const_cast<char*>("mkdir 'some dir' 'another dir'"));
+            std::vector<std::string> words = megacmd::getlistOfWords("mkdir 'some dir' 'another dir'");
             ASSERT_THAT(words, testing::ElementsAre("mkdir", "some dir", "another dir"));
     }
 
     {
             G_SUBTEST << "Single quotes without matching";
-            std::vector<std::string> words = megacmd::getlistOfWords(const_cast<char*>("find 'something with quotes' odd/file'01.txt"));
+            std::vector<std::string> words = megacmd::getlistOfWords("find 'something with quotes' odd/file'01.txt");
             ASSERT_THAT(words, testing::ElementsAre("find", "something with quotes", "odd/file'01.txt"));
     }
 
     {
         G_SUBTEST << "Escape backslash in completion";
-        auto str = const_cast<char*>("get root_dir\\some_dir\\some_file.jpg another_file.txt");
-        auto completion_str = const_cast<char*>("completion get root_dir\\some_dir\\some_file.jpg another_file.txt");
+        const char* str = "get root_dir\\some_dir\\some_file.jpg another_file.txt";
+        const char* completion_str = "completion get root_dir\\some_dir\\some_file.jpg another_file.txt";
 
         // '\\' won't be replaced since the first word is not `completion`
         std::vector<std::string> words = megacmd::getlistOfWords(str, true);
@@ -105,7 +105,7 @@ TEST(UtilsTest, getListOfWords)
 
     {
         G_SUBTEST << "Ignore trailing spaces";
-        auto str = const_cast<char*>("export -f --writable some_dir/some_file.txt    ");
+        const char* str = "export -f --writable some_dir/some_file.txt    ";
 
         // Do not ignore trailing spaces
         std::vector<std::string> words = megacmd::getlistOfWords(str, false, false);

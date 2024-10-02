@@ -29,7 +29,6 @@
 using std::wstring;
 
 #define ERRNO WSAGetLastError()
-#define strdup _strdup
 
 using namespace mega;
 
@@ -483,7 +482,7 @@ CmdPetition * ComunicationsManagerNamedPipes::getPetition()
     if (!readok)
     {
         LOG_err << "Failed to read petition from named pipe. errno: L" << ERRNO;
-        inf->line = strdup("ERROR");
+        inf->line = "ERROR";
         return inf;
     }
 
@@ -496,14 +495,14 @@ CmdPetition * ComunicationsManagerNamedPipes::getPetition()
     if (!namedPipeValid(inf->outNamedPipe) || !namedPipe_id)
     {
         LOG_fatal << "ERROR creating output namedPipe at getPetition";
-        inf->line = strdup("ERROR");
+        inf->line = "ERROR";
         return inf;
     }
 
     if(!WriteFile(pipeGeneral,(const char*)&namedPipe_id, sizeof( namedPipe_id ), &n, NULL))
     {
         LOG_fatal << "ERROR writing to namedPipe at getPetition: ERRNO = " << ERRNO;
-        inf->line = strdup("ERROR");
+        inf->line = "ERROR";
         return inf;
     }
 
@@ -512,7 +511,7 @@ CmdPetition * ComunicationsManagerNamedPipes::getPetition()
         LOG_fatal << " Error disconnecting from general pip. errno: " << ERRNO;
     }
 
-    inf->line = strdup(receivedutf8.c_str());
+    inf->line = receivedutf8;
 
     return inf;
 }

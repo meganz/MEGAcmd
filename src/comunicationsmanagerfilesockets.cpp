@@ -358,7 +358,7 @@ CmdPetition * ComunicationsManagerFileSockets::getPetition()
         }
 
         sleep(1);
-        inf->line = strdup("ERROR");
+        inf->line = "ERROR";
         return inf;
     }
 
@@ -377,25 +377,26 @@ CmdPetition * ComunicationsManagerFileSockets::getPetition()
         {
             break;
         }
-        buffer[n]=0;
+
+        buffer[n] = '\0';
         wholepetition.append(buffer);
         n = read(newsockfd, buffer, 1023);
     }
     if (n >=0 )
     {
-        buffer[n]=0;
+        buffer[n] = '\0';
         wholepetition.append(buffer);
     }
     if (n < 0)
     {
         LOG_fatal << "ERROR reading from socket at getPetition: " << errno;
-        inf->line = strdup("ERROR");
+        inf->line = "ERROR";
         close(newsockfd);
         return inf;
     }
 
     inf->outSocket = newsockfd;
-    inf->line = strdup(wholepetition.c_str());
+    inf->line = wholepetition;
 
     return inf;
 }
@@ -459,7 +460,7 @@ string ComunicationsManagerFileSockets::getUserResponse(CmdPetition *inf, string
         n = recv(connectedsocket, buffer, BUFFERSIZE, MSG_NOSIGNAL);
         if (n)
         {
-            buffer[n]='\0';
+            buffer[n] = '\0';
             response += buffer;
         }
     } while(n == BUFFERSIZE && n != SOCKET_ERROR);

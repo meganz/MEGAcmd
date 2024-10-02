@@ -898,14 +898,14 @@ void changedir(const string& where)
 #ifndef NO_READLINE
 char* remote_completion(const char* text, int state)
 {
-    char *saved_line = strdup(getCurrentLine().c_str());
+    string saved_line = getCurrentLine();
 
     static vector<string> validOptions;
     if (state == 0)
     {
         validOptions.clear();
         string completioncommand("completionshell ");
-        completioncommand+=saved_line;
+        completioncommand += saved_line;
 
         OUTSTRING s;
         OUTSTRINGSTREAM oss(s);
@@ -927,7 +927,6 @@ char* remote_completion(const char* text, int state)
 
         if (outputcommand == "MEGACMD_USE_LOCAL_COMPLETION")
         {
-            free(saved_line);
             return local_completion(text,state); //fallback to local path completion
         }
 
@@ -935,7 +934,6 @@ char* remote_completion(const char* text, int state)
         {
             string where = outputcommand.substr(strlen("MEGACMD_USE_LOCAL_COMPLETION"));
             changedir(where);
-            free(saved_line);
             return local_completion(text,state); //fallback to local path completion
         }
 
@@ -961,10 +959,6 @@ char* remote_completion(const char* text, int state)
             pushvalidoption(&validOptions,beginopt);
         }
     }
-
-    free(saved_line);
-    saved_line = NULL;
-
     return generic_completion(text, state, validOptions);
 }
 
@@ -1418,7 +1412,7 @@ void process_line(const char * line)
             line = refactoredline.c_str();
 #endif
 
-            vector<string> words = getlistOfWords((char *)line);
+            vector<string> words = getlistOfWords(line);
 
             string clientWidth = "--client-width=";
             clientWidth+= SSTR(getNumberOfCols(80));

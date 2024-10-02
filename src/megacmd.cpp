@@ -911,9 +911,8 @@ char * flags_completion(const char*text, int state)
     if (state == 0)
     {
         validparams.clear();
-        char *saved_line = strdup(getCurrentThreadLine().c_str());
-        vector<string> words = getlistOfWords(saved_line, !getCurrentThreadIsCmdShell());
-        free(saved_line);
+        string saved_line = getCurrentThreadLine();
+        vector<string> words = getlistOfWords(saved_line.c_str(), !getCurrentThreadIsCmdShell());
         if (words.size())
         {
             set<string> setvalidparams;
@@ -970,10 +969,8 @@ char * flags_value_completion(const char*text, int state)
     {
         validValues.clear();
 
-        char *saved_line = strdup(getCurrentThreadLine().c_str());
-        vector<string> words = getlistOfWords(saved_line, !getCurrentThreadIsCmdShell());
-        free(saved_line);
-        saved_line = NULL;
+        string saved_line = getCurrentThreadLine();
+        vector<string> words = getlistOfWords(saved_line.c_str(), !getCurrentThreadIsCmdShell());
         if (words.size() > 1)
         {
             string thecommand = words[0];
@@ -1206,10 +1203,8 @@ char* nodeattrs_completion(const char* text, int state)
     if (state == 0)
     {
         validAttrs.clear();
-        char *saved_line = strdup(getCurrentThreadLine().c_str());
-        vector<string> words = getlistOfWords(saved_line, !getCurrentThreadIsCmdShell());
-        free(saved_line);
-        saved_line = NULL;
+        string saved_line = getCurrentThreadLine();
+        vector<string> words = getlistOfWords(saved_line.c_str(), !getCurrentThreadIsCmdShell());
         if (words.size() > 1)
         {
             validAttrs = cmdexecuter->getNodeAttrs(words[1]);
@@ -3719,7 +3714,7 @@ bool isBareCommand(const char *l, const string &command)
         return false;
     }
 
-   vector<string> words = getlistOfWords((char *)l, !getCurrentThreadIsCmdShell());
+   vector<string> words = getlistOfWords(l, !getCurrentThreadIsCmdShell());
    for (int i = 1; i<words.size(); i++)
    {
        if (words[i].empty()) continue;
@@ -4274,8 +4269,8 @@ void processCommandInPetitionQueues(CmdPetition *inf)
 void processCommandLinePetitionQueues(std::string what)
 {
     CmdPetition *inf = new CmdPetition();
-    inf->line = strdup(what.c_str());
-    inf->clientDisconnected = true; //There's no actual client
+    inf->line = what;
+    inf->clientDisconnected = true; // There's no actual client
     inf->clientID = -3;
     processCommandInPetitionQueues(inf);
 }

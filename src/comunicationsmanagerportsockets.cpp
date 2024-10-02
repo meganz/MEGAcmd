@@ -22,7 +22,6 @@
 #ifdef _WIN32
 #include <windows.h>
 #define ERRNO WSAGetLastError()
-#define strdup _strdup
 #else
 #define ERRNO errno
 #endif
@@ -445,7 +444,7 @@ CmdPetition * ComunicationsManagerPortSockets::getPetition()
         }
 
         sleepSeconds(1);
-        inf->line = strdup("ERROR");
+        inf->line = "ERROR";
         return inf;
     }
 
@@ -484,7 +483,7 @@ CmdPetition * ComunicationsManagerPortSockets::getPetition()
     if (n == SOCKET_ERROR)
     {
         LOG_fatal << "ERROR reading from socket at getPetition: " << newsockfd << " errno: " << ERRNO;
-        inf->line = strdup("ERROR");
+        inf->line = "ERROR";
         return inf;
     }
 
@@ -493,7 +492,7 @@ CmdPetition * ComunicationsManagerPortSockets::getPetition()
     if (!socketValid(inf->outSocket) || !socket_id)
     {
         LOG_fatal << "ERROR creating output socket at getPetition";
-        inf->line = strdup("ERROR");
+        inf->line = "ERROR";
         return inf;
     }
 
@@ -502,14 +501,14 @@ CmdPetition * ComunicationsManagerPortSockets::getPetition()
     if (n == SOCKET_ERROR)
     {
         LOG_fatal << "ERROR writing to socket at getPetition: ERRNO = " << ERRNO;
-        inf->line = strdup("ERROR");
+        inf->line = "ERROR";
         return inf;
     }
     closeSocket(newsockfd);
 #if _WIN32
-    inf->line = strdup(receivedutf8.c_str());
+    inf->line = receivedutf8;
 #else
-    inf->line = strdup(buffer);
+    inf->line = buffer;
 #endif
     return inf;
 }
