@@ -194,10 +194,10 @@ MegaCMDLogger::MegaCMDLogger(int sdkLoggerLevel, int cmdLoggerLevel) :
 
 bool isMEGAcmdSource(const char *source)
 {
-    static const std::set<std::string> megaCmdSourceFiles = MEGACMD_SRC_FILE_LIST;
+    static const std::set<std::string_view> megaCmdSourceFiles = MEGACMD_SRC_FILE_LIST;
 
     // Remove the line number (since source has the format "filename.cpp:1234")
-    std::string filename = source;
+    std::string_view filename(source);
     filename = filename.substr(0, filename.find(':'));
 
     return megaCmdSourceFiles.find(filename) != megaCmdSourceFiles.end();
