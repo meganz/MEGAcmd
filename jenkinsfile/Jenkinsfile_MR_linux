@@ -232,11 +232,7 @@ pipeline {
                                                 sh "/usr/local/bin/megacmd_${test}_test.py"
                                                 deleteDir()
                                             }
-                                        }
-                                        post {
-                                            always {
-                                                junit "test-dir-${SANITIZERS}/${test}-results/TEST-*.xml"
-                                            }
+                                            junit "test-dir-${SANITIZERS}/${test}-results/TEST-*.xml"
                                         }
                                     }
                                 }
@@ -244,8 +240,8 @@ pipeline {
                         }
                         post {
                             always {
+                                sh "/usr/bin/mega-exec quit"
                                 archiveArtifacts "test-dir-${SANITIZERS}/.megaCmd/megacmdserver.log*"
-                                sh "/usr/bin/mega-exec quit || true"
                             }
                         }
                     }
