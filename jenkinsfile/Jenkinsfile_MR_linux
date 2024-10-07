@@ -217,24 +217,25 @@ pipeline {
                             sh 'nohup /usr/bin/mega-cmd-server &'
                             sleep 1
                             lock(label: 'testing_accounts_megacmd', variable: 'MEGA_EMAILS', quantity: 2, resource: null) {
-                                dir("test-dir-${SANITIZERS}") {
-                                    script {
-                                        env.MEGA_EMAIL = env.MEGA_EMAILS0
-                                        env.MEGA_EMAIL_AUX = env.MEGA_EMAILS1
+                                script {
+                                    env.MEGA_EMAIL = env.MEGA_EMAILS0
+                                    env.MEGA_EMAIL_AUX = env.MEGA_EMAILS1
 
-                                        for (test in ['misc', 'put', 'rm', 'serving', 'find', 'get']) {
-                                            stage("MEGAcmd Python ${test} test") {
-                                                env.ASAN_OPTIONS = "atexit=1,print_stats=1,log_path=${megacmd_sources_workspace}/test-dir-${SANITIZERS}-${test}/results/mega-cmd-tests-python-report"
-                                                env.TSAN_OPTIONS = "log_path=${megacmd_sources_workspace}/test-dir-${SANITIZERS}-${test}/results/mega-cmd-tests-python-report"
-                                                env.UBSAN_OPTIONS = "log_path=${megacmd_sources_workspace}/test-dir-${SANITIZERS}-${test}/results/mega-cmd-tests-python-report"
-                                                env.OUT_DIR_JUNIT_XML = "${megacmd_sources_workspace}/test-dir-${SANITIZERS}-${test}"
+                                    for (test in ['misc', 'put', 'rm', 'serving', 'find', 'get']) {
+                                        stage("MEGAcmd Python ${test} test") {
+                                            env.ASAN_OPTIONS = "atexit=1,print_stats=1,log_path=${megacmd_sources_workspace}/test-dir-${SANITIZERS}/${test}-results/mega-cmd-tests-python-report"
+                                            env.TSAN_OPTIONS = "log_path=${megacmd_sources_workspace}/test-dir-${SANITIZERS}/${test}-results/mega-cmd-tests-python-report"
+                                            env.UBSAN_OPTIONS = "log_path=${megacmd_sources_workspace}/test-dir-${SANITIZERS}/${test}-results/mega-cmd-tests-python-report"
+                                            env.OUT_DIR_JUNIT_XML = "${megacmd_sources_workspace}/test-dir-${SANITIZERS}/${test}-results"
 
+                                            dir("test-dir-${SANITIZERS}/working-dir") {
                                                 sh "/usr/local/bin/megacmd_${test}_test.py"
+                                                deleteDir()
                                             }
-                                            post {
-                                                always {
-                                                    junit "test-dir-${SANITIZERS}-${test}/TEST-*.xml"
-                                                }
+                                        }
+                                        post {
+                                            always {
+                                                junit "test-dir-${SANITIZERS}/${test}-results/TEST-*.xml"
                                             }
                                         }
                                     }
