@@ -17,6 +17,8 @@
  */
 
 #include "megacmdlogger.h"
+#include "megacmdcommonutils.h"
+#include "megacmd_src_file_list.h"
 
 #include <map>
 
@@ -183,27 +185,22 @@ void setCurrentPetition(CmdPetition *petition)
 }
 
 
-MegaCMDLogger::MegaCMDLogger()
-    : mLoggedStream(Instance<DefaultLoggedStream>::Get().getLoggedStream())
+MegaCMDLogger::MegaCMDLogger(int sdkLoggerLevel, int cmdLoggerLevel) :
+    mSdkLoggerLevel(sdkLoggerLevel),
+    mCmdLoggerLevel(cmdLoggerLevel),
+    mLoggedStream(Instance<DefaultLoggedStream>::Get().getLoggedStream())
 {
-    this->sdkLoggerLevel = MegaApi::LOG_LEVEL_ERROR;
-    this->outputmutex = new std::mutex();
-}
-
-MegaCMDLogger::~MegaCMDLogger()
-{
-    delete this->outputmutex;
 }
 
 bool isMEGAcmdSource(const char *source)
 {
-    //TODO: this seem to be broken. source does not have the entire path but just leaf names
-    return (string(source).find("src/megacmd") != string::npos)
-            || (string(source).find("src\\megacmd") != string::npos)
-            || (string(source).find("listeners.cpp") != string::npos)
-            || (string(source).find("configurationmanager.cpp") != string::npos)
-            || (string(source).find("comunicationsmanager") != string::npos)
-            || (string(source).find("megacmd") != string::npos); // added this one
+    static const std::set<std::string_view> megaCmdSourceFiles = MEGACMD_SRC_FILE_LIST;
+
+    // Remove the line number (since source has the format "filename.cpp:1234")
+    std::string_view filename(source);
+    filename = filename.substr(0, filename.find(':'));
+
+    return megaCmdSourceFiles.find(filename) != megaCmdSourceFiles.end();
 }
 
 void MegaCMDLogger::log(const char *time, int loglevel, const char *source, const char *message)
@@ -227,58 +224,49 @@ void MegaCMDLogger::log(const char *time, int loglevel, const char *source, cons
 
     if (isMEGAcmdSource(source))
     {
-        if (loglevel <= cmdLoggerLevel)
+        if (loglevel <= mCmdLoggerLevel)
         {
-#ifdef _WIN32
-            std::lock_guard<std::mutex> g(*outputmutex);
-            int oldmode;
-            oldmode = _setmode(_fileno(stdout), _O_U8TEXT);
-            mLoggedStream << "[" << SimpleLogger::toStr(LogLevel(loglevel)) << ": " << time << "] " << message << endl;
-            _setmode(_fileno(stdout), oldmode);
-#else
-            mLoggedStream << "[" << SimpleLogger::toStr(LogLevel(loglevel)) << ": " << time << "] " << message << endl;
-#endif
+            performSafeLog(mLoggedStream, [this, time, loglevel, message]
+            {
+                mLoggedStream << "[" << SimpleLogger::toStr(LogLevel(loglevel)) << ": " << time << "] " << message << endl;
+            });
         }
 
-        if (needsLoggingToClient(cmdLoggerLevel))
+        if (needsLoggingToClient(mCmdLoggerLevel))
         {
             OUTSTREAM << "[" << SimpleLogger::toStr(LogLevel(loglevel)) << ": " << time << "] " << message << endl;
         }
     }
     else // SDK's
     {
-        if (loglevel <= sdkLoggerLevel)
+        if (loglevel <= mSdkLoggerLevel)
         {
-            if (( sdkLoggerLevel <= MegaApi::LOG_LEVEL_DEBUG ) && !strcmp(message, "Request (RETRY_PENDING_CONNECTIONS) starting"))
+            if (( mSdkLoggerLevel <= MegaApi::LOG_LEVEL_DEBUG ) && !strcmp(message, "Request (RETRY_PENDING_CONNECTIONS) starting"))
             {
                 return;
             }
-            if (( sdkLoggerLevel <= MegaApi::LOG_LEVEL_DEBUG ) && !strcmp(message, "Request (RETRY_PENDING_CONNECTIONS) finished"))
+            if (( mSdkLoggerLevel <= MegaApi::LOG_LEVEL_DEBUG ) && !strcmp(message, "Request (RETRY_PENDING_CONNECTIONS) finished"))
             {
                 return;
             }
-#ifdef _WIN32
-            std::lock_guard<std::mutex> g(*outputmutex);
-            int oldmode;
-            oldmode = _setmode(_fileno(stdout), _O_U8TEXT);
-            mLoggedStream << "[API:" << SimpleLogger::toStr(LogLevel(loglevel)) << ": " << time << "] " << message << endl;
-            _setmode(_fileno(stdout), oldmode);
-#else
-            mLoggedStream << "[API:" << SimpleLogger::toStr(LogLevel(loglevel)) << ": " << time << "] " << message << endl;
-#endif
+
+            performSafeLog(mLoggedStream, [this, time, loglevel, message]
+            {
+                mLoggedStream << "[SDK:" << SimpleLogger::toStr(LogLevel(loglevel)) << ": " << time << "] " << message << endl;
+            });
         }
 
-        if (needsLoggingToClient(sdkLoggerLevel))
+        if (needsLoggingToClient(mSdkLoggerLevel))
         {
             assert(false); //since it happens in the sdk thread, this shall be false
-            OUTSTREAM << "[API:" << SimpleLogger::toStr(LogLevel(loglevel)) << ": " << time << "] " << message << endl;
+            OUTSTREAM << "[SDK:" << SimpleLogger::toStr(LogLevel(loglevel)) << ": " << time << "] " << message << endl;
         }
     }
 }
 
-int MegaCMDLogger::getMaxLogLevel()
+int MegaCMDLogger::getMaxLogLevel() const
 {
-    return max(max(getCurrentThreadLogLevel(), cmdLoggerLevel), sdkLoggerLevel);
+    return max(max(getCurrentThreadLogLevel(), mCmdLoggerLevel), mSdkLoggerLevel);
 }
 
 OUTFSTREAMTYPE streamForDefaultFile()
@@ -307,22 +295,27 @@ OUTFSTREAMTYPE streamForDefaultFile()
          }
      }
 #else
-    const char* home = getenv("HOME");
-    if (home)
+    auto dirs = PlatformDirectories::getPlatformSpecificDirectories();
+    path = dirs->configDirPath();
+
+    auto fsAccess = std::make_unique<MegaFileSystemAccess>();
+    fsAccess->setdefaultfolderpermissions(0700);
+    LocalPath localconfigDir = LocalPath::fromAbsolutePath(path);
+    if (!fsAccess->mkdirlocal(localconfigDir, false, false))
     {
-        path.append(home);
-        path.append("/.megaCmd/");
-        path.append("/megacmdserver.log");
+        LOG_err << "Data directory not created";
     }
+    path.append("/megacmdserver.log");
 #endif
 
     return OUTFSTREAMTYPE(path);
 }
 
 LoggedStreamDefaultFile::LoggedStreamDefaultFile() :
-    mFstream(streamForDefaultFile()),
-    LoggedStreamOutStream (&mFstream)
+    LoggedStreamOutStream(nullptr),
+    mFstream(streamForDefaultFile())
 {
+    out = &mFstream;
 }
 
 }//end namespace

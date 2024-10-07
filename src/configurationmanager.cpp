@@ -17,11 +17,23 @@
  */
 
 #include "configurationmanager.h"
+#include "megacmdcommonutils.h"
 #include "megacmdversion.h"
 #include "megacmdutils.h"
 #include "listeners.h"
 #include "updater/Preferences.h"
 #include <fstream>
+
+
+#ifndef ERRNO
+#ifdef _WIN32
+#include <windows.h>
+#define ERRNO WSAGetLastError()
+#else
+#define ERRNO errno
+#endif
+#endif
+
 
 #ifdef _WIN32
 #include <shlobj.h> //SHGetFolderPath
@@ -45,6 +57,10 @@
 using namespace mega;
 
 namespace megacmd {
+
+static const char* const LOCK_FILE_NAME = "lockMCMD";
+
+
 using namespace std;
 bool is_file_exist(const char *fileName)
 {
@@ -52,9 +68,11 @@ bool is_file_exist(const char *fileName)
     return infile.good();
 }
 
-string ConfigurationManager::configFolder;
+string ConfigurationManager::mConfigFolder;
 bool ConfigurationManager::hasBeenUpdated = false;
-#if !defined(_WIN32) && defined(LOCK_EX) && defined(LOCK_NB)
+#ifdef WIN32
+HANDLE ConfigurationManager::mLockFileHandle;
+#elif defined(LOCK_EX) && defined(LOCK_NB)
 int ConfigurationManager::fd;
 #endif
 map<string, sync_struct *> ConfigurationManager::oldConfiguredSyncs;
@@ -65,11 +83,11 @@ std::recursive_mutex ConfigurationManager::settingsMutex;
 
 std::string ConfigurationManager::getConfigFolder()
 {
-    if (!configFolder.size())
+    if (!mConfigFolder.size())
     {
         ConfigurationManager::loadConfigDir();
     }
-    return configFolder;
+    return mConfigFolder;
 }
 
 bool ConfigurationManager::getHasBeenUpdated()
@@ -84,114 +102,109 @@ static const char* const persistentmcmdconfigurationkeys[] =
 
 void ConfigurationManager::loadConfigDir()
 {
+    auto dirs = PlatformDirectories::getPlatformSpecificDirectories();
     std::lock_guard<std::recursive_mutex> g(settingsMutex);
-
-#ifdef _WIN32
-
-   TCHAR szPath[MAX_PATH];
-    if (!SUCCEEDED(GetModuleFileName(NULL, szPath , MAX_PATH)))
+    mConfigFolder = dirs->configDirPath();
+    if (mConfigFolder.empty())
     {
-        LOG_fatal << "Couldnt get EXECUTABLE folder";
+        LOG_fatal << "Could not get config directory path";
+        return;
     }
-    else
-    {
-        if (SUCCEEDED(PathRemoveFileSpec(szPath)))
-        {
-            if (PathAppend(szPath,TEXT(".megaCmd")))
-            {
-                MegaApi::utf16ToUtf8(szPath, lstrlen(szPath), &configFolder);
-            }
-        }
-    }
-#else
-    const char *homedir = NULL;
 
-    homedir = getenv("HOME");
-    if (!homedir)
-    {
-        struct passwd pd;
-        struct passwd* pwdptr = &pd;
-        struct passwd* tempPwdPtr;
-        char pwdbuffer[200];
-        int pwdlinelen = sizeof( pwdbuffer );
-
-        if (( getpwuid_r(22, pwdptr, pwdbuffer, pwdlinelen, &tempPwdPtr)) != 0)
-        {
-            LOG_fatal << "Couldnt get HOME folder";
-            return;
-        }
-        else
-        {
-            homedir = pwdptr->pw_dir;
-        }
-    }
-    stringstream sconfigDir;
-    sconfigDir << homedir << "/" << ".megaCmd";
-    configFolder = sconfigDir.str();
-#endif
-
-    MegaFileSystemAccess *fsAccess = new MegaFileSystemAccess();
+    auto fsAccess = std::make_unique<MegaFileSystemAccess>();
     fsAccess->setdefaultfolderpermissions(0700);
-    LocalPath localConfigFolder = LocalPath::fromAbsolutePath(configFolder);
+    LocalPath localConfigFolder = LocalPath::fromAbsolutePath(mConfigFolder);
     constexpr bool isHidden = true;
     constexpr bool reportExisting = false;
-    if (!is_file_exist(configFolder.c_str()) && !fsAccess->mkdirlocal(localConfigFolder, isHidden, reportExisting))
+    if (!pathIsExistingDir(mConfigFolder.c_str()) && !fsAccess->mkdirlocal(localConfigFolder, isHidden, reportExisting))
     {
-        LOG_err << "Config folder not created";
+        LOG_err << "Config directory not created";
     }
-    delete fsAccess;
 }
 
-
-std::string ConfigurationManager::getConfFolderSubdir(const string &utf8Name)
+std::string ConfigurationManager::getAndCreateConfigDir()
 {
-    if (!configFolder.size())
+    auto dirs = PlatformDirectories::getPlatformSpecificDirectories();
+    auto configDir = dirs->configDirPath();
+    if (configDir.empty())
     {
-        ConfigurationManager::loadConfigDir();
+        LOG_fatal << "Could not get config directory path";
+        throw std::runtime_error("Could not get config directory path");
     }
+
+    auto fsAccess = std::make_unique<MegaFileSystemAccess>();
+    fsAccess->setdefaultfolderpermissions(0700);
+    LocalPath localConfigDir = LocalPath::fromAbsolutePath(configDir);
+    if (!pathIsExistingDir(configDir.c_str()) && !fsAccess->mkdirlocal(localConfigDir, false, false))
+    {
+        LOG_err << "Config directory not created";
+    }
+
+    return configDir;
+}
+
+std::string ConfigurationManager::getAndCreateRuntimeDir()
+{
+    auto dirs = PlatformDirectories::getPlatformSpecificDirectories();
+    auto runtimeDir = dirs->runtimeDirPath();
+    if (runtimeDir.empty())
+    {
+        LOG_fatal << "Could not get runtime directory path";
+        throw std::runtime_error("Could not get runtime directory path");
+    }
+
+    auto fsAccess = std::make_unique<MegaFileSystemAccess>();
+    fsAccess->setdefaultfolderpermissions(0700);
+    LocalPath localRuntimeDir = LocalPath::fromAbsolutePath(runtimeDir);
+    if (!pathIsExistingDir(runtimeDir.c_str()) && !fsAccess->mkdirlocal(localRuntimeDir, false, false))
+    {
+        LOG_err << "Runtime directory not created";
+    }
+
+    return runtimeDir;
+}
+
+std::string ConfigurationManager::getConfigFolderSubdir(const string &utf8Name)
+{
+    auto dirs = PlatformDirectories::getPlatformSpecificDirectories();
+    auto configDir = dirs->configDirPath();
+    assert(!configDir.empty());
 
     MegaFileSystemAccess fsAccess;
     fsAccess.setdefaultfolderpermissions(0700);
-    LocalPath confSubdir = LocalPath::fromAbsolutePath(configFolder);
+    LocalPath configSubdir = LocalPath::fromAbsolutePath(configDir);
 
-    confSubdir.appendWithSeparator(LocalPath::fromRelativePath(utf8Name), true);
+    configSubdir.appendWithSeparator(LocalPath::fromRelativePath(utf8Name), true);
 
     constexpr bool isHidden = true;
     constexpr bool reportExisting = false;
-    if (!is_file_exist(confSubdir.toPath(false).c_str()) && !fsAccess.mkdirlocal(confSubdir, isHidden, reportExisting))
+    if (!pathIsExistingDir(configSubdir.toPath(false).c_str()) && !fsAccess.mkdirlocal(configSubdir, isHidden, reportExisting))
     {
-        LOG_err << "Config subfolder not created";
+        LOG_err << "State subfolder not created";
     }
 
-    return confSubdir.toPath(false);
+    return configSubdir.toPath(false);
 }
 
 void ConfigurationManager::saveSession(const char*session)
 {
     std::lock_guard<std::recursive_mutex> g(settingsMutex);
+    auto configDir = getAndCreateConfigDir();
+    assert(!configDir.empty());
 
     stringstream sessionfile;
-    if (!configFolder.size())
-    {
-        loadConfigDir();
-    }
-    if (configFolder.size())
-    {
-        sessionfile << configFolder << "/" << "session";
-        LOG_debug << "Session file: " << sessionfile.str();
+    sessionfile << configDir << "/" << "session";
+    LOG_debug << "Session file: " << sessionfile.str();
 
-        ofstream fo(sessionfile.str().c_str(), ios::out);
+    ofstream fo(sessionfile.str().c_str(), ios::out);
 
-        if (fo.is_open())
+    if (fo.is_open())
+    {
+        if (session)
         {
-            if (session)
-                fo << session;
-            fo.close();
+            fo << session;
         }
-    }
-    else
-    {
-        LOG_err << "Couldnt access configuration folder ";
+        fo.close();
     }
 }
 
@@ -199,60 +212,59 @@ void ConfigurationManager::saveProperty(const char *property, const char *value)
 {
     std::lock_guard<std::recursive_mutex> g(settingsMutex);
 
-    if (!configFolder.size())
+    if (mConfigFolder.empty())
     {
         loadConfigDir();
     }
-    if (configFolder.size())
+    assert(!mConfigFolder.empty());
+
+    bool found = false;
+    stringstream configFile;
+    configFile << mConfigFolder << "/" << "megacmd.cfg";
+
+    stringstream formerlines;
+    ifstream infile(configFile.str().c_str());
+    string line;
+    while (getline(infile, line))
     {
-        bool found = false;
-        stringstream configFile;
-        configFile << configFolder << "/" << "megacmd.cfg";
-
-        stringstream formerlines;
-        ifstream infile(configFile.str().c_str());
-        string line;
-        while (getline(infile, line))
+        if (line.length() > 0 && line[0] != '#')
         {
-            if (line.length() > 0 && line[0] != '#')
+            string key;
+            size_t pos = line.find("=");
+            if (pos != string::npos)
             {
-                string key;
-                size_t pos = line.find("=");
-                if (pos != string::npos)
-                {
-                    key = line.substr(0, pos);
-                    rtrimProperty(key, ' ');
+                key = line.substr(0, pos);
+                rtrimProperty(key, ' ');
 
-                    if (!strcmp(key.c_str(), property))
+                if (!strcmp(key.c_str(), property))
+                {
+                    if (!found)
                     {
-                        if (!found)
-                        {
-                            formerlines << property << "=" << value << endl;
-                        }
-                        found = true;
+                        formerlines << property << "=" << value << endl;
                     }
-                    else
-                    {
-                        formerlines << line << endl;
-                    }
+                    found = true;
                 }
                 else
                 {
                     formerlines << line << endl;
                 }
             }
-        }
-        ofstream fo(configFile.str().c_str());
-
-        if (fo.is_open())
-        {
-            fo << formerlines.str();
-            if (!found)
+            else
             {
-                fo << property << "=" << value << endl;
+                formerlines << line << endl;
             }
-            fo.close();
         }
+    }
+    ofstream fo(configFile.str().c_str());
+
+    if (fo.is_open())
+    {
+        fo << formerlines.str();
+        if (!found)
+        {
+            fo << property << "=" << value << endl;
+        }
+        fo.close();
     }
 }
 
@@ -275,7 +287,7 @@ void ConfigurationManager::migrateSyncConfig(MegaApi *api)
 
             sync_struct *thesync = ((sync_struct*)( *itr ).second );
 
-            auto newListenerPair = listeners.emplace(thesync, ::make_unique<MegaCmdListener>(api));
+            auto newListenerPair = listeners.emplace(thesync, std::make_unique<MegaCmdListener>(api));
 
             api->copySyncDataToCache(thesync->localpath.c_str(), thesync->handle, nullptr,
                                      thesync->fingerprint, thesync->active, false, newListenerPair.first->second.get());
@@ -325,13 +337,13 @@ void ConfigurationManager::saveSyncs(map<string, sync_struct *> *syncsmap)
     std::lock_guard<std::recursive_mutex> g(settingsMutex);
 
     stringstream syncsfile;
-    if (!configFolder.size())
+    if (mConfigFolder.empty())
     {
         loadConfigDir();
     }
-    if (configFolder.size())
+    if (!mConfigFolder.empty())
     {
-        syncsfile << configFolder << "/" << "syncs";
+        syncsfile << mConfigFolder << "/" << "syncs";
         LOG_debug << "Syncs file: " << syncsfile.str();
 
         ofstream fo(syncsfile.str().c_str(), ios::out | ios::binary);
@@ -374,13 +386,13 @@ void ConfigurationManager::saveBackups(map<string, backup_struct *> *backupsmap)
     std::lock_guard<std::recursive_mutex> g(settingsMutex);
 
     stringstream backupsfile;
-    if (!configFolder.size())
+    if (mConfigFolder.empty())
     {
         loadConfigDir();
     }
-    if (configFolder.size())
+    if (!mConfigFolder.empty())
     {
-        backupsfile << configFolder << "/" << "backups";
+        backupsfile << mConfigFolder << "/" << "backups";
         LOG_debug << "Backups file: " << backupsfile.str();
 
         ofstream fo(backupsfile.str().c_str(), ios::out | ios::binary);
@@ -445,13 +457,13 @@ void ConfigurationManager::saveExcludedNames()
 {
     std::lock_guard<std::recursive_mutex> g(settingsMutex);
     stringstream excludedNamesFile;
-    if (!configFolder.size())
+    if (mConfigFolder.empty())
     {
         loadConfigDir();
     }
-    if (configFolder.size())
+    if (!mConfigFolder.empty())
     {
-        excludedNamesFile << configFolder << "/" << "excluded";
+        excludedNamesFile << mConfigFolder << "/" << "excluded";
         LOG_debug << "Exclusion file: " << excludedNamesFile.str();
 
         ofstream fo(excludedNamesFile.str().c_str(), ios::out | ios::binary);
@@ -475,13 +487,13 @@ void ConfigurationManager::loadExcludedNames()
 {
     std::lock_guard<std::recursive_mutex> g(settingsMutex);
     stringstream excludedNamesFile;
-    if (!configFolder.size())
+    if (mConfigFolder.empty())
     {
         loadConfigDir();
     }
-    if (configFolder.size())
+    if (!mConfigFolder.empty())
     {
-        excludedNamesFile << configFolder << "/" << "excluded";
+        excludedNamesFile << mConfigFolder << "/" << "excluded";
         LOG_debug << "Excluded file: " << excludedNamesFile.str();
 
         if (!is_file_exist(excludedNamesFile.str().c_str()) && !oldConfiguredSyncs.size()) //do not add defaults if syncs already configured
@@ -543,13 +555,13 @@ void ConfigurationManager::loadsyncs()
 {
     std::lock_guard<std::recursive_mutex> g(settingsMutex);
     stringstream syncsfile;
-    if (!configFolder.size())
+    if (mConfigFolder.empty())
     {
         loadConfigDir();
     }
-    if (configFolder.size())
+    if (!mConfigFolder.empty())
     {
-        syncsfile << configFolder << "/" << "syncs";
+        syncsfile << mConfigFolder << "/" << "syncs";
         LOG_debug << "Syncs file: " << syncsfile.str();
 
         ifstream fi(syncsfile.str().c_str(), ios::in | ios::binary);
@@ -620,13 +632,13 @@ void ConfigurationManager::loadbackups()
 {
     std::lock_guard<std::recursive_mutex> g(settingsMutex);
     stringstream backupsfile;
-    if (!configFolder.size())
+    if (mConfigFolder.empty())
     {
         loadConfigDir();
     }
-    if (configFolder.size())
+    if (!mConfigFolder.empty())
     {
-        backupsfile << configFolder << "/" << "backups";
+        backupsfile << mConfigFolder << "/" << "backups";
         LOG_debug << "Backups file: " << backupsfile.str();
 
         ifstream fi(backupsfile.str().c_str(), ios::in | ios::binary);
@@ -694,15 +706,13 @@ void ConfigurationManager::loadConfiguration(bool debug)
 {
     std::lock_guard<std::recursive_mutex> g(settingsMutex);
 
-    if (!configFolder.size())
+    // SESSION
+    auto configDir = getAndCreateConfigDir();
+
+    if (!configDir.empty())
     {
-        loadConfigDir();
-    }
-    if (configFolder.size())
-    {
-        //SESSION
         stringstream sessionfile;
-        sessionfile << configFolder << "/" << "session";
+        sessionfile << configDir << "/" << "session";
 
         if (debug)
         {
@@ -724,10 +734,13 @@ void ConfigurationManager::loadConfiguration(bool debug)
             fi.close();
         }
 
-
-        //Check if version has been updated.
+        // Check if version has been updated.
         stringstream versionionfile;
-        versionionfile << configFolder << "/" << VERSION_FILE_NAME;
+        if (mConfigFolder.empty())
+        {
+            loadConfigDir();
+        }
+        versionionfile << mConfigFolder << "/" << VERSION_FILE_NAME;
 
         // Get latest version if any.
         string latestVersion;
@@ -763,107 +776,144 @@ void ConfigurationManager::loadConfiguration(bool debug)
     {
         if (debug)
         {
-            std::cout << "Couldnt access configuration folder " << std::endl;
+            std::cout << "Couldnt access data folder " << std::endl;
         }
     }
 }
 
 bool ConfigurationManager::lockExecution()
 {
-    if (!configFolder.size())
+    // Check for legacy lock (in config path)
+    auto dirs = PlatformDirectories::getPlatformSpecificDirectories();
+    auto configDir = dirs->configDirPath();
+    auto runtimeDir = getAndCreateRuntimeDir();
+    if (runtimeDir != configDir)
     {
-        loadConfigDir();
+        auto lockFileAtConfigDir = std::string(configDir).append(1, LocalPath::localPathSeparator_utf8).append(LOCK_FILE_NAME);
+
+        static MegaFileSystemAccess fsAccess;
+        LocalPath localPath = LocalPath::fromAbsolutePath(lockFileAtConfigDir);
+        static std::unique_ptr<FileAccess> fa(fsAccess.newfileaccess());
+        bool lockFileAtConfigDirExists = fa->isfile(localPath);
+        if (lockFileAtConfigDirExists)
+        {
+            LOG_warn << "Found a lock file from a previous MEGAcmd version. Will try to acquire the lock and remove it";
+            bool legacyLockResult = lockExecution(configDir);
+            if (!legacyLockResult)
+            {
+                LOG_err << "Failed to acquire lock from a previous version. You may need to ensure there is "
+                           "no MEGAcmd Server running and try again or manually remove lock file: " <<  lockFileAtConfigDir;
+                return false;
+            }
+            if (!unlockExecution(configDir))
+            {
+                LOG_err << "Failed to release lock from a previous version. You may need to ensure there is "
+                           "no MEGAcmd Server running and try again or manually remove lock file: " <<  lockFileAtConfigDir;
+                return false;
+            }
+        }
     }
-    if (configFolder.size())
-    {
-        stringstream lockfile;
-#ifdef _WIN32
-        lockfile << "\\\\?\\";
-        lockfile << configFolder << "\\" << "lockMCMD";
-#else
-        lockfile << configFolder << "/" << "lockMCMD";
-#endif
-        LOG_err << "Lock file: " << lockfile.str();
 
-#ifdef _WIN32
-        string wlockfile;
-        MegaApi::utf8ToUtf16(lockfile.str().c_str(), &wlockfile);
-        if (CreateFileW((LPCWSTR)(wlockfile).data(), GENERIC_READ | GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL) == INVALID_HANDLE_VALUE)
-        {
-            return false;
-        }
-#elif defined(LOCK_EX) && defined(LOCK_NB)
-        fd = open(lockfile.str().c_str(), O_RDWR | O_CREAT, 0666); // open or create lockfile
-        //check open success...
-        if (flock(fd, LOCK_EX | LOCK_NB))
-        {
-            return false;
-        }
-
-        if (fcntl(fd, F_SETFD, FD_CLOEXEC) == -1)
-        {
-            LOG_err << "ERROR setting CLOEXEC to lock fd: " << errno;
-        }
-
-#else
-        ifstream fi(thelockfile.c_str());
-        if(!fi.fail()){
-            return false;
-        }
-        if (fi.is_open())
-        {
-            fi.close();
-        }
-        ofstream fo(thelockfile.c_str());
-        if (fo.is_open())
-        {
-            fo.close();
-        }
-#endif
-
-        return true;
-    }
-    else
-    {
-        LOG_err  << "Couldnt access configuration folder ";
-    }
-    return false;
+    return lockExecution(runtimeDir);
 }
 
-void ConfigurationManager::unlockExecution()
+bool ConfigurationManager::lockExecution(const std::string &lockFileFolder)
 {
-    if (!configFolder.size())
-    {
-        loadConfigDir();
-    }
-    if (configFolder.size())
-    {
-        stringstream lockfile;
-        lockfile << configFolder << "/" << "lockMCMD";
+    assert(!lockFileFolder.empty());
 
-#if !defined(_WIN32) && defined(LOCK_EX) && defined(LOCK_NB)
-        flock(fd, LOCK_UN | LOCK_NB);
-        close(fd);
+    stringstream lockfile;
+#ifdef _WIN32
+    lockfile << "\\\\?\\";
+    lockfile << lockFileFolder << "\\" << LOCK_FILE_NAME;
+#else
+    lockfile << lockFileFolder << "/" << LOCK_FILE_NAME;
 #endif
-        unlink(lockfile.str().c_str());
-    }
-    else
+    LOG_info << "Lock file: " << lockfile.str();
+
+#ifdef _WIN32
+    string wlockfile;
+    MegaApi::utf8ToUtf16(lockfile.str().c_str(), &wlockfile);
+    mLockFileHandle = CreateFileW((LPCWSTR)(wlockfile).data(), GENERIC_READ | GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+    if (mLockFileHandle == INVALID_HANDLE_VALUE)
     {
-        LOG_err  << "Couldnt access configuration folder ";
+        LOG_err << "ERROR creating lock file: " << ERRNO;
+
+        return false;
     }
+#elif defined(LOCK_EX) && defined(LOCK_NB)
+    fd = open(lockfile.str().c_str(), O_RDWR | O_CREAT, 0666); // open or create lockfile
+    //check open success...
+    if (flock(fd, LOCK_EX | LOCK_NB))
+    {
+        LOG_err << "ERROR locking lock fd: " << errno;
+        close(fd);
+        return false;
+    }
+
+    if (fcntl(fd, F_SETFD, FD_CLOEXEC) == -1)
+    {
+        LOG_err << "ERROR setting CLOEXEC to lock fd: " << errno;
+    }
+
+#else
+    ifstream fi(thelockfile.c_str());
+    if(!fi.fail()){
+        close(fd);
+        return false;
+    }
+    if (fi.is_open())
+    {
+        fi.close();
+    }
+    ofstream fo(thelockfile.c_str());
+    if (fo.is_open())
+    {
+        fo.close();
+    }
+#endif
+
+    return true;
 }
+
+bool ConfigurationManager::unlockExecution()
+{
+    return unlockExecution(getAndCreateRuntimeDir());
+}
+
+bool ConfigurationManager::unlockExecution(const std::string &lockFileFolder)
+{
+    assert(!lockFileFolder.empty());
+
+    stringstream lockfile;
+    lockfile << lockFileFolder << LocalPath::localPathSeparator_utf8 << LOCK_FILE_NAME;
+
+#ifdef _WIN32
+    CloseHandle(mLockFileHandle);
+#elif defined(LOCK_EX) && defined(LOCK_NB)
+    flock(fd, LOCK_UN | LOCK_NB);
+    close(fd);
+#endif
+    bool succeeded = !unlink(lockfile.str().c_str());
+    if (!succeeded)
+    {
+        LOG_err << " Failed to remove lock file, errno = " << errno;
+    }
+
+    return succeeded;
+}
+
 string ConfigurationManager::getConfigurationSValue(string propertyName)
 {
     std::lock_guard<std::recursive_mutex> g(settingsMutex);
 
-    if (!configFolder.size())
+    if (!mConfigFolder.size())
     {
         loadConfigDir();
     }
-    if (configFolder.size())
+    if (mConfigFolder.size())
     {
         stringstream configFile;
-        configFile << configFolder << "/" << "megacmd.cfg";
+        configFile << mConfigFolder << "/" << "megacmd.cfg";
         return getPropertyFromFile(configFile.str().c_str(),propertyName.c_str());
     }
     return string();
@@ -873,14 +923,14 @@ void ConfigurationManager::clearConfigurationFile()
 {
     std::lock_guard<std::recursive_mutex> g(settingsMutex);
 
-    if (!configFolder.size())
+    if (!mConfigFolder.size())
     {
         loadConfigDir();
     }
-    if (configFolder.size())
+    if (mConfigFolder.size())
     {
         stringstream configFile;
-        configFile << configFolder << "/" << "megacmd.cfg";
+        configFile << mConfigFolder << "/" << "megacmd.cfg";
 
         stringstream formerlines;
         ifstream infile(configFile.str().c_str());

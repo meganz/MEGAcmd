@@ -76,7 +76,7 @@ bool registerUpdateDaemon()
         argv[i++]="-c";
         std::string ls="launchctl unload ";
         ls.append(path);
-        ls.append(" && launchctl load ");
+        ls.append(" ; launchctl load -w ");
         ls.append(path);
         argv[i++]=(char *)ls.c_str();
         argv[i++]=NULL;

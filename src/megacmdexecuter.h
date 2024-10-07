@@ -47,9 +47,7 @@ private:
 
     DeferredSingleTrigger mDeferredSharedFoldersVerifier;
 
-#ifdef ENABLE_BACKUPS
     std::recursive_mutex mtxBackupsMap;
-#endif
 
     // login/signup e-mail address
     std::string login;
@@ -155,7 +153,7 @@ public:
     int deleteNodeVersions(const std::unique_ptr<mega::MegaNode>& nodeToDelete, mega::MegaApi* api, int force = 0);
     void downloadNode(std::string source, std::string localPath, mega::MegaApi* api, mega::MegaNode *node, bool background, bool ignorequotawar, int clientID, std::shared_ptr<MegaCmdMultiTransferListener> listener);
     void uploadNode(std::string localPath, mega::MegaApi* api, mega::MegaNode *node, std::string newname, bool background, bool ignorequotawarn, int clientID, MegaCmdMultiTransferListener *multiTransferListener = NULL);
-    void exportNode(mega::MegaNode *n, int64_t expireTime, std::string password = std::string(),
+    void exportNode(mega::MegaNode *n, int64_t expireTime, const std::optional<std::string>& password = {},
                     std::map<std::string, int> *clflags = nullptr, std::map<std::string, std::string> *cloptions = nullptr);
     void disableExport(mega::MegaNode *n);
     std::pair<bool, bool> isSharePendingAndVerified(mega::MegaNode *n, const char *email) const;
@@ -196,15 +194,13 @@ public:
     void printTransfer(mega::MegaTransfer *transfer, const unsigned int PATHSIZE, bool printstate=true);
     void printTransferColumnDisplayer(ColumnDisplayer *cd, mega::MegaTransfer *transfer, bool printstate=true);
 
-#ifdef ENABLE_BACKUPS
-
     void printBackupHeader(const unsigned int PATHSIZE);
     void printBackupSummary(int tag, const char *localfolder, const char *remoteparentfolder, std::string status, const unsigned int PATHSIZE);
     void printBackupHistory(mega::MegaScheduledCopy *backup, const char *timeFormat, mega::MegaNode *parentnode, const unsigned int PATHSIZE);
     void printBackupDetails(mega::MegaScheduledCopy *backup, const char *timeFormat);
     void printBackup(int tag, mega::MegaScheduledCopy *backup, const char *timeFormat, const unsigned int PATHSIZE, bool extendedinfo = false, bool showhistory = false, mega::MegaNode *parentnode = NULL);
     void printBackup(backup_struct *backupstruct, const char *timeFormat, const unsigned int PATHSIZE, bool extendedinfo = false, bool showhistory = false);
-#endif
+
     void printSyncHeader(ColumnDisplayer &cd);
     void printSync(mega::MegaSync *sync, long long nfiles, long long nfolders, ColumnDisplayer &cd, std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions);
 

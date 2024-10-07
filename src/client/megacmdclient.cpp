@@ -146,10 +146,9 @@ wstring getWAbsPath(wstring localpath)
 
 string clientID; //identifier for a registered state listener
 
-std::mutex promptLogReceivedMutex;
-std::condition_variable promtpLogReceivedCV;
-bool promtpLogReceivedBool = false;
-bool serverTryingToLog = false;
+std::mutex promptLogReceivedMtx;
+std::condition_variable promptLogReceivedCV;
+bool promptLogReceived = false;
 
 string getAbsPath(string relativePath)
 {
@@ -745,9 +744,12 @@ void statechangehandle(string statestring)
         nextstatedelimitpos = statestring.find(statedelim);
         if (newstate.compare(0, strlen("prompt:"), "prompt:") == 0)
         {
-            std::unique_lock<std::mutex> lk(promptLogReceivedMutex);
-            promtpLogReceivedCV.notify_one(); //This is always received after server is first ready
-            promtpLogReceivedBool = true;
+            // This is always received after server is first ready
+            {
+                std::lock_guard guard(promptLogReceivedMtx);
+                promptLogReceived = true;
+            }
+            promptLogReceivedCV.notify_one();
         }
         else if (newstate.compare(0, strlen("endtransfer:"), "endtransfer:") == 0)
         {
@@ -782,13 +784,14 @@ void statechangehandle(string statestring)
         }
         else if (newstate.compare(0, strlen("loged:"), "loged:") == 0)
         {
-            serverTryingToLog = false;
-            promtpLogReceivedCV.notify_one();
-            promtpLogReceivedBool = true;
+            {
+                std::lock_guard guard(promptLogReceivedMtx);
+                promptLogReceived = true;
+            }
+            promptLogReceivedCV.notify_one();
         }
         else if (newstate.compare(0, strlen("login:"), "login:") == 0)
         {
-            serverTryingToLog = true;
             std::unique_lock<std::mutex> lk(MegaCmdShellCommunications::megaCmdStdoutputing);
             printCenteredContentsCerr(string("Resuming session ... ").c_str(), width, false);
         }
@@ -949,21 +952,17 @@ int executeClient(int argc, char* argv[], OUTSTREAMTYPE & outstream)
 #endif
 
     bool isInloginInValidCommands = false;
-    if (argc>1)
+    if (argc > 1)
     {
         isInloginInValidCommands = std::find(loginInValidCommands.begin(), loginInValidCommands.end(), string(argv[1])) != loginInValidCommands.end();
     }
 
-    //now we can relay on having a prompt received if the server is running
-    //after that first prompt, we will keep on waiting for server to finish logging in (resuming session)
-    //if the requested command is not allowed. For other commands (e.g. proxy), we let the execution continue
-    do {
-        std::unique_lock<std::mutex> lk(promptLogReceivedMutex);
-        if (!promtpLogReceivedBool)
-        {
-            promtpLogReceivedCV.wait(lk);
-        }
-    } while (serverTryingToLog && !isInloginInValidCommands);
+    // If the command requires login, wait for it to finish before proceeding
+    if (!isInloginInValidCommands)
+    {
+        std::unique_lock lock(promptLogReceivedMtx);
+        promptLogReceivedCV.wait(lock, [&] { return promptLogReceived; });
+    }
 
 #if defined _WIN32 && !defined MEGACMD_TESTING_CODE
     int outcode = comms->executeCommandW(wParsedArgs, readresponse, outstream, false);

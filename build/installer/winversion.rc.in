@@ -1,0 +1,32 @@
+#include <windows.h>
+
+VS_VERSION_INFO     VERSIONINFO
+FILEVERSION         @MEGACMD_MAJOR_VERSION@, @MEGACMD_MINOR_VERSION@, @MEGACMD_MICRO_VERSION@, 0
+PRODUCTVERSION      @MEGACMD_MAJOR_VERSION@, @MEGACMD_MINOR_VERSION@, @MEGACMD_MICRO_VERSION@, 0
+FILEFLAGSMASK       0x3fL
+FILEFLAGS           0
+FILEOS              VOS_NT_WINDOWS32
+FILETYPE            VFT_APP
+FILESUBTYPE         VFT2_UNKNOWN
+BEGIN
+    BLOCK   "VarFileInfo"
+    BEGIN
+        VALUE   "Translation",  0x409,  1200
+    END
+    BLOCK   "StringFileInfo"
+    BEGIN
+        BLOCK   "040904b0"
+        BEGIN
+            VALUE   "CompanyName",      "Mega Limited\0"
+            VALUE   "FileDescription",  "@MEGACMD_RESOURCE_NAME@\0"
+            VALUE   "InternalName",     "@MEGACMD_RESOURCE_NAME@.exe\0"
+            VALUE   "LegalCopyright",   "Mega Limited 2019\0"
+            VALUE   "OriginalFilename", "@MEGACMD_RESOURCE_NAME@.exe\0"
+            VALUE   "ProductName",      "@MEGACMD_RESOURCE_NAME@\0"
+            VALUE   "ProductVersion",   "@MEGACMD_MAJOR_VERSION@.@MEGACMD_MINOR_VERSION@.@MEGACMD_MICRO_VERSION@.0\0"
+        END
+    END
+END
+
+IDI_ICON1 ICON DISCARDABLE ".\\app_ico.ico"
+IDI_ICON2 ICON DISCARDABLE ".\\web_ico.ico"

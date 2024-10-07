@@ -6,17 +6,28 @@ pipeline {
         gitLabConnection('GitLabConnectionJenkins')
     }
 
+    environment {
+        PYTHON_SCRIPTS = [
+            'misc',
+            'put',
+            'rm',
+            'serving',
+            'find',
+            'get'
+        ]
+    }
+
     stages {
-        stage('clean previous runs and update gitlab commit status'){
-            steps{
+        stage('Clean previous runs and update gitlab commit status') {
+            steps {
                 deleteDir()
                 updateGitlabCommitStatus(name: 'Build linux', state: 'running')
             }
         }
 
-        stage('Get build parameters'){
-            parallel{
-                stage('Get build options'){
+        stage('Get build parameters') {
+            parallel {
+                stage('Get build options') {
                     when {
                         allOf {
                             expression { env.gitlabTriggerPhrase != null }
@@ -31,7 +42,7 @@ pipeline {
                     }
                     post{
                         always {
-                            script{                        
+                            script{
                                 if (currentBuild.currentResult == 'FAILURE'){
                                     addGitLabMRComment(comment: ":red_circle: ${env.JOB_NAME} FAILURE when getting the additional build parameters :worried:<br/>Build results: [Jenkins [${env.JOB_NAME} ${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>Commit: ${env.GIT_COMMIT}" )
                                 }
@@ -53,7 +64,7 @@ pipeline {
                     }
                     post{
                         always {
-                            script{                        
+                            script{
                                 if (currentBuild.currentResult == 'FAILURE'){
                                     addGitLabMRComment(comment: ":red_circle: ${env.JOB_NAME} FAILURE when getting the SDK branch :worried:<br/>Build results: [Jenkins [${env.JOB_NAME} ${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>Commit: ${env.GIT_COMMIT}" )
                                 }
@@ -64,44 +75,44 @@ pipeline {
             }
         }
 
-    stage('Checkout sources'){
-        parallel{
-        stage('Checkout MEGAcmd with prebuildmerge'){
-            steps{
-            checkout([
-                $class: 'GitSCM',
-                branches: [[name: "origin/${env.gitlabSourceBranch}"]],
-                userRemoteConfigs: [[ url: "${env.GIT_URL_MEGACMD}", credentialsId: "12492eb8-0278-4402-98f0-4412abfb65c1" ]],
-                extensions: [
-                [$class: "UserIdentity",name: "jenkins", email: "jenkins@jenkins"],
-                [$class: 'PreBuildMerge', options: [fastForwardMode: 'FF', mergeRemote: "origin", mergeStrategy: 'DEFAULT', mergeTarget: "${env.gitlabTargetBranch}"]]
-                            ]
-            ])
+        stage('Checkout sources') {
+            parallel {
+                stage('Checkout MEGAcmd with prebuildmerge') {
+                    steps {
+                        checkout([
+                            $class: 'GitSCM',
+                            branches: [[name: "origin/${env.gitlabSourceBranch}"]],
+                            userRemoteConfigs: [[url: "${env.GIT_URL_MEGACMD}", credentialsId: "12492eb8-0278-4402-98f0-4412abfb65c1"]],
+                            extensions: [
+                            [$class: "UserIdentity",name: "jenkins", email: "jenkins@jenkins"],
+                            [$class: 'PreBuildMerge', options: [fastForwardMode: 'FF', mergeRemote: "origin", mergeStrategy: 'DEFAULT', mergeTarget: "${env.gitlabTargetBranch}"]]
+                                        ]
+                        ])
+                    }
+                }
+                stage('Checkout SDK') {
+                    steps {
+                        dir('sdk') {
+                            checkout([
+                                $class: 'GitSCM',
+                                branches: [[name: "origin/${SDK_BRANCH}"]],
+                                userRemoteConfigs: [[url: "${env.GIT_URL_SDK}", credentialsId: "12492eb8-0278-4402-98f0-4412abfb65c1"]],
+                                extensions: [
+                                    [$class: "UserIdentity",name: "jenkins", email: "jenkins@jenkins"],
+                                    [$class: "CloneOption", depth: 1, shallow: true, noTags: false, reference: '']
+                                ]
+                            ])
+                        }
+                        script {
+                            megacmd_sources_workspace = WORKSPACE
+                            sdk_sources_workspace = "${megacmd_sources_workspace}/sdk"
+                        }
+                    }
+                }
             }
         }
-        stage('Checkout SDK'){
-            steps{
-            dir('sdk'){
-                checkout([
-                $class: 'GitSCM',
-                branches: [[name: "origin/${SDK_BRANCH}"]],
-                userRemoteConfigs: [[ url: "${env.GIT_URL_SDK}", credentialsId: "12492eb8-0278-4402-98f0-4412abfb65c1" ]],
-                extensions: [
-                    [$class: "UserIdentity",name: "jenkins", email: "jenkins@jenkins"],
-                    [$class: "CloneOption", depth: 1, shallow: true, noTags: false, reference: '']
-                ]
-                ])
-            }
-            script{
-                megacmd_sources_workspace = WORKSPACE
-                sdk_sources_workspace = "${megacmd_sources_workspace}/sdk"
-            }
-            }
-        }
-        }
-    }
 
-        stage("Build MEGAcmd"){
+        stage("Build and test MEGAcmd") {
             matrix {
                 axes {
                     axis {
@@ -110,240 +121,175 @@ pipeline {
                     }
                     axis {
                         name 'BUILD_SYSTEM'
-                        values 'autotools', 'c-make'
+                        values 'cmake'
                     }
                 }
-		excludes {
-		    exclude {
-			axis {
-			    name 'BUILD_SYSTEM'
-			    values 'c-make'
-			}
-			axis {
-			    name 'SANITIZERS'
-			    notValues 'ubsan'
-			}
-		    }
-		}
-                stages{
-                    stage('Build MEGAcmd container image'){
-                        options{
+                stages {
+                    stage("Build MEGAcmd container image") {
+                        options {
                             timeout(time: 3, unit: 'HOURS')
                         }
-                        environment{
+                        environment {
                             DOCKER_BUILDKIT=1
                         }
                         steps {
                             sh "docker build -t meganz/megacmd-${BUILD_SYSTEM}-${SANITIZERS}:${env.BUILD_NUMBER} -f ${megacmd_sources_workspace}/build-with-docker/Dockerfile.${BUILD_SYSTEM} --build-arg=BUILD_OPT_SANITIZERS=${SANITIZERS} --ulimit=core=-1 --cpuset-cpus=0,1 -- ${megacmd_sources_workspace}"
                         }
                     }
-                }
-            }
-        }
-	stage('Run legacy MEGAcmd integration test scripts requiring a single account') {
-	    matrix {
-		axes {
-		    axis {
-			name 'SANITIZERS'
-			values 'ubsan', 'asan', 'tsan'
-		    }
-		    axis {
-			name 'TEST_SCRIPT'
-			values 'megacmd_find_test.py', 'megacmd_put_test.py', 'megacmd_rm_test.py'
-		    }
-		}
-		stages {
-		    stage('Run legacy test script') {
-			environment {
-			    MEGA_EMAIL=''
-			    MEGA_PWD=credentials('MEGACMD_TESTS_PASSWORD')
-			    ASAN_OPTIONS="log_path=/tmp/test-results/megacmd-${TEST_SCRIPT}-asan-report"
-			    TSAN_OPTIONS="log_path=/tmp/test-results/megacmd-${TEST_SCRIPT}-tsan-report"
-			    UBSAN_OPTIONS="log_path=/tmp/test-results/megacmd-${TEST_SCRIPT}-ubsan-report"
-			    OUT_DIR_JUNIT_XML="/tmp/test-results/${TEST_SCRIPT}-${SANITIZERS}"
-			    YES_I_KNOW_THIS_WILL_CLEAR_MY_MEGA_ACCOUNT=1
-			}
-			steps{
-			    lock(label: 'testing_accounts_megacmd', variable: 'MEGA_EMAIL', quantity: 1, resource: null){
-				dir('test-results') {
-				    script {
-					try {
-					    sh "docker run --user \$(id -u):\$(id -g) --env YES_I_KNOW_THIS_WILL_CLEAR_MY_MEGA_ACCOUNT --env ASAN_OPTIONS --env TSAN_OPTIONS --env OUT_DIR_JUNIT_XML --env HOME=/tmp --env MEGA_EMAIL --env MEGA_PWD --rm --mount type=bind,src='${megacmd_sources_workspace}/test-results',target=/tmp/test-results -- meganz/megacmd-autotools-${SANITIZERS}:${env.BUILD_NUMBER} /usr/bin/bash -c '/usr/local/bin/mega-cmd-server > /dev/null & sleep 1 && mkdir /tmp/tests && cd /tmp/tests && /usr/local/bin/${TEST_SCRIPT}'"
-					} catch(e) {
-					    if (env.SANITIZERS == 'tsan'){
-						echo "${env.SANITIZERS} sanitizer build are expected to fail for now, will keep the build as successful"
-					    } else {
-						sh "exit 1"
-					    }
-					}
-				    }
-				}
-			    }
-			}
-			post {
-			    always {
-				junit(testResults: "**/test-results/${TEST_SCRIPT}-${SANITIZERS}/TEST-*.xml", allowEmptyResults: true)
-			    }
-			}
-		    }
-		}
-	    }
-	}
-	stage('Run legacy MEGAcmd integration test scripts requiring two accounts') {
-	    matrix  {
-		axes {
-		    axis {
-			name 'SANITIZERS'
-			values 'ubsan', 'asan', 'tsan'
-		    }
-		    axis {
-			name 'TEST_SCRIPT'
-			values 'megacmd_get_test.py', 'megacmd_misc_test.py'
-		    }
-		}
-
-		stages {
-		    stage('Run legacy test script') {
-			environment {
-			    MEGA_PWD=credentials('MEGACMD_TESTS_PASSWORD')
-			    MEGA_PWD_AUX=credentials('MEGACMD_TESTS_PASSWORD')
-			    ASAN_OPTIONS="log_path=/tmp/test-results/megacmd-${TEST_SCRIPT}-asan-report"
-			    TSAN_OPTIONS="log_path=/tmp/test-results/megacmd-${TEST_SCRIPT}-tsan-report"
-			    UBSAN_OPTIONS="log_path=/tmp/test-results/megacmd-${TEST_SCRIPT}-ubsan-report"
-			    OUT_DIR_JUNIT_XML="/tmp/test-results/${TEST_SCRIPT}-${SANITIZERS}"
-			    YES_I_KNOW_THIS_WILL_CLEAR_MY_MEGA_ACCOUNT=1
-			}
-			steps {
-			    lock(label: 'testing_accounts_megacmd', variable: 'MEGA_EMAIL', quantity: 2, resource: null) {
-				dir('test-results') {
-				    script {
-					try {
-					    sh "docker run --user \$(id -u):\$(id -g) --env YES_I_KNOW_THIS_WILL_CLEAR_MY_MEGA_ACCOUNT --env ASAN_OPTIONS --env TSAN_OPTIONS --env OUT_DIR_JUNIT_XML --env HOME=/tmp --env MEGA_EMAIL=${MEGA_EMAIL0} --env=MEGA_EMAIL_AUX=${MEGA_EMAIL1} --env MEGA_PWD --env MEGA_PWD_AUX --rm --mount type=bind,src='${megacmd_sources_workspace}/test-results',target=/tmp/test-results -- meganz/megacmd-autotools-${SANITIZERS}:${env.BUILD_NUMBER} /usr/bin/bash -c '/usr/local/bin/mega-cmd-server > /dev/null & sleep 1 && mkdir /tmp/tests && cd /tmp/tests && /usr/local/bin/${TEST_SCRIPT}'"
-					} catch(e) {
-					    if (env.SANITIZERS == 'tsan'){
-						echo "${env.SANITIZERS} sanitizer build are expected to fail for now, will keep the build as successful"
-					    } else {
-						sh "exit 1"
-					    }
-					}
-				    }
-				}
-			    }
-			}
-			post {
-			    always {
-				junit(testResults: "**/test-results/${TEST_SCRIPT}-${SANITIZERS}/TEST-*.xml", allowEmptyResults: true)
-			    }
-			}
-		    }
-		}
-	    }   
-	}
-        stage('Run GTest MEGAcmd tests') {
-            matrix {
-                axes {
-                    axis {
-                        name 'SANITIZERS'
-                        values 'ubsan', 'asan', 'tsan'
-                    }
-                    axis {
-                        name 'TYPE'
-                        values 'unit', 'integration'
-                    }
-                }
-                stages {
-                    stage('Run MEGAcmd unit tests'){
-                        when{
-                            expression {
-                                env.TYPE == "unit"
+                    stage("MEGAcmd unit tests") {
+                        agent {
+                            docker {
+                                image "meganz/megacmd-${BUILD_SYSTEM}-${SANITIZERS}:${env.BUILD_NUMBER}"
+                                reuseNode true
+                                args "--name megacmd-${BUILD_SYSTEM}-${SANITIZERS}-${env.BUILD_NUMBER}"
                             }
                         }
-                        options{
+                        options {
                             timeout(time: 10, unit: 'MINUTES')
                         }
-                        environment{
-                            ASAN_OPTIONS='atexit=1,print_stats=1,log_path=/tmp/test-results/megacmd-unit-tests-asan-report'
-                            TSAN_OPTIONS='log_path=/tmp/test-results/megacmd-unit-tests-tsan-report'
-                            UBSAN_OPTIONS='log_path=/tmp/test-results/megacmd-unit-tests-ubsan-report'
+                        environment {
+                            ASAN_OPTIONS="atexit=1,print_stats=1,log_path=${megacmd_sources_workspace}/test-dir-${SANITIZERS}/results/mega-cmd-tests-unit-report"
+                            TSAN_OPTIONS="log_path=${megacmd_sources_workspace}/test-dir-${SANITIZERS}/results/mega-cmd-tests-unit-report"
+                            UBSAN_OPTIONS="log_path=${megacmd_sources_workspace}/test-dir-${SANITIZERS}/results/mega-cmd-tests-unit-report"
+                            HOME="${megacmd_sources_workspace}/test-dir-${SANITIZERS}"
                         }
                         steps {
-                            dir('test-results') {
-                                sh "docker run --user \$(id -u):\$(id -g) --env HOME=/tmp --env ASAN_OPTIONS --env TSAN_OPTIONS --rm --mount type=bind,src='${megacmd_sources_workspace}/test-results',target=/tmp/test-results -- meganz/megacmd-autotools-${SANITIZERS}:${env.BUILD_NUMBER} /usr/local/bin/mega-cmd-unit-tests --gtest_output=xml:/tmp/test-results/${SANITIZERS}-megacmd-unit-tests.xml --gtest_shuffle"
+                            dir("test-dir-${SANITIZERS}") {
+                                sh """
+                                    /usr/bin/mega-cmd-tests-unit \
+                                        --gtest_output=xml:${megacmd_sources_workspace}/test-dir-${SANITIZERS}/results/mega-cmd-tests-unit.xml \
+                                        --gtest_shuffle
+                                """
                             }
                         }
-			post {
-			    always {
-				junit "**/test-results/${SANITIZERS}-megacmd-unit-tests.xml"
-			    }
-			}
+                        post {
+                            always {
+                                archiveArtifacts artifacts: "test-dir-${SANITIZERS}/.megaCmd/megacmdserver.log*", allowEmptyArchive: true
+                                junit "test-dir-${SANITIZERS}/results/mega-cmd-tests-unit.xml"
+                            }
+                        }
                     }
-                    stage('Run MEGAcmd integration tests'){
-                        when{
-                            expression {
-                                env.TYPE == "integration"
+                    stage("MEGAcmd integration tests") {
+                        agent {
+                            docker {
+                                image "meganz/megacmd-${BUILD_SYSTEM}-${SANITIZERS}:${env.BUILD_NUMBER}"
+                                reuseNode true
+                                args "--name megacmd-${BUILD_SYSTEM}-${SANITIZERS}-${env.BUILD_NUMBER}"
                             }
                         }
-                        options{
-                            timeout(time: 10, unit: 'MINUTES')
+                        options {
+                            timeout(time: 1, unit: 'HOURS')
                         }
-                        environment{
+                        environment {
                             MEGACMD_TEST_USER=''
                             MEGACMD_TEST_PASS=credentials('MEGACMD_TESTS_PASSWORD')
-                            ASAN_OPTIONS='atexit=1,print_stats=1,log_path=/tmp/test-results/megacmd-integration-tests-asan-report'
-                            TSAN_OPTIONS='log_path=/tmp/test-results/megacmd-integration-tests-tsan-report'
-                            UBSAN_OPTIONS='log_path=/tmp/test-results/megacmd-unit-integration-ubsan-report'
+                            ASAN_OPTIONS="atexit=1,print_stats=1,log_path=${megacmd_sources_workspace}/test-dir-${SANITIZERS}/results/mega-cmd-tests-integration-report"
+                            TSAN_OPTIONS="log_path=${megacmd_sources_workspace}/test-dir-${SANITIZERS}/results/mega-cmd-tests-integration-report"
+                            UBSAN_OPTIONS="log_path=${megacmd_sources_workspace}/test-dir-${SANITIZERS}/results/mega-cmd-tests-integration-report"
+                            HOME="${megacmd_sources_workspace}/test-dir-${SANITIZERS}"
                         }
                         steps {
-                            lock(label: 'testing_accounts_megacmd', variable: 'MEGACMD_TEST_USER', quantity: 1, resource: null){
-                                dir('test-results') {
+                            lock(label: 'testing_accounts_megacmd', variable: 'MEGACMD_TEST_USER', quantity: 1, resource: null) {
+                                dir("test-dir-${SANITIZERS}") {
+                                    sh """
+                                        /usr/bin/mega-cmd-tests-integration \
+                                            --gtest_output=xml:${megacmd_sources_workspace}/test-dir-${SANITIZERS}/results/mega-cmd-tests-integration.xml \
+                                            --gtest_shuffle
+                                    """
+                                }
+                            }
+                        }
+                        post {
+                            always {
+                                archiveArtifacts "test-dir-${SANITIZERS}/.megaCmd/megacmdserver.log*"
+                                junit "test-dir-${SANITIZERS}/results/mega-cmd-tests-integration.xml"
+                            }
+                        }
+                    }
+                    stage("MEGAcmd Python tests") {
+                        agent {
+                            docker {
+                                image "meganz/megacmd-${BUILD_SYSTEM}-${SANITIZERS}:${env.BUILD_NUMBER}"
+                                reuseNode true
+                                args "--name megacmd-${BUILD_SYSTEM}-${SANITIZERS}-${env.BUILD_NUMBER}"
+                            }
+                        }
+                        options {
+                            timeout(time: 1, unit: 'HOURS')
+                        }
+                        environment {
+                            MEGA_EMAIL=''
+                            MEGA_EMAIL_AUX=''
+                            MEGA_PWD=credentials('MEGACMD_TESTS_PASSWORD')
+                            MEGA_PWD_AUX=credentials('MEGACMD_TESTS_PASSWORD')
+                            HOME="${megacmd_sources_workspace}/test-dir-${SANITIZERS}"
+                            YES_I_KNOW_THIS_WILL_CLEAR_MY_MEGA_ACCOUNT=1
+                        }
+                        steps {
+                            sh 'nohup /usr/bin/mega-cmd-server &'
+                            sleep 1
+                            lock(label: 'testing_accounts_megacmd', variable: 'MEGA_EMAIL', quantity: 2, resource: null) {
+                                dir("test-dir-${SANITIZERS}") {
                                     script {
-					sh "docker run --user \$(id -u):\$(id -g) --env HOME=/tmp --env MEGACMD_TEST_PASS --env MEGACMD_TEST_USER --rm -- meganz/megacmd-autotools-ubsan:${env.BUILD_NUMBER} /usr/bin/bash -c '/usr/local/bin/mega-cmd-server > /dev/null & sleep 1 && bash -x /usr/local/bin/megacmd_create_dir_tree.sh'"
-                                        try {
-                                            sh "docker run --user \$(id -u):\$(id -g) --env HOME=/tmp --env MEGACMD_TEST_PASS --env MEGACMD_TEST_USER --env ASAN_OPTIONS --env TSAN_OPTIONS --rm --mount type=bind,src='${megacmd_sources_workspace}/test-results',target=/tmp/test-results -- meganz/megacmd-autotools-${SANITIZERS}:${env.BUILD_NUMBER} /usr/local/bin/mega-cmd-integration-tests --gtest_output=xml:/tmp/test-results/${SANITIZERS}-megacmd-integration-tests.xml --gtest_shuffle"
-                                        } catch(e) {
-                                            if (env.SANITIZERS == 'tsan'){
-                                                echo "${env.SANITIZERS} sanitizer build are expected to fail for now, will keep the build as successful"
-                                            } else {
-                                                sh "exit 1"
+                                        for (test in PYTHON_SCRIPTS) {
+                                            stage("MEGAcmd Python ${test} test") {
+                                                environment {
+                                                    ASAN_OPTIONS="atexit=1,print_stats=1,log_path=${megacmd_sources_workspace}/test-dir-${SANITIZERS}-${test}/results/mega-cmd-tests-python-report"
+                                                    TSAN_OPTIONS="log_path=${megacmd_sources_workspace}/test-dir-${SANITIZERS}-${test}/results/mega-cmd-tests-python-report"
+                                                    UBSAN_OPTIONS="log_path=${megacmd_sources_workspace}/test-dir-${SANITIZERS}-${test}/results/mega-cmd-tests-python-report"
+                                                    OUT_DIR_JUNIT_XML="${megacmd_sources_workspace}/test-dir-${SANITIZERS}-${test}"
+                                                }
+                                                steps {
+                                                    sh "/usr/local/bin/megacmd_${test}_test.py"
+                                                }
+                                            }
+                                            post {
+                                                always {
+                                                    junit "test-dir-${SANITIZERS}-${test}/TEST-*.xml"
+                                                }
                                             }
                                         }
                                     }
                                 }
                             }
                         }
-			post {
-			    always {
-				junit "**/test-results/${SANITIZERS}-megacmd-integration-tests.xml"
-			    }
-			}
+                        post {
+                            always {
+                                archiveArtifacts "test-dir-${SANITIZERS}/.megaCmd/megacmdserver.log*"
+                                sh "/usr/bin/mega-exec quit || true"
+                            }
+                        }
+                    }
+                }
+                post {
+                    always {
+                        sh "docker image rm -f -- meganz/megacmd-${BUILD_SYSTEM}-${SANITIZERS}:${env.BUILD_NUMBER} || true"
                     }
                 }
             }
         }
     }
 
-    post{
-        always{
-            script{
-                if (currentBuild.currentResult == 'SUCCESS'){
+    post {
+        always {
+            script {
+                if (currentBuild.currentResult == 'SUCCESS') {
                     addGitLabMRComment(comment: ":white_check_mark: ${currentBuild.projectName} :penguin: <b>Linux</b> SUCCEEDED :muscle:<br/>Build results: [Jenkins [${currentBuild.displayName}]](${currentBuild.absoluteUrl})<br/>Commit: ${env.GIT_COMMIT}" )
                     updateGitlabCommitStatus(name: 'Build linux', state: 'success')
-                }                                
-                if (currentBuild.currentResult == 'FAILURE'){
+                }
+                if (currentBuild.currentResult == 'FAILURE') {
                     addGitLabMRComment(comment: ":red_circle: ${currentBuild.projectName} :penguin: <b>Linux</b> FAILURE  :worried:<br/>Build results: [Jenkins [${currentBuild.displayName}]](${currentBuild.absoluteUrl})<br/>Commit: ${env.GIT_COMMIT}" )
                     updateGitlabCommitStatus(name: 'Build linux', state: 'failed')
                 }
-                if (currentBuild.currentResult == 'ABORTED'){
+                if (currentBuild.currentResult == 'ABORTED') {
                     addGitLabMRComment(comment: ":interrobang: ${currentBuild.projectName} :penguin: <b>Linux</b> ABORTED  :confused:<br/>Build results: [Jenkins [${currentBuild.displayName}]](${currentBuild.absoluteUrl})<br/>Commit: ${env.GIT_COMMIT}" )
                     updateGitlabCommitStatus(name: 'Build linux', state: 'canceled')
-                }                                
-                if (currentBuild.currentResult == 'UNSTABLE'){
+                }
+                if (currentBuild.currentResult == 'UNSTABLE') {
                     addGitLabMRComment(comment: ":interrobang: ${currentBuild.projectName} :penguin: <b>Linux</b> UNSTABLE  :confused:<br/>Build results: [Jenkins [${currentBuild.displayName}]](${currentBuild.absoluteUrl})<br/>Commit: ${env.GIT_COMMIT}" )
                     updateGitlabCommitStatus(name: 'Build linux', state: 'failed')
                 }
             }
-            sh "docker image rm -- meganz/megacmd-autotools-ubsan:${env.BUILD_NUMBER} meganz/megacmd-autotools-asan:${env.BUILD_NUMBER} meganz/megacmd-autotools-tsan:${env.BUILD_NUMBER} || true"
-            archiveArtifacts artifacts: "**/test-results/megacmd-*-report.*"
         }
     }
 }

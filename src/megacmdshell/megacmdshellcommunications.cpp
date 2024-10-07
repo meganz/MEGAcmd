@@ -20,6 +20,7 @@
  */
 
 #include "megacmdshellcommunications.h"
+#include "../megacmdcommonutils.h"
 
 #include <iostream>
 #include <sstream>
@@ -105,61 +106,21 @@ void MegaCmdShellCommunications::closeSocket(SOCKET socket){
 
 string createAndRetrieveConfigFolder()
 {
-    string configFolder;
-
+    auto dirs = PlatformDirectories::getPlatformSpecificDirectories();
 #ifdef _WIN32
-
-   TCHAR szPath[MAX_PATH];
-    if (!SUCCEEDED(GetModuleFileName(NULL, szPath , MAX_PATH)))
-    {
-        cerr << "Couldnt get EXECUTABLE folder" << endl;
-    }
-    else
-    {
-        if (SUCCEEDED(PathRemoveFileSpec(szPath)))
-        {
-            if (PathAppend(szPath,TEXT(".megaCmd")))
-            {
-                utf16ToUtf8(szPath, lstrlen(szPath), &configFolder);
-            }
-        }
-    }
-    //TODO: create folder (not required currently)
+    // We don't create the folder: Windows is currently using the folder
+    // of the executable.
+    return dirs->configDirPath();
 #else
-    const char *homedir = NULL;
+    auto dir = dirs->configDirPath();
+    struct stat st = {};
 
-    homedir = getenv("HOME");
-    if (!homedir)
+    if (stat(dir.c_str(), &st) == -1)
     {
-        struct passwd pd;
-        struct passwd* pwdptr = &pd;
-        struct passwd* tempPwdPtr;
-        char pwdbuffer[200];
-        int pwdlinelen = sizeof( pwdbuffer );
-
-        if (( getpwuid_r(22, pwdptr, pwdbuffer, pwdlinelen, &tempPwdPtr)) != 0)
-        {
-            cerr << "Couldnt get HOME folder" << endl;
-            return "/tmp";
-        }
-        else
-        {
-            homedir = pwdptr->pw_dir;
-        }
+        mkdir(dir.c_str(), 0700);
     }
-    stringstream sconfigDir;
-    sconfigDir << homedir << "/" << ".megaCmd";
-    configFolder = sconfigDir.str();
-
-
-    struct stat st;
-    if (stat(configFolder.c_str(), &st) == -1) {
-        mkdir(configFolder.c_str(), 0700);
-    }
-
+    return dir;
 #endif
-
-    return configFolder;
 }
 
 
@@ -216,7 +177,7 @@ SOCKET MegaCmdShellCommunications::createSocket(int number, bool initializeserve
                 ZeroMemory( &pi, sizeof(pi) );
 
 #ifndef NDEBUG
-                LPCWSTR t = TEXT("..\\MEGAcmdServer\\debug\\MEGAcmdServer.exe");
+                LPCWSTR t = TEXT(".\\MEGAcmdServer.exe");
                 if (true)
                 {
 #else
@@ -318,7 +279,6 @@ SOCKET MegaCmdShellCommunications::createSocket(int number, bool initializeserve
         addr.sun_family = AF_UNIX;
         strncpy(addr.sun_path, socketPath.c_str(), socketPath.size());
 
-
         if (::connect(thesock, (struct sockaddr*)&addr, sizeof( addr )) == SOCKET_ERROR)
         {
             if (!number && initializeserver)
@@ -337,14 +297,9 @@ SOCKET MegaCmdShellCommunications::createSocket(int number, bool initializeserve
 
                     freopen(std::string(pathtolog).append(".out").c_str(),"w",stdout);
                     freopen(std::string(pathtolog).append(".err").c_str(),"w",stderr);
-    #ifndef NDEBUG
 
-        #ifdef __MACH__
-                    const char executable[] = "../../../../MEGAcmdServer/MEGAcmd.app/Contents/MacOS/MEGAcmd";
-        #else
-                    const char executable[] = "../MEGAcmdServer/MEGAcmd";
-        #endif
-                    const char executable2[] = "./mega-cmd-server";
+    #ifndef NDEBUG
+                    const char executable[] = "./mega-cmd-server";
     #else
         #ifdef __MACH__
                     const char executable[] = "/Applications/MEGAcmd.app/Contents/MacOS/mega-cmd";
@@ -360,29 +315,32 @@ SOCKET MegaCmdShellCommunications::createSocket(int number, bool initializeserve
         #endif
     #endif
 
-                    std::vector<char*> argsVector{
-                        (char *)executable,
-                        (char *)"--log-to-file",
+                    std::vector<const char*> argsVector{
+                        executable,
+                        "--log-to-file",
                         nullptr
                     };
 
                     auto args = const_cast<char* const*>(argsVector.data());
+                    int ret = execvp(executable, args);
 
-                    int ret = execvp(executable,args);
-
-                    if (ret && errno == 2 )
+                    if (ret && errno == 2)
                     {
                         cerr << "Couln't initiate MEGAcmd server: executable not found: " << executable << endl;
+
+                    #ifdef NDEBUG
                         cerr << "Trying to use alternative executable: " << executable2 << endl;
-                        argsVector[0]=(char *)executable2;
-                        ret = execvp(executable2,args);
-                        if (ret && errno == 2 )
+
+                        argsVector[0] = executable2;
+                        ret = execvp(executable2, args);
+                        if (ret && errno == 2)
                         {
                             cerr << "Couln't initiate MEGAcmd server: executable not found: " << executable2 << endl;
                         }
+                    #endif
                     }
 
-                    if (ret && errno !=2 )
+                    if (ret && errno != 2)
                     {
                         cerr << "MEGAcmd server exit with code " << ret << " . errno = " << errno << endl;
                     }
