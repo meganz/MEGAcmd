@@ -29,17 +29,18 @@ function(add_source_and_corresponding_header_to_target)
     endforeach()
 endfunction()
 
-function(generate_megacmd_src_file_list project_dir)
-    file(GLOB_RECURSE MEGACMD_SOURCES CONFIGURE_DEPENDS
-        "${project_dir}/src/*.cpp"
-        "${project_dir}/src/*.h"
+function(generate_src_file_list base_folder OUTPUT_VAR)
+    set(SRC_LIST "")
+
+    file(GLOB_RECURSE ALL_FILES
+        "${base_folder}/*.cpp"
+        "${base_folder}/*.h"
     )
 
-    set(MEGACMD_SRC_FILE_LIST "")
-    foreach(SOURCE ${MEGACMD_SOURCES})
-        get_filename_component(FILENAME ${SOURCE} NAME)
-        set(MEGACMD_SRC_FILE_LIST "${MEGACMD_SRC_FILE_LIST}\"${FILENAME}\", ")
+    foreach(FILE_PATH ${ALL_FILES})
+        get_filename_component(FILENAME ${FILE_PATH} NAME)
+        list(APPEND SRC_LIST "\"${FILENAME}\"")
     endforeach()
 
-    configure_file("${project_dir}/src/megacmd_src_file_list.h.in" "${project_dir}/src/megacmd_src_file_list.h" @ONLY)
+    set(${OUTPUT_VAR} ${SRC_LIST} PARENT_SCOPE)
 endfunction()
