@@ -236,9 +236,7 @@ pipeline {
                                                     UBSAN_OPTIONS="log_path=${megacmd_sources_workspace}/test-dir-${SANITIZERS}-${test}/results/mega-cmd-tests-python-report"
                                                     OUT_DIR_JUNIT_XML="${megacmd_sources_workspace}/test-dir-${SANITIZERS}-${test}"
                                                 }
-                                                steps {
-                                                    sh "/usr/local/bin/megacmd_${test}_test.py"
-                                                }
+                                                sh "/usr/local/bin/megacmd_${test}_test.py"
                                             }
                                             post {
                                                 always {
