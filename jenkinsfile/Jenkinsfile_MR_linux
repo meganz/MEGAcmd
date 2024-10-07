@@ -207,8 +207,7 @@ pipeline {
                             timeout(time: 1, unit: 'HOURS')
                         }
                         environment {
-                            MEGA_EMAIL=''
-                            MEGA_EMAIL_AUX=''
+                            MEGA_EMAILS=''
                             MEGA_PWD=credentials('MEGACMD_TESTS_PASSWORD')
                             MEGA_PWD_AUX=credentials('MEGACMD_TESTS_PASSWORD')
                             HOME="${megacmd_sources_workspace}/test-dir-${SANITIZERS}"
@@ -217,7 +216,7 @@ pipeline {
                         steps {
                             sh 'nohup /usr/bin/mega-cmd-server &'
                             sleep 1
-                            lock(label: 'testing_accounts_megacmd', variable: 'MEGA_EMAIL', quantity: 2, resource: null) {
+                            lock(label: 'testing_accounts_megacmd', variable: 'MEGA_EMAILS', quantity: 2, resource: null) {
                                 dir("test-dir-${SANITIZERS}") {
                                     script {
                                         def pythonTests = [
@@ -231,6 +230,8 @@ pipeline {
                                         for (test in pythonTests) {
                                             stage("MEGAcmd Python ${test} test") {
                                                 environment {
+                                                    MEGA_EMAIL="${env.MEGA_EMAILS0}"
+                                                    MEGA_EMAIL_AUX="${env.MEGA_EMAILS1}"
                                                     ASAN_OPTIONS="atexit=1,print_stats=1,log_path=${megacmd_sources_workspace}/test-dir-${SANITIZERS}-${test}/results/mega-cmd-tests-python-report"
                                                     TSAN_OPTIONS="log_path=${megacmd_sources_workspace}/test-dir-${SANITIZERS}-${test}/results/mega-cmd-tests-python-report"
                                                     UBSAN_OPTIONS="log_path=${megacmd_sources_workspace}/test-dir-${SANITIZERS}-${test}/results/mega-cmd-tests-python-report"
