@@ -101,12 +101,12 @@ def initialize():
         cmd_ef(LOGIN+" " +osvar("MEGA_EMAIL")+" "+osvar("MEGA_PWD"))
 
     if len(os.listdir(".")) and ( len(os.listdir(".")) != 1 and os.listdir(".")[0] != 'images'):
-        logging.error("initialization folder not empty!", "\n",os.listdir("."))
+        print("initialization folder not empty!", "\n",os.listdir("."), file=sys.stderr)
         #~ cd $ABSPWD
         exit(1)
 
     if cmd_es(FIND+" /") != b"/":
-        logging.error("REMOTE Not empty, please clear it before starting!")
+        print("REMOTE Not empty, please clear it before starting!", file=sys.stderr)
         #~ cd $ABSPWD
         exit(1)
 
@@ -188,7 +188,7 @@ class MEGAcmdMiscTest(unittest.TestCase):
 
     def compare_remote_local(self, megafind, localfind):
         self.assertEqual(megafind, localfind)
-        logging.debug(f"megafind: {megafind}, localfind: {localfind}")
+        print(f"megafind: {megafind}, localfind: {localfind}")
 
     def compare_find(self, what, localFindPrefix='localUPs'):
         if not isinstance(what, list):
@@ -205,7 +205,7 @@ class MEGAcmdMiscTest(unittest.TestCase):
         #~ megafind=$FIND "$@"  | sort > $ABSPWD/megafind.txt
         #~ (cd localUPs 2>/dev/null; find "$@" | sed "s#\./##g" | sort) > $ABSPWD/localfind.txt
         self.assertEqual(megafind, localfind)
-        logging.debug(f"megafind: {megafind}, localfind: {localfind}")
+        print(f"megafind: {megafind}, localfind: {localfind}")
 
     def check_failed_and_clear(self, o,status):
         self.addCleanup(lambda : cmd_ef(CD+" /"))
@@ -382,7 +382,7 @@ class MEGAcmdMiscTest(unittest.TestCase):
     def test_19_thumbnails(self):
         #Test 33 #ensure thumnail generation
         #1st get images selection
-        logging.debug(f"using images URL: {self.imagesUrl}")
+        print(f"using images URL: {self.imagesUrl}")
         cmd_ef(GET+" "+self.imagesUrl+" localtmp/")
         #2nd, upload folder
         cmd_ef(PUT+" localtmp/images")
@@ -407,7 +407,7 @@ class MEGAcmdMiscTest(unittest.TestCase):
 
     @unittest.skipIf('SKIP_PDF_THUMBNAIL_TESTS' not in os.environ, "only for systems where pdfium is enabled")
     def test_20_pdf_thumnail(self):
-        logging.debug(f"using pdfsURL: {self.pdfsURL}")
+        print(f"using pdfsURL: {self.pdfsURL}")
         cmd_ef(GET+" "+self.pdfsURL+" localtmp/")
 
         #2nd, upload folder
@@ -418,9 +418,9 @@ class MEGAcmdMiscTest(unittest.TestCase):
         fullout=""
         fullStatus=1
 
-        logging.debug(f"output = {o}")
+        print(f"output = {o}")
         split = o.split(b"\n")
-        logging.debug(f"split output = {split}")
+        print(f"split output = {split}")
         for f in split:
             if not len(f): continue
             rmfileifexisting("thumbnail.jpg")
@@ -430,8 +430,8 @@ class MEGAcmdMiscTest(unittest.TestCase):
             if not True in [x.encode() in f for x in allowedFailure] and b"saved in" not in o: #note: output code is not trustworthy: check for "saved in"
                 fullout=fullout+str("missing thumbnail for:"+str(f)+"\n")
                 fullStatus=0
-                logging.debug(status, f"{status} missing thumbnail: {f}")
-                logging.debug(o)
+                print(status, f"{status} missing thumbnail: {f}")
+                print(o)
                 self.check_failed_and_clear(fullout,fullStatus)
 
 if __name__ == '__main__':

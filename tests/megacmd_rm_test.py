@@ -93,12 +93,12 @@ def initialize():
 
 
     if len(os.listdir(".")):
-        logging.error("initialization folder not empty!")
+        print("initialization folder not empty!", file=sys.stderr)
         #~ cd $ABSPWD
         exit(1)
 
     if cmd_es(FIND+" /") != b"/":
-        logging.error("REMOTE Not empty, please clear it before starting!")
+        print("REMOTE Not empty, please clear it before starting!", file=sys.stderr)
         #~ cd $ABSPWD
         exit(1)
 
@@ -177,7 +177,7 @@ class MEGAcmdRmTest(unittest.TestCase):
         localfind=sort(find('localUPs','.'))
         self.addCleanup(cleanup)
         self.assertEqual(megafind, localfind)
-        logging.debug(f"megafind: {megafind}, localfind: {localfind}")
+        print(f"megafind: {megafind}, localfind: {localfind}")
 
     def test_01_clean_comparison(self):
         #Test 01 #clean comparison

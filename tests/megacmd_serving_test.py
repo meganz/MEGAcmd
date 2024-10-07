@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
-import sys, os, subprocess, shutil, logging
+import sys, os, shutil
 import ftplib
 from megacmd_tests_common import *
 
@@ -41,7 +41,7 @@ try:
  #   MEGA_PWD_AUX=os.environ["MEGA_PWD_AUX"]
 except:
     #print >>sys.stderr, "You must define variables MEGA_EMAIL MEGA_PWD MEGA_EMAIL_AUX MEGA_PWD_AUX. WARNING: Use an empty account for $MEGA_EMAIL"
-    logging.error("You must define variables MEGA_EMAIL MEGA_PWD. WARNING: Use an empty account for $MEGA_EMAIL")
+    print("You must define variables MEGA_EMAIL MEGA_PWD. WARNING: Use an empty account for $MEGA_EMAIL", file=sys.stderr)
 
     exit(1)
 
@@ -143,12 +143,12 @@ def initialize():
         cmd_ef(LOGIN+" " +osvar("MEGA_EMAIL")+" "+osvar("MEGA_PWD"))
 
     if len(os.listdir(".")):
-        logging.error("initialization folder not empty!")
+        print("initialization folder not empty!", file=sys.stderr)
         #~ cd $ABSPWD
         exit(1)
 
     if cmd_es(FIND+" /") != b"/":
-        logging.error("REMOTE Not empty, please clear it before starting!")
+        print("REMOTE Not empty, please clear it before starting!", file=sys.stderr)
         #~ cd $ABSPWD
         exit(1)
 

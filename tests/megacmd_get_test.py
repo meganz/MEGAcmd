@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 #better run in an empty folder
 
-import os, shutil, logging
+import os, shutil
 import unittest
 import xmlrunner
 from megacmd_tests_common import *
@@ -130,8 +130,8 @@ def initialize_contents():
     URIFOREIGNEXPORTEDFOLDER=safe_export('foreign/sub01').decode()
     URIFOREIGNEXPORTEDFILE=safe_export('foreign/sub02/fileatsub02.txt').decode()
 
-    logging.debug("URIFOREIGNEXPORTEDFOLDER="+URIFOREIGNEXPORTEDFILE)
-    logging.debug("URIFOREIGNEXPORTEDFILE="+URIFOREIGNEXPORTEDFILE)
+    print("URIFOREIGNEXPORTEDFOLDER="+URIFOREIGNEXPORTEDFILE)
+    print("URIFOREIGNEXPORTEDFILE="+URIFOREIGNEXPORTEDFILE)
 
     cmd_ef(LOGOUT)
     cmd_ef(LOGIN+" " +osvar("MEGA_EMAIL")+" "+osvar("MEGA_PWD"))
@@ -148,8 +148,8 @@ def initialize_contents():
     URIEXPORTEDFOLDER=safe_export('cloud01/c01s01').decode()
     URIEXPORTEDFILE=safe_export('cloud02/fileatcloud02.txt').decode()
 
-    logging.debug("URIEXPORTEDFOLDER="+URIEXPORTEDFOLDER)
-    logging.debug("URIEXPORTEDFILE=",URIEXPORTEDFILE)
+    print("URIEXPORTEDFOLDER="+URIEXPORTEDFOLDER)
+    print("URIEXPORTEDFILE=",URIEXPORTEDFILE)
 
 
 class MEGAcmdGetTest(unittest.TestCase):
@@ -187,7 +187,7 @@ class MEGAcmdGetTest(unittest.TestCase):
         megaDls=sort(find('megaDls'))
         localDls=sort(find('localDls'))
         self.assertEqual(megaDls, localDls)
-        logging.debug(f"megaDls: {megaDls}, localDls: {localDls}")
+        print(f"megaDls: {megaDls}, localDls: {localDls}")
 
     def test_01(self):
         cmd_ef(GET+' /cloud01/fileatcloud01.txt '+ABSMEGADLFOLDER+'/')

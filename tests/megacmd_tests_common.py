@@ -3,7 +3,6 @@
 
 import sys, os, subprocess, shutil, re
 import fnmatch
-import logging
 
 try:
     os.environ['VERBOSE']
@@ -44,16 +43,16 @@ def es(what):
 def esc(what):
     ret=ec(what)
     return ret[0].strip(),ret[1]
-    
+
 #exit if failed
 def ef(what):
     out,code=esc(what)
     if code != 0:
-        logging.error("FAILED trying "+ what)
-        logging.error(out) #TODO: stderr?
-        
+        print("FAILED trying "+ what, file=sys.stderr)
+        print(out, file=sys.stderr)
+
         exit(code)
-    return out    
+    return out
 
 def cmdshell_ec(what):
     what=re.sub("^mega-","",what)
@@ -81,7 +80,7 @@ def cmdshell_ec(what):
             elif b"="*20 in l:
                 equallines+=1
                 if equallines==2: afterwelcomemsg = True
-        
+
         realout=b"\n".join(realout)
         if VERBOSE:
             print(realout.strip())
@@ -101,17 +100,17 @@ def cmdshell_es(what):
 def cmdshell_esc(what):
     ret=cmdshell_ec(what)
     return ret[0].strip(),ret[1]
-    
+
 #exit if failed
 def cmdshell_ef(what):
     out,code=cmdshell_ec(what)
     if code != 0:
-        logging.error("FALLO en "+str(what)) #TODO: stderr?
-        logging.error(out) #TODO: stderr?
-        
+        print("FAILED trying "+str(what), file=sys.stderr)
+        print(out, file=sys.stderr)
+
         exit(code)
     return out
-    
+
 def cmd_ec(what):
     if CMDSHELL: return cmdshell_ec(what)
     else: return ec(what)
@@ -139,16 +138,16 @@ def rmfolderifexisting(what):
 def rmfileifexisting(what):
     if os.path.exists(what):
         os.remove(what)
-        
+
 def rmcontentsifexisting(what):
     if os.path.exists(what) and os.path.isdir(what):
         shutil.rmtree(what)
         os.makedirs(what)
-        
+
 def copybyfilepattern(origin,pattern,destiny):
     for f in fnmatch.filter(os.listdir(origin),pattern):
         shutil.copy2(origin+'/'+f,destiny)
-        
+
 def copyfolder(origin,destiny):
     shutil.copytree(origin,destiny+'/'+origin.split('/')[-1])
 
@@ -158,7 +157,7 @@ def copybypattern(origin,pattern,destiny):
             copyfolder(origin+'/'+f,destiny)
         else:
             shutil.copy2(origin+'/'+f,destiny)
-        
+
 def makedir(what):
     if (not os.path.exists(what)):
         os.makedirs(what)
@@ -190,13 +189,13 @@ def find(where, prefix=""):
         if VERBOSE: print("file not found in find: {}, {} ".format(where, os.getcwd()))
 
         return ""
-    
+
     if (not os.path.isdir(where)):
-        return prefix        
+        return prefix
 
     if (prefix == ""): toret ="."
     else: toret=prefix
-    
+
     if (prefix == "."):
         toret+="\n"+findR(where).strip()
     else:
