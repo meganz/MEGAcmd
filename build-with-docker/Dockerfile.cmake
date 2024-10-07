@@ -36,7 +36,6 @@ COPY tests/integration ./tests/integration
 COPY tests/unit ./tests/unit
 COPY CMakeLists.txt ./CMakeLists.txt
 COPY vcpkg.json ./vcpkg.json
-COPY --chmod=555 tests/*.py /usr/local/bin/
 
 FROM build-deps-cmake as build
 LABEL stage=autocleanable-intermediate-stage
@@ -81,4 +80,5 @@ FROM base as final
 
 COPY --from=build /usr/bin/mega* /usr/bin/
 COPY --from=build /opt/megacmd /opt/megacmd
+COPY --chmod=555 tests/*.py /usr/local/bin/
 #COPY --from=build /inspectme /inspectme
