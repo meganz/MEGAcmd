@@ -10847,11 +10847,17 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             ColumnDisplayer cd(clflags, cloptions);
             cd.addHeader("PATH", disablePathCollapse);
 
-            auto pathProblems = syncIssuePtr->getPathProblems();
+            auto pathProblems = syncIssuePtr->getPathProblems(*api);
             for (int i = 0; i < pathProblems.size() && i < listSizeLimit; ++i)
             {
-                cd.addValue("PATH", pathProblems[i].mPath);
-                cd.addValue("PROBLEM", pathProblems[i].mProblem);
+                const auto& pathProblem = pathProblems[i];
+                const char* timeFmt = "%Y-%m-%d %H:%M:%S";
+
+                cd.addValue("PATH", pathProblem.mPath);
+                cd.addValue("PROBLEM", pathProblem.mProblem);
+                cd.addValue("LAST MODIFIED", pathProblem.mModifiedTime ? getReadableTime(pathProblem.mModifiedTime, timeFmt) : "-");
+                cd.addValue("UPLOADED", pathProblem.mUploadedTime ? getReadableTime(pathProblem.mUploadedTime, timeFmt) : "-");
+                cd.addValue("SIZE", sizeToText(pathProblem.mFileSize));
             }
 
             OUTSTREAM << cd.str();

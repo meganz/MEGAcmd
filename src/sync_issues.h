@@ -75,12 +75,16 @@ class SyncIssue
 
 public:
     // We add this prefix at the start to distinguish between cloud and local absolute paths
-    inline static std::string CloudPrefix = "<CLOUD>";
+    inline static const std::string CloudPrefix = "<CLOUD>";
 
     struct PathProblem
     {
+        bool mIsCloud = false;
         std::string mPath;
         std::string mProblem;
+        int64_t mModifiedTime = 0; // in seconds since epoch
+        int64_t mUploadedTime = 0; // in seconds since epoch
+        int64_t mFileSize = 0;
     };
 
     SyncIssue(const mega::MegaSyncStall& stall);
@@ -90,8 +94,10 @@ public:
     std::string getSyncWaitReasonStr() const;
     std::string getMainPath() const;
 
-    std::vector<PathProblem> getPathProblems() const;
-    std::vector<PathProblem> getPathProblems(bool isCloud) const;
+    std::vector<PathProblem> getPathProblems(mega::MegaApi& api) const;
+
+    template<bool isCloud>
+    std::vector<PathProblem> getPathProblems(mega::MegaApi& api) const;
 
     std::unique_ptr<mega::MegaSync> getParentSync(mega::MegaApi& api) const;
     bool belongsToSync(const mega::MegaSync& sync) const;

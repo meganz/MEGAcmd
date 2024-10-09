@@ -17,6 +17,7 @@
 
 #include <cassert>
 #include <functional>
+#include <filesystem>
 
 #include "megacmdlogger.h"
 #include "configurationmanager.h"
@@ -29,6 +30,7 @@
 
 using namespace megacmd;
 using namespace std::string_literals;
+namespace fs = std::filesystem;
 
 namespace
 {
@@ -265,19 +267,55 @@ std::string SyncIssue::getMainPath() const
     return localPath ? localPath : "";
 }
 
-std::vector<SyncIssue::PathProblem> SyncIssue::getPathProblems() const
+std::vector<SyncIssue::PathProblem> SyncIssue::getPathProblems(mega::MegaApi& api) const
 {
-    return getPathProblems(false) + getPathProblems(true);
+    return getPathProblems<false>(api) + getPathProblems<true>(api);
 }
 
-std::vector<SyncIssue::PathProblem> SyncIssue::getPathProblems(bool isCloud) const
+template<bool isCloud>
+std::vector<SyncIssue::PathProblem> SyncIssue::getPathProblems(mega::MegaApi& api) const
 {
     std::vector<SyncIssue::PathProblem> pathProblems;
     for (int i = 0; i < mMegaStall->pathCount(isCloud); ++i)
     {
         PathProblem pathProblem;
+        pathProblem.mIsCloud = isCloud;
         pathProblem.mPath = (isCloud ? CloudPrefix : "") + mMegaStall->path(isCloud, i);
         pathProblem.mProblem = getPathProblemReasonStr(mMegaStall->pathProblem(isCloud, i));
+
+        if constexpr (isCloud)
+        {
+            auto nodeHandle = mMegaStall->cloudNodeHandle(i);
+
+            std::unique_ptr<mega::MegaNode> n(api.getNodeByHandle(nodeHandle));
+            if (n)
+            {
+                pathProblem.mUploadedTime = n->getCreationTime();
+                pathProblem.mModifiedTime = n->getModificationTime();
+                pathProblem.mFileSize = std::max(n->getSize(), 0L);
+            }
+            else
+            {
+                LOG_warn << "Path problem " << pathProblem.mPath << " does not have a valid node associated with it";
+            }
+        }
+        else if (fs::exists(pathProblem.mPath))
+        {
+            auto lastWriteTime = fs::last_write_time(pathProblem.mPath);
+            auto systemNow = std::chrono::system_clock::now();
+            auto fileTimeNow = fs::file_time_type::clock::now();
+            auto lastWriteTimePoint = std::chrono::time_point_cast<std::chrono::seconds>(lastWriteTime - fileTimeNow + systemNow);
+            pathProblem.mModifiedTime = lastWriteTimePoint.time_since_epoch().count();
+
+            try
+            {
+                // Size for non-files (dirs, symlinks, etc.) is implementation-defined
+                // In some cases, an exception might be thrown
+                pathProblem.mFileSize = fs::file_size(pathProblem.mPath);
+            }
+            catch (...) {}
+        }
+
         pathProblems.emplace_back(std::move(pathProblem));
     }
     return pathProblems;
