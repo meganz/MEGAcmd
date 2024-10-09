@@ -405,7 +405,7 @@ class MEGAcmdMiscTest(unittest.TestCase):
                 print (status, ext," missing thumbnail:",f,"\n",o,
                        self.check_failed_and_clear(fullout,fullStatus))
 
-    @unittest.skipIf('SKIP_PDF_THUMBNAIL_TESTS' not in os.environ, "only for systems where pdfium is enabled")
+    @unittest.skipIf('SKIP_PDF_THUMBNAIL_TESTS' in os.environ, "only for systems where pdfium is enabled")
     def test_20_pdf_thumnail(self):
         print(f"using pdfsURL: {self.pdfsURL}")
         cmd_ef(GET+" "+self.pdfsURL+" localtmp/")
