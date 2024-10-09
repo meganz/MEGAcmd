@@ -292,7 +292,7 @@ std::vector<SyncIssue::PathProblem> SyncIssue::getPathProblems(mega::MegaApi& ap
             {
                 pathProblem.mUploadedTime = n->getCreationTime();
                 pathProblem.mModifiedTime = n->getModificationTime();
-                pathProblem.mFileSize = std::max(n->getSize(), 0L);
+                pathProblem.mFileSize = std::max<int64_t>(n->getSize(), 0);
             }
             else
             {
