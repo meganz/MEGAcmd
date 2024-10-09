@@ -397,7 +397,7 @@ class MEGAcmdMiscTest(unittest.TestCase):
                 continue # Ignore folders
             rmfileifexisting("thumbnail.jpg")
             o,status=cmd_ec(THUMB+" "+f.decode()+" thumbnail.jpg")
-            ext=f.split(b".")[-1].lower().strip()
+            ext=f.decode().split(".")[-1].lower().strip()
             allowedFailure=["ai","ani","cur","eps","exe","gif","heic","html","idx","j2c","jpm","md","mj2","pdf","psd","sgi","svg","txt","webp","xmp", "pnm","ppm", "tiff", "tif", "x3f"]
             if not ext in allowedFailure and b"saved in" not in o: #note: output code is not trustworthy: check for "saved in"
                 fullout=fullout+str("missing thumbnail for:"+str(f)+"\n")
