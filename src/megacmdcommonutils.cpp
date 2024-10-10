@@ -390,7 +390,7 @@ string generateRandomAlphaNumericString(size_t len)
     thread_local static std::uniform_int_distribution<> distribution(0, alphabet.size() - 1);
 
     std::string randomString;
-    randomString.reserve(len + 1);
+    randomString.reserve(len);
     for (size_t i = 0; i < len; ++i)
     {
         randomString += alphabet[distribution(generator)];
