@@ -79,7 +79,7 @@ TEST(PlatformDirectoriesTest, runtimeDirPath)
 
     #ifdef __APPLE__
     {
-        SelftDeletingTmpFolder tmpFolder;
+        SelfDeletingTmpFolder tmpFolder;
         auto homeGuard = TestInstrumentsEnvVarGuard("HOME", tmpFolder.string());
         fs::create_directories(tmpFolder.path() / "Library" / "Caches");
         EXPECT_STREQ(dirs->runtimeDirPath().c_str(), tmpFolder.string().append("/Library/Caches/megacmd.mac").c_str());
