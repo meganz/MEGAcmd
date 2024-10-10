@@ -26,19 +26,18 @@
 #include <filesystem>
 namespace fs = std::filesystem;
 
-struct SelftDeletingTmpFolder
+class SelfDeletingTmpFolder
 {
     fs::path mTempDir;
 
-
-    SelftDeletingTmpFolder()
+public:
+    SelfDeletingTmpFolder()
     {
-        std::string tmpFolder = std::tmpnam(nullptr);
-        mTempDir = fs::path(tmpFolder);
+        mTempDir = fs::temp_directory_path() / fs::path(megacmd::generateRandomAlphaNumericString(10));
         fs::create_directory(mTempDir);
     }
 
-    ~SelftDeletingTmpFolder()
+    ~SelfDeletingTmpFolder()
     {
         fs::remove_all(mTempDir);
     }
@@ -80,7 +79,7 @@ TEST(PlatformDirectoriesTest, runtimeDirPath)
 
     #ifdef __APPLE__
     {
-        SelftDeletingTmpFolder tmpFolder;
+        SelfDeletingTmpFolder tmpFolder;
         auto homeGuard = TestInstrumentsEnvVarGuard("HOME", tmpFolder.string());
         fs::create_directories(tmpFolder.path() / "Library" / "Caches");
         EXPECT_STREQ(dirs->runtimeDirPath().c_str(), tmpFolder.string().append("/Library/Caches/megacmd.mac").c_str());
@@ -142,7 +141,7 @@ TEST(PlatformDirectoriesTest, lockExecution)
     {
         G_SUBTEST << "Another HOME";
 
-        SelftDeletingTmpFolder tmpFolder;
+        SelfDeletingTmpFolder tmpFolder;
         auto homeGuard = TestInstrumentsEnvVarGuard("HOME", tmpFolder.string());
 
 #ifdef __APPLE__
@@ -217,7 +216,7 @@ TEST(PlatformDirectoriesTest, getOrCreateSocketPath)
     {
         G_SUBTEST << "Without $MEGACMD_SOCKET_NAME, longth path: /tmp/megacmd-UID fallback";
 
-        SelftDeletingTmpFolder tmpFolder;
+        SelfDeletingTmpFolder tmpFolder;
         fs::path lengthyHome = tmpFolder.path() / "this_is_a_very_very_very_lengthy_folder_name_meant_to_make_socket_path_exceed_max_unix_socket_path_allowance";
         fs::create_directories(lengthyHome);
 #ifdef __APPLE__
