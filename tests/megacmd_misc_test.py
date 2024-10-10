@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
-import sys, os, subprocess, shutil
+import sys, os, shutil
 import unittest
 import xmlrunner
 from megacmd_tests_common import *

@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 #better run in an empty folder
 
-import os, subprocess, shutil, platform
+import os, shutil, platform
 import unittest
 import xmlrunner
 from megacmd_tests_common import *
@@ -280,7 +280,7 @@ class MEGAcmdPutTests(unittest.TestCase):
     def test_spaces(self):
         #Test 16 #spaced stuff
         if CMDSHELL: #TODO: think about this again
-            cmd_ef(PUT+' '+'localtmp/ls\ 01')
+            cmd_ef(PUT+' '+'localtmp/ls\\ 01')
         else:
             cmd_ef(PUT+' '+'"localtmp/ls 01"')
         copyfolder('localtmp/ls 01','localUPs')

@@ -271,7 +271,7 @@ class MEGAcmdRmTest(unittest.TestCase):
         [rmfolderifexisting('localUPs/lf01/../'+f+'/ls s02') for f in os.listdir('localUPs/lf01/..') if f.startswith('ls')]
         self.compare_and_clear()
 
-    @unittest.skipIf(platform.system() == "Windows", "skipping for non Windows systems")
+    @unittest.skipIf(platform.system() == "Windows", "skipping for Windows systems")
     def test_15_complex_pcre_expr(self):
         #Test 15 #complex stuff with PCRE exp
         cmd_ef(RM+' '+'-rf --use-pcre "ls 01/../le01/les0[12]" "lf01/../ls.*/ls s0[12]"')
@@ -283,7 +283,7 @@ class MEGAcmdRmTest(unittest.TestCase):
 
     def test_16_spaces_2(self):
         #Test 16 #spaced stuff2
-        cmd_ef(RM+' '+'-rf ls\ 01')
+        cmd_ef(RM+' '+'-rf ls\\ 01')
         rmfolderifexisting('localUPs/ls 01')
         self.compare_and_clear()
 

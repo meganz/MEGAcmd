@@ -180,13 +180,13 @@ class MEGAcmdFindTest(unittest.TestCase):
         self.compare_find('.')
 
     def test_spaced(self):
-        megafind=sort(cmd_ef(FIND+" "+"ls\ 01"))
+        megafind=sort(cmd_ef(FIND+" "+"ls\\ 01"))
         localfind=sort(find('localUPs/ls 01',"ls 01"))
         self.assertEqual(megafind,localfind)
 
     def test_multiple(self):
         """XX/.."""
-        megafind=sort(cmd_ef(FIND+" "+"ls\ 01/.."))
+        megafind=sort(cmd_ef(FIND+" "+"ls\\ 01/.."))
         localfind=sort(find('localUPs/',"/"))
         self.assertEqual(megafind,localfind)
 
@@ -198,7 +198,7 @@ class MEGAcmdFindTest(unittest.TestCase):
         self.assertEqual(megafind,localfind)
 
     def test_complex(self):
-        megafind=sort(cmd_ef(FIND+" "+"ls\ 01/../le01/les01" +" " +"lf01/../ls\ *01/ls\ s02"))
+        megafind=sort(cmd_ef(FIND+" "+"ls\\ 01/../le01/les01" +" " +"lf01/../ls\\ *01/ls\\ s02"))
         localfind=sort(find('localUPs/le01/les01',"/le01/les01"))
         localfind+="\n"+sort(find('localUPs/ls 01/ls s02',"/ls 01/ls s02"))
         self.assertEqual(megafind,localfind)
