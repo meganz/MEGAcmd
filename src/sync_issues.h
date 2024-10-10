@@ -51,6 +51,7 @@
         GENERATOR_MACRO(mega::PathProblem::CannotFingerprintFile,                 "File fingerprint cannot be obtained") \
         GENERATOR_MACRO(mega::PathProblem::DestinationPathInUnresolvedArea,       "Destination path (or one of its parents) is unresolved") \
         GENERATOR_MACRO(mega::PathProblem::MACVerificationFailure,                "Failure verifying MAC") \
+        GENERATOR_MACRO(mega::PathProblem::UnknownDownloadIssue,                  "There was an issue downloading to destination directory") \
         GENERATOR_MACRO(mega::PathProblem::DeletedOrMovedByUser,                  "Deleted or moved by user") \
         GENERATOR_MACRO(mega::PathProblem::FileFolderDeletedByUser,               "File or folder deleted by user") \
         GENERATOR_MACRO(mega::PathProblem::MoveToDebrisFolderFailed,              "Move to debris folder failed") \
