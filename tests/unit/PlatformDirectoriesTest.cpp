@@ -33,9 +33,9 @@ struct SelftDeletingTmpFolder
 
     SelftDeletingTmpFolder()
     {
-        std::string tmpFolder = std::tmpnam(nullptr);
-        mTempDir = fs::path(tmpFolder);
-        fs::create_directory(mTempDir);
+        fs::path tempDir = fs::temp_directory_path();
+        fs::path uniqueFilename = tempDir / fs::path(megacmd::generateRandomAlphaNumericString(10));
+        fs::create_directory(uniqueFilename);
     }
 
     ~SelftDeletingTmpFolder()
