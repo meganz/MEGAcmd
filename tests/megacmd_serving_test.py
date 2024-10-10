@@ -3,6 +3,8 @@
 
 import sys, os, shutil
 import ftplib
+import unittest
+import xmlrunner
 from megacmd_tests_common import *
 
 GET="mega-get"
@@ -24,7 +26,6 @@ LOGIN="mega-login"
 ABSPWD=os.getcwd()
 currentTest=1
 
-
 try:
     os.environ['VERBOSE']
     VERBOSE=True
@@ -32,7 +33,6 @@ except:
     VERBOSE=False
 
 #VERBOSE=True
-
 
 try:
     MEGA_EMAIL=os.environ["MEGA_EMAIL"]
@@ -44,7 +44,6 @@ except:
     print("You must define variables MEGA_EMAIL MEGA_PWD. WARNING: Use an empty account for $MEGA_EMAIL", file=sys.stderr)
 
     exit(1)
-
 
 try:
     MEGACMDSHELL=os.environ['MEGACMDSHELL']
@@ -59,9 +58,7 @@ def initialize_contents():
     cmd_ef(PUT+" "+contents+" /")
     shutil.copytree('localtmp', 'localUPs')
 
-
 def clean_all():
-
     if cmd_es(WHOAMI) != osvar("MEGA_EMAIL"):
         cmd_ef(LOGOUT)
         cmd_ef(LOGIN+" " +osvar("MEGA_EMAIL")+" "+osvar("MEGA_PWD"))
@@ -87,49 +84,12 @@ def clear_dls():
     rmcontentsifexisting("megaDls")
     rmcontentsifexisting("localDls")
 
-def compare_and_clear() :
-    global currentTest
-
-    megaDls=sort(find('megaDls'))
-    localDls=sort(find('localDls'))
-
-    if (megaDls == localDls):
-        print("test "+str(currentTest)+" succesful!")
-        if VERBOSE:
-            print("test "+str(currentTest))
-            print("megaDls:")
-            print(megaDls)
-            print()
-            print("localDls:")
-            print(localDls)
-            print()
-    else:
-        print("test "+str(currentTest)+" failed!")
-
-        print("megaDls:")
-        print(megaDls)
-        print()
-        print("localDls:")
-        print(localDls)
-        print()
-        exit(1)
-
-    clear_dls()
-    currentTest+=1
-    cmd_ef(CD+" /")
-
-def check_failed_and_clear(o,status):
-    global currentTest
-
+def check_failed_and_clear(self, o,status):
+    self.assertNotEqual(status, 0)
     if status == 0:
-        print("test "+str(currentTest)+" failed!")
         print(o)
-        exit(1)
-    else:
-        print("test "+str(currentTest)+" succesful!")
 
     clear_dls()
-    currentTest+=1
     cmd_ef(CD+" /")
 
 opts='";X()[]{}<>|`\''
@@ -137,7 +97,6 @@ if os.name == 'nt':
     opts=";()[]{}`'"
 
 def initialize():
-
     if cmd_es(WHOAMI) != osvar("MEGA_EMAIL"):
         cmd_es(LOGOUT)
         cmd_ef(LOGIN+" " +osvar("MEGA_EMAIL")+" "+osvar("MEGA_PWD"))
@@ -206,166 +165,182 @@ def initialize():
 
 ABSMEGADLFOLDER=ABSPWD+'/megaDls'
 
-def compare_find(what, localFindPrefix='localUPs'):
-    global currentTest
-    if VERBOSE:
-        print("test "+str(currentTest))
 
-    if not isinstance(what, list):
-        what = [what]
-    megafind=b""
-    localfind=""
-    for w in what:
-        megafind+=cmd_ef(FIND+" "+w)+b"\n"
-        localfind+=find(localFindPrefix+'/'+w,w)+"\n"
+class MEGAcmdServingTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        if VERBOSE: print("STARTING...")
 
-    megafind=sort(megafind).strip()
-    localfind=sort(localfind).strip()
+        clean_all()
+        initialize()
 
-    #~ megafind=$FIND "$@"  | sort > $ABSPWD/megafind.txt
-    #~ (cd localUPs 2>/dev/null; find "$@" | sed "s#\./##g" | sort) > $ABSPWD/localfind.txt
-    if (megafind == localfind):
+        # Initialize FTP connection
+        cmd_ec(FTP+' -d --all')
+        url=cmd_ef(FTP+' /').split(b' ')[-1]
+        server=url.split(b"//")[1].split(b":")[0]
+        port=url.split(b"//")[1].split(b":")[1].split(b"/")[0]
+        cls.subpath=b"/"+b"/".join(url.split(b"//")[1].split(b":")[1].split(b"/")[1:])
+        cls.subpath=cls.subpath.replace(b'%20',b' ')
+
         if VERBOSE:
+            print(" connecting ... to "+server.decode()+" port="+port.decode()+" path="+cls.subpath.decode())
+        cls.ftp=ftplib.FTP()
+        cls.ftp.connect(server.decode(),int(port.decode()), timeout=30)
+        cls.ftp.login("anonymous", "nomatter")
+        cls.ftp.cwd(cls.subpath.decode())
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.ftp.close()
+        if not VERBOSE:
+            clean_all()
+
+    def compare_find(self, what, localFindPrefix='localUPs'):
+        if not isinstance(what, list):
+            what = [what]
+        megafind=b""
+        localfind=""
+        for w in what:
+            megafind+=cmd_ef(FIND+" "+w)+b"\n"
+            localfind+=find(localFindPrefix+'/'+w,w)+"\n"
+
+        megafind=sort(megafind).strip()
+        localfind=sort(localfind).strip()
+
+        #~ megafind=$FIND "$@"  | sort > $ABSPWD/megafind.txt
+        #~ (cd localUPs 2>/dev/null; find "$@" | sed "s#\./##g" | sort) > $ABSPWD/localfind.txt
+        self.assertEqual(megafind, localfind)
+        if (megafind == localfind):
+            if VERBOSE:
+                print("diff megafind vs localfind:")
+                #diff --side-by-side megafind.txt localfind.txt#TODO: do this
+                print("MEGAFIND:")
+                print(megafind)
+                print("LOCALFIND")
+                print(localfind)
+        else:
             print("diff megafind vs localfind:")
-            #diff --side-by-side megafind.txt localfind.txt#TODO: do this
+            #~ diff --side-by-side megafind.txt localfind.txt #TODO: do this
             print("MEGAFIND:")
             print(megafind)
             print("LOCALFIND")
             print(localfind)
-        print("test "+str(currentTest)+" succesful!")
-    else:
-        print("test "+str(currentTest)+" failed!")
-        print("diff megafind vs localfind:")
-        #~ diff --side-by-side megafind.txt localfind.txt #TODO: do this
-        print("MEGAFIND:")
-        print(megafind)
-        print("LOCALFIND")
-        print(localfind)
 
-        #cd $ABSPWD #TODO: consider this
-        exit(1)
+            #cd $ABSPWD #TODO: consider this
 
-    currentTest+=1
+    def compare_remote_local(self, megafind, localfind):
+        if (isinstance(megafind, bytes)):
+            megafind = megafind.decode()
+        if (isinstance(localfind, bytes)):
+            localfind = localfind.decode()
 
-def compare_remote_local(megafind, localfind):
-    global currentTest
-    if (isinstance(megafind, bytes)):
-        megafind = megafind.decode()
-    if (isinstance(localfind, bytes)):
-        localfind = localfind.decode()
-    if (megafind == localfind):
-        if VERBOSE:
+        self.assertEqual(megafind, localfind)
+        if (megafind == localfind):
+            if VERBOSE:
+                print("diff megafind vs localfind:")
+                #diff --side-by-side megafind.txt localfind.txt#TODO: do this
+                print("MEGAFIND:")
+                print(megafind)
+                print("LOCALFIND")
+                print(localfind)
+        else:
             print("diff megafind vs localfind:")
-            #diff --side-by-side megafind.txt localfind.txt#TODO: do this
+            #~ diff --side-by-side megafind.txt localfind.txt #TODO: do this
             print("MEGAFIND:")
             print(megafind)
             print("LOCALFIND")
             print(localfind)
-        print("test "+str(currentTest)+" succesful!")
-    else:
-        print("test "+str(currentTest)+" failed!")
-        print("diff megafind vs localfind:")
-        #~ diff --side-by-side megafind.txt localfind.txt #TODO: do this
-        print("MEGAFIND:")
-        print(megafind)
-        print("LOCALFIND")
-        print(localfind)
 
-        exit(1)
+    def compare_and_clear(self):
+        megaDls=sort(find('megaDls'))
+        localDls=sort(find('localDls'))
 
-    currentTest+=1
+        self.assertEqual(megaDls, localDls)
+        if (megaDls == localDls):
+            if VERBOSE:
+                print("test "+str(currentTest))
+                print("megaDls:")
+                print(megaDls)
+                print()
+                print("localDls:")
+                print(localDls)
+                print()
+        else:
+            print("megaDls:")
+            print(megaDls)
+            print()
+            print("localDls:")
+            print(localDls)
+            print()
+            exit(1)
 
+        clear_dls()
+        cmd_ef(CD+" /")
 
-def getFile(ftp, filename, destiny):
-    try:
-        ftp.retrbinary("RETR " + filename ,open(destiny, 'wb').write)
-    except Exception as ex:
-        print("Error: "+str(ex))
-        exit(1)
+    def getFile(self, filename, destiny):
+        try:
+            self.ftp.retrbinary("RETR " + filename ,open(destiny, 'wb').write)
+        except Exception as ex:
+            print("Error: "+str(ex))
+            exit(1)
 
-def upload(ftp, source, destination):
-    ext = os.path.splitext(source)[1]
-    if ext in (".txt", ".htm", ".html"):
-        ftp.storlines("STOR " + destination, open(source))
-    else:
-        ftp.storbinary("STOR " + destination, open(source, "rb"), 1024)
+    def upload(self, source, destination):
+        ext = os.path.splitext(source)[1]
+        if ext in (".txt", ".htm", ".html"):
+            self.ftp.storlines("STOR " + destination, open(source, "rb", 1024))
+        else:
+            self.ftp.storbinary("STOR " + destination, open(source, "rb"), 1024)
 
-def lsftp():
-    data=[]
-    ftp.dir(data.append)
-    toret=""
-    for l in data:
-        toret+=l[49:]+"\n"
-    return toret
+    def lsftp(self):
+        data=[]
+        self.ftp.dir(data.append)
+        toret=""
+        for l in data:
+            toret+=l[49:]+"\n"
+        return toret
 
-if VERBOSE: print("STARTING...")
+    def test_01_compare_root(self):
+        self.compare_remote_local(self.ftp.pwd(), self.subpath)
 
-#INITIALIZATION
-clean_all()
+    def test_02_mkdir(self):
+        self.ftp.mkd('newfolder')
+        makedir('localUPs/newfolder')
+        self.compare_remote_local(sort(self.lsftp().strip()),sort(ls('localUPs').strip()))
 
-initialize()
+    def test_03_download_txt_file(self):
+        self.getFile('file01nonempty.txt', 'megaDls/file01nonempty.txt')
+        shutil.copy2('localUPs/file01nonempty.txt','localDls/')
+        self.compare_and_clear()
 
-#ftp initialize connection
-cmd_ec(FTP+' -d --all')
-url=cmd_ef(FTP+' /').split(b' ')[-1]
-server=url.split(b"//")[1].split(b":")[0]
-port=url.split(b"//")[1].split(b":")[1].split(b"/")[0]
-subpath=b"/"+b"/".join(url.split(b"//")[1].split(b":")[1].split(b"/")[1:])
-subpath=subpath.replace(b'%20',b' ')
-if VERBOSE:
-    print(" connecting ... to "+server.decode()+" port="+port.decode()+" path="+subpath.decode())
-ftp=ftplib.FTP()
-ftp.connect(server.decode(),int(port.decode()), timeout=30)
-ftp.login("anonymous", "nomatter")
-ftp.cwd(subpath.decode())
+    def test_04_upload_txt_file(self):
+        self.upload('localUPs/file01nonempty.txt', 'newfile.txt')
+        shutil.copy2('localUPs/file01nonempty.txt','localUPs/newfile.txt')
+        self.compare_remote_local(sort(self.lsftp().strip()),sort(ls('localUPs').strip()))
 
-currentTest=1
+    def test_05_upload_non_txt_file(self):
+        shutil.copy2('localUPs/file01nonempty.txt','localUPs/newfile')
+        self.upload('localUPs/newfile', 'newfile')
+        self.compare_remote_local(sort(self.lsftp().strip()),sort(ls('localUPs').strip()))
 
-def executeTests():
-    #Test 1 #/
-    compare_remote_local(ftp.pwd(),subpath)
+    def test_06_rename(self):
+        shutil.move('localUPs/lf01/lfs01/lfss01/commonfile.txt','localUPs/lf01/lfs01/lfss01/renamed.txt')
+        self.ftp.rename('lf01/lfs01/lfss01/commonfile.txt', 'lf01/lfs01/lfss01/renamed.txt')
+        self.compare_remote_local(sort(self.lsftp().strip()),sort(ls('localUPs').strip()))
 
-    #Test 2 #mkdir
-    ftp.mkd('newfolder')
-    makedir('localUPs/newfolder')
-    compare_remote_local(sort(lsftp().strip()),sort(ls('localUPs').strip()))
+    def test_07_rename_folder(self):
+        shutil.move('localUPs/lf01/lfs01/lfss01','localUPs/lf01/lfs01/lfss01_renamed')
+        self.ftp.rename('lf01/lfs01/lfss01', 'lf01/lfs01/lfss01_renamed')
+        self.compare_remote_local(sort(self.lsftp().strip()),sort(ls('localUPs').strip()))
 
-    #Test 3
-    getFile(ftp, 'file01nonempty.txt', 'megaDls/file01nonempty.txt')
-    shutil.copy2('localUPs/file01nonempty.txt','localDls/')
-    compare_and_clear()
+    def test_08_remove_file(self):
+        os.remove('localUPs/lf01/lfs02/lfss01/commonfile.txt')
+        self.ftp.delete('lf01/lfs02/lfss01/commonfile.txt')
+        self.compare_remote_local(sort(self.lsftp().strip()),sort(ls('localUPs').strip()))
 
-    #Test 4 upload txt file
-    upload(ftp, 'localUPs/file01nonempty.txt', 'newfile.txt')
-    shutil.copy2('localUPs/file01nonempty.txt','localUPs/newfile.txt')
-    compare_remote_local(sort(lsftp().strip()),sort(ls('localUPs').strip()))
-
-    #Test 5 upload non txt file
-    shutil.copy2('localUPs/file01nonempty.txt','localUPs/newfile')
-    upload(ftp, 'localUPs/newfile', 'newfile')
-    compare_remote_local(sort(lsftp().strip()),sort(ls('localUPs').strip()))
-
-    #Test 6 rename
-    shutil.move('localUPs/lf01/lfs01/lfss01/commonfile.txt','localUPs/lf01/lfs01/lfss01/renamed.txt')
-    ftp.rename('lf01/lfs01/lfss01/commonfile.txt', 'lf01/lfs01/lfss01/renamed.txt')
-    compare_remote_local(sort(lsftp().strip()),sort(ls('localUPs').strip()))
-
-    #Test 7 rename folder
-    shutil.move('localUPs/lf01/lfs01/lfss01','localUPs/lf01/lfs01/lfss01_renamed')
-    ftp.rename('lf01/lfs01/lfss01', 'lf01/lfs01/lfss01_renamed')
-    compare_remote_local(sort(lsftp().strip()),sort(ls('localUPs').strip()))
-
-    #Test 8 remove file
-    os.remove('localUPs/lf01/lfs02/lfss01/commonfile.txt')
-    ftp.delete('lf01/lfs02/lfss01/commonfile.txt')
-    compare_remote_local(sort(lsftp().strip()),sort(ls('localUPs').strip()))
-
-    #Test 9 remove folder
-    shutil.rmtree('localUPs/lf01/lfs02/lfss02')
-    ftp.rmd('lf01/lfs02/lfss02')
-    compare_remote_local(sort(lsftp().strip()),sort(ls('localUPs').strip()))
-
-executeTests()
+    def test_09_remove_folder(self):
+        shutil.rmtree('localUPs/lf01/lfs02/lfss02')
+        self.ftp.rmd('lf01/lfs02/lfss02')
+        self.compare_remote_local(sort(self.lsftp().strip()),sort(ls('localUPs').strip()))
 
 #FTPS
 #~ if ftp != None: ftp.close()
@@ -387,9 +362,11 @@ executeTests()
 #~ currentTest=100
 #~ executeTests()
 
-ftp.close()
 ###################
 
-# Clean all
-if not VERBOSE:
-    clean_all()
+if __name__ == '__main__':
+    if "OUT_DIR_JUNIT_XML" in os.environ:
+        unittest.main(testRunner=xmlrunner.XMLTestRunner(output=os.environ["OUT_DIR_JUNIT_XML"]), failfast=False, buffer=False, catchbreak=False, exit=False)
+    else:
+        unittest.main()
+
