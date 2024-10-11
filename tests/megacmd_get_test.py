@@ -420,6 +420,6 @@ class MEGAcmdGetTest(unittest.TestCase):
 
 if __name__ == '__main__':
     if "OUT_DIR_JUNIT_XML" in os.environ:
-        unittest.main(testRunner=xmlrunner.XMLTestRunner(output=os.environ["OUT_DIR_JUNIT_XML"]), failfast=False, buffer=False, catchbreak=False, exit=False)
+        unittest.main(testRunner=xmlrunner.XMLTestRunner(output=os.environ["OUT_DIR_JUNIT_XML"]), failfast=False, buffer=False, catchbreak=False)
     else:
         unittest.main()
