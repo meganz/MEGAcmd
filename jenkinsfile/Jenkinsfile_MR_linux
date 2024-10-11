@@ -210,7 +210,7 @@ pipeline {
                             MEGA_EMAILS=''
                             MEGA_PWD=credentials('MEGACMD_TESTS_PASSWORD')
                             MEGA_PWD_AUX=credentials('MEGACMD_TESTS_PASSWORD')
-                            HOME="${megacmd_sources_workspace}/test-dir-${SANITIZERS}"
+                            HOME="${megacmd_sources_workspace}/pytest-dir-${SANITIZERS}"
                             YES_I_KNOW_THIS_WILL_CLEAR_MY_MEGA_ACCOUNT=1
                         }
                         steps {
@@ -223,16 +223,16 @@ pipeline {
 
                                     for (test in ['misc', 'put', 'rm', 'serving', 'find', 'get']) {
                                         stage("MEGAcmd Python ${test} test") {
-                                            env.ASAN_OPTIONS = "atexit=1,print_stats=1,log_path=${megacmd_sources_workspace}/test-dir-${SANITIZERS}/${test}-results/mega-cmd-tests-python-report"
-                                            env.TSAN_OPTIONS = "log_path=${megacmd_sources_workspace}/test-dir-${SANITIZERS}/${test}-results/mega-cmd-tests-python-report"
-                                            env.UBSAN_OPTIONS = "log_path=${megacmd_sources_workspace}/test-dir-${SANITIZERS}/${test}-results/mega-cmd-tests-python-report"
-                                            env.OUT_DIR_JUNIT_XML = "${megacmd_sources_workspace}/test-dir-${SANITIZERS}/${test}-results"
+                                            env.ASAN_OPTIONS = "atexit=1,print_stats=1,log_path=${megacmd_sources_workspace}/pytest-dir-${SANITIZERS}/${test}-results/mega-cmd-tests-python-report"
+                                            env.TSAN_OPTIONS = "log_path=${megacmd_sources_workspace}/pytest-dir-${SANITIZERS}/${test}-results/mega-cmd-tests-python-report"
+                                            env.UBSAN_OPTIONS = "log_path=${megacmd_sources_workspace}/pytest-dir-${SANITIZERS}/${test}-results/mega-cmd-tests-python-report"
+                                            env.OUT_DIR_JUNIT_XML = "${megacmd_sources_workspace}/pytest-dir-${SANITIZERS}/${test}-results"
 
-                                            dir("test-dir-${SANITIZERS}/working-dir") {
+                                            dir("pytest-dir-${SANITIZERS}/working-dir") {
                                                 sh "/usr/local/bin/megacmd_${test}_test.py"
                                                 deleteDir()
                                             }
-                                            junit "test-dir-${SANITIZERS}/${test}-results/TEST-*.xml"
+                                            junit "pytest-dir-${SANITIZERS}/${test}-results/TEST-*.xml"
                                         }
                                     }
                                 }
@@ -241,7 +241,7 @@ pipeline {
                         post {
                             always {
                                 sh "/usr/bin/mega-exec quit"
-                                archiveArtifacts "test-dir-${SANITIZERS}/.megaCmd/megacmdserver.log*"
+                                archiveArtifacts "pytest-dir-${SANITIZERS}/.megaCmd/megacmdserver.log*"
                             }
                         }
                     }
