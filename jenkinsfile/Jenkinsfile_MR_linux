@@ -215,7 +215,7 @@ pipeline {
                         }
                         steps {
                             dir("pytest-dir-${SANITIZERS}") {
-                                sh 'nohup /usr/bin/mega-cmd-server &'
+                                sh 'nohup /usr/bin/mega-cmd-server --verbose-full --log-to-file &'
                             }
                             sleep 1
                             lock(label: 'testing_accounts_megacmd', variable: 'MEGA_EMAILS', quantity: 2, resource: null) {
