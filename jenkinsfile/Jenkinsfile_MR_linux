@@ -214,7 +214,9 @@ pipeline {
                             YES_I_KNOW_THIS_WILL_CLEAR_MY_MEGA_ACCOUNT=1
                         }
                         steps {
-                            sh 'nohup /usr/bin/mega-cmd-server &'
+                            dir("pytest-dir-${SANITIZERS}") {
+                                sh 'nohup /usr/bin/mega-cmd-server &'
+                            }
                             sleep 1
                             lock(label: 'testing_accounts_megacmd', variable: 'MEGA_EMAILS', quantity: 2, resource: null) {
                                 script {
