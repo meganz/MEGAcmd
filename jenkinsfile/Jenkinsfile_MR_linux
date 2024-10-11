@@ -242,7 +242,7 @@ pipeline {
                         }
                         post {
                             always {
-                                sh "/usr/bin/mega-exec quit"
+                                sh "/usr/bin/mega-exec quit || true"
                                 archiveArtifacts "pytest-dir-${SANITIZERS}/.megaCmd/megacmdserver.log*"
                             }
                         }
