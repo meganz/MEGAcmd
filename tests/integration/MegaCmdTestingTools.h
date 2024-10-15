@@ -27,9 +27,9 @@
 #include <chrono>
 #include <future>
 
-constexpr const char* LINK_TESTEXPORTFILE01TXT = "https://mega.nz/file/MGk2WKwL#qk9THHhxbakddRmt_tLR8OhInexzVCpPPG6M6feFfZg";
-constexpr const char* LINK_TESTEXPORTFOLDER =  "https://mega.nz/folder/8L80QKyL#glRTp6Zc0gppwp03IG03tA";
-constexpr const char* LINK_TESTREADINGFOLDER01 = "https://mega.nz/folder/gflVFLhC#6neMkeJrt4dWboRTc1NLUg";
+constexpr const char* LINK_TESTEXPORTFILE01TXT = "https://mega.nz/file/YfNngDKR#qk9THHhxbakddRmt_tLR8OhInexzVCpPPG6M6feFfZg";
+constexpr const char* LINK_TESTEXPORTFOLDER =  "https://mega.nz/folder/saMRXBYL#9GETCO4E-Po45d3qSjZhbQ";
+constexpr const char* LINK_TESTREADINGFOLDER01 = "https://mega.nz/folder/YPV0nCKS#bSruKSPPubdCmm5harBJOQ";
 
 std::vector<std::string> splitByNewline(const std::string& str);
 
