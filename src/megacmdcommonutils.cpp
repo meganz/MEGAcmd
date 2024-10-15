@@ -43,6 +43,7 @@
 #include <iterator>
 
 #include <regex> //split
+#include <random>
 
 #ifdef _WIN32
 namespace mega {
@@ -375,6 +376,26 @@ string getPublicLinkObjectId(const string &link)
 bool hasWildCards(string &what)
 {
     return what.find('*') != string::npos || what.find('?') != string::npos;
+}
+
+
+string generateRandomAlphaNumericString(size_t len)
+{
+    static const std::string alphabet =
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+        "abcdefghijklmnopqrstuvwxyz"
+        "0123456789";
+
+    thread_local static std::mt19937 generator(std::random_device{}());
+    thread_local static std::uniform_int_distribution<> distribution(0, alphabet.size() - 1);
+
+    std::string randomString;
+    randomString.reserve(len);
+    for (size_t i = 0; i < len; ++i)
+    {
+        randomString += alphabet[distribution(generator)];
+    }
+    return randomString;
 }
 
 std::vector<std::string> split(const std::string& input, const std::string& pattern)
