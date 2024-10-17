@@ -187,13 +187,14 @@ public:
     }
 };
 
-std::string SyncIssue::getFilePath(bool preferCloud) const
+template<bool preferCloud>
+std::string SyncIssue::getFilePath() const
 {
     assert(mMegaStall);
     const char* cloudPath = mMegaStall->path(true, 0);
     const char* localPath = mMegaStall->path(false, 0);
 
-    if (preferCloud)
+    if constexpr (preferCloud)
     {
         if (cloudPath && strcmp(cloudPath, ""))
         {
@@ -218,9 +219,10 @@ std::string SyncIssue::getFilePath(bool preferCloud) const
     return "";
 }
 
-std::string SyncIssue::getFileName(bool preferCloud) const
+template<bool preferCloud>
+std::string SyncIssue::getFileName() const
 {
-    auto files = split(getFilePath(preferCloud), "/");
+    auto files = split(getFilePath<preferCloud>(), "/");
     return files.empty() ? "" : files.back();
 }
 
@@ -330,7 +332,7 @@ SyncInfo SyncIssue::getSyncInfo(const mega::MegaSync& parentSync) const
         }
         case mega::MegaSyncStall::DownloadIssue:
         {
-            info.mReason = "Can't download '" + getFileName(true) + "' to the selected location";
+            info.mReason = "Can't download '" + getFileName<true>() + "' to the selected location";
 
             if (hasPathProblem<true>(mega::MegaSyncStall::CloudNodeInvalidFingerprint))
             {
@@ -379,7 +381,7 @@ SyncInfo SyncIssue::getSyncInfo(const mega::MegaSync& parentSync) const
         }
         case mega::MegaSyncStall::NamesWouldClashWhenSynced:
         {
-            info.mReason = "Name conflicts: '" + getFileName(true) + "'";
+            info.mReason = "Name conflicts: '" + getFileName<true>() + "'";
             info.mDescription = "These items contain multiple names on one side that would all become the same single name on the other side (this may be due to syncing to case insensitive local filesystems, or the effects of escaped characters)";
             break;
         }

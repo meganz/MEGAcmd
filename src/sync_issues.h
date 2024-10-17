@@ -32,8 +32,11 @@ class SyncIssue
     mutable std::string mId;
     std::unique_ptr<const mega::MegaSyncStall> mMegaStall;
 
-    std::string getFilePath(bool preferCloud = false) const;
-    std::string getFileName(bool preferCloud = false) const;
+    template<bool preferCloud = false>
+    std::string getFilePath() const;
+
+    template<bool preferCloud = false>
+    std::string getFileName() const;
 
     template<bool isCloud>
     bool hasPathProblem(mega::MegaSyncStall::SyncPathProblem pathProblem) const;
