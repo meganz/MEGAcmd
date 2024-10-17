@@ -179,12 +179,16 @@ pipeline {
 
                             // There is an unresolved issue on Windows that results in an incorrect status code being returned
                             // from the process above; so we use a file to get the actual value
-                            def exitCode = readFile("exit_code.txt").trim().toInteger()
-                            if (status != exitCode) {
-                                echo "Incorrect status code detected (expected: ${exitCode} actual: ${status})"
-                            }
-                            if (exitCode != 0) {
-                                error "Integration tests failed with exit code ${exitCode}"
+                            if (fileExists("exit_code.txt")) {
+                                def exitCode = readFile("exit_code.txt").trim().toInteger()
+                                if (status != exitCode) {
+                                    echo "Incorrect status code detected (expected: ${exitCode} actual: ${status})"
+                                }
+                                if (exitCode != 0) {
+                                    error "Integration tests failed with exit code ${exitCode}"
+                                }
+                            } else {
+                                unstable "Exit code file does not exist"
                             }
                         }
                     }

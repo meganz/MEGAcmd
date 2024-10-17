@@ -18,7 +18,6 @@
 
 #include "Instruments.h"
 #include "TestUtils.h"
-#include "megacmdcommonutils.h"
 
 #include "configurationmanager.h"
 

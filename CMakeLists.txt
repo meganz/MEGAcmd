@@ -159,6 +159,18 @@ include(megacmd_utility_functions) # utility functions
 
 set(ProjectDir "${CMAKE_CURRENT_LIST_DIR}")
 
+# Populate list of MEGAcmd source files (used by logger):
+generate_src_file_list("${ProjectDir}/sdk" SDK_SRCS)
+generate_src_file_list("${ProjectDir}/src" MEGACMD_SRCS)
+foreach(CMDFILE ${MEGACMD_SRCS})
+    if (CMDFILE IN_LIST SDK_SRCS)
+        message(FATAL_ERROR "MEGAcmd src filename ${CMDFILE} clashing with SDK's: please, pick a new one")
+    endif()
+endforeach()
+string(JOIN ", " MEGACMD_SRC_FILE_LIST ${MEGACMD_SRCS})
+configure_file("${ProjectDir}/src/megacmd_src_file_list.h.in" "${ProjectDir}/src/megacmd_src_file_list.h" @ONLY)
+
+
 add_library(LMEGAcmdCommonUtils STATIC)
 add_source_and_corresponding_header_to_target(LMEGAcmdCommonUtils
     PUBLIC
@@ -354,7 +366,7 @@ endif()
 target_link_libraries(mega-cmd-server PUBLIC LMegacmdServer)
 
 if (ENABLE_MEGACMD_TESTS)
-    target_include_directories(mega-cmd-tests-unit PUBLIC ${ProjectDir}/src ${ProjectDir}/tests/common)
+    target_include_directories(LMegacmdTestsCommon PUBLIC ${ProjectDir}/src ${ProjectDir}/tests/common)
     target_link_libraries(mega-cmd-tests-unit PUBLIC LMegacmdServer LMegacmdTestsCommon)
 endif()
 
