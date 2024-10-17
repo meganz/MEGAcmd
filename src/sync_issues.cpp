@@ -34,6 +34,10 @@ namespace
 {
     bool startsWith(const char* str, const char* prefix)
     {
+        if (!str || !prefix)
+        {
+            return false;
+        }
         return std::strncmp(str, prefix, std::strlen(prefix)) == 0;
     }
 }
