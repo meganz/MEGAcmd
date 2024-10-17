@@ -187,6 +187,56 @@ public:
     }
 };
 
+std::string SyncIssue::getFilePath(bool preferCloud) const
+{
+    assert(mMegaStall);
+    const char* cloudPath = mMegaStall->path(true, 0);
+    const char* localPath = mMegaStall->path(false, 0);
+
+    if (preferCloud)
+    {
+        if (cloudPath && strcmp(cloudPath, ""))
+        {
+            return CloudPrefix + cloudPath;
+        }
+        else if (localPath && strcmp(localPath, ""))
+        {
+            return localPath;
+        }
+    }
+    else
+    {
+        if (localPath && strcmp(localPath, ""))
+        {
+            return localPath;
+        }
+        else if (cloudPath && strcmp(cloudPath, ""))
+        {
+            return CloudPrefix + cloudPath;
+        }
+    }
+    return "";
+}
+
+std::string SyncIssue::getFileName(bool preferCloud) const
+{
+    auto files = split(getFilePath(preferCloud), "/");
+    return files.empty() ? "" : files.back();
+}
+
+template<bool isCloud>
+bool SyncIssue::hasPathProblem(mega::MegaSyncStall::SyncPathProblem pathProblem) const
+{
+    for (int i = 0; i < mMegaStall->pathCount(isCloud); ++i)
+    {
+        if (mMegaStall->pathProblem(isCloud, i) == pathProblem)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 SyncIssue::SyncIssue(const mega::MegaSyncStall &stall) :
     mMegaStall(stall.copy())
 {
@@ -221,35 +271,146 @@ const std::string& SyncIssue::getId() const
     return mId;
 }
 
-std::string SyncIssue::getSyncWaitReasonStr() const
+SyncInfo SyncIssue::getSyncInfo(const mega::MegaSync& parentSync) const
 {
     assert(mMegaStall);
 
+    SyncInfo info;
     switch(mMegaStall->reason())
     {
-    #define SOME_GENERATOR_MACRO(reason, str) case reason: return str;
-        GENERATE_FROM_STALL_REASON(SOME_GENERATOR_MACRO)
-    #undef SOME_GENERATOR_MACRO
+        case mega::MegaSyncStall::NoReason:
+        {
+            info.mReason = "Error detected with '" + getFileName() + "'";
+            info.mDescription = "Reason not found";
+            break;
+        }
+        case mega::MegaSyncStall::FileIssue:
+        {
+            if (hasPathProblem<false>(mega::MegaSyncStall::DetectedSymlink))
+            {
+                info.mReason = "Detected sym link: '" + getFileName() + "'";
+            }
+            else if (hasPathProblem<false>(mega::MegaSyncStall::DetectedHardLink))
+            {
+                info.mReason = "Detected hard link: '" + getFileName() + "'";
+            }
+            else if (hasPathProblem<false>(mega::MegaSyncStall::DetectedSpecialFile))
+            {
+                info.mReason = "Detected special link: '" + getFileName() + "'";
+            }
+            else
+            {
+                info.mReason = "Can't sync '" + getFileName() + "'";
+            }
+            break;
+        }
+        case mega::MegaSyncStall::MoveOrRenameCannotOccur:
+        {
+            info.mReason = "Can't move or rename some items in '"s + parentSync.getName() + "'";
+            info.mDescription = "The local and remote locations have changed at the same time";
+            break;
+        }
+        case mega::MegaSyncStall::DeleteOrMoveWaitingOnScanning:
+        {
+            info.mReason = "Can't find '" + getFileName() + "'";
+            info.mDescription = "Waiting to finish scan to see if the file was moved or deleted";
+            break;
+        }
+        case mega::MegaSyncStall::DeleteWaitingOnMoves:
+        {
+            info.mReason = "Waiting to move '" + getFileName() + "'";
+            info.mDescription = "Waiting for other processes to complete";
+            break;
+        }
+        case mega::MegaSyncStall::UploadIssue:
+        {
+            info.mReason = "Can't upload '" + getFileName() + "' to the selected location";
+            info.mDescription = "Cannot reach the destination folder";
+            break;
+        }
+        case mega::MegaSyncStall::DownloadIssue:
+        {
+            info.mReason = "Can't download '" + getFileName(true) + "' to the selected location";
 
+            if (hasPathProblem<true>(mega::MegaSyncStall::CloudNodeInvalidFingerprint))
+            {
+                info.mDescription = "File fingerprint missing";
+            }
+            else if (hasPathProblem<true>(mega::MegaSyncStall::CloudNodeIsBlocked))
+            {
+                info.mDescription = "The file '" + getFileName() + "' is unavailable because it was reported to contain content in breach of MEGA's Terms of Service (https://mega.io/terms)";
+            }
+            else
+            {
+                info.mDescription = "A failure occurred either downloading the file, or moving the downloaded temporary file to its final name and location";
+            }
+            break;
+        }
+        case mega::MegaSyncStall::CannotCreateFolder:
+        {
+            info.mReason = "Cannot create '" + getFileName() + "'";
+            info.mDescription = "Filesystem error preventing folder access";
+            break;
+        }
+        case mega::MegaSyncStall::CannotPerformDeletion:
+        {
+            info.mReason = "Cannot perform deletion '" + getFileName() + "'";
+            info.mDescription = "Filesystem error preventing folder access";
+            break;
+        }
+        case mega::MegaSyncStall::SyncItemExceedsSupportedTreeDepth:
+        {
+            info.mReason = "Unable to sync '" + getFileName() + "'";
+            info.mDescription = "Target is too deep on your folder structure; please move it to a location that is less than 64 folders deep";
+            break;
+        }
+        case mega::MegaSyncStall::FolderMatchedAgainstFile:
+        {
+            info.mReason = "Unable to sync '" + getFileName() + "'";
+            info.mDescription = "Cannot sync folders against files";
+            break;
+        }
+        case mega::MegaSyncStall::LocalAndRemoteChangedSinceLastSyncedState_userMustChoose:
+        case mega::MegaSyncStall::LocalAndRemotePreviouslyUnsyncedDiffer_userMustChoose:
+        {
+            info.mReason = "Unable to sync '" + getFileName() + "'";
+            info.mDescription = "This file has conflicting copies";
+            break;
+        }
+        case mega::MegaSyncStall::NamesWouldClashWhenSynced:
+        {
+            info.mReason = "Name conflicts: '" + getFileName(true) + "'";
+            info.mDescription = "These items contain multiple names on one side that would all become the same single name on the other side (this may be due to syncing to case insensitive local filesystems, or the effects of escaped characters)";
+            break;
+        }
         default:
+        {
             assert(false);
-            return "<unsupported>";
+            info.mReason = "<unsupported>";
+            break;
+        }
     }
+    return info;
 }
 
-std::string SyncIssue::getMainPath() const
+std::unique_ptr<mega::MegaSync> SyncIssue::getParentSync(mega::MegaApi& api) const
 {
-    assert(mMegaStall);
+    auto syncList = std::unique_ptr<mega::MegaSyncList>(api.getSyncs());
+    assert(syncList);
 
-    const char* cloudPath = mMegaStall->path(true, 0);
-    if (cloudPath && strcmp(cloudPath, ""))
+    for (int i = 0; i < syncList->size(); ++i)
     {
-        // We add "<CLOUD>" at the start to distinguish between cloud and local absolute paths
-        return std::string("<CLOUD>") + cloudPath;
+        mega::MegaSync* sync = syncList->get(i);
+        assert(sync);
+
+        if (belongsToSync(*sync))
+        {
+            return std::unique_ptr<mega::MegaSync>(sync->copy());
+        }
     }
 
-    const char* localPath = mMegaStall->path(false, 0);
-    return localPath ? localPath : "";
+    assert(false);
+    return nullptr;
 }
 
 bool SyncIssue::belongsToSync(const mega::MegaSync& sync) const
