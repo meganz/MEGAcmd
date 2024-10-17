@@ -138,7 +138,7 @@ TEST_F(SyncIssuesTests, NameConflict)
     auto result = executeInClient({"sync-issues", "--disable-path-collapse"});
     ASSERT_TRUE(result.ok());
     EXPECT_THAT(result.out(), testing::Not(testing::HasSubstr("There are no sync issues")));
-    EXPECT_THAT(result.out(), testing::AnyOf(testing::HasSubstr(syncDirCloud() + "f01"), testing::HasSubstr(syncDirCloud() + conflictingName)));
+    EXPECT_THAT(result.out(), testing::AnyOf(testing::HasSubstr("'f01'"), testing::HasSubstr(syncDirCloud() + conflictingName)));
 }
 
 TEST_F(SyncIssuesTests, SymLink)
@@ -146,7 +146,8 @@ TEST_F(SyncIssuesTests, SymLink)
     const std::string dirPath = syncDirLocal() + "some_dir";
     ASSERT_TRUE(fs::create_directory(dirPath));
 
-    std::string linkPath = syncDirLocal() + "some_link";
+    std::string linkName = "some_link";
+    std::string linkPath = syncDirLocal() + linkName;
 
 #ifdef _WIN32
     megacmd::replaceAll(linkPath, "/", "\\");
@@ -161,7 +162,7 @@ TEST_F(SyncIssuesTests, SymLink)
     auto result = executeInClient({"sync-issues", "--disable-path-collapse"});
     ASSERT_TRUE(result.ok());
     EXPECT_THAT(result.out(), testing::Not(testing::HasSubstr("There are no sync-issues issues")));
-    EXPECT_THAT(result.out(), testing::HasSubstr(linkPath));
+    EXPECT_THAT(result.out(), testing::HasSubstr("'" + linkName + "'"));
 
     {
         SyncIssueListGuard guard(0);
