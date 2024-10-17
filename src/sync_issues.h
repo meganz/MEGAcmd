@@ -21,35 +21,36 @@
 
 #include "megaapi.h"
 
-#define GENERATE_FROM_STALL_REASON(GENERATOR_MACRO) \
-        GENERATOR_MACRO(mega::MegaSyncStall::NoReason,                                                  "No reason") \
-        GENERATOR_MACRO(mega::MegaSyncStall::FileIssue,                                                 "File issue") \
-        GENERATOR_MACRO(mega::MegaSyncStall::MoveOrRenameCannotOccur,                                   "Move/Rename cannot occur") \
-        GENERATOR_MACRO(mega::MegaSyncStall::DeleteOrMoveWaitingOnScanning,                             "Delete waiting on scanning") \
-        GENERATOR_MACRO(mega::MegaSyncStall::DeleteWaitingOnMoves,                                      "Delete waiting on move") \
-        GENERATOR_MACRO(mega::MegaSyncStall::UploadIssue,                                               "Upload issue") \
-        GENERATOR_MACRO(mega::MegaSyncStall::DownloadIssue,                                             "Download issue") \
-        GENERATOR_MACRO(mega::MegaSyncStall::CannotCreateFolder,                                        "Cannot create folder") \
-        GENERATOR_MACRO(mega::MegaSyncStall::CannotPerformDeletion,                                     "Cannot delete") \
-        GENERATOR_MACRO(mega::MegaSyncStall::SyncItemExceedsSupportedTreeDepth,                         "Supported tree depth exceeded") \
-        GENERATOR_MACRO(mega::MegaSyncStall::FolderMatchedAgainstFile,                                  "Folder matched against file") \
-        GENERATOR_MACRO(mega::MegaSyncStall::LocalAndRemoteChangedSinceLastSyncedState_userMustChoose,  "Local and remote differ") \
-        GENERATOR_MACRO(mega::MegaSyncStall::LocalAndRemotePreviouslyUnsyncedDiffer_userMustChoose,     "Local and remote differ") \
-        GENERATOR_MACRO(mega::MegaSyncStall::NamesWouldClashWhenSynced,                                 "Name clash")
+struct SyncInfo
+{
+    std::string mReason;
+    std::string mDescription;
+};
 
 class SyncIssue
 {
     mutable std::string mId;
     std::unique_ptr<const mega::MegaSyncStall> mMegaStall;
 
+    template<bool preferCloud = false>
+    std::string getFilePath() const;
+
+    template<bool preferCloud = false>
+    std::string getFileName() const;
+
+    template<bool isCloud>
+    bool hasPathProblem(mega::MegaSyncStall::SyncPathProblem pathProblem) const;
+
 public:
+    // We add this prefix at the start to distinguish between cloud and local absolute paths
+    inline static const std::string CloudPrefix = "<CLOUD>";
+
     SyncIssue(const mega::MegaSyncStall& stall);
 
     const std::string& getId() const;
+    SyncInfo getSyncInfo(const mega::MegaSync& parentSync) const;
 
-    std::string getSyncWaitReasonStr() const;
-    std::string getMainPath() const;
-
+    std::unique_ptr<mega::MegaSync> getParentSync(mega::MegaApi& api) const;
     bool belongsToSync(const mega::MegaSync& sync) const;
 };
 

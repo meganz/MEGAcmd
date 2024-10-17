@@ -18,6 +18,7 @@
 
 #include "megacmdlogger.h"
 #include "megacmdcommonutils.h"
+#include "megacmd_src_file_list.h"
 
 #include <map>
 
@@ -193,15 +194,13 @@ MegaCMDLogger::MegaCMDLogger(int sdkLoggerLevel, int cmdLoggerLevel) :
 
 bool isMEGAcmdSource(const char *source)
 {
-    //TODO: this seem to be broken. source does not have the entire path but just leaf names
-    const string source_str(source);
-    return (source_str.find("src/megacmd") != string::npos)
-            || (source_str.find("src\\megacmd") != string::npos)
-            || (source_str.find("listeners.cpp") != string::npos)
-            || (source_str.find("configurationmanager.cpp") != string::npos)
-            || (source_str.find("comunicationsmanager") != string::npos)
-            || (source_str.find("megacmd") != string::npos) // added this one
-            || (source_str.find("sync_ignore.cpp") != string::npos);
+    static const std::set<std::string_view> megaCmdSourceFiles = MEGACMD_SRC_FILE_LIST;
+
+    // Remove the line number (since source has the format "filename.cpp:1234")
+    std::string_view filename(source);
+    filename = filename.substr(0, filename.find(':'));
+
+    return megaCmdSourceFiles.find(filename) != megaCmdSourceFiles.end();
 }
 
 void MegaCMDLogger::log(const char *time, int loglevel, const char *source, const char *message)

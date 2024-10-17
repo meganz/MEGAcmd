@@ -10825,11 +10825,13 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         ColumnDisplayer cd(clflags, cloptions);
         cd.addHeader("MAIN PATH", disablePathCollapse);
 
-        syncIssueCache.forEach([&cd] (const SyncIssue& syncIssue)
+        syncIssueCache.forEach([this, &cd] (const SyncIssue& syncIssue)
         {
+            auto parentSync = syncIssue.getParentSync(*api);
+
             cd.addValue("ID", syncIssue.getId());
-            cd.addValue("REASON", syncIssue.getSyncWaitReasonStr());
-            cd.addValue("MAIN PATH", syncIssue.getMainPath());
+            cd.addValue("PARENT SYNC", parentSync ? parentSync->getName() : "<not found>");
+            cd.addValue("REASON", syncIssue.getSyncInfo(*parentSync).mReason);
             cd.addValue("SOLVABLE", "NO" /* Until CMD-311 */);
         }, syncIssueCountLimit);
 

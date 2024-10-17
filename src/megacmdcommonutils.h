@@ -177,6 +177,8 @@ std::string removeTrailingSeparators(std::string &path);
 
 /* Strings related */
 
+std::string generateRandomAlphaNumericString(size_t len);
+
 std::vector<std::string> split(const std::string& input, const std::string& pattern);
 
 long long charstoll(const char *instr);
