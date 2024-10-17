@@ -10838,7 +10838,15 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             auto parentSync = syncIssuePtr->getParentSync(*api);
             assert(parentSync);
 
-            OUTSTREAM << "Issue: " << syncIssuePtr->getSyncWaitReasonStr() << endl;
+            auto syncInfo = syncIssuePtr->getSyncInfo(*parentSync);
+
+            OUTSTREAM << syncInfo.mReason;
+            if (!syncInfo.mDescription.empty())
+            {
+                OUTSTREAM << ". " << syncInfo.mDescription << ".";
+            }
+            OUTSTREAM << endl;
+
             OUTSTREAM << "Parent sync: " << syncBackupIdToBase64(parentSync->getBackupId())
                       << " (" << parentSync->getLocalFolder() << " to " << SyncIssue::CloudPrefix << parentSync->getLastKnownMegaFolder() << ")" << endl;
 
@@ -10880,11 +10888,13 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             ColumnDisplayer cd(clflags, cloptions);
             cd.addHeader("MAIN PATH", disablePathCollapse);
 
-            syncIssueList.forEach([&cd] (const SyncIssue& syncIssue)
+            syncIssueList.forEach([this, &cd] (const SyncIssue& syncIssue)
             {
+                auto parentSync = syncIssue.getParentSync(*api);
+
                 cd.addValue("ID", syncIssue.getId());
-                cd.addValue("REASON", syncIssue.getSyncWaitReasonStr());
-                cd.addValue("MAIN PATH", syncIssue.getMainPath());
+                cd.addValue("PARENT SYNC", parentSync ? parentSync->getName() : "<not found>");
+                cd.addValue("REASON", syncIssue.getSyncInfo(*parentSync).mReason);
                 cd.addValue("SOLVABLE", "NO" /* Until CMD-311 */);
             }, listSizeLimit);
 

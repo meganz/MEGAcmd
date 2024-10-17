@@ -62,6 +62,12 @@ TEST_F(NOINTERACTIVELoggedInTest, Whoami)
     {
         G_SUBTEST << "Extended";
 
+        {
+           // Ensure there's at least a file around contributing to ROOT usage:
+           auto result = executeInClient({"import", LINK_TESTEXPORTFILE01TXT});
+           ASSERT_TRUE(result.ok()) << "could not import testExportFile01.txt";
+        }
+
         auto r = executeInClient({"whoami", "-l"});
         ASSERT_TRUE(r.ok());
 

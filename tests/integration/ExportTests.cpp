@@ -32,11 +32,11 @@ protected:
         executeInClient({"rm", "-r", "-f", "testExportFolder"});
         executeInClient({"rm", "-f", "testExportFile01.txt"});
 
-        auto result = executeInClient({"import", "https://mega.nz/folder/8L80QKyL#glRTp6Zc0gppwp03IG03tA"});
+        auto result = executeInClient({"import", LINK_TESTEXPORTFOLDER});
         ASSERT_TRUE(result.ok()) << "could not import testExportFolder";
         ASSERT_TRUE(executeInClient({"ls", "testExportFolder"}).ok()) << "could not find folder testExportFolder";
 
-        result = executeInClient({"import", "https://mega.nz/file/MGk2WKwL#qk9THHhxbakddRmt_tLR8OhInexzVCpPPG6M6feFfZg"});
+        result = executeInClient({"import", LINK_TESTEXPORTFILE01TXT});
         ASSERT_TRUE(result.ok()) << "could not import testExportFile01.txt";
         ASSERT_TRUE(executeInClient({"ls", "testExportFile01.txt"}).ok()) << "could not find file testExportFile01.txt";
     }

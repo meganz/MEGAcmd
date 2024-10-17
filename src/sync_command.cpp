@@ -185,15 +185,17 @@ void printSyncList(mega::MegaApi& api, ColumnDisplayer& cd, bool showHandles, co
         mega::MegaSync& sync = *syncList.get(i);
 
         std::unique_ptr<mega::MegaNode> node(api.getNodeByHandle(sync.getMegaHandle()));
-        if (!node)
-        {
-            LOG_warn << "Remote node not found for sync " << getSyncId(sync);
-            continue;
-        }
 
         long long nFiles = 0;
         long long nFolders = 0;
-        getInfoFromFolder(*node, api, nFiles, nFolders);
+        if (node)
+        {
+            getInfoFromFolder(*node, api, nFiles, nFolders);
+        }
+        else
+        {
+            LOG_warn << "Remote node not found for sync " << getSyncId(sync);
+        }
 
         unsigned int syncIssueCount = syncIssueList.getSyncIssueCount(sync);
         printSingleSync(api, sync, nFiles, nFolders, cd, showHandles, syncIssueCount);

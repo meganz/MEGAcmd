@@ -32,6 +32,8 @@
 
 #include <gmock/gmock.h>
 
+#include "megacmdcommonutils.h"
+
 #define ULOG_COLOR(color, fmt, ...) \
     do { if (isatty(1)) printf(color fmt "\033[0m\n", ##__VA_ARGS__); \
          else printf(fmt "\n", ##__VA_ARGS__); \
@@ -159,13 +161,7 @@ class SelfDeletingTmpFolder
 public:
     SelfDeletingTmpFolder()
     {
-        const char* filePath = std::tmpnam(nullptr);
-        if (!filePath)
-        {
-            throw std::runtime_error("No suitable temporary filename can be generated");
-        }
-
-        mTempDir = fs::path(filePath);
+        mTempDir = fs::temp_directory_path() / fs::path(megacmd::generateRandomAlphaNumericString(10));
         fs::create_directory(mTempDir);
     }
 
