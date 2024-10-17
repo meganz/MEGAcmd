@@ -222,14 +222,17 @@ std::string SyncIssue::getFilePath() const
 template<bool preferCloud>
 std::string SyncIssue::getFileName() const
 {
-#ifdef _WIN32
-    const char* sep = "\\";
-#else
-    const char* sep = "/";
-#endif
+    std::string filePath = getFilePath<preferCloud>();
+    auto pos = std::find_if(filePath.rbegin(), filePath.rend(), [] (char c)
+    {
+        return c == '/' || c == '\\';
+    });
 
-    auto files = split(getFilePath<preferCloud>(), sep);
-    return files.empty() ? "" : files.back();
+    if (pos == filePath.rend())
+    {
+        return "";
+    }
+    return std::string(pos.base(), filePath.end());
 }
 
 template<bool isCloud>
