@@ -303,7 +303,7 @@ SyncInfo SyncIssue::getSyncInfo(const mega::MegaSync& parentSync) const
         {
             if (hasPathProblem<false>(mega::MegaSyncStall::DetectedSymlink))
             {
-                info.mReason = "Detected sym link: '" + getFileName() + "'";
+                info.mReason = "Detected symlink: '" + getFileName() + "'";
             }
             else if (hasPathProblem<false>(mega::MegaSyncStall::DetectedHardLink))
             {
