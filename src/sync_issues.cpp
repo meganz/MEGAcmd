@@ -286,7 +286,7 @@ const std::string& SyncIssue::getId() const
     return mId;
 }
 
-SyncInfo SyncIssue::getSyncInfo(const mega::MegaSync& parentSync) const
+SyncInfo SyncIssue::getSyncInfo(mega::MegaSync const* parentSync) const
 {
     assert(mMegaStall);
 
@@ -303,7 +303,7 @@ SyncInfo SyncIssue::getSyncInfo(const mega::MegaSync& parentSync) const
         {
             if (hasPathProblem<false>(mega::MegaSyncStall::DetectedSymlink))
             {
-                info.mReason = "Detected sym link: '" + getFileName() + "'";
+                info.mReason = "Detected symlink: '" + getFileName() + "'";
             }
             else if (hasPathProblem<false>(mega::MegaSyncStall::DetectedHardLink))
             {
@@ -321,7 +321,8 @@ SyncInfo SyncIssue::getSyncInfo(const mega::MegaSync& parentSync) const
         }
         case mega::MegaSyncStall::MoveOrRenameCannotOccur:
         {
-            info.mReason = "Can't move or rename some items in '"s + parentSync.getName() + "'";
+            std::string syncName = (parentSync ? "'"s + parentSync->getName() + "'" : "the sync");
+            info.mReason = "Can't move or rename some items in " + syncName;
             info.mDescription = "The local and remote locations have changed at the same time";
             break;
         }
@@ -424,7 +425,8 @@ std::unique_ptr<mega::MegaSync> SyncIssue::getParentSync(mega::MegaApi& api) con
         }
     }
 
-    assert(false);
+    // This is a valid result that must be taken into account
+    // E.g., the sync was removed by another client while this issue is being handled
     return nullptr;
 }
 
