@@ -10897,19 +10897,20 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             {
                 auto parentSync = syncIssue.getParentSync(*api);
 
-                cd.addValue("ID", syncIssue.getId());
+                cd.addValue("ISSUE ID", syncIssue.getId());
                 cd.addValue("PARENT SYNC", parentSync ? parentSync->getName() : "<not found>");
                 cd.addValue("REASON", syncIssue.getSyncInfo(parentSync.get()).mReason);
                 cd.addValue("SOLVABLE", "NO" /* Until CMD-311 */);
             }, listSizeLimit);
 
             OUTSTREAM << cd.str();
+            OUTSTREAM << endl;
             if (listSizeLimit < syncIssueList.size())
             {
-                OUTSTREAM << endl;
                 OUTSTREAM << "Note: showing " << listSizeLimit << " out of " << syncIssueList.size() << " issues. "
                           << "Use \"" << commandPrefixBasedOnMode() << "sync-issues --limit=0\" to see all of them." << endl;
             }
+            OUTSTREAM << "Use \"" << commandPrefixBasedOnMode() << "sync-issues --detail <ISSUE ID>\" to get further details on a specific issue." << endl;
         }
     }
     else
