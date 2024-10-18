@@ -11013,7 +11013,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
             cd.addValue("ISSUE ID", syncIssue.getId());
             cd.addValue("PARENT SYNC", parentSync ? parentSync->getName() : "<not found>");
-            cd.addValue("REASON", syncIssue.getSyncInfo(*parentSync).mReason);
+            cd.addValue("REASON", syncIssue.getSyncInfo(parentSync.get()).mReason);
             cd.addValue("SOLVABLE", "NO" /* Until CMD-311 */);
         }, syncIssueCountLimit);
 
