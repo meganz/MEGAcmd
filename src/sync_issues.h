@@ -90,7 +90,7 @@ public:
     SyncIssue(const mega::MegaSyncStall& stall);
 
     const std::string& getId() const;
-    SyncInfo getSyncInfo(const mega::MegaSync& parentSync) const;
+    SyncInfo getSyncInfo(mega::MegaSync const* parentSync) const;
 
     std::vector<PathProblem> getPathProblems(mega::MegaApi& api) const;
 
