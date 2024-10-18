@@ -218,10 +218,10 @@ TEST_F(SyncIssuesTests, LimitedSyncIssueList)
     auto result = executeInClient({"sync-issues", "--limit=" + std::to_string(3)});
     ASSERT_TRUE(result.ok());
 
-    // There should be 6 lines (column header + limit=3 + newline + limit-specific note)
+    // There should be 7 lines (column header + limit=3 + newline + detail usage + limit-specific note)
     auto lines = splitByNewline(result.out());
-    EXPECT_THAT(lines, testing::SizeIs(6));
-    EXPECT_THAT(lines.back(), testing::HasSubstr("showing 3 out of 5 issues"));
+    EXPECT_THAT(lines, testing::SizeIs(7));
+    EXPECT_THAT(lines.at(lines.size()-2), testing::HasSubstr("showing 3 out of 5 issues"));
 }
 
 TEST_F(SyncIssuesTests, ShowSyncIssuesInSyncCommand)
@@ -275,7 +275,7 @@ TEST_F(SyncIssuesTests, SyncIssueDetail)
     ASSERT_TRUE(result.ok());
 
     auto lines = splitByNewline(result.out());
-    EXPECT_EQ(lines.size(), 2);
+    EXPECT_EQ(lines.size(), 4); // Column names + issue + newline + detail usage
 
     auto words = megacmd::split(lines[1], " ");
     EXPECT_THAT(words, testing::Not(testing::IsEmpty()));
