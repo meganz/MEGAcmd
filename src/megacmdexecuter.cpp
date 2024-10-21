@@ -10867,7 +10867,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 const char* timeFmt = "%Y-%m-%d %H:%M:%S";
 
                 cd.addValue("PATH", pathProblem.mPath);
-                cd.addValue("PATH ISSUE", pathProblem.mProblem);
+                cd.addValue("PATH ISSUE", pathProblem.getProblemStr());
                 cd.addValue("LAST MODIFIED", pathProblem.mModifiedTime ? getReadableTime(pathProblem.mModifiedTime, timeFmt) : "-");
                 cd.addValue("UPLOADED", pathProblem.mUploadedTime ? getReadableTime(pathProblem.mUploadedTime, timeFmt) : "-");
                 cd.addValue("SIZE", sizeToText(pathProblem.mFileSize));

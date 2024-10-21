@@ -20,6 +20,7 @@
 #include <mutex>
 
 #include "megaapi.h"
+#include "mega/types.h"
 
 #define GENERATE_FROM_PATH_PROBLEM(GENERATOR_MACRO) \
         GENERATOR_MACRO(mega::PathProblem::NoProblem,                             "None") \
@@ -55,6 +56,7 @@
 
 struct SyncInfo
 {
+    mega::SyncWaitReason mReasonType = mega::SyncWaitReason::NoReason;
     std::string mReason;
     std::string mDescription;
 };
@@ -71,7 +73,7 @@ class SyncIssue
     std::string getFileName() const;
 
     template<bool isCloud>
-    bool hasPathProblem(mega::MegaSyncStall::SyncPathProblem pathProblem) const;
+    bool hasPathProblem(mega::PathProblem pathProblem) const;
 
 public:
     // We add this prefix at the start to distinguish between cloud and local absolute paths
@@ -81,10 +83,12 @@ public:
     {
         bool mIsCloud = false;
         std::string mPath;
-        std::string mProblem;
+        mega::PathProblem mProblem = mega::PathProblem::NoProblem;
         int64_t mModifiedTime = 0; // in seconds since epoch
         int64_t mUploadedTime = 0; // in seconds since epoch
         int64_t mFileSize = 0;
+
+        std::string getProblemStr() const;
     };
 
     SyncIssue(const mega::MegaSyncStall& stall);
