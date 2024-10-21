@@ -83,6 +83,7 @@ public:
     {
         bool mIsCloud = false;
         std::string mPath;
+        std::string mPathType = "<unknown>";
         mega::PathProblem mProblem = mega::PathProblem::NoProblem;
         int64_t mModifiedTime = 0; // in seconds since epoch
         int64_t mUploadedTime = 0; // in seconds since epoch

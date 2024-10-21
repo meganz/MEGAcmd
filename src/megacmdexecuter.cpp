@@ -10860,6 +10860,8 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             ColumnDisplayer cd(clflags, cloptions);
             cd.addHeader("PATH", disablePathCollapse);
 
+            mega::SyncWaitReason syncIssueReason = syncIssuePtr->getSyncInfo(parentSync.get()).mReasonType;
+
             auto pathProblems = syncIssuePtr->getPathProblems(*api);
             for (int i = 0; i < pathProblems.size() && i < listSizeLimit; ++i)
             {
@@ -10867,7 +10869,16 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 const char* timeFmt = "%Y-%m-%d %H:%M:%S";
 
                 cd.addValue("PATH", pathProblem.mPath);
-                cd.addValue("PATH ISSUE", pathProblem.getProblemStr());
+
+                if (syncIssueReason == mega::SyncWaitReason::FolderMatchedAgainstFile)
+                {
+                    cd.addValue("TYPE", pathProblem.mPathType);
+                }
+                else
+                {
+                    cd.addValue("PATH ISSUE", pathProblem.getProblemStr());
+                }
+
                 cd.addValue("LAST MODIFIED", pathProblem.mModifiedTime ? getReadableTime(pathProblem.mModifiedTime, timeFmt) : "-");
                 cd.addValue("UPLOADED", pathProblem.mUploadedTime ? getReadableTime(pathProblem.mUploadedTime, timeFmt) : "-");
                 cd.addValue("SIZE", sizeToText(pathProblem.mFileSize));

@@ -471,6 +471,15 @@ std::vector<SyncIssue::PathProblem> SyncIssue::getPathProblems(mega::MegaApi& ap
             std::unique_ptr<mega::MegaNode> n(api.getNodeByHandle(nodeHandle));
             if (n)
             {
+                if (n->isFile())
+                {
+                    pathProblem.mPathType = "File";
+                }
+                else if (n->isFolder())
+                {
+                    pathProblem.mPathType = "Folder";
+                }
+
                 pathProblem.mUploadedTime = n->getCreationTime();
                 pathProblem.mModifiedTime = n->getModificationTime();
                 pathProblem.mFileSize = std::max<int64_t>(n->getSize(), 0);
@@ -482,6 +491,19 @@ std::vector<SyncIssue::PathProblem> SyncIssue::getPathProblems(mega::MegaApi& ap
         }
         else if (fs::exists(pathProblem.mPath))
         {
+            if (fs::is_directory(pathProblem.mPath))
+            {
+                pathProblem.mPathType = "Folder";
+            }
+            else if (fs::is_regular_file(pathProblem.mPath))
+            {
+                pathProblem.mPathType = "File";
+            }
+            else if (fs::is_symlink(pathProblem.mPath))
+            {
+                pathProblem.mPathType = "Symlink";
+            }
+
             auto lastWriteTime = fs::last_write_time(pathProblem.mPath);
             auto systemNow = std::chrono::system_clock::now();
             auto fileTimeNow = fs::file_time_type::clock::now();
