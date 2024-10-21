@@ -22,6 +22,7 @@
 #include "megacmdlogger.h"
 #include "configurationmanager.h"
 #include "listeners.h"
+#include "megacmdutils.h"
 
 #ifdef MEGACMD_TESTING_CODE
     #include "../tests/common/Instruments.h"
@@ -632,4 +633,104 @@ void SyncIssuesManager::enableWarning()
 
     mWarningEnabled = true;
     ConfigurationManager::savePropertyValue("stalled_issues_warning", mWarningEnabled);
+}
+
+namespace SyncIssuesCommand
+{
+    void printAllIssues(mega::MegaApi& api, ColumnDisplayer& cd, const SyncIssueList& syncIssues, bool disablePathCollapse, int rowCountLimit)
+    {
+        cd.addHeader("PARENT SYNC", disablePathCollapse);
+
+        syncIssues.forEach([&api, &cd] (const SyncIssue& syncIssue)
+        {
+            auto parentSync = syncIssue.getParentSync(api);
+
+            cd.addValue("ISSUE ID", syncIssue.getId());
+            cd.addValue("PARENT SYNC", parentSync ? parentSync->getName() : "<not found>");
+            cd.addValue("REASON", syncIssue.getSyncInfo(parentSync.get()).mReason);
+            cd.addValue("SOLVABLE", "NO" /* Until CMD-311 */);
+        }, rowCountLimit);
+
+        OUTSTREAM << cd.str();
+        OUTSTREAM << endl;
+        if (rowCountLimit < syncIssues.size())
+        {
+            OUTSTREAM << "Note: showing " << rowCountLimit << " out of " << syncIssues.size() << " issues. "
+                      << "Use \"" << commandPrefixBasedOnMode() << "sync-issues --limit=0\" to see all of them." << endl;
+        }
+        OUTSTREAM << "Use \"" << commandPrefixBasedOnMode() << "sync-issues --detail <ISSUE ID>\" to get further details on a specific issue." << endl;
+    }
+
+    void printSingleIssueDetail(mega::MegaApi& api, megacmd::ColumnDisplayer& cd, const SyncIssue& syncIssue, bool disablePathCollapse, int rowCountLimit)
+    {
+        auto parentSync = syncIssue.getParentSync(api);
+        auto syncInfo = syncIssue.getSyncInfo(parentSync.get());
+
+        OUTSTREAM << syncInfo.mReason;
+        if (!syncInfo.mDescription.empty())
+        {
+            OUTSTREAM << ". " << syncInfo.mDescription << ".";
+        }
+        OUTSTREAM << endl;
+
+        OUTSTREAM << "Parent sync: ";
+        if (parentSync)
+        {
+            OUTSTREAM << syncBackupIdToBase64(parentSync->getBackupId())
+                      << " (" << parentSync->getLocalFolder() << " to " << SyncIssue::CloudPrefix << parentSync->getLastKnownMegaFolder() << ")";
+        }
+        else
+        {
+            OUTSTREAM << "<not found>";
+        }
+        OUTSTREAM << endl << endl;
+
+        cd.addHeader("PATH", disablePathCollapse);
+
+        mega::SyncWaitReason syncIssueReason = syncIssue.getSyncInfo(parentSync.get()).mReasonType;
+
+        auto pathProblems = syncIssue.getPathProblems(api);
+        for (int i = 0; i < pathProblems.size() && i < rowCountLimit; ++i)
+        {
+            const auto& pathProblem = pathProblems[i];
+            const char* timeFmt = "%Y-%m-%d %H:%M:%S";
+
+            cd.addValue("PATH", pathProblem.mPath);
+
+            if (syncIssueReason == mega::SyncWaitReason::FolderMatchedAgainstFile)
+            {
+                cd.addValue("TYPE", pathProblem.mPathType);
+            }
+            else
+            {
+                cd.addValue("PATH ISSUE", pathProblem.getProblemStr());
+            }
+
+            cd.addValue("LAST MODIFIED", pathProblem.mModifiedTime ? getReadableTime(pathProblem.mModifiedTime, timeFmt) : "-");
+            cd.addValue("UPLOADED", pathProblem.mUploadedTime ? getReadableTime(pathProblem.mUploadedTime, timeFmt) : "-");
+            cd.addValue("SIZE", sizeToText(pathProblem.mFileSize));
+        }
+
+        OUTSTREAM << cd.str();
+        if (rowCountLimit < pathProblems.size())
+        {
+            OUTSTREAM << endl;
+            OUTSTREAM << "Note: showing " << rowCountLimit << " out of " << static_cast<unsigned int>(pathProblems.size()) << " path problems. "
+                      << "Use \"" << commandPrefixBasedOnMode() << "sync-issues --detail " << syncIssue.getId() << " --limit=0\" to see all of them." << endl;
+        }
+    }
+
+    void printAllIssuesDetail(mega::MegaApi& api, megacmd::ColumnDisplayer& cd, const SyncIssueList& syncIssues, bool disablePathCollapse, int rowCountLimit)
+    {
+        // We'll use the row count limit only for the path problems; since the user has added "--all",
+        // we assume they want to see all issues, and thus the limit doesn't apply to the issue list in this case
+        for (const auto& syncIssue : syncIssues)
+        {
+            OUTSTREAM << "[Details on issue " << syncIssue.getId() << "]" << endl;
+            printSingleIssueDetail(api, cd, syncIssue, disablePathCollapse, rowCountLimit);
+            OUTSTREAM << endl;
+
+            cd.clear();
+        }
+    }
 }

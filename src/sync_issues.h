@@ -21,6 +21,7 @@
 
 #include "megaapi.h"
 #include "mega/types.h"
+#include "megacmdcommonutils.h"
 
 #define GENERATE_FROM_PATH_PROBLEM(GENERATOR_MACRO) \
         GENERATOR_MACRO(mega::PathProblem::NoProblem,                             "None") \
@@ -113,7 +114,7 @@ class SyncIssueList
 
 public:
     template<typename Cb>
-    void forEach(Cb&& callback, size_t sizeLimit)
+    void forEach(Cb&& callback, size_t sizeLimit) const
     {
         for (size_t i = 0; i < size() && i < sizeLimit; ++i)
         {
@@ -152,3 +153,11 @@ public:
 
     mega::MegaGlobalListener* getGlobalListener() const { return mGlobalListener.get(); }
 };
+
+namespace SyncIssuesCommand
+{
+    void printAllIssues(mega::MegaApi& api, megacmd::ColumnDisplayer& cd, const SyncIssueList& syncIssues, bool disablePathCollapse, int rowCountLimit);
+
+    void printSingleIssueDetail(mega::MegaApi& api, megacmd::ColumnDisplayer& cd, const SyncIssue& syncIssue, bool disablePathCollapse, int rowCountLimit);
+    void printAllIssuesDetail(mega::MegaApi& api, megacmd::ColumnDisplayer& cd, const SyncIssueList& syncIssues, bool disablePathCollapse, int rowCountLimit);
+}

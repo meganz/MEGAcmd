@@ -328,6 +328,7 @@ public:
 
     void printHeaders(OUTSTREAMTYPE &os);
     void print(OUTSTREAMTYPE &os, bool printHeader = true);
+    void clear();
 
     void addHeader(const std::string &name, bool fixed = true, int minWidth = 0);
     void addValue(const std::string &name, const std::string & value, bool replace = false);
