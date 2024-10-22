@@ -1,5 +1,8 @@
 #!/bin/sh
 
+# This is the directory structure expected by some of our read integration tests
+# We can use this script to re-populate it if it gets deleted from our exports account for whatever reason
+
 set -e
 
 mega-login $MEGACMD_TEST_USER $MEGACMD_TEST_PASS
