@@ -82,6 +82,7 @@ class SyncIssuesManager final
 {
     mega::MegaApi& mApi;
     bool mWarningEnabled;
+    std::mutex mWarningMtx;
 
     std::unique_ptr<mega::MegaGlobalListener> mGlobalListener;
     std::unique_ptr<mega::MegaRequestListener> mRequestListener;

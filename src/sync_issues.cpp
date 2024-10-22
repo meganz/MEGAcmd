@@ -466,11 +466,12 @@ unsigned int SyncIssueList::getSyncIssueCount(const mega::MegaSync& sync) const
 
 void SyncIssuesManager::onSyncIssuesChanged(unsigned int newSyncIssuesSize)
 {
+    std::lock_guard lock(mWarningMtx);
     if (mWarningEnabled && newSyncIssuesSize > 0)
     {
         std::string message = "Sync issues detected: your syncs have encountered conflicts that may require your intervention.\n"s +
-                            "Use the \"%%mega-%%sync-issues\" command to display them.\n" +
-                            "This message can be disabled with \"%%mega-%%sync-issues --disable-warning\".";
+                              "Use the \"%%mega-%%sync-issues\" command to display them.\n" +
+                              "This message can be disabled with \"%%mega-%%sync-issues --disable-warning\".";
         broadcastMessage(message, true);
     }
 
@@ -508,6 +509,7 @@ SyncIssueList SyncIssuesManager::getSyncIssues() const
 
 void SyncIssuesManager::disableWarning()
 {
+    std::lock_guard lock(mWarningMtx);
     if (!mWarningEnabled)
     {
         OUTSTREAM << "Note: warning is already disabled" << endl;
@@ -519,6 +521,7 @@ void SyncIssuesManager::disableWarning()
 
 void SyncIssuesManager::enableWarning()
 {
+    std::lock_guard lock(mWarningMtx);
     if (mWarningEnabled)
     {
         OUTSTREAM << "Note: warning is already enabled" << endl;
