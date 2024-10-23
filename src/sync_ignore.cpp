@@ -228,9 +228,10 @@ MegaIgnoreFile::MegaIgnoreFile(const std::string& path) :
     mPath(path),
     mValid(false)
 {
+    auto fileLock = getFileLock(mPath);
     if (fs::exists(mPath))
     {
-        load();
+        loadFromPath();
     }
     else
     {
@@ -238,15 +239,16 @@ MegaIgnoreFile::MegaIgnoreFile(const std::string& path) :
     }
 }
 
-void MegaIgnoreFile::load()
+void MegaIgnoreFile::loadFromPath()
 {
-    auto fileLock = getFileLock(mPath);
+    mValid = false;
 
     std::ifstream file(mPath);
     if (!file.is_open() || file.fail())
     {
         return;
     }
+
     checkBOMAndSkip(file);
     loadFilters(file);
     mValid = true;
@@ -254,8 +256,6 @@ void MegaIgnoreFile::load()
 
 void MegaIgnoreFile::createWithBOM()
 {
-    auto fileLock = getFileLock(mPath);
-
     std::ofstream file(mPath);
     if (!file.is_open() || file.fail())
     {
@@ -267,20 +267,20 @@ void MegaIgnoreFile::createWithBOM()
 
 void MegaIgnoreFile::addFilters(const std::set<std::string>& filters)
 {
-    assert(mValid);
     auto fileLock = getFileLock(mPath);
-
-    std::ofstream file(mPath, std::ios_base::app);
-    for (const std::string& filter : filters)
     {
-        file << filter << NL;
+        std::ofstream file(mPath, std::ios_base::app);
+        for (const std::string& filter : filters)
+        {
+            file << filter << NL;
+        }
     }
-    mValid = false;
+
+    loadFromPath();
 }
 
 void MegaIgnoreFile::removeFilters(const std::set<std::string>& filters)
 {
-    assert(mValid);
     auto fileLock = getFileLock(mPath);
 
     std::string newContents;
@@ -299,9 +299,12 @@ void MegaIgnoreFile::removeFilters(const std::set<std::string>& filters)
         }
     }
 
-    std::ofstream outFile(mPath, std::ios_base::trunc);
-    outFile << (hasBOM ? BOMStr : "") << newContents;
-    mValid = false;
+    {
+        std::ofstream outFile(mPath, std::ios_base::trunc);
+        outFile << (hasBOM ? BOMStr : "") << newContents;
+    }
+
+    loadFromPath();
 }
 
 bool MegaIgnoreFile::containsFilter(const std::string& filter) const
@@ -313,7 +316,6 @@ bool MegaIgnoreFile::containsFilter(const std::string& filter) const
 std::string MegaIgnoreFile::getFilterContents() const
 {
     assert(mValid);
-
     std::string contents;
     for (const std::string& filter : mFilters)
     {
