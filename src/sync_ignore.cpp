@@ -36,14 +36,14 @@ const char* NL = "\r\n";
 const char* NL = "\n";
 #endif
 
-void removeCarriageReturn(std::string& str)
+void trimSpacesAndCarriageReturn(std::string& str)
 {
-#ifdef _WIN32
-    if (!str.empty() && str.back() == '\r')
+    auto end = std::find_if_not(str.rbegin(), str.rend(), [] (char c)
     {
-        str.pop_back();
-    }
-#endif
+        return c == ' ' || c == '\r';
+    }).base();
+
+    str.erase(end, str.end());
 }
 
 std::unique_lock<std::mutex> getFileLock(const std::string& str)
@@ -202,7 +202,7 @@ void MegaIgnoreFile::loadFilters(std::ifstream& file)
     mFilters.clear();
     for (std::string line; getline(file, line);)
     {
-        removeCarriageReturn(line);
+        trimSpacesAndCarriageReturn(line);
         if (line.empty() || line[0] == '#')
         {
             continue;
@@ -290,7 +290,7 @@ void MegaIgnoreFile::removeFilters(const std::set<std::string>& filters)
         hasBOM = checkBOMAndSkip(file);
         for (std::string line; getline(file, line);)
         {
-            removeCarriageReturn(line);
+            trimSpacesAndCarriageReturn(line);
             if (filters.count(line))
             {
                 continue;
@@ -310,7 +310,10 @@ void MegaIgnoreFile::removeFilters(const std::set<std::string>& filters)
 bool MegaIgnoreFile::containsFilter(const std::string& filter) const
 {
     assert(mValid);
-    return mFilters.count(filter) > 0;
+
+    std::string cleanFilter = filter;
+    trimSpacesAndCarriageReturn(cleanFilter);
+    return mFilters.count(cleanFilter) > 0;
 }
 
 std::string MegaIgnoreFile::getFilterContents() const
