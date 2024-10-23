@@ -441,6 +441,14 @@ void ConfigurationManager::saveBackups(map<string, backup_struct *> *backupsmap)
 
 void ConfigurationManager::transitionLegacyExclusionRules(MegaApi& api)
 {
+    // Note that using `MegaApi::exportLegacyExclusionRules` here won't simplify much.
+    // Since we still need to manually load all legacy rules into a vector, call `setLegacyExcludedNames`,
+    // then call `exportLegacyExclusionRules` to generate a .megaignore file, and finally move it manually
+    // to our location and add the .default prefix.
+    // Since we need to have all the custom mega ignore functionality for the `mega-ignore` command anyway,
+    // and since we also need to manually read the legacy file, it's just easier to rely on our custom
+    // method to generate the default file.
+
     std::lock_guard g(settingsMutex);
 
     const string defaultMegaIgnorePath = MegaIgnoreFile::getDefaultPath();
