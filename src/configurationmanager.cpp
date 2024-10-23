@@ -451,6 +451,7 @@ void ConfigurationManager::transitionLegacyExclusionRules(MegaApi& api)
     }
 
     const string excludeFilePath = mConfigFolder + "/excluded";
+    const string hiddenExcludeFilePath = mConfigFolder + "/.excluded";
     if (!fs::exists(excludeFilePath))
     {
         LOG_debug << "Missing legacy exclude file. Skipping transition";
@@ -498,10 +499,14 @@ void ConfigurationManager::transitionLegacyExclusionRules(MegaApi& api)
     // This ensures transition works in case there are no existing syncs
     megaIgnoreFile.addFilters(excludeFilters);
 
-    LOG_debug << "Transition of legacy exclusion rules completed successfully. Deleting legacy exclude file";
-    if (!fs::remove(excludeFilePath))
+    LOG_debug << "Transition of legacy exclusion rules completed successfully. Hidding legacy exclude file";
+    try
     {
-        LOG_err << "Could not remove legacy exclude file " << excludeFilePath;
+        fs::rename(excludeFilePath, hiddenExcludeFilePath);
+    }
+    catch (const fs::filesystem_error& e)
+    {
+        LOG_err << "Could not hide legacy exclude file " << excludeFilePath << " (error: " << e.what() << ")";
     }
 
     string message = "Your legacy sync exclusion rules have been ported to \"" +
