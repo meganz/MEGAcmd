@@ -128,6 +128,31 @@ TEST_F(SyncIgnoreTests, AddAndRemove)
     EXPECT_THAT(result.out(), testing::Not(testing::HasSubstr(filter)));
 }
 
+TEST_F(SyncIgnoreTests, AddAndRemoveWithExclusionArgument)
+{
+    std::string filter1 = "n:*.mp4";
+    std::string filter2 = "fp:pics/*.jpg";
+    std::string filter3 = "d:private";
+
+    auto result = executeInClient({"sync-ignore", "--add-exclusion", filter1, filter2, filter3});
+    ASSERT_TRUE(result.ok());
+    EXPECT_THAT(result.out(), testing::HasSubstr("Added filter " + qw("-" + filter1)));
+    EXPECT_THAT(result.out(), testing::HasSubstr("Added filter " + qw("-" + filter2)));
+    EXPECT_THAT(result.out(), testing::HasSubstr("Added filter " + qw("-" + filter3)));
+
+    result = executeInClient({"sync-ignore", "--remove-exclusion", filter1, filter2, filter3});
+    ASSERT_TRUE(result.ok());
+    EXPECT_THAT(result.out(), testing::HasSubstr("Removed filter " + qw("-" + filter1)));
+    EXPECT_THAT(result.out(), testing::HasSubstr("Removed filter " + qw("-" + filter2)));
+    EXPECT_THAT(result.out(), testing::HasSubstr("Removed filter " + qw("-" + filter3)));
+
+    result = executeInClient({"sync-ignore", "--show"});
+    ASSERT_TRUE(result.ok());
+    EXPECT_THAT(result.out(), testing::Not(testing::HasSubstr(filter1)));
+    EXPECT_THAT(result.out(), testing::Not(testing::HasSubstr(filter2)));
+    EXPECT_THAT(result.out(), testing::Not(testing::HasSubstr(filter3)));
+}
+
 TEST_F(SyncIgnoreTests, CannotAddIfAlreadyExists)
 {
     std::string filter = "+fg:work*.txt";

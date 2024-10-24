@@ -11,11 +11,16 @@ If no action is provided, filters will be shown for the selected sync.
 Options:
 --show	Show the existing filters of the selected sync
 --add	Add the specified filters to the selected sync
+--add-exclusion	Same as "--add", but the <CLASS> is 'exclude'
+               	Note: the `-` must be omitted from the filter (using '--' is not necessary)
 --remove	Remove the specified filters from the selected sync
+--remove-exclusion	Same as "--remove", but the <CLASS> is 'exclude'
+                  	Note: the `-` must be omitted from the filter (using '--' is not necessary)
 
 Filters must have the following format: <CLASS><TARGET><TYPE><STRATEGY>:<PATTERN>
 	<CLASS> Must be either exclude, or include
 		exclude (`-`): This filter contains files or directories that *should not* be synchronized
+		               Note: exclude filters must be preceded by '--', or they won't be recognized
 		include (`+`): This filter contains files or directories that *should* be synchronized
 	<TARGET> May be one of the following: directory, file, symlink, or all
 		directory (`d`): This filter applies only to directories

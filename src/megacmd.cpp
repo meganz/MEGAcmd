@@ -625,7 +625,9 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     {
         validParams->insert("show");
         validParams->insert("add");
+        validParams->insert("add-exclusion");
         validParams->insert("remove");
+        validParams->insert("remove-exclusion");
     }
     else if ("export" == thecommand)
     {
@@ -2570,7 +2572,11 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << "Options:" << endl;
         os << "--show" << "\t" << "Show the existing filters of the selected sync" << endl;
         os << "--add" << "\t" << "Add the specified filters to the selected sync" << endl;
+        os << "--add-exclusion" << "\t" << "Same as \"--add\", but the <CLASS> is 'exclude'" << endl;
+        os << "               " << "\t" << "Note: the `-` must be omitted from the filter (using '--' is not necessary)" << endl;
         os << "--remove" << "\t" << "Remove the specified filters from the selected sync" << endl;
+        os << "--remove-exclusion" << "\t" << "Same as \"--remove\", but the <CLASS> is 'exclude'" << endl;
+        os << "                  " << "\t" << "Note: the `-` must be omitted from the filter (using '--' is not necessary)" << endl;
         os << endl;
         os << "Filters must have the following format: <CLASS><TARGET><TYPE><STRATEGY>:<PATTERN>" << endl;
         os << "\t" << "<CLASS> Must be either exclude, or include" << endl;

@@ -8043,12 +8043,14 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
         bool ignoreShow = getFlag(clflags, "show");
         bool ignoreAdd = getFlag(clflags, "add");
+        bool ignoreAddExclusion = getFlag(clflags, "add-exclusion");
         bool ignoreRemove = getFlag(clflags, "remove");
+        bool ignoreRemoveExclusion = getFlag(clflags, "remove-exclusion");
 
-        if ((ignoreAdd && (ignoreRemove || ignoreShow)) || (ignoreRemove && ignoreShow))
+        if (!onlyZeroOrOneOf(ignoreShow, ignoreAdd, ignoreAddExclusion, ignoreRemove, ignoreRemoveExclusion))
         {
             setCurrentOutCode(MCMD_EARGS);
-            LOG_err << "Only one action (show, add, or remove) can be specified at a time";
+            LOG_err << "Only one action (show, add, add-exclusion, remove, or remove-exclusion) can be specified at a time";
             LOG_err << "      " << getUsageStr("sync-ignore");
             return;
         }
@@ -8056,11 +8058,11 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         SyncIgnore::Args args;
 
         args.mAction = SyncIgnore::Action::Show;
-        if (ignoreAdd)
+        if (ignoreAdd || ignoreAddExclusion)
         {
             args.mAction = SyncIgnore::Action::Add;
         }
-        else if (ignoreRemove)
+        else if (ignoreRemove || ignoreRemoveExclusion)
         {
             args.mAction = SyncIgnore::Action::Remove;
         }
@@ -8074,11 +8076,11 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             sync.reset(api->getSyncByPath(pathOrId.c_str()));
         }
 
-        auto filter_end = words.end();
+        auto filtersEndItr = words.end();
         if (sync)
         {
             args.mMegaIgnoreDirPath = std::string(sync->getLocalFolder());
-            --filter_end; // the last word is the sync [path|ID]; not a filter
+            --filtersEndItr; // the last word is the sync [path|ID]; not a filter
         }
         else if (args.mAction != SyncIgnore::Action::Show || words.size() == 1)
         {
@@ -8092,7 +8094,18 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             return;
         }
 
-        args.mFilters.insert(words.begin() + 1, filter_end);
+        auto filterInserter = [ignoreAddExclusion, ignoreRemoveExclusion] (const string& word)
+        {
+            if (ignoreAddExclusion || ignoreRemoveExclusion)
+            {
+                return "-" + word;
+            }
+            return word;
+        };
+
+        std::transform(words.begin() + 1, filtersEndItr,
+                       std::inserter(args.mFilters, args.mFilters.end()), filterInserter);
+
         SyncIgnore::executeCommand(args);
     }
 #endif

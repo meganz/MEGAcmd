@@ -238,6 +238,12 @@ void printCenteredContentsT(WHERE &&o, const std::string &msj, unsigned int widt
     o << os.str();
 }
 
+template <typename... Bools>
+bool onlyZeroOrOneOf(Bools... args)
+{
+    return (args + ...) <= 1;
+}
+
 void printPercentageLineCerr(const char *title, long long completed, long long total, float percentDowloaded, bool cleanLineAfter = true);
 
 
