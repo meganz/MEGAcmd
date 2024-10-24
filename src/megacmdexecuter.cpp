@@ -8069,8 +8069,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
         string pathOrId = words.back(); // the last word could be the [path|ID], or the last filter
 
-        std::unique_ptr<MegaSync> sync;
-        sync.reset(api->getSyncByBackupId(base64ToSyncBackupId(pathOrId)));
+        std::unique_ptr<MegaSync> sync(api->getSyncByBackupId(base64ToSyncBackupId(pathOrId)));
         if (!sync)
         {
             sync.reset(api->getSyncByPath(pathOrId.c_str()));
