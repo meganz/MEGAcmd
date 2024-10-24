@@ -8092,10 +8092,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             return;
         }
 
-        std::transform(words.begin() + 1, filter_end,
-                       std::inserter(args.mFilters, args.mFilters.end()),
-                       [] (const string& word) { string f(word); replaceAll(f, "`", ""); return f; });
-
+        args.mFilters.insert(words.begin() + 1, filter_end);
         SyncIgnore::executeCommand(args);
     }
 #endif

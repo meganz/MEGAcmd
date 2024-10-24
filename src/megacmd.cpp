@@ -2575,6 +2575,7 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << "Filters must have the following format: <CLASS><TARGET><TYPE><STRATEGY>:<PATTERN>" << endl;
         os << "\t" << "<CLASS> Must be either exclude, or include" << endl;
         os << "\t" << "\t" << "exclude (`-`): This filter contains files or directories that *should not* be synchronized" << endl;
+        os << "\t" << "\t" << "               Note: exclude filters must be preceded by '--', or they won't be recognized" << endl;
         os << "\t" << "\t" << "include (`+`): This filter contains files or directories that *should* be synchronized" << endl;
         os << "\t" << "<TARGET> May be one of the following: directory, file, symlink, or all" << endl;
         os << "\t" << "\t" << "directory (`d`): This filter applies only to directories" << endl;
