@@ -470,8 +470,8 @@ void SyncIssuesManager::onSyncIssuesChanged(unsigned int newSyncIssuesSize)
     if (mWarningEnabled && newSyncIssuesSize > 0)
     {
         std::string message = "Sync issues detected: your syncs have encountered conflicts that may require your intervention.\n"s +
-                              "Use the \"%%mega-%%sync-issues\" command to display them.\n" +
-                              "This message can be disabled with \"%%mega-%%sync-issues --disable-warning\".";
+                              "Use the \"%mega-%sync-issues\" command to display them.\n" +
+                              "This message can be disabled with \"%mega-%sync-issues --disable-warning\".";
         broadcastMessage(message, true);
     }
 

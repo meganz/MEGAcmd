@@ -312,7 +312,7 @@ void statechangehandle(string statestring)
                 int oldmode = _setmode(_fileno(stdout), _O_U8TEXT);
 #endif
                 string contents = newstate.substr(strlen("message:"));
-                replaceAll(contents, "%%mega-%%", "");
+                replaceAll(contents, "%mega-%", "");
 
                 if (contents.find("-----") != 0)
                 {
