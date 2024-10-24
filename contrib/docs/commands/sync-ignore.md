@@ -7,6 +7,7 @@ If no path or sync ID is provided, the default mega ignore filters will be selec
 Note: when modifying the default filters, existing syncs won't be affected. Only newly created ones.
 
 If no action is provided, filters will be shown for the selected sync.
+Only the filters at the root of the selected sync will be accessed. Filters beloging to sub-folders must be modified manually.
 
 Options:
 --show	Show the existing filters of the selected sync

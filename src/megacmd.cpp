@@ -2568,6 +2568,7 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << "Note: when modifying the default filters, existing syncs won't be affected. Only newly created ones." << endl;
         os << endl;
         os << "If no action is provided, filters will be shown for the selected sync." << endl;
+        os << "Only the filters at the root of the selected sync will be accessed. Filters beloging to sub-folders must be modified manually." << endl;
         os << endl;
         os << "Options:" << endl;
         os << "--show" << "\t" << "Show the existing filters of the selected sync" << endl;
