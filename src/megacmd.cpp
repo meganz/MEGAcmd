@@ -2514,7 +2514,7 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
     else if (!strcmp(command, "exclude"))
     {
         os << "Manages default exclusion rules in syncs." << endl;
-        os << "These default rules will be used when creating new syncs. Existing syncs won't be affected. To modify the exclusion rules of existing syncs, use sync-ignore." << endl;
+        os << "These default rules will be used when creating new syncs. Existing syncs won't be affected. To modify the exclusion rules of existing syncs, use " << commandPrefixBasedOnMode() << "sync-ignore." << endl;
         os << endl;
         os << "Options:" << endl;
         os << " -a pattern1 pattern2 ..." << "\t" << "adds pattern(s) to the exclusion list" << endl;

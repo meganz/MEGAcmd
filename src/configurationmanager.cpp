@@ -482,6 +482,8 @@ void ConfigurationManager::transitionLegacyExclusionRules(MegaApi& api)
         return;
     }
 
+    sendEvent(StatsManager::MegacmdEvent::TRANSITIONING_PRE_SRW_EXCLUSIONS, &api, false);
+
     std::set<string> excludeFilters;
     std::vector<string> excludePatterns;
     for (std::string line; getline(excludeFile, line);)
@@ -495,7 +497,7 @@ void ConfigurationManager::transitionLegacyExclusionRules(MegaApi& api)
         string filter = SyncIgnore::getFilterFromLegacyPattern(line);
         if (!MegaIgnoreFile::isValidFilter(filter))
         {
-            LOG_debug << "Found invalid pattern \"" << line << "\" in legacy exclude file";
+            LOG_warn << "Found invalid pattern \"" << line << "\" in legacy exclude file";
             continue;
         }
         excludeFilters.insert(filter);
