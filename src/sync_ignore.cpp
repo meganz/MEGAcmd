@@ -40,7 +40,7 @@ void trimSpacesAndCarriageReturn(std::string& str)
 {
     auto end = std::find_if_not(str.rbegin(), str.rend(), [] (char c)
     {
-        return c == ' ' || c == '\r';
+        return std::isspace(static_cast<unsigned char>(c)) != 0;
     }).base();
 
     str.erase(end, str.end());
