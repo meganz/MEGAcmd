@@ -449,8 +449,6 @@ void ConfigurationManager::transitionLegacyExclusionRules(MegaApi& api)
     // and since we also need to manually read the legacy file, it's just easier to rely on our custom
     // method to generate the default file.
 
-    std::lock_guard g(settingsMutex);
-
     const string defaultMegaIgnorePath = MegaIgnoreFile::getDefaultPath();
     if (fs::exists(defaultMegaIgnorePath))
     {
