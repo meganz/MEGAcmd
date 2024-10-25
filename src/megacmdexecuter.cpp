@@ -4775,7 +4775,7 @@ void MegaCmdExecuter::printSync(MegaSync *sync, long long nfiles, long long nfol
     else
     {
         string syncIssuesMsg = "NO";
-        unsigned int syncIssuesCount = syncIssues.getSyncIssueCount(*sync);
+        unsigned int syncIssuesCount = syncIssues.getSyncIssuesCount(*sync);
         if (syncIssuesCount > 0)
         {
             syncIssuesMsg = "Sync Issues (" + std::to_string(syncIssuesCount) + ")";
@@ -11020,7 +11020,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         {
             auto parentSync = syncIssue.getParentSync(*api);
 
-            cd.addValue("ISSUE ID", syncIssue.getId());
+            cd.addValue("ISSUE ID", std::to_string(syncIssue.getId()));
             cd.addValue("PARENT SYNC", parentSync ? parentSync->getName() : "<not found>");
             cd.addValue("REASON", syncIssue.getSyncInfo(parentSync.get()).mReason);
             cd.addValue("SOLVABLE", "NO" /* Until CMD-311 */);

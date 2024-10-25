@@ -98,7 +98,7 @@ class SyncIssuesRequestListener : public mega::SynchronousRequestListener
             auto stall = stalls->get(i);
             assert(stall);
 
-            syncIssues.mIssuesVec.emplace_back(*stall);
+            syncIssues.mIssuesMap.emplace(static_cast<uint32_t>(stall->getHash()), *stall);
         }
         onSyncIssuesChanged(syncIssues);
 
@@ -257,33 +257,10 @@ SyncIssue::SyncIssue(const mega::MegaSyncStall &stall) :
 {
 }
 
-const std::string& SyncIssue::getId() const
+unsigned int SyncIssue::getId() const
 {
-    if (mId.empty())
-    {
-        std::hash<std::string> hasher;
-
-        std::string combinedDataStr;
-        combinedDataStr += std::to_string(mMegaStall->reason());
-
-        for (bool isLocal : {true, false})
-        {
-            for (int i = 0; i < mMegaStall->pathCount(isLocal); ++i)
-            {
-                combinedDataStr += mMegaStall->path(isLocal, i);
-                combinedDataStr += std::to_string(mMegaStall->pathProblem(isLocal, i));
-            }
-        }
-
-        // Ensure the id has a size of 11, same as the sync ID
-        std::stringstream ss;
-        ss << std::setw(11) << std::setfill('0') << hasher(combinedDataStr);
-        mId = ss.str();
-
-        assert(mId.size() >= 11);
-        mId = mId.substr(0, 11);
-    }
-    return mId;
+    assert(mMegaStall);
+    return static_cast<uint32_t>(mMegaStall->getHash());
 }
 
 SyncInfo SyncIssue::getSyncInfo(mega::MegaSync const* parentSync) const
@@ -451,12 +428,12 @@ bool SyncIssue::belongsToSync(const mega::MegaSync& sync) const
     return false;
 }
 
-unsigned int SyncIssueList::getSyncIssueCount(const mega::MegaSync& sync) const
+unsigned int SyncIssueList::getSyncIssuesCount(const mega::MegaSync& sync) const
 {
     unsigned int count = 0;
     for (const auto& syncIssue : *this)
     {
-        if (syncIssue.belongsToSync(sync))
+        if (syncIssue.second.belongsToSync(sync))
         {
             ++count;
         }
