@@ -4739,7 +4739,7 @@ void MegaCmdExecuter::printBackup(backup_struct *backupstruct, const char *timeF
     }
 }
 
-void MegaCmdExecuter::printSync(MegaSync *sync, long long nfiles, long long nfolders, megacmd::ColumnDisplayer &cd,  std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions, const SyncIssueList& syncIssueList)
+void MegaCmdExecuter::printSync(MegaSync *sync, long long nfiles, long long nfolders, megacmd::ColumnDisplayer &cd,  std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions, const SyncIssueList& syncIssues)
 {
     cd.addValue("ID", syncBackupIdToBase64(sync->getBackupId()));
 
@@ -4774,13 +4774,13 @@ void MegaCmdExecuter::printSync(MegaSync *sync, long long nfiles, long long nfol
     }
     else
     {
-        string syncIssueMsg = "NO";
-        unsigned int syncIssueCount = syncIssueList.getSyncIssueCount(*sync);
-        if (syncIssueCount > 0)
+        string syncIssuesMsg = "NO";
+        unsigned int syncIssuesCount = syncIssues.getSyncIssueCount(*sync);
+        if (syncIssuesCount > 0)
         {
-            syncIssueMsg = "Sync Issues (" + std::to_string(syncIssueCount) + ")";
+            syncIssuesMsg = "Sync Issues (" + std::to_string(syncIssuesCount) + ")";
         }
-        cd.addValue("ERROR", syncIssueMsg);
+        cd.addValue("ERROR", syncIssuesMsg);
     }
 
     std::unique_ptr<MegaNode> n{api->getNodeByHandle(sync->getMegaHandle())};
@@ -7985,7 +7985,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         {
             ColumnDisplayer cd(clflags, cloptions);
 
-            auto syncIssueList = mSyncIssuesManager.getSyncIssues();
+            auto syncIssues = mSyncIssuesManager.getSyncIssues();
 
             std::unique_ptr<MegaSyncList> syncs{api->getSyncs()};
             for (int i = 0; i < syncs->size(); i++)
@@ -8011,13 +8011,13 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     printSyncHeader(cd);
                 }
 
-                printSync(sync, nfiles, nfolders, cd, clflags, cloptions, syncIssueList);
+                printSync(sync, nfiles, nfolders, cd, clflags, cloptions, syncIssues);
             }
             OUTSTRINGSTREAM oss;
             cd.print(oss);
             OUTSTREAM << oss.str();
 
-            if (!syncIssueList.empty())
+            if (!syncIssues.empty())
             {
                 OUTSTREAM << endl;
                 OUTSTREAM << "You have sync issues. Use the \"" << commandPrefixBasedOnMode() << "sync-issues\" command to display them." << endl;
@@ -10980,8 +10980,8 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             return;
         }
 
-        int syncIssueCountLimit = getintOption(cloptions, "limit", 10);
-        if (syncIssueCountLimit < 0)
+        int syncIssuesCountLimit = getintOption(cloptions, "limit", 10);
+        if (syncIssuesCountLimit < 0)
         {
             setCurrentOutCode(MCMD_EARGS);
             LOG_err << "Sync issue limit cannot be less than 0";
@@ -11001,22 +11001,22 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             return;
         }
 
-        auto syncIssueCache = mSyncIssuesManager.getSyncIssues();
-        if (syncIssueCache.empty())
+        auto syncIssues = mSyncIssuesManager.getSyncIssues();
+        if (syncIssues.empty())
         {
             OUTSTREAM << "There are no sync issues" << endl;
             return;
         }
 
-        if (syncIssueCountLimit == 0)
+        if (syncIssuesCountLimit == 0)
         {
-            syncIssueCountLimit = std::numeric_limits<int>::max();
+            syncIssuesCountLimit = std::numeric_limits<int>::max();
         }
 
         ColumnDisplayer cd(clflags, cloptions);
         cd.addHeader("PARENT SYNC", disablePathCollapse);
 
-        syncIssueCache.forEach([this, &cd] (const SyncIssue& syncIssue)
+        syncIssues.forEach([this, &cd] (const SyncIssue& syncIssue)
         {
             auto parentSync = syncIssue.getParentSync(*api);
 
@@ -11024,16 +11024,16 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             cd.addValue("PARENT SYNC", parentSync ? parentSync->getName() : "<not found>");
             cd.addValue("REASON", syncIssue.getSyncInfo(parentSync.get()).mReason);
             cd.addValue("SOLVABLE", "NO" /* Until CMD-311 */);
-        }, syncIssueCountLimit);
+        }, syncIssuesCountLimit);
 
         OUTSTRINGSTREAM oss;
         cd.print(oss);
         OUTSTREAM << oss.str();
 
-        if (syncIssueCountLimit < syncIssueCache.size())
+        if (syncIssuesCountLimit < syncIssues.size())
         {
             OUTSTREAM << endl;
-            OUTSTREAM << "Note: showing " << syncIssueCountLimit << " out of " << syncIssueCache.size() << " issues. "
+            OUTSTREAM << "Note: showing " << syncIssuesCountLimit << " out of " << syncIssues.size() << " issues. "
                       << "Use \"" << commandPrefixBasedOnMode() << "sync-issues --limit=0\" to see all issues." << endl;
         }
     }
