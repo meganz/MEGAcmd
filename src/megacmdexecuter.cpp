@@ -35,7 +35,7 @@
 #include <limits>
 #include <string>
 #include <ctime>
-
+#include <filesystem>
 #include <set>
 
 #include <signal.h>
@@ -45,32 +45,11 @@
     using TI = TestInstruments;
 #endif
 
-
-#if (__cplusplus >= 201700L)
-    #include <filesystem>
-    namespace fs = std::filesystem;
-    #define MEGACMDEXECUTER_FILESYSTEM
-#elif !defined(__MINGW32__) && !defined(__ANDROID__) && (!defined(__GNUC__) || (__GNUC__*100+__GNUC_MINOR__) >= 503)
-#define MEGACMDEXECUTER_FILESYSTEM
-#ifdef WIN32
-    #include <filesystem>
-    namespace fs = std::experimental::filesystem;
-#else
-    #include <experimental/filesystem>
-    namespace fs = std::experimental::filesystem;
-#endif
-#endif
-
-#ifdef ENFORCE_MEGACMDEXECUTER_FILESYSTEM_UNSETTING
-#undef MEGACMDEXECUTER_FILESYSTEM
-#endif
-
-
+namespace fs = std::filesystem;
 using namespace mega;
-
-namespace megacmd {
 using namespace std;
 
+namespace megacmd {
 static const char* rootnodenames[] = { "ROOT", "INBOX", "RUBBISH" };
 static const char* rootnodepaths[] = { "/", "//in", "//bin" };
 
@@ -4024,7 +4003,6 @@ vector<string> MegaCmdExecuter::listlocalpathsstartingby(string askedPath, bool 
     }
 #endif
 
-#ifdef MEGACMDEXECUTER_FILESYSTEM
     for (fs::directory_iterator iter(fs::u8path(containingfolder)); iter != fs::directory_iterator(); ++iter)
     {
         if (!discardFiles || iter->status().type() == fs::file_type::directory)
@@ -4058,32 +4036,6 @@ vector<string> MegaCmdExecuter::listlocalpathsstartingby(string askedPath, bool 
 
         }
     }
-
-#elif defined(HAVE_DIRENT_H)
-    DIR *dir;
-    if ((dir = opendir (containingfolder.c_str())) != NULL)
-    {
-        struct dirent *entry;
-        while ((entry = readdir (dir)) != NULL)
-        {
-            if (!discardFiles || entry->d_type == DT_DIR)
-            {
-                string path = containingfolder;
-                if (path != "/")
-                    path.append(1, sep);
-                path.append(entry->d_name);
-                if (removeprefix) path = path.substr(2);
-                if (path.size() && entry->d_type == DT_DIR)
-                {
-                    path.append(1, sep);
-                }
-                paths.push_back(path);
-            }
-        }
-
-        closedir(dir);
-    }
-#endif
     return paths;
 }
 
@@ -4190,31 +4142,10 @@ vector<string> MegaCmdExecuter::getsessions()
 vector<string> MegaCmdExecuter::getlistfilesfolders(string location)
 {
     vector<string> toret;
-#ifdef MEGACMDEXECUTER_FILESYSTEM
     for (fs::directory_iterator iter(fs::u8path(location)); iter != fs::directory_iterator(); ++iter)
     {
         toret.push_back(iter->path().filename().u8string());
     }
-
-#elif defined(HAVE_DIRENT_H)
-    DIR *dir;
-    struct dirent *entry;
-    if ((dir = opendir (location.c_str())) != NULL)
-    {
-        while ((entry = readdir (dir)) != NULL)
-        {
-            if (IsFolder(location + entry->d_name))
-            {
-                toret.push_back(entry->d_name + string("/"));
-            }
-            else
-            {
-                toret.push_back(entry->d_name);
-            }
-        }
-        closedir (dir);
-    }
-#endif
     return toret;
 }
 
@@ -7090,11 +7021,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         }
 
 #ifdef HAVE_GLOB_H
-                        if (!newname.size()
-#ifdef MEGACMDEXECUTER_FILESYSTEM
-                                && !fs::exists(words[i])
-#endif
-                                && hasWildCards(words[i]))
+                        if (!newname.size() && !fs::exists(words[i]) && hasWildCards(words[i]))
                         {
                             auto paths = resolvewildcard(words[i]);
                             if (!paths.size())
@@ -7119,7 +7046,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     unique_ptr<MegaNode> pn(api->getNodeByHandle(n->getParentHandle()));
                     if (pn)
                     {
-#if defined(HAVE_GLOB_H) && defined(MEGACMDEXECUTER_FILESYSTEM)
+#ifdef HAVE_GLOB_H
                         if (!fs::exists(words[1]) && hasWildCards(words[1]))
                         {
                             LOG_err << "Invalid target for wildcard expression: " << words[1] << ". Folder expected";
