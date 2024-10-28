@@ -7819,25 +7819,25 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     return;
                 }
 
-                auto syncIssueList = mSyncIssuesManager.getSyncIssues();
+                auto syncIssues = mSyncIssuesManager.getSyncIssues();
 
                 ColumnDisplayer cd(clflags, cloptions);
-                SyncCommand::printSync(*api, cd, showHandles, *sync, syncIssueList);
+                SyncCommand::printSync(*api, cd, showHandles, *sync, syncIssues);
 
                 OUTSTREAM << cd.str();
             }
         }
         else if (words.size() == 1) // show all syncs
         {
-            auto syncIssueList = mSyncIssuesManager.getSyncIssues();
+            auto syncIssues = mSyncIssuesManager.getSyncIssues();
             auto syncList = std::unique_ptr<MegaSyncList>(api->getSyncs());
             assert(syncList);
 
             ColumnDisplayer cd(clflags, cloptions);
-            SyncCommand::printSyncList(*api, cd, showHandles, *syncList, syncIssueList);
+            SyncCommand::printSyncList(*api, cd, showHandles, *syncList, syncIssues);
 
             OUTSTREAM << cd.str();
-            if (!syncIssueList.empty())
+            if (!syncIssues.empty())
             {
                 OUTSTREAM << endl;
                 OUTSTREAM << "You have sync issues. Use the \"" << commandPrefixBasedOnMode() << "sync-issues\" command to display them." << endl;
@@ -7868,12 +7868,14 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
         bool ignoreShow = getFlag(clflags, "show");
         bool ignoreAdd = getFlag(clflags, "add");
+        bool ignoreAddExclusion = getFlag(clflags, "add-exclusion");
         bool ignoreRemove = getFlag(clflags, "remove");
+        bool ignoreRemoveExclusion = getFlag(clflags, "remove-exclusion");
 
-        if ((ignoreAdd && (ignoreRemove || ignoreShow)) || (ignoreRemove && ignoreShow))
+        if (!onlyZeroOrOneOf(ignoreShow, ignoreAdd, ignoreAddExclusion, ignoreRemove, ignoreRemoveExclusion))
         {
             setCurrentOutCode(MCMD_EARGS);
-            LOG_err << "Only one action (show, add, or remove) can be specified at a time";
+            LOG_err << "Only one action (show, add, add-exclusion, remove, or remove-exclusion) can be specified at a time";
             LOG_err << "      " << getUsageStr("sync-ignore");
             return;
         }
@@ -7881,11 +7883,11 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         SyncIgnore::Args args;
 
         args.mAction = SyncIgnore::Action::Show;
-        if (ignoreAdd)
+        if (ignoreAdd || ignoreAddExclusion)
         {
             args.mAction = SyncIgnore::Action::Add;
         }
-        else if (ignoreRemove)
+        else if (ignoreRemove || ignoreRemoveExclusion)
         {
             args.mAction = SyncIgnore::Action::Remove;
         }
@@ -7893,12 +7895,12 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         string pathOrId = words.back(); // the last word could be the [path|ID], or the last filter
 
         auto sync = SyncCommand::getSync(*api, pathOrId);
-        auto filter_end = words.end();
+        auto filtersEndItr = words.end();
 
         if (sync)
         {
             args.mMegaIgnoreDirPath = std::string(sync->getLocalFolder());
-            --filter_end; // the last word is the sync [path|ID]; not a filter
+            --filtersEndItr; // the last word is the sync [path|ID]; not a filter
         }
         else if (args.mAction != SyncIgnore::Action::Show || words.size() == 1)
         {
@@ -7912,9 +7914,17 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             return;
         }
 
-        std::transform(words.begin() + 1, filter_end,
-                       std::inserter(args.mFilters, args.mFilters.end()),
-                       [] (const string& word) { string f(word); replaceAll(f, "`", ""); return f; });
+        auto filterInserter = [ignoreAddExclusion, ignoreRemoveExclusion] (const string& word)
+        {
+            if (ignoreAddExclusion || ignoreRemoveExclusion)
+            {
+                return "-" + word;
+            }
+            return word;
+        };
+
+        std::transform(words.begin() + 1, filtersEndItr,
+                       std::inserter(args.mFilters, args.mFilters.end()), filterInserter);
 
         SyncIgnore::executeCommand(args);
     }
@@ -10789,8 +10799,8 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             return;
         }
 
-        int syncIssueCountLimit = getintOption(cloptions, "limit", 10);
-        if (syncIssueCountLimit < 0)
+        int syncIssuesCountLimit = getintOption(cloptions, "limit", 10);
+        if (syncIssuesCountLimit < 0)
         {
             setCurrentOutCode(MCMD_EARGS);
             LOG_err << "Sync issue limit cannot be less than 0";
@@ -10810,36 +10820,36 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             return;
         }
 
-        auto syncIssueCache = mSyncIssuesManager.getSyncIssues();
-        if (syncIssueCache.empty())
+        auto syncIssues = mSyncIssuesManager.getSyncIssues();
+        if (syncIssues.empty())
         {
             OUTSTREAM << "There are no sync issues" << endl;
             return;
         }
 
-        if (syncIssueCountLimit == 0)
+        if (syncIssuesCountLimit == 0)
         {
-            syncIssueCountLimit = std::numeric_limits<int>::max();
+            syncIssuesCountLimit = std::numeric_limits<int>::max();
         }
 
         ColumnDisplayer cd(clflags, cloptions);
         cd.addHeader("PARENT SYNC", disablePathCollapse);
 
-        syncIssueCache.forEach([this, &cd] (const SyncIssue& syncIssue)
+        syncIssues.forEach([this, &cd] (const SyncIssue& syncIssue)
         {
             auto parentSync = syncIssue.getParentSync(*api);
 
-            cd.addValue("ISSUE ID", syncIssue.getId());
+            cd.addValue("ISSUE ID", std::to_string(syncIssue.getId()));
             cd.addValue("PARENT SYNC", parentSync ? parentSync->getName() : "<not found>");
             cd.addValue("REASON", syncIssue.getSyncInfo(parentSync.get()).mReason);
             cd.addValue("SOLVABLE", "NO" /* Until CMD-311 */);
-        }, syncIssueCountLimit);
+        }, syncIssuesCountLimit);
 
         OUTSTREAM << cd.str();
-        if (syncIssueCountLimit < syncIssueCache.size())
+        if (syncIssuesCountLimit < syncIssues.size())
         {
             OUTSTREAM << endl;
-            OUTSTREAM << "Note: showing " << syncIssueCountLimit << " out of " << syncIssueCache.size() << " issues. "
+            OUTSTREAM << "Note: showing " << syncIssuesCountLimit << " out of " << syncIssues.size() << " issues. "
                       << "Use \"" << commandPrefixBasedOnMode() << "sync-issues --limit=0\" to see all issues." << endl;
         }
     }

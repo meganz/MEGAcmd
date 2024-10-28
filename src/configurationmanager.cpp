@@ -441,7 +441,13 @@ void ConfigurationManager::saveBackups(map<string, backup_struct *> *backupsmap)
 
 void ConfigurationManager::transitionLegacyExclusionRules(MegaApi& api)
 {
-    std::lock_guard g(settingsMutex);
+    // Note that using `MegaApi::exportLegacyExclusionRules` here won't simplify much.
+    // Since we still need to manually load all legacy rules into a vector, call `setLegacyExcludedNames`,
+    // then call `exportLegacyExclusionRules` to generate a .megaignore file, and finally move it manually
+    // to our location and add the .default prefix.
+    // Since we need to have all the custom mega ignore functionality for the `mega-ignore` command anyway,
+    // and since we also need to manually read the legacy file, it's just easier to rely on our custom
+    // method to generate the default file.
 
     const string defaultMegaIgnorePath = MegaIgnoreFile::getDefaultPath();
     if (fs::exists(defaultMegaIgnorePath))
@@ -451,6 +457,7 @@ void ConfigurationManager::transitionLegacyExclusionRules(MegaApi& api)
     }
 
     const string excludeFilePath = mConfigFolder + "/excluded";
+    const string hiddenExcludeFilePath = mConfigFolder + "/.excluded";
     if (!fs::exists(excludeFilePath))
     {
         LOG_debug << "Missing legacy exclude file. Skipping transition";
@@ -473,6 +480,8 @@ void ConfigurationManager::transitionLegacyExclusionRules(MegaApi& api)
         return;
     }
 
+    sendEvent(StatsManager::MegacmdEvent::TRANSITIONING_PRE_SRW_EXCLUSIONS, &api, false);
+
     std::set<string> excludeFilters;
     std::vector<string> excludePatterns;
     for (std::string line; getline(excludeFile, line);)
@@ -486,7 +495,7 @@ void ConfigurationManager::transitionLegacyExclusionRules(MegaApi& api)
         string filter = SyncIgnore::getFilterFromLegacyPattern(line);
         if (!MegaIgnoreFile::isValidFilter(filter))
         {
-            LOG_debug << "Found invalid pattern \"" << line << "\" in legacy exclude file";
+            LOG_warn << "Found invalid pattern \"" << line << "\" in legacy exclude file";
             continue;
         }
         excludeFilters.insert(filter);
@@ -498,15 +507,19 @@ void ConfigurationManager::transitionLegacyExclusionRules(MegaApi& api)
     // This ensures transition works in case there are no existing syncs
     megaIgnoreFile.addFilters(excludeFilters);
 
-    LOG_debug << "Transition of legacy exclusion rules completed successfully. Deleting legacy exclude file";
-    if (!fs::remove(excludeFilePath))
+    LOG_debug << "Transition of legacy exclusion rules completed successfully. Hidding legacy exclude file";
+    try
     {
-        LOG_err << "Could not remove legacy exclude file " << excludeFilePath;
+        fs::rename(excludeFilePath, hiddenExcludeFilePath);
+    }
+    catch (const fs::filesystem_error& e)
+    {
+        LOG_err << "Could not hide legacy exclude file " << excludeFilePath << " (error: " << e.what() << ")";
     }
 
     string message = "Your legacy sync exclusion rules have been ported to \"" +
                      defaultMegaIgnorePath + "\"\n" +
-                     "See \"%%mega-%%sync-ignore\" for more info.";
+                     "See \"%mega-%sync-ignore\" for more info.";
     broadcastMessage(message, true);
 }
 

@@ -620,12 +620,16 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validParams->insert("disable-warning");
         validParams->insert("disable-path-collapse");
         validOptValues->insert("limit");
+        validOptValues->insert("col-separator");
+        validOptValues->insert("output-cols");
     }
     else if ("sync-ignore" == thecommand)
     {
         validParams->insert("show");
         validParams->insert("add");
+        validParams->insert("add-exclusion");
         validParams->insert("remove");
+        validParams->insert("remove-exclusion");
     }
     else if ("export" == thecommand)
     {
@@ -2512,7 +2516,7 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
     else if (!strcmp(command, "exclude"))
     {
         os << "Manages default exclusion rules in syncs." << endl;
-        os << "These default rules will be used when creating new syncs. Existing syncs won't be affected. To modify the exclusion rules of existing syncs, use sync-ignore." << endl;
+        os << "These default rules will be used when creating new syncs. Existing syncs won't be affected. To modify the exclusion rules of existing syncs, use " << commandPrefixBasedOnMode() << "sync-ignore." << endl;
         os << endl;
         os << "Options:" << endl;
         os << " -a pattern1 pattern2 ..." << "\t" << "adds pattern(s) to the exclusion list" << endl;
@@ -2566,33 +2570,39 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << "Note: when modifying the default filters, existing syncs won't be affected. Only newly created ones." << endl;
         os << endl;
         os << "If no action is provided, filters will be shown for the selected sync." << endl;
+        os << "Only the filters at the root of the selected sync will be accessed. Filters beloging to sub-folders must be modified manually." << endl;
         os << endl;
         os << "Options:" << endl;
         os << "--show" << "\t" << "Show the existing filters of the selected sync" << endl;
         os << "--add" << "\t" << "Add the specified filters to the selected sync" << endl;
+        os << "--add-exclusion" << "\t" << "Same as \"--add\", but the <CLASS> is 'exclude'" << endl;
+        os << "               " << "\t" << "Note: the `-` must be omitted from the filter (using '--' is not necessary)" << endl;
         os << "--remove" << "\t" << "Remove the specified filters from the selected sync" << endl;
+        os << "--remove-exclusion" << "\t" << "Same as \"--remove\", but the <CLASS> is 'exclude'" << endl;
+        os << "                  " << "\t" << "Note: the `-` must be omitted from the filter (using '--' is not necessary)" << endl;
         os << endl;
         os << "Filters must have the following format: <CLASS><TARGET><TYPE><STRATEGY>:<PATTERN>" << endl;
         os << "\t" << "<CLASS> Must be either exclude, or include" << endl;
         os << "\t" << "\t" << "exclude (`-`): This filter contains files or directories that *should not* be synchronized" << endl;
+        os << "\t" << "\t" << "               Note: exclude filters must be preceded by '--', or they won't be recognized" << endl;
         os << "\t" << "\t" << "include (`+`): This filter contains files or directories that *should* be synchronized" << endl;
         os << "\t" << "<TARGET> May be one of the following: directory, file, symlink, or all" << endl;
         os << "\t" << "\t" << "directory (`d`): This filter applies only to directories" << endl;
         os << "\t" << "\t" << "file (`f`): This filter applies only to files" << endl;
         os << "\t" << "\t" << "symlink (`s`): This filter applies only to symbolic links" << endl;
         os << "\t" << "\t" << "all (`a`): This filter applies to all of the above" << endl;
-        os << "\t" << "Default is `a`" << endl;
+        os << "\t" << "Default (when omitted) is `a`" << endl;
         os << "\t" << "<TYPE> May be one of the following: local name, path, or subtree name" << endl;
         os << "\t" << "\t" << "local name (`N`): This filter has an effect only in the root directory of the sync" << endl;
         os << "\t" << "\t" << "path (`p`): This filter matches against the path relative to the rooth directory of the sync" << endl;
         os << "\t" << "\t" << "            Note: the path separator is always '/', even on Windows" << endl;
         os << "\t" << "\t" << "subtree name (`n`): This filter has an effect in all directories below the root directory of the sync, itself included" << endl;
-        os << "\t" << "Default is `n`" << endl;
+        os << "\t" << "Default (when omitted) is `n`" << endl;
         os << "\t" << "<STRATEGY> May be one of the following: glob, or regexp" << endl;
         os << "\t" << "\t" << "glob (`G` or `g`): This filter matches against a name or path using a wildcard pattern" << endl;
         os << "\t" << "\t" << "regexp (`R` or `r`): This filter matches against a name or path using a pattern expressed as a POSIX-Extended Regular Expression" << endl;
         os << "\t" << "Note: uppercase `G` or `R` specifies that the matching should be case-sensitive" << endl;
-        os << "\t" << "Default is `G`" << endl;
+        os << "\t" << "Default (when omitted) is `G`" << endl;
         os << "\t" << "<PATTERN> Must be a file or directory pattern" << endl;
         os << "Some examples:" << endl;
         os << "\t" << "`-f:*.txt`" << "  " << "Filter will exclude all *.txt files in and beneath the sync directory" << endl;
