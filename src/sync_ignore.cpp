@@ -36,14 +36,14 @@ const char* NL = "\r\n";
 const char* NL = "\n";
 #endif
 
-void removeCarriageReturn(std::string& str)
+void trimSpacesAndCarriageReturn(std::string& str)
 {
-#ifdef _WIN32
-    if (!str.empty() && str.back() == '\r')
+    auto end = std::find_if_not(str.rbegin(), str.rend(), [] (char c)
     {
-        str.pop_back();
-    }
-#endif
+        return std::isspace(static_cast<unsigned char>(c)) != 0;
+    }).base();
+
+    str.erase(end, str.end());
 }
 
 std::unique_lock<std::mutex> getFileLock(const std::string& str)
@@ -202,7 +202,7 @@ void MegaIgnoreFile::loadFilters(std::ifstream& file)
     mFilters.clear();
     for (std::string line; getline(file, line);)
     {
-        removeCarriageReturn(line);
+        trimSpacesAndCarriageReturn(line);
         if (line.empty() || line[0] == '#')
         {
             continue;
@@ -228,9 +228,10 @@ MegaIgnoreFile::MegaIgnoreFile(const std::string& path) :
     mPath(path),
     mValid(false)
 {
+    auto fileLock = getFileLock(mPath);
     if (fs::exists(mPath))
     {
-        load();
+        loadFromPath();
     }
     else
     {
@@ -238,15 +239,16 @@ MegaIgnoreFile::MegaIgnoreFile(const std::string& path) :
     }
 }
 
-void MegaIgnoreFile::load()
+void MegaIgnoreFile::loadFromPath()
 {
-    auto fileLock = getFileLock(mPath);
+    mValid = false;
 
     std::ifstream file(mPath);
     if (!file.is_open() || file.fail())
     {
         return;
     }
+
     checkBOMAndSkip(file);
     loadFilters(file);
     mValid = true;
@@ -254,8 +256,6 @@ void MegaIgnoreFile::load()
 
 void MegaIgnoreFile::createWithBOM()
 {
-    auto fileLock = getFileLock(mPath);
-
     std::ofstream file(mPath);
     if (!file.is_open() || file.fail())
     {
@@ -267,20 +267,20 @@ void MegaIgnoreFile::createWithBOM()
 
 void MegaIgnoreFile::addFilters(const std::set<std::string>& filters)
 {
-    assert(mValid);
     auto fileLock = getFileLock(mPath);
-
-    std::ofstream file(mPath, std::ios_base::app);
-    for (const std::string& filter : filters)
     {
-        file << filter << NL;
+        std::ofstream file(mPath, std::ios_base::app);
+        for (const std::string& filter : filters)
+        {
+            file << filter << NL;
+        }
     }
-    mValid = false;
+
+    loadFromPath();
 }
 
 void MegaIgnoreFile::removeFilters(const std::set<std::string>& filters)
 {
-    assert(mValid);
     auto fileLock = getFileLock(mPath);
 
     std::string newContents;
@@ -290,7 +290,7 @@ void MegaIgnoreFile::removeFilters(const std::set<std::string>& filters)
         hasBOM = checkBOMAndSkip(file);
         for (std::string line; getline(file, line);)
         {
-            removeCarriageReturn(line);
+            trimSpacesAndCarriageReturn(line);
             if (filters.count(line))
             {
                 continue;
@@ -299,21 +299,26 @@ void MegaIgnoreFile::removeFilters(const std::set<std::string>& filters)
         }
     }
 
-    std::ofstream outFile(mPath, std::ios_base::trunc);
-    outFile << (hasBOM ? BOMStr : "") << newContents;
-    mValid = false;
+    {
+        std::ofstream outFile(mPath, std::ios_base::trunc);
+        outFile << (hasBOM ? BOMStr : "") << newContents;
+    }
+
+    loadFromPath();
 }
 
 bool MegaIgnoreFile::containsFilter(const std::string& filter) const
 {
     assert(mValid);
-    return mFilters.count(filter) > 0;
+
+    std::string cleanFilter = filter;
+    trimSpacesAndCarriageReturn(cleanFilter);
+    return mFilters.count(cleanFilter) > 0;
 }
 
 std::string MegaIgnoreFile::getFilterContents() const
 {
     assert(mValid);
-
     std::string contents;
     for (const std::string& filter : mFilters)
     {

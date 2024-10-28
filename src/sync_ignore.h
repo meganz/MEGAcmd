@@ -48,18 +48,20 @@ class MegaIgnoreFile
     bool checkBOMAndSkip(std::ifstream& file);
     void loadFilters(std::ifstream& file);
 
+    void loadFromPath();
+    void createWithBOM();
+
 public:
     static std::string getDefaultPath();
     static bool isValidFilter(const std::string& filter);
 
     MegaIgnoreFile(const std::string& path);
 
-    void load();
-    void createWithBOM();
+    bool isValid() const { return mValid; }
+
     void addFilters(const std::set<std::string>& filters);
     void removeFilters(const std::set<std::string>& filters);
 
-    bool isValid() const { return mValid; }
     bool containsFilter(const std::string& filter) const;
     std::string getFilterContents() const; // without comments, bom, etc.
 };

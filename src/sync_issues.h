@@ -15,7 +15,7 @@
 
 #pragma once
 
-#include <vector>
+#include <map>
 #include <memory>
 #include <mutex>
 
@@ -64,7 +64,6 @@ struct SyncInfo
 
 class SyncIssue
 {
-    mutable std::string mId;
     std::unique_ptr<const mega::MegaSyncStall> mMegaStall;
 
     template<bool preferCloud = false>
@@ -95,7 +94,7 @@ public:
 
     SyncIssue(const mega::MegaSyncStall& stall);
 
-    const std::string& getId() const;
+    unsigned int getId() const;
     SyncInfo getSyncInfo(mega::MegaSync const* parentSync) const;
 
     std::vector<PathProblem> getPathProblems(mega::MegaApi& api) const;
@@ -109,33 +108,34 @@ public:
 
 class SyncIssueList
 {
-    std::vector<SyncIssue> mIssuesVec;
+    std::map<unsigned int, SyncIssue> mIssuesMap;
     friend class SyncIssuesRequestListener; // only one that can actually populate this
 
 public:
     template<typename Cb>
     void forEach(Cb&& callback, size_t sizeLimit) const
     {
-        for (size_t i = 0; i < size() && i < sizeLimit; ++i)
+        for (auto it = begin(); it != end() && std::distance(begin(), it) < sizeLimit; ++it)
         {
-            callback(mIssuesVec[i]);
+            callback(it->second);
         }
     }
 
-    SyncIssue const* getSyncIssue(const std::string& id) const;
-    unsigned int getSyncIssueCount(const mega::MegaSync& sync) const;
+    SyncIssue const* getSyncIssue(unsigned int id) const;
+    unsigned int getSyncIssuesCount(const mega::MegaSync& sync) const;
 
-    bool empty() const { return mIssuesVec.empty(); }
-    unsigned int size() const { return mIssuesVec.size(); }
+    bool empty() const { return mIssuesMap.empty(); }
+    unsigned int size() const { return mIssuesMap.size(); }
 
-    std::vector<SyncIssue>::const_iterator begin() const { return mIssuesVec.begin(); }
-    std::vector<SyncIssue>::const_iterator end() const { return mIssuesVec.end(); }
+    std::map<unsigned int, SyncIssue>::const_iterator begin() const { return mIssuesMap.begin(); }
+    std::map<unsigned int, SyncIssue>::const_iterator end() const { return mIssuesMap.end(); }
 };
 
 class SyncIssuesManager final
 {
     mega::MegaApi& mApi;
     bool mWarningEnabled;
+    std::mutex mWarningMtx;
 
     std::unique_ptr<mega::MegaGlobalListener> mGlobalListener;
     std::unique_ptr<mega::MegaRequestListener> mRequestListener;

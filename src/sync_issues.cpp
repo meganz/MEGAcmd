@@ -101,7 +101,7 @@ class SyncIssuesRequestListener : public mega::SynchronousRequestListener
             auto stall = stalls->get(i);
             assert(stall);
 
-            syncIssues.mIssuesVec.emplace_back(*stall);
+            syncIssues.mIssuesMap.emplace(static_cast<uint32_t>(stall->getHash()), *stall);
         }
         onSyncIssuesChanged(syncIssues);
 
@@ -274,33 +274,10 @@ SyncIssue::SyncIssue(const mega::MegaSyncStall &stall) :
 {
 }
 
-const std::string& SyncIssue::getId() const
+unsigned int SyncIssue::getId() const
 {
-    if (mId.empty())
-    {
-        std::hash<std::string> hasher;
-
-        std::string combinedDataStr;
-        combinedDataStr += std::to_string(mMegaStall->reason());
-
-        for (bool isCloud : {false, true})
-        {
-            for (int i = 0; i < mMegaStall->pathCount(isCloud); ++i)
-            {
-                combinedDataStr += mMegaStall->path(isCloud, i);
-                combinedDataStr += std::to_string(mMegaStall->pathProblem(isCloud, i));
-            }
-        }
-
-        // Ensure the id has a size of 11, same as the sync ID
-        std::stringstream ss;
-        ss << std::setw(11) << std::setfill('0') << hasher(combinedDataStr);
-        mId = ss.str();
-
-        assert(mId.size() >= 11);
-        mId = mId.substr(0, 11);
-    }
-    return mId;
+    assert(mMegaStall);
+    return static_cast<uint32_t>(mMegaStall->getHash());
 }
 
 SyncInfo SyncIssue::getSyncInfo(mega::MegaSync const* parentSync) const
@@ -546,24 +523,22 @@ bool SyncIssue::belongsToSync(const mega::MegaSync& sync) const
     return false;
 }
 
-SyncIssue const* SyncIssueList::getSyncIssue(const std::string& id) const
+SyncIssue const* SyncIssueList::getSyncIssue(unsigned int id) const
 {
-    for (const auto& syncIssue : *this)
+    auto it = mIssuesMap.find(id);
+    if (it == mIssuesMap.end())
     {
-        if (syncIssue.getId() == id)
-        {
-            return &syncIssue;
-        }
+        return nullptr;
     }
-    return nullptr;
+    return &it->second;
 }
 
-unsigned int SyncIssueList::getSyncIssueCount(const mega::MegaSync& sync) const
+unsigned int SyncIssueList::getSyncIssuesCount(const mega::MegaSync& sync) const
 {
     unsigned int count = 0;
     for (const auto& syncIssue : *this)
     {
-        if (syncIssue.belongsToSync(sync))
+        if (syncIssue.second.belongsToSync(sync))
         {
             ++count;
         }
@@ -573,11 +548,12 @@ unsigned int SyncIssueList::getSyncIssueCount(const mega::MegaSync& sync) const
 
 void SyncIssuesManager::onSyncIssuesChanged(unsigned int newSyncIssuesSize)
 {
+    std::lock_guard lock(mWarningMtx);
     if (mWarningEnabled && newSyncIssuesSize > 0)
     {
         std::string message = "Sync issues detected: your syncs have encountered conflicts that may require your intervention.\n"s +
-                            "Use the \"%%mega-%%sync-issues\" command to display them.\n" +
-                            "This message can be disabled with \"%%mega-%%sync-issues --disable-warning\".";
+                              "Use the \"%mega-%sync-issues\" command to display them.\n" +
+                              "This message can be disabled with \"%mega-%sync-issues --disable-warning\".";
         broadcastMessage(message, true);
     }
 
@@ -615,6 +591,7 @@ SyncIssueList SyncIssuesManager::getSyncIssues() const
 
 void SyncIssuesManager::disableWarning()
 {
+    std::lock_guard lock(mWarningMtx);
     if (!mWarningEnabled)
     {
         OUTSTREAM << "Note: warning is already disabled" << endl;
@@ -626,6 +603,7 @@ void SyncIssuesManager::disableWarning()
 
 void SyncIssuesManager::enableWarning()
 {
+    std::lock_guard lock(mWarningMtx);
     if (mWarningEnabled)
     {
         OUTSTREAM << "Note: warning is already enabled" << endl;
@@ -645,7 +623,7 @@ namespace SyncIssuesCommand
         {
             auto parentSync = syncIssue.getParentSync(api);
 
-            cd.addValue("ISSUE ID", syncIssue.getId());
+            cd.addValue("ISSUE ID", std::to_string(syncIssue.getId()));
             cd.addValue("PARENT SYNC", parentSync ? parentSync->getName() : "<not found>");
             cd.addValue("REASON", syncIssue.getSyncInfo(parentSync.get()).mReason);
             cd.addValue("SOLVABLE", "NO" /* Until CMD-311 */);
@@ -726,8 +704,10 @@ namespace SyncIssuesCommand
         // we assume they want to see all issues, and thus the limit doesn't apply to the issue list in this case
         for (const auto& syncIssue : syncIssues)
         {
-            OUTSTREAM << "[Details on issue " << syncIssue.getId() << "]" << endl;
-            printSingleIssueDetail(api, cd, syncIssue, disablePathCollapse, rowCountLimit);
+            assert(syncIssue.first == syncIssue.second.getId());
+            OUTSTREAM << "[Details on issue " << syncIssue.first << "]" << endl;
+
+            printSingleIssueDetail(api, cd, syncIssue.second, disablePathCollapse, rowCountLimit);
             OUTSTREAM << endl;
 
             cd.clear();

@@ -71,7 +71,7 @@ void printSyncHeader(ColumnDisplayer &cd)
     cd.addHeader("REMOTEPATH", false);
 }
 
-void printSingleSync(mega::MegaApi& api, mega::MegaSync& sync, long long nFiles, long long nFolders, ColumnDisplayer &cd, bool showHandle, int syncIssueCount)
+void printSingleSync(mega::MegaApi& api, mega::MegaSync& sync, long long nFiles, long long nFolders, ColumnDisplayer &cd, bool showHandle, int syncIssuesCount)
 {
     cd.addValue("ID", getSyncId(sync));
     cd.addValue("LOCALPATH", sync.getLocalFolder());
@@ -98,12 +98,12 @@ void printSingleSync(mega::MegaApi& api, mega::MegaSync& sync, long long nFiles,
     }
     else
     {
-        string syncIssueMsg = "NO";
-        if (syncIssueCount > 0)
+        string syncIssuesMsg = "NO";
+        if (syncIssuesCount > 0)
         {
-            syncIssueMsg = "Sync Issues (" + std::to_string(syncIssueCount) + ")";
+            syncIssuesMsg = "Sync Issues (" + std::to_string(syncIssuesCount) + ")";
         }
-        cd.addValue("ERROR", syncIssueMsg);
+        cd.addValue("ERROR", syncIssuesMsg);
     }
 
     std::unique_ptr<mega::MegaNode> n(api.getNodeByHandle(sync.getMegaHandle()));
@@ -154,7 +154,7 @@ std::unique_ptr<mega::MegaSync> reloadSync(mega::MegaApi& api, std::unique_ptr<m
     return std::unique_ptr<mega::MegaSync>(api.getSyncByBackupId(sync->getBackupId()));
 }
 
-void printSync(mega::MegaApi& api, ColumnDisplayer& cd, bool showHandle, mega::MegaSync& sync,  const SyncIssueList& syncIssueList)
+void printSync(mega::MegaApi& api, ColumnDisplayer& cd, bool showHandle, mega::MegaSync& sync,  const SyncIssueList& syncIssues)
 {
     std::unique_ptr<mega::MegaNode> node(api.getNodeByHandle(sync.getMegaHandle()));
     if (!node)
@@ -169,11 +169,11 @@ void printSync(mega::MegaApi& api, ColumnDisplayer& cd, bool showHandle, mega::M
 
     printSyncHeader(cd);
 
-    unsigned int syncIssueCount = syncIssueList.getSyncIssueCount(sync);
-    printSingleSync(api, sync, nFiles, nFolders, cd, showHandle, syncIssueCount);
+    unsigned int syncIssuesCount = syncIssues.getSyncIssuesCount(sync);
+    printSingleSync(api, sync, nFiles, nFolders, cd, showHandle, syncIssuesCount);
 }
 
-void printSyncList(mega::MegaApi& api, ColumnDisplayer& cd, bool showHandles, const mega::MegaSyncList& syncList, const SyncIssueList& syncIssueList)
+void printSyncList(mega::MegaApi& api, ColumnDisplayer& cd, bool showHandles, const mega::MegaSyncList& syncList, const SyncIssueList& syncIssues)
 {
     if (syncList.size() > 0)
     {
@@ -197,8 +197,8 @@ void printSyncList(mega::MegaApi& api, ColumnDisplayer& cd, bool showHandles, co
             LOG_warn << "Remote node not found for sync " << getSyncId(sync);
         }
 
-        unsigned int syncIssueCount = syncIssueList.getSyncIssueCount(sync);
-        printSingleSync(api, sync, nFiles, nFolders, cd, showHandles, syncIssueCount);
+        unsigned int syncIssuesCount = syncIssues.getSyncIssuesCount(sync);
+        printSingleSync(api, sync, nFiles, nFolders, cd, showHandles, syncIssuesCount);
     }
 }
 
