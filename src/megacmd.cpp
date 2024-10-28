@@ -620,6 +620,8 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validParams->insert("disable-warning");
         validParams->insert("disable-path-collapse");
         validOptValues->insert("limit");
+        validOptValues->insert("col-separator");
+        validOptValues->insert("output-cols");
     }
     else if ("sync-ignore" == thecommand)
     {
