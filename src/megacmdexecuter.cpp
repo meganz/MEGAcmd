@@ -8019,8 +8019,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
             if (!syncIssues.empty())
             {
-                OUTSTREAM << endl;
-                OUTSTREAM << "You have sync issues. Use the \"" << commandPrefixBasedOnMode() << "sync-issues\" command to display them." << endl;
+                LOG_warn << "You have sync issues. Use the \"" << commandPrefixBasedOnMode() << "sync-issues\" command to display them.";
             }
         }
         return;
