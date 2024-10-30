@@ -1,9 +1,9 @@
 ### sync-ignore
 Manages ignore filters for syncs
 
-Usage: `sync-ignore [--show|--add [filter1 filter2 ...]|--remove [filter1 filter2 ...]] (ID|localpath)`
+Usage: `sync-ignore [--show|[--add|--add-exclusion|--remove|--remove-exclusion] filter1 filter2 ...] (ID|localpath|DEFAULT)`
 <pre>
-If no path or sync ID is provided, the default mega ignore filters will be selected.
+To modify the default filters, use "DEFAULT" instead of local path or ID.
 Note: when modifying the default filters, existing syncs won't be affected. Only newly created ones.
 
 If no action is provided, filters will be shown for the selected sync.

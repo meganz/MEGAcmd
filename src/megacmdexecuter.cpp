@@ -8041,6 +8041,13 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             return;
         }
 
+        if (words.size() < 2)
+        {
+            setCurrentOutCode(MCMD_EARGS);
+            LOG_err << "      " << getUsageStr("sync-ignore");
+            return;
+        }
+
         bool ignoreShow = getFlag(clflags, "show");
         bool ignoreAdd = getFlag(clflags, "add");
         bool ignoreAddExclusion = getFlag(clflags, "add-exclusion");
@@ -8067,30 +8074,31 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             args.mAction = SyncIgnore::Action::Remove;
         }
 
-        string pathOrId = words.back(); // the last word could be the [path|ID], or the last filter
-
-        std::unique_ptr<MegaSync> sync(api->getSyncByBackupId(base64ToSyncBackupId(pathOrId)));
-        if (!sync)
+        // Show cannot have filters
+        if (args.mAction == SyncIgnore::Action::Show && words.size() != 2)
         {
-            sync.reset(api->getSyncByPath(pathOrId.c_str()));
-        }
-
-        auto filtersEndItr = words.end();
-        if (sync)
-        {
-            args.mMegaIgnoreDirPath = std::string(sync->getLocalFolder());
-            --filtersEndItr; // the last word is the sync [path|ID]; not a filter
-        }
-        else if (args.mAction != SyncIgnore::Action::Show || words.size() == 1)
-        {
-            OUTSTREAM << "Note: Using default .megaignore file since no sync was specified" << endl << endl;
-        }
-        else
-        {
-            // If mode is 'show', then the last word cannot be a filter; so it must be a sync that wasn't found
-            setCurrentOutCode(MCMD_NOTFOUND);
-            LOG_err << "Sync " << pathOrId << " was not found";
+            setCurrentOutCode(MCMD_EARGS);
+            LOG_err << "      " << getUsageStr("sync-ignore");
             return;
+        }
+
+        string pathOrId = words.back(); // the last word is (ID|localpath|"DEFAULT")
+        if (pathOrId != "DEFAULT")
+        {
+            std::unique_ptr<MegaSync> sync(api->getSyncByBackupId(base64ToSyncBackupId(pathOrId)));
+            if (!sync)
+            {
+                sync.reset(api->getSyncByPath(pathOrId.c_str()));
+            }
+
+            if (!sync)
+            {
+                setCurrentOutCode(MCMD_NOTFOUND);
+                LOG_err << "Sync " << pathOrId << " was not found";
+                return;
+            }
+
+            args.mMegaIgnoreDirPath = std::string(sync->getLocalFolder());
         }
 
         auto filterInserter = [ignoreAddExclusion, ignoreRemoveExclusion] (const string& word)
@@ -8102,7 +8110,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             return word;
         };
 
-        std::transform(words.begin() + 1, filtersEndItr,
+        std::transform(words.begin() + 1, words.end() - 1,
                        std::inserter(args.mFilters, args.mFilters.end()), filterInserter);
 
         SyncIgnore::executeCommand(args);
