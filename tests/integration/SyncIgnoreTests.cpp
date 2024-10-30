@@ -81,9 +81,8 @@ protected:
 
 TEST_F(SyncIgnoreTests, DefaultIgnoreFile)
 {
-    auto result = executeInClient({"sync-ignore"});
+    auto result = executeInClient({"sync-ignore", "DEFAULT"});
     ASSERT_TRUE(result.ok());
-    EXPECT_THAT(result.out(), testing::HasSubstr("Using default .megaignore file"));
 }
 
 TEST_F(SyncIgnoreTests, AddAndShow)
@@ -94,7 +93,7 @@ TEST_F(SyncIgnoreTests, AddAndShow)
     std::string filter4 = "-d:private";
     std::string filter5 = "-:*";
 
-    auto result = executeInClient({"sync-ignore", "--add", "--", filter1, filter2, filter3, filter4, filter5});
+    auto result = executeInClient({"sync-ignore", "--add", "--", filter1, filter2, filter3, filter4, filter5, "DEFAULT"});
     ASSERT_TRUE(result.ok());
     EXPECT_THAT(result.out(), testing::HasSubstr("Added filter " + qw(filter1)));
     EXPECT_THAT(result.out(), testing::HasSubstr("Added filter " + qw(filter2)));
@@ -102,7 +101,7 @@ TEST_F(SyncIgnoreTests, AddAndShow)
     EXPECT_THAT(result.out(), testing::HasSubstr("Added filter " + qw(filter4)));
     EXPECT_THAT(result.out(), testing::HasSubstr("Added filter " + qw(filter5)));
 
-    result = executeInClient({"sync-ignore", "--show"});
+    result = executeInClient({"sync-ignore", "--show", "DEFAULT"});
     ASSERT_TRUE(result.ok());
     EXPECT_THAT(result.out(), testing::HasSubstr(filter1));
     EXPECT_THAT(result.out(), testing::HasSubstr(filter2));
@@ -115,15 +114,15 @@ TEST_F(SyncIgnoreTests, AddAndRemove)
 {
     std::string filter = "-N:*.avi";
 
-    auto result = executeInClient({"sync-ignore", "--add", "--", filter});
+    auto result = executeInClient({"sync-ignore", "--add", "--", filter, "DEFAULT"});
     ASSERT_TRUE(result.ok());
     EXPECT_THAT(result.out(), testing::HasSubstr("Added filter " + qw(filter)));
 
-    result = executeInClient({"sync-ignore", "--remove", "--", filter});
+    result = executeInClient({"sync-ignore", "--remove", "--", filter, "DEFAULT"});
     ASSERT_TRUE(result.ok());
     EXPECT_THAT(result.out(), testing::HasSubstr("Removed filter " + qw(filter)));
 
-    result = executeInClient({"sync-ignore", "--show"});
+    result = executeInClient({"sync-ignore", "--show", "DEFAULT"});
     ASSERT_TRUE(result.ok());
     EXPECT_THAT(result.out(), testing::Not(testing::HasSubstr(filter)));
 }
@@ -134,19 +133,19 @@ TEST_F(SyncIgnoreTests, AddAndRemoveWithExclusionArgument)
     std::string filter2 = "fp:pics/*.jpg";
     std::string filter3 = "d:private";
 
-    auto result = executeInClient({"sync-ignore", "--add-exclusion", filter1, filter2, filter3});
+    auto result = executeInClient({"sync-ignore", "--add-exclusion", filter1, filter2, filter3, "DEFAULT"});
     ASSERT_TRUE(result.ok());
     EXPECT_THAT(result.out(), testing::HasSubstr("Added filter " + qw("-" + filter1)));
     EXPECT_THAT(result.out(), testing::HasSubstr("Added filter " + qw("-" + filter2)));
     EXPECT_THAT(result.out(), testing::HasSubstr("Added filter " + qw("-" + filter3)));
 
-    result = executeInClient({"sync-ignore", "--remove-exclusion", filter1, filter2, filter3});
+    result = executeInClient({"sync-ignore", "--remove-exclusion", filter1, filter2, filter3, "DEFAULT"});
     ASSERT_TRUE(result.ok());
     EXPECT_THAT(result.out(), testing::HasSubstr("Removed filter " + qw("-" + filter1)));
     EXPECT_THAT(result.out(), testing::HasSubstr("Removed filter " + qw("-" + filter2)));
     EXPECT_THAT(result.out(), testing::HasSubstr("Removed filter " + qw("-" + filter3)));
 
-    result = executeInClient({"sync-ignore", "--show"});
+    result = executeInClient({"sync-ignore", "--show", "DEFAULT"});
     ASSERT_TRUE(result.ok());
     EXPECT_THAT(result.out(), testing::Not(testing::HasSubstr(filter1)));
     EXPECT_THAT(result.out(), testing::Not(testing::HasSubstr(filter2)));
@@ -157,11 +156,11 @@ TEST_F(SyncIgnoreTests, CannotAddIfAlreadyExists)
 {
     std::string filter = "+fg:work*.txt";
 
-    auto result = executeInClient({"sync-ignore", "--add", "--", filter});
+    auto result = executeInClient({"sync-ignore", "--add", "--", filter, "DEFAULT"});
     ASSERT_TRUE(result.ok());
     EXPECT_THAT(result.out(), testing::HasSubstr("Added filter " + qw(filter)));
 
-    result = executeInClient({"sync-ignore", "--add", "--", filter});
+    result = executeInClient({"sync-ignore", "--add", "--", filter, "DEFAULT"});
     ASSERT_TRUE(result.ok());
     EXPECT_THAT(result.out(), testing::HasSubstr("Cannot add filter " + qw(filter)));
     EXPECT_THAT(result.out(), testing::HasSubstr("already in the .megaignore file"));
@@ -171,7 +170,7 @@ TEST_F(SyncIgnoreTests, CannotRemoveIfDoesntExist)
 {
     std::string filter = "+fnpg:family*.jpg";
 
-    auto result = executeInClient({"sync-ignore", "--remove", "--", filter});
+    auto result = executeInClient({"sync-ignore", "--remove", "--", filter, "DEFAULT"});
     ASSERT_TRUE(result.ok());
     EXPECT_THAT(result.out(), testing::HasSubstr("Cannot remove filter " + qw(filter)));
     EXPECT_THAT(result.out(), testing::HasSubstr("it's not in the .megaignore file"));
@@ -232,7 +231,7 @@ TEST_F(SyncIgnoreTests, IncorrectFilterFormat)
     std::string validFilter = "-fp:video/*.avi";
     std::string invalidFilter = "video/family/*.avi";
 
-    auto result = executeInClient({"sync-ignore", "--add", "--", validFilter, invalidFilter});
+    auto result = executeInClient({"sync-ignore", "--add", "--", validFilter, invalidFilter, "DEFAULT"});
     ASSERT_FALSE(result.ok());
     EXPECT_THAT(result.out(), testing::HasSubstr("The filter " + qw(invalidFilter) + " does not have valid format"));
 }
@@ -244,7 +243,7 @@ TEST_F(SyncIgnoreTests, CommentsAndBOMNotRemoved)
     std::string filter = "-nr:.*foo";
     writeToDefaultFile({BOM, comment, filter});
 
-    auto result = executeInClient({"sync-ignore", "--remove", "--", filter});
+    auto result = executeInClient({"sync-ignore", "--remove", "--", filter, "DEFAULT"});
     ASSERT_TRUE(result.ok());
     EXPECT_THAT(result.out(), testing::HasSubstr("Removed filter " + qw(filter)));
 
@@ -258,7 +257,7 @@ TEST_F(SyncIgnoreTests, UseExcludeInterface)
 {
     std::string pattern = "*.pdf";
 
-    auto result = executeInClient({"sync-ignore", "--show"});
+    auto result = executeInClient({"sync-ignore", "--show", "DEFAULT"});
     ASSERT_TRUE(result.ok());
     EXPECT_THAT(result.out(), testing::Not(testing::HasSubstr(pattern)));
 
@@ -267,7 +266,7 @@ TEST_F(SyncIgnoreTests, UseExcludeInterface)
     EXPECT_THAT(result.out(), testing::HasSubstr("Added filter"));
     EXPECT_THAT(result.out(), testing::HasSubstr(pattern));
 
-    result = executeInClient({"sync-ignore", "--show"});
+    result = executeInClient({"sync-ignore", "--show", "DEFAULT"});
     ASSERT_TRUE(result.ok());
     EXPECT_THAT(result.out(), testing::HasSubstr(pattern));
 
@@ -276,7 +275,7 @@ TEST_F(SyncIgnoreTests, UseExcludeInterface)
     EXPECT_THAT(result.out(), testing::HasSubstr("Removed filter"));
     EXPECT_THAT(result.out(), testing::HasSubstr(pattern));
 
-    result = executeInClient({"sync-ignore", "--show"});
+    result = executeInClient({"sync-ignore", "--show", "DEFAULT"});
     ASSERT_TRUE(result.ok());
     EXPECT_THAT(result.out(), testing::Not(testing::HasSubstr(pattern)));
 }

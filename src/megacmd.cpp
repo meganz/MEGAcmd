@@ -1756,7 +1756,7 @@ const char * getUsageStr(const char *command, const HelpFlags& flags)
     }
     if (!strcmp(command, "sync-ignore"))
     {
-        return "sync-ignore [--show|--add [filter1 filter2 ...]|--remove [filter1 filter2 ...]] (ID|localpath)";
+        return "sync-ignore [--show|[--add|--add-exclusion|--remove|--remove-exclusion] filter1 filter2 ...] (ID|localpath|DEFAULT)";
     }
     if (!strcmp(command, "backup"))
     {
@@ -2566,7 +2566,7 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
     {
         os << "Manages ignore filters for syncs" << endl;
         os << endl;
-        os << "If no path or sync ID is provided, the default mega ignore filters will be selected." << endl;
+        os << "To modify the default filters, use \"DEFAULT\" instead of local path or ID." << endl;
         os << "Note: when modifying the default filters, existing syncs won't be affected. Only newly created ones." << endl;
         os << endl;
         os << "If no action is provided, filters will be shown for the selected sync." << endl;
@@ -2584,7 +2584,7 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << "Filters must have the following format: <CLASS><TARGET><TYPE><STRATEGY>:<PATTERN>" << endl;
         os << "\t" << "<CLASS> Must be either exclude, or include" << endl;
         os << "\t" << "\t" << "exclude (`-`): This filter contains files or directories that *should not* be synchronized" << endl;
-        os << "\t" << "\t" << "               Note: exclude filters must be preceded by '--', or they won't be recognized" << endl;
+        os << "\t" << "\t" << "               Note: you must pass a double dash ('--') to signify the end of the parameters, in order to pass exclude filters" << endl;
         os << "\t" << "\t" << "include (`+`): This filter contains files or directories that *should* be synchronized" << endl;
         os << "\t" << "<TARGET> May be one of the following: directory, file, symlink, or all" << endl;
         os << "\t" << "\t" << "directory (`d`): This filter applies only to directories" << endl;
