@@ -21,7 +21,7 @@ Options:
 Filters must have the following format: <CLASS><TARGET><TYPE><STRATEGY>:<PATTERN>
 	<CLASS> Must be either exclude, or include
 		exclude (`-`): This filter contains files or directories that *should not* be synchronized
-		               Note: exclude filters must be preceded by '--', or they won't be recognized
+		               Note: you must pass a double dash ('--') to signify the end of the parameters, in order to pass exclude filters
 		include (`+`): This filter contains files or directories that *should* be synchronized
 	<TARGET> May be one of the following: directory, file, symlink, or all
 		directory (`d`): This filter applies only to directories
