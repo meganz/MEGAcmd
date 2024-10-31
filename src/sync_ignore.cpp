@@ -36,7 +36,7 @@ const char* NL = "\r\n";
 const char* NL = "\n";
 #endif
 
-void trimSpacesAndCarriageReturn(std::string& str)
+void trimSpaces(std::string& str)
 {
     auto end = std::find_if_not(str.rbegin(), str.rend(), [] (char c)
     {
@@ -202,7 +202,7 @@ void MegaIgnoreFile::loadFilters(std::ifstream& file)
     mFilters.clear();
     for (std::string line; getline(file, line);)
     {
-        trimSpacesAndCarriageReturn(line);
+        trimSpaces(line);
         if (line.empty() || line[0] == '#')
         {
             continue;
@@ -290,7 +290,7 @@ void MegaIgnoreFile::removeFilters(const std::set<std::string>& filters)
         hasBOM = checkBOMAndSkip(file);
         for (std::string line; getline(file, line);)
         {
-            trimSpacesAndCarriageReturn(line);
+            trimSpaces(line);
             if (filters.count(line))
             {
                 continue;
@@ -312,7 +312,7 @@ bool MegaIgnoreFile::containsFilter(const std::string& filter) const
     assert(mValid);
 
     std::string cleanFilter = filter;
-    trimSpacesAndCarriageReturn(cleanFilter);
+    trimSpaces(cleanFilter);
     return mFilters.count(cleanFilter) > 0;
 }
 

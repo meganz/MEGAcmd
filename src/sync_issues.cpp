@@ -623,8 +623,8 @@ namespace SyncIssuesCommand
         {
             auto parentSync = syncIssue.getParentSync(api);
 
-            cd.addValue("ISSUE ID", std::to_string(syncIssue.getId()));
-            cd.addValue("PARENT SYNC", parentSync ? parentSync->getName() : "<not found>");
+            cd.addValue("ISSUE_ID", std::to_string(syncIssue.getId()));
+            cd.addValue("PARENT_SYNC", parentSync ? parentSync->getName() : "<not found>");
             cd.addValue("REASON", syncIssue.getSyncInfo(parentSync.get()).mReason);
             cd.addValue("SOLVABLE", "NO" /* Until CMD-311 */);
         }, rowCountLimit);

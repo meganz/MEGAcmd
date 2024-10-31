@@ -1,9 +1,9 @@
 ### sync-ignore
 Manages ignore filters for syncs
 
-Usage: `sync-ignore [--show|--add [filter1 filter2 ...]|--remove [filter1 filter2 ...]] (ID|localpath)`
+Usage: `sync-ignore [--show|[--add|--add-exclusion|--remove|--remove-exclusion] filter1 filter2 ...] (ID|localpath|DEFAULT)`
 <pre>
-If no path or sync ID is provided, the default mega ignore filters will be selected.
+To modify the default filters, use "DEFAULT" instead of local path or ID.
 Note: when modifying the default filters, existing syncs won't be affected. Only newly created ones.
 
 If no action is provided, filters will be shown for the selected sync.
@@ -21,7 +21,7 @@ Options:
 Filters must have the following format: <CLASS><TARGET><TYPE><STRATEGY>:<PATTERN>
 	<CLASS> Must be either exclude, or include
 		exclude (`-`): This filter contains files or directories that *should not* be synchronized
-		               Note: exclude filters must be preceded by '--', or they won't be recognized
+		               Note: you must pass a double dash ('--') to signify the end of the parameters, in order to pass exclude filters
 		include (`+`): This filter contains files or directories that *should* be synchronized
 	<TARGET> May be one of the following: directory, file, symlink, or all
 		directory (`d`): This filter applies only to directories
