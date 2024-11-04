@@ -1,5 +1,5 @@
 pipeline {
-    agent { label "amd64 && linux" }
+    agent { label "docker" }
 
     options {
         buildDiscarder(logRotator(numToKeepStr: '135', daysToKeepStr: '21'))
