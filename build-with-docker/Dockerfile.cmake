@@ -8,7 +8,8 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     apt-get update \
     && apt-get install -y --no-install-recommends \
-    cmake zip pkg-config curl python3 python3-xmlrunner autoconf-archive nasm git g++
+    cmake zip pkg-config curl python3 python3-pip autoconf-archive nasm git g++ \
+    && python3 -m pip install unittest-xml-reporting --break-system-packages
 
 FROM base as build-deps-cmake
 
