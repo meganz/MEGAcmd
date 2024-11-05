@@ -19,7 +19,7 @@ except:
 
 def build_command_name(command):
     if platform.system() == 'Windows':
-        return 'mega-' + command + '.bat'
+        return 'MEGAclient.exe ' + command
     elif platform.system() == 'Darwin':
         return 'mega-exec ' + command
     else:
