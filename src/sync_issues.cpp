@@ -128,7 +128,11 @@ protected:
 public:
     virtual ~SyncIssuesRequestListener() = default;
 
-    SyncIssueList popSyncIssues() { return std::move(mSyncIssues); }
+    SyncIssueList releaseSyncIssues()
+    {
+        std::lock_guard lock(mSyncIssuesMtx);
+        return std::move(mSyncIssues);
+    }
 };
 
 // Whenever a callback happens we start a timer. Any subsequent callbacks after the first
@@ -493,7 +497,7 @@ SyncIssueList SyncIssuesManager::getSyncIssues() const
     mApi.getMegaSyncStallList(listener.get());
     listener->wait();
 
-    return listener->popSyncIssues();
+    return listener->releaseSyncIssues();
 }
 
 void SyncIssuesManager::disableWarning()
