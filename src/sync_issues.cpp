@@ -354,7 +354,7 @@ SyncInfo SyncIssue::getSyncInfo(mega::MegaSync const* parentSync) const
         case mega::MegaSyncStall::SyncItemExceedsSupportedTreeDepth:
         {
             info.mReason = "Unable to sync '" + getFileName() + "'";
-            info.mDescription = "Target is too deep on your folder structure; please move it to a location that is less than 64 folders deep";
+            info.mDescription = "Target is too deep on your folder structure; please move it to a location that is less than " + std::to_string(mega::Sync::MAX_CLOUD_DEPTH) + " folders deep";
             break;
         }
         case mega::MegaSyncStall::FolderMatchedAgainstFile:
