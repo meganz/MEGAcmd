@@ -8009,7 +8009,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         }
 
         string pathOrId = words.back(); // the last word is (ID|localpath|"DEFAULT")
-        if (pathOrId != "DEFAULT")
+        if (toLower(pathOrId) != "default")
         {
             std::unique_ptr<MegaSync> sync(api->getSyncByBackupId(base64ToSyncBackupId(pathOrId)));
             if (!sync)
