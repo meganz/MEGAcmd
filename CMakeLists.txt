@@ -15,7 +15,7 @@ set(QT_CREATOR_SKIP_VCPKG_SETUP TRUE CACHE BOOL "")
 
 ## Modules location
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/build/cmake/modules) # Modules from MEGAcmd
-list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/sdk/contrib/cmake/modules) # Modules from MEGAsdk
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/sdk/cmake/modules) # Modules from MEGAsdk
 
 set(VCPKG_ROOT "${CMAKE_CURRENT_LIST_DIR}/../vcpkg" CACHE PATH "If set, it will build and use the VCPKG packages defined in the manifest file")
 
@@ -59,8 +59,7 @@ if(CMAKE_HOST_APPLE)
     if(CMAKE_OSX_ARCHITECTURES STREQUAL "arm64" OR (NOT CMAKE_OSX_ARCHITECTURES AND HOST_ARCHITECTURE STREQUAL "arm64"))
         set(CMAKE_OSX_DEPLOYMENT_TARGET "11.1" CACHE STRING "Minimum OS X deployment version")
     else()
-        set(CMAKE_OSX_DEPLOYMENT_TARGET "10.13" CACHE STRING "Minimum OS X deployment version")
-        add_compile_definitions(ENFORCE_MEGACMDEXECUTER_FILESYSTEM_UNSETTING=1) #This one requires 10.15
+        set(CMAKE_OSX_DEPLOYMENT_TARGET "10.15" CACHE STRING "Minimum OS X deployment version")
     endif()
     message(STATUS "Minimum OS X deployment version is set to ${CMAKE_OSX_DEPLOYMENT_TARGET}")
     unset(HOST_ARCHITECTURE)
@@ -92,11 +91,11 @@ if(VCPKG_ROOT)
 
     # Include VCPKG management tools.
     include(vcpkg_management)
-    list(APPEND vcpkg_overlay ${CMAKE_CURRENT_LIST_DIR}/sdk/contrib/cmake) # MEGAsdk overlays
+    list(APPEND vcpkg_overlay ${CMAKE_CURRENT_LIST_DIR}/sdk/cmake) # MEGAsdk overlays
     process_vcpkg_libraries("${vcpkg_overlay}") # Choose and build libraries depending on the configured options.
 else()
     # For packages with no pkg-config in the system.
-    list(APPEND CMAKE_MODULE_PATH sdk/contrib/cmake/modules/packages)
+    list(APPEND CMAKE_MODULE_PATH sdk/cmake/modules/packages)
     message(STATUS "Using system dependencies")
 endif()
 
