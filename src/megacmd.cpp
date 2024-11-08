@@ -4482,29 +4482,6 @@ void megacmd()
                 {
                     isOSdeprecated = true;
                 }
-#elif defined(__APPLE__)
-                char releaseStr[256];
-                size_t size = sizeof(releaseStr);
-                if (!sysctlbyname("kern.osrelease", releaseStr, &size, NULL, 0)  && size > 0)
-                {
-                    if (strchr(releaseStr,'.'))
-                    {
-                        char *token = strtok(releaseStr, ".");
-                        if (token)
-                        {
-                            errno = 0;
-                            char *endPtr = NULL;
-                            long majorVersion = strtol(token, &endPtr, 10);
-                            if (endPtr != token && errno != ERANGE && majorVersion >= INT_MIN && majorVersion <= INT_MAX)
-                            {
-                                if((int)majorVersion < 13) // Older versions from 10.9 (mavericks)
-                                {
-                                    isOSdeprecated = true;
-                                }
-                            }
-                        }
-                    }
-                }
 #endif
                 if (isOSdeprecated)
                 {

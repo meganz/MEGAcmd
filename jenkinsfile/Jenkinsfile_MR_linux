@@ -1,5 +1,5 @@
 pipeline {
-    agent { label "amd64 && linux" }
+    agent { label "docker" }
 
     options {
         buildDiscarder(logRotator(numToKeepStr: '135', daysToKeepStr: '21'))
@@ -153,7 +153,7 @@ pipeline {
                         }
                         post {
                             always {
-                                archiveArtifacts artifacts: "test-dir-${SANITIZERS}/.megaCmd/megacmdserver.log*, test-dir-${SANITIZERS}/results/*", allowEmptyArchive: true
+                                archiveArtifacts artifacts: "test-dir-${SANITIZERS}/.megaCmd/megacmdserver.log*", allowEmptyArchive: true
                                 junit "test-dir-${SANITIZERS}/results/mega-cmd-tests-unit.xml"
                             }
                         }
@@ -192,6 +192,61 @@ pipeline {
                             always {
                                 archiveArtifacts "test-dir-${SANITIZERS}/.megaCmd/megacmdserver.log*"
                                 junit "test-dir-${SANITIZERS}/results/mega-cmd-tests-integration.xml"
+                            }
+                        }
+                    }
+                    stage("MEGAcmd Python tests") {
+                        agent {
+                            docker {
+                                image "meganz/megacmd-${BUILD_SYSTEM}-${SANITIZERS}:${env.BUILD_NUMBER}"
+                                reuseNode true
+                                args "--name megacmd-${BUILD_SYSTEM}-${SANITIZERS}-${env.BUILD_NUMBER}"
+                            }
+                        }
+                        options {
+                            timeout(time: 1, unit: 'HOURS')
+                        }
+                        environment {
+                            MEGA_EMAILS=''
+                            MEGA_PWD=credentials('MEGACMD_TESTS_PASSWORD')
+                            MEGA_PWD_AUX=credentials('MEGACMD_TESTS_PASSWORD')
+                            HOME="${megacmd_sources_workspace}/pytest-dir-${SANITIZERS}"
+                            YES_I_KNOW_THIS_WILL_CLEAR_MY_MEGA_ACCOUNT=1
+                        }
+                        steps {
+                            dir("pytest-dir-${SANITIZERS}") {
+                                sh 'nohup /usr/bin/mega-cmd-server --verbose-full --log-to-file &'
+                            }
+                            sleep 1
+                            lock(label: 'testing_accounts_megacmd', variable: 'MEGA_EMAILS', quantity: 2, resource: null) {
+                                script {
+                                    // Skipping the 'serving' test until CMD-389 is resolved
+                                    for (test in ['misc', 'put', 'rm', 'find', 'get']) {
+                                        stage("MEGAcmd Python ${test} test") {
+                                            withEnv([
+                                                "MEGA_EMAIL=${env.MEGA_EMAILS0}",
+                                                "MEGA_EMAIL_AUX=${env.MEGA_EMAILS1}",
+                                                "ASAN_OPTIONS=atexit=1,print_stats=1,log_path=${megacmd_sources_workspace}/pytest-dir-${SANITIZERS}/${test}-results/mega-cmd-tests-python-report",
+                                                "TSAN_OPTIONS=log_path=${megacmd_sources_workspace}/pytest-dir-${SANITIZERS}/${test}-results/mega-cmd-tests-python-report",
+                                                "UBSAN_OPTIONS=log_path=${megacmd_sources_workspace}/pytest-dir-${SANITIZERS}/${test}-results/mega-cmd-tests-python-report",
+                                                "OUT_DIR_JUNIT_XML=${megacmd_sources_workspace}/pytest-dir-${SANITIZERS}/${test}-results"
+                                            ]) {
+                                                dir("pytest-dir-${SANITIZERS}/working-dir") {
+                                                    sh "/usr/local/bin/megacmd_${test}_test.py"
+                                                    deleteDir()
+                                                }
+                                                junit "pytest-dir-${SANITIZERS}/${test}-results/TEST-*.xml"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        post {
+                            always {
+                                sh "/usr/bin/mega-exec logout || true"
+                                sh "/usr/bin/mega-exec quit || true"
+                                archiveArtifacts "pytest-dir-${SANITIZERS}/.megaCmd/megacmdserver.log*"
                             }
                         }
                     }

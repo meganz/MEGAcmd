@@ -8,7 +8,8 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     apt-get update \
     && apt-get install -y --no-install-recommends \
-    cmake zip pkg-config curl python3 autoconf-archive nasm git g++ uuid-runtime
+    cmake zip pkg-config curl python3 python3-pip autoconf-archive nasm git g++ uuid-runtime \
+    && python3 -m pip install unittest-xml-reporting --break-system-packages
 
 RUN if [ ! -e /etc/machine-id ]; then \
         uuidgen > /etc/machine-id; \
@@ -61,7 +62,7 @@ COPY --from=src /usr/src/megacmd /usr/src/megacmd
 #We don't wont a potential config coming from host machine to meddle with the build:
 RUN rm ./sdk/include/mega/config.h || true
 
-RUN  --mount=type=cache,target=/tmp/ccache \
+RUN --mount=type=cache,target=/tmp/ccache \
     --mount=type=cache,target=/tmp/vcpkgcache \
     --mount=type=tmpfs,target=/tmp/build \
      cmake -B /tmp/build \
@@ -84,4 +85,5 @@ FROM base as final
 
 COPY --from=build /usr/bin/mega* /usr/bin/
 COPY --from=build /opt/megacmd /opt/megacmd
+COPY --chmod=555 tests/*.py /usr/local/bin/
 #COPY --from=build /inspectme /inspectme
