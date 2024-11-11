@@ -216,6 +216,14 @@ std::vector<T> operator+(const std::vector<T>& a, const std::vector<T>& b)
     return result;
 }
 
+template <typename T>
+std::vector<T> operator+(std::vector<T>&& a, std::vector<T>&& b)
+{
+    a.reserve(a.size() + b.size());
+    a.insert(a.end(), std::make_move_iterator(b.begin()), std::make_move_iterator(b.end()));
+    return std::move(a);
+}
+
 std::string toLower(const std::string& str);
 
 template<typename T>
