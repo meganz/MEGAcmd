@@ -25,7 +25,7 @@
 #include "megacmdcommonutils.h"
 
 #define GENERATE_FROM_PATH_PROBLEM(GENERATOR_MACRO) \
-        GENERATOR_MACRO(mega::PathProblem::NoProblem,                             "None") \
+        GENERATOR_MACRO(mega::PathProblem::NoProblem,                             "-") \
         GENERATOR_MACRO(mega::PathProblem::FileChangingFrequently,                "File is changing frequently") \
         GENERATOR_MACRO(mega::PathProblem::IgnoreRulesUnknown,                    "Ignore rules are unknown") \
         GENERATOR_MACRO(mega::PathProblem::DetectedHardLink,                      "Hard link detected") \
