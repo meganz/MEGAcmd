@@ -115,7 +115,8 @@ class SyncIssuesRequestListener : public mega::SynchronousRequestListener
             auto stall = stalls->get(i);
             assert(stall);
 
-            syncIssues.mIssuesMap.emplace(static_cast<uint32_t>(stall->getHash()), *stall);
+            SyncIssue syncIssue(*stall);
+            syncIssues.mIssuesMap.emplace(syncIssue.getId(), std::move(syncIssue));
         }
         onSyncIssuesChanged(syncIssues);
 
@@ -285,10 +286,14 @@ SyncIssue::SyncIssue(const mega::MegaSyncStall &stall) :
 {
 }
 
-unsigned int SyncIssue::getId() const
+std::string SyncIssue::getId() const
 {
     assert(mMegaStall);
-    return static_cast<uint32_t>(mMegaStall->getHash());
+    const size_t hash = mMegaStall->getHash();
+
+    std::string id(11, '\0');
+    id.resize(mega::Base64::btoa(reinterpret_cast<const unsigned char*>(&hash), sizeof(hash), reinterpret_cast<char*>(id.data())));
+    return id;
 }
 
 SyncInfo SyncIssue::getSyncInfo(mega::MegaSync const* parentSync) const
@@ -539,7 +544,7 @@ bool SyncIssue::belongsToSync(const mega::MegaSync& sync) const
     return false;
 }
 
-SyncIssue const* SyncIssueList::getSyncIssue(unsigned int id) const
+SyncIssue const* SyncIssueList::getSyncIssue(const std::string& id) const
 {
     auto it = mIssuesMap.find(id);
     if (it == mIssuesMap.end())
@@ -639,7 +644,7 @@ namespace SyncIssuesCommand
         {
             auto parentSync = syncIssue.getParentSync(api);
 
-            cd.addValue("ISSUE_ID", std::to_string(syncIssue.getId()));
+            cd.addValue("ISSUE_ID", syncIssue.getId());
             cd.addValue("PARENT_SYNC", parentSync ? parentSync->getName() : "<not found>");
             cd.addValue("REASON", syncIssue.getSyncInfo(parentSync.get()).mReason);
             cd.addValue("SOLVABLE", "NO" /* Until CMD-311 */);
@@ -652,7 +657,7 @@ namespace SyncIssuesCommand
             OUTSTREAM << "Note: showing " << rowCountLimit << " out of " << syncIssues.size() << " issues. "
                       << "Use \"" << commandPrefixBasedOnMode() << "sync-issues --limit=0\" to see all of them." << endl;
         }
-        OUTSTREAM << "Use \"" << commandPrefixBasedOnMode() << "sync-issues --detail <ISSUE ID>\" to get further details on a specific issue." << endl;
+        OUTSTREAM << "Use \"" << commandPrefixBasedOnMode() << "sync-issues --detail <ISSUE_ID>\" to get further details on a specific issue." << endl;
     }
 
     void printSingleIssueDetail(mega::MegaApi& api, megacmd::ColumnDisplayer& cd, const SyncIssue& syncIssue, bool disablePathCollapse, int rowCountLimit)

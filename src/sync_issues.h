@@ -102,7 +102,7 @@ public:
 
     SyncIssue(const mega::MegaSyncStall& stall);
 
-    unsigned int getId() const;
+    std::string getId() const;
     SyncInfo getSyncInfo(mega::MegaSync const* parentSync) const;
 
     std::vector<PathProblem> getPathProblems(mega::MegaApi& api) const;
@@ -116,7 +116,9 @@ public:
 
 class SyncIssueList
 {
-    std::map<unsigned int, SyncIssue> mIssuesMap;
+    using SyncIssuesMapT = std::map<std::string, SyncIssue>;
+    SyncIssuesMapT mIssuesMap;
+
     friend class SyncIssuesRequestListener; // only one that can actually populate this
 
 public:
@@ -129,14 +131,14 @@ public:
         }
     }
 
-    SyncIssue const* getSyncIssue(unsigned int id) const;
+    SyncIssue const* getSyncIssue(const std::string& id) const;
     unsigned int getSyncIssuesCount(const mega::MegaSync& sync) const;
 
     bool empty() const { return mIssuesMap.empty(); }
     unsigned int size() const { return mIssuesMap.size(); }
 
-    std::map<unsigned int, SyncIssue>::const_iterator begin() const { return mIssuesMap.begin(); }
-    std::map<unsigned int, SyncIssue>::const_iterator end() const { return mIssuesMap.end(); }
+    SyncIssuesMapT::const_iterator begin() const { return mIssuesMap.begin(); }
+    SyncIssuesMapT::const_iterator end() const { return mIssuesMap.end(); }
 };
 
 class SyncIssuesManager final

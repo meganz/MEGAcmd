@@ -10783,16 +10783,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     return;
                 }
 
-                unsigned int syncIssueId = 0;
-                try
-                {
-                    syncIssueId = std::stoul(words.back());
-                }
-                catch (...)
-                {
-                    LOG_err << "Sync issue ID must be a non-negative integer";
-                    return;
-                }
+                const std::string syncIssueId = words.back();
 
                 auto syncIssuePtr = syncIssues.getSyncIssue(syncIssueId);
                 if (!syncIssuePtr)
