@@ -488,34 +488,34 @@ std::vector<SyncIssue::PathProblem> SyncIssue::getPathProblems(mega::MegaApi& ap
                 LOG_warn << "Path problem " << pathProblem.mPath << " does not have a valid node associated with it";
             }
         }
-        else if (fs::exists(pathProblem.mPath))
+        else if (std::error_code ec; fs::exists(pathProblem.mPath, ec) && !ec)
         {
-            if (fs::is_directory(pathProblem.mPath))
+            if (fs::is_directory(pathProblem.mPath, ec) && !ec)
             {
                 pathProblem.mPathType = "Folder";
             }
-            else if (fs::is_regular_file(pathProblem.mPath))
+            else if (fs::is_regular_file(pathProblem.mPath, ec) && !ec)
             {
                 pathProblem.mPathType = "File";
             }
-            else if (fs::is_symlink(pathProblem.mPath))
+            else if (fs::is_symlink(pathProblem.mPath, ec) && !ec)
             {
                 pathProblem.mPathType = "Symlink";
             }
 
-            auto lastWriteTime = fs::last_write_time(pathProblem.mPath);
-            auto systemNow = std::chrono::system_clock::now();
-            auto fileTimeNow = fs::file_time_type::clock::now();
-            auto lastWriteTimePoint = std::chrono::time_point_cast<std::chrono::seconds>(lastWriteTime - fileTimeNow + systemNow);
-            pathProblem.mModifiedTime = lastWriteTimePoint.time_since_epoch().count();
-
-            try
+            auto lastWriteTime = fs::last_write_time(pathProblem.mPath, ec);
+            if (!ec)
             {
-                // Size for non-files (dirs, symlinks, etc.) is implementation-defined
-                // In some cases, an exception might be thrown
-                pathProblem.mFileSize = fs::file_size(pathProblem.mPath);
+                auto systemNow = std::chrono::system_clock::now();
+                auto fileTimeNow = fs::file_time_type::clock::now();
+                auto lastWriteTimePoint = std::chrono::time_point_cast<std::chrono::seconds>(lastWriteTime - fileTimeNow + systemNow);
+                pathProblem.mModifiedTime = lastWriteTimePoint.time_since_epoch().count();
             }
-            catch (...) {}
+
+            if (auto fileSize = fs::file_size(pathProblem.mPath, ec); !ec)
+            {
+                pathProblem.mFileSize = fileSize;
+            }
         }
 
         pathProblems.emplace_back(std::move(pathProblem));
