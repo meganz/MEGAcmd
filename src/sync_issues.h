@@ -97,7 +97,7 @@ public:
         int64_t mUploadedTime = 0; // in seconds since epoch
         int64_t mFileSize = 0;
 
-        std::string getProblemStr() const;
+        std::string_view getProblemStr() const;
     };
 
     SyncIssue(const mega::MegaSyncStall& stall);

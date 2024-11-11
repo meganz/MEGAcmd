@@ -267,7 +267,7 @@ std::optional<int> SyncIssue::getPathProblem(mega::PathProblem pathProblem) cons
     return {};
 }
 
-std::string SyncIssue::PathProblem::getProblemStr() const
+std::string_view SyncIssue::PathProblem::getProblemStr() const
 {
     switch(mProblem)
     {
@@ -701,7 +701,7 @@ namespace SyncIssuesCommand
             }
             else
             {
-                cd.addValue("PATH ISSUE", pathProblem.getProblemStr());
+                cd.addValue("PATH_ISSUE", std::string(pathProblem.getProblemStr()));
             }
 
             cd.addValue("LAST MODIFIED", pathProblem.mModifiedTime ? getReadableTime(pathProblem.mModifiedTime, timeFmt) : "-");
