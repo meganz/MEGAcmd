@@ -83,6 +83,9 @@ TEST_F(SyncIgnoreTests, DefaultIgnoreFile)
 {
     auto result = executeInClient({"sync-ignore", "DEFAULT"});
     ASSERT_TRUE(result.ok());
+
+    result = executeInClient({"sync-ignore", "default"});
+    ASSERT_TRUE(result.ok());
 }
 
 TEST_F(SyncIgnoreTests, AddAndShow)

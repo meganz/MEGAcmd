@@ -18,6 +18,7 @@
 #include <map>
 #include <memory>
 #include <mutex>
+#include <optional>
 
 #include "megaapi.h"
 #include "mega/types.h"
@@ -66,14 +67,21 @@ class SyncIssue
 {
     std::unique_ptr<const mega::MegaSyncStall> mMegaStall;
 
-    template<bool preferCloud = false>
-    std::string getFilePath() const;
-
-    template<bool preferCloud = false>
-    std::string getFileName() const;
-
+    // Returns the cloud/local file path with index i
     template<bool isCloud>
-    bool hasPathProblem(mega::PathProblem pathProblem) const;
+    std::string getFilePath(int i = 0) const;
+
+    // Returns the file name of the cloud/local path with index i
+    template<bool isCloud>
+    std::string getFileName(int i) const;
+
+    // Returns the file name of path 0, with preference for cloud or local
+    template<bool preferCloud = false>
+    std::string getDefaultFileName() const;
+
+    // Returns the index of the first path problem of a particular type (if any)
+    template<bool isCloud>
+    std::optional<int> getPathProblem(mega::PathProblem pathProblem) const;
 
 public:
     // We add this prefix at the start to distinguish between cloud and local absolute paths

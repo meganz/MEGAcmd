@@ -216,6 +216,8 @@ std::vector<T> operator+(const std::vector<T>& a, const std::vector<T>& b)
     return result;
 }
 
+std::string toLower(const std::string& str);
+
 template<typename T>
 OUTSTRING getLeftAlignedStr(T what, int n)
 {
