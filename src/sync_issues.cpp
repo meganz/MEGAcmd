@@ -647,7 +647,6 @@ namespace SyncIssuesCommand
             cd.addValue("ISSUE_ID", syncIssue.getId());
             cd.addValue("PARENT_SYNC", parentSync ? parentSync->getName() : "<not found>");
             cd.addValue("REASON", syncIssue.getSyncInfo(parentSync.get()).mReason);
-            cd.addValue("SOLVABLE", "NO" /* Until CMD-311 */);
         }, rowCountLimit);
 
         OUTSTREAM << cd.str();
