@@ -461,7 +461,7 @@ std::vector<SyncIssue::PathProblem> SyncIssue::getPathProblems(mega::MegaApi& ap
         PathProblem pathProblem;
         pathProblem.mIsCloud = isCloud;
         pathProblem.mPath = (isCloud ? CloudPrefix : "") + mMegaStall->path(isCloud, i);
-        pathProblem.mProblem = static_cast<mega::PathProblem>(mMegaStall->pathProblem(isCloud, i));
+        pathProblem.mProblem = static_cast<mega::PathProblem>(std::max(0, mMegaStall->pathProblem(isCloud, i)));
 
         if constexpr (isCloud)
         {
