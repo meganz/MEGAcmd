@@ -638,7 +638,7 @@ namespace SyncIssuesCommand
 {
     void printAllIssues(mega::MegaApi& api, ColumnDisplayer& cd, const SyncIssueList& syncIssues, bool disablePathCollapse, int rowCountLimit)
     {
-        cd.addHeader("PARENT SYNC", disablePathCollapse);
+        cd.addHeader("PARENT_SYNC", disablePathCollapse);
 
         syncIssues.forEach([&api, &cd] (const SyncIssue& syncIssue)
         {
@@ -704,7 +704,7 @@ namespace SyncIssuesCommand
                 cd.addValue("PATH_ISSUE", std::string(pathProblem.getProblemStr()));
             }
 
-            cd.addValue("LAST MODIFIED", pathProblem.mModifiedTime ? getReadableTime(pathProblem.mModifiedTime, timeFmt) : "-");
+            cd.addValue("LAST_MODIFIED", pathProblem.mModifiedTime ? getReadableTime(pathProblem.mModifiedTime, timeFmt) : "-");
             cd.addValue("UPLOADED", pathProblem.mUploadedTime ? getReadableTime(pathProblem.mUploadedTime, timeFmt) : "-");
             cd.addValue("SIZE", sizeToText(pathProblem.mFileSize));
         }
