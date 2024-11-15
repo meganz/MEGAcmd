@@ -93,7 +93,7 @@ void printSingleSync(mega::MegaApi& api, mega::MegaSync& sync, long long nFiles,
 
     if (sync.getError())
     {
-        std::unique_ptr<const char[]> megaSyncErrorCode {sync.getMegaSyncErrorCode()};
+        std::unique_ptr<const char[]> megaSyncErrorCode(sync.getMegaSyncErrorCode());
         cd.addValue("ERROR", megaSyncErrorCode.get());
     }
     else
@@ -114,11 +114,34 @@ void printSingleSync(mega::MegaApi& api, mega::MegaSync& sync, long long nFiles,
 
 string getErrorString(MegaCmdListener& listener)
 {
-    if (listener.getError()->getErrorCode() == mega::MegaError::API_OK)
+    std::string errorStr;
+
+    bool hasMegaError = listener.getError()->getErrorCode() != mega::MegaError::API_OK;
+    auto syncError = static_cast<mega::SyncError>(listener.getRequest()->getNumDetails());
+
+    if (hasMegaError)
     {
-        return "";
+        errorStr += "error: ";
+        errorStr += listener.getError()->getErrorString();
     }
-    return listener.getError()->getErrorString();
+    else if (syncError)
+    {
+        errorStr += "sync error: ";
+    }
+
+    if (syncError)
+    {
+        if (hasMegaError)
+        {
+            errorStr += ". ";
+        }
+
+        std::unique_ptr<const char[]> syncErrorStr(mega::MegaSync::getMegaSyncErrorCode(syncError));
+        errorStr += syncErrorStr.get();
+    }
+
+    return errorStr;
+
 }
 
 string getSyncErrorReason(MegaCmdListener& listener)
@@ -228,7 +251,7 @@ void addSync(mega::MegaApi& api, const fs::path& localPath, mega::MegaNode& node
     string errorStr = getErrorString(*megaCmdListener);
     if (!errorStr.empty())
     {
-        LOG_err << "Failed to sync " << localPath.string() << " to " << nodePath << " (error: " << errorStr << ")";
+        LOG_err << "Failed to sync " << localPath.string() << " to " << nodePath << " (" << errorStr << ")";
         return;
     }
 
@@ -258,7 +281,7 @@ void modifySync(mega::MegaApi& api, mega::MegaSync& sync, ModifyOpts opts)
         }
         else
         {
-            LOG_err << "Failed to remove sync " << getSyncId(sync) << " (error: " << errorStr << ")";
+            LOG_err << "Failed to remove sync " << getSyncId(sync) << " (" << errorStr << ")";
         }
     }
     else
@@ -283,7 +306,7 @@ void modifySync(mega::MegaApi& api, mega::MegaSync& sync, ModifyOpts opts)
         else
         {
             const char* action = (opts == ModifyOpts::Stop ? "disable" : "re-enable");
-            LOG_err << "Failed to " << action << " sync " << getSyncId(sync) << " (error: " << errorStr << ")";
+            LOG_err << "Failed to " << action << " sync " << getSyncId(sync) << " (" << errorStr << ")";
         }
     }
 }
