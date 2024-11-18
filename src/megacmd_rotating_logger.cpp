@@ -260,16 +260,13 @@ class GzipCompressionEngine final : public CompressionEngine
 {
     struct GzipJobData
     {
-        // When we have C++17 we can use an optional for this instead
-        bool valid = false;
-
         mega::LocalPath srcFilePath;
         mega::LocalPath dstFilePath;
 
-        GzipJobData() = default;
         GzipJobData(const mega::LocalPath &_srcFilePath, const mega::LocalPath &_dstFilePath);
     };
-    std::queue<GzipJobData> mQueue;
+    using GzipJobQueue = std::queue<std::optional<GzipJobData>>;
+    GzipJobQueue mQueue;
 
     mutable std::mutex mQueueMutex;
     std::condition_variable mQueueCV;
@@ -868,7 +865,6 @@ mega::LocalPath TimestampRotationEngine::rotateFiles(const mega::LocalPath &dir,
 }
 
 GzipCompressionEngine::GzipJobData::GzipJobData(const mega::LocalPath &_srcFilePath, const mega::LocalPath &_dstFilePath) :
-    valid(true),
     srcFilePath(_srcFilePath),
     dstFilePath(_dstFilePath)
 {
@@ -889,7 +885,7 @@ void GzipCompressionEngine::pushToQueue(const mega::LocalPath &srcFilePath, cons
         return;
     }
 
-    mQueue.emplace(srcFilePath, dstFilePath);
+    mQueue.emplace(GzipJobData(srcFilePath, dstFilePath));
     mQueueCV.notify_one();
 }
 
@@ -942,7 +938,7 @@ void GzipCompressionEngine::mainLoop()
 {
     while (true)
     {
-        GzipJobData jobData;
+        std::optional<GzipJobData> jobDataOpt;
 
         {
             std::unique_lock<std::mutex> lock(mQueueMutex);
@@ -954,14 +950,14 @@ void GzipCompressionEngine::mainLoop()
             }
             assert(!mQueue.empty());
 
-            jobData = mQueue.front();
+            jobDataOpt = mQueue.front();
             mQueue.pop();
 
             mCancelOngoingJob = false;
         }
 
-        assert(jobData.valid);
-        gzipFile(jobData.srcFilePath, jobData.dstFilePath);
+        assert(jobDataOpt);
+        gzipFile(jobDataOpt->srcFilePath, jobDataOpt->dstFilePath);
     }
 }
 
@@ -994,7 +990,7 @@ void GzipCompressionEngine::cancelAll()
     std::lock_guard<std::mutex> lock(mQueueMutex);
 
     // Clear the queue
-    mQueue = std::queue<GzipJobData>();
+    mQueue = GzipJobQueue();
 
     // This flag will ensure `gzipFile` returns as soon as possible (if it's running)
     // It'll be unset the next time we pop an item from the queue
