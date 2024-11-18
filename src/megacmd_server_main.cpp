@@ -194,11 +194,11 @@ int main(int argc, char* argv[])
     extractargparam(args, "--apiurl", debug_api_url);  // only for debugging
     bool disablepkp = extractarg(args, "--disablepkp");  // only for debugging
 
-    auto createLoggerStream = []
+    auto createLoggedStream = []
     {
         return new megacmd::FileRotatingLoggedStream(megacmd::MegaCmdLogger::getDefaultFilePath());
     };
 
-    return megacmd::executeServer(argc, argv, createLoggerStream,
+    return megacmd::executeServer(argc, argv, createLoggedStream,
                                   sdkLogLevel, cmdLogLevel, skiplockcheck, debug_api_url, disablepkp);
 }

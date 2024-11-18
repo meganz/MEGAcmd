@@ -25,6 +25,8 @@
 #include <Lmcons.h> //UNLEN
 #else
 #include <sys/ioctl.h> // console size
+#include <sys/socket.h>
+#include <sys/un.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -41,6 +43,7 @@
 #include <iterator>
 
 #include <regex> //split
+#include <random>
 
 #ifdef _WIN32
 namespace mega {
@@ -375,6 +378,26 @@ bool hasWildCards(string &what)
     return what.find('*') != string::npos || what.find('?') != string::npos;
 }
 
+
+string generateRandomAlphaNumericString(size_t len)
+{
+    static const std::string alphabet =
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+        "abcdefghijklmnopqrstuvwxyz"
+        "0123456789";
+
+    thread_local static std::mt19937 generator(std::random_device{}());
+    thread_local static std::uniform_int_distribution<> distribution(0, alphabet.size() - 1);
+
+    std::string randomString;
+    randomString.reserve(len);
+    for (size_t i = 0; i < len; ++i)
+    {
+        randomString += alphabet[distribution(generator)];
+    }
+    return randomString;
+}
+
 std::vector<std::string> split(const std::string& input, const std::string& pattern)
 {
     size_t start = 0, end;
@@ -524,12 +547,12 @@ vector<string> getlistOfWords(char *ptr, bool escapeBackSlashInCompletion, bool 
             //while ((unsigned char)*ptr > ' ')
             while ((*ptr != '\0') && !(*ptr ==' ' && *prev !='\\'))
             {
-                if (*ptr == '"') // if quote is found, look for the ending quote
+                if (*ptr == '"' && *(ptr+1) != '\0') // if quote is found, look for the ending quote
                 {
-                    while (*(ptr + 1) != '"' && *(ptr + 1))
+                    do
                     {
-                        ptr++;
-                    }
+                        ++ptr;
+                    } while (*ptr != '"' && *(ptr+1) != '\0');
                 }
                 prev = ptr;
                 ptr++;
@@ -888,13 +911,13 @@ string getOption(map<string, string> *cloptions, const char * optname, string de
     return cloptions->count(optname) ? ( *cloptions )[optname] : defaultValue;
 }
 
-std::pair<string, bool> getOptionOrFalse(const map<string, string>& cloptions, const char * optname)
+std::optional<string> getOptionAsOptional(const map<string, string>& cloptions, const char * optname)
 {
     if (cloptions.find(optname) == cloptions.end())
     {
-        return {"", false};
+        return {};
     }
-    return {cloptions.at(optname), true};
+    return cloptions.at(optname);
 }
 
 int getintOption(map<string, string> *cloptions, const char * optname, int defaultValue)
@@ -1483,11 +1506,11 @@ void Field::updateMaxValue(int newcandidate)
 std::unique_ptr<PlatformDirectories> PlatformDirectories::getPlatformSpecificDirectories()
 {
 #ifdef _WIN32
-    return std::unique_ptr<PlatformDirectories>(new WindowsDirectories);
+    return std::make_unique<WindowsDirectories>();
 #elif defined(__APPLE__)
-    return std::unique_ptr<PlatformDirectories>(new MacOSDirectories);
+    return std::make_unique<MacOSDirectories>();
 #else
-    return std::unique_ptr<PlatformDirectories>(new XDGDirectories);
+    return std::make_unique<PosixDirectories>();
 #endif
 }
 
@@ -1510,6 +1533,13 @@ std::string WindowsDirectories::configDirPath()
                 utf16ToUtf8(szPath, lstrlen(szPath), &folder);
             }
         }
+    }
+
+    auto suffix = getenv("MEGACMD_WORKING_FOLDER_SUFFIX");
+    if (suffix != nullptr)
+    {
+        folder += "_";
+        folder += suffix;
     }
 
     return folder;
@@ -1548,152 +1578,97 @@ std::string PosixDirectories::homeDirPath()
     long int bufsize = sysconf(_SC_GETPW_R_SIZE_MAX);
     bufsize = bufsize == -1 ? 1024 : bufsize;
     auto pwdbuf = std::unique_ptr<char[]>(new char[bufsize]);
-    auto err = getpwuid_r(getuid(), &pwd, pwdbuf.get(), bufsize, &pwdresult);
-
-    if (err != 0)
+    if (getpwuid_r(getuid(), &pwd, pwdbuf.get(), bufsize, &pwdresult))
     {
+        std::cerr << "Warn: Could not get HOME folder from getpwuid_r. errno = " << errno << std::endl;
         return std::string();
     }
     return std::string(pwd.pw_dir);
 }
 
-std::string PosixDirectories::runtimeDirPath()
-{
-    std::string dir = PosixDirectories::configDirPath();
-    struct stat path_stat = {};
-    bool exists = !stat(dir.c_str(), &path_stat) && S_ISDIR(path_stat.st_mode);
-
-    return (dir.empty() || !exists) ? std::string("/tmp/megacmd-").append(std::to_string(getuid()))
-                                    : dir;
-}
-
 std::string PosixDirectories::configDirPath()
 {
     std::string home = homeDirPath();
-    return home.empty() ? std::string() : home.append("/.megaCmd");
+    if (home.empty())
+    {
+        return noHomeFallbackFolder();
+    }
+
+    struct stat path_stat = {};
+    bool exists = !stat(home.c_str(), &path_stat) && S_ISDIR(path_stat.st_mode);
+
+    return exists ? home.append("/.megaCmd") : noHomeFallbackFolder();
 }
 
-bool PosixDirectories::legacyConfigDirExists()
+string PosixDirectories::noHomeFallbackFolder()
 {
-    std::string dir = PosixDirectories::configDirPath();
-    struct stat path_stat = {};
-
-    return !stat(dir.c_str(), &path_stat) && S_ISDIR(path_stat.st_mode);
+    return std::string("/tmp/megacmd-").append(std::to_string(getuid()));
 }
 
 #ifdef __APPLE__
-std::string MacOSDirectories::cacheDirPath()
+std::string MacOSDirectories::runtimeDirPath()
 {
-    std::string homedir = homeDirPath();
-    return homedir.empty() ? std::string() : homedir.append("/Library/Caches/megacmd.mac");
-}
-
-std::string MacOSDirectories::configDirPath()
-{
-    if (legacyConfigDirExists())
+    std::string home = homeDirPath();
+    if (home.empty())
     {
-        return PosixDirectories::configDirPath();
-    }
-    std::string homedir = homeDirPath();
-    return homedir.empty() ? std::string() : homedir.append("/Library/Preferences/megacmd.mac");
-}
-
-std::string MacOSDirectories::dataDirPath()
-{
-    std::string homedir = homeDirPath();
-    return homedir.empty() ? std::string() : homedir.append("/Library/MEGA CMD");
-}
-#else // !defined(__APPLE__)
-std::string XDGDirectories::runtimeDirPath()
-{
-    const char *runtimedir = getenv("XDG_RUNTIME_DIR");
-    if (runtimedir != nullptr)
-    {
-        return std::string(runtimedir).append("/megacmd");
+        // fallback to Posix:
+        return PosixDirectories::runtimeDirPath();
     }
 
-    return PosixDirectories::runtimeDirPath();
-}
+    auto cachesPath = std::string(home).append("/Library/Caches");
+    struct stat path_stat = {};
+    bool exists = !stat(cachesPath.c_str(), &path_stat) && S_ISDIR(path_stat.st_mode);
 
-std::string XDGDirectories::cacheDirPath()
-{
-    const char *cachedir = getenv("XDG_CACHE_HOME");
-    if (cachedir != nullptr)
-    {
-        return std::string(cachedir).append("/megacmd");
-    }
-
-    return PosixDirectories::cacheDirPath();
-}
-
-std::string XDGDirectories::configDirPath()
-{
-    const char *configdir = getenv("XDG_CONFIG_HOME");
-    if (legacyConfigDirExists() || configdir == nullptr)
-    {
-        return PosixDirectories::configDirPath();
-    }
-    return std::string(configdir).append("/megacmd");
-}
-
-std::string XDGDirectories::dataDirPath()
-{
-    if (legacyConfigDirExists())
-    {
-        return PosixDirectories::configDirPath();
-    }
-
-    const char *datadir = getenv("XDG_DATA_HOME");
-    if (datadir == nullptr)
-    {
-        return PosixDirectories::dataDirPath();
-    }
-
-    return std::string(datadir).append("/megacmd");
-}
-
-std::string XDGDirectories::stateDirPath()
-{
-    const char *statedir = getenv("XDG_STATE_HOME");
-    if (statedir != nullptr)
-    {
-        return std::string(statedir).append("/megacmd");
-    }
-
-    return PosixDirectories::stateDirPath();
+    return exists ? cachesPath.append("/megacmd.mac") : noHomeFallbackFolder();
 }
 #endif // !defined(__APPLE__)
 
 std::string getOrCreateSocketPath(bool createDirectory)
 {
     auto dirs = PlatformDirectories::getPlatformSpecificDirectories();
-    auto runtimedir = dirs->runtimeDirPath();
-    if (runtimedir.empty())
+    auto socketFolder = dirs->runtimeDirPath();
+    if (socketFolder.empty())
     {
-        return std::string();
-    }
-    struct stat path_stat = {};
-    if (createDirectory)
-    {
-        bool exists = !stat(runtimedir.c_str(), &path_stat) && S_ISDIR(path_stat.st_mode);
-        if (!exists && createDirectory)
-        {
-            mode_t mode = umask(0);
-            bool failed = mkdir(runtimedir.c_str(), 0700) != 0;
-            if (failed)
-            {
-                std::cerr << "Failed to create folder for unix socket: " << runtimedir << ": " << std::strerror(errno) << std::endl;
-            }
-            umask(mode);
-
-            if (failed)
-                return std::string();
-        }
+        std::cerr << "FATAL: Could not get runtime folder for socket path" << std::endl;
+        throw std::runtime_error("Could not get runtime folder for socket path");
     }
 
     const char *sockname_c = getenv("MEGACMD_SOCKET_NAME");
     std::string sockname = sockname_c != nullptr ? std::string(sockname_c) : "megacmd.socket";
-    return runtimedir.append("/").append(sockname);
+
+    static auto MAX_SOCKET_PATH = sizeof(sockaddr_un::sun_path) / sizeof(decltype(sockaddr_un::sun_path[0]));
+
+    if ((socketFolder.size() + 1 + sockname.size()) >= (MAX_SOCKET_PATH - 1))
+    {
+        if (createDirectory)
+        {
+            std::cerr << "WARN: socket path in runtime dir would exceed max size. Falling back to /tmp" << std::endl;
+        }
+        socketFolder = PosixDirectories::noHomeFallbackFolder();
+    }
+
+    struct stat path_stat = {};
+    if (createDirectory)
+    {
+        bool exists = !stat(socketFolder.c_str(), &path_stat) && S_ISDIR(path_stat.st_mode);
+        if (!exists && createDirectory)
+        {
+            mode_t mode = umask(0);
+            bool failed = mkdir(socketFolder.c_str(), 0700) != 0;
+            if (failed)
+            {
+                std::cerr << "Failed to create folder for unix socket: " << socketFolder << ": " << std::strerror(errno) << std::endl;
+            }
+            umask(mode);
+
+            if (failed)
+            {
+                return std::string();
+            }
+        }
+    }
+
+    return socketFolder.append("/").append(sockname);
 }
 #endif // ifdef(_WIN32) else
 } //end namespace

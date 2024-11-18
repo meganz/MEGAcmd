@@ -43,10 +43,7 @@
 #include <sys/un.h>
 #endif
 
-#if defined(_WIN32) && !defined(WINDOWS_PHONE) && !defined(USE_CPPTHREAD)
-#include "mega/thread/win32thread.h"
-class MegaThread : public ::mega::Win32Thread {};
-#elif defined(USE_CPPTHREAD)
+#ifdef _WIN32
 #include "mega/thread/cppthread.h"
 class MegaThread : public ::mega::CppThread {};
 #else

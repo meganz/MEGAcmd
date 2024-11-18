@@ -17,6 +17,8 @@
  */
 
 #include "megacmdlogger.h"
+#include "megacmdcommonutils.h"
+#include "megacmd_src_file_list.h"
 
 #include <map>
 
@@ -174,26 +176,30 @@ OUTSTRING MegaCmdLogger::getDefaultFilePath()
          }
      }
 #else
-    const char* home = getenv("HOME");
-    if (home)
+    auto dirs = PlatformDirectories::getPlatformSpecificDirectories();
+    path = dirs->configDirPath();
+
+    auto fsAccess = std::make_unique<MegaFileSystemAccess>();
+    fsAccess->setdefaultfolderpermissions(0700);
+    LocalPath localconfigDir = LocalPath::fromAbsolutePath(path);
+    if (!fsAccess->mkdirlocal(localconfigDir, false, false))
     {
-        path.append(home);
-        path.append("/.megaCmd/");
-        path.append("/megacmdserver.log");
+        LOG_err << "Data directory not created";
     }
+    path.append("/megacmdserver.log");
 #endif
     return path;
 }
 
 bool MegaCmdLogger::isMegaCmdSource(const std::string &source)
 {
-    //TODO: this seem to be broken. source does not have the entire path but just leaf names
-    return source.find("src/megacmd") != string::npos ||
-           source.find("src\\megacmd") != string::npos ||
-           source.find("listeners.cpp") != string::npos ||
-           source.find("configurationmanager.cpp") != string::npos ||
-           source.find("comunicationsmanager") != string::npos ||
-           source.find("megacmd") != string::npos;
+    static const std::set<std::string_view> megaCmdSourceFiles = MEGACMD_SRC_FILE_LIST;
+
+    // Remove the line number (since source has the format "filename.cpp:1234")
+    std::string_view filename(source);
+    filename = filename.substr(0, filename.find(':'));
+
+    return megaCmdSourceFiles.find(filename) != megaCmdSourceFiles.end();
 }
 
 void MegaCmdLogger::formatLogToStream(LoggedStream &stream, const char *time, int logLevel, const char *source, const char *message)
@@ -258,11 +264,13 @@ bool MegaCmdSimpleLogger::shouldLogToClient(int logLevel, const char* source) co
     return logLevel <= currentThreadLogLevel;
 }
 
-MegaCmdSimpleLogger::MegaCmdSimpleLogger() :
+MegaCmdSimpleLogger::MegaCmdSimpleLogger(int sdkLoggerLevel, int cmdLoggerLevel) :
     MegaCmdLogger(),
     mLoggedStream(Instance<DefaultLoggedStream>::Get().getLoggedStream()),
     mOutStream(&COUT)
 {
+    setSdkLoggerLevel(sdkLoggerLevel);
+    setCmdLoggerLevel(cmdLoggerLevel);
 }
 
 int MegaCmdSimpleLogger::getMaxLogLevel() const
@@ -279,16 +287,19 @@ void MegaCmdSimpleLogger::log(const char *time, int logLevel, const char *source
 
     if (shouldLogToStream(logLevel, source))
     {
-#ifdef _WIN32
-        std::lock_guard<std::mutex> g(mOutputMutex);
-        int oldmode = _setmode(_fileno(stdout), _O_U8TEXT);
-#endif
-
         formatLogToStream(mLoggedStream, time, logLevel, source, message);
-        formatLogToStream(mOutStream, time, logLevel, source, message);
 
 #ifdef _WIN32
-        _setmode(_fileno(stdout), oldmode);
+        {
+            std::lock_guard<std::mutex> g(mSetmodeMtx);
+            int oldmode = _setmode(_fileno(stdout), _O_U8TEXT);
+#endif
+            formatLogToStream(mOutStream, time, logLevel, source, message);
+
+#ifdef _WIN32
+            assert(oldmode != -1);
+            _setmode(_fileno(stdout), oldmode);
+        }
 #endif
     }
 
@@ -300,9 +311,10 @@ void MegaCmdSimpleLogger::log(const char *time, int logLevel, const char *source
 }
 
 LoggedStreamDefaultFile::LoggedStreamDefaultFile() :
-    mFstream(OUTFSTREAMTYPE(MegaCmdLogger::getDefaultFilePath())),
-    LoggedStreamOutStream (&mFstream)
+    LoggedStreamOutStream(nullptr),
+    mFstream(OUTFSTREAMTYPE(MegaCmdLogger::getDefaultFilePath()))
 {
+    out = &mFstream;
 }
 
 }//end namespace

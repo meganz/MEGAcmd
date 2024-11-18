@@ -28,12 +28,11 @@ namespace megacmd {
 class LoggedStream
 {
 public:
-    LoggedStream(){out = NULL;}
-    LoggedStream(OUTSTREAMTYPE *_out):out(_out){
-    }
+    LoggedStream() { out = nullptr; }
+    LoggedStream(OUTSTREAMTYPE *_out) : out(_out) {}
     virtual ~LoggedStream() = default;
 
-    virtual bool isClientConnected(){return true;}
+    virtual bool isClientConnected() { return true; }
 
     virtual const LoggedStream& operator<<(const char& v) const = 0;
     virtual const LoggedStream& operator<<(const char* v) const = 0;
@@ -52,29 +51,28 @@ public:
 
     virtual void flush() {}
 protected:
-  OUTSTREAMTYPE * out;
+    OUTSTREAMTYPE * out;
 };
 
 class LoggedStreamNull : public LoggedStream
 {
 public:
-  const LoggedStream& operator<<(const char& v) const override { return *this; }
-  const LoggedStream& operator<<(const char* v) const override { return *this; }
+    const LoggedStream& operator<<(const char& v) const override { return *this; }
+    const LoggedStream& operator<<(const char* v) const override { return *this; }
 #ifdef _WIN32
-  virtual const LoggedStream& operator<<(std::wstring v) const override { return *this; }
+    const LoggedStream& operator<<(std::wstring v) const override { return *this; }
 #endif
-  const LoggedStream& operator<<(std::string v) const override { return *this; }
-  const LoggedStream& operator<<(int v) const override { return *this; }
-  const LoggedStream& operator<<(unsigned int v) const override { return *this; }
-  const LoggedStream& operator<<(long unsigned int v) const override { return *this; }
-  const LoggedStream& operator<<(long long int v) const override { return *this; }
-  const LoggedStream& operator<<(std::ios_base v) const override { return *this; }
-  const LoggedStream& operator<<(std::ios_base *v) const override { return *this; }
+    const LoggedStream& operator<<(std::string v) const override { return *this; }
+    const LoggedStream& operator<<(int v) const override { return *this; }
+    const LoggedStream& operator<<(unsigned int v) const override { return *this; }
+    const LoggedStream& operator<<(long unsigned int v) const override { return *this; }
+    const LoggedStream& operator<<(long long int v) const override { return *this; }
+    const LoggedStream& operator<<(std::ios_base v) const override { return *this; }
+    const LoggedStream& operator<<(std::ios_base *v) const override { return *this; }
 
-  LoggedStream const& operator<<(OUTSTREAMTYPE& (*F)(OUTSTREAMTYPE&)) const override { return *this; }
+    LoggedStream const& operator<<(OUTSTREAMTYPE& (*F)(OUTSTREAMTYPE&)) const override { return *this; }
 
-  virtual ~LoggedStreamNull() = default;
-
+    virtual ~LoggedStreamNull() = default;
 };
 
 class DefaultLoggedStream
@@ -85,11 +83,12 @@ public:
     {
         mTheStream = std::move(loggedStream);
     }
+
     LoggedStream &getLoggedStream()
     {
         if (!mTheStream)
         {
-            mTheStream = ::mega::make_unique<LoggedStreamNull>();
+            mTheStream = std::make_unique<LoggedStreamNull>();
         }
         assert(mTheStream);
         return *mTheStream.get();
@@ -100,29 +99,28 @@ public:
 class LoggedStreamOutStream : public LoggedStream
 {
 public:
-  LoggedStreamOutStream(OUTSTREAMTYPE *_out):out(_out){}
+    LoggedStreamOutStream(OUTSTREAMTYPE *out) : LoggedStream(out) {}
 
-  virtual bool isClientConnected() override {return true;}
+    virtual ~LoggedStreamOutStream() = default;
 
-  virtual const LoggedStream& operator<<(const char& v) const override {*out << v;return *this;}
-  virtual const LoggedStream& operator<<(const char* v) const override {*out << v;return *this;}
+    virtual bool isClientConnected() override { return true; }
+
+    virtual const LoggedStream& operator<<(const char& v) const override { *out << v;return *this; }
+    virtual const LoggedStream& operator<<(const char* v) const override { *out << v;return *this; }
 #ifdef _WIN32
-  virtual const LoggedStream& operator<<(std::wstring v) const override {*out << v;return *this;}
+    virtual const LoggedStream& operator<<(std::wstring v) const override { *out << v;return *this; }
 #endif
-  virtual const LoggedStream& operator<<(std::string v) const override {*out << v;return *this;}
-  virtual const LoggedStream& operator<<(int v) const override {*out << v;return *this;}
-  virtual const LoggedStream& operator<<(unsigned int v) const override {*out << v;return *this;}
-  virtual const LoggedStream& operator<<(long unsigned int v) const override {*out << v;return *this;}
-  virtual const LoggedStream& operator<<(long long int v) const override {*out << v;return *this;}
-  virtual const LoggedStream& operator<<(std::ios_base v) const override {*out << &v;return *this;}
-  virtual const LoggedStream& operator<<(std::ios_base *v) const override {*out << v;return *this;}
+    virtual const LoggedStream& operator<<(std::string v) const override { *out << v;return *this; }
+    virtual const LoggedStream& operator<<(int v) const override { *out << v;return *this; }
+    virtual const LoggedStream& operator<<(unsigned int v) const override { *out << v;return *this; }
+    virtual const LoggedStream& operator<<(long unsigned int v) const override { *out << v;return *this; }
+    virtual const LoggedStream& operator<<(long long int v) const override { *out << v;return *this; }
+    virtual const LoggedStream& operator<<(std::ios_base v) const override { *out << &v;return *this; }
+    virtual const LoggedStream& operator<<(std::ios_base *v) const override { *out << v;return *this; }
 
-  virtual LoggedStream const& operator<<(OUTSTREAMTYPE& (*F)(OUTSTREAMTYPE&)) const override { if (out) F(*out); return *this; }
+    virtual LoggedStream const& operator<<(OUTSTREAMTYPE& (*F)(OUTSTREAMTYPE&)) const override { if (out) F(*out); return *this; }
 
-  virtual ~LoggedStreamOutStream() = default;
-  virtual void flush() override { out->flush(); }
-protected:
-  OUTSTREAMTYPE * out;
+    virtual void flush() override { out->flush(); }
 };
 
 class LoggedStreamDefaultFile : public LoggedStreamOutStream
@@ -136,36 +134,37 @@ public:
 class LoggedStreamPartialOutputs : public LoggedStream
 {
 public:
+    LoggedStreamPartialOutputs(ComunicationsManager *_cm, CmdPetition *_inf) : cm(_cm), inf(_inf) {}
+    virtual bool isClientConnected() { return inf && !inf->clientDisconnected; }
 
-  LoggedStreamPartialOutputs(ComunicationsManager *_cm, CmdPetition *_inf):cm(_cm),inf(_inf){}
-  virtual bool isClientConnected(){return inf && !inf->clientDisconnected;}
+    virtual const LoggedStream& operator<<(const char& v) const override { OUTSTRINGSTREAM os; os << v; OUTSTRING s = os.str(); cm->sendPartialOutput(inf, &s); return *this; }
+    virtual const LoggedStream& operator<<(const char* v) const override { OUTSTRINGSTREAM os; os << v; OUTSTRING s = os.str(); cm->sendPartialOutput(inf, &s); return *this; }
 
-  virtual const LoggedStream& operator<<(const char& v) const override {OUTSTRINGSTREAM os; os << v; OUTSTRING s = os.str(); cm->sendPartialOutput(inf, &s); return *this;}
-  virtual const LoggedStream& operator<<(const char* v) const override {OUTSTRINGSTREAM os; os << v; OUTSTRING s = os.str(); cm->sendPartialOutput(inf, &s); return *this;}
 #ifdef _WIN32
-  virtual const LoggedStream& operator<<(std::wstring v) const override {cm->sendPartialOutput(inf, &v); return *this;}
-  virtual const LoggedStream& operator<<(std::string v) const override {cm->sendPartialOutput(inf, (char *)v.data(), v.size()); return *this;}
+    virtual const LoggedStream& operator<<(std::wstring v) const override { cm->sendPartialOutput(inf, &v); return *this; }
+    virtual const LoggedStream& operator<<(std::string v) const override { cm->sendPartialOutput(inf, (char *)v.data(), v.size()); return *this; }
 #else
-  virtual const LoggedStream& operator<<(std::string v) const override {cm->sendPartialOutput(inf, &v); return *this;}
+    virtual const LoggedStream& operator<<(std::string v) const override { cm->sendPartialOutput(inf, &v); return *this; }
 #endif
-  virtual const LoggedStream& operator<<(int v) const override {OUTSTRINGSTREAM os; os << v; OUTSTRING s = os.str(); cm->sendPartialOutput(inf, &s); return *this;}
-  virtual const LoggedStream& operator<<(unsigned int v) const override {OUTSTRINGSTREAM os; os << v; OUTSTRING s = os.str(); cm->sendPartialOutput(inf, &s); return *this;}
-  virtual const LoggedStream& operator<<(long unsigned int v) const override {OUTSTRINGSTREAM os; os << v; OUTSTRING s = os.str(); cm->sendPartialOutput(inf, &s); return *this;}
-  virtual const LoggedStream& operator<<(long long int v) const override {OUTSTRINGSTREAM os; os << v; OUTSTRING s = os.str(); cm->sendPartialOutput(inf, &s); return *this;}
-  virtual const LoggedStream& operator<<(std::ios_base v) const override {*out << &v;return *this;}
-  virtual const LoggedStream& operator<<(std::ios_base *v) const override {OUTSTRINGSTREAM os; os << v; OUTSTRING s = os.str(); cm->sendPartialOutput(inf, &s); return *this;}
 
-  LoggedStream const& operator<<(OUTSTREAMTYPE& (*F)(OUTSTREAMTYPE&)) const
-  {
-      OUTSTRINGSTREAM os; os << F; OUTSTRING s = os.str(); cm->sendPartialOutput(inf, &s);
-      return *this;
-  }
+    virtual const LoggedStream& operator<<(int v) const override { OUTSTRINGSTREAM os; os << v; OUTSTRING s = os.str(); cm->sendPartialOutput(inf, &s); return *this; }
+    virtual const LoggedStream& operator<<(unsigned int v) const override { OUTSTRINGSTREAM os; os << v; OUTSTRING s = os.str(); cm->sendPartialOutput(inf, &s); return *this; }
+    virtual const LoggedStream& operator<<(long unsigned int v) const override { OUTSTRINGSTREAM os; os << v; OUTSTRING s = os.str(); cm->sendPartialOutput(inf, &s); return *this; }
+    virtual const LoggedStream& operator<<(long long int v) const override { OUTSTRINGSTREAM os; os << v; OUTSTRING s = os.str(); cm->sendPartialOutput(inf, &s); return *this; }
+    virtual const LoggedStream& operator<<(std::ios_base v) const override { *out << &v;return *this; }
+    virtual const LoggedStream& operator<<(std::ios_base *v) const override { OUTSTRINGSTREAM os; os << v; OUTSTRING s = os.str(); cm->sendPartialOutput(inf, &s); return *this; }
 
-  virtual ~LoggedStreamPartialOutputs() = default;
+    LoggedStream const& operator<<(OUTSTREAMTYPE& (*F)(OUTSTREAMTYPE&)) const
+    {
+        OUTSTRINGSTREAM os; os << F; OUTSTRING s = os.str(); cm->sendPartialOutput(inf, &s);
+        return *this;
+    }
+
+    virtual ~LoggedStreamPartialOutputs() = default;
 
 protected:
-  ComunicationsManager *cm;
-  CmdPetition *inf;
+    ComunicationsManager *cm;
+    CmdPetition *inf;
 };
 
 class ThreadLookupTable final
@@ -253,7 +252,7 @@ public:
 class MegaCmdSimpleLogger final : public MegaCmdLogger
 {
 #ifdef _WIN32
-    std::mutex mOutputMutex;
+    std::mutex mSetmodeMtx;
 #endif
     LoggedStream &mLoggedStream;
     LoggedStreamOutStream mOutStream;
@@ -262,7 +261,7 @@ class MegaCmdSimpleLogger final : public MegaCmdLogger
     bool shouldLogToClient(int logLevel, const char *source) const;
 
 public:
-    MegaCmdSimpleLogger();
+    MegaCmdSimpleLogger(int sdkLoggerLevel = mega::MegaApi::LOG_LEVEL_ERROR, int cmdLoggerLevel = mega::MegaApi::LOG_LEVEL_ERROR);
 
     void log(const char *time, int loglevel, const char *source, const char *message) override;
 
