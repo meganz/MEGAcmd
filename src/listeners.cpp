@@ -475,7 +475,6 @@ void MegaCmdMegaListener::onChatsUpdate(MegaApi *api, MegaTextChatList *chats)
 {}
 #endif
 
-#ifdef ENABLE_BACKUPS
 //backup callbacks:
 void MegaCmdMegaListener::onBackupStateChanged(MegaApi *api,  MegaScheduledCopy *backup)
 {
@@ -549,7 +548,6 @@ void MegaCmdMegaListener::onSyncDeleted(MegaApi *api, MegaSync *sync)
     LOG_verbose << "Sync deleted: " << sync->getLocalFolder() << " to " << sync->getLastKnownMegaFolder();
 }
 
-#endif
 ////////////////////////////////////////
 ///      MegaCmdListener methods     ///
 ////////////////////////////////////////

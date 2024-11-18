@@ -69,8 +69,9 @@ int main (int argc, char *argv[])
             nullptr
         };
 
+        constexpr bool logToCout = false;
         auto createDefaultStream = [] { return new megacmd::LoggedStreamDefaultFile(); };
-        megacmd::executeServer(1, args.data(), createDefaultStream);
+        megacmd::executeServer(1, args.data(), createDefaultStream, logToCout, mega::MegaApi::LOG_LEVEL_MAX, mega::MegaApi::LOG_LEVEL_MAX);
     });
 
     using TI = TestInstruments;
@@ -88,7 +89,13 @@ int main (int argc, char *argv[])
     auto exitCode = RUN_ALL_TESTS();
 
     megacmd::stopServer();
-
     serverThread.join();
+
+#ifdef _WIN32
+    // We use a file to pass the exit code to Jenkins,
+    // since it fails to get the actual value otherwise
+    std::ofstream("exit_code.txt") << exitCode;
+#endif
+
     return exitCode;
 }

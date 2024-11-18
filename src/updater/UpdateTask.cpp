@@ -33,6 +33,12 @@
 #include "Preferences.h"
 #include "MacUtils.h"
 
+#ifndef WIN32
+#include "../megacmdcommonutils.h" // Platform dirs
+#endif
+
+#include "../megacmdversion.h"
+
 using std::string;
 using CryptoPP::Integer;
 
@@ -260,14 +266,8 @@ int64_t mega_size(const char *path)
 
 string UpdateTask::getAppDataDir()
 {
-    string path;
-    const char* home = getenv("HOME");
-    if (home)
-    {
-        path.append(home);
-        path.append("/.megaCmd/");
-    }
-    return path;
+    auto dirs = megacmd::PlatformDirectories::getPlatformSpecificDirectories();
+    return dirs->configDirPath();
 }
 
 #define MEGA_TO_NATIVE_SEPARATORS(x) std::replace(x.begin(), x.end(), '\\', '/');
@@ -332,6 +332,8 @@ UpdateTask::UpdateTask()
     }
     signatureChecker = new SignatureChecker(updatePublicKey.c_str());
     currentFile = 0;
+    updateVersion = 0;
+    currentVersion = MEGACMD_CODE_VERSION;
     appDataFolder = getAppDataDir();
     appFolder = getAppDir();
     updateFolder = appDataFolder + UPDATE_FOLDER_NAME + MEGA_SEPARATOR;
@@ -360,9 +362,27 @@ UpdateTask::~UpdateTask()
     delete signatureChecker;
 }
 
-bool UpdateTask::checkForUpdates(bool emergencyUpdater, bool doNotInstall)
+bool UpdateTask::checkForUpdates(bool emergencyUpdater, bool doNotInstall, int _currentVersion)
 {
     LOG(LOG_LEVEL_INFO, "Starting update check");
+
+    bool hasOverride = getenv("MEGACMD_VERSION_OVERRIDE");
+    if (hasOverride)
+    {
+        try
+        {
+            currentVersion = std::stoi(getenv("MEGACMD_VERSION_OVERRIDE"));
+        }
+        catch (...)
+        {
+            hasOverride = false;
+        }
+    }
+
+    if (!hasOverride && _currentVersion != -1)
+    {
+        currentVersion = _currentVersion;
+    }
 
     // Create random sequence for http request
     string randomSec("?");
@@ -696,14 +716,16 @@ bool UpdateTask::processUpdateFile(FILE *fd)
         return false;
     }
 
-    int currentVersion = readVersion();
-    if (currentVersion == -1)
+    try
     {
-        LOG(LOG_LEVEL_INFO, "Error reading file version (megacmd.version)");
+        updateVersion = std::stoi(version);
+    }
+    catch (const std::exception& e)
+    {
+        LOG(LOG_LEVEL_ERROR, "Error converting the version string to an integer");
         return false;
     }
 
-    updateVersion = atoi(version.c_str());
     if (updateVersion <= currentVersion)
     {
         LOG(LOG_LEVEL_INFO, "Update not needed. Last version: %d - Current version: %d", updateVersion, currentVersion);
@@ -856,7 +878,7 @@ bool UpdateTask::performUpdate()
 void UpdateTask::rollbackUpdate(size_t fileNum)
 {
     LOG(LOG_LEVEL_INFO, "Uninstalling update...");
-    for (size_t i = fileNum; i >= 0; i--)
+    for (int i = fileNum; i >= 0; i--)
     {
         string origFile = appFolder + localPaths[i];
         mega_rename(origFile.c_str(), (updateFolder + localPaths[i]).c_str());
@@ -1014,21 +1036,6 @@ string UpdateTask::readNextLine(FILE *fd)
 
     line[strcspn(line, "\n")] = '\0';
     return string(line);
-}
-
-int UpdateTask::readVersion()
-{
-    int version = -1;
-    FILE *fp = mega_fopen((appDataFolder + VERSION_FILE_NAME).c_str(), "r");
-    if (fp == NULL)
-    {
-        LOG(LOG_LEVEL_INFO, "Couldn't open file version file: %s", (appDataFolder + VERSION_FILE_NAME).c_str());
-        return version;
-    }
-
-    fscanf(fp, "%d", &version);
-    fclose(fp);
-    return version;
 }
 
 #ifdef _WIN32

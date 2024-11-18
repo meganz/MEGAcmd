@@ -158,7 +158,37 @@ public:
 mega::MegaApi* getFreeApiFolder();
 void freeApiFolder(mega::MegaApi *apiFolder);
 
-const char * getUsageStr(const char *command);
+struct HelpFlags
+{
+    bool win = false;
+    bool apple = false;
+    bool usePcre = false;
+    bool haveLibuv = false;
+    bool readline = true;
+    bool showAll = false;
+
+    HelpFlags(bool showAll = false) :
+        showAll(showAll)
+    {
+#ifdef USE_PCRE
+        usePcre = true;
+#endif
+#ifdef _WIN32
+        win = true;
+#endif
+#ifdef __APPLE__
+        apple = true;
+#endif
+#ifdef HAVE_LIBUV
+        haveLibuv = true;
+#endif
+#ifdef NO_READLINE
+        readline = false;
+#endif
+    }
+};
+
+const char * getUsageStr(const char *command, const HelpFlags& flags = {});
 
 void unescapeifRequired(std::string &what);
 
@@ -193,7 +223,8 @@ void uninstall();
 
 class LoggedStream; // forward delaration
 int executeServer(int argc, char* argv[],
-                  std::function<megacmd::LoggedStream*()> createLoggedStream = nullptr,
+                  const std::function<LoggedStream*()>& createLoggedStream = nullptr,
+                  bool logToCout = true,
                   int sdkLogLevel = mega::MegaApi::LOG_LEVEL_DEBUG,
                   int cmdLogLevel = mega::MegaApi::LOG_LEVEL_DEBUG,
                   bool skiplockcheck = false,

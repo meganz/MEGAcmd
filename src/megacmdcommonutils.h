@@ -37,10 +37,15 @@
 #include <mutex>
 #include <condition_variable>
 #include <cassert>
+#include <optional>
 
 #ifndef UNUSED
     #define UNUSED(x) (void)(x)
 #endif
+
+#define MOVE_CAPTURE(x) x{std::move(x)}
+#define FWD_CAPTURE(x) x{std::forward<decltype(x)>(x)}
+#define CONST_CAPTURE(x) &x = std::as_const(x)
 
 using std::setw;
 using std::left;
@@ -136,9 +141,7 @@ static std::vector<std::string> allValidCommands { "login", "signup", "confirm",
 #ifdef HAVE_LIBUV
                              , "webdav", "ftp"
 #endif
-#ifdef ENABLE_BACKUPS
                              , "backup"
-#endif
                              , "deleteversions"
 #if defined(_WIN32) && defined(NO_READLINE)
                              , "autocomplete", "codepage"
@@ -173,6 +176,8 @@ std::string removeTrailingSeparators(std::string &path);
 
 
 /* Strings related */
+
+std::string generateRandomAlphaNumericString(size_t len);
 
 std::vector<std::string> split(const std::string& input, const std::string& pattern);
 
@@ -243,8 +248,7 @@ int getFlag(std::map<std::string, int> *flags, const char * optname);
 
 std::string getOption(std::map<std::string, std::string> *cloptions, const char * optname, std::string defaultValue = "");
 
-// TODO C++17 Use std::optional<string> instead
-std::pair<std::string, bool> getOptionOrFalse(const std::map<std::string, std::string>& cloptions, const char * optname);
+std::optional<std::string> getOptionAsOptional(const std::map<std::string, std::string>& cloptions, const char * optname);
 
 int getintOption(std::map<std::string, std::string> *cloptions, const char * optname, int defaultValue = 0);
 
@@ -343,52 +347,38 @@ private:
 /**
  * @name PlatformDirectories
  * @brief PlatformDirectories provides methods for accessing directories for storing user data for
- * MegaCMD.
- * To preserve backwards compatibility with existing setups, all implementations of
- * PlatformDirectories should return the legacy config directory (~/.megaCmd on UNIX), if it exists.
+ * MEGAcmd.
+ *
+ * Note: returned values are encoded in utf-8.
+ *
+ * 	+---------------------------------------------------------------------------------------------------------------------+
+ * 	| DirPath | Windows              | Linux          | macOS                            | Linux/macOS (no HOME fallback) |
+ * 	|---------|----------------------|----------------|----------------------------------|--------------------------------|
+ * 	| runtime | $EXECFOLDER/.megaCmd | $HOME/.megaCmd | $HOME/Library/Caches/megacmd.mac | /tmp/megacmd-UID/.megacmd      |
+ * 	| config  | $EXECFOLDER/.megaCmd | $HOME/.megaCmd | $HOME/.megaCmd                   | /tmp/megacmd-UID/.megacmd      |
+ * 	+---------------------------------------------------------------------------------------------------------------------+
+ *
  */
 class PlatformDirectories
 {
 public:
     static std::unique_ptr<PlatformDirectories> getPlatformSpecificDirectories();
     /**
-     * @brief runtimeDirPath returns the base path for storing non-essential runtime files.
+     * @brief runtimeDirPath returns the base path for storing runtime files:
      *
-     * Meant for sockets, named pipes, file locks, etc.
+     * Meant for sockets, named pipes, file locks, command history, etc.
      */
-    virtual std::string runtimeDirPath() = 0;
-    /**
-     * @brief cacheDirPath returns the base path for storing non-essential data files.
-     *
-     * Meant for cached data which can be safely deleted.
-     */
-    virtual std::string cacheDirPath() = 0;
-    /**
-     * @brief configDirPath returns the base path for storing configuration files.
-     *
-     * Solely for user-editable configuration files.
-     */
-    virtual std::string configDirPath() = 0;
-    /**
-     * @brief dataDirPath returns the base path for storing data files.
-     *
-     * For user data files that should not be deleted (session credentials, SDK workding directory,
-     * etc).
-     */
-    virtual std::string dataDirPath()
+    virtual std::string runtimeDirPath()
     {
         return configDirPath();
     }
     /**
-     * @brief stateDirPath returns the base path for storing state files. Specifically, data that
-     * can persist between restarts, but not significant enough for DataDirPath().
+     * @brief configDirPath returns the base path for storing configuration and data files.
      *
-     * Meant for recent command history, logs, crash dumps, etc.
+     * Meant for user-editable configuration files, data files that should not be deleted
+     * (session credentials, SDK workding directory, logs, etc).
      */
-    virtual std::string stateDirPath()
-    {
-        return runtimeDirPath();
-    }
+    virtual std::string configDirPath() = 0;
 };
 
 template <typename T> size_t numberOfDigits(T num)
@@ -405,14 +395,6 @@ template <typename T> size_t numberOfDigits(T num)
 #ifdef _WIN32
 class WindowsDirectories : public PlatformDirectories
 {
-    std::string runtimeDirPath() override
-    {
-        return configDirPath();
-    }
-    std::string cacheDirPath() override
-    {
-        return configDirPath();
-    }
     std::string configDirPath() override;
 };
 std::wstring getNamedPipeName();
@@ -421,37 +403,15 @@ class PosixDirectories : public PlatformDirectories
 {
 public:
     std::string homeDirPath();
-    std::string runtimeDirPath() override;
-    std::string cacheDirPath() override
-    {
-        return PosixDirectories::configDirPath();
-    };
-    std::string configDirPath() override;
-    std::string dataDirPath() override
-    {
-        return PosixDirectories::configDirPath();
-    }
-    std::string stateDirPath() override
-    {
-        return PosixDirectories::runtimeDirPath();
-    }
-    bool legacyConfigDirExists();
+    virtual std::string configDirPath() override;
+
+    static std::string noHomeFallbackFolder();
+
 };
 #ifdef __APPLE__
 class MacOSDirectories : public PosixDirectories
 {
-    std::string cacheDirPath() override;
-    std::string configDirPath() override;
-    std::string dataDirPath() override;
-};
-#else // !defined(__APPLE__)
-class XDGDirectories : public PosixDirectories
-{
     std::string runtimeDirPath() override;
-    std::string cacheDirPath() override;
-    std::string configDirPath() override;
-    std::string dataDirPath() override;
-    std::string stateDirPath() override;
 };
 #endif // defined(__APPLE__)
 std::string getOrCreateSocketPath(bool createDirectory);
@@ -483,11 +443,10 @@ class Instance : protected BaseInstance<T>
 {
     T mInstance;
 
-    //TODO: afer CMD-316, we can have inline and inintialized these:
-    /*inline */static std::mutex sPendingRogueOnesMutex;
-    /*inline */static std::condition_variable sPendingRogueOnesCV;
-    /*inline */static unsigned sPendingRogueOnes/* = 0*/;
-    /*inline */static bool sAssertOnDestruction/* = false*/;
+    inline static std::mutex sPendingRogueOnesMutex;
+    inline static std::condition_variable sPendingRogueOnesCV;
+    inline static unsigned sPendingRogueOnes = 0;
+    inline static bool sAssertOnDestruction = false;
 public:
     static bool waitForExplicitDependents()
     {
@@ -551,15 +510,6 @@ public:
     }
 #endif //MEGACMD_TESTING_CODE
  };
-
-template <typename T>
-std::mutex Instance<T>::sPendingRogueOnesMutex;
-template <typename T>
-std::condition_variable Instance<T>::sPendingRogueOnesCV;
-template <typename T>
-unsigned Instance<T>::sPendingRogueOnes = 0;
-template <typename T>
-bool Instance<T>::sAssertOnDestruction = false;
 
 }//end namespace
 #endif // MEGACMDCOMMONUTILS_H

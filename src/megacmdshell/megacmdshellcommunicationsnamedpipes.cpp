@@ -244,9 +244,9 @@ bool MegaCmdShellCommunicationsNamedPipes::isFileOwnerCurrentUser(HANDLE hFile)
     LPWSTR stringSIDOwner;
     if (ConvertSidToStringSidW(pSidOwner, &stringSIDOwner))
     {
-        if (!wcscmp(username, AcctName) || ( 
+        if (!wcscmp(username, AcctName) || (
 #ifndef __MINGW32__
-            IsUserAnAdmin() && 
+            IsUserAnAdmin() &&
 #endif
             !wcscmp(stringSIDOwner, L"S-1-5-32-544"))) // owner == user  or   owner == administrators and current process running as admin
         {
@@ -359,7 +359,7 @@ HANDLE MegaCmdShellCommunicationsNamedPipes::createNamedPipe(int number, bool in
                 ZeroMemory( &pi, sizeof(pi) );
 
 #ifndef NDEBUG
-                LPCWSTR t = TEXT("..\\MEGAcmdServer\\debug\\MEGAcmdServer.exe");
+                LPCWSTR t = TEXT(".\\MEGAcmdServer.exe");
                 if (true)
                 {
 #else

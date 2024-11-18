@@ -184,6 +184,7 @@ int main(int argc, char* argv[])
 
     waitIfRequired(args);
 
+    constexpr bool logToCout = true;
     auto logLevels = getLogLevels(args);
     int sdkLogLevel = logLevels.first;
     int cmdLogLevel = logLevels.second;
@@ -194,11 +195,12 @@ int main(int argc, char* argv[])
     extractargparam(args, "--apiurl", debug_api_url);  // only for debugging
     bool disablepkp = extractarg(args, "--disablepkp");  // only for debugging
 
-    auto createLoggerStream = []
+    auto createLoggedStream = []
     {
         return new megacmd::FileRotatingLoggedStream(megacmd::MegaCmdLogger::getDefaultFilePath());
     };
 
-    return megacmd::executeServer(argc, argv, createLoggerStream,
-                                  sdkLogLevel, cmdLogLevel, skiplockcheck, debug_api_url, disablepkp);
+    return megacmd::executeServer(argc, argv, createLoggedStream,
+                                  logToCout, sdkLogLevel, cmdLogLevel,
+                                  skiplockcheck, debug_api_url, disablepkp);
 }

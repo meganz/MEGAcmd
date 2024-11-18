@@ -1,0 +1,89 @@
+{
+    "$schema" : "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
+    "name" : "sdklib",
+    "homepage" : "https://github.com/meganz/megacmd",
+    "features" :
+    {
+        "use-openssl":
+        {
+            "description": "OpenSSL library",
+            "dependencies": [ "openssl" ]
+        },
+        "use-mediainfo": {
+            "description": "MediaInfo library",
+            "dependencies": [ "libmediainfo" ]
+        },
+        "use-freeimage": {
+            "description": "FreeImage library",
+            "dependencies": [
+                {
+                    "name": "freeimage",
+                    "version>=": "3.18.0#27"
+                },
+                {
+                    "name": "jasper",
+                    "default-features": false
+                }
+            ]
+        },
+        "use-ffmpeg": {
+            "description": "FFMpeg library",
+            "dependencies": [
+                {
+                    "name": "ffmpeg",
+                    "version>=": "5.1.2#10",
+                    "default-features": false,
+                    "features": ["avcodec", "avformat", "swresample", "swscale"]
+                }
+            ]
+        },
+        "use-libuv": {
+            "description": "libuv library",
+            "dependencies": [ "libuv" ]
+        },
+        "use-pdfium": {
+            "description": "pdfium library",
+            "dependencies": [ "pdfium" ]
+        },
+        "use-cares": {
+            "description": "c-ares library",
+            "dependencies": [ "c-ares" ]
+        },
+        "use-readline": {
+            "description": "Readline library",
+            "dependencies": [ "readline" ]
+        },
+        "sdk-tests": {
+            "description": "gtests library for the integration and unit tests",
+            "dependencies": [ "gtest" ]
+        },
+        "megacmd-enable-tests": {
+           "description": "Compile MEGAcmd tests",
+           "dependencies": [ "gtest" ]
+        }
+    },
+    "dependencies": [
+        {
+            "name": "cryptopp",
+            "version>=": "8.9.0"
+        },
+        "libsodium",
+        {
+            "name": "sqlite3",
+            "version>=": "3.46.0#1"
+        },
+        {
+            "name": "curl",
+            "version>=": "8.6.0"
+        },
+        "icu",
+        "pcre"
+    ],
+    "builtin-baseline" : "7476f0d4e77d3333fbb249657df8251c28c4faae",
+    "overrides": [
+        {
+            "name" : "libuv",
+            "version": "1.44.2"
+        }
+    ]
+}
