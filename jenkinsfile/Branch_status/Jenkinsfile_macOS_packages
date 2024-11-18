@@ -63,7 +63,7 @@ pipeline {
         }
         stage ('Build macOS packages'){
             environment{
-                VCPKGPATH  = "${env.HOME}/jenkins/vcpkg"
+                VCPKGPATH = "${env.HOME}/jenkins/vcpkg"
             }
             steps {
                 dir(macos_sources_workspace + '/build'){
@@ -96,35 +96,49 @@ pipeline {
                             returnStdout: true
                         ).trim()
                         sh "echo $MEGACMD_VERSION > version.txt"
-                        sh "jf rt del MEGAcmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/macOS/"
-                        // arm64 files
-                        sh """
-                            cd build/Release_arm64
-                            zip -r mega-cmd.dSYM.zip mega-cmd.dSYM
-                            zip -r MEGAcmdUpdater.dSYM.zip MEGAcmdUpdater.dSYM
-                            zip -r mega-exec.dSYM.zip mega-exec.dSYM
-                            zip -r MEGAcmdShell.dSYM.zip MEGAcmdShell.dSYM
-                            jf rt upload \
-                                --regexp '(MEGAcmd.*dmg|.*zip)' \
-                                MEGAcmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/macOS/arm64/
-                        """
-                        // x86_64 files
-                        sh """
-                            cd build/Release_x86_64
-                            zip -r mega-cmd.dSYM.zip mega-cmd.dSYM
-                            zip -r MEGAcmdUpdater.dSYM.zip MEGAcmdUpdater.dSYM
-                            zip -r mega-exec.dSYM.zip mega-exec.dSYM
-                            zip -r MEGAcmdShell.dSYM.zip MEGAcmdShell.dSYM
-                            jf rt upload \
-                                --regexp '(MEGAcmd.*dmg|.*zip)' \
-                                MEGAcmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/macOS/x86_64/
-                        """
-                        // universal files
-                        sh """
-                            cd build/Release_universal
-                            jf rt upload MEGAcmd.dmg \
-                                MEGAcmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/macOS/universal/
-                        """
+                        withCredentials([string(credentialsId: 'MEGACMD_ARTIFACTORY_TOKEN', variable: 'MEGACMD_ARTIFACTORY_TOKEN')]) {
+                            sh """
+                                jf rt del \
+                                  --url ${REPO_URL} \
+                                  --access-token ${MEGACMD_ARTIFACTORY_TOKEN} \
+                                  MEGAcmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/macOS/
+                            """
+                            // arm64 files
+                            sh """
+                                cd build/Release_arm64
+                                zip -r mega-cmd.dSYM.zip mega-cmd.dSYM
+                                zip -r MEGAcmdUpdater.dSYM.zip MEGAcmdUpdater.dSYM
+                                zip -r mega-exec.dSYM.zip mega-exec.dSYM
+                                zip -r MEGAcmdShell.dSYM.zip MEGAcmdShell.dSYM
+                                jf rt upload \
+                                    --url ${REPO_URL} \
+                                    --access-token ${MEGACMD_ARTIFACTORY_TOKEN} \
+                                    --regexp '(MEGAcmd.*dmg|.*zip)' \
+                                    MEGAcmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/macOS/arm64/
+                            """
+                            // x86_64 files
+                            sh """
+                                cd build/Release_x86_64
+                                zip -r mega-cmd.dSYM.zip mega-cmd.dSYM
+                                zip -r MEGAcmdUpdater.dSYM.zip MEGAcmdUpdater.dSYM
+                                zip -r mega-exec.dSYM.zip mega-exec.dSYM
+                                zip -r MEGAcmdShell.dSYM.zip MEGAcmdShell.dSYM
+                                jf rt upload \
+                                    --url ${REPO_URL} \
+                                    --access-token ${MEGACMD_ARTIFACTORY_TOKEN} \
+                                    --regexp '(MEGAcmd.*dmg|.*zip)' \
+                                    MEGAcmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/macOS/x86_64/
+                            """
+                            // universal files
+                            sh """
+                                cd build/Release_universal
+                                jf rt upload \
+                                    --url ${REPO_URL} \
+                                    --access-token ${MEGACMD_ARTIFACTORY_TOKEN} \
+                                    MEGAcmd.dmg \
+                                    MEGAcmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/macOS/universal/
+                            """
+                        }
                     }
                     archiveArtifacts artifacts: 'version.txt', onlyIfSuccessful: true
                 }

@@ -81,8 +81,8 @@ pipeline {
                                 withCredentials([string(credentialsId: 'MEGACMD_ARTIFACTORY_TOKEN', variable: 'MEGACMD_ARTIFACTORY_TOKEN')]) {
                                     sh """
                                         jf rt upload \
-                                          --url ${REPO_URL} \
-                                          --access-token ${MEGACMD_ARTIFACTORY_TOKEN} \
+                                          --url $REPO_URL \
+                                          --access-token $MEGACMD_ARTIFACTORY_TOKEN \
                                           --regexp '((x86_64|amd64|i386)/megacmd.*deb\$|(x86_64|amd64|i386)/megacmd.*rpm\$|(x86_64|amd64|i386)/megacmd.*\\.pkg\\.tar\\.zst\$|(x86_64|amd64|i386)/megacmd.*\\.pkg\\.tar\\.xz\$)' \
                                           MEGAcmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/linux/$DISTRO_TO_BUILD/
                                     """
@@ -135,8 +135,10 @@ pipeline {
                             dir(linux_sources_workspace) {
                                 script{
                                     def MEGACMD_VERSION = getVersionFromHeader("CMakeLists.txt")
-                                    sh "jf rt del MEGAcmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/linux/$DISTRO"
-                                    sh "cd ${env.INTERNAL_REPO_PATH}/repo/private/$DISTRO && jf rt upload --regexp '((x86_64|amd64|i386)/megacmd.*deb\$|(x86_64|amd64|i386)/megacmd.*rpm\$|(x86_64|amd64|i386)/megacmd.*\\.pkg\\.tar\\.zst\$|(x86_64|amd64|i386)/megacmd.*\\.pkg\\.tar\\.xz\$)' MEGAcmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/linux/$DISTRO/"
+                                    withCredentials([string(credentialsId: 'MEGACMD_ARTIFACTORY_TOKEN', variable: 'MEGACMD_ARTIFACTORY_TOKEN')]) {
+                                        sh 'jf rt del --url $REPO_URL --access-token $MEGACMD_ARTIFACTORY_TOKEN MEGAcmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/linux/$DISTRO'
+                                        sh "cd ${env.INTERNAL_REPO_PATH}/repo/private/$DISTRO && jf rt upload --url ${REPO_URL} --access-token ${MEGACMD_ARTIFACTORY_TOKEN} --regexp '((x86_64|amd64|i386)/megacmd.*deb\$|(x86_64|amd64|i386)/megacmd.*rpm\$|(x86_64|amd64|i386)/megacmd.*\\.pkg\\.tar\\.zst\$|(x86_64|amd64|i386)/megacmd.*\\.pkg\\.tar\\.xz\$)' MEGAcmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/linux/$DISTRO/"
+                                    }
                                     echo "Packages successfully uploaded. URL: [${env.REPO_URL}/MEGAcmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/linux/$DISTRO/]"
                                 }
                             }
