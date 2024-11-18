@@ -184,6 +184,7 @@ int main(int argc, char* argv[])
 
     waitIfRequired(args);
 
+    constexpr bool logToCout = true;
     auto logLevels = getLogLevels(args);
     int sdkLogLevel = logLevels.first;
     int cmdLogLevel = logLevels.second;
@@ -200,5 +201,6 @@ int main(int argc, char* argv[])
     };
 
     return megacmd::executeServer(argc, argv, createLoggedStream,
-                                  sdkLogLevel, cmdLogLevel, skiplockcheck, debug_api_url, disablepkp);
+                                  logToCout, sdkLogLevel, cmdLogLevel,
+                                  skiplockcheck, debug_api_url, disablepkp);
 }

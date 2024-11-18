@@ -264,10 +264,11 @@ bool MegaCmdSimpleLogger::shouldLogToClient(int logLevel, const char* source) co
     return logLevel <= currentThreadLogLevel;
 }
 
-MegaCmdSimpleLogger::MegaCmdSimpleLogger(int sdkLoggerLevel, int cmdLoggerLevel) :
+MegaCmdSimpleLogger::MegaCmdSimpleLogger(bool logToOutStream, int sdkLoggerLevel, int cmdLoggerLevel) :
     MegaCmdLogger(),
     mLoggedStream(Instance<DefaultLoggedStream>::Get().getLoggedStream()),
-    mOutStream(&COUT)
+    mOutStream(&COUT),
+    mLogToOutStream(logToOutStream)
 {
     setSdkLoggerLevel(sdkLoggerLevel);
     setCmdLoggerLevel(cmdLoggerLevel);
@@ -289,8 +290,9 @@ void MegaCmdSimpleLogger::log(const char *time, int logLevel, const char *source
     {
         formatLogToStream(mLoggedStream, time, logLevel, source, message);
 
-#ifdef _WIN32
+        if (mLogToOutStream)
         {
+#ifdef _WIN32
             std::lock_guard<std::mutex> g(mSetmodeMtx);
             int oldmode = _setmode(_fileno(stdout), _O_U8TEXT);
 #endif
@@ -299,8 +301,8 @@ void MegaCmdSimpleLogger::log(const char *time, int logLevel, const char *source
 #ifdef _WIN32
             assert(oldmode != -1);
             _setmode(_fileno(stdout), oldmode);
-        }
 #endif
+        }
     }
 
     if (shouldLogToClient(logLevel, source))

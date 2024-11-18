@@ -5034,7 +5034,7 @@ void uninstall()
 
 int executeServer(int argc, char* argv[],
                   const std::function<LoggedStream*()>& createLoggedStream,
-                  int sdkLogLevel, int cmdLogLevel,
+                  bool logToCout, int sdkLogLevel, int cmdLogLevel,
                   bool skiplockcheck, std::string debug_api_url, bool disablepkp)
 {
     // Own global server instances here
@@ -5084,7 +5084,7 @@ int executeServer(int argc, char* argv[],
 
     // Establish the logger
     SimpleLogger::setLogLevel(logMax); // do not filter anything here, log level checking is done by loggerCMD
-    loggerCMD = new MegaCmdSimpleLogger(sdkLogLevel, cmdLogLevel);
+    loggerCMD = new MegaCmdSimpleLogger(logToCout, sdkLogLevel, cmdLogLevel);
 
     MegaApi::addLoggerObject(loggerCMD);
     MegaApi::setLogLevel(MegaApi::LOG_LEVEL_MAX);

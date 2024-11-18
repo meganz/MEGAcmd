@@ -256,12 +256,13 @@ class MegaCmdSimpleLogger final : public MegaCmdLogger
 #endif
     LoggedStream &mLoggedStream;
     LoggedStreamOutStream mOutStream;
+    bool mLogToOutStream;
 
     bool shouldLogToStream(int logLevel, const char *source) const;
     bool shouldLogToClient(int logLevel, const char *source) const;
 
 public:
-    MegaCmdSimpleLogger(int sdkLoggerLevel = mega::MegaApi::LOG_LEVEL_ERROR, int cmdLoggerLevel = mega::MegaApi::LOG_LEVEL_ERROR);
+    MegaCmdSimpleLogger(bool logToOutStream, int sdkLoggerLevel, int cmdLoggerLevel);
 
     void log(const char *time, int loglevel, const char *source, const char *message) override;
 
