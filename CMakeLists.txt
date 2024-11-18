@@ -201,11 +201,21 @@ target_sources_conditional(LMegacmdServer
     "${ProjectDir}/src/megacmdplatform.mm"
 )
 
+find_package(Git REQUIRED)
+
+execute_process(
+    COMMAND ${GIT_EXECUTABLE} rev-parse --short HEAD
+    WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/sdk
+    OUTPUT_VARIABLE SDK_COMMIT_HASH
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+
 # Given we are no longer including the sdk, and some sources use certain defines without including SDK's config.h,
-# We need to explicitly pass the copmiling options.
+# We need to explicitly pass the compiling options.
 target_compile_definitions(LMegacmdServer
     PUBLIC
     $<$<BOOL:${USE_PCRE}>:USE_PCRE>
+    SDK_COMMIT_HASH=\"${SDK_COMMIT_HASH}\"
 )
 
 if (APPLE)

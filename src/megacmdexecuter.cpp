@@ -29,8 +29,6 @@
 #include "listeners.h"
 #include "megacmdversion.h"
 
-#include "mega/version.h" // TO GET SDK's version
-
 #include <iomanip>
 #include <limits>
 #include <string>
@@ -2509,11 +2507,7 @@ bool MegaCmdExecuter::actUponFetchNodes(MegaApi *api, SynchronousRequestListener
 
 void setExcludeNames(MegaApi *api, std::vector<string> &vexcludednames)
 {
-#if (MEGA_MAJOR_VERSION < 5)
-    api->setExcludedNames(&vexcludednames);
-#else
     api->setLegacyExcludedNames(&vexcludednames);
-#endif
 }
 
 int MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
@@ -10055,7 +10049,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         }
         if (getFlag(clflags,"l"))
         {
-            OUTSTREAM << "MEGA SDK version: " << MEGA_MAJOR_VERSION << "." << MEGA_MINOR_VERSION << "." << MEGA_MICRO_VERSION << endl;
+            OUTSTREAM << "MEGA SDK version: " << SDK_COMMIT_HASH << endl;
 
             OUTSTREAM << "MEGA SDK Credits: https://github.com/meganz/sdk/blob/master/CREDITS.md" << endl;
             OUTSTREAM << "MEGA SDK License: https://github.com/meganz/sdk/blob/master/LICENSE" << endl;
