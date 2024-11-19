@@ -600,19 +600,23 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     }
     else if ("sync" == thecommand)
     {
-        validParams->insert("d");
-        validParams->insert("s");
-        validParams->insert("r");
-
+        validParams->insert("p");
+        validParams->insert("pause");
+        validParams->insert("e");
         validParams->insert("enable");
-        validParams->insert("disable");
-        validParams->insert("remove");
+        validParams->insert("d");
+        validParams->insert("delete");
 
         validParams->insert("show-handles");
         validOptValues->insert("path-display-size");
         validOptValues->insert("col-separator");
         validOptValues->insert("output-cols");
 
+        // Deprecated (kept for backwards compatibility)
+        validParams->insert("remove");
+        validParams->insert("s");
+        validParams->insert("disable");
+        validParams->insert("r");
     }
     else if ("sync-issues" == thecommand)
     {
@@ -1754,7 +1758,7 @@ const char * getUsageStr(const char *command, const HelpFlags& flags)
     }
     if (!strcmp(command, "sync"))
     {
-        return "sync [localpath dstremotepath| [-dsr] [ID|localpath]";
+        return "sync [localpath dstremotepath| [-dpe] [ID|localpath]";
     }
     if (!strcmp(command, "sync-ignore"))
     {
@@ -2540,9 +2544,12 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << " unless an option is specified." << endl;
         os << endl;
         os << "Options:" << endl;
-        os << "-d | --remove" << " " << "ID|localpath" << "\t" << "deletes a synchronization." << endl;
-        os << "-s | --disable" << " " << "ID|localpath" << "\t" << "stops(pauses) a synchronization." << endl;
-        os << "-r | --enable" << " " << "ID|localpath" << "\t" << "resumes a synchronization." << endl;
+        os << "-d | --delete" << " " << "ID|localpath" << "\t" << "deletes a synchronization (not the files)." << endl;
+        os << "-p | --pause" << " " << "ID|localpath" << "\t" << "pauses (disables) a synchronization." << endl;
+        os << "-e | --enable" << " " << "ID|localpath" << "\t" << "resumes a synchronization." << endl;
+        os << "[deprecated] --remove" << " " << "ID|localpath" << "\t" << "same as --delete." << endl;
+        os << "[deprecated] -s | --disable" << " " << "ID|localpath" << "\t" << "same as --pause." << endl;
+        os << "[deprecated] -r" << " " << "ID|localpath" << "\t" << "same as --enable." << endl;
         os << " --path-display-size=N" << "\t" << "Use at least N characters for displaying paths." << endl;
         os << " --show-handles" << "\t" << "Prints remote nodes handles (H:XXXXXXXX)." << endl;
         printColumnDisplayerHelp(os);

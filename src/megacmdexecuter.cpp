@@ -7686,12 +7686,12 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             return;
         }
 
-        auto stop = getFlag(clflags, "s") || getFlag(clflags, "disable");
-        auto resume = getFlag(clflags, "r") || getFlag(clflags, "enable");
-        auto remove = getFlag(clflags, "d") || getFlag(clflags, "remove");
+        bool pauseSync = getFlag(clflags, "p") || getFlag(clflags, "pause") || getFlag(clflags, "s") || getFlag(clflags, "disable");
+        bool enableSync = getFlag(clflags, "e") || getFlag(clflags, "r") || getFlag(clflags, "enable");
+        bool deleteSync = getFlag(clflags, "delete") || getFlag(clflags, "d") || getFlag(clflags, "remove");
         bool showHandles = getFlag(clflags, "show-handles");
 
-        if (!onlyZeroOrOneOf(stop, resume, remove))
+        if (!onlyZeroOrOneOf(pauseSync, enableSync, deleteSync))
         {
             setCurrentOutCode(MCMD_EARGS);
             LOG_err << "Only one action (disable, enable, or remove) can be specified at a time";
@@ -7729,13 +7729,13 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 return;
             }
 
-            if (remove)
+            if (deleteSync)
             {
-                SyncCommand::modifySync(*api, *sync, SyncCommand::ModifyOpts::Remove);
+                SyncCommand::modifySync(*api, *sync, SyncCommand::ModifyOpts::Delete);
             }
             else
             {
-                SyncCommand::modifySync(*api, *sync, resume ? SyncCommand::ModifyOpts::Resume : SyncCommand::ModifyOpts::Stop);
+                SyncCommand::modifySync(*api, *sync, enableSync ? SyncCommand::ModifyOpts::Enable : SyncCommand::ModifyOpts::Pause);
 
                 // Print the updated sync state if we didnt' remove
                 sync = SyncCommand::reloadSync(*api, std::move(sync));

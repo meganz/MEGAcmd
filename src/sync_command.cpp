@@ -269,7 +269,7 @@ void modifySync(mega::MegaApi& api, mega::MegaSync& sync, ModifyOpts opts)
 {
     auto megaCmdListener = std::make_unique<MegaCmdListener>(nullptr);
 
-    if (opts == ModifyOpts::Remove)
+    if (opts == ModifyOpts::Delete)
     {
         api.removeSync(sync.getBackupId(), megaCmdListener.get());
         megaCmdListener->wait();
@@ -286,7 +286,7 @@ void modifySync(mega::MegaApi& api, mega::MegaSync& sync, ModifyOpts opts)
     }
     else
     {
-        auto newState = (opts == ModifyOpts::Stop ? mega::MegaSync::RUNSTATE_SUSPENDED : mega::MegaSync::RUNSTATE_RUNNING);
+        auto newState = (opts == ModifyOpts::Pause ? mega::MegaSync::RUNSTATE_SUSPENDED : mega::MegaSync::RUNSTATE_RUNNING);
 
         api.setSyncRunState(sync.getBackupId(), newState, megaCmdListener.get());
         megaCmdListener->wait();
@@ -294,7 +294,7 @@ void modifySync(mega::MegaApi& api, mega::MegaSync& sync, ModifyOpts opts)
         string errorStr = getErrorString(*megaCmdListener);
         if (errorStr.empty())
         {
-            const char* action = (opts == ModifyOpts::Stop ? "disabled" : "re-enabled");
+            const char* action = (opts == ModifyOpts::Pause ? "paused" : "enabled");
             LOG_info << "Sync " << action << ": " << sync.getLocalFolder() << " to " << sync.getLastKnownMegaFolder();
 
             string syncErrorReason = getSyncErrorReason(*megaCmdListener);
@@ -305,7 +305,7 @@ void modifySync(mega::MegaApi& api, mega::MegaSync& sync, ModifyOpts opts)
         }
         else
         {
-            const char* action = (opts == ModifyOpts::Stop ? "disable" : "re-enable");
+            const char* action = (opts == ModifyOpts::Pause ? "pause" : "enable");
             LOG_err << "Failed to " << action << " sync " << getSyncId(sync) << " (" << errorStr << ")";
         }
     }

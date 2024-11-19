@@ -36,9 +36,9 @@ namespace SyncCommand
 
     enum class ModifyOpts
     {
-        Stop,
-        Resume,
-        Remove
+        Pause,
+        Enable,
+        Delete
     };
 
     void modifySync(mega::MegaApi& api, mega::MegaSync& sync, ModifyOpts opts);
