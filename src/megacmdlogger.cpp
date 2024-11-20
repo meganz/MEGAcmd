@@ -21,6 +21,7 @@
 #include "megacmd_src_file_list.h"
 
 #include <map>
+#include <filesystem>
 
 #include <sys/types.h>
 
@@ -36,6 +37,7 @@
 #endif
 #endif
 
+namespace fs = std::filesystem;
 using namespace mega;
 
 namespace megacmd {
@@ -153,42 +155,11 @@ MegaCmdLogger::MegaCmdLogger() :
 
 OUTSTRING MegaCmdLogger::getDefaultFilePath()
 {
-    //TODO: get this one from new dirs folders utilities (pending CMD-307) and refactor the .log retrieval
-
-    OUTSTRING path;
-#ifdef _WIN32
-    TCHAR szPath[MAX_PATH];
-     if (!SUCCEEDED(GetModuleFileName(NULL, szPath , MAX_PATH)))
-     {
-         LOG_fatal << "Couldnt get EXECUTABLE folder";
-     }
-     else
-     {
-         if (SUCCEEDED(PathRemoveFileSpec(szPath)))
-         {
-             if (PathAppend(szPath,TEXT(".megaCmd")))
-             {
-                 if (PathAppend(szPath,TEXT("megacmdserver.log")))
-                 {
-                     path = szPath;
-                 }
-             }
-         }
-     }
-#else
     auto dirs = PlatformDirectories::getPlatformSpecificDirectories();
-    path = dirs->configDirPath();
+    assert(!dirs->configDirPath().empty());
 
-    auto fsAccess = std::make_unique<MegaFileSystemAccess>();
-    fsAccess->setdefaultfolderpermissions(0700);
-    LocalPath localconfigDir = LocalPath::fromAbsolutePath(path);
-    if (!fsAccess->mkdirlocal(localconfigDir, false, false))
-    {
-        LOG_err << "Data directory not created";
-    }
-    path.append("/megacmdserver.log");
-#endif
-    return path;
+    auto logFilePath = fs::path(dirs->configDirPath()) / "megacmdserver.log";
+    return logFilePath.native();
 }
 
 bool MegaCmdLogger::isMegaCmdSource(const std::string &source)
@@ -314,9 +285,13 @@ void MegaCmdSimpleLogger::log(const char *time, int logLevel, const char *source
 
 LoggedStreamDefaultFile::LoggedStreamDefaultFile() :
     LoggedStreamOutStream(nullptr),
-    mFstream(OUTFSTREAMTYPE(MegaCmdLogger::getDefaultFilePath()))
+    mFstream(MegaCmdLogger::getDefaultFilePath())
 {
     out = &mFstream;
+    if (!mFstream.is_open())
+    {
+        std::cerr << "Cannot open default log file " << MegaCmdLogger::getDefaultFilePath() << std::endl;
+    }
 }
 
 }//end namespace
