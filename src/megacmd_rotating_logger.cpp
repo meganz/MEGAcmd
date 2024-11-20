@@ -17,6 +17,7 @@
 
 #include <cassert>
 #include <unordered_set>
+#include <optional>
 #include <zlib.h>
 
 #include "mega/filesystem.h"
@@ -232,7 +233,7 @@ private:
 
 private:
     static std::string timestampToString(const Timestamp &timestamp);
-    static Timestamp stringToTimestamp(const std::string &timestampStr, bool &success); // in C++17 we can use `std::optional` instead
+    static std::optional<Timestamp> stringToTimestamp(const std::string &timestampStr);
 
     mega::LocalPath rotateBaseFile(const mega::LocalPath &directory, const mega::LocalPath &baseFilename);
     TimestampFileQueue getTimestampFileQueue(const mega::LocalPath &dir, const mega::LocalPath &baseFilename);
@@ -450,8 +451,7 @@ void FileRotatingLoggedStream::flushToFile()
 
 bool FileRotatingLoggedStream::waitForOutputFile()
 {
-    constexpr int waitTimesSize = 5; // In C++17 we can use `std::size(waitTimes)`
-    thread_local const int waitTimes[waitTimesSize] = {0, 1, 5, 20, 60};
+    thread_local const int waitTimes[] = {0, 1, 5, 20, 60};
     thread_local int i = 0;
 
     if (mOutputFile)
@@ -461,7 +461,7 @@ bool FileRotatingLoggedStream::waitForOutputFile()
     }
 
     std::this_thread::sleep_for(std::chrono::seconds(waitTimes[i]));
-    if (i < waitTimesSize - 1) ++i;
+    if (i < std::size(waitTimes) - 1) ++i;
     return false;
 }
 
@@ -742,7 +742,7 @@ std::string TimestampRotationEngine::timestampToString(const Timestamp &timestam
     return oss.str();
 }
 
-TimestampRotationEngine::Timestamp TimestampRotationEngine::stringToTimestamp(const std::string &timestampStr, bool &success)
+std::optional<TimestampRotationEngine::Timestamp> TimestampRotationEngine::stringToTimestamp(const std::string &timestampStr)
 {
     std::tm timeInfo = {};
     int milliseconds = -1;
@@ -750,7 +750,7 @@ TimestampRotationEngine::Timestamp TimestampRotationEngine::stringToTimestamp(co
     std::istringstream iss(timestampStr);
     iss >> std::get_time(&timeInfo, "%Y%m%d_%H%M%S_") >> milliseconds;
 
-    success = milliseconds >= 0 && milliseconds < 1000 && !iss.fail();
+    bool success = milliseconds >= 0 && milliseconds < 1000 && !iss.fail();
     if (!success)
     {
         return {};
@@ -791,9 +791,8 @@ TimestampRotationEngine::TimestampFileQueue TimestampRotationEngine::getTimestam
 
         const std::string timestampStr = leafPathStr.substr(baseFilenameStr.size() + 1, exampleTimestampStr.size());
 
-        bool success = false;
-        Timestamp timestamp = stringToTimestamp(timestampStr, success);
-        if (!success)
+        auto timestampOpt = stringToTimestamp(timestampStr);
+        if (!timestampOpt)
         {
             // Ignore if there's not timestamp or it has a different format
             return;
@@ -808,7 +807,7 @@ TimestampRotationEngine::TimestampFileQueue TimestampRotationEngine::getTimestam
         }
 
         addedFiles.emplace(timestampStr);
-        fileQueue.emplace(dir, leafPath, timestamp);
+        fileQueue.emplace(dir, leafPath, *timestampOpt);
     });
 
     return fileQueue;
