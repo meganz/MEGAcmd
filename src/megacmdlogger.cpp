@@ -290,7 +290,7 @@ LoggedStreamDefaultFile::LoggedStreamDefaultFile() :
     out = &mFstream;
     if (!mFstream.is_open())
     {
-        std::cerr << "Cannot open default log file " << MegaCmdLogger::getDefaultFilePath() << std::endl;
+        CERR << "Cannot open default log file " << MegaCmdLogger::getDefaultFilePath() << std::endl;
     }
 }
 
