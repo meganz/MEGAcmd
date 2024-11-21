@@ -923,7 +923,7 @@ void GzipCompressionEngine::gzipFile(const fs::path& srcFilePath, const fs::path
     }
 
     auto gzdeleter = [] (gzFile_s* f) { if (f) gzclose(f); };
-    std::unique_ptr<gzFile_s, decltype(gzdeleter)> gzFile(gzopen(dstFilePath.c_str(), "wb"), gzdeleter);
+    std::unique_ptr<gzFile_s, decltype(gzdeleter)> gzFile(gzopen(dstFilePath.string().c_str(), "wb"), gzdeleter);
     if (!gzFile)
     {
         mErrorStream << "Failed to open gzfile " << dstFilePath << " for writing" << std::endl;
