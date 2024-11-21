@@ -63,7 +63,7 @@ public:
 private:
     const size_t mDefaultBlockCapacity;
     const size_t mFailSafeSize;
-    mutable std::mutex mListMutex;
+    mutable std::mutex mListMtx;
     MemoryBlockList mList;
     bool mInitialMemoryGap;
 };
@@ -130,8 +130,11 @@ class FileRotatingLoggedStream final : public LoggedStream
     OUTFSTREAMTYPE mOutputFile;
     RotatingFileManager mFileManager;
 
-    mutable std::mutex mWriteMutex;
+    mutable std::mutex mWriteMtx;
     mutable std::condition_variable mWriteCV;
+    mutable std::mutex mExitMtx;
+    mutable std::condition_variable mExitCV;
+
     bool mForceRenew;
     bool mExit;
     bool mFlush;

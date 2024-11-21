@@ -115,7 +115,7 @@ MessageBuffer::MessageBuffer(size_t defaultBlockCapacity, size_t failSafeSize) :
 
 void MessageBuffer::append(const char *data, size_t size)
 {
-    std::lock_guard<std::mutex> lock(mListMutex);
+    std::lock_guard lock(mListMtx);
 
     auto* lastBlock = mList.empty() ? nullptr : &mList.back();
     if (!lastBlock || !lastBlock->canAppendData(size))
@@ -151,7 +151,7 @@ void MessageBuffer::append(const char *data, size_t size)
 
 MessageBuffer::MemoryBlockList MessageBuffer::popMemoryBlockList(bool &initialMemoryGap)
 {
-    std::lock_guard<std::mutex> lock(mListMutex);
+    std::lock_guard lock(mListMtx);
     initialMemoryGap = mInitialMemoryGap;
     mInitialMemoryGap = false;
     return std::move(mList);
@@ -159,19 +159,19 @@ MessageBuffer::MemoryBlockList MessageBuffer::popMemoryBlockList(bool &initialMe
 
 bool MessageBuffer::isEmpty() const
 {
-    std::lock_guard<std::mutex> lock(mListMutex);
+    std::lock_guard lock(mListMtx);
     return mList.empty();
 }
 
 bool MessageBuffer::isNearLastBlockCapacity() const
 {
-    std::lock_guard<std::mutex> lock(mListMutex);
+    std::lock_guard lock(mListMtx);
     return !mList.empty() && mList.back().isNearCapacity();
 }
 
 bool MessageBuffer::reachedFailSafeSize() const
 {
-    std::lock_guard<std::mutex> lock(mListMutex);
+    std::lock_guard lock(mListMtx);
     return mList.size() > mFailSafeSize / mDefaultBlockCapacity;
 }
 
@@ -269,7 +269,7 @@ class GzipCompressionEngine final : public CompressionEngine
     using GzipJobQueue = std::queue<std::optional<GzipJobData>>;
     GzipJobQueue mQueue;
 
-    mutable std::mutex mQueueMutex;
+    mutable std::mutex mQueueMtx;
     std::condition_variable mQueueCV;
     bool mCancelOngoingJob;
     bool mExit;
@@ -379,25 +379,25 @@ void RotatingFileManager::initializeRotationEngine()
 
 bool FileRotatingLoggedStream::shouldRenew() const
 {
-    std::lock_guard<std::mutex> lock(mWriteMutex);
+    std::lock_guard lock(mWriteMtx);
     return mForceRenew;
 }
 
 bool FileRotatingLoggedStream::shouldExit() const
 {
-    std::lock_guard<std::mutex> lock(mWriteMutex);
+    std::lock_guard lock(mExitMtx);
     return mExit;
 }
 
 bool FileRotatingLoggedStream::shouldFlush() const
 {
-    std::lock_guard<std::mutex> lock(mWriteMutex);
+    std::lock_guard lock(mWriteMtx);
     return mFlush || mNextFlushTime <= std::chrono::steady_clock::now();
 }
 
 void FileRotatingLoggedStream::setForceRenew(bool forceRenew)
 {
-    std::lock_guard<std::mutex> lock(mWriteMutex);
+    std::lock_guard lock(mWriteMtx);
     mForceRenew = forceRenew;
 }
 
@@ -444,7 +444,7 @@ void FileRotatingLoggedStream::flushToFile()
     mOutputFile.flush();
     mNextFlushTime = std::chrono::steady_clock::now() + mFlushPeriod;
     {
-        std::lock_guard<std::mutex> lock(mWriteMutex);
+        std::lock_guard lock(mWriteMtx);
         mFlush = false;
     }
 }
@@ -460,7 +460,14 @@ bool FileRotatingLoggedStream::waitForOutputFile()
         return true;
     }
 
-    std::this_thread::sleep_for(std::chrono::seconds(waitTimes[i]));
+    {
+        std::unique_lock lock(mExitMtx);
+        mExitCV.wait_for(lock, std::chrono::seconds(waitTimes[i]), [this]
+        {
+            return mExit;
+        });
+    }
+
     if (i < std::size(waitTimes) - 1) ++i;
     return false;
 }
@@ -499,18 +506,27 @@ void FileRotatingLoggedStream::mainLoop()
         errorMessages += mFileManager.popErrors();
         std::cerr << errorMessages;
 
-        if (!mOutputFile && !mMessageBuffer.reachedFailSafeSize())
+        if (!mOutputFile)
         {
+            // If we cannot write to file, do not keep trying if we should exit
+            if (shouldExit())
+            {
+                break;
+            }
+
             // If we've reached the fail-safe size, try to write to file anyway
             // This clears the buffer, ensuring it doesn't grow beyond a certain threshold
-            continue;
+            if (!mMessageBuffer.reachedFailSafeSize())
+            {
+                continue;
+            }
         }
         mOutputFile << errorMessages;
 
         bool writeMessages = false;
         {
-            std::unique_lock<std::mutex> lock(mWriteMutex);
-            writeMessages = mWriteCV.wait_for(lock, std::chrono::milliseconds(500), [this] ()
+            std::unique_lock lock(mWriteMtx);
+            writeMessages = mWriteCV.wait_for(lock, std::chrono::milliseconds(500), [this]
             {
                 return mForceRenew || mExit || mFlush || !mMessageBuffer.isEmpty();
             });
@@ -545,10 +561,12 @@ FileRotatingLoggedStream::FileRotatingLoggedStream(const OUTSTRING &outputFilePa
 FileRotatingLoggedStream::~FileRotatingLoggedStream()
 {
     {
-        std::lock_guard<std::mutex> lock(mWriteMutex);
+        std::scoped_lock lock(mExitMtx, mWriteMtx);
         mExit = true;
-        mWriteCV.notify_one();
     }
+    mWriteCV.notify_one();
+    mExitCV.notify_one();
+
     mWriteThread.join();
 }
 
@@ -602,7 +620,7 @@ const LoggedStream &FileRotatingLoggedStream::operator<<(std::wstring wstr) cons
 
 void FileRotatingLoggedStream::flush()
 {
-    std::lock_guard<std::mutex> lock(mWriteMutex);
+    std::lock_guard lock(mWriteMtx);
     mFlush = true;
     mWriteCV.notify_one();
 }
@@ -871,13 +889,13 @@ GzipCompressionEngine::GzipJobData::GzipJobData(const mega::LocalPath &_srcFileP
 
 bool GzipCompressionEngine::shouldCancelOngoingJob() const
 {
-    std::lock_guard<std::mutex> lock(mQueueMutex);
+    std::lock_guard lock(mQueueMtx);
     return mCancelOngoingJob;
 }
 
 void GzipCompressionEngine::pushToQueue(const mega::LocalPath &srcFilePath, const mega::LocalPath &dstFilePath)
 {
-    std::lock_guard<std::mutex> lock(mQueueMutex);
+    std::lock_guard lock(mQueueMtx);
 
     if (mExit)
     {
@@ -940,7 +958,7 @@ void GzipCompressionEngine::mainLoop()
         std::optional<GzipJobData> jobDataOpt;
 
         {
-            std::unique_lock<std::mutex> lock(mQueueMutex);
+            std::unique_lock lock(mQueueMtx);
             mQueueCV.wait(lock, [this] () { return mExit || !mQueue.empty(); });
 
             if (mExit && mQueue.empty())
@@ -970,12 +988,12 @@ GzipCompressionEngine::GzipCompressionEngine() :
 GzipCompressionEngine::~GzipCompressionEngine()
 {
     {
-        std::lock_guard<std::mutex> lock(mQueueMutex);
+        std::lock_guard lock(mQueueMtx);
         mExit = true;
-        mQueueCV.notify_one();
-
         // We want to exit gracefull, so we don't call `cancelAll`
     }
+    mQueueCV.notify_one();
+
     mGzipThread.join();
 }
 
@@ -986,7 +1004,7 @@ std::string GzipCompressionEngine::getExtension() const
 
 void GzipCompressionEngine::cancelAll()
 {
-    std::lock_guard<std::mutex> lock(mQueueMutex);
+    std::lock_guard lock(mQueueMtx);
 
     // Clear the queue
     mQueue = GzipJobQueue();
