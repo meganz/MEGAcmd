@@ -22,8 +22,11 @@
 #include <condition_variable>
 #include <chrono>
 #include <thread>
+#include <filesystem>
 
 #include "megacmdlogger.h"
+
+namespace fs = std::filesystem;
 
 namespace megacmd {
 
@@ -42,10 +45,10 @@ public:
         bool canAppendData(size_t dataSize) const;
         bool isNearCapacity() const;
         bool hasMemoryGap() const;
-        const char *getBuffer() const;
+        const char* getBuffer() const;
 
         void markMemoryGap();
-        void appendData(const char *data, size_t size);
+        void appendData(const char* data, size_t size);
 
     };
     using MemoryBlockList = std::vector<MemoryBlock>;
@@ -53,8 +56,8 @@ public:
 public:
     MessageBuffer(size_t defaultBlockCapacity, size_t failSafeSize);
 
-    void append(const char *data, size_t size);
-    MemoryBlockList popMemoryBlockList(bool &initialMemoryGap);
+    void append(const char* data, size_t size);
+    MemoryBlockList popMemoryBlockList(bool& initialMemoryGap);
 
     bool isEmpty() const;
     bool isNearLastBlockCapacity() const;
@@ -100,7 +103,7 @@ public:
     };
 
 public:
-    RotatingFileManager(const mega::LocalPath &filePath, const Config &config = {});
+    RotatingFileManager(const fs::path& filePath, const Config& config = {});
 
     bool shouldRotateFiles(size_t fileSize) const;
 
@@ -115,8 +118,8 @@ private:
 
 private:
     const Config mConfig;
-    const mega::LocalPath mDirectory;
-    const mega::LocalPath mBaseFilename;
+    const fs::path mDirectory;
+    const fs::path mBaseFilename;
 
     std::unique_ptr<CompressionEngine> mCompressionEngine;
     std::unique_ptr<RotationEngine> mRotationEngine;
@@ -158,23 +161,23 @@ private:
     void mainLoop();
 
 public:
-    FileRotatingLoggedStream(const OUTSTRING &outputFilePath);
+    FileRotatingLoggedStream(const OUTSTRING& outputFilePath);
     ~FileRotatingLoggedStream();
 
-    const LoggedStream &operator<<(const char &c) const override;
-    const LoggedStream &operator<<(const char *str) const override;
-    const LoggedStream &operator<<(std::string str) const override;
-    const LoggedStream &operator<<(int v) const override;
-    const LoggedStream &operator<<(unsigned int v) const override;
-    const LoggedStream &operator<<(long long v) const override;
-    const LoggedStream &operator<<(unsigned long v) const override;
+    const LoggedStream& operator<<(const char& c) const override;
+    const LoggedStream& operator<<(const char* str) const override;
+    const LoggedStream& operator<<(std::string str) const override;
+    const LoggedStream& operator<<(int v) const override;
+    const LoggedStream& operator<<(unsigned int v) const override;
+    const LoggedStream& operator<<(long long v) const override;
+    const LoggedStream& operator<<(unsigned long v) const override;
 
-    const LoggedStream &operator<<(std::ios_base)                      const override { return *this; }
-    const LoggedStream &operator<<(std::ios_base*)                     const override { return *this; }
-    const LoggedStream &operator<<(OUTSTREAMTYPE& (*)(OUTSTREAMTYPE&)) const override { return *this; }
+    const LoggedStream& operator<<(std::ios_base)                      const override { return *this; }
+    const LoggedStream& operator<<(std::ios_base*)                     const override { return *this; }
+    const LoggedStream& operator<<(OUTSTREAMTYPE& (*)(OUTSTREAMTYPE&)) const override { return *this; }
 
 #ifdef _WIN32
-    const LoggedStream &operator<<(std::wstring v) const override;
+    const LoggedStream& operator<<(std::wstring v) const override;
 #endif
 
     virtual void flush() override;
