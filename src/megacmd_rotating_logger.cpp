@@ -651,7 +651,7 @@ void RotationEngine::walkRotatedFiles(const fs::path& dir, const fs::path& baseF
         std::string filename = filePath.filename().string();
 
         // Ignore files that don't start with the base filename
-        if (filename.rfind(baseFilename, 0) != 0)
+        if (filename.rfind(baseFilename.string(), 0) != 0)
         {
             continue;
         }
