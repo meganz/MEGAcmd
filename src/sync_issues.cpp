@@ -722,13 +722,19 @@ namespace SyncIssuesCommand
     {
         // We'll use the row count limit only for the path problems; since the user has added "--all",
         // we assume they want to see all issues, and thus the limit doesn't apply to the issue list in this case
-        for (const auto& syncIssue : syncIssues)
+        for (auto it = syncIssues.begin(); it != syncIssues.end(); ++it)
         {
+            const auto& syncIssue = *it;
+
             assert(syncIssue.first == syncIssue.second.getId());
             OUTSTREAM << "[Details on issue " << syncIssue.first << "]" << endl;
 
             printSingleIssueDetail(api, cd, syncIssue.second, disablePathCollapse, rowCountLimit);
-            OUTSTREAM << endl;
+
+            if (it != std::prev(syncIssues.end()))
+            {
+                OUTSTREAM << endl << endl;
+            }
 
             cd.clear();
         }
