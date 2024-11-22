@@ -17,9 +17,8 @@
 
 #include <cassert>
 #include <unordered_set>
+#include <optional>
 #include <zlib.h>
-
-#include "mega/filesystem.h"
 
 namespace {
 class ReopenScope final
@@ -27,7 +26,7 @@ class ReopenScope final
     OUTFSTREAMTYPE& mOutFile;
     const std::string mOutFilePath;
 public:
-    ReopenScope(OUTFSTREAMTYPE& outFile, const std::string &outFilePath) :
+    ReopenScope(OUTFSTREAMTYPE& outFile, const std::string& outFilePath) :
         mOutFile(outFile),
         mOutFilePath(outFilePath)
     {
@@ -40,7 +39,7 @@ public:
     }
 };
 
-std::string outstringToString(const OUTSTRING &outstring)
+std::string outstringToString(const OUTSTRING& outstring)
 {
 #ifdef _WIN32
     std::string str;
@@ -58,7 +57,6 @@ class BaseEngine
 {
 protected:
     std::stringstream mErrorStream;
-    mega::MegaFileSystemAccess mFsAccess;
 
 public:
     std::string popErrors();
@@ -68,13 +66,13 @@ class RotationEngine : public BaseEngine
 {
 protected:
     template<typename F>
-    void walkRotatedFiles(mega::LocalPath dir, const mega::LocalPath &baseFilename, F&& walker);
+    void walkRotatedFiles(const fs::path& dir, const fs::path& baseFilename, F&& walker);
 
 public:
     virtual ~RotationEngine() = default;
 
-    virtual void cleanupFiles(const mega::LocalPath &dir, const mega::LocalPath &baseFilename);
-    virtual mega::LocalPath rotateFiles(const mega::LocalPath &dir, const mega::LocalPath &baseFilename) = 0;
+    virtual void cleanupFiles(const fs::path& dir, const fs::path& baseFilename);
+    virtual fs::path rotateFiles(const fs::path& dir, const fs::path& baseFilename) = 0;
 };
 
 class NumberedRotationEngine final : public RotationEngine
@@ -82,13 +80,13 @@ class NumberedRotationEngine final : public RotationEngine
     const std::string mCompressionExt;
     const int mMaxFilesToKeep;
 
-    mega::LocalPath getSrcFilePath(const mega::LocalPath &directory, const mega::LocalPath &baseFilename, int i) const;
-    mega::LocalPath getDstFilePath(const mega::LocalPath &directory, const mega::LocalPath &baseFilename, int i) const;
+    fs::path getSrcFilePath(const fs::path& directory, const fs::path& baseFilename, int i) const;
+    fs::path getDstFilePath(const fs::path& directory, const fs::path& baseFilename, int i) const;
 
 public:
     NumberedRotationEngine(const std::string &compressionExt, int maxFilesToKeep);
 
-    mega::LocalPath rotateFiles(const mega::LocalPath &dir, const mega::LocalPath &baseFilePath) override;
+    fs::path rotateFiles(const fs::path& dir, const fs::path& baseFilePath) override;
 };
 
 class TimestampRotationEngine final : public RotationEngine
@@ -102,27 +100,27 @@ private:
 
     struct TimestampFile
     {
-        mega::LocalPath fullPath;
-        Timestamp timestamp;
+        fs::path mPath;
+        Timestamp mTimestamp;
 
-        TimestampFile(const mega::LocalPath &dir, const mega::LocalPath &filename, const Timestamp &_timestamp);
-        bool operator>(const TimestampFile &other) const { return timestamp > other.timestamp; }
+        TimestampFile(const fs::path& path, const Timestamp &timestamp);
+        bool operator>(const TimestampFile& other) const { return mTimestamp > other.mTimestamp; }
     };
     using TimestampFileQueue = std::priority_queue<TimestampFile, std::vector<TimestampFile>, std::greater<TimestampFile>>;
 
 private:
-    static std::string timestampToString(const Timestamp &timestamp);
-    static Timestamp stringToTimestamp(const std::string &timestampStr, bool &success); // in C++17 we can use `std::optional` instead
+    static std::string timestampToString(const Timestamp& timestamp);
+    static std::optional<Timestamp> stringToTimestamp(const std::string& timestampStr);
 
-    mega::LocalPath rotateBaseFile(const mega::LocalPath &directory, const mega::LocalPath &baseFilename);
-    TimestampFileQueue getTimestampFileQueue(const mega::LocalPath &dir, const mega::LocalPath &baseFilename);
+    fs::path rotateBaseFile(const fs::path& directory, const fs::path& baseFilename);
+    TimestampFileQueue getTimestampFileQueue(const fs::path& dir, const fs::path& baseFilename);
 
-    void popAndRemoveFile(TimestampFileQueue &fileQueue);
+    void popAndRemoveFile(TimestampFileQueue& fileQueue);
 
 public:
     TimestampRotationEngine(int maxFilesToKeep, std::chrono::seconds maxFileAge);
 
-    mega::LocalPath rotateFiles(const mega::LocalPath &dir, const mega::LocalPath &baseFilename) override;
+    fs::path rotateFiles(const fs::path& dir, const fs::path& baseFilename) override;
 };
 
 class CompressionEngine : public BaseEngine
@@ -133,22 +131,22 @@ public:
     virtual std::string getExtension() const { return ""; }
 
     virtual void cancelAll() {}
-    virtual void compressFile(const mega::LocalPath&) {}
+    virtual void compressFile(const fs::path&) {}
 };
 
 class GzipCompressionEngine final : public CompressionEngine
 {
     struct GzipJobData
     {
-        mega::LocalPath srcFilePath;
-        mega::LocalPath dstFilePath;
+        fs::path mSrcFilePath;
+        fs::path mDstFilePath;
 
-        GzipJobData(const mega::LocalPath &_srcFilePath, const mega::LocalPath &_dstFilePath);
+        GzipJobData(const fs::path& srcFilePath, const fs::path& dstFilePath);
     };
     using GzipJobQueue = std::queue<std::optional<GzipJobData>>;
     GzipJobQueue mQueue;
 
-    mutable std::mutex mQueueMutex;
+    mutable std::mutex mQueueMtx;
     std::condition_variable mQueueCV;
     bool mCancelOngoingJob;
     bool mExit;
@@ -158,8 +156,8 @@ class GzipCompressionEngine final : public CompressionEngine
 private:
     bool shouldCancelOngoingJob() const;
 
-    void pushToQueue(const mega::LocalPath &srcFilePath, const mega::LocalPath &dstFilePath);
-    void gzipFile(const mega::LocalPath &srcFilePath, const mega::LocalPath &dstFilePath);
+    void pushToQueue(const fs::path& srcFilePath, const fs::path& dstFilePath);
+    void gzipFile(const fs::path& srcFilePath, const fs::path& dstFilePath);
 
     void mainLoop();
 
@@ -170,7 +168,7 @@ public:
     std::string getExtension() const override;
 
     void cancelAll() override;
-    void compressFile(const mega::LocalPath &filePath) override;
+    void compressFile(const fs::path& filePath) override;
 };
 
 RotatingFileManager::Config::Config() :
@@ -182,10 +180,10 @@ RotatingFileManager::Config::Config() :
 {
 }
 
-RotatingFileManager::RotatingFileManager(const mega::LocalPath &filePath, const Config &config) :
+RotatingFileManager::RotatingFileManager(const fs::path& filePath, const Config &config) :
     mConfig(config),
-    mDirectory(filePath.parentPath()),
-    mBaseFilename(filePath.leafName())
+    mDirectory(filePath.parent_path()),
+    mBaseFilename(filePath.filename())
 {
     initializeCompressionEngine();
     initializeRotationEngine();
@@ -258,29 +256,29 @@ void RotatingFileManager::initializeRotationEngine()
 
 bool FileRotatingLoggedStream::shouldRenew() const
 {
-    std::lock_guard<std::mutex> lock(mWriteMutex);
+    std::lock_guard lock(mWriteMtx);
     return mForceRenew;
 }
 
 bool FileRotatingLoggedStream::shouldExit() const
 {
-    std::lock_guard<std::mutex> lock(mWriteMutex);
+    std::lock_guard lock(mExitMtx);
     return mExit;
 }
 
 bool FileRotatingLoggedStream::shouldFlush() const
 {
-    std::lock_guard<std::mutex> lock(mWriteMutex);
+    std::lock_guard lock(mWriteMtx);
     return mFlush || mNextFlushTime <= std::chrono::steady_clock::now();
 }
 
 void FileRotatingLoggedStream::setForceRenew(bool forceRenew)
 {
-    std::lock_guard<std::mutex> lock(mWriteMutex);
+    std::lock_guard lock(mWriteMtx);
     mForceRenew = forceRenew;
 }
 
-void FileRotatingLoggedStream::writeToBuffer(const char *msg, size_t size) const
+void FileRotatingLoggedStream::writeToBuffer(const char* msg, size_t size) const
 {
     if (shouldExit())
     {
@@ -323,15 +321,14 @@ void FileRotatingLoggedStream::flushToFile()
     mOutputFile.flush();
     mNextFlushTime = std::chrono::steady_clock::now() + mFlushPeriod;
     {
-        std::lock_guard<std::mutex> lock(mWriteMutex);
+        std::lock_guard lock(mWriteMtx);
         mFlush = false;
     }
 }
 
 bool FileRotatingLoggedStream::waitForOutputFile()
 {
-    constexpr int waitTimesSize = 5; // In C++17 we can use `std::size(waitTimes)`
-    thread_local const int waitTimes[waitTimesSize] = {0, 1, 5, 20, 60};
+    thread_local const int waitTimes[] = {0, 1, 5, 20, 60};
     thread_local int i = 0;
 
     if (mOutputFile)
@@ -340,8 +337,15 @@ bool FileRotatingLoggedStream::waitForOutputFile()
         return true;
     }
 
-    std::this_thread::sleep_for(std::chrono::seconds(waitTimes[i]));
-    if (i < waitTimesSize - 1) ++i;
+    {
+        std::unique_lock lock(mExitMtx);
+        mExitCV.wait_for(lock, std::chrono::seconds(waitTimes[i]), [this]
+        {
+            return mExit;
+        });
+    }
+
+    if (i < std::size(waitTimes) - 1) ++i;
     return false;
 }
 
@@ -379,18 +383,27 @@ void FileRotatingLoggedStream::mainLoop()
         errorMessages += mFileManager.popErrors();
         std::cerr << errorMessages;
 
-        if (!mOutputFile && !mMessageBuffer.reachedFailSafeSize())
+        if (!mOutputFile)
         {
+            // If we cannot write to file, do not keep trying if we should exit
+            if (shouldExit())
+            {
+                break;
+            }
+
             // If we've reached the fail-safe size, try to write to file anyway
             // This clears the buffer, ensuring it doesn't grow beyond a certain threshold
-            continue;
+            if (!mMessageBuffer.reachedFailSafeSize())
+            {
+                continue;
+            }
         }
         mOutputFile << errorMessages;
 
         bool writeMessages = false;
         {
-            std::unique_lock<std::mutex> lock(mWriteMutex);
-            writeMessages = mWriteCV.wait_for(lock, std::chrono::milliseconds(500), [this] ()
+            std::unique_lock lock(mWriteMtx);
+            writeMessages = mWriteCV.wait_for(lock, std::chrono::milliseconds(500), [this]
             {
                 return mForceRenew || mExit || mFlush || !mMessageBuffer.isEmpty();
             });
@@ -408,11 +421,11 @@ void FileRotatingLoggedStream::mainLoop()
     }
 }
 
-FileRotatingLoggedStream::FileRotatingLoggedStream(const OUTSTRING &outputFilePath) :
+FileRotatingLoggedStream::FileRotatingLoggedStream(const OUTSTRING& outputFilePath) :
     mMessageBuffer(500 * 1024 * 1024 /* 500MB */),
     mOutputFilePath(outstringToString(outputFilePath)),
     mOutputFile(outputFilePath, std::ofstream::out | std::ofstream::app),
-    mFileManager(mega::LocalPath::fromAbsolutePath(mOutputFilePath)),
+    mFileManager(mOutputFilePath),
     mForceRenew(false), // maybe this should be true by default?
     mExit(false),
     mFlush(false),
@@ -425,53 +438,55 @@ FileRotatingLoggedStream::FileRotatingLoggedStream(const OUTSTRING &outputFilePa
 FileRotatingLoggedStream::~FileRotatingLoggedStream()
 {
     {
-        std::lock_guard<std::mutex> lock(mWriteMutex);
+        std::scoped_lock lock(mExitMtx, mWriteMtx);
         mExit = true;
-        mWriteCV.notify_one();
     }
+    mWriteCV.notify_one();
+    mExitCV.notify_one();
+
     mWriteThread.join();
 }
 
-const LoggedStream &FileRotatingLoggedStream::operator<<(const char &c) const
+const LoggedStream& FileRotatingLoggedStream::operator<<(const char& c) const
 {
     writeToBuffer(&c, sizeof(c));
     return *this;
 }
 
-const LoggedStream &FileRotatingLoggedStream::operator<<(const char *str) const
+const LoggedStream& FileRotatingLoggedStream::operator<<(const char* str) const
 {
     writeToBuffer(str, strlen(str));
     return *this;
 }
 
-const LoggedStream &FileRotatingLoggedStream::operator<<(std::string str) const
+const LoggedStream& FileRotatingLoggedStream::operator<<(std::string str) const
 {
     writeToBuffer(str.c_str(), str.size());
     return *this;
 }
 
-const LoggedStream &FileRotatingLoggedStream::operator<<(int v) const
+const LoggedStream& FileRotatingLoggedStream::operator<<(int v) const
 {
     return operator<<(std::to_string(v));
 }
 
-const LoggedStream &FileRotatingLoggedStream::operator<<(unsigned int v) const
+const LoggedStream& FileRotatingLoggedStream::operator<<(unsigned int v) const
 {
     return operator<<(std::to_string(v));
 }
 
-const LoggedStream &FileRotatingLoggedStream::operator<<(long long v) const
+const LoggedStream& FileRotatingLoggedStream::operator<<(long long v) const
 {
     return operator<<(std::to_string(v));
 }
 
-const LoggedStream &FileRotatingLoggedStream::operator<<(unsigned long v) const
+const LoggedStream& FileRotatingLoggedStream::operator<<(unsigned long v) const
 {
     return operator<<(std::to_string(v));
 }
 
 #ifdef _WIN32
-const LoggedStream &FileRotatingLoggedStream::operator<<(std::wstring wstr) const
+const LoggedStream& FileRotatingLoggedStream::operator<<(std::wstring wstr) const
 {
     std::string str;
     localwtostring(&wstr, &str);
@@ -482,7 +497,7 @@ const LoggedStream &FileRotatingLoggedStream::operator<<(std::wstring wstr) cons
 
 void FileRotatingLoggedStream::flush()
 {
-    std::lock_guard<std::mutex> lock(mWriteMutex);
+    std::lock_guard lock(mWriteMtx);
     mFlush = true;
     mWriteCV.notify_one();
 }
@@ -495,76 +510,77 @@ std::string BaseEngine::popErrors()
 }
 
 template<typename F>
-void RotationEngine::walkRotatedFiles(mega::LocalPath dir, const mega::LocalPath &baseFilename, F&& walker)
+void RotationEngine::walkRotatedFiles(const fs::path& dir, const fs::path& baseFilename, F&& walker)
 {
-    const std::string baseFileStr = baseFilename.toName(mFsAccess);
-
-    mega::LocalPath leafPath;
-    mega::nodetype_t entryType;
-
-    auto da = mFsAccess.newdiraccess();
-    if (!da->dopen(&dir, nullptr, false))
+    std::error_code ec;
+    for (const auto& entry : fs::directory_iterator(dir, ec))
     {
-        mErrorStream << "Failed to walk directory " << dir.toName(mFsAccess) << std::endl;
-        return;
-    }
+        if (ec)
+        {
+            mErrorStream << "Failed to walk directory " << dir << " (error: " << ec.message() << ")" << std::endl;
+            return;
+        }
 
-    while (da->dnext(dir, leafPath, false, &entryType))
-    {
         // Ignore non-files
-        if (entryType != mega::FILENODE) continue;
+        if (!entry.is_regular_file(ec) || ec)
+        {
+            continue;
+        }
+
+        const fs::path& filePath = entry.path();
+        std::string filename = filePath.filename().string();
 
         // Ignore files that don't start with the base filename
-        const std::string leafName = leafPath.toName(mFsAccess);
-        if (leafName.rfind(baseFileStr, 0) != 0) continue;
+        if (filename.rfind(baseFilename.string(), 0) != 0)
+        {
+            continue;
+        }
 
-        walker(dir, leafPath);
+        walker(filePath);
     }
 }
 
-void RotationEngine::cleanupFiles(const mega::LocalPath &dir, const mega::LocalPath &baseFilename)
+void RotationEngine::cleanupFiles(const fs::path& dir, const fs::path& baseFilename)
 {
-    walkRotatedFiles(dir, baseFilename, [this] (const mega::LocalPath &dir, const mega::LocalPath &leafPath)
+    walkRotatedFiles(dir, baseFilename, [this] (const fs::path& filePath)
     {
-        mega::LocalPath leafFullPath(dir);
-        leafFullPath.appendWithSeparator(leafPath, false);
+        std::error_code ec;
 
-        if (!mFsAccess.unlinklocal(leafFullPath))
+        fs::remove(filePath, ec);
+        if (ec)
         {
-            mErrorStream << "Error removing rotated file " << leafPath.toName(mFsAccess) << std::endl;
+            mErrorStream << "Error removing rotated file " << filePath << " (error: " << ec.message() << ")" << std::endl;
         }
     });
 }
 
-mega::LocalPath NumberedRotationEngine::getSrcFilePath(const mega::LocalPath &directory, const mega::LocalPath &baseFilename, int i) const
+fs::path NumberedRotationEngine::getSrcFilePath(const fs::path& directory, const fs::path& baseFilename, int i) const
 {
-    mega::LocalPath filePath = directory;
-    filePath.appendWithSeparator(baseFilename, false);
+    fs::path filePath = directory / baseFilename;
 
     // The source path for the base file does not have an index or compression extension
     if (i != 0)
     {
-        filePath.append(mega::LocalPath::fromRelativePath("." + std::to_string(i) + mCompressionExt));
+        filePath += "." + std::to_string(i) + mCompressionExt;
     }
     return filePath;
 }
 
-mega::LocalPath NumberedRotationEngine::getDstFilePath(const mega::LocalPath &directory, const mega::LocalPath &baseFilename, int i) const
+fs::path NumberedRotationEngine::getDstFilePath(const fs::path& directory, const fs::path& baseFilename, int i) const
 {
-    mega::LocalPath filePath = directory;
-    filePath.appendWithSeparator(baseFilename, false);
+    fs::path filePath = directory / baseFilename;
 
     // The destination path for the base file has an index, but doesn't have a compression extension
     // (since the file still needs to be sent to the compression engine)
-    filePath.append(mega::LocalPath::fromRelativePath("." + std::to_string(i + 1)));
+    filePath += "." + std::to_string(i + 1);
     if (i != 0)
     {
-        filePath.append(mega::LocalPath::fromRelativePath(mCompressionExt));
+        filePath += mCompressionExt;
     }
     return filePath;
 }
 
-NumberedRotationEngine::NumberedRotationEngine(const std::string &compressionExt, int maxFilesToKeep) :
+NumberedRotationEngine::NumberedRotationEngine(const std::string& compressionExt, int maxFilesToKeep) :
     mCompressionExt(compressionExt),
     mMaxFilesToKeep(maxFilesToKeep)
 {
@@ -572,30 +588,38 @@ NumberedRotationEngine::NumberedRotationEngine(const std::string &compressionExt
     assert(mMaxFilesToKeep >= 0);
 }
 
-mega::LocalPath NumberedRotationEngine::rotateFiles(const mega::LocalPath &dir, const mega::LocalPath &baseFilename)
+fs::path NumberedRotationEngine::rotateFiles(const fs::path& dir, const fs::path& baseFilename)
 {
+    std::error_code ec;
     for (int i = mMaxFilesToKeep - 1; i >= 0; --i)
     {
-        auto srcFilePath = getSrcFilePath(dir, baseFilename, i);
+        fs::path srcFilePath = getSrcFilePath(dir, baseFilename, i);
 
         // Quietly ignore any numbered files that don't exist
-        if (!mFsAccess.fileExistsAt(srcFilePath)) continue;
+        if (!fs::exists(srcFilePath) || ec)
+        {
+            continue;
+        }
 
         // Delete the last file, which is the one with number == maxFilesToKeep
         if (i == mMaxFilesToKeep - 1)
         {
-            if (!mFsAccess.unlinklocal(srcFilePath))
+            fs::remove(srcFilePath, ec);
+            if (ec)
             {
-                mErrorStream << "Error removing file " << srcFilePath.toPath(true) << std::endl;
+                mErrorStream << "Error removing file " << srcFilePath << " (error: " << ec.message() << ")" << std::endl;
             }
             continue;
         }
 
+
         // For the rest, rename them to effectively do number++ (e.g., file.3.gz => file.4.gz)
-        auto dstFilePath = getDstFilePath(dir, baseFilename, i);
-        if (!mFsAccess.renamelocal(srcFilePath, dstFilePath, true))
+        fs::path dstFilePath = getDstFilePath(dir, baseFilename, i);
+
+        fs::rename(srcFilePath, dstFilePath, ec);
+        if (ec)
         {
-            mErrorStream << "Error renaming file " << srcFilePath.toPath(true) << " to " << dstFilePath.toPath(true) << std::endl;
+            mErrorStream << "Error renaming file " << srcFilePath << " to " << dstFilePath << " (error: " << ec.message() << ")" << std::endl;
         }
     }
 
@@ -603,14 +627,13 @@ mega::LocalPath NumberedRotationEngine::rotateFiles(const mega::LocalPath &dir, 
     return getDstFilePath(dir, baseFilename, 0);
 }
 
-TimestampRotationEngine::TimestampFile::TimestampFile(const mega::LocalPath &dir, const mega::LocalPath &filename, const Timestamp &_timestamp) :
-    fullPath(dir),
-    timestamp(_timestamp)
+TimestampRotationEngine::TimestampFile::TimestampFile(const fs::path& path, const Timestamp &timestamp) :
+    mPath(path),
+    mTimestamp(timestamp)
 {
-    fullPath.appendWithSeparator(filename, false);
 }
 
-std::string TimestampRotationEngine::timestampToString(const Timestamp &timestamp)
+std::string TimestampRotationEngine::timestampToString(const Timestamp& timestamp)
 {
     std::ostringstream oss;
     std::time_t time = Clock::to_time_t(timestamp);
@@ -622,7 +645,7 @@ std::string TimestampRotationEngine::timestampToString(const Timestamp &timestam
     return oss.str();
 }
 
-TimestampRotationEngine::Timestamp TimestampRotationEngine::stringToTimestamp(const std::string &timestampStr, bool &success)
+std::optional<TimestampRotationEngine::Timestamp> TimestampRotationEngine::stringToTimestamp(const std::string& timestampStr)
 {
     std::tm timeInfo = {};
     int milliseconds = -1;
@@ -630,7 +653,7 @@ TimestampRotationEngine::Timestamp TimestampRotationEngine::stringToTimestamp(co
     std::istringstream iss(timestampStr);
     iss >> std::get_time(&timeInfo, "%Y%m%d_%H%M%S_") >> milliseconds;
 
-    success = milliseconds >= 0 && milliseconds < 1000 && !iss.fail();
+    bool success = milliseconds >= 0 && milliseconds < 1000 && !iss.fail();
     if (!success)
     {
         return {};
@@ -639,41 +662,39 @@ TimestampRotationEngine::Timestamp TimestampRotationEngine::stringToTimestamp(co
     return Clock::from_time_t(std::mktime(&timeInfo)) + std::chrono::milliseconds(milliseconds);
 }
 
-mega::LocalPath TimestampRotationEngine::rotateBaseFile(const mega::LocalPath &directory, const mega::LocalPath &baseFilename)
+fs::path TimestampRotationEngine::rotateBaseFile(const fs::path& directory, const fs::path& baseFilename)
 {
     const std::string timestampStr = timestampToString(Clock::now());
 
-    mega::LocalPath srcFilePath = directory;
-    srcFilePath.appendWithSeparator(baseFilename, false);
+    fs::path srcFilePath = directory / baseFilename;
+    fs::path dstFilePath = srcFilePath.string() + "." + timestampStr;
 
-    mega::LocalPath dstFilePath = srcFilePath;
-    dstFilePath.append(mega::LocalPath::fromRelativePath("." + timestampStr));
+    std::error_code ec;
 
-    if (!mFsAccess.renamelocal(srcFilePath, dstFilePath, true))
+    fs::rename(srcFilePath, dstFilePath, ec);
+    if (ec)
     {
-        mErrorStream << "Error renaming file " << srcFilePath.toPath(true) << " to " << dstFilePath.toPath(true) << std::endl;
+        mErrorStream << "Error renaming file " << srcFilePath << " to " << dstFilePath << " (error: " << ec.message() << ")" << std::endl;
     }
-
     return dstFilePath;
 }
 
-TimestampRotationEngine::TimestampFileQueue TimestampRotationEngine::getTimestampFileQueue(const mega::LocalPath &dir, const mega::LocalPath &baseFilename)
+TimestampRotationEngine::TimestampFileQueue TimestampRotationEngine::getTimestampFileQueue(const fs::path& dir, const fs::path& baseFilename)
 {
     TimestampFileQueue fileQueue;
     std::unordered_set<std::string> addedFiles;
 
-    const std::string baseFilenameStr = baseFilename.toName(mFsAccess);
+    const std::string baseFilenameStr = baseFilename.string();
 
-    walkRotatedFiles(dir, baseFilename, [this, &baseFilenameStr, &fileQueue, &addedFiles] (const mega::LocalPath &dir, const mega::LocalPath &leafPath)
+    walkRotatedFiles(dir, baseFilename, [this, &baseFilenameStr, &fileQueue, &addedFiles] (const fs::path& filePath)
     {
         static const std::string exampleTimestampStr = "19970907_193040_000"; // example timestamp to get the string size
-        const std::string leafPathStr = leafPath.toName(mFsAccess);
 
-        const std::string timestampStr = leafPathStr.substr(baseFilenameStr.size() + 1, exampleTimestampStr.size());
+        const std::string filenameStr = filePath.filename().string();
+        const std::string timestampStr = filenameStr.substr(baseFilenameStr.size() + 1, exampleTimestampStr.size());
 
-        bool success = false;
-        Timestamp timestamp = stringToTimestamp(timestampStr, success);
-        if (!success)
+        auto timestampOpt = stringToTimestamp(timestampStr);
+        if (!timestampOpt)
         {
             // Ignore if there's not timestamp or it has a different format
             return;
@@ -688,20 +709,23 @@ TimestampRotationEngine::TimestampFileQueue TimestampRotationEngine::getTimestam
         }
 
         addedFiles.emplace(timestampStr);
-        fileQueue.emplace(dir, leafPath, timestamp);
+        fileQueue.emplace(filePath, *timestampOpt);
     });
 
     return fileQueue;
 }
 
-void TimestampRotationEngine::popAndRemoveFile(TimestampFileQueue &fileQueue)
+void TimestampRotationEngine::popAndRemoveFile(TimestampFileQueue& fileQueue)
 {
     const TimestampFile file = fileQueue.top();
     fileQueue.pop();
 
-    if (!mFsAccess.unlinklocal(file.fullPath))
+    std::error_code ec;
+
+    fs::remove(file.mPath, ec);
+    if (ec)
     {
-        mErrorStream << "Error removing rotated file " << file.fullPath.toName(mFsAccess) << std::endl;
+        mErrorStream << "Error removing rotated file " << file.mPath << " (error: " << ec.message() << ")" << std::endl;
     }
 }
 
@@ -711,9 +735,9 @@ TimestampRotationEngine::TimestampRotationEngine(int maxFilesToKeep, std::chrono
 {
 }
 
-mega::LocalPath TimestampRotationEngine::rotateFiles(const mega::LocalPath &dir, const mega::LocalPath &baseFilename)
+fs::path TimestampRotationEngine::rotateFiles(const fs::path& dir, const fs::path& baseFilename)
 {
-    auto newlyRotatedFile = rotateBaseFile(dir, baseFilename);
+    fs::path newlyRotatedFile = rotateBaseFile(dir, baseFilename);
 
     if (mMaxFileAge <= std::chrono::seconds(0) && mMaxFilesToKeep < 0)
     {
@@ -726,7 +750,7 @@ mega::LocalPath TimestampRotationEngine::rotateFiles(const mega::LocalPath &dir,
     if (mMaxFileAge > std::chrono::seconds(0))
     {
         const Timestamp minFileTimestamp = Clock::now() - mMaxFileAge;
-        while (!fileQueue.empty() && fileQueue.top().timestamp < minFileTimestamp)
+        while (!fileQueue.empty() && fileQueue.top().mTimestamp < minFileTimestamp)
         {
             popAndRemoveFile(fileQueue);
         }
@@ -744,21 +768,21 @@ mega::LocalPath TimestampRotationEngine::rotateFiles(const mega::LocalPath &dir,
     return newlyRotatedFile;
 }
 
-GzipCompressionEngine::GzipJobData::GzipJobData(const mega::LocalPath &_srcFilePath, const mega::LocalPath &_dstFilePath) :
-    srcFilePath(_srcFilePath),
-    dstFilePath(_dstFilePath)
+GzipCompressionEngine::GzipJobData::GzipJobData(const fs::path& srcFilePath, const fs::path& dstFilePath) :
+    mSrcFilePath(srcFilePath),
+    mDstFilePath(dstFilePath)
 {
 }
 
 bool GzipCompressionEngine::shouldCancelOngoingJob() const
 {
-    std::lock_guard<std::mutex> lock(mQueueMutex);
+    std::lock_guard lock(mQueueMtx);
     return mCancelOngoingJob;
 }
 
-void GzipCompressionEngine::pushToQueue(const mega::LocalPath &srcFilePath, const mega::LocalPath &dstFilePath)
+void GzipCompressionEngine::pushToQueue(const fs::path& srcFilePath, const fs::path& dstFilePath)
 {
-    std::lock_guard<std::mutex> lock(mQueueMutex);
+    std::lock_guard lock(mQueueMtx);
 
     if (mExit)
     {
@@ -769,23 +793,20 @@ void GzipCompressionEngine::pushToQueue(const mega::LocalPath &srcFilePath, cons
     mQueueCV.notify_one();
 }
 
-void GzipCompressionEngine::gzipFile(const mega::LocalPath &srcFilePath, const mega::LocalPath &dstFilePath)
+void GzipCompressionEngine::gzipFile(const fs::path& srcFilePath, const fs::path& dstFilePath)
 {
-    std::string srcFilePathStr = srcFilePath.toName(mFsAccess);
-    std::ifstream file(srcFilePathStr, std::ofstream::out);
+    std::ifstream file(srcFilePath, std::ofstream::out);
     if (!file)
     {
-        mErrorStream << "Failed to open " << srcFilePathStr << " for compression" << std::endl;
+        mErrorStream << "Failed to open " << srcFilePath << " for compression" << std::endl;
         return;
     }
 
-    std::string dstFilePathStr = dstFilePath.toName(mFsAccess);
-
     auto gzdeleter = [] (gzFile_s* f) { if (f) gzclose(f); };
-    std::unique_ptr<gzFile_s, decltype(gzdeleter)> gzFile(gzopen(dstFilePathStr.c_str(), "wb"), gzdeleter);
+    std::unique_ptr<gzFile_s, decltype(gzdeleter)> gzFile(gzopen(dstFilePath.string().c_str(), "wb"), gzdeleter);
     if (!gzFile)
     {
-        mErrorStream << "Failed to open gzfile " << dstFilePathStr << " for writing" << std::endl;
+        mErrorStream << "Failed to open gzfile " << dstFilePath << " for writing" << std::endl;
         return;
     }
 
@@ -800,17 +821,20 @@ void GzipCompressionEngine::gzipFile(const mega::LocalPath &srcFilePath, const m
         line += '\n';
         if (gzputs(gzFile.get(), line.c_str()) == -1)
         {
-            mErrorStream << "Failed to gzip " << srcFilePathStr << std::endl;
+            mErrorStream << "Failed to gzip " << srcFilePath << std::endl;
             return;
         }
     }
 
-    // Explicitly release the open file handle (otherwise the unlink below will fail)
+    // Explicitly release the open file handle (otherwise the remove below will fail)
     file.close();
 
-    if (!mFsAccess.unlinklocal(srcFilePath))
+    std::error_code ec;
+
+    fs::remove(srcFilePath, ec);
+    if (ec)
     {
-        mErrorStream << "Failed to remove temporary file " << srcFilePathStr << " after compression" << std::endl;
+        mErrorStream << "Failed to remove temporary file " << srcFilePath << " after compression (error: " << ec.message() << ")" << std::endl;
     }
 }
 
@@ -821,7 +845,7 @@ void GzipCompressionEngine::mainLoop()
         std::optional<GzipJobData> jobDataOpt;
 
         {
-            std::unique_lock<std::mutex> lock(mQueueMutex);
+            std::unique_lock lock(mQueueMtx);
             mQueueCV.wait(lock, [this] () { return mExit || !mQueue.empty(); });
 
             if (mExit && mQueue.empty())
@@ -837,7 +861,7 @@ void GzipCompressionEngine::mainLoop()
         }
 
         assert(jobDataOpt);
-        gzipFile(jobDataOpt->srcFilePath, jobDataOpt->dstFilePath);
+        gzipFile(jobDataOpt->mSrcFilePath, jobDataOpt->mDstFilePath);
     }
 }
 
@@ -851,12 +875,12 @@ GzipCompressionEngine::GzipCompressionEngine() :
 GzipCompressionEngine::~GzipCompressionEngine()
 {
     {
-        std::lock_guard<std::mutex> lock(mQueueMutex);
+        std::lock_guard lock(mQueueMtx);
         mExit = true;
-        mQueueCV.notify_one();
-
         // We want to exit gracefull, so we don't call `cancelAll`
     }
+    mQueueCV.notify_one();
+
     mGzipThread.join();
 }
 
@@ -867,7 +891,7 @@ std::string GzipCompressionEngine::getExtension() const
 
 void GzipCompressionEngine::cancelAll()
 {
-    std::lock_guard<std::mutex> lock(mQueueMutex);
+    std::lock_guard lock(mQueueMtx);
 
     // Clear the queue
     mQueue = GzipJobQueue();
@@ -877,27 +901,30 @@ void GzipCompressionEngine::cancelAll()
     mCancelOngoingJob = true;
 }
 
-void GzipCompressionEngine::compressFile(const mega::LocalPath &filePath)
+void GzipCompressionEngine::compressFile(const fs::path& filePath)
 {
-    mega::LocalPath tmpFilePath(filePath);
-    tmpFilePath.append(mega::LocalPath::fromRelativePath(".zipping"));
+    std::error_code ec;
+    fs::path tmpFilePath = filePath.string() + ".zipping";
 
     // Ensure there is not a clashing .zipping file
-    if (mFsAccess.fileExistsAt(tmpFilePath) && !mFsAccess.unlinklocal(tmpFilePath))
+    if (fs::exists(tmpFilePath, ec) && !ec)
     {
-        mErrorStream << "Failed to remove temporary compression file " << tmpFilePath.toPath(true) << std::endl;
+        fs::remove(tmpFilePath, ec);
+        if (ec)
+        {
+            mErrorStream << "Failed to remove temporary compression file " << tmpFilePath << " (error: " << ec.message() << ")" << std::endl;
+            return;
+        }
+    }
+
+    fs::rename(filePath, tmpFilePath, ec);
+    if (ec)
+    {
+        mErrorStream << "Failed to rename file " << filePath << " to " << tmpFilePath << " (error: " << ec.message() << ")" << std::endl;
         return;
     }
 
-    if (!mFsAccess.renamelocal(filePath, tmpFilePath, true))
-    {
-        mErrorStream << "Failed to rename file " << filePath.toPath(true) << " to " << tmpFilePath.toPath(true) << std::endl;
-        return;
-    }
-
-    mega::LocalPath targetFilePath(filePath);
-    targetFilePath.append(mega::LocalPath::fromRelativePath(getExtension()));
-
+    fs::path targetFilePath = filePath.string() + getExtension();
     pushToQueue(tmpFilePath, targetFilePath);
 }
 }
