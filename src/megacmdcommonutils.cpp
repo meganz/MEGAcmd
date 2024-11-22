@@ -547,12 +547,12 @@ vector<string> getlistOfWords(char *ptr, bool escapeBackSlashInCompletion, bool 
             //while ((unsigned char)*ptr > ' ')
             while ((*ptr != '\0') && !(*ptr ==' ' && *prev !='\\'))
             {
-                if (*ptr == '"') // if quote is found, look for the ending quote
+                if (*ptr == '"' && *(ptr+1) != '\0') // if quote is found, look for the ending quote
                 {
-                    while (*(ptr + 1) != '"' && *(ptr + 1))
+                    do
                     {
-                        ptr++;
-                    }
+                        ++ptr;
+                    } while (*ptr != '"' && *(ptr+1) != '\0');
                 }
                 prev = ptr;
                 ptr++;

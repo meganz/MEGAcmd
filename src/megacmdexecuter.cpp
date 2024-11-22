@@ -31,8 +31,6 @@
 #include "sync_command.h"
 #include "sync_ignore.h"
 
-#include "mega/version.h" // TO GET SDK's version
-
 #include <iomanip>
 #include <limits>
 #include <string>
@@ -9946,7 +9944,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         }
         if (getFlag(clflags,"l"))
         {
-            OUTSTREAM << "MEGA SDK version: " << MEGA_MAJOR_VERSION << "." << MEGA_MINOR_VERSION << "." << MEGA_MICRO_VERSION << endl;
+            OUTSTREAM << "MEGA SDK version: " << SDK_COMMIT_HASH << endl;
 
             OUTSTREAM << "MEGA SDK Credits: https://github.com/meganz/sdk/blob/master/CREDITS.md" << endl;
             OUTSTREAM << "MEGA SDK License: https://github.com/meganz/sdk/blob/master/LICENSE" << endl;

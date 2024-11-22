@@ -1,10 +1,19 @@
 # CMakeLists.txt file to build the MEGAcmd
 cmake_minimum_required(VERSION 3.16)
 
-## Configure megacmdversion.h
+find_package(Git REQUIRED)
+execute_process(
+    COMMAND ${GIT_EXECUTABLE} rev-parse --short HEAD
+    WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/sdk
+    OUTPUT_VARIABLE SDK_COMMIT_HASH
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+
 set(MEGACMD_MAJOR_VERSION 1)
 set(MEGACMD_MINOR_VERSION 7)
 set(MEGACMD_MICRO_VERSION 0)
+
+## Configure megacmdversion.h
 configure_file("${CMAKE_CURRENT_LIST_DIR}/src/megacmdversion.h.in" "${CMAKE_CURRENT_LIST_DIR}/src/megacmdversion.h" @ONLY)
 if (APPLE)
 configure_file("${CMAKE_CURRENT_LIST_DIR}/build/installer/Info.plist.in" "${CMAKE_CURRENT_LIST_DIR}/build/installer/Info.plist" @ONLY)
@@ -205,7 +214,7 @@ target_sources_conditional(LMegacmdServer
 )
 
 # Given we are no longer including the sdk, and some sources use certain defines without including SDK's config.h,
-# We need to explicitly pass the copmiling options.
+# We need to explicitly pass the compiling options.
 target_compile_definitions(LMegacmdServer
     PUBLIC
     $<$<BOOL:${USE_PCRE}>:USE_PCRE>
