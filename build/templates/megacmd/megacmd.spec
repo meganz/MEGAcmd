@@ -9,6 +9,11 @@ Source0:	megacmd_%{version}.tar.gz
 Vendor:		MEGA Limited
 Packager:	MEGA Linux Team <linux@mega.co.nz>
 
+%if 0%{?suse_version}
+Requires: procps
+%else
+Requires: procps-ng
+%endif
 
 BuildRequires: autoconf, autoconf-archive, automake, libtool, gcc-c++
 BuildRequires: hicolor-icon-theme, zip, unzip, nasm, cmake, perl
@@ -318,19 +323,19 @@ sysctl -p /etc/sysctl.d/99-megacmd-inotify-limit.conf
 
 
 %preun
-[ "$1" == "1" ] && killall -s SIGUSR1 mega-cmd-server 2> /dev/null || true
+[ "$1" == "1" ] && pkill --signal SIGUSR1 mega-cmd-server 2> /dev/null || true
 
 
 %postun
 
 # kill running MEGAcmd instance when uninstall (!upgrade)
-[ "$1" == "0" ] && killall mega-cmd 2> /dev/null || true
-[ "$1" == "0" ] && killall mega-cmd-server 2> /dev/null || true
+[ "$1" == "0" ] && pkill mega-cmd 2> /dev/null || true
+[ "$1" == "0" ] && pkill mega-cmd-server 2> /dev/null || true
 
 
 %posttrans
 # to restore dormant MEGAcmd upon updates
-killall -s SIGUSR2 mega-cmd-server 2> /dev/null || true
+pkill --signal SIGUSR2 mega-cmd-server 2> /dev/null || true
 
 
 %clean
