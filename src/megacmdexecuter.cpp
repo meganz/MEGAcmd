@@ -7944,7 +7944,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
             if (!syncIssues.empty())
             {
-                LOG_warn << "You have sync issues. Use the \"" << commandPrefixBasedOnMode() << "sync-issues\" command to display them.";
+                LOG_err << "You have sync issues. Use the \"" << commandPrefixBasedOnMode() << "sync-issues\" command to display them.";
             }
         }
         return;

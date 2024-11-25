@@ -84,14 +84,13 @@ protected:
         auto lines = splitByNewline(result.out());
         for (size_t i = 1; i < lines.size(); ++i)
         {
-            if (lines[i].empty())
-            {
-                // We've reached the end of the list of syncs
-                return;
-            }
-
             auto words = megacmd::split(lines[i], " ");
+
             ASSERT_TRUE(!words.empty());
+            if (words[0] == "[err:")
+            {
+                continue;
+            }
 
             std::string syncId = words[0];
             auto result = executeInClient({"sync", "--remove", "--", syncId}).ok();
