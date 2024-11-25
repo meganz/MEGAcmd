@@ -201,6 +201,8 @@ add_source_and_corresponding_header_to_target(LMegacmdServer
     "${ProjectDir}/src/comunicationsmanagerportsockets.cpp"
     "${ProjectDir}/src/configurationmanager.cpp"
     "${ProjectDir}/src/listeners.cpp"
+    "${ProjectDir}/src/sync_issues.cpp"
+    "${ProjectDir}/src/sync_ignore.cpp"
 )
 
 target_sources_conditional(LMegacmdServer
@@ -314,6 +316,8 @@ if (ENABLE_MEGACMD_TESTS)
     add_source_and_corresponding_header_to_target(mega-cmd-tests-integration PRIVATE
         "${ProjectDir}/tests/integration/BasicTests.cpp"
         "${ProjectDir}/tests/integration/ExportTests.cpp"
+        "${ProjectDir}/tests/integration/SyncIssuesTests.cpp"
+        "${ProjectDir}/tests/integration/SyncIgnoreTests.cpp"
         "${ProjectDir}/tests/integration/MegaCmdTestingTools.cpp"
         "${ProjectDir}/tests/integration/main.cpp"
     )
@@ -370,7 +374,7 @@ endif()
 target_link_libraries(mega-cmd-server PUBLIC LMegacmdServer)
 
 if (ENABLE_MEGACMD_TESTS)
-    target_include_directories(mega-cmd-tests-unit PUBLIC ${ProjectDir}/src ${ProjectDir}/tests/common)
+    target_include_directories(LMegacmdTestsCommon PUBLIC ${ProjectDir}/src ${ProjectDir}/tests/common)
     target_link_libraries(mega-cmd-tests-unit PUBLIC LMegacmdServer LMegacmdTestsCommon)
 endif()
 

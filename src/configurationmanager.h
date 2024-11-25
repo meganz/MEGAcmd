@@ -58,8 +58,6 @@ public:
 
     static std::string session;
 
-    static std::set<std::string> excludedNames;
-
     static void loadConfiguration(bool debug);
     static void clearConfigurationFile();
     static bool lockExecution();
@@ -71,14 +69,7 @@ public:
     static void saveSyncs(std::map<std::string, sync_struct *> *syncsmap);
     static void saveBackups(std::map<std::string, backup_struct *> *backupsmap);
 
-    static void addExcludedName(std::string excludedName);
-    static void removeExcludedName(std::string excludedName);
-    static void saveExcludedNames();
-    /**
-     * @brief loadExcludedNames
-     * if called for the first time, it will add default excluded names if no sync has been loaded previously
-     */
-    static void loadExcludedNames();
+    static void transitionLegacyExclusionRules(mega::MegaApi& api);
 
     static void saveSession(const char*session);
 

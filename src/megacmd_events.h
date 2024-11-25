@@ -32,7 +32,8 @@ namespace megacmd::StatsManager {
         GENERATOR_MACRO(UPDATE_RESTART                                  , 98902, "MEGAcmd updated requiring restart") \
         GENERATOR_MACRO(FIRST_CONFIGURED_SYNC                           , 98903, "MEGAcmd first sync configured") \
         GENERATOR_MACRO(WAITED_TOO_LONG_FOR_NODES_CURRENT               , 98904, "MEGAcmd nodes current wait timed out") \
-        GENERATOR_MACRO(ROOT_NODE_NOT_FOUND_AFTER_FETCHING              , 98906, "MEGAcmd root node was not found after fetching nodes")
+        GENERATOR_MACRO(ROOT_NODE_NOT_FOUND_AFTER_FETCHING              , 98906, "MEGAcmd root node was not found after fetching nodes") \
+        GENERATOR_MACRO(TRANSITIONING_PRE_SRW_EXCLUSIONS                , 98907, "MEGAcmd transition of legacy exclusion rules started")
 
     static constexpr auto FIRST_EVENT_NUMBER = 98900u;
 

@@ -729,6 +729,16 @@ string getRightAlignedString(const string origin, unsigned int minsize)
     return os.str();
 }
 
+string toLower(const std::string& str)
+{
+    std::string lower = str;
+    for (char& c : lower)
+    {
+        c = std::tolower(c);
+    }
+    return lower;
+}
+
 void printCenteredLine(OUTSTREAMTYPE &os, string msj, unsigned int width, bool encapsulated)
 {
     unsigned int msjsize = getstringutf8size(msj);
@@ -1029,7 +1039,7 @@ string sizeToText(long long totalSize, bool equalizeUnitsLength, bool humanreada
             unit = "KB";
         }
         os << fixed << reducedSize;
-        os << " " << unit;
+        os << " " << (reducedSize == 0.0 ? " " : "") << unit;
     }
     else
     {

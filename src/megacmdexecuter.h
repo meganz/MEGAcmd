@@ -25,6 +25,7 @@
 #include "megacmdsandbox.h"
 #include "listeners.h"
 #include "deferred_single_trigger.h"
+#include "sync_issues.h"
 
 namespace megacmd {
 class MegaCmdSandbox;
@@ -46,6 +47,7 @@ private:
     std::mutex mtxFtpLocations;
 
     DeferredSingleTrigger mDeferredSharedFoldersVerifier;
+    SyncIssuesManager mSyncIssuesManager;
 
     std::recursive_mutex mtxBackupsMap;
 
@@ -202,7 +204,7 @@ public:
     void printBackup(backup_struct *backupstruct, const char *timeFormat, const unsigned int PATHSIZE, bool extendedinfo = false, bool showhistory = false);
 
     void printSyncHeader(ColumnDisplayer &cd);
-    void printSync(mega::MegaSync *sync, long long nfiles, long long nfolders, ColumnDisplayer &cd, std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions);
+    void printSync(mega::MegaSync *sync, long long nfiles, long long nfolders, ColumnDisplayer &cd, std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions, const SyncIssueList& syncIssues);
 
     void doFind(mega::MegaNode* nodeBase, const char *timeFormat, std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions, std::string word, int printfileinfo, std::string pattern, bool usepcre, mega::m_time_t minTime, mega::m_time_t maxTime, int64_t minSize, int64_t maxSize);
 

@@ -312,6 +312,8 @@ void statechangehandle(string statestring)
                 int oldmode = _setmode(_fileno(stdout), _O_U8TEXT);
 #endif
                 string contents = newstate.substr(strlen("message:"));
+                replaceAll(contents, "%mega-%", "");
+
                 if (contents.find("-----") != 0)
                 {
                     if (!procesingline || promptreinstalledwhenprocessingline || shown_partial_progress)
