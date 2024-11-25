@@ -317,7 +317,6 @@ SOCKET MegaCmdShellCommunications::createSocket(int number, bool initializeserve
 
                     std::vector<const char*> argsVector{
                         executable,
-                        "--log-to-file",
                         nullptr
                     };
 
