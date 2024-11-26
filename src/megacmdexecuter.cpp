@@ -7702,6 +7702,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             fs::path localPath = fs::absolute(words[1]);
             if (!fs::exists(localPath))
             {
+                setCurrentOutCode(MCMD_NOTFOUND);
                 LOG_err << "Local directory " << words[1] << " does not exist";
                 return;
             }
