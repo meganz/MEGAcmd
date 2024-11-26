@@ -71,7 +71,7 @@ void printSyncHeader(ColumnDisplayer &cd)
     cd.addHeader("REMOTEPATH", false);
 }
 
-void printSingleSync(mega::MegaApi& api, mega::MegaSync& sync, long long nFiles, long long nFolders, ColumnDisplayer &cd, bool showHandle, int syncIssuesCount)
+void printSingleSync(mega::MegaApi& api, mega::MegaSync& sync, mega::MegaNode& node, long long nFiles, long long nFolders, ColumnDisplayer &cd, bool showHandle, int syncIssuesCount)
 {
     cd.addValue("ID", getSyncId(sync));
     cd.addValue("LOCALPATH", sync.getLocalFolder());
@@ -106,8 +106,7 @@ void printSingleSync(mega::MegaApi& api, mega::MegaSync& sync, long long nFiles,
         cd.addValue("ERROR", syncIssuesMsg);
     }
 
-    std::unique_ptr<mega::MegaNode> n(api.getNodeByHandle(sync.getMegaHandle()));
-    cd.addValue("SIZE", sizeToText(api.getSize(n.get())));
+    cd.addValue("SIZE", sizeToText(api.getSize(&node)));
     cd.addValue("FILES", std::to_string(nFiles));
     cd.addValue("DIRS", std::to_string(nFolders));
 }
@@ -198,7 +197,7 @@ void printSync(mega::MegaApi& api, ColumnDisplayer& cd, bool showHandle, mega::M
     printSyncHeader(cd);
 
     unsigned int syncIssuesCount = syncIssues.getSyncIssuesCount(sync);
-    printSingleSync(api, sync, nFiles, nFolders, cd, showHandle, syncIssuesCount);
+    printSingleSync(api, sync, *node, nFiles, nFolders, cd, showHandle, syncIssuesCount);
 }
 
 void printSyncList(mega::MegaApi& api, ColumnDisplayer& cd, bool showHandles, const mega::MegaSyncList& syncList, const SyncIssueList& syncIssues)
@@ -226,7 +225,7 @@ void printSyncList(mega::MegaApi& api, ColumnDisplayer& cd, bool showHandles, co
         }
 
         unsigned int syncIssuesCount = syncIssues.getSyncIssuesCount(sync);
-        printSingleSync(api, sync, nFiles, nFolders, cd, showHandles, syncIssuesCount);
+        printSingleSync(api, sync, *node, nFiles, nFolders, cd, showHandles, syncIssuesCount);
     }
 }
 
