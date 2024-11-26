@@ -182,7 +182,7 @@ void printSync(mega::MegaApi& api, ColumnDisplayer& cd, bool showHandle, mega::M
     std::unique_ptr<mega::MegaNode> node(api.getNodeByHandle(sync.getMegaHandle()));
     if (!node)
     {
-        LOG_warn << "Remote node not found for sync " << getSyncId(sync);
+        LOG_err << "Remote node not found for sync " << getSyncId(sync);
         return;
     }
 
