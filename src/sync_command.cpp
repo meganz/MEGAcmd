@@ -112,21 +112,27 @@ void printSingleSync(mega::MegaApi& api, mega::MegaSync& sync, long long nFiles,
     cd.addValue("DIRS", std::to_string(nFolders));
 }
 
-string getErrorString(MegaCmdListener& listener)
+std::optional<string> getErrorAndSetOutCode(MegaCmdListener& listener)
 {
-    std::string errorStr;
+    string errorStr;
 
-    bool hasMegaError = listener.getError()->getErrorCode() != mega::MegaError::API_OK;
+    int errorCode = listener.getError()->getErrorCode();
+    bool hasMegaError = errorCode != mega::MegaError::API_OK;
     auto syncError = static_cast<mega::SyncError>(listener.getRequest()->getNumDetails());
 
     if (hasMegaError)
     {
+        setCurrentOutCode(errorCode);
         errorStr += "error: ";
         errorStr += listener.getError()->getErrorString();
     }
     else if (syncError)
     {
         errorStr += "sync error: ";
+    }
+    else
+    {
+        return {};
     }
 
     if (syncError)
@@ -141,7 +147,6 @@ string getErrorString(MegaCmdListener& listener)
     }
 
     return errorStr;
-
 }
 
 string getSyncErrorReason(MegaCmdListener& listener)
@@ -248,10 +253,10 @@ void addSync(mega::MegaApi& api, const fs::path& localPath, mega::MegaNode& node
 
     megaCmdListener->wait();
 
-    string errorStr = getErrorString(*megaCmdListener);
-    if (!errorStr.empty())
+    auto errorOpt = getErrorAndSetOutCode(*megaCmdListener);
+    if (errorOpt)
     {
-        LOG_err << "Failed to sync " << localPath.string() << " to " << nodePath << " (" << errorStr << ")";
+        LOG_err << "Failed to sync " << localPath.string() << " to " << nodePath << " (" << *errorOpt << ")";
         return;
     }
 
@@ -274,14 +279,14 @@ void modifySync(mega::MegaApi& api, mega::MegaSync& sync, ModifyOpts opts)
         api.removeSync(sync.getBackupId(), megaCmdListener.get());
         megaCmdListener->wait();
 
-        string errorStr = getErrorString(*megaCmdListener);
-        if (errorStr.empty())
+        auto errorOpt = getErrorAndSetOutCode(*megaCmdListener);
+        if (!errorOpt)
         {
             OUTSTREAM << "Sync removed: " << sync.getLocalFolder() << " to " << sync.getLastKnownMegaFolder() << endl;
         }
         else
         {
-            LOG_err << "Failed to remove sync " << getSyncId(sync) << " (" << errorStr << ")";
+            LOG_err << "Failed to remove sync " << getSyncId(sync) << " (" << *errorOpt << ")";
         }
     }
     else
@@ -291,8 +296,8 @@ void modifySync(mega::MegaApi& api, mega::MegaSync& sync, ModifyOpts opts)
         api.setSyncRunState(sync.getBackupId(), newState, megaCmdListener.get());
         megaCmdListener->wait();
 
-        string errorStr = getErrorString(*megaCmdListener);
-        if (errorStr.empty())
+        auto errorOpt = getErrorAndSetOutCode(*megaCmdListener);
+        if (!errorOpt)
         {
             const char* action = (opts == ModifyOpts::Pause ? "paused" : "enabled");
             LOG_info << "Sync " << action << ": " << sync.getLocalFolder() << " to " << sync.getLastKnownMegaFolder();
@@ -306,7 +311,7 @@ void modifySync(mega::MegaApi& api, mega::MegaSync& sync, ModifyOpts opts)
         else
         {
             const char* action = (opts == ModifyOpts::Pause ? "pause" : "enable");
-            LOG_err << "Failed to " << action << " sync " << getSyncId(sync) << " (" << errorStr << ")";
+            LOG_err << "Failed to " << action << " sync " << getSyncId(sync) << " (" << *errorOpt << ")";
         }
     }
 }
