@@ -171,7 +171,7 @@ std::unique_ptr<mega::MegaSync> getSync(mega::MegaApi& api, const string& pathOr
     return sync;
 }
 
-std::unique_ptr<mega::MegaSync> reloadSync(mega::MegaApi& api, std::unique_ptr<mega::MegaSync> sync)
+std::unique_ptr<mega::MegaSync> reloadSync(mega::MegaApi& api, std::unique_ptr<mega::MegaSync>&& sync)
 {
     assert(sync);
     return std::unique_ptr<mega::MegaSync>(api.getSyncByBackupId(sync->getBackupId()));
