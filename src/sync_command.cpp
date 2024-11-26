@@ -300,7 +300,7 @@ void modifySync(mega::MegaApi& api, mega::MegaSync& sync, ModifyOpts opts)
         if (!errorOpt)
         {
             const char* action = (opts == ModifyOpts::Pause ? "paused" : "enabled");
-            LOG_info << "Sync " << action << ": " << sync.getLocalFolder() << " to " << sync.getLastKnownMegaFolder();
+            OUTSTREAM << "Sync " << action << ": " << sync.getLocalFolder() << " to " << sync.getLastKnownMegaFolder() << std::endl;
 
             string syncErrorReason = getSyncErrorReason(*megaCmdListener);
             if (!syncErrorReason.empty())
