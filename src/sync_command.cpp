@@ -260,7 +260,7 @@ void addSync(mega::MegaApi& api, const fs::path& localPath, mega::MegaNode& node
     }
 
     string syncLocalPath = megaCmdListener->getRequest()->getFile();
-    OUTSTREAM << "Added sync: " << syncLocalPath << " to " << nodePath.get() << endl;
+    OUTSTREAM << "Added sync: " << syncLocalPath << " to " << (nodePath ? nodePath.get() : "<path not found>") << endl;
 
     string syncErrorReason = getSyncErrorReason(*megaCmdListener);
     if (!syncErrorReason.empty())
