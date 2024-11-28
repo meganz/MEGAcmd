@@ -435,7 +435,7 @@ void informProgressUpdate(long long transferred, long long total, int clientID, 
     informStateListenerByClientId(clientID, s);
 }
 
-void insertValidParamsPerCommand(set<string> *validParams, string thecommand, set<string> *validOptValues = NULL)
+void insertValidParamsPerCommand(set<string> *validParams, string thecommand, set<string> *validOptValues = nullptr, bool skipDeprecated = false)
 {
     if (!validOptValues)
     {
@@ -612,11 +612,14 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validOptValues->insert("col-separator");
         validOptValues->insert("output-cols");
 
-        // Deprecated (kept for backwards compatibility)
-        validParams->insert("remove");
-        validParams->insert("s");
-        validParams->insert("disable");
-        validParams->insert("r");
+        if (!skipDeprecated)
+        {
+            // Deprecated (kept for backwards compatibility)
+            validParams->insert("remove");
+            validParams->insert("s");
+            validParams->insert("disable");
+            validParams->insert("r");
+        }
     }
     else if ("sync-issues" == thecommand)
     {
@@ -942,7 +945,7 @@ char * flags_completion(const char*text, int state)
             addGlobalFlags(&setvalidparams);
 
             string thecommand = words[0];
-            insertValidParamsPerCommand(&setvalidparams, thecommand, &setvalidOptValues);
+            insertValidParamsPerCommand(&setvalidparams, thecommand, &setvalidOptValues, true /* skipDeprecated*/);
             set<string>::iterator it;
             for (it = setvalidparams.begin(); it != setvalidparams.end(); it++)
             {
@@ -1005,7 +1008,7 @@ char * flags_value_completion(const char*text, int state)
 
             set<string> validParams;
 
-            insertValidParamsPerCommand(&validParams, thecommand);
+            insertValidParamsPerCommand(&validParams, thecommand, nullptr /* validOptValues */, true /* skipDeprecated */);
 
             if (setOptionsAndFlags(&cloptions, &clflags, &words, validParams, true))
             {
