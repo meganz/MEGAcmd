@@ -111,9 +111,9 @@ void printSingleSync(mega::MegaApi& api, mega::MegaSync& sync, mega::MegaNode& n
     cd.addValue("DIRS", std::to_string(nFolders));
 }
 
-std::optional<string> getErrorAndSetOutCode(MegaCmdListener& listener)
+std::pair<std::optional<string>, std::optional<string>> getErrorsAndSetOutCode(MegaCmdListener& listener)
 {
-    string errorStr;
+    std::optional<string> errorOpt, syncErrorOpt;
 
     int errorCode = listener.getError()->getErrorCode();
     bool hasMegaError = errorCode != mega::MegaError::API_OK;
@@ -122,42 +122,21 @@ std::optional<string> getErrorAndSetOutCode(MegaCmdListener& listener)
     if (hasMegaError)
     {
         setCurrentOutCode(errorCode);
-        errorStr += "error: ";
-        errorStr += listener.getError()->getErrorString();
-    }
-    else if (syncError)
-    {
-        errorStr += "sync error: ";
-    }
-    else
-    {
-        return {};
+        errorOpt = listener.getError()->getErrorString();
     }
 
-    if (syncError)
+    if (syncError != mega::SyncError::NO_SYNC_ERROR)
     {
-        if (hasMegaError)
+        if (!hasMegaError)
         {
-            errorStr += ". ";
+            setCurrentOutCode(MCMD_INVALIDSTATE);
         }
 
         std::unique_ptr<const char[]> syncErrorStr(mega::MegaSync::getMegaSyncErrorCode(syncError));
-        errorStr += syncErrorStr.get();
+        syncErrorOpt = syncErrorStr.get();
     }
 
-    return errorStr;
-}
-
-string getSyncErrorReason(MegaCmdListener& listener)
-{
-    auto syncError = static_cast<mega::SyncError>(listener.getRequest()->getNumDetails());
-    if (syncError == mega::NO_SYNC_ERROR)
-    {
-        return "";
-    }
-
-    std::unique_ptr<const char[]> megaSyncErrorCode(mega::MegaSync::getMegaSyncErrorCode(syncError));
-    return megaSyncErrorCode.get();
+    return {errorOpt, syncErrorOpt};
 }
 } // end namespace
 
@@ -252,20 +231,21 @@ void addSync(mega::MegaApi& api, const fs::path& localPath, mega::MegaNode& node
 
     megaCmdListener->wait();
 
-    auto errorOpt = getErrorAndSetOutCode(*megaCmdListener);
+    auto [errorOpt, syncErrorOpt] = getErrorsAndSetOutCode(*megaCmdListener);
+
     if (errorOpt)
     {
-        LOG_err << "Failed to sync " << localPath.string() << " to " << nodePath << " (" << *errorOpt << ")";
+        LOG_err << "Failed to sync " << localPath.string() << " to " << nodePath
+                << " (Error: " << *errorOpt << (syncErrorOpt ? ". Reason: " + *syncErrorOpt : "") << ")";
         return;
     }
 
     string syncLocalPath = megaCmdListener->getRequest()->getFile();
     OUTSTREAM << "Added sync: " << syncLocalPath << " to " << (nodePath ? nodePath.get() : "<path not found>") << endl;
 
-    string syncErrorReason = getSyncErrorReason(*megaCmdListener);
-    if (!syncErrorReason.empty())
+    if (syncErrorOpt)
     {
-        LOG_err << "Sync added as temporarily disabled. Reason: " << syncErrorReason;
+        LOG_err << "Sync added as temporarily disabled. Reason: " << *syncErrorOpt;
     }
 }
 
@@ -278,14 +258,16 @@ void modifySync(mega::MegaApi& api, mega::MegaSync& sync, ModifyOpts opts)
         api.removeSync(sync.getBackupId(), megaCmdListener.get());
         megaCmdListener->wait();
 
-        auto errorOpt = getErrorAndSetOutCode(*megaCmdListener);
+        auto [errorOpt, syncErrorOpt] = getErrorsAndSetOutCode(*megaCmdListener);
+
         if (!errorOpt)
         {
             OUTSTREAM << "Sync removed: " << sync.getLocalFolder() << " to " << sync.getLastKnownMegaFolder() << endl;
         }
         else
         {
-            LOG_err << "Failed to remove sync " << getSyncId(sync) << " (" << *errorOpt << ")";
+            LOG_err << "Failed to remove sync " << getSyncId(sync)
+                    << " (Error: " << *errorOpt << (syncErrorOpt ? ". Reason: " + *syncErrorOpt : "") << ")";
         }
     }
     else
@@ -295,22 +277,23 @@ void modifySync(mega::MegaApi& api, mega::MegaSync& sync, ModifyOpts opts)
         api.setSyncRunState(sync.getBackupId(), newState, megaCmdListener.get());
         megaCmdListener->wait();
 
-        auto errorOpt = getErrorAndSetOutCode(*megaCmdListener);
+        auto [errorOpt, syncErrorOpt] = getErrorsAndSetOutCode(*megaCmdListener);
+
         if (!errorOpt)
         {
             const char* action = (opts == ModifyOpts::Pause ? "paused" : "enabled");
             OUTSTREAM << "Sync " << action << ": " << sync.getLocalFolder() << " to " << sync.getLastKnownMegaFolder() << std::endl;
 
-            string syncErrorReason = getSyncErrorReason(*megaCmdListener);
-            if (!syncErrorReason.empty())
+            if (syncErrorOpt)
             {
-                LOG_err << "Sync might be temporarily disabled. Reason: " << syncErrorReason;
+                LOG_err << "Sync might be temporarily disabled. Reason: " << *syncErrorOpt;
             }
         }
         else
         {
             const char* action = (opts == ModifyOpts::Pause ? "pause" : "enable");
-            LOG_err << "Failed to " << action << " sync " << getSyncId(sync) << " (" << *errorOpt << ")";
+            LOG_err << "Failed to " << action << " sync " << getSyncId(sync)
+                    << " (Error: " << *errorOpt << (syncErrorOpt ? ". Reason: " + *syncErrorOpt : "") << ")";
         }
     }
 }
