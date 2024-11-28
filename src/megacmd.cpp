@@ -5276,7 +5276,8 @@ int executeServer(int argc, char* argv[],
 
     if (ConfigurationManager::getHasBeenUpdated())
     {
-        sendEvent(StatsManager::MegacmdEvent::UPDATE, api, false);
+        // Wait for this event to ensure an automatic login on startup doesn't prevent the event from being sent
+        sendEvent(StatsManager::MegacmdEvent::UPDATE, api, true);
 
         stringstream ss;
         ss << "MEGAcmd has been updated to version " << MEGACMD_MAJOR_VERSION << "." << MEGACMD_MINOR_VERSION << "." << MEGACMD_MICRO_VERSION << "." << MEGACMD_BUILD_ID << " - code " << MEGACMD_CODE_VERSION << endl;
