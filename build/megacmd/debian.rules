@@ -4,7 +4,6 @@ VCPKG_ROOT := $(shell [ -f /opt/vcpkg.tar.gz ] && echo "-DVCPKG_ROOT=vcpkg" || e
 #TODO: pass deprecation to cmake (probably better not via ccpflags)
 EXTRADEFINES := $(shell cat /etc/issue | grep "Ubuntu 1[2345789]\|Ubuntu 20.10\|Ubuntu 21\|Ubuntu 22.10\|Ubuntu 23\|Debian.* [789]" >/dev/null && echo "$$CPPFLAGS -DMEGACMD_DEPRECATED_OS" || echo "")
 DPKGXZ := $(shell cat /etc/issue | grep "Ubuntu 24\|Oracular Oriole\|Noble Numbat\|Ubuntu 23\|Mantic Minotaur\|Lunar Lobster\|Ubuntu 22\|Jammy Jellyfish\|Ubuntu 21.10" >/dev/null && echo "-- -Zxz" || echo "")
-SQLITE3 := $(shell cat /etc/issue | grep "Ubuntu 18.04\|Ubuntu 20.04\|Debian.* \b\([0-9]\|10\)\b" >/dev/null && echo "" || (grep -- -L sdk/contrib/build_sdk.sh >/dev/null && echo "-L") )
 #LDFLAGS := $(shell dpkg --print-architecture | grep -i "i386\|arm" >/dev/null && echo "" || echo "$$LDFLAGS -Wl,-rpath,/opt/megacmd/lib")
 DEB_TESTING := $(shell cat /etc/issue | grep "Debian" > /dev/null && cat /etc/apt/sources.list.d/debian.sources | grep -v "^\#" | grep testing > /dev/null && echo "testing")
 #TODO: Ensure raspbian builds with that export
@@ -48,7 +47,7 @@ build-stamp:
 		sed -i "s#@VERSION@#$(VER)#g" debian/postinst;          \
 	fi
 	sed -i "s#@DISTRO@#$(DISTRO)#g" debian/postinst
-	
+
 	touch build-stamp
 
 clean:
@@ -59,7 +58,7 @@ clean:
 install: build
 	###dh_auto_install --destdir=megacmd/megacmd
 	dh_install install_dir/* /
-	
+
 # Build architecture-independent files here.
 binary-indep: build install
 	# We have nothing to do by default.

@@ -112,7 +112,7 @@ static std::vector<std::string> remoteremotepatterncommands {"cp"};
 
 static std::vector<std::string> remotelocalpatterncommands {"get", "thumbnail", "preview"};
 
-static std::vector<std::string> localfolderpatterncommands {"lcd"};
+static std::vector<std::string> localfolderpatterncommands {"lcd", "sync-ignore"};
 
 static std::vector<std::string> emailpatterncommands {"invite", "signup", "ipc", "users"};
 
@@ -129,9 +129,9 @@ static std::vector<std::string> loginInValidCommands { "log", "debug", "speedlim
                            };
 
 static std::vector<std::string> allValidCommands { "login", "signup", "confirm", "session", "mount", "ls", "cd", "log", "debug", "pwd", "lcd", "lpwd", "import", "masterkey",
-                             "put", "get", "attr", "userattr", "mkdir", "rm", "du", "mv", "cp", "sync", "export", "share", "invite", "ipc", "df",
+                             "put", "get", "attr", "userattr", "mkdir", "rm", "du", "mv", "cp", "sync", "sync-ignore", "export", "share", "invite", "ipc", "df",
                              "showpcr", "users", "speedlimit", "killsession", "whoami", "help", "passwd", "reload", "logout", "version", "quit",
-                             "thumbnail", "preview", "find", "completion", "clear", "https"
+                             "thumbnail", "preview", "find", "completion", "clear", "https", "sync-issues"
 #ifdef HAVE_DOWNLOADS_COMMAND
                                                    , "downloads"
 #endif
@@ -177,6 +177,8 @@ std::string removeTrailingSeparators(std::string &path);
 
 /* Strings related */
 
+std::string generateRandomAlphaNumericString(size_t len);
+
 std::vector<std::string> split(const std::string& input, const std::string& pattern);
 
 long long charstoll(const char *instr);
@@ -207,6 +209,8 @@ std::string getRightAlignedString(const std::string origin, unsigned int minsize
 
 bool startsWith(const std::string& str, std::string_view prefix);
 
+std::string toLower(const std::string& str);
+
 template<typename T>
 OUTSTRING getLeftAlignedStr(T what, int n)
 {
@@ -236,6 +240,12 @@ void printCenteredContentsT(WHERE &&o, const std::string &msj, unsigned int widt
     OUTSTRINGSTREAM os;
     printCenteredContents(os, msj, width, encapsulated);
     o << os.str();
+}
+
+template <typename... Bools>
+bool onlyZeroOrOneOf(Bools... args)
+{
+    return (args + ...) <= 1;
 }
 
 void printPercentageLineCerr(const char *title, long long completed, long long total, float percentDowloaded, bool cleanLineAfter = true);

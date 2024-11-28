@@ -1,10 +1,19 @@
 # CMakeLists.txt file to build the MEGAcmd
 cmake_minimum_required(VERSION 3.16)
 
-## Configure megacmdversion.h
+find_package(Git REQUIRED)
+execute_process(
+    COMMAND ${GIT_EXECUTABLE} rev-parse --short HEAD
+    WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/sdk
+    OUTPUT_VARIABLE SDK_COMMIT_HASH
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+
 set(MEGACMD_MAJOR_VERSION 1)
 set(MEGACMD_MINOR_VERSION 7)
 set(MEGACMD_MICRO_VERSION 0)
+
+## Configure megacmdversion.h
 configure_file("${CMAKE_CURRENT_LIST_DIR}/src/megacmdversion.h.in" "${CMAKE_CURRENT_LIST_DIR}/src/megacmdversion.h" @ONLY)
 if (APPLE)
 configure_file("${CMAKE_CURRENT_LIST_DIR}/build/installer/Info.plist.in" "${CMAKE_CURRENT_LIST_DIR}/build/installer/Info.plist" @ONLY)
@@ -15,7 +24,7 @@ set(QT_CREATOR_SKIP_VCPKG_SETUP TRUE CACHE BOOL "")
 
 ## Modules location
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/build/cmake/modules) # Modules from MEGAcmd
-list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/sdk/contrib/cmake/modules) # Modules from MEGAsdk
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/sdk/cmake/modules) # Modules from MEGAsdk
 
 set(VCPKG_ROOT "${CMAKE_CURRENT_LIST_DIR}/../vcpkg" CACHE PATH "If set, it will build and use the VCPKG packages defined in the manifest file")
 
@@ -59,8 +68,7 @@ if(CMAKE_HOST_APPLE)
     if(CMAKE_OSX_ARCHITECTURES STREQUAL "arm64" OR (NOT CMAKE_OSX_ARCHITECTURES AND HOST_ARCHITECTURE STREQUAL "arm64"))
         set(CMAKE_OSX_DEPLOYMENT_TARGET "11.1" CACHE STRING "Minimum OS X deployment version")
     else()
-        set(CMAKE_OSX_DEPLOYMENT_TARGET "10.13" CACHE STRING "Minimum OS X deployment version")
-        add_compile_definitions(ENFORCE_MEGACMDEXECUTER_FILESYSTEM_UNSETTING=1) #This one requires 10.15
+        set(CMAKE_OSX_DEPLOYMENT_TARGET "10.15" CACHE STRING "Minimum OS X deployment version")
     endif()
     message(STATUS "Minimum OS X deployment version is set to ${CMAKE_OSX_DEPLOYMENT_TARGET}")
     unset(HOST_ARCHITECTURE)
@@ -92,11 +100,11 @@ if(VCPKG_ROOT)
 
     # Include VCPKG management tools.
     include(vcpkg_management)
-    list(APPEND vcpkg_overlay ${CMAKE_CURRENT_LIST_DIR}/sdk/contrib/cmake) # MEGAsdk overlays
+    list(APPEND vcpkg_overlay ${CMAKE_CURRENT_LIST_DIR}/sdk/cmake) # MEGAsdk overlays
     process_vcpkg_libraries("${vcpkg_overlay}") # Choose and build libraries depending on the configured options.
 else()
     # For packages with no pkg-config in the system.
-    list(APPEND CMAKE_MODULE_PATH sdk/contrib/cmake/modules/packages)
+    list(APPEND CMAKE_MODULE_PATH sdk/cmake/modules/packages)
     message(STATUS "Using system dependencies")
 endif()
 
@@ -159,6 +167,18 @@ include(megacmd_utility_functions) # utility functions
 
 set(ProjectDir "${CMAKE_CURRENT_LIST_DIR}")
 
+# Populate list of MEGAcmd source files (used by logger):
+generate_src_file_list("${ProjectDir}/sdk" SDK_SRCS)
+generate_src_file_list("${ProjectDir}/src" MEGACMD_SRCS)
+foreach(CMDFILE ${MEGACMD_SRCS})
+    if (CMDFILE IN_LIST SDK_SRCS)
+        message(FATAL_ERROR "MEGAcmd src filename ${CMDFILE} clashing with SDK's: please, pick a new one")
+    endif()
+endforeach()
+string(JOIN ", " MEGACMD_SRC_FILE_LIST ${MEGACMD_SRCS})
+configure_file("${ProjectDir}/src/megacmd_src_file_list.h.in" "${ProjectDir}/src/megacmd_src_file_list.h" @ONLY)
+
+
 add_library(LMEGAcmdCommonUtils STATIC)
 add_source_and_corresponding_header_to_target(LMEGAcmdCommonUtils
     PUBLIC
@@ -181,6 +201,8 @@ add_source_and_corresponding_header_to_target(LMegacmdServer
     "${ProjectDir}/src/comunicationsmanagerportsockets.cpp"
     "${ProjectDir}/src/configurationmanager.cpp"
     "${ProjectDir}/src/listeners.cpp"
+    "${ProjectDir}/src/sync_issues.cpp"
+    "${ProjectDir}/src/sync_ignore.cpp"
 )
 
 target_sources_conditional(LMegacmdServer
@@ -191,7 +213,7 @@ target_sources_conditional(LMegacmdServer
 )
 
 # Given we are no longer including the sdk, and some sources use certain defines without including SDK's config.h,
-# We need to explicitly pass the copmiling options.
+# We need to explicitly pass the compiling options.
 target_compile_definitions(LMegacmdServer
     PUBLIC
     $<$<BOOL:${USE_PCRE}>:USE_PCRE>
@@ -294,6 +316,8 @@ if (ENABLE_MEGACMD_TESTS)
     add_source_and_corresponding_header_to_target(mega-cmd-tests-integration PRIVATE
         "${ProjectDir}/tests/integration/BasicTests.cpp"
         "${ProjectDir}/tests/integration/ExportTests.cpp"
+        "${ProjectDir}/tests/integration/SyncIssuesTests.cpp"
+        "${ProjectDir}/tests/integration/SyncIgnoreTests.cpp"
         "${ProjectDir}/tests/integration/MegaCmdTestingTools.cpp"
         "${ProjectDir}/tests/integration/main.cpp"
     )
@@ -350,7 +374,7 @@ endif()
 target_link_libraries(mega-cmd-server PUBLIC LMegacmdServer)
 
 if (ENABLE_MEGACMD_TESTS)
-    target_include_directories(mega-cmd-tests-unit PUBLIC ${ProjectDir}/src ${ProjectDir}/tests/common)
+    target_include_directories(LMegacmdTestsCommon PUBLIC ${ProjectDir}/src ${ProjectDir}/tests/common)
     target_link_libraries(mega-cmd-tests-unit PUBLIC LMegacmdServer LMegacmdTestsCommon)
 endif()
 

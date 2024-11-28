@@ -115,6 +115,24 @@ TEST(UtilsTest, getListOfWords)
         words = megacmd::getlistOfWords(str, false, true);
         EXPECT_THAT(words, testing::ElementsAre("export", "-f", "--writable", "some_dir/some_file.txt"));
     }
+
+    {
+        G_SUBTEST << "Detect matching quotes";
+        for (const auto& [line, expectedWords] : std::vector<std::pair<std::string, std::vector<std::string>>>
+            {
+                {"some \"case\" here", {"some", "case", "here"}},
+                {"--another=\"here\"", {"--another=\"here\""}},
+                {"--another=\"here\" with extra bits", {"--another=\"here\"", "with", "extra", "bits"}},
+                {"some \"other case with spaces\" here", {"some", "other case with spaces", "here"}},
+                {"--something=\"quote missing", {"--something=\"quote missing"}},
+                {"--nothing=\"", {"--nothing=\""}},
+                {"--arg1=\"a b\" word --arg2=\"c d\"", {"--arg1=\"a b\"", "word", "--arg2=\"c d\""}}
+            })
+        {
+            std::vector<std::string> words = megacmd::getlistOfWords(const_cast<char*>(line.c_str()));
+            EXPECT_EQ(words, expectedWords);
+        }
+    }
 }
 
 TEST(UtilsTest, pathIsExistingDirValidDirPath)

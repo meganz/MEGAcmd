@@ -84,7 +84,7 @@ void ensureReadStructure()
 {
     if (!hasReadStructure())
     {
-        auto result = executeInClient({"import", "https://mega.nz/folder/gflVFLhC#6neMkeJrt4dWboRTc1NLUg"});
+        auto result = executeInClient({"import", LINK_TESTREADINGFOLDER01});
         ASSERT_TRUE(result.ok());
     }
 }

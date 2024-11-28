@@ -802,6 +802,7 @@ void statechangehandle(string statestring)
                 lastMessage = newstate;
 
                 string contents = newstate.substr(strlen("message:"));
+                replaceAll(contents, "%mega-%", "mega-");
 
                 MegaCmdShellCommunications::megaCmdStdoutputing.lock();
                 if (shown_partial_progress)

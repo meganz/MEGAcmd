@@ -43,6 +43,7 @@
 #include <iterator>
 
 #include <regex> //split
+#include <random>
 
 #ifdef _WIN32
 namespace mega {
@@ -377,6 +378,26 @@ bool hasWildCards(string &what)
     return what.find('*') != string::npos || what.find('?') != string::npos;
 }
 
+
+string generateRandomAlphaNumericString(size_t len)
+{
+    static const std::string alphabet =
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+        "abcdefghijklmnopqrstuvwxyz"
+        "0123456789";
+
+    thread_local static std::mt19937 generator(std::random_device{}());
+    thread_local static std::uniform_int_distribution<> distribution(0, alphabet.size() - 1);
+
+    std::string randomString;
+    randomString.reserve(len);
+    for (size_t i = 0; i < len; ++i)
+    {
+        randomString += alphabet[distribution(generator)];
+    }
+    return randomString;
+}
+
 std::vector<std::string> split(const std::string& input, const std::string& pattern)
 {
     size_t start = 0, end;
@@ -526,12 +547,12 @@ vector<string> getlistOfWords(const char *ptr, bool escapeBackSlashInCompletion,
             //while ((unsigned char)*ptr > ' ')
             while ((*ptr != '\0') && !(*ptr ==' ' && *prev !='\\'))
             {
-                if (*ptr == '"') // if quote is found, look for the ending quote
+                if (*ptr == '"' && *(ptr+1) != '\0') // if quote is found, look for the ending quote
                 {
-                    while (*(ptr + 1) != '"' && *(ptr + 1))
+                    do
                     {
-                        ptr++;
-                    }
+                        ++ptr;
+                    } while (*ptr != '"' && *(ptr+1) != '\0');
                 }
                 prev = ptr;
                 ptr++;
@@ -715,6 +736,16 @@ bool startsWith(const std::string& str, std::string_view prefix)
         return false;
     }
     return str.compare(0, prefix.size(), prefix) == 0;
+}
+
+string toLower(const std::string& str)
+{
+    std::string lower = str;
+    for (char& c : lower)
+    {
+        c = std::tolower(c);
+    }
+    return lower;
 }
 
 void printCenteredLine(OUTSTREAMTYPE &os, string msj, unsigned int width, bool encapsulated)
@@ -1017,7 +1048,7 @@ string sizeToText(long long totalSize, bool equalizeUnitsLength, bool humanreada
             unit = "KB";
         }
         os << fixed << reducedSize;
-        os << " " << unit;
+        os << " " << (reducedSize == 0.0 ? " " : "") << unit;
     }
     else
     {
