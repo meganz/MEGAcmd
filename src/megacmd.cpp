@@ -5276,7 +5276,7 @@ int executeServer(int argc, char* argv[],
 
     if (ConfigurationManager::getHasBeenUpdated())
     {
-        // Wait for this event to ensure an automatic login on startup doesn't stop it
+        // Wait for this event to ensure an automatic login on startup doesn't prevent the event from being sent
         sendEvent(StatsManager::MegacmdEvent::UPDATE, api, true);
 
         stringstream ss;
