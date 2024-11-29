@@ -7689,7 +7689,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         bool deleteSync = getFlag(clflags, "delete") || getFlag(clflags, "d") || getFlag(clflags, "remove");
         bool showHandles = getFlag(clflags, "show-handles");
 
-        if ((pauseSync && (enableSync || deleteSync)) || (enableSync && deleteSync))
+        if (!onlyZeroOrOneOf(pauseSync, enableSync, deleteSync))
         {
             setCurrentOutCode(MCMD_EARGS);
             LOG_err << "Only one action (disable, enable, or remove) can be specified at a time";
@@ -10723,7 +10723,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
         bool disableWarning = getFlag(clflags, "disable-warning");
         bool enableWarning = getFlag(clflags, "enable-warning");
-        if (disableWarning && enableWarning)
+        if (!onlyZeroOrOneOf(disableWarning, enableWarning))
         {
             setCurrentOutCode(MCMD_EARGS);
             LOG_err << "Only one warning action (enable/disable) can be specified at a time";
@@ -10731,12 +10731,17 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             return;
         }
 
-        int syncIssuesCountLimit = getintOption(cloptions, "limit", 10);
-        if (syncIssuesCountLimit < 0)
+        int rowCountLimit = getintOption(cloptions, "limit", 10);
+        if (rowCountLimit < 0)
         {
             setCurrentOutCode(MCMD_EARGS);
-            LOG_err << "Sync issue limit cannot be less than 0";
+            LOG_err << "Row count limit cannot be less than 0";
             return;
+        }
+
+        if (rowCountLimit == 0)
+        {
+            rowCountLimit = std::numeric_limits<int>::max();
         }
 
         bool disablePathCollapse = getFlag(clflags, "disable-path-collapse");
@@ -10752,37 +10757,54 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             return;
         }
 
-        auto syncIssues = mSyncIssuesManager.getSyncIssues();
-        if (syncIssues.empty())
-        {
-            OUTSTREAM << "There are no sync issues" << endl;
-            return;
-        }
-
-        if (syncIssuesCountLimit == 0)
-        {
-            syncIssuesCountLimit = std::numeric_limits<int>::max();
-        }
-
         ColumnDisplayer cd(clflags, cloptions);
-        cd.addHeader("PARENT SYNC", disablePathCollapse);
 
-        syncIssues.forEach([this, &cd] (const SyncIssue& syncIssue)
+        bool detailSyncIssue = getFlag(clflags, "detail");
+        if (detailSyncIssue) // get the details of one or more issues
         {
-            auto parentSync = syncIssue.getParentSync(*api);
+            auto syncIssues = mSyncIssuesManager.getSyncIssues();
 
-            cd.addValue("ISSUE_ID", std::to_string(syncIssue.getId()));
-            cd.addValue("PARENT_SYNC", parentSync ? parentSync->getName() : "<not found>");
-            cd.addValue("REASON", syncIssue.getSyncInfo(parentSync.get()).mReason);
-            cd.addValue("SOLVABLE", "NO" /* Until CMD-311 */);
-        }, syncIssuesCountLimit);
+            bool showAll = getFlag(clflags, "all");
+            if (showAll)
+            {
+                if (words.size() != 1)
+                {
+                    LOG_err << getUsageStr("sync-issues");
+                    return;
+                }
+                SyncIssuesCommand::printAllIssuesDetail(*api, cd, syncIssues, disablePathCollapse, rowCountLimit);
+            }
+            else
+            {
+                if (words.size() != 2)
+                {
+                    LOG_err << getUsageStr("sync-issues");
+                    return;
+                }
 
-        OUTSTREAM << cd.str();
-        if (syncIssuesCountLimit < syncIssues.size())
+                const std::string syncIssueId = words.back();
+
+                auto syncIssuePtr = syncIssues.getSyncIssue(syncIssueId);
+                if (!syncIssuePtr)
+                {
+                    setCurrentOutCode(MCMD_NOTFOUND);
+                    LOG_err << "Sync issue \"" << syncIssueId << "\" does not exist";
+                    return;
+                }
+
+                SyncIssuesCommand::printSingleIssueDetail(*api, cd, *syncIssuePtr, disablePathCollapse, rowCountLimit);
+            }
+        }
+        else // show all sync issues
         {
-            OUTSTREAM << endl;
-            OUTSTREAM << "Note: showing " << syncIssuesCountLimit << " out of " << syncIssues.size() << " issues. "
-                      << "Use \"" << commandPrefixBasedOnMode() << "sync-issues --limit=0\" to see all issues." << endl;
+            auto syncIssues = mSyncIssuesManager.getSyncIssues();
+            if (syncIssues.empty())
+            {
+                OUTSTREAM << "There are no sync issues" << endl;
+                return;
+            }
+
+            SyncIssuesCommand::printAllIssues(*api, cd, syncIssues, disablePathCollapse, rowCountLimit);
         }
     }
     else

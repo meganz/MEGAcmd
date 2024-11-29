@@ -1498,6 +1498,11 @@ void ColumnDisplayer::print(OUTSTREAMTYPE &os, int fullWidth, bool printHeader, 
     }
 }
 
+void ColumnDisplayer::clear()
+{
+    *this = ColumnDisplayer(mClflags, mCloptions);
+}
+
 Field::Field()
 {
 

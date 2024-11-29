@@ -626,6 +626,8 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validParams->insert("enable-warning");
         validParams->insert("disable-warning");
         validParams->insert("disable-path-collapse");
+        validParams->insert("detail");
+        validParams->insert("all");
         validOptValues->insert("limit");
         validOptValues->insert("col-separator");
         validOptValues->insert("output-cols");

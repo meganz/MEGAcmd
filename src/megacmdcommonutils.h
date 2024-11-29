@@ -207,6 +207,23 @@ std::string getFixLengthString(const std::string &origin, unsigned int size, con
 
 std::string getRightAlignedString(const std::string origin, unsigned int minsize);
 
+/* Vector related */
+template <typename T>
+std::vector<T> operator+(const std::vector<T>& a, const std::vector<T>& b)
+{
+    std::vector<T> result = a;
+    result.insert(result.end(), b.begin(), b.end());
+    return result;
+}
+
+template <typename T>
+std::vector<T> operator+(std::vector<T>&& a, std::vector<T>&& b)
+{
+    a.reserve(a.size() + b.size());
+    a.insert(a.end(), std::make_move_iterator(b.begin()), std::make_move_iterator(b.end()));
+    return std::move(a);
+}
+
 std::string toLower(const std::string& str);
 
 template<typename T>
@@ -327,6 +344,7 @@ public:
 
     void printHeaders(OUTSTREAMTYPE &os);
     void print(OUTSTREAMTYPE &os, bool printHeader = true);
+    void clear();
 
     void addHeader(const std::string &name, bool fixed = true, int minWidth = 0);
     void addValue(const std::string &name, const std::string & value, bool replace = false);
