@@ -210,7 +210,8 @@ void printSyncList(mega::MegaApi& api, ColumnDisplayer& cd, bool showHandles, co
 
 void addSync(mega::MegaApi& api, const fs::path& localPath, mega::MegaNode& node)
 {
-    std::unique_ptr<const char[]> nodePath(api.getNodePath(&node));
+    std::unique_ptr<const char[]> nodePathPtr(api.getNodePath(&node));
+    const char* nodePath = (nodePathPtr ? nodePathPtr.get() : "<path not found>");
 
     if (node.getType() == mega::MegaNode::TYPE_FILE)
     {
@@ -241,7 +242,7 @@ void addSync(mega::MegaApi& api, const fs::path& localPath, mega::MegaNode& node
     }
 
     string syncLocalPath = megaCmdListener->getRequest()->getFile();
-    OUTSTREAM << "Added sync: " << syncLocalPath << " to " << (nodePath ? nodePath.get() : "<path not found>") << endl;
+    OUTSTREAM << "Added sync: " << syncLocalPath << " to " << nodePath << endl;
 
     if (syncErrorOpt)
     {
