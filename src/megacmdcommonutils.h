@@ -323,9 +323,10 @@ class ColumnDisplayer
 public:
     ColumnDisplayer(std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions);
 
+    OUTSTRING str(bool printHeader = true);
+
     void printHeaders(OUTSTREAMTYPE &os);
     void print(OUTSTREAMTYPE &os, bool printHeader = true);
-
 
     void addHeader(const std::string &name, bool fixed = true, int minWidth = 0);
     void addValue(const std::string &name, const std::string & value, bool replace = false);
