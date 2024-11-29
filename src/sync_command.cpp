@@ -71,7 +71,7 @@ void printSyncHeader(ColumnDisplayer &cd)
     cd.addHeader("REMOTEPATH", false);
 }
 
-void printSingleSync(mega::MegaApi& api, mega::MegaSync& sync, long long nFiles, long long nFolders, ColumnDisplayer &cd, bool showHandle, int syncIssuesCount)
+void printSingleSync(mega::MegaApi& api, mega::MegaSync& sync, mega::MegaNode& node, long long nFiles, long long nFolders, ColumnDisplayer &cd, bool showHandle, int syncIssuesCount)
 {
     cd.addValue("ID", getSyncId(sync));
     cd.addValue("LOCALPATH", sync.getLocalFolder());
@@ -106,54 +106,37 @@ void printSingleSync(mega::MegaApi& api, mega::MegaSync& sync, long long nFiles,
         cd.addValue("ERROR", syncIssuesMsg);
     }
 
-    std::unique_ptr<mega::MegaNode> n(api.getNodeByHandle(sync.getMegaHandle()));
-    cd.addValue("SIZE", sizeToText(api.getSize(n.get())));
+    cd.addValue("SIZE", sizeToText(api.getSize(&node)));
     cd.addValue("FILES", std::to_string(nFiles));
     cd.addValue("DIRS", std::to_string(nFolders));
 }
 
-string getErrorString(MegaCmdListener& listener)
+std::pair<std::optional<string>, std::optional<string>> getErrorsAndSetOutCode(MegaCmdListener& listener)
 {
-    std::string errorStr;
+    std::optional<string> errorOpt, syncErrorOpt;
 
-    bool hasMegaError = listener.getError()->getErrorCode() != mega::MegaError::API_OK;
+    int errorCode = listener.getError()->getErrorCode();
+    bool hasMegaError = errorCode != mega::MegaError::API_OK;
     auto syncError = static_cast<mega::SyncError>(listener.getRequest()->getNumDetails());
 
     if (hasMegaError)
     {
-        errorStr += "error: ";
-        errorStr += listener.getError()->getErrorString();
-    }
-    else if (syncError)
-    {
-        errorStr += "sync error: ";
+        setCurrentOutCode(errorCode);
+        errorOpt = listener.getError()->getErrorString();
     }
 
-    if (syncError)
+    if (syncError != mega::SyncError::NO_SYNC_ERROR)
     {
-        if (hasMegaError)
+        if (!hasMegaError)
         {
-            errorStr += ". ";
+            setCurrentOutCode(MCMD_INVALIDSTATE);
         }
 
         std::unique_ptr<const char[]> syncErrorStr(mega::MegaSync::getMegaSyncErrorCode(syncError));
-        errorStr += syncErrorStr.get();
+        syncErrorOpt = syncErrorStr.get();
     }
 
-    return errorStr;
-
-}
-
-string getSyncErrorReason(MegaCmdListener& listener)
-{
-    auto syncError = static_cast<mega::SyncError>(listener.getRequest()->getNumDetails());
-    if (syncError == mega::NO_SYNC_ERROR)
-    {
-        return "";
-    }
-
-    std::unique_ptr<const char[]> megaSyncErrorCode(mega::MegaSync::getMegaSyncErrorCode(syncError));
-    return megaSyncErrorCode.get();
+    return {errorOpt, syncErrorOpt};
 }
 } // end namespace
 
@@ -171,7 +154,7 @@ std::unique_ptr<mega::MegaSync> getSync(mega::MegaApi& api, const string& pathOr
     return sync;
 }
 
-std::unique_ptr<mega::MegaSync> reloadSync(mega::MegaApi& api, std::unique_ptr<mega::MegaSync> sync)
+std::unique_ptr<mega::MegaSync> reloadSync(mega::MegaApi& api, std::unique_ptr<mega::MegaSync>&& sync)
 {
     assert(sync);
     return std::unique_ptr<mega::MegaSync>(api.getSyncByBackupId(sync->getBackupId()));
@@ -182,7 +165,7 @@ void printSync(mega::MegaApi& api, ColumnDisplayer& cd, bool showHandle, mega::M
     std::unique_ptr<mega::MegaNode> node(api.getNodeByHandle(sync.getMegaHandle()));
     if (!node)
     {
-        LOG_warn << "Remote node not found for sync " << getSyncId(sync);
+        LOG_err << "Remote node not found for sync " << getSyncId(sync);
         return;
     }
 
@@ -193,7 +176,7 @@ void printSync(mega::MegaApi& api, ColumnDisplayer& cd, bool showHandle, mega::M
     printSyncHeader(cd);
 
     unsigned int syncIssuesCount = syncIssues.getSyncIssuesCount(sync);
-    printSingleSync(api, sync, nFiles, nFolders, cd, showHandle, syncIssuesCount);
+    printSingleSync(api, sync, *node, nFiles, nFolders, cd, showHandle, syncIssuesCount);
 }
 
 void printSyncList(mega::MegaApi& api, ColumnDisplayer& cd, bool showHandles, const mega::MegaSyncList& syncList, const SyncIssueList& syncIssues)
@@ -221,13 +204,14 @@ void printSyncList(mega::MegaApi& api, ColumnDisplayer& cd, bool showHandles, co
         }
 
         unsigned int syncIssuesCount = syncIssues.getSyncIssuesCount(sync);
-        printSingleSync(api, sync, nFiles, nFolders, cd, showHandles, syncIssuesCount);
+        printSingleSync(api, sync, *node, nFiles, nFolders, cd, showHandles, syncIssuesCount);
     }
 }
 
 void addSync(mega::MegaApi& api, const fs::path& localPath, mega::MegaNode& node)
 {
-    std::unique_ptr<const char[]> nodePath(api.getNodePath(&node));
+    std::unique_ptr<const char[]> nodePathPtr(api.getNodePath(&node));
+    const char* nodePath = (nodePathPtr ? nodePathPtr.get() : "<path not found>");
 
     if (node.getType() == mega::MegaNode::TYPE_FILE)
     {
@@ -248,20 +232,21 @@ void addSync(mega::MegaApi& api, const fs::path& localPath, mega::MegaNode& node
 
     megaCmdListener->wait();
 
-    string errorStr = getErrorString(*megaCmdListener);
-    if (!errorStr.empty())
+    auto [errorOpt, syncErrorOpt] = getErrorsAndSetOutCode(*megaCmdListener);
+
+    if (errorOpt)
     {
-        LOG_err << "Failed to sync " << localPath.string() << " to " << nodePath << " (" << errorStr << ")";
+        LOG_err << "Failed to sync " << localPath.string() << " to " << nodePath
+                << " (Error: " << *errorOpt << (syncErrorOpt ? ". Reason: " + *syncErrorOpt : "") << ")";
         return;
     }
 
     string syncLocalPath = megaCmdListener->getRequest()->getFile();
-    OUTSTREAM << "Added sync: " << syncLocalPath << " to " << nodePath.get() << endl;
+    OUTSTREAM << "Added sync: " << syncLocalPath << " to " << nodePath << endl;
 
-    string syncErrorReason = getSyncErrorReason(*megaCmdListener);
-    if (!syncErrorReason.empty())
+    if (syncErrorOpt)
     {
-        LOG_err << "Sync added as temporarily disabled. Reason: " << syncErrorReason;
+        LOG_err << "Sync added as temporarily disabled. Reason: " << *syncErrorOpt;
     }
 }
 
@@ -274,14 +259,16 @@ void modifySync(mega::MegaApi& api, mega::MegaSync& sync, ModifyOpts opts)
         api.removeSync(sync.getBackupId(), megaCmdListener.get());
         megaCmdListener->wait();
 
-        string errorStr = getErrorString(*megaCmdListener);
-        if (errorStr.empty())
+        auto [errorOpt, syncErrorOpt] = getErrorsAndSetOutCode(*megaCmdListener);
+
+        if (!errorOpt)
         {
             OUTSTREAM << "Sync removed: " << sync.getLocalFolder() << " to " << sync.getLastKnownMegaFolder() << endl;
         }
         else
         {
-            LOG_err << "Failed to remove sync " << getSyncId(sync) << " (" << errorStr << ")";
+            LOG_err << "Failed to remove sync " << getSyncId(sync)
+                    << " (Error: " << *errorOpt << (syncErrorOpt ? ". Reason: " + *syncErrorOpt : "") << ")";
         }
     }
     else
@@ -291,22 +278,23 @@ void modifySync(mega::MegaApi& api, mega::MegaSync& sync, ModifyOpts opts)
         api.setSyncRunState(sync.getBackupId(), newState, megaCmdListener.get());
         megaCmdListener->wait();
 
-        string errorStr = getErrorString(*megaCmdListener);
-        if (errorStr.empty())
+        auto [errorOpt, syncErrorOpt] = getErrorsAndSetOutCode(*megaCmdListener);
+
+        if (!errorOpt)
         {
             const char* action = (opts == ModifyOpts::Pause ? "paused" : "enabled");
-            LOG_info << "Sync " << action << ": " << sync.getLocalFolder() << " to " << sync.getLastKnownMegaFolder();
+            OUTSTREAM << "Sync " << action << ": " << sync.getLocalFolder() << " to " << sync.getLastKnownMegaFolder() << std::endl;
 
-            string syncErrorReason = getSyncErrorReason(*megaCmdListener);
-            if (!syncErrorReason.empty())
+            if (syncErrorOpt)
             {
-                LOG_err << "Sync might be temporarily disabled. Reason: " << syncErrorReason;
+                LOG_err << "Sync might be temporarily disabled. Reason: " << *syncErrorOpt;
             }
         }
         else
         {
             const char* action = (opts == ModifyOpts::Pause ? "pause" : "enable");
-            LOG_err << "Failed to " << action << " sync " << getSyncId(sync) << " (" << errorStr << ")";
+            LOG_err << "Failed to " << action << " sync " << getSyncId(sync)
+                    << " (Error: " << *errorOpt << (syncErrorOpt ? ". Reason: " + *syncErrorOpt : "") << ")";
         }
     }
 }

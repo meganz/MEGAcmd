@@ -7702,6 +7702,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             fs::path localPath = fs::absolute(words[1]);
             if (!fs::exists(localPath))
             {
+                setCurrentOutCode(MCMD_NOTFOUND);
                 LOG_err << "Local directory " << words[1] << " does not exist";
                 return;
             }
@@ -7764,7 +7765,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             OUTSTREAM << cd.str();
             if (!syncIssues.empty())
             {
-                LOG_warn << "You have sync issues. Use the \"" << commandPrefixBasedOnMode() << "sync-issues\" command to display them.";
+                LOG_err << "You have sync issues. Use the \"" << commandPrefixBasedOnMode() << "sync-issues\" command to display them.";
             }
         }
         else
