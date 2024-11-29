@@ -287,7 +287,7 @@ TEST_F(SyncIssuesTests, SyncIssueDetail)
     ASSERT_TRUE(result.ok());
 
     lines = splitByNewline(result.out());
-    EXPECT_THAT(lines.size(), 2);
+    EXPECT_THAT(lines.size(), 3);
 
     words = megacmd::split(lines[1], " ");
     EXPECT_THAT(words, testing::Not(testing::IsEmpty()));
@@ -333,7 +333,7 @@ TEST_F(SyncIssuesTests, AllSyncIssuesDetail)
     ASSERT_TRUE(result.ok());
 
     lines = splitByNewline(result.out());
-    EXPECT_THAT(lines.size(), 2);
+    EXPECT_THAT(lines.size(), 3);
 
     words = megacmd::split(lines[1], " ");
     EXPECT_THAT(words, testing::Not(testing::IsEmpty()));
