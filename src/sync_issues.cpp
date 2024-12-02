@@ -17,10 +17,12 @@
 
 #include <cassert>
 #include <functional>
+#include <filesystem>
 
 #include "megacmdlogger.h"
 #include "configurationmanager.h"
 #include "listeners.h"
+#include "megacmdutils.h"
 
 #ifdef MEGACMD_TESTING_CODE
     #include "../tests/common/Instruments.h"
@@ -29,6 +31,7 @@
 
 using namespace megacmd;
 using namespace std::string_literals;
+namespace fs = std::filesystem;
 
 namespace
 {
@@ -112,7 +115,8 @@ class SyncIssuesRequestListener : public mega::SynchronousRequestListener
             auto stall = stalls->get(i);
             assert(stall);
 
-            syncIssues.mIssuesMap.emplace(static_cast<uint32_t>(stall->getHash()), *stall);
+            SyncIssue syncIssue(*stall);
+            syncIssues.mIssuesMap.emplace(syncIssue.getId(), std::move(syncIssue));
         }
         onSyncIssuesChanged(syncIssues);
 
@@ -249,13 +253,13 @@ std::string SyncIssue::getFileName(int i) const
 }
 
 template<bool isCloud>
-std::optional<int> SyncIssue::getPathProblem(mega::MegaSyncStall::SyncPathProblem pathProblem) const
+std::optional<int> SyncIssue::getPathProblem(mega::PathProblem pathProblem) const
 {
     assert(mMegaStall);
 
     for (int i = 0; i < mMegaStall->pathCount(isCloud); ++i)
     {
-        if (mMegaStall->pathProblem(isCloud, i) == pathProblem)
+        if (mMegaStall->pathProblem(isCloud, i) == static_cast<int>(pathProblem))
         {
             return i;
         }
@@ -263,15 +267,33 @@ std::optional<int> SyncIssue::getPathProblem(mega::MegaSyncStall::SyncPathProble
     return {};
 }
 
+std::string_view SyncIssue::PathProblem::getProblemStr() const
+{
+    switch(mProblem)
+    {
+    #define SOME_GENERATOR_MACRO(pathProblem, str) case pathProblem: return str;
+        GENERATE_FROM_PATH_PROBLEM(SOME_GENERATOR_MACRO)
+    #undef SOME_GENERATOR_MACRO
+
+        default:
+            assert(false);
+            return "<unsupported>";
+    }
+}
+
 SyncIssue::SyncIssue(const mega::MegaSyncStall &stall) :
     mMegaStall(stall.copy())
 {
 }
 
-unsigned int SyncIssue::getId() const
+std::string SyncIssue::getId() const
 {
     assert(mMegaStall);
-    return static_cast<uint32_t>(mMegaStall->getHash());
+    const size_t hash = mMegaStall->getHash();
+
+    std::string id(11, '\0');
+    id.resize(mega::Base64::btoa(reinterpret_cast<const unsigned char*>(&hash), sizeof(hash), reinterpret_cast<char*>(id.data())));
+    return id;
 }
 
 SyncInfo SyncIssue::getSyncInfo(mega::MegaSync const* parentSync) const
@@ -279,26 +301,28 @@ SyncInfo SyncIssue::getSyncInfo(mega::MegaSync const* parentSync) const
     assert(mMegaStall);
 
     SyncInfo info;
-    switch(mMegaStall->reason())
+    info.mReasonType = static_cast<mega::SyncWaitReason>(mMegaStall->reason());
+
+    switch(info.mReasonType)
     {
-        case mega::MegaSyncStall::NoReason:
+        case mega::SyncWaitReason::NoReason:
         {
             info.mReason = "Error detected with '" + getDefaultFileName() + "'";
             info.mDescription = "Reason not found";
             break;
         }
-        case mega::MegaSyncStall::FileIssue:
+        case mega::SyncWaitReason::FileIssue:
         {
             constexpr bool cloud = false;
-            if (auto i = getPathProblem<cloud>(mega::MegaSyncStall::DetectedSymlink); i)
+            if (auto i = getPathProblem<cloud>(mega::PathProblem::DetectedSymlink); i)
             {
                 info.mReason = "Detected symlink: '" + getFileName<cloud>(*i) + "'";
             }
-            else if (auto i = getPathProblem<cloud>(mega::MegaSyncStall::DetectedHardLink); i)
+            else if (auto i = getPathProblem<cloud>(mega::PathProblem::DetectedHardLink); i)
             {
                 info.mReason = "Detected hard link: '" + getFileName<cloud>(*i) + "'";
             }
-            else if (auto i = getPathProblem<cloud>(mega::MegaSyncStall::DetectedSpecialFile); i)
+            else if (auto i = getPathProblem<cloud>(mega::PathProblem::DetectedSpecialFile); i)
             {
                 info.mReason = "Detected special link: '" + getFileName<cloud>(*i) + "'";
             }
@@ -308,41 +332,41 @@ SyncInfo SyncIssue::getSyncInfo(mega::MegaSync const* parentSync) const
             }
             break;
         }
-        case mega::MegaSyncStall::MoveOrRenameCannotOccur:
+        case mega::SyncWaitReason::MoveOrRenameCannotOccur:
         {
             std::string syncName = (parentSync ? "'"s + parentSync->getName() + "'" : "the sync");
             info.mReason = "Can't move or rename some items in " + syncName;
             info.mDescription = "The local and remote locations have changed at the same time";
             break;
         }
-        case mega::MegaSyncStall::DeleteOrMoveWaitingOnScanning:
+        case mega::SyncWaitReason::DeleteOrMoveWaitingOnScanning:
         {
             info.mReason = "Can't find '" + getDefaultFileName() + "'";
             info.mDescription = "Waiting to finish scan to see if the file was moved or deleted";
             break;
         }
-        case mega::MegaSyncStall::DeleteWaitingOnMoves:
+        case mega::SyncWaitReason::DeleteWaitingOnMoves:
         {
             info.mReason = "Waiting to move '" + getDefaultFileName() + "'";
             info.mDescription = "Waiting for other processes to complete";
             break;
         }
-        case mega::MegaSyncStall::UploadIssue:
+        case mega::SyncWaitReason::UploadIssue:
         {
             info.mReason = "Can't upload '" + getDefaultFileName() + "' to the selected location";
             info.mDescription = "Cannot reach the destination folder";
             break;
         }
-        case mega::MegaSyncStall::DownloadIssue:
+        case mega::SyncWaitReason::DownloadIssue:
         {
             constexpr bool cloud = true;
             std::string fileName = getDefaultFileName<cloud>();
 
-            if (getPathProblem<cloud>(mega::MegaSyncStall::CloudNodeInvalidFingerprint))
+            if (getPathProblem<cloud>(mega::PathProblem::CloudNodeInvalidFingerprint))
             {
                 info.mDescription = "File fingerprint missing";
             }
-            else if (auto i = getPathProblem<cloud>(mega::MegaSyncStall::CloudNodeIsBlocked); i)
+            else if (auto i = getPathProblem<cloud>(mega::PathProblem::CloudNodeIsBlocked); i)
             {
                 fileName = getFileName<cloud>(*i);
                 info.mDescription = "The file '" + fileName + "' is unavailable because it was reported to contain content in breach of MEGA's Terms of Service (https://mega.io/terms)";
@@ -355,38 +379,38 @@ SyncInfo SyncIssue::getSyncInfo(mega::MegaSync const* parentSync) const
             info.mReason = "Can't download '" + fileName + "' to the selected location";
             break;
         }
-        case mega::MegaSyncStall::CannotCreateFolder:
+        case mega::SyncWaitReason::CannotCreateFolder:
         {
             info.mReason = "Cannot create '" + getDefaultFileName() + "'";
             info.mDescription = "Filesystem error preventing folder access";
             break;
         }
-        case mega::MegaSyncStall::CannotPerformDeletion:
+        case mega::SyncWaitReason::CannotPerformDeletion:
         {
             info.mReason = "Cannot perform deletion '" + getDefaultFileName() + "'";
             info.mDescription = "Filesystem error preventing folder access";
             break;
         }
-        case mega::MegaSyncStall::SyncItemExceedsSupportedTreeDepth:
+        case mega::SyncWaitReason::SyncItemExceedsSupportedTreeDepth:
         {
             info.mReason = "Unable to sync '" + getDefaultFileName() + "'";
             info.mDescription = "Target is too deep on your folder structure; please move it to a location that is less than " + std::to_string(mega::Sync::MAX_CLOUD_DEPTH) + " folders deep";
             break;
         }
-        case mega::MegaSyncStall::FolderMatchedAgainstFile:
+        case mega::SyncWaitReason::FolderMatchedAgainstFile:
         {
             info.mReason = "Unable to sync '" + getDefaultFileName() + "'";
             info.mDescription = "Cannot sync folders against files";
             break;
         }
-        case mega::MegaSyncStall::LocalAndRemoteChangedSinceLastSyncedState_userMustChoose:
-        case mega::MegaSyncStall::LocalAndRemotePreviouslyUnsyncedDiffer_userMustChoose:
+        case mega::SyncWaitReason::LocalAndRemoteChangedSinceLastSyncedState_userMustChoose:
+        case mega::SyncWaitReason::LocalAndRemotePreviouslyUnsyncedDiffer_userMustChoose:
         {
             info.mReason = "Unable to sync '" + getDefaultFileName() + "'";
             info.mDescription = "This file has conflicting copies";
             break;
         }
-        case mega::MegaSyncStall::NamesWouldClashWhenSynced:
+        case mega::SyncWaitReason::NamesWouldClashWhenSynced:
         {
             info.mReason = "Name conflicts: '" + getDefaultFileName<true>() + "'";
             info.mDescription = "These items contain multiple names on one side that would all become the same single name on the other side (this may be due to syncing to case insensitive local filesystems, or the effects of escaped characters)";
@@ -423,6 +447,82 @@ std::unique_ptr<mega::MegaSync> SyncIssue::getParentSync(mega::MegaApi& api) con
     return nullptr;
 }
 
+std::vector<SyncIssue::PathProblem> SyncIssue::getPathProblems(mega::MegaApi& api) const
+{
+    return getPathProblems<false>(api) + getPathProblems<true>(api);
+}
+
+template<bool isCloud>
+std::vector<SyncIssue::PathProblem> SyncIssue::getPathProblems(mega::MegaApi& api) const
+{
+    std::vector<SyncIssue::PathProblem> pathProblems;
+    for (int i = 0; i < mMegaStall->pathCount(isCloud); ++i)
+    {
+        PathProblem pathProblem;
+        pathProblem.mIsCloud = isCloud;
+        pathProblem.mPath = (isCloud ? CloudPrefix : "") + mMegaStall->path(isCloud, i);
+        pathProblem.mProblem = static_cast<mega::PathProblem>(std::max(0, mMegaStall->pathProblem(isCloud, i)));
+
+        if constexpr (isCloud)
+        {
+            auto nodeHandle = mMegaStall->cloudNodeHandle(i);
+
+            std::unique_ptr<mega::MegaNode> n(api.getNodeByHandle(nodeHandle));
+            if (n)
+            {
+                if (n->isFile())
+                {
+                    pathProblem.mPathType = "File";
+                }
+                else if (n->isFolder())
+                {
+                    pathProblem.mPathType = "Folder";
+                }
+
+                pathProblem.mUploadedTime = n->getCreationTime();
+                pathProblem.mModifiedTime = n->getModificationTime();
+                pathProblem.mFileSize = std::max<int64_t>(n->getSize(), 0);
+            }
+            else
+            {
+                LOG_warn << "Path problem " << pathProblem.mPath << " does not have a valid node associated with it";
+            }
+        }
+        else if (std::error_code ec; fs::exists(pathProblem.mPath, ec) && !ec)
+        {
+            if (fs::is_directory(pathProblem.mPath, ec) && !ec)
+            {
+                pathProblem.mPathType = "Folder";
+            }
+            else if (fs::is_regular_file(pathProblem.mPath, ec) && !ec)
+            {
+                pathProblem.mPathType = "File";
+            }
+            else if (fs::is_symlink(pathProblem.mPath, ec) && !ec)
+            {
+                pathProblem.mPathType = "Symlink";
+            }
+
+            auto lastWriteTime = fs::last_write_time(pathProblem.mPath, ec);
+            if (!ec)
+            {
+                auto systemNow = std::chrono::system_clock::now();
+                auto fileTimeNow = fs::file_time_type::clock::now();
+                auto lastWriteTimePoint = std::chrono::time_point_cast<std::chrono::seconds>(lastWriteTime - fileTimeNow + systemNow);
+                pathProblem.mModifiedTime = lastWriteTimePoint.time_since_epoch().count();
+            }
+
+            if (auto fileSize = fs::file_size(pathProblem.mPath, ec); !ec)
+            {
+                pathProblem.mFileSize = fileSize;
+            }
+        }
+
+        pathProblems.emplace_back(std::move(pathProblem));
+    }
+    return pathProblems;
+}
+
 bool SyncIssue::belongsToSync(const mega::MegaSync& sync) const
 {
     const char* issueCloudPath = mMegaStall->path(true, 0);
@@ -442,6 +542,16 @@ bool SyncIssue::belongsToSync(const mega::MegaSync& sync) const
     }
 
     return false;
+}
+
+SyncIssue const* SyncIssueList::getSyncIssue(const std::string& id) const
+{
+    auto it = mIssuesMap.find(id);
+    if (it == mIssuesMap.end())
+    {
+        return nullptr;
+    }
+    return &it->second;
 }
 
 unsigned int SyncIssueList::getSyncIssuesCount(const mega::MegaSync& sync) const
@@ -522,4 +632,111 @@ void SyncIssuesManager::enableWarning()
 
     mWarningEnabled = true;
     ConfigurationManager::savePropertyValue("stalled_issues_warning", mWarningEnabled);
+}
+
+namespace SyncIssuesCommand
+{
+    void printAllIssues(mega::MegaApi& api, ColumnDisplayer& cd, const SyncIssueList& syncIssues, bool disablePathCollapse, int rowCountLimit)
+    {
+        cd.addHeader("PARENT_SYNC", disablePathCollapse);
+
+        syncIssues.forEach([&api, &cd] (const SyncIssue& syncIssue)
+        {
+            auto parentSync = syncIssue.getParentSync(api);
+
+            cd.addValue("ISSUE_ID", syncIssue.getId());
+            cd.addValue("PARENT_SYNC", parentSync ? parentSync->getName() : "<not found>");
+            cd.addValue("REASON", syncIssue.getSyncInfo(parentSync.get()).mReason);
+        }, rowCountLimit);
+
+        OUTSTREAM << cd.str();
+        OUTSTREAM << endl;
+        if (rowCountLimit < syncIssues.size())
+        {
+            OUTSTREAM << "Note: showing " << rowCountLimit << " out of " << syncIssues.size() << " issues. "
+                      << "Use \"" << commandPrefixBasedOnMode() << "sync-issues --limit=0\" to see all of them." << endl;
+        }
+        OUTSTREAM << "Use \"" << commandPrefixBasedOnMode() << "sync-issues --detail <ISSUE_ID>\" to get further details on a specific issue." << endl;
+    }
+
+    void printSingleIssueDetail(mega::MegaApi& api, megacmd::ColumnDisplayer& cd, const SyncIssue& syncIssue, bool disablePathCollapse, int rowCountLimit)
+    {
+        auto parentSync = syncIssue.getParentSync(api);
+        auto syncInfo = syncIssue.getSyncInfo(parentSync.get());
+
+        OUTSTREAM << syncInfo.mReason;
+        if (!syncInfo.mDescription.empty())
+        {
+            OUTSTREAM << ". " << syncInfo.mDescription << ".";
+        }
+        OUTSTREAM << endl;
+
+        OUTSTREAM << "Parent sync: ";
+        if (parentSync)
+        {
+            OUTSTREAM << syncBackupIdToBase64(parentSync->getBackupId())
+                      << " (" << parentSync->getLocalFolder() << " to " << SyncIssue::CloudPrefix << parentSync->getLastKnownMegaFolder() << ")";
+        }
+        else
+        {
+            OUTSTREAM << "<not found>";
+        }
+        OUTSTREAM << endl << endl;
+
+        cd.addHeader("PATH", disablePathCollapse);
+
+        mega::SyncWaitReason syncIssueReason = syncIssue.getSyncInfo(parentSync.get()).mReasonType;
+
+        auto pathProblems = syncIssue.getPathProblems(api);
+        for (int i = 0; i < pathProblems.size() && i < rowCountLimit; ++i)
+        {
+            const auto& pathProblem = pathProblems[i];
+            const char* timeFmt = "%Y-%m-%d %H:%M:%S";
+
+            cd.addValue("PATH", pathProblem.mPath);
+
+            if (syncIssueReason == mega::SyncWaitReason::FolderMatchedAgainstFile)
+            {
+                cd.addValue("TYPE", pathProblem.mPathType);
+            }
+            else
+            {
+                cd.addValue("PATH_ISSUE", std::string(pathProblem.getProblemStr()));
+            }
+
+            cd.addValue("LAST_MODIFIED", pathProblem.mModifiedTime ? getReadableTime(pathProblem.mModifiedTime, timeFmt) : "-");
+            cd.addValue("UPLOADED", pathProblem.mUploadedTime ? getReadableTime(pathProblem.mUploadedTime, timeFmt) : "-");
+            cd.addValue("SIZE", sizeToText(pathProblem.mFileSize));
+        }
+
+        OUTSTREAM << cd.str();
+        if (rowCountLimit < pathProblems.size())
+        {
+            OUTSTREAM << endl;
+            OUTSTREAM << "Note: showing " << rowCountLimit << " out of " << static_cast<unsigned int>(pathProblems.size()) << " path problems. "
+                      << "Use \"" << commandPrefixBasedOnMode() << "sync-issues --detail " << syncIssue.getId() << " --limit=0\" to see all of them." << endl;
+        }
+    }
+
+    void printAllIssuesDetail(mega::MegaApi& api, megacmd::ColumnDisplayer& cd, const SyncIssueList& syncIssues, bool disablePathCollapse, int rowCountLimit)
+    {
+        // We'll use the row count limit only for the path problems; since the user has added "--all",
+        // we assume they want to see all issues, and thus the limit doesn't apply to the issue list in this case
+        for (auto it = syncIssues.begin(); it != syncIssues.end(); ++it)
+        {
+            const auto& syncIssue = *it;
+
+            assert(syncIssue.first == syncIssue.second.getId());
+            OUTSTREAM << "[Details on issue " << syncIssue.first << "]" << endl;
+
+            printSingleIssueDetail(api, cd, syncIssue.second, disablePathCollapse, rowCountLimit);
+
+            if (it != std::prev(syncIssues.end()))
+            {
+                OUTSTREAM << endl << endl;
+            }
+
+            cd.clear();
+        }
+    }
 }

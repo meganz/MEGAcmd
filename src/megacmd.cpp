@@ -435,7 +435,7 @@ void informProgressUpdate(long long transferred, long long total, int clientID, 
     informStateListenerByClientId(clientID, s);
 }
 
-void insertValidParamsPerCommand(set<string> *validParams, string thecommand, set<string> *validOptValues = NULL)
+void insertValidParamsPerCommand(set<string> *validParams, string thecommand, set<string> *validOptValues = nullptr, bool skipDeprecated = false)
 {
     if (!validOptValues)
     {
@@ -600,25 +600,34 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     }
     else if ("sync" == thecommand)
     {
-        validParams->insert("d");
-        validParams->insert("s");
-        validParams->insert("r");
-
+        validParams->insert("p");
+        validParams->insert("pause");
+        validParams->insert("e");
         validParams->insert("enable");
-        validParams->insert("disable");
-        validParams->insert("remove");
+        validParams->insert("d");
+        validParams->insert("delete");
 
         validParams->insert("show-handles");
         validOptValues->insert("path-display-size");
         validOptValues->insert("col-separator");
         validOptValues->insert("output-cols");
 
+        if (!skipDeprecated)
+        {
+            // Deprecated (kept for backwards compatibility)
+            validParams->insert("remove");
+            validParams->insert("s");
+            validParams->insert("disable");
+            validParams->insert("r");
+        }
     }
     else if ("sync-issues" == thecommand)
     {
         validParams->insert("enable-warning");
         validParams->insert("disable-warning");
         validParams->insert("disable-path-collapse");
+        validParams->insert("detail");
+        validParams->insert("all");
         validOptValues->insert("limit");
         validOptValues->insert("col-separator");
         validOptValues->insert("output-cols");
@@ -937,7 +946,7 @@ char * flags_completion(const char*text, int state)
             addGlobalFlags(&setvalidparams);
 
             string thecommand = words[0];
-            insertValidParamsPerCommand(&setvalidparams, thecommand, &setvalidOptValues);
+            insertValidParamsPerCommand(&setvalidparams, thecommand, &setvalidOptValues, true /* skipDeprecated*/);
             set<string>::iterator it;
             for (it = setvalidparams.begin(); it != setvalidparams.end(); it++)
             {
@@ -998,7 +1007,7 @@ char * flags_value_completion(const char*text, int state)
 
             set<string> validParams;
 
-            insertValidParamsPerCommand(&validParams, thecommand);
+            insertValidParamsPerCommand(&validParams, thecommand, nullptr /* validOptValues */, true /* skipDeprecated */);
 
             if (setOptionsAndFlags(&cloptions, &clflags, &words, validParams, true))
             {
@@ -1747,7 +1756,7 @@ const char * getUsageStr(const char *command, const HelpFlags& flags)
     }
     if (!strcmp(command, "sync"))
     {
-        return "sync [localpath dstremotepath| [-dsr] [ID|localpath]";
+        return "sync [localpath dstremotepath| [-dpe] [ID|localpath]";
     }
     if (!strcmp(command, "sync-ignore"))
     {
@@ -2533,9 +2542,12 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << " unless an option is specified." << endl;
         os << endl;
         os << "Options:" << endl;
-        os << "-d | --remove" << " " << "ID|localpath" << "\t" << "deletes a synchronization." << endl;
-        os << "-s | --disable" << " " << "ID|localpath" << "\t" << "stops(pauses) a synchronization." << endl;
-        os << "-r | --enable" << " " << "ID|localpath" << "\t" << "resumes a synchronization." << endl;
+        os << "-d | --delete" << " " << "ID|localpath" << "\t" << "deletes a synchronization (not the files)." << endl;
+        os << "-p | --pause" << " " << "ID|localpath" << "\t" << "pauses (disables) a synchronization." << endl;
+        os << "-e | --enable" << " " << "ID|localpath" << "\t" << "resumes a synchronization." << endl;
+        os << "[deprecated] --remove" << " " << "ID|localpath" << "\t" << "same as --delete." << endl;
+        os << "[deprecated] -s | --disable" << " " << "ID|localpath" << "\t" << "same as --pause." << endl;
+        os << "[deprecated] -r" << " " << "ID|localpath" << "\t" << "same as --enable." << endl;
         os << " --path-display-size=N" << "\t" << "Use at least N characters for displaying paths." << endl;
         os << " --show-handles" << "\t" << "Prints remote nodes handles (H:XXXXXXXX)." << endl;
         printColumnDisplayerHelp(os);
@@ -5270,7 +5282,8 @@ int executeServer(int argc, char* argv[],
 
     if (ConfigurationManager::getHasBeenUpdated())
     {
-        sendEvent(StatsManager::MegacmdEvent::UPDATE, api, false);
+        // Wait for this event to ensure an automatic login on startup doesn't prevent the event from being sent
+        sendEvent(StatsManager::MegacmdEvent::UPDATE, api, true);
 
         stringstream ss;
         ss << "MEGAcmd has been updated to version " << MEGACMD_MAJOR_VERSION << "." << MEGACMD_MINOR_VERSION << "." << MEGACMD_MICRO_VERSION << "." << MEGACMD_BUILD_ID << " - code " << MEGACMD_CODE_VERSION << endl;
