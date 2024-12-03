@@ -75,21 +75,10 @@
 namespace megacmd {
 using namespace std;
 
-bool MegaCmdShellCommunications::serverinitiatedfromshell;
-bool MegaCmdShellCommunications::sRegisterAgainRequired;
 bool MegaCmdShellCommunications::confirmResponse;
 bool MegaCmdShellCommunications::updating;
 
 std::mutex MegaCmdShellCommunications::megaCmdStdoutputing;
-
-bool MegaCmdShellCommunications::socketValid(SOCKET socket)
-{
-#ifdef _WIN32
-    return socket != INVALID_SOCKET;
-#else
-    return socket >= 0;
-#endif
-}
 
 string createAndRetrieveConfigFolder()
 {
@@ -126,11 +115,14 @@ bool is_pid_running(pid_t pid) {
 }
 #endif
 
-SOCKET MegaCmdShellCommunications::createSocket(int number, bool initializeserver)
+#ifndef _WIN32
+bool MegaCmdShellCommunicationsPosix::socketValid(SOCKET socket)
 {
-#ifdef _WIN32
-    return INVALID_SOCKET;
-#else
+    return socket >= 0;
+}
+
+SOCKET MegaCmdShellCommunicationsPosix::createSocket(int number, bool initializeserver)
+{
     SOCKET thesock = socket(AF_UNIX, SOCK_STREAM, 0);
     if (!socketValid(thesock))
     {
@@ -248,7 +240,8 @@ SOCKET MegaCmdShellCommunications::createSocket(int number, bool initializeserve
                 usleep(waitimet);
                 waitimet=waitimet*2;
             }
-            if (attempts<0)
+
+            if (attempts < 0) //too many attempts
             {
 
                 cerr << "Unable to connect to " << (number?("response socket N "+SSTR(number)):"service") << ": error=" << ERRNO << endl;
@@ -263,9 +256,10 @@ SOCKET MegaCmdShellCommunications::createSocket(int number, bool initializeserve
             {
                 if (forkret && is_pid_running(forkret)) // server pid is alive (most likely because I initiated the server)
                 {
-                    serverinitiatedfromshell = true;
+                    mServerinitiatedfromshell = true;
                 }
-                sRegisterAgainRequired = true;
+
+                setForRegisterAgain(true);
             }
         }
         else
@@ -285,8 +279,9 @@ SOCKET MegaCmdShellCommunications::createSocket(int number, bool initializeserve
     }
     ok = true;
     return thesock;
-#endif
 }
+#endif
+
 
 MegaCmdShellCommunications::MegaCmdShellCommunications()
 {
@@ -309,10 +304,7 @@ MegaCmdShellCommunications::MegaCmdShellCommunications()
     }
 #endif
 
-    serverinitiatedfromshell = false;
-    sRegisterAgainRequired = false;
-
-    stopListener = false;
+    mStopListener = false;
     updating = false;
 }
 
@@ -401,16 +393,15 @@ string unescapeutf16escapedseqs(const char *what)
 
     return str;
 }
-
 #endif
-
 
 int MegaCmdShellCommunications::executeCommandW(wstring wcommand, std::string (*readresponse)(const char *), OUTSTREAMTYPE &output, bool interactiveshell)
 {
     return executeCommand("", readresponse, output, interactiveshell, wcommand);
 }
 
-int MegaCmdShellCommunications::executeCommand(string command, std::string (*readresponse)(const char *), OUTSTREAMTYPE &output, bool interactiveshell, wstring wcommand)
+#ifndef _WIN32
+int MegaCmdShellCommunicationsPosix::executeCommand(string command, std::string (*readresponse)(const char *), OUTSTREAMTYPE &output, bool interactiveshell, wstring /*wcommand*/)
 {
     SOCKET thesock = createSocket(0, command.compare(0,4,"exit") && command.compare(0,4,"quit") && command.compare(0,10,"completion"));
     if (!socketValid(thesock))
@@ -603,18 +594,17 @@ int MegaCmdShellCommunications::executeCommand(string command, std::string (*rea
     return outcode;
 }
 
-int MegaCmdShellCommunications::listenToStateChanges(int receiveSocket, StateChangedCb_t statechangehandle)
+int MegaCmdShellCommunicationsPosix::listenToStateChanges(int receiveSocket, StateChangedCb_t statechangehandle)
 {
     assert(socketValid(receiveSocket));
 
     ScopeGuard g([this, receiveSocket]()
     {
-        shutdown(receiveSocket, SHUT_RDWR);
+        mStateListenerSocket = -1; // we don't want shutdowns after close!
         close(receiveSocket);
     });
 
-    int timeout_notified_server_might_be_down = 0;
-    while (!stopListener)
+    while (!mStopListener)
     {
         string newstate;
 
@@ -636,32 +626,9 @@ int MegaCmdShellCommunications::listenToStateChanges(int receiveSocket, StateCha
             return -1;
         }
 
-        if (!n)
+        if (!n) // server closed the connection
         {
-            if (!timeout_notified_server_might_be_down)
-            {
-                timeout_notified_server_might_be_down = 30;
-                if (!stopListener && !updating)
-                {
-                    cerr << endl << "[mega-cmd-server is probably down. Type to respawn or reconnect to it]" << endl;
-                }
-                else
-                {
-                    return 0;
-                }
-            }
-            timeout_notified_server_might_be_down--;
-            if (!timeout_notified_server_might_be_down)
-            {
-                sRegisterAgainRequired = true;
-                return -1;
-            }
-#ifdef _WIN32
-            Sleep(1000);
-#else
-            sleep(1);
-#endif
-            continue;
+            return -1;
         }
 
         if (statechangehandle)
@@ -669,9 +636,9 @@ int MegaCmdShellCommunications::listenToStateChanges(int receiveSocket, StateCha
             statechangehandle(newstate, *this);
         }
     }
-
     return 0;
 }
+#endif
 
 int MegaCmdShellCommunications::readconfirmationloop(const char *question, string (*readresponse)(const char *))
 {
@@ -727,29 +694,66 @@ void MegaCmdShellCommunications::markServerReadyOrRegistrationFailed(bool readyO
 
 bool MegaCmdShellCommunications::registerForStateChanges(bool interactive, StateChangedCb_t statechangehandle, bool initiateServer)
 {
-    sRegisterAgainRequired = true;
+    if (mStopListener || updating) // finished
+    {
+        return false;
+    }
+
+    {
+        std::lock_guard<std::mutex> g(mRegistrationMutex);
+        if (mLastFailedRegistration && ( (std::chrono::steady_clock::now() - *mLastFailedRegistration) < std::chrono::seconds(30)))
+        {
+            // defer registration attempt
+            return false;
+        }
+    }
+
+    // if there's a listener thread running
+    if (mListenerThread)
+    {
+        mStopListener = true;
+        triggerListenerThreadShutdown();
+        mListenerThread->join();
+    }
+
     auto resultRegistration = registerForStateChangesImpl(interactive, initiateServer);
     if (!resultRegistration)
     {
         markServerReadyOrRegistrationFailed(false);
         return false;
     }
-    sRegisterAgainRequired = false;
 
-    if (mListenerThread)
-    {
-        stopListener = true;
-        mListenerThread->join();
-    }
+    mRegisterRequired = false;
 
-    stopListener = false;
+    mStopListener = false;
 
     mListenerThread.reset(new std::thread(
         [this, fd{resultRegistration.value()}, statechangeCb{std::move(statechangehandle)}]()
         {
-            listenToStateChanges(fd, statechangeCb);
+            bool everSucceeded = false;
+            auto stateChangedWrapped = [&everSucceeded, statechangeCb{std::move(statechangeCb)}](std::string state, MegaCmdShellCommunications &commsManager)
+            {
+                everSucceeded = true;
+                statechangeCb(std::move(state), commsManager);
+            };
 
-            // The above may have failed before receiving server readyness.
+            auto r = listenToStateChanges(fd, stateChangedWrapped);
+
+            // Logic to consider registration again:
+            if (r < 0 && !mStopListener && !updating)
+            {
+                auto errorLine = !everSucceeded ? "\nWarning: Unable to register to state changes.\n" // This could happen if for instance, the server rejects registering a listener because max descriptors allowed for it has been depleted
+#ifdef WIN32
+                   : "\n[MEGAcmdServer.exe process seems to have stopped. Type to respawn or reconnect to it]\n";
+#else
+                    : "\n[mega-cmd-server process seems to have stopped. Type to respawn or reconnect to it]\n";
+#endif
+
+                setForRegisterAgain();
+                std::cerr << errorLine << std::fflush;
+            }
+
+            // In either case the above may have failed before receiving server readyness.
             // This will ensure we don't halt main thread execution if that's the case:
             markServerReadyOrRegistrationFailed(false);
         }
@@ -757,7 +761,8 @@ bool MegaCmdShellCommunications::registerForStateChanges(bool interactive, State
     return true;
 }
 
-std::optional<int> MegaCmdShellCommunications::registerForStateChangesImpl(bool interactive, bool initiateServer)
+#ifndef _WIN32
+std::optional<int> MegaCmdShellCommunicationsPosix::registerForStateChangesImpl(bool interactive, bool initiateServer)
 {
     SOCKET thesock = createSocket(0, initiateServer);
 
@@ -793,24 +798,58 @@ std::optional<int> MegaCmdShellCommunications::registerForStateChangesImpl(bool 
 
     ok = true;
 
+    mStateListenerSocket = thesock; // to be able to trigger shutdown
     return thesock;
 }
+
+void MegaCmdShellCommunicationsPosix::triggerListenerThreadShutdown()
+{
+    if (auto socket = mStateListenerSocket.exchange(-1); socket != -1)
+    {
+        // enforce socket shutdown: this will wake listenerThread
+        ::shutdown(socket, SHUT_RDWR);
+    }
+}
+#endif
 
 void MegaCmdShellCommunications::setResponseConfirmation(bool confirmation)
 {
     confirmResponse = confirmation;
 }
 
-MegaCmdShellCommunications::~MegaCmdShellCommunications()
+void MegaCmdShellCommunications::shutdown()
 {
-#if _WIN32
-    WSACleanup();
-#endif
-
     if (mListenerThread)
     {
-        stopListener = true;
+        mStopListener = true;
+        triggerListenerThreadShutdown();
         mListenerThread->join();
+        mListenerThread.reset();
     }
+}
+
+bool MegaCmdShellCommunications::registerRequired()
+{
+    std::lock_guard<std::mutex> g(mRegistrationMutex);
+    return mRegisterRequired;
+}
+
+void MegaCmdShellCommunications::setForRegisterAgain(bool dontWait)
+{
+    std::lock_guard<std::mutex> g(mRegistrationMutex);
+    mRegisterRequired = true;
+    if (dontWait)
+    {
+        mLastFailedRegistration = {};
+    }
+    else
+    {
+        mLastFailedRegistration = std::chrono::steady_clock::now();
+    }
+}
+
+MegaCmdShellCommunications::~MegaCmdShellCommunications()
+{
+    assert(!mListenerThread);
 }
 } //end namespace

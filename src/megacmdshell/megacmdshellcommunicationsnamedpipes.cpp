@@ -422,8 +422,8 @@ HANDLE MegaCmdShellCommunicationsNamedPipes::createNamedPipe(int number, bool in
                 }
                 else
                 {
-                    serverinitiatedfromshell = true;
-                    registerAgainRequired = true;
+                    mServerinitiatedfromshell = true;
+                    setForRegisterAgain(true);
                 }
             }
         }
@@ -442,16 +442,8 @@ MegaCmdShellCommunicationsNamedPipes::MegaCmdShellCommunicationsNamedPipes()
     setlocale(LC_ALL, "en-US");
 #endif
 
-    serverinitiatedfromshell = false;
-    registerAgainRequired = false;
-
     stopListener = false;
     redirectedstdout = false;
-}
-
-int MegaCmdShellCommunicationsNamedPipes::executeCommandW(wstring wcommand, string (*readresponse)(const char *), OUTSTREAMTYPE &output, bool interactiveshell)
-{
-    return executeCommand("", readresponse, output, interactiveshell, wcommand);
 }
 
 /**
@@ -777,22 +769,9 @@ int MegaCmdShellCommunicationsNamedPipes::listenToStateChanges(int receiveNamedP
             return -1;
         }
 
-        if (!n)
+        if (!n) // server closed the connection
         {
-            if (!timeout_notified_server_might_be_down)
-            {
-                timeout_notified_server_might_be_down = 30;
-                cerr << endl << "MEGAcmdServer.exe is probably down. Executing anything will try to respawn or reconnect to it";
-            }
-            timeout_notified_server_might_be_down--;
-            if (!timeout_notified_server_might_be_down)
-            {
-                registerAgainRequired = true;
-                closeNamedPipe(newNamedPipe);
-                return -1;
-            }
-            Sleep(1000);
-            continue;
+            return -1;
         }
 
         if (statechangehandle != NULL)

@@ -565,7 +565,7 @@ static void store_line(char* l)
         doExit = true;
         rl_set_prompt("(CTRL+D) Exiting ...\n");
 #ifndef NDEBUG
-        if (comms->serverinitiatedfromshell)
+        if (comms->mServerinitiatedfromshell)
         {
             OUTSTREAM << " Forwarding exit command to the server, since this cmd shell (most likely) initiated it" << endl;
             comms->executeCommand("exit", readresponse);
@@ -1838,7 +1838,7 @@ void readloop()
 
     comms->registerForStateChanges(true, statechangehandle);
 
-    if (comms->waitForServerReadyOrRegistrationFailed(std::chrono::seconds(2*RESUME_SESSION_TIMEOUT)))
+    if (!comms->waitForServerReadyOrRegistrationFailed(std::chrono::seconds(2*RESUME_SESSION_TIMEOUT)))
     {
         std::cerr << "Server seems irresponsive" << endl;
     }
@@ -1955,11 +1955,9 @@ void readloop()
                     }
                 }
 
-                if (comms->sRegisterAgainRequired)
+                if (comms->registerRequired())
                 {
-                    // register again for state changes
                      comms->registerForStateChanges(true, statechangehandle);
-                     comms->sRegisterAgainRequired = false;
                 }
 
                 // sleep, so that in case there was a changeprompt waiting, gets executed before relooping
@@ -2038,11 +2036,9 @@ void readloop()
                 requirepromptinstall = true;
 //                mutexPrompt.unlock();
 
-                if (comms->registerAgainRequired)
+                if (comms->registerAgainRequired())
                 {
-                    // register again for state changes
                     comms->registerForStateChanges(true, statechangehandle);
-                    comms->registerAgainRequired = false;
                 }
 
                 // sleep, so that in case there was a changeprompt waiting, gets executed before relooping
@@ -2241,7 +2237,7 @@ int main(int argc, char* argv[])
 #if defined(_WIN32)
     comms = new MegaCmdShellCommunicationsNamedPipes();
 #else
-    comms = new MegaCmdShellCommunications();
+    comms = new MegaCmdShellCommunicationsPosix();
 #endif
 
 #ifndef NO_READLINE
@@ -2289,6 +2285,7 @@ int main(int argc, char* argv[])
         rl_callback_handler_remove(); //To avoid having the terminal messed up (requiring a "reset")
     }
 #endif
+    comms->shutdown();
     delete comms;
 
     if (doReboot)
