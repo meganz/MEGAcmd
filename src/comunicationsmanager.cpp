@@ -42,7 +42,7 @@ bool ComunicationsManager::receivedPetition()
     return false;
 }
 
-CmdPetition* ComunicationsManager::registerStateListener(std::unique_ptr<CmdPetition> inf)
+CmdPetition* ComunicationsManager::registerStateListener(std::unique_ptr<CmdPetition> &&inf)
 {
     std::lock_guard<std::recursive_mutex> g(mStateListenersMutex);
 
@@ -134,7 +134,6 @@ void ComunicationsManager::sendPartialOutput(CmdPetition *inf, char *s, size_t s
 }
 
 
-
 /**
  * @brief getPetition
  * @return pointer to new CmdPetition. Petition returned must be properly deleted (this can be calling returnAndClosePetition)
@@ -154,10 +153,14 @@ std::string ComunicationsManager::getUserResponse(CmdPetition *inf, string messa
     return string();
 }
 
-std::string CmdPetition::getUniformLine() const
+std::string_view CmdPetition::getUniformLine() const
 {
-    std::string str = line;
-    return ltrim(str, 'X');
+   size_t pos = 0;
+   while (pos < line.size() && line[pos] == 'X')
+   {
+       ++pos;
+   }
+    return std::string_view(line).substr(pos);
 }
 
 MegaThread *CmdPetition::getPetitionThread() const

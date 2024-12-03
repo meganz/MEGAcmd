@@ -57,7 +57,7 @@ public:
     virtual int executeCommand(std::string command, std::string (*readresponse)(const char *) = NULL, OUTSTREAMTYPE &output = COUT, bool interactiveshell = true, std::wstring = L"");
     virtual int executeCommandW(std::wstring command, std::string (*readresponse)(const char *) = NULL, OUTSTREAMTYPE &output = COUT, bool interactiveshell = true);
 
-    virtual int registerForStateChanges(bool interactive, void (*statechangehandle)(std::string) = NULL, bool initiateServer = true);
+    virtual bool registerForStateChangesImpl(bool interactive, StateChangedCb_t statechangehandle, bool initiateServer = true) override;
 
     void setResponseConfirmation(bool confirmation);
 
@@ -67,15 +67,9 @@ private:
     static bool namedPipeValid(HANDLE namedPipe);
     static void closeNamedPipe(HANDLE namedPipe);
 
-    static void *listenToStateChangesEntryNamedPipe(void *slsc);
-    static int listenToStateChanges(int receiveNamedPipeNum, void (*statechangehandle)(std::string) = NULL);
+    virtual int listenToStateChanges(int receiveNamedPipeNum, StateChangedCb_t statechangehandle) override;
 
     static bool confirmResponse;
-
-    static HANDLE newNamedPipe;
-
-    static bool stopListener;
-    static std::unique_ptr<std::thread> listenerThread;
 
     static HANDLE createNamedPipe(int number = 0,bool initializeserver = true);
 

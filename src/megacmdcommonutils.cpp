@@ -738,6 +738,11 @@ bool startsWith(const std::string& str, std::string_view prefix)
     return str.compare(0, prefix.size(), prefix) == 0;
 }
 
+bool startsWith(const std::string_view str, const std::string_view prefix)
+{
+    return str.rfind(prefix, 0) == 0;
+}
+
 string toLower(const std::string& str)
 {
     std::string lower = str;

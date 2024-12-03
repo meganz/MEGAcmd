@@ -208,6 +208,7 @@ std::string getFixLengthString(const std::string &origin, unsigned int size, con
 std::string getRightAlignedString(const std::string origin, unsigned int minsize);
 
 bool startsWith(const std::string& str, std::string_view prefix);
+bool startsWith(const std::string_view str, const std::string_view prefix);
 
 std::string toLower(const std::string& str);
 
@@ -520,6 +521,18 @@ public:
     }
 #endif //MEGACMD_TESTING_CODE
  };
+
+/**
+ * @brief general purpose scope guard class
+ */
+template <typename ExitCallback>
+class ScopeGuard
+{
+    ExitCallback mExitCb;
+public:
+    ScopeGuard(ExitCallback&& exitCb) : mExitCb{std::move(exitCb)} { }
+    ~ScopeGuard() { mExitCb(); }
+};
 
 }//end namespace
 #endif // MEGACMDCOMMONUTILS_H

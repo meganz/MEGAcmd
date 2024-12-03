@@ -49,8 +49,7 @@ private:
     fd_set fds;
 
     // sockets and asociated variables
-    int sockfd, newsockfd;
-    socklen_t clilen;
+    int sockfd;
     char buffer[1024];
     struct sockaddr_in serv_addr, cli_addr;
 
@@ -70,7 +69,7 @@ public:
 
     virtual void stopWaiting();
 
-    CmdPetition* registerStateListener(std::unique_ptr<CmdPetition> inf) override;
+    CmdPetition* registerStateListener(std::unique_ptr<CmdPetition> &&inf) override;
 
     int getMaxStateListeners() const override;
 

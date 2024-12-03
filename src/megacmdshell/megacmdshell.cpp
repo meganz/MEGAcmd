@@ -41,6 +41,7 @@
 #include <algorithm>
 #include <atomic>
 #include <stdio.h>
+#include <future>
 
 #define PROGRESS_COMPLETE -2
 #define SPROGRESS_COMPLETE "-2"
@@ -184,11 +185,7 @@ static std::atomic_bool requirepromptinstall(true);
 bool procesingline = false;
 bool promptreinstalledwhenprocessingline = false;
 
-std::mutex promptLogReceivedMutex;
-std::condition_variable promtpLogReceivedCV;
-bool promtpLogReceivedBool = false;
 bool serverTryingToLog = false;
-
 
 static char dynamicprompt[PROMPT_MAX_SIZE];
 
@@ -237,11 +234,12 @@ void cleanLastMessage()
     lastMessage = string();
 }
 
-void statechangehandle(string statestring)
+void statechangehandle(string statestring, MegaCmdShellCommunications &comsManager)
 {
     char statedelim[2]={(char)0x1F,'\0'};
     size_t nextstatedelimitpos = statestring.find(statedelim);
     static bool shown_partial_progress = false;
+    bool promtpReceivedBool = false;
 
     unsigned int width = getNumberOfCols(75);
     if (width > 1 ) width--;
@@ -261,9 +259,8 @@ void statechangehandle(string statestring)
             }
             changeprompt(newstate.substr(strlen("prompt:")).c_str(),true);
 
-            std::unique_lock<std::mutex> lk(promptLogReceivedMutex);
-            promtpLogReceivedCV.notify_one();
-            promtpLogReceivedBool = true;
+            comsManager.markServerReadyOrRegistrationFailed(true);
+            promtpReceivedBool = true;
         }
         else if (newstate.compare(0, strlen("endtransfer:"), "endtransfer:") == 0)
         {
@@ -323,13 +320,12 @@ void statechangehandle(string statestring)
                     printCenteredContents(contents, width);
                     requirepromptinstall = true;
 #ifndef NO_READLINE
-                    if (prompt == COMMAND && promtpLogReceivedBool)
+                    if (prompt == COMMAND && promtpReceivedBool)
                     {
                         std::lock_guard<std::mutex> g(mutexPrompt);
                         redisplay_prompt();
                     }
 #endif
-
                 }
                 else
                 {
@@ -409,9 +405,9 @@ void statechangehandle(string statestring)
         {
             doExit = true;
             doReboot = true;
-            if (!comms->updating)
+            if (!comsManager.updating)
             {
-                comms->updating = true; // to avoid mensajes about server down
+                comsManager.updating = true; // to avoid mensajes about server down
             }
             sleepSeconds(3); // Give a while for server to restart
             changeprompt("RESTART REQUIRED BY SERVER (due to an update). Press any key to continue.", true);
@@ -1839,32 +1835,17 @@ void readloop()
     readline_fd = fileno(rl_instream);
 
     procesingline = true;
-    if (comms->registerForStateChanges(true, statechangehandle) == 0)
+
+    comms->registerForStateChanges(true, statechangehandle);
+
+    if (comms->waitForServerReadyOrRegistrationFailed(std::chrono::seconds(2*RESUME_SESSION_TIMEOUT)))
     {
-        // now we can rely on having a prompt received if the server is running
-        std::unique_lock<std::mutex> lk(promptLogReceivedMutex);
-        if (!promtpLogReceivedBool)
-        {
-            if (promtpLogReceivedCV.wait_for(lk, std::chrono::seconds(2*RESUME_SESSION_TIMEOUT)) == std::cv_status::timeout)
-            {
-                std::cerr << "Server seems irresponsive" << endl;
-            }
-        }
+        std::cerr << "Server seems irresponsive" << endl;
     }
 
     procesingline = false;
     promptreinstalledwhenprocessingline = false;
 
-#if defined(_WIN32) && defined(USE_PORT_COMMS)
-    // due to a failure in reconnecting to the socket, if the server was initiated in while registeringForStateChanges
-    // in windows we would not be yet connected. we need to manually try to register again.
-    if (comms->registerAgainRequired)
-    {
-        comms->registerForStateChanges(true, statechangehandle);
-    }
-    //give it a while to communicate the state
-    sleepMilliSeconds(1);
-#endif
 
     for (;; )
     {
@@ -1974,11 +1955,11 @@ void readloop()
                     }
                 }
 
-                if (comms->registerAgainRequired)
+                if (comms->sRegisterAgainRequired)
                 {
                     // register again for state changes
                      comms->registerForStateChanges(true, statechangehandle);
-                     comms->registerAgainRequired = false;
+                     comms->sRegisterAgainRequired = false;
                 }
 
                 // sleep, so that in case there was a changeprompt waiting, gets executed before relooping
@@ -2006,17 +1987,6 @@ void readloop()
 
     //give it a while to communicate the state
     sleepMilliSeconds(700);
-
-#if defined(_WIN32) && defined(USE_PORT_COMMS)
-    // due to a failure in reconnecting to the socket, if the server was initiated in while registeringForStateChanges
-    // in windows we would not be yet connected. we need to manually try to register again.
-    if (comms->registerAgainRequired)
-    {
-        comms->registerForStateChanges(true, statechangehandle);
-    }
-    //give it a while to communicate the state
-    sleepMilliSeconds(1);
-#endif
 
     for (;; )
     {
@@ -2268,7 +2238,7 @@ int main(int argc, char* argv[])
 #endif
 
     // intialize the comms object
-#if defined(_WIN32) && !defined(USE_PORT_COMMS)
+#if defined(_WIN32)
     comms = new MegaCmdShellCommunicationsNamedPipes();
 #else
     comms = new MegaCmdShellCommunications();

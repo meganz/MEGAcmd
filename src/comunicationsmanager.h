@@ -33,7 +33,7 @@ struct CmdPetition
     virtual ~CmdPetition() = default;
 
     // Remove the starting 'X' if present (petitions coming from interactive mode)
-    std::string getUniformLine() const;
+    std::string_view getUniformLine() const;
 
     mega::MegaThread *getPetitionThread() const;
     void setPetitionThread(mega::MegaThread *value);
@@ -60,7 +60,7 @@ public:
 
     virtual bool receivedPetition();
 
-    virtual CmdPetition *registerStateListener(std::unique_ptr<CmdPetition> inf);
+    virtual CmdPetition *registerStateListener(std::unique_ptr<CmdPetition> &&inf);
 
     virtual int waitForPetition();
 

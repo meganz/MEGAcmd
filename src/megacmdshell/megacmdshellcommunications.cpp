@@ -76,14 +76,9 @@ namespace megacmd {
 using namespace std;
 
 bool MegaCmdShellCommunications::serverinitiatedfromshell;
-bool MegaCmdShellCommunications::registerAgainRequired;
+bool MegaCmdShellCommunications::sRegisterAgainRequired;
 bool MegaCmdShellCommunications::confirmResponse;
-bool MegaCmdShellCommunications::stopListener;
 bool MegaCmdShellCommunications::updating;
-MegaThread *MegaCmdShellCommunications::listenerThread;
-
-//state changes socket:
-SOCKET MegaCmdShellCommunications::newsockfd = INVALID_SOCKET;
 
 std::mutex MegaCmdShellCommunications::megaCmdStdoutputing;
 
@@ -93,14 +88,6 @@ bool MegaCmdShellCommunications::socketValid(SOCKET socket)
     return socket != INVALID_SOCKET;
 #else
     return socket >= 0;
-#endif
-}
-
-void MegaCmdShellCommunications::closeSocket(SOCKET socket){
-#ifdef _WIN32
-    closesocket(socket);
-#else
-    close(socket);
 #endif
 }
 
@@ -139,271 +126,166 @@ bool is_pid_running(pid_t pid) {
 }
 #endif
 
-SOCKET MegaCmdShellCommunications::createSocket(int number, bool initializeserver, bool net)
+SOCKET MegaCmdShellCommunications::createSocket(int number, bool initializeserver)
 {
-    if (net)
-    {
-        SOCKET thesock = socket(AF_INET, SOCK_STREAM, 0);
-        if (!socketValid(thesock))
-        {
-            cerr << "ERROR opening socket: " << ERRNO << endl;
-            return INVALID_SOCKET;
-        }
-#ifndef _WIN32
-        if (fcntl(thesock, F_SETFD, FD_CLOEXEC) == -1)
-        {
-            cerr << "ERROR setting CLOEXEC to socket: " << errno << endl;
-        }
-#endif
-        int portno=MEGACMDINITIALPORTNUMBER+number;
-
-        struct sockaddr_in addr;
-
-        memset(&addr, 0, sizeof( addr ));
-        addr.sin_family = AF_INET;
-        addr.sin_addr.s_addr = htonl (INADDR_LOOPBACK);
-        addr.sin_port = (unsigned short)htons((unsigned short)portno);
-
-        if (::connect(thesock, (struct sockaddr*)&addr, sizeof( addr )) == SOCKET_ERROR)
-        {
-            if (!number && initializeserver)
-            {
-                //launch server
-                cerr << "[MEGAcmd Server not running. Initiating in the background]"<< endl;
 #ifdef _WIN32
-                STARTUPINFO si;
-                PROCESS_INFORMATION pi;
-                ZeroMemory( &si, sizeof(si) );
-                ZeroMemory( &pi, sizeof(pi) );
-
-#ifndef NDEBUG
-                LPCWSTR t = TEXT(".\\MEGAcmdServer.exe");
-                if (true)
-                {
+    return INVALID_SOCKET;
 #else
-
-                wchar_t foldercontainingexec[MAX_PATH+1];
-                bool okgetcontaningfolder = false;
-                if (S_OK != SHGetFolderPathW(NULL,CSIDL_LOCAL_APPDATA,NULL,0,(LPWSTR)foldercontainingexec))
-                {
-                    if(S_OK != SHGetFolderPathW(NULL,CSIDL_COMMON_APPDATA,NULL,0,(LPWSTR)foldercontainingexec))
-                    {
-                        cerr << " Could not get LOCAL nor COMMON App Folder : " << ERRNO << endl;
-                    }
-                    else
-                    {
-                        okgetcontaningfolder = true;
-                    }
-                }
-                else
-                {
-                    okgetcontaningfolder = true;
-                }
-
-                if (okgetcontaningfolder)
-                {
-                    wstring fullpathtoexec(foldercontainingexec);
-                    fullpathtoexec+=L"\\MEGAcmd\\MEGAcmdServer.exe";
-
-                    LPCWSTR t = fullpathtoexec.c_str();
-#endif
-
-                    LPWSTR t2 = (LPWSTR) t;
-                    si.cb = sizeof(si);
-                    if (!CreateProcess( t,t2,NULL,NULL,TRUE,
-                                        CREATE_NEW_CONSOLE,
-                                        NULL,NULL,
-                                        &si,&pi) )
-                    {
-                        COUT << "Unable to execute: " << t << " errno = : " << ERRNO << endl;
-                    }
-                    Sleep(2000); // Give it a initial while to start.
-                }
-
-                //try again:
-                int attempts = 0; //TODO: if >0, connect will cause a SOCKET_ERROR in first recv in the server (not happening in the next petition)
-                int waitimet = 1500;
-                while ( attempts && ::connect(thesock, (struct sockaddr*)&addr, sizeof( addr )) == SOCKET_ERROR)
-                {
-                    Sleep(waitimet/1000);
-                    waitimet=waitimet*2;
-                    attempts--;
-                }
-                if (attempts < 0) //TODO: check this whenever attempts is > 0
-                {
-                    cerr << "Unable to connect to " << (number?("response socket N "+SSTR(number)):"MEGAcmd server") << ": error=" << ERRNO << endl;
-#ifdef __linux__
-                    cerr << "Please ensure mega-cmd-server is running" << endl;
-#else
-                    cerr << "Please ensure MEGAcmdServer is running" << endl;
-#endif
-                    return INVALID_SOCKET;
-                }
-                else
-                {
-                    serverinitiatedfromshell = true;
-                    registerAgainRequired = true;
-                }
-#else
-                //TODO: implement linux part (see !net option)
-#endif
-            }
-            return INVALID_SOCKET;
-        }
-        return thesock;
+    SOCKET thesock = socket(AF_UNIX, SOCK_STREAM, 0);
+    if (!socketValid(thesock))
+    {
+        cerr << "ERROR opening socket: " << ERRNO << endl;
+        return INVALID_SOCKET;
     }
 
-#ifndef _WIN32
-    else
+    bool ok = false;
+    ScopeGuard g([this, &thesock, &ok]()
     {
-        SOCKET thesock = socket(AF_UNIX, SOCK_STREAM, 0);
-        if (!socketValid(thesock))
+        if (!ok) //something failed
         {
-            cerr << "ERROR opening socket: " << ERRNO << endl;
-            return INVALID_SOCKET;
-        }
-        if (fcntl(thesock, F_SETFD, FD_CLOEXEC) == -1)
-        {
-            cerr << "ERROR setting CLOEXEC to socket: " << errno << endl;
-        }
-        std::string socketPath = getOrCreateSocketPath(false);
-        if (socketPath.empty())
-        {
-            std::cerr << "Error creating runtime directory for socket file: " << strerror(errno) << std::endl;
             close(thesock);
-            return INVALID_SOCKET;
         }
-        struct sockaddr_un addr;
+    });
 
-        memset(&addr, 0, sizeof( addr ));
-        addr.sun_family = AF_UNIX;
-        strncpy(addr.sun_path, socketPath.c_str(), socketPath.size());
+    if (fcntl(thesock, F_SETFD, FD_CLOEXEC) == -1)
+    {
+        cerr << "ERROR setting CLOEXEC to socket: " << errno << endl;
+    }
+    std::string socketPath = getOrCreateSocketPath(false);
+    if (socketPath.empty())
+    {
+        std::cerr << "Error creating runtime directory for socket file: " << strerror(errno) << std::endl;
+        return INVALID_SOCKET;
+    }
+    struct sockaddr_un addr;
 
-        if (::connect(thesock, (struct sockaddr*)&addr, sizeof( addr )) == SOCKET_ERROR)
+    memset(&addr, 0, sizeof( addr ));
+    addr.sun_family = AF_UNIX;
+    strncpy(addr.sun_path, socketPath.c_str(), socketPath.size());
+
+    if (::connect(thesock, (struct sockaddr*)&addr, sizeof( addr )) == SOCKET_ERROR)
+    {
+        if (!number && initializeserver)
         {
-            if (!number && initializeserver)
-            {
-                //launch server
-                int forkret = fork();
+            //launch server
+            int forkret = fork();
 //                if (forkret) //-> child is megacmdshell (debug megacmd server)
-                if (!forkret) //-> child is server. (debug megacmdshell)
-                {
-                    signal(SIGINT, SIG_IGN); //ignore Ctrl+C in the server
-                    setsid(); //create new session so as not to receive parent's Ctrl+C
+            if (!forkret) //-> child is server. (debug megacmdshell)
+            {
+                signal(SIGINT, SIG_IGN); //ignore Ctrl+C in the server
+                setsid(); //create new session so as not to receive parent's Ctrl+C
 
-                    // Give an indication of where the logs will be find:
-                    string pathtolog = createAndRetrieveConfigFolder()+"/megacmdserver.log";
-                    CERR << "[Initiating MEGAcmd server in background. Log: " << pathtolog << "]" << endl;
+                // Give an indication of where the logs will be find:
+                string pathtolog = createAndRetrieveConfigFolder()+"/megacmdserver.log";
+                CERR << "[Initiating MEGAcmd server in background. Log: " << pathtolog << "]" << endl;
 
-                    freopen(std::string(pathtolog).append(".out").c_str(),"w",stdout);
-                    freopen(std::string(pathtolog).append(".err").c_str(),"w",stderr);
+                freopen(std::string(pathtolog).append(".out").c_str(),"w",stdout);
+                freopen(std::string(pathtolog).append(".err").c_str(),"w",stderr);
 
-    #ifndef NDEBUG
-                    const char executable[] = "./mega-cmd-server";
+#ifndef NDEBUG
+                const char executable[] = "./mega-cmd-server";
+#else
+    #ifdef __MACH__
+                const char executable[] = "/Applications/MEGAcmd.app/Contents/MacOS/mega-cmd";
+                const char executable2[] = "./mega-cmd";
     #else
-        #ifdef __MACH__
-                    const char executable[] = "/Applications/MEGAcmd.app/Contents/MacOS/mega-cmd";
-                    const char executable2[] = "./mega-cmd";
+                const char executable[] = "mega-cmd-server";
+        #ifdef __linux__
+                char executable2[PATH_MAX];
+                sprintf(executable2, "%s/mega-cmd-server", getCurrentExecPath().c_str());
         #else
-                    const char executable[] = "mega-cmd-server";
-            #ifdef __linux__
-                    char executable2[PATH_MAX];
-                    sprintf(executable2, "%s/mega-cmd-server", getCurrentExecPath().c_str());
-            #else
-                    const char executable2[] = "./mega-cmd-server";
-            #endif
+                const char executable2[] = "./mega-cmd-server";
         #endif
     #endif
+#endif
 
-                    std::vector<const char*> argsVector{
-                        executable,
-                        "--log-to-file",
-                        nullptr
-                    };
+                std::vector<const char*> argsVector{
+                    executable,
+                    "--log-to-file",
+                    nullptr
+                };
 
-                    auto args = const_cast<char* const*>(argsVector.data());
-                    int ret = execvp(executable, args);
+                auto args = const_cast<char* const*>(argsVector.data());
+                int ret = execvp(executable, args);
 
+                if (ret && errno == 2)
+                {
+                    cerr << "Couln't initiate MEGAcmd server: executable not found: " << executable << endl;
+
+                #ifdef NDEBUG
+                    cerr << "Trying to use alternative executable: " << executable2 << endl;
+
+                    argsVector[0] = executable2;
+                    ret = execvp(executable2, args);
                     if (ret && errno == 2)
                     {
-                        cerr << "Couln't initiate MEGAcmd server: executable not found: " << executable << endl;
-
-                    #ifdef NDEBUG
-                        cerr << "Trying to use alternative executable: " << executable2 << endl;
-
-                        argsVector[0] = executable2;
-                        ret = execvp(executable2, args);
-                        if (ret && errno == 2)
-                        {
-                            cerr << "Couln't initiate MEGAcmd server: executable not found: " << executable2 << endl;
-                        }
-                    #endif
+                        cerr << "Couln't initiate MEGAcmd server: executable not found: " << executable2 << endl;
                     }
-
-                    if (ret && errno != 2)
-                    {
-                        cerr << "MEGAcmd server exit with code " << ret << " . errno = " << errno << endl;
-                    }
-                    exit(0);
+                #endif
                 }
 
+                if (ret && errno != 2)
+                {
+                    cerr << "MEGAcmd server exit with code " << ret << " . errno = " << errno << endl;
+                }
+                exit(0);
+            }
 
-                //try again:
-                int attempts = 12;
+
+            //try again:
+            int attempts = 12;
 #ifdef __MACH__
-                int waitimet = 15000; // Give a longer while for the user to insert password to unblock fsevents. TODO: this should only be required the first time using megacmd
+            int waitimet = 15000; // Give a longer while for the user to insert password to unblock fsevents. TODO: this should only be required the first time using megacmd
 #else
-                int waitimet = 1500;
-                static int relaunchnumber = 1;
-                waitimet=waitimet*(relaunchnumber++);
+            int waitimet = 1500;
+            static int relaunchnumber = 1;
+            waitimet=waitimet*(relaunchnumber++);
 #endif
 
-                usleep(waitimet*100);
-                while ( ::connect(thesock, (struct sockaddr*)&addr, sizeof( addr )) == SOCKET_ERROR && attempts--)
-                {
-                    usleep(waitimet);
-                    waitimet=waitimet*2;
-                }
-                if (attempts<0)
-                {
+            usleep(waitimet*100);
+            while ( ::connect(thesock, (struct sockaddr*)&addr, sizeof( addr )) == SOCKET_ERROR && attempts--)
+            {
+                usleep(waitimet);
+                waitimet=waitimet*2;
+            }
+            if (attempts<0)
+            {
 
-                    cerr << "Unable to connect to " << (number?("response socket N "+SSTR(number)):"service") << ": error=" << ERRNO << endl;
+                cerr << "Unable to connect to " << (number?("response socket N "+SSTR(number)):"service") << ": error=" << ERRNO << endl;
 #ifdef __linux__
-                    cerr << "Please ensure mega-cmd-server is running" << endl;
+                cerr << "Please ensure mega-cmd-server is running" << endl;
 #else
-                    cerr << "Please ensure MEGAcmdServer is running" << endl;
+                cerr << "Please ensure MEGAcmdServer is running" << endl;
 #endif
-                    return INVALID_SOCKET;
-                }
-                else
-                {
-                    if (forkret && is_pid_running(forkret)) // server pid is alive (most likely because I initiated the server)
-                    {
-                        serverinitiatedfromshell = true;
-                    }
-                    registerAgainRequired = true;
-                }
+                return INVALID_SOCKET;
             }
             else
             {
-#ifdef ECONNREFUSED
-                if (!initializeserver && ERRNO == ECONNREFUSED)
+                if (forkret && is_pid_running(forkret)) // server pid is alive (most likely because I initiated the server)
                 {
-                    cerr << "MEGAcmd Server is not responding" << endl;
+                    serverinitiatedfromshell = true;
                 }
-                else
-#endif
-                {
-                    cerr << "Unable to connect to socket  " << number <<  " : " << ERRNO << endl;
-                }
-                return INVALID_SOCKET;
+                sRegisterAgainRequired = true;
             }
         }
-
-        return thesock;
-    }
+        else
+        {
+#ifdef ECONNREFUSED
+            if (!initializeserver && ERRNO == ECONNREFUSED)
+            {
+                cerr << "MEGAcmd Server is not responding" << endl;
+            }
+            else
 #endif
-    return INVALID_SOCKET;
+            {
+                cerr << "Unable to connect to socket  " << number <<  " : " << ERRNO << endl;
+            }
+            return INVALID_SOCKET;
+        }
+    }
+    ok = true;
+    return thesock;
+#endif
 }
 
 MegaCmdShellCommunications::MegaCmdShellCommunications()
@@ -428,11 +310,10 @@ MegaCmdShellCommunications::MegaCmdShellCommunications()
 #endif
 
     serverinitiatedfromshell = false;
-    registerAgainRequired = false;
+    sRegisterAgainRequired = false;
 
     stopListener = false;
     updating = false;
-    listenerThread = NULL;
 }
 
 
@@ -536,6 +417,11 @@ int MegaCmdShellCommunications::executeCommand(string command, std::string (*rea
     {
         return -1;
     }
+
+    ScopeGuard g([this, &thesock]()
+    {
+        close(thesock);
+    });
 
     if (interactiveshell)
     {
@@ -714,24 +600,18 @@ int MegaCmdShellCommunications::executeCommand(string command, std::string (*rea
         return -1;
     }
 
-    closeSocket(thesock);
     return outcode;
 }
 
-
-void *MegaCmdShellCommunications::listenToStateChangesEntry(void *slsc)
+int MegaCmdShellCommunications::listenToStateChanges(int receiveSocket, StateChangedCb_t statechangehandle)
 {
-    listenToStateChanges(((sListenStateChanges *)slsc)->receiveSocket,((sListenStateChanges *)slsc)->statechangehandle);
-    delete ((sListenStateChanges *)slsc);
-    return NULL;
-}
+    assert(socketValid(receiveSocket));
 
-int MegaCmdShellCommunications::listenToStateChanges(int receiveSocket, void (*statechangehandle)(string))
-{
-    if (!socketValid(receiveSocket))
+    ScopeGuard g([this, receiveSocket]()
     {
-        return -1;
-    }
+        shutdown(receiveSocket, SHUT_RDWR);
+        close(receiveSocket);
+    });
 
     int timeout_notified_server_might_be_down = 0;
     while (!stopListener)
@@ -753,7 +633,6 @@ int MegaCmdShellCommunications::listenToStateChanges(int receiveSocket, void (*s
         if (n == SOCKET_ERROR)
         {
             cerr << "ERROR reading state from MEGAcmd server: " << ERRNO << endl;
-            closeSocket(receiveSocket);
             return -1;
         }
 
@@ -768,15 +647,13 @@ int MegaCmdShellCommunications::listenToStateChanges(int receiveSocket, void (*s
                 }
                 else
                 {
-                    closeSocket(receiveSocket);
                     return 0;
                 }
             }
             timeout_notified_server_might_be_down--;
             if (!timeout_notified_server_might_be_down)
             {
-                registerAgainRequired = true;
-                closeSocket(receiveSocket);
+                sRegisterAgainRequired = true;
                 return -1;
             }
 #ifdef _WIN32
@@ -787,13 +664,12 @@ int MegaCmdShellCommunications::listenToStateChanges(int receiveSocket, void (*s
             continue;
         }
 
-        if (statechangehandle != NULL)
+        if (statechangehandle)
         {
-            statechangehandle(newstate);
+            statechangehandle(newstate, *this);
         }
     }
 
-    closeSocket(receiveSocket);
     return 0;
 }
 
@@ -835,22 +711,70 @@ int MegaCmdShellCommunications::readconfirmationloop(const char *question, strin
 
 }
 
-int MegaCmdShellCommunications::registerForStateChanges(bool interactive, void (*statechangehandle)(string), bool initiateServer)
+bool MegaCmdShellCommunications::waitForServerReadyOrRegistrationFailed(std::optional<std::chrono::milliseconds> timeout)
 {
-    if (statechangehandle == NULL)
+    return timeout ? mPromiseServerReadyOrRegistrationFailed.get_future().wait_for(*timeout) != std::future_status::timeout
+            : (mPromiseServerReadyOrRegistrationFailed.get_future().wait(), true);
+}
+
+void MegaCmdShellCommunications::markServerReadyOrRegistrationFailed(bool readyOrFailed)
+{
+    if (!mPromiseServerReadyOrRegistrationFailedAttended.test_and_set()) // only once
     {
-        cerr << "Not registering for state changes since statechangehandle is NULL" << endl; //TODO: delete
-        registerAgainRequired = false;
-        return 0; //Do nth
+        mPromiseServerReadyOrRegistrationFailed.set_value(readyOrFailed);
     }
+}
+
+bool MegaCmdShellCommunications::registerForStateChanges(bool interactive, StateChangedCb_t statechangehandle, bool initiateServer)
+{
+    sRegisterAgainRequired = true;
+    auto resultRegistration = registerForStateChangesImpl(interactive, initiateServer);
+    if (!resultRegistration)
+    {
+        markServerReadyOrRegistrationFailed(false);
+        return false;
+    }
+    sRegisterAgainRequired = false;
+
+    if (mListenerThread)
+    {
+        stopListener = true;
+        mListenerThread->join();
+    }
+
+    stopListener = false;
+
+    mListenerThread.reset(new std::thread(
+        [this, fd{resultRegistration.value()}, statechangeCb{std::move(statechangehandle)}]()
+        {
+            listenToStateChanges(fd, statechangeCb);
+
+            // The above may have failed before receiving server readyness.
+            // This will ensure we don't halt main thread execution if that's the case:
+            markServerReadyOrRegistrationFailed(false);
+        }
+    ));
+    return true;
+}
+
+std::optional<int> MegaCmdShellCommunications::registerForStateChangesImpl(bool interactive, bool initiateServer)
+{
     SOCKET thesock = createSocket(0, initiateServer);
 
     if (thesock == INVALID_SOCKET)
     {
         cerr << "Failed to create socket for registering for state changes" << endl;
-        registerAgainRequired = true;
-        return -1;
+        return {};
     }
+
+    bool ok = false;
+    ScopeGuard g([this, &thesock, &ok]()
+    {
+        if (!ok) //something failed
+        {
+            close(thesock);
+        }
+    });
 
 #ifdef _WIN32
     wstring wcommand=interactive?L"Xregisterstatelistener":L"registerstatelistener";
@@ -864,45 +788,12 @@ int MegaCmdShellCommunications::registerForStateChanges(bool interactive, void (
     if (n == SOCKET_ERROR)
     {
         cerr << "ERROR writing output Code to socket: " << ERRNO << endl;
-        registerAgainRequired = true;
-        closeSocket(thesock);
-        return -1;
+        return {};
     }
 
-    int32_t registered = -1;
-    n = recv(thesock, (char*) &registered, sizeof(registered), MSG_NOSIGNAL);
-    if (n == SOCKET_ERROR || registered <= 0)
-    {
-        cerr << "FAILED to register state listener (note: you can continue to use MEGAcmd, but some features might be missing)" << endl;
-        registerAgainRequired = true;
-        closeSocket(thesock);
-        return -1;
-    }
+    ok = true;
 
-    if (listenerThread != NULL)
-    {
-        stopListener = true;
-        listenerThread->join();
-    }
-
-    stopListener = false;
-
-    sListenStateChanges * slsc = new sListenStateChanges();
-#ifdef _WIN32
-    slsc->receiveSocket = (int)thesock;
-#else
-    slsc->receiveSocket = thesock;
-#endif
-    slsc->statechangehandle = statechangehandle;
-
-    //store the socket to close connections when closing
-    newsockfd = thesock;
-
-    listenerThread = new MegaThread();
-    listenerThread->start(listenToStateChangesEntry,slsc);
-
-    registerAgainRequired = false;
-    return 0;
+    return thesock;
 }
 
 void MegaCmdShellCommunications::setResponseConfirmation(bool confirmation)
@@ -916,16 +807,10 @@ MegaCmdShellCommunications::~MegaCmdShellCommunications()
     WSACleanup();
 #endif
 
-    if (listenerThread != NULL)
+    if (mListenerThread)
     {
         stopListener = true;
-#ifdef _WIN32
-    shutdown(newsockfd,SD_BOTH);
-#else
-    shutdown(newsockfd,SHUT_RDWR);
-#endif
-        listenerThread->join();
+        mListenerThread->join();
     }
-    delete (MegaThread *)listenerThread;
 }
 } //end namespace

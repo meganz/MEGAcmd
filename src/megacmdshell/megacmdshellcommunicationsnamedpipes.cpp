@@ -47,9 +47,6 @@
 namespace megacmd {
 
 bool MegaCmdShellCommunicationsNamedPipes::confirmResponse; //TODO: do all this only in parent class
-bool MegaCmdShellCommunicationsNamedPipes::stopListener;
-std::unique_ptr<std::thread> MegaCmdShellCommunicationsNamedPipes::listenerThread;
-HANDLE MegaCmdShellCommunicationsNamedPipes::newNamedPipe;
 
 bool MegaCmdShellCommunicationsNamedPipes::namedPipeValid(HANDLE namedPipe)
 {
@@ -501,6 +498,11 @@ int MegaCmdShellCommunicationsNamedPipes::executeCommand(string command, std::st
         return -1;
     }
 
+    ScopeGuard g([this, &theNamedPipe]()
+    {
+        closeNamedPipe(theNamedPipe);
+    });
+
     if (interactiveshell)
     {
         command="X"+command;
@@ -538,6 +540,11 @@ int MegaCmdShellCommunicationsNamedPipes::executeCommand(string command, std::st
     {
         return -1;
     }
+
+    ScopeGuard g2([this, &newNamedPipe]()
+    {
+        closeNamedPipe(newNamedPipe);
+    });
 
     int outcode = -1;
 
@@ -719,21 +726,10 @@ int MegaCmdShellCommunicationsNamedPipes::executeCommand(string command, std::st
         return -1;
     }
 
-    closeNamedPipe(newNamedPipe);
-    closeNamedPipe(theNamedPipe);
-
     return outcode;
 }
 
-void *MegaCmdShellCommunicationsNamedPipes::listenToStateChangesEntryNamedPipe(void *slsc)
-{
-    listenToStateChanges(((sListenStateChangesNamedPipe *)slsc)->receiveNamedPipeNum,((sListenStateChangesNamedPipe *)slsc)->statechangehandle);
-    delete ((sListenStateChangesNamedPipe *)slsc);
-    return NULL;
-}
-
-
-int MegaCmdShellCommunicationsNamedPipes::listenToStateChanges(int receiveNamedPipeNum, void (*statechangehandle)(string))
+int MegaCmdShellCommunicationsNamedPipes::listenToStateChanges(int receiveNamedPipeNum, StateChangedCb_t statechangehandle)
 {
     newNamedPipe = createNamedPipe(receiveNamedPipeNum);
     if (!namedPipeValid(newNamedPipe))
@@ -809,18 +805,19 @@ int MegaCmdShellCommunicationsNamedPipes::listenToStateChanges(int receiveNamedP
     return 0;
 }
 
-int MegaCmdShellCommunicationsNamedPipes::registerForStateChanges(bool interactive, void (*statechangehandle)(string), bool initiateServer)
+bool MegaCmdShellCommunicationsNamedPipes::registerForStateChangesImpl(bool interactive, bool initiateServer)
 {
-    if (statechangehandle == NULL)
-    {
-        registerAgainRequired = false;
-        return 0; //Do nth
-    }
     HANDLE theNamedPipe = createNamedPipe(0, initiateServer);
+
     if (!namedPipeValid(theNamedPipe))
     {
-        return -1;
+        return {};
     }
+
+    ScopeGuard g([this, &theNamedPipe]()
+    {
+        closeNamedPipe(theNamedPipe);
+    });
 
     wstring wcommand=interactive?L"Xregisterstatelistener":L"registerstatelistener";
 
@@ -828,7 +825,7 @@ int MegaCmdShellCommunicationsNamedPipes::registerForStateChanges(bool interacti
     if (!WriteFile(theNamedPipe,(char *)wcommand.data(),DWORD(wcslen(wcommand.c_str())*sizeof(wchar_t)), &n, NULL))
     {
         cerr << "ERROR writing command to namedPipe: " << ERRNO << endl;
-        return -1;
+        return {};
     }
 
     int receiveNamedPipeNum = -1;
@@ -836,26 +833,10 @@ int MegaCmdShellCommunicationsNamedPipes::registerForStateChanges(bool interacti
     if (!ReadFile(theNamedPipe, (char *)&receiveNamedPipeNum, sizeof(receiveNamedPipeNum), &n, NULL) )
     {
         cerr << "ERROR reading output namedPipe" << endl;
-        return -1;
+        return {};
     }
 
-    if (listenerThread != nullptr)
-    {
-        stopListener = true;
-        listenerThread->join();
-    }
-
-    stopListener = false;
-
-    sListenStateChangesNamedPipe * slsc = new sListenStateChangesNamedPipe();
-    slsc->receiveNamedPipeNum = receiveNamedPipeNum;
-    slsc->statechangehandle = statechangehandle;
-    listenerThread = std::unique_ptr<std::thread>(new std::thread(listenToStateChangesEntryNamedPipe, slsc));
-
-    registerAgainRequired = false;
-
-    closeNamedPipe(theNamedPipe);
-    return 0;
+    return receiveNamedPipeNum;
 }
 
 void MegaCmdShellCommunicationsNamedPipes::setResponseConfirmation(bool confirmation)

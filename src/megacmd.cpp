@@ -86,13 +86,8 @@
 #endif
 
 #ifdef _WIN32
-#ifdef USE_PORT_COMMS
-#include "comunicationsmanagerportsockets.h"
-#define COMUNICATIONMANAGER ComunicationsManagerPortSockets
-#else
 #include "comunicationsmanagernamedpipes.h"
 #define COMUNICATIONMANAGER ComunicationsManagerNamedPipes
-#endif
 #else
 #include "comunicationsmanagerfilesockets.h"
 #define COMUNICATIONMANAGER ComunicationsManagerFileSockets
@@ -3797,8 +3792,9 @@ bool isBareCommand(const char *l, const string &command)
    return true;
 }
 
-static bool process_line(const char* l)
+static bool process_line(const std::string_view line)
 {
+    const char* l = line.data();
     switch (prompt)
     {
         case AREYOUSURETODELETE:
@@ -3975,23 +3971,12 @@ void* doProcessLine(void* infRaw)
     LoggedStreamPartialOutputs ls(cm, inf.get());
     setCurrentThreadOutStream(&ls);
 
-    bool isInteractive = false;
+    setCurrentThreadIsCmdShell(!inf->line.empty() && inf->line[0] == 'X');
 
-    if (!inf->line.empty() && inf->line[0] == 'X')
-    {
-        inf->line = inf->getUniformLine();
-
-        setCurrentThreadIsCmdShell(true);
-        isInteractive = true;
-    }
-    else
-    {
-        setCurrentThreadIsCmdShell(false);
-    }
 
     LOG_verbose << " Processing " << inf->line << " in thread: " << MegaThread::currentThreadId() << " " << inf->getPetitionDetails();
 
-    doExit = process_line(inf->line.c_str());
+    doExit = process_line(inf->getUniformLine());
 
     if (doExit)
     {

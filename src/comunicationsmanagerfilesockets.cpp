@@ -183,28 +183,31 @@ void ComunicationsManagerFileSockets::stopWaiting()
 }
 
 
-CmdPetition* ComunicationsManagerFileSockets::registerStateListener(std::unique_ptr<CmdPetition> inf)
+CmdPetition* ComunicationsManagerFileSockets::registerStateListener(std::unique_ptr<CmdPetition> &&inf)
 {
     const int socket = ((CmdPetitionPosixSockets*) inf.get())->outSocket;
     LOG_debug << "Registering state listener petition with socket: " << socket;
 
-    CmdPetition* infRaw = ComunicationsManager::registerStateListener(std::move(inf));
-
-    int32_t registered = (infRaw != nullptr);
-    send(socket, &registered, sizeof(registered), MSG_NOSIGNAL);
-
-    return infRaw;
+    return ComunicationsManager::registerStateListener(std::move(inf));
 }
 
 int ComunicationsManagerFileSockets::getMaxStateListeners() const
 {
-    struct rlimit limit;
-    if (getrlimit(RLIMIT_NOFILE, &limit) != 0)
-    {
-        LOG_err << "Failed to get ulimit -n (errno: " << errno << "); falling back to max state listeners default";
-        return ComunicationsManager::getMaxStateListeners();
-    }
-    return limit.rlim_cur * 0.80; // Leave 20% file descriptors for other processes, libraries, etc.
+    static int maxListenersAllowed = [this](){
+        struct rlimit limit;
+        if (getrlimit(RLIMIT_NOFILE, &limit) != 0)
+        {
+            LOG_err << "Failed to get ulimit -n (errno: " << errno << "); falling back to max state listeners default";
+            return ComunicationsManager::getMaxStateListeners();
+        }
+        int systemNumFilesLimit = static_cast<int>(limit.rlim_cur);
+        int maxListeners = systemNumFilesLimit - std::max(100, static_cast<int>(systemNumFilesLimit * 0.20)); // leave 20% or 100 file descriptors for other processes, libraries, etc:
+        maxListeners = std::min(maxListeners, static_cast<int>(FD_SETSIZE * 0.4)); // we don't want to use fd with numbers > 1024: select will not digest them well
+
+        return std::max(2/*minimum requirement*/, maxListeners);
+    }();
+
+    return maxListenersAllowed;
 }
 
 /**
@@ -291,14 +294,8 @@ int ComunicationsManagerFileSockets::informStateListener(CmdPetition *inf, const
     std::lock_guard<std::mutex> g(informerMutex);
     LOG_verbose << "Inform State Listener: Output to write in socket " << ((CmdPetitionPosixSockets *)inf)->outSocket << ": <<" << s << ">>";
 
-    static set<int> connectedsockets;
-
     int connectedsocket = ((CmdPetitionPosixSockets *)inf)->outSocket;
     assert(connectedsocket != -1);
-    if (connectedsocket != -1 && connectedsockets.find(connectedsocket) == connectedsockets.end())
-    { // if new, insert into the collection, to keep track and allow closing dangling sockets
-        connectedsockets.insert(connectedsocket);
-    }
 
     if (connectedsocket == -1)
     {
@@ -315,9 +312,7 @@ int ComunicationsManagerFileSockets::informStateListener(CmdPetition *inf, const
     {
         if (errno == 32) //socket closed
         {
-            LOG_debug << "Unregistering no longer listening client. Original petition: " << inf->line;
-            close(connectedsocket);
-            connectedsockets.erase(connectedsocket);
+            LOG_verbose << "Unregistering no longer listening client. Original petition: " << inf->line;
             return -1;
         }
         else
@@ -336,13 +331,9 @@ int ComunicationsManagerFileSockets::informStateListener(CmdPetition *inf, const
 std::unique_ptr<CmdPetition> ComunicationsManagerFileSockets::getPetition()
 {
     auto inf = std::make_unique<CmdPetitionPosixSockets>();
-    clilen = sizeof(cli_addr);
+    static socklen_t clilen = sizeof(cli_addr);
 
-    newsockfd = accept(sockfd, (struct sockaddr*) &cli_addr, &clilen);
-    if (fcntl(newsockfd, F_SETFD, FD_CLOEXEC) == -1)
-    {
-        LOG_err << "ERROR setting CLOEXEC to socket: " << errno;
-    }
+    int newsockfd = accept(sockfd, (struct sockaddr*) &cli_addr, &clilen);
 
     if (newsockfd < 0)
     {
@@ -359,6 +350,11 @@ std::unique_ptr<CmdPetition> ComunicationsManagerFileSockets::getPetition()
         sleep(1);
         inf->line = "ERROR";
         return inf;
+    }
+
+    if (fcntl(newsockfd, F_SETFD, FD_CLOEXEC) == -1)
+    {
+        LOG_err << "ERROR setting CLOEXEC to socket: " << errno;
     }
 
     string wholepetition;
