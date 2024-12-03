@@ -54,9 +54,7 @@ public:
 
     ~MegaCmdShellCommunicationsNamedPipes();
 
-    virtual int executeCommand(std::string command, std::string (*readresponse)(const char *) = NULL, OUTSTREAMTYPE &output = COUT, bool interactiveshell = true, std::wstring = L"")) override;
-
-    virtual bool registerForStateChangesImpl(bool interactive, StateChangedCb_t statechangehandle, bool initiateServer = true) override;
+    virtual int executeCommand(std::string command, std::string (*readresponse)(const char *) = NULL, OUTSTREAMTYPE &output = COUT, bool interactiveshell = true, std::wstring = L"") override;
 
     void setResponseConfirmation(bool confirmation);
 
@@ -66,7 +64,9 @@ private:
     static bool namedPipeValid(HANDLE namedPipe);
     static void closeNamedPipe(HANDLE namedPipe);
 
+    std::optional<int> registerForStateChangesImpl(bool interactive, bool initiateServer = true) override;
     virtual int listenToStateChanges(int receiveNamedPipeNum, StateChangedCb_t statechangehandle) override;
+    void triggerListenerThreadShutdown() override;
 
     static bool confirmResponse;
 

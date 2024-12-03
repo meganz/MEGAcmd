@@ -442,7 +442,6 @@ MegaCmdShellCommunicationsNamedPipes::MegaCmdShellCommunicationsNamedPipes()
     setlocale(LC_ALL, "en-US");
 #endif
 
-    stopListener = false;
     redirectedstdout = false;
 }
 
@@ -730,7 +729,7 @@ int MegaCmdShellCommunicationsNamedPipes::listenToStateChanges(int receiveNamedP
     }
 
     int timeout_notified_server_might_be_down = 0;
-    while (!stopListener)
+    while (!mStopListener)
     {
         if (!namedPipeValid(newNamedPipe))
         {
@@ -756,7 +755,7 @@ int MegaCmdShellCommunicationsNamedPipes::listenToStateChanges(int receiveNamedP
         {
             if (ERRNO == ERROR_BROKEN_PIPE)
             {
-                if (!stopListener && !updating)
+                if (!mStopListener && !updating)
                 {
                     cerr << "ERROR reading output (state change): The sever problably exited."<< endl;
                 }
@@ -784,7 +783,7 @@ int MegaCmdShellCommunicationsNamedPipes::listenToStateChanges(int receiveNamedP
     return 0;
 }
 
-bool MegaCmdShellCommunicationsNamedPipes::registerForStateChangesImpl(bool interactive, bool initiateServer)
+std::optional<int> MegaCmdShellCommunicationsNamedPipes::registerForStateChangesImpl(bool interactive, bool initiateServer)
 {
     HANDLE theNamedPipe = createNamedPipe(0, initiateServer);
 
@@ -823,22 +822,14 @@ void MegaCmdShellCommunicationsNamedPipes::setResponseConfirmation(bool confirma
     confirmResponse = confirmation;
 }
 
+void MegaCmdShellCommunicationsNamedPipes::triggerListenerThreadShutdown()
+{
+    // this would cause the wake of the listener thread:
+    executeCommand("sendack");
+}
+
 MegaCmdShellCommunicationsNamedPipes::~MegaCmdShellCommunicationsNamedPipes()
 {
-    if (listenerThread != nullptr) //TODO: use heritage for whatever we can
-    {
-        stopListener = true;
-
-        // This is a virtual method being executed in the destructor (bypasses virtual dispatch)
-        // TODO: Try to get rid of this when we fix this class
-        executeCommand("sendack");
-
-        listenerThread->join();
-    }
-
-    // Needed to reset this pointer for integration tests, which use this class several times in a row
-    // TODO: We need to fix this class completely; it shouldn't have so many static like these
-    listenerThread = nullptr;
 }
 
 } //end namespace
