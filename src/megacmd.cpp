@@ -1763,6 +1763,10 @@ const char * getUsageStr(const char *command, const HelpFlags& flags)
     {
         return "sync [localpath dstremotepath| [-dpe] [ID|localpath]";
     }
+    if (!strcmp(command, "sync-issues"))
+    {
+        return "sync-issues [[--detail (ID|--all)] [--limit=rowcount] [--disable-path-collapse]] | [--enable-warning|--disable-warning]";
+    }
     if (!strcmp(command, "sync-ignore"))
     {
         return "sync-ignore [--show|[--add|--add-exclusion|--remove|--remove-exclusion] filter1 filter2 ...] (ID|localpath|DEFAULT)";
@@ -2018,9 +2022,8 @@ void printTimeFormatHelp(ostringstream &os)
 
 void printColumnDisplayerHelp(ostringstream &os)
 {
-    os << " --col-separator=X" << "\t" << "Tt will use X as column separator. Otherwise the output will use" << endl;
-    os << "                     " << "\t" << " spaces to tabulate in an easy to read output:" << endl;
-    os << " --output-cols=COLUMN_NAME_1,COLUMN_NAME2,..." << "\t" << "You can select which columns to show (and their order) with this option" << endl;
+    os << " --col-separator=X" << "\t" << "Use the string \"X\" as column separator. Otherwise, spaces will be added between columns to align them." << endl;
+    os << " --output-cols=COLUMN_NAME_1,COLUMN_NAME2,..." << "\t" << "Select which columns to show and their order." << endl;
 }
 
 string getHelpStr(const char *command, const HelpFlags& flags = {})
@@ -2547,12 +2550,12 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << " unless an option is specified." << endl;
         os << endl;
         os << "Options:" << endl;
-        os << "-d | --delete" << " " << "ID|localpath" << "\t" << "deletes a synchronization (not the files)." << endl;
-        os << "-p | --pause" << " " << "ID|localpath" << "\t" << "pauses (disables) a synchronization." << endl;
-        os << "-e | --enable" << " " << "ID|localpath" << "\t" << "resumes a synchronization." << endl;
-        os << "[deprecated] --remove" << " " << "ID|localpath" << "\t" << "same as --delete." << endl;
-        os << "[deprecated] -s | --disable" << " " << "ID|localpath" << "\t" << "same as --pause." << endl;
-        os << "[deprecated] -r" << " " << "ID|localpath" << "\t" << "same as --enable." << endl;
+        os << " -d | --delete" << " " << "ID|localpath" << "\t" << "deletes a synchronization (not the files)." << endl;
+        os << " -p | --pause" << " " << "ID|localpath" << "\t" << "pauses (disables) a synchronization." << endl;
+        os << " -e | --enable" << " " << "ID|localpath" << "\t" << "resumes a synchronization." << endl;
+        os << " [deprecated] --remove" << " " << "ID|localpath" << "\t" << "same as --delete." << endl;
+        os << " [deprecated] -s | --disable" << " " << "ID|localpath" << "\t" << "same as --pause." << endl;
+        os << " [deprecated] -r" << " " << "ID|localpath" << "\t" << "same as --enable." << endl;
         os << " --path-display-size=N" << "\t" << "Use at least N characters for displaying paths." << endl;
         os << " --show-handles" << "\t" << "Prints remote nodes handles (H:XXXXXXXX)." << endl;
         printColumnDisplayerHelp(os);
@@ -2573,6 +2576,36 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
 #undef SOME_GENERATOR_MACRO
         os << " " << "ERROR: Error, if any." << endl;
         os << " " << "SIZE, FILE & DIRS: size, number of files and number of dirs in the remote folder." << endl;
+    }
+    else if (!strcmp(command, "sync-issues"))
+    {
+        os << "Show all issues with current syncs" << endl;
+        os << endl;
+        os << "When MEGAcmd detects conflicts with the data it's synchronizing, a sync issue is triggered. Syncing is stopped, and no progress is made on the conflicting data." << endl;
+        os << "A notification will appear when sync issues are detected. Because the sync engine might clear the internal issue list when processing, the notification can appear even if there were already issues before." << endl;
+        os << "Note: the sync issue list might not contain the latest updated data. Some issues might still be being processing by the sync engine, and some might not have been removed yet." << endl;
+        os << endl;
+        os << "Options:" << endl;
+        os << " --detail (ID | --all) " << "\t" << "Provides additional information on a particular sync issue." << endl;
+        os << "                       " << "\t" << "The ID of the sync where this issue appeared is shown, alongside its local and cloud paths." << endl;
+        os << "                       " << "\t" << "All paths involved in the issue are shown. For each path, the following columns are displayed:" << endl;
+        os << "                       " << "\t" << "\t" << "PATH: The conflicting local or cloud path (cloud paths are prefixed with \"<CLOUD>\")." << endl;
+        os << "                       " << "\t" << "\t" << "PATH_ISSUE: A brief explanation of the problem this file or folder has (if any)." << endl;
+        os << "                       " << "\t" << "\t" << "LAST_MODIFIED: The most recent date when this file or directory was updated." << endl;
+        os << "                       " << "\t" << "\t" << "UPLOADED: For cloud paths, the date of upload or creation. Empty for local paths." << endl;
+        os << "                       " << "\t" << "\t" << "SIZE: The size of the file. Empty for directories." << endl;
+        os << "                       " << "\t" << "\t" << "TYPE: The type of the path (file or directory). This column is hidden if the information it's not relevant for the particular sync issue." << endl;
+        os << "                       " << "\t" << "The \"--all\" argument can be used to show the details of all issues." << endl;
+        os << " --limit=rowcount " << "\t" << "Limits the amount of rows displayed. Can also be combined with \"--detail\"." << endl;
+        os << " --disable-path-collapse " << "\t" << "Ensures all paths are fully shown. By default long paths are truncated for readability." << endl;
+        os << " --enable-warning " << "\t" << "Enables the notification that appears when issues are detected. This setting is stored locally for all users." << endl;
+        os << " --disable-warning " << "\t" << "Disables the notification that appears when issues are detected. This setting is stored locally for all users." << endl;
+        printColumnDisplayerHelp(os);
+        os << endl;
+        os << "DISPLAYED columns:" << endl;
+        os << "\t" << "ISSUE_ID: A unique identifier of the sync issue. The ID can be used alongside the \"--detail\" argument." << endl;
+        os << "\t" << "PARENT_SYNC: The identifier of the sync that has this issue." << endl;
+        os << "\t" << "REASON: A brief explanation on what the issue is. Use the \"--detail\" argument to get extended information on a particular sync." << endl;
     }
     else if (!strcmp(command, "sync-ignore"))
     {
