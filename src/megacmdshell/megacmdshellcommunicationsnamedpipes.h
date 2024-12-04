@@ -58,11 +58,10 @@ public:
 
     void setResponseConfirmation(bool confirmation);
 
-    static HANDLE doOpenPipe(std::wstring nameOfPipe);
 
 private:
-    static bool namedPipeValid(HANDLE namedPipe);
-    static void closeNamedPipe(HANDLE namedPipe);
+    bool namedPipeValid(HANDLE namedPipe);
+    void closeNamedPipe(HANDLE namedPipe);
 
     std::optional<int> registerForStateChangesImpl(bool interactive, bool initiateServer = true) override;
     virtual int listenToStateChanges(int receiveNamedPipeNum, StateChangedCb_t statechangehandle) override;
@@ -70,7 +69,8 @@ private:
 
     static bool confirmResponse;
 
-    static HANDLE createNamedPipe(int number = 0,bool initializeserver = true);
+    HANDLE doOpenPipe(std::wstring nameOfPipe);
+    HANDLE createNamedPipe(int number = 0,bool initializeserver = true);
 
     static bool isFileOwnerCurrentUser(HANDLE hFile);
 

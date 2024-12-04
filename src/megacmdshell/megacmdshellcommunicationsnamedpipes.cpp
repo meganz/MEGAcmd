@@ -722,20 +722,20 @@ int MegaCmdShellCommunicationsNamedPipes::executeCommand(string command, std::st
 
 int MegaCmdShellCommunicationsNamedPipes::listenToStateChanges(int receiveNamedPipeNum, StateChangedCb_t statechangehandle)
 {
-    newNamedPipe = createNamedPipe(receiveNamedPipeNum);
+    HANDLE newNamedPipe = createNamedPipe(receiveNamedPipeNum);
     if (!namedPipeValid(newNamedPipe))
     {
         return -1;
     }
 
+    ScopeGuard g([this, &newNamedPipe]()
+    {
+        closeNamedPipe(newNamedPipe);
+    });
+
     int timeout_notified_server_might_be_down = 0;
     while (!mStopListener)
     {
-        if (!namedPipeValid(newNamedPipe))
-        {
-            return -1;
-        }
-
         string newstate;
 
         DWORD BUFFERSIZE = 1024;
@@ -764,7 +764,6 @@ int MegaCmdShellCommunicationsNamedPipes::listenToStateChanges(int receiveNamedP
             {
                 cerr << "ERROR reading output (state change): " << ERRNO << endl;
             }
-            closeNamedPipe(newNamedPipe);
             return -1;
         }
 
@@ -773,13 +772,12 @@ int MegaCmdShellCommunicationsNamedPipes::listenToStateChanges(int receiveNamedP
             return -1;
         }
 
-        if (statechangehandle != NULL)
+        if (statechangehandle)
         {
-            statechangehandle(newstate);
+            statechangehandle(newstate, *this);
         }
     }
 
-    closeNamedPipe(newNamedPipe);
     return 0;
 }
 

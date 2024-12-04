@@ -87,7 +87,7 @@ public:
 
     int get_next_comm_id();
 
-    CmdPetition* registerStateListener(std::unique_ptr<CmdPetition> inf) override;
+    CmdPetition* registerStateListener(std::unique_ptr<CmdPetition> &&inf) override;
 
     /**
      * @brief returnAndClosePetition
