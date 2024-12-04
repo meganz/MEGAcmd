@@ -2036,7 +2036,7 @@ void readloop()
                 requirepromptinstall = true;
 //                mutexPrompt.unlock();
 
-                if (comms->registerAgainRequired())
+                if (comms->registerRequired())
                 {
                     comms->registerForStateChanges(true, statechangehandle);
                 }
