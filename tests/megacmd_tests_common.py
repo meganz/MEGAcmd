@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
-import sys, os, subprocess, shutil, re
+import sys, os, subprocess, shutil, re, platform
 import fnmatch
 
 try:
@@ -16,6 +16,34 @@ try:
     #~ FIND="executeinMEGASHELL find" #TODO
 except:
     CMDSHELL=False
+
+def build_command_name(command):
+    if platform.system() == 'Windows':
+        return 'MEGAclient.exe ' + command
+    elif platform.system() == 'Darwin':
+        return 'mega-exec ' + command
+    else:
+        return 'mega-' + command
+
+GET = build_command_name('get')
+PUT = build_command_name('put')
+RM = build_command_name('rm')
+MV = build_command_name('mv')
+CD = build_command_name('cd')
+CP = build_command_name('cp')
+THUMB = build_command_name('thumbnail')
+LCD = build_command_name('lcd')
+MKDIR = build_command_name('mkdir')
+EXPORT = build_command_name('export')
+SHARE = build_command_name('share')
+INVITE = build_command_name('invite')
+FIND = build_command_name('find')
+WHOAMI = build_command_name('whoami')
+LOGOUT = build_command_name('logout')
+LOGIN = build_command_name('login')
+IPC = build_command_name('ipc')
+FTP = build_command_name('ftp')
+IMPORT = build_command_name('import')
 
 #execute command
 def ec(what):
