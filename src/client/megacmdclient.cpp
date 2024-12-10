@@ -722,7 +722,7 @@ void printprogress(long long completed, long long total, const char *title)
     printPercentageLineCerr(title, completed, total, percentDowloaded, !alreadyFinished);
 }
 
-void statechangehandle(string statestring, MegaCmdShellCommunications & comms)
+void statechangehandle(string statestring, MegaCmdShellCommunications & comsManager)
 {
     char statedelim[2]={(char)0x1F,'\0'};
     size_t nextstatedelimitpos = statestring.find(statedelim);
@@ -741,7 +741,7 @@ void statechangehandle(string statestring, MegaCmdShellCommunications & comms)
         if (newstate.compare(0, strlen("prompt:"), "prompt:") == 0)
         {
             // This is always received after server is first ready
-            comms.markServerRegistrationFailed();
+            comsManager.markServerRegistrationFailed();
         }
         else if (newstate.compare(0, strlen("endtransfer:"), "endtransfer:") == 0)
         {
@@ -763,11 +763,10 @@ void statechangehandle(string statestring, MegaCmdShellCommunications & comms)
                 wstring wbuffer;
                 stringtolocalw((const char*)os.str().data(),&wbuffer);
                 int oldmode;
-                MegaCmdShellCommunications::megaCmdStdoutputing.lock();
+                std::lock_guard<std::mutex> stdOutLockGuard(comsManager.getStdoutLockGuard());
                 oldmode = _setmode(_fileno(stdout), _O_U8TEXT);
                 OUTSTREAM << wbuffer << flush;
                 _setmode(_fileno(stdout), oldmode);
-                MegaCmdShellCommunications::megaCmdStdoutputing.unlock();
 
 #else
                 OUTSTREAM << os.str();
@@ -777,11 +776,11 @@ void statechangehandle(string statestring, MegaCmdShellCommunications & comms)
         else if (newstate.compare(0, strlen("loged:"), "loged:") == 0)
         {
             // non interactive client doesn't need to wait for prompt if login finished
-            comms.markServerReady();
+            comsManager.markServerReady();
         }
         else if (newstate.compare(0, strlen("login:"), "login:") == 0)
         {
-            std::unique_lock<std::mutex> lk(MegaCmdShellCommunications::megaCmdStdoutputing);
+            std::lock_guard<std::mutex> stdOutLockGuard(comsManager.getStdoutLockGuard());
             printCenteredContentsCerr(string("Resuming session ... ").c_str(), width, false);
         }
         else if (newstate.compare(0, strlen("message:"), "message:") == 0)
@@ -793,7 +792,8 @@ void statechangehandle(string statestring, MegaCmdShellCommunications & comms)
                 string contents = newstate.substr(strlen("message:"));
                 replaceAll(contents, "%mega-%", "mega-");
 
-                MegaCmdShellCommunications::megaCmdStdoutputing.lock();
+
+                std::lock_guard<std::mutex> stdOutLockGuard(comsManager.getStdoutLockGuard());
                 if (shown_partial_progress)
                 {
                     cerr << endl;
@@ -806,7 +806,6 @@ void statechangehandle(string statestring, MegaCmdShellCommunications & comms)
                 {
                     cerr << endl <<  contents << endl;
                 }
-                MegaCmdShellCommunications::megaCmdStdoutputing.unlock();
             }
         }
         else if (newstate.compare(0, strlen("clientID:"), "clientID:") == 0)
@@ -841,31 +840,11 @@ void statechangehandle(string statestring, MegaCmdShellCommunications & comms)
                 shown_partial_progress = false;
             }
 
-            MegaCmdShellCommunications::megaCmdStdoutputing.lock();
-            if (title.size())
-            {
-                if (received==SPROGRESS_COMPLETE)
-                {
-                    printprogress(PROGRESS_COMPLETE, charstoll(total.c_str()),title.c_str());
 
-                }
-                else
-                {
-                    printprogress(charstoll(received.c_str()), charstoll(total.c_str()),title.c_str());
-                }
-            }
-            else
-            {
-                if (received==SPROGRESS_COMPLETE)
-                {
-                    printprogress(PROGRESS_COMPLETE, charstoll(total.c_str()));
-                }
-                else
-                {
-                    printprogress(charstoll(received.c_str()), charstoll(total.c_str()));
-                }
-            }
-            MegaCmdShellCommunications::megaCmdStdoutputing.unlock();
+            std::lock_guard<std::mutex> stdOutLockGuard(comsManager.getStdoutLockGuard());
+            long long completed = received == SPROGRESS_COMPLETE ? PROGRESS_COMPLETE : charstoll(received.c_str());
+            const char * progressTitle = title.empty() ? "TRANSFERRING" : title.c_str();
+            printprogress(completed, charstoll(total.c_str()), progressTitle);
         }
         else if (newstate == "ack")
         {

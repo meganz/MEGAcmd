@@ -115,7 +115,6 @@ public:
     MegaCmdShellCommunications();
     virtual ~MegaCmdShellCommunications();
 
-    static inline std::mutex megaCmdStdoutputing;
     virtual int executeCommand(std::string command, std::string (*readresponse)(const char *) = NULL, OUTSTREAMTYPE &output = COUT, bool interactiveshell = true, std::wstring = L"") = 0;
     virtual int executeCommandW(std::wstring command, std::string (*readresponse)(const char *) = NULL, OUTSTREAMTYPE &output = COUT, bool interactiveshell = true);
 
@@ -140,12 +139,14 @@ public:
     bool registerRequired();
     void setForRegisterAgain(bool dontWait = false);
 
+    std::lock_guard<std::mutex> getStdoutLockGuard();
+
 private:
     virtual void triggerListenerThreadShutdown() {};
     virtual std::optional<int> registerForStateChangesImpl(bool interactive, bool initiateServer = true) = 0;
     virtual int listenToStateChanges(int receiveSocket, StateChangedCb_t statechangehandle) = 0;
 
-    static inline bool confirmResponse = false;
+    std::mutex mStdoutMutex;
 
     std::unique_ptr<std::thread> mListenerThread;
 

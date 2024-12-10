@@ -253,7 +253,7 @@ void statechangehandle(string statestring, MegaCmdShellCommunications &comsManag
         {
             if (serverTryingToLog)
             {
-                std::unique_lock<std::mutex> lk(MegaCmdShellCommunications::megaCmdStdoutputing);
+                std::lock_guard<std::mutex> stdOutLockGuard(comsManager.getStdoutLockGuard());
                 printCenteredContentsCerr(string("MEGAcmd Server is still trying to log in. Still, some commands are available.\n"
                              "Type \"help\", to list them.").c_str(), width);
             }
@@ -280,11 +280,10 @@ void statechangehandle(string statestring, MegaCmdShellCommunications &comsManag
                 wstring wbuffer;
                 stringtolocalw((const char*)os.str().data(),&wbuffer);
                 int oldmode;
-                MegaCmdShellCommunications::megaCmdStdoutputing.lock();
+                std::lock_guard<std::mutex> stdOutLockGuard(comsManager.getStdoutLockGuard());
                 oldmode = _setmode(_fileno(stdout), _O_U8TEXT);
                 OUTSTREAM << wbuffer << flush;
                 _setmode(_fileno(stdout), oldmode);
-                MegaCmdShellCommunications::megaCmdStdoutputing.unlock();
 #else
                 OUTSTREAM << os.str();
 #endif
@@ -297,14 +296,15 @@ void statechangehandle(string statestring, MegaCmdShellCommunications &comsManag
         else if (newstate.compare(0, strlen("login:"), "login:") == 0)
         {
             serverTryingToLog = true;
-            std::unique_lock<std::mutex> lk(MegaCmdShellCommunications::megaCmdStdoutputing);
+
+            std::lock_guard<std::mutex> stdOutLockGuard(comsManager.getStdoutLockGuard());
             printCenteredContentsCerr(string("Resuming session ... ").c_str(), width, false);
         }
         else if (newstate.compare(0, strlen("message:"), "message:") == 0)
         {
             if (notRepeatedMessage(newstate)) //to avoid repeating messages
             {
-                MegaCmdShellCommunications::megaCmdStdoutputing.lock();
+                std::lock_guard<std::mutex> stdOutLockGuard(comsManager.getStdoutLockGuard());
 #ifdef _WIN32
                 int oldmode = _setmode(_fileno(stdout), _O_U8TEXT);
 #endif
@@ -335,7 +335,6 @@ void statechangehandle(string statestring, MegaCmdShellCommunications &comsManag
 #ifdef _WIN32
                 _setmode(_fileno(stdout), oldmode);
 #endif
-                MegaCmdShellCommunications::megaCmdStdoutputing.unlock();
 
             }
         }
@@ -371,31 +370,10 @@ void statechangehandle(string statestring, MegaCmdShellCommunications &comsManag
                 shown_partial_progress = false;
             }
 
-            MegaCmdShellCommunications::megaCmdStdoutputing.lock();
-            if (title.size())
-            {
-                if (received==SPROGRESS_COMPLETE)
-                {
-                    printprogress(PROGRESS_COMPLETE, charstoll(total.c_str()),title.c_str());
-
-                }
-                else
-                {
-                    printprogress(charstoll(received.c_str()), charstoll(total.c_str()),title.c_str());
-                }
-            }
-            else
-            {
-                if (received==SPROGRESS_COMPLETE)
-                {
-                    printprogress(PROGRESS_COMPLETE, charstoll(total.c_str()));
-                }
-                else
-                {
-                    printprogress(charstoll(received.c_str()), charstoll(total.c_str()));
-                }
-            }
-            MegaCmdShellCommunications::megaCmdStdoutputing.unlock();
+            std::lock_guard<std::mutex> stdOutLockGuard(comsManager.getStdoutLockGuard());
+            long long completed = received == SPROGRESS_COMPLETE ? PROGRESS_COMPLETE : charstoll(received.c_str());
+            const char * progressTitle = title.empty() ? "TRANSFERRING" : title.c_str();
+            printprogress(completed, charstoll(total.c_str()), progressTitle);
         }
         else if (newstate == "ack")
         {

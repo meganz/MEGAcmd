@@ -435,8 +435,7 @@ int MegaCmdShellCommunicationsPosix::executeCommand(string command, std::string 
             n = recv(thesock, (char *)&partialoutsize, sizeof(partialoutsize), MSG_NOSIGNAL);
             if (n && partialoutsize > 0)
             {
-                megaCmdStdoutputing.lock();
-
+                std::lock_guard<std::mutex> stdOutLockGuard(getStdoutLockGuard());
                 do{
                     char *buffer = new char[partialoutsize+1];
                     n = recv(thesock, (char *)buffer, partialoutsize, MSG_NOSIGNAL);
@@ -448,7 +447,6 @@ int MegaCmdShellCommunicationsPosix::executeCommand(string command, std::string 
                     }
                     delete[] buffer;
                 } while(n != 0 && partialoutsize && n !=SOCKET_ERROR);
-                megaCmdStdoutputing.unlock();
             }
             else
             {
@@ -513,12 +511,11 @@ int MegaCmdShellCommunicationsPosix::executeCommand(string command, std::string 
         n = recv(thesock, buffer, BUFFERSIZE, MSG_NOSIGNAL);
         if (n)
         {
-            megaCmdStdoutputing.lock();
             if (n != 1 || buffer[0] != 0) //To avoid outputing 0 char in binary outputs
             {
+                std::lock_guard<std::mutex> stdOutLockGuard(getStdoutLockGuard());
                 output << string(buffer,n) << flush;
             }
-            megaCmdStdoutputing.unlock();
         }
     } while(n != 0 && n !=SOCKET_ERROR);
 
@@ -678,10 +675,10 @@ bool MegaCmdShellCommunications::registerForStateChanges(bool interactive, State
         [this, fd{resultRegistration.value()}, statechangeCb{std::move(statechangehandle)}]()
         {
             bool everSucceeded = false;
-            auto stateChangedWrapped = [&everSucceeded, statechangeCb{std::move(statechangeCb)}](std::string state, MegaCmdShellCommunications &commsManager)
+            auto stateChangedWrapped = [&everSucceeded, statechangeCb{std::move(statechangeCb)}](std::string state, MegaCmdShellCommunications &comsManager)
             {
                 everSucceeded = true;
-                statechangeCb(std::move(state), commsManager);
+                statechangeCb(std::move(state), comsManager);
             };
 
             auto r = listenToStateChanges(fd, stateChangedWrapped);
@@ -754,9 +751,8 @@ void MegaCmdShellCommunicationsPosix::triggerListenerThreadShutdown()
 }
 #endif
 
-void MegaCmdShellCommunications::setResponseConfirmation(bool confirmation)
+void MegaCmdShellCommunications::setResponseConfirmation(bool /*confirmation*/)
 {
-    confirmResponse = confirmation;
 }
 
 void MegaCmdShellCommunications::shutdown()
@@ -788,6 +784,11 @@ void MegaCmdShellCommunications::setForRegisterAgain(bool dontWait)
     {
         mLastFailedRegistration = std::chrono::steady_clock::now();
     }
+}
+
+std::lock_guard<std::mutex> MegaCmdShellCommunications::getStdoutLockGuard()
+{
+    return std::lock_guard<std::mutex>(mStdoutMutex);
 }
 
 MegaCmdShellCommunications::~MegaCmdShellCommunications()
