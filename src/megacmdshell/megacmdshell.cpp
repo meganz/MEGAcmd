@@ -259,7 +259,7 @@ void statechangehandle(string statestring, MegaCmdShellCommunications &comsManag
             }
             changeprompt(newstate.substr(strlen("prompt:")).c_str(),true);
 
-            comsManager.markServerReadyOrRegistrationFailed(true);
+            comsManager.markServerReady();
             promtpReceivedBool = true;
         }
         else if (newstate.compare(0, strlen("endtransfer:"), "endtransfer:") == 0)
@@ -405,10 +405,8 @@ void statechangehandle(string statestring, MegaCmdShellCommunications &comsManag
         {
             doExit = true;
             doReboot = true;
-            if (!comsManager.updating)
-            {
-                comsManager.updating = true; // to avoid mensajes about server down
-            }
+            comsManager.markServerIsUpdating(); // to avoid mensajes about server down
+
             sleepSeconds(3); // Give a while for server to restart
             changeprompt("RESTART REQUIRED BY SERVER (due to an update). Press any key to continue.", true);
         }
@@ -565,7 +563,7 @@ static void store_line(char* l)
         doExit = true;
         rl_set_prompt("(CTRL+D) Exiting ...\n");
 #ifndef NDEBUG
-        if (comms->mServerinitiatedfromshell)
+        if (comms->mServerInitiatedFromShell)
         {
             OUTSTREAM << " Forwarding exit command to the server, since this cmd shell (most likely) initiated it" << endl;
             comms->executeCommand("exit", readresponse);
@@ -1887,7 +1885,7 @@ void readloop()
                 rl_callback_read_char(); //this calls store_line if last char was enter
 
                 time_t tnow = time(NULL);
-                if ( (tnow - lasttimeretrycons) > 5 && !doExit && !MegaCmdShellCommunications::updating)
+                if ( (tnow - lasttimeretrycons) > 5 && !doExit && !comms->isServerUpdating())
                 {
                     char * sl = rl_copy_text(0, rl_end);
                     if (string("quit").find(sl) != 0 && string("exit").find(sl) != 0)

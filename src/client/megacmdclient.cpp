@@ -741,7 +741,7 @@ void statechangehandle(string statestring, MegaCmdShellCommunications & comms)
         if (newstate.compare(0, strlen("prompt:"), "prompt:") == 0)
         {
             // This is always received after server is first ready
-            comms.markServerReadyOrRegistrationFailed(true);
+            comms.markServerRegistrationFailed();
         }
         else if (newstate.compare(0, strlen("endtransfer:"), "endtransfer:") == 0)
         {
@@ -776,8 +776,8 @@ void statechangehandle(string statestring, MegaCmdShellCommunications & comms)
         }
         else if (newstate.compare(0, strlen("loged:"), "loged:") == 0)
         {
-            // non interactive client don't need to wait for prompt if login finished
-            comms.markServerReadyOrRegistrationFailed(true);
+            // non interactive client doesn't need to wait for prompt if login finished
+            comms.markServerReady();
         }
         else if (newstate.compare(0, strlen("login:"), "login:") == 0)
         {

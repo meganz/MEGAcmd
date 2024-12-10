@@ -201,10 +201,10 @@ int ComunicationsManagerFileSockets::getMaxStateListeners() const
             return ComunicationsManager::getMaxStateListeners();
         }
         int systemNumFilesLimit = static_cast<int>(limit.rlim_cur);
-        int maxListeners = systemNumFilesLimit - std::max(100, static_cast<int>(systemNumFilesLimit * 0.20)); // leave 20% or 100 file descriptors for other processes, libraries, etc:
-        maxListeners = std::min(maxListeners, static_cast<int>(FD_SETSIZE * 0.4)); // we don't want to use fd with numbers > 1024: select will not digest them well
+        int maxListeners = systemNumFilesLimit - std::max(100, static_cast<int>(systemNumFilesLimit * 0.20)); // leave 20% or 100 file descriptors for libraries and other fds:
+        maxListeners = std::min(maxListeners, static_cast<int>(FD_SETSIZE * 0.4)); // we don't want to use fd with numbers > 1024: select will not digest them well: lets play a safe 60% margin.
 
-        return std::max(2/*minimum requirement*/, maxListeners);
+        return std::max(2/*minimum requirement*/, maxListeners); // maxListeners may be negative based on above calculations (unexpected). Let's play our chances of survival despite that.
     }();
 
     return maxListenersAllowed;

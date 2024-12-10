@@ -445,6 +445,12 @@ std::string &ltrim(std::string &s, const char &c)
     return s;
 }
 
+std::string_view ltrim(const std::string_view s, const char &c)
+{
+    size_t pos = s.find_first_not_of(c);
+    return s.substr(pos == std::string::npos ? s.size() : pos, s.length());
+}
+
 std::string &rtrim(std::string &s, const char &c)
 {
     size_t pos = s.find_last_of(c);
@@ -727,15 +733,6 @@ string getRightAlignedString(const string origin, unsigned int minsize)
     ostringstream os;
     os << std::setw(minsize) << origin;
     return os.str();
-}
-
-bool startsWith(const std::string& str, std::string_view prefix)
-{
-    if (prefix.size() > str.size())
-    {
-        return false;
-    }
-    return str.compare(0, prefix.size(), prefix) == 0;
 }
 
 bool startsWith(const std::string_view str, const std::string_view prefix)

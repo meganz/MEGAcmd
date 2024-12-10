@@ -115,7 +115,7 @@ public:
     MegaCmdShellCommunications();
     virtual ~MegaCmdShellCommunications();
 
-    static std::mutex megaCmdStdoutputing;
+    static inline std::mutex megaCmdStdoutputing;
     virtual int executeCommand(std::string command, std::string (*readresponse)(const char *) = NULL, OUTSTREAMTYPE &output = COUT, bool interactiveshell = true, std::wstring = L"") = 0;
     virtual int executeCommandW(std::wstring command, std::string (*readresponse)(const char *) = NULL, OUTSTREAMTYPE &output = COUT, bool interactiveshell = true);
 
@@ -123,15 +123,19 @@ public:
 
     virtual void setResponseConfirmation(bool confirmation);
 
-    bool mServerinitiatedfromshell = false;
+    bool mServerInitiatedFromShell = false;
 
     int readconfirmationloop(const char *question, std::string (*readresponse)(const char *));
-    static bool updating;
 
     // returns true if did not timeout
     bool waitForServerReadyOrRegistrationFailed(std::optional<std::chrono::milliseconds> timeout = {});
 
-    void markServerReadyOrRegistrationFailed(bool readyOrFailed);
+    void markServerReady() { markServerReadyOrRegistrationFailed(true); }
+    void markServerRegistrationFailed() { markServerReadyOrRegistrationFailed(false); }
+
+    void markServerIsUpdating();
+    bool isServerUpdating();
+
     void shutdown();
     bool registerRequired();
     void setForRegisterAgain(bool dontWait = false);
@@ -141,7 +145,7 @@ private:
     virtual std::optional<int> registerForStateChangesImpl(bool interactive, bool initiateServer = true) = 0;
     virtual int listenToStateChanges(int receiveSocket, StateChangedCb_t statechangehandle) = 0;
 
-    static bool confirmResponse;
+    static inline bool confirmResponse = false;
 
     std::unique_ptr<std::thread> mListenerThread;
 
@@ -149,10 +153,13 @@ private:
     std::optional<std::chrono::steady_clock::time_point> mLastFailedRegistration;
     bool mRegisterRequired = true;
 
+    void markServerReadyOrRegistrationFailed(bool readyOrFailed);
+
 protected:
     std::promise<bool> mPromiseServerReadyOrRegistrationFailed;
     std::atomic_flag mPromiseServerReadyOrRegistrationFailedAttended = ATOMIC_FLAG_INIT;
     std::atomic_bool mStopListener = false;
+    std::atomic_bool mUpdating = false;
 
 };
 
@@ -163,7 +170,7 @@ public:
     int executeCommand(std::string command, std::string (*readresponse)(const char *) = NULL, OUTSTREAMTYPE &output = COUT, bool interactiveshell = true, std::wstring = L"") override;
 private:
 
-    bool socketValid(SOCKET socket);
+    bool isSocketValid(SOCKET socket);
     SOCKET createSocket(int number = 0, bool initializeserver = true);
 
     std::atomic_int mStateListenerSocket = -1;

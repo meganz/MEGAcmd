@@ -155,12 +155,7 @@ std::string ComunicationsManager::getUserResponse(CmdPetition *inf, string messa
 
 std::string_view CmdPetition::getUniformLine() const
 {
-   size_t pos = 0;
-   while (pos < line.size() && line[pos] == 'X')
-   {
-       ++pos;
-   }
-    return std::string_view(line).substr(pos);
+    return ltrim(std::string_view(line), 'X');
 }
 
 MegaThread *CmdPetition::getPetitionThread() const

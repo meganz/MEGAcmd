@@ -3795,6 +3795,7 @@ bool isBareCommand(const char *l, const string &command)
 static bool process_line(const std::string_view line)
 {
     const char* l = line.data();
+    assert(line.size() == strlen(l)); // string_view does not guarantee null termination, which is depended upon
     switch (prompt)
     {
         case AREYOUSURETODELETE:

@@ -67,18 +67,8 @@
 #define ENOTCONN 107
 #endif
 
-#ifndef SSTR
-    #define SSTR( x ) static_cast< const std::ostringstream & >( \
-        ( std::ostringstream() << std::dec << x ) ).str()
-#endif
-
 namespace megacmd {
 using namespace std;
-
-bool MegaCmdShellCommunications::confirmResponse;
-bool MegaCmdShellCommunications::updating;
-
-std::mutex MegaCmdShellCommunications::megaCmdStdoutputing;
 
 string createAndRetrieveConfigFolder()
 {
@@ -116,7 +106,7 @@ bool is_pid_running(pid_t pid) {
 #endif
 
 #ifndef _WIN32
-bool MegaCmdShellCommunicationsPosix::socketValid(SOCKET socket)
+bool MegaCmdShellCommunicationsPosix::isSocketValid(SOCKET socket)
 {
     return socket >= 0;
 }
@@ -124,7 +114,7 @@ bool MegaCmdShellCommunicationsPosix::socketValid(SOCKET socket)
 SOCKET MegaCmdShellCommunicationsPosix::createSocket(int number, bool initializeserver)
 {
     SOCKET thesock = socket(AF_UNIX, SOCK_STREAM, 0);
-    if (!socketValid(thesock))
+    if (!isSocketValid(thesock))
     {
         cerr << "ERROR opening socket: " << ERRNO << endl;
         return INVALID_SOCKET;
@@ -182,12 +172,8 @@ SOCKET MegaCmdShellCommunicationsPosix::createSocket(int number, bool initialize
                 const char executable2[] = "./mega-cmd";
     #else
                 const char executable[] = "mega-cmd-server";
-        #ifdef __linux__
                 char executable2[PATH_MAX];
                 sprintf(executable2, "%s/mega-cmd-server", getCurrentExecPath().c_str());
-        #else
-                const char executable2[] = "./mega-cmd-server";
-        #endif
     #endif
 #endif
 
@@ -244,7 +230,7 @@ SOCKET MegaCmdShellCommunicationsPosix::createSocket(int number, bool initialize
             if (attempts < 0) //too many attempts
             {
 
-                cerr << "Unable to connect to " << (number?("response socket N "+SSTR(number)):"service") << ": error=" << ERRNO << endl;
+                cerr << "Unable to connect to " << (number?("response socket N "+std::to_string(number)):"service") << ": error=" << ERRNO << endl;
 #ifdef __linux__
                 cerr << "Please ensure mega-cmd-server is running" << endl;
 #else
@@ -256,7 +242,7 @@ SOCKET MegaCmdShellCommunicationsPosix::createSocket(int number, bool initialize
             {
                 if (forkret && is_pid_running(forkret)) // server pid is alive (most likely because I initiated the server)
                 {
-                    mServerinitiatedfromshell = true;
+                    mServerInitiatedFromShell = true;
                 }
 
                 setForRegisterAgain(true);
@@ -304,8 +290,6 @@ MegaCmdShellCommunications::MegaCmdShellCommunications()
     }
 #endif
 
-    mStopListener = false;
-    updating = false;
 }
 
 
@@ -404,7 +388,7 @@ int MegaCmdShellCommunications::executeCommandW(wstring wcommand, std::string (*
 int MegaCmdShellCommunicationsPosix::executeCommand(string command, std::string (*readresponse)(const char *), OUTSTREAMTYPE &output, bool interactiveshell, wstring /*wcommand*/)
 {
     SOCKET thesock = createSocket(0, command.compare(0,4,"exit") && command.compare(0,4,"quit") && command.compare(0,10,"completion"));
-    if (!socketValid(thesock))
+    if (!isSocketValid(thesock))
     {
         return -1;
     }
@@ -419,24 +403,7 @@ int MegaCmdShellCommunicationsPosix::executeCommand(string command, std::string 
         command="X"+command;
     }
 
-#ifdef _WIN32
-//    //unescape \uXXXX sequences
-//    command=unescapeutf16escapedseqs(command.c_str());
-
-    //get local wide chars string (utf8 -> utf16)
-    if (!wcommand.size())
-    {
-        stringtolocalw(command.c_str(),&wcommand);
-    }
-    else if (interactiveshell)
-    {
-        wcommand=L"X"+wcommand;
-    }
-    int n = send(thesock,(char *)wcommand.data(),int(wcslen(wcommand.c_str())*sizeof(wchar_t)), MSG_NOSIGNAL);
-
-#else
     auto n = send(thesock,command.data(),command.size(), MSG_NOSIGNAL);
-#endif
     if (n == SOCKET_ERROR)
     {
         if ( (!command.compare(0,5,"Xexit") || !command.compare(0,5,"Xquit") ) && (ERRNO == ENOTCONN) )
@@ -472,26 +439,11 @@ int MegaCmdShellCommunicationsPosix::executeCommand(string command, std::string 
 
                 do{
                     char *buffer = new char[partialoutsize+1];
-#ifdef _WIN32
-                    n = recv(thesock, (char *)buffer, (int)partialoutsize, MSG_NOSIGNAL);
-#else
                     n = recv(thesock, (char *)buffer, partialoutsize, MSG_NOSIGNAL);
-#endif
 
                     if (n)
                     {
-#ifdef _WIN32
-                        assert(0 && "This is deprecated/untested. Using named pipes required!");
-                        buffer[n]='\0';
-
-                        wstring wbuffer;
-                        stringtolocalw((const char*)&buffer,&wbuffer);
-                        int oldmode = _setmode(_fileno(stdout), _O_U16TEXT);
-                        output << wbuffer << flush;
-                        _setmode(_fileno(stdout), oldmode);
-#else
                         output << string(buffer,partialoutsize) << flush;
-#endif
                         partialoutsize-=n;
                     }
                     delete[] buffer;
@@ -509,11 +461,7 @@ int MegaCmdShellCommunicationsPosix::executeCommand(string command, std::string 
             string confirmQuestion;
             char buffer[1025];
             do{
-#ifdef _WIN32
-                n = recv(thesock, buffer, (int)BUFFERSIZE, MSG_NOSIGNAL);
-#else
                 n = recv(thesock, buffer, BUFFERSIZE, MSG_NOSIGNAL);
-#endif
                 if (n)
                 {
                     buffer[n]='\0';
@@ -566,21 +514,10 @@ int MegaCmdShellCommunicationsPosix::executeCommand(string command, std::string 
         if (n)
         {
             megaCmdStdoutputing.lock();
-
-#ifdef _WIN32
-            buffer[n]='\0';
-
-            wstring wbuffer;
-            stringtolocalw((const char*)&buffer,&wbuffer);
-            int oldmode = _setmode(_fileno(stdout), _O_U16TEXT);
-            output << wbuffer;
-            _setmode(_fileno(stdout), oldmode);
-#else
             if (n != 1 || buffer[0] != 0) //To avoid outputing 0 char in binary outputs
             {
                 output << string(buffer,n) << flush;
             }
-#endif
             megaCmdStdoutputing.unlock();
         }
     } while(n != 0 && n !=SOCKET_ERROR);
@@ -596,7 +533,7 @@ int MegaCmdShellCommunicationsPosix::executeCommand(string command, std::string 
 
 int MegaCmdShellCommunicationsPosix::listenToStateChanges(int receiveSocket, StateChangedCb_t statechangehandle)
 {
-    assert(socketValid(receiveSocket));
+    assert(isSocketValid(receiveSocket));
 
     ScopeGuard g([this, receiveSocket]()
     {
@@ -684,6 +621,16 @@ bool MegaCmdShellCommunications::waitForServerReadyOrRegistrationFailed(std::opt
             : (mPromiseServerReadyOrRegistrationFailed.get_future().wait(), true);
 }
 
+void MegaCmdShellCommunications::markServerIsUpdating()
+{
+    mUpdating = true;
+}
+
+bool MegaCmdShellCommunications::isServerUpdating()
+{
+    return mUpdating;
+}
+
 void MegaCmdShellCommunications::markServerReadyOrRegistrationFailed(bool readyOrFailed)
 {
     if (!mPromiseServerReadyOrRegistrationFailedAttended.test_and_set()) // only once
@@ -694,7 +641,7 @@ void MegaCmdShellCommunications::markServerReadyOrRegistrationFailed(bool readyO
 
 bool MegaCmdShellCommunications::registerForStateChanges(bool interactive, StateChangedCb_t statechangehandle, bool initiateServer)
 {
-    if (mStopListener || updating) // finished
+    if (mStopListener || mUpdating) // finished
     {
         return false;
     }
@@ -719,7 +666,7 @@ bool MegaCmdShellCommunications::registerForStateChanges(bool interactive, State
     auto resultRegistration = registerForStateChangesImpl(interactive, initiateServer);
     if (!resultRegistration)
     {
-        markServerReadyOrRegistrationFailed(false);
+        markServerRegistrationFailed();
         return false;
     }
 
@@ -740,7 +687,7 @@ bool MegaCmdShellCommunications::registerForStateChanges(bool interactive, State
             auto r = listenToStateChanges(fd, stateChangedWrapped);
 
             // Logic to consider registration again:
-            if (r < 0 && !mStopListener && !updating)
+            if (r < 0 && !mStopListener && !mUpdating)
             {
                 auto errorLine = !everSucceeded ? "\nWarning: Unable to register to state changes.\n" // This could happen if for instance, the server rejects registering a listener because max descriptors allowed for it has been depleted
 #ifdef WIN32
@@ -755,7 +702,7 @@ bool MegaCmdShellCommunications::registerForStateChanges(bool interactive, State
 
             // In either case the above may have failed before receiving server readyness.
             // This will ensure we don't halt main thread execution if that's the case:
-            markServerReadyOrRegistrationFailed(false);
+            markServerRegistrationFailed();
         }
     ));
     return true;
@@ -781,14 +728,9 @@ std::optional<int> MegaCmdShellCommunicationsPosix::registerForStateChangesImpl(
         }
     });
 
-#ifdef _WIN32
-    wstring wcommand=interactive?L"Xregisterstatelistener":L"registerstatelistener";
-    int n = send(thesock,(char*)wcommand.data(),int(wcslen(wcommand.c_str())*sizeof(wchar_t)), MSG_NOSIGNAL);
-#else
     string command=interactive?"Xregisterstatelistener":"registerstatelistener";
 
     auto n = send(thesock,command.data(),command.size(), MSG_NOSIGNAL);
-#endif
 
     if (n == SOCKET_ERROR)
     {

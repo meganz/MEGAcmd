@@ -185,6 +185,7 @@ long long charstoll(const char *instr);
 
 // trim from start
 std::string &ltrim(std::string &s, const char &c);
+std::string_view ltrim(const std::string_view s, const char &c);
 
 // trim at the end
 std::string &rtrim(std::string &s, const char &c);
