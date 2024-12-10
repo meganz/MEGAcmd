@@ -1858,31 +1858,40 @@ void readloop()
 
                 wait_for_input(readline_fd);
 
-                std::lock_guard<std::mutex> g(mutexPrompt);
-
-                rl_callback_read_char(); //this calls store_line if last char was enter
-
+                bool retryComms = false;
                 time_t tnow = time(NULL);
-                if ( (tnow - lasttimeretrycons) > 5 && !doExit && !comms->isServerUpdating())
                 {
-                    char * sl = rl_copy_text(0, rl_end);
-                    if (string("quit").find(sl) != 0 && string("exit").find(sl) != 0)
+                    std::lock_guard<std::mutex> g(mutexPrompt);
+
+                    rl_callback_read_char(); //this calls store_line if last char was enter
+
+                    if ( (tnow - lasttimeretrycons) > 5 && !doExit && !comms->isServerUpdating())
                     {
-                        comms->executeCommand("retrycons");
-                        lasttimeretrycons = tnow;
+                        char * sl = rl_copy_text(0, rl_end);
+                        if (string("quit").find(sl) != 0 && string("exit").find(sl) != 0)
+                        {
+                            retryComms = true;
+                        }
+                        free(sl);
                     }
-                    free(sl);
+
+                    rl_resize_terminal(); // to always adjust to new screen sizes
+
+                    if (doExit)
+                    {
+                        if (saved_line != NULL)
+                            free(saved_line);
+                        saved_line = NULL;
+                        return;
+                    }
                 }
 
-                rl_resize_terminal(); // to always adjust to new screen sizes
-
-                if (doExit)
+                if (retryComms)
                 {
-                    if (saved_line != NULL)
-                        free(saved_line);
-                    saved_line = NULL;
-                    return;
+                    comms->executeCommand("retrycons");
+                    lasttimeretrycons = tnow;
                 }
+
             }
             else
             {
