@@ -1428,7 +1428,7 @@ void process_line(const char * line)
 #if defined(_WIN32) || defined(__APPLE__)
                 else if (words[0] == "update")
                 {
-                    MegaCmdShellCommunications::updating = true;
+                    comms->markServerIsUpdating();
                     int ret = comms->executeCommand(commandtoexec, readresponse);
                     if (ret == MCMD_REQRESTART)
                     {
@@ -1991,7 +1991,7 @@ void readloop()
             else
             {
                 time_t tnow = time(NULL);
-                if ((tnow - lasttimeretrycons) > 5 && !doExit && !MegaCmdShellCommunications::updating)
+                if ((tnow - lasttimeretrycons) > 5 && !doExit && !comms->isServerUpdating())
                 {
                     if (wstring(L"quit").find(console->getInputLineToCursor()) != 0 &&
                          wstring(L"exit").find(console->getInputLineToCursor()) != 0   )
@@ -2151,12 +2151,13 @@ void mycompletefunct(char **c, int num_matches, int max_length)
     {
         string option = c[i];
 
-        MegaCmdShellCommunications::megaCmdStdoutputing.lock();
-        OUTSTREAM << setw(min(cols-1,max_length+1)) << left;
-        int oldmode = _setmode(_fileno(stdout), _O_U16TEXT);
-        OUTSTREAM << c[i];
-        _setmode(_fileno(stdout), oldmode);
-        MegaCmdShellCommunications::megaCmdStdoutputing.unlock();
+        {
+            std::lock_guard<std::mutex> stdOutLockGuard(comms->getStdoutLockGuard());
+            OUTSTREAM << setw(min(cols-1,max_length+1)) << left;
+            int oldmode = _setmode(_fileno(stdout), _O_U16TEXT);
+            OUTSTREAM << c[i];
+            _setmode(_fileno(stdout), oldmode);
+        }
 
         if ( (i%nelements_per_col == 0) && (i != num_matches))
         {
