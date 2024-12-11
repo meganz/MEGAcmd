@@ -275,18 +275,18 @@ class MEGAcmdMiscTest(unittest.TestCase):
         copyfolder("localUPs/le01", "localUPs/lf01/")
         self.compare_find('/')
 
-    @unittest.skipIf(CMDSHELL, "only for non CMDSHELL")
     def test_10_send_to_non_contact(self):
-        #Test 24 #send to non contact
-        o,status=cmd_ec(CP+" *.txt badContact"+MEGA_EMAIL_AUX+':')
-        self.check_failed_and_clear(o,status)
+        o, status = cmd_ec(f'{CP} *.txt badContact{MEGA_EMAIL_AUX}:')
+        if not CMDSHELL:
+            self.check_failed_and_clear(o, status)
+        self.assertIn('failed to send file to user: not found', o.decode().lower())
 
-    @unittest.skipIf(CMDSHELL, "only for non CMDSHELL")
     def test_11_multicopy_into_file(self):
-        #Test 25 #multicopy into file
-        o,status=cmd_ec(CP+" *.txt /le01/file01nonempty.txt")
-        self.check_failed_and_clear(o,status)
-
+        bad_folder = '/le01/file01nonempty.txt'
+        o, status = cmd_ec(f'{CP} *.txt {bad_folder}')
+        if not CMDSHELL:
+            self.check_failed_and_clear(o, status)
+        self.assertIn(f'{bad_folder} must be a valid folder', o.decode().lower())
 
     def test_12_copy_into_existing_file(self):
         #Test 25 #copy into existing file

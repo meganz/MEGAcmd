@@ -293,15 +293,17 @@ class MEGAcmdGetTest(unittest.TestCase):
         shutil.copy2('origin/cloud01/fileatcloud01.txt','localDls/')
         self.compare()
 
-    @unittest.skipIf(CMDSHELL, "only for non-CMDSHELL")
     def test_26(self):
-        o,status=cmd_ec(GET+' cloud01/fileatcloud01.txt /no/where')
-        self.check_failed(o,status)
+        o, status = cmd_ec(f'{GET} cloud01/fileatcloud01.txt /no/where')
+        if not CMDSHELL:
+            self.check_failed(o, status)
+        self.assertIn('is not a valid download folder', o.decode().lower())
 
-    @unittest.skipIf(CMDSHELL, "only for non-CMDSHELL")
     def test_27(self):
-        o,status=cmd_ec(GET+' /cloud01/cloud01/fileatcloud01.txt /no/where')
-        self.check_failed(o,status)
+        o, status = cmd_ec(f'{GET} /cloud01/cloud01/fileatcloud01.txt /no/where')
+        if not CMDSHELL:
+            self.check_failed(o, status)
+        self.assertIn('is not a valid download folder', o.decode().lower())
 
     def test_28(self):
         cmd_ef(GET+' /cloud01/fileatcloud01.txt '+ABSMEGADLFOLDER+'/newfile')
@@ -340,15 +342,17 @@ class MEGAcmdGetTest(unittest.TestCase):
         shutil.copy2('origin/cloud01/fileatcloud01.txt','localDls/')
         self.compare()
 
-    @unittest.skipIf(CMDSHELL, "only for non-CMDSHELL")
     def test_33(self):
-        o,status=cmd_ec(GET+' path/to/nowhere '+ABSMEGADLFOLDER+' > /dev/null')
-        self.check_failed(o,status)
+        o, status = cmd_ec(f'{GET} path/to/nowhere {ABSMEGADLFOLDER}')
+        if not CMDSHELL:
+            self.check_failed(o, status)
+        self.assertIn("couldn't find file", o.decode().lower())
 
-    @unittest.skipIf(CMDSHELL, "only for non-CMDSHELL")
     def test_34(self):
-        o,status=cmd_ec(GET+' /path/to/nowhere '+ABSMEGADLFOLDER+' > /dev/null')
-        self.check_failed(o,status)
+        o, status = cmd_ec(f'{GET} /path/to/nowhere {ABSMEGADLFOLDER}')
+        if not CMDSHELL:
+            self.check_failed(o, status)
+        self.assertIn("couldn't find file", o.decode().lower())
 
     def test_35(self):
         os.chdir(ABSMEGADLFOLDER)

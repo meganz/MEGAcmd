@@ -179,11 +179,12 @@ class MEGAcmdFindTest(unittest.TestCase):
         localfind=sort(find('localUPs/le01',"le01"))
         self.assertEqual(megafind,localfind)
 
-    @unittest.skipIf(CMDSHELL, "only for non-CMDSHELL")
     def test_non_existent(self):
-        #Test 13 #file01.txt/non-existent
-        megafind,status=cmd_ec(FIND+" "+"file01.txt/non-existent")
-        self.assertNotEqual(status, 0)
+        file = 'file01.txt/non-existent'
+        out, status = cmd_ec(f'{FIND} {file}')
+        if not CMDSHELL:
+            self.assertNotEqual(status, 0)
+        self.assertIn(f'{file}: no such file or directory', out.decode().lower())
 
     def test_root(self):
         self.compare_find('/')
