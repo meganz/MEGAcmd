@@ -42,16 +42,14 @@ def clear_dls():
 
 def safe_export(path):
     command = EXPORT + ' ' + path
-    stdout, code = cmd_esc(command + ' -f -a')
-
-    if code == 0:
-        return stdout.split(b' ')[-1]
+    stdout, _ = cmd_esc(command + ' -f -a')
 
     # Run export without the `-a` option (also need to remove `-f` or it'll fail)
     # Output is slightly different in this case:
     #   * Link is surrounded by parenthesis, so we need to remove the trailing ')'
     #   * If path is a folder it'll also return the list of nodes inside, so we
     #   need to keep only the first line
+    # Note: We can't rely on the exit code, since we can't get it reliably from shell commands
     if b'already exported' in stdout:
         stdout = cmd_ef(command).split(b'\n')[0].strip(b')')
         if b'AuthKey=' in stdout:
@@ -61,7 +59,7 @@ def safe_export(path):
         else:
             return stdout.split(b' ')[-1]
     else:
-        raise Exception(f"Failed trying to export '{path}': '{out}'")
+        return stdout.split(b' ')[-1]
 
 
 def initialize_contents():

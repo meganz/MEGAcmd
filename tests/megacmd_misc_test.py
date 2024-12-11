@@ -368,7 +368,7 @@ class MEGAcmdMiscTest(unittest.TestCase):
                        self.check_failed_and_clear(fullout,fullStatus))
 
     @unittest.skipIf('SKIP_PDF_THUMBNAIL_TESTS' in os.environ, "only for systems where pdfium is enabled")
-    def test_20_pdf_thumnail(self):
+    def test_20_pdf_thumbnail(self):
         print(f"using pdfsURL: {self.pdfsURL}")
         cmd_ef(GET+" "+self.pdfsURL+" localtmp/")
 
@@ -392,7 +392,7 @@ class MEGAcmdMiscTest(unittest.TestCase):
             if not True in [x.encode() in f for x in allowedFailure] and b"saved in" not in o: #note: output code is not trustworthy: check for "saved in"
                 fullout=fullout+str("missing thumbnail for:"+str(f)+"\n")
                 fullStatus=0
-                print(status, f"{status} missing thumbnail: {f}")
+                print(f'{status} missing thumbnail: {f}')
                 print(o)
                 self.check_failed_and_clear(fullout,fullStatus)
 

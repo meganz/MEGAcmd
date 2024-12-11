@@ -3,6 +3,7 @@
 
 import sys, os, subprocess, shutil, re, platform
 import fnmatch
+import pexpect
 
 VERBOSE = 'VERBOSE' in os.environ
 CMDSHELL = 'MEGACMDSHELL' in os.environ
@@ -83,42 +84,56 @@ def ef(what):
     return out
 
 def cmdshell_ec(what):
-    what=re.sub("^mega-","",what)
+    what = re.sub('^mega-', '', what)
     if VERBOSE:
-        print("Executing in cmdshell: "+what)
-    towrite="lcd "+os.getcwd()+"\n"+what
-    out(towrite+"\n",'/tmp/shellin')
-    with open('/tmp/shellin') as shellin:
-        if VERBOSE:
-            print("Launching in cmdshell ... " + MEGACMDSHELL)
-        process = subprocess.Popen(MEGACMDSHELL, shell=True, stdin=shellin, stdout=subprocess.PIPE)
-        stdoutdata, stderrdata = process.communicate()
-        realout =[]
-        equallines=0
-        afterwelcomemsg=False
-        afterorder=False
-        for l in stdoutdata.split(b'\n'):
-            l=re.sub(b".*\x1b\[K",b"",l) #replace non printable stuff(erase line controls)
-            l=re.sub(b".*\r",b"",l) #replace non printable stuff
-            if afterorder:
-                if b"Exiting ..." in l: break
-                realout+=[l]
-            elif afterwelcomemsg:
-                if what.encode() in l: afterorder = True
-            elif b"="*20 in l:
-                equallines+=1
-                if equallines==2: afterwelcomemsg = True
+        print(f'Executing in cmdshell: {what}')
 
-        realout=b"\n".join(realout)
-        if VERBOSE:
-            print(realout.strip())
+    # We must ensure there are enough columns so long commands don't get truncated
+    child = pexpect.spawn(MEGACMDSHELL, encoding='utf-8', dimensions=(32, 256), timeout=None)
 
-        return realout,process.returncode
+    try:
+        # Wait for the shell prompt to be loaded
+        child.expect([r'\$', '>'])
+
+        child.sendline("lcd " + os.getcwd())
+        child.sendline(what)
+
+        # Stop the shell
+        child.sendcontrol('d')
+        child.expect(pexpect.EOF)
+
+        # The whole output of the shell split by newlines
+        lines = child.before.replace('\r\n', '\n').split('\n')
+
+        # Find the start of our command
+        start = next(i for i, s in enumerate(lines) if what in s)
+
+        # Find the end of our shell by searching for Ctrl+D
+        end = next(i for i, s in enumerate(lines[start+1:], start+1) if '(CTRL+D)' in s)
+
+        # The output of our command is the string in-between the start and end indices
+        out = '\n'.join(lines[start+1:end]).strip()
+    except pexpect.EOF:
+        print('Shell session ended')
+        return '', -1
+    except pexpect.TIMEOUT:
+        print('Timed out waiting for output')
+        return '', -1
+    finally:
+        child.close()
+
+    out = re.sub(r'.*\x1b\[K','', out) # erase line controls
+    out = re.sub(r'.*\r', '', out) # erase non printable stuff
+
+    if VERBOSE:
+        print(f'Exit code: {child.exitstatus}')
+        print(f'Out: {out}')
+
+    return out.encode('utf-8'), child.exitstatus
 
 #execute and return only stdout contents
 def cmdshell_ex(what):
     return cmdshell_ec(what)[0]
-    #return subprocess.Popen(what, shell=True, stdout=subprocess.PIPE).stdout.read()
 
 #Execute and strip, return only stdout
 def cmdshell_es(what):
