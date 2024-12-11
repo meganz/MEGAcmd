@@ -222,20 +222,27 @@ pipeline {
                                 script {
                                     // Skipping the 'serving' test until CMD-389 is resolved
                                     for (test in ['misc', 'put', 'rm', 'find', 'get']) {
-                                        stage("MEGAcmd Python ${test} test") {
-                                            withEnv([
-                                                "MEGA_EMAIL=${env.MEGA_EMAILS0}",
-                                                "MEGA_EMAIL_AUX=${env.MEGA_EMAILS1}",
-                                                "ASAN_OPTIONS=atexit=1,print_stats=1,log_path=${megacmd_sources_workspace}/pytest-dir-${SANITIZERS}/${test}-results/mega-cmd-tests-python-report",
-                                                "TSAN_OPTIONS=log_path=${megacmd_sources_workspace}/pytest-dir-${SANITIZERS}/${test}-results/mega-cmd-tests-python-report",
-                                                "UBSAN_OPTIONS=log_path=${megacmd_sources_workspace}/pytest-dir-${SANITIZERS}/${test}-results/mega-cmd-tests-python-report",
-                                                "OUT_DIR_JUNIT_XML=${megacmd_sources_workspace}/pytest-dir-${SANITIZERS}/${test}-results"
-                                            ]) {
-                                                dir("pytest-dir-${SANITIZERS}/working-dir") {
-                                                    sh "/usr/local/bin/megacmd_${test}_test.py"
-                                                    deleteDir()
+                                        for (cmdshell in ['', 'cmdshell-']) {
+                                            def testDir = "pytest-dir-${SANITIZERS}/${cmdshell}${test}-results"
+                                            stage("MEGAcmd Python ${cmdshell}${test} test") {
+                                                withEnv([
+                                                    "MEGA_EMAIL=${env.MEGA_EMAILS0}",
+                                                    "MEGA_EMAIL_AUX=${env.MEGA_EMAILS1}",
+                                                    "ASAN_OPTIONS=atexit=1,print_stats=1,log_path=${megacmd_sources_workspace}/${testDir}/mega-cmd-tests-python-report",
+                                                    "TSAN_OPTIONS=log_path=${megacmd_sources_workspace}/${testDir}/mega-cmd-tests-python-report",
+                                                    "UBSAN_OPTIONS=log_path=${megacmd_sources_workspace}/${testDir}/mega-cmd-tests-python-report",
+                                                    "OUT_DIR_JUNIT_XML=${megacmd_sources_workspace}/${testDir}"
+                                                ]) {
+                                                    def envStr = ''
+                                                    if (cmdshell != '') {
+                                                        envStr = 'MEGACMDSHELL=/usr/bin/mega-cmd '
+                                                    }
+                                                    dir("pytest-dir-${SANITIZERS}/working-dir") {
+                                                        sh "${envStr}/usr/local/bin/megacmd_${test}_test.py"
+                                                        deleteDir()
+                                                    }
+                                                    junit "${testDir}/TEST-*.xml"
                                                 }
-                                                junit "pytest-dir-${SANITIZERS}/${test}-results/TEST-*.xml"
                                             }
                                         }
                                     }
