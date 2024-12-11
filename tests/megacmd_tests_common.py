@@ -4,18 +4,18 @@
 import sys, os, subprocess, shutil, re, platform
 import fnmatch
 
-try:
-    os.environ['VERBOSE']
-    VERBOSE=True
-except:
-    VERBOSE=False
+VERBOSE = 'VERBOSE' in os.environ
+CMDSHELL = 'MEGACMDSHELL' in os.environ
+if CMDSHELL:
+    MEGACMDSHELL = os.environ['MEGACMDSHELL']
 
-try:
-    MEGACMDSHELL=os.environ['MEGACMDSHELL']
-    CMDSHELL=True
-    #~ FIND="executeinMEGASHELL find" #TODO
-except:
-    CMDSHELL=False
+if 'MEGA_EMAIL' in os.environ and 'MEGA_PWD' in os.environ and 'MEGA_EMAIL_AUX' in os.environ and 'MEGA_PWD_AUX' in os.environ:
+    MEGA_EMAIL = os.environ['MEGA_EMAIL']
+    MEGA_PWD = os.environ['MEGA_PWD']
+    MEGA_EMAIL_AUX = os.environ['MEGA_EMAIL_AUX']
+    MEGA_PWD_AUX = os.environ['MEGA_PWD_AUX']
+else:
+    raise Exception('Environment variables MEGA_EMAIL, MEGA_PWD, MEGA_EMAIL_AUX, MEGA_PWD_AUX are not defined. WARNING: Use a test account for $MEGA_EMAIL')
 
 def build_command_name(command):
     if platform.system() == 'Windows':

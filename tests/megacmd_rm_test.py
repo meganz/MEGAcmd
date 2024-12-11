@@ -8,27 +8,11 @@ import xmlrunner
 from megacmd_tests_common import *
 
 def setUpModule():
-    global VERBOSE
-    global MEGA_PWD
-    global MEGA_EMAIL
-    global MEGACMDSHELL
-    global CMDSHELL
     global ABSPWD
     global ABSMEGADLFOLDER
 
     ABSPWD = os.getcwd()
     ABSMEGADLFOLDER = ABSPWD+'/megaDls'
-
-    VERBOSE = 'VERBOSE' in os.environ
-    if "MEGA_EMAIL" in os.environ and "MEGA_PWD" in os.environ:
-        MEGA_EMAIL=os.environ["MEGA_EMAIL"]
-        MEGA_PWD=os.environ["MEGA_PWD"]
-    else:
-        raise Exception("Environment variables MEGA_EMAIL or MEGA_PWD are not defined")
-
-    CMDSHELL= "MEGACMDSHELL" in os.environ
-    if CMDSHELL:
-        MEGACMDSHELL=os.environ["MEGACMDSHELL"]
 
 def clean_all():
     if not clean_root_confirmed_by_user():
