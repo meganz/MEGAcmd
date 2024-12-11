@@ -6,18 +6,6 @@ import unittest
 import xmlrunner
 from megacmd_tests_common import *
 
-GET="mega-get"
-PUT="mega-put"
-RM="mega-rm"
-CD="mega-cd"
-LCD="mega-lcd"
-MKDIR="mega-mkdir"
-EXPORT="mega-export -f"
-FIND="mega-find"
-WHOAMI="mega-whoami"
-LOGOUT="mega-logout"
-LOGIN="mega-login"
-
 def setUpModule():
     global VERBOSE
     global MEGA_PWD
