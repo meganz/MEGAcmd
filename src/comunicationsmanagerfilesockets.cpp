@@ -188,6 +188,14 @@ CmdPetition* ComunicationsManagerFileSockets::registerStateListener(std::unique_
     const int socket = ((CmdPetitionPosixSockets*) inf.get())->outSocket;
     LOG_debug << "Registering state listener petition with socket: " << socket;
 
+#ifndef NDEBUG
+    // let's not be gentle with state listener sockets to prevent frozen clients from stopping the server
+    const timeval timeout { .tv_sec = 10, .tv_usec = 0};
+    if (setsockopt(socket, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout)) < 0)
+    {
+        LOG_err << "ERROR setting state listener socket timeout: " << errno;
+    }
+#endif
     return ComunicationsManager::registerStateListener(std::move(inf));
 }
 
@@ -310,9 +318,14 @@ int ComunicationsManagerFileSockets::informStateListener(CmdPetition *inf, const
     auto n = send(connectedsocket, s.data(), s.size(), MSG_NOSIGNAL);
     if (n < 0)
     {
-        if (errno == 32) //socket closed
+        if (errno == EPIPE) //socket closed
         {
             LOG_verbose << "Unregistering no longer listening client. Original petition: " << inf->line;
+            return -1;
+        }
+        else if (errno == EAGAIN || errno == EWOULDBLOCK) // timed out
+        {
+            LOG_warn << "Unregistering timed out listening client. Original petition: " << inf->line;
             return -1;
         }
         else
