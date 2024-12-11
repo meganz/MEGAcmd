@@ -422,7 +422,7 @@ HANDLE MegaCmdShellCommunicationsNamedPipes::createNamedPipe(int number, bool in
                 }
                 else
                 {
-                    mServerinitiatedfromshell = true;
+                    mServerInitiatedFromShell = true;
                     setForRegisterAgain(true);
                 }
             }
@@ -561,7 +561,8 @@ int MegaCmdShellCommunicationsNamedPipes::executeCommand(string command, std::st
 
             if (partialoutsize > 0)
             {
-                megaCmdStdoutputing.lock();
+                std::lock_guard<std::mutex> stdOutLockGuard(getStdoutLockGuard());
+
                 int oldmode = 0;
 
                 if (binaryoutput)
@@ -600,7 +601,6 @@ int MegaCmdShellCommunicationsNamedPipes::executeCommand(string command, std::st
                 {
                     _setmode(_fileno(stdout), oldmode);
                 }
-                megaCmdStdoutputing.unlock();
             }
             else
             {
@@ -679,6 +679,9 @@ int MegaCmdShellCommunicationsNamedPipes::executeCommand(string command, std::st
             wstring wbuffer;
             stringtolocalw((const char*)&buffer,&wbuffer);
             int oldmode;
+
+            std::lock_guard<std::mutex> stdOutLockGuard(getStdoutLockGuard());
+
 //            if (interactiveshell || outputtobinaryorconsole())
 //            {
                 // In non-interactive mode, at least in powershell, when outputting to a file/pipe, things get rough
@@ -686,11 +689,11 @@ int MegaCmdShellCommunicationsNamedPipes::executeCommand(string command, std::st
                 // in unusable output, So we disable the UTF-16 in such cases (this might cause that the output could be truncated!).
 //                oldmode = _setmode(_fileno(stdout), _O_U16TEXT);
 //            }
-            megaCmdStdoutputing.lock();
+
+
             oldmode = _setmode(_fileno(stdout), _O_U8TEXT);
             output << wbuffer << flush;
             _setmode(_fileno(stdout), oldmode);
-            megaCmdStdoutputing.unlock();
 
 //            if (interactiveshell || outputtobinaryorconsole() || true)
 //            {
@@ -755,7 +758,7 @@ int MegaCmdShellCommunicationsNamedPipes::listenToStateChanges(int receiveNamedP
         {
             if (ERRNO == ERROR_BROKEN_PIPE)
             {
-                if (!mStopListener && !updating)
+                if (!mStopListener && !mUpdating)
                 {
                     cerr << "ERROR reading output (state change): The sever problably exited."<< endl;
                 }
