@@ -623,6 +623,11 @@ void MegaCmdShellCommunications::markServerIsUpdating()
     mUpdating = true;
 }
 
+void MegaCmdShellCommunications::unmarkServerIsUpdating()
+{
+    mUpdating = false;
+}
+
 bool MegaCmdShellCommunications::isServerUpdating()
 {
     return mUpdating;
@@ -694,7 +699,7 @@ bool MegaCmdShellCommunications::registerForStateChanges(bool interactive, State
 #endif
 
                 setForRegisterAgain();
-                std::cerr << errorLine << std::fflush;
+                std::cerr << errorLine << std::flush;
             }
 
             // In either case the above may have failed before receiving server readyness.

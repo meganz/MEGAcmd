@@ -133,6 +133,7 @@ public:
     void markServerRegistrationFailed() { markServerReadyOrRegistrationFailed(false); }
 
     void markServerIsUpdating();
+    void unmarkServerIsUpdating();
     bool isServerUpdating();
 
     void shutdown();

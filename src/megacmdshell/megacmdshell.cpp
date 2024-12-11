@@ -1438,7 +1438,7 @@ void process_line(const char * line)
                     }
                     else if (ret != MCMD_INVALIDSTATE && words.size() == 1)
                     {
-                        MegaCmdShellCommunications::updating = false;
+                        comms->unmarkServerIsUpdating();
                     }
                 }
 #endif
