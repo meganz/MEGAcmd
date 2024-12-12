@@ -2022,8 +2022,8 @@ void printTimeFormatHelp(ostringstream &os)
 
 void printColumnDisplayerHelp(ostringstream &os)
 {
-    os << " --col-separator=X" << "\t" << "Use the string \"X\" as column separator. Otherwise, spaces will be added between columns to align them." << endl;
-    os << " --output-cols=COLUMN_NAME_1,COLUMN_NAME2,..." << "\t" << "Select which columns to show and their order." << endl;
+    os << " --col-separator=X" << "\t" << "Uses the string \"X\" as column separator. Otherwise, spaces will be added between columns to align them." << endl;
+    os << " --output-cols=COLUMN_NAME_1,COLUMN_NAME2,..." << "\t" << "Selects which columns to show and their order." << endl;
 }
 
 string getHelpStr(const char *command, const HelpFlags& flags = {})
@@ -2582,8 +2582,8 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << "Show all issues with current syncs" << endl;
         os << endl;
         os << "When MEGAcmd detects conflicts with the data it's synchronizing, a sync issue is triggered. Syncing is stopped, and no progress is made on the conflicting data." << endl;
-        os << "A notification will appear when sync issues are detected. Because the sync engine might clear the internal issue list when processing, the notification can appear even if there were already issues before." << endl;
-        os << "Note: the sync issue list might not contain the latest updated data. Some issues might still be being processing by the sync engine, and some might not have been removed yet." << endl;
+        os << "A notification warning will appear whenever sync issues are detected. You can disable the warning if you wish. Note: the notification may appear even if there were already issues before." << endl;
+        os << "Note: the list of sync issues provides a snapshot of the issues detected at the moment of requesting it. Thus, it might not contain the latest updated data. Some issues might still be being processed by the sync engine, and some might not have been removed yet." << endl;
         os << endl;
         os << "Options:" << endl;
         os << " --detail (ID | --all) " << "\t" << "Provides additional information on a particular sync issue." << endl;
@@ -2594,9 +2594,9 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << "                       " << "\t" << "\t" << "LAST_MODIFIED: The most recent date when this file or directory was updated." << endl;
         os << "                       " << "\t" << "\t" << "UPLOADED: For cloud paths, the date of upload or creation. Empty for local paths." << endl;
         os << "                       " << "\t" << "\t" << "SIZE: The size of the file. Empty for directories." << endl;
-        os << "                       " << "\t" << "\t" << "TYPE: The type of the path (file or directory). This column is hidden if the information it's not relevant for the particular sync issue." << endl;
+        os << "                       " << "\t" << "\t" << "TYPE: The type of the path (file or directory). This column is hidden if the information is not relevant for the particular sync issue." << endl;
         os << "                       " << "\t" << "The \"--all\" argument can be used to show the details of all issues." << endl;
-        os << " --limit=rowcount " << "\t" << "Limits the amount of rows displayed. Can also be combined with \"--detail\"." << endl;
+        os << " --limit=rowcount " << "\t" << "Limits the amount of rows displayed. Set to 0 to display unlimited rows. Default is 10. Can also be combined with \"--detail\"." << endl;
         os << " --disable-path-collapse " << "\t" << "Ensures all paths are fully shown. By default long paths are truncated for readability." << endl;
         os << " --enable-warning " << "\t" << "Enables the notification that appears when issues are detected. This setting is stored locally for all users." << endl;
         os << " --disable-warning " << "\t" << "Disables the notification that appears when issues are detected. This setting is stored locally for all users." << endl;
