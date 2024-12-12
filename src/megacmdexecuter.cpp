@@ -2154,7 +2154,7 @@ void MegaCmdExecuter::dumpListOfPendingShares(MegaNode* n_param, string givenPat
 }
 
 
-void MegaCmdExecuter::loginWithPassword(char *password)
+void MegaCmdExecuter::loginWithPassword(const char *password)
 {
     MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
     sandboxCMD->resetSandBox();

@@ -29,7 +29,6 @@
 using std::wstring;
 
 #define ERRNO WSAGetLastError()
-#define strdup _strdup
 
 using namespace mega;
 
@@ -99,8 +98,7 @@ HANDLE ComunicationsManagerNamedPipes::create_new_namedPipe(int *pipeId)
             if (errno == EMFILE) //TODO: review possible out
             {
                 LOG_verbose << " Trying to reduce number of used files by sending ACK to listeners to discard disconnected ones.";
-                string sack="ack";
-                informStateListeners(sack);
+                ackStateListenersAndRemoveClosed();
             }
             if (attempts !=10)
             {
@@ -174,12 +172,12 @@ int ComunicationsManagerNamedPipes::waitForPetition()
             LOG_fatal << "ERROR on connecting to namedPipe. errno: " << ERRNO;
             sleepMilliSeconds(1000);
             pipeGeneral = INVALID_HANDLE_VALUE;
-            return false;
+            return ERRNO;
         }
 
     }
     petitionready = true;
-    return true;
+    return 0;
 }
 
 void ComunicationsManagerNamedPipes::stopWaiting()
@@ -194,10 +192,10 @@ void ComunicationsManagerNamedPipes::stopWaiting()
     }
 }
 
-void ComunicationsManagerNamedPipes::registerStateListener(CmdPetition *inf)
+CmdPetition* ComunicationsManagerNamedPipes::registerStateListener(std::unique_ptr<CmdPetition> &&inf)
 {
-    LOG_debug << "Registering state listener petition with namedPipe: " << ((CmdPetitionNamedPipes *) inf)->outNamedPipe;
-    ComunicationsManager::registerStateListener(inf);
+    LOG_debug << "Registering state listener petition with namedPipe: " << ((CmdPetitionNamedPipes*) inf.get())->outNamedPipe;
+    return ComunicationsManager::registerStateListener(std::move(inf));
 }
 
 //TODO: implement unregisterStateListener, not 100% necesary, since when a state listener is not accessible it is unregistered (to deal with sudden deaths).
@@ -208,9 +206,9 @@ void ComunicationsManagerNamedPipes::registerStateListener(CmdPetition *inf)
  * @brief returnAndClosePetition
  * I will clean struct and close the namedPipe within
  */
-void ComunicationsManagerNamedPipes::returnAndClosePetition(CmdPetition *inf, OUTSTRINGSTREAM *s, int outCode)
+void ComunicationsManagerNamedPipes::returnAndClosePetition(std::unique_ptr<CmdPetition> inf, OUTSTRINGSTREAM *s, int outCode)
 {
-    HANDLE outNamedPipe = ((CmdPetitionNamedPipes *)inf)->outNamedPipe;
+    HANDLE outNamedPipe = ((CmdPetitionNamedPipes*) inf.get())->outNamedPipe;
 
     LOG_verbose << "Output to write in namedPipe " << *(long*)(&outNamedPipe);
 
@@ -241,7 +239,6 @@ void ComunicationsManagerNamedPipes::returnAndClosePetition(CmdPetition *inf, OU
     if (!connectsucceeded)
     {
         LOG_fatal << "Return and close: Unable to connect on outnamedPipe " << outNamedPipe << " error: " << ERRNO;
-        delete inf;
         return;
     }
 
@@ -261,7 +258,6 @@ void ComunicationsManagerNamedPipes::returnAndClosePetition(CmdPetition *inf, OU
         LOG_err << "ERROR writing to namedPipe: " << ERRNO;
     }
     DisconnectNamedPipe(outNamedPipe);
-    delete inf;
 }
 
 
@@ -402,7 +398,7 @@ void ComunicationsManagerNamedPipes::sendPartialOutput(CmdPetition *inf, char *s
     }
 }
 
-int ComunicationsManagerNamedPipes::informStateListener(CmdPetition *inf, string &s)
+int ComunicationsManagerNamedPipes::informStateListener(CmdPetition *inf, const string &s)
 {
     std::lock_guard<std::mutex> g(*informerMutex);
 
@@ -448,9 +444,9 @@ int ComunicationsManagerNamedPipes::informStateListener(CmdPetition *inf, string
  * @brief getPetition
  * @return pointer to new CmdPetitionPosix. Petition returned must be properly deleted (this can be calling returnAndClosePetition)
  */
-CmdPetition * ComunicationsManagerNamedPipes::getPetition()
+std::unique_ptr<CmdPetition> ComunicationsManagerNamedPipes::getPetition()
 {
-    CmdPetitionNamedPipes *inf = new CmdPetitionNamedPipes();
+    auto inf = std::make_unique<CmdPetitionNamedPipes>();
 
     wstring wread;
     wchar_t wbuffer[1024]= {};
@@ -484,7 +480,7 @@ CmdPetition * ComunicationsManagerNamedPipes::getPetition()
     if (!readok)
     {
         LOG_err << "Failed to read petition from named pipe. errno: L" << ERRNO;
-        inf->line = strdup("ERROR");
+        inf->line = "ERROR";
         return inf;
     }
 
@@ -497,14 +493,14 @@ CmdPetition * ComunicationsManagerNamedPipes::getPetition()
     if (!namedPipeValid(inf->outNamedPipe) || !namedPipe_id)
     {
         LOG_fatal << "ERROR creating output namedPipe at getPetition";
-        inf->line = strdup("ERROR");
+        inf->line = "ERROR";
         return inf;
     }
 
     if(!WriteFile(pipeGeneral,(const char*)&namedPipe_id, sizeof( namedPipe_id ), &n, NULL))
     {
         LOG_fatal << "ERROR writing to namedPipe at getPetition: ERRNO = " << ERRNO;
-        inf->line = strdup("ERROR");
+        inf->line = "ERROR";
         return inf;
     }
 
@@ -513,7 +509,7 @@ CmdPetition * ComunicationsManagerNamedPipes::getPetition()
         LOG_fatal << " Error disconnecting from general pip. errno: " << ERRNO;
     }
 
-    inf->line = strdup(receivedutf8.c_str());
+    inf->line = receivedutf8;
 
     return inf;
 }
