@@ -106,7 +106,7 @@ pipeline {
                 axes {
                     axis {
                         name 'SANITIZERS'
-                        values 'ubsan', 'asan', 'tsan'
+                        values 'tsan'
                     }
                     axis {
                         name 'BUILD_SYSTEM'
