@@ -1624,9 +1624,15 @@ void MegaCmdExecuter::createOrModifyBackup(string local, string remote, string s
         {
             if (establishBackup(local, n.get(), period, speriod, numBackups))
             {
-                mtxBackupsMap.lock();
+                std::lock_guard g(mtxBackupsMap);
+
                 ConfigurationManager::saveBackups(&ConfigurationManager::configuredBackups);
-                mtxBackupsMap.unlock();
+                if (!ConfigurationManager::getConfigurationValue("firstBackupConfigured", false))
+                {
+                    sendEvent(StatsManager::MegacmdEvent::FIRST_CONFIGURED_BACKUP, api, false);
+                    ConfigurationManager::savePropertyValue("firstBackupConfigured", true);
+                }
+
                 OUTSTREAM << "Backup established: " << local << " into " << remote << " period="
                           << ((period != -1)?getReadablePeriod(period/10):"\""+speriod+"\"")
                           << " Number-of-Backups=" << numBackups << endl;
@@ -5196,20 +5202,26 @@ void MegaCmdExecuter::removeWebdavLocation(MegaNode *n, bool firstone, string na
 
 void MegaCmdExecuter::addWebdavLocation(MegaNode *n, bool firstone, string name)
 {
-    char *actualNodePath = api->getNodePath(n);
-    char *l = api->httpServerGetLocalWebDavLink(n);
-    OUTSTREAM << "Serving via webdav " << (name.size()?name:actualNodePath) << ": " << l << endl;
+    std::unique_ptr<char[]> actualNodePath(api->getNodePath(n));
+    std::unique_ptr<char[]> l(api->httpServerGetLocalWebDavLink(n));
 
-    mtxWebDavLocations.lock();
-    list<string> servedpaths = ConfigurationManager::getConfigurationValueList("webdav_served_locations");
-    servedpaths.push_back(actualNodePath);
-    servedpaths.sort();
-    servedpaths.unique();
-    ConfigurationManager::savePropertyValueList("webdav_served_locations", servedpaths);
-    mtxWebDavLocations.unlock();
+    OUTSTREAM << "Serving via webdav " << (name.size() ? name : actualNodePath.get()) << ": " << l.get() << endl;
 
-    delete []l;
-    delete []actualNodePath;
+    {
+        std::lock_guard g(mtxWebDavLocations);
+
+        list<string> servedpaths = ConfigurationManager::getConfigurationValueList("webdav_served_locations");
+        servedpaths.push_back(actualNodePath.get());
+        servedpaths.sort();
+        servedpaths.unique();
+
+        ConfigurationManager::savePropertyValueList("webdav_served_locations", servedpaths);
+        if (!ConfigurationManager::getConfigurationValue("firstWebDavConfigured", false))
+        {
+            sendEvent(StatsManager::MegacmdEvent::FIRST_CONFIGURED_WEBDAV, api, false);
+            ConfigurationManager::savePropertyValue("firstWebDavConfigured", true);
+        }
+    }
 }
 
 void MegaCmdExecuter::removeFtpLocation(MegaNode *n, bool firstone, string name)
@@ -5244,20 +5256,26 @@ void MegaCmdExecuter::removeFtpLocation(MegaNode *n, bool firstone, string name)
 
 void MegaCmdExecuter::addFtpLocation(MegaNode *n, bool firstone, string name)
 {
-    char *actualNodePath = api->getNodePath(n);
-    char *l = api->ftpServerGetLocalLink(n);
-    OUTSTREAM << "Serving via ftp " << (name.size()?name:n->getName())  << ": " << l << endl;
+    std::unique_ptr<char[]> actualNodePath(api->getNodePath(n));
+    std::unique_ptr<char[]> l(api->ftpServerGetLocalLink(n));
 
-    mtxFtpLocations.lock();
-    list<string> servedpaths = ConfigurationManager::getConfigurationValueList("ftp_served_locations");
-    servedpaths.push_back(actualNodePath);
-    servedpaths.sort();
-    servedpaths.unique();
-    ConfigurationManager::savePropertyValueList("ftp_served_locations", servedpaths);
-    mtxFtpLocations.unlock();
+    OUTSTREAM << "Serving via ftp " << (name.size() ? name : n->getName())  << ": " << l.get() << endl;
 
-    delete []l;
-    delete []actualNodePath;
+    {
+        std::lock_guard g(mtxFtpLocations);
+
+        list<string> servedpaths = ConfigurationManager::getConfigurationValueList("ftp_served_locations");
+        servedpaths.push_back(actualNodePath.get());
+        servedpaths.sort();
+        servedpaths.unique();
+
+        ConfigurationManager::savePropertyValueList("ftp_served_locations", servedpaths);
+        if (!ConfigurationManager::getConfigurationValue("firstFtpConfigured", false))
+        {
+            sendEvent(StatsManager::MegacmdEvent::FIRST_CONFIGURED_FTP, api, false);
+            ConfigurationManager::savePropertyValue("firstFtpConfigured", true);
+        }
+    }
 }
 
 #endif
