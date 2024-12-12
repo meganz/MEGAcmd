@@ -445,6 +445,12 @@ std::string &ltrim(std::string &s, const char &c)
     return s;
 }
 
+std::string_view ltrim(const std::string_view s, const char &c)
+{
+    size_t pos = s.find_first_not_of(c);
+    return s.substr(pos == std::string::npos ? s.size() : pos, s.length());
+}
+
 std::string &rtrim(std::string &s, const char &c)
 {
     size_t pos = s.find_last_of(c);
@@ -466,11 +472,11 @@ string removeTrailingSeparators(string &path)
     return rtrim(rtrim(path,'/'),'\\');
 }
 
-vector<string> getlistOfWords(char *ptr, bool escapeBackSlashInCompletion, bool ignoreTrailingSpaces)
+vector<string> getlistOfWords(const char *ptr, bool escapeBackSlashInCompletion, bool ignoreTrailingSpaces)
 {
     vector<string> words;
 
-    char* wptr;
+    const char* wptr = "";
 
     // split line into words with quoting and escaping
     for (;; )
@@ -543,7 +549,7 @@ vector<string> getlistOfWords(char *ptr, bool escapeBackSlashInCompletion, bool 
 
             wptr = ptr;
 
-            char *prev = ptr;
+            const char *prev = ptr;
             //while ((unsigned char)*ptr > ' ')
             while ((*ptr != '\0') && !(*ptr ==' ' && *prev !='\\'))
             {
@@ -727,6 +733,11 @@ string getRightAlignedString(const string origin, unsigned int minsize)
     ostringstream os;
     os << std::setw(minsize) << origin;
     return os.str();
+}
+
+bool startsWith(const std::string_view str, const std::string_view prefix)
+{
+    return str.rfind(prefix, 0) == 0;
 }
 
 string toLower(const std::string& str)

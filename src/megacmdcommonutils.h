@@ -185,11 +185,12 @@ long long charstoll(const char *instr);
 
 // trim from start
 std::string &ltrim(std::string &s, const char &c);
+std::string_view ltrim(const std::string_view s, const char &c);
 
 // trim at the end
 std::string &rtrim(std::string &s, const char &c);
 
-std::vector<std::string> getlistOfWords(char *ptr, bool escapeBackSlashInCompletion = false, bool ignoreTrailingSpaces = false);
+std::vector<std::string> getlistOfWords(const char *ptr, bool escapeBackSlashInCompletion = false, bool ignoreTrailingSpaces = false);
 
 bool stringcontained(const char * s, std::vector<std::string> list);
 
@@ -206,6 +207,8 @@ std::string joinStrings(const std::vector<std::string>& vec, const char* delim =
 std::string getFixLengthString(const std::string &origin, unsigned int size, const char delimm=' ', bool alignedright = false);
 
 std::string getRightAlignedString(const std::string origin, unsigned int minsize);
+
+bool startsWith(const std::string_view str, const std::string_view prefix);
 
 /* Vector related */
 template <typename T>
@@ -537,6 +540,18 @@ public:
     }
 #endif //MEGACMD_TESTING_CODE
  };
+
+/**
+ * @brief general purpose scope guard class
+ */
+template <typename ExitCallback>
+class ScopeGuard
+{
+    ExitCallback mExitCb;
+public:
+    ScopeGuard(ExitCallback&& exitCb) : mExitCb{std::move(exitCb)} { }
+    ~ScopeGuard() { mExitCb(); }
+};
 
 }//end namespace
 #endif // MEGACMDCOMMONUTILS_H

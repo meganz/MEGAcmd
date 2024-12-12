@@ -54,30 +54,23 @@ public:
 
     ~MegaCmdShellCommunicationsNamedPipes();
 
-    virtual int executeCommand(std::string command, std::string (*readresponse)(const char *) = NULL, OUTSTREAMTYPE &output = COUT, bool interactiveshell = true, std::wstring = L"");
-    virtual int executeCommandW(std::wstring command, std::string (*readresponse)(const char *) = NULL, OUTSTREAMTYPE &output = COUT, bool interactiveshell = true);
-
-    virtual int registerForStateChanges(bool interactive, void (*statechangehandle)(std::string) = NULL, bool initiateServer = true);
+    virtual int executeCommand(std::string command, std::string (*readresponse)(const char *) = NULL, OUTSTREAMTYPE &output = COUT, bool interactiveshell = true, std::wstring = L"") override;
 
     void setResponseConfirmation(bool confirmation);
 
-    static HANDLE doOpenPipe(std::wstring nameOfPipe);
 
 private:
-    static bool namedPipeValid(HANDLE namedPipe);
-    static void closeNamedPipe(HANDLE namedPipe);
+    bool namedPipeValid(HANDLE namedPipe);
+    void closeNamedPipe(HANDLE namedPipe);
 
-    static void *listenToStateChangesEntryNamedPipe(void *slsc);
-    static int listenToStateChanges(int receiveNamedPipeNum, void (*statechangehandle)(std::string) = NULL);
+    std::optional<int> registerForStateChangesImpl(bool interactive, bool initiateServer = true) override;
+    virtual int listenToStateChanges(int receiveNamedPipeNum, StateChangedCb_t statechangehandle) override;
+    void triggerListenerThreadShutdown() override;
 
     static bool confirmResponse;
 
-    static HANDLE newNamedPipe;
-
-    static bool stopListener;
-    static std::unique_ptr<std::thread> listenerThread;
-
-    static HANDLE createNamedPipe(int number = 0,bool initializeserver = true);
+    HANDLE doOpenPipe(std::wstring nameOfPipe);
+    HANDLE createNamedPipe(int number = 0,bool initializeserver = true);
 
     static bool isFileOwnerCurrentUser(HANDLE hFile);
 
