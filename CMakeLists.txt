@@ -313,7 +313,7 @@ if (ENABLE_MEGACMD_TESTS)
     )
 
     #Integration tests:
-    add_executable(mega-cmd-tests-integration)
+    add_executable(mega-cmd-tests-integration ${executablesType})
     add_source_and_corresponding_header_to_target(mega-cmd-tests-integration PRIVATE
         "${ProjectDir}/tests/integration/BasicTests.cpp"
         "${ProjectDir}/tests/integration/ExportTests.cpp"
@@ -329,7 +329,7 @@ if (ENABLE_MEGACMD_TESTS)
     endif()
 
     #Unit tests:
-    add_executable(mega-cmd-tests-unit)
+    add_executable(mega-cmd-tests-unit ${executablesType})
     add_source_and_corresponding_header_to_target(mega-cmd-tests-unit PRIVATE
         "${ProjectDir}/tests/unit/StringUtilsTests.cpp"
         "${ProjectDir}/tests/unit/UtilsTests.cpp"
