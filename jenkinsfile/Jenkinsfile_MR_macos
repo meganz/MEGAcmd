@@ -122,7 +122,7 @@ pipeline {
         stage('Run unit tests') {
             environment {
                 INSTALL_DIR = "${megacmd_sources_workspace}/cmdinstall"
-                PATH = "${env.PATH}:${env.INSTALL_DIR}/bin"
+                PATH = "${env.PATH}:${env.INSTALL_DIR}/mega-cmd-tests-unit.app/Contents/MacOS/"
                 HOME = "${megacmd_sources_workspace}/unit-test-dir/home"
             }
             options {
@@ -148,7 +148,7 @@ pipeline {
             }
             environment {
                 INSTALL_DIR = "${megacmd_sources_workspace}/cmdinstall"
-                PATH = "${env.PATH}:${env.INSTALL_DIR}/bin"
+                PATH = "${env.PATH}:${env.INSTALL_DIR}/bin:${env.INSTALL_DIR}/mega-cmd-tests-integration.app/Contents/MacOS/"
                 HOME = "${megacmd_sources_workspace}/integration-test-dir/home"
                 MEGACMD_TEST_USER = ''
                 MEGACMD_TEST_PASS = credentials('MEGACMD_TESTS_PASSWORD')
