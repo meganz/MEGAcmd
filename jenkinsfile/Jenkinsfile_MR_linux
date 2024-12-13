@@ -242,12 +242,14 @@ pipeline {
                                                 try {
                                                     dir("pytest-dir-${SANITIZERS}/working-dir") {
                                                         sh "ulimit -c unlimited && timeout -s 11 3500 /usr/local/bin/megacmd_${test}_test.py"
-                                                        deleteDir()
                                                     }
                                                     junit testResults: "pytest-dir-${SANITIZERS}/${test}-results/TEST-*.xml", allowEmptyResults: true
                                                 } finally {
-                                                    dir("pytest-dir-${SANITIZERS}/working-dir") {
+                                                    dir("pytest-dir-${SANITIZERS}") {
                                                         sh "find . -name core -exec zstd -z --fast=3 {} -o core_client_${test}.zstd \\; -exec rm {} \\; || true"
+                                                    }
+                                                    dir("pytest-dir-${SANITIZERS}/working-dir") {
+                                                        deleteDir()
                                                     }
                                                 }
                                             }
