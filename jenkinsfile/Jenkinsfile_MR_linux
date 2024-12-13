@@ -239,11 +239,17 @@ pipeline {
                                                 "UBSAN_OPTIONS=log_path=${megacmd_sources_workspace}/pytest-dir-${SANITIZERS}/${test}-results/mega-cmd-tests-python-report",
                                                 "OUT_DIR_JUNIT_XML=${megacmd_sources_workspace}/pytest-dir-${SANITIZERS}/${test}-results"
                                             ]) {
-                                                dir("pytest-dir-${SANITIZERS}/working-dir") {
-                                                    sh "ulimit -c unlimited && timeout -s 11 3500 /usr/local/bin/megacmd_${test}_test.py"
-                                                    deleteDir()
+                                                try {
+                                                    dir("pytest-dir-${SANITIZERS}/working-dir") {
+                                                        sh "ulimit -c unlimited && timeout -s 11 3500 /usr/local/bin/megacmd_${test}_test.py"
+                                                        deleteDir()
+                                                    }
+                                                    junit testResults: "pytest-dir-${SANITIZERS}/${test}-results/TEST-*.xml", allowEmptyResults: true
+                                                } finally {
+                                                    dir("pytest-dir-${SANITIZERS}/working-dir") {
+                                                        sh "find . -name core -exec zstd -z --fast=3 {} -o core_client_${test}.zstd \\; -exec rm {} \\; || true"
+                                                    }
                                                 }
-                                                junit testResults: "pytest-dir-${SANITIZERS}/${test}-results/TEST-*.xml", allowEmptyResults: true
                                             }
                                         }
                                     }
@@ -254,7 +260,7 @@ pipeline {
                             always {
                                 sh "/usr/bin/mega-exec logout || true"
                                 sh "/usr/bin/mega-exec quit || true"
-                                sh "find . -name core -exec zstd -z --fast=3 {} -o core_client.zstd \\; -exec rm {} \\; && [ -f core_client.zstd ] && && tar -cf - /usr/bin/mega-cmd /usr/bin/mega-exec | zstd -z --fast=3 -o ./mega-cmd-client-executables.tar.zstd || true"
+                                sh "find . -name core_client*.zstd | grep . && tar -cf - /usr/bin/mega-cmd /usr/bin/mega-exec | zstd -z --fast=3 -o ./mega-cmd-client-executables.tar.zstd || true"
                                 archiveArtifacts artifacts: "pytest-dir-${SANITIZERS}/.megaCmd/megacmdserver.log*", allowEmptyArchive: true
                                 archiveArtifacts artifacts: "**/core*zstd", allowEmptyArchive: true
                                 archiveArtifacts artifacts: "**/mega-*.zstd", allowEmptyArchive: true
