@@ -2581,7 +2581,7 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
     {
         os << "Show all issues with current syncs" << endl;
         os << endl;
-        os << "When MEGAcmd detects conflicts with the data it's synchronizing, a sync issue is triggered. Syncing is stopped, and no progress is made on the conflicting data." << endl;
+        os << "When MEGAcmd detects conflicts with the data it's synchronizing, a sync issue is triggered. Syncing is stopped on the conflicting data, and no progress is made. Recovering from an issue usually requires user intervention." << endl;
         os << "A notification warning will appear whenever sync issues are detected. You can disable the warning if you wish. Note: the notification may appear even if there were already issues before." << endl;
         os << "Note: the list of sync issues provides a snapshot of the issues detected at the moment of requesting it. Thus, it might not contain the latest updated data. Some issues might still be being processed by the sync engine, and some might not have been removed yet." << endl;
         os << endl;
