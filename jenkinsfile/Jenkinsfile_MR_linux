@@ -273,7 +273,7 @@ pipeline {
                                                                 # Execute with a timeout lower than Jenkins stage timeout, enforcing a SIGSEGV to ensure core dumping
                                                                 # In this case, splitting the timeout between all test cases
                                                                 ulimit -c unlimited;
-                                                                timeout -s 11 710 ${envStr}/usr/local/bin/megacmd_${test}_test.py
+                                                                ${envStr}timeout -s 11 710 /usr/local/bin/megacmd_${test}_test.py
                                                             """
                                                         }
                                                         junit "${testDir}/TEST-*.xml"
