@@ -95,7 +95,10 @@ def cmdshell_ec(what):
         # Wait for the shell prompt to be loaded
         child.expect([r'\$', '>'])
 
-        child.sendline("lcd " + os.getcwd())
+        # Having two lcd commands is not necessary and messes up the output parsing
+        if not what.startswith('lcd'):
+            child.sendline(f'lcd {os.getcwd()}')
+
         child.sendline(what)
 
         # Stop the shell
@@ -106,7 +109,7 @@ def cmdshell_ec(what):
         lines = child.before.replace('\r\n', '\n').split('\n')
 
         # Find the start of our command
-        start = next(i for i, s in enumerate(lines) if what in s)
+        start = next(i for i, s in enumerate(lines) if f'$ {what}' in s or f'> {what}' in s)
 
         # Find the end of our shell by searching for Ctrl+D
         end = next(i for i, s in enumerate(lines[start+1:], start+1) if '(CTRL+D)' in s)
