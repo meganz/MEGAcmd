@@ -41,7 +41,7 @@ endif()
 #Override SDK's options:
 option(ENABLE_ISOLATED_GFX "Turns on isolated GFX processor" OFF)
 option(ENABLE_SDKLIB_WERROR "Enable warnings as errors" OFF)
-if(NOT APPLE)
+if(UNIX AND NOT APPLE)
     option(WITH_FUSE "Build with FUSE support." ON)
 endif()
 
