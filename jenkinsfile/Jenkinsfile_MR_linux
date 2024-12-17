@@ -262,9 +262,12 @@ pipeline {
                                             ]) {
                                                 try {
                                                     dir("pytest-dir-${SANITIZERS}/working-dir") {
-                                                        # Execute with a timeout lower than Jenkins stage timeout, enforcing a SIGSEGV to ensure core dumping
-                                                        # In this case, splitting the timeout between all test cases
-                                                        sh "ulimit -c unlimited && timeout -s 11 710 /usr/local/bin/megacmd_${test}_test.py"
+                                                        sh """
+                                                            # Execute with a timeout lower than Jenkins stage timeout, enforcing a SIGSEGV to ensure core dumping
+                                                            # In this case, splitting the timeout between all test cases
+                                                            ulimit -c unlimited;
+                                                            timeout -s 11 710 /usr/local/bin/megacmd_${test}_test.py
+                                                        """
                                                     }
                                                     junit testResults: "pytest-dir-${SANITIZERS}/${test}-results/TEST-*.xml"
                                                 } finally {
