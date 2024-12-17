@@ -91,6 +91,8 @@ def cmdshell_ec(what):
     # We must ensure there are enough columns so long commands don't get truncated
     child = pexpect.spawn(MEGACMDSHELL, encoding='utf-8', dimensions=(32, 256), timeout=None)
 
+    quit_command = 'quit --only-shell'
+
     try:
         # Wait for the shell prompt to be loaded
         child.expect([r'\$', '>'])
@@ -101,8 +103,8 @@ def cmdshell_ec(what):
 
         child.sendline(what)
 
-        # Stop the shell
-        child.sendcontrol('d')
+        # Stop the shell and wait for end-of-file
+        child.sendline(quit_command)
         child.expect(pexpect.EOF)
 
         # The whole output of the shell split by newlines
@@ -111,8 +113,8 @@ def cmdshell_ec(what):
         # Find the start of our command
         start = next(i for i, s in enumerate(lines) if f'$ {what}' in s or f'> {what}' in s)
 
-        # Find the end of our shell by searching for Ctrl+D
-        end = next(i for i, s in enumerate(lines[start+1:], start+1) if '(CTRL+D)' in s)
+        # Find the end of our shell by searching for the quit command
+        end = next(i for i, s in enumerate(lines[start+1:], start+1) if f'$ {quit_command}' in s or f'> {quit_command}' in s)
 
         # The output of our command is the string in-between the start and end indices
         out = '\n'.join(lines[start+1:end]).strip()
