@@ -28,15 +28,15 @@
 #include "comunicationsmanager.h"
 #include "listeners.h"
 #include "megacmdversion.h"
-
-#include "mega/version.h" // TO GET SDK's version
+#include "sync_command.h"
+#include "sync_ignore.h"
 
 #include <exception>
 #include <iomanip>
 #include <limits>
 #include <string>
 #include <ctime>
-
+#include <filesystem>
 #include <set>
 
 #include <signal.h>
@@ -46,28 +46,11 @@
     using TI = TestInstruments;
 #endif
 
-
-#if (__cplusplus >= 201700L)
-    #include <filesystem>
-    namespace fs = std::filesystem;
-    #define MEGACMDEXECUTER_FILESYSTEM
-#elif !defined(__MINGW32__) && !defined(__ANDROID__) && (!defined(__GNUC__) || (__GNUC__*100+__GNUC_MINOR__) >= 503)
-#define MEGACMDEXECUTER_FILESYSTEM
-#ifdef WIN32
-    #include <filesystem>
-    namespace fs = std::experimental::filesystem;
-#else
-    #include <experimental/filesystem>
-    namespace fs = std::experimental::filesystem;
-#endif
-#endif
-
-
+namespace fs = std::filesystem;
 using namespace mega;
-
-namespace megacmd {
 using namespace std;
 
+namespace megacmd {
 static const char* rootnodenames[] = { "ROOT", "INBOX", "RUBBISH" };
 static const char* rootnodepaths[] = { "/", "//in", "//bin" };
 
@@ -153,7 +136,8 @@ void MegaCmdExecuter::updateprompt(MegaApi *api)
 
 MegaCmdExecuter::MegaCmdExecuter(MegaApi *api, MegaCMDLogger *loggerCMD, MegaCmdSandbox *sandboxCMD) :
     // Give a few seconds in order for key sharing to happen
-    mDeferredSharedFoldersVerifier(std::chrono::seconds(5))
+    mDeferredSharedFoldersVerifier(std::chrono::seconds(5)),
+    mSyncIssuesManager(api)
 {
     signingup = false;
     confirming = false;
@@ -163,6 +147,7 @@ MegaCmdExecuter::MegaCmdExecuter(MegaApi *api, MegaCMDLogger *loggerCMD, MegaCmd
     this->sandboxCMD = sandboxCMD;
     this->globalTransferListener = new MegaCmdGlobalTransferListener(api, sandboxCMD);
     api->addTransferListener(globalTransferListener);
+    api->addGlobalListener(mSyncIssuesManager.getGlobalListener());
     cwd = UNDEF;
     fsAccessCMD = new MegaFileSystemAccess();
     session = NULL;
@@ -999,18 +984,22 @@ bool MegaCmdExecuter::checkAndInformPSA(CmdPetition *inf, bool enforce)
         }
         else if(checkNoErrors(megaCmdListener->getError(), "get PSA"))
         {
-            sandboxCMD->lastPSAnumreceived = int(megaCmdListener->getRequest()->getNumber());
+            int number = static_cast<int>(megaCmdListener->getRequest()->getNumber());
+            std::string name = megaCmdListener->getRequest()->getName();
+            std::string text = megaCmdListener->getRequest()->getText();
 
-            LOG_debug << "Informing PSA #" << megaCmdListener->getRequest()->getNumber() << ": " << megaCmdListener->getRequest()->getName();
+            sandboxCMD->lastPSAnumreceived = number;
+
+            LOG_debug << "Informing PSA #" << number << ": " << name;
 
             stringstream oss;
 
-            oss << "<" << megaCmdListener->getRequest()->getName() << ">";
-            oss << megaCmdListener->getRequest()->getText();
+            oss << "<" << name << ">";
+            oss << text;
 
             string action = megaCmdListener->getRequest()->getPassword();
             string link = megaCmdListener->getRequest()->getLink();
-            if (!action.length())
+            if (action.empty())
             {
                 action = "read more: ";
             }
@@ -2074,7 +2063,7 @@ void MegaCmdExecuter::listnodeshares(MegaNode* n, string name, bool listPending 
 {
     assert(listPending || !onlyPending);
 
-    auto printOutShares = [n, &name](MegaShareList * outShares, bool skipPending = false)
+    auto printOutShares = [n, CONST_CAPTURE(name)](MegaShareList * outShares, bool skipPending = false)
     {
         if (outShares)
         {
@@ -2166,7 +2155,7 @@ void MegaCmdExecuter::dumpListOfPendingShares(MegaNode* n_param, string givenPat
 }
 
 
-void MegaCmdExecuter::loginWithPassword(char *password)
+void MegaCmdExecuter::loginWithPassword(const char *password)
 {
     MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
     sandboxCMD->resetSandBox();
@@ -2521,15 +2510,6 @@ bool MegaCmdExecuter::actUponFetchNodes(MegaApi *api, SynchronousRequestListener
     return false;
 }
 
-void setExcludeNames(MegaApi *api, std::vector<string> &vexcludednames)
-{
-#if (MEGA_MAJOR_VERSION < 5)
-    api->setExcludedNames(&vexcludednames);
-#else
-    api->setLegacyExcludedNames(&vexcludednames);
-#endif
-}
-
 int MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
 {
     if (timeout == -1)
@@ -2598,10 +2578,7 @@ int MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
         ConfigurationManager::loadbackups();
         mtxBackupsMap.unlock();
 
-        ConfigurationManager::loadExcludedNames();
-        ConfigurationManager::loadConfiguration(false);
-        std::vector<string> vexcludednames(ConfigurationManager::excludedNames.begin(), ConfigurationManager::excludedNames.end());
-        setExcludeNames(api, vexcludednames);
+        ConfigurationManager::transitionLegacyExclusionRules(*api);
 
         long long maxspeeddownload = ConfigurationManager::getConfigurationValue("maxspeeddownload", -1);
         if (maxspeeddownload != -1) api->setMaxDownloadSpeed(maxspeeddownload);
@@ -3460,7 +3437,7 @@ bool MegaCmdExecuter::amIPro()
     return prolevel > 0;
 }
 
-void MegaCmdExecuter::exportNode(MegaNode *n, int64_t expireTime, std::string password,
+void MegaCmdExecuter::exportNode(MegaNode *n, int64_t expireTime, const std::optional<std::string>& password,
                                  std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions)
 {
     const bool force = getFlag(clflags,"f");
@@ -3561,7 +3538,7 @@ void MegaCmdExecuter::exportNode(MegaNode *n, int64_t expireTime, std::string pa
     }
 
     string publicPassProtectedLink;
-    if (password.size())
+    if (password)
     {
         // Encrypting links with passwords is a client-side operation that will be done regardless
         // of PRO status of the account. So we need to manually check for it before calling
@@ -3569,7 +3546,7 @@ void MegaCmdExecuter::exportNode(MegaNode *n, int64_t expireTime, std::string pa
         if (amIPro())
         {
             megaCmdListener.reset(new MegaCmdListener(api, nullptr));
-            api->encryptLinkWithPassword(publicLink.get(), password.c_str(), megaCmdListener.get());
+            api->encryptLinkWithPassword(publicLink.get(), password->c_str(), megaCmdListener.get());
             megaCmdListener->wait();
 
             if (checkNoErrors(megaCmdListener->getError(), "protect public link with password"))
@@ -3885,28 +3862,6 @@ long long MegaCmdExecuter::getVersionsSize(MegaNode *n)
     return toret;
 }
 
-void MegaCmdExecuter::getInfoFromFolder(MegaNode *n, MegaApi *api, long long *nfiles, long long *nfolders, long long *nversions)
-{
-    std::unique_ptr<MegaCmdListener>megaCmdListener = std::make_unique<MegaCmdListener>(nullptr);
-    api->getFolderInfo(n, megaCmdListener.get());
-    *nfiles = 0;
-    *nfolders = 0;
-    megaCmdListener->wait();
-    if (checkNoErrors(megaCmdListener->getError(), "get folder info"))
-    {
-        MegaFolderInfo * mfi = megaCmdListener->getRequest()->getMegaFolderInfo();
-        if (mfi)
-        {
-            *nfiles  = mfi->getNumFiles();
-            *nfolders  = mfi->getNumFolders();
-            if (nversions)
-            {
-                *nversions = mfi->getNumVersions();
-            }
-        }
-    }
-}
-
 vector<string> MegaCmdExecuter::listpaths(bool usepcre, string askedPath, bool discardFiles)
 {
     vector<string> paths;
@@ -4017,7 +3972,6 @@ vector<string> MegaCmdExecuter::listlocalpathsstartingby(string askedPath, bool 
     }
 #endif
 
-#ifdef MEGACMDEXECUTER_FILESYSTEM
     for (fs::directory_iterator iter(fs::u8path(containingfolder)); iter != fs::directory_iterator(); ++iter)
     {
         if (!discardFiles || iter->status().type() == fs::file_type::directory)
@@ -4051,32 +4005,6 @@ vector<string> MegaCmdExecuter::listlocalpathsstartingby(string askedPath, bool 
 
         }
     }
-
-#elif defined(HAVE_DIRENT_H)
-    DIR *dir;
-    if ((dir = opendir (containingfolder.c_str())) != NULL)
-    {
-        struct dirent *entry;
-        while ((entry = readdir (dir)) != NULL)
-        {
-            if (!discardFiles || entry->d_type == DT_DIR)
-            {
-                string path = containingfolder;
-                if (path != "/")
-                    path.append(1, sep);
-                path.append(entry->d_name);
-                if (removeprefix) path = path.substr(2);
-                if (path.size() && entry->d_type == DT_DIR)
-                {
-                    path.append(1, sep);
-                }
-                paths.push_back(path);
-            }
-        }
-
-        closedir(dir);
-    }
-#endif
     return paths;
 }
 
@@ -4183,31 +4111,10 @@ vector<string> MegaCmdExecuter::getsessions()
 vector<string> MegaCmdExecuter::getlistfilesfolders(string location)
 {
     vector<string> toret;
-#ifdef MEGACMDEXECUTER_FILESYSTEM
     for (fs::directory_iterator iter(fs::u8path(location)); iter != fs::directory_iterator(); ++iter)
     {
         toret.push_back(iter->path().filename().u8string());
     }
-
-#elif defined(HAVE_DIRENT_H)
-    DIR *dir;
-    struct dirent *entry;
-    if ((dir = opendir (location.c_str())) != NULL)
-    {
-        while ((entry = readdir (dir)) != NULL)
-        {
-            if (IsFolder(location + entry->d_name))
-            {
-                toret.push_back(entry->d_name + string("/"));
-            }
-            else
-            {
-                toret.push_back(entry->d_name);
-            }
-        }
-        closedir (dir);
-    }
-#endif
     return toret;
 }
 
@@ -4521,15 +4428,6 @@ void MegaCmdExecuter::printTransferColumnDisplayer(ColumnDisplayer *cd, MegaTran
     }
 }
 
-void MegaCmdExecuter::printSyncHeader(ColumnDisplayer &cd)
-{
-    // add headers with unfixed width (those that can be ellided)
-    cd.addHeader("LOCALPATH", false);
-    cd.addHeader("REMOTEPATH", false);
-    return;
-
-}
-
 void MegaCmdExecuter::printBackupHeader(const unsigned int PATHSIZE)
 {
     OUTSTREAM << "TAG  " << " ";
@@ -4739,52 +4637,6 @@ void MegaCmdExecuter::printBackup(backup_struct *backupstruct, const char *timeF
             OUTSTREAM << "   Max. Backups: " << backupstruct->numBackups << endl;
         }
     }
-}
-
-void MegaCmdExecuter::printSync(MegaSync *sync, long long nfiles, long long nfolders, megacmd::ColumnDisplayer &cd,  std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions)
-{
-    cd.addValue("ID", syncBackupIdToBase64(sync->getBackupId()));
-
-    cd.addValue("LOCALPATH", sync->getLocalFolder());
-
-    if (getFlag(clflags, "show-handles"))
-    {
-        cd.addValue("REMOTEHANDLE", string("<H:").append(handleToBase64(sync->getMegaHandle()).append(">")));
-    }
-
-    cd.addValue("REMOTEPATH", sync->getLastKnownMegaFolder());
-
-    cd.addValue("RUN_STATE", syncRunStateStr(sync->getRunState()));
-
-    string pathstate;
-    string pathLocalFolder(sync->getLocalFolder());
-    pathLocalFolder = rtrim(pathLocalFolder, '/');
-#ifdef _WIN32
-    pathLocalFolder = rtrim(pathLocalFolder, '\\');
-#endif
-    string localizedLocalPath;
-    LocalPath::path2local(&pathLocalFolder,&localizedLocalPath);
-
-    int statepath = api->syncPathState(&localizedLocalPath);
-    pathstate = getSyncPathStateStr(statepath);
-    cd.addValue("STATUS", pathstate);
-
-    if ( sync->getError() )
-    {
-        std::unique_ptr<const char[]> megaSyncErrorCode {sync->getMegaSyncErrorCode()};
-        cd.addValue("ERROR", megaSyncErrorCode.get());
-    }
-    else
-    {
-        cd.addValue("ERROR", "NO");
-    }
-
-    std::unique_ptr<MegaNode> n{api->getNodeByHandle(sync->getMegaHandle())};
-    cd.addValue("SIZE", sizeToText(api->getSize(n.get())));
-    cd.addValue("FILES", SSTR(nfiles));
-    cd.addValue("DIRS", SSTR(nfolders));
-
-    return;
 }
 
 void MegaCmdExecuter::doFind(MegaNode* nodeBase, const char *timeFormat, std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions, string word, int printfileinfo, string pattern, bool usepcre, m_time_t minTime, m_time_t maxTime, int64_t minSize, int64_t maxSize)
@@ -7083,11 +6935,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         }
 
 #ifdef HAVE_GLOB_H
-                        if (!newname.size()
-#ifdef MEGACMDEXECUTER_FILESYSTEM
-                                && !fs::exists(words[i])
-#endif
-                                && hasWildCards(words[i]))
+                        if (!newname.size() && !fs::exists(words[i]) && hasWildCards(words[i]))
                         {
                             auto paths = resolvewildcard(words[i]);
                             if (!paths.size())
@@ -7112,7 +6960,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     unique_ptr<MegaNode> pn(api->getNodeByHandle(n->getParentHandle()));
                     if (pn)
                     {
-#if defined(HAVE_GLOB_H) && defined(MEGACMDEXECUTER_FILESYSTEM)
+#ifdef HAVE_GLOB_H
                         if (!fs::exists(words[1]) && hasWildCards(words[1]))
                         {
                             LOG_err << "Invalid target for wildcard expression: " << words[1] << ". Folder expected";
@@ -7792,249 +7640,226 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 #ifdef ENABLE_SYNC
     else if (words[0] == "exclude")
     {
-
-        // automatic now:
-        //api->enableTransferResumption();
-
-        if (getFlag(clflags, "a"))
+        bool excludeAdd = getFlag(clflags, "a");
+        bool excludeRemove = getFlag(clflags, "d");
+        if (excludeAdd == excludeRemove)
         {
-            for (unsigned int i=1;i<words.size(); i++)
-            {
-                ConfigurationManager::addExcludedName(words[i]);
-            }
-            if (words.size()>1)
-            {
-                std::vector<string> vexcludednames(ConfigurationManager::excludedNames.begin(), ConfigurationManager::excludedNames.end());
-                setExcludeNames(api, vexcludednames);
-            }
-            else
-            {
-                setCurrentOutCode(MCMD_EARGS);
-                LOG_err << "      " << getUsageStr("exclude");
-                return;
-            }
-        }
-        else if (getFlag(clflags, "d"))
-        {
-            for (unsigned int i=1;i<words.size(); i++)
-            {
-                ConfigurationManager::removeExcludedName(words[i]);
-            }
-            if (words.size()>1)
-            {
-                std::vector<string> vexcludednames(ConfigurationManager::excludedNames.begin(), ConfigurationManager::excludedNames.end());
-                setExcludeNames(api, vexcludednames);
-            }
-            else
-            {
-                setCurrentOutCode(MCMD_EARGS);
-                LOG_err << "      " << getUsageStr("exclude");
-                return;
-            }
+            setCurrentOutCode(MCMD_EARGS);
+            LOG_err << "      " << getUsageStr("exclude");
+            return;
         }
 
-
-        OUTSTREAM << "List of excluded names:" << endl;
-
-        for (set<string>::iterator it=ConfigurationManager::excludedNames.begin(); it!=ConfigurationManager::excludedNames.end(); ++it)
         {
-            OUTSTREAM << *it << endl;
+            SyncIgnore::Args args;
+            args.mAction = (excludeAdd ? SyncIgnore::Action::Add : SyncIgnore::Action::Remove);
+
+            std::transform(words.begin() + 1, words.end(),
+                           std::inserter(args.mFilters, args.mFilters.end()),
+                           SyncIgnore::getFilterFromLegacyPattern);
+
+            SyncIgnore::executeCommand(args);
         }
 
+        {
+            SyncIgnore::Args args;
+            args.mAction = SyncIgnore::Action::Show;
+
+            OUTSTREAM << endl;
+            OUTSTREAM << "Contents of .megaignore.default:" << endl;
+            SyncIgnore::executeCommand(args);
+        }
     }
     else if (words[0] == "sync")
     {
         if (!api->isFilesystemAvailable())
         {
             setCurrentOutCode(MCMD_NOTLOGGEDIN);
-            LOG_err << "Not logged in.";
+            LOG_err << "Not logged in";
             return;
         }
+
         if (!api->isLoggedIn())
         {
-            LOG_err << "Not logged in";
             setCurrentOutCode(MCMD_NOTLOGGEDIN);
+            LOG_err << "Not logged in";
             return;
         }
 
-        int PATHSIZE = getintOption(cloptions,"path-display-size");
-        if (!PATHSIZE)
-        {
-            // get screen size for output purposes
-            unsigned int width = getNumberOfCols(75);
-            PATHSIZE = min(60,int((width-46)/2));
-        }
-        PATHSIZE = max(0, PATHSIZE);
+        bool pauseSync = getFlag(clflags, "p") || getFlag(clflags, "pause") || getFlag(clflags, "s") || getFlag(clflags, "disable");
+        bool enableSync = getFlag(clflags, "e") || getFlag(clflags, "r") || getFlag(clflags, "enable");
+        bool deleteSync = getFlag(clflags, "delete") || getFlag(clflags, "d") || getFlag(clflags, "remove");
+        bool showHandles = getFlag(clflags, "show-handles");
 
-        bool headershown = false;
-        if (words.size() == 3) //add a sync
+        if (!onlyZeroOrOneOf(pauseSync, enableSync, deleteSync))
         {
-            LocalPath localAbsolutePath = LocalPath::fromAbsolutePath(words[1]); //this one would converts it to absolute if it's relative
-            LocalPath expansedAbsolutePath;
-            fsAccessCMD->expanselocalpath(localAbsolutePath, expansedAbsolutePath);
+            setCurrentOutCode(MCMD_EARGS);
+            LOG_err << "Only one action (disable, enable, or remove) can be specified at a time";
+            LOG_err << "      " << getUsageStr("sync");
+            return;
+        }
+
+        if (words.size() == 3) // add a sync
+        {
+            fs::path localPath = fs::absolute(words[1]);
+            if (!fs::exists(localPath))
+            {
+                setCurrentOutCode(MCMD_NOTFOUND);
+                LOG_err << "Local directory " << words[1] << " does not exist";
+                return;
+            }
 
             std::unique_ptr<MegaNode> n = nodebypath(words[2].c_str());
-            if (n)
+            if (!n)
             {
-                if (n->getType() == MegaNode::TYPE_FILE)
-                {
-                    LOG_err << words[2] << ": Remote sync root must be folder.";
-                }
-                else if (api->getAccess(n.get()) >= MegaShare::ACCESS_FULL)
-                {
-                    MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
-                    api->syncFolder(MegaSync::TYPE_TWOWAY, expansedAbsolutePath.toPath(false).c_str(), nullptr, n->getHandle(), nullptr, megaCmdListener);
-                    megaCmdListener->wait();
+                setCurrentOutCode(MCMD_NOTFOUND);
+                LOG_err << "Remote directory " << words[2] << " does not exist";
+                return;
+            }
 
-                    if (checkNoErrors(megaCmdListener->getError(), "sync folder", static_cast<SyncError>(megaCmdListener->getRequest()->getNumDetails())))
-                    {
-                        string localpath(megaCmdListener->getRequest()->getFile());
-                        SyncError syncError = static_cast<SyncError>(megaCmdListener->getRequest()->getNumDetails());
+            SyncCommand::addSync(*api, localPath, *n);
+        }
+        else if (words.size() == 2) // manage a sync
+        {
+            string pathOrId = words[1];
+            auto sync = SyncCommand::getSync(*api, pathOrId);
+            if (!sync)
+            {
+                setCurrentOutCode(MCMD_NOTFOUND);
+                LOG_err << "Sync not found: " << pathOrId;
+                return;
+            }
 
-                        char* nodepath = api->getNodePath(n.get());
-                        OUTSTREAM << "Added sync: " << localpath << " to " << nodepath << endl;
-                        if (syncError != NO_SYNC_ERROR)
-                        {
-                            std::unique_ptr<const char[]> megaSyncErrorCode {MegaSync::getMegaSyncErrorCode(syncError)};
-                            LOG_err << "Sync added as temporarily disabled. Reason: " << megaSyncErrorCode.get();
-                        }
-
-                        delete []nodepath;
-                    }
-
-                    delete megaCmdListener;
-                }
-                else
-                {
-                    setCurrentOutCode(MCMD_NOTPERMITTED);
-                    LOG_err << words[2] << ": Syncing requires full access to path, current access: " << api->getAccess(n.get());
-                }
+            if (deleteSync)
+            {
+                SyncCommand::modifySync(*api, *sync, SyncCommand::ModifyOpts::Delete);
             }
             else
             {
-                setCurrentOutCode(MCMD_NOTFOUND);
-                LOG_err << "Couldn't find remote folder: " << words[2];
-            }
-        }
-        else if (words.size() == 2) //manage one sync
-        {
-            string pathOrId{words[1].c_str()};
-            auto stop = getFlag(clflags, "s") || getFlag(clflags, "disable");
-            auto resume = getFlag(clflags, "r") || getFlag(clflags, "enable");
-            auto remove = getFlag(clflags, "d") || getFlag(clflags, "remove");
+                SyncCommand::modifySync(*api, *sync, enableSync ? SyncCommand::ModifyOpts::Enable : SyncCommand::ModifyOpts::Pause);
 
-            //1 - find the sync
-            std::unique_ptr<MegaSync> sync;
-            sync.reset(api->getSyncByBackupId(base64ToSyncBackupId(pathOrId)));
-            if (!sync)
-            {
-                sync.reset(api->getSyncByPath(pathOrId.c_str()));
-            }
-
-            if (!sync)
-            {
-                setCurrentOutCode(MCMD_NOTFOUND);
-                LOG_err << "Sync not found: " << pathOrId;
-                return;
-            }
-
-            if (stop)
-            {
-                auto megaCmdListener = std::make_unique<MegaCmdListener>(nullptr);
-                api->setSyncRunState(sync.get()->getBackupId(), MegaSync::RUNSTATE_DISABLED , megaCmdListener.get());
-                megaCmdListener->wait();
-                if (checkNoErrors(megaCmdListener->getError(), "stop sync", static_cast<SyncError>(megaCmdListener->getRequest()->getNumDetails())))
+                // Print the updated sync state if we didnt' remove
+                sync = SyncCommand::reloadSync(*api, std::move(sync));
+                if (!sync)
                 {
-                    LOG_info << "Sync disabled (stopped): " << sync->getLocalFolder() << " to " << sync->getLastKnownMegaFolder();
-                }
-            }
-            else if (resume)
-            {
-                auto megaCmdListener = std::make_unique<MegaCmdListener>(nullptr);
-                api->setSyncRunState(sync.get()->getBackupId(), MegaSync::RUNSTATE_RUNNING, megaCmdListener.get());
-                megaCmdListener->wait();
-                if (checkNoErrors(megaCmdListener->getError(), "enable sync", static_cast<SyncError>(megaCmdListener->getRequest()->getNumDetails())))
-                {
-                    LOG_info << "Sync re-enabled: " << sync->getLocalFolder() << " to " << sync->getLastKnownMegaFolder();
-                }
-            }
-            else if (remove)
-            {
-                auto megaCmdListener = std::make_unique<MegaCmdListener>(nullptr);
-                api->removeSync(sync->getBackupId(), megaCmdListener.get());
-                megaCmdListener->wait();
-                if (checkNoErrors(megaCmdListener->getError(), "remove sync", static_cast<SyncError>(megaCmdListener->getRequest()->getNumDetails())))
-                {
-                    OUTSTREAM << "Sync removed: " << sync->getLocalFolder() << " to " << sync->getLastKnownMegaFolder() << endl;
+                    setCurrentOutCode(MCMD_NOTFOUND);
+                    LOG_err << "Sync not found while reloading: " << pathOrId;
                     return;
                 }
-            }
 
-            // In any case, print the udpated sync state:
-            sync.reset(api->getSyncByBackupId(sync->getBackupId())); //first retrieve it again, to get updated data!
+                auto syncIssues = mSyncIssuesManager.getSyncIssues();
+
+                ColumnDisplayer cd(clflags, cloptions);
+                SyncCommand::printSync(*api, cd, showHandles, *sync, syncIssues);
+
+                OUTSTREAM << cd.str();
+            }
+        }
+        else if (words.size() == 1) // show all syncs
+        {
+            auto syncIssues = mSyncIssuesManager.getSyncIssues();
+            auto syncList = std::unique_ptr<MegaSyncList>(api->getSyncs());
+            assert(syncList);
+
+            ColumnDisplayer cd(clflags, cloptions);
+            SyncCommand::printSyncList(*api, cd, showHandles, *syncList, syncIssues);
+
+            OUTSTREAM << cd.str();
+            if (!syncIssues.empty())
+            {
+                LOG_err << "You have sync issues. Use the \"" << commandPrefixBasedOnMode() << "sync-issues\" command to display them.";
+            }
+        }
+        else
+        {
+            setCurrentOutCode(MCMD_EARGS);
+            LOG_err << getUsageStr("sync");
+            return;
+        }
+    }
+    else if (words[0] == "sync-ignore")
+    {
+        if (!api->isFilesystemAvailable())
+        {
+            setCurrentOutCode(MCMD_NOTLOGGEDIN);
+            LOG_err << "Not logged in";
+            return;
+        }
+
+        if (!api->isLoggedIn())
+        {
+            setCurrentOutCode(MCMD_NOTLOGGEDIN);
+            LOG_err << "Not logged in";
+            return;
+        }
+
+        if (words.size() < 2)
+        {
+            setCurrentOutCode(MCMD_EARGS);
+            LOG_err << "      " << getUsageStr("sync-ignore");
+            return;
+        }
+
+        bool ignoreShow = getFlag(clflags, "show");
+        bool ignoreAdd = getFlag(clflags, "add");
+        bool ignoreAddExclusion = getFlag(clflags, "add-exclusion");
+        bool ignoreRemove = getFlag(clflags, "remove");
+        bool ignoreRemoveExclusion = getFlag(clflags, "remove-exclusion");
+
+        if (!onlyZeroOrOneOf(ignoreShow, ignoreAdd, ignoreAddExclusion, ignoreRemove, ignoreRemoveExclusion))
+        {
+            setCurrentOutCode(MCMD_EARGS);
+            LOG_err << "Only one action (show, add, add-exclusion, remove, or remove-exclusion) can be specified at a time";
+            LOG_err << "      " << getUsageStr("sync-ignore");
+            return;
+        }
+
+        SyncIgnore::Args args;
+
+        args.mAction = SyncIgnore::Action::Show;
+        if (ignoreAdd || ignoreAddExclusion)
+        {
+            args.mAction = SyncIgnore::Action::Add;
+        }
+        else if (ignoreRemove || ignoreRemoveExclusion)
+        {
+            args.mAction = SyncIgnore::Action::Remove;
+        }
+
+        // Show cannot have filters
+        if (args.mAction == SyncIgnore::Action::Show && words.size() != 2)
+        {
+            setCurrentOutCode(MCMD_EARGS);
+            LOG_err << "      " << getUsageStr("sync-ignore");
+            return;
+        }
+
+        string pathOrId = words.back(); // the last word is (ID|localpath|"DEFAULT")
+        if (toLower(pathOrId) != "default")
+        {
+            auto sync = SyncCommand::getSync(*api, pathOrId);
             if (!sync)
             {
                 setCurrentOutCode(MCMD_NOTFOUND);
-                LOG_err << "Sync not found: " << pathOrId;
+                LOG_err << "Sync " << pathOrId << " was not found";
                 return;
             }
 
-            ColumnDisplayer cd(clflags, cloptions);
-
-            long long nfiles = 0;
-            long long nfolders = 0;
-            nfolders++; //add the sync itself
-            std::unique_ptr<MegaNode> node{api->getNodeByHandle(sync->getMegaHandle())};
-            getInfoFromFolder(node.get(), api, &nfiles, &nfolders);
-
-            if (!headershown)
-            {
-                headershown = true;
-                printSyncHeader(cd);
-            }
-
-            printSync(sync.get(), nfiles, nfolders, cd, clflags, cloptions);
-
-           OUTSTRINGSTREAM oss;
-           cd.print(oss);
-           OUTSTREAM << oss.str();
-
+            args.mMegaIgnoreDirPath = std::string(sync->getLocalFolder());
         }
-        else if (words.size() == 1) //print all syncs
+
+        auto filterInserter = [ignoreAddExclusion, ignoreRemoveExclusion] (const string& word)
         {
-            ColumnDisplayer cd(clflags, cloptions);
-
-            std::unique_ptr<MegaSyncList> syncs{api->getSyncs()};
-            for (int i = 0; i < syncs->size(); i++)
+            if (ignoreAddExclusion || ignoreRemoveExclusion)
             {
-                MegaSync *sync = syncs->get(i);
-
-                long long nfiles = 0;
-                long long nfolders = 0;
-                nfolders++; //add the sync itself
-                std::unique_ptr<MegaNode> node{api->getNodeByHandle(sync->getMegaHandle())};
-                if (node)
-                {
-                    getInfoFromFolder(node.get(), api, &nfiles, &nfolders);
-                }
-                else
-                {
-                    LOG_warn << "Remote node not found";
-                }
-
-                if (!headershown)
-                {
-                    headershown = true;
-                    printSyncHeader(cd);
-                }
-
-                printSync(sync, nfiles, nfolders, cd, clflags, cloptions);
+                return "-" + word;
             }
-            OUTSTRINGSTREAM oss;
-            cd.print(oss);
-            OUTSTREAM << oss.str();
-        }
-        return;
+            return word;
+        };
+
+        std::transform(words.begin() + 1, words.end() - 1,
+                       std::inserter(args.mFilters, args.mFilters.end()), filterInserter);
+
+        SyncIgnore::executeCommand(args);
     }
 #endif
     else if (words[0] == "cancel")
@@ -9631,15 +9456,17 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
         const bool add = getFlag(clflags, "a");
 
-        auto passwordPair = getOptionOrFalse(*cloptions, "password");
-        const auto &linkPass = passwordPair.first;
+        auto passwordOpt = getOptionAsOptional(*cloptions, "password");
 
         // When the user passes "--password" without "=" it gets treated as a flag, so
         // it's inserted into `clflags`. We'll treat this as hasPassword=true as well
         // to ensure we log the "password is empty" error to the user.
-        const bool hasPassword = passwordPair.second || getFlag(clflags, "password");
+        if (!passwordOpt && getFlag(clflags, "password"))
+        {
+            passwordOpt = "";
+        }
 
-        if (!add && (hasPassword || expireTime > 0 || getFlag(clflags, "f") || getFlag(clflags, "writable") || getFlag(clflags, "mega-hosted")))
+        if (!add && (passwordOpt || expireTime > 0 || getFlag(clflags, "f") || getFlag(clflags, "writable") || getFlag(clflags, "mega-hosted")))
         {
             setCurrentOutCode(MCMD_EARGS);
             LOG_err << "Option can only be used when adding an export (with -a)";
@@ -9649,7 +9476,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
         // This will be true for '--password', '--password=', and '--password=""'
         // Note: --password='' will use the '' string as the actual password
-        if (hasPassword && linkPass.empty())
+        if (passwordOpt && passwordOpt->empty())
         {
             setCurrentOutCode(MCMD_EARGS);
             LOG_err << "Password cannot be empty";
@@ -9683,7 +9510,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         if (!n->isExported())
                         {
                             LOG_debug << " exporting ... " << n->getName() << " expireTime=" << expireTime;
-                            exportNode(n.get(), expireTime, linkPass, clflags, cloptions);
+                            exportNode(n.get(), expireTime, passwordOpt, clflags, cloptions);
                         }
                         else
                         {
@@ -9713,15 +9540,14 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 std::unique_ptr<MegaNode> n = nodebypath(words[i].c_str());
                 if (n)
                 {
-                    // In C++17, we can do [&words = std::as_const(words), i] to capture by const reference instead
-                    auto nodeName = [&words, i] { return (words[i] == "." ? "current folder" : "<" + words[i] + ">"); };
+                    auto nodeName = [CONST_CAPTURE(words), i] { return (words[i] == "." ? "current folder" : "<" + words[i] + ">"); };
 
                     if (add)
                     {
                         if (!n->isExported())
                         {
                             LOG_debug << " exporting ... " << n->getName();
-                            exportNode(n.get(), expireTime, linkPass, clflags, cloptions);
+                            exportNode(n.get(), expireTime, passwordOpt, clflags, cloptions);
                         }
                         else
                         {
@@ -10120,7 +9946,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         }
         if (getFlag(clflags,"l"))
         {
-            OUTSTREAM << "MEGA SDK version: " << MEGA_MAJOR_VERSION << "." << MEGA_MINOR_VERSION << "." << MEGA_MICRO_VERSION << endl;
+            OUTSTREAM << "MEGA SDK version: " << SDK_COMMIT_HASH << endl;
 
             OUTSTREAM << "MEGA SDK Credits: https://github.com/meganz/sdk/blob/master/CREDITS.md" << endl;
             OUTSTREAM << "MEGA SDK License: https://github.com/meganz/sdk/blob/master/LICENSE" << endl;
@@ -10794,9 +10620,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 delete transfer;
             }
         }
-        OUTSTRINGSTREAM oss;
-        cd.print(oss);
-        OUTSTREAM << oss.str();
+        OUTSTREAM << cd.str();
     }
     else if (words[0] == "locallogout")
     {
@@ -10905,6 +10729,101 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
     else if (words[0] == "fuse-remove")
         fuseRemoveMount(words, *clflags, *cloptions);
 #endif
+    else if (words[0] == "sync-issues")
+    {
+        if (!api->isFilesystemAvailable() || !api->isLoggedIn())
+        {
+            setCurrentOutCode(MCMD_NOTLOGGEDIN);
+            LOG_err << "Not logged in";
+            return;
+        }
+
+        bool disableWarning = getFlag(clflags, "disable-warning");
+        bool enableWarning = getFlag(clflags, "enable-warning");
+        if (!onlyZeroOrOneOf(disableWarning, enableWarning))
+        {
+            setCurrentOutCode(MCMD_EARGS);
+            LOG_err << "Only one warning action (enable/disable) can be specified at a time";
+            LOG_err << "      " << getUsageStr("sync-issues");
+            return;
+        }
+
+        int rowCountLimit = getintOption(cloptions, "limit", 10);
+        if (rowCountLimit < 0)
+        {
+            setCurrentOutCode(MCMD_EARGS);
+            LOG_err << "Row count limit cannot be less than 0";
+            return;
+        }
+
+        if (rowCountLimit == 0)
+        {
+            rowCountLimit = std::numeric_limits<int>::max();
+        }
+
+        bool disablePathCollapse = getFlag(clflags, "disable-path-collapse");
+
+        if (disableWarning)
+        {
+            mSyncIssuesManager.disableWarning();
+            return;
+        }
+        if (enableWarning)
+        {
+            mSyncIssuesManager.enableWarning();
+            return;
+        }
+
+        ColumnDisplayer cd(clflags, cloptions);
+
+        bool detailSyncIssue = getFlag(clflags, "detail");
+        if (detailSyncIssue) // get the details of one or more issues
+        {
+            auto syncIssues = mSyncIssuesManager.getSyncIssues();
+
+            bool showAll = getFlag(clflags, "all");
+            if (showAll)
+            {
+                if (words.size() != 1)
+                {
+                    LOG_err << getUsageStr("sync-issues");
+                    return;
+                }
+                SyncIssuesCommand::printAllIssuesDetail(*api, cd, syncIssues, disablePathCollapse, rowCountLimit);
+            }
+            else
+            {
+                if (words.size() != 2)
+                {
+                    LOG_err << getUsageStr("sync-issues");
+                    return;
+                }
+
+                const std::string syncIssueId = words.back();
+
+                auto syncIssuePtr = syncIssues.getSyncIssue(syncIssueId);
+                if (!syncIssuePtr)
+                {
+                    setCurrentOutCode(MCMD_NOTFOUND);
+                    LOG_err << "Sync issue \"" << syncIssueId << "\" does not exist";
+                    return;
+                }
+
+                SyncIssuesCommand::printSingleIssueDetail(*api, cd, *syncIssuePtr, disablePathCollapse, rowCountLimit);
+            }
+        }
+        else // show all sync issues
+        {
+            auto syncIssues = mSyncIssuesManager.getSyncIssues();
+            if (syncIssues.empty())
+            {
+                OUTSTREAM << "There are no sync issues" << endl;
+                return;
+            }
+
+            SyncIssuesCommand::printAllIssues(*api, cd, syncIssues, disablePathCollapse, rowCountLimit);
+        }
+    }
     else
     {
         setCurrentOutCode(MCMD_EARGS);

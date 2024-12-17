@@ -55,11 +55,18 @@ TEST_F(NOINTERACTIVELoggedInTest, Whoami)
 
         auto out = r.out();
         ASSERT_THAT(out, testing::Not(testing::IsEmpty()));
+        ASSERT_THAT(getenv("MEGACMD_TEST_USER"), testing::NotNull());
         EXPECT_EQ(out, std::string("Account e-mail: ").append(getenv("MEGACMD_TEST_USER")).append("\n"));
     }
 
     {
         G_SUBTEST << "Extended";
+
+        {
+           // Ensure there's at least a file around contributing to ROOT usage:
+           auto result = executeInClient({"import", LINK_TESTEXPORTFILE01TXT});
+           ASSERT_TRUE(result.ok()) << "could not import testExportFile01.txt";
+        }
 
         auto r = executeInClient({"whoami", "-l"});
         ASSERT_TRUE(r.ok());

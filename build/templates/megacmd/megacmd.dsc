@@ -7,7 +7,7 @@ Version: megacmd_VERSION
 DEBTRANSFORM-RELEASE: 1
 Maintainer: MEGA Linux Team <linux@mega.co.nz>
 Homepage: https://mega.nz/cmd
-Build-Depends: ffmpeg-mega [!armhf], pdfium-mega [amd64], libzen-dev, libmediainfo-dev, pkg-config, debhelper, libcrypto++-dev, libpcre3-dev, libc-ares-dev, libssl-dev, libsqlite3-dev, zlib1g-dev, wget, dh-autoreconf, cdbs, unzip, libicu-dev, wget, libtool-bin (>= 2.4.2-1.10) | libtool (<< 2.4.2-1.10), libfuse-dev
+Build-Depends: pkg-config, debhelper, wget, dh-autoreconf, cdbs, unzip, pkg-config, autoconf, autoconf-archive, nasm, cmake, libtool-bin (>= 2.4.2-1.10) | libtool (<< 2.4.2-1.10), libfuse-dev
 Package-List:
  megacmd deb gnome optional
 Files:

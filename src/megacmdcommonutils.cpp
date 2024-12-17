@@ -43,6 +43,7 @@
 #include <iterator>
 
 #include <regex> //split
+#include <random>
 
 #ifdef _WIN32
 namespace mega {
@@ -377,6 +378,26 @@ bool hasWildCards(string &what)
     return what.find('*') != string::npos || what.find('?') != string::npos;
 }
 
+
+string generateRandomAlphaNumericString(size_t len)
+{
+    static const std::string alphabet =
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+        "abcdefghijklmnopqrstuvwxyz"
+        "0123456789";
+
+    thread_local static std::mt19937 generator(std::random_device{}());
+    thread_local static std::uniform_int_distribution<> distribution(0, alphabet.size() - 1);
+
+    std::string randomString;
+    randomString.reserve(len);
+    for (size_t i = 0; i < len; ++i)
+    {
+        randomString += alphabet[distribution(generator)];
+    }
+    return randomString;
+}
+
 std::vector<std::string> split(const std::string& input, const std::string& pattern)
 {
     size_t start = 0, end;
@@ -424,6 +445,12 @@ std::string &ltrim(std::string &s, const char &c)
     return s;
 }
 
+std::string_view ltrim(const std::string_view s, const char &c)
+{
+    size_t pos = s.find_first_not_of(c);
+    return s.substr(pos == std::string::npos ? s.size() : pos, s.length());
+}
+
 std::string &rtrim(std::string &s, const char &c)
 {
     size_t pos = s.find_last_of(c);
@@ -445,11 +472,11 @@ string removeTrailingSeparators(string &path)
     return rtrim(rtrim(path,'/'),'\\');
 }
 
-vector<string> getlistOfWords(char *ptr, bool escapeBackSlashInCompletion, bool ignoreTrailingSpaces)
+vector<string> getlistOfWords(const char *ptr, bool escapeBackSlashInCompletion, bool ignoreTrailingSpaces)
 {
     vector<string> words;
 
-    char* wptr;
+    const char* wptr = "";
 
     // split line into words with quoting and escaping
     for (;; )
@@ -522,16 +549,16 @@ vector<string> getlistOfWords(char *ptr, bool escapeBackSlashInCompletion, bool 
 
             wptr = ptr;
 
-            char *prev = ptr;
+            const char *prev = ptr;
             //while ((unsigned char)*ptr > ' ')
             while ((*ptr != '\0') && !(*ptr ==' ' && *prev !='\\'))
             {
-                if (*ptr == '"') // if quote is found, look for the ending quote
+                if (*ptr == '"' && *(ptr+1) != '\0') // if quote is found, look for the ending quote
                 {
-                    while (*(ptr + 1) != '"' && *(ptr + 1))
+                    do
                     {
-                        ptr++;
-                    }
+                        ++ptr;
+                    } while (*ptr != '"' && *(ptr+1) != '\0');
                 }
                 prev = ptr;
                 ptr++;
@@ -706,6 +733,21 @@ string getRightAlignedString(const string origin, unsigned int minsize)
     ostringstream os;
     os << std::setw(minsize) << origin;
     return os.str();
+}
+
+bool startsWith(const std::string_view str, const std::string_view prefix)
+{
+    return str.rfind(prefix, 0) == 0;
+}
+
+string toLower(const std::string& str)
+{
+    std::string lower = str;
+    for (char& c : lower)
+    {
+        c = std::tolower(c);
+    }
+    return lower;
 }
 
 void printCenteredLine(OUTSTREAMTYPE &os, string msj, unsigned int width, bool encapsulated)
@@ -900,13 +942,13 @@ string getOption(const map<string, string> *cloptions, const char * optname, str
     return defaultValue;
 }
 
-std::pair<string, bool> getOptionOrFalse(const map<string, string>& cloptions, const char * optname)
+std::optional<string> getOptionAsOptional(const map<string, string>& cloptions, const char * optname)
 {
     if (cloptions.find(optname) == cloptions.end())
     {
-        return {"", false};
+        return {};
     }
-    return {cloptions.at(optname), true};
+    return cloptions.at(optname);
 }
 
 int getintOption(const map<string, string> *cloptions, const char * optname, int defaultValue)
@@ -1015,7 +1057,7 @@ string sizeToText(long long totalSize, bool equalizeUnitsLength, bool humanreada
             unit = "KB";
         }
         os << fixed << reducedSize;
-        os << " " << unit;
+        os << " " << (reducedSize == 0.0 ? " " : "") << unit;
     }
     else
     {
@@ -1287,6 +1329,13 @@ ColumnDisplayer::ColumnDisplayer(std::map<std::string, int> *clflags, std::map<s
 
 }
 
+OUTSTRING ColumnDisplayer::str(bool printHeader)
+{
+    OUTSTRINGSTREAM oss;
+    print(oss, printHeader);
+    return oss.str();
+}
+
 void ColumnDisplayer::printHeaders(OUTSTREAMTYPE &os)
 {
     print(os, getintOption(mCloptions, "client-width", getNumberOfCols(75)), true, true);
@@ -1467,6 +1516,11 @@ void ColumnDisplayer::print(OUTSTREAMTYPE &os, int fullWidth, bool printHeader, 
     }
 }
 
+void ColumnDisplayer::clear()
+{
+    *this = ColumnDisplayer(mClflags, mCloptions);
+}
+
 Field::Field()
 {
 
@@ -1492,11 +1546,11 @@ void Field::updateMaxValue(int newcandidate)
 std::unique_ptr<PlatformDirectories> PlatformDirectories::getPlatformSpecificDirectories()
 {
 #ifdef _WIN32
-    return std::unique_ptr<PlatformDirectories>(new WindowsDirectories);
+    return std::make_unique<WindowsDirectories>();
 #elif defined(__APPLE__)
-    return std::unique_ptr<PlatformDirectories>(new MacOSDirectories);
+    return std::make_unique<MacOSDirectories>();
 #else
-    return std::unique_ptr<PlatformDirectories>(new PosixDirectories);
+    return std::make_unique<PosixDirectories>();
 #endif
 }
 
@@ -1626,7 +1680,10 @@ std::string getOrCreateSocketPath(bool createDirectory)
 
     if ((socketFolder.size() + 1 + sockname.size()) >= (MAX_SOCKET_PATH - 1))
     {
-        std::cerr << "WARN: socket path in runtime dir would exceed max size. Falling back to /tmp" << std::endl;
+        if (createDirectory)
+        {
+            std::cerr << "WARN: socket path in runtime dir would exceed max size. Falling back to /tmp" << std::endl;
+        }
         socketFolder = PosixDirectories::noHomeFallbackFolder();
     }
 
@@ -1645,7 +1702,9 @@ std::string getOrCreateSocketPath(bool createDirectory)
             umask(mode);
 
             if (failed)
+            {
                 return std::string();
+            }
         }
     }
 

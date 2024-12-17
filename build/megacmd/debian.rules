@@ -1,51 +1,53 @@
 #!/usr/bin/make -f
 NJOBS := $(shell echo ${DEB_BUILD_OPTIONS} | sed -rn 's/.*parallel=([0-9]*).*/\1/p')
-CPPFLAGS := $(shell cat /etc/issue | grep "Ubuntu 1[2345789]\|Ubuntu 20.10\|Ubuntu 21\|Ubuntu 22.10\|Ubuntu 23.04\|Debian.* [789]" >/dev/null && echo "$$CPPFLAGS -DMEGACMD_DEPRECATED_OS" || echo "")
-FCRYPTOPP := $(shell cat /etc/issue | grep "Ubuntu 1[4-8]\|Ubuntu 19.04\|Debian.* [8]" >/dev/null && echo "" || echo "-q")
-WCRYPTOPP := $(shell cat /etc/issue | grep "Ubuntu 1[4-8]\|Ubuntu 19.04\|Debian.* [8]" >/dev/null && echo "" || echo "--with-cryptopp=$(CURDIR)/deps")
-DPKGXZ := $(shell cat /etc/issue | grep "Ubuntu 24\|Noble Numbat\|Ubuntu 23\|Mantic Minotaur\|Lunar Lobster\|Ubuntu 22\|Jammy Jellyfish\|Ubuntu 21.10" >/dev/null && echo "-- -Zxz" || echo "")
-SQLITE3 := $(shell cat /etc/issue | grep "Ubuntu 18.04\|Ubuntu 20.04\|Debian.* \b\([0-9]\|10\)\b" >/dev/null && echo "" || (grep -- -L sdk/contrib/build_sdk.sh >/dev/null && echo "-L") )
-FMEDIAINFO := $(shell dpkg -l | grep mediainfo >/dev/null && echo "-i" || echo " ")
-WMEDIAINFO := $(shell dpkg -l | grep mediainfo >/dev/null && echo " " || echo "--with-libmediainfo=$(CURDIR)/deps --with-libzen=$(CURDIR)/deps")
-RFFMPEG := $(shell cat /etc/issue | grep "Raspbian" >/dev/null && echo "" || echo '-DREQUIRE_HAVE_FFMPEG')
-FPDFIUM := $(shell dpkg --print-architecture | grep -i "i386\|arm" >/dev/null && echo "" || echo '--with-pdfium')
-RPDFIUM := $(shell dpkg --print-architecture | grep -i "i386\|arm" >/dev/null && echo "" || echo '-DREQUIRE_HAVE_PDFIUM')
-INSTALL3RD := $(shell dpkg --print-architecture | grep -i "i386\|arm" >/dev/null && echo "" || echo 'install3rd')
-LDFLAGS := $(shell dpkg --print-architecture | grep -i "i386\|arm" >/dev/null && echo "" || echo "$$LDFLAGS -Wl,-rpath,/opt/megacmd/lib")
+VCPKG_ROOT := $(shell [ -f /opt/vcpkg.tar.gz ] && echo "-DVCPKG_ROOT=vcpkg" || echo "")
+#TODO: pass deprecation to cmake (probably better not via ccpflags)
+EXTRADEFINES := $(shell cat /etc/issue | grep "Ubuntu 1[2345789]\|Ubuntu 20.10\|Ubuntu 21\|Ubuntu 22.10\|Ubuntu 23\|Debian.* [789]" >/dev/null && echo "$$CPPFLAGS -DMEGACMD_DEPRECATED_OS" || echo "")
+DPKGXZ := $(shell cat /etc/issue | grep "Ubuntu 24\|Oracular Oriole\|Noble Numbat\|Ubuntu 23\|Mantic Minotaur\|Lunar Lobster\|Ubuntu 22\|Jammy Jellyfish\|Ubuntu 21.10" >/dev/null && echo "-- -Zxz" || echo "")
+#LDFLAGS := $(shell dpkg --print-architecture | grep -i "i386\|arm" >/dev/null && echo "" || echo "$$LDFLAGS -Wl,-rpath,/opt/megacmd/lib")
 DEB_TESTING := $(shell cat /etc/issue | grep "Debian" > /dev/null && cat /etc/apt/sources.list.d/debian.sources | grep -v "^\#" | grep testing > /dev/null && echo "testing")
+#TODO: Ensure raspbian builds with that export
 EXPORTCCMFPU := $(shell cat /etc/issue | grep "Raspbian GNU/Linux 12" >/dev/null && echo "export CC='cc -mfpu=vfp'" || echo ":")
+DISTRO := $(shell lsb_release -ds)
+VER := $(shell lsb_release -rs)
+export VCPKG_DEFAULT_BINARY_CACHE := $(shell [ -f /opt/vcpkg.tar.gz ] && echo "/opt/persistent/vcpkg_cache" || echo "")
+export PATH := $(shell [ -f /opt/cmake.tar.gz ] && echo "`pwd`/cmake_inst/bin:${PATH}" || echo "${PATH}")
+export CXXFLAGS := $(shell [ -n "${EXTRADEFINES}" ] && echo "${EXTRADEFINES} ${CXXFLAGS}" || echo "${CXXFLAGS}")
+
 
 MEGA_BUILD_ID := $(shell cat MEGA_BUILD_ID || echo "1")
 
 build: build-stamp
 build-stamp:
-	sed -i -E "s/(^#define MEGACMD_BUILD_ID )[0-9]*/\1$(MEGA_BUILD_ID)/g" src/megacmdversion.h
+	sed -i -E "s/(^#define MEGACMD_BUILD_ID )[0-9]*/\1$(MEGA_BUILD_ID)/g" src/megacmdversion.h.in
 	sed -i -E "0,/megacmd \(([0-9.]*)[^\)]*\)/s//megacmd \(\1-$(MEGA_BUILD_ID).1)/" debian.changelog || :
 
-	./autogen.sh
-
-	#build dependencies into folder deps
-	mkdir deps || :
-	( $(EXPORTCCMFPU) ; bash -x ./sdk/contrib/build_sdk.sh -o archives \
-	  -g -b $(FMEDIAINFO) $(FCRYPTOPP) $(SQLITE3) -l -c -s -u -v -a -z -I -p deps/ )
-
-	# Link dynamically with freeimage if pdfium is required.
-	if [ -n "$(INSTALL3RD)" ]; then  \
-	  ln -sfr $(CURDIR)/deps/lib/libfreeimage*.so $(CURDIR)/deps/lib/libfreeimage.so.3; \
-	  ln -sfn libfreeimage.so.3 $(CURDIR)/deps/lib/libfreeimage.so; \
-	else \
-	  rm $(CURDIR)/deps/lib/libfreeimage.so $(CURDIR)/deps/lib/libfreeimage.so.3 || : ; \
+	if [ -f /opt/vcpkg.tar.gz ]; then           \
+		tar xzf /opt/vcpkg.tar.gz;              \
+		mkdir -p $(VCPKG_DEFAULT_BINARY_CACHE); \
 	fi
 
-	CPPFLAGS="$(CPPFLAGS) $(RPDFIUM) $(RFFMPEG) -DREQUIRE_HAVE_LIBUV -DREQUIRE_USE_MEDIAINFO" LDFLAGS="$(LDFLAGS)" \
-	   ./configure --without-libraw --disable-shared --enable-static --disable-silent-rules \
-	  --disable-curl-checks --with-sodium=$(CURDIR)/deps --with-libuv=$(CURDIR)/deps $(FPDFIUM) \
-	  --with-curl=$(CURDIR)/deps --with-freeimage=$(CURDIR)/deps --with-readline=$(CURDIR)/deps \
-	  --with-termcap=$(CURDIR)/deps $(WCRYPTOPP) --prefix=$(CURDIR)/deps --disable-examples $(WMEDIAINFO) \
-	  --enable-fuse
+	if [ -f /opt/cmake.tar.gz ]; then echo "8dc99be7ba94ad6e14256b049e396b40  /opt/cmake.tar.gz" | md5sum -c -; fi
+	if [ -f /opt/cmake.tar.gz ]; then     \
+		tar xzf /opt/cmake.tar.gz;        \
+		ln -s cmake-*-Linux* cmake_inst;  \
+	fi
 
-	make -j$(NJOBS)
+	cmake --version
+	cmake $(VCPKG_ROOT) -DCMAKE_VERBOSE_MAKEFILE=ON -DCMAKE_BUILD_TYPE=RelWithDebInfo -S $(CURDIR) -B $(CURDIR)/build_dir
+	cmake --build $(CURDIR)/build_dir -j$(NJOBS)
+	cmake --install $(CURDIR)/build_dir --prefix $(CURDIR)/install_dir
+
+	#generate file that would increase inotify limit:
 	echo "fs.inotify.max_user_watches = 524288" > 99-megacmd-inotify-limit.conf
+
+	if [ -n "$(DEB_TESTING)" ]; then                            \
+		sed -i "s#@VERSION@#$(DEB_TESTING)#g" debian/postinst;  \
+	else                                                        \
+		sed -i "s#@VERSION@#$(VER)#g" debian/postinst;          \
+	fi
+	sed -i "s#@DISTRO@#$(DISTRO)#g" debian/postinst
+
 	touch build-stamp
 
 clean:
@@ -55,23 +57,10 @@ clean:
 
 install: build
 	###dh_auto_install --destdir=megacmd/megacmd
-	dh_install src/client/mega-* /usr/bin/
-	dh_install mega-cmd /usr/bin/
-	dh_install mega-cmd-server /usr/bin/
-	dh_install mega-exec /usr/bin/
-	dh_install src/client/megacmd_completion.sh /etc/bash_completion.d/
-	lsb_release -ds > distro
-	if [ -n "$(DEB_TESTING)" ]; then echo $(DEB_TESTING) > version; else lsb_release -rs > version;fi
-	dh_install distro /usr/share/doc/megacmd/
-	dh_install version /usr/share/doc/megacmd/
-	dh_install 99-megacmd-inotify-limit.conf /etc/sysctl.d/
-
-install3rd:
-	mkdir -p $(CURDIR)/debian/megacmd/opt/megacmd/lib
-	install $(CURDIR)/deps/lib/libfreeimage.so.* $(CURDIR)/debian/megacmd/opt/megacmd/lib
+	dh_install install_dir/* /
 
 # Build architecture-independent files here.
-binary-indep: build install $(INSTALL3RD)
+binary-indep: build install
 	# We have nothing to do by default.
 
 # Build architecture-dependent files here.

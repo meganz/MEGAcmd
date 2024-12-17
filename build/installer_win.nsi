@@ -26,10 +26,10 @@ VIAddVersionKey "LegalCopyright" "MEGA Limited 2019"
 VIAddVersionKey "ProductName" "MEGAcmd"
 
 ; Version info
-VIProductVersion "1.6.3.0"
-VIAddVersionKey "FileVersion" "1.6.3.0"
-VIAddVersionKey "ProductVersion" "1.6.3.0"
-!define PRODUCT_VERSION "1.6.3"
+VIProductVersion "1.7.0.0"
+VIAddVersionKey "FileVersion" "1.7.0.0"
+VIAddVersionKey "ProductVersion" "1.7.0.0"
+!define PRODUCT_VERSION "1.7.0"
 
 !define PRODUCT_PUBLISHER "Mega Limited"
 !define PRODUCT_WEB_SITE "http://www.mega.nz"
@@ -480,16 +480,6 @@ modeselected:
   !insertmacro Install3264DLL "${SRCDIR_MEGACMD}\MEGAcmdShell.exe" "$INSTDIR\MEGAcmdShell.exe"
   !insertmacro Install3264DLL "${SRCDIR_MEGACMD}\MEGAcmdUpdater.exe" "$INSTDIR\MEGAcmdUpdater.exe" 
 
-!ifdef BUILD_X64_VERSION
-  !insertmacro Install3264DLL "${SRCDIR_MEGACMD}\libssl-3-x64.dll"  "$INSTDIR\libssl-3-x64.dll"
-  !insertmacro Install3264DLL "${SRCDIR_MEGACMD}\libcrypto-3-x64.dll"  "$INSTDIR\libcrypto-3-x64.dll"
-!else
-  !insertmacro Install3264DLL "${SRCDIR_MEGACMD}\libcrypto-3.dll"  "$INSTDIR\libcrypto-3.dll"
-  !insertmacro Install3264DLL "${SRCDIR_MEGACMD}\libssl-3.dll"  "$INSTDIR\libssl-3.dll"
-!endif
-
-  !insertmacro Install3264DLL "${SRCDIR_MEGACMD}\libcurl.dll" "$INSTDIR\libcurl.dll"
-  !insertmacro Install3264DLL "${SRCDIR_MEGACMD}\cares.dll" "$INSTDIR\cares.dll"
   !insertmacro Install3264DLL "${SRCDIR_MEGACMD}\avcodec-59.dll" "$INSTDIR\avcodec-59.dll"
   !insertmacro Install3264DLL "${SRCDIR_MEGACMD}\avformat-59.dll" "$INSTDIR\avformat-59.dll"
   !insertmacro Install3264DLL "${SRCDIR_MEGACMD}\avutil-57.dll" "$INSTDIR\avutil-57.dll"

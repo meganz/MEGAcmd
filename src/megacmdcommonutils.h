@@ -37,10 +37,15 @@
 #include <mutex>
 #include <condition_variable>
 #include <cassert>
+#include <optional>
 
 #ifndef UNUSED
     #define UNUSED(x) (void)(x)
 #endif
+
+#define MOVE_CAPTURE(x) x{std::move(x)}
+#define FWD_CAPTURE(x) x{std::forward<decltype(x)>(x)}
+#define CONST_CAPTURE(x) &x = std::as_const(x)
 
 using std::setw;
 using std::left;
@@ -107,7 +112,7 @@ static std::vector<std::string> remoteremotepatterncommands {"cp"};
 
 static std::vector<std::string> remotelocalpatterncommands {"get", "thumbnail", "preview"};
 
-static std::vector<std::string> localfolderpatterncommands {"lcd"};
+static std::vector<std::string> localfolderpatterncommands {"lcd", "sync-ignore"};
 
 static std::vector<std::string> emailpatterncommands {"invite", "signup", "ipc", "users"};
 
@@ -124,9 +129,9 @@ static std::vector<std::string> loginInValidCommands { "log", "debug", "speedlim
                            };
 
 static std::vector<std::string> allValidCommands { "login", "signup", "confirm", "session", "mount", "ls", "cd", "log", "debug", "pwd", "lcd", "lpwd", "import", "masterkey",
-                             "put", "get", "attr", "userattr", "mkdir", "rm", "du", "mv", "cp", "sync", "export", "share", "invite", "ipc", "df",
+                             "put", "get", "attr", "userattr", "mkdir", "rm", "du", "mv", "cp", "sync", "sync-ignore", "export", "share", "invite", "ipc", "df",
                              "showpcr", "users", "speedlimit", "killsession", "whoami", "help", "passwd", "reload", "logout", "version", "quit",
-                             "thumbnail", "preview", "find", "completion", "clear", "https"
+                             "thumbnail", "preview", "find", "completion", "clear", "https", "sync-issues"
 #ifdef HAVE_DOWNLOADS_COMMAND
                                                    , "downloads"
 #endif
@@ -182,17 +187,20 @@ std::string removeTrailingSeparators(std::string &path);
 
 /* Strings related */
 
+std::string generateRandomAlphaNumericString(size_t len);
+
 std::vector<std::string> split(const std::string& input, const std::string& pattern);
 
 long long charstoll(const char *instr);
 
 // trim from start
 std::string &ltrim(std::string &s, const char &c);
+std::string_view ltrim(const std::string_view s, const char &c);
 
 // trim at the end
 std::string &rtrim(std::string &s, const char &c);
 
-std::vector<std::string> getlistOfWords(char *ptr, bool escapeBackSlashInCompletion = false, bool ignoreTrailingSpaces = false);
+std::vector<std::string> getlistOfWords(const char *ptr, bool escapeBackSlashInCompletion = false, bool ignoreTrailingSpaces = false);
 
 bool stringcontained(const char * s, std::vector<std::string> list);
 
@@ -209,6 +217,27 @@ std::string joinStrings(const std::vector<std::string>& vec, const char* delim =
 std::string getFixLengthString(const std::string &origin, unsigned int size, const char delimm=' ', bool alignedright = false);
 
 std::string getRightAlignedString(const std::string origin, unsigned int minsize);
+
+bool startsWith(const std::string_view str, const std::string_view prefix);
+
+/* Vector related */
+template <typename T>
+std::vector<T> operator+(const std::vector<T>& a, const std::vector<T>& b)
+{
+    std::vector<T> result = a;
+    result.insert(result.end(), b.begin(), b.end());
+    return result;
+}
+
+template <typename T>
+std::vector<T> operator+(std::vector<T>&& a, std::vector<T>&& b)
+{
+    a.reserve(a.size() + b.size());
+    a.insert(a.end(), std::make_move_iterator(b.begin()), std::make_move_iterator(b.end()));
+    return std::move(a);
+}
+
+std::string toLower(const std::string& str);
 
 template<typename T>
 OUTSTRING getLeftAlignedStr(T what, int n)
@@ -241,6 +270,12 @@ void printCenteredContentsT(WHERE &&o, const std::string &msj, unsigned int widt
     o << os.str();
 }
 
+template <typename... Bools>
+bool onlyZeroOrOneOf(Bools... args)
+{
+    return (args + ...) <= 1;
+}
+
 void printPercentageLineCerr(const char *title, long long completed, long long total, float percentDowloaded, bool cleanLineAfter = true);
 
 
@@ -251,8 +286,7 @@ int getFlag(const std::map<std::string, int> *flags, const char * optname);
 
 std::string getOption(const std::map<std::string, std::string> *cloptions, const char * optname, std::string defaultValue = "");
 
-// TODO C++17 Use std::optional<string> instead
-std::pair<std::string, bool> getOptionOrFalse(const std::map<std::string, std::string>& cloptions, const char * optname);
+std::optional<std::string> getOptionAsOptional(const std::map<std::string, std::string>& cloptions, const char * optname);
 
 int getintOption(const std::map<std::string, std::string> *cloptions, const char * optname, int defaultValue = 0);
 
@@ -319,9 +353,11 @@ class ColumnDisplayer
 public:
     ColumnDisplayer(std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions);
 
+    OUTSTRING str(bool printHeader = true);
+
     void printHeaders(OUTSTREAMTYPE &os);
     void print(OUTSTREAMTYPE &os, bool printHeader = true);
-
+    void clear();
 
     void addHeader(const std::string &name, bool fixed = true, int minWidth = 0);
     void addValue(const std::string &name, const std::string & value, bool replace = false);
@@ -447,11 +483,10 @@ class Instance : protected BaseInstance<T>
 {
     T mInstance;
 
-    //TODO: afer CMD-316, we can have inline and inintialized these:
-    /*inline */static std::mutex sPendingRogueOnesMutex;
-    /*inline */static std::condition_variable sPendingRogueOnesCV;
-    /*inline */static unsigned sPendingRogueOnes/* = 0*/;
-    /*inline */static bool sAssertOnDestruction/* = false*/;
+    inline static std::mutex sPendingRogueOnesMutex;
+    inline static std::condition_variable sPendingRogueOnesCV;
+    inline static unsigned sPendingRogueOnes = 0;
+    inline static bool sAssertOnDestruction = false;
 public:
     static bool waitForExplicitDependents()
     {
@@ -516,14 +551,17 @@ public:
 #endif //MEGACMD_TESTING_CODE
  };
 
-template <typename T>
-std::mutex Instance<T>::sPendingRogueOnesMutex;
-template <typename T>
-std::condition_variable Instance<T>::sPendingRogueOnesCV;
-template <typename T>
-unsigned Instance<T>::sPendingRogueOnes = 0;
-template <typename T>
-bool Instance<T>::sAssertOnDestruction = false;
+/**
+ * @brief general purpose scope guard class
+ */
+template <typename ExitCallback>
+class ScopeGuard
+{
+    ExitCallback mExitCb;
+public:
+    ScopeGuard(ExitCallback&& exitCb) : mExitCb{std::move(exitCb)} { }
+    ~ScopeGuard() { mExitCb(); }
+};
 
 }//end namespace
 #endif // MEGACMDCOMMONUTILS_H

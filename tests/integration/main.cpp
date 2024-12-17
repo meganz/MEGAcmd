@@ -62,6 +62,14 @@ int main (int argc, char *argv[])
 
     testing::InitGoogleTest(&argc, argv);
 
+    using TI = TestInstruments;
+
+    std::promise<void> serverWaitingPromise;
+    TI::Instance().onEventOnce(TI::Event::SERVER_ABOUT_TO_START_WAITING_FOR_PETITIONS,
+                               [&serverWaitingPromise]() {
+        serverWaitingPromise.set_value();
+    });
+
     std::thread serverThread([](){
 
         std::vector<char*> args{
@@ -69,16 +77,8 @@ int main (int argc, char *argv[])
             nullptr
         };
 
-        megacmd::executeServer(1, args.data(),
-                               std::make_unique<megacmd::LoggedStreamDefaultFile>());
-    });
-
-    using TI = TestInstruments;
-
-    std::promise<void> serverWaitingPromise;
-    TI::Instance().onEventOnce(TI::Event::SERVER_ABOUT_TO_START_WAITING_FOR_PETITIONS,
-                               [&serverWaitingPromise]() {
-        serverWaitingPromise.set_value();
+        auto createDefaultStream = [] { return new megacmd::LoggedStreamDefaultFile(); };
+        megacmd::executeServer(1, args.data(), createDefaultStream, mega::MegaApi::LOG_LEVEL_MAX, mega::MegaApi::LOG_LEVEL_MAX);
     });
 
     auto waitReturn = serverWaitingPromise.get_future().wait_for(std::chrono::seconds(10));
@@ -88,7 +88,13 @@ int main (int argc, char *argv[])
     auto exitCode = RUN_ALL_TESTS();
 
     megacmd::stopServer();
-
     serverThread.join();
+
+#ifdef _WIN32
+    // We use a file to pass the exit code to Jenkins,
+    // since it fails to get the actual value otherwise
+    std::ofstream("exit_code.txt") << exitCode;
+#endif
+
     return exitCode;
 }

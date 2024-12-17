@@ -3,21 +3,16 @@ Section: Tools
 Priority: normal
 Maintainer: MEGA Linux Team <linux@mega.co.nz>
 Build-Depends:  debhelper,
-                libcrypto++-dev,
-                libc-ares-dev,
-                libssl-dev,
-                libsqlite3-dev,
-                zlib1g-dev,
-                libicu-dev,
                 wget,
                 libtool,
                 dh-autoreconf,
                 cdbs,
-                libfuse-dev
+                libfuse-dev,
+                autoconf, autoconf-archive, nasm, cmake
 
 Package: megacmd
 Architecture: any
-Depends: ${shlibs:Depends}, libc-ares2, apt-transport-https, gpg, fuse
+Depends: ${shlibs:Depends}, apt-transport-https, gpg, procps, fuse
 Description: MEGA Command Line Interactive and Scriptable Application
  MEGAcmd provides non UI access to MEGA services. 
  It intends to offer all the functionality 

@@ -16,7 +16,10 @@
         "use-freeimage": {
             "description": "FreeImage library",
             "dependencies": [
-                "freeimage",
+                {
+                    "name": "freeimage",
+                    "version>=": "3.18.0#27"
+                },
                 {
                     "name": "jasper",
                     "default-features": false
@@ -57,15 +60,24 @@
         "megacmd-enable-tests": {
            "description": "Compile MEGAcmd tests",
            "dependencies": [ "gtest" ]
-         }
+        }
     },
     "dependencies": [
-      { "name": "cryptopp", "version>=": "8.9.0" },
-      "libsodium",
-      "sqlite3",
-      { "name": "curl", "version>=": "8.4.0" },
-      "icu",
-      "pcre"
+        {
+            "name": "cryptopp",
+            "version>=": "8.9.0"
+        },
+        "libsodium",
+        {
+            "name": "sqlite3",
+            "version>=": "3.46.0#1"
+        },
+        {
+            "name": "curl",
+            "version>=": "8.6.0"
+        },
+        "icu",
+        "pcre"
     ],
     "builtin-baseline" : "7476f0d4e77d3333fbb249657df8251c28c4faae",
     "overrides": [

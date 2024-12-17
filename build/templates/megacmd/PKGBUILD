@@ -26,14 +26,14 @@ arch=('i686' 'x86_64')
 url="http://mega.nz/cmd"
 license=("https://github.com/meganz/megacmd/blob/master/LICENSE")
 groups=()
-depends=('glibc>=2.37' 'sqlite' 'openssl>=1.1.1' 'zlib' 'libpsl' 'icu>=69.1' 'bash-completion' 'pcre' 'bzip2' 'xz')
-makedepends=('unzip' 'wget' 'ca-certificates' 'ffmpeg-mega' 'pdfium-mega' 'bzip2' 'xz')
+depends=('glibc>=2.37' 'bash-completion')
+makedepends=('unzip' 'wget' 'ca-certificates' 'cmake' 'zip' 'python3' 'autoconf-archive' 'nasm')
 checkdepends=()
 optdepends=()
 provides=("megacmd=${pkgver}" 'ffmpeg-mega')
 replaces=()
 backup=()
-options=()
+options=(!lto) # ffmpeg is not relocatable
 install=megacmd.install
 changelog= #TODO
 source=("./${pkgname}_$pkgver.tar.gz"
@@ -44,58 +44,42 @@ validpgpkeys=()
 
 prepare() {
 	cd "$pkgname-$pkgver"
-	sed -i -E "s/(^#define MEGACMD_BUILD_ID )[0-9]*/\1${pkgrel}/g" src/megacmdversion.h
+	sed -i -E "s/(^#define MEGACMD_BUILD_ID )[0-9]*/\1${pkgrel}/g" src/megacmdversion.h.in
+
+	if [ -f /opt/vcpkg.tar.gz ]; then
+		tar xzf /opt/vcpkg.tar.gz
+	fi
 }
 
 build() {
 	set -x
+
 	cd "$pkgname-$pkgver"
-	./autogen.sh
+	megasrcdir="${PWD}"
+	megabuilddir="${megasrcdir}/build_dir"
 
-	#build dependencies into folder deps
-	SQLITE3=$(grep -- -L ./contrib/build_sdk.sh >/dev/null && echo "-L" || echo "")
-	mkdir deps || :
-	bash -x ./contrib/build_sdk.sh -o archives \
-	  -e -g -b -l -c -s -u -v -a -q -I -p $SQLITE3 deps/
+	if [ -d "${megasrcdir}/vcpkg" ]; then
+		export VCPKG_DEFAULT_BINARY_CACHE=/opt/persistent/vcpkg_cache
+		mkdir -p ${VCPKG_DEFAULT_BINARY_CACHE}
+		vcpkg_root="-DVCPKG_ROOT=${megasrcdir}/vcpkg"
+	fi
 
-	# Link dynamically with freeimage
-	ln -sfr $PWD/deps/lib/libfreeimage*.so $PWD/deps/lib/libfreeimage.so.3
-	ln -sfn libfreeimage.so.3 $PWD/deps/lib/libfreeimage.so
+	cmake --version
+	cmake ${vcpkg_root} -DCMAKE_VERBOSE_MAKEFILE=ON -DCMAKE_BUILD_TYPE=RelWithDebInfo -S "${megasrcdir}" -B "${megabuilddir}"
+	cmake --build "${megabuilddir}" ${BUILD_PARALLEL_JOBS}
 
-	CPPFLAGS="$CPPFLAGS -DREQUIRE_HAVE_PDFIUM -DREQUIRE_HAVE_FFMPEG -DREQUIRE_HAVE_LIBUV -DREQUIRE_USE_MEDIAINFO -DREQUIRE_USE_PCRE" LDFLAGS="$LDFLAGS -Wl,-rpath,/opt/megacmd/lib" \
-	  ./configure --without-libraw --disable-shared --enable-static --disable-silent-rules \
-	  --disable-curl-checks --with-sodium=$PWD/deps --with-pcre --with-cryptopp=$PWD/deps \
-	  --with-curl=$PWD/deps --with-freeimage=$PWD/deps --with-readline=$PWD/deps \
-	  --with-cares=$PWD/deps --with-libuv=$PWD/deps --with-pdfium \
-	  --with-termcap=$PWD/deps --prefix=$PWD/deps --disable-examples \
-	  --with-libmediainfo=$PWD/deps --with-libzen=$PWD/deps
-
-	make ${BUILD_PARALLEL_JOBS}
 
 	touch build-stamp
 }
 
 check() {
 	cd "$pkgname-$pkgver"
-#	make -k check  DESTDIR=$_bindir THE_RPM_BUILD_ROOT=$pkgdir
 }
 
 package() {
-	_bindir=$pkgdir/usr/bin
-	mkdir -p $_bindir
-	_confdir=$pkgdir/etc
-	mkdir -p $_confdir
-
 	cd "$pkgname-$pkgver"
-	make install TARGET=$_bindir/megacmd INSTALL_ROOT=$pkgdir
-	
-	for i in src/client/mega-*; do install -D $i $_bindir/${i/src\/client\//}; done
-	install -D src/client/megacmd_completion.sh $_confdir/bash_completion.d/megacmd_completion.sh
-	install -D mega-cmd $_bindir/mega-cmd
-	install -D mega-cmd-server $_bindir/mega-cmd-server
-	install -D mega-exec $_bindir/mega-exec
-	mkdir -p $pkgdir/etc/sysctl.d/
-	echo "fs.inotify.max_user_watches = 524288" > $pkgdir/etc/sysctl.d/99-megacmd-inotify-limit.conf
-	mkdir -p $pkgdir/opt/megacmd/lib
-	install -D deps/lib/libfreeimage.so.* $pkgdir/opt/megacmd/lib
+	megasrcdir="${srcdir}/${pkgname}-${pkgver}"
+	megabuilddir="${megasrcdir}/build_dir"
+
+	cmake --install "${megabuilddir}" --prefix $pkgdir
 }

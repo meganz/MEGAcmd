@@ -1,31 +1,58 @@
 # CMakeLists.txt file to build the MEGAcmd
 cmake_minimum_required(VERSION 3.16)
 
+find_package(Git REQUIRED)
+execute_process(
+    COMMAND ${GIT_EXECUTABLE} rev-parse --short HEAD
+    WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/sdk
+    OUTPUT_VARIABLE SDK_COMMIT_HASH
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+
+set(MEGACMD_MAJOR_VERSION 1)
+set(MEGACMD_MINOR_VERSION 7)
+set(MEGACMD_MICRO_VERSION 0)
+
+## Configure megacmdversion.h
+configure_file("${CMAKE_CURRENT_LIST_DIR}/src/megacmdversion.h.in" "${CMAKE_CURRENT_LIST_DIR}/src/megacmdversion.h" @ONLY)
+if (APPLE)
+configure_file("${CMAKE_CURRENT_LIST_DIR}/build/installer/Info.plist.in" "${CMAKE_CURRENT_LIST_DIR}/build/installer/Info.plist" @ONLY)
+endif()
+
 # Qt Creator configures VCPKG automatically. Disable it, we may want to use different tripplets, paths...
 set(QT_CREATOR_SKIP_VCPKG_SETUP TRUE CACHE BOOL "")
 
 ## Modules location
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/build/cmake/modules) # Modules from MEGAcmd
-list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/sdk/contrib/cmake/modules) # Modules from MEGAsdk
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/sdk/cmake/modules) # Modules from MEGAsdk
 
 set(VCPKG_ROOT "${CMAKE_CURRENT_LIST_DIR}/../vcpkg" CACHE PATH "If set, it will build and use the VCPKG packages defined in the manifest file")
 
-if(NOT WIN32 AND NOT EXISTS ${VCPKG_ROOT})
+
+if (WIN32)
+execute_process(
+    COMMAND bash --version
+    RESULT_VARIABLE BASH_VERSION_RESULT
+    OUTPUT_QUIET
+    ERROR_QUIET
+)
+endif()
+
+if((NOT WIN32 OR BASH_VERSION_RESULT EQUAL 0) AND NOT EXISTS ${VCPKG_ROOT})
     message(STATUS "vcpkg will be cloned into ${VCPKG_ROOT}")
     execute_process(
         #TODO: have the same for windows ... or at least check if bash is available
-        COMMAND "${CMAKE_CURRENT_LIST_DIR}/build/clone_vcpkg_from_baseline.sh" "${VCPKG_ROOT}"
+        COMMAND "bash" "-x" "${CMAKE_CURRENT_LIST_DIR}/build/clone_vcpkg_from_baseline.sh" "${VCPKG_ROOT}"
         WORKING_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}"
         ERROR_VARIABLE resulte
         OUTPUT_VARIABLE result
         RESULT_VARIABLE status
     )
     if(NOT status EQUAL "0")
-        message(FATAL_ERROR "Failed to run the clone_vcpkg_from_baseline. ${resulte}")
+        message(FATAL_ERROR "Failed to run the clone_vcpkg_from_baseline. ${status} ${result} ${resulte} ")
     endif()
     message(STATUS "vcpkg cloned successfully: ${status}")
 endif()
-
 
 #TODO: Review the following, move to a separate module and add add_executable WIN32/MACOSX_BUNDLE properties
 # Set min OSX version
@@ -41,7 +68,7 @@ if(CMAKE_HOST_APPLE)
     if(CMAKE_OSX_ARCHITECTURES STREQUAL "arm64" OR (NOT CMAKE_OSX_ARCHITECTURES AND HOST_ARCHITECTURE STREQUAL "arm64"))
         set(CMAKE_OSX_DEPLOYMENT_TARGET "11.1" CACHE STRING "Minimum OS X deployment version")
     else()
-        set(CMAKE_OSX_DEPLOYMENT_TARGET "10.13" CACHE STRING "Minimum OS X deployment version")
+        set(CMAKE_OSX_DEPLOYMENT_TARGET "10.15" CACHE STRING "Minimum OS X deployment version")
     endif()
     message(STATUS "Minimum OS X deployment version is set to ${CMAKE_OSX_DEPLOYMENT_TARGET}")
     unset(HOST_ARCHITECTURE)
@@ -50,8 +77,7 @@ if(WIN32)
     add_definitions( -DUNICODE -D_UNICODE )  # needed for visual studio projects to use the unicode runtime libraries
 
     #supported windows version: 7 and beyond
-    add_definitions( -DNTDDI_VERSION=NTDDI_WIN7 )
-    add_definitions( -D_WIN32_WINNT=0x0601 ) # 0601: windows 7
+    add_definitions( -D_WIN32_WINNT=0x0601 ) # 0601: windows 7. Note: NTDDI_VERSIO & WINVER shall be inferred from those by Win SDK
     add_definitions( -DNO_READLINE )  # This one is defined within SdkLib, but we need it too for MEGAcmd code.
     add_definitions( -DUSE_CPPTHREAD ) # For win32, we need this to be defined explicitly (used directly in different targets). TODO: remove in CMD-318
     add_definitions( -DNOMINMAX ) # To fix usages of std::min / std::max
@@ -74,16 +100,16 @@ if(VCPKG_ROOT)
 
     # Include VCPKG management tools.
     include(vcpkg_management)
-    list(APPEND vcpkg_overlay ${CMAKE_CURRENT_LIST_DIR}/sdk/contrib/cmake) # MEGAsdk overlays
+    list(APPEND vcpkg_overlay ${CMAKE_CURRENT_LIST_DIR}/sdk/cmake) # MEGAsdk overlays
     process_vcpkg_libraries("${vcpkg_overlay}") # Choose and build libraries depending on the configured options.
 else()
     # For packages with no pkg-config in the system.
-    list(APPEND CMAKE_MODULE_PATH sdk/contrib/cmake/modules/packages)
+    list(APPEND CMAKE_MODULE_PATH sdk/cmake/modules/packages)
     message(STATUS "Using system dependencies")
 endif()
 
 project(MEGAcmd
-    VERSION 1.7.0 #TODO: have this gathered from megacmdversion.h
+    VERSION ${MEGACMD_MAJOR_VERSION}.${MEGACMD_MINOR_VERSION}.${MEGACMD_MICRO_VERSION}
     DESCRIPTION "MEGAcmd"
     )
 
@@ -141,6 +167,18 @@ include(megacmd_utility_functions) # utility functions
 
 set(ProjectDir "${CMAKE_CURRENT_LIST_DIR}")
 
+# Populate list of MEGAcmd source files (used by logger):
+generate_src_file_list("${ProjectDir}/sdk" SDK_SRCS)
+generate_src_file_list("${ProjectDir}/src" MEGACMD_SRCS)
+foreach(CMDFILE ${MEGACMD_SRCS})
+    if (CMDFILE IN_LIST SDK_SRCS)
+        message(FATAL_ERROR "MEGAcmd src filename ${CMDFILE} clashing with SDK's: please, pick a new one")
+    endif()
+endforeach()
+string(JOIN ", " MEGACMD_SRC_FILE_LIST ${MEGACMD_SRCS})
+configure_file("${ProjectDir}/src/megacmd_src_file_list.h.in" "${ProjectDir}/src/megacmd_src_file_list.h" @ONLY)
+
+
 add_library(LMEGAcmdCommonUtils STATIC)
 add_source_and_corresponding_header_to_target(LMEGAcmdCommonUtils
     PUBLIC
@@ -160,9 +198,11 @@ add_source_and_corresponding_header_to_target(LMegacmdServer
     "${ProjectDir}/src/comunicationsmanager.cpp"
     "${ProjectDir}/src/comunicationsmanagerfilesockets.cpp"
     "${ProjectDir}/src/comunicationsmanagernamedpipes.cpp"
-    "${ProjectDir}/src/comunicationsmanagerportsockets.cpp"
     "${ProjectDir}/src/configurationmanager.cpp"
     "${ProjectDir}/src/listeners.cpp"
+    "${ProjectDir}/src/sync_command.cpp"
+    "${ProjectDir}/src/sync_issues.cpp"
+    "${ProjectDir}/src/sync_ignore.cpp"
 )
 
 target_sources_conditional(LMegacmdServer
@@ -172,18 +212,55 @@ target_sources_conditional(LMegacmdServer
     "${ProjectDir}/src/megacmdplatform.mm"
 )
 
-# Given we are no longer including the sdk, and some sources use certain defines without including SDK's config.h, 
-# We need to explicitly pass the copmiling options.
+# Given we are no longer including the sdk, and some sources use certain defines without including SDK's config.h,
+# We need to explicitly pass the compiling options.
 target_compile_definitions(LMegacmdServer
     PUBLIC
     $<$<BOOL:${USE_PCRE}>:USE_PCRE>
 )
 
-add_executable(mega-cmd-server)
+if (APPLE)
+    set(executablesType MACOSX_BUNDLE)
+endif()
+
+add_executable(mega-cmd-server ${executablesType})
+if (WIN32)
+    set(MEGACMD_RESOURCE_NAME MEGAcmdServer)
+    configure_file("${CMAKE_CURRENT_LIST_DIR}/build/installer/winversion.rc.in" "${CMAKE_CURRENT_LIST_DIR}/build/installer/mega-cmd-server_version.rc" @ONLY)
+    set(RESOURCE_FILES_MEGACMD_SERVER "${CMAKE_CURRENT_LIST_DIR}/build/installer/mega-cmd-server_version.rc")
+
+    set(MEGACMD_RESOURCE_NAME MEGAclient)
+    configure_file("${CMAKE_CURRENT_LIST_DIR}/build/installer/winversion.rc.in" "${CMAKE_CURRENT_LIST_DIR}/build/installer/mega-cmd-client_version.rc" @ONLY)
+    set(RESOURCE_FILES_MEGACMD_CLIENT "${CMAKE_CURRENT_LIST_DIR}/build/installer/mega-cmd-client_version.rc")
+
+    set(MEGACMD_RESOURCE_NAME MEGAcmdShell)
+    configure_file("${CMAKE_CURRENT_LIST_DIR}/build/installer/winversion.rc.in" "${CMAKE_CURRENT_LIST_DIR}/build/installer/mega-cmd-shell_version.rc" @ONLY)
+    set(RESOURCE_FILES_MEGACMD_SHELL "${CMAKE_CURRENT_LIST_DIR}/build/installer/mega-cmd-shell_version.rc")
+
+    set(MEGACMD_RESOURCE_NAME MEGAcmdUpdater)
+    configure_file("${CMAKE_CURRENT_LIST_DIR}/build/installer/winversion.rc.in" "${CMAKE_CURRENT_LIST_DIR}/build/installer/mega-cmd-updater_version.rc" @ONLY)
+    set(RESOURCE_FILES_MEGACMD_UPDATER "${CMAKE_CURRENT_LIST_DIR}/build/installer/mega-cmd-updater_version.rc")
+elseif (APPLE)
+    set(RESOURCE_FILES_MEGACMD_SERVER
+        ${CMAKE_CURRENT_SOURCE_DIR}/build/installer/app.icns
+    )
+
+    set_target_properties(mega-cmd-server PROPERTIES
+        MACOSX_BUNDLE TRUE
+        MACOSX_BUNDLE_INFO_PLIST ${CMAKE_CURRENT_SOURCE_DIR}/build/installer/Info.plist
+        RESOURCE "${RESOURCE_FILES_MEGACMD_SERVER}"
+    )
+endif()
 add_source_and_corresponding_header_to_target(mega-cmd-server PRIVATE
     "${ProjectDir}/src/megacmd_server_main.cpp"
-    "${ProjectDir}/contrib/QtCreator/MEGAcmd/MEGAcmdServer/icon.rc"
+    "${RESOURCE_FILES_MEGACMD_SERVER}"
 )
+if (APPLE)
+set_target_properties(mega-cmd-server PROPERTIES OUTPUT_NAME "MEGAcmd")
+elseif (WIN32)
+set_target_properties(mega-cmd-server PROPERTIES OUTPUT_NAME "MEGAcmdServer")
+endif()
+
 
 add_library(LMegacmdClient STATIC)
 add_source_and_corresponding_header_to_target(LMegacmdClient PUBLIC
@@ -192,27 +269,31 @@ add_source_and_corresponding_header_to_target(LMegacmdClient PUBLIC
     "${ProjectDir}/src/megacmdshell/megacmdshellcommunications.cpp"
 )
 
-add_executable(mega-exec)
+add_executable(mega-exec ${executablesType})
 add_source_and_corresponding_header_to_target(mega-exec PRIVATE
     "${ProjectDir}/src/client/megacmd_client_main.cpp"
-    "${ProjectDir}/contrib/QtCreator/MEGAcmd/MEGAcmdClient/icon.rc"
+    "${RESOURCE_FILES_MEGACMD_CLIENT}"
 )
 
-add_executable(mega-cmd)
+add_executable(mega-cmd ${executablesType})
 add_source_and_corresponding_header_to_target(mega-cmd PRIVATE
     "${ProjectDir}/src/megacmdshell/megacmdshellcommunications.cpp"
     "${ProjectDir}/src/megacmdshell/megacmdshellcommunicationsnamedpipes.cpp"
     "${ProjectDir}/src/megacmdshell/megacmdshell.cpp"
-    "${ProjectDir}/contrib/QtCreator/MEGAcmd/MEGAcmdShell/icon.rc"
+    "${RESOURCE_FILES_MEGACMD_SHELL}"
 )
 
-add_executable(mega-cmd-updater WIN32)
+if (WIN32)
+    add_executable(mega-cmd-updater WIN32)
+else()
+    add_executable(mega-cmd-updater ${executablesType})
+endif()
 add_source_and_corresponding_header_to_target(mega-cmd-updater PRIVATE
     "${ProjectDir}/src/updater/MegaUpdater.cpp"
 )
 add_source_and_corresponding_header_to_target(mega-cmd-updater PRIVATE
     "${ProjectDir}/src/updater/UpdateTask.cpp"
-    "${ProjectDir}/contrib/QtCreator/MEGAcmd/MEGAcmdUpdater/icon.rc"
+    "${RESOURCE_FILES_MEGACMD_UPDATER}"
 )
 
 target_sources_conditional(mega-cmd-updater
@@ -231,10 +312,12 @@ if (ENABLE_MEGACMD_TESTS)
     )
 
     #Integration tests:
-    add_executable(mega-cmd-tests-integration)
+    add_executable(mega-cmd-tests-integration ${executablesType})
     add_source_and_corresponding_header_to_target(mega-cmd-tests-integration PRIVATE
         "${ProjectDir}/tests/integration/BasicTests.cpp"
         "${ProjectDir}/tests/integration/ExportTests.cpp"
+        "${ProjectDir}/tests/integration/SyncIssuesTests.cpp"
+        "${ProjectDir}/tests/integration/SyncIgnoreTests.cpp"
         "${ProjectDir}/tests/integration/MegaCmdTestingTools.cpp"
         "${ProjectDir}/tests/integration/main.cpp"
     )
@@ -245,7 +328,7 @@ if (ENABLE_MEGACMD_TESTS)
     endif()
 
     #Unit tests:
-    add_executable(mega-cmd-tests-unit)
+    add_executable(mega-cmd-tests-unit ${executablesType})
     add_source_and_corresponding_header_to_target(mega-cmd-tests-unit PRIVATE
         "${ProjectDir}/tests/unit/StringUtilsTests.cpp"
         "${ProjectDir}/tests/unit/UtilsTests.cpp"
@@ -291,7 +374,7 @@ endif()
 target_link_libraries(mega-cmd-server PUBLIC LMegacmdServer)
 
 if (ENABLE_MEGACMD_TESTS)
-    target_include_directories(mega-cmd-tests-unit PUBLIC ${ProjectDir}/src ${ProjectDir}/tests/common)
+    target_include_directories(LMegacmdTestsCommon PUBLIC ${ProjectDir}/src ${ProjectDir}/tests/common)
     target_link_libraries(mega-cmd-tests-unit PUBLIC LMegacmdServer LMegacmdTestsCommon)
 endif()
 
@@ -310,15 +393,59 @@ load_megacmdserver_libraries()
 
 
 list(APPEND all_targets mega-exec mega-cmd mega-cmd-server)
+if (APPLE)
+    list(APPEND all_targets mega-cmd-updater)
+endif()
+
 if(ENABLE_MEGACMD_TESTS)
     list(APPEND all_targets mega-cmd-tests-unit mega-cmd-tests-integration)
 endif()
 # Install stuff
-if (NOT WIN32)
+if (APPLE)
+    install(TARGETS ${all_targets}
+        BUNDLE
+        DESTINATION "./"
+    )
+elseif(NOT WIN32)
+    set(PERMISSIONS755
+         OWNER_READ
+         OWNER_WRITE
+         OWNER_EXECUTE
+         GROUP_READ
+         GROUP_EXECUTE
+         WORLD_READ
+         WORLD_EXECUTE
+         )
+     set(CMAKE_INSTALL_DEFAULT_DIRECTORY_PERMISSIONS ${PERMISSIONS755})
+
     install(TARGETS ${all_targets}
         RUNTIME
         DESTINATION ${CMAKE_INSTALL_BINDIR}
     )
+
+    install(DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/src/client/"
+        DESTINATION ${CMAKE_INSTALL_BINDIR}
+        FILE_PERMISSIONS ${PERMISSIONS755}
+        FILES_MATCHING
+        PATTERN "mega-*"
+        PATTERN "*.cpp" EXCLUDE
+        PATTERN "*.h" EXCLUDE
+        PATTERN "mega-exec" EXCLUDE
+        PATTERN "megacmd_completion.sh" EXCLUDE
+        PATTERN "python" EXCLUDE
+        PATTERN "win" EXCLUDE)
+
+    install(FILES "${CMAKE_CURRENT_LIST_DIR}/src/client/megacmd_completion.sh"
+        DESTINATION "etc/bash_completion.d"
+        )
+
+    # generate 100-megacmd-inotify-limit.conf file and have it installed
+    execute_process(COMMAND echo "fs.inotify.max_user_watches = 524288"
+                OUTPUT_FILE ${CMAKE_CURRENT_BINARY_DIR}/99-megacmd-inotify-limit.conf)
+    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/99-megacmd-inotify-limit.conf
+        DESTINATION "etc/sysctl.d"
+        )
+
     #Install vcpkg dynamic libraries in locations defined by GNUInstallDirs.
     if(CMAKE_BUILD_TYPE STREQUAL "Debug")
         SET(vcpkg_lib_folder "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/debug/lib/")

@@ -25,6 +25,7 @@
 #include "megacmdsandbox.h"
 #include "listeners.h"
 #include "deferred_single_trigger.h"
+#include "sync_issues.h"
 
 namespace megacmd {
 class MegaCmdGlobalTransferListener;
@@ -46,6 +47,7 @@ private:
     std::mutex mtxFtpLocations;
 
     DeferredSingleTrigger mDeferredSharedFoldersVerifier;
+    SyncIssuesManager mSyncIssuesManager;
 
     std::recursive_mutex mtxBackupsMap;
 
@@ -200,12 +202,10 @@ public:
     void dumpListOfPendingShares(mega::MegaNode* n, std::string givenPath);
     std::string getCurrentPath();
     long long getVersionsSize(mega::MegaNode* n);
-    void getInfoFromFolder(mega::MegaNode *, mega::MegaApi *, long long *nfiles, long long *nfolders, long long *nversions = NULL);
-
 
     //acting
     void verifySharedFolders(mega::MegaApi * api); //verifies unverified shares and broadcasts warning accordingly
-    void loginWithPassword(char *password);
+    void loginWithPassword(const char *password);
     void changePassword(const char *newpassword, std::string pin2fa = "");
     void actUponGetExtendedAccountDetails(std::unique_ptr<mega::MegaAccountDetails> storageDetails, std::unique_ptr<mega::MegaAccountDetails> extAccountDetails);
     bool actUponFetchNodes(mega::MegaApi * api, mega::SynchronousRequestListener  *srl, int timeout = -1);
@@ -216,7 +216,7 @@ public:
     int deleteNodeVersions(const std::unique_ptr<mega::MegaNode>& nodeToDelete, mega::MegaApi* api, int force = 0);
     void downloadNode(std::string source, std::string localPath, mega::MegaApi* api, mega::MegaNode *node, bool background, bool ignorequotawar, int clientID, std::shared_ptr<MegaCmdMultiTransferListener> listener);
     void uploadNode(std::string localPath, mega::MegaApi* api, mega::MegaNode *node, std::string newname, bool background, bool ignorequotawarn, int clientID, MegaCmdMultiTransferListener *multiTransferListener = NULL);
-    void exportNode(mega::MegaNode *n, int64_t expireTime, std::string password = std::string(),
+    void exportNode(mega::MegaNode *n, int64_t expireTime, const std::optional<std::string>& password = {},
                     std::map<std::string, int> *clflags = nullptr, std::map<std::string, std::string> *cloptions = nullptr);
     void disableExport(mega::MegaNode *n);
     std::pair<bool, bool> isSharePendingAndVerified(mega::MegaNode *n, const char *email) const;
@@ -263,9 +263,6 @@ public:
     void printBackupDetails(mega::MegaScheduledCopy *backup, const char *timeFormat);
     void printBackup(int tag, mega::MegaScheduledCopy *backup, const char *timeFormat, const unsigned int PATHSIZE, bool extendedinfo = false, bool showhistory = false, mega::MegaNode *parentnode = NULL);
     void printBackup(backup_struct *backupstruct, const char *timeFormat, const unsigned int PATHSIZE, bool extendedinfo = false, bool showhistory = false);
-
-    void printSyncHeader(ColumnDisplayer &cd);
-    void printSync(mega::MegaSync *sync, long long nfiles, long long nfolders, ColumnDisplayer &cd, std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions);
 
     void doFind(mega::MegaNode* nodeBase, const char *timeFormat, std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions, std::string word, int printfileinfo, std::string pattern, bool usepcre, mega::m_time_t minTime, mega::m_time_t maxTime, int64_t minSize, int64_t maxSize);
 

@@ -27,6 +27,10 @@
 #include <chrono>
 #include <future>
 
+constexpr const char* LINK_TESTEXPORTFILE01TXT = "https://mega.nz/file/YfNngDKR#qk9THHhxbakddRmt_tLR8OhInexzVCpPPG6M6feFfZg";
+constexpr const char* LINK_TESTEXPORTFOLDER = "https://mega.nz/folder/saMRXBYL#9GETCO4E-Po45d3qSjZhbQ";
+constexpr const char* LINK_TESTREADINGFOLDER01 = "https://mega.nz/folder/YPV0nCKS#bSruKSPPubdCmm5harBJOQ";
+
 std::vector<std::string> splitByNewline(const std::string& str);
 
 class ClientResponse
@@ -72,6 +76,28 @@ class BasicGenericTest : public ::testing::Test
 class LoggedInTest : public BasicGenericTest
 {
 protected:
+    void removeAllSyncs()
+    {
+        auto result = executeInClient({"sync"});
+        ASSERT_TRUE(result.ok());
+
+        auto lines = splitByNewline(result.out());
+        for (size_t i = 1; i < lines.size(); ++i)
+        {
+            auto words = megacmd::split(lines[i], " ");
+
+            ASSERT_TRUE(!words.empty());
+            if (words[0] == "[err:")
+            {
+                continue;
+            }
+
+            std::string syncId = words[0];
+            auto result = executeInClient({"sync", "--remove", "--", syncId}).ok();
+            ASSERT_TRUE(result);
+        }
+    }
+
     void SetUp() override
     {
         BasicGenericTest::SetUp();
