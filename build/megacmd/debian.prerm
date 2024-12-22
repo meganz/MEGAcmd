@@ -1,3 +1,14 @@
 #!/bin/bash
 
-[ "$1" == "upgrade" ] && killall -s SIGUSR1 mega-cmd-server 2> /dev/null || true
+# Check if the first argument is "upgrade" and if mega-cmd-server is running
+if [ "$1" == "upgrade" ]; then
+    # Attempt to gracefully upgrade mega-cmd-server by sending SIGUSR1
+    if pgrep mega-cmd-server >/dev/null; then
+        killall -s SIGUSR1 mega-cmd-server 2> /dev/null
+        echo "Sent SIGUSR1 to mega-cmd-server for upgrade."
+    else
+        echo "mega-cmd-server is not running."
+    fi
+else
+    echo "Usage: $0 upgrade"
+fi
