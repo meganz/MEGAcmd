@@ -117,7 +117,7 @@ def cmdshell_ec(what):
         start = next(i for i, s in enumerate(lines) if has_prompt(s, what))
 
         # Find the end of our shell by searching for the quit command
-        end = next(i for i, s in enumerate(lines[start+1:], start+1) if has_prompt(s, quit_command))
+        end = next(i for i, s in enumerate(lines[start+1:], start+1) if quit_command in s)
 
         # The output of our command is the string in-between the start and end indices
         out = '\n'.join(lines[start+1:end]).strip()
