@@ -198,7 +198,6 @@ add_source_and_corresponding_header_to_target(LMegacmdServer
     "${ProjectDir}/src/comunicationsmanager.cpp"
     "${ProjectDir}/src/comunicationsmanagerfilesockets.cpp"
     "${ProjectDir}/src/comunicationsmanagernamedpipes.cpp"
-    "${ProjectDir}/src/comunicationsmanagerportsockets.cpp"
     "${ProjectDir}/src/configurationmanager.cpp"
     "${ProjectDir}/src/listeners.cpp"
     "${ProjectDir}/src/sync_command.cpp"
@@ -313,7 +312,7 @@ if (ENABLE_MEGACMD_TESTS)
     )
 
     #Integration tests:
-    add_executable(mega-cmd-tests-integration)
+    add_executable(mega-cmd-tests-integration ${executablesType})
     add_source_and_corresponding_header_to_target(mega-cmd-tests-integration PRIVATE
         "${ProjectDir}/tests/integration/BasicTests.cpp"
         "${ProjectDir}/tests/integration/ExportTests.cpp"
@@ -329,7 +328,7 @@ if (ENABLE_MEGACMD_TESTS)
     endif()
 
     #Unit tests:
-    add_executable(mega-cmd-tests-unit)
+    add_executable(mega-cmd-tests-unit ${executablesType})
     add_source_and_corresponding_header_to_target(mega-cmd-tests-unit PRIVATE
         "${ProjectDir}/tests/unit/StringUtilsTests.cpp"
         "${ProjectDir}/tests/unit/UtilsTests.cpp"

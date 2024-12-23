@@ -26,23 +26,18 @@
 #include <sys/socket.h>
 
 namespace megacmd {
-class CmdPetitionPosixSockets: public CmdPetition
+struct CmdPetitionPosixSockets: public CmdPetition
 {
-public:
     int outSocket = -1;
-
-    CmdPetitionPosixSockets(){
-    }
 
     virtual ~CmdPetitionPosixSockets()
     {
         close(outSocket);
-        outSocket = -1;
     }
 
     std::string getPetitionDetails() const override
     {
-        return std::string("socket output: ").append(std::to_string(outSocket));
+        return "socket output: " + std::to_string(outSocket);
     }
 };
 
@@ -54,8 +49,7 @@ private:
     fd_set fds;
 
     // sockets and asociated variables
-    int sockfd, newsockfd;
-    socklen_t clilen;
+    int sockfd;
     char buffer[1024];
     struct sockaddr_in serv_addr, cli_addr;
 
@@ -71,28 +65,30 @@ public:
 
     bool receivedPetition();
 
-    int waitForPetition();
+    int waitForPetition() override;
 
     virtual void stopWaiting();
 
-    void registerStateListener(CmdPetition *inf);
+    CmdPetition* registerStateListener(std::unique_ptr<CmdPetition> &&inf) override;
+
+    int getMaxStateListeners() const override;
 
     /**
      * @brief returnAndClosePetition
      * I will clean struct and close the socket within
      */
-    void returnAndClosePetition(CmdPetition *inf, OUTSTRINGSTREAM *s, int);
+    void returnAndClosePetition(std::unique_ptr<CmdPetition> inf, OUTSTRINGSTREAM *s, int) override;
 
     virtual void sendPartialOutput(CmdPetition *inf, OUTSTRING *s);
 
-    int informStateListener(CmdPetition *inf, std::string &s);
+    int informStateListener(CmdPetition *inf, const std::string &s) override;
 
 
     /**
      * @brief getPetition
      * @return pointer to new CmdPetitionPosix. Petition returned must be properly deleted (this can be calling returnAndClosePetition)
      */
-    CmdPetition *getPetition();
+    std::unique_ptr<CmdPetition> getPetition() override;
 
     virtual int getConfirmation(CmdPetition *inf, std::string message);
 

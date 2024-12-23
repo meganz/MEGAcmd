@@ -86,13 +86,8 @@
 #endif
 
 #ifdef _WIN32
-#ifdef USE_PORT_COMMS
-#include "comunicationsmanagerportsockets.h"
-#define COMUNICATIONMANAGER ComunicationsManagerPortSockets
-#else
 #include "comunicationsmanagernamedpipes.h"
 #define COMUNICATIONMANAGER ComunicationsManagerNamedPipes
-#endif
 #else
 #include "comunicationsmanagerfilesockets.h"
 #define COMUNICATIONMANAGER ComunicationsManagerFileSockets
@@ -937,9 +932,8 @@ char * flags_completion(const char*text, int state)
     if (state == 0)
     {
         validparams.clear();
-        char *saved_line = strdup(getCurrentThreadLine().c_str());
-        vector<string> words = getlistOfWords(saved_line, !getCurrentThreadIsCmdShell());
-        free(saved_line);
+        string saved_line = getCurrentThreadLine();
+        vector<string> words = getlistOfWords(saved_line.c_str(), !getCurrentThreadIsCmdShell());
         if (words.size())
         {
             set<string> setvalidparams;
@@ -996,10 +990,8 @@ char * flags_value_completion(const char*text, int state)
     {
         validValues.clear();
 
-        char *saved_line = strdup(getCurrentThreadLine().c_str());
-        vector<string> words = getlistOfWords(saved_line, !getCurrentThreadIsCmdShell());
-        free(saved_line);
-        saved_line = NULL;
+        string saved_line = getCurrentThreadLine();
+        vector<string> words = getlistOfWords(saved_line.c_str(), !getCurrentThreadIsCmdShell());
         if (words.size() > 1)
         {
             string thecommand = words[0];
@@ -1232,10 +1224,8 @@ char* nodeattrs_completion(const char* text, int state)
     if (state == 0)
     {
         validAttrs.clear();
-        char *saved_line = strdup(getCurrentThreadLine().c_str());
-        vector<string> words = getlistOfWords(saved_line, !getCurrentThreadIsCmdShell());
-        free(saved_line);
-        saved_line = NULL;
+        string saved_line = getCurrentThreadLine();
+        vector<string> words = getlistOfWords(saved_line.c_str(), !getCurrentThreadIsCmdShell());
         if (words.size() > 1)
         {
             validAttrs = cmdexecuter->getNodeAttrs(words[1]);
@@ -3302,7 +3292,7 @@ void checkBlockStatus(bool waitcompletion = true)
     }
 }
 
-void executecommand(char* ptr)
+void executecommand(const char* ptr)
 {
     vector<string> words = getlistOfWords(ptr, !getCurrentThreadIsCmdShell());
     if (!words.size())
@@ -3833,7 +3823,7 @@ bool isBareCommand(const char *l, const string &command)
         return false;
     }
 
-   vector<string> words = getlistOfWords((char *)l, !getCurrentThreadIsCmdShell());
+   vector<string> words = getlistOfWords(l, !getCurrentThreadIsCmdShell());
    for (int i = 1; i<words.size(); i++)
    {
        if (words[i].empty()) continue;
@@ -3847,8 +3837,10 @@ bool isBareCommand(const char *l, const string &command)
    return true;
 }
 
-static bool process_line(char* l)
+static bool process_line(const std::string_view line)
 {
+    const char* l = line.data();
+    assert(line.size() == strlen(l)); // string_view does not guarantee null termination, which is depended upon
     switch (prompt)
     {
         case AREYOUSURETODELETE:
@@ -3963,8 +3955,7 @@ static bool process_line(char* l)
             }
             else if (isBareCommand(l, "sendack"))
             {
-                string sack="ack";
-                cm->informStateListeners(sack);
+                cm->informStateListeners("ack");
                 break;
             }
 
@@ -4014,36 +4005,24 @@ static bool process_line(char* l)
     return false; //Do not exit
 }
 
-void * doProcessLine(void *pointer)
+void* doProcessLine(void* infRaw)
 {
-    CmdPetition *inf = (CmdPetition*)pointer;
+    auto inf = std::unique_ptr<CmdPetition>((CmdPetition*) infRaw);
 
     OUTSTRINGSTREAM s;
 
     setCurrentThreadLogLevel(MegaApi::LOG_LEVEL_ERROR);
     setCurrentOutCode(MCMD_OK);
-    setCurrentPetition(inf);
-    LoggedStreamPartialOutputs ls(cm, inf);
+    setCurrentPetition(inf.get());
+    LoggedStreamPartialOutputs ls(cm, inf.get());
     setCurrentThreadOutStream(&ls);
 
-    bool isInteractive = false;
+    setCurrentThreadIsCmdShell(!inf->line.empty() && inf->line[0] == 'X');
 
-    if (inf->getLine() && *(inf->getLine())=='X')
-    {
-        setCurrentThreadIsCmdShell(true);
-        char * aux = inf->line;
-        inf->line=strdup(inf->line+1);
-        free(aux);
-        isInteractive = true;
-    }
-    else
-    {
-        setCurrentThreadIsCmdShell(false);
-    }
 
     LOG_verbose << " Processing " << inf->line << " in thread: " << MegaThread::currentThreadId() << " " << inf->getPetitionDetails();
 
-    doExit = process_line(inf->getLine());
+    doExit = process_line(inf->getUniformLine());
 
     if (doExit)
     {
@@ -4055,13 +4034,9 @@ void * doProcessLine(void *pointer)
 
     MegaThread * petitionThread = inf->getPetitionThread();
 
-    if (inf->clientID == -3) //self client: no actual client
+    if (inf->clientID != -3) // -3 is self client (no actual client)
     {
-        delete inf;//simply delete the pointer
-    }
-    else
-    {
-        cm->returnAndClosePetition(inf, &s, getCurrentOutCode());
+        cm->returnAndClosePetition(std::move(inf), &s, getCurrentOutCode());
     }
 
     semaphoreClients.release();
@@ -4075,7 +4050,7 @@ void * doProcessLine(void *pointer)
     endedPetitionThreads.push_back(petitionThread);
     mutexEndedPetitionThreads.unlock();
 
-    return NULL;
+    return nullptr;
 }
 
 int askforConfirmation(string message)
@@ -4372,7 +4347,7 @@ void* checkForUpdates(void *param)
     return NULL;
 }
 
-void processCommandInPetitionQueues(CmdPetition *inf)
+void processCommandInPetitionQueues(std::unique_ptr<CmdPetition> inf)
 {
     semaphoreClients.wait();
 
@@ -4383,17 +4358,16 @@ void processCommandInPetitionQueues(CmdPetition *inf)
     inf->setPetitionThread(petitionThread);
 
     LOG_verbose << "starting processing: <" << inf->line << ">";
-
-    petitionThread->start(doProcessLine, (void*)inf);
+    petitionThread->start(doProcessLine, (void*) inf.release());
 }
 
 void processCommandLinePetitionQueues(std::string what)
 {
-    CmdPetition *inf = new CmdPetition();
-    inf->line = strdup(what.c_str());
-    inf->clientDisconnected = true; //There's no actual client
+    auto inf = std::make_unique<CmdPetition>();
+    inf->line = what;
+    inf->clientDisconnected = true; // There's no actual client
     inf->clientID = -3;
-    processCommandInPetitionQueues(inf);
+    processCommandInPetitionQueues(std::move(inf));
 }
 
 // main loop
@@ -4410,7 +4384,11 @@ void megacmd()
 
     for (;; )
     {
-        cm->waitForPetition();
+        int err = cm->waitForPetition();
+        if (err != 0)
+        {
+            continue;
+        }
 
         api->retryPendingConnections();
 
@@ -4422,26 +4400,28 @@ void megacmd()
 
         if (cm->receivedPetition())
         {
-
             LOG_verbose << "Client connected ";
 
-            CmdPetition *inf = cm->getPetition();
+            auto infOwned = cm->getPetition();
+            assert(infOwned);
+
+            CmdPetition* inf = infOwned.get();
 
             LOG_verbose << "petition registered: " << inf->line;
-
             delete_finished_threads();
 
-            if (!inf || !strcmp(inf->getLine(),"ERROR"))
+            if (inf->getUniformLine() == "ERROR")
             {
                 LOG_warn << "Petition couldn't be registered. Dismissing it.";
-                delete inf;
             }
             // if state register petition
-            else  if (!strncmp(inf->getLine(),"registerstatelistener",strlen("registerstatelistener")) ||
-                      !strncmp(inf->getLine(),"Xregisterstatelistener",strlen("Xregisterstatelistener")))
+            else if (startsWith(inf->getUniformLine(), "registerstatelistener"))
             {
-
-                cm->registerStateListener(inf);
+                inf = cm->registerStateListener(std::move(infOwned));
+                if (!inf)
+                {
+                    continue;
+                }
 
                 // communicate client ID
                 string s = "clientID:";
@@ -4647,7 +4627,7 @@ void megacmd()
             }
             else
             { // normal petition
-                processCommandInPetitionQueues(inf);
+                processCommandInPetitionQueues(std::move(infOwned));
             }
         }
     }
