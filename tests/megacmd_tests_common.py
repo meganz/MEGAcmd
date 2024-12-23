@@ -93,15 +93,18 @@ def cmdshell_ec(what):
 
     quit_command = 'quit --only-shell'
 
+    def has_prompt(s, command): return any(f'{p} {command}' in s for p in ['$', 'MEGA CMD>'])
+    def wait_shell_prompt(): child.expect([r'(?=.+:.+\$ )', r'(?=MEGA CMD> )'])
+
     try:
-        # Wait for the shell prompt to be loaded
-        child.expect([r'\$', '>'])
+        wait_shell_prompt()
 
         # Having two lcd commands is not necessary and messes up the output parsing
         if not what.startswith('lcd'):
             child.sendline(f'lcd {os.getcwd()}')
 
         child.sendline(what)
+        wait_shell_prompt()
 
         # Stop the shell and wait for end-of-file
         child.sendline(quit_command)
@@ -111,10 +114,10 @@ def cmdshell_ec(what):
         lines = child.before.replace('\r\n', '\n').split('\n')
 
         # Find the start of our command
-        start = next(i for i, s in enumerate(lines) if f'$ {what}' in s or f'> {what}' in s)
+        start = next(i for i, s in enumerate(lines) if has_prompt(s, what))
 
         # Find the end of our shell by searching for the quit command
-        end = next(i for i, s in enumerate(lines[start+1:], start+1) if f'$ {quit_command}' in s or f'> {quit_command}' in s)
+        end = next(i for i, s in enumerate(lines[start+1:], start+1) if has_prompt(s, quit_command))
 
         # The output of our command is the string in-between the start and end indices
         out = '\n'.join(lines[start+1:end]).strip()
