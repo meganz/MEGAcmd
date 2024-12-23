@@ -215,8 +215,10 @@ Verbosity: You can increase the amount of information given by any command by pa
 * [`rm`](contrib/docs/commands/rm.md)`[-r] [-f] [--use-pcre] remotepath` Deletes a remote file/folder
 * [`transfers`](contrib/docs/commands/transfers.md)`[-c TAG|-a] | [-r TAG|-a]  | [-p TAG|-a] [--only-downloads | --only-uploads] [SHOWOPTIONS]` List or operate with transfers
 * [`speedlimit`](contrib/docs/commands/speedlimit.md)`[-u|-d] [-h] [NEWLIMIT]` Displays/modifies upload/download rate limits
-* [`sync`](contrib/docs/commands/sync.md)`[localpath dstremotepath| [-dsr] [ID|localpath]` Controls synchronizations.
-* [`exclude`](contrib/docs/commands/exclude.md)`[(-a|-d) pattern1 pattern2 pattern3]` Manages exclusions in syncs.
+* [`sync`](contrib/docs/commands/sync.md)`[localpath dstremotepath| [-dpe] [ID|localpath]` Controls synchronizations.
+* [`sync-issues`](contrib/docs/commands/sync-issues.md)`[[--detail (ID|--all)] [--limit=rowcount] [--disable-path-collapse]] | [--enable-warning|--disable-warning]` Show all issues with current syncs
+* [`sync-ignore`](contrib/docs/commands/sync-ignore.md)`[--show|[--add|--add-exclusion|--remove|--remove-exclusion] filter1 filter2 ...] (ID|localpath|DEFAULT)` Manages ignore filters for syncs
+* [`exclude`](contrib/docs/commands/exclude.md)`[(-a|-d) pattern1 pattern2 pattern3]` Manages default exclusion rules in syncs.
 * [`backup`](contrib/docs/commands/backup.md)`(localpath remotepath --period="PERIODSTRING" --num-backups=N  | [-lhda] [TAG|localpath] [--period="PERIODSTRING"] [--num-backups=N]) [--time-format=FORMAT]` Controls backups
 
 ### Sharing (your own files, of course, without infringing any copyright)

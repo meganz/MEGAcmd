@@ -7,24 +7,7 @@ import unittest
 import xmlrunner
 from megacmd_tests_common import *
 
-GET="mega-get"
-PUT="mega-put"
-RM="mega-rm"
-MV="mega-mv"
-CP="mega-cp"
-CD="mega-cd"
-LCD="mega-lcd"
-MKDIR="mega-mkdir"
-EXPORT="mega-export -f"
-FIND="mega-find"
-INVITE="mega-invite"
-IPC="mega-ipc"
-FTP="mega-ftp"
-WHOAMI="mega-whoami"
-LOGOUT="mega-logout"
-LOGIN="mega-login"
-ABSPWD=os.getcwd()
-currentTest=1
+#ABSPWD=os.getcwd()
 
 try:
     os.environ['VERBOSE']
@@ -163,7 +146,7 @@ def initialize():
     makedir('megaDls')
     makedir('localDls')
 
-ABSMEGADLFOLDER=ABSPWD+'/megaDls'
+#ABSMEGADLFOLDER=ABSPWD+'/megaDls'
 
 
 class MEGAcmdServingTest(unittest.TestCase):
@@ -258,7 +241,6 @@ class MEGAcmdServingTest(unittest.TestCase):
         self.assertEqual(megaDls, localDls)
         if (megaDls == localDls):
             if VERBOSE:
-                print("test "+str(currentTest))
                 print("megaDls:")
                 print(megaDls)
                 print()
@@ -359,7 +341,6 @@ class MEGAcmdServingTest(unittest.TestCase):
 #~ ftp.login("anonymous", "nomatter") #this fails!
 #~ ftp.cwd(subpath)
 
-#~ currentTest=100
 #~ executeTests()
 
 ###################

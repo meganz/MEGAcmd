@@ -21,6 +21,7 @@
 #include "comunicationsmanagerfilesockets.h"
 #include "megacmdutils.h"
 #include <sys/ioctl.h>
+#include <sys/resource.h>
 
 #ifdef __MACH__
 #define MSG_NOSIGNAL 0
@@ -182,43 +183,69 @@ void ComunicationsManagerFileSockets::stopWaiting()
 }
 
 
-void ComunicationsManagerFileSockets::registerStateListener(CmdPetition *inf)
+CmdPetition* ComunicationsManagerFileSockets::registerStateListener(std::unique_ptr<CmdPetition> &&inf)
 {
-    LOG_debug << "Registering state listener petition with socket: " << ((CmdPetitionPosixSockets *) inf)->outSocket;
-    ComunicationsManager::registerStateListener(inf);
+    const int socket = ((CmdPetitionPosixSockets*) inf.get())->outSocket;
+    LOG_debug << "Registering state listener petition with socket: " << socket;
+
+#ifndef NDEBUG
+    // let's not be gentle with state listener sockets to prevent frozen clients from stopping the server
+    const timeval timeout { .tv_sec = 10, .tv_usec = 0};
+    if (setsockopt(socket, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout)) < 0)
+    {
+        LOG_err << "ERROR setting state listener socket timeout: " << errno;
+    }
+#endif
+    return ComunicationsManager::registerStateListener(std::move(inf));
+}
+
+int ComunicationsManagerFileSockets::getMaxStateListeners() const
+{
+    static int maxListenersAllowed = [this](){
+        struct rlimit limit;
+        if (getrlimit(RLIMIT_NOFILE, &limit) != 0)
+        {
+            LOG_err << "Failed to get ulimit -n (errno: " << errno << "); falling back to max state listeners default";
+            return ComunicationsManager::getMaxStateListeners();
+        }
+        int systemNumFilesLimit = static_cast<int>(limit.rlim_cur);
+        int maxListeners = systemNumFilesLimit - std::max(100, static_cast<int>(systemNumFilesLimit * 0.20)); // leave 20% or 100 file descriptors for libraries and other fds:
+        maxListeners = std::min(maxListeners, static_cast<int>(FD_SETSIZE * 0.4)); // we don't want to use fd with numbers > 1024: select will not digest them well: lets play a safe 60% margin.
+
+        return std::max(2/*minimum requirement*/, maxListeners); // maxListeners may be negative based on above calculations (unexpected). Let's play our chances of survival despite that.
+    }();
+
+    return maxListenersAllowed;
 }
 
 /**
  * @brief returnAndClosePetition
  * I will clean struct and close the socket within
  */
-void ComunicationsManagerFileSockets::returnAndClosePetition(CmdPetition *inf, OUTSTRINGSTREAM *s, int outCode)
+void ComunicationsManagerFileSockets::returnAndClosePetition(std::unique_ptr<CmdPetition> inf, OUTSTRINGSTREAM *s, int outCode)
 {
-    LOG_verbose << "Output to write in socket " << ((CmdPetitionPosixSockets *)inf)->outSocket;
+    const int socket = ((CmdPetitionPosixSockets *) inf.get())->outSocket;
+    assert(socket != -1);
 
-    int connectedsocket = ((CmdPetitionPosixSockets *)inf)->outSocket;
-    assert(connectedsocket != -1);
-    if (connectedsocket == -1)
+    LOG_verbose << "Output to write in socket " << socket;
+    if (socket == -1)
     {
-        LOG_fatal << "Return and close: not valid outsocket " << ((CmdPetitionPosixSockets *)inf)->outSocket;
-        delete inf;
+        LOG_fatal << "Return and close: not valid outsocket " << socket;
         return;
     }
 
     string sout = s->str();
 
-    auto n = send(connectedsocket, (void*)&outCode, sizeof( outCode ), MSG_NOSIGNAL);
+    auto n = send(socket, &outCode, sizeof(outCode), MSG_NOSIGNAL);
     if (n < 0)
     {
         LOG_err << "ERROR writing output Code to socket: " << errno;
     }
-    n = send(connectedsocket, sout.data(), max(static_cast<size_t>(1), sout.size()), MSG_NOSIGNAL); // for some reason without the max recv never quits in the client for empty responses
+    n = send(socket, sout.data(), max(static_cast<size_t>(1), sout.size()), MSG_NOSIGNAL); // for some reason without the max recv never quits in the client for empty responses
     if (n < 0)
     {
         LOG_err << "ERROR writing to socket: " << errno;
     }
-
-    delete inf;
 }
 
 void ComunicationsManagerFileSockets::sendPartialOutput(CmdPetition *inf, OUTSTRING *s)
@@ -270,19 +297,13 @@ void ComunicationsManagerFileSockets::sendPartialOutput(CmdPetition *inf, OUTSTR
     }
 }
 
-int ComunicationsManagerFileSockets::informStateListener(CmdPetition *inf, string &s)
+int ComunicationsManagerFileSockets::informStateListener(CmdPetition *inf, const string &s)
 {
     std::lock_guard<std::mutex> g(informerMutex);
     LOG_verbose << "Inform State Listener: Output to write in socket " << ((CmdPetitionPosixSockets *)inf)->outSocket << ": <<" << s << ">>";
 
-    static set<int> connectedsockets;
-
     int connectedsocket = ((CmdPetitionPosixSockets *)inf)->outSocket;
     assert(connectedsocket != -1);
-    if (connectedsocket != -1 && connectedsockets.find(connectedsocket) == connectedsockets.end())
-    { // if new, insert into the collection, to keep track and allow closing dangling sockets
-        connectedsockets.insert(connectedsocket);
-    }
 
     if (connectedsocket == -1)
     {
@@ -297,11 +318,14 @@ int ComunicationsManagerFileSockets::informStateListener(CmdPetition *inf, strin
     auto n = send(connectedsocket, s.data(), s.size(), MSG_NOSIGNAL);
     if (n < 0)
     {
-        if (errno == 32) //socket closed
+        if (errno == EPIPE) //socket closed
         {
-            LOG_debug << "Unregistering no longer listening client. Original petition: " << inf->line;
-            close(connectedsocket);
-            connectedsockets.erase(connectedsocket);
+            LOG_verbose << "Unregistering no longer listening client. Original petition: " << inf->line;
+            return -1;
+        }
+        else if (errno == EAGAIN || errno == EWOULDBLOCK) // timed out
+        {
+            LOG_warn << "Unregistering timed out listening client. Original petition: " << inf->line;
             return -1;
         }
         else
@@ -317,25 +341,19 @@ int ComunicationsManagerFileSockets::informStateListener(CmdPetition *inf, strin
  * @brief getPetition
  * @return pointer to new CmdPetitionPosix. Petition returned must be properly deleted (this can be calling returnAndClosePetition)
  */
-CmdPetition * ComunicationsManagerFileSockets::getPetition()
+std::unique_ptr<CmdPetition> ComunicationsManagerFileSockets::getPetition()
 {
-    CmdPetitionPosixSockets *inf = new CmdPetitionPosixSockets();
+    auto inf = std::make_unique<CmdPetitionPosixSockets>();
+    static socklen_t clilen = sizeof(cli_addr);
 
-    clilen = sizeof( cli_addr );
+    int newsockfd = accept(sockfd, (struct sockaddr*) &cli_addr, &clilen);
 
-    newsockfd = accept(sockfd, (struct sockaddr*)&cli_addr, &clilen);
-    if (fcntl(newsockfd, F_SETFD, FD_CLOEXEC) == -1)
-    {
-        LOG_err << "ERROR setting CLOEXEC to socket: " << errno;
-    }
     if (newsockfd < 0)
     {
         if (errno == EMFILE)
         {
             LOG_fatal << "ERROR on accept at getPetition: TOO many open files.";
-            //send state listeners an ACK command to see if they are responsive and close them otherwise
-            string sack = "ack";
-            informStateListeners(sack);
+            ackStateListenersAndRemoveClosed();
         }
         else
         {
@@ -343,8 +361,13 @@ CmdPetition * ComunicationsManagerFileSockets::getPetition()
         }
 
         sleep(1);
-        inf->line = strdup("ERROR");
+        inf->line = "ERROR";
         return inf;
+    }
+
+    if (fcntl(newsockfd, F_SETFD, FD_CLOEXEC) == -1)
+    {
+        LOG_err << "ERROR setting CLOEXEC to socket: " << errno;
     }
 
     string wholepetition;
@@ -358,29 +381,31 @@ CmdPetition * ComunicationsManagerFileSockets::getPetition()
             LOG_err << "Failed to PeekNamedPipe. errno: " << errno;
             break;
         }
+
         if (total_available_bytes == 0)
         {
             break;
         }
-        buffer[n]=0;
+
+        buffer[n] = '\0';
         wholepetition.append(buffer);
         n = read(newsockfd, buffer, 1023);
     }
     if (n >=0 )
     {
-        buffer[n]=0;
+        buffer[n] = '\0';
         wholepetition.append(buffer);
     }
     if (n < 0)
     {
         LOG_fatal << "ERROR reading from socket at getPetition: " << errno;
-        inf->line = strdup("ERROR");
+        inf->line = "ERROR";
         close(newsockfd);
         return inf;
     }
 
     inf->outSocket = newsockfd;
-    inf->line = strdup(wholepetition.c_str());
+    inf->line = wholepetition;
 
     return inf;
 }
@@ -392,7 +417,6 @@ int ComunicationsManagerFileSockets::getConfirmation(CmdPetition *inf, string me
     if (connectedsocket == -1)
     {
         LOG_fatal << "Getting Confirmation: invalid outsocket " << ((CmdPetitionPosixSockets *)inf)->outSocket;
-        delete inf;
         return false;
     }
 
@@ -421,7 +445,6 @@ string ComunicationsManagerFileSockets::getUserResponse(CmdPetition *inf, string
     if (connectedsocket == -1)
     {
         LOG_fatal << "Getting Confirmation: Invalid outsocket " << ((CmdPetitionPosixSockets *)inf)->outSocket;
-        delete inf;
         return "FAILED";
     }
 
@@ -444,7 +467,7 @@ string ComunicationsManagerFileSockets::getUserResponse(CmdPetition *inf, string
         n = recv(connectedsocket, buffer, BUFFERSIZE, MSG_NOSIGNAL);
         if (n)
         {
-            buffer[n]='\0';
+            buffer[n] = '\0';
             response += buffer;
         }
     } while(n == BUFFERSIZE && n != SOCKET_ERROR);

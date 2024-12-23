@@ -83,7 +83,7 @@ sysctl -p /etc/sysctl.d/99-megacmd-inotify-limit.conf
 }
 
 pre_upgrade() {
-killall -s SIGUSR1 mega-cmd-server 2> /dev/null || true
+pkill --signal SIGUSR1 mega-cmd-server 2> /dev/null || true
 }
 
 post_upgrade() {
@@ -173,5 +173,5 @@ fi
 
 sysctl -p /etc/sysctl.d/99-megacmd-inotify-limit.conf
 
-killall -s SIGUSR2 mega-cmd-server 2> /dev/null || true
+pkill --signal SIGUSR2 mega-cmd-server 2> /dev/null || true
 }

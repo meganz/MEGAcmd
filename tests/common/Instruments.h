@@ -65,6 +65,7 @@ public:
     enum class Event
     {
         SERVER_ABOUT_TO_START_WAITING_FOR_PETITIONS,
+        SYNC_ISSUES_LIST_UPDATED,
     };
 
     typedef std::function<void()> EventCallback;
@@ -82,6 +83,7 @@ public:
     enum class TestValue
     {
         AMIPRO_LEVEL,
+        SYNC_ISSUES_LIST_SIZE
     };
 
     using TestValue_t = std::variant<
@@ -136,7 +138,6 @@ public:
         mMegaCmdSingleEventHandlers.insert_or_assign(event, std::forward<Cb>(handler));
     }
 
-    // Caveat, these occur with the mutex locked while looping the array, try not to include TI calls within callbacks!
     template <typename Cb>
     std::multimap<Event, EventCallback>::iterator
        onEveryEvent(Event event, Cb &&handler)

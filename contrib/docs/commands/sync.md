@@ -1,7 +1,7 @@
 ### sync
 Controls synchronizations.
 
-Usage: `sync [localpath dstremotepath| [-dsr] [ID|localpath]`
+Usage: `sync [localpath dstremotepath| [-dpe] [ID|localpath]`
 <pre>
 If no argument is provided, it lists current configured synchronizations.
 
@@ -12,14 +12,16 @@ If an ID/local path is provided, it will list such synchronization
  unless an option is specified.
 
 Options:
--d | --remove ID|localpath	deletes a synchronization.
--s | --disable ID|localpath	stops(pauses) a synchronization.
--r | --enable ID|localpath	resumes a synchronization.
+ -d | --delete ID|localpath	deletes a synchronization (not the files).
+ -p | --pause ID|localpath	pauses (disables) a synchronization.
+ -e | --enable ID|localpath	resumes a synchronization.
+ [deprecated] --remove ID|localpath	same as --delete.
+ [deprecated] -s | --disable ID|localpath	same as --pause.
+ [deprecated] -r ID|localpath	same as --enable.
  --path-display-size=N	Use at least N characters for displaying paths.
  --show-handles	Prints remote nodes handles (H:XXXXXXXX).
- --col-separator=X	Tt will use X as column separator. Otherwise the output will use
-                     	 spaces to tabulate in an easy to read output:
- --output-cols=COLUMN_NAME_1,COLUMN_NAME2,...	You can select which columns to show (and their order) with this option
+ --col-separator=X	Use the string "X" as column separator. Otherwise, spaces will be added between columns to align them.
+ --output-cols=COLUMN_NAME_1,COLUMN_NAME2,...	Select which columns to show and their order.
 
 DISPLAYED columns:
  ID: an unique identifier of the sync.

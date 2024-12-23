@@ -42,24 +42,27 @@ bool ComunicationsManager::receivedPetition()
     return false;
 }
 
-void ComunicationsManager::registerStateListener(CmdPetition *inf)
+CmdPetition* ComunicationsManager::registerStateListener(std::unique_ptr<CmdPetition> &&inf)
 {
     std::lock_guard<std::recursive_mutex> g(mStateListenersMutex);
-    stateListenersPetitions.push_back(inf);
-    if (stateListenersPetitions.size() >MAXCMDSTATELISTENERS && stateListenersPetitions.size()%10 == 0)
+
+    // Always remove closed listeners before a new one comes in
+    ackStateListenersAndRemoveClosed();
+
+    if (stateListenersPetitions.size() >= getMaxStateListeners())
     {
-        LOG_debug << " Number of register listeners has grown too much: " << stateListenersPetitions.size() << ". Sending an ACK to discard disconnected ones.";
-        string sack="ack";
-        informStateListeners(sack);
+        LOG_warn << "Max number of state listeners (" << stateListenersPetitions.size() << ") reached";
+        return nullptr;
     }
-    return;
+
+    stateListenersPetitions.emplace_back(std::move(inf));
+    return stateListenersPetitions.back().get();
 }
 
 int ComunicationsManager::waitForPetition()
 {
     return 0;
 }
-
 
 void ComunicationsManager::stopWaiting()
 {
@@ -70,58 +73,54 @@ int ComunicationsManager::get_next_comm_id()
     return 0;
 }
 
-bool ComunicationsManager::informStateListeners(string &s)
+int ComunicationsManager::getMaxStateListeners() const
 {
-    s+=(char)0x1F;
-    std::lock_guard<std::recursive_mutex> g(mStateListenersMutex);
-
-    for (std::vector< CmdPetition * >::iterator it = stateListenersPetitions.begin(); it != stateListenersPetitions.end();)
-    {
-        if (informStateListener((CmdPetition *)*it, s) <0)
-        {
-            delete *it;
-            it = stateListenersPetitions.erase(it);
-        }
-        else
-        {
-             ++it;
-        }
-    }
-
-    if (!stateListenersPetitions.size())
-    {
-        return false;
-    }
-    return true;
+    return 200; // default value
 }
 
-void ComunicationsManager::informStateListenerByClientId(string &s, int clientID)
+void ComunicationsManager::ackStateListenersAndRemoveClosed()
 {
-    s+=(char)0x1F;
+    informStateListeners("ack");
+}
 
+bool ComunicationsManager::informStateListeners(const string &s)
+{
     std::lock_guard<std::recursive_mutex> g(mStateListenersMutex);
-    for (std::vector< CmdPetition * >::iterator it = stateListenersPetitions.begin(); it != stateListenersPetitions.end();)
+    for (auto it = stateListenersPetitions.begin(); it != stateListenersPetitions.end();)
     {
-        if ((clientID == ((CmdPetition *)*it)->clientID ) && informStateListener((CmdPetition *)*it, s) <0)
+        if (informStateListener(it->get(), s + (char) 0x1F) < 0)
         {
-            delete *it;
             it = stateListenersPetitions.erase(it);
+            continue;
         }
-        else
+        ++it;
+    }
+    return !stateListenersPetitions.empty();
+}
+
+void ComunicationsManager::informStateListenerByClientId(const string &s, int clientID)
+{
+    std::lock_guard<std::recursive_mutex> g(mStateListenersMutex);
+    for (auto it = stateListenersPetitions.begin(); it != stateListenersPetitions.end(); ++it)
+    {
+        if (clientID == (*it)->clientID)
         {
-             ++it;
+            if (informStateListener(it->get(), s + (char) 0x1F) < 0)
+            {
+                stateListenersPetitions.erase(it);
+            }
+            return;
         }
     }
 }
-int ComunicationsManager::informStateListener(CmdPetition *inf, string &s)
+
+int ComunicationsManager::informStateListener(CmdPetition *inf, const string &s)
 {
     return 0;
 }
 
-void ComunicationsManager::returnAndClosePetition(CmdPetition *inf, OUTSTRINGSTREAM *s, int outCode)
+void ComunicationsManager::returnAndClosePetition(std::unique_ptr<CmdPetition> inf, OUTSTRINGSTREAM *s, int outCode)
 {
-    delete inf;
-    return;
 }
 
 void ComunicationsManager::sendPartialOutput(CmdPetition *inf, OUTSTRING *s)
@@ -135,15 +134,13 @@ void ComunicationsManager::sendPartialOutput(CmdPetition *inf, char *s, size_t s
 }
 
 
-
 /**
  * @brief getPetition
  * @return pointer to new CmdPetition. Petition returned must be properly deleted (this can be calling returnAndClosePetition)
  */
-CmdPetition * ComunicationsManager::getPetition()
+std::unique_ptr<CmdPetition> ComunicationsManager::getPetition()
 {
-    CmdPetition *inf = new CmdPetition();
-    return inf;
+    return std::make_unique<CmdPetition>();
 }
 
 int ComunicationsManager::getConfirmation(CmdPetition *inf, string message)
@@ -156,14 +153,9 @@ std::string ComunicationsManager::getUserResponse(CmdPetition *inf, string messa
     return string();
 }
 
-ComunicationsManager::~ComunicationsManager()
+std::string_view CmdPetition::getUniformLine() const
 {
-    std::lock_guard<std::recursive_mutex> g(mStateListenersMutex);
-    for (std::vector< CmdPetition * >::iterator it = stateListenersPetitions.begin(); it != stateListenersPetitions.end();)
-    {
-        delete *it;
-        it = stateListenersPetitions.erase(it);
-    }
+    return ltrim(std::string_view(line), 'X');
 }
 
 MegaThread *CmdPetition::getPetitionThread() const

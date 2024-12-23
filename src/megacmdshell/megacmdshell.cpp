@@ -41,6 +41,7 @@
 #include <algorithm>
 #include <atomic>
 #include <stdio.h>
+#include <future>
 
 #define PROGRESS_COMPLETE -2
 #define SPROGRESS_COMPLETE "-2"
@@ -184,11 +185,7 @@ static std::atomic_bool requirepromptinstall(true);
 bool procesingline = false;
 bool promptreinstalledwhenprocessingline = false;
 
-std::mutex promptLogReceivedMutex;
-std::condition_variable promtpLogReceivedCV;
-bool promtpLogReceivedBool = false;
 bool serverTryingToLog = false;
-
 
 static char dynamicprompt[PROMPT_MAX_SIZE];
 
@@ -237,11 +234,12 @@ void cleanLastMessage()
     lastMessage = string();
 }
 
-void statechangehandle(string statestring)
+void statechangehandle(string statestring, MegaCmdShellCommunications &comsManager)
 {
     char statedelim[2]={(char)0x1F,'\0'};
     size_t nextstatedelimitpos = statestring.find(statedelim);
     static bool shown_partial_progress = false;
+    bool promtpReceivedBool = false;
 
     unsigned int width = getNumberOfCols(75);
     if (width > 1 ) width--;
@@ -255,15 +253,14 @@ void statechangehandle(string statestring)
         {
             if (serverTryingToLog)
             {
-                std::unique_lock<std::mutex> lk(MegaCmdShellCommunications::megaCmdStdoutputing);
+                std::lock_guard<std::mutex> stdOutLockGuard(comsManager.getStdoutLockGuard());
                 printCenteredContentsCerr(string("MEGAcmd Server is still trying to log in. Still, some commands are available.\n"
                              "Type \"help\", to list them.").c_str(), width);
             }
             changeprompt(newstate.substr(strlen("prompt:")).c_str(),true);
 
-            std::unique_lock<std::mutex> lk(promptLogReceivedMutex);
-            promtpLogReceivedCV.notify_one();
-            promtpLogReceivedBool = true;
+            comsManager.markServerReady();
+            promtpReceivedBool = true;
         }
         else if (newstate.compare(0, strlen("endtransfer:"), "endtransfer:") == 0)
         {
@@ -283,11 +280,10 @@ void statechangehandle(string statestring)
                 wstring wbuffer;
                 stringtolocalw((const char*)os.str().data(),&wbuffer);
                 int oldmode;
-                MegaCmdShellCommunications::megaCmdStdoutputing.lock();
+                std::lock_guard<std::mutex> stdOutLockGuard(comsManager.getStdoutLockGuard());
                 oldmode = _setmode(_fileno(stdout), _O_U8TEXT);
                 OUTSTREAM << wbuffer << flush;
                 _setmode(_fileno(stdout), oldmode);
-                MegaCmdShellCommunications::megaCmdStdoutputing.unlock();
 #else
                 OUTSTREAM << os.str();
 #endif
@@ -300,18 +296,21 @@ void statechangehandle(string statestring)
         else if (newstate.compare(0, strlen("login:"), "login:") == 0)
         {
             serverTryingToLog = true;
-            std::unique_lock<std::mutex> lk(MegaCmdShellCommunications::megaCmdStdoutputing);
+
+            std::lock_guard<std::mutex> stdOutLockGuard(comsManager.getStdoutLockGuard());
             printCenteredContentsCerr(string("Resuming session ... ").c_str(), width, false);
         }
         else if (newstate.compare(0, strlen("message:"), "message:") == 0)
         {
             if (notRepeatedMessage(newstate)) //to avoid repeating messages
             {
-                MegaCmdShellCommunications::megaCmdStdoutputing.lock();
+                std::lock_guard<std::mutex> stdOutLockGuard(comsManager.getStdoutLockGuard());
 #ifdef _WIN32
                 int oldmode = _setmode(_fileno(stdout), _O_U8TEXT);
 #endif
                 string contents = newstate.substr(strlen("message:"));
+                replaceAll(contents, "%mega-%", "");
+
                 if (contents.find("-----") != 0)
                 {
                     if (!procesingline || promptreinstalledwhenprocessingline || shown_partial_progress)
@@ -321,13 +320,12 @@ void statechangehandle(string statestring)
                     printCenteredContents(contents, width);
                     requirepromptinstall = true;
 #ifndef NO_READLINE
-                    if (prompt == COMMAND && promtpLogReceivedBool)
+                    if (prompt == COMMAND && promtpReceivedBool)
                     {
                         std::lock_guard<std::mutex> g(mutexPrompt);
                         redisplay_prompt();
                     }
 #endif
-
                 }
                 else
                 {
@@ -337,7 +335,6 @@ void statechangehandle(string statestring)
 #ifdef _WIN32
                 _setmode(_fileno(stdout), oldmode);
 #endif
-                MegaCmdShellCommunications::megaCmdStdoutputing.unlock();
 
             }
         }
@@ -373,31 +370,10 @@ void statechangehandle(string statestring)
                 shown_partial_progress = false;
             }
 
-            MegaCmdShellCommunications::megaCmdStdoutputing.lock();
-            if (title.size())
-            {
-                if (received==SPROGRESS_COMPLETE)
-                {
-                    printprogress(PROGRESS_COMPLETE, charstoll(total.c_str()),title.c_str());
-
-                }
-                else
-                {
-                    printprogress(charstoll(received.c_str()), charstoll(total.c_str()),title.c_str());
-                }
-            }
-            else
-            {
-                if (received==SPROGRESS_COMPLETE)
-                {
-                    printprogress(PROGRESS_COMPLETE, charstoll(total.c_str()));
-                }
-                else
-                {
-                    printprogress(charstoll(received.c_str()), charstoll(total.c_str()));
-                }
-            }
-            MegaCmdShellCommunications::megaCmdStdoutputing.unlock();
+            std::lock_guard<std::mutex> stdOutLockGuard(comsManager.getStdoutLockGuard());
+            long long completed = received == SPROGRESS_COMPLETE ? PROGRESS_COMPLETE : charstoll(received.c_str());
+            const char * progressTitle = title.empty() ? "TRANSFERRING" : title.c_str();
+            printprogress(completed, charstoll(total.c_str()), progressTitle);
         }
         else if (newstate == "ack")
         {
@@ -407,10 +383,8 @@ void statechangehandle(string statestring)
         {
             doExit = true;
             doReboot = true;
-            if (!comms->updating)
-            {
-                comms->updating = true; // to avoid mensajes about server down
-            }
+            comsManager.markServerIsUpdating(); // to avoid mensajes about server down
+
             sleepSeconds(3); // Give a while for server to restart
             changeprompt("RESTART REQUIRED BY SERVER (due to an update). Press any key to continue.", true);
         }
@@ -567,7 +541,7 @@ static void store_line(char* l)
         doExit = true;
         rl_set_prompt("(CTRL+D) Exiting ...\n");
 #ifndef NDEBUG
-        if (comms->serverinitiatedfromshell)
+        if (comms->mServerInitiatedFromShell)
         {
             OUTSTREAM << " Forwarding exit command to the server, since this cmd shell (most likely) initiated it" << endl;
             comms->executeCommand("exit", readresponse);
@@ -898,14 +872,14 @@ void changedir(const string& where)
 #ifndef NO_READLINE
 char* remote_completion(const char* text, int state)
 {
-    char *saved_line = strdup(getCurrentLine().c_str());
+    string saved_line = getCurrentLine();
 
     static vector<string> validOptions;
     if (state == 0)
     {
         validOptions.clear();
         string completioncommand("completionshell ");
-        completioncommand+=saved_line;
+        completioncommand += saved_line;
 
         OUTSTRING s;
         OUTSTRINGSTREAM oss(s);
@@ -927,7 +901,6 @@ char* remote_completion(const char* text, int state)
 
         if (outputcommand == "MEGACMD_USE_LOCAL_COMPLETION")
         {
-            free(saved_line);
             return local_completion(text,state); //fallback to local path completion
         }
 
@@ -935,7 +908,6 @@ char* remote_completion(const char* text, int state)
         {
             string where = outputcommand.substr(strlen("MEGACMD_USE_LOCAL_COMPLETION"));
             changedir(where);
-            free(saved_line);
             return local_completion(text,state); //fallback to local path completion
         }
 
@@ -961,10 +933,6 @@ char* remote_completion(const char* text, int state)
             pushvalidoption(&validOptions,beginopt);
         }
     }
-
-    free(saved_line);
-    saved_line = NULL;
-
     return generic_completion(text, state, validOptions);
 }
 
@@ -1418,7 +1386,7 @@ void process_line(const char * line)
             line = refactoredline.c_str();
 #endif
 
-            vector<string> words = getlistOfWords((char *)line);
+            vector<string> words = getlistOfWords(line);
 
             string clientWidth = "--client-width=";
             clientWidth+= SSTR(getNumberOfCols(80));
@@ -1460,7 +1428,7 @@ void process_line(const char * line)
 #if defined(_WIN32) || defined(__APPLE__)
                 else if (words[0] == "update")
                 {
-                    MegaCmdShellCommunications::updating = true;
+                    comms->markServerIsUpdating();
                     int ret = comms->executeCommand(commandtoexec, readresponse);
                     if (ret == MCMD_REQRESTART)
                     {
@@ -1470,7 +1438,7 @@ void process_line(const char * line)
                     }
                     else if (ret != MCMD_INVALIDSTATE && words.size() == 1)
                     {
-                        MegaCmdShellCommunications::updating = false;
+                        comms->unmarkServerIsUpdating();
                     }
                 }
 #endif
@@ -1843,35 +1811,17 @@ void readloop()
     readline_fd = fileno(rl_instream);
 
     procesingline = true;
+
     comms->registerForStateChanges(true, statechangehandle);
 
-
-    //now we can relay on having a prompt received if the server is running
+    if (!comms->waitForServerReadyOrRegistrationFailed(std::chrono::seconds(2*RESUME_SESSION_TIMEOUT)))
     {
-        std::unique_lock<std::mutex> lk(promptLogReceivedMutex);
-        if (!promtpLogReceivedBool)
-        {
-            if (promtpLogReceivedCV.wait_for(lk, std::chrono::seconds(2*RESUME_SESSION_TIMEOUT)) == std::cv_status::timeout)
-            {
-                std::cerr << "Server seems irresponsive" << endl;
-            }
-        }
+        std::cerr << "Server seems irresponsive" << endl;
     }
-
 
     procesingline = false;
     promptreinstalledwhenprocessingline = false;
 
-#if defined(_WIN32) && defined(USE_PORT_COMMS)
-    // due to a failure in reconnecting to the socket, if the server was initiated in while registeringForStateChanges
-    // in windows we would not be yet connected. we need to manually try to register again.
-    if (comms->registerAgainRequired)
-    {
-        comms->registerForStateChanges(true, statechangehandle);
-    }
-    //give it a while to communicate the state
-    sleepMilliSeconds(1);
-#endif
 
     for (;; )
     {
@@ -1908,31 +1858,40 @@ void readloop()
 
                 wait_for_input(readline_fd);
 
-                std::lock_guard<std::mutex> g(mutexPrompt);
-
-                rl_callback_read_char(); //this calls store_line if last char was enter
-
+                bool retryComms = false;
                 time_t tnow = time(NULL);
-                if ( (tnow - lasttimeretrycons) > 5 && !doExit && !MegaCmdShellCommunications::updating)
                 {
-                    char * sl = rl_copy_text(0, rl_end);
-                    if (string("quit").find(sl) != 0 && string("exit").find(sl) != 0)
+                    std::lock_guard<std::mutex> g(mutexPrompt);
+
+                    rl_callback_read_char(); //this calls store_line if last char was enter
+
+                    if ( (tnow - lasttimeretrycons) > 5 && !doExit && !comms->isServerUpdating())
                     {
-                        comms->executeCommand("retrycons");
-                        lasttimeretrycons = tnow;
+                        char * sl = rl_copy_text(0, rl_end);
+                        if (string("quit").find(sl) != 0 && string("exit").find(sl) != 0)
+                        {
+                            retryComms = true;
+                        }
+                        free(sl);
                     }
-                    free(sl);
+
+                    rl_resize_terminal(); // to always adjust to new screen sizes
+
+                    if (doExit)
+                    {
+                        if (saved_line != NULL)
+                            free(saved_line);
+                        saved_line = NULL;
+                        return;
+                    }
                 }
 
-                rl_resize_terminal(); // to always adjust to new screen sizes
-
-                if (doExit)
+                if (retryComms)
                 {
-                    if (saved_line != NULL)
-                        free(saved_line);
-                    saved_line = NULL;
-                    return;
+                    comms->executeCommand("retrycons");
+                    lasttimeretrycons = tnow;
                 }
+
             }
             else
             {
@@ -1981,11 +1940,9 @@ void readloop()
                     }
                 }
 
-                if (comms->registerAgainRequired)
+                if (comms->registerRequired())
                 {
-                    // register again for state changes
                      comms->registerForStateChanges(true, statechangehandle);
-                     comms->registerAgainRequired = false;
                 }
 
                 // sleep, so that in case there was a changeprompt waiting, gets executed before relooping
@@ -2014,17 +1971,6 @@ void readloop()
     //give it a while to communicate the state
     sleepMilliSeconds(700);
 
-#if defined(_WIN32) && defined(USE_PORT_COMMS)
-    // due to a failure in reconnecting to the socket, if the server was initiated in while registeringForStateChanges
-    // in windows we would not be yet connected. we need to manually try to register again.
-    if (comms->registerAgainRequired)
-    {
-        comms->registerForStateChanges(true, statechangehandle);
-    }
-    //give it a while to communicate the state
-    sleepMilliSeconds(1);
-#endif
-
     for (;; )
     {
         if (prompt == COMMAND)
@@ -2045,7 +1991,7 @@ void readloop()
             else
             {
                 time_t tnow = time(NULL);
-                if ((tnow - lasttimeretrycons) > 5 && !doExit && !MegaCmdShellCommunications::updating)
+                if ((tnow - lasttimeretrycons) > 5 && !doExit && !comms->isServerUpdating())
                 {
                     if (wstring(L"quit").find(console->getInputLineToCursor()) != 0 &&
                          wstring(L"exit").find(console->getInputLineToCursor()) != 0   )
@@ -2075,11 +2021,9 @@ void readloop()
                 requirepromptinstall = true;
 //                mutexPrompt.unlock();
 
-                if (comms->registerAgainRequired)
+                if (comms->registerRequired())
                 {
-                    // register again for state changes
                     comms->registerForStateChanges(true, statechangehandle);
-                    comms->registerAgainRequired = false;
                 }
 
                 // sleep, so that in case there was a changeprompt waiting, gets executed before relooping
@@ -2207,12 +2151,13 @@ void mycompletefunct(char **c, int num_matches, int max_length)
     {
         string option = c[i];
 
-        MegaCmdShellCommunications::megaCmdStdoutputing.lock();
-        OUTSTREAM << setw(min(cols-1,max_length+1)) << left;
-        int oldmode = _setmode(_fileno(stdout), _O_U16TEXT);
-        OUTSTREAM << c[i];
-        _setmode(_fileno(stdout), oldmode);
-        MegaCmdShellCommunications::megaCmdStdoutputing.unlock();
+        {
+            std::lock_guard<std::mutex> stdOutLockGuard(comms->getStdoutLockGuard());
+            OUTSTREAM << setw(min(cols-1,max_length+1)) << left;
+            int oldmode = _setmode(_fileno(stdout), _O_U16TEXT);
+            OUTSTREAM << c[i];
+            _setmode(_fileno(stdout), oldmode);
+        }
 
         if ( (i%nelements_per_col == 0) && (i != num_matches))
         {
@@ -2275,10 +2220,10 @@ int main(int argc, char* argv[])
 #endif
 
     // intialize the comms object
-#if defined(_WIN32) && !defined(USE_PORT_COMMS)
+#if defined(_WIN32)
     comms = new MegaCmdShellCommunicationsNamedPipes();
 #else
-    comms = new MegaCmdShellCommunications();
+    comms = new MegaCmdShellCommunicationsPosix();
 #endif
 
 #ifndef NO_READLINE
@@ -2326,6 +2271,7 @@ int main(int argc, char* argv[])
         rl_callback_handler_remove(); //To avoid having the terminal messed up (requiring a "reset")
     }
 #endif
+    comms->shutdown();
     delete comms;
 
     if (doReboot)

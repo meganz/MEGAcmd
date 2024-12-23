@@ -62,6 +62,14 @@ int main (int argc, char *argv[])
 
     testing::InitGoogleTest(&argc, argv);
 
+    using TI = TestInstruments;
+
+    std::promise<void> serverWaitingPromise;
+    TI::Instance().onEventOnce(TI::Event::SERVER_ABOUT_TO_START_WAITING_FOR_PETITIONS,
+                               [&serverWaitingPromise]() {
+        serverWaitingPromise.set_value();
+    });
+
     std::thread serverThread([] {
 
         std::vector<char*> args{
@@ -72,14 +80,6 @@ int main (int argc, char *argv[])
         constexpr bool logToCout = false;
         auto createDefaultStream = [] { return new megacmd::LoggedStreamDefaultFile(); };
         megacmd::executeServer(1, args.data(), createDefaultStream, logToCout, mega::MegaApi::LOG_LEVEL_MAX, mega::MegaApi::LOG_LEVEL_MAX);
-    });
-
-    using TI = TestInstruments;
-
-    std::promise<void> serverWaitingPromise;
-    TI::Instance().onEventOnce(TI::Event::SERVER_ABOUT_TO_START_WAITING_FOR_PETITIONS,
-                               [&serverWaitingPromise]() {
-        serverWaitingPromise.set_value();
     });
 
     auto waitReturn = serverWaitingPromise.get_future().wait_for(std::chrono::seconds(10));

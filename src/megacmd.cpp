@@ -86,13 +86,8 @@
 #endif
 
 #ifdef _WIN32
-#ifdef USE_PORT_COMMS
-#include "comunicationsmanagerportsockets.h"
-#define COMUNICATIONMANAGER ComunicationsManagerPortSockets
-#else
 #include "comunicationsmanagernamedpipes.h"
 #define COMUNICATIONMANAGER ComunicationsManagerNamedPipes
-#endif
 #else
 #include "comunicationsmanagerfilesockets.h"
 #define COMUNICATIONMANAGER ComunicationsManagerFileSockets
@@ -435,7 +430,7 @@ void informProgressUpdate(long long transferred, long long total, int clientID, 
     informStateListenerByClientId(clientID, s);
 }
 
-void insertValidParamsPerCommand(set<string> *validParams, string thecommand, set<string> *validOptValues = NULL)
+void insertValidParamsPerCommand(set<string> *validParams, string thecommand, set<string> *validOptValues = nullptr, bool skipDeprecated = false)
 {
     if (!validOptValues)
     {
@@ -600,19 +595,45 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     }
     else if ("sync" == thecommand)
     {
-        validParams->insert("d");
-        validParams->insert("s");
-        validParams->insert("r");
-
+        validParams->insert("p");
+        validParams->insert("pause");
+        validParams->insert("e");
         validParams->insert("enable");
-        validParams->insert("disable");
-        validParams->insert("remove");
+        validParams->insert("d");
+        validParams->insert("delete");
 
         validParams->insert("show-handles");
         validOptValues->insert("path-display-size");
         validOptValues->insert("col-separator");
         validOptValues->insert("output-cols");
 
+        if (!skipDeprecated)
+        {
+            // Deprecated (kept for backwards compatibility)
+            validParams->insert("remove");
+            validParams->insert("s");
+            validParams->insert("disable");
+            validParams->insert("r");
+        }
+    }
+    else if ("sync-issues" == thecommand)
+    {
+        validParams->insert("enable-warning");
+        validParams->insert("disable-warning");
+        validParams->insert("disable-path-collapse");
+        validParams->insert("detail");
+        validParams->insert("all");
+        validOptValues->insert("limit");
+        validOptValues->insert("col-separator");
+        validOptValues->insert("output-cols");
+    }
+    else if ("sync-ignore" == thecommand)
+    {
+        validParams->insert("show");
+        validParams->insert("add");
+        validParams->insert("add-exclusion");
+        validParams->insert("remove");
+        validParams->insert("remove-exclusion");
     }
     else if ("export" == thecommand)
     {
@@ -911,9 +932,8 @@ char * flags_completion(const char*text, int state)
     if (state == 0)
     {
         validparams.clear();
-        char *saved_line = strdup(getCurrentThreadLine().c_str());
-        vector<string> words = getlistOfWords(saved_line, !isCurrentThreadCmdShell());
-        free(saved_line);
+        string saved_line = getCurrentThreadLine();
+        vector<string> words = getlistOfWords(saved_line.c_str(), !isCurrentThreadCmdShell());
         if (words.size())
         {
             set<string> setvalidparams;
@@ -921,7 +941,7 @@ char * flags_completion(const char*text, int state)
             addGlobalFlags(&setvalidparams);
 
             string thecommand = words[0];
-            insertValidParamsPerCommand(&setvalidparams, thecommand, &setvalidOptValues);
+            insertValidParamsPerCommand(&setvalidparams, thecommand, &setvalidOptValues, true /* skipDeprecated*/);
             set<string>::iterator it;
             for (it = setvalidparams.begin(); it != setvalidparams.end(); it++)
             {
@@ -970,10 +990,8 @@ char * flags_value_completion(const char*text, int state)
     {
         validValues.clear();
 
-        char *saved_line = strdup(getCurrentThreadLine().c_str());
-        vector<string> words = getlistOfWords(saved_line, !isCurrentThreadCmdShell());
-        free(saved_line);
-        saved_line = NULL;
+        string saved_line = getCurrentThreadLine();
+        vector<string> words = getlistOfWords(saved_line.c_str(), !isCurrentThreadCmdShell());
         if (words.size() > 1)
         {
             string thecommand = words[0];
@@ -984,7 +1002,7 @@ char * flags_value_completion(const char*text, int state)
 
             set<string> validParams;
 
-            insertValidParamsPerCommand(&validParams, thecommand);
+            insertValidParamsPerCommand(&validParams, thecommand, nullptr /* validOptValues */, true /* skipDeprecated */);
 
             if (setOptionsAndFlags(&cloptions, &clflags, &words, validParams, true))
             {
@@ -1206,10 +1224,8 @@ char* nodeattrs_completion(const char* text, int state)
     if (state == 0)
     {
         validAttrs.clear();
-        char *saved_line = strdup(getCurrentThreadLine().c_str());
-        vector<string> words = getlistOfWords(saved_line, !isCurrentThreadCmdShell());
-        free(saved_line);
-        saved_line = NULL;
+        string saved_line = getCurrentThreadLine();
+        vector<string> words = getlistOfWords(saved_line.c_str(), !isCurrentThreadCmdShell());
         if (words.size() > 1)
         {
             validAttrs = cmdexecuter->getNodeAttrs(words[1]);
@@ -1735,7 +1751,15 @@ const char * getUsageStr(const char *command, const HelpFlags& flags)
     }
     if (!strcmp(command, "sync"))
     {
-        return "sync [localpath dstremotepath| [-dsr] [ID|localpath]";
+        return "sync [localpath dstremotepath| [-dpe] [ID|localpath]";
+    }
+    if (!strcmp(command, "sync-issues"))
+    {
+        return "sync-issues [[--detail (ID|--all)] [--limit=rowcount] [--disable-path-collapse]] | [--enable-warning|--disable-warning]";
+    }
+    if (!strcmp(command, "sync-ignore"))
+    {
+        return "sync-ignore [--show|[--add|--add-exclusion|--remove|--remove-exclusion] filter1 filter2 ...] (ID|localpath|DEFAULT)";
     }
     if (!strcmp(command, "backup"))
     {
@@ -1988,9 +2012,8 @@ void printTimeFormatHelp(ostringstream &os)
 
 void printColumnDisplayerHelp(ostringstream &os)
 {
-    os << " --col-separator=X" << "\t" << "Tt will use X as column separator. Otherwise the output will use" << endl;
-    os << "                     " << "\t" << " spaces to tabulate in an easy to read output:" << endl;
-    os << " --output-cols=COLUMN_NAME_1,COLUMN_NAME2,..." << "\t" << "You can select which columns to show (and their order) with this option" << endl;
+    os << " --col-separator=X" << "\t" << "Uses the string \"X\" as column separator. Otherwise, spaces will be added between columns to align them." << endl;
+    os << " --output-cols=COLUMN_NAME_1,COLUMN_NAME2,..." << "\t" << "Selects which columns to show and their order." << endl;
 }
 
 string getHelpStr(const char *command, const HelpFlags& flags = {})
@@ -2494,18 +2517,15 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
     }
     else if (!strcmp(command, "exclude"))
     {
-        os << "Manages exclusions in syncs." << endl;
+        os << "Manages default exclusion rules in syncs." << endl;
+        os << "These default rules will be used when creating new syncs. Existing syncs won't be affected. To modify the exclusion rules of existing syncs, use " << getCommandPrefixBasedOnMode() << "sync-ignore." << endl;
         os << endl;
         os << "Options:" << endl;
         os << " -a pattern1 pattern2 ..." << "\t" << "adds pattern(s) to the exclusion list" << endl;
         os << "                         " << "\t" << "          (* and ? wildcards allowed)" << endl;
         os << " -d pattern1 pattern2 ..." << "\t" << "deletes pattern(s) from the exclusion list" << endl;
-
         os << endl;
-        os << "Caveat: removal of patterns may not trigger sync transfers right away." << endl;
-        os << "Consider:" << endl;
-        os << " a) disable/reenable synchronizations manually" << endl;
-        os << " b) restart MEGAcmd server" << endl;
+        os << "This command is DEPRECATED. Use sync-ignore instead." << endl;
     }
     else if (!strcmp(command, "sync"))
     {
@@ -2520,9 +2540,12 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << " unless an option is specified." << endl;
         os << endl;
         os << "Options:" << endl;
-        os << "-d | --remove" << " " << "ID|localpath" << "\t" << "deletes a synchronization." << endl;
-        os << "-s | --disable" << " " << "ID|localpath" << "\t" << "stops(pauses) a synchronization." << endl;
-        os << "-r | --enable" << " " << "ID|localpath" << "\t" << "resumes a synchronization." << endl;
+        os << " -d | --delete" << " " << "ID|localpath" << "\t" << "deletes a synchronization (not the files)." << endl;
+        os << " -p | --pause" << " " << "ID|localpath" << "\t" << "pauses (disables) a synchronization." << endl;
+        os << " -e | --enable" << " " << "ID|localpath" << "\t" << "resumes a synchronization." << endl;
+        os << " [deprecated] --remove" << " " << "ID|localpath" << "\t" << "same as --delete." << endl;
+        os << " [deprecated] -s | --disable" << " " << "ID|localpath" << "\t" << "same as --pause." << endl;
+        os << " [deprecated] -r" << " " << "ID|localpath" << "\t" << "same as --enable." << endl;
         os << " --path-display-size=N" << "\t" << "Use at least N characters for displaying paths." << endl;
         os << " --show-handles" << "\t" << "Prints remote nodes handles (H:XXXXXXXX)." << endl;
         printColumnDisplayerHelp(os);
@@ -2543,6 +2566,87 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
 #undef SOME_GENERATOR_MACRO
         os << " " << "ERROR: Error, if any." << endl;
         os << " " << "SIZE, FILE & DIRS: size, number of files and number of dirs in the remote folder." << endl;
+    }
+    else if (!strcmp(command, "sync-issues"))
+    {
+        os << "Show all issues with current syncs" << endl;
+        os << endl;
+        os << "When MEGAcmd detects conflicts with the data it's synchronizing, a sync issue is triggered. Syncing is stopped on the conflicting data, and no progress is made. Recovering from an issue usually requires user intervention." << endl;
+        os << "A notification warning will appear whenever sync issues are detected. You can disable the warning if you wish. Note: the notification may appear even if there were already issues before." << endl;
+        os << "Note: the list of sync issues provides a snapshot of the issues detected at the moment of requesting it. Thus, it might not contain the latest updated data. Some issues might still be being processed by the sync engine, and some might not have been removed yet." << endl;
+        os << endl;
+        os << "Options:" << endl;
+        os << " --detail (ID | --all) " << "\t" << "Provides additional information on a particular sync issue." << endl;
+        os << "                       " << "\t" << "The ID of the sync where this issue appeared is shown, alongside its local and cloud paths." << endl;
+        os << "                       " << "\t" << "All paths involved in the issue are shown. For each path, the following columns are displayed:" << endl;
+        os << "                       " << "\t" << "\t" << "PATH: The conflicting local or cloud path (cloud paths are prefixed with \"<CLOUD>\")." << endl;
+        os << "                       " << "\t" << "\t" << "PATH_ISSUE: A brief explanation of the problem this file or folder has (if any)." << endl;
+        os << "                       " << "\t" << "\t" << "LAST_MODIFIED: The most recent date when this file or directory was updated." << endl;
+        os << "                       " << "\t" << "\t" << "UPLOADED: For cloud paths, the date of upload or creation. Empty for local paths." << endl;
+        os << "                       " << "\t" << "\t" << "SIZE: The size of the file. Empty for directories." << endl;
+        os << "                       " << "\t" << "\t" << "TYPE: The type of the path (file or directory). This column is hidden if the information is not relevant for the particular sync issue." << endl;
+        os << "                       " << "\t" << "The \"--all\" argument can be used to show the details of all issues." << endl;
+        os << " --limit=rowcount " << "\t" << "Limits the amount of rows displayed. Set to 0 to display unlimited rows. Default is 10. Can also be combined with \"--detail\"." << endl;
+        os << " --disable-path-collapse " << "\t" << "Ensures all paths are fully shown. By default long paths are truncated for readability." << endl;
+        os << " --enable-warning " << "\t" << "Enables the notification that appears when issues are detected. This setting is stored locally for all users." << endl;
+        os << " --disable-warning " << "\t" << "Disables the notification that appears when issues are detected. This setting is stored locally for all users." << endl;
+        printColumnDisplayerHelp(os);
+        os << endl;
+        os << "DISPLAYED columns:" << endl;
+        os << "\t" << "ISSUE_ID: A unique identifier of the sync issue. The ID can be used alongside the \"--detail\" argument." << endl;
+        os << "\t" << "PARENT_SYNC: The identifier of the sync that has this issue." << endl;
+        os << "\t" << "REASON: A brief explanation on what the issue is. Use the \"--detail\" argument to get extended information on a particular sync." << endl;
+    }
+    else if (!strcmp(command, "sync-ignore"))
+    {
+        os << "Manages ignore filters for syncs" << endl;
+        os << endl;
+        os << "To modify the default filters, use \"DEFAULT\" instead of local path or ID." << endl;
+        os << "Note: when modifying the default filters, existing syncs won't be affected. Only newly created ones." << endl;
+        os << endl;
+        os << "If no action is provided, filters will be shown for the selected sync." << endl;
+        os << "Only the filters at the root of the selected sync will be accessed. Filters beloging to sub-folders must be modified manually." << endl;
+        os << endl;
+        os << "Options:" << endl;
+        os << "--show" << "\t" << "Show the existing filters of the selected sync" << endl;
+        os << "--add" << "\t" << "Add the specified filters to the selected sync" << endl;
+        os << "--add-exclusion" << "\t" << "Same as \"--add\", but the <CLASS> is 'exclude'" << endl;
+        os << "               " << "\t" << "Note: the `-` must be omitted from the filter (using '--' is not necessary)" << endl;
+        os << "--remove" << "\t" << "Remove the specified filters from the selected sync" << endl;
+        os << "--remove-exclusion" << "\t" << "Same as \"--remove\", but the <CLASS> is 'exclude'" << endl;
+        os << "                  " << "\t" << "Note: the `-` must be omitted from the filter (using '--' is not necessary)" << endl;
+        os << endl;
+        os << "Filters must have the following format: <CLASS><TARGET><TYPE><STRATEGY>:<PATTERN>" << endl;
+        os << "\t" << "<CLASS> Must be either exclude, or include" << endl;
+        os << "\t" << "\t" << "exclude (`-`): This filter contains files or directories that *should not* be synchronized" << endl;
+        os << "\t" << "\t" << "               Note: you must pass a double dash ('--') to signify the end of the parameters, in order to pass exclude filters" << endl;
+        os << "\t" << "\t" << "include (`+`): This filter contains files or directories that *should* be synchronized" << endl;
+        os << "\t" << "<TARGET> May be one of the following: directory, file, symlink, or all" << endl;
+        os << "\t" << "\t" << "directory (`d`): This filter applies only to directories" << endl;
+        os << "\t" << "\t" << "file (`f`): This filter applies only to files" << endl;
+        os << "\t" << "\t" << "symlink (`s`): This filter applies only to symbolic links" << endl;
+        os << "\t" << "\t" << "all (`a`): This filter applies to all of the above" << endl;
+        os << "\t" << "Default (when omitted) is `a`" << endl;
+        os << "\t" << "<TYPE> May be one of the following: local name, path, or subtree name" << endl;
+        os << "\t" << "\t" << "local name (`N`): This filter has an effect only in the root directory of the sync" << endl;
+        os << "\t" << "\t" << "path (`p`): This filter matches against the path relative to the rooth directory of the sync" << endl;
+        os << "\t" << "\t" << "            Note: the path separator is always '/', even on Windows" << endl;
+        os << "\t" << "\t" << "subtree name (`n`): This filter has an effect in all directories below the root directory of the sync, itself included" << endl;
+        os << "\t" << "Default (when omitted) is `n`" << endl;
+        os << "\t" << "<STRATEGY> May be one of the following: glob, or regexp" << endl;
+        os << "\t" << "\t" << "glob (`G` or `g`): This filter matches against a name or path using a wildcard pattern" << endl;
+        os << "\t" << "\t" << "regexp (`R` or `r`): This filter matches against a name or path using a pattern expressed as a POSIX-Extended Regular Expression" << endl;
+        os << "\t" << "Note: uppercase `G` or `R` specifies that the matching should be case-sensitive" << endl;
+        os << "\t" << "Default (when omitted) is `G`" << endl;
+        os << "\t" << "<PATTERN> Must be a file or directory pattern" << endl;
+        os << "Some examples:" << endl;
+        os << "\t" << "`-f:*.txt`" << "  " << "Filter will exclude all *.txt files in and beneath the sync directory" << endl;
+        os << "\t" << "`+fg:work*.txt`" << "  " << "Filter will include all work*.txt files excluded by the filter above" << endl;
+        os << "\t" << "`-N:*.avi`" << "  " << "Filter will exclude all *.avi files contained directly in the sync directory" << endl;
+        os << "\t" << "`-nr:.*foo.*`" << "  " << "Filter will exclude files whose name contains 'foo'" << endl;
+        os << "\t" << "`-d:private`" << "  " << "Filter will exclude all directories with the name 'private'" << endl;
+        os << endl;
+        os << "See: https://help.mega.io/installs-apps/desktop/megaignore more info." << endl;
     }
     else if (!strcmp(command, "backup"))
     {
@@ -3188,7 +3292,7 @@ void checkBlockStatus(bool waitcompletion = true)
     }
 }
 
-void executecommand(char* ptr)
+void executecommand(const char* ptr)
 {
     vector<string> words = getlistOfWords(ptr, !isCurrentThreadCmdShell());
     if (!words.size())
@@ -3719,7 +3823,7 @@ bool isBareCommand(const char *l, const string &command)
         return false;
     }
 
-   vector<string> words = getlistOfWords((char *)l, !isCurrentThreadCmdShell());
+   vector<string> words = getlistOfWords(l, !isCurrentThreadCmdShell());
    for (int i = 1; i<words.size(); i++)
    {
        if (words[i].empty()) continue;
@@ -3733,8 +3837,10 @@ bool isBareCommand(const char *l, const string &command)
    return true;
 }
 
-static bool process_line(char* l)
+static bool process_line(const std::string_view line)
 {
+    const char* l = line.data();
+    assert(line.size() == strlen(l)); // string_view does not guarantee null termination, which is depended upon
     switch (prompt)
     {
         case AREYOUSURETODELETE:
@@ -3849,8 +3955,7 @@ static bool process_line(char* l)
             }
             else if (isBareCommand(l, "sendack"))
             {
-                string sack="ack";
-                cm->informStateListeners(sack);
+                cm->informStateListeners("ack");
                 break;
             }
 
@@ -3900,36 +4005,24 @@ static bool process_line(char* l)
     return false; //Do not exit
 }
 
-void * doProcessLine(void *pointer)
+void* doProcessLine(void* infRaw)
 {
-    CmdPetition *inf = (CmdPetition*)pointer;
+    auto inf = std::unique_ptr<CmdPetition>((CmdPetition*) infRaw);
 
     OUTSTRINGSTREAM s;
 
     setCurrentThreadLogLevel(MegaApi::LOG_LEVEL_ERROR);
     setCurrentThreadOutCode(MCMD_OK);
-    setCurrentThreadCmdPetition(inf);
-    LoggedStreamPartialOutputs ls(cm, inf);
+    setCurrentThreadCmdPetition(inf.get());
+    LoggedStreamPartialOutputs ls(cm, inf.get());
     setCurrentThreadOutStream(ls);
 
-    bool isInteractive = false;
+    setCurrentThreadIsCmdShell(!inf->line.empty() && inf->line[0] == 'X');
 
-    if (inf->getLine() && *(inf->getLine())=='X')
-    {
-        setCurrentThreadIsCmdShell(true);
-        char * aux = inf->line;
-        inf->line=strdup(inf->line+1);
-        free(aux);
-        isInteractive = true;
-    }
-    else
-    {
-        setCurrentThreadIsCmdShell(false);
-    }
 
     LOG_verbose << " Processing " << inf->line << " in thread: " << MegaThread::currentThreadId() << " " << inf->getPetitionDetails();
 
-    doExit = process_line(inf->getLine());
+    doExit = process_line(inf->getUniformLine());
 
     if (doExit)
     {
@@ -3941,13 +4034,9 @@ void * doProcessLine(void *pointer)
 
     MegaThread * petitionThread = inf->getPetitionThread();
 
-    if (inf->clientID == -3) //self client: no actual client
+    if (inf->clientID != -3) // -3 is self client (no actual client)
     {
-        delete inf;//simply delete the pointer
-    }
-    else
-    {
-        cm->returnAndClosePetition(inf, &s, getCurrentThreadOutCode());
+        cm->returnAndClosePetition(std::move(inf), &s, getCurrentThreadOutCode());
     }
 
     semaphoreClients.release();
@@ -3961,7 +4050,7 @@ void * doProcessLine(void *pointer)
     endedPetitionThreads.push_back(petitionThread);
     mutexEndedPetitionThreads.unlock();
 
-    return NULL;
+    return nullptr;
 }
 
 int askforConfirmation(string message)
@@ -4258,7 +4347,7 @@ void* checkForUpdates(void *param)
     return NULL;
 }
 
-void processCommandInPetitionQueues(CmdPetition *inf)
+void processCommandInPetitionQueues(std::unique_ptr<CmdPetition> inf)
 {
     semaphoreClients.wait();
 
@@ -4269,17 +4358,16 @@ void processCommandInPetitionQueues(CmdPetition *inf)
     inf->setPetitionThread(petitionThread);
 
     LOG_verbose << "starting processing: <" << inf->line << ">";
-
-    petitionThread->start(doProcessLine, (void*)inf);
+    petitionThread->start(doProcessLine, (void*) inf.release());
 }
 
 void processCommandLinePetitionQueues(std::string what)
 {
-    CmdPetition *inf = new CmdPetition();
-    inf->line = strdup(what.c_str());
-    inf->clientDisconnected = true; //There's no actual client
+    auto inf = std::make_unique<CmdPetition>();
+    inf->line = what;
+    inf->clientDisconnected = true; // There's no actual client
     inf->clientID = -3;
-    processCommandInPetitionQueues(inf);
+    processCommandInPetitionQueues(std::move(inf));
 }
 
 // main loop
@@ -4296,7 +4384,11 @@ void megacmd()
 
     for (;; )
     {
-        cm->waitForPetition();
+        int err = cm->waitForPetition();
+        if (err != 0)
+        {
+            continue;
+        }
 
         api->retryPendingConnections();
 
@@ -4308,26 +4400,28 @@ void megacmd()
 
         if (cm->receivedPetition())
         {
-
             LOG_verbose << "Client connected ";
 
-            CmdPetition *inf = cm->getPetition();
+            auto infOwned = cm->getPetition();
+            assert(infOwned);
+
+            CmdPetition* inf = infOwned.get();
 
             LOG_verbose << "petition registered: " << inf->line;
-
             delete_finished_threads();
 
-            if (!inf || !strcmp(inf->getLine(),"ERROR"))
+            if (inf->getUniformLine() == "ERROR")
             {
                 LOG_warn << "Petition couldn't be registered. Dismissing it.";
-                delete inf;
             }
             // if state register petition
-            else  if (!strncmp(inf->getLine(),"registerstatelistener",strlen("registerstatelistener")) ||
-                      !strncmp(inf->getLine(),"Xregisterstatelistener",strlen("Xregisterstatelistener")))
+            else if (startsWith(inf->getUniformLine(), "registerstatelistener"))
             {
-
-                cm->registerStateListener(inf);
+                inf = cm->registerStateListener(std::move(infOwned));
+                if (!inf)
+                {
+                    continue;
+                }
 
                 // communicate client ID
                 string s = "clientID:";
@@ -4533,7 +4627,7 @@ void megacmd()
             }
             else
             { // normal petition
-                processCommandInPetitionQueues(inf);
+                processCommandInPetitionQueues(std::move(infOwned));
             }
         }
     }
@@ -5094,6 +5188,7 @@ int executeServer(int argc, char* argv[],
 
     LOG_debug << "----------------------------- program start -----------------------------";
     LOG_debug << "MEGAcmd version: " << MEGACMD_MAJOR_VERSION << "." << MEGACMD_MINOR_VERSION << "." << MEGACMD_MICRO_VERSION << "." << MEGACMD_BUILD_ID << ": code " << MEGACMD_CODE_VERSION;
+    LOG_debug << "MEGA SDK version: " << SDK_COMMIT_HASH;
 
     api = new MegaApi("BdARkQSQ", (MegaGfxProcessor*)NULL, ConfigurationManager::getAndCreateConfigDir().c_str(), userAgent);
 
@@ -5208,7 +5303,8 @@ int executeServer(int argc, char* argv[],
 
     if (ConfigurationManager::getHasBeenUpdated())
     {
-        sendEvent(StatsManager::MegacmdEvent::UPDATE, api, false);
+        // Wait for this event to ensure an automatic login on startup doesn't prevent the event from being sent
+        sendEvent(StatsManager::MegacmdEvent::UPDATE, api, true);
 
         stringstream ss;
         ss << "MEGAcmd has been updated to version " << MEGACMD_MAJOR_VERSION << "." << MEGACMD_MINOR_VERSION << "." << MEGACMD_MICRO_VERSION << "." << MEGACMD_BUILD_ID << " - code " << MEGACMD_CODE_VERSION << endl;
