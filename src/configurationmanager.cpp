@@ -210,7 +210,7 @@ void ConfigurationManager::saveSession(const char*session)
     }
 }
 
-void ConfigurationManager::saveProperty(const char *property, const char *value)
+string ConfigurationManager::saveProperty(const char *property, const char *value)
 {
     std::lock_guard<std::recursive_mutex> g(settingsMutex);
 
@@ -226,7 +226,7 @@ void ConfigurationManager::saveProperty(const char *property, const char *value)
 
     stringstream formerlines;
     ifstream infile(configFile.str().c_str());
-    string line;
+    string line, prevValue;
     while (getline(infile, line))
     {
         if (line.length() > 0 && line[0] != '#')
@@ -238,12 +238,10 @@ void ConfigurationManager::saveProperty(const char *property, const char *value)
                 key = line.substr(0, pos);
                 rtrimProperty(key, ' ');
 
-                if (!strcmp(key.c_str(), property))
+                if (!strcmp(key.c_str(), property) && !found)
                 {
-                    if (!found)
-                    {
-                        formerlines << property << "=" << value << endl;
-                    }
+                    formerlines << property << "=" << value << endl;
+                    prevValue = line.substr(pos + 1);
                     found = true;
                 }
                 else
@@ -268,6 +266,7 @@ void ConfigurationManager::saveProperty(const char *property, const char *value)
         }
         fo.close();
     }
+    return prevValue;
 }
 
 void ConfigurationManager::migrateSyncConfig(MegaApi *api)

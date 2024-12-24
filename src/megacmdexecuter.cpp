@@ -1624,8 +1624,10 @@ void MegaCmdExecuter::createOrModifyBackup(string local, string remote, string s
         {
             if (establishBackup(local, n.get(), period, speriod, numBackups))
             {
-                std::lock_guard g(mtxBackupsMap);
-                ConfigurationManager::saveBackups(&ConfigurationManager::configuredBackups);
+                {
+                    std::lock_guard g(mtxBackupsMap);
+                    ConfigurationManager::saveBackups(&ConfigurationManager::configuredBackups);
+                }
 
                 OUTSTREAM << "Backup established: " << local << " into " << remote << " period="
                           << ((period != -1)?getReadablePeriod(period/10):"\""+speriod+"\"")
@@ -5010,53 +5012,66 @@ bool MegaCmdExecuter::establishBackup(string pathToBackup, MegaNode *n, int64_t 
         LOG_err << " Failed to expanse path";
     }
 
-    MegaCmdListener *megaCmdListener = new MegaCmdListener(api, NULL);
-    api->setScheduledCopy(expansedAbsolutePath.toPath(false).c_str(), n, attendpastbackups, period, speriod.c_str(), numBackups, megaCmdListener);
+    auto megaCmdListener = std::make_unique<MegaCmdListener>(api, nullptr);
+    api->setScheduledCopy(expansedAbsolutePath.toPath(false).c_str(), n, attendpastbackups, period, speriod.c_str(), numBackups, megaCmdListener.get());
     megaCmdListener->wait();
     if (checkNoErrors(megaCmdListener->getError(), "establish backup"))
     {
-        mtxBackupsMap.lock();
-
-        backup_struct *thebackup = NULL;
-        if (ConfigurationManager::configuredBackups.find(megaCmdListener->getRequest()->getFile()) != ConfigurationManager::configuredBackups.end())
+        backup_struct *thebackup = nullptr;
+        bool sendBackupEvent = false;
         {
-            thebackup = ConfigurationManager::configuredBackups[megaCmdListener->getRequest()->getFile()];
-            if (thebackup->id == -1)
+            std::lock_guard g(mtxBackupsMap);
+            if (ConfigurationManager::configuredBackups.find(megaCmdListener->getRequest()->getFile()) != ConfigurationManager::configuredBackups.end())
             {
-                thebackup->id = backupcounter++;
-            }
-        }
-        else
-        {
-            thebackup = new backup_struct;
-            thebackup->id = backupcounter++;
-            ConfigurationManager::configuredBackups[megaCmdListener->getRequest()->getFile()] = thebackup;
-
-            if (!ConfigurationManager::getConfigurationValue("firstBackupConfigured", false))
-            {
-                sendEvent(StatsManager::MegacmdEvent::FIRST_CONFIGURED_BACKUP, api, false);
-                ConfigurationManager::savePropertyValue("firstBackupConfigured", true);
+                thebackup = ConfigurationManager::configuredBackups[megaCmdListener->getRequest()->getFile()];
+                if (thebackup->id == -1)
+                {
+                    thebackup->id = backupcounter++;
+                }
             }
             else
             {
-                sendEvent(StatsManager::MegacmdEvent::SUBSEQUENT_CONFIGURED_BACKUP, api, false);
+                thebackup = new backup_struct;
+                thebackup->id = backupcounter++;
+                ConfigurationManager::configuredBackups[megaCmdListener->getRequest()->getFile()] = thebackup;
+                sendBackupEvent = true;
+            }
+            thebackup->active = true;
+            thebackup->handle = megaCmdListener->getRequest()->getNodeHandle();
+            thebackup->localpath = string(megaCmdListener->getRequest()->getFile());
+            thebackup->numBackups = numBackups;
+            thebackup->period = period;
+            thebackup->speriod = speriod;
+            thebackup->failed = false;
+            thebackup->tag = megaCmdListener->getRequest()->getTransferTag();
+        }
+
+        if (sendBackupEvent)
+        {
+            bool firstBackupConfigured = ConfigurationManager::getConfigurationValue("firstBackupConfigured", false);
+            if (!firstBackupConfigured)
+            {
+                auto prevValueOpt = ConfigurationManager::savePropertyValue("firstBackupConfigured", true);
+                if (prevValueOpt)
+                {
+                    firstBackupConfigured = *prevValueOpt;
+                }
+            }
+
+            // Check the value again in case it has been modified in between the two configuration calls above
+            // (to protect against a race condition that could cause the event to be sent twice)
+            if (!firstBackupConfigured)
+            {
+                sendEvent(StatsManager::MegacmdEvent::FIRST_CONFIGURED_SCHEDULED_BACKUP, api, false);
+            }
+            else
+            {
+                sendEvent(StatsManager::MegacmdEvent::SUBSEQUENT_CONFIGURED_SCHEDULED_BACKUP, api, false);
             }
         }
-        thebackup->active = true;
-        thebackup->handle = megaCmdListener->getRequest()->getNodeHandle();
-        thebackup->localpath = string(megaCmdListener->getRequest()->getFile());
-        thebackup->numBackups = numBackups;
-        thebackup->period = period;
-        thebackup->speriod = speriod;
-        thebackup->failed = false;
-        thebackup->tag = megaCmdListener->getRequest()->getTransferTag();
 
-        char * nodepath = api->getNodePath(n);
+        std::unique_ptr<char[]> nodepath(api->getNodePath(n));
         LOG_info << "Added backup: " << megaCmdListener->getRequest()->getFile() << " to " << nodepath;
-        mtxBackupsMap.unlock();
-        delete []nodepath;
-        delete megaCmdListener;
-
         return true;
     }
     else
@@ -5094,7 +5109,6 @@ bool MegaCmdExecuter::establishBackup(string pathToBackup, MegaNode *n, int64_t 
             }
         }
     }
-    delete megaCmdListener;
     return false;
 }
 

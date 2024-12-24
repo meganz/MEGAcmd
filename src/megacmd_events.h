@@ -36,11 +36,11 @@ namespace megacmd::StatsManager {
         GENERATOR_MACRO(TRANSITIONING_PRE_SRW_EXCLUSIONS                , 98907, "MEGAcmd transition of legacy exclusion rules started") \
         GENERATOR_MACRO(FIRST_CONFIGURED_WEBDAV                         , 98908, "MEGAcmd first WebDAV location configured") \
         GENERATOR_MACRO(FIRST_CONFIGURED_FTP                            , 98909, "MEGAcmd first FTP location configured") \
-        GENERATOR_MACRO(FIRST_CONFIGURED_BACKUP                         , 98910, "MEGAcmd first scheduled backup configured") \
+        GENERATOR_MACRO(FIRST_CONFIGURED_SCHEDULED_BACKUP               , 98910, "MEGAcmd first scheduled backup configured") \
         GENERATOR_MACRO(SUBSEQUENT_CONFIGURED_SYNC                      , 98911, "MEGAcmd subsequent sync configured") \
         GENERATOR_MACRO(SUBSEQUENT_CONFIGURED_WEBDAV                    , 98912, "MEGAcmd subsequent WebDAV location configured") \
         GENERATOR_MACRO(SUBSEQUENT_CONFIGURED_FTP                       , 98913, "MEGAcmd subsequent FPT location configured") \
-        GENERATOR_MACRO(SUBSEQUENT_CONFIGURED_BACKUP                    , 98914, "MEGAcmd subsequent scheduled backup configured")
+        GENERATOR_MACRO(SUBSEQUENT_CONFIGURED_SCHEDULED_BACKUP          , 98914, "MEGAcmd subsequent scheduled backup configured")
 
     static constexpr auto FIRST_EVENT_NUMBER = 98900u;
 

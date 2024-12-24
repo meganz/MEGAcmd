@@ -73,14 +73,45 @@ public:
 
     static void saveSession(const char*session);
 
-    static void saveProperty(const char* property, const char* value);
+    static std::string /* prev value, if any */ saveProperty(const char* property, const char* value);
 
-    template<typename T>
-    static void savePropertyValue(const char* property, T value)
+    template<typename T,
+             typename Opt_T = std::optional<typename std::conditional_t<std::is_same_v<std::decay_t<T>, const char*>, std::string, T>>>
+    static Opt_T savePropertyValue(const char* property, const T& value)
     {
-        std::ostringstream os;
-        os << value;
-        saveProperty(property,os.str().c_str());
+        constexpr bool isStr = std::is_same_v<std::remove_cv_t<T>, std::string>;
+        constexpr bool isConstChar = std::is_same_v<std::decay_t<T>, const char*>;
+
+        std::string prevValueStr;
+        if constexpr (isStr)
+        {
+            prevValueStr = saveProperty(property, value.c_str());
+        }
+        else if constexpr (isConstChar)
+        {
+            prevValueStr = saveProperty(property, value);
+        }
+        else
+        {
+            prevValueStr = saveProperty(property, std::to_string(value).c_str());
+        }
+
+        if (prevValueStr.empty())
+        {
+            return std::nullopt;
+        }
+
+        if constexpr (isStr || isConstChar)
+        {
+            return prevValueStr;
+        }
+        else
+        {
+            T prevValue;
+            std::istringstream is(prevValueStr);
+            is >> prevValue;
+            return prevValue;
+        }
     }
 
     template<typename T>
