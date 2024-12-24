@@ -8,7 +8,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     apt-get update \
     && apt-get install -y --no-install-recommends \
-    cmake zip pkg-config curl python3 python3-pip autoconf-archive nasm git g++ uuid-runtime fuse \
+    cmake zip pkg-config curl python3 python3-pip autoconf-archive nasm git g++ uuid-runtime zstd fuse \
     && python3 -m pip install unittest-xml-reporting --break-system-packages
 
 RUN if [ ! -e /etc/machine-id ]; then \

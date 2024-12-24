@@ -145,7 +145,9 @@ pipeline {
                         steps {
                             dir("test-dir-${SANITIZERS}") {
                                 sh """
-                                    /usr/bin/mega-cmd-tests-unit \
+                                    ulimit -c unlimited;
+                                    # Execute with a timeout lower than Jenkins stage timeout, enforcing a SIGSEGV to ensure core dumping
+                                    timeout -s 11 550 /usr/bin/mega-cmd-tests-unit \
                                         --gtest_output=xml:${megacmd_sources_workspace}/test-dir-${SANITIZERS}/results/mega-cmd-tests-unit.xml \
                                         --gtest_shuffle
                                 """
@@ -153,8 +155,16 @@ pipeline {
                         }
                         post {
                             always {
+                                sh """
+                                    find . -name core -exec zstd -z --fast=3 {} -o core_unit.zstd \\; -exec rm {} \\; \
+                                    && [ -f core_unit.zstd ] \
+                                    && zstd -z --fast=3 /usr/bin/mega-cmd-tests-unit -o ./mega-cmd-tests-unit.zstd \
+                                    || true
+                                """
                                 archiveArtifacts artifacts: "test-dir-${SANITIZERS}/.megaCmd/megacmdserver.log*", allowEmptyArchive: true
-                                junit "test-dir-${SANITIZERS}/results/mega-cmd-tests-unit.xml"
+                                archiveArtifacts artifacts: "**/core*zstd", allowEmptyArchive: true
+                                archiveArtifacts artifacts: "**/mega-cmd-tests-unit.zstd", allowEmptyArchive: true
+                                junit testResults: "test-dir-${SANITIZERS}/results/mega-cmd-tests-unit.xml"
                             }
                         }
                     }
@@ -181,7 +191,9 @@ pipeline {
                             lock(label: 'testing_accounts_megacmd', variable: 'MEGACMD_TEST_USER', quantity: 1, resource: null) {
                                 dir("test-dir-${SANITIZERS}") {
                                     sh """
-                                        /usr/bin/mega-cmd-tests-integration \
+                                        ulimit -c unlimited;
+                                        # Execute with a timeout lower than Jenkins stage timeout, enforcing a SIGSEGV to ensure core dumping
+                                        timeout -s 11 3500 /usr/bin/mega-cmd-tests-integration \
                                             --gtest_output=xml:${megacmd_sources_workspace}/test-dir-${SANITIZERS}/results/mega-cmd-tests-integration.xml \
                                             --gtest_shuffle
                                     """
@@ -190,8 +202,16 @@ pipeline {
                         }
                         post {
                             always {
-                                archiveArtifacts "test-dir-${SANITIZERS}/.megaCmd/megacmdserver.log*"
-                                junit "test-dir-${SANITIZERS}/results/mega-cmd-tests-integration.xml"
+                                sh """
+                                    find . -name core -exec zstd -z --fast=3 {} -o core_integration.zstd \\; -exec rm {} \\; \
+                                    && [ -f core_integration.zstd ] \
+                                    && zstd -z --fast=3 /usr/bin/mega-cmd-tests-integration -o ./mega-cmd-tests-integration.zstd \
+                                    || true
+                                """
+                                archiveArtifacts artifacts: "test-dir-${SANITIZERS}/.megaCmd/megacmdserver.log*", allowEmptyArchive: true
+                                archiveArtifacts artifacts: "**/core*zstd", allowEmptyArchive: true
+                                archiveArtifacts artifacts: "**/mega-cmd-tests-integration.zstd", allowEmptyArchive: true
+                                junit testResults: "test-dir-${SANITIZERS}/results/mega-cmd-tests-integration.xml"
                             }
                         }
                     }
@@ -215,7 +235,16 @@ pipeline {
                         }
                         steps {
                             dir("pytest-dir-${SANITIZERS}") {
-                                sh 'nohup /usr/bin/mega-cmd-server --verbose-full --log-to-file &'
+                                sh """
+                                # Execute MEGAcmd server in the background with a timeout lower than Jenkins stage timeout, enforcing a SIGSEGV to ensure core dumping
+                                # If a core is dumped, compress it
+                                bash -c \"ulimit -c unlimited && \
+                                timeout -s 11 3550 nohup /usr/bin/mega-cmd-server --verbose-full --log-to-file; \
+                                zstd -z --fast=3 core -o core_server.zstd \
+                                && rm core \
+                                && zstd -z --fast=3 /usr/bin/mega-cmd-server -o ./mega-cmd-server.zstd \
+                                || true \" &
+                                """
                             }
                             sleep 1
                             lock(label: 'testing_accounts_megacmd', variable: 'MEGA_EMAILS', quantity: 2, resource: null) {
@@ -231,11 +260,24 @@ pipeline {
                                                 "UBSAN_OPTIONS=log_path=${megacmd_sources_workspace}/pytest-dir-${SANITIZERS}/${test}-results/mega-cmd-tests-python-report",
                                                 "OUT_DIR_JUNIT_XML=${megacmd_sources_workspace}/pytest-dir-${SANITIZERS}/${test}-results"
                                             ]) {
-                                                dir("pytest-dir-${SANITIZERS}/working-dir") {
-                                                    sh "/usr/local/bin/megacmd_${test}_test.py"
-                                                    deleteDir()
+                                                try {
+                                                    dir("pytest-dir-${SANITIZERS}/working-dir") {
+                                                        sh """
+                                                            # Execute with a timeout lower than Jenkins stage timeout, enforcing a SIGSEGV to ensure core dumping
+                                                            # In this case, splitting the timeout between all test cases
+                                                            ulimit -c unlimited;
+                                                            timeout -s 11 710 /usr/local/bin/megacmd_${test}_test.py
+                                                        """
+                                                    }
+                                                    junit testResults: "pytest-dir-${SANITIZERS}/${test}-results/TEST-*.xml"
+                                                } finally {
+                                                    dir("pytest-dir-${SANITIZERS}") {
+                                                        sh "find . -name core -exec zstd -z --fast=3 {} -o core_client_${test}.zstd \\; -exec rm {} \\; || true"
+                                                    }
+                                                    dir("pytest-dir-${SANITIZERS}/working-dir") {
+                                                        deleteDir()
+                                                    }
                                                 }
-                                                junit "pytest-dir-${SANITIZERS}/${test}-results/TEST-*.xml"
                                             }
                                         }
                                     }
@@ -246,7 +288,14 @@ pipeline {
                             always {
                                 sh "/usr/bin/mega-exec logout || true"
                                 sh "/usr/bin/mega-exec quit || true"
-                                archiveArtifacts "pytest-dir-${SANITIZERS}/.megaCmd/megacmdserver.log*"
+                                sh """
+                                    find . -name core_client*.zstd | grep . \
+                                    && tar -cf - /usr/bin/mega-cmd /usr/bin/mega-exec | zstd -z --fast=3 -o ./mega-cmd-client-executables.tar.zstd \
+                                    || true
+                                """
+                                archiveArtifacts artifacts: "pytest-dir-${SANITIZERS}/.megaCmd/megacmdserver.log*", allowEmptyArchive: true
+                                archiveArtifacts artifacts: "**/core*zstd", allowEmptyArchive: true
+                                archiveArtifacts artifacts: "**/mega-*.zstd", allowEmptyArchive: true
                             }
                         }
                     }
