@@ -7,25 +7,8 @@ import xmlrunner
 from megacmd_tests_common import *
 
 def setUpModule():
-    global VERBOSE
-    global MEGA_PWD
-    global MEGA_EMAIL
-    global MEGACMDSHELL
-    global CMDSHELL
     global ABSPWD
-
     ABSPWD = os.getcwd()
-
-    VERBOSE = 'VERBOSE' in os.environ
-    if "MEGA_EMAIL" in os.environ and "MEGA_PWD" in os.environ:
-        MEGA_EMAIL=os.environ["MEGA_EMAIL"]
-        MEGA_PWD=os.environ["MEGA_PWD"]
-    else:
-        raise Exception("Environment variables MEGA_EMAIL or MEGA_PWD are not defined")
-
-    CMDSHELL= "MEGACMDSHELL" in os.environ
-    if CMDSHELL:
-        MEGACMDSHELL=os.environ["MEGACMDSHELL"]
 
 def initialize_contents():
     contents=" ".join(['"localtmp/'+x+'"' for x in os.listdir('localtmp/')])
@@ -196,11 +179,12 @@ class MEGAcmdFindTest(unittest.TestCase):
         localfind=sort(find('localUPs/le01',"le01"))
         self.assertEqual(megafind,localfind)
 
-    @unittest.skipIf(CMDSHELL, "only for non-CMDSHELL")
     def test_non_existent(self):
-        #Test 13 #file01.txt/non-existent
-        megafind,status=cmd_ec(FIND+" "+"file01.txt/non-existent")
-        self.assertNotEqual(status, 0)
+        file = 'file01.txt/non-existent'
+        out, status = cmd_ec(f'{FIND} {file}')
+        if not CMDSHELL:
+            self.assertNotEqual(status, 0)
+        self.assertIn(f'{file}: no such file or directory', out.decode().lower())
 
     def test_root(self):
         self.compare_find('/')

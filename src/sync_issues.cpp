@@ -473,6 +473,7 @@ std::vector<SyncIssue::PathProblem> SyncIssue::getPathProblems(mega::MegaApi& ap
                 if (n->isFile())
                 {
                     pathProblem.mPathType = "File";
+                    pathProblem.mFileSize = n->getSize();
                 }
                 else if (n->isFolder())
                 {
@@ -481,7 +482,6 @@ std::vector<SyncIssue::PathProblem> SyncIssue::getPathProblems(mega::MegaApi& ap
 
                 pathProblem.mUploadedTime = n->getCreationTime();
                 pathProblem.mModifiedTime = n->getModificationTime();
-                pathProblem.mFileSize = std::max<int64_t>(n->getSize(), 0);
             }
             else
             {
@@ -706,7 +706,7 @@ namespace SyncIssuesCommand
 
             cd.addValue("LAST_MODIFIED", pathProblem.mModifiedTime ? getReadableTime(pathProblem.mModifiedTime, timeFmt) : "-");
             cd.addValue("UPLOADED", pathProblem.mUploadedTime ? getReadableTime(pathProblem.mUploadedTime, timeFmt) : "-");
-            cd.addValue("SIZE", sizeToText(pathProblem.mFileSize));
+            cd.addValue("SIZE", pathProblem.mFileSize >= 0 ? sizeToText(pathProblem.mFileSize) : "-");
         }
 
         OUTSTREAM << cd.str();

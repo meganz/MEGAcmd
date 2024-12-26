@@ -95,7 +95,7 @@ public:
         mega::PathProblem mProblem = mega::PathProblem::NoProblem;
         int64_t mModifiedTime = 0; // in seconds since epoch
         int64_t mUploadedTime = 0; // in seconds since epoch
-        int64_t mFileSize = 0;
+        int64_t mFileSize = -1;
 
         std::string_view getProblemStr() const;
     };

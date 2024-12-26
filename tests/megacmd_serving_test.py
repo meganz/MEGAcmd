@@ -7,35 +7,6 @@ import unittest
 import xmlrunner
 from megacmd_tests_common import *
 
-#ABSPWD=os.getcwd()
-
-try:
-    os.environ['VERBOSE']
-    VERBOSE=True
-except:
-    VERBOSE=False
-
-#VERBOSE=True
-
-try:
-    MEGA_EMAIL=os.environ["MEGA_EMAIL"]
-    MEGA_PWD=os.environ["MEGA_PWD"]
- #   MEGA_EMAIL_AUX=os.environ["MEGA_EMAIL_AUX"]
- #   MEGA_PWD_AUX=os.environ["MEGA_PWD_AUX"]
-except:
-    #print >>sys.stderr, "You must define variables MEGA_EMAIL MEGA_PWD MEGA_EMAIL_AUX MEGA_PWD_AUX. WARNING: Use an empty account for $MEGA_EMAIL"
-    print("You must define variables MEGA_EMAIL MEGA_PWD. WARNING: Use an empty account for $MEGA_EMAIL", file=sys.stderr)
-
-    exit(1)
-
-try:
-    MEGACMDSHELL=os.environ['MEGACMDSHELL']
-    CMDSHELL=True
-    #~ FIND="executeinMEGASHELL find" #TODO
-
-except:
-    CMDSHELL=False
-
 def initialize_contents():
     contents=" ".join(['"localtmp/'+x+'"' for x in os.listdir('localtmp/')])
     cmd_ef(PUT+" "+contents+" /")
