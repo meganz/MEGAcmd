@@ -263,7 +263,7 @@ class GzipCompressionEngine final : public CompressionEngine
 
         GzipJobData(const fs::path& srcFilePath, const fs::path& dstFilePath);
     };
-    using GzipJobQueue = std::queue<std::optional<GzipJobData>>;
+    using GzipJobQueue = std::queue<GzipJobData>;
     GzipJobQueue mQueue;
 
     mutable std::mutex mQueueMtx;
@@ -978,7 +978,7 @@ void GzipCompressionEngine::mainLoop()
             }
             assert(!mQueue.empty());
 
-            jobDataOpt = mQueue.front();
+            jobDataOpt = std::move(mQueue.front());
             mQueue.pop();
 
             mCancelOngoingJob = false;
