@@ -143,10 +143,10 @@ vector<string> validCommands = allValidCommands;
 string oldpasswd;
 string newpasswd;
 
-bool doExit = false;
+std::atomic_bool doExit = false;
 bool consoleFailed = false;
 bool alreadyCheckingForUpdates = false;
-std::atomic_bool stopCheckingforUpdaters(false);
+std::atomic_bool stopCheckingforUpdaters = false;
 
 string dynamicprompt = "MEGA CMD> ";
 
