@@ -38,16 +38,16 @@ public:
         std::unique_ptr<char[]> mBuffer;
         size_t mSize;
         const size_t mCapacity;
-        bool mMemoryGap;
+        bool mMemoryAllocationFailed;
     public:
         MemoryBlock(size_t capacity);
 
         bool canAppendData(size_t dataSize) const;
         bool isNearCapacity() const;
-        bool hasMemoryGap() const;
+        bool memoryAllocationFailed() const;
         const char* getBuffer() const;
 
-        void markMemoryGap();
+        void markMemoryAllocationFailed();
         void appendData(const char* data, size_t size);
 
     };
@@ -91,13 +91,13 @@ public:
 
     struct Config
     {
-        size_t maxBaseFileSize;
+        size_t mMaxBaseFileSize;
 
-        RotationType rotationType;
-        std::chrono::seconds maxFileAge;
-        int maxFilesToKeep;
+        RotationType mRotationType;
+        std::chrono::seconds mMaxFileAge;
+        int mMaxFilesToKeep;
 
-        CompressionType compressionType;
+        CompressionType mCompressionType;
 
         Config();
     };
@@ -156,6 +156,7 @@ private:
 
     void writeMessagesToFile();
     void flushToFile();
+    void markForExit();
     bool waitForOutputFile();
 
     void mainLoop();

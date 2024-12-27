@@ -57,7 +57,7 @@ MessageBuffer::MemoryBlock::MemoryBlock(size_t capacity) :
     mBuffer(new char[capacity]()),
     mSize(0),
     mCapacity(capacity),
-    mMemoryGap(mBuffer == nullptr)
+    mMemoryAllocationFailed(mBuffer == nullptr)
 {
     assert(mCapacity > 0);
 }
@@ -65,7 +65,7 @@ MessageBuffer::MemoryBlock::MemoryBlock(size_t capacity) :
 bool MessageBuffer::MemoryBlock::canAppendData(size_t dataSize) const
 {
     // The last byte of buffer is reserved for '\0'
-    return !mMemoryGap && mSize + dataSize < mCapacity;
+    return !mMemoryAllocationFailed && mSize + dataSize < mCapacity;
 }
 
 bool MessageBuffer::MemoryBlock::isNearCapacity() const
@@ -73,9 +73,9 @@ bool MessageBuffer::MemoryBlock::isNearCapacity() const
     return mSize + mCapacity/8 > mCapacity;
 }
 
-bool MessageBuffer::MemoryBlock::hasMemoryGap() const
+bool MessageBuffer::MemoryBlock::memoryAllocationFailed() const
 {
-    return mMemoryGap;
+    return mMemoryAllocationFailed;
 }
 
 const char* MessageBuffer::MemoryBlock::getBuffer() const
@@ -83,9 +83,9 @@ const char* MessageBuffer::MemoryBlock::getBuffer() const
     return mBuffer.get();
 }
 
-void MessageBuffer::MemoryBlock::markMemoryGap()
+void MessageBuffer::MemoryBlock::markMemoryAllocationFailed()
 {
-    mMemoryGap = true;
+    mMemoryAllocationFailed = true;
 }
 
 void MessageBuffer::MemoryBlock::appendData(const char* data, size_t size)
@@ -128,7 +128,7 @@ void MessageBuffer::append(const char* data, size_t size)
             {
                 // If there's a bad_alloc exception when adding to a vector, it remains unchanged
                 // So we note that the existing last block has a gap in memory
-                lastBlock->markMemoryGap();
+                lastBlock->markMemoryAllocationFailed();
             }
             else
             {
@@ -292,11 +292,11 @@ public:
 };
 
 RotatingFileManager::Config::Config() :
-    maxBaseFileSize(50 * 1024 * 1024), // 50 MB
-    rotationType(RotationType::Timestamp),
-    maxFileAge(30 * 86400), // one month (in C++20 we can use `std::chrono::month(1)`)
-    maxFilesToKeep(50),
-    compressionType(CompressionType::Gzip)
+    mMaxBaseFileSize(50 * 1024 * 1024), // 50 MB
+    mRotationType(RotationType::Timestamp),
+    mMaxFileAge(30 * 86400), // one month (in C++20 we can use `std::chrono::month(1)`)
+    mMaxFilesToKeep(50),
+    mCompressionType(CompressionType::Gzip)
 {
 }
 
@@ -311,7 +311,7 @@ RotatingFileManager::RotatingFileManager(const fs::path& filePath, const Config 
 
 bool RotatingFileManager::shouldRotateFiles(size_t fileSize) const
 {
-    return fileSize > mConfig.maxBaseFileSize;
+    return fileSize > mConfig.mMaxBaseFileSize;
 }
 
 void RotatingFileManager::cleanupFiles()
@@ -334,7 +334,7 @@ std::string RotatingFileManager::popErrors()
 void RotatingFileManager::initializeCompressionEngine()
 {
     CompressionEngine* compressionEngine = nullptr;
-    switch(mConfig.compressionType)
+    switch(mConfig.mCompressionType)
     {
         case CompressionType::None:
         {
@@ -357,16 +357,16 @@ void RotatingFileManager::initializeRotationEngine()
     const std::string compressionExt = mCompressionEngine->getExtension();
 
     RotationEngine* rotationEngine = nullptr;
-    switch (mConfig.rotationType)
+    switch (mConfig.mRotationType)
     {
         case RotationType::Numbered:
         {
-            rotationEngine = new NumberedRotationEngine(compressionExt, mConfig.maxFilesToKeep);
+            rotationEngine = new NumberedRotationEngine(compressionExt, mConfig.mMaxFilesToKeep);
             break;
         }
         case RotationType::Timestamp:
         {
-            rotationEngine = new TimestampRotationEngine(mConfig.maxFilesToKeep, mConfig.maxFileAge);
+            rotationEngine = new TimestampRotationEngine(mConfig.mMaxFilesToKeep, mConfig.mMaxFileAge);
             break;
         }
     }
@@ -425,7 +425,7 @@ void FileRotatingLoggedStream::writeMessagesToFile()
 
     for (const auto& memoryBlock : memoryBlockList)
     {
-        if (!memoryBlock.hasMemoryGap())
+        if (!memoryBlock.memoryAllocationFailed())
         {
             mOutputFile << memoryBlock.getBuffer();
         }
@@ -444,6 +444,16 @@ void FileRotatingLoggedStream::flushToFile()
         std::lock_guard lock(mWriteMtx);
         mFlush = false;
     }
+}
+
+void FileRotatingLoggedStream::markForExit()
+{
+    {
+        std::scoped_lock lock(mExitMtx, mWriteMtx);
+        mExit = true;
+    }
+    mWriteCV.notify_one();
+    mExitCV.notify_one();
 }
 
 bool FileRotatingLoggedStream::waitForOutputFile()
@@ -546,7 +556,7 @@ FileRotatingLoggedStream::FileRotatingLoggedStream(const OUTSTRING& outputFilePa
     mOutputFilePath(outstringToString(outputFilePath)),
     mOutputFile(outputFilePath, std::ofstream::out | std::ofstream::app),
     mFileManager(mOutputFilePath),
-    mForceRenew(false), // maybe this should be true by default?
+    mForceRenew(false),
     mExit(false),
     mFlush(false),
     mFlushPeriod(std::chrono::seconds(10)),
@@ -557,13 +567,7 @@ FileRotatingLoggedStream::FileRotatingLoggedStream(const OUTSTRING& outputFilePa
 
 FileRotatingLoggedStream::~FileRotatingLoggedStream()
 {
-    {
-        std::scoped_lock lock(mExitMtx, mWriteMtx);
-        mExit = true;
-    }
-    mWriteCV.notify_one();
-    mExitCV.notify_one();
-
+    markForExit();
     mWriteThread.join();
 }
 
