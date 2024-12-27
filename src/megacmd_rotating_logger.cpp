@@ -621,8 +621,10 @@ const LoggedStream& FileRotatingLoggedStream::operator<<(std::wstring wstr) cons
 
 void FileRotatingLoggedStream::flush()
 {
-    std::lock_guard lock(mWriteMtx);
-    mFlush = true;
+    {
+        std::lock_guard lock(mWriteMtx);
+        mFlush = true;
+    }
     mWriteCV.notify_one();
 }
 
