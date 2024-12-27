@@ -921,39 +921,38 @@ void GzipCompressionEngine::pushToQueue(const fs::path& srcFilePath, const fs::p
 
 void GzipCompressionEngine::gzipFile(const fs::path& srcFilePath, const fs::path& dstFilePath)
 {
-    std::ifstream file(srcFilePath, std::ofstream::out);
-    if (!file)
     {
-        mErrorStream << "Failed to open " << srcFilePath << " for compression" << std::endl;
-        return;
-    }
-
-    auto gzdeleter = [] (gzFile_s* f) { if (f) gzclose(f); };
-    std::unique_ptr<gzFile_s, decltype(gzdeleter)> gzFile(gzopen(dstFilePath.string().c_str(), "wb"), gzdeleter);
-    if (!gzFile)
-    {
-        mErrorStream << "Failed to open gzfile " << dstFilePath << " for writing" << std::endl;
-        return;
-    }
-
-    std::string line;
-    while (std::getline(file, line))
-    {
-        if (shouldCancelOngoingJob())
+        std::ifstream srcFile(srcFilePath);
+        if (!srcFile)
         {
+            mErrorStream << "Failed to open " << srcFilePath << " for compression" << std::endl;
             return;
         }
 
-        line += '\n';
-        if (gzputs(gzFile.get(), line.c_str()) == -1)
+        auto gzdeleter = [] (gzFile_s* f) { if (f) gzclose(f); };
+        std::unique_ptr<gzFile_s, decltype(gzdeleter)> gzFile(gzopen(dstFilePath.string().c_str(), "wb"), gzdeleter);
+        if (!gzFile)
         {
-            mErrorStream << "Failed to gzip " << srcFilePath << std::endl;
+            mErrorStream << "Failed to open gzfile " << dstFilePath << " for writing" << std::endl;
             return;
         }
-    }
 
-    // Explicitly release the open file handle (otherwise the remove below will fail)
-    file.close();
+        std::string line;
+        while (std::getline(srcFile, line))
+        {
+            if (shouldCancelOngoingJob())
+            {
+                return;
+            }
+
+            line += '\n';
+            if (gzputs(gzFile.get(), line.c_str()) == -1)
+            {
+                mErrorStream << "Failed to gzip " << srcFilePath << std::endl;
+                return;
+            }
+        }
+    }
 
     std::error_code ec;
 
