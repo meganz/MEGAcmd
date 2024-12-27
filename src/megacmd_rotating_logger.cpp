@@ -814,10 +814,10 @@ TimestampRotationEngine::TimestampFileQueue TimestampRotationEngine::getTimestam
 
     walkRotatedFiles(dir, baseFilename, [this, &baseFilenameStr, &fileQueue, &addedFiles] (const fs::path& filePath)
     {
-        static const std::string exampleTimestampStr = "19970907_193040_000"; // example timestamp to get the string size
+        constexpr size_t timeStampSize = std::char_traits<char>::length("19970907_193040_000");
 
         const std::string filenameStr = filePath.filename().string();
-        const std::string timestampStr = filenameStr.substr(baseFilenameStr.size() + 1, exampleTimestampStr.size());
+        const std::string timestampStr = filenameStr.substr(baseFilenameStr.size() + 1, timeStampSize);
 
         auto timestampOpt = stringToTimestamp(timestampStr);
         if (!timestampOpt)
