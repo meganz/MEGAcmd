@@ -43,12 +43,12 @@ using namespace mega;
 namespace megacmd {
 
 namespace {
-    thread_local ThreadData threadData;
     thread_local bool isThreadDataSet = false;
 }
 
 ThreadData &getCurrentThreadData()
 {
+    thread_local ThreadData threadData;
     return threadData;
 }
 
