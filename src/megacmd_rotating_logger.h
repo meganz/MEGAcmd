@@ -57,7 +57,7 @@ public:
     MessageBuffer(size_t defaultBlockCapacity, size_t failSafeSize);
 
     void append(const char* data, size_t size);
-    MemoryBlockList popMemoryBlockList(bool& initialMemoryGap);
+    MemoryBlockList popMemoryBlockList(bool& initialMemoryError);
 
     bool isEmpty() const;
     bool isNearLastBlockCapacity() const;
@@ -68,7 +68,7 @@ private:
     const size_t mFailSafeSize;
     mutable std::mutex mListMtx;
     MemoryBlockList mList;
-    bool mInitialMemoryGap;
+    bool mInitialMemoryError;
 };
 
 class RotationEngine;

@@ -104,7 +104,7 @@ void MessageBuffer::MemoryBlock::appendData(const char* data, size_t size)
 MessageBuffer::MessageBuffer(size_t defaultBlockCapacity, size_t failSafeSize) :
     mDefaultBlockCapacity(defaultBlockCapacity),
     mFailSafeSize(failSafeSize),
-    mInitialMemoryGap(false)
+    mInitialMemoryError(false)
 {
     assert(mDefaultBlockCapacity > 0);
     assert(mFailSafeSize > 0);
@@ -127,13 +127,13 @@ void MessageBuffer::append(const char* data, size_t size)
             if (lastBlock)
             {
                 // If there's a bad_alloc exception when adding to a vector, it remains unchanged
-                // So we note that the existing last block has a gap in memory
+                // So we let the last block know its allocation failed
                 lastBlock->markMemoryAllocationFailed();
             }
             else
             {
-               // If there's not even a last block, then there is a memory gap at the start
-                mInitialMemoryGap = true;
+                // If there's not even a last block, then the error is at the start
+                mInitialMemoryError = true;
             }
             return;
         }
@@ -147,11 +147,11 @@ void MessageBuffer::append(const char* data, size_t size)
     }
 }
 
-MessageBuffer::MemoryBlockList MessageBuffer::popMemoryBlockList(bool& initialMemoryGap)
+MessageBuffer::MemoryBlockList MessageBuffer::popMemoryBlockList(bool& initialMemoryError)
 {
     std::lock_guard lock(mListMtx);
-    initialMemoryGap = mInitialMemoryGap;
-    mInitialMemoryGap = false;
+    initialMemoryError = mInitialMemoryError;
+    mInitialMemoryError = false;
     return std::move(mList);
 }
 
@@ -412,10 +412,10 @@ void FileRotatingLoggedStream::writeToBuffer(const char* msg, size_t size) const
 
 void FileRotatingLoggedStream::writeMessagesToFile()
 {
-    bool initialMemoryGap = false;
-    auto memoryBlockList = mMessageBuffer.popMemoryBlockList(initialMemoryGap);
+    bool initialMemoryError = false;
+    auto memoryBlockList = mMessageBuffer.popMemoryBlockList(initialMemoryError);
 
-    if (initialMemoryGap)
+    if (initialMemoryError)
     {
         mOutputFile << "<log gap - out of logging memory at this point>\n";
     }
