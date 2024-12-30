@@ -196,6 +196,10 @@ void setCurrentThreadLogLevel(int logLevel);
 void setCurrentThreadCmdPetition(CmdPetition *cmdPetition);
 void setCurrentThreadIsCmdShell(bool isCmdShell);
 
+constexpr size_t LogTimestampSize = std::char_traits<char>::length("2024-12-27_16-33-12.654787");
+std::optional<std::chrono::time_point<std::chrono::system_clock>> stringToTimestamp(std::string_view str);
+std::string_view timestampToString(std::chrono::time_point<std::chrono::system_clock> timestamp);
+
 class MegaCmdLogger : public mega::MegaLogger
 {
     int mSdkLoggerLevel;

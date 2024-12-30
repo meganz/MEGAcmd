@@ -43,27 +43,12 @@ using namespace mega;
 namespace megacmd {
 
 namespace {
+    constexpr const char* logTimestampFormat = "%04d-%02d-%02d_%02d-%02d-%02d.%06d";
     thread_local bool isThreadDataSet = false;
 
     std::string_view getNowTimeStr()
     {
-        constexpr size_t LOG_TIME_CHARS = 24;
-        thread_local std::array<char, LOG_TIME_CHARS + 1> timebuf;
-
-        const auto now = std::chrono::system_clock::now();
-        const time_t t = std::chrono::system_clock::to_time_t(now);
-
-        struct std::tm gmt;
-        memset(&gmt, 0, sizeof(struct std::tm));
-        mega::m_gmtime(t, &gmt);
-
-        auto microseconds = std::chrono::duration_cast<std::chrono::microseconds>(now - std::chrono::system_clock::from_time_t(t));
-        std::snprintf(timebuf.data(), timebuf.size(),
-                      "%02d/%02d/%02d-%02d:%02d:%02d.%06d",
-                      gmt.tm_mday, gmt.tm_mon + 1, gmt.tm_year % 100,
-                      gmt.tm_hour, gmt.tm_min, gmt.tm_sec, static_cast<int>(microseconds.count() % 1000000));
-
-        return std::string_view(timebuf.data(), LOG_TIME_CHARS);
+        return timestampToString(std::chrono::system_clock::now());
     }
 }
 
@@ -115,6 +100,57 @@ void setCurrentThreadIsCmdShell(bool isCmdShell)
 {
     isThreadDataSet = true;
     getCurrentThreadData().mIsCmdShell = isCmdShell;
+}
+
+std::optional<std::chrono::time_point<std::chrono::system_clock>> stringToTimestamp(std::string_view str)
+{
+    if (str.size() != LogTimestampSize)
+    {
+        return std::nullopt;
+    }
+
+    int years, months, days, hours, minutes, seconds, microseconds;
+    int parsed = std::sscanf(str.data(), logTimestampFormat,
+                             &years, &months, &days, &hours, &minutes, &seconds, &microseconds);
+    if (parsed != 7)
+    {
+        return std::nullopt;
+    }
+
+    struct std::tm gmt;
+    memset(&gmt, 0, sizeof(struct std::tm));
+    gmt.tm_year = years - 1900;
+    gmt.tm_mon = months - 1;
+    gmt.tm_mday = days;
+    gmt.tm_hour = hours;
+    gmt.tm_min = minutes;
+    gmt.tm_sec = seconds;
+
+#ifdef _WIN32
+    const time_t t = _mkgmtime(&gmt);
+#else
+    const time_t t = timegm(&gmt);
+#endif
+
+    const auto time_point = std::chrono::system_clock::from_time_t(t);
+    return time_point + std::chrono::microseconds(microseconds);
+}
+
+std::string_view timestampToString(std::chrono::time_point<std::chrono::system_clock> timestamp)
+{
+    thread_local std::array<char, LogTimestampSize + 1> timebuf;
+    const time_t t = std::chrono::system_clock::to_time_t(timestamp);
+
+    struct std::tm gmt;
+    memset(&gmt, 0, sizeof(struct std::tm));
+    mega::m_gmtime(t, &gmt);
+
+    auto microseconds = std::chrono::duration_cast<std::chrono::microseconds>(timestamp - std::chrono::system_clock::from_time_t(t));
+    std::snprintf(timebuf.data(), timebuf.size(), logTimestampFormat,
+                    gmt.tm_year + 1900, gmt.tm_mon + 1, gmt.tm_mday,
+                    gmt.tm_hour, gmt.tm_min, gmt.tm_sec, static_cast<int>(microseconds.count() % 1000000));
+
+    return std::string_view(timebuf.data(), LogTimestampSize);
 }
 
 MegaCmdLogger::MegaCmdLogger() :

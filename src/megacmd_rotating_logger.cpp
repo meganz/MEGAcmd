@@ -229,9 +229,6 @@ private:
     using TimestampFileQueue = std::priority_queue<TimestampFile, std::vector<TimestampFile>, std::greater<TimestampFile>>;
 
 private:
-    static std::string timestampToString(const Timestamp& timestamp);
-    static std::optional<Timestamp> stringToTimestamp(const std::string& timestampStr);
-
     fs::path rotateBaseFile(const fs::path& directory, const fs::path& baseFilename);
     TimestampFileQueue getTimestampFileQueue(const fs::path& dir, const fs::path& baseFilename);
 
@@ -765,41 +762,12 @@ TimestampRotationEngine::TimestampFile::TimestampFile(const fs::path& path, cons
 {
 }
 
-std::string TimestampRotationEngine::timestampToString(const Timestamp& timestamp)
-{
-    std::ostringstream oss;
-    std::time_t time = Clock::to_time_t(timestamp);
-    oss << std::put_time(std::localtime(&time), "%Y%m%d_%H%M%S_");
-
-    auto milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(timestamp.time_since_epoch()) % 1000;
-    oss << std::setfill('0') << std::setw(3) << milliseconds.count();
-
-    return oss.str();
-}
-
-std::optional<TimestampRotationEngine::Timestamp> TimestampRotationEngine::stringToTimestamp(const std::string& timestampStr)
-{
-    std::tm timeInfo = {};
-    int milliseconds = -1;
-
-    std::istringstream iss(timestampStr);
-    iss >> std::get_time(&timeInfo, "%Y%m%d_%H%M%S_") >> milliseconds;
-
-    bool success = milliseconds >= 0 && milliseconds < 1000 && !iss.fail();
-    if (!success)
-    {
-        return {};
-    }
-
-    return Clock::from_time_t(std::mktime(&timeInfo)) + std::chrono::milliseconds(milliseconds);
-}
-
 fs::path TimestampRotationEngine::rotateBaseFile(const fs::path& directory, const fs::path& baseFilename)
 {
-    const std::string timestampStr = timestampToString(Clock::now());
+    const std::string_view timestampStr = timestampToString(Clock::now());
 
     fs::path srcFilePath = directory / baseFilename;
-    fs::path dstFilePath = srcFilePath.string() + "." + timestampStr;
+    fs::path dstFilePath = srcFilePath.string() + "." + std::string(timestampStr);
 
     std::error_code ec;
 
@@ -820,10 +788,8 @@ TimestampRotationEngine::TimestampFileQueue TimestampRotationEngine::getTimestam
 
     walkRotatedFiles(dir, baseFilename, [this, &baseFilenameStr, &fileQueue, &addedFiles] (const fs::path& filePath)
     {
-        constexpr size_t timeStampSize = std::char_traits<char>::length("19970907_193040_000");
-
         const std::string filenameStr = filePath.filename().string();
-        const std::string timestampStr = filenameStr.substr(baseFilenameStr.size() + 1, timeStampSize);
+        const std::string timestampStr = filenameStr.substr(baseFilenameStr.size() + 1, LogTimestampSize);
 
         auto timestampOpt = stringToTimestamp(timestampStr);
         if (!timestampOpt)
