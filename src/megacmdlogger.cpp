@@ -44,6 +44,27 @@ namespace megacmd {
 
 namespace {
     thread_local bool isThreadDataSet = false;
+
+    std::string_view getNowTimeStr()
+    {
+        constexpr size_t LOG_TIME_CHARS = 24;
+        thread_local std::array<char, LOG_TIME_CHARS + 1> timebuf;
+
+        const auto now = std::chrono::system_clock::now();
+        const time_t t = std::chrono::system_clock::to_time_t(now);
+
+        struct std::tm gmt;
+        memset(&gmt, 0, sizeof(struct std::tm));
+        mega::m_gmtime(t, &gmt);
+
+        auto microseconds = std::chrono::duration_cast<std::chrono::microseconds>(now - std::chrono::system_clock::from_time_t(t));
+        std::snprintf(timebuf.data(), timebuf.size(),
+                      "%02d/%02d/%02d-%02d:%02d:%02d.%06d",
+                      gmt.tm_mday, gmt.tm_mon + 1, gmt.tm_year % 100,
+                      gmt.tm_hour, gmt.tm_min, gmt.tm_sec, static_cast<int>(microseconds.count() % 1000000));
+
+        return std::string_view(timebuf.data(), LOG_TIME_CHARS);
+    }
 }
 
 ThreadData &getCurrentThreadData()
@@ -123,7 +144,7 @@ bool MegaCmdLogger::isMegaCmdSource(const std::string &source)
     return megaCmdSourceFiles.find(filename) != megaCmdSourceFiles.end();
 }
 
-void MegaCmdLogger::formatLogToStream(LoggedStream &stream, const char *time, int logLevel, const char *source, const char *message)
+void MegaCmdLogger::formatLogToStream(LoggedStream &stream, std::string_view time, int logLevel, const char *source, const char *message)
 {
     stream << "[";
     if (!isMegaCmdSource(source))
@@ -200,7 +221,7 @@ int MegaCmdSimpleLogger::getMaxLogLevel() const
     return std::max(getCurrentThreadLogLevel(), MegaCmdLogger::getMaxLogLevel());
 }
 
-void MegaCmdSimpleLogger::log(const char *time, int logLevel, const char *source, const char *message)
+void MegaCmdSimpleLogger::log(const char * /*time*/, int logLevel, const char *source, const char *message)
 {
     if (shouldIgnoreMessage(logLevel, source, message))
     {
@@ -209,7 +230,8 @@ void MegaCmdSimpleLogger::log(const char *time, int logLevel, const char *source
 
     if (shouldLogToStream(logLevel, source))
     {
-        formatLogToStream(mLoggedStream, time, logLevel, source, message);
+        const std::string_view nowTimeStr = getNowTimeStr();
+        formatLogToStream(mLoggedStream, nowTimeStr, logLevel, source, message);
 
         if (mLogToOutStream)
         {
@@ -217,7 +239,7 @@ void MegaCmdSimpleLogger::log(const char *time, int logLevel, const char *source
             std::lock_guard<std::mutex> g(mSetmodeMtx);
             int oldmode = _setmode(_fileno(stdout), _O_U8TEXT);
 #endif
-            formatLogToStream(mOutStream, time, logLevel, source, message);
+            formatLogToStream(mOutStream, nowTimeStr, logLevel, source, message);
 
 #ifdef _WIN32
             assert(oldmode != -1);
@@ -228,8 +250,9 @@ void MegaCmdSimpleLogger::log(const char *time, int logLevel, const char *source
 
     if (shouldLogToClient(logLevel, source))
     {
+        const std::string_view nowTimeStr = getNowTimeStr();
         assert(isMegaCmdSource(source)); // if this happens in the sdk thread, this shall be false
-        formatLogToStream(OUTSTREAM, time, logLevel, source, message);
+        formatLogToStream(OUTSTREAM, nowTimeStr, logLevel, source, message);
     }
 }
 

@@ -353,14 +353,14 @@ void RotatingFileManager::initializeCompressionEngine()
 
 void RotatingFileManager::initializeRotationEngine()
 {
-    assert(mCompressionEngine);
-    const std::string compressionExt = mCompressionEngine->getExtension();
-
     RotationEngine* rotationEngine = nullptr;
     switch (mConfig.mRotationType)
     {
         case RotationType::Numbered:
         {
+            assert(mCompressionEngine);
+            const std::string compressionExt = mCompressionEngine->getExtension();
+
             rotationEngine = new NumberedRotationEngine(compressionExt, mConfig.mMaxFilesToKeep);
             break;
         }
@@ -586,6 +586,12 @@ const LoggedStream& FileRotatingLoggedStream::operator<<(const char* str) const
 const LoggedStream& FileRotatingLoggedStream::operator<<(std::string str) const
 {
     writeToBuffer(str.c_str(), str.size());
+    return *this;
+}
+
+const LoggedStream& FileRotatingLoggedStream::operator<<(std::string_view str) const
+{
+    writeToBuffer(str.data(), str.size());
     return *this;
 }
 
