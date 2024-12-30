@@ -111,9 +111,11 @@ public:
     virtual const LoggedStream& operator<<(const char* v) const override { *out << v;return *this; }
 #ifdef _WIN32
     virtual const LoggedStream& operator<<(std::wstring v) const override { *out << v;return *this; }
+    virtual const LoggedStream& operator<<(std::string_view v) const override { *out << std::string(v);return *this; }
+#else
+    virtual const LoggedStream& operator<<(std::string_view v) const override { *out << v;return *this; }
 #endif
     virtual const LoggedStream& operator<<(std::string v) const override { *out << v;return *this; }
-    virtual const LoggedStream& operator<<(std::string_view v) const override { *out << v;return *this; }
     virtual const LoggedStream& operator<<(int v) const override { *out << v;return *this; }
     virtual const LoggedStream& operator<<(unsigned int v) const override { *out << v;return *this; }
     virtual const LoggedStream& operator<<(long unsigned int v) const override { *out << v;return *this; }
