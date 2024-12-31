@@ -1,21 +1,50 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
-import sys, os, subprocess, shutil, re
+import sys, os, subprocess, shutil, re, platform
 import fnmatch
+import pexpect
 
-try:
-    os.environ['VERBOSE']
-    VERBOSE=True
-except:
-    VERBOSE=False
+VERBOSE = 'VERBOSE' in os.environ
+CMDSHELL = 'MEGACMDSHELL' in os.environ
+if CMDSHELL:
+    MEGACMDSHELL = os.environ['MEGACMDSHELL']
 
-try:
-    MEGACMDSHELL=os.environ['MEGACMDSHELL']
-    CMDSHELL=True
-    #~ FIND="executeinMEGASHELL find" #TODO
-except:
-    CMDSHELL=False
+if 'MEGA_EMAIL' in os.environ and 'MEGA_PWD' in os.environ and 'MEGA_EMAIL_AUX' in os.environ and 'MEGA_PWD_AUX' in os.environ:
+    MEGA_EMAIL = os.environ['MEGA_EMAIL']
+    MEGA_PWD = os.environ['MEGA_PWD']
+    MEGA_EMAIL_AUX = os.environ['MEGA_EMAIL_AUX']
+    MEGA_PWD_AUX = os.environ['MEGA_PWD_AUX']
+else:
+    raise Exception('Environment variables MEGA_EMAIL, MEGA_PWD, MEGA_EMAIL_AUX, MEGA_PWD_AUX are not defined. WARNING: Use a test account for $MEGA_EMAIL')
+
+def build_command_name(command):
+    if platform.system() == 'Windows':
+        return 'MEGAclient.exe ' + command
+    elif platform.system() == 'Darwin':
+        return 'mega-exec ' + command
+    else:
+        return 'mega-' + command
+
+GET = build_command_name('get')
+PUT = build_command_name('put')
+RM = build_command_name('rm')
+MV = build_command_name('mv')
+CD = build_command_name('cd')
+CP = build_command_name('cp')
+THUMB = build_command_name('thumbnail')
+LCD = build_command_name('lcd')
+MKDIR = build_command_name('mkdir')
+EXPORT = build_command_name('export')
+SHARE = build_command_name('share')
+INVITE = build_command_name('invite')
+FIND = build_command_name('find')
+WHOAMI = build_command_name('whoami')
+LOGOUT = build_command_name('logout')
+LOGIN = build_command_name('login')
+IPC = build_command_name('ipc')
+FTP = build_command_name('ftp')
+IMPORT = build_command_name('import')
 
 #execute command
 def ec(what):
@@ -55,42 +84,64 @@ def ef(what):
     return out
 
 def cmdshell_ec(what):
-    what=re.sub("^mega-","",what)
+    what = re.sub('^mega-', '', what)
     if VERBOSE:
-        print("Executing in cmdshell: "+what)
-    towrite="lcd "+os.getcwd()+"\n"+what
-    out(towrite+"\n",'/tmp/shellin')
-    with open('/tmp/shellin') as shellin:
-        if VERBOSE:
-            print("Launching in cmdshell ... " + MEGACMDSHELL)
-        process = subprocess.Popen(MEGACMDSHELL, shell=True, stdin=shellin, stdout=subprocess.PIPE)
-        stdoutdata, stderrdata = process.communicate()
-        realout =[]
-        equallines=0
-        afterwelcomemsg=False
-        afterorder=False
-        for l in stdoutdata.split(b'\n'):
-            l=re.sub(b".*\x1b\[K",b"",l) #replace non printable stuff(erase line controls)
-            l=re.sub(b".*\r",b"",l) #replace non printable stuff
-            if afterorder:
-                if b"Exiting ..." in l: break
-                realout+=[l]
-            elif afterwelcomemsg:
-                if what.encode() in l: afterorder = True
-            elif b"="*20 in l:
-                equallines+=1
-                if equallines==2: afterwelcomemsg = True
+        print(f'Executing in cmdshell: {what}')
 
-        realout=b"\n".join(realout)
-        if VERBOSE:
-            print(realout.strip())
+    # We must ensure there are enough columns so long commands don't get truncated
+    child = pexpect.spawn(MEGACMDSHELL, encoding='utf-8', dimensions=(32, 256), timeout=None)
 
-        return realout,process.returncode
+    quit_command = 'quit --only-shell'
+
+    def has_prompt(s, command): return any(f'{p} {command}' in s for p in ['$', 'MEGA CMD>'])
+    def wait_shell_prompt(): child.expect([r'(?=.+:.+\$ )', r'(?=MEGA CMD> )'])
+
+    try:
+        wait_shell_prompt()
+
+        # Having two lcd commands is not necessary and messes up the output parsing
+        if not what.startswith('lcd'):
+            child.sendline(f'lcd {os.getcwd()}')
+
+        child.sendline(what)
+        wait_shell_prompt()
+
+        # Stop the shell and wait for end-of-file
+        child.sendline(quit_command)
+        child.expect(pexpect.EOF)
+
+        # The whole output of the shell split by newlines
+        lines = child.before.replace('\r\n', '\n').split('\n')
+
+        # Find the start of our command
+        start = next(i for i, s in enumerate(lines) if has_prompt(s, what))
+
+        # Find the end of our shell by searching for the quit command
+        end = next(i for i, s in enumerate(lines[start+1:], start+1) if quit_command in s)
+
+        # The output of our command is the string in-between the start and end indices
+        out = '\n'.join(lines[start+1:end]).strip()
+    except pexpect.EOF:
+        print('Shell session ended')
+        return '', -1
+    except pexpect.TIMEOUT:
+        print('Timed out waiting for output')
+        return '', -1
+    finally:
+        child.close()
+
+    out = re.sub(r'.*\x1b\[K','', out) # erase line controls
+    out = re.sub(r'.*\r', '', out) # erase non printable stuff
+
+    if VERBOSE:
+        print(f'Exit code: {child.exitstatus}')
+        print(f'Out: {out}')
+
+    return out.encode('utf-8'), child.exitstatus
 
 #execute and return only stdout contents
 def cmdshell_ex(what):
     return cmdshell_ec(what)[0]
-    #return subprocess.Popen(what, shell=True, stdout=subprocess.PIPE).stdout.read()
 
 #Execute and strip, return only stdout
 def cmdshell_es(what):

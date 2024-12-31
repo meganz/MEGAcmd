@@ -37,17 +37,17 @@ public:
     class MemoryBlock final
     {
         size_t mSize;
-        bool mMemoryGap;
+        bool mMemoryAllocationFailed;
         char mBuffer[BlockSize];
     public:
         MemoryBlock();
 
         bool canAppendData(size_t dataSize) const;
         bool isNearCapacity() const;
-        bool hasMemoryGap() const;
+        bool memoryAllocationFailed() const;
         const char* getBuffer() const;
 
-        void markMemoryGap();
+        void markMemoryAllocationFailed();
         void appendData(const char* data, size_t size);
 
     };
@@ -57,7 +57,7 @@ public:
     MessageBuffer(size_t failSafeSize);
 
     void append(const char* data, size_t size);
-    MemoryBlockList popMemoryBlockList(bool& initialMemoryGap);
+    MemoryBlockList popMemoryBlockList(bool& initialMemoryError);
 
     bool isEmpty() const;
     bool isNearLastBlockCapacity() const;
@@ -67,7 +67,7 @@ private:
     const size_t mFailSafeSize;
     mutable std::mutex mListMtx;
     MemoryBlockList mList;
-    bool mInitialMemoryGap;
+    bool mInitialMemoryError;
 };
 
 class RotationEngine;
@@ -90,13 +90,13 @@ public:
 
     struct Config
     {
-        size_t maxBaseFileSize;
+        size_t mMaxBaseFileSize;
 
-        RotationType rotationType;
-        std::chrono::seconds maxFileAge;
-        int maxFilesToKeep;
+        RotationType mRotationType;
+        std::chrono::seconds mMaxFileAge;
+        int mMaxFilesToKeep;
 
-        CompressionType compressionType;
+        CompressionType mCompressionType;
 
         Config();
     };
@@ -155,6 +155,7 @@ private:
 
     void writeMessagesToFile();
     void flushToFile();
+    void markForExit();
     bool waitForOutputFile();
 
     void mainLoop();
@@ -166,6 +167,7 @@ public:
     const LoggedStream& operator<<(const char& c) const override;
     const LoggedStream& operator<<(const char* str) const override;
     const LoggedStream& operator<<(std::string str) const override;
+    const LoggedStream& operator<<(std::string_view str) const override;
     const LoggedStream& operator<<(int v) const override;
     const LoggedStream& operator<<(unsigned int v) const override;
     const LoggedStream& operator<<(long long v) const override;
@@ -185,7 +187,7 @@ public:
 template<size_t BlockSize>
 MessageBuffer<BlockSize>::MemoryBlock::MemoryBlock() :
     mSize(0),
-    mMemoryGap(false)
+    mMemoryAllocationFailed(false)
 {
 }
 
@@ -193,7 +195,7 @@ template<size_t BlockSize>
 bool MessageBuffer<BlockSize>::MemoryBlock::canAppendData(size_t dataSize) const
 {
     // The last byte of buffer is reserved for '\0'
-    return !mMemoryGap && mSize + dataSize < BlockSize;
+    return !mMemoryAllocationFailed && mSize + dataSize < BlockSize;
 }
 
 template<size_t BlockSize>
@@ -203,9 +205,9 @@ bool MessageBuffer<BlockSize>::MemoryBlock::isNearCapacity() const
 }
 
 template<size_t BlockSize>
-bool MessageBuffer<BlockSize>::MemoryBlock::hasMemoryGap() const
+bool MessageBuffer<BlockSize>::MemoryBlock::memoryAllocationFailed() const
 {
-    return mMemoryGap;
+    return mMemoryAllocationFailed;
 }
 
 template<size_t BlockSize>
@@ -215,9 +217,9 @@ const char *MessageBuffer<BlockSize>::MemoryBlock::getBuffer() const
 }
 
 template<size_t BlockSize>
-void MessageBuffer<BlockSize>::MemoryBlock::markMemoryGap()
+void MessageBuffer<BlockSize>::MemoryBlock::markMemoryAllocationFailed()
 {
-    mMemoryGap = true;
+    mMemoryAllocationFailed = true;
 }
 
 template<size_t BlockSize>
@@ -237,7 +239,7 @@ void MessageBuffer<BlockSize>::MemoryBlock::appendData(const char* data, size_t 
 template<size_t BlockSize>
 MessageBuffer<BlockSize>::MessageBuffer(size_t failSafeSize) :
     mFailSafeSize(failSafeSize),
-    mInitialMemoryGap(false)
+    mInitialMemoryError(false)
 {
     assert(mFailSafeSize > 0);
     assert(mFailSafeSize > BlockSize);
@@ -260,13 +262,13 @@ void MessageBuffer<BlockSize>::append(const char* data, size_t size)
             if (lastBlock)
             {
                 // If there's a bad_alloc exception when adding to a vector, it remains unchanged
-                // So we note that the existing last block has a gap in memory
-                lastBlock->markMemoryGap();
+                // So we let the last block know its allocation failed
+                lastBlock->markMemoryAllocationFailed();
             }
             else
             {
-                // If there's not even a last block, then there is a memory gap at the start
-                mInitialMemoryGap = true;
+                // If there's not even a last block, then the error is at the start
+                mInitialMemoryError = true;
             }
             return;
         }
@@ -281,11 +283,11 @@ void MessageBuffer<BlockSize>::append(const char* data, size_t size)
 }
 
 template<size_t BlockSize>
-typename MessageBuffer<BlockSize>::MemoryBlockList MessageBuffer<BlockSize>::popMemoryBlockList(bool& initialMemoryGap)
+typename MessageBuffer<BlockSize>::MemoryBlockList MessageBuffer<BlockSize>::popMemoryBlockList(bool& initialMemoryError)
 {
     std::lock_guard<std::mutex> lock(mListMtx);
-    initialMemoryGap = mInitialMemoryGap;
-    mInitialMemoryGap = false;
+    initialMemoryError = mInitialMemoryError;
+    mInitialMemoryError = false;
     return std::move(mList);
 }
 

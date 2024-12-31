@@ -109,9 +109,6 @@ private:
     using TimestampFileQueue = std::priority_queue<TimestampFile, std::vector<TimestampFile>, std::greater<TimestampFile>>;
 
 private:
-    static std::string timestampToString(const Timestamp& timestamp);
-    static std::optional<Timestamp> stringToTimestamp(const std::string& timestampStr);
-
     fs::path rotateBaseFile(const fs::path& directory, const fs::path& baseFilename);
     TimestampFileQueue getTimestampFileQueue(const fs::path& dir, const fs::path& baseFilename);
 
@@ -143,7 +140,7 @@ class GzipCompressionEngine final : public CompressionEngine
 
         GzipJobData(const fs::path& srcFilePath, const fs::path& dstFilePath);
     };
-    using GzipJobQueue = std::queue<std::optional<GzipJobData>>;
+    using GzipJobQueue = std::queue<GzipJobData>;
     GzipJobQueue mQueue;
 
     mutable std::mutex mQueueMtx;
@@ -172,11 +169,11 @@ public:
 };
 
 RotatingFileManager::Config::Config() :
-    maxBaseFileSize(50 * 1024 * 1024), // 50 MB
-    rotationType(RotationType::Timestamp),
-    maxFileAge(30 * 86400), // one month (in C++20 we can use `std::chrono::month(1)`)
-    maxFilesToKeep(50),
-    compressionType(CompressionType::Gzip)
+    mMaxBaseFileSize(50 * 1024 * 1024), // 50 MB
+    mRotationType(RotationType::Timestamp),
+    mMaxFileAge(30 * 86400), // one month (in C++20 we can use `std::chrono::month(1)`)
+    mMaxFilesToKeep(50),
+    mCompressionType(CompressionType::Gzip)
 {
 }
 
@@ -191,7 +188,7 @@ RotatingFileManager::RotatingFileManager(const fs::path& filePath, const Config 
 
 bool RotatingFileManager::shouldRotateFiles(size_t fileSize) const
 {
-    return fileSize > mConfig.maxBaseFileSize;
+    return fileSize > mConfig.mMaxBaseFileSize;
 }
 
 void RotatingFileManager::cleanupFiles()
@@ -214,7 +211,7 @@ std::string RotatingFileManager::popErrors()
 void RotatingFileManager::initializeCompressionEngine()
 {
     CompressionEngine* compressionEngine = nullptr;
-    switch(mConfig.compressionType)
+    switch(mConfig.mCompressionType)
     {
         case CompressionType::None:
         {
@@ -233,20 +230,20 @@ void RotatingFileManager::initializeCompressionEngine()
 
 void RotatingFileManager::initializeRotationEngine()
 {
-    assert(mCompressionEngine);
-    const std::string compressionExt = mCompressionEngine->getExtension();
-
     RotationEngine* rotationEngine = nullptr;
-    switch (mConfig.rotationType)
+    switch (mConfig.mRotationType)
     {
         case RotationType::Numbered:
         {
-            rotationEngine = new NumberedRotationEngine(compressionExt, mConfig.maxFilesToKeep);
+            assert(mCompressionEngine);
+            const std::string compressionExt = mCompressionEngine->getExtension();
+
+            rotationEngine = new NumberedRotationEngine(compressionExt, mConfig.mMaxFilesToKeep);
             break;
         }
         case RotationType::Timestamp:
         {
-            rotationEngine = new TimestampRotationEngine(mConfig.maxFilesToKeep, mConfig.maxFileAge);
+            rotationEngine = new TimestampRotationEngine(mConfig.mMaxFilesToKeep, mConfig.mMaxFileAge);
             break;
         }
     }
@@ -295,17 +292,17 @@ void FileRotatingLoggedStream::writeToBuffer(const char* msg, size_t size) const
 
 void FileRotatingLoggedStream::writeMessagesToFile()
 {
-    bool initialMemoryGap = false;
-    auto memoryBlockList = mMessageBuffer.popMemoryBlockList(initialMemoryGap);
+    bool initialMemoryError = false;
+    auto memoryBlockList = mMessageBuffer.popMemoryBlockList(initialMemoryError);
 
-    if (initialMemoryGap)
+    if (initialMemoryError)
     {
         mOutputFile << "<log gap - out of logging memory at this point>\n";
     }
 
     for (const auto& memoryBlock : memoryBlockList)
     {
-        if (!memoryBlock.hasMemoryGap())
+        if (!memoryBlock.memoryAllocationFailed())
         {
             mOutputFile << memoryBlock.getBuffer();
         }
@@ -324,6 +321,16 @@ void FileRotatingLoggedStream::flushToFile()
         std::lock_guard lock(mWriteMtx);
         mFlush = false;
     }
+}
+
+void FileRotatingLoggedStream::markForExit()
+{
+    {
+        std::scoped_lock lock(mExitMtx, mWriteMtx);
+        mExit = true;
+    }
+    mWriteCV.notify_one();
+    mExitCV.notify_one();
 }
 
 bool FileRotatingLoggedStream::waitForOutputFile()
@@ -426,7 +433,7 @@ FileRotatingLoggedStream::FileRotatingLoggedStream(const OUTSTRING& outputFilePa
     mOutputFilePath(outstringToString(outputFilePath)),
     mOutputFile(outputFilePath, std::ofstream::out | std::ofstream::app),
     mFileManager(mOutputFilePath),
-    mForceRenew(false), // maybe this should be true by default?
+    mForceRenew(false),
     mExit(false),
     mFlush(false),
     mFlushPeriod(std::chrono::seconds(10)),
@@ -437,13 +444,7 @@ FileRotatingLoggedStream::FileRotatingLoggedStream(const OUTSTRING& outputFilePa
 
 FileRotatingLoggedStream::~FileRotatingLoggedStream()
 {
-    {
-        std::scoped_lock lock(mExitMtx, mWriteMtx);
-        mExit = true;
-    }
-    mWriteCV.notify_one();
-    mExitCV.notify_one();
-
+    markForExit();
     mWriteThread.join();
 }
 
@@ -462,6 +463,12 @@ const LoggedStream& FileRotatingLoggedStream::operator<<(const char* str) const
 const LoggedStream& FileRotatingLoggedStream::operator<<(std::string str) const
 {
     writeToBuffer(str.c_str(), str.size());
+    return *this;
+}
+
+const LoggedStream& FileRotatingLoggedStream::operator<<(std::string_view str) const
+{
+    writeToBuffer(str.data(), str.size());
     return *this;
 }
 
@@ -497,8 +504,10 @@ const LoggedStream& FileRotatingLoggedStream::operator<<(std::wstring wstr) cons
 
 void FileRotatingLoggedStream::flush()
 {
-    std::lock_guard lock(mWriteMtx);
-    mFlush = true;
+    {
+        std::lock_guard lock(mWriteMtx);
+        mFlush = true;
+    }
     mWriteCV.notify_one();
 }
 
@@ -633,41 +642,12 @@ TimestampRotationEngine::TimestampFile::TimestampFile(const fs::path& path, cons
 {
 }
 
-std::string TimestampRotationEngine::timestampToString(const Timestamp& timestamp)
-{
-    std::ostringstream oss;
-    std::time_t time = Clock::to_time_t(timestamp);
-    oss << std::put_time(std::localtime(&time), "%Y%m%d_%H%M%S_");
-
-    auto milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(timestamp.time_since_epoch()) % 1000;
-    oss << std::setfill('0') << std::setw(3) << milliseconds.count();
-
-    return oss.str();
-}
-
-std::optional<TimestampRotationEngine::Timestamp> TimestampRotationEngine::stringToTimestamp(const std::string& timestampStr)
-{
-    std::tm timeInfo = {};
-    int milliseconds = -1;
-
-    std::istringstream iss(timestampStr);
-    iss >> std::get_time(&timeInfo, "%Y%m%d_%H%M%S_") >> milliseconds;
-
-    bool success = milliseconds >= 0 && milliseconds < 1000 && !iss.fail();
-    if (!success)
-    {
-        return {};
-    }
-
-    return Clock::from_time_t(std::mktime(&timeInfo)) + std::chrono::milliseconds(milliseconds);
-}
-
 fs::path TimestampRotationEngine::rotateBaseFile(const fs::path& directory, const fs::path& baseFilename)
 {
-    const std::string timestampStr = timestampToString(Clock::now());
+    const std::string_view timestampStr = timestampToString(Clock::now());
 
     fs::path srcFilePath = directory / baseFilename;
-    fs::path dstFilePath = srcFilePath.string() + "." + timestampStr;
+    fs::path dstFilePath = srcFilePath.string() + "." + std::string(timestampStr);
 
     std::error_code ec;
 
@@ -688,10 +668,8 @@ TimestampRotationEngine::TimestampFileQueue TimestampRotationEngine::getTimestam
 
     walkRotatedFiles(dir, baseFilename, [this, &baseFilenameStr, &fileQueue, &addedFiles] (const fs::path& filePath)
     {
-        static const std::string exampleTimestampStr = "19970907_193040_000"; // example timestamp to get the string size
-
         const std::string filenameStr = filePath.filename().string();
-        const std::string timestampStr = filenameStr.substr(baseFilenameStr.size() + 1, exampleTimestampStr.size());
+        const std::string timestampStr = filenameStr.substr(baseFilenameStr.size() + 1, LogTimestampSize);
 
         auto timestampOpt = stringToTimestamp(timestampStr);
         if (!timestampOpt)
@@ -795,39 +773,38 @@ void GzipCompressionEngine::pushToQueue(const fs::path& srcFilePath, const fs::p
 
 void GzipCompressionEngine::gzipFile(const fs::path& srcFilePath, const fs::path& dstFilePath)
 {
-    std::ifstream file(srcFilePath, std::ofstream::out);
-    if (!file)
     {
-        mErrorStream << "Failed to open " << srcFilePath << " for compression" << std::endl;
-        return;
-    }
-
-    auto gzdeleter = [] (gzFile_s* f) { if (f) gzclose(f); };
-    std::unique_ptr<gzFile_s, decltype(gzdeleter)> gzFile(gzopen(dstFilePath.string().c_str(), "wb"), gzdeleter);
-    if (!gzFile)
-    {
-        mErrorStream << "Failed to open gzfile " << dstFilePath << " for writing" << std::endl;
-        return;
-    }
-
-    std::string line;
-    while (std::getline(file, line))
-    {
-        if (shouldCancelOngoingJob())
+        std::ifstream srcFile(srcFilePath);
+        if (!srcFile)
         {
+            mErrorStream << "Failed to open " << srcFilePath << " for compression" << std::endl;
             return;
         }
 
-        line += '\n';
-        if (gzputs(gzFile.get(), line.c_str()) == -1)
+        auto gzdeleter = [] (gzFile_s* f) { if (f) gzclose(f); };
+        std::unique_ptr<gzFile_s, decltype(gzdeleter)> gzFile(gzopen(dstFilePath.string().c_str(), "wb"), gzdeleter);
+        if (!gzFile)
         {
-            mErrorStream << "Failed to gzip " << srcFilePath << std::endl;
+            mErrorStream << "Failed to open gzfile " << dstFilePath << " for writing" << std::endl;
             return;
         }
-    }
 
-    // Explicitly release the open file handle (otherwise the remove below will fail)
-    file.close();
+        std::string line;
+        while (std::getline(srcFile, line))
+        {
+            if (shouldCancelOngoingJob())
+            {
+                return;
+            }
+
+            line += '\n';
+            if (gzputs(gzFile.get(), line.c_str()) == -1)
+            {
+                mErrorStream << "Failed to gzip " << srcFilePath << std::endl;
+                return;
+            }
+        }
+    }
 
     std::error_code ec;
 
@@ -854,7 +831,7 @@ void GzipCompressionEngine::mainLoop()
             }
             assert(!mQueue.empty());
 
-            jobDataOpt = mQueue.front();
+            jobDataOpt = std::move(mQueue.front());
             mQueue.pop();
 
             mCancelOngoingJob = false;

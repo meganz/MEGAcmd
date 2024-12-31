@@ -7,47 +7,12 @@ import unittest
 import xmlrunner
 from megacmd_tests_common import *
 
-GET="mega-get"
-PUT="mega-put"
-RM="mega-rm"
-CD="mega-cd"
-LCD="mega-lcd"
-MKDIR="mega-mkdir"
-EXPORT="mega-export"
-SHARE="mega-share"
-FIND="mega-find"
-WHOAMI="mega-whoami"
-LOGOUT="mega-logout"
-LOGIN="mega-login"
-IPC="mega-ipc"
-IMPORT="mega-import"
-
 def setUpModule():
-    global VERBOSE
-    global MEGA_PWD
-    global MEGA_EMAIL
-    global MEGA_EMAIL_AUX
-    global MEGA_PWD_AUX
-    global MEGACMDSHELL
-    global CMDSHELL
     global ABSPWD
     global ABSMEGADLFOLDER
 
     ABSPWD = os.getcwd()
     ABSMEGADLFOLDER=ABSPWD+'/megaDls'
-    VERBOSE = 'VERBOSE' in os.environ
-
-    if "MEGA_EMAIL" in os.environ and "MEGA_PWD" in os.environ and "MEGA_EMAIL_AUX" in os.environ and "MEGA_PWD_AUX" in os.environ:
-        MEGA_EMAIL=os.environ["MEGA_EMAIL"]
-        MEGA_PWD=os.environ["MEGA_PWD"]
-        MEGA_EMAIL_AUX=os.environ["MEGA_EMAIL_AUX"]
-        MEGA_PWD_AUX=os.environ["MEGA_PWD_AUX"]
-    else:
-        raise Exception("Environment variables MEGA_EMAIL, MEGA_PWD, MEGA_EMAIL_AUX, MEGA_PWD_AUX are not defined. WARNING: Use an empty account for $MEGA_EMAIL")
-
-    CMDSHELL= "MEGACMDSHELL" in os.environ
-    if CMDSHELL:
-        MEGACMDSHELL=os.environ["MEGACMDSHELL"]
 
 def clean_all():
     if not clean_root_confirmed_by_user():
@@ -77,16 +42,14 @@ def clear_dls():
 
 def safe_export(path):
     command = EXPORT + ' ' + path
-    stdout, code = cmd_esc(command + ' -f -a')
-
-    if code == 0:
-        return stdout.split(b' ')[-1]
+    stdout, _ = cmd_esc(command + ' -f -a')
 
     # Run export without the `-a` option (also need to remove `-f` or it'll fail)
     # Output is slightly different in this case:
     #   * Link is surrounded by parenthesis, so we need to remove the trailing ')'
     #   * If path is a folder it'll also return the list of nodes inside, so we
     #   need to keep only the first line
+    # Note: We can't rely on the exit code, since we can't get it reliably from shell commands
     if b'already exported' in stdout:
         stdout = cmd_ef(command).split(b'\n')[0].strip(b')')
         if b'AuthKey=' in stdout:
@@ -96,7 +59,7 @@ def safe_export(path):
         else:
             return stdout.split(b' ')[-1]
     else:
-        raise Exception(f"Failed trying to export '{path}': '{out}'")
+        return stdout.split(b' ')[-1]
 
 
 def initialize_contents():
@@ -130,8 +93,8 @@ def initialize_contents():
     URIFOREIGNEXPORTEDFOLDER=safe_export('foreign/sub01').decode()
     URIFOREIGNEXPORTEDFILE=safe_export('foreign/sub02/fileatsub02.txt').decode()
 
-    print("URIFOREIGNEXPORTEDFOLDER="+URIFOREIGNEXPORTEDFILE)
-    print("URIFOREIGNEXPORTEDFILE="+URIFOREIGNEXPORTEDFILE)
+    print(f'URIFOREIGNEXPORTEDFOLDER={URIFOREIGNEXPORTEDFOLDER}')
+    print(f'URIFOREIGNEXPORTEDFILE={URIFOREIGNEXPORTEDFILE}')
 
     cmd_ef(LOGOUT)
     cmd_ef(LOGIN+" " +osvar("MEGA_EMAIL")+" "+osvar("MEGA_PWD"))
@@ -148,9 +111,8 @@ def initialize_contents():
     URIEXPORTEDFOLDER=safe_export('cloud01/c01s01').decode()
     URIEXPORTEDFILE=safe_export('cloud02/fileatcloud02.txt').decode()
 
-    print("URIEXPORTEDFOLDER="+URIEXPORTEDFOLDER)
-    print("URIEXPORTEDFILE=",URIEXPORTEDFILE)
-
+    print(f'URIEXPORTEDFOLDER={URIEXPORTEDFOLDER}')
+    print(f'URIEXPORTEDFILE={URIEXPORTEDFILE}')
 
 class MEGAcmdGetTest(unittest.TestCase):
 
@@ -331,15 +293,17 @@ class MEGAcmdGetTest(unittest.TestCase):
         shutil.copy2('origin/cloud01/fileatcloud01.txt','localDls/')
         self.compare()
 
-    @unittest.skipIf(CMDSHELL, "only for non-CMDSHELL")
     def test_26(self):
-        o,status=cmd_ec(GET+' cloud01/fileatcloud01.txt /no/where')
-        self.check_failed(o,status)
+        o, status = cmd_ec(f'{GET} cloud01/fileatcloud01.txt /no/where')
+        if not CMDSHELL:
+            self.check_failed(o, status)
+        self.assertIn('is not a valid download folder', o.decode().lower())
 
-    @unittest.skipIf(CMDSHELL, "only for non-CMDSHELL")
     def test_27(self):
-        o,status=cmd_ec(GET+' /cloud01/cloud01/fileatcloud01.txt /no/where')
-        self.check_failed(o,status)
+        o, status = cmd_ec(f'{GET} /cloud01/cloud01/fileatcloud01.txt /no/where')
+        if not CMDSHELL:
+            self.check_failed(o, status)
+        self.assertIn('is not a valid download folder', o.decode().lower())
 
     def test_28(self):
         cmd_ef(GET+' /cloud01/fileatcloud01.txt '+ABSMEGADLFOLDER+'/newfile')
@@ -378,15 +342,17 @@ class MEGAcmdGetTest(unittest.TestCase):
         shutil.copy2('origin/cloud01/fileatcloud01.txt','localDls/')
         self.compare()
 
-    @unittest.skipIf(CMDSHELL, "only for non-CMDSHELL")
     def test_33(self):
-        o,status=cmd_ec(GET+' path/to/nowhere '+ABSMEGADLFOLDER+' > /dev/null')
-        self.check_failed(o,status)
+        o, status = cmd_ec(f'{GET} path/to/nowhere {ABSMEGADLFOLDER}')
+        if not CMDSHELL:
+            self.check_failed(o, status)
+        self.assertIn("couldn't find file", o.decode().lower())
 
-    @unittest.skipIf(CMDSHELL, "only for non-CMDSHELL")
     def test_34(self):
-        o,status=cmd_ec(GET+' /path/to/nowhere '+ABSMEGADLFOLDER+' > /dev/null')
-        self.check_failed(o,status)
+        o, status = cmd_ec(f'{GET} /path/to/nowhere {ABSMEGADLFOLDER}')
+        if not CMDSHELL:
+            self.check_failed(o, status)
+        self.assertIn("couldn't find file", o.decode().lower())
 
     def test_35(self):
         os.chdir(ABSMEGADLFOLDER)

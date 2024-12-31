@@ -31,6 +31,7 @@
 #include <string>
 #include <iostream>
 #include <mutex>
+#include <future>
 
 #ifdef _WIN32
 #include <WinSock2.h>
@@ -107,52 +108,79 @@ enum confirmresponse
     MCMDCONFIRM_NONE
 };
 
-typedef struct structListenStateChanges{
-    int receiveSocket;
-    void (*statechangehandle)(std::string);
-} sListenStateChanges;
-
 class MegaCmdShellCommunications
 {
 public:
+    using StateChangedCb_t = std::function<void(std::string /*state string*/, MegaCmdShellCommunications &)>;
     MegaCmdShellCommunications();
     virtual ~MegaCmdShellCommunications();
 
-    static std::mutex megaCmdStdoutputing;
-    virtual int executeCommand(std::string command, std::string (*readresponse)(const char *) = NULL, OUTSTREAMTYPE &output = COUT, bool interactiveshell = true, std::wstring = L"");
+    virtual int executeCommand(std::string command, std::string (*readresponse)(const char *) = NULL, OUTSTREAMTYPE &output = COUT, bool interactiveshell = true, std::wstring = L"") = 0;
     virtual int executeCommandW(std::wstring command, std::string (*readresponse)(const char *) = NULL, OUTSTREAMTYPE &output = COUT, bool interactiveshell = true);
 
-    virtual int registerForStateChanges(bool interactive, void (*statechangehandle)(std::string) = NULL, bool initiateServer = true);
+    virtual bool registerForStateChanges(bool interactive, StateChangedCb_t statechangehandle, bool initiateServer = true);
 
     virtual void setResponseConfirmation(bool confirmation);
 
-    static bool serverinitiatedfromshell;
-    static bool registerAgainRequired;
+    bool mServerInitiatedFromShell = false;
+
     int readconfirmationloop(const char *question, std::string (*readresponse)(const char *));
-    static bool updating;
+
+    // returns true if did not timeout
+    bool waitForServerReadyOrRegistrationFailed(std::optional<std::chrono::milliseconds> timeout = {});
+
+    void markServerReady() { markServerReadyOrRegistrationFailed(true); }
+    void markServerRegistrationFailed() { markServerReadyOrRegistrationFailed(false); }
+
+    void markServerIsUpdating();
+    void unmarkServerIsUpdating();
+    bool isServerUpdating();
+
+    void shutdown();
+    bool registerRequired();
+    void setForRegisterAgain(bool dontWait = false);
+
+    std::lock_guard<std::mutex> getStdoutLockGuard();
 
 private:
-    static SOCKET newsockfd;
-    static bool socketValid(SOCKET socket);
-    static void closeSocket(SOCKET socket);
+    virtual void triggerListenerThreadShutdown() {};
+    virtual std::optional<int> registerForStateChangesImpl(bool interactive, bool initiateServer = true) = 0;
+    virtual int listenToStateChanges(int receiveSocket, StateChangedCb_t statechangehandle) = 0;
 
-    static void *listenToStateChangesEntry(void *slsc);
-    static int listenToStateChanges(int receiveSocket, void (*statechangehandle)(std::string) = NULL);
+    std::mutex mStdoutMutex;
 
+    std::unique_ptr<std::thread> mListenerThread;
 
-    static bool confirmResponse;
+    std::mutex mRegistrationMutex;
+    std::optional<std::chrono::steady_clock::time_point> mLastFailedRegistration;
+    bool mRegisterRequired = true;
 
-    static bool stopListener;
-    static MegaThread *listenerThread;
+    void markServerReadyOrRegistrationFailed(bool readyOrFailed);
 
-#ifdef _WIN32
-static SOCKET createSocket(int number = 0, bool initializeserver = true, bool net = true);
-#else
-static SOCKET createSocket(int number = 0, bool initializeserver = true, bool net = false);
-#endif
-
+protected:
+    std::promise<bool> mPromiseServerReadyOrRegistrationFailed;
+    std::atomic_flag mPromiseServerReadyOrRegistrationFailedAttended = ATOMIC_FLAG_INIT;
+    std::atomic_bool mStopListener = false;
+    std::atomic_bool mUpdating = false;
 
 };
+
+#ifndef _WIN32
+class MegaCmdShellCommunicationsPosix : public MegaCmdShellCommunications
+{
+public:
+    int executeCommand(std::string command, std::string (*readresponse)(const char *) = NULL, OUTSTREAMTYPE &output = COUT, bool interactiveshell = true, std::wstring = L"") override;
+private:
+
+    bool isSocketValid(SOCKET socket);
+    SOCKET createSocket(int number = 0, bool initializeserver = true);
+
+    std::atomic_int mStateListenerSocket = -1;
+    std::optional<int> registerForStateChangesImpl(bool interactive, bool initiateServer = true) override;
+    int listenToStateChanges(int receiveSocket, StateChangedCb_t statechangehandle) override;
+    void triggerListenerThreadShutdown() override;
+};
+#endif
 
 }//end namespace
 #endif // MEGACMDSHELLCOMMUNICATIONS_H

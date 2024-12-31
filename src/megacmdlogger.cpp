@@ -42,108 +42,115 @@ using namespace mega;
 
 namespace megacmd {
 
-ThreadLookupTable::ThreadData::ThreadData() :
-    outStream(&Instance<DefaultLoggedStream>::Get().getLoggedStream()),
-    logLevel(-1),
-    outCode(0),
-    cmdPetition(nullptr),
-    isCmdShell(false)
-{
-}
+namespace {
+    constexpr const char* logTimestampFormat = "%04d-%02d-%02d_%02d-%02d-%02d.%06d";
+    thread_local bool isThreadDataSet = false;
 
-ThreadLookupTable::ThreadData ThreadLookupTable::getThreadData(uint64_t id) const
-{
-    std::lock_guard<std::mutex> lock(mMapMutex);
-    auto it = mThreadMap.find(id);
-    if (it == mThreadMap.end())
+    std::string_view getNowTimeStr()
     {
-        return {};
+        return timestampToString(std::chrono::system_clock::now());
     }
-    return it->second;
 }
 
-ThreadLookupTable::ThreadData ThreadLookupTable::getCurrentThreadData() const
+ThreadData &getCurrentThreadData()
 {
-    return getThreadData(MegaThread::currentThreadId());
+    thread_local ThreadData threadData;
+    return threadData;
 }
 
-bool ThreadLookupTable::threadDataExists(uint64_t id) const
-{
-    std::lock_guard<std::mutex> lock(mMapMutex);
-    return mThreadMap.find(id) != mThreadMap.end();
-}
-
-LoggedStream& ThreadLookupTable::getCurrentOutStream() const
-{
-    return *getCurrentThreadData().outStream;
-}
-
-int ThreadLookupTable::getCurrentLogLevel() const
-{
-    return getCurrentThreadData().logLevel;
-}
-
-int ThreadLookupTable::getCurrentOutCode() const
-{
-    return getCurrentThreadData().outCode;
-}
-
-CmdPetition* ThreadLookupTable::getCurrentCmdPetition() const
-{
-    return getCurrentThreadData().cmdPetition;
-}
-
-bool ThreadLookupTable::isCurrentCmdShell() const
-{
-    return getCurrentThreadData().isCmdShell;
-}
-
-void ThreadLookupTable::setCurrentOutStream(LoggedStream &outStream)
-{
-    std::lock_guard<std::mutex> lock(mMapMutex);
-    mThreadMap[MegaThread::currentThreadId()].outStream = &outStream;
-}
-
-void ThreadLookupTable::setCurrentLogLevel(int logLevel)
-{
-    std::lock_guard<std::mutex> lock(mMapMutex);
-    mThreadMap[MegaThread::currentThreadId()].logLevel = logLevel;
-}
-
-void ThreadLookupTable::setCurrentOutCode(int outCode)
-{
-    std::lock_guard<std::mutex> lock(mMapMutex);
-    mThreadMap[MegaThread::currentThreadId()].outCode = outCode;
-}
-
-void ThreadLookupTable::setCurrentCmdPetition(CmdPetition *cmdPetition)
-{
-    std::lock_guard<std::mutex> lock(mMapMutex);
-    mThreadMap[MegaThread::currentThreadId()].cmdPetition = cmdPetition;
-}
-
-void ThreadLookupTable::setCurrentIsCmdShell(bool isCmdShell)
-{
-    std::lock_guard<std::mutex> lock(mMapMutex);
-    mThreadMap[MegaThread::currentThreadId()].isCmdShell = isCmdShell;
-}
-
-bool ThreadLookupTable::isCurrentThreadInteractive() const
-{
-    if (isCurrentCmdShell())
-    {
-        return true;
-    }
-    return !threadDataExists(MegaThread::currentThreadId());
-}
-
-const char* ThreadLookupTable::getModeCommandPrefix() const
+const char* getCommandPrefixBasedOnMode()
 {
     if (isCurrentThreadInteractive())
     {
         return "";
     }
     return "mega-";
+}
+
+bool isCurrentThreadInteractive()
+{
+    return isCurrentThreadCmdShell() || !isThreadDataSet;
+}
+
+void setCurrentThreadOutStream(LoggedStream &outStream)
+{
+    isThreadDataSet = true;
+    getCurrentThreadData().mOutStream = &outStream;
+}
+
+void setCurrentThreadOutCode(int outCode)
+{
+    isThreadDataSet = true;
+    getCurrentThreadData().mOutCode = outCode;
+}
+
+void setCurrentThreadLogLevel(int logLevel)
+{
+    isThreadDataSet = true;
+    getCurrentThreadData().mLogLevel = logLevel;
+}
+
+void setCurrentThreadCmdPetition(CmdPetition *cmdPetition)
+{
+    isThreadDataSet = true;
+    getCurrentThreadData().mCmdPetition = cmdPetition;
+}
+
+void setCurrentThreadIsCmdShell(bool isCmdShell)
+{
+    isThreadDataSet = true;
+    getCurrentThreadData().mIsCmdShell = isCmdShell;
+}
+
+std::optional<std::chrono::time_point<std::chrono::system_clock>> stringToTimestamp(std::string_view str)
+{
+    if (str.size() != LogTimestampSize)
+    {
+        return std::nullopt;
+    }
+
+    int years, months, days, hours, minutes, seconds, microseconds;
+    int parsed = std::sscanf(str.data(), logTimestampFormat,
+                             &years, &months, &days, &hours, &minutes, &seconds, &microseconds);
+    if (parsed != 7)
+    {
+        return std::nullopt;
+    }
+
+    struct std::tm gmt;
+    memset(&gmt, 0, sizeof(struct std::tm));
+    gmt.tm_year = years - 1900;
+    gmt.tm_mon = months - 1;
+    gmt.tm_mday = days;
+    gmt.tm_hour = hours;
+    gmt.tm_min = minutes;
+    gmt.tm_sec = seconds;
+
+#ifdef _WIN32
+    const time_t t = _mkgmtime(&gmt);
+#else
+    const time_t t = timegm(&gmt);
+#endif
+
+    const auto time_point = std::chrono::system_clock::from_time_t(t);
+    return time_point + std::chrono::microseconds(microseconds);
+}
+
+std::string_view timestampToString(std::chrono::time_point<std::chrono::system_clock> timestamp)
+{
+    thread_local std::array<char, LogTimestampSize + 1> timebuf;
+    const time_t t = std::chrono::system_clock::to_time_t(timestamp);
+
+    struct std::tm gmt;
+    memset(&gmt, 0, sizeof(struct std::tm));
+    mega::m_gmtime(t, &gmt);
+
+    auto microseconds = std::chrono::duration_cast<std::chrono::microseconds>(timestamp - std::chrono::system_clock::from_time_t(t));
+    std::snprintf(timebuf.data(), timebuf.size(), logTimestampFormat,
+                    gmt.tm_year + 1900, gmt.tm_mon + 1, gmt.tm_mday,
+                    gmt.tm_hour, gmt.tm_min, gmt.tm_sec, static_cast<int>(microseconds.count() % 1000000));
+
+    return std::string_view(timebuf.data(), LogTimestampSize);
 }
 
 MegaCmdLogger::MegaCmdLogger() :
@@ -173,7 +180,7 @@ bool MegaCmdLogger::isMegaCmdSource(const std::string &source)
     return megaCmdSourceFiles.find(filename) != megaCmdSourceFiles.end();
 }
 
-void MegaCmdLogger::formatLogToStream(LoggedStream &stream, const char *time, int logLevel, const char *source, const char *message)
+void MegaCmdLogger::formatLogToStream(LoggedStream &stream, std::string_view time, int logLevel, const char *source, const char *message)
 {
     stream << "[";
     if (!isMegaCmdSource(source))
@@ -250,7 +257,7 @@ int MegaCmdSimpleLogger::getMaxLogLevel() const
     return std::max(getCurrentThreadLogLevel(), MegaCmdLogger::getMaxLogLevel());
 }
 
-void MegaCmdSimpleLogger::log(const char *time, int logLevel, const char *source, const char *message)
+void MegaCmdSimpleLogger::log(const char * /*time*/, int logLevel, const char *source, const char *message)
 {
     if (shouldIgnoreMessage(logLevel, source, message))
     {
@@ -259,7 +266,8 @@ void MegaCmdSimpleLogger::log(const char *time, int logLevel, const char *source
 
     if (shouldLogToStream(logLevel, source))
     {
-        formatLogToStream(mLoggedStream, time, logLevel, source, message);
+        const std::string_view nowTimeStr = getNowTimeStr();
+        formatLogToStream(mLoggedStream, nowTimeStr, logLevel, source, message);
 
         if (mLogToOutStream)
         {
@@ -267,7 +275,7 @@ void MegaCmdSimpleLogger::log(const char *time, int logLevel, const char *source
             std::lock_guard<std::mutex> g(mSetmodeMtx);
             int oldmode = _setmode(_fileno(stdout), _O_U8TEXT);
 #endif
-            formatLogToStream(mOutStream, time, logLevel, source, message);
+            formatLogToStream(mOutStream, nowTimeStr, logLevel, source, message);
 
 #ifdef _WIN32
             assert(oldmode != -1);
@@ -278,8 +286,9 @@ void MegaCmdSimpleLogger::log(const char *time, int logLevel, const char *source
 
     if (shouldLogToClient(logLevel, source))
     {
+        const std::string_view nowTimeStr = getNowTimeStr();
         assert(isMegaCmdSource(source)); // if this happens in the sdk thread, this shall be false
-        formatLogToStream(OUTSTREAM, time, logLevel, source, message);
+        formatLogToStream(OUTSTREAM, nowTimeStr, logLevel, source, message);
     }
 }
 

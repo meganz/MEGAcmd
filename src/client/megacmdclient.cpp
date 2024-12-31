@@ -146,10 +146,6 @@ wstring getWAbsPath(wstring localpath)
 
 string clientID; //identifier for a registered state listener
 
-std::mutex promptLogReceivedMtx;
-std::condition_variable promptLogReceivedCV;
-bool promptLogReceived = false;
-
 string getAbsPath(string relativePath)
 {
     if (!relativePath.size())
@@ -726,7 +722,7 @@ void printprogress(long long completed, long long total, const char *title)
     printPercentageLineCerr(title, completed, total, percentDowloaded, !alreadyFinished);
 }
 
-void statechangehandle(string statestring)
+void statechangehandle(string statestring, MegaCmdShellCommunications & comsManager)
 {
     char statedelim[2]={(char)0x1F,'\0'};
     size_t nextstatedelimitpos = statestring.find(statedelim);
@@ -745,11 +741,7 @@ void statechangehandle(string statestring)
         if (newstate.compare(0, strlen("prompt:"), "prompt:") == 0)
         {
             // This is always received after server is first ready
-            {
-                std::lock_guard guard(promptLogReceivedMtx);
-                promptLogReceived = true;
-            }
-            promptLogReceivedCV.notify_one();
+            comsManager.markServerRegistrationFailed();
         }
         else if (newstate.compare(0, strlen("endtransfer:"), "endtransfer:") == 0)
         {
@@ -771,11 +763,10 @@ void statechangehandle(string statestring)
                 wstring wbuffer;
                 stringtolocalw((const char*)os.str().data(),&wbuffer);
                 int oldmode;
-                MegaCmdShellCommunications::megaCmdStdoutputing.lock();
+                std::lock_guard<std::mutex> stdOutLockGuard(comsManager.getStdoutLockGuard());
                 oldmode = _setmode(_fileno(stdout), _O_U8TEXT);
                 OUTSTREAM << wbuffer << flush;
                 _setmode(_fileno(stdout), oldmode);
-                MegaCmdShellCommunications::megaCmdStdoutputing.unlock();
 
 #else
                 OUTSTREAM << os.str();
@@ -784,15 +775,12 @@ void statechangehandle(string statestring)
         }
         else if (newstate.compare(0, strlen("loged:"), "loged:") == 0)
         {
-            {
-                std::lock_guard guard(promptLogReceivedMtx);
-                promptLogReceived = true;
-            }
-            promptLogReceivedCV.notify_one();
+            // non interactive client doesn't need to wait for prompt if login finished
+            comsManager.markServerReady();
         }
         else if (newstate.compare(0, strlen("login:"), "login:") == 0)
         {
-            std::unique_lock<std::mutex> lk(MegaCmdShellCommunications::megaCmdStdoutputing);
+            std::lock_guard<std::mutex> stdOutLockGuard(comsManager.getStdoutLockGuard());
             printCenteredContentsCerr(string("Resuming session ... ").c_str(), width, false);
         }
         else if (newstate.compare(0, strlen("message:"), "message:") == 0)
@@ -802,8 +790,10 @@ void statechangehandle(string statestring)
                 lastMessage = newstate;
 
                 string contents = newstate.substr(strlen("message:"));
+                replaceAll(contents, "%mega-%", "mega-");
 
-                MegaCmdShellCommunications::megaCmdStdoutputing.lock();
+
+                std::lock_guard<std::mutex> stdOutLockGuard(comsManager.getStdoutLockGuard());
                 if (shown_partial_progress)
                 {
                     cerr << endl;
@@ -816,7 +806,6 @@ void statechangehandle(string statestring)
                 {
                     cerr << endl <<  contents << endl;
                 }
-                MegaCmdShellCommunications::megaCmdStdoutputing.unlock();
             }
         }
         else if (newstate.compare(0, strlen("clientID:"), "clientID:") == 0)
@@ -851,31 +840,11 @@ void statechangehandle(string statestring)
                 shown_partial_progress = false;
             }
 
-            MegaCmdShellCommunications::megaCmdStdoutputing.lock();
-            if (title.size())
-            {
-                if (received==SPROGRESS_COMPLETE)
-                {
-                    printprogress(PROGRESS_COMPLETE, charstoll(total.c_str()),title.c_str());
 
-                }
-                else
-                {
-                    printprogress(charstoll(received.c_str()), charstoll(total.c_str()),title.c_str());
-                }
-            }
-            else
-            {
-                if (received==SPROGRESS_COMPLETE)
-                {
-                    printprogress(PROGRESS_COMPLETE, charstoll(total.c_str()));
-                }
-                else
-                {
-                    printprogress(charstoll(received.c_str()), charstoll(total.c_str()));
-                }
-            }
-            MegaCmdShellCommunications::megaCmdStdoutputing.unlock();
+            std::lock_guard<std::mutex> stdOutLockGuard(comsManager.getStdoutLockGuard());
+            long long completed = received == SPROGRESS_COMPLETE ? PROGRESS_COMPLETE : charstoll(received.c_str());
+            const char * progressTitle = title.empty() ? "TRANSFERRING" : title.c_str();
+            printprogress(completed, charstoll(total.c_str()), progressTitle);
         }
         else if (newstate == "ack")
         {
@@ -924,12 +893,13 @@ int executeClient(int argc, char* argv[], OUTSTREAMTYPE & outstream)
 #ifdef _WIN32
     std::unique_ptr<MegaCmdShellCommunications> comms(new MegaCmdShellCommunicationsNamedPipes(redirectedoutput));
 #else
-    std::unique_ptr<MegaCmdShellCommunications> comms(new MegaCmdShellCommunications());
+    std::unique_ptr<MegaCmdShellCommunications> comms(new MegaCmdShellCommunicationsPosix());
 #endif
 
     string command = argv[1];
-    int registerResult = comms->registerForStateChanges(false, statechangehandle, command.compare(0,4,"exit") && command.compare(0,4,"quit") && command.compare(0,10,"completion"));
-    if (registerResult == -1)
+    bool mayInitiateServer = command.compare(0,4,"exit") && command.compare(0,4,"quit") && command.compare(0,10,"completion");
+    bool registeredOk = comms->registerForStateChanges(false, statechangehandle, mayInitiateServer);
+    if (!registeredOk)
     {
         return -2;
     }
@@ -957,11 +927,13 @@ int executeClient(int argc, char* argv[], OUTSTREAMTYPE & outstream)
         isInloginInValidCommands = std::find(loginInValidCommands.begin(), loginInValidCommands.end(), string(argv[1])) != loginInValidCommands.end();
     }
 
-    // If the command requires login, wait for it to finish before proceeding
+    // If the command requires login, let's give it some time before executing it.
+    // We will wait for server to signal readyness
+    // Server readyness is marked by the arrival of prompt
+    // or loging completes. Note: if the login takes larger than RESUME_SESSION_TIMEOUT we will continue and let the command fail if requires login
     if (!isInloginInValidCommands)
     {
-        std::unique_lock lock(promptLogReceivedMtx);
-        promptLogReceivedCV.wait(lock, [&] { return promptLogReceived; });
+        comms->waitForServerReadyOrRegistrationFailed();
     }
 
 #if defined _WIN32 && !defined MEGACMD_TESTING_CODE
@@ -976,6 +948,7 @@ int executeClient(int argc, char* argv[], OUTSTREAMTYPE & outstream)
         outcode = - outcode;
     }
 
+    comms->shutdown();
     return outcode;
 }
 

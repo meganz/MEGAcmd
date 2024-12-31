@@ -7,52 +7,6 @@ import unittest
 import xmlrunner
 from megacmd_tests_common import *
 
-GET="mega-get"
-PUT="mega-put"
-RM="mega-rm"
-MV="mega-mv"
-CP="mega-cp"
-CD="mega-cd"
-LCD="mega-lcd"
-MKDIR="mega-mkdir"
-EXPORT="mega-export -f"
-FIND="mega-find"
-INVITE="mega-invite"
-IPC="mega-ipc"
-FTP="mega-ftp"
-WHOAMI="mega-whoami"
-LOGOUT="mega-logout"
-LOGIN="mega-login"
-ABSPWD=os.getcwd()
-currentTest=1
-
-try:
-    os.environ['VERBOSE']
-    VERBOSE=True
-except:
-    VERBOSE=False
-
-#VERBOSE=True
-
-try:
-    MEGA_EMAIL=os.environ["MEGA_EMAIL"]
-    MEGA_PWD=os.environ["MEGA_PWD"]
- #   MEGA_EMAIL_AUX=os.environ["MEGA_EMAIL_AUX"]
- #   MEGA_PWD_AUX=os.environ["MEGA_PWD_AUX"]
-except:
-    #print >>sys.stderr, "You must define variables MEGA_EMAIL MEGA_PWD MEGA_EMAIL_AUX MEGA_PWD_AUX. WARNING: Use an empty account for $MEGA_EMAIL"
-    print("You must define variables MEGA_EMAIL MEGA_PWD. WARNING: Use an empty account for $MEGA_EMAIL", file=sys.stderr)
-
-    exit(1)
-
-try:
-    MEGACMDSHELL=os.environ['MEGACMDSHELL']
-    CMDSHELL=True
-    #~ FIND="executeinMEGASHELL find" #TODO
-
-except:
-    CMDSHELL=False
-
 def initialize_contents():
     contents=" ".join(['"localtmp/'+x+'"' for x in os.listdir('localtmp/')])
     cmd_ef(PUT+" "+contents+" /")
@@ -163,7 +117,7 @@ def initialize():
     makedir('megaDls')
     makedir('localDls')
 
-ABSMEGADLFOLDER=ABSPWD+'/megaDls'
+#ABSMEGADLFOLDER=ABSPWD+'/megaDls'
 
 
 class MEGAcmdServingTest(unittest.TestCase):
@@ -258,7 +212,6 @@ class MEGAcmdServingTest(unittest.TestCase):
         self.assertEqual(megaDls, localDls)
         if (megaDls == localDls):
             if VERBOSE:
-                print("test "+str(currentTest))
                 print("megaDls:")
                 print(megaDls)
                 print()
@@ -359,7 +312,6 @@ class MEGAcmdServingTest(unittest.TestCase):
 #~ ftp.login("anonymous", "nomatter") #this fails!
 #~ ftp.cwd(subpath)
 
-#~ currentTest=100
 #~ executeTests()
 
 ###################

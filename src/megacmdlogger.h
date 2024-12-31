@@ -22,7 +22,7 @@
 #include "megacmd.h"
 #include "comunicationsmanager.h"
 
-#define OUTSTREAM Instance<ThreadLookupTable>::Get().getCurrentOutStream()
+#define OUTSTREAM getCurrentThreadOutStream()
 
 namespace megacmd {
 class LoggedStream
@@ -40,6 +40,7 @@ public:
     virtual const LoggedStream& operator<<(std::wstring v) const = 0;
 #endif
     virtual const LoggedStream& operator<<(std::string v) const = 0;
+    virtual const LoggedStream& operator<<(std::string_view v) const = 0;
     virtual const LoggedStream& operator<<(int v) const = 0;
     virtual const LoggedStream& operator<<(unsigned int v) const = 0;
     virtual const LoggedStream& operator<<(long unsigned int v) const = 0;
@@ -63,6 +64,7 @@ public:
     const LoggedStream& operator<<(std::wstring v) const override { return *this; }
 #endif
     const LoggedStream& operator<<(std::string v) const override { return *this; }
+    const LoggedStream& operator<<(std::string_view v) const override { return *this; }
     const LoggedStream& operator<<(int v) const override { return *this; }
     const LoggedStream& operator<<(unsigned int v) const override { return *this; }
     const LoggedStream& operator<<(long unsigned int v) const override { return *this; }
@@ -109,6 +111,9 @@ public:
     virtual const LoggedStream& operator<<(const char* v) const override { *out << v;return *this; }
 #ifdef _WIN32
     virtual const LoggedStream& operator<<(std::wstring v) const override { *out << v;return *this; }
+    virtual const LoggedStream& operator<<(std::string_view v) const override { *out << std::string(v);return *this; }
+#else
+    virtual const LoggedStream& operator<<(std::string_view v) const override { *out << v;return *this; }
 #endif
     virtual const LoggedStream& operator<<(std::string v) const override { *out << v;return *this; }
     virtual const LoggedStream& operator<<(int v) const override { *out << v;return *this; }
@@ -146,6 +151,7 @@ public:
 #else
     virtual const LoggedStream& operator<<(std::string v) const override { cm->sendPartialOutput(inf, &v); return *this; }
 #endif
+    virtual const LoggedStream& operator<<(std::string_view v) const override { cm->sendPartialOutput(inf, (char*) v.data(), v.size()); return *this; }
 
     virtual const LoggedStream& operator<<(int v) const override { OUTSTRINGSTREAM os; os << v; OUTSTRING s = os.str(); cm->sendPartialOutput(inf, &s); return *this; }
     virtual const LoggedStream& operator<<(unsigned int v) const override { OUTSTRINGSTREAM os; os << v; OUTSTRING s = os.str(); cm->sendPartialOutput(inf, &s); return *this; }
@@ -167,56 +173,34 @@ protected:
     CmdPetition *inf;
 };
 
-class ThreadLookupTable final
+struct ThreadData
 {
-    struct ThreadData
-    {
-        LoggedStream *outStream;
-        int logLevel;
-        int outCode;
-        CmdPetition *cmdPetition;
-        bool isCmdShell;
-
-        ThreadData();
-    };
-
-    mutable std::mutex mMapMutex;
-    std::map<uint64_t, ThreadData> mThreadMap;
-
-    ThreadData getThreadData(uint64_t id) const;
-    ThreadData getCurrentThreadData() const;
-    bool threadDataExists(uint64_t id) const;
-
-public:
-    LoggedStream &getCurrentOutStream() const;
-    int getCurrentLogLevel() const;
-    int getCurrentOutCode() const;
-    CmdPetition *getCurrentCmdPetition() const;
-    bool isCurrentCmdShell() const;
-
-    void setCurrentOutStream(LoggedStream &outStream);
-    void setCurrentLogLevel(int logLevel);
-    void setCurrentOutCode(int outCode);
-    void setCurrentCmdPetition(CmdPetition *cmdPetition);
-    void setCurrentIsCmdShell(bool isCmdShell);
-
-    bool isCurrentThreadInteractive() const;
-    const char* getModeCommandPrefix() const;
+    LoggedStream *mOutStream = &Instance<DefaultLoggedStream>::Get().getLoggedStream();
+    int mLogLevel = -1;
+    int mOutCode = 0;
+    CmdPetition *mCmdPetition = nullptr;
+    bool mIsCmdShell = false;
 };
 
-inline int getCurrentThreadLogLevel()             { return Instance<ThreadLookupTable>::Get().getCurrentLogLevel(); }
-inline int getCurrentThreadOutCode()              { return Instance<ThreadLookupTable>::Get().getCurrentOutCode(); }
-inline CmdPetition *getCurrentThreadCmdPetition() { return Instance<ThreadLookupTable>::Get().getCurrentCmdPetition(); }
-inline bool isCurrentThreadCmdShell()             { return Instance<ThreadLookupTable>::Get().isCurrentCmdShell(); }
+ThreadData &getCurrentThreadData();
+const char* getCommandPrefixBasedOnMode();
+bool isCurrentThreadInteractive();
 
-inline void setCurrentThreadOutStream(LoggedStream &outStream)    { Instance<ThreadLookupTable>::Get().setCurrentOutStream(outStream); }
-inline void setCurrentThreadOutCode(int outCode)                  { Instance<ThreadLookupTable>::Get().setCurrentOutCode(outCode); }
-inline void setCurrentThreadLogLevel(int logLevel)                { Instance<ThreadLookupTable>::Get().setCurrentLogLevel(logLevel); }
-inline void setCurrentThreadCmdPetition(CmdPetition *cmdPetition) { Instance<ThreadLookupTable>::Get().setCurrentCmdPetition(cmdPetition); }
-inline void setCurrentThreadIsCmdShell(bool isCmdShell)           { Instance<ThreadLookupTable>::Get().setCurrentIsCmdShell(isCmdShell); }
+inline LoggedStream &getCurrentThreadOutStream()  { return *getCurrentThreadData().mOutStream; }
+inline int getCurrentThreadLogLevel()             { return getCurrentThreadData().mLogLevel; }
+inline int getCurrentThreadOutCode()              { return getCurrentThreadData().mOutCode; }
+inline CmdPetition *getCurrentThreadCmdPetition() { return getCurrentThreadData().mCmdPetition; }
+inline bool isCurrentThreadCmdShell()             { return getCurrentThreadData().mIsCmdShell; }
 
-inline bool isCurrentThreadInteractive()         { return Instance<ThreadLookupTable>::Get().isCurrentThreadInteractive(); }
-inline const char *getCommandPrefixBasedOnMode() { return Instance<ThreadLookupTable>::Get().getModeCommandPrefix(); }
+void setCurrentThreadOutStream(LoggedStream &outStream);
+void setCurrentThreadOutCode(int outCode);
+void setCurrentThreadLogLevel(int logLevel);
+void setCurrentThreadCmdPetition(CmdPetition *cmdPetition);
+void setCurrentThreadIsCmdShell(bool isCmdShell);
+
+constexpr size_t LogTimestampSize = std::char_traits<char>::length("2024-12-27_16-33-12.654787");
+std::optional<std::chrono::time_point<std::chrono::system_clock>> stringToTimestamp(std::string_view str);
+std::string_view timestampToString(std::chrono::time_point<std::chrono::system_clock> timestamp);
 
 class MegaCmdLogger : public mega::MegaLogger
 {
@@ -227,7 +211,7 @@ class MegaCmdLogger : public mega::MegaLogger
 protected:
     static bool isMegaCmdSource(const std::string &source);
 
-    void formatLogToStream(LoggedStream& stream, const char *time, int logLevel, const char *source, const char *message);
+    void formatLogToStream(LoggedStream& stream, std::string_view time, int logLevel, const char *source, const char *message);
     bool shouldIgnoreMessage(int logLevel, const char *source, const char *message) const;
 
 public:

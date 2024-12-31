@@ -6,49 +6,12 @@ import unittest
 import xmlrunner
 from megacmd_tests_common import *
 
-GET="mega-get"
-PUT="mega-put"
-RM="mega-rm"
-MV="mega-mv"
-CP="mega-cp"
-CD="mega-cd"
-THUMB="mega-thumbnail"
-LCD="mega-lcd"
-MKDIR="mega-mkdir"
-EXPORT="mega-export -f"
-FIND="mega-find"
-INVITE="mega-invite"
-IPC="mega-ipc"
-WHOAMI="mega-whoami"
-LOGOUT="mega-logout"
-LOGIN="mega-login"
-
 def setUpModule():
-    global VERBOSE
-    global MEGA_PWD
-    global MEGA_EMAIL
-    global MEGA_EMAIL_AUX
-    global MEGA_PWD_AUX
-    global MEGACMDSHELL
-    global CMDSHELL
     global ABSPWD
     global ABSMEGADLFOLDER
-
     ABSPWD = os.getcwd()
     ABSMEGADLFOLDER=ABSPWD+'/megaDls'
-    VERBOSE = 'VERBOSE' in os.environ
 
-    if "MEGA_EMAIL" in os.environ and "MEGA_PWD" in os.environ and "MEGA_EMAIL_AUX" in os.environ and "MEGA_PWD_AUX" in os.environ:
-        MEGA_EMAIL=os.environ["MEGA_EMAIL"]
-        MEGA_PWD=os.environ["MEGA_PWD"]
-        MEGA_EMAIL_AUX=os.environ["MEGA_EMAIL_AUX"]
-        MEGA_PWD_AUX=os.environ["MEGA_PWD_AUX"]
-    else:
-        raise Exception("Environment variables MEGA_EMAIL, MEGA_PWD, MEGA_EMAIL_AUX, MEGA_PWD_AUX are not defined. WARNING: Use an empty account for $MEGA_EMAIL")
-
-    CMDSHELL= "MEGACMDSHELL" in os.environ
-    if CMDSHELL:
-        MEGACMDSHELL=os.environ["MEGACMDSHELL"]
 def initialize_contents():
     cmd_ec(INVITE+" "+osvar("MEGA_EMAIL_AUX"))
     cmd_ef(LOGOUT)
@@ -161,7 +124,6 @@ def initialize():
 
     #initialize dynamic contents:
     clear_local_and_remote()
-
 
 if VERBOSE: print("STARTING...")
 
@@ -313,18 +275,18 @@ class MEGAcmdMiscTest(unittest.TestCase):
         copyfolder("localUPs/le01", "localUPs/lf01/")
         self.compare_find('/')
 
-    @unittest.skipIf(CMDSHELL, "only for non CMDSHELL")
     def test_10_send_to_non_contact(self):
-        #Test 24 #send to non contact
-        o,status=cmd_ec(CP+" *.txt badContact"+MEGA_EMAIL_AUX+':')
-        self.check_failed_and_clear(o,status)
+        o, status = cmd_ec(f'{CP} *.txt badContact{MEGA_EMAIL_AUX}:')
+        if not CMDSHELL:
+            self.check_failed_and_clear(o, status)
+        self.assertIn('failed to send file to user: not found', o.decode().lower())
 
-    @unittest.skipIf(CMDSHELL, "only for non CMDSHELL")
     def test_11_multicopy_into_file(self):
-        #Test 25 #multicopy into file
-        o,status=cmd_ec(CP+" *.txt /le01/file01nonempty.txt")
-        self.check_failed_and_clear(o,status)
-
+        bad_folder = '/le01/file01nonempty.txt'
+        o, status = cmd_ec(f'{CP} *.txt {bad_folder}')
+        if not CMDSHELL:
+            self.check_failed_and_clear(o, status)
+        self.assertIn(f'{bad_folder} must be a valid folder', o.decode().lower())
 
     def test_12_copy_into_existing_file(self):
         #Test 25 #copy into existing file
@@ -406,7 +368,7 @@ class MEGAcmdMiscTest(unittest.TestCase):
                        self.check_failed_and_clear(fullout,fullStatus))
 
     @unittest.skipIf('SKIP_PDF_THUMBNAIL_TESTS' in os.environ, "only for systems where pdfium is enabled")
-    def test_20_pdf_thumnail(self):
+    def test_20_pdf_thumbnail(self):
         print(f"using pdfsURL: {self.pdfsURL}")
         cmd_ef(GET+" "+self.pdfsURL+" localtmp/")
 
@@ -430,7 +392,7 @@ class MEGAcmdMiscTest(unittest.TestCase):
             if not True in [x.encode() in f for x in allowedFailure] and b"saved in" not in o: #note: output code is not trustworthy: check for "saved in"
                 fullout=fullout+str("missing thumbnail for:"+str(f)+"\n")
                 fullStatus=0
-                print(status, f"{status} missing thumbnail: {f}")
+                print(f'{status} missing thumbnail: {f}')
                 print(o)
                 self.check_failed_and_clear(fullout,fullStatus)
 

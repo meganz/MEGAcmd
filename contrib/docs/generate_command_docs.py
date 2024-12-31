@@ -60,10 +60,10 @@ class CommandTable:
         command_lines = command_detail.split('\n', maxsplit=3)
 
         # Does not start with <command_name>; not a command
-        if not re.match(r'<\w+>', command_lines[0]):
+        if not re.match(r'<[\w-]+>', command_lines[0]):
             return
 
-        command_name = re.search(r'<(\w+)>', command_lines[0]).group(1)
+        command_name = re.search(r'<([\w-]+)>', command_lines[0]).group(1)
         usage = re.search(r'Usage: (.+)', command_lines[1]).group(1)
         summary = command_lines[2]
         description = command_lines[3] if len(command_lines) > 3 else ''
@@ -116,7 +116,7 @@ def get_commands_by_category(ct):
         'Account / Contacts': ['signup', 'confirm', 'invite', 'showpcr', 'ipc', 'users', 'userattr', 'passwd', 'masterkey'],
         'Login / Logout': ['login', 'logout', 'whoami', 'session', 'killsession'],
         'Browse': ['cd', 'lcd', 'ls', 'pwd', 'lpwd', 'attr', 'du', 'find', 'mount'],
-        'Moving / Copying files': ['mkdir', 'cp', 'put', 'get', 'preview', 'thumbnail', 'mv', 'rm', 'transfers', 'speedlimit', 'sync', 'exclude', 'backup'],
+        'Moving / Copying files': ['mkdir', 'cp', 'put', 'get', 'preview', 'thumbnail', 'mv', 'rm', 'transfers', 'speedlimit', 'sync', 'sync-issues', 'sync-ignore', 'exclude', 'backup'],
         'Sharing (your own files, of course, without infringing any copyright)': ['export', 'import', 'share', 'webdav'],
     }
 

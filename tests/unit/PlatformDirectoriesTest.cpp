@@ -18,41 +18,8 @@
 
 #include "Instruments.h"
 #include "TestUtils.h"
-#include "megacmdcommonutils.h"
 
 #include "configurationmanager.h"
-
-#ifndef WIN32
-#include <filesystem>
-namespace fs = std::filesystem;
-
-class SelfDeletingTmpFolder
-{
-    fs::path mTempDir;
-
-public:
-    SelfDeletingTmpFolder()
-    {
-        mTempDir = fs::temp_directory_path() / fs::path(megacmd::generateRandomAlphaNumericString(10));
-        fs::create_directory(mTempDir);
-    }
-
-    ~SelfDeletingTmpFolder()
-    {
-        fs::remove_all(mTempDir);
-    }
-
-    std::string string(){
-        return mTempDir.string();
-    }
-
-    fs::path path()
-    {
-        return mTempDir;
-    }
-};
-#endif
-
 
 TEST(PlatformDirectoriesTest, runtimeDirPath)
 {

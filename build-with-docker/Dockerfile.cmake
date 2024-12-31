@@ -8,8 +8,12 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     apt-get update \
     && apt-get install -y --no-install-recommends \
-    cmake zip pkg-config curl python3 python3-pip autoconf-archive nasm git g++ \
-    && python3 -m pip install unittest-xml-reporting --break-system-packages
+    cmake zip pkg-config curl python3 python3-pip autoconf-archive nasm git g++ uuid-runtime zstd \
+    && python3 -m pip install unittest-xml-reporting pexpect --break-system-packages
+
+RUN if [ ! -e /etc/machine-id ]; then \
+        uuidgen > /etc/machine-id; \
+    fi
 
 FROM base as build-deps-cmake
 

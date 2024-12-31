@@ -26,10 +26,13 @@
 
 #include <memory>
 #include <future>
+#include <filesystem>
 
 #include <sstream>
 
 #include <gmock/gmock.h>
+
+#include "megacmdcommonutils.h"
 
 #define ULOG_COLOR(color, fmt, ...) \
     do { if (isatty(1)) printf(color fmt "\033[0m\n", ##__VA_ARGS__); \
@@ -147,5 +150,33 @@ MATCHER_P(ContainsStdRegex, pattern, "")
     *result_listener << "where the string '" << arg << "' contains the std::regex '" << pattern << "'";
     std::regex regex(pattern);
     return std::regex_search(arg, regex);
-
 }
+
+namespace fs = std::filesystem;
+
+class SelfDeletingTmpFolder
+{
+    fs::path mTempDir;
+
+public:
+    SelfDeletingTmpFolder()
+    {
+        mTempDir = fs::temp_directory_path() / fs::path(megacmd::generateRandomAlphaNumericString(10));
+        fs::create_directory(mTempDir);
+    }
+
+    ~SelfDeletingTmpFolder()
+    {
+        fs::remove_all(mTempDir);
+    }
+
+    std::string string() const
+    {
+        return mTempDir.string();
+    }
+
+    fs::path path() const
+    {
+        return mTempDir;
+    }
+};
