@@ -203,6 +203,7 @@ add_source_and_corresponding_header_to_target(LMegacmdServer
     "${ProjectDir}/src/sync_command.cpp"
     "${ProjectDir}/src/sync_issues.cpp"
     "${ProjectDir}/src/sync_ignore.cpp"
+    "${ProjectDir}/src/megacmd_fuse.cpp"
 )
 
 target_sources_conditional(LMegacmdServer

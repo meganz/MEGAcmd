@@ -93,69 +93,6 @@ private:
         }
     }
 
-    // Convenience.
-    template<typename T>
-    using FromStringMap = std::map<std::string, T>;
-
-    using FuseOperation =
-      std::function<void(const char*,
-                         mega::MegaRequestListener*,
-                         bool)>;
-
-    using StringVector = std::vector<std::string>;
-
-    // FUSE operations.
-    template<typename T>
-    bool fuseArgument(const StringVector& arguments,
-                      const FromStringMap<std::string>& options,
-                      T& destination,
-                      const std::string& name);
-
-    void fuseAddMount(const StringVector& arguments,
-                      const FromStringMap<int>& flags,
-                      const FromStringMap<std::string>& options);
-
-    void fuseDisableMount(const StringVector& arguments,
-                          const FromStringMap<int>& flags,
-                          const FromStringMap<std::string>& options);
-
-    void fuseEnableMount(const StringVector& arguments,
-                         const FromStringMap<int>& flags,
-                         const FromStringMap<std::string>& options);
-
-    void fuseFlags(const StringVector& arguments,
-                   const FromStringMap<int>& flags,
-                   const FromStringMap<std::string>& options);
-
-    void fuseShowMounts(const StringVector& arguments,
-                        const FromStringMap<int>& flags,
-                        const FromStringMap<std::string>& options);
-
-    void fuseListMounts(const StringVector& arguments,
-                        const FromStringMap<int>& flags,
-                        const FromStringMap<std::string>& options);
-
-    void fuseMountFlags(const StringVector& arguments,
-                        const FromStringMap<int>& flags,
-                        const FromStringMap<std::string>& options);
-
-    void fuseMountInfo(const StringVector& arguments,
-                       const FromStringMap<int>& flags,
-                       const FromStringMap<std::string>& options);
-
-    std::string fuseNameOrPath(const std::string& command,
-                               const FromStringMap<std::string>& options);
-
-    void fuseOperate(const StringVector& arguments,
-                     const FromStringMap<int>& flags,
-                     const FuseOperation operation,
-                     const std::string& action,
-                     const FromStringMap<std::string>& options);
-
-    void fuseRemoveMount(const StringVector& arguments,
-                         const FromStringMap<int>& flags,
-                         const FromStringMap<std::string>& options);
-
 public:
     bool signingup;
     bool confirming;
