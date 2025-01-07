@@ -98,7 +98,7 @@ void utf16ToUtf8(const wchar_t* utf16data, int utf16size, std::string* utf8strin
 
 /* commands */
 static std::vector<std::string> validGlobalParameters {"v", "help"};
-static std::vector<std::string> localremotefolderpatterncommands {"sync"};
+static std::vector<std::string> localremotefolderpatterncommands {"sync", "fuse-add"};
 static std::vector<std::string> remotepatterncommands {"export", "attr"};
 static std::vector<std::string> remotefolderspatterncommands {"cd", "share"};
 
