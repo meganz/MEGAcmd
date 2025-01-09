@@ -838,7 +838,7 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     {
         validParams->insert("show-handles");
     }
-#if defined(WITH_FUSE)
+#ifdef WITH_FUSE
     // FUSE commands.
     if (thecommand == "fuse-add")
     {
@@ -2032,7 +2032,7 @@ const char * getUsageStr(const char *command, const HelpFlags& flags)
         return "update [--auto=on|off|query]";
     }
 
-#if defined(WITH_FUSE)
+#ifdef WITH_FUSE
     // FUSE commands.
     if (!strcmp(command, "fuse-add"))
     {
@@ -3286,7 +3286,7 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << endl;
         os << "Note: this command is only available on some versions of Windows" << endl;
     }
-#if defined(WITH_FUSE)
+#ifdef WITH_FUSE
     else if (!strcmp(command, "fuse-add"))
     {
         os << "Adds a new FUSE mount to the database." << endl;

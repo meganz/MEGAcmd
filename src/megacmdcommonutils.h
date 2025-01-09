@@ -153,7 +153,7 @@ static std::vector<std::string> allValidCommands { "login", "signup", "confirm",
 #if defined(_WIN32) || defined(__APPLE__)
                              , "update"
 #endif
-#if defined(WITH_FUSE)
+#ifdef WITH_FUSE
                              // FUSE commands
                              , "fuse-add"
                              , "fuse-disable"
