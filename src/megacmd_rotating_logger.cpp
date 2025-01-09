@@ -53,126 +53,6 @@ std::string outstringToString(const OUTSTRING& outstring)
 
 namespace megacmd {
 
-MessageBuffer::MemoryBlock::MemoryBlock(size_t capacity) :
-    mBuffer(new char[capacity]()),
-    mSize(0),
-    mCapacity(capacity),
-    mMemoryAllocationFailed(mBuffer == nullptr)
-{
-    assert(mCapacity > 0);
-}
-
-bool MessageBuffer::MemoryBlock::canAppendData(size_t dataSize) const
-{
-    // The last byte of buffer is reserved for '\0'
-    return !mMemoryAllocationFailed && mSize + dataSize < mCapacity;
-}
-
-bool MessageBuffer::MemoryBlock::isNearCapacity() const
-{
-    return mSize + mCapacity/8 > mCapacity;
-}
-
-bool MessageBuffer::MemoryBlock::memoryAllocationFailed() const
-{
-    return mMemoryAllocationFailed;
-}
-
-const char* MessageBuffer::MemoryBlock::getBuffer() const
-{
-    return mBuffer.get();
-}
-
-void MessageBuffer::MemoryBlock::markMemoryAllocationFailed()
-{
-    mMemoryAllocationFailed = true;
-}
-
-void MessageBuffer::MemoryBlock::appendData(const char* data, size_t size)
-{
-    assert(canAppendData(size));
-    assert(data && size > 0);
-
-    std::memcpy(mBuffer.get() + mSize, data, size);
-    mSize += size;
-
-    // Append null after the last character so the buffer
-    // is properly treated as a C-string
-    mBuffer[mSize] = '\0';
-}
-
-MessageBuffer::MessageBuffer(size_t defaultBlockCapacity, size_t failSafeSize) :
-    mDefaultBlockCapacity(defaultBlockCapacity),
-    mFailSafeSize(failSafeSize),
-    mInitialMemoryError(false)
-{
-    assert(mDefaultBlockCapacity > 0);
-    assert(mFailSafeSize > 0);
-    assert(mFailSafeSize > mDefaultBlockCapacity);
-}
-
-void MessageBuffer::append(const char* data, size_t size)
-{
-    std::lock_guard lock(mListMtx);
-
-    auto* lastBlock = mList.empty() ? nullptr : &mList.back();
-    if (!lastBlock || !lastBlock->canAppendData(size))
-    {
-        try
-        {
-            mList.emplace_back(mDefaultBlockCapacity);
-        }
-        catch (const std::bad_alloc&)
-        {
-            if (lastBlock)
-            {
-                // If there's a bad_alloc exception when adding to a vector, it remains unchanged
-                // So we let the last block know its allocation failed
-                lastBlock->markMemoryAllocationFailed();
-            }
-            else
-            {
-                // If there's not even a last block, then the error is at the start
-                mInitialMemoryError = true;
-            }
-            return;
-        }
-
-        lastBlock = &mList.back();
-    }
-
-    if (lastBlock->canAppendData(size))
-    {
-        lastBlock->appendData(data, size);
-    }
-}
-
-MessageBuffer::MemoryBlockList MessageBuffer::popMemoryBlockList(bool& initialMemoryError)
-{
-    std::lock_guard lock(mListMtx);
-    initialMemoryError = mInitialMemoryError;
-    mInitialMemoryError = false;
-    return std::move(mList);
-}
-
-bool MessageBuffer::isEmpty() const
-{
-    std::lock_guard lock(mListMtx);
-    return mList.empty();
-}
-
-bool MessageBuffer::isNearLastBlockCapacity() const
-{
-    std::lock_guard lock(mListMtx);
-    return !mList.empty() && mList.back().isNearCapacity();
-}
-
-bool MessageBuffer::reachedFailSafeSize() const
-{
-    std::lock_guard lock(mListMtx);
-    return mList.size() > mFailSafeSize / mDefaultBlockCapacity;
-}
-
 class BaseEngine
 {
 protected:
@@ -549,7 +429,7 @@ void FileRotatingLoggedStream::mainLoop()
 }
 
 FileRotatingLoggedStream::FileRotatingLoggedStream(const OUTSTRING& outputFilePath) :
-    mMessageBuffer(2048 /* 2KB */, 500 * 1024 * 1024 /* 500MB */),
+    mMessageBuffer(500 * 1024 * 1024 /* 500MB */),
     mOutputFilePath(outstringToString(outputFilePath)),
     mOutputFile(outputFilePath, std::ofstream::out | std::ofstream::app),
     mFileManager(mOutputFilePath),
