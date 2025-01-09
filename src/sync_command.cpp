@@ -121,7 +121,7 @@ std::pair<std::optional<string>, std::optional<string>> getErrorsAndSetOutCode(M
 
     if (hasMegaError)
     {
-        setCurrentOutCode(errorCode);
+        setCurrentThreadOutCode(errorCode);
         errorOpt = listener.getError()->getErrorString();
     }
 
@@ -129,7 +129,7 @@ std::pair<std::optional<string>, std::optional<string>> getErrorsAndSetOutCode(M
     {
         if (!hasMegaError)
         {
-            setCurrentOutCode(MCMD_INVALIDSTATE);
+            setCurrentThreadOutCode(MCMD_INVALIDSTATE);
         }
 
         std::unique_ptr<const char[]> syncErrorStr(mega::MegaSync::getMegaSyncErrorCode(syncError));
@@ -215,14 +215,14 @@ void addSync(mega::MegaApi& api, const fs::path& localPath, mega::MegaNode& node
 
     if (node.getType() == mega::MegaNode::TYPE_FILE)
     {
-        setCurrentOutCode(MCMD_NOTPERMITTED);
+        setCurrentThreadOutCode(MCMD_NOTPERMITTED);
         LOG_err << "Remote sync root " << nodePath << " must be a directory";
         return;
     }
 
     if (api.getAccess(&node) < mega::MegaShare::ACCESS_FULL)
     {
-        setCurrentOutCode(MCMD_NOTPERMITTED);
+        setCurrentThreadOutCode(MCMD_NOTPERMITTED);
         LOG_err << "Syncing requires full access to path (current access: " << api.getAccess(&node) << ")";
         return;
     }

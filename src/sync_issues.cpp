@@ -654,9 +654,9 @@ namespace SyncIssuesCommand
         if (rowCountLimit < syncIssues.size())
         {
             OUTSTREAM << "Note: showing " << rowCountLimit << " out of " << syncIssues.size() << " issues. "
-                      << "Use \"" << commandPrefixBasedOnMode() << "sync-issues --limit=0\" to see all of them." << endl;
+                      << "Use \"" << getCommandPrefixBasedOnMode() << "sync-issues --limit=0\" to see all of them." << endl;
         }
-        OUTSTREAM << "Use \"" << commandPrefixBasedOnMode() << "sync-issues --detail <ISSUE_ID>\" to get further details on a specific issue." << endl;
+        OUTSTREAM << "Use \"" << getCommandPrefixBasedOnMode() << "sync-issues --detail <ISSUE_ID>\" to get further details on a specific issue." << endl;
     }
 
     void printSingleIssueDetail(mega::MegaApi& api, megacmd::ColumnDisplayer& cd, const SyncIssue& syncIssue, bool disablePathCollapse, int rowCountLimit)
@@ -714,7 +714,7 @@ namespace SyncIssuesCommand
         {
             OUTSTREAM << endl;
             OUTSTREAM << "Note: showing " << rowCountLimit << " out of " << static_cast<unsigned int>(pathProblems.size()) << " path problems. "
-                      << "Use \"" << commandPrefixBasedOnMode() << "sync-issues --detail " << syncIssue.getId() << " --limit=0\" to see all of them." << endl;
+                      << "Use \"" << getCommandPrefixBasedOnMode() << "sync-issues --detail " << syncIssue.getId() << " --limit=0\" to see all of them." << endl;
         }
     }
 

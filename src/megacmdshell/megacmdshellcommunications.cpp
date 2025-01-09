@@ -179,7 +179,6 @@ SOCKET MegaCmdShellCommunicationsPosix::createSocket(int number, bool initialize
 
                 std::vector<const char*> argsVector{
                     executable,
-                    "--log-to-file",
                     nullptr
                 };
 

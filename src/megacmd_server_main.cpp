@@ -18,6 +18,7 @@
 
 
 #include "megacmdlogger.h"
+#include "megacmd_rotating_logger.h"
 
 #include <vector>
 
@@ -183,6 +184,7 @@ int main(int argc, char* argv[])
 
     waitIfRequired(args);
 
+    constexpr bool logToCout = true;
     auto logLevels = getLogLevels(args);
     int sdkLogLevel = logLevels.first;
     int cmdLogLevel = logLevels.second;
@@ -193,19 +195,12 @@ int main(int argc, char* argv[])
     extractargparam(args, "--apiurl", debug_api_url);  // only for debugging
     bool disablepkp = extractarg(args, "--disablepkp");  // only for debugging
 
-    bool logToFile = extractarg(args, "--log-to-file");  // only for debugging
-
-    std::function<megacmd::LoggedStream*()> createLoggedStream;
-    if (logToFile)
+    auto createLoggedStream = []
     {
-        createLoggedStream = [] { return new megacmd::LoggedStreamDefaultFile(); };
-    }
-    else
-    {
-        // log to stdout
-        createLoggedStream = [] { return new megacmd::LoggedStreamOutStream(&COUT); };
-    }
+        return new megacmd::FileRotatingLoggedStream(megacmd::MegaCmdLogger::getDefaultFilePath());
+    };
 
     return megacmd::executeServer(argc, argv, createLoggedStream,
-                                  sdkLogLevel, cmdLogLevel, skiplockcheck, debug_api_url, disablepkp);
+                                  logToCout, sdkLogLevel, cmdLogLevel,
+                                  skiplockcheck, debug_api_url, disablepkp);
 }

@@ -65,7 +65,7 @@ void MegaCmdGlobalListener::onUsersUpdate(MegaApi *api, MegaUserList *users1)
     }
 }
 
-MegaCmdGlobalListener::MegaCmdGlobalListener(MegaCMDLogger *logger, MegaCmdSandbox *sandboxCMD)
+MegaCmdGlobalListener::MegaCmdGlobalListener(MegaCmdLogger *logger, MegaCmdSandbox *sandboxCMD)
 {
     this->loggerCMD = logger;
     this->sandboxCMD = sandboxCMD;

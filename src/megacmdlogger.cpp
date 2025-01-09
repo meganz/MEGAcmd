@@ -21,6 +21,7 @@
 #include "megacmd_src_file_list.h"
 
 #include <map>
+#include <filesystem>
 
 #include <sys/types.h>
 
@@ -36,163 +37,139 @@
 #endif
 #endif
 
+namespace fs = std::filesystem;
 using namespace mega;
 
 namespace megacmd {
-// different outstreams for every thread. to gather all the output data
-std::mutex threadLookups;
-map<uint64_t, LoggedStream *> outstreams;
-map<uint64_t, int> threadLogLevel;
-map<uint64_t, int> threadoutCode;
-map<uint64_t, CmdPetition *> threadpetition;
-map<uint64_t, bool> threadIsCmdShell;
 
-LoggedStream &getCurrentOut()
-{
-    std::lock_guard<std::mutex> g(threadLookups);
-    uint64_t currentThread = MegaThread::currentThreadId();
-    if (outstreams.find(currentThread) == outstreams.end())
+namespace {
+    constexpr const char* sLogTimestampFormat = "%04d-%02d-%02d_%02d-%02d-%02d.%06d";
+    thread_local bool isThreadDataSet = false;
+
+    std::string getNowTimeStr()
     {
-        return Instance<DefaultLoggedStream>::Get().getLoggedStream();
-    }
-    else
-    {
-        return *outstreams[currentThread];
+        return timestampToString(std::chrono::system_clock::now());
     }
 }
 
-bool interactiveThread()
+ThreadData &getCurrentThreadData()
 {
-    if (getCurrentThreadIsCmdShell())
-    {
-        return true;
-    }
-
-    unsigned long long currentThread = MegaThread::currentThreadId();
-
-    std::lock_guard<std::mutex> g(threadLookups);
-    if (outstreams.find(currentThread) == outstreams.end())
-    {
-        return true;
-    }
-    else
-    {
-        return false;
-    }
+    thread_local ThreadData threadData;
+    return threadData;
 }
 
-const char *commandPrefixBasedOnMode()
+const char* getCommandPrefixBasedOnMode()
 {
-    if (interactiveThread())
+    if (isCurrentThreadInteractive())
     {
         return "";
     }
-    else
+    return "mega-";
+}
+
+bool isCurrentThreadInteractive()
+{
+    return isCurrentThreadCmdShell() || !isThreadDataSet;
+}
+
+void setCurrentThreadOutStream(LoggedStream &outStream)
+{
+    isThreadDataSet = true;
+    getCurrentThreadData().mOutStream = &outStream;
+}
+
+void setCurrentThreadOutCode(int outCode)
+{
+    isThreadDataSet = true;
+    getCurrentThreadData().mOutCode = outCode;
+}
+
+void setCurrentThreadLogLevel(int logLevel)
+{
+    isThreadDataSet = true;
+    getCurrentThreadData().mLogLevel = logLevel;
+}
+
+void setCurrentThreadCmdPetition(CmdPetition *cmdPetition)
+{
+    isThreadDataSet = true;
+    getCurrentThreadData().mCmdPetition = cmdPetition;
+}
+
+void setCurrentThreadIsCmdShell(bool isCmdShell)
+{
+    isThreadDataSet = true;
+    getCurrentThreadData().mIsCmdShell = isCmdShell;
+}
+
+std::optional<std::chrono::time_point<std::chrono::system_clock>> stringToTimestamp(std::string_view str)
+{
+    if (str.size() != LogTimestampSize)
     {
-        return "mega-";
+        return std::nullopt;
     }
-}
 
-int getCurrentOutCode()
-{
-    unsigned long long currentThread = MegaThread::currentThreadId();
-
-    std::lock_guard<std::mutex> g(threadLookups);
-    if (threadoutCode.find(currentThread) == threadoutCode.end())
+    int years, months, days, hours, minutes, seconds, microseconds;
+    int parsed = std::sscanf(str.data(), sLogTimestampFormat,
+                             &years, &months, &days, &hours, &minutes, &seconds, &microseconds);
+    if (parsed != 7)
     {
-        return 0; //default OK
+        return std::nullopt;
     }
-    else
-    {
-        return threadoutCode[currentThread];
-    }
+
+    struct std::tm gmt;
+    memset(&gmt, 0, sizeof(struct std::tm));
+    gmt.tm_year = years - 1900;
+    gmt.tm_mon = months - 1;
+    gmt.tm_mday = days;
+    gmt.tm_hour = hours;
+    gmt.tm_min = minutes;
+    gmt.tm_sec = seconds;
+
+#ifdef _WIN32
+    const time_t t = _mkgmtime(&gmt);
+#else
+    const time_t t = timegm(&gmt);
+#endif
+
+    const auto time_point = std::chrono::system_clock::from_time_t(t);
+    return time_point + std::chrono::microseconds(microseconds);
 }
 
-
-CmdPetition * getCurrentPetition()
+std::string timestampToString(std::chrono::time_point<std::chrono::system_clock> timestamp)
 {
-    unsigned long long currentThread = MegaThread::currentThreadId();
+    std::array<char, LogTimestampSize + 1> timebuf;
+    const time_t t = std::chrono::system_clock::to_time_t(timestamp);
 
-    std::lock_guard<std::mutex> g(threadLookups);
-    if (threadpetition.find(currentThread) == threadpetition.end())
-    {
-        return NULL;
-    }
-    else
-    {
-        return threadpetition[currentThread];
-    }
+    struct std::tm gmt;
+    memset(&gmt, 0, sizeof(struct std::tm));
+    mega::m_gmtime(t, &gmt);
+
+    auto microseconds = std::chrono::duration_cast<std::chrono::microseconds>(timestamp - std::chrono::system_clock::from_time_t(t));
+    std::snprintf(timebuf.data(), timebuf.size(), sLogTimestampFormat,
+                  gmt.tm_year + 1900, gmt.tm_mon + 1, gmt.tm_mday,
+                  gmt.tm_hour, gmt.tm_min, gmt.tm_sec, static_cast<int>(microseconds.count() % 1000000));
+
+    return std::string(timebuf.data(), LogTimestampSize);
 }
 
-int getCurrentThreadLogLevel()
-{
-    unsigned long long currentThread = MegaThread::currentThreadId();
-
-    std::lock_guard<std::mutex> g(threadLookups);
-    if (threadLogLevel.find(currentThread) == threadLogLevel.end())
-    {
-        return -1;
-    }
-    else
-    {
-        return threadLogLevel[currentThread];
-    }
-}
-
-bool getCurrentThreadIsCmdShell()
-{
-    unsigned long long currentThread = MegaThread::currentThreadId();
-
-    std::lock_guard<std::mutex> g(threadLookups);
-    if (threadIsCmdShell.find(currentThread) == threadIsCmdShell.end())
-    {
-        return false; //default not
-    }
-    else
-    {
-        return threadIsCmdShell[currentThread];
-    }
-}
-
-void setCurrentThreadLogLevel(int level)
-{
-    std::lock_guard<std::mutex> g(threadLookups);
-    threadLogLevel[MegaThread::currentThreadId()] = level;
-}
-
-void setCurrentThreadOutStream(LoggedStream *s)
-{
-    std::lock_guard<std::mutex> g(threadLookups);
-    outstreams[MegaThread::currentThreadId()] = s;
-}
-
-void setCurrentThreadIsCmdShell(bool isit)
-{
-    std::lock_guard<std::mutex> g(threadLookups);
-    threadIsCmdShell[MegaThread::currentThreadId()] = isit;
-}
-
-void setCurrentOutCode(int outCode)
-{
-    std::lock_guard<std::mutex> g(threadLookups);
-    threadoutCode[MegaThread::currentThreadId()] = outCode;
-}
-
-void setCurrentPetition(CmdPetition *petition)
-{
-    std::lock_guard<std::mutex> g(threadLookups);
-    threadpetition[MegaThread::currentThreadId()] = petition;
-}
-
-
-MegaCMDLogger::MegaCMDLogger(int sdkLoggerLevel, int cmdLoggerLevel) :
-    mSdkLoggerLevel(sdkLoggerLevel),
-    mCmdLoggerLevel(cmdLoggerLevel),
-    mLoggedStream(Instance<DefaultLoggedStream>::Get().getLoggedStream())
+MegaCmdLogger::MegaCmdLogger() :
+    mSdkLoggerLevel(mega::MegaApi::LOG_LEVEL_ERROR),
+    mCmdLoggerLevel(mega::MegaApi::LOG_LEVEL_ERROR),
+    mFlushOnLevel(mega::MegaApi::LOG_LEVEL_WARNING)
 {
 }
 
-bool isMEGAcmdSource(const char *source)
+OUTSTRING MegaCmdLogger::getDefaultFilePath()
+{
+    auto dirs = PlatformDirectories::getPlatformSpecificDirectories();
+    assert(!dirs->configDirPath().empty());
+
+    auto logFilePath = fs::path(dirs->configDirPath()) / "megacmdserver.log";
+    return logFilePath.native();
+}
+
+bool MegaCmdLogger::isMegaCmdSource(const std::string &source)
 {
     static const std::set<std::string_view> megaCmdSourceFiles = MEGACMD_SRC_FILE_LIST;
 
@@ -203,119 +180,127 @@ bool isMEGAcmdSource(const char *source)
     return megaCmdSourceFiles.find(filename) != megaCmdSourceFiles.end();
 }
 
-void MegaCMDLogger::log(const char *time, int loglevel, const char *source, const char *message)
+void MegaCmdLogger::formatLogToStream(LoggedStream &stream, std::string_view time, int logLevel, const char *source, const char *message)
+{
+    stream << "[";
+    if (!isMegaCmdSource(source))
+    {
+        stream << "SDK:";
+    }
+    stream << SimpleLogger::toStr(LogLevel(logLevel)) << ": " << time << "] " << message << '\n';
+
+    if (logLevel <= mFlushOnLevel)
+    {
+        stream.flush();
+    }
+}
+
+bool MegaCmdLogger::shouldIgnoreMessage(int logLevel, const char *source, const char *message) const
+{
+    UNUSED(logLevel);
+
+    if (!isMegaCmdSource(source))
+    {
+        const int sdkLoggerLevel = getSdkLoggerLevel();
+        if (sdkLoggerLevel <= MegaApi::LOG_LEVEL_DEBUG && !strcmp(message, "Request (RETRY_PENDING_CONNECTIONS) starting"))
+        {
+            return true;
+        }
+        if (sdkLoggerLevel <= MegaApi::LOG_LEVEL_DEBUG && !strcmp(message, "Request (RETRY_PENDING_CONNECTIONS) finished"))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool MegaCmdSimpleLogger::shouldLogToStream(int logLevel, const char* source) const
+{
+    if (isMegaCmdSource(source))
+    {
+        return logLevel <= getCmdLoggerLevel();
+    }
+    return logLevel <= getSdkLoggerLevel();
+}
+
+bool MegaCmdSimpleLogger::shouldLogToClient(int logLevel, const char* source) const
 {
     // If comming from this logger current thread
-    bool outputIsAlreadyOUTSTREAM = &OUTSTREAM == &mLoggedStream;
-    auto needsLoggingToClient = [outputIsAlreadyOUTSTREAM, loglevel](int defaultLogLevel)
+    if (&OUTSTREAM == &mLoggedStream)
     {
-        if (outputIsAlreadyOUTSTREAM)
-        {
-            return false;
-        }
-        int currentThreadLogLevel = getCurrentThreadLogLevel();
-        if (currentThreadLogLevel < 0) // this thread has no log level assigned
-        {
-            currentThreadLogLevel = defaultLogLevel; // use CMD's level
-        }
-
-        return loglevel <= currentThreadLogLevel;
-    };
-
-    if (isMEGAcmdSource(source))
-    {
-        if (loglevel <= mCmdLoggerLevel)
-        {
-            performSafeLog(mLoggedStream, [this, time, loglevel, message]
-            {
-                mLoggedStream << "[" << SimpleLogger::toStr(LogLevel(loglevel)) << ": " << time << "] " << message << endl;
-            });
-        }
-
-        if (needsLoggingToClient(mCmdLoggerLevel))
-        {
-            OUTSTREAM << "[" << SimpleLogger::toStr(LogLevel(loglevel)) << ": " << time << "] " << message << endl;
-        }
+        return false;
     }
-    else // SDK's
+
+    const int defaultLogLevel = isMegaCmdSource(source) ? getCmdLoggerLevel() : getSdkLoggerLevel();
+
+    int currentThreadLogLevel = getCurrentThreadLogLevel();
+    if (currentThreadLogLevel < 0) // this thread has no log level assigned
     {
-        if (loglevel <= mSdkLoggerLevel)
-        {
-            if (( mSdkLoggerLevel <= MegaApi::LOG_LEVEL_DEBUG ) && !strcmp(message, "Request (RETRY_PENDING_CONNECTIONS) starting"))
-            {
-                return;
-            }
-            if (( mSdkLoggerLevel <= MegaApi::LOG_LEVEL_DEBUG ) && !strcmp(message, "Request (RETRY_PENDING_CONNECTIONS) finished"))
-            {
-                return;
-            }
-
-            performSafeLog(mLoggedStream, [this, time, loglevel, message]
-            {
-                mLoggedStream << "[SDK:" << SimpleLogger::toStr(LogLevel(loglevel)) << ": " << time << "] " << message << endl;
-            });
-        }
-
-        if (needsLoggingToClient(mSdkLoggerLevel))
-        {
-            assert(false); //since it happens in the sdk thread, this shall be false
-            OUTSTREAM << "[SDK:" << SimpleLogger::toStr(LogLevel(loglevel)) << ": " << time << "] " << message << endl;
-        }
+        currentThreadLogLevel = defaultLogLevel;
     }
+
+    return logLevel <= currentThreadLogLevel;
 }
 
-int MegaCMDLogger::getMaxLogLevel() const
+MegaCmdSimpleLogger::MegaCmdSimpleLogger(bool logToOutStream, int sdkLoggerLevel, int cmdLoggerLevel) :
+    MegaCmdLogger(),
+    mLoggedStream(Instance<DefaultLoggedStream>::Get().getLoggedStream()),
+    mOutStream(&COUT),
+    mLogToOutStream(logToOutStream)
 {
-    return max(max(getCurrentThreadLogLevel(), mCmdLoggerLevel), mSdkLoggerLevel);
+    setSdkLoggerLevel(sdkLoggerLevel);
+    setCmdLoggerLevel(cmdLoggerLevel);
 }
 
-OUTFSTREAMTYPE streamForDefaultFile()
+int MegaCmdSimpleLogger::getMaxLogLevel() const
 {
-    //TODO: get this one from new dirs folders utilities (pending CMD-307) and refactor the .log retrieval
+    return std::max(getCurrentThreadLogLevel(), MegaCmdLogger::getMaxLogLevel());
+}
 
-    OUTSTRING path;
+void MegaCmdSimpleLogger::log(const char * /*time*/, int logLevel, const char *source, const char *message)
+{
+    if (shouldIgnoreMessage(logLevel, source, message))
+    {
+        return;
+    }
+
+    if (shouldLogToStream(logLevel, source))
+    {
+        const std::string nowTimeStr = getNowTimeStr();
+        formatLogToStream(mLoggedStream, nowTimeStr, logLevel, source, message);
+
+        if (mLogToOutStream)
+        {
 #ifdef _WIN32
-
-    TCHAR szPath[MAX_PATH];
-     if (!SUCCEEDED(GetModuleFileName(NULL, szPath , MAX_PATH)))
-     {
-         LOG_fatal << "Couldnt get EXECUTABLE folder";
-     }
-     else
-     {
-         if (SUCCEEDED(PathRemoveFileSpec(szPath)))
-         {
-             if (PathAppend(szPath,TEXT(".megaCmd")))
-             {
-                 if (PathAppend(szPath,TEXT("megacmdserver.log")))
-                 {
-                     path = szPath;
-                 }
-             }
-         }
-     }
-#else
-    auto dirs = PlatformDirectories::getPlatformSpecificDirectories();
-    path = dirs->configDirPath();
-
-    auto fsAccess = std::make_unique<MegaFileSystemAccess>();
-    fsAccess->setdefaultfolderpermissions(0700);
-    LocalPath localconfigDir = LocalPath::fromAbsolutePath(path);
-    if (!fsAccess->mkdirlocal(localconfigDir, false, false))
-    {
-        LOG_err << "Data directory not created";
-    }
-    path.append("/megacmdserver.log");
+            std::lock_guard<std::mutex> g(mSetmodeMtx);
+            int oldmode = _setmode(_fileno(stdout), _O_U8TEXT);
 #endif
+            formatLogToStream(mOutStream, nowTimeStr, logLevel, source, message);
 
-    return OUTFSTREAMTYPE(path);
+#ifdef _WIN32
+            assert(oldmode != -1);
+            _setmode(_fileno(stdout), oldmode);
+#endif
+        }
+    }
+
+    if (shouldLogToClient(logLevel, source))
+    {
+        const std::string nowTimeStr = getNowTimeStr();
+        assert(isMegaCmdSource(source)); // if this happens in the sdk thread, this shall be false
+        formatLogToStream(OUTSTREAM, nowTimeStr, logLevel, source, message);
+    }
 }
 
 LoggedStreamDefaultFile::LoggedStreamDefaultFile() :
     LoggedStreamOutStream(nullptr),
-    mFstream(streamForDefaultFile())
+    mFstream(MegaCmdLogger::getDefaultFilePath())
 {
     out = &mFstream;
+    if (!mFstream.is_open())
+    {
+        CERR << "Cannot open default log file " << MegaCmdLogger::getDefaultFilePath() << std::endl;
+    }
 }
 
 }//end namespace
