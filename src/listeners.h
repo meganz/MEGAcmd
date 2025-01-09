@@ -214,13 +214,13 @@ public:
 class MegaCmdGlobalListener : public mega::MegaGlobalListener
 {
 private:
-    MegaCMDLogger *loggerCMD;
+    MegaCmdLogger *loggerCMD;
     MegaCmdSandbox *sandboxCMD;
 
     std::atomic_bool ongoing;
 
 public:
-    MegaCmdGlobalListener(MegaCMDLogger *logger, MegaCmdSandbox *sandboxCMD);
+    MegaCmdGlobalListener(MegaCmdLogger *logger, MegaCmdSandbox *sandboxCMD);
     void onNodesUpdate(mega::MegaApi* api, mega::MegaNodeList *nodes);
     void onUsersUpdate(mega::MegaApi* api, mega::MegaUserList *users);
     void onAccountUpdate(mega::MegaApi *api);

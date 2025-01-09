@@ -70,15 +70,16 @@ int main (int argc, char *argv[])
         serverWaitingPromise.set_value();
     });
 
-    std::thread serverThread([](){
+    std::thread serverThread([] {
 
         std::vector<char*> args{
             (char *)"argv0_INTEGRATION_TESTS",
             nullptr
         };
 
+        constexpr bool logToCout = false;
         auto createDefaultStream = [] { return new megacmd::LoggedStreamDefaultFile(); };
-        megacmd::executeServer(1, args.data(), createDefaultStream, mega::MegaApi::LOG_LEVEL_MAX, mega::MegaApi::LOG_LEVEL_MAX);
+        megacmd::executeServer(1, args.data(), createDefaultStream, logToCout, mega::MegaApi::LOG_LEVEL_MAX, mega::MegaApi::LOG_LEVEL_MAX);
     });
 
     auto waitReturn = serverWaitingPromise.get_future().wait_for(std::chrono::seconds(10));
