@@ -43,10 +43,10 @@ using namespace mega;
 namespace megacmd {
 
 namespace {
-    constexpr const char* logTimestampFormat = "%04d-%02d-%02d_%02d-%02d-%02d.%06d";
+    constexpr const char* sLogTimestampFormat = "%04d-%02d-%02d_%02d-%02d-%02d.%06d";
     thread_local bool isThreadDataSet = false;
 
-    std::string_view getNowTimeStr()
+    std::string getNowTimeStr()
     {
         return timestampToString(std::chrono::system_clock::now());
     }
@@ -110,7 +110,7 @@ std::optional<std::chrono::time_point<std::chrono::system_clock>> stringToTimest
     }
 
     int years, months, days, hours, minutes, seconds, microseconds;
-    int parsed = std::sscanf(str.data(), logTimestampFormat,
+    int parsed = std::sscanf(str.data(), sLogTimestampFormat,
                              &years, &months, &days, &hours, &minutes, &seconds, &microseconds);
     if (parsed != 7)
     {
@@ -136,9 +136,9 @@ std::optional<std::chrono::time_point<std::chrono::system_clock>> stringToTimest
     return time_point + std::chrono::microseconds(microseconds);
 }
 
-std::string_view timestampToString(std::chrono::time_point<std::chrono::system_clock> timestamp)
+std::string timestampToString(std::chrono::time_point<std::chrono::system_clock> timestamp)
 {
-    thread_local std::array<char, LogTimestampSize + 1> timebuf;
+    std::array<char, LogTimestampSize + 1> timebuf;
     const time_t t = std::chrono::system_clock::to_time_t(timestamp);
 
     struct std::tm gmt;
@@ -146,11 +146,11 @@ std::string_view timestampToString(std::chrono::time_point<std::chrono::system_c
     mega::m_gmtime(t, &gmt);
 
     auto microseconds = std::chrono::duration_cast<std::chrono::microseconds>(timestamp - std::chrono::system_clock::from_time_t(t));
-    std::snprintf(timebuf.data(), timebuf.size(), logTimestampFormat,
-                    gmt.tm_year + 1900, gmt.tm_mon + 1, gmt.tm_mday,
-                    gmt.tm_hour, gmt.tm_min, gmt.tm_sec, static_cast<int>(microseconds.count() % 1000000));
+    std::snprintf(timebuf.data(), timebuf.size(), sLogTimestampFormat,
+                  gmt.tm_year + 1900, gmt.tm_mon + 1, gmt.tm_mday,
+                  gmt.tm_hour, gmt.tm_min, gmt.tm_sec, static_cast<int>(microseconds.count() % 1000000));
 
-    return std::string_view(timebuf.data(), LogTimestampSize);
+    return std::string(timebuf.data(), LogTimestampSize);
 }
 
 MegaCmdLogger::MegaCmdLogger() :
@@ -266,7 +266,7 @@ void MegaCmdSimpleLogger::log(const char * /*time*/, int logLevel, const char *s
 
     if (shouldLogToStream(logLevel, source))
     {
-        const std::string_view nowTimeStr = getNowTimeStr();
+        const std::string nowTimeStr = getNowTimeStr();
         formatLogToStream(mLoggedStream, nowTimeStr, logLevel, source, message);
 
         if (mLogToOutStream)
@@ -286,7 +286,7 @@ void MegaCmdSimpleLogger::log(const char * /*time*/, int logLevel, const char *s
 
     if (shouldLogToClient(logLevel, source))
     {
-        const std::string_view nowTimeStr = getNowTimeStr();
+        const std::string nowTimeStr = getNowTimeStr();
         assert(isMegaCmdSource(source)); // if this happens in the sdk thread, this shall be false
         formatLogToStream(OUTSTREAM, nowTimeStr, logLevel, source, message);
     }

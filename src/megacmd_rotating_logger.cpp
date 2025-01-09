@@ -644,10 +644,10 @@ TimestampRotationEngine::TimestampFile::TimestampFile(const fs::path& path, cons
 
 fs::path TimestampRotationEngine::rotateBaseFile(const fs::path& directory, const fs::path& baseFilename)
 {
-    const std::string_view timestampStr = timestampToString(Clock::now());
+    const std::string timestampStr = timestampToString(Clock::now());
 
     fs::path srcFilePath = directory / baseFilename;
-    fs::path dstFilePath = srcFilePath.string() + "." + std::string(timestampStr);
+    fs::path dstFilePath = srcFilePath.string() + "." + timestampStr;
 
     std::error_code ec;
 
