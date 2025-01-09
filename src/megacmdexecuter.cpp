@@ -5048,19 +5048,8 @@ bool MegaCmdExecuter::establishBackup(string pathToBackup, MegaNode *n, int64_t 
 
         if (sendBackupEvent)
         {
-            bool firstBackupConfigured = ConfigurationManager::getConfigurationValue("firstBackupConfigured", false);
-            if (!firstBackupConfigured)
-            {
-                auto prevValueOpt = ConfigurationManager::savePropertyValue("firstBackupConfigured", true);
-                if (prevValueOpt)
-                {
-                    firstBackupConfigured = *prevValueOpt;
-                }
-            }
-
-            // Check the value again in case it has been modified in between the two configuration calls above
-            // (to protect against a race condition that could cause the event to be sent twice)
-            if (!firstBackupConfigured)
+            auto wasFirstBackupConfiguredOpt = ConfigurationManager::savePropertyValue("firstBackupConfigured", true);
+            if (!wasFirstBackupConfiguredOpt || !*wasFirstBackupConfiguredOpt)
             {
                 sendEvent(StatsManager::MegacmdEvent::FIRST_CONFIGURED_SCHEDULED_BACKUP, api, false);
             }
