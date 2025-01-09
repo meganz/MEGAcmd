@@ -113,7 +113,7 @@ std::vector<MegaApi *> occupiedapiFolders;
 MegaSemaphore semaphoreapiFolders;
 std::mutex mutexapiFolders;
 
-MegaCMDLogger *loggerCMD;
+MegaCmdLogger *loggerCMD;
 
 std::mutex mutexEndedPetitionThreads;
 std::vector<std::unique_ptr<MegaThread>> petitionThreads;
@@ -936,7 +936,7 @@ char* generic_completion(const char* text, int state, vector<string> validOption
         name = validOptions.at(list_index);
         //Notice: do not escape options for cmdshell. Plus, we won't filter here, because we don't know if the value of rl_completion_quote_chararcter of cmdshell
         // The filtering and escaping will be performed by the completion function in cmdshell
-        if (interactiveThread() && !getCurrentThreadIsCmdShell()) {
+        if (isCurrentThreadInteractive() && !isCurrentThreadCmdShell()) {
             escapeEspace(name);
         }
 
@@ -944,7 +944,7 @@ char* generic_completion(const char* text, int state, vector<string> validOption
 
         if (!( strcmp(text, ""))
                 || (( name.size() >= len ) && ( strlen(text) >= len ) &&  ( name.find(text) == 0 ) )
-                || getCurrentThreadIsCmdShell()  //do not filter if cmdshell (it will be filter there)
+                || isCurrentThreadCmdShell()  //do not filter if cmdshell (it will be filter there)
                 )
         {
             foundone = true;
@@ -985,7 +985,7 @@ char * flags_completion(const char*text, int state)
     {
         validparams.clear();
         string saved_line = getCurrentThreadLine();
-        vector<string> words = getlistOfWords(saved_line.c_str(), !getCurrentThreadIsCmdShell());
+        vector<string> words = getlistOfWords(saved_line.c_str(), !isCurrentThreadCmdShell());
         if (words.size())
         {
             set<string> setvalidparams;
@@ -1043,7 +1043,7 @@ char * flags_value_completion(const char*text, int state)
         validValues.clear();
 
         string saved_line = getCurrentThreadLine();
-        vector<string> words = getlistOfWords(saved_line.c_str(), !getCurrentThreadIsCmdShell());
+        vector<string> words = getlistOfWords(saved_line.c_str(), !isCurrentThreadCmdShell());
         if (words.size() > 1)
         {
             string thecommand = words[0];
@@ -1133,7 +1133,7 @@ char * flags_value_completion(const char*text, int state)
 
 void unescapeifRequired(string &what)
 {
-    if (interactiveThread() ) {
+    if (isCurrentThreadInteractive() ) {
         return unescapeEspace(what);
     }
 }
@@ -1162,7 +1162,7 @@ char* remotepaths_completion(const char* text, int state, bool onlyfolders)
         validpaths = cmdexecuter->listpaths(usepcre, wildtext, onlyfolders);
 
         // we need to escape '\' to fit what's done when parsing words
-        if (!getCurrentThreadIsCmdShell())
+        if (!isCurrentThreadCmdShell())
         {
             for (int i = 0; i < (int)validpaths.size(); i++)
             {
@@ -1277,7 +1277,7 @@ char* nodeattrs_completion(const char* text, int state)
     {
         validAttrs.clear();
         string saved_line = getCurrentThreadLine();
-        vector<string> words = getlistOfWords(saved_line.c_str(), !getCurrentThreadIsCmdShell());
+        vector<string> words = getlistOfWords(saved_line.c_str(), !isCurrentThreadCmdShell());
         if (words.size() > 1)
         {
             validAttrs = cmdexecuter->getNodeAttrs(words[1]);
@@ -1473,7 +1473,7 @@ string getListOfCompletionValues(vector<string> words, char separator = ' ', con
     completionfunction_t * compfunction = getCompletionFunction(words);
     if (compfunction == local_completion)
     {
-        if (!interactiveThread())
+        if (!isCurrentThreadInteractive())
         {
             return "MEGACMD_USE_LOCAL_COMPLETION";
         }
@@ -1564,7 +1564,7 @@ const char * getUsageStr(const char *command, const HelpFlags& flags)
 {
     if (!strcmp(command, "login"))
     {
-        if (interactiveThread())
+        if (isCurrentThreadInteractive())
         {
             return "login [--auth-code=XXXX] [email [password]] | exportedfolderurl#key"
                     " [--auth-key=XXXX] | passwordprotectedlink [--password=PASSWORD]"
@@ -1587,7 +1587,7 @@ const char * getUsageStr(const char *command, const HelpFlags& flags)
     }
     if (!strcmp(command, "confirmcancel"))
     {
-        if (interactiveThread())
+        if (isCurrentThreadInteractive())
         {
             return "confirmcancel link [password]";
         }
@@ -1602,7 +1602,7 @@ const char * getUsageStr(const char *command, const HelpFlags& flags)
     }
     if (!strcmp(command, "signup"))
     {
-        if (interactiveThread())
+        if (isCurrentThreadInteractive())
         {
             return "signup email [password] [--name=\"Your Name\"]";
         }
@@ -1613,7 +1613,7 @@ const char * getUsageStr(const char *command, const HelpFlags& flags)
     }
     if (!strcmp(command, "confirm"))
     {
-        if (interactiveThread())
+        if (isCurrentThreadInteractive())
         {
             return "confirm link email [password]";
         }
@@ -1905,7 +1905,7 @@ const char * getUsageStr(const char *command, const HelpFlags& flags)
     }
     if (!strcmp(command, "passwd"))
     {
-        if (interactiveThread())
+        if (isCurrentThreadInteractive())
         {
             return "passwd [-f]  [--auth-code=XXXX] [newpassword]";
         }
@@ -2134,7 +2134,7 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << "\t--auth-key=AUTHKEY: If the link is a writable folder link, then this option allows you to log in with "
               "write privileges. Without this option, you will log into the link with read access only." << endl;
         os << endl;
-        os << "For more information about MEGA folder links, see \"" << commandPrefixBasedOnMode() << "export --help\"." << endl;
+        os << "For more information about MEGA folder links, see \"" << getCommandPrefixBasedOnMode() << "export --help\"." << endl;
     }
     else if (!strcmp(command, "cancel"))
     {
@@ -2609,7 +2609,7 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
     else if (!strcmp(command, "exclude"))
     {
         os << "Manages default exclusion rules in syncs." << endl;
-        os << "These default rules will be used when creating new syncs. Existing syncs won't be affected. To modify the exclusion rules of existing syncs, use " << commandPrefixBasedOnMode() << "sync-ignore." << endl;
+        os << "These default rules will be used when creating new syncs. Existing syncs won't be affected. To modify the exclusion rules of existing syncs, use " << getCommandPrefixBasedOnMode() << "sync-ignore." << endl;
         os << endl;
         os << "Options:" << endl;
         os << " -a pattern1 pattern2 ..." << "\t" << "adds pattern(s) to the exclusion list" << endl;
@@ -2834,14 +2834,14 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
                                        "links and file requests cannot be mixed, as they use different encryption schemes." << endl;
         os << "           " << "\t" << "The auth-key shown has the following format <handle>#<key>:<auth-key>. The "
                                        "auth-key must be provided at login, otherwise you will log into this link with "
-                                       "read-only privileges. See \"" << commandPrefixBasedOnMode() << "login --help\" "
+                                       "read-only privileges. See \"" << getCommandPrefixBasedOnMode() << "login --help\" "
                                        "for more details about logging into links." << endl;
         os << " --mega-hosted" << "\t" << "The share key of this specific folder will be shared with MEGA." << endl;
         os << "              " << "\t" << "This is intended to be used for folders accessible through MEGA's S4 service." << endl;
         os << "              " << "\t" << "Encryption will occur nonetheless within MEGA's S4 service." << endl;
         os << " --password=PASSWORD" << "\t" << "Protects the export with a password. Passwords cannot contain \" or '." << endl;
         os << "                    " << "\t" << "A password-protected link will be printed only after exporting it." << endl;
-        os << "                    " << "\t" << "If \"" << commandPrefixBasedOnMode() << "export\" is used to print it again, it will be shown unencrypted." << endl;
+        os << "                    " << "\t" << "If \"" << getCommandPrefixBasedOnMode() << "export\" is used to print it again, it will be shown unencrypted." << endl;
         os << "                    " << "\t" << "Note: only PRO users can protect an export with a password." << endl;
         os << " --expire=TIMEDELAY" << "\t" << "Sets the expiration time of the export." << endl;
         os << "                   " << "\t" << "The time format can contain hours(h), days(d), minutes(M), seconds(s), months(m) or years(y)." << endl;
@@ -2885,14 +2885,14 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << " of no option selected, it will display all the shares existing" << endl;
         os << " in the tree of that path" << endl;
         os << endl;
-        os << "When sharing a folder with a user that is not a contact (see \"" << commandPrefixBasedOnMode() << "users --help\")" << endl;
+        os << "When sharing a folder with a user that is not a contact (see \"" << getCommandPrefixBasedOnMode() << "users --help\")" << endl;
         os << "  the share will be in a pending state. You can list pending shares with" << endl;
-        os << " \"share -p\". He would need to accept your invitation (see \"" << commandPrefixBasedOnMode() << "ipc\")" << endl;
+        os << " \"share -p\". He would need to accept your invitation (see \"" << getCommandPrefixBasedOnMode() << "ipc\")" << endl;
         os << endl;
-        os << "Sharing folders will require contact verification (see \"" << commandPrefixBasedOnMode() << "users --help-verify\")" << endl;
+        os << "Sharing folders will require contact verification (see \"" << getCommandPrefixBasedOnMode() << "users --help-verify\")" << endl;
         os << endl;
         os << "If someone has shared something with you, it will be listed as a root folder" << endl;
-        os << " Use \"" << commandPrefixBasedOnMode() << "mount\" to list folders shared with you" << endl;
+        os << " Use \"" << getCommandPrefixBasedOnMode() << "mount\" to list folders shared with you" << endl;
     }
     else if (!strcmp(command, "invite"))
     {
@@ -2916,9 +2916,9 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << " -d" << "\t" << "Rejects invitation" << endl;
         os << " -i" << "\t" << "Ignores invitation [WARNING: do not use unless you know what you are doing]" << endl;
         os << endl;
-        os << "Use \"" << commandPrefixBasedOnMode() << "invite\" to send/remove invitations to other users" << endl;
-        os << "Use \"" << commandPrefixBasedOnMode() << "showpcr\" to browse incoming/outgoing invitations" << endl;
-        os << "Use \"" << commandPrefixBasedOnMode() << "users\" to see contacts" << endl;
+        os << "Use \"" << getCommandPrefixBasedOnMode() << "invite\" to send/remove invitations to other users" << endl;
+        os << "Use \"" << getCommandPrefixBasedOnMode() << "showpcr\" to browse incoming/outgoing invitations" << endl;
+        os << "Use \"" << getCommandPrefixBasedOnMode() << "users\" to see contacts" << endl;
     }
     if (!strcmp(command, "masterkey"))
     {
@@ -2941,8 +2941,8 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << " --out" << "\t" << "Shows outgoing invitations" << endl;
         printTimeFormatHelp(os);
         os << endl;
-        os << "Use \"" << commandPrefixBasedOnMode() << "ipc\" to manage invitations received" << endl;
-        os << "Use \"" << commandPrefixBasedOnMode() << "users\" to see contacts" << endl;
+        os << "Use \"" << getCommandPrefixBasedOnMode() << "ipc\" to manage invitations received" << endl;
+        os << "Use \"" << getCommandPrefixBasedOnMode() << "users\" to see contacts" << endl;
     }
     else if (!strcmp(command, "users"))
     {
@@ -2964,10 +2964,10 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
 
         printTimeFormatHelp(os);
         os << endl;
-        os << "Use \"" << commandPrefixBasedOnMode() << "invite\" to send/remove invitations to other users" << endl;
-        os << "Use \"" << commandPrefixBasedOnMode() << "showpcr\" to browse incoming/outgoing invitations" << endl;
-        os << "Use \"" << commandPrefixBasedOnMode() << "ipc\" to manage invitations received" << endl;
-        os << "Use \"" << commandPrefixBasedOnMode() << "users\" to see contacts" << endl;
+        os << "Use \"" << getCommandPrefixBasedOnMode() << "invite\" to send/remove invitations to other users" << endl;
+        os << "Use \"" << getCommandPrefixBasedOnMode() << "showpcr\" to browse incoming/outgoing invitations" << endl;
+        os << "Use \"" << getCommandPrefixBasedOnMode() << "ipc\" to manage invitations received" << endl;
+        os << "Use \"" << getCommandPrefixBasedOnMode() << "users\" to see contacts" << endl;
     }
     else if (!strcmp(command, "speedlimit"))
     {
@@ -3129,7 +3129,7 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << endl;
         os << "Notice that the session will still be active, and local caches available" << endl;
         os << "The session will be resumed when the service is restarted" << endl;
-        if (getCurrentThreadIsCmdShell())
+        if (isCurrentThreadCmdShell())
         {
             os << endl;
             os << "Be aware that this will exit both the interactive shell and the server." << endl;
@@ -3472,7 +3472,7 @@ void checkBlockStatus(bool waitcompletion = true)
 
 void executecommand(const char* ptr)
 {
-    vector<string> words = getlistOfWords(ptr, !getCurrentThreadIsCmdShell());
+    vector<string> words = getlistOfWords(ptr, !isCurrentThreadCmdShell());
     if (!words.size())
     {
         return;
@@ -3513,7 +3513,7 @@ void executecommand(const char* ptr)
     {
         if (!api->isFilesystemAvailable())
         {
-            setCurrentOutCode(MCMD_NOTLOGGEDIN);
+            setCurrentThreadOutCode(MCMD_NOTLOGGEDIN);
         }
         return;
     }
@@ -3546,7 +3546,7 @@ void executecommand(const char* ptr)
         return;
     }
 
-    words = getlistOfWords(ptr, !getCurrentThreadIsCmdShell(), true); //Get words again ignoring trailing spaces (only reasonable for completion)
+    words = getlistOfWords(ptr, !isCurrentThreadCmdShell(), true); //Get words again ignoring trailing spaces (only reasonable for completion)
 
     map<string, string> cloptions;
     map<string, int> clflags;
@@ -3556,7 +3556,7 @@ void executecommand(const char* ptr)
 
     if (setOptionsAndFlags(&cloptions, &clflags, &words, validParams, true))
     {
-        setCurrentOutCode(MCMD_EARGS);
+        setCurrentThreadOutCode(MCMD_EARGS);
         LOG_err << "      " << getUsageStr(thecommand.c_str());
         return;
     }
@@ -3565,7 +3565,7 @@ void executecommand(const char* ptr)
 
     if (!validCommand(thecommand))   //unknown command
     {
-        setCurrentOutCode(MCMD_EARGS);
+        setCurrentThreadOutCode(MCMD_EARGS);
         if (loginInAtStartup)
         {
             LOG_err << "Command not valid while login in: " << thecommand;
@@ -3579,7 +3579,7 @@ void executecommand(const char* ptr)
 
     if (setOptionsAndFlags(&cloptions, &clflags, &words, validParams))
     {
-        setCurrentOutCode(MCMD_EARGS);
+        setCurrentThreadOutCode(MCMD_EARGS);
         LOG_err << "      " << getUsageStr(thecommand.c_str());
         return;
     }
@@ -3615,7 +3615,7 @@ void executecommand(const char* ptr)
                  }
                  else
                  {
-                     setCurrentOutCode(MCMD_EUNEXPECTED);
+                     setCurrentThreadOutCode(MCMD_EUNEXPECTED);
                      LOG_warn << "Unable to get session transfer url: " << megaCmdListener->getError()->getErrorString();
                  }
                  delete megaCmdListener;
@@ -3770,7 +3770,7 @@ bool executeUpdater(bool *restartRequired, bool doNotInstall = false)
     if (!SUCCEEDED(GetModuleFileName(NULL, szPath , MAX_PATH)))
     {
         LOG_err << "Couldnt get EXECUTABLE folder: " << wstring(szPath);
-        setCurrentOutCode(MCMD_EUNEXPECTED);
+        setCurrentThreadOutCode(MCMD_EUNEXPECTED);
         return false;
     }
 
@@ -3779,14 +3779,14 @@ bool executeUpdater(bool *restartRequired, bool doNotInstall = false)
         if (!PathAppend(szPath,TEXT("MEGAcmdUpdater.exe")))
         {
             LOG_err << "Couldnt append MEGAcmdUpdater exec: " << wstring(szPath);
-            setCurrentOutCode(MCMD_EUNEXPECTED);
+            setCurrentThreadOutCode(MCMD_EUNEXPECTED);
             return false;
         }
     }
     else
     {
         LOG_err << "Couldnt remove file spec: " << wstring(szPath);
-        setCurrentOutCode(MCMD_EUNEXPECTED);
+        setCurrentThreadOutCode(MCMD_EUNEXPECTED);
         return false;
     }
 #endif
@@ -3813,7 +3813,7 @@ bool executeUpdater(bool *restartRequired, bool doNotInstall = false)
                         &si,&pi) )
     {
         LOG_err << "Unable to execute: <" << wstring(szPath) << "> errno = : " << ERRNO;
-        setCurrentOutCode(MCMD_EUNEXPECTED);
+        setCurrentThreadOutCode(MCMD_EUNEXPECTED);
         return false;
     }
 
@@ -3917,7 +3917,7 @@ bool restartServer()
         if (!SUCCEEDED(GetModuleFileName(NULL, szPathServer , MAX_PATH)))
         {
             LOG_err << "Couldnt get EXECUTABLE folder: " << wstring(szPathServer);
-            setCurrentOutCode(MCMD_EUNEXPECTED);
+            setCurrentThreadOutCode(MCMD_EUNEXPECTED);
             return false;
         }
 
@@ -3980,7 +3980,7 @@ bool restartServer()
 #endif
 
     LOG_debug << "Server restarted, indicating the shell to restart also";
-    setCurrentOutCode(MCMD_REQRESTART);
+    setCurrentThreadOutCode(MCMD_REQRESTART);
 
     string s = "restart";
     cm->informStateListeners(s);
@@ -4001,7 +4001,7 @@ bool isBareCommand(const char *l, const string &command)
         return false;
     }
 
-   vector<string> words = getlistOfWords(l, !getCurrentThreadIsCmdShell());
+   vector<string> words = getlistOfWords(l, !isCurrentThreadCmdShell());
    for (int i = 1; i<words.size(); i++)
    {
        if (words[i].empty()) continue;
@@ -4147,14 +4147,14 @@ static bool process_line(const std::string_view line)
 
                 if (confirmationResponse != MCMDCONFIRM_YES && confirmationResponse != MCMDCONFIRM_ALL)
                 {
-                    setCurrentOutCode(MCMD_INVALIDSTATE); // so as not to indicate already updated
+                    setCurrentThreadOutCode(MCMD_INVALIDSTATE); // so as not to indicate already updated
                     return false;
                 }
                 bool restartRequired = false;
 
                 if (!executeUpdater(&restartRequired))
                 {
-                    setCurrentOutCode(MCMD_INVALIDSTATE); // so as not to indicate already updated
+                    setCurrentThreadOutCode(MCMD_INVALIDSTATE); // so as not to indicate already updated
                     return false;
                 }
 
@@ -4190,10 +4190,10 @@ void* doProcessLine(void* infRaw)
     OUTSTRINGSTREAM s;
 
     setCurrentThreadLogLevel(MegaApi::LOG_LEVEL_ERROR);
-    setCurrentOutCode(MCMD_OK);
-    setCurrentPetition(inf.get());
+    setCurrentThreadOutCode(MCMD_OK);
+    setCurrentThreadCmdPetition(inf.get());
     LoggedStreamPartialOutputs ls(cm, inf.get());
-    setCurrentThreadOutStream(&ls);
+    setCurrentThreadOutStream(ls);
 
     setCurrentThreadIsCmdShell(!inf->line.empty() && inf->line[0] == 'X');
 
@@ -4214,12 +4214,12 @@ void* doProcessLine(void* infRaw)
 
     if (inf->clientID != -3) // -3 is self client (no actual client)
     {
-        cm->returnAndClosePetition(std::move(inf), &s, getCurrentOutCode());
+        cm->returnAndClosePetition(std::move(inf), &s, getCurrentThreadOutCode());
     }
 
     semaphoreClients.release();
 
-    if (doExit && (!interactiveThread() || getCurrentThreadIsCmdShell() ))
+    if (doExit && (!isCurrentThreadInteractive() || isCurrentThreadCmdShell() ))
     {
         cm->stopWaiting();
     }
@@ -4233,7 +4233,7 @@ void* doProcessLine(void* infRaw)
 
 int askforConfirmation(string message)
 {
-    CmdPetition *inf = getCurrentPetition();
+    CmdPetition *inf = getCurrentThreadCmdPetition();
     if (inf)
     {
         return cm->getConfirmation(inf,message);
@@ -4255,7 +4255,7 @@ bool booleanAskForConfirmation(string messageHeading)
 
 string askforUserResponse(string message)
 {
-    CmdPetition *inf = getCurrentPetition();
+    CmdPetition *inf = getCurrentThreadCmdPetition();
     if (inf)
     {
         return cm->getUserResponse(inf,message);
@@ -5306,11 +5306,11 @@ void uninstall()
 
 int executeServer(int argc, char* argv[],
                   const std::function<LoggedStream*()>& createLoggedStream,
-                  int sdkLogLevel, int cmdLogLevel,
+                  bool logToCout, int sdkLogLevel, int cmdLogLevel,
                   bool skiplockcheck, std::string debug_api_url, bool disablepkp)
 {
-
-    Instance<DefaultLoggedStream> sDefaultLoggedStream; // own the default one here
+    // Own global server instances here
+    Instance<DefaultLoggedStream> sDefaultLoggedStream;
 
 #ifdef __linux__
     // Ensure interesting signals are unblocked.
@@ -5355,7 +5355,7 @@ int executeServer(int argc, char* argv[],
 
     // Establish the logger
     SimpleLogger::setLogLevel(logMax); // do not filter anything here, log level checking is done by loggerCMD
-    loggerCMD = new MegaCMDLogger(sdkLogLevel, cmdLogLevel);
+    loggerCMD = new MegaCmdSimpleLogger(logToCout, sdkLogLevel, cmdLogLevel);
 
     MegaApi::addLoggerObject(loggerCMD);
     MegaApi::setLogLevel(MegaApi::LOG_LEVEL_MAX);
@@ -5363,6 +5363,7 @@ int executeServer(int argc, char* argv[],
     char userAgent[40];
     sprintf(userAgent, "MEGAcmd" MEGACMD_STRINGIZE(MEGACMD_USERAGENT_SUFFIX) "/%d.%d.%d.%d", MEGACMD_MAJOR_VERSION,MEGACMD_MINOR_VERSION,MEGACMD_MICRO_VERSION,MEGACMD_BUILD_ID);
 
+    LOG_debug << "----------------------------- program start -----------------------------";
     LOG_debug << "MEGAcmd version: " << MEGACMD_MAJOR_VERSION << "." << MEGACMD_MINOR_VERSION << "." << MEGACMD_MICRO_VERSION << "." << MEGACMD_BUILD_ID << ": code " << MEGACMD_CODE_VERSION;
     LOG_debug << "MEGA SDK version: " << SDK_COMMIT_HASH;
 

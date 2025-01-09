@@ -22,7 +22,7 @@
 #include "megacmd.h"
 #include "comunicationsmanager.h"
 
-#define OUTSTREAM getCurrentOut()
+#define OUTSTREAM getCurrentThreadOutStream()
 
 namespace megacmd {
 class LoggedStream
@@ -34,14 +34,13 @@ public:
 
     virtual bool isClientConnected() { return true; }
 
-    virtual bool isStdOut() const { return out == &COUT; }
-
     virtual const LoggedStream& operator<<(const char& v) const = 0;
     virtual const LoggedStream& operator<<(const char* v) const = 0;
 #ifdef _WIN32
     virtual const LoggedStream& operator<<(std::wstring v) const = 0;
 #endif
     virtual const LoggedStream& operator<<(std::string v) const = 0;
+    virtual const LoggedStream& operator<<(std::string_view v) const = 0;
     virtual const LoggedStream& operator<<(int v) const = 0;
     virtual const LoggedStream& operator<<(unsigned int v) const = 0;
     virtual const LoggedStream& operator<<(long unsigned int v) const = 0;
@@ -51,6 +50,8 @@ public:
     virtual const LoggedStream& operator<<(std::ios_base *v) const = 0;
 
     virtual LoggedStream const& operator<<(OUTSTREAMTYPE& (*F)(OUTSTREAMTYPE&)) const = 0;
+
+    virtual void flush() {}
 protected:
     OUTSTREAMTYPE * out;
 };
@@ -65,6 +66,7 @@ public:
 #endif
 
     const LoggedStream& operator<<(std::string v) const override { return *this; }
+    const LoggedStream& operator<<(std::string_view v) const override { return *this; }
     const LoggedStream& operator<<(int v) const override { return *this; }
     const LoggedStream& operator<<(unsigned int v) const override { return *this; }
     const LoggedStream& operator<<(long unsigned int v) const override { return *this; }
@@ -112,6 +114,9 @@ public:
     virtual const LoggedStream& operator<<(const char* v) const override { *out << v;return *this; }
 #ifdef _WIN32
     virtual const LoggedStream& operator<<(std::wstring v) const override { *out << v;return *this; }
+    virtual const LoggedStream& operator<<(std::string_view v) const override { *out << std::string(v);return *this; }
+#else
+    virtual const LoggedStream& operator<<(std::string_view v) const override { *out << v;return *this; }
 #endif
     virtual const LoggedStream& operator<<(std::string v) const override { *out << v;return *this; }
     virtual const LoggedStream& operator<<(int v) const override { *out << v;return *this; }
@@ -123,6 +128,8 @@ public:
     virtual const LoggedStream& operator<<(std::ios_base *v) const override { *out << v;return *this; }
 
     virtual LoggedStream const& operator<<(OUTSTREAMTYPE& (*F)(OUTSTREAMTYPE&)) const override { if (out) F(*out); return *this; }
+
+    virtual void flush() override { out->flush(); }
 };
 
 class LoggedStreamDefaultFile : public LoggedStreamOutStream
@@ -148,6 +155,7 @@ public:
 #else
     virtual const LoggedStream& operator<<(std::string v) const override { cm->sendPartialOutput(inf, &v); return *this; }
 #endif
+    virtual const LoggedStream& operator<<(std::string_view v) const override { cm->sendPartialOutput(inf, (char*) v.data(), v.size()); return *this; }
 
     virtual const LoggedStream& operator<<(int v) const override { OUTSTRINGSTREAM os; os << v; OUTSTRING s = os.str(); cm->sendPartialOutput(inf, &s); return *this; }
     virtual const LoggedStream& operator<<(unsigned int v) const override { OUTSTRINGSTREAM os; os << v; OUTSTRING s = os.str(); cm->sendPartialOutput(inf, &s); return *this; }
@@ -166,82 +174,88 @@ public:
     virtual ~LoggedStreamPartialOutputs() = default;
 
 protected:
-    CmdPetition *inf;
     ComunicationsManager *cm;
+    CmdPetition *inf;
 };
 
-LoggedStream &getCurrentOut();
-bool interactiveThread();
-const char *commandPrefixBasedOnMode();
-void setCurrentThreadOutStream(LoggedStream *);
-int getCurrentOutCode();
-void setCurrentOutCode(int);
-int getCurrentThreadLogLevel();
-void setCurrentThreadLogLevel(int);
+struct ThreadData
+{
+    LoggedStream *mOutStream = &Instance<DefaultLoggedStream>::Get().getLoggedStream();
+    int mLogLevel = -1;
+    int mOutCode = 0;
+    CmdPetition *mCmdPetition = nullptr;
+    bool mIsCmdShell = false;
+};
 
-CmdPetition * getCurrentPetition();
-void setCurrentPetition(CmdPetition *petition);
+ThreadData &getCurrentThreadData();
+const char* getCommandPrefixBasedOnMode();
+bool isCurrentThreadInteractive();
 
-void setCurrentThreadIsCmdShell(bool isit);
-bool getCurrentThreadIsCmdShell();
+inline LoggedStream &getCurrentThreadOutStream()  { return *getCurrentThreadData().mOutStream; }
+inline int getCurrentThreadLogLevel()             { return getCurrentThreadData().mLogLevel; }
+inline int getCurrentThreadOutCode()              { return getCurrentThreadData().mOutCode; }
+inline CmdPetition *getCurrentThreadCmdPetition() { return getCurrentThreadData().mCmdPetition; }
+inline bool isCurrentThreadCmdShell()             { return getCurrentThreadData().mIsCmdShell; }
 
-class MegaCMDLogger : public mega::MegaLogger
+void setCurrentThreadOutStream(LoggedStream &outStream);
+void setCurrentThreadOutCode(int outCode);
+void setCurrentThreadLogLevel(int logLevel);
+void setCurrentThreadCmdPetition(CmdPetition *cmdPetition);
+void setCurrentThreadIsCmdShell(bool isCmdShell);
+
+constexpr size_t LogTimestampSize = std::char_traits<char>::length("2024-12-27_16-33-12.654787");
+std::optional<std::chrono::time_point<std::chrono::system_clock>> stringToTimestamp(std::string_view str);
+std::string timestampToString(std::chrono::time_point<std::chrono::system_clock> timestamp);
+
+class MegaCmdLogger : public mega::MegaLogger
 {
     int mSdkLoggerLevel;
     int mCmdLoggerLevel;
-    LoggedStream &mLoggedStream;
-    std::mutex mSetmodeMtx;
+    int mFlushOnLevel;
 
-    template <typename Cb>
-    void performSafeLog(const LoggedStream &stream, Cb &&doLogCb)
-    {
-#ifdef _WIN32
-        int oldmode = -1;
-        std::unique_lock<std::mutex> setmodeLck(mSetmodeMtx, std::defer_lock);
-        if (stream.isStdOut())
-        {
-            setmodeLck.lock();
-            oldmode = _setmode(_fileno(stdout), _O_U8TEXT);
-        }
-#endif
+protected:
+    static bool isMegaCmdSource(const std::string &source);
 
-        doLogCb();
-
-#ifdef _WIN32
-        if (stream.isStdOut())
-        {
-            assert(oldmode != -1);
-            _setmode(_fileno(stdout), oldmode);
-        }
-#endif
-    }
+    void formatLogToStream(LoggedStream& stream, std::string_view time, int logLevel, const char *source, const char *message);
+    bool shouldIgnoreMessage(int logLevel, const char *source, const char *message) const;
 
 public:
-    MegaCMDLogger(int sdkLoggerLevel = mega::MegaApi::LOG_LEVEL_ERROR, int cmdLoggerLevel = mega::MegaApi::LOG_LEVEL_ERROR);
+    MegaCmdLogger();
+    virtual ~MegaCmdLogger() = default;
 
-    void log(const char *time, int loglevel, const char *source, const char *message);
+    virtual void log(const char *time, int loglevel, const char *source, const char *message) override = 0;
 
-    void setSdkLoggerLevel(int sdkLoggerLevel)
-    {
-        mSdkLoggerLevel = sdkLoggerLevel;
-    }
+    void setSdkLoggerLevel(int sdkLoggerLevel) { mSdkLoggerLevel = sdkLoggerLevel; }
+    void setCmdLoggerLevel(int cmdLoggerLevel) { mCmdLoggerLevel = cmdLoggerLevel; }
+    void setFlushOnLevel(int flushOnLevel)     { mFlushOnLevel = flushOnLevel; }
 
-    void setCmdLoggerLevel(int cmdLoggerLevel)
-    {
-        mCmdLoggerLevel = cmdLoggerLevel;
-    }
+    int getSdkLoggerLevel() const { return mSdkLoggerLevel; }
+    int getCmdLoggerLevel() const { return mCmdLoggerLevel; }
+    int getFlushOnLevel()   const { return mFlushOnLevel; }
 
-    int getMaxLogLevel() const;
+    virtual int getMaxLogLevel() const { return std::max(mSdkLoggerLevel, mCmdLoggerLevel); }
 
-    int getSdkLoggerLevel() const
-    {
-        return mSdkLoggerLevel;
-    }
+    static OUTSTRING getDefaultFilePath();
+};
 
-    int getCmdLoggerLevel() const
-    {
-        return mCmdLoggerLevel;
-    }
+class MegaCmdSimpleLogger final : public MegaCmdLogger
+{
+#ifdef _WIN32
+    std::mutex mSetmodeMtx;
+#endif
+    LoggedStream &mLoggedStream;
+    LoggedStreamOutStream mOutStream;
+    bool mLogToOutStream;
+
+    bool shouldLogToStream(int logLevel, const char *source) const;
+    bool shouldLogToClient(int logLevel, const char *source) const;
+
+public:
+    MegaCmdSimpleLogger(bool logToOutStream, int sdkLoggerLevel, int cmdLoggerLevel);
+
+    void log(const char *time, int loglevel, const char *source, const char *message) override;
+
+    int getMaxLogLevel() const override;
 };
 
 }//end namespace

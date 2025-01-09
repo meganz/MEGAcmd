@@ -31,7 +31,7 @@ using FuseOperation = std::function<void(const char*, MegaRequestListener*, bool
 
 void fuseBadArgument(const string& command)
 {
-    setCurrentOutCode(MCMD_EARGS);
+    setCurrentThreadOutCode(MCMD_EARGS);
     LOG_err << getUsageStr(command.c_str());
 }
 
@@ -555,14 +555,14 @@ void mountFlags(MegaApi& api, const Args& args, const Flags& flags, const Option
     {
         if (disableAtStartup)
         {
-            setCurrentOutCode(MCMD_EARGS);
+            setCurrentThreadOutCode(MCMD_EARGS);
             LOG_err << "A mount is either disabled or enabled at startup.";
             return;
         }
 
         if (transient)
         {
-            setCurrentOutCode(MCMD_EARGS);
+            setCurrentThreadOutCode(MCMD_EARGS);
             LOG_err << "A transient mount cannot be enabled at startup.";
             return;
         }
@@ -570,14 +570,14 @@ void mountFlags(MegaApi& api, const Args& args, const Flags& flags, const Option
 
     if (transient && persistent)
     {
-        setCurrentOutCode(MCMD_EARGS);
+        setCurrentThreadOutCode(MCMD_EARGS);
         LOG_err << "A mount is either persistent or transient.";
         return;
     }
 
     if (readOnly && writable)
     {
-        setCurrentOutCode(MCMD_EARGS);
+        setCurrentThreadOutCode(MCMD_EARGS);
         LOG_err << "A mount is either read-only or writable.";
         return;
     }

@@ -67,7 +67,7 @@ void executeAdd(MegaIgnoreFile& megaIgnoreFile, const std::set<std::string>& fil
 
         // At least one incorrect filter format must cause the entire command to fail
         // Otherwise, if we allowed partial filters to come through, it could result in unwanted sync states
-        setCurrentOutCode(MCMD_EARGS);
+        setCurrentThreadOutCode(MCMD_EARGS);
         LOG_err << "The filter \"" << filter << "\" does not have valid format";
         return;
     }
@@ -132,7 +132,7 @@ void executeCommand(const Args& args)
 {
     if (args.mFilters.empty() && (args.mAction == Action::Add || args.mAction == Action::Remove))
     {
-        setCurrentOutCode(MCMD_EARGS);
+        setCurrentThreadOutCode(MCMD_EARGS);
         LOG_err << "At least one name filter is required for add or remove";
         LOG_err << "      " << getUsageStr("sync-ignore");
         return;
@@ -152,7 +152,7 @@ void executeCommand(const Args& args)
 
     if (!fs::exists(megaIgnoreFilePath))
     {
-        setCurrentOutCode(MCMD_NOTFOUND);
+        setCurrentThreadOutCode(MCMD_NOTFOUND);
         if (isDefault)
         {
             // For the default file to be created, a sync that DOES NOT already contain a .megaignore file has to be added
@@ -168,7 +168,7 @@ void executeCommand(const Args& args)
     MegaIgnoreFile megaIgnoreFile(megaIgnoreFilePath);
     if (!megaIgnoreFile.isValid())
     {
-        setCurrentOutCode(MCMD_INVALIDSTATE);
+        setCurrentThreadOutCode(MCMD_INVALIDSTATE);
         LOG_err << "There was an error opening mega ignore file \"" << megaIgnoreFilePath;
         return;
     }
