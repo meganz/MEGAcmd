@@ -1624,9 +1624,11 @@ void MegaCmdExecuter::createOrModifyBackup(string local, string remote, string s
         {
             if (establishBackup(local, n.get(), period, speriod, numBackups))
             {
-                mtxBackupsMap.lock();
-                ConfigurationManager::saveBackups(&ConfigurationManager::configuredBackups);
-                mtxBackupsMap.unlock();
+                {
+                    std::lock_guard g(mtxBackupsMap);
+                    ConfigurationManager::saveBackups(&ConfigurationManager::configuredBackups);
+                }
+
                 OUTSTREAM << "Backup established: " << local << " into " << remote << " period="
                           << ((period != -1)?getReadablePeriod(period/10):"\""+speriod+"\"")
                           << " Number-of-Backups=" << numBackups << endl;
@@ -5010,43 +5012,55 @@ bool MegaCmdExecuter::establishBackup(string pathToBackup, MegaNode *n, int64_t 
         LOG_err << " Failed to expanse path";
     }
 
-    MegaCmdListener *megaCmdListener = new MegaCmdListener(api, NULL);
-    api->setScheduledCopy(expansedAbsolutePath.toPath(false).c_str(), n, attendpastbackups, period, speriod.c_str(), numBackups, megaCmdListener);
+    auto megaCmdListener = std::make_unique<MegaCmdListener>(api, nullptr);
+    api->setScheduledCopy(expansedAbsolutePath.toPath(false).c_str(), n, attendpastbackups, period, speriod.c_str(), numBackups, megaCmdListener.get());
     megaCmdListener->wait();
     if (checkNoErrors(megaCmdListener->getError(), "establish backup"))
     {
-        mtxBackupsMap.lock();
-
-        backup_struct *thebackup = NULL;
-        if (ConfigurationManager::configuredBackups.find(megaCmdListener->getRequest()->getFile()) != ConfigurationManager::configuredBackups.end())
+        backup_struct *thebackup = nullptr;
+        bool sendBackupEvent = false;
         {
-            thebackup = ConfigurationManager::configuredBackups[megaCmdListener->getRequest()->getFile()];
-            if (thebackup->id == -1)
+            std::lock_guard g(mtxBackupsMap);
+            if (ConfigurationManager::configuredBackups.find(megaCmdListener->getRequest()->getFile()) != ConfigurationManager::configuredBackups.end())
             {
+                thebackup = ConfigurationManager::configuredBackups[megaCmdListener->getRequest()->getFile()];
+                if (thebackup->id == -1)
+                {
+                    thebackup->id = backupcounter++;
+                }
+            }
+            else
+            {
+                thebackup = new backup_struct;
                 thebackup->id = backupcounter++;
+                ConfigurationManager::configuredBackups[megaCmdListener->getRequest()->getFile()] = thebackup;
+                sendBackupEvent = true;
+            }
+            thebackup->active = true;
+            thebackup->handle = megaCmdListener->getRequest()->getNodeHandle();
+            thebackup->localpath = string(megaCmdListener->getRequest()->getFile());
+            thebackup->numBackups = numBackups;
+            thebackup->period = period;
+            thebackup->speriod = speriod;
+            thebackup->failed = false;
+            thebackup->tag = megaCmdListener->getRequest()->getTransferTag();
+        }
+
+        if (sendBackupEvent)
+        {
+            auto wasFirstBackupConfiguredOpt = ConfigurationManager::savePropertyValue("firstBackupConfigured", true);
+            if (!wasFirstBackupConfiguredOpt || !*wasFirstBackupConfiguredOpt)
+            {
+                sendEvent(StatsManager::MegacmdEvent::FIRST_CONFIGURED_SCHEDULED_BACKUP, api, false);
+            }
+            else
+            {
+                sendEvent(StatsManager::MegacmdEvent::SUBSEQUENT_CONFIGURED_SCHEDULED_BACKUP, api, false);
             }
         }
-        else
-        {
-            thebackup = new backup_struct;
-            thebackup->id = backupcounter++;
-            ConfigurationManager::configuredBackups[megaCmdListener->getRequest()->getFile()] = thebackup;
-        }
-        thebackup->active = true;
-        thebackup->handle = megaCmdListener->getRequest()->getNodeHandle();
-        thebackup->localpath = string(megaCmdListener->getRequest()->getFile());
-        thebackup->numBackups = numBackups;
-        thebackup->period = period;
-        thebackup->speriod = speriod;
-        thebackup->failed = false;
-        thebackup->tag = megaCmdListener->getRequest()->getTransferTag();
 
-        char * nodepath = api->getNodePath(n);
+        std::unique_ptr<char[]> nodepath(api->getNodePath(n));
         LOG_info << "Added backup: " << megaCmdListener->getRequest()->getFile() << " to " << nodepath;
-        mtxBackupsMap.unlock();
-        delete []nodepath;
-        delete megaCmdListener;
-
         return true;
     }
     else
@@ -5084,7 +5098,6 @@ bool MegaCmdExecuter::establishBackup(string pathToBackup, MegaNode *n, int64_t 
             }
         }
     }
-    delete megaCmdListener;
     return false;
 }
 
@@ -5196,20 +5209,31 @@ void MegaCmdExecuter::removeWebdavLocation(MegaNode *n, bool firstone, string na
 
 void MegaCmdExecuter::addWebdavLocation(MegaNode *n, bool firstone, string name)
 {
-    char *actualNodePath = api->getNodePath(n);
-    char *l = api->httpServerGetLocalWebDavLink(n);
-    OUTSTREAM << "Serving via webdav " << (name.size()?name:actualNodePath) << ": " << l << endl;
+    std::unique_ptr<char[]> actualNodePath(api->getNodePath(n));
+    std::unique_ptr<char[]> l(api->httpServerGetLocalWebDavLink(n));
 
-    mtxWebDavLocations.lock();
-    list<string> servedpaths = ConfigurationManager::getConfigurationValueList("webdav_served_locations");
-    servedpaths.push_back(actualNodePath);
-    servedpaths.sort();
-    servedpaths.unique();
-    ConfigurationManager::savePropertyValueList("webdav_served_locations", servedpaths);
-    mtxWebDavLocations.unlock();
+    OUTSTREAM << "Serving via webdav " << (name.size() ? name : actualNodePath.get()) << ": " << l.get() << endl;
 
-    delete []l;
-    delete []actualNodePath;
+    {
+        std::lock_guard g(mtxWebDavLocations);
+        list<string> servedpaths = ConfigurationManager::getConfigurationValueList("webdav_served_locations");
+
+        if (!ConfigurationManager::getConfigurationValue("firstWebDavConfigured", false))
+        {
+            sendEvent(StatsManager::MegacmdEvent::FIRST_CONFIGURED_WEBDAV, api, false);
+            ConfigurationManager::savePropertyValue("firstWebDavConfigured", true);
+        }
+        else if (std::find(servedpaths.begin(), servedpaths.end(), actualNodePath.get()) == servedpaths.end())
+        {
+            // Send event only if not already on the list
+            sendEvent(StatsManager::MegacmdEvent::SUBSEQUENT_CONFIGURED_WEBDAV, api, false);
+        }
+
+        servedpaths.push_back(actualNodePath.get());
+        servedpaths.sort();
+        servedpaths.unique();
+        ConfigurationManager::savePropertyValueList("webdav_served_locations", servedpaths);
+    }
 }
 
 void MegaCmdExecuter::removeFtpLocation(MegaNode *n, bool firstone, string name)
@@ -5244,20 +5268,31 @@ void MegaCmdExecuter::removeFtpLocation(MegaNode *n, bool firstone, string name)
 
 void MegaCmdExecuter::addFtpLocation(MegaNode *n, bool firstone, string name)
 {
-    char *actualNodePath = api->getNodePath(n);
-    char *l = api->ftpServerGetLocalLink(n);
-    OUTSTREAM << "Serving via ftp " << (name.size()?name:n->getName())  << ": " << l << endl;
+    std::unique_ptr<char[]> actualNodePath(api->getNodePath(n));
+    std::unique_ptr<char[]> l(api->ftpServerGetLocalLink(n));
 
-    mtxFtpLocations.lock();
-    list<string> servedpaths = ConfigurationManager::getConfigurationValueList("ftp_served_locations");
-    servedpaths.push_back(actualNodePath);
-    servedpaths.sort();
-    servedpaths.unique();
-    ConfigurationManager::savePropertyValueList("ftp_served_locations", servedpaths);
-    mtxFtpLocations.unlock();
+    OUTSTREAM << "Serving via ftp " << (name.size() ? name : n->getName())  << ": " << l.get() << endl;
 
-    delete []l;
-    delete []actualNodePath;
+    {
+        std::lock_guard g(mtxFtpLocations);
+        list<string> servedpaths = ConfigurationManager::getConfigurationValueList("ftp_served_locations");
+
+        if (!ConfigurationManager::getConfigurationValue("firstFtpConfigured", false))
+        {
+            sendEvent(StatsManager::MegacmdEvent::FIRST_CONFIGURED_FTP, api, false);
+            ConfigurationManager::savePropertyValue("firstFtpConfigured", true);
+        }
+        else if (std::find(servedpaths.begin(), servedpaths.end(), actualNodePath.get()) == servedpaths.end())
+        {
+            // Send event only if not already on the list
+            sendEvent(StatsManager::MegacmdEvent::SUBSEQUENT_CONFIGURED_FTP, api, false);
+        }
+
+        servedpaths.push_back(actualNodePath.get());
+        servedpaths.sort();
+        servedpaths.unique();
+        ConfigurationManager::savePropertyValueList("ftp_served_locations", servedpaths);
+    }
 }
 
 #endif

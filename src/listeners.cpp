@@ -522,6 +522,10 @@ void MegaCmdMegaListener::onSyncAdded(MegaApi *api, MegaSync *sync)
         sendEvent(StatsManager::MegacmdEvent::FIRST_CONFIGURED_SYNC, api, false);
         ConfigurationManager::savePropertyValue("firstSyncConfigured", true);
     }
+    else
+    {
+        sendEvent(StatsManager::MegacmdEvent::SUBSEQUENT_CONFIGURED_SYNC, api, false);
+    }
 }
 
 void MegaCmdMegaListener::onSyncStateChanged(MegaApi *api, MegaSync *sync)
