@@ -83,7 +83,9 @@ public:
     enum class TestValue
     {
         AMIPRO_LEVEL,
-        SYNC_ISSUES_LIST_SIZE
+        SYNC_ISSUES_LIST_SIZE,
+        SYNC_ISSUE_ENFORCE_PATH_PROBLEM,
+        SYNC_ISSUE_ENFORCE_REASON_TYPE,
     };
 
     using TestValue_t = std::variant<

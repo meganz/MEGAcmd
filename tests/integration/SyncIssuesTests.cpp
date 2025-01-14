@@ -347,3 +347,65 @@ TEST_F(SyncIssuesTests, AllSyncIssuesDetail)
     EXPECT_THAT(result.out(), testing::HasSubstr(linkPath));
     EXPECT_THAT(result.out(), testing::HasSubstr("Details on issue " + syncIssueId));
 }
+
+TEST_F(SyncIssuesTests, AllSyncIssuesDetailEnforceReasonsAndPathProblems)
+{
+    // Configure a conflicting issue and iterate over possible sync issues reasons and path problems,
+    // to exercise code paths for all:
+
+    const std::string dirPath = syncDirLocal() + "some_dir";
+    ASSERT_TRUE(fs::create_directory(dirPath));
+
+    std::string linkPath = syncDirLocal() + "some_link";
+#ifdef _WIN32
+    megacmd::replaceAll(linkPath, "/", "\\");
+#endif
+
+    {
+        SyncIssueListGuard guard(1);
+        fs::create_directory_symlink(dirPath, linkPath);
+    }
+
+    // Get the sync issue id
+    auto result = executeInClient({"sync-issues"});
+    ASSERT_TRUE(result.ok());
+
+    auto lines = splitByNewline(result.out());
+    EXPECT_EQ(lines.size(), 4); // Column names + issue + newline + detail usage
+
+    auto words = megacmd::split(lines[1], " ");
+    EXPECT_THAT(words, testing::Not(testing::IsEmpty()));
+
+    std::string syncIssueId = words[0];
+
+    // Get the parent sync ID
+    result = executeInClient({"sync"});
+    ASSERT_TRUE(result.ok());
+
+    lines = splitByNewline(result.out());
+    EXPECT_THAT(lines.size(), 3);
+
+    words = megacmd::split(lines[1], " ");
+    EXPECT_THAT(words, testing::Not(testing::IsEmpty()));
+
+    std::string parentSyncId = words[0];
+
+    for (int reasonType = static_cast<int>(mega::SyncWaitReason::NoReason);
+         reasonType < static_cast<int>(mega::SyncWaitReason::SyncWaitReason_LastPlusOne);
+         ++reasonType)
+    {
+        for (int pathProblem = static_cast<int>(mega::PathProblem::NoProblem);
+             pathProblem < static_cast<int>(mega::PathProblem::PathProblem_LastPlusOne);
+             ++pathProblem)
+        {
+            TestInstrumentsTestValueGuard reasonGuard(TI::TestValue::SYNC_ISSUE_ENFORCE_REASON_TYPE, reasonType);
+            TestInstrumentsTestValueGuard pathProblemGuard(TI::TestValue::SYNC_ISSUE_ENFORCE_PATH_PROBLEM, pathProblem);
+
+            result = executeInClient({"sync-issues", "--disable-path-collapse", "--detail", "--all"});
+
+            ASSERT_TRUE(result.ok());
+            EXPECT_THAT(result.out(), testing::HasSubstr("Parent sync: " + parentSyncId));
+            EXPECT_THAT(result.out(), testing::HasSubstr("Details on issue " + syncIssueId));
+        }
+    }
+}

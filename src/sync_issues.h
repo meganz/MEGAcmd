@@ -44,6 +44,7 @@
         GENERATOR_MACRO(mega::PathProblem::MoveToDebrisFolderFailed,              "Move to debris folder failed") \
         GENERATOR_MACRO(mega::PathProblem::IgnoreFileMalformed,                   "Ignore file is malformed") \
         GENERATOR_MACRO(mega::PathProblem::FilesystemErrorListingFolder,          "There was a filesystem error listing the folder") \
+        GENERATOR_MACRO(mega::PathProblem::FilesystemErrorIdentifyingFolderContent,"FilesystemErrorIdentifyingFolderContent") /*this one is deprecated*/ \
         GENERATOR_MACRO(mega::PathProblem::WaitingForScanningToComplete,          "Waiting for scanning to complete") \
         GENERATOR_MACRO(mega::PathProblem::WaitingForAnotherMoveToComplete,       "Waiting for another move to complete") \
         GENERATOR_MACRO(mega::PathProblem::SourceWasMovedElsewhere,               "The source was moved somewhere else") \
