@@ -67,7 +67,8 @@ public:
     }
 };
 
-class SyncIssuesTests : public NOINTERACTIVELoggedInTest
+template<bool runSync>
+class SyncIssuesTests_ : public NOINTERACTIVELoggedInTest
 {
     SelfDeletingTmpFolder mTmpDir;
 
@@ -82,9 +83,12 @@ class SyncIssuesTests : public NOINTERACTIVELoggedInTest
         result = fs::create_directory(syncDirLocal());
         ASSERT_TRUE(result);
 
-        SyncIssueListGuard guard(0); // ensure there are no sync issues before we start the test
-        result = executeInClient({"sync", syncDirLocal(), syncDirCloud()}).ok();
-        ASSERT_TRUE(result);
+        if constexpr (runSync)
+        {
+            SyncIssueListGuard guard(0); // ensure there are no sync issues before we start the test
+            result = executeInClient({"sync", syncDirLocal(), syncDirCloud()}).ok();
+            ASSERT_TRUE(result);
+        }
     }
 
     void TearDown() override
@@ -111,6 +115,9 @@ protected:
         return "'" + str + "'";
     }
 };
+
+using SyncIssuesTests = SyncIssuesTests_<true>;
+using ManualSyncIssuesTests = SyncIssuesTests_<false>;
 
 TEST_F(SyncIssuesTests, NoIssues)
 {
@@ -177,6 +184,35 @@ TEST_F(SyncIssuesTests, SymLink)
     result = executeInClient({"sync-issues"});
     ASSERT_TRUE(result.ok());
     EXPECT_THAT(result.out(), testing::HasSubstr("There are no sync issues"));
+}
+
+TEST_F(ManualSyncIssuesTests, FileAgainstFolder)
+{
+    const std::string fileName = "fake_file";
+
+    auto result = executeInClient({"mkdir", "-p", syncDirCloud() + fileName});
+    ASSERT_TRUE(result.ok());
+
+    {
+        std::ofstream file(syncDirLocal() + fileName);
+        file << "Some data";
+    }
+
+    // Start syncing once we've setup inconsistent data in cloud and local
+    {
+        SyncIssueListGuard guard(1);
+        result = executeInClient({"sync", syncDirLocal(), syncDirCloud()});
+        ASSERT_TRUE(result.ok());
+    }
+
+    result = executeInClient({"sync-issues", "--disable-path-collapse", "--detail", "--all"});
+    ASSERT_TRUE(result.ok());
+
+    auto lines = splitByNewline(result.out());
+    ASSERT_THAT(lines, testing::Contains(testing::HasSubstr("Unable to sync " + qw(fileName))));
+    ASSERT_THAT(lines, testing::Contains(testing::HasSubstr("Cannot sync folders against files")));
+    ASSERT_THAT(lines, testing::Contains(testing::AllOf(testing::HasSubstr("<CLOUD>"), testing::HasSubstr("Folder"))));
+    ASSERT_THAT(lines, testing::Contains(testing::AllOf(testing::Not(testing::HasSubstr("<CLOUD>")), testing::HasSubstr("File"))));
 }
 
 TEST_F(SyncIssuesTests, IncorrectSyncIssueListSizeOnSecondSymlink)
