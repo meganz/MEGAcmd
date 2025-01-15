@@ -159,16 +159,18 @@ TEST(PlatformDirectoriesTest, getOrCreateSocketPath)
         auto guard = TestInstrumentsEnvVarGuard("MEGACMD_SOCKET_NAME", "test.sock");
         auto socketPath = getOrCreateSocketPath(false);
 
-        ASSERT_TRUE(socketPath == dirs->runtimeDirPath() + "/test.sock" // normal case
-                    || socketPath == megacmd::PosixDirectories::noHomeFallbackFolder().append("/test.sock")); // too lengthy case
+        auto expectedNormalFile = (dirs->runtimeDirPath() / "test.sock").string(); // normal case
+        auto expectedFallbackFile = megacmd::PosixDirectories::noHomeFallbackFolder().append("/test.sock"); // too length case
+        ASSERT_THAT(socketPath, testing::AnyOf(expectedNormalFile, expectedFallbackFile));
     }
 
     {
         G_SUBTEST << "Without $MEGACMD_SOCKET_NAME (normal or fallback case)";
         auto socketPath = getOrCreateSocketPath(false);
 
-        ASSERT_TRUE(socketPath == dirs->runtimeDirPath() + "/megacmd.socket" // normal case
-                    || socketPath == megacmd::PosixDirectories::noHomeFallbackFolder().append("/megacmd.socket")); // too lengthy case
+        auto expectedNormalFile = (dirs->runtimeDirPath() / "megacmd.socket").string(); // normal case
+        auto expectedFallbackFile = megacmd::PosixDirectories::noHomeFallbackFolder().append("/megacmd.socket"); // too length case
+        ASSERT_THAT(socketPath, testing::AnyOf(expectedNormalFile, expectedFallbackFile));
     }
 
     {
@@ -177,7 +179,8 @@ TEST(PlatformDirectoriesTest, getOrCreateSocketPath)
         auto guard = TestInstrumentsUnsetEnvVarGuard("MEGACMD_SOCKET_NAME");
         auto runtimeDir = dirs->runtimeDirPath();
         auto socketPath = getOrCreateSocketPath(false);
-        ASSERT_STREQ(socketPath.c_str(), std::string(dirs->runtimeDirPath()).append("/megacmd.socket").c_str());
+
+        ASSERT_STREQ(socketPath.c_str(), (dirs->runtimeDirPath() / "megacmd.socket").string().c_str());
     }
 
     {
@@ -193,7 +196,8 @@ TEST(PlatformDirectoriesTest, getOrCreateSocketPath)
         auto guard = TestInstrumentsUnsetEnvVarGuard("MEGACMD_SOCKET_NAME");
         auto runtimeDir = dirs->runtimeDirPath();
         auto socketPath = getOrCreateSocketPath(false);
-        ASSERT_STRNE(socketPath.c_str(), std::string(dirs->runtimeDirPath()).append("/megacmd.socket").c_str());
+
+        ASSERT_STRNE(socketPath.c_str(), (dirs->runtimeDirPath() / "megacmd.socket").string().c_str());
         ASSERT_STREQ(socketPath.c_str(), megacmd::PosixDirectories::noHomeFallbackFolder().append("/megacmd.socket").c_str());
     }
 }
