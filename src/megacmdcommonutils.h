@@ -341,7 +341,7 @@ std::string getPropertyFromFile(const fs::path &configFilePath, const char *prop
 template <typename T>
 T getValueFromFile(const fs::path &configFilePath, const char *propertyName, T defaultValue)
 {
-    std::string propValue = getPropertyFromFile(configFile, propertyName);
+    std::string propValue = getPropertyFromFile(configFilePath, propertyName);
     if (!propValue.size()) return defaultValue;
 
     T i;
@@ -421,6 +421,8 @@ class PlatformDirectories
 {
 public:
     static std::unique_ptr<PlatformDirectories> getPlatformSpecificDirectories();
+    virtual ~PlatformDirectories() = default;
+
     /**
      * @brief runtimeDirPath returns the base path for storing runtime files:
      *
