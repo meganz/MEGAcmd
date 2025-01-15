@@ -85,6 +85,8 @@ operator<<(std::ostringstream& oss, const T& path)
     oss << str;
     return oss;
 }
+}
+
 
 namespace megacmd {
 
@@ -335,6 +337,7 @@ std::string &ltrimProperty(std::string &s, const char &c);
 std::string &rtrimProperty(std::string &s, const char &c);
 std::string &trimProperty(std::string &what);
 std::string getPropertyFromFile(const fs::path &configFilePath, const char *propertyName);
+
 template <typename T>
 T getValueFromFile(const fs::path &configFilePath, const char *propertyName, T defaultValue)
 {
