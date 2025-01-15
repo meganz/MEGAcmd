@@ -45,19 +45,6 @@
 #include <regex> //split
 #include <random>
 
-#ifdef _WIN32
-namespace mega {
-//override for the log. This is required for compiling, otherwise SimpleLog won't compile.
-std::ostringstream & operator<< ( std::ostringstream & ostr, const std::wstring & str)
-{
-    std::string s;
-    megacmd::localwtostring(&str,&s);
-    ostr << s;
-    return ( ostr );
-}
-}
-#endif
-
 namespace megacmd {
 using namespace std;
 
@@ -125,7 +112,8 @@ void utf16ToUtf8(const wchar_t* utf16data, int utf16size, string* utf8string)
         utf16size,
         (char*)utf8string->data(),
         int(utf8string->size() + 1),
-        NULL, NULL));
+        NULL, NULL)
+    );
 }
 
 std::string getutf8fromUtf16(const wchar_t *ws)
@@ -1243,9 +1231,9 @@ string &trimProperty(string &what)
     return what;
 }
 
-string getPropertyFromFile(const char *configFile, const char *propertyName)
+string getPropertyFromFile(const fs::path &configFilePath, const char *propertyName)
 {
-    ifstream infile(configFile);
+    ifstream infile(configFilePath);
     string line;
 
     while (getline(infile, line))
@@ -1548,10 +1536,10 @@ std::unique_ptr<PlatformDirectories> PlatformDirectories::getPlatformSpecificDir
 }
 
 #ifdef _WIN32
-std::string WindowsDirectories::configDirPath()
+fs::path WindowsDirectories::configDirPath()
 {
     TCHAR szPath[MAX_PATH];
-    std::string folder;
+    OUTSTRING folder;
 
     if (!SUCCEEDED(GetModuleFileName(NULL, szPath, MAX_PATH)))
     {
@@ -1563,19 +1551,19 @@ std::string WindowsDirectories::configDirPath()
         {
             if (PathAppend(szPath, TEXT(".megaCmd")))
             {
-                utf16ToUtf8(szPath, lstrlen(szPath), &folder);
+                folder = szPath;
             }
         }
     }
 
-    auto suffix = getenv("MEGACMD_WORKING_FOLDER_SUFFIX");
+    auto suffix = _wgetenv(L"MEGACMD_WORKING_FOLDER_SUFFIX");
     if (suffix != nullptr)
     {
-        folder += "_";
+        folder += L"_";
         folder += suffix;
     }
 
-    return folder;
+    return fs::path(folder);
 }
 
 std::wstring getNamedPipeName()
@@ -1619,7 +1607,7 @@ std::string PosixDirectories::homeDirPath()
     return std::string(pwd.pw_dir);
 }
 
-std::string PosixDirectories::configDirPath()
+fs::path PosixDirectories::configDirPath()
 {
     std::string home = homeDirPath();
     if (home.empty())
@@ -1639,7 +1627,7 @@ string PosixDirectories::noHomeFallbackFolder()
 }
 
 #ifdef __APPLE__
-std::string MacOSDirectories::runtimeDirPath()
+fs::path MacOSDirectories::runtimeDirPath()
 {
     std::string home = homeDirPath();
     if (home.empty())

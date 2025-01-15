@@ -23,10 +23,10 @@
 namespace {
 class ReopenScope final
 {
-    OUTFSTREAMTYPE& mOutFile;
-    const std::string mOutFilePath;
+    std::ofstream& mOutFile;
+    const fs::path mOutFilePath;
 public:
-    ReopenScope(OUTFSTREAMTYPE& outFile, const std::string& outFilePath) :
+    ReopenScope(std::ofstream& outFile, const fs::path& outFilePath) :
         mOutFile(outFile),
         mOutFilePath(outFilePath)
     {
@@ -38,17 +38,6 @@ public:
         mOutFile.open(mOutFilePath, std::ofstream::out | std::ofstream::app);
     }
 };
-
-std::string outstringToString(const OUTSTRING& outstring)
-{
-#ifdef _WIN32
-    std::string str;
-    megacmd::localwtostring(&outstring, &str);
-    return str;
-#else
-    return outstring;
-#endif
-}
 }
 
 namespace megacmd {
@@ -360,13 +349,13 @@ void FileRotatingLoggedStream::mainLoop()
 {
     while (!shouldExit() || !mMessageBuffer.isEmpty())
     {
-        std::string errorMessages;
+        std::stringstream errorStream;
         bool reopenFile = false;
 
         if (!waitForOutputFile())
         {
-            errorMessages += "Error writing to log file " + mOutputFilePath + '\n';
-            errorMessages += "Re-opening...\n";
+            errorStream << "Error writing to log file " << mOutputFilePath << '\n';
+            errorStream << "Re-opening...\n";
             reopenFile = true;
         }
 
@@ -387,8 +376,8 @@ void FileRotatingLoggedStream::mainLoop()
             mFileManager.rotateFiles();
         }
 
-        errorMessages += mFileManager.popErrors();
-        std::cerr << errorMessages;
+        errorStream << mFileManager.popErrors();
+        std::cerr << errorStream.str();
 
         if (!mOutputFile)
         {
@@ -405,7 +394,7 @@ void FileRotatingLoggedStream::mainLoop()
                 continue;
             }
         }
-        mOutputFile << errorMessages;
+        mOutputFile << errorStream.str();
 
         bool writeMessages = false;
         {
@@ -430,7 +419,7 @@ void FileRotatingLoggedStream::mainLoop()
 
 FileRotatingLoggedStream::FileRotatingLoggedStream(const OUTSTRING& outputFilePath) :
     mMessageBuffer(500 * 1024 * 1024 /* 500MB */),
-    mOutputFilePath(outstringToString(outputFilePath)),
+    mOutputFilePath(outputFilePath),
     mOutputFile(outputFilePath, std::ofstream::out | std::ofstream::app),
     mFileManager(mOutputFilePath),
     mForceRenew(false),
@@ -647,7 +636,8 @@ fs::path TimestampRotationEngine::rotateBaseFile(const fs::path& directory, cons
     const std::string timestampStr = timestampToString(Clock::now());
 
     fs::path srcFilePath = directory / baseFilename;
-    fs::path dstFilePath = srcFilePath.string() + "." + timestampStr;
+    fs::path dstFilePath = srcFilePath;
+    dstFilePath += "." + timestampStr;
 
     std::error_code ec;
 
@@ -782,7 +772,12 @@ void GzipCompressionEngine::gzipFile(const fs::path& srcFilePath, const fs::path
         }
 
         auto gzdeleter = [] (gzFile_s* f) { if (f) gzclose(f); };
+
+#ifdef _WIN32
+        std::unique_ptr<gzFile_s, decltype(gzdeleter)> gzFile(gzopen_w(dstFilePath.wstring().c_str(), "wb"), gzdeleter);
+#else
         std::unique_ptr<gzFile_s, decltype(gzdeleter)> gzFile(gzopen(dstFilePath.string().c_str(), "wb"), gzdeleter);
+#endif
         if (!gzFile)
         {
             mErrorStream << "Failed to open gzfile " << dstFilePath << " for writing" << std::endl;
@@ -881,7 +876,8 @@ void GzipCompressionEngine::cancelAll()
 void GzipCompressionEngine::compressFile(const fs::path& filePath)
 {
     std::error_code ec;
-    fs::path tmpFilePath = filePath.string() + ".zipping";
+    fs::path tmpFilePath = filePath;
+    tmpFilePath += ".zipping";
 
     // Ensure there is not a clashing .zipping file
     if (fs::exists(tmpFilePath, ec) && !ec)
@@ -901,7 +897,8 @@ void GzipCompressionEngine::compressFile(const fs::path& filePath)
         return;
     }
 
-    fs::path targetFilePath = filePath.string() + getExtension();
+    fs::path targetFilePath = filePath;
+    targetFilePath += getExtension();
     pushToQueue(tmpFilePath, targetFilePath);
 }
 }

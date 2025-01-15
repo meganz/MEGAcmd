@@ -45,7 +45,7 @@ protected:
     {
         auto platformDirs = PlatformDirectories::getPlatformSpecificDirectories();
         auto configDirPath = platformDirs->configDirPath();
-        std::string megaIgnorePath = configDirPath + "/.megaignore.default";
+        const fs::path megaIgnorePath = configDirPath / ".megaignore.default";
 
         std::ofstream file(megaIgnorePath);
         ASSERT_TRUE(file.is_open());
@@ -61,7 +61,7 @@ protected:
     {
         auto platformDirs = PlatformDirectories::getPlatformSpecificDirectories();
         auto configDirPath = platformDirs->configDirPath();
-        std::string megaIgnorePath = configDirPath + "/.megaignore.default";
+        const fs::path megaIgnorePath = configDirPath / ".megaignore.default";
 
         std::ifstream file(megaIgnorePath);
         ASSERT_TRUE(file.is_open());

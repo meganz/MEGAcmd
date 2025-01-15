@@ -67,31 +67,28 @@
 #define ENOTCONN 107
 #endif
 
-namespace megacmd {
 using namespace std;
 
+namespace megacmd {
+
+#ifndef _WIN32
 string createAndRetrieveConfigFolder()
 {
     auto dirs = PlatformDirectories::getPlatformSpecificDirectories();
-#ifdef _WIN32
-    // We don't create the folder: Windows is currently using the folder
-    // of the executable.
-    return dirs->configDirPath();
-#else
-    auto dir = dirs->configDirPath();
-    struct stat st = {};
+    auto dir = dirs->configDirPath().string();
 
+    struct stat st = {};
     if (stat(dir.c_str(), &st) == -1)
     {
         mkdir(dir.c_str(), 0700);
     }
     return dir;
-#endif
 }
-
+#endif
 
 #ifndef _WIN32
 #include <sys/wait.h>
+
 bool is_pid_running(pid_t pid) {
 
     while(waitpid(-1, 0, WNOHANG) > 0) {

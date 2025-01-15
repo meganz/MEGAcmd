@@ -18,13 +18,11 @@
 #include <fstream>
 #include <cstring>
 #include <regex>
-#include <filesystem>
 
 #include "megacmdcommonutils.h"
 #include "megacmdlogger.h"
 
 using namespace megacmd;
-namespace fs = std::filesystem;
 
 namespace {
 
@@ -46,13 +44,13 @@ void trimSpaces(std::string& str)
     str.erase(end, str.end());
 }
 
-std::unique_lock<std::mutex> getFileLock(const std::string& str)
+std::unique_lock<std::mutex> getFileLock(const fs::path& path)
 {
     static std::mutex mapMutex;
-    static std::map<std::string, std::mutex> fileMutexMap;
+    static std::map<fs::path, std::mutex> fileMutexMap;
 
     std::lock_guard mapLock(mapMutex);
-    return std::unique_lock(fileMutexMap[str]);
+    return std::unique_lock(fileMutexMap[path]);
 }
 
 void executeAdd(MegaIgnoreFile& megaIgnoreFile, const std::set<std::string>& filters)
@@ -138,7 +136,7 @@ void executeCommand(const Args& args)
         return;
     }
 
-    std::string megaIgnoreFilePath;
+    fs::path megaIgnoreFilePath;
     bool isDefault = true;
     if (args.mMegaIgnoreDirPath.empty())
     {
@@ -146,7 +144,7 @@ void executeCommand(const Args& args)
     }
     else
     {
-        megaIgnoreFilePath = args.mMegaIgnoreDirPath + "/.megaignore";
+        megaIgnoreFilePath = args.mMegaIgnoreDirPath / ".megaignore";
         isDefault = false;
     }
 
@@ -211,11 +209,10 @@ void MegaIgnoreFile::loadFilters(std::ifstream& file)
     }
 }
 
-std::string MegaIgnoreFile::getDefaultPath()
+fs::path MegaIgnoreFile::getDefaultPath()
 {
     auto platformDirs = megacmd::PlatformDirectories::getPlatformSpecificDirectories();
-    auto configDirPath = platformDirs->configDirPath();
-    return configDirPath + "/.megaignore.default";
+    return platformDirs->configDirPath() / ".megaignore.default";
 }
 
 bool MegaIgnoreFile::isValidFilter(const std::string& filter)
@@ -224,7 +221,7 @@ bool MegaIgnoreFile::isValidFilter(const std::string& filter)
     return std::regex_match(filter, filterRegex);
 }
 
-MegaIgnoreFile::MegaIgnoreFile(const std::string& path) :
+MegaIgnoreFile::MegaIgnoreFile(const fs::path& path) :
     mPath(path),
     mValid(false)
 {

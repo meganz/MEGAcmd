@@ -21,7 +21,6 @@
 #include "megacmd_src_file_list.h"
 
 #include <map>
-#include <filesystem>
 
 #include <sys/types.h>
 
@@ -37,7 +36,6 @@
 #endif
 #endif
 
-namespace fs = std::filesystem;
 using namespace mega;
 
 namespace megacmd {
@@ -160,13 +158,12 @@ MegaCmdLogger::MegaCmdLogger() :
 {
 }
 
-OUTSTRING MegaCmdLogger::getDefaultFilePath()
+fs::path MegaCmdLogger::getDefaultFilePath()
 {
     auto dirs = PlatformDirectories::getPlatformSpecificDirectories();
-    assert(!dirs->configDirPath().empty());
 
-    auto logFilePath = fs::path(dirs->configDirPath()) / "megacmdserver.log";
-    return logFilePath.native();
+    assert(!dirs->configDirPath().empty());
+    return dirs->configDirPath() / "megacmdserver.log";
 }
 
 bool MegaCmdLogger::isMegaCmdSource(const std::string &source)

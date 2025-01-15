@@ -71,23 +71,23 @@ TEST(PlatformDirectoriesTest, configDirPath)
     {
         G_SUBTEST << "With $MEGACMD_WORKING_FOLDER_SUFFIX";
         auto guard = TestInstrumentsEnvVarGuard("MEGACMD_WORKING_FOLDER_SUFFIX", "foobar");
-        EXPECT_THAT(dirs->configDirPath(), testing::EndsWith(".megaCmd_foobar"));
+        EXPECT_THAT(dirs->configDirPath().wstring(), testing::EndsWith(L".megaCmd_foobar"));
     }
     {
         G_SUBTEST << "Without $MEGACMD_WORKING_FOLDER_SUFFIX";
         auto guard = TestInstrumentsUnsetEnvVarGuard("MEGACMD_WORKING_FOLDER_SUFFIX");
-        EXPECT_THAT(dirs->configDirPath(), testing::EndsWith(".megaCmd"));
+        EXPECT_THAT(dirs->configDirPath().wstring(), testing::EndsWith(L".megaCmd"));
     }
 #else
     {
         G_SUBTEST << "With alternative existing HOME";
         auto homeGuard = TestInstrumentsEnvVarGuard("HOME", "/tmp");
-        EXPECT_EQ(dirs->configDirPath(), "/tmp/.megaCmd");
+        EXPECT_EQ(dirs->configDirPath().string(), "/tmp/.megaCmd");
     }
     {
         G_SUBTEST << "With alternative NON existing HOME";
         auto homeGuard = TestInstrumentsEnvVarGuard("HOME", "/non-existent-dir");
-        EXPECT_EQ(dirs->configDirPath(), megacmd::PosixDirectories::noHomeFallbackFolder());
+        EXPECT_EQ(dirs->configDirPath().string(), megacmd::PosixDirectories::noHomeFallbackFolder());
     }
 #endif
 }

@@ -21,6 +21,7 @@
 
 #include <iostream>
 #include <iomanip>
+#include <filesystem>
 #ifdef _WIN32
 #include <algorithm>
 #endif
@@ -35,6 +36,7 @@ using std::istringstream;
 using std::locale;
 using std::stringstream;
 using std::exception;
+namespace fs = std::filesystem;
 
 #include "megaapi_impl.h"
 #include "megacmd_events.h"

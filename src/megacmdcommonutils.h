@@ -38,6 +38,7 @@
 #include <condition_variable>
 #include <cassert>
 #include <optional>
+#include <filesystem>
 
 #ifndef UNUSED
     #define UNUSED(x) (void)(x)
@@ -49,17 +50,41 @@
 
 using std::setw;
 using std::left;
+namespace fs = std::filesystem;
 
-#ifdef _WIN32
-namespace mega{
-
+namespace mega {
 // Note: these was in megacmd namespace, but after one overload of operator<< was created within mega,
 // ADL did not seem to be able to find it when solving template resolution in loggin.h (namespace mega),
 // even for code coming from megacmd namespace.
 // placing this operator in mega namespace eases ADL lookup and allows compilation
-std::ostringstream & operator<< ( std::ostringstream & ostr, std::wstring const &str); //override for the log, otherwise SimpleLog won't compile.
+
+// Note2: std::is_same_v is required below, instead of directly using the types; otherwise we'll
+// get a compilation error on type resolution because paths are implicitly convertible to strings.
+
+#ifdef _WIN32
+template <typename T>
+inline std::enable_if_t<std::is_same_v<T, std::wstring>, std::ostringstream&>
+operator<<(std::ostringstream& oss, const T& wstr)
+{
+    std::string s;
+    megacmd::localwtostring(&wstr, &s);
+    oss << s;
+    return oss;
 }
 #endif
+
+template <typename T>
+inline std::enable_if_t<std::is_same_v<T, fs::path>, std::ostringstream&>
+operator<<(std::ostringstream& oss, const T& path)
+{
+#ifdef _WIN32
+    std::string str = megacmd::getutf8fromUtf16(path.wstring().c_str());
+#else
+    std::string str = path.string();
+#endif
+    oss << str;
+    return oss;
+}
 
 namespace megacmd {
 
@@ -309,9 +334,9 @@ std::string getCurrentExecPath();
 std::string &ltrimProperty(std::string &s, const char &c);
 std::string &rtrimProperty(std::string &s, const char &c);
 std::string &trimProperty(std::string &what);
-std::string getPropertyFromFile(const char *configFile, const char *propertyName);
+std::string getPropertyFromFile(const fs::path &configFilePath, const char *propertyName);
 template <typename T>
-T getValueFromFile(const char *configFile, const char *propertyName, T defaultValue)
+T getValueFromFile(const fs::path &configFilePath, const char *propertyName, T defaultValue)
 {
     std::string propValue = getPropertyFromFile(configFile, propertyName);
     if (!propValue.size()) return defaultValue;
@@ -398,7 +423,7 @@ public:
      *
      * Meant for sockets, named pipes, file locks, command history, etc.
      */
-    virtual std::string runtimeDirPath()
+    virtual fs::path runtimeDirPath()
     {
         return configDirPath();
     }
@@ -408,7 +433,7 @@ public:
      * Meant for user-editable configuration files, data files that should not be deleted
      * (session credentials, SDK workding directory, logs, etc).
      */
-    virtual std::string configDirPath() = 0;
+    virtual fs::path configDirPath() = 0;
 };
 
 template <typename T> size_t numberOfDigits(T num)
@@ -425,7 +450,7 @@ template <typename T> size_t numberOfDigits(T num)
 #ifdef _WIN32
 class WindowsDirectories : public PlatformDirectories
 {
-    std::string configDirPath() override;
+    fs::path configDirPath() override;
 };
 std::wstring getNamedPipeName();
 #else // !defined(_WIN32)
@@ -433,7 +458,7 @@ class PosixDirectories : public PlatformDirectories
 {
 public:
     std::string homeDirPath();
-    virtual std::string configDirPath() override;
+    virtual fs::path configDirPath() override;
 
     static std::string noHomeFallbackFolder();
 
@@ -441,7 +466,7 @@ public:
 #ifdef __APPLE__
 class MacOSDirectories : public PosixDirectories
 {
-    std::string runtimeDirPath() override;
+    fs::path runtimeDirPath() override;
 };
 #endif // defined(__APPLE__)
 std::string getOrCreateSocketPath(bool createDirectory);

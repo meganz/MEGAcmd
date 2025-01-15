@@ -4206,6 +4206,7 @@ void finalize(bool waitForRestartSignal_param)
 #endif
     delete cm; //this needs to go after restartServer();
     LOG_debug << "resources have been cleaned ...";
+    LOG_info << "----------------------------- program end -------------------------------";
 
     MegaApi::removeLoggerObject(loggerCMD);
     delete loggerCMD;
@@ -5082,7 +5083,8 @@ void sendEvent(StatsManager::MegacmdEvent event, ::mega::MegaApi *megaApi, bool 
 #ifdef _WIN32
 void uninstall()
 {
-    MegaApi::removeRecursively(megacmd::ConfigurationManager::getConfigFolder().c_str());
+    std::error_code ec; // to use the non-throwing overload below
+    fs::remove_all(ConfigurationManager::getConfigFolder(), ec);
 
     ITaskService *pService = NULL;
     ITaskFolder *pRootFolder = NULL;
@@ -5185,11 +5187,18 @@ int executeServer(int argc, char* argv[],
     char userAgent[40];
     sprintf(userAgent, "MEGAcmd" MEGACMD_STRINGIZE(MEGACMD_USERAGENT_SUFFIX) "/%d.%d.%d.%d", MEGACMD_MAJOR_VERSION,MEGACMD_MINOR_VERSION,MEGACMD_MICRO_VERSION,MEGACMD_BUILD_ID);
 
-    LOG_debug << "----------------------------- program start -----------------------------";
+    LOG_info << "----------------------------- program start -----------------------------";
     LOG_debug << "MEGAcmd version: " << MEGACMD_MAJOR_VERSION << "." << MEGACMD_MINOR_VERSION << "." << MEGACMD_MICRO_VERSION << "." << MEGACMD_BUILD_ID << ": code " << MEGACMD_CODE_VERSION;
     LOG_debug << "MEGA SDK version: " << SDK_COMMIT_HASH;
 
-    api = new MegaApi("BdARkQSQ", (MegaGfxProcessor*)NULL, ConfigurationManager::getAndCreateConfigDir().c_str(), userAgent);
+    const fs::path configDirPath = ConfigurationManager::getAndCreateConfigDir();
+#ifdef _WIN32
+    const string configDirStr = getutf8fromUtf16(configDirPath.wstring().c_str());
+#else
+    const string configDirStr = configDirPath.string();
+#endif
+
+    api = new MegaApi("BdARkQSQ", (MegaGfxProcessor*) nullptr, configDirStr.c_str(), userAgent);
 
     if (!debug_api_url.empty())
     {
@@ -5200,9 +5209,15 @@ int executeServer(int argc, char* argv[],
 
     for (int i = 0; i < 5; i++)
     {
-        MegaApi *apiFolder = new MegaApi("BdARkQSQ", (MegaGfxProcessor*)NULL,
-                                         ConfigurationManager::getConfigFolderSubdir(std::string("apiFolder_").append(std::to_string(i))).c_str()
-                                         , userAgent);
+        const fs::path apiFolderPath = ConfigurationManager::getConfigFolderSubdir("apiFolder_" + std::to_string(i));
+#ifdef _WIN32
+        const string apiFolderStr = getutf8fromUtf16(apiFolderPath.wstring().c_str());
+#else
+        const string apiFolderStr = apiFolderPath.string();
+#endif
+
+        MegaApi *apiFolder = new MegaApi("BdARkQSQ", (MegaGfxProcessor*) nullptr,
+                                         apiFolderStr.c_str(), userAgent);
         apiFolder->setLanguage(localecode.c_str());
         apiFolders.push(apiFolder);
         apiFolder->setLogLevel(MegaApi::LOG_LEVEL_MAX);

@@ -19,6 +19,9 @@
 #ifndef MEGACMDLOGGER_H
 #define MEGACMDLOGGER_H
 
+#include <filesystem>
+namespace fs = std::filesystem;
+
 #include "megacmd.h"
 #include "comunicationsmanager.h"
 
@@ -230,7 +233,7 @@ public:
 
     virtual int getMaxLogLevel() const { return std::max(mSdkLoggerLevel, mCmdLoggerLevel); }
 
-    static OUTSTRING getDefaultFilePath();
+    static fs::path getDefaultFilePath();
 };
 
 class MegaCmdSimpleLogger final : public MegaCmdLogger
