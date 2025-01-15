@@ -384,26 +384,29 @@ TEST_F(SyncIssuesTests, AllSyncIssuesDetail)
     EXPECT_THAT(result.out(), testing::HasSubstr("Details on issue " + syncIssueId));
 }
 
-TEST_F(SyncIssuesTests, AllSyncIssuesDetailEnforceReasonsAndPathProblems)
+TEST_F(ManualSyncIssuesTests, AllSyncIssuesDetailEnforceReasonsAndPathProblems)
 {
     // Configure a conflicting issue and iterate over possible sync issues reasons and path problems,
     // to exercise code paths for all:
+    const std::string fileName = "fake_file";
 
-    const std::string dirPath = syncDirLocal() + "some_dir";
-    ASSERT_TRUE(fs::create_directory(dirPath));
-
-    std::string linkPath = syncDirLocal() + "some_link";
-#ifdef _WIN32
-    megacmd::replaceAll(linkPath, "/", "\\");
-#endif
+    auto result = executeInClient({"mkdir", "-p", syncDirCloud() + fileName});
+    ASSERT_TRUE(result.ok());
 
     {
+        std::ofstream file(syncDirLocal() + fileName);
+        file << "Some data";
+    }
+
+    // Start syncing once we've setup inconsistent data in cloud and local
+    {
         SyncIssueListGuard guard(1);
-        fs::create_directory_symlink(dirPath, linkPath);
+        result = executeInClient({"sync", syncDirLocal(), syncDirCloud()});
+        ASSERT_TRUE(result.ok());
     }
 
     // Get the sync issue id
-    auto result = executeInClient({"sync-issues"});
+    result = executeInClient({"sync-issues"});
     ASSERT_TRUE(result.ok());
 
     auto lines = splitByNewline(result.out());
