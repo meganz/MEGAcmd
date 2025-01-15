@@ -264,7 +264,7 @@ TEST_F(SyncIssuesTests, ShowSyncIssuesInSyncCommand)
 {
     auto result = executeInClient({"sync"});
     ASSERT_TRUE(result.ok());
-    EXPECT_THAT(result.out(), testing::HasSubstr("NO"));
+    EXPECT_THAT(result.out(), testing::HasSubstr(" NO "));
     EXPECT_THAT(result.out(), testing::Not(testing::HasSubstr("You have sync issues")));
 
     const std::string dirPath = syncDirLocal() + "some_dir";
@@ -277,7 +277,7 @@ TEST_F(SyncIssuesTests, ShowSyncIssuesInSyncCommand)
     result = executeInClient({"sync"});
     ASSERT_TRUE(result.ok());
     EXPECT_THAT(result.out(), testing::HasSubstr("Sync Issues (1)"));
-    EXPECT_THAT(result.out(), testing::Not(testing::HasSubstr("NO")));
+    EXPECT_THAT(result.out(), testing::Not(testing::HasSubstr(" NO ")));
     EXPECT_THAT(result.out(), testing::HasSubstr("You have sync issues"));
 
     {
@@ -287,7 +287,7 @@ TEST_F(SyncIssuesTests, ShowSyncIssuesInSyncCommand)
     result = executeInClient({"sync"});
     ASSERT_TRUE(result.ok());
     EXPECT_THAT(result.out(), testing::HasSubstr("Sync Issues (2)"));
-    EXPECT_THAT(result.out(), testing::Not(testing::HasSubstr("NO")));
+    EXPECT_THAT(result.out(), testing::Not(testing::HasSubstr(" NO ")));
     EXPECT_THAT(result.out(), testing::HasSubstr("You have sync issues"));
 }
 
