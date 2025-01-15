@@ -1689,7 +1689,7 @@ std::string getOrCreateSocketPath(bool createDirectory)
         }
     }
 
-    return socketFolder.append("/").append(sockname);
+    return (socketFolder / sockname).string();
 }
 #endif // ifdef(_WIN32) else
 } //end namespace
