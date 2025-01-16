@@ -5192,11 +5192,7 @@ int executeServer(int argc, char* argv[],
     LOG_debug << "MEGA SDK version: " << SDK_COMMIT_HASH;
 
     const fs::path configDirPath = ConfigurationManager::getAndCreateConfigDir();
-#ifdef _WIN32
-    const string configDirStr = getutf8fromUtf16(configDirPath.wstring().c_str());
-#else
-    const string configDirStr = configDirPath.string();
-#endif
+    const std::string configDirStr = pathAsUtf8(configDirPath);
 
     api = new MegaApi("BdARkQSQ", (MegaGfxProcessor*) nullptr, configDirStr.c_str(), userAgent);
 
@@ -5210,11 +5206,7 @@ int executeServer(int argc, char* argv[],
     for (int i = 0; i < 5; i++)
     {
         const fs::path apiFolderPath = ConfigurationManager::getConfigFolderSubdir("apiFolder_" + std::to_string(i));
-#ifdef _WIN32
-        const string apiFolderStr = getutf8fromUtf16(apiFolderPath.wstring().c_str());
-#else
-        const string apiFolderStr = apiFolderPath.string();
-#endif
+        const std::string apiFolderStr = pathAsUtf8(apiFolderPath);
 
         MegaApi *apiFolder = new MegaApi("BdARkQSQ", (MegaGfxProcessor*) nullptr,
                                          apiFolderStr.c_str(), userAgent);

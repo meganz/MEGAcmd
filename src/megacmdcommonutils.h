@@ -89,16 +89,10 @@ template <typename T>
 inline std::enable_if_t<std::is_same_v<T, fs::path>, std::ostringstream&>
 operator<<(std::ostringstream& oss, const T& path)
 {
-#ifdef _WIN32
-    std::string str = megacmd::getutf8fromUtf16(path.wstring().c_str());
-#else
-    std::string str = path.string();
-#endif
-    oss << str;
+    oss << megacmd::pathAsUtf8(path);
     return oss;
 }
 }
-
 
 namespace megacmd {
 
@@ -130,6 +124,8 @@ void utf16ToUtf8(const wchar_t* utf16data, int utf16size, std::string* utf8strin
 #define CERR std::cerr
 
 #endif
+
+std::string pathAsUtf8(const fs::path& path);
 
 #ifndef _WIN32
 #define ARRAYSIZE(a) (sizeof((a)) / sizeof(*(a)))

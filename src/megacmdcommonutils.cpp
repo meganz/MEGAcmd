@@ -125,6 +125,14 @@ std::string getutf8fromUtf16(const wchar_t *ws)
 
 #endif
 
+std::string pathAsUtf8(const fs::path& path)
+{
+#ifdef _WIN32
+    return getutf8fromUtf16(path.wstring().c_str());
+#else
+    return path.string();
+#endif
+}
 
 bool canWrite(string path)
 {
