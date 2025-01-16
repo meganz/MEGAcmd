@@ -45,11 +45,10 @@ TEST(PlatformDirectoriesTest, runtimeDirPath)
     }
     {
         G_SUBTEST << "Existing non-ascii HOME folder";
-        SelfDeletingTmpFolder tmpFolder;
-        fs::path nonAsciiFolder = tmpFolder.path() / "file_张三";
-        fs::path runtimeFolder = nonAsciiFolder / ".megaCmd";
+        SelfDeletingTmpFolder tmpFolder("file_张三");
+        fs::path runtimeFolder = tmpFolder.path() / ".megaCmd";
 
-        auto homeGuard = TestInstrumentsEnvVarGuard("HOME", nonAsciiFolder.string());
+        auto homeGuard = TestInstrumentsEnvVarGuard("HOME", tmpFolder.string());
         EXPECT_EQ(dirs->runtimeDirPath().string(), runtimeFolder.string());
     }
 
@@ -100,11 +99,10 @@ TEST(PlatformDirectoriesTest, configDirPath)
     }
     {
         G_SUBTEST << "With alternative existing non-ascii HOME";
-        SelfDeletingTmpFolder tmpFolder;
-        fs::path nonAsciiFolder = tmpFolder.path() / "file_张三";
-        fs::path configFolder = nonAsciiFolder / ".megaCmd";
+        SelfDeletingTmpFolder tmpFolder("file_张三");
+        fs::path configFolder = tmpFolder.path() / ".megaCmd";
 
-        auto homeGuard = TestInstrumentsEnvVarGuard("HOME", nonAsciiFolder.string());
+        auto homeGuard = TestInstrumentsEnvVarGuard("HOME", tmpFolder.string());
         EXPECT_EQ(dirs->configDirPath().string(), configFolder.string());
     }
     {
@@ -147,13 +145,12 @@ TEST(PlatformDirectoriesTest, lockExecution)
     {
         G_SUBTEST << "Non-ascii HOME";
 
-        SelfDeletingTmpFolder tmpFolder;
-        fs::path nonAsciiFolder = tmpFolder.path() / "file_张三";
-        auto homeGuard = TestInstrumentsEnvVarGuard("HOME", nonAsciiFolder.string());
+        SelfDeletingTmpFolder tmpFolder("file_张三");
+        auto homeGuard = TestInstrumentsEnvVarGuard("HOME", tmpFolder.string());
 
 #ifdef __APPLE__
-        fs::create_directories(nonAsciiFolder / "Library" / "Caches");
-        EXPECT_STREQ(dirs->runtimeDirPath().c_str(), nonAsciiFolder.string().append("/Library/Caches/megacmd.mac").c_str());
+        fs::create_directories(tmpFolder.path() / "Library" / "Caches");
+        EXPECT_STREQ(dirs->runtimeDirPath().c_str(), tmpFolder.string().append("/Library/Caches/megacmd.mac").c_str());
 #endif
         ASSERT_TRUE(ConfigurationManager::lockExecution());
         ASSERT_TRUE(ConfigurationManager::unlockExecution());
@@ -236,13 +233,11 @@ TEST(PlatformDirectoriesTest, getOrCreateSocketPath)
     {
         G_SUBTEST << "Without $MEGACMD_SOCKET_NAME, longth path: /tmp/megacmd-UID fallback";
 
-        SelfDeletingTmpFolder tmpFolder;
-        fs::path lengthyHome = tmpFolder.path() / "this_is_a_very_very_very_lengthy_folder_name_meant_to_make_socket_path_exceed_max_unix_socket_path_allowance";
-        fs::create_directories(lengthyHome);
+        SelfDeletingTmpFolder tmpFolder("this_is_a_very_very_very_lengthy_folder_name_meant_to_make_socket_path_exceed_max_unix_socket_path_allowance");
 #ifdef __APPLE__
-        fs::create_directories(lengthyHome / "Library" / "Caches");
+        fs::create_directories(tmpFolder.path() / "Library" / "Caches");
 #endif
-        auto homeGuard = TestInstrumentsEnvVarGuard("HOME", lengthyHome.string());
+        auto homeGuard = TestInstrumentsEnvVarGuard("HOME", tmpFolder.string());
         auto guard = TestInstrumentsUnsetEnvVarGuard("MEGACMD_SOCKET_NAME");
         auto runtimeDir = dirs->runtimeDirPath();
         auto socketPath = getOrCreateSocketPath(false);

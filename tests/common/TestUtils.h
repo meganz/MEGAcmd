@@ -165,6 +165,13 @@ public:
         fs::create_directory(mTempDir);
     }
 
+    SelfDeletingTmpFolder(const fs::path& subPath) :
+        SelfDeletingTmpFolder()
+    {
+        mTempDir /= subPath;
+        fs::create_directory(mTempDir);
+    }
+
     ~SelfDeletingTmpFolder()
     {
         fs::remove_all(mTempDir);
