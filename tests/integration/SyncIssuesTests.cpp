@@ -67,7 +67,8 @@ public:
     }
 };
 
-class SyncIssuesTests : public NOINTERACTIVELoggedInTest
+template<bool runSync>
+class SyncIssuesTests_ : public NOINTERACTIVELoggedInTest
 {
     SelfDeletingTmpFolder mTmpDir;
 
@@ -82,9 +83,12 @@ class SyncIssuesTests : public NOINTERACTIVELoggedInTest
         result = fs::create_directory(syncDirLocal());
         ASSERT_TRUE(result);
 
-        SyncIssueListGuard guard(0); // ensure there are no sync issues before we start the test
-        result = executeInClient({"sync", syncDirLocal(), syncDirCloud()}).ok();
-        ASSERT_TRUE(result);
+        if constexpr (runSync)
+        {
+            SyncIssueListGuard guard(0); // ensure there are no sync issues before we start the test
+            result = executeInClient({"sync", syncDirLocal(), syncDirCloud()}).ok();
+            ASSERT_TRUE(result);
+        }
     }
 
     void TearDown() override
@@ -111,6 +115,9 @@ protected:
         return "'" + str + "'";
     }
 };
+
+using SyncIssuesTests = SyncIssuesTests_<true>;
+using ManualSyncIssuesTests = SyncIssuesTests_<false>;
 
 TEST_F(SyncIssuesTests, NoIssues)
 {
@@ -179,6 +186,35 @@ TEST_F(SyncIssuesTests, SymLink)
     EXPECT_THAT(result.out(), testing::HasSubstr("There are no sync issues"));
 }
 
+TEST_F(ManualSyncIssuesTests, FileAgainstFolder)
+{
+    const std::string fileName = "fake_file";
+
+    auto result = executeInClient({"mkdir", "-p", syncDirCloud() + fileName});
+    ASSERT_TRUE(result.ok());
+
+    {
+        std::ofstream file(syncDirLocal() + fileName);
+        file << "Some data";
+    }
+
+    // Start syncing once we've setup inconsistent data in cloud and local
+    {
+        SyncIssueListGuard guard(1);
+        result = executeInClient({"sync", syncDirLocal(), syncDirCloud()});
+        ASSERT_TRUE(result.ok());
+    }
+
+    result = executeInClient({"sync-issues", "--disable-path-collapse", "--detail", "--all"});
+    ASSERT_TRUE(result.ok());
+
+    auto lines = splitByNewline(result.out());
+    ASSERT_THAT(lines, testing::Contains(testing::HasSubstr("Unable to sync " + qw(fileName))));
+    ASSERT_THAT(lines, testing::Contains(testing::HasSubstr("Cannot sync folders against files")));
+    ASSERT_THAT(lines, testing::Contains(testing::AllOf(testing::HasSubstr("<CLOUD>"), testing::HasSubstr("Folder"))));
+    ASSERT_THAT(lines, testing::Contains(testing::AllOf(testing::Not(testing::HasSubstr("<CLOUD>")), testing::HasSubstr("File"))));
+}
+
 TEST_F(SyncIssuesTests, IncorrectSyncIssueListSizeOnSecondSymlink)
 {
     // This tests against an internal issue that caused the sync issue list to have incorrect
@@ -228,7 +264,7 @@ TEST_F(SyncIssuesTests, ShowSyncIssuesInSyncCommand)
 {
     auto result = executeInClient({"sync"});
     ASSERT_TRUE(result.ok());
-    EXPECT_THAT(result.out(), testing::HasSubstr("NO"));
+    EXPECT_THAT(result.out(), testing::HasSubstr(" NO "));
     EXPECT_THAT(result.out(), testing::Not(testing::HasSubstr("You have sync issues")));
 
     const std::string dirPath = syncDirLocal() + "some_dir";
@@ -241,7 +277,7 @@ TEST_F(SyncIssuesTests, ShowSyncIssuesInSyncCommand)
     result = executeInClient({"sync"});
     ASSERT_TRUE(result.ok());
     EXPECT_THAT(result.out(), testing::HasSubstr("Sync Issues (1)"));
-    EXPECT_THAT(result.out(), testing::Not(testing::HasSubstr("NO")));
+    EXPECT_THAT(result.out(), testing::Not(testing::HasSubstr(" NO ")));
     EXPECT_THAT(result.out(), testing::HasSubstr("You have sync issues"));
 
     {
@@ -251,7 +287,7 @@ TEST_F(SyncIssuesTests, ShowSyncIssuesInSyncCommand)
     result = executeInClient({"sync"});
     ASSERT_TRUE(result.ok());
     EXPECT_THAT(result.out(), testing::HasSubstr("Sync Issues (2)"));
-    EXPECT_THAT(result.out(), testing::Not(testing::HasSubstr("NO")));
+    EXPECT_THAT(result.out(), testing::Not(testing::HasSubstr(" NO ")));
     EXPECT_THAT(result.out(), testing::HasSubstr("You have sync issues"));
 }
 
@@ -346,4 +382,69 @@ TEST_F(SyncIssuesTests, AllSyncIssuesDetail)
     EXPECT_THAT(result.out(), testing::HasSubstr("Symlink detected"));
     EXPECT_THAT(result.out(), testing::HasSubstr(linkPath));
     EXPECT_THAT(result.out(), testing::HasSubstr("Details on issue " + syncIssueId));
+}
+
+TEST_F(ManualSyncIssuesTests, AllSyncIssuesDetailEnforceReasonsAndPathProblems)
+{
+    // Configure a conflicting issue and iterate over possible sync issues reasons and path problems,
+    // to exercise code paths for all:
+    const std::string fileName = "fake_file";
+
+    auto result = executeInClient({"mkdir", "-p", syncDirCloud() + fileName});
+    ASSERT_TRUE(result.ok());
+
+    {
+        std::ofstream file(syncDirLocal() + fileName);
+        file << "Some data";
+    }
+
+    // Start syncing once we've setup inconsistent data in cloud and local
+    {
+        SyncIssueListGuard guard(1);
+        result = executeInClient({"sync", syncDirLocal(), syncDirCloud()});
+        ASSERT_TRUE(result.ok());
+    }
+
+    // Get the sync issue id
+    result = executeInClient({"sync-issues"});
+    ASSERT_TRUE(result.ok());
+
+    auto lines = splitByNewline(result.out());
+    EXPECT_EQ(lines.size(), 4); // Column names + issue + newline + detail usage
+
+    auto words = megacmd::split(lines[1], " ");
+    EXPECT_THAT(words, testing::Not(testing::IsEmpty()));
+
+    std::string syncIssueId = words[0];
+
+    // Get the parent sync ID
+    result = executeInClient({"sync"});
+    ASSERT_TRUE(result.ok());
+
+    lines = splitByNewline(result.out());
+    EXPECT_THAT(lines.size(), 3);
+
+    words = megacmd::split(lines[1], " ");
+    EXPECT_THAT(words, testing::Not(testing::IsEmpty()));
+
+    std::string parentSyncId = words[0];
+
+    for (int reasonType = static_cast<int>(mega::SyncWaitReason::NoReason);
+         reasonType < static_cast<int>(mega::SyncWaitReason::SyncWaitReason_LastPlusOne);
+         ++reasonType)
+    {
+        for (int pathProblem = static_cast<int>(mega::PathProblem::NoProblem);
+             pathProblem < static_cast<int>(mega::PathProblem::PathProblem_LastPlusOne);
+             ++pathProblem)
+        {
+            TestInstrumentsTestValueGuard reasonGuard(TI::TestValue::SYNC_ISSUE_ENFORCE_REASON_TYPE, reasonType);
+            TestInstrumentsTestValueGuard pathProblemGuard(TI::TestValue::SYNC_ISSUE_ENFORCE_PATH_PROBLEM, pathProblem);
+
+            result = executeInClient({"sync-issues", "--disable-path-collapse", "--detail", "--all"});
+
+            ASSERT_TRUE(result.ok());
+            EXPECT_THAT(result.out(), testing::HasSubstr("Parent sync: " + parentSyncId));
+            EXPECT_THAT(result.out(), testing::HasSubstr("Details on issue " + syncIssueId));
+        }
+    }
 }
