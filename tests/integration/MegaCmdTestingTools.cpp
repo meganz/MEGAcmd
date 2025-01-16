@@ -18,6 +18,8 @@
 
 #include "MegaCmdTestingTools.h"
 
+#include "TestUtils.h"
+#include <numeric>
 std::vector<std::string> splitByNewline(const std::string& str)
 {
     std::vector<std::string> result;
@@ -44,7 +46,9 @@ ClientResponse executeInClient(const std::vector<std::string>& command, bool /*n
     args.push_back(nullptr);
 
     OUTSTRINGSTREAM stream;
+    G_TEST_MSG << " Executing in client: " << std::accumulate(command.begin(), command.end(), std::string(), [](auto&& acc, auto&& v) { return acc + (acc.empty() ? "" : ",") + v; });
     auto code = megacmd::executeClient(static_cast<int>(args.size() - 1), args.data(), stream);
+    G_TEST_MSG << " Response (code=" << code << ", size= " << stream.str().size() << "):\n" << stream.str();
     return {code, stream};
 }
 

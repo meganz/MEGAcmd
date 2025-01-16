@@ -10796,7 +10796,16 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         // Do not trust empty results
         timelyRetry(std::chrono::seconds(3), std::chrono::milliseconds(200),
                     [&syncIssues]() { return !syncIssues.empty(); },
-                    [this, &syncIssues]() { syncIssues = mSyncIssuesManager.getSyncIssues(); });
+                    [this, &syncIssues, firstTime{true}]() mutable
+        {
+            if (firstTime)
+            {
+                LOG_warn << "sync-issues first retrieval returned empty";
+                firstTime = false;
+            }
+            syncIssues = mSyncIssuesManager.getSyncIssues();
+            LOG_warn << "sync-issues retrieval returned empty. Retried returned = " << syncIssues.size();
+        });
 
         ColumnDisplayer cd(clflags, cloptions);
 
