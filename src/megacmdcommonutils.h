@@ -65,6 +65,10 @@ using std::setw;
 using std::left;
 namespace fs = std::filesystem;
 
+namespace megacmd {
+std::string pathAsUtf8(const fs::path& path);
+}
+
 namespace mega {
 // Note: these was in megacmd namespace, but after one overload of operator<< was created within mega,
 // ADL did not seem to be able to find it when solving template resolution in loggin.h (namespace mega),
@@ -125,8 +129,6 @@ void utf16ToUtf8(const wchar_t* utf16data, int utf16size, std::string* utf8strin
 #define CERR std::cerr
 
 #endif
-
-std::string pathAsUtf8(const fs::path& path);
 
 #ifndef _WIN32
 #define ARRAYSIZE(a) (sizeof((a)) / sizeof(*(a)))
