@@ -238,9 +238,6 @@ public:
 
 class MegaCmdSimpleLogger final : public MegaCmdLogger
 {
-#ifdef _WIN32
-    std::mutex mSetmodeMtx;
-#endif
     LoggedStream &mLoggedStream;
     LoggedStreamOutStream mOutStream;
     bool mLogToOutStream;

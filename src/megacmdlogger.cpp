@@ -24,18 +24,6 @@
 
 #include <sys/types.h>
 
-#ifdef _WIN32
-#include <fcntl.h>
-#include <io.h>
-#include <stdio.h>
-#ifndef _O_U16TEXT
-#define _O_U16TEXT 0x00020000
-#endif
-#ifndef _O_U8TEXT
-#define _O_U8TEXT 0x00040000
-#endif
-#endif
-
 using namespace mega;
 
 namespace megacmd {
@@ -269,15 +257,9 @@ void MegaCmdSimpleLogger::log(const char * /*time*/, int logLevel, const char *s
         if (mLogToOutStream)
         {
 #ifdef _WIN32
-            std::lock_guard<std::mutex> g(mSetmodeMtx);
-            int oldmode = _setmode(_fileno(stdout), _O_U8TEXT);
+            WindowsUtf8ConsoleGuard utf8Guard;
 #endif
             formatLogToStream(mOutStream, nowTimeStr, logLevel, source, message);
-
-#ifdef _WIN32
-            assert(oldmode != -1);
-            _setmode(_fileno(stdout), oldmode);
-#endif
         }
     }
 

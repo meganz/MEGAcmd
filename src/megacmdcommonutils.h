@@ -40,6 +40,18 @@
 #include <optional>
 #include <filesystem>
 
+#ifdef _WIN32
+#include <fcntl.h>
+#include <io.h>
+#include <stdio.h>
+#ifndef _O_U16TEXT
+#define _O_U16TEXT 0x00020000
+#endif
+#ifndef _O_U8TEXT
+#define _O_U8TEXT 0x00040000
+#endif
+#endif
+
 #ifndef UNUSED
     #define UNUSED(x) (void)(x)
 #endif
@@ -582,6 +594,27 @@ public:
     ScopeGuard(ExitCallback&& exitCb) : mExitCb{std::move(exitCb)} { }
     ~ScopeGuard() { mExitCb(); }
 };
+
+#ifdef _WIN32
+class WindowsUtf8ConsoleGuard final
+{
+    int mOldMode;
+    inline static std::mutex mSetmodeMtx;
+public:
+    WindowsUtf8ConsoleGuard()
+    {
+        std::lock_guard g(mSetmodeMtx);
+        mOldMode = _setmode(_fileno(stdout), _O_U8TEXT);
+    }
+
+    ~WindowsUtf8ConsoleGuard()
+    {
+        std::lock_guard g(mSetmodeMtx);
+        assert(mOldMode != -1);
+        _setmode(_fileno(stdout), mOldMode);
+    }
+};
+#endif
 
 }//end namespace
 #endif // MEGACMDCOMMONUTILS_H

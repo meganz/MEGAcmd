@@ -672,6 +672,10 @@ void ConfigurationManager::loadConfiguration(bool debug)
 {
     std::lock_guard<std::recursive_mutex> g(settingsMutex);
 
+#ifdef _WIN32
+    WindowsUtf8ConsoleGuard utf8Guard;
+#endif
+
     // SESSION
     const fs::path configDir = getAndCreateConfigDir();
     if (!configDir.empty())
@@ -679,7 +683,7 @@ void ConfigurationManager::loadConfiguration(bool debug)
         const fs::path sessionFilePath = configDir / "session";
         if (debug)
         {
-            std::cout << "Session file: " << sessionFilePath << std::endl;
+            COUT << "Session file: " << sessionFilePath << std::endl;
         }
 
         ifstream fi(sessionFilePath, ios::in);
@@ -691,7 +695,7 @@ void ConfigurationManager::loadConfiguration(bool debug)
                 session = line;
                 if (debug)
                 {
-                    std::cout << "Session read from configuration: " << line.substr(0, 5) << "..." << std::endl;
+                    COUT << "Session read from configuration: " << line.substr(0, 5) << "..." << std::endl;
                 }
             }
             fi.close();
@@ -718,7 +722,7 @@ void ConfigurationManager::loadConfiguration(bool debug)
             hasBeenUpdated = true;
             if (debug)
             {
-                std::cout << "MEGAcmd has been updated." << std::endl;
+                COUT << "MEGAcmd has been updated." << std::endl;
             }
         }
 
@@ -731,14 +735,14 @@ void ConfigurationManager::loadConfiguration(bool debug)
         }
         else
         {
-            std::cerr << "Could not write MEGAcmd version to " << versionFilePath << std::endl;
+            CERR << "Could not write MEGAcmd version to " << versionFilePath << std::endl;
         }
     }
     else
     {
         if (debug)
         {
-            std::cout << "Couldnt access data folder " << std::endl;
+            COUT << "Couldnt access data folder " << std::endl;
         }
     }
 }
