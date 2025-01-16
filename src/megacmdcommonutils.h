@@ -560,7 +560,7 @@ void timelyRetry(const std::chrono::duration<_Rep, _Period> &maxTime, const std:
                  , Condition&& endCondition, What&& what)
 {
     using Step_t = std::chrono::duration<_Rep2, _Period2>;
-    for (auto timeLeft = std::chrono::duration_cast<Step_t>(maxTime); endCondition() && timeLeft > Step_t(0); timeLeft -= step)
+    for (auto timeLeft = std::chrono::duration_cast<Step_t>(maxTime); !endCondition() && timeLeft > Step_t(0); timeLeft -= step)
     {
         std::this_thread::sleep_for(step);
         what();
