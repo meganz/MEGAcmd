@@ -10793,8 +10793,9 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         }
 
         auto syncIssues = mSyncIssuesManager.getSyncIssues();
-        // Do not trust empty results
-        timelyRetry(std::chrono::seconds(3), std::chrono::milliseconds(200),
+#ifdef MEGACMD_TESTING_CODE
+        // Do not trust empty results (SDK may send them after spurious scans delayed 20ds. SDK-4813)
+        timelyRetry(std::chrono::milliseconds(2300), std::chrono::milliseconds(200),
                     [&syncIssues]() { return !syncIssues.empty(); },
                     [this, &syncIssues, firstTime{true}]() mutable
         {
@@ -10806,6 +10807,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             syncIssues = mSyncIssuesManager.getSyncIssues();
             LOG_warn << "sync-issues retrieval returned empty. Retried returned = " << syncIssues.size();
         });
+#endif
 
         ColumnDisplayer cd(clflags, cloptions);
 
