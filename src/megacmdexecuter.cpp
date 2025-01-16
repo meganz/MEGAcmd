@@ -10791,13 +10791,28 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             return;
         }
 
+        auto syncIssues = mSyncIssuesManager.getSyncIssues();
+#ifdef MEGACMD_TESTING_CODE
+        // Do not trust empty results (SDK may send them after spurious scans delayed 20ds. SDK-4813)
+        timelyRetry(std::chrono::milliseconds(2300), std::chrono::milliseconds(200),
+                    [&syncIssues]() { return !syncIssues.empty(); },
+                    [this, &syncIssues, firstTime{true}]() mutable
+        {
+            if (firstTime)
+            {
+                LOG_warn << "sync-issues first retrieval returned empty";
+                firstTime = false;
+            }
+            syncIssues = mSyncIssuesManager.getSyncIssues();
+            LOG_warn << "sync-issues retrieval returned empty. Retried returned = " << syncIssues.size();
+        });
+#endif
+
         ColumnDisplayer cd(clflags, cloptions);
 
         bool detailSyncIssue = getFlag(clflags, "detail");
         if (detailSyncIssue) // get the details of one or more issues
         {
-            auto syncIssues = mSyncIssuesManager.getSyncIssues();
-
             bool showAll = getFlag(clflags, "all");
             if (showAll)
             {
@@ -10831,7 +10846,6 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         }
         else // show all sync issues
         {
-            auto syncIssues = mSyncIssuesManager.getSyncIssues();
             if (syncIssues.empty())
             {
                 OUTSTREAM << "There are no sync issues" << endl;

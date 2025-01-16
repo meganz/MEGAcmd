@@ -38,6 +38,7 @@
 #include <condition_variable>
 #include <cassert>
 #include <optional>
+#include <thread>
 #include <filesystem>
 
 #ifdef _WIN32
@@ -590,6 +591,18 @@ public:
     ScopeGuard(ExitCallback&& exitCb) : mExitCb{std::move(exitCb)} { }
     ~ScopeGuard() { mExitCb(); }
 };
+
+template <typename _Rep, typename _Period, typename _Rep2, typename _Period2, typename Condition, typename What>
+void timelyRetry(const std::chrono::duration<_Rep, _Period> &maxTime, const std::chrono::duration<_Rep2, _Period2> &step
+                 , Condition&& endCondition, What&& what)
+{
+    using Step_t = std::chrono::duration<_Rep2, _Period2>;
+    for (auto timeLeft = std::chrono::duration_cast<Step_t>(maxTime); !endCondition() && timeLeft > Step_t(0); timeLeft -= step)
+    {
+        std::this_thread::sleep_for(step);
+        what();
+    }
+}
 
 #ifdef _WIN32
 class WindowsUtf8ConsoleGuard final

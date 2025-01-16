@@ -255,6 +255,15 @@ std::optional<int> SyncIssue::getPathProblem(mega::PathProblem pathProblem) cons
 {
     assert(mMegaStall);
 
+#ifdef MEGACMD_TESTING_CODE
+    auto pathProblemOpt = TI::Instance().testValue(TI::TestValue::SYNC_ISSUE_ENFORCE_PATH_PROBLEM);
+    if (pathProblemOpt)
+    {
+        auto pathProblemEnum = static_cast<mega::PathProblem>(std::get<int64_t>(*pathProblemOpt));
+        return (pathProblemEnum == pathProblem) ? std::optional<int>(0) /*first index*/ : std::nullopt;
+    }
+#endif
+
     for (int i = 0; i < mMegaStall->pathCount(isCloud); ++i)
     {
         if (mMegaStall->pathProblem(isCloud, i) == static_cast<int>(pathProblem))
@@ -300,6 +309,14 @@ SyncInfo SyncIssue::getSyncInfo(mega::MegaSync const* parentSync) const
 
     SyncInfo info;
     info.mReasonType = static_cast<mega::SyncWaitReason>(mMegaStall->reason());
+
+#ifdef MEGACMD_TESTING_CODE
+    auto reasonTypeOpt = TI::Instance().testValue(TI::TestValue::SYNC_ISSUE_ENFORCE_REASON_TYPE);
+    if (reasonTypeOpt)
+    {
+        info.mReasonType = static_cast<mega::SyncWaitReason>(std::get<int64_t>(*reasonTypeOpt));
+    }
+#endif
 
     switch(info.mReasonType)
     {
@@ -461,6 +478,13 @@ std::vector<SyncIssue::PathProblem> SyncIssue::getPathProblems(mega::MegaApi& ap
         pathProblem.mPath = (isCloud ? CloudPrefix : "") + mMegaStall->path(isCloud, i);
         pathProblem.mProblem = static_cast<mega::PathProblem>(std::max(0, mMegaStall->pathProblem(isCloud, i)));
 
+#ifdef MEGACMD_TESTING_CODE
+    auto pathProblemOpt = TI::Instance().testValue(TI::TestValue::SYNC_ISSUE_ENFORCE_PATH_PROBLEM);
+    if (pathProblemOpt)
+    {
+        pathProblem.mProblem = static_cast<mega::PathProblem>(std::get<int64_t>(*pathProblemOpt));
+    }
+#endif
         if constexpr (isCloud)
         {
             auto nodeHandle = mMegaStall->cloudNodeHandle(i);
