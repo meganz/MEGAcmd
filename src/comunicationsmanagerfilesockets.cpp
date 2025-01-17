@@ -250,6 +250,11 @@ void ComunicationsManagerFileSockets::returnAndClosePetition(std::unique_ptr<Cmd
 
 void ComunicationsManagerFileSockets::sendPartialOutput(CmdPetition *inf, OUTSTRING *s)
 {
+   sendPartialOutput(inf, s->data(), s->size());
+}
+
+void ComunicationsManagerFileSockets::sendPartialOutput(CmdPetition *inf, char *s, size_t size)
+{
     if (inf->clientDisconnected)
     {
         return;
@@ -263,10 +268,8 @@ void ComunicationsManagerFileSockets::sendPartialOutput(CmdPetition *inf, OUTSTR
         return;
     }
 
-    if (s->size())
+    if (size)
     {
-        size_t size = s->size();
-
         int outCode = MCMD_PARTIALOUT;
         auto n = send(connectedsocket, (void*)&outCode, sizeof( outCode ), MSG_NOSIGNAL);
         if (n < 0)
@@ -287,7 +290,7 @@ void ComunicationsManagerFileSockets::sendPartialOutput(CmdPetition *inf, OUTSTR
         }
 
 
-        n = send(connectedsocket, s->data(), size, MSG_NOSIGNAL); // for some reason without the max recv never quits in the client for empty responses
+        n = send(connectedsocket, s, size, MSG_NOSIGNAL); // for some reason without the max recv never quits in the client for empty responses
 
         if (n < 0)
         {
