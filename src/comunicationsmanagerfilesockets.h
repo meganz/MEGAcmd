@@ -79,7 +79,8 @@ public:
      */
     void returnAndClosePetition(std::unique_ptr<CmdPetition> inf, OUTSTRINGSTREAM *s, int) override;
 
-    virtual void sendPartialOutput(CmdPetition *inf, OUTSTRING *s);
+    void sendPartialOutput(CmdPetition *inf, OUTSTRING *s) override;
+    void sendPartialOutput(CmdPetition *inf, char *s, size_t size) override;
 
     int informStateListener(CmdPetition *inf, const std::string &s) override;
 

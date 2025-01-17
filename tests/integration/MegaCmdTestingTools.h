@@ -26,6 +26,7 @@
 
 #include <chrono>
 #include <future>
+#include <regex>
 
 constexpr const char* LINK_TESTEXPORTFILE01TXT = "https://mega.nz/file/YfNngDKR#qk9THHhxbakddRmt_tLR8OhInexzVCpPPG6M6feFfZg";
 constexpr const char* LINK_TESTEXPORTFOLDER = "https://mega.nz/folder/saMRXBYL#9GETCO4E-Po45d3qSjZhbQ";
@@ -75,6 +76,12 @@ class BasicGenericTest : public ::testing::Test
 
 class LoggedInTest : public BasicGenericTest
 {
+    bool isWordATimestamp(const std::string& str)
+    {
+        static std::regex pattern(R"(^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.\d{6}$)");
+        return std::regex_match(str, pattern);
+    }
+
 protected:
     void removeAllSyncs()
     {
@@ -87,7 +94,7 @@ protected:
             auto words = megacmd::split(lines[i], " ");
 
             ASSERT_TRUE(!words.empty());
-            if (words[0] == "[err:")
+            if (words.empty() || isWordATimestamp(words[0])) //discard log lines
             {
                 continue;
             }
