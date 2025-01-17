@@ -20,6 +20,7 @@
 #include "megacmdcommonutils.h"
 #include "megacmd.h"
 #include "client/megacmdclient.h"
+#include "megacmdlogger.h"
 
 #include <gtest/gtest.h>
 #include "Instruments.h"
@@ -76,12 +77,6 @@ class BasicGenericTest : public ::testing::Test
 
 class LoggedInTest : public BasicGenericTest
 {
-    bool isWordATimestamp(const std::string& str)
-    {
-        static std::regex pattern(R"(^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.\d{6}$)");
-        return std::regex_match(str, pattern);
-    }
-
 protected:
     void removeAllSyncs()
     {
@@ -94,7 +89,7 @@ protected:
             auto words = megacmd::split(lines[i], " ");
 
             ASSERT_TRUE(!words.empty());
-            if (words.empty() || isWordATimestamp(words[0])) //discard log lines
+            if (megacmd::stringToTimestamp(words[0])) // discard log lines
             {
                 continue;
             }
