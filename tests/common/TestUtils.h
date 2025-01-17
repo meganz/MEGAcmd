@@ -169,7 +169,7 @@ public:
         SelfDeletingTmpFolder()
     {
         mTempDir /= subPath;
-        fs::create_directory(mTempDir);
+        fs::create_directories(mTempDir);
     }
 
     ~SelfDeletingTmpFolder()

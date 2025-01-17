@@ -43,14 +43,6 @@ TEST(PlatformDirectoriesTest, runtimeDirPath)
         auto homeGuard = TestInstrumentsEnvVarGuard("HOME", "");
         EXPECT_STREQ(dirs->runtimeDirPath().c_str(), megacmd::PosixDirectories::noHomeFallbackFolder().c_str());
     }
-    {
-        G_SUBTEST << "Existing non-ascii HOME folder";
-        SelfDeletingTmpFolder tmpFolder("file_张三");
-        fs::path runtimeFolder = tmpFolder.path() / ".megaCmd";
-
-        auto homeGuard = TestInstrumentsEnvVarGuard("HOME", tmpFolder.string());
-        EXPECT_EQ(dirs->runtimeDirPath().string(), runtimeFolder.string());
-    }
 
     #ifdef __APPLE__
     {
@@ -65,6 +57,22 @@ TEST(PlatformDirectoriesTest, runtimeDirPath)
         EXPECT_EQ(dirs->runtimeDirPath(), "/tmp/.megaCmd");
     }
     #endif
+
+    {
+        G_SUBTEST << "Existing non-ascii HOME folder";
+        SelfDeletingTmpFolder tmpFolder("file_张三");
+
+    #ifdef __APPLE__
+        fs::path runtimeFolder = tmpFolder.path() / "Library" / "Caches" / "megacmd.mac";
+        fs::create_directories(runtimeFolder);
+    #else
+        fs::path runtimeFolder = tmpFolder.path() / ".megaCmd";
+    #endif
+
+        auto homeGuard = TestInstrumentsEnvVarGuard("HOME", tmpFolder.string());
+        EXPECT_EQ(dirs->runtimeDirPath().string(), runtimeFolder.string());
+    }
+
 #endif
 }
 
@@ -207,7 +215,7 @@ TEST(PlatformDirectoriesTest, getOrCreateSocketPath)
         auto socketPath = getOrCreateSocketPath(false);
 
         auto expectedNormalFile = (dirs->runtimeDirPath() / "file_张三").string(); // normal case
-        auto expectedFallbackFile = megacmd::PosixDirectories::noHomeFallbackFolder().append("file_张三"); // too length case
+        auto expectedFallbackFile = megacmd::PosixDirectories::noHomeFallbackFolder().append("/file_张三"); // too length case
         ASSERT_THAT(socketPath, testing::AnyOf(expectedNormalFile, expectedFallbackFile));
     }
 
