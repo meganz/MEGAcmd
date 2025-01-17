@@ -139,10 +139,10 @@ void MegaCmdGlobalListener::onNodesUpdate(MegaApi *api, MegaNodeList *nodes)
                     nFiles += details->getNumFiles(handle);
                     nFolders += details->getNumFolders(handle);
                 }
-                auto inboxNode = std::unique_ptr<MegaNode>(api->getInboxNode());
-                if (inboxNode != nullptr)
+                auto vaultNode = std::unique_ptr<MegaNode>(api->getVaultNode());
+                if (vaultNode != nullptr)
                 {
-                    auto handle = inboxNode->getHandle();
+                    auto handle = vaultNode->getHandle();
                     nFiles += details->getNumFiles(handle);
                     nFolders += details->getNumFolders(handle);
                 }
@@ -540,7 +540,7 @@ void MegaCmdMegaListener::onSyncStateChanged(MegaApi *api, MegaSync *sync)
     }
     auto msg = ss.str();
 
-    if (sync->getError() || sync->getRunState() >= MegaSync::RUNSTATE_PAUSED)
+    if (sync->getError() || sync->getRunState() >= MegaSync::RUNSTATE_SUSPENDED)
     {
         broadcastDelayedMessage(msg, true);
     }

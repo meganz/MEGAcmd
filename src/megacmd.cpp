@@ -5189,7 +5189,7 @@ int executeServer(int argc, char* argv[],
     LOG_debug << "MEGAcmd version: " << MEGACMD_MAJOR_VERSION << "." << MEGACMD_MINOR_VERSION << "." << MEGACMD_MICRO_VERSION << "." << MEGACMD_BUILD_ID << ": code " << MEGACMD_CODE_VERSION;
     LOG_debug << "MEGA SDK version: " << SDK_COMMIT_HASH;
 
-    api = new MegaApi("BdARkQSQ", (MegaGfxProcessor*)NULL, ConfigurationManager::getAndCreateConfigDir().c_str(), userAgent);
+    api = new MegaApi("BdARkQSQ", ConfigurationManager::getAndCreateConfigDir().c_str(), userAgent);
 
     if (!debug_api_url.empty())
     {
@@ -5200,7 +5200,7 @@ int executeServer(int argc, char* argv[],
 
     for (int i = 0; i < 5; i++)
     {
-        MegaApi *apiFolder = new MegaApi("BdARkQSQ", (MegaGfxProcessor*)NULL,
+        MegaApi *apiFolder = new MegaApi("BdARkQSQ",
                                          ConfigurationManager::getConfigFolderSubdir(std::string("apiFolder_").append(std::to_string(i))).c_str()
                                          , userAgent);
         apiFolder->setLanguage(localecode.c_str());
