@@ -214,7 +214,7 @@ class MegaCmdLogger : public mega::MegaLogger
 protected:
     static bool isMegaCmdSource(const std::string &source);
 
-    void formatLogToStream(LoggedStream& stream, std::string_view time, int logLevel, const char *source, const char *message);
+    void formatLogToStream(LoggedStream& stream, std::string_view time, int logLevel, const char *source, const char *message, bool surround = false);
     bool shouldIgnoreMessage(int logLevel, const char *source, const char *message) const;
 
 public:

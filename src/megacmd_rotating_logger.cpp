@@ -354,7 +354,7 @@ void FileRotatingLoggedStream::mainLoop()
 
         if (!waitForOutputFile())
         {
-            errorStream << "Error writing to log file " << mOutputFilePath << '\n';
+            errorStream << "Error writing to log file " << pathAsUtf8(mOutputFilePath) << '\n';
             errorStream << "Re-opening...\n";
             reopenFile = true;
         }

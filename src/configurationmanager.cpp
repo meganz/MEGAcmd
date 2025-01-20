@@ -673,7 +673,7 @@ void ConfigurationManager::loadConfiguration(bool debug)
     std::lock_guard<std::recursive_mutex> g(settingsMutex);
 
 #ifdef _WIN32
-    WindowsUtf8ConsoleGuard utf8Guard;
+    WindowsUtf8StdoutGuard utf8Guard;
 #endif
 
     // SESSION

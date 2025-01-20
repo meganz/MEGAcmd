@@ -123,6 +123,25 @@ std::string getutf8fromUtf16(const wchar_t *ws)
     return utf8s;
 }
 
+std::wstring nonMaxPathLimitedWstring(const fs::path &localpath)
+{
+    static const std::wstring wprefix(LR"(\\?\)");
+    if (localpath.wstring().rfind(wprefix, 0) == 0)
+    {
+        return localpath.wstring();
+    }
+    auto prefixedPathWstring = std::wstring(wprefix).append(localpath.wstring());
+    assert(prefixedPathWstring.rfind(wprefix, 0) == 0);
+    return prefixedPathWstring;
+}
+
+std::wstring nonMaxPathLimitedPath(const fs::path &localpath)
+{
+    auto prefixedPath = fs::path(nonMaxPathLimitedWstring(localpath));
+    assert(prefixedPath.wstring().rfind(LR"(\\?\)", 0) == 0);
+    return prefixedPath;
+}
+
 #endif
 
 std::string pathAsUtf8(const fs::path& path)
@@ -1546,32 +1565,26 @@ std::unique_ptr<PlatformDirectories> PlatformDirectories::getPlatformSpecificDir
 #ifdef _WIN32
 fs::path WindowsDirectories::configDirPath()
 {
-    TCHAR szPath[MAX_PATH];
-    OUTSTRING folder;
+    wchar_t szPath[MAX_PATH];
 
-    if (!SUCCEEDED(GetModuleFileName(NULL, szPath, MAX_PATH)))
+    if (GetModuleFileNameW(NULL, szPath, MAX_PATH) == 0)
     {
-        return std::string();
+        return {};
     }
     else
     {
-        if (SUCCEEDED(PathRemoveFileSpec(szPath)))
+        fs::path folder = fs::path(szPath).parent_path() / ".megaCmd";
+
+        auto suffix = _wgetenv(L"MEGACMD_WORKING_FOLDER_SUFFIX");
+        if (suffix != nullptr)
         {
-            if (PathAppend(szPath, TEXT(".megaCmd")))
-            {
-                folder = szPath;
-            }
+            folder += "_";
+            folder += suffix;
         }
-    }
 
-    auto suffix = _wgetenv(L"MEGACMD_WORKING_FOLDER_SUFFIX");
-    if (suffix != nullptr)
-    {
-        folder += L"_";
-        folder += suffix;
+        folder = nonMaxPathLimitedPath(folder); // prepend //?/
+        return folder;
     }
-
-    return fs::path(folder);
 }
 
 std::wstring getNamedPipeName()

@@ -181,8 +181,12 @@ const char * loglevelToShortPaddedString(int loglevel)
     return logLevels[static_cast<size_t>(loglevel)];
 }
 
-void MegaCmdLogger::formatLogToStream(LoggedStream &stream, std::string_view time, int logLevel, const char *source, const char *message)
+void MegaCmdLogger::formatLogToStream(LoggedStream &stream, std::string_view time, int logLevel, const char *source, const char *message, bool surround)
 {
+    if (surround)
+    {
+        stream << "[";
+    }
     stream << time;
     if (!isMegaCmdSource(source))
     {
@@ -192,7 +196,12 @@ void MegaCmdLogger::formatLogToStream(LoggedStream &stream, std::string_view tim
     {
         stream << " cmd ";
     }
-    stream << loglevelToShortPaddedString(logLevel) << message << '\n';
+    stream << loglevelToShortPaddedString(logLevel) << message;
+    if (surround)
+    {
+        stream << "]";
+    }
+    stream << '\n';
 
     if (logLevel <= mFlushOnLevel)
     {
@@ -277,7 +286,7 @@ void MegaCmdSimpleLogger::log(const char * /*time*/, int logLevel, const char *s
         if (mLogToOutStream)
         {
 #ifdef _WIN32
-            WindowsUtf8ConsoleGuard utf8Guard;
+            WindowsUtf8StdoutGuard utf8Guard;
 #endif
             formatLogToStream(mOutStream, nowTimeStr, logLevel, source, message);
         }
@@ -286,8 +295,7 @@ void MegaCmdSimpleLogger::log(const char * /*time*/, int logLevel, const char *s
     if (shouldLogToClient(logLevel, source))
     {
         const std::string nowTimeStr = getNowTimeStr();
-        assert(isMegaCmdSource(source)); // if this happens in the sdk thread, this shall be false
-        formatLogToStream(OUTSTREAM, nowTimeStr, logLevel, source, message);
+        formatLogToStream(OUTSTREAM, nowTimeStr, logLevel, source, message, true);
     }
 }
 

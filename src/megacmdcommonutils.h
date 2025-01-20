@@ -69,36 +69,6 @@ namespace megacmd {
 std::string pathAsUtf8(const fs::path& path);
 }
 
-namespace mega {
-// Note: these was in megacmd namespace, but after one overload of operator<< was created within mega,
-// ADL did not seem to be able to find it when solving template resolution in loggin.h (namespace mega),
-// even for code coming from megacmd namespace.
-// placing this operator in mega namespace eases ADL lookup and allows compilation
-
-// Note2: std::is_same_v is required below, instead of directly using the types; otherwise we'll
-// get a compilation error on type resolution because paths are implicitly convertible to strings.
-
-#ifdef _WIN32
-template <typename T>
-inline std::enable_if_t<std::is_same_v<T, std::wstring>, std::ostringstream&>
-operator<<(std::ostringstream& oss, const T& wstr)
-{
-    std::string s;
-    megacmd::localwtostring(&wstr, &s);
-    oss << s;
-    return oss;
-}
-#endif
-
-template <typename T>
-inline std::enable_if_t<std::is_same_v<T, fs::path>, std::ostringstream&>
-operator<<(std::ostringstream& oss, const T& path)
-{
-    oss << megacmd::pathAsUtf8(path);
-    return oss;
-}
-}
-
 namespace megacmd {
 
 /* platform dependent */
@@ -119,6 +89,10 @@ void stringtolocalw(const char* path, std::wstring* local);
 void localwtostring(const std::wstring* wide, std::string *multibyte);
 std::string getutf8fromUtf16(const wchar_t *ws);
 void utf16ToUtf8(const wchar_t* utf16data, int utf16size, std::string* utf8string);
+
+std::wstring nonMaxPathLimitedWstring(const fs::path &localpath);
+std::wstring nonMaxPathLimitedPath(const fs::path &localpath);
+
 
 #else
 #define OUTSTREAMTYPE std::ostream
@@ -607,20 +581,24 @@ void timelyRetry(const std::chrono::duration<_Rep, _Period> &maxTime, const std:
 }
 
 #ifdef _WIN32
-class WindowsUtf8ConsoleGuard final
+class WindowsUtf8StdoutGuard final
 {
+    inline static std::mutex sSetmodeMtx;
+
     int mOldMode;
-    inline static std::mutex mSetmodeMtx;
+    std::lock_guard<std::mutex> mGuard;
 public:
-    WindowsUtf8ConsoleGuard()
+    WindowsUtf8StdoutGuard()
+        : mGuard(sSetmodeMtx)
     {
-        std::lock_guard g(mSetmodeMtx);
+        fflush(stdout);
         mOldMode = _setmode(_fileno(stdout), _O_U8TEXT);
+        assert(mOldMode != -1);
     }
 
-    ~WindowsUtf8ConsoleGuard()
+    ~WindowsUtf8StdoutGuard()
     {
-        std::lock_guard g(mSetmodeMtx);
+        fflush(stdout);
         assert(mOldMode != -1);
         _setmode(_fileno(stdout), mOldMode);
     }
@@ -628,4 +606,36 @@ public:
 #endif
 
 }//end namespace
+
+
+namespace mega {
+// Note: these was in megacmd namespace, but after one overload of operator<< was created within mega,
+// ADL did not seem to be able to find it when solving template resolution in loggin.h (namespace mega),
+// even for code coming from megacmd namespace.
+// placing this operator in mega namespace eases ADL lookup and allows compilation
+
+// Note2: std::is_same_v is required below, instead of directly using the types; otherwise we'll
+// get a compilation error on type resolution because paths are implicitly convertible to strings.
+
+#ifdef _WIN32
+template <typename T>
+inline std::enable_if_t<std::is_same_v<T, std::wstring>, std::ostringstream&>
+operator<<(std::ostringstream& oss, const T& wstr)
+{
+    std::string s;
+    megacmd::localwtostring(&wstr, &s);
+    oss << s;
+    return oss;
+}
+#endif
+
+template <typename T>
+inline std::enable_if_t<std::is_same_v<T, fs::path>, std::ostringstream&>
+operator<<(std::ostringstream& oss, const T& path)
+{
+    oss << megacmd::pathAsUtf8(path);
+    return oss;
+}
+}
+
 #endif // MEGACMDCOMMONUTILS_H
