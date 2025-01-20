@@ -264,9 +264,9 @@ pipeline {
                                                 withEnv([
                                                     "MEGA_EMAIL=${env.MEGA_EMAILS0}",
                                                     "MEGA_EMAIL_AUX=${env.MEGA_EMAILS1}",
-                                                    "ASAN_OPTIONS=\"atexit=1,print_stats=1,log_path=${megacmd_sources_workspace}/${testDir}/py-asan-report.log\"",
-                                                    "TSAN_OPTIONS=\"log_path=${megacmd_sources_workspace}/${testDir}/py-tsan-report.log\"",
-                                                    "UBSAN_OPTIONS=\"log_path=${megacmd_sources_workspace}/${testDir}/py-ubsan-report.log\"",
+                                                    "ASAN_OPTIONS='atexit=1,print_stats=1,log_path=${megacmd_sources_workspace}/${testDir}/py-asan-report.log'",
+                                                    "TSAN_OPTIONS='log_path=${megacmd_sources_workspace}/${testDir}/py-tsan-report.log'",
+                                                    "UBSAN_OPTIONS='log_path=${megacmd_sources_workspace}/${testDir}/py-ubsan-report.log'",
                                                     "OUT_DIR_JUNIT_XML=${megacmd_sources_workspace}/${testDir}"
                                                 ]) {
                                                     def envStr = ''
