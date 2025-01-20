@@ -794,7 +794,7 @@ MegaNode * MegaCmdExecuter::getBaseNode(string thepath, string &rest, bool *isre
     }
     else if (thepath == "//in")
     {
-        baseNode = api->getInboxNode();
+        baseNode = api->getVaultNode();
         rest = "";
     }
     else if (thepath == "/")
@@ -809,7 +809,7 @@ MegaNode * MegaCmdExecuter::getBaseNode(string thepath, string &rest, bool *isre
     }
     else if (thepath.find("//in/") == 0 )
     {
-        baseNode = api->getInboxNode();
+        baseNode = api->getVaultNode();
         rest = thepath.substr(5);
     }
     else if (thepath.find("/") == 0 && !(thepath.find("//from/") == 0 ))
@@ -2226,7 +2226,7 @@ void MegaCmdExecuter::actUponGetExtendedAccountDetails(std::unique_ptr<::mega::M
                       << getFixLengthString(SSTR(storageDetails->getNumFolders(n->getHandle())), 5, ' ', true) << " folder(s)" << endl;
         }
 
-        n = std::unique_ptr<MegaNode>(api->getInboxNode());
+        n = std::unique_ptr<MegaNode>(api->getVaultNode());
         if (n)
         {
             OUTSTREAM << "        In INBOX:     " << getFixLengthString(sizeToText(storageDetails->getStorageUsed(n->getHandle())), 9, ' ', true) << "ytes in "
@@ -9365,7 +9365,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     long long storageMax = details->getStorageMax();
 
                     unique_ptr<MegaNode> root(api->getRootNode());
-                    unique_ptr<MegaNode> inbox(api->getInboxNode());
+                    unique_ptr<MegaNode> inbox(api->getVaultNode());
                     unique_ptr<MegaNode> rubbish(api->getRubbishNode());
                     unique_ptr<MegaNodeList> inShares(api->getInShares());
 

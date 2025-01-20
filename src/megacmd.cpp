@@ -5194,7 +5194,7 @@ int executeServer(int argc, char* argv[],
     const fs::path configDirPath = ConfigurationManager::getAndCreateConfigDir();
     const std::string configDirStr = pathAsUtf8(configDirPath);
 
-    api = new MegaApi("BdARkQSQ", (MegaGfxProcessor*) nullptr, configDirStr.c_str(), userAgent);
+    api = new MegaApi("BdARkQSQ", configDirStr.c_str(), userAgent);
 
     if (!debug_api_url.empty())
     {
@@ -5208,8 +5208,7 @@ int executeServer(int argc, char* argv[],
         const fs::path apiFolderPath = ConfigurationManager::getConfigFolderSubdir("apiFolder_" + std::to_string(i));
         const std::string apiFolderStr = pathAsUtf8(apiFolderPath);
 
-        MegaApi *apiFolder = new MegaApi("BdARkQSQ", (MegaGfxProcessor*) nullptr,
-                                         apiFolderStr.c_str(), userAgent);
+        MegaApi *apiFolder = new MegaApi("BdARkQSQ", apiFolderStr.c_str(), userAgent);
         apiFolder->setLanguage(localecode.c_str());
         apiFolders.push(apiFolder);
         apiFolder->setLogLevel(MegaApi::LOG_LEVEL_MAX);

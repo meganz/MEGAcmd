@@ -165,14 +165,34 @@ bool MegaCmdLogger::isMegaCmdSource(const std::string &source)
     return megaCmdSourceFiles.find(filename) != megaCmdSourceFiles.end();
 }
 
+
+const char * loglevelToShortPaddedString(int loglevel)
+{
+    static constexpr std::array<const char*, 6> logLevels = {
+        "CRIT ", // LOG_LEVEL_FATAL
+        "ERR  ", // LOG_LEVEL_ERROR
+        "WARN ", // LOG_LEVEL_WARNING
+        "INFO ", // LOG_LEVEL_INFO
+        "DBG  ", // LOG_LEVEL_DEBUG
+        "DTL  "  // LOG_LEVEL_MAX
+    };
+
+    assert (loglevel >= 0 && loglevel < static_cast<int>(logLevels.size()));
+    return logLevels[static_cast<size_t>(loglevel)];
+}
+
 void MegaCmdLogger::formatLogToStream(LoggedStream &stream, std::string_view time, int logLevel, const char *source, const char *message)
 {
-    stream << "[";
+    stream << time;
     if (!isMegaCmdSource(source))
     {
-        stream << "SDK:";
+        stream << " sdk ";
     }
-    stream << SimpleLogger::toStr(LogLevel(logLevel)) << ": " << time << "] " << message << '\n';
+    else
+    {
+        stream << " cmd ";
+    }
+    stream << loglevelToShortPaddedString(logLevel) << message << '\n';
 
     if (logLevel <= mFlushOnLevel)
     {
