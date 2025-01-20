@@ -193,6 +193,7 @@ pipeline {
                     updateGitlabCommitStatus(name: 'Build macos', state: 'failed')
                 }
             }
+            deleteDir()
         }
     }
 }

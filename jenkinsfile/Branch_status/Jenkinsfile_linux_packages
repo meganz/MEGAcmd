@@ -147,6 +147,11 @@ pipeline {
             }
         }
     }
+    post {
+        always {
+            deleteDir()
+        }
+    }
 }
 
 def buildAndSignPackage(String distro, String architecture, String packageName) {
