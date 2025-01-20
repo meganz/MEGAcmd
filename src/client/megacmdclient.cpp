@@ -144,7 +144,9 @@ wstring getWAbsPath(wstring localpath)
 }
 #endif
 
-string clientID; //identifier for a registered state listener
+string clientId; // identifier for a registered state listener
+std::mutex clientIdMtx;
+std::condition_variable clientIdCv;
 
 string getAbsPath(string relativePath)
 {
@@ -240,17 +242,11 @@ string parseArgs(int argc, char* argv[])
                 || !strcmp(argv[1],"login")
                 || !strcmp(argv[1],"reload") )
         {
-            int waittime = 15000;
-            while (waittime > 0 && !clientID.size())
+            std::unique_lock lock(clientIdMtx);
+            clientIdCv.wait_for(lock, std::chrono::seconds(15), [&clientId] { return !clientId.empty(); });
+            if (!clientId.empty())
             {
-                sleepMilliSeconds(100);
-                waittime -= 100;
-            }
-            if (clientID.size())
-            {
-                string sclientID = "--clientID=";
-                sclientID+=clientID;
-                absolutedargs.push_back(sclientID);
+                absolutedargs.push_back("--clientID=" + clientId);
             }
         }
 
@@ -472,18 +468,11 @@ wstring parsewArgs(int argc, wchar_t* argv[])
                 || !wcscmp(argv[1],L"login")
                 || !wcscmp(argv[1],L"reload") )
         {
-            int waittime = 5000;
-            while (waittime > 0 && !clientID.size())
+            std::unique_lock lock(clientIdMtx);
+            clientIdCv.wait_for(lock, std::chrono::seconds(15), [&clientId] { return !clientId.empty(); });
+            if (!clientId.empty())
             {
-                sleepMilliSeconds(100);
-                waittime -= 100;
-            }
-            if (clientID.size())
-            {
-                wstring sclientID = L"--clientID=";
-                std::wstring wclientID(clientID.begin(), clientID.end());
-                sclientID+=wclientID;
-                absolutedargs.push_back(sclientID);
+                absolutedargs.push_back(L"clientID=" + std::wstring(clientId.begin(), clientId.end()));
             }
         }
 
@@ -810,7 +799,11 @@ void statechangehandle(string statestring, MegaCmdShellCommunications & comsMana
         }
         else if (newstate.compare(0, strlen("clientID:"), "clientID:") == 0)
         {
-            clientID = newstate.substr(strlen("clientID:")).c_str();
+            {
+                std::lock_guard g(clientIdMtx);
+                clientId = newstate.substr(strlen("clientID:")).c_str();
+            }
+            clientIdCv.notify_one();
         }
         else if (newstate.compare(0, strlen("progress:"), "progress:") == 0)
         {
