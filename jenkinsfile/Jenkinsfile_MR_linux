@@ -261,9 +261,9 @@ pipeline {
                                                 withEnv([
                                                     "MEGA_EMAIL=${env.MEGA_EMAILS0}",
                                                     "MEGA_EMAIL_AUX=${env.MEGA_EMAILS1}",
-                                                    "ASAN_OPTIONS=atexit=1,print_stats=1,log_path=${megacmd_sources_workspace}/${testDir}/mega-cmd-tests-python-report",
-                                                    "TSAN_OPTIONS=log_path=${megacmd_sources_workspace}/${testDir}/mega-cmd-tests-python-report",
-                                                    "UBSAN_OPTIONS=log_path=${megacmd_sources_workspace}/${testDir}/mega-cmd-tests-python-report",
+                                                    "ASAN_OPTIONS=atexit=1,print_stats=1,log_path=${megacmd_sources_workspace}/${testDir}/py-asan-report.log",
+                                                    "TSAN_OPTIONS=log_path=${megacmd_sources_workspace}/${testDir}/py-tsan-report.log",
+                                                    "UBSAN_OPTIONS=log_path=${megacmd_sources_workspace}/${testDir}/py-ubsan-report.log",
                                                     "OUT_DIR_JUNIT_XML=${megacmd_sources_workspace}/${testDir}"
                                                 ]) {
                                                     def envStr = ''
@@ -279,6 +279,7 @@ pipeline {
                                                                 ${envStr}timeout -s 11 710 /usr/local/bin/megacmd_${test}_test.py
                                                             """
                                                         }
+                                                        archiveArtifacts artifacts: "${testDir}/py-*-report.log.*", allowEmptyArchive: true
                                                         junit "${testDir}/TEST-*.xml"
                                                     } finally {
                                                         dir("pytest-dir-${SANITIZERS}") {
