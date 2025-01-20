@@ -138,9 +138,9 @@ pipeline {
                             timeout(time: 10, unit: 'MINUTES')
                         }
                         environment {
-                            ASAN_OPTIONS="atexit=1,print_stats=1,log_path=${megacmd_sources_workspace}/test-dir-${SANITIZERS}/results/mega-cmd-tests-unit-report"
-                            TSAN_OPTIONS="log_path=${megacmd_sources_workspace}/test-dir-${SANITIZERS}/results/mega-cmd-tests-unit-report"
-                            UBSAN_OPTIONS="log_path=${megacmd_sources_workspace}/test-dir-${SANITIZERS}/results/mega-cmd-tests-unit-report"
+                            ASAN_OPTIONS="atexit=1,print_stats=1,log_path=${megacmd_sources_workspace}/test-dir-${SANITIZERS}/unit-sanitizer-report"
+                            TSAN_OPTIONS="log_path=${megacmd_sources_workspace}/test-dir-${SANITIZERS}/unit-sanitizer-report"
+                            UBSAN_OPTIONS="log_path=${megacmd_sources_workspace}/test-dir-${SANITIZERS}/unit-sanitizer-report"
                             HOME="${megacmd_sources_workspace}/test-dir-${SANITIZERS}"
                         }
                         steps {
@@ -165,6 +165,7 @@ pipeline {
                                 archiveArtifacts artifacts: "test-dir-${SANITIZERS}/.megaCmd/megacmdserver.log*", allowEmptyArchive: true
                                 archiveArtifacts artifacts: "**/core*zstd", allowEmptyArchive: true
                                 archiveArtifacts artifacts: "**/mega-cmd-tests-unit.zstd", allowEmptyArchive: true
+                                archiveArtifacts artifacts: "test-dir-${SANITIZERS}/unit-sanitizer-report", allowEmptyArchive: true
                                 junit "test-dir-${SANITIZERS}/results/mega-cmd-tests-unit.xml"
                             }
                         }
@@ -183,9 +184,9 @@ pipeline {
                         environment {
                             MEGACMD_TEST_USER=''
                             MEGACMD_TEST_PASS=credentials('MEGACMD_TESTS_PASSWORD')
-                            ASAN_OPTIONS="atexit=1,print_stats=1,log_path=${megacmd_sources_workspace}/test-dir-${SANITIZERS}/results/mega-cmd-tests-integration-report"
-                            TSAN_OPTIONS="log_path=${megacmd_sources_workspace}/test-dir-${SANITIZERS}/results/mega-cmd-tests-integration-report"
-                            UBSAN_OPTIONS="log_path=${megacmd_sources_workspace}/test-dir-${SANITIZERS}/results/mega-cmd-tests-integration-report"
+                            ASAN_OPTIONS="atexit=1,print_stats=1,log_path=${megacmd_sources_workspace}/test-dir-${SANITIZERS}/integration-sanitizer-report"
+                            TSAN_OPTIONS="log_path=${megacmd_sources_workspace}/test-dir-${SANITIZERS}/integration-sanitizer-report"
+                            UBSAN_OPTIONS="log_path=${megacmd_sources_workspace}/test-dir-${SANITIZERS}/integration-sanitizer-report"
                             HOME="${megacmd_sources_workspace}/test-dir-${SANITIZERS}"
                         }
                         steps {
@@ -212,6 +213,7 @@ pipeline {
                                 archiveArtifacts "test-dir-${SANITIZERS}/.megaCmd/megacmdserver.log*"
                                 archiveArtifacts artifacts: "**/core*zstd", allowEmptyArchive: true
                                 archiveArtifacts artifacts: "**/mega-cmd-tests-integration.zstd", allowEmptyArchive: true
+                                archiveArtifacts artifacts: "test-dir-${SANITIZERS}/integration-sanitizer-report", allowEmptyArchive: true
                                 junit "test-dir-${SANITIZERS}/results/mega-cmd-tests-integration.xml"
                             }
                         }
