@@ -107,7 +107,7 @@ pipeline {
                 axes {
                     axis {
                         name 'SANITIZERS'
-                        values 'ubsan', 'asan', 'tsan'
+                        values 'UBSAN', 'ASAN', 'TSAN'
                     }
                     axis {
                         name 'BUILD_SYSTEM'
@@ -123,7 +123,7 @@ pipeline {
                             DOCKER_BUILDKIT=1
                         }
                         steps {
-                            sh "docker build -t meganz/megacmd-${BUILD_SYSTEM}-${SANITIZERS}:${env.BUILD_NUMBER} -f ${megacmd_sources_workspace}/build-with-docker/Dockerfile.${BUILD_SYSTEM} --build-arg=BUILD_OPT_SANITIZERS=${SANITIZERS} --ulimit=core=-1 --cpuset-cpus=0,1 -- ${megacmd_sources_workspace}"
+                            sh "docker build -t meganz/megacmd-${BUILD_SYSTEM}-${SANITIZERS}:${env.BUILD_NUMBER} -f ${megacmd_sources_workspace}/build-with-docker/Dockerfile.${BUILD_SYSTEM} --build-arg=ENABLE_${SANITIZERS}=ON --ulimit=core=-1 --cpuset-cpus=0,1 -- ${megacmd_sources_workspace}"
                         }
                     }
                     stage("MEGAcmd unit tests") {
