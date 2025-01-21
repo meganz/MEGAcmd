@@ -94,6 +94,34 @@ static const char* const persistentmcmdconfigurationkeys[] =
     "autoupdate", "updaterregistered"
 };
 
+void ConfigurationManager::createFolderIfNotExisting(const fs::path &folder)
+{
+    std::error_code ec;
+    auto createdOk = fs::create_directory(folder, ec);
+    bool alreadyExisting = !createdOk && !ec;
+    if (alreadyExisting)
+    {
+        return;
+    }
+
+    LOG_debug << "Creating directory " << folder;
+
+    if (!createdOk)
+    {
+        LOG_err << "Directory " << folder << " creation failed: " << errorCodeStr(ec);
+        return;
+    }
+
+#ifndef WIN32
+    std::error_code ec_perms;
+    fs::permissions(folder, fs::perms::owner_all, fs::perm_options::replace, ec_perms);
+    if (!ec_perms)
+    {
+        LOG_warn << "Failed to set permissions on new folder " << folder << ": " << ec_perms;
+    }
+#endif
+}
+
 void ConfigurationManager::loadConfigDir()
 {
     auto dirs = PlatformDirectories::getPlatformSpecificDirectories();
@@ -105,12 +133,7 @@ void ConfigurationManager::loadConfigDir()
         return;
     }
 
-    std::error_code ec;
-    fs::create_directory(mConfigFolder, ec);
-    if (!fs::exists(mConfigFolder) || ec)
-    {
-        LOG_err << "Config directory not created " << errorCodeStr(ec);
-    }
+    createFolderIfNotExisting(mConfigFolder);
 }
 
 fs::path ConfigurationManager::getAndCreateConfigDir()
@@ -123,12 +146,7 @@ fs::path ConfigurationManager::getAndCreateConfigDir()
         throw std::runtime_error("Could not get config directory path");
     }
 
-    std::error_code ec;
-    fs::create_directory(configDir, ec);
-    if (!fs::exists(configDir) || ec)
-    {
-        LOG_err << "Config directory not created " << errorCodeStr(ec);
-    }
+    createFolderIfNotExisting(configDir);
     return configDir;
 }
 
@@ -142,13 +160,7 @@ fs::path ConfigurationManager::getAndCreateRuntimeDir()
         throw std::runtime_error("Could not get runtime directory path");
     }
 
-    std::error_code ec;
-    fs::create_directory(runtimeDir, ec);
-    if (!fs::exists(runtimeDir) || ec)
-    {
-        LOG_err << "Runtime directory not created " << errorCodeStr(ec);
-    }
-
+    createFolderIfNotExisting(runtimeDir);
     return runtimeDir;
 }
 
@@ -160,12 +172,8 @@ fs::path ConfigurationManager::getConfigFolderSubdir(const fs::path& subdirName)
 
     fs::path configSubDir = configDir / subdirName;
 
-    std::error_code ec;
-    fs::create_directory(configSubDir, ec);
-    if (!fs::exists(configSubDir) || ec)
-    {
-        LOG_err << "State subfolder " << configSubDir << " not created " << errorCodeStr(ec);
-    }
+    createFolderIfNotExisting(configSubDir);
+
     return configSubDir;
 }
 

@@ -40,6 +40,7 @@ private:
     static int fd;
 #endif
 
+    static void createFolderIfNotExisting(const fs::path &folder);
     static void loadConfigDir();
 
     static void removeSyncConfig(sync_struct *syncToRemove);
