@@ -182,10 +182,9 @@ static std::mutex handlerInstallerMutex;
 
 static std::atomic_bool requirepromptinstall(true);
 
-bool procesingline = false;
-bool promptreinstalledwhenprocessingline = false;
-
-bool serverTryingToLog = false;
+std::atomic_bool procesingline = false;
+std::atomic_bool promptreinstalledwhenprocessingline = false;
+std::atomic_bool serverTryingToLog = false;
 
 static char dynamicprompt[PROMPT_MAX_SIZE];
 
