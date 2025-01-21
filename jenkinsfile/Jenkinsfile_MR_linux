@@ -312,7 +312,7 @@ pipeline {
                                     || true
                                 """
                                 archiveArtifacts "pytest-dir-${SANITIZERS}/.megaCmd/megacmdserver.log*"
-                                archiveArtifacts "pytest-dir-${SANITIZERS}/results/pyserver-*-report.log.*", allowEmptyArchive: true
+                                archiveArtifacts artifacts: "pytest-dir-${SANITIZERS}/results/pyserver-*-report.log.*", allowEmptyArchive: true
                                 archiveArtifacts artifacts: "**/core*zstd", allowEmptyArchive: true
                                 archiveArtifacts artifacts: "**/mega-*.zstd", allowEmptyArchive: true
                             }
