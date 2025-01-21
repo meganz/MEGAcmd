@@ -225,6 +225,7 @@ pipeline {
                     updateGitlabCommitStatus(name: 'Build windows', state: 'failed')
                 }
             }
+            deleteDir()
         }
     }
 }
