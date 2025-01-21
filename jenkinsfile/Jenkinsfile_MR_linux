@@ -260,13 +260,16 @@ pipeline {
                                     for (test in ['misc', 'put', 'rm', 'find', 'get']) {
                                         for (cmdshell in ['', 'cmdshell-']) {
                                             def testDir = "pytest-dir-${SANITIZERS}/${cmdshell}${test}-results"
+                                            def asanOptions = "atexit=1,print_stats=1,log_path=${megacmd_sources_workspace}/${testDir}/py-asan-report.log"
+                                            def tsanOptions = "log_path=${megacmd_sources_workspace}/${testDir}/py-tsan-report.log"
+                                            def ubsanOptions = "log_path=${megacmd_sources_workspace}/${testDir}/py-ubsan-report.log"
                                             stage("MEGAcmd Python ${cmdshell}${test} test") {
                                                 withEnv([
                                                     "MEGA_EMAIL=${env.MEGA_EMAILS0}",
                                                     "MEGA_EMAIL_AUX=${env.MEGA_EMAILS1}",
-                                                    "ASAN_OPTIONS='atexit=1,print_stats=1,log_path=${megacmd_sources_workspace}/${testDir}/py-asan-report.log'",
-                                                    "TSAN_OPTIONS='log_path=${megacmd_sources_workspace}/${testDir}/py-tsan-report.log'",
-                                                    "UBSAN_OPTIONS='log_path=${megacmd_sources_workspace}/${testDir}/py-ubsan-report.log'",
+                                                    "ASAN_OPTIONS=${asanOptions}",
+                                                    "TSAN_OPTIONS=${tsanOptions}",
+                                                    "UBSAN_OPTIONS=${ubsanOptions}",
                                                     "OUT_DIR_JUNIT_XML=${megacmd_sources_workspace}/${testDir}"
                                                 ]) {
                                                     def envStr = ''
@@ -282,9 +285,9 @@ pipeline {
                                                                 ${envStr}timeout -s 11 710 /usr/local/bin/megacmd_${test}_test.py
                                                             """
                                                         }
-                                                        archiveArtifacts artifacts: "${testDir}/py-*-report.log.*", allowEmptyArchive: true
                                                         junit "${testDir}/TEST-*.xml"
                                                     } finally {
+                                                        archiveArtifacts artifacts: "${testDir}/py-*-report.log.*", allowEmptyArchive: true
                                                         dir("pytest-dir-${SANITIZERS}") {
                                                             sh "find . -name core -exec zstd -z --fast=3 {} -o core_client_${cmdshell}${test}.zstd \\; -exec rm {} \\; || true"
                                                         }
