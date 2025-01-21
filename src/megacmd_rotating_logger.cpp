@@ -778,12 +778,15 @@ void GzipCompressionEngine::gzipFile(const fs::path& srcFilePath, const fs::path
         }
 
         auto gzdeleter = [] (gzFile_s* f) { if (f) gzclose(f); };
-
+        auto gzOpenHelper = [](const fs::path& path) {
 #ifdef _WIN32
-        std::unique_ptr<gzFile_s, decltype(gzdeleter)> gzFile(gzopen_w(dstFilePath.wstring().c_str(), "wb"), gzdeleter);
+            return gzopen_w(path.wstring().c_str(), "wb");
 #else
-        std::unique_ptr<gzFile_s, decltype(gzdeleter)> gzFile(gzopen(dstFilePath.string().c_str(), "wb"), gzdeleter);
+            return gzopen(path.string().c_str(), "wb");
 #endif
+        };
+        std::unique_ptr<gzFile_s, decltype(gzdeleter)> gzFile(gzOpenHelper(dstFilePath), gzdeleter);
+
         if (!gzFile)
         {
             mErrorStream << "Failed to open gzfile " << dstFilePath << " for writing" << std::endl;

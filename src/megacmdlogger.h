@@ -142,7 +142,15 @@ public:
     virtual const LoggedStream& operator<<(std::string_view v) const override { *out << v;return *this; }
 #endif
     virtual const LoggedStream& operator<<(std::string v) const override { *out << v;return *this; }
-    virtual const LoggedStream& operator<<(BinaryStringView v) const override { *out << v.get();return *this; }
+    virtual const LoggedStream& operator<<(BinaryStringView v) const override {
+#ifdef _WIN32
+        assert(false && "wostream cannot take binary data directly");
+#else
+        *out << v.get();
+#endif
+    return *this;
+    }
+
     virtual const LoggedStream& operator<<(int v) const override { *out << v;return *this; }
     virtual const LoggedStream& operator<<(unsigned int v) const override { *out << v;return *this; }
     virtual const LoggedStream& operator<<(long unsigned int v) const override { *out << v;return *this; }

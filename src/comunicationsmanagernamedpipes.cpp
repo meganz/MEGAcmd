@@ -339,7 +339,7 @@ void ComunicationsManagerNamedPipes::sendPartialOutput(CmdPetition *inf, char *s
 {
     HANDLE outNamedPipe = ((CmdPetitionNamedPipes *)inf)->outNamedPipe;
 
-    if (!isValidUtf8(s, size))
+    if (!binaryContents &&!isValidUtf8(s, size))
     {
         std::cerr << "Attempt to sendPartialOutput of invalid utf8 of size " << size << std::endl;
         assert(false && "Attempt to sendPartialOutput of invalid utf8");

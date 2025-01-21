@@ -158,7 +158,7 @@ fs::path ConfigurationManager::getConfigFolderSubdir(const fs::path& subdirName)
     const fs::path configDir = dirs->configDirPath();
     assert(!configDir.empty());
 
-    const fs::path configSubDir = configDir / subdirName;
+    fs::path configSubDir = configDir / subdirName;
 
     std::error_code ec;
     fs::create_directory(configSubDir, ec);
