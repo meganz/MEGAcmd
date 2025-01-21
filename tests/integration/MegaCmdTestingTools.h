@@ -89,7 +89,7 @@ protected:
             auto words = megacmd::split(lines[i], " ");
 
             ASSERT_TRUE(!words.empty());
-            if (megacmd::stringToTimestamp(words[0])) // discard log lines
+            if (megacmd::stringToTimestamp(words[0].substr(1))) // discard log lines
             {
                 continue;
             }
