@@ -117,7 +117,7 @@ void ConfigurationManager::createFolderIfNotExisting(const fs::path &folder)
     fs::permissions(folder, fs::perms::owner_all, fs::perm_options::replace, ec_perms);
     if (!ec_perms)
     {
-        LOG_warn << "Failed to set permissions on new folder " << folder << ": " << ec_perms;
+        LOG_warn << "Failed to set permissions on new folder " << folder << ": " << errorCodeStr(ec_perms);
     }
 #endif
 }
@@ -817,7 +817,7 @@ bool ConfigurationManager::lockExecution(const fs::path &lockFileFolder)
     }
 
 #else
-    ifstream fi(lockFilePath.string().c_str());
+    ifstream fi(lockFilePath);
     if(!fi.fail())
     {
         close(fd);
@@ -827,7 +827,7 @@ bool ConfigurationManager::lockExecution(const fs::path &lockFileFolder)
     {
         fi.close();
     }
-    ofstream fo(lockFilePath.string().c_str());
+    ofstream fo(lockFilePath);
     if (fo.is_open())
     {
         fo.close();
@@ -856,7 +856,7 @@ bool ConfigurationManager::unlockExecution(const fs::path &lockFileFolder)
     const fs::path lockFilePath = lockFileFolder / LOCK_FILE_NAME;
     if (std::error_code ec; !fs::remove(lockFilePath, ec))
     {
-        LOG_err << "Failed to remove lock file, errno = " << ec;
+        LOG_err << "Failed to remove lock file, error = " << errorCodeStr(ec);
         return false;
     }
     return true;

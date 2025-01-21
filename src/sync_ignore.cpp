@@ -148,7 +148,8 @@ void executeCommand(const Args& args)
         isDefault = false;
     }
 
-    if (!fs::exists(megaIgnoreFilePath))
+    std::error_code ec;
+    if (!fs::exists(megaIgnoreFilePath, ec))
     {
         setCurrentThreadOutCode(MCMD_NOTFOUND);
         if (isDefault)
@@ -226,7 +227,8 @@ MegaIgnoreFile::MegaIgnoreFile(const fs::path& path) :
     mValid(false)
 {
     auto fileLock = getFileLock(mPath);
-    if (fs::exists(mPath))
+    std::error_code ec;
+    if (fs::exists(mPath, ec))
     {
         loadFromPath();
     }

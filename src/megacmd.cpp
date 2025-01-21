@@ -5191,9 +5191,9 @@ int executeServer(int argc, char* argv[],
     LOG_debug << "MEGA SDK version: " << SDK_COMMIT_HASH;
 
     const fs::path configDirPath = ConfigurationManager::getAndCreateConfigDir();
-    const std::string configDirStr = pathAsUtf8(configDirPath);
+    const std::string configDirStrUtf8 = pathAsUtf8(configDirPath);
 
-    api = new MegaApi("BdARkQSQ", configDirStr.c_str(), userAgent);
+    api = new MegaApi("BdARkQSQ", configDirStrUtf8.c_str(), userAgent);
 
     if (!debug_api_url.empty())
     {
@@ -5205,9 +5205,9 @@ int executeServer(int argc, char* argv[],
     for (int i = 0; i < 5; i++)
     {
         const fs::path apiFolderPath = ConfigurationManager::getConfigFolderSubdir("apiFolder_" + std::to_string(i));
-        const std::string apiFolderStr = pathAsUtf8(apiFolderPath);
+        const std::string apiFolderStrUtf8 = pathAsUtf8(apiFolderPath);
 
-        MegaApi *apiFolder = new MegaApi("BdARkQSQ", apiFolderStr.c_str(), userAgent);
+        MegaApi *apiFolder = new MegaApi("BdARkQSQ", apiFolderStrUtf8.c_str(), userAgent);
         apiFolder->setLanguage(localecode.c_str());
         apiFolders.push(apiFolder);
         apiFolder->setLogLevel(MegaApi::LOG_LEVEL_MAX);
