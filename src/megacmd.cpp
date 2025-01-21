@@ -3655,32 +3655,32 @@ bool executeUpdater(bool *restartRequired, bool doNotInstall = false)
 
     if ( pidupdater == 0 )
     {
-        char * donotinstallstr = NULL;
+        const char * donotinstallstr = NULL;
         if (doNotInstall)
         {
             donotinstallstr = "--do-not-install";
         }
 
         auto versionStr = std::to_string(MEGACMD_CODE_VERSION);
-        char* version = const_cast<char*>(versionStr.c_str());
+        const char* version = const_cast<char*>(versionStr.c_str());
 
 #ifdef __MACH__
     #ifndef NDEBUG
-        char * args[] = {"./mega-cmd-updater", "--normal-update", donotinstallstr, "--version", version, NULL};
+        const char * args[] = {"./mega-cmd-updater", "--normal-update", donotinstallstr, "--version", version, NULL};
     #else
-        char * args[] = {"/Applications/MEGAcmd.app/Contents/MacOS/MEGAcmdUpdater", "--normal-update", donotinstallstr, "--version", version, NULL};
+        const char * args[] = {"/Applications/MEGAcmd.app/Contents/MacOS/MEGAcmdUpdater", "--normal-update", donotinstallstr, "--version", version, NULL};
     #endif
 #else //linux doesn't use autoupdater: this is just for testing
     #ifndef NDEBUG
-            char * args[] = {"./mega-cmd-updater", "--normal-update", donotinstallstr, "--version", version, NULL}; // notice: won't work after lcd
+            const char * args[] = {"./mega-cmd-updater", "--normal-update", donotinstallstr, "--version", version, NULL}; // notice: won't work after lcd
     #else
-            char * args[] = {"mega-cmd-updater", "--normal-update", donotinstallstr, "--version", version, NULL};
+            const char * args[] = {"mega-cmd-updater", "--normal-update", donotinstallstr, "--version", version, NULL};
     #endif
 #endif
 
         LOG_verbose << "Exec updater line: " << args[0] << " " << args[1] << " " << args[2];
 
-        if (execvp(args[0], args) < 0)
+        if (execvp(args[0],  const_cast<char* const*>(args)) < 0)
         {
 
             LOG_err << " FAILED to initiate updater. errno = " << ERRNO;
@@ -3766,16 +3766,16 @@ bool restartServer()
     pid_t childid = fork();
     if ( childid ) //parent
     {
-        char **argv = new char*[mcmdMainArgc+3];
+        const char **argv = new const char*[mcmdMainArgc+3];
         int i = 0, j = 0;
 
 #ifdef __linux__
-        string executable = mcmdMainArgv[0];
+        string executable = const_cast<char* const>(mcmdMainArgv[0]);
         if (executable.find("/") != 0)
         {
             executable.insert(0, getCurrentExecPath()+"/");
         }
-        argv[0]=(char *)executable.c_str();
+        argv[0] = executable.c_str();
         i++;
         j++;
 #endif
@@ -3792,12 +3792,11 @@ bool restartServer()
             }
         }
 
-        argv[j++]="--wait-for";
-        argv[j++]=(char*)SSTR(childid).c_str();
-        argv[j++]=NULL;
-
+        argv[j++] = "--wait-for";
+        argv[j++] = std::to_string(childid).c_str();
+        argv[j++] = NULL;
         LOG_debug << "Restarting the server : <" << argv[0] << ">";
-        execv(argv[0],argv);
+        execv(argv[0], const_cast<char* const*>(argv));
     }
 #endif
 
