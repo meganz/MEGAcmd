@@ -67,6 +67,8 @@ namespace fs = std::filesystem;
 
 namespace megacmd {
 std::string pathAsUtf8(const fs::path& path);
+bool isValidUtf8(const char* data, size_t size);
+bool isValidUtf8(const std::string &str);
 }
 
 namespace megacmd {

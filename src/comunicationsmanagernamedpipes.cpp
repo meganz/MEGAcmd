@@ -305,6 +305,10 @@ void ComunicationsManagerNamedPipes::sendPartialOutput(CmdPetition *inf, OUTSTRI
         return;
     }
 
+    string sutf8;
+    localwtostring(s, &sutf8);
+    assert(isValidUtf8(sutf8)); // above localwtostring should produce an empty string if the input had broken encoding or valid utf-8 otherwise
+
     int outCode = MCMD_PARTIALOUT;
     DWORD n;
     if (!WriteFile(outNamedPipe,(const char*)&outCode, sizeof(outCode), &n, NULL))
@@ -317,9 +321,6 @@ void ComunicationsManagerNamedPipes::sendPartialOutput(CmdPetition *inf, OUTSTRI
         }
         return;
     }
-
-    string sutf8;
-    localwtostring(s,&sutf8);
 
     size_t size = sutf8.size() > 1 ? sutf8.size() : 1; // client does not like empty responses
     if (!WriteFile(outNamedPipe,(const char*)&size, sizeof(size), &n, NULL))
@@ -334,9 +335,16 @@ void ComunicationsManagerNamedPipes::sendPartialOutput(CmdPetition *inf, OUTSTRI
 }
 
 
-void ComunicationsManagerNamedPipes::sendPartialOutput(CmdPetition *inf, char *s, size_t size)
+void ComunicationsManagerNamedPipes::sendPartialOutput(CmdPetition *inf, char *s, size_t size, bool binaryContents)
 {
     HANDLE outNamedPipe = ((CmdPetitionNamedPipes *)inf)->outNamedPipe;
+
+    if (!isValidUtf8(s, size))
+    {
+        std::cerr << "Attempt to sendPartialOutput of invalid utf8 of size " << size << std::endl;
+        assert(false && "Attempt to sendPartialOutput of invalid utf8");
+        return;
+    }
 
     bool connectsucceeded = false;
     int attempts = 10;
@@ -400,6 +408,13 @@ void ComunicationsManagerNamedPipes::sendPartialOutput(CmdPetition *inf, char *s
 
 int ComunicationsManagerNamedPipes::informStateListener(CmdPetition *inf, const string &s)
 {
+    if (!isValidUtf8(s))
+    {
+        LOG_err << "Attempt to write an invalid utf8 string of size " << s.size();
+        assert(false && "Attempt to write an invalid utf8 string");
+        return 0;
+    }
+
     std::lock_guard<std::mutex> g(*informerMutex);
 
     LOG_verbose << "Inform State Listener: Output to write in namedPipe " << ((CmdPetitionNamedPipes *)inf)->outNamedPipe << ": <<" << s << ">>";

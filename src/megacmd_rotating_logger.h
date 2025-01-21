@@ -164,6 +164,7 @@ public:
     const LoggedStream& operator<<(const char& c) const override;
     const LoggedStream& operator<<(const char* str) const override;
     const LoggedStream& operator<<(std::string str) const override;
+    const LoggedStream& operator<<(BinaryStringView v) const override;
     const LoggedStream& operator<<(std::string_view str) const override;
     const LoggedStream& operator<<(int v) const override;
     const LoggedStream& operator<<(unsigned int v) const override;

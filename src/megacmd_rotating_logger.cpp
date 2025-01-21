@@ -455,6 +455,12 @@ const LoggedStream& FileRotatingLoggedStream::operator<<(std::string str) const
     return *this;
 }
 
+const LoggedStream& FileRotatingLoggedStream::operator<<(BinaryStringView v) const
+{
+    writeToBuffer(v.get().data(), v.get().size());
+    return *this;
+}
+
 const LoggedStream& FileRotatingLoggedStream::operator<<(std::string_view str) const
 {
     writeToBuffer(str.data(), str.size());

@@ -28,6 +28,27 @@ namespace fs = std::filesystem;
 #define OUTSTREAM getCurrentThreadOutStream()
 
 namespace megacmd {
+
+// String used to transmit binary data
+class BinaryStringView
+{
+public:
+    BinaryStringView(char *buffer, size_t size)
+        : mValue(buffer, size)
+    {}
+
+    const std::string_view& get() const {
+        return mValue;
+    }
+
+    std::string_view& get() {
+        return mValue;
+    }
+
+private:
+    std::string_view mValue;
+};
+
 class LoggedStream
 {
 public:
@@ -43,6 +64,7 @@ public:
     virtual const LoggedStream& operator<<(std::wstring v) const = 0;
 #endif
     virtual const LoggedStream& operator<<(std::string v) const = 0;
+    virtual const LoggedStream& operator<<(BinaryStringView v) const = 0;
     virtual const LoggedStream& operator<<(std::string_view v) const = 0;
     virtual const LoggedStream& operator<<(int v) const = 0;
     virtual const LoggedStream& operator<<(unsigned int v) const = 0;
@@ -67,6 +89,7 @@ public:
     const LoggedStream& operator<<(std::wstring v) const override { return *this; }
 #endif
     const LoggedStream& operator<<(std::string v) const override { return *this; }
+    const LoggedStream& operator<<(BinaryStringView v) const override { return *this; }
     const LoggedStream& operator<<(std::string_view v) const override { return *this; }
     const LoggedStream& operator<<(int v) const override { return *this; }
     const LoggedStream& operator<<(unsigned int v) const override { return *this; }
@@ -119,6 +142,7 @@ public:
     virtual const LoggedStream& operator<<(std::string_view v) const override { *out << v;return *this; }
 #endif
     virtual const LoggedStream& operator<<(std::string v) const override { *out << v;return *this; }
+    virtual const LoggedStream& operator<<(BinaryStringView v) const override { *out << v.get();return *this; }
     virtual const LoggedStream& operator<<(int v) const override { *out << v;return *this; }
     virtual const LoggedStream& operator<<(unsigned int v) const override { *out << v;return *this; }
     virtual const LoggedStream& operator<<(long unsigned int v) const override { *out << v;return *this; }
@@ -154,6 +178,7 @@ public:
 #else
     virtual const LoggedStream& operator<<(std::string v) const override { cm->sendPartialOutput(inf, &v); return *this; }
 #endif
+    virtual const LoggedStream& operator<<(BinaryStringView v) const override { cm->sendPartialOutput(inf, (char*) v.get().data(), v.get().size(), true); return *this; }
     virtual const LoggedStream& operator<<(std::string_view v) const override { cm->sendPartialOutput(inf, (char*) v.data(), v.size()); return *this; }
 
     virtual const LoggedStream& operator<<(int v) const override { OUTSTRINGSTREAM os; os << v; OUTSTRING s = os.str(); cm->sendPartialOutput(inf, &s); return *this; }
