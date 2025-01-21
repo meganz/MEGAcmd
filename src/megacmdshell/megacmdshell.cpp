@@ -168,8 +168,8 @@ void console_setecho(bool echo)
 #endif
 }
 
-bool alreadyFinished = false; //flag to show progress
-float percentDowloaded = 0.0; // to show progress
+std::atomic_bool alreadyFinished = false; //flag to show progress
+std::atomic<float> percentDowloaded = 0.0; // to show progress
 
 // password change-related state information
 string oldpasswd;
