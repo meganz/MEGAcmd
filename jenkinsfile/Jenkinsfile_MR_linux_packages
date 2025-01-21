@@ -1,0 +1,181 @@
+pipeline {
+    agent { label "linux-testing-package-builder" }
+
+    options {
+        buildDiscarder(logRotator(numToKeepStr: '135', daysToKeepStr: '21'))
+        gitLabConnection('GitLabConnectionJenkins')
+        timestamps() // Add timestamps to all console output
+    }
+
+    stages {
+        stage('Clean previous runs and update gitlab commit status') {
+            steps {
+                deleteDir()
+                updateGitlabCommitStatus(name: 'Build linux', state: 'running')
+            }
+        }
+
+        stage('Get build parameters') {
+            parallel {
+                stage('Get build options') {
+                    steps {
+                        script{
+                            BUILD_OPTIONS = ' '
+                            env.ARCHITECTURE = sh(script: 'echo "$gitlabTriggerPhrase" | grep ARCHITECTURE | awk -F "ARCHITECTURE="  \'{print \$2}\' | cut -d"\\"" -f2 || :', returnStdout: true).trim()
+                            if (env.ARCHITECTURE == "")
+                                { env.ARCHITECTURE = "amd64" }
+                            env.BUILD_OPTIONS = sh(script: 'echo "$gitlabTriggerPhrase" | grep BUILD_OPTIONS | awk -F "BUILD_OPTIONS="  \'{print \$2}\' | cut -d"\\"" -f2 || :', returnStdout: true).trim()
+                            env.DISTRIBUTION = sh(script: 'echo "$gitlabTriggerPhrase" | grep DISTRIBUTION | awk -F "DISTRIBUTION="  \'{print \$2}\' | cut -d\\" -f2', returnStdout: true).trim()
+                            if (env.DISTRIBUTION == "")
+                                { env.DISTRIBUTION = "xUbuntu_22.04" }
+                            println BUILD_OPTIONS
+                            println DISTRIBUTION
+
+                        }
+                    }
+                    post{
+                        always {
+                            script{
+                                if (currentBuild.currentResult == 'FAILURE'){
+                                    addGitLabMRComment(comment: ":red_circle: ${env.JOB_NAME} FAILURE when getting the additional build parameters :worried:<br/>Build results: [Jenkins [${env.JOB_NAME} ${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>Commit: ${env.GIT_COMMIT}" )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                stage('Get SDK branch'){
+                    steps {
+                        script{
+                            env.SDK_BRANCH = sh(script: 'echo "$gitlabMergeRequestDescription" | grep SDK_SUBMODULE_TEST | awk -F "SDK_SUBMODULE_TEST="  \'{print \$2}\' | cut -d" " -f1', returnStdout: true).trim()
+                            if (SDK_BRANCH == ""){
+                                echo "SDK_BRANCH was not found on description so develop will be used by default"
+                                env.SDK_BRANCH = "develop"
+                            }
+                            println SDK_BRANCH
+                        }
+                    }
+                    post{
+                        always {
+                            script{
+                                if (currentBuild.currentResult == 'FAILURE'){
+                                    addGitLabMRComment(comment: ":red_circle: ${env.JOB_NAME} FAILURE when getting the SDK branch :worried:<br/>Build results: [Jenkins [${env.JOB_NAME} ${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>Commit: ${env.GIT_COMMIT}" )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Checkout sources') {
+            parallel {
+                stage('Checkout MEGAcmd') {
+                    steps {
+                        checkout([
+                            $class: 'GitSCM',
+                            branches: [[name: "origin/${env.gitlabSourceBranch}"]],
+                            userRemoteConfigs: [[url: "${env.GIT_URL_MEGACMD}", credentialsId: "12492eb8-0278-4402-98f0-4412abfb65c1"]],
+                            extensions: [
+                            [$class: "UserIdentity",name: "jenkins", email: "jenkins@jenkins"],
+                                        ]
+                        ])
+                    }
+                }
+                stage('Checkout SDK') {
+                    steps {
+                        dir('sdk') {
+                            checkout([
+                                $class: 'GitSCM',
+                                branches: [[name: "${SDK_BRANCH}"]],
+                                userRemoteConfigs: [[url: "${env.GIT_URL_SDK}", credentialsId: "12492eb8-0278-4402-98f0-4412abfb65c1"]],
+                                extensions: [
+                                    [$class: "UserIdentity",name: "jenkins", email: "jenkins@jenkins"],
+                                    [$class: "CloneOption", depth: 1, shallow: true, noTags: false, reference: '']
+                                ]
+                            ])
+                        }
+                        script {
+                            linux_sources_workspace = WORKSPACE
+                            sdk_sources_workspace = "${linux_sources_workspace}/sdk"
+                        }
+                    }
+                }
+            }
+        }
+        stage('Build packages'){
+            when {
+                beforeAgent true
+                expression { env.gitlabTriggerPhrase != null && (env.gitlabTriggerPhrase == 'trigger package' || env.gitlabTriggerPhrase.startsWith('trigger package linux'))  }
+            }
+            stages{
+                stage('Build linux package'){
+                    options {
+                        timeout(time: 240, unit: 'MINUTES')
+                    }
+                    steps {
+                        echo "Do Build for $DISTRIBUTION-$ARCHITECTURE"
+                        dir(linux_sources_workspace){
+                            lock(resource: "$DISTRIBUTION-$ARCHITECTURE-MEGAcmd-build", quantity: 1, ){
+                                sh "/opt/buildTools/build/buildManager.sh -a $ARCHITECTURE -j 3 build $DISTRIBUTION . megacmd"
+                                sh "/opt/buildTools/repo/repoManager.sh add /srv/builder/results/$DISTRIBUTION/$ARCHITECTURE/megacmd/ $DISTRIBUTION"
+                                sh "SIGN_KEY_PATH=/srv/sign_test/ /opt/buildTools/repo/repoManager.sh build -n $DISTRIBUTION"
+                            }
+                        }
+                    }
+                }
+                stage ('Upload Linux package') {
+                    steps {
+                        dir(linux_sources_workspace){
+                            script{
+                                withCredentials([string(credentialsId: 'MEGACMD_ARTIFACTORY_TOKEN', variable: 'MEGACMD_ARTIFACTORY_TOKEN')]) {
+                                    sh """
+                                        jf rt del \
+                                            --url ${REPO_URL} \
+                                            --access-token ${MEGACMD_ARTIFACTORY_TOKEN} \
+                                            MEGAcmd-sprints/${env.gitlabMergeRequestIid}/linux/$DISTRIBUTION
+                                    """
+                                    dir("/srv/repo/private/$DISTRIBUTION"){
+                                        sh """
+                                            jf rt upload \
+                                                --url ${REPO_URL} \
+                                                --access-token ${MEGACMD_ARTIFACTORY_TOKEN} \
+                                                --regexp '(megacmd.*deb\$|megacmd.*rpm\$|megacmd.*\\.pkg\\.tar\\.zst\$|megacmd.*\\.pkg\\.tar\\.xz\$)' \
+                                                MEGAcmd-sprints/${env.gitlabMergeRequestIid}/linux/$DISTRIBUTION/
+                                        """
+                                    }
+                                }
+                                uploadPackagesExecuted = true
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+
+    }
+
+    post {
+        always {
+            script {
+                if (currentBuild.currentResult == 'SUCCESS') {
+                    addGitLabMRComment(comment: ":white_check_mark: ${currentBuild.projectName} :penguin: <b>Linux</b> SUCCEEDED :muscle:<br/>Build results: [Jenkins [${currentBuild.displayName}]](${currentBuild.absoluteUrl})<br/>Commit: ${env.GIT_COMMIT}" )
+                    updateGitlabCommitStatus(name: 'Build linux', state: 'success')
+                }
+                if (currentBuild.currentResult == 'FAILURE') {
+                    addGitLabMRComment(comment: ":red_circle: ${currentBuild.projectName} :penguin: <b>Linux</b> FAILURE  :worried:<br/>Build results: [Jenkins [${currentBuild.displayName}]](${currentBuild.absoluteUrl})<br/>Commit: ${env.GIT_COMMIT}" )
+                    updateGitlabCommitStatus(name: 'Build linux', state: 'failed')
+                }
+                if (currentBuild.currentResult == 'ABORTED') {
+                    addGitLabMRComment(comment: ":interrobang: ${currentBuild.projectName} :penguin: <b>Linux</b> ABORTED  :confused:<br/>Build results: [Jenkins [${currentBuild.displayName}]](${currentBuild.absoluteUrl})<br/>Commit: ${env.GIT_COMMIT}" )
+                    updateGitlabCommitStatus(name: 'Build linux', state: 'canceled')
+                }
+                if (currentBuild.currentResult == 'UNSTABLE') {
+                    addGitLabMRComment(comment: ":interrobang: ${currentBuild.projectName} :penguin: <b>Linux</b> UNSTABLE  :confused:<br/>Build results: [Jenkins [${currentBuild.displayName}]](${currentBuild.absoluteUrl})<br/>Commit: ${env.GIT_COMMIT}" )
+                    updateGitlabCommitStatus(name: 'Build linux', state: 'failed')
+                }
+            }
+        }
+    }
+}
