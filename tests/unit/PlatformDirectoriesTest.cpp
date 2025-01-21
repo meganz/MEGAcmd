@@ -96,7 +96,7 @@ TEST(PlatformDirectoriesTest, configDirPath)
     }
     {
         G_SUBTEST << "With non-ascii $MEGACMD_WORKING_FOLDER_SUFFIX";
-        auto guard = TestInstrumentsEnvVarGuard("MEGACMD_WORKING_FOLDER_SUFFIX", "file_\u5f20\u4e09");
+        auto guard = TestInstrumentsEnvVarGuardW(L"MEGACMD_WORKING_FOLDER_SUFFIX", L"file_\u5f20\u4e09");
         EXPECT_THAT(dirs->configDirPath().wstring(), testing::EndsWith(L"file_\u5f20\u4e09"));
     }
 #else
@@ -275,7 +275,7 @@ TEST(PlatformDirectoriesTest, getNamedPipeName)
 
     {
         G_SUBTEST << "With non-ascii $MEGACMD_PIPE_SUFFIX";
-        auto guard = TestInstrumentsEnvVarGuard("MEGACMD_PIPE_SUFFIX", "file_\u5f20\u4e09");
+        auto guard = TestInstrumentsEnvVarGuardW(L"MEGACMD_PIPE_SUFFIX", L"file_\u5f20\u4e09");
         auto name = getNamedPipeName();
         EXPECT_THAT(name, testing::EndsWith(L"file_\u5f20\u4e09"));
     }
