@@ -11,7 +11,7 @@ pipeline {
         stage('Clean previous runs and update gitlab commit status') {
             steps {
                 deleteDir()
-                updateGitlabCommitStatus(name: 'Build linux', state: 'running')
+                updateGitlabCommitStatus(name: 'Build linux packages', state: 'running')
             }
         }
 
@@ -160,20 +160,20 @@ pipeline {
         always {
             script {
                 if (currentBuild.currentResult == 'SUCCESS') {
-                    addGitLabMRComment(comment: ":white_check_mark: ${currentBuild.projectName} :penguin: <b>Linux</b> SUCCEEDED :muscle:<br/>Build results: [Jenkins [${currentBuild.displayName}]](${currentBuild.absoluteUrl})<br/>Commit: ${env.GIT_COMMIT}" )
-                    updateGitlabCommitStatus(name: 'Build linux', state: 'success')
+                    addGitLabMRComment(comment: ":white_check_mark: ${currentBuild.projectName} :penguin: <b>LINUX</b>  SUCCEEDED :muscle:<br/>Build results: [Jenkins [${currentBuild.displayName}]](${currentBuild.absoluteUrl})<br/>Commit: ${env.GIT_COMMIT}<br/>Packages URL: [${env.REPO_URL}/MEGAcmd-sprints/${env.gitlabMergeRequestIid}/linux/$DISTRIBUTION]" )
+                    updateGitlabCommitStatus(name: 'Build linux packages', state: 'success')
                 }
                 if (currentBuild.currentResult == 'FAILURE') {
                     addGitLabMRComment(comment: ":red_circle: ${currentBuild.projectName} :penguin: <b>Linux</b> FAILURE  :worried:<br/>Build results: [Jenkins [${currentBuild.displayName}]](${currentBuild.absoluteUrl})<br/>Commit: ${env.GIT_COMMIT}" )
-                    updateGitlabCommitStatus(name: 'Build linux', state: 'failed')
+                    updateGitlabCommitStatus(name: 'Build linux packages', state: 'failed')
                 }
                 if (currentBuild.currentResult == 'ABORTED') {
                     addGitLabMRComment(comment: ":interrobang: ${currentBuild.projectName} :penguin: <b>Linux</b> ABORTED  :confused:<br/>Build results: [Jenkins [${currentBuild.displayName}]](${currentBuild.absoluteUrl})<br/>Commit: ${env.GIT_COMMIT}" )
-                    updateGitlabCommitStatus(name: 'Build linux', state: 'canceled')
+                    updateGitlabCommitStatus(name: 'Build linux packages', state: 'canceled')
                 }
                 if (currentBuild.currentResult == 'UNSTABLE') {
                     addGitLabMRComment(comment: ":interrobang: ${currentBuild.projectName} :penguin: <b>Linux</b> UNSTABLE  :confused:<br/>Build results: [Jenkins [${currentBuild.displayName}]](${currentBuild.absoluteUrl})<br/>Commit: ${env.GIT_COMMIT}" )
-                    updateGitlabCommitStatus(name: 'Build linux', state: 'failed')
+                    updateGitlabCommitStatus(name: 'Build linux packages', state: 'failed')
                 }
             }
         }
