@@ -1,3 +1,14 @@
+def allDistros = [
+    'xUbuntu_24.10', 'xUbuntu_24.04', 'xUbuntu_22.04', 'xUbuntu_20.04',
+    'Debian_11', 'Debian_12', 'Debian_testing',
+    'DEB_Arch_Extra',
+    'Raspbian_11', 'Raspbian_12',
+    'Fedora_39', 'Fedora_40', 'Fedora_41',
+    'openSUSE_Leap_15.5', 'openSUSE_Leap_15.6', 'openSUSE_Tumbleweed'
+]
+def nonRaspbianDistros = allDistros - ['Raspbian_11', 'Raspbian_12']
+def raspbianDistros = ['Raspbian_11', 'Raspbian_12']
+
 pipeline {
     agent { label 'linux-testing-package-builder' }
 
@@ -107,12 +118,7 @@ pipeline {
                     }
                     axis {
                         name 'DISTRO';
-                        values  'xUbuntu_24.10','xUbuntu_24.04', 'xUbuntu_22.04', 'xUbuntu_20.04',
-                                'Debian_11','Debian_12','Debian_testing',
-                                'DEB_Arch_Extra',
-                                'Raspbian_11', 'Raspbian_12',
-                                'Fedora_39', 'Fedora_40', 'Fedora_41',
-                                'openSUSE_Leap_15.5','openSUSE_Leap_15.6', 'openSUSE_Tumbleweed'
+                        values(*allDistros)
                     }
                 }
                 excludes {
@@ -123,11 +129,7 @@ pipeline {
                         } 
                         axis { 
                             name 'DISTRO'; 
-                            values  'xUbuntu_24.10','xUbuntu_24.04', 'xUbuntu_22.04', 'xUbuntu_20.04',
-                                    'Debian_11','Debian_12','Debian_testing',
-                                    'DEB_Arch_Extra',
-                                    'Fedora_39', 'Fedora_40', 'Fedora_41',
-                                    'openSUSE_Leap_15.5','openSUSE_Leap_15.6', 'openSUSE_Tumbleweed'
+                            values(*nonRaspbianDistros)
                         }
                     }
                     exclude {   
@@ -137,7 +139,7 @@ pipeline {
                         } 
                         axis { 
                             name 'DISTRO'; 
-                            values  'Raspbian_11', 'Raspbian_12'
+                            values(*raspbianDistros)
                         }
                     }
                 }
