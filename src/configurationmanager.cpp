@@ -54,13 +54,6 @@
 using namespace mega;
 using namespace std;
 
-namespace {
-    std::string errorCodeStr(const std::error_code& ec)
-    {
-        return ec ? "(error: " + ec.message() + ")" : "";
-    }
-}
-
 namespace megacmd {
 
 static const char* const LOCK_FILE_NAME = "lockMCMD";
@@ -113,11 +106,10 @@ void ConfigurationManager::createFolderIfNotExisting(const fs::path &folder)
     }
 
 #ifndef WIN32
-    std::error_code ec_perms;
-    fs::permissions(folder, fs::perms::owner_all, fs::perm_options::replace, ec_perms);
-    if (!ec_perms)
+    fs::permissions(folder, fs::perms::owner_all, fs::perm_options::replace, ec);
+    if (!ec)
     {
-        LOG_warn << "Failed to set permissions on new folder " << folder << ": " << errorCodeStr(ec_perms);
+        LOG_warn << "Failed to set permissions on new folder " << folder << ": " << errorCodeStr(ec);
     }
 #endif
 }

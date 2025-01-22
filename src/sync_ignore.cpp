@@ -155,11 +155,13 @@ void executeCommand(const Args& args)
         if (isDefault)
         {
             // For the default file to be created, a sync that DOES NOT already contain a .megaignore file has to be added
-            LOG_err << "Default .megaignore file does not exist (will be created when a new sync is added)";
+            LOG_err << "Default .megaignore file does not exist (will be created when a new sync is added)"
+                    << ( ec ? std::string(": ").append(errorCodeStr(ec).c_str()) : "");
         }
         else
         {
-            LOG_err << "Mega ignore file \"" << megaIgnoreFilePath << "\" does not exist";
+            LOG_err << "Mega ignore file \"" << megaIgnoreFilePath << "\" does not exist"
+                       << ( ec ? std::string(": ").append(errorCodeStr(ec).c_str()) : "");
         }
         return;
     }
@@ -231,6 +233,11 @@ MegaIgnoreFile::MegaIgnoreFile(const fs::path& path) :
     if (fs::exists(mPath, ec))
     {
         loadFromPath();
+    }
+    else if (ec)
+    {
+        LOG_err << "MegaIgnoreFile existence check failure: " << mPath << ": " << errorCodeStr(ec);
+        return;
     }
     else
     {

@@ -135,7 +135,7 @@ std::wstring nonMaxPathLimitedWstring(const fs::path &localpath)
     return prefixedPathWstring;
 }
 
-std::wstring nonMaxPathLimitedPath(const fs::path &localpath)
+std::path nonMaxPathLimitedPath(const fs::path &localpath)
 {
     auto prefixedPath = fs::path(nonMaxPathLimitedWstring(localpath));
     assert(prefixedPath.wstring().rfind(LR"(\\?\)", 0) == 0);
@@ -230,6 +230,11 @@ bool isValidUtf8(const char* data, size_t size)
 bool isValidUtf8(const std::string &str)
 {
     return isValidUtf8(str.data(), str.size());
+}
+
+std::string errorCodeStr(const std::error_code& ec)
+{
+    return ec ? "(error: " + ec.message() + ")" : "";
 }
 
 bool canWrite(string path)
@@ -1650,20 +1655,18 @@ fs::path WindowsDirectories::configDirPath()
     {
         return {};
     }
-    else
+
+    fs::path folder = fs::path(szPath).parent_path() / ".megaCmd";
+
+    auto suffix = _wgetenv(L"MEGACMD_WORKING_FOLDER_SUFFIX");
+    if (suffix != nullptr)
     {
-        fs::path folder = fs::path(szPath).parent_path() / ".megaCmd";
-
-        auto suffix = _wgetenv(L"MEGACMD_WORKING_FOLDER_SUFFIX");
-        if (suffix != nullptr)
-        {
-            folder += "_";
-            folder += suffix;
-        }
-
-        folder = nonMaxPathLimitedPath(folder); // prepend //?/
-        return folder;
+        folder += "_";
+        folder += suffix;
     }
+
+    folder = nonMaxPathLimitedPath(folder); // prepend //?/
+    return folder;
 }
 
 std::wstring getNamedPipeName()

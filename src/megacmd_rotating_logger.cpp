@@ -349,12 +349,12 @@ void FileRotatingLoggedStream::mainLoop()
 {
     while (!shouldExit() || !mMessageBuffer.isEmpty())
     {
-        std::stringstream errorStream;
+        std::ostringstream errorStream;
         bool reopenFile = false;
 
         if (!waitForOutputFile())
         {
-            errorStream << "Error writing to log file " << pathAsUtf8(mOutputFilePath) << '\n';
+            errorStream << "Error writing to log file " << mOutputFilePath << '\n';
             errorStream << "Re-opening...\n";
             reopenFile = true;
         }

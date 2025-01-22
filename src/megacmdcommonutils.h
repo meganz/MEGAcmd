@@ -69,9 +69,8 @@ namespace megacmd {
 std::string pathAsUtf8(const fs::path& path);
 bool isValidUtf8(const char* data, size_t size);
 bool isValidUtf8(const std::string &str);
-}
 
-namespace megacmd {
+std::string errorCodeStr(const std::error_code& ec);
 
 /* platform dependent */
 #ifdef _WIN32
@@ -93,7 +92,7 @@ std::string getutf8fromUtf16(const wchar_t *ws);
 void utf16ToUtf8(const wchar_t* utf16data, int utf16size, std::string* utf8string);
 
 std::wstring nonMaxPathLimitedWstring(const fs::path &localpath);
-std::wstring nonMaxPathLimitedPath(const fs::path &localpath);
+std::path nonMaxPathLimitedPath(const fs::path &localpath);
 
 
 #else
@@ -601,7 +600,6 @@ public:
     ~WindowsUtf8StdoutGuard()
     {
         fflush(stdout);
-        assert(mOldMode != -1);
         _setmode(_fileno(stdout), mOldMode);
     }
 };
