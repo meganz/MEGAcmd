@@ -111,7 +111,7 @@ pipeline {
             stages{
                 stage('Build linux package'){
                     options {
-                        timeout(time: 240, unit: 'MINUTES')
+                        timeout(time: 600, unit: 'MINUTES')
                     }
                     steps {
                         echo "Do Build for $DISTRIBUTION-$ARCHITECTURE"
