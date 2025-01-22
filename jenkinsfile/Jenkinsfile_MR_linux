@@ -138,7 +138,7 @@ pipeline {
                             timeout(time: 10, unit: 'MINUTES')
                         }
                         environment {
-                            ASAN_OPTIONS="atexit=1,print_stats=1,log_path=${megacmd_sources_workspace}/test-dir-${SANITIZERS}/results/unit-asan-report.log"
+                            ASAN_OPTIONS="print_stats=1,log_path=${megacmd_sources_workspace}/test-dir-${SANITIZERS}/results/unit-asan-report.log"
                             TSAN_OPTIONS="log_path=${megacmd_sources_workspace}/test-dir-${SANITIZERS}/results/unit-tsan-report.log"
                             UBSAN_OPTIONS="log_path=${megacmd_sources_workspace}/test-dir-${SANITIZERS}/results/unit-ubsan-report.log"
                             HOME="${megacmd_sources_workspace}/test-dir-${SANITIZERS}"
@@ -184,7 +184,7 @@ pipeline {
                         environment {
                             MEGACMD_TEST_USER=''
                             MEGACMD_TEST_PASS=credentials('MEGACMD_TESTS_PASSWORD')
-                            ASAN_OPTIONS="atexit=1,print_stats=1,log_path=${megacmd_sources_workspace}/test-dir-${SANITIZERS}/results/integration-asan-report.log"
+                            ASAN_OPTIONS="print_stats=1,log_path=${megacmd_sources_workspace}/test-dir-${SANITIZERS}/results/integration-asan-report.log"
                             TSAN_OPTIONS="log_path=${megacmd_sources_workspace}/test-dir-${SANITIZERS}/results/integration-tsan-report.log"
                             UBSAN_OPTIONS="log_path=${megacmd_sources_workspace}/test-dir-${SANITIZERS}/results/integration-ubsan-report.log"
                             HOME="${megacmd_sources_workspace}/test-dir-${SANITIZERS}"
@@ -233,7 +233,7 @@ pipeline {
                             MEGA_EMAILS=''
                             MEGA_PWD=credentials('MEGACMD_TESTS_PASSWORD')
                             MEGA_PWD_AUX=credentials('MEGACMD_TESTS_PASSWORD')
-                            ASAN_OPTIONS="atexit=1,print_stats=1,log_path=${megacmd_sources_workspace}/pytest-dir-${SANITIZERS}/results/pyserver-asan-report.log"
+                            ASAN_OPTIONS="print_stats=1,log_path=${megacmd_sources_workspace}/pytest-dir-${SANITIZERS}/results/pyserver-asan-report.log"
                             TSAN_OPTIONS="log_path=${megacmd_sources_workspace}/pytest-dir-${SANITIZERS}/results/pyserver-tsan-report.log"
                             UBSAN_OPTIONS="log_path=${megacmd_sources_workspace}/pytest-dir-${SANITIZERS}/results/pyserver-ubsan-report.log"
                             HOME="${megacmd_sources_workspace}/pytest-dir-${SANITIZERS}"
@@ -260,7 +260,7 @@ pipeline {
                                     for (test in ['misc', 'put', 'rm', 'find', 'get']) {
                                         for (cmdshell in ['', 'cmdshell-']) {
                                             def testDir = "pytest-dir-${SANITIZERS}/${cmdshell}${test}-results"
-                                            def asanOptions = "atexit=1,print_stats=1,log_path=${megacmd_sources_workspace}/${testDir}/py-asan-report.log"
+                                            def asanOptions = "print_stats=1,log_path=${megacmd_sources_workspace}/${testDir}/py-asan-report.log"
                                             def tsanOptions = "log_path=${megacmd_sources_workspace}/${testDir}/py-tsan-report.log"
                                             def ubsanOptions = "log_path=${megacmd_sources_workspace}/${testDir}/py-ubsan-report.log"
                                             stage("MEGAcmd Python ${cmdshell}${test} test") {
