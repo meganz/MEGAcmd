@@ -144,9 +144,16 @@ wstring getWAbsPath(wstring localpath)
 }
 #endif
 
-string clientId; // identifier for a registered state listener
-std::mutex clientIdMtx;
-std::condition_variable clientIdCv;
+std::promise<std::string> sClientIdPromise;
+std::optional<std::string> timelyTryToGetClientId()
+{
+    auto f = sClientIdPromise.get_future();
+    if (f.wait_for(std::chrono::seconds(15)) == std::future_status::timeout)
+    {
+        return std::nullopt;
+    }
+    return f.get();
+}
 
 string getAbsPath(string relativePath)
 {
@@ -242,11 +249,10 @@ string parseArgs(int argc, char* argv[])
                 || !strcmp(argv[1],"login")
                 || !strcmp(argv[1],"reload") )
         {
-            std::unique_lock lock(clientIdMtx);
-            clientIdCv.wait_for(lock, std::chrono::seconds(15), [&clientId] { return !clientId.empty(); });
-            if (!clientId.empty())
+            auto clientIdOpt = timelyTryToGetClientId();
+            if (clientIdOpt)
             {
-                absolutedargs.push_back("--clientID=" + clientId);
+                absolutedargs.push_back("--clientID=" + *clientIdOpt);
             }
         }
 
@@ -468,11 +474,10 @@ wstring parsewArgs(int argc, wchar_t* argv[])
                 || !wcscmp(argv[1],L"login")
                 || !wcscmp(argv[1],L"reload") )
         {
-            std::unique_lock lock(clientIdMtx);
-            clientIdCv.wait_for(lock, std::chrono::seconds(15), [&clientId] { return !clientId.empty(); });
-            if (!clientId.empty())
+            auto clientIdOpt = timelyTryToGetClientId();
+            if (clientIdOpt)
             {
-                absolutedargs.push_back(L"clientID=" + std::wstring(clientId.begin(), clientId.end()));
+                absolutedargs.push_back("--clientID=" + std::wstring(clientIdOpt->begin(), clientIdOpt->end()));
             }
         }
 
@@ -799,11 +804,7 @@ void statechangehandle(string statestring, MegaCmdShellCommunications & comsMana
         }
         else if (newstate.compare(0, strlen("clientID:"), "clientID:") == 0)
         {
-            {
-                std::lock_guard g(clientIdMtx);
-                clientId = newstate.substr(strlen("clientID:")).c_str();
-            }
-            clientIdCv.notify_one();
+            sClientIdPromise.set_value(newstate.substr(strlen("clientID:")));
         }
         else if (newstate.compare(0, strlen("progress:"), "progress:") == 0)
         {
