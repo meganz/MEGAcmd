@@ -144,17 +144,6 @@ wstring getWAbsPath(wstring localpath)
 }
 #endif
 
-std::promise<std::string> sClientIdPromise;
-std::optional<std::string> timelyTryToGetClientId()
-{
-    auto f = sClientIdPromise.get_future();
-    if (f.wait_for(std::chrono::seconds(15)) == std::future_status::timeout)
-    {
-        return std::nullopt;
-    }
-    return f.get();
-}
-
 string getAbsPath(string relativePath)
 {
     if (!relativePath.size())
@@ -229,7 +218,7 @@ string getAbsPath(string relativePath)
 
 }
 
-string parseArgs(int argc, char* argv[])
+string parseArgs(int argc, char* argv[], MegaCmdShellCommunications& comsManager)
 {
     vector<string> absolutedargs;
     int totalRealArgs = 0;
@@ -249,7 +238,7 @@ string parseArgs(int argc, char* argv[])
                 || !strcmp(argv[1],"login")
                 || !strcmp(argv[1],"reload") )
         {
-            auto clientIdOpt = timelyTryToGetClientId();
+            auto clientIdOpt = comsManager.tryToGetClientId();
             if (clientIdOpt)
             {
                 absolutedargs.push_back("--clientID=" + *clientIdOpt);
@@ -441,7 +430,7 @@ string parseArgs(int argc, char* argv[])
 
 #ifdef _WIN32
 
-wstring parsewArgs(int argc, wchar_t* argv[])
+wstring parsewArgs(int argc, wchar_t* argv[], MegaCmdShellCommunications& comsManager)
 {
     for (int i=1;i<argc;i++)
     {
@@ -474,7 +463,7 @@ wstring parsewArgs(int argc, wchar_t* argv[])
                 || !wcscmp(argv[1],L"login")
                 || !wcscmp(argv[1],L"reload") )
         {
-            auto clientIdOpt = timelyTryToGetClientId();
+            auto clientIdOpt = comsManager.tryToGetClientId();
             if (clientIdOpt)
             {
                 absolutedargs.push_back("--clientID=" + std::wstring(clientIdOpt->begin(), clientIdOpt->end()));
@@ -804,7 +793,8 @@ void statechangehandle(string statestring, MegaCmdShellCommunications & comsMana
         }
         else if (newstate.compare(0, strlen("clientID:"), "clientID:") == 0)
         {
-            sClientIdPromise.set_value(newstate.substr(strlen("clientID:")));
+            std::string clientId = newstate.substr(strlen("clientID:"));
+            comsManager.setClientIdPromise(clientId);
         }
         else if (newstate.compare(0, strlen("progress:"), "progress:") == 0)
         {
@@ -909,10 +899,10 @@ int executeClient(int argc, char* argv[], OUTSTREAMTYPE & outstream)
     {
         return -3;
     }
-    wstring wParsedArgs = parsewArgs(wargc, szArglist);
+    wstring wParsedArgs = parsewArgs(wargc, szArglist, *comms);
     LocalFree(szArglist);
 #else
-    string parsedArgs = parseArgs(argc,argv);
+    string parsedArgs = parseArgs(argc, argv, *comms);
 #endif
 
     bool isInloginInValidCommands = false;
