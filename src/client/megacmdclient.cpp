@@ -466,7 +466,7 @@ wstring parsewArgs(int argc, wchar_t* argv[], MegaCmdShellCommunications& comsMa
             auto clientIdOpt = comsManager.tryToGetClientId();
             if (clientIdOpt)
             {
-                absolutedargs.push_back("--clientID=" + std::wstring(clientIdOpt->begin(), clientIdOpt->end()));
+                absolutedargs.push_back(L"--clientID=" + std::wstring(clientIdOpt->begin(), clientIdOpt->end()));
             }
         }
 
