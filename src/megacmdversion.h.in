@@ -25,13 +25,12 @@
 namespace megacmd {
 
 const char * const megacmdchangelog =
-        "Improved startup time""\n"
-        "Reduced memory consumption: cached metadata is no longer loaded at startup""\n"
-        "Fixes and improvements in whoami, ls, backup and export commands""\n"
-        "Fixed several memory leaks and improved overall memory consumption""\n"
-        "Fixed file permissions on Unix""\n"
-        "Added support for the Apple silicon (M1)""\n"
-        "Many other fixes and improvements"
+        "Integration with the Sync Engine v2 (see sync-issues and sync-ignore commands)""\n"
+        "Added a rotating logger, with full UTF-8 support and many other improvements""\n"
+        "Several fixes and improvements related to file descriptors on Linux and macOS""\n"
+        "Fixed some general memory issues, deadlocks, and data races""\n"
+        "Fixed a parsing issue with arguments in double quotes""\n"
+        "Other fixes and improvements"
         ;
 
 }//end namespace

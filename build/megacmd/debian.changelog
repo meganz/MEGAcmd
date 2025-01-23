@@ -1,3 +1,14 @@
+megacmd (2.0.0) stable; urgency=low
+
+  * Integration with the Sync Engine v2 (see sync-issues and sync-ignore commands)
+  * Added a rotating logger, with full UTF-8 support and many other improvements
+  * Several fixes and improvements related to file descriptors on Linux and macOS
+  * Fixed some general memory issues, deadlocks, and data races
+  * Fixed a parsing issue with arguments in double quotes
+  * Other fixes and improvements
+
+ -- MEGA Team <linux@mega.co.nz>  Thu, 23 Jan 2025 21:24:28 +0100
+
 megacmd (1.7.0) stable; urgency=low
 
   * Improved startup time
