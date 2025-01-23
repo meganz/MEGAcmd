@@ -381,7 +381,7 @@ void FileRotatingLoggedStream::mainLoop()
         #ifdef WIN32
         {
             WindowsUtf8StdoutGuard utf8Guard;
-            std::wcerr << utf8StringToUtf16WString(errorStream.str()) << std::flush;
+            std::wcerr << utf8StringToUtf16WString(errorStream.str().c_str()) << std::flush;
         }
         #else
             std::cerr << errorStream.str() << std::flush;

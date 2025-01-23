@@ -68,6 +68,8 @@ std::wostream & operator<< ( std::wostream & ostr, const char * str )
 // convert UTF-8 to Windows Unicode wstring (UTF-16)
 void stringtolocalw(const char* path, std::wstring* local)
 {
+    assert(isValidUtf8(std::string(path));
+
     // make space for the worst case
     local->resize((strlen(path) + 1) * sizeof(wchar_t));
 
@@ -109,13 +111,13 @@ void utf16ToUtf8(const wchar_t* utf16data, int utf16size, std::string* utf8strin
     int size_needed = WideCharToMultiByte(CP_UTF8, 0, utf16data, utf16size, NULL, 0, NULL, NULL);
     utf8string->resize(size_needed);
     WideCharToMultiByte(CP_UTF8, 0, utf16data, utf16size, (char*)utf8string->data(),  size_needed, NULL, NULL);
+    assert(isValidUtf8(*utf8string));
 }
 
 std::string utf16ToUtf8(const std::wstring &ws)
 {
     string utf8s;
     utf16ToUtf8(ws.c_str(), ws.size(), &utf8s);
-    assert(isValidUtf8(utf8s));
     return utf8s;
 }
 
@@ -123,7 +125,6 @@ std::string utf16ToUtf8(const wchar_t *ws)
 {
     string utf8s;
     utf16ToUtf8(ws, int(wcslen(ws)), &utf8s);
-    assert(isValidUtf8(utf8s));
     return utf8s;
 }
 
