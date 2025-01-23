@@ -86,14 +86,56 @@ std::string errorCodeStr(const std::error_code& ec);
 std::wostream & operator<< ( std::wostream & ostr, std::string const & str );
 std::wostream & operator<< ( std::wostream & ostr, const char * str );
 
+// UTF-8 to wstrings (UTF-16) conversions:
 void stringtolocalw(const char* path, std::wstring* local);
+std::wstring utf8StringToUtf16WString(const char* path);
+
+// convert Utf-16 wide chars to UTF-8 std::strings
 void localwtostring(const std::wstring* wide, std::string *multibyte);
-std::string getutf8fromUtf16(const wchar_t *ws);
 void utf16ToUtf8(const wchar_t* utf16data, int utf16size, std::string* utf8string);
+std::string utf16ToUtf8(const wchar_t *ws);
+std::string utf16ToUtf8(const std::wstring &ws);
 
 std::wstring nonMaxPathLimitedWstring(const fs::path &localpath);
-std::path nonMaxPathLimitedPath(const fs::path &localpath);
+fs::path nonMaxPathLimitedPath(const fs::path &localpath);
 
+/***
+ *    operator<< overloads to ensure proper handling of paths and widestrings
+ *    This header would need to be included first in all project as a general rule, so that these are used
+ *    As a way to ensure this, we could only define fs namespace here.
+ *
+ *    Note: beyond these, operator<< overloads for logging can be found at megacmdlogger.h
+ **/
+//// This is expected to be used when trying to << a wstring (supposedly in UTF-16, into a ostream (string/file/cout/...)
+template <typename T>
+inline std::enable_if_t<std::is_same_v<std::decay_t<T>, std::wstring>, std::ostream&>
+operator<<(std::ostream& oss, const T& wstr)
+{
+    static_assert(false); // Let's forbid this to better control that we just write utf8 std::strings in non wide streams (e.g cout)
+    // Notice that in the end, in stdout we want to write widestrings (utf16) to wcout instead, to have console rendering properly.
+
+    // If we were to automatically support this we should convert them to utf8 string as follows:
+    oss << megacmd::utf16ToUtf8(wstr);
+    return oss;
+}
+} // end of namespace megacmd
+
+namespace std::filesystem {
+
+    // overload that may be used when building some stringstream.
+    // Note: LOG_xxx << path should are handled by SimpleLogger overloads, not this one
+    inline std::ostream &operator<<(std::ostream& oss, const fs::path& path)
+    {
+        // caveat: outputting its contents (utf-8) to stdout would need to be done converting to utf-16 and using wcout
+        //   and a valid mode to stdout (See WindowsUtf8StdoutGuard)
+        assert(&oss != &std::cout);
+        assert(&oss != &std::cerr);
+
+        oss << megacmd::pathAsUtf8(path);
+        return oss;
+    }
+} // end of namespace std::filesystem
+namespace megacmd {
 
 #else
 #define OUTSTREAMTYPE std::ostream
@@ -262,7 +304,10 @@ OUTSTRING getRightAlignedStr(T what, int n)
 void printCenteredLine(std::string msj, unsigned int width, bool encapsulated = true);
 void printCenteredContents(std::string msj, unsigned int width, bool encapsulated = true);
 void printCenteredContentsCerr(std::string msj, unsigned int width, bool encapsulated = true);
-void printCenteredLine(OUTSTREAMTYPE &os, std::string msj, unsigned int width, bool encapsulated = true);
+
+template <typename Stream_T>
+void printCenteredLine(Stream_T &os, std::string msj, unsigned int width, bool encapsulated = true);
+
 void printCenteredContents(OUTSTREAMTYPE &os, std::string msj, unsigned int width, bool encapsulated = true);
 
 template <typename WHERE>
@@ -582,60 +627,46 @@ void timelyRetry(const std::chrono::duration<_Rep, _Period> &maxTime, const std:
 }
 
 #ifdef _WIN32
+/**
+ * @brief This class is used to:
+ * - guard no meddling while writting/setting output mode on stdout/stderr
+ * - ensure setting the output modes to _O_U8TEXT, given codepage CP_UTF8
+ *       (Utf-8 translation) is compatible with that and we set it as part
+ *       of the process initialization.
+ *       (note: that would be newer powershells default anywa)
+ */
 class WindowsUtf8StdoutGuard final
 {
+    static constexpr unsigned int OUTPUT_MODE = _O_U8TEXT;
+
     inline static std::mutex sSetmodeMtx;
 
-    int mOldMode;
+    int mOldModeStdout;
+    int mOldModeStderr;
     std::lock_guard<std::mutex> mGuard;
 public:
     WindowsUtf8StdoutGuard()
         : mGuard(sSetmodeMtx)
     {
         fflush(stdout);
-        mOldMode = _setmode(_fileno(stdout), _O_U8TEXT);
-        assert(mOldMode != -1);
+        fflush(stderr);
+        mOldModeStdout = _setmode(_fileno(stdout), OUTPUT_MODE);
+        mOldModeStderr = _setmode(_fileno(stderr), OUTPUT_MODE);
+        assert(mOldModeStdout != -1);
+        assert(mOldModeStderr != -1);
     }
 
     ~WindowsUtf8StdoutGuard()
     {
         fflush(stdout);
-        _setmode(_fileno(stdout), mOldMode);
+        fflush(stderr);
+        _setmode(_fileno(stdout), mOldModeStdout);
+        _setmode(_fileno(stderr), mOldModeStderr);
     }
 };
 #endif
 
 }//end namespace
 
-
-namespace mega {
-// Note: these was in megacmd namespace, but after one overload of operator<< was created within mega,
-// ADL did not seem to be able to find it when solving template resolution in loggin.h (namespace mega),
-// even for code coming from megacmd namespace.
-// placing this operator in mega namespace eases ADL lookup and allows compilation
-
-// Note2: std::is_same_v is required below, instead of directly using the types; otherwise we'll
-// get a compilation error on type resolution because paths are implicitly convertible to strings.
-
-#ifdef _WIN32
-template <typename T>
-inline std::enable_if_t<std::is_same_v<T, std::wstring>, std::ostringstream&>
-operator<<(std::ostringstream& oss, const T& wstr)
-{
-    std::string s;
-    megacmd::localwtostring(&wstr, &s);
-    oss << s;
-    return oss;
-}
-#endif
-
-template <typename T>
-inline std::enable_if_t<std::is_same_v<T, fs::path>, std::ostringstream&>
-operator<<(std::ostringstream& oss, const T& path)
-{
-    oss << megacmd::pathAsUtf8(path);
-    return oss;
-}
-}
 
 #endif // MEGACMDCOMMONUTILS_H

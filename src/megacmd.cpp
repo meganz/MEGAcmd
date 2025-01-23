@@ -16,6 +16,7 @@
  * program.
  */
 
+#include "megacmdcommonutils.h"
 #include "megacmd.h"
 
 #include "megaapi.h"
@@ -3153,10 +3154,10 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << "TYPE legend correspondence:" << endl;
 #ifdef _WIN32
 
-        const string cD = getutf8fromUtf16(L"\u25bc");
-        const string cU = getutf8fromUtf16(L"\u25b2");
-        const string cS = getutf8fromUtf16(L"\u21a8");
-        const string cB = getutf8fromUtf16(L"\u2191");
+        const string cD = utf16ToUtf8(L"\u25bc");
+        const string cU = utf16ToUtf8(L"\u25b2");
+        const string cS = utf16ToUtf8(L"\u21a8");
+        const string cB = utf16ToUtf8(L"\u2191");
 #else
         const string cD = "\u21d3";
         const string cU = "\u21d1";
@@ -4650,30 +4651,62 @@ void printWelcomeMsg()
         width--;
 #endif
 
-    COUT << endl;
-    COUT << ".";
-    for (unsigned int i = 0; i < width; i++)
-        COUT << "=" ;
-    COUT << ".";
-    COUT << endl;
-    printCenteredLine(" __  __ _____ ____    _                      _ ",width);
-    printCenteredLine("|  \\/  | ___|/ ___|  / \\   ___ _ __ ___   __| |",width);
-    printCenteredLine("| |\\/| | \\  / |  _  / _ \\ / __| '_ ` _ \\ / _` |",width);
-    printCenteredLine("| |  | | /__\\ |_| |/ ___ \\ (__| | | | | | (_| |",width);
-    printCenteredLine("|_|  |_|____|\\____/_/   \\_\\___|_| |_| |_|\\__,_|",width);
+    std::ostringstream oss;
 
-    COUT << "|";
+    oss << endl;
+    oss << ".";
     for (unsigned int i = 0; i < width; i++)
-        COUT << " " ;
-    COUT << "|";
-    COUT << endl;
-    printCenteredLine("SERVER",width);
+        oss << "=" ;
+    oss << ".";
+    oss << endl;
+    printCenteredLine(oss, " __  __ _____ ____    _                      _ ",width);
+    printCenteredLine(oss, "|  \\/  | ___|/ ___|  / \\   ___ _ __ ___   __| |",width);
+    printCenteredLine(oss, "| |\\/| | \\  / |  _  / _ \\ / __| '_ ` _ \\ / _` |",width);
+    printCenteredLine(oss, "| |  | | /__\\ |_| |/ ___ \\ (__| | | | | | (_| |",width);
+    printCenteredLine(oss, "|_|  |_|____|\\____/_/   \\_\\___|_| |_| |_|\\__,_|",width);
 
-    COUT << "`";
+    oss << "|";
     for (unsigned int i = 0; i < width; i++)
-        COUT << "=" ;
-    COUT << "´";
-    COUT << endl;
+        oss << " " ;
+    oss << "|";
+    oss << endl;
+    printCenteredLine(oss, "SERVER",width);
+
+    oss << "`";
+    for (unsigned int i = 0; i < width; i++)
+    {
+        oss << "=" ;
+    }
+#ifndef _WIN32
+    oss << "\u00b4\n";
+    COUT << oss.str() << std::flush;
+#else
+    WindowsUtf8StdoutGuard utf8Guard;
+    // So far, all is ASCII.
+    COUT << oss.str();
+
+    // Now let's tray the non ascii forward acute
+    // We are about to write some non ascii character.
+    // Let's set (from now on, the console code page to UTF-8 translation (65001)
+    // but revert to the initial code page if outputing the special forward acute character
+    // fails. <- This could happen, for instance in Windows 7.
+    auto initialCP = GetConsoleOutputCP();
+    bool codePageChanged = true;
+    if (initialCP != CP_UTF8)
+    {
+        codePageChanged = SetConsoleOutputCP(CP_UTF8);
+    }
+
+    if (!(COUT << L"\u00b4")) // failed to output using utf-8
+    {
+        if (codePageChanged) // revert codepage
+        {
+            SetConsoleOutputCP(initialCP);
+        }
+        COUT << "/";
+    }
+    COUT << std::endl;
+#endif
 
 }
 
@@ -5158,6 +5191,8 @@ int executeServer(int argc, char* argv[],
     setlocale(LC_ALL, "en-US");
 #endif
 
+    printWelcomeMsg();
+
     // keep a copy of argc & argv in order to allow restarts
     mcmdMainArgv = argv;
     mcmdMainArgc = argc;
@@ -5281,9 +5316,6 @@ int executeServer(int argc, char* argv[],
         }
     }
 #endif
-
-    printWelcomeMsg();
-
 
     int configuredProxyType = ConfigurationManager::getConfigurationValue("proxy_type", -1);
     auto configuredProxyUrl = ConfigurationManager::getConfigurationSValue("proxy_url");

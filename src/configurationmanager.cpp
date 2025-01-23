@@ -16,8 +16,8 @@
  * program.
  */
 
-#include "configurationmanager.h"
 #include "megacmdcommonutils.h"
+#include "configurationmanager.h"
 #include "megacmdversion.h"
 #include "megacmdutils.h"
 #include "listeners.h"

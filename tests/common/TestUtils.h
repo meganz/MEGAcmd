@@ -152,8 +152,6 @@ MATCHER_P(ContainsStdRegex, pattern, "")
     return std::regex_search(arg, regex);
 }
 
-namespace fs = std::filesystem;
-
 class SelfDeletingTmpFolder
 {
     fs::path mTempDir;

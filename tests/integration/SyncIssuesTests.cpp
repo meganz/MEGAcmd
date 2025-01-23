@@ -17,10 +17,10 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
+#include "megacmdcommonutils.h"
 #include "TestUtils.h"
 #include "MegaCmdTestingTools.h"
 
-namespace fs = std::filesystem;
 using TI = TestInstruments;
 
 // This class ensures that the sync issue list eventually

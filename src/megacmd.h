@@ -36,7 +36,8 @@ using std::istringstream;
 using std::locale;
 using std::stringstream;
 using std::exception;
-namespace fs = std::filesystem;
+
+#include "megacmdcommonutils.h"
 
 #include "megaapi_impl.h"
 #include "megacmd_events.h"

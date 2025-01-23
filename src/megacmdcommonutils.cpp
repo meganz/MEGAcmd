@@ -65,7 +65,7 @@ std::wostream & operator<< ( std::wostream & ostr, const char * str )
     return ( ostr );
 }
 
-// convert UTF-8 to Windows Unicode wstring
+// convert UTF-8 to Windows Unicode wstring (UTF-16)
 void stringtolocalw(const char* path, std::wstring* local)
 {
     // make space for the worst case
@@ -86,19 +86,19 @@ void stringtolocalw(const char* path, std::wstring* local)
     }
 }
 
-//widechar to utf8 string
-void localwtostring(const std::wstring* wide, std::string *multibyte)
+std::wstring utf8StringToUtf16WString(const char* str)
 {
-    if( !wide->empty() )
-    {
-        int size_needed = WideCharToMultiByte(CP_UTF8, 0, wide->data(), (int)wide->size(), NULL, 0, NULL, NULL);
-        multibyte->resize(size_needed);
-        WideCharToMultiByte(CP_UTF8, 0, wide->data(), (int)wide->size(), (char*)multibyte->data(), size_needed, NULL, NULL);
-    }
+    std::wstring toret;
+    stringtolocalw(str, &toret);
+    return toret;
 }
 
-// convert Windows Unicode to UTF-8
-void utf16ToUtf8(const wchar_t* utf16data, int utf16size, string* utf8string)
+void localwtostring(const std::wstring* wide, std::string *multibyte)
+{
+    utf16ToUtf8(wide->data(), (int)wide->size(), multibyte);
+}
+
+void utf16ToUtf8(const wchar_t* utf16data, int utf16size, std::string* utf8string)
 {
     if(!utf16size)
     {
@@ -106,20 +106,24 @@ void utf16ToUtf8(const wchar_t* utf16data, int utf16size, string* utf8string)
         return;
     }
 
-    utf8string->resize((utf16size + 1) * 4);
-
-    utf8string->resize(WideCharToMultiByte(CP_UTF8, 0, utf16data,
-        utf16size,
-        (char*)utf8string->data(),
-        int(utf8string->size() + 1),
-        NULL, NULL)
-    );
+    int size_needed = WideCharToMultiByte(CP_UTF8, 0, utf16data, utf16size, NULL, 0, NULL, NULL);
+    utf8string->resize(size_needed);
+    WideCharToMultiByte(CP_UTF8, 0, utf16data, utf16size, (char*)utf8string->data(),  size_needed, NULL, NULL);
 }
 
-std::string getutf8fromUtf16(const wchar_t *ws)
+std::string utf16ToUtf8(const std::wstring &ws)
+{
+    string utf8s;
+    utf16ToUtf8(ws.c_str(), ws.size(), &utf8s);
+    assert(isValidUtf8(utf8s));
+    return utf8s;
+}
+
+std::string utf16ToUtf8(const wchar_t *ws)
 {
     string utf8s;
     utf16ToUtf8(ws, int(wcslen(ws)), &utf8s);
+    assert(isValidUtf8(utf8s));
     return utf8s;
 }
 
@@ -135,7 +139,7 @@ std::wstring nonMaxPathLimitedWstring(const fs::path &localpath)
     return prefixedPathWstring;
 }
 
-std::path nonMaxPathLimitedPath(const fs::path &localpath)
+fs::path nonMaxPathLimitedPath(const fs::path &localpath)
 {
     auto prefixedPath = fs::path(nonMaxPathLimitedWstring(localpath));
     assert(prefixedPath.wstring().rfind(LR"(\\?\)", 0) == 0);
@@ -147,7 +151,7 @@ std::path nonMaxPathLimitedPath(const fs::path &localpath)
 std::string pathAsUtf8(const fs::path& path)
 {
 #ifdef _WIN32
-    return getutf8fromUtf16(path.wstring().c_str());
+    return utf16ToUtf8(path.wstring().c_str());
 #else
     return path.string();
 #endif
@@ -849,7 +853,8 @@ string toLower(const std::string& str)
     return lower;
 }
 
-void printCenteredLine(OUTSTREAMTYPE &os, string msj, unsigned int width, bool encapsulated)
+template <typename Stream_T>
+void printCenteredLine(Stream_T &os, string msj, unsigned int width, bool encapsulated)
 {
     unsigned int msjsize = getstringutf8size(msj);
     bool overflowed = false;
@@ -869,6 +874,10 @@ void printCenteredLine(OUTSTREAMTYPE &os, string msj, unsigned int width, bool e
         os << "|";
     os << endl;
 }
+
+// Instantiate those that can be used:
+template void printCenteredLine<OUTSTREAMTYPE>(OUTSTREAMTYPE &os, string msj, unsigned int width, bool encapsulated);
+template void printCenteredLine<std::ostringstream>(std::ostringstream &os, string msj, unsigned int width, bool encapsulated);
 
 void printCenteredContents(OUTSTREAMTYPE &os, string msj, unsigned int width, bool encapsulated)
 {
@@ -958,6 +967,9 @@ void printCenteredLine(string msj, unsigned int width, bool encapsulated)
 {
     OUTSTRINGSTREAM os;
     printCenteredLine(os, msj, width, encapsulated);
+#ifdef _WIN32
+    WindowsUtf8StdoutGuard utf8Guard;
+#endif
     COUT << os.str();
 }
 
@@ -965,6 +977,10 @@ void printCenteredContents(string msj, unsigned int width, bool encapsulated)
 {
     OUTSTRINGSTREAM os;
     printCenteredContents(os, msj, width, encapsulated);
+#ifdef _WIN32
+    WindowsUtf8StdoutGuard utf8Guard;
+#endif
+
     COUT << os.str();
 }
 
@@ -972,6 +988,9 @@ void printCenteredContentsCerr(string msj, unsigned int width, bool encapsulated
 {
     OUTSTRINGSTREAM os;
     printCenteredContents(os, msj, width, encapsulated);
+#ifdef _WIN32
+    WindowsUtf8StdoutGuard utf8Guard;
+#endif
     CERR << os.str();
 }
 
@@ -1010,6 +1029,10 @@ void printPercentageLineCerr(const char *title, long long completed, long long t
     {
         *ptr++ = '#';
     }
+
+#ifdef _WIN32
+    WindowsUtf8StdoutGuard utf8Guard;
+#endif
 
     if (cleanLineAfter)
     {

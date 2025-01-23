@@ -13,6 +13,7 @@
  * program.
  */
 
+#include "megacmdcommonutils.h"
 #include "megacmd_rotating_logger.h"
 
 #include <cassert>
@@ -377,7 +378,14 @@ void FileRotatingLoggedStream::mainLoop()
         }
 
         errorStream << mFileManager.popErrors();
-        std::cerr << errorStream.str();
+        #ifdef WIN32
+        {
+            WindowsUtf8StdoutGuard utf8Guard;
+            std::wcerr << utf8StringToUtf16WString(errorStream.str()) << std::flush;
+        }
+        #else
+            std::cerr << errorStream.str() << std::flush;
+        #endif
 
         if (!mOutputFile)
         {

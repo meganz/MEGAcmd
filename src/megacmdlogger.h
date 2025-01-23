@@ -19,8 +19,7 @@
 #ifndef MEGACMDLOGGER_H
 #define MEGACMDLOGGER_H
 
-#include <filesystem>
-namespace fs = std::filesystem;
+#include "megacmdcommonutils.h"
 
 #include "megacmd.h"
 #include "comunicationsmanager.h"
@@ -28,6 +27,20 @@ namespace fs = std::filesystem;
 #define OUTSTREAM getCurrentThreadOutStream()
 
 namespace megacmd {
+
+#ifdef WIN32
+inline ::mega::SimpleLogger &operator<<(::mega::SimpleLogger& sl, const fs::path& path)
+{
+    return sl << megacmd::pathAsUtf8(path);
+}
+
+template <typename T>
+inline std::enable_if_t<std::is_same_v<std::decay_t<T>, std::wstring>, ::mega::SimpleLogger &>
+operator<<(::mega::SimpleLogger& sl, const T& wstr)
+{
+    return sl << megacmd::utf16ToUtf8(wstr);
+}
+#endif
 
 // String used to transmit binary data
 class BinaryStringView
@@ -271,8 +284,8 @@ public:
 
 class MegaCmdSimpleLogger final : public MegaCmdLogger
 {
-    LoggedStream &mLoggedStream;
-    LoggedStreamOutStream mOutStream;
+    LoggedStream &mLoggedStream; // to log into files (e.g. FileRotatingLoggedStream)
+    LoggedStreamOutStream mOutStream; // to log into stdout
     bool mLogToOutStream;
 
     bool shouldLogToStream(int logLevel, const char *source) const;

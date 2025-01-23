@@ -291,10 +291,11 @@ void MegaCmdSimpleLogger::log(const char * /*time*/, int logLevel, const char *s
 
     if (shouldLogToStream(logLevel, source))
     {
+        // log to _file_ (e.g: FileRotatingLoggedStream)
         const std::string nowTimeStr = getNowTimeStr();
         formatLogToStream(mLoggedStream, nowTimeStr, logLevel, source, message);
 
-        if (mLogToOutStream)
+        if (mLogToOutStream) // log to stdout
         {
 #ifdef _WIN32
             WindowsUtf8StdoutGuard utf8Guard;
