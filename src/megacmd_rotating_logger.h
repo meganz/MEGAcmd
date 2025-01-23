@@ -189,6 +189,8 @@ MessageBuffer<BlockSize>::MemoryBlock::MemoryBlock() :
     mSize(0),
     mMemoryAllocationFailed(false)
 {
+    // Ensure null-termination even if the memory block is empty
+    mBuffer[0] = '\0';
 }
 
 template<size_t BlockSize>
