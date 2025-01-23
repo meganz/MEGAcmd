@@ -178,7 +178,7 @@ pipeline {
 }
 
 def buildAndSignPackage(String distro, String architecture, String packageName) {
-    sh "${env.BUILDTOOLS_PATH}/build/buildManager.sh -a ${architecture} -j 1 build ${distro} . ${packageName}"
+    sh "${env.BUILDTOOLS_PATH}/build/buildManager.sh -a ${architecture} -j 2 build ${distro} . ${packageName}"
     sh "${env.BUILDTOOLS_PATH}/repo/repoManager.sh add ${env.INTERNAL_REPO_PATH}/builder/results/${distro}/${architecture}/${packageName}/ ${distro}"
     sh "SIGN_KEY_PATH=${env.INTERNAL_REPO_PATH}/sign_test/ ${env.BUILDTOOLS_PATH}/repo/repoManager.sh build -n ${distro}"
 }
