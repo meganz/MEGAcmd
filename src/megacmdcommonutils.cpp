@@ -68,7 +68,7 @@ std::wostream & operator<< ( std::wostream & ostr, const char * str )
 // convert UTF-8 to Windows Unicode wstring (UTF-16)
 void stringtolocalw(const char* path, std::wstring* local)
 {
-    assert(isValidUtf8(std::string(path));
+    assert(isValidUtf8(std::string(path)));
 
     // make space for the worst case
     local->resize((strlen(path) + 1) * sizeof(wchar_t));
