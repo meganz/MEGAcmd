@@ -25,12 +25,12 @@
 namespace megacmd {
 
 const char * const megacmdchangelog =
-        "Integration with the Sync Engine v2 (see sync-issues and sync-ignore commands)""\n"
-        "Added a rotating logger, with full UTF-8 support and many other improvements""\n"
-        "Several fixes and improvements related to file descriptors on Linux and macOS""\n"
-        "Fixed some general memory issues, deadlocks, and data races""\n"
-        "Fixed a parsing issue with arguments in double quotes""\n"
-        "Other fixes and improvements"
+        "New Sync Engine: See sync-issues and sync-ignore commands""\n"
+        "Rotating Logger: Introduced a robust rotating logging system across all platforms for better performance and debugging""\n"
+        "Platform-specific enhancements: Addressed various file descriptor issues on Linux and macOS, and improved non-ascii support on Windows""\n"
+        "Improved overall reliability: Fixed memory leaks, resolved potential data races, and eliminated deadlock scenarios""\n"
+        "Fixed an issue when handling double-quoted arguments""\n"
+        "Various fixes and refinements to enhance usability and performance"
         ;
 
 }//end namespace
