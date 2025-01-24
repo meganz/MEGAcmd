@@ -10,6 +10,7 @@ pipeline {
         booleanParam(name: 'IS_RELEASE_CANDIDATE', defaultValue: false, description: 'Is it a Release Candidate?')
         string(name: 'RELEASE_CANDIDATE_NAME', defaultValue: '', description: 'i.e: RC2, RC3 (only needed if IS_RELEASE_CANDIDATE is true)')
         booleanParam(name: 'CUSTOM_BUILD', defaultValue: true, description: 'If true, will use DISTRO_TO_BUILD If false, will build all distributions')
+        choice(name: 'ARCH_TO_BUILD', choices: ['amd64', 'armhf'], description: 'Only used if CUSTOM_BUILD is true') 
         string(name: 'DISTRO_TO_BUILD', defaultValue: 'xUbuntu_22.04', description: 'Only used if CUSTOM_BUILD is true')
         string(name: 'MEGACMD_BRANCH', defaultValue: "${env.BRANCH_NAME}", description: 'Which version of MEGAcmd should we build? Default is current branch.')
         string(name: 'SDK_BRANCH', defaultValue: ' ', description: 'Optionally, define a custom SDK branch.')
@@ -70,8 +71,8 @@ pipeline {
             steps {
                 echo "Do Build for ${params.DISTRO_TO_BUILD}"
                 dir(linux_sources_workspace) {
-                    lock(resource: "${params.DISTRO_TO_BUILD}-amd64-MEGAcmd-build", quantity: 1) {
-                        buildAndSignPackage("${params.DISTRO_TO_BUILD}", "amd64", "megacmd")
+                    lock(resource: "${params.DISTRO_TO_BUILD}-${params.ARCH_TO_BUILD}-MEGAcmd-build", quantity: 1) {
+                        buildAndSignPackage("${params.DISTRO_TO_BUILD}", "${params.ARCH_TO_BUILD}", "megacmd")
                     }
                     script{
                         if ( params.IS_RELEASE_CANDIDATE == true) {
@@ -102,15 +103,42 @@ pipeline {
                 axes {
                     axis {
                         name 'ARCHITECTURE';
-                        values 'amd64'
+                        values 'amd64','armhf'
                     }
                     axis {
                         name 'DISTRO';
                         values  'xUbuntu_24.10','xUbuntu_24.04', 'xUbuntu_22.04', 'xUbuntu_20.04',
                                 'Debian_11','Debian_12','Debian_testing',
                                 'DEB_Arch_Extra',
+                                'Raspbian_11', 'Raspbian_12',
                                 'Fedora_39', 'Fedora_40', 'Fedora_41',
                                 'openSUSE_Leap_15.5','openSUSE_Leap_15.6', 'openSUSE_Tumbleweed'
+                    }
+                }
+                excludes {
+                    exclude {   
+                        axis { 
+                            name 'ARCHITECTURE'; 
+                            values 'armhf' 
+                        } 
+                        axis { 
+                            name 'DISTRO'; 
+                            values  'xUbuntu_24.10','xUbuntu_24.04', 'xUbuntu_22.04', 'xUbuntu_20.04',
+                                    'Debian_11','Debian_12','Debian_testing',
+                                    'DEB_Arch_Extra',
+                                    'Fedora_39', 'Fedora_40', 'Fedora_41',
+                                    'openSUSE_Leap_15.5','openSUSE_Leap_15.6', 'openSUSE_Tumbleweed'
+                        }
+                    }
+                    exclude {   
+                        axis { 
+                            name 'ARCHITECTURE'; 
+                            values 'amd64' 
+                        } 
+                        axis { 
+                            name 'DISTRO'; 
+                            values  'Raspbian_11', 'Raspbian_12'
+                        }
                     }
                 }
                 stages {
@@ -136,7 +164,7 @@ pipeline {
                                     def MEGACMD_VERSION = getVersionFromHeader("CMakeLists.txt")
                                     withCredentials([string(credentialsId: 'MEGACMD_ARTIFACTORY_TOKEN', variable: 'MEGACMD_ARTIFACTORY_TOKEN')]) {
                                         sh 'jf rt del --url $REPO_URL --access-token $MEGACMD_ARTIFACTORY_TOKEN MEGAcmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/linux/$DISTRO'
-                                        sh "cd ${env.INTERNAL_REPO_PATH}/repo/private/$DISTRO && jf rt upload --url ${REPO_URL} --access-token ${MEGACMD_ARTIFACTORY_TOKEN} --regexp '((x86_64|amd64|i386)/megacmd.*deb\$|(x86_64|amd64|i386)/megacmd.*rpm\$|(x86_64|amd64|i386)/megacmd.*\\.pkg\\.tar\\.zst\$|(x86_64|amd64|i386)/megacmd.*\\.pkg\\.tar\\.xz\$)' MEGAcmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/linux/$DISTRO/"
+                                        sh "cd ${env.INTERNAL_REPO_PATH}/repo/private/$DISTRO && jf rt upload --url ${REPO_URL} --access-token ${MEGACMD_ARTIFACTORY_TOKEN} --regexp '((x86_64|amd64|i386|armhf)/megacmd.*deb\$|(x86_64|amd64|i386)/megacmd.*rpm\$|(x86_64|amd64|i386)/megacmd.*\\.pkg\\.tar\\.zst\$|(x86_64|amd64|i386)/megacmd.*\\.pkg\\.tar\\.xz\$)' MEGAcmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/linux/$DISTRO/"
                                     }
                                     echo "Packages successfully uploaded. URL: [${env.REPO_URL}/MEGAcmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/linux/$DISTRO/]"
                                 }
@@ -155,7 +183,7 @@ pipeline {
 }
 
 def buildAndSignPackage(String distro, String architecture, String packageName) {
-    sh "${env.BUILDTOOLS_PATH}/build/buildManager.sh -a ${architecture} -j 1 build ${distro} . ${packageName}"
+    sh "${env.BUILDTOOLS_PATH}/build/buildManager.sh -a ${architecture} -j 2 build ${distro} . ${packageName}"
     sh "${env.BUILDTOOLS_PATH}/repo/repoManager.sh add ${env.INTERNAL_REPO_PATH}/builder/results/${distro}/${architecture}/${packageName}/ ${distro}"
     sh "SIGN_KEY_PATH=${env.INTERNAL_REPO_PATH}/sign_test/ ${env.BUILDTOOLS_PATH}/repo/repoManager.sh build -n ${distro}"
 }
