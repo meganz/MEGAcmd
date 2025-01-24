@@ -650,6 +650,7 @@ bool MegaCmdShellCommunications::registerForStateChanges(bool interactive, State
         mListenerThread->join();
     }
 
+    mClientIdPromise = std::promise<std::string>();
     auto resultRegistration = registerForStateChangesImpl(interactive, initiateServer);
     if (!resultRegistration)
     {
@@ -774,6 +775,21 @@ void MegaCmdShellCommunications::setForRegisterAgain(bool dontWait)
     {
         mLastFailedRegistration = std::chrono::steady_clock::now();
     }
+}
+
+void MegaCmdShellCommunications::setClientIdPromise(const std::string& clientId)
+{
+    mClientIdPromise.set_value(clientId);
+}
+
+std::optional<std::string> MegaCmdShellCommunications::tryToGetClientId(std::chrono::seconds waitForSecs)
+{
+    auto f = mClientIdPromise.get_future();
+    if (f.wait_for(waitForSecs) == std::future_status::timeout)
+    {
+        return std::nullopt;
+    }
+    return f.get();
 }
 
 std::lock_guard<std::mutex> MegaCmdShellCommunications::getStdoutLockGuard()

@@ -4424,13 +4424,15 @@ void megacmd()
                     continue;
                 }
 
-                // communicate client ID
-                string s = "clientID:";
-                s+=SSTR(currentclientID);
-                s+=(char)0x1F;
-                inf->clientID = currentclientID;
-                currentclientID++;
-                cm->informStateListener(inf,s);
+                {
+                    // Communicate client ID
+                    string clientIdStr = "clientID:" + std::to_string(currentclientID) + (char) 0x1F;
+                    inf->clientID = currentclientID;
+                    currentclientID++;
+                    cm->informStateListener(inf, clientIdStr);
+                }
+
+                std::string s;
 
 #if defined(_WIN32) || defined(__APPLE__)
                 string message="";
@@ -4482,14 +4484,14 @@ void megacmd()
                 {
                     startcheckingForUpdates();
                 }
-                message=os.str();
+                message = os.str();
 
 
                 if (message.size())
                 {
                     s += "message:";
-                    s+=message;
-                    s+=(char)0x1F;
+                    s += message;
+                    s += (char) 0x1F;
                 }
 #endif
 
@@ -4515,7 +4517,7 @@ void megacmd()
                     s += "Your Operative System is too old.\n";
                     s += "You might not receive new updates for this application.\n";
                     s += "We strongly recommend you to update to a new version.\n";
-                    s+=(char)0x1F;
+                    s += (char) 0x1F;
                 }
 
                 if (sandboxCMD->storageStatus != MegaApi::STORAGE_STATE_GREEN)
@@ -4581,7 +4583,7 @@ void megacmd()
                         s += "You can change your account plan to increase your quota limit.\n";
                     }
                     s += "See \"help --upgrade\" for further details.\n";
-                    s += (char)0x1F;
+                    s += (char) 0x1F;
                 }
 
                 // if server resuming session, lets give him a very litle while before sending greeting message to the early clients
@@ -4602,7 +4604,7 @@ void megacmd()
 
                     for (auto m: greetingsAllClientMsgs)
                     {
-                        cm->informStateListener(inf,m.append(1, (char)0x1F));
+                        cm->informStateListener(inf, m.append(1, (char)0x1F));
                     }
                 }
 
@@ -4615,16 +4617,16 @@ void megacmd()
                 }
 
                 // communicate status info
-                s+= "prompt:";
-                s+=dynamicprompt;
-                s+=(char)0x1F;
+                s +=  "prompt:";
+                s += dynamicprompt;
+                s += (char) 0x1F;
 
                 if (!sandboxCMD->getReasonblocked().size())
                 {
                     cmdexecuter->checkAndInformPSA(inf);
                 }
 
-                cm->informStateListener(inf,s);
+                cm->informStateListener(inf, s);
             }
             else
             { // normal petition
