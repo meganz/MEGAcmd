@@ -31,17 +31,6 @@
 #ifdef _WIN32
 #include <shlobj.h> //SHGetFolderPath
 #include <Shlwapi.h> //PathAppend
-
-#include <fcntl.h>
-#include <io.h>
-#include <stdio.h>
-#ifndef _O_U16TEXT
-#define _O_U16TEXT 0x00020000
-#endif
-#ifndef _O_U8TEXT
-#define _O_U8TEXT 0x00040000
-#endif
-
 #else
 #include <fcntl.h>
 

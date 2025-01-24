@@ -1246,14 +1246,14 @@ bool MegaCmdCatTransferListener::onTransferData(MegaApi *api, MegaTransfer *tran
 {
     if (!ls->isClientConnected())
     {
-        LOG_debug << " CatTransfer listener, cancelled transfer due to client disconnected";
+        LOG_verbose << " CatTransfer listener, cancelled transfer due to client disconnected";
         api->cancelTransfer(transfer);
     }
     else
     {
 
-        LOG_debug << " CatTransfer listener, streaming " << size << " bytes";  //TODO: verbose
-        *ls << string(buffer,size);
+        LOG_verbose << " CatTransfer listener, streaming " << size << " bytes";
+        *ls << BinaryStringView(buffer, size);
     }
 
     return true;

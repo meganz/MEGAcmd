@@ -367,6 +367,38 @@ protected:
     }
 };
 
+#ifdef WIN32
+class TestInstrumentsEnvVarGuardW
+{
+    std::wstring mVar;
+    bool mHasInitValue;
+    std::wstring mInitValue;
+public:
+    TestInstrumentsEnvVarGuardW(const std::wstring& variable, const std::wstring& value)
+        : mVar(variable), mHasInitValue(false), mInitValue()
+    {
+        const wchar_t* initValue = _wgetenv(mVar.c_str());
+        if (initValue != nullptr)
+        {
+            mHasInitValue = true;
+            mInitValue = std::wstring(initValue);
+        }
+        _wputenv_s(mVar.c_str(), value.c_str());
+    }
+    virtual ~TestInstrumentsEnvVarGuardW()
+    {
+        if (mHasInitValue)
+        {
+            _wputenv_s(mVar.c_str(), mInitValue.c_str());
+        }
+        else
+        {
+            _wputenv_s(mVar.c_str(), L"");
+        }
+    }
+};
+#endif
+
 class TestInstrumentsUnsetEnvVarGuard : TestInstrumentsEnvVarGuard
 {
 public:

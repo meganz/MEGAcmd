@@ -16,6 +16,7 @@
  * program.
  */
 
+#include "megacmdcommonutils.h"
 #include "megacmd.h"
 
 #include "megaapi.h"
@@ -3153,10 +3154,10 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << "TYPE legend correspondence:" << endl;
 #ifdef _WIN32
 
-        const string cD = getutf8fromUtf16(L"\u25bc");
-        const string cU = getutf8fromUtf16(L"\u25b2");
-        const string cS = getutf8fromUtf16(L"\u21a8");
-        const string cB = getutf8fromUtf16(L"\u2191");
+        const string cD = utf16ToUtf8(L"\u25bc");
+        const string cU = utf16ToUtf8(L"\u25b2");
+        const string cS = utf16ToUtf8(L"\u21a8");
+        const string cB = utf16ToUtf8(L"\u2191");
 #else
         const string cD = "\u21d3";
         const string cU = "\u21d1";
@@ -3655,32 +3656,32 @@ bool executeUpdater(bool *restartRequired, bool doNotInstall = false)
 
     if ( pidupdater == 0 )
     {
-        char * donotinstallstr = NULL;
+        const char * donotinstallstr = NULL;
         if (doNotInstall)
         {
             donotinstallstr = "--do-not-install";
         }
 
         auto versionStr = std::to_string(MEGACMD_CODE_VERSION);
-        char* version = const_cast<char*>(versionStr.c_str());
+        const char* version = const_cast<char*>(versionStr.c_str());
 
 #ifdef __MACH__
     #ifndef NDEBUG
-        char * args[] = {"./mega-cmd-updater", "--normal-update", donotinstallstr, "--version", version, NULL};
+        const char * args[] = {"./mega-cmd-updater", "--normal-update", donotinstallstr, "--version", version, NULL};
     #else
-        char * args[] = {"/Applications/MEGAcmd.app/Contents/MacOS/MEGAcmdUpdater", "--normal-update", donotinstallstr, "--version", version, NULL};
+        const char * args[] = {"/Applications/MEGAcmd.app/Contents/MacOS/MEGAcmdUpdater", "--normal-update", donotinstallstr, "--version", version, NULL};
     #endif
 #else //linux doesn't use autoupdater: this is just for testing
     #ifndef NDEBUG
-            char * args[] = {"./mega-cmd-updater", "--normal-update", donotinstallstr, "--version", version, NULL}; // notice: won't work after lcd
+            const char * args[] = {"./mega-cmd-updater", "--normal-update", donotinstallstr, "--version", version, NULL}; // notice: won't work after lcd
     #else
-            char * args[] = {"mega-cmd-updater", "--normal-update", donotinstallstr, "--version", version, NULL};
+            const char * args[] = {"mega-cmd-updater", "--normal-update", donotinstallstr, "--version", version, NULL};
     #endif
 #endif
 
         LOG_verbose << "Exec updater line: " << args[0] << " " << args[1] << " " << args[2];
 
-        if (execvp(args[0], args) < 0)
+        if (execvp(args[0],  const_cast<char* const*>(args)) < 0)
         {
 
             LOG_err << " FAILED to initiate updater. errno = " << ERRNO;
@@ -3766,16 +3767,16 @@ bool restartServer()
     pid_t childid = fork();
     if ( childid ) //parent
     {
-        char **argv = new char*[mcmdMainArgc+3];
+        const char **argv = new const char*[mcmdMainArgc+3];
         int i = 0, j = 0;
 
 #ifdef __linux__
-        string executable = mcmdMainArgv[0];
+        string executable = const_cast<char* const>(mcmdMainArgv[0]);
         if (executable.find("/") != 0)
         {
             executable.insert(0, getCurrentExecPath()+"/");
         }
-        argv[0]=(char *)executable.c_str();
+        argv[0] = executable.c_str();
         i++;
         j++;
 #endif
@@ -3792,12 +3793,11 @@ bool restartServer()
             }
         }
 
-        argv[j++]="--wait-for";
-        argv[j++]=(char*)SSTR(childid).c_str();
-        argv[j++]=NULL;
-
+        argv[j++] = "--wait-for";
+        argv[j++] = std::to_string(childid).c_str();
+        argv[j++] = NULL;
         LOG_debug << "Restarting the server : <" << argv[0] << ">";
-        execv(argv[0],argv);
+        execv(argv[0], const_cast<char* const*>(argv));
     }
 #endif
 
@@ -4651,30 +4651,62 @@ void printWelcomeMsg()
         width--;
 #endif
 
-    COUT << endl;
-    COUT << ".";
-    for (unsigned int i = 0; i < width; i++)
-        COUT << "=" ;
-    COUT << ".";
-    COUT << endl;
-    printCenteredLine(" __  __ _____ ____    _                      _ ",width);
-    printCenteredLine("|  \\/  | ___|/ ___|  / \\   ___ _ __ ___   __| |",width);
-    printCenteredLine("| |\\/| | \\  / |  _  / _ \\ / __| '_ ` _ \\ / _` |",width);
-    printCenteredLine("| |  | | /__\\ |_| |/ ___ \\ (__| | | | | | (_| |",width);
-    printCenteredLine("|_|  |_|____|\\____/_/   \\_\\___|_| |_| |_|\\__,_|",width);
+    std::ostringstream oss;
 
-    COUT << "|";
+    oss << endl;
+    oss << ".";
     for (unsigned int i = 0; i < width; i++)
-        COUT << " " ;
-    COUT << "|";
-    COUT << endl;
-    printCenteredLine("SERVER",width);
+        oss << "=" ;
+    oss << ".";
+    oss << endl;
+    printCenteredLine(oss, " __  __ _____ ____    _                      _ ",width);
+    printCenteredLine(oss, "|  \\/  | ___|/ ___|  / \\   ___ _ __ ___   __| |",width);
+    printCenteredLine(oss, "| |\\/| | \\  / |  _  / _ \\ / __| '_ ` _ \\ / _` |",width);
+    printCenteredLine(oss, "| |  | | /__\\ |_| |/ ___ \\ (__| | | | | | (_| |",width);
+    printCenteredLine(oss, "|_|  |_|____|\\____/_/   \\_\\___|_| |_| |_|\\__,_|",width);
 
-    COUT << "`";
+    oss << "|";
     for (unsigned int i = 0; i < width; i++)
-        COUT << "=" ;
-    COUT << "´";
-    COUT << endl;
+        oss << " " ;
+    oss << "|";
+    oss << endl;
+    printCenteredLine(oss, "SERVER",width);
+
+    oss << "`";
+    for (unsigned int i = 0; i < width; i++)
+    {
+        oss << "=" ;
+    }
+#ifndef _WIN32
+    oss << "\u00b4\n";
+    COUT << oss.str() << std::flush;
+#else
+    WindowsUtf8StdoutGuard utf8Guard;
+    // So far, all is ASCII.
+    COUT << oss.str();
+
+    // Now let's tray the non ascii forward acute
+    // We are about to write some non ascii character.
+    // Let's set (from now on, the console code page to UTF-8 translation (65001)
+    // but revert to the initial code page if outputing the special forward acute character
+    // fails. <- This could happen, for instance in Windows 7.
+    auto initialCP = GetConsoleOutputCP();
+    bool codePageChanged = true;
+    if (initialCP != CP_UTF8)
+    {
+        codePageChanged = SetConsoleOutputCP(CP_UTF8);
+    }
+
+    if (!(COUT << L"\u00b4")) // failed to output using utf-8
+    {
+        if (codePageChanged) // revert codepage
+        {
+            SetConsoleOutputCP(initialCP);
+        }
+        COUT << "/";
+    }
+    COUT << std::endl;
+#endif
 
 }
 
@@ -5159,6 +5191,8 @@ int executeServer(int argc, char* argv[],
     setlocale(LC_ALL, "en-US");
 #endif
 
+    printWelcomeMsg();
+
     // keep a copy of argc & argv in order to allow restarts
     mcmdMainArgv = argv;
     mcmdMainArgc = argc;
@@ -5192,9 +5226,9 @@ int executeServer(int argc, char* argv[],
     LOG_debug << "MEGA SDK version: " << SDK_COMMIT_HASH;
 
     const fs::path configDirPath = ConfigurationManager::getAndCreateConfigDir();
-    const std::string configDirStr = pathAsUtf8(configDirPath);
+    const std::string configDirStrUtf8 = pathAsUtf8(configDirPath);
 
-    api = new MegaApi("BdARkQSQ", configDirStr.c_str(), userAgent);
+    api = new MegaApi("BdARkQSQ", configDirStrUtf8.c_str(), userAgent);
 
     if (!debug_api_url.empty())
     {
@@ -5206,9 +5240,9 @@ int executeServer(int argc, char* argv[],
     for (int i = 0; i < 5; i++)
     {
         const fs::path apiFolderPath = ConfigurationManager::getConfigFolderSubdir("apiFolder_" + std::to_string(i));
-        const std::string apiFolderStr = pathAsUtf8(apiFolderPath);
+        const std::string apiFolderStrUtf8 = pathAsUtf8(apiFolderPath);
 
-        MegaApi *apiFolder = new MegaApi("BdARkQSQ", apiFolderStr.c_str(), userAgent);
+        MegaApi *apiFolder = new MegaApi("BdARkQSQ", apiFolderStrUtf8.c_str(), userAgent);
         apiFolder->setLanguage(localecode.c_str());
         apiFolders.push(apiFolder);
         apiFolder->setLogLevel(MegaApi::LOG_LEVEL_MAX);
@@ -5282,9 +5316,6 @@ int executeServer(int argc, char* argv[],
         }
     }
 #endif
-
-    printWelcomeMsg();
-
 
     int configuredProxyType = ConfigurationManager::getConfigurationValue("proxy_type", -1);
     auto configuredProxyUrl = ConfigurationManager::getConfigurationSValue("proxy_url");

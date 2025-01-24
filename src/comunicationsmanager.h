@@ -79,7 +79,7 @@ public:
     virtual void returnAndClosePetition(std::unique_ptr<CmdPetition> inf, OUTSTRINGSTREAM *s, int);
 
     virtual void sendPartialOutput(CmdPetition *inf, OUTSTRING *s) = 0;
-    virtual void sendPartialOutput(CmdPetition *inf, char *s, size_t size) = 0;
+    virtual void sendPartialOutput(CmdPetition *inf, char *s, size_t size, bool binaryContents = false) = 0;
 
 
     /**

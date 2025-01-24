@@ -44,3 +44,40 @@ TEST(StringUtilsTest, trimming)
 {
     StringUtilsTest::trimming();
 }
+
+TEST(StringUtilsTest, ValidateUtf8)
+{
+    // from: https://www.php.net/manual/en/reference.pcre.pattern.modifiers.php#54805
+    EXPECT_TRUE(megacmd::isValidUtf8(std::string("a")));
+    EXPECT_TRUE(megacmd::isValidUtf8(std::string("\xc3\xb1")));
+    EXPECT_TRUE(megacmd::isValidUtf8(std::string("\xe2\x82\xa1")));
+    EXPECT_TRUE(megacmd::isValidUtf8(std::string("\xf0\x90\x8c\xbc")));
+    EXPECT_TRUE(megacmd::isValidUtf8(std::string("\xf4\x80\x80\x80")));
+    EXPECT_TRUE(megacmd::isValidUtf8(std::string("\xf3\xa1\xa1\xa1")));
+    EXPECT_TRUE(megacmd::isValidUtf8(std::string("\xc2\x80")));
+    EXPECT_TRUE(megacmd::isValidUtf8(std::string("\xe0\xa0\x80")));
+    EXPECT_TRUE(megacmd::isValidUtf8(std::string("\xf0\x90\x80\x80")));
+    EXPECT_TRUE(megacmd::isValidUtf8(std::string("\xf4\x8f\xbf\xbf")));
+    EXPECT_TRUE(megacmd::isValidUtf8(std::string("\xed\x9f\xbf")));
+
+    EXPECT_FALSE(megacmd::isValidUtf8(std::string("\xf8\xa1\xa1\xa1\xa1")));      // 1st byte: 1111 1xxx
+    EXPECT_FALSE(megacmd::isValidUtf8(std::string("\xfc\xa1\xa1\xa1\xa1\xa1")));  // 1st byte: 1111 1xxx
+    EXPECT_FALSE(megacmd::isValidUtf8(std::string("\xE0\xA1\xD0")));              // 3rd byte: 11xx xxxx
+    EXPECT_FALSE(megacmd::isValidUtf8(std::string("\xc3\x28")));                  // 2nd byte: 00xx xxxx
+    EXPECT_FALSE(megacmd::isValidUtf8(std::string("\xa0\xa1")));                  // 1st byte: 10xx xxxx
+    EXPECT_FALSE(megacmd::isValidUtf8(std::string("\xe2\x28\xa1")));              // 2nd byte: 00xx xxxx
+    EXPECT_FALSE(megacmd::isValidUtf8(std::string("\xe2\x82\x28")));              // 3rd byte: 00xx xxxx
+    EXPECT_FALSE(megacmd::isValidUtf8(std::string("\xf0\x28\x8c\xbc")));          // 2nd byte: 00xx xxxx
+    EXPECT_FALSE(megacmd::isValidUtf8(std::string("\xf0\x90\x28\xbc")));          // 3rd byte: 00xx xxxx
+    EXPECT_FALSE(megacmd::isValidUtf8(std::string("\xf0\x28\x8c\x28")));          // 2nd & 3rd bytes: 00xx xxxx
+    EXPECT_FALSE(megacmd::isValidUtf8(std::string("\xc1\xbf")));                  // codepoint less than U+0080
+    EXPECT_FALSE(megacmd::isValidUtf8(std::string("\xe0\x9f\xbf")));              // codepoint less than U+0800
+    EXPECT_FALSE(megacmd::isValidUtf8(std::string("\xf0\x8f\xbf\xbf")));          // codepoint less than U+10000
+    EXPECT_FALSE(megacmd::isValidUtf8(std::string("\xf4\x90\x80\x80")));          // codepoint greater than U+10FFFF
+    EXPECT_FALSE(megacmd::isValidUtf8(std::string("\xf4\x8f\xbf")));              // Length: expected = 4, actual = 3
+    EXPECT_FALSE(megacmd::isValidUtf8(std::string("\xe0\xa0")));                  // Length: expected = 3, actual = 2
+    EXPECT_FALSE(megacmd::isValidUtf8(std::string("\xc2")));                      // Length: expected = 2, actual = 1
+    EXPECT_FALSE(megacmd::isValidUtf8(std::string("\xed\xa0\x80")));              // surrogate codepoint U+D800
+    EXPECT_FALSE(megacmd::isValidUtf8(std::string("\xed\xbf\xbf")));              // surrogate codepoint U+DFFF
+}
+

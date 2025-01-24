@@ -19,8 +19,7 @@
 #ifndef MEGACMDLOGGER_H
 #define MEGACMDLOGGER_H
 
-#include <filesystem>
-namespace fs = std::filesystem;
+#include "megacmdcommonutils.h"
 
 #include "megacmd.h"
 #include "comunicationsmanager.h"
@@ -28,6 +27,41 @@ namespace fs = std::filesystem;
 #define OUTSTREAM getCurrentThreadOutStream()
 
 namespace megacmd {
+
+#ifdef WIN32
+inline ::mega::SimpleLogger &operator<<(::mega::SimpleLogger& sl, const fs::path& path)
+{
+    return sl << megacmd::pathAsUtf8(path);
+}
+
+template <typename T>
+inline std::enable_if_t<std::is_same_v<std::decay_t<T>, std::wstring>, ::mega::SimpleLogger &>
+operator<<(::mega::SimpleLogger& sl, const T& wstr)
+{
+    return sl << megacmd::utf16ToUtf8(wstr);
+}
+#endif
+
+// String used to transmit binary data
+class BinaryStringView
+{
+public:
+    BinaryStringView(char *buffer, size_t size)
+        : mValue(buffer, size)
+    {}
+
+    const std::string_view& get() const {
+        return mValue;
+    }
+
+    std::string_view& get() {
+        return mValue;
+    }
+
+private:
+    std::string_view mValue;
+};
+
 class LoggedStream
 {
 public:
@@ -43,6 +77,7 @@ public:
     virtual const LoggedStream& operator<<(std::wstring v) const = 0;
 #endif
     virtual const LoggedStream& operator<<(std::string v) const = 0;
+    virtual const LoggedStream& operator<<(BinaryStringView v) const = 0;
     virtual const LoggedStream& operator<<(std::string_view v) const = 0;
     virtual const LoggedStream& operator<<(int v) const = 0;
     virtual const LoggedStream& operator<<(unsigned int v) const = 0;
@@ -67,6 +102,7 @@ public:
     const LoggedStream& operator<<(std::wstring v) const override { return *this; }
 #endif
     const LoggedStream& operator<<(std::string v) const override { return *this; }
+    const LoggedStream& operator<<(BinaryStringView v) const override { return *this; }
     const LoggedStream& operator<<(std::string_view v) const override { return *this; }
     const LoggedStream& operator<<(int v) const override { return *this; }
     const LoggedStream& operator<<(unsigned int v) const override { return *this; }
@@ -119,6 +155,15 @@ public:
     virtual const LoggedStream& operator<<(std::string_view v) const override { *out << v;return *this; }
 #endif
     virtual const LoggedStream& operator<<(std::string v) const override { *out << v;return *this; }
+    virtual const LoggedStream& operator<<(BinaryStringView v) const override {
+#ifdef _WIN32
+        assert(false && "wostream cannot take binary data directly");
+#else
+        *out << v.get();
+#endif
+    return *this;
+    }
+
     virtual const LoggedStream& operator<<(int v) const override { *out << v;return *this; }
     virtual const LoggedStream& operator<<(unsigned int v) const override { *out << v;return *this; }
     virtual const LoggedStream& operator<<(long unsigned int v) const override { *out << v;return *this; }
@@ -154,6 +199,7 @@ public:
 #else
     virtual const LoggedStream& operator<<(std::string v) const override { cm->sendPartialOutput(inf, &v); return *this; }
 #endif
+    virtual const LoggedStream& operator<<(BinaryStringView v) const override { cm->sendPartialOutput(inf, (char*) v.get().data(), v.get().size(), true); return *this; }
     virtual const LoggedStream& operator<<(std::string_view v) const override { cm->sendPartialOutput(inf, (char*) v.data(), v.size()); return *this; }
 
     virtual const LoggedStream& operator<<(int v) const override { OUTSTRINGSTREAM os; os << v; OUTSTRING s = os.str(); cm->sendPartialOutput(inf, &s); return *this; }
@@ -214,7 +260,7 @@ class MegaCmdLogger : public mega::MegaLogger
 protected:
     static bool isMegaCmdSource(const std::string &source);
 
-    void formatLogToStream(LoggedStream& stream, std::string_view time, int logLevel, const char *source, const char *message);
+    void formatLogToStream(LoggedStream& stream, std::string_view time, int logLevel, const char *source, const char *message, bool surround = false);
     bool shouldIgnoreMessage(int logLevel, const char *source, const char *message) const;
 
 public:
@@ -238,8 +284,8 @@ public:
 
 class MegaCmdSimpleLogger final : public MegaCmdLogger
 {
-    LoggedStream &mLoggedStream;
-    LoggedStreamOutStream mOutStream;
+    LoggedStream &mLoggedStream; // to log into files (e.g. FileRotatingLoggedStream)
+    LoggedStreamOutStream mOutStream; // to log into stdout
     bool mLogToOutStream;
 
     bool shouldLogToStream(int logLevel, const char *source) const;

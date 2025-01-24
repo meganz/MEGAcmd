@@ -181,8 +181,12 @@ const char * loglevelToShortPaddedString(int loglevel)
     return logLevels[static_cast<size_t>(loglevel)];
 }
 
-void MegaCmdLogger::formatLogToStream(LoggedStream &stream, std::string_view time, int logLevel, const char *source, const char *message)
+void MegaCmdLogger::formatLogToStream(LoggedStream &stream, std::string_view time, int logLevel, const char *source, const char *message, bool surround)
 {
+    if (surround)
+    {
+        stream << "[";
+    }
     stream << time;
     if (!isMegaCmdSource(source))
     {
@@ -192,7 +196,16 @@ void MegaCmdLogger::formatLogToStream(LoggedStream &stream, std::string_view tim
     {
         stream << " cmd ";
     }
-    stream << loglevelToShortPaddedString(logLevel) << message << '\n';
+    stream << loglevelToShortPaddedString(logLevel) << message;
+    if (surround)
+    {
+        stream << "]";
+    }
+    else
+    {
+        stream << " [" << source << "]";
+    }
+    stream << '\n';
 
     if (logLevel <= mFlushOnLevel)
     {
@@ -264,6 +277,13 @@ int MegaCmdSimpleLogger::getMaxLogLevel() const
 
 void MegaCmdSimpleLogger::log(const char * /*time*/, int logLevel, const char *source, const char *message)
 {
+    if (!isValidUtf8(message, strlen(message)))
+    {
+        constexpr const char* invalid = "<invalid utf8>";
+        message = invalid;
+        assert(false && "Attempt to log invalid utf8 string");
+    }
+
     if (shouldIgnoreMessage(logLevel, source, message))
     {
         return;
@@ -271,13 +291,14 @@ void MegaCmdSimpleLogger::log(const char * /*time*/, int logLevel, const char *s
 
     if (shouldLogToStream(logLevel, source))
     {
+        // log to _file_ (e.g: FileRotatingLoggedStream)
         const std::string nowTimeStr = getNowTimeStr();
         formatLogToStream(mLoggedStream, nowTimeStr, logLevel, source, message);
 
-        if (mLogToOutStream)
+        if (mLogToOutStream) // log to stdout
         {
 #ifdef _WIN32
-            WindowsUtf8ConsoleGuard utf8Guard;
+            WindowsUtf8StdoutGuard utf8Guard;
 #endif
             formatLogToStream(mOutStream, nowTimeStr, logLevel, source, message);
         }
@@ -286,8 +307,7 @@ void MegaCmdSimpleLogger::log(const char * /*time*/, int logLevel, const char *s
     if (shouldLogToClient(logLevel, source))
     {
         const std::string nowTimeStr = getNowTimeStr();
-        assert(isMegaCmdSource(source)); // if this happens in the sdk thread, this shall be false
-        formatLogToStream(OUTSTREAM, nowTimeStr, logLevel, source, message);
+        formatLogToStream(OUTSTREAM, nowTimeStr, logLevel, source, message, true);
     }
 }
 

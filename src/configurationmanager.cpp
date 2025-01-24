@@ -16,8 +16,8 @@
  * program.
  */
 
-#include "configurationmanager.h"
 #include "megacmdcommonutils.h"
+#include "configurationmanager.h"
 #include "megacmdversion.h"
 #include "megacmdutils.h"
 #include "listeners.h"
@@ -54,13 +54,6 @@
 using namespace mega;
 using namespace std;
 
-namespace {
-    std::string errorCodeStr(const std::error_code& ec)
-    {
-        return ec ? "(error: " + ec.message() + ")" : "";
-    }
-}
-
 namespace megacmd {
 
 static const char* const LOCK_FILE_NAME = "lockMCMD";
@@ -94,6 +87,33 @@ static const char* const persistentmcmdconfigurationkeys[] =
     "autoupdate", "updaterregistered"
 };
 
+void ConfigurationManager::createFolderIfNotExisting(const fs::path &folder)
+{
+    std::error_code ec;
+    auto createdOk = fs::create_directory(folder, ec);
+    bool alreadyExisting = !createdOk && !ec;
+    if (alreadyExisting)
+    {
+        return;
+    }
+
+    LOG_debug << "Creating directory " << folder;
+
+    if (!createdOk)
+    {
+        LOG_err << "Directory " << folder << " creation failed: " << errorCodeStr(ec);
+        return;
+    }
+
+#ifndef WIN32
+    fs::permissions(folder, fs::perms::owner_all, fs::perm_options::replace, ec);
+    if (!ec)
+    {
+        LOG_warn << "Failed to set permissions on new folder " << folder << ": " << errorCodeStr(ec);
+    }
+#endif
+}
+
 void ConfigurationManager::loadConfigDir()
 {
     auto dirs = PlatformDirectories::getPlatformSpecificDirectories();
@@ -105,12 +125,7 @@ void ConfigurationManager::loadConfigDir()
         return;
     }
 
-    std::error_code ec;
-    fs::create_directory(mConfigFolder, ec);
-    if (!fs::exists(mConfigFolder) || ec)
-    {
-        LOG_err << "Config directory not created " << errorCodeStr(ec);
-    }
+    createFolderIfNotExisting(mConfigFolder);
 }
 
 fs::path ConfigurationManager::getAndCreateConfigDir()
@@ -123,12 +138,7 @@ fs::path ConfigurationManager::getAndCreateConfigDir()
         throw std::runtime_error("Could not get config directory path");
     }
 
-    std::error_code ec;
-    fs::create_directory(configDir, ec);
-    if (!fs::exists(configDir) || ec)
-    {
-        LOG_err << "Config directory not created " << errorCodeStr(ec);
-    }
+    createFolderIfNotExisting(configDir);
     return configDir;
 }
 
@@ -142,13 +152,7 @@ fs::path ConfigurationManager::getAndCreateRuntimeDir()
         throw std::runtime_error("Could not get runtime directory path");
     }
 
-    std::error_code ec;
-    fs::create_directory(runtimeDir, ec);
-    if (!fs::exists(runtimeDir) || ec)
-    {
-        LOG_err << "Runtime directory not created " << errorCodeStr(ec);
-    }
-
+    createFolderIfNotExisting(runtimeDir);
     return runtimeDir;
 }
 
@@ -158,14 +162,10 @@ fs::path ConfigurationManager::getConfigFolderSubdir(const fs::path& subdirName)
     const fs::path configDir = dirs->configDirPath();
     assert(!configDir.empty());
 
-    const fs::path configSubDir = configDir / subdirName;
+    fs::path configSubDir = configDir / subdirName;
 
-    std::error_code ec;
-    fs::create_directory(configSubDir, ec);
-    if (!fs::exists(configSubDir) || ec)
-    {
-        LOG_err << "State subfolder " << configSubDir << " not created " << errorCodeStr(ec);
-    }
+    createFolderIfNotExisting(configSubDir);
+
     return configSubDir;
 }
 
@@ -673,7 +673,7 @@ void ConfigurationManager::loadConfiguration(bool debug)
     std::lock_guard<std::recursive_mutex> g(settingsMutex);
 
 #ifdef _WIN32
-    WindowsUtf8ConsoleGuard utf8Guard;
+    WindowsUtf8StdoutGuard utf8Guard;
 #endif
 
     // SESSION
@@ -809,7 +809,7 @@ bool ConfigurationManager::lockExecution(const fs::path &lockFileFolder)
     }
 
 #else
-    ifstream fi(lockFilePath.string().c_str());
+    ifstream fi(lockFilePath);
     if(!fi.fail())
     {
         close(fd);
@@ -819,7 +819,7 @@ bool ConfigurationManager::lockExecution(const fs::path &lockFileFolder)
     {
         fi.close();
     }
-    ofstream fo(lockFilePath.string().c_str());
+    ofstream fo(lockFilePath);
     if (fo.is_open())
     {
         fo.close();
@@ -848,7 +848,7 @@ bool ConfigurationManager::unlockExecution(const fs::path &lockFileFolder)
     const fs::path lockFilePath = lockFileFolder / LOCK_FILE_NAME;
     if (std::error_code ec; !fs::remove(lockFilePath, ec))
     {
-        LOG_err << "Failed to remove lock file, errno = " << ec;
+        LOG_err << "Failed to remove lock file, error = " << errorCodeStr(ec);
         return false;
     }
     return true;

@@ -13,6 +13,7 @@
  * program.
  */
 
+#include "megacmdcommonutils.h"
 #include "megacmd_rotating_logger.h"
 
 #include <cassert>
@@ -349,7 +350,7 @@ void FileRotatingLoggedStream::mainLoop()
 {
     while (!shouldExit() || !mMessageBuffer.isEmpty())
     {
-        std::stringstream errorStream;
+        std::ostringstream errorStream;
         bool reopenFile = false;
 
         if (!waitForOutputFile())
@@ -377,7 +378,14 @@ void FileRotatingLoggedStream::mainLoop()
         }
 
         errorStream << mFileManager.popErrors();
-        std::cerr << errorStream.str();
+        #ifdef WIN32
+        {
+            WindowsUtf8StdoutGuard utf8Guard;
+            std::wcerr << utf8StringToUtf16WString(errorStream.str().c_str()) << std::flush;
+        }
+        #else
+            std::cerr << errorStream.str() << std::flush;
+        #endif
 
         if (!mOutputFile)
         {
@@ -452,6 +460,12 @@ const LoggedStream& FileRotatingLoggedStream::operator<<(const char* str) const
 const LoggedStream& FileRotatingLoggedStream::operator<<(std::string str) const
 {
     writeToBuffer(str.c_str(), str.size());
+    return *this;
+}
+
+const LoggedStream& FileRotatingLoggedStream::operator<<(BinaryStringView v) const
+{
+    writeToBuffer(v.get().data(), v.get().size());
     return *this;
 }
 
@@ -772,12 +786,15 @@ void GzipCompressionEngine::gzipFile(const fs::path& srcFilePath, const fs::path
         }
 
         auto gzdeleter = [] (gzFile_s* f) { if (f) gzclose(f); };
-
+        auto gzOpenHelper = [](const fs::path& path) {
 #ifdef _WIN32
-        std::unique_ptr<gzFile_s, decltype(gzdeleter)> gzFile(gzopen_w(dstFilePath.wstring().c_str(), "wb"), gzdeleter);
+            return gzopen_w(path.wstring().c_str(), "wb");
 #else
-        std::unique_ptr<gzFile_s, decltype(gzdeleter)> gzFile(gzopen(dstFilePath.string().c_str(), "wb"), gzdeleter);
+            return gzopen(path.string().c_str(), "wb");
 #endif
+        };
+        std::unique_ptr<gzFile_s, decltype(gzdeleter)> gzFile(gzOpenHelper(dstFilePath), gzdeleter);
+
         if (!gzFile)
         {
             mErrorStream << "Failed to open gzfile " << dstFilePath << " for writing" << std::endl;

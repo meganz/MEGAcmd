@@ -15,11 +15,10 @@
 
 #pragma once
 
+#include "megacmdcommonutils.h"
+
 #include <string>
 #include <set>
-#include <filesystem>
-
-namespace fs = std::filesystem;
 
 namespace SyncIgnore
 {
