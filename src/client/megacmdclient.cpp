@@ -144,8 +144,6 @@ wstring getWAbsPath(wstring localpath)
 }
 #endif
 
-string clientID; //identifier for a registered state listener
-
 string getAbsPath(string relativePath)
 {
     if (!relativePath.size())
@@ -220,7 +218,7 @@ string getAbsPath(string relativePath)
 
 }
 
-string parseArgs(int argc, char* argv[])
+string parseArgs(int argc, char* argv[], MegaCmdShellCommunications& comsManager)
 {
     vector<string> absolutedargs;
     int totalRealArgs = 0;
@@ -240,17 +238,10 @@ string parseArgs(int argc, char* argv[])
                 || !strcmp(argv[1],"login")
                 || !strcmp(argv[1],"reload") )
         {
-            int waittime = 15000;
-            while (waittime > 0 && !clientID.size())
+            auto clientIdOpt = comsManager.tryToGetClientId();
+            if (clientIdOpt)
             {
-                sleepMilliSeconds(100);
-                waittime -= 100;
-            }
-            if (clientID.size())
-            {
-                string sclientID = "--clientID=";
-                sclientID+=clientID;
-                absolutedargs.push_back(sclientID);
+                absolutedargs.push_back("--clientID=" + *clientIdOpt);
             }
         }
 
@@ -439,7 +430,7 @@ string parseArgs(int argc, char* argv[])
 
 #ifdef _WIN32
 
-wstring parsewArgs(int argc, wchar_t* argv[])
+wstring parsewArgs(int argc, wchar_t* argv[], MegaCmdShellCommunications& comsManager)
 {
     for (int i=1;i<argc;i++)
     {
@@ -472,18 +463,10 @@ wstring parsewArgs(int argc, wchar_t* argv[])
                 || !wcscmp(argv[1],L"login")
                 || !wcscmp(argv[1],L"reload") )
         {
-            int waittime = 5000;
-            while (waittime > 0 && !clientID.size())
+            auto clientIdOpt = comsManager.tryToGetClientId();
+            if (clientIdOpt)
             {
-                sleepMilliSeconds(100);
-                waittime -= 100;
-            }
-            if (clientID.size())
-            {
-                wstring sclientID = L"--clientID=";
-                std::wstring wclientID(clientID.begin(), clientID.end());
-                sclientID+=wclientID;
-                absolutedargs.push_back(sclientID);
+                absolutedargs.push_back(L"--clientID=" + std::wstring(clientIdOpt->begin(), clientIdOpt->end()));
             }
         }
 
@@ -810,7 +793,8 @@ void statechangehandle(string statestring, MegaCmdShellCommunications & comsMana
         }
         else if (newstate.compare(0, strlen("clientID:"), "clientID:") == 0)
         {
-            clientID = newstate.substr(strlen("clientID:")).c_str();
+            std::string clientId = newstate.substr(strlen("clientID:"));
+            comsManager.setClientIdPromise(clientId);
         }
         else if (newstate.compare(0, strlen("progress:"), "progress:") == 0)
         {
@@ -915,10 +899,10 @@ int executeClient(int argc, char* argv[], OUTSTREAMTYPE & outstream)
     {
         return -3;
     }
-    wstring wParsedArgs = parsewArgs(wargc, szArglist);
+    wstring wParsedArgs = parsewArgs(wargc, szArglist, *comms);
     LocalFree(szArglist);
 #else
-    string parsedArgs = parseArgs(argc,argv);
+    string parsedArgs = parseArgs(argc, argv, *comms);
 #endif
 
     bool isInloginInValidCommands = false;

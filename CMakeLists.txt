@@ -221,6 +221,23 @@ target_compile_definitions(LMegacmdServer
     $<$<BOOL:${USE_PCRE}>:USE_PCRE>
 )
 
+if (NOT WIN32)
+    if (ENABLE_ASAN)
+        add_compile_options("-fsanitize=address" "-fno-omit-frame-pointer" "-fno-common")
+        link_libraries("-fsanitize=address")
+    endif()
+
+    if (ENABLE_UBSAN)
+        add_compile_options("-fsanitize=undefined" "-fno-omit-frame-pointer")
+        link_libraries("-fsanitize=undefined")
+    endif()
+
+    if (ENABLE_TSAN)
+        add_compile_options("-fsanitize=thread" "-fno-omit-frame-pointer")
+        link_libraries("-fsanitize=thread")
+    endif()
+endif()
+
 if (APPLE)
     set(executablesType MACOSX_BUNDLE)
 endif()

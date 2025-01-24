@@ -140,6 +140,9 @@ public:
     bool registerRequired();
     void setForRegisterAgain(bool dontWait = false);
 
+    void setClientIdPromise(const std::string& clientId);
+    std::optional<std::string> tryToGetClientId(std::chrono::seconds waitForSecs = std::chrono::seconds(15));
+
     std::lock_guard<std::mutex> getStdoutLockGuard();
 
 private:
@@ -148,6 +151,8 @@ private:
     virtual int listenToStateChanges(int receiveSocket, StateChangedCb_t statechangehandle) = 0;
 
     std::mutex mStdoutMutex;
+
+    std::promise<std::string> mClientIdPromise;
 
     std::unique_ptr<std::thread> mListenerThread;
 

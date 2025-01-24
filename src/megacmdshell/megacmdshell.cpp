@@ -168,8 +168,8 @@ void console_setecho(bool echo)
 #endif
 }
 
-bool alreadyFinished = false; //flag to show progress
-float percentDowloaded = 0.0; // to show progress
+std::atomic_bool alreadyFinished = false; //flag to show progress
+std::atomic<float> percentDowloaded = 0.0; // to show progress
 
 // password change-related state information
 string oldpasswd;
@@ -182,10 +182,9 @@ static std::mutex handlerInstallerMutex;
 
 static std::atomic_bool requirepromptinstall(true);
 
-bool procesingline = false;
-bool promptreinstalledwhenprocessingline = false;
-
-bool serverTryingToLog = false;
+std::atomic_bool procesingline = false;
+std::atomic_bool promptreinstalledwhenprocessingline = false;
+std::atomic_bool serverTryingToLog = false;
 
 static char dynamicprompt[PROMPT_MAX_SIZE];
 

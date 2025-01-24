@@ -43,7 +43,7 @@ pipeline {
                 axes {
                     axis {
                         name 'SANITIZERS'
-                        values 'ubsan', 'asan', 'tsan'
+                        values 'baseline', 'ubsan', 'asan', 'tsan'
                     }
                     axis {
                         name 'BUILD_SYSTEM'
@@ -74,9 +74,9 @@ pipeline {
                             timeout(time: 10, unit: 'MINUTES')
                         }
                         environment {
-                            ASAN_OPTIONS="atexit=1,print_stats=1,log_path=${megacmd_sources_workspace}/test-dir-${SANITIZERS}/results/mega-cmd-tests-unit-report"
-                            TSAN_OPTIONS="log_path=${megacmd_sources_workspace}/test-dir-${SANITIZERS}/results/mega-cmd-tests-unit-report"
-                            UBSAN_OPTIONS="log_path=${megacmd_sources_workspace}/test-dir-${SANITIZERS}/results/mega-cmd-tests-unit-report"
+                            ASAN_OPTIONS="print_stats=1,log_path=${megacmd_sources_workspace}/test-dir-${SANITIZERS}/results/unit-asan-report.log"
+                            TSAN_OPTIONS="log_path=${megacmd_sources_workspace}/test-dir-${SANITIZERS}/results/unit-tsan-report.log"
+                            UBSAN_OPTIONS="log_path=${megacmd_sources_workspace}/test-dir-${SANITIZERS}/results/unit-ubsan-report.log"
                             HOME="${megacmd_sources_workspace}/test-dir-${SANITIZERS}"
                         }
                         steps {
@@ -91,6 +91,7 @@ pipeline {
                         post {
                             always {
                                 archiveArtifacts artifacts: "test-dir-${SANITIZERS}/.megaCmd/megacmdserver.log*", allowEmptyArchive: true
+                                archiveArtifacts artifacts: "test-dir-${SANITIZERS}/results/unit-*-report.log.*", allowEmptyArchive: true
                                 junit "test-dir-${SANITIZERS}/results/mega-cmd-tests-unit.xml"
                             }
                         }
@@ -109,9 +110,9 @@ pipeline {
                         environment {
                             MEGACMD_TEST_USER=''
                             MEGACMD_TEST_PASS=credentials('MEGACMD_TESTS_PASSWORD')
-                            ASAN_OPTIONS="atexit=1,print_stats=1,log_path=${megacmd_sources_workspace}/test-dir-${SANITIZERS}/results/mega-cmd-tests-integration-report"
-                            TSAN_OPTIONS="log_path=${megacmd_sources_workspace}/test-dir-${SANITIZERS}/results/mega-cmd-tests-integration-report"
-                            UBSAN_OPTIONS="log_path=${megacmd_sources_workspace}/test-dir-${SANITIZERS}/results/mega-cmd-tests-integration-report"
+                            ASAN_OPTIONS="print_stats=1,log_path=${megacmd_sources_workspace}/test-dir-${SANITIZERS}/results/integration-asan-report.log"
+                            TSAN_OPTIONS="log_path=${megacmd_sources_workspace}/test-dir-${SANITIZERS}/results/integration-tsan-report.log"
+                            UBSAN_OPTIONS="log_path=${megacmd_sources_workspace}/test-dir-${SANITIZERS}/results/integration-ubsan-report.log"
                             HOME="${megacmd_sources_workspace}/test-dir-${SANITIZERS}"
                         }
                         steps {
@@ -128,6 +129,7 @@ pipeline {
                         post {
                             always {
                                 archiveArtifacts "test-dir-${SANITIZERS}/.megaCmd/megacmdserver.log*"
+                                archiveArtifacts artifacts: "test-dir-${SANITIZERS}/results/integration-*-report.log.*", allowEmptyArchive: true
                                 junit "test-dir-${SANITIZERS}/results/mega-cmd-tests-integration.xml"
                             }
                         }
@@ -141,14 +143,18 @@ pipeline {
                             }
                         }
                         options {
-                            timeout(time: 1, unit: 'HOURS')
+                            timeout(time: 2, unit: 'HOURS')
                         }
                         environment {
                             MEGA_EMAILS=''
                             MEGA_PWD=credentials('MEGACMD_TESTS_PASSWORD')
                             MEGA_PWD_AUX=credentials('MEGACMD_TESTS_PASSWORD')
+                            ASAN_OPTIONS="print_stats=1,log_path=${megacmd_sources_workspace}/pytest-dir-${SANITIZERS}/results/pyserver-asan-report.log"
+                            TSAN_OPTIONS="log_path=${megacmd_sources_workspace}/pytest-dir-${SANITIZERS}/results/pyserver-tsan-report.log"
+                            UBSAN_OPTIONS="log_path=${megacmd_sources_workspace}/pytest-dir-${SANITIZERS}/results/pyserver-ubsan-report.log"
                             HOME="${megacmd_sources_workspace}/pytest-dir-${SANITIZERS}"
                             YES_I_KNOW_THIS_WILL_CLEAR_MY_MEGA_ACCOUNT=1
+                            VERBOSE=1
                         }
                         steps {
                             dir("pytest-dir-${SANITIZERS}") {
@@ -159,20 +165,39 @@ pipeline {
                                 script {
                                     // Skipping the 'serving' test until CMD-389 is resolved
                                     for (test in ['misc', 'put', 'rm', 'find', 'get']) {
-                                        stage("MEGAcmd Python ${test} test") {
-                                            withEnv([
-                                                "MEGA_EMAIL=${env.MEGA_EMAILS0}",
-                                                "MEGA_EMAIL_AUX=${env.MEGA_EMAILS1}",
-                                                "ASAN_OPTIONS=atexit=1,print_stats=1,log_path=${megacmd_sources_workspace}/pytest-dir-${SANITIZERS}/${test}-results/mega-cmd-tests-python-report",
-                                                "TSAN_OPTIONS=log_path=${megacmd_sources_workspace}/pytest-dir-${SANITIZERS}/${test}-results/mega-cmd-tests-python-report",
-                                                "UBSAN_OPTIONS=log_path=${megacmd_sources_workspace}/pytest-dir-${SANITIZERS}/${test}-results/mega-cmd-tests-python-report",
-                                                "OUT_DIR_JUNIT_XML=${megacmd_sources_workspace}/pytest-dir-${SANITIZERS}/${test}-results"
-                                            ]) {
-                                                dir("pytest-dir-${SANITIZERS}/working-dir") {
-                                                    sh "/usr/local/bin/megacmd_${test}_test.py"
-                                                    deleteDir()
+                                        for (cmdshell in ['', 'cmdshell-']) {
+                                            def testDir = "pytest-dir-${SANITIZERS}/${cmdshell}${test}-results"
+                                            def asanOptions = "print_stats=1,log_path=${megacmd_sources_workspace}/${testDir}/py-asan-report.log"
+                                            def tsanOptions = "log_path=${megacmd_sources_workspace}/${testDir}/py-tsan-report.log"
+                                            def ubsanOptions = "log_path=${megacmd_sources_workspace}/${testDir}/py-ubsan-report.log"
+                                            stage("MEGAcmd Python ${cmdshell}${test} test") {
+                                                withEnv([
+                                                    "MEGA_EMAIL=${env.MEGA_EMAILS0}",
+                                                    "MEGA_EMAIL_AUX=${env.MEGA_EMAILS1}",
+                                                    "ASAN_OPTIONS=${asanOptions}",
+                                                    "TSAN_OPTIONS=${tsanOptions}",
+                                                    "UBSAN_OPTIONS=${ubsanOptions}",
+                                                    "OUT_DIR_JUNIT_XML=${megacmd_sources_workspace}/${testDir}"
+                                                ]) {
+                                                    def envStr = ''
+                                                    if (cmdshell != '') {
+                                                        envStr = "MEGACMDSHELL=/usr/bin/mega-cmd LSAN_OPTIONS=suppressions=${megacmd_sources_workspace}/${testDir}/suppressed_asan.txt "
+                                                    }
+                                                    try {
+                                                        dir("pytest-dir-${SANITIZERS}/working-dir") {
+                                                            // CMD-578 Fix readline leak instead of suppressing it
+                                                            writeFile file: "${megacmd_sources_workspace}/${testDir}/suppressed_asan.txt", text: 'leak:expand_prompt'
+
+                                                            sh "/usr/local/bin/megacmd_${test}_test.py"
+                                                        }
+                                                        junit "${testDir}/TEST-*.xml"
+                                                    } finally {
+                                                        archiveArtifacts artifacts: "${testDir}/py-*-report.log.*", allowEmptyArchive: true
+                                                        dir("pytest-dir-${SANITIZERS}/working-dir") {
+                                                            deleteDir()
+                                                        }
+                                                    }
                                                 }
-                                                junit "pytest-dir-${SANITIZERS}/${test}-results/TEST-*.xml"
                                             }
                                         }
                                     }
@@ -184,6 +209,7 @@ pipeline {
                                 sh "/usr/bin/mega-exec logout || true"
                                 sh "/usr/bin/mega-exec quit || true"
                                 archiveArtifacts "pytest-dir-${SANITIZERS}/.megaCmd/megacmdserver.log*"
+                                archiveArtifacts artifacts: "pytest-dir-${SANITIZERS}/results/pyserver-*-report.log.*", allowEmptyArchive: true
                             }
                         }
                     }
@@ -196,6 +222,7 @@ pipeline {
             }
         }
     }
+
     post {
         always {
             script {
