@@ -484,6 +484,8 @@ int MegaCmdShellCommunicationsNamedPipes::executeCommand(string command, std::st
         closeNamedPipe(theNamedPipe);
     });
 
+    bool isCat = command.rfind("cat", 0) == 0;
+
     if (interactiveshell)
     {
         command="X"+command;
@@ -499,6 +501,7 @@ int MegaCmdShellCommunicationsNamedPipes::executeCommand(string command, std::st
     }
     else if (interactiveshell)
     {
+        isCat |= wcommand.rfind(L"cat", 0) == 0;
         wcommand=L"X"+wcommand;
     }
 
@@ -535,7 +538,7 @@ int MegaCmdShellCommunicationsNamedPipes::executeCommand(string command, std::st
         return -1;
     }
 
-    bool binaryoutput = !wcommand.compare(0, 3, L"cat") && redirectedstdout;
+    bool binaryoutput = isCat && redirectedstdout;
 
     while (outcode == MCMD_REQCONFIRM || outcode == MCMD_REQSTRING || outcode == MCMD_PARTIALOUT)
     {
@@ -584,6 +587,11 @@ int MegaCmdShellCommunicationsNamedPipes::executeCommand(string command, std::st
                         partialoutsize-=n;
                     }
                 } while(n != 0 && partialoutsize && n !=SOCKET_ERROR);
+
+                if (isCat && !binaryoutput)
+                {
+                    output << std::endl;
+                }
             }
             else
             {
