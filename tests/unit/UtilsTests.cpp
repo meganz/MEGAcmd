@@ -134,3 +134,27 @@ TEST(UtilsTest, getListOfWords)
         }
     }
 }
+
+TEST(UtilsTest, nonAsciiConsolePrint)
+{
+    // No need to check the output, we just want to ensure
+    // the test doesn't crash and no asserts are triggered
+
+    const char* char_str = u8"\uc548\uc548\ub155\ud558\uc138\uc694\uc138\uacc4";
+    std::cout << char_str << std::endl;
+    std::cerr << char_str << std::endl;
+
+    std::string str = u8"\u3053\u3093\u306b\u3061\u306f\u4e16\u754c";
+    std::cout << str << std::endl;
+    std::cerr << str << std::endl;
+
+#ifdef _WIN32
+    const wchar_t* wchar_str = L"\uc548\uc548\ub155\ud558\uc138\uc694\uc138\uacc4";
+    std::wcout << wchar_str << std::endl;
+    std::wcerr << wchar_str << std::endl;
+
+    std::wstring wstr = L"\u3053\u3093\u306b\u3061\u306f\u4e16\u754c";
+    std::wcout << wstr << std::endl;
+    std::wcerr << wstr << std::endl;
+#endif
+}
