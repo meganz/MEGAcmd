@@ -550,7 +550,15 @@ int MegaCmdShellCommunicationsNamedPipes::executeCommand(string command, std::st
 
             if (partialoutsize > 0)
             {
-                std::unique_ptr<OutputsModeGuard> g (binaryoutput ? new WindowsBinaryStdoutGuard() : new WindowsUtf8StdoutGuard());
+                std::unique_ptr<OutputsModeGuard> outputModeGuard;
+                if (binaryoutput)
+                {
+                    outputModeGuard.reset(new WindowsBinaryStdoutGuard());
+                }
+                else
+                {
+                    outputModeGuard.reset(new WindowsUtf8StdoutGuard());
+                }
 
                 size_t BUFFERSIZE = 10024;
                 char buffer[10025];
