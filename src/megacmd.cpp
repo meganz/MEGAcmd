@@ -5365,7 +5365,7 @@ void stopServer()
     processCommandLinePetitionQueues("quit"); //TODO: have set doExit instead, and wake the loop.
 }
 
-std::optional<std::string> lookForAvailableNewerVersions(mega::MegaApi *api)
+std::optional<std::string> lookForAvailableNewerVersions(::mega::MegaApi *api)
 {
 #ifdef __linux__
     return {}; // Linux updates are _announced_ via packages manageres
