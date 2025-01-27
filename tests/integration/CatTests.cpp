@@ -54,7 +54,12 @@ TEST_F(CatTests, AsciiContents)
 {
     const fs::path filePath = localPath() / "file_ascii.txt";
     const std::string contents = "Hello world!";
-    const std::string catContents = contents + "\n"; // we add a newline at the end of the output in cat
+    std::string catContents = contents;
+
+#ifdef _WIN32
+    // We add a newline at the end of the cat output on Windows
+    catContents += "\n";
+#endif
 
     {
         std::ofstream file(filePath);
@@ -73,6 +78,13 @@ TEST_F(CatTests, NonAsciiContents)
 {
     const fs::path filePath = localPath() / "file_non_ascii.txt";
     const std::string contents = u8"\u3053\u3093\u306b\u3061\u306f\u3001\u4e16\u754c";
+    std::string catContents =  contents;
+
+#ifdef _WIN32
+    // We add a newline at the end of the cat output on Windows
+    catContents += "\n";
+#endif
+
     const std::string catContents =  contents + u8"\n"; // we add a newline at the end of the output in cat
 
     {
