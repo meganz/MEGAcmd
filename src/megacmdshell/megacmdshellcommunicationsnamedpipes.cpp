@@ -484,7 +484,7 @@ int MegaCmdShellCommunicationsNamedPipes::executeCommand(string command, std::st
         closeNamedPipe(theNamedPipe);
     });
 
-    bool isCat = command.rfind("cat", 0) == 0;
+    bool isCat = command.rfind("cat", 0) == 0 || wcommand.rfind(L"cat", 0) == 0;
 
     if (interactiveshell)
     {
@@ -501,7 +501,6 @@ int MegaCmdShellCommunicationsNamedPipes::executeCommand(string command, std::st
     }
     else if (interactiveshell)
     {
-        isCat |= wcommand.rfind(L"cat", 0) == 0;
         wcommand=L"X"+wcommand;
     }
 
