@@ -432,6 +432,21 @@ string parseArgs(int argc, char* argv[], MegaCmdShellCommunications& comsManager
 
 wstring parsewArgs(int argc, wchar_t* argv[], MegaCmdShellCommunications& comsManager)
 {
+    // remove "-o path" argument if found:
+    for (int i=1;i<argc;i++)
+    {
+        if (i<(argc-1) && std::wstring_view(argv[i]) == L"-o")
+        {
+            for (int j = i; j < argc - 2; ++j)
+            {
+                argv[j] = argv[j + 2];
+            }
+            argc -= 2;
+            argv[argc] = nullptr;
+            --i; // Stay at the same index to process the shifted arguments
+        }
+    }
+
     vector<wstring> absolutedargs;
     int totalRealArgs = 0;
     if (argc>1)
