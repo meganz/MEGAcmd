@@ -48,10 +48,6 @@
 namespace megacmd {
 using namespace std;
 
-
-
-
-
 std::string errorCodeStr(const std::error_code& ec)
 {
     return ec ? "(error: " + ec.message() + ")" : "";

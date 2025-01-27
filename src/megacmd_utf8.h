@@ -21,6 +21,7 @@
 #include <iostream>
 #include <cassert>
 #include <mutex>
+#include <atomic>
 
 #ifdef _WIN32
 #include <streambuf>
@@ -51,6 +52,8 @@ namespace fs = std::filesystem;
 namespace megacmd {
 
 std::string pathAsUtf8(const fs::path& path);
+
+extern std::atomic<uint64_t> sInvalidUtf8Incidences;
 bool isValidUtf8(const char* data, size_t size);
 bool isValidUtf8(const std::string &str);
 

@@ -40,7 +40,9 @@ namespace megacmd::StatsManager {
         GENERATOR_MACRO(SUBSEQUENT_CONFIGURED_SYNC                      , 98911, "MEGAcmd subsequent sync configured") \
         GENERATOR_MACRO(SUBSEQUENT_CONFIGURED_WEBDAV                    , 98912, "MEGAcmd subsequent WebDAV location configured") \
         GENERATOR_MACRO(SUBSEQUENT_CONFIGURED_FTP                       , 98913, "MEGAcmd subsequent FPT location configured") \
-        GENERATOR_MACRO(SUBSEQUENT_CONFIGURED_SCHEDULED_BACKUP          , 98914, "MEGAcmd subsequent scheduled backup configured")
+        GENERATOR_MACRO(SUBSEQUENT_CONFIGURED_SCHEDULED_BACKUP          , 98914, "MEGAcmd subsequent scheduled backup configured") \
+        GENERATOR_MACRO(INVALID_UTF8_INCIDENCES                         , 98915, "MEGAcmd Found Invalid UTF-8 incidences") \
+
 
     static constexpr auto FIRST_EVENT_NUMBER = 98900u;
 

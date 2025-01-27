@@ -41,7 +41,6 @@
 #include <cassert>
 #include <optional>
 #include <thread>
-#include <filesystem>
 
 #ifndef UNUSED
     #define UNUSED(x) (void)(x)
@@ -53,6 +52,7 @@
 
 using std::setw;
 using std::left;
+
 #ifndef _WIN32
 #define ARRAYSIZE(a) (sizeof((a)) / sizeof(*(a)))
 #endif
@@ -536,6 +536,25 @@ void timelyRetry(const std::chrono::duration<_Rep, _Period> &maxTime, const std:
     }
 }
 
+class HammeringLimiter
+{
+    int mLimitSecs;
+    std::optional<std::chrono::steady_clock::time_point> mLastCall;
+public:
+    HammeringLimiter(int seconds) : mLimitSecs(seconds) {}
+
+    // Returns true if run recently (or sets the last call to current time otherwise)
+    bool runRecently()
+    {
+        auto now = std::chrono::steady_clock::now();
+        if (mLastCall && std::chrono::duration_cast<std::chrono::seconds>(now - *mLastCall).count() <= mLimitSecs)
+        {
+            return true;
+        }
+        mLastCall = now;
+        return false;
+    }
+};
 
 }//end namespace
 

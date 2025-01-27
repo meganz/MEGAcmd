@@ -176,6 +176,8 @@ void WindowsConsoleController::enableInterceptors(bool enable)
 
 #endif
 
+std::atomic<uint64_t> sInvalidUtf8Incidences = 0;
+
 std::string pathAsUtf8(const fs::path& path)
 {
 #ifdef _WIN32
@@ -255,6 +257,7 @@ bool isValidUtf8(const char* data, size_t size)
             }
         }
 
+        sInvalidUtf8Incidences++;
         return false;
     }
     return true;
