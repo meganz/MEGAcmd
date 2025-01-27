@@ -432,17 +432,6 @@ string parseArgs(int argc, char* argv[], MegaCmdShellCommunications& comsManager
 
 wstring parsewArgs(int argc, wchar_t* argv[], MegaCmdShellCommunications& comsManager)
 {
-    for (int i=1;i<argc;i++)
-    {
-        if (i<(argc-1) && !wcscmp(argv[i],L"-o"))
-        {
-            if (i < (argc-2))
-                argv[i]=argv[i+2];
-            argc=argc-2;
-        }
-    }
-
-
     vector<wstring> absolutedargs;
     int totalRealArgs = 0;
     if (argc>1)
@@ -856,6 +845,14 @@ int executeClient(int argc, char* argv[], OUTSTREAMTYPE & outstream)
         {
             freopen(argv[i+1],"w",stdout);
             redirectedoutput = true;
+
+            for (int j = i; j < argc - 2; ++j)
+            {
+                argv[j] = argv[j + 2];
+            }
+            argc -= 2;
+            argv[argc] = nullptr;
+            --i; // Stay at the same index to process the shifted arguments
         }
     }
 
