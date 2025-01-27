@@ -240,7 +240,6 @@ void statechangehandle(string statestring, MegaCmdShellCommunications &comsManag
         {
             if (serverTryingToLog)
             {
-                std::lock_guard<std::mutex> stdOutLockGuard(comsManager.getStdoutLockGuard());
                 printCenteredContentsCerr(string("MEGAcmd Server is still trying to log in. Still, some commands are available.\n"
                              "Type \"help\", to list them.").c_str(), width);
             }
@@ -266,11 +265,8 @@ void statechangehandle(string statestring, MegaCmdShellCommunications &comsManag
 #ifdef _WIN32
                 wstring wbuffer;
                 stringtolocalw((const char*)os.str().data(),&wbuffer);
-                int oldmode;
-                std::lock_guard<std::mutex> stdOutLockGuard(comsManager.getStdoutLockGuard());
-                oldmode = _setmode(_fileno(stdout), _O_U8TEXT);
+                WindowsUtf8StdoutGuard utf8Guard;
                 OUTSTREAM << wbuffer << flush;
-                _setmode(_fileno(stdout), oldmode);
 #else
                 OUTSTREAM << os.str();
 #endif
@@ -284,21 +280,22 @@ void statechangehandle(string statestring, MegaCmdShellCommunications &comsManag
         {
             serverTryingToLog = true;
 
-            std::lock_guard<std::mutex> stdOutLockGuard(comsManager.getStdoutLockGuard());
             printCenteredContentsCerr(string("Resuming session ... ").c_str(), width, false);
         }
         else if (newstate.compare(0, strlen("message:"), "message:") == 0)
         {
             if (notRepeatedMessage(newstate)) //to avoid repeating messages
             {
-                std::lock_guard<std::mutex> stdOutLockGuard(comsManager.getStdoutLockGuard());
-#ifdef _WIN32
-                int oldmode = _setmode(_fileno(stdout), _O_U8TEXT);
-#endif
-                string contents = newstate.substr(strlen("message:"));
+                std::string_view messageContents = std::string_view(newstate).substr(strlen("message:"));
+                string contents(messageContents);
                 replaceAll(contents, "%mega-%", "");
 
-                if (contents.find("-----") != 0)
+#ifdef _WIN32
+                WindowsUtf8StdoutGuard utf8Guard;
+#else
+                StdoutMutexGuard stdoutGuard;
+#endif
+                if (messageContents.rfind("-----", 0) != 0)
                 {
                     if (!procesingline || promptreinstalledwhenprocessingline || shown_partial_progress)
                     {
@@ -319,10 +316,6 @@ void statechangehandle(string statestring, MegaCmdShellCommunications &comsManag
                     requirepromptinstall = true;
                     OUTSTREAM << endl <<  contents << endl;
                 }
-#ifdef _WIN32
-                _setmode(_fileno(stdout), oldmode);
-#endif
-
             }
         }
         else if (newstate.compare(0, strlen("clientID:"), "clientID:") == 0)
@@ -357,7 +350,6 @@ void statechangehandle(string statestring, MegaCmdShellCommunications &comsManag
                 shown_partial_progress = false;
             }
 
-            std::lock_guard<std::mutex> stdOutLockGuard(comsManager.getStdoutLockGuard());
             long long completed = received == SPROGRESS_COMPLETE ? PROGRESS_COMPLETE : charstoll(received.c_str());
             const char * progressTitle = title.empty() ? "TRANSFERRING" : title.c_str();
             printprogress(completed, charstoll(total.c_str()), progressTitle);

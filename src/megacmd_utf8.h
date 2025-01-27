@@ -54,6 +54,14 @@ std::string pathAsUtf8(const fs::path& path);
 bool isValidUtf8(const char* data, size_t size);
 bool isValidUtf8(const std::string &str);
 
+struct StdoutMutexGuard
+{
+    inline static std::recursive_mutex sSetmodeMtx;
+    std::lock_guard<std::recursive_mutex> mGuard;
+
+    StdoutMutexGuard() : mGuard(sSetmodeMtx) {}
+};
+
 /* platform dependent */
 #ifdef _WIN32
 
@@ -118,38 +126,33 @@ namespace std::filesystem {
         oss << megacmd::pathAsUtf8(path);
         return oss;
     }
+
 } // end of namespace std::filesystem
 namespace megacmd {
-struct StoudMutexGuard
-{
-        inline static std::recursive_mutex sSetmodeMtx;
-        std::lock_guard<std::recursive_mutex> mGuard;
-
-        StoudMutexGuard() : mGuard(sSetmodeMtx) {}
-};
 
 /**
  * @brief This class is used to:
  * - guard no meddling while writting/setting output mode on stdout/stderr
- * - ensure setting the output modes to OUTPUT_MODE
+ * - ensure setting the output modes to mOutputMode
  */
-template <unsigned int OUTPUT_MODE>
-class OutputsModeGuard : public StoudMutexGuard
+class OutputsModeGuard : public StdoutMutexGuard
 {
+        unsigned int mOutputMode;
         int mOldModeStdout;
         int mOldModeStderr;
     public:
-        OutputsModeGuard()
+        OutputsModeGuard(unsigned int outputMode)
+            : mOutputMode(outputMode)
         {
             fflush(stdout);
             fflush(stderr);
-            mOldModeStdout = _setmode(_fileno(stdout), OUTPUT_MODE);
-            mOldModeStderr = _setmode(_fileno(stderr), OUTPUT_MODE);
+            mOldModeStdout = _setmode(_fileno(stdout), mOutputMode);
+            mOldModeStderr = _setmode(_fileno(stderr), mOutputMode);
             assert(mOldModeStdout != -1);
             assert(mOldModeStderr != -1);
         }
 
-        ~OutputsModeGuard()
+        virtual ~OutputsModeGuard()
         {
             fflush(stdout);
             fflush(stderr);
@@ -158,8 +161,19 @@ class OutputsModeGuard : public StoudMutexGuard
         }
 };
 
-using WindowsUtf8StdoutGuard = OutputsModeGuard<_O_U8TEXT>;
-using WindowsNarrowStdoutGuard = OutputsModeGuard<_O_TEXT>;
+template <unsigned int OUTPUT_MODE>
+class WindowsOutputsModeGuardGeneric : public OutputsModeGuard
+{
+public:
+    WindowsOutputsModeGuardGeneric()
+     : OutputsModeGuard(OUTPUT_MODE)
+    {}
+};
+
+using WindowsUtf8StdoutGuard = WindowsOutputsModeGuardGeneric<_O_U8TEXT>;
+using WindowsNarrowStdoutGuard = WindowsOutputsModeGuardGeneric<_O_TEXT>;
+using WindowsBinaryStdoutGuard = WindowsOutputsModeGuardGeneric<O_BINARY>;
+
 class InterceptStreamBuffer : public std::streambuf
 {
     private:

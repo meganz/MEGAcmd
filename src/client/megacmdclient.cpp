@@ -745,13 +745,10 @@ void statechangehandle(string statestring, MegaCmdShellCommunications & comsMana
 #ifdef _WIN32
                 wstring wbuffer;
                 stringtolocalw((const char*)os.str().data(),&wbuffer);
-                int oldmode;
-                std::lock_guard<std::mutex> stdOutLockGuard(comsManager.getStdoutLockGuard());
-                oldmode = _setmode(_fileno(stdout), _O_U8TEXT);
+                WindowsUtf8StdoutGuard utf8Guard;
                 OUTSTREAM << wbuffer << flush;
-                _setmode(_fileno(stdout), oldmode);
-
 #else
+                StdoutMutexGuard stdoutGuard;
                 OUTSTREAM << os.str();
 #endif
             }
@@ -763,7 +760,7 @@ void statechangehandle(string statestring, MegaCmdShellCommunications & comsMana
         }
         else if (newstate.compare(0, strlen("login:"), "login:") == 0)
         {
-            std::lock_guard<std::mutex> stdOutLockGuard(comsManager.getStdoutLockGuard());
+            StdoutMutexGuard stdoutGuard;
             printCenteredContentsCerr(string("Resuming session ... ").c_str(), width, false);
         }
         else if (newstate.compare(0, strlen("message:"), "message:") == 0)
@@ -772,21 +769,17 @@ void statechangehandle(string statestring, MegaCmdShellCommunications & comsMana
             {
                 lastMessage = newstate;
 
-                string contents = newstate.substr(strlen("message:"));
+                std::string_view messageContents = std::string_view(newstate).substr(strlen("message:"));
+                string contents = std::string(shown_partial_progress ? "\n": "").append(messageContents);
                 replaceAll(contents, "%mega-%", "mega-");
 
-
-                std::lock_guard<std::mutex> stdOutLockGuard(comsManager.getStdoutLockGuard());
-                if (shown_partial_progress)
-                {
-                    cerr << endl;
-                }
-                if (contents.find("-----") != 0)
+                if (messageContents.rfind("-----", 0) != 0)
                 {
                     printCenteredContentsCerr(contents, width);
                 }
                 else
                 {
+                    StdoutMutexGuard stdoutGuard;
                     cerr << endl <<  contents << endl;
                 }
             }
@@ -824,8 +817,6 @@ void statechangehandle(string statestring, MegaCmdShellCommunications & comsMana
                 shown_partial_progress = false;
             }
 
-
-            std::lock_guard<std::mutex> stdOutLockGuard(comsManager.getStdoutLockGuard());
             long long completed = received == SPROGRESS_COMPLETE ? PROGRESS_COMPLETE : charstoll(received.c_str());
             const char * progressTitle = title.empty() ? "TRANSFERRING" : title.c_str();
             printprogress(completed, charstoll(total.c_str()), progressTitle);

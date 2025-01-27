@@ -795,6 +795,8 @@ void printCenteredContents(string msj, unsigned int width, bool encapsulated)
     printCenteredContents(os, msj, width, encapsulated);
 #ifdef _WIN32
     WindowsUtf8StdoutGuard utf8Guard;
+#else
+    StdoutMutexGuard stdoutGuard;
 #endif
 
     COUT << os.str();
@@ -806,6 +808,8 @@ void printCenteredContentsCerr(string msj, unsigned int width, bool encapsulated
     printCenteredContents(os, msj, width, encapsulated);
 #ifdef _WIN32
     WindowsUtf8StdoutGuard utf8Guard;
+#else
+    StdoutMutexGuard stdoutGuard;
 #endif
     CERR << os.str();
 }
@@ -848,8 +852,11 @@ void printPercentageLineCerr(const char *title, long long completed, long long t
 
 #ifdef _WIN32
     WindowsUtf8StdoutGuard utf8Guard;
+#else
+    StdoutMutexGuard stdoutGuard;
 #endif
 
+     // TODO: should this be CERR ? (`\r`) may not behave as wanted
     if (cleanLineAfter)
     {
         cerr << outputString << '\r' << flush;

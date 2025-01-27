@@ -159,6 +159,9 @@ WindowsConsoleController::WindowsConsoleController()
 
 void WindowsConsoleController::enableInterceptors(bool enable)
 {
+    std::cout.flush();
+    std::cerr.flush();
+
     if (enable)
     {
         mInterceptCout.reset(new InterceptStreamBuffer(std::cout, std::wcout));
