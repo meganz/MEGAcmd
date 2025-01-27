@@ -42,6 +42,17 @@
 #include <filesystem>
 
 #ifdef _WIN32
+#include <streambuf>
+#include <conio.h>
+#include <fstream>
+#include <iomanip>
+
+#include <io.h>
+#include <fcntl.h>
+#include <algorithm>
+#include <string>
+#include <cwctype>
+
 #include <fcntl.h>
 #include <io.h>
 #include <stdio.h>
@@ -88,6 +99,8 @@ std::wostream & operator<< ( std::wostream & ostr, const char * str );
 
 // UTF-8 to wstrings (UTF-16) conversions:
 void stringtolocalw(const char* path, std::wstring* local);
+void stringtolocalw(const char* path, size_t lenutf8, std::wstring* local);
+std::wstring utf8StringToUtf16WString(const char* str, size_t lenutf8);
 std::wstring utf8StringToUtf16WString(const char* path);
 
 // convert Utf-16 wide chars to UTF-8 std::strings
@@ -136,6 +149,102 @@ namespace std::filesystem {
     }
 } // end of namespace std::filesystem
 namespace megacmd {
+struct StoudMutexGuard
+{
+        inline static std::recursive_mutex sSetmodeMtx;
+        std::lock_guard<std::recursive_mutex> mGuard;
+
+        StoudMutexGuard() : mGuard(sSetmodeMtx) {}
+};
+
+/**
+ * @brief This class is used to:
+ * - guard no meddling while writting/setting output mode on stdout/stderr
+ * - ensure setting the output modes to OUTPUT_MODE
+ */
+template <unsigned int OUTPUT_MODE>
+class OutputsModeGuard
+{
+        int mOldModeStdout;
+        int mOldModeStderr;
+    public:
+        OutputsModeGuard()
+        {
+            fflush(stdout);
+            fflush(stderr);
+            mOldModeStdout = _setmode(_fileno(stdout), OUTPUT_MODE);
+            mOldModeStderr = _setmode(_fileno(stderr), OUTPUT_MODE);
+            assert(mOldModeStdout != -1);
+            assert(mOldModeStderr != -1);
+        }
+
+        ~OutputsModeGuard()
+        {
+            fflush(stdout);
+            fflush(stderr);
+            _setmode(_fileno(stdout), mOldModeStdout);
+            _setmode(_fileno(stderr), mOldModeStderr);
+        }
+};
+
+using WindowsUtf8StdoutGuard = OutputsModeGuard<_O_U8TEXT>;
+using WindowsNarrowStdoutGuard = OutputsModeGuard<_O_TEXT>;
+class InterceptStreamBuffer : public std::streambuf
+{
+    private:
+    std::streambuf* mOriginalStreamBuffer; // Store the original buffer
+    std::ostream& mNarrowStream;            // Reference to the original stream (e.g., std::cout)
+    std::wostream& mWideOstream;            // Reference to the original stream (e.g., std::cout)
+
+    bool hasNonAscii(const char* str, size_t length)
+    {
+        for (size_t i = 0; i < length; ++i)
+        {
+            if (static_cast<unsigned char>(str[i]) > 127)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+public:
+    InterceptStreamBuffer(std::ostream& outStream, std::wostream &wideStream)
+        : mNarrowStream(outStream), mWideOstream(wideStream)
+    {
+        mOriginalStreamBuffer = mNarrowStream.rdbuf(); // Save the original buffer
+        mNarrowStream.rdbuf(this);               // Replace with this buffer
+    }
+
+    ~InterceptStreamBuffer()
+    {
+        mNarrowStream.rdbuf(mOriginalStreamBuffer); // Restore the original buffer on destruction
+    }
+
+protected:
+    virtual int overflow(int c) override
+    {
+        char cc = char(c);
+        xsputn(&cc, 1);
+        return c;
+    }
+
+    virtual std::streamsize xsputn(const char* s, std::streamsize count) override
+    {
+        if (hasNonAscii(s, count)) // why cannot:
+        {
+            WindowsUtf8StdoutGuard utf8Guard;
+            //  assert(false && "This should ideally be controlled in calling code"); //TODO: enable this assert to fix cases in origin (assumed better performance)
+            mWideOstream << utf8StringToUtf16WString(s, count);
+            return count;
+        }
+        else
+        {
+           WindowsNarrowStdoutGuard narrowGuard;
+            return mOriginalStreamBuffer->sputn(s, count); // This is protesting when having _setmode and doing cout << "odd" (odd number of chars)
+        }
+    }
+};
 
 #else
 #define OUTSTREAMTYPE std::ostream
@@ -626,45 +735,6 @@ void timelyRetry(const std::chrono::duration<_Rep, _Period> &maxTime, const std:
     }
 }
 
-#ifdef _WIN32
-/**
- * @brief This class is used to:
- * - guard no meddling while writting/setting output mode on stdout/stderr
- * - ensure setting the output modes to _O_U8TEXT, given codepage CP_UTF8
- *       (Utf-8 translation) is compatible with that and we set it as part
- *       of the process initialization.
- *       (note: that would be newer powershells default anywa)
- */
-class WindowsUtf8StdoutGuard final
-{
-    static constexpr unsigned int OUTPUT_MODE = _O_U8TEXT;
-
-    inline static std::mutex sSetmodeMtx;
-
-    int mOldModeStdout;
-    int mOldModeStderr;
-    std::lock_guard<std::mutex> mGuard;
-public:
-    WindowsUtf8StdoutGuard()
-        : mGuard(sSetmodeMtx)
-    {
-        fflush(stdout);
-        fflush(stderr);
-        mOldModeStdout = _setmode(_fileno(stdout), OUTPUT_MODE);
-        mOldModeStderr = _setmode(_fileno(stderr), OUTPUT_MODE);
-        assert(mOldModeStdout != -1);
-        assert(mOldModeStderr != -1);
-    }
-
-    ~WindowsUtf8StdoutGuard()
-    {
-        fflush(stdout);
-        fflush(stderr);
-        _setmode(_fileno(stdout), mOldModeStdout);
-        _setmode(_fileno(stderr), mOldModeStderr);
-    }
-};
-#endif
 
 }//end namespace
 

@@ -17,6 +17,7 @@
 
 #include "megacmd.h"
 #include "megacmdlogger.h"
+#include "megacmd_rotating_logger.h"
 #include "Instruments.h"
 
 #ifdef __linux__
@@ -42,8 +43,50 @@ static void setUpUnixSignals()
 }
 #endif
 
+
+#ifdef WIN32
+/**
+ * @brief Google tests outputing needs stdout mode to be _O_TEXT
+ * otherwise low level printing will fail.
+ * This is a custom listener to wrapp writing routines
+ */
+struct CustomTestEventListener : public ::testing::EmptyTestEventListener {
+    std::unique_ptr<TestEventListener> mDefault;
+    void OnTestStart(const ::testing::TestInfo& test_info) override {
+        megacmd::WindowsNarrowStdoutGuard smg;
+        mDefault->OnTestStart(test_info);
+    }
+
+    void OnTestPartResult(const ::testing::TestPartResult& result) override {
+        megacmd::WindowsNarrowStdoutGuard smg;
+        mDefault->OnTestPartResult(result);
+    }
+
+    void OnTestEnd(const ::testing::TestInfo& test_info) override {
+        megacmd::WindowsNarrowStdoutGuard smg;
+        mDefault->OnTestEnd(test_info);
+    }
+};
+#endif
 int main (int argc, char *argv[])
 {
+
+#ifdef WIN32
+    // set default mode to U8TEXT.
+    // PROs: we could actually get rid of _setmode to U8TEXT in WindowsUtf8StdoutGuard
+    // CONS: any low level printing to stdout will crash if the mode is not _O_TEXT. at least gtest print do
+    // Todo: do some testing to write odd number of chasr & flush
+    auto OUTPUT_MODE = _O_U8TEXT;
+    auto oldModeStdout = _setmode(_fileno(stdout), OUTPUT_MODE);
+    auto oldModeStderr = _setmode(_fileno(stderr), OUTPUT_MODE);
+
+    // TODO: this is required for non megacmd shell executables
+    // TODO: cat use case (figure out how to make it work
+    // TODO: environment variables to control all this
+    megacmd::InterceptStreamBuffer intercept_cout(std::cout, std::wcout);
+    megacmd::InterceptStreamBuffer intercept_cer(std::cerr, std::wcerr);
+#endif
+
 #ifdef __linux__
     if (getenv("MEGA_INTEGRATION_TEST_ENFORCE_SINGLE_CPU"))
     {
@@ -85,6 +128,15 @@ int main (int argc, char *argv[])
     auto waitReturn = serverWaitingPromise.get_future().wait_for(std::chrono::seconds(10));
     UNUSED(waitReturn);
     assert(waitReturn != std::future_status::timeout);
+
+#ifdef WIN32
+    // Set custom gtests event listener to control the output to stdout
+    ::testing::TestEventListeners& listeners =
+        ::testing::UnitTest::GetInstance()->listeners();
+    auto customListener = new CustomTestEventListener();
+    customListener->mDefault.reset(listeners.Release(listeners.default_result_printer()));
+    listeners.Append(customListener);
+#endif
 
     auto exitCode = RUN_ALL_TESTS();
 

@@ -66,17 +66,17 @@ std::wostream & operator<< ( std::wostream & ostr, const char * str )
 }
 
 // convert UTF-8 to Windows Unicode wstring (UTF-16)
-void stringtolocalw(const char* path, std::wstring* local)
+void stringtolocalw(const char* path, size_t lenutf8, std::wstring* local)
 {
-    assert(isValidUtf8(std::string(path)));
+    assert(isValidUtf8(std::string(path, lenutf8)));
 
     // make space for the worst case
     local->resize((strlen(path) + 1) * sizeof(wchar_t));
 
-    int wchars_num = MultiByteToWideChar(CP_UTF8, 0, path,-1, NULL,0);
+    int wchars_num = MultiByteToWideChar(CP_UTF8, 0, path, lenutf8 + 1, NULL,0);
     local->resize(wchars_num);
 
-    int len = MultiByteToWideChar(CP_UTF8, 0, path,-1, (wchar_t*)local->data(), wchars_num);
+    int len = MultiByteToWideChar(CP_UTF8, 0, path, lenutf8 + 1, (wchar_t*)local->data(), wchars_num);
 
     if (len)
     {
@@ -88,10 +88,24 @@ void stringtolocalw(const char* path, std::wstring* local)
     }
 }
 
+
+// convert UTF-8 to Windows Unicode wstring (UTF-16)
+void stringtolocalw(const char* path, std::wstring* local)
+{
+    stringtolocalw(path, strlen(path), local);
+}
+
 std::wstring utf8StringToUtf16WString(const char* str)
 {
     std::wstring toret;
     stringtolocalw(str, &toret);
+    return toret;
+}
+
+std::wstring utf8StringToUtf16WString(const char* str, size_t lenutf8)
+{
+    std::wstring toret;
+    stringtolocalw(str, lenutf8, &toret);
     return toret;
 }
 
