@@ -13,11 +13,17 @@
  * program.
  */
 
+#include "megacmdcommonutils.h"
+
 #include "megaapi.h"
 #include <gtest/gtest.h>
 
 int main (int argc, char *argv[])
 {
+#ifdef WIN32
+    megacmd::Instance<megacmd::WindowsConsoleController> windowsConsoleController;
+#endif
+
     mega::MegaApi::setLogToConsole(true);
     mega::MegaApi::setLogLevel(mega::MegaApi::LOG_LEVEL_MAX);
 

@@ -70,21 +70,8 @@ struct CustomTestEventListener : public ::testing::EmptyTestEventListener {
 #endif
 int main (int argc, char *argv[])
 {
-
 #ifdef WIN32
-    // set default mode to U8TEXT.
-    // PROs: we could actually get rid of _setmode to U8TEXT in WindowsUtf8StdoutGuard
-    // CONS: any low level printing to stdout will crash if the mode is not _O_TEXT. at least gtest print do
-    // Todo: do some testing to write odd number of chasr & flush
-    auto OUTPUT_MODE = _O_U8TEXT;
-    auto oldModeStdout = _setmode(_fileno(stdout), OUTPUT_MODE);
-    auto oldModeStderr = _setmode(_fileno(stderr), OUTPUT_MODE);
-
-    // TODO: this is required for non megacmd shell executables
-    // TODO: cat use case (figure out how to make it work
-    // TODO: environment variables to control all this
-    megacmd::InterceptStreamBuffer intercept_cout(std::cout, std::wcout);
-    megacmd::InterceptStreamBuffer intercept_cer(std::cerr, std::wcerr);
+    megacmd::Instance<megacmd::WindowsConsoleController> windowsConsoleController;
 #endif
 
 #ifdef __linux__
@@ -121,7 +108,7 @@ int main (int argc, char *argv[])
         };
 
         constexpr bool logToCout = false;
-        auto createDefaultStream = [] { return new megacmd::LoggedStreamDefaultFile(); };
+        auto createDefaultStream = [] { return new megacmd::FileRotatingLoggedStream(megacmd::MegaCmdLogger::getDefaultFilePath()); };
         megacmd::executeServer(1, args.data(), createDefaultStream, logToCout, mega::MegaApi::LOG_LEVEL_MAX, mega::MegaApi::LOG_LEVEL_MAX);
     });
 

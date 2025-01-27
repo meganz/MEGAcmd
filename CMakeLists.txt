@@ -184,6 +184,7 @@ add_library(LMEGAcmdCommonUtils STATIC)
 add_source_and_corresponding_header_to_target(LMEGAcmdCommonUtils
     PUBLIC
     "${ProjectDir}/src/megacmdcommonutils.cpp"
+    "${ProjectDir}/src/megacmd_utf8.cpp"
 )
 
 add_library(LMegacmdServer STATIC)

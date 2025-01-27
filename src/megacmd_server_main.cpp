@@ -170,6 +170,10 @@ void waitIfRequired(std::vector<const char*> &args)
 // - linux forking (clients into server)
 int main(int argc, char* argv[])
 {
+#ifdef WIN32
+    megacmd::Instance<megacmd::WindowsConsoleController> windowsConsoleController;
+#endif
+
     std::vector<const char*> args;
     if (argc > 1)
     {
