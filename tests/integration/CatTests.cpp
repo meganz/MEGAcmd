@@ -85,8 +85,6 @@ TEST_F(CatTests, NonAsciiContents)
     catContents += "\n";
 #endif
 
-    const std::string catContents =  contents + u8"\n"; // we add a newline at the end of the output in cat
-
     {
         std::ofstream file(filePath, std::ios::binary);
         file << contents;
