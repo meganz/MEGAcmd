@@ -438,8 +438,8 @@ TEST_F(ManualSyncIssuesTests, AllSyncIssuesDetailEnforceReasonsAndPathProblems)
              pathProblem < static_cast<int>(mega::PathProblem::PathProblem_LastPlusOne);
              ++pathProblem)
         {
-            TestInstrumentsTestValueGuard reasonGuard(TI::TestValue::SYNC_ISSUE_ENFORCE_REASON_TYPE, reasonType);
-            TestInstrumentsTestValueGuard pathProblemGuard(TI::TestValue::SYNC_ISSUE_ENFORCE_PATH_PROBLEM, pathProblem);
+            TestInstrumentsTestValueGuard reasonGuard(TI::TestValue::SYNC_ISSUE_ENFORCE_REASON_TYPE, (int64_t) reasonType);
+            TestInstrumentsTestValueGuard pathProblemGuard(TI::TestValue::SYNC_ISSUE_ENFORCE_PATH_PROBLEM, (int64_t) pathProblem);
 
             result = executeInClient({"sync-issues", "--disable-path-collapse", "--detail", "--all"});
 
