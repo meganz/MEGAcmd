@@ -73,6 +73,23 @@ TEST_F(CatTests, NonAsciiContents)
     const fs::path filePath = localPath() / "file_non_ascii.txt";
     const std::string contents = u8"\u3053\u3093\u306b\u3061\u306f\u3001\u4e16\u754c";
 
+    {
+        std::ofstream file(filePath, std::ios::binary);
+        file << contents;
+    }
+
+    auto result = executeInClient({"put", filePath.string(), fileName});
+    ASSERT_TRUE(result.ok());
+
+    result = executeInClient({"cat", fileName});
+    ASSERT_TRUE(result.ok());
+    EXPECT_EQ(contents, result.out());
+}
+
+TEST_F(CatTests, NonAsciiContentsWithNewlines)
+{
+    const fs::path filePath = localPath() / "file_non_ascii_newlines.txt";
+    const std::string contents = u8"\u3053\u3093\u306b\u3061\r\n\u306f\u3001\n\u4e16\u754c";
 
     {
         std::ofstream file(filePath, std::ios::binary);
