@@ -54,12 +54,6 @@ TEST_F(CatTests, AsciiContents)
 {
     const fs::path filePath = localPath() / "file_ascii.txt";
     const std::string contents = "Hello world!";
-    std::string catContents = contents;
-
-#ifdef _WIN32
-    // We add a newline at the end of the cat output on Windows
-    catContents += "\n";
-#endif
 
     {
         std::ofstream file(filePath);
@@ -71,19 +65,14 @@ TEST_F(CatTests, AsciiContents)
 
     result = executeInClient({"cat", fileName});
     ASSERT_TRUE(result.ok());
-    EXPECT_EQ(catContents, result.out());
+    EXPECT_EQ(contents, result.out());
 }
 
 TEST_F(CatTests, NonAsciiContents)
 {
     const fs::path filePath = localPath() / "file_non_ascii.txt";
     const std::string contents = u8"\u3053\u3093\u306b\u3061\u306f\u3001\u4e16\u754c";
-    std::string catContents =  contents;
 
-#ifdef _WIN32
-    // We add a newline at the end of the cat output on Windows
-    catContents += "\n";
-#endif
 
     {
         std::ofstream file(filePath, std::ios::binary);
@@ -95,6 +84,6 @@ TEST_F(CatTests, NonAsciiContents)
 
     result = executeInClient({"cat", fileName});
     ASSERT_TRUE(result.ok());
-    EXPECT_EQ(catContents, result.out());
+    EXPECT_EQ(contents, result.out());
 }
 
