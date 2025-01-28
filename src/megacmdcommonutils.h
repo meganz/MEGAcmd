@@ -59,6 +59,38 @@ using std::left;
 
 namespace megacmd {
 
+// output codes
+enum
+{
+    MCMD_OK = 0,              ///< Everything OK
+
+    MCMD_EARGS = -51,         ///< Wrong arguments
+    MCMD_INVALIDEMAIL = -52,  ///< Invalid email
+    MCMD_NOTFOUND = -53,      ///< Resource not found
+    MCMD_INVALIDSTATE = -54,  ///< Invalid state
+    MCMD_INVALIDTYPE = -55,   ///< Invalid type
+    MCMD_NOTPERMITTED = -56,  ///< Operation not allowed
+    MCMD_NOTLOGGEDIN = -57,   ///< Needs loging in
+    MCMD_NOFETCH = -58,       ///< Nodes not fetched
+    MCMD_EUNEXPECTED = -59,   ///< Unexpected failure
+
+    MCMD_REQCONFIRM = -60,    ///< Confirmation required
+    MCMD_REQSTRING = -61,     ///< String required
+    MCMD_PARTIALOUT = -62,    ///< Partial output provided
+    MCMD_PARTIALERR = -63,     ///< Partial error output provided
+    MCMD_EXISTS = -64,        ///< Resource already exists
+
+    MCMD_REQRESTART = -71,    ///< Restart required
+};
+
+enum confirmresponse
+{
+    MCMDCONFIRM_NO=0,
+    MCMDCONFIRM_YES,
+    MCMDCONFIRM_ALL,
+    MCMDCONFIRM_NONE
+};
+
 /* commands */
 static std::vector<std::string> validGlobalParameters {"v", "help"};
 static std::vector<std::string> localremotefolderpatterncommands {"sync"};

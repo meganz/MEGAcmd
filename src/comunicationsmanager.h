@@ -81,6 +81,9 @@ public:
     virtual void sendPartialOutput(CmdPetition *inf, OUTSTRING *s) = 0;
     virtual void sendPartialOutput(CmdPetition *inf, char *s, size_t size, bool binaryContents = false) = 0;
 
+    virtual void sendPartialError(CmdPetition *inf, OUTSTRING *s) = 0;
+    virtual void sendPartialError(CmdPetition *inf, char *s, size_t size, bool binaryContents = false) = 0;
+
 
     /**
      * @brief Sends an status message (e.g. prompt:who@/new/prompt:) to all registered listeners

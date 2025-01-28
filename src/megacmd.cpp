@@ -4040,7 +4040,9 @@ void* doProcessLine(void* infRaw)
     setCurrentThreadOutCode(MCMD_OK);
     setCurrentThreadCmdPetition(inf.get());
     LoggedStreamPartialOutputs ls(cm, inf.get());
-    setCurrentThreadOutStream(ls);
+    LoggedStreamPartialErrors lserr(cm, inf.get());
+    setCurrentThreadOutStreams(ls, lserr);
+
 
     setCurrentThreadIsCmdShell(!inf->line.empty() && inf->line[0] == 'X');
 

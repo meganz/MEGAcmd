@@ -54,7 +54,7 @@ public:
 
     ~MegaCmdShellCommunicationsNamedPipes();
 
-    virtual int executeCommand(std::string command, std::string (*readresponse)(const char *) = NULL, OUTSTREAMTYPE &output = COUT, bool interactiveshell = true, std::wstring = L"") override;
+    virtual int executeCommand(std::string command, std::string (*readresponse)(const char *) = NULL, OUTSTREAMTYPE &output = COUT, OUTSTREAMTYPE &errorOutput = CERR, bool interactiveshell = true, std::wstring = L"") override;
 
     void setResponseConfirmation(bool confirmation);
 

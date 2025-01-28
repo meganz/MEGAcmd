@@ -42,7 +42,7 @@ public:
     {
         TI::Instance().onEveryEvent(TI::Event::SYNC_ISSUES_LIST_UPDATED, [this]
         {
-            auto syncIssueListSizeOpt = TI::Instance().testValue(TI::TestValue::SYNC_ISSUES_LIST_SIZE);
+            auto syncIssueListSizeOpt = TI::Instance().testValue(TI::TestValue::SYNC_ISSUES_LIST_SIZE   );
             EXPECT_TRUE(syncIssueListSizeOpt.has_value());
 
             {
@@ -423,7 +423,7 @@ TEST_F(ManualSyncIssuesTests, AllSyncIssuesDetailEnforceReasonsAndPathProblems)
     ASSERT_TRUE(result.ok());
 
     lines = splitByNewline(result.out());
-    EXPECT_THAT(lines.size(), 3);
+    EXPECT_THAT(lines.size(), 2);
 
     words = megacmd::split(lines[1], " ");
     EXPECT_THAT(words, testing::Not(testing::IsEmpty()));

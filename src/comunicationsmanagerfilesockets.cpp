@@ -250,10 +250,25 @@ void ComunicationsManagerFileSockets::returnAndClosePetition(std::unique_ptr<Cmd
 
 void ComunicationsManagerFileSockets::sendPartialOutput(CmdPetition *inf, OUTSTRING *s)
 {
-   sendPartialOutput(inf, s->data(), s->size());
+   sendPartialOutputImpl(inf, s->data(), s->size(), false/*never binary*/, false/*not error*/);
 }
 
 void ComunicationsManagerFileSockets::sendPartialOutput(CmdPetition *inf, char *s, size_t size, bool binaryContents)
+{
+   return sendPartialOutputImpl(inf, s, size, binaryContents, false);
+}
+
+void ComunicationsManagerFileSockets::sendPartialError(CmdPetition *inf, OUTSTRING *s)
+{
+   sendPartialOutputImpl(inf, s->data(), s->size(), false/*never binary*/, true/*error*/);
+}
+
+void ComunicationsManagerFileSockets::sendPartialError(CmdPetition *inf, char *s, size_t size, bool binaryContents)
+{
+   return sendPartialOutputImpl(inf, s, size, binaryContents, true);
+}
+
+void ComunicationsManagerFileSockets::sendPartialOutputImpl(CmdPetition *inf, char *s, size_t size, bool binaryContents, bool sendAsError)
 {
     if (inf->clientDisconnected)
     {
@@ -277,11 +292,11 @@ void ComunicationsManagerFileSockets::sendPartialOutput(CmdPetition *inf, char *
 
     if (size)
     {
-        int outCode = MCMD_PARTIALOUT;
+        int outCode = sendAsError ? MCMD_PARTIALERR : MCMD_PARTIALOUT;
         auto n = send(connectedsocket, (void*)&outCode, sizeof( outCode ), MSG_NOSIGNAL);
         if (n < 0)
         {
-            std::cerr << "ERROR writing MCMD_PARTIALOUT to socket: " << errno << endl;
+            std::cerr << "ERROR writing MCMD_PARTIALOUT/MCMD_PARTIALERR to socket: " << errno << endl;
             if (errno == EPIPE)
             {
                 std::cerr << "WARNING: Client disconnected, the rest of the output will be discarded" << endl;

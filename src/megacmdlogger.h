@@ -209,7 +209,7 @@ public:
     virtual const LoggedStream& operator<<(std::ios_base v) const override { *out << &v;return *this; }
     virtual const LoggedStream& operator<<(std::ios_base *v) const override { OUTSTRINGSTREAM os; os << v; OUTSTRING s = os.str(); cm->sendPartialOutput(inf, &s); return *this; }
 
-    LoggedStream const& operator<<(OUTSTREAMTYPE& (*F)(OUTSTREAMTYPE&)) const
+    LoggedStream const& operator<<(OUTSTREAMTYPE& (*F)(OUTSTREAMTYPE&)) const override
     {
         OUTSTRINGSTREAM os; os << F; OUTSTRING s = os.str(); cm->sendPartialOutput(inf, &s);
         return *this;
@@ -222,9 +222,49 @@ protected:
     CmdPetition *inf;
 };
 
+
+class LoggedStreamPartialErrors : public LoggedStream
+{
+public:
+    LoggedStreamPartialErrors(ComunicationsManager *_cm, CmdPetition *_inf) : cm(_cm), inf(_inf) {}
+    virtual bool isClientConnected() override { return inf && !inf->clientDisconnected; }
+
+    virtual const LoggedStream& operator<<(const char& v) const override { OUTSTRINGSTREAM os; os << v; OUTSTRING s = os.str(); cm->sendPartialError(inf, &s); return *this; }
+    virtual const LoggedStream& operator<<(const char* v) const override { OUTSTRINGSTREAM os; os << v; OUTSTRING s = os.str(); cm->sendPartialError(inf, &s); return *this; }
+
+#ifdef _WIN32
+    virtual const LoggedStream& operator<<(std::wstring v) const override { cm->sendPartialError(inf, &v); return *this; }
+    virtual const LoggedStream& operator<<(std::string v) const override { cm->sendPartialError(inf, (char *)v.data(), v.size()); return *this; }
+#else
+    virtual const LoggedStream& operator<<(std::string v) const override { cm->sendPartialError(inf, &v); return *this; }
+#endif
+    virtual const LoggedStream& operator<<(BinaryStringView v) const override { cm->sendPartialError(inf, (char*) v.get().data(), v.get().size(), true); return *this; }
+    virtual const LoggedStream& operator<<(std::string_view v) const override { cm->sendPartialError(inf, (char*) v.data(), v.size()); return *this; }
+
+    virtual const LoggedStream& operator<<(int v) const override { OUTSTRINGSTREAM os; os << v; OUTSTRING s = os.str(); cm->sendPartialError(inf, &s); return *this; }
+    virtual const LoggedStream& operator<<(unsigned int v) const override { OUTSTRINGSTREAM os; os << v; OUTSTRING s = os.str(); cm->sendPartialError(inf, &s); return *this; }
+    virtual const LoggedStream& operator<<(long unsigned int v) const override { OUTSTRINGSTREAM os; os << v; OUTSTRING s = os.str(); cm->sendPartialError(inf, &s); return *this; }
+    virtual const LoggedStream& operator<<(long long int v) const override { OUTSTRINGSTREAM os; os << v; OUTSTRING s = os.str(); cm->sendPartialError(inf, &s); return *this; }
+    virtual const LoggedStream& operator<<(std::ios_base v) const override { *out << &v;return *this; }
+    virtual const LoggedStream& operator<<(std::ios_base *v) const override { OUTSTRINGSTREAM os; os << v; OUTSTRING s = os.str(); cm->sendPartialError(inf, &s); return *this; }
+
+    LoggedStream const& operator<<(OUTSTREAMTYPE& (*F)(OUTSTREAMTYPE&)) const override
+    {
+        OUTSTRINGSTREAM os; os << F; OUTSTRING s = os.str(); cm->sendPartialError(inf, &s);
+        return *this;
+    }
+
+    virtual ~LoggedStreamPartialErrors() = default;
+
+protected:
+    ComunicationsManager *cm;
+    CmdPetition *inf;
+};
+
 struct ThreadData
 {
     LoggedStream *mOutStream = &Instance<DefaultLoggedStream>::Get().getLoggedStream();
+    LoggedStream *mErrStream = &Instance<DefaultLoggedStream>::Get().getLoggedStream();
     int mLogLevel = -1;
     int mOutCode = 0;
     CmdPetition *mCmdPetition = nullptr;
@@ -236,12 +276,13 @@ const char* getCommandPrefixBasedOnMode();
 bool isCurrentThreadInteractive();
 
 inline LoggedStream &getCurrentThreadOutStream()  { return *getCurrentThreadData().mOutStream; }
+inline LoggedStream &getCurrentThreadErrStream()  { return *getCurrentThreadData().mErrStream; }
 inline int getCurrentThreadLogLevel()             { return getCurrentThreadData().mLogLevel; }
 inline int getCurrentThreadOutCode()              { return getCurrentThreadData().mOutCode; }
 inline CmdPetition *getCurrentThreadCmdPetition() { return getCurrentThreadData().mCmdPetition; }
 inline bool isCurrentThreadCmdShell()             { return getCurrentThreadData().mIsCmdShell; }
 
-void setCurrentThreadOutStream(LoggedStream &outStream);
+void setCurrentThreadOutStreams(LoggedStream &outStream, LoggedStream &errStream);
 void setCurrentThreadOutCode(int outCode);
 void setCurrentThreadLogLevel(int logLevel);
 void setCurrentThreadCmdPetition(CmdPetition *cmdPetition);

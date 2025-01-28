@@ -265,8 +265,35 @@ void ComunicationsManagerNamedPipes::returnAndClosePetition(std::unique_ptr<CmdP
     DisconnectNamedPipe(outNamedPipe);
 }
 
-
 void ComunicationsManagerNamedPipes::sendPartialOutput(CmdPetition *inf, OUTSTRING *s)
+{
+    string sutf8;
+    localwtostring(s, &sutf8);
+    assert(isValidUtf8(sutf8)); // above localwtostring should produce an empty string if the input had broken encoding or valid utf-8 otherwise
+
+    return sendPartialOutputImpl(inf, sutf8.data(), sutf8.size(), false/*never binary*/, false/*not error*/);
+}
+
+void ComunicationsManagerNamedPipes::sendPartialOutput(CmdPetition *inf, char *s, size_t size, bool binaryContents)
+{
+    return sendPartialOutputImpl(inf, s, size, binaryContents, false);
+}
+
+void ComunicationsManagerNamedPipes::sendPartialError(CmdPetition *inf, OUTSTRING *s)
+{
+    string sutf8;
+    localwtostring(s, &sutf8);
+    assert(isValidUtf8(sutf8)); // above localwtostring should produce an empty string if the input had broken encoding or valid utf-8 otherwise
+
+    return sendPartialOutputImpl(inf, sutf8.data(), sutf8.size(), false/*never binary*/, true/*error*/);
+}
+
+void ComunicationsManagerNamedPipes::sendPartialError(CmdPetition *inf, char *s, size_t size, bool binaryContents)
+{
+    return sendPartialOutputImpl(inf, s, size, binaryContents, true);
+}
+
+void ComunicationsManagerNamedPipes::sendPartialOutputImpl(CmdPetition *inf, char *s, size_t size, bool binaryContents, bool sendAsError)
 {
     if (inf->clientDisconnected)
     {
@@ -274,6 +301,13 @@ void ComunicationsManagerNamedPipes::sendPartialOutput(CmdPetition *inf, OUTSTRI
     }
 
     HANDLE outNamedPipe = ((CmdPetitionNamedPipes *)inf)->outNamedPipe;
+
+    if (!binaryContents &&!isValidUtf8(s, size))
+    {
+        std::cerr << "Attempt to sendPartialOutput of invalid utf8 of size " << size << std::endl;
+        assert(false && "Attempt to sendPartialOutput of invalid utf8");
+        return;
+    }
 
     bool connectsucceeded = false;
     int attempts = 10;
@@ -315,91 +349,11 @@ void ComunicationsManagerNamedPipes::sendPartialOutput(CmdPetition *inf, OUTSTRI
         return;
     }
 
-    string sutf8;
-    localwtostring(s, &sutf8);
-    assert(isValidUtf8(sutf8)); // above localwtostring should produce an empty string if the input had broken encoding or valid utf-8 otherwise
-
-    int outCode = MCMD_PARTIALOUT;
+    int outCode = sendAsError ? MCMD_PARTIALERR : MCMD_PARTIALOUT;
     DWORD n;
     if (!WriteFile(outNamedPipe,(const char*)&outCode, sizeof(outCode), &n, NULL))
     {
         std::cerr << "ERROR writing output Code to namedPipe: " << ERRNO << std::endl;
-        if (ERRNO == ERROR_NO_DATA) //TODO: pipe disconnected error?
-        {
-            std::cerr << "WARNING: Client disconnected, the rest of the output will be discarded" << endl;
-            inf->clientDisconnected = true;
-        }
-        return;
-    }
-
-    size_t size = sutf8.size() > 1 ? sutf8.size() : 1; // client does not like empty responses
-    if (!WriteFile(outNamedPipe,(const char*)&size, sizeof(size), &n, NULL))
-    {
-        std::cerr << "ERROR writing output Code to namedPipe: " << std::endl;
-        return;
-    }
-    if (!WriteFile(outNamedPipe,sutf8.data(), DWORD(size), &n, NULL))
-    {
-        std::cerr << "ERROR writing to namedPipe: " << ERRNO << std::endl;
-    }
-}
-
-
-void ComunicationsManagerNamedPipes::sendPartialOutput(CmdPetition *inf, char *s, size_t size, bool binaryContents)
-{
-    HANDLE outNamedPipe = ((CmdPetitionNamedPipes *)inf)->outNamedPipe;
-
-    if (!binaryContents &&!isValidUtf8(s, size))
-    {
-        std::cerr << "Attempt to sendPartialOutput of invalid utf8 of size " << size << std::endl;
-        assert(false && "Attempt to sendPartialOutput of invalid utf8");
-        return;
-    }
-
-    bool connectsucceeded = false;
-    int attempts = 10;
-    while (--attempts && !connectsucceeded)
-    {
-        if (!ConnectNamedPipe(outNamedPipe, NULL))
-        {
-            if (ERRNO == ERROR_PIPE_CONNECTED)
-            {
-                //cerr << "Client arrived first when connecting to namedPipe " << outNamedPipe << endl;
-                connectsucceeded = true;
-                break;
-            }
-            else if (ERRNO == ERROR_NO_DATA)
-            {
-                break;
-            }
-            else
-            {
-                cerr << "ERROR on connecting to namedPipe " << outNamedPipe << ". errno: " << ERRNO << ". Attempts: " << attempts << endl;
-            }
-            sleepMilliSeconds(500);
-        }
-        else
-        {
-            connectsucceeded = true;
-        }
-    }
-
-    if (!connectsucceeded)
-    {
-        cerr << "sendPartialOutput: Unable to connect on outnamedPipe " << outNamedPipe << " error: " << ERRNO << endl;
-        if (ERRNO == ERROR_NO_DATA)
-        {
-            std::cerr << "WARNING: Client disconnected, the rest of the output will be discarded" << endl;
-            inf->clientDisconnected = true;
-        }
-        return;
-    }
-
-    int outCode = MCMD_PARTIALOUT;
-    DWORD n;
-    if (!WriteFile(outNamedPipe,(const char*)&outCode, sizeof(outCode), &n, NULL))
-    {
-        LOG_err << "ERROR writing output Code to namedPipe: " << ERRNO;
         if (ERRNO == ERROR_NO_DATA)
         {
             std::cerr << "WARNING: Client disconnected, the rest of the output will be discarded" << endl;
@@ -411,12 +365,12 @@ void ComunicationsManagerNamedPipes::sendPartialOutput(CmdPetition *inf, char *s
     size_t thesize = size > 1 ? size : 1; // client does not like empty responses
     if (!WriteFile(outNamedPipe,(const char*)&thesize, sizeof(thesize), &n, NULL))
     {
-        LOG_err << "ERROR writing output Code to namedPipe: " << ERRNO;
+        std::cerr << "ERROR writing output Code to namedPipe: " << std::endl;
         return;
     }
     if (!WriteFile(outNamedPipe,s, DWORD(thesize), &n, NULL))
     {
-        LOG_err << "ERROR writing to namedPipe: " << ERRNO;
+        std::cerr << "ERROR writing to namedPipe: " << ERRNO << std::endl;
     }
 }
 

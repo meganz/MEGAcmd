@@ -469,7 +469,7 @@ bool outputtobinaryorconsole(void)
     }
 }
 
-int MegaCmdShellCommunicationsNamedPipes::executeCommand(string command, std::string (*readresponse)(const char *), OUTSTREAMTYPE &output, bool interactiveshell, wstring wcommand)
+int MegaCmdShellCommunicationsNamedPipes::executeCommand(string command, std::string (*readresponse)(const char *), OUTSTREAMTYPE &output, OUTSTREAMTYPE &errorOutput, bool interactiveshell, wstring wcommand)
 {
     HANDLE theNamedPipe = createNamedPipe(0,command.compare(0,4,"exit")
                                           && command.compare(0,4,"quit")
@@ -540,10 +540,13 @@ int MegaCmdShellCommunicationsNamedPipes::executeCommand(string command, std::st
     bool binaryoutput = isCat && redirectedstdout;
     bool shouldPrintAdditionalLine = false;
 
-    while (outcode == MCMD_REQCONFIRM || outcode == MCMD_REQSTRING || outcode == MCMD_PARTIALOUT)
+    while (outcode == MCMD_REQCONFIRM || outcode == MCMD_REQSTRING || outcode == MCMD_PARTIALOUT || outcode == MCMD_PARTIALERR)
     {
-        if (outcode == MCMD_PARTIALOUT)
+        if (outcode == MCMD_PARTIALOUT || outcode == MCMD_PARTIALERR)
         {
+            bool useErrorStream = outcode == MCMD_PARTIALERR;
+            auto &partialOutputStream = useErrorStream ? errorOutput : output;
+
             size_t partialoutsize;
             if (!ReadFile(newNamedPipe, (char *)&partialoutsize, sizeof(partialoutsize),&n, NULL))
             {
@@ -570,7 +573,7 @@ int MegaCmdShellCommunicationsNamedPipes::executeCommand(string command, std::st
                     readok = ReadFile(newNamedPipe, buffer, DWORD(std::min(BUFFERSIZE,partialoutsize)),&n,NULL);
                     if (readok)
                     {
-                        if (binaryoutput)
+                        if (binaryoutput && !useErrorStream)
                         {
                             Instance<WindowsConsoleController>::Get().enableInterceptors(false);
                             std::cout << string(buffer,n) << flush;
@@ -582,13 +585,13 @@ int MegaCmdShellCommunicationsNamedPipes::executeCommand(string command, std::st
 
                             wstring wbuffer;
                             stringtolocalw((const char*)&buffer,&wbuffer);
-                            output << wbuffer << flush;
+                            partialOutputStream << wbuffer << flush;
                         }
                         partialoutsize-=n;
                     }
                 } while(n != 0 && partialoutsize && n !=SOCKET_ERROR);
 
-                if (isCat && !binaryoutput && interactiveshell)
+                if (isCat && !binaryoutput && interactiveshell && !useErrorStream)
                 {
                     shouldPrintAdditionalLine = true;
                 }

@@ -846,7 +846,7 @@ void statechangehandle(string statestring, MegaCmdShellCommunications & comsMana
     }
 }
 
-int executeClient(int argc, char* argv[], OUTSTREAMTYPE & outstream)
+int executeClient(int argc, char* argv[], OUTSTREAMTYPE & outstream, OUTSTREAMTYPE &errorOutput)
 {
 #ifdef _WIN32
     setlocale(LC_ALL, "en-US");
@@ -924,9 +924,9 @@ int executeClient(int argc, char* argv[], OUTSTREAMTYPE & outstream)
     }
 
 #if defined _WIN32 && !defined MEGACMD_TESTING_CODE
-    int outcode = comms->executeCommandW(wParsedArgs, readresponse, outstream, false);
+    int outcode = comms->executeCommandW(wParsedArgs, readresponse, outstream, errorOutput, false);
 #else
-    int outcode = comms->executeCommand(parsedArgs, readresponse, outstream, false);
+    int outcode = comms->executeCommand(parsedArgs, readresponse, outstream, errorOutput, false);
 #endif
 
     // do always return positive error codes (POSIX compliant)

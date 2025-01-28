@@ -364,13 +364,13 @@ string unescapeutf16escapedseqs(const char *what)
 }
 #endif
 
-int MegaCmdShellCommunications::executeCommandW(wstring wcommand, std::string (*readresponse)(const char *), OUTSTREAMTYPE &output, bool interactiveshell)
+int MegaCmdShellCommunications::executeCommandW(wstring wcommand, std::string (*readresponse)(const char *), OUTSTREAMTYPE &output, OUTSTREAMTYPE &errorOutput, bool interactiveshell)
 {
-    return executeCommand("", readresponse, output, interactiveshell, wcommand);
+    return executeCommand("", readresponse, output, errorOutput, interactiveshell, wcommand);
 }
 
 #ifndef _WIN32
-int MegaCmdShellCommunicationsPosix::executeCommand(string command, std::string (*readresponse)(const char *), OUTSTREAMTYPE &output, bool interactiveshell, wstring /*wcommand*/)
+int MegaCmdShellCommunicationsPosix::executeCommand(string command, std::string (*readresponse)(const char *), OUTSTREAMTYPE &output, OUTSTREAMTYPE &errorOutput, bool interactiveshell, wstring /*wcommand*/)
 {
     SOCKET thesock = createSocket(0, command.compare(0,4,"exit") && command.compare(0,4,"quit") && command.compare(0,10,"completion"));
     if (!isSocketValid(thesock))
@@ -411,10 +411,13 @@ int MegaCmdShellCommunicationsPosix::executeCommand(string command, std::string 
         return -1;
     }
 
-    while (outcode == MCMD_REQCONFIRM || outcode == MCMD_REQSTRING || outcode == MCMD_PARTIALOUT)
+    while (outcode == MCMD_REQCONFIRM || outcode == MCMD_REQSTRING || outcode == MCMD_PARTIALOUT || outcode == MCMD_PARTIALERR)
     {
-        if (outcode == MCMD_PARTIALOUT)
+        if (outcode == MCMD_PARTIALOUT || outcode == MCMD_PARTIALERR)
         {
+            bool useErrorStream = outcode == MCMD_PARTIALERR;
+            auto &partialOutputStream = useErrorStream ? errorOutput : output;
+
             size_t partialoutsize;
 
             n = recv(thesock, (char *)&partialoutsize, sizeof(partialoutsize), MSG_NOSIGNAL);
@@ -427,7 +430,7 @@ int MegaCmdShellCommunicationsPosix::executeCommand(string command, std::string 
 
                     if (n)
                     {
-                        output << string(buffer,partialoutsize) << flush;
+                        partialOutputStream << string(buffer,partialoutsize) << flush;
                         partialoutsize-=n;
                     }
                     delete[] buffer;
