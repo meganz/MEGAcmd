@@ -20,6 +20,8 @@
 #include "megacmd_rotating_logger.h"
 #include "Instruments.h"
 
+#include "TestUtils.h"
+
 #ifdef __linux__
 #include <sched.h>
 #endif
@@ -43,36 +45,8 @@ static void setUpUnixSignals()
 }
 #endif
 
-
-#ifdef WIN32
-/**
- * @brief Google tests outputing needs stdout mode to be _O_TEXT
- * otherwise low level printing will fail.
- * This is a custom listener to wrapp writing routines
- */
-struct CustomTestEventListener : public ::testing::EmptyTestEventListener {
-    std::unique_ptr<TestEventListener> mDefault;
-    void OnTestStart(const ::testing::TestInfo& test_info) override {
-        megacmd::WindowsNarrowStdoutGuard smg;
-        mDefault->OnTestStart(test_info);
-    }
-
-    void OnTestPartResult(const ::testing::TestPartResult& result) override {
-        megacmd::WindowsNarrowStdoutGuard smg;
-        mDefault->OnTestPartResult(result);
-    }
-
-    void OnTestEnd(const ::testing::TestInfo& test_info) override {
-        megacmd::WindowsNarrowStdoutGuard smg;
-        mDefault->OnTestEnd(test_info);
-    }
-};
-#endif
 int main (int argc, char *argv[])
 {
-#ifdef WIN32
-    megacmd::Instance<megacmd::WindowsConsoleController> windowsConsoleController;
-#endif
 
 #ifdef __linux__
     if (getenv("MEGA_INTEGRATION_TEST_ENFORCE_SINGLE_CPU"))
@@ -91,6 +65,17 @@ int main (int argc, char *argv[])
 #endif
 
     testing::InitGoogleTest(&argc, argv);
+
+#ifdef WIN32
+    megacmd::Instance<megacmd::WindowsConsoleController> windowsConsoleController;
+
+    // Set custom gtests event listener to control the output to stdout
+    ::testing::TestEventListeners& listeners =
+        ::testing::UnitTest::GetInstance()->listeners();
+    auto customListener = new CustomTestEventListener();
+    customListener->mDefault.reset(listeners.Release(listeners.default_result_printer()));
+    listeners.Append(customListener);
+#endif
 
     using TI = TestInstruments;
 
@@ -115,15 +100,6 @@ int main (int argc, char *argv[])
     auto waitReturn = serverWaitingPromise.get_future().wait_for(std::chrono::seconds(10));
     UNUSED(waitReturn);
     assert(waitReturn != std::future_status::timeout);
-
-#ifdef WIN32
-    // Set custom gtests event listener to control the output to stdout
-    ::testing::TestEventListeners& listeners =
-        ::testing::UnitTest::GetInstance()->listeners();
-    auto customListener = new CustomTestEventListener();
-    customListener->mDefault.reset(listeners.Release(listeners.default_result_printer()));
-    listeners.Append(customListener);
-#endif
 
     auto exitCode = RUN_ALL_TESTS();
 

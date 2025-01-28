@@ -538,6 +538,7 @@ int MegaCmdShellCommunicationsNamedPipes::executeCommand(string command, std::st
     }
 
     bool binaryoutput = isCat && redirectedstdout;
+    bool shouldPrintAdditionalLine = false;
 
     while (outcode == MCMD_REQCONFIRM || outcode == MCMD_REQSTRING || outcode == MCMD_PARTIALOUT)
     {
@@ -587,9 +588,9 @@ int MegaCmdShellCommunicationsNamedPipes::executeCommand(string command, std::st
                     }
                 } while(n != 0 && partialoutsize && n !=SOCKET_ERROR);
 
-                if (isCat && !binaryoutput)
+                if (isCat && !binaryoutput && interactiveshell)
                 {
-                    output << std::endl;
+                    shouldPrintAdditionalLine = true;
                 }
             }
             else
@@ -691,6 +692,12 @@ int MegaCmdShellCommunicationsNamedPipes::executeCommand(string command, std::st
     {
         cerr << "ERROR reading output: " << ERRNO << endl;
         return -1;
+    }
+
+    if (shouldPrintAdditionalLine)
+    {
+        WindowsUtf8StdoutGuard utf8Guard;
+        output << std::endl;
     }
 
     return outcode;
