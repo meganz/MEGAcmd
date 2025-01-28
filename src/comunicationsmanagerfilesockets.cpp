@@ -253,7 +253,7 @@ void ComunicationsManagerFileSockets::sendPartialOutput(CmdPetition *inf, OUTSTR
    sendPartialOutput(inf, s->data(), s->size());
 }
 
-void ComunicationsManagerFileSockets::sendPartialOutput(CmdPetition *inf, char *s, size_t size)
+void ComunicationsManagerFileSockets::sendPartialOutput(CmdPetition *inf, char *s, size_t size, bool binaryContents)
 {
     if (inf->clientDisconnected)
     {
@@ -265,6 +265,13 @@ void ComunicationsManagerFileSockets::sendPartialOutput(CmdPetition *inf, char *
     if (connectedsocket == -1)
     {
         std::cerr << "Return and close: no valid outsocket " << ((CmdPetitionPosixSockets *)inf)->outSocket << endl;
+        return;
+    }
+
+    if (!binaryContents && !isValidUtf8(s, size))
+    {
+        std::cerr << "Attempt to sendPartialOutput of invalid utf8 of size " << size << std::endl;
+        assert(false && "Attempt to sendPartialOutput of invalid utf8");
         return;
     }
 
@@ -300,8 +307,15 @@ void ComunicationsManagerFileSockets::sendPartialOutput(CmdPetition *inf, char *
     }
 }
 
-int ComunicationsManagerFileSockets::informStateListener(CmdPetition *inf, const string &s)
+int ComunicationsManagerFileSockets::informStateListener(CmdPetition *inf, const std::string &s)
 {
+    if (!isValidUtf8(s))
+    {
+        LOG_err << "Attempt to write an invalid utf-8 string of size " << s.size();
+        assert(false && "Attempt to write an invalid utf-8 string");
+        return 0;
+    }
+
     std::lock_guard<std::mutex> g(informerMutex);
     LOG_verbose << "Inform State Listener: Output to write in socket " << ((CmdPetitionPosixSockets *)inf)->outSocket << ": <<" << s << ">>";
 

@@ -151,7 +151,5 @@ bool getMinAndMaxSize(std::string sizestring, int64_t *minSize, int64_t *maxSize
 std::string readablePermissions(int permvalue);
 int permissionsFromReadable(std::string permissions);
 
-bool pathIsExistingDir(std::string path);
-
 }//end namespace
 #endif // MEGACMDUTILS_H

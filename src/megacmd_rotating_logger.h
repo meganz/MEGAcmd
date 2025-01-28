@@ -22,11 +22,8 @@
 #include <condition_variable>
 #include <chrono>
 #include <thread>
-#include <filesystem>
 
 #include "megacmdlogger.h"
-
-namespace fs = std::filesystem;
 
 namespace megacmd {
 
@@ -128,8 +125,8 @@ class FileRotatingLoggedStream final : public LoggedStream
 {
     mutable MessageBuffer<1024> mMessageBuffer;
 
-    std::string mOutputFilePath;
-    OUTFSTREAMTYPE mOutputFile;
+    fs::path mOutputFilePath;
+    std::ofstream mOutputFile;
     RotatingFileManager mFileManager;
 
     mutable std::mutex mWriteMtx;
@@ -167,6 +164,7 @@ public:
     const LoggedStream& operator<<(const char& c) const override;
     const LoggedStream& operator<<(const char* str) const override;
     const LoggedStream& operator<<(std::string str) const override;
+    const LoggedStream& operator<<(BinaryStringView v) const override;
     const LoggedStream& operator<<(std::string_view str) const override;
     const LoggedStream& operator<<(int v) const override;
     const LoggedStream& operator<<(unsigned int v) const override;

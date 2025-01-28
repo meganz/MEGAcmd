@@ -45,98 +45,13 @@
 #include <regex> //split
 #include <random>
 
-#ifdef _WIN32
-namespace mega {
-//override for the log. This is required for compiling, otherwise SimpleLog won't compile.
-std::ostringstream & operator<< ( std::ostringstream & ostr, const std::wstring & str)
-{
-    std::string s;
-    megacmd::localwtostring(&str,&s);
-    ostr << s;
-    return ( ostr );
-}
-}
-#endif
-
 namespace megacmd {
 using namespace std;
 
-#ifdef _WIN32
-std::wostream & operator<< ( std::wostream & ostr, std::string const & str )
+std::string errorCodeStr(const std::error_code& ec)
 {
-    std::wstring toout;
-    stringtolocalw(str.c_str(),&toout);
-    ostr << toout;
-    return ( ostr );
+    return ec ? "(error: " + ec.message() + ")" : "";
 }
-
-std::wostream & operator<< ( std::wostream & ostr, const char * str )
-{
-    std::wstring toout;
-    stringtolocalw(str,&toout);
-    ostr << toout;
-    return ( ostr );
-}
-
-// convert UTF-8 to Windows Unicode wstring
-void stringtolocalw(const char* path, std::wstring* local)
-{
-    // make space for the worst case
-    local->resize((strlen(path) + 1) * sizeof(wchar_t));
-
-    int wchars_num = MultiByteToWideChar(CP_UTF8, 0, path,-1, NULL,0);
-    local->resize(wchars_num);
-
-    int len = MultiByteToWideChar(CP_UTF8, 0, path,-1, (wchar_t*)local->data(), wchars_num);
-
-    if (len)
-    {
-        local->resize(len-1);
-    }
-    else
-    {
-        local->clear();
-    }
-}
-
-//widechar to utf8 string
-void localwtostring(const std::wstring* wide, std::string *multibyte)
-{
-    if( !wide->empty() )
-    {
-        int size_needed = WideCharToMultiByte(CP_UTF8, 0, wide->data(), (int)wide->size(), NULL, 0, NULL, NULL);
-        multibyte->resize(size_needed);
-        WideCharToMultiByte(CP_UTF8, 0, wide->data(), (int)wide->size(), (char*)multibyte->data(), size_needed, NULL, NULL);
-    }
-}
-
-// convert Windows Unicode to UTF-8
-void utf16ToUtf8(const wchar_t* utf16data, int utf16size, string* utf8string)
-{
-    if(!utf16size)
-    {
-        utf8string->clear();
-        return;
-    }
-
-    utf8string->resize((utf16size + 1) * 4);
-
-    utf8string->resize(WideCharToMultiByte(CP_UTF8, 0, utf16data,
-        utf16size,
-        (char*)utf8string->data(),
-        int(utf8string->size() + 1),
-        NULL, NULL));
-}
-
-std::string getutf8fromUtf16(const wchar_t *ws)
-{
-    string utf8s;
-    utf16ToUtf8(ws, int(wcslen(ws)), &utf8s);
-    return utf8s;
-}
-
-#endif
-
 
 bool canWrite(string path)
 {
@@ -750,7 +665,8 @@ string toLower(const std::string& str)
     return lower;
 }
 
-void printCenteredLine(OUTSTREAMTYPE &os, string msj, unsigned int width, bool encapsulated)
+template <typename Stream_T>
+void printCenteredLine(Stream_T &os, string msj, unsigned int width, bool encapsulated)
 {
     unsigned int msjsize = getstringutf8size(msj);
     bool overflowed = false;
@@ -770,6 +686,10 @@ void printCenteredLine(OUTSTREAMTYPE &os, string msj, unsigned int width, bool e
         os << "|";
     os << endl;
 }
+
+// Instantiate those that can be used:
+template void printCenteredLine<OUTSTREAMTYPE>(OUTSTREAMTYPE &os, string msj, unsigned int width, bool encapsulated);
+template void printCenteredLine<std::ostringstream>(std::ostringstream &os, string msj, unsigned int width, bool encapsulated);
 
 void printCenteredContents(OUTSTREAMTYPE &os, string msj, unsigned int width, bool encapsulated)
 {
@@ -859,6 +779,9 @@ void printCenteredLine(string msj, unsigned int width, bool encapsulated)
 {
     OUTSTRINGSTREAM os;
     printCenteredLine(os, msj, width, encapsulated);
+#ifdef _WIN32
+    WindowsUtf8StdoutGuard utf8Guard;
+#endif
     COUT << os.str();
 }
 
@@ -866,6 +789,12 @@ void printCenteredContents(string msj, unsigned int width, bool encapsulated)
 {
     OUTSTRINGSTREAM os;
     printCenteredContents(os, msj, width, encapsulated);
+#ifdef _WIN32
+    WindowsUtf8StdoutGuard utf8Guard;
+#else
+    StdoutMutexGuard stdoutGuard;
+#endif
+
     COUT << os.str();
 }
 
@@ -873,6 +802,11 @@ void printCenteredContentsCerr(string msj, unsigned int width, bool encapsulated
 {
     OUTSTRINGSTREAM os;
     printCenteredContents(os, msj, width, encapsulated);
+#ifdef _WIN32
+    WindowsUtf8StdoutGuard utf8Guard;
+#else
+    StdoutMutexGuard stdoutGuard;
+#endif
     CERR << os.str();
 }
 
@@ -912,6 +846,13 @@ void printPercentageLineCerr(const char *title, long long completed, long long t
         *ptr++ = '#';
     }
 
+#ifdef _WIN32
+    WindowsUtf8StdoutGuard utf8Guard;
+#else
+    StdoutMutexGuard stdoutGuard;
+#endif
+
+     // TODO: should this be CERR ? (`\r`) may not behave as wanted
     if (cleanLineAfter)
     {
         cerr << outputString << '\r' << flush;
@@ -1243,9 +1184,9 @@ string &trimProperty(string &what)
     return what;
 }
 
-string getPropertyFromFile(const char *configFile, const char *propertyName)
+string getPropertyFromFile(const fs::path &configFilePath, const char *propertyName)
 {
-    ifstream infile(configFile);
+    ifstream infile(configFilePath);
     string line;
 
     while (getline(infile, line))
@@ -1548,33 +1489,25 @@ std::unique_ptr<PlatformDirectories> PlatformDirectories::getPlatformSpecificDir
 }
 
 #ifdef _WIN32
-std::string WindowsDirectories::configDirPath()
+fs::path WindowsDirectories::configDirPath()
 {
-    TCHAR szPath[MAX_PATH];
-    std::string folder;
+    wchar_t szPath[MAX_PATH];
 
-    if (!SUCCEEDED(GetModuleFileName(NULL, szPath, MAX_PATH)))
+    if (GetModuleFileNameW(NULL, szPath, MAX_PATH) == 0)
     {
-        return std::string();
-    }
-    else
-    {
-        if (SUCCEEDED(PathRemoveFileSpec(szPath)))
-        {
-            if (PathAppend(szPath, TEXT(".megaCmd")))
-            {
-                utf16ToUtf8(szPath, lstrlen(szPath), &folder);
-            }
-        }
+        return {};
     }
 
-    auto suffix = getenv("MEGACMD_WORKING_FOLDER_SUFFIX");
+    fs::path folder = fs::path(szPath).parent_path() / ".megaCmd";
+
+    auto suffix = _wgetenv(L"MEGACMD_WORKING_FOLDER_SUFFIX");
     if (suffix != nullptr)
     {
         folder += "_";
         folder += suffix;
     }
 
+    folder = nonMaxPathLimitedPath(folder); // prepend //?/
     return folder;
 }
 
@@ -1619,7 +1552,7 @@ std::string PosixDirectories::homeDirPath()
     return std::string(pwd.pw_dir);
 }
 
-std::string PosixDirectories::configDirPath()
+fs::path PosixDirectories::configDirPath()
 {
     std::string home = homeDirPath();
     if (home.empty())
@@ -1639,7 +1572,7 @@ string PosixDirectories::noHomeFallbackFolder()
 }
 
 #ifdef __APPLE__
-std::string MacOSDirectories::runtimeDirPath()
+fs::path MacOSDirectories::runtimeDirPath()
 {
     std::string home = homeDirPath();
     if (home.empty())
@@ -1671,7 +1604,7 @@ std::string getOrCreateSocketPath(bool createDirectory)
 
     static auto MAX_SOCKET_PATH = sizeof(sockaddr_un::sun_path) / sizeof(decltype(sockaddr_un::sun_path[0]));
 
-    if ((socketFolder.size() + 1 + sockname.size()) >= (MAX_SOCKET_PATH - 1))
+    if ((socketFolder.string().size() + 1 + sockname.size()) >= (MAX_SOCKET_PATH - 1))
     {
         if (createDirectory)
         {
@@ -1701,7 +1634,7 @@ std::string getOrCreateSocketPath(bool createDirectory)
         }
     }
 
-    return socketFolder.append("/").append(sockname);
+    return (socketFolder / sockname).string();
 }
 #endif // ifdef(_WIN32) else
 } //end namespace

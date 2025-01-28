@@ -16,13 +16,11 @@
 #pragma once
 
 #include <memory>
-#include <filesystem>
 
 #include "megacmdcommonutils.h"
 #include "sync_issues.h"
 
 using namespace megacmd;
-namespace fs = std::filesystem;
 
 namespace SyncCommand
 {

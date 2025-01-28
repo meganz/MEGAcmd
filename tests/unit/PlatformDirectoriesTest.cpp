@@ -57,6 +57,22 @@ TEST(PlatformDirectoriesTest, runtimeDirPath)
         EXPECT_EQ(dirs->runtimeDirPath(), "/tmp/.megaCmd");
     }
     #endif
+
+    {
+        G_SUBTEST << "Existing non-ascii HOME folder";
+        SelfDeletingTmpFolder tmpFolder("file_\u5f20\u4e09");
+
+    #ifdef __APPLE__
+        fs::path runtimeFolder = tmpFolder.path() / "Library" / "Caches" / "megacmd.mac";
+        fs::create_directories(runtimeFolder);
+    #else
+        fs::path runtimeFolder = tmpFolder.path() / ".megaCmd";
+    #endif
+
+        auto homeGuard = TestInstrumentsEnvVarGuard("HOME", tmpFolder.string());
+        EXPECT_EQ(dirs->runtimeDirPath().string(), runtimeFolder.string());
+    }
+
 #endif
 }
 
@@ -71,23 +87,36 @@ TEST(PlatformDirectoriesTest, configDirPath)
     {
         G_SUBTEST << "With $MEGACMD_WORKING_FOLDER_SUFFIX";
         auto guard = TestInstrumentsEnvVarGuard("MEGACMD_WORKING_FOLDER_SUFFIX", "foobar");
-        EXPECT_THAT(dirs->configDirPath(), testing::EndsWith(".megaCmd_foobar"));
+        EXPECT_THAT(dirs->configDirPath().wstring(), testing::EndsWith(L".megaCmd_foobar"));
     }
     {
         G_SUBTEST << "Without $MEGACMD_WORKING_FOLDER_SUFFIX";
         auto guard = TestInstrumentsUnsetEnvVarGuard("MEGACMD_WORKING_FOLDER_SUFFIX");
-        EXPECT_THAT(dirs->configDirPath(), testing::EndsWith(".megaCmd"));
+        EXPECT_THAT(dirs->configDirPath().wstring(), testing::EndsWith(L".megaCmd"));
+    }
+    {
+        G_SUBTEST << "With non-ascii $MEGACMD_WORKING_FOLDER_SUFFIX";
+        auto guard = TestInstrumentsEnvVarGuardW(L"MEGACMD_WORKING_FOLDER_SUFFIX", L"file_\u5f20\u4e09");
+        EXPECT_THAT(dirs->configDirPath().wstring(), testing::EndsWith(L"file_\u5f20\u4e09"));
     }
 #else
     {
         G_SUBTEST << "With alternative existing HOME";
         auto homeGuard = TestInstrumentsEnvVarGuard("HOME", "/tmp");
-        EXPECT_EQ(dirs->configDirPath(), "/tmp/.megaCmd");
+        EXPECT_EQ(dirs->configDirPath().string(), "/tmp/.megaCmd");
+    }
+    {
+        G_SUBTEST << "With alternative existing non-ascii HOME";
+        SelfDeletingTmpFolder tmpFolder("file_\u5f20\u4e09");
+        fs::path configFolder = tmpFolder.path() / ".megaCmd";
+
+        auto homeGuard = TestInstrumentsEnvVarGuard("HOME", tmpFolder.string());
+        EXPECT_EQ(dirs->configDirPath().string(), configFolder.string());
     }
     {
         G_SUBTEST << "With alternative NON existing HOME";
         auto homeGuard = TestInstrumentsEnvVarGuard("HOME", "/non-existent-dir");
-        EXPECT_EQ(dirs->configDirPath(), megacmd::PosixDirectories::noHomeFallbackFolder());
+        EXPECT_EQ(dirs->configDirPath().string(), megacmd::PosixDirectories::noHomeFallbackFolder());
     }
 #endif
 }
@@ -105,10 +134,26 @@ TEST(PlatformDirectoriesTest, lockExecution)
 
     using megacmd::PlatformDirectories;
     auto dirs = PlatformDirectories::getPlatformSpecificDirectories();
+
     {
         G_SUBTEST << "Another HOME";
 
         SelfDeletingTmpFolder tmpFolder;
+        auto homeGuard = TestInstrumentsEnvVarGuard("HOME", tmpFolder.string());
+
+#ifdef __APPLE__
+        fs::create_directories(tmpFolder.path() / "Library" / "Caches");
+        EXPECT_STREQ(dirs->runtimeDirPath().c_str(), tmpFolder.string().append("/Library/Caches/megacmd.mac").c_str());
+#endif
+        ASSERT_TRUE(ConfigurationManager::lockExecution());
+        ASSERT_TRUE(ConfigurationManager::unlockExecution());
+
+    }
+
+    {
+        G_SUBTEST << "Non-ascii HOME";
+
+        SelfDeletingTmpFolder tmpFolder("file_\u5f20\u4e09");
         auto homeGuard = TestInstrumentsEnvVarGuard("HOME", tmpFolder.string());
 
 #ifdef __APPLE__
@@ -159,16 +204,28 @@ TEST(PlatformDirectoriesTest, getOrCreateSocketPath)
         auto guard = TestInstrumentsEnvVarGuard("MEGACMD_SOCKET_NAME", "test.sock");
         auto socketPath = getOrCreateSocketPath(false);
 
-        ASSERT_TRUE(socketPath == dirs->runtimeDirPath() + "/test.sock" // normal case
-                    || socketPath == megacmd::PosixDirectories::noHomeFallbackFolder().append("/test.sock")); // too lengthy case
+        auto expectedNormalFile = (dirs->runtimeDirPath() / "test.sock").string(); // normal case
+        auto expectedFallbackFile = megacmd::PosixDirectories::noHomeFallbackFolder().append("/test.sock"); // too length case
+        ASSERT_THAT(socketPath, testing::AnyOf(expectedNormalFile, expectedFallbackFile));
+    }
+
+    {
+        G_SUBTEST << "With non-ascii $MEGACMD_SOCKET_NAME (normal or fallback case)";
+        auto guard = TestInstrumentsEnvVarGuard("MEGACMD_SOCKET_NAME", "file_\u5f20\u4e09");
+        auto socketPath = getOrCreateSocketPath(false);
+
+        auto expectedNormalFile = (dirs->runtimeDirPath() / "file_\u5f20\u4e09").string(); // normal case
+        auto expectedFallbackFile = megacmd::PosixDirectories::noHomeFallbackFolder().append("/file_\u5f20\u4e09"); // too length case
+        ASSERT_THAT(socketPath, testing::AnyOf(expectedNormalFile, expectedFallbackFile));
     }
 
     {
         G_SUBTEST << "Without $MEGACMD_SOCKET_NAME (normal or fallback case)";
         auto socketPath = getOrCreateSocketPath(false);
 
-        ASSERT_TRUE(socketPath == dirs->runtimeDirPath() + "/megacmd.socket" // normal case
-                    || socketPath == megacmd::PosixDirectories::noHomeFallbackFolder().append("/megacmd.socket")); // too lengthy case
+        auto expectedNormalFile = (dirs->runtimeDirPath() / "megacmd.socket").string(); // normal case
+        auto expectedFallbackFile = megacmd::PosixDirectories::noHomeFallbackFolder().append("/megacmd.socket"); // too length case
+        ASSERT_THAT(socketPath, testing::AnyOf(expectedNormalFile, expectedFallbackFile));
     }
 
     {
@@ -177,23 +234,23 @@ TEST(PlatformDirectoriesTest, getOrCreateSocketPath)
         auto guard = TestInstrumentsUnsetEnvVarGuard("MEGACMD_SOCKET_NAME");
         auto runtimeDir = dirs->runtimeDirPath();
         auto socketPath = getOrCreateSocketPath(false);
-        ASSERT_STREQ(socketPath.c_str(), std::string(dirs->runtimeDirPath()).append("/megacmd.socket").c_str());
+
+        ASSERT_STREQ(socketPath.c_str(), (dirs->runtimeDirPath() / "megacmd.socket").string().c_str());
     }
 
     {
         G_SUBTEST << "Without $MEGACMD_SOCKET_NAME, longth path: /tmp/megacmd-UID fallback";
 
-        SelfDeletingTmpFolder tmpFolder;
-        fs::path lengthyHome = tmpFolder.path() / "this_is_a_very_very_very_lengthy_folder_name_meant_to_make_socket_path_exceed_max_unix_socket_path_allowance";
-        fs::create_directories(lengthyHome);
+        SelfDeletingTmpFolder tmpFolder("this_is_a_very_very_very_lengthy_folder_name_meant_to_make_socket_path_exceed_max_unix_socket_path_allowance");
 #ifdef __APPLE__
-        fs::create_directories(lengthyHome / "Library" / "Caches");
+        fs::create_directories(tmpFolder.path() / "Library" / "Caches");
 #endif
-        auto homeGuard = TestInstrumentsEnvVarGuard("HOME", lengthyHome.string());
+        auto homeGuard = TestInstrumentsEnvVarGuard("HOME", tmpFolder.string());
         auto guard = TestInstrumentsUnsetEnvVarGuard("MEGACMD_SOCKET_NAME");
         auto runtimeDir = dirs->runtimeDirPath();
         auto socketPath = getOrCreateSocketPath(false);
-        ASSERT_STRNE(socketPath.c_str(), std::string(dirs->runtimeDirPath()).append("/megacmd.socket").c_str());
+
+        ASSERT_STRNE(socketPath.c_str(), (dirs->runtimeDirPath() / "megacmd.socket").string().c_str());
         ASSERT_STREQ(socketPath.c_str(), megacmd::PosixDirectories::noHomeFallbackFolder().append("/megacmd.socket").c_str());
     }
 }
@@ -214,6 +271,13 @@ TEST(PlatformDirectoriesTest, getNamedPipeName)
         auto guard = TestInstrumentsUnsetEnvVarGuard("MEGACMD_PIPE_SUFFIX");
         auto name = getNamedPipeName();
         EXPECT_THAT(name, testing::Not(testing::EndsWith(L"foobar")));
+    }
+
+    {
+        G_SUBTEST << "With non-ascii $MEGACMD_PIPE_SUFFIX";
+        auto guard = TestInstrumentsEnvVarGuardW(L"MEGACMD_PIPE_SUFFIX", L"file_\u5f20\u4e09");
+        auto name = getNamedPipeName();
+        EXPECT_THAT(name, testing::EndsWith(L"file_\u5f20\u4e09"));
     }
 }
 #endif

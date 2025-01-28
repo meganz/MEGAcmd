@@ -17,7 +17,6 @@
 
 #include <cassert>
 #include <functional>
-#include <filesystem>
 
 #include "megacmdlogger.h"
 #include "configurationmanager.h"
@@ -31,7 +30,6 @@
 
 using namespace megacmd;
 using namespace std::string_literals;
-namespace fs = std::filesystem;
 
 namespace
 {

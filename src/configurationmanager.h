@@ -32,14 +32,15 @@ namespace megacmd {
 class ConfigurationManager
 {
 private:
-    static std::string mConfigFolder;
-    static bool hasBeenUpdated;
+    inline static fs::path mConfigFolder;
+    inline static bool hasBeenUpdated = false;
 #ifdef WIN32
     static HANDLE mLockFileHandle;
 #elif defined(LOCK_EX) && defined(LOCK_NB)
     static int fd;
 #endif
 
+    static void createFolderIfNotExisting(const fs::path &folder);
     static void loadConfigDir();
 
     static void removeSyncConfig(sync_struct *syncToRemove);
@@ -47,8 +48,8 @@ private:
 #ifdef MEGACMD_TESTING_CODE
 public:
 #endif
-    static bool lockExecution(const std::string &lockFileFolder);
-    static bool unlockExecution(const std::string &lockFileFolder);
+    static bool lockExecution(const fs::path &lockFileFolder);
+    static bool unlockExecution(const fs::path &lockFileFolder);
 
 public:
     static std::map<std::string, sync_struct *> oldConfiguredSyncs; //This will refer to old syncs from now on
@@ -266,12 +267,12 @@ public:
         return toret;
     }
 
-    static std::string getConfigFolder();
+    static fs::path getConfigFolder();
 
     // creates a subfolder within the state dir and returns it (utf8)
-    static std::string getConfigFolderSubdir(const std::string &utf8Name);
-    static std::string getAndCreateRuntimeDir();
-    static std::string getAndCreateConfigDir();
+    static fs::path getConfigFolderSubdir(const fs::path& subdirName);
+    static fs::path getAndCreateRuntimeDir();
+    static fs::path getAndCreateConfigDir();
 
     static bool getHasBeenUpdated();
 

@@ -93,7 +93,7 @@ void utf8ToUtf16(const char* utf8data, string* utf16string)
         utf16string->append("", 1);
     }
 }
-// convert Windows Unicode to UTF-8
+
 void utf16ToUtf8(const wchar_t* utf16data, int utf16size, string* utf8string)
 {
     if(!utf16size)

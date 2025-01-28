@@ -35,7 +35,6 @@
 #include <limits>
 #include <string>
 #include <ctime>
-#include <filesystem>
 #include <set>
 
 #include <signal.h>
@@ -45,7 +44,6 @@
     using TI = TestInstruments;
 #endif
 
-namespace fs = std::filesystem;
 using namespace mega;
 using namespace std;
 
@@ -4329,7 +4327,7 @@ void MegaCmdExecuter::printTransferColumnDisplayer(ColumnDisplayer *cd, MegaTran
     //Direction
     string type;
 #ifdef _WIN32
-    type += getutf8fromUtf16((transfer->getType() == MegaTransfer::TYPE_DOWNLOAD)?L"\u25bc":L"\u25b2");
+    type += utf16ToUtf8((transfer->getType() == MegaTransfer::TYPE_DOWNLOAD)?L"\u25bc":L"\u25b2");
 #else
     type += (transfer->getType() == MegaTransfer::TYPE_DOWNLOAD)?"\u21d3":"\u21d1";
 #endif
@@ -4339,7 +4337,7 @@ void MegaCmdExecuter::printTransferColumnDisplayer(ColumnDisplayer *cd, MegaTran
     if (transfer->isSyncTransfer())
     {
 #ifdef _WIN32
-        type += getutf8fromUtf16(L"\u21a8");
+        type += utf16ToUtf8(L"\u21a8");
 #else
         type += "\u21f5";
 #endif
@@ -4347,7 +4345,7 @@ void MegaCmdExecuter::printTransferColumnDisplayer(ColumnDisplayer *cd, MegaTran
     else if (transfer->isBackupTransfer())
     {
 #ifdef _WIN32
-        type += getutf8fromUtf16(L"\u2191");
+        type += utf16ToUtf8(L"\u2191");
 #else
         type += "\u23eb";
 #endif

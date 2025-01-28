@@ -52,18 +52,6 @@
 #include <sys/types.h>
 #include <errno.h>
 #else
-#include <fcntl.h>
-#include <io.h>
-#include <stdio.h>
-#ifndef _O_U16TEXT
-#define _O_U16TEXT 0x00020000
-#endif
-#ifndef _O_U8TEXT
-#define _O_U8TEXT 0x00040000
-#endif
-#endif
-
-#if defined(_WIN32)
   #define strdup _strdup
 #endif
 
@@ -252,7 +240,6 @@ void statechangehandle(string statestring, MegaCmdShellCommunications &comsManag
         {
             if (serverTryingToLog)
             {
-                std::lock_guard<std::mutex> stdOutLockGuard(comsManager.getStdoutLockGuard());
                 printCenteredContentsCerr(string("MEGAcmd Server is still trying to log in. Still, some commands are available.\n"
                              "Type \"help\", to list them.").c_str(), width);
             }
@@ -278,11 +265,8 @@ void statechangehandle(string statestring, MegaCmdShellCommunications &comsManag
 #ifdef _WIN32
                 wstring wbuffer;
                 stringtolocalw((const char*)os.str().data(),&wbuffer);
-                int oldmode;
-                std::lock_guard<std::mutex> stdOutLockGuard(comsManager.getStdoutLockGuard());
-                oldmode = _setmode(_fileno(stdout), _O_U8TEXT);
+                WindowsUtf8StdoutGuard utf8Guard;
                 OUTSTREAM << wbuffer << flush;
-                _setmode(_fileno(stdout), oldmode);
 #else
                 OUTSTREAM << os.str();
 #endif
@@ -296,21 +280,22 @@ void statechangehandle(string statestring, MegaCmdShellCommunications &comsManag
         {
             serverTryingToLog = true;
 
-            std::lock_guard<std::mutex> stdOutLockGuard(comsManager.getStdoutLockGuard());
             printCenteredContentsCerr(string("Resuming session ... ").c_str(), width, false);
         }
         else if (newstate.compare(0, strlen("message:"), "message:") == 0)
         {
             if (notRepeatedMessage(newstate)) //to avoid repeating messages
             {
-                std::lock_guard<std::mutex> stdOutLockGuard(comsManager.getStdoutLockGuard());
-#ifdef _WIN32
-                int oldmode = _setmode(_fileno(stdout), _O_U8TEXT);
-#endif
-                string contents = newstate.substr(strlen("message:"));
+                std::string_view messageContents = std::string_view(newstate).substr(strlen("message:"));
+                string contents(messageContents);
                 replaceAll(contents, "%mega-%", "");
 
-                if (contents.find("-----") != 0)
+#ifdef _WIN32
+                WindowsUtf8StdoutGuard utf8Guard;
+#else
+                StdoutMutexGuard stdoutGuard;
+#endif
+                if (messageContents.rfind("-----", 0) != 0)
                 {
                     if (!procesingline || promptreinstalledwhenprocessingline || shown_partial_progress)
                     {
@@ -331,10 +316,6 @@ void statechangehandle(string statestring, MegaCmdShellCommunications &comsManag
                     requirepromptinstall = true;
                     OUTSTREAM << endl <<  contents << endl;
                 }
-#ifdef _WIN32
-                _setmode(_fileno(stdout), oldmode);
-#endif
-
             }
         }
         else if (newstate.compare(0, strlen("clientID:"), "clientID:") == 0)
@@ -369,7 +350,6 @@ void statechangehandle(string statestring, MegaCmdShellCommunications &comsManag
                 shown_partial_progress = false;
             }
 
-            std::lock_guard<std::mutex> stdOutLockGuard(comsManager.getStdoutLockGuard());
             long long completed = received == SPROGRESS_COMPLETE ? PROGRESS_COMPLETE : charstoll(received.c_str());
             const char * progressTitle = title.empty() ? "TRANSFERRING" : title.c_str();
             printprogress(completed, charstoll(total.c_str()), progressTitle);
@@ -867,7 +847,6 @@ void changedir(const string& where)
 #endif
 }
 
-
 #ifndef NO_READLINE
 char* remote_completion(const char* text, int state)
 {
@@ -887,16 +866,7 @@ char* remote_completion(const char* text, int state)
 
         string outputcommand;
 
-#ifdef _WIN32
-        #ifdef __MINGW32__
-            wstring soss=oss.str();
-            localwtostring(&soss,&outputcommand);
-        #else
-            localwtostring(&oss.str(),&outputcommand);
-        #endif
-#else
-         outputcommand = oss.str();
-#endif
+        outputcommand = oss.str();
 
         if (outputcommand == "MEGACMD_USE_LOCAL_COMPLETION")
         {
@@ -966,78 +936,6 @@ void printHistory()
     }
 }
 
-#ifdef _WIN32
-
-/**
- * @brief getcharacterreadlineUTF16support
- * while this works, somehow arrows and other readline stuff is disabled using this one.
- * @param stream
- * @return
- */
-int getcharacterreadlineUTF16support (FILE *stream)
-{
-    int result;
-    char b[10];
-    memset(b,0,10);
-
-    while (1)
-    {
-        int oldmode = _setmode(_fileno(stream), _O_U16TEXT);
-
-        result = read (fileno (stream), &b, 10);
-        _setmode(_fileno(stream), oldmode);
-
-        if (result == 0)
-        {
-            return (EOF);
-        }
-
-        // convert the UTF16 string to widechar
-        size_t wbuffer_size;
-#ifdef _TRUNCATE
-        mbstowcs_s(&wbuffer_size, NULL, 0, b, _TRUNCATE);
-#else
-        wbuffer_size=10;
-#endif
-        wchar_t *wbuffer = new wchar_t[wbuffer_size];
-
-#ifdef _TRUNCATE
-        mbstowcs_s(&wbuffer_size, wbuffer, wbuffer_size, b, _TRUNCATE);
-#else
-        mbstowcs(wbuffer, b, wbuffer_size);
-#endif
-
-        // convert the UTF16 widechar to UTF8 string
-        string receivedutf8;
-        utf16ToUtf8(wbuffer, wbuffer_size,&receivedutf8);
-
-        if (strlen(receivedutf8.c_str()) > 1) //multi byte utf8 sequence: place the UTF8 characters into rl buffer one by one
-        {
-            for (unsigned int i=0;i< strlen(receivedutf8.c_str());i++)
-            {
-                rl_line_buffer[rl_end++] = receivedutf8.c_str()[i];
-                rl_point=rl_end;
-            }
-            rl_line_buffer[rl_end] = '\0';
-
-            return 0;
-        }
-
-        if (result =! 0)
-        {
-            return (b[0]);
-        }
-
-        /* If zero characters are returned, then the file that we are
-     reading from is empty!  Return EOF in that case. */
-        if (result == 0)
-        {
-            return (EOF);
-        }
-    }
-}
-#endif
-
 void wait_for_input(int readline_fd)
 {
     fd_set fds;
@@ -1050,16 +948,12 @@ void wait_for_input(int readline_fd)
     {
         if (ERRNO != EINTR)  //syscall
         {
-#ifdef _WIN32
-         if (ERRNO != WSAENOTSOCK) // it enters here since it is not a socket. Alt: Use WaitForMultipleObjectsEx
-#endif
-                cerr << "Error at select at wait_for_input errno: " << ERRNO << endl;
+            cerr << "Error at select at wait_for_input errno: " << ERRNO << endl;
             return;
         }
     }
 }
 #else
-
 
 vector<autocomplete::ACState::Completion> remote_completion(string linetocomplete)
 {
@@ -2056,42 +1950,63 @@ void printWelcomeMsg(unsigned int width)
         width = getNumberOfCols(75);
     }
 
-    COUT << endl;
-    COUT << ".";
-    for (unsigned int i = 0; i < width; i++)
-        COUT << "=" ;
-    COUT << ".";
-    COUT << endl;
-    printCenteredLine(" __  __ _____ ____    _                      _ ",width);
-    printCenteredLine("|  \\/  | ___|/ ___|  / \\   ___ _ __ ___   __| |",width);
-    printCenteredLine("| |\\/| | \\  / |  _  / _ \\ / __| '_ ` _ \\ / _` |",width);
-    printCenteredLine("| |  | | /__\\ |_| |/ ___ \\ (__| | | | | | (_| |",width);
-    printCenteredLine("|_|  |_|____|\\____/_/   \\_\\___|_| |_| |_|\\__,_|",width);
+    std::ostringstream oss;
 
-    COUT << "|";
+    oss << endl;
+    oss << ".";
     for (unsigned int i = 0; i < width; i++)
-        COUT << " " ;
-    COUT << "|";
-    COUT << endl;
-    printCenteredLine("Welcome to MEGAcmd! A Command Line Interactive and Scriptable",width);
-    printCenteredLine("Application to interact with your MEGA account.",width);
-    printCenteredLine("Please write to support@mega.nz if you find any issue or",width);
-    printCenteredLine("have any suggestion concerning its functionalities.",width);
-    printCenteredLine("Enter \"help --non-interactive\" to learn how to use MEGAcmd with scripts.",width);
-    printCenteredLine("Enter \"help\" for basic info and a list of available commands.",width);
+        oss << "=" ;
+    oss << ".";
+    oss << endl;
+    printCenteredLine(oss, " __  __ _____ ____    _                      _ ",width);
+    printCenteredLine(oss, "|  \\/  | ___|/ ___|  / \\   ___ _ __ ___   __| |",width);
+    printCenteredLine(oss, "| |\\/| | \\  / |  _  / _ \\ / __| '_ ` _ \\ / _` |",width);
+    printCenteredLine(oss, "| |  | | /__\\ |_| |/ ___ \\ (__| | | | | | (_| |",width);
+    printCenteredLine(oss, "|_|  |_|____|\\____/_/   \\_\\___|_| |_| |_|\\__,_|",width);
+
+    oss << "|";
+    for (unsigned int i = 0; i < width; i++)
+        oss << " " ;
+    oss << "|";
+    oss << endl;
+    printCenteredLine(oss, "Welcome to MEGAcmd! A Command Line Interactive and Scriptable",width);
+    printCenteredLine(oss, "Application to interact with your MEGA account.",width);
+    printCenteredLine(oss, "Please write to support@mega.nz if you find any issue or",width);
+    printCenteredLine(oss, "have any suggestion concerning its functionalities.",width);
+    printCenteredLine(oss, "Enter \"help --non-interactive\" to learn how to use MEGAcmd with scripts.",width);
+    printCenteredLine(oss, "Enter \"help\" for basic info and a list of available commands.",width);
 
 #if defined(_WIN32) && defined(NO_READLINE)
-    printCenteredLine("Unicode support in the console is improved, see \"help --unicode\"", width);
+    printCenteredLine(oss, "Unicode support in the console is improved, see \"help --unicode\"", width);
 #elif defined(_WIN32)
-    printCenteredLine("Enter \"help --unicode\" for info regarding non-ASCII support.",width);
+    printCenteredLine(oss, "Enter \"help --unicode\" for info regarding non-ASCII support.",width);
 #endif
 
-    COUT << "`";
+    oss << "`";
     for (unsigned int i = 0; i < width; i++)
-        COUT << "=" ;
-    COUT << "´";
-    COUT << endl;
+    {
+        oss << "=" ;
+    }
 
+#ifndef _WIN32
+    oss << "\u00b4\n";
+    COUT << oss.str() << std::flush;
+#else
+    WindowsUtf8StdoutGuard utf8Guard;
+    // So far, all is ASCII.
+    COUT << oss.str();
+
+    // Now let's tray the non ascii forward acute. Note: codepage should have been set to UTF-8
+    // set via console->setShellConsole(CP_UTF8, GetConsoleOutputCP());
+    assert(GetConsoleOutputCP() == CP_UTF8);
+
+    if (!(COUT << L"\u00b4")) // still, Windows 7 or depending on the fonts, the console may struggle to render this
+    {
+        COUT << "/"; //fallback character
+    }
+
+    COUT << endl;
+#endif
 }
 
 int quote_detector(char *line, int index)
@@ -2120,52 +2035,6 @@ bool runningInBackground()
 #endif
     return false;
 }
-
-#ifdef _WIN32
-void mycompletefunct(char **c, int num_matches, int max_length)
-{
-    int cols = 80;
-
-#if defined( RL_ISSTATE ) && defined( RL_STATE_INITIALIZED )
-    int rows = 1;
-
-            if (RL_ISSTATE(RL_STATE_INITIALIZED))
-            {
-                rl_resize_terminal();
-                rl_get_screen_size(&rows, &cols);
-            }
-#endif
-
-
-    // max_length is not trustworthy
-    for (int i=1; i <= num_matches; i++) //contrary to what the documentation says, num_matches is not the size of c (but num_matches+1), current text is preappended in c[0]
-    {
-        max_length = max(max_length,(int)strlen(c[i]));
-    }
-
-    OUTSTREAM << endl;
-
-    int nelements_per_col = max(1,(cols-1)/(max_length+1));
-    for (int i=1; i <= num_matches; i++) //contrary to what the documentation says, num_matches is not the size of c (but num_matches+1), current text is preappended in c[0]
-    {
-        string option = c[i];
-
-        {
-            std::lock_guard<std::mutex> stdOutLockGuard(comms->getStdoutLockGuard());
-            OUTSTREAM << setw(min(cols-1,max_length+1)) << left;
-            int oldmode = _setmode(_fileno(stdout), _O_U16TEXT);
-            OUTSTREAM << c[i];
-            _setmode(_fileno(stdout), oldmode);
-        }
-
-        if ( (i%nelements_per_col == 0) && (i != num_matches))
-        {
-            OUTSTREAM << endl;
-        }
-    }
-    OUTSTREAM << endl;
-}
-#endif
 
 #ifndef NO_READLINE
 std::string readresponse(const char* question)
@@ -2211,12 +2080,6 @@ using namespace megacmd;
 
 int main(int argc, char* argv[])
 {
-
-#if defined(_WIN32) && !defined(NO_READLINE)
-    // Set Environment's default locale
-    setlocale(LC_ALL, "en-US");
-    rl_completion_display_matches_hook = mycompletefunct;
-#endif
 
     // intialize the comms object
 #if defined(_WIN32)
