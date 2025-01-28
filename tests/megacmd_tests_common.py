@@ -136,7 +136,7 @@ def cmdshell_ec(what):
     out = re.sub(r'.*\r', '', out) # erase non printable stuff
 
     # extract log lines as stderr output. This is subideal: but pexpect.spawn does not seem to support providing separated stderr
-    stderr_pattern = r'\[\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.\d{6} (sdk|cmd)$'
+    stderr_pattern = r'\[\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.\d{6} (sdk|cmd)'
     stdout_content, stderr_content = '\n'.join([line for line in out.split('\n') if not re.match(stderr_pattern, line)]), \
                                      '\n'.join([line for line in out.split('\n') if re.match(stderr_pattern, line)])
 
