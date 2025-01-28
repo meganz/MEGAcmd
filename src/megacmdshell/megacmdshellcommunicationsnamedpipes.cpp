@@ -588,7 +588,7 @@ int MegaCmdShellCommunicationsNamedPipes::executeCommand(string command, std::st
                     }
                 } while(n != 0 && partialoutsize && n !=SOCKET_ERROR);
 
-                if (isCat && !binaryoutput)
+                if (isCat && !binaryoutput && interactiveshell)
                 {
                     shouldPrintAdditionalLine = true;
                 }
