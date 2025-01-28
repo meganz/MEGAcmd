@@ -158,7 +158,7 @@ def cmdshell_es(what):
 #Execute and strip with status code and err
 def cmdshell_esc(what):
     out,code,err=cmdshell_ec(what)
-    return out.strip, code, err.strip()
+    return out.strip(), code, err.strip()
 
 #exit if failed
 def cmdshell_ef(what):
