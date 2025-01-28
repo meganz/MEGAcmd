@@ -335,6 +335,7 @@ if (ENABLE_MEGACMD_TESTS)
     add_executable(mega-cmd-tests-integration ${executablesType})
     add_source_and_corresponding_header_to_target(mega-cmd-tests-integration PRIVATE
         "${ProjectDir}/tests/integration/BasicTests.cpp"
+        "${ProjectDir}/tests/integration/CatTests.cpp"
         "${ProjectDir}/tests/integration/ExportTests.cpp"
         "${ProjectDir}/tests/integration/SyncIssuesTests.cpp"
         "${ProjectDir}/tests/integration/SyncIgnoreTests.cpp"

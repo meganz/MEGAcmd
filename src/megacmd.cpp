@@ -4846,7 +4846,7 @@ bool registerUpdater()
     stringSID = getCurrentSid();
     if (!stringSID)
     {
-        MegaApi::log(MegaApi::LOG_LEVEL_ERROR, "Unable to get the current SID");
+        LOG_err << "Unable to get the current SID";
         return false;
     }
 
@@ -4932,21 +4932,21 @@ bool registerUpdater()
                     &pRegisteredTask)))
             {
                 success = true;
-                MegaApi::log(MegaApi::LOG_LEVEL_ERROR, "Update task registered OK");
+                LOG_err << "Update task registered OK";
             }
             else
             {
-                MegaApi::log(MegaApi::LOG_LEVEL_ERROR, "Error registering update task");
+                LOG_err << "Error registering update task";
             }
         }
         else
         {
-            MegaApi::log(MegaApi::LOG_LEVEL_ERROR, "Error creating update task");
+            LOG_err << "Error creating update task";
         }
     }
     else
     {
-        MegaApi::log(MegaApi::LOG_LEVEL_ERROR, "Error getting root task folder");
+        LOG_err << "Error getting root task folder";
     }
 
     if (pRegisteredTask)
