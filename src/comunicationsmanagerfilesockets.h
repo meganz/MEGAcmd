@@ -58,6 +58,7 @@ private:
     std::mutex mtx;
     std::mutex informerMutex;
 
+    void sendPartialOutputImpl(CmdPetition *inf, char *s, size_t size, bool binaryContents, bool sendAsError);
 public:
     ComunicationsManagerFileSockets();
 
@@ -81,6 +82,8 @@ public:
 
     void sendPartialOutput(CmdPetition *inf, OUTSTRING *s) override;
     void sendPartialOutput(CmdPetition *inf, char *s, size_t size, bool binaryContents = false) override;
+    void sendPartialError(CmdPetition *inf, OUTSTRING *s) override;
+    void sendPartialError(CmdPetition *inf, char *s, size_t size, bool binaryContents = false) override;
 
     int informStateListener(CmdPetition *inf, const std::string &s) override;
 

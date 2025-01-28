@@ -279,7 +279,7 @@ TEST_F(SyncIssuesTests, ShowSyncIssuesInSyncCommand)
     ASSERT_TRUE(result.ok());
     EXPECT_THAT(result.out(), testing::HasSubstr("Sync Issues (1)"));
     EXPECT_THAT(result.out(), testing::Not(testing::HasSubstr(" NO ")));
-    EXPECT_THAT(result.out(), testing::HasSubstr("You have sync issues"));
+    EXPECT_THAT(result.err(), testing::HasSubstr("You have sync issues"));
 
     {
         SyncIssueListGuard guard(2);
@@ -289,7 +289,7 @@ TEST_F(SyncIssuesTests, ShowSyncIssuesInSyncCommand)
     ASSERT_TRUE(result.ok());
     EXPECT_THAT(result.out(), testing::HasSubstr("Sync Issues (2)"));
     EXPECT_THAT(result.out(), testing::Not(testing::HasSubstr(" NO ")));
-    EXPECT_THAT(result.out(), testing::HasSubstr("You have sync issues"));
+    EXPECT_THAT(result.err(), testing::HasSubstr("You have sync issues"));
 }
 
 TEST_F(SyncIssuesTests, SyncIssueDetail)
@@ -324,7 +324,7 @@ TEST_F(SyncIssuesTests, SyncIssueDetail)
     ASSERT_TRUE(result.ok());
 
     lines = splitByNewline(result.out());
-    EXPECT_THAT(lines.size(), 3);
+    EXPECT_THAT(lines.size(), 2);
 
     words = megacmd::split(lines[1], " ");
     EXPECT_THAT(words, testing::Not(testing::IsEmpty()));
@@ -370,7 +370,7 @@ TEST_F(SyncIssuesTests, AllSyncIssuesDetail)
     ASSERT_TRUE(result.ok());
 
     lines = splitByNewline(result.out());
-    EXPECT_THAT(lines.size(), 3);
+    EXPECT_THAT(lines.size(), 2);
 
     words = megacmd::split(lines[1], " ");
     EXPECT_THAT(words, testing::Not(testing::IsEmpty()));
