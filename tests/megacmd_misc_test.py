@@ -276,17 +276,17 @@ class MEGAcmdMiscTest(unittest.TestCase):
         self.compare_find('/')
 
     def test_10_send_to_non_contact(self):
-        o, status = cmd_ec(f'{CP} *.txt badContact{MEGA_EMAIL_AUX}:')
+        o, status, e = cmd_ec(f'{CP} *.txt badContact{MEGA_EMAIL_AUX}:')
         if not CMDSHELL:
             self.check_failed_and_clear(o, status)
-        self.assertIn('failed to send file to user: not found', o.decode().lower())
+        self.assertIn('failed to send file to user: not found', e.decode().lower())
 
     def test_11_multicopy_into_file(self):
         bad_folder = '/le01/file01nonempty.txt'
-        o, status = cmd_ec(f'{CP} *.txt {bad_folder}')
+        o, status, e = cmd_ec(f'{CP} *.txt {bad_folder}')
         if not CMDSHELL:
             self.check_failed_and_clear(o, status)
-        self.assertIn(f'{bad_folder} must be a valid folder', o.decode().lower())
+        self.assertIn(f'{bad_folder} must be a valid folder', e.decode().lower())
 
     def test_12_copy_into_existing_file(self):
         #Test 25 #copy into existing file
@@ -350,7 +350,7 @@ class MEGAcmdMiscTest(unittest.TestCase):
         cmd_ef(PUT+" localtmp/images")
         #3rd, for each file, download thumbnail
         folder="/images"
-        o,status=cmd_ec(FIND+" "+folder+"/*")
+        o,status,e=cmd_ec(FIND+" "+folder+"/*")
         fullout=""
         fullStatus=1
 
@@ -358,7 +358,7 @@ class MEGAcmdMiscTest(unittest.TestCase):
             if b"." not in f:
                 continue # Ignore folders
             rmfileifexisting("thumbnail.jpg")
-            o,status=cmd_ec(THUMB+" "+f.decode()+" thumbnail.jpg")
+            o,status,e=cmd_ec(THUMB+" "+f.decode()+" thumbnail.jpg")
             ext=f.decode().split(".")[-1].lower().strip()
             allowedFailure=["ai","ani","cur","eps","exe","gif","heic","html","idx","j2c","jpm","md","mj2","pdf","psd","sgi","svg","txt","webp","xmp", "pnm","ppm", "tiff", "tif", "x3f"]
             if not ext in allowedFailure and b"saved in" not in o: #note: output code is not trustworthy: check for "saved in"
@@ -376,7 +376,7 @@ class MEGAcmdMiscTest(unittest.TestCase):
         cmd_ef(PUT+" localtmp/pdfs")
         #3rd, for each file, download thumbnail
         folder="/pdfs"
-        o,status=cmd_ec(FIND+" "+folder+"/*")
+        o,status,e=cmd_ec(FIND+" "+folder+"/*")
         fullout=""
         fullStatus=1
 
@@ -386,7 +386,7 @@ class MEGAcmdMiscTest(unittest.TestCase):
         for f in split:
             if not len(f): continue
             rmfileifexisting("thumbnail.jpg")
-            o,status=cmd_ec(THUMB+" '"+f.decode()+"' thumbnail.jpg")
+            o,status,e=cmd_ec(THUMB+" '"+f.decode()+"' thumbnail.jpg")
             allowedFailure=["very big sheet size", "protected", "non-pdf-file","with-password","_TFG"]
 
             if not True in [x.encode() in f for x in allowedFailure] and b"saved in" not in o: #note: output code is not trustworthy: check for "saved in"

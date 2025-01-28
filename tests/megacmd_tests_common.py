@@ -50,14 +50,16 @@ IMPORT = build_command_name('import')
 def ec(what):
     if VERBOSE:
         print("Executing "+what)
-    process = subprocess.Popen(what, shell=True, stdout=subprocess.PIPE)
+    process = subprocess.Popen(what, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     stdoutdata, stderrdata = process.communicate()
 
     stdoutdata=stdoutdata.replace(b'\r\n',b'\n')
+    stderrdata=stderrdata.replace(b'\r\n',b'\n')
     if VERBOSE:
         print(stdoutdata.strip())
+        print(stderrdata.strip())
 
-    return stdoutdata,process.returncode
+    return stdoutdata,process.returncode,stderrdata
 
 #execute and return only stdout contents
 def ex(what):
@@ -68,18 +70,18 @@ def ex(what):
 def es(what):
     return ec(what)[0].strip()
 
-#Execute and strip with status code
+#Execute and strip with status code and err
 def esc(what):
-    ret=ec(what)
-    return ret[0].strip(),ret[1]
+    out, status, err =ec(what)
+    return out.strip(),status, err.strip()
 
 #exit if failed
 def ef(what):
-    out,code=esc(what)
+    out,code,err=esc(what)
     if code != 0:
         print("FAILED trying "+ what, file=sys.stderr)
         print(out, file=sys.stderr)
-
+        print(err, file=sys.stderr)
         exit(code)
     return out
 
@@ -133,11 +135,17 @@ def cmdshell_ec(what):
     out = re.sub(r'.*\x1b\[K','', out) # erase line controls
     out = re.sub(r'.*\r', '', out) # erase non printable stuff
 
+    # extract log lines as stderr output. This is subideal: but pexpect.spawn does not seem to support providing separated stderr
+    stderr_pattern = r'\[\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.\d{6} (sdk|cmd)$'
+    stdout_content, stderr_content = '\n'.join([line for line in out.split('\n') if not re.match(stderr_pattern, line)]), \
+                                     '\n'.join([line for line in out.split('\n') if re.match(stderr_pattern, line)])
+
     if VERBOSE:
         print(f'Exit code: {child.exitstatus}')
-        print(f'Out: {out}')
+        print(f'Out: {stdout_content}')
+        print(f'Err: {stderr_content}')
 
-    return out.encode('utf-8'), child.exitstatus
+    return stdout_content.encode('utf-8'), child.exitstatus, stderr_content.encode('utf-8')
 
 #execute and return only stdout contents
 def cmdshell_ex(what):
@@ -147,18 +155,18 @@ def cmdshell_ex(what):
 def cmdshell_es(what):
     return cmdshell_ec(what)[0].strip()
 
-#Execute and strip with status code
+#Execute and strip with status code and err
 def cmdshell_esc(what):
-    ret=cmdshell_ec(what)
-    return ret[0].strip(),ret[1]
+    out,code,err=cmdshell_ec(what)
+    return out.strip, code, err.strip()
 
 #exit if failed
 def cmdshell_ef(what):
-    out,code=cmdshell_ec(what)
+    out,code, err=cmdshell_ec(what)
     if code != 0:
         print("FAILED trying "+str(what), file=sys.stderr)
         print(out, file=sys.stderr)
-
+        print(err, file=sys.stderr)
         exit(code)
     return out
 
@@ -173,7 +181,7 @@ def cmd_ex(what):
 def cmd_es(what):
     if CMDSHELL: return cmdshell_es(what)
     else: return es(what)
-#Execute and strip with status code
+#Execute and strip with status code and err
 def cmd_esc(what):
     if CMDSHELL: return cmdshell_esc(what)
     else: return esc(what)
