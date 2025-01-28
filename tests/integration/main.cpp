@@ -17,7 +17,10 @@
 
 #include "megacmd.h"
 #include "megacmdlogger.h"
+#include "megacmd_rotating_logger.h"
 #include "Instruments.h"
+
+#include "TestUtils.h"
 
 #ifdef __linux__
 #include <sched.h>
@@ -44,6 +47,7 @@ static void setUpUnixSignals()
 
 int main (int argc, char *argv[])
 {
+
 #ifdef __linux__
     if (getenv("MEGA_INTEGRATION_TEST_ENFORCE_SINGLE_CPU"))
     {
@@ -62,6 +66,17 @@ int main (int argc, char *argv[])
 
     testing::InitGoogleTest(&argc, argv);
 
+#ifdef WIN32
+    megacmd::Instance<megacmd::WindowsConsoleController> windowsConsoleController;
+
+    // Set custom gtests event listener to control the output to stdout
+    ::testing::TestEventListeners& listeners =
+        ::testing::UnitTest::GetInstance()->listeners();
+    auto customListener = new CustomTestEventListener();
+    customListener->mDefault.reset(listeners.Release(listeners.default_result_printer()));
+    listeners.Append(customListener);
+#endif
+
     using TI = TestInstruments;
 
     std::promise<void> serverWaitingPromise;
@@ -78,7 +93,7 @@ int main (int argc, char *argv[])
         };
 
         constexpr bool logToCout = false;
-        auto createDefaultStream = [] { return new megacmd::LoggedStreamDefaultFile(); };
+        auto createDefaultStream = [] { return new megacmd::FileRotatingLoggedStream(megacmd::MegaCmdLogger::getDefaultFilePath()); };
         megacmd::executeServer(1, args.data(), createDefaultStream, logToCout, mega::MegaApi::LOG_LEVEL_MAX, mega::MegaApi::LOG_LEVEL_MAX);
     });
 

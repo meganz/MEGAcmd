@@ -224,11 +224,16 @@ void ComunicationsManagerNamedPipes::returnAndClosePetition(std::unique_ptr<CmdP
                 connectsucceeded = true;
                 break;
             }
-            else
+            else if (ERRNO == ERROR_NO_DATA)
             {
-                LOG_fatal << "ERROR on connecting to namedPipe " << outNamedPipe << ". errno: " << ERRNO << ". Attempts: " << attempts;
+                break;
             }
-            sleepMilliSeconds(500);
+            else
+            {    // Problem: this, caused by a client shutdown, entails trying to sendPartialOutput again (via MEGAcmdLogger::formatLogToStream)
+                LOG_err << "ERROR on connecting to namedPipe " << outNamedPipe << ". errno: " << ERRNO << ". Attempts: " << attempts;
+                assert(false);
+            }
+            sleepMilliSeconds(50);
         }
         else
         {
@@ -238,7 +243,7 @@ void ComunicationsManagerNamedPipes::returnAndClosePetition(std::unique_ptr<CmdP
 
     if (!connectsucceeded)
     {
-        LOG_fatal << "Return and close: Unable to connect on outnamedPipe " << outNamedPipe << " error: " << ERRNO;
+        LOG_err << "Return and close: Unable to connect on outnamedPipe " << outNamedPipe << " error: " << ERRNO;
         return;
     }
 
@@ -282,11 +287,16 @@ void ComunicationsManagerNamedPipes::sendPartialOutput(CmdPetition *inf, OUTSTRI
                 connectsucceeded = true;
                 break;
             }
+            else if (ERRNO == ERROR_NO_DATA)
+            {
+                break;
+            }
             else
             {
                 cerr << "ERROR on connecting to namedPipe " << outNamedPipe << ". errno: " << ERRNO << ". Attempts: " << attempts << endl;
+                assert(false);
             }
-            sleepMilliSeconds(500);
+            sleepMilliSeconds(50);
         }
         else
         {
@@ -297,7 +307,7 @@ void ComunicationsManagerNamedPipes::sendPartialOutput(CmdPetition *inf, OUTSTRI
     if (!connectsucceeded)
     {
         cerr << "sendPartialOutput: Unable to connect on outnamedPipe " << outNamedPipe << " error: " << ERRNO << endl;
-        if (errno == ERROR_NO_DATA) //TODO: pipe disconnected error?
+        if (ERRNO == ERROR_NO_DATA)
         {
             std::cerr << "WARNING: Client disconnected, the rest of the output will be discarded" << endl;
             inf->clientDisconnected = true;
@@ -313,8 +323,8 @@ void ComunicationsManagerNamedPipes::sendPartialOutput(CmdPetition *inf, OUTSTRI
     DWORD n;
     if (!WriteFile(outNamedPipe,(const char*)&outCode, sizeof(outCode), &n, NULL))
     {
-        LOG_err << "ERROR writing output Code to namedPipe: " << ERRNO;
-        if (errno == ERROR_NO_DATA) //TODO: pipe disconnected error?
+        std::cerr << "ERROR writing output Code to namedPipe: " << ERRNO << std::endl;
+        if (ERRNO == ERROR_NO_DATA) //TODO: pipe disconnected error?
         {
             std::cerr << "WARNING: Client disconnected, the rest of the output will be discarded" << endl;
             inf->clientDisconnected = true;
@@ -325,12 +335,12 @@ void ComunicationsManagerNamedPipes::sendPartialOutput(CmdPetition *inf, OUTSTRI
     size_t size = sutf8.size() > 1 ? sutf8.size() : 1; // client does not like empty responses
     if (!WriteFile(outNamedPipe,(const char*)&size, sizeof(size), &n, NULL))
     {
-        LOG_err << "ERROR writing output Code to namedPipe: " << ERRNO;
+        std::cerr << "ERROR writing output Code to namedPipe: " << std::endl;
         return;
     }
     if (!WriteFile(outNamedPipe,sutf8.data(), DWORD(size), &n, NULL))
     {
-        LOG_err << "ERROR writing to namedPipe: " << ERRNO;
+        std::cerr << "ERROR writing to namedPipe: " << ERRNO << std::endl;
     }
 }
 
@@ -358,6 +368,10 @@ void ComunicationsManagerNamedPipes::sendPartialOutput(CmdPetition *inf, char *s
                 connectsucceeded = true;
                 break;
             }
+            else if (ERRNO == ERROR_NO_DATA)
+            {
+                break;
+            }
             else
             {
                 cerr << "ERROR on connecting to namedPipe " << outNamedPipe << ". errno: " << ERRNO << ". Attempts: " << attempts << endl;
@@ -373,7 +387,7 @@ void ComunicationsManagerNamedPipes::sendPartialOutput(CmdPetition *inf, char *s
     if (!connectsucceeded)
     {
         cerr << "sendPartialOutput: Unable to connect on outnamedPipe " << outNamedPipe << " error: " << ERRNO << endl;
-        if (errno == ERROR_NO_DATA)
+        if (ERRNO == ERROR_NO_DATA)
         {
             std::cerr << "WARNING: Client disconnected, the rest of the output will be discarded" << endl;
             inf->clientDisconnected = true;
@@ -386,7 +400,7 @@ void ComunicationsManagerNamedPipes::sendPartialOutput(CmdPetition *inf, char *s
     if (!WriteFile(outNamedPipe,(const char*)&outCode, sizeof(outCode), &n, NULL))
     {
         LOG_err << "ERROR writing output Code to namedPipe: " << ERRNO;
-        if (errno == ERROR_NO_DATA)
+        if (ERRNO == ERROR_NO_DATA)
         {
             std::cerr << "WARNING: Client disconnected, the rest of the output will be discarded" << endl;
             inf->clientDisconnected = true;

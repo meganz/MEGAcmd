@@ -188,7 +188,7 @@ class LoggedStreamPartialOutputs : public LoggedStream
 {
 public:
     LoggedStreamPartialOutputs(ComunicationsManager *_cm, CmdPetition *_inf) : cm(_cm), inf(_inf) {}
-    virtual bool isClientConnected() { return inf && !inf->clientDisconnected; }
+    virtual bool isClientConnected() override { return inf && !inf->clientDisconnected; }
 
     virtual const LoggedStream& operator<<(const char& v) const override { OUTSTRINGSTREAM os; os << v; OUTSTRING s = os.str(); cm->sendPartialOutput(inf, &s); return *this; }
     virtual const LoggedStream& operator<<(const char* v) const override { OUTSTRINGSTREAM os; os << v; OUTSTRING s = os.str(); cm->sendPartialOutput(inf, &s); return *this; }

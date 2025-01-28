@@ -3837,8 +3837,33 @@ bool isBareCommand(const char *l, const string &command)
    return true;
 }
 
+void MegaCmdExecuter::mayExecutePendingStuffInWorkerThread()
+{
+    {   // send INVALID_UTF8_INCIDENCES if there have been incidences
+        static std::mutex mutexSendEventInvalidUtf8Incidences;
+        std::lock_guard<std::mutex> g(mutexSendEventInvalidUtf8Incidences);
+
+        if (auto incidencesFound = sInvalidUtf8Incidences.exchange(0))
+        {
+            static HammeringLimiter hammeringLimiter(10);
+            if (!hammeringLimiter.runRecently())
+            {
+                LOG_err << "Invalid utf8 accumulated occurences: " << incidencesFound;
+                sendEvent(StatsManager::MegacmdEvent::INVALID_UTF8_INCIDENCES, api, false);
+            }
+            else
+            {
+                // add them again to the count, to be reconsidered later.
+                sInvalidUtf8Incidences += incidencesFound;
+            }
+        }
+    }
+}
+
 static bool process_line(const std::string_view line)
 {
+    cmdexecuter->mayExecutePendingStuffInWorkerThread();
+
     const char* l = line.data();
     assert(line.size() == strlen(l)); // string_view does not guarantee null termination, which is depended upon
     switch (prompt)
@@ -4435,42 +4460,13 @@ void megacmd()
                 std::string s;
 
 #if defined(_WIN32) || defined(__APPLE__)
-                string message="";
                 ostringstream os;
-                MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
-                api->getLastAvailableVersion("BdARkQSQ",megaCmdListener);
-                if (!megaCmdListener->trywait(2000))
+                auto updatMsgOpt = lookForAvailableNewerVersions(api);
+                //TODO: have this executed in worker thread instead (see MegaCmdExecuter::mayExecutePendingStuffInWorkerThread)
+                // still store the update message to be consumed here
+                if (updatMsgOpt)
                 {
-                    if (!megaCmdListener->getError())
-                    {
-                        LOG_fatal << "No MegaError at getLastAvailableVersion: ";
-                    }
-                    else if (megaCmdListener->getError()->getErrorCode() != MegaError::API_OK)
-                    {
-                        LOG_debug << "Couldn't get latests available version: " << megaCmdListener->getError()->getErrorString();
-                    }
-                    else
-                    {
-                        if (megaCmdListener->getRequest()->getNumber() != MEGACMD_CODE_VERSION)
-                        {
-                            os << "---------------------------------------------------------------------" << endl;
-                            os << "--        There is a new version available of megacmd: " << setw(12) << left << megaCmdListener->getRequest()->getName() << "--" << endl;
-                            os << "--        Please, update this one: See \"update --help\".          --" << endl;
-                            os << "--        Or download the latest from https://mega.nz/cmd          --" << endl;
-#if defined(__APPLE__)
-                            os << "--        Before installing enter \"exit\" to close MEGAcmd          --" << endl;
-#endif
-                            os << "---------------------------------------------------------------------" << endl;
-                        }
-                    }
-                    delete megaCmdListener;
-                }
-                else
-                {
-                    LOG_debug << "Couldn't get latests available version (petition timed out)";
-
-                    api->removeRequestListener(megaCmdListener);
-                    delete megaCmdListener;
+                    os << *updatMsgOpt;
                 }
 
                 int autoupdate = ConfigurationManager::getConfigurationValue("autoupdate", -1);
@@ -4484,9 +4480,8 @@ void megacmd()
                 {
                     startcheckingForUpdates();
                 }
-                message = os.str();
 
-
+                auto message = os.str();
                 if (message.size())
                 {
                     s += "message:";
@@ -4693,15 +4688,15 @@ void printWelcomeMsg()
     // but revert to the initial code page if outputing the special forward acute character
     // fails. <- This could happen, for instance in Windows 7.
     auto initialCP = GetConsoleOutputCP();
-    bool codePageChanged = true;
-    if (initialCP != CP_UTF8)
+    bool codePageChangedSuccesfully = false;
+    if (initialCP != CP_UTF8 && !getenv("MEGACMDSERVER_DONOT_SET_CONSOLE_CP"))
     {
-        codePageChanged = SetConsoleOutputCP(CP_UTF8);
+        codePageChangedSuccesfully = SetConsoleOutputCP(CP_UTF8);
     }
 
     if (!(COUT << L"\u00b4")) // failed to output using utf-8
     {
-        if (codePageChanged) // revert codepage
+        if (codePageChangedSuccesfully) // revert codepage
         {
             SetConsoleOutputCP(initialCP);
         }
@@ -4851,7 +4846,7 @@ bool registerUpdater()
     stringSID = getCurrentSid();
     if (!stringSID)
     {
-        MegaApi::log(MegaApi::LOG_LEVEL_ERROR, "Unable to get the current SID");
+        LOG_err << "Unable to get the current SID";
         return false;
     }
 
@@ -4937,21 +4932,21 @@ bool registerUpdater()
                     &pRegisteredTask)))
             {
                 success = true;
-                MegaApi::log(MegaApi::LOG_LEVEL_ERROR, "Update task registered OK");
+                LOG_err << "Update task registered OK";
             }
             else
             {
-                MegaApi::log(MegaApi::LOG_LEVEL_ERROR, "Error registering update task");
+                LOG_err << "Error registering update task";
             }
         }
         else
         {
-            MegaApi::log(MegaApi::LOG_LEVEL_ERROR, "Error creating update task");
+            LOG_err << "Error creating update task";
         }
     }
     else
     {
-        MegaApi::log(MegaApi::LOG_LEVEL_ERROR, "Error getting root task folder");
+        LOG_err << "Error getting root task folder";
     }
 
     if (pRegisteredTask)
@@ -5223,7 +5218,7 @@ int executeServer(int argc, char* argv[],
     char userAgent[40];
     sprintf(userAgent, "MEGAcmd" MEGACMD_STRINGIZE(MEGACMD_USERAGENT_SUFFIX) "/%d.%d.%d.%d", MEGACMD_MAJOR_VERSION,MEGACMD_MINOR_VERSION,MEGACMD_MICRO_VERSION,MEGACMD_BUILD_ID);
 
-    LOG_info << "----------------------------- program start -----------------------------";
+    LOG_info << "----------------------- program start -----------------------";
     LOG_debug << "MEGAcmd version: " << MEGACMD_MAJOR_VERSION << "." << MEGACMD_MINOR_VERSION << "." << MEGACMD_MICRO_VERSION << "." << MEGACMD_BUILD_ID << ": code " << MEGACMD_CODE_VERSION;
     LOG_debug << "MEGA SDK version: " << SDK_COMMIT_HASH;
 
@@ -5370,4 +5365,54 @@ void stopServer()
     processCommandLinePetitionQueues("quit"); //TODO: have set doExit instead, and wake the loop.
 }
 
+std::optional<std::string> lookForAvailableNewerVersions(::mega::MegaApi *api)
+{
+#ifdef __linux__
+    return {}; // Linux updates are _announced_ via packages manageres
+#endif
+
+    //NOTE: expected to be called from main megacmd thread (no concurrency control required)
+    static HammeringLimiter hammeringLimiter(300);
+    if (hammeringLimiter.runRecently())
+    {
+        return {};
+    }
+
+    ostringstream os;
+    auto megaCmdListener = std::make_unique<MegaCmdListener>(api);
+    api->getLastAvailableVersion("BdARkQSQ", megaCmdListener.get());
+
+    if (megaCmdListener->trywait(2000)) //timed out:
+    {
+        LOG_debug << "Couldn't get latests available version (petition timed out)";
+        api->removeRequestListener(megaCmdListener.get());
+        return {};
+    }
+
+    if (!megaCmdListener->getError())
+    {
+        LOG_fatal << "No MegaError at getLastAvailableVersion: ";
+    }
+    else if (megaCmdListener->getError()->getErrorCode() != MegaError::API_OK)
+    {
+        LOG_debug << "Couldn't get latests available version: " << megaCmdListener->getError()->getErrorString();
+    }
+    else
+    {
+        if (megaCmdListener->getRequest()->getNumber() != MEGACMD_CODE_VERSION)
+        {
+            os << "---------------------------------------------------------------------" << endl;
+            os << "--        There is a new version available of megacmd: " << setw(12) << left << megaCmdListener->getRequest()->getName() << "--" << endl;
+            os << "--        Please, update this one: See \"update --help\".          --" << endl;
+            os << "--        Or download the latest from https://mega.nz/cmd          --" << endl;
+#if defined(__APPLE__)
+            os << "--        Before installing enter \"exit\" to close MEGAcmd          --" << endl;
+#endif
+            os << "---------------------------------------------------------------------" << endl;
+        }
+        return os.str();
+    }
+
+    return {};
+}
 } //end namespace

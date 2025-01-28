@@ -420,7 +420,7 @@ int MegaCmdShellCommunicationsPosix::executeCommand(string command, std::string 
             n = recv(thesock, (char *)&partialoutsize, sizeof(partialoutsize), MSG_NOSIGNAL);
             if (n && partialoutsize > 0)
             {
-                std::lock_guard<std::mutex> stdOutLockGuard(getStdoutLockGuard());
+                StdoutMutexGuard stdOutLockGuard;
                 do{
                     char *buffer = new char[partialoutsize+1];
                     n = recv(thesock, (char *)buffer, partialoutsize, MSG_NOSIGNAL);
@@ -498,7 +498,7 @@ int MegaCmdShellCommunicationsPosix::executeCommand(string command, std::string 
         {
             if (n != 1 || buffer[0] != 0) //To avoid outputing 0 char in binary outputs
             {
-                std::lock_guard<std::mutex> stdOutLockGuard(getStdoutLockGuard());
+                StdoutMutexGuard stdOutLockGuard;
                 output << string(buffer,n) << flush;
             }
         }
@@ -790,11 +790,6 @@ std::optional<std::string> MegaCmdShellCommunications::tryToGetClientId(std::chr
         return std::nullopt;
     }
     return f.get();
-}
-
-std::lock_guard<std::mutex> MegaCmdShellCommunications::getStdoutLockGuard()
-{
-    return std::lock_guard<std::mutex>(mStdoutMutex);
 }
 
 MegaCmdShellCommunications::~MegaCmdShellCommunications()

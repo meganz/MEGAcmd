@@ -484,6 +484,8 @@ int MegaCmdShellCommunicationsNamedPipes::executeCommand(string command, std::st
         closeNamedPipe(theNamedPipe);
     });
 
+    bool isCat = command.rfind("cat", 0) == 0 || wcommand.rfind(L"cat", 0) == 0;
+
     if (interactiveshell)
     {
         command="X"+command;
@@ -535,7 +537,8 @@ int MegaCmdShellCommunicationsNamedPipes::executeCommand(string command, std::st
         return -1;
     }
 
-    bool binaryoutput = !wcommand.compare(0, 3, L"cat") && redirectedstdout;
+    bool binaryoutput = isCat && redirectedstdout;
+    bool shouldPrintAdditionalLine = false;
 
     while (outcode == MCMD_REQCONFIRM || outcode == MCMD_REQSTRING || outcode == MCMD_PARTIALOUT)
     {
@@ -548,16 +551,16 @@ int MegaCmdShellCommunicationsNamedPipes::executeCommand(string command, std::st
                 return -1;
             }
 
-
             if (partialoutsize > 0)
             {
-                std::lock_guard<std::mutex> stdOutLockGuard(getStdoutLockGuard());
-
-                int oldmode = 0;
-
+                std::unique_ptr<OutputsModeGuard> outputModeGuard;
                 if (binaryoutput)
                 {
-                    oldmode = _setmode(_fileno(stdout), O_BINARY);
+                    outputModeGuard.reset(new WindowsBinaryStdoutGuard());
+                }
+                else
+                {
+                    outputModeGuard.reset(new WindowsUtf8StdoutGuard());
                 }
 
                 size_t BUFFERSIZE = 10024;
@@ -567,10 +570,11 @@ int MegaCmdShellCommunicationsNamedPipes::executeCommand(string command, std::st
                     readok = ReadFile(newNamedPipe, buffer, DWORD(std::min(BUFFERSIZE,partialoutsize)),&n,NULL);
                     if (readok)
                     {
-
                         if (binaryoutput)
                         {
+                            Instance<WindowsConsoleController>::Get().enableInterceptors(false);
                             std::cout << string(buffer,n) << flush;
+                            Instance<WindowsConsoleController>::Get().enableInterceptors(true);
                         }
                         else
                         {
@@ -578,18 +582,15 @@ int MegaCmdShellCommunicationsNamedPipes::executeCommand(string command, std::st
 
                             wstring wbuffer;
                             stringtolocalw((const char*)&buffer,&wbuffer);
-                            int oldmode;
-                            oldmode = _setmode(_fileno(stdout), _O_U8TEXT);
                             output << wbuffer << flush;
-                            _setmode(_fileno(stdout), oldmode);
                         }
                         partialoutsize-=n;
                     }
                 } while(n != 0 && partialoutsize && n !=SOCKET_ERROR);
 
-                if (binaryoutput)
+                if (isCat && !binaryoutput && interactiveshell)
                 {
-                    _setmode(_fileno(stdout), oldmode);
+                    shouldPrintAdditionalLine = true;
                 }
             }
             else
@@ -670,25 +671,8 @@ int MegaCmdShellCommunicationsNamedPipes::executeCommand(string command, std::st
             stringtolocalw((const char*)&buffer,&wbuffer);
             int oldmode;
 
-            std::lock_guard<std::mutex> stdOutLockGuard(getStdoutLockGuard());
-
-//            if (interactiveshell || outputtobinaryorconsole())
-//            {
-                // In non-interactive mode, at least in powershell, when outputting to a file/pipe, things get rough
-                // Powershell tries to interpret the output as a string and would meddle with the UTF16 encoding, resulting
-                // in unusable output, So we disable the UTF-16 in such cases (this might cause that the output could be truncated!).
-//                oldmode = _setmode(_fileno(stdout), _O_U16TEXT);
-//            }
-
-
-            oldmode = _setmode(_fileno(stdout), _O_U8TEXT);
+            WindowsUtf8StdoutGuard utf8Guard;
             output << wbuffer << flush;
-            _setmode(_fileno(stdout), oldmode);
-
-//            if (interactiveshell || outputtobinaryorconsole() || true)
-//            {
-//                _setmode(_fileno(stdout), oldmode);
-//            }
         }
         if (readok && n == BUFFERSIZE)
         {
@@ -708,6 +692,12 @@ int MegaCmdShellCommunicationsNamedPipes::executeCommand(string command, std::st
     {
         cerr << "ERROR reading output: " << ERRNO << endl;
         return -1;
+    }
+
+    if (shouldPrintAdditionalLine)
+    {
+        WindowsUtf8StdoutGuard utf8Guard;
+        output << std::endl;
     }
 
     return outcode;

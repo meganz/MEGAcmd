@@ -81,3 +81,52 @@ TEST(StringUtilsTest, ValidateUtf8)
     EXPECT_FALSE(megacmd::isValidUtf8(std::string("\xed\xbf\xbf")));              // surrogate codepoint U+DFFF
 }
 
+TEST(StringUtilsTest, nonAsciiToStringstream)
+{
+    const char* char_str = u8"\uc548\uc548\ub155\ud558\uc138\uc694\uc138\uacc4";
+    const wchar_t* wchar_str = L"\uc548\uc548\ub155\ud558\uc138\uc694\uc138\uacc4";
+    const std::string str = u8"\uc548\uc548\ub155\ud558\uc138\uc694\uc138\uacc4";
+    const std::wstring wstr = L"\uc548\uc548\ub155\ud558\uc138\uc694\uc138\uacc4";
+
+    {
+        std::ostringstream ostream;
+        ostream << char_str;
+        EXPECT_STREQ(ostream.str().c_str(), char_str);
+
+        std::wostringstream wostream;
+        wostream << wchar_str;
+        EXPECT_STREQ(wostream.str().c_str(), wchar_str);
+    }
+    {
+        std::ostringstream ostream;
+        ostream << str;
+        EXPECT_EQ(ostream.str(), str);
+
+        std::wostringstream wostream;
+        wostream << wstr;
+        EXPECT_EQ(wostream.str(), wstr);
+    }
+
+#ifdef _WIN32
+    using namespace megacmd; // otherwise the ostream overload for wstrings won't be visible
+                             // we need it to ensure the static_assert is not triggered
+    {
+        std::ostringstream ostream;
+        ostream << utf16ToUtf8(wchar_str);
+        EXPECT_STREQ(ostream.str().c_str(), char_str);
+
+        std::wostringstream wostream;
+        wostream << char_str;
+        EXPECT_STREQ(wostream.str().c_str(), wchar_str);
+    }
+    {
+        std::ostringstream ostream;
+        ostream << utf16ToUtf8(wstr);
+        EXPECT_EQ(ostream.str(), str);
+
+        std::wostringstream wostream;
+        wostream << str;
+        EXPECT_EQ(wostream.str(), wstr);
+    }
+#endif
+}
