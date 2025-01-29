@@ -10069,7 +10069,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 }
                 for (int i = 0; i < ocrl->size(); i++)
                 {
-                    MegaContactRequest * cr = ocrl->get(i);
+                    auto cr = ocrl->get(i);
                     OUTSTREAM << " " << getLeftAlignedStr(cr->getTargetEmail(),22);
 
                     char * sid = api->userHandleToBase64(cr->getHandle());
@@ -10097,7 +10097,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
                 for (int i = 0; i < icrl->size(); i++)
                 {
-                    MegaContactRequest * cr = icrl->get(i);
+                    auto cr = icrl->get(i);
                     OUTSTREAM << " " << getLeftAlignedStr(cr->getSourceEmail(), 22);
 
                     MegaHandle id = cr->getHandle();
