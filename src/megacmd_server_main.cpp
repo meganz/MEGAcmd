@@ -188,7 +188,7 @@ int main(int argc, char* argv[])
 
     waitIfRequired(args);
 
-    constexpr bool logToCout = true;
+    bool logToCout = !extractarg(args, "--do-not-log-to-stdout");
     auto logLevels = getLogLevels(args);
     int sdkLogLevel = logLevels.first;
     int cmdLogLevel = logLevels.second;
