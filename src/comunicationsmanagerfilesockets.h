@@ -32,6 +32,7 @@ struct CmdPetitionPosixSockets: public CmdPetition
 
     virtual ~CmdPetitionPosixSockets()
     {
+        shutdown(outSocket, SHUT_RDWR);
         close(outSocket);
     }
 

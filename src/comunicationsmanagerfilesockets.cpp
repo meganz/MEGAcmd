@@ -241,7 +241,13 @@ void ComunicationsManagerFileSockets::returnAndClosePetition(std::unique_ptr<Cmd
     {
         LOG_err << "ERROR writing output Code to socket: " << errno;
     }
-    n = send(socket, sout.data(), max(static_cast<size_t>(1), sout.size()), MSG_NOSIGNAL); // for some reason without the max recv never quits in the client for empty responses
+
+    if (sout.empty())
+    {
+        return; // socket shutdown will send EOF (0 bytes upon recv)
+    }
+
+    n = send(socket, sout.data(), sout.size(), MSG_NOSIGNAL);
     if (n < 0)
     {
         LOG_err << "ERROR writing to socket: " << errno;
