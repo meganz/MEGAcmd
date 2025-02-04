@@ -28,12 +28,10 @@
 #define MEGACMDINITIALPORTNUMBER 12300
 
 namespace megacmd {
-class CmdPetitionNamedPipes: public CmdPetition
+struct CmdPetitionNamedPipes: public CmdPetition
 {
-public:
     HANDLE outNamedPipe;
-    CmdPetitionNamedPipes(){
-    }
+
     virtual ~CmdPetitionNamedPipes()
     {
         if (outNamedPipe != INVALID_HANDLE_VALUE)
@@ -41,6 +39,7 @@ public:
             CloseHandle(outNamedPipe);
         }
     }
+
     std::string getPetitionDetails() const override
     {
         std::ostringstream details;
@@ -82,32 +81,31 @@ public:
 
     bool receivedPetition();
 
-    int waitForPetition();
+    int waitForPetition() override;
 
     virtual void stopWaiting();
 
     int get_next_comm_id();
 
-    void registerStateListener(CmdPetition *inf);
+    CmdPetition* registerStateListener(std::unique_ptr<CmdPetition> &&inf) override;
 
     /**
      * @brief returnAndClosePetition
      * I will clean struct and close the namedPipe within
      */
-    void returnAndClosePetition(CmdPetition *inf, OUTSTRINGSTREAM *s, int);
+    void returnAndClosePetition(std::unique_ptr<CmdPetition> inf, OUTSTRINGSTREAM *s, int) override;
 
-    void sendPartialOutput(CmdPetition *inf, OUTSTRING *s);
+    void sendPartialOutput(CmdPetition *inf, OUTSTRING *s) override;
+    void sendPartialOutput(CmdPetition *inf, char *s, size_t size, bool binaryContents = false) override;
 
-    void sendPartialOutput(CmdPetition *inf, char *s, size_t size);
 
-
-    int informStateListener(CmdPetition *inf, std::string &s);
+    int informStateListener(CmdPetition *inf, const std::string &s) override;
 
     /**
      * @brief getPetition
      * @return pointer to new CmdPetitionPosix. Petition returned must be properly deleted (this can be calling returnAndClosePetition)
      */
-    CmdPetition *getPetition();
+    std::unique_ptr<CmdPetition> getPetition() override;
 
     virtual int getConfirmation(CmdPetition *inf, std::string message);
     virtual std::string getUserResponse(CmdPetition *inf, std::string message);

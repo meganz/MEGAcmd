@@ -18,6 +18,7 @@
 
 
 #include "megacmdlogger.h"
+#include "megacmd_rotating_logger.h"
 
 #include <vector>
 
@@ -169,6 +170,10 @@ void waitIfRequired(std::vector<const char*> &args)
 // - linux forking (clients into server)
 int main(int argc, char* argv[])
 {
+#ifdef WIN32
+    megacmd::Instance<megacmd::WindowsConsoleController> windowsConsoleController;
+#endif
+
     std::vector<const char*> args;
     if (argc > 1)
     {
@@ -183,6 +188,7 @@ int main(int argc, char* argv[])
 
     waitIfRequired(args);
 
+    bool logToCout = !extractarg(args, "--do-not-log-to-stdout");
     auto logLevels = getLogLevels(args);
     int sdkLogLevel = logLevels.first;
     int cmdLogLevel = logLevels.second;
@@ -193,19 +199,12 @@ int main(int argc, char* argv[])
     extractargparam(args, "--apiurl", debug_api_url);  // only for debugging
     bool disablepkp = extractarg(args, "--disablepkp");  // only for debugging
 
-    bool logToFile = extractarg(args, "--log-to-file");  // only for debugging
-
-    std::unique_ptr<megacmd::LoggedStream> loggedStream;
-    if (logToFile)
+    auto createLoggedStream = []
     {
-        loggedStream = ::mega::make_unique<megacmd::LoggedStreamDefaultFile>();
-    }
-    else
-    {
-        // log to stdout
-        loggedStream = ::mega::make_unique<megacmd::LoggedStreamOutStream>(&COUT);
-    }
+        return new megacmd::FileRotatingLoggedStream(megacmd::MegaCmdLogger::getDefaultFilePath());
+    };
 
-    return megacmd::executeServer(argc, argv, std::move(loggedStream),
-                                  sdkLogLevel, cmdLogLevel, skiplockcheck, debug_api_url, disablepkp);
+    return megacmd::executeServer(argc, argv, createLoggedStream,
+                                  logToCout, sdkLogLevel, cmdLogLevel,
+                                  skiplockcheck, debug_api_url, disablepkp);
 }

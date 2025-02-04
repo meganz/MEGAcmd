@@ -20,12 +20,18 @@
 #include "megacmdcommonutils.h"
 #include "megacmd.h"
 #include "client/megacmdclient.h"
+#include "megacmdlogger.h"
 
 #include <gtest/gtest.h>
 #include "Instruments.h"
 
 #include <chrono>
 #include <future>
+#include <regex>
+
+constexpr const char* LINK_TESTEXPORTFILE01TXT = "https://mega.nz/file/YfNngDKR#qk9THHhxbakddRmt_tLR8OhInexzVCpPPG6M6feFfZg";
+constexpr const char* LINK_TESTEXPORTFOLDER = "https://mega.nz/folder/saMRXBYL#9GETCO4E-Po45d3qSjZhbQ";
+constexpr const char* LINK_TESTREADINGFOLDER01 = "https://mega.nz/folder/YPV0nCKS#bSruKSPPubdCmm5harBJOQ";
 
 std::vector<std::string> splitByNewline(const std::string& str);
 
@@ -43,7 +49,7 @@ public:
         : mStatus(status)
         , mOut (streamOut.str())
     #ifdef _WIN32
-        , mUtf8String(megacmd::getutf8fromUtf16(mOut.c_str()))
+        , mUtf8String(megacmd::utf16ToUtf8(mOut))
     #endif
     {}
 
@@ -72,6 +78,28 @@ class BasicGenericTest : public ::testing::Test
 class LoggedInTest : public BasicGenericTest
 {
 protected:
+    void removeAllSyncs()
+    {
+        auto result = executeInClient({"sync"});
+        ASSERT_TRUE(result.ok());
+
+        auto lines = splitByNewline(result.out());
+        for (size_t i = 1; i < lines.size(); ++i)
+        {
+            auto words = megacmd::split(lines[i], " ");
+
+            ASSERT_TRUE(!words.empty());
+            if (megacmd::stringToTimestamp(words[0].substr(1))) // discard log lines
+            {
+                continue;
+            }
+
+            std::string syncId = words[0];
+            auto result = executeInClient({"sync", "--remove", "--", syncId}).ok();
+            ASSERT_TRUE(result);
+        }
+    }
+
     void SetUp() override
     {
         BasicGenericTest::SetUp();

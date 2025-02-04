@@ -19,6 +19,8 @@
 #ifndef MEGACMDCOMMONUTILS_H
 #define MEGACMDCOMMONUTILS_H
 
+#include "megacmd_utf8.h"
+
 #include <memory>
 #ifndef _WIN32
 #include <pwd.h>
@@ -37,59 +39,25 @@
 #include <mutex>
 #include <condition_variable>
 #include <cassert>
+#include <optional>
+#include <thread>
 
 #ifndef UNUSED
     #define UNUSED(x) (void)(x)
 #endif
 
+#define MOVE_CAPTURE(x) x{std::move(x)}
+#define FWD_CAPTURE(x) x{std::forward<decltype(x)>(x)}
+#define CONST_CAPTURE(x) &x = std::as_const(x)
+
 using std::setw;
 using std::left;
-
-#ifdef _WIN32
-namespace mega{
-
-// Note: these was in megacmd namespace, but after one overload of operator<< was created within mega,
-// ADL did not seem to be able to find it when solving template resolution in loggin.h (namespace mega),
-// even for code coming from megacmd namespace.
-// placing this operator in mega namespace eases ADL lookup and allows compilation
-std::ostringstream & operator<< ( std::ostringstream & ostr, std::wstring const &str); //override for the log, otherwise SimpleLog won't compile.
-}
-#endif
-
-namespace megacmd {
-
-/* platform dependent */
-#ifdef _WIN32
-
-#define OUTSTREAMTYPE std::wostream
-#define OUTFSTREAMTYPE std::wofstream
-#define OUTSTRINGSTREAM std::wostringstream
-#define OUTSTRING std::wstring
-#define COUT std::wcout
-#define CERR std::wcerr
-
-//override << operators for wostream for string and const char *
-std::wostream & operator<< ( std::wostream & ostr, std::string const & str );
-std::wostream & operator<< ( std::wostream & ostr, const char * str );
-
-void stringtolocalw(const char* path, std::wstring* local);
-void localwtostring(const std::wstring* wide, std::string *multibyte);
-std::string getutf8fromUtf16(const wchar_t *ws);
-void utf16ToUtf8(const wchar_t* utf16data, int utf16size, std::string* utf8string);
-
-#else
-#define OUTSTREAMTYPE std::ostream
-#define OUTFSTREAMTYPE std::ofstream
-#define OUTSTRINGSTREAM std::ostringstream
-#define OUTSTRING std::string
-#define COUT std::cout
-#define CERR std::cerr
-
-#endif
 
 #ifndef _WIN32
 #define ARRAYSIZE(a) (sizeof((a)) / sizeof(*(a)))
 #endif
+
+namespace megacmd {
 
 /* commands */
 static std::vector<std::string> validGlobalParameters {"v", "help"};
@@ -107,7 +75,7 @@ static std::vector<std::string> remoteremotepatterncommands {"cp"};
 
 static std::vector<std::string> remotelocalpatterncommands {"get", "thumbnail", "preview"};
 
-static std::vector<std::string> localfolderpatterncommands {"lcd"};
+static std::vector<std::string> localfolderpatterncommands {"lcd", "sync-ignore"};
 
 static std::vector<std::string> emailpatterncommands {"invite", "signup", "ipc", "users"};
 
@@ -124,9 +92,9 @@ static std::vector<std::string> loginInValidCommands { "log", "debug", "speedlim
                            };
 
 static std::vector<std::string> allValidCommands { "login", "signup", "confirm", "session", "mount", "ls", "cd", "log", "debug", "pwd", "lcd", "lpwd", "import", "masterkey",
-                             "put", "get", "attr", "userattr", "mkdir", "rm", "du", "mv", "cp", "sync", "export", "share", "invite", "ipc", "df",
+                             "put", "get", "attr", "userattr", "mkdir", "rm", "du", "mv", "cp", "sync", "sync-ignore", "export", "share", "invite", "ipc", "df",
                              "showpcr", "users", "speedlimit", "killsession", "whoami", "help", "passwd", "reload", "logout", "version", "quit",
-                             "thumbnail", "preview", "find", "completion", "clear", "https"
+                             "thumbnail", "preview", "find", "completion", "clear", "https", "sync-issues"
 #ifdef HAVE_DOWNLOADS_COMMAND
                                                    , "downloads"
 #endif
@@ -136,9 +104,7 @@ static std::vector<std::string> allValidCommands { "login", "signup", "confirm",
 #ifdef HAVE_LIBUV
                              , "webdav", "ftp"
 #endif
-#ifdef ENABLE_BACKUPS
                              , "backup"
-#endif
                              , "deleteversions"
 #if defined(_WIN32) && defined(NO_READLINE)
                              , "autocomplete", "codepage"
@@ -154,6 +120,8 @@ static std::vector<std::string> allValidCommands { "login", "signup", "confirm",
 
 
 static const int RESUME_SESSION_TIMEOUT = 10;
+
+std::string errorCodeStr(const std::error_code& ec);
 
 /* Files and folders */
 
@@ -174,17 +142,20 @@ std::string removeTrailingSeparators(std::string &path);
 
 /* Strings related */
 
+std::string generateRandomAlphaNumericString(size_t len);
+
 std::vector<std::string> split(const std::string& input, const std::string& pattern);
 
 long long charstoll(const char *instr);
 
 // trim from start
 std::string &ltrim(std::string &s, const char &c);
+std::string_view ltrim(const std::string_view s, const char &c);
 
 // trim at the end
 std::string &rtrim(std::string &s, const char &c);
 
-std::vector<std::string> getlistOfWords(char *ptr, bool escapeBackSlashInCompletion = false, bool ignoreTrailingSpaces = false);
+std::vector<std::string> getlistOfWords(const char *ptr, bool escapeBackSlashInCompletion = false, bool ignoreTrailingSpaces = false);
 
 bool stringcontained(const char * s, std::vector<std::string> list);
 
@@ -201,6 +172,27 @@ std::string joinStrings(const std::vector<std::string>& vec, const char* delim =
 std::string getFixLengthString(const std::string &origin, unsigned int size, const char delimm=' ', bool alignedright = false);
 
 std::string getRightAlignedString(const std::string origin, unsigned int minsize);
+
+bool startsWith(const std::string_view str, const std::string_view prefix);
+
+/* Vector related */
+template <typename T>
+std::vector<T> operator+(const std::vector<T>& a, const std::vector<T>& b)
+{
+    std::vector<T> result = a;
+    result.insert(result.end(), b.begin(), b.end());
+    return result;
+}
+
+template <typename T>
+std::vector<T> operator+(std::vector<T>&& a, std::vector<T>&& b)
+{
+    a.reserve(a.size() + b.size());
+    a.insert(a.end(), std::make_move_iterator(b.begin()), std::make_move_iterator(b.end()));
+    return std::move(a);
+}
+
+std::string toLower(const std::string& str);
 
 template<typename T>
 OUTSTRING getLeftAlignedStr(T what, int n)
@@ -222,7 +214,10 @@ OUTSTRING getRightAlignedStr(T what, int n)
 void printCenteredLine(std::string msj, unsigned int width, bool encapsulated = true);
 void printCenteredContents(std::string msj, unsigned int width, bool encapsulated = true);
 void printCenteredContentsCerr(std::string msj, unsigned int width, bool encapsulated = true);
-void printCenteredLine(OUTSTREAMTYPE &os, std::string msj, unsigned int width, bool encapsulated = true);
+
+template <typename Stream_T>
+void printCenteredLine(Stream_T &os, std::string msj, unsigned int width, bool encapsulated = true);
+
 void printCenteredContents(OUTSTREAMTYPE &os, std::string msj, unsigned int width, bool encapsulated = true);
 
 template <typename WHERE>
@@ -231,6 +226,12 @@ void printCenteredContentsT(WHERE &&o, const std::string &msj, unsigned int widt
     OUTSTRINGSTREAM os;
     printCenteredContents(os, msj, width, encapsulated);
     o << os.str();
+}
+
+template <typename... Bools>
+bool onlyZeroOrOneOf(Bools... args)
+{
+    return (args + ...) <= 1;
 }
 
 void printPercentageLineCerr(const char *title, long long completed, long long total, float percentDowloaded, bool cleanLineAfter = true);
@@ -243,8 +244,7 @@ int getFlag(std::map<std::string, int> *flags, const char * optname);
 
 std::string getOption(std::map<std::string, std::string> *cloptions, const char * optname, std::string defaultValue = "");
 
-// TODO C++17 Use std::optional<string> instead
-std::pair<std::string, bool> getOptionOrFalse(const std::map<std::string, std::string>& cloptions, const char * optname);
+std::optional<std::string> getOptionAsOptional(const std::map<std::string, std::string>& cloptions, const char * optname);
 
 int getintOption(std::map<std::string, std::string> *cloptions, const char * optname, int defaultValue = 0);
 
@@ -277,11 +277,12 @@ std::string getCurrentExecPath();
 std::string &ltrimProperty(std::string &s, const char &c);
 std::string &rtrimProperty(std::string &s, const char &c);
 std::string &trimProperty(std::string &what);
-std::string getPropertyFromFile(const char *configFile, const char *propertyName);
+std::string getPropertyFromFile(const fs::path &configFilePath, const char *propertyName);
+
 template <typename T>
-T getValueFromFile(const char *configFile, const char *propertyName, T defaultValue)
+T getValueFromFile(const fs::path &configFilePath, const char *propertyName, T defaultValue)
 {
-    std::string propValue = getPropertyFromFile(configFile, propertyName);
+    std::string propValue = getPropertyFromFile(configFilePath, propertyName);
     if (!propValue.size()) return defaultValue;
 
     T i;
@@ -311,9 +312,11 @@ class ColumnDisplayer
 public:
     ColumnDisplayer(std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions);
 
+    OUTSTRING str(bool printHeader = true);
+
     void printHeaders(OUTSTREAMTYPE &os);
     void print(OUTSTREAMTYPE &os, bool printHeader = true);
-
+    void clear();
 
     void addHeader(const std::string &name, bool fixed = true, int minWidth = 0);
     void addValue(const std::string &name, const std::string & value, bool replace = false);
@@ -359,12 +362,14 @@ class PlatformDirectories
 {
 public:
     static std::unique_ptr<PlatformDirectories> getPlatformSpecificDirectories();
+    virtual ~PlatformDirectories() = default;
+
     /**
      * @brief runtimeDirPath returns the base path for storing runtime files:
      *
      * Meant for sockets, named pipes, file locks, command history, etc.
      */
-    virtual std::string runtimeDirPath()
+    virtual fs::path runtimeDirPath()
     {
         return configDirPath();
     }
@@ -374,7 +379,7 @@ public:
      * Meant for user-editable configuration files, data files that should not be deleted
      * (session credentials, SDK workding directory, logs, etc).
      */
-    virtual std::string configDirPath() = 0;
+    virtual fs::path configDirPath() = 0;
 };
 
 template <typename T> size_t numberOfDigits(T num)
@@ -391,7 +396,7 @@ template <typename T> size_t numberOfDigits(T num)
 #ifdef _WIN32
 class WindowsDirectories : public PlatformDirectories
 {
-    std::string configDirPath() override;
+    fs::path configDirPath() override;
 };
 std::wstring getNamedPipeName();
 #else // !defined(_WIN32)
@@ -399,7 +404,7 @@ class PosixDirectories : public PlatformDirectories
 {
 public:
     std::string homeDirPath();
-    virtual std::string configDirPath() override;
+    virtual fs::path configDirPath() override;
 
     static std::string noHomeFallbackFolder();
 
@@ -407,7 +412,7 @@ public:
 #ifdef __APPLE__
 class MacOSDirectories : public PosixDirectories
 {
-    std::string runtimeDirPath() override;
+    fs::path runtimeDirPath() override;
 };
 #endif // defined(__APPLE__)
 std::string getOrCreateSocketPath(bool createDirectory);
@@ -439,11 +444,10 @@ class Instance : protected BaseInstance<T>
 {
     T mInstance;
 
-    //TODO: afer CMD-316, we can have inline and inintialized these:
-    /*inline */static std::mutex sPendingRogueOnesMutex;
-    /*inline */static std::condition_variable sPendingRogueOnesCV;
-    /*inline */static unsigned sPendingRogueOnes/* = 0*/;
-    /*inline */static bool sAssertOnDestruction/* = false*/;
+    inline static std::mutex sPendingRogueOnesMutex;
+    inline static std::condition_variable sPendingRogueOnesCV;
+    inline static unsigned sPendingRogueOnes = 0;
+    inline static bool sAssertOnDestruction = false;
 public:
     static bool waitForExplicitDependents()
     {
@@ -508,14 +512,51 @@ public:
 #endif //MEGACMD_TESTING_CODE
  };
 
-template <typename T>
-std::mutex Instance<T>::sPendingRogueOnesMutex;
-template <typename T>
-std::condition_variable Instance<T>::sPendingRogueOnesCV;
-template <typename T>
-unsigned Instance<T>::sPendingRogueOnes = 0;
-template <typename T>
-bool Instance<T>::sAssertOnDestruction = false;
+/**
+ * @brief general purpose scope guard class
+ */
+template <typename ExitCallback>
+class ScopeGuard
+{
+    ExitCallback mExitCb;
+public:
+    ScopeGuard(ExitCallback&& exitCb) : mExitCb{std::move(exitCb)} { }
+    ~ScopeGuard() { mExitCb(); }
+};
+
+template <typename _Rep, typename _Period, typename _Rep2, typename _Period2, typename Condition, typename What>
+void timelyRetry(const std::chrono::duration<_Rep, _Period> &maxTime, const std::chrono::duration<_Rep2, _Period2> &step
+                 , Condition&& endCondition, What&& what)
+{
+    using Step_t = std::chrono::duration<_Rep2, _Period2>;
+    for (auto timeLeft = std::chrono::duration_cast<Step_t>(maxTime); !endCondition() && timeLeft > Step_t(0); timeLeft -= step)
+    {
+        std::this_thread::sleep_for(step);
+        what();
+    }
+}
+
+class HammeringLimiter
+{
+    int mLimitSecs;
+    std::optional<std::chrono::steady_clock::time_point> mLastCall;
+public:
+    HammeringLimiter(int seconds) : mLimitSecs(seconds) {}
+
+    // Returns true if run recently (or sets the last call to current time otherwise)
+    bool runRecently()
+    {
+        auto now = std::chrono::steady_clock::now();
+        if (mLastCall && std::chrono::duration_cast<std::chrono::seconds>(now - *mLastCall).count() <= mLimitSecs)
+        {
+            return true;
+        }
+        mLastCall = now;
+        return false;
+    }
+};
 
 }//end namespace
+
+
 #endif // MEGACMDCOMMONUTILS_H

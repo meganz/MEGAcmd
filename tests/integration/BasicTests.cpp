@@ -55,11 +55,18 @@ TEST_F(NOINTERACTIVELoggedInTest, Whoami)
 
         auto out = r.out();
         ASSERT_THAT(out, testing::Not(testing::IsEmpty()));
+        ASSERT_THAT(getenv("MEGACMD_TEST_USER"), testing::NotNull());
         EXPECT_EQ(out, std::string("Account e-mail: ").append(getenv("MEGACMD_TEST_USER")).append("\n"));
     }
 
     {
         G_SUBTEST << "Extended";
+
+        {
+           // Ensure there's at least a file around contributing to ROOT usage:
+           auto result = executeInClient({"import", LINK_TESTEXPORTFILE01TXT});
+           ASSERT_TRUE(result.ok()) << "could not import testExportFile01.txt";
+        }
 
         auto r = executeInClient({"whoami", "-l"});
         ASSERT_TRUE(r.ok());
@@ -72,7 +79,7 @@ TEST_F(NOINTERACTIVELoggedInTest, Whoami)
         ASSERT_THAT(details_out, testing::Contains(testing::HasSubstr("Current Session")));
         ASSERT_THAT(details_out, testing::Contains(testing::HasSubstr("In RUBBISH:")));
 
-        EXPECT_THAT(details_out, testing::Not(testing::Contains(testing::ContainsRegex("Available storage:\\s+0\\.00\\s+Bytes"))));
-        EXPECT_THAT(details_out, testing::Not(testing::Contains(testing::ContainsRegex("In ROOT:\\s+0\\.00\\s+Bytes"))));
+        EXPECT_THAT(details_out, testing::Not(testing::Contains(ContainsStdRegex("Available storage:\\s+0\\.00\\s+Bytes"))));
+        EXPECT_THAT(details_out, testing::Not(testing::Contains(ContainsStdRegex("In ROOT:\\s+0\\.00\\s+Bytes"))));
     }
 }

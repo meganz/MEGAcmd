@@ -20,5 +20,9 @@
 
 int main(int argc, char* argv[])
 {
+#ifdef WIN32
+    megacmd::Instance<megacmd::WindowsConsoleController> windowsConsoleController;
+#endif
+
     return megacmd::executeClient(argc, argv, COUT);
 }

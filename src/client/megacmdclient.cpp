@@ -144,13 +144,6 @@ wstring getWAbsPath(wstring localpath)
 }
 #endif
 
-string clientID; //identifier for a registered state listener
-
-std::mutex promptLogReceivedMutex;
-std::condition_variable promtpLogReceivedCV;
-bool promtpLogReceivedBool = false;
-bool serverTryingToLog = false;
-
 string getAbsPath(string relativePath)
 {
     if (!relativePath.size())
@@ -225,7 +218,7 @@ string getAbsPath(string relativePath)
 
 }
 
-string parseArgs(int argc, char* argv[])
+string parseArgs(int argc, char* argv[], MegaCmdShellCommunications& comsManager)
 {
     vector<string> absolutedargs;
     int totalRealArgs = 0;
@@ -245,17 +238,10 @@ string parseArgs(int argc, char* argv[])
                 || !strcmp(argv[1],"login")
                 || !strcmp(argv[1],"reload") )
         {
-            int waittime = 15000;
-            while (waittime > 0 && !clientID.size())
+            auto clientIdOpt = comsManager.tryToGetClientId();
+            if (clientIdOpt)
             {
-                sleepMilliSeconds(100);
-                waittime -= 100;
-            }
-            if (clientID.size())
-            {
-                string sclientID = "--clientID=";
-                sclientID+=clientID;
-                absolutedargs.push_back(sclientID);
+                absolutedargs.push_back("--clientID=" + *clientIdOpt);
             }
         }
 
@@ -444,18 +430,22 @@ string parseArgs(int argc, char* argv[])
 
 #ifdef _WIN32
 
-wstring parsewArgs(int argc, wchar_t* argv[])
+wstring parsewArgs(int argc, wchar_t* argv[], MegaCmdShellCommunications& comsManager)
 {
+    // remove "-o path" argument if found:
     for (int i=1;i<argc;i++)
     {
-        if (i<(argc-1) && !wcscmp(argv[i],L"-o"))
+        if (i<(argc-1) && std::wstring_view(argv[i]) == L"-o")
         {
-            if (i < (argc-2))
-                argv[i]=argv[i+2];
-            argc=argc-2;
+            for (int j = i; j < argc - 2; ++j)
+            {
+                argv[j] = argv[j + 2];
+            }
+            argc -= 2;
+            argv[argc] = nullptr;
+            --i; // Stay at the same index to process the shifted arguments
         }
     }
-
 
     vector<wstring> absolutedargs;
     int totalRealArgs = 0;
@@ -477,18 +467,10 @@ wstring parsewArgs(int argc, wchar_t* argv[])
                 || !wcscmp(argv[1],L"login")
                 || !wcscmp(argv[1],L"reload") )
         {
-            int waittime = 5000;
-            while (waittime > 0 && !clientID.size())
+            auto clientIdOpt = comsManager.tryToGetClientId();
+            if (clientIdOpt)
             {
-                sleepMilliSeconds(100);
-                waittime -= 100;
-            }
-            if (clientID.size())
-            {
-                wstring sclientID = L"--clientID=";
-                std::wstring wclientID(clientID.begin(), clientID.end());
-                sclientID+=wclientID;
-                absolutedargs.push_back(sclientID);
+                absolutedargs.push_back(L"--clientID=" + std::wstring(clientIdOpt->begin(), clientIdOpt->end()));
             }
         }
 
@@ -727,7 +709,7 @@ void printprogress(long long completed, long long total, const char *title)
     printPercentageLineCerr(title, completed, total, percentDowloaded, !alreadyFinished);
 }
 
-void statechangehandle(string statestring)
+void statechangehandle(string statestring, MegaCmdShellCommunications & comsManager)
 {
     char statedelim[2]={(char)0x1F,'\0'};
     size_t nextstatedelimitpos = statestring.find(statedelim);
@@ -745,9 +727,8 @@ void statechangehandle(string statestring)
         nextstatedelimitpos = statestring.find(statedelim);
         if (newstate.compare(0, strlen("prompt:"), "prompt:") == 0)
         {
-            std::unique_lock<std::mutex> lk(promptLogReceivedMutex);
-            promtpLogReceivedCV.notify_one(); //This is always received after server is first ready
-            promtpLogReceivedBool = true;
+            // This is always received after server is first ready
+            comsManager.markServerRegistrationFailed();
         }
         else if (newstate.compare(0, strlen("endtransfer:"), "endtransfer:") == 0)
         {
@@ -768,28 +749,22 @@ void statechangehandle(string statestring)
 #ifdef _WIN32
                 wstring wbuffer;
                 stringtolocalw((const char*)os.str().data(),&wbuffer);
-                int oldmode;
-                MegaCmdShellCommunications::megaCmdStdoutputing.lock();
-                oldmode = _setmode(_fileno(stdout), _O_U8TEXT);
+                WindowsUtf8StdoutGuard utf8Guard;
                 OUTSTREAM << wbuffer << flush;
-                _setmode(_fileno(stdout), oldmode);
-                MegaCmdShellCommunications::megaCmdStdoutputing.unlock();
-
 #else
+                StdoutMutexGuard stdoutGuard;
                 OUTSTREAM << os.str();
 #endif
             }
         }
         else if (newstate.compare(0, strlen("loged:"), "loged:") == 0)
         {
-            serverTryingToLog = false;
-            promtpLogReceivedCV.notify_one();
-            promtpLogReceivedBool = true;
+            // non interactive client doesn't need to wait for prompt if login finished
+            comsManager.markServerReady();
         }
         else if (newstate.compare(0, strlen("login:"), "login:") == 0)
         {
-            serverTryingToLog = true;
-            std::unique_lock<std::mutex> lk(MegaCmdShellCommunications::megaCmdStdoutputing);
+            StdoutMutexGuard stdoutGuard;
             printCenteredContentsCerr(string("Resuming session ... ").c_str(), width, false);
         }
         else if (newstate.compare(0, strlen("message:"), "message:") == 0)
@@ -798,27 +773,25 @@ void statechangehandle(string statestring)
             {
                 lastMessage = newstate;
 
-                string contents = newstate.substr(strlen("message:"));
+                std::string_view messageContents = std::string_view(newstate).substr(strlen("message:"));
+                string contents = std::string(shown_partial_progress ? "\n": "").append(messageContents);
+                replaceAll(contents, "%mega-%", "mega-");
 
-                MegaCmdShellCommunications::megaCmdStdoutputing.lock();
-                if (shown_partial_progress)
-                {
-                    cerr << endl;
-                }
-                if (contents.find("-----") != 0)
+                if (messageContents.rfind("-----", 0) != 0)
                 {
                     printCenteredContentsCerr(contents, width);
                 }
                 else
                 {
+                    StdoutMutexGuard stdoutGuard;
                     cerr << endl <<  contents << endl;
                 }
-                MegaCmdShellCommunications::megaCmdStdoutputing.unlock();
             }
         }
         else if (newstate.compare(0, strlen("clientID:"), "clientID:") == 0)
         {
-            clientID = newstate.substr(strlen("clientID:")).c_str();
+            std::string clientId = newstate.substr(strlen("clientID:"));
+            comsManager.setClientIdPromise(clientId);
         }
         else if (newstate.compare(0, strlen("progress:"), "progress:") == 0)
         {
@@ -848,31 +821,9 @@ void statechangehandle(string statestring)
                 shown_partial_progress = false;
             }
 
-            MegaCmdShellCommunications::megaCmdStdoutputing.lock();
-            if (title.size())
-            {
-                if (received==SPROGRESS_COMPLETE)
-                {
-                    printprogress(PROGRESS_COMPLETE, charstoll(total.c_str()),title.c_str());
-
-                }
-                else
-                {
-                    printprogress(charstoll(received.c_str()), charstoll(total.c_str()),title.c_str());
-                }
-            }
-            else
-            {
-                if (received==SPROGRESS_COMPLETE)
-                {
-                    printprogress(PROGRESS_COMPLETE, charstoll(total.c_str()));
-                }
-                else
-                {
-                    printprogress(charstoll(received.c_str()), charstoll(total.c_str()));
-                }
-            }
-            MegaCmdShellCommunications::megaCmdStdoutputing.unlock();
+            long long completed = received == SPROGRESS_COMPLETE ? PROGRESS_COMPLETE : charstoll(received.c_str());
+            const char * progressTitle = title.empty() ? "TRANSFERRING" : title.c_str();
+            printprogress(completed, charstoll(total.c_str()), progressTitle);
         }
         else if (newstate == "ack")
         {
@@ -909,6 +860,14 @@ int executeClient(int argc, char* argv[], OUTSTREAMTYPE & outstream)
         {
             freopen(argv[i+1],"w",stdout);
             redirectedoutput = true;
+
+            for (int j = i; j < argc - 2; ++j)
+            {
+                argv[j] = argv[j + 2];
+            }
+            argc -= 2;
+            argv[argc] = nullptr;
+            --i; // Stay at the same index to process the shifted arguments
         }
     }
 
@@ -921,12 +880,13 @@ int executeClient(int argc, char* argv[], OUTSTREAMTYPE & outstream)
 #ifdef _WIN32
     std::unique_ptr<MegaCmdShellCommunications> comms(new MegaCmdShellCommunicationsNamedPipes(redirectedoutput));
 #else
-    std::unique_ptr<MegaCmdShellCommunications> comms(new MegaCmdShellCommunications());
+    std::unique_ptr<MegaCmdShellCommunications> comms(new MegaCmdShellCommunicationsPosix());
 #endif
 
     string command = argv[1];
-    int registerResult = comms->registerForStateChanges(false, statechangehandle, command.compare(0,4,"exit") && command.compare(0,4,"quit") && command.compare(0,10,"completion"));
-    if (registerResult == -1)
+    bool mayInitiateServer = command.compare(0,4,"exit") && command.compare(0,4,"quit") && command.compare(0,10,"completion");
+    bool registeredOk = comms->registerForStateChanges(false, statechangehandle, mayInitiateServer);
+    if (!registeredOk)
     {
         return -2;
     }
@@ -942,28 +902,26 @@ int executeClient(int argc, char* argv[], OUTSTREAMTYPE & outstream)
     {
         return -3;
     }
-    wstring wParsedArgs = parsewArgs(wargc, szArglist);
+    wstring wParsedArgs = parsewArgs(wargc, szArglist, *comms);
     LocalFree(szArglist);
 #else
-    string parsedArgs = parseArgs(argc,argv);
+    string parsedArgs = parseArgs(argc, argv, *comms);
 #endif
 
     bool isInloginInValidCommands = false;
-    if (argc>1)
+    if (argc > 1)
     {
         isInloginInValidCommands = std::find(loginInValidCommands.begin(), loginInValidCommands.end(), string(argv[1])) != loginInValidCommands.end();
     }
 
-    //now we can relay on having a prompt received if the server is running
-    //after that first prompt, we will keep on waiting for server to finish logging in (resuming session)
-    //if the requested command is not allowed. For other commands (e.g. proxy), we let the execution continue
-    do {
-        std::unique_lock<std::mutex> lk(promptLogReceivedMutex);
-        if (!promtpLogReceivedBool)
-        {
-            promtpLogReceivedCV.wait(lk);
-        }
-    } while (serverTryingToLog && !isInloginInValidCommands);
+    // If the command requires login, let's give it some time before executing it.
+    // We will wait for server to signal readyness
+    // Server readyness is marked by the arrival of prompt
+    // or loging completes. Note: if the login takes larger than RESUME_SESSION_TIMEOUT we will continue and let the command fail if requires login
+    if (!isInloginInValidCommands)
+    {
+        comms->waitForServerReadyOrRegistrationFailed();
+    }
 
 #if defined _WIN32 && !defined MEGACMD_TESTING_CODE
     int outcode = comms->executeCommandW(wParsedArgs, readresponse, outstream, false);
@@ -977,6 +935,7 @@ int executeClient(int argc, char* argv[], OUTSTREAMTYPE & outstream)
         outcode = - outcode;
     }
 
+    comms->shutdown();
     return outcode;
 }
 

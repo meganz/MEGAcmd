@@ -17,7 +17,10 @@
 
 #include "megacmd.h"
 #include "megacmdlogger.h"
+#include "megacmd_rotating_logger.h"
 #include "Instruments.h"
+
+#include "TestUtils.h"
 
 #ifdef __linux__
 #include <sched.h>
@@ -44,6 +47,7 @@ static void setUpUnixSignals()
 
 int main (int argc, char *argv[])
 {
+
 #ifdef __linux__
     if (getenv("MEGA_INTEGRATION_TEST_ENFORCE_SINGLE_CPU"))
     {
@@ -62,16 +66,16 @@ int main (int argc, char *argv[])
 
     testing::InitGoogleTest(&argc, argv);
 
-    std::thread serverThread([](){
+#ifdef WIN32
+    megacmd::Instance<megacmd::WindowsConsoleController> windowsConsoleController;
 
-        std::vector<char*> args{
-            (char *)"argv0_INTEGRATION_TESTS",
-            nullptr
-        };
-
-        megacmd::executeServer(1, args.data(),
-                               ::mega::make_unique<megacmd::LoggedStreamDefaultFile>());
-    });
+    // Set custom gtests event listener to control the output to stdout
+    ::testing::TestEventListeners& listeners =
+        ::testing::UnitTest::GetInstance()->listeners();
+    auto customListener = new CustomTestEventListener();
+    customListener->mDefault.reset(listeners.Release(listeners.default_result_printer()));
+    listeners.Append(customListener);
+#endif
 
     using TI = TestInstruments;
 
@@ -81,6 +85,18 @@ int main (int argc, char *argv[])
         serverWaitingPromise.set_value();
     });
 
+    std::thread serverThread([] {
+
+        std::vector<char*> args{
+            (char *)"argv0_INTEGRATION_TESTS",
+            nullptr
+        };
+
+        constexpr bool logToCout = false;
+        auto createDefaultStream = [] { return new megacmd::FileRotatingLoggedStream(megacmd::MegaCmdLogger::getDefaultFilePath()); };
+        megacmd::executeServer(1, args.data(), createDefaultStream, logToCout, mega::MegaApi::LOG_LEVEL_MAX, mega::MegaApi::LOG_LEVEL_MAX);
+    });
+
     auto waitReturn = serverWaitingPromise.get_future().wait_for(std::chrono::seconds(10));
     UNUSED(waitReturn);
     assert(waitReturn != std::future_status::timeout);
@@ -88,7 +104,13 @@ int main (int argc, char *argv[])
     auto exitCode = RUN_ALL_TESTS();
 
     megacmd::stopServer();
-
     serverThread.join();
+
+#ifdef _WIN32
+    // We use a file to pass the exit code to Jenkins,
+    // since it fails to get the actual value otherwise
+    std::ofstream("exit_code.txt") << exitCode;
+#endif
+
     return exitCode;
 }

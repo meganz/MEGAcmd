@@ -360,7 +360,6 @@ const char * getTransferStateStr(int transferState)
     }
 
 }
-#ifdef ENABLE_BACKUPS
 
 string backupSatetStr(int backupstate)
 {
@@ -395,7 +394,6 @@ string backupSatetStr(int backupstate)
 
     return "UNDEFINED";
 }
-#endif
 
 const char * getProxyTypeStr(int proxyType)
 {
@@ -1251,16 +1249,5 @@ std::string syncBackupIdToBase64(const MegaHandle &handle)
 mega::MegaHandle base64ToSyncBackupId(const std::string &shandle)
 {
     return MegaApi::base64ToUserHandle(shandle.c_str());
-}
-
-bool pathIsExistingDir(std::string path)
-{
-#ifdef _WIN32
-    replaceAll(path, "/", "\\");
-#endif
-    LocalPath abs = LocalPath::fromAbsolutePath(path);
-    ::mega::MegaFileSystemAccess fsa;
-    std::unique_ptr<::mega::FileAccess> fa = fsa.newfileaccess();
-    return fa->isfolder(abs);
 }
 }//end namespace

@@ -1,0 +1,38 @@
+#ifndef MEGACMDVERSION_H
+#define MEGACMDVERSION_H
+
+#ifndef SDK_COMMIT_HASH
+#define SDK_COMMIT_HASH "@SDK_COMMIT_HASH@"
+#endif
+
+#ifndef MEGACMD_MAJOR_VERSION
+#define MEGACMD_MAJOR_VERSION @MEGACMD_MAJOR_VERSION@
+#endif
+#ifndef MEGACMD_MINOR_VERSION
+#define MEGACMD_MINOR_VERSION @MEGACMD_MINOR_VERSION@
+#endif
+#ifndef MEGACMD_MICRO_VERSION
+#define MEGACMD_MICRO_VERSION @MEGACMD_MICRO_VERSION@
+#endif
+
+#ifndef MEGACMD_BUILD_ID
+#define MEGACMD_BUILD_ID 0
+#endif
+
+#ifndef MEGACMD_CODE_VERSION
+#define MEGACMD_CODE_VERSION (MEGACMD_BUILD_ID+MEGACMD_MICRO_VERSION*100+MEGACMD_MINOR_VERSION*10000+MEGACMD_MAJOR_VERSION*1000000)
+#endif
+namespace megacmd {
+
+const char * const megacmdchangelog =
+        "New Sync Engine: See sync-issues and sync-ignore commands""\n"
+        "Rotating Logger: Introduced a robust rotating logging system across all platforms for better performance and debugging""\n"
+        "Platform-specific enhancements: Addressed various file descriptor issues on Linux and macOS, and improved non-ascii support on Windows""\n"
+        "Improved overall reliability: Fixed memory leaks, resolved potential data races, and eliminated deadlock scenarios""\n"
+        "Fixed an issue when handling double-quoted arguments""\n"
+        "Various fixes and refinements to enhance usability and performance"
+        ;
+
+}//end namespace
+#endif // VERSION_H
+

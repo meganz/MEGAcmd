@@ -65,7 +65,7 @@ void MegaCmdGlobalListener::onUsersUpdate(MegaApi *api, MegaUserList *users1)
     }
 }
 
-MegaCmdGlobalListener::MegaCmdGlobalListener(MegaCMDLogger *logger, MegaCmdSandbox *sandboxCMD)
+MegaCmdGlobalListener::MegaCmdGlobalListener(MegaCmdLogger *logger, MegaCmdSandbox *sandboxCMD)
 {
     this->loggerCMD = logger;
     this->sandboxCMD = sandboxCMD;
@@ -139,10 +139,10 @@ void MegaCmdGlobalListener::onNodesUpdate(MegaApi *api, MegaNodeList *nodes)
                     nFiles += details->getNumFiles(handle);
                     nFolders += details->getNumFolders(handle);
                 }
-                auto inboxNode = std::unique_ptr<MegaNode>(api->getInboxNode());
-                if (inboxNode != nullptr)
+                auto vaultNode = std::unique_ptr<MegaNode>(api->getVaultNode());
+                if (vaultNode != nullptr)
                 {
-                    auto handle = inboxNode->getHandle();
+                    auto handle = vaultNode->getHandle();
                     nFiles += details->getNumFiles(handle);
                     nFolders += details->getNumFolders(handle);
                 }
@@ -475,7 +475,6 @@ void MegaCmdMegaListener::onChatsUpdate(MegaApi *api, MegaTextChatList *chats)
 {}
 #endif
 
-#ifdef ENABLE_BACKUPS
 //backup callbacks:
 void MegaCmdMegaListener::onBackupStateChanged(MegaApi *api,  MegaScheduledCopy *backup)
 {
@@ -523,6 +522,10 @@ void MegaCmdMegaListener::onSyncAdded(MegaApi *api, MegaSync *sync)
         sendEvent(StatsManager::MegacmdEvent::FIRST_CONFIGURED_SYNC, api, false);
         ConfigurationManager::savePropertyValue("firstSyncConfigured", true);
     }
+    else
+    {
+        sendEvent(StatsManager::MegacmdEvent::SUBSEQUENT_CONFIGURED_SYNC, api, false);
+    }
 }
 
 void MegaCmdMegaListener::onSyncStateChanged(MegaApi *api, MegaSync *sync)
@@ -537,7 +540,7 @@ void MegaCmdMegaListener::onSyncStateChanged(MegaApi *api, MegaSync *sync)
     }
     auto msg = ss.str();
 
-    if (sync->getError() || sync->getRunState() >= MegaSync::RUNSTATE_PAUSED)
+    if (sync->getError() || sync->getRunState() >= MegaSync::RUNSTATE_SUSPENDED)
     {
         broadcastDelayedMessage(msg, true);
     }
@@ -549,7 +552,6 @@ void MegaCmdMegaListener::onSyncDeleted(MegaApi *api, MegaSync *sync)
     LOG_verbose << "Sync deleted: " << sync->getLocalFolder() << " to " << sync->getLastKnownMegaFolder();
 }
 
-#endif
 ////////////////////////////////////////
 ///      MegaCmdListener methods     ///
 ////////////////////////////////////////
@@ -1244,14 +1246,14 @@ bool MegaCmdCatTransferListener::onTransferData(MegaApi *api, MegaTransfer *tran
 {
     if (!ls->isClientConnected())
     {
-        LOG_debug << " CatTransfer listener, cancelled transfer due to client disconnected";
+        LOG_verbose << " CatTransfer listener, cancelled transfer due to client disconnected";
         api->cancelTransfer(transfer);
     }
     else
     {
 
-        LOG_debug << " CatTransfer listener, streaming " << size << " bytes";  //TODO: verbose
-        *ls << string(buffer,size);
+        LOG_verbose << " CatTransfer listener, streaming " << size << " bytes";
+        *ls << BinaryStringView(buffer, size);
     }
 
     return true;

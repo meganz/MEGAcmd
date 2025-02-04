@@ -14,18 +14,29 @@
  */
 
 #include "megacmdcommonutils.h"
+
 #include "megaapi.h"
 #include <gtest/gtest.h>
+
+#include "TestUtils.h"
 
 int main (int argc, char *argv[])
 {
     mega::MegaApi::setLogToConsole(true);
     mega::MegaApi::setLogLevel(mega::MegaApi::LOG_LEVEL_MAX);
 
-#ifdef _WIN32
-    auto dirs = megacmd::PlatformDirectories::getPlatformSpecificDirectories();
-    std::cout << "config Dir is " << dirs->configDirPath() << std::endl;
-#endif
     testing::InitGoogleTest(&argc, argv);
+
+#ifdef WIN32
+    megacmd::Instance<megacmd::WindowsConsoleController> windowsConsoleController;
+
+    // Set custom gtests event listener to control the output to stdout
+    ::testing::TestEventListeners& listeners =
+        ::testing::UnitTest::GetInstance()->listeners();
+    auto customListener = new CustomTestEventListener();
+    customListener->mDefault.reset(listeners.Release(listeners.default_result_printer()));
+    listeners.Append(customListener);
+#endif
+
     return RUN_ALL_TESTS();
 }

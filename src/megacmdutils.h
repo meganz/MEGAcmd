@@ -42,7 +42,6 @@ const char* getAccessLevelStr(int level);
     GENERATOR_MACRO(RUNSTATE_PENDING, "Pending", "Sync config has loaded but we have not attempted to start it yet")\
     GENERATOR_MACRO(RUNSTATE_LOADING, "Loading", "Sync is in the process of loading from disk")\
     GENERATOR_MACRO(RUNSTATE_RUNNING, "Running", "Sync loaded and active")\
-    GENERATOR_MACRO(RUNSTATE_PAUSED, "Paused", "Sync loaded but sync logic is suspended for now.")\
     GENERATOR_MACRO(RUNSTATE_SUSPENDED, "Suspended", "Sync is not loaded, but it is on disk with the last known sync state")\
     GENERATOR_MACRO(RUNSTATE_DISABLED, "Disabled", "Sync has been disabled (no state cached). Starting it is like configuring a brand new sync with those settings")\
 
@@ -151,8 +150,6 @@ bool getMinAndMaxSize(std::string sizestring, int64_t *minSize, int64_t *maxSize
 /* Others */
 std::string readablePermissions(int permvalue);
 int permissionsFromReadable(std::string permissions);
-
-bool pathIsExistingDir(std::string path);
 
 }//end namespace
 #endif // MEGACMDUTILS_H

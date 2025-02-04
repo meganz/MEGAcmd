@@ -15,7 +15,6 @@ pipeline {
         string(name: 'SDK_BRANCH', defaultValue: ' ', description: 'Optionally, define a custom SDK branch.')
     }
     environment {
-        gitlab_token = credentials('jenkins_sdk_token')
         MEGACMD_BRANCH = "${params.MEGACMD_BRANCH}"
         SDK_BRANCH = "${params.SDK_BRANCH}"
     }
@@ -45,7 +44,7 @@ pipeline {
                         branchToCheckout = env.SDK_BRANCH
                         shouldCloneSDK = true
                     } else if (env.MEGACMD_BRANCH in ['develop', 'master']) {
-                        branchToCheckout = "release/v6.0.0"
+                        branchToCheckout = "develop"
                         shouldCloneSDK = true
                     } else {
                         def status = sh(script: "git submodule status", returnStdout: true).trim()
@@ -67,14 +66,13 @@ pipeline {
         }
         stage ('Build Windows installers'){
             environment{
-                MEGA_VCPKGPATH  = "${windows_sources_workspace}\\..\\3rdparty"
-                MEGA_THIRD_PARTY_DLL_DIR = "bin"
-                SKIP_BUILD_THIRD_PARTIES = "1"
+                MEGA_VCPKGPATH  = "${windows_sources_workspace}\\..\\vcpkg_cmdins"
                 MEGA_WIN_KITVER = "10.0.19041.0"
             }
             steps {
                 dir(windows_sources_workspace + '\\build'){
                     bat """
+                        @echo on
                         mkdir tmp
                         set _MSPDBSRV_ENDPOINT_= ${BUILD_TAG}
                         set TMP=${Workspace}\\tmp
@@ -100,21 +98,22 @@ pipeline {
                     script {
                         def windows_artifactory_upload = { String ART_UPLOAD_PATH, String buildDir, String arch ->
 
-                            powershell """
-                                ${JF_PATH}\\jf config use artifactory
-                                ${JF_PATH}\\jf rt del ${ART_UPLOAD_PATH}
-                                ${JF_PATH}\\jf rt upload MEGAcmdSetup${arch}_unsigned.exe ${ART_UPLOAD_PATH}
-                                cd ${buildDir}
-                                ${JF_PATH}\\jf rt upload legacy.pdb ${ART_UPLOAD_PATH}
-                                ${JF_PATH}\\jf rt upload LMegacmdClient.pdb ${ART_UPLOAD_PATH}
-                                ${JF_PATH}\\jf rt upload LMegacmdServer.pdb ${ART_UPLOAD_PATH}
-                                ${JF_PATH}\\jf rt upload MegacmdServer.pdb ${ART_UPLOAD_PATH}
-                                ${JF_PATH}\\jf rt upload Mega.pdb ${ART_UPLOAD_PATH}
-                                ${JF_PATH}\\jf rt upload MEGAclient.exe ${ART_UPLOAD_PATH}
-                                ${JF_PATH}\\jf rt upload MEGAcmdServer.exe ${ART_UPLOAD_PATH}
-                                ${JF_PATH}\\jf rt upload MEGAcmdShell.exe ${ART_UPLOAD_PATH}
-                                ${JF_PATH}\\jf rt upload MEGAcmdUpdater.exe ${ART_UPLOAD_PATH}
-                            """
+                            withCredentials([string(credentialsId: 'MEGACMD_ARTIFACTORY_TOKEN', variable: 'MEGACMD_ARTIFACTORY_TOKEN')]) {
+                                powershell """
+                                    ${JF_PATH}\\jf rt del --url ${REPO_URL} --access-token $MEGACMD_ARTIFACTORY_TOKEN ${ART_UPLOAD_PATH}
+                                    ${JF_PATH}\\jf rt upload --url ${REPO_URL} --access-token $MEGACMD_ARTIFACTORY_TOKEN MEGAcmdSetup${arch}_unsigned.exe ${ART_UPLOAD_PATH}
+                                    cd ${buildDir}
+                                    ${JF_PATH}\\jf rt upload --url ${REPO_URL} --access-token $MEGACMD_ARTIFACTORY_TOKEN legacy.pdb ${ART_UPLOAD_PATH}
+                                    ${JF_PATH}\\jf rt upload --url ${REPO_URL} --access-token $MEGACMD_ARTIFACTORY_TOKEN LMegacmdClient.pdb ${ART_UPLOAD_PATH}
+                                    ${JF_PATH}\\jf rt upload --url ${REPO_URL} --access-token $MEGACMD_ARTIFACTORY_TOKEN LMegacmdServer.pdb ${ART_UPLOAD_PATH}
+                                    ${JF_PATH}\\jf rt upload --url ${REPO_URL} --access-token $MEGACMD_ARTIFACTORY_TOKEN MegacmdServer.pdb ${ART_UPLOAD_PATH}
+                                    ${JF_PATH}\\jf rt upload --url ${REPO_URL} --access-token $MEGACMD_ARTIFACTORY_TOKEN Mega.pdb ${ART_UPLOAD_PATH}
+                                    ${JF_PATH}\\jf rt upload --url ${REPO_URL} --access-token $MEGACMD_ARTIFACTORY_TOKEN MEGAclient.exe ${ART_UPLOAD_PATH}
+                                    ${JF_PATH}\\jf rt upload --url ${REPO_URL} --access-token $MEGACMD_ARTIFACTORY_TOKEN MEGAcmdServer.exe ${ART_UPLOAD_PATH}
+                                    ${JF_PATH}\\jf rt upload --url ${REPO_URL} --access-token $MEGACMD_ARTIFACTORY_TOKEN MEGAcmdShell.exe ${ART_UPLOAD_PATH}
+                                    ${JF_PATH}\\jf rt upload --url ${REPO_URL} --access-token $MEGACMD_ARTIFACTORY_TOKEN MEGAcmdUpdater.exe ${ART_UPLOAD_PATH}
+                                """
+                            }
                         }
                         MEGACMD_VERSION = getVersionFromHeader("../src/megacmdversion.h")
                         sh "echo $MEGACMD_VERSION > version.txt"
@@ -135,6 +134,11 @@ pipeline {
                     }
                 }
             }
+        }
+    }
+    post {
+        always {
+            deleteDir()
         }
     }
 }

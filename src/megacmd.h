@@ -36,6 +36,8 @@ using std::locale;
 using std::stringstream;
 using std::exception;
 
+#include "megacmdcommonutils.h"
+
 #include "megaapi_impl.h"
 #include "megacmd_events.h"
 
@@ -158,7 +160,37 @@ public:
 mega::MegaApi* getFreeApiFolder();
 void freeApiFolder(mega::MegaApi *apiFolder);
 
-const char * getUsageStr(const char *command);
+struct HelpFlags
+{
+    bool win = false;
+    bool apple = false;
+    bool usePcre = false;
+    bool haveLibuv = false;
+    bool readline = true;
+    bool showAll = false;
+
+    HelpFlags(bool showAll = false) :
+        showAll(showAll)
+    {
+#ifdef USE_PCRE
+        usePcre = true;
+#endif
+#ifdef _WIN32
+        win = true;
+#endif
+#ifdef __APPLE__
+        apple = true;
+#endif
+#ifdef HAVE_LIBUV
+        haveLibuv = true;
+#endif
+#ifdef NO_READLINE
+        readline = false;
+#endif
+    }
+};
+
+const char * getUsageStr(const char *command, const HelpFlags& flags = {});
 
 void unescapeifRequired(std::string &what);
 
@@ -178,10 +210,16 @@ void* checkForUpdates(void *param);
 void stopcheckingForUpdates();
 void startcheckingForUpdates();
 
+/**
+ * @brief synchronously request the API for a a new version of MEGAcmd
+ * It will skip the check if already checked in the past 5 minutes
+ * @param api
+ * @return a string with a msg with the announcement if a new version is available
+ */
+std::optional<std::string> lookForAvailableNewerVersions(::mega::MegaApi *api);
+
 void informTransferUpdate(mega::MegaTransfer *transfer, int clientID);
 void informStateListenerByClientId(int clientID, std::string s);
-
-
 void informProgressUpdate(long long transferred, long long total, int clientID, std::string title = "");
 
 void sendEvent(StatsManager::MegacmdEvent event, mega::MegaApi *megaApi, bool wait = true);
@@ -193,7 +231,8 @@ void uninstall();
 
 class LoggedStream; // forward delaration
 int executeServer(int argc, char* argv[],
-                  std::unique_ptr<megacmd::LoggedStream> logStream = nullptr,
+                  const std::function<LoggedStream*()>& createLoggedStream = nullptr,
+                  bool logToCout = true,
                   int sdkLogLevel = mega::MegaApi::LOG_LEVEL_DEBUG,
                   int cmdLogLevel = mega::MegaApi::LOG_LEVEL_DEBUG,
                   bool skiplockcheck = false,

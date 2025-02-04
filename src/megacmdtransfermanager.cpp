@@ -56,7 +56,6 @@ void printTransferColumnDisplayer(ColumnDisplayer *cd, MegaTransfer *transfer, c
         type += "\u21f5";
 #endif
     }
-#ifdef ENABLE_BACKUPS
     else if (transfer->isBackupTransfer())
     {
 #ifdef _WIN32
@@ -65,7 +64,6 @@ void printTransferColumnDisplayer(ColumnDisplayer *cd, MegaTransfer *transfer, c
         type += "\u23eb";
 #endif
     }
-#endif
 
     cd->addValue("TYPE",type);
     cd->addValue("TAG", std::to_string(transfer->getTag()));
@@ -454,7 +452,7 @@ void DownloadsManager::printOne(OUTSTREAMTYPE &os, std::string objectIDorTag, ma
         }
         catch (...)
         {
-            setCurrentOutCode(MCMD_INVALIDTYPE);
+            setCurrentThreadOutCode(MCMD_INVALIDTYPE);
             LOG_err << " Invalid parameter: " << objectIDorTag;
             return;
         }
@@ -467,7 +465,7 @@ void DownloadsManager::printOne(OUTSTREAMTYPE &os, std::string objectIDorTag, ma
    }
    else
    {
-       setCurrentOutCode(MCMD_NOTFOUND);
+       setCurrentThreadOutCode(MCMD_NOTFOUND);
        LOG_err << " Not found: " << objectIDorTag;
        return;
    }

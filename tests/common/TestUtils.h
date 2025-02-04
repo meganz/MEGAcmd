@@ -26,10 +26,13 @@
 
 #include <memory>
 #include <future>
+#include <filesystem>
 
 #include <sstream>
 
 #include <gmock/gmock.h>
+
+#include "megacmdcommonutils.h"
 
 #define ULOG_COLOR(color, fmt, ...) \
     do { if (isatty(1)) printf(color fmt "\033[0m\n", ##__VA_ARGS__); \
@@ -147,5 +150,133 @@ MATCHER_P(ContainsStdRegex, pattern, "")
     *result_listener << "where the string '" << arg << "' contains the std::regex '" << pattern << "'";
     std::regex regex(pattern);
     return std::regex_search(arg, regex);
-
 }
+
+class SelfDeletingTmpFolder
+{
+    fs::path mTempDir;
+
+public:
+    SelfDeletingTmpFolder()
+    {
+        mTempDir = fs::temp_directory_path() / fs::path(megacmd::generateRandomAlphaNumericString(10));
+        fs::create_directory(mTempDir);
+    }
+
+    SelfDeletingTmpFolder(const fs::path& subPath) :
+        SelfDeletingTmpFolder()
+    {
+        mTempDir /= subPath;
+        fs::create_directories(mTempDir);
+    }
+
+    ~SelfDeletingTmpFolder()
+    {
+        fs::remove_all(mTempDir);
+    }
+
+    std::string string() const
+    {
+        return mTempDir.string();
+    }
+
+    fs::path path() const
+    {
+        return mTempDir;
+    }
+};
+
+#ifdef WIN32
+/**
+ * @brief Google tests outputing needs stdout mode to be _O_TEXT
+ * otherwise low level printing will fail.
+ * This is a custom listener to wrapp writing routines
+ */
+struct CustomTestEventListener : public ::testing::EmptyTestEventListener {
+    std::unique_ptr<::testing::TestEventListener> mDefault;
+
+    void OnTestProgramStart(const ::testing::UnitTest& unit_test) override {
+        megacmd::WindowsNarrowStdoutGuard smg;
+        mDefault->OnTestProgramStart(unit_test);
+    }
+
+    void OnTestIterationStart(const ::testing::UnitTest& unit_test, int iteration) override {
+        megacmd::WindowsNarrowStdoutGuard smg;
+        mDefault->OnTestIterationStart(unit_test, iteration);
+    }
+
+    void OnEnvironmentsSetUpStart(const ::testing::UnitTest& unit_test) override {
+        megacmd::WindowsNarrowStdoutGuard smg;
+        mDefault->OnEnvironmentsSetUpStart(unit_test);
+    }
+
+    void OnEnvironmentsSetUpEnd(const ::testing::UnitTest& unit_test) override {
+        megacmd::WindowsNarrowStdoutGuard smg;
+        mDefault->OnEnvironmentsSetUpEnd(unit_test);
+    }
+
+    void OnTestSuiteStart(const ::testing::TestSuite& test_suite) override {
+        megacmd::WindowsNarrowStdoutGuard smg;
+        mDefault->OnTestSuiteStart(test_suite);
+    }
+
+#ifndef GTEST_REMOVE_LEGACY_TEST_CASEAPI_
+    void OnTestCaseStart(const ::testing::TestCase& test_case) override {
+        megacmd::WindowsNarrowStdoutGuard smg;
+        mDefault->OnTestCaseStart(test_case);
+    }
+#endif  // GTEST_REMOVE_LEGACY_TEST_CASEAPI_
+
+    void OnTestStart(const ::testing::TestInfo& test_info) override {
+        megacmd::WindowsNarrowStdoutGuard smg;
+        mDefault->OnTestStart(test_info);
+    }
+
+    void OnTestDisabled(const ::testing::TestInfo& test_info) override {
+        megacmd::WindowsNarrowStdoutGuard smg;
+        mDefault->OnTestDisabled(test_info);
+    }
+
+    void OnTestPartResult(const ::testing::TestPartResult& result) override {
+        megacmd::WindowsNarrowStdoutGuard smg;
+        mDefault->OnTestPartResult(result);
+    }
+
+    void OnTestEnd(const ::testing::TestInfo& test_info) override {
+        megacmd::WindowsNarrowStdoutGuard smg;
+        mDefault->OnTestEnd(test_info);
+    }
+
+    void OnTestSuiteEnd(const ::testing::TestSuite& test_suite) override {
+        megacmd::WindowsNarrowStdoutGuard smg;
+        mDefault->OnTestSuiteEnd(test_suite);
+    }
+
+#ifndef GTEST_REMOVE_LEGACY_TEST_CASEAPI_
+    void OnTestCaseEnd(const ::testing::TestCase& test_case) override {
+        megacmd::WindowsNarrowStdoutGuard smg;
+        mDefault->OnTestCaseEnd(test_case);
+    }
+#endif  // GTEST_REMOVE_LEGACY_TEST_CASEAPI_
+
+    void OnEnvironmentsTearDownStart(const ::testing::UnitTest& unit_test) override {
+        megacmd::WindowsNarrowStdoutGuard smg;
+        mDefault->OnEnvironmentsTearDownStart(unit_test);
+    }
+
+    void OnEnvironmentsTearDownEnd(const ::testing::UnitTest& unit_test) override {
+        megacmd::WindowsNarrowStdoutGuard smg;
+        mDefault->OnEnvironmentsTearDownEnd(unit_test);
+    }
+
+    void OnTestIterationEnd(const ::testing::UnitTest& unit_test, int iteration) override {
+        megacmd::WindowsNarrowStdoutGuard smg;
+        mDefault->OnTestIterationEnd(unit_test, iteration);
+    }
+
+    void OnTestProgramEnd(const ::testing::UnitTest& unit_test) override {
+        megacmd::WindowsNarrowStdoutGuard smg;
+        mDefault->OnTestProgramEnd(unit_test);
+    }
+};
+#endif

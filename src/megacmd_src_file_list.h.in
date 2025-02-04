@@ -1,0 +1,3 @@
+#pragma once
+
+#define MEGACMD_SRC_FILE_LIST { @MEGACMD_SRC_FILE_LIST@ }

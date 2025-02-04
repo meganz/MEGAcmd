@@ -1,32 +1,61 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
-import sys, os, subprocess, shutil, re
+import sys, os, subprocess, shutil, re, platform
 import fnmatch
+import pexpect
 
-try:
-    os.environ['VERBOSE']
-    VERBOSE=True
-except:
-    VERBOSE=False
+VERBOSE = 'VERBOSE' in os.environ
+CMDSHELL = 'MEGACMDSHELL' in os.environ
+if CMDSHELL:
+    MEGACMDSHELL = os.environ['MEGACMDSHELL']
 
-try:
-    MEGACMDSHELL=os.environ['MEGACMDSHELL']
-    CMDSHELL=True
-    #~ FIND="executeinMEGASHELL find" #TODO
-except:
-    CMDSHELL=False
+if 'MEGA_EMAIL' in os.environ and 'MEGA_PWD' in os.environ and 'MEGA_EMAIL_AUX' in os.environ and 'MEGA_PWD_AUX' in os.environ:
+    MEGA_EMAIL = os.environ['MEGA_EMAIL']
+    MEGA_PWD = os.environ['MEGA_PWD']
+    MEGA_EMAIL_AUX = os.environ['MEGA_EMAIL_AUX']
+    MEGA_PWD_AUX = os.environ['MEGA_PWD_AUX']
+else:
+    raise Exception('Environment variables MEGA_EMAIL, MEGA_PWD, MEGA_EMAIL_AUX, MEGA_PWD_AUX are not defined. WARNING: Use a test account for $MEGA_EMAIL')
+
+def build_command_name(command):
+    if platform.system() == 'Windows':
+        return 'MEGAclient.exe ' + command
+    elif platform.system() == 'Darwin':
+        return 'mega-exec ' + command
+    else:
+        return 'mega-' + command
+
+GET = build_command_name('get')
+PUT = build_command_name('put')
+RM = build_command_name('rm')
+MV = build_command_name('mv')
+CD = build_command_name('cd')
+CP = build_command_name('cp')
+THUMB = build_command_name('thumbnail')
+LCD = build_command_name('lcd')
+MKDIR = build_command_name('mkdir')
+EXPORT = build_command_name('export')
+SHARE = build_command_name('share')
+INVITE = build_command_name('invite')
+FIND = build_command_name('find')
+WHOAMI = build_command_name('whoami')
+LOGOUT = build_command_name('logout')
+LOGIN = build_command_name('login')
+IPC = build_command_name('ipc')
+FTP = build_command_name('ftp')
+IMPORT = build_command_name('import')
 
 #execute command
 def ec(what):
     if VERBOSE:
-        print "Executing "+what
+        print("Executing "+what)
     process = subprocess.Popen(what, shell=True, stdout=subprocess.PIPE)
     stdoutdata, stderrdata = process.communicate()
 
-    stdoutdata=stdoutdata.replace('\r\n','\n')
+    stdoutdata=stdoutdata.replace(b'\r\n',b'\n')
     if VERBOSE:
-        print stdoutdata.strip()
+        print(stdoutdata.strip())
 
     return stdoutdata,process.returncode
 
@@ -43,54 +72,76 @@ def es(what):
 def esc(what):
     ret=ec(what)
     return ret[0].strip(),ret[1]
-    
+
 #exit if failed
 def ef(what):
     out,code=esc(what)
     if code != 0:
-        print >>sys.stderr, "FAILED trying ", what
-        print >>sys.stderr, out #TODO: stderr?
-        
+        print("FAILED trying "+ what, file=sys.stderr)
+        print(out, file=sys.stderr)
+
         exit(code)
-    return out    
+    return out
 
 def cmdshell_ec(what):
-    what=re.sub("^mega-","",what)
+    what = re.sub('^mega-', '', what)
     if VERBOSE:
-        print "Executing in cmdshell: "+what
-    towrite="lcd "+os.getcwd()+"\n"+what
-    out(towrite+"\n",'/tmp/shellin')
-    with open('/tmp/shellin') as shellin:
-        if VERBOSE:
-            print "Launching in cmdshell ... " + MEGACMDSHELL
-        process = subprocess.Popen(MEGACMDSHELL, shell=True, stdin=shellin, stdout=subprocess.PIPE)
-        stdoutdata, stderrdata = process.communicate()
-        realout =[]
-        equallines=0
-        afterwelcomemsg=False
-        afterorder=False
-        for l in stdoutdata.split('\n'):
-            l=re.sub(".*\x1b\[K","",l) #replace non printable stuff(erase line controls)
-            l=re.sub(".*\r","",l) #replace non printable stuff
-            if afterorder:
-                if "Exiting ..." in l: break
-                realout+=[l]
-            elif afterwelcomemsg:
-                if what in l: afterorder = True
-            elif "="*20 in l:
-                equallines+=1
-                if equallines==2: afterwelcomemsg = True
-        
-        realout="\n".join(realout)
-        if VERBOSE:
-            print realout.strip()
+        print(f'Executing in cmdshell: {what}')
 
-        return realout,process.returncode
+    # We must ensure there are enough columns so long commands don't get truncated
+    child = pexpect.spawn(MEGACMDSHELL, encoding='utf-8', dimensions=(32, 256), timeout=None)
+
+    quit_command = 'quit --only-shell'
+
+    def has_prompt(s, command): return any(f'{p} {command}' in s for p in ['$', 'MEGA CMD>'])
+    def wait_shell_prompt(): child.expect([r'(?=.+:.+\$ )', r'(?=MEGA CMD> )'])
+
+    try:
+        wait_shell_prompt()
+
+        # Having two lcd commands is not necessary and messes up the output parsing
+        if not what.startswith('lcd'):
+            child.sendline(f'lcd {os.getcwd()}')
+
+        child.sendline(what)
+        wait_shell_prompt()
+
+        # Stop the shell and wait for end-of-file
+        child.sendline(quit_command)
+        child.expect(pexpect.EOF)
+
+        # The whole output of the shell split by newlines
+        lines = child.before.replace('\r\n', '\n').split('\n')
+
+        # Find the start of our command
+        start = next(i for i, s in enumerate(lines) if has_prompt(s, what))
+
+        # Find the end of our shell by searching for the quit command
+        end = next(i for i, s in enumerate(lines[start+1:], start+1) if quit_command in s)
+
+        # The output of our command is the string in-between the start and end indices
+        out = '\n'.join(lines[start+1:end]).strip()
+    except pexpect.EOF:
+        print('Shell session ended')
+        return '', -1
+    except pexpect.TIMEOUT:
+        print('Timed out waiting for output')
+        return '', -1
+    finally:
+        child.close()
+
+    out = re.sub(r'.*\x1b\[K','', out) # erase line controls
+    out = re.sub(r'.*\r', '', out) # erase non printable stuff
+
+    if VERBOSE:
+        print(f'Exit code: {child.exitstatus}')
+        print(f'Out: {out}')
+
+    return out.encode('utf-8'), child.exitstatus
 
 #execute and return only stdout contents
 def cmdshell_ex(what):
     return cmdshell_ec(what)[0]
-    #return subprocess.Popen(what, shell=True, stdout=subprocess.PIPE).stdout.read()
 
 #Execute and strip, return only stdout
 def cmdshell_es(what):
@@ -100,17 +151,17 @@ def cmdshell_es(what):
 def cmdshell_esc(what):
     ret=cmdshell_ec(what)
     return ret[0].strip(),ret[1]
-    
+
 #exit if failed
 def cmdshell_ef(what):
     out,code=cmdshell_ec(what)
     if code != 0:
-        print >>sys.stderr, "FALLO en "+str(what) #TODO: stderr?
-        print >>sys.stderr, out #TODO: stderr?
-        
+        print("FAILED trying "+str(what), file=sys.stderr)
+        print(out, file=sys.stderr)
+
         exit(code)
     return out
-    
+
 def cmd_ec(what):
     if CMDSHELL: return cmdshell_ec(what)
     else: return ec(what)
@@ -138,16 +189,16 @@ def rmfolderifexisting(what):
 def rmfileifexisting(what):
     if os.path.exists(what):
         os.remove(what)
-        
+
 def rmcontentsifexisting(what):
     if os.path.exists(what) and os.path.isdir(what):
         shutil.rmtree(what)
         os.makedirs(what)
-        
+
 def copybyfilepattern(origin,pattern,destiny):
     for f in fnmatch.filter(os.listdir(origin),pattern):
         shutil.copy2(origin+'/'+f,destiny)
-        
+
 def copyfolder(origin,destiny):
     shutil.copytree(origin,destiny+'/'+origin.split('/')[-1])
 
@@ -157,7 +208,7 @@ def copybypattern(origin,pattern,destiny):
             copyfolder(origin+'/'+f,destiny)
         else:
             shutil.copy2(origin+'/'+f,destiny)
-        
+
 def makedir(what):
     if (not os.path.exists(what)):
         os.makedirs(what)
@@ -169,6 +220,8 @@ def osvar(what):
         return ""
 
 def sort(what):
+    if isinstance(what, bytes):
+        return b"\n".join(sorted(what.split(b"\n"))).decode()
     return "\n".join(sorted(what.split("\n")))
 
 def findR(where, prefix=""):
@@ -184,16 +237,16 @@ def findR(where, prefix=""):
 
 def find(where, prefix=""):
     if not os.path.exists(where):
-        if VERBOSE: print "file not found in find:", where, os.getcwd()
+        if VERBOSE: print("file not found in find: {}, {} ".format(where, os.getcwd()))
 
         return ""
-    
+
     if (not os.path.isdir(where)):
-        return prefix        
+        return prefix
 
     if (prefix == ""): toret ="."
     else: toret=prefix
-    
+
     if (prefix == "."):
         toret+="\n"+findR(where).strip()
     else:
@@ -205,7 +258,7 @@ def find(where, prefix=""):
 
 def ls(where, prefix=""):
     if not os.path.exists(where):
-        if VERBOSE: print "file not found in find:", where, os.getcwd()
+        if VERBOSE: print("file not found in find: {}, {}".format(where, os.getcwd()))
         return ""
     toret=".\n"
     for f in os.listdir(where):
@@ -220,3 +273,10 @@ def out(what, where):
     #~ print(what, file=where)
     with open(where, 'w') as f:
         f.write(what)
+
+def clean_root_confirmed_by_user():
+    if "YES_I_KNOW_THIS_WILL_CLEAR_MY_MEGA_ACCOUNT" in os.environ:
+        val = os.environ["YES_I_KNOW_THIS_WILL_CLEAR_MY_MEGA_ACCOUNT"]
+        return bool(int(val))
+    else:
+        return False

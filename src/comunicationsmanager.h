@@ -23,34 +23,18 @@
 #include "megacmdcommonutils.h"
 
 namespace megacmd {
-static const int MAXCMDSTATELISTENERS = 300;
-
-class CmdPetition
+struct CmdPetition
 {
-public:
-    char *line;
-    mega::MegaThread *petitionThread;
+    std::string line;
+    mega::MegaThread *petitionThread = nullptr;
     int clientID = -27;
-    bool clientDisconnected;
+    bool clientDisconnected = false;
 
-    CmdPetition()
-    {
-        line = NULL;
-        petitionThread = NULL;
-        clientDisconnected = false;
-    }
+    virtual ~CmdPetition() = default;
 
-    char *getLine()
-    {
-        return line;
-    }
-    virtual ~CmdPetition()
-    {
-        if (line != NULL)
-        {
-            free(line);
-        }
-    }
+    // Remove the starting 'X' if present (petitions coming from interactive mode)
+    std::string_view getUniformLine() const;
+
     mega::MegaThread *getPetitionThread() const;
     void setPetitionThread(mega::MegaThread *value);
     virtual std::string getPetitionDetails() const { return {}; }
@@ -68,14 +52,15 @@ private:
     fd_set fds;
 
     std::recursive_mutex mStateListenersMutex;
-    std::vector<CmdPetition *> stateListenersPetitions;
+    std::vector<std::unique_ptr<CmdPetition>> stateListenersPetitions;
 
 public:
     ComunicationsManager();
+    virtual ~ComunicationsManager() = default;
 
     virtual bool receivedPetition();
 
-    void registerStateListener(CmdPetition *inf);
+    virtual CmdPetition *registerStateListener(std::unique_ptr<CmdPetition> &&inf);
 
     virtual int waitForPetition();
 
@@ -83,14 +68,18 @@ public:
 
     virtual int get_next_comm_id();
 
+    virtual int getMaxStateListeners() const;
+
+    void ackStateListenersAndRemoveClosed();
+
     /**
      * @brief returnAndClosePetition
      * It will clean struct and close the socket within
      */
-    virtual void returnAndClosePetition(CmdPetition *inf, OUTSTRINGSTREAM *s, int);
+    virtual void returnAndClosePetition(std::unique_ptr<CmdPetition> inf, OUTSTRINGSTREAM *s, int);
 
-    virtual void sendPartialOutput(CmdPetition *inf, OUTSTRING *s);
-    virtual void sendPartialOutput(CmdPetition *inf, char *s, size_t size);
+    virtual void sendPartialOutput(CmdPetition *inf, OUTSTRING *s) = 0;
+    virtual void sendPartialOutput(CmdPetition *inf, char *s, size_t size, bool binaryContents = false) = 0;
 
 
     /**
@@ -98,9 +87,9 @@ public:
      * @param s
      * @returns if state listeners left
      */
-    bool informStateListeners(std::string &s);
+    bool informStateListeners(const std::string &s);
 
-    void informStateListenerByClientId(std::string &s, int clientID);
+    void informStateListenerByClientId(const std::string &s, int clientID);
 
     /**
      * @brief informStateListener
@@ -109,19 +98,17 @@ public:
      * @param s
      * @return -1 if connection closed by listener (removal required)
      */
-    virtual int informStateListener(CmdPetition *inf, std::string &s);
+    virtual int informStateListener(CmdPetition *inf, const std::string &s);
 
 
     /**
      * @brief getPetition
      * @return pointer to new CmdPetition. Petition returned must be properly deleted (this can be calling returnAndClosePetition)
      */
-    virtual CmdPetition *getPetition();
+    virtual std::unique_ptr<CmdPetition> getPetition();
 
     virtual int getConfirmation(CmdPetition *inf, std::string message);
     virtual std::string getUserResponse(CmdPetition *inf, std::string message);
-
-    virtual ~ComunicationsManager();
 };
 
 } //end namespace

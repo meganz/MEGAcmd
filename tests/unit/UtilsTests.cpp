@@ -57,38 +57,38 @@ TEST(UtilsTest, getListOfWords)
 {
     {
             G_SUBTEST << "Simple";
-            std::vector<std::string> words = megacmd::getlistOfWords(const_cast<char*>("mega-share -a --with=some-email@mega.co.nz some_dir/some_file.txt"));
+            std::vector<std::string> words = megacmd::getlistOfWords("mega-share -a --with=some-email@mega.co.nz some_dir/some_file.txt");
             ASSERT_THAT(words, testing::ElementsAre("mega-share", "-a", "--with=some-email@mega.co.nz", "some_dir/some_file.txt"));
     }
 
     {
             G_SUBTEST << "Double quotes";
-            std::vector<std::string> words = megacmd::getlistOfWords(const_cast<char*>("mkdir \"some dir\" \"another dir\""));
+            std::vector<std::string> words = megacmd::getlistOfWords("mkdir \"some dir\" \"another dir\"");
             ASSERT_THAT(words, testing::ElementsAre("mkdir", "some dir", "another dir"));
     }
 
     {
             G_SUBTEST << "Double quotes without matching";
-            std::vector<std::string> words = megacmd::getlistOfWords(const_cast<char*>("find \"something with quotes\" odd/file\"01.txt"));
+            std::vector<std::string> words = megacmd::getlistOfWords("find \"something with quotes\" odd/file\"01.txt");
             ASSERT_THAT(words, testing::ElementsAre("find", "something with quotes", "odd/file\"01.txt"));
     }
 
     {
             G_SUBTEST << "Single quotes";
-            std::vector<std::string> words = megacmd::getlistOfWords(const_cast<char*>("mkdir 'some dir' 'another dir'"));
+            std::vector<std::string> words = megacmd::getlistOfWords("mkdir 'some dir' 'another dir'");
             ASSERT_THAT(words, testing::ElementsAre("mkdir", "some dir", "another dir"));
     }
 
     {
             G_SUBTEST << "Single quotes without matching";
-            std::vector<std::string> words = megacmd::getlistOfWords(const_cast<char*>("find 'something with quotes' odd/file'01.txt"));
+            std::vector<std::string> words = megacmd::getlistOfWords("find 'something with quotes' odd/file'01.txt");
             ASSERT_THAT(words, testing::ElementsAre("find", "something with quotes", "odd/file'01.txt"));
     }
 
     {
         G_SUBTEST << "Escape backslash in completion";
-        auto str = const_cast<char*>("get root_dir\\some_dir\\some_file.jpg another_file.txt");
-        auto completion_str = const_cast<char*>("completion get root_dir\\some_dir\\some_file.jpg another_file.txt");
+        const char* str = "get root_dir\\some_dir\\some_file.jpg another_file.txt";
+        const char* completion_str = "completion get root_dir\\some_dir\\some_file.jpg another_file.txt";
 
         // '\\' won't be replaced since the first word is not `completion`
         std::vector<std::string> words = megacmd::getlistOfWords(str, true);
@@ -105,7 +105,7 @@ TEST(UtilsTest, getListOfWords)
 
     {
         G_SUBTEST << "Ignore trailing spaces";
-        auto str = const_cast<char*>("export -f --writable some_dir/some_file.txt    ");
+        const char* str = "export -f --writable some_dir/some_file.txt    ";
 
         // Do not ignore trailing spaces
         std::vector<std::string> words = megacmd::getlistOfWords(str, false, false);
@@ -115,39 +115,72 @@ TEST(UtilsTest, getListOfWords)
         words = megacmd::getlistOfWords(str, false, true);
         EXPECT_THAT(words, testing::ElementsAre("export", "-f", "--writable", "some_dir/some_file.txt"));
     }
+
+    {
+        G_SUBTEST << "Detect matching quotes";
+        for (const auto& [line, expectedWords] : std::vector<std::pair<std::string, std::vector<std::string>>>
+            {
+                {"some \"case\" here", {"some", "case", "here"}},
+                {"--another=\"here\"", {"--another=\"here\""}},
+                {"--another=\"here\" with extra bits", {"--another=\"here\"", "with", "extra", "bits"}},
+                {"some \"other case with spaces\" here", {"some", "other case with spaces", "here"}},
+                {"--something=\"quote missing", {"--something=\"quote missing"}},
+                {"--nothing=\"", {"--nothing=\""}},
+                {"--arg1=\"a b\" word --arg2=\"c d\"", {"--arg1=\"a b\"", "word", "--arg2=\"c d\""}}
+            })
+        {
+            std::vector<std::string> words = megacmd::getlistOfWords(const_cast<char*>(line.c_str()));
+            EXPECT_EQ(words, expectedWords);
+        }
+    }
 }
 
-TEST(UtilsTest, pathIsExistingDirValidDirPath)
+TEST(UtilsTest, nonAsciiConsolePrint)
 {
-    char *buf;
+    // No need to check the output, we just want to ensure
+    // the test doesn't crash and no asserts are triggered
+
+    const char* char_str = u8"\uc548\uc548\ub155\ud558\uc138\uc694\uc138\uacc4";
+    std::cout << "something before" << char_str << std::endl;
+    std::cout << char_str << std::endl;
+    std::cout << char_str << "something after" << std::endl;
+    std::cerr << "something before" << char_str << std::endl;
+    std::cerr << char_str << std::endl;
+    std::cerr << char_str << "something after" << std::endl;
+
+    const std::string str = u8"\u3053\u3093\u306b\u3061\u306f\u4e16\u754c";
+    std::cout << "something before" << str << std::endl;
+    std::cout << str << std::endl;
+    std::cout << str << "something after" << std::endl;
+    std::cerr << "something before" << str << std::endl;
+    std::cerr << str << std::endl;
+    std::cerr << str << "something after" << std::endl;
+
 #ifdef _WIN32
-    buf = _getcwd(nullptr, 0);
-#else
-    buf = getcwd(nullptr, 0);
-#endif
-    ASSERT_THAT(buf, testing::NotNull()) << "could not get current working directory: " << std::strerror(errno);
+    const wchar_t* wchar_str = L"\uc548\uc548\ub155\ud558\uc138\uc694\uc138\uacc4";
+    std::wcout << "something before" << wchar_str << std::endl;
+    std::wcout << wchar_str << std::endl;
+    std::wcout << wchar_str << "something after" << std::endl;
+    std::wcerr << "something before" << wchar_str << std::endl;
+    std::wcerr << wchar_str << std::endl;
+    std::wcerr << wchar_str << "something after" << std::endl;
 
-    EXPECT_THAT(buf, testing::ResultOf(::megacmd::pathIsExistingDir, testing::IsTrue()));
-    free(buf);
-}
+    const std::wstring wstr = L"\u3053\u3093\u306b\u3061\u306f\u4e16\u754c";
+    std::wcout << "something before" << wstr << std::endl;
+    std::wcout << wstr << std::endl;
+    std::wcout << wstr << "something after" << std::endl;
+    std::wcerr << "something before" << wstr << std::endl;
+    std::wcerr << wstr << std::endl;
+    std::wcerr << wstr << "something after" << std::endl;
 
-TEST(UtilsTest, pathIsExistingDirInvalidPath)
-{
-    EXPECT_FALSE(::megacmd::pathIsExistingDir("/path/to/invalid/dir"));
-}
+    std::wcout << megacmd::utf8StringToUtf16WString(char_str) << std::endl;
+    std::wcerr << megacmd::utf8StringToUtf16WString(char_str) << std::endl;
+    std::wcout << megacmd::utf8StringToUtf16WString(str.data(), str.size()) << std::endl;
+    std::wcerr << megacmd::utf8StringToUtf16WString(str.data(), str.size()) << std::endl;
 
-TEST(UtilsTest, pathIsExistingDirFilePath)
-{
-#ifdef _WIN32
-    TCHAR u16Path[MAX_PATH];
-    std::string u8Path;
-
-    ASSERT_TRUE(SUCCEEDED(GetModuleFileName(nullptr, u16Path, MAX_PATH)));
-    megacmd::utf16ToUtf8(u16Path, lstrlen(u16Path), &u8Path);
-
-    ASSERT_THAT(u8Path, testing::Not(testing::IsEmpty()));
-    EXPECT_THAT(u8Path, testing::ResultOf(::megacmd::pathIsExistingDir, testing::IsFalse()));
-#else
-    EXPECT_FALSE(::megacmd::pathIsExistingDir("/dev/null"));
+    std::cout << megacmd::utf16ToUtf8(wchar_str) << std::endl;
+    std::cerr << megacmd::utf16ToUtf8(wchar_str) << std::endl;
+    std::cout << megacmd::utf16ToUtf8(wstr) << std::endl;
+    std::cerr << megacmd::utf16ToUtf8(wstr) << std::endl;
 #endif
 }

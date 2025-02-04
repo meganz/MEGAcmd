@@ -32,7 +32,17 @@ namespace megacmd::StatsManager {
         GENERATOR_MACRO(UPDATE_RESTART                                  , 98902, "MEGAcmd updated requiring restart") \
         GENERATOR_MACRO(FIRST_CONFIGURED_SYNC                           , 98903, "MEGAcmd first sync configured") \
         GENERATOR_MACRO(WAITED_TOO_LONG_FOR_NODES_CURRENT               , 98904, "MEGAcmd nodes current wait timed out") \
-        GENERATOR_MACRO(ROOT_NODE_NOT_FOUND_AFTER_FETCHING              , 98906, "MEGAcmd root node was not found after fetching nodes")
+        GENERATOR_MACRO(ROOT_NODE_NOT_FOUND_AFTER_FETCHING              , 98906, "MEGAcmd root node was not found after fetching nodes") \
+        GENERATOR_MACRO(TRANSITIONING_PRE_SRW_EXCLUSIONS                , 98907, "MEGAcmd transition of legacy exclusion rules started") \
+        GENERATOR_MACRO(FIRST_CONFIGURED_WEBDAV                         , 98908, "MEGAcmd first WebDAV location configured") \
+        GENERATOR_MACRO(FIRST_CONFIGURED_FTP                            , 98909, "MEGAcmd first FTP location configured") \
+        GENERATOR_MACRO(FIRST_CONFIGURED_SCHEDULED_BACKUP               , 98910, "MEGAcmd first scheduled backup configured") \
+        GENERATOR_MACRO(SUBSEQUENT_CONFIGURED_SYNC                      , 98911, "MEGAcmd subsequent sync configured") \
+        GENERATOR_MACRO(SUBSEQUENT_CONFIGURED_WEBDAV                    , 98912, "MEGAcmd subsequent WebDAV location configured") \
+        GENERATOR_MACRO(SUBSEQUENT_CONFIGURED_FTP                       , 98913, "MEGAcmd subsequent FPT location configured") \
+        GENERATOR_MACRO(SUBSEQUENT_CONFIGURED_SCHEDULED_BACKUP          , 98914, "MEGAcmd subsequent scheduled backup configured") \
+        GENERATOR_MACRO(INVALID_UTF8_INCIDENCES                         , 98915, "MEGAcmd Found Invalid UTF-8 incidences") \
+
 
     static constexpr auto FIRST_EVENT_NUMBER = 98900u;
 

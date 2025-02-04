@@ -1,21 +1,21 @@
 pipeline {
     agent { label 'linux-testing-package-builder' }
 
-    options { 
+    options {
         buildDiscarder(logRotator(numToKeepStr: '25', daysToKeepStr: '30'))
         gitLabConnection('GitLabConnectionJenkins')
+        skipDefaultCheckout()
     }
     parameters {
         booleanParam(name: 'IS_RELEASE_CANDIDATE', defaultValue: false, description: 'Is it a Release Candidate?')
         string(name: 'RELEASE_CANDIDATE_NAME', defaultValue: '', description: 'i.e: RC2, RC3 (only needed if IS_RELEASE_CANDIDATE is true)')
-        booleanParam(name: 'CUSTOM_BUILD', defaultValue: true, description: 'If true, will use DISTRO_TO_BUILD and ARCH_TO_BUILD. If false, will build all distributions')
+        booleanParam(name: 'CUSTOM_BUILD', defaultValue: true, description: 'If true, will use DISTRO_TO_BUILD If false, will build all distributions')
+        choice(name: 'ARCH_TO_BUILD', choices: ['amd64', 'armhf'], description: 'Only used if CUSTOM_BUILD is true') 
         string(name: 'DISTRO_TO_BUILD', defaultValue: 'xUbuntu_22.04', description: 'Only used if CUSTOM_BUILD is true')
-        choice(name: 'ARCH_TO_BUILD', choices: ['amd64', '386'], description: 'Only used if CUSTOM_BUILD is true')        
         string(name: 'MEGACMD_BRANCH', defaultValue: "${env.BRANCH_NAME}", description: 'Which version of MEGAcmd should we build? Default is current branch.')
         string(name: 'SDK_BRANCH', defaultValue: ' ', description: 'Optionally, define a custom SDK branch.')
     }
     environment {
-        gitlab_token = credentials('jenkins_sdk_token')
         MEGACMD_BRANCH = "${params.MEGACMD_BRANCH}"
         SDK_BRANCH = "${params.SDK_BRANCH}"
     }
@@ -30,7 +30,7 @@ pipeline {
         stage('Checkout linux'){
             steps {
                 checkout([
-                    $class: 'GitSCM', 
+                    $class: 'GitSCM',
                     branches: [[name: "${env.MEGACMD_BRANCH}"]],
                     userRemoteConfigs: [[ url: "${env.GIT_URL_MEGACMD}", credentialsId: "12492eb8-0278-4402-98f0-4412abfb65c1" ]],
                     extensions: [
@@ -44,7 +44,7 @@ pipeline {
                     if (env.SDK_BRANCH != ' ') {
                         branchToCheckout = env.SDK_BRANCH
                     } else if (env.MEGACMD_BRANCH in ['develop', 'master']) {
-                        branchToCheckout = "release/v6.0.0"
+                        branchToCheckout = "develop"
                     } else {
                         def status = sh(script: "git submodule status", returnStdout: true).trim()
                         branchToCheckout = status.tokenize(' ')[0].substring(1)
@@ -64,9 +64,9 @@ pipeline {
             }
         }
         stage ('Build custom distribution'){
-            when { 
+            when {
                 beforeAgent true
-                expression { params.CUSTOM_BUILD == true } 
+                expression { params.CUSTOM_BUILD == true }
             }
             steps {
                 echo "Do Build for ${params.DISTRO_TO_BUILD}"
@@ -76,8 +76,18 @@ pipeline {
                     }
                     script{
                         if ( params.IS_RELEASE_CANDIDATE == true) {
-                            def MEGACMD_VERSION = getVersionFromHeader("src/megacmdversion.h")
-                            sh "cd ${env.INTERNAL_REPO_PATH}/repo/private/$DISTRO_TO_BUILD && jf rt upload --regexp '((x86_64|amd64|i386)/megacmd.*deb\$|(x86_64|amd64|i386)/megacmd.*rpm\$|(x86_64|amd64|i386)/megacmd.*\\.pkg\\.tar\\.zst\$|(x86_64|amd64|i386)/megacmd.*\\.pkg\\.tar\\.xz\$)' MEGAcmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/linux/$DISTRO_TO_BUILD/"
+                            def MEGACMD_VERSION = getVersionFromHeader("CMakeLists.txt")
+                            dir("${env.INTERNAL_REPO_PATH}/repo/private/$DISTRO_TO_BUILD") {
+                                withCredentials([string(credentialsId: 'MEGACMD_ARTIFACTORY_TOKEN', variable: 'MEGACMD_ARTIFACTORY_TOKEN')]) {
+                                    sh """
+                                        jf rt upload \
+                                          --url $REPO_URL \
+                                          --access-token $MEGACMD_ARTIFACTORY_TOKEN \
+                                          --regexp '((x86_64|amd64|i386)/megacmd.*deb\$|(x86_64|amd64|i386)/megacmd.*rpm\$|(x86_64|amd64|i386)/megacmd.*\\.pkg\\.tar\\.zst\$|(x86_64|amd64|i386)/megacmd.*\\.pkg\\.tar\\.xz\$)' \
+                                          MEGAcmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/linux/$DISTRO_TO_BUILD/
+                                    """
+                                }
+                            }
                             echo "Packages successfully uploaded. URL: [${env.REPO_URL}/MEGAcmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/linux/$DISTRO_TO_BUILD/]"
                         }
                     }
@@ -91,40 +101,49 @@ pipeline {
             }
             matrix {
                 axes {
-                    axis { 
-                        name 'ARCHITECTURE'; 
-                        values 'amd64', '386' 
+                    axis {
+                        name 'ARCHITECTURE';
+                        values 'amd64','armhf'
                     }
-                    axis { 
-                        name 'DISTRO'; 
-                        values  'xUbuntu_24.04', 'xUbuntu_23.10', 'xUbuntu_23.04','xUbuntu_22.04', 'xUbuntu_20.04',
-                                'Debian_10','Debian_11','Debian_12','Debian_testing',
+                    axis {
+                        name 'DISTRO';
+                        values  'xUbuntu_24.10','xUbuntu_24.04', 'xUbuntu_22.04', 'xUbuntu_20.04',
+                                'Debian_11','Debian_12','Debian_testing',
                                 'DEB_Arch_Extra',
-                                'Fedora_37', 'Fedora_38', 'Fedora_39', 'Fedora_40',
-                                'openSUSE_Leap_15.4','openSUSE_Leap_15.5','openSUSE_Leap_15.6', 'openSUSE_Tumbleweed'
+                                'Raspbian_11', 'Raspbian_12',
+                                'Fedora_39', 'Fedora_40', 'Fedora_41',
+                                'openSUSE_Leap_15.5','openSUSE_Leap_15.6', 'openSUSE_Tumbleweed'
                     }
                 }
                 excludes {
                     exclude {   
                         axis { 
                             name 'ARCHITECTURE'; 
-                            values '386' 
-                        }
-                                
+                            values 'armhf' 
+                        } 
                         axis { 
                             name 'DISTRO'; 
-                            values  'xUbuntu_24.04', 'xUbuntu_23.10', 'xUbuntu_23.04', 'xUbuntu_22.04', 'xUbuntu_20.04',
+                            values  'xUbuntu_24.10','xUbuntu_24.04', 'xUbuntu_22.04', 'xUbuntu_20.04',
                                     'Debian_11','Debian_12','Debian_testing',
                                     'DEB_Arch_Extra',
-                                    'CentOS_8','CentOS_7',
-                                    'Fedora_37', 'Fedora_38', 'Fedora_39', 'Fedora_40',
-                                    'openSUSE_Leap_15.4','openSUSE_Leap_15.5', 'openSUSE_Leap_15.6', 'openSUSE_Tumbleweed'
+                                    'Fedora_39', 'Fedora_40', 'Fedora_41',
+                                    'openSUSE_Leap_15.5','openSUSE_Leap_15.6', 'openSUSE_Tumbleweed'
+                        }
+                    }
+                    exclude {   
+                        axis { 
+                            name 'ARCHITECTURE'; 
+                            values 'amd64' 
+                        } 
+                        axis { 
+                            name 'DISTRO'; 
+                            values  'Raspbian_11', 'Raspbian_12'
                         }
                     }
                 }
                 stages {
                     stage('Build') {
-                        agent { label 'docker && ci-debian-11-64-2' }
+                        agent { label 'linux-testing-package-builder' }
                         steps {
                             echo "Do Build for ${DISTRO} - ${ARCHITECTURE}"
                             dir(linux_sources_workspace) {
@@ -142,9 +161,11 @@ pipeline {
                         steps {
                             dir(linux_sources_workspace) {
                                 script{
-                                    def MEGACMD_VERSION = getVersionFromHeader("src/megacmdversion.h")
-                                    sh "jf rt del MEGAcmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/linux/$DISTRO"
-                                    sh "cd ${env.INTERNAL_REPO_PATH}/repo/private/$DISTRO && jf rt upload --regexp '((x86_64|amd64|i386)/megacmd.*deb\$|(x86_64|amd64|i386)/megacmd.*rpm\$|(x86_64|amd64|i386)/megacmd.*\\.pkg\\.tar\\.zst\$|(x86_64|amd64|i386)/megacmd.*\\.pkg\\.tar\\.xz\$)' MEGAcmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/linux/$DISTRO/"  
+                                    def MEGACMD_VERSION = getVersionFromHeader("CMakeLists.txt")
+                                    withCredentials([string(credentialsId: 'MEGACMD_ARTIFACTORY_TOKEN', variable: 'MEGACMD_ARTIFACTORY_TOKEN')]) {
+                                        sh 'jf rt del --url $REPO_URL --access-token $MEGACMD_ARTIFACTORY_TOKEN MEGAcmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/linux/$DISTRO'
+                                        sh "cd ${env.INTERNAL_REPO_PATH}/repo/private/$DISTRO && jf rt upload --url ${REPO_URL} --access-token ${MEGACMD_ARTIFACTORY_TOKEN} --regexp '((x86_64|amd64|i386|armhf)/megacmd.*deb\$|(x86_64|amd64|i386)/megacmd.*rpm\$|(x86_64|amd64|i386)/megacmd.*\\.pkg\\.tar\\.zst\$|(x86_64|amd64|i386)/megacmd.*\\.pkg\\.tar\\.xz\$)' MEGAcmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/linux/$DISTRO/"
+                                    }
                                     echo "Packages successfully uploaded. URL: [${env.REPO_URL}/MEGAcmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/linux/$DISTRO/]"
                                 }
                             }
@@ -154,22 +175,22 @@ pipeline {
             }
         }
     }
+    post {
+        always {
+            deleteDir()
+        }
+    }
 }
 
-
 def buildAndSignPackage(String distro, String architecture, String packageName) {
-    sh "${env.BUILDTOOLS_PATH}/build/buildManager.sh -a ${architecture} -j 1 build ${distro} . ${packageName}"
+    sh "${env.BUILDTOOLS_PATH}/build/buildManager.sh -a ${architecture} -j 2 build ${distro} . ${packageName}"
     sh "${env.BUILDTOOLS_PATH}/repo/repoManager.sh add ${env.INTERNAL_REPO_PATH}/builder/results/${distro}/${architecture}/${packageName}/ ${distro}"
     sh "SIGN_KEY_PATH=${env.INTERNAL_REPO_PATH}/sign_test/ ${env.BUILDTOOLS_PATH}/repo/repoManager.sh build -n ${distro}"
 }
 
 def getVersionFromHeader(String versionFilePath) {
     return sh(script: """
-        awk  '/#define MEGACMD_MAJOR_VERSION/ { MAJOR=\$3 }; \
-              /#define MEGACMD_MINOR_VERSION/ { MINOR=\$3 }; \
-              /#define MEGACMD_MICRO_VERSION/ { MICRO=\$3 }; \
-              END { print MAJOR"."MINOR"."MICRO }' \
-              $versionFilePath
+        grep -Po "(set\\(MEGACMD_MAJOR_VERSION \\K\\d+|set.MEGACMD_MINOR_VERSION \\K\\d+|set\\(MEGACMD_MICRO_VERSION \\K\\d+)" $versionFilePath | paste -sd '.'
         """
         , returnStdout: true).trim()
 }

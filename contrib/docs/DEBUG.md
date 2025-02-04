@@ -7,8 +7,8 @@ These messages will show information regarding the processing of user commands.
 
 - SDK based: those messages reported by the sdk and dependent libraries.
 
-These messages will show information regarding requests, transfers, network, etc. 
-They will be labeled with `API:`. 
+These messages will show information regarding requests, transfers, network, etc.
+They will be labeled with `SDK:`.
 
 MEGAcmdServer logs messages depending on the level of log adjusted to those
 two categories. You can adjust the level of logging for those kinds with `log` command.

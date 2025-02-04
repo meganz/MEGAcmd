@@ -8,6 +8,7 @@ pipeline {
     options {
         buildDiscarder(logRotator(numToKeepStr: '135', daysToKeepStr: '21'))
         gitLabConnection('GitLabConnectionJenkins')
+        timestamps() // Add timestamps to all console output
     }
 
     stages {
@@ -71,143 +72,128 @@ pipeline {
             parallel{
                 stage('Checkout MEGAcmd with prebuildmerge'){
                     steps{
-                        checkout([
-                            $class: 'GitSCM',
-                            branches: [[name: "origin/${env.gitlabSourceBranch}"]],
-                            userRemoteConfigs: [[ url: "${env.GIT_URL_MEGACMD}", credentialsId: "12492eb8-0278-4402-98f0-4412abfb65c1" ]],
-                            extensions: [
-                                [$class: "UserIdentity",name: "jenkins", email: "jenkins@jenkins"],
-                                [$class: 'PreBuildMerge', options: [fastForwardMode: 'FF', mergeRemote: "origin", mergeStrategy: 'DEFAULT', mergeTarget: "${env.gitlabTargetBranch}"]]
-                            ]
-                        ])
+                    checkout([
+                        $class: 'GitSCM',
+                        branches: [[name: "origin/${env.gitlabSourceBranch}"]],
+                        userRemoteConfigs: [[ url: "${env.GIT_URL_MEGACMD}", credentialsId: "12492eb8-0278-4402-98f0-4412abfb65c1" ]],
+                        extensions: [
+                        [$class: "UserIdentity",name: "jenkins", email: "jenkins@jenkins"],
+                        [$class: 'PreBuildMerge', options: [fastForwardMode: 'FF', mergeRemote: "origin", mergeStrategy: 'DEFAULT', mergeTarget: "${env.gitlabTargetBranch}"]]
+                                    ]
+                    ])
                     }
                 }
                 stage('Checkout SDK'){
                     steps{
-                        dir('sdk'){
-                            checkout([
-                                $class: 'GitSCM',
-                                branches: [[name: "origin/${SDK_BRANCH}"]],
-                                userRemoteConfigs: [[ url: "${env.GIT_URL_SDK}", credentialsId: "12492eb8-0278-4402-98f0-4412abfb65c1" ]],
-                                extensions: [
-                                    [$class: "UserIdentity",name: "jenkins", email: "jenkins@jenkins"],
-                                    [$class: "CloneOption", depth: 1, shallow: true, noTags: false, reference: '']
-                                ]
-                            ])
-                        }
-                        script{
-                            mac_sources_workspace = WORKSPACE
-                        }
+                    dir('sdk'){
+                        checkout([
+                        $class: 'GitSCM',
+                        branches: [[name: "origin/${SDK_BRANCH}"]],
+                        userRemoteConfigs: [[ url: "${env.GIT_URL_SDK}", credentialsId: "12492eb8-0278-4402-98f0-4412abfb65c1" ]],
+                        extensions: [
+                            [$class: "UserIdentity",name: "jenkins", email: "jenkins@jenkins"],
+                            [$class: "CloneOption", depth: 1, shallow: true, noTags: false, reference: '']
+                        ]
+                        ])
+                    }
+                    script{
+                        megacmd_sources_workspace = WORKSPACE
+                        sdk_sources_workspace = "${megacmd_sources_workspace}/sdk"
+                    }
                     }
                 }
             }
         }
-
         stage('Build MEGAcmd'){
             environment{
-                PATH = "/usr/local/bin:${env.PATH}"
-                VCPKGPATH = "${env.HOME}/jenkins/3rdparty"
-                BUILD_DIR = "build/cmake/build_dir"
+                PATH = "cmdinstall/bin:${env.PATH}"
+                BUILD_DIR = "cmdbuild"
+                VCPKGPATH = "${env.HOME}/jenkins/vcpkg"
             }
             options{
                 timeout(time: 3, unit: 'HOURS')
             }
             steps{
-                sh '''sed -i '' 's/-2_3/-2_5/g' sdk/contrib/cmake/CMakeLists.txt'''
                 sh "rm -rf ${BUILD_DIR}; mkdir ${BUILD_DIR}"
-                sh "cmake -DCMAKE_VERBOSE_MAKEFILE=1 -DENABLE_MEGACMD_TESTS=1 -DCMAKE_BUILD_TYPE=Debug -DUSE_PREBUILT_3RDPARTY=0 -DUSE_THIRDPARTY_FROM_VCPKG=1 -DMega3rdPartyDir='${VCPKGPATH}' '${env.BUILD_OPTIONS}' -S '${mac_sources_workspace}'/build/cmake/ -B '${mac_sources_workspace}'/build/cmake/build_dir/"
-                sh "cmake --build ${mac_sources_workspace}/${BUILD_DIR} --target mega-cmd-server -j 1"
-                sh "cmake --build ${mac_sources_workspace}/${BUILD_DIR} --target mega-cmd -j 1"
-                sh "cmake --build ${mac_sources_workspace}/${BUILD_DIR} --target mega-exec -j 1"
-                sh "cmake --build ${mac_sources_workspace}/${BUILD_DIR} --target mega-cmd-tests-unit -j 1"
-                sh "cmake --build ${mac_sources_workspace}/${BUILD_DIR} --target mega-cmd-tests-integration -j 1"
+                sh "cmake -DCMAKE_VERBOSE_MAKEFILE=1 -DENABLE_MEGACMD_TESTS=ON -DCMAKE_BUILD_TYPE=Debug -DVCPKG_ROOT=${VCPKGPATH} -DCMAKE_INSTALL_PREFIX=cmdinstall -S '${megacmd_sources_workspace}' -B ${BUILD_DIR} '${env.BUILD_OPTIONS}'"
+                sh "cmake --build ${megacmd_sources_workspace}/${BUILD_DIR} -j 2"
+                sh "cmake --install ${megacmd_sources_workspace}/${BUILD_DIR}"
             }
         }
-
-        stage('Run unit tests'){
-            options{
-                timeout(time: 5, unit: 'MINUTES')
+        stage('Run unit tests') {
+            environment {
+                INSTALL_DIR = "${megacmd_sources_workspace}/cmdinstall"
+                PATH = "${env.PATH}:${env.INSTALL_DIR}/mega-cmd-tests-unit.app/Contents/MacOS/"
+                HOME = "${megacmd_sources_workspace}/unit-test-dir/home"
             }
-            steps{
-                dir('test-results') {
-                    sh """#!/bin/zsh
-                set -x
-                export TMP=\$(mktemp -d)
-                export HOME=\$TMP
-                mkdir -p \$HOME/Library/Caches
-                cleanup() {
-                    ARG=\$?
-                    rm -rf \$TMP
-                    exit \$ARG
-                }
-                trap cleanup EXIT
-                ${mac_sources_workspace}/build/cmake/build_dir/mega-cmd-tests-unit --gtest_output=xml:${mac_sources_workspace}/test-results/megacmd-unit-tests.xml --gtest_shuffle
-                """
+            options {
+                timeout(time: 15, unit: 'MINUTES')
+            }
+            steps {
+                dir('unit-test-dir') {
+                    echo "Running tests"
+                    sh "mkdir -p \$HOME/Library/Caches"
+                    sh "mega-cmd-tests-unit --gtest_output=xml:${megacmd_sources_workspace}/unit-test-dir/mega-cmd-tests.xml --gtest_shuffle"
                 }
             }
             post {
                 always {
-                    junit(testResults: "**/test-results/megacmd-unit-tests.xml", keepProperties: true)
+                    archiveArtifacts artifacts: "unit-test-dir/home/.megaCmd/megacmdserver.log*", allowEmptyArchive: true
+                    junit testResults: "unit-test-dir/mega-cmd-tests.xml", keepProperties: true
                 }
             }
         }
-        stage('Run integration tests'){
+        stage('Run integration tests') {
             options {
-                timeout(time: 10, unit: 'MINUTES')
+                timeout(time: 1, unit: 'HOURS')
             }
-            environment{
-                MEGACMD_TEST_USER=''
-                MEGACMD_TEST_PASS=credentials('MEGACMD_TESTS_PASSWORD')
+            environment {
+                INSTALL_DIR = "${megacmd_sources_workspace}/cmdinstall"
+                PATH = "${env.PATH}:${env.INSTALL_DIR}/bin:${env.INSTALL_DIR}/mega-cmd-tests-integration.app/Contents/MacOS/"
+                HOME = "${megacmd_sources_workspace}/integration-test-dir/home"
+                MEGACMD_TEST_USER = ''
+                MEGACMD_TEST_PASS = credentials('MEGACMD_TESTS_PASSWORD')
+                MEGACMD_SOCKET_NAME = "sock_${env.BUILD_ID}"
             }
-            steps{
-                lock(label: 'testing_accounts_megacmd', variable: 'MEGACMD_TEST_USER', quantity: 1, resource: null){
-                    dir('test-results') {
-                        sh """#!/bin/zsh
-                set -x
-                export TMP=\$(mktemp -d)
-                export HOME=\$TMP
-                export MEGACMD_SOCKET_NAME=cmd.sock
-                mkdir -p \$HOME/Library/Caches
-                cleanup() {
-                    ARG=\$?
-                    rm -rf \$TMP
-                    exit \$ARG
-                }
-                trap cleanup EXIT
-                ${mac_sources_workspace}/build/cmake/build_dir/mega-cmd-tests-integration --gtest_output=xml:${mac_sources_workspace}/test-results/megacmd-integration-tests.xml --gtest_shuffle
-                """
+            steps {
+                lock(label: 'testing_accounts_megacmd', variable: 'MEGACMD_TEST_USER', quantity: 1, resource: null) {
+                    dir('integration-test-dir') {
+                        echo "Running tests"
+                        sh "mkdir -p \$HOME/Library/Caches"
+                        sh "mega-cmd-tests-integration --gtest_output=xml:${megacmd_sources_workspace}/integration-test-dir/mega-cmd-tests.xml --gtest_shuffle"
                     }
                 }
             }
             post {
                 always {
-                    junit(testResults: "**/test-results/megacmd-integration-tests.xml", keepProperties: true)
+                    archiveArtifacts "integration-test-dir/home/.megaCmd/megacmdserver.log*"
+                    junit testResults: "integration-test-dir/mega-cmd-tests.xml", keepProperties: true
                 }
             }
         }
     }
 
-    post{
-        always{
-            //archiveArtifacts artifacts: 'build_dir/archives_*.tar.gz, build_dir/test_config_folder/logs/*log*', fingerprint: true
-            script{
-                if (currentBuild.currentResult == 'SUCCESS'){
+    post {
+        always {
+            script {
+                if (currentBuild.currentResult == 'SUCCESS') {
                     addGitLabMRComment(comment: ":white_check_mark: ${currentBuild.projectName} :green_apple: <b>macOS</b> SUCCEEDED :muscle:<br/>Build results: [Jenkins [${currentBuild.displayName}]](${currentBuild.absoluteUrl})<br/>Commit: ${env.GIT_COMMIT}" )
                     updateGitlabCommitStatus(name: 'Build macos', state: 'success')
                 }
-                if (currentBuild.currentResult == 'FAILURE'){
+                if (currentBuild.currentResult == 'FAILURE') {
                     addGitLabMRComment(comment: ":red_circle: ${currentBuild.projectName} :green_apple: <b>macOS</b> FAILURE  :worried:<br/>Build results: [Jenkins [${currentBuild.displayName}]](${currentBuild.absoluteUrl})<br/>Commit: ${env.GIT_COMMIT}" )
                     updateGitlabCommitStatus(name: 'Build macos', state: 'failed')
                 }
-                if (currentBuild.currentResult == 'ABORTED'){
+                if (currentBuild.currentResult == 'ABORTED') {
                     addGitLabMRComment(comment: ":interrobang: ${currentBuild.projectName} :green_apple: <b>macOS</b> ABORTED  :confused:<br/>Build results: [Jenkins [${currentBuild.displayName}]](${currentBuild.absoluteUrl})<br/>Commit: ${env.GIT_COMMIT}" )
                     updateGitlabCommitStatus(name: 'Build macos', state: 'canceled')
                 }
-                if (currentBuild.currentResult == 'UNSTABLE'){
+                if (currentBuild.currentResult == 'UNSTABLE') {
                     addGitLabMRComment(comment: ":interrobang: ${currentBuild.projectName} :green_apple: <b>macOS</b> UNSTABLE  :confused:<br/>Build results: [Jenkins [${currentBuild.displayName}]](${currentBuild.absoluteUrl})<br/>Commit: ${env.GIT_COMMIT}" )
                     updateGitlabCommitStatus(name: 'Build macos', state: 'failed')
                 }
             }
+            deleteDir()
         }
     }
 }

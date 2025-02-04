@@ -34,22 +34,9 @@
 
 #include <algorithm>
 
-#include <fcntl.h>
-#include <io.h>
-#include <stdio.h>
-#ifndef _O_U16TEXT
-#define _O_U16TEXT 0x00020000
-#endif
-#ifndef _O_U8TEXT
-#define _O_U8TEXT 0x00040000
-#endif
-
 namespace megacmd {
 
 bool MegaCmdShellCommunicationsNamedPipes::confirmResponse; //TODO: do all this only in parent class
-bool MegaCmdShellCommunicationsNamedPipes::stopListener;
-std::unique_ptr<std::thread> MegaCmdShellCommunicationsNamedPipes::listenerThread;
-HANDLE MegaCmdShellCommunicationsNamedPipes::newNamedPipe;
 
 bool MegaCmdShellCommunicationsNamedPipes::namedPipeValid(HANDLE namedPipe)
 {
@@ -244,9 +231,9 @@ bool MegaCmdShellCommunicationsNamedPipes::isFileOwnerCurrentUser(HANDLE hFile)
     LPWSTR stringSIDOwner;
     if (ConvertSidToStringSidW(pSidOwner, &stringSIDOwner))
     {
-        if (!wcscmp(username, AcctName) || ( 
+        if (!wcscmp(username, AcctName) || (
 #ifndef __MINGW32__
-            IsUserAnAdmin() && 
+            IsUserAnAdmin() &&
 #endif
             !wcscmp(stringSIDOwner, L"S-1-5-32-544"))) // owner == user  or   owner == administrators and current process running as admin
         {
@@ -359,7 +346,7 @@ HANDLE MegaCmdShellCommunicationsNamedPipes::createNamedPipe(int number, bool in
                 ZeroMemory( &pi, sizeof(pi) );
 
 #ifndef NDEBUG
-                LPCWSTR t = TEXT("..\\MEGAcmdServer\\debug\\MEGAcmdServer.exe");
+                LPCWSTR t = TEXT(".\\MEGAcmdServer.exe");
                 if (true)
                 {
 #else
@@ -425,8 +412,8 @@ HANDLE MegaCmdShellCommunicationsNamedPipes::createNamedPipe(int number, bool in
                 }
                 else
                 {
-                    serverinitiatedfromshell = true;
-                    registerAgainRequired = true;
+                    mServerInitiatedFromShell = true;
+                    setForRegisterAgain(true);
                 }
             }
         }
@@ -445,16 +432,7 @@ MegaCmdShellCommunicationsNamedPipes::MegaCmdShellCommunicationsNamedPipes()
     setlocale(LC_ALL, "en-US");
 #endif
 
-    serverinitiatedfromshell = false;
-    registerAgainRequired = false;
-
-    stopListener = false;
     redirectedstdout = false;
-}
-
-int MegaCmdShellCommunicationsNamedPipes::executeCommandW(wstring wcommand, string (*readresponse)(const char *), OUTSTREAMTYPE &output, bool interactiveshell)
-{
-    return executeCommand("", readresponse, output, interactiveshell, wcommand);
 }
 
 /**
@@ -501,6 +479,13 @@ int MegaCmdShellCommunicationsNamedPipes::executeCommand(string command, std::st
         return -1;
     }
 
+    ScopeGuard g([this, &theNamedPipe]()
+    {
+        closeNamedPipe(theNamedPipe);
+    });
+
+    bool isCat = command.rfind("cat", 0) == 0 || wcommand.rfind(L"cat", 0) == 0;
+
     if (interactiveshell)
     {
         command="X"+command;
@@ -539,6 +524,11 @@ int MegaCmdShellCommunicationsNamedPipes::executeCommand(string command, std::st
         return -1;
     }
 
+    ScopeGuard g2([this, &newNamedPipe]()
+    {
+        closeNamedPipe(newNamedPipe);
+    });
+
     int outcode = -1;
 
     if (!ReadFile(newNamedPipe, (char *)&outcode, sizeof(outcode),&n, NULL))
@@ -547,7 +537,8 @@ int MegaCmdShellCommunicationsNamedPipes::executeCommand(string command, std::st
         return -1;
     }
 
-    bool binaryoutput = !wcommand.compare(0, 3, L"cat") && redirectedstdout;
+    bool binaryoutput = isCat && redirectedstdout;
+    bool shouldPrintAdditionalLine = false;
 
     while (outcode == MCMD_REQCONFIRM || outcode == MCMD_REQSTRING || outcode == MCMD_PARTIALOUT)
     {
@@ -560,15 +551,16 @@ int MegaCmdShellCommunicationsNamedPipes::executeCommand(string command, std::st
                 return -1;
             }
 
-
             if (partialoutsize > 0)
             {
-                megaCmdStdoutputing.lock();
-                int oldmode = 0;
-
+                std::unique_ptr<OutputsModeGuard> outputModeGuard;
                 if (binaryoutput)
                 {
-                    oldmode = _setmode(_fileno(stdout), O_BINARY);
+                    outputModeGuard.reset(new WindowsBinaryStdoutGuard());
+                }
+                else
+                {
+                    outputModeGuard.reset(new WindowsUtf8StdoutGuard());
                 }
 
                 size_t BUFFERSIZE = 10024;
@@ -578,10 +570,11 @@ int MegaCmdShellCommunicationsNamedPipes::executeCommand(string command, std::st
                     readok = ReadFile(newNamedPipe, buffer, DWORD(std::min(BUFFERSIZE,partialoutsize)),&n,NULL);
                     if (readok)
                     {
-
                         if (binaryoutput)
                         {
+                            Instance<WindowsConsoleController>::Get().enableInterceptors(false);
                             std::cout << string(buffer,n) << flush;
+                            Instance<WindowsConsoleController>::Get().enableInterceptors(true);
                         }
                         else
                         {
@@ -589,20 +582,16 @@ int MegaCmdShellCommunicationsNamedPipes::executeCommand(string command, std::st
 
                             wstring wbuffer;
                             stringtolocalw((const char*)&buffer,&wbuffer);
-                            int oldmode;
-                            oldmode = _setmode(_fileno(stdout), _O_U8TEXT);
                             output << wbuffer << flush;
-                            _setmode(_fileno(stdout), oldmode);
                         }
                         partialoutsize-=n;
                     }
                 } while(n != 0 && partialoutsize && n !=SOCKET_ERROR);
 
-                if (binaryoutput)
+                if (isCat && !binaryoutput && interactiveshell)
                 {
-                    _setmode(_fileno(stdout), oldmode);
+                    shouldPrintAdditionalLine = true;
                 }
-                megaCmdStdoutputing.unlock();
             }
             else
             {
@@ -681,23 +670,9 @@ int MegaCmdShellCommunicationsNamedPipes::executeCommand(string command, std::st
             wstring wbuffer;
             stringtolocalw((const char*)&buffer,&wbuffer);
             int oldmode;
-//            if (interactiveshell || outputtobinaryorconsole())
-//            {
-                // In non-interactive mode, at least in powershell, when outputting to a file/pipe, things get rough
-                // Powershell tries to interpret the output as a string and would meddle with the UTF16 encoding, resulting
-                // in unusable output, So we disable the UTF-16 in such cases (this might cause that the output could be truncated!).
-//                oldmode = _setmode(_fileno(stdout), _O_U16TEXT);
-//            }
-            megaCmdStdoutputing.lock();
-            oldmode = _setmode(_fileno(stdout), _O_U8TEXT);
-            output << wbuffer << flush;
-            _setmode(_fileno(stdout), oldmode);
-            megaCmdStdoutputing.unlock();
 
-//            if (interactiveshell || outputtobinaryorconsole() || true)
-//            {
-//                _setmode(_fileno(stdout), oldmode);
-//            }
+            WindowsUtf8StdoutGuard utf8Guard;
+            output << wbuffer << flush;
         }
         if (readok && n == BUFFERSIZE)
         {
@@ -719,36 +694,31 @@ int MegaCmdShellCommunicationsNamedPipes::executeCommand(string command, std::st
         return -1;
     }
 
-    closeNamedPipe(newNamedPipe);
-    closeNamedPipe(theNamedPipe);
+    if (shouldPrintAdditionalLine)
+    {
+        WindowsUtf8StdoutGuard utf8Guard;
+        output << std::endl;
+    }
 
     return outcode;
 }
 
-void *MegaCmdShellCommunicationsNamedPipes::listenToStateChangesEntryNamedPipe(void *slsc)
+int MegaCmdShellCommunicationsNamedPipes::listenToStateChanges(int receiveNamedPipeNum, StateChangedCb_t statechangehandle)
 {
-    listenToStateChanges(((sListenStateChangesNamedPipe *)slsc)->receiveNamedPipeNum,((sListenStateChangesNamedPipe *)slsc)->statechangehandle);
-    delete ((sListenStateChangesNamedPipe *)slsc);
-    return NULL;
-}
-
-
-int MegaCmdShellCommunicationsNamedPipes::listenToStateChanges(int receiveNamedPipeNum, void (*statechangehandle)(string))
-{
-    newNamedPipe = createNamedPipe(receiveNamedPipeNum);
+    HANDLE newNamedPipe = createNamedPipe(receiveNamedPipeNum);
     if (!namedPipeValid(newNamedPipe))
     {
         return -1;
     }
 
-    int timeout_notified_server_might_be_down = 0;
-    while (!stopListener)
+    ScopeGuard g([this, &newNamedPipe]()
     {
-        if (!namedPipeValid(newNamedPipe))
-        {
-            return -1;
-        }
+        closeNamedPipe(newNamedPipe);
+    });
 
+    int timeout_notified_server_might_be_down = 0;
+    while (!mStopListener)
+    {
         string newstate;
 
         DWORD BUFFERSIZE = 1024;
@@ -768,7 +738,7 @@ int MegaCmdShellCommunicationsNamedPipes::listenToStateChanges(int receiveNamedP
         {
             if (ERRNO == ERROR_BROKEN_PIPE)
             {
-                if (!stopListener && !updating)
+                if (!mStopListener && !mUpdating)
                 {
                     cerr << "ERROR reading output (state change): The sever problably exited."<< endl;
                 }
@@ -777,50 +747,36 @@ int MegaCmdShellCommunicationsNamedPipes::listenToStateChanges(int receiveNamedP
             {
                 cerr << "ERROR reading output (state change): " << ERRNO << endl;
             }
-            closeNamedPipe(newNamedPipe);
             return -1;
         }
 
-        if (!n)
+        if (!n) // server closed the connection
         {
-            if (!timeout_notified_server_might_be_down)
-            {
-                timeout_notified_server_might_be_down = 30;
-                cerr << endl << "MEGAcmdServer.exe is probably down. Executing anything will try to respawn or reconnect to it";
-            }
-            timeout_notified_server_might_be_down--;
-            if (!timeout_notified_server_might_be_down)
-            {
-                registerAgainRequired = true;
-                closeNamedPipe(newNamedPipe);
-                return -1;
-            }
-            Sleep(1000);
-            continue;
+            return -1;
         }
 
-        if (statechangehandle != NULL)
+        if (statechangehandle)
         {
-            statechangehandle(newstate);
+            statechangehandle(newstate, *this);
         }
     }
 
-    closeNamedPipe(newNamedPipe);
     return 0;
 }
 
-int MegaCmdShellCommunicationsNamedPipes::registerForStateChanges(bool interactive, void (*statechangehandle)(string), bool initiateServer)
+std::optional<int> MegaCmdShellCommunicationsNamedPipes::registerForStateChangesImpl(bool interactive, bool initiateServer)
 {
-    if (statechangehandle == NULL)
-    {
-        registerAgainRequired = false;
-        return 0; //Do nth
-    }
     HANDLE theNamedPipe = createNamedPipe(0, initiateServer);
+
     if (!namedPipeValid(theNamedPipe))
     {
-        return -1;
+        return {};
     }
+
+    ScopeGuard g([this, &theNamedPipe]()
+    {
+        closeNamedPipe(theNamedPipe);
+    });
 
     wstring wcommand=interactive?L"Xregisterstatelistener":L"registerstatelistener";
 
@@ -828,7 +784,7 @@ int MegaCmdShellCommunicationsNamedPipes::registerForStateChanges(bool interacti
     if (!WriteFile(theNamedPipe,(char *)wcommand.data(),DWORD(wcslen(wcommand.c_str())*sizeof(wchar_t)), &n, NULL))
     {
         cerr << "ERROR writing command to namedPipe: " << ERRNO << endl;
-        return -1;
+        return {};
     }
 
     int receiveNamedPipeNum = -1;
@@ -836,26 +792,10 @@ int MegaCmdShellCommunicationsNamedPipes::registerForStateChanges(bool interacti
     if (!ReadFile(theNamedPipe, (char *)&receiveNamedPipeNum, sizeof(receiveNamedPipeNum), &n, NULL) )
     {
         cerr << "ERROR reading output namedPipe" << endl;
-        return -1;
+        return {};
     }
 
-    if (listenerThread != nullptr)
-    {
-        stopListener = true;
-        listenerThread->join();
-    }
-
-    stopListener = false;
-
-    sListenStateChangesNamedPipe * slsc = new sListenStateChangesNamedPipe();
-    slsc->receiveNamedPipeNum = receiveNamedPipeNum;
-    slsc->statechangehandle = statechangehandle;
-    listenerThread = std::unique_ptr<std::thread>(new std::thread(listenToStateChangesEntryNamedPipe, slsc));
-
-    registerAgainRequired = false;
-
-    closeNamedPipe(theNamedPipe);
-    return 0;
+    return receiveNamedPipeNum;
 }
 
 void MegaCmdShellCommunicationsNamedPipes::setResponseConfirmation(bool confirmation)
@@ -863,22 +803,14 @@ void MegaCmdShellCommunicationsNamedPipes::setResponseConfirmation(bool confirma
     confirmResponse = confirmation;
 }
 
+void MegaCmdShellCommunicationsNamedPipes::triggerListenerThreadShutdown()
+{
+    // this would cause the wake of the listener thread:
+    executeCommand("sendack");
+}
+
 MegaCmdShellCommunicationsNamedPipes::~MegaCmdShellCommunicationsNamedPipes()
 {
-    if (listenerThread != nullptr) //TODO: use heritage for whatever we can
-    {
-        stopListener = true;
-
-        // This is a virtual method being executed in the destructor (bypasses virtual dispatch)
-        // TODO: Try to get rid of this when we fix this class
-        executeCommand("sendack");
-
-        listenerThread->join();
-    }
-
-    // Needed to reset this pointer for integration tests, which use this class several times in a row
-    // TODO: We need to fix this class completely; it shouldn't have so many static like these
-    listenerThread = nullptr;
 }
 
 } //end namespace
