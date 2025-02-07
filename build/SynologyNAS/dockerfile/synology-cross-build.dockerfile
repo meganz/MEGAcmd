@@ -60,6 +60,10 @@ COPY vcpkg.json ./vcpkg.json
 
 RUN /mega/dms-toolchain.sh ${PLATFORM}
 
+# Remove the dynamic version of libatomic to avoid compiling with it, which causes
+# execution to fail in the NAS because the shared library object cannot be found
+RUN find /mega/toolchain/ \( -type f -o -type l \) -name libatomic.so* -delete
+
 RUN --mount=type=cache,target=/tmp/ccache \
     --mount=type=cache,target=/tmp/vcpkgcache \
     --mount=type=tmpfs,target=/tmp/build \
