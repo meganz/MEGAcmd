@@ -1,51 +1,26 @@
 # Debugging MEGAcmd
 
 There are two different kinds of logging messages:
-- MEGAcmd based: those messages reported by MEGAcmd itself.
+- MEGAcmd: these messages are reported by MEGAcmd itself. These messages will show information regarding the processing of user commands. They will be labeled with `cmd`.
 
-These messages will show information regarding the processing of user commands.
+- SDK: these messages are reported by the sdk and its dependent libraries. These messages will show information regarding requests, transfers, network, etc. They will be labeled with `sdk`.
 
-- SDK based: those messages reported by the sdk and dependent libraries.
+The MEGAcmd server logs messages depending on the level of log adjusted to those two categories. You can adjust the level of logging for those kinds with `log` command. Log levels range from FATAL (the lowest) to VERBOSE (the highest). The log level of each message is displayed after the cmd/sdk prefix.
 
-These messages will show information regarding requests, transfers, network, etc.
-They will be labeled with `SDK:`.
+Here's an example of some random log messages:
+```
+2025-02-07_16-47-56.662269 cmd DBG  Registering state listener petition with socket: 85 [comunicationsmanagerfilesockets.cpp:189]
+2025-02-07_16-47-56.662366 cmd DTL  Unregistering no longer listening client. Original petition: registerstatelistener [comunicationsmanagerfilesockets.cpp:346]
+2025-02-07_16-47-56.662671 sdk INFO Request (RETRY_PENDING_CONNECTIONS) starting [megaapi_impl.cpp:16964]
+```
+The source file and line the message was logged from is appended at the end of the log message, to help developers quickly find out where they came from.
 
-MEGAcmdServer logs messages depending on the level of log adjusted to those
-two categories. You can adjust the level of logging for those kinds with `log` command.
-Log levels range from FATAL (the lowest) to VERBOSE (the highest).
 
 ## How to access the logs
 
-Accessing the logs depends on the platform you are in.
+Logs coming from MEGAcmd are written to the `megacmdserver.log` file. This file is not removed across restarts, so when it gets too large it is automatically compressed and renamed to include a timestamp (without stopping the logging).
 
-### MacOS
-
-By default, whenever MEGAcmdServer is executed, it will log the output to `$HOME/.megaCmd/megacmdserver.log`.
-
-If you want to launch it manually execute in a terminal:
-
-```
-export PATH=/Applications/MEGAcmd.app/Contents/MacOS:$PATH
-./mega-cmd
-```
-
-### Linux
-By default, whenever MEGAcmdServer is executed, it will log the output to `$HOME/.megaCmd/megacmdserver.log`.
-
-If you want to launch it manually execute in a terminal:
-
-```
-mega-cmd-server
-```
-
-### Windows
-
-MEGAcmdServer is executed in the background without saving the log into a file. If you want to
-see the output you would need to execute the server (MEGAcmdServer.exe) manually.
-
-## Accessing stdout and stderr
-
-The standard output and error streams can be found in the `megacmdserver.log.out` and `megacmdserver.log.err` files, respectively. They're located in the same directories as the logs.
+The log file is located in `$HOME/.megaCmd` for Linux and macOS, and `%LOCALAPPDATA%\MEGAcmd\.megaCmd` for Windows.
 
 ## Verbosity on startup
 
