@@ -1,16 +1,16 @@
 # MEGA-BACKUPS - Backing up folders with MEGAcmd
 This is a brief tutorial on how to configure backups.
 
-Notice: the commands listed here assume you are using the interactive interaction mode: they are supposed to be executed within MEGAcmdShell.
+Notice: the commands listed here assume you are using the interactive mode: they are supposed to be executed within MEGAcmdShell.
 
 ## Creation
 Example: 
 backup /path/mega/folder /remote/path --period="0 0 4 * * *" --num-backups=10
 
 This will configure a backup of "myfolder" into /remote/path that will be carried out
- at 4:00 A.M. (UTC) every day. It will store the last 10 copies. 
+ at 4:00 A.M. (UTC) every day. It will store the last 10 copies.
  Notice a first backup will be carried out immediately.
- In this example we are using cron-time expresions. 
+ In this example we are using cron-time expressions.
  You can find extra info on those using "backup --help".
  
 Backups will be stored as:
@@ -30,7 +30,7 @@ TAG   LOCALPATH                 REMOTEPARENTPATH                  STATUS
 4     /path/mega/folder            /remote/path                   ACTIVE
 ```
 
-Notice the TAG. You can use it to refer to the backup if you wan to change its configuration 
+Notice the TAG. You can use it to refer to the backup if you want to change its configuration 
 or delete/abort it.
 
 ### Extra info
@@ -50,7 +50,7 @@ TAG   LOCALPATH                 REMOTEPARENTPATH                  STATUS
 ```
 
 Also, you can see the progress of the current backup 
-(or the last one is there is no backup being performed a the moment)
+(or the last one if there is no backup being performed at the moment)
 
 ### Backup history:
 With "backup -h" you will be able to see the existing backups with their state and start time:
@@ -75,7 +75,7 @@ watch mega-backup -lh
 
 ## Abort
 
-You can abort an ONGOING backup using its tag or it's local path. e.g.:
+You can abort an ONGOING backup using its tag or its local path. e.g.:
 ```
 backup -a 4
 ```
