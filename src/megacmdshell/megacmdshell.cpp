@@ -647,6 +647,7 @@ void install_rl_handler(const char *theprompt, bool external)
 
 #else
 
+    rl_restore_prompt();
     rl_callback_handler_install(theprompt, store_line);
     handlerOverridenByExternalThread = external;
     requirepromptinstall = false;
