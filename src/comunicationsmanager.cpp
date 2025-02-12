@@ -23,7 +23,7 @@ using namespace mega;
 namespace megacmd {
 OUTSTREAMTYPE &operator<<(OUTSTREAMTYPE &os, const CmdPetition& p)
 {
-    return os << p.line;
+    return os << p.getLine();
 }
 
 #ifdef _WIN32
@@ -143,9 +143,80 @@ std::string ComunicationsManager::getUserResponse(CmdPetition *inf, string messa
     return string();
 }
 
+void CmdPetition::setLine(std::string_view line)
+{
+    mLine = line;
+}
+
+std::string_view CmdPetition::getLine() const
+{
+    return mLine;
+}
+
 std::string_view CmdPetition::getUniformLine() const
 {
-    return ltrim(std::string_view(line), 'X');
+    return ltrim(std::string_view(mLine), 'X');
+}
+
+std::string CmdPetition::getRedactedLine() const
+{
+    if (!startsWith(getUniformLine(), "login"))
+    {
+        return mLine;
+    }
+
+    constexpr std::string_view passStr = "*********";
+
+    std::vector<std::string> tokens = split(mLine, " ");
+    std::vector<int> nonFlagIndices;
+
+    for (int i = 1; i < tokens.size(); ++i)
+    {
+        auto& token = tokens[i];
+        if (startsWith(token, "--auth-code="))
+        {
+            token = "--auth-code=";
+            token += passStr;
+        }
+        else if (startsWith(token, "--auth-key="))
+        {
+            token = "--auth-key=";
+            token += passStr;
+        }
+        else if (startsWith(token, "--password="))
+        {
+            token = "--password=";
+            token += passStr;
+        }
+
+        if (!startsWith(token, "-"))
+        {
+            nonFlagIndices.push_back(i);
+        }
+    }
+
+    if (nonFlagIndices.size() == 2)
+    {
+        // With two non-flag tokens, the first is the email and the second is the password
+        tokens[nonFlagIndices[1]] = passStr;
+    }
+    else if (nonFlagIndices.size() == 1)
+    {
+        // With one non-flag token, hide only if it's the session
+        const std::string &token = tokens[nonFlagIndices[0]];
+        const bool isSession = (token.find('@') == std::string::npos && token.find('#') == std::string::npos);
+        if (isSession)
+        {
+            tokens[nonFlagIndices[0]] = passStr;
+        }
+    }
+
+    return joinStrings(tokens, " ", false);
+}
+
+bool CmdPetition::isFromCmdShell() const
+{
+    return startsWith(mLine, "X");
 }
 
 MegaThread *CmdPetition::getPetitionThread() const

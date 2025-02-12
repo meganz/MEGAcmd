@@ -4042,10 +4042,10 @@ void* doProcessLine(void* infRaw)
     LoggedStreamPartialOutputs ls(cm, inf.get());
     setCurrentThreadOutStream(ls);
 
-    setCurrentThreadIsCmdShell(!inf->line.empty() && inf->line[0] == 'X');
+    setCurrentThreadIsCmdShell(inf->isFromCmdShell());
 
 
-    LOG_verbose << " Processing " << inf->line << " in thread: " << MegaThread::currentThreadId() << " " << inf->getPetitionDetails();
+    LOG_verbose << " Processing " << inf->getRedactedLine() << " in thread: " << MegaThread::currentThreadId() << " " << inf->getPetitionDetails();
 
     doExit = process_line(inf->getUniformLine());
 
@@ -4055,7 +4055,7 @@ void* doProcessLine(void* infRaw)
         LOG_verbose << " Exit registered upon process_line: " ;
     }
 
-    LOG_verbose << " Procesed " << inf->line << " in thread: " << MegaThread::currentThreadId() << " " << inf->getPetitionDetails();
+    LOG_verbose << " Procesed " << inf->getRedactedLine() << " in thread: " << MegaThread::currentThreadId() << " " << inf->getPetitionDetails();
 
     MegaThread * petitionThread = inf->getPetitionThread();
 
@@ -4383,14 +4383,14 @@ void processCommandInPetitionQueues(std::unique_ptr<CmdPetition> inf)
     petitionThreads.emplace_back(petitionThread);
     inf->setPetitionThread(petitionThread);
 
-    LOG_verbose << "starting processing: <" << inf->line << ">";
+    LOG_verbose << "starting processing: <" << inf->getRedactedLine() << ">";
     petitionThread->start(doProcessLine, (void*) inf.release());
 }
 
 void processCommandLinePetitionQueues(std::string what)
 {
     auto inf = std::make_unique<CmdPetition>();
-    inf->line = what;
+    inf->setLine(what);
     inf->clientDisconnected = true; // There's no actual client
     inf->clientID = -3;
     processCommandInPetitionQueues(std::move(inf));
@@ -4433,7 +4433,7 @@ void megacmd()
 
             CmdPetition* inf = infOwned.get();
 
-            LOG_verbose << "petition registered: " << inf->line;
+            LOG_verbose << "petition registered: " << inf->getRedactedLine();
             delete_finished_threads();
 
             if (inf->getUniformLine() == "ERROR")
