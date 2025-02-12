@@ -50,12 +50,6 @@ public:
     virtual std::string getPetitionDetails() const { return {}; }
 };
 
-OUTSTREAMTYPE &operator<<(OUTSTREAMTYPE &os, CmdPetition const &p);
-
-#ifdef _WIN32
-std::ostream &operator<<(std::ostream &os, CmdPetition const &p);
-#endif
-
 class ComunicationsManager
 {
 private:
