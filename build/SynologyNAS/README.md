@@ -24,6 +24,8 @@ After copying, we can stop and remove the container if needed:
 docker rm -f megacmd-dms
 ```
 
+The script `build/SynologyNAS/generate_pkg.sh` automates all of these steps, creating the necessary docker container, extracting the package from it, and deleting it afterwards. In this case, the package will be extracted to `build/SynologyNAS/packages`.
+
 To install the package on your NAS device, login using the web interface. Navigate to the Package Manager, and click Manual Install. This will open up a menu which lets you choose a local file. Select your generated .pkg file, and install.
 
 To actually run MEGAcmd, you'll need to enable a telnet or SSH connection in the Synology NAS, and run a remote terminal on it. Executables are available at `/volume1/@appstore/megacmdpkg`.
