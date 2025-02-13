@@ -21,7 +21,7 @@ echo "Starting build for '${PLATFORM}'..."
 
 BUILDER_PARAMETER="${DOCKER_CUSTOM_BUILDER:+--builder $DOCKER_CUSTOM_BUILDER --load}"
 MEGACMD_FOLDER="${SOURCE_PATH:-${SCRIPT_DIR}/../..}"
-OUTPUT_FOLDER="${OUTPUT_PATH:-$PWD/build/SynologyNAS/packages}"
+OUTPUT_FOLDER="${OUTPUT_PATH:-${SCRIPT_DIR}/packages}"
 
 docker buildx build $BUILDER_PARAMETER -t $CONTAINER \
   -f "$SCRIPT_DIR/dockerfile/synology-cross-build.dockerfile" \
