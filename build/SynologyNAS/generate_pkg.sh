@@ -17,7 +17,9 @@ trap cleanup EXIT
 
 echo "Starting build for '${PLATFORM}'..."
 
-docker build -t $CONTAINER \
+BUILDER_PARAMETER="${DOCKER_CUSTOM_BUILDER:+--builder $DOCKER_CUSTOM_BUILDER}"
+
+docker buildx build $BUILDER_PARAMETER -t $CONTAINER \
   -f "$PWD/build/SynologyNAS/dockerfile/synology-cross-build.dockerfile" \
   "$PWD" \
   --build-arg PLATFORM="$PLATFORM"
