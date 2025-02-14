@@ -7042,53 +7042,48 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
     }
     else if (words[0] == "log")
     {
+        const bool cmdFlag = getFlag(clflags, "c");
+        const bool sdkFlag = getFlag(clflags, "s");
+        const bool noFlags = !cmdFlag && !sdkFlag;
+
         if (words.size() == 1)
         {
-            if (!getFlag(clflags, "s") && !getFlag(clflags, "c"))
+            if (cmdFlag || noFlags)
             {
                 OUTSTREAM << "MEGAcmd log level = " << getLogLevelStr(loggerCMD->getCmdLoggerLevel()) << endl;
-                OUTSTREAM << "SDK log level = " << getLogLevelStr(loggerCMD->getSdkLoggerLevel()) << endl;
             }
-            else if (getFlag(clflags, "s"))
+
+            if (sdkFlag || noFlags)
             {
                 OUTSTREAM << "SDK log level = " << getLogLevelStr(loggerCMD->getSdkLoggerLevel()) << endl;
-            }
-            else if (getFlag(clflags, "c"))
-            {
-                OUTSTREAM << "MEGAcmd log level = " << getLogLevelStr(loggerCMD->getCmdLoggerLevel()) << endl;
             }
         }
         else
         {
-            int newLogLevel = getLogLevelNum(words[1].c_str());
+            const int newLogLevel = getLogLevelNum(words[1].c_str());
             if (newLogLevel == -1)
             {
                 setCurrentThreadOutCode(MCMD_EARGS);
                 LOG_err << "Invalid log level";
                 return;
             }
-            newLogLevel = max(newLogLevel, (int)MegaApi::LOG_LEVEL_FATAL);
-            newLogLevel = min(newLogLevel, (int)MegaApi::LOG_LEVEL_MAX);
-            if (!getFlag(clflags, "s") && !getFlag(clflags, "c"))
+
+            if (cmdFlag || noFlags)
             {
                 loggerCMD->setCmdLoggerLevel(newLogLevel);
-                loggerCMD->setSdkLoggerLevel(newLogLevel);
+                ConfigurationManager::savePropertyValue("cmdLogLevel", newLogLevel);
+
                 OUTSTREAM << "MEGAcmd log level = " << getLogLevelStr(loggerCMD->getCmdLoggerLevel()) << endl;
-                OUTSTREAM << "SDK log level = " << getLogLevelStr(loggerCMD->getSdkLoggerLevel()) << endl;
             }
-            else if (getFlag(clflags, "s"))
+
+            if (sdkFlag || noFlags)
             {
                 loggerCMD->setSdkLoggerLevel(newLogLevel);
+                ConfigurationManager::savePropertyValue("sdkLogLevel", newLogLevel);
+
                 OUTSTREAM << "SDK log level = " << getLogLevelStr(loggerCMD->getSdkLoggerLevel()) << endl;
-            }
-            else if (getFlag(clflags, "c"))
-            {
-                loggerCMD->setCmdLoggerLevel(newLogLevel);
-                OUTSTREAM << "MEGAcmd log level = " << getLogLevelStr(loggerCMD->getCmdLoggerLevel()) << endl;
             }
         }
-
-        return;
     }
     else if (words[0] == "pwd")
     {
