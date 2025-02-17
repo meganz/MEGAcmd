@@ -2085,7 +2085,7 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << "with image or video extensions that are not really images or videos," << endl;
         os << "or that are encrypted in the local drive so they can't be analyzed anyway." << endl;
         os << endl;
-        os << "Notice that this setting will be saved for the next time you open MEGAcmd" << endl;
+        os << "Notice that this setting will be saved for the next time you open MEGAcmd, but will be removed if you logout." << endl;
     }
     else if (!strcmp(command, "signup"))
     {
@@ -2223,13 +2223,14 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
     }
     else if (!strcmp(command, "log"))
     {
-        os << "Prints/Modifies the current logs level" << endl;
+        os << "Prints/Modifies the log level" << endl;
         os << endl;
         os << "Options:" << endl;
         os << " -c" << "\t" << "CMD log level (higher level messages)." << endl;
         os << "   " << "\t" << " Messages captured by MEGAcmd server." << endl;
         os << " -s" << "\t" << "SDK log level (lower level messages)." << endl;
         os << "   " << "\t" << " Messages captured by the engine and libs" << endl;
+        os << "Note: this setting will be saved for the next time you open MEGAcmd, but will be removed if you logout." << endl;
 
         os << endl;
         os << "Regardless of the log level of the" << endl;
@@ -2435,7 +2436,7 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << "HTTPS is not necesary since all data is stored and transfered encrypted." << endl;
         os << "Enabling it will increase CPU usage and add network overhead." << endl;
         os << endl;
-        os << "Notice that this setting will be saved for the next time you open MEGAcmd" << endl;
+        os << "Notice that this setting will be saved for the next time you open MEGAcmd, but will be removed if you logout." << endl;
     }
     else if (!strcmp(command, "deleteversions"))
     {
@@ -2483,6 +2484,7 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << endl;
         os << "*If you serve more than one location, these parameters will be ignored and use those of the first location served." << endl;
         os << " If you want to change those parameters, you need to stop serving all locations and configure them again." << endl;
+        os << "Note: WEBDAV settings and locations will be saved for the next time you open MEGAcmd, but will be removed if you logout." << endl;
         os << endl;
         os << "Caveat: This functionality is in BETA state. It might not be available on all platforms. If you experience any issue with this, please contact: support@mega.nz" << endl;
         os << endl;
@@ -2512,6 +2514,7 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << endl;
         os << "*If you serve more than one location, these parameters will be ignored and used those of the first location served." << endl;
         os << " If you want to change those parameters, you need to stop serving all locations and configure them again." << endl;
+        os << "Note: FTP settings and locations will be saved for the next time you open MEGAcmd, but will be removed if you logout." << endl;
         os << endl;
         os << "Caveat: This functionality is in BETA state. It might not be available on all platforms. If you experience any issue with this, please contact: support@mega.nz" << endl;
         os << endl;
@@ -2589,8 +2592,8 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << "                       " << "\t" << "The \"--all\" argument can be used to show the details of all issues." << endl;
         os << " --limit=rowcount " << "\t" << "Limits the amount of rows displayed. Set to 0 to display unlimited rows. Default is 10. Can also be combined with \"--detail\"." << endl;
         os << " --disable-path-collapse " << "\t" << "Ensures all paths are fully shown. By default long paths are truncated for readability." << endl;
-        os << " --enable-warning " << "\t" << "Enables the notification that appears when issues are detected. This setting is stored locally for all users." << endl;
-        os << " --disable-warning " << "\t" << "Disables the notification that appears when issues are detected. This setting is stored locally for all users." << endl;
+        os << " --enable-warning " << "\t" << "Enables the notification that appears when issues are detected. This setting is saved for the next time you open MEGAcmd, but will be removed if you logout." << endl;
+        os << " --disable-warning " << "\t" << "Disables the notification that appears when issues are detected. This setting is saved for the next time you open MEGAcmd, but will be removed if you logout." << endl;
         printColumnDisplayerHelp(os);
         os << endl;
         os << "DISPLAYED columns:" << endl;
@@ -2933,6 +2936,8 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << " --username=USERNAME" << "\t" << "The username, for authenticated proxies" << endl;
         os << " --password=PASSWORD" << "\t" << "The password, for authenticated proxies. Please, avoid using passwords containing \" or '" << endl;
 
+        os << endl;
+        os << "Note: Proxy settings will be saved for the next time you open MEGAcmd, but will be removed if you logout." << endl;
     }
     else if (!strcmp(command, "cat"))
     {
