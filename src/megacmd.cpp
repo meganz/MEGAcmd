@@ -779,24 +779,6 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     {
         validOptValues->insert("clientID");
     }
-#ifdef HAVE_DOWNLOADS_COMMAND
-    else if ("downloads" == thecommand)
-    {
-        validParams->insert("show-subtransfers");
-        validParams->insert("report-all");
-        validParams->insert("disable-tracking");
-        validParams->insert("enable-tracking");
-        validParams->insert("query-enabled");
-
-        validParams->insert("enable-clean-slate");
-        validParams->insert("disable-clean-slate");
-        validParams->insert("purge");
-
-        validOptValues->insert("path-display-size");
-        validOptValues->insert("col-separator");
-        validOptValues->insert("output-cols");
-    }
-#endif
     else if ("transfers" == thecommand)
     {
         validParams->insert("show-completed");
@@ -1962,12 +1944,6 @@ const char * getUsageStr(const char *command, const HelpFlags& flags)
     {
         return "transfers [-c TAG|-a] | [-r TAG|-a]  | [-p TAG|-a] [--only-downloads | --only-uploads] [SHOWOPTIONS]";
     }
-#ifdef HAVE_DOWNLOADS_COMMAND
-    if (!strcmp(command, "downloads"))
-    {
-        return "downloads [--purge|--enable-clean-slate|--disable-clean-slate|--enable-tracking|--disable-tracking|query-enabled|report-all| [id_1 id_2 ... id_n]]  [SHOWOPTIONS]";
-    }
-#endif
     if (((flags.win && !flags.readline) || flags.showAll) && !strcmp(command, "autocomplete"))
     {
         return "autocomplete [dos | unix]";
@@ -3051,90 +3027,6 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
             os << "To only exit current shell and keep server running, use \"exit --only-shell\"" << endl;
         }
     }
-#ifdef HAVE_DOWNLOADS_COMMAND
-    else if (!strcmp(command, "downloads"))
-    {
-        os << "Lists or configure downloads tracking and reporting." << endl;
-        os << endl;
-        os << "It will print the information regarding one or more downloads give their tags or object ids"<< endl;
-        os << "      (both will be reported when using \"get\" with -q)." << endl;
-        os << "IMPORTANT: it is disabled by default, you need to enable it with \"downloads --enable-tracking\"." << endl;
-        os << endl;
-        os << "Options:" << endl;
-        os << " --query-enabled"  << "\t" << "Indicates if download tracking is enabled" << endl;
-        os << " --enable-tracking"  << "\t" << "Starts tracking downloads. It will store the information in a sqlite3 db" << endl;
-        os << " --disable-tracking"  << "\t" << "Stops tracking downloads. Notice, it will remove the associated database" << endl;
-        os << " --enable-clean-slate"  << "\t" << "Transfers from previous executions will be discarded upon restart" << endl;
-        os << " --disable-clean-slate"  << "\t" << "Transfers from previous executions will not be discarded upon restart" << endl;
-        os << " --purge"  << "\t" << "Cancells all onging transfers, and cleans all tracking (included persisted data)" << endl;
-
-        os << endl;
-        os << "Show options:" << endl;
-        os << " --report-all" << "\t" << "Prints a report of all active and finished downloads kept in memory" << endl;
-        os << " --show-subtransfers" << "\t" << "Show information regarding transfers" << endl;
-        os << " --path-display-size=N" << "\t" << "Use at least N characters for displaying paths" << endl;
-        printColumnDisplayerHelp(os);
-        os << endl;
-        os << "Displaying cols:" << endl;
-        os << " OBJECT_ID"  << "\t" << "Id of the object (it will always be the same for the same download)" << endl;
-        os << " SUB_STARTED"  << "\t" << "Number of subtransfers started" << endl;
-        os << " SUB_OK"  << "\t" << "Number of subtransfers that completed ok" << endl;
-        os << " SUB_FAIL"  << "\t" << "Number of subtransfers that completed with some error" << endl;
-        os << " SUBTRANSFER"  << "\t" << "Tag of the subtransfers (only when using --show-subtransfers)" << endl;
-        os << " ERROR_CODE"  << "\t" << "Error of the transfer (if any)" << endl;
-        os << " TYPE"  << "\t" << "Type of transfer (see below)" << endl;
-        os << " TAG"  << "\t" << "A tag that uniquely identifies a tranfer in current execution of MEGAcmd" << endl;
-        os << " SOURCEPATH"  << "\t" << "Path of the folder/file downloaded" << endl;
-        os << " DESTINYPATH"  << "\t" << "Local path for the downloaded file/folder" << endl;
-        os << " PROGRESS"  << "\t" << "Human readable progress of the download" << endl;
-        os << " STATE"  << "\t" << "State of the transfer. " << endl;
-        os << "      "  << "\t" << " Values:" << endl;
-        os << "      "  << "\t" << "  QUEUED:" << "\t" << "queued in the system, waiting for an slot to be assigned" << endl;
-        os << "      "  << "\t" << "  ACTIVE:" << "\t" << "doing I/O" << endl;
-        os << "      "  << "\t" << "  PAUSED:" << "\t" << "paused" << endl;
-        os << "      "  << "\t" << "  RETRYING:" << "\t" << "retrying after some potentially recoverable error" << endl;
-        os << "      "  << "\t" << "  COMPLETING:" << "\t" << "final stages (e.g: moving temporal transfer file to its final destination)" << endl;
-        os << "      "  << "\t" << "  COMPLETED:" << "\t" << "finished ok" << endl;
-        os << "      "  << "\t" << "  CANCELLED:" << "\t" << "cancelled" << endl;
-        os << "      "  << "\t" << "  FAILED:" << "\t" << "Failed (or subtransfers failed)" << endl;
-
-        os << " TRANSFERRED"  << "\t" << "Number of bytes transferred" << endl;
-        os << " TOTAL"  << "\t" << "Number of total bytes to be transferred" << endl;
-        os << endl;
-        os << "TYPE legend correspondence:" << endl;
-#ifdef _WIN32
-
-        const string cD = getutf8fromUtf16(L"\u25bc");
-        const string cU = getutf8fromUtf16(L"\u25b2");
-        const string cS = getutf8fromUtf16(L"\u21a8");
-        const string cB = getutf8fromUtf16(L"\u2191");
-#else
-        const string cD = "\u21d3";
-        const string cU = "\u21d1";
-        const string cS = "\u21f5";
-        const string cB = "\u23eb";
-#endif
-        os << "  " << cD <<" = \t" << "Download transfer" << endl;
-        os << "  " << cU <<" = \t" << "Upload transfer" << endl;
-        os << "  " << cS <<" = \t" << "Sync transfer. The transfer is done in the context of a synchronization" << endl;
-        os << "  " << cB <<" = \t" << "Backup transfer. The transfer is done in the context of a backup" << endl;
-
-        os << endl;
-        os << "Configuration values" << endl;
-        os << "In your configuration folder (HOME/Appdata) there is megacmd.cfg configuration file." << endl;
-        os << "This are the properties used in the downloads tracking & report mechanism:" << endl;
-        os << " downloads_tracking_enabled"  << "\t" << "If downloads tracking is enabled. Default=0 (false)!" << endl;
-        os << " downloads_tracking_max_finished_in_memory_high_threshold"  << "\t" << "Max number of downloads to keep in memory. It this is surpassed, " << endl;
-        os << "                                                         "  << "\t" << "finished transfers will start to be deleted (first the least recently updated)." << endl;
-        os << "                                                         "  << "\t" << "Note: you can still get the information from the db using OJBECT_ID." << endl;
-        os << "                                                         "  << "\t" << "Default=40000" << endl;
-        os << " downloads_tracking_max_finished_in_memory_low_threshold"  << "\t" << "When pruning is executed it will clean until this threshold. Default=20000" << endl;
-        os << " downloads_db_path"  << "\t" << "Path to store tracking information of downloads. Default: ~/.megaCmd/downloads.db" << endl;
-        os << " downloads_db_io_frequency_ms"  << "\t" << "Frequency in milliseconds to commit pending changes in the database. Default=10000" << endl;
-        os << " downloads_db_max_queued_changes"  << "\t" << "Max allowed number of changes to be queued before writting. Default=1000" << endl;
-        os << " downloads_cleanslate_enabled"  << "\t" << "If transfers from previous executions will be discarded upon restart. Default=0 (false)" << endl;
-    }
-#endif
     else if (!strcmp(command, "transfers"))
     {
         os << "List or operate with transfers" << endl;
@@ -4182,12 +4074,6 @@ void finalize(bool waitForRestartSignal_param)
         return;
     alreadyfinalized = true;
     LOG_info << "closing application ...";
-
-#ifdef HAVE_DOWNLOADS_COMMAND
-    LOG_debug << "Shuting down downloads manager";
-    DownloadsManager::Instance().shutdown(false);
-    LOG_debug << "Downloads manager shut down";
-#endif
 
     delete_finished_threads();
     if (!consoleFailed)

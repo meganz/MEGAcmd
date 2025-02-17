@@ -1456,33 +1456,6 @@ void process_line(const char * line)
 #endif
                     return;
                 }
-#ifdef HAVE_DOWNLOADS_COMMAND
-                else if ( (words[0] == "downloads"))
-                {
-                    string toexec;
-
-                    if (!strstr (commandtoexec,"path-display-size"))
-                    {
-                        unsigned int width = getNumberOfCols(75);
-                        int pathSize = int((width-46)/2);
-
-                        toexec+=words[0];
-                        toexec+=" --path-display-size=";
-                        toexec+=SSTR(pathSize);
-                        toexec+=" ";
-                        if (strlen(commandtoexec)>(words[0].size()+1))
-                        {
-                            toexec+=commandtoexec+words[0].size()+1;
-                        }
-                    }
-                    else
-                    {
-                        toexec+=commandtoexec;
-                    }
-
-                    comms->executeCommand(toexec.c_str(), readresponse);
-                }
-#endif
                 else if ( (words[0] == "transfers"))
                 {
                     string toexec;

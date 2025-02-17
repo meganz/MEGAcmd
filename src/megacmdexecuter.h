@@ -19,8 +19,6 @@
 #ifndef MEGACMDEXECUTER_H
 #define MEGACMDEXECUTER_H
 
-#include "megacmdtransfermanager.h"
-
 #include "megacmdlogger.h"
 #include "megacmdsandbox.h"
 #include "listeners.h"
@@ -241,8 +239,6 @@ public:
     void fetchNodes(mega::MegaApi *api = nullptr, int clientID = -27);
 
     void mayExecutePendingStuffInWorkerThread();
-
-    void cleanSlateTranfers();
 };
 
 }//end namespace
