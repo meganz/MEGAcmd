@@ -223,7 +223,7 @@ const char * getLogLevelStr(int loglevel)
     }
 }
 
-int getLogLevelNum(const char* level)
+std::optional<int> getLogLevelNum(const char* level)
 {
     if (!strcmp(level, "FATAL") || !strcmp(level, "fatal"))
     {
@@ -255,7 +255,7 @@ int getLogLevelNum(const char* level)
     std::istringstream is(level);
     if (!(is >> i))
     {
-        return -1;
+        return {};
     }
 
     return std::clamp(i, (int) MegaApi::LOG_LEVEL_FATAL, (int) MegaApi::LOG_LEVEL_MAX);

@@ -7060,13 +7060,14 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         }
         else
         {
-            const int newLogLevel = getLogLevelNum(words[1].c_str());
-            if (newLogLevel == -1)
+            auto newLogLevelOpt = getLogLevelNum(words[1].c_str());
+            if (!newLogLevelOpt)
             {
                 setCurrentThreadOutCode(MCMD_EARGS);
                 LOG_err << "Invalid log level";
                 return;
             }
+            const int newLogLevel = *newLogLevelOpt;
 
             if (cmdFlag || noFlags)
             {
