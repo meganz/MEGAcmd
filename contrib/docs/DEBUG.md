@@ -24,48 +24,33 @@ The log file is located in `$HOME/.megaCmd` for Linux and macOS, and `%LOCALAPPD
 
 ## Verbosity on startup
 
-You can start the server with higher level of verbosity in order to have log levels increased at startup.
-In Windows & Linux you will need to pass `--debug-full` as an argument to the executable (e.g: `MEGAcmdServer.exe --debug-full`).
+You can start the server with higher level of verbosity in order to have log levels increased at startup, regardless of the log level configured by the `log` command mentioned above.
+You will need to pass `--debug-full` as an argument to the executable (e.g: `MEGAcmdServer.exe --debug-full`). Alternatively, you can set the `MEGACMD_LOGLEVEL` environment variable to `FULLVERBOSE` before starting the server.
 
-In MacOS, you can use `MEGACMD_LOGLEVEL` environment variable like this: `MEGACMD_LOGLEVEL=FULLDEBUG ./mega-cmd`.
+If you want other startup level of logging, you can use the following:
+* `--debug` or `MEGACMD_LOGLEVEL=DEBUG` will set
+    ```
+    MEGAcmd log level = DEBUG
+    SDK log level = DEFAULT
+    ```
 
-If you want other startup level of loggin, you can use:
+* `--debug-full` or `MEGACMD_LOGLEVEL=DEBUG` will set
+    ```
+    MEGAcmd log level = DEBUG
+    SDK log level = DEBUG
+    ```
 
-* `--debug`
-* `MEGACMD_LOGLEVEL=DEBUG`
+* `--verbose` or `MEGACMD_LOGLEVEL=VERBOSE` will set
+    ```
+    MEGAcmd log level = VERBOSE
+    SDK log level = DEFAULT
+    ```
 
-This will set:
-
-MEGAcmd log level = DEBUG
-SDK log level = DEFAULT
-
-* `--debug-full`
-* `MEGACMD_LOGLEVEL=DEBUG`
-
-This will set:
-
-MEGAcmd log level = DEBUG
-SDK log level = DEBUG
-
-* `--verbose`
-* `MEGACMD_LOGLEVEL=VERBOSE`
-
-This will set:
-
-MEGAcmd log level = VERBOSE
-SDK log level = DEFAULT
-
-* `--verbose-full`
-* `MEGACMD_LOGLEVEL=FULLVERBOSE`
-
-This will set:
-
-MEGAcmd log level = VERBOSE
-SDK log level = VERBOSE
-
+* `--verbose-full` or `MEGACMD_LOGLEVEL=FULLVERBOSE` will set
+    ```
+    MEGAcmd log level = VERBOSE
+    SDK log level = VERBOSE
+    ```
 
 ## Controlling verbosity of a single command
-
-You can pass `-v` (`-vv`, `-vvv`, and so on for a more verbose output)
-to an specific command and it will use higher level of verbosity of MEGAcmd based messages.
-
+In general, as we've mentioned before, lower verbosity log messages are not printed directly to the console. Only errors are. You can pass `-v`, `-vv`, and `-vvv` when running a command to ensure warning, debug, and verbose messages are printed (respectively). Note that this is only for the console; log level of `megacmdserver.log` will follow the rules explained above.
