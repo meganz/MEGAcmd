@@ -155,13 +155,11 @@ std::string CmdPetition::getRedactedLine() const
     static const std::string asterisks = "$1********";
 
     static const std::regex fullCommandRegex(R"(^((X?)(passwd|login|confirm|confirmcancel)\s+).*$)");
-    static const std::regex passwordRegex(R"((--password=)\S+)");
+    static const std::regex passwordRegex(R"((--password=)("[^"]+"|'[^']+'|\S+))");
     static const std::regex authRegex(R"((--auth-(code|key)=)\S+)");
-    static const std::regex linkRegex1(R"((https://mega\.nz/#![^!]+#)\S+)");
-    static const std::regex linkRegex2(R"((https://mega\.nz/#F![^!]+#)\S+)");
-    static const std::regex linkRegex3(R"((https://mega\.nz/file/[^#]+#)\S+)");
-    static const std::regex linkRegex4(R"((https://mega\.nz/folder/[^#]+#)\S+)");
-    static const std::regex linkRegex5(R"((https://mega\.nz/#P!)\S+)");
+    static const std::regex linkRegex(R"((https://mega\.nz/(file|folder)/[^#]+#)\S+)");
+    static const std::regex oldLinkRegex(R"((https://mega\.nz/#F?![^!]+#)\S+)");
+    static const std::regex encryptedLinkRegex(R"((https://mega\.nz/#P!)\S+)");
 
     if (std::regex_match(mLine, fullCommandRegex))
     {
@@ -171,11 +169,9 @@ std::string CmdPetition::getRedactedLine() const
     std::string output = mLine;
     output = std::regex_replace(output, passwordRegex, asterisks);
     output = std::regex_replace(output, authRegex, asterisks);
-    output = std::regex_replace(output, linkRegex1, asterisks);
-    output = std::regex_replace(output, linkRegex2, asterisks);
-    output = std::regex_replace(output, linkRegex3, asterisks);
-    output = std::regex_replace(output, linkRegex4, asterisks);
-    output = std::regex_replace(output, linkRegex5, asterisks);
+    output = std::regex_replace(output, linkRegex, asterisks);
+    output = std::regex_replace(output, oldLinkRegex, asterisks);
+    output = std::regex_replace(output, encryptedLinkRegex, asterisks);
 
     return output;
 }

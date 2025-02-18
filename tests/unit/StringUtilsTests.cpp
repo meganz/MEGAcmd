@@ -149,6 +149,38 @@ TEST(StringUtilsTest, redactedCmdPetition)
     }
 
     {
+        G_SUBTEST << "Redact password with single quotes";
+
+        CmdPetition petition;
+        petition.setLine("some-command --password='My Secret Password' --some-arg=Something -fv");
+        const std::string redacted = petition.getRedactedLine();
+
+        EXPECT_THAT(redacted, testing::Not(testing::HasSubstr("My Secret Password")));
+        EXPECT_THAT(redacted, testing::HasSubstr("--password=********"));
+        EXPECT_THAT(redacted, testing::HasSubstr("--some-arg=Something"));
+
+        // Ensure the full password gets redacted, not only the first word
+        EXPECT_THAT(redacted, testing::Not(testing::HasSubstr("Secret Password")));
+        EXPECT_THAT(redacted, testing::Not(testing::HasSubstr("Password")));
+    }
+
+    {
+        G_SUBTEST << "Redact password with double quotes";
+
+        CmdPetition petition;
+        petition.setLine("some-command --password=\"My Secret Password\" --some-arg=Something -fv");
+        const std::string redacted = petition.getRedactedLine();
+
+        EXPECT_THAT(redacted, testing::Not(testing::HasSubstr("My Secret Password")));
+        EXPECT_THAT(redacted, testing::HasSubstr("--password=********"));
+        EXPECT_THAT(redacted, testing::HasSubstr("--some-arg=Something"));
+
+        // Ensure the full password gets redacted, not only the first word
+        EXPECT_THAT(redacted, testing::Not(testing::HasSubstr("Secret Password")));
+        EXPECT_THAT(redacted, testing::Not(testing::HasSubstr("Password")));
+    }
+
+    {
         G_SUBTEST << "Redact auth-key and auth-code";
 
         CmdPetition petition;
