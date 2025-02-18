@@ -343,12 +343,12 @@ int ComunicationsManagerFileSockets::informStateListener(CmdPetition *inf, const
     {
         if (errno == EPIPE) //socket closed
         {
-            LOG_verbose << "Unregistering no longer listening client. Original petition: " << inf->line;
+            LOG_verbose << "Unregistering no longer listening client. Original petition: " << inf->getRedactedLine();
             return -1;
         }
         else if (errno == EAGAIN || errno == EWOULDBLOCK) // timed out
         {
-            LOG_warn << "Unregistering timed out listening client. Original petition: " << inf->line;
+            LOG_warn << "Unregistering timed out listening client. Original petition: " << inf->getRedactedLine();
             return -1;
         }
         else
@@ -384,7 +384,7 @@ std::unique_ptr<CmdPetition> ComunicationsManagerFileSockets::getPetition()
         }
 
         sleep(1);
-        inf->line = "ERROR";
+        inf->setLine("ERROR");
         return inf;
     }
 
@@ -422,13 +422,13 @@ std::unique_ptr<CmdPetition> ComunicationsManagerFileSockets::getPetition()
     if (n < 0)
     {
         LOG_fatal << "ERROR reading from socket at getPetition: " << errno;
-        inf->line = "ERROR";
+        inf->setLine("ERROR");
         close(newsockfd);
         return inf;
     }
 
     inf->outSocket = newsockfd;
-    inf->line = wholepetition;
+    inf->setLine(wholepetition);
 
     return inf;
 }

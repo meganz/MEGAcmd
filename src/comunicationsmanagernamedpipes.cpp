@@ -457,7 +457,7 @@ int ComunicationsManagerNamedPipes::informStateListener(CmdPetition *inf, const 
     {
         if (ERRNO == 32 || ERRNO == 109 || (ERRNO == 232 && s == "ack")) //namedPipe closed | pipe has been ended
         {
-            LOG_debug << "namedPipe closed. Client probably disconnected. Original petition: " << inf->line;
+            LOG_debug << "namedPipe closed. Client probably disconnected. Original petition: " << inf->getRedactedLine();
             return -1;
         }
         else
@@ -509,7 +509,7 @@ std::unique_ptr<CmdPetition> ComunicationsManagerNamedPipes::getPetition()
     if (!readok)
     {
         LOG_err << "Failed to read petition from named pipe. errno: L" << ERRNO;
-        inf->line = "ERROR";
+        inf->setLine("ERROR");
         return inf;
     }
 
@@ -522,14 +522,14 @@ std::unique_ptr<CmdPetition> ComunicationsManagerNamedPipes::getPetition()
     if (!namedPipeValid(inf->outNamedPipe) || !namedPipe_id)
     {
         LOG_fatal << "ERROR creating output namedPipe at getPetition";
-        inf->line = "ERROR";
+        inf->setLine("ERROR");
         return inf;
     }
 
     if(!WriteFile(pipeGeneral,(const char*)&namedPipe_id, sizeof( namedPipe_id ), &n, NULL))
     {
         LOG_fatal << "ERROR writing to namedPipe at getPetition: ERRNO = " << ERRNO;
-        inf->line = "ERROR";
+        inf->setLine("ERROR");
         return inf;
     }
 
@@ -538,7 +538,7 @@ std::unique_ptr<CmdPetition> ComunicationsManagerNamedPipes::getPetition()
         LOG_fatal << " Error disconnecting from general pip. errno: " << ERRNO;
     }
 
-    inf->line = receivedutf8;
+    inf->setLine(receivedutf8);
 
     return inf;
 }
