@@ -18,6 +18,8 @@
 
 #include "comunicationsmanager.h"
 
+#include <regex>
+
 using namespace mega;
 
 namespace megacmd {
@@ -149,58 +151,33 @@ std::string_view CmdPetition::getUniformLine() const
 
 std::string CmdPetition::getRedactedLine() const
 {
-    if (!startsWith(getUniformLine(), "login"))
+    static const std::string redacted = "$1<REDACTED>";
+    static const std::string asterisks = "$1********";
+
+    static const std::regex fullCommandRegex(R"(^((X?)(passwd|login|confirm|confirmcancel)\s+).*$)");
+    static const std::regex passwordRegex(R"((--password=)\S+)");
+    static const std::regex authRegex(R"((--auth-(code|key)=)\S+)");
+    static const std::regex linkRegex1(R"((https://mega\.nz/#![^!]+#)\S+)");
+    static const std::regex linkRegex2(R"((https://mega\.nz/#F![^!]+#)\S+)");
+    static const std::regex linkRegex3(R"((https://mega\.nz/file/[^#]+#)\S+)");
+    static const std::regex linkRegex4(R"((https://mega\.nz/folder/[^#]+#)\S+)");
+    static const std::regex linkRegex5(R"((https://mega\.nz/#P!)\S+)");
+
+    if (std::regex_match(mLine, fullCommandRegex))
     {
-        return mLine;
+        return std::regex_replace(mLine, fullCommandRegex, redacted);
     }
 
-    constexpr std::string_view passStr = "*********";
+    std::string output = mLine;
+    output = std::regex_replace(output, passwordRegex, asterisks);
+    output = std::regex_replace(output, authRegex, asterisks);
+    output = std::regex_replace(output, linkRegex1, asterisks);
+    output = std::regex_replace(output, linkRegex2, asterisks);
+    output = std::regex_replace(output, linkRegex3, asterisks);
+    output = std::regex_replace(output, linkRegex4, asterisks);
+    output = std::regex_replace(output, linkRegex5, asterisks);
 
-    std::vector<std::string> tokens = split(mLine, " ");
-    std::vector<int> nonFlagIndices;
-
-    for (int i = 1; i < tokens.size(); ++i)
-    {
-        auto& token = tokens[i];
-        if (startsWith(token, "--auth-code="))
-        {
-            token = "--auth-code=";
-            token += passStr;
-        }
-        else if (startsWith(token, "--auth-key="))
-        {
-            token = "--auth-key=";
-            token += passStr;
-        }
-        else if (startsWith(token, "--password="))
-        {
-            token = "--password=";
-            token += passStr;
-        }
-
-        if (!startsWith(token, "-"))
-        {
-            nonFlagIndices.push_back(i);
-        }
-    }
-
-    if (nonFlagIndices.size() == 2)
-    {
-        // With two non-flag tokens, the first is the email and the second is the password
-        tokens[nonFlagIndices[1]] = passStr;
-    }
-    else if (nonFlagIndices.size() == 1)
-    {
-        // With one non-flag token, hide only if it's the session
-        const std::string &token = tokens[nonFlagIndices[0]];
-        const bool isSession = (token.find('@') == std::string::npos && token.find('#') == std::string::npos);
-        if (isSession)
-        {
-            tokens[nonFlagIndices[0]] = passStr;
-        }
-    }
-
-    return joinStrings(tokens, " ", false);
+    return output;
 }
 
 bool CmdPetition::isFromCmdShell() const

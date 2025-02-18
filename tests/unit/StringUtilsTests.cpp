@@ -17,6 +17,7 @@
 
 #include "TestUtils.h"
 #include "megacmdcommonutils.h"
+#include "comunicationsmanager.h"
 
 namespace StringUtilsTest
 {
@@ -129,4 +130,160 @@ TEST(StringUtilsTest, nonAsciiToStringstream)
         EXPECT_EQ(wostream.str(), wstr);
     }
 #endif
+}
+
+TEST(StringUtilsTest, redactedCmdPetition)
+{
+    using megacmd::CmdPetition;
+
+    {
+        G_SUBTEST << "Redact password";
+
+        CmdPetition petition;
+        petition.setLine("some-command --password=MySecretPassword --some-arg=Something -fv");
+        const std::string redacted = petition.getRedactedLine();
+
+        EXPECT_THAT(redacted, testing::Not(testing::HasSubstr("MySecretPassword")));
+        EXPECT_THAT(redacted, testing::HasSubstr("--password=********"));
+        EXPECT_THAT(redacted, testing::HasSubstr("--some-arg=Something"));
+    }
+
+    {
+        G_SUBTEST << "Redact auth-key and auth-code";
+
+        CmdPetition petition;
+        petition.setLine("some-command --auth-code=abc123 --some-arg=Something --auth-key=def456");
+        const std::string redacted = petition.getRedactedLine();
+
+        EXPECT_THAT(redacted, testing::Not(testing::HasSubstr("abc123")));
+        EXPECT_THAT(redacted, testing::Not(testing::HasSubstr("def456")));
+        EXPECT_THAT(redacted, testing::HasSubstr("--auth-code=********"));
+        EXPECT_THAT(redacted, testing::HasSubstr("--auth-key=********"));
+        EXPECT_THAT(redacted, testing::HasSubstr("--some-arg=Something"));
+    }
+
+    {
+        G_SUBTEST << "Redact login";
+
+        CmdPetition petition;
+        petition.setLine("login some-email@real-website.com SuperSecret1234!'");
+        const std::string redacted = petition.getRedactedLine();
+
+        EXPECT_EQ(redacted, "login <REDACTED>");
+    }
+
+    {
+        G_SUBTEST << "Redact login no email";
+
+        CmdPetition petition;
+        petition.setLine("login https://mega.nz/folder/bxomFKwL#3V1dUJFzL98t1GqXX29IXg");
+        const std::string redacted = petition.getRedactedLine();
+
+        EXPECT_EQ(redacted, "login <REDACTED>");
+    }
+
+    {
+        G_SUBTEST << "Redact login even with auth-code";
+
+        CmdPetition petition;
+        petition.setLine("login --auth-code=1SomeAuthCode1 SomeSuperSecret");
+        const std::string redacted = petition.getRedactedLine();
+
+        EXPECT_EQ(redacted, "login <REDACTED>");
+    }
+
+    {
+        G_SUBTEST << "Redact passwd";
+
+        CmdPetition petition;
+        petition.setLine("passwd -f NewPassword");
+        const std::string redacted = petition.getRedactedLine();
+
+        EXPECT_EQ(redacted, "passwd <REDACTED>");
+    }
+
+    {
+        G_SUBTEST << "Redact passwd from shell";
+
+        CmdPetition petition;
+        petition.setLine("Xpasswd -f NewPassword");
+        const std::string redacted = petition.getRedactedLine();
+
+        EXPECT_EQ(redacted, "Xpasswd <REDACTED>");
+    }
+
+    {
+        G_SUBTEST << "Redact confirm";
+
+        CmdPetition petition;
+        petition.setLine("confirm somelink1234 Password");
+        const std::string redacted = petition.getRedactedLine();
+
+        EXPECT_EQ(redacted, "confirm <REDACTED>");
+    }
+
+    {
+        G_SUBTEST << "Redact confirmcancel";
+
+        CmdPetition petition;
+        petition.setLine("confirmcancel somelink123 Password");
+        const std::string redacted = petition.getRedactedLine();
+
+        EXPECT_EQ(redacted, "confirmcancel <REDACTED>");
+    }
+
+    {
+        G_SUBTEST << "Redact folder link";
+
+        CmdPetition petition;
+        petition.setLine("import https://mega.nz/folder/bxomFKwL#3V1dUJFzL98t1GqXX29IXg");
+        const std::string redacted = petition.getRedactedLine();
+
+        EXPECT_THAT(redacted, testing::Not(testing::HasSubstr("3V1dUJFzL98t1GqXX29IXg")));
+        EXPECT_THAT(redacted, testing::HasSubstr("https://mega.nz/folder/bxomFKwL#********"));
+    }
+
+    {
+        G_SUBTEST << "Redact file link";
+
+        CmdPetition petition;
+        petition.setLine("get https://mega.nz/file/d0w0nyiy#egvjqp5r-anbbdsjg8qrvg");
+        const std::string redacted = petition.getRedactedLine();
+
+        EXPECT_THAT(redacted, testing::Not(testing::HasSubstr("egvjqp5r-anbbdsjg8qrvg")));
+        EXPECT_THAT(redacted, testing::HasSubstr("https://mega.nz/file/d0w0nyiy#********"));
+    }
+
+    {
+        G_SUBTEST << "Redact old folder link";
+
+        CmdPetition petition;
+        petition.setLine("get https://mega.nz/#F!bxomFKwL#3V1dUJFzL98t1GqXX29IXg");
+        const std::string redacted = petition.getRedactedLine();
+
+        EXPECT_THAT(redacted, testing::Not(testing::HasSubstr("3V1dUJFzL98t1GqXX29IXg")));
+        EXPECT_THAT(redacted, testing::HasSubstr("https://mega.nz/#F!bxomFKwL#********"));
+    }
+
+    {
+        G_SUBTEST << "Redact old file link";
+
+        CmdPetition petition;
+        petition.setLine("import https://mega.nz/#!d0w0nyiy#egvjqp5r-anbbdsjg8qrvg");
+        const std::string redacted = petition.getRedactedLine();
+
+        EXPECT_THAT(redacted, testing::Not(testing::HasSubstr("egvjqp5r-anbbdsjg8qrvg")));
+        EXPECT_THAT(redacted, testing::HasSubstr("https://mega.nz/#!d0w0nyiy#********"));
+    }
+
+    {
+        G_SUBTEST << "Redact encrypted link";
+
+        CmdPetition petition;
+        petition.setLine("some-other-command https://mega.nz/#P!egvjqp5r-anbbdsjg8qrvg");
+        const std::string redacted = petition.getRedactedLine();
+
+        EXPECT_THAT(redacted, testing::Not(testing::HasSubstr("egvjqp5r-anbbdsjg8qrvg")));
+        EXPECT_THAT(redacted, testing::HasSubstr("https://mega.nz/#P!********"));
+    }
 }
