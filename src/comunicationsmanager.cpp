@@ -151,6 +151,12 @@ std::string_view CmdPetition::getUniformLine() const
 
 std::string CmdPetition::getRedactedLine() const
 {
+    const char* doNotRedactEnv = getenv("MEGACMD_DO_NOT_REDACT_LINES");
+    if (doNotRedactEnv)
+    {
+        return mLine;
+    }
+
     static const std::string redacted = "$1<REDACTED>";
     static const std::string asterisks = "$1********";
 

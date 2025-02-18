@@ -16,6 +16,7 @@
 #include <gtest/gtest.h>
 
 #include "TestUtils.h"
+#include "Instruments.h"
 #include "megacmdcommonutils.h"
 #include "comunicationsmanager.h"
 
@@ -317,5 +318,28 @@ TEST(StringUtilsTest, redactedCmdPetition)
 
         EXPECT_THAT(redacted, testing::Not(testing::HasSubstr("egvjqp5r-anbbdsjg8qrvg")));
         EXPECT_THAT(redacted, testing::HasSubstr("https://mega.nz/#P!********"));
+    }
+
+    {
+        G_SUBTEST << "DO_NOT_REDACT env variable override";
+        auto doNotRedactGuard = TestInstrumentsEnvVarGuard("MEGACMD_DO_NOT_REDACT_LINES", "1");
+
+        {
+            CmdPetition petition;
+            petition.setLine("some-command --password=MySecretPassword --some-arg=Something -fv");
+            const std::string redacted = petition.getRedactedLine();
+
+            EXPECT_THAT(redacted, testing::HasSubstr("--password=MySecretPassword"));
+        }
+
+        {
+            CmdPetition petition;
+            petition.setLine("login some-email@real-website.com SuperSecret1234!'");
+            const std::string redacted = petition.getRedactedLine();
+
+            EXPECT_THAT(redacted, testing::HasSubstr("some-email@real-website.com"));
+            EXPECT_THAT(redacted, testing::HasSubstr("SuperSecret1234!'"));
+            EXPECT_THAT(redacted, testing::Not(testing::HasSubstr("<REDACTED>")));
+        }
     }
 }
