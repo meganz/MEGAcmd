@@ -22,7 +22,6 @@
 
 #include "megacmdutils.h"
 #include "megacmdcommonutils.h"
-#include "megacmdtransfermanager.h"
 #include "configurationmanager.h"
 #include "megacmdlogger.h"
 #include "comunicationsmanager.h"
@@ -2608,13 +2607,6 @@ int MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
         }
 #endif
 
-#ifdef HAVE_DOWNLOADS_COMMAND
-        bool downloads_tracking_enabled = ConfigurationManager::getConfigurationValue("downloads_tracking_enabled", false);
-        if (downloads_tracking_enabled)
-        {
-            DownloadsManager::Instance().start();
-        }
-#endif
         ConfigurationManager::migrateSyncConfig(api);
 
         LOG_info << "Fetching nodes ... ";
@@ -2886,39 +2878,6 @@ void MegaCmdExecuter::fetchNodes(MegaApi *api, int clientID)
 #endif
 }
 
-void MegaCmdExecuter::cleanSlateTranfers()
-{
-#ifdef HAVE_DOWNLOADS_COMMAND
-    bool downloads_cleanslate = ConfigurationManager::getConfigurationValue("downloads_cleanslate_enabled", false);
-
-    if (downloads_cleanslate)
-    {
-        auto megaCmdListener = std::make_unique<MegaCmdListener>(nullptr);
-        api->cancelTransfers(MegaTransfer::TYPE_DOWNLOAD, megaCmdListener.get());
-        megaCmdListener->wait();
-        if (checkNoErrors(megaCmdListener->getError(), "cancel all download transfers"))
-        {
-            LOG_debug << "Download transfers cancelled successfully.";
-        }
-        megaCmdListener.reset(new MegaCmdListener(nullptr));
-        api->cancelTransfers(MegaTransfer::TYPE_UPLOAD, megaCmdListener.get());
-        megaCmdListener->wait();
-        if (checkNoErrors(megaCmdListener->getError(), "cancel all upload transfers"))
-        {
-            LOG_debug << "Upload transfers cancelled successfully.";
-        }
-
-        {
-            globalTransferListener->completedTransfersMutex.lock();
-            globalTransferListener->completedTransfers.clear();
-            globalTransferListener->completedTransfersMutex.unlock();
-        }
-
-        DownloadsManager::Instance().purge();
-    }
-#endif
-}
-
 void MegaCmdExecuter::actUponLogout(SynchronousRequestListener *srl, bool keptSession, int timeout)
 {
     if (!timeout)
@@ -2950,9 +2909,6 @@ void MegaCmdExecuter::actUponLogout(SynchronousRequestListener *srl, bool keptSe
         }
         ConfigurationManager::clearConfigurationFile();
 
-#ifdef HAVE_DOWNLOADS_COMMAND
-        DownloadsManager::Instance().shutdown(true);
-#endif
         mtxSyncMap.unlock();
 
         // clear greetings (asuming they are account-related)
@@ -6703,18 +6659,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 }
             }
 
-            if (background) //TODO: do the same for uploads?
-            {
-#ifdef HAVE_DOWNLOADS_COMMAND
-                megaCmdMultiTransferListener->waitMultiStart();
-
-                for (auto & dlId : megaCmdMultiTransferListener->getStartedTransfers())
-                {
-                    OUTSTREAM << "Started background transfer <" << dlId.mPath << ">. Tag = " << dlId.mTag << ". Object Identifier: " << dlId.getObjectID() << endl;
-                }
-#endif
-            }
-            else
+            if (!background)
             {
                 megaCmdMultiTransferListener->waitMultiEnd();
 
@@ -7042,53 +6987,49 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
     }
     else if (words[0] == "log")
     {
+        const bool cmdFlag = getFlag(clflags, "c");
+        const bool sdkFlag = getFlag(clflags, "s");
+        const bool noFlags = !cmdFlag && !sdkFlag;
+
         if (words.size() == 1)
         {
-            if (!getFlag(clflags, "s") && !getFlag(clflags, "c"))
+            if (cmdFlag || noFlags)
             {
                 OUTSTREAM << "MEGAcmd log level = " << getLogLevelStr(loggerCMD->getCmdLoggerLevel()) << endl;
-                OUTSTREAM << "SDK log level = " << getLogLevelStr(loggerCMD->getSdkLoggerLevel()) << endl;
             }
-            else if (getFlag(clflags, "s"))
+
+            if (sdkFlag || noFlags)
             {
                 OUTSTREAM << "SDK log level = " << getLogLevelStr(loggerCMD->getSdkLoggerLevel()) << endl;
-            }
-            else if (getFlag(clflags, "c"))
-            {
-                OUTSTREAM << "MEGAcmd log level = " << getLogLevelStr(loggerCMD->getCmdLoggerLevel()) << endl;
             }
         }
         else
         {
-            int newLogLevel = getLogLevelNum(words[1].c_str());
-            if (newLogLevel == -1)
+            auto newLogLevelOpt = getLogLevelNum(words[1].c_str());
+            if (!newLogLevelOpt)
             {
                 setCurrentThreadOutCode(MCMD_EARGS);
                 LOG_err << "Invalid log level";
                 return;
             }
-            newLogLevel = max(newLogLevel, (int)MegaApi::LOG_LEVEL_FATAL);
-            newLogLevel = min(newLogLevel, (int)MegaApi::LOG_LEVEL_MAX);
-            if (!getFlag(clflags, "s") && !getFlag(clflags, "c"))
+            const int newLogLevel = *newLogLevelOpt;
+
+            if (cmdFlag || noFlags)
             {
                 loggerCMD->setCmdLoggerLevel(newLogLevel);
-                loggerCMD->setSdkLoggerLevel(newLogLevel);
+                ConfigurationManager::savePropertyValue("cmdLogLevel", newLogLevel);
+
                 OUTSTREAM << "MEGAcmd log level = " << getLogLevelStr(loggerCMD->getCmdLoggerLevel()) << endl;
-                OUTSTREAM << "SDK log level = " << getLogLevelStr(loggerCMD->getSdkLoggerLevel()) << endl;
             }
-            else if (getFlag(clflags, "s"))
+
+            if (sdkFlag || noFlags)
             {
                 loggerCMD->setSdkLoggerLevel(newLogLevel);
+                ConfigurationManager::savePropertyValue("sdkLogLevel", newLogLevel);
+
                 OUTSTREAM << "SDK log level = " << getLogLevelStr(loggerCMD->getSdkLoggerLevel()) << endl;
-            }
-            else if (getFlag(clflags, "c"))
-            {
-                loggerCMD->setCmdLoggerLevel(newLogLevel);
-                OUTSTREAM << "MEGAcmd log level = " << getLogLevelStr(loggerCMD->getCmdLoggerLevel()) << endl;
             }
         }
-
-        return;
     }
     else if (words[0] == "pwd")
     {
@@ -10171,101 +10112,6 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
         return;
     }
-#ifdef HAVE_DOWNLOADS_COMMAND
-    else if (words[0] == "downloads")
-    {
-        if (getFlag(clflags, "purge"))
-        {
-            OUTSTREAM << "Cancelling and cleaning all transfers and history ..." << endl;
-            cleanSlateTranfers();
-            OUTSTREAM << "... done" << endl;
-            return;
-        }
-        if (getFlag(clflags, "enable-clean-slate"))
-        {
-            bool downloads_cleanslate_enabled_before = ConfigurationManager::getConfigurationValue("downloads_cleanslate_enabled", false);
-
-            if (!downloads_cleanslate_enabled_before)
-            {
-                ConfigurationManager::savePropertyValue("downloads_cleanslate_enabled", true);
-            }
-
-            OUTSTREAM << "Enabled clean slate: transfers from previous executions will be discarded upon restart" << endl;
-            return;
-        }
-        else if (getFlag(clflags, "disable-clean-slate"))
-        {
-            bool downloads_cleanslate_enabled_before = ConfigurationManager::getConfigurationValue("downloads_cleanslate_enabled", false);
-
-            if (downloads_cleanslate_enabled_before)
-            {
-                ConfigurationManager::savePropertyValue("downloads_cleanslate_enabled", false);
-            }
-            OUTSTREAM << "Disabled clean slate: transfers from previous executions will not be discarded upon restart" << endl;
-            return;
-        }
-
-
-        bool queryEnabled = getFlag(clflags, "query-enabled");
-        if (getFlag(clflags, "enable-tracking"))
-        {
-            bool downloads_tracking_enabled_before = ConfigurationManager::getConfigurationValue("downloads_tracking_enabled", false);
-
-            if (!downloads_tracking_enabled_before)
-            {
-                ConfigurationManager::savePropertyValue("downloads_tracking_enabled", true);
-                DownloadsManager::Instance().start();
-            }
-
-            queryEnabled = true;
-        }
-        else if (getFlag(clflags, "disable-tracking"))
-        {
-            bool downloads_tracking_enabled_before = ConfigurationManager::getConfigurationValue("downloads_tracking_enabled", false);
-
-            if (downloads_tracking_enabled_before)
-            {
-                ConfigurationManager::savePropertyValue("downloads_tracking_enabled", false);
-                DownloadsManager::Instance().shutdown(true);
-            }
-
-            queryEnabled = true;
-        }
-
-        if (queryEnabled)
-        {
-            bool downloads_tracking_enabled = ConfigurationManager::getConfigurationValue("downloads_tracking_enabled", false);
-            OUTSTREAM << "Download tracking is " << (downloads_tracking_enabled ? "enabled" : "disabled") << endl;
-            return;
-        }
-
-        if (getFlag(clflags, "report-all"))
-        {
-            OUTSTRINGSTREAM oss;
-            DownloadsManager::Instance().printAll(oss, clflags, cloptions);
-            OUTSTREAM << oss.str();
-            return;
-        }
-
-        /// report:
-        if (words.size() < 2)
-        {
-            setCurrentThreadOutCode(MCMD_EARGS);
-            LOG_err << "      " << getUsageStr(words[0].c_str());
-            return;
-        }
-
-        for (unsigned i = 1 ; i < words.size(); i++)
-        {
-            if (!words[i].empty())
-            {
-                OUTSTRINGSTREAM oss;
-                DownloadsManager::Instance().printOne(oss, words[i], clflags, cloptions);
-                OUTSTREAM << oss.str();
-            }
-        }
-    }
-#endif
     else if (words[0] == "transfers")
     {
         bool showcompleted = getFlag(clflags, "show-completed");

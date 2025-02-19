@@ -193,7 +193,6 @@ add_source_and_corresponding_header_to_target(LMegacmdServer
     "${ProjectDir}/src/megacmd.cpp"
     "${ProjectDir}/src/megacmdexecuter.cpp"
     "${ProjectDir}/src/megacmd_events.cpp"
-    "${ProjectDir}/src/megacmdtransfermanager.cpp"
     "${ProjectDir}/src/megacmdlogger.cpp"
     "${ProjectDir}/src/megacmdsandbox.cpp"
     "${ProjectDir}/src/megacmdutils.cpp"

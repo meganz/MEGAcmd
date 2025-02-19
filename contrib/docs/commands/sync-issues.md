@@ -20,8 +20,8 @@ Options:
                        	The "--all" argument can be used to show the details of all issues.
  --limit=rowcount 	Limits the amount of rows displayed. Set to 0 to display unlimited rows. Default is 10. Can also be combined with "--detail".
  --disable-path-collapse 	Ensures all paths are fully shown. By default long paths are truncated for readability.
- --enable-warning 	Enables the notification that appears when issues are detected. This setting is stored locally for all users.
- --disable-warning 	Disables the notification that appears when issues are detected. This setting is stored locally for all users.
+ --enable-warning 	Enables the notification that appears when issues are detected. This setting is saved for the next time you open MEGAcmd, but will be removed if you logout.
+ --disable-warning 	Disables the notification that appears when issues are detected. This setting is saved for the next time you open MEGAcmd, but will be removed if you logout.
  --col-separator=X	Uses the string "X" as column separator. Otherwise, spaces will be added between columns to align them.
  --output-cols=COLUMN_NAME_1,COLUMN_NAME2,...	Selects which columns to show and their order.
 

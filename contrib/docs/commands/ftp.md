@@ -19,6 +19,7 @@ Options:
 
 *If you serve more than one location, these parameters will be ignored and used those of the first location served.
  If you want to change those parameters, you need to stop serving all locations and configure them again.
+Note: FTP settings and locations will be saved for the next time you open MEGAcmd, but will be removed if you logout.
 
 Caveat: This functionality is in BETA state. It might not be available on all platforms. If you experience any issue with this, please contact: support@mega.nz
 </pre>

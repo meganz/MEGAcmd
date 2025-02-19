@@ -11,4 +11,6 @@ URL	Proxy URL (e.g: https://127.0.0.1:8080)
  --auto	To use the proxy configured in your system
  --username=USERNAME	The username, for authenticated proxies
  --password=PASSWORD	The password, for authenticated proxies. Please, avoid using passwords containing " or '
+
+Note: Proxy settings will be saved for the next time you open MEGAcmd, but will be removed if you logout.
 </pre>
