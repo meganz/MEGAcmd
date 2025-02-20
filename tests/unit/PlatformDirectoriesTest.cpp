@@ -99,6 +99,24 @@ TEST(PlatformDirectoriesTest, configDirPath)
         auto guard = TestInstrumentsEnvVarGuardW(L"MEGACMD_WORKING_FOLDER_SUFFIX", L"file_\u5f20\u4e09");
         EXPECT_THAT(dirs->configDirPath().wstring(), testing::EndsWith(L"file_\u5f20\u4e09"));
     }
+
+    {
+        G_SUBTEST << "With path length exceeding MAX_PATH";
+
+        // To reach maximum length for the folder path; since len(".megaCmd_")=9, and 9+246=255
+        // Full path can exceed MAX_PATH=260, but each individual file or folder must have length < 255
+        constexpr int suffixLength = 246;
+
+        const std::string suffix = megacmd::generateRandomAlphaNumericString(suffixLength);
+        auto guard = TestInstrumentsEnvVarGuard("MEGACMD_WORKING_FOLDER_SUFFIX", suffix);
+
+        const fs::path configDir = dirs->configDirPath();
+        EXPECT_THAT(configDir.string(), testing::EndsWith(suffix));
+        EXPECT_THAT(configDir.string(), testing::StartsWith(R"(\\?\)"));
+
+        // This would throw han exception without the \\?\ prefix
+        SelfDeletingTmpFolder tmpFolder(configDir);
+    }
 #else
     {
         G_SUBTEST << "With alternative existing HOME";
