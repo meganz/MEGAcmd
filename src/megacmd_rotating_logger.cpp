@@ -158,6 +158,70 @@ public:
     void compressFile(const fs::path& filePath) override;
 };
 
+MessageBus::MessageBus(size_t reservedSize, size_t shouldSwapSize, size_t failSafeSize) :
+    mShouldSwapSize(shouldSwapSize),
+    mFailSafeSize(failSafeSize),
+    mMemoryError(false)
+{
+    assert(mFailSafeSize > 0);
+
+    try
+    {
+        mFrontBuffer.reserve(reservedSize);
+        mBackBuffer.reserve(reservedSize);
+    }
+    catch (const std::bad_alloc&)
+    {
+        // If this happens, we don't need to set the memory error flag, since this
+        // is a memory error we don't want to log. It just means we might've overshot
+        // our reserved size for a particular machine.
+        // The vector will try to allocate again when inserting below; at that point
+        // we will set the flag if the allocation fails as well.
+    }
+}
+
+void MessageBus::append(const char* data, size_t size)
+{
+    std::lock_guard lock(mListMtx);
+    try
+    {
+        mBackBuffer.insert(mBackBuffer.end(), data, data + size);
+    }
+    catch (const std::bad_alloc&)
+    {
+        mMemoryError = true;
+    }
+}
+
+const MessageBus::MemoryBuffer& MessageBus::swapBuffers(bool& memoryError)
+{
+    std::lock_guard lock(mListMtx);
+    memoryError = mMemoryError;
+    mMemoryError = false;
+
+    std::swap(mFrontBuffer, mBackBuffer);
+    mBackBuffer.clear();
+    return mFrontBuffer;
+}
+
+bool MessageBus::isEmpty() const
+{
+    std::lock_guard lock(mListMtx);
+    return mBackBuffer.empty();
+}
+
+bool MessageBus::shouldSwapBuffers() const
+{
+    std::lock_guard lock(mListMtx);
+    return mBackBuffer.size() >= mShouldSwapSize;
+}
+
+bool MessageBus::reachedFailSafeSize() const
+{
+    std::lock_guard lock(mListMtx);
+    return mBackBuffer.size() >= mFailSafeSize;
+}
+
 RotatingFileManager::Config::Config() :
     mMaxBaseFileSize(50 * 1024 * 1024), // 50 MB
     mRotationType(RotationType::Timestamp),
@@ -273,8 +337,8 @@ void FileRotatingLoggedStream::writeToBuffer(const char* msg, size_t size) const
         return;
     }
 
-    mMessageBuffer.append(msg, size);
-    if (mMessageBuffer.isNearLastBlockCapacity())
+    mMessageBus.append(msg, size);
+    if (mMessageBus.shouldSwapBuffers())
     {
         mWriteCV.notify_one();
     }
@@ -282,24 +346,23 @@ void FileRotatingLoggedStream::writeToBuffer(const char* msg, size_t size) const
 
 void FileRotatingLoggedStream::writeMessagesToFile()
 {
-    bool initialMemoryError = false;
-    auto memoryBlockList = mMessageBuffer.popMemoryBlockList(initialMemoryError);
+    bool memoryError = false;
+    const auto& memoryBuffer = mMessageBus.swapBuffers(memoryError);
 
-    if (initialMemoryError)
+    if (memoryError)
     {
-        mOutputFile << "<log gap - out of logging memory at this point>\n";
+        mOutputFile << "<warning - log messages dropped>\n";
     }
 
-    for (const auto& memoryBlock : memoryBlockList)
+    if (!memoryBuffer.empty())
     {
-        if (!memoryBlock.memoryAllocationFailed())
-        {
-            mOutputFile << memoryBlock.getBuffer();
-        }
-        else
-        {
-            mOutputFile << "<log gap - out of logging memory at this point>\n";
-        }
+        // Write directly to the stream without relying on null termination
+        mOutputFile.write(&memoryBuffer[0], memoryBuffer.size());
+    }
+
+    if (memoryError)
+    {
+        mOutputFile << "<------------------------------>\n";
     }
 }
 
@@ -348,7 +411,7 @@ bool FileRotatingLoggedStream::waitForOutputFile()
 
 void FileRotatingLoggedStream::mainLoop()
 {
-    while (!shouldExit() || !mMessageBuffer.isEmpty())
+    while (!shouldExit() || !mMessageBus.isEmpty())
     {
         std::ostringstream errorStream;
         bool reopenFile = false;
@@ -397,7 +460,7 @@ void FileRotatingLoggedStream::mainLoop()
 
             // If we've reached the fail-safe size, try to write to file anyway
             // This clears the buffer, ensuring it doesn't grow beyond a certain threshold
-            if (!mMessageBuffer.reachedFailSafeSize())
+            if (!mMessageBus.reachedFailSafeSize())
             {
                 continue;
             }
@@ -409,7 +472,7 @@ void FileRotatingLoggedStream::mainLoop()
             std::unique_lock lock(mWriteMtx);
             writeMessages = mWriteCV.wait_for(lock, std::chrono::milliseconds(500), [this]
             {
-                return mForceRenew || mExit || mFlush || !mMessageBuffer.isEmpty();
+                return mForceRenew || mExit || mFlush || !mMessageBus.isEmpty();
             });
         }
 
@@ -426,7 +489,11 @@ void FileRotatingLoggedStream::mainLoop()
 }
 
 FileRotatingLoggedStream::FileRotatingLoggedStream(const OUTSTRING& outputFilePath) :
-    mMessageBuffer(500 * 1024 * 1024 /* 500MB */),
+    mMessageBus(
+        4 * 1024 * 1024,  // 4MB; initial size of front and back buffers
+        1024,             // 1KB; suggested size at which we can attempt to swap the buffers
+        500 * 1024 * 1024 // 500MB; fail safe size at which we must flush the message bus
+    ),
     mOutputFilePath(outputFilePath),
     mOutputFile(outputFilePath, std::ofstream::out | std::ofstream::app),
     mFileManager(mOutputFilePath),
