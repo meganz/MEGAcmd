@@ -136,6 +136,26 @@ TEST(PlatformDirectoriesTest, configDirPath)
         auto homeGuard = TestInstrumentsEnvVarGuard("HOME", "/non-existent-dir");
         EXPECT_EQ(dirs->configDirPath().string(), megacmd::PosixDirectories::noHomeFallbackFolder());
     }
+    {
+        using megacmd::ConfigurationManager;
+        using megacmd::ScopeGuard;
+        G_SUBTEST << "Correct 0700 permissions";
+
+        const mode_t oldUmask = umask(0);
+        ScopeGuard g([oldUmask] { umask(oldUmask); });
+
+        SelfDeletingTmpFolder tmpFolder;
+        const fs::path dirPath = tmpFolder.path() / "some_folder";
+        ConfigurationManager::createFolderIfNotExisting(dirPath);
+
+        struct stat info;
+        ASSERT_EQ(stat(dirPath.c_str(), &info), 0);
+        ASSERT_TRUE(S_ISDIR(info.st_mode));
+
+        const mode_t actualPerms = info.st_mode & 0777;
+        const mode_t expectedPerms = 0700;
+        EXPECT_EQ(actualPerms, expectedPerms);
+    }
 #endif
 }
 
