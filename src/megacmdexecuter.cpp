@@ -7024,8 +7024,12 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
             if (sdkFlag || noFlags)
             {
+                const bool jsonLogs = (newLogLevel == MegaApi::LOG_LEVEL_MAX);
                 loggerCMD->setSdkLoggerLevel(newLogLevel);
+                api->setLogJSONContent(jsonLogs);
+
                 ConfigurationManager::savePropertyValue("sdkLogLevel", newLogLevel);
+                ConfigurationManager::savePropertyValue("jsonLogs", jsonLogs);
 
                 OUTSTREAM << "SDK log level = " << getLogLevelStr(loggerCMD->getSdkLoggerLevel()) << endl;
             }

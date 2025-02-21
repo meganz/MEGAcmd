@@ -94,3 +94,5 @@ SDK log level = VERBOSE
 You can pass `-v` (`-vv`, `-vvv`, and so on for a more verbose output)
 to an specific command and it will use higher level of verbosity of MEGAcmd based messages.
 
+## JSON logs
+When the log level of the SDK is `VERBOSE`, its commands are outputted as JSON. This takes up a bit more space but provides more valuable info. JSON logs can be overwritten independently by setting the environment variable `MEGACMD_JSON_LOGS` to `0` or `1`.
