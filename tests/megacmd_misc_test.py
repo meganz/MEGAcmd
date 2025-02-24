@@ -370,7 +370,7 @@ class MEGAcmdMiscTest(unittest.TestCase):
                 print(o)
                 self.check_failed_and_clear(fullout,fullStatus)
 
-    @unittest.skipIf(CMDSHELL, "The `-o` argument in `cat` is only available in non-interactive mode")
+    @unittest.skipIf(platform.system() != 'Windows' or CMDSHELL, "The `-o` argument in `cat` is only available on Windows and in non-interactive mode")
     def test_21_ascii_cat_to_file(self):
         ascii_string_list = [
             'Hello world',
@@ -391,7 +391,7 @@ class MEGAcmdMiscTest(unittest.TestCase):
             cmd_ef(f'{CAT} /{file_name} -o localUPs/cat_output.txt')
             self.assertTrue(filecmp.cmp('localUPs/cat_output.txt', file_path, shallow=False))
 
-    @unittest.skipIf(CMDSHELL, "The `-o` argument in `cat` is only available in non-interactive mode")
+    @unittest.skipIf(platform.system() != 'Windows' or CMDSHELL, "The `-o` argument in `cat` is only available on Windows and in non-interactive mode")
     def test_22_unicode_cat_to_file(self):
         for i, file_contents in enumerate(UNICODE_NAME_LIST, start=1):
             file_name = f'unicode_{i}.txt'
