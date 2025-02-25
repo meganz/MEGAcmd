@@ -1991,8 +1991,22 @@ std::string readresponse(const char* question)
 #else
 std::string readresponse(const char* question)
 {
-    COUT << question << flush;
-    console->updateInputPrompt(question);
+    std::string questionStr(question);
+    size_t pos = questionStr.rfind('\n');
+
+    if (pos != std::string::npos)
+    {
+        std::string questionPrev  = questionStr.substr(0, pos);
+        std::string prompt = questionStr.substr(pos + 1);
+
+        COUT << questionPrev << std::endl;
+        console->updateInputPrompt(prompt);
+    }
+    else
+    {
+        console->updateInputPrompt(questionStr);
+    }
+
     for (;;)
     {
         if (char* line = console->checkForCompletedInputLine())

@@ -3417,9 +3417,9 @@ void MegaCmdExecuter::exportNode(MegaNode *n, int64_t expireTime, const std::opt
                                  "You are strictly prohibited from using the MEGA cloud service to infringe copyright.\n"
                                  "You may not upload, download, store, share, display, stream, distribute, email, link to, "
                                  "transmit or otherwise make available any files, data or content that infringes any copyright "
-                                 "or other proprietary rights of any person or entity.");
+                                 "or other proprietary rights of any person or entity.\n");
 
-        confirmationQuery += " Do you accept this terms? (Yes/No): ";
+        confirmationQuery += "Do you accept these terms? (Yes/No): ";
 
         const int confirmationResponse = askforConfirmation(confirmationQuery);
         if (confirmationResponse != MCMDCONFIRM_YES && confirmationResponse != MCMDCONFIRM_ALL)
@@ -5057,27 +5057,29 @@ bool MegaCmdExecuter::establishBackup(string pathToBackup, MegaNode *n, int64_t 
 
 void MegaCmdExecuter::confirmCancel(const char* confirmlink, const char* pass)
 {
-    MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
-    api->confirmCancelAccount(confirmlink, pass, megaCmdListener);
+    auto megaCmdListener = std::make_unique<MegaCmdListener>(nullptr);
+    api->confirmCancelAccount(confirmlink, pass, megaCmdListener.get());
     megaCmdListener->wait();
+
     if (megaCmdListener->getError()->getErrorCode() == MegaError::API_ETOOMANY)
     {
         LOG_err << "Confirm cancel account failed: too many attempts";
     }
-    else if (megaCmdListener->getError()->getErrorCode() == MegaError::API_ENOENT
-             || megaCmdListener->getError()->getErrorCode() == MegaError::API_EKEY)
+    else if (megaCmdListener->getError()->getErrorCode() == MegaError::API_ENOENT ||
+             megaCmdListener->getError()->getErrorCode() == MegaError::API_EKEY)
     {
         LOG_err << "Confirm cancel account failed: invalid link/password";
     }
-    else if (checkNoErrors(megaCmdListener->getError(), "confirm cancel account"))
+    // We consider ESID (bad session ID) as successful because of a data race in the SDK
+    else if (megaCmdListener->getError()->getErrorCode() == MegaError::API_ESID ||
+             checkNoErrors(megaCmdListener->getError(), "confirm cancel account"))
     {
         OUTSTREAM << "CONFIRM Account cancelled succesfully" << endl;
-        MegaCmdListener *megaCmdListener2 = new MegaCmdListener(NULL);
-        api->localLogout(megaCmdListener2);
-        actUponLogout(megaCmdListener2, false);
-        delete megaCmdListener2;
+
+        megaCmdListener = std::make_unique<MegaCmdListener>(nullptr);
+        api->localLogout(megaCmdListener.get());
+        actUponLogout(megaCmdListener.get(), false);
     }
-    delete megaCmdListener;
 }
 
 void MegaCmdExecuter::processPath(string path, bool usepcre, bool& firstone, void (*nodeprocessor)(MegaCmdExecuter *, MegaNode *, bool), MegaCmdExecuter *context)
