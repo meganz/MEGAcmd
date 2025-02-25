@@ -1,6 +1,6 @@
 # MEGAcmd User Guide
 
-This document relates to MEGAcmd version 1.7.0.  It contains introductory information and the [Command Summary](#command-summary), with links to detailed command descriptions.
+This document relates to MEGAcmd version 2.0.0.  It contains introductory information and the [Command Summary](#command-summary), with links to detailed command descriptions.
 
 ### What is it
 A command line tool to work with your MEGA account and files.  The intent is to offer all the MEGA account functionality via command line.  You can run it in [interactive](#interactive) mode where it processes all commands directly, or you can run its [scriptable](#scriptable) commands from your favourite Linux or Mac shell such as bash, or you can even run its commands in a Windows command prompt. And of course you can write scripts using those scriptable commands.
@@ -254,7 +254,7 @@ Verbosity: You can increase the amount of information given by any command by pa
 * [`help`](contrib/docs/commands/help.md)`[-f|-ff|--non-interactive|--upgrade|--paths] [--show-all-options]` Prints list of commands
 * [`https`](contrib/docs/commands/https.md)`[on|off]` Shows if HTTPS is used for transfers. Use "https on" to enable it.
 * [`info`](contrib/docs/commands/info.md)`remotepath1 remotepath2 ...` Prints media info of remote files
-* [`log`](contrib/docs/commands/log.md)`[-sc] level` Prints/Modifies the current logs level
+* [`log`](contrib/docs/commands/log.md)`[-sc] level` Prints/Modifies the log level
 * [`permissions`](contrib/docs/commands/permissions.md)`[(--files|--folders) [-s XXX]]` Shows/Establish default permissions for files and folders created by MEGAcmd.
 * [`proxy`](contrib/docs/commands/proxy.md)`[URL|--auto|--none] [--username=USERNAME --password=PASSWORD]` Show or sets proxy configuration
 * [`psa`](contrib/docs/commands/psa.md)`[--discard]` Shows the next available Public Service Announcement (PSA)

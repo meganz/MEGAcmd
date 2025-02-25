@@ -135,37 +135,52 @@ TEST(UtilsTest, getListOfWords)
     }
 }
 
-TEST(UtilsTest, pathIsExistingDirValidDirPath)
+TEST(UtilsTest, nonAsciiConsolePrint)
 {
-    char *buf;
+    // No need to check the output, we just want to ensure
+    // the test doesn't crash and no asserts are triggered
+
+    const char* char_str = u8"\uc548\uc548\ub155\ud558\uc138\uc694\uc138\uacc4";
+    std::cout << "something before" << char_str << std::endl;
+    std::cout << char_str << std::endl;
+    std::cout << char_str << "something after" << std::endl;
+    std::cerr << "something before" << char_str << std::endl;
+    std::cerr << char_str << std::endl;
+    std::cerr << char_str << "something after" << std::endl;
+
+    const std::string str = u8"\u3053\u3093\u306b\u3061\u306f\u4e16\u754c";
+    std::cout << "something before" << str << std::endl;
+    std::cout << str << std::endl;
+    std::cout << str << "something after" << std::endl;
+    std::cerr << "something before" << str << std::endl;
+    std::cerr << str << std::endl;
+    std::cerr << str << "something after" << std::endl;
+
 #ifdef _WIN32
-    buf = _getcwd(nullptr, 0);
-#else
-    buf = getcwd(nullptr, 0);
-#endif
-    ASSERT_THAT(buf, testing::NotNull()) << "could not get current working directory: " << std::strerror(errno);
+    const wchar_t* wchar_str = L"\uc548\uc548\ub155\ud558\uc138\uc694\uc138\uacc4";
+    std::wcout << "something before" << wchar_str << std::endl;
+    std::wcout << wchar_str << std::endl;
+    std::wcout << wchar_str << "something after" << std::endl;
+    std::wcerr << "something before" << wchar_str << std::endl;
+    std::wcerr << wchar_str << std::endl;
+    std::wcerr << wchar_str << "something after" << std::endl;
 
-    EXPECT_THAT(buf, testing::ResultOf(::megacmd::pathIsExistingDir, testing::IsTrue()));
-    free(buf);
-}
+    const std::wstring wstr = L"\u3053\u3093\u306b\u3061\u306f\u4e16\u754c";
+    std::wcout << "something before" << wstr << std::endl;
+    std::wcout << wstr << std::endl;
+    std::wcout << wstr << "something after" << std::endl;
+    std::wcerr << "something before" << wstr << std::endl;
+    std::wcerr << wstr << std::endl;
+    std::wcerr << wstr << "something after" << std::endl;
 
-TEST(UtilsTest, pathIsExistingDirInvalidPath)
-{
-    EXPECT_FALSE(::megacmd::pathIsExistingDir("/path/to/invalid/dir"));
-}
+    std::wcout << megacmd::utf8StringToUtf16WString(char_str) << std::endl;
+    std::wcerr << megacmd::utf8StringToUtf16WString(char_str) << std::endl;
+    std::wcout << megacmd::utf8StringToUtf16WString(str.data(), str.size()) << std::endl;
+    std::wcerr << megacmd::utf8StringToUtf16WString(str.data(), str.size()) << std::endl;
 
-TEST(UtilsTest, pathIsExistingDirFilePath)
-{
-#ifdef _WIN32
-    TCHAR u16Path[MAX_PATH];
-    std::string u8Path;
-
-    ASSERT_TRUE(SUCCEEDED(GetModuleFileName(nullptr, u16Path, MAX_PATH)));
-    megacmd::utf16ToUtf8(u16Path, lstrlen(u16Path), &u8Path);
-
-    ASSERT_THAT(u8Path, testing::Not(testing::IsEmpty()));
-    EXPECT_THAT(u8Path, testing::ResultOf(::megacmd::pathIsExistingDir, testing::IsFalse()));
-#else
-    EXPECT_FALSE(::megacmd::pathIsExistingDir("/dev/null"));
+    std::cout << megacmd::utf16ToUtf8(wchar_str) << std::endl;
+    std::cerr << megacmd::utf16ToUtf8(wchar_str) << std::endl;
+    std::cout << megacmd::utf16ToUtf8(wstr) << std::endl;
+    std::cerr << megacmd::utf16ToUtf8(wstr) << std::endl;
 #endif
 }

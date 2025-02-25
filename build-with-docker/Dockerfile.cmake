@@ -51,9 +51,9 @@ WORKDIR /usr/src/megacmd
 #ENV CXX "ccache g++-12"
 ENV CCACHE_DIR /tmp/ccache
 ENV VCPKG_DEFAULT_BINARY_CACHE /tmp/vcpkgcache
-ARG ENABLE_ASAN=ON
-ARG ENABLE_UBSAN=ON
-ARG ENABLE_TSAN=OFF
+ARG ENABLE_asan=OFF
+ARG ENABLE_ubsan=OFF
+ARG ENABLE_tsan=OFF
 ARG ENABLE_MEGACMD_TESTS=ON
 
 COPY --from=src /usr/src/megacmd /usr/src/megacmd
@@ -73,10 +73,10 @@ RUN --mount=type=cache,target=/tmp/ccache \
     -DCMAKE_C_COMPILER_LAUNCHER=ccache \
     -DCMAKE_BUILD_TYPE=Debug \
     -DCMAKE_VERBOSE_MAKEFILE=ON \
-    -D ENABLE_ASAN=${ENABLE_ASAN} -D \
-    ENABLE_UBSAN=${ENABLE_UBSAN} -D \
-    ENABLE_TSAN=${ENABLE_TSAN} -D \
-    ENABLE_MEGACMD_TESTS=${ENABLE_MEGACMD_TESTS} \
+    -DENABLE_ASAN=${ENABLE_asan} \
+    -DENABLE_UBSAN=${ENABLE_ubsan} \
+    -DENABLE_TSAN=${ENABLE_tsan} \
+    -DENABLE_MEGACMD_TESTS=${ENABLE_MEGACMD_TESTS} \
     WITH_FUSE=ON \
     && cmake --build /tmp/build -j$(nproc) --target mega-cmd mega-cmd-server mega-exec \
     mega-cmd-updater mega-cmd-tests-integration mega-cmd-tests-unit \

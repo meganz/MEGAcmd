@@ -19,8 +19,6 @@
 #ifndef MEGACMDEXECUTER_H
 #define MEGACMDEXECUTER_H
 
-#include "megacmdtransfermanager.h"
-
 #include "megacmdlogger.h"
 #include "megacmdsandbox.h"
 #include "listeners.h"
@@ -240,8 +238,7 @@ public:
     bool setProxy(const std::string &url, const std::string &username, const std::string &password, int proxyType);
     void fetchNodes(mega::MegaApi *api = nullptr, int clientID = -27);
 
-
-    void cleanSlateTranfers();
+    void mayExecutePendingStuffInWorkerThread();
 };
 
 }//end namespace

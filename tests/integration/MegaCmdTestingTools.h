@@ -20,12 +20,14 @@
 #include "megacmdcommonutils.h"
 #include "megacmd.h"
 #include "client/megacmdclient.h"
+#include "megacmdlogger.h"
 
 #include <gtest/gtest.h>
 #include "Instruments.h"
 
 #include <chrono>
 #include <future>
+#include <regex>
 
 constexpr const char* LINK_TESTEXPORTFILE01TXT = "https://mega.nz/file/YfNngDKR#qk9THHhxbakddRmt_tLR8OhInexzVCpPPG6M6feFfZg";
 constexpr const char* LINK_TESTEXPORTFOLDER = "https://mega.nz/folder/saMRXBYL#9GETCO4E-Po45d3qSjZhbQ";
@@ -47,7 +49,7 @@ public:
         : mStatus(status)
         , mOut (streamOut.str())
     #ifdef _WIN32
-        , mUtf8String(megacmd::getutf8fromUtf16(mOut.c_str()))
+        , mUtf8String(megacmd::utf16ToUtf8(mOut))
     #endif
     {}
 
@@ -87,7 +89,7 @@ protected:
             auto words = megacmd::split(lines[i], " ");
 
             ASSERT_TRUE(!words.empty());
-            if (words[0] == "[err:")
+            if (megacmd::stringToTimestamp(words[0].substr(1))) // discard log lines
             {
                 continue;
             }

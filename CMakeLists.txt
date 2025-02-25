@@ -9,8 +9,8 @@ execute_process(
     OUTPUT_STRIP_TRAILING_WHITESPACE
 )
 
-set(MEGACMD_MAJOR_VERSION 1)
-set(MEGACMD_MINOR_VERSION 7)
+set(MEGACMD_MAJOR_VERSION 2)
+set(MEGACMD_MINOR_VERSION 0)
 set(MEGACMD_MICRO_VERSION 0)
 
 ## Configure megacmdversion.h
@@ -28,6 +28,7 @@ list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/sdk/cmake/modules) # Mod
 
 set(VCPKG_ROOT "${CMAKE_CURRENT_LIST_DIR}/../vcpkg" CACHE PATH "If set, it will build and use the VCPKG packages defined in the manifest file")
 
+include(detect_host_architecture)
 
 if (WIN32)
 execute_process(
@@ -183,6 +184,7 @@ add_library(LMEGAcmdCommonUtils STATIC)
 add_source_and_corresponding_header_to_target(LMEGAcmdCommonUtils
     PUBLIC
     "${ProjectDir}/src/megacmdcommonutils.cpp"
+    "${ProjectDir}/src/megacmd_utf8.cpp"
 )
 
 add_library(LMegacmdServer STATIC)
@@ -191,7 +193,6 @@ add_source_and_corresponding_header_to_target(LMegacmdServer
     "${ProjectDir}/src/megacmd.cpp"
     "${ProjectDir}/src/megacmdexecuter.cpp"
     "${ProjectDir}/src/megacmd_events.cpp"
-    "${ProjectDir}/src/megacmdtransfermanager.cpp"
     "${ProjectDir}/src/megacmdlogger.cpp"
     "${ProjectDir}/src/megacmdsandbox.cpp"
     "${ProjectDir}/src/megacmdutils.cpp"
@@ -220,6 +221,23 @@ target_compile_definitions(LMegacmdServer
     PUBLIC
     $<$<BOOL:${USE_PCRE}>:USE_PCRE>
 )
+
+if (NOT WIN32)
+    if (ENABLE_ASAN)
+        add_compile_options("-fsanitize=address" "-fno-omit-frame-pointer" "-fno-common")
+        link_libraries("-fsanitize=address")
+    endif()
+
+    if (ENABLE_UBSAN)
+        add_compile_options("-fsanitize=undefined" "-fno-omit-frame-pointer")
+        link_libraries("-fsanitize=undefined")
+    endif()
+
+    if (ENABLE_TSAN)
+        add_compile_options("-fsanitize=thread" "-fno-omit-frame-pointer")
+        link_libraries("-fsanitize=thread")
+    endif()
+endif()
 
 if (APPLE)
     set(executablesType MACOSX_BUNDLE)
@@ -317,6 +335,7 @@ if (ENABLE_MEGACMD_TESTS)
     add_executable(mega-cmd-tests-integration ${executablesType})
     add_source_and_corresponding_header_to_target(mega-cmd-tests-integration PRIVATE
         "${ProjectDir}/tests/integration/BasicTests.cpp"
+        "${ProjectDir}/tests/integration/CatTests.cpp"
         "${ProjectDir}/tests/integration/ExportTests.cpp"
         "${ProjectDir}/tests/integration/SyncIssuesTests.cpp"
         "${ProjectDir}/tests/integration/SyncIgnoreTests.cpp"

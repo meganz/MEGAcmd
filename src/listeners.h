@@ -21,8 +21,6 @@
 
 #include "megacmdlogger.h"
 #include "megacmdsandbox.h"
-#include "megacmdtransfermanager.h"
-
 
 namespace megacmd {
 class MegaCmdSandbox;
@@ -150,10 +148,6 @@ private:
     std::condition_variable mStartedConditionVariable;
     unsigned mStartedTransfersCount = 0;
 
-#ifdef HAVE_DOWNLOADS_COMMAND
-    // string to tag map
-    std::vector<DownloadId> mStartedTransfers;
-#endif
 public:
     MegaCmdMultiTransferListener(mega::MegaApi *megaApi, MegaCmdSandbox * sandboxCMD, mega::MegaTransferListener *listener = NULL, int clientID=-1);
     virtual ~MegaCmdMultiTransferListener();
@@ -179,10 +173,6 @@ public:
     long long getTotalbytes() const;
 
     bool getProgressinformed() const;
-
-#ifdef HAVE_DOWNLOADS_COMMAND
-    std::vector<DownloadId> getStartedTransfers() const;
-#endif
 
 protected:
     mega::MegaTransferListener *listener;
@@ -301,13 +291,9 @@ public:
     virtual ~MegaCmdGlobalTransferListener();
 
     //Transfer callbacks
-    void onTransferStart(mega::MegaApi* api, mega::MegaTransfer *transfer);
     void onTransferFinish(mega::MegaApi* api, mega::MegaTransfer *transfer, mega::MegaError* error);
-
-    void onTransferUpdate(mega::MegaApi* api, mega::MegaTransfer *transfer);
     void onTransferTemporaryError(mega::MegaApi *api, mega::MegaTransfer *transfer, mega::MegaError* e);
     bool onTransferData(mega::MegaApi *api, mega::MegaTransfer *transfer, char *buffer, size_t size);
-
 
 protected:
     mega::MegaApi *megaApi;

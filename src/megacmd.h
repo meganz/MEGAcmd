@@ -36,6 +36,8 @@ using std::locale;
 using std::stringstream;
 using std::exception;
 
+#include "megacmdcommonutils.h"
+
 #include "megaapi_impl.h"
 #include "megacmd_events.h"
 
@@ -208,10 +210,16 @@ void* checkForUpdates(void *param);
 void stopcheckingForUpdates();
 void startcheckingForUpdates();
 
+/**
+ * @brief synchronously request the API for a a new version of MEGAcmd
+ * It will skip the check if already checked in the past 5 minutes
+ * @param api
+ * @return a string with a msg with the announcement if a new version is available
+ */
+std::optional<std::string> lookForAvailableNewerVersions(::mega::MegaApi *api);
+
 void informTransferUpdate(mega::MegaTransfer *transfer, int clientID);
 void informStateListenerByClientId(int clientID, std::string s);
-
-
 void informProgressUpdate(long long transferred, long long total, int clientID, std::string title = "");
 
 void sendEvent(StatsManager::MegacmdEvent event, mega::MegaApi *megaApi, bool wait = true);

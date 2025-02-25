@@ -22,11 +22,8 @@
 #include <condition_variable>
 #include <chrono>
 #include <thread>
-#include <filesystem>
 
 #include "megacmdlogger.h"
-
-namespace fs = std::filesystem;
 
 namespace megacmd {
 
@@ -128,8 +125,8 @@ class FileRotatingLoggedStream final : public LoggedStream
 {
     mutable MessageBuffer<1024> mMessageBuffer;
 
-    std::string mOutputFilePath;
-    OUTFSTREAMTYPE mOutputFile;
+    fs::path mOutputFilePath;
+    std::ofstream mOutputFile;
     RotatingFileManager mFileManager;
 
     mutable std::mutex mWriteMtx;
@@ -167,6 +164,7 @@ public:
     const LoggedStream& operator<<(const char& c) const override;
     const LoggedStream& operator<<(const char* str) const override;
     const LoggedStream& operator<<(std::string str) const override;
+    const LoggedStream& operator<<(BinaryStringView v) const override;
     const LoggedStream& operator<<(std::string_view str) const override;
     const LoggedStream& operator<<(int v) const override;
     const LoggedStream& operator<<(unsigned int v) const override;
@@ -190,6 +188,8 @@ MessageBuffer<BlockSize>::MemoryBlock::MemoryBlock() :
     mSize(0),
     mMemoryAllocationFailed(false)
 {
+    // Ensure null-termination even if the memory block is empty
+    mBuffer[0] = '\0';
 }
 
 template<size_t BlockSize>
@@ -231,6 +231,7 @@ void MessageBuffer<BlockSize>::MemoryBlock::appendData(const char* data, size_t 
 
     std::memcpy(&mBuffer[mSize], data, size);
     mSize += size;
+    assert(mSize < BlockSize);
 
     // Append null after the last character so the buffer
     // is properly treated as a C-string
@@ -289,7 +290,10 @@ typename MessageBuffer<BlockSize>::MemoryBlockList MessageBuffer<BlockSize>::pop
     std::lock_guard<std::mutex> lock(mListMtx);
     initialMemoryError = mInitialMemoryError;
     mInitialMemoryError = false;
-    return std::move(mList);
+
+    MemoryBlockList poppedList;
+    std::swap(poppedList, mList);
+    return poppedList;
 }
 
 template<size_t BlockSize>

@@ -223,7 +223,7 @@ const char * getLogLevelStr(int loglevel)
     }
 }
 
-int getLogLevelNum(const char* level)
+std::optional<int> getLogLevelNum(const char* level)
 {
     if (!strcmp(level, "FATAL") || !strcmp(level, "fatal"))
     {
@@ -251,13 +251,14 @@ int getLogLevelNum(const char* level)
     }
 
     int i = -1;
-    istringstream is(level);
-    is >> i;
-    if (i == 0 && strcmp(level,"0"))
+
+    std::istringstream is(level);
+    if (!(is >> i))
     {
-        return -1;
+        return {};
     }
-    return i;
+
+    return std::clamp(i, (int) MegaApi::LOG_LEVEL_FATAL, (int) MegaApi::LOG_LEVEL_MAX);
 }
 
 
@@ -1249,16 +1250,5 @@ std::string syncBackupIdToBase64(const MegaHandle &handle)
 mega::MegaHandle base64ToSyncBackupId(const std::string &shandle)
 {
     return MegaApi::base64ToUserHandle(shandle.c_str());
-}
-
-bool pathIsExistingDir(std::string path)
-{
-#ifdef _WIN32
-    replaceAll(path, "/", "\\");
-#endif
-    LocalPath abs = LocalPath::fromAbsolutePath(path);
-    ::mega::MegaFileSystemAccess fsa;
-    std::unique_ptr<::mega::FileAccess> fa = fsa.newfileaccess();
-    return fa->isfolder(abs);
 }
 }//end namespace

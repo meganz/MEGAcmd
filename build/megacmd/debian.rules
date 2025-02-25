@@ -5,6 +5,7 @@ VCPKG_ROOT := $(shell [ -f /opt/vcpkg.tar.gz ] && echo "-DVCPKG_ROOT=vcpkg" || e
 EXTRADEFINES := $(shell cat /etc/issue | grep "Ubuntu 1[2345789]\|Ubuntu 20.10\|Ubuntu 21\|Ubuntu 22.10\|Ubuntu 23\|Debian.* [789]" >/dev/null && echo "$$CPPFLAGS -DMEGACMD_DEPRECATED_OS" || echo "")
 DPKGXZ := $(shell cat /etc/issue | grep "Ubuntu 24\|Oracular Oriole\|Noble Numbat\|Ubuntu 23\|Mantic Minotaur\|Lunar Lobster\|Ubuntu 22\|Jammy Jellyfish\|Ubuntu 21.10" >/dev/null && echo "-- -Zxz" || echo "")
 #LDFLAGS := $(shell dpkg --print-architecture | grep -i "i386\|arm" >/dev/null && echo "" || echo "$$LDFLAGS -Wl,-rpath,/opt/megacmd/lib")
+EXPORT_VCPKG_FORCE_SYSTEM_BINARIES := $(shell uname -m | grep "armv7l" >/dev/null && echo "VCPKG_FORCE_SYSTEM_BINARIES=1" || echo "")
 DEB_TESTING := $(shell cat /etc/issue | grep "Debian" > /dev/null && cat /etc/apt/sources.list.d/debian.sources | grep -v "^\#" | grep testing > /dev/null && echo "testing")
 #TODO: Ensure raspbian builds with that export
 EXPORTCCMFPU := $(shell cat /etc/issue | grep "Raspbian GNU/Linux 12" >/dev/null && echo "export CC='cc -mfpu=vfp'" || echo ":")
@@ -34,7 +35,7 @@ build-stamp:
 	fi
 
 	cmake --version
-	cmake $(VCPKG_ROOT) -DCMAKE_VERBOSE_MAKEFILE=ON -DCMAKE_BUILD_TYPE=RelWithDebInfo -S $(CURDIR) -B $(CURDIR)/build_dir
+	$(EXPORT_VCPKG_FORCE_SYSTEM_BINARIES) cmake $(VCPKG_ROOT) -DCMAKE_VERBOSE_MAKEFILE=ON -DCMAKE_BUILD_TYPE=RelWithDebInfo -S $(CURDIR) -B $(CURDIR)/build_dir
 	cmake --build $(CURDIR)/build_dir -j$(NJOBS)
 	cmake --install $(CURDIR)/build_dir --prefix $(CURDIR)/install_dir
 

@@ -16,9 +16,9 @@
 #include "megacmd.h"
 #include "megaapi.h"
 
-
 #include "megacmdlogger.h"
 #include "megacmd_rotating_logger.h"
+#include "configurationmanager.h"
 
 #include <vector>
 
@@ -54,23 +54,23 @@ bool extractargparam(vector<const char*>& args, const char *what, std::string& p
 std::pair<int/*sdk*/, int/*cmd*/> getLogLevels(std::vector<const char*>& args)
 {
     using mega::MegaApi;
-    // default log levels
-    int sdkLogLevel = MegaApi::LOG_LEVEL_ERROR;
-    int cmdLogLevel = MegaApi::LOG_LEVEL_INFO;
+    using megacmd::ConfigurationManager;
 
-    // for !Windows have DEBUG builds use debug level by default
-#if defined(DEBUG) && !defined(_WIN32)
-    sdkLogLevel = MegaApi::LOG_LEVEL_DEBUG;
-    cmdLogLevel = MegaApi::LOG_LEVEL_DEBUG;
+#ifndef DEBUG
+    constexpr int defaultSdkLogLevel = (int) MegaApi::LOG_LEVEL_ERROR;
+#else
+    constexpr int defaultSdkLogLevel = (int) MegaApi::LOG_LEVEL_DEBUG;
 #endif
+    constexpr int defaultCmdLogLevel = (int) MegaApi::LOG_LEVEL_DEBUG;
 
-    // read parameters from argumetns
+    int sdkLogLevel = ConfigurationManager::getConfigurationValue("sdkLogLevel", defaultSdkLogLevel);
+    int cmdLogLevel = ConfigurationManager::getConfigurationValue("cmdLogLevel", defaultCmdLogLevel);
+
     bool debug = extractarg(args, "--debug");
     bool debugfull = extractarg(args, "--debug-full");
     bool verbose = extractarg(args, "--verbose");
     bool verbosefull = extractarg(args, "--verbose-full");
 
-// overridance by environment variable
     const char *envCmdLogLevel = getenv("MEGACMD_LOGLEVEL");
     if (envCmdLogLevel)
     {
@@ -170,6 +170,10 @@ void waitIfRequired(std::vector<const char*> &args)
 // - linux forking (clients into server)
 int main(int argc, char* argv[])
 {
+#ifdef WIN32
+    megacmd::Instance<megacmd::WindowsConsoleController> windowsConsoleController;
+#endif
+
     std::vector<const char*> args;
     if (argc > 1)
     {
@@ -184,7 +188,7 @@ int main(int argc, char* argv[])
 
     waitIfRequired(args);
 
-    constexpr bool logToCout = true;
+    bool logToCout = !extractarg(args, "--do-not-log-to-stdout");
     auto logLevels = getLogLevels(args);
     int sdkLogLevel = logLevels.first;
     int cmdLogLevel = logLevels.second;

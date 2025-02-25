@@ -31,17 +31,6 @@
 #ifdef _WIN32
 #include <shlobj.h> //SHGetFolderPath
 #include <Shlwapi.h> //PathAppend
-
-#include <fcntl.h>
-#include <io.h>
-#include <stdio.h>
-#ifndef _O_U16TEXT
-#define _O_U16TEXT 0x00020000
-#endif
-#ifndef _O_U8TEXT
-#define _O_U8TEXT 0x00040000
-#endif
-
 #else
 #include <fcntl.h>
 
@@ -67,31 +56,28 @@
 #define ENOTCONN 107
 #endif
 
-namespace megacmd {
 using namespace std;
 
+namespace megacmd {
+
+#ifndef _WIN32
 string createAndRetrieveConfigFolder()
 {
     auto dirs = PlatformDirectories::getPlatformSpecificDirectories();
-#ifdef _WIN32
-    // We don't create the folder: Windows is currently using the folder
-    // of the executable.
-    return dirs->configDirPath();
-#else
-    auto dir = dirs->configDirPath();
-    struct stat st = {};
+    auto dir = dirs->configDirPath().string();
 
+    struct stat st = {};
     if (stat(dir.c_str(), &st) == -1)
     {
         mkdir(dir.c_str(), 0700);
     }
     return dir;
-#endif
 }
-
+#endif
 
 #ifndef _WIN32
 #include <sys/wait.h>
+
 bool is_pid_running(pid_t pid) {
 
     while(waitpid(-1, 0, WNOHANG) > 0) {
@@ -179,6 +165,7 @@ SOCKET MegaCmdShellCommunicationsPosix::createSocket(int number, bool initialize
 
                 std::vector<const char*> argsVector{
                     executable,
+                     "--do-not-log-to-stdout",
                     nullptr
                 };
 
@@ -434,7 +421,7 @@ int MegaCmdShellCommunicationsPosix::executeCommand(string command, std::string 
             n = recv(thesock, (char *)&partialoutsize, sizeof(partialoutsize), MSG_NOSIGNAL);
             if (n && partialoutsize > 0)
             {
-                std::lock_guard<std::mutex> stdOutLockGuard(getStdoutLockGuard());
+                StdoutMutexGuard stdOutLockGuard;
                 do{
                     char *buffer = new char[partialoutsize+1];
                     n = recv(thesock, (char *)buffer, partialoutsize, MSG_NOSIGNAL);
@@ -512,7 +499,7 @@ int MegaCmdShellCommunicationsPosix::executeCommand(string command, std::string 
         {
             if (n != 1 || buffer[0] != 0) //To avoid outputing 0 char in binary outputs
             {
-                std::lock_guard<std::mutex> stdOutLockGuard(getStdoutLockGuard());
+                StdoutMutexGuard stdOutLockGuard;
                 output << string(buffer,n) << flush;
             }
         }
@@ -664,6 +651,7 @@ bool MegaCmdShellCommunications::registerForStateChanges(bool interactive, State
         mListenerThread->join();
     }
 
+    mClientIdPromise = std::promise<std::string>();
     auto resultRegistration = registerForStateChangesImpl(interactive, initiateServer);
     if (!resultRegistration)
     {
@@ -790,9 +778,19 @@ void MegaCmdShellCommunications::setForRegisterAgain(bool dontWait)
     }
 }
 
-std::lock_guard<std::mutex> MegaCmdShellCommunications::getStdoutLockGuard()
+void MegaCmdShellCommunications::setClientIdPromise(const std::string& clientId)
 {
-    return std::lock_guard<std::mutex>(mStdoutMutex);
+    mClientIdPromise.set_value(clientId);
+}
+
+std::optional<std::string> MegaCmdShellCommunications::tryToGetClientId(std::chrono::seconds waitForSecs)
+{
+    auto f = mClientIdPromise.get_future();
+    if (f.wait_for(waitForSecs) == std::future_status::timeout)
+    {
+        return std::nullopt;
+    }
+    return f.get();
 }
 
 MegaCmdShellCommunications::~MegaCmdShellCommunications()

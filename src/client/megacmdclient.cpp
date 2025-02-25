@@ -144,8 +144,6 @@ wstring getWAbsPath(wstring localpath)
 }
 #endif
 
-string clientID; //identifier for a registered state listener
-
 string getAbsPath(string relativePath)
 {
     if (!relativePath.size())
@@ -220,7 +218,7 @@ string getAbsPath(string relativePath)
 
 }
 
-string parseArgs(int argc, char* argv[])
+string parseArgs(int argc, char* argv[], MegaCmdShellCommunications& comsManager)
 {
     vector<string> absolutedargs;
     int totalRealArgs = 0;
@@ -240,17 +238,10 @@ string parseArgs(int argc, char* argv[])
                 || !strcmp(argv[1],"login")
                 || !strcmp(argv[1],"reload") )
         {
-            int waittime = 15000;
-            while (waittime > 0 && !clientID.size())
+            auto clientIdOpt = comsManager.tryToGetClientId();
+            if (clientIdOpt)
             {
-                sleepMilliSeconds(100);
-                waittime -= 100;
-            }
-            if (clientID.size())
-            {
-                string sclientID = "--clientID=";
-                sclientID+=clientID;
-                absolutedargs.push_back(sclientID);
+                absolutedargs.push_back("--clientID=" + *clientIdOpt);
             }
         }
 
@@ -439,18 +430,22 @@ string parseArgs(int argc, char* argv[])
 
 #ifdef _WIN32
 
-wstring parsewArgs(int argc, wchar_t* argv[])
+wstring parsewArgs(int argc, wchar_t* argv[], MegaCmdShellCommunications& comsManager)
 {
+    // remove "-o path" argument if found:
     for (int i=1;i<argc;i++)
     {
-        if (i<(argc-1) && !wcscmp(argv[i],L"-o"))
+        if (i<(argc-1) && std::wstring_view(argv[i]) == L"-o")
         {
-            if (i < (argc-2))
-                argv[i]=argv[i+2];
-            argc=argc-2;
+            for (int j = i; j < argc - 2; ++j)
+            {
+                argv[j] = argv[j + 2];
+            }
+            argc -= 2;
+            argv[argc] = nullptr;
+            --i; // Stay at the same index to process the shifted arguments
         }
     }
-
 
     vector<wstring> absolutedargs;
     int totalRealArgs = 0;
@@ -472,18 +467,10 @@ wstring parsewArgs(int argc, wchar_t* argv[])
                 || !wcscmp(argv[1],L"login")
                 || !wcscmp(argv[1],L"reload") )
         {
-            int waittime = 5000;
-            while (waittime > 0 && !clientID.size())
+            auto clientIdOpt = comsManager.tryToGetClientId();
+            if (clientIdOpt)
             {
-                sleepMilliSeconds(100);
-                waittime -= 100;
-            }
-            if (clientID.size())
-            {
-                wstring sclientID = L"--clientID=";
-                std::wstring wclientID(clientID.begin(), clientID.end());
-                sclientID+=wclientID;
-                absolutedargs.push_back(sclientID);
+                absolutedargs.push_back(L"--clientID=" + std::wstring(clientIdOpt->begin(), clientIdOpt->end()));
             }
         }
 
@@ -762,13 +749,10 @@ void statechangehandle(string statestring, MegaCmdShellCommunications & comsMana
 #ifdef _WIN32
                 wstring wbuffer;
                 stringtolocalw((const char*)os.str().data(),&wbuffer);
-                int oldmode;
-                std::lock_guard<std::mutex> stdOutLockGuard(comsManager.getStdoutLockGuard());
-                oldmode = _setmode(_fileno(stdout), _O_U8TEXT);
+                WindowsUtf8StdoutGuard utf8Guard;
                 OUTSTREAM << wbuffer << flush;
-                _setmode(_fileno(stdout), oldmode);
-
 #else
+                StdoutMutexGuard stdoutGuard;
                 OUTSTREAM << os.str();
 #endif
             }
@@ -780,7 +764,7 @@ void statechangehandle(string statestring, MegaCmdShellCommunications & comsMana
         }
         else if (newstate.compare(0, strlen("login:"), "login:") == 0)
         {
-            std::lock_guard<std::mutex> stdOutLockGuard(comsManager.getStdoutLockGuard());
+            StdoutMutexGuard stdoutGuard;
             printCenteredContentsCerr(string("Resuming session ... ").c_str(), width, false);
         }
         else if (newstate.compare(0, strlen("message:"), "message:") == 0)
@@ -789,28 +773,25 @@ void statechangehandle(string statestring, MegaCmdShellCommunications & comsMana
             {
                 lastMessage = newstate;
 
-                string contents = newstate.substr(strlen("message:"));
+                std::string_view messageContents = std::string_view(newstate).substr(strlen("message:"));
+                string contents = std::string(shown_partial_progress ? "\n": "").append(messageContents);
                 replaceAll(contents, "%mega-%", "mega-");
 
-
-                std::lock_guard<std::mutex> stdOutLockGuard(comsManager.getStdoutLockGuard());
-                if (shown_partial_progress)
-                {
-                    cerr << endl;
-                }
-                if (contents.find("-----") != 0)
+                if (messageContents.rfind("-----", 0) != 0)
                 {
                     printCenteredContentsCerr(contents, width);
                 }
                 else
                 {
+                    StdoutMutexGuard stdoutGuard;
                     cerr << endl <<  contents << endl;
                 }
             }
         }
         else if (newstate.compare(0, strlen("clientID:"), "clientID:") == 0)
         {
-            clientID = newstate.substr(strlen("clientID:")).c_str();
+            std::string clientId = newstate.substr(strlen("clientID:"));
+            comsManager.setClientIdPromise(clientId);
         }
         else if (newstate.compare(0, strlen("progress:"), "progress:") == 0)
         {
@@ -840,8 +821,6 @@ void statechangehandle(string statestring, MegaCmdShellCommunications & comsMana
                 shown_partial_progress = false;
             }
 
-
-            std::lock_guard<std::mutex> stdOutLockGuard(comsManager.getStdoutLockGuard());
             long long completed = received == SPROGRESS_COMPLETE ? PROGRESS_COMPLETE : charstoll(received.c_str());
             const char * progressTitle = title.empty() ? "TRANSFERRING" : title.c_str();
             printprogress(completed, charstoll(total.c_str()), progressTitle);
@@ -881,6 +860,14 @@ int executeClient(int argc, char* argv[], OUTSTREAMTYPE & outstream)
         {
             freopen(argv[i+1],"w",stdout);
             redirectedoutput = true;
+
+            for (int j = i; j < argc - 2; ++j)
+            {
+                argv[j] = argv[j + 2];
+            }
+            argc -= 2;
+            argv[argc] = nullptr;
+            --i; // Stay at the same index to process the shifted arguments
         }
     }
 
@@ -915,10 +902,10 @@ int executeClient(int argc, char* argv[], OUTSTREAMTYPE & outstream)
     {
         return -3;
     }
-    wstring wParsedArgs = parsewArgs(wargc, szArglist);
+    wstring wParsedArgs = parsewArgs(wargc, szArglist, *comms);
     LocalFree(szArglist);
 #else
-    string parsedArgs = parseArgs(argc,argv);
+    string parsedArgs = parseArgs(argc, argv, *comms);
 #endif
 
     bool isInloginInValidCommands = false;

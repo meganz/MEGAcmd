@@ -4,6 +4,7 @@ pipeline {
     options {
         buildDiscarder(logRotator(numToKeepStr: '135', daysToKeepStr: '21'))
         gitLabConnection('GitLabConnectionJenkins')
+        timestamps() // Add timestamps to all console output
     }
 
     stages {
@@ -106,7 +107,7 @@ pipeline {
                 axes {
                     axis {
                         name 'SANITIZERS'
-                        values 'ubsan', 'asan', 'tsan'
+                        values 'baseline', 'ubsan', 'asan', 'tsan'
                     }
                     axis {
                         name 'BUILD_SYSTEM'
@@ -122,7 +123,7 @@ pipeline {
                             DOCKER_BUILDKIT=1
                         }
                         steps {
-                            sh "docker build -t meganz/megacmd-${BUILD_SYSTEM}-${SANITIZERS}:${env.BUILD_NUMBER} -f ${megacmd_sources_workspace}/build-with-docker/Dockerfile.${BUILD_SYSTEM} --build-arg=BUILD_OPT_SANITIZERS=${SANITIZERS} --ulimit=core=-1 --cpuset-cpus=0,1 -- ${megacmd_sources_workspace}"
+                            sh "docker build -t meganz/megacmd-${BUILD_SYSTEM}-${SANITIZERS}:${env.BUILD_NUMBER} -f ${megacmd_sources_workspace}/build-with-docker/Dockerfile.${BUILD_SYSTEM} --build-arg=ENABLE_${SANITIZERS}=ON --ulimit=core=-1 --cpuset-cpus=0,1 -- ${megacmd_sources_workspace}"
                         }
                     }
                     stage("MEGAcmd unit tests") {
@@ -137,9 +138,9 @@ pipeline {
                             timeout(time: 10, unit: 'MINUTES')
                         }
                         environment {
-                            ASAN_OPTIONS="atexit=1,print_stats=1,log_path=${megacmd_sources_workspace}/test-dir-${SANITIZERS}/results/mega-cmd-tests-unit-report"
-                            TSAN_OPTIONS="log_path=${megacmd_sources_workspace}/test-dir-${SANITIZERS}/results/mega-cmd-tests-unit-report"
-                            UBSAN_OPTIONS="log_path=${megacmd_sources_workspace}/test-dir-${SANITIZERS}/results/mega-cmd-tests-unit-report"
+                            ASAN_OPTIONS="print_stats=1,log_path=${megacmd_sources_workspace}/test-dir-${SANITIZERS}/results/unit-asan-report.log"
+                            TSAN_OPTIONS="log_path=${megacmd_sources_workspace}/test-dir-${SANITIZERS}/results/unit-tsan-report.log"
+                            UBSAN_OPTIONS="log_path=${megacmd_sources_workspace}/test-dir-${SANITIZERS}/results/unit-ubsan-report.log"
                             HOME="${megacmd_sources_workspace}/test-dir-${SANITIZERS}"
                         }
                         steps {
@@ -164,6 +165,7 @@ pipeline {
                                 archiveArtifacts artifacts: "test-dir-${SANITIZERS}/.megaCmd/megacmdserver.log*", allowEmptyArchive: true
                                 archiveArtifacts artifacts: "**/core*zstd", allowEmptyArchive: true
                                 archiveArtifacts artifacts: "**/mega-cmd-tests-unit.zstd", allowEmptyArchive: true
+                                archiveArtifacts artifacts: "test-dir-${SANITIZERS}/results/unit-*-report.log.*", allowEmptyArchive: true
                                 junit "test-dir-${SANITIZERS}/results/mega-cmd-tests-unit.xml"
                             }
                         }
@@ -182,9 +184,9 @@ pipeline {
                         environment {
                             MEGACMD_TEST_USER=''
                             MEGACMD_TEST_PASS=credentials('MEGACMD_TESTS_PASSWORD')
-                            ASAN_OPTIONS="atexit=1,print_stats=1,log_path=${megacmd_sources_workspace}/test-dir-${SANITIZERS}/results/mega-cmd-tests-integration-report"
-                            TSAN_OPTIONS="log_path=${megacmd_sources_workspace}/test-dir-${SANITIZERS}/results/mega-cmd-tests-integration-report"
-                            UBSAN_OPTIONS="log_path=${megacmd_sources_workspace}/test-dir-${SANITIZERS}/results/mega-cmd-tests-integration-report"
+                            ASAN_OPTIONS="print_stats=1,log_path=${megacmd_sources_workspace}/test-dir-${SANITIZERS}/results/integration-asan-report.log"
+                            TSAN_OPTIONS="log_path=${megacmd_sources_workspace}/test-dir-${SANITIZERS}/results/integration-tsan-report.log"
+                            UBSAN_OPTIONS="log_path=${megacmd_sources_workspace}/test-dir-${SANITIZERS}/results/integration-ubsan-report.log"
                             HOME="${megacmd_sources_workspace}/test-dir-${SANITIZERS}"
                         }
                         steps {
@@ -211,6 +213,7 @@ pipeline {
                                 archiveArtifacts "test-dir-${SANITIZERS}/.megaCmd/megacmdserver.log*"
                                 archiveArtifacts artifacts: "**/core*zstd", allowEmptyArchive: true
                                 archiveArtifacts artifacts: "**/mega-cmd-tests-integration.zstd", allowEmptyArchive: true
+                                archiveArtifacts artifacts: "test-dir-${SANITIZERS}/results/integration-*-report.log.*", allowEmptyArchive: true
                                 junit "test-dir-${SANITIZERS}/results/mega-cmd-tests-integration.xml"
                             }
                         }
@@ -230,6 +233,9 @@ pipeline {
                             MEGA_EMAILS=''
                             MEGA_PWD=credentials('MEGACMD_TESTS_PASSWORD')
                             MEGA_PWD_AUX=credentials('MEGACMD_TESTS_PASSWORD')
+                            ASAN_OPTIONS="print_stats=1,log_path=${megacmd_sources_workspace}/pytest-dir-${SANITIZERS}/results/pyserver-asan-report.log"
+                            TSAN_OPTIONS="log_path=${megacmd_sources_workspace}/pytest-dir-${SANITIZERS}/results/pyserver-tsan-report.log"
+                            UBSAN_OPTIONS="log_path=${megacmd_sources_workspace}/pytest-dir-${SANITIZERS}/results/pyserver-ubsan-report.log"
                             HOME="${megacmd_sources_workspace}/pytest-dir-${SANITIZERS}"
                             YES_I_KNOW_THIS_WILL_CLEAR_MY_MEGA_ACCOUNT=1
                             VERBOSE=1
@@ -254,18 +260,21 @@ pipeline {
                                     for (test in ['misc', 'put', 'rm', 'find', 'get']) {
                                         for (cmdshell in ['', 'cmdshell-']) {
                                             def testDir = "pytest-dir-${SANITIZERS}/${cmdshell}${test}-results"
+                                            def asanOptions = "print_stats=1,log_path=${megacmd_sources_workspace}/${testDir}/py-asan-report.log"
+                                            def tsanOptions = "log_path=${megacmd_sources_workspace}/${testDir}/py-tsan-report.log"
+                                            def ubsanOptions = "log_path=${megacmd_sources_workspace}/${testDir}/py-ubsan-report.log"
                                             stage("MEGAcmd Python ${cmdshell}${test} test") {
                                                 withEnv([
                                                     "MEGA_EMAIL=${env.MEGA_EMAILS0}",
                                                     "MEGA_EMAIL_AUX=${env.MEGA_EMAILS1}",
-                                                    "ASAN_OPTIONS=atexit=1,print_stats=1,log_path=${megacmd_sources_workspace}/${testDir}/mega-cmd-tests-python-report",
-                                                    "TSAN_OPTIONS=log_path=${megacmd_sources_workspace}/${testDir}/mega-cmd-tests-python-report",
-                                                    "UBSAN_OPTIONS=log_path=${megacmd_sources_workspace}/${testDir}/mega-cmd-tests-python-report",
+                                                    "ASAN_OPTIONS=${asanOptions}",
+                                                    "TSAN_OPTIONS=${tsanOptions}",
+                                                    "UBSAN_OPTIONS=${ubsanOptions}",
                                                     "OUT_DIR_JUNIT_XML=${megacmd_sources_workspace}/${testDir}"
                                                 ]) {
                                                     def envStr = ''
                                                     if (cmdshell != '') {
-                                                        envStr = 'MEGACMDSHELL=/usr/bin/mega-cmd '
+                                                        envStr = "MEGACMDSHELL=/usr/bin/mega-cmd "
                                                     }
                                                     try {
                                                         dir("pytest-dir-${SANITIZERS}/working-dir") {
@@ -278,6 +287,7 @@ pipeline {
                                                         }
                                                         junit "${testDir}/TEST-*.xml"
                                                     } finally {
+                                                        archiveArtifacts artifacts: "${testDir}/py-*-report.log.*", allowEmptyArchive: true
                                                         dir("pytest-dir-${SANITIZERS}") {
                                                             sh "find . -name core -exec zstd -z --fast=3 {} -o core_client_${cmdshell}${test}.zstd \\; -exec rm {} \\; || true"
                                                         }
@@ -302,6 +312,7 @@ pipeline {
                                     || true
                                 """
                                 archiveArtifacts "pytest-dir-${SANITIZERS}/.megaCmd/megacmdserver.log*"
+                                archiveArtifacts artifacts: "pytest-dir-${SANITIZERS}/results/pyserver-*-report.log.*", allowEmptyArchive: true
                                 archiveArtifacts artifacts: "**/core*zstd", allowEmptyArchive: true
                                 archiveArtifacts artifacts: "**/mega-*.zstd", allowEmptyArchive: true
                             }

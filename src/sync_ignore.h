@@ -15,6 +15,8 @@
 
 #pragma once
 
+#include "megacmdcommonutils.h"
+
 #include <string>
 #include <set>
 
@@ -30,7 +32,7 @@ namespace SyncIgnore
     struct Args
     {
         Action mAction;
-        std::string mMegaIgnoreDirPath;
+        fs::path mMegaIgnoreDirPath;
         std::set<std::string> mFilters;
     };
 
@@ -42,7 +44,7 @@ namespace SyncIgnore
 class MegaIgnoreFile
 {
     std::set<std::string> mFilters;
-    std::string mPath;
+    fs::path mPath;
     bool mValid;
 
     bool checkBOMAndSkip(std::ifstream& file);
@@ -52,10 +54,10 @@ class MegaIgnoreFile
     void createWithBOM();
 
 public:
-    static std::string getDefaultPath();
+    static fs::path getDefaultPath();
     static bool isValidFilter(const std::string& filter);
 
-    MegaIgnoreFile(const std::string& path);
+    MegaIgnoreFile(const fs::path& path);
 
     bool isValid() const { return mValid; }
 

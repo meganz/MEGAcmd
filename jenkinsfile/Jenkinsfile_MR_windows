@@ -8,6 +8,7 @@ pipeline {
     options {
         buildDiscarder(logRotator(numToKeepStr: '135', daysToKeepStr: '21'))
         gitLabConnection('GitLabConnectionJenkins')
+        timestamps() // Add timestamps to all console output
     }
 
     stages {
@@ -224,6 +225,7 @@ pipeline {
                     updateGitlabCommitStatus(name: 'Build windows', state: 'failed')
                 }
             }
+            deleteDir()
         }
     }
 }

@@ -16,6 +16,7 @@
  * program.
  */
 
+#include "megacmdcommonutils.h"
 #include "megacmd.h"
 
 #include "megaapi.h"
@@ -778,24 +779,6 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     {
         validOptValues->insert("clientID");
     }
-#ifdef HAVE_DOWNLOADS_COMMAND
-    else if ("downloads" == thecommand)
-    {
-        validParams->insert("show-subtransfers");
-        validParams->insert("report-all");
-        validParams->insert("disable-tracking");
-        validParams->insert("enable-tracking");
-        validParams->insert("query-enabled");
-
-        validParams->insert("enable-clean-slate");
-        validParams->insert("disable-clean-slate");
-        validParams->insert("purge");
-
-        validOptValues->insert("path-display-size");
-        validOptValues->insert("col-separator");
-        validOptValues->insert("output-cols");
-    }
-#endif
     else if ("transfers" == thecommand)
     {
         validParams->insert("show-completed");
@@ -2013,12 +1996,6 @@ const char * getUsageStr(const char *command, const HelpFlags& flags)
     {
         return "transfers [-c TAG|-a] | [-r TAG|-a]  | [-p TAG|-a] [--only-downloads | --only-uploads] [SHOWOPTIONS]";
     }
-#ifdef HAVE_DOWNLOADS_COMMAND
-    if (!strcmp(command, "downloads"))
-    {
-        return "downloads [--purge|--enable-clean-slate|--disable-clean-slate|--enable-tracking|--disable-tracking|query-enabled|report-all| [id_1 id_2 ... id_n]]  [SHOWOPTIONS]";
-    }
-#endif
     if (((flags.win && !flags.readline) || flags.showAll) && !strcmp(command, "autocomplete"))
     {
         return "autocomplete [dos | unix]";
@@ -2175,7 +2152,7 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << "with image or video extensions that are not really images or videos," << endl;
         os << "or that are encrypted in the local drive so they can't be analyzed anyway." << endl;
         os << endl;
-        os << "Notice that this setting will be saved for the next time you open MEGAcmd" << endl;
+        os << "Notice that this setting will be saved for the next time you open MEGAcmd, but will be removed if you logout." << endl;
     }
     else if (!strcmp(command, "signup"))
     {
@@ -2313,13 +2290,14 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
     }
     else if (!strcmp(command, "log"))
     {
-        os << "Prints/Modifies the current logs level" << endl;
+        os << "Prints/Modifies the log level" << endl;
         os << endl;
         os << "Options:" << endl;
         os << " -c" << "\t" << "CMD log level (higher level messages)." << endl;
         os << "   " << "\t" << " Messages captured by MEGAcmd server." << endl;
         os << " -s" << "\t" << "SDK log level (lower level messages)." << endl;
         os << "   " << "\t" << " Messages captured by the engine and libs" << endl;
+        os << "Note: this setting will be saved for the next time you open MEGAcmd, but will be removed if you logout." << endl;
 
         os << endl;
         os << "Regardless of the log level of the" << endl;
@@ -2525,7 +2503,7 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << "HTTPS is not necesary since all data is stored and transfered encrypted." << endl;
         os << "Enabling it will increase CPU usage and add network overhead." << endl;
         os << endl;
-        os << "Notice that this setting will be saved for the next time you open MEGAcmd" << endl;
+        os << "Notice that this setting will be saved for the next time you open MEGAcmd, but will be removed if you logout." << endl;
     }
     else if (!strcmp(command, "deleteversions"))
     {
@@ -2573,6 +2551,7 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << endl;
         os << "*If you serve more than one location, these parameters will be ignored and use those of the first location served." << endl;
         os << " If you want to change those parameters, you need to stop serving all locations and configure them again." << endl;
+        os << "Note: WEBDAV settings and locations will be saved for the next time you open MEGAcmd, but will be removed if you logout." << endl;
         os << endl;
         os << "Caveat: This functionality is in BETA state. It might not be available on all platforms. If you experience any issue with this, please contact: support@mega.nz" << endl;
         os << endl;
@@ -2602,6 +2581,7 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << endl;
         os << "*If you serve more than one location, these parameters will be ignored and used those of the first location served." << endl;
         os << " If you want to change those parameters, you need to stop serving all locations and configure them again." << endl;
+        os << "Note: FTP settings and locations will be saved for the next time you open MEGAcmd, but will be removed if you logout." << endl;
         os << endl;
         os << "Caveat: This functionality is in BETA state. It might not be available on all platforms. If you experience any issue with this, please contact: support@mega.nz" << endl;
         os << endl;
@@ -2679,8 +2659,8 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << "                       " << "\t" << "The \"--all\" argument can be used to show the details of all issues." << endl;
         os << " --limit=rowcount " << "\t" << "Limits the amount of rows displayed. Set to 0 to display unlimited rows. Default is 10. Can also be combined with \"--detail\"." << endl;
         os << " --disable-path-collapse " << "\t" << "Ensures all paths are fully shown. By default long paths are truncated for readability." << endl;
-        os << " --enable-warning " << "\t" << "Enables the notification that appears when issues are detected. This setting is stored locally for all users." << endl;
-        os << " --disable-warning " << "\t" << "Disables the notification that appears when issues are detected. This setting is stored locally for all users." << endl;
+        os << " --enable-warning " << "\t" << "Enables the notification that appears when issues are detected. This setting is saved for the next time you open MEGAcmd, but will be removed if you logout." << endl;
+        os << " --disable-warning " << "\t" << "Disables the notification that appears when issues are detected. This setting is saved for the next time you open MEGAcmd, but will be removed if you logout." << endl;
         printColumnDisplayerHelp(os);
         os << endl;
         os << "DISPLAYED columns:" << endl;
@@ -3023,6 +3003,8 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << " --username=USERNAME" << "\t" << "The username, for authenticated proxies" << endl;
         os << " --password=PASSWORD" << "\t" << "The password, for authenticated proxies. Please, avoid using passwords containing \" or '" << endl;
 
+        os << endl;
+        os << "Note: Proxy settings will be saved for the next time you open MEGAcmd, but will be removed if you logout." << endl;
     }
     else if (!strcmp(command, "cat"))
     {
@@ -3136,90 +3118,6 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
             os << "To only exit current shell and keep server running, use \"exit --only-shell\"" << endl;
         }
     }
-#ifdef HAVE_DOWNLOADS_COMMAND
-    else if (!strcmp(command, "downloads"))
-    {
-        os << "Lists or configure downloads tracking and reporting." << endl;
-        os << endl;
-        os << "It will print the information regarding one or more downloads give their tags or object ids"<< endl;
-        os << "      (both will be reported when using \"get\" with -q)." << endl;
-        os << "IMPORTANT: it is disabled by default, you need to enable it with \"downloads --enable-tracking\"." << endl;
-        os << endl;
-        os << "Options:" << endl;
-        os << " --query-enabled"  << "\t" << "Indicates if download tracking is enabled" << endl;
-        os << " --enable-tracking"  << "\t" << "Starts tracking downloads. It will store the information in a sqlite3 db" << endl;
-        os << " --disable-tracking"  << "\t" << "Stops tracking downloads. Notice, it will remove the associated database" << endl;
-        os << " --enable-clean-slate"  << "\t" << "Transfers from previous executions will be discarded upon restart" << endl;
-        os << " --disable-clean-slate"  << "\t" << "Transfers from previous executions will not be discarded upon restart" << endl;
-        os << " --purge"  << "\t" << "Cancells all onging transfers, and cleans all tracking (included persisted data)" << endl;
-
-        os << endl;
-        os << "Show options:" << endl;
-        os << " --report-all" << "\t" << "Prints a report of all active and finished downloads kept in memory" << endl;
-        os << " --show-subtransfers" << "\t" << "Show information regarding transfers" << endl;
-        os << " --path-display-size=N" << "\t" << "Use at least N characters for displaying paths" << endl;
-        printColumnDisplayerHelp(os);
-        os << endl;
-        os << "Displaying cols:" << endl;
-        os << " OBJECT_ID"  << "\t" << "Id of the object (it will always be the same for the same download)" << endl;
-        os << " SUB_STARTED"  << "\t" << "Number of subtransfers started" << endl;
-        os << " SUB_OK"  << "\t" << "Number of subtransfers that completed ok" << endl;
-        os << " SUB_FAIL"  << "\t" << "Number of subtransfers that completed with some error" << endl;
-        os << " SUBTRANSFER"  << "\t" << "Tag of the subtransfers (only when using --show-subtransfers)" << endl;
-        os << " ERROR_CODE"  << "\t" << "Error of the transfer (if any)" << endl;
-        os << " TYPE"  << "\t" << "Type of transfer (see below)" << endl;
-        os << " TAG"  << "\t" << "A tag that uniquely identifies a tranfer in current execution of MEGAcmd" << endl;
-        os << " SOURCEPATH"  << "\t" << "Path of the folder/file downloaded" << endl;
-        os << " DESTINYPATH"  << "\t" << "Local path for the downloaded file/folder" << endl;
-        os << " PROGRESS"  << "\t" << "Human readable progress of the download" << endl;
-        os << " STATE"  << "\t" << "State of the transfer. " << endl;
-        os << "      "  << "\t" << " Values:" << endl;
-        os << "      "  << "\t" << "  QUEUED:" << "\t" << "queued in the system, waiting for an slot to be assigned" << endl;
-        os << "      "  << "\t" << "  ACTIVE:" << "\t" << "doing I/O" << endl;
-        os << "      "  << "\t" << "  PAUSED:" << "\t" << "paused" << endl;
-        os << "      "  << "\t" << "  RETRYING:" << "\t" << "retrying after some potentially recoverable error" << endl;
-        os << "      "  << "\t" << "  COMPLETING:" << "\t" << "final stages (e.g: moving temporal transfer file to its final destination)" << endl;
-        os << "      "  << "\t" << "  COMPLETED:" << "\t" << "finished ok" << endl;
-        os << "      "  << "\t" << "  CANCELLED:" << "\t" << "cancelled" << endl;
-        os << "      "  << "\t" << "  FAILED:" << "\t" << "Failed (or subtransfers failed)" << endl;
-
-        os << " TRANSFERRED"  << "\t" << "Number of bytes transferred" << endl;
-        os << " TOTAL"  << "\t" << "Number of total bytes to be transferred" << endl;
-        os << endl;
-        os << "TYPE legend correspondence:" << endl;
-#ifdef _WIN32
-
-        const string cD = getutf8fromUtf16(L"\u25bc");
-        const string cU = getutf8fromUtf16(L"\u25b2");
-        const string cS = getutf8fromUtf16(L"\u21a8");
-        const string cB = getutf8fromUtf16(L"\u2191");
-#else
-        const string cD = "\u21d3";
-        const string cU = "\u21d1";
-        const string cS = "\u21f5";
-        const string cB = "\u23eb";
-#endif
-        os << "  " << cD <<" = \t" << "Download transfer" << endl;
-        os << "  " << cU <<" = \t" << "Upload transfer" << endl;
-        os << "  " << cS <<" = \t" << "Sync transfer. The transfer is done in the context of a synchronization" << endl;
-        os << "  " << cB <<" = \t" << "Backup transfer. The transfer is done in the context of a backup" << endl;
-
-        os << endl;
-        os << "Configuration values" << endl;
-        os << "In your configuration folder (HOME/Appdata) there is megacmd.cfg configuration file." << endl;
-        os << "This are the properties used in the downloads tracking & report mechanism:" << endl;
-        os << " downloads_tracking_enabled"  << "\t" << "If downloads tracking is enabled. Default=0 (false)!" << endl;
-        os << " downloads_tracking_max_finished_in_memory_high_threshold"  << "\t" << "Max number of downloads to keep in memory. It this is surpassed, " << endl;
-        os << "                                                         "  << "\t" << "finished transfers will start to be deleted (first the least recently updated)." << endl;
-        os << "                                                         "  << "\t" << "Note: you can still get the information from the db using OJBECT_ID." << endl;
-        os << "                                                         "  << "\t" << "Default=40000" << endl;
-        os << " downloads_tracking_max_finished_in_memory_low_threshold"  << "\t" << "When pruning is executed it will clean until this threshold. Default=20000" << endl;
-        os << " downloads_db_path"  << "\t" << "Path to store tracking information of downloads. Default: ~/.megaCmd/downloads.db" << endl;
-        os << " downloads_db_io_frequency_ms"  << "\t" << "Frequency in milliseconds to commit pending changes in the database. Default=10000" << endl;
-        os << " downloads_db_max_queued_changes"  << "\t" << "Max allowed number of changes to be queued before writting. Default=1000" << endl;
-        os << " downloads_cleanslate_enabled"  << "\t" << "If transfers from previous executions will be discarded upon restart. Default=0 (false)" << endl;
-    }
-#endif
     else if (!strcmp(command, "transfers"))
     {
         os << "List or operate with transfers" << endl;
@@ -3244,10 +3142,10 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << "TYPE legend correspondence:" << endl;
 #ifdef _WIN32
 
-        const string cD = getutf8fromUtf16(L"\u25bc");
-        const string cU = getutf8fromUtf16(L"\u25b2");
-        const string cS = getutf8fromUtf16(L"\u21a8");
-        const string cB = getutf8fromUtf16(L"\u2191");
+        const string cD = utf16ToUtf8(L"\u25bc");
+        const string cU = utf16ToUtf8(L"\u25b2");
+        const string cS = utf16ToUtf8(L"\u21a8");
+        const string cB = utf16ToUtf8(L"\u2191");
 #else
         const string cD = "\u21d3";
         const string cU = "\u21d1";
@@ -3833,32 +3731,32 @@ bool executeUpdater(bool *restartRequired, bool doNotInstall = false)
 
     if ( pidupdater == 0 )
     {
-        char * donotinstallstr = NULL;
+        const char * donotinstallstr = NULL;
         if (doNotInstall)
         {
             donotinstallstr = "--do-not-install";
         }
 
         auto versionStr = std::to_string(MEGACMD_CODE_VERSION);
-        char* version = const_cast<char*>(versionStr.c_str());
+        const char* version = const_cast<char*>(versionStr.c_str());
 
 #ifdef __MACH__
     #ifndef NDEBUG
-        char * args[] = {"./mega-cmd-updater", "--normal-update", donotinstallstr, "--version", version, NULL};
+        const char * args[] = {"./mega-cmd-updater", "--normal-update", donotinstallstr, "--version", version, NULL};
     #else
-        char * args[] = {"/Applications/MEGAcmd.app/Contents/MacOS/MEGAcmdUpdater", "--normal-update", donotinstallstr, "--version", version, NULL};
+        const char * args[] = {"/Applications/MEGAcmd.app/Contents/MacOS/MEGAcmdUpdater", "--normal-update", donotinstallstr, "--version", version, NULL};
     #endif
 #else //linux doesn't use autoupdater: this is just for testing
     #ifndef NDEBUG
-            char * args[] = {"./mega-cmd-updater", "--normal-update", donotinstallstr, "--version", version, NULL}; // notice: won't work after lcd
+            const char * args[] = {"./mega-cmd-updater", "--normal-update", donotinstallstr, "--version", version, NULL}; // notice: won't work after lcd
     #else
-            char * args[] = {"mega-cmd-updater", "--normal-update", donotinstallstr, "--version", version, NULL};
+            const char * args[] = {"mega-cmd-updater", "--normal-update", donotinstallstr, "--version", version, NULL};
     #endif
 #endif
 
         LOG_verbose << "Exec updater line: " << args[0] << " " << args[1] << " " << args[2];
 
-        if (execvp(args[0], args) < 0)
+        if (execvp(args[0],  const_cast<char* const*>(args)) < 0)
         {
 
             LOG_err << " FAILED to initiate updater. errno = " << ERRNO;
@@ -3944,16 +3842,16 @@ bool restartServer()
     pid_t childid = fork();
     if ( childid ) //parent
     {
-        char **argv = new char*[mcmdMainArgc+3];
+        const char **argv = new const char*[mcmdMainArgc+3];
         int i = 0, j = 0;
 
 #ifdef __linux__
-        string executable = mcmdMainArgv[0];
+        string executable = const_cast<char* const>(mcmdMainArgv[0]);
         if (executable.find("/") != 0)
         {
             executable.insert(0, getCurrentExecPath()+"/");
         }
-        argv[0]=(char *)executable.c_str();
+        argv[0] = executable.c_str();
         i++;
         j++;
 #endif
@@ -3970,12 +3868,11 @@ bool restartServer()
             }
         }
 
-        argv[j++]="--wait-for";
-        argv[j++]=(char*)SSTR(childid).c_str();
-        argv[j++]=NULL;
-
+        argv[j++] = "--wait-for";
+        argv[j++] = std::to_string(childid).c_str();
+        argv[j++] = NULL;
         LOG_debug << "Restarting the server : <" << argv[0] << ">";
-        execv(argv[0],argv);
+        execv(argv[0], const_cast<char* const*>(argv));
     }
 #endif
 
@@ -4015,8 +3912,33 @@ bool isBareCommand(const char *l, const string &command)
    return true;
 }
 
+void MegaCmdExecuter::mayExecutePendingStuffInWorkerThread()
+{
+    {   // send INVALID_UTF8_INCIDENCES if there have been incidences
+        static std::mutex mutexSendEventInvalidUtf8Incidences;
+        std::lock_guard<std::mutex> g(mutexSendEventInvalidUtf8Incidences);
+
+        if (auto incidencesFound = sInvalidUtf8Incidences.exchange(0))
+        {
+            static HammeringLimiter hammeringLimiter(10);
+            if (!hammeringLimiter.runRecently())
+            {
+                LOG_err << "Invalid utf8 accumulated occurences: " << incidencesFound;
+                sendEvent(StatsManager::MegacmdEvent::INVALID_UTF8_INCIDENCES, api, false);
+            }
+            else
+            {
+                // add them again to the count, to be reconsidered later.
+                sInvalidUtf8Incidences += incidencesFound;
+            }
+        }
+    }
+}
+
 static bool process_line(const std::string_view line)
 {
+    cmdexecuter->mayExecutePendingStuffInWorkerThread();
+
     const char* l = line.data();
     assert(line.size() == strlen(l)); // string_view does not guarantee null termination, which is depended upon
     switch (prompt)
@@ -4195,10 +4117,10 @@ void* doProcessLine(void* infRaw)
     LoggedStreamPartialOutputs ls(cm, inf.get());
     setCurrentThreadOutStream(ls);
 
-    setCurrentThreadIsCmdShell(!inf->line.empty() && inf->line[0] == 'X');
+    setCurrentThreadIsCmdShell(inf->isFromCmdShell());
 
 
-    LOG_verbose << " Processing " << inf->line << " in thread: " << MegaThread::currentThreadId() << " " << inf->getPetitionDetails();
+    LOG_verbose << " Processing " << inf->getRedactedLine() << " in thread: " << MegaThread::currentThreadId() << " " << inf->getPetitionDetails();
 
     doExit = process_line(inf->getUniformLine());
 
@@ -4208,7 +4130,7 @@ void* doProcessLine(void* infRaw)
         LOG_verbose << " Exit registered upon process_line: " ;
     }
 
-    LOG_verbose << " Procesed " << inf->line << " in thread: " << MegaThread::currentThreadId() << " " << inf->getPetitionDetails();
+    LOG_verbose << " Procesed " << inf->getRedactedLine() << " in thread: " << MegaThread::currentThreadId() << " " << inf->getPetitionDetails();
 
     MegaThread * petitionThread = inf->getPetitionThread();
 
@@ -4331,12 +4253,6 @@ void finalize(bool waitForRestartSignal_param)
     alreadyfinalized = true;
     LOG_info << "closing application ...";
 
-#ifdef HAVE_DOWNLOADS_COMMAND
-    LOG_debug << "Shuting down downloads manager";
-    DownloadsManager::Instance().shutdown(false);
-    LOG_debug << "Downloads manager shut down";
-#endif
-
     delete_finished_threads();
     if (!consoleFailed)
     {
@@ -4384,6 +4300,7 @@ void finalize(bool waitForRestartSignal_param)
 #endif
     delete cm; //this needs to go after restartServer();
     LOG_debug << "resources have been cleaned ...";
+    LOG_info << "----------------------------- program end -------------------------------";
 
     MegaApi::removeLoggerObject(loggerCMD);
     delete loggerCMD;
@@ -4535,14 +4452,14 @@ void processCommandInPetitionQueues(std::unique_ptr<CmdPetition> inf)
     petitionThreads.emplace_back(petitionThread);
     inf->setPetitionThread(petitionThread);
 
-    LOG_verbose << "starting processing: <" << inf->line << ">";
+    LOG_verbose << "starting processing: <" << inf->getRedactedLine() << ">";
     petitionThread->start(doProcessLine, (void*) inf.release());
 }
 
 void processCommandLinePetitionQueues(std::string what)
 {
     auto inf = std::make_unique<CmdPetition>();
-    inf->line = what;
+    inf->setLine(what);
     inf->clientDisconnected = true; // There's no actual client
     inf->clientID = -3;
     processCommandInPetitionQueues(std::move(inf));
@@ -4585,7 +4502,7 @@ void megacmd()
 
             CmdPetition* inf = infOwned.get();
 
-            LOG_verbose << "petition registered: " << inf->line;
+            LOG_verbose << "petition registered: " << inf->getRedactedLine();
             delete_finished_threads();
 
             if (inf->getUniformLine() == "ERROR")
@@ -4601,51 +4518,24 @@ void megacmd()
                     continue;
                 }
 
-                // communicate client ID
-                string s = "clientID:";
-                s+=SSTR(currentclientID);
-                s+=(char)0x1F;
-                inf->clientID = currentclientID;
-                currentclientID++;
-                cm->informStateListener(inf,s);
+                {
+                    // Communicate client ID
+                    string clientIdStr = "clientID:" + std::to_string(currentclientID) + (char) 0x1F;
+                    inf->clientID = currentclientID;
+                    currentclientID++;
+                    cm->informStateListener(inf, clientIdStr);
+                }
+
+                std::string s;
 
 #if defined(_WIN32) || defined(__APPLE__)
-                string message="";
                 ostringstream os;
-                MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
-                api->getLastAvailableVersion("BdARkQSQ",megaCmdListener);
-                if (!megaCmdListener->trywait(2000))
+                auto updatMsgOpt = lookForAvailableNewerVersions(api);
+                //TODO: have this executed in worker thread instead (see MegaCmdExecuter::mayExecutePendingStuffInWorkerThread)
+                // still store the update message to be consumed here
+                if (updatMsgOpt)
                 {
-                    if (!megaCmdListener->getError())
-                    {
-                        LOG_fatal << "No MegaError at getLastAvailableVersion: ";
-                    }
-                    else if (megaCmdListener->getError()->getErrorCode() != MegaError::API_OK)
-                    {
-                        LOG_debug << "Couldn't get latests available version: " << megaCmdListener->getError()->getErrorString();
-                    }
-                    else
-                    {
-                        if (megaCmdListener->getRequest()->getNumber() != MEGACMD_CODE_VERSION)
-                        {
-                            os << "---------------------------------------------------------------------" << endl;
-                            os << "--        There is a new version available of megacmd: " << setw(12) << left << megaCmdListener->getRequest()->getName() << "--" << endl;
-                            os << "--        Please, update this one: See \"update --help\".          --" << endl;
-                            os << "--        Or download the latest from https://mega.nz/cmd          --" << endl;
-#if defined(__APPLE__)
-                            os << "--        Before installing enter \"exit\" to close MEGAcmd          --" << endl;
-#endif
-                            os << "---------------------------------------------------------------------" << endl;
-                        }
-                    }
-                    delete megaCmdListener;
-                }
-                else
-                {
-                    LOG_debug << "Couldn't get latests available version (petition timed out)";
-
-                    api->removeRequestListener(megaCmdListener);
-                    delete megaCmdListener;
+                    os << *updatMsgOpt;
                 }
 
                 int autoupdate = ConfigurationManager::getConfigurationValue("autoupdate", -1);
@@ -4659,14 +4549,13 @@ void megacmd()
                 {
                     startcheckingForUpdates();
                 }
-                message=os.str();
 
-
+                auto message = os.str();
                 if (message.size())
                 {
                     s += "message:";
-                    s+=message;
-                    s+=(char)0x1F;
+                    s += message;
+                    s += (char) 0x1F;
                 }
 #endif
 
@@ -4692,7 +4581,7 @@ void megacmd()
                     s += "Your Operative System is too old.\n";
                     s += "You might not receive new updates for this application.\n";
                     s += "We strongly recommend you to update to a new version.\n";
-                    s+=(char)0x1F;
+                    s += (char) 0x1F;
                 }
 
                 if (sandboxCMD->storageStatus != MegaApi::STORAGE_STATE_GREEN)
@@ -4758,7 +4647,7 @@ void megacmd()
                         s += "You can change your account plan to increase your quota limit.\n";
                     }
                     s += "See \"help --upgrade\" for further details.\n";
-                    s += (char)0x1F;
+                    s += (char) 0x1F;
                 }
 
                 // if server resuming session, lets give him a very litle while before sending greeting message to the early clients
@@ -4779,7 +4668,7 @@ void megacmd()
 
                     for (auto m: greetingsAllClientMsgs)
                     {
-                        cm->informStateListener(inf,m.append(1, (char)0x1F));
+                        cm->informStateListener(inf, m.append(1, (char)0x1F));
                     }
                 }
 
@@ -4792,16 +4681,16 @@ void megacmd()
                 }
 
                 // communicate status info
-                s+= "prompt:";
-                s+=dynamicprompt;
-                s+=(char)0x1F;
+                s +=  "prompt:";
+                s += dynamicprompt;
+                s += (char) 0x1F;
 
                 if (!sandboxCMD->getReasonblocked().size())
                 {
                     cmdexecuter->checkAndInformPSA(inf);
                 }
 
-                cm->informStateListener(inf,s);
+                cm->informStateListener(inf, s);
             }
             else
             { // normal petition
@@ -4828,30 +4717,62 @@ void printWelcomeMsg()
         width--;
 #endif
 
-    COUT << endl;
-    COUT << ".";
-    for (unsigned int i = 0; i < width; i++)
-        COUT << "=" ;
-    COUT << ".";
-    COUT << endl;
-    printCenteredLine(" __  __ _____ ____    _                      _ ",width);
-    printCenteredLine("|  \\/  | ___|/ ___|  / \\   ___ _ __ ___   __| |",width);
-    printCenteredLine("| |\\/| | \\  / |  _  / _ \\ / __| '_ ` _ \\ / _` |",width);
-    printCenteredLine("| |  | | /__\\ |_| |/ ___ \\ (__| | | | | | (_| |",width);
-    printCenteredLine("|_|  |_|____|\\____/_/   \\_\\___|_| |_| |_|\\__,_|",width);
+    std::ostringstream oss;
 
-    COUT << "|";
+    oss << endl;
+    oss << ".";
     for (unsigned int i = 0; i < width; i++)
-        COUT << " " ;
-    COUT << "|";
-    COUT << endl;
-    printCenteredLine("SERVER",width);
+        oss << "=" ;
+    oss << ".";
+    oss << endl;
+    printCenteredLine(oss, " __  __ _____ ____    _                      _ ",width);
+    printCenteredLine(oss, "|  \\/  | ___|/ ___|  / \\   ___ _ __ ___   __| |",width);
+    printCenteredLine(oss, "| |\\/| | \\  / |  _  / _ \\ / __| '_ ` _ \\ / _` |",width);
+    printCenteredLine(oss, "| |  | | /__\\ |_| |/ ___ \\ (__| | | | | | (_| |",width);
+    printCenteredLine(oss, "|_|  |_|____|\\____/_/   \\_\\___|_| |_| |_|\\__,_|",width);
 
-    COUT << "`";
+    oss << "|";
     for (unsigned int i = 0; i < width; i++)
-        COUT << "=" ;
-    COUT << "´";
-    COUT << endl;
+        oss << " " ;
+    oss << "|";
+    oss << endl;
+    printCenteredLine(oss, "SERVER",width);
+
+    oss << "`";
+    for (unsigned int i = 0; i < width; i++)
+    {
+        oss << "=" ;
+    }
+#ifndef _WIN32
+    oss << "\u00b4\n";
+    COUT << oss.str() << std::flush;
+#else
+    WindowsUtf8StdoutGuard utf8Guard;
+    // So far, all is ASCII.
+    COUT << oss.str();
+
+    // Now let's tray the non ascii forward acute
+    // We are about to write some non ascii character.
+    // Let's set (from now on, the console code page to UTF-8 translation (65001)
+    // but revert to the initial code page if outputing the special forward acute character
+    // fails. <- This could happen, for instance in Windows 7.
+    auto initialCP = GetConsoleOutputCP();
+    bool codePageChangedSuccesfully = false;
+    if (initialCP != CP_UTF8 && !getenv("MEGACMDSERVER_DONOT_SET_CONSOLE_CP"))
+    {
+        codePageChangedSuccesfully = SetConsoleOutputCP(CP_UTF8);
+    }
+
+    if (!(COUT << L"\u00b4")) // failed to output using utf-8
+    {
+        if (codePageChangedSuccesfully) // revert codepage
+        {
+            SetConsoleOutputCP(initialCP);
+        }
+        COUT << "/";
+    }
+    COUT << std::endl;
+#endif
 
 }
 
@@ -4994,7 +4915,7 @@ bool registerUpdater()
     stringSID = getCurrentSid();
     if (!stringSID)
     {
-        MegaApi::log(MegaApi::LOG_LEVEL_ERROR, "Unable to get the current SID");
+        LOG_err << "Unable to get the current SID";
         return false;
     }
 
@@ -5080,21 +5001,21 @@ bool registerUpdater()
                     &pRegisteredTask)))
             {
                 success = true;
-                MegaApi::log(MegaApi::LOG_LEVEL_ERROR, "Update task registered OK");
+                LOG_err << "Update task registered OK";
             }
             else
             {
-                MegaApi::log(MegaApi::LOG_LEVEL_ERROR, "Error registering update task");
+                LOG_err << "Error registering update task";
             }
         }
         else
         {
-            MegaApi::log(MegaApi::LOG_LEVEL_ERROR, "Error creating update task");
+            LOG_err << "Error creating update task";
         }
     }
     else
     {
-        MegaApi::log(MegaApi::LOG_LEVEL_ERROR, "Error getting root task folder");
+        LOG_err << "Error getting root task folder";
     }
 
     if (pRegisteredTask)
@@ -5260,7 +5181,8 @@ void sendEvent(StatsManager::MegacmdEvent event, ::mega::MegaApi *megaApi, bool 
 #ifdef _WIN32
 void uninstall()
 {
-    MegaApi::removeRecursively(megacmd::ConfigurationManager::getConfigFolder().c_str());
+    std::error_code ec; // to use the non-throwing overload below
+    fs::remove_all(ConfigurationManager::getConfigFolder(), ec);
 
     ITaskService *pService = NULL;
     ITaskFolder *pRootFolder = NULL;
@@ -5335,6 +5257,8 @@ int executeServer(int argc, char* argv[],
     setlocale(LC_ALL, "en-US");
 #endif
 
+    printWelcomeMsg();
+
     // keep a copy of argc & argv in order to allow restarts
     mcmdMainArgv = argv;
     mcmdMainArgc = argc;
@@ -5363,11 +5287,14 @@ int executeServer(int argc, char* argv[],
     char userAgent[40];
     sprintf(userAgent, "MEGAcmd" MEGACMD_STRINGIZE(MEGACMD_USERAGENT_SUFFIX) "/%d.%d.%d.%d", MEGACMD_MAJOR_VERSION,MEGACMD_MINOR_VERSION,MEGACMD_MICRO_VERSION,MEGACMD_BUILD_ID);
 
-    LOG_debug << "----------------------------- program start -----------------------------";
+    LOG_info << "----------------------- program start -----------------------";
     LOG_debug << "MEGAcmd version: " << MEGACMD_MAJOR_VERSION << "." << MEGACMD_MINOR_VERSION << "." << MEGACMD_MICRO_VERSION << "." << MEGACMD_BUILD_ID << ": code " << MEGACMD_CODE_VERSION;
     LOG_debug << "MEGA SDK version: " << SDK_COMMIT_HASH;
 
-    api = new MegaApi("BdARkQSQ", (MegaGfxProcessor*)NULL, ConfigurationManager::getAndCreateConfigDir().c_str(), userAgent);
+    const fs::path configDirPath = ConfigurationManager::getAndCreateConfigDir();
+    const std::string configDirStrUtf8 = pathAsUtf8(configDirPath);
+
+    api = new MegaApi("BdARkQSQ", configDirStrUtf8.c_str(), userAgent);
 
     if (!debug_api_url.empty())
     {
@@ -5378,9 +5305,10 @@ int executeServer(int argc, char* argv[],
 
     for (int i = 0; i < 5; i++)
     {
-        MegaApi *apiFolder = new MegaApi("BdARkQSQ", (MegaGfxProcessor*)NULL,
-                                         ConfigurationManager::getConfigFolderSubdir(std::string("apiFolder_").append(std::to_string(i))).c_str()
-                                         , userAgent);
+        const fs::path apiFolderPath = ConfigurationManager::getConfigFolderSubdir("apiFolder_" + std::to_string(i));
+        const std::string apiFolderStrUtf8 = pathAsUtf8(apiFolderPath);
+
+        MegaApi *apiFolder = new MegaApi("BdARkQSQ", apiFolderStrUtf8.c_str(), userAgent);
         apiFolder->setLanguage(localecode.c_str());
         apiFolders.push(apiFolder);
         apiFolder->setLogLevel(MegaApi::LOG_LEVEL_MAX);
@@ -5455,9 +5383,6 @@ int executeServer(int argc, char* argv[],
     }
 #endif
 
-    printWelcomeMsg();
-
-
     int configuredProxyType = ConfigurationManager::getConfigurationValue("proxy_type", -1);
     auto configuredProxyUrl = ConfigurationManager::getConfigurationSValue("proxy_url");
 
@@ -5509,4 +5434,54 @@ void stopServer()
     processCommandLinePetitionQueues("quit"); //TODO: have set doExit instead, and wake the loop.
 }
 
+std::optional<std::string> lookForAvailableNewerVersions(::mega::MegaApi *api)
+{
+#ifdef __linux__
+    return {}; // Linux updates are _announced_ via packages manageres
+#endif
+
+    //NOTE: expected to be called from main megacmd thread (no concurrency control required)
+    static HammeringLimiter hammeringLimiter(300);
+    if (hammeringLimiter.runRecently())
+    {
+        return {};
+    }
+
+    ostringstream os;
+    auto megaCmdListener = std::make_unique<MegaCmdListener>(api);
+    api->getLastAvailableVersion("BdARkQSQ", megaCmdListener.get());
+
+    if (megaCmdListener->trywait(2000)) //timed out:
+    {
+        LOG_debug << "Couldn't get latests available version (petition timed out)";
+        api->removeRequestListener(megaCmdListener.get());
+        return {};
+    }
+
+    if (!megaCmdListener->getError())
+    {
+        LOG_fatal << "No MegaError at getLastAvailableVersion: ";
+    }
+    else if (megaCmdListener->getError()->getErrorCode() != MegaError::API_OK)
+    {
+        LOG_debug << "Couldn't get latests available version: " << megaCmdListener->getError()->getErrorString();
+    }
+    else
+    {
+        if (megaCmdListener->getRequest()->getNumber() != MEGACMD_CODE_VERSION)
+        {
+            os << "---------------------------------------------------------------------" << endl;
+            os << "--        There is a new version available of megacmd: " << setw(12) << left << megaCmdListener->getRequest()->getName() << "--" << endl;
+            os << "--        Please, update this one: See \"update --help\".          --" << endl;
+            os << "--        Or download the latest from https://mega.nz/cmd          --" << endl;
+#if defined(__APPLE__)
+            os << "--        Before installing enter \"exit\" to close MEGAcmd          --" << endl;
+#endif
+            os << "---------------------------------------------------------------------" << endl;
+        }
+        return os.str();
+    }
+
+    return {};
+}
 } //end namespace
