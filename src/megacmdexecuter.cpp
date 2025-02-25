@@ -3417,9 +3417,9 @@ void MegaCmdExecuter::exportNode(MegaNode *n, int64_t expireTime, const std::opt
                                  "You are strictly prohibited from using the MEGA cloud service to infringe copyright.\n"
                                  "You may not upload, download, store, share, display, stream, distribute, email, link to, "
                                  "transmit or otherwise make available any files, data or content that infringes any copyright "
-                                 "or other proprietary rights of any person or entity.");
+                                 "or other proprietary rights of any person or entity.\n");
 
-        confirmationQuery += " Do you accept this terms? (Yes/No): ";
+        confirmationQuery += "Do you accept these terms? (Yes/No): ";
 
         const int confirmationResponse = askforConfirmation(confirmationQuery);
         if (confirmationResponse != MCMDCONFIRM_YES && confirmationResponse != MCMDCONFIRM_ALL)
