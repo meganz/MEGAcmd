@@ -317,7 +317,7 @@ void ComunicationsManagerNamedPipes::sendPartialOutput(CmdPetition *inf, OUTSTRI
 
     string sutf8;
     localwtostring(s, &sutf8);
-    assert(isValidUtf8(sutf8)); // above localwtostring should produce an empty string if the input had broken encoding or valid utf-8 otherwise
+    ASSERT_UTF8_VALID(sutf8); // above localwtostring should produce an empty string if the input had broken encoding or valid utf-8 otherwise
 
     int outCode = MCMD_PARTIALOUT;
     DWORD n;
@@ -352,7 +352,7 @@ void ComunicationsManagerNamedPipes::sendPartialOutput(CmdPetition *inf, char *s
     if (!binaryContents &&!isValidUtf8(s, size))
     {
         std::cerr << "Attempt to sendPartialOutput of invalid utf8 of size " << size << std::endl;
-        assert(false && "Attempt to sendPartialOutput of invalid utf8");
+        ASSERT_UTF8_BREAK("Attempt to sendPartialOutput of invalid utf8");
         return;
     }
 
@@ -425,7 +425,7 @@ int ComunicationsManagerNamedPipes::informStateListener(CmdPetition *inf, const 
     if (!isValidUtf8(s))
     {
         LOG_err << "Attempt to write an invalid utf8 string of size " << s.size();
-        assert(false && "Attempt to write an invalid utf8 string");
+        ASSERT_UTF8_BREAK("Attempt to write an invalid utf8 string");
         return 0;
     }
 

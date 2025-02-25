@@ -114,7 +114,7 @@ TEST(PlatformDirectoriesTest, configDirPath)
         EXPECT_THAT(configDir.string(), testing::EndsWith(suffix));
         EXPECT_THAT(configDir.string(), testing::StartsWith(R"(\\?\)"));
 
-        // This would throw han exception without the \\?\ prefix
+        // This would throw an exception without the \\?\ prefix
         SelfDeletingTmpFolder tmpFolder(configDir);
     }
 #else
