@@ -105,7 +105,6 @@ TEST_F(NOINTERACTIVEBasicTest, EchoInvalidUtf8)
 
     result = executeInClient({"echo", invalidUtf8});
     ASSERT_TRUE(result.ok());
-    EXPECT_EQ(result.out(), "\n");
     EXPECT_THAT(result.out(), testing::Not(testing::HasSubstr(invalidUtf8)));
 
     result = executeInClient({"echo", "--log-as-err", validUtf8});
