@@ -3972,7 +3972,15 @@ vector<string> MegaCmdExecuter::listLocalPathsStartingBy(string askedPath, bool 
 #endif
 
     std::error_code ec;
-    for (const auto& dirEntry : fs::directory_iterator(fs::u8path(containingfolder), ec))
+    fs::directory_iterator dirIt(fs::u8path(containingfolder), ec);
+    if (ec)
+    {
+        // We need to check the error directly because the iterator
+        // might not be end() in certain underlying OS errors
+        return paths;
+    }
+
+    for (const auto& dirEntry : dirIt)
     {
         if (discardFiles && !dirEntry.is_directory(ec))
         {
