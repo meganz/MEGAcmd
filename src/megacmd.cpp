@@ -1048,7 +1048,7 @@ char * flags_value_completion(const char*text, int state)
                     end = string::npos;
                 }
 
-                validValues = cmdexecuter->listlocalpathsstartingby(stext.substr(begin));
+                validValues = cmdexecuter->listLocalPathsStartingBy(stext.substr(begin), false);
                 string prefix = strncmp(text, cflag, strlen(cflag))?"":cflag;
                 for (unsigned int i=0;i<validValues.size();i++)
                 {
@@ -1137,7 +1137,7 @@ char* localfolders_completion(const char* text, int state)
     {
         string what(text);
         unescapeEspace(what);
-        validpaths = cmdexecuter->listlocalpathsstartingby(what.c_str(), true);
+        validpaths = cmdexecuter->listLocalPathsStartingBy(what, true);
     }
     return generic_completion(text, state, validpaths);
 }
