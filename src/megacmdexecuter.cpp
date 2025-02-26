@@ -10718,6 +10718,34 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             SyncIssuesCommand::printAllIssues(*api, cd, syncIssues, disablePathCollapse, rowCountLimit);
         }
     }
+#if defined(DEBUG) || defined(MEGACMD_TESTING_CODE)
+    else if (words[0] == "echo")
+    {
+        if (words.size() < 2 || words[1].empty())
+        {
+            setCurrentThreadOutCode(MCMD_EARGS);
+            LOG_err << "Missing message to echo";
+            return;
+        }
+
+        std::string str = words[1];
+#ifdef _WIN32
+        if (str == "<win-invalid-utf8>")
+        {
+            str = "\xf0\x8f\xbf\xbf";
+        }
+#endif
+
+        if (getFlag(clflags, "log-as-err"))
+        {
+            LOG_err << str;
+        }
+        else
+        {
+            OUTSTREAM << str << endl;
+        }
+    }
+#endif
     else
     {
         setCurrentThreadOutCode(MCMD_EARGS);

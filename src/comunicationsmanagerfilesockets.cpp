@@ -277,7 +277,7 @@ void ComunicationsManagerFileSockets::sendPartialOutput(CmdPetition *inf, char *
     if (!binaryContents && !isValidUtf8(s, size))
     {
         std::cerr << "Attempt to sendPartialOutput of invalid utf8 of size " << size << std::endl;
-        assert(false && "Attempt to sendPartialOutput of invalid utf8");
+        ASSERT_UTF8_BREAK("Attempt to sendPartialOutput of invalid utf8");
         return;
     }
 
@@ -318,7 +318,7 @@ int ComunicationsManagerFileSockets::informStateListener(CmdPetition *inf, const
     if (!isValidUtf8(s))
     {
         LOG_err << "Attempt to write an invalid utf-8 string of size " << s.size();
-        assert(false && "Attempt to write an invalid utf-8 string");
+        ASSERT_UTF8_BREAK("Attempt to write an invalid utf-8 string");
         return 0;
     }
 
