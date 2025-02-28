@@ -49,6 +49,14 @@
 #include <filesystem>
 namespace fs = std::filesystem;
 
+#ifdef MEGACMD_TESTING_CODE
+#define ASSERT_UTF8_VALID(str)
+#define ASSERT_UTF8_BREAK(msg)
+#else
+#define ASSERT_UTF8_VALID(str) assert(isValidUtf8(str))
+#define ASSERT_UTF8_BREAK(msg) assert(false && msg)
+#endif
+
 namespace megacmd {
 
 std::string pathAsUtf8(const fs::path& path);

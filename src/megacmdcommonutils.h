@@ -122,6 +122,9 @@ static std::vector<std::string> allValidCommands { "login", "signup", "confirm",
                              , "fuse-show"
                              , "fuse-config"
 #endif
+#if defined(DEBUG) || defined(MEGACMD_TESTING_CODE)
+                             , "echo"
+#endif
                            };
 
 
