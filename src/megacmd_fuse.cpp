@@ -269,7 +269,7 @@ void printAllMounts(mega::MegaApi& api, ColumnDisplayer& cd, bool onlyEnabled, b
 
     if (mounts->size() == 0)
     {
-        OUTSTREAM << "There are not mounts" << (onlyEnabled ? " enabled" : "") << endl;
+        OUTSTREAM << "There are no mounts" << (onlyEnabled ? " enabled" : "") << endl;
         return;
     }
 
