@@ -15,26 +15,32 @@
 
 #pragma once
 
-#include <string>
-#include <vector>
-#include <map>
-#include <memory>
-
 #include "megaapi.h"
+#include "megacmdcommonutils.h"
 
 namespace FuseCommand
 {
-    using Args = std::vector<std::string>;
-    using Flags = std::map<std::string, int>;
-    using Options = std::map<std::string, std::string>;
+    std::unique_ptr<mega::MegaMount> getMountByIdOrPathOrName(mega::MegaApi& api, const std::string& identifier);
 
-    void addMount(mega::MegaApi& api, std::unique_ptr<mega::MegaNode>&& remoteNode, const Args& arguments, const Flags& flags, const Options& options);
-    void disableMount(mega::MegaApi& api, const Args& args, const Flags& flags, const Options& options);
-    void enableMount(mega::MegaApi& api, const Args& args, const Flags& flags, const Options& options);
-    void removeMount(mega::MegaApi& api, const Args& args, const Flags& flags, const Options& options);
+    void addMount(mega::MegaApi& api, const fs::path& localPath, mega::MegaNode& node, bool disabled, bool transient, bool readOnly, const std::string& name);
+    void removeMount(mega::MegaApi& api, const mega::MegaMount& mount);
 
-    void flags(mega::MegaApi& api, const Args& args, const Flags& flags, const Options& options);
-    void mountFlags(mega::MegaApi& api, const Args& args, const Flags& flags, const Options& options);
+    void enableMount(mega::MegaApi& api, const mega::MegaMount& mount, bool remember);
+    void disableMount(mega::MegaApi& api, const mega::MegaMount& mount, bool remember);
 
-    void showMounts(mega::MegaApi& api, const Args& args, const Flags& flags, const Options& options);
+    void printMount(mega::MegaApi& api, const mega::MegaMount& mount);
+    void printAllMounts(mega::MegaApi& api, megacmd::ColumnDisplayer& cd, bool onlyEnabled, bool disablePathCollapse, int rowCountLimit);
+
+    struct ConfigDelta
+    {
+        std::optional<bool> mEnableAtStartup;
+        std::optional<bool> mPersistent;
+        std::optional<bool> mReadOnly;
+        std::optional<std::string> mName;
+
+        bool isAnyFlagSet() const;
+        bool isPersistentStartupInvalid() const;
+    };
+
+    void changeConfig(mega::MegaApi& api, const mega::MegaMount& mount, const ConfigDelta& delta);
 }

@@ -822,55 +822,33 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validParams->insert("show-handles");
     }
 #ifdef WITH_FUSE
-    // FUSE commands.
     if (thecommand == "fuse-add")
     {
-        validOptValues->emplace("name");
-
+        validParams->emplace("disabled");
         validParams->emplace("transient");
         validParams->emplace("read-only");
-    }
-    else if (thecommand == "fuse-disable")
-    {
-        validOptValues->emplace("by-name");
-        validOptValues->emplace("by-path");
-
-        validParams->emplace("remember");
+        validOptValues->emplace("name");
     }
     else if (thecommand == "fuse-enable")
     {
-        validOptValues->emplace("by-name");
-        validOptValues->emplace("by-path");
-
         validParams->emplace("remember");
     }
-    else if (thecommand == "fuse-flags")
+    else if (thecommand == "fuse-disable")
     {
-        validOptValues->emplace("log-level");
+        validParams->emplace("remember");
     }
     else if (thecommand == "fuse-show")
     {
-        validOptValues->emplace("by-name");
-        validOptValues->emplace("by-path");
         validParams->emplace("only-enabled");
+        validParams->emplace("disable-path-collapse");
+        validOptValues->emplace("limit");
     }
-    else if (thecommand == "fuse-set")
+    else if (thecommand == "fuse-config")
     {
-        validOptValues->emplace("by-name");
-        validOptValues->emplace("by-path");
         validOptValues->emplace("name");
-
-        validParams->emplace("disabled-at-startup");
-        validParams->emplace("enabled-at-startup");
-        validParams->emplace("persistent");
-        validParams->emplace("read-only");
-        validParams->emplace("transient");
-        validParams->emplace("writable");
-    }
-    else if (thecommand == "fuse-remove")
-    {
-        validOptValues->emplace("by-name");
-        validOptValues->emplace("by-path");
+        validOptValues->emplace("enable-at-startup");
+        validOptValues->emplace("persistent");
+        validOptValues->emplace("read-only");
     }
 #endif
 }
@@ -2010,40 +1988,29 @@ const char * getUsageStr(const char *command, const HelpFlags& flags)
     }
 
 #ifdef WITH_FUSE
-    // FUSE commands.
     if (!strcmp(command, "fuse-add"))
     {
-        return "fuse-add [--name=name] [--transient] [--read-only] localPath remotePath";
+        return "fuse-add [--name=name] [--disabled] [--transient] [--read-only] localPath remotePath";
     }
-
-    if (!strcmp(command, "fuse-disable"))
-    {
-        return "fuse-disable (--by-name=name | --by-path=path) [--remember]";
-    }
-
-    if (!strcmp(command, "fuse-enable"))
-    {
-        return "fuse-enable (--by-name=name | --by-path=path) [--remember]";
-    }
-
-    if (!strcmp(command, "fuse-flags"))
-    {
-        return "fuse-flags [--log-level=(DEBUG|ERROR|INFO|WARNING)]";
-    }
-
-    if (!strcmp(command, "fuse-show"))
-    {
-        return "fuse-show [--only-enabled | --by-name=name | --by-path=path]";
-    }
-
-    if (!strcmp(command, "fuse-set"))
-    {
-        return "fuse-set (--by-name=name | --by-path=path) [--disabled-at-startup | --enabled-at-startup] [--name=name] [--persistent | --transient] [--read-only | --writable]";
-    }
-
     if (!strcmp(command, "fuse-remove"))
     {
-        return "fuse-remove (--by-name=name | --by-path=path)";
+        return "fuse-remove (ID|localPath|name)";
+    }
+    if (!strcmp(command, "fuse-enable"))
+    {
+        return "fuse-enable [--remember] (ID|localPath|name)";
+    }
+    if (!strcmp(command, "fuse-disable"))
+    {
+        return "fuse-disable [--remember] (ID|localPath|name)";
+    }
+    if (!strcmp(command, "fuse-show"))
+    {
+        return "fuse-show [--disable-path-collapse] [[--limit=rowcount] [--only-enabled] | [ID|localPath|name]]";
+    }
+    if (!strcmp(command, "fuse-config"))
+    {
+        return "fuse-config [--name=name] [--enable-at-startup=yes|no] [--persistent=yes|no] [--read-only=yes|no] (ID|localPath|name)";
     }
 #endif
 
@@ -3239,7 +3206,7 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << " --by-name=name Specifies which mount by name." << endl;
         os << " --by-path=path Specifies which mount by path." << endl;
     }
-    else if (!strcmp(command, "fuse-set"))
+    else if (!strcmp(command, "fuse-config"))
     {
         os << "Sets the specified FUSE mount configurations." << endl;
         os << endl;
@@ -3262,13 +3229,6 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << " --by-name=name Specifies which mount by name." << endl;
         os << " --by-path=path Specifies which mount by path." << endl;
         os << " --only-enabled Only shows mounts that are enabled." << endl;
-    }
-    else if (!strcmp(command, "fuse-flags"))
-    {
-        os << "Displays or sets FUSE flags." << endl;
-        os << endl;
-        os << "Options:" << endl;
-        os << " --log-level=(DEBUG|ERROR|INFO|WARNING)  Sets log level." << endl;
     }
 #endif
     return os.str();

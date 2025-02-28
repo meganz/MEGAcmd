@@ -75,7 +75,7 @@ static std::vector<std::string> remoteremotepatterncommands {"cp"};
 
 static std::vector<std::string> remotelocalpatterncommands {"get", "thumbnail", "preview"};
 
-static std::vector<std::string> localfolderpatterncommands {"lcd", "sync-ignore"};
+static std::vector<std::string> localfolderpatterncommands {"lcd", "sync-ignore", "fuse-remove", "fuse-enable", "fuse-disable", "fuse-show", "fuse-config"};
 
 static std::vector<std::string> emailpatterncommands {"invite", "signup", "ipc", "users"};
 
@@ -116,12 +116,11 @@ static std::vector<std::string> allValidCommands { "login", "signup", "confirm",
 #ifdef WITH_FUSE
                              // FUSE commands
                              , "fuse-add"
-                             , "fuse-disable"
-                             , "fuse-enable"
-                             , "fuse-flags"
-                             , "fuse-show"
-                             , "fuse-set"
                              , "fuse-remove"
+                             , "fuse-enable"
+                             , "fuse-disable"
+                             , "fuse-show"
+                             , "fuse-config"
 #endif
                            };
 
