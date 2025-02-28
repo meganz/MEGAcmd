@@ -10692,7 +10692,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         const std::string name = getOption(cloptions, "name", "");
         const bool disabled = getFlag(clflags, "disabled");
         const bool transient = getFlag(clflags, "transient");
-        const bool readOnly = getFlag(clflags, "readOnly");
+        const bool readOnly = getFlag(clflags, "read-only");
 
         FuseCommand::addMount(*api, localPath, *node, disabled, transient, readOnly, name);
     }
