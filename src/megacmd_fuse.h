@@ -15,6 +15,8 @@
 
 #pragma once
 
+#ifdef WITH_FUSE
+
 #include "megaapi.h"
 #include "megacmdcommonutils.h"
 
@@ -44,3 +46,5 @@ namespace FuseCommand
 
     void changeConfig(mega::MegaApi& api, const mega::MegaMount& mount, const ConfigDelta& delta);
 }
+
+#endif // WITH_FUSE

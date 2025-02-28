@@ -13,6 +13,8 @@
  * program.
  */
 
+#ifdef WITH_FUSE
+
 #include "megacmd_fuse.h"
 
 #include "listeners.h"
@@ -364,3 +366,5 @@ void changeConfig(mega::MegaApi& api, const mega::MegaMount& mount, const Config
               << "  Read-only:          " << (flags->getReadOnly() ? "YES" : "NO") << "\n";
 }
 }
+
+#endif // WITH_FUSE
