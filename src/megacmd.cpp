@@ -5235,6 +5235,26 @@ void uninstall()
 
 #endif
 
+void setFuseLogLevel(MegaApi& api, const std::string& fuseLogLevelStr)
+{
+    std::unique_ptr<MegaFuseFlags> fuseFlags(api.getFUSEFlags());
+    assert(fuseFlags);
+
+    int fuseLogLevel = fuseFlags->getLogLevel();
+    try
+    {
+        fuseLogLevel = std::stoi(fuseLogLevelStr);
+    }
+    catch (...) {}
+
+    fuseLogLevel = std::clamp(fuseLogLevel, (int) MegaFuseFlags::LOG_LEVEL_ERROR, (int) MegaFuseFlags::LOG_LEVEL_DEBUG);
+
+    fuseFlags->setLogLevel(fuseLogLevel);
+    api.setFUSEFlags(fuseFlags.get());
+
+    LOG_debug << "FUSE log level set to " << fuseLogLevel;
+}
+
 int executeServer(int argc, char* argv[],
                   const std::function<LoggedStream*()>& createLoggedStream,
                   bool logToCout, int sdkLogLevel, int cmdLogLevel,
@@ -5330,6 +5350,11 @@ int executeServer(int argc, char* argv[],
     }
 
     LOG_debug << "Language set to: " << localecode;
+
+    if (const char* fuseLogLevelStr = getenv("MEGACMD_FUSE_LOG_LEVEL"); fuseLogLevelStr)
+    {
+        setFuseLogLevel(*api, fuseLogLevelStr);
+    }
 
     sandboxCMD = new MegaCmdSandbox();
     cmdexecuter = new MegaCmdExecuter(api, loggerCMD, sandboxCMD);
