@@ -10783,7 +10783,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         const bool showAllMounts = (words.size() == 1);
         if (showAllMounts)
         {
-            int rowCountLimit = getintOption(cloptions, "limit", 10);
+            int rowCountLimit = getintOption(cloptions, "limit", 0);
             if (rowCountLimit < 0)
             {
                 setCurrentThreadOutCode(MCMD_EARGS);

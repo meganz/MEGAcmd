@@ -20,7 +20,7 @@ ID|localPath|name   The identifier of the mount we want to show. It can be one o
 Options:
  --only-enabled           Only shows mounts that are enabled.
  --disable-path-collapse  Ensures all paths are fully shown. By default long paths are truncated for readability.
- --limit=rowcount         Limits the amount of rows displayed. Set to 0 to display unlimited rows. Default is 10.
+ --limit=rowcount         Limits the amount of rows displayed. Set to 0 to display unlimited rows. Default is unlimited.
  --col-separator=X	Uses the string "X" as column separator. Otherwise, spaces will be added between columns to align them.
  --output-cols=COLUMN_NAME_1,COLUMN_NAME2,...	Selects which columns to show and their order.
 

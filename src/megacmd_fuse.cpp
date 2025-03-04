@@ -278,7 +278,7 @@ void printAllMounts(mega::MegaApi& api, ColumnDisplayer& cd, bool onlyEnabled, b
     cd.addHeader("LOCAL_PATH", disablePathCollapse);
     cd.addHeader("REMOTE_PATH", disablePathCollapse);
 
-    for (size_t i = 0; i < mounts->size(); ++i)
+    for (size_t i = 0; i < mounts->size() && i < rowCountLimit; ++i)
     {
         assert(mounts->get(i) != nullptr);
         const MegaMount& mount = *mounts->get(i);

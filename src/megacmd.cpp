@@ -3247,7 +3247,7 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << "Options:" << endl;
         os << " --only-enabled           Only shows mounts that are enabled." << endl;
         os << " --disable-path-collapse  Ensures all paths are fully shown. By default long paths are truncated for readability." << endl;
-        os << " --limit=rowcount         Limits the amount of rows displayed. Set to 0 to display unlimited rows. Default is 10." << endl;
+        os << " --limit=rowcount         Limits the amount of rows displayed. Set to 0 to display unlimited rows. Default is unlimited." << endl;
         printColumnDisplayerHelp(os);
         os << endl;
         os << "Note: FUSE commands are only available on Linux." << endl;
