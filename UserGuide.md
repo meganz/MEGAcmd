@@ -228,13 +228,12 @@ Verbosity: You can increase the amount of information given by any command by pa
 * [`webdav`](contrib/docs/commands/webdav.md)`[-d (--all | remotepath ) ] [ remotepath [--port=PORT] [--public] [--tls --certificate=/path/to/certificate.pem --key=/path/to/certificate.key]] [--use-pcre]` Configures a WEBDAV server to serve a location in MEGA
 
 ### FUSE (mount your cloud folder to the local system)
-* [`fuse-add`](contrib/docs/commands/fuse-add.md)`[--name=name] [--transient] [--read-only] localPath remotePath` Adds a new FUSE mount to the database.
-* [`fuse-disable`](contrib/docs/commands/fuse-disable.md)`(--by-name=name | --by-path=path) [--remember]` Disables a specified fuse mount.
-* [`fuse-enable`](contrib/docs/commands/fuse-enable.md)`(--by-name=name | --by-path=path) [--remember]` Enables a specified fuse mount.
-* [`fuse-flags`](contrib/docs/commands/fuse-flags.md)`[--log-level=(DEBUG|ERROR|INFO|WARNING)]` Displays or sets FUSE flags.
-* [`fuse-remove`](contrib/docs/commands/fuse-remove.md)`(--by-name=name | --by-path=path)` Removes a specified FUSE mount from the database.
-* [`fuse-set`](contrib/docs/commands/fuse-set.md)`(--by-name=name | --by-path=path) [--disabled-at-startup | --enabled-at-startup] [--name=name] [--persistent | --transient] [--read-only | --writable]` Sets the specified FUSE mount configurations.
-* [`fuse-show`](contrib/docs/commands/fuse-show.md)`[--only-enabled | --by-name=name | --by-path=path]` Displays the list of FUSE mounts and their information, or a FUSE mount and its information if specified by name or path.
+* [`fuse-add`](contrib/docs/commands/fuse-add.md)`[--name=name] [--disabled] [--transient] [--read-only] localPath remotePath` Adds a new FUSE mount to the database.
+* [`fuse-remove`](contrib/docs/commands/fuse-remove.md)`(ID|localPath|name)` Removes a specified FUSE mount from the database.
+* [`fuse-enable`](contrib/docs/commands/fuse-enable.md)`[--remember] (ID|localPath|name)` Enables a specified FUSE mount.
+* [`fuse-disable`](contrib/docs/commands/fuse-disable.md)`[--remember] (ID|localPath|name)` Disables a specified FUSE mount.
+* [`fuse-show`](contrib/docs/commands/fuse-show.md)`[--only-enabled] [--disable-path-collapse] [[--limit=rowcount] | [ID|localPath|name]]` Displays the list of FUSE mounts and their information. If an ID, local path, or name is provided, displays information of that mount instead.
+* [`fuse-config`](contrib/docs/commands/fuse-config.md)`[--name=name] [--enable-at-startup=yes|no] [--persistent=yes|no] [--read-only=yes|no] (ID|localPath|name)` Modifies the specified FUSE mount configuration.
 
 ### Misc.
 * [`autocomplete`](contrib/docs/commands/autocomplete.md)`[dos | unix]` Modifes how tab completion operates.
