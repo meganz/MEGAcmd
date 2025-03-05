@@ -5145,6 +5145,7 @@ int executeServer(int argc, char* argv[],
         apiFolder->setLanguage(localecode.c_str());
         apiFolders.push(apiFolder);
         apiFolder->setLogLevel(MegaApi::LOG_LEVEL_MAX);
+        apiFolder->setLogJSONContent(logConfig.mJsonLogs);
         semaphoreapiFolders.release();
     }
 
