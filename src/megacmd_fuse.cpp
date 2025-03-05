@@ -48,8 +48,11 @@ std::string getDefaultNodeName(MegaNode& node)
 
 std::string getMountId(MegaApi& api, const MegaMount& mount)
 {
-    std::unique_ptr<char[]> mountId(api.handleToBase64(mount.getHandle()));
-    return mountId.get();
+    const size_t hash = std::hash<std::string>{}(mount.getPath());
+
+    std::string id(11, '\0');
+    id.resize(mega::Base64::btoa(reinterpret_cast<const unsigned char*>(&hash), sizeof(hash), reinterpret_cast<char*>(id.data())));
+    return id;
 }
 
 std::unique_ptr<MegaMount> getMountByPath(MegaApi& api, const std::string& path)
@@ -59,8 +62,6 @@ std::unique_ptr<MegaMount> getMountByPath(MegaApi& api, const std::string& path)
 
 std::unique_ptr<MegaMount> getMountById(MegaApi& api, const std::string& id)
 {
-    const MegaHandle handle = api.base64ToHandle(id.c_str());
-
     std::unique_ptr<MegaMountList> mounts(api.listMounts(false));
     if (mounts == nullptr)
     {
@@ -72,7 +73,7 @@ std::unique_ptr<MegaMount> getMountById(MegaApi& api, const std::string& id)
         const MegaMount* mount = mounts->get(i);
         assert(mount != nullptr);
 
-        if (mount->getHandle() == handle)
+        if (getMountId(api, *mount) == id)
         {
             return std::unique_ptr<MegaMount>(mount->copy());
         }
@@ -240,15 +241,13 @@ void disableMount(mega::MegaApi& api, const mega::MegaMount& mount, bool remembe
 void printMount(mega::MegaApi& api, const mega::MegaMount& mount)
 {
     const MegaHandle handle = mount.getHandle();
-
-    std::unique_ptr<char[]> mountId(api.handleToBase64(handle));
     std::unique_ptr<char[]> remotePath(api.getNodePathByNodeHandle(handle));
 
     const MegaMountFlags* flags = mount.getFlags();
     assert(flags != nullptr);
 
     std::ostringstream oss;
-    oss << "Showing details of mount " << mountId.get() << "\n"
+    oss << "Showing details of mount " << getMountId(api, mount) << "\n"
         << "  Local path:         " << mount.getPath() << "\n"
         << "  Remote path:        " << (remotePath ? remotePath.get() : "<not found>") << "\n"
         << "  Name:               " << flags->getName() << "\n"
@@ -284,13 +283,12 @@ void printAllMounts(mega::MegaApi& api, ColumnDisplayer& cd, bool onlyEnabled, b
         const MegaMount& mount = *mounts->get(i);
 
         const MegaHandle handle = mount.getHandle();
-        std::unique_ptr<char[]> mountId(api.handleToBase64(handle));
         std::unique_ptr<char[]> remotePath(api.getNodePathByNodeHandle(handle));
 
         const MegaMountFlags* flags = mount.getFlags();
         assert(flags != nullptr);
 
-        cd.addValue("MOUNT_ID", mountId.get());
+        cd.addValue("MOUNT_ID", getMountId(api, mount));
         cd.addValue("LOCAL_PATH", mount.getPath());
         cd.addValue("REMOTE_PATH", remotePath ? remotePath.get() : "<not found>");
         cd.addValue("NAME", flags->getName());

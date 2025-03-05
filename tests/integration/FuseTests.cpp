@@ -42,6 +42,7 @@ class FuseTests : public NOINTERACTIVELoggedInTest
         removeAllMounts();
     }
 
+protected:
     void removeAllMounts()
     {
         auto result = executeInClient({"fuse-show"});
@@ -50,7 +51,7 @@ class FuseTests : public NOINTERACTIVELoggedInTest
         auto lines = splitByNewline(result.out());
         for (size_t i = 1; i < lines.size(); ++i)
         {
-            if (lines[i].empty() || megacmd::startsWith(lines[i], "Use fuse-show"))
+            if (lines[i].empty() || megacmd::startsWith(lines[i], "Use " /* skip detail usage line */))
             {
                 continue;
             }
@@ -58,7 +59,7 @@ class FuseTests : public NOINTERACTIVELoggedInTest
             auto words = megacmd::split(lines[i], " ");
             ASSERT_TRUE(!words.empty());
 
-            if (megacmd::stringToTimestamp(words[0].substr(1))) // discard log lines
+            if (megacmd::stringToTimestamp(words[0].substr(1))) // skip log lines
             {
                 continue;
             }
@@ -66,14 +67,13 @@ class FuseTests : public NOINTERACTIVELoggedInTest
             const std::string mountId = words[0];
 
             auto result = executeInClient({"fuse-disable", mountId});
-            ASSERT_TRUE(result.ok());
+            ASSERT_TRUE(result.ok()) << "Could not disable mount " << mountId;
 
             result = executeInClient({"fuse-remove", mountId});
-            ASSERT_TRUE(result.ok());
+            ASSERT_TRUE(result.ok()) << "Could not remove mount " << mountId;
         }
     }
 
-protected:
     std::string mountDirLocal() const
     {
         return mTmpDir.string() + "/tests_integration_mount_dir";
@@ -143,6 +143,36 @@ TEST_F(FuseTests, AddMountEnabled)
     ASSERT_TRUE(result.ok());
     EXPECT_THAT(result.out(), testing::HasSubstr("Removed mount"));
     EXPECT_THAT(result.out(), testing::HasSubstr("on " + qw(mountDirLocal())));
+}
+
+TEST_F(FuseTests, EnsureUniqueId)
+{
+    const std::string dir1 = mountDirLocal() + "/dir1";
+    const std::string dir2 = mountDirLocal() + "/dir2";
+    fs::create_directory(dir1);
+    fs::create_directory(dir2);
+
+    auto result = executeInClient({"fuse-add", dir1, mountDirCloud(), "--name=name1"});
+    ASSERT_TRUE(result.ok());
+    EXPECT_THAT(result.out(), testing::HasSubstr("Added a new mount from " + qw(dir1) + " to " + qw(mountDirCloud())));
+    EXPECT_THAT(result.out(), testing::HasSubstr("Enabled mount"));
+
+    result = executeInClient({"fuse-add", dir2, mountDirCloud(), "--name=name2"});
+    ASSERT_TRUE(result.ok());
+    EXPECT_THAT(result.out(), testing::HasSubstr("Added a new mount from " + qw(dir2) + " to " + qw(mountDirCloud())));
+    EXPECT_THAT(result.out(), testing::HasSubstr("Enabled mount"));
+
+    result = executeInClient({"fuse-show"});
+    ASSERT_TRUE(result.ok());
+
+    auto lines = splitByNewline(result.out());
+    ASSERT_EQ(lines.size(), 5); // Column names + 2 mounts + newline + detail usage
+
+    const std::string firstMountId = megacmd::split(lines[1], " ")[0];
+    const std::string secondMountId = megacmd::split(lines[2], " ")[0];
+    EXPECT_NE(firstMountId, secondMountId);
+
+    removeAllMounts();
 }
 
 #endif // WITH_FUSE
