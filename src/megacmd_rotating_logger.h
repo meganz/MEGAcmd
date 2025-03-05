@@ -36,7 +36,8 @@ public:
     // These are:
     //      reservedSize: initial size of the front and back buffers
     //      shouldSwapSize: suggested size at which we can attempt to swap the buffers
-    //      failSafeSize: fail safe size at which we must flush the message bus
+    //      failSafeSize: fail safe size at which we should flush the message bus
+    //                    after flushing, the underlying buffers are shrunk to fit the fail safe size
     MessageBus(size_t reservedSize, size_t shouldSwapSize, size_t failSafeSize);
 
     void append(const char* data, size_t size);
@@ -47,6 +48,8 @@ public:
     bool reachedFailSafeSize() const;
 
 private:
+    void clearFrontBuffer();
+
     const size_t mShouldSwapSize;
     const size_t mFailSafeSize;
 

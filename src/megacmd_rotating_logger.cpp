@@ -215,7 +215,7 @@ std::pair<bool, const MessageBus::MemoryBuffer&> MessageBus::swapBuffers()
     std::lock_guard lock(mListMtx);
 
     bool memoryError = false;
-    mFrontBuffer.clear();
+    clearFrontBuffer();
 
     std::swap(memoryError, mMemoryError);
     std::swap(mFrontBuffer, mBackBuffer);
@@ -239,6 +239,19 @@ bool MessageBus::reachedFailSafeSize() const
 {
     std::lock_guard lock(mListMtx);
     return mBackBuffer.size() >= mFailSafeSize;
+}
+
+void MessageBus::clearFrontBuffer()
+{
+    if (mFrontBuffer.capacity() > mFailSafeSize)
+    {
+        mFrontBuffer.erase(mFrontBuffer.begin() + mFailSafeSize, mFrontBuffer.end());
+        mFrontBuffer.shrink_to_fit();
+
+        assert(mFrontBuffer.capacity() == mFailSafeSize);
+    }
+
+    mFrontBuffer.clear();
 }
 
 RotatingFileManager::Config::Config() :
