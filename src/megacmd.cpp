@@ -821,6 +821,12 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     {
         validParams->insert("show-handles");
     }
+#if defined(DEBUG) || defined(MEGACMD_TESTING_CODE)
+    else if ("echo" == thecommand)
+    {
+        validParams->insert("log-as-err");
+    }
+#endif
 }
 
 void escapeEspace(string &orig)
@@ -1048,7 +1054,7 @@ char * flags_value_completion(const char*text, int state)
                     end = string::npos;
                 }
 
-                validValues = cmdexecuter->listlocalpathsstartingby(stext.substr(begin));
+                validValues = cmdexecuter->listLocalPathsStartingBy(stext.substr(begin), false);
                 string prefix = strncmp(text, cflag, strlen(cflag))?"":cflag;
                 for (unsigned int i=0;i<validValues.size();i++)
                 {
@@ -1137,7 +1143,7 @@ char* localfolders_completion(const char* text, int state)
     {
         string what(text);
         unescapeEspace(what);
-        validpaths = cmdexecuter->listlocalpathsstartingby(what.c_str(), true);
+        validpaths = cmdexecuter->listLocalPathsStartingBy(what, true);
     }
     return generic_completion(text, state, validpaths);
 }
@@ -4981,6 +4987,9 @@ void reset()
 
 void sendEvent(StatsManager::MegacmdEvent event, const char *msg, ::mega::MegaApi *megaApi, bool wait)
 {
+#if defined(DEBUG) || defined(MEGACMD_TESTING_CODE)
+    LOG_debug << "Skipped MEGAcmd event " << eventName(event) << " - " << msg;
+#else
     std::unique_ptr<MegaCmdListener> megaCmdListener (wait ? new MegaCmdListener(megaApi) : nullptr);
     megaApi->sendEvent(static_cast<int>(event), msg, false /*JourneyId*/, nullptr /*viewId*/, megaCmdListener.get());
     if (wait)
@@ -4993,6 +5002,7 @@ void sendEvent(StatsManager::MegacmdEvent event, const char *msg, ::mega::MegaAp
                     << msg << ", error: " << megaCmdListener->getError()->getErrorString();
         }
     }
+#endif
 }
 
 void sendEvent(StatsManager::MegacmdEvent event, ::mega::MegaApi *megaApi, bool wait)

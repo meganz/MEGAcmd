@@ -113,6 +113,9 @@ static std::vector<std::string> allValidCommands { "login", "signup", "confirm",
 #if defined(_WIN32) || defined(__APPLE__)
                              , "update"
 #endif
+#if defined(DEBUG) || defined(MEGACMD_TESTING_CODE)
+                             , "echo"
+#endif
                            };
 
 

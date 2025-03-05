@@ -281,7 +281,7 @@ void MegaCmdSimpleLogger::log(const char * /*time*/, int logLevel, const char *s
     {
         constexpr const char* invalid = "<invalid utf8>";
         message = invalid;
-        assert(false && "Attempt to log invalid utf8 string");
+        ASSERT_UTF8_BREAK("Attempt to log invalid utf8 string");
     }
 
     if (shouldIgnoreMessage(logLevel, source, message))

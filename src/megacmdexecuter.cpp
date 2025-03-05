@@ -3896,7 +3896,7 @@ bool replaceW(std::wstring& str, const std::wstring& from, const std::wstring& t
 }
 #endif
 
-vector<string> MegaCmdExecuter::listlocalpathsstartingby(string askedPath, bool discardFiles)
+vector<string> MegaCmdExecuter::listLocalPathsStartingBy(string askedPath, bool discardFiles)
 {
     vector<string> paths;
 
@@ -3927,39 +3927,55 @@ vector<string> MegaCmdExecuter::listlocalpathsstartingby(string askedPath, bool 
     }
 #endif
 
-    for (fs::directory_iterator iter(fs::u8path(containingfolder)); iter != fs::directory_iterator(); ++iter)
+    std::error_code ec;
+    fs::directory_iterator dirIt(fs::u8path(containingfolder), ec);
+    if (ec)
     {
-        if (!discardFiles || iter->status().type() == fs::file_type::directory)
-        {
-#ifdef _WIN32
-            wstring path = iter->path().wstring();
-#else
-            string path = iter->path().string();
-#endif
-            if (removeprefix) path = path.substr(2);
-            if (requiresseparatorafterunit) path.insert(2, 1, sep);
-            if (iter->status().type() == fs::file_type::directory)
-            {
-                path.append(1, sep);
-            }
-#ifdef _WIN32
-                // try to mimic the exact startup of the asked path to allow mix of '\' & '/'
-                fs::path paskedpath = fs::u8path(askedPath);
-                paskedpath.make_preferred();
-                wstring toreplace = paskedpath.wstring();
-                if (path.find(toreplace) == 0)
-                {
-                    replaceW(path, toreplace, toUtf16String(askedPath));
-                }
-#endif
-#ifdef _WIN32
-            paths.push_back(toUtf8String(path));
-#else
-            paths.push_back(path);
-#endif
-
-        }
+        // We need to check the error directly because the iterator
+        // might not be end() in certain underlying OS errors
+        return paths;
     }
+
+    for (const auto& dirEntry : dirIt)
+    {
+        if (discardFiles && !dirEntry.is_directory(ec))
+        {
+            continue;
+        }
+
+#ifdef _WIN32
+        wstring path = dirEntry.path().wstring();
+#else
+        string path = dirEntry.path().string();
+#endif
+        if (removeprefix)
+        {
+            path = path.substr(2);
+        }
+        if (requiresseparatorafterunit)
+        {
+            path.insert(2, 1, sep);
+        }
+        if (dirEntry.is_directory(ec))
+        {
+            path.append(1, sep);
+        }
+
+#ifdef _WIN32
+        // try to mimic the exact startup of the asked path to allow mix of '\' & '/'
+        fs::path paskedpath = fs::u8path(askedPath);
+        paskedpath.make_preferred();
+        wstring toreplace = paskedpath.wstring();
+        if (path.find(toreplace) == 0)
+        {
+            replaceW(path, toreplace, toUtf16String(askedPath));
+        }
+        paths.push_back(toUtf8String(path));
+#else
+        paths.push_back(path);
+#endif
+    }
+
     return paths;
 }
 
@@ -10706,6 +10722,34 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             SyncIssuesCommand::printAllIssues(*api, cd, syncIssues, disablePathCollapse, rowCountLimit);
         }
     }
+#if defined(DEBUG) || defined(MEGACMD_TESTING_CODE)
+    else if (words[0] == "echo")
+    {
+        if (words.size() < 2 || words[1].empty())
+        {
+            setCurrentThreadOutCode(MCMD_EARGS);
+            LOG_err << "Missing message to echo";
+            return;
+        }
+
+        std::string str = words[1];
+#ifdef _WIN32
+        if (str == "<win-invalid-utf8>")
+        {
+            str = "\xf0\x8f\xbf\xbf";
+        }
+#endif
+
+        if (getFlag(clflags, "log-as-err"))
+        {
+            LOG_err << str;
+        }
+        else
+        {
+            OUTSTREAM << str << endl;
+        }
+    }
+#endif
     else
     {
         setCurrentThreadOutCode(MCMD_EARGS);
