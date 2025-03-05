@@ -56,4 +56,4 @@ If you want other startup level of logging, you can use the following:
 In general, as we've mentioned before, lower verbosity log messages are not printed directly to the console. Only errors are. You can pass `-v`, `-vv`, and `-vvv` when running a command to ensure warning, debug, and verbose messages are printed (respectively). Note that this is only for the console; log level of `megacmdserver.log` will follow the rules explained above.
 
 ## JSON logs
-When the log level of the SDK is `VERBOSE`, its commands are outputted as JSON. This takes up a bit more space but provides more valuable info. JSON logs can be overwritten independently by setting the environment variable `MEGACMD_JSON_LOGS` to `0` or `1`.
+When the log level of the SDK is `VERBOSE`, the entire JSON payload of the HTTP requests sent and received from the API will be logged. This takes up a bit more space but provides more valuable info. Full JSON logging can be overwritten independently by setting the environment variable `MEGACMD_JSON_LOGS` to `0` or `1`.
