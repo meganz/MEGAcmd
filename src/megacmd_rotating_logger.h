@@ -36,7 +36,7 @@ public:
     MessageBus(size_t reservedSize, size_t shouldSwapSize, size_t failSafeSize);
 
     void append(const char* data, size_t size);
-    const MemoryBuffer& swapBuffers(bool& memoryError);
+    std::pair<bool /* memoryError */, const MemoryBuffer&> swapBuffers();
 
     bool isEmpty() const;
     bool shouldSwapBuffers() const;

@@ -193,15 +193,17 @@ void MessageBus::append(const char* data, size_t size)
     }
 }
 
-const MessageBus::MemoryBuffer& MessageBus::swapBuffers(bool& memoryError)
+std::pair<bool, const MessageBus::MemoryBuffer&> MessageBus::swapBuffers()
 {
     std::lock_guard lock(mListMtx);
-    memoryError = mMemoryError;
-    mMemoryError = false;
 
+    bool memoryError = false;
+    mFrontBuffer.clear();
+
+    std::swap(memoryError, mMemoryError);
     std::swap(mFrontBuffer, mBackBuffer);
-    mBackBuffer.clear();
-    return mFrontBuffer;
+
+    return {memoryError, mFrontBuffer};
 }
 
 bool MessageBus::isEmpty() const
@@ -346,8 +348,7 @@ void FileRotatingLoggedStream::writeToBuffer(const char* msg, size_t size) const
 
 void FileRotatingLoggedStream::writeMessagesToFile()
 {
-    bool memoryError = false;
-    const auto& memoryBuffer = mMessageBus.swapBuffers(memoryError);
+    const auto& [memoryError, memoryBuffer] = mMessageBus.swapBuffers();
 
     if (memoryError)
     {
