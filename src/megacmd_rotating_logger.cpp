@@ -22,6 +22,23 @@
 #include <zlib.h>
 
 namespace {
+constexpr uint64_t operator"" _KB(unsigned long long kilobytes)
+{
+    return kilobytes * 1024ull;
+}
+constexpr uint64_t operator"" _MB(unsigned long long megabytes)
+{
+    return megabytes * 1024ull * 1024ull;
+}
+constexpr uint64_t operator"" _GB(unsigned long long gigabytes)
+{
+    return gigabytes * 1024ull * 1024ull * 1024ull;
+}
+constexpr uint64_t operator"" _TB(unsigned long long terabytes)
+{
+    return terabytes * 1024ull * 1024ull * 1024ull * 1024ull;
+}
+
 class ReopenScope final
 {
     std::ofstream& mOutFile;
@@ -225,7 +242,7 @@ bool MessageBus::reachedFailSafeSize() const
 }
 
 RotatingFileManager::Config::Config() :
-    mMaxBaseFileSize(50 * 1024 * 1024), // 50 MB
+    mMaxBaseFileSize(50_MB),
     mRotationType(RotationType::Timestamp),
     mMaxFileAge(30 * 86400), // one month (in C++20 we can use `std::chrono::month(1)`)
     mMaxFilesToKeep(50),
@@ -490,11 +507,7 @@ void FileRotatingLoggedStream::mainLoop()
 }
 
 FileRotatingLoggedStream::FileRotatingLoggedStream(const OUTSTRING& outputFilePath) :
-    mMessageBus(
-        4 * 1024 * 1024,  // 4MB; initial size of front and back buffers
-        1024,             // 1KB; suggested size at which we can attempt to swap the buffers
-        500 * 1024 * 1024 // 500MB; fail safe size at which we must flush the message bus
-    ),
+    mMessageBus(4_MB /* reservedSize */, 1_KB /* shouldSwapSize */, 500_MB /* failSafeSize */),
     mOutputFilePath(outputFilePath),
     mOutputFile(outputFilePath, std::ofstream::out | std::ofstream::app),
     mFileManager(mOutputFilePath),
