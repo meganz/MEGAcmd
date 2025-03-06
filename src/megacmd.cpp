@@ -3156,9 +3156,12 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
     }
     else if ((flags.fuse || flags.showAll) && !strcmp(command, "fuse-add"))
     {
-        os << "Adds a new FUSE mount to the database." << endl;
+        os << "Creates a new FUSE mount." << endl;
         os << endl;
-        os << "Mounts are automatically enabled after being added to the database. Mounts are persistent and writable by default." << endl;
+        os << "Mounts are automatically enabled after being added, making the chosen MEGA folder accessible within the local filesystem." << endl;
+        os << "When a mount is disabled, its configuration will be saved, but the cloud folder will not be mounted locally (see fuse-disable)." << endl;
+        os << "Mounts are persisted after restarts and writable by default. You may change these and other options of a FUSE mount with fuse-config." << endl;
+        os << "Use fuse-show to display the list of mounts." << endl;
         os << endl;
         os << "Parameters:" << endl;
         os << " localPath    Specifies where the files contained by remotePath should be visible on the local filesystem." << endl;
@@ -3179,13 +3182,13 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
     }
     else if ((flags.fuse || flags.showAll) && !strcmp(command, "fuse-remove"))
     {
-        os << "Removes a specified FUSE mount from the database." << endl;
+        os << "Deletes a specified FUSE mount." << endl;
         os << endl;
         os << "A mount must be disabled before it can be removed. See fuse-disable." << endl;
         os << endl;
         os << "Parameters:" << endl;
         os <<  "ID|localPath|name   The identifier of the mount we want to remove. It can be one of the following:" << endl;
-        os <<  "                         ID: A unique alphanumeric string that identifies the mount." << endl;
+        os <<  "                         ID: The unique alphanumeric string that identifies the mount." << endl;
         os <<  "                         Local path: The local mount point in the filesystem." << endl;
         os <<  "                         Name: the user-friendly name of the mount, specified when it was added or by fuse-config." << endl;
         os << endl;
@@ -3199,7 +3202,7 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << endl;
         os << "Parameters:" << endl;
         os <<  "ID|localPath|name   The identifier of the mount we want to enable. It can be one of the following:" << endl;
-        os <<  "                         ID: A unique alphanumeric string that identifies the mount." << endl;
+        os <<  "                         ID: The unique alphanumeric string that identifies the mount." << endl;
         os <<  "                         Local path: The local mount point in the filesystem." << endl;
         os <<  "                         Name: the user-friendly name of the mount, set when it was added or by fuse-config." << endl;
         os << endl;
@@ -3213,11 +3216,11 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
     {
         os << "Disables a specified FUSE mount." << endl;
         os << endl;
-        os << "After a mount has been disabled, its cloud entities will no longer be accessible via the mount's local path." << endl;
+        os << "After a mount has been disabled, its cloud entities will no longer be accessible via the mount's local path. You may enable it again via fuse-enable." << endl;
         os << endl;
         os << "Parameters:" << endl;
         os <<  "ID|localPath|name   The identifier of the mount we want to disable. It can be one of the following:" << endl;
-        os <<  "                         ID: A unique alphanumeric string that identifies the mount." << endl;
+        os <<  "                         ID: The unique alphanumeric string that identifies the mount." << endl;
         os <<  "                         Local path: The local mount point in the filesystem." << endl;
         os <<  "                         Name: the user-friendly name of the mount, set when it was added or by fuse-config." << endl;
         os << "Options:" << endl;
@@ -3231,7 +3234,7 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << "Displays the list of FUSE mounts and their information. If an ID, local path, or name is provided, displays information of that mount instead." << endl;
         os << endl;
         os << "When all mounts are shown, the following columns are displayed:" << endl;
-        os << "   MOUNT_ID: A unique alphanumeric string that identifies the mount." << endl;
+        os << "   MOUNT_ID: The unique alphanumeric string that identifies the mount." << endl;
         os << "   LOCAL_PATH: The local mount point in the filesystem." << endl;
         os << "   REMOTE_PATH: The cloud directory or share that is exposed locally." << endl;
         os << "   NAME: The user-friendly name of the mount, specified when it was added or by fuse-config." << endl;
@@ -3239,7 +3242,7 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << endl;
         os << "Parameters:" << endl;
         os <<  "ID|localPath|name   The identifier of the mount we want to show. It can be one of the following:" << endl;
-        os <<  "                         ID: A unique alphanumeric string that identifies the mount." << endl;
+        os <<  "                         ID: The unique alphanumeric string that identifies the mount." << endl;
         os <<  "                         Local path: The local mount point in the filesystem." << endl;
         os <<  "                         Name: the user-friendly name of the mount, set when it was added or by fuse-config." << endl;
         os <<  "                    If not provided, the list of mounts will be shown instead." << endl;
@@ -3258,7 +3261,7 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << endl;
         os << "Parameters:" << endl;
         os <<  "ID|localPath|name   The identifier of the mount we want to configure. It can be one of the following:" << endl;
-        os <<  "                         ID: A unique alphanumeric string that identifies the mount." << endl;
+        os <<  "                         ID: The unique alphanumeric string that identifies the mount." << endl;
         os <<  "                         Local path: The local mount point in the filesystem." << endl;
         os <<  "                         Name: the user-friendly name of the mount, set when it was added or by fuse-config." << endl;
         os << endl;

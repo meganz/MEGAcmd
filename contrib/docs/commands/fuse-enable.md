@@ -7,7 +7,7 @@ After a mount has been enabled, its cloud entities will be accessible via the mo
 
 Parameters:
 ID|localPath|name   The identifier of the mount we want to enable. It can be one of the following:
-                         ID: A unique alphanumeric string that identifies the mount.
+                         ID: The unique alphanumeric string that identifies the mount.
                          Local path: The local mount point in the filesystem.
                          Name: the user-friendly name of the mount, set when it was added or by fuse-config.
 

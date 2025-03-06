@@ -3,11 +3,11 @@ Disables a specified FUSE mount.
 
 Usage: `fuse-disable [--temporarily] (ID|localPath|name)`
 <pre>
-After a mount has been disabled, its cloud entities will no longer be accessible via the mount's local path.
+After a mount has been disabled, its cloud entities will no longer be accessible via the mount's local path. You may enable it again via fuse-enable.
 
 Parameters:
 ID|localPath|name   The identifier of the mount we want to disable. It can be one of the following:
-                         ID: A unique alphanumeric string that identifies the mount.
+                         ID: The unique alphanumeric string that identifies the mount.
                          Local path: The local mount point in the filesystem.
                          Name: the user-friendly name of the mount, set when it was added or by fuse-config.
 Options:

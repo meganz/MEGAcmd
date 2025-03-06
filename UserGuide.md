@@ -228,8 +228,8 @@ Verbosity: You can increase the amount of information given by any command by pa
 * [`webdav`](contrib/docs/commands/webdav.md)`[-d (--all | remotepath ) ] [ remotepath [--port=PORT] [--public] [--tls --certificate=/path/to/certificate.pem --key=/path/to/certificate.key]] [--use-pcre]` Configures a WEBDAV server to serve a location in MEGA
 
 ### FUSE (mount your cloud folder to the local system)
-* [`fuse-add`](contrib/docs/commands/fuse-add.md)`[--name=name] [--disabled] [--transient] [--read-only] localPath remotePath` Adds a new FUSE mount to the database.
-* [`fuse-remove`](contrib/docs/commands/fuse-remove.md)`(ID|localPath|name)` Removes a specified FUSE mount from the database.
+* [`fuse-add`](contrib/docs/commands/fuse-add.md)`[--name=name] [--disabled] [--transient] [--read-only] localPath remotePath` Creates a new FUSE mount.
+* [`fuse-remove`](contrib/docs/commands/fuse-remove.md)`(ID|localPath|name)` Deletes a specified FUSE mount.
 * [`fuse-enable`](contrib/docs/commands/fuse-enable.md)`[--temporarily] (ID|localPath|name)` Enables a specified FUSE mount.
 * [`fuse-disable`](contrib/docs/commands/fuse-disable.md)`[--temporarily] (ID|localPath|name)` Disables a specified FUSE mount.
 * [`fuse-show`](contrib/docs/commands/fuse-show.md)`[--only-enabled] [--disable-path-collapse] [[--limit=rowcount] | [ID|localPath|name]]` Displays the list of FUSE mounts and their information. If an ID, local path, or name is provided, displays information of that mount instead.

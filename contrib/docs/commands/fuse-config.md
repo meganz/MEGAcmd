@@ -5,7 +5,7 @@ Usage: `fuse-config [--name=name] [--enable-at-startup=yes|no] [--persistent=yes
 <pre>
 Parameters:
 ID|localPath|name   The identifier of the mount we want to configure. It can be one of the following:
-                         ID: A unique alphanumeric string that identifies the mount.
+                         ID: The unique alphanumeric string that identifies the mount.
                          Local path: The local mount point in the filesystem.
                          Name: the user-friendly name of the mount, set when it was added or by fuse-config.
 

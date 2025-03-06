@@ -1,9 +1,12 @@
 ### fuse-add
-Adds a new FUSE mount to the database.
+Creates a new FUSE mount.
 
 Usage: `fuse-add [--name=name] [--disabled] [--transient] [--read-only] localPath remotePath`
 <pre>
-Mounts are automatically enabled after being added to the database. Mounts are persistent and writable by default.
+Mounts are automatically enabled after being added, making the chosen MEGA folder accessible within the local filesystem.
+When a mount is disabled, its configuration will be saved, but the cloud folder will not be mounted locally (see fuse-disable).
+Mounts are persisted after restarts and writable by default. You may change these and other options of a FUSE mount with fuse-config.
+Use fuse-show to display the list of mounts.
 
 Parameters:
  localPath    Specifies where the files contained by remotePath should be visible on the local filesystem.
