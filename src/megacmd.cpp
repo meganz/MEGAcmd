@@ -3238,6 +3238,7 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << "   LOCAL_PATH: The local mount point in the filesystem." << endl;
         os << "   REMOTE_PATH: The cloud directory or share that is exposed locally." << endl;
         os << "   NAME: The user-friendly name of the mount, specified when it was added or by fuse-config." << endl;
+        os << "   PERSISTENT: If the mount is saved across restarts, \"YES\". Otherwise, \"NO\"." << endl;
         os << "   ENABLED: If the mount is currently enabled, \"YES\". Otherwise, \"NO\"." << endl;
         os << endl;
         os << "Parameters:" << endl;

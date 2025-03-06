@@ -270,9 +270,9 @@ void printMount(mega::MegaApi& api, const mega::MegaMount& mount)
         << "  Local path:         " << mount.getPath() << "\n"
         << "  Remote path:        " << (remotePath ? remotePath.get() : "<not found>") << "\n"
         << "  Name:               " << flags->getName() << "\n"
+        << "  Persistent:         " << (flags->getPersistent() ? "YES" : "NO") << "\n"
         << "  Enabled:            " << (api.isMountEnabled(mount.getPath()) ? "YES" : "NO") << "\n"
         << "  Enable at startup:  " <<  (flags->getEnableAtStartup() ? "YES" : "NO") << "\n"
-        << "  Persistent:         " << (flags->getPersistent() ? "YES" : "NO") << "\n"
         << "  Read-only:          " << (flags->getReadOnly() ? "YES" : "NO") << "\n";
 
     OUTSTREAM << oss.str();
@@ -311,6 +311,7 @@ void printAllMounts(mega::MegaApi& api, ColumnDisplayer& cd, bool onlyEnabled, b
         cd.addValue("LOCAL_PATH", mount.getPath());
         cd.addValue("REMOTE_PATH", remotePath ? remotePath.get() : "<not found>");
         cd.addValue("NAME", flags->getName());
+        cd.addValue("PERSISTENT", flags->getPersistent() ? "YES" : "NO");
         cd.addValue("ENABLED", api.isMountEnabled(mount.getPath()) ? "YES" : "NO");
     }
 

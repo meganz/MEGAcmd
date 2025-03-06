@@ -8,6 +8,7 @@ When all mounts are shown, the following columns are displayed:
    LOCAL_PATH: The local mount point in the filesystem.
    REMOTE_PATH: The cloud directory or share that is exposed locally.
    NAME: The user-friendly name of the mount, specified when it was added or by fuse-config.
+   PERSISTENT: If the mount is saved across restarts, "YES". Otherwise, "NO".
    ENABLED: If the mount is currently enabled, "YES". Otherwise, "NO".
 
 Parameters:
