@@ -831,11 +831,11 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     }
     else if (thecommand == "fuse-enable")
     {
-        validParams->emplace("remember");
+        validParams->emplace("temporarily");
     }
     else if (thecommand == "fuse-disable")
     {
-        validParams->emplace("remember");
+        validParams->emplace("temporarily");
     }
     else if (thecommand == "fuse-show")
     {
@@ -2002,11 +2002,11 @@ const char * getUsageStr(const char *command, const HelpFlags& flags)
     }
     if ((flags.fuse || flags.showAll) && !strcmp(command, "fuse-enable"))
     {
-        return "fuse-enable [--remember] (ID|localPath|name)";
+        return "fuse-enable [--temporarily] (ID|localPath|name)";
     }
     if ((flags.fuse || flags.showAll) && !strcmp(command, "fuse-disable"))
     {
-        return "fuse-disable [--remember] (ID|localPath|name)";
+        return "fuse-disable [--temporarily] (ID|localPath|name)";
     }
     if ((flags.fuse || flags.showAll) && !strcmp(command, "fuse-show"))
     {
@@ -3204,8 +3204,8 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os <<  "                         Name: the user-friendly name of the mount, set when it was added or by fuse-config." << endl;
         os << endl;
         os << "Options:" << endl;
-        os << " --remember   Specifies whether to remember that this mount is enabled. Note that if this option is specified" << endl;
-        os << "              on a transient mount, that mount will become persistent." << endl;
+        os << " --temporarily   Specifies whether the mount should be enabled only until the server is restarted." << endl;
+        os << "                 Has no effect on transient mounts, since any action on them is always temporary." << endl;
         os << endl;
         os << "Note: FUSE commands are only available on Linux." << endl;
     }
@@ -3221,8 +3221,8 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os <<  "                         Local path: The local mount point in the filesystem." << endl;
         os <<  "                         Name: the user-friendly name of the mount, set when it was added or by fuse-config." << endl;
         os << "Options:" << endl;
-        os << " --remember   Specifies whether to remember that this mount is disabled. Note that if this option is specified" << endl;
-        os << "              on a transient mount, that mount will become persistent." << endl;
+        os << " --temporarily   Specifies whether the mount should be disabled only until the server is restarted." << endl;
+        os << "                 Has no effect on transient mounts, since any action on them is always temporary." << endl;
         os << endl;
         os << "Note: FUSE commands are only available on Linux." << endl;
     }

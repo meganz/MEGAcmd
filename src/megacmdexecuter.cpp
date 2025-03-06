@@ -10748,8 +10748,8 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             return;
         }
 
-        const bool remember = getFlag(clflags, "remember");
-        FuseCommand::enableMount(*api, *mount, remember);
+        const bool temporarily = getFlag(clflags, "temporarily");
+        FuseCommand::enableMount(*api, *mount, temporarily);
     }
     else if (words[0] == "fuse-disable")
     {
@@ -10768,8 +10768,8 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             return;
         }
 
-        const bool remember = getFlag(clflags, "remember");
-        FuseCommand::disableMount(*api, *mount, remember);
+        const bool temporarily = getFlag(clflags, "temporarily");
+        FuseCommand::disableMount(*api, *mount, temporarily);
     }
     else if (words[0] == "fuse-show")
     {

@@ -55,6 +55,19 @@ std::string getMountId(MegaApi& api, const MegaMount& mount)
     return id;
 }
 
+bool shouldRememberChange(const MegaMount& mount, bool temporarily)
+{
+    MegaMountFlags* mountFlags = mount.getFlags();
+    assert(mountFlags != nullptr);
+
+    if (!mountFlags->getPersistent())
+    {
+        return false;
+    }
+
+    return !temporarily;
+}
+
 std::unique_ptr<MegaMount> getMountByPath(MegaApi& api, const std::string& path)
 {
     return std::unique_ptr<MegaMount>(api.getMountInfo(path.c_str()));
@@ -177,7 +190,7 @@ void addMount(mega::MegaApi& api, const fs::path& localPath, MegaNode& node, boo
 
     if (!disabled)
     {
-        enableMount(api, *mount, !transient);
+        enableMount(api, *mount, transient);
     }
 }
 
@@ -200,9 +213,10 @@ void removeMount(mega::MegaApi& api, const mega::MegaMount& mount)
     OUTSTREAM << "Removed mount " << getMountId(api, mount) << " on \"" << mount.getPath() << '"' << endl;
 }
 
-void enableMount(mega::MegaApi& api, const mega::MegaMount& mount, bool remember)
+void enableMount(mega::MegaApi& api, const mega::MegaMount& mount, bool temporarily)
 {
     auto listener = std::make_unique<MegaCmdListener>(nullptr);
+    const bool remember = shouldRememberChange(mount, temporarily);
 
     api.enableMount(mount.getPath(), listener.get(), remember);
     listener->wait();
@@ -216,12 +230,15 @@ void enableMount(mega::MegaApi& api, const mega::MegaMount& mount, bool remember
                 << " (Error: " << MegaMount::getResultString(error->getMountResult()) << ")";
         return;
     }
-    OUTSTREAM << "Enabled mount " << getMountId(api, mount) << " on \"" << mount.getPath() << '"' << endl;
+
+    OUTSTREAM << (temporarily ? "Temporarily enabled" : "Enabled") << " mount "
+              << getMountId(api, mount) << " on \"" << mount.getPath() << '"' << endl;
 }
 
-void disableMount(mega::MegaApi& api, const mega::MegaMount& mount, bool remember)
+void disableMount(mega::MegaApi& api, const mega::MegaMount& mount, bool temporarily)
 {
     auto listener = std::make_unique<MegaCmdListener>(nullptr);
+    const bool remember = shouldRememberChange(mount, temporarily);
 
     api.disableMount(mount.getPath(), listener.get(), remember);
     listener->wait();
@@ -235,7 +252,9 @@ void disableMount(mega::MegaApi& api, const mega::MegaMount& mount, bool remembe
                 << " (Error: " << MegaMount::getResultString(error->getMountResult()) << ")";
         return;
     }
-    OUTSTREAM << "Disabled mount " << getMountId(api, mount) << " on \"" << mount.getPath() << '"' << endl;
+
+    OUTSTREAM << (temporarily ? "Temporarily disabled" : "Disabled") << " mount "
+              << getMountId(api, mount) << " on \"" << mount.getPath() << '"' << endl;
 }
 
 void printMount(mega::MegaApi& api, const mega::MegaMount& mount)

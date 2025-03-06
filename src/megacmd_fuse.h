@@ -27,8 +27,8 @@ namespace FuseCommand
     void addMount(mega::MegaApi& api, const fs::path& localPath, mega::MegaNode& node, bool disabled, bool transient, bool readOnly, const std::string& name);
     void removeMount(mega::MegaApi& api, const mega::MegaMount& mount);
 
-    void enableMount(mega::MegaApi& api, const mega::MegaMount& mount, bool remember);
-    void disableMount(mega::MegaApi& api, const mega::MegaMount& mount, bool remember);
+    void enableMount(mega::MegaApi& api, const mega::MegaMount& mount, bool temporarily);
+    void disableMount(mega::MegaApi& api, const mega::MegaMount& mount, bool temporarily);
 
     void printMount(mega::MegaApi& api, const mega::MegaMount& mount);
     void printAllMounts(mega::MegaApi& api, megacmd::ColumnDisplayer& cd, bool onlyEnabled, bool disablePathCollapse, int rowCountLimit);

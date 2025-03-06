@@ -1,7 +1,7 @@
 ### fuse-enable
 Enables a specified FUSE mount.
 
-Usage: `fuse-enable [--remember] (ID|localPath|name)`
+Usage: `fuse-enable [--temporarily] (ID|localPath|name)`
 <pre>
 After a mount has been enabled, its cloud entities will be accessible via the mount's local path.
 
@@ -12,8 +12,8 @@ ID|localPath|name   The identifier of the mount we want to enable. It can be one
                          Name: the user-friendly name of the mount, set when it was added or by fuse-config.
 
 Options:
- --remember   Specifies whether to remember that this mount is enabled. Note that if this option is specified
-              on a transient mount, that mount will become persistent.
+ --temporarily   Specifies whether the mount should be enabled only until the server is restarted.
+                 Has no effect on transient mounts, since any action on them is always temporary.
 
 Note: FUSE commands are only available on Linux.
 </pre>
