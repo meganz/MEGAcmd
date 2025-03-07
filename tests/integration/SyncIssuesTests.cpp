@@ -42,7 +42,7 @@ public:
     {
         TI::Instance().onEveryEvent(TI::Event::SYNC_ISSUES_LIST_UPDATED, [this]
         {
-            auto syncIssueListSizeOpt = TI::Instance().testValue(TI::TestValue::SYNC_ISSUES_LIST_SIZE   );
+            auto syncIssueListSizeOpt = TI::Instance().testValue(TI::TestValue::SYNC_ISSUES_LIST_SIZE);
             EXPECT_TRUE(syncIssueListSizeOpt.has_value());
 
             {

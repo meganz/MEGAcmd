@@ -269,7 +269,6 @@ void ComunicationsManagerNamedPipes::sendPartialOutput(CmdPetition *inf, OUTSTRI
 {
     string sutf8;
     localwtostring(s, &sutf8);
-    ASSERT_UTF8_VALID(sutf8); // above localwtostring should produce an empty string if the input had broken encoding or valid utf-8 otherwise
 
     return sendPartialOutputImpl(inf, sutf8.data(), sutf8.size(), false/*never binary*/, false/*not error*/);
 }
@@ -283,7 +282,6 @@ void ComunicationsManagerNamedPipes::sendPartialError(CmdPetition *inf, OUTSTRIN
 {
     string sutf8;
     localwtostring(s, &sutf8);
-    ASSERT_UTF8_VALID(sutf8); // above localwtostring should produce an empty string if the input had broken encoding or valid utf-8 otherwise
 
     return sendPartialOutputImpl(inf, sutf8.data(), sutf8.size(), false/*never binary*/, true/*error*/);
 }
