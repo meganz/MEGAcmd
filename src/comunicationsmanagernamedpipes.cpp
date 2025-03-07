@@ -369,7 +369,7 @@ void ComunicationsManagerNamedPipes::sendPartialOutputImpl(CmdPetition *inf, cha
     size_t thesize = size > 1 ? size : 1; // client does not like empty responses
     if (!WriteFile(outNamedPipe,(const char*)&thesize, sizeof(thesize), &n, NULL))
     {
-        std::cerr << "ERROR writing output Code to namedPipe: " << std::endl;
+        std::cerr << "ERROR writing output Code to namedPipe: " << ERRNO << std::endl;
         return;
     }
     if (!WriteFile(outNamedPipe,s, DWORD(thesize), &n, NULL))
