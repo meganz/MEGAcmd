@@ -40,7 +40,6 @@ private:
     static int fd;
 #endif
 
-    static void createFolderIfNotExisting(const fs::path &folder);
     static void loadConfigDir();
 
     static void removeSyncConfig(sync_struct *syncToRemove);
@@ -48,6 +47,8 @@ private:
 #ifdef MEGACMD_TESTING_CODE
 public:
 #endif
+    static void createFolderIfNotExisting(const fs::path &folder);
+
     static bool lockExecution(const fs::path &lockFileFolder);
     static bool unlockExecution(const fs::path &lockFileFolder);
 

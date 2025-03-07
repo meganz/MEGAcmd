@@ -610,48 +610,11 @@ void install_rl_handler(const char *theprompt, bool external)
         promptreinstalledwhenprocessingline = true;
     }
 
-#ifdef _WIN32
-    wstring wswhat;
-    stringtolocalw(theprompt,&wswhat);
-    const wchar_t *what = wswhat.c_str();
-
-
-    // escape characters that break readline input (e.g. Chinese ones. e.g \x242ee)
-    wstring output = escapereadlinebreakers(what);
-
-    // give readline something it understands
-    what = output.c_str();
-    size_t buffer_size;
-#ifdef _TRUNCATE
-    wcstombs_s(&buffer_size, NULL, 0, what, _TRUNCATE);
-#else
-    buffer_size=output.size()*sizeof(wchar_t)*2;
-#endif
-
-    if (buffer_size) //coversion is ok
-    {
-        // do the actual conversion
-        char *buffer = new char[buffer_size];
-        #ifdef _TRUNCATE
-            wcstombs_s(&buffer_size, buffer, buffer_size,what, _TRUNCATE);
-        #else
-            wcstombs(buffer, what, buffer_size);
-        #endif
-
-        rl_callback_handler_install(buffer, store_line);
-    }
-    else
-    {
-        rl_callback_handler_install("INVALID_PROMPT: ", store_line);
-    }
-
-#else
-
+    rl_restore_prompt();
     rl_callback_handler_install(theprompt, store_line);
+
     handlerOverridenByExternalThread = external;
     requirepromptinstall = false;
-
-#endif
 }
 
 void redisplay_prompt()
@@ -1493,33 +1456,6 @@ void process_line(const char * line)
 #endif
                     return;
                 }
-#ifdef HAVE_DOWNLOADS_COMMAND
-                else if ( (words[0] == "downloads"))
-                {
-                    string toexec;
-
-                    if (!strstr (commandtoexec,"path-display-size"))
-                    {
-                        unsigned int width = getNumberOfCols(75);
-                        int pathSize = int((width-46)/2);
-
-                        toexec+=words[0];
-                        toexec+=" --path-display-size=";
-                        toexec+=SSTR(pathSize);
-                        toexec+=" ";
-                        if (strlen(commandtoexec)>(words[0].size()+1))
-                        {
-                            toexec+=commandtoexec+words[0].size()+1;
-                        }
-                    }
-                    else
-                    {
-                        toexec+=commandtoexec;
-                    }
-
-                    comms->executeCommand(toexec.c_str(), readresponse);
-                }
-#endif
                 else if ( (words[0] == "transfers"))
                 {
                     string toexec;
@@ -2055,8 +1991,22 @@ std::string readresponse(const char* question)
 #else
 std::string readresponse(const char* question)
 {
-    COUT << question << flush;
-    console->updateInputPrompt(question);
+    std::string questionStr(question);
+    size_t pos = questionStr.rfind('\n');
+
+    if (pos != std::string::npos)
+    {
+        std::string questionPrev  = questionStr.substr(0, pos);
+        std::string prompt = questionStr.substr(pos + 1);
+
+        COUT << questionPrev << std::endl;
+        console->updateInputPrompt(prompt);
+    }
+    else
+    {
+        console->updateInputPrompt(questionStr);
+    }
+
     for (;;)
     {
         if (char* line = console->checkForCompletedInputLine())

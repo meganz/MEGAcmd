@@ -20,8 +20,8 @@ Options:
  [deprecated] -r ID|localpath	same as --enable.
  --path-display-size=N	Use at least N characters for displaying paths.
  --show-handles	Prints remote nodes handles (H:XXXXXXXX).
- --col-separator=X	Use the string "X" as column separator. Otherwise, spaces will be added between columns to align them.
- --output-cols=COLUMN_NAME_1,COLUMN_NAME2,...	Select which columns to show and their order.
+ --col-separator=X	Uses the string "X" as column separator. Otherwise, spaces will be added between columns to align them.
+ --output-cols=COLUMN_NAME_1,COLUMN_NAME2,...	Selects which columns to show and their order.
 
 DISPLAYED columns:
  ID: an unique identifier of the sync.
@@ -31,7 +31,6 @@ DISPLAYED columns:
  	Pending: Sync config has loaded but we have not attempted to start it yet.
  	Loading: Sync is in the process of loading from disk.
  	Running: Sync loaded and active.
- 	Paused: Sync loaded but sync logic is suspended for now..
  	Suspended: Sync is not loaded, but it is on disk with the last known sync state.
  	Disabled: Sync has been disabled (no state cached). Starting it is like configuring a brand new sync with those settings.
  STATUS: State of the sync, possible values:

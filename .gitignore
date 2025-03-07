@@ -66,6 +66,9 @@ megacmd_src_file_list.h
 # macOS packaging files and artifacts
 Info.plist
 
+# Synology packaging files and artifacts
+/build/SynologyNAS/packages
+
 # Git
 *_BACKUP_*
 *_BASE_*

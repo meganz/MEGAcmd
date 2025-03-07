@@ -19,8 +19,6 @@
 #ifndef MEGACMDEXECUTER_H
 #define MEGACMDEXECUTER_H
 
-#include "megacmdtransfermanager.h"
-
 #include "megacmdlogger.h"
 #include "megacmdsandbox.h"
 #include "listeners.h"
@@ -161,7 +159,7 @@ public:
     void disableShare(mega::MegaNode *n, std::string with);
     void createOrModifyBackup(std::string local, std::string remote, std::string speriod, int numBackups);
     std::vector<std::string> listpaths(bool usepcre, std::string askedPath = "", bool discardFiles = false);
-    std::vector<std::string> listlocalpathsstartingby(std::string askedPath = "", bool discardFiles = false);
+    std::vector<std::string> listLocalPathsStartingBy(std::string askedPath, bool discardFiles);
     std::vector<std::string> getlistusers();
     std::vector<std::string> getNodeAttrs(std::string nodePath);
     std::vector<std::string> getUserAttrs();
@@ -241,8 +239,6 @@ public:
     void fetchNodes(mega::MegaApi *api = nullptr, int clientID = -27);
 
     void mayExecutePendingStuffInWorkerThread();
-
-    void cleanSlateTranfers();
 };
 
 }//end namespace

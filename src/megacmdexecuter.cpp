@@ -22,7 +22,6 @@
 
 #include "megacmdutils.h"
 #include "megacmdcommonutils.h"
-#include "megacmdtransfermanager.h"
 #include "configurationmanager.h"
 #include "megacmdlogger.h"
 #include "comunicationsmanager.h"
@@ -2608,13 +2607,6 @@ int MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
         }
 #endif
 
-#ifdef HAVE_DOWNLOADS_COMMAND
-        bool downloads_tracking_enabled = ConfigurationManager::getConfigurationValue("downloads_tracking_enabled", false);
-        if (downloads_tracking_enabled)
-        {
-            DownloadsManager::Instance().start();
-        }
-#endif
         ConfigurationManager::migrateSyncConfig(api);
 
         LOG_info << "Fetching nodes ... ";
@@ -2886,39 +2878,6 @@ void MegaCmdExecuter::fetchNodes(MegaApi *api, int clientID)
 #endif
 }
 
-void MegaCmdExecuter::cleanSlateTranfers()
-{
-#ifdef HAVE_DOWNLOADS_COMMAND
-    bool downloads_cleanslate = ConfigurationManager::getConfigurationValue("downloads_cleanslate_enabled", false);
-
-    if (downloads_cleanslate)
-    {
-        auto megaCmdListener = std::make_unique<MegaCmdListener>(nullptr);
-        api->cancelTransfers(MegaTransfer::TYPE_DOWNLOAD, megaCmdListener.get());
-        megaCmdListener->wait();
-        if (checkNoErrors(megaCmdListener->getError(), "cancel all download transfers"))
-        {
-            LOG_debug << "Download transfers cancelled successfully.";
-        }
-        megaCmdListener.reset(new MegaCmdListener(nullptr));
-        api->cancelTransfers(MegaTransfer::TYPE_UPLOAD, megaCmdListener.get());
-        megaCmdListener->wait();
-        if (checkNoErrors(megaCmdListener->getError(), "cancel all upload transfers"))
-        {
-            LOG_debug << "Upload transfers cancelled successfully.";
-        }
-
-        {
-            globalTransferListener->completedTransfersMutex.lock();
-            globalTransferListener->completedTransfers.clear();
-            globalTransferListener->completedTransfersMutex.unlock();
-        }
-
-        DownloadsManager::Instance().purge();
-    }
-#endif
-}
-
 void MegaCmdExecuter::actUponLogout(SynchronousRequestListener *srl, bool keptSession, int timeout)
 {
     if (!timeout)
@@ -2950,9 +2909,6 @@ void MegaCmdExecuter::actUponLogout(SynchronousRequestListener *srl, bool keptSe
         }
         ConfigurationManager::clearConfigurationFile();
 
-#ifdef HAVE_DOWNLOADS_COMMAND
-        DownloadsManager::Instance().shutdown(true);
-#endif
         mtxSyncMap.unlock();
 
         // clear greetings (asuming they are account-related)
@@ -3461,9 +3417,9 @@ void MegaCmdExecuter::exportNode(MegaNode *n, int64_t expireTime, const std::opt
                                  "You are strictly prohibited from using the MEGA cloud service to infringe copyright.\n"
                                  "You may not upload, download, store, share, display, stream, distribute, email, link to, "
                                  "transmit or otherwise make available any files, data or content that infringes any copyright "
-                                 "or other proprietary rights of any person or entity.");
+                                 "or other proprietary rights of any person or entity.\n");
 
-        confirmationQuery += " Do you accept this terms? (Yes/No): ";
+        confirmationQuery += "Do you accept these terms? (Yes/No): ";
 
         const int confirmationResponse = askforConfirmation(confirmationQuery);
         if (confirmationResponse != MCMDCONFIRM_YES && confirmationResponse != MCMDCONFIRM_ALL)
@@ -3581,6 +3537,10 @@ void MegaCmdExecuter::exportNode(MegaNode *n, int64_t expireTime, const std::opt
     {
         string authToken = nodeLink.substr(strlen(prefix)).append(":").append(authKey);
         OUTSTREAM << "\n          AuthToken = " << authToken;
+        if (megaHosted && megaCmdListener->getRequest()->getPassword())
+        {
+            OUTSTREAM << "\n          Share key encryption key = " << megaCmdListener->getRequest()->getPassword();
+        }
     }
 
     if (actualExpireTime)
@@ -3940,7 +3900,7 @@ bool replaceW(std::wstring& str, const std::wstring& from, const std::wstring& t
 }
 #endif
 
-vector<string> MegaCmdExecuter::listlocalpathsstartingby(string askedPath, bool discardFiles)
+vector<string> MegaCmdExecuter::listLocalPathsStartingBy(string askedPath, bool discardFiles)
 {
     vector<string> paths;
 
@@ -3971,39 +3931,55 @@ vector<string> MegaCmdExecuter::listlocalpathsstartingby(string askedPath, bool 
     }
 #endif
 
-    for (fs::directory_iterator iter(fs::u8path(containingfolder)); iter != fs::directory_iterator(); ++iter)
+    std::error_code ec;
+    fs::directory_iterator dirIt(fs::u8path(containingfolder), ec);
+    if (ec)
     {
-        if (!discardFiles || iter->status().type() == fs::file_type::directory)
-        {
-#ifdef _WIN32
-            wstring path = iter->path().wstring();
-#else
-            string path = iter->path().string();
-#endif
-            if (removeprefix) path = path.substr(2);
-            if (requiresseparatorafterunit) path.insert(2, 1, sep);
-            if (iter->status().type() == fs::file_type::directory)
-            {
-                path.append(1, sep);
-            }
-#ifdef _WIN32
-                // try to mimic the exact startup of the asked path to allow mix of '\' & '/'
-                fs::path paskedpath = fs::u8path(askedPath);
-                paskedpath.make_preferred();
-                wstring toreplace = paskedpath.wstring();
-                if (path.find(toreplace) == 0)
-                {
-                    replaceW(path, toreplace, toUtf16String(askedPath));
-                }
-#endif
-#ifdef _WIN32
-            paths.push_back(toUtf8String(path));
-#else
-            paths.push_back(path);
-#endif
-
-        }
+        // We need to check the error directly because the iterator
+        // might not be end() in certain underlying OS errors
+        return paths;
     }
+
+    for (const auto& dirEntry : dirIt)
+    {
+        if (discardFiles && !dirEntry.is_directory(ec))
+        {
+            continue;
+        }
+
+#ifdef _WIN32
+        wstring path = dirEntry.path().wstring();
+#else
+        string path = dirEntry.path().string();
+#endif
+        if (removeprefix)
+        {
+            path = path.substr(2);
+        }
+        if (requiresseparatorafterunit)
+        {
+            path.insert(2, 1, sep);
+        }
+        if (dirEntry.is_directory(ec))
+        {
+            path.append(1, sep);
+        }
+
+#ifdef _WIN32
+        // try to mimic the exact startup of the asked path to allow mix of '\' & '/'
+        fs::path paskedpath = fs::u8path(askedPath);
+        paskedpath.make_preferred();
+        wstring toreplace = paskedpath.wstring();
+        if (path.find(toreplace) == 0)
+        {
+            replaceW(path, toreplace, toUtf16String(askedPath));
+        }
+        paths.push_back(toUtf8String(path));
+#else
+        paths.push_back(path);
+#endif
+    }
+
     return paths;
 }
 
@@ -5101,27 +5077,29 @@ bool MegaCmdExecuter::establishBackup(string pathToBackup, MegaNode *n, int64_t 
 
 void MegaCmdExecuter::confirmCancel(const char* confirmlink, const char* pass)
 {
-    MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
-    api->confirmCancelAccount(confirmlink, pass, megaCmdListener);
+    auto megaCmdListener = std::make_unique<MegaCmdListener>(nullptr);
+    api->confirmCancelAccount(confirmlink, pass, megaCmdListener.get());
     megaCmdListener->wait();
+
     if (megaCmdListener->getError()->getErrorCode() == MegaError::API_ETOOMANY)
     {
         LOG_err << "Confirm cancel account failed: too many attempts";
     }
-    else if (megaCmdListener->getError()->getErrorCode() == MegaError::API_ENOENT
-             || megaCmdListener->getError()->getErrorCode() == MegaError::API_EKEY)
+    else if (megaCmdListener->getError()->getErrorCode() == MegaError::API_ENOENT ||
+             megaCmdListener->getError()->getErrorCode() == MegaError::API_EKEY)
     {
         LOG_err << "Confirm cancel account failed: invalid link/password";
     }
-    else if (checkNoErrors(megaCmdListener->getError(), "confirm cancel account"))
+    // We consider ESID (bad session ID) as successful because of a data race in the SDK
+    else if (megaCmdListener->getError()->getErrorCode() == MegaError::API_ESID ||
+             checkNoErrors(megaCmdListener->getError(), "confirm cancel account"))
     {
         OUTSTREAM << "CONFIRM Account cancelled succesfully" << endl;
-        MegaCmdListener *megaCmdListener2 = new MegaCmdListener(NULL);
-        api->localLogout(megaCmdListener2);
-        actUponLogout(megaCmdListener2, false);
-        delete megaCmdListener2;
+
+        megaCmdListener = std::make_unique<MegaCmdListener>(nullptr);
+        api->localLogout(megaCmdListener.get());
+        actUponLogout(megaCmdListener.get(), false);
     }
-    delete megaCmdListener;
 }
 
 void MegaCmdExecuter::processPath(string path, bool usepcre, bool& firstone, void (*nodeprocessor)(MegaCmdExecuter *, MegaNode *, bool), MegaCmdExecuter *context)
@@ -6703,18 +6681,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 }
             }
 
-            if (background) //TODO: do the same for uploads?
-            {
-#ifdef HAVE_DOWNLOADS_COMMAND
-                megaCmdMultiTransferListener->waitMultiStart();
-
-                for (auto & dlId : megaCmdMultiTransferListener->getStartedTransfers())
-                {
-                    OUTSTREAM << "Started background transfer <" << dlId.mPath << ">. Tag = " << dlId.mTag << ". Object Identifier: " << dlId.getObjectID() << endl;
-                }
-#endif
-            }
-            else
+            if (!background)
             {
                 megaCmdMultiTransferListener->waitMultiEnd();
 
@@ -7042,53 +7009,49 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
     }
     else if (words[0] == "log")
     {
+        const bool cmdFlag = getFlag(clflags, "c");
+        const bool sdkFlag = getFlag(clflags, "s");
+        const bool noFlags = !cmdFlag && !sdkFlag;
+
         if (words.size() == 1)
         {
-            if (!getFlag(clflags, "s") && !getFlag(clflags, "c"))
+            if (cmdFlag || noFlags)
             {
                 OUTSTREAM << "MEGAcmd log level = " << getLogLevelStr(loggerCMD->getCmdLoggerLevel()) << endl;
-                OUTSTREAM << "SDK log level = " << getLogLevelStr(loggerCMD->getSdkLoggerLevel()) << endl;
             }
-            else if (getFlag(clflags, "s"))
+
+            if (sdkFlag || noFlags)
             {
                 OUTSTREAM << "SDK log level = " << getLogLevelStr(loggerCMD->getSdkLoggerLevel()) << endl;
-            }
-            else if (getFlag(clflags, "c"))
-            {
-                OUTSTREAM << "MEGAcmd log level = " << getLogLevelStr(loggerCMD->getCmdLoggerLevel()) << endl;
             }
         }
         else
         {
-            int newLogLevel = getLogLevelNum(words[1].c_str());
-            if (newLogLevel == -1)
+            auto newLogLevelOpt = getLogLevelNum(words[1].c_str());
+            if (!newLogLevelOpt)
             {
                 setCurrentThreadOutCode(MCMD_EARGS);
                 LOG_err << "Invalid log level";
                 return;
             }
-            newLogLevel = max(newLogLevel, (int)MegaApi::LOG_LEVEL_FATAL);
-            newLogLevel = min(newLogLevel, (int)MegaApi::LOG_LEVEL_MAX);
-            if (!getFlag(clflags, "s") && !getFlag(clflags, "c"))
+            const int newLogLevel = *newLogLevelOpt;
+
+            if (cmdFlag || noFlags)
             {
                 loggerCMD->setCmdLoggerLevel(newLogLevel);
-                loggerCMD->setSdkLoggerLevel(newLogLevel);
+                ConfigurationManager::savePropertyValue("cmdLogLevel", newLogLevel);
+
                 OUTSTREAM << "MEGAcmd log level = " << getLogLevelStr(loggerCMD->getCmdLoggerLevel()) << endl;
-                OUTSTREAM << "SDK log level = " << getLogLevelStr(loggerCMD->getSdkLoggerLevel()) << endl;
             }
-            else if (getFlag(clflags, "s"))
+
+            if (sdkFlag || noFlags)
             {
                 loggerCMD->setSdkLoggerLevel(newLogLevel);
+                ConfigurationManager::savePropertyValue("sdkLogLevel", newLogLevel);
+
                 OUTSTREAM << "SDK log level = " << getLogLevelStr(loggerCMD->getSdkLoggerLevel()) << endl;
-            }
-            else if (getFlag(clflags, "c"))
-            {
-                loggerCMD->setCmdLoggerLevel(newLogLevel);
-                OUTSTREAM << "MEGAcmd log level = " << getLogLevelStr(loggerCMD->getCmdLoggerLevel()) << endl;
             }
         }
-
-        return;
     }
     else if (words[0] == "pwd")
     {
@@ -10069,7 +10032,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 }
                 for (int i = 0; i < ocrl->size(); i++)
                 {
-                    MegaContactRequest * cr = ocrl->get(i);
+                    auto cr = ocrl->get(i);
                     OUTSTREAM << " " << getLeftAlignedStr(cr->getTargetEmail(),22);
 
                     char * sid = api->userHandleToBase64(cr->getHandle());
@@ -10097,7 +10060,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
                 for (int i = 0; i < icrl->size(); i++)
                 {
-                    MegaContactRequest * cr = icrl->get(i);
+                    auto cr = icrl->get(i);
                     OUTSTREAM << " " << getLeftAlignedStr(cr->getSourceEmail(), 22);
 
                     MegaHandle id = cr->getHandle();
@@ -10171,101 +10134,6 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
         return;
     }
-#ifdef HAVE_DOWNLOADS_COMMAND
-    else if (words[0] == "downloads")
-    {
-        if (getFlag(clflags, "purge"))
-        {
-            OUTSTREAM << "Cancelling and cleaning all transfers and history ..." << endl;
-            cleanSlateTranfers();
-            OUTSTREAM << "... done" << endl;
-            return;
-        }
-        if (getFlag(clflags, "enable-clean-slate"))
-        {
-            bool downloads_cleanslate_enabled_before = ConfigurationManager::getConfigurationValue("downloads_cleanslate_enabled", false);
-
-            if (!downloads_cleanslate_enabled_before)
-            {
-                ConfigurationManager::savePropertyValue("downloads_cleanslate_enabled", true);
-            }
-
-            OUTSTREAM << "Enabled clean slate: transfers from previous executions will be discarded upon restart" << endl;
-            return;
-        }
-        else if (getFlag(clflags, "disable-clean-slate"))
-        {
-            bool downloads_cleanslate_enabled_before = ConfigurationManager::getConfigurationValue("downloads_cleanslate_enabled", false);
-
-            if (downloads_cleanslate_enabled_before)
-            {
-                ConfigurationManager::savePropertyValue("downloads_cleanslate_enabled", false);
-            }
-            OUTSTREAM << "Disabled clean slate: transfers from previous executions will not be discarded upon restart" << endl;
-            return;
-        }
-
-
-        bool queryEnabled = getFlag(clflags, "query-enabled");
-        if (getFlag(clflags, "enable-tracking"))
-        {
-            bool downloads_tracking_enabled_before = ConfigurationManager::getConfigurationValue("downloads_tracking_enabled", false);
-
-            if (!downloads_tracking_enabled_before)
-            {
-                ConfigurationManager::savePropertyValue("downloads_tracking_enabled", true);
-                DownloadsManager::Instance().start();
-            }
-
-            queryEnabled = true;
-        }
-        else if (getFlag(clflags, "disable-tracking"))
-        {
-            bool downloads_tracking_enabled_before = ConfigurationManager::getConfigurationValue("downloads_tracking_enabled", false);
-
-            if (downloads_tracking_enabled_before)
-            {
-                ConfigurationManager::savePropertyValue("downloads_tracking_enabled", false);
-                DownloadsManager::Instance().shutdown(true);
-            }
-
-            queryEnabled = true;
-        }
-
-        if (queryEnabled)
-        {
-            bool downloads_tracking_enabled = ConfigurationManager::getConfigurationValue("downloads_tracking_enabled", false);
-            OUTSTREAM << "Download tracking is " << (downloads_tracking_enabled ? "enabled" : "disabled") << endl;
-            return;
-        }
-
-        if (getFlag(clflags, "report-all"))
-        {
-            OUTSTRINGSTREAM oss;
-            DownloadsManager::Instance().printAll(oss, clflags, cloptions);
-            OUTSTREAM << oss.str();
-            return;
-        }
-
-        /// report:
-        if (words.size() < 2)
-        {
-            setCurrentThreadOutCode(MCMD_EARGS);
-            LOG_err << "      " << getUsageStr(words[0].c_str());
-            return;
-        }
-
-        for (unsigned i = 1 ; i < words.size(); i++)
-        {
-            if (!words[i].empty())
-            {
-                OUTSTRINGSTREAM oss;
-                DownloadsManager::Instance().printOne(oss, words[i], clflags, cloptions);
-                OUTSTREAM << oss.str();
-            }
-        }
-    }
-#endif
     else if (words[0] == "transfers")
     {
         bool showcompleted = getFlag(clflags, "show-completed");
@@ -10854,6 +10722,34 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             SyncIssuesCommand::printAllIssues(*api, cd, syncIssues, disablePathCollapse, rowCountLimit);
         }
     }
+#if defined(DEBUG) || defined(MEGACMD_TESTING_CODE)
+    else if (words[0] == "echo")
+    {
+        if (words.size() < 2 || words[1].empty())
+        {
+            setCurrentThreadOutCode(MCMD_EARGS);
+            LOG_err << "Missing message to echo";
+            return;
+        }
+
+        std::string str = words[1];
+#ifdef _WIN32
+        if (str == "<win-invalid-utf8>")
+        {
+            str = "\xf0\x8f\xbf\xbf";
+        }
+#endif
+
+        if (getFlag(clflags, "log-as-err"))
+        {
+            LOG_err << str;
+        }
+        else
+        {
+            OUTSTREAM << str << endl;
+        }
+    }
+#endif
     else
     {
         setCurrentThreadOutCode(MCMD_EARGS);

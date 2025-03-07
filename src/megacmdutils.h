@@ -71,7 +71,7 @@ const char * getErrorCodeStr(mega::MegaError *e);
 
 const char * getLogLevelStr(int loglevel);
 
-int getLogLevelNum(const char* level);
+std::optional<int> getLogLevelNum(const char* level);
 
 const char * getShareLevelStr(int sharelevel);
 

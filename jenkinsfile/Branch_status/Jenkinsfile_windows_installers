@@ -75,9 +75,9 @@ pipeline {
                         @echo on
                         mkdir tmp
                         set _MSPDBSRV_ENDPOINT_= ${BUILD_TAG}
-                        set TMP=${Workspace}\\tmp
-                        set TEMP=${Workspace}\\tmp
-                        set TMPDIR=${Workspace}\\tmp
+                        set TMP=${windows_sources_workspace}\\build\\tmp
+                        set TEMP=${windows_sources_workspace}\\build\\tmp
+                        set TMPDIR=${windows_sources_workspace}\\build\\tmp
                         full_build_process.cmd ${params.ARCHITECTURE} nosign 2
                     """
                 }

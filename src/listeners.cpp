@@ -19,7 +19,6 @@
 #include "listeners.h"
 #include "configurationmanager.h"
 #include "megacmdutils.h"
-#include "megacmdtransfermanager.h"
 
 #include <utility>
 
@@ -391,11 +390,6 @@ void MegaCmdGlobalListener::onEvent(MegaApi *api, MegaEvent *event)
     else if (event->getType() == MegaEvent::EVENT_NODES_CURRENT)
     {
         sandboxCMD->mNodesCurrentPromise.fulfil();
-#ifdef HAVE_DOWNLOADS_COMMAND
-        // we need to cancel transfers here, because, even if fetchnodes finished, the actual transfer resumption
-        // won't happen until all action packets are received. And cancellation of transfers need them to be loaded already
-        std::thread([this](){sandboxCMD->cmdexecuter->cleanSlateTranfers();}).detach();
-#endif
     }
 }
 
@@ -1086,13 +1080,6 @@ long long MegaCmdMultiTransferListener::getOngoingTotalBytes()
     return total;
 }
 
-#ifdef HAVE_DOWNLOADS_COMMAND
-std::vector<DownloadId> MegaCmdMultiTransferListener::getStartedTransfers() const
-{
-    return mStartedTransfers;
-}
-#endif
-
 bool MegaCmdMultiTransferListener::getProgressinformed() const
 {
     return progressinformed;
@@ -1135,9 +1122,6 @@ void MegaCmdMultiTransferListener::onTransferStarted(const std::string &path, in
     {
         std::lock_guard<std::mutex> g(mStartedTransfersMutex);
         mStartedTransfersCount++;
-#ifdef HAVE_DOWNLOADS_COMMAND
-        mStartedTransfers.emplace_back(DownloadId(tag,path));
-#endif
         mStartedConditionVariable.notify_one();
     }
 }
@@ -1156,13 +1140,6 @@ MegaCmdGlobalTransferListener::MegaCmdGlobalTransferListener(MegaApi *megaApi, M
 
 void MegaCmdGlobalTransferListener::onTransferFinish(MegaApi* api, MegaTransfer *transfer, MegaError* error)
 {
-#ifdef HAVE_DOWNLOADS_COMMAND
-    if (transfer->getType() == transfer->TYPE_DOWNLOAD && ConfigurationManager::getConfigurationValue("downloads_tracking_enabled", false))
-    {
-        DownloadsManager::Instance().onTransferFinish(api, transfer, error);
-    }
-#endif
-
     completedTransfersMutex.lock();
     completedTransfers.push_front(transfer->copy());
 
@@ -1186,24 +1163,6 @@ void MegaCmdGlobalTransferListener::onTransferFinish(MegaApi* api, MegaTransfer 
     completedTransfersMutex.unlock();
 }
 
-void MegaCmdGlobalTransferListener::onTransferStart(MegaApi* api, MegaTransfer *transfer)
-{
-#ifdef HAVE_DOWNLOADS_COMMAND
-    if (transfer->getType() == transfer->TYPE_DOWNLOAD && ConfigurationManager::getConfigurationValue("downloads_tracking_enabled", false))
-    {
-        DownloadsManager::Instance().onTransferStart(api, transfer);
-    }
-#endif
-}
-void MegaCmdGlobalTransferListener::onTransferUpdate(MegaApi* api, MegaTransfer *transfer)
-{
-#ifdef HAVE_DOWNLOADS_COMMAND
-    if (transfer->getType() == transfer->TYPE_DOWNLOAD && ConfigurationManager::getConfigurationValue("downloads_tracking_enabled", false))
-    {
-        DownloadsManager::Instance().onTransferUpdate(api, transfer);
-    }
-#endif
-}
 void MegaCmdGlobalTransferListener::onTransferTemporaryError(MegaApi *api, MegaTransfer *transfer, MegaError* e)
 {
     if (e && e->getErrorCode() == MegaError::API_EOVERQUOTA && e->getValue())
@@ -1220,13 +1179,6 @@ void MegaCmdGlobalTransferListener::onTransferTemporaryError(MegaApi *api, MegaT
         sandboxCMD->timeOfOverquota = m_time(NULL);
         sandboxCMD->secondsOverQuota=e->getValue();
     }
-
-#ifdef HAVE_DOWNLOADS_COMMAND
-    if (transfer->getType() == transfer->TYPE_DOWNLOAD && ConfigurationManager::getConfigurationValue("downloads_tracking_enabled", false))
-    {
-        DownloadsManager::Instance().onTransferUpdate(api, transfer);
-    }
-#endif
 }
 
 bool MegaCmdGlobalTransferListener::onTransferData(MegaApi *api, MegaTransfer *transfer, char *buffer, size_t size) {return false;};
@@ -1270,20 +1222,12 @@ ATransferListener::~ATransferListener()
 
 }
 
-
 void ATransferListener::onTransferStart(MegaApi *api, MegaTransfer *transfer)
 {
     auto tag = transfer->getTag();
-#ifdef HAVE_DOWNLOADS_COMMAND
-    if (transfer->getType() == transfer->TYPE_DOWNLOAD && ConfigurationManager::getConfigurationValue("downloads_tracking_enabled", false))
-    {
-        DownloadsManager::Instance().addNewTopLevelTransfer(api, transfer, tag, mPath);
-    }
-#endif
     mMultiTransferListener->onTransferStarted(mPath, tag);
     mMultiTransferListener->onTransferStart(api, transfer);
 }
-
 
 void ATransferListener::onTransferFinish(MegaApi *api, MegaTransfer *transfer, MegaError *e)
 {
@@ -1291,18 +1235,15 @@ void ATransferListener::onTransferFinish(MegaApi *api, MegaTransfer *transfer, M
     delete this;
 }
 
-
 void ATransferListener::onTransferUpdate(MegaApi *api, MegaTransfer *transfer)
 {
     mMultiTransferListener->onTransferUpdate(api, transfer);
 }
 
-
 void ATransferListener::onTransferTemporaryError(MegaApi *api, MegaTransfer *transfer, MegaError *e)
 {
     mMultiTransferListener->onTransferTemporaryError(api, transfer, e);
 }
-
 
 bool ATransferListener::onTransferData(MegaApi *api, MegaTransfer *transfer, char *buffer, size_t size)
 {

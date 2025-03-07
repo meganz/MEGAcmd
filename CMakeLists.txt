@@ -9,8 +9,8 @@ execute_process(
     OUTPUT_STRIP_TRAILING_WHITESPACE
 )
 
-set(MEGACMD_MAJOR_VERSION 1)
-set(MEGACMD_MINOR_VERSION 7)
+set(MEGACMD_MAJOR_VERSION 2)
+set(MEGACMD_MINOR_VERSION 0)
 set(MEGACMD_MICRO_VERSION 0)
 
 ## Configure megacmdversion.h
@@ -193,7 +193,6 @@ add_source_and_corresponding_header_to_target(LMegacmdServer
     "${ProjectDir}/src/megacmd.cpp"
     "${ProjectDir}/src/megacmdexecuter.cpp"
     "${ProjectDir}/src/megacmd_events.cpp"
-    "${ProjectDir}/src/megacmdtransfermanager.cpp"
     "${ProjectDir}/src/megacmdlogger.cpp"
     "${ProjectDir}/src/megacmdsandbox.cpp"
     "${ProjectDir}/src/megacmdutils.cpp"

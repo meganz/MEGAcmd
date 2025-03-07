@@ -23,28 +23,32 @@
 #include "megacmdcommonutils.h"
 
 namespace megacmd {
-struct CmdPetition
+class CmdPetition
 {
-    std::string line;
+    std::string mLine;
+
+public:
     mega::MegaThread *petitionThread = nullptr;
     int clientID = -27;
     bool clientDisconnected = false;
 
     virtual ~CmdPetition() = default;
 
+    void setLine(std::string_view line);
+    std::string_view getLine() const;
+
     // Remove the starting 'X' if present (petitions coming from interactive mode)
     std::string_view getUniformLine() const;
+
+    // Remove possible confidential info from the line
+    std::string getRedactedLine() const;
+
+    bool isFromCmdShell() const;
 
     mega::MegaThread *getPetitionThread() const;
     void setPetitionThread(mega::MegaThread *value);
     virtual std::string getPetitionDetails() const { return {}; }
 };
-
-OUTSTREAMTYPE &operator<<(OUTSTREAMTYPE &os, CmdPetition const &p);
-
-#ifdef _WIN32
-std::ostream &operator<<(std::ostream &os, CmdPetition const &p);
-#endif
 
 class ComunicationsManager
 {

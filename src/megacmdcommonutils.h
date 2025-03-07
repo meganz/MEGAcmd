@@ -126,11 +126,8 @@ static std::vector<std::string> loginInValidCommands { "log", "debug", "speedlim
 static std::vector<std::string> allValidCommands { "login", "signup", "confirm", "session", "mount", "ls", "cd", "log", "debug", "pwd", "lcd", "lpwd", "import", "masterkey",
                              "put", "get", "attr", "userattr", "mkdir", "rm", "du", "mv", "cp", "sync", "sync-ignore", "export", "share", "invite", "ipc", "df",
                              "showpcr", "users", "speedlimit", "killsession", "whoami", "help", "passwd", "reload", "logout", "version", "quit",
-                             "thumbnail", "preview", "find", "completion", "clear", "https", "sync-issues"
-#ifdef HAVE_DOWNLOADS_COMMAND
-                                                   , "downloads"
-#endif
-                             , "transfers", "exclude", "exit", "errorcode", "graphics",
+                             "thumbnail", "preview", "find", "completion", "clear", "https", "sync-issues",
+                             "transfers", "exclude", "exit", "errorcode", "graphics",
                              "cancel", "confirmcancel", "cat", "tree", "psa", "proxy"
                              , "mediainfo"
 #ifdef HAVE_LIBUV
@@ -147,6 +144,9 @@ static std::vector<std::string> allValidCommands { "login", "signup", "confirm",
 #endif
 #if defined(_WIN32) || defined(__APPLE__)
                              , "update"
+#endif
+#if defined(DEBUG) || defined(MEGACMD_TESTING_CODE)
+                             , "echo"
 #endif
                            };
 

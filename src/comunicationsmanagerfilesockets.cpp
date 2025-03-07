@@ -241,7 +241,13 @@ void ComunicationsManagerFileSockets::returnAndClosePetition(std::unique_ptr<Cmd
     {
         LOG_err << "ERROR writing output Code to socket: " << errno;
     }
-    n = send(socket, sout.data(), max(static_cast<size_t>(1), sout.size()), MSG_NOSIGNAL); // for some reason without the max recv never quits in the client for empty responses
+
+    if (sout.empty())
+    {
+        return; // socket shutdown will send EOF (0 bytes upon recv)
+    }
+
+    n = send(socket, sout.data(), sout.size(), MSG_NOSIGNAL);
     if (n < 0)
     {
         LOG_err << "ERROR writing to socket: " << errno;
@@ -286,7 +292,7 @@ void ComunicationsManagerFileSockets::sendPartialOutputImpl(CmdPetition *inf, ch
     if (!binaryContents && !isValidUtf8(s, size))
     {
         std::cerr << "Attempt to sendPartialOutput of invalid utf8 of size " << size << std::endl;
-        assert(false && "Attempt to sendPartialOutput of invalid utf8");
+        ASSERT_UTF8_BREAK("Attempt to sendPartialOutput of invalid utf8");
         return;
     }
 
@@ -327,7 +333,7 @@ int ComunicationsManagerFileSockets::informStateListener(CmdPetition *inf, const
     if (!isValidUtf8(s))
     {
         LOG_err << "Attempt to write an invalid utf-8 string of size " << s.size();
-        assert(false && "Attempt to write an invalid utf-8 string");
+        ASSERT_UTF8_BREAK("Attempt to write an invalid utf-8 string");
         return 0;
     }
 
@@ -352,12 +358,12 @@ int ComunicationsManagerFileSockets::informStateListener(CmdPetition *inf, const
     {
         if (errno == EPIPE) //socket closed
         {
-            LOG_verbose << "Unregistering no longer listening client. Original petition: " << inf->line;
+            LOG_verbose << "Unregistering no longer listening client. Original petition: " << inf->getRedactedLine();
             return -1;
         }
         else if (errno == EAGAIN || errno == EWOULDBLOCK) // timed out
         {
-            LOG_warn << "Unregistering timed out listening client. Original petition: " << inf->line;
+            LOG_warn << "Unregistering timed out listening client. Original petition: " << inf->getRedactedLine();
             return -1;
         }
         else
@@ -393,7 +399,7 @@ std::unique_ptr<CmdPetition> ComunicationsManagerFileSockets::getPetition()
         }
 
         sleep(1);
-        inf->line = "ERROR";
+        inf->setLine("ERROR");
         return inf;
     }
 
@@ -431,13 +437,13 @@ std::unique_ptr<CmdPetition> ComunicationsManagerFileSockets::getPetition()
     if (n < 0)
     {
         LOG_fatal << "ERROR reading from socket at getPetition: " << errno;
-        inf->line = "ERROR";
+        inf->setLine("ERROR");
         close(newsockfd);
         return inf;
     }
 
     inf->outSocket = newsockfd;
-    inf->line = wholepetition;
+    inf->setLine(wholepetition);
 
     return inf;
 }

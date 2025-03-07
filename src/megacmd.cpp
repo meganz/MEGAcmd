@@ -779,24 +779,6 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     {
         validOptValues->insert("clientID");
     }
-#ifdef HAVE_DOWNLOADS_COMMAND
-    else if ("downloads" == thecommand)
-    {
-        validParams->insert("show-subtransfers");
-        validParams->insert("report-all");
-        validParams->insert("disable-tracking");
-        validParams->insert("enable-tracking");
-        validParams->insert("query-enabled");
-
-        validParams->insert("enable-clean-slate");
-        validParams->insert("disable-clean-slate");
-        validParams->insert("purge");
-
-        validOptValues->insert("path-display-size");
-        validOptValues->insert("col-separator");
-        validOptValues->insert("output-cols");
-    }
-#endif
     else if ("transfers" == thecommand)
     {
         validParams->insert("show-completed");
@@ -839,6 +821,12 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     {
         validParams->insert("show-handles");
     }
+#if defined(DEBUG) || defined(MEGACMD_TESTING_CODE)
+    else if ("echo" == thecommand)
+    {
+        validParams->insert("log-as-err");
+    }
+#endif
 }
 
 void escapeEspace(string &orig)
@@ -1066,7 +1054,7 @@ char * flags_value_completion(const char*text, int state)
                     end = string::npos;
                 }
 
-                validValues = cmdexecuter->listlocalpathsstartingby(stext.substr(begin));
+                validValues = cmdexecuter->listLocalPathsStartingBy(stext.substr(begin), false);
                 string prefix = strncmp(text, cflag, strlen(cflag))?"":cflag;
                 for (unsigned int i=0;i<validValues.size();i++)
                 {
@@ -1155,7 +1143,7 @@ char* localfolders_completion(const char* text, int state)
     {
         string what(text);
         unescapeEspace(what);
-        validpaths = cmdexecuter->listlocalpathsstartingby(what.c_str(), true);
+        validpaths = cmdexecuter->listLocalPathsStartingBy(what, true);
     }
     return generic_completion(text, state, validpaths);
 }
@@ -1962,12 +1950,6 @@ const char * getUsageStr(const char *command, const HelpFlags& flags)
     {
         return "transfers [-c TAG|-a] | [-r TAG|-a]  | [-p TAG|-a] [--only-downloads | --only-uploads] [SHOWOPTIONS]";
     }
-#ifdef HAVE_DOWNLOADS_COMMAND
-    if (!strcmp(command, "downloads"))
-    {
-        return "downloads [--purge|--enable-clean-slate|--disable-clean-slate|--enable-tracking|--disable-tracking|query-enabled|report-all| [id_1 id_2 ... id_n]]  [SHOWOPTIONS]";
-    }
-#endif
     if (((flags.win && !flags.readline) || flags.showAll) && !strcmp(command, "autocomplete"))
     {
         return "autocomplete [dos | unix]";
@@ -2085,7 +2067,7 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << "with image or video extensions that are not really images or videos," << endl;
         os << "or that are encrypted in the local drive so they can't be analyzed anyway." << endl;
         os << endl;
-        os << "Notice that this setting will be saved for the next time you open MEGAcmd" << endl;
+        os << "Notice that this setting will be saved for the next time you open MEGAcmd, but will be removed if you logout." << endl;
     }
     else if (!strcmp(command, "signup"))
     {
@@ -2223,13 +2205,14 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
     }
     else if (!strcmp(command, "log"))
     {
-        os << "Prints/Modifies the current logs level" << endl;
+        os << "Prints/Modifies the log level" << endl;
         os << endl;
         os << "Options:" << endl;
         os << " -c" << "\t" << "CMD log level (higher level messages)." << endl;
         os << "   " << "\t" << " Messages captured by MEGAcmd server." << endl;
         os << " -s" << "\t" << "SDK log level (lower level messages)." << endl;
         os << "   " << "\t" << " Messages captured by the engine and libs" << endl;
+        os << "Note: this setting will be saved for the next time you open MEGAcmd, but will be removed if you logout." << endl;
 
         os << endl;
         os << "Regardless of the log level of the" << endl;
@@ -2435,7 +2418,7 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << "HTTPS is not necesary since all data is stored and transfered encrypted." << endl;
         os << "Enabling it will increase CPU usage and add network overhead." << endl;
         os << endl;
-        os << "Notice that this setting will be saved for the next time you open MEGAcmd" << endl;
+        os << "Notice that this setting will be saved for the next time you open MEGAcmd, but will be removed if you logout." << endl;
     }
     else if (!strcmp(command, "deleteversions"))
     {
@@ -2483,6 +2466,7 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << endl;
         os << "*If you serve more than one location, these parameters will be ignored and use those of the first location served." << endl;
         os << " If you want to change those parameters, you need to stop serving all locations and configure them again." << endl;
+        os << "Note: WEBDAV settings and locations will be saved for the next time you open MEGAcmd, but will be removed if you logout." << endl;
         os << endl;
         os << "Caveat: This functionality is in BETA state. It might not be available on all platforms. If you experience any issue with this, please contact: support@mega.nz" << endl;
         os << endl;
@@ -2512,6 +2496,7 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << endl;
         os << "*If you serve more than one location, these parameters will be ignored and used those of the first location served." << endl;
         os << " If you want to change those parameters, you need to stop serving all locations and configure them again." << endl;
+        os << "Note: FTP settings and locations will be saved for the next time you open MEGAcmd, but will be removed if you logout." << endl;
         os << endl;
         os << "Caveat: This functionality is in BETA state. It might not be available on all platforms. If you experience any issue with this, please contact: support@mega.nz" << endl;
         os << endl;
@@ -2589,8 +2574,8 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << "                       " << "\t" << "The \"--all\" argument can be used to show the details of all issues." << endl;
         os << " --limit=rowcount " << "\t" << "Limits the amount of rows displayed. Set to 0 to display unlimited rows. Default is 10. Can also be combined with \"--detail\"." << endl;
         os << " --disable-path-collapse " << "\t" << "Ensures all paths are fully shown. By default long paths are truncated for readability." << endl;
-        os << " --enable-warning " << "\t" << "Enables the notification that appears when issues are detected. This setting is stored locally for all users." << endl;
-        os << " --disable-warning " << "\t" << "Disables the notification that appears when issues are detected. This setting is stored locally for all users." << endl;
+        os << " --enable-warning " << "\t" << "Enables the notification that appears when issues are detected. This setting is saved for the next time you open MEGAcmd, but will be removed if you logout." << endl;
+        os << " --disable-warning " << "\t" << "Disables the notification that appears when issues are detected. This setting is saved for the next time you open MEGAcmd, but will be removed if you logout." << endl;
         printColumnDisplayerHelp(os);
         os << endl;
         os << "DISPLAYED columns:" << endl;
@@ -2933,6 +2918,8 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << " --username=USERNAME" << "\t" << "The username, for authenticated proxies" << endl;
         os << " --password=PASSWORD" << "\t" << "The password, for authenticated proxies. Please, avoid using passwords containing \" or '" << endl;
 
+        os << endl;
+        os << "Note: Proxy settings will be saved for the next time you open MEGAcmd, but will be removed if you logout." << endl;
     }
     else if (!strcmp(command, "cat"))
     {
@@ -3046,90 +3033,6 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
             os << "To only exit current shell and keep server running, use \"exit --only-shell\"" << endl;
         }
     }
-#ifdef HAVE_DOWNLOADS_COMMAND
-    else if (!strcmp(command, "downloads"))
-    {
-        os << "Lists or configure downloads tracking and reporting." << endl;
-        os << endl;
-        os << "It will print the information regarding one or more downloads give their tags or object ids"<< endl;
-        os << "      (both will be reported when using \"get\" with -q)." << endl;
-        os << "IMPORTANT: it is disabled by default, you need to enable it with \"downloads --enable-tracking\"." << endl;
-        os << endl;
-        os << "Options:" << endl;
-        os << " --query-enabled"  << "\t" << "Indicates if download tracking is enabled" << endl;
-        os << " --enable-tracking"  << "\t" << "Starts tracking downloads. It will store the information in a sqlite3 db" << endl;
-        os << " --disable-tracking"  << "\t" << "Stops tracking downloads. Notice, it will remove the associated database" << endl;
-        os << " --enable-clean-slate"  << "\t" << "Transfers from previous executions will be discarded upon restart" << endl;
-        os << " --disable-clean-slate"  << "\t" << "Transfers from previous executions will not be discarded upon restart" << endl;
-        os << " --purge"  << "\t" << "Cancells all onging transfers, and cleans all tracking (included persisted data)" << endl;
-
-        os << endl;
-        os << "Show options:" << endl;
-        os << " --report-all" << "\t" << "Prints a report of all active and finished downloads kept in memory" << endl;
-        os << " --show-subtransfers" << "\t" << "Show information regarding transfers" << endl;
-        os << " --path-display-size=N" << "\t" << "Use at least N characters for displaying paths" << endl;
-        printColumnDisplayerHelp(os);
-        os << endl;
-        os << "Displaying cols:" << endl;
-        os << " OBJECT_ID"  << "\t" << "Id of the object (it will always be the same for the same download)" << endl;
-        os << " SUB_STARTED"  << "\t" << "Number of subtransfers started" << endl;
-        os << " SUB_OK"  << "\t" << "Number of subtransfers that completed ok" << endl;
-        os << " SUB_FAIL"  << "\t" << "Number of subtransfers that completed with some error" << endl;
-        os << " SUBTRANSFER"  << "\t" << "Tag of the subtransfers (only when using --show-subtransfers)" << endl;
-        os << " ERROR_CODE"  << "\t" << "Error of the transfer (if any)" << endl;
-        os << " TYPE"  << "\t" << "Type of transfer (see below)" << endl;
-        os << " TAG"  << "\t" << "A tag that uniquely identifies a tranfer in current execution of MEGAcmd" << endl;
-        os << " SOURCEPATH"  << "\t" << "Path of the folder/file downloaded" << endl;
-        os << " DESTINYPATH"  << "\t" << "Local path for the downloaded file/folder" << endl;
-        os << " PROGRESS"  << "\t" << "Human readable progress of the download" << endl;
-        os << " STATE"  << "\t" << "State of the transfer. " << endl;
-        os << "      "  << "\t" << " Values:" << endl;
-        os << "      "  << "\t" << "  QUEUED:" << "\t" << "queued in the system, waiting for an slot to be assigned" << endl;
-        os << "      "  << "\t" << "  ACTIVE:" << "\t" << "doing I/O" << endl;
-        os << "      "  << "\t" << "  PAUSED:" << "\t" << "paused" << endl;
-        os << "      "  << "\t" << "  RETRYING:" << "\t" << "retrying after some potentially recoverable error" << endl;
-        os << "      "  << "\t" << "  COMPLETING:" << "\t" << "final stages (e.g: moving temporal transfer file to its final destination)" << endl;
-        os << "      "  << "\t" << "  COMPLETED:" << "\t" << "finished ok" << endl;
-        os << "      "  << "\t" << "  CANCELLED:" << "\t" << "cancelled" << endl;
-        os << "      "  << "\t" << "  FAILED:" << "\t" << "Failed (or subtransfers failed)" << endl;
-
-        os << " TRANSFERRED"  << "\t" << "Number of bytes transferred" << endl;
-        os << " TOTAL"  << "\t" << "Number of total bytes to be transferred" << endl;
-        os << endl;
-        os << "TYPE legend correspondence:" << endl;
-#ifdef _WIN32
-
-        const string cD = getutf8fromUtf16(L"\u25bc");
-        const string cU = getutf8fromUtf16(L"\u25b2");
-        const string cS = getutf8fromUtf16(L"\u21a8");
-        const string cB = getutf8fromUtf16(L"\u2191");
-#else
-        const string cD = "\u21d3";
-        const string cU = "\u21d1";
-        const string cS = "\u21f5";
-        const string cB = "\u23eb";
-#endif
-        os << "  " << cD <<" = \t" << "Download transfer" << endl;
-        os << "  " << cU <<" = \t" << "Upload transfer" << endl;
-        os << "  " << cS <<" = \t" << "Sync transfer. The transfer is done in the context of a synchronization" << endl;
-        os << "  " << cB <<" = \t" << "Backup transfer. The transfer is done in the context of a backup" << endl;
-
-        os << endl;
-        os << "Configuration values" << endl;
-        os << "In your configuration folder (HOME/Appdata) there is megacmd.cfg configuration file." << endl;
-        os << "This are the properties used in the downloads tracking & report mechanism:" << endl;
-        os << " downloads_tracking_enabled"  << "\t" << "If downloads tracking is enabled. Default=0 (false)!" << endl;
-        os << " downloads_tracking_max_finished_in_memory_high_threshold"  << "\t" << "Max number of downloads to keep in memory. It this is surpassed, " << endl;
-        os << "                                                         "  << "\t" << "finished transfers will start to be deleted (first the least recently updated)." << endl;
-        os << "                                                         "  << "\t" << "Note: you can still get the information from the db using OJBECT_ID." << endl;
-        os << "                                                         "  << "\t" << "Default=40000" << endl;
-        os << " downloads_tracking_max_finished_in_memory_low_threshold"  << "\t" << "When pruning is executed it will clean until this threshold. Default=20000" << endl;
-        os << " downloads_db_path"  << "\t" << "Path to store tracking information of downloads. Default: ~/.megaCmd/downloads.db" << endl;
-        os << " downloads_db_io_frequency_ms"  << "\t" << "Frequency in milliseconds to commit pending changes in the database. Default=10000" << endl;
-        os << " downloads_db_max_queued_changes"  << "\t" << "Max allowed number of changes to be queued before writting. Default=1000" << endl;
-        os << " downloads_cleanslate_enabled"  << "\t" << "If transfers from previous executions will be discarded upon restart. Default=0 (false)" << endl;
-    }
-#endif
     else if (!strcmp(command, "transfers"))
     {
         os << "List or operate with transfers" << endl;
@@ -4044,10 +3947,10 @@ void* doProcessLine(void* infRaw)
     setCurrentThreadOutStreams(ls, lserr);
 
 
-    setCurrentThreadIsCmdShell(!inf->line.empty() && inf->line[0] == 'X');
+    setCurrentThreadIsCmdShell(inf->isFromCmdShell());
 
 
-    LOG_verbose << " Processing " << inf->line << " in thread: " << MegaThread::currentThreadId() << " " << inf->getPetitionDetails();
+    LOG_verbose << " Processing " << inf->getRedactedLine() << " in thread: " << MegaThread::currentThreadId() << " " << inf->getPetitionDetails();
 
     doExit = process_line(inf->getUniformLine());
 
@@ -4057,7 +3960,7 @@ void* doProcessLine(void* infRaw)
         LOG_verbose << " Exit registered upon process_line: " ;
     }
 
-    LOG_verbose << " Procesed " << inf->line << " in thread: " << MegaThread::currentThreadId() << " " << inf->getPetitionDetails();
+    LOG_verbose << " Procesed " << inf->getRedactedLine() << " in thread: " << MegaThread::currentThreadId() << " " << inf->getPetitionDetails();
 
     MegaThread * petitionThread = inf->getPetitionThread();
 
@@ -4179,12 +4082,6 @@ void finalize(bool waitForRestartSignal_param)
         return;
     alreadyfinalized = true;
     LOG_info << "closing application ...";
-
-#ifdef HAVE_DOWNLOADS_COMMAND
-    LOG_debug << "Shuting down downloads manager";
-    DownloadsManager::Instance().shutdown(false);
-    LOG_debug << "Downloads manager shut down";
-#endif
 
     delete_finished_threads();
     if (!consoleFailed)
@@ -4385,14 +4282,14 @@ void processCommandInPetitionQueues(std::unique_ptr<CmdPetition> inf)
     petitionThreads.emplace_back(petitionThread);
     inf->setPetitionThread(petitionThread);
 
-    LOG_verbose << "starting processing: <" << inf->line << ">";
+    LOG_verbose << "starting processing: <" << inf->getRedactedLine() << ">";
     petitionThread->start(doProcessLine, (void*) inf.release());
 }
 
 void processCommandLinePetitionQueues(std::string what)
 {
     auto inf = std::make_unique<CmdPetition>();
-    inf->line = what;
+    inf->setLine(what);
     inf->clientDisconnected = true; // There's no actual client
     inf->clientID = -3;
     processCommandInPetitionQueues(std::move(inf));
@@ -4435,7 +4332,7 @@ void megacmd()
 
             CmdPetition* inf = infOwned.get();
 
-            LOG_verbose << "petition registered: " << inf->line;
+            LOG_verbose << "petition registered: " << inf->getRedactedLine();
             delete_finished_threads();
 
             if (inf->getUniformLine() == "ERROR")
@@ -5092,6 +4989,9 @@ void reset()
 
 void sendEvent(StatsManager::MegacmdEvent event, const char *msg, ::mega::MegaApi *megaApi, bool wait)
 {
+#if defined(DEBUG) || defined(MEGACMD_TESTING_CODE)
+    LOG_debug << "Skipped MEGAcmd event " << eventName(event) << " - " << msg;
+#else
     std::unique_ptr<MegaCmdListener> megaCmdListener (wait ? new MegaCmdListener(megaApi) : nullptr);
     megaApi->sendEvent(static_cast<int>(event), msg, false /*JourneyId*/, nullptr /*viewId*/, megaCmdListener.get());
     if (wait)
@@ -5104,6 +5004,7 @@ void sendEvent(StatsManager::MegacmdEvent event, const char *msg, ::mega::MegaAp
                     << msg << ", error: " << megaCmdListener->getError()->getErrorString();
         }
     }
+#endif
 }
 
 void sendEvent(StatsManager::MegacmdEvent event, ::mega::MegaApi *megaApi, bool wait)

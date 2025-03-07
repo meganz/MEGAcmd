@@ -1,3 +1,13 @@
+Fri Jan 24 01:20:16 PM CET 2025 - linux@mega.co.nz
+- Update to version 2.0.0:
+  * New Sync Engine: See sync-issues and sync-ignore commands
+  * Rotating Logger: Introduced a robust rotating logging system across all platforms for better performance and debugging
+  * Platform-specific enhancements: Addressed various file descriptor issues on Linux and macOS, and improved non-ascii support on Windows
+  * Improved overall reliability: Fixed memory leaks, resolved potential data races, and eliminated deadlock scenarios
+  * Fixed an issue when handling double-quoted arguments
+  * Various fixes and refinements to enhance usability and performance
+
+-------------------------------------------------------------------
 Mon May 20 02:06:31 PM CEST 2024 - linux@mega.co.nz
 - Update to version 1.7.0:
   * Improved startup time

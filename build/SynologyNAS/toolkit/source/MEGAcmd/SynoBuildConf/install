@@ -1,43 +1,35 @@
-#!/bin/bash 
-
-mkdir /ccache-tmp
-export CCACHE_DIR=/ccache-tmp
+#!/bin/bash
 
 ### Use PKG_DIR as working directory.
 PKG_DIR=/tmp/_test_spk
 rm -rf $PKG_DIR
 mkdir -p $PKG_DIR
 
-### get spk packing functions
-source /pkgscripts/include/pkg_util.sh
+source /mega/pkgscripts/include/pkg_util.sh
 
 create_inner_tarball() {
     local inner_tarball_dir=/tmp/_inner_tarball
 
-    ### clear destination directory
+    ### Clear destination directory
     rm -rf $inner_tarball_dir && mkdir -p $inner_tarball_dir
 
-    pushd MEGAcmd
-
-    cp mega-cmd \
-       mega-cmd-server \
-       mega-exec \
+    cp buildDMS/mega-cmd \
+       buildDMS/mega-cmd-server \
+       buildDMS/mega-exec \
        src/client/mega-* \
        "$inner_tarball_dir"
 
-    if [ -x "sdk/tests/test_integration" ]; then
-        cp sdk/tests/test_integration \
-           sdk/tests/test_unit \
-           "$inner_tarball_dir"
-    fi
-
-    popd
-
-    ### create package.txz: $1=source_dir, $2=dest_dir
+    ### Create package.txz: $1=source_dir, $2=dest_dir
     pkg_make_package $inner_tarball_dir "${PKG_DIR}"
 }
 
-create_spk(){
+get_platform_family() {
+    plat_to_family "$PLATFORM"
+}
+
+create_spk() {
+    pushd build/SynologyNAS/toolkit/source/MEGAcmd
+
     ### Copy conf and scripts.
     cp -av conf $PKG_DIR/.
     cp -av scripts $PKG_DIR/.
@@ -50,12 +42,11 @@ create_spk(){
     ./INFO.sh > INFO
     cp -av INFO ${PKG_DIR}
 
-    ### Create the final spk.
-    # pkg_make_spk <source path> <dest path> <spk file name>
-    # Please put the result spk into /image/packages
-    # spk name functions: pkg_get_spk_name pkg_get_spk_unified_name pkg_get_spk_family_name
-    mkdir -p /image/packages
-    pkg_make_spk ${PKG_DIR} "/image/packages" $(pkg_get_spk_family_name)
+    ### Create the final spk
+    mkdir -p "/image/${PLATFORM}"
+    pkg_make_spk ${PKG_DIR} "/image/${PLATFORM}" $(__get_spk_name get_platform_family INFO)
+
+    popd
 }
 
 create_inner_tarball

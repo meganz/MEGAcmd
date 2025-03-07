@@ -18,8 +18,8 @@ Show options:
  --only-completed	Show only completed download
  --limit=N	Show only first N transfers
  --path-display-size=N	Use at least N characters for displaying paths
- --col-separator=X	Use the string "X" as column separator. Otherwise, spaces will be added between columns to align them.
- --output-cols=COLUMN_NAME_1,COLUMN_NAME2,...	Select which columns to show and their order.
+ --col-separator=X	Uses the string "X" as column separator. Otherwise, spaces will be added between columns to align them.
+ --output-cols=COLUMN_NAME_1,COLUMN_NAME2,...	Selects which columns to show and their order.
 
 TYPE legend correspondence:
   ⇓ = 	Download transfer

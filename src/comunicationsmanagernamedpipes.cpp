@@ -269,7 +269,7 @@ void ComunicationsManagerNamedPipes::sendPartialOutput(CmdPetition *inf, OUTSTRI
 {
     string sutf8;
     localwtostring(s, &sutf8);
-    assert(isValidUtf8(sutf8)); // above localwtostring should produce an empty string if the input had broken encoding or valid utf-8 otherwise
+    ASSERT_UTF8_VALID(sutf8); // above localwtostring should produce an empty string if the input had broken encoding or valid utf-8 otherwise
 
     return sendPartialOutputImpl(inf, sutf8.data(), sutf8.size(), false/*never binary*/, false/*not error*/);
 }
@@ -283,7 +283,7 @@ void ComunicationsManagerNamedPipes::sendPartialError(CmdPetition *inf, OUTSTRIN
 {
     string sutf8;
     localwtostring(s, &sutf8);
-    assert(isValidUtf8(sutf8)); // above localwtostring should produce an empty string if the input had broken encoding or valid utf-8 otherwise
+    ASSERT_UTF8_VALID(sutf8); // above localwtostring should produce an empty string if the input had broken encoding or valid utf-8 otherwise
 
     return sendPartialOutputImpl(inf, sutf8.data(), sutf8.size(), false/*never binary*/, true/*error*/);
 }
@@ -305,7 +305,7 @@ void ComunicationsManagerNamedPipes::sendPartialOutputImpl(CmdPetition *inf, cha
     if (!binaryContents &&!isValidUtf8(s, size))
     {
         std::cerr << "Attempt to sendPartialOutput of invalid utf8 of size " << size << std::endl;
-        assert(false && "Attempt to sendPartialOutput of invalid utf8");
+        ASSERT_UTF8_BREAK("Attempt to sendPartialOutput of invalid utf8");
         return;
     }
 
@@ -349,6 +349,10 @@ void ComunicationsManagerNamedPipes::sendPartialOutputImpl(CmdPetition *inf, cha
         return;
     }
 
+    string sutf8;
+    localwtostring(s, &sutf8);
+    ASSERT_UTF8_VALID(sutf8); // above localwtostring should produce an empty string if the input had broken encoding or valid utf-8 otherwise
+
     int outCode = sendAsError ? MCMD_PARTIALERR : MCMD_PARTIALOUT;
     DWORD n;
     if (!WriteFile(outNamedPipe,(const char*)&outCode, sizeof(outCode), &n, NULL))
@@ -356,7 +360,7 @@ void ComunicationsManagerNamedPipes::sendPartialOutputImpl(CmdPetition *inf, cha
         std::cerr << "ERROR writing output Code to namedPipe: " << ERRNO << std::endl;
         if (ERRNO == ERROR_NO_DATA)
         {
-            std::cerr << "WARNING: Client disconnected, the rest of the output will be discarded" << endl;
+            std::cerr << "WARNING: Client disconnected, the rest of the output will be discarded" << std::endl;
             inf->clientDisconnected = true;
         }
         return;
@@ -379,7 +383,7 @@ int ComunicationsManagerNamedPipes::informStateListener(CmdPetition *inf, const 
     if (!isValidUtf8(s))
     {
         LOG_err << "Attempt to write an invalid utf8 string of size " << s.size();
-        assert(false && "Attempt to write an invalid utf8 string");
+        ASSERT_UTF8_BREAK("Attempt to write an invalid utf8 string");
         return 0;
     }
 
@@ -411,7 +415,7 @@ int ComunicationsManagerNamedPipes::informStateListener(CmdPetition *inf, const 
     {
         if (ERRNO == 32 || ERRNO == 109 || (ERRNO == 232 && s == "ack")) //namedPipe closed | pipe has been ended
         {
-            LOG_debug << "namedPipe closed. Client probably disconnected. Original petition: " << inf->line;
+            LOG_debug << "namedPipe closed. Client probably disconnected. Original petition: " << inf->getRedactedLine();
             return -1;
         }
         else
@@ -463,7 +467,7 @@ std::unique_ptr<CmdPetition> ComunicationsManagerNamedPipes::getPetition()
     if (!readok)
     {
         LOG_err << "Failed to read petition from named pipe. errno: L" << ERRNO;
-        inf->line = "ERROR";
+        inf->setLine("ERROR");
         return inf;
     }
 
@@ -476,14 +480,14 @@ std::unique_ptr<CmdPetition> ComunicationsManagerNamedPipes::getPetition()
     if (!namedPipeValid(inf->outNamedPipe) || !namedPipe_id)
     {
         LOG_fatal << "ERROR creating output namedPipe at getPetition";
-        inf->line = "ERROR";
+        inf->setLine("ERROR");
         return inf;
     }
 
     if(!WriteFile(pipeGeneral,(const char*)&namedPipe_id, sizeof( namedPipe_id ), &n, NULL))
     {
         LOG_fatal << "ERROR writing to namedPipe at getPetition: ERRNO = " << ERRNO;
-        inf->line = "ERROR";
+        inf->setLine("ERROR");
         return inf;
     }
 
@@ -492,7 +496,7 @@ std::unique_ptr<CmdPetition> ComunicationsManagerNamedPipes::getPetition()
         LOG_fatal << " Error disconnecting from general pip. errno: " << ERRNO;
     }
 
-    inf->line = receivedutf8;
+    inf->setLine(receivedutf8);
 
     return inf;
 }

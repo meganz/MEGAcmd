@@ -165,6 +165,7 @@ SOCKET MegaCmdShellCommunicationsPosix::createSocket(int number, bool initialize
 
                 std::vector<const char*> argsVector{
                     executable,
+                     "--do-not-log-to-stdout",
                     nullptr
                 };
 
