@@ -77,6 +77,8 @@ public:
         Gzip
     };
 
+    static float getCompressionRatio(CompressionType compressionType);
+
     static RotationType getRotationTypeFromStr(std::string_view str);
     static CompressionType getCompressionTypeFromStr(std::string_view str);
 
