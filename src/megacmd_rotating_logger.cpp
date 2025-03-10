@@ -820,14 +820,12 @@ NumberedRotationEngine::NumberedRotationEngine(const std::string& compressionExt
     mCompressionExt(compressionExt),
     mMaxFilesToKeep(maxFilesToKeep)
 {
-    // Numbered rotation does not support keeping unlimited files
-    assert(mMaxFilesToKeep >= 0);
 }
 
 fs::path NumberedRotationEngine::rotateFiles(const fs::path& dir, const fs::path& baseFilename)
 {
     std::error_code ec;
-    for (int i = mMaxFilesToKeep - 1; i >= 0; --i)
+    for (int i = mMaxFilesToKeep; i >= 0; --i)
     {
         fs::path srcFilePath = getSrcFilePath(dir, baseFilename, i);
 
@@ -838,7 +836,7 @@ fs::path NumberedRotationEngine::rotateFiles(const fs::path& dir, const fs::path
         }
 
         // Delete the last file, which is the one with number == maxFilesToKeep
-        if (i == mMaxFilesToKeep - 1)
+        if (i == mMaxFilesToKeep)
         {
             fs::remove(srcFilePath, ec);
             if (ec)
