@@ -3537,6 +3537,10 @@ void MegaCmdExecuter::exportNode(MegaNode *n, int64_t expireTime, const std::opt
     {
         string authToken = nodeLink.substr(strlen(prefix)).append(":").append(authKey);
         OUTSTREAM << "\n          AuthToken = " << authToken;
+        if (megaHosted && megaCmdListener->getRequest()->getPassword())
+        {
+            OUTSTREAM << "\n          Share key encryption key = " << megaCmdListener->getRequest()->getPassword();
+        }
     }
 
     if (actualExpireTime)

@@ -277,6 +277,16 @@ int MegaCmdSimpleLogger::getMaxLogLevel() const
 
 void MegaCmdSimpleLogger::log(const char * /*time*/, int logLevel, const char *source, const char *message)
 {
+    thread_local bool isRecursive = false;
+    if (isRecursive)
+    {
+        std::cerr << "ERROR: Attempt to log message recursively from " << source << ": " << message << std::endl;
+        assert(false);
+        return;
+    }
+    ScopeGuard g([] { isRecursive = false; });
+    isRecursive = true;
+
     if (!isValidUtf8(message, strlen(message)))
     {
         constexpr const char* invalid = "<invalid utf8>";
