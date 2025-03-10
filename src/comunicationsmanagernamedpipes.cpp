@@ -399,7 +399,7 @@ void ComunicationsManagerNamedPipes::sendPartialOutput(CmdPetition *inf, char *s
     DWORD n;
     if (!WriteFile(outNamedPipe,(const char*)&outCode, sizeof(outCode), &n, NULL))
     {
-        LOG_err << "ERROR writing output Code to namedPipe: " << ERRNO;
+        std::cerr << "ERROR writing output Code to namedPipe: " << ERRNO << std::endl;
         if (ERRNO == ERROR_NO_DATA)
         {
             std::cerr << "WARNING: Client disconnected, the rest of the output will be discarded" << endl;
@@ -411,12 +411,12 @@ void ComunicationsManagerNamedPipes::sendPartialOutput(CmdPetition *inf, char *s
     size_t thesize = size > 1 ? size : 1; // client does not like empty responses
     if (!WriteFile(outNamedPipe,(const char*)&thesize, sizeof(thesize), &n, NULL))
     {
-        LOG_err << "ERROR writing output Code to namedPipe: " << ERRNO;
+        std::cerr << "ERROR writing output Code to namedPipe: " << ERRNO << std::endl;
         return;
     }
     if (!WriteFile(outNamedPipe,s, DWORD(thesize), &n, NULL))
     {
-        LOG_err << "ERROR writing to namedPipe: " << ERRNO;
+        std::cerr << "ERROR writing to namedPipe: " << ERRNO << std::endl;
     }
 }
 
