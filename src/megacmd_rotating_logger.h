@@ -77,6 +77,9 @@ public:
         Gzip
     };
 
+    static RotationType getRotationTypeFromStr(std::string_view str);
+    static CompressionType getCompressionTypeFromStr(std::string_view str);
+
     struct Config
     {
         size_t mMaxBaseFileSize;
@@ -86,12 +89,10 @@ public:
         int mMaxFilesToKeep;
 
         CompressionType mCompressionType;
-
-        Config();
     };
 
 public:
-    RotatingFileManager(const fs::path& filePath, const Config& config = {});
+    RotatingFileManager(const fs::path& filePath, const Config& config);
 
     bool shouldRotateFiles(size_t fileSize) const;
 
@@ -135,6 +136,9 @@ class FileRotatingLoggedStream final : public LoggedStream
     std::thread mWriteThread;
 
 private:
+    static size_t loadFailSafeSize();
+    static RotatingFileManager::Config loadFileConfig();
+
     bool shouldRenew() const;
     bool shouldExit() const;
     bool shouldFlush() const;

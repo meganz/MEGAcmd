@@ -12,14 +12,17 @@
  * You should have received a copy of the license along with this
  * program.
  */
+#include "megacmd_rotating_logger.h"
 
 #include "megacmdcommonutils.h"
-#include "megacmd_rotating_logger.h"
+#include "configurationmanager.h"
 
 #include <cassert>
 #include <unordered_set>
 #include <optional>
 #include <zlib.h>
+
+using megacmd::ConfigurationManager;
 
 namespace {
 constexpr uint64_t operator"" _KB(unsigned long long kilobytes)
@@ -37,6 +40,52 @@ constexpr uint64_t operator"" _GB(unsigned long long gigabytes)
 constexpr uint64_t operator"" _TB(unsigned long long terabytes)
 {
     return terabytes * 1024ull * 1024ull * 1024ull * 1024ull;
+}
+
+std::pair<double /* MaxFileMB */, int /* MaxFilesToKeep */> getFileConfigDefaults()
+{
+    // The estimated max total space used by the logs is:
+    //      MaxTotalSizeUsed = MaxFilesToKeep * MaxFileSize * AvgCompressionRatio + MaxFileSize
+    //
+    // Then, we can estimate the max amount of files to keep with:
+    //      MaxFilesToKeep = (MaxTotalSizeUsed - MaxFileSize) / (MaxFileSize * AvgCompressionRatio)
+    // where, giving MEGAcmd logs a max disk usage of 0.15%,
+    //      MaxTotalSizeUsed = TotalDiskSpace * 0.0015
+    //
+    // If there's only enough space for less than 1 file, it means we have to reduce the max allowed
+    // file size. So, we'll set MaxFilesToKeep=1, and then:
+    //      MaxFileSize = MaxTotalSizeUsed / (AvgCompressionRatio + 1)
+    //
+    // Using these formulas, and setting MaxFileSize=50MB and AvgCompressionRatio=0.15%,
+    // we get the following possible defaults:
+    //      DISK SPACE    MAX FILES    MAX FILE SIZE
+    //            1 TB          203            50 MB
+    //          400 GB           75            50 MB
+    //          100 GB           13            50 MB
+    //           10 GB            1            13 MB
+    //            1 GB            1          1.34 MB
+    //
+    // Note: We use the total disk space instead of the available disk space because it's not the
+    // responsability of MEGACmd to ensure the disk doesn't run out of space. We just want to try
+    // to choose more sensible defaults depending on the system specs.
+
+    constexpr double logsDiskUsagePercentage = 0.15 / 100.0;
+    constexpr double avgCompressionRatio = 0.15; // being conservative; it's generally ~10% for MEGAcmd logs
+
+    const auto spaceInfo = fs::space(ConfigurationManager::getConfigFolder());
+    const double totalAvailableMB = spaceInfo.capacity / (1024 * 1024);
+
+    double maxFileMB = 50.0;
+    double maxFilesToKeep = (logsDiskUsagePercentage * totalAvailableMB - maxFileMB) / (maxFileMB * avgCompressionRatio);
+
+    if (maxFilesToKeep < 1.0)
+    {
+        maxFilesToKeep = 1.0;
+        maxFileMB = logsDiskUsagePercentage * totalAvailableMB / (avgCompressionRatio + 1);
+        assert(maxFileMB < 50.0);
+    }
+
+    return {maxFileMB, std::floor(maxFilesToKeep)};
 }
 
 class ReopenScope final
@@ -181,6 +230,10 @@ MessageBus::MessageBus(size_t reservedSize, size_t shouldSwapSize, size_t failSa
     mMemoryError(false)
 {
     assert(mFailSafeSize > 0);
+    if (reservedSize > failSafeSize)
+    {
+        reservedSize = failSafeSize;
+    }
 
     try
     {
@@ -254,13 +307,22 @@ void MessageBus::clearFrontBuffer()
     mFrontBuffer.clear();
 }
 
-RotatingFileManager::Config::Config() :
-    mMaxBaseFileSize(50_MB),
-    mRotationType(RotationType::Timestamp),
-    mMaxFileAge(30 * 86400), // one month (in C++20 we can use `std::chrono::month(1)`)
-    mMaxFilesToKeep(50),
-    mCompressionType(CompressionType::Gzip)
+RotatingFileManager::RotationType RotatingFileManager::getRotationTypeFromStr(std::string_view str)
 {
+    if (str == "Numbered")
+    {
+        return RotationType::Numbered;
+    }
+    return RotationType::Timestamp;
+}
+
+RotatingFileManager::CompressionType RotatingFileManager::getCompressionTypeFromStr(std::string_view str)
+{
+    if (str == "None")
+    {
+        return CompressionType::None;
+    }
+    return CompressionType::Gzip;
 }
 
 RotatingFileManager::RotatingFileManager(const fs::path& filePath, const Config &config) :
@@ -335,6 +397,62 @@ void RotatingFileManager::initializeRotationEngine()
     }
     assert(rotationEngine);
     mRotationEngine = std::unique_ptr<RotationEngine>(rotationEngine);
+}
+
+size_t FileRotatingLoggedStream::loadFailSafeSize()
+{
+    // Since we have two buffers, and each can be up to FailSafeSize, the max size of the message bus is:
+    //      MessageBusMaxSize = FailSafeSize * 2
+    //
+    // We could potentially get the total RAM to figure out a better default value; probably overkill
+    // since there's not an easy, cross-platform way to do so.
+    constexpr double defaultMessageBusMB = 512.0;
+
+    double messageBusMB = ConfigurationManager::getConfigurationValue("RotatingLogger:MaxMessageBusMB", defaultMessageBusMB);
+    if (messageBusMB < 0.0)
+    {
+        messageBusMB = defaultMessageBusMB;
+    }
+
+    return std::floor(messageBusMB/2.0 * 1024.0 * 1024.0);
+}
+
+RotatingFileManager::Config FileRotatingLoggedStream::loadFileConfig()
+{
+    RotatingFileManager::Config config;
+
+    constexpr int defaultMaxFileAgeSeconds = 30 * 86400; // 1 month
+    const auto [defaultMaxFileMB, defaultMaxFilesToKeep] = getFileConfigDefaults();
+
+    std::string rotationTypeStr = ConfigurationManager::getConfigurationSValue("RotatingLogger:RotationType");
+    std::string compressionTypeStr = ConfigurationManager::getConfigurationSValue("RotatingLogger:CompressionType");
+
+    config.mRotationType = RotatingFileManager::getRotationTypeFromStr(rotationTypeStr);
+    config.mCompressionType = RotatingFileManager::getCompressionTypeFromStr(compressionTypeStr);
+
+    double maxFileSize = ConfigurationManager::getConfigurationValue("RotatingLogger:MaxFileMB", defaultMaxFileMB);
+    if (maxFileSize < 0.0)
+    {
+        maxFileSize = defaultMaxFileMB;
+    }
+
+    int maxFileAgeSeconds = ConfigurationManager::getConfigurationValue("RotatingLogger:MaxFileAgeSeconds", defaultMaxFileAgeSeconds);
+    if (maxFileAgeSeconds < 0)
+    {
+        maxFileAgeSeconds = defaultMaxFileAgeSeconds;
+    }
+
+    int maxFilesToKeep = ConfigurationManager::getConfigurationValue("RotatingLogger:MaxFilesToKeep", defaultMaxFilesToKeep);
+    if (maxFilesToKeep < 0)
+    {
+        maxFilesToKeep = defaultMaxFilesToKeep;
+    }
+
+    config.mMaxBaseFileSize = std::floor(maxFileSize * 1024.0 * 1024.0);
+    config.mMaxFileAge = std::chrono::seconds(maxFileAgeSeconds);
+    config.mMaxFilesToKeep = maxFilesToKeep;
+
+    return config;
 }
 
 bool FileRotatingLoggedStream::shouldRenew() const
@@ -520,10 +638,10 @@ void FileRotatingLoggedStream::mainLoop()
 }
 
 FileRotatingLoggedStream::FileRotatingLoggedStream(const OUTSTRING& outputFilePath) :
-    mMessageBus(4_MB /* reservedSize */, 1_KB /* shouldSwapSize */, 500_MB /* failSafeSize */),
+    mMessageBus(4_MB /* reservedSize */, 1_KB /* shouldSwapSize */, loadFailSafeSize()),
     mOutputFilePath(outputFilePath),
     mOutputFile(outputFilePath, std::ofstream::out | std::ofstream::app),
-    mFileManager(mOutputFilePath),
+    mFileManager(mOutputFilePath, loadFileConfig()),
     mForceRenew(false),
     mExit(false),
     mFlush(false),
