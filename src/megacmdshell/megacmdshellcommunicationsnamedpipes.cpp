@@ -476,6 +476,7 @@ int MegaCmdShellCommunicationsNamedPipes::executeCommand(string command, std::st
                                           && command.compare(0,7,"sendack"));
     if (!namedPipeValid(theNamedPipe))
     {
+        cerr << "MegaCmdShellCommunicationsNamedPipes::executeCommand ERROR, named pipe not valid: " << theNamedPipe << " errno = "  << ERRNO << endl;
         return -1;
     }
 
@@ -521,6 +522,7 @@ int MegaCmdShellCommunicationsNamedPipes::executeCommand(string command, std::st
     HANDLE newNamedPipe = createNamedPipe(receiveNamedPipeNum);
     if (!namedPipeValid(newNamedPipe))
     {
+        cerr << "MegaCmdShellCommunicationsNamedPipes::executeCommand ERROR, receive named pipe not valid: " << receiveNamedPipeNum << " pipe= " << newNamedPipe << " errno = "  << ERRNO << endl;
         return -1;
     }
 
@@ -809,7 +811,10 @@ void MegaCmdShellCommunicationsNamedPipes::setResponseConfirmation(bool confirma
 void MegaCmdShellCommunicationsNamedPipes::triggerListenerThreadShutdown()
 {
     // this would cause the wake of the listener thread:
-    executeCommand("sendack");
+    if (executeCommand("sendack") == -1)
+    {
+        std::cerr << "shutting down sendack failed!" << std::endl;
+    }
 }
 
 MegaCmdShellCommunicationsNamedPipes::~MegaCmdShellCommunicationsNamedPipes()
