@@ -2878,23 +2878,9 @@ void MegaCmdExecuter::fetchNodes(MegaApi *api, int clientID)
 #endif
 }
 
-void MegaCmdExecuter::actUponLogout(SynchronousRequestListener *srl, bool keptSession, int timeout)
+void MegaCmdExecuter::actUponLogout(mega::MegaApi& api, mega::MegaError* e, bool keptSession)
 {
-    if (!timeout)
-    {
-        srl->wait();
-    }
-    else
-    {
-        int trywaitout = srl->trywait(timeout);
-        if (trywaitout)
-        {
-            LOG_err << "Logout took too long, it may have failed. No further actions performed";
-            return;
-        }
-    }
-
-    if (srl->getError()->getErrorCode() == MegaError::API_ESID || checkNoErrors(srl->getError(), "logout"))
+    if (e->getErrorCode() == MegaError::API_ESID || checkNoErrors(e, "logout"))
     {
         LOG_verbose << "actUponLogout logout ok";
         cwd = UNDEF;
@@ -2915,7 +2901,25 @@ void MegaCmdExecuter::actUponLogout(SynchronousRequestListener *srl, bool keptSe
         clearGreetingStatusAllListener();
         clearGreetingStatusFirstListener();
     }
-    updateprompt(api);
+    updateprompt(&api);
+}
+
+void MegaCmdExecuter::actUponLogout(SynchronousRequestListener *srl, bool keptSession, int timeout)
+{
+    if (!timeout)
+    {
+        srl->wait();
+    }
+    else
+    {
+        int trywaitout = srl->trywait(timeout);
+        if (trywaitout)
+        {
+            LOG_err << "Logout took too long, it may have failed. No further actions performed";
+            return;
+        }
+    }
+    actUponLogout(*api, srl->getError(), keptSession);
 }
 
 int MegaCmdExecuter::actUponCreateFolder(SynchronousRequestListener *srl, int timeout)
