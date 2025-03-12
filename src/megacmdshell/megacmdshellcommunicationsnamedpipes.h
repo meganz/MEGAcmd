@@ -69,6 +69,10 @@ private:
 
     static bool confirmResponse;
 
+    std::mutex mStateListenerNamedPipeMutex;
+    HANDLE mStateListenerNamedPipeHandle = INVALID_HANDLE_VALUE;
+    std::unique_ptr<std::promise<void>> mStateListenerNamedPipeResetPromise;
+
     HANDLE doOpenPipe(std::wstring nameOfPipe);
     HANDLE createNamedPipe(int number = 0,bool initializeserver = true);
 
