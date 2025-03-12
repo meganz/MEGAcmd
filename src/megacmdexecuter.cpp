@@ -2878,7 +2878,7 @@ void MegaCmdExecuter::fetchNodes(MegaApi *api, int clientID)
 #endif
 }
 
-void MegaCmdExecuter::actUponLogout(mega::MegaApi& api, mega::MegaError* e, bool keptSession)
+void MegaCmdExecuter::actUponLogout(MegaApi& api, MegaError* e, bool keptSession)
 {
     if (e->getErrorCode() == MegaError::API_ESID || checkNoErrors(e, "logout"))
     {
