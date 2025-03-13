@@ -25,5 +25,5 @@ Options:
  --col-separator=X	Uses the string "X" as column separator. Otherwise, spaces will be added between columns to align them.
  --output-cols=COLUMN_NAME_1,COLUMN_NAME2,...	Selects which columns to show and their order.
 
-Note: FUSE commands are only available on Linux.
+Note: FUSE commands are in early BETA. They're only available on Linux. If you experience any issues, please contact support@mega.
 </pre>
