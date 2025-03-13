@@ -5060,7 +5060,7 @@ void uninstall()
 
 int executeServer(int argc, char* argv[],
                   const std::function<LoggedStream*()>& createLoggedStream,
-                  bool logToCout, int sdkLogLevel, int cmdLogLevel,
+                  const LogConfig& logConfig,
                   bool skiplockcheck, std::string debug_api_url, bool disablepkp)
 {
     // Own global server instances here
@@ -5095,7 +5095,7 @@ int executeServer(int argc, char* argv[],
     mcmdMainArgv = argv;
     mcmdMainArgc = argc;
 
-    ConfigurationManager::loadConfiguration(cmdLogLevel >= MegaApi::LOG_LEVEL_DEBUG);
+    ConfigurationManager::loadConfiguration(logConfig.mCmdLogLevel >= MegaApi::LOG_LEVEL_DEBUG);
     if (!ConfigurationManager::lockExecution() && !skiplockcheck)
     {
         cerr << "Another instance of MEGAcmd Server is running. Execute with --skip-lock-check to force running (NOT RECOMMENDED)" << endl;
@@ -5111,7 +5111,7 @@ int executeServer(int argc, char* argv[],
 
     // Establish the logger
     SimpleLogger::setLogLevel(logMax); // do not filter anything here, log level checking is done by loggerCMD
-    loggerCMD = new MegaCmdSimpleLogger(logToCout, sdkLogLevel, cmdLogLevel);
+    loggerCMD = new MegaCmdSimpleLogger(logConfig.mLogToCout, logConfig.mSdkLogLevel, logConfig.mCmdLogLevel);
 
     MegaApi::addLoggerObject(loggerCMD);
     MegaApi::setLogLevel(MegaApi::LOG_LEVEL_MAX);
@@ -5134,6 +5134,7 @@ int executeServer(int argc, char* argv[],
     }
 
     api->setLanguage(localecode.c_str());
+    api->setLogJSONContent(logConfig.mJsonLogs);
     LOG_debug << "Language set to: " << localecode;
 
     sandboxCMD = new MegaCmdSandbox();
@@ -5150,6 +5151,7 @@ int executeServer(int argc, char* argv[],
         MegaApi *apiFolder = new MegaApi("BdARkQSQ", apiFolderStrUtf8.c_str(), userAgent);
         apiFolder->setLanguage(localecode.c_str());
         apiFolder->setLogLevel(MegaApi::LOG_LEVEL_MAX);
+        apiFolder->setLogJSONContent(logConfig.mJsonLogs);
         apiFolder->addGlobalListener(cmdFatalErrorListener.get());
 
         apiFolders.push(apiFolder);

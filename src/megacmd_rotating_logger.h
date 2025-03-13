@@ -27,44 +27,36 @@
 
 namespace megacmd {
 
-template<size_t BlockSize>
-class MessageBuffer final
+class MessageBus final
 {
 public:
-    class MemoryBlock final
-    {
-        size_t mSize;
-        bool mMemoryAllocationFailed;
-        char mBuffer[BlockSize];
-    public:
-        MemoryBlock();
-
-        bool canAppendData(size_t dataSize) const;
-        bool isNearCapacity() const;
-        bool memoryAllocationFailed() const;
-        const char* getBuffer() const;
-
-        void markMemoryAllocationFailed();
-        void appendData(const char* data, size_t size);
-
-    };
-    using MemoryBlockList = std::vector<MemoryBlock>;
+    using MemoryBuffer = std::vector<char>;
 
 public:
-    MessageBuffer(size_t failSafeSize);
+    // These are:
+    //      reservedSize: initial size of the front and back buffers
+    //      shouldSwapSize: suggested size at which we can attempt to swap the buffers
+    //      failSafeSize: fail safe size at which we should flush the message bus
+    //                    after flushing, the underlying buffers are shrunk to fit the fail safe size
+    MessageBus(size_t reservedSize, size_t shouldSwapSize, size_t failSafeSize);
 
     void append(const char* data, size_t size);
-    MemoryBlockList popMemoryBlockList(bool& initialMemoryError);
+    std::pair<bool /* memoryError */, const MemoryBuffer&> swapBuffers();
 
     bool isEmpty() const;
-    bool isNearLastBlockCapacity() const;
+    bool shouldSwapBuffers() const;
     bool reachedFailSafeSize() const;
 
 private:
+    void clearFrontBuffer();
+
+    const size_t mShouldSwapSize;
     const size_t mFailSafeSize;
+
     mutable std::mutex mListMtx;
-    MemoryBlockList mList;
-    bool mInitialMemoryError;
+    MemoryBuffer mFrontBuffer;
+    MemoryBuffer mBackBuffer;
+    bool mMemoryError;
 };
 
 class RotationEngine;
@@ -123,7 +115,7 @@ private:
 
 class FileRotatingLoggedStream final : public LoggedStream
 {
-    mutable MessageBuffer<1024> mMessageBuffer;
+    mutable MessageBus mMessageBus;
 
     fs::path mOutputFilePath;
     std::ofstream mOutputFile;
@@ -181,138 +173,4 @@ public:
 
     virtual void flush() override;
 };
-
-template<size_t BlockSize>
-MessageBuffer<BlockSize>::MemoryBlock::MemoryBlock() :
-    mSize(0),
-    mMemoryAllocationFailed(false)
-{
-    // Ensure null-termination even if the memory block is empty
-    mBuffer[0] = '\0';
-}
-
-template<size_t BlockSize>
-bool MessageBuffer<BlockSize>::MemoryBlock::canAppendData(size_t dataSize) const
-{
-    // The last byte of buffer is reserved for '\0'
-    return !mMemoryAllocationFailed && mSize + dataSize < BlockSize;
-}
-
-template<size_t BlockSize>
-bool MessageBuffer<BlockSize>::MemoryBlock::isNearCapacity() const
-{
-    return mSize + BlockSize/8 > BlockSize;
-}
-
-template<size_t BlockSize>
-bool MessageBuffer<BlockSize>::MemoryBlock::memoryAllocationFailed() const
-{
-    return mMemoryAllocationFailed;
-}
-
-template<size_t BlockSize>
-const char *MessageBuffer<BlockSize>::MemoryBlock::getBuffer() const
-{
-    return mBuffer;
-}
-
-template<size_t BlockSize>
-void MessageBuffer<BlockSize>::MemoryBlock::markMemoryAllocationFailed()
-{
-    mMemoryAllocationFailed = true;
-}
-
-template<size_t BlockSize>
-void MessageBuffer<BlockSize>::MemoryBlock::appendData(const char* data, size_t size)
-{
-    assert(canAppendData(size));
-    assert(data && size > 0);
-
-    std::memcpy(&mBuffer[mSize], data, size);
-    mSize += size;
-    assert(mSize < BlockSize);
-
-    // Append null after the last character so the buffer
-    // is properly treated as a C-string
-    mBuffer[mSize] = '\0';
-}
-
-template<size_t BlockSize>
-MessageBuffer<BlockSize>::MessageBuffer(size_t failSafeSize) :
-    mFailSafeSize(failSafeSize),
-    mInitialMemoryError(false)
-{
-    assert(mFailSafeSize > 0);
-    assert(mFailSafeSize > BlockSize);
-}
-
-template<size_t BlockSize>
-void MessageBuffer<BlockSize>::append(const char* data, size_t size)
-{
-    std::lock_guard<std::mutex> lock(mListMtx);
-
-    auto* lastBlock = mList.empty() ? nullptr : &mList.back();
-    if (!lastBlock || !lastBlock->canAppendData(size))
-    {
-        try
-        {
-            mList.emplace_back();
-        }
-        catch (const std::bad_alloc&)
-        {
-            if (lastBlock)
-            {
-                // If there's a bad_alloc exception when adding to a vector, it remains unchanged
-                // So we let the last block know its allocation failed
-                lastBlock->markMemoryAllocationFailed();
-            }
-            else
-            {
-                // If there's not even a last block, then the error is at the start
-                mInitialMemoryError = true;
-            }
-            return;
-        }
-
-        lastBlock = &mList.back();
-    }
-
-    if (lastBlock->canAppendData(size))
-    {
-        lastBlock->appendData(data, size);
-    }
-}
-
-template<size_t BlockSize>
-typename MessageBuffer<BlockSize>::MemoryBlockList MessageBuffer<BlockSize>::popMemoryBlockList(bool& initialMemoryError)
-{
-    std::lock_guard<std::mutex> lock(mListMtx);
-    initialMemoryError = mInitialMemoryError;
-    mInitialMemoryError = false;
-
-    MemoryBlockList poppedList;
-    std::swap(poppedList, mList);
-    return poppedList;
-}
-
-template<size_t BlockSize>
-bool MessageBuffer<BlockSize>::isEmpty() const
-{
-    std::lock_guard<std::mutex> lock(mListMtx);
-    return mList.empty();
-}
-
-template<size_t BlockSize>
-bool MessageBuffer<BlockSize>::isNearLastBlockCapacity() const
-{
-    std::lock_guard<std::mutex> lock(mListMtx);
-    return !mList.empty() && mList.back().isNearCapacity();
-}
-
-template<size_t BlockSize>
-bool MessageBuffer<BlockSize>::reachedFailSafeSize() const
-{
-    std::lock_guard<std::mutex> lock(mListMtx);
-    return mList.size() > mFailSafeSize / BlockSize;
-}
 }
