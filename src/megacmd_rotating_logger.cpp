@@ -80,15 +80,20 @@ class FileConfigCalculator
     }
 
 public:
-    FileConfigCalculator(RotatingFileManager::CompressionType compressionType)
+    FileConfigCalculator(RotatingFileManager::CompressionType compressionType) :
+        mMaxAllowedMB(300.0),
+        mCompressionRatio(RotatingFileManager::getCompressionRatio(compressionType))
     {
         constexpr double logsDiskUsagePercentage = 0.15 / 100.0;
 
-        const auto spaceInfo = fs::space(ConfigurationManager::getConfigFolder());
-        const double totalAvailableMB = spaceInfo.capacity / (1024 * 1024);
+        std::error_code ec;
+        const auto spaceInfo = fs::space(ConfigurationManager::getConfigFolder(), ec);
 
-        mMaxAllowedMB = totalAvailableMB * logsDiskUsagePercentage;
-        mCompressionRatio = RotatingFileManager::getCompressionRatio(compressionType);
+        if (!ec)
+        {
+            const double totalAvailableMB = spaceInfo.capacity / (1024.0 * 1024.0);
+            mMaxAllowedMB = totalAvailableMB * logsDiskUsagePercentage;
+        }
     }
 
     double getMaxFileMB()
