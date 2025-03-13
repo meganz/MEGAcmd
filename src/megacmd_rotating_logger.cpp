@@ -116,7 +116,7 @@ public:
     {
         constexpr int fileCountHardLimit = 50;
 
-        double maxFilesToKeep = std::min(fileCountHardLimit, getMaxFilesToKeepImpl(maxFileMB));
+        double maxFilesToKeep = std::min((double) fileCountHardLimit, getMaxFilesToKeepImpl(maxFileMB));
         return std::round(maxFilesToKeep);
     }
 };
