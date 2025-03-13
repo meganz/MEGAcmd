@@ -92,9 +92,14 @@ int main (int argc, char *argv[])
             nullptr
         };
 
-        constexpr bool logToCout = false;
+        megacmd::LogConfig logConfig;
+        logConfig.mSdkLogLevel = mega::MegaApi::LOG_LEVEL_MAX;
+        logConfig.mCmdLogLevel = mega::MegaApi::LOG_LEVEL_MAX;
+        logConfig.mLogToCout = false;
+        logConfig.mJsonLogs = true;
+
         auto createDefaultStream = [] { return new megacmd::FileRotatingLoggedStream(megacmd::MegaCmdLogger::getDefaultFilePath()); };
-        megacmd::executeServer(1, args.data(), createDefaultStream, logToCout, mega::MegaApi::LOG_LEVEL_MAX, mega::MegaApi::LOG_LEVEL_MAX);
+        megacmd::executeServer(1, args.data(), createDefaultStream, logConfig);
     });
 
     auto waitReturn = serverWaitingPromise.get_future().wait_for(std::chrono::seconds(10));

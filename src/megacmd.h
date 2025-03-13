@@ -229,12 +229,18 @@ void sendEvent(StatsManager::MegacmdEvent event, const char *msg, mega::MegaApi 
 void uninstall();
 #endif
 
+struct LogConfig
+{
+    int mSdkLogLevel = mega::MegaApi::LOG_LEVEL_DEBUG;
+    int mCmdLogLevel = mega::MegaApi::LOG_LEVEL_DEBUG;
+    bool mLogToCout = true;
+    bool mJsonLogs = false;
+};
+
 class LoggedStream; // forward delaration
 int executeServer(int argc, char* argv[],
                   const std::function<LoggedStream*()>& createLoggedStream = nullptr,
-                  bool logToCout = true,
-                  int sdkLogLevel = mega::MegaApi::LOG_LEVEL_DEBUG,
-                  int cmdLogLevel = mega::MegaApi::LOG_LEVEL_DEBUG,
+                  const LogConfig& logConfig = {},
                   bool skiplockcheck = false,
                   std::string debug_api_url = {},
                   bool disablepkp/*only for debugging*/ = false);
