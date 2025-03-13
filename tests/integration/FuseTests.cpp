@@ -66,10 +66,10 @@ protected:
 
             const std::string mountId = words[0];
 
-            auto result = executeInClient({"fuse-disable", mountId});
+            auto result = executeInClient({"fuse-disable", "--", mountId});
             ASSERT_TRUE(result.ok()) << "Could not disable mount " << mountId;
 
-            result = executeInClient({"fuse-remove", mountId});
+            result = executeInClient({"fuse-remove", "--", mountId});
             ASSERT_TRUE(result.ok()) << "Could not remove mount " << mountId;
         }
     }
