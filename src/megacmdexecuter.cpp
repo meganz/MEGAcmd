@@ -29,10 +29,7 @@
 #include "megacmdversion.h"
 #include "sync_command.h"
 #include "sync_ignore.h"
-
-#ifdef WITH_FUSE
 #include "megacmd_fuse.h"
-#endif
 
 #include <iomanip>
 #include <limits>

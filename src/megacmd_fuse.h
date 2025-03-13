@@ -15,6 +15,14 @@
 
 #pragma once
 
+#include <string_view>
+
+namespace FuseCommand
+{
+    std::string_view getDisclaimer();
+    std::string_view getBetaMsg();
+}
+
 #ifdef WITH_FUSE
 
 #include "megaapi.h"
@@ -22,9 +30,6 @@
 
 namespace FuseCommand
 {
-    std::string_view getDisclaimer();
-    std::string_view getBetaMsg();
-
     std::unique_ptr<mega::MegaMount> getMountByIdOrPathOrName(mega::MegaApi& api, const std::string& identifier);
 
     void addMount(mega::MegaApi& api, const fs::path& localPath, mega::MegaNode& node, bool disabled, bool transient, bool readOnly, const std::string& name);

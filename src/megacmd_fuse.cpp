@@ -12,10 +12,26 @@
  * You should have received a copy of the license along with this
  * program.
  */
+#include "megacmd_fuse.h"
+
+namespace FuseCommand {
+std::string_view getDisclaimer()
+{
+    return "Disclaimer:\n"
+           "    - Streaming is not supported; entire files need to be downloaded completely before being opened.\n"
+           "    - FUSE uses a local cache located in the MEGAcmd configuration folder. Make sure you have enough available space "
+           "in your hard drive to accomodate new files. Restarting MEGAcmd server can help discard old files.\n"
+           "    - File writes might be deferred. When files are updated in the local mount point, a transfer will be initiated. "
+           "Your files will be available in MEGA only after pending transfers finish.";
+}
+
+std::string_view getBetaMsg()
+{
+    return "FUSE commands are in early BETA. They're only available on Linux. If you experience any issues, please contact support@mega.";
+}
+}
 
 #ifdef WITH_FUSE
-
-#include "megacmd_fuse.h"
 
 #include "listeners.h"
 #include "megacmdlogger.h"
@@ -148,21 +164,6 @@ void printFirstMountMessage()
     OUTSTREAM << "\n---------------------\n\n";
 }
 } // end namespace
-
-std::string_view getDisclaimer()
-{
-    return "Disclaimer:\n"
-           "    - Streaming is not supported; entire files need to be downloaded completely before being opened.\n"
-           "    - FUSE uses a local cache located in the MEGAcmd configuration folder. Make sure you have enough available space "
-           "in your hard drive to accomodate new files. Restarting MEGAcmd server can help discard old files.\n"
-           "    - File writes might be deferred. When files are updated in the local mount point, a transfer will be initiated. "
-           "Your files will be available in MEGA only after pending transfers finish.";
-}
-
-std::string_view getBetaMsg()
-{
-    return "FUSE commands are in early BETA. They're only available on Linux. If you experience any issues, please contact support@mega.";
-}
 
 std::unique_ptr<MegaMount> getMountByIdOrPathOrName(MegaApi& api, const std::string& identifier)
 {
