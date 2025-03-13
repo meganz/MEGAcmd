@@ -10671,6 +10671,13 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 #ifdef WITH_FUSE
     else if (words[0] == "fuse-add")
     {
+        if (!api->isFilesystemAvailable() || !api->isLoggedIn())
+        {
+            setCurrentThreadOutCode(MCMD_NOTLOGGEDIN);
+            LOG_err << "Not logged in";
+            return;
+        }
+
         if (words.size() != 3)
         {
             setCurrentThreadOutCode(MCMD_EARGS);
@@ -10714,6 +10721,13 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
     }
     else if (words[0] == "fuse-remove")
     {
+        if (!api->isFilesystemAvailable() || !api->isLoggedIn())
+        {
+            setCurrentThreadOutCode(MCMD_NOTLOGGEDIN);
+            LOG_err << "Not logged in";
+            return;
+        }
+
         if (words.size() != 2)
         {
             setCurrentThreadOutCode(MCMD_EARGS);
@@ -10733,6 +10747,13 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
     }
     else if (words[0] == "fuse-enable")
     {
+        if (!api->isFilesystemAvailable() || !api->isLoggedIn())
+        {
+            setCurrentThreadOutCode(MCMD_NOTLOGGEDIN);
+            LOG_err << "Not logged in";
+            return;
+        }
+
         if (words.size() != 2)
         {
             setCurrentThreadOutCode(MCMD_EARGS);
@@ -10753,6 +10774,13 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
     }
     else if (words[0] == "fuse-disable")
     {
+        if (!api->isFilesystemAvailable() || !api->isLoggedIn())
+        {
+            setCurrentThreadOutCode(MCMD_NOTLOGGEDIN);
+            LOG_err << "Not logged in";
+            return;
+        }
+
         if (words.size() != 2)
         {
             setCurrentThreadOutCode(MCMD_EARGS);
@@ -10773,6 +10801,13 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
     }
     else if (words[0] == "fuse-show")
     {
+        if (!api->isFilesystemAvailable() || !api->isLoggedIn())
+        {
+            setCurrentThreadOutCode(MCMD_NOTLOGGEDIN);
+            LOG_err << "Not logged in";
+            return;
+        }
+
         if (words.size() > 2)
         {
             setCurrentThreadOutCode(MCMD_EARGS);
@@ -10817,6 +10852,13 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
     }
     else if (words[0] == "fuse-config")
     {
+        if (!api->isFilesystemAvailable() || !api->isLoggedIn())
+        {
+            setCurrentThreadOutCode(MCMD_NOTLOGGEDIN);
+            LOG_err << "Not logged in";
+            return;
+        }
+
         if (words.size() != 2)
         {
             setCurrentThreadOutCode(MCMD_EARGS);

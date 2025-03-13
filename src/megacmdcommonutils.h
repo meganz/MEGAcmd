@@ -114,7 +114,6 @@ static std::vector<std::string> allValidCommands { "login", "signup", "confirm",
                              , "update"
 #endif
 #ifdef WITH_FUSE
-                             // FUSE commands
                              , "fuse-add"
                              , "fuse-remove"
                              , "fuse-enable"
