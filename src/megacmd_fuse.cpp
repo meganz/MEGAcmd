@@ -19,6 +19,7 @@
 
 #include "listeners.h"
 #include "megacmdlogger.h"
+#include "configurationmanager.h"
 
 using namespace mega;
 using namespace megacmd;
@@ -135,6 +136,21 @@ std::unique_ptr<MegaMount> createMount(const fs::path& localPath, MegaNode& node
 
     return mount;
 }
+
+void sendMountAddedEvent(MegaApi& api)
+{
+    constexpr const char* configKey = "firstFuseMountConfigured";
+
+    if (!ConfigurationManager::getConfigurationValue(configKey, false))
+    {
+        sendEvent(StatsManager::MegacmdEvent::FIRST_CONFIGURED_FUSE_MOUNT, &api, false);
+        ConfigurationManager::savePropertyValue(configKey, true);
+    }
+    else
+    {
+        sendEvent(StatsManager::MegacmdEvent::SUBSEQUENT_CONFIGURED_FUSE_MOUNT, &api, false);
+    }
+}
 } // end namespace
 
 std::unique_ptr<MegaMount> getMountByIdOrPathOrName(MegaApi& api, const std::string& identifier)
@@ -187,6 +203,8 @@ void addMount(mega::MegaApi& api, const fs::path& localPath, MegaNode& node, boo
 
     const std::string mountLocalPath = listener->getRequest()->getFile();
     OUTSTREAM << "Added a new mount from \"" << mountLocalPath << "\" to \"" << nodePath << '"' << endl;
+
+    sendMountAddedEvent(api);
 
     if (!disabled)
     {
