@@ -27,7 +27,7 @@ std::string_view getDisclaimer()
 
 std::string_view getBetaMsg()
 {
-    return "FUSE commands are in early BETA. They're only available on Linux. If you experience any issues, please contact support@mega.";
+    return "FUSE commands are in early BETA. They're only available on Linux. If you experience any issues, please contact support@mega.nz.";
 }
 }
 

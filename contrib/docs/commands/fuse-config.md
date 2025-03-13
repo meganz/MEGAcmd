@@ -15,5 +15,5 @@ Options:
  --persistent=yes|no          Controls whether or not the mount is saved across restarts.
  --read-only=yes|no           Controls whether the mount is read-only or writable.
 
-Note: FUSE commands are in early BETA. They're only available on Linux. If you experience any issues, please contact support@mega.
+Note: FUSE commands are in early BETA. They're only available on Linux. If you experience any issues, please contact support@mega.nz.
 </pre>
