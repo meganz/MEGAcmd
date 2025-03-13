@@ -109,8 +109,9 @@ public:
 
     int getMaxFilesToKeep(double maxFileMB)
     {
-        // Set a hard-limit of 1000, in case maxFileMB is too low
-        double maxFilesToKeep = std::min(1000.0, getMaxFilesToKeepImpl(maxFileMB));
+        constexpr int fileCountHardLimit = 50;
+
+        double maxFilesToKeep = std::min(fileCountHardLimit, getMaxFilesToKeepImpl(maxFileMB));
         return std::round(maxFilesToKeep);
     }
 };
