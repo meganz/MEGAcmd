@@ -546,64 +546,47 @@ void MegaCmdMegaListener::onSyncDeleted(MegaApi *api, MegaSync *sync)
     LOG_verbose << "Sync deleted: " << sync->getLocalFolder() << " to " << sync->getLastKnownMegaFolder();
 }
 
-void MegaCmdMegaListener::onMountAdded(mega::MegaApi* api,
-                                       const char* path,
-                                       int result)
+void MegaCmdMegaListener::onMountAdded(mega::MegaApi* api, const char* path, int result)
 {
-    onMountEvent(api, "added", "add", path, result);
+    onMountEvent("Added", "add", path, result);
 }
 
-void MegaCmdMegaListener::onMountChanged(mega::MegaApi* api,
-                                         const char* path,
-                                         int result)
+void MegaCmdMegaListener::onMountRemoved(mega::MegaApi* api, const char* path, int result)
 {
-    onMountEvent(api, "changed", "change", path, result);
+    onMountEvent("Removed", "remove", path, result);
 }
 
-void MegaCmdMegaListener::onMountDisabled(mega::MegaApi* api,
-                                          const char* path,
-                                          int result)
+void MegaCmdMegaListener::onMountChanged(mega::MegaApi* api, const char* path, int result)
 {
-    onMountEvent(api, "disabled", "disable", path, result);
+    onMountEvent("Changed", "change", path, result);
 }
 
-void MegaCmdMegaListener::onMountEnabled(mega::MegaApi* api,
-                                         const char* path,
-                                         int result)
+void MegaCmdMegaListener::onMountEnabled(mega::MegaApi* api, const char* path, int result)
 {
-    onMountEvent(api, "enabled", "enable", path, result);
+    onMountEvent("Enabled", "enable", path, result);
 }
 
-void MegaCmdMegaListener::onMountRemoved(mega::MegaApi* api,
-                                         const char* path,
-                                         int result)
+void MegaCmdMegaListener::onMountDisabled(mega::MegaApi* api, const char* path, int result)
 {
-    onMountEvent(api, "removed", "remove", path, result);
+    onMountEvent("Disabled", "disable", path, result);
 }
 
-void MegaCmdMegaListener::onMountEvent(mega::MegaApi*,
-                                       const char* pastTense,
-                                       const char* presentTense,
-                                       const char* path,
-                                       int result)
+void MegaCmdMegaListener::onMountEvent(std::string_view pastTense, std::string_view presentTense, std::string_view path, int result)
 {
     if (result != MegaMount::SUCCESS)
     {
-        LOG_err << "Unable to "
-                << presentTense
-                << " mount \""
-                << path
-                << "\" due to error: "
-                << MegaMount::getResultString(result);
+        std::ostringstream oss;
+        oss << "Failed to " << presentTense << " mount \"" << path << "\" "
+            << "due to error: " << MegaMount::getResultString(result);
 
+        const std::string msg = oss.str();
+
+        LOG_err << msg;
+        broadcastDelayedMessage(msg, true);
         return;
     }
 
-    LOG_verbose << "Successfully "
-                << pastTense
-                << " mount \""
-                << path
-                << "\".";
+    LOG_debug << pastTense << " mount \"" << path << "\"";
 }
 
 ////////////////////////////////////////

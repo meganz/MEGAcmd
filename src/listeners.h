@@ -223,6 +223,7 @@ public:
 
 class MegaCmdMegaListener : public mega::MegaListener
 {
+    void onMountEvent(std::string_view pastTense, std::string_view presentTense, std::string_view path, int result);
 
 public:
     MegaCmdMegaListener(mega::MegaApi *megaApi, mega::MegaListener *parent=NULL, MegaCmdSandbox *sandboxCMD = NULL);
@@ -240,37 +241,17 @@ public:
     virtual void onBackupUpdate(mega::MegaApi *api, mega::MegaScheduledCopy *backup);
     virtual void onBackupTemporaryError(mega::MegaApi *api, mega::MegaScheduledCopy *backup, mega::MegaError* error);
 
-    void onMountAdded(mega::MegaApi* api,
-                      const char* path,
-                      int result) override;
-
-    void onMountChanged(mega::MegaApi* api,
-                        const char* path,
-                        int result) override;
-
-    void onMountDisabled(mega::MegaApi* api,
-                         const char* path,
-                         int result) override;
-
-    void onMountEnabled(mega::MegaApi* api,
-                        const char* path,
-                        int result) override;
-
-    void onMountRemoved(mega::MegaApi* api,
-                        const char* path,
-                        int result) override;
+    void onMountAdded(mega::MegaApi* api, const char* path, int result) override;
+    void onMountRemoved(mega::MegaApi* api, const char* path, int result) override;
+    void onMountChanged(mega::MegaApi* api, const char* path, int result) override;
+    void onMountEnabled(mega::MegaApi* api, const char* path, int result) override;
+    void onMountDisabled(mega::MegaApi* api, const char* path, int result) override;
 
     void onSyncAdded(mega::MegaApi *api, mega::MegaSync *sync) override;
     void onSyncStateChanged(mega::MegaApi *api, mega::MegaSync *sync) override;
     void onSyncDeleted(mega::MegaApi *api, mega::MegaSync *sync) override;
 
 protected:
-    void onMountEvent(mega::MegaApi* api,
-                      const char* pastTense,
-                      const char* presentTense,
-                      const char* path,
-                      int result);
-
     mega::MegaApi *megaApi;
     mega::MegaListener *listener;
     MegaCmdSandbox *sandboxCMD;
