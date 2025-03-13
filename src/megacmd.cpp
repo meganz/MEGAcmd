@@ -27,6 +27,7 @@
 #include "megacmdlogger.h"
 #include "comunicationsmanager.h"
 #include "listeners.h"
+#include "megacmd_fuse.h"
 
 #include "megacmdplatform.h"
 #include "megacmdversion.h"
@@ -3178,7 +3179,9 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << " --disabled   Specifies that the mount should not enabled after being added, and must be enabled manually. See fuse-enable." << endl;
         os << "              If this option is passed, the mount will not be automatically enabled at startup." << endl;
         os << endl;
-        os << "Note: FUSE commands are only available on Linux." << endl;
+        os << FuseCommand::getDisclaimer() << endl;
+        os << endl;
+        os << FuseCommand::getBetaMsg() << endl;
     }
     else if ((flags.fuse || flags.showAll) && !strcmp(command, "fuse-remove"))
     {
@@ -3192,7 +3195,7 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os <<  "                         Local path: The local mount point in the filesystem." << endl;
         os <<  "                         Name: the user-friendly name of the mount, specified when it was added or by fuse-config." << endl;
         os << endl;
-        os << "Note: FUSE commands are only available on Linux." << endl;
+        os << "Note: " << FuseCommand::getBetaMsg() << endl;
     }
     else if ((flags.fuse || flags.showAll) && !strcmp(command, "fuse-enable"))
     {
@@ -3210,7 +3213,7 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << " --temporarily   Specifies whether the mount should be enabled only until the server is restarted." << endl;
         os << "                 Has no effect on transient mounts, since any action on them is always temporary." << endl;
         os << endl;
-        os << "Note: FUSE commands are only available on Linux." << endl;
+        os << "Note: " << FuseCommand::getBetaMsg() << endl;
     }
     else if ((flags.fuse || flags.showAll) && !strcmp(command, "fuse-disable"))
     {
@@ -3227,7 +3230,7 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << " --temporarily   Specifies whether the mount should be disabled only until the server is restarted." << endl;
         os << "                 Has no effect on transient mounts, since any action on them is always temporary." << endl;
         os << endl;
-        os << "Note: FUSE commands are only available on Linux." << endl;
+        os << "Note: " << FuseCommand::getBetaMsg() << endl;
     }
     else if ((flags.fuse || flags.showAll) && !strcmp(command, "fuse-show"))
     {
@@ -3254,7 +3257,7 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << " --limit=rowcount         Limits the amount of rows displayed. Set to 0 to display unlimited rows. Default is unlimited." << endl;
         printColumnDisplayerHelp(os);
         os << endl;
-        os << "Note: FUSE commands are only available on Linux." << endl;
+        os << "Note: " << FuseCommand::getBetaMsg() << endl;
     }
     else if ((flags.fuse || flags.showAll) && !strcmp(command, "fuse-config"))
     {
@@ -3272,7 +3275,7 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << " --persistent=yes|no          Controls whether or not the mount is saved across restarts." << endl;
         os << " --read-only=yes|no           Controls whether the mount is read-only or writable." << endl;
         os << endl;
-        os << "Note: FUSE commands are only available on Linux." << endl;
+        os << "Note: " << FuseCommand::getBetaMsg() << endl;
     }
     return os.str();
 }

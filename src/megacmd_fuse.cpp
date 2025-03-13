@@ -27,6 +27,8 @@ using namespace megacmd;
 namespace FuseCommand {
 namespace {
 
+constexpr const char* sFirstMountConfigKey = "firstFuseMountConfigured";
+
 std::string getNodePath(MegaApi& api, MegaNode& node)
 {
     std::unique_ptr<const char[]> nodePathPtr(api.getNodePath(&node));
@@ -137,21 +139,30 @@ std::unique_ptr<MegaMount> createMount(const fs::path& localPath, MegaNode& node
     return mount;
 }
 
-void sendMountAddedEvent(MegaApi& api)
+void printFirstMountMessage()
 {
-    constexpr const char* configKey = "firstFuseMountConfigured";
-
-    if (!ConfigurationManager::getConfigurationValue(configKey, false))
-    {
-        sendEvent(StatsManager::MegacmdEvent::FIRST_CONFIGURED_FUSE_MOUNT, &api, false);
-        ConfigurationManager::savePropertyValue(configKey, true);
-    }
-    else
-    {
-        sendEvent(StatsManager::MegacmdEvent::SUBSEQUENT_CONFIGURED_FUSE_MOUNT, &api, false);
-    }
+    OUTSTREAM << "\n---------------------\n";
+    OUTSTREAM << getDisclaimer();
+    OUTSTREAM << "\n";
+    OUTSTREAM << getBetaMsg();
+    OUTSTREAM << "\n---------------------\n\n";
 }
 } // end namespace
+
+std::string_view getDisclaimer()
+{
+    return "Disclaimer:\n"
+           "    - Streaming is not supported; entire files need to be downloaded completely before being opened.\n"
+           "    - FUSE uses a local cache located in the MEGAcmd configuration folder. Make sure you have enough available space "
+           "in your hard drive to accomodate new files. Restarting MEGAcmd server can help discard old files.\n"
+           "    - File writes might be deferred. When files are updated in the local mount point, a transfer will be initiated. "
+           "Your files will be available in MEGA only after pending transfers finish.";
+}
+
+std::string_view getBetaMsg()
+{
+    return "FUSE commands are in early BETA. They're only available on Linux. If you experience any issues, please contact support@mega.";
+}
 
 std::unique_ptr<MegaMount> getMountByIdOrPathOrName(MegaApi& api, const std::string& identifier)
 {
@@ -204,7 +215,18 @@ void addMount(mega::MegaApi& api, const fs::path& localPath, MegaNode& node, boo
     const std::string mountLocalPath = listener->getRequest()->getFile();
     OUTSTREAM << "Added a new mount from \"" << mountLocalPath << "\" to \"" << nodePath << '"' << endl;
 
-    sendMountAddedEvent(api);
+    const bool isFirstMount = !ConfigurationManager::getConfigurationValue(sFirstMountConfigKey, false);
+    if (isFirstMount)
+    {
+        printFirstMountMessage();
+
+        sendEvent(StatsManager::MegacmdEvent::FIRST_CONFIGURED_FUSE_MOUNT, &api, false);
+        ConfigurationManager::savePropertyValue(sFirstMountConfigKey, true);
+    }
+    else
+    {
+        sendEvent(StatsManager::MegacmdEvent::SUBSEQUENT_CONFIGURED_FUSE_MOUNT, &api, false);
+    }
 
     if (!disabled)
     {
