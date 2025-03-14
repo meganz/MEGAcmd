@@ -24,5 +24,5 @@ int main(int argc, char* argv[])
     megacmd::Instance<megacmd::WindowsConsoleController> windowsConsoleController;
 #endif
 
-    return megacmd::executeClient(argc, argv, COUT);
+    return megacmd::executeClient(argc, argv, COUT, CERR);
 }

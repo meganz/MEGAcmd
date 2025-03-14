@@ -74,6 +74,8 @@ private:
      */
     HANDLE create_new_namedPipe(int *pipeId);
 
+    void sendPartialOutputImpl(CmdPetition *inf, char *s, size_t size, bool binaryContents, bool sendAsError);
+
 public:
     ComunicationsManagerNamedPipes();
 
@@ -97,7 +99,8 @@ public:
 
     void sendPartialOutput(CmdPetition *inf, OUTSTRING *s) override;
     void sendPartialOutput(CmdPetition *inf, char *s, size_t size, bool binaryContents = false) override;
-
+    void sendPartialError(CmdPetition *inf, OUTSTRING *s) override;
+    void sendPartialError(CmdPetition *inf, char *s, size_t size, bool binaryContents = false) override;
 
     int informStateListener(CmdPetition *inf, const std::string &s) override;
 

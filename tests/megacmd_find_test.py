@@ -181,10 +181,10 @@ class MEGAcmdFindTest(unittest.TestCase):
 
     def test_non_existent(self):
         file = 'file01.txt/non-existent'
-        out, status = cmd_ec(f'{FIND} {file}')
+        out, status, err = cmd_ec(f'{FIND} {file}')
         if not CMDSHELL:
             self.assertNotEqual(status, 0)
-        self.assertIn(f'{file}: no such file or directory', out.decode().lower())
+        self.assertIn(f'{file}: no such file or directory', err.decode().lower())
 
     def test_root(self):
         self.compare_find('/')

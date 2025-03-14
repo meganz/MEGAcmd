@@ -109,10 +109,11 @@ TEST_F(NOINTERACTIVEBasicTest, EchoInvalidUtf8)
 
     result = executeInClient({"echo", "--log-as-err", validUtf8});
     ASSERT_TRUE(result.ok());
-    EXPECT_THAT(result.out(), testing::HasSubstr(validUtf8));
+    EXPECT_THAT(result.err(), testing::HasSubstr(validUtf8));
 
     result = executeInClient({"echo", "--log-as-err", invalidUtf8});
     ASSERT_TRUE(result.ok());
-    EXPECT_THAT(result.out(), testing::HasSubstr("<invalid utf8>"));
+    EXPECT_THAT(result.err(), testing::HasSubstr("<invalid utf8>"));
+    EXPECT_THAT(result.err(), testing::Not(testing::HasSubstr(invalidUtf8)));
     EXPECT_THAT(result.out(), testing::Not(testing::HasSubstr(invalidUtf8)));
 }
