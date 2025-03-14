@@ -863,14 +863,24 @@ void printPercentageLineCerr(const char *title, long long completed, long long t
     }
 }
 
-int getFlag(map<string, int> *flags, const char * optname)
+int getFlag(const map<string, int> *flags, const char * optname)
 {
-    return flags->count(optname) ? ( *flags )[optname] : 0;
+    auto i = flags->find(optname);
+
+    if (i != flags->end())
+        return i->second;
+
+    return 0;
 }
 
-string getOption(map<string, string> *cloptions, const char * optname, string defaultValue)
+string getOption(const map<string, string> *cloptions, const char * optname, string defaultValue)
 {
-    return cloptions->count(optname) ? ( *cloptions )[optname] : defaultValue;
+    auto i = cloptions->find(optname);
+
+    if (i != cloptions->end())
+        return i->second;
+
+    return defaultValue;
 }
 
 std::optional<string> getOptionAsOptional(const map<string, string>& cloptions, const char * optname)
@@ -882,19 +892,16 @@ std::optional<string> getOptionAsOptional(const map<string, string>& cloptions, 
     return cloptions.at(optname);
 }
 
-int getintOption(map<string, string> *cloptions, const char * optname, int defaultValue)
+int getintOption(const map<string, string> *cloptions, const char * optname, int defaultValue)
 {
-    if (cloptions->count(optname))
-    {
-        int i = defaultValue;
-        istringstream is(( *cloptions )[optname]);
-        is >> i;
-        return i;
-    }
-    else
-    {
-        return defaultValue;
-    }
+    auto i = cloptions->find(optname);
+
+    auto result = defaultValue;
+
+    if (i != cloptions->end())
+        istringstream(i->second) >> result;
+
+    return result;
 }
 
 void discardOptionsAndFlags(vector<string> *ws)

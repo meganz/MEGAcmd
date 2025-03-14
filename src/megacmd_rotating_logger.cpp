@@ -584,6 +584,11 @@ const LoggedStream& FileRotatingLoggedStream::operator<<(long long v) const
     return operator<<(std::to_string(v));
 }
 
+const LoggedStream& FileRotatingLoggedStream::operator<<(long long unsigned int v) const
+{
+    return operator<<(std::to_string(v));
+}
+
 const LoggedStream& FileRotatingLoggedStream::operator<<(unsigned long v) const
 {
     return operator<<(std::to_string(v));

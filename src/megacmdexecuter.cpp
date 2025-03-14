@@ -29,6 +29,7 @@
 #include "megacmdversion.h"
 #include "sync_command.h"
 #include "sync_ignore.h"
+#include "megacmd_fuse.h"
 
 #include <iomanip>
 #include <limits>
@@ -70,6 +71,62 @@ std::vector<std::string> resolvewildcard(const std::string& pattern) {
 
     globfree(&glob_result);
     return filenames;
+}
+#endif
+
+#ifdef WITH_FUSE
+std::optional<FuseCommand::ConfigDelta> loadFuseConfigDelta(const std::map<std::string, std::string>& cloptions)
+{
+    FuseCommand::ConfigDelta configDelta;
+
+    std::string enableAtStartupStr = getOption(&cloptions, "enable-at-startup", "");
+    if (!enableAtStartupStr.empty())
+    {
+        if (enableAtStartupStr != "yes" && enableAtStartupStr != "no")
+        {
+            LOG_err << "Flag \"enable-at-startup\" can only be \"yes\" or \"no\"";
+            return {};
+        }
+        configDelta.mEnableAtStartup = (enableAtStartupStr == "yes");
+    }
+
+    std::string persistentStr = getOption(&cloptions, "persistent", "");
+    if (!persistentStr.empty())
+    {
+        if (persistentStr != "yes" && persistentStr != "no")
+        {
+            LOG_err << "Flag \"persistent\" can only be \"yes\" or \"no\"";
+            return {};
+        }
+        configDelta.mPersistent = (persistentStr == "yes");
+    }
+
+    std::string readOnlyStr = getOption(&cloptions, "read-only", "");
+    if (!readOnlyStr.empty())
+    {
+        if (readOnlyStr != "yes" && readOnlyStr != "no")
+        {
+            LOG_err << "Flag \"read-only\" can only be \"yes\" or \"no\"";
+            return {};
+        }
+        configDelta.mReadOnly = (readOnlyStr == "yes");
+    }
+
+    configDelta.mName = getOptionAsOptional(cloptions, "name");
+
+    if (!configDelta.isAnyFlagSet())
+    {
+        LOG_err << "At least one flag must be set";
+        return {};
+    }
+
+    if (configDelta.isPersistentStartupInvalid())
+    {
+        LOG_err << "A non-persistent mount cannot be enabled at startup";
+        return {};
+    }
+
+    return configDelta;
 }
 #endif
 
@@ -10538,7 +10595,6 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         bool noneProxy = getFlag(clflags, "none");
         int proxyType = -1;
 
-
         string username = getOption(cloptions, "username", "");
         string password;
         if (username.size())
@@ -10617,6 +10673,222 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         }
 
     }
+#ifdef WITH_FUSE
+    else if (words[0] == "fuse-add")
+    {
+        if (!api->isFilesystemAvailable() || !api->isLoggedIn())
+        {
+            setCurrentThreadOutCode(MCMD_NOTLOGGEDIN);
+            LOG_err << "Not logged in";
+            return;
+        }
+
+        if (words.size() != 3)
+        {
+            setCurrentThreadOutCode(MCMD_EARGS);
+            LOG_err << getUsageStr("fuse-add");
+            return;
+        }
+
+        const std::string& localPathStr = words[1];
+        const std::string& remotePathStr = words[2];
+
+        if (localPathStr.empty() || remotePathStr.empty())
+        {
+            setCurrentThreadOutCode(MCMD_EARGS);
+            LOG_err << "Path cannot be empty";
+            LOG_err << "      " << getUsageStr("fuse-add");
+            return;
+        }
+
+        const fs::path localPath = localPathStr;
+        if (std::error_code ec; !fs::exists(localPath, ec) || ec)
+        {
+            setCurrentThreadOutCode(MCMD_NOTFOUND);
+            LOG_err << "Local path " << localPath << " does not exist";
+            return;
+        }
+
+        std::unique_ptr<MegaNode> node = nodebypath(remotePathStr.c_str());
+        if (node == nullptr)
+        {
+            setCurrentThreadOutCode(MCMD_NOTFOUND);
+            LOG_err << "Remote path \"" << remotePathStr << "\" does not exist";
+            return;
+        }
+
+        const std::string name = getOption(cloptions, "name", "");
+        const bool disabled = getFlag(clflags, "disabled");
+        const bool transient = getFlag(clflags, "transient");
+        const bool readOnly = getFlag(clflags, "read-only");
+
+        FuseCommand::addMount(*api, localPath, *node, disabled, transient, readOnly, name);
+    }
+    else if (words[0] == "fuse-remove")
+    {
+        if (!api->isFilesystemAvailable() || !api->isLoggedIn())
+        {
+            setCurrentThreadOutCode(MCMD_NOTLOGGEDIN);
+            LOG_err << "Not logged in";
+            return;
+        }
+
+        if (words.size() != 2)
+        {
+            setCurrentThreadOutCode(MCMD_EARGS);
+            LOG_err << getUsageStr("fuse-remove");
+            return;
+        }
+
+        const std::string& identifier = words[1];
+        auto mount = FuseCommand::getMountByIdOrPathOrName(*api, identifier);
+        if (!mount)
+        {
+            setCurrentThreadOutCode(MCMD_NOTFOUND);
+            return;
+        }
+
+        FuseCommand::removeMount(*api, *mount);
+    }
+    else if (words[0] == "fuse-enable")
+    {
+        if (!api->isFilesystemAvailable() || !api->isLoggedIn())
+        {
+            setCurrentThreadOutCode(MCMD_NOTLOGGEDIN);
+            LOG_err << "Not logged in";
+            return;
+        }
+
+        if (words.size() != 2)
+        {
+            setCurrentThreadOutCode(MCMD_EARGS);
+            LOG_err << getUsageStr("fuse-enable");
+            return;
+        }
+
+        const std::string& identifier = words[1];
+        auto mount = FuseCommand::getMountByIdOrPathOrName(*api, identifier);
+        if (!mount)
+        {
+            setCurrentThreadOutCode(MCMD_NOTFOUND);
+            return;
+        }
+
+        const bool temporarily = getFlag(clflags, "temporarily");
+        FuseCommand::enableMount(*api, *mount, temporarily);
+    }
+    else if (words[0] == "fuse-disable")
+    {
+        if (!api->isFilesystemAvailable() || !api->isLoggedIn())
+        {
+            setCurrentThreadOutCode(MCMD_NOTLOGGEDIN);
+            LOG_err << "Not logged in";
+            return;
+        }
+
+        if (words.size() != 2)
+        {
+            setCurrentThreadOutCode(MCMD_EARGS);
+            LOG_err << getUsageStr("fuse-disable");
+            return;
+        }
+
+        const std::string& identifier = words[1];
+        auto mount = FuseCommand::getMountByIdOrPathOrName(*api, identifier);
+        if (!mount)
+        {
+            setCurrentThreadOutCode(MCMD_NOTFOUND);
+            return;
+        }
+
+        const bool temporarily = getFlag(clflags, "temporarily");
+        FuseCommand::disableMount(*api, *mount, temporarily);
+    }
+    else if (words[0] == "fuse-show")
+    {
+        if (!api->isFilesystemAvailable() || !api->isLoggedIn())
+        {
+            setCurrentThreadOutCode(MCMD_NOTLOGGEDIN);
+            LOG_err << "Not logged in";
+            return;
+        }
+
+        if (words.size() > 2)
+        {
+            setCurrentThreadOutCode(MCMD_EARGS);
+            LOG_err << getUsageStr("fuse-show");
+            return;
+        }
+
+        const bool showAllMounts = (words.size() == 1);
+        if (showAllMounts)
+        {
+            int rowCountLimit = getintOption(cloptions, "limit", 0);
+            if (rowCountLimit < 0)
+            {
+                setCurrentThreadOutCode(MCMD_EARGS);
+                LOG_err << "Row count limit cannot be less than 0";
+                return;
+            }
+
+            if (rowCountLimit == 0)
+            {
+                rowCountLimit = std::numeric_limits<int>::max();
+            }
+
+            const bool disablePathCollapse = getFlag(clflags, "disable-path-collapse");
+            const bool onlyEnabled = getFlag(clflags, "only-enabled");
+
+            ColumnDisplayer cd(clflags, cloptions);
+            FuseCommand::printAllMounts(*api, cd, onlyEnabled, disablePathCollapse, rowCountLimit);
+        }
+        else
+        {
+            const std::string& identifier = words[1];
+            auto mount = FuseCommand::getMountByIdOrPathOrName(*api, identifier);
+            if (!mount)
+            {
+                setCurrentThreadOutCode(MCMD_NOTFOUND);
+                return;
+            }
+
+            FuseCommand::printMount(*api, *mount);
+        }
+    }
+    else if (words[0] == "fuse-config")
+    {
+        if (!api->isFilesystemAvailable() || !api->isLoggedIn())
+        {
+            setCurrentThreadOutCode(MCMD_NOTLOGGEDIN);
+            LOG_err << "Not logged in";
+            return;
+        }
+
+        if (words.size() != 2)
+        {
+            setCurrentThreadOutCode(MCMD_EARGS);
+            LOG_err << getUsageStr("fuse-config");
+            return;
+        }
+
+        auto configDeltaOpt = loadFuseConfigDelta(*cloptions);
+        if (!configDeltaOpt)
+        {
+            setCurrentThreadOutCode(MCMD_EARGS);
+            return;
+        }
+
+        const std::string& identifier = words[1];
+        auto mount = FuseCommand::getMountByIdOrPathOrName(*api, identifier);
+        if (!mount)
+        {
+            setCurrentThreadOutCode(MCMD_NOTFOUND);
+            return;
+        }
+
+        FuseCommand::changeConfig(*api, *mount, *configDeltaOpt);
+    }
+#endif
     else if (words[0] == "sync-issues")
     {
         if (!api->isFilesystemAvailable() || !api->isLoggedIn())

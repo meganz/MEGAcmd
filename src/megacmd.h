@@ -167,6 +167,7 @@ struct HelpFlags
     bool usePcre = false;
     bool haveLibuv = false;
     bool readline = true;
+    bool fuse = false;
     bool showAll = false;
 
     HelpFlags(bool showAll = false) :
@@ -186,6 +187,9 @@ struct HelpFlags
 #endif
 #ifdef NO_READLINE
         readline = false;
+#endif
+#ifdef WITH_FUSE
+        fuse = true;
 #endif
     }
 };
