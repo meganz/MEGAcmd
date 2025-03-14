@@ -1261,6 +1261,7 @@ std::string_view MegaCmdFatalErrorListener::getFatalErrorStr(int64_t fatalErrorT
         case MegaEvent::REASON_ERROR_DB_FULL:                  return "REASON_ERROR_DB_FULL";
         case MegaEvent::REASON_ERROR_DB_INDEX_OVERFLOW:        return "REASON_ERROR_DB_INDEX_OVERFLOW";
         case MegaEvent::REASON_ERROR_NO_JSCD:                  return "REASON_ERROR_NO_JSCD";
+        case MegaEvent::REASON_ERROR_REGENERATE_JSCD:          return "REASON_ERROR_REGENERATE_JSCD";
         default:                                               assert(false);
                                                                return "<unhandled fatal error>";
     }
@@ -1342,6 +1343,12 @@ void MegaCmdFatalErrorListener::onEvent(mega::MegaApi *api, mega::MegaEvent *eve
             broadcastMessage("MEGAcmd has detected an error in your sync configuration data. You need to manually "
                              "logout of MEGAcmd, and log back in, to resolve this issue. If the problem persists "
                              "afterwards, please contact support.");
+            break;
+        }
+        case MegaEvent::REASON_ERROR_REGENERATE_JSCD:
+        {
+            broadcastMessage("MEGAcmd has detected an error in your sync data. Please, reconfigure your syncs now. "
+                             "If the issue persists afterwards, please contact support.");
             break;
         }
         default:
