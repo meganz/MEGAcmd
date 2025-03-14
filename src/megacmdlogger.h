@@ -83,6 +83,7 @@ public:
     virtual const LoggedStream& operator<<(unsigned int v) const = 0;
     virtual const LoggedStream& operator<<(long unsigned int v) const = 0;
     virtual const LoggedStream& operator<<(long long int v) const = 0;
+    virtual const LoggedStream& operator<<(long long unsigned int v) const = 0;
     virtual const LoggedStream& operator<<(std::ios_base v) const = 0;
     virtual const LoggedStream& operator<<(std::ios_base *v) const = 0;
 
@@ -101,6 +102,7 @@ public:
 #ifdef _WIN32
     const LoggedStream& operator<<(std::wstring v) const override { return *this; }
 #endif
+
     const LoggedStream& operator<<(std::string v) const override { return *this; }
     const LoggedStream& operator<<(BinaryStringView v) const override { return *this; }
     const LoggedStream& operator<<(std::string_view v) const override { return *this; }
@@ -108,6 +110,7 @@ public:
     const LoggedStream& operator<<(unsigned int v) const override { return *this; }
     const LoggedStream& operator<<(long unsigned int v) const override { return *this; }
     const LoggedStream& operator<<(long long int v) const override { return *this; }
+    const LoggedStream& operator<<(long long unsigned int v) const override { return *this; }
     const LoggedStream& operator<<(std::ios_base v) const override { return *this; }
     const LoggedStream& operator<<(std::ios_base *v) const override { return *this; }
 
@@ -168,6 +171,7 @@ public:
     virtual const LoggedStream& operator<<(unsigned int v) const override { *out << v;return *this; }
     virtual const LoggedStream& operator<<(long unsigned int v) const override { *out << v;return *this; }
     virtual const LoggedStream& operator<<(long long int v) const override { *out << v;return *this; }
+    virtual const LoggedStream& operator<<(long long unsigned int v) const override { *out << v;return *this; }
     virtual const LoggedStream& operator<<(std::ios_base v) const override { *out << &v;return *this; }
     virtual const LoggedStream& operator<<(std::ios_base *v) const override { *out << v;return *this; }
 
@@ -206,6 +210,7 @@ public:
     virtual const LoggedStream& operator<<(unsigned int v) const override { OUTSTRINGSTREAM os; os << v; OUTSTRING s = os.str(); cm->sendPartialOutput(inf, &s); return *this; }
     virtual const LoggedStream& operator<<(long unsigned int v) const override { OUTSTRINGSTREAM os; os << v; OUTSTRING s = os.str(); cm->sendPartialOutput(inf, &s); return *this; }
     virtual const LoggedStream& operator<<(long long int v) const override { OUTSTRINGSTREAM os; os << v; OUTSTRING s = os.str(); cm->sendPartialOutput(inf, &s); return *this; }
+    virtual const LoggedStream& operator<<(long long unsigned int v) const override { OUTSTRINGSTREAM os; os << v; OUTSTRING s = os.str(); cm->sendPartialOutput(inf, &s); return *this; }
     virtual const LoggedStream& operator<<(std::ios_base v) const override { *out << &v;return *this; }
     virtual const LoggedStream& operator<<(std::ios_base *v) const override { OUTSTRINGSTREAM os; os << v; OUTSTRING s = os.str(); cm->sendPartialOutput(inf, &s); return *this; }
 

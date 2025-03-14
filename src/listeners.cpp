@@ -546,6 +546,49 @@ void MegaCmdMegaListener::onSyncDeleted(MegaApi *api, MegaSync *sync)
     LOG_verbose << "Sync deleted: " << sync->getLocalFolder() << " to " << sync->getLastKnownMegaFolder();
 }
 
+void MegaCmdMegaListener::onMountAdded(mega::MegaApi* api, const char* path, int result)
+{
+    onMountEvent("Added", "add", path, result);
+}
+
+void MegaCmdMegaListener::onMountRemoved(mega::MegaApi* api, const char* path, int result)
+{
+    onMountEvent("Removed", "remove", path, result);
+}
+
+void MegaCmdMegaListener::onMountChanged(mega::MegaApi* api, const char* path, int result)
+{
+    onMountEvent("Changed", "change", path, result);
+}
+
+void MegaCmdMegaListener::onMountEnabled(mega::MegaApi* api, const char* path, int result)
+{
+    onMountEvent("Enabled", "enable", path, result);
+}
+
+void MegaCmdMegaListener::onMountDisabled(mega::MegaApi* api, const char* path, int result)
+{
+    onMountEvent("Disabled", "disable", path, result);
+}
+
+void MegaCmdMegaListener::onMountEvent(std::string_view pastTense, std::string_view presentTense, std::string_view path, int result)
+{
+    if (result != MegaMount::SUCCESS)
+    {
+        std::ostringstream oss;
+        oss << "Failed to " << presentTense << " mount \"" << path << "\" "
+            << "due to error: " << MegaMount::getResultString(result);
+
+        const std::string msg = oss.str();
+
+        LOG_err << msg;
+        broadcastDelayedMessage(msg, true);
+        return;
+    }
+
+    LOG_debug << pastTense << " mount \"" << path << "\"";
+}
+
 ////////////////////////////////////////
 ///      MegaCmdListener methods     ///
 ////////////////////////////////////////

@@ -205,6 +205,7 @@ add_source_and_corresponding_header_to_target(LMegacmdServer
     "${ProjectDir}/src/sync_issues.cpp"
     "${ProjectDir}/src/sync_ignore.cpp"
     "${ProjectDir}/src/megacmd_rotating_logger.cpp"
+    "${ProjectDir}/src/megacmd_fuse.cpp"
 )
 
 target_sources_conditional(LMegacmdServer
@@ -338,6 +339,7 @@ if (ENABLE_MEGACMD_TESTS)
         "${ProjectDir}/tests/integration/ExportTests.cpp"
         "${ProjectDir}/tests/integration/SyncIssuesTests.cpp"
         "${ProjectDir}/tests/integration/SyncIgnoreTests.cpp"
+        "${ProjectDir}/tests/integration/FuseTests.cpp"
         "${ProjectDir}/tests/integration/MegaCmdTestingTools.cpp"
         "${ProjectDir}/tests/integration/main.cpp"
     )

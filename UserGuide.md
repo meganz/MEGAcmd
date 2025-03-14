@@ -227,12 +227,21 @@ Verbosity: You can increase the amount of information given by any command by pa
 * [`share`](contrib/docs/commands/share.md)`[-p] [-d|-a --with=user@email.com [--level=LEVEL]] [remotepath] [--use-pcre] [--time-format=FORMAT]` Prints/Modifies the status of current shares
 * [`webdav`](contrib/docs/commands/webdav.md)`[-d (--all | remotepath ) ] [ remotepath [--port=PORT] [--public] [--tls --certificate=/path/to/certificate.pem --key=/path/to/certificate.key]] [--use-pcre]` Configures a WEBDAV server to serve a location in MEGA
 
+### FUSE (mount your cloud folder to the local system)
+* [`fuse-add`](contrib/docs/commands/fuse-add.md)`[--name=name] [--disabled] [--transient] [--read-only] localPath remotePath` Creates a new FUSE mount.
+* [`fuse-remove`](contrib/docs/commands/fuse-remove.md)`(ID|localPath|name)` Deletes a specified FUSE mount.
+* [`fuse-enable`](contrib/docs/commands/fuse-enable.md)`[--temporarily] (ID|localPath|name)` Enables a specified FUSE mount.
+* [`fuse-disable`](contrib/docs/commands/fuse-disable.md)`[--temporarily] (ID|localPath|name)` Disables a specified FUSE mount.
+* [`fuse-show`](contrib/docs/commands/fuse-show.md)`[--only-enabled] [--disable-path-collapse] [[--limit=rowcount] | [ID|localPath|name]]` Displays the list of FUSE mounts and their information. If an ID, local path, or name is provided, displays information of that mount instead.
+* [`fuse-config`](contrib/docs/commands/fuse-config.md)`[--name=name] [--enable-at-startup=yes|no] [--persistent=yes|no] [--read-only=yes|no] (ID|localPath|name)` Modifies the specified FUSE mount configuration.
+
 ### Misc.
 * [`autocomplete`](contrib/docs/commands/autocomplete.md)`[dos | unix]` Modifes how tab completion operates.
 * [`cancel`](contrib/docs/commands/cancel.md) Cancels your MEGA account
 * [`cat`](contrib/docs/commands/cat.md)`remotepath1 remotepath2 ...` Prints the contents of remote files
 * [`clear`](contrib/docs/commands/clear.md) Clear screen
 * [`codepage`](contrib/docs/commands/codepage.md)`[N [M]]` Switches the codepage used to decide which characters show on-screen.
+* [`command`](contrib/docs/commands/command.md)`not found` :
 * [`confirmcancel`](contrib/docs/commands/confirmcancel.md)`link password` Confirms the cancellation of your MEGA account
 * [`debug`](contrib/docs/commands/debug.md) Enters debugging mode (HIGHLY VERBOSE)
 * [`deleteversions`](contrib/docs/commands/deleteversions.md)`[-f] (--all | remotepath1 remotepath2 ...)  [--use-pcre]` Deletes previous versions.

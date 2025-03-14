@@ -27,6 +27,7 @@
 #include "megacmdlogger.h"
 #include "comunicationsmanager.h"
 #include "listeners.h"
+#include "megacmd_fuse.h"
 
 #include "megacmdplatform.h"
 #include "megacmdversion.h"
@@ -821,6 +822,36 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     {
         validParams->insert("show-handles");
     }
+#ifdef WITH_FUSE
+    if (thecommand == "fuse-add")
+    {
+        validParams->emplace("disabled");
+        validParams->emplace("transient");
+        validParams->emplace("read-only");
+        validOptValues->emplace("name");
+    }
+    else if (thecommand == "fuse-enable")
+    {
+        validParams->emplace("temporarily");
+    }
+    else if (thecommand == "fuse-disable")
+    {
+        validParams->emplace("temporarily");
+    }
+    else if (thecommand == "fuse-show")
+    {
+        validParams->emplace("only-enabled");
+        validParams->emplace("disable-path-collapse");
+        validOptValues->emplace("limit");
+    }
+    else if (thecommand == "fuse-config")
+    {
+        validOptValues->emplace("name");
+        validOptValues->emplace("enable-at-startup");
+        validOptValues->emplace("persistent");
+        validOptValues->emplace("read-only");
+    }
+#endif
 #if defined(DEBUG) || defined(MEGACMD_TESTING_CODE)
     else if ("echo" == thecommand)
     {
@@ -1954,7 +1985,7 @@ const char * getUsageStr(const char *command, const HelpFlags& flags)
     {
         return "autocomplete [dos | unix]";
     }
-    else if (!strcmp(command, "codepage"))
+    if (!strcmp(command, "codepage"))
     {
         return "codepage [N [M]]";
     }
@@ -1962,6 +1993,31 @@ const char * getUsageStr(const char *command, const HelpFlags& flags)
     {
         return "update [--auto=on|off|query]";
     }
+    if ((flags.fuse || flags.showAll) && !strcmp(command, "fuse-add"))
+    {
+        return "fuse-add [--name=name] [--disabled] [--transient] [--read-only] localPath remotePath";
+    }
+    if ((flags.fuse || flags.showAll) && !strcmp(command, "fuse-remove"))
+    {
+        return "fuse-remove (ID|localPath|name)";
+    }
+    if ((flags.fuse || flags.showAll) && !strcmp(command, "fuse-enable"))
+    {
+        return "fuse-enable [--temporarily] (ID|localPath|name)";
+    }
+    if ((flags.fuse || flags.showAll) && !strcmp(command, "fuse-disable"))
+    {
+        return "fuse-disable [--temporarily] (ID|localPath|name)";
+    }
+    if ((flags.fuse || flags.showAll) && !strcmp(command, "fuse-show"))
+    {
+        return "fuse-show [--only-enabled] [--disable-path-collapse] [[--limit=rowcount] | [ID|localPath|name]]";
+    }
+    if ((flags.fuse || flags.showAll) && !strcmp(command, "fuse-config"))
+    {
+        return "fuse-config [--name=name] [--enable-at-startup=yes|no] [--persistent=yes|no] [--read-only=yes|no] (ID|localPath|name)";
+    }
+
     return "command not found: ";
 }
 
@@ -3099,6 +3155,128 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << endl;
         os << "Note: this command is only available on some versions of Windows" << endl;
     }
+    else if ((flags.fuse || flags.showAll) && !strcmp(command, "fuse-add"))
+    {
+        os << "Creates a new FUSE mount." << endl;
+        os << endl;
+        os << "Mounts are automatically enabled after being added, making the chosen MEGA folder accessible within the local filesystem." << endl;
+        os << "When a mount is disabled, its configuration will be saved, but the cloud folder will not be mounted locally (see fuse-disable)." << endl;
+        os << "Mounts are persisted after restarts and writable by default. You may change these and other options of a FUSE mount with fuse-config." << endl;
+        os << "Use fuse-show to display the list of mounts." << endl;
+        os << endl;
+        os << "Parameters:" << endl;
+        os << " localPath    Specifies where the files contained by remotePath should be visible on the local filesystem." << endl;
+        os << " remotePath   Specifies what directory (or share) should be exposed on the local filesystem." << endl;
+        os << endl;
+        os << "Options:" << endl;
+        os << " --name=name  A user friendly name which the mount can be identified by. If not provided, the display name" << endl;
+        os << "              of the entity specified by remotePath will be used. If remotePath specifies the entire cloud" << endl;
+        os << "              drive, the mount's name will be \"MEGA\". If remotePath specifies the rubbish bin, the mount's" << endl;
+        os << "              name will be \"MEGA Rubbish\"." << endl;
+        os << " --read-only  Specifies that the mount should be read-only. Otherwise, the mount is writable." << endl;
+        os << " --transient  Specifies that the mount should be transient, meaning it will be lost on restart." << endl;
+        os << "              Otherwise, the mount is persistent, meaning it will remain across on restarts." << endl;
+        os << " --disabled   Specifies that the mount should not enabled after being added, and must be enabled manually. See fuse-enable." << endl;
+        os << "              If this option is passed, the mount will not be automatically enabled at startup." << endl;
+        os << endl;
+        os << FuseCommand::getDisclaimer() << endl;
+        os << endl;
+        os << FuseCommand::getBetaMsg() << endl;
+    }
+    else if ((flags.fuse || flags.showAll) && !strcmp(command, "fuse-remove"))
+    {
+        os << "Deletes a specified FUSE mount." << endl;
+        os << endl;
+        os << "A mount must be disabled before it can be removed. See fuse-disable." << endl;
+        os << endl;
+        os << "Parameters:" << endl;
+        os <<  "ID|localPath|name   The identifier of the mount we want to remove. It can be one of the following:" << endl;
+        os <<  "                         ID: The unique identifier for the mount." << endl;
+        os <<  "                         Local path: The local mount point in the filesystem." << endl;
+        os <<  "                         Name: the user-friendly name of the mount, specified when it was added or by fuse-config." << endl;
+        os << endl;
+        os << "Note: " << FuseCommand::getBetaMsg() << endl;
+    }
+    else if ((flags.fuse || flags.showAll) && !strcmp(command, "fuse-enable"))
+    {
+        os << "Enables a specified FUSE mount." << endl;
+        os << endl;
+        os << "After a mount has been enabled, its cloud entities will be accessible via the mount's local path." << endl;
+        os << endl;
+        os << "Parameters:" << endl;
+        os <<  "ID|localPath|name   The identifier of the mount we want to enable. It can be one of the following:" << endl;
+        os <<  "                         ID: The unique identifier for the mount." << endl;
+        os <<  "                         Local path: The local mount point in the filesystem." << endl;
+        os <<  "                         Name: the user-friendly name of the mount, set when it was added or by fuse-config." << endl;
+        os << endl;
+        os << "Options:" << endl;
+        os << " --temporarily   Specifies whether the mount should be enabled only until the server is restarted." << endl;
+        os << "                 Has no effect on transient mounts, since any action on them is always temporary." << endl;
+        os << endl;
+        os << "Note: " << FuseCommand::getBetaMsg() << endl;
+    }
+    else if ((flags.fuse || flags.showAll) && !strcmp(command, "fuse-disable"))
+    {
+        os << "Disables a specified FUSE mount." << endl;
+        os << endl;
+        os << "After a mount has been disabled, its cloud entities will no longer be accessible via the mount's local path. You may enable it again via fuse-enable." << endl;
+        os << endl;
+        os << "Parameters:" << endl;
+        os <<  "ID|localPath|name   The identifier of the mount we want to disable. It can be one of the following:" << endl;
+        os <<  "                         ID: The unique identifier for the mount." << endl;
+        os <<  "                         Local path: The local mount point in the filesystem." << endl;
+        os <<  "                         Name: the user-friendly name of the mount, set when it was added or by fuse-config." << endl;
+        os << "Options:" << endl;
+        os << " --temporarily   Specifies whether the mount should be disabled only until the server is restarted." << endl;
+        os << "                 Has no effect on transient mounts, since any action on them is always temporary." << endl;
+        os << endl;
+        os << "Note: " << FuseCommand::getBetaMsg() << endl;
+    }
+    else if ((flags.fuse || flags.showAll) && !strcmp(command, "fuse-show"))
+    {
+        os << "Displays the list of FUSE mounts and their information. If an ID, local path, or name is provided, displays information of that mount instead." << endl;
+        os << endl;
+        os << "When all mounts are shown, the following columns are displayed:" << endl;
+        os << "   MOUNT_ID: The unique identifier for the mount." << endl;
+        os << "   LOCAL_PATH: The local mount point in the filesystem." << endl;
+        os << "   REMOTE_PATH: The cloud directory or share that is exposed locally." << endl;
+        os << "   NAME: The user-friendly name of the mount, specified when it was added or by fuse-config." << endl;
+        os << "   PERSISTENT: If the mount is saved across restarts, \"YES\". Otherwise, \"NO\"." << endl;
+        os << "   ENABLED: If the mount is currently enabled, \"YES\". Otherwise, \"NO\"." << endl;
+        os << endl;
+        os << "Parameters:" << endl;
+        os <<  "ID|localPath|name   The identifier of the mount we want to show. It can be one of the following:" << endl;
+        os <<  "                         ID: The unique identifier for the mount." << endl;
+        os <<  "                         Local path: The local mount point in the filesystem." << endl;
+        os <<  "                         Name: the user-friendly name of the mount, set when it was added or by fuse-config." << endl;
+        os <<  "                    If not provided, the list of mounts will be shown instead." << endl;
+        os << endl;
+        os << "Options:" << endl;
+        os << " --only-enabled           Only shows mounts that are enabled." << endl;
+        os << " --disable-path-collapse  Ensures all paths are fully shown. By default long paths are truncated for readability." << endl;
+        os << " --limit=rowcount         Limits the amount of rows displayed. Set to 0 to display unlimited rows. Default is unlimited." << endl;
+        printColumnDisplayerHelp(os);
+        os << endl;
+        os << "Note: " << FuseCommand::getBetaMsg() << endl;
+    }
+    else if ((flags.fuse || flags.showAll) && !strcmp(command, "fuse-config"))
+    {
+        os << "Modifies the specified FUSE mount configuration." << endl;
+        os << endl;
+        os << "Parameters:" << endl;
+        os <<  "ID|localPath|name   The identifier of the mount we want to configure. It can be one of the following:" << endl;
+        os <<  "                         ID: The unique identifier for the mount." << endl;
+        os <<  "                         Local path: The local mount point in the filesystem." << endl;
+        os <<  "                         Name: the user-friendly name of the mount, set when it was added or by fuse-config." << endl;
+        os << endl;
+        os << "Options:" << endl;
+        os << " --name=name                  Sets the name of the mount." << endl;
+        os << " --enable-at-startup=yes|no   Controls whether or not the mount should be enabled automatically on startup." << endl;
+        os << " --persistent=yes|no          Controls whether or not the mount is saved across restarts." << endl;
+        os << " --read-only=yes|no           Controls whether the mount is read-only or writable." << endl;
+        os << endl;
+        os << "Note: " << FuseCommand::getBetaMsg() << endl;
+    }
     return os.str();
 }
 
@@ -3117,6 +3295,12 @@ void printAvailableCommands(int extensive = 0, bool showAllOptions = false)
         validCommandSet.emplace("unicode");
         validCommandSet.emplace("permissions");
         validCommandSet.emplace("update");
+        validCommandSet.emplace("fuse-add");
+        validCommandSet.emplace("fuse-remove");
+        validCommandSet.emplace("fuse-enable");
+        validCommandSet.emplace("fuse-disable");
+        validCommandSet.emplace("fuse-show");
+        validCommandSet.emplace("fuse-config");
     }
 
     if (!extensive)
@@ -5058,6 +5242,26 @@ void uninstall()
 
 #endif
 
+void setFuseLogLevel(MegaApi& api, const std::string& fuseLogLevelStr)
+{
+    std::unique_ptr<MegaFuseFlags> fuseFlags(api.getFUSEFlags());
+    assert(fuseFlags);
+
+    int fuseLogLevel = fuseFlags->getLogLevel();
+    try
+    {
+        fuseLogLevel = std::stoi(fuseLogLevelStr);
+    }
+    catch (...) {}
+
+    fuseLogLevel = std::clamp(fuseLogLevel, (int) MegaFuseFlags::LOG_LEVEL_ERROR, (int) MegaFuseFlags::LOG_LEVEL_DEBUG);
+
+    fuseFlags->setLogLevel(fuseLogLevel);
+    api.setFUSEFlags(fuseFlags.get());
+
+    LOG_debug << "FUSE log level set to " << fuseLogLevel;
+}
+
 int executeServer(int argc, char* argv[],
                   const std::function<LoggedStream*()>& createLoggedStream,
                   const LogConfig& logConfig,
@@ -5161,6 +5365,11 @@ int executeServer(int argc, char* argv[],
     for (int i = 0; i < 100; i++)
     {
         semaphoreClients.release();
+    }
+
+    if (const char* fuseLogLevelStr = getenv("MEGACMD_FUSE_LOG_LEVEL"); fuseLogLevelStr)
+    {
+        setFuseLogLevel(*api, fuseLogLevelStr);
     }
 
     megaCmdGlobalListener = new MegaCmdGlobalListener(loggerCMD, sandboxCMD);

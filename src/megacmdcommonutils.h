@@ -61,7 +61,7 @@ namespace megacmd {
 
 /* commands */
 static std::vector<std::string> validGlobalParameters {"v", "help"};
-static std::vector<std::string> localremotefolderpatterncommands {"sync"};
+static std::vector<std::string> localremotefolderpatterncommands {"sync", "fuse-add"};
 static std::vector<std::string> remotepatterncommands {"export", "attr"};
 static std::vector<std::string> remotefolderspatterncommands {"cd", "share"};
 
@@ -75,7 +75,7 @@ static std::vector<std::string> remoteremotepatterncommands {"cp"};
 
 static std::vector<std::string> remotelocalpatterncommands {"get", "thumbnail", "preview"};
 
-static std::vector<std::string> localfolderpatterncommands {"lcd", "sync-ignore"};
+static std::vector<std::string> localfolderpatterncommands {"lcd", "sync-ignore", "fuse-remove", "fuse-enable", "fuse-disable", "fuse-show", "fuse-config"};
 
 static std::vector<std::string> emailpatterncommands {"invite", "signup", "ipc", "users"};
 
@@ -112,6 +112,14 @@ static std::vector<std::string> allValidCommands { "login", "signup", "confirm",
 #endif
 #if defined(_WIN32) || defined(__APPLE__)
                              , "update"
+#endif
+#ifdef WITH_FUSE
+                             , "fuse-add"
+                             , "fuse-remove"
+                             , "fuse-enable"
+                             , "fuse-disable"
+                             , "fuse-show"
+                             , "fuse-config"
 #endif
 #if defined(DEBUG) || defined(MEGACMD_TESTING_CODE)
                              , "echo"
@@ -240,13 +248,13 @@ void printPercentageLineCerr(const char *title, long long completed, long long t
 
 
 /* Flags and Options */
-int getFlag(std::map<std::string, int> *flags, const char * optname);
+int getFlag(const std::map<std::string, int> *flags, const char * optname);
 
-std::string getOption(std::map<std::string, std::string> *cloptions, const char * optname, std::string defaultValue = "");
+std::string getOption(const std::map<std::string, std::string> *cloptions, const char * optname, std::string defaultValue = "");
 
 std::optional<std::string> getOptionAsOptional(const std::map<std::string, std::string>& cloptions, const char * optname);
 
-int getintOption(std::map<std::string, std::string> *cloptions, const char * optname, int defaultValue = 0);
+int getintOption(const std::map<std::string, std::string> *cloptions, const char * optname, int defaultValue = 0);
 
 void discardOptionsAndFlags(std::vector<std::string> *ws);
 
