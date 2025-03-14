@@ -44,8 +44,9 @@ ClientResponse executeInClient(const std::vector<std::string>& command, bool /*n
     args.push_back(nullptr);
 
     OUTSTRINGSTREAM stream;
-    auto code = megacmd::executeClient(static_cast<int>(args.size() - 1), args.data(), stream);
-    return {code, stream};
+    OUTSTRINGSTREAM streamErr;
+    auto code = megacmd::executeClient(static_cast<int>(args.size() - 1), args.data(), stream, streamErr);
+    return {code, stream, streamErr};
 }
 
 bool isServerLogged()

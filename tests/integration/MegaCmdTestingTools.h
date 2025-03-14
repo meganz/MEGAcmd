@@ -42,14 +42,17 @@ class ClientResponse
     OUTSTRING mOut;
 #ifdef _WIN32
     std::string mUtf8String;
+    std::string mUtf8ErrString;
 #endif
 
 public:
-    ClientResponse(int status, OUTSTRINGSTREAM &streamOut)
+    ClientResponse(int status, OUTSTRINGSTREAM &streamOut, OUTSTRINGSTREAM &streamErr)
         : mStatus(status)
         , mOut (streamOut.str())
+        , mErr (streamErr.str())
     #ifdef _WIN32
         , mUtf8String(megacmd::utf16ToUtf8(mOut))
+        , mUtf8ErrString(megacmd::utf16ToUtf8(mErr))
     #endif
     {}
 
@@ -63,6 +66,16 @@ public:
         return mUtf8String;
 #else
         return mOut;
+#endif
+    }
+
+    //returns an utf8 std::string with the response from the server
+    std::string &err()
+    {
+#ifdef _WIN32
+        return mUtf8ErrString;
+#else
+        return mErr;
 #endif
     }
 };
@@ -89,10 +102,6 @@ protected:
             auto words = megacmd::split(lines[i], " ");
 
             ASSERT_TRUE(!words.empty());
-            if (megacmd::stringToTimestamp(words[0].substr(1))) // discard log lines
-            {
-                continue;
-            }
 
             std::string syncId = words[0];
             auto result = executeInClient({"sync", "--remove", "--", syncId}).ok();

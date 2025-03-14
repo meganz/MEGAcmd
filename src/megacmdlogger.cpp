@@ -58,10 +58,11 @@ bool isCurrentThreadInteractive()
     return isCurrentThreadCmdShell() || !isThreadDataSet;
 }
 
-void setCurrentThreadOutStream(LoggedStream &outStream)
+void setCurrentThreadOutStreams(LoggedStream &outStream, LoggedStream &errStream)
 {
     isThreadDataSet = true;
     getCurrentThreadData().mOutStream = &outStream;
+    getCurrentThreadData().mErrStream = &errStream;
 }
 
 void setCurrentThreadOutCode(int outCode)
@@ -317,7 +318,7 @@ void MegaCmdSimpleLogger::log(const char * /*time*/, int logLevel, const char *s
     if (shouldLogToClient(logLevel, source))
     {
         const std::string nowTimeStr = getNowTimeStr();
-        formatLogToStream(OUTSTREAM, nowTimeStr, logLevel, source, message, true);
+        formatLogToStream(getCurrentThreadErrStream(), nowTimeStr, logLevel, source, message, true);
     }
 }
 

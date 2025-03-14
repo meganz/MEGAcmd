@@ -221,12 +221,12 @@ TEST_F(SyncIgnoreTests, NonExistingIgnoreFile)
 
     auto result = executeInClient({"sync-ignore", "--show", invalidSyncDir});
     ASSERT_FALSE(result.ok());
-    EXPECT_THAT(result.out(), testing::HasSubstr("Sync " + invalidSyncDir + " was not found"));
+    EXPECT_THAT(result.err(), testing::HasSubstr("Sync " + invalidSyncDir + " was not found"));
 
     // Must also work with implicit "--show"
     result = executeInClient({"sync-ignore", invalidSyncDir});
     ASSERT_FALSE(result.ok());
-    EXPECT_THAT(result.out(), testing::HasSubstr("Sync " + invalidSyncDir + " was not found"));
+    EXPECT_THAT(result.err(), testing::HasSubstr("Sync " + invalidSyncDir + " was not found"));
 }
 
 TEST_F(SyncIgnoreTests, IncorrectFilterFormat)
@@ -236,7 +236,7 @@ TEST_F(SyncIgnoreTests, IncorrectFilterFormat)
 
     auto result = executeInClient({"sync-ignore", "--add", "--", validFilter, invalidFilter, "DEFAULT"});
     ASSERT_FALSE(result.ok());
-    EXPECT_THAT(result.out(), testing::HasSubstr("The filter " + qw(invalidFilter) + " does not have valid format"));
+    EXPECT_THAT(result.err(), testing::HasSubstr("The filter " + qw(invalidFilter) + " does not have valid format"));
 }
 
 TEST_F(SyncIgnoreTests, CommentsAndBOMNotRemoved)
