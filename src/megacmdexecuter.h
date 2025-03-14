@@ -26,9 +26,9 @@
 #include "sync_issues.h"
 
 namespace megacmd {
-class MegaCmdSandbox;
-class MegaCmdMultiTransferListener;
 class MegaCmdGlobalTransferListener;
+class MegaCmdMultiTransferListener;
+class MegaCmdSandbox;
 
 class MegaCmdExecuter
 {
