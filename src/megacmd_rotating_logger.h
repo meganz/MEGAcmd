@@ -167,6 +167,7 @@ public:
     const LoggedStream& operator<<(int v) const override;
     const LoggedStream& operator<<(unsigned int v) const override;
     const LoggedStream& operator<<(long long v) const override;
+    const LoggedStream& operator<<(long long unsigned int v) const override;
     const LoggedStream& operator<<(unsigned long v) const override;
 
     const LoggedStream& operator<<(std::ios_base)                      const override { return *this; }

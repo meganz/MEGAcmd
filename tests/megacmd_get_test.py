@@ -42,7 +42,7 @@ def clear_dls():
 
 def safe_export(path):
     command = EXPORT + ' ' + path
-    stdout, _ = cmd_esc(command + ' -f -a')
+    stdout, _, err = cmd_esc(command + ' -f -a')
 
     # Run export without the `-a` option (also need to remove `-f` or it'll fail)
     # Output is slightly different in this case:
@@ -50,7 +50,7 @@ def safe_export(path):
     #   * If path is a folder it'll also return the list of nodes inside, so we
     #   need to keep only the first line
     # Note: We can't rely on the exit code, since we can't get it reliably from shell commands
-    if b'already exported' in stdout:
+    if b'already exported' in err:
         stdout = cmd_ef(command).split(b'\n')[0].strip(b')')
         if b'AuthKey=' in stdout:
             # In this case the authkey is the last word,
@@ -294,16 +294,16 @@ class MEGAcmdGetTest(unittest.TestCase):
         self.compare()
 
     def test_26(self):
-        o, status = cmd_ec(f'{GET} cloud01/fileatcloud01.txt /no/where')
+        o, status, e = cmd_ec(f'{GET} cloud01/fileatcloud01.txt /no/where')
         if not CMDSHELL:
             self.check_failed(o, status)
-        self.assertIn('is not a valid download folder', o.decode().lower())
+        self.assertIn('is not a valid download folder', e.decode().lower())
 
     def test_27(self):
-        o, status = cmd_ec(f'{GET} /cloud01/cloud01/fileatcloud01.txt /no/where')
+        o, status, e = cmd_ec(f'{GET} /cloud01/cloud01/fileatcloud01.txt /no/where')
         if not CMDSHELL:
             self.check_failed(o, status)
-        self.assertIn('is not a valid download folder', o.decode().lower())
+        self.assertIn('is not a valid download folder', e.decode().lower())
 
     def test_28(self):
         cmd_ef(GET+' /cloud01/fileatcloud01.txt '+ABSMEGADLFOLDER+'/newfile')
@@ -343,16 +343,16 @@ class MEGAcmdGetTest(unittest.TestCase):
         self.compare()
 
     def test_33(self):
-        o, status = cmd_ec(f'{GET} path/to/nowhere {ABSMEGADLFOLDER}')
+        o, status, e = cmd_ec(f'{GET} path/to/nowhere {ABSMEGADLFOLDER}')
         if not CMDSHELL:
             self.check_failed(o, status)
-        self.assertIn("couldn't find file", o.decode().lower())
+        self.assertIn("couldn't find file", e.decode().lower())
 
     def test_34(self):
-        o, status = cmd_ec(f'{GET} /path/to/nowhere {ABSMEGADLFOLDER}')
+        o, status, e = cmd_ec(f'{GET} /path/to/nowhere {ABSMEGADLFOLDER}')
         if not CMDSHELL:
             self.check_failed(o, status)
-        self.assertIn("couldn't find file", o.decode().lower())
+        self.assertIn("couldn't find file", e.decode().lower())
 
     def test_35(self):
         os.chdir(ABSMEGADLFOLDER)

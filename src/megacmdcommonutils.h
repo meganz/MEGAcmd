@@ -59,9 +59,41 @@ using std::left;
 
 namespace megacmd {
 
+// output codes
+enum
+{
+    MCMD_OK = 0,              ///< Everything OK
+
+    MCMD_EARGS = -51,         ///< Wrong arguments
+    MCMD_INVALIDEMAIL = -52,  ///< Invalid email
+    MCMD_NOTFOUND = -53,      ///< Resource not found
+    MCMD_INVALIDSTATE = -54,  ///< Invalid state
+    MCMD_INVALIDTYPE = -55,   ///< Invalid type
+    MCMD_NOTPERMITTED = -56,  ///< Operation not allowed
+    MCMD_NOTLOGGEDIN = -57,   ///< Needs loging in
+    MCMD_NOFETCH = -58,       ///< Nodes not fetched
+    MCMD_EUNEXPECTED = -59,   ///< Unexpected failure
+
+    MCMD_REQCONFIRM = -60,    ///< Confirmation required
+    MCMD_REQSTRING = -61,     ///< String required
+    MCMD_PARTIALOUT = -62,    ///< Partial output provided
+    MCMD_PARTIALERR = -63,     ///< Partial error output provided
+    MCMD_EXISTS = -64,        ///< Resource already exists
+
+    MCMD_REQRESTART = -71,    ///< Restart required
+};
+
+enum confirmresponse
+{
+    MCMDCONFIRM_NO=0,
+    MCMDCONFIRM_YES,
+    MCMDCONFIRM_ALL,
+    MCMDCONFIRM_NONE
+};
+
 /* commands */
 static std::vector<std::string> validGlobalParameters {"v", "help"};
-static std::vector<std::string> localremotefolderpatterncommands {"sync"};
+static std::vector<std::string> localremotefolderpatterncommands {"sync", "fuse-add"};
 static std::vector<std::string> remotepatterncommands {"export", "attr"};
 static std::vector<std::string> remotefolderspatterncommands {"cd", "share"};
 
@@ -75,7 +107,7 @@ static std::vector<std::string> remoteremotepatterncommands {"cp"};
 
 static std::vector<std::string> remotelocalpatterncommands {"get", "thumbnail", "preview"};
 
-static std::vector<std::string> localfolderpatterncommands {"lcd", "sync-ignore"};
+static std::vector<std::string> localfolderpatterncommands {"lcd", "sync-ignore", "fuse-remove", "fuse-enable", "fuse-disable", "fuse-show", "fuse-config"};
 
 static std::vector<std::string> emailpatterncommands {"invite", "signup", "ipc", "users"};
 
@@ -112,6 +144,14 @@ static std::vector<std::string> allValidCommands { "login", "signup", "confirm",
 #endif
 #if defined(_WIN32) || defined(__APPLE__)
                              , "update"
+#endif
+#ifdef WITH_FUSE
+                             , "fuse-add"
+                             , "fuse-remove"
+                             , "fuse-enable"
+                             , "fuse-disable"
+                             , "fuse-show"
+                             , "fuse-config"
 #endif
 #if defined(DEBUG) || defined(MEGACMD_TESTING_CODE)
                              , "echo"
@@ -240,13 +280,13 @@ void printPercentageLineCerr(const char *title, long long completed, long long t
 
 
 /* Flags and Options */
-int getFlag(std::map<std::string, int> *flags, const char * optname);
+int getFlag(const std::map<std::string, int> *flags, const char * optname);
 
-std::string getOption(std::map<std::string, std::string> *cloptions, const char * optname, std::string defaultValue = "");
+std::string getOption(const std::map<std::string, std::string> *cloptions, const char * optname, std::string defaultValue = "");
 
 std::optional<std::string> getOptionAsOptional(const std::map<std::string, std::string>& cloptions, const char * optname);
 
-int getintOption(std::map<std::string, std::string> *cloptions, const char * optname, int defaultValue = 0);
+int getintOption(const std::map<std::string, std::string> *cloptions, const char * optname, int defaultValue = 0);
 
 void discardOptionsAndFlags(std::vector<std::string> *ws);
 
