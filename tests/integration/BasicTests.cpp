@@ -32,6 +32,28 @@ TEST_F(NOINTERACTIVEBasicTest, Help)
     executeInClient({"help"});
 }
 
+TEST_F(NOINTERACTIVENotLoggedTest, Folderlogin)
+{
+    {
+        auto rLoging = executeInClient({"login", LINK_TESTEXPORTFOLDER});
+        ASSERT_TRUE(rLoging.ok());
+    }
+
+    {
+        auto rLogout = executeInClient({"logout", "--keep-session"});
+        ASSERT_TRUE(rLogout.ok());
+    }
+
+    {
+        EventTracker evTracker({TestInstruments::Event::FETCH_NODES_REQ_UPDATE});
+        auto rLoging = executeInClient({"login", "--resume", LINK_TESTEXPORTFOLDER});
+        ASSERT_TRUE(rLoging.ok());
+        ASSERT_STREQ(rLoging.out().c_str(), "");
+        ASSERT_STREQ(rLoging.err().c_str(), "");
+        ASSERT_FALSE(evTracker.eventHappened(TestInstruments::Event::FETCH_NODES_REQ_UPDATE));
+    }
+}
+
 TEST_F(NOINTERACTIVEReadTest, Find)
 {
     auto r = executeInClient({"find"});

@@ -66,6 +66,7 @@ public:
     {
         SERVER_ABOUT_TO_START_WAITING_FOR_PETITIONS,
         SYNC_ISSUES_LIST_UPDATED,
+        FETCH_NODES_REQ_UPDATE,
     };
 
     typedef std::function<void()> EventCallback;
