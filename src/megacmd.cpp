@@ -5341,6 +5341,13 @@ int executeServer(int argc, char* argv[],
 
     api->setLanguage(localecode.c_str());
     api->setLogJSONContent(logConfig.mJsonLogs);
+    LOG_debug << "Language set to: " << localecode;
+
+    sandboxCMD = new MegaCmdSandbox();
+    cmdexecuter = new MegaCmdExecuter(api, loggerCMD, sandboxCMD);
+    sandboxCMD->cmdexecuter = cmdexecuter;
+
+    auto cmdFatalErrorListener = std::make_unique<MegaCmdFatalErrorListener>(*sandboxCMD);
 
     for (int i = 0; i < 5; i++)
     {
@@ -5349,9 +5356,11 @@ int executeServer(int argc, char* argv[],
 
         MegaApi *apiFolder = new MegaApi("BdARkQSQ", apiFolderStrUtf8.c_str(), userAgent);
         apiFolder->setLanguage(localecode.c_str());
-        apiFolders.push(apiFolder);
         apiFolder->setLogLevel(MegaApi::LOG_LEVEL_MAX);
         apiFolder->setLogJSONContent(logConfig.mJsonLogs);
+        apiFolder->addGlobalListener(cmdFatalErrorListener.get());
+
+        apiFolders.push(apiFolder);
         semaphoreapiFolders.release();
     }
 
@@ -5360,20 +5369,15 @@ int executeServer(int argc, char* argv[],
         semaphoreClients.release();
     }
 
-    LOG_debug << "Language set to: " << localecode;
-
     if (const char* fuseLogLevelStr = getenv("MEGACMD_FUSE_LOG_LEVEL"); fuseLogLevelStr)
     {
         setFuseLogLevel(*api, fuseLogLevelStr);
     }
 
-    sandboxCMD = new MegaCmdSandbox();
-    cmdexecuter = new MegaCmdExecuter(api, loggerCMD, sandboxCMD);
-    sandboxCMD->cmdexecuter = cmdexecuter;
-
     megaCmdGlobalListener = new MegaCmdGlobalListener(loggerCMD, sandboxCMD);
     megaCmdMegaListener = new MegaCmdMegaListener(api, NULL, sandboxCMD);
     api->addGlobalListener(megaCmdGlobalListener);
+    api->addGlobalListener(cmdFatalErrorListener.get());
     api->addListener(megaCmdMegaListener);
 
     // set up the console

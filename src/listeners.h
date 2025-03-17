@@ -211,6 +211,7 @@ private:
 
 public:
     MegaCmdGlobalListener(MegaCmdLogger *logger, MegaCmdSandbox *sandboxCMD);
+
     void onNodesUpdate(mega::MegaApi* api, mega::MegaNodeList *nodes);
     void onUsersUpdate(mega::MegaApi* api, mega::MegaUserList *users);
     void onAccountUpdate(mega::MegaApi *api);
@@ -279,6 +280,21 @@ public:
 protected:
     mega::MegaApi *megaApi;
     mega::MegaTransferListener *listener;
+};
+
+class MegaCmdFatalErrorListener : public mega::MegaGlobalListener
+{
+    MegaCmdSandbox& mCmdSandbox;
+
+    static std::string_view getFatalErrorStr(int64_t fatalErrorType);
+
+    template<bool localLogout>
+    mega::MegaRequestListener* createLogoutListener(std::string_view msg);
+
+    void onEvent(mega::MegaApi *api, mega::MegaEvent *event) override;
+
+public:
+    MegaCmdFatalErrorListener(MegaCmdSandbox& cmdSandbox);
 };
 
 } //end namespace
