@@ -33,6 +33,40 @@ string withoutTrailingSeparator(const fs::path& path)
     return str;
 }
 
+bool isSyncTransfer(mega::MegaApi& api, int transferTag)
+{
+    mega::MegaTransfer* transfer = api.getTransferByTag(transferTag);
+    return transfer && transfer->isSyncTransfer();
+}
+
+unsigned int getPendingSyncTransferCount(mega::MegaApi& api)
+{
+    unsigned int count = 0;
+
+    mega::MegaTransferData* transferData = api.getTransferData();
+    assert(transferData);
+
+    for (int i = 0; i < transferData->getNumDownloads(); ++i)
+    {
+        const int tag = transferData->getDownloadTag(i);
+        if (isSyncTransfer(api, tag))
+        {
+            ++count;
+        }
+    }
+
+    for (int i = 0; i < transferData->getNumUploads(); ++i)
+    {
+        const int tag = transferData->getUploadTag(i);
+        if (isSyncTransfer(api, tag))
+        {
+            ++count;
+        }
+    }
+
+    return count;
+}
+
 string getSyncId(mega::MegaSync& sync)
 {
     return syncBackupIdToBase64(sync.getBackupId());
@@ -158,6 +192,42 @@ std::unique_ptr<mega::MegaSync> reloadSync(mega::MegaApi& api, std::unique_ptr<m
 {
     assert(sync);
     return std::unique_ptr<mega::MegaSync>(api.getSyncByBackupId(sync->getBackupId()));
+}
+
+bool isAnySyncUploadDelayed(mega::MegaApi& api)
+{
+    const bool isSyncing = api.isSyncing();
+    if (!isSyncing)
+    {
+        return false;
+    }
+
+    const bool syncStalled = api.isSyncStalled();
+    if (syncStalled)
+    {
+        return false;
+    }
+
+    const uint pendingSyncTransfers = getPendingSyncTransferCount(api);
+    if (pendingSyncTransfers != 0)
+    {
+        return false;
+    }
+
+    auto listener = std::make_unique<MegaCmdListener>(nullptr);
+    api.checkSyncUploadsThrottled(listener.get());
+    listener->wait();
+
+    if (listener->getError()->getErrorCode() != mega::MegaError::API_OK)
+    {
+        LOG_err << "Failed to get the list of delayed sync uploads";
+        return false;
+    }
+
+    mega::MegaRequest* request = listener->getRequest();
+    assert(request != nullptr);
+
+    return request->getFlag();
 }
 
 void printSync(mega::MegaApi& api, ColumnDisplayer& cd, bool showHandle, mega::MegaSync& sync,  const SyncIssueList& syncIssues)

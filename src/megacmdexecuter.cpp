@@ -7824,9 +7824,17 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             SyncCommand::printSyncList(*api, cd, showHandles, *syncList, syncIssues);
 
             OUTSTREAM << cd.str();
+
             if (!syncIssues.empty())
             {
+                OUTSTREAM << endl;
                 LOG_err << "You have sync issues. Use the \"" << getCommandPrefixBasedOnMode() << "sync-issues\" command to display them.";
+            }
+            else if (SyncCommand::isAnySyncUploadDelayed(*api))
+            {
+                OUTSTREAM << endl;
+                OUTSTREAM << "Some of your \"Pending\" sync uploads have been delayed due to very frequent changes. They will be uploaded once the delay finishes." << endl;
+                OUTSTREAM << "Use the \"" << getCommandPrefixBasedOnMode() << "sync-config\" command to configure the upload delay." << endl;
             }
         }
         else
