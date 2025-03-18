@@ -99,9 +99,14 @@ protected:
         auto lines = splitByNewline(result.out());
         for (size_t i = 1; i < lines.size(); ++i)
         {
-            auto words = megacmd::split(lines[i], " ");
+            // After an empty line, there are only user-facing messages (if any)
+            if (lines[i].empty())
+            {
+                return;
+            }
 
-            ASSERT_TRUE(!words.empty());
+            auto words = megacmd::split(lines[i], " ");
+            ASSERT_FALSE(words.empty());
 
             std::string syncId = words[0];
             auto result = executeInClient({"sync", "--remove", "--", syncId}).ok();
