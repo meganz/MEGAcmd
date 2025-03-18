@@ -43,3 +43,31 @@ namespace SyncCommand
 
     void modifySync(mega::MegaApi& api, mega::MegaSync& sync, ModifyOpts opts);
 }
+
+namespace GlobalSyncConfig
+{
+    void loadFromConfigurationManager(mega::MegaApi& api);
+
+    namespace DelayedUploads
+    {
+        struct Config
+        {
+            int mWaitSecs = 0;
+            int mMaxAttempts = 0;
+        };
+        std::optional<Config> getCurrentConfig(mega::MegaApi& api);
+
+        struct Limits
+        {
+            Config mLower;
+            Config mUpper;
+
+            bool isWaitSecsValid(int waitSecs) const;
+            bool isMaxAttemptsValid(int maxAttempts) const;
+        };
+        std::optional<Limits> getCurrentLimits(mega::MegaApi& api);
+
+        void updateWaitSecs(mega::MegaApi& api, int waitSecs);
+        void updateMaxAttempts(mega::MegaApi& api, int waitSecs);
+    }
+}

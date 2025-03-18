@@ -887,7 +887,7 @@ std::optional<string> getOptionAsOptional(const map<string, string>& cloptions, 
 {
     if (cloptions.find(optname) == cloptions.end())
     {
-        return {};
+        return std::nullopt;
     }
     return cloptions.at(optname);
 }
@@ -902,6 +902,24 @@ int getintOption(const map<string, string> *cloptions, const char * optname, int
         istringstream(i->second) >> result;
 
     return result;
+}
+
+std::optional<int> getIntOptional(const std::map<std::string, std::string>& cloptions, const char* optName)
+{
+    auto it = cloptions.find(optName);
+    if (it == cloptions.end())
+    {
+        return std::nullopt;
+    }
+
+    try
+    {
+        return std::stoi(it->second);
+    }
+    catch (...)
+    {
+        return std::nullopt;
+    }
 }
 
 void discardOptionsAndFlags(vector<string> *ws)

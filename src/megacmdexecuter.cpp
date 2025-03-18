@@ -7833,7 +7833,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             else if (SyncCommand::isAnySyncUploadDelayed(*api))
             {
                 OUTSTREAM << endl;
-                OUTSTREAM << "Some of your \"Pending\" sync uploads have been delayed due to very frequent changes. They will be uploaded once the delay finishes." << endl;
+                OUTSTREAM << "Some of your \"Pending\" sync uploads are being delayed due to very frequent changes. They will be uploaded once the delay finishes." << endl;
                 OUTSTREAM << "Use the \"" << getCommandPrefixBasedOnMode() << "sync-config\" command to configure the upload delay." << endl;
             }
         }
@@ -7928,6 +7928,45 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                        std::inserter(args.mFilters, args.mFilters.end()), filterInserter);
 
         SyncIgnore::executeCommand(args);
+    }
+    else if (words[0] == "sync-config")
+    {
+        using namespace GlobalSyncConfig;
+
+        if (words.size() != 1)
+        {
+            setCurrentThreadOutCode(MCMD_EARGS);
+            LOG_err << getUsageStr("sync-config");
+            return;
+        }
+
+        auto duWaitSecsOpt = getIntOptional(*cloptions, "delayed-uploads-wait-seconds");
+        auto duMaxAttemptsOpt = getIntOptional(*cloptions, "delayed-uploads-max-attempts");
+
+        if (!duWaitSecsOpt && !duMaxAttemptsOpt)
+        {
+            auto duConfigOpt = DelayedUploads::getCurrentConfig(*api);
+            if (!duConfigOpt)
+            {
+                LOG_err << "Failed to retrieve delayed sync uploads config";
+                return;
+            }
+
+            DelayedUploads::Config duConfig = *duConfigOpt;
+            OUTSTREAM << "Delayed uploads wait time: " << duConfig.mWaitSecs << " seconds" << endl;
+            OUTSTREAM << "Max attempts until uploads are delayed: " << duConfig.mMaxAttempts << endl;
+            return;
+        }
+
+        if (duWaitSecsOpt)
+        {
+            DelayedUploads::updateWaitSecs(*api, *duWaitSecsOpt);
+        }
+
+        if (duMaxAttemptsOpt)
+        {
+            DelayedUploads::updateMaxAttempts(*api, *duMaxAttemptsOpt);
+        }
     }
 #endif
     else if (words[0] == "cancel")

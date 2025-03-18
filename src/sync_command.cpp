@@ -18,6 +18,7 @@
 #include "listeners.h"
 #include "megacmdutils.h"
 #include "megacmdlogger.h"
+#include "configurationmanager.h"
 
 using std::string;
 
@@ -356,4 +357,155 @@ void modifySync(mega::MegaApi& api, mega::MegaSync& sync, ModifyOpts opts)
         }
     }
 }
+} // end namespace
+
+namespace GlobalSyncConfig {
+void loadFromConfigurationManager(mega::MegaApi& api)
+{
+    const int duWaitSecs = ConfigurationManager::getConfigurationValue("GlobalSyncConfig:delayedUploadsWaitSecs", -1);
+    if (duWaitSecs != -1)
+    {
+        DelayedUploads::updateWaitSecs(api, duWaitSecs);
+    }
+
+    const int duMaxAttempts = ConfigurationManager::getConfigurationValue("GlobalSyncConfig:delayedUploadsMaxAttempts", -1);
+    if (duMaxAttempts != -1)
+    {
+        DelayedUploads::updateMaxAttempts(api, duMaxAttempts);
+    }
+}
+
+namespace DelayedUploads {
+namespace {
+
+template<typename RequestFunc>
+std::optional<Config> makeApiRequest(RequestFunc&& requestFunc)
+{
+    auto listener = std::make_unique<MegaCmdListener>(nullptr);
+    requestFunc(listener.get());
+    listener->wait();
+
+    mega::MegaError* error = listener->getError();
+    assert(error);
+
+    if (error->getErrorCode() != mega::MegaError::API_OK)
+    {
+        return std::nullopt;
+    }
+
+    mega::MegaRequest* request = listener->getRequest();
+    assert(request);
+
+    Config config;
+    config.mWaitSecs = request->getNumber();
+    config.mMaxAttempts = request->getTotalBytes();
+    return config;
+}
+
+std::optional<Config> getCurrentLowerLimits(mega::MegaApi& api)
+{
+    return makeApiRequest([&api] (mega::MegaRequestListener* listener)
+    {
+        api.getSyncUploadThrottleLowerLimits(listener);
+    });
+}
+
+std::optional<Config> getCurrentUpperLimits(mega::MegaApi& api)
+{
+    return makeApiRequest([&api] (mega::MegaRequestListener* listener)
+    {
+        api.getSyncUploadThrottleUpperLimits(listener);
+    });
+}
+} // end namespace
+
+std::optional<Config> getCurrentConfig(mega::MegaApi& api)
+{
+    return makeApiRequest([&api] (mega::MegaRequestListener* listener)
+    {
+        api.getSyncUploadThrottleValues(listener);
+    });
+}
+
+bool Limits::isWaitSecsValid(int waitSecs) const
+{
+    return waitSecs >= mLower.mWaitSecs && waitSecs <= mUpper.mWaitSecs;
+}
+
+bool Limits::isMaxAttemptsValid(int maxAttempts) const
+{
+    return maxAttempts >= mLower.mMaxAttempts && maxAttempts <= mUpper.mMaxAttempts;
+}
+
+std::optional<Limits> getCurrentLimits(mega::MegaApi& api)
+{
+    auto lowerLimitsOpt = getCurrentLowerLimits(api);
+    if (!lowerLimitsOpt)
+    {
+        LOG_warn << "Failed to get the delayed uploads lower limits";
+        return std::nullopt;
+    }
+
+    auto upperLimitsOpt = getCurrentUpperLimits(api);
+    if (!upperLimitsOpt)
+    {
+        LOG_warn << "Failed to get the delayed uploads upper limits";
+        return std::nullopt;
+    }
+
+    return Limits{*lowerLimitsOpt, *upperLimitsOpt};
+}
+
+void updateWaitSecs(mega::MegaApi& api, int waitSecs)
+{
+    auto limits = getCurrentLimits(api);
+    if (limits && !limits->isWaitSecsValid(waitSecs))
+    {
+        setCurrentThreadOutCode(MCMD_EARGS);
+        LOG_err << "Delayed sync uploads wait time must be between "
+                << limits->mLower.mWaitSecs << " and " << limits->mUpper.mWaitSecs << " seconds";
+        return;
+    }
+
+    auto result = makeApiRequest([&api, waitSecs] (mega::MegaRequestListener* listener)
+    {
+        api.setSyncUploadThrottleUpdateRate(waitSecs, listener);
+    });
+
+    if (!result)
+    {
+        LOG_err << "Failed to set the wait time for delayed sync uploads";
+        return;
+    }
+
+    OUTSTREAM << "Successfully set the wait time for delayed sync uploads to " << result->mWaitSecs << " seconds" << endl;
+    ConfigurationManager::savePropertyValue("GlobalSyncConfig:delayedUploadsWaitSecs", result->mWaitSecs);
+}
+
+void updateMaxAttempts(mega::MegaApi& api, int maxAttempts)
+{
+    auto limits = getCurrentLimits(api);
+    if (limits && !limits->isMaxAttemptsValid(maxAttempts))
+    {
+        setCurrentThreadOutCode(MCMD_EARGS);
+        LOG_err << "Max delayed uploads attempts must be between "
+                << limits->mLower.mMaxAttempts << " and " << limits->mUpper.mMaxAttempts;
+        return;
+    }
+
+    auto result = makeApiRequest([&api, maxAttempts] (mega::MegaRequestListener* listener)
+    {
+        api.setSyncMaxUploadsBeforeThrottle(maxAttempts, listener);
+    });
+
+    if (!result)
+    {
+        LOG_err << "Failed to set the max attempts for delayed sync uploads";
+        return;
+    }
+
+    OUTSTREAM << "Successfully set the max attempts for delayed sync uploads to " << result->mMaxAttempts << endl;
+    ConfigurationManager::savePropertyValue("GlobalSyncConfig:delayedUploadsMaxAttempts", result->mMaxAttempts);
+}
+} // end namespace
 } // end namespace

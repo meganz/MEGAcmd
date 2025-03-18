@@ -28,6 +28,7 @@
 #include "comunicationsmanager.h"
 #include "listeners.h"
 #include "megacmd_fuse.h"
+#include "sync_command.h"
 
 #include "megacmdplatform.h"
 #include "megacmdversion.h"
@@ -636,6 +637,11 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validParams->insert("add-exclusion");
         validParams->insert("remove");
         validParams->insert("remove-exclusion");
+    }
+    else if ("sync-config" == thecommand)
+    {
+        validOptValues->insert("delayed-uploads-wait-seconds");
+        validOptValues->insert("delayed-uploads-max-attempts");
     }
     else if ("export" == thecommand)
     {
@@ -5414,6 +5420,8 @@ int executeServer(int argc, char* argv[],
     {
         setFuseLogLevel(*api, fuseLogLevelStr);
     }
+
+    GlobalSyncConfig::loadFromConfigurationManager(*api);
 
     megaCmdGlobalListener = new MegaCmdGlobalListener(loggerCMD, sandboxCMD);
     megaCmdMegaListener = new MegaCmdMegaListener(api, NULL, sandboxCMD);
