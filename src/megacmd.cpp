@@ -3932,7 +3932,7 @@ bool isBareCommand(const char *l, const string &command)
 
 bool hasOngoingTransfersOrDelayedSyncs(MegaApi& api)
 {
-    mega::MegaTransferData* transferData = api.getTransferData();
+    MegaTransferData* transferData = api.getTransferData();
     assert(transferData);
 
     if (transferData->getNumDownloads() > 0 || transferData->getNumUploads() > 0)
@@ -3950,9 +3950,9 @@ bool hasOngoingTransfersOrDelayedSyncs(MegaApi& api)
     api.checkSyncUploadsThrottled(listener.get());
     listener->wait();
 
-    if (listener->getError()->getErrorCode() == mega::MegaError::API_OK)
+    if (listener->getError()->getErrorCode() == MegaError::API_OK)
     {
-        mega::MegaRequest* request = listener->getRequest();
+        MegaRequest* request = listener->getRequest();
         assert(request);
         return request->getFlag(); // delayed sync uploads
     }
