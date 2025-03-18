@@ -1787,6 +1787,10 @@ const char * getUsageStr(const char *command, const HelpFlags& flags)
     {
         return "sync-ignore [--show|[--add|--add-exclusion|--remove|--remove-exclusion] filter1 filter2 ...] (ID|localpath|DEFAULT)";
     }
+    if (!strcmp(command, "sync-config"))
+    {
+        return "sync-config [--delayed-uploads-wait-seconds=waitsecs | --delayed-uploads-max-attempts=attempts]";
+    }
     if (!strcmp(command, "backup"))
     {
         return "backup (localpath remotepath --period=\"PERIODSTRING\" --num-backups=N  | [-lhda] [TAG|localpath] [--period=\"PERIODSTRING\"] [--num-backups=N]) [--time-format=FORMAT]";
@@ -2580,12 +2584,10 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << "Controls synchronizations." << endl;
         os << endl;
         os << "If no argument is provided, it lists current configured synchronizations." << endl;
+        os << "If local and remote paths are provided, it will start synchronizing a local folder into a remote folder." << endl;
+        os << "If an ID/local path is provided, it will list such synchronization unless an option is specified." << endl;
         os << endl;
-        os << "If provided local and remote paths, it will start synchronizing" << endl;
-        os << " a local folder into a remote folder." << endl;
-        os << endl;
-        os << "If an ID/local path is provided, it will list such synchronization" << endl;
-        os << " unless an option is specified." << endl;
+        os << "Note: use the \"sync-config\" command to show and modify global sync configuration." << endl;
         os << endl;
         os << "Options:" << endl;
         os << " -d | --delete" << " " << "ID|localpath" << "\t" << "deletes a synchronization (not the files)." << endl;
@@ -2695,6 +2697,28 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << "\t" << "`-d:private`" << "  " << "Filter will exclude all directories with the name 'private'" << endl;
         os << endl;
         os << "See: https://help.mega.io/installs-apps/desktop/megaignore more info." << endl;
+    }
+    else if (!strcmp(command, "sync-config"))
+    {
+        auto duLimits = GlobalSyncConfig::DelayedUploads::getCurrentLimits(*api);
+
+        os << "Shows and modifies global sync configuration." << endl;
+        os << endl;
+        os << "Displays current configuration if no options are provided. Configuration values are persisted across restarts." << endl;
+        os << endl;
+        os << "New uploads for files that change frequently in syncs will be delayed until a wait time passes." << endl;
+        os << "Options:" << endl;
+        os << " --delayed-uploads-wait-seconds   Sets the seconds to be waited before a file that's being delayed is uploaded again. Default is 30 minutes (1800 seconds)." << endl;
+        if (duLimits)
+        {
+        os << "                                  Note: wait seconds must be between " << duLimits->mLower.mWaitSecs << " and " << duLimits->mUpper.mWaitSecs << " (inclusive)." << endl;
+        }
+
+        os << " --delayed-uploads-max-attempts   Sets the max number of times a file can change in quick succession before it starts to get delayed. Default is 2." << endl;
+        if (duLimits)
+        {
+        os << "                                  Note: max attempts must be between " << duLimits->mLower.mMaxAttempts << " and " << duLimits->mUpper.mMaxAttempts << " (inclusive)." << endl;
+        }
     }
     else if (!strcmp(command, "backup"))
     {
