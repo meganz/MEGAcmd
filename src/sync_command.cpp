@@ -205,9 +205,12 @@ bool isAnySyncUploadDelayed(mega::MegaApi& api)
     api.checkSyncUploadsThrottled(listener.get());
     listener->wait();
 
-    if (listener->getError()->getErrorCode() != mega::MegaError::API_OK)
+    auto [errorOpt, syncErrorOpt] = getErrorsAndSetOutCode(*listener);
+
+    if (errorOpt)
     {
-        LOG_err << "Failed to get the list of delayed sync uploads";
+        LOG_err << "Failed to get the list of delayed sync uploads "
+                << "(Error: " << *errorOpt << (syncErrorOpt ? ". Reason: " + *syncErrorOpt : "") << ")";
         return false;
     }
 
