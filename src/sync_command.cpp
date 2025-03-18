@@ -30,10 +30,8 @@ bool isSyncTransfer(mega::MegaApi& api, int transferTag)
     return transfer && transfer->isSyncTransfer();
 }
 
-unsigned int getPendingSyncTransferCount(mega::MegaApi& api)
+bool hasPendingSyncTransfers(mega::MegaApi& api)
 {
-    unsigned int count = 0;
-
     std::unique_ptr<mega::MegaTransferData> transferData(api.getTransferData());
     assert(transferData);
 
@@ -42,7 +40,7 @@ unsigned int getPendingSyncTransferCount(mega::MegaApi& api)
         const int tag = transferData->getDownloadTag(i);
         if (isSyncTransfer(api, tag))
         {
-            ++count;
+            return true;
         }
     }
 
@@ -51,11 +49,11 @@ unsigned int getPendingSyncTransferCount(mega::MegaApi& api)
         const int tag = transferData->getUploadTag(i);
         if (isSyncTransfer(api, tag))
         {
-            ++count;
+            return true;
         }
     }
 
-    return count;
+    return false;
 }
 
 string getSyncId(mega::MegaSync& sync)
@@ -197,8 +195,8 @@ bool isAnySyncUploadDelayed(mega::MegaApi& api)
         return false;
     }
 
-    const uint pendingSyncTransfers = getPendingSyncTransferCount(api);
-    if (pendingSyncTransfers != 0)
+    const bool pendingSyncTransfers = hasPendingSyncTransfers(api);
+    if (pendingSyncTransfers)
     {
         return false;
     }

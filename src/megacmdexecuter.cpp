@@ -7833,8 +7833,8 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             else if (SyncCommand::isAnySyncUploadDelayed(*api))
             {
                 OUTSTREAM << endl;
-                OUTSTREAM << "Some of your \"Pending\" sync uploads are being delayed due to very frequent changes. They will be uploaded once the delay finishes." << endl;
-                OUTSTREAM << "Use the \"" << getCommandPrefixBasedOnMode() << "sync-config\" command to configure the upload delay." << endl;
+                OUTSTREAM << "Some of your \"Pending\" sync uploads are being delayed due to very frequent changes. They will be uploaded once the delay finishes. "
+                          << "Use the \"" << getCommandPrefixBasedOnMode() << "sync-config\" command to configure the upload delay." << endl;
             }
         }
         else
