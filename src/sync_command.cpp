@@ -26,7 +26,7 @@ namespace {
 
 bool isSyncTransfer(mega::MegaApi& api, int transferTag)
 {
-    mega::MegaTransfer* transfer = api.getTransferByTag(transferTag);
+    std::unique_ptr<mega::MegaTransfer> transfer(api.getTransferByTag(transferTag));
     return transfer && transfer->isSyncTransfer();
 }
 
@@ -34,7 +34,7 @@ unsigned int getPendingSyncTransferCount(mega::MegaApi& api)
 {
     unsigned int count = 0;
 
-    mega::MegaTransferData* transferData = api.getTransferData();
+    std::unique_ptr<mega::MegaTransferData> transferData(api.getTransferData());
     assert(transferData);
 
     for (int i = 0; i < transferData->getNumDownloads(); ++i)

@@ -1190,7 +1190,7 @@ char* transfertags_completion(const char* text, int state)
     static vector<string> validtransfertags;
     if (state == 0)
     {
-        MegaTransferData * transferdata = api->getTransferData();
+        std::unique_ptr<MegaTransferData> transferdata(api->getTransferData());
         if (transferdata)
         {
             for (int i = 0; i < transferdata->getNumUploads(); i++)
@@ -3932,7 +3932,7 @@ bool isBareCommand(const char *l, const string &command)
 
 bool hasOngoingTransfersOrDelayedSyncs(MegaApi& api)
 {
-    MegaTransferData* transferData = api.getTransferData();
+    std::unique_ptr<MegaTransferData> transferData(api.getTransferData());
     assert(transferData);
 
     if (transferData->getNumDownloads() > 0 || transferData->getNumUploads() > 0)

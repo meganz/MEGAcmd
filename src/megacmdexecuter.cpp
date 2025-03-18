@@ -10302,7 +10302,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 }
                 for (unsigned int i = 1; i < words.size(); i++)
                 {
-                    MegaTransfer *transfer = api->getTransferByTag(toInteger(words[i],-1));
+                    std::unique_ptr<MegaTransfer> transfer(api->getTransferByTag(toInteger(words[i],-1)));
                     if (transfer)
                     {
                         if (transfer->isSyncTransfer())
@@ -10313,7 +10313,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         else
                         {
                             MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
-                            api->cancelTransfer(transfer, megaCmdListener);
+                            api->cancelTransfer(transfer.get(), megaCmdListener);
                             megaCmdListener->wait();
                             if (checkNoErrors(megaCmdListener->getError(), "cancel transfer with tag " + words[i] + "."))
                             {
@@ -10371,7 +10371,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 }
                 for (unsigned int i = 1; i < words.size(); i++)
                 {
-                    MegaTransfer *transfer = api->getTransferByTag(toInteger(words[i],-1));
+                    std::unique_ptr<MegaTransfer> transfer(api->getTransferByTag(toInteger(words[i],-1)));
                     if (transfer)
                     {
                         if (transfer->isSyncTransfer())
@@ -10382,7 +10382,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         else
                         {
                             MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
-                            api->pauseTransfer(transfer, getFlag(clflags,"p"), megaCmdListener);
+                            api->pauseTransfer(transfer.get(), getFlag(clflags,"p"), megaCmdListener);
                             megaCmdListener->wait();
                             if (checkNoErrors(megaCmdListener->getError(), (getFlag(clflags,"p")?"pause transfer with tag ":"resume transfer with tag ") + words[i] + "."))
                             {
@@ -10403,7 +10403,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         }
 
         //show transfers
-        MegaTransferData* transferdata = api->getTransferData();
+        std::unique_ptr<MegaTransferData> transferdata(api->getTransferData());
 
         int ndownloads = transferdata->getNumDownloads();
         int nuploads = transferdata->getNumUploads();
@@ -10461,7 +10461,6 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             OUTSTREAM << getFixLengthString(sizeToText(totalUpload), 12, ' ', true);
             OUTSTREAM << getFixLengthString(percentageToText(percentUpload),8,' ',true);
             OUTSTREAM << endl;
-            delete transferdata;
             return;
         }
 
@@ -10576,8 +10575,6 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 break;
             }
         }
-
-        delete transferdata;
 
         vector<MegaTransfer *>::iterator itCompleted = transfersCompletedToShow.begin();
         vector<MegaTransfer *>::iterator itDLs = transfersDLToShow.begin();
