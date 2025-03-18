@@ -64,6 +64,8 @@ enum
 {
     MCMD_OK = 0,              ///< Everything OK
 
+    MCMD_CONFIRM_NO = -12,    ///< User response to confirmation is "no"
+
     MCMD_EARGS = -51,         ///< Wrong arguments
     MCMD_INVALIDEMAIL = -52,  ///< Invalid email
     MCMD_NOTFOUND = -53,      ///< Resource not found

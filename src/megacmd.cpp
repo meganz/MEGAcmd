@@ -3924,6 +3924,36 @@ bool isBareCommand(const char *l, const string &command)
    return true;
 }
 
+bool hasOngoingTransfersOrDelayedSyncs(MegaApi& api)
+{
+    mega::MegaTransferData* transferData = api.getTransferData();
+    assert(transferData);
+
+    if (transferData->getNumDownloads() > 0 || transferData->getNumUploads() > 0)
+    {
+        return true;
+    }
+
+    // We can only check for delayed sync uploads if there are no sync issues
+    if (!api.isSyncing() || api.isSyncStalled())
+    {
+        return false;
+    }
+
+    auto listener = std::make_unique<MegaCmdListener>(nullptr);
+    api.checkSyncUploadsThrottled(listener.get());
+    listener->wait();
+
+    if (listener->getError()->getErrorCode() == mega::MegaError::API_OK)
+    {
+        mega::MegaRequest* request = listener->getRequest();
+        assert(request);
+        return request->getFlag(); // delayed sync uploads
+    }
+
+    return false;
+}
+
 void MegaCmdExecuter::mayExecutePendingStuffInWorkerThread()
 {
     {   // send INVALID_UTF8_INCIDENCES if there have been incidences
@@ -4048,7 +4078,18 @@ static bool process_line(const std::string_view line)
             if (!l || !strcmp(l, "q") || !strcmp(l, "quit") || !strcmp(l, "exit")
                 || ( (!strncmp(l, "quit ", strlen("quit ")) || !strncmp(l, "exit ", strlen("exit ")) ) && !strstr(l,"--help") )  )
             {
-                //                store_line(NULL);
+                if (isCurrentThreadCmdShell() && hasOngoingTransfersOrDelayedSyncs(*api))
+                {
+                    const string sureToExitMsg = "There are ongoing transfers and/or pending sync uploads.\n"
+                                                 "Are you sure you want to exit? (Yes/No): ";
+
+                    int confirmationResponse = askforConfirmation(sureToExitMsg);
+                    if (!confirmationResponse)
+                    {
+                        setCurrentThreadOutCode(MCMD_CONFIRM_NO);
+                        return false;
+                    }
+                }
 
                 if (strstr(l,"--wait-for-ongoing-petitions"))
                 {

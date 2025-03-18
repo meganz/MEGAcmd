@@ -1272,7 +1272,10 @@ void process_line(const char * line)
                 {
                     if (find(words.begin(), words.end(), "--only-shell") == words.end())
                     {
-                        comms->executeCommand(commandtoexec, readresponse);
+                        if (comms->executeCommand(commandtoexec, readresponse) == MCMD_CONFIRM_NO)
+                        {
+                            return;
+                        }
                     }
 
                     if (find(words.begin(), words.end(), "--help") == words.end()
