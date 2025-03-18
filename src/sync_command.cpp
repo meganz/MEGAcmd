@@ -23,16 +23,6 @@ using std::string;
 
 namespace {
 
-string withoutTrailingSeparator(const fs::path& path)
-{
-    string str = path.string();
-    if (!str.empty() && (str.back() == '/' || str.back() == '\\'))
-    {
-        str.pop_back();
-    }
-    return str;
-}
-
 bool isSyncTransfer(mega::MegaApi& api, int transferTag)
 {
     mega::MegaTransfer* transfer = api.getTransferByTag(transferTag);
@@ -118,9 +108,7 @@ void printSingleSync(mega::MegaApi& api, mega::MegaSync& sync, mega::MegaNode* n
     cd.addValue("REMOTEPATH", sync.getLastKnownMegaFolder());
     cd.addValue("RUN_STATE", syncRunStateStr(sync.getRunState()));
 
-    string folder = withoutTrailingSeparator(sync.getLocalFolder());
-    string localFolder;
-    mega::LocalPath::path2local(&folder, &localFolder);
+    std::string localFolder = sync.getLocalFolder();
 
     int statepath = api.syncPathState(&localFolder);
     cd.addValue("STATUS", getSyncPathStateStr(statepath));
