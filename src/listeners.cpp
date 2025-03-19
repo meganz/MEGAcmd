@@ -452,6 +452,8 @@ void MegaCmdMegaListener::onRequestFinish(MegaApi *api, MegaRequest *request, Me
     }
 }
 
+std::atomic<int> DisableMountErrorsBroadcastingGuard::sDisableBroadcasting = 0;
+
 MegaCmdMegaListener::MegaCmdMegaListener(MegaApi *megaApi, MegaListener *parent, MegaCmdSandbox *sandboxCMD)
 {
     this->megaApi = megaApi;
@@ -587,7 +589,10 @@ void MegaCmdMegaListener::onMountEvent(std::string_view pastTense, std::string_v
         const std::string msg = oss.str();
 
         LOG_err << msg;
-        broadcastDelayedMessage(msg, true);
+        if (DisableMountErrorsBroadcastingGuard::shouldBroadcast())
+        {
+            broadcastDelayedMessage(msg, true);
+        }
         return;
     }
 
