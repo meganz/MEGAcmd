@@ -1,21 +1,19 @@
 ### fuse-show
-Displays the list of FUSE mounts and their information. If an ID, local path, or name is provided, displays information of that mount instead.
+Displays the list of FUSE mounts and their information. If a name or local path provided, displays information of that mount instead.
 
-Usage: `fuse-show [--only-enabled] [--disable-path-collapse] [[--limit=rowcount] | [ID|localPath|name]]`
+Usage: `fuse-show [--only-enabled] [--disable-path-collapse] [[--limit=rowcount] | [name|localPath]]`
 <pre>
 When all mounts are shown, the following columns are displayed:
-   MOUNT_ID: The unique identifier for the mount.
+   NAME: The user-friendly name of the mount, specified when it was added or by fuse-config.
    LOCAL_PATH: The local mount point in the filesystem.
    REMOTE_PATH: The cloud directory or share that is exposed locally.
-   NAME: The user-friendly name of the mount, specified when it was added or by fuse-config.
    PERSISTENT: If the mount is saved across restarts, "YES". Otherwise, "NO".
    ENABLED: If the mount is currently enabled, "YES". Otherwise, "NO".
 
 Parameters:
-ID|localPath|name   The identifier of the mount we want to show. It can be one of the following:
-                         ID: The unique identifier for the mount.
-                         Local path: The local mount point in the filesystem.
-                         Name: the user-friendly name of the mount, set when it was added or by fuse-config.
+ name|localPath   The identifier of the mount we want to remove. It can be one of the following:
+                   Name: the user-friendly name of the mount, specified when it was added or by fuse-config.
+                   Local path: The local mount point in the filesystem.
                     If not provided, the list of mounts will be shown instead.
 
 Options:

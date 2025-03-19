@@ -10789,7 +10789,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         }
 
         const std::string& identifier = words[1];
-        auto mount = FuseCommand::getMountByIdOrPathOrName(*api, identifier);
+        auto mount = FuseCommand::getMountByNameOrPath(*api, identifier);
         if (!mount)
         {
             setCurrentThreadOutCode(MCMD_NOTFOUND);
@@ -10815,7 +10815,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         }
 
         const std::string& identifier = words[1];
-        auto mount = FuseCommand::getMountByIdOrPathOrName(*api, identifier);
+        auto mount = FuseCommand::getMountByNameOrPath(*api, identifier);
         if (!mount)
         {
             setCurrentThreadOutCode(MCMD_NOTFOUND);
@@ -10842,7 +10842,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         }
 
         const std::string& identifier = words[1];
-        auto mount = FuseCommand::getMountByIdOrPathOrName(*api, identifier);
+        auto mount = FuseCommand::getMountByNameOrPath(*api, identifier);
         if (!mount)
         {
             setCurrentThreadOutCode(MCMD_NOTFOUND);
@@ -10893,7 +10893,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         else
         {
             const std::string& identifier = words[1];
-            auto mount = FuseCommand::getMountByIdOrPathOrName(*api, identifier);
+            auto mount = FuseCommand::getMountByNameOrPath(*api, identifier);
             if (!mount)
             {
                 setCurrentThreadOutCode(MCMD_NOTFOUND);
@@ -10927,7 +10927,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         }
 
         const std::string& identifier = words[1];
-        auto mount = FuseCommand::getMountByIdOrPathOrName(*api, identifier);
+        auto mount = FuseCommand::getMountByNameOrPath(*api, identifier);
         if (!mount)
         {
             setCurrentThreadOutCode(MCMD_NOTFOUND);

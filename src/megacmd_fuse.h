@@ -21,6 +21,7 @@ namespace FuseCommand
 {
     std::string_view getDisclaimer();
     std::string_view getBetaMsg();
+    std::string_view getIdentifierParameter();
 }
 
 #ifdef WITH_FUSE
@@ -30,7 +31,7 @@ namespace FuseCommand
 
 namespace FuseCommand
 {
-    std::unique_ptr<mega::MegaMount> getMountByIdOrPathOrName(mega::MegaApi& api, const std::string& identifier);
+    std::unique_ptr<mega::MegaMount> getMountByNameOrPath(mega::MegaApi& api, const std::string& identifier);
 
     void addMount(mega::MegaApi& api, const fs::path& localPath, mega::MegaNode& node, bool disabled, bool transient, bool readOnly, const std::string& name);
     void removeMount(mega::MegaApi& api, const mega::MegaMount& mount);

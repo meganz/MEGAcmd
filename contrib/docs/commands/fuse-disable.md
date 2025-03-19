@@ -1,15 +1,14 @@
 ### fuse-disable
 Disables a specified FUSE mount.
 
-Usage: `fuse-disable [--temporarily] (ID|localPath|name)`
+Usage: `fuse-disable [--temporarily] (name|localPath)`
 <pre>
 After a mount has been disabled, its cloud entities will no longer be accessible via the mount's local path. You may enable it again via fuse-enable.
 
 Parameters:
-ID|localPath|name   The identifier of the mount we want to disable. It can be one of the following:
-                         ID: The unique identifier for the mount.
-                         Local path: The local mount point in the filesystem.
-                         Name: the user-friendly name of the mount, set when it was added or by fuse-config.
+ name|localPath   The identifier of the mount we want to remove. It can be one of the following:
+                   Name: the user-friendly name of the mount, specified when it was added or by fuse-config.
+                   Local path: The local mount point in the filesystem.
 Options:
  --temporarily   Specifies whether the mount should be disabled only until the server is restarted.
                  Has no effect on transient mounts, since any action on them is always temporary.

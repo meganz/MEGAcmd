@@ -59,11 +59,6 @@ protected:
             auto words = megacmd::split(lines[i], " ");
             ASSERT_TRUE(!words.empty());
 
-            if (megacmd::stringToTimestamp(words[0].substr(1))) // skip log lines
-            {
-                continue;
-            }
-
             const std::string mountId = words[0];
 
             auto result = executeInClient({"fuse-disable", "--", mountId});
@@ -171,6 +166,23 @@ TEST_F(FuseTests, EnsureUniqueId)
     const std::string firstMountId = megacmd::split(lines[1], " ")[0];
     const std::string secondMountId = megacmd::split(lines[2], " ")[0];
     EXPECT_NE(firstMountId, secondMountId);
+
+    // change names
+    result = executeInClient({"fuse-config", "name2",  "--name=name1"});
+    ASSERT_FALSE(result.ok()); // not allowed: name clash
+    result = executeInClient({"fuse-config", "name2",  "--name=name3"});
+    ASSERT_TRUE(result.ok()); // allowed
+
+    {
+        result = executeInClient({"fuse-show"});
+        ASSERT_TRUE(result.ok());
+
+        auto lines = splitByNewline(result.out());
+        ASSERT_EQ(lines.size(), 5); // Column names + 2 mounts + newline + detail usage
+
+        const std::string secondMountId = megacmd::split(lines[2], " ")[0];
+        EXPECT_EQ(secondMountId, "name3");
+    }
 
     removeAllMounts();
 }
