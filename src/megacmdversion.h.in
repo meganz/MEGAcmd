@@ -27,7 +27,7 @@ namespace megacmd {
 const char * const megacmdchangelog =
         "FUSE (beta): Added fuse commands on Linux to allow your MEGA folders to be directly mounted to your local drive""\n"
         "Delayed sync uploads: Introduced a mechanism to delay very frequent sync uploads, and the sync-config command""\n"
-        "Logging: Confidential info is now redacted from the logs, rotating config is read from megacmd.cfg, and other fixes and refinements""\n"
+        "Logging: Messages are now printed in standard error, the rotating logger is now configurable and more verbose by default, passwords are now redacted from the logs, and other fixes and refinements""\n"
         "Fixed a crash when auto-completing a local folder that doesn't exist""\n"
         "Fixed the confirmcancel command incorrectly reporting failure on success""\n"
         "Other fixes and improvements to enhance reliability and performance"
