@@ -3190,10 +3190,7 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << "A mount must be disabled before it can be removed. See fuse-disable." << endl;
         os << endl;
         os << "Parameters:" << endl;
-        os <<  "ID|localPath|name   The identifier of the mount we want to remove. It can be one of the following:" << endl;
-        os <<  "                         ID: The unique identifier for the mount." << endl;
-        os <<  "                         Local path: The local mount point in the filesystem." << endl;
-        os <<  "                         Name: the user-friendly name of the mount, specified when it was added or by fuse-config." << endl;
+        os << FuseCommand::getIdentifierParameter() << endl;
         os << endl;
         os << "Note: " << FuseCommand::getBetaMsg() << endl;
     }
@@ -3204,10 +3201,7 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << "After a mount has been enabled, its cloud entities will be accessible via the mount's local path." << endl;
         os << endl;
         os << "Parameters:" << endl;
-        os <<  "ID|localPath|name   The identifier of the mount we want to enable. It can be one of the following:" << endl;
-        os <<  "                         ID: The unique identifier for the mount." << endl;
-        os <<  "                         Local path: The local mount point in the filesystem." << endl;
-        os <<  "                         Name: the user-friendly name of the mount, set when it was added or by fuse-config." << endl;
+        os << FuseCommand::getIdentifierParameter() << endl;
         os << endl;
         os << "Options:" << endl;
         os << " --temporarily   Specifies whether the mount should be enabled only until the server is restarted." << endl;
@@ -3222,10 +3216,7 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << "After a mount has been disabled, its cloud entities will no longer be accessible via the mount's local path. You may enable it again via fuse-enable." << endl;
         os << endl;
         os << "Parameters:" << endl;
-        os <<  "ID|localPath|name   The identifier of the mount we want to disable. It can be one of the following:" << endl;
-        os <<  "                         ID: The unique identifier for the mount." << endl;
-        os <<  "                         Local path: The local mount point in the filesystem." << endl;
-        os <<  "                         Name: the user-friendly name of the mount, set when it was added or by fuse-config." << endl;
+        os << FuseCommand::getIdentifierParameter() << endl;
         os << "Options:" << endl;
         os << " --temporarily   Specifies whether the mount should be disabled only until the server is restarted." << endl;
         os << "                 Has no effect on transient mounts, since any action on them is always temporary." << endl;
@@ -3234,22 +3225,18 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
     }
     else if ((flags.fuse || flags.showAll) && !strcmp(command, "fuse-show"))
     {
-        os << "Displays the list of FUSE mounts and their information. If an ID, local path, or name is provided, displays information of that mount instead." << endl;
+        os << "Displays the list of FUSE mounts and their information. If a name or local path provided, displays information of that mount instead." << endl;
         os << endl;
         os << "When all mounts are shown, the following columns are displayed:" << endl;
-        os << "   MOUNT_ID: The unique identifier for the mount." << endl;
+        os << "   NAME: The user-friendly name of the mount, specified when it was added or by fuse-config." << endl;
         os << "   LOCAL_PATH: The local mount point in the filesystem." << endl;
         os << "   REMOTE_PATH: The cloud directory or share that is exposed locally." << endl;
-        os << "   NAME: The user-friendly name of the mount, specified when it was added or by fuse-config." << endl;
         os << "   PERSISTENT: If the mount is saved across restarts, \"YES\". Otherwise, \"NO\"." << endl;
         os << "   ENABLED: If the mount is currently enabled, \"YES\". Otherwise, \"NO\"." << endl;
         os << endl;
         os << "Parameters:" << endl;
-        os <<  "ID|localPath|name   The identifier of the mount we want to show. It can be one of the following:" << endl;
-        os <<  "                         ID: The unique identifier for the mount." << endl;
-        os <<  "                         Local path: The local mount point in the filesystem." << endl;
-        os <<  "                         Name: the user-friendly name of the mount, set when it was added or by fuse-config." << endl;
-        os <<  "                    If not provided, the list of mounts will be shown instead." << endl;
+        os << FuseCommand::getIdentifierParameter() << endl;
+        os << "                    If not provided, the list of mounts will be shown instead." << endl;
         os << endl;
         os << "Options:" << endl;
         os << " --only-enabled           Only shows mounts that are enabled." << endl;
@@ -3264,13 +3251,10 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << "Modifies the specified FUSE mount configuration." << endl;
         os << endl;
         os << "Parameters:" << endl;
-        os <<  "ID|localPath|name   The identifier of the mount we want to configure. It can be one of the following:" << endl;
-        os <<  "                         ID: The unique identifier for the mount." << endl;
-        os <<  "                         Local path: The local mount point in the filesystem." << endl;
-        os <<  "                         Name: the user-friendly name of the mount, set when it was added or by fuse-config." << endl;
+        os << FuseCommand::getIdentifierParameter() << endl;
         os << endl;
         os << "Options:" << endl;
-        os << " --name=name                  Sets the name of the mount. Notice: changing the name will alter the ID" << endl;
+        os << " --name=name                  Sets the friendly name used to uniquely identify the mount." << endl;
         os << " --enable-at-startup=yes|no   Controls whether or not the mount should be enabled automatically on startup." << endl;
         os << " --persistent=yes|no          Controls whether or not the mount is saved across restarts." << endl;
         os << " --read-only=yes|no           Controls whether the mount is read-only or writable." << endl;
