@@ -1,3 +1,14 @@
+megacmd (2.1.0) stable; urgency=low
+
+  * FUSE (beta): Added fuse commands on Linux to allow your MEGA folders to be directly mounted to your local drive
+  * Delayed sync uploads: Introduced a mechanism to delay very frequent sync uploads, and the sync-config command
+  * Logging: Confidential info is now redacted from the logs, rotating config is read from megacmd.cfg, and other fixes and refinements
+  * Fixed a crash when auto-completing a local folder that doesn't exist
+  * Fixed the confirmcancel command incorrectly reporting failure on success
+  * Other fixes and improvements to enhance reliability and performance
+
+ -- MEGA Team <linux@mega.co.nz>  Wed, 19 Mar 2025 10:52:43 +0100
+
 megacmd (2.0.0) stable; urgency=low
 
   * New Sync Engine: See sync-issues and sync-ignore commands

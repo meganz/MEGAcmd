@@ -1,3 +1,13 @@
+Wed Mar 19 10:52:49 AM CET 2025 - linux@mega.co.nz
+- Update to version 2.1.0:
+  * FUSE (beta): Added fuse commands on Linux to allow your MEGA folders to be directly mounted to your local drive
+  * Delayed sync uploads: Introduced a mechanism to delay very frequent sync uploads, and the sync-config command
+  * Logging: Confidential info is now redacted from the logs, rotating config is read from megacmd.cfg, and other fixes and refinements
+  * Fixed a crash when auto-completing a local folder that doesn't exist
+  * Fixed the confirmcancel command incorrectly reporting failure on success
+  * Other fixes and improvements to enhance reliability and performance
+
+-------------------------------------------------------------------
 Fri Jan 24 01:20:16 PM CET 2025 - linux@mega.co.nz
 - Update to version 2.0.0:
   * New Sync Engine: See sync-issues and sync-ignore commands

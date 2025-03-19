@@ -25,14 +25,13 @@
 namespace megacmd {
 
 const char * const megacmdchangelog =
-        "New Sync Engine: See sync-issues and sync-ignore commands""\n"
-        "Rotating Logger: Introduced a robust rotating logging system across all platforms for better performance and debugging""\n"
-        "Platform-specific enhancements: Addressed various file descriptor issues on Linux and macOS, and improved non-ascii support on Windows""\n"
-        "Improved overall reliability: Fixed memory leaks, resolved potential data races, and eliminated deadlock scenarios""\n"
-        "Fixed an issue when handling double-quoted arguments""\n"
-        "Various fixes and refinements to enhance usability and performance"
+        "FUSE (beta): Added fuse commands on Linux to allow your MEGA folders to be directly mounted to your local drive""\n"
+        "Delayed sync uploads: Introduced a mechanism to delay very frequent sync uploads, and the sync-config command""\n"
+        "Logging: Confidential info is now redacted from the logs, rotating config is read from megacmd.cfg, and other fixes and refinements""\n"
+        "Fixed a crash when auto-completing a local folder that doesn't exist""\n"
+        "Fixed the confirmcancel command incorrectly reporting failure on success""\n"
+        "Other fixes and improvements to enhance reliability and performance"
         ;
-
 }//end namespace
 #endif // VERSION_H
 
