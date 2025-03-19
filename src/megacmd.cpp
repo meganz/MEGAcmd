@@ -2085,7 +2085,7 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << "\t--resume: A convenience option to try to resume from cache. When login into a folder, contrary to what occurs with login into a user account,"
               " MEGAcmd will not try to load anything from cache: loading everything from scratch. This option changes that. Note, "
               "login using a session string, will of course, try to load from cache. This option may be convinient, for instance, if you previously "
-              "loged out using --keep-session." << endl;
+              "logged out using --keep-session." << endl;
         os << endl;
         os << "For more information about MEGA folder links, see \"" << getCommandPrefixBasedOnMode() << "export --help\"." << endl;
     }
@@ -2325,7 +2325,7 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << "Logs out" << endl;
         os << endl;
         os << "Options:" << endl;
-        os << " --keep-session" << "\t" << "Keeps the current session. This will also prevent from deleting cached data associated "
+        os << " --keep-session" << "\t" << "Keeps the current session. This will also prevent the deletion of cached data associated "
                                            "with current session." << endl;
     }
     else if (!strcmp(command, "import"))
