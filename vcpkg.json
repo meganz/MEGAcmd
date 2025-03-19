@@ -18,11 +18,15 @@
             "dependencies": [
                 {
                     "name": "freeimage",
-                    "version>=": "3.18.0#27"
+                    "version>=" : "3.18.0#27"
                 },
                 {
                     "name": "jasper",
                     "default-features": false
+                },
+                {
+                    "name": "tiff",
+                    "version>=": "4.7.0"
                 }
             ]
         },
@@ -45,10 +49,6 @@
             "description": "pdfium library",
             "dependencies": [ "pdfium" ]
         },
-        "use-cares": {
-            "description": "c-ares library",
-            "dependencies": [ "c-ares" ]
-        },
         "use-readline": {
             "description": "Readline library",
             "dependencies": [ "readline" ]
@@ -67,16 +67,16 @@
             "name": "cryptopp",
             "version>=": "8.9.0"
         },
-        "libsodium",
-        {
-            "name": "sqlite3",
-            "version>=": "3.46.0#1"
-        },
         {
             "name": "curl",
             "version>=": "8.6.0"
         },
         "icu",
+        "libsodium",
+        {
+            "name": "sqlite3",
+            "version>=": "3.46.0#1"
+        },
         "pcre"
     ],
     "builtin-baseline" : "7476f0d4e77d3333fbb249657df8251c28c4faae",
