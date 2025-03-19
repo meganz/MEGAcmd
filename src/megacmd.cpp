@@ -1999,23 +1999,23 @@ const char * getUsageStr(const char *command, const HelpFlags& flags)
     }
     if ((flags.fuse || flags.showAll) && !strcmp(command, "fuse-remove"))
     {
-        return "fuse-remove (ID|localPath|name)";
+        return "fuse-remove (name|localPath)";
     }
     if ((flags.fuse || flags.showAll) && !strcmp(command, "fuse-enable"))
     {
-        return "fuse-enable [--temporarily] (ID|localPath|name)";
+        return "fuse-enable [--temporarily] (name|localPath)";
     }
     if ((flags.fuse || flags.showAll) && !strcmp(command, "fuse-disable"))
     {
-        return "fuse-disable [--temporarily] (ID|localPath|name)";
+        return "fuse-disable [--temporarily] (name|localPath)";
     }
     if ((flags.fuse || flags.showAll) && !strcmp(command, "fuse-show"))
     {
-        return "fuse-show [--only-enabled] [--disable-path-collapse] [[--limit=rowcount] | [ID|localPath|name]]";
+        return "fuse-show [--only-enabled] [--disable-path-collapse] [[--limit=rowcount] | [name|localPath]]";
     }
     if ((flags.fuse || flags.showAll) && !strcmp(command, "fuse-config"))
     {
-        return "fuse-config [--name=name] [--enable-at-startup=yes|no] [--persistent=yes|no] [--read-only=yes|no] (ID|localPath|name)";
+        return "fuse-config [--name=name] [--enable-at-startup=yes|no] [--persistent=yes|no] [--read-only=yes|no] (name|localPath)";
     }
 
     return "command not found: ";

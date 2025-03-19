@@ -32,9 +32,9 @@ std::string_view getBetaMsg()
 
 std::string_view getIdentifierParameter()
 {
-    return " name|localPath           The identifier of the mount we want to remove. It can be one of the following:\n"
-           "                           - Name: the user-friendly name of the mount, specified when it was added or by fuse-config.\n"
-           "                           - Local path: The local mount point in the filesystem.";
+    return " name|localPath   The identifier of the mount we want to remove. It can be one of the following:\n"
+           "                   Name: the user-friendly name of the mount, specified when it was added or by fuse-config.\n"
+           "                   Local path: The local mount point in the filesystem.";
 }
 }
 
@@ -286,7 +286,7 @@ void printMount(mega::MegaApi& api, const mega::MegaMount& mount)
         << "  Remote path:        " << (remotePath ? remotePath.get() : "<not found>") << "\n"
         << "  Name:               " << flags->getName() << "\n"
         << "  Persistent:         " << (flags->getPersistent() ? "YES" : "NO") << "\n"
-        << "  Enabled:            " << (api.isMountEnabled(mount.getFlags()->getName()) ? "YES" : "NO") << "\n"
+        << "  Enabled:            " << (api.isMountEnabled(flags->getName()) ? "YES" : "NO") << "\n"
         << "  Enable at startup:  " <<  (flags->getEnableAtStartup() ? "YES" : "NO") << "\n"
         << "  Read-only:          " << (flags->getReadOnly() ? "YES" : "NO") << "\n";
 
