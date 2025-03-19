@@ -229,11 +229,11 @@ Verbosity: You can increase the amount of information given by any command by pa
 
 ### FUSE (mount your cloud folder to the local system)
 * [`fuse-add`](contrib/docs/commands/fuse-add.md)`[--name=name] [--disabled] [--transient] [--read-only] localPath remotePath` Creates a new FUSE mount.
-* [`fuse-remove`](contrib/docs/commands/fuse-remove.md)`(ID|localPath|name)` Deletes a specified FUSE mount.
-* [`fuse-enable`](contrib/docs/commands/fuse-enable.md)`[--temporarily] (ID|localPath|name)` Enables a specified FUSE mount.
-* [`fuse-disable`](contrib/docs/commands/fuse-disable.md)`[--temporarily] (ID|localPath|name)` Disables a specified FUSE mount.
-* [`fuse-show`](contrib/docs/commands/fuse-show.md)`[--only-enabled] [--disable-path-collapse] [[--limit=rowcount] | [ID|localPath|name]]` Displays the list of FUSE mounts and their information. If an ID, local path, or name is provided, displays information of that mount instead.
-* [`fuse-config`](contrib/docs/commands/fuse-config.md)`[--name=name] [--enable-at-startup=yes|no] [--persistent=yes|no] [--read-only=yes|no] (ID|localPath|name)` Modifies the specified FUSE mount configuration.
+* [`fuse-remove`](contrib/docs/commands/fuse-remove.md)`(name|localPath)` Deletes a specified FUSE mount.
+* [`fuse-enable`](contrib/docs/commands/fuse-enable.md)`[--temporarily] (name|localPath)` Enables a specified FUSE mount.
+* [`fuse-disable`](contrib/docs/commands/fuse-disable.md)`[--temporarily] (name|localPath)` Disables a specified FUSE mount.
+* [`fuse-show`](contrib/docs/commands/fuse-show.md)`[--only-enabled] [--disable-path-collapse] [[--limit=rowcount] | [name|localPath]]` Displays the list of FUSE mounts and their information. If a name or local path provided, displays information of that mount instead.
+* [`fuse-config`](contrib/docs/commands/fuse-config.md)`[--name=name] [--enable-at-startup=yes|no] [--persistent=yes|no] [--read-only=yes|no] (name|localPath)` Modifies the specified FUSE mount configuration.
 
 ### Misc.
 * [`autocomplete`](contrib/docs/commands/autocomplete.md)`[dos | unix]` Modifes how tab completion operates.

@@ -1,15 +1,14 @@
 ### fuse-enable
 Enables a specified FUSE mount.
 
-Usage: `fuse-enable [--temporarily] (ID|localPath|name)`
+Usage: `fuse-enable [--temporarily] (name|localPath)`
 <pre>
 After a mount has been enabled, its cloud entities will be accessible via the mount's local path.
 
 Parameters:
-ID|localPath|name   The identifier of the mount we want to enable. It can be one of the following:
-                         ID: The unique identifier for the mount.
-                         Local path: The local mount point in the filesystem.
-                         Name: the user-friendly name of the mount, set when it was added or by fuse-config.
+ name|localPath   The identifier of the mount we want to remove. It can be one of the following:
+                   Name: the user-friendly name of the mount, specified when it was added or by fuse-config.
+                   Local path: The local mount point in the filesystem.
 
 Options:
  --temporarily   Specifies whether the mount should be enabled only until the server is restarted.
