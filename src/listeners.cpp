@@ -20,6 +20,10 @@
 #include "configurationmanager.h"
 #include "megacmdutils.h"
 
+#ifdef MEGACMD_TESTING_CODE
+    #include "../tests/common/Instruments.h"
+#endif
+
 #include <utility>
 
 using namespace mega;
@@ -642,6 +646,9 @@ void MegaCmdListener::onRequestUpdate(MegaApi* api, MegaRequest *request)
     {
         case MegaRequest::TYPE_FETCH_NODES:
         {
+#ifdef MEGACMD_TESTING_CODE
+        TestInstruments::Instance().fireEvent(TestInstruments::Event::FETCH_NODES_REQ_UPDATE);
+#endif
             unsigned int cols = getNumberOfCols(80);
             string outputString;
             outputString.resize(cols+1);

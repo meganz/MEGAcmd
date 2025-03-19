@@ -777,6 +777,7 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validOptValues->insert("auth-code");
         validOptValues->insert("auth-key");
         validOptValues->insert("password");
+        validOptValues->insert("resume");
     }
     else if ("psa" == thecommand)
     {
@@ -1541,13 +1542,13 @@ const char * getUsageStr(const char *command, const HelpFlags& flags)
         if (isCurrentThreadInteractive())
         {
             return "login [--auth-code=XXXX] [email [password]] | exportedfolderurl#key"
-                    " [--auth-key=XXXX] | passwordprotectedlink [--password=PASSWORD]"
+                    " [--auth-key=XXXX] [--resume] | passwordprotectedlink [--password=PASSWORD]"
                    " | session";
         }
         else
         {
             return "login [--auth-code=XXXX] email password | exportedfolderurl#key"
-                    " [--auth-key=XXXX] | passwordprotectedlink [--password=PASSWORD]"
+                    " [--auth-key=XXXX] [--resume] | passwordprotectedlink [--password=PASSWORD]"
                    " | session";
         }
     }
@@ -2072,7 +2073,7 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
     os << "Usage: " << getUsageStr(command, flags) << endl;
     if (!strcmp(command, "login"))
     {
-        os << "Logs into a MEGA account or folder link. You can only log into one entity at a time." << endl;
+        os << "Logs into a MEGA account, folder link or a previous session. You can only log into one entity at a time." << endl;
         os << "Logging into a MEGA account:" << endl;
         os << "\tYou can log into a MEGA account by providing either a session ID or a username and password. A session "
               "ID simply identifies a session that you have previously logged in with using a username and password; "
@@ -2091,6 +2092,10 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
               "the password for that link." << endl;
         os << "\t--auth-key=AUTHKEY: If the link is a writable folder link, then this option allows you to log in with "
               "write privileges. Without this option, you will log into the link with read access only." << endl;
+        os << "\t--resume: A convenience option to try to resume from cache. When login into a folder, contrary to what occurs with login into a user account,"
+              " MEGAcmd will not try to load anything from cache: loading everything from scratch. This option changes that. Note, "
+              "login using a session string, will of course, try to load from cache. This option may be convinient, for instance, if you previously "
+              "logged out using --keep-session." << endl;
         os << endl;
         os << "For more information about MEGA folder links, see \"" << getCommandPrefixBasedOnMode() << "export --help\"." << endl;
     }
@@ -2330,7 +2335,8 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << "Logs out" << endl;
         os << endl;
         os << "Options:" << endl;
-        os << " --keep-session" << "\t" << "Keeps the current session." << endl;
+        os << " --keep-session" << "\t" << "Keeps the current session. This will also prevent the deletion of cached data associated "
+                                           "with current session." << endl;
     }
     else if (!strcmp(command, "import"))
     {

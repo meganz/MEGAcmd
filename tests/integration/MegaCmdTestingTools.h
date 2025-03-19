@@ -88,6 +88,25 @@ class BasicGenericTest : public ::testing::Test
 {
 };
 
+class NotLoggedTest : public BasicGenericTest
+{
+protected:
+
+    void SetUp() override
+    {
+        BasicGenericTest::SetUp();
+        auto result = executeInClient({"logout"}).ok();
+        ASSERT_TRUE(result);
+    }
+
+    void TearDown() override
+    {
+        BasicGenericTest::SetUp();
+        auto result = executeInClient({"logout"}).ok();
+        ASSERT_TRUE(result);
+    }
+};
+
 class LoggedInTest : public BasicGenericTest
 {
 protected:
@@ -133,4 +152,5 @@ protected:
 
 class NOINTERACTIVEBasicTest : public BasicGenericTest{};
 class NOINTERACTIVELoggedInTest : public LoggedInTest{};
+class NOINTERACTIVENotLoggedTest : public NotLoggedTest{};
 class NOINTERACTIVEReadTest : public ReadTest{};
