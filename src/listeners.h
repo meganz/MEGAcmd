@@ -221,6 +221,15 @@ public:
 #endif
 };
 
+class DisableMountErrorsBroadcastingGuard
+{
+    static std::atomic<int> sDisableBroadcasting;
+public:
+    DisableMountErrorsBroadcastingGuard() { sDisableBroadcasting++; }
+    ~DisableMountErrorsBroadcastingGuard() { sDisableBroadcasting--; }
+
+    static bool shouldBroadcast() { return sDisableBroadcasting == 0; }
+};
 
 class MegaCmdMegaListener : public mega::MegaListener
 {
