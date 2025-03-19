@@ -184,22 +184,26 @@ std::unique_ptr<MegaMount> getMountByNameOrPath(MegaApi& api, const std::string&
     return mount;
 }
 
+std::string getActionString(std::string_view action, const fs::path &localPath, const std::string &nodePath)
+{
+    return std::string(action).append(" mount from \"").append(localPath.string()).append("\" to \"").append(nodePath).append("\"");
+}
+
+std::string getActionString(std::string_view action, const mega::MegaMount& mount)
+{
+    return std::string(action).append(" mount ").append(getMountId(mount)).append(" on \"").append(mount.getPath()).append("\"");
+}
+
 void addMount(mega::MegaApi& api, const fs::path& localPath, MegaNode& node, bool disabled, bool transient, bool readOnly, const std::string& name)
 {
+    const std::string nodePath = getNodePath(api, node);
+
     auto mount = createMount(localPath, node, disabled, transient, readOnly, name);
     auto listener = std::make_unique<MegaCmdListener>(nullptr);
 
     api.addMount(mount.get(), listener.get());
-    listener->wait();
-
-    MegaError* error = listener->getError();
-    assert(error != nullptr);
-
-    const std::string nodePath = getNodePath(api, node);
-    if (error->getErrorCode() != MegaError::API_OK)
+    if (!checkNoErrors(listener.get(), getActionString("add", localPath, nodePath)))
     {
-        LOG_err << "Failed to add mount from " << localPath << " to \"" << nodePath << '"'
-                << " (Error: " << MegaMount::getResultDescription(error->getMountResult()) << ")";
         return;
     }
 
@@ -230,17 +234,11 @@ void removeMount(mega::MegaApi& api, const mega::MegaMount& mount)
     auto listener = std::make_unique<MegaCmdListener>(nullptr);
 
     api.removeMount(mount.getFlags()->getName(), listener.get());
-    listener->wait();
-
-    MegaError* error = listener->getError();
-    assert(error != nullptr);
-
-    if (error->getErrorCode() != MegaError::API_OK)
+    if (!checkNoErrors(listener.get(), getActionString("remove", mount)))
     {
-        LOG_err << "Failed to remove mount " << getMountId(mount) << " on \"" << mount.getPath() << '"'
-                << " (Error: " << MegaMount::getResultDescription(error->getMountResult()) << ")";
         return;
     }
+
     OUTSTREAM << "Removed mount " << getMountId(mount) << " on \"" << mount.getPath() << '"' << endl;
 }
 
@@ -250,15 +248,8 @@ void enableMount(mega::MegaApi& api, const mega::MegaMount& mount, bool temporar
     const bool remember = shouldRememberChange(mount, temporarily);
 
     api.enableMount(mount.getFlags()->getName(), listener.get(), remember);
-    listener->wait();
-
-    MegaError* error = listener->getError();
-    assert(error != nullptr);
-
-    if (error->getErrorCode() != MegaError::API_OK)
+    if (!checkNoErrors(listener.get(), getActionString("enable", mount)))
     {
-        LOG_err << "Failed to enable mount " << getMountId(mount) << " on \"" << mount.getPath() << '"'
-                << " (Error: " << MegaMount::getResultDescription(error->getMountResult()) << ")";
         return;
     }
 
@@ -272,15 +263,8 @@ void disableMount(mega::MegaApi& api, const mega::MegaMount& mount, bool tempora
     const bool remember = shouldRememberChange(mount, temporarily);
 
     api.disableMount(mount.getFlags()->getName(), listener.get(), remember);
-    listener->wait();
-
-    MegaError* error = listener->getError();
-    assert(error != nullptr);
-
-    if (error->getErrorCode() != MegaError::API_OK)
+    if (!checkNoErrors(listener.get(), getActionString("disable", mount)))
     {
-        LOG_err << "Failed to disable mount " << getMountId(mount) << " on \"" << mount.getPath() << '"'
-                << " (Error: " << MegaMount::getResultDescription(error->getMountResult()) << ")";
         return;
     }
 
@@ -396,15 +380,8 @@ void changeConfig(mega::MegaApi& api, const mega::MegaMount& mount, const Config
     auto listener = std::make_unique<MegaCmdListener>(nullptr);
 
     api.setMountFlags(flags, currentName.c_str(), listener.get());
-    listener->wait();
-
-    MegaError* error = listener->getError();
-    assert(error != nullptr);
-
-    if (error->getErrorCode() != MegaError::API_OK)
+    if (!checkNoErrors(listener.get(), getActionString("change the flags of", mount)))
     {
-        LOG_err << "Failed to change the flags of mount " << getMountId(mount) << " on \"" << mount.getPath() << '"'
-                << " (Error: " << MegaMount::getResultDescription(error->getMountResult()) << ")";
         return;
     }
 
