@@ -64,6 +64,8 @@ enum
 {
     MCMD_OK = 0,              ///< Everything OK
 
+    MCMD_CONFIRM_NO = -12,    ///< User response to confirmation is "no"
+
     MCMD_EARGS = -51,         ///< Wrong arguments
     MCMD_INVALIDEMAIL = -52,  ///< Invalid email
     MCMD_NOTFOUND = -53,      ///< Resource not found
@@ -112,7 +114,7 @@ static std::vector<std::string> localfolderpatterncommands {"lcd", "sync-ignore"
 static std::vector<std::string> emailpatterncommands {"invite", "signup", "ipc", "users"};
 
 static std::vector<std::string> loginInValidCommands { "log", "debug", "speedlimit", "help", "logout", "version", "quit",
-                            "clear", "https", "exit", "errorcode", "proxy"
+                            "clear", "https", "exit", "errorcode", "proxy", "sync-config"
 #if defined(_WIN32) && defined(NO_READLINE)
                              , "autocomplete", "codepage"
 #elif defined(_WIN32)
@@ -128,8 +130,8 @@ static std::vector<std::string> allValidCommands { "login", "signup", "confirm",
                              "showpcr", "users", "speedlimit", "killsession", "whoami", "help", "passwd", "reload", "logout", "version", "quit",
                              "thumbnail", "preview", "find", "completion", "clear", "https", "sync-issues",
                              "transfers", "exclude", "exit", "errorcode", "graphics",
-                             "cancel", "confirmcancel", "cat", "tree", "psa", "proxy"
-                             , "mediainfo"
+                             "cancel", "confirmcancel", "cat", "tree", "psa", "proxy", "sync-config",
+                             "mediainfo"
 #ifdef HAVE_LIBUV
                              , "webdav", "ftp"
 #endif
@@ -287,6 +289,7 @@ std::string getOption(const std::map<std::string, std::string> *cloptions, const
 std::optional<std::string> getOptionAsOptional(const std::map<std::string, std::string>& cloptions, const char * optname);
 
 int getintOption(const std::map<std::string, std::string> *cloptions, const char * optname, int defaultValue = 0);
+std::optional<int> getIntOptional(const std::map<std::string, std::string>& cloptions, const char* optName);
 
 void discardOptionsAndFlags(std::vector<std::string> *ws);
 

@@ -28,6 +28,7 @@
 #include "comunicationsmanager.h"
 #include "listeners.h"
 #include "megacmd_fuse.h"
+#include "sync_command.h"
 
 #include "megacmdplatform.h"
 #include "megacmdversion.h"
@@ -637,6 +638,11 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validParams->insert("remove");
         validParams->insert("remove-exclusion");
     }
+    else if ("sync-config" == thecommand)
+    {
+        validOptValues->insert("delayed-uploads-wait-seconds");
+        validOptValues->insert("delayed-uploads-max-attempts");
+    }
     else if ("export" == thecommand)
     {
         validParams->insert("a");
@@ -1184,7 +1190,7 @@ char* transfertags_completion(const char* text, int state)
     static vector<string> validtransfertags;
     if (state == 0)
     {
-        MegaTransferData * transferdata = api->getTransferData();
+        std::unique_ptr<MegaTransferData> transferdata(api->getTransferData());
         if (transferdata)
         {
             for (int i = 0; i < transferdata->getNumUploads(); i++)
@@ -1780,6 +1786,10 @@ const char * getUsageStr(const char *command, const HelpFlags& flags)
     if (!strcmp(command, "sync-ignore"))
     {
         return "sync-ignore [--show|[--add|--add-exclusion|--remove|--remove-exclusion] filter1 filter2 ...] (ID|localpath|DEFAULT)";
+    }
+    if (!strcmp(command, "sync-config"))
+    {
+        return "sync-config [--delayed-uploads-wait-seconds=waitsecs | --delayed-uploads-max-attempts=attempts]";
     }
     if (!strcmp(command, "backup"))
     {
@@ -2574,12 +2584,10 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << "Controls synchronizations." << endl;
         os << endl;
         os << "If no argument is provided, it lists current configured synchronizations." << endl;
+        os << "If local and remote paths are provided, it will start synchronizing a local folder into a remote folder." << endl;
+        os << "If an ID/local path is provided, it will list such synchronization unless an option is specified." << endl;
         os << endl;
-        os << "If provided local and remote paths, it will start synchronizing" << endl;
-        os << " a local folder into a remote folder." << endl;
-        os << endl;
-        os << "If an ID/local path is provided, it will list such synchronization" << endl;
-        os << " unless an option is specified." << endl;
+        os << "Note: use the \"sync-config\" command to show and modify global sync configuration." << endl;
         os << endl;
         os << "Options:" << endl;
         os << " -d | --delete" << " " << "ID|localpath" << "\t" << "deletes a synchronization (not the files)." << endl;
@@ -2689,6 +2697,28 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << "\t" << "`-d:private`" << "  " << "Filter will exclude all directories with the name 'private'" << endl;
         os << endl;
         os << "See: https://help.mega.io/installs-apps/desktop/megaignore more info." << endl;
+    }
+    else if (!strcmp(command, "sync-config"))
+    {
+        auto duLimits = GlobalSyncConfig::DelayedUploads::getCurrentLimits(*api);
+
+        os << "Shows and modifies global sync configuration." << endl;
+        os << endl;
+        os << "Displays current configuration if no options are provided. Configuration values are persisted across restarts." << endl;
+        os << endl;
+        os << "New uploads for files that change frequently in syncs will be delayed until a wait time passes." << endl;
+        os << "Options:" << endl;
+        os << " --delayed-uploads-wait-seconds   Sets the seconds to be waited before a file that's being delayed is uploaded again. Default is 30 minutes (1800 seconds)." << endl;
+        if (duLimits)
+        {
+        os << "                                  Note: wait seconds must be between " << duLimits->mLower.mWaitSecs << " and " << duLimits->mUpper.mWaitSecs << " (inclusive)." << endl;
+        }
+
+        os << " --delayed-uploads-max-attempts   Sets the max number of times a file can change in quick succession before it starts to get delayed. Default is 2." << endl;
+        if (duLimits)
+        {
+        os << "                                  Note: max attempts must be between " << duLimits->mLower.mMaxAttempts << " and " << duLimits->mUpper.mMaxAttempts << " (inclusive)." << endl;
+        }
     }
     else if (!strcmp(command, "backup"))
     {
@@ -3924,6 +3954,36 @@ bool isBareCommand(const char *l, const string &command)
    return true;
 }
 
+bool hasOngoingTransfersOrDelayedSyncs(MegaApi& api)
+{
+    std::unique_ptr<MegaTransferData> transferData(api.getTransferData());
+    assert(transferData);
+
+    if (transferData->getNumDownloads() > 0 || transferData->getNumUploads() > 0)
+    {
+        return true;
+    }
+
+    // We can only check for delayed sync uploads if there are no sync issues
+    if (!api.isSyncing() || api.isSyncStalled())
+    {
+        return false;
+    }
+
+    auto listener = std::make_unique<MegaCmdListener>(nullptr);
+    api.checkSyncUploadsThrottled(listener.get());
+    listener->wait();
+
+    if (listener->getError()->getErrorCode() == MegaError::API_OK)
+    {
+        MegaRequest* request = listener->getRequest();
+        assert(request);
+        return request->getFlag(); // delayed sync uploads
+    }
+
+    return false;
+}
+
 void MegaCmdExecuter::mayExecutePendingStuffInWorkerThread()
 {
     {   // send INVALID_UTF8_INCIDENCES if there have been incidences
@@ -4048,7 +4108,18 @@ static bool process_line(const std::string_view line)
             if (!l || !strcmp(l, "q") || !strcmp(l, "quit") || !strcmp(l, "exit")
                 || ( (!strncmp(l, "quit ", strlen("quit ")) || !strncmp(l, "exit ", strlen("exit ")) ) && !strstr(l,"--help") )  )
             {
-                //                store_line(NULL);
+                if (isCurrentThreadCmdShell() && hasOngoingTransfersOrDelayedSyncs(*api))
+                {
+                    const string sureToExitMsg = "There are ongoing transfers and/or pending sync uploads.\n"
+                                                 "Are you sure you want to exit? (Yes/No): ";
+
+                    int confirmationResponse = askforConfirmation(sureToExitMsg);
+                    if (!confirmationResponse)
+                    {
+                        setCurrentThreadOutCode(MCMD_CONFIRM_NO);
+                        return false;
+                    }
+                }
 
                 if (strstr(l,"--wait-for-ongoing-petitions"))
                 {
@@ -5373,6 +5444,8 @@ int executeServer(int argc, char* argv[],
     {
         setFuseLogLevel(*api, fuseLogLevelStr);
     }
+
+    GlobalSyncConfig::loadFromConfigurationManager(*api);
 
     megaCmdGlobalListener = new MegaCmdGlobalListener(loggerCMD, sandboxCMD);
     megaCmdMegaListener = new MegaCmdMegaListener(api, NULL, sandboxCMD);

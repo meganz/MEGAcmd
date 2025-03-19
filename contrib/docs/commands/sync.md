@@ -4,12 +4,10 @@ Controls synchronizations.
 Usage: `sync [localpath dstremotepath| [-dpe] [ID|localpath]`
 <pre>
 If no argument is provided, it lists current configured synchronizations.
+If local and remote paths are provided, it will start synchronizing a local folder into a remote folder.
+If an ID/local path is provided, it will list such synchronization unless an option is specified.
 
-If provided local and remote paths, it will start synchronizing
- a local folder into a remote folder.
-
-If an ID/local path is provided, it will list such synchronization
- unless an option is specified.
+Note: use the "sync-config" command to show and modify global sync configuration.
 
 Options:
  -d | --delete ID|localpath	deletes a synchronization (not the files).

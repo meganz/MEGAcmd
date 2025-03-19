@@ -121,7 +121,7 @@ def get_commands_by_category(ct):
         'Account / Contacts': ['signup', 'confirm', 'invite', 'showpcr', 'ipc', 'users', 'userattr', 'passwd', 'masterkey'],
         'Login / Logout': ['login', 'logout', 'whoami', 'session', 'killsession'],
         'Browse': ['cd', 'lcd', 'ls', 'pwd', 'lpwd', 'attr', 'du', 'find', 'mount'],
-        'Moving / Copying files': ['mkdir', 'cp', 'put', 'get', 'preview', 'thumbnail', 'mv', 'rm', 'transfers', 'speedlimit', 'sync', 'sync-issues', 'sync-ignore', 'exclude', 'backup'],
+        'Moving / Copying files': ['mkdir', 'cp', 'put', 'get', 'preview', 'thumbnail', 'mv', 'rm', 'transfers', 'speedlimit', 'sync', 'sync-issues', 'sync-ignore', 'sync-config', 'exclude', 'backup'],
         'Sharing (your own files, of course, without infringing any copyright)': ['export', 'import', 'share', 'webdav'],
         'FUSE (mount your cloud folder to the local system)': ['fuse-add', 'fuse-remove', 'fuse-enable', 'fuse-disable', 'fuse-show', 'fuse-config'],
     }
