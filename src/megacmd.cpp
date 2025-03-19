@@ -3270,7 +3270,7 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os <<  "                         Name: the user-friendly name of the mount, set when it was added or by fuse-config." << endl;
         os << endl;
         os << "Options:" << endl;
-        os << " --name=name                  Sets the name of the mount." << endl;
+        os << " --name=name                  Sets the name of the mount. Notice: changing the name will alter the ID" << endl;
         os << " --enable-at-startup=yes|no   Controls whether or not the mount should be enabled automatically on startup." << endl;
         os << " --persistent=yes|no          Controls whether or not the mount is saved across restarts." << endl;
         os << " --read-only=yes|no           Controls whether the mount is read-only or writable." << endl;

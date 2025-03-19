@@ -137,6 +137,7 @@ std::unique_ptr<MegaMount> getMountByPath(MegaApi& api, const std::string& path,
             else
             {
                 clash = true;
+                return nullptr;
             }
         }
     }
@@ -201,7 +202,7 @@ std::unique_ptr<MegaMount> getMountByIdOrPathOrName(MegaApi& api, const std::str
     }
     else if (mount == nullptr)
     {
-        LOG_err << "Identifier \"" << identifier << "\" does not correspond to a valid node ID, cloud path, or mount name";
+        LOG_err << "Identifier \"" << identifier << "\" does not correspond to a valid node ID, local path, or mount name";
     }
     return mount;
 }
@@ -220,8 +221,8 @@ void addMount(mega::MegaApi& api, const fs::path& localPath, MegaNode& node, boo
     const std::string nodePath = getNodePath(api, node);
     if (error->getErrorCode() != MegaError::API_OK)
     {
-        LOG_err << "Failed to add mount from \"" << localPath << "\" to \"" << nodePath << '"'
-                << " (Error: " << MegaMount::getResultString(error->getMountResult()) << ")";
+        LOG_err << "Failed to add mount from " << localPath << " to \"" << nodePath << '"'
+                << " (Error: " << MegaMount::getResultDescription(error->getMountResult()) << ")";
         return;
     }
 
@@ -260,7 +261,7 @@ void removeMount(mega::MegaApi& api, const mega::MegaMount& mount)
     if (error->getErrorCode() != MegaError::API_OK)
     {
         LOG_err << "Failed to remove mount " << getMountId(api, mount) << " on \"" << mount.getPath() << '"'
-                << " (Error: " << MegaMount::getResultString(error->getMountResult()) << ")";
+                << " (Error: " << MegaMount::getResultDescription(error->getMountResult()) << ")";
         return;
     }
     OUTSTREAM << "Removed mount " << getMountId(api, mount) << " on \"" << mount.getPath() << '"' << endl;
@@ -280,7 +281,7 @@ void enableMount(mega::MegaApi& api, const mega::MegaMount& mount, bool temporar
     if (error->getErrorCode() != MegaError::API_OK)
     {
         LOG_err << "Failed to enable mount " << getMountId(api, mount) << " on \"" << mount.getPath() << '"'
-                << " (Error: " << MegaMount::getResultString(error->getMountResult()) << ")";
+                << " (Error: " << MegaMount::getResultDescription(error->getMountResult()) << ")";
         return;
     }
 
@@ -302,7 +303,7 @@ void disableMount(mega::MegaApi& api, const mega::MegaMount& mount, bool tempora
     if (error->getErrorCode() != MegaError::API_OK)
     {
         LOG_err << "Failed to disable mount " << getMountId(api, mount) << " on \"" << mount.getPath() << '"'
-                << " (Error: " << MegaMount::getResultString(error->getMountResult()) << ")";
+                << " (Error: " << MegaMount::getResultDescription(error->getMountResult()) << ")";
         return;
     }
 
@@ -410,6 +411,7 @@ void changeConfig(mega::MegaApi& api, const mega::MegaMount& mount, const Config
     {
         flags->setReadOnly(*delta.mReadOnly);
     }
+    std::string currentName(mount.getFlags()->getName());
     if (delta.mName)
     {
         flags->setName(delta.mName->c_str());
@@ -417,7 +419,7 @@ void changeConfig(mega::MegaApi& api, const mega::MegaMount& mount, const Config
 
     auto listener = std::make_unique<MegaCmdListener>(nullptr);
 
-    api.setMountFlags(flags, mount.getFlags()->getName(), listener.get());
+    api.setMountFlags(flags, currentName.c_str(), listener.get());
     listener->wait();
 
     MegaError* error = listener->getError();
@@ -426,7 +428,7 @@ void changeConfig(mega::MegaApi& api, const mega::MegaMount& mount, const Config
     if (error->getErrorCode() != MegaError::API_OK)
     {
         LOG_err << "Failed to change the flags of mount " << getMountId(api, mount) << " on \"" << mount.getPath() << '"'
-                << " (Error: " << MegaMount::getResultString(error->getMountResult()) << ")";
+                << " (Error: " << MegaMount::getResultDescription(error->getMountResult()) << ")";
         return;
     }
 

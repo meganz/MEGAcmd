@@ -577,7 +577,7 @@ void MegaCmdMegaListener::onMountEvent(std::string_view pastTense, std::string_v
     {
         std::ostringstream oss;
         oss << "Failed to " << presentTense << " mount \"" << path << "\" "
-            << "due to error: " << MegaMount::getResultString(result);
+            << "due to error:\n" << MegaMount::getResultDescription(result);
 
         const std::string msg = oss.str();
 
