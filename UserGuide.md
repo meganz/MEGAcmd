@@ -187,7 +187,7 @@ Verbosity: You can increase the amount of information given by any command by pa
 * [`masterkey`](contrib/docs/commands/masterkey.md)`pathtosave` Shows your master key.
 
 ### Login / Logout
-* [`login`](contrib/docs/commands/login.md)`[--auth-code=XXXX] email password | exportedfolderurl#key [--auth-key=XXXX] | passwordprotectedlink [--password=PASSWORD] | session` Logs into a MEGA account or folder link. You can only log into one entity at a time.
+* [`login`](contrib/docs/commands/login.md)`[--auth-code=XXXX] email password | exportedfolderurl#key [--auth-key=XXXX] [--resume] | passwordprotectedlink [--password=PASSWORD] | session` Logs into a MEGA account, folder link or a previous session. You can only log into one entity at a time.
 * [`logout`](contrib/docs/commands/logout.md)`[--keep-session]` Logs out
 * [`whoami`](contrib/docs/commands/whoami.md)`[-l]` Prints info of the user
 * [`session`](contrib/docs/commands/session.md) Prints (secret) session ID
