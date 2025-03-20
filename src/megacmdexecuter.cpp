@@ -2640,6 +2640,22 @@ int MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
         long long maxspeedupload = ConfigurationManager::getConfigurationValue("maxspeedupload", -1);
         if (maxspeedupload != -1) api->setMaxUploadSpeed(maxspeedupload);
 
+        for (bool up :{true, false})
+        {
+            auto megaCmdListener = std::make_unique<MegaCmdListener>(nullptr);
+            auto value = ConfigurationManager::getConfigurationValue(up ? "maxuploadconnections" : "maxdownloadconnections", -1);
+            if (value != -1)
+            {
+                api->setMaxConnections(up ? 1 : 0, value, megaCmdListener.get());
+                megaCmdListener->wait();
+                if (megaCmdListener->getError()->getErrorCode() != MegaError::API_OK)
+                {
+                    LOG_err << "Failed to change max " << (up ? "upload" : "download") << " connections: "
+                            << megaCmdListener->getError()->getErrorString();
+                }
+            }
+        }
+
         api->useHttpsOnly(ConfigurationManager::getConfigurationValue("https", false));
         api->disableGfxFeatures(!ConfigurationManager::getConfigurationValue("graphics", true));
 
@@ -9187,59 +9203,107 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
     }
     else if (words[0] == "speedlimit")
     {
-        if (words.size() > 2)
+        bool uploadSpeed = getFlag(clflags, "u");
+        bool downloadSpeed = getFlag(clflags, "d");
+        bool uploadCons = getFlag(clflags, "upload-connections");
+        bool downloadCons = getFlag(clflags, "download-connections");
+
+        bool moreThanOne = !onlyZeroOrOneOf(uploadSpeed, downloadSpeed, uploadCons, downloadCons);
+        bool noParam = onlyZeroOf(uploadSpeed, downloadSpeed, uploadCons, downloadCons);
+        bool hr = getFlag(clflags,"h");
+
+        if (words.size() > 2 || moreThanOne)
         {
             setCurrentThreadOutCode(MCMD_EARGS);
             LOG_err << "      " << getUsageStr("speedlimit");
             return;
         }
-        if (words.size() > 1)
+        if (words.size() > 1) // setting
         {
-            long long maxspeed = textToSize(words[1].c_str());
-            if (maxspeed == -1)
+            long long value = textToSize(words[1].c_str());
+            if (value == -1)
             {
                 string s = words[1] + "B";
-                maxspeed = textToSize(s.c_str());
+                value = textToSize(s.c_str());
             }
-            if (!getFlag(clflags, "u") && !getFlag(clflags, "d"))
+            if (noParam)
             {
-                api->setMaxDownloadSpeed(maxspeed);
-                api->setMaxUploadSpeed(maxspeed);
-                ConfigurationManager::savePropertyValue("maxspeedupload", maxspeed);
-                ConfigurationManager::savePropertyValue("maxspeeddownload", maxspeed);
+                api->setMaxDownloadSpeed(value);
+                api->setMaxUploadSpeed(value);
+                ConfigurationManager::savePropertyValue("maxspeedupload", value);
+                ConfigurationManager::savePropertyValue("maxspeeddownload", value);
             }
-            else if (getFlag(clflags, "u"))
+            else if (uploadSpeed)
             {
-                api->setMaxUploadSpeed(maxspeed);
-                ConfigurationManager::savePropertyValue("maxspeedupload", maxspeed);
+                api->setMaxUploadSpeed(value);
+                ConfigurationManager::savePropertyValue("maxspeedupload", value);
             }
-            else if (getFlag(clflags, "d"))
+            else if (downloadSpeed)
             {
-                api->setMaxDownloadSpeed(maxspeed);
-                ConfigurationManager::savePropertyValue("maxspeeddownload", maxspeed);
+                api->setMaxDownloadSpeed(value);
+                ConfigurationManager::savePropertyValue("maxspeeddownload", value);
+            }
+            else if (uploadCons || downloadCons)
+            {
+                auto megaCmdListener = std::make_unique<MegaCmdListener>(nullptr);
+                api->setMaxConnections(uploadCons ? 1 : 0, value, megaCmdListener.get());
+                if (!checkNoErrors(megaCmdListener.get(), uploadCons ? "change max upload connections" : "change max download connections"))
+                {
+                    return;
+                }
+
+                ConfigurationManager::savePropertyValue(uploadCons ? "maxuploadconnections" : "maxdownloadconnections", value);
             }
         }
 
-        bool hr = getFlag(clflags,"h");
-
-        if (!getFlag(clflags, "u") && !getFlag(clflags, "d"))
+        // listing:
+        if (noParam)
         {
             long long us = api->getMaxUploadSpeed();
             long long ds = api->getMaxDownloadSpeed();
             OUTSTREAM << "Upload speed limit = " << (us?sizeToText(us,false,hr):"unlimited") << ((us && hr)?"/s":(us?" B/s":""))  << endl;
             OUTSTREAM << "Download speed limit = " << (ds?sizeToText(ds,false,hr):"unlimited") << ((ds && hr)?"/s":(us?" B/s":"")) << endl;
+            auto upConns =  ConfigurationManager::getConfigurationValue("maxuploadconnections", -1);
+            auto downConns =  ConfigurationManager::getConfigurationValue("maxdownloadconnections", -1);
+            if (upConns != -1)
+            {
+                 OUTSTREAM << "Upload max connections = " << upConns << std::endl;
+            }
+            if (downConns != -1)
+            {
+                 OUTSTREAM << "Download max connections = " << downConns << std::endl;;
+            }
         }
-        else if (getFlag(clflags, "u"))
+        else if (uploadSpeed)
         {
             long long us = api->getMaxUploadSpeed();
             OUTSTREAM << "Upload speed limit = " << (us?sizeToText(us,false,hr):"unlimited") << ((us && hr)?"/s":(us?" B/s":"")) << endl;
         }
-        else if (getFlag(clflags, "d"))
+        else if (downloadSpeed)
         {
             long long ds = api->getMaxDownloadSpeed();
             OUTSTREAM << "Download speed limit = " << (ds?sizeToText(ds,false,hr):"unlimited") << ((ds && hr)?"/s":(ds?" B/s":"")) << endl;
         }
+        else if (uploadCons || downloadCons)
+        {
+            if (uploadCons)
+            {
+                auto upConns =  ConfigurationManager::getConfigurationValue("maxuploadconnections", -1);
+                if (upConns != -1)
+                {
+                    OUTSTREAM << "Upload max connections = " << upConns << std::endl;;
+                }
+            }
+            else
+            {
+                auto downConns =  ConfigurationManager::getConfigurationValue("maxdownloadconnections", -1);
 
+                if (downConns != -1)
+                {
+                    OUTSTREAM << "Download max connections = " << downConns << std::endl;;
+                }
+            }
+        }
         return;
     }
     else if (words[0] == "invite")
