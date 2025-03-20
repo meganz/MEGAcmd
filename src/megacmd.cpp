@@ -514,6 +514,8 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validParams->insert("u");
         validParams->insert("d");
         validParams->insert("h");
+        validParams->insert("upload-connections");
+        validParams->insert("download-connections");
     }
     else if ("whoami" == thecommand)
     {
@@ -1856,7 +1858,7 @@ const char * getUsageStr(const char *command, const HelpFlags& flags)
     }
     if (!strcmp(command, "speedlimit"))
     {
-        return "speedlimit [-u|-d] [-h] [NEWLIMIT]";
+        return "speedlimit [-u|-d|--upload-connections|--download-connections] [-h] [NEWLIMIT]";
     }
     if (!strcmp(command, "killsession"))
     {
@@ -2964,11 +2966,13 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << "  Examples: \"1m12k3B\" \"3M\". If no units are given, bytes are assumed" << endl;
         os << endl;
         os << "Options:" << endl;
-        os << " -d" << "\t" << "Download speed limit" << endl;
-        os << " -u" << "\t" << "Upload speed limit" << endl;
-        os << " -h" << "\t" << "Human readable" << endl;
+        os << " -d                       " << "Download speed limit" << endl;
+        os << " -u                       " << "Upload speed limit" << endl;
+        os << " --upload-connections     " << "Max number of connections for an upload transfer" << endl;
+        os << " --download-connections   " << "Max number of connections for a download transfer" << endl;
+        os << " -h                       " << "Human readable" << endl;
         os << endl;
-        os << "Notice: this limit will be saved for the next time you execute MEGAcmd server. They will be removed if you logout." << endl;
+        os << "Notice: these limits will be saved for the next time you execute MEGAcmd server. They will be removed if you logout." << endl;
     }
     else if (!strcmp(command, "killsession"))
     {

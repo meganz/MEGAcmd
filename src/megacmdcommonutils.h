@@ -276,6 +276,12 @@ bool onlyZeroOrOneOf(Bools... args)
     return (args + ...) <= 1;
 }
 
+template <typename... Bools>
+bool onlyZeroOf(Bools... args)
+{
+    return (args + ...) == 0;
+}
+
 void printPercentageLineCerr(const char *title, long long completed, long long total, float percentDowloaded, bool cleanLineAfter = true);
 
 
