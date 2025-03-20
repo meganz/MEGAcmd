@@ -17,6 +17,8 @@ Requires: procps-ng
 
 BuildRequires: autoconf, autoconf-archive, automake, libtool, gcc-c++
 BuildRequires: hicolor-icon-theme, zip, unzip, nasm, cmake, perl
+BuildRequires: fuse-devel
+Requires: fuse
 
 %if 0%{?fedora_version} >= 40
     BuildRequires: wget2, wget2-wget
