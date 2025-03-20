@@ -2644,12 +2644,15 @@ int MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
         {
             auto megaCmdListener = std::make_unique<MegaCmdListener>(nullptr);
             auto value = ConfigurationManager::getConfigurationValue(up ? "maxuploadconnections" : "maxdownloadconnections", -1);
-            api->setMaxConnections(up ? 1 : 0, value, megaCmdListener.get());
-            megaCmdListener->wait();
-            if (megaCmdListener->getError()->getErrorCode() != MegaError::API_OK)
+            if (value != -1)
             {
-                LOG_err << "Failed to change max " << (up ? "upload" : "download") << " connections: "
-                        << megaCmdListener->getError()->getErrorString();
+                api->setMaxConnections(up ? 1 : 0, value, megaCmdListener.get());
+                megaCmdListener->wait();
+                if (megaCmdListener->getError()->getErrorCode() != MegaError::API_OK)
+                {
+                    LOG_err << "Failed to change max " << (up ? "upload" : "download") << " connections: "
+                            << megaCmdListener->getError()->getErrorString();
+                }
             }
         }
 
