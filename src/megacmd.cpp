@@ -2960,16 +2960,20 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
     }
     else if (!strcmp(command, "speedlimit"))
     {
-        os << "Displays/modifies upload/download rate limits" << endl;
-        os << " NEWLIMIT establish the new limit in size per second (0 = no limit)" << endl;
+        os << "Displays/modifies upload/download rate limits: either speed or max connections" << endl;
+        os << endl;
+        os << " NEWLIMIT is the new limit to set. If no option is provided, NEWLIMIT will be " << endl;
+        os << "  applied for both download/upload speed limits. 0, for speeds, means unlimited." << endl;
         os << " NEWLIMIT may include (B)ytes, (K)ilobytes, (M)egabytes, (G)igabytes & (T)erabytes." << endl;
-        os << "  Examples: \"1m12k3B\" \"3M\". If no units are given, bytes are assumed" << endl;
+        os << "  Examples: \"1m12k3B\" \"3M\". If no units are given, bytes are assumed." << endl;
         os << endl;
         os << "Options:" << endl;
-        os << " -d                       " << "Download speed limit" << endl;
-        os << " -u                       " << "Upload speed limit" << endl;
-        os << " --upload-connections     " << "Max number of connections for an upload transfer" << endl;
-        os << " --download-connections   " << "Max number of connections for a download transfer" << endl;
+        os << " -d                       " << "Set/Read download speed limit, expressed in size per second." << endl;
+        os << " -u                       " << "Set/Read dpload speed limit, expressed in size per second" << endl;
+        os << " --upload-connections     " << "Set/Read max number of connections for an upload transfer" << endl;
+        os << " --download-connections   " << "Set/Read max number of connections for a download transfer" << endl;
+        os << endl;
+        os << "Display options:" << endl;
         os << " -h                       " << "Human readable" << endl;
         os << endl;
         os << "Notice: these limits will be saved for the next time you execute MEGAcmd server. They will be removed if you logout." << endl;
