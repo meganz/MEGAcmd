@@ -162,6 +162,18 @@ public:
     }
 
     template <typename T>
+    static std::optional<T> getConfigurationValueOpt(std::string propertyName)
+    {
+        std::string propValue = getConfigurationSValue(propertyName);
+        if (!propValue.size()) return {};
+
+        T i;
+        std::istringstream is(propValue);
+        is >> i;
+        return i;
+    }
+
+    template <typename T>
     static std::list<T> getConfigurationValueList(std::string propertyName, char separator = ';')
     {
         std::list<T> toret;

@@ -7985,6 +7985,64 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         }
     }
 #endif
+    else if (words[0] == "config")
+    {
+        using Setter = std::function<bool(const std::string &name, const std::string &value)>;
+        using Getter = std::function<std::optional<std::string>(const char *)>;
+
+        auto confGetter = [](const char *key){ return  ConfigurationManager::getConfigurationValueOpt<std::string>(key); };
+
+        std::optional<std::string_view> key;
+        std::optional<std::string_view> value;
+        if (words.size() > 1)
+        {
+            key = words[1];
+        }
+        if (words.size() > 2)
+        {
+            value= words[2];
+        }
+
+        auto configSetterSyncULL = [this](auto cb)
+        {
+            return [this, cb](const std::string &/*name*/, const std::string &value)
+            {
+                try
+                {
+                    std::invoke(cb, *api, std::stoull(value));
+                }
+                catch(...)
+                {
+                    return false;
+                }
+                return true;
+            };
+        };
+
+
+        using Tp = std::tuple<const char *, const char *,  Setter, Getter>;
+        for (auto [name, description, setter, getter] : {
+             Tp{"max_nodes_in_cache", "max nodes loaded in memory", configSetterSyncULL(&MegaApi::setLRUCacheSize), confGetter },
+        })
+        {
+            if (key && *key != name) continue;
+
+            if (value)
+            {
+                if (!setter(std::string(name), std::string(*value)))
+                {
+                    return;
+                }
+                ConfigurationManager::saveProperty(name, value->data());
+            }
+
+            auto newValueOpt = getter(name);
+            if (newValueOpt)
+            {
+                OUTSTREAM << name << " = " << *newValueOpt << std::endl;
+            }
+        }
+    }
     else if (words[0] == "cancel")
     {
         MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);

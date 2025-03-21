@@ -645,6 +645,10 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validOptValues->insert("delayed-uploads-wait-seconds");
         validOptValues->insert("delayed-uploads-max-attempts");
     }
+    else if ("config" == thecommand)
+    {
+
+    }
     else if ("export" == thecommand)
     {
         validParams->insert("a");
@@ -1794,6 +1798,11 @@ const char * getUsageStr(const char *command, const HelpFlags& flags)
     {
         return "sync-config [--delayed-uploads-wait-seconds=waitsecs | --delayed-uploads-max-attempts=attempts]";
     }
+    if (!strcmp(command, "sync-config"))
+    {
+        return "sync-config [key [value]]";
+    }
+
     if (!strcmp(command, "backup"))
     {
         return "backup (localpath remotepath --period=\"PERIODSTRING\" --num-backups=N  | [-lhda] [TAG|localpath] [--period=\"PERIODSTRING\"] [--num-backups=N]) [--time-format=FORMAT]";
@@ -2727,6 +2736,10 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         {
         os << "                                  Note: max attempts must be between " << duLimits->mLower.mMaxAttempts << " and " << duLimits->mUpper.mMaxAttempts << " (inclusive)." << endl;
         }
+    }
+    else if (!strcmp(command, "config"))
+    {
+        //TODO:
     }
     else if (!strcmp(command, "backup"))
     {
