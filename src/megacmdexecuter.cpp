@@ -204,6 +204,26 @@ MegaCmdExecuter::MegaCmdExecuter(MegaApi *api, MegaCmdLogger *loggerCMD, MegaCmd
     cwd = UNDEF;
     fsAccessCMD = new MegaFileSystemAccess();
     session = NULL;
+
+
+    auto configSetterSyncULL = [this](auto cb)
+    {
+        return [this, cb](const std::string &/*name*/, const std::string &value)
+        {
+            try
+            {
+                std::invoke(cb, *this->api, std::stoull(value));
+            }
+            catch(...)
+            {
+                return false;
+            }
+            return true;
+        };
+    };
+    auto confGetter = [](const char *key){ return  ConfigurationManager::getConfigurationValueOpt<std::string>(key); };
+    mConfigurators.emplace_back("max_nodes_in_cache", "max nodes loaded in memory", configSetterSyncULL(&MegaApi::setLRUCacheSize), confGetter);
+
 }
 
 MegaCmdExecuter::~MegaCmdExecuter()
@@ -2655,6 +2675,23 @@ int MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
                 }
             }
         }
+
+        for (auto &vc : mConfigurators)
+        {
+            auto name = vc.mKey.c_str();
+            auto &setter = vc.mSetter;
+            auto &getter = vc.mGetter;
+
+            auto newValueOpt = getter(name);
+            if (newValueOpt)
+            {
+                if (!setter(std::string(name), *newValueOpt))
+                {
+                    LOG_err << "Failed to change " << vc.mDescription;
+                }
+            }
+        }
+
 
         api->useHttpsOnly(ConfigurationManager::getConfigurationValue("https", false));
         api->disableGfxFeatures(!ConfigurationManager::getConfigurationValue("graphics", true));
@@ -7987,11 +8024,6 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 #endif
     else if (words[0] == "config")
     {
-        using Setter = std::function<bool(const std::string &name, const std::string &value)>;
-        using Getter = std::function<std::optional<std::string>(const char *)>;
-
-        auto confGetter = [](const char *key){ return  ConfigurationManager::getConfigurationValueOpt<std::string>(key); };
-
         std::optional<std::string_view> key;
         std::optional<std::string_view> value;
         if (words.size() > 1)
@@ -8003,28 +8035,12 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             value= words[2];
         }
 
-        auto configSetterSyncULL = [this](auto cb)
+        for (auto &vc : mConfigurators)
         {
-            return [this, cb](const std::string &/*name*/, const std::string &value)
-            {
-                try
-                {
-                    std::invoke(cb, *api, std::stoull(value));
-                }
-                catch(...)
-                {
-                    return false;
-                }
-                return true;
-            };
-        };
+            auto name = vc.mKey.c_str();
+            auto &setter = vc.mSetter;
+            auto &getter = vc.mGetter;
 
-
-        using Tp = std::tuple<const char *, const char *,  Setter, Getter>;
-        for (auto [name, description, setter, getter] : {
-             Tp{"max_nodes_in_cache", "max nodes loaded in memory", configSetterSyncULL(&MegaApi::setLRUCacheSize), confGetter },
-        })
-        {
             if (key && *key != name) continue;
 
             if (value)
