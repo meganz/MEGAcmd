@@ -76,7 +76,7 @@ sed -i -E "s/(^#define MEGACMD_BUILD_ID )[0-9]*/\1${mega_build_id}/g" src/megacm
 
 %define fullreqs -DREQUIRE_HAVE_PDFIUM -DREQUIRE_HAVE_FFMPEG -DREQUIRE_HAVE_LIBUV -DREQUIRE_USE_MEDIAINFO -DREQUIRE_USE_PCRE
 
-%if ( 0%{?fedora_version} && 0%{?fedora_version}<=38 ) || ( 0%{?centos_version} == 600 ) || ( 0%{?centos_version} == 800 ) || ( 0%{?sle_version} && 0%{?sle_version} < 150500 )
+%if ( 0%{?fedora_version} && 0%{?fedora_version}<=39 ) || ( 0%{?centos_version} == 600 ) || ( 0%{?centos_version} == 800 ) || ( 0%{?sle_version} && 0%{?sle_version} < 150600 )
     %define extradefines -DMEGACMD_DEPRECATED_OS
 %else
     %define extradefines %{nil}
