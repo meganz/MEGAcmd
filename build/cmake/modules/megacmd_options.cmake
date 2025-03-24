@@ -49,7 +49,7 @@ if(UNIX AND NOT APPLE)
         OUTPUT_STRIP_TRAILING_WHITESPACE
     )
     message(STATUS "System Architecture: <${SYSTEM_ARCHITECTURE}>")
-    if(SYSTEM_ARCHITECTURE MATCHES "^(i[3-6]86|x86|armhf)$")
+    if(SYSTEM_ARCHITECTURE MATCHES "^(i[3-6]86|x86|armhf|armv7)$")
         set(IS_32_BIT ON)
     else()
         set(IS_32_BIT OFF)
