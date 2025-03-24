@@ -42,7 +42,7 @@ for dscFile in `find templates/megacmd/ -name megacmd-xUbuntu_* -o -name megacmd
 done
 
 # Adjustments to remove fuse dependency for 32 bits builds
-if dpkg --print-architecture | grep -i "i386\|armhf\|armv7" >/dev/null; then
+if uname -m | grep -E "^(i[3-6]86|x86|armhf|armv7l)$" >/dev/null; then
 echo "Removing fuse dependency...."
 sed -i "/libfuse-dev/d" megacmd/debian.control
 sed -i "s#, fuse##g" megacmd/debian.control
