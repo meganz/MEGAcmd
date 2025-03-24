@@ -114,7 +114,7 @@ static std::vector<std::string> localfolderpatterncommands {"lcd", "sync-ignore"
 static std::vector<std::string> emailpatterncommands {"invite", "signup", "ipc", "users"};
 
 static std::vector<std::string> loginInValidCommands { "log", "debug", "speedlimit", "help", "logout", "version", "quit",
-                            "clear", "https", "exit", "errorcode", "proxy", "sync-config", "config"
+                            "clear", "https", "exit", "errorcode", "proxy", "sync-config", "configure"
 #if defined(_WIN32) && defined(NO_READLINE)
                              , "autocomplete", "codepage"
 #elif defined(_WIN32)
@@ -130,7 +130,7 @@ static std::vector<std::string> allValidCommands { "login", "signup", "confirm",
                              "showpcr", "users", "speedlimit", "killsession", "whoami", "help", "passwd", "reload", "logout", "version", "quit",
                              "thumbnail", "preview", "find", "completion", "clear", "https", "sync-issues",
                              "transfers", "exclude", "exit", "errorcode", "graphics",
-                             "cancel", "confirmcancel", "cat", "tree", "psa", "proxy", "sync-config", "config",
+                             "cancel", "confirmcancel", "cat", "tree", "psa", "proxy", "sync-config", "configure",
                              "mediainfo"
 #ifdef HAVE_LIBUV
                              , "webdav", "ftp"

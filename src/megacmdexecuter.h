@@ -30,36 +30,6 @@ class MegaCmdGlobalTransferListener;
 class MegaCmdMultiTransferListener;
 class MegaCmdSandbox;
 
-
-class ValueConfigurator {
-
-    using Setter = std::function<bool(const std::string &name, const std::string &value)>;
-    using Getter = std::function<std::optional<std::string>(const char *)>;
-public:
-    std::string mKey;
-    std::string mDescription;
-    Setter mSetter;
-    Getter mGetter;
-
-
-    template <typename S, typename G>
-    ValueConfigurator(const char *key, const char *description, S &&setter, G &getter)
-        : mKey(key), mDescription(description), mSetter(setter), mGetter(getter)
-    {
-    }
-
-    void set(const std::string &name, const std::string &value)
-    {
-        mSetter(name, value);
-    }
-
-    std::optional<std::string> get()
-    {
-        return mGetter(mKey.c_str());
-    }
-};
-
-
 class MegaCmdExecuter
 {
 private:
@@ -78,8 +48,6 @@ private:
     SyncIssuesManager mSyncIssuesManager;
 
     std::recursive_mutex mtxBackupsMap;
-
-    std::vector<ValueConfigurator> mConfigurators;
 
     // login/signup e-mail address
     std::string login;

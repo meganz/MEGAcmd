@@ -205,25 +205,6 @@ MegaCmdExecuter::MegaCmdExecuter(MegaApi *api, MegaCmdLogger *loggerCMD, MegaCmd
     fsAccessCMD = new MegaFileSystemAccess();
     session = NULL;
 
-
-    auto configSetterSyncULL = [this](auto cb)
-    {
-        return [this, cb](const std::string &/*name*/, const std::string &value)
-        {
-            try
-            {
-                std::invoke(cb, *this->api, std::stoull(value));
-            }
-            catch(...)
-            {
-                return false;
-            }
-            return true;
-        };
-    };
-    auto confGetter = [](const char *key){ return  ConfigurationManager::getConfigurationValueOpt<std::string>(key); };
-    mConfigurators.emplace_back("max_nodes_in_cache", "max nodes loaded in memory", configSetterSyncULL(&MegaApi::setLRUCacheSize), confGetter);
-
 }
 
 MegaCmdExecuter::~MegaCmdExecuter()
@@ -2676,7 +2657,7 @@ int MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
             }
         }
 
-        for (auto &vc : mConfigurators)
+        for (auto &vc : Instance<ConfiguratorMegaApiHelper>::Get().getConfigurators())
         {
             auto name = vc.mKey.c_str();
             auto &setter = vc.mSetter;
@@ -2685,7 +2666,7 @@ int MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
             auto newValueOpt = getter(name);
             if (newValueOpt)
             {
-                if (!setter(std::string(name), *newValueOpt))
+                if (!setter(api, std::string(name), *newValueOpt))
                 {
                     LOG_err << "Failed to change " << vc.mDescription;
                 }
@@ -8022,7 +8003,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         }
     }
 #endif
-    else if (words[0] == "config")
+    else if (words[0] == "configure")
     {
         std::optional<std::string_view> key;
         std::optional<std::string_view> value;
@@ -8035,7 +8016,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             value= words[2];
         }
 
-        for (auto &vc : mConfigurators)
+        for (auto &vc : Instance<ConfiguratorMegaApiHelper>::Get().getConfigurators())
         {
             auto name = vc.mKey.c_str();
             auto &setter = vc.mSetter;
@@ -8045,7 +8026,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
             if (value)
             {
-                if (!setter(std::string(name), std::string(*value)))
+                if (!setter(api, std::string(name), std::string(*value)))
                 {
                     return;
                 }

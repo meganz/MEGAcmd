@@ -916,4 +916,32 @@ void ConfigurationManager::clearConfigurationFile()
         }
     }
 }
+
+ConfiguratorMegaApiHelper::ConfiguratorMegaApiHelper()
+{
+    auto configSetterSyncULL = [this](auto cb)
+    {
+        return [this, cb](MegaApi *api, const std::string &/*name*/, const std::string &value)
+        {
+            try
+            {
+                std::invoke(cb, *api, std::stoull(value));
+            }
+            catch(...)
+            {
+                return false;
+            }
+            return true;
+        };
+    };
+    auto confGetter = [](const char *key){ return  ConfigurationManager::getConfigurationValueOpt<std::string>(key); };
+
+    mConfigurators.emplace_back("max_nodes_in_cache", "max nodes loaded in memory", configSetterSyncULL(&MegaApi::setLRUCacheSize), confGetter);
+}
+
+const std::vector<ConfiguratorMegaApiHelper::ValueConfigurator> & ConfiguratorMegaApiHelper::getConfigurators()
+{
+    return mConfigurators;
+}
+
 }//end namespace

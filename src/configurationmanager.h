@@ -294,5 +294,28 @@ public:
     static void migrateSyncConfig(mega::MegaApi *api);
 };
 
+class ConfiguratorMegaApiHelper
+{
+    struct ValueConfigurator {
+        using Setter = std::function<bool(::mega::MegaApi *api, const std::string &name, const std::string &value)>;
+        using Getter = std::function<std::optional<std::string>(const char *)>;
+        std::string mKey;
+        std::string mDescription;
+        Setter mSetter;
+        Getter mGetter;
+
+        template <typename S, typename G>
+        ValueConfigurator(const char *key, const char *description, S &&setter, G &getter)
+            : mKey(key), mDescription(description), mSetter(setter), mGetter(getter)
+        {
+        }
+    };
+
+    std::vector<ValueConfigurator> mConfigurators;
+public:
+    const std::vector<ValueConfigurator> & getConfigurators();
+    ConfiguratorMegaApiHelper();
+};
+
 }//end namespace
 #endif // CONFIGURATIONMANAGER_H
