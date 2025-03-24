@@ -46,9 +46,9 @@ We are also building it for some NAS systems, please check your provider's App S
 The major features are
 * Move files around inside your MEGA account or between MEGA and your PC using command line tools.
 * Use those same commands in scripts to manage your files.
-* Set up synchronization or a backup schedule between a folder on your machine, and a folder on your MEGA account.   (use the [`sync`](#sync) or [`backup`](#backup) commands)
-* Set up WebDAV access to files in your MEGA account (use the [`webdav`](#webdav) command)
-* (linux only) Set up FUSE mount point to seemlesly files in your MEGA account (use the [`fuse-add`](#fuse-add) command)
+* Set up synchronization or a backup schedule between a folder on your machine, and a folder on your MEGA account.   (use the [`sync`](#sync) or [`backup`](#backup) commands).
+* Set up WebDAV access to files in your MEGA account (use the [`webdav`](#webdav) command).
+* [Linux only] Set up a FUSE mount point to seamlessly access files in your MEGA account (use the [`fuse-add`](#fuse-add) command).
 
 See our Help Centre pages for the basics of getting started, and friendly examples of common usages with plenty of pictures:  https://mega.nz/help
 
