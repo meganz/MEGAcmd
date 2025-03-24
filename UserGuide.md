@@ -46,8 +46,9 @@ We are also building it for some NAS systems, please check your provider's App S
 The major features are
 * Move files around inside your MEGA account or between MEGA and your PC using command line tools.
 * Use those same commands in scripts to manage your files.
-* Set up synchronization or a backup schedule between a folder on your machine, and a folder on your MEGA account.   (use the [`sync`](#sync) or [`backup`](#backup) commands)
-* Set up WebDAV access to files in your MEGA account (use the [`webdav`](#webdav) command)
+* Set up synchronization or a backup schedule between a folder on your machine, and a folder on your MEGA account.   (use the [`sync`](#sync) or [`backup`](#backup) commands).
+* Set up WebDAV access to files in your MEGA account (use the [`webdav`](#webdav) command).
+* [Linux only] Set up a FUSE mount point to seamlessly access files in your MEGA account (use the [`fuse-add`](#fuse-add) command).
 
 See our Help Centre pages for the basics of getting started, and friendly examples of common usages with plenty of pictures:  https://mega.nz/help
 
@@ -114,7 +115,12 @@ For further information on backups, please see the [`backup`](#backup) command a
 ### WebDAV configurations
 MEGAcmd can set up access to folders or files in your MEGA account as if they were local folders and files on your device using the [`webdav`](#webdav) command.  For example making the folder appear like a local drive on your PC, or providing a hyperlink a browser can access, where the hyperlink is to your PC.
 
-For further information on WebDAV, please see the [`webdav`](#webdav) command and the [tutorial](contrib/docs/WEBDAV.md).
+For further information on WebDAV, please see the [`webdav`](#webdav) command and the [tutorial](contrib/docs/WEBDAV.md
+
+### FUSE mount point
+If you use Linux, MEGAcmd can set up access to folders or files in your MEGA account as if they were local folders and files on your device using Filesystem in User Space via [`fuse-add`](#fuse-add) command.
+
+For further information on FUSE, please see the [`fuse-add`](#fuse-add) command and the [tutorial](contrib/docs/FUSE.md).
 
 ### Linux
 On Linux, MEGAcmd commands are installed at /usr/bin and so will already be on your PATH.  The interactive shell is `mega-cmd` and the background server is `mega-cmd-server`, which will be automatically started on demand.  The various scriptable commands are installed at the same location, and invoke `mega-exec` to send the command to `mega-cmd-server`.
