@@ -41,6 +41,16 @@ for dscFile in `find templates/megacmd/ -name megacmd-xUbuntu_* -o -name megacmd
     sed -e "s/megacmd_VERSION/$megacmd_VERSION/g" "${dscFile}" > megacmd/`basename ${dscFile}`
 done
 
+# Adjustments to remove fuse dependency for 32 bits builds
+if pwd | grep -E "/(i[3-6]86|x86|armhf|armv7l)/" >/dev/null; then
+echo "Removing fuse dependency...."
+sed -i "/libfuse-dev/d" megacmd/debian.control
+sed -i "s#, fuse##g" megacmd/debian.control
+sed -i "/fuse/d" megacmd/megacmd.spec
+sed -i "s#, libfuse-dev##g" megacmd/megacmd.dsc
+sed -i "s# 'fuse2'##g" megacmd/PKGBUILD
+fi
+
 # read the last generated ChangeLog version
 version_file="version"
 
