@@ -76,6 +76,7 @@ RUN --mount=type=cache,target=/tmp/ccache \
         -DENABLE_UBSAN=OFF \
         -DENABLE_TSAN=OFF \
         -DCMAKE_VERBOSE_MAKEFILE=ON \
+        -DWITH_FUSE=OFF \
         -DVCPKG_CHAINLOAD_TOOLCHAIN_FILE=/mega/${PLATFORM}.toolchain.cmake \
         -DVCPKG_OVERLAY_TRIPLETS=/mega \
         -DVCPKG_ROOT=/mega/vcpkg \
