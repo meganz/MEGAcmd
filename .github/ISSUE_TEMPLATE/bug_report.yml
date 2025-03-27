@@ -11,6 +11,7 @@ body:
       label: "MEGAcmd version"
       description: "Which version of MEGAcmd did you encountered this issue? (Can be looked up using the `version` command)"
       options:
+        - 2.1.0
         - 2.0.0
         - 1.7.0
         - 1.6.3
