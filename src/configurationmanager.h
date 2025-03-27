@@ -298,7 +298,7 @@ class ConfiguratorMegaApiHelper
 {
     struct ValueConfigurator {
         using Setter = std::function<bool(::mega::MegaApi *api, const std::string &name, const char *value)>;
-        using Getter = std::function<std::optional<std::string>(const char *)>;
+        using Getter = std::function<std::optional<std::string>(::mega::MegaApi *api, const char *)>;
         using Validator = std::function<bool(const char *)>;
 
         std::string mKey;

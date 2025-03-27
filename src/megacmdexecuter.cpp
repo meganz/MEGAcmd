@@ -2660,7 +2660,7 @@ int MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
         for (auto &vc : Instance<ConfiguratorMegaApiHelper>::Get().getConfigurators())
         {
             auto name = vc.mKey.c_str();
-            auto newValueOpt = vc.mGetter(name);
+            auto newValueOpt = vc.mGetter(api, name);
             if (newValueOpt)
             {
                 if (vc.mValidator && !vc.mValidator.value()(newValueOpt->data()))
@@ -8052,7 +8052,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
 
             auto &getter = vc.mMegaApiGetter ? *vc.mMegaApiGetter : vc.mGetter;
 
-            auto newValueOpt = getter(name);
+            auto newValueOpt = getter(api, name);
             if (newValueOpt)
             {
                 OUTSTREAM << name << " = " << *newValueOpt << std::endl;

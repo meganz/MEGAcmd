@@ -935,7 +935,7 @@ ConfiguratorMegaApiHelper::ConfiguratorMegaApiHelper()
         };
     };
 
-    auto confGetter = [](const char *key){ return  ConfigurationManager::getConfigurationValueOpt<std::string>(key); };
+    auto confGetter = [](::mega::MegaApi */*api*/,const char *key){ return  ConfigurationManager::getConfigurationValueOpt<std::string>(key); };
 
     auto validatorULL = [](std::optional<unsigned long long> minOpt = {}, std::optional<unsigned long long> maxOpt = {})
     {
