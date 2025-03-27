@@ -1904,10 +1904,10 @@ void MegaCmdExecuter::dumpTreeSummary(MegaNode *n, const char *timeFormat, std::
  * @param path
  * @return
  */
-bool MegaCmdExecuter::TestCanWriteOnContainingFolder(const string& path)
+bool MegaCmdExecuter::TestCanWriteOnContainingFolder(string path)
 {
 #ifdef _WIN32
-    replaceAll(*path,"/","\\");
+    replaceAll(path, "/", "\\");
 #endif
 
     auto containingFolder = LocalPath::fromAbsolutePath(path);
