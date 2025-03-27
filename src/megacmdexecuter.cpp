@@ -1904,22 +1904,16 @@ void MegaCmdExecuter::dumpTreeSummary(MegaNode *n, const char *timeFormat, std::
  * @param path
  * @return
  */
-bool MegaCmdExecuter::TestCanWriteOnContainingFolder(string *path)
+bool MegaCmdExecuter::TestCanWriteOnContainingFolder(const string& path)
 {
 #ifdef _WIN32
     replaceAll(*path,"/","\\");
 #endif
 
-    auto containingFolder = LocalPath::fromAbsolutePath(*path);
-
-    // Where does our name begin?
-    auto index = containingFolder.getLeafnameByteIndex();
-
-    // We have a parent.
-    if (index)
+    auto containingFolder = LocalPath::fromAbsolutePath(path);
+    if (!containingFolder.isRootPath())
     {
-        // Remove the current leaf name.
-        containingFolder.truncate(index);
+        containingFolder = containingFolder.parentPath();
     }
     else
     {
@@ -6439,7 +6433,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         }
                         else
                         {
-                            if (!TestCanWriteOnContainingFolder(&path))
+                            if (!TestCanWriteOnContainingFolder(path))
                             {
                                 return;
                             }
@@ -6648,7 +6642,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         }
                         else //destiny non existing or a file
                         {
-                            if (!TestCanWriteOnContainingFolder(&path))
+                            if (!TestCanWriteOnContainingFolder(path))
                             {
                                 return;
                             }
@@ -6706,7 +6700,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                                 }
                                 else
                                 {
-                                    if (!TestCanWriteOnContainingFolder(&path))
+                                    if (!TestCanWriteOnContainingFolder(path))
                                     {
                                         return;
                                     }
