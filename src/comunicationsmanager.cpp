@@ -18,20 +18,11 @@
 
 #include "comunicationsmanager.h"
 
+#include <regex>
+
 using namespace mega;
 
 namespace megacmd {
-OUTSTREAMTYPE &operator<<(OUTSTREAMTYPE &os, const CmdPetition& p)
-{
-    return os << p.line;
-}
-
-#ifdef _WIN32
-std::ostream &operator<<(std::ostream &os, const CmdPetition& p)
-{
-    return os << p.line;
-}
-#endif
 
 ComunicationsManager::ComunicationsManager()
 {
@@ -143,9 +134,57 @@ std::string ComunicationsManager::getUserResponse(CmdPetition *inf, string messa
     return string();
 }
 
+void CmdPetition::setLine(std::string_view line)
+{
+    mLine = line;
+}
+
+std::string_view CmdPetition::getLine() const
+{
+    return mLine;
+}
+
 std::string_view CmdPetition::getUniformLine() const
 {
-    return ltrim(std::string_view(line), 'X');
+    return ltrim(std::string_view(mLine), 'X');
+}
+
+std::string CmdPetition::getRedactedLine() const
+{
+    const char* doNotRedactEnv = getenv("MEGACMD_DO_NOT_REDACT_LINES");
+    if (doNotRedactEnv)
+    {
+        return mLine;
+    }
+
+    static const std::string redacted = "$1<REDACTED>";
+    static const std::string asterisks = "$1********";
+
+    static const std::regex fullCommandRegex(R"(^((X?)(passwd|login|confirm|confirmcancel)\s+).*$)");
+    static const std::regex passwordRegex(R"((--password=)("[^"]+"|'[^']+'|\S+))");
+    static const std::regex authRegex(R"((--auth-(code|key)=)\S+)");
+    static const std::regex linkRegex(R"((https://mega\.nz/(file|folder)/[^#]+#)\S+)");
+    static const std::regex oldLinkRegex(R"((https://mega\.nz/#F?![^!]+#)\S+)");
+    static const std::regex encryptedLinkRegex(R"((https://mega\.nz/#P!)\S+)");
+
+    if (std::regex_match(mLine, fullCommandRegex))
+    {
+        return std::regex_replace(mLine, fullCommandRegex, redacted);
+    }
+
+    std::string output = mLine;
+    output = std::regex_replace(output, passwordRegex, asterisks);
+    output = std::regex_replace(output, authRegex, asterisks);
+    output = std::regex_replace(output, linkRegex, asterisks);
+    output = std::regex_replace(output, oldLinkRegex, asterisks);
+    output = std::regex_replace(output, encryptedLinkRegex, asterisks);
+
+    return output;
+}
+
+bool CmdPetition::isFromCmdShell() const
+{
+    return startsWith(mLine, "X");
 }
 
 MegaThread *CmdPetition::getPetitionThread() const

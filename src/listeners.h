@@ -21,8 +21,6 @@
 
 #include "megacmdlogger.h"
 #include "megacmdsandbox.h"
-#include "megacmdtransfermanager.h"
-
 
 namespace megacmd {
 class MegaCmdSandbox;
@@ -150,10 +148,6 @@ private:
     std::condition_variable mStartedConditionVariable;
     unsigned mStartedTransfersCount = 0;
 
-#ifdef HAVE_DOWNLOADS_COMMAND
-    // string to tag map
-    std::vector<DownloadId> mStartedTransfers;
-#endif
 public:
     MegaCmdMultiTransferListener(mega::MegaApi *megaApi, MegaCmdSandbox * sandboxCMD, mega::MegaTransferListener *listener = NULL, int clientID=-1);
     virtual ~MegaCmdMultiTransferListener();
@@ -179,10 +173,6 @@ public:
     long long getTotalbytes() const;
 
     bool getProgressinformed() const;
-
-#ifdef HAVE_DOWNLOADS_COMMAND
-    std::vector<DownloadId> getStartedTransfers() const;
-#endif
 
 protected:
     mega::MegaTransferListener *listener;
@@ -221,6 +211,7 @@ private:
 
 public:
     MegaCmdGlobalListener(MegaCmdLogger *logger, MegaCmdSandbox *sandboxCMD);
+
     void onNodesUpdate(mega::MegaApi* api, mega::MegaNodeList *nodes);
     void onUsersUpdate(mega::MegaApi* api, mega::MegaUserList *users);
     void onAccountUpdate(mega::MegaApi *api);
@@ -230,9 +221,19 @@ public:
 #endif
 };
 
+class DisableMountErrorsBroadcastingGuard
+{
+    static std::atomic<int> sDisableBroadcasting;
+public:
+    DisableMountErrorsBroadcastingGuard() { sDisableBroadcasting++; }
+    ~DisableMountErrorsBroadcastingGuard() { sDisableBroadcasting--; }
+
+    static bool shouldBroadcast() { return sDisableBroadcasting == 0; }
+};
 
 class MegaCmdMegaListener : public mega::MegaListener
 {
+    void onMountEvent(std::string_view pastTense, std::string_view presentTense, std::string_view path, int result);
 
 public:
     MegaCmdMegaListener(mega::MegaApi *megaApi, mega::MegaListener *parent=NULL, MegaCmdSandbox *sandboxCMD = NULL);
@@ -249,6 +250,12 @@ public:
     virtual void onBackupFinish(mega::MegaApi* api, mega::MegaScheduledCopy *backup, mega::MegaError* error);
     virtual void onBackupUpdate(mega::MegaApi *api, mega::MegaScheduledCopy *backup);
     virtual void onBackupTemporaryError(mega::MegaApi *api, mega::MegaScheduledCopy *backup, mega::MegaError* error);
+
+    void onMountAdded(mega::MegaApi* api, const char* path, int result) override;
+    void onMountRemoved(mega::MegaApi* api, const char* path, int result) override;
+    void onMountChanged(mega::MegaApi* api, const char* path, int result) override;
+    void onMountEnabled(mega::MegaApi* api, const char* path, int result) override;
+    void onMountDisabled(mega::MegaApi* api, const char* path, int result) override;
 
     void onSyncAdded(mega::MegaApi *api, mega::MegaSync *sync) override;
     void onSyncStateChanged(mega::MegaApi *api, mega::MegaSync *sync) override;
@@ -275,17 +282,28 @@ public:
     virtual ~MegaCmdGlobalTransferListener();
 
     //Transfer callbacks
-    void onTransferStart(mega::MegaApi* api, mega::MegaTransfer *transfer);
     void onTransferFinish(mega::MegaApi* api, mega::MegaTransfer *transfer, mega::MegaError* error);
-
-    void onTransferUpdate(mega::MegaApi* api, mega::MegaTransfer *transfer);
     void onTransferTemporaryError(mega::MegaApi *api, mega::MegaTransfer *transfer, mega::MegaError* e);
     bool onTransferData(mega::MegaApi *api, mega::MegaTransfer *transfer, char *buffer, size_t size);
-
 
 protected:
     mega::MegaApi *megaApi;
     mega::MegaTransferListener *listener;
+};
+
+class MegaCmdFatalErrorListener : public mega::MegaGlobalListener
+{
+    MegaCmdSandbox& mCmdSandbox;
+
+    static std::string_view getFatalErrorStr(int64_t fatalErrorType);
+
+    template<bool localLogout>
+    mega::MegaRequestListener* createLogoutListener(std::string_view msg);
+
+    void onEvent(mega::MegaApi *api, mega::MegaEvent *event) override;
+
+public:
+    MegaCmdFatalErrorListener(MegaCmdSandbox& cmdSandbox);
 };
 
 } //end namespace

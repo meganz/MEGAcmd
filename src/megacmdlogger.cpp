@@ -58,10 +58,11 @@ bool isCurrentThreadInteractive()
     return isCurrentThreadCmdShell() || !isThreadDataSet;
 }
 
-void setCurrentThreadOutStream(LoggedStream &outStream)
+void setCurrentThreadOutStreams(LoggedStream &outStream, LoggedStream &errStream)
 {
     isThreadDataSet = true;
     getCurrentThreadData().mOutStream = &outStream;
+    getCurrentThreadData().mErrStream = &errStream;
 }
 
 void setCurrentThreadOutCode(int outCode)
@@ -86,6 +87,89 @@ void setCurrentThreadIsCmdShell(bool isCmdShell)
 {
     isThreadDataSet = true;
     getCurrentThreadData().mIsCmdShell = isCmdShell;
+}
+
+std::string formatErrorAndMaySetErrorCode(const MegaError &error)
+{
+    auto code = error.getErrorCode();
+    if (code == MegaError::API_OK)
+    {
+        return std::string();
+    }
+
+    setCurrentThreadOutCode(code);
+    if (code == MegaError::API_EBLOCKED)
+    {
+        //auto reason = sandboxCMD->getReasonblocked();
+        std::string reason;
+
+        auto reasonStr = std::string("Account blocked.");
+        if (!reason.empty())
+        {
+            reasonStr.append("Reason: ").append(reason);
+        }
+        return reasonStr;
+    }
+    else if (code == MegaError::API_EPAYWALL || (code == MegaError::API_EOVERQUOTA /*&& sandboxCMD->storageStatus == MegaApi::STORAGE_STATE_RED*/))
+    {
+        return "Reached storage quota. You can change your account plan to increase your quota limit. See \"help --upgrade\" for further details";
+    }
+
+    return error.getErrorString();
+}
+
+bool checkNoErrors(int errorCode, const std::string &message)
+{
+    MegaErrorPrivate e(errorCode);
+    return checkNoErrors(&e, message);
+}
+
+bool checkNoErrors(MegaError *error, const std::string &message, SyncError syncError)
+{
+    if (!error)
+    {
+        LOG_fatal << "No MegaError at request: " << message;
+        assert(false);
+        return false;
+    }
+    if (error->getErrorCode() == MegaError::API_OK)
+    {
+        if (syncError)
+        {
+            std::unique_ptr<const char[]> megaSyncErrorCode(MegaSync::getMegaSyncErrorCode(syncError));
+            LOG_info << "Able to " << message << ", but received syncError: " << megaSyncErrorCode.get();
+        }
+        return true;
+    }
+
+    auto apiErrorString = formatErrorAndMaySetErrorCode(*error);
+
+    auto logErrMessage = std::string("Failed to ").append(message).append(": ");
+    if (auto mountResult = error->getMountResult(); mountResult != MegaMount::SUCCESS) //if there is mount error, prefer this one for log message
+    {
+        logErrMessage.append(MegaMount::getResultDescription(mountResult));
+    }
+    else
+    {
+        logErrMessage.append(apiErrorString);
+    }
+
+    if (syncError)
+    {
+        std::unique_ptr<const char[]> megaSyncErrorCode(MegaSync::getMegaSyncErrorCode(syncError));
+        logErrMessage.append(". ").append(megaSyncErrorCode.get());
+    }
+
+    LOG_err << logErrMessage;
+    return false;
+}
+
+bool checkNoErrors(::mega::SynchronousRequestListener *listener, const std::string &message, ::mega::SyncError syncError)
+{
+    assert(listener);
+    listener->wait();
+    assert(listener->getError());
+    return checkNoErrors(listener->getError(), message, syncError);
 }
 
 std::optional<std::chrono::time_point<std::chrono::system_clock>> stringToTimestamp(std::string_view str)
@@ -277,11 +361,21 @@ int MegaCmdSimpleLogger::getMaxLogLevel() const
 
 void MegaCmdSimpleLogger::log(const char * /*time*/, int logLevel, const char *source, const char *message)
 {
+    thread_local bool isRecursive = false;
+    if (isRecursive)
+    {
+        std::cerr << "ERROR: Attempt to log message recursively from " << source << ": " << message << std::endl;
+        assert(false);
+        return;
+    }
+    ScopeGuard g([] { isRecursive = false; });
+    isRecursive = true;
+
     if (!isValidUtf8(message, strlen(message)))
     {
         constexpr const char* invalid = "<invalid utf8>";
         message = invalid;
-        assert(false && "Attempt to log invalid utf8 string");
+        ASSERT_UTF8_BREAK("Attempt to log invalid utf8 string");
     }
 
     if (shouldIgnoreMessage(logLevel, source, message))
@@ -307,7 +401,7 @@ void MegaCmdSimpleLogger::log(const char * /*time*/, int logLevel, const char *s
     if (shouldLogToClient(logLevel, source))
     {
         const std::string nowTimeStr = getNowTimeStr();
-        formatLogToStream(OUTSTREAM, nowTimeStr, logLevel, source, message, true);
+        formatLogToStream(getCurrentThreadErrStream(), nowTimeStr, logLevel, source, message, true);
     }
 }
 

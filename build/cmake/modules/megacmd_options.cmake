@@ -41,3 +41,26 @@ endif()
 #Override SDK's options:
 option(ENABLE_ISOLATED_GFX "Turns on isolated GFX processor" OFF)
 option(ENABLE_SDKLIB_WERROR "Enable warnings as errors" OFF)
+
+if(UNIX AND NOT APPLE)
+    execute_process(
+        COMMAND uname -m
+        OUTPUT_VARIABLE SYSTEM_ARCHITECTURE
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+    message(STATUS "System Architecture: <${SYSTEM_ARCHITECTURE}>")
+    if(SYSTEM_ARCHITECTURE MATCHES "^(i[3-6]86|x86|armhf|armv7l)$")
+        set(IS_32_BIT ON)
+    else()
+        set(IS_32_BIT OFF)
+    endif()
+
+    if(NOT IS_32_BIT)
+        message(STATUS "Configuring with FUSE support")
+        option(WITH_FUSE "Build with FUSE support." ON)
+    endif()
+endif()
+
+if(WITH_FUSE)
+    add_compile_definitions(WITH_FUSE=1)
+endif()

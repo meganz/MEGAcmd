@@ -27,6 +27,8 @@
 #include "megacmdlogger.h"
 #include "comunicationsmanager.h"
 #include "listeners.h"
+#include "megacmd_fuse.h"
+#include "sync_command.h"
 
 #include "megacmdplatform.h"
 #include "megacmdversion.h"
@@ -512,6 +514,8 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validParams->insert("u");
         validParams->insert("d");
         validParams->insert("h");
+        validParams->insert("upload-connections");
+        validParams->insert("download-connections");
     }
     else if ("whoami" == thecommand)
     {
@@ -635,6 +639,11 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validParams->insert("add-exclusion");
         validParams->insert("remove");
         validParams->insert("remove-exclusion");
+    }
+    else if ("sync-config" == thecommand)
+    {
+        validOptValues->insert("delayed-uploads-wait-seconds");
+        validOptValues->insert("delayed-uploads-max-attempts");
     }
     else if ("export" == thecommand)
     {
@@ -770,6 +779,7 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validOptValues->insert("auth-code");
         validOptValues->insert("auth-key");
         validOptValues->insert("password");
+        validOptValues->insert("resume");
     }
     else if ("psa" == thecommand)
     {
@@ -779,24 +789,6 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     {
         validOptValues->insert("clientID");
     }
-#ifdef HAVE_DOWNLOADS_COMMAND
-    else if ("downloads" == thecommand)
-    {
-        validParams->insert("show-subtransfers");
-        validParams->insert("report-all");
-        validParams->insert("disable-tracking");
-        validParams->insert("enable-tracking");
-        validParams->insert("query-enabled");
-
-        validParams->insert("enable-clean-slate");
-        validParams->insert("disable-clean-slate");
-        validParams->insert("purge");
-
-        validOptValues->insert("path-display-size");
-        validOptValues->insert("col-separator");
-        validOptValues->insert("output-cols");
-    }
-#endif
     else if ("transfers" == thecommand)
     {
         validParams->insert("show-completed");
@@ -839,6 +831,42 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     {
         validParams->insert("show-handles");
     }
+#ifdef WITH_FUSE
+    if (thecommand == "fuse-add")
+    {
+        validParams->emplace("disabled");
+        validParams->emplace("transient");
+        validParams->emplace("read-only");
+        validOptValues->emplace("name");
+    }
+    else if (thecommand == "fuse-enable")
+    {
+        validParams->emplace("temporarily");
+    }
+    else if (thecommand == "fuse-disable")
+    {
+        validParams->emplace("temporarily");
+    }
+    else if (thecommand == "fuse-show")
+    {
+        validParams->emplace("only-enabled");
+        validParams->emplace("disable-path-collapse");
+        validOptValues->emplace("limit");
+    }
+    else if (thecommand == "fuse-config")
+    {
+        validOptValues->emplace("name");
+        validOptValues->emplace("enable-at-startup");
+        validOptValues->emplace("persistent");
+        validOptValues->emplace("read-only");
+    }
+#endif
+#if defined(DEBUG) || defined(MEGACMD_TESTING_CODE)
+    else if ("echo" == thecommand)
+    {
+        validParams->insert("log-as-err");
+    }
+#endif
 }
 
 void escapeEspace(string &orig)
@@ -1066,7 +1094,7 @@ char * flags_value_completion(const char*text, int state)
                     end = string::npos;
                 }
 
-                validValues = cmdexecuter->listlocalpathsstartingby(stext.substr(begin));
+                validValues = cmdexecuter->listLocalPathsStartingBy(stext.substr(begin), false);
                 string prefix = strncmp(text, cflag, strlen(cflag))?"":cflag;
                 for (unsigned int i=0;i<validValues.size();i++)
                 {
@@ -1155,7 +1183,7 @@ char* localfolders_completion(const char* text, int state)
     {
         string what(text);
         unescapeEspace(what);
-        validpaths = cmdexecuter->listlocalpathsstartingby(what.c_str(), true);
+        validpaths = cmdexecuter->listLocalPathsStartingBy(what, true);
     }
     return generic_completion(text, state, validpaths);
 }
@@ -1165,7 +1193,7 @@ char* transfertags_completion(const char* text, int state)
     static vector<string> validtransfertags;
     if (state == 0)
     {
-        MegaTransferData * transferdata = api->getTransferData();
+        std::unique_ptr<MegaTransferData> transferdata(api->getTransferData());
         if (transferdata)
         {
             for (int i = 0; i < transferdata->getNumUploads(); i++)
@@ -1516,13 +1544,13 @@ const char * getUsageStr(const char *command, const HelpFlags& flags)
         if (isCurrentThreadInteractive())
         {
             return "login [--auth-code=XXXX] [email [password]] | exportedfolderurl#key"
-                    " [--auth-key=XXXX] | passwordprotectedlink [--password=PASSWORD]"
+                    " [--auth-key=XXXX] [--resume] | passwordprotectedlink [--password=PASSWORD]"
                    " | session";
         }
         else
         {
             return "login [--auth-code=XXXX] email password | exportedfolderurl#key"
-                    " [--auth-key=XXXX] | passwordprotectedlink [--password=PASSWORD]"
+                    " [--auth-key=XXXX] [--resume] | passwordprotectedlink [--password=PASSWORD]"
                    " | session";
         }
     }
@@ -1762,6 +1790,10 @@ const char * getUsageStr(const char *command, const HelpFlags& flags)
     {
         return "sync-ignore [--show|[--add|--add-exclusion|--remove|--remove-exclusion] filter1 filter2 ...] (ID|localpath|DEFAULT)";
     }
+    if (!strcmp(command, "sync-config"))
+    {
+        return "sync-config [--delayed-uploads-wait-seconds=waitsecs | --delayed-uploads-max-attempts=attempts]";
+    }
     if (!strcmp(command, "backup"))
     {
         return "backup (localpath remotepath --period=\"PERIODSTRING\" --num-backups=N  | [-lhda] [TAG|localpath] [--period=\"PERIODSTRING\"] [--num-backups=N]) [--time-format=FORMAT]";
@@ -1826,7 +1858,7 @@ const char * getUsageStr(const char *command, const HelpFlags& flags)
     }
     if (!strcmp(command, "speedlimit"))
     {
-        return "speedlimit [-u|-d] [-h] [NEWLIMIT]";
+        return "speedlimit [-u|-d|--upload-connections|--download-connections] [-h] [NEWLIMIT]";
     }
     if (!strcmp(command, "killsession"))
     {
@@ -1962,17 +1994,11 @@ const char * getUsageStr(const char *command, const HelpFlags& flags)
     {
         return "transfers [-c TAG|-a] | [-r TAG|-a]  | [-p TAG|-a] [--only-downloads | --only-uploads] [SHOWOPTIONS]";
     }
-#ifdef HAVE_DOWNLOADS_COMMAND
-    if (!strcmp(command, "downloads"))
-    {
-        return "downloads [--purge|--enable-clean-slate|--disable-clean-slate|--enable-tracking|--disable-tracking|query-enabled|report-all| [id_1 id_2 ... id_n]]  [SHOWOPTIONS]";
-    }
-#endif
     if (((flags.win && !flags.readline) || flags.showAll) && !strcmp(command, "autocomplete"))
     {
         return "autocomplete [dos | unix]";
     }
-    else if (!strcmp(command, "codepage"))
+    if (!strcmp(command, "codepage"))
     {
         return "codepage [N [M]]";
     }
@@ -1980,6 +2006,31 @@ const char * getUsageStr(const char *command, const HelpFlags& flags)
     {
         return "update [--auto=on|off|query]";
     }
+    if ((flags.fuse || flags.showAll) && !strcmp(command, "fuse-add"))
+    {
+        return "fuse-add [--name=name] [--disabled] [--transient] [--read-only] localPath remotePath";
+    }
+    if ((flags.fuse || flags.showAll) && !strcmp(command, "fuse-remove"))
+    {
+        return "fuse-remove (name|localPath)";
+    }
+    if ((flags.fuse || flags.showAll) && !strcmp(command, "fuse-enable"))
+    {
+        return "fuse-enable [--temporarily] (name|localPath)";
+    }
+    if ((flags.fuse || flags.showAll) && !strcmp(command, "fuse-disable"))
+    {
+        return "fuse-disable [--temporarily] (name|localPath)";
+    }
+    if ((flags.fuse || flags.showAll) && !strcmp(command, "fuse-show"))
+    {
+        return "fuse-show [--only-enabled] [--disable-path-collapse] [[--limit=rowcount] | [name|localPath]]";
+    }
+    if ((flags.fuse || flags.showAll) && !strcmp(command, "fuse-config"))
+    {
+        return "fuse-config [--name=name] [--enable-at-startup=yes|no] [--persistent=yes|no] [--read-only=yes|no] (name|localPath)";
+    }
+
     return "command not found: ";
 }
 
@@ -2024,7 +2075,7 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
     os << "Usage: " << getUsageStr(command, flags) << endl;
     if (!strcmp(command, "login"))
     {
-        os << "Logs into a MEGA account or folder link. You can only log into one entity at a time." << endl;
+        os << "Logs into a MEGA account, folder link or a previous session. You can only log into one entity at a time." << endl;
         os << "Logging into a MEGA account:" << endl;
         os << "\tYou can log into a MEGA account by providing either a session ID or a username and password. A session "
               "ID simply identifies a session that you have previously logged in with using a username and password; "
@@ -2043,6 +2094,10 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
               "the password for that link." << endl;
         os << "\t--auth-key=AUTHKEY: If the link is a writable folder link, then this option allows you to log in with "
               "write privileges. Without this option, you will log into the link with read access only." << endl;
+        os << "\t--resume: A convenience option to try to resume from cache. When login into a folder, contrary to what occurs with login into a user account,"
+              " MEGAcmd will not try to load anything from cache: loading everything from scratch. This option changes that. Note, "
+              "login using a session string, will of course, try to load from cache. This option may be convinient, for instance, if you previously "
+              "logged out using --keep-session." << endl;
         os << endl;
         os << "For more information about MEGA folder links, see \"" << getCommandPrefixBasedOnMode() << "export --help\"." << endl;
     }
@@ -2085,7 +2140,7 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << "with image or video extensions that are not really images or videos," << endl;
         os << "or that are encrypted in the local drive so they can't be analyzed anyway." << endl;
         os << endl;
-        os << "Notice that this setting will be saved for the next time you open MEGAcmd" << endl;
+        os << "Notice that this setting will be saved for the next time you open MEGAcmd, but will be removed if you logout." << endl;
     }
     else if (!strcmp(command, "signup"))
     {
@@ -2223,13 +2278,14 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
     }
     else if (!strcmp(command, "log"))
     {
-        os << "Prints/Modifies the current logs level" << endl;
+        os << "Prints/Modifies the log level" << endl;
         os << endl;
         os << "Options:" << endl;
         os << " -c" << "\t" << "CMD log level (higher level messages)." << endl;
         os << "   " << "\t" << " Messages captured by MEGAcmd server." << endl;
         os << " -s" << "\t" << "SDK log level (lower level messages)." << endl;
         os << "   " << "\t" << " Messages captured by the engine and libs" << endl;
+        os << "Note: this setting will be saved for the next time you open MEGAcmd, but will be removed if you logout." << endl;
 
         os << endl;
         os << "Regardless of the log level of the" << endl;
@@ -2281,7 +2337,8 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << "Logs out" << endl;
         os << endl;
         os << "Options:" << endl;
-        os << " --keep-session" << "\t" << "Keeps the current session." << endl;
+        os << " --keep-session" << "\t" << "Keeps the current session. This will also prevent the deletion of cached data associated "
+                                           "with current session." << endl;
     }
     else if (!strcmp(command, "import"))
     {
@@ -2435,7 +2492,7 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << "HTTPS is not necesary since all data is stored and transfered encrypted." << endl;
         os << "Enabling it will increase CPU usage and add network overhead." << endl;
         os << endl;
-        os << "Notice that this setting will be saved for the next time you open MEGAcmd" << endl;
+        os << "Notice that this setting will be saved for the next time you open MEGAcmd, but will be removed if you logout." << endl;
     }
     else if (!strcmp(command, "deleteversions"))
     {
@@ -2483,6 +2540,7 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << endl;
         os << "*If you serve more than one location, these parameters will be ignored and use those of the first location served." << endl;
         os << " If you want to change those parameters, you need to stop serving all locations and configure them again." << endl;
+        os << "Note: WEBDAV settings and locations will be saved for the next time you open MEGAcmd, but will be removed if you logout." << endl;
         os << endl;
         os << "Caveat: This functionality is in BETA state. It might not be available on all platforms. If you experience any issue with this, please contact: support@mega.nz" << endl;
         os << endl;
@@ -2512,6 +2570,7 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << endl;
         os << "*If you serve more than one location, these parameters will be ignored and used those of the first location served." << endl;
         os << " If you want to change those parameters, you need to stop serving all locations and configure them again." << endl;
+        os << "Note: FTP settings and locations will be saved for the next time you open MEGAcmd, but will be removed if you logout." << endl;
         os << endl;
         os << "Caveat: This functionality is in BETA state. It might not be available on all platforms. If you experience any issue with this, please contact: support@mega.nz" << endl;
         os << endl;
@@ -2533,12 +2592,10 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << "Controls synchronizations." << endl;
         os << endl;
         os << "If no argument is provided, it lists current configured synchronizations." << endl;
+        os << "If local and remote paths are provided, it will start synchronizing a local folder into a remote folder." << endl;
+        os << "If an ID/local path is provided, it will list such synchronization unless an option is specified." << endl;
         os << endl;
-        os << "If provided local and remote paths, it will start synchronizing" << endl;
-        os << " a local folder into a remote folder." << endl;
-        os << endl;
-        os << "If an ID/local path is provided, it will list such synchronization" << endl;
-        os << " unless an option is specified." << endl;
+        os << "Note: use the \"sync-config\" command to show and modify global sync configuration." << endl;
         os << endl;
         os << "Options:" << endl;
         os << " -d | --delete" << " " << "ID|localpath" << "\t" << "deletes a synchronization (not the files)." << endl;
@@ -2589,8 +2646,8 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << "                       " << "\t" << "The \"--all\" argument can be used to show the details of all issues." << endl;
         os << " --limit=rowcount " << "\t" << "Limits the amount of rows displayed. Set to 0 to display unlimited rows. Default is 10. Can also be combined with \"--detail\"." << endl;
         os << " --disable-path-collapse " << "\t" << "Ensures all paths are fully shown. By default long paths are truncated for readability." << endl;
-        os << " --enable-warning " << "\t" << "Enables the notification that appears when issues are detected. This setting is stored locally for all users." << endl;
-        os << " --disable-warning " << "\t" << "Disables the notification that appears when issues are detected. This setting is stored locally for all users." << endl;
+        os << " --enable-warning " << "\t" << "Enables the notification that appears when issues are detected. This setting is saved for the next time you open MEGAcmd, but will be removed if you logout." << endl;
+        os << " --disable-warning " << "\t" << "Disables the notification that appears when issues are detected. This setting is saved for the next time you open MEGAcmd, but will be removed if you logout." << endl;
         printColumnDisplayerHelp(os);
         os << endl;
         os << "DISPLAYED columns:" << endl;
@@ -2648,6 +2705,28 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << "\t" << "`-d:private`" << "  " << "Filter will exclude all directories with the name 'private'" << endl;
         os << endl;
         os << "See: https://help.mega.io/installs-apps/desktop/megaignore more info." << endl;
+    }
+    else if (!strcmp(command, "sync-config"))
+    {
+        auto duLimits = GlobalSyncConfig::DelayedUploads::getCurrentLimits(*api);
+
+        os << "Shows and modifies global sync configuration." << endl;
+        os << endl;
+        os << "Displays current configuration if no options are provided. Configuration values are persisted across restarts." << endl;
+        os << endl;
+        os << "New uploads for files that change frequently in syncs will be delayed until a wait time passes." << endl;
+        os << "Options:" << endl;
+        os << " --delayed-uploads-wait-seconds   Sets the seconds to be waited before a file that's being delayed is uploaded again. Default is 30 minutes (1800 seconds)." << endl;
+        if (duLimits)
+        {
+        os << "                                  Note: wait seconds must be between " << duLimits->mLower.mWaitSecs << " and " << duLimits->mUpper.mWaitSecs << " (inclusive)." << endl;
+        }
+
+        os << " --delayed-uploads-max-attempts   Sets the max number of times a file can change in quick succession before it starts to get delayed. Default is 2." << endl;
+        if (duLimits)
+        {
+        os << "                                  Note: max attempts must be between " << duLimits->mLower.mMaxAttempts << " and " << duLimits->mUpper.mMaxAttempts << " (inclusive)." << endl;
+        }
     }
     else if (!strcmp(command, "backup"))
     {
@@ -2881,17 +2960,23 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
     }
     else if (!strcmp(command, "speedlimit"))
     {
-        os << "Displays/modifies upload/download rate limits" << endl;
-        os << " NEWLIMIT establish the new limit in size per second (0 = no limit)" << endl;
+        os << "Displays/modifies upload/download rate limits: either speed or max connections" << endl;
+        os << endl;
+        os << " NEWLIMIT is the new limit to set. If no option is provided, NEWLIMIT will be " << endl;
+        os << "  applied for both download/upload speed limits. 0, for speeds, means unlimited." << endl;
         os << " NEWLIMIT may include (B)ytes, (K)ilobytes, (M)egabytes, (G)igabytes & (T)erabytes." << endl;
-        os << "  Examples: \"1m12k3B\" \"3M\". If no units are given, bytes are assumed" << endl;
+        os << "  Examples: \"1m12k3B\" \"3M\". If no units are given, bytes are assumed." << endl;
         os << endl;
         os << "Options:" << endl;
-        os << " -d" << "\t" << "Download speed limit" << endl;
-        os << " -u" << "\t" << "Upload speed limit" << endl;
-        os << " -h" << "\t" << "Human readable" << endl;
+        os << " -d                       " << "Set/Read download speed limit, expressed in size per second." << endl;
+        os << " -u                       " << "Set/Read dpload speed limit, expressed in size per second" << endl;
+        os << " --upload-connections     " << "Set/Read max number of connections for an upload transfer" << endl;
+        os << " --download-connections   " << "Set/Read max number of connections for a download transfer" << endl;
         os << endl;
-        os << "Notice: this limit will be saved for the next time you execute MEGAcmd server. They will be removed if you logout." << endl;
+        os << "Display options:" << endl;
+        os << " -h                       " << "Human readable" << endl;
+        os << endl;
+        os << "Notice: these limits will be saved for the next time you execute MEGAcmd server. They will be removed if you logout." << endl;
     }
     else if (!strcmp(command, "killsession"))
     {
@@ -2933,6 +3018,8 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << " --username=USERNAME" << "\t" << "The username, for authenticated proxies" << endl;
         os << " --password=PASSWORD" << "\t" << "The password, for authenticated proxies. Please, avoid using passwords containing \" or '" << endl;
 
+        os << endl;
+        os << "Note: Proxy settings will be saved for the next time you open MEGAcmd, but will be removed if you logout." << endl;
     }
     else if (!strcmp(command, "cat"))
     {
@@ -3046,90 +3133,6 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
             os << "To only exit current shell and keep server running, use \"exit --only-shell\"" << endl;
         }
     }
-#ifdef HAVE_DOWNLOADS_COMMAND
-    else if (!strcmp(command, "downloads"))
-    {
-        os << "Lists or configure downloads tracking and reporting." << endl;
-        os << endl;
-        os << "It will print the information regarding one or more downloads give their tags or object ids"<< endl;
-        os << "      (both will be reported when using \"get\" with -q)." << endl;
-        os << "IMPORTANT: it is disabled by default, you need to enable it with \"downloads --enable-tracking\"." << endl;
-        os << endl;
-        os << "Options:" << endl;
-        os << " --query-enabled"  << "\t" << "Indicates if download tracking is enabled" << endl;
-        os << " --enable-tracking"  << "\t" << "Starts tracking downloads. It will store the information in a sqlite3 db" << endl;
-        os << " --disable-tracking"  << "\t" << "Stops tracking downloads. Notice, it will remove the associated database" << endl;
-        os << " --enable-clean-slate"  << "\t" << "Transfers from previous executions will be discarded upon restart" << endl;
-        os << " --disable-clean-slate"  << "\t" << "Transfers from previous executions will not be discarded upon restart" << endl;
-        os << " --purge"  << "\t" << "Cancells all onging transfers, and cleans all tracking (included persisted data)" << endl;
-
-        os << endl;
-        os << "Show options:" << endl;
-        os << " --report-all" << "\t" << "Prints a report of all active and finished downloads kept in memory" << endl;
-        os << " --show-subtransfers" << "\t" << "Show information regarding transfers" << endl;
-        os << " --path-display-size=N" << "\t" << "Use at least N characters for displaying paths" << endl;
-        printColumnDisplayerHelp(os);
-        os << endl;
-        os << "Displaying cols:" << endl;
-        os << " OBJECT_ID"  << "\t" << "Id of the object (it will always be the same for the same download)" << endl;
-        os << " SUB_STARTED"  << "\t" << "Number of subtransfers started" << endl;
-        os << " SUB_OK"  << "\t" << "Number of subtransfers that completed ok" << endl;
-        os << " SUB_FAIL"  << "\t" << "Number of subtransfers that completed with some error" << endl;
-        os << " SUBTRANSFER"  << "\t" << "Tag of the subtransfers (only when using --show-subtransfers)" << endl;
-        os << " ERROR_CODE"  << "\t" << "Error of the transfer (if any)" << endl;
-        os << " TYPE"  << "\t" << "Type of transfer (see below)" << endl;
-        os << " TAG"  << "\t" << "A tag that uniquely identifies a tranfer in current execution of MEGAcmd" << endl;
-        os << " SOURCEPATH"  << "\t" << "Path of the folder/file downloaded" << endl;
-        os << " DESTINYPATH"  << "\t" << "Local path for the downloaded file/folder" << endl;
-        os << " PROGRESS"  << "\t" << "Human readable progress of the download" << endl;
-        os << " STATE"  << "\t" << "State of the transfer. " << endl;
-        os << "      "  << "\t" << " Values:" << endl;
-        os << "      "  << "\t" << "  QUEUED:" << "\t" << "queued in the system, waiting for an slot to be assigned" << endl;
-        os << "      "  << "\t" << "  ACTIVE:" << "\t" << "doing I/O" << endl;
-        os << "      "  << "\t" << "  PAUSED:" << "\t" << "paused" << endl;
-        os << "      "  << "\t" << "  RETRYING:" << "\t" << "retrying after some potentially recoverable error" << endl;
-        os << "      "  << "\t" << "  COMPLETING:" << "\t" << "final stages (e.g: moving temporal transfer file to its final destination)" << endl;
-        os << "      "  << "\t" << "  COMPLETED:" << "\t" << "finished ok" << endl;
-        os << "      "  << "\t" << "  CANCELLED:" << "\t" << "cancelled" << endl;
-        os << "      "  << "\t" << "  FAILED:" << "\t" << "Failed (or subtransfers failed)" << endl;
-
-        os << " TRANSFERRED"  << "\t" << "Number of bytes transferred" << endl;
-        os << " TOTAL"  << "\t" << "Number of total bytes to be transferred" << endl;
-        os << endl;
-        os << "TYPE legend correspondence:" << endl;
-#ifdef _WIN32
-
-        const string cD = getutf8fromUtf16(L"\u25bc");
-        const string cU = getutf8fromUtf16(L"\u25b2");
-        const string cS = getutf8fromUtf16(L"\u21a8");
-        const string cB = getutf8fromUtf16(L"\u2191");
-#else
-        const string cD = "\u21d3";
-        const string cU = "\u21d1";
-        const string cS = "\u21f5";
-        const string cB = "\u23eb";
-#endif
-        os << "  " << cD <<" = \t" << "Download transfer" << endl;
-        os << "  " << cU <<" = \t" << "Upload transfer" << endl;
-        os << "  " << cS <<" = \t" << "Sync transfer. The transfer is done in the context of a synchronization" << endl;
-        os << "  " << cB <<" = \t" << "Backup transfer. The transfer is done in the context of a backup" << endl;
-
-        os << endl;
-        os << "Configuration values" << endl;
-        os << "In your configuration folder (HOME/Appdata) there is megacmd.cfg configuration file." << endl;
-        os << "This are the properties used in the downloads tracking & report mechanism:" << endl;
-        os << " downloads_tracking_enabled"  << "\t" << "If downloads tracking is enabled. Default=0 (false)!" << endl;
-        os << " downloads_tracking_max_finished_in_memory_high_threshold"  << "\t" << "Max number of downloads to keep in memory. It this is surpassed, " << endl;
-        os << "                                                         "  << "\t" << "finished transfers will start to be deleted (first the least recently updated)." << endl;
-        os << "                                                         "  << "\t" << "Note: you can still get the information from the db using OJBECT_ID." << endl;
-        os << "                                                         "  << "\t" << "Default=40000" << endl;
-        os << " downloads_tracking_max_finished_in_memory_low_threshold"  << "\t" << "When pruning is executed it will clean until this threshold. Default=20000" << endl;
-        os << " downloads_db_path"  << "\t" << "Path to store tracking information of downloads. Default: ~/.megaCmd/downloads.db" << endl;
-        os << " downloads_db_io_frequency_ms"  << "\t" << "Frequency in milliseconds to commit pending changes in the database. Default=10000" << endl;
-        os << " downloads_db_max_queued_changes"  << "\t" << "Max allowed number of changes to be queued before writting. Default=1000" << endl;
-        os << " downloads_cleanslate_enabled"  << "\t" << "If transfers from previous executions will be discarded upon restart. Default=0 (false)" << endl;
-    }
-#endif
     else if (!strcmp(command, "transfers"))
     {
         os << "List or operate with transfers" << endl;
@@ -3196,6 +3199,112 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << endl;
         os << "Note: this command is only available on some versions of Windows" << endl;
     }
+    else if ((flags.fuse || flags.showAll) && !strcmp(command, "fuse-add"))
+    {
+        os << "Creates a new FUSE mount." << endl;
+        os << endl;
+        os << "Mounts are automatically enabled after being added, making the chosen MEGA folder accessible within the local filesystem." << endl;
+        os << "When a mount is disabled, its configuration will be saved, but the cloud folder will not be mounted locally (see fuse-disable)." << endl;
+        os << "Mounts are persisted after restarts and writable by default. You may change these and other options of a FUSE mount with fuse-config." << endl;
+        os << "Use fuse-show to display the list of mounts." << endl;
+        os << endl;
+        os << "Parameters:" << endl;
+        os << " localPath    Specifies where the files contained by remotePath should be visible on the local filesystem." << endl;
+        os << " remotePath   Specifies what directory (or share) should be exposed on the local filesystem." << endl;
+        os << endl;
+        os << "Options:" << endl;
+        os << " --name=name  A user friendly name which the mount can be identified by. If not provided, the display name" << endl;
+        os << "              of the entity specified by remotePath will be used. If remotePath specifies the entire cloud" << endl;
+        os << "              drive, the mount's name will be \"MEGA\". If remotePath specifies the rubbish bin, the mount's" << endl;
+        os << "              name will be \"MEGA Rubbish\"." << endl;
+        os << " --read-only  Specifies that the mount should be read-only. Otherwise, the mount is writable." << endl;
+        os << " --transient  Specifies that the mount should be transient, meaning it will be lost on restart." << endl;
+        os << "              Otherwise, the mount is persistent, meaning it will remain across on restarts." << endl;
+        os << " --disabled   Specifies that the mount should not enabled after being added, and must be enabled manually. See fuse-enable." << endl;
+        os << "              If this option is passed, the mount will not be automatically enabled at startup." << endl;
+        os << endl;
+        os << FuseCommand::getDisclaimer() << endl;
+        os << endl;
+        os << FuseCommand::getBetaMsg() << endl;
+    }
+    else if ((flags.fuse || flags.showAll) && !strcmp(command, "fuse-remove"))
+    {
+        os << "Deletes a specified FUSE mount." << endl;
+        os << endl;
+        os << "A mount must be disabled before it can be removed. See fuse-disable." << endl;
+        os << endl;
+        os << "Parameters:" << endl;
+        os << FuseCommand::getIdentifierParameter() << endl;
+        os << endl;
+        os << "Note: " << FuseCommand::getBetaMsg() << endl;
+    }
+    else if ((flags.fuse || flags.showAll) && !strcmp(command, "fuse-enable"))
+    {
+        os << "Enables a specified FUSE mount." << endl;
+        os << endl;
+        os << "After a mount has been enabled, its cloud entities will be accessible via the mount's local path." << endl;
+        os << endl;
+        os << "Parameters:" << endl;
+        os << FuseCommand::getIdentifierParameter() << endl;
+        os << endl;
+        os << "Options:" << endl;
+        os << " --temporarily   Specifies whether the mount should be enabled only until the server is restarted." << endl;
+        os << "                 Has no effect on transient mounts, since any action on them is always temporary." << endl;
+        os << endl;
+        os << "Note: " << FuseCommand::getBetaMsg() << endl;
+    }
+    else if ((flags.fuse || flags.showAll) && !strcmp(command, "fuse-disable"))
+    {
+        os << "Disables a specified FUSE mount." << endl;
+        os << endl;
+        os << "After a mount has been disabled, its cloud entities will no longer be accessible via the mount's local path. You may enable it again via fuse-enable." << endl;
+        os << endl;
+        os << "Parameters:" << endl;
+        os << FuseCommand::getIdentifierParameter() << endl;
+        os << "Options:" << endl;
+        os << " --temporarily   Specifies whether the mount should be disabled only until the server is restarted." << endl;
+        os << "                 Has no effect on transient mounts, since any action on them is always temporary." << endl;
+        os << endl;
+        os << "Note: " << FuseCommand::getBetaMsg() << endl;
+    }
+    else if ((flags.fuse || flags.showAll) && !strcmp(command, "fuse-show"))
+    {
+        os << "Displays the list of FUSE mounts and their information. If a name or local path provided, displays information of that mount instead." << endl;
+        os << endl;
+        os << "When all mounts are shown, the following columns are displayed:" << endl;
+        os << "   NAME: The user-friendly name of the mount, specified when it was added or by fuse-config." << endl;
+        os << "   LOCAL_PATH: The local mount point in the filesystem." << endl;
+        os << "   REMOTE_PATH: The cloud directory or share that is exposed locally." << endl;
+        os << "   PERSISTENT: If the mount is saved across restarts, \"YES\". Otherwise, \"NO\"." << endl;
+        os << "   ENABLED: If the mount is currently enabled, \"YES\". Otherwise, \"NO\"." << endl;
+        os << endl;
+        os << "Parameters:" << endl;
+        os << FuseCommand::getIdentifierParameter() << endl;
+        os << "                    If not provided, the list of mounts will be shown instead." << endl;
+        os << endl;
+        os << "Options:" << endl;
+        os << " --only-enabled           Only shows mounts that are enabled." << endl;
+        os << " --disable-path-collapse  Ensures all paths are fully shown. By default long paths are truncated for readability." << endl;
+        os << " --limit=rowcount         Limits the amount of rows displayed. Set to 0 to display unlimited rows. Default is unlimited." << endl;
+        printColumnDisplayerHelp(os);
+        os << endl;
+        os << "Note: " << FuseCommand::getBetaMsg() << endl;
+    }
+    else if ((flags.fuse || flags.showAll) && !strcmp(command, "fuse-config"))
+    {
+        os << "Modifies the specified FUSE mount configuration." << endl;
+        os << endl;
+        os << "Parameters:" << endl;
+        os << FuseCommand::getIdentifierParameter() << endl;
+        os << endl;
+        os << "Options:" << endl;
+        os << " --name=name                  Sets the friendly name used to uniquely identify the mount." << endl;
+        os << " --enable-at-startup=yes|no   Controls whether or not the mount should be enabled automatically on startup." << endl;
+        os << " --persistent=yes|no          Controls whether or not the mount is saved across restarts." << endl;
+        os << " --read-only=yes|no           Controls whether the mount is read-only or writable." << endl;
+        os << endl;
+        os << "Note: " << FuseCommand::getBetaMsg() << endl;
+    }
     return os.str();
 }
 
@@ -3214,6 +3323,12 @@ void printAvailableCommands(int extensive = 0, bool showAllOptions = false)
         validCommandSet.emplace("unicode");
         validCommandSet.emplace("permissions");
         validCommandSet.emplace("update");
+        validCommandSet.emplace("fuse-add");
+        validCommandSet.emplace("fuse-remove");
+        validCommandSet.emplace("fuse-enable");
+        validCommandSet.emplace("fuse-disable");
+        validCommandSet.emplace("fuse-show");
+        validCommandSet.emplace("fuse-config");
     }
 
     if (!extensive)
@@ -3837,6 +3952,36 @@ bool isBareCommand(const char *l, const string &command)
    return true;
 }
 
+bool hasOngoingTransfersOrDelayedSyncs(MegaApi& api)
+{
+    std::unique_ptr<MegaTransferData> transferData(api.getTransferData());
+    assert(transferData);
+
+    if (transferData->getNumDownloads() > 0 || transferData->getNumUploads() > 0)
+    {
+        return true;
+    }
+
+    // We can only check for delayed sync uploads if there are no sync issues
+    if (!api.isSyncing() || api.isSyncStalled())
+    {
+        return false;
+    }
+
+    auto listener = std::make_unique<MegaCmdListener>(nullptr);
+    api.checkSyncUploadsThrottled(listener.get());
+    listener->wait();
+
+    if (listener->getError()->getErrorCode() == MegaError::API_OK)
+    {
+        MegaRequest* request = listener->getRequest();
+        assert(request);
+        return request->getFlag(); // delayed sync uploads
+    }
+
+    return false;
+}
+
 void MegaCmdExecuter::mayExecutePendingStuffInWorkerThread()
 {
     {   // send INVALID_UTF8_INCIDENCES if there have been incidences
@@ -3961,7 +4106,18 @@ static bool process_line(const std::string_view line)
             if (!l || !strcmp(l, "q") || !strcmp(l, "quit") || !strcmp(l, "exit")
                 || ( (!strncmp(l, "quit ", strlen("quit ")) || !strncmp(l, "exit ", strlen("exit ")) ) && !strstr(l,"--help") )  )
             {
-                //                store_line(NULL);
+                if (isCurrentThreadCmdShell() && hasOngoingTransfersOrDelayedSyncs(*api))
+                {
+                    const string sureToExitMsg = "There are ongoing transfers and/or pending sync uploads.\n"
+                                                 "Are you sure you want to exit? (Yes/No): ";
+
+                    int confirmationResponse = askforConfirmation(sureToExitMsg);
+                    if (!confirmationResponse)
+                    {
+                        setCurrentThreadOutCode(MCMD_CONFIRM_NO);
+                        return false;
+                    }
+                }
 
                 if (strstr(l,"--wait-for-ongoing-petitions"))
                 {
@@ -4040,12 +4196,14 @@ void* doProcessLine(void* infRaw)
     setCurrentThreadOutCode(MCMD_OK);
     setCurrentThreadCmdPetition(inf.get());
     LoggedStreamPartialOutputs ls(cm, inf.get());
-    setCurrentThreadOutStream(ls);
+    LoggedStreamPartialErrors lserr(cm, inf.get());
+    setCurrentThreadOutStreams(ls, lserr);
 
-    setCurrentThreadIsCmdShell(!inf->line.empty() && inf->line[0] == 'X');
+
+    setCurrentThreadIsCmdShell(inf->isFromCmdShell());
 
 
-    LOG_verbose << " Processing " << inf->line << " in thread: " << MegaThread::currentThreadId() << " " << inf->getPetitionDetails();
+    LOG_verbose << " Processing " << inf->getRedactedLine() << " in thread: " << MegaThread::currentThreadId() << " " << inf->getPetitionDetails();
 
     doExit = process_line(inf->getUniformLine());
 
@@ -4055,7 +4213,7 @@ void* doProcessLine(void* infRaw)
         LOG_verbose << " Exit registered upon process_line: " ;
     }
 
-    LOG_verbose << " Procesed " << inf->line << " in thread: " << MegaThread::currentThreadId() << " " << inf->getPetitionDetails();
+    LOG_verbose << " Procesed " << inf->getRedactedLine() << " in thread: " << MegaThread::currentThreadId() << " " << inf->getPetitionDetails();
 
     MegaThread * petitionThread = inf->getPetitionThread();
 
@@ -4177,12 +4335,6 @@ void finalize(bool waitForRestartSignal_param)
         return;
     alreadyfinalized = true;
     LOG_info << "closing application ...";
-
-#ifdef HAVE_DOWNLOADS_COMMAND
-    LOG_debug << "Shuting down downloads manager";
-    DownloadsManager::Instance().shutdown(false);
-    LOG_debug << "Downloads manager shut down";
-#endif
 
     delete_finished_threads();
     if (!consoleFailed)
@@ -4383,14 +4535,14 @@ void processCommandInPetitionQueues(std::unique_ptr<CmdPetition> inf)
     petitionThreads.emplace_back(petitionThread);
     inf->setPetitionThread(petitionThread);
 
-    LOG_verbose << "starting processing: <" << inf->line << ">";
+    LOG_verbose << "starting processing: <" << inf->getRedactedLine() << ">";
     petitionThread->start(doProcessLine, (void*) inf.release());
 }
 
 void processCommandLinePetitionQueues(std::string what)
 {
     auto inf = std::make_unique<CmdPetition>();
-    inf->line = what;
+    inf->setLine(what);
     inf->clientDisconnected = true; // There's no actual client
     inf->clientID = -3;
     processCommandInPetitionQueues(std::move(inf));
@@ -4433,7 +4585,7 @@ void megacmd()
 
             CmdPetition* inf = infOwned.get();
 
-            LOG_verbose << "petition registered: " << inf->line;
+            LOG_verbose << "petition registered: " << inf->getRedactedLine();
             delete_finished_threads();
 
             if (inf->getUniformLine() == "ERROR")
@@ -5090,6 +5242,9 @@ void reset()
 
 void sendEvent(StatsManager::MegacmdEvent event, const char *msg, ::mega::MegaApi *megaApi, bool wait)
 {
+#if defined(DEBUG) || defined(MEGACMD_TESTING_CODE)
+    LOG_debug << "Skipped MEGAcmd event " << eventName(event) << " - " << msg;
+#else
     std::unique_ptr<MegaCmdListener> megaCmdListener (wait ? new MegaCmdListener(megaApi) : nullptr);
     megaApi->sendEvent(static_cast<int>(event), msg, false /*JourneyId*/, nullptr /*viewId*/, megaCmdListener.get());
     if (wait)
@@ -5102,6 +5257,7 @@ void sendEvent(StatsManager::MegacmdEvent event, const char *msg, ::mega::MegaAp
                     << msg << ", error: " << megaCmdListener->getError()->getErrorString();
         }
     }
+#endif
 }
 
 void sendEvent(StatsManager::MegacmdEvent event, ::mega::MegaApi *megaApi, bool wait)
@@ -5157,9 +5313,29 @@ void uninstall()
 
 #endif
 
+void setFuseLogLevel(MegaApi& api, const std::string& fuseLogLevelStr)
+{
+    std::unique_ptr<MegaFuseFlags> fuseFlags(api.getFUSEFlags());
+    assert(fuseFlags);
+
+    int fuseLogLevel = fuseFlags->getLogLevel();
+    try
+    {
+        fuseLogLevel = std::stoi(fuseLogLevelStr);
+    }
+    catch (...) {}
+
+    fuseLogLevel = std::clamp(fuseLogLevel, (int) MegaFuseFlags::LOG_LEVEL_ERROR, (int) MegaFuseFlags::LOG_LEVEL_DEBUG);
+
+    fuseFlags->setLogLevel(fuseLogLevel);
+    api.setFUSEFlags(fuseFlags.get());
+
+    LOG_debug << "FUSE log level set to " << fuseLogLevel;
+}
+
 int executeServer(int argc, char* argv[],
                   const std::function<LoggedStream*()>& createLoggedStream,
-                  bool logToCout, int sdkLogLevel, int cmdLogLevel,
+                  const LogConfig& logConfig,
                   bool skiplockcheck, std::string debug_api_url, bool disablepkp)
 {
     // Own global server instances here
@@ -5194,7 +5370,7 @@ int executeServer(int argc, char* argv[],
     mcmdMainArgv = argv;
     mcmdMainArgc = argc;
 
-    ConfigurationManager::loadConfiguration(cmdLogLevel >= MegaApi::LOG_LEVEL_DEBUG);
+    ConfigurationManager::loadConfiguration(logConfig.mCmdLogLevel >= MegaApi::LOG_LEVEL_DEBUG);
     if (!ConfigurationManager::lockExecution() && !skiplockcheck)
     {
         cerr << "Another instance of MEGAcmd Server is running. Execute with --skip-lock-check to force running (NOT RECOMMENDED)" << endl;
@@ -5210,7 +5386,7 @@ int executeServer(int argc, char* argv[],
 
     // Establish the logger
     SimpleLogger::setLogLevel(logMax); // do not filter anything here, log level checking is done by loggerCMD
-    loggerCMD = new MegaCmdSimpleLogger(logToCout, sdkLogLevel, cmdLogLevel);
+    loggerCMD = new MegaCmdSimpleLogger(logConfig.mLogToCout, logConfig.mSdkLogLevel, logConfig.mCmdLogLevel);
 
     MegaApi::addLoggerObject(loggerCMD);
     MegaApi::setLogLevel(MegaApi::LOG_LEVEL_MAX);
@@ -5233,6 +5409,14 @@ int executeServer(int argc, char* argv[],
     }
 
     api->setLanguage(localecode.c_str());
+    api->setLogJSONContent(logConfig.mJsonLogs);
+    LOG_debug << "Language set to: " << localecode;
+
+    sandboxCMD = new MegaCmdSandbox();
+    cmdexecuter = new MegaCmdExecuter(api, loggerCMD, sandboxCMD);
+    sandboxCMD->cmdexecuter = cmdexecuter;
+
+    auto cmdFatalErrorListener = std::make_unique<MegaCmdFatalErrorListener>(*sandboxCMD);
 
     for (int i = 0; i < 5; i++)
     {
@@ -5241,8 +5425,11 @@ int executeServer(int argc, char* argv[],
 
         MegaApi *apiFolder = new MegaApi("BdARkQSQ", apiFolderStrUtf8.c_str(), userAgent);
         apiFolder->setLanguage(localecode.c_str());
-        apiFolders.push(apiFolder);
         apiFolder->setLogLevel(MegaApi::LOG_LEVEL_MAX);
+        apiFolder->setLogJSONContent(logConfig.mJsonLogs);
+        apiFolder->addGlobalListener(cmdFatalErrorListener.get());
+
+        apiFolders.push(apiFolder);
         semaphoreapiFolders.release();
     }
 
@@ -5251,15 +5438,17 @@ int executeServer(int argc, char* argv[],
         semaphoreClients.release();
     }
 
-    LOG_debug << "Language set to: " << localecode;
+    if (const char* fuseLogLevelStr = getenv("MEGACMD_FUSE_LOG_LEVEL"); fuseLogLevelStr)
+    {
+        setFuseLogLevel(*api, fuseLogLevelStr);
+    }
 
-    sandboxCMD = new MegaCmdSandbox();
-    cmdexecuter = new MegaCmdExecuter(api, loggerCMD, sandboxCMD);
-    sandboxCMD->cmdexecuter = cmdexecuter;
+    GlobalSyncConfig::loadFromConfigurationManager(*api);
 
     megaCmdGlobalListener = new MegaCmdGlobalListener(loggerCMD, sandboxCMD);
     megaCmdMegaListener = new MegaCmdMegaListener(api, NULL, sandboxCMD);
     api->addGlobalListener(megaCmdGlobalListener);
+    api->addGlobalListener(cmdFatalErrorListener.get());
     api->addListener(megaCmdMegaListener);
 
     // set up the console

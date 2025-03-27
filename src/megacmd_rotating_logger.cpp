@@ -12,16 +12,115 @@
  * You should have received a copy of the license along with this
  * program.
  */
+#include "megacmd_rotating_logger.h"
 
 #include "megacmdcommonutils.h"
-#include "megacmd_rotating_logger.h"
+#include "configurationmanager.h"
 
 #include <cassert>
 #include <unordered_set>
 #include <optional>
 #include <zlib.h>
 
+using megacmd::ConfigurationManager;
+
+namespace megacmd {
 namespace {
+
+constexpr uint64_t operator"" _KB(unsigned long long kilobytes)
+{
+    return kilobytes * 1024ull;
+}
+constexpr uint64_t operator"" _MB(unsigned long long megabytes)
+{
+    return megabytes * 1024ull * 1024ull;
+}
+constexpr uint64_t operator"" _GB(unsigned long long gigabytes)
+{
+    return gigabytes * 1024ull * 1024ull * 1024ull;
+}
+constexpr uint64_t operator"" _TB(unsigned long long terabytes)
+{
+    return terabytes * 1024ull * 1024ull * 1024ull * 1024ull;
+}
+
+class FileConfigCalculator
+{
+    // The estimated max total space used by the logs is:
+    //      MaxTotalSizeUsed = MaxFilesToKeep * MaxFileSize * AvgCompressionRatio + MaxFileSize
+    //
+    // Then, we can estimate the max amount of files to keep with:
+    //      MaxFilesToKeep = (MaxTotalSizeUsed - MaxFileSize) / (MaxFileSize * AvgCompressionRatio)
+    // where, giving MEGAcmd logs a max disk usage of 0.15%,
+    //      MaxTotalSizeUsed = TotalDiskSpace * 0.0015
+    //
+    // If there's only enough space for less than 1 file, it means we have to reduce the max allowed
+    // file size. So, we'll set MaxFilesToKeep=1, and then:
+    //      MaxFileSize = MaxTotalSizeUsed / (AvgCompressionRatio + 1)
+    //
+    // Using these formulas, and setting MaxFileSize=50MB and AvgCompressionRatio=0.15%,
+    // we get the following possible defaults:
+    //      DISK SPACE    MAX FILES    MAX FILE SIZE
+    //            1 TB          203            50 MB
+    //          400 GB           75            50 MB
+    //          100 GB           13            50 MB
+    //           10 GB            1            13 MB
+    //            1 GB            1          1.34 MB
+    //
+    // Note: We use the total disk space instead of the available disk space because it's not the
+    // responsability of MEGACmd to ensure the disk doesn't run out of space. We just want to try
+    // to choose more sensible defaults depending on the system specs.
+
+    double mMaxAllowedMB;
+    double mCompressionRatio;
+
+    double getMaxFilesToKeepImpl(double maxFileMB)
+    {
+        return (mMaxAllowedMB - maxFileMB) / (maxFileMB * mCompressionRatio);
+    }
+
+public:
+    FileConfigCalculator(RotatingFileManager::CompressionType compressionType) :
+        mMaxAllowedMB(300.0),
+        mCompressionRatio(RotatingFileManager::getCompressionRatio(compressionType))
+    {
+        constexpr double logsDiskUsagePercentage = 0.15 / 100.0;
+
+        std::error_code ec;
+        const auto spaceInfo = fs::space(ConfigurationManager::getConfigFolder(), ec);
+
+        if (!ec)
+        {
+            const double totalAvailableMB = spaceInfo.capacity / (1024.0 * 1024.0);
+            mMaxAllowedMB = totalAvailableMB * logsDiskUsagePercentage;
+        }
+    }
+
+    double getMaxFileMB()
+    {
+        constexpr double defaultMaxFileMB = 50.0;
+
+        double maxFileMB = defaultMaxFileMB;
+        double maxFilesToKeep = getMaxFilesToKeepImpl(maxFileMB);
+
+        if (maxFilesToKeep < 1.0)
+        {
+            maxFileMB = mMaxAllowedMB / (mCompressionRatio + 1);
+            assert(maxFileMB < defaultMaxFileMB);
+        }
+
+        return maxFileMB;
+    }
+
+    int getMaxFilesToKeep(double maxFileMB)
+    {
+        constexpr int fileCountHardLimit = 50;
+
+        double maxFilesToKeep = std::min((double) fileCountHardLimit, getMaxFilesToKeepImpl(maxFileMB));
+        return std::round(maxFilesToKeep);
+    }
+};
+
 class ReopenScope final
 {
     std::ofstream& mOutFile;
@@ -40,8 +139,6 @@ public:
     }
 };
 }
-
-namespace megacmd {
 
 class BaseEngine
 {
@@ -158,13 +255,117 @@ public:
     void compressFile(const fs::path& filePath) override;
 };
 
-RotatingFileManager::Config::Config() :
-    mMaxBaseFileSize(50 * 1024 * 1024), // 50 MB
-    mRotationType(RotationType::Timestamp),
-    mMaxFileAge(30 * 86400), // one month (in C++20 we can use `std::chrono::month(1)`)
-    mMaxFilesToKeep(50),
-    mCompressionType(CompressionType::Gzip)
+MessageBus::MessageBus(size_t reservedSize, size_t shouldSwapSize, size_t failSafeSize) :
+    mShouldSwapSize(shouldSwapSize),
+    mFailSafeSize(failSafeSize),
+    mMemoryError(false)
 {
+    assert(mFailSafeSize > 0);
+    if (reservedSize > failSafeSize)
+    {
+        reservedSize = failSafeSize;
+    }
+
+    try
+    {
+        mFrontBuffer.reserve(reservedSize);
+        mBackBuffer.reserve(reservedSize);
+    }
+    catch (const std::bad_alloc&)
+    {
+        // If this happens, we don't need to set the memory error flag, since this
+        // is a memory error we don't want to log. It just means we might've overshot
+        // our reserved size for a particular machine.
+        // The vector will try to allocate again when inserting below; at that point
+        // we will set the flag if the allocation fails as well.
+    }
+}
+
+void MessageBus::append(const char* data, size_t size)
+{
+    std::lock_guard lock(mListMtx);
+    try
+    {
+        mBackBuffer.insert(mBackBuffer.end(), data, data + size);
+    }
+    catch (const std::bad_alloc&)
+    {
+        mMemoryError = true;
+    }
+}
+
+std::pair<bool, const MessageBus::MemoryBuffer&> MessageBus::swapBuffers()
+{
+    std::lock_guard lock(mListMtx);
+
+    bool memoryError = false;
+    clearFrontBuffer();
+
+    std::swap(memoryError, mMemoryError);
+    std::swap(mFrontBuffer, mBackBuffer);
+
+    return {memoryError, mFrontBuffer};
+}
+
+bool MessageBus::isEmpty() const
+{
+    std::lock_guard lock(mListMtx);
+    return mBackBuffer.empty();
+}
+
+bool MessageBus::shouldSwapBuffers() const
+{
+    std::lock_guard lock(mListMtx);
+    return mBackBuffer.size() >= mShouldSwapSize;
+}
+
+bool MessageBus::reachedFailSafeSize() const
+{
+    std::lock_guard lock(mListMtx);
+    return mBackBuffer.size() >= mFailSafeSize;
+}
+
+void MessageBus::clearFrontBuffer()
+{
+    if (mFrontBuffer.capacity() > mFailSafeSize)
+    {
+        mFrontBuffer.erase(mFrontBuffer.begin() + mFailSafeSize, mFrontBuffer.end());
+        mFrontBuffer.shrink_to_fit();
+
+        assert(mFrontBuffer.capacity() == mFailSafeSize);
+    }
+
+    mFrontBuffer.clear();
+}
+
+
+float RotatingFileManager::getCompressionRatio(CompressionType compressionType)
+{
+    switch (compressionType)
+    {
+        case CompressionType::None: return 1.f;
+        case CompressionType::Gzip: return 0.15f; // this is conservative; it's generally ~10% for MEGAcmd logs
+        default:                    assert(false);
+                                    return 1.f;
+    }
+}
+
+RotatingFileManager::RotationType RotatingFileManager::getRotationTypeFromStr(std::string_view str)
+{
+    if (str == "Numbered")
+    {
+        return RotationType::Numbered;
+    }
+    return RotationType::Timestamp;
+}
+
+RotatingFileManager::CompressionType RotatingFileManager::getCompressionTypeFromStr(std::string_view str)
+{
+    if (str == "None")
+    {
+        return CompressionType::None;
+    }
+    return CompressionType::Gzip;
 }
 
 RotatingFileManager::RotatingFileManager(const fs::path& filePath, const Config &config) :
@@ -241,6 +442,64 @@ void RotatingFileManager::initializeRotationEngine()
     mRotationEngine = std::unique_ptr<RotationEngine>(rotationEngine);
 }
 
+size_t FileRotatingLoggedStream::loadFailSafeSize()
+{
+    // Since we have two buffers, and each can be up to FailSafeSize, the max size of the message bus is:
+    //      MessageBusMaxSize = FailSafeSize * 2
+    //
+    // We could potentially get the total RAM to figure out a better default value; probably overkill
+    // since there's not an easy, cross-platform way to do so.
+    constexpr double defaultMessageBusMB = 512.0;
+
+    double messageBusMB = ConfigurationManager::getConfigurationValue("RotatingLogger:MaxMessageBusMB", defaultMessageBusMB);
+    if (messageBusMB < 0.0)
+    {
+        messageBusMB = defaultMessageBusMB;
+    }
+
+    return std::floor(messageBusMB/2.0 * 1024.0 * 1024.0);
+}
+
+RotatingFileManager::Config FileRotatingLoggedStream::loadFileConfig()
+{
+    RotatingFileManager::Config config;
+
+    std::string rotationTypeStr = ConfigurationManager::getConfigurationSValue("RotatingLogger:RotationType");
+    std::string compressionTypeStr = ConfigurationManager::getConfigurationSValue("RotatingLogger:CompressionType");
+
+    config.mRotationType = RotatingFileManager::getRotationTypeFromStr(rotationTypeStr);
+    config.mCompressionType = RotatingFileManager::getCompressionTypeFromStr(compressionTypeStr);
+
+    FileConfigCalculator calculator(config.mCompressionType);
+
+    const double defaultMaxFileMB = calculator.getMaxFileMB();
+    double maxFileMB = ConfigurationManager::getConfigurationValue("RotatingLogger:MaxFileMB", defaultMaxFileMB);
+    if (maxFileMB < 0.0)
+    {
+        maxFileMB = defaultMaxFileMB;
+    }
+
+    const int defaultMaxFilesToKeep = calculator.getMaxFilesToKeep(maxFileMB);
+    int maxFilesToKeep = ConfigurationManager::getConfigurationValue("RotatingLogger:MaxFilesToKeep", defaultMaxFilesToKeep);
+    if (maxFilesToKeep < 0)
+    {
+        maxFilesToKeep = defaultMaxFilesToKeep;
+    }
+
+    constexpr int defaultMaxFileAgeSeconds = 30 * 86400; // 1 month
+    int maxFileAgeSeconds = ConfigurationManager::getConfigurationValue("RotatingLogger:MaxFileAgeSeconds", defaultMaxFileAgeSeconds);
+    if (maxFileAgeSeconds < 0)
+    {
+        maxFileAgeSeconds = defaultMaxFileAgeSeconds;
+    }
+
+    config.mMaxBaseFileSize = std::floor(maxFileMB * 1024.0 * 1024.0);
+    config.mMaxFileAge = std::chrono::seconds(maxFileAgeSeconds);
+    config.mMaxFilesToKeep = maxFilesToKeep;
+
+    return config;
+}
+
 bool FileRotatingLoggedStream::shouldRenew() const
 {
     std::lock_guard lock(mWriteMtx);
@@ -273,8 +532,8 @@ void FileRotatingLoggedStream::writeToBuffer(const char* msg, size_t size) const
         return;
     }
 
-    mMessageBuffer.append(msg, size);
-    if (mMessageBuffer.isNearLastBlockCapacity())
+    mMessageBus.append(msg, size);
+    if (mMessageBus.shouldSwapBuffers())
     {
         mWriteCV.notify_one();
     }
@@ -282,24 +541,22 @@ void FileRotatingLoggedStream::writeToBuffer(const char* msg, size_t size) const
 
 void FileRotatingLoggedStream::writeMessagesToFile()
 {
-    bool initialMemoryError = false;
-    auto memoryBlockList = mMessageBuffer.popMemoryBlockList(initialMemoryError);
+    const auto& [memoryError, memoryBuffer] = mMessageBus.swapBuffers();
 
-    if (initialMemoryError)
+    if (memoryError)
     {
-        mOutputFile << "<log gap - out of logging memory at this point>\n";
+        mOutputFile << "<warning - log messages dropped>\n";
     }
 
-    for (const auto& memoryBlock : memoryBlockList)
+    if (!memoryBuffer.empty())
     {
-        if (!memoryBlock.memoryAllocationFailed())
-        {
-            mOutputFile << memoryBlock.getBuffer();
-        }
-        else
-        {
-            mOutputFile << "<log gap - out of logging memory at this point>\n";
-        }
+        // Write directly to the stream without relying on null termination
+        mOutputFile.write(&memoryBuffer[0], memoryBuffer.size());
+    }
+
+    if (memoryError)
+    {
+        mOutputFile << "<------------------------------>\n";
     }
 }
 
@@ -348,7 +605,7 @@ bool FileRotatingLoggedStream::waitForOutputFile()
 
 void FileRotatingLoggedStream::mainLoop()
 {
-    while (!shouldExit() || !mMessageBuffer.isEmpty())
+    while (!shouldExit() || !mMessageBus.isEmpty())
     {
         std::ostringstream errorStream;
         bool reopenFile = false;
@@ -397,7 +654,7 @@ void FileRotatingLoggedStream::mainLoop()
 
             // If we've reached the fail-safe size, try to write to file anyway
             // This clears the buffer, ensuring it doesn't grow beyond a certain threshold
-            if (!mMessageBuffer.reachedFailSafeSize())
+            if (!mMessageBus.reachedFailSafeSize())
             {
                 continue;
             }
@@ -409,7 +666,7 @@ void FileRotatingLoggedStream::mainLoop()
             std::unique_lock lock(mWriteMtx);
             writeMessages = mWriteCV.wait_for(lock, std::chrono::milliseconds(500), [this]
             {
-                return mForceRenew || mExit || mFlush || !mMessageBuffer.isEmpty();
+                return mForceRenew || mExit || mFlush || !mMessageBus.isEmpty();
             });
         }
 
@@ -426,10 +683,10 @@ void FileRotatingLoggedStream::mainLoop()
 }
 
 FileRotatingLoggedStream::FileRotatingLoggedStream(const OUTSTRING& outputFilePath) :
-    mMessageBuffer(500 * 1024 * 1024 /* 500MB */),
+    mMessageBus(4_MB /* reservedSize */, 1_KB /* shouldSwapSize */, loadFailSafeSize()),
     mOutputFilePath(outputFilePath),
     mOutputFile(outputFilePath, std::ofstream::out | std::ofstream::app),
-    mFileManager(mOutputFilePath),
+    mFileManager(mOutputFilePath, loadFileConfig()),
     mForceRenew(false),
     mExit(false),
     mFlush(false),
@@ -486,6 +743,11 @@ const LoggedStream& FileRotatingLoggedStream::operator<<(unsigned int v) const
 }
 
 const LoggedStream& FileRotatingLoggedStream::operator<<(long long v) const
+{
+    return operator<<(std::to_string(v));
+}
+
+const LoggedStream& FileRotatingLoggedStream::operator<<(long long unsigned int v) const
 {
     return operator<<(std::to_string(v));
 }
@@ -596,14 +858,12 @@ NumberedRotationEngine::NumberedRotationEngine(const std::string& compressionExt
     mCompressionExt(compressionExt),
     mMaxFilesToKeep(maxFilesToKeep)
 {
-    // Numbered rotation does not support keeping unlimited files
-    assert(mMaxFilesToKeep >= 0);
 }
 
 fs::path NumberedRotationEngine::rotateFiles(const fs::path& dir, const fs::path& baseFilename)
 {
     std::error_code ec;
-    for (int i = mMaxFilesToKeep - 1; i >= 0; --i)
+    for (int i = mMaxFilesToKeep; i >= 0; --i)
     {
         fs::path srcFilePath = getSrcFilePath(dir, baseFilename, i);
 
@@ -614,7 +874,7 @@ fs::path NumberedRotationEngine::rotateFiles(const fs::path& dir, const fs::path
         }
 
         // Delete the last file, which is the one with number == maxFilesToKeep
-        if (i == mMaxFilesToKeep - 1)
+        if (i == mMaxFilesToKeep)
         {
             fs::remove(srcFilePath, ec);
             if (ec)

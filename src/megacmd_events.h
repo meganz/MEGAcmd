@@ -42,6 +42,8 @@ namespace megacmd::StatsManager {
         GENERATOR_MACRO(SUBSEQUENT_CONFIGURED_FTP                       , 98913, "MEGAcmd subsequent FPT location configured") \
         GENERATOR_MACRO(SUBSEQUENT_CONFIGURED_SCHEDULED_BACKUP          , 98914, "MEGAcmd subsequent scheduled backup configured") \
         GENERATOR_MACRO(INVALID_UTF8_INCIDENCES                         , 98915, "MEGAcmd Found Invalid UTF-8 incidences") \
+        GENERATOR_MACRO(FIRST_CONFIGURED_FUSE_MOUNT                     , 98916, "MEGAcmd first FUSE mount configured") \
+        GENERATOR_MACRO(SUBSEQUENT_CONFIGURED_FUSE_MOUNT                , 98917, "MEGAcmd subsequent FUSE mount configured") \
 
 
     static constexpr auto FIRST_EVENT_NUMBER = 98900u;

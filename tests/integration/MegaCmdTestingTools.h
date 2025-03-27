@@ -42,14 +42,17 @@ class ClientResponse
     OUTSTRING mOut;
 #ifdef _WIN32
     std::string mUtf8String;
+    std::string mUtf8ErrString;
 #endif
 
 public:
-    ClientResponse(int status, OUTSTRINGSTREAM &streamOut)
+    ClientResponse(int status, OUTSTRINGSTREAM &streamOut, OUTSTRINGSTREAM &streamErr)
         : mStatus(status)
         , mOut (streamOut.str())
+        , mErr (streamErr.str())
     #ifdef _WIN32
         , mUtf8String(megacmd::utf16ToUtf8(mOut))
+        , mUtf8ErrString(megacmd::utf16ToUtf8(mErr))
     #endif
     {}
 
@@ -65,6 +68,16 @@ public:
         return mOut;
 #endif
     }
+
+    //returns an utf8 std::string with the response from the server
+    std::string &err()
+    {
+#ifdef _WIN32
+        return mUtf8ErrString;
+#else
+        return mErr;
+#endif
+    }
 };
 
 ClientResponse executeInClient(const std::vector<std::string>& command, bool nonInteractive = true);
@@ -73,6 +86,25 @@ void ensureReadStructure();
 
 class BasicGenericTest : public ::testing::Test
 {
+};
+
+class NotLoggedTest : public BasicGenericTest
+{
+protected:
+
+    void SetUp() override
+    {
+        BasicGenericTest::SetUp();
+        auto result = executeInClient({"logout"}).ok();
+        ASSERT_TRUE(result);
+    }
+
+    void TearDown() override
+    {
+        BasicGenericTest::SetUp();
+        auto result = executeInClient({"logout"}).ok();
+        ASSERT_TRUE(result);
+    }
 };
 
 class LoggedInTest : public BasicGenericTest
@@ -86,13 +118,14 @@ protected:
         auto lines = splitByNewline(result.out());
         for (size_t i = 1; i < lines.size(); ++i)
         {
-            auto words = megacmd::split(lines[i], " ");
-
-            ASSERT_TRUE(!words.empty());
-            if (megacmd::stringToTimestamp(words[0].substr(1))) // discard log lines
+            // After an empty line, there are only user-facing messages (if any)
+            if (lines[i].empty())
             {
-                continue;
+                return;
             }
+
+            auto words = megacmd::split(lines[i], " ");
+            ASSERT_FALSE(words.empty());
 
             std::string syncId = words[0];
             auto result = executeInClient({"sync", "--remove", "--", syncId}).ok();
@@ -119,4 +152,5 @@ protected:
 
 class NOINTERACTIVEBasicTest : public BasicGenericTest{};
 class NOINTERACTIVELoggedInTest : public LoggedInTest{};
+class NOINTERACTIVENotLoggedTest : public NotLoggedTest{};
 class NOINTERACTIVEReadTest : public ReadTest{};

@@ -21,5 +21,5 @@
 #include "../megacmdcommonutils.h"
 
 namespace megacmd {
-    int executeClient(int argc, char* argv[], OUTSTREAMTYPE &outstream);
+    int executeClient(int argc, char* argv[], OUTSTREAMTYPE &outstream, OUTSTREAMTYPE &errorOutput = CERR);
 } // end namespace

@@ -17,7 +17,10 @@
 #include <gmock/gmock.h>
 
 #include "MegaCmdTestingTools.h"
+#include "Instruments.h"
 #include "TestUtils.h"
+
+using TI = TestInstruments;
 
 TEST_F(NOINTERACTIVEBasicTest, Version)
 {
@@ -27,6 +30,28 @@ TEST_F(NOINTERACTIVEBasicTest, Version)
 TEST_F(NOINTERACTIVEBasicTest, Help)
 {
     executeInClient({"help"});
+}
+
+TEST_F(NOINTERACTIVENotLoggedTest, Folderlogin)
+{
+    {
+        auto rLoging = executeInClient({"login", LINK_TESTEXPORTFOLDER});
+        ASSERT_TRUE(rLoging.ok());
+    }
+
+    {
+        auto rLogout = executeInClient({"logout", "--keep-session"});
+        ASSERT_TRUE(rLogout.ok());
+    }
+
+    {
+        EventTracker evTracker({TestInstruments::Event::FETCH_NODES_REQ_UPDATE});
+        auto rLoging = executeInClient({"login", "--resume", LINK_TESTEXPORTFOLDER});
+        ASSERT_TRUE(rLoging.ok());
+        ASSERT_STREQ(rLoging.out().c_str(), "");
+        ASSERT_STREQ(rLoging.err().c_str(), "");
+        ASSERT_FALSE(evTracker.eventHappened(TestInstruments::Event::FETCH_NODES_REQ_UPDATE));
+    }
 }
 
 TEST_F(NOINTERACTIVEReadTest, Find)
@@ -82,4 +107,35 @@ TEST_F(NOINTERACTIVELoggedInTest, Whoami)
         EXPECT_THAT(details_out, testing::Not(testing::Contains(ContainsStdRegex("Available storage:\\s+0\\.00\\s+Bytes"))));
         EXPECT_THAT(details_out, testing::Not(testing::Contains(ContainsStdRegex("In ROOT:\\s+0\\.00\\s+Bytes"))));
     }
+}
+
+TEST_F(NOINTERACTIVEBasicTest, EchoInvalidUtf8)
+{
+    const std::string validUtf8 = u8"\uc548\uc548\ub155\ud558\uc138\uc694\uc138\uacc4";
+
+#ifdef _WIN32
+    // Required because windows converts the args to UTF-16 before sending them to the server,
+    // so we can't pass an invalid UTF-8 string all the way to the executer; we need to escape it
+    const std::string invalidUtf8 = "<win-invalid-utf8>";
+#else
+    const std::string invalidUtf8 = "\xf0\x8f\xbf\xbf";
+#endif
+
+    auto result = executeInClient({"echo", validUtf8});
+    ASSERT_TRUE(result.ok());
+    EXPECT_THAT(result.out(), testing::HasSubstr(validUtf8));
+
+    result = executeInClient({"echo", invalidUtf8});
+    ASSERT_TRUE(result.ok());
+    EXPECT_THAT(result.out(), testing::Not(testing::HasSubstr(invalidUtf8)));
+
+    result = executeInClient({"echo", "--log-as-err", validUtf8});
+    ASSERT_TRUE(result.ok());
+    EXPECT_THAT(result.err(), testing::HasSubstr(validUtf8));
+
+    result = executeInClient({"echo", "--log-as-err", invalidUtf8});
+    ASSERT_TRUE(result.ok());
+    EXPECT_THAT(result.err(), testing::HasSubstr("<invalid utf8>"));
+    EXPECT_THAT(result.err(), testing::Not(testing::HasSubstr(invalidUtf8)));
+    EXPECT_THAT(result.out(), testing::Not(testing::HasSubstr(invalidUtf8)));
 }

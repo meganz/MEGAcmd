@@ -10,7 +10,7 @@ execute_process(
 )
 
 set(MEGACMD_MAJOR_VERSION 2)
-set(MEGACMD_MINOR_VERSION 0)
+set(MEGACMD_MINOR_VERSION 1)
 set(MEGACMD_MICRO_VERSION 0)
 
 ## Configure megacmdversion.h
@@ -193,7 +193,6 @@ add_source_and_corresponding_header_to_target(LMegacmdServer
     "${ProjectDir}/src/megacmd.cpp"
     "${ProjectDir}/src/megacmdexecuter.cpp"
     "${ProjectDir}/src/megacmd_events.cpp"
-    "${ProjectDir}/src/megacmdtransfermanager.cpp"
     "${ProjectDir}/src/megacmdlogger.cpp"
     "${ProjectDir}/src/megacmdsandbox.cpp"
     "${ProjectDir}/src/megacmdutils.cpp"
@@ -206,6 +205,7 @@ add_source_and_corresponding_header_to_target(LMegacmdServer
     "${ProjectDir}/src/sync_issues.cpp"
     "${ProjectDir}/src/sync_ignore.cpp"
     "${ProjectDir}/src/megacmd_rotating_logger.cpp"
+    "${ProjectDir}/src/megacmd_fuse.cpp"
 )
 
 target_sources_conditional(LMegacmdServer
@@ -339,6 +339,7 @@ if (ENABLE_MEGACMD_TESTS)
         "${ProjectDir}/tests/integration/ExportTests.cpp"
         "${ProjectDir}/tests/integration/SyncIssuesTests.cpp"
         "${ProjectDir}/tests/integration/SyncIgnoreTests.cpp"
+        "${ProjectDir}/tests/integration/FuseTests.cpp"
         "${ProjectDir}/tests/integration/MegaCmdTestingTools.cpp"
         "${ProjectDir}/tests/integration/main.cpp"
     )

@@ -1,6 +1,6 @@
 # MEGAcmd User Guide
 
-This document relates to MEGAcmd version 2.0.0.  It contains introductory information and the [Command Summary](#command-summary), with links to detailed command descriptions.
+This document relates to MEGAcmd version 2.1.0.  It contains introductory information and the [Command Summary](#command-summary), with links to detailed command descriptions.
 
 ### What is it
 A command line tool to work with your MEGA account and files.  The intent is to offer all the MEGA account functionality via command line.  You can run it in [interactive](#interactive) mode where it processes all commands directly, or you can run its [scriptable](#scriptable) commands from your favourite Linux or Mac shell such as bash, or you can even run its commands in a Windows command prompt. And of course you can write scripts using those scriptable commands.
@@ -46,8 +46,9 @@ We are also building it for some NAS systems, please check your provider's App S
 The major features are
 * Move files around inside your MEGA account or between MEGA and your PC using command line tools.
 * Use those same commands in scripts to manage your files.
-* Set up synchronization or a backup schedule between a folder on your machine, and a folder on your MEGA account.   (use the [`sync`](#sync) or [`backup`](#backup) commands)
-* Set up WebDAV access to files in your MEGA account (use the [`webdav`](#webdav) command)
+* Set up synchronization or a backup schedule between a folder on your machine, and a folder on your MEGA account.   (use the [`sync`](#sync) or [`backup`](#backup) commands).
+* Set up WebDAV access to files in your MEGA account (use the [`webdav`](#webdav) command).
+* [Linux only] Set up a FUSE mount point to seamlessly access files in your MEGA account (use the [`fuse-add`](#fuse-add) command).
 
 See our Help Centre pages for the basics of getting started, and friendly examples of common usages with plenty of pictures:  https://mega.nz/help
 
@@ -114,7 +115,12 @@ For further information on backups, please see the [`backup`](#backup) command a
 ### WebDAV configurations
 MEGAcmd can set up access to folders or files in your MEGA account as if they were local folders and files on your device using the [`webdav`](#webdav) command.  For example making the folder appear like a local drive on your PC, or providing a hyperlink a browser can access, where the hyperlink is to your PC.
 
-For further information on WebDAV, please see the [`webdav`](#webdav) command and the [tutorial](contrib/docs/WEBDAV.md).
+For further information on WebDAV, please see the [`webdav`](#webdav) command and the [tutorial](contrib/docs/WEBDAV.md
+
+### FUSE mount point
+If you use Linux, MEGAcmd can set up access to folders or files in your MEGA account as if they were local folders and files on your device using Filesystem in User Space via [`fuse-add`](#fuse-add) command.
+
+For further information on FUSE, please see the [`fuse-add`](#fuse-add) command and the [tutorial](contrib/docs/FUSE.md).
 
 ### Linux
 On Linux, MEGAcmd commands are installed at /usr/bin and so will already be on your PATH.  The interactive shell is `mega-cmd` and the background server is `mega-cmd-server`, which will be automatically started on demand.  The various scriptable commands are installed at the same location, and invoke `mega-exec` to send the command to `mega-cmd-server`.
@@ -187,7 +193,7 @@ Verbosity: You can increase the amount of information given by any command by pa
 * [`masterkey`](contrib/docs/commands/masterkey.md)`pathtosave` Shows your master key.
 
 ### Login / Logout
-* [`login`](contrib/docs/commands/login.md)`[--auth-code=XXXX] email password | exportedfolderurl#key [--auth-key=XXXX] | passwordprotectedlink [--password=PASSWORD] | session` Logs into a MEGA account or folder link. You can only log into one entity at a time.
+* [`login`](contrib/docs/commands/login.md)`[--auth-code=XXXX] email password | exportedfolderurl#key [--auth-key=XXXX] [--resume] | passwordprotectedlink [--password=PASSWORD] | session` Logs into a MEGA account, folder link or a previous session. You can only log into one entity at a time.
 * [`logout`](contrib/docs/commands/logout.md)`[--keep-session]` Logs out
 * [`whoami`](contrib/docs/commands/whoami.md)`[-l]` Prints info of the user
 * [`session`](contrib/docs/commands/session.md) Prints (secret) session ID
@@ -214,10 +220,11 @@ Verbosity: You can increase the amount of information given by any command by pa
 * [`mv`](contrib/docs/commands/mv.md)`srcremotepath [--use-pcre] [srcremotepath2 srcremotepath3 ..] dstremotepath` Moves file(s)/folder(s) into a new location (all remotes)
 * [`rm`](contrib/docs/commands/rm.md)`[-r] [-f] [--use-pcre] remotepath` Deletes a remote file/folder
 * [`transfers`](contrib/docs/commands/transfers.md)`[-c TAG|-a] | [-r TAG|-a]  | [-p TAG|-a] [--only-downloads | --only-uploads] [SHOWOPTIONS]` List or operate with transfers
-* [`speedlimit`](contrib/docs/commands/speedlimit.md)`[-u|-d] [-h] [NEWLIMIT]` Displays/modifies upload/download rate limits
+* [`speedlimit`](contrib/docs/commands/speedlimit.md)`[-u|-d|--upload-connections|--download-connections] [-h] [NEWLIMIT]` Displays/modifies upload/download rate limits: either speed or max connections
 * [`sync`](contrib/docs/commands/sync.md)`[localpath dstremotepath| [-dpe] [ID|localpath]` Controls synchronizations.
 * [`sync-issues`](contrib/docs/commands/sync-issues.md)`[[--detail (ID|--all)] [--limit=rowcount] [--disable-path-collapse]] | [--enable-warning|--disable-warning]` Show all issues with current syncs
 * [`sync-ignore`](contrib/docs/commands/sync-ignore.md)`[--show|[--add|--add-exclusion|--remove|--remove-exclusion] filter1 filter2 ...] (ID|localpath|DEFAULT)` Manages ignore filters for syncs
+* [`sync-config`](contrib/docs/commands/sync-config.md)`[--delayed-uploads-wait-seconds=waitsecs | --delayed-uploads-max-attempts=attempts]` Shows and modifies global sync configuration.
 * [`exclude`](contrib/docs/commands/exclude.md)`[(-a|-d) pattern1 pattern2 pattern3]` Manages default exclusion rules in syncs.
 * [`backup`](contrib/docs/commands/backup.md)`(localpath remotepath --period="PERIODSTRING" --num-backups=N  | [-lhda] [TAG|localpath] [--period="PERIODSTRING"] [--num-backups=N]) [--time-format=FORMAT]` Controls backups
 
@@ -226,6 +233,14 @@ Verbosity: You can increase the amount of information given by any command by pa
 * [`import`](contrib/docs/commands/import.md)`exportedlink [--password=PASSWORD] [remotepath]` Imports the contents of a remote link into user's cloud
 * [`share`](contrib/docs/commands/share.md)`[-p] [-d|-a --with=user@email.com [--level=LEVEL]] [remotepath] [--use-pcre] [--time-format=FORMAT]` Prints/Modifies the status of current shares
 * [`webdav`](contrib/docs/commands/webdav.md)`[-d (--all | remotepath ) ] [ remotepath [--port=PORT] [--public] [--tls --certificate=/path/to/certificate.pem --key=/path/to/certificate.key]] [--use-pcre]` Configures a WEBDAV server to serve a location in MEGA
+
+### FUSE (mount your cloud folder to the local system)
+* [`fuse-add`](contrib/docs/commands/fuse-add.md)`[--name=name] [--disabled] [--transient] [--read-only] localPath remotePath` Creates a new FUSE mount.
+* [`fuse-remove`](contrib/docs/commands/fuse-remove.md)`(name|localPath)` Deletes a specified FUSE mount.
+* [`fuse-enable`](contrib/docs/commands/fuse-enable.md)`[--temporarily] (name|localPath)` Enables a specified FUSE mount.
+* [`fuse-disable`](contrib/docs/commands/fuse-disable.md)`[--temporarily] (name|localPath)` Disables a specified FUSE mount.
+* [`fuse-show`](contrib/docs/commands/fuse-show.md)`[--only-enabled] [--disable-path-collapse] [[--limit=rowcount] | [name|localPath]]` Displays the list of FUSE mounts and their information. If a name or local path provided, displays information of that mount instead.
+* [`fuse-config`](contrib/docs/commands/fuse-config.md)`[--name=name] [--enable-at-startup=yes|no] [--persistent=yes|no] [--read-only=yes|no] (name|localPath)` Modifies the specified FUSE mount configuration.
 
 ### Misc.
 * [`autocomplete`](contrib/docs/commands/autocomplete.md)`[dos | unix]` Modifes how tab completion operates.
@@ -244,7 +259,7 @@ Verbosity: You can increase the amount of information given by any command by pa
 * [`help`](contrib/docs/commands/help.md)`[-f|-ff|--non-interactive|--upgrade|--paths] [--show-all-options]` Prints list of commands
 * [`https`](contrib/docs/commands/https.md)`[on|off]` Shows if HTTPS is used for transfers. Use "https on" to enable it.
 * [`info`](contrib/docs/commands/info.md)`remotepath1 remotepath2 ...` Prints media info of remote files
-* [`log`](contrib/docs/commands/log.md)`[-sc] level` Prints/Modifies the current logs level
+* [`log`](contrib/docs/commands/log.md)`[-sc] level` Prints/Modifies the log level
 * [`permissions`](contrib/docs/commands/permissions.md)`[(--files|--folders) [-s XXX]]` Shows/Establish default permissions for files and folders created by MEGAcmd.
 * [`proxy`](contrib/docs/commands/proxy.md)`[URL|--auto|--none] [--username=USERNAME --password=PASSWORD]` Show or sets proxy configuration
 * [`psa`](contrib/docs/commands/psa.md)`[--discard]` Shows the next available Public Service Announcement (PSA)

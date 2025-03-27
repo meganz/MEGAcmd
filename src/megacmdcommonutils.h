@@ -59,9 +59,43 @@ using std::left;
 
 namespace megacmd {
 
+// output codes
+enum
+{
+    MCMD_OK = 0,              ///< Everything OK
+
+    MCMD_CONFIRM_NO = -12,    ///< User response to confirmation is "no"
+
+    MCMD_EARGS = -51,         ///< Wrong arguments
+    MCMD_INVALIDEMAIL = -52,  ///< Invalid email
+    MCMD_NOTFOUND = -53,      ///< Resource not found
+    MCMD_INVALIDSTATE = -54,  ///< Invalid state
+    MCMD_INVALIDTYPE = -55,   ///< Invalid type
+    MCMD_NOTPERMITTED = -56,  ///< Operation not allowed
+    MCMD_NOTLOGGEDIN = -57,   ///< Needs loging in
+    MCMD_NOFETCH = -58,       ///< Nodes not fetched
+    MCMD_EUNEXPECTED = -59,   ///< Unexpected failure
+
+    MCMD_REQCONFIRM = -60,    ///< Confirmation required
+    MCMD_REQSTRING = -61,     ///< String required
+    MCMD_PARTIALOUT = -62,    ///< Partial output provided
+    MCMD_PARTIALERR = -63,     ///< Partial error output provided
+    MCMD_EXISTS = -64,        ///< Resource already exists
+
+    MCMD_REQRESTART = -71,    ///< Restart required
+};
+
+enum confirmresponse
+{
+    MCMDCONFIRM_NO=0,
+    MCMDCONFIRM_YES,
+    MCMDCONFIRM_ALL,
+    MCMDCONFIRM_NONE
+};
+
 /* commands */
 static std::vector<std::string> validGlobalParameters {"v", "help"};
-static std::vector<std::string> localremotefolderpatterncommands {"sync"};
+static std::vector<std::string> localremotefolderpatterncommands {"sync", "fuse-add"};
 static std::vector<std::string> remotepatterncommands {"export", "attr"};
 static std::vector<std::string> remotefolderspatterncommands {"cd", "share"};
 
@@ -75,12 +109,12 @@ static std::vector<std::string> remoteremotepatterncommands {"cp"};
 
 static std::vector<std::string> remotelocalpatterncommands {"get", "thumbnail", "preview"};
 
-static std::vector<std::string> localfolderpatterncommands {"lcd", "sync-ignore"};
+static std::vector<std::string> localfolderpatterncommands {"lcd", "sync-ignore", "fuse-remove", "fuse-enable", "fuse-disable", "fuse-show", "fuse-config"};
 
 static std::vector<std::string> emailpatterncommands {"invite", "signup", "ipc", "users"};
 
 static std::vector<std::string> loginInValidCommands { "log", "debug", "speedlimit", "help", "logout", "version", "quit",
-                            "clear", "https", "exit", "errorcode", "proxy"
+                            "clear", "https", "exit", "errorcode", "proxy", "sync-config"
 #if defined(_WIN32) && defined(NO_READLINE)
                              , "autocomplete", "codepage"
 #elif defined(_WIN32)
@@ -94,13 +128,10 @@ static std::vector<std::string> loginInValidCommands { "log", "debug", "speedlim
 static std::vector<std::string> allValidCommands { "login", "signup", "confirm", "session", "mount", "ls", "cd", "log", "debug", "pwd", "lcd", "lpwd", "import", "masterkey",
                              "put", "get", "attr", "userattr", "mkdir", "rm", "du", "mv", "cp", "sync", "sync-ignore", "export", "share", "invite", "ipc", "df",
                              "showpcr", "users", "speedlimit", "killsession", "whoami", "help", "passwd", "reload", "logout", "version", "quit",
-                             "thumbnail", "preview", "find", "completion", "clear", "https", "sync-issues"
-#ifdef HAVE_DOWNLOADS_COMMAND
-                                                   , "downloads"
-#endif
-                             , "transfers", "exclude", "exit", "errorcode", "graphics",
-                             "cancel", "confirmcancel", "cat", "tree", "psa", "proxy"
-                             , "mediainfo"
+                             "thumbnail", "preview", "find", "completion", "clear", "https", "sync-issues",
+                             "transfers", "exclude", "exit", "errorcode", "graphics",
+                             "cancel", "confirmcancel", "cat", "tree", "psa", "proxy", "sync-config",
+                             "mediainfo"
 #ifdef HAVE_LIBUV
                              , "webdav", "ftp"
 #endif
@@ -115,6 +146,17 @@ static std::vector<std::string> allValidCommands { "login", "signup", "confirm",
 #endif
 #if defined(_WIN32) || defined(__APPLE__)
                              , "update"
+#endif
+#ifdef WITH_FUSE
+                             , "fuse-add"
+                             , "fuse-remove"
+                             , "fuse-enable"
+                             , "fuse-disable"
+                             , "fuse-show"
+                             , "fuse-config"
+#endif
+#if defined(DEBUG) || defined(MEGACMD_TESTING_CODE)
+                             , "echo"
 #endif
                            };
 
@@ -234,19 +276,26 @@ bool onlyZeroOrOneOf(Bools... args)
     return (args + ...) <= 1;
 }
 
+template <typename... Bools>
+bool onlyZeroOf(Bools... args)
+{
+    return (args + ...) == 0;
+}
+
 void printPercentageLineCerr(const char *title, long long completed, long long total, float percentDowloaded, bool cleanLineAfter = true);
 
 
 
 
 /* Flags and Options */
-int getFlag(std::map<std::string, int> *flags, const char * optname);
+int getFlag(const std::map<std::string, int> *flags, const char * optname);
 
-std::string getOption(std::map<std::string, std::string> *cloptions, const char * optname, std::string defaultValue = "");
+std::string getOption(const std::map<std::string, std::string> *cloptions, const char * optname, std::string defaultValue = "");
 
 std::optional<std::string> getOptionAsOptional(const std::map<std::string, std::string>& cloptions, const char * optname);
 
-int getintOption(std::map<std::string, std::string> *cloptions, const char * optname, int defaultValue = 0);
+int getintOption(const std::map<std::string, std::string> *cloptions, const char * optname, int defaultValue = 0);
+std::optional<int> getIntOptional(const std::map<std::string, std::string>& cloptions, const char* optName);
 
 void discardOptionsAndFlags(std::vector<std::string> *ws);
 

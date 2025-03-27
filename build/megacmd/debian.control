@@ -7,11 +7,12 @@ Build-Depends:  debhelper,
                 libtool,
                 dh-autoreconf,
                 cdbs,
+                libfuse-dev,
                 autoconf, autoconf-archive, nasm, cmake
 
 Package: megacmd
 Architecture: any
-Depends: ${shlibs:Depends}, apt-transport-https, gpg, procps
+Depends: ${shlibs:Depends}, apt-transport-https, gpg, procps, fuse
 Description: MEGA Command Line Interactive and Scriptable Application
  MEGAcmd provides non UI access to MEGA services. 
  It intends to offer all the functionality 

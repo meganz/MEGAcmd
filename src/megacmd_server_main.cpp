@@ -16,9 +16,9 @@
 #include "megacmd.h"
 #include "megaapi.h"
 
-
 #include "megacmdlogger.h"
 #include "megacmd_rotating_logger.h"
+#include "configurationmanager.h"
 
 #include <vector>
 
@@ -51,27 +51,25 @@ bool extractargparam(vector<const char*>& args, const char *what, std::string& p
     return false;
 }
 
-std::pair<int/*sdk*/, int/*cmd*/> getLogLevels(std::vector<const char*>& args)
+megacmd::LogConfig parseLogConfig(std::vector<const char*>& args)
 {
     using mega::MegaApi;
-    // default log levels
-    int sdkLogLevel = MegaApi::LOG_LEVEL_ERROR;
-    int cmdLogLevel = MegaApi::LOG_LEVEL_INFO;
+    using megacmd::ConfigurationManager;
 
-    // for !Windows have DEBUG builds use debug level by default
-#if defined(DEBUG) && !defined(_WIN32)
-    sdkLogLevel = MegaApi::LOG_LEVEL_DEBUG;
-    cmdLogLevel = MegaApi::LOG_LEVEL_DEBUG;
+#ifndef DEBUG
+    constexpr int defaultSdkLogLevel = (int) MegaApi::LOG_LEVEL_ERROR;
+#else
+    constexpr int defaultSdkLogLevel = (int) MegaApi::LOG_LEVEL_DEBUG;
 #endif
+    constexpr int defaultCmdLogLevel = (int) MegaApi::LOG_LEVEL_DEBUG;
 
-    // read parameters from argumetns
     bool debug = extractarg(args, "--debug");
     bool debugfull = extractarg(args, "--debug-full");
     bool verbose = extractarg(args, "--verbose");
     bool verbosefull = extractarg(args, "--verbose-full");
 
-// overridance by environment variable
     const char *envCmdLogLevel = getenv("MEGACMD_LOGLEVEL");
+    const char *envJsonLogs = getenv("MEGACMD_JSON_LOGS");
     if (envCmdLogLevel)
     {
         std::string loglevelenv(envCmdLogLevel);
@@ -81,26 +79,39 @@ std::pair<int/*sdk*/, int/*cmd*/> getLogLevels(std::vector<const char*>& args)
         verbosefull |= !loglevelenv.compare("FULLVERBOSE");
     }
 
+    megacmd::LogConfig logConfig;
+    logConfig.mSdkLogLevel = ConfigurationManager::getConfigurationValue("sdkLogLevel", defaultSdkLogLevel);
+    logConfig.mCmdLogLevel = ConfigurationManager::getConfigurationValue("cmdLogLevel", defaultCmdLogLevel);
+    logConfig.mLogToCout = !extractarg(args, "--do-not-log-to-stdout");
+    logConfig.mJsonLogs = ConfigurationManager::getConfigurationValue("jsonLogs", false);
+
     if (debug)
     {
-        cmdLogLevel = MegaApi::LOG_LEVEL_DEBUG;
+        logConfig.mCmdLogLevel = MegaApi::LOG_LEVEL_DEBUG;
     }
     if (debugfull)
     {
-        sdkLogLevel = MegaApi::LOG_LEVEL_DEBUG;
-        cmdLogLevel = MegaApi::LOG_LEVEL_DEBUG;
+        logConfig.mSdkLogLevel = MegaApi::LOG_LEVEL_DEBUG;
+        logConfig.mCmdLogLevel = MegaApi::LOG_LEVEL_DEBUG;
     }
     if (verbose)
     {
-        cmdLogLevel = MegaApi::LOG_LEVEL_MAX;
+        logConfig.mCmdLogLevel = MegaApi::LOG_LEVEL_MAX;
     }
     if (verbosefull)
     {
-        sdkLogLevel = MegaApi::LOG_LEVEL_MAX;
-        cmdLogLevel = MegaApi::LOG_LEVEL_MAX;
+        logConfig.mSdkLogLevel = MegaApi::LOG_LEVEL_MAX;
+        logConfig.mCmdLogLevel = MegaApi::LOG_LEVEL_MAX;
+        logConfig.mJsonLogs = true;
     }
 
-    return {sdkLogLevel, cmdLogLevel};
+    if (envJsonLogs)
+    {
+        std::string envJsonLogsStr(envJsonLogs);
+        logConfig.mJsonLogs = (envJsonLogsStr != "0");
+    }
+
+    return logConfig;
 }
 
 #ifdef _WIN32
@@ -188,11 +199,7 @@ int main(int argc, char* argv[])
 
     waitIfRequired(args);
 
-    bool logToCout = !extractarg(args, "--do-not-log-to-stdout");
-    auto logLevels = getLogLevels(args);
-    int sdkLogLevel = logLevels.first;
-    int cmdLogLevel = logLevels.second;
-
+    const auto logConfig = parseLogConfig(args);
     bool skiplockcheck = extractarg(args, "--skip-lock-check");
 
     std::string debug_api_url;
@@ -204,7 +211,6 @@ int main(int argc, char* argv[])
         return new megacmd::FileRotatingLoggedStream(megacmd::MegaCmdLogger::getDefaultFilePath());
     };
 
-    return megacmd::executeServer(argc, argv, createLoggedStream,
-                                  logToCout, sdkLogLevel, cmdLogLevel,
+    return megacmd::executeServer(argc, argv, createLoggedStream, logConfig,
                                   skiplockcheck, debug_api_url, disablepkp);
 }

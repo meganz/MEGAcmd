@@ -78,38 +78,6 @@ static const char* const prompts[] =
     "MEGA CMD> ", "Password:", "New Password:", "Retype New Password:", "Are you sure to delete? "
 };
 
-enum
-{
-    MCMD_OK = 0,              ///< Everything OK
-
-    MCMD_EARGS = -51,         ///< Wrong arguments
-    MCMD_INVALIDEMAIL = -52,  ///< Invalid email
-    MCMD_NOTFOUND = -53,      ///< Resource not found
-    MCMD_INVALIDSTATE = -54,  ///< Invalid state
-    MCMD_INVALIDTYPE = -55,   ///< Invalid type
-    MCMD_NOTPERMITTED = -56,  ///< Operation not allowed
-    MCMD_NOTLOGGEDIN = -57,   ///< Needs loging in
-    MCMD_NOFETCH = -58,       ///< Nodes not fetched
-    MCMD_EUNEXPECTED = -59,   ///< Unexpected failure
-
-    MCMD_REQCONFIRM = -60,    ///< Confirmation required
-    MCMD_REQSTRING = -61,     ///< String required
-    MCMD_PARTIALOUT = -62,    ///< Partial output provided
-    MCMD_EXISTS = -63,        ///< Resource already exists
-
-    MCMD_REQRESTART = -71,    ///< Restart required
-
-};
-
-
-enum confirmresponse
-{
-    MCMDCONFIRM_NO=0,
-    MCMDCONFIRM_YES,
-    MCMDCONFIRM_ALL,
-    MCMDCONFIRM_NONE
-};
-
 void changeprompt(const char *newprompt);
 
 void informStateListener(std::string message, int clientID);
@@ -167,6 +135,7 @@ struct HelpFlags
     bool usePcre = false;
     bool haveLibuv = false;
     bool readline = true;
+    bool fuse = false;
     bool showAll = false;
 
     HelpFlags(bool showAll = false) :
@@ -186,6 +155,9 @@ struct HelpFlags
 #endif
 #ifdef NO_READLINE
         readline = false;
+#endif
+#ifdef WITH_FUSE
+        fuse = true;
 #endif
     }
 };
@@ -229,12 +201,18 @@ void sendEvent(StatsManager::MegacmdEvent event, const char *msg, mega::MegaApi 
 void uninstall();
 #endif
 
+struct LogConfig
+{
+    int mSdkLogLevel = mega::MegaApi::LOG_LEVEL_DEBUG;
+    int mCmdLogLevel = mega::MegaApi::LOG_LEVEL_DEBUG;
+    bool mLogToCout = true;
+    bool mJsonLogs = false;
+};
+
 class LoggedStream; // forward delaration
 int executeServer(int argc, char* argv[],
                   const std::function<LoggedStream*()>& createLoggedStream = nullptr,
-                  bool logToCout = true,
-                  int sdkLogLevel = mega::MegaApi::LOG_LEVEL_DEBUG,
-                  int cmdLogLevel = mega::MegaApi::LOG_LEVEL_DEBUG,
+                  const LogConfig& logConfig = {},
                   bool skiplockcheck = false,
                   std::string debug_api_url = {},
                   bool disablepkp/*only for debugging*/ = false);

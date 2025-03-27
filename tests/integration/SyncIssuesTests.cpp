@@ -279,7 +279,7 @@ TEST_F(SyncIssuesTests, ShowSyncIssuesInSyncCommand)
     ASSERT_TRUE(result.ok());
     EXPECT_THAT(result.out(), testing::HasSubstr("Sync Issues (1)"));
     EXPECT_THAT(result.out(), testing::Not(testing::HasSubstr(" NO ")));
-    EXPECT_THAT(result.out(), testing::HasSubstr("You have sync issues"));
+    EXPECT_THAT(result.err(), testing::HasSubstr("You have sync issues"));
 
     {
         SyncIssueListGuard guard(2);
@@ -289,7 +289,7 @@ TEST_F(SyncIssuesTests, ShowSyncIssuesInSyncCommand)
     ASSERT_TRUE(result.ok());
     EXPECT_THAT(result.out(), testing::HasSubstr("Sync Issues (2)"));
     EXPECT_THAT(result.out(), testing::Not(testing::HasSubstr(" NO ")));
-    EXPECT_THAT(result.out(), testing::HasSubstr("You have sync issues"));
+    EXPECT_THAT(result.err(), testing::HasSubstr("You have sync issues"));
 }
 
 TEST_F(SyncIssuesTests, SyncIssueDetail)
@@ -438,6 +438,11 @@ TEST_F(ManualSyncIssuesTests, AllSyncIssuesDetailEnforceReasonsAndPathProblems)
              pathProblem < static_cast<int>(mega::PathProblem::PathProblem_LastPlusOne);
              ++pathProblem)
         {
+            if (pathProblem == 19)
+            {
+                continue; // deprecated
+            }
+
             TestInstrumentsTestValueGuard reasonGuard(TI::TestValue::SYNC_ISSUE_ENFORCE_REASON_TYPE, (int64_t) reasonType);
             TestInstrumentsTestValueGuard pathProblemGuard(TI::TestValue::SYNC_ISSUE_ENFORCE_PATH_PROBLEM, (int64_t) pathProblem);
 

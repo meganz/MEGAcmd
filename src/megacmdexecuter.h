@@ -19,8 +19,6 @@
 #ifndef MEGACMDEXECUTER_H
 #define MEGACMDEXECUTER_H
 
-#include "megacmdtransfermanager.h"
-
 #include "megacmdlogger.h"
 #include "megacmdsandbox.h"
 #include "listeners.h"
@@ -28,9 +26,9 @@
 #include "sync_issues.h"
 
 namespace megacmd {
-class MegaCmdSandbox;
-class MegaCmdMultiTransferListener;
 class MegaCmdGlobalTransferListener;
+class MegaCmdMultiTransferListener;
+class MegaCmdSandbox;
 
 class MegaCmdExecuter
 {
@@ -146,9 +144,10 @@ public:
     void changePassword(const char *newpassword, std::string pin2fa = "");
     void actUponGetExtendedAccountDetails(std::unique_ptr<mega::MegaAccountDetails> storageDetails, std::unique_ptr<mega::MegaAccountDetails> extAccountDetails);
     bool actUponFetchNodes(mega::MegaApi * api, mega::SynchronousRequestListener  *srl, int timeout = -1);
-    int actUponLogin(mega::SynchronousRequestListener  *srl, int timeout = -1);
-    void actUponLogout(mega::SynchronousRequestListener  *srl, bool deletedSession, int timeout = 0);
-    int actUponCreateFolder(mega::SynchronousRequestListener  *srl, int timeout = 0);
+    int actUponLogin(mega::SynchronousRequestListener *srl, int timeout = -1);
+    void actUponLogout(mega::MegaApi& api, mega::MegaError* e, bool keptSession);
+    void actUponLogout(mega::SynchronousRequestListener *srl, bool keptSession, int timeout = 0);
+    int actUponCreateFolder(mega::SynchronousRequestListener *srl, int timeout = 0);
     int deleteNode(const std::unique_ptr<mega::MegaNode>& nodeToDelete, mega::MegaApi* api, int recursive, int force = 0);
     int deleteNodeVersions(const std::unique_ptr<mega::MegaNode>& nodeToDelete, mega::MegaApi* api, int force = 0);
     void downloadNode(std::string source, std::string localPath, mega::MegaApi* api, mega::MegaNode *node, bool background, bool ignorequotawar, int clientID, std::shared_ptr<MegaCmdMultiTransferListener> listener);
@@ -161,7 +160,7 @@ public:
     void disableShare(mega::MegaNode *n, std::string with);
     void createOrModifyBackup(std::string local, std::string remote, std::string speriod, int numBackups);
     std::vector<std::string> listpaths(bool usepcre, std::string askedPath = "", bool discardFiles = false);
-    std::vector<std::string> listlocalpathsstartingby(std::string askedPath = "", bool discardFiles = false);
+    std::vector<std::string> listLocalPathsStartingBy(std::string askedPath, bool discardFiles);
     std::vector<std::string> getlistusers();
     std::vector<std::string> getNodeAttrs(std::string nodePath);
     std::vector<std::string> getUserAttrs();
@@ -241,8 +240,6 @@ public:
     void fetchNodes(mega::MegaApi *api = nullptr, int clientID = -27);
 
     void mayExecutePendingStuffInWorkerThread();
-
-    void cleanSlateTranfers();
 };
 
 }//end namespace

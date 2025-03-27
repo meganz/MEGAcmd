@@ -99,6 +99,24 @@ TEST(PlatformDirectoriesTest, configDirPath)
         auto guard = TestInstrumentsEnvVarGuardW(L"MEGACMD_WORKING_FOLDER_SUFFIX", L"file_\u5f20\u4e09");
         EXPECT_THAT(dirs->configDirPath().wstring(), testing::EndsWith(L"file_\u5f20\u4e09"));
     }
+
+    {
+        G_SUBTEST << "With path length exceeding MAX_PATH";
+
+        // To reach maximum length for the folder path; since len(".megaCmd_")=9, and 9+246=255
+        // Full path can exceed MAX_PATH=260, but each individual file or folder must have length < 255
+        constexpr int suffixLength = 246;
+
+        const std::string suffix = megacmd::generateRandomAlphaNumericString(suffixLength);
+        auto guard = TestInstrumentsEnvVarGuard("MEGACMD_WORKING_FOLDER_SUFFIX", suffix);
+
+        const fs::path configDir = dirs->configDirPath();
+        EXPECT_THAT(configDir.string(), testing::EndsWith(suffix));
+        EXPECT_THAT(configDir.string(), testing::StartsWith(R"(\\?\)"));
+
+        // This would throw an exception without the \\?\ prefix
+        SelfDeletingTmpFolder tmpFolder(configDir);
+    }
 #else
     {
         G_SUBTEST << "With alternative existing HOME";
@@ -117,6 +135,26 @@ TEST(PlatformDirectoriesTest, configDirPath)
         G_SUBTEST << "With alternative NON existing HOME";
         auto homeGuard = TestInstrumentsEnvVarGuard("HOME", "/non-existent-dir");
         EXPECT_EQ(dirs->configDirPath().string(), megacmd::PosixDirectories::noHomeFallbackFolder());
+    }
+    {
+        using megacmd::ConfigurationManager;
+        using megacmd::ScopeGuard;
+        G_SUBTEST << "Correct 0700 permissions";
+
+        const mode_t oldUmask = umask(0);
+        ScopeGuard g([oldUmask] { umask(oldUmask); });
+
+        SelfDeletingTmpFolder tmpFolder;
+        const fs::path dirPath = tmpFolder.path() / "some_folder";
+        ConfigurationManager::createFolderIfNotExisting(dirPath);
+
+        struct stat info;
+        ASSERT_EQ(stat(dirPath.c_str(), &info), 0);
+        ASSERT_TRUE(S_ISDIR(info.st_mode));
+
+        const mode_t actualPerms = info.st_mode & 0777;
+        const mode_t expectedPerms = 0700;
+        EXPECT_EQ(actualPerms, expectedPerms);
     }
 #endif
 }

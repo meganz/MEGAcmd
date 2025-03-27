@@ -59,7 +59,7 @@ pipeline {
                             DOCKER_BUILDKIT=1
                         }
                         steps {
-                            sh "docker build -t meganz/megacmd-branchstatus-${BUILD_SYSTEM}-${SANITIZERS}:${env.BUILD_NUMBER} -f ${megacmd_sources_workspace}/build-with-docker/Dockerfile.${BUILD_SYSTEM} --build-arg=BUILD_OPT_SANITIZERS=${SANITIZERS} --ulimit=core=-1 --cpuset-cpus=0,1 -- ${megacmd_sources_workspace}"
+                            sh "docker build -t meganz/megacmd-branchstatus-${BUILD_SYSTEM}-${SANITIZERS}:${env.BUILD_NUMBER} -f ${megacmd_sources_workspace}/build-with-docker/Dockerfile.${BUILD_SYSTEM} --build-arg=ENABLE_${SANITIZERS}=ON --ulimit=core=-1 --cpuset-cpus=0,1 -- ${megacmd_sources_workspace}"
                         }
                     }
                     stage("MEGAcmd unit tests") {
@@ -121,7 +121,8 @@ pipeline {
                                     sh """
                                         /usr/bin/mega-cmd-tests-integration \
                                             --gtest_output=xml:${megacmd_sources_workspace}/test-dir-${SANITIZERS}/results/mega-cmd-tests-integration.xml \
-                                            --gtest_shuffle
+                                            --gtest_shuffle \
+                                            --gtest_filter=-FuseTests.*
                                     """
                                 }
                             }
@@ -181,14 +182,11 @@ pipeline {
                                                 ]) {
                                                     def envStr = ''
                                                     if (cmdshell != '') {
-                                                        envStr = "MEGACMDSHELL=/usr/bin/mega-cmd LSAN_OPTIONS=suppressions=${megacmd_sources_workspace}/${testDir}/suppressed_asan.txt "
+                                                        envStr = "MEGACMDSHELL=/usr/bin/mega-cmd "
                                                     }
                                                     try {
                                                         dir("pytest-dir-${SANITIZERS}/working-dir") {
-                                                            // CMD-578 Fix readline leak instead of suppressing it
-                                                            writeFile file: "${megacmd_sources_workspace}/${testDir}/suppressed_asan.txt", text: 'leak:expand_prompt'
-
-                                                            sh "/usr/local/bin/megacmd_${test}_test.py"
+                                                            sh "${envStr}/usr/local/bin/megacmd_${test}_test.py"
                                                         }
                                                         junit "${testDir}/TEST-*.xml"
                                                     } finally {

@@ -142,7 +142,7 @@ TEST_F(ExportTest, FailedRecreation)
 
     rCreate = executeInClient(createCommand);
     ASSERT_FALSE(rCreate.ok());
-    EXPECT_THAT(rCreate.out(), testing::HasSubstr(file_path + " is already exported"));
+    EXPECT_THAT(rCreate.err(), testing::HasSubstr(file_path + " is already exported"));
 
     auto rDisable = executeInClient({"export", "-d", file_path});
     ASSERT_TRUE(rDisable.ok());
@@ -155,7 +155,7 @@ TEST_F(ExportTest, Writable)
 
     auto rOnlyWritable = executeInClient({"export", "--writable", dir_path});
     ASSERT_FALSE(rOnlyWritable.ok());
-    EXPECT_THAT(rOnlyWritable.out(), testing::HasSubstr("Option can only be used when adding an export"));
+    EXPECT_THAT(rOnlyWritable.err(), testing::HasSubstr("Option can only be used when adding an export"));
 
     auto rCreate = executeInClient({"export", "-a", "-f", "--writable", dir_path});
     ASSERT_TRUE(rCreate.ok());
@@ -231,8 +231,8 @@ TEST_F(ExportTest, PasswordProtected)
 
         auto rCreate = executeInClient(createCommand);
         ASSERT_TRUE(rCreate.ok());
-        EXPECT_THAT(rCreate.out(), testing::HasSubstr("Only PRO users can protect links with passwords"));
-        EXPECT_THAT(rCreate.out(), testing::HasSubstr("Showing UNPROTECTED link"));
+        EXPECT_THAT(rCreate.err(), testing::HasSubstr("Only PRO users can protect links with passwords"));
+        EXPECT_THAT(rCreate.err(), testing::HasSubstr("Showing UNPROTECTED link"));
         EXPECT_THAT(rCreate.out(), testing::HasSubstr("Exported /" + file_path));
         EXPECT_THAT(rCreate.out(), ContainsStdRegex(megaFileLinkRegex));
 

@@ -19,7 +19,10 @@
 #include "listeners.h"
 #include "configurationmanager.h"
 #include "megacmdutils.h"
-#include "megacmdtransfermanager.h"
+
+#ifdef MEGACMD_TESTING_CODE
+    #include "../tests/common/Instruments.h"
+#endif
 
 #include <utility>
 
@@ -391,11 +394,6 @@ void MegaCmdGlobalListener::onEvent(MegaApi *api, MegaEvent *event)
     else if (event->getType() == MegaEvent::EVENT_NODES_CURRENT)
     {
         sandboxCMD->mNodesCurrentPromise.fulfil();
-#ifdef HAVE_DOWNLOADS_COMMAND
-        // we need to cancel transfers here, because, even if fetchnodes finished, the actual transfer resumption
-        // won't happen until all action packets are received. And cancellation of transfers need them to be loaded already
-        std::thread([this](){sandboxCMD->cmdexecuter->cleanSlateTranfers();}).detach();
-#endif
     }
 }
 
@@ -453,6 +451,8 @@ void MegaCmdMegaListener::onRequestFinish(MegaApi *api, MegaRequest *request, Me
         LOG_err << "Your account has been blocked. Reason: " << request->getText();
     }
 }
+
+std::atomic<int> DisableMountErrorsBroadcastingGuard::sDisableBroadcasting = 0;
 
 MegaCmdMegaListener::MegaCmdMegaListener(MegaApi *megaApi, MegaListener *parent, MegaCmdSandbox *sandboxCMD)
 {
@@ -552,6 +552,53 @@ void MegaCmdMegaListener::onSyncDeleted(MegaApi *api, MegaSync *sync)
     LOG_verbose << "Sync deleted: " << sync->getLocalFolder() << " to " << sync->getLastKnownMegaFolder();
 }
 
+void MegaCmdMegaListener::onMountAdded(mega::MegaApi* api, const char* path, int result)
+{
+    onMountEvent("Added", "add", path, result);
+}
+
+void MegaCmdMegaListener::onMountRemoved(mega::MegaApi* api, const char* path, int result)
+{
+    onMountEvent("Removed", "remove", path, result);
+}
+
+void MegaCmdMegaListener::onMountChanged(mega::MegaApi* api, const char* path, int result)
+{
+    onMountEvent("Changed", "change", path, result);
+}
+
+void MegaCmdMegaListener::onMountEnabled(mega::MegaApi* api, const char* path, int result)
+{
+    onMountEvent("Enabled", "enable", path, result);
+}
+
+void MegaCmdMegaListener::onMountDisabled(mega::MegaApi* api, const char* path, int result)
+{
+    onMountEvent("Disabled", "disable", path, result);
+}
+
+void MegaCmdMegaListener::onMountEvent(std::string_view pastTense, std::string_view presentTense, std::string_view path, int result)
+{
+    if (result != MegaMount::SUCCESS)
+    {
+        std::ostringstream oss;
+        oss << "Failed to " << presentTense << " mount \"" << path << "\" "
+            << "due to error:\n" << MegaMount::getResultDescription(result);
+        assert(MegaMount::getResultDescription(result) != "Mount was successful");
+
+        const std::string msg = oss.str();
+
+        LOG_err << msg;
+        if (DisableMountErrorsBroadcastingGuard::shouldBroadcast())
+        {
+            broadcastDelayedMessage(msg, true);
+        }
+        return;
+    }
+
+    LOG_debug << pastTense << " mount \"" << path << "\"";
+}
+
 ////////////////////////////////////////
 ///      MegaCmdListener methods     ///
 ////////////////////////////////////////
@@ -604,6 +651,9 @@ void MegaCmdListener::onRequestUpdate(MegaApi* api, MegaRequest *request)
     {
         case MegaRequest::TYPE_FETCH_NODES:
         {
+#ifdef MEGACMD_TESTING_CODE
+        TestInstruments::Instance().fireEvent(TestInstruments::Event::FETCH_NODES_REQ_UPDATE);
+#endif
             unsigned int cols = getNumberOfCols(80);
             string outputString;
             outputString.resize(cols+1);
@@ -1086,13 +1136,6 @@ long long MegaCmdMultiTransferListener::getOngoingTotalBytes()
     return total;
 }
 
-#ifdef HAVE_DOWNLOADS_COMMAND
-std::vector<DownloadId> MegaCmdMultiTransferListener::getStartedTransfers() const
-{
-    return mStartedTransfers;
-}
-#endif
-
 bool MegaCmdMultiTransferListener::getProgressinformed() const
 {
     return progressinformed;
@@ -1135,9 +1178,6 @@ void MegaCmdMultiTransferListener::onTransferStarted(const std::string &path, in
     {
         std::lock_guard<std::mutex> g(mStartedTransfersMutex);
         mStartedTransfersCount++;
-#ifdef HAVE_DOWNLOADS_COMMAND
-        mStartedTransfers.emplace_back(DownloadId(tag,path));
-#endif
         mStartedConditionVariable.notify_one();
     }
 }
@@ -1156,13 +1196,6 @@ MegaCmdGlobalTransferListener::MegaCmdGlobalTransferListener(MegaApi *megaApi, M
 
 void MegaCmdGlobalTransferListener::onTransferFinish(MegaApi* api, MegaTransfer *transfer, MegaError* error)
 {
-#ifdef HAVE_DOWNLOADS_COMMAND
-    if (transfer->getType() == transfer->TYPE_DOWNLOAD && ConfigurationManager::getConfigurationValue("downloads_tracking_enabled", false))
-    {
-        DownloadsManager::Instance().onTransferFinish(api, transfer, error);
-    }
-#endif
-
     completedTransfersMutex.lock();
     completedTransfers.push_front(transfer->copy());
 
@@ -1186,24 +1219,6 @@ void MegaCmdGlobalTransferListener::onTransferFinish(MegaApi* api, MegaTransfer 
     completedTransfersMutex.unlock();
 }
 
-void MegaCmdGlobalTransferListener::onTransferStart(MegaApi* api, MegaTransfer *transfer)
-{
-#ifdef HAVE_DOWNLOADS_COMMAND
-    if (transfer->getType() == transfer->TYPE_DOWNLOAD && ConfigurationManager::getConfigurationValue("downloads_tracking_enabled", false))
-    {
-        DownloadsManager::Instance().onTransferStart(api, transfer);
-    }
-#endif
-}
-void MegaCmdGlobalTransferListener::onTransferUpdate(MegaApi* api, MegaTransfer *transfer)
-{
-#ifdef HAVE_DOWNLOADS_COMMAND
-    if (transfer->getType() == transfer->TYPE_DOWNLOAD && ConfigurationManager::getConfigurationValue("downloads_tracking_enabled", false))
-    {
-        DownloadsManager::Instance().onTransferUpdate(api, transfer);
-    }
-#endif
-}
 void MegaCmdGlobalTransferListener::onTransferTemporaryError(MegaApi *api, MegaTransfer *transfer, MegaError* e)
 {
     if (e && e->getErrorCode() == MegaError::API_EOVERQUOTA && e->getValue())
@@ -1220,13 +1235,6 @@ void MegaCmdGlobalTransferListener::onTransferTemporaryError(MegaApi *api, MegaT
         sandboxCMD->timeOfOverquota = m_time(NULL);
         sandboxCMD->secondsOverQuota=e->getValue();
     }
-
-#ifdef HAVE_DOWNLOADS_COMMAND
-    if (transfer->getType() == transfer->TYPE_DOWNLOAD && ConfigurationManager::getConfigurationValue("downloads_tracking_enabled", false))
-    {
-        DownloadsManager::Instance().onTransferUpdate(api, transfer);
-    }
-#endif
 }
 
 bool MegaCmdGlobalTransferListener::onTransferData(MegaApi *api, MegaTransfer *transfer, char *buffer, size_t size) {return false;};
@@ -1270,20 +1278,12 @@ ATransferListener::~ATransferListener()
 
 }
 
-
 void ATransferListener::onTransferStart(MegaApi *api, MegaTransfer *transfer)
 {
     auto tag = transfer->getTag();
-#ifdef HAVE_DOWNLOADS_COMMAND
-    if (transfer->getType() == transfer->TYPE_DOWNLOAD && ConfigurationManager::getConfigurationValue("downloads_tracking_enabled", false))
-    {
-        DownloadsManager::Instance().addNewTopLevelTransfer(api, transfer, tag, mPath);
-    }
-#endif
     mMultiTransferListener->onTransferStarted(mPath, tag);
     mMultiTransferListener->onTransferStart(api, transfer);
 }
-
 
 void ATransferListener::onTransferFinish(MegaApi *api, MegaTransfer *transfer, MegaError *e)
 {
@@ -1291,22 +1291,134 @@ void ATransferListener::onTransferFinish(MegaApi *api, MegaTransfer *transfer, M
     delete this;
 }
 
-
 void ATransferListener::onTransferUpdate(MegaApi *api, MegaTransfer *transfer)
 {
     mMultiTransferListener->onTransferUpdate(api, transfer);
 }
-
 
 void ATransferListener::onTransferTemporaryError(MegaApi *api, MegaTransfer *transfer, MegaError *e)
 {
     mMultiTransferListener->onTransferTemporaryError(api, transfer, e);
 }
 
-
 bool ATransferListener::onTransferData(MegaApi *api, MegaTransfer *transfer, char *buffer, size_t size)
 {
     return mMultiTransferListener->onTransferData(api, transfer, buffer, size);
+}
+
+std::string_view MegaCmdFatalErrorListener::getFatalErrorStr(int64_t fatalErrorType)
+{
+    switch (fatalErrorType)
+    {
+        case MegaEvent::REASON_ERROR_UNKNOWN:                  return "REASON_ERROR_UNKNOWN";
+        case MegaEvent::REASON_ERROR_NO_ERROR:                 return "REASON_ERROR_NO_ERROR";
+        case MegaEvent::REASON_ERROR_FAILURE_UNSERIALIZE_NODE: return "REASON_ERROR_FAILURE_UNSERIALIZE_NODE";
+        case MegaEvent::REASON_ERROR_DB_IO_FAILURE:            return "REASON_ERROR_DB_IO_FAILURE";
+        case MegaEvent::REASON_ERROR_DB_FULL:                  return "REASON_ERROR_DB_FULL";
+        case MegaEvent::REASON_ERROR_DB_INDEX_OVERFLOW:        return "REASON_ERROR_DB_INDEX_OVERFLOW";
+        case MegaEvent::REASON_ERROR_NO_JSCD:                  return "REASON_ERROR_NO_JSCD";
+        case MegaEvent::REASON_ERROR_REGENERATE_JSCD:          return "REASON_ERROR_REGENERATE_JSCD";
+        default:                                               assert(false);
+                                                               return "<unhandled fatal error>";
+    }
+}
+
+template<bool localLogout>
+MegaRequestListener* MegaCmdFatalErrorListener::createLogoutListener(std::string_view msg)
+{
+    return new MegaCmdListenerFuncExecuter(
+        [this, msg] (mega::MegaApi *api, mega::MegaRequest *request, mega::MegaError *e)
+        {
+            broadcastMessage(std::string(msg));
+            mCmdSandbox.cmdexecuter->actUponLogout(*api, e, localLogout);
+        }, true /* autoremove */
+    );
+}
+
+void MegaCmdFatalErrorListener::onEvent(mega::MegaApi *api, mega::MegaEvent *event)
+{
+    assert(api); assert(event);
+    if (event->getType() != MegaEvent::EVENT_FATAL_ERROR)
+    {
+        return;
+    }
+
+    const int64_t fatalErrorType = event->getNumber();
+    LOG_err << "Received fatal error " << getFatalErrorStr(fatalErrorType) << " (type: " << fatalErrorType << ")";
+
+    switch (fatalErrorType)
+    {
+        case MegaEvent::REASON_ERROR_UNKNOWN:
+        {
+            broadcastMessage("An error is causing the communication with MEGA to fail. Your syncs and backups "
+                             "are unable to update, and there may be further issues if you continue using MEGAcmd "
+                             "without restarting. We strongly recommend immediately restarting the MEGAcmd server to "
+                             "resolve this problem. If the issue persists, please contact support.");
+            break;
+        }
+        case MegaEvent::REASON_ERROR_NO_ERROR:
+        {
+            break;
+        }
+        case MegaEvent::REASON_ERROR_FAILURE_UNSERIALIZE_NODE:
+        {
+            broadcastMessage("A serious issue has been detected in MEGAcmd, or in the connection between "
+                             "this device and MEGA. Delete your local \".megaCmd\" folder and reinstall the app "
+                             "from https://mega.io/cmd, or contact support for further assistance.");
+            break;
+        }
+        case MegaEvent::REASON_ERROR_DB_IO_FAILURE:
+        {
+            std::string_view msg = "Critical system files which are required by MEGACmd are unable to be reached. "
+                                   "Please check permissions in the \".megaCmd\" folder, or try restarting the "
+                                   "MEGAcmd server. If the issue still persists, please contact support.";
+
+            api->localLogout(createLogoutListener<true>(msg));
+            break;
+        }
+        case MegaEvent::REASON_ERROR_DB_FULL:
+        {
+            std::string_view msg = "There's not enough space in your local storage to run MEGAcmd. Please make "
+                                   "more space available before running MEGAcmd.";
+
+            api->localLogout(createLogoutListener<true>(msg));
+            break;
+        }
+        case MegaEvent::REASON_ERROR_DB_INDEX_OVERFLOW:
+        {
+            std::string_view msg = "MEGAcmd has detected a critical internal error and needs to reload. "
+                                   "You've been logged out. If you experience this issue more than once, please contact support.";
+
+            // According to the Confluence documentation on fatal errors, this should be an account reload
+            // We'll do a logout instead to avoid problems with api folders
+            api->logout(false, createLogoutListener<false>(msg));
+            break;
+        }
+        case MegaEvent::REASON_ERROR_NO_JSCD:
+        {
+            broadcastMessage("MEGAcmd has detected an error in your sync configuration data. You need to manually "
+                             "logout of MEGAcmd, and log back in, to resolve this issue. If the problem persists "
+                             "afterwards, please contact support.");
+            break;
+        }
+        case MegaEvent::REASON_ERROR_REGENERATE_JSCD:
+        {
+            broadcastMessage("MEGAcmd has detected an error in your sync data. Please, reconfigure your syncs now. "
+                             "If the issue persists afterwards, please contact support.");
+            break;
+        }
+        default:
+        {
+            LOG_err << "Unhandled fatal error type " << fatalErrorType;
+            assert(false);
+            break;
+        }
+    }
+}
+
+MegaCmdFatalErrorListener::MegaCmdFatalErrorListener(MegaCmdSandbox& cmdSandbox) :
+    mCmdSandbox(cmdSandbox)
+{
 }
 
 } //end namespace

@@ -18,19 +18,42 @@
 #include "listeners.h"
 #include "megacmdutils.h"
 #include "megacmdlogger.h"
+#include "configurationmanager.h"
 
 using std::string;
 
 namespace {
 
-string withoutTrailingSeparator(const fs::path& path)
+bool isSyncTransfer(mega::MegaApi& api, int transferTag)
 {
-    string str = path.string();
-    if (!str.empty() && (str.back() == '/' || str.back() == '\\'))
+    std::unique_ptr<mega::MegaTransfer> transfer(api.getTransferByTag(transferTag));
+    return transfer && transfer->isSyncTransfer();
+}
+
+bool hasPendingSyncTransfers(mega::MegaApi& api)
+{
+    std::unique_ptr<mega::MegaTransferData> transferData(api.getTransferData());
+    assert(transferData);
+
+    for (int i = 0; i < transferData->getNumDownloads(); ++i)
     {
-        str.pop_back();
+        const int tag = transferData->getDownloadTag(i);
+        if (isSyncTransfer(api, tag))
+        {
+            return true;
+        }
     }
-    return str;
+
+    for (int i = 0; i < transferData->getNumUploads(); ++i)
+    {
+        const int tag = transferData->getUploadTag(i);
+        if (isSyncTransfer(api, tag))
+        {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 string getSyncId(mega::MegaSync& sync)
@@ -84,7 +107,8 @@ void printSingleSync(mega::MegaApi& api, mega::MegaSync& sync, mega::MegaNode* n
     cd.addValue("REMOTEPATH", sync.getLastKnownMegaFolder());
     cd.addValue("RUN_STATE", syncRunStateStr(sync.getRunState()));
 
-    string folder = withoutTrailingSeparator(sync.getLocalFolder());
+    std::string folder = sync.getLocalFolder();
+
     string localFolder;
     mega::LocalPath::path2local(&folder, &localFolder);
 
@@ -158,6 +182,45 @@ std::unique_ptr<mega::MegaSync> reloadSync(mega::MegaApi& api, std::unique_ptr<m
 {
     assert(sync);
     return std::unique_ptr<mega::MegaSync>(api.getSyncByBackupId(sync->getBackupId()));
+}
+
+bool isAnySyncUploadDelayed(mega::MegaApi& api)
+{
+    const bool isSyncing = api.isSyncing();
+    if (!isSyncing)
+    {
+        return false;
+    }
+
+    const bool syncStalled = api.isSyncStalled();
+    if (syncStalled)
+    {
+        return false;
+    }
+
+    const bool pendingSyncTransfers = hasPendingSyncTransfers(api);
+    if (pendingSyncTransfers)
+    {
+        return false;
+    }
+
+    auto listener = std::make_unique<MegaCmdListener>(nullptr);
+    api.checkSyncUploadsThrottled(listener.get());
+    listener->wait();
+
+    auto [errorOpt, syncErrorOpt] = getErrorsAndSetOutCode(*listener);
+
+    if (errorOpt)
+    {
+        LOG_err << "Failed to get the list of delayed sync uploads "
+                << "(Error: " << *errorOpt << (syncErrorOpt ? ". Reason: " + *syncErrorOpt : "") << ")";
+        return false;
+    }
+
+    mega::MegaRequest* request = listener->getRequest();
+    assert(request != nullptr);
+
+    return request->getFlag();
 }
 
 void printSync(mega::MegaApi& api, ColumnDisplayer& cd, bool showHandle, mega::MegaSync& sync,  const SyncIssueList& syncIssues)
@@ -298,4 +361,155 @@ void modifySync(mega::MegaApi& api, mega::MegaSync& sync, ModifyOpts opts)
         }
     }
 }
+} // end namespace
+
+namespace GlobalSyncConfig {
+void loadFromConfigurationManager(mega::MegaApi& api)
+{
+    const int duWaitSecs = ConfigurationManager::getConfigurationValue("GlobalSyncConfig:delayedUploadsWaitSecs", -1);
+    if (duWaitSecs != -1)
+    {
+        DelayedUploads::updateWaitSecs(api, duWaitSecs);
+    }
+
+    const int duMaxAttempts = ConfigurationManager::getConfigurationValue("GlobalSyncConfig:delayedUploadsMaxAttempts", -1);
+    if (duMaxAttempts != -1)
+    {
+        DelayedUploads::updateMaxAttempts(api, duMaxAttempts);
+    }
+}
+
+namespace DelayedUploads {
+namespace {
+
+template<typename RequestFunc>
+std::optional<Config> makeApiRequest(RequestFunc&& requestFunc)
+{
+    auto listener = std::make_unique<MegaCmdListener>(nullptr);
+    requestFunc(listener.get());
+    listener->wait();
+
+    mega::MegaError* error = listener->getError();
+    assert(error);
+
+    if (error->getErrorCode() != mega::MegaError::API_OK)
+    {
+        return std::nullopt;
+    }
+
+    mega::MegaRequest* request = listener->getRequest();
+    assert(request);
+
+    Config config;
+    config.mWaitSecs = request->getNumber();
+    config.mMaxAttempts = request->getTotalBytes();
+    return config;
+}
+
+std::optional<Config> getCurrentLowerLimits(mega::MegaApi& api)
+{
+    return makeApiRequest([&api] (mega::MegaRequestListener* listener)
+    {
+        api.getSyncUploadThrottleLowerLimits(listener);
+    });
+}
+
+std::optional<Config> getCurrentUpperLimits(mega::MegaApi& api)
+{
+    return makeApiRequest([&api] (mega::MegaRequestListener* listener)
+    {
+        api.getSyncUploadThrottleUpperLimits(listener);
+    });
+}
+} // end namespace
+
+std::optional<Config> getCurrentConfig(mega::MegaApi& api)
+{
+    return makeApiRequest([&api] (mega::MegaRequestListener* listener)
+    {
+        api.getSyncUploadThrottleValues(listener);
+    });
+}
+
+bool Limits::isWaitSecsValid(int waitSecs) const
+{
+    return waitSecs >= mLower.mWaitSecs && waitSecs <= mUpper.mWaitSecs;
+}
+
+bool Limits::isMaxAttemptsValid(int maxAttempts) const
+{
+    return maxAttempts >= mLower.mMaxAttempts && maxAttempts <= mUpper.mMaxAttempts;
+}
+
+std::optional<Limits> getCurrentLimits(mega::MegaApi& api)
+{
+    auto lowerLimitsOpt = getCurrentLowerLimits(api);
+    if (!lowerLimitsOpt)
+    {
+        LOG_warn << "Failed to get the delayed uploads lower limits";
+        return std::nullopt;
+    }
+
+    auto upperLimitsOpt = getCurrentUpperLimits(api);
+    if (!upperLimitsOpt)
+    {
+        LOG_warn << "Failed to get the delayed uploads upper limits";
+        return std::nullopt;
+    }
+
+    return Limits{*lowerLimitsOpt, *upperLimitsOpt};
+}
+
+void updateWaitSecs(mega::MegaApi& api, int waitSecs)
+{
+    auto limits = getCurrentLimits(api);
+    if (limits && !limits->isWaitSecsValid(waitSecs))
+    {
+        setCurrentThreadOutCode(MCMD_EARGS);
+        LOG_err << "Delayed sync uploads wait time must be between "
+                << limits->mLower.mWaitSecs << " and " << limits->mUpper.mWaitSecs << " seconds";
+        return;
+    }
+
+    auto result = makeApiRequest([&api, waitSecs] (mega::MegaRequestListener* listener)
+    {
+        api.setSyncUploadThrottleUpdateRate(waitSecs, listener);
+    });
+
+    if (!result)
+    {
+        LOG_err << "Failed to set the wait time for delayed sync uploads";
+        return;
+    }
+
+    OUTSTREAM << "Successfully set the wait time for delayed sync uploads to " << result->mWaitSecs << " seconds" << endl;
+    ConfigurationManager::savePropertyValue("GlobalSyncConfig:delayedUploadsWaitSecs", result->mWaitSecs);
+}
+
+void updateMaxAttempts(mega::MegaApi& api, int maxAttempts)
+{
+    auto limits = getCurrentLimits(api);
+    if (limits && !limits->isMaxAttemptsValid(maxAttempts))
+    {
+        setCurrentThreadOutCode(MCMD_EARGS);
+        LOG_err << "Max delayed uploads attempts must be between "
+                << limits->mLower.mMaxAttempts << " and " << limits->mUpper.mMaxAttempts;
+        return;
+    }
+
+    auto result = makeApiRequest([&api, maxAttempts] (mega::MegaRequestListener* listener)
+    {
+        api.setSyncMaxUploadsBeforeThrottle(maxAttempts, listener);
+    });
+
+    if (!result)
+    {
+        LOG_err << "Failed to set the max attempts for delayed sync uploads";
+        return;
+    }
+
+    OUTSTREAM << "Successfully set the max attempts for delayed sync uploads to " << result->mMaxAttempts << endl;
+    ConfigurationManager::savePropertyValue("GlobalSyncConfig:delayedUploadsMaxAttempts", result->mMaxAttempts);
+}
+} // end namespace
 } // end namespace

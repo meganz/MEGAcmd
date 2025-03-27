@@ -197,7 +197,8 @@ pipeline {
                                         # Execute with a timeout lower than Jenkins stage timeout, enforcing a SIGSEGV to ensure core dumping
                                         timeout -s 11 3500 /usr/bin/mega-cmd-tests-integration \
                                             --gtest_output=xml:${megacmd_sources_workspace}/test-dir-${SANITIZERS}/results/mega-cmd-tests-integration.xml \
-                                            --gtest_shuffle
+                                            --gtest_shuffle \
+                                            --gtest_filter=-FuseTests.*
                                     """
                                 }
                             }
@@ -274,13 +275,10 @@ pipeline {
                                                 ]) {
                                                     def envStr = ''
                                                     if (cmdshell != '') {
-                                                        envStr = "MEGACMDSHELL=/usr/bin/mega-cmd LSAN_OPTIONS=suppressions=${megacmd_sources_workspace}/${testDir}/suppressed_asan.txt "
+                                                        envStr = "MEGACMDSHELL=/usr/bin/mega-cmd "
                                                     }
                                                     try {
                                                         dir("pytest-dir-${SANITIZERS}/working-dir") {
-                                                            // CMD-578 Fix readline leak instead of suppressing it
-                                                            writeFile file: "${megacmd_sources_workspace}/${testDir}/suppressed_asan.txt", text: 'leak:expand_prompt'
-
                                                             sh """
                                                                 # Execute with a timeout lower than Jenkins stage timeout, enforcing a SIGSEGV to ensure core dumping
                                                                 # In this case, splitting the timeout between all test cases

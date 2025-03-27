@@ -1,42 +1,35 @@
-# How to build MEGAcmd for Synology NAS drives.  
+# How to build MEGAcmd for Synology NAS drives.
 
-We follow the cross compiling system provided by Synology, described in their [developer-guide.pdf](https://global.download.synology.com/download/Document/DeveloperGuide/DSM_Developer_Guide.pdf) (also at https://originhelp.synology.com/developer-guide/getting_started/index.html).  
-Tested with ubuntu 16.04 as the build machine - others may work but that one does for sure.  
-  
-**All commands need to be run as 'sudo'**.  We are going to set up a root folder /toolkit, and work out of that.  The cross-compile system uses chroot to build inside a subfolder of that.  
+We use docker to cross-compile MEGAcmd for Synology. To build for a specific platform, run:
+```
+docker build -t megacmd-dms-build-env -f $PWD/build/SynologyNAS/synology-cross-build.dockerfile $PWD --build-arg PLATFORM=<platform>
+```
+The `-t` argument tags the container with a name, whereas `-f` specifies the dockerfile. Note that the working directory has to be the MEGAcmd repository.
 
-Copy this folder tree into /toolkit  
-`cp -r ...git.../MEGAcmd/build/SynologyNAS/toolkit /`  
-`cd /toolkit`  
-  
-Copy the MEGACmd folder (and sdk subfolder) into it also.  The sdk should already be in the 'sdk' subfolder of MEGAcmd  
-`cp -r ...git.../MEGAcmd /toolkit/source/MEGAcmd/`  
-  
-Get the Synology scripts  
-`git clone https://github.com/SynologyOpenSource/pkgscripts-ng`  
+The possible platforms are:
+```
+alpine alpine4k apollolake armada37xx armada38x avoton broadwell broadwellnk broadwellnkv2 broadwellntbap bromolow braswell denverton epyc7002 geminilake grantley kvmx64 monaco purley r1000 rtd1296 rtd1619b v1000
+```
 
-Download and install the cross-compile build enviroment for one or many targets.  Using armada38x here for the platform, as that's the chip for a DS218j NAS which was tested first.  6.1 is the NAS OS version.  
-`./pkgscripts-ng/EnvDeploy -v 6.1 -p armada38x`  
-  
-Adjust the package details, including version number.  Adjust OS version in 'depends' if building for a later OS than 6.1  
-`vi ./source/MEGAcmd/INFO.sh`  
-`vi ./source/MEGAcmd/SynoBuildConf/depends`  
-  
-Run the build process  
-`./pkgscripts-ng/PkgCreate.py MEGAcmd`  
-Results can now be seen in /toolkit/build_env/ds.armada38x-6.1/source/MEGAcmd/MEGAcmd  
-  
-Package up the executables and scripts, provided the build actually succeeded (though it may say it failed even though we force 'exit 0' from the build script)  
-For official releases we may sign with an RSA key at this point, but were we are skipping signing with -S  
-`./pkgscripts-ng/PkgCreate.py -i -S MEGAcmd`  
-Package is now available at /toolkit/build_env/ds.armada38x-6.1/image/packages/  
-Install on your NAS from its web browser interface, Package Manager, Manual Install button which lets you choose a local file  
-  
-To actually run it, you'll need to enable telnet connections in the Synology NAS, then telnet to it.   PuTTY works nicely for this.  
-Executables are available at /volume1/@appstore/MEGAcmd/usr/local/bin   
-If you want to make a clean build after making changes inside /toolkit/source, then get rid of this (substitute the platform appropriately), and re-run EnvDeploy:  
-`rm -rf /toolkit/build_env/ds.armada38x-6.1`  
-  
+After building successfully, we need to run the container so we can extract the generated package. To do so, run:
+```
+docker run -d --name megacmd-dms megacmd-dms-build-env
+```
+Then, copy the package folder to the current directory with:
+```
+docker cp megacmd-dms:/image/<platform> .
+```
+After copying, we can stop and remove the container if needed:
+```
+docker rm -f megacmd-dms
+```
+
+The script `build/SynologyNAS/generate_pkg.sh` automates all of these steps, creating the necessary docker container, extracting the package from it, and deleting it afterwards. In this case, the package will be extracted to `build/SynologyNAS/packages`.
+
+To install the package on your NAS device, login using the web interface. Navigate to the Package Manager, and click Manual Install. This will open up a menu which lets you choose a local file. Select your generated .pkg file, and install.
+
+To actually run MEGAcmd, you'll need to enable a telnet or SSH connection in the Synology NAS, and run a remote terminal on it. Executables are available at `/volume1/@appstore/megacmdpkg`.
+
 # Notes
 
 **Writable Home Directory**
