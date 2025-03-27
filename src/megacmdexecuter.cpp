@@ -2660,19 +2660,23 @@ int MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
         for (auto &vc : Instance<ConfiguratorMegaApiHelper>::Get().getConfigurators())
         {
             auto name = vc.mKey.c_str();
-            auto &setter = vc.mSetter;
-            auto &getter = vc.mGetter;
-
-            auto newValueOpt = getter(name);
+            auto newValueOpt = vc.mGetter(name);
             if (newValueOpt)
             {
-                if (!setter(api, std::string(name), *newValueOpt))
+                if (vc.mValidator && !vc.mValidator.value()(newValueOpt->data()))
                 {
-                    LOG_err << "Failed to change " << vc.mDescription;
+                    LOG_err << "Failed to change " << vc.mKey << " (" << vc.mDescription << ") after login. Invalid value in configuration";
+                    continue;
+                }
+
+                auto previousErrorCode = getCurrentThreadOutCode();
+                if (!vc.mSetter(api, std::string(name), newValueOpt->data()))
+                {
+                    LOG_err << "Failed to change " << vc.mKey << " (" << vc.mDescription << ") after login. Setting failed";
+                    setCurrentThreadOutCode(previousErrorCode); //Do not consider this a a failure on login ...
                 }
             }
         }
-
 
         api->useHttpsOnly(ConfigurationManager::getConfigurationValue("https", false));
         api->disableGfxFeatures(!ConfigurationManager::getConfigurationValue("graphics", true));
@@ -8016,28 +8020,59 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             value= words[2];
         }
 
+        bool found = false;
+
         for (auto &vc : Instance<ConfiguratorMegaApiHelper>::Get().getConfigurators())
         {
             auto name = vc.mKey.c_str();
-            auto &setter = vc.mSetter;
-            auto &getter = vc.mGetter;
-
             if (key && *key != name) continue;
+
+            found = true;
 
             if (value)
             {
-                if (!setter(api, std::string(name), std::string(*value)))
+                if (vc.mValidator && !vc.mValidator.value()(value->data()))
                 {
+                    LOG_err << "Failed to set " << vc.mKey << " (" << vc.mDescription << "). Invalid value";
+                    setCurrentThreadOutCode(MCMD_EARGS);
+                    return;
+                }
+
+                if (!vc.mSetter(api, std::string(name), value->data()))
+                {
+                    if (getCurrentThreadOutCode() == MCMD_OK) // presuming error would be logged otherwise
+                    {
+                        LOG_err << "Failed to set " << vc.mKey << " (" << vc.mDescription << "). Setting failed";
+                        setCurrentThreadOutCode(MCMD_EARGS);
+                    }
                     return;
                 }
                 ConfigurationManager::saveProperty(name, value->data());
             }
 
+            auto &getter = vc.mMegaApiGetter ? *vc.mMegaApiGetter : vc.mGetter;
+
             auto newValueOpt = getter(name);
             if (newValueOpt)
             {
                 OUTSTREAM << name << " = " << *newValueOpt << std::endl;
+                if (value && *value != *newValueOpt)
+                {
+                    LOG_warn << "Setting " << vc.mKey << " resulted in a value different than the one intended. " << *value <<
+                                " vs " << *newValueOpt;
+                }
             }
+            else if (key)
+            {
+                LOG_err << "Configuration value is unset: " << *key;
+                setCurrentThreadOutCode(MCMD_NOTFOUND);
+            }
+        }
+
+        if (!found)
+        {
+            LOG_err << "Provided configuration key does not exist: " << *key;
+            setCurrentThreadOutCode(MCMD_EARGS);
         }
     }
     else if (words[0] == "cancel")

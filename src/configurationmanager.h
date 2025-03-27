@@ -297,17 +297,28 @@ public:
 class ConfiguratorMegaApiHelper
 {
     struct ValueConfigurator {
-        using Setter = std::function<bool(::mega::MegaApi *api, const std::string &name, const std::string &value)>;
+        using Setter = std::function<bool(::mega::MegaApi *api, const std::string &name, const char *value)>;
         using Getter = std::function<std::optional<std::string>(const char *)>;
+        using Validator = std::function<bool(const char *)>;
+
         std::string mKey;
         std::string mDescription;
         Setter mSetter;
         Getter mGetter;
+        std::optional<Getter> mMegaApiGetter;
+        std::optional<Validator> mValidator;
 
-        template <typename S, typename G>
-        ValueConfigurator(const char *key, const char *description, S &&setter, G &getter)
-            : mKey(key), mDescription(description), mSetter(setter), mGetter(getter)
+        template <typename S, typename G, typename MG, typename V>
+        ValueConfigurator(const char *key, const char *description, S &&setter, G &&getter, MG &&megaApiGetter,  V &&validator)
+            : mKey(key)
+            , mDescription(description)
+            , mSetter(std::forward<S>(setter))
+            , mGetter(std::forward<G>(getter))
+            , mMegaApiGetter(std::forward<MG>(megaApiGetter))
+            , mValidator(std::forward<V>(validator))
         {
+            assert(mSetter != nullptr);
+            assert(mGetter != nullptr);
         }
     };
 

@@ -919,13 +919,13 @@ void ConfigurationManager::clearConfigurationFile()
 
 ConfiguratorMegaApiHelper::ConfiguratorMegaApiHelper()
 {
-    auto configSetterSyncULL = [this](auto cb)
+    auto configSetterSyncULLCb = [this](auto cb)
     {
-        return [this, cb](MegaApi *api, const std::string &/*name*/, const std::string &value)
+        return [this, cb](MegaApi *api, const std::string &/*name*/, const char *value)
         {
             try
             {
-                std::invoke(cb, *api, std::stoull(value));
+                return cb(api, std::stoull(value));
             }
             catch(...)
             {
@@ -934,9 +934,42 @@ ConfiguratorMegaApiHelper::ConfiguratorMegaApiHelper()
             return true;
         };
     };
+
     auto confGetter = [](const char *key){ return  ConfigurationManager::getConfigurationValueOpt<std::string>(key); };
 
-    mConfigurators.emplace_back("max_nodes_in_cache", "max nodes loaded in memory", configSetterSyncULL(&MegaApi::setLRUCacheSize), confGetter);
+    auto validatorULL = [](std::optional<unsigned long long> minOpt = {}, std::optional<unsigned long long> maxOpt = {})
+    {
+        return [minOpt, maxOpt](const char *value){
+            if (value && value[0] == '-')
+            {
+                return false;
+            }
+
+            try
+            {
+                auto v = std::stoull(value);
+                if (maxOpt && v > *maxOpt)
+                {
+                    return false;
+                }
+                if (minOpt && v < *minOpt)
+                {
+                    return false;
+                }
+                return true;
+            }
+            catch (...)
+            {
+                return false;
+            }
+        };
+    };
+
+    mConfigurators.emplace_back("max_nodes_in_cache", "max nodes loaded in memory",
+                                configSetterSyncULLCb([](MegaApi *api, auto value){ api->setLRUCacheSize(value); return true; }),
+                                confGetter,
+                                std::nullopt/*megaApiGetter*/,
+                                validatorULL());
 }
 
 const std::vector<ConfiguratorMegaApiHelper::ValueConfigurator> & ConfiguratorMegaApiHelper::getConfigurators()
