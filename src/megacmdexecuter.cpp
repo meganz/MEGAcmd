@@ -1915,10 +1915,6 @@ bool MegaCmdExecuter::TestCanWriteOnContainingFolder(const string& path)
     {
         containingFolder = containingFolder.parentPath();
     }
-    else
-    {
-        containingFolder = LocalPath::fromAbsolutePath(".");
-    }
 
     std::unique_ptr<FileAccess> fa = fsAccessCMD->newfileaccess();
     if (!fa->isfolder(containingFolder))
