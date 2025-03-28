@@ -248,6 +248,7 @@ Verbosity: You can increase the amount of information given by any command by pa
 * [`cat`](contrib/docs/commands/cat.md)`remotepath1 remotepath2 ...` Prints the contents of remote files
 * [`clear`](contrib/docs/commands/clear.md) Clear screen
 * [`codepage`](contrib/docs/commands/codepage.md)`[N [M]]` Switches the codepage used to decide which characters show on-screen.
+* [`configure`](contrib/docs/commands/configure.md)`[key [value]]` Shows and modifies global configurations.
 * [`confirmcancel`](contrib/docs/commands/confirmcancel.md)`link password` Confirms the cancellation of your MEGA account
 * [`debug`](contrib/docs/commands/debug.md) Enters debugging mode (HIGHLY VERBOSE)
 * [`deleteversions`](contrib/docs/commands/deleteversions.md)`[-f] (--all | remotepath1 remotepath2 ...)  [--use-pcre]` Deletes previous versions.
