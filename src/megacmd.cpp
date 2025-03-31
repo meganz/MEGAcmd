@@ -5435,11 +5435,11 @@ int executeServer(int argc, char* argv[],
     }
 
     // Establish the logger
-    SimpleLogger::setLogLevel(logMax); // do not filter anything here, log level checking is done by loggerCMD
+    MegaApi::setLogLevel(MegaApi::LOG_LEVEL_MAX);
+
     loggerCMD = new MegaCmdSimpleLogger(logConfig.mLogToCout, logConfig.mSdkLogLevel, logConfig.mCmdLogLevel);
 
     MegaApi::addLoggerObject(loggerCMD);
-    MegaApi::setLogLevel(MegaApi::LOG_LEVEL_MAX);
 
     char userAgent[40];
     sprintf(userAgent, "MEGAcmd" MEGACMD_STRINGIZE(MEGACMD_USERAGENT_SUFFIX) "/%d.%d.%d.%d", MEGACMD_MAJOR_VERSION,MEGACMD_MINOR_VERSION,MEGACMD_MICRO_VERSION,MEGACMD_BUILD_ID);
