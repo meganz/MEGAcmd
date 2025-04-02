@@ -16,17 +16,10 @@
         "use-freeimage": {
             "description": "FreeImage library",
             "dependencies": [
-                {
-                    "name": "freeimage",
-                    "version>=" : "3.18.0#27"
-                },
+                "freeimage",
                 {
                     "name": "jasper",
                     "default-features": false
-                },
-                {
-                    "name": "tiff",
-                    "version>=": "4.7.0"
                 }
             ]
         },
@@ -35,7 +28,6 @@
             "dependencies": [
                 {
                     "name": "ffmpeg",
-                    "version>=": "5.1.2#10",
                     "default-features": false,
                     "features": ["avcodec", "avformat", "swresample", "swscale"]
                 }
@@ -63,23 +55,14 @@
         }
     },
     "dependencies": [
-        {
-            "name": "cryptopp",
-            "version>=": "8.9.0"
-        },
-        {
-            "name": "curl",
-            "version>=": "8.6.0"
-        },
+        "cryptopp",
+        "curl",
         "icu",
         "libsodium",
-        {
-            "name": "sqlite3",
-            "version>=": "3.46.0#1"
-        },
+        "sqlite3",
         "pcre"
     ],
-    "builtin-baseline" : "6f29f12e82a8293156836ad81cc9bf5af41fe836",
+    "builtin-baseline" : "d5ec528843d29e3a52d745a64b469f810b2cedbf",
     "overrides": [
         {
             "name" : "libuv",
