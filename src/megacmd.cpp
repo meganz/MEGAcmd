@@ -642,8 +642,8 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     }
     else if ("sync-config" == thecommand)
     {
-        validOptValues->insert("delayed-uploads-wait-seconds");
-        validOptValues->insert("delayed-uploads-max-attempts");
+        validParams->insert("delayed-uploads-wait-seconds");
+        validParams->insert("delayed-uploads-max-attempts");
     }
     else if ("configure" == thecommand)
     {
@@ -1817,7 +1817,7 @@ const char * getUsageStr(const char *command, const HelpFlags& flags)
     }
     if (!strcmp(command, "sync-config"))
     {
-        return "sync-config [--delayed-uploads-wait-seconds=waitsecs | --delayed-uploads-max-attempts=attempts]";
+        return "sync-config [--delayed-uploads-wait-seconds | --delayed-uploads-max-attempts]";
     }
     if (!strcmp(command, "configure"))
     {
@@ -2630,7 +2630,7 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << "If local and remote paths are provided, it will start synchronizing a local folder into a remote folder." << endl;
         os << "If an ID/local path is provided, it will list such synchronization unless an option is specified." << endl;
         os << endl;
-        os << "Note: use the \"sync-config\" command to show and modify global sync configuration." << endl;
+        os << "Note: use the \"sync-config\" command to show global sync configuration." << endl;
         os << endl;
         os << "Options:" << endl;
         os << " -d | --delete" << " " << "ID|localpath" << "\t" << "deletes a synchronization (not the files)." << endl;
@@ -2743,25 +2743,15 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
     }
     else if (!strcmp(command, "sync-config"))
     {
-        auto duLimits = GlobalSyncConfig::DelayedUploads::getCurrentLimits(*api);
-
-        os << "Shows and modifies global sync configuration." << endl;
+        os << "Controls sync configuration." << endl;
         os << endl;
-        os << "Displays current configuration if no options are provided. Configuration values are persisted across restarts." << endl;
+        os << "Displays current configuration." << endl;
         os << endl;
-        os << "New uploads for files that change frequently in syncs will be delayed until a wait time passes." << endl;
+        os << "New uploads for files that change frequently in syncs may be delayed until a wait time passes to avoid wastes of computational resources." << endl;
+        os << " Delay times and number of changes may change overtime" << endl;
         os << "Options:" << endl;
-        os << " --delayed-uploads-wait-seconds   Sets the seconds to be waited before a file that's being delayed is uploaded again. Default is 30 minutes (1800 seconds)." << endl;
-        if (duLimits)
-        {
-        os << "                                  Note: wait seconds must be between " << duLimits->mLower.mWaitSecs << " and " << duLimits->mUpper.mWaitSecs << " (inclusive)." << endl;
-        }
-
-        os << " --delayed-uploads-max-attempts   Sets the max number of times a file can change in quick succession before it starts to get delayed. Default is 2." << endl;
-        if (duLimits)
-        {
-        os << "                                  Note: max attempts must be between " << duLimits->mLower.mMaxAttempts << " and " << duLimits->mUpper.mMaxAttempts << " (inclusive)." << endl;
-        }
+        os << " --delayed-uploads-wait-seconds   Shows the seconds to be waited before a file that's being delayed is uploaded again." << endl;
+        os << " --delayed-uploads-max-attempts   Shows the max number of times a file can change in quick succession before it starts to get delayed." << endl;
     }
     else if (!strcmp(command, "configure"))
     {

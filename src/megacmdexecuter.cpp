@@ -7862,7 +7862,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             {
                 OUTSTREAM << endl;
                 OUTSTREAM << "Some of your \"Pending\" sync uploads are being delayed due to very frequent changes. They will be uploaded once the delay finishes. "
-                          << "Use the \"" << getCommandPrefixBasedOnMode() << "sync-config\" command to configure the upload delay." << endl;
+                          << "Use the \"" << getCommandPrefixBasedOnMode() << "sync-config\" command to show the upload delay." << endl;
             }
         }
         else
@@ -7968,10 +7968,11 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             return;
         }
 
-        auto duWaitSecsOpt = getIntOptional(*cloptions, "delayed-uploads-wait-seconds");
-        auto duMaxAttemptsOpt = getIntOptional(*cloptions, "delayed-uploads-max-attempts");
+        auto duWaitSecsOpt = getFlag(clflags, "delayed-uploads-wait-seconds");
+        auto duMaxAttemptsOpt = getFlag(clflags, "delayed-uploads-max-attempts");
 
-        if (!duWaitSecsOpt && !duMaxAttemptsOpt)
+        bool all = !duWaitSecsOpt && !duMaxAttemptsOpt;
+
         {
             auto duConfigOpt = DelayedUploads::getCurrentConfig(*api);
             if (!duConfigOpt)
@@ -7981,19 +7982,15 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             }
 
             DelayedUploads::Config duConfig = *duConfigOpt;
-            OUTSTREAM << "Delayed uploads wait time: " << duConfig.mWaitSecs << " seconds" << endl;
-            OUTSTREAM << "Max attempts until uploads are delayed: " << duConfig.mMaxAttempts << endl;
+            if (all || duWaitSecsOpt)
+            {
+                OUTSTREAM << "Delayed uploads wait time: " << duConfig.mWaitSecs << " seconds" << endl;
+            }
+            if (all || duMaxAttemptsOpt)
+            {
+                OUTSTREAM << "Max attempts until uploads are delayed: " << duConfig.mMaxAttempts << endl;
+            }
             return;
-        }
-
-        if (duWaitSecsOpt)
-        {
-            DelayedUploads::updateWaitSecs(*api, *duWaitSecsOpt);
-        }
-
-        if (duMaxAttemptsOpt)
-        {
-            DelayedUploads::updateMaxAttempts(*api, *duMaxAttemptsOpt);
         }
     }
 #endif

@@ -394,6 +394,7 @@ std::optional<Config> makeApiRequest(RequestFunc&& requestFunc)
 
     if (error->getErrorCode() != mega::MegaError::API_OK)
     {
+        setCurrentThreadOutCode(error->getErrorCode());
         return std::nullopt;
     }
 
