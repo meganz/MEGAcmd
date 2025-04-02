@@ -224,7 +224,7 @@ Verbosity: You can increase the amount of information given by any command by pa
 * [`sync`](contrib/docs/commands/sync.md)`[localpath dstremotepath| [-dpe] [ID|localpath]` Controls synchronizations.
 * [`sync-issues`](contrib/docs/commands/sync-issues.md)`[[--detail (ID|--all)] [--limit=rowcount] [--disable-path-collapse]] | [--enable-warning|--disable-warning]` Show all issues with current syncs
 * [`sync-ignore`](contrib/docs/commands/sync-ignore.md)`[--show|[--add|--add-exclusion|--remove|--remove-exclusion] filter1 filter2 ...] (ID|localpath|DEFAULT)` Manages ignore filters for syncs
-* [`sync-config`](contrib/docs/commands/sync-config.md)`[--delayed-uploads-wait-seconds=waitsecs | --delayed-uploads-max-attempts=attempts]` Shows and modifies global sync configuration.
+* [`sync-config`](contrib/docs/commands/sync-config.md)`[--delayed-uploads-wait-seconds | --delayed-uploads-max-attempts]` Controls sync configuration.
 * [`exclude`](contrib/docs/commands/exclude.md)`[(-a|-d) pattern1 pattern2 pattern3]` Manages default exclusion rules in syncs.
 * [`backup`](contrib/docs/commands/backup.md)`(localpath remotepath --period="PERIODSTRING" --num-backups=N  | [-lhda] [TAG|localpath] [--period="PERIODSTRING"] [--num-backups=N]) [--time-format=FORMAT]` Controls backups
 

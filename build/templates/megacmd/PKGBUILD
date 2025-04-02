@@ -49,6 +49,13 @@ prepare() {
 	if [ -f /opt/vcpkg.tar.gz ]; then
 		tar xzf /opt/vcpkg.tar.gz
 	fi
+
+	if [ -f /opt/cmake.tar.gz ]; then
+		echo "8514fe0197f534eef079097c774c221a  /opt/cmake.tar.gz" | md5sum -c - || exit 1
+		rm -rf cmake_inst cmake-*-linux*
+		tar xzf /opt/cmake.tar.gz
+		ln -s cmake-*-linux* cmake_inst
+	fi
 }
 
 build() {
@@ -62,6 +69,10 @@ build() {
 		export VCPKG_DEFAULT_BINARY_CACHE=/opt/persistent/vcpkg_cache
 		mkdir -p ${VCPKG_DEFAULT_BINARY_CACHE}
 		vcpkg_root="-DVCPKG_ROOT=${megasrcdir}/vcpkg"
+	fi
+
+	if [ -f /opt/cmake.tar.gz ]; then
+		export PATH="${PWD}/cmake_inst/bin:$PATH"
 	fi
 
 	cmake --version
@@ -81,5 +92,9 @@ package() {
 	megasrcdir="${srcdir}/${pkgname}-${pkgver}"
 	megabuilddir="${megasrcdir}/build_dir"
 
+	if [ -f /opt/cmake.tar.gz ]; then
+		export PATH="${PWD}/cmake_inst/bin:$PATH"
+	fi
+	
 	cmake --install "${megabuilddir}" --prefix $pkgdir
 }
