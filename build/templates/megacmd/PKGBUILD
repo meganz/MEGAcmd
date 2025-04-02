@@ -52,9 +52,9 @@ prepare() {
 
 	if [ -f /opt/cmake.tar.gz ]; then
 		echo "8514fe0197f534eef079097c774c221a  /opt/cmake.tar.gz" | md5sum -c - || exit 1
-		rm -rf cmake_inst cmake-*-Linux*
+		rm -rf cmake_inst cmake-*-linux*
 		tar xzf /opt/cmake.tar.gz
-		ln -s cmake-*-Linux* cmake_inst
+		ln -s cmake-*-linux* cmake_inst
 	fi
 }
 
