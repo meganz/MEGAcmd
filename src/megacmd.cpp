@@ -647,7 +647,6 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     }
     else if ("configure" == thecommand)
     {
-
     }
     else if ("export" == thecommand)
     {

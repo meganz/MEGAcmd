@@ -95,6 +95,6 @@ package() {
 	if [ -f /opt/cmake.tar.gz ]; then
 		export PATH="${PWD}/cmake_inst/bin:$PATH"
 	fi
-	
+
 	cmake --install "${megabuilddir}" --prefix $pkgdir
 }
