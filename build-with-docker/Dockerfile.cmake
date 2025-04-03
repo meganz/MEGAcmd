@@ -23,7 +23,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     && apt-get install -y --no-install-recommends \
     ccache jq \
     cmake zip pkg-config curl python3 autoconf-archive nasm libgtest-dev libgmock-dev git g++ make unzip autoconf  ca-certificates automake ninja-build \
-    libfuse-dev
+    libfuse-dev libtool
 
 COPY vcpkg.json ./vcpkg.json
 COPY build/clone_vcpkg_from_baseline.sh ./clone_vcpkg_from_baseline.sh

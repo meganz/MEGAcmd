@@ -162,6 +162,18 @@ public:
     }
 
     template <typename T>
+    static std::optional<T> getConfigurationValueOpt(std::string propertyName)
+    {
+        std::string propValue = getConfigurationSValue(propertyName);
+        if (!propValue.size()) return {};
+
+        T i;
+        std::istringstream is(propValue);
+        is >> i;
+        return i;
+    }
+
+    template <typename T>
     static std::list<T> getConfigurationValueList(std::string propertyName, char separator = ';')
     {
         std::list<T> toret;
@@ -280,6 +292,40 @@ public:
     static void unloadConfiguration();
 
     static void migrateSyncConfig(mega::MegaApi *api);
+};
+
+class ConfiguratorMegaApiHelper
+{
+    struct ValueConfigurator {
+        using Setter = std::function<bool(::mega::MegaApi *api, const std::string &name, const char *value)>;
+        using Getter = std::function<std::optional<std::string>(::mega::MegaApi *api, const char *)>;
+        using Validator = std::function<bool(const char *)>;
+
+        std::string mKey;
+        std::string mDescription;
+        Setter mSetter;
+        Getter mGetter;
+        std::optional<Getter> mMegaApiGetter;
+        std::optional<Validator> mValidator;
+
+        template <typename S, typename G, typename MG, typename V>
+        ValueConfigurator(const char *key, const char *description, S &&setter, G &&getter, MG &&megaApiGetter,  V &&validator)
+            : mKey(key)
+            , mDescription(description)
+            , mSetter(std::forward<S>(setter))
+            , mGetter(std::forward<G>(getter))
+            , mMegaApiGetter(std::forward<MG>(megaApiGetter))
+            , mValidator(std::forward<V>(validator))
+        {
+            assert(mSetter != nullptr);
+            assert(mGetter != nullptr);
+        }
+    };
+
+    std::vector<ValueConfigurator> mConfigurators;
+public:
+    const std::vector<ValueConfigurator> & getConfigurators();
+    ConfiguratorMegaApiHelper();
 };
 
 }//end namespace

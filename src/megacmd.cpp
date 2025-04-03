@@ -645,6 +645,9 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
         validParams->insert("delayed-uploads-wait-seconds");
         validParams->insert("delayed-uploads-max-attempts");
     }
+    else if ("configure" == thecommand)
+    {
+    }
     else if ("export" == thecommand)
     {
         validParams->insert("a");
@@ -1221,6 +1224,20 @@ char* transfertags_completion(const char* text, int state)
     }
     return generic_completion(text, state, validtransfertags);
 }
+
+char* config_completion(const char* text, int state)
+{
+    static vector<string> validkeys = [](){
+        static vector<string> keys;
+        for (auto &vc : Instance<ConfiguratorMegaApiHelper>::Get().getConfigurators())
+        {
+            keys.push_back(vc.mKey);
+        }
+        return keys;
+    }();
+    return generic_completion(text, state, validkeys);
+}
+
 char* contacts_completion(const char* text, int state)
 {
     static vector<string> validcontacts;
@@ -1439,6 +1456,13 @@ completionfunction_t *getCompletionFunction(vector<string> words)
         if (currentparameter == 1)
         {
             return transfertags_completion;
+        }
+    }
+    else if (thecommand == "configure")
+    {
+        if (currentparameter == 1)
+        {
+            return config_completion;
         }
     }
     return empty_completion;
@@ -1794,6 +1818,10 @@ const char * getUsageStr(const char *command, const HelpFlags& flags)
     {
         return "sync-config [--delayed-uploads-wait-seconds | --delayed-uploads-max-attempts]";
     }
+    if (!strcmp(command, "configure"))
+    {
+        return "configure [key [value]]";
+    }
     if (!strcmp(command, "backup"))
     {
         return "backup (localpath remotepath --period=\"PERIODSTRING\" --num-backups=N  | [-lhda] [TAG|localpath] [--period=\"PERIODSTRING\"] [--num-backups=N]) [--time-format=FORMAT]";
@@ -2030,6 +2058,12 @@ const char * getUsageStr(const char *command, const HelpFlags& flags)
     {
         return "fuse-config [--name=name] [--enable-at-startup=yes|no] [--persistent=yes|no] [--read-only=yes|no] (name|localPath)";
     }
+#if defined(DEBUG) || defined(MEGACMD_TESTING_CODE)
+    else if (!strcmp(command, "echo"))
+    {
+        return "echo [--log-as-err]";
+    }
+#endif
 
     return "command not found: ";
 }
@@ -2717,6 +2751,20 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << "Options:" << endl;
         os << " --delayed-uploads-wait-seconds   Shows the seconds to be waited before a file that's being delayed is uploaded again." << endl;
         os << " --delayed-uploads-max-attempts   Shows the max number of times a file can change in quick succession before it starts to get delayed." << endl;
+    }
+    else if (!strcmp(command, "configure"))
+    {
+        os << "Shows and modifies global configurations." << endl;
+        os << endl;
+        os << "If no keys are provided, it will list all configuration keys and values." << endl;
+        os << "If a key is provided, but no value given, it will only show the value of such key." << endl;
+        os << "If a key and value are provided, it will set the value of that key." << endl;
+        os << endl;
+        os << "Possible keys:" << endl;
+        for (auto &vc : Instance<ConfiguratorMegaApiHelper>::Get().getConfigurators())
+        {
+            os << " " << getFixLengthString(vc.mKey, 25) << " " << vc.mDescription << endl;
+        }
     }
     else if (!strcmp(command, "backup"))
     {
@@ -5330,6 +5378,7 @@ int executeServer(int argc, char* argv[],
 {
     // Own global server instances here
     Instance<DefaultLoggedStream> sDefaultLoggedStream;
+    Instance<ConfiguratorMegaApiHelper> sConfiguratorHelper;
 
 #ifdef __linux__
     // Ensure interesting signals are unblocked.

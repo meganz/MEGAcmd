@@ -50,6 +50,10 @@ class CommandTable:
 
         command_name = command_name.strip()
 
+        # Skip debug commands
+        if command_name == 'echo':
+            return
+
         self.command_summaries[command_name] = CommandSummary(
             name=command_name,
             args=args.strip(),
