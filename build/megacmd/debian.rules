@@ -28,7 +28,7 @@ build-stamp:
 		mkdir -p $(VCPKG_DEFAULT_BINARY_CACHE); \
 	fi
 
-	if [ -f /opt/cmake.tar.gz ]; then echo "8dc99be7ba94ad6e14256b049e396b40  /opt/cmake.tar.gz" | md5sum -c -; fi
+	if [ -f /opt/cmake.tar.gz ]; then echo "20bc14b37c4d51d4f7d143646c8fadc0  /opt/cmake.tar.gz" | md5sum -c -; fi
 	if [ -f /opt/cmake.tar.gz ]; then     \
 		tar xzf /opt/cmake.tar.gz;        \
 		ln -s cmake-*-Linux* cmake_inst;  \
