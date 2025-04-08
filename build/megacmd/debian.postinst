@@ -16,6 +16,8 @@ elif [[ $distro = "Raspbian GNU/Linux 9"* ]]; then
 elif [[ $distro = "Raspbian GNU/Linux 8"* ]]; then
     str="Raspbian_8.0"
 # Ubuntu
+elif [[ $ver = "25.04" ]]; then
+    str="xUbuntu_25.04"
 elif [[ $ver = "24.10" ]]; then
     str="xUbuntu_24.10"
 elif [[ $ver = "24.04" ]]; then
@@ -109,6 +111,8 @@ elif [[ $distro = "Linux Mint 21.2 Victoria" ]]; then
 elif [[ $distro = "Linux Mint 21.3 Virginia" ]]; then
     str="xUbuntu_22.04"
 elif [[ $distro = "Linux Mint 22 Wilma" ]]; then
+    str="xUbuntu_24.04"
+elif [[ $distro = "Linux Mint 22.1 Xia" ]]; then
     str="xUbuntu_24.04"
 # fallback to LTS version, unsupported
 else
