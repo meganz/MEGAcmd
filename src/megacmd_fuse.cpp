@@ -133,7 +133,9 @@ std::unique_ptr<MegaMount> createMount(const fs::path& localPath, MegaNode& node
     assert(mount != nullptr);
 
     mount->setHandle(node.getHandle());
-    mount->setPath(localPath.c_str());
+
+    const std::string localPathAsUtf8 = pathAsUtf8(localPath);
+    mount->setPath(localPathAsUtf8.c_str());
 
     MegaMountFlags* mountFlags = mount->getFlags();
     assert(mountFlags != nullptr);
