@@ -175,7 +175,7 @@ pipeline {
                             docker {
                                 image "meganz/megacmd-${BUILD_SYSTEM}-${SANITIZERS}:${env.BUILD_NUMBER}"
                                 reuseNode true
-                                args "--name megacmd-${BUILD_SYSTEM}-${SANITIZERS}-${env.BUILD_NUMBER}"
+                                args "--name megacmd-${BUILD_SYSTEM}-${SANITIZERS}-${env.BUILD_NUMBER} --cap-add SYS_ADMIN --device /dev/fuse --security-opt apparmor:unconfined"
                             }
                         }
                         options {
@@ -187,18 +187,21 @@ pipeline {
                             ASAN_OPTIONS="print_stats=1,log_path=${megacmd_sources_workspace}/test-dir-${SANITIZERS}/results/integration-asan-report.log"
                             TSAN_OPTIONS="log_path=${megacmd_sources_workspace}/test-dir-${SANITIZERS}/results/integration-tsan-report.log"
                             UBSAN_OPTIONS="log_path=${megacmd_sources_workspace}/test-dir-${SANITIZERS}/results/integration-ubsan-report.log"
+                            LSAN_OPTIONS="suppressions=${megacmd_sources_workspace}/test-dir-${SANITIZERS}/suppressed.txt"
                             HOME="${megacmd_sources_workspace}/test-dir-${SANITIZERS}"
                         }
                         steps {
                             lock(label: 'testing_accounts_megacmd', variable: 'MEGACMD_TEST_USER', quantity: 1, resource: null) {
                                 dir("test-dir-${SANITIZERS}") {
                                     sh """
+                                        # Suppress leaks in libfuse3
+                                        echo  'leak:libfuse3.so' >> ${megacmd_sources_workspace}/test-dir-${SANITIZERS}/suppressed.txt
+                                        echo  'leak:libfuse.so.2' >> ${megacmd_sources_workspace}/test-dir-${SANITIZERS}/suppressed.txt
                                         ulimit -c unlimited;
                                         # Execute with a timeout lower than Jenkins stage timeout, enforcing a SIGSEGV to ensure core dumping
                                         timeout -s 11 3500 /usr/bin/mega-cmd-tests-integration \
                                             --gtest_output=xml:${megacmd_sources_workspace}/test-dir-${SANITIZERS}/results/mega-cmd-tests-integration.xml \
                                             --gtest_shuffle \
-                                            --gtest_filter=-FuseTests.*
                                     """
                                 }
                             }
