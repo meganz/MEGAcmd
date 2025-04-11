@@ -128,9 +128,8 @@ std::deque<std::string> greetingsFirstClientMsgs; // to be given on first client
 std::deque<std::string> greetingsAllClientMsgs; // to be given on all clients when registering as state listener
 
 
-std::deque<std::string> delayedBroadCastMessages; // messages to be brodcasted in a while
 std::mutex delayedBroadcastMutex;
-bool broadcastingDelayedMsgs = false;
+std::deque<std::string> delayedBroadCastMessages; // messages to be brodcasted in a while
 
 //Comunications Manager
 ComunicationsManager * cm;
@@ -386,23 +385,28 @@ void removeGreetingMatching(const string &toMatch)
 
 void broadcastDelayedMessage(string message, bool keepIfNoListeners)
 {
+    static bool ongoing = false;
+
     std::lock_guard<std::mutex> g(delayedBroadcastMutex);
     delayedBroadCastMessages.push_back(message);
-    if (!broadcastingDelayedMsgs)
+    if (!ongoing)
     {
+        ongoing = true;
         std::thread([keepIfNoListeners]()
         {
-            broadcastingDelayedMsgs = true;
             sleepSeconds(4);
-            std::lock_guard<std::mutex> g(delayedBroadcastMutex);
-            while (delayedBroadCastMessages.size())
+            std::unique_lock<std::mutex> g(delayedBroadcastMutex);
+            while (!delayedBroadCastMessages.empty())
             {
-                auto msg = delayedBroadCastMessages.front();
+                auto msg = std::move(delayedBroadCastMessages.front());
                 delayedBroadCastMessages.pop_front();
+                g.unlock();
+                // Broadcast without mutex locked
                 broadcastMessage(msg, keepIfNoListeners);
+                g.lock();
             }
 
-            broadcastingDelayedMsgs = false;
+            ongoing = false;
         }).detach();
     }
 }
