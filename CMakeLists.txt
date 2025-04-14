@@ -10,8 +10,8 @@ execute_process(
 )
 
 set(MEGACMD_MAJOR_VERSION 2)
-set(MEGACMD_MINOR_VERSION 1)
-set(MEGACMD_MICRO_VERSION 1)
+set(MEGACMD_MINOR_VERSION 2)
+set(MEGACMD_MICRO_VERSION 0)
 
 ## Configure megacmdversion.h
 configure_file("${CMAKE_CURRENT_LIST_DIR}/src/megacmdversion.h.in" "${CMAKE_CURRENT_LIST_DIR}/src/megacmdversion.h" @ONLY)

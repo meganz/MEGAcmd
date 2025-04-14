@@ -1,3 +1,10 @@
+Mon Apr 14 17:24:49 CEST 2025 - linux@mega.co.nz
+- Update to version 2.2.0:
+  * FUSE (beta): Added fuse commands on Windows to allow your MEGA folders to be directly mounted to your local drive
+  * New command "configure" to allow setting max number of nodes in memory
+  * Other fixes and improvements to enhance reliability and performance
+
+-------------------------------------------------------------------
 Wed Apr 2 11:08:20 CEST 2025 - linux@mega.co.nz
 - Update to version 2.1.1:
   * FUSE (beta): Added fuse commands on Linux to allow your MEGA folders to be directly mounted to your local drive

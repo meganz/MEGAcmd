@@ -25,12 +25,8 @@
 namespace megacmd {
 
 const char * const megacmdchangelog =
-        "FUSE (beta): Added fuse commands on Linux to allow your MEGA folders to be directly mounted to your local drive""\n"
-        "Delayed sync uploads: Introduced a mechanism to delay to frequently changed sync uploads, and the sync-config command""\n"
-        "Logging: Messages are now printed in standard error, the rotating logger is now configurable and more verbose by default, passwords are now redacted from the logs, and other fixes and refinements""\n"
-        "Fixed a crash when auto-completing a local folder that doesn't exist""\n"
-        "Fixed the confirmcancel command incorrectly reporting failure on success""\n"
-        "Extended speedlimit command to allow increasing max connections""\n"
+        "FUSE (beta): Added fuse commands on Windows to allow your MEGA folders to be directly mounted to your local drive""\n"
+        "New command \"configure\" to allow setting max number of nodes in memory""\n"
         "Other fixes and improvements to enhance reliability and performance"
         ;
 }//end namespace

@@ -1,3 +1,11 @@
+megacmd (2.2.0) stable; urgency=low
+
+  * FUSE (beta): Added fuse commands on Windows to allow your MEGA folders to be directly mounted to your local drive
+  * New command "configure" to allow setting max number of nodes in memory
+  * Other fixes and improvements to enhance reliability and performance
+
+ -- MEGA Team <linux@mega.co.nz>  Mon, 14 Apr 2025 17:24:49 +0200
+
 megacmd (2.1.1) stable; urgency=low
 
   * FUSE (beta): Added fuse commands on Linux to allow your MEGA folders to be directly mounted to your local drive
