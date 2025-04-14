@@ -3248,6 +3248,10 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << endl;
         os << "Parameters:" << endl;
         os << " localPath    Specifies where the files contained by remotePath should be visible on the local filesystem." << endl;
+        if (flags.win)
+        {
+        os << "               In Windows, localPath must not exist" << endl;
+        }
         os << " remotePath   Specifies what directory (or share) should be exposed on the local filesystem." << endl;
         os << endl;
         os << "Options:" << endl;
