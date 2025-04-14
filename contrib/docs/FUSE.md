@@ -6,7 +6,7 @@ Configuring a FUSE mount will let you access your MEGA files as if they were loc
 Note: this functionality is in beta, and not supported on macOS.
 
 ## Local cache
-MEGAcmd will use a cache to place files while working with mount points. This cache will be used to store both files downloaded from MEGA, and files being uploaded to MEGA. It will be created automatically in `$HOME/.megaCmd/fuse-cache`.
+MEGAcmd will use a cache to place files while working with mount points. This cache will be used to store both files downloaded from MEGA, and files being uploaded to MEGA. It will be created automatically in `$HOME/.megaCmd/fuse-cache` (`%LOCALAPPDATA%\MEGAcmd\.megaCmd\fuse-cache` in Windows).
 
 Bear in mind that this cache is fundamental to be able to work with FUSE mounts. Cache files are removed automatically. Restarting the MEGAcmd Server may help reduce the space used by the cache.
 
