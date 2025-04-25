@@ -2036,6 +2036,10 @@ const char * getUsageStr(const char *command, const HelpFlags& flags)
     }
     if ((flags.fuse || flags.showAll) && !strcmp(command, "fuse-add"))
     {
+        if (flags.win && !flags.showAll)
+        {
+            return "fuse-add [--name=name] [--disabled] [--transient] [--read-only] remotePath";
+        }
         return "fuse-add [--name=name] [--disabled] [--transient] [--read-only] localPath remotePath";
     }
     if ((flags.fuse || flags.showAll) && !strcmp(command, "fuse-remove"))
@@ -3247,8 +3251,11 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << "Use fuse-show to display the list of mounts." << endl;
         os << endl;
         os << "Parameters:" << endl;
-        os << " localPath    Specifies where the files contained by remotePath should be visible on the local filesystem." << endl;
-        if (flags.win)
+        if (!flags.win || getenv("MEGACMD_FUSE_ALLOW_LOCAL_PATHS"))
+        {
+            os << " localPath    [unix only] Specifies where the files contained by remotePath should be visible on the local filesystem." << endl;
+        }
+        if (flags.win && getenv("MEGACMD_FUSE_ALLOW_LOCAL_PATHS"))
         {
         os << "               In Windows, localPath must not exist" << endl;
         }
@@ -3272,8 +3279,6 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
     else if ((flags.fuse || flags.showAll) && !strcmp(command, "fuse-remove"))
     {
         os << "Deletes a specified FUSE mount." << endl;
-        os << endl;
-        os << "A mount must be disabled before it can be removed. See fuse-disable." << endl;
         os << endl;
         os << "Parameters:" << endl;
         os << FuseCommand::getIdentifierParameter() << endl;

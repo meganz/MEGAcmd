@@ -200,20 +200,25 @@ void addMount(mega::MegaApi& api, const fs::path& localPath, MegaNode& node, boo
 {
     const std::string nodePath = getNodePath(api, node);
 
-    auto mount = createMount(localPath, node, disabled, transient, readOnly, name);
+    auto mountToCreate = createMount(localPath, node, disabled, transient, readOnly, name);
     auto listener = std::make_unique<MegaCmdListener>(nullptr);
 
     {
         DisableMountErrorsBroadcastingGuard disableErrorBroadcasting;
-        api.addMount(mount.get(), listener.get());
+        api.addMount(mountToCreate.get(), listener.get());
         if (!checkNoErrors(listener.get(), getActionString("add", localPath, nodePath)))
         {
             return;
         }
     }
 
-    const std::string mountLocalPath = listener->getRequest()->getFile();
-    OUTSTREAM << "Added a new mount from \"" << mountLocalPath << "\" to \"" << nodePath << '"' << endl;
+
+    OUTSTREAM << "Added a new mount";
+    if (listener->getRequest()->getFile() && strlen(listener->getRequest()->getFile()))
+    {
+        OUTSTREAM << " from \"" << listener->getRequest()->getFile() << "\"";
+    }
+    OUTSTREAM << " to \"" << nodePath << '"' << endl;
 
     const bool isFirstMount = !ConfigurationManager::getConfigurationValue(sFirstMountConfigKey, false);
     if (isFirstMount)
@@ -230,16 +235,28 @@ void addMount(mega::MegaApi& api, const fs::path& localPath, MegaNode& node, boo
 
     if (!disabled)
     {
-        enableMount(api, *mount, transient);
+        enableMount(api, *mountToCreate, transient);
     }
 }
 
 void removeMount(mega::MegaApi& api, const mega::MegaMount& mount)
 {
-    auto listener = std::make_unique<MegaCmdListener>(nullptr);
-
     {
         DisableMountErrorsBroadcastingGuard disableErrorBroadcasting;
+
+        auto isEnabled = api.isMountEnabled(mount.getFlags()->getName());
+
+        if (isEnabled)
+        {
+            auto listener = std::make_unique<MegaCmdListener>(nullptr);
+            api.disableMount(mount.getFlags()->getName(), listener.get(), true /*remember*/);
+            if (!checkNoErrors(listener.get(), getActionString("disable before removing", mount)))
+            {
+                return;
+            }
+        }
+
+        auto listener = std::make_unique<MegaCmdListener>(nullptr);
         api.removeMount(mount.getFlags()->getName(), listener.get());
         if (!checkNoErrors(listener.get(), getActionString("remove", mount)))
         {
@@ -255,7 +272,6 @@ void enableMount(mega::MegaApi& api, const mega::MegaMount& mount, bool temporar
     auto listener = std::make_unique<MegaCmdListener>(nullptr);
     const bool remember = shouldRememberChange(mount, temporarily);
 
-
     {
         DisableMountErrorsBroadcastingGuard disableErrorBroadcasting;
         api.enableMount(mount.getFlags()->getName(), listener.get(), remember);
@@ -265,8 +281,17 @@ void enableMount(mega::MegaApi& api, const mega::MegaMount& mount, bool temporar
         }
     }
 
+    auto mountEnabled = getMountByNameOrPath(api, mount.getFlags()->getName());
+    if (!mountEnabled)
+    {
+        LOG_err << "Unable to get mount info after enabled";
+        setCurrentThreadOutCode(MCMD_NOTFOUND);
+        return;
+    }
+
+
     OUTSTREAM << (temporarily ? "Temporarily enabled" : "Enabled") << " mount "
-              << getMountId( mount) << " on \"" << mount.getPath() << '"' << endl;
+              << getMountId(*mountEnabled) << " on \"" << mountEnabled->getPath() << '"' << endl;
 }
 
 void disableMount(mega::MegaApi& api, const mega::MegaMount& mount, bool temporarily)
