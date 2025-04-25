@@ -9,7 +9,7 @@ Mounts are persisted after restarts and writable by default. You may change thes
 Use fuse-show to display the list of mounts.
 
 Parameters:
- localPath    Specifies where the files contained by remotePath should be visible on the local filesystem.
+ localPath    [unix only] Specifies where the files contained by remotePath should be visible on the local filesystem.
  remotePath   Specifies what directory (or share) should be exposed on the local filesystem.
 
 Options:
