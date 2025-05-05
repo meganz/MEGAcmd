@@ -10,7 +10,7 @@ pipeline {
         booleanParam(name: 'IS_RELEASE_CANDIDATE', defaultValue: false, description: 'Is it a Release Candidate?')
         string(name: 'RELEASE_CANDIDATE_NAME', defaultValue: '', description: 'i.e: RC2, RC3 (only needed if IS_RELEASE_CANDIDATE is true)')
         booleanParam(name: 'CUSTOM_BUILD', defaultValue: true, description: 'If true, will use DISTRO_TO_BUILD If false, will build all distributions')
-        choice(name: 'ARCH_TO_BUILD', choices: ['amd64', 'armhf'], description: 'Only used if CUSTOM_BUILD is true') 
+        choice(name: 'ARCH_TO_BUILD', choices: ['amd64', 'armhf','arm64'], description: 'Only used if CUSTOM_BUILD is true') 
         string(name: 'DISTRO_TO_BUILD', defaultValue: 'xUbuntu_22.04', description: 'Only used if CUSTOM_BUILD is true')
         string(name: 'MEGACMD_BRANCH', defaultValue: "${env.BRANCH_NAME}", description: 'Which version of MEGAcmd should we build? Default is current branch.')
         string(name: 'SDK_BRANCH', defaultValue: ' ', description: 'Optionally, define a custom SDK branch.')
@@ -83,7 +83,7 @@ pipeline {
                                         jf rt upload \
                                           --url $REPO_URL \
                                           --access-token $MEGACMD_ARTIFACTORY_TOKEN \
-                                          --regexp '((x86_64|amd64|i386)/megacmd.*deb\$|(x86_64|amd64|i386)/megacmd.*rpm\$|(x86_64|amd64|i386)/megacmd.*\\.pkg\\.tar\\.zst\$|(x86_64|amd64|i386)/megacmd.*\\.pkg\\.tar\\.xz\$)' \
+                                          --regexp '((x86_64|amd64|i386|arm64)/megacmd.*deb\$|(x86_64|amd64|i386|arm64)/megacmd.*rpm\$|(x86_64|amd64|i386|arm64)/megacmd.*\\.pkg\\.tar\\.zst\$|(x86_64|amd64|i386|arm64)/megacmd.*\\.pkg\\.tar\\.xz\$)' \
                                           MEGAcmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/linux/$DISTRO_TO_BUILD/
                                     """
                                 }
