@@ -132,14 +132,14 @@ pipeline {
                                     sh """
                                         jf rt del \
                                             --url ${REPO_URL} \
-                                            --access-token ${MEGACMD_ARTIFACTORY_TOKEN} \
+                                            --access-token \${MEGACMD_ARTIFACTORY_TOKEN} \
                                             MEGAcmd-sprints/${env.gitlabMergeRequestIid}/linux/$DISTRIBUTION
                                     """
                                     dir("/srv/repo/private/$DISTRIBUTION"){
                                         sh """
                                             jf rt upload \
                                                 --url ${REPO_URL} \
-                                                --access-token ${MEGACMD_ARTIFACTORY_TOKEN} \
+                                                --access-token \${MEGACMD_ARTIFACTORY_TOKEN} \
                                                 --regexp '(megacmd.*deb\$|megacmd.*rpm\$|megacmd.*\\.pkg\\.tar\\.zst\$|megacmd.*\\.pkg\\.tar\\.xz\$)' \
                                                 MEGAcmd-sprints/${env.gitlabMergeRequestIid}/linux/$DISTRIBUTION/
                                         """
