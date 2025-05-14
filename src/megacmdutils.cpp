@@ -182,6 +182,19 @@ const char * getErrorCodeStr(MegaError *e)
     return "NullError";
 }
 
+const char * getMountResultStr(int mountResult)
+{
+#ifdef WIN32
+    if (mountResult == mega::MegaMount::BACKEND_UNAVAILABLE)
+    {
+        return "WinFSP is not installed. It needs to be installed for the operation to succeed. You can get it "
+               "from https://github.com/winfsp/winfsp/releases/download/v2.0/winfsp-2.0.23075.msi";
+    }
+#endif
+
+    return MegaMount::getResultDescription(mountResult);
+}
+
 const char * getLogLevelStr(int loglevel)
 {
     switch (loglevel)
