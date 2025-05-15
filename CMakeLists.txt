@@ -461,12 +461,14 @@ elseif(NOT WIN32)
         DESTINATION "etc/bash_completion.d"
         )
 
-    # generate 100-megacmd-inotify-limit.conf file and have it installed
-    execute_process(COMMAND echo "fs.inotify.max_user_watches = 524288"
+    if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        # generate 100-megacmd-inotify-limit.conf file and have it installed
+        execute_process(COMMAND echo "fs.inotify.max_user_watches = 524288"
                 OUTPUT_FILE ${CMAKE_CURRENT_BINARY_DIR}/99-megacmd-inotify-limit.conf)
-    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/99-megacmd-inotify-limit.conf
-        DESTINATION "etc/sysctl.d"
-        )
+        install(FILES ${CMAKE_CURRENT_BINARY_DIR}/99-megacmd-inotify-limit.conf
+            DESTINATION "etc/sysctl.d"
+            )
+    endif()
 
     #Install vcpkg dynamic libraries in locations defined by GNUInstallDirs.
     if(CMAKE_BUILD_TYPE STREQUAL "Debug")
