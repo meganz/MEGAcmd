@@ -77,14 +77,20 @@ pipeline {
                     script{
                         if ( params.IS_RELEASE_CANDIDATE == true) {
                             def MEGACMD_VERSION = getVersionFromHeader("CMakeLists.txt")
+                            def ARCH_REGEX = (params.ARCH_TO_BUILD == 'amd64') ? 'x86_64|amd64' : params.ARCH_TO_BUILD
                             dir("${env.INTERNAL_REPO_PATH}/repo/private/$DISTRO_TO_BUILD") {
                                 withCredentials([string(credentialsId: 'MEGACMD_ARTIFACTORY_TOKEN', variable: 'MEGACMD_ARTIFACTORY_TOKEN')]) {
                                     sh """
-                                        jf rt upload \
-                                          --url $REPO_URL \
-                                          --access-token \$MEGACMD_ARTIFACTORY_TOKEN \
-                                          --regexp '((x86_64|amd64|i386|arm64)/megacmd.*deb\$|(x86_64|amd64|i386|arm64)/megacmd.*rpm\$|(x86_64|amd64|i386|arm64)/megacmd.*\\.pkg\\.tar\\.zst\$|(x86_64|amd64|i386|arm64)/megacmd.*\\.pkg\\.tar\\.xz\$)' \
-                                          MEGAcmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/linux/$DISTRO_TO_BUILD/
+                                    jf rt del \
+                                        --url ${REPO_URL} \
+                                        --access-token \$MEGACMD_ARTIFACTORY_TOKEN \
+                                        --quiet \
+                                        MEGAcmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/linux/$DISTRO_TO_BUILD/${params.ARCH_TO_BUILD}/*
+                                    jf rt upload \
+                                        --url $REPO_URL \
+                                        --access-token \$MEGACMD_ARTIFACTORY_TOKEN \
+                                        --regexp '(($ARCH_REGEX)/megacmd.*deb\$|($ARCH_REGEX)/megacmd.*rpm\$|($ARCH_REGEX)/megacmd.*\\.pkg\\.tar\\.zst\$|($ARCH_REGEX)/megacmd.*\\.pkg\\.tar\\.xz\$)' \
+                                        MEGAcmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/linux/$DISTRO_TO_BUILD/
                                     """
                                 }
                             }
@@ -161,10 +167,11 @@ pipeline {
                         steps {
                             dir(linux_sources_workspace) {
                                 script{
+                                    def ARCH_REGEX = (ARCHITECTURE == 'amd64') ? 'x86_64|amd64' : ARCHITECTURE
                                     def MEGACMD_VERSION = getVersionFromHeader("CMakeLists.txt")
                                     withCredentials([string(credentialsId: 'MEGACMD_ARTIFACTORY_TOKEN', variable: 'MEGACMD_ARTIFACTORY_TOKEN')]) {
                                         sh 'jf rt del --url $REPO_URL --access-token \$MEGACMD_ARTIFACTORY_TOKEN MEGAcmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/linux/$DISTRO'
-                                        sh "cd ${env.INTERNAL_REPO_PATH}/repo/private/$DISTRO && jf rt upload --url ${REPO_URL} --access-token \${MEGACMD_ARTIFACTORY_TOKEN} --regexp '((x86_64|amd64|i386|armhf)/megacmd.*deb\$|(x86_64|amd64|i386)/megacmd.*rpm\$|(x86_64|amd64|i386)/megacmd.*\\.pkg\\.tar\\.zst\$|(x86_64|amd64|i386)/megacmd.*\\.pkg\\.tar\\.xz\$)' MEGAcmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/linux/$DISTRO/"
+                                        sh "cd ${env.INTERNAL_REPO_PATH}/repo/private/$DISTRO && jf rt upload --url ${REPO_URL} --access-token \${MEGACMD_ARTIFACTORY_TOKEN} --regexp '(($ARCH_REGEX)/megacmd.*deb\$|($ARCH_REGEX)/megacmd.*rpm\$|($ARCH_REGEX)/megacmd.*\\.pkg\\.tar\\.zst\$|($ARCH_REGEX)/megacmd.*\\.pkg\\.tar\\.xz\$)' MEGAcmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/linux/$DISTRO/"
                                     }
                                     echo "Packages successfully uploaded. URL: [${env.REPO_URL}/MEGAcmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/linux/$DISTRO/]"
                                 }
