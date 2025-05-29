@@ -77,7 +77,17 @@ pipeline {
                     script{
                         if ( params.IS_RELEASE_CANDIDATE == true) {
                             def MEGACMD_VERSION = getVersionFromHeader("CMakeLists.txt")
-                            def ARCH_REGEX = (params.ARCH_TO_BUILD == 'amd64') ? 'x86_64|amd64' : params.ARCH_TO_BUILD
+                            def ARCH_REGEX
+                            switch (params.ARCH_TO_BUILD) {
+                                case 'amd64':
+                                    ARCH_REGEX = 'x86_64|amd64'
+                                    break
+                                case 'arm64':
+                                    ARCH_REGEX = 'aarch64|arm64'
+                                    break
+                                default:
+                                    ARCH_REGEX = params.ARCH_TO_BUILD
+                            }
                             dir("${env.INTERNAL_REPO_PATH}/repo/private/$DISTRO_TO_BUILD") {
                                 withCredentials([string(credentialsId: 'MEGACMD_ARTIFACTORY_TOKEN', variable: 'MEGACMD_ARTIFACTORY_TOKEN')]) {
                                     sh """
@@ -167,7 +177,18 @@ pipeline {
                         steps {
                             dir(linux_sources_workspace) {
                                 script{
-                                    def ARCH_REGEX = (ARCHITECTURE == 'amd64') ? 'x86_64|amd64' : ARCHITECTURE
+                                script{
+                                    def ARCH_REGEX
+                                    switch (ARCHITECTURE) {
+                                        case 'amd64':
+                                            ARCH_REGEX = 'x86_64|amd64'
+                                            break
+                                        case 'arm64':
+                                            ARCH_REGEX = 'aarch64|arm64'
+                                            break
+                                        default:
+                                            ARCH_REGEX = ARCHITECTURE
+                                    }
                                     def MEGACMD_VERSION = getVersionFromHeader("CMakeLists.txt")
                                     withCredentials([string(credentialsId: 'MEGACMD_ARTIFACTORY_TOKEN', variable: 'MEGACMD_ARTIFACTORY_TOKEN')]) {
                                         sh 'jf rt del --url $REPO_URL --access-token \$MEGACMD_ARTIFACTORY_TOKEN MEGAcmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/linux/$DISTRO'
