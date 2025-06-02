@@ -256,8 +256,8 @@ Function .onInit
 !endif
 
 
-${IfNot} ${AtLeastWin7}
-  MessageBox MB_OK "This MEGAcmd installer is for Windows 7 or above"
+${IfNot} ${AtLeastWin8}
+  MessageBox MB_OK "This MEGAcmd installer is for Windows 8 or above"
   Quit
 ${EndIf}
 
@@ -497,18 +497,23 @@ modeselected:
   !insertmacro Install3264DLL "${SRCDIR_MEGACMD}\MEGAcmdShell.exe" "$INSTDIR\MEGAcmdShell.exe"
   !insertmacro Install3264DLL "${SRCDIR_MEGACMD}\MEGAcmdUpdater.exe" "$INSTDIR\MEGAcmdUpdater.exe" 
 
-  !insertmacro Install3264DLL "${SRCDIR_MEGACMD}\avcodec-59.dll" "$INSTDIR\avcodec-59.dll"
-  !insertmacro Install3264DLL "${SRCDIR_MEGACMD}\avformat-59.dll" "$INSTDIR\avformat-59.dll"
-  !insertmacro Install3264DLL "${SRCDIR_MEGACMD}\avutil-57.dll" "$INSTDIR\avutil-57.dll"
-  !insertmacro Install3264DLL "${SRCDIR_MEGACMD}\swscale-6.dll" "$INSTDIR\swscale-6.dll"
-  !insertmacro Install3264DLL "${SRCDIR_MEGACMD}\swresample-4.dll" "$INSTDIR\swresample-4.dll"
+  !insertmacro Install3264DLL "${SRCDIR_MEGACMD}\avcodec-61.dll" "$INSTDIR\avcodec-61.dll"
+  !insertmacro Install3264DLL "${SRCDIR_MEGACMD}\avformat-61.dll" "$INSTDIR\avformat-61.dll"
+  !insertmacro Install3264DLL "${SRCDIR_MEGACMD}\avutil-59.dll" "$INSTDIR\avutil-59.dll"
+  !insertmacro Install3264DLL "${SRCDIR_MEGACMD}\swscale-8.dll" "$INSTDIR\swscale-8.dll"
+  !insertmacro Install3264DLL "${SRCDIR_MEGACMD}\swresample-5.dll" "$INSTDIR\swresample-5.dll"
   
   ;remove old DLLs that we no longer use (some became static; some have later version number)
   Delete "$INSTDIR\avcodec-57.dll"
+  Delete "$INSTDIR\avcodec-59.dll"
   Delete "$INSTDIR\avformat-57.dll"
+  Delete "$INSTDIR\avformat-59.dll"
   Delete "$INSTDIR\avutil-55.dll"
+  Delete "$INSTDIR\avutil-57.dll"
   Delete "$INSTDIR\swscale-4.dll"
+  Delete "$INSTDIR\swscale-6.dll"
   Delete "$INSTDIR\swresample-2.dll"
+  Delete "$INSTDIR\swresample-4.dll"
   Delete "$INSTDIR\libsodium.dll"
   Delete "$INSTDIR\pdfium.dll"
   Delete "$INSTDIR\FreeImage.dll"
@@ -740,11 +745,11 @@ Section Uninstall
   Delete "$INSTDIR\cares.dll"
   Delete "$INSTDIR\libuv.dll"
   Delete "$INSTDIR\NSIS.Library.RegTool*.exe"
-  Delete "$INSTDIR\avcodec-59.dll"
-  Delete "$INSTDIR\avformat-59.dll"
-  Delete "$INSTDIR\avutil-57.dll"
-  Delete "$INSTDIR\swscale-6.dll"
-  Delete "$INSTDIR\swresample-4.dll"
+  Delete "$INSTDIR\avcodec-61.dll"
+  Delete "$INSTDIR\avformat-61.dll"
+  Delete "$INSTDIR\avutil-59.dll"
+  Delete "$INSTDIR\swscale-8.dll"
+  Delete "$INSTDIR\swresample-5.dll"
 ;!ifdef BUILD_X64_VERSION
   Delete "$INSTDIR\libssl-3-x64.dll"
   Delete "$INSTDIR\libcrypto-3-x64.dll"
@@ -771,6 +776,11 @@ Section Uninstall
   Delete "$INSTDIR\avutil-56.dll"
   Delete "$INSTDIR\swscale-5.dll"
   Delete "$INSTDIR\swresample-3.dll"
+  Delete "$INSTDIR\avcodec-59.dll"
+  Delete "$INSTDIR\avformat-59.dll"
+  Delete "$INSTDIR\avutil-57.dll"
+  Delete "$INSTDIR\swscale-6.dll"
+  Delete "$INSTDIR\swresample-4.dll"
 
 
   ; BAT files
