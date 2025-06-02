@@ -1,8 +1,8 @@
 #!/bin/bash
 set -e
 
-#Currently libuv uses a git-tree older than baseline, enforcing older commit here:
-VCPKG_OLDEST_COMMIT=293f090a9be5a88a2a77838c6346d5ef9d3df81b
+#Currently openexr uses a git-tree older than baseline, enforcing older commit here:
+VCPKG_OLDEST_COMMIT=c6d3ab273572019ea0d6f6688e1163143190d326
 
 if [ -z ${VCPKG_OLDEST_COMMIT+x} ]; then
     commit=$(grep '."builtin-baseline"' vcpkg.json  | awk -F '"' '{print $(NF-1)}')

@@ -4201,7 +4201,7 @@ void MegaCmdExecuter::signup(string name, string passwd, string email)
         return;
     }
 
-    OUTSTREAM << "Singinup up. name=" << firstname << ". surname=" << lastname<< endl;
+    OUTSTREAM << "Singing up. name=" << firstname << ". surname=" << lastname<< endl;
 
     api->createAccount(email.c_str(), passwd.c_str(), firstname.c_str(), lastname.c_str(), megaCmdListener);
     megaCmdListener->wait();
