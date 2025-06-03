@@ -965,13 +965,16 @@ ConfiguratorMegaApiHelper::ConfiguratorMegaApiHelper()
         };
     };
 
-    mConfigurators.emplace_back("max_nodes_in_cache", "max nodes loaded in memory",
+    mConfigurators.emplace_back("max_nodes_in_cache", "Max nodes loaded in memory",
+                                "This controls the number of nodes that the SDK stores in memory.",
                                 configSetterSyncULLCb([](MegaApi *api, auto value){ api->setLRUCacheSize(value); return true; }),
                                 confGetter,
                                 std::nullopt/*megaApiGetter*/,
                                 validatorULL());
 
-    mConfigurators.emplace_back("exported_folders_sdks", "Number of auxiliar SDK instances loaded at startup for accessing exported folders. Default 5",
+    mConfigurators.emplace_back("exported_folders_sdks", "Number of additional SDK instances loaded at startup",
+                                "This controls the number of SDK instances that are created at startup in order to download or import contents from exported folder links. "
+                                "Default 5. Min 0. Max 20. If set to 0, you will not be able to download or import from folder links.",
                                 configSetterSyncULLCb([](MegaApi *api, auto value){ return true;/*TODO: implement reactiveness to value changes*/ }),
                                 confGetter,
                                 std::nullopt/*megaApiGetter*/,

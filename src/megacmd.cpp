@@ -2775,7 +2775,8 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << "Possible keys:" << endl;
         for (auto &vc : Instance<ConfiguratorMegaApiHelper>::Get().getConfigurators())
         {
-            os << " " << getFixLengthString(vc.mKey, 25) << " " << vc.mDescription << endl;
+            os << " - " << getFixLengthString(vc.mKey, 23) << " " << vc.mDescription << "."  << endl;
+            os << wrapText(vc.mFullDescription, 120 - 27 - 1, 27) << endl;
         }
     }
     else if (!strcmp(command, "backup"))
