@@ -970,6 +970,12 @@ ConfiguratorMegaApiHelper::ConfiguratorMegaApiHelper()
                                 confGetter,
                                 std::nullopt/*megaApiGetter*/,
                                 validatorULL());
+
+    mConfigurators.emplace_back("exported_folders_sdks", "Number of auxiliar SDK instances loaded at startup for accessing exported folders. Default 5",
+                                configSetterSyncULLCb([](MegaApi *api, auto value){ return true;/*TODO: implement reactiveness to value changes*/ }),
+                                confGetter,
+                                std::nullopt/*megaApiGetter*/,
+                                validatorULL(0, 20));
 }
 
 const std::vector<ConfiguratorMegaApiHelper::ValueConfigurator> & ConfiguratorMegaApiHelper::getConfigurators()

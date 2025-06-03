@@ -5461,7 +5461,10 @@ int executeServer(int argc, char* argv[],
 
     auto cmdFatalErrorListener = std::make_unique<MegaCmdFatalErrorListener>(*sandboxCMD);
 
-    for (int i = 0; i < 5; i++)
+    auto numberOfApiFolders = ConfigurationManager::getConfigurationValue("exported_folders_sdks", 5);
+    LOG_debug << "Loading " << numberOfApiFolders << " auxiliar MegaApi folders";
+
+    for (int i = 0; i < numberOfApiFolders; i++)
     {
         const fs::path apiFolderPath = ConfigurationManager::getConfigFolderSubdir("apiFolder_" + std::to_string(i));
         const std::string apiFolderStrUtf8 = pathAsUtf8(apiFolderPath);
