@@ -1547,6 +1547,14 @@ string getListOfCompletionValues(vector<string> words, char separator = ' ', con
 
 MegaApi* getFreeApiFolder()
 {
+    {
+        std::lock_guard g(mutexapiFolders);
+        if (apiFolders.empty() && occupiedapiFolders.empty())
+        {
+            return nullptr;
+        }
+    }
+
     semaphoreapiFolders.wait();
     mutexapiFolders.lock();
     MegaApi* toret = apiFolders.front();

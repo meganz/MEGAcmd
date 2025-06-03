@@ -6534,6 +6534,12 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     }
 
                     MegaApi* apiFolder = getFreeApiFolder();
+                    if (!apiFolder)
+                    {
+                        setCurrentThreadOutCode(MCMD_NOTFOUND);
+                        LOG_err << "No available Api folder. Use configure to increase exported_folders_sdks";
+                        return;
+                    }
                     char *accountAuth = api->getAccountAuth();
                     apiFolder->setAccountAuth(accountAuth);
                     delete []accountAuth;
@@ -9893,6 +9899,12 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     else if (getLinkType(publicLink) == MegaNode::TYPE_FOLDER)
                     {
                         MegaApi* apiFolder = getFreeApiFolder();
+                        if (!apiFolder)
+                        {
+                            setCurrentThreadOutCode(MCMD_NOTFOUND);
+                            LOG_err << "No available Api folder. Use configure to increase exported_folders_sdks";
+                            return;
+                        }
                         char *accountAuth = api->getAccountAuth();
                         apiFolder->setAccountAuth(accountAuth);
                         delete []accountAuth;
