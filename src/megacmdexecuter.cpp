@@ -189,7 +189,7 @@ void MegaCmdExecuter::updateprompt(MegaApi *api)
 
 MegaCmdExecuter::MegaCmdExecuter(MegaApi *api, MegaCmdLogger *loggerCMD, MegaCmdSandbox *sandboxCMD) :
     // Give a few seconds in order for key sharing to happen
-    mFsAccessCMD(mega::createFSA()),
+    mFsAccessCMD(::mega::createFSA()),
     mDeferredSharedFoldersVerifier(std::chrono::seconds(5)),
     mSyncIssuesManager(api)
 {
