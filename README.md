@@ -153,7 +153,7 @@ MEGAcmdSetup.exe /S
 
 Once you have MEGAcmd installed, you just need to execute it (via Desktop icon or Start Menu) to open the shell.  This will open MEGAcmdServer in the background (a process named MEGAcmdServer.exe).
 
-For a better user experience (specially in Windows 7) we recommend executing MEGAcmd from PowerShell.
+For a better user experience we recommend executing MEGAcmd from PowerShell.
 
 **Open PowerShell and execute:**
 
