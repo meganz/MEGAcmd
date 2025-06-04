@@ -1547,6 +1547,14 @@ string getListOfCompletionValues(vector<string> words, char separator = ' ', con
 
 MegaApi* getFreeApiFolder()
 {
+    {
+        std::lock_guard g(mutexapiFolders);
+        if (apiFolders.empty() && occupiedapiFolders.empty())
+        {
+            return nullptr;
+        }
+    }
+
     semaphoreapiFolders.wait();
     mutexapiFolders.lock();
     MegaApi* toret = apiFolders.front();
@@ -2767,7 +2775,8 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << "Possible keys:" << endl;
         for (auto &vc : Instance<ConfiguratorMegaApiHelper>::Get().getConfigurators())
         {
-            os << " " << getFixLengthString(vc.mKey, 25) << " " << vc.mDescription << endl;
+            os << " - " << getFixLengthString(vc.mKey, 23) << " " << vc.mDescription << "."  << endl;
+            os << wrapText(vc.mFullDescription, 120 - 27 - 1, 27) << endl;
         }
     }
     else if (!strcmp(command, "backup"))
@@ -5461,7 +5470,10 @@ int executeServer(int argc, char* argv[],
 
     auto cmdFatalErrorListener = std::make_unique<MegaCmdFatalErrorListener>(*sandboxCMD);
 
-    for (int i = 0; i < 5; i++)
+    auto numberOfApiFolders = ConfigurationManager::getConfigurationValue("exported_folders_sdks", 5);
+    LOG_debug << "Loading " << numberOfApiFolders << " auxiliar MegaApi folders";
+
+    for (int i = 0; i < numberOfApiFolders; i++)
     {
         const fs::path apiFolderPath = ConfigurationManager::getConfigFolderSubdir("apiFolder_" + std::to_string(i));
         const std::string apiFolderStrUtf8 = pathAsUtf8(apiFolderPath);

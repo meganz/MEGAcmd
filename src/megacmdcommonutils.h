@@ -284,7 +284,7 @@ bool onlyZeroOf(Bools... args)
 
 void printPercentageLineCerr(const char *title, long long completed, long long total, float percentDowloaded, bool cleanLineAfter = true);
 
-
+std::string wrapText(const std::string& input, std::size_t maxWidth, int indentSpaces = 0);
 
 
 /* Flags and Options */

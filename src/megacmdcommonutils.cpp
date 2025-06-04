@@ -1661,5 +1661,37 @@ std::string getOrCreateSocketPath(bool createDirectory)
 
     return (socketFolder / sockname).string();
 }
+
+string wrapText(const std::string &input, std::size_t maxWidth, int indentSpaces)
+{
+    const std::string indent(indentSpaces, ' ');
+    std::istringstream iss(input);
+    std::ostringstream oss;
+    std::string word, line = indent;
+
+    while (iss >> word)
+    {
+        if (line.size() + word.size() + 1 > maxWidth)
+        {
+            oss << line << '\n';
+            line = indent + word;
+        }
+        else
+        {
+            if (line != indent)
+            {
+                line += ' ';
+            }
+            line += word;
+        }
+    }
+    if (!line.empty())
+    {
+        oss << line;
+    }
+
+    return oss.str();
+}
+
 #endif // ifdef(_WIN32) else
 } //end namespace

@@ -303,15 +303,17 @@ class ConfiguratorMegaApiHelper
 
         std::string mKey;
         std::string mDescription;
+        std::string mFullDescription;
         Setter mSetter;
         Getter mGetter;
         std::optional<Getter> mMegaApiGetter;
         std::optional<Validator> mValidator;
 
         template <typename S, typename G, typename MG, typename V>
-        ValueConfigurator(const char *key, const char *description, S &&setter, G &&getter, MG &&megaApiGetter,  V &&validator)
+        ValueConfigurator(const char *key, const char *description, const char *fullDescription, S &&setter, G &&getter, MG &&megaApiGetter,  V &&validator)
             : mKey(key)
             , mDescription(description)
+            , mFullDescription(fullDescription)
             , mSetter(std::forward<S>(setter))
             , mGetter(std::forward<G>(getter))
             , mMegaApiGetter(std::forward<MG>(megaApiGetter))
