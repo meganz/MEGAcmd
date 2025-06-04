@@ -8075,7 +8075,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         megaCmdListener->wait();
         if (checkNoErrors(megaCmdListener->getError(), "cancel account"))
         {
-            OUTSTREAM << "Account pendind cancel confirmation. You will receive a confirmation link. Use \"confirmcancel\" with the provided link to confirm the cancelation" << endl;
+            OUTSTREAM << "Account pending cancel confirmation. You will receive a confirmation link. Use \"confirmcancel\" with the provided link to confirm the cancellation" << endl;
         }
         delete megaCmdListener;
     }
