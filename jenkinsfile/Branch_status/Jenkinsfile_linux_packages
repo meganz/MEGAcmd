@@ -177,7 +177,6 @@ pipeline {
                         steps {
                             dir(linux_sources_workspace) {
                                 script{
-                                script{
                                     def ARCH_REGEX
                                     switch (ARCHITECTURE) {
                                         case 'amd64':
