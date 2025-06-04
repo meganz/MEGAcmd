@@ -36,7 +36,7 @@ private:
     mega::MegaApi *api;
     mega::handle cwd;
     std::unique_ptr<char[]> session;
-    mega::MegaFileSystemAccess *fsAccessCMD;
+    std::unique_ptr<mega::FileSystemAccess> mFsAccessCMD;
     MegaCmdLogger *loggerCMD;
     MegaCmdSandbox *sandboxCMD;
     MegaCmdGlobalTransferListener *globalTransferListener;
