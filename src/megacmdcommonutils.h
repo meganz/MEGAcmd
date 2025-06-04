@@ -72,7 +72,7 @@ enum
     MCMD_INVALIDSTATE = -54,  ///< Invalid state
     MCMD_INVALIDTYPE = -55,   ///< Invalid type
     MCMD_NOTPERMITTED = -56,  ///< Operation not allowed
-    MCMD_NOTLOGGEDIN = -57,   ///< Needs loging in
+    MCMD_NOTLOGGEDIN = -57,   ///< Needs logging in
     MCMD_NOFETCH = -58,       ///< Nodes not fetched
     MCMD_EUNEXPECTED = -59,   ///< Unexpected failure
 
