@@ -1,5 +1,4 @@
 option(USE_PCRE "Used to provide support for pcre" ON)
-option(USE_LIBUV "Includes the library and turns on internal web and ftp server functionality" ON)
 
 option(FULL_REQS "Fail compilation when some requirement is not met" ON)
 
@@ -41,6 +40,7 @@ endif()
 #Override SDK's options:
 option(ENABLE_ISOLATED_GFX "Turns on isolated GFX processor" OFF)
 option(ENABLE_SDKLIB_WERROR "Enable warnings as errors" OFF)
+option(USE_LIBUV "Includes the library and turns on internal web and ftp server functionality" ON)
 
 if(UNIX AND NOT APPLE)
     execute_process(
