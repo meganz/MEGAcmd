@@ -31,7 +31,7 @@ build-stamp:
 	if [ -f /opt/cmake.tar.gz ]; then echo "ebc26503469f12bf1e956c564fcfa82a  /opt/cmake.tar.gz" | md5sum -c -; fi
 	if [ -f /opt/cmake.tar.gz ]; then     \
 		tar xzf /opt/cmake.tar.gz;        \
-		ln -s cmake-*-Linux* cmake_inst;  \
+		ln -s cmake-*-linux* cmake_inst;  \
 	fi
 
 	cmake --version
