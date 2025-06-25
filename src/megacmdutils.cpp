@@ -188,7 +188,7 @@ const char * getMountResultStr(int mountResult)
     if (mountResult == mega::MegaMount::BACKEND_UNAVAILABLE)
     {
         return "WinFSP is not installed. It needs to be installed for the operation to succeed. You can get it "
-               "from https://github.com/winfsp/winfsp/releases/download/v2.0/winfsp-2.0.23075.msi";
+               "from https://github.com/winfsp/winfsp/releases/download/v2.1/winfsp-2.1.25156.msi";
     }
 #endif
 

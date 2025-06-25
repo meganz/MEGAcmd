@@ -1,9 +1,9 @@
 @echo off
 setlocal
 
-set "WINFSP_VERSION=2.0.23075"
-set "WINFSP_VERSION_SHORT=2.0"
-set "EXPECTED_HASH=6324dc81194a6a08f97b6aeca303cf5c2325c53ede153bae9fc4378f0838c101"
+set "WINFSP_VERSION=2.1.25156"
+set "WINFSP_VERSION_SHORT=2.1"
+set "EXPECTED_HASH=073a70e00f77423e34bed98b86e600def93393ba5822204fac57a29324db9f7a"
 set "FILENAME=winfsp-installer.msi"
 set "URL=https://github.com/winfsp/winfsp/releases/download/v%WINFSP_VERSION_SHORT%/winfsp-%WINFSP_VERSION%.msi"
 
