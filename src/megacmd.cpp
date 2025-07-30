@@ -5393,6 +5393,16 @@ void setFuseLogLevel(MegaApi& api, const std::string& fuseLogLevelStr)
     LOG_debug << "FUSE log level set to " << fuseLogLevel;
 }
 
+void disableFuseExplorerListView(MegaApi& api)
+{
+    std::unique_ptr<MegaFuseFlags> fuseFlags(api.getFUSEFlags());
+    assert(fuseFlags);
+    fuseFlags->setFileExplorerView((int) MegaFuseFlags::FILE_EXPLORER_VIEW_NONE);
+    api.setFUSEFlags(fuseFlags.get());
+
+    LOG_debug << "FUSE FileExplorer view set to NONE (disabled list view)";
+}
+
 int executeServer(int argc, char* argv[],
                   const std::function<LoggedStream*()>& createLoggedStream,
                   const LogConfig& logConfig,
@@ -5509,7 +5519,7 @@ int executeServer(int argc, char* argv[],
 
     if (getenv("MEGACMD_FUSE_DISABLE_LIST_VIEW"))
     {
-        api->setFileExplorerView((int) MegaFuseFlags::FILE_EXPLORER_VIEW_NONE);
+        disableFuseExplorerListView(*api);
     }
 
     GlobalSyncConfig::loadFromConfigurationManager(*api);
