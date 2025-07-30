@@ -5507,6 +5507,11 @@ int executeServer(int argc, char* argv[],
         setFuseLogLevel(*api, fuseLogLevelStr);
     }
 
+    if (getenv("MEGACMD_FUSE_DISABLE_LIST_VIEW"))
+    {
+        api->setFileExplorerView((int) MegaFuseFlags::FILE_EXPLORER_VIEW_NONE);
+    }
+
     GlobalSyncConfig::loadFromConfigurationManager(*api);
 
     megaCmdGlobalListener = new MegaCmdGlobalListener(loggerCMD, sandboxCMD);
