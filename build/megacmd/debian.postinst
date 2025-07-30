@@ -16,6 +16,8 @@ elif [[ $distro = "Raspbian GNU/Linux 9"* ]]; then
 elif [[ $distro = "Raspbian GNU/Linux 8"* ]]; then
     str="Raspbian_8.0"
 # Ubuntu
+elif [[ $ver = "25.10" ]]; then
+    str="xUbuntu_25.10"
 elif [[ $ver = "25.04" ]]; then
     str="xUbuntu_25.04"
 elif [[ $ver = "24.10" ]]; then
@@ -79,6 +81,8 @@ elif [[ $ver = 11* ]]; then
     str="Debian_11"
 elif [[ $ver = 12* ]]; then
     str="Debian_12"
+elif [[ $ver = 13* ]]; then
+    str="Debian_13"
 elif [[ $ver = "testing" ]]; then
     str="Debian_testing"
 # Elementary OS Freya Ubuntu 14.04 LTS
@@ -92,6 +96,8 @@ elif [[ $distro = "elementary OS Odin" ]]; then
     str="xUbuntu_20.04"
 elif [[ $distro = "elementary OS Horus" ]]; then
     str="xUbuntu_22.04"
+elif [[ $distro = "elementary OS Circe" ]]; then
+    str="xUbuntu_24.04"
 elif [[ $distro = "Linux Mint 17.1 Rebecca" ]]; then
     str="xUbuntu_14.04"
 elif [[ $distro = "Linux Mint 17.1 Rafaela" ]]; then

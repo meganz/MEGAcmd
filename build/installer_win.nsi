@@ -337,8 +337,8 @@ Function .onInit
 !endif
 
 
-${IfNot} ${AtLeastWin7}
-  MessageBox MB_OK "This MEGAcmd installer is for Windows 7 or above"
+${IfNot} ${AtLeastWin8}
+  MessageBox MB_OK "This MEGAcmd installer is for Windows 8 or above"
   Quit
 ${EndIf}
 

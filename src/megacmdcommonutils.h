@@ -72,7 +72,7 @@ enum
     MCMD_INVALIDSTATE = -54,  ///< Invalid state
     MCMD_INVALIDTYPE = -55,   ///< Invalid type
     MCMD_NOTPERMITTED = -56,  ///< Operation not allowed
-    MCMD_NOTLOGGEDIN = -57,   ///< Needs loging in
+    MCMD_NOTLOGGEDIN = -57,   ///< Needs logging in
     MCMD_NOFETCH = -58,       ///< Nodes not fetched
     MCMD_EUNEXPECTED = -59,   ///< Unexpected failure
 
@@ -284,7 +284,7 @@ bool onlyZeroOf(Bools... args)
 
 void printPercentageLineCerr(const char *title, long long completed, long long total, float percentDowloaded, bool cleanLineAfter = true);
 
-
+std::string wrapText(const std::string& input, std::size_t maxWidth, int indentSpaces = 0);
 
 
 /* Flags and Options */

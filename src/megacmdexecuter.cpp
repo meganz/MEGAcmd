@@ -189,6 +189,7 @@ void MegaCmdExecuter::updateprompt(MegaApi *api)
 
 MegaCmdExecuter::MegaCmdExecuter(MegaApi *api, MegaCmdLogger *loggerCMD, MegaCmdSandbox *sandboxCMD) :
     // Give a few seconds in order for key sharing to happen
+    mFsAccessCMD(::mega::createFSA()),
     mDeferredSharedFoldersVerifier(std::chrono::seconds(5)),
     mSyncIssuesManager(api)
 {
@@ -202,14 +203,12 @@ MegaCmdExecuter::MegaCmdExecuter(MegaApi *api, MegaCmdLogger *loggerCMD, MegaCmd
     api->addTransferListener(globalTransferListener);
     api->addGlobalListener(mSyncIssuesManager.getGlobalListener());
     cwd = UNDEF;
-    fsAccessCMD = new MegaFileSystemAccess();
     session = NULL;
 
 }
 
 MegaCmdExecuter::~MegaCmdExecuter()
 {
-    delete fsAccessCMD;
     delete globalTransferListener;
 }
 
@@ -1588,7 +1587,7 @@ void MegaCmdExecuter::dumpNodeSummary(MegaNode *n, const char *timeFormat, std::
 void MegaCmdExecuter::createOrModifyBackup(string local, string remote, string speriod, int numBackups)
 {
     LocalPath locallocal = LocalPath::fromAbsolutePath(local);
-    std::unique_ptr<FileAccess> fa = fsAccessCMD->newfileaccess();
+    std::unique_ptr<FileAccess> fa = mFsAccessCMD->newfileaccess();
     if (!fa->isfolder(locallocal))
     {
         setCurrentThreadOutCode(MCMD_NOTFOUND);
@@ -1917,7 +1916,7 @@ bool MegaCmdExecuter::TestCanWriteOnContainingFolder(string path)
         containingFolder = containingFolder.parentPath();
     }
 
-    std::unique_ptr<FileAccess> fa = fsAccessCMD->newfileaccess();
+    std::unique_ptr<FileAccess> fa = mFsAccessCMD->newfileaccess();
     if (!fa->isfolder(containingFolder))
     {
         setCurrentThreadOutCode(MCMD_INVALIDTYPE);
@@ -4249,7 +4248,7 @@ void MegaCmdExecuter::confirmWithPassword(string passwd)
 bool MegaCmdExecuter::pathExists(const std::string &path)
 {
     LocalPath localPath = LocalPath::fromAbsolutePath(path);
-    std::unique_ptr<FileAccess> fa(fsAccessCMD->newfileaccess());
+    std::unique_ptr<FileAccess> fa(mFsAccessCMD->newfileaccess());
     return fa->isfolder(localPath) || fa->isfile(localPath);
 }
 
@@ -4259,7 +4258,7 @@ bool MegaCmdExecuter::IsFolder(string path)
     replaceAll(path,"/","\\");
 #endif
     LocalPath localpath = LocalPath::fromAbsolutePath(path);
-    std::unique_ptr<FileAccess> fa = fsAccessCMD->newfileaccess();
+    std::unique_ptr<FileAccess> fa = mFsAccessCMD->newfileaccess();
     return fa->isfolder(localpath);
 }
 
@@ -4773,7 +4772,7 @@ string MegaCmdExecuter::getLPWD()
     string relativePath = ".";
     LocalPath localRelativePath = LocalPath::fromRelativePath(relativePath);
     LocalPath localAbsolutePath;
-    if (!fsAccessCMD->expanselocalpath(localRelativePath, localAbsolutePath))
+    if (!mFsAccessCMD->expanselocalpath(localRelativePath, localAbsolutePath))
     {
         LOG_err << " Unable to expanse local path . ";
         return "UNKNOWN";
@@ -5069,7 +5068,7 @@ bool MegaCmdExecuter::establishBackup(string pathToBackup, MegaNode *n, int64_t 
     static int backupcounter = 0;
     LocalPath localAbsolutePath = LocalPath::fromAbsolutePath(pathToBackup); //this one would converts it to absolute if it's relative
     LocalPath expansedAbsolutePath;
-    if (!fsAccessCMD->expanselocalpath(localAbsolutePath, expansedAbsolutePath))
+    if (!mFsAccessCMD->expanselocalpath(localAbsolutePath, expansedAbsolutePath))
     {
         setCurrentThreadOutCode(MCMD_NOTFOUND);
         LOG_err << " Failed to expanse path";
@@ -6534,6 +6533,12 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     }
 
                     MegaApi* apiFolder = getFreeApiFolder();
+                    if (!apiFolder)
+                    {
+                        setCurrentThreadOutCode(MCMD_NOTFOUND);
+                        LOG_err << "No available Api folder. Use configure to increase exported_folders_sdks";
+                        return;
+                    }
                     char *accountAuth = api->getAccountAuth();
                     apiFolder->setAccountAuth(accountAuth);
                     delete []accountAuth;
@@ -7165,7 +7170,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         if (words.size() > 1)
         {
             LocalPath localpath = LocalPath::fromAbsolutePath(words[1]);
-            if (fsAccessCMD->chdirlocal(localpath)) // maybe this is already checked in chdir
+            if (mFsAccessCMD->chdirlocal(localpath)) // maybe this is already checked in chdir
             {
                 LOG_debug << "Local folder changed to: " << words[1];
             }
@@ -8069,7 +8074,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         megaCmdListener->wait();
         if (checkNoErrors(megaCmdListener->getError(), "cancel account"))
         {
-            OUTSTREAM << "Account pendind cancel confirmation. You will receive a confirmation link. Use \"confirmcancel\" with the provided link to confirm the cancelation" << endl;
+            OUTSTREAM << "Account pending cancel confirmation. You will receive a confirmation link. Use \"confirmcancel\" with the provided link to confirm the cancellation" << endl;
         }
         delete megaCmdListener;
     }
@@ -9893,6 +9898,12 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     else if (getLinkType(publicLink) == MegaNode::TYPE_FOLDER)
                     {
                         MegaApi* apiFolder = getFreeApiFolder();
+                        if (!apiFolder)
+                        {
+                            setCurrentThreadOutCode(MCMD_NOTFOUND);
+                            LOG_err << "No available Api folder. Use configure to increase exported_folders_sdks";
+                            return;
+                        }
                         char *accountAuth = api->getAccountAuth();
                         apiFolder->setAccountAuth(accountAuth);
                         delete []accountAuth;

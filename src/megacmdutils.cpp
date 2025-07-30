@@ -161,7 +161,7 @@ const char * getMCMDErrorString(int errorCode)
     case MCMD_NOTPERMITTED:
         return "Operation not allowed";
     case MCMD_NOTLOGGEDIN:
-        return "Needs loging in";
+        return "Needs logging in";
     case MCMD_NOFETCH:
         return "Nodes not fetched";
     case MCMD_EUNEXPECTED:

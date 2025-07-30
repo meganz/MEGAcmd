@@ -142,7 +142,7 @@ source /Applications/MEGAcmd.app/Contents/MacOS/megacmd_completion.sh
 ### Windows
 Once you have MEGAcmd installed, you can start the [interactive](#interactive) shell from the Start Menu or desktop icon.  On windows the interactive shell executable is called `MEGAcmdShell.exe` and the server is `MEGAcmdServer.exe`.
 
-On Windows 7, we recommend using the MEGAcmd shell from inside PowerShell for a better user experience (and you can do this on other Windows platforms also).  You can start powershell from the Start Menu and then execute these commands to start it:
+You can also start MEGAcmd Shell from inside PowerShell. To do so, start powershell from the Start Menu and then execute these commands to start it:
 ```
 $env:PATH += ";$env:LOCALAPPDATA\MEGAcmd"
 MEGAcmdShell

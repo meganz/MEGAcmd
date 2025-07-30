@@ -128,9 +128,8 @@ std::deque<std::string> greetingsFirstClientMsgs; // to be given on first client
 std::deque<std::string> greetingsAllClientMsgs; // to be given on all clients when registering as state listener
 
 
-std::deque<std::string> delayedBroadCastMessages; // messages to be brodcasted in a while
 std::mutex delayedBroadcastMutex;
-bool broadcastingDelayedMsgs = false;
+std::deque<std::string> delayedBroadCastMessages; // messages to be brodcasted in a while
 
 //Comunications Manager
 ComunicationsManager * cm;
@@ -386,23 +385,28 @@ void removeGreetingMatching(const string &toMatch)
 
 void broadcastDelayedMessage(string message, bool keepIfNoListeners)
 {
+    static bool ongoing = false;
+
     std::lock_guard<std::mutex> g(delayedBroadcastMutex);
     delayedBroadCastMessages.push_back(message);
-    if (!broadcastingDelayedMsgs)
+    if (!ongoing)
     {
+        ongoing = true;
         std::thread([keepIfNoListeners]()
         {
-            broadcastingDelayedMsgs = true;
             sleepSeconds(4);
-            std::lock_guard<std::mutex> g(delayedBroadcastMutex);
-            while (delayedBroadCastMessages.size())
+            std::unique_lock<std::mutex> g(delayedBroadcastMutex);
+            while (!delayedBroadCastMessages.empty())
             {
-                auto msg = delayedBroadCastMessages.front();
+                auto msg = std::move(delayedBroadCastMessages.front());
                 delayedBroadCastMessages.pop_front();
+                g.unlock();
+                // Broadcast without mutex locked
                 broadcastMessage(msg, keepIfNoListeners);
+                g.lock();
             }
 
-            broadcastingDelayedMsgs = false;
+            ongoing = false;
         }).detach();
     }
 }
@@ -1543,6 +1547,14 @@ string getListOfCompletionValues(vector<string> words, char separator = ' ', con
 
 MegaApi* getFreeApiFolder()
 {
+    {
+        std::lock_guard g(mutexapiFolders);
+        if (apiFolders.empty() && occupiedapiFolders.empty())
+        {
+            return nullptr;
+        }
+    }
+
     semaphoreapiFolders.wait();
     mutexapiFolders.lock();
     MegaApi* toret = apiFolders.front();
@@ -2767,7 +2779,8 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << "Possible keys:" << endl;
         for (auto &vc : Instance<ConfiguratorMegaApiHelper>::Get().getConfigurators())
         {
-            os << " " << getFixLengthString(vc.mKey, 25) << " " << vc.mDescription << endl;
+            os << " - " << getFixLengthString(vc.mKey, 23) << " " << vc.mDescription << "."  << endl;
+            os << wrapText(vc.mFullDescription, 120 - 27 - 1, 27) << endl;
         }
     }
     else if (!strcmp(command, "backup"))
@@ -5466,7 +5479,10 @@ int executeServer(int argc, char* argv[],
 
     auto cmdFatalErrorListener = std::make_unique<MegaCmdFatalErrorListener>(*sandboxCMD);
 
-    for (int i = 0; i < 5; i++)
+    auto numberOfApiFolders = ConfigurationManager::getConfigurationValue("exported_folders_sdks", 5);
+    LOG_debug << "Loading " << numberOfApiFolders << " auxiliar MegaApi folders";
+
+    for (int i = 0; i < numberOfApiFolders; i++)
     {
         const fs::path apiFolderPath = ConfigurationManager::getConfigFolderSubdir("apiFolder_" + std::to_string(i));
         const std::string apiFolderStrUtf8 = pathAsUtf8(apiFolderPath);

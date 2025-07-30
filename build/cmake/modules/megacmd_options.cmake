@@ -11,7 +11,8 @@ if(FULL_REQS)
  #On by default in the SDK, but let's enforce anyway
     option(USE_PDFIUM "Used to create previews/thumbnails for PDF files" ON)
     option(USE_FFMPEG "Used to create previews/thumbnails for video files" ON)
-    option(USE_MEDIAINFO "Used to determine media properties and set those as node attributes" ON)
+    option(ENABLE_MEDIA_FILE_METADATA "Used to determine media properties and set those as node attributes" ON)
+    option(USE_MEDIAINFO "[DEPRECATED] Used to determine media properties and set those as node attributes" ON)
 
     #make compilation fail in case those are not fully available:
     add_compile_definitions(
@@ -24,7 +25,8 @@ if(FULL_REQS)
 else()
     option(USE_PDFIUM "Used to create previews/thumbnails for PDF files" OFF)
     option(USE_FFMPEG "Used to create previews/thumbnails for video files" OFF)
-    option(USE_MEDIAINFO "Used to determine media properties and set those as node attributes" OFF)
+    option(ENABLE_MEDIA_FILE_METADATA "Used to determine media properties and set those as node attributes" OFF)
+    option(USE_MEDIAINFO "[DEPRECATED] Used to determine media properties and set those as node attributes" OFF)
 endif()
 
 if (CMAKE_BUILD_TYPE STREQUAL "Debug" )
