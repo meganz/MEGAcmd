@@ -1,8 +1,8 @@
 #!/bin/bash
 set -e
 
-#If a dependency required an older commit, set it here:
-#VCPKG_OLDEST_COMMIT=c6d3ab273572019ea0d6f6688e1163143190d326
+#If a dependency required an older commit (older than baseline), set it here:
+VCPKG_OLDEST_COMMIT=d5ec528843d29e3a52d745a64b469f810b2cedbf
 
 if [ -z ${VCPKG_OLDEST_COMMIT+x} ]; then
     commit=$(grep '."builtin-baseline"' vcpkg.json  | awk -F '"' '{print $(NF-1)}')

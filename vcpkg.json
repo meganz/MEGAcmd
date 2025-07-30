@@ -4,6 +4,10 @@
     "homepage" : "https://github.com/meganz/megacmd",
     "features" :
     {
+        "megacmd-enable-tests": {
+           "description": "Compile MEGAcmd tests",
+           "dependencies": [ "gtest" ]
+        },
         "use-openssl":
         {
             "description": "OpenSSL library",
@@ -49,18 +53,38 @@
             "description": "gtests library for the integration and unit tests",
             "dependencies": [ "gtest" ]
         },
-        "megacmd-enable-tests": {
-           "description": "Compile MEGAcmd tests",
-           "dependencies": [ "gtest" ]
+        "c-ares-backend-curl": {
+            "description": "Enable c-ares backend for curl",
+            "dependencies": [
+                {
+                    "name": "curl",
+                    "features": [
+                        "c-ares"
+                    ]
+                }
+            ]
         }
     },
     "dependencies": [
         "pcre",
         "cryptopp",
-        "curl",
+        {
+          "name": "curl",
+          "features": [ "zstd" ]
+        },
         "icu",
         "libsodium",
         "sqlite3"
     ],
-    "builtin-baseline": "d5ec528843d29e3a52d745a64b469f810b2cedbf"
+    "builtin-baseline": "ef7dbf94b9198bc58f45951adcf1f041fcbc5ea0",
+    "overrides": [
+        {
+            "name": "icu",
+            "version": "74.2#4"
+        },
+        {
+            "name": "libuv",
+            "version": "1.49.2"
+        }
+    ]
 }
