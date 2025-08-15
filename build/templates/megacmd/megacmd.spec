@@ -59,6 +59,12 @@ Requires: fuse
     %endif
 %endif
 
+# RHEL/CentOS/Alma/Rocky/Oracle >= 9: allow $ORIGIN and use patchelf
+%if (0%{?rhel} >= 9) || (0%{?rhel_version} >= 900) || (0%{?centos_version} >= 900)
+    BuildRequires: patchelf
+    %define __brp_check_rpaths QA_RPATHS=$(( 0x0002|0x0008 )) /usr/lib/rpm/check-rpaths
+%endif
+
 %description
 MEGAcmd provides non UI access to MEGA services. 
 It intends to offer all the functionality 
@@ -129,6 +135,22 @@ if [ -f /opt/cmake.tar.gz ]; then
 fi
 
 cmake --install %{_builddir}/build_dir --prefix %{buildroot}
+
+# /usr/bin -> $ORIGIN/../../opt/megacmd/lib = /opt/megacmd/lib
+%if (0%{?rhel} >= 9) || (0%{?rhel_version} >= 900) || (0%{?centos_version} >= 900)
+for b in \
+  %{buildroot}%{_bindir}/mega-cmd \
+  %{buildroot}%{_bindir}/mega-exec \
+  %{buildroot}%{_bindir}/mega-cmd-server
+do
+  if [ -x "$b" ] && command -v patchelf >/dev/null 2>&1; then
+      patchelf --set-rpath '\$ORIGIN/../../opt/megacmd/lib' "$b"
+      patchelf --enable-new-dtags "$b" || :
+      patchelf --print-rpath "$b" || :
+  fi
+done
+%endif
+
 
 %post
 #TODO: source bash_completion?
