@@ -143,9 +143,9 @@ for b in \
   %{buildroot}%{_bindir}/mega-exec \
   %{buildroot}%{_bindir}/mega-cmd-server
 do
-  if [ -x "$b" ] && command -v patchelf >/dev/null 2>&1; then
+  if [ -x "$b" ]; then
       patchelf --set-rpath '\$ORIGIN/../../opt/megacmd/lib' "$b"
-      patchelf --enable-new-dtags "$b" || :
+      patchelf --enable-new-dtags "$b"
       patchelf --print-rpath "$b" || :
   fi
 done
