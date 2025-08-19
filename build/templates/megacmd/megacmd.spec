@@ -15,6 +15,8 @@ Requires: procps
 Requires: procps-ng
 %endif
 
+%global __requires_exclude ^lib(avcodec|avformat|avutil|swresample|swscale)\\.so\\.
+
 BuildRequires: autoconf, autoconf-archive, automake, libtool, gcc-c++
 BuildRequires: hicolor-icon-theme, zip, unzip, nasm, cmake, perl
 BuildRequires: fuse-devel
@@ -59,9 +61,8 @@ Requires: fuse
     %endif
 %endif
 
-# RHEL/CentOS/Alma/Rocky/Oracle >= 9: allow $ORIGIN and use patchelf
+# RHEL/CentOS/Alma/Rocky/Oracle >= 9: allow $ORIGIN
 %if (0%{?rhel} >= 9) || (0%{?rhel_version} >= 900) || (0%{?centos_version} >= 900)
-    BuildRequires: patchelf
     %define __brp_check_rpaths QA_RPATHS=$(( 0x0002|0x0008 )) /usr/lib/rpm/check-rpaths
 %endif
 
@@ -136,21 +137,6 @@ fi
 
 cmake --install %{_builddir}/build_dir --prefix %{buildroot}
 
-# /usr/bin -> $ORIGIN/../../opt/megacmd/lib = /opt/megacmd/lib
-%if (0%{?rhel} >= 9) || (0%{?rhel_version} >= 900) || (0%{?centos_version} >= 900)
-for b in \
-  %{buildroot}%{_bindir}/mega-cmd \
-  %{buildroot}%{_bindir}/mega-exec \
-  %{buildroot}%{_bindir}/mega-cmd-server
-do
-  if [ -x "$b" ]; then
-      patchelf --set-rpath '\$ORIGIN/../../opt/megacmd/lib' "$b"
-      patchelf --enable-new-dtags "$b"
-      patchelf --print-rpath "$b" || :
-  fi
-done
-%endif
-
 
 %post
 #TODO: source bash_completion?
@@ -171,26 +157,22 @@ DATA
 
 %endif
 
-%if 0%{?rhel_version} || 0%{?centos_version} || 0%{?scientificlinux_version}
+%if 0%{?rhel_version} || 0%{?centos_version}
 
-    %if 0%{?rhel_version} == 800
-        %define reponame RHEL_8
+    %if 0%{?rhel_version} == 900 && 0%{?almalinux}
+        %define reponame AlmaLinux_9
     %endif
 
-    %if 0%{?rhel_version} == 700
-        %define reponame RHEL_7
+    %if 0%{?rhel_version} == 1000 && 0%{?almalinux}
+        %define reponame AlmaLinux_10
     %endif
 
-    %if 0%{?scientificlinux_version} == 700
-        %define reponame ScientificLinux_7
+    %if 0%{?centos_version} == 900 && ! 0%{?almalinux}
+        %define reponame CentOS_Stream_9
     %endif
-
-    %if 0%{?centos_version} == 700
-        %define reponame CentOS_7
-    %endif
-
-    %if 0%{?centos_version} == 800
-        %define reponame CentOS_8
+ 
+    %if 0%{?centos_version} == 1000 && ! 0%{?almalinux}
+        %define reponame CentOS_Stream_10
     %endif
 
     YUM_FILE="/etc/yum.repos.d/megasync.repo"
