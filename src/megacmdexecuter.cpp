@@ -204,6 +204,7 @@ MegaCmdExecuter::MegaCmdExecuter(MegaApi *api, MegaCmdLogger *loggerCMD, MegaCmd
     cwd = UNDEF;
     fsAccessCMD = new MegaFileSystemAccess();
     session = NULL;
+
 }
 
 MegaCmdExecuter::~MegaCmdExecuter()
@@ -1904,26 +1905,16 @@ void MegaCmdExecuter::dumpTreeSummary(MegaNode *n, const char *timeFormat, std::
  * @param path
  * @return
  */
-bool MegaCmdExecuter::TestCanWriteOnContainingFolder(string *path)
+bool MegaCmdExecuter::TestCanWriteOnContainingFolder(string path)
 {
 #ifdef _WIN32
-    replaceAll(*path,"/","\\");
+    replaceAll(path, "/", "\\");
 #endif
 
-    auto containingFolder = LocalPath::fromAbsolutePath(*path);
-
-    // Where does our name begin?
-    auto index = containingFolder.getLeafnameByteIndex();
-
-    // We have a parent.
-    if (index)
+    auto containingFolder = LocalPath::fromAbsolutePath(path);
+    if (!containingFolder.isRootPath())
     {
-        // Remove the current leaf name.
-        containingFolder.truncate(index);
-    }
-    else
-    {
-        containingFolder = LocalPath::fromAbsolutePath(".");
+        containingFolder = containingFolder.parentPath();
     }
 
     std::unique_ptr<FileAccess> fa = fsAccessCMD->newfileaccess();
@@ -2652,6 +2643,27 @@ int MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
                 {
                     LOG_err << "Failed to change max " << (up ? "upload" : "download") << " connections: "
                             << megaCmdListener->getError()->getErrorString();
+                }
+            }
+        }
+
+        for (auto &vc : Instance<ConfiguratorMegaApiHelper>::Get().getConfigurators())
+        {
+            auto name = vc.mKey.c_str();
+            auto newValueOpt = vc.mGetter(api, name);
+            if (newValueOpt)
+            {
+                if (vc.mValidator && !vc.mValidator.value()(newValueOpt->data()))
+                {
+                    LOG_err << "Failed to change " << vc.mKey << " (" << vc.mDescription << ") after login. Invalid value in configuration";
+                    continue;
+                }
+
+                auto previousErrorCode = getCurrentThreadOutCode();
+                if (!vc.mSetter(api, std::string(name), newValueOpt->data()))
+                {
+                    LOG_err << "Failed to change " << vc.mKey << " (" << vc.mDescription << ") after login. Setting failed";
+                    setCurrentThreadOutCode(previousErrorCode); //Do not consider this a a failure on login ...
                 }
             }
         }
@@ -6439,7 +6451,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         }
                         else
                         {
-                            if (!TestCanWriteOnContainingFolder(&path))
+                            if (!TestCanWriteOnContainingFolder(path))
                             {
                                 return;
                             }
@@ -6522,6 +6534,12 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     }
 
                     MegaApi* apiFolder = getFreeApiFolder();
+                    if (!apiFolder)
+                    {
+                        setCurrentThreadOutCode(MCMD_NOTFOUND);
+                        LOG_err << "No available Api folder. Use configure to increase exported_folders_sdks";
+                        return;
+                    }
                     char *accountAuth = api->getAccountAuth();
                     apiFolder->setAccountAuth(accountAuth);
                     delete []accountAuth;
@@ -6648,7 +6666,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         }
                         else //destiny non existing or a file
                         {
-                            if (!TestCanWriteOnContainingFolder(&path))
+                            if (!TestCanWriteOnContainingFolder(path))
                             {
                                 return;
                             }
@@ -6706,7 +6724,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                                 }
                                 else
                                 {
-                                    if (!TestCanWriteOnContainingFolder(&path))
+                                    if (!TestCanWriteOnContainingFolder(path))
                                     {
                                         return;
                                     }
@@ -7982,6 +8000,74 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         }
     }
 #endif
+    else if (words[0] == "configure")
+    {
+        std::optional<std::string_view> key;
+        std::optional<std::string_view> value;
+        if (words.size() > 1)
+        {
+            key = words[1];
+        }
+        if (words.size() > 2)
+        {
+            value= words[2];
+        }
+
+        bool found = false;
+
+        for (auto &vc : Instance<ConfiguratorMegaApiHelper>::Get().getConfigurators())
+        {
+            auto name = vc.mKey.c_str();
+            if (key && *key != name) continue;
+
+            found = true;
+
+            if (value)
+            {
+                if (vc.mValidator && !vc.mValidator.value()(value->data()))
+                {
+                    LOG_err << "Failed to set " << vc.mKey << " (" << vc.mDescription << "). Invalid value";
+                    setCurrentThreadOutCode(MCMD_EARGS);
+                    return;
+                }
+
+                if (!vc.mSetter(api, std::string(name), value->data()))
+                {
+                    if (getCurrentThreadOutCode() == MCMD_OK) // presuming error would be logged otherwise
+                    {
+                        LOG_err << "Failed to set " << vc.mKey << " (" << vc.mDescription << "). Setting failed";
+                        setCurrentThreadOutCode(MCMD_EARGS);
+                    }
+                    return;
+                }
+                ConfigurationManager::saveProperty(name, value->data());
+            }
+
+            auto &getter = vc.mMegaApiGetter ? *vc.mMegaApiGetter : vc.mGetter;
+
+            auto newValueOpt = getter(api, name);
+            if (newValueOpt)
+            {
+                OUTSTREAM << name << " = " << *newValueOpt << std::endl;
+                if (value && *value != *newValueOpt)
+                {
+                    LOG_warn << "Setting " << vc.mKey << " resulted in a value different than the one intended. " << *value <<
+                                " vs " << *newValueOpt;
+                }
+            }
+            else if (key)
+            {
+                LOG_err << "Configuration value is unset: " << *key;
+                setCurrentThreadOutCode(MCMD_NOTFOUND);
+            }
+        }
+
+        if (!found)
+        {
+            LOG_err << "Provided configuration key does not exist: " << *key;
+            setCurrentThreadOutCode(MCMD_EARGS);
+        }
+    }
     else if (words[0] == "cancel")
     {
         MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
@@ -7989,7 +8075,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         megaCmdListener->wait();
         if (checkNoErrors(megaCmdListener->getError(), "cancel account"))
         {
-            OUTSTREAM << "Account pendind cancel confirmation. You will receive a confirmation link. Use \"confirmcancel\" with the provided link to confirm the cancelation" << endl;
+            OUTSTREAM << "Account pending cancel confirmation. You will receive a confirmation link. Use \"confirmcancel\" with the provided link to confirm the cancellation" << endl;
         }
         delete megaCmdListener;
     }
@@ -9813,6 +9899,12 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     else if (getLinkType(publicLink) == MegaNode::TYPE_FOLDER)
                     {
                         MegaApi* apiFolder = getFreeApiFolder();
+                        if (!apiFolder)
+                        {
+                            setCurrentThreadOutCode(MCMD_NOTFOUND);
+                            LOG_err << "No available Api folder. Use configure to increase exported_folders_sdks";
+                            return;
+                        }
                         char *accountAuth = api->getAccountAuth();
                         apiFolder->setAccountAuth(accountAuth);
                         delete []accountAuth;

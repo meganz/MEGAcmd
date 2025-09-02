@@ -72,7 +72,7 @@ enum
     MCMD_INVALIDSTATE = -54,  ///< Invalid state
     MCMD_INVALIDTYPE = -55,   ///< Invalid type
     MCMD_NOTPERMITTED = -56,  ///< Operation not allowed
-    MCMD_NOTLOGGEDIN = -57,   ///< Needs loging in
+    MCMD_NOTLOGGEDIN = -57,   ///< Needs logging in
     MCMD_NOFETCH = -58,       ///< Nodes not fetched
     MCMD_EUNEXPECTED = -59,   ///< Unexpected failure
 
@@ -114,7 +114,7 @@ static std::vector<std::string> localfolderpatterncommands {"lcd", "sync-ignore"
 static std::vector<std::string> emailpatterncommands {"invite", "signup", "ipc", "users"};
 
 static std::vector<std::string> loginInValidCommands { "log", "debug", "speedlimit", "help", "logout", "version", "quit",
-                            "clear", "https", "exit", "errorcode", "proxy", "sync-config"
+                            "clear", "https", "exit", "errorcode", "proxy", "sync-config", "configure"
 #if defined(_WIN32) && defined(NO_READLINE)
                              , "autocomplete", "codepage"
 #elif defined(_WIN32)
@@ -130,7 +130,7 @@ static std::vector<std::string> allValidCommands { "login", "signup", "confirm",
                              "showpcr", "users", "speedlimit", "killsession", "whoami", "help", "passwd", "reload", "logout", "version", "quit",
                              "thumbnail", "preview", "find", "completion", "clear", "https", "sync-issues",
                              "transfers", "exclude", "exit", "errorcode", "graphics",
-                             "cancel", "confirmcancel", "cat", "tree", "psa", "proxy", "sync-config",
+                             "cancel", "confirmcancel", "cat", "tree", "psa", "proxy", "sync-config", "configure",
                              "mediainfo"
 #ifdef HAVE_LIBUV
                              , "webdav", "ftp"
@@ -284,7 +284,7 @@ bool onlyZeroOf(Bools... args)
 
 void printPercentageLineCerr(const char *title, long long completed, long long total, float percentDowloaded, bool cleanLineAfter = true);
 
-
+std::string wrapText(const std::string& input, std::size_t maxWidth, int indentSpaces = 0);
 
 
 /* Flags and Options */

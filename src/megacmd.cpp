@@ -128,9 +128,8 @@ std::deque<std::string> greetingsFirstClientMsgs; // to be given on first client
 std::deque<std::string> greetingsAllClientMsgs; // to be given on all clients when registering as state listener
 
 
-std::deque<std::string> delayedBroadCastMessages; // messages to be brodcasted in a while
 std::mutex delayedBroadcastMutex;
-bool broadcastingDelayedMsgs = false;
+std::deque<std::string> delayedBroadCastMessages; // messages to be brodcasted in a while
 
 //Comunications Manager
 ComunicationsManager * cm;
@@ -386,23 +385,28 @@ void removeGreetingMatching(const string &toMatch)
 
 void broadcastDelayedMessage(string message, bool keepIfNoListeners)
 {
+    static bool ongoing = false;
+
     std::lock_guard<std::mutex> g(delayedBroadcastMutex);
     delayedBroadCastMessages.push_back(message);
-    if (!broadcastingDelayedMsgs)
+    if (!ongoing)
     {
+        ongoing = true;
         std::thread([keepIfNoListeners]()
         {
-            broadcastingDelayedMsgs = true;
             sleepSeconds(4);
-            std::lock_guard<std::mutex> g(delayedBroadcastMutex);
-            while (delayedBroadCastMessages.size())
+            std::unique_lock<std::mutex> g(delayedBroadcastMutex);
+            while (!delayedBroadCastMessages.empty())
             {
-                auto msg = delayedBroadCastMessages.front();
+                auto msg = std::move(delayedBroadCastMessages.front());
                 delayedBroadCastMessages.pop_front();
+                g.unlock();
+                // Broadcast without mutex locked
                 broadcastMessage(msg, keepIfNoListeners);
+                g.lock();
             }
 
-            broadcastingDelayedMsgs = false;
+            ongoing = false;
         }).detach();
     }
 }
@@ -644,6 +648,9 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     {
         validParams->insert("delayed-uploads-wait-seconds");
         validParams->insert("delayed-uploads-max-attempts");
+    }
+    else if ("configure" == thecommand)
+    {
     }
     else if ("export" == thecommand)
     {
@@ -1221,6 +1228,20 @@ char* transfertags_completion(const char* text, int state)
     }
     return generic_completion(text, state, validtransfertags);
 }
+
+char* config_completion(const char* text, int state)
+{
+    static vector<string> validkeys = [](){
+        static vector<string> keys;
+        for (auto &vc : Instance<ConfiguratorMegaApiHelper>::Get().getConfigurators())
+        {
+            keys.push_back(vc.mKey);
+        }
+        return keys;
+    }();
+    return generic_completion(text, state, validkeys);
+}
+
 char* contacts_completion(const char* text, int state)
 {
     static vector<string> validcontacts;
@@ -1441,6 +1462,13 @@ completionfunction_t *getCompletionFunction(vector<string> words)
             return transfertags_completion;
         }
     }
+    else if (thecommand == "configure")
+    {
+        if (currentparameter == 1)
+        {
+            return config_completion;
+        }
+    }
     return empty_completion;
 }
 
@@ -1519,6 +1547,14 @@ string getListOfCompletionValues(vector<string> words, char separator = ' ', con
 
 MegaApi* getFreeApiFolder()
 {
+    {
+        std::lock_guard g(mutexapiFolders);
+        if (apiFolders.empty() && occupiedapiFolders.empty())
+        {
+            return nullptr;
+        }
+    }
+
     semaphoreapiFolders.wait();
     mutexapiFolders.lock();
     MegaApi* toret = apiFolders.front();
@@ -1794,6 +1830,10 @@ const char * getUsageStr(const char *command, const HelpFlags& flags)
     {
         return "sync-config [--delayed-uploads-wait-seconds | --delayed-uploads-max-attempts]";
     }
+    if (!strcmp(command, "configure"))
+    {
+        return "configure [key [value]]";
+    }
     if (!strcmp(command, "backup"))
     {
         return "backup (localpath remotepath --period=\"PERIODSTRING\" --num-backups=N  | [-lhda] [TAG|localpath] [--period=\"PERIODSTRING\"] [--num-backups=N]) [--time-format=FORMAT]";
@@ -2030,6 +2070,12 @@ const char * getUsageStr(const char *command, const HelpFlags& flags)
     {
         return "fuse-config [--name=name] [--enable-at-startup=yes|no] [--persistent=yes|no] [--read-only=yes|no] (name|localPath)";
     }
+#if defined(DEBUG) || defined(MEGACMD_TESTING_CODE)
+    else if (!strcmp(command, "echo"))
+    {
+        return "echo [--log-as-err]";
+    }
+#endif
 
     return "command not found: ";
 }
@@ -2717,6 +2763,21 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << "Options:" << endl;
         os << " --delayed-uploads-wait-seconds   Shows the seconds to be waited before a file that's being delayed is uploaded again." << endl;
         os << " --delayed-uploads-max-attempts   Shows the max number of times a file can change in quick succession before it starts to get delayed." << endl;
+    }
+    else if (!strcmp(command, "configure"))
+    {
+        os << "Shows and modifies global configurations." << endl;
+        os << endl;
+        os << "If no keys are provided, it will list all configuration keys and values." << endl;
+        os << "If a key is provided, but no value given, it will only show the value of such key." << endl;
+        os << "If a key and value are provided, it will set the value of that key." << endl;
+        os << endl;
+        os << "Possible keys:" << endl;
+        for (auto &vc : Instance<ConfiguratorMegaApiHelper>::Get().getConfigurators())
+        {
+            os << " - " << getFixLengthString(vc.mKey, 23) << " " << vc.mDescription << "."  << endl;
+            os << wrapText(vc.mFullDescription, 120 - 27 - 1, 27) << endl;
+        }
     }
     else if (!strcmp(command, "backup"))
     {
@@ -5330,6 +5391,7 @@ int executeServer(int argc, char* argv[],
 {
     // Own global server instances here
     Instance<DefaultLoggedStream> sDefaultLoggedStream;
+    Instance<ConfiguratorMegaApiHelper> sConfiguratorHelper;
 
 #ifdef __linux__
     // Ensure interesting signals are unblocked.
@@ -5375,11 +5437,11 @@ int executeServer(int argc, char* argv[],
     }
 
     // Establish the logger
-    SimpleLogger::setLogLevel(logMax); // do not filter anything here, log level checking is done by loggerCMD
+    MegaApi::setLogLevel(MegaApi::LOG_LEVEL_MAX); // do not filter anything here, log level checking is done by loggerCMD
+
     loggerCMD = new MegaCmdSimpleLogger(logConfig.mLogToCout, logConfig.mSdkLogLevel, logConfig.mCmdLogLevel);
 
     MegaApi::addLoggerObject(loggerCMD);
-    MegaApi::setLogLevel(MegaApi::LOG_LEVEL_MAX);
 
     char userAgent[40];
     sprintf(userAgent, "MEGAcmd" MEGACMD_STRINGIZE(MEGACMD_USERAGENT_SUFFIX) "/%d.%d.%d.%d", MEGACMD_MAJOR_VERSION,MEGACMD_MINOR_VERSION,MEGACMD_MICRO_VERSION,MEGACMD_BUILD_ID);
@@ -5408,7 +5470,10 @@ int executeServer(int argc, char* argv[],
 
     auto cmdFatalErrorListener = std::make_unique<MegaCmdFatalErrorListener>(*sandboxCMD);
 
-    for (int i = 0; i < 5; i++)
+    auto numberOfApiFolders = ConfigurationManager::getConfigurationValue("exported_folders_sdks", 5);
+    LOG_debug << "Loading " << numberOfApiFolders << " auxiliar MegaApi folders";
+
+    for (int i = 0; i < numberOfApiFolders; i++)
     {
         const fs::path apiFolderPath = ConfigurationManager::getConfigFolderSubdir("apiFolder_" + std::to_string(i));
         const std::string apiFolderStrUtf8 = pathAsUtf8(apiFolderPath);

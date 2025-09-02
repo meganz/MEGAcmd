@@ -916,4 +916,74 @@ void ConfigurationManager::clearConfigurationFile()
         }
     }
 }
+
+ConfiguratorMegaApiHelper::ConfiguratorMegaApiHelper()
+{
+    auto configSetterSyncULLCb = [this](auto cb)
+    {
+        return [this, cb](MegaApi *api, const std::string &/*name*/, const char *value)
+        {
+            try
+            {
+                return cb(api, std::stoull(value));
+            }
+            catch(...)
+            {
+                return false;
+            }
+            return true;
+        };
+    };
+
+    auto confGetter = [](::mega::MegaApi */*api*/,const char *key){ return  ConfigurationManager::getConfigurationValueOpt<std::string>(key); };
+
+    auto validatorULL = [](std::optional<unsigned long long> minOpt = {}, std::optional<unsigned long long> maxOpt = {})
+    {
+        return [minOpt, maxOpt](const char *value){
+            if (value && value[0] == '-')
+            {
+                return false;
+            }
+
+            try
+            {
+                auto v = std::stoull(value);
+                if (maxOpt && v > *maxOpt)
+                {
+                    return false;
+                }
+                if (minOpt && v < *minOpt)
+                {
+                    return false;
+                }
+                return true;
+            }
+            catch (...)
+            {
+                return false;
+            }
+        };
+    };
+
+    mConfigurators.emplace_back("max_nodes_in_cache", "Max nodes loaded in memory",
+                                "This controls the number of nodes that the SDK stores in memory.",
+                                configSetterSyncULLCb([](MegaApi *api, auto value){ api->setLRUCacheSize(value); return true; }),
+                                confGetter,
+                                std::nullopt/*megaApiGetter*/,
+                                validatorULL());
+
+    mConfigurators.emplace_back("exported_folders_sdks", "Number of additional SDK instances loaded at startup",
+                                "This controls the number of SDK instances that are created at startup in order to download or import contents from exported folder links. "
+                                "Default 5. Min 0. Max 20. If set to 0, you will not be able to download or import from folder links.",
+                                configSetterSyncULLCb([](MegaApi *api, auto value){ return true;/*TODO: implement reactiveness to value changes*/ }),
+                                confGetter,
+                                std::nullopt/*megaApiGetter*/,
+                                validatorULL(0, 20));
+}
+
+const std::vector<ConfiguratorMegaApiHelper::ValueConfigurator> & ConfiguratorMegaApiHelper::getConfigurators()
+{
+    return mConfigurators;
+}
+
 }//end namespace

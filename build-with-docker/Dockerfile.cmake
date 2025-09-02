@@ -23,7 +23,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     && apt-get install -y --no-install-recommends \
     ccache jq \
     cmake zip pkg-config curl python3 autoconf-archive nasm libgtest-dev libgmock-dev git g++ make unzip autoconf  ca-certificates automake ninja-build \
-    libfuse-dev
+    libfuse-dev libtool
 
 COPY vcpkg.json ./vcpkg.json
 COPY build/clone_vcpkg_from_baseline.sh ./clone_vcpkg_from_baseline.sh
@@ -88,3 +88,6 @@ COPY --from=build /usr/bin/mega* /usr/bin/
 COPY --from=build /opt/megacmd /opt/megacmd
 COPY --chmod=555 tests/*.py /usr/local/bin/
 #COPY --from=build /inspectme /inspectme
+
+# Integration tests that use fuse will requiere uid and gid 1001
+RUN groupadd -g 1001 jenkins && useradd jenkins -u 1001 -g 1001 -m -s /bin/bash

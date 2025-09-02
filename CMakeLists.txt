@@ -10,8 +10,8 @@ execute_process(
 )
 
 set(MEGACMD_MAJOR_VERSION 2)
-set(MEGACMD_MINOR_VERSION 1)
-set(MEGACMD_MICRO_VERSION 1)
+set(MEGACMD_MINOR_VERSION 2)
+set(MEGACMD_MICRO_VERSION 0)
 
 ## Configure megacmdversion.h
 configure_file("${CMAKE_CURRENT_LIST_DIR}/src/megacmdversion.h.in" "${CMAKE_CURRENT_LIST_DIR}/src/megacmdversion.h" @ONLY)
@@ -77,8 +77,8 @@ endif()
 if(WIN32)
     add_definitions( -DUNICODE -D_UNICODE )  # needed for visual studio projects to use the unicode runtime libraries
 
-    #supported windows version: 7 and beyond
-    add_definitions( -D_WIN32_WINNT=0x0601 ) # 0601: windows 7. Note: NTDDI_VERSIO & WINVER shall be inferred from those by Win SDK
+    #supported windows version: 8 and beyond
+    add_definitions( -D_WIN32_WINNT=0x0602 ) # 0602: windows 8. Note: NTDDI_VERSIO & WINVER shall be inferred from those by Win SDK
     add_definitions( -DNO_READLINE )  # This one is defined within SdkLib, but we need it too for MEGAcmd code.
     add_definitions( -DUSE_CPPTHREAD ) # For win32, we need this to be defined explicitly (used directly in different targets). TODO: remove in CMD-318
     add_definitions( -DNOMINMAX ) # To fix usages of std::min / std::max

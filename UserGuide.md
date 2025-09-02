@@ -1,6 +1,6 @@
 # MEGAcmd User Guide
 
-This document relates to MEGAcmd version 2.1.1.  It contains introductory information and the [Command Summary](#command-summary), with links to detailed command descriptions.
+This document relates to MEGAcmd version 2.2.0.  It contains introductory information and the [Command Summary](#command-summary), with links to detailed command descriptions.
 
 ### What is it
 A command line tool to work with your MEGA account and files.  The intent is to offer all the MEGA account functionality via command line.  You can run it in [interactive](#interactive) mode where it processes all commands directly, or you can run its [scriptable](#scriptable) commands from your favourite Linux or Mac shell such as bash, or you can even run its commands in a Windows command prompt. And of course you can write scripts using those scriptable commands.
@@ -142,7 +142,7 @@ source /Applications/MEGAcmd.app/Contents/MacOS/megacmd_completion.sh
 ### Windows
 Once you have MEGAcmd installed, you can start the [interactive](#interactive) shell from the Start Menu or desktop icon.  On windows the interactive shell executable is called `MEGAcmdShell.exe` and the server is `MEGAcmdServer.exe`.
 
-On Windows 7, we recommend using the MEGAcmd shell from inside PowerShell for a better user experience (and you can do this on other Windows platforms also).  You can start powershell from the Start Menu and then execute these commands to start it:
+You can also start MEGAcmd Shell from inside PowerShell. To do so, start powershell from the Start Menu and then execute these commands to start it:
 ```
 $env:PATH += ";$env:LOCALAPPDATA\MEGAcmd"
 MEGAcmdShell
@@ -248,6 +248,7 @@ Verbosity: You can increase the amount of information given by any command by pa
 * [`cat`](contrib/docs/commands/cat.md)`remotepath1 remotepath2 ...` Prints the contents of remote files
 * [`clear`](contrib/docs/commands/clear.md) Clear screen
 * [`codepage`](contrib/docs/commands/codepage.md)`[N [M]]` Switches the codepage used to decide which characters show on-screen.
+* [`configure`](contrib/docs/commands/configure.md)`[key [value]]` Shows and modifies global configurations.
 * [`confirmcancel`](contrib/docs/commands/confirmcancel.md)`link password` Confirms the cancellation of your MEGA account
 * [`debug`](contrib/docs/commands/debug.md) Enters debugging mode (HIGHLY VERBOSE)
 * [`deleteversions`](contrib/docs/commands/deleteversions.md)`[-f] (--all | remotepath1 remotepath2 ...)  [--use-pcre]` Deletes previous versions.
