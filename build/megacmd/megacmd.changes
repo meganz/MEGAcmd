@@ -1,3 +1,9 @@
+Tue Sep 2 16:43:10 CEST 2025 - linux@mega.co.nz
+- Update to version 2.3.0:
+  * FUSE (beta): Added fuse commands on Windows to allow your MEGA folders to be directly mounted to your local drive
+  * Other fixes and improvements to enhance reliability and performance
+
+-------------------------------------------------------------------
 Tue Jun 3 23:20:12 CEST 2025 - linux@mega.co.nz
 - Update to version 2.2.0:
   * Support building for ARM64 in linux

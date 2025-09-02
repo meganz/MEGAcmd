@@ -1,3 +1,10 @@
+megacmd (2.3.0) stable; urgency=low
+
+  * FUSE (beta): Added fuse commands on Windows to allow your MEGA folders to be directly mounted to your local drive
+  * Other fixes and improvements to enhance reliability and performance
+
+ -- MEGA Team <linux@mega.co.nz>  Tue, 02 Sep 2025 16:43:10 +0200
+
 megacmd (2.2.0) stable; urgency=low
 
   * Support building for ARM64 in linux
