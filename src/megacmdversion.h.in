@@ -26,7 +26,9 @@ namespace megacmd {
 
 const char * const megacmdchangelog =
         "FUSE (beta): Added fuse commands on Windows to allow your MEGA folders to be directly mounted to your local drive""\n"
-        "New command \"configure\" to allow setting max number of nodes in memory""\n"
+        "New command \"configure\" to allow configuring some settings""\n"
+        "Support setting max number of nodes in memory""\n"
+        "Support setting number of SDK instances used for login in folders to download/import""\n"
         "Other fixes and improvements to enhance reliability and performance"
         ;
 }//end namespace

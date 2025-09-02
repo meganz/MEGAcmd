@@ -15,6 +15,8 @@ Requires: procps
 Requires: procps-ng
 %endif
 
+%global __requires_exclude ^lib(avcodec|avformat|avutil|swresample|swscale)\\.so\\.
+
 BuildRequires: autoconf, autoconf-archive, automake, libtool, gcc-c++
 BuildRequires: hicolor-icon-theme, zip, unzip, nasm, cmake, perl
 BuildRequires: fuse-devel
@@ -57,6 +59,11 @@ Requires: fuse
     %if 0%{?fedora_version} >= 35
         %define __brp_check_rpaths QA_RPATHS=0x0002 /usr/lib/rpm/check-rpaths
     %endif
+%endif
+
+# RHEL/CentOS/Alma/Rocky/Oracle >= 9: allow $ORIGIN
+%if (0%{?rhel} >= 9) || (0%{?rhel_version} >= 900) || (0%{?centos_version} >= 900)
+    %define __brp_check_rpaths QA_RPATHS=$(( 0x0002|0x0008 )) /usr/lib/rpm/check-rpaths
 %endif
 
 %description
@@ -130,6 +137,7 @@ fi
 
 cmake --install %{_builddir}/build_dir --prefix %{buildroot}
 
+
 %post
 #TODO: source bash_completion?
 
@@ -149,26 +157,22 @@ DATA
 
 %endif
 
-%if 0%{?rhel_version} || 0%{?centos_version} || 0%{?scientificlinux_version}
+%if 0%{?rhel_version} || 0%{?centos_version}
 
-    %if 0%{?rhel_version} == 800
-        %define reponame RHEL_8
+    %if 0%{?rhel_version} == 900 && 0%{?almalinux}
+        %define reponame AlmaLinux_9
     %endif
 
-    %if 0%{?rhel_version} == 700
-        %define reponame RHEL_7
+    %if 0%{?rhel_version} == 1000 && 0%{?almalinux}
+        %define reponame AlmaLinux_10
     %endif
 
-    %if 0%{?scientificlinux_version} == 700
-        %define reponame ScientificLinux_7
+    %if 0%{?centos_version} == 900 && ! 0%{?almalinux}
+        %define reponame CentOS_Stream_9
     %endif
-
-    %if 0%{?centos_version} == 700
-        %define reponame CentOS_7
-    %endif
-
-    %if 0%{?centos_version} == 800
-        %define reponame CentOS_8
+ 
+    %if 0%{?centos_version} == 1000 && ! 0%{?almalinux}
+        %define reponame CentOS_Stream_10
     %endif
 
     YUM_FILE="/etc/yum.repos.d/megasync.repo"
