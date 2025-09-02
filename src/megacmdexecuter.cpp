@@ -10888,17 +10888,27 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             return;
         }
 
+#ifdef WIN32
+        if (words.size() != 2 && (!getenv("MEGACMD_FUSE_ALLOW_LOCAL_PATHS") || words.size() != 3))
+#else
         if (words.size() != 3)
+#endif
         {
             setCurrentThreadOutCode(MCMD_EARGS);
             LOG_err << getUsageStr("fuse-add");
             return;
         }
 
-        const std::string& localPathStr = words[1];
-        const std::string& remotePathStr = words[2];
+        bool remoteIsFirstArg(words.size() == 2);
 
-        if (localPathStr.empty() || remotePathStr.empty())
+        const std::string& localPathStr = remoteIsFirstArg ? std::string("") : words[1];
+        const std::string& remotePathStr = remoteIsFirstArg ? words[1] : words[2];
+
+        if (remotePathStr.empty()
+#ifndef WIN32
+            || localPathStr.empty()
+#endif
+            )
         {
             setCurrentThreadOutCode(MCMD_EARGS);
             LOG_err << "Path cannot be empty";
@@ -10907,12 +10917,14 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         }
 
         const fs::path localPath = localPathStr;
+#ifndef WIN32
         if (std::error_code ec; !fs::exists(localPath, ec) || ec)
         {
             setCurrentThreadOutCode(MCMD_NOTFOUND);
             LOG_err << "Local path " << localPath << " does not exist";
             return;
         }
+#endif
 
         std::unique_ptr<MegaNode> node = nodebypath(remotePathStr.c_str());
         if (node == nullptr)

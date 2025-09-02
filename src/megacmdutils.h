@@ -69,6 +69,8 @@ const char * getMCMDErrorString(int errorCode);
 
 const char * getErrorCodeStr(mega::MegaError *e);
 
+const char * getMountResultStr(int mountResult);
+
 const char * getLogLevelStr(int loglevel);
 
 std::optional<int> getLogLevelNum(const char* level);
