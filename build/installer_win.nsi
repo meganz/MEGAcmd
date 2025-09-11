@@ -266,7 +266,7 @@ Function WinFspPage
     ${NSD_CreateCheckbox} 0 54u 100% 12u "Install WinFSP"
     Pop $WinFspCheckbox
 
-    ${NSD_CreateLabel} 0 74u 100% 24u "If you don't install WinFSP now, you won't be able to stablish FUSE mounts."
+    ${NSD_CreateLabel} 0 74u 100% 24u "If you don't install WinFSP now, you won't be able to establish FUSE mounts."
     ${NSD_CreateLabel} 0 98u 100% 24u "Please, tick above checkbox to install it in your system."
 
     ${NSD_SetState} $WinFspCheckbox $WinFspCheckboxState
