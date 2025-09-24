@@ -2,8 +2,8 @@
 NJOBS := $(shell echo ${DEB_BUILD_OPTIONS} | sed -rn 's/.*parallel=([0-9]*).*/\1/p')
 VCPKG_ROOT := $(shell [ -f /opt/vcpkg.tar.gz ] && echo "-DVCPKG_ROOT=vcpkg" || echo "")
 #TODO: pass deprecation to cmake (probably better not via ccpflags)
-EXTRADEFINES := $(shell cat /etc/issue | grep "Ubuntu 1[2345789]\|Ubuntu 20.10\|Ubuntu 21\|Ubuntu 22.10\|Ubuntu 23\|Debian.* [789]" >/dev/null && echo "$$CPPFLAGS -DMEGACMD_DEPRECATED_OS" || echo "")
-DPKGXZ := $(shell cat /etc/issue | grep "Ubuntu 25\|Plucky Puffin\|Ubuntu 24\|Oracular Oriole\|Noble Numbat\|Ubuntu 23\|Mantic Minotaur\|Lunar Lobster\|Ubuntu 22\|Jammy Jellyfish\|Ubuntu 21.10" >/dev/null && echo "-- -Zxz" || echo "")
+EXTRADEFINES := $(shell cat /etc/issue | grep "Ubuntu 1[2345789]\|Ubuntu 20\|Ubuntu 21\|Ubuntu 22.10\|Ubuntu 23\|Ubuntu.24.10\|Debian.* [789]" >/dev/null && echo "$$CPPFLAGS -DMEGACMD_DEPRECATED_OS" || echo "")
+DPKGXZ := $(shell cat /etc/issue | grep "Ubuntu 25\|Questing Quokka\|Plucky Puffin\|Ubuntu 24\|Ubuntu 23\|Ubuntu 22" >/dev/null && echo "-- -Zxz" || echo "")
 #LDFLAGS := $(shell dpkg --print-architecture | grep -i "i386\|arm" >/dev/null && echo "" || echo "$$LDFLAGS -Wl,-rpath,/opt/megacmd/lib")
 EXPORT_VCPKG_FORCE_SYSTEM_BINARIES := $(shell uname -m | grep "armv7l" >/dev/null && echo "VCPKG_FORCE_SYSTEM_BINARIES=1" || echo "")
 DEB_TESTING := $(shell cat /etc/issue | grep "Debian" > /dev/null && cat /etc/apt/sources.list.d/debian.sources | grep -v "^\#" | grep testing > /dev/null && echo "testing")
@@ -28,10 +28,19 @@ build-stamp:
 		mkdir -p $(VCPKG_DEFAULT_BINARY_CACHE); \
 	fi
 
-	if [ -f /opt/cmake.tar.gz ]; then echo "20bc14b37c4d51d4f7d143646c8fadc0  /opt/cmake.tar.gz" | md5sum -c -; fi
+	if [ -f /opt/cmake.tar.gz ]; then                           \
+		HASH=$$(md5sum /opt/cmake.tar.gz | awk '{print $$1}');  \
+		if [ "$$HASH" = "ebc26503469f12bf1e956c564fcfa82a" ] || [ "$$HASH" = "2e278820bb4ec6fb71dbef1704fb5359" ]; then  \
+			echo "Valid cmake.tar.gz (hash: $$HASH)";           \
+		else                                                    \
+			echo "Invalid cmake.tar.gz hash: $$HASH" >&2;       \
+			exit 1;                                             \
+		fi;                                                     \
+	fi
+	
 	if [ -f /opt/cmake.tar.gz ]; then     \
 		tar xzf /opt/cmake.tar.gz;        \
-		ln -s cmake-*-Linux* cmake_inst;  \
+		ln -s cmake-*-linux* cmake_inst;  \
 	fi
 
 	cmake --version

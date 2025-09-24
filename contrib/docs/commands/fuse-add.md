@@ -9,7 +9,7 @@ Mounts are persisted after restarts and writable by default. You may change thes
 Use fuse-show to display the list of mounts.
 
 Parameters:
- localPath    Specifies where the files contained by remotePath should be visible on the local filesystem.
+ localPath    [unix only] Specifies where the files contained by remotePath should be visible on the local filesystem.
  remotePath   Specifies what directory (or share) should be exposed on the local filesystem.
 
 Options:
@@ -28,5 +28,5 @@ Disclaimer:
     - FUSE uses a local cache located in the MEGAcmd configuration folder. Make sure you have enough available space in your hard drive to accomodate new files. Restarting MEGAcmd server can help discard old files.
     - File writes might be deferred. When files are updated in the local mount point, a transfer will be initiated. Your files will be available in MEGA only after pending transfers finish.
 
-FUSE commands are in early BETA. They're only available on Linux. If you experience any issues, please contact support@mega.nz.
+FUSE commands are in early BETA. They are not available in macOS. If you experience any issues, please contact support@mega.nz.
 </pre>

@@ -1,6 +1,6 @@
 # MEGAcmd User Guide
 
-This document relates to MEGAcmd version 2.2.0.  It contains introductory information and the [Command Summary](#command-summary), with links to detailed command descriptions.
+This document relates to MEGAcmd version 2.3.0.  It contains introductory information and the [Command Summary](#command-summary), with links to detailed command descriptions.
 
 ### What is it
 A command line tool to work with your MEGA account and files.  The intent is to offer all the MEGA account functionality via command line.  You can run it in [interactive](#interactive) mode where it processes all commands directly, or you can run its [scriptable](#scriptable) commands from your favourite Linux or Mac shell such as bash, or you can even run its commands in a Windows command prompt. And of course you can write scripts using those scriptable commands.

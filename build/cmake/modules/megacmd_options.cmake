@@ -1,5 +1,4 @@
 option(USE_PCRE "Used to provide support for pcre" ON)
-option(USE_LIBUV "Includes the library and turns on internal web and ftp server functionality" ON)
 
 option(FULL_REQS "Fail compilation when some requirement is not met" ON)
 
@@ -12,7 +11,8 @@ if(FULL_REQS)
  #On by default in the SDK, but let's enforce anyway
     option(USE_PDFIUM "Used to create previews/thumbnails for PDF files" ON)
     option(USE_FFMPEG "Used to create previews/thumbnails for video files" ON)
-    option(USE_MEDIAINFO "Used to determine media properties and set those as node attributes" ON)
+    option(ENABLE_MEDIA_FILE_METADATA "Used to determine media properties and set those as node attributes" ON)
+    option(USE_MEDIAINFO "[DEPRECATED] Used to determine media properties and set those as node attributes" ON)
 
     #make compilation fail in case those are not fully available:
     add_compile_definitions(
@@ -25,7 +25,8 @@ if(FULL_REQS)
 else()
     option(USE_PDFIUM "Used to create previews/thumbnails for PDF files" OFF)
     option(USE_FFMPEG "Used to create previews/thumbnails for video files" OFF)
-    option(USE_MEDIAINFO "Used to determine media properties and set those as node attributes" OFF)
+    option(ENABLE_MEDIA_FILE_METADATA "Used to determine media properties and set those as node attributes" OFF)
+    option(USE_MEDIAINFO "[DEPRECATED] Used to determine media properties and set those as node attributes" OFF)
 endif()
 
 if (CMAKE_BUILD_TYPE STREQUAL "Debug" )
@@ -41,8 +42,11 @@ endif()
 #Override SDK's options:
 option(ENABLE_ISOLATED_GFX "Turns on isolated GFX processor" OFF)
 option(ENABLE_SDKLIB_WERROR "Enable warnings as errors" OFF)
+option(USE_LIBUV "Includes the library and turns on internal web and ftp server functionality" ON)
 
-if(UNIX AND NOT APPLE)
+if(WIN32)
+    option(WITH_FUSE "Build with FUSE support." ON)
+elseif(UNIX AND NOT APPLE)
     execute_process(
         COMMAND uname -m
         OUTPUT_VARIABLE SYSTEM_ARCHITECTURE

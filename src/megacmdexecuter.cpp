@@ -189,6 +189,7 @@ void MegaCmdExecuter::updateprompt(MegaApi *api)
 
 MegaCmdExecuter::MegaCmdExecuter(MegaApi *api, MegaCmdLogger *loggerCMD, MegaCmdSandbox *sandboxCMD) :
     // Give a few seconds in order for key sharing to happen
+    mFsAccessCMD(::mega::createFSA()),
     mDeferredSharedFoldersVerifier(std::chrono::seconds(5)),
     mSyncIssuesManager(api)
 {
@@ -202,14 +203,12 @@ MegaCmdExecuter::MegaCmdExecuter(MegaApi *api, MegaCmdLogger *loggerCMD, MegaCmd
     api->addTransferListener(globalTransferListener);
     api->addGlobalListener(mSyncIssuesManager.getGlobalListener());
     cwd = UNDEF;
-    fsAccessCMD = new MegaFileSystemAccess();
     session = NULL;
 
 }
 
 MegaCmdExecuter::~MegaCmdExecuter()
 {
-    delete fsAccessCMD;
     delete globalTransferListener;
 }
 
@@ -1588,7 +1587,7 @@ void MegaCmdExecuter::dumpNodeSummary(MegaNode *n, const char *timeFormat, std::
 void MegaCmdExecuter::createOrModifyBackup(string local, string remote, string speriod, int numBackups)
 {
     LocalPath locallocal = LocalPath::fromAbsolutePath(local);
-    std::unique_ptr<FileAccess> fa = fsAccessCMD->newfileaccess();
+    std::unique_ptr<FileAccess> fa = mFsAccessCMD->newfileaccess();
     if (!fa->isfolder(locallocal))
     {
         setCurrentThreadOutCode(MCMD_NOTFOUND);
@@ -1917,7 +1916,7 @@ bool MegaCmdExecuter::TestCanWriteOnContainingFolder(string path)
         containingFolder = containingFolder.parentPath();
     }
 
-    std::unique_ptr<FileAccess> fa = fsAccessCMD->newfileaccess();
+    std::unique_ptr<FileAccess> fa = mFsAccessCMD->newfileaccess();
     if (!fa->isfolder(containingFolder))
     {
         setCurrentThreadOutCode(MCMD_INVALIDTYPE);
@@ -4201,7 +4200,7 @@ void MegaCmdExecuter::signup(string name, string passwd, string email)
         return;
     }
 
-    OUTSTREAM << "Singinup up. name=" << firstname << ". surname=" << lastname<< endl;
+    OUTSTREAM << "Singing up. name=" << firstname << ". surname=" << lastname<< endl;
 
     api->createAccount(email.c_str(), passwd.c_str(), firstname.c_str(), lastname.c_str(), megaCmdListener);
     megaCmdListener->wait();
@@ -4249,7 +4248,7 @@ void MegaCmdExecuter::confirmWithPassword(string passwd)
 bool MegaCmdExecuter::pathExists(const std::string &path)
 {
     LocalPath localPath = LocalPath::fromAbsolutePath(path);
-    std::unique_ptr<FileAccess> fa(fsAccessCMD->newfileaccess());
+    std::unique_ptr<FileAccess> fa(mFsAccessCMD->newfileaccess());
     return fa->isfolder(localPath) || fa->isfile(localPath);
 }
 
@@ -4259,7 +4258,7 @@ bool MegaCmdExecuter::IsFolder(string path)
     replaceAll(path,"/","\\");
 #endif
     LocalPath localpath = LocalPath::fromAbsolutePath(path);
-    std::unique_ptr<FileAccess> fa = fsAccessCMD->newfileaccess();
+    std::unique_ptr<FileAccess> fa = mFsAccessCMD->newfileaccess();
     return fa->isfolder(localpath);
 }
 
@@ -4773,7 +4772,7 @@ string MegaCmdExecuter::getLPWD()
     string relativePath = ".";
     LocalPath localRelativePath = LocalPath::fromRelativePath(relativePath);
     LocalPath localAbsolutePath;
-    if (!fsAccessCMD->expanselocalpath(localRelativePath, localAbsolutePath))
+    if (!mFsAccessCMD->expanselocalpath(localRelativePath, localAbsolutePath))
     {
         LOG_err << " Unable to expanse local path . ";
         return "UNKNOWN";
@@ -5069,7 +5068,7 @@ bool MegaCmdExecuter::establishBackup(string pathToBackup, MegaNode *n, int64_t 
     static int backupcounter = 0;
     LocalPath localAbsolutePath = LocalPath::fromAbsolutePath(pathToBackup); //this one would converts it to absolute if it's relative
     LocalPath expansedAbsolutePath;
-    if (!fsAccessCMD->expanselocalpath(localAbsolutePath, expansedAbsolutePath))
+    if (!mFsAccessCMD->expanselocalpath(localAbsolutePath, expansedAbsolutePath))
     {
         setCurrentThreadOutCode(MCMD_NOTFOUND);
         LOG_err << " Failed to expanse path";
@@ -7171,7 +7170,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         if (words.size() > 1)
         {
             LocalPath localpath = LocalPath::fromAbsolutePath(words[1]);
-            if (fsAccessCMD->chdirlocal(localpath)) // maybe this is already checked in chdir
+            if (mFsAccessCMD->chdirlocal(localpath)) // maybe this is already checked in chdir
             {
                 LOG_debug << "Local folder changed to: " << words[1];
             }
@@ -10889,17 +10888,27 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             return;
         }
 
+#ifdef WIN32
+        if (words.size() != 2 && (!getenv("MEGACMD_FUSE_ALLOW_LOCAL_PATHS") || words.size() != 3))
+#else
         if (words.size() != 3)
+#endif
         {
             setCurrentThreadOutCode(MCMD_EARGS);
             LOG_err << getUsageStr("fuse-add");
             return;
         }
 
-        const std::string& localPathStr = words[1];
-        const std::string& remotePathStr = words[2];
+        bool remoteIsFirstArg(words.size() == 2);
 
-        if (localPathStr.empty() || remotePathStr.empty())
+        const std::string& localPathStr = remoteIsFirstArg ? std::string("") : words[1];
+        const std::string& remotePathStr = remoteIsFirstArg ? words[1] : words[2];
+
+        if (remotePathStr.empty()
+#ifndef WIN32
+            || localPathStr.empty()
+#endif
+            )
         {
             setCurrentThreadOutCode(MCMD_EARGS);
             LOG_err << "Path cannot be empty";
@@ -10908,12 +10917,14 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         }
 
         const fs::path localPath = localPathStr;
+#ifndef WIN32
         if (std::error_code ec; !fs::exists(localPath, ec) || ec)
         {
             setCurrentThreadOutCode(MCMD_NOTFOUND);
             LOG_err << "Local path " << localPath << " does not exist";
             return;
         }
+#endif
 
         std::unique_ptr<MegaNode> node = nodebypath(remotePathStr.c_str());
         if (node == nullptr)
