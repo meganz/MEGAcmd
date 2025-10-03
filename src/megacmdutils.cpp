@@ -129,7 +129,7 @@ string visibilityToString(int visibility)
     }
     if (visibility == MegaUser::VISIBILITY_UNKNOWN)
     {
-        return "Unkown visibility";
+        return "Unknown visibility";
     }
     if (visibility == MegaUser::VISIBILITY_INACTIVE)
     {

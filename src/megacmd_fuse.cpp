@@ -20,7 +20,7 @@ std::string_view getDisclaimer()
     return "Disclaimer:\n"
            "    - Streaming is not supported; entire files need to be downloaded completely before being opened.\n"
            "    - FUSE uses a local cache located in the MEGAcmd configuration folder. Make sure you have enough available space "
-           "in your hard drive to accomodate new files. Restarting MEGAcmd server can help discard old files.\n"
+           "in your hard drive to accommodate new files. Restarting MEGAcmd server can help discard old files.\n"
            "    - File writes might be deferred. When files are updated in the local mount point, a transfer will be initiated. "
            "Your files will be available in MEGA only after pending transfers finish.";
 }
@@ -339,7 +339,7 @@ void printAllMounts(mega::MegaApi& api, ColumnDisplayer& cd, bool onlyEnabled, b
     std::unique_ptr<MegaMountList> mounts(api.listMounts(onlyEnabled));
     if (mounts == nullptr)
     {
-        LOG_err << "Failed to retreive the list of mounts";
+        LOG_err << "Failed to retrieve the list of mounts";
         return;
     }
 
