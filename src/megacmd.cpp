@@ -2092,7 +2092,7 @@ bool validCommand(string thecommand)
 string getsupportedregexps()
 {
 #ifdef USE_PCRE
-        return "Perl Compatible Regular Expressions with \"--use-pcre\"\n   or wildcarded expresions with ? or * like f*00?.txt";
+        return "Perl Compatible Regular Expressions with \"--use-pcre\"\n   or wildcarded expressions with ? or * like f*00?.txt";
 #elif __cplusplus >= 201103L
         return "c++11 Regular Expressions";
 #else
@@ -2146,7 +2146,7 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
               "write privileges. Without this option, you will log into the link with read access only." << endl;
         os << "\t--resume: A convenience option to try to resume from cache. When login into a folder, contrary to what occurs with login into a user account,"
               " MEGAcmd will not try to load anything from cache: loading everything from scratch. This option changes that. Note, "
-              "login using a session string, will of course, try to load from cache. This option may be convinient, for instance, if you previously "
+              "login using a session string, will of course, try to load from cache. This option may be convenient, for instance, if you previously "
               "logged out using --keep-session." << endl;
         os << endl;
         os << "For more information about MEGA folder links, see \"" << getCommandPrefixBasedOnMode() << "export --help\"." << endl;
@@ -2277,7 +2277,7 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << "   " << "\t" << "     xxxx" << endl;
         os << "   " << "\t" << "     |||+---- Sharing status: (s)hared, (i)n share or not shared(-)" << endl;
         os << "   " << "\t" << "     ||+----- if exported, whether it is (p)ermanent or (t)temporal" << endl;
-        os << "   " << "\t" << "     |+------ e/- wheter node is (e)xported" << endl;
+        os << "   " << "\t" << "     |+------ e/- whether node is (e)xported" << endl;
         os << "   " << "\t" << "     +-------- Type(d=folder,-=file,r=root,i=inbox,b=rubbish,x=unsupported)" << endl;
         os << "   " << "\t" << "   VERS: Number of versions in a file" << endl;
         os << "   " << "\t" << "   SIZE: Size of the file in bytes:" << endl;
@@ -2539,7 +2539,7 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
     {
         os << "Shows if HTTPS is used for transfers. Use \"https on\" to enable it." << endl;
         os << endl;
-        os << "HTTPS is not necesary since all data is stored and transfered encrypted." << endl;
+        os << "HTTPS is not necessary since all data is stored and transferred encrypted." << endl;
         os << "Enabling it will increase CPU usage and add network overhead." << endl;
         os << endl;
         os << "Notice that this setting will be saved for the next time you open MEGAcmd, but will be removed if you logout." << endl;
@@ -2579,8 +2579,8 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << " --public   " << "\t" << "*Allow access from outside localhost" << endl;
         os << " --port=PORT" << "\t" << "*Port to serve. DEFAULT= 4443" << endl;
         os << " --tls      " << "\t" << "*Serve with TLS (HTTPS)" << endl;
-        os << " --certificate=/path/to/certificate.pem" << "\t" << "*Path to PEM formated certificate" << endl;
-        os << " --key=/path/to/certificate.key" << "\t" << "*Path to PEM formated key" << endl;
+        os << " --certificate=/path/to/certificate.pem" << "\t" << "*Path to PEM formatted certificate" << endl;
+        os << " --key=/path/to/certificate.key" << "\t" << "*Path to PEM formatted key" << endl;
 
         if (flags.usePcre || flags.showAll)
         {
@@ -2609,8 +2609,8 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << " --port=PORT" << "\t" << "*Port to serve. DEFAULT=4990" << endl;
         os << " --data-ports=BEGIN-END" << "\t" << "*Ports range used for data channel (in passive mode). DEFAULT=1500-1600" << endl;
         os << " --tls      " << "\t" << "*Serve with TLS (FTPs)" << endl;
-        os << " --certificate=/path/to/certificate.pem" << "\t" << "*Path to PEM formated certificate" << endl;
-        os << " --key=/path/to/certificate.key" << "\t" << "*Path to PEM formated key" << endl;
+        os << " --certificate=/path/to/certificate.pem" << "\t" << "*Path to PEM formatted certificate" << endl;
+        os << " --key=/path/to/certificate.key" << "\t" << "*Path to PEM formatted key" << endl;
 
         if (flags.usePcre || flags.showAll)
         {
@@ -2814,7 +2814,7 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << "  \t"  << "  will be carried out nevertheless." << endl;
         os << "  \t"  << "If MEGAcmd server is not running when a backup is scheduled and the time for the next one has already arrived," << endl;
         os << "  \t"  << " an empty BACKUP will be created with state SKIPPED" << endl;
-        os << "  \t"  << "If a backup(1) is ONGOING and the time for the next backup(2) arrives, it won't start untill the previous one(1)" << endl;
+        os << "  \t"  << "If a backup(1) is ONGOING and the time for the next backup(2) arrives, it won't start until the previous one(1)" << endl;
         os << "  \t"  << " is completed, and if by the time the first one(1) ends the time for the next one(3) has already arrived," << endl;
         os << "  \t"  << " an empty BACKUP(2) will be created with state SKIPPED" << endl;
         os << " --path-display-size=N" << "\t" << "Use a fixed size of N characters for paths" << endl;
@@ -2841,8 +2841,8 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << "                       \t" << "   e.g. \"1m12d3h\" indicates 1 month, 12 days and 3 hours" << endl;
         os << "                       \t" << "  Notice that this is an uncertain measure since not all months" << endl;
         os << "                       \t" << "  last the same and Daylight saving time changes are not considered" << endl;
-        os << "                       \t" << "  If possible use a cron like expresion" << endl;
-        os << "                       \t" << "Notice: regardless of the period expresion, the first time you establish a backup," << endl;
+        os << "                       \t" << "  If possible use a cron like expression" << endl;
+        os << "                       \t" << "Notice: regardless of the period expression, the first time you establish a backup," << endl;
         os << "                       \t" << " it will be created immediately" << endl;
         os << "--num-backups=N\t" << "Maximum number of backups to store" << endl;
         os << "                 \t" << " After creating the backup (N+1) the oldest one will be deleted" << endl;
@@ -2919,7 +2919,7 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << " --with=email" << "\t" << "Determines the email of the user to [no longer] share with" << endl;
         os << " -d" << "\t" << "Stop sharing with the selected user" << endl;
         os << " -a" << "\t" << "Adds a share (or modifies it if existing)" << endl;
-        os << " --level=LEVEL" << "\t" << "Level of acces given to the user" << endl;
+        os << " --level=LEVEL" << "\t" << "Level of access given to the user" << endl;
         os << "              " << "\t" << "0: " << "Read access" << endl;
         os << "              " << "\t" << "1: " << "Read and write" << endl;
         os << "              " << "\t" << "2: " << "Full access" << endl;
@@ -3192,7 +3192,7 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
     {
         os << "List or operate with transfers" << endl;
         os << endl;
-        os << "If executed without option it will list the first 10 tranfers" << endl;
+        os << "If executed without option it will list the first 10 transfers" << endl;
         os << "Options:" << endl;
         os << " -c (TAG|-a)" << "\t" << "Cancel transfer with TAG (or all with -a)" << endl;
         os << " -p (TAG|-a)" << "\t" << "Pause transfer with TAG (or all with -a)" << endl;
@@ -3230,7 +3230,7 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
     }
     else if (((flags.win && !flags.readline) || flags.showAll) && !strcmp(command, "autocomplete"))
     {
-        os << "Modifes how tab completion operates." << endl;
+        os << "Modifies how tab completion operates." << endl;
         os << endl;
         os << "The default is to operate like the native platform. However" << endl;
         os << "you can switch it between mode 'dos' and 'unix' as you prefer." << endl;
@@ -4053,7 +4053,7 @@ void MegaCmdExecuter::mayExecutePendingStuffInWorkerThread()
             static HammeringLimiter hammeringLimiter(10);
             if (!hammeringLimiter.runRecently())
             {
-                LOG_err << "Invalid utf8 accumulated occurences: " << incidencesFound;
+                LOG_err << "Invalid utf8 accumulated occurrences: " << incidencesFound;
                 sendEvent(StatsManager::MegacmdEvent::INVALID_UTF8_INCIDENCES, api, false);
             }
             else
@@ -4273,7 +4273,7 @@ void* doProcessLine(void* infRaw)
         LOG_verbose << " Exit registered upon process_line: " ;
     }
 
-    LOG_verbose << " Procesed " << inf->getRedactedLine() << " in thread: " << MegaThread::currentThreadId() << " " << inf->getPetitionDetails();
+    LOG_verbose << " Processed " << inf->getRedactedLine() << " in thread: " << MegaThread::currentThreadId() << " " << inf->getPetitionDetails();
 
     MegaThread * petitionThread = inf->getPetitionThread();
 

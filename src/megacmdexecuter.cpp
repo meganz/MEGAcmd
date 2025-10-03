@@ -2232,7 +2232,7 @@ void MegaCmdExecuter::changePassword(const char *newpassword, string pin2fa)
         }
         else if (checkNoErrors(megaCmdListener2->getError(), "change password with auth code"))
         {
-            OUTSTREAM << "Password changed succesfully" << endl;
+            OUTSTREAM << "Password changed successfully" << endl;
         }
 
     }
@@ -2242,7 +2242,7 @@ void MegaCmdExecuter::changePassword(const char *newpassword, string pin2fa)
     }
     else
     {
-        OUTSTREAM << "Password changed succesfully" << endl;
+        OUTSTREAM << "Password changed successfully" << endl;
     }
     delete megaCmdListener;
 }
@@ -2494,7 +2494,7 @@ bool MegaCmdExecuter::actUponFetchNodes(MegaApi *api, SynchronousRequestListener
 
     if (srl->getError()->getErrorCode() == MegaError::API_EBLOCKED)
     {
-        LOG_verbose << " EBLOCKED after fetch nodes. quering for reason...";
+        LOG_verbose << " EBLOCKED after fetch nodes. querying for reason...";
 
         MegaCmdListener *megaCmdListener = new MegaCmdListener(api, NULL);
         api->whyAmIBlocked(megaCmdListener); //This shall cause event that sets reasonblocked
@@ -2826,7 +2826,7 @@ void MegaCmdExecuter::fetchNodes(MegaApi *api, int clientID)
             {
                 thebackup->failed = false;
                 const char *nodepath = api->getNodePath(node);
-                LOG_debug << "Succesfully resumed backup: " << thebackup->localpath << " to " << nodepath;
+                LOG_debug << "Successfully resumed backup: " << thebackup->localpath << " to " << nodepath;
                 delete []nodepath;
             }
             else
@@ -3289,7 +3289,7 @@ void MegaCmdExecuter::downloadNode(string source, string path, MegaApi* api, Meg
         // in order to speedup and not flood the server we only ask for the details every 1 minute or after account changes
         if (!sandboxCMD->temporalbandwidth || (ts - sandboxCMD->lastQuerytemporalBandwith ) > 60 )
         {
-            LOG_verbose << " Updating temporal bandwith ";
+            LOG_verbose << " Updating temporal bandwidth ";
             sandboxCMD->lastQuerytemporalBandwith = ts;
 
             MegaCmdListener *megaCmdListener = new MegaCmdListener(api, NULL);
@@ -3318,7 +3318,7 @@ void MegaCmdExecuter::downloadNode(string source, string path, MegaApi* api, Meg
         }
         else
         {
-            OUTSTREAM << "You have reached your bandwith quota";
+            OUTSTREAM << "You have reached your bandwidth quota";
         }
         OUTSTREAM << ". To circumvent this limit, "
                   "you can upgrade to Pro, which will give you your own bandwidth "
@@ -3338,7 +3338,7 @@ void MegaCmdExecuter::downloadNode(string source, string path, MegaApi* api, Meg
         {
             if (megaCmdListener->getRequest() && megaCmdListener->getRequest()->getFlag() )
             {
-                OUTSTREAM << "Transfer not started: proceding will exceed transfer quota. "
+                OUTSTREAM << "Transfer not started: proceeding will exceed transfer quota. "
                              "Use --ignore-quota-warn to initiate nevertheless" << endl;
                 return;
             }
@@ -4206,7 +4206,7 @@ void MegaCmdExecuter::signup(string name, string passwd, string email)
     megaCmdListener->wait();
     if (checkNoErrors(megaCmdListener->getError(), "create account <" + email + ">"))
     {
-        OUTSTREAM << "Account <" << email << "> created succesfully. You will receive a confirmation link. Use \"confirm\" with the provided link to confirm that account" << endl;
+        OUTSTREAM << "Account <" << email << "> created successfully. You will receive a confirmation link. Use \"confirm\" with the provided link to confirm that account" << endl;
     }
 
     delete megaCmdListener;
@@ -4234,7 +4234,7 @@ void MegaCmdExecuter::confirm(string passwd, string email, string link)
     }
     else if (checkNoErrors(megaCmdListener2->getError(), "confirm account"))
     {
-        OUTSTREAM << "Account " << email << " confirmed succesfully. You can login with it now" << endl;
+        OUTSTREAM << "Account " << email << " confirmed successfully. You can login with it now" << endl;
     }
 
     delete megaCmdListener2;
@@ -4692,7 +4692,7 @@ void MegaCmdExecuter::printBackup(backup_struct *backupstruct, const char *timeF
     }
     else
     { //merely print configuration
-        printBackupSummary(backupstruct->tag, backupstruct->localpath.c_str(),"UNKOWN"," FAILED", PATHSIZE);
+        printBackupSummary(backupstruct->tag, backupstruct->localpath.c_str(),"UNKNOWN"," FAILED", PATHSIZE);
         if (extendedinfo)
         {
             string speriod = (backupstruct->period == -1)?backupstruct->speriod:getReadablePeriod(backupstruct->period/10);
@@ -5182,7 +5182,7 @@ void MegaCmdExecuter::confirmCancel(const char* confirmlink, const char* pass)
     else if (megaCmdListener->getError()->getErrorCode() == MegaError::API_ESID ||
              checkNoErrors(megaCmdListener->getError(), "confirm cancel account"))
     {
-        OUTSTREAM << "CONFIRM Account cancelled succesfully" << endl;
+        OUTSTREAM << "CONFIRM Account cancelled successfully" << endl;
 
         megaCmdListener = std::make_unique<MegaCmdListener>(nullptr);
         api->localLogout(megaCmdListener.get());
@@ -7414,7 +7414,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 megaCmdListener->wait();
                 if (checkNoErrors(megaCmdListener->getError(), "remove all versions"))
                 {
-                    OUTSTREAM << "File versions deleted succesfully. Please note that the current files were not deleted, just their history." << endl;
+                    OUTSTREAM << "File versions deleted successfully. Please note that the current files were not deleted, just their history." << endl;
                 }
                 delete megaCmdListener;
             }
@@ -8613,7 +8613,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     megaCmdListener->wait();
                     if (checkNoErrors(megaCmdListener->getError(), "delete contact"))
                     {
-                        OUTSTREAM << "Contact " << words[1] << " removed succesfully" << endl;
+                        OUTSTREAM << "Contact " << words[1] << " removed successfully" << endl;
                     }
                     delete megaCmdListener;
                 }
@@ -10087,7 +10087,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             {
                 if (megaCmdListener->getRequest()->getFlag())
                 {
-                    OUTSTREAM << "Account " << email << " confirmed succesfully. You can login with it now" << endl;
+                    OUTSTREAM << "Account " << email << " confirmed successfully. You can login with it now" << endl;
                 }
                 else if (megaCmdListener->getRequest()->getEmail() && email == megaCmdListener->getRequest()->getEmail())
                 {
@@ -10481,7 +10481,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     }
                     else
                     {
-                        LOG_err << "Coul not find transfer with tag: " << words[i];
+                        LOG_err << "Could not find transfer with tag: " << words[i];
                         setCurrentThreadOutCode(MCMD_NOTFOUND);
                     }
                 }
@@ -10550,7 +10550,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     }
                     else
                     {
-                        LOG_err << "Coul not find transfer with tag: " << words[i];
+                        LOG_err << "Could not find transfer with tag: " << words[i];
                         setCurrentThreadOutCode(MCMD_NOTFOUND);
                     }
                 }

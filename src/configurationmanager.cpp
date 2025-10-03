@@ -483,7 +483,7 @@ void ConfigurationManager::transitionLegacyExclusionRules(MegaApi& api)
     // This ensures transition works in case there are no existing syncs
     megaIgnoreFile.addFilters(excludeFilters);
 
-    LOG_debug << "Transition of legacy exclusion rules completed successfully. Hidding legacy exclude file";
+    LOG_debug << "Transition of legacy exclusion rules completed successfully. Hiding legacy exclude file";
     try
     {
         fs::rename(excludeFilePath, hiddenExcludeFilePath);
