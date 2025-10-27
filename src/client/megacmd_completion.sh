@@ -76,6 +76,6 @@ _megacmd()
 
 	return 0
 }
-for i in $(compgen -ca | grep mega-); do
+for i in $(compgen -ca mega-); do
 	IFS=" " complete -o default -F _megacmd $i
 done
