@@ -2,13 +2,18 @@
 
 import re
 import subprocess
+import os
+
+MEGA_EXEC_PATH = os.environ.get('MEGA_EXEC_PATH', 'mega-exec')
 
 def get_help_output(detail):
     det = '-ff' if detail else '-f'
-    return subprocess.run(['mega-exec', 'help', det, '--show-all-options'], capture_output=True, text=True).stdout
+    return subprocess.run([MEGA_EXEC_PATH, 'help', det, '--show-all-options'],
+                          capture_output=True, text=True).stdout
 
 def get_version():
-    out = subprocess.run(['mega-exec', 'version'], capture_output=True, text=True).stdout
+    out = subprocess.run([MEGA_EXEC_PATH, 'version'],
+                         capture_output=True, text=True).stdout
     return re.search(r'MEGAcmd version: (\d+\.\d+\.\d+)', out).group(1)
 
 class CommandSummary:
@@ -19,7 +24,7 @@ class CommandSummary:
 
     def get_markdown_format(self):
         args = f'`{self.args}`' if self.args else ''
-        return f'* [`{self.name}`](contrib/docs/commands/{self.name}.md){args} {self.description}'
+        return f'* [`{self.name}`](commands/{self.name}.md){args} {self.description}'
 
 class CommandDetail:
     def __init__(self, name, summary, usage, description):

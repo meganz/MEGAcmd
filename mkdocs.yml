@@ -1,0 +1,158 @@
+site_name: MEGAcmd Documentation
+site_description: Complete command-line reference for MEGAcmd
+site_author: MEGA Team
+
+# Theme configuration
+theme:
+  name: material
+  font: false
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - search.suggest
+    - search.highlight
+  palette:
+    - scheme: default
+      primary: blue
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to dark mode
+    - scheme: slate
+      primary: blue
+      toggle:
+        icon: material/weather-night
+        name: Switch to light mode
+
+# Directories
+docs_dir: contrib/docs
+site_dir: debian/html
+
+# Navigation - Organized exactly as your classification
+nav:
+  - Home: index.md
+  - User Guide: UserGuide.md
+
+  - Account / Contacts:
+      - signup: commands/signup.md
+      - confirm: commands/confirm.md
+      - invite: commands/invite.md
+      - showpcr: commands/showpcr.md
+      - ipc: commands/ipc.md
+      - users: commands/users.md
+      - userattr: commands/userattr.md
+      - passwd: commands/passwd.md
+      - masterkey: commands/masterkey.md
+
+  - Login / Logout:
+      - login: commands/login.md
+      - logout: commands/logout.md
+      - whoami: commands/whoami.md
+      - session: commands/session.md
+      - killsession: commands/killsession.md
+
+  - Browse:
+      - cd: commands/cd.md
+      - lcd: commands/lcd.md
+      - ls: commands/ls.md
+      - pwd: commands/pwd.md
+      - lpwd: commands/lpwd.md
+      - attr: commands/attr.md
+      - du: commands/du.md
+      - find: commands/find.md
+      - mount: commands/mount.md
+
+  - Moving / Copying files:
+      - mkdir: commands/mkdir.md
+      - cp: commands/cp.md
+      - put: commands/put.md
+      - get: commands/get.md
+      - preview: commands/preview.md
+      - thumbnail: commands/thumbnail.md
+      - mv: commands/mv.md
+      - rm: commands/rm.md
+      - transfers: commands/transfers.md
+      - speedlimit: commands/speedlimit.md
+      - sync: commands/sync.md
+      - sync-issues: commands/sync-issues.md
+      - sync-ignore: commands/sync-ignore.md
+      - sync-config: commands/sync-config.md
+      - exclude: commands/exclude.md
+      - backup: commands/backup.md
+
+  - Sharing:
+      - export: commands/export.md
+      - import: commands/import.md
+      - share: commands/share.md
+      - webdav: commands/webdav.md
+
+  - FUSE:
+      - fuse-add: commands/fuse-add.md
+      - fuse-remove: commands/fuse-remove.md
+      - fuse-enable: commands/fuse-enable.md
+      - fuse-disable: commands/fuse-disable.md
+      - fuse-show: commands/fuse-show.md
+      - fuse-config: commands/fuse-config.md
+
+  - Miscellaneous / Utility Commands:
+      - autocomplete: commands/autocomplete.md
+      - cancel: commands/cancel.md
+      - cat: commands/cat.md
+      - clear: commands/clear.md
+      - codepage: commands/codepage.md
+      - confirmcancel: commands/confirmcancel.md
+      - debug: commands/debug.md
+      - deleteversions: commands/deleteversions.md
+      - df: commands/df.md
+      - errorcode: commands/errorcode.md
+      - exit: commands/exit.md
+      - ftp: commands/ftp.md
+      - graphics: commands/graphics.md
+      - help: commands/help.md
+      - https: commands/https.md
+      - info: commands/mediainfo.md
+      - log: commands/log.md
+      - permissions: commands/permissions.md
+      - proxy: commands/proxy.md
+      - psa: commands/psa.md
+      - quit: commands/quit.md
+      - reload: commands/reload.md
+      - tree: commands/tree.md
+      - unicode: commands/unicode.md
+      - update: commands/update.md
+      - version: commands/version.md
+
+  - Additional Features:
+    - FTP: FTP.md
+    - FUSE: FUSE.md
+    - WebDAV: WEBDAV.md
+    - Backups: BACKUPS.md
+    - Debugging: DEBUG.md
+
+# Plugins
+plugins:
+  - search
+  - macros
+
+# Extensions
+markdown_extensions:
+  - admonition
+  - codehilite
+  - extra
+  - toc:
+      permalink: true
+  - pymdownx.highlight
+  - pymdownx.superfences
+  - pymdownx.tabbed
+
+# Extra configuration
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/meganz/MEGAcmd
+
+  consent:
+    title: Cookie consent
+    description: >-
+      We use cookies to recognize your repeated visits and preferences.
+
+copyright: Copyright &copy; 2024 MEGA.nz
