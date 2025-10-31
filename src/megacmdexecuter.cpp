@@ -38,6 +38,8 @@
 #include <set>
 
 #include <signal.h>
+#include <mega/localpath.h>
+#include <mega/posix/megafs.h>
 
 #ifdef MEGACMD_TESTING_CODE
     #include "../tests/common/Instruments.h"
@@ -129,6 +131,13 @@ std::optional<FuseCommand::ConfigDelta> loadFuseConfigDelta(const std::map<std::
     return configDelta;
 }
 #endif
+
+class MegaFileSystemAccess : public mega::PosixFileSystemAccess {
+public:
+    void addevents(mega::Waiter*, int) override {
+        // Implementation dummy
+    }
+};
 
 /**
  * @brief updateprompt updates prompt with the current user/location
