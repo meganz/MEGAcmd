@@ -15,9 +15,10 @@
 
 #include <gtest/gtest.h>
 
-#include "TestUtils.h"
 #include "Instruments.h"
+#include "TestUtils.h"
 #include "comunicationsmanager.h"
+#include "megacmdcommonutils.h"
 
 TEST(StringUtilsTest, rtrim)
 {
