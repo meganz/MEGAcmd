@@ -144,13 +144,13 @@ TEST(StringUtilsTest, ltrim)
         EXPECT_EQ(result, "test");
     }
 
-    G_SUBTEST << "Single character string - trim character";
+    G_SUBTEST << "Single character string with trim character";
     {
         std::string s("X");
         EXPECT_EQ(ltrim(s, 'X'), "");
     }
 
-    G_SUBTEST << "Single character string - not trim character";
+    G_SUBTEST << "Single character string with no trim characters";
     {
         std::string s("X");
         EXPECT_EQ(ltrim(s, 'Y'), "X");
