@@ -413,3 +413,184 @@ TEST(StringUtilsTest, redactedCmdPetition)
         }
     }
 }
+
+TEST(StringUtilsTest, getListOfWords)
+{
+    using megacmd::getlistOfWords;
+
+    G_SUBTEST << "Basic case";
+    {
+        std::vector<std::string> words = getlistOfWords("mega-share -a --with=some-email@mega.co.nz some_dir/some_file.txt");
+        EXPECT_THAT(words, testing::ElementsAre("mega-share", "-a", "--with=some-email@mega.co.nz", "some_dir/some_file.txt"));
+    }
+
+    G_SUBTEST << "Double quotes";
+    {
+        {
+            std::vector<std::string> words = getlistOfWords("mkdir \"some dir\" \"another dir\"");
+            EXPECT_THAT(words, testing::ElementsAre("mkdir", "some dir", "another dir"));
+        }
+        {
+            std::vector<std::string> words = getlistOfWords("command \"text\\\"quoted\"");
+            EXPECT_THAT(words, testing::ElementsAre("command", "text\\", "quoted\""));
+        }
+    }
+
+    G_SUBTEST << "Double quotes without matching";
+    {
+        std::vector<std::string> words = getlistOfWords("find \"something with quotes\" odd/file\"01.txt");
+        EXPECT_THAT(words, testing::ElementsAre("find", "something with quotes", "odd/file\"01.txt"));
+    }
+
+    G_SUBTEST << "Single quotes";
+    {
+        std::vector<std::string> words = getlistOfWords("mkdir 'some dir' 'another dir'");
+        EXPECT_THAT(words, testing::ElementsAre("mkdir", "some dir", "another dir"));
+    }
+
+    G_SUBTEST << "Single quotes without matching";
+    {
+        std::vector<std::string> words = getlistOfWords("find 'something with quotes' odd/file'01.txt");
+        EXPECT_THAT(words, testing::ElementsAre("find", "something with quotes", "odd/file'01.txt"));
+    }
+
+    G_SUBTEST << "Escape backslash in completion";
+    {
+        const char* str = "get root_dir\\some_dir\\some_file.jpg another_file.txt";
+        const char* completion_str = "completion get root_dir\\some_dir\\some_file.jpg another_file.txt";
+
+        // '\\' won't be replaced since the first word is not `completion`
+        std::vector<std::string> words = getlistOfWords(str, true);
+        EXPECT_THAT(words, testing::ElementsAre("get", "root_dir\\some_dir\\some_file.jpg", "another_file.txt"));
+
+        // '\\' will be replaced with '\\\\' since the first word is `completion`
+        words = getlistOfWords(completion_str, true);
+        EXPECT_THAT(words, testing::ElementsAre("completion", "get", "root_dir\\\\some_dir\\\\some_file.jpg", "another_file.txt"));
+
+        // '\\' won't be replaced since we're setting `escapeBackSlashInCompletion=false`
+        words = getlistOfWords(str, false);
+        EXPECT_THAT(words, testing::ElementsAre("get", "root_dir\\some_dir\\some_file.jpg", "another_file.txt"));
+    }
+
+    G_SUBTEST << "Ignore trailing spaces";
+    {
+        constexpr const char* str = "export -f --writable some_dir/some_file.txt    ";
+
+        std::vector<std::string> words = getlistOfWords(str, false, false);
+        EXPECT_THAT(words, testing::ElementsAre("export", "-f", "--writable", "some_dir/some_file.txt", ""));
+
+        words = getlistOfWords(str, false, true);
+        EXPECT_THAT(words, testing::ElementsAre("export", "-f", "--writable", "some_dir/some_file.txt"));
+    }
+
+    G_SUBTEST << "Detect matching quotes";
+    {
+        for (const auto& [line, expectedWords] : std::vector<std::pair<std::string, std::vector<std::string>>>
+            {
+                {"some \"case\" here", {"some", "case", "here"}},
+                {"--another=\"here\"", {"--another=\"here\""}},
+                {"--another=\"here\" with extra bits", {"--another=\"here\"", "with", "extra", "bits"}},
+                {"some \"other case with spaces\" here", {"some", "other case with spaces", "here"}},
+                {"--something=\"quote missing", {"--something=\"quote missing"}},
+                {"--nothing=\"", {"--nothing=\""}},
+                {"--arg1=\"a b\" word --arg2=\"c d\"", {"--arg1=\"a b\"", "word", "--arg2=\"c d\""}}
+            })
+        {
+            std::vector<std::string> words = getlistOfWords(const_cast<char*>(line.c_str()));
+            EXPECT_EQ(words, expectedWords);
+        }
+    }
+
+    G_SUBTEST << "Very long strings";
+    {
+        {
+            std::string longString = "command ";
+            longString += std::string(10000, 'a');
+            longString += " argument";
+            std::vector<std::string> words = getlistOfWords(longString.c_str());
+            EXPECT_EQ(words.size(), 3);
+            EXPECT_EQ(words[0], "command");
+            EXPECT_EQ(words[1].size(), 10000);
+            EXPECT_EQ(words[2], "argument");
+        }
+        {
+            std::string longQuotedString = "command \"";
+            longQuotedString += std::string(5000, 'b');
+            longQuotedString += "\" argument";
+            std::vector<std::string> words = getlistOfWords(longQuotedString.c_str());
+            EXPECT_EQ(words.size(), 3);
+            EXPECT_EQ(words[0], "command");
+            EXPECT_EQ(words[1].size(), 5000);
+            EXPECT_EQ(words[2], "argument");
+        }
+    }
+
+    G_SUBTEST << "Nested quotes";
+    {
+        {
+            std::vector<std::string> words = getlistOfWords("command 'text \"nested\" text'");
+            EXPECT_THAT(words, testing::ElementsAre("command", "text \"nested\" text"));
+        }
+        {
+            std::vector<std::string> words = getlistOfWords("command \"text 'nested' text\"");
+            EXPECT_THAT(words, testing::ElementsAre("command", "text 'nested' text"));
+        }
+        {
+            std::vector<std::string> words = getlistOfWords("cmd1 'outer \"inner\" outer' cmd2 \"outer 'inner' outer\"");
+            EXPECT_THAT(words, testing::ElementsAre("cmd1", "outer \"inner\" outer", "cmd2", "outer 'inner' outer"));
+        }
+    }
+
+    G_SUBTEST << "Special characters and escape sequences";
+    {
+        {
+            std::vector<std::string> words = getlistOfWords("command \"text\\nnewline\" \"text\\ttab\"");
+            EXPECT_THAT(words, testing::ElementsAre("command", "text\\nnewline", "text\\ttab"));
+        }
+        {
+            std::vector<std::string> words = getlistOfWords("command 'text\\nnewline' 'text\\ttab'");
+            EXPECT_THAT(words, testing::ElementsAre("command", "text\\nnewline", "text\\ttab"));
+        }
+        {
+            std::vector<std::string> words = getlistOfWords("command \"path\\\\to\\\\file\"");
+            EXPECT_THAT(words, testing::ElementsAre("command", "path\\\\to\\\\file"));
+        }
+        {
+            std::vector<std::string> words = getlistOfWords("command file@name#123$test%value");
+            EXPECT_THAT(words, testing::ElementsAre("command", "file@name#123$test%value"));
+        }
+        {
+            std::string unicodeStr = "command \"\xD0\x9C\xD0\x95\xD0\x93\xD0\x90\"";
+            std::vector<std::string> words = getlistOfWords(unicodeStr.c_str());
+            EXPECT_THAT(words, testing::ElementsAre("command", "\xD0\x9C\xD0\x95\xD0\x93\xD0\x90"));
+        }
+    }
+
+    G_SUBTEST << "Empty arguments";
+    {
+        {
+            std::vector<std::string> words = getlistOfWords("");
+            EXPECT_TRUE(words.empty());
+        }
+        {
+            std::vector<std::string> words = getlistOfWords("   ", false, true);
+            EXPECT_TRUE(words.empty());
+        }
+        {
+            std::vector<std::string> words = getlistOfWords("   ", false, false);
+            EXPECT_THAT(words, testing::ElementsAre(""));
+        }
+        {
+            std::vector<std::string> words = getlistOfWords("command \"\" \"\"");
+            EXPECT_THAT(words, testing::ElementsAre("command", "", ""));
+        }
+        {
+            std::vector<std::string> words = getlistOfWords("command \" \" ' '");
+            EXPECT_THAT(words, testing::ElementsAre("command", " ", " "));
+        }
+        {
+            std::vector<std::string> words = getlistOfWords("command    ", false, false);
+            EXPECT_THAT(words, testing::ElementsAre("command", ""));
+        }
+    }
+}
