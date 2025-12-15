@@ -316,6 +316,13 @@ unsigned int getNumberOfCols(unsigned int defaultwidth = 90);
 void sleepSeconds(int seconds);
 void sleepMilliSeconds(long microseconds);
 
+/**
+ * @brief Validates email address format using basic checks.
+ * @param email Email address to validate
+ * @return true if email passes basic format validation, false otherwise
+ *
+ * This function performs just minimal validations, it's not a full RFC-compliant validator.
+ */
 bool isValidEmail(const std::string &email);
 
 #ifdef __linux__
