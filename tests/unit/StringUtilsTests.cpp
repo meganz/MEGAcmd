@@ -413,3 +413,104 @@ TEST(StringUtilsTest, redactedCmdPetition)
         }
     }
 }
+
+TEST(MegaCmdCommonUtilsTest, replace)
+{
+    using megacmd::replace;
+
+    G_SUBTEST << "Basic replace";
+    {
+        std::string str("hello world");
+        EXPECT_TRUE(replace(str, "world", "mega"));
+        EXPECT_EQ(str, "hello mega");
+    }
+
+    G_SUBTEST << "Replace not found";
+    {
+        std::string str("test string");
+        EXPECT_FALSE(replace(str, "xyz", "mega"));
+        EXPECT_EQ(str, "test string");
+    }
+
+    G_SUBTEST << "Replace empty string";
+    {
+        std::string str("hello");
+        EXPECT_TRUE(replace(str, "", "test"));
+        EXPECT_EQ(str, "testhello");
+    }
+
+    G_SUBTEST << "Replace with empty string";
+    {
+        std::string str("remove this");
+        EXPECT_TRUE(replace(str, "this", ""));
+        EXPECT_EQ(str, "remove ");
+    }
+
+    G_SUBTEST << "Multiple occurrences with only first replaced";
+    {
+        std::string str("hello hello");
+        EXPECT_TRUE(replace(str, "hello", "hi"));
+        EXPECT_EQ(str, "hi hello");
+    }
+
+    G_SUBTEST << "Replace at beginning";
+    {
+        std::string str("start end");
+        EXPECT_TRUE(replace(str, "start", "begin"));
+        EXPECT_EQ(str, "begin end");
+    }
+
+    G_SUBTEST << "Replace at end";
+    {
+        std::string str("begin end");
+        EXPECT_TRUE(replace(str, "end", "finish"));
+        EXPECT_EQ(str, "begin finish");
+    }
+}
+
+TEST(MegaCmdCommonUtilsTest, replaceAll)
+{
+    using megacmd::replaceAll;
+
+    G_SUBTEST << "Basic replaceAll";
+    {
+        std::string str("hello world world");
+        replaceAll(str, "world", "mega");
+        EXPECT_EQ(str, "hello mega mega");
+    }
+
+    G_SUBTEST << "No occurrences";
+    {
+        std::string str("test string");
+        replaceAll(str, "xyz", "mega");
+        EXPECT_EQ(str, "test string");
+    }
+
+    G_SUBTEST << "Multiple occurrences";
+    {
+        std::string str("a b a b a");
+        replaceAll(str, "a", "x");
+        EXPECT_EQ(str, "x b x b x");
+    }
+
+    G_SUBTEST << "Replace with empty string";
+    {
+        std::string str("remove this");
+        replaceAll(str, "this", "");
+        EXPECT_EQ(str, "remove ");
+    }
+
+    G_SUBTEST << "Overlapping patterns";
+    {
+        std::string str("aaa");
+        replaceAll(str, "aa", "b");
+        EXPECT_EQ(str, "ba");
+    }
+
+    G_SUBTEST << "Empty string";
+    {
+        std::string str;
+        replaceAll(str, "a", "b");
+        EXPECT_EQ(str, "");
+    }
+}
