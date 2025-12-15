@@ -413,3 +413,32 @@ TEST(StringUtilsTest, redactedCmdPetition)
         }
     }
 }
+
+TEST(MegaCmdCommonUtilsTest, isValidEmail)
+{
+    using megacmd::isValidEmail;
+
+    G_SUBTEST << "Valid emails";
+    {
+        EXPECT_TRUE(isValidEmail("t@x.be"));
+        EXPECT_TRUE(isValidEmail("test@example.com"));
+        EXPECT_TRUE(isValidEmail("user.name@domain.co.uk"));
+        EXPECT_TRUE(isValidEmail("user+tag@example.com"));
+    }
+
+    G_SUBTEST << "Invalid emails";
+    {
+        EXPECT_FALSE(isValidEmail("notanemail"));
+        EXPECT_FALSE(isValidEmail("@example.com"));
+        EXPECT_FALSE(isValidEmail("user@"));
+        EXPECT_FALSE(isValidEmail("user@."));
+        EXPECT_FALSE(isValidEmail("user@.com"));
+        EXPECT_FALSE(isValidEmail(" u@x.com "));
+        EXPECT_FALSE(isValidEmail(" "));
+    }
+
+    G_SUBTEST << "Empty email";
+    {
+        EXPECT_FALSE(isValidEmail(""));
+    }
+}
