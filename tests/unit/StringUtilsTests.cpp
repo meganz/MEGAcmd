@@ -434,12 +434,38 @@ TEST(StringUtilsTest, getListOfWords)
             std::vector<std::string> words = getlistOfWords("command \"text\\\"quoted\"");
             EXPECT_THAT(words, testing::ElementsAre("command", "text\\", "quoted\""));
         }
+        {
+            std::vector<std::string> words = getlistOfWords("some \"case\" here");
+            EXPECT_THAT(words, testing::ElementsAre("some", "case", "here"));
+        }
+        {
+            std::vector<std::string> words = getlistOfWords("some \"other case with spaces\" here");
+            EXPECT_THAT(words, testing::ElementsAre("some", "other case with spaces", "here"));
+        }
+        {
+            std::vector<std::string> words = getlistOfWords("--another=\"here\"");
+            EXPECT_THAT(words, testing::ElementsAre("--another=\"here\""));
+        }
+        {
+            std::vector<std::string> words = getlistOfWords("--another=\"here\" with extra bits");
+            EXPECT_THAT(words, testing::ElementsAre("--another=\"here\"", "with", "extra", "bits"));
+        }
+        {
+            std::vector<std::string> words = getlistOfWords("--arg1=\"a b\" word --arg2=\"c d\"");
+            EXPECT_THAT(words, testing::ElementsAre("--arg1=\"a b\"", "word", "--arg2=\"c d\""));
+        }
     }
 
     G_SUBTEST << "Double quotes without matching";
     {
-        std::vector<std::string> words = getlistOfWords("find \"something with quotes\" odd/file\"01.txt");
-        EXPECT_THAT(words, testing::ElementsAre("find", "something with quotes", "odd/file\"01.txt"));
+        {
+            std::vector<std::string> words = getlistOfWords("find \"something with quotes\" odd/file\"01.txt");
+            EXPECT_THAT(words, testing::ElementsAre("find", "something with quotes", "odd/file\"01.txt"));
+        }
+        {
+            std::vector<std::string> words = getlistOfWords("--something=\"quote missing");
+            EXPECT_THAT(words, testing::ElementsAre("--something=\"quote missing"));
+        }
     }
 
     G_SUBTEST << "Single quotes";
@@ -481,24 +507,6 @@ TEST(StringUtilsTest, getListOfWords)
 
         words = getlistOfWords(str, false, true);
         EXPECT_THAT(words, testing::ElementsAre("export", "-f", "--writable", "some_dir/some_file.txt"));
-    }
-
-    G_SUBTEST << "Detect matching quotes";
-    {
-        for (const auto& [line, expectedWords] : std::vector<std::pair<std::string, std::vector<std::string>>>
-            {
-                {"some \"case\" here", {"some", "case", "here"}},
-                {"--another=\"here\"", {"--another=\"here\""}},
-                {"--another=\"here\" with extra bits", {"--another=\"here\"", "with", "extra", "bits"}},
-                {"some \"other case with spaces\" here", {"some", "other case with spaces", "here"}},
-                {"--something=\"quote missing", {"--something=\"quote missing"}},
-                {"--nothing=\"", {"--nothing=\""}},
-                {"--arg1=\"a b\" word --arg2=\"c d\"", {"--arg1=\"a b\"", "word", "--arg2=\"c d\""}}
-            })
-        {
-            std::vector<std::string> words = getlistOfWords(const_cast<char*>(line.c_str()));
-            EXPECT_EQ(words, expectedWords);
-        }
     }
 
     G_SUBTEST << "Very long strings";
@@ -591,6 +599,10 @@ TEST(StringUtilsTest, getListOfWords)
         {
             std::vector<std::string> words = getlistOfWords("command    ", false, false);
             EXPECT_THAT(words, testing::ElementsAre("command", ""));
+        }
+        {
+            std::vector<std::string> words = getlistOfWords("--nothing=\"");
+            EXPECT_THAT(words, testing::ElementsAre("--nothing=\""));
         }
     }
 }
