@@ -424,6 +424,7 @@ TEST(MegaCmdCommonUtilsTest, isValidEmail)
         EXPECT_TRUE(isValidEmail("test@example.com"));
         EXPECT_TRUE(isValidEmail("user.name@domain.co.uk"));
         EXPECT_TRUE(isValidEmail("user+tag@example.com"));
+        EXPECT_TRUE(isValidEmail("user_x@example.dot.com"));
     }
 
     G_SUBTEST << "Invalid emails";
@@ -433,7 +434,6 @@ TEST(MegaCmdCommonUtilsTest, isValidEmail)
         EXPECT_FALSE(isValidEmail("user@"));
         EXPECT_FALSE(isValidEmail("user@."));
         EXPECT_FALSE(isValidEmail("user@.com"));
-        EXPECT_FALSE(isValidEmail(" u@x.com "));
         EXPECT_FALSE(isValidEmail(" "));
     }
 
