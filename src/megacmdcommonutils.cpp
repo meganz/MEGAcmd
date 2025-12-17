@@ -540,7 +540,7 @@ int toInteger(const string &str, int failValue)
 
     errno = 0;
     char *p;
-    long long l = std::strtoll(str.c_str(), &p, 10);
+    long long l = strtoll(str.c_str(), &p, 10);
 
     if (p == str.c_str() || *p != '\0' || errno != 0)
     {
