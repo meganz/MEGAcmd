@@ -15,37 +15,10 @@
 
 #include <gtest/gtest.h>
 
-#include "TestUtils.h"
 #include "Instruments.h"
-#include "megacmdcommonutils.h"
+#include "TestUtils.h"
 #include "comunicationsmanager.h"
-
-namespace StringUtilsTest
-{
-    static void trimming()
-    {
-        using megacmd::ltrim;
-        using megacmd::rtrim;
-
-        {
-            std::string s("123456");
-            G_SUBTEST << "Left trimming";
-            ASSERT_STREQ(ltrim(s, '2').c_str(), "123456");
-            ASSERT_STREQ(ltrim(s, '1').c_str(), "23456");
-        }
-        {
-            std::string s("123456");
-            G_SUBTEST << "Right trimming";
-            ASSERT_STREQ(rtrim(s, '2').c_str(), "123456");
-            ASSERT_STREQ(rtrim(s, '6').c_str(), "12345");
-        }
-    }
-}
-
-TEST(StringUtilsTest, trimming)
-{
-    StringUtilsTest::trimming();
-}
+#include "megacmdcommonutils.h"
 
 TEST(StringUtilsTest, rtrim)
 {
@@ -117,6 +90,137 @@ TEST(StringUtilsTest, rtrim)
     }
 }
 
+TEST(StringUtilsTest, ltrim)
+{
+    using megacmd::ltrim;
+
+    G_SUBTEST << "Basic cases";
+    {
+        std::string s("123456");
+        EXPECT_EQ(ltrim(s, '2'), "123456");
+        EXPECT_EQ(ltrim(s, '1'), "23456");
+    }
+
+    G_SUBTEST << "Empty string";
+    {
+        std::string s("");
+        EXPECT_EQ(ltrim(s, ' '), "");
+    }
+
+    G_SUBTEST << "Only trim character";
+    {
+        std::string s("   ");
+        EXPECT_EQ(ltrim(s, ' '), "");
+    }
+
+    G_SUBTEST << "Multiple consecutive";
+    {
+        std::string s("1111222333");
+        EXPECT_EQ(ltrim(s, '1'), "222333");
+    }
+
+    G_SUBTEST << "Character not at the beginning";
+    {
+        std::string s("abc123");
+        EXPECT_EQ(ltrim(s, 'a'), "bc123");
+        std::string s2("abc123");
+        EXPECT_EQ(ltrim(s2, 'b'), "abc123");
+    }
+
+    G_SUBTEST << "Unicode characters";
+    {
+        std::string s("   \xD0\x9C\xD0\x95\xD0\x93\xD0\x90");
+        EXPECT_TRUE(megacmd::isValidUtf8(s));
+        std::string result = ltrim(s, ' ');
+        EXPECT_TRUE(megacmd::isValidUtf8(result));
+        EXPECT_EQ(result, "\xD0\x9C\xD0\x95\xD0\x93\xD0\x90");
+    }
+
+    G_SUBTEST << "Very long string";
+    {
+        std::string s(10000, '1');
+        s += "test";
+        std::string result = ltrim(s, '1');
+        EXPECT_EQ(result, "test");
+    }
+
+    G_SUBTEST << "Single character string with trim character";
+    {
+        std::string s("X");
+        EXPECT_EQ(ltrim(s, 'X'), "");
+    }
+
+    G_SUBTEST << "Single character string with no trim characters";
+    {
+        std::string s("X");
+        EXPECT_EQ(ltrim(s, 'Y'), "X");
+    }
+
+    G_SUBTEST << "Mixed characters at start";
+    {
+        std::string s("XXYXXtest");
+        EXPECT_EQ(ltrim(s, 'X'), "YXXtest");
+    }
+
+    G_SUBTEST << "Special characters";
+    {
+        std::string s("\t\t\ttest");
+        EXPECT_EQ(ltrim(s, '\t'), "test");
+    }
+
+    G_SUBTEST << "string_view overload";
+    {
+        std::string_view sv("   test");
+        std::string_view result = ltrim(sv, ' ');
+        EXPECT_EQ(result, "test");
+        EXPECT_EQ(sv, "   test");
+    }
+
+    G_SUBTEST << "Empty string_view";
+    {
+        std::string_view sv;
+        std::string_view result = ltrim(sv, ' ');
+        EXPECT_EQ(result.length(), 0);
+    }
+
+    G_SUBTEST << "string_view with multiple characters";
+    {
+        std::string_view sv("XXXtest");
+        std::string_view result = ltrim(sv, 'X');
+        EXPECT_EQ(result, "test");
+    }
+
+    G_SUBTEST << "string_view with only trim characters";
+    {
+        std::string_view sv("   ");
+        std::string_view result = ltrim(sv, ' ');
+        EXPECT_EQ(result.length(), 0);
+    }
+
+    G_SUBTEST << "string_view with no trim characters";
+    {
+        std::string_view sv("test");
+        std::string_view result = ltrim(sv, ' ');
+        EXPECT_EQ(result, "test");
+    }
+
+    G_SUBTEST << "string_view with a single character";
+    {
+        std::string_view sv("X");
+        std::string_view result = ltrim(sv, 'X');
+        EXPECT_EQ(result.length(), 0);
+    }
+
+    G_SUBTEST << "string_view from string";
+    {
+        std::string str("   test");
+        std::string_view sv(str);
+        std::string_view result = ltrim(sv, ' ');
+        EXPECT_EQ(result, "test");
+        EXPECT_EQ(str, "   test");
+    }
+}
+
 TEST(StringUtilsTest, ValidateUtf8)
 {
     // from: https://www.php.net/manual/en/reference.pcre.pattern.modifiers.php#54805
@@ -151,6 +255,59 @@ TEST(StringUtilsTest, ValidateUtf8)
     EXPECT_FALSE(megacmd::isValidUtf8(std::string("\xc2")));                      // Length: expected = 2, actual = 1
     EXPECT_FALSE(megacmd::isValidUtf8(std::string("\xed\xa0\x80")));              // surrogate codepoint U+D800
     EXPECT_FALSE(megacmd::isValidUtf8(std::string("\xed\xbf\xbf")));              // surrogate codepoint U+DFFF
+}
+
+TEST(StringUtilsTest, split)
+{
+    using megacmd::split;
+
+    G_SUBTEST << "Basic split";
+    {
+        std::vector<std::string> result = split("a,b,c", ",");
+        EXPECT_THAT(result, testing::ElementsAre("a", "b", "c"));
+    }
+
+    G_SUBTEST << "Empty string";
+    {
+        std::vector<std::string> result = split("", ",");
+        EXPECT_TRUE(result.empty());
+    }
+
+    G_SUBTEST << "No delimiter found";
+    {
+        std::vector<std::string> result = split("abc", ",");
+        EXPECT_THAT(result, testing::ElementsAre("abc"));
+    }
+
+    G_SUBTEST << "Multiple consecutive delimiters";
+    {
+        std::vector<std::string> result = split("a,,b,,c", ",");
+        EXPECT_THAT(result, testing::ElementsAre("a", "b", "c"));
+    }
+
+    G_SUBTEST << "Delimiter at start";
+    {
+        std::vector<std::string> result = split(",a,b", ",");
+        EXPECT_THAT(result, testing::ElementsAre("a", "b"));
+    }
+
+    G_SUBTEST << "Delimiter at end";
+    {
+        std::vector<std::string> result = split("a,b,", ",");
+        EXPECT_THAT(result, testing::ElementsAre("a", "b"));
+    }
+
+    G_SUBTEST << "Multi-character delimiter";
+    {
+        std::vector<std::string> result = split("a::b::c", "::");
+        EXPECT_THAT(result, testing::ElementsAre("a", "b", "c"));
+    }
+
+    G_SUBTEST << "Single character";
+    {
+        std::vector<std::string> result = split("a", ",");
+        EXPECT_THAT(result, testing::ElementsAre("a"));
+    }
 }
 
 TEST(StringUtilsTest, nonAsciiToStringstream)
@@ -411,6 +568,118 @@ TEST(StringUtilsTest, redactedCmdPetition)
             EXPECT_THAT(redacted, testing::HasSubstr("SuperSecret1234!'"));
             EXPECT_THAT(redacted, testing::Not(testing::HasSubstr("<REDACTED>")));
         }
+    }
+}
+
+TEST(StringUtilsTest, hasWildCards)
+{
+    using megacmd::hasWildCards;
+
+    G_SUBTEST << "Both wildcards";
+    {
+        std::string str = "file*?.txt";
+        EXPECT_TRUE(hasWildCards(str));
+        str = "*?";
+        EXPECT_TRUE(hasWildCards(str));
+    }
+
+    G_SUBTEST << "Asterisk at different positions";
+    {
+        std::string str1 = "*file.txt";
+        EXPECT_TRUE(hasWildCards(str1));
+        std::string str2 = "file*.txt";
+        EXPECT_TRUE(hasWildCards(str2));
+        std::string str3 = "file.txt*";
+        EXPECT_TRUE(hasWildCards(str3));
+        std::string str4 = "*";
+        EXPECT_TRUE(hasWildCards(str4));
+    }
+
+    G_SUBTEST << "Question mark at different positions";
+    {
+        std::string str1 = "?file.txt";
+        EXPECT_TRUE(hasWildCards(str1));
+        std::string str2 = "file?.txt";
+        EXPECT_TRUE(hasWildCards(str2));
+        std::string str3 = "file.txt?";
+        EXPECT_TRUE(hasWildCards(str3));
+        std::string str4 = "?";
+        EXPECT_TRUE(hasWildCards(str4));
+    }
+
+    G_SUBTEST << "Multiple wildcards";
+    {
+        std::string str1 = "file**.*";
+        EXPECT_TRUE(hasWildCards(str1));
+        std::string str2 = "file??.txt";
+        EXPECT_TRUE(hasWildCards(str2));
+        std::string str3 = "*file*.txt";
+        EXPECT_TRUE(hasWildCards(str3));
+        std::string str4 = "?file?.txt";
+        EXPECT_TRUE(hasWildCards(str4));
+    }
+
+    G_SUBTEST << "Special characters without wildcards";
+    {
+        std::string str1 = "file@.txt";
+        EXPECT_FALSE(hasWildCards(str1));
+        std::string str2 = "file#.txt";
+        EXPECT_FALSE(hasWildCards(str2));
+        std::string str3 = "file$.txt";
+        EXPECT_FALSE(hasWildCards(str3));
+        std::string str4 = "file[].txt";
+        EXPECT_FALSE(hasWildCards(str4));
+    }
+
+    G_SUBTEST << "Unicode characters";
+    {
+        std::string str = u8"\u043F\u0440\u0438\u0432\u0435\u0442.txt";
+        EXPECT_FALSE(hasWildCards(str));
+        str = u8"\u043F\u0440\u0438*.txt";
+        EXPECT_TRUE(hasWildCards(str));
+    }
+
+    G_SUBTEST << "Long strings";
+    {
+        std::string longStr(10000, 'a');
+        EXPECT_FALSE(hasWildCards(longStr));
+        longStr[5000] = '*';
+        EXPECT_TRUE(hasWildCards(longStr));
+        longStr[5000] = 'a';
+        longStr[5000] = '?';
+        EXPECT_TRUE(hasWildCards(longStr));
+    }
+
+    G_SUBTEST << "Wildcards with spaces";
+    {
+        std::string str1 = "file *.txt";
+        EXPECT_TRUE(hasWildCards(str1));
+        std::string str2 = "file ?.txt";
+        EXPECT_TRUE(hasWildCards(str2));
+        std::string str3 = "file .txt";
+        EXPECT_FALSE(hasWildCards(str3));
+    }
+
+    G_SUBTEST << "Numbers and wildcards";
+    {
+        std::string str1 = "file123*.txt";
+        EXPECT_TRUE(hasWildCards(str1));
+        std::string str2 = "file?123.txt";
+        EXPECT_TRUE(hasWildCards(str2));
+        std::string str3 = "file123.txt";
+        EXPECT_FALSE(hasWildCards(str3));
+    }
+
+    G_SUBTEST << "No wildcards";
+    {
+        std::string str = "file.txt";
+        EXPECT_FALSE(hasWildCards(str));
+    }
+
+    G_SUBTEST << "Empty string";
+    {
+        std::string str;
+        EXPECT_FALSE(hasWildCards(str));
     }
 }
 
