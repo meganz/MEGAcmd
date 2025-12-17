@@ -414,7 +414,7 @@ TEST(StringUtilsTest, redactedCmdPetition)
     }
 }
 
-TEST(MegaCmdCommonUtilsTest, isValidEmail)
+TEST(StringUtilsTest, isValidEmail)
 {
     using megacmd::isValidEmail;
 
