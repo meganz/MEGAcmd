@@ -458,11 +458,11 @@ TEST(StringUtilsTest, toInteger)
 
     G_SUBTEST << "Out of range values";
     {
-        std::string maxPlusOne = std::to_string(static_cast<long>(INT_MAX) + 1);
+        std::string maxPlusOne = std::to_string(static_cast<long long>(INT_MAX) + 1);
         EXPECT_EQ(toInteger(maxPlusOne), -1);
         EXPECT_EQ(toInteger(maxPlusOne, 42), 42);
 
-        std::string minMinusOne = std::to_string(static_cast<long>(INT_MIN) - 1);
+        std::string minMinusOne = std::to_string(static_cast<long long>(INT_MIN) - 1);
         EXPECT_EQ(toInteger(minMinusOne), -1);
         EXPECT_EQ(toInteger(minMinusOne, 99), 99);
 
