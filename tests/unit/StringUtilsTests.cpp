@@ -434,6 +434,7 @@ TEST(StringUtilsTest, isValidEmail)
         EXPECT_FALSE(isValidEmail("user@"));
         EXPECT_FALSE(isValidEmail("user@."));
         EXPECT_FALSE(isValidEmail("user@.com"));
+        EXPECT_FALSE(isValidEmail("user@com."));
         EXPECT_FALSE(isValidEmail(" "));
     }
 
