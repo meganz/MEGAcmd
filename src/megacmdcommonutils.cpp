@@ -33,17 +33,17 @@
 #include <unistd.h>
 #endif
 
-#include <cstring>
-#include <iomanip>
-#include <fstream>
-#include <string.h>
 #include <algorithm>
-#include <sstream>
-#include <limits.h>
+#include <cerrno>
+#include <climits>
+#include <cstdlib>
+#include <cstring>
+#include <fstream>
+#include <iomanip>
 #include <iterator>
-
-#include <regex> //split
 #include <random>
+#include <regex> //split
+#include <sstream>
 
 namespace megacmd {
 using namespace std;
@@ -537,15 +537,12 @@ int toInteger(const string &str, int failValue)
     {
         return failValue;
     }
-    if (!isdigit(str[0]) && str[0] != '-' && str[0] != '+')
-    {
-        return failValue;
-    }
 
-    char * p;
-    long l = strtol(str.c_str(), &p, 10);
+    errno = 0;
+    char *p;
+    long long l = std::strtoll(str.c_str(), &p, 10);
 
-    if (*p != 0)
+    if (p == str.c_str() || *p != '\0' || errno != 0)
     {
         return failValue;
     }
