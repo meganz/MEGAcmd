@@ -414,6 +414,118 @@ TEST(StringUtilsTest, redactedCmdPetition)
     }
 }
 
+TEST(StringUtilsTest, hasWildCards)
+{
+    using megacmd::hasWildCards;
+
+    G_SUBTEST << "Both wildcards";
+    {
+        std::string str = "file*?.txt";
+        EXPECT_TRUE(hasWildCards(str));
+        str = "*?";
+        EXPECT_TRUE(hasWildCards(str));
+    }
+
+    G_SUBTEST << "Asterisk at different positions";
+    {
+        std::string str1 = "*file.txt";
+        EXPECT_TRUE(hasWildCards(str1));
+        std::string str2 = "file*.txt";
+        EXPECT_TRUE(hasWildCards(str2));
+        std::string str3 = "file.txt*";
+        EXPECT_TRUE(hasWildCards(str3));
+        std::string str4 = "*";
+        EXPECT_TRUE(hasWildCards(str4));
+    }
+
+    G_SUBTEST << "Question mark at different positions";
+    {
+        std::string str1 = "?file.txt";
+        EXPECT_TRUE(hasWildCards(str1));
+        std::string str2 = "file?.txt";
+        EXPECT_TRUE(hasWildCards(str2));
+        std::string str3 = "file.txt?";
+        EXPECT_TRUE(hasWildCards(str3));
+        std::string str4 = "?";
+        EXPECT_TRUE(hasWildCards(str4));
+    }
+
+    G_SUBTEST << "Multiple wildcards";
+    {
+        std::string str1 = "file**.*";
+        EXPECT_TRUE(hasWildCards(str1));
+        std::string str2 = "file??.txt";
+        EXPECT_TRUE(hasWildCards(str2));
+        std::string str3 = "*file*.txt";
+        EXPECT_TRUE(hasWildCards(str3));
+        std::string str4 = "?file?.txt";
+        EXPECT_TRUE(hasWildCards(str4));
+    }
+
+    G_SUBTEST << "Special characters without wildcards";
+    {
+        std::string str1 = "file@.txt";
+        EXPECT_FALSE(hasWildCards(str1));
+        std::string str2 = "file#.txt";
+        EXPECT_FALSE(hasWildCards(str2));
+        std::string str3 = "file$.txt";
+        EXPECT_FALSE(hasWildCards(str3));
+        std::string str4 = "file[].txt";
+        EXPECT_FALSE(hasWildCards(str4));
+    }
+
+    G_SUBTEST << "Unicode characters";
+    {
+        std::string str = u8"\u043F\u0440\u0438\u0432\u0435\u0442.txt";
+        EXPECT_FALSE(hasWildCards(str));
+        str = u8"\u043F\u0440\u0438*.txt";
+        EXPECT_TRUE(hasWildCards(str));
+    }
+
+    G_SUBTEST << "Long strings";
+    {
+        std::string longStr(10000, 'a');
+        EXPECT_FALSE(hasWildCards(longStr));
+        longStr[5000] = '*';
+        EXPECT_TRUE(hasWildCards(longStr));
+        longStr[5000] = 'a';
+        longStr[5000] = '?';
+        EXPECT_TRUE(hasWildCards(longStr));
+    }
+
+    G_SUBTEST << "Wildcards with spaces";
+    {
+        std::string str1 = "file *.txt";
+        EXPECT_TRUE(hasWildCards(str1));
+        std::string str2 = "file ?.txt";
+        EXPECT_TRUE(hasWildCards(str2));
+        std::string str3 = "file .txt";
+        EXPECT_FALSE(hasWildCards(str3));
+    }
+
+    G_SUBTEST << "Numbers and wildcards";
+    {
+        std::string str1 = "file123*.txt";
+        EXPECT_TRUE(hasWildCards(str1));
+        std::string str2 = "file?123.txt";
+        EXPECT_TRUE(hasWildCards(str2));
+        std::string str3 = "file123.txt";
+        EXPECT_FALSE(hasWildCards(str3));
+    }
+
+    G_SUBTEST << "No wildcards";
+    {
+        std::string str = "file.txt";
+        EXPECT_FALSE(hasWildCards(str));
+    }
+
+    G_SUBTEST << "Empty string";
+    {
+        std::string str;
+        EXPECT_FALSE(hasWildCards(str));
+    }
+}
+
 TEST(StringUtilsTest, toLower)
 {
     using megacmd::toLower;
