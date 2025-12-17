@@ -413,3 +413,74 @@ TEST(StringUtilsTest, redactedCmdPetition)
         }
     }
 }
+
+TEST(StringUtilsTest, joinStrings)
+{
+    using megacmd::joinStrings;
+
+    G_SUBTEST << "Basic join";
+    {
+        std::vector<std::string> vec = {"a", "b", "c"};
+        std::string result = joinStrings(vec);
+        EXPECT_EQ(result, "\"a\" \"b\" \"c\"");
+    }
+
+    G_SUBTEST << "Custom delimiter";
+    {
+        std::vector<std::string> vec = {"a", "b", "c"};
+        std::string result = joinStrings(vec, ",");
+        EXPECT_EQ(result, "\"a\",\"b\",\"c\"");
+    }
+
+    G_SUBTEST << "Empty vector";
+    {
+        std::vector<std::string> vec;
+        std::string result = joinStrings(vec);
+        EXPECT_EQ(result, "");
+    }
+
+    G_SUBTEST << "Single element";
+    {
+        std::vector<std::string> vec = {"a"};
+        std::string result = joinStrings(vec);
+        EXPECT_EQ(result, "\"a\"");
+    }
+
+    G_SUBTEST << "With quotes";
+    {
+        {
+            std::vector<std::string> vec = {"a", "b", "c"};
+            std::string result = joinStrings(vec, " ", true);
+            EXPECT_EQ(result, "\"a\" \"b\" \"c\"");
+        }
+        {
+            std::vector<std::string> vec = {"a", "", "c"};
+            std::string result = joinStrings(vec, " ", true);
+            EXPECT_EQ(result, "\"a\" \"\" \"c\"");
+        }
+        {
+            std::vector<std::string> vec = {"a", "b", ""};
+            std::string result = joinStrings(vec, " ", true);
+            EXPECT_EQ(result, "\"a\" \"b\" \"\"");
+        }
+    }
+
+    G_SUBTEST << "Without quotes";
+    {
+        {
+            std::vector<std::string> vec = {"a", "b", "c"};
+            std::string result = joinStrings(vec, " ", false);
+            EXPECT_EQ(result, "a b c");
+        }
+        {
+            std::vector<std::string> vec = {"a", "", "c"};
+            std::string result = joinStrings(vec, " ", false);
+            EXPECT_EQ(result, "a  c");
+        }
+        {
+            std::vector<std::string> vec = {"a", "b", ""};
+            std::string result = joinStrings(vec, " ", false);
+            EXPECT_EQ(result, "a b ");
+        }
+    }
+}

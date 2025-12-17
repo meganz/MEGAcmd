@@ -571,7 +571,7 @@ string joinStrings(const vector<string>& vec, const char* delim, bool quoted)
             res << "\"" << *i << "\"" << delim;
         }
     }
-    if (vec.size()>1)
+    if (vec.size() > 0)
     {
         string toret = res.str();
         return toret.substr(0,toret.size()-strlen(delim));
