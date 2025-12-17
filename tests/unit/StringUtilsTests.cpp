@@ -153,7 +153,7 @@ TEST(StringUtilsTest, ValidateUtf8)
     EXPECT_FALSE(megacmd::isValidUtf8(std::string("\xed\xbf\xbf")));              // surrogate codepoint U+DFFF
 }
 
-TEST(MegaCmdCommonUtilsTest, split)
+TEST(StringUtilsTest, split)
 {
     using megacmd::split;
 
