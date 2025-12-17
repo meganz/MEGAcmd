@@ -413,3 +413,94 @@ TEST(StringUtilsTest, redactedCmdPetition)
         }
     }
 }
+
+TEST(StringUtilsTest, startsWith)
+{
+    using megacmd::startsWith;
+
+    G_SUBTEST << "Basic case";
+    {
+        EXPECT_TRUE(startsWith("test string", "test"));
+        EXPECT_FALSE(startsWith("test string", "string"));
+    }
+
+    G_SUBTEST << "Empty prefix";
+    {
+        EXPECT_TRUE(startsWith("hello", ""));
+        EXPECT_TRUE(startsWith("", ""));
+    }
+
+    G_SUBTEST << "Prefix longer than string";
+    {
+        EXPECT_FALSE(startsWith("hi", "hello"));
+    }
+
+    G_SUBTEST << "Exact match";
+    {
+        EXPECT_TRUE(startsWith("hello", "hello"));
+    }
+
+    G_SUBTEST << "Single character prefix";
+    {
+        EXPECT_TRUE(startsWith("hello", "h"));
+        EXPECT_FALSE(startsWith("hello", "e"));
+    }
+
+    G_SUBTEST << "Empty string";
+    {
+        EXPECT_FALSE(startsWith("", "a"));
+    }
+
+    G_SUBTEST << "Prefix in middle of string";
+    {
+        EXPECT_FALSE(startsWith("atest", "test"));
+        EXPECT_FALSE(startsWith("prefix suffix", "fix"));
+    }
+
+    G_SUBTEST << "Case sensitivity";
+    {
+        EXPECT_FALSE(startsWith("Hello", "hello"));
+        EXPECT_FALSE(startsWith("hello", "Hello"));
+        EXPECT_FALSE(startsWith("TEST", "test"));
+        EXPECT_FALSE(startsWith("Test String", "test"));
+    }
+
+    G_SUBTEST << "Prefix differs by one character";
+    {
+        EXPECT_FALSE(startsWith("hello", "hellp"));
+        EXPECT_FALSE(startsWith("test", "tesu"));
+        EXPECT_FALSE(startsWith("abc", "abd"));
+    }
+
+    G_SUBTEST << "Special characters";
+    {
+        EXPECT_FALSE(startsWith("hello\nworld", "world"));
+        EXPECT_FALSE(startsWith("hello\tworld", "world"));
+        EXPECT_FALSE(startsWith("hello world", "\tworld"));
+        EXPECT_FALSE(startsWith("hello\r\nworld", "world"));
+        EXPECT_TRUE(startsWith("hello\nworld", "hello"));
+        EXPECT_TRUE(startsWith("hello\tworld", "hello"));
+    }
+
+    G_SUBTEST << "Unicode characters";
+    {
+        EXPECT_TRUE(startsWith(u8"\u043F\u0440\u0438\u0432\u0435\u0442", u8"\u043F\u0440\u0438"));
+        EXPECT_FALSE(startsWith(u8"hello\u043F\u0440\u0438\u0432\u0435\u0442", u8"\u043F\u0440\u0438\u0432\u0435\u0442"));
+        EXPECT_FALSE(startsWith(u8"test\u4F60\u597D", u8"\u4F60\u597D"));
+        EXPECT_FALSE(startsWith("hello", u8"\u043F\u0440\u0438\u0432\u0435\u0442"));
+    }
+
+    G_SUBTEST << "Strings with spaces";
+    {
+        EXPECT_FALSE(startsWith("  hello", "hello"));
+        EXPECT_FALSE(startsWith("hello  ", "  "));
+    }
+
+    G_SUBTEST << "Long strings";
+    {
+        std::string longStr(10000, 'a');
+        std::string prefix = "b" + std::string(9999, 'a');
+        EXPECT_FALSE(startsWith(longStr, prefix));
+        EXPECT_FALSE(startsWith(longStr, "b"));
+    }
+}
