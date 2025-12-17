@@ -531,19 +531,19 @@ void replaceAll(std::string& str, const std::string& from, const std::string& to
     }
 }
 
-int toInteger(string what, int failValue)
+int toInteger(const string &str, int failValue)
 {
-    if (what.empty())
+    if (str.empty())
     {
         return failValue;
     }
-    if (!isdigit(what[0]) && !( what[0] != '-' ) && ( what[0] != '+' ))
+    if (!isdigit(str[0]) && str[0] != '-' && str[0] != '+')
     {
         return failValue;
     }
 
     char * p;
-    long l = strtol(what.c_str(), &p, 10);
+    long l = strtol(str.c_str(), &p, 10);
 
     if (*p != 0)
     {

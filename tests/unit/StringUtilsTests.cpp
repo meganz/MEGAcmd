@@ -413,3 +413,46 @@ TEST(StringUtilsTest, redactedCmdPetition)
         }
     }
 }
+
+TEST(StringUtilsTest, toInteger)
+{
+    using megacmd::toInteger;
+
+    G_SUBTEST << "Valid positive integer";
+    {
+        EXPECT_EQ(toInteger("0"), 0);
+        EXPECT_EQ(toInteger("12"), 12);
+        EXPECT_EQ(toInteger("999"), 999);
+    }
+
+    G_SUBTEST << "Valid negative integer";
+    {
+        EXPECT_EQ(toInteger("-1", 0), -1);
+        EXPECT_EQ(toInteger("-123"), -123);
+    }
+
+    G_SUBTEST << "Invalid string";
+    {
+        EXPECT_EQ(toInteger("abc"), -1);
+        EXPECT_EQ(toInteger("12abc"), -1);
+        EXPECT_EQ(toInteger("abc12"), -1);
+    }
+
+    G_SUBTEST << "Custom fail value";
+    {
+        EXPECT_EQ(toInteger("xyz", 0), 0);
+        EXPECT_EQ(toInteger("abc", 999), 999);
+    }
+
+    G_SUBTEST << "Empty string";
+    {
+        EXPECT_EQ(toInteger(""), -1);
+        EXPECT_EQ(toInteger("", 42), 42);
+    }
+
+    G_SUBTEST << "String with spaces";
+    {
+        EXPECT_EQ(toInteger(" 123 "), -1);
+        EXPECT_EQ(toInteger("123 "), -1);
+    }
+}
