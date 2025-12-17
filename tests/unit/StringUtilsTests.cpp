@@ -455,4 +455,21 @@ TEST(StringUtilsTest, toInteger)
         EXPECT_EQ(toInteger(" 123 "), -1);
         EXPECT_EQ(toInteger("123 "), -1);
     }
+
+    G_SUBTEST << "Out of range values";
+    {
+        std::string maxPlusOne = std::to_string(static_cast<long>(INT_MAX) + 1);
+        EXPECT_EQ(toInteger(maxPlusOne), -1);
+        EXPECT_EQ(toInteger(maxPlusOne, 42), 42);
+
+        std::string minMinusOne = std::to_string(static_cast<long>(INT_MIN) - 1);
+        EXPECT_EQ(toInteger(minMinusOne), -1);
+        EXPECT_EQ(toInteger(minMinusOne, 99), 99);
+
+        EXPECT_EQ(toInteger("999999999999999999999"), -1);
+        EXPECT_EQ(toInteger("999999999999999999999", 0), 0);
+
+        EXPECT_EQ(toInteger("-999999999999999999999"), -1);
+        EXPECT_EQ(toInteger("-999999999999999999999", 0), 0);
+    }
 }
