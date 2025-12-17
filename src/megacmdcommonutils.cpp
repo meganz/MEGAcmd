@@ -1182,7 +1182,7 @@ bool isValidEmail(const string &email)
         return false;
     }
 
-    if (size_t dotPos = email.find(".", atPos + 1); dotPos == string::npos)
+    if (size_t dotPos = email.find(".", atPos + 1); dotPos == string::npos || dotPos == email.length() - 1)
     {
         return false;
     }
