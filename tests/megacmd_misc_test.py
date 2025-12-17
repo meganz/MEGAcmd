@@ -148,6 +148,9 @@ class MEGAcmdMiscTest(unittest.TestCase):
         if not VERBOSE:
             clean_all()
 
+    def setUp(self):
+        print(f"\n=== Running test: {self._testMethodName} ===")
+
     def compare_remote_local(self, megafind, localfind):
         self.assertEqual(megafind, localfind)
         print(f"megafind: {megafind}, localfind: {localfind}")

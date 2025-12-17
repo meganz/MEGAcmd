@@ -31,7 +31,20 @@ std::vector<std::string> splitByNewline(const std::string& str)
     return result;
 }
 
-ClientResponse executeInClient(const std::vector<std::string>& command, bool /*nonInteractive: TODO: give support to shell execs*/)
+std::string joinString(const std::vector<std::string> &vec, std::string_view sep)
+{
+    std::ostringstream oss;
+    for (size_t i = 0; i < vec.size(); ++i)
+    {
+        if (i)
+            oss << sep;
+        oss << vec[i];
+    }
+    return oss.str();
+}
+
+ClientResponse executeInClient(const std::vector<std::string>& command,
+                               bool /*nonInteractive: TODO: give support to shell execs*/)
 {
     // To manage the memory of the first arg
     const std::string firstArg("args0_test_client");
