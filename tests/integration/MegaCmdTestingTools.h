@@ -80,6 +80,7 @@ public:
     }
 };
 
+std::string joinString(const std::vector<std::string> &vec, std::string_view sep = " ");
 ClientResponse executeInClient(const std::vector<std::string>& command, bool nonInteractive = true);
 void ensureLoggedIn();
 void ensureReadStructure();

@@ -337,6 +337,7 @@ if (ENABLE_MEGACMD_TESTS)
         "${ProjectDir}/tests/integration/BasicTests.cpp"
         "${ProjectDir}/tests/integration/CatTests.cpp"
         "${ProjectDir}/tests/integration/ExportTests.cpp"
+        "${ProjectDir}/tests/integration/PutTests.cpp"
         "${ProjectDir}/tests/integration/SyncIssuesTests.cpp"
         "${ProjectDir}/tests/integration/SyncIgnoreTests.cpp"
         "${ProjectDir}/tests/integration/FuseTests.cpp"

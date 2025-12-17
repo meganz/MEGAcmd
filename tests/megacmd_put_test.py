@@ -133,6 +133,8 @@ class MEGAcmdPutTests(unittest.TestCase):
         if not VERBOSE:
             clean_all()
 
+    def setUp(self):
+        print(f"\n=== Running test: {self._testMethodName} ===")
 
     def compare_and_clear(self) :
         def cleanup():

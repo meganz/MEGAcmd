@@ -151,7 +151,7 @@ public:
     int deleteNode(const std::unique_ptr<mega::MegaNode>& nodeToDelete, mega::MegaApi* api, int recursive, int force = 0);
     int deleteNodeVersions(const std::unique_ptr<mega::MegaNode>& nodeToDelete, mega::MegaApi* api, int force = 0);
     void downloadNode(std::string source, std::string localPath, mega::MegaApi* api, mega::MegaNode *node, bool background, bool ignorequotawar, int clientID, std::shared_ptr<MegaCmdMultiTransferListener> listener);
-    void uploadNode(std::string localPath, mega::MegaApi* api, mega::MegaNode *node, std::string newname, bool background, bool ignorequotawarn, int clientID, MegaCmdMultiTransferListener *multiTransferListener = NULL);
+    void uploadNode(const std::map<std::string, int> &clflags, const std::map<std::string, std::string> &cloptions, const std::string &receivedPath, mega::MegaApi* api, mega::MegaNode *node, const std::string &newname, MegaCmdMultiTransferListener *multiTransferListener = NULL);
     void exportNode(mega::MegaNode *n, int64_t expireTime, const std::optional<std::string>& password = {},
                     std::map<std::string, int> *clflags = nullptr, std::map<std::string, std::string> *cloptions = nullptr);
     void disableExport(mega::MegaNode *n);
