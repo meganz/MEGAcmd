@@ -414,7 +414,7 @@ TEST(StringUtilsTest, redactedCmdPetition)
     }
 }
 
-TEST(MegaCmdCommonUtilsTest, replace)
+TEST(StringUtilsTest, replace)
 {
     using megacmd::replace;
 
@@ -468,7 +468,7 @@ TEST(MegaCmdCommonUtilsTest, replace)
     }
 }
 
-TEST(MegaCmdCommonUtilsTest, replaceAll)
+TEST(StringUtilsTest, replaceAll)
 {
     using megacmd::replaceAll;
 
