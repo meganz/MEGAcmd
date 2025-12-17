@@ -15,37 +15,10 @@
 
 #include <gtest/gtest.h>
 
-#include "TestUtils.h"
 #include "Instruments.h"
-#include "megacmdcommonutils.h"
+#include "TestUtils.h"
 #include "comunicationsmanager.h"
-
-namespace StringUtilsTest
-{
-    static void trimming()
-    {
-        using megacmd::ltrim;
-        using megacmd::rtrim;
-
-        {
-            std::string s("123456");
-            G_SUBTEST << "Left trimming";
-            ASSERT_STREQ(ltrim(s, '2').c_str(), "123456");
-            ASSERT_STREQ(ltrim(s, '1').c_str(), "23456");
-        }
-        {
-            std::string s("123456");
-            G_SUBTEST << "Right trimming";
-            ASSERT_STREQ(rtrim(s, '2').c_str(), "123456");
-            ASSERT_STREQ(rtrim(s, '6').c_str(), "12345");
-        }
-    }
-}
-
-TEST(StringUtilsTest, trimming)
-{
-    StringUtilsTest::trimming();
-}
+#include "megacmdcommonutils.h"
 
 TEST(StringUtilsTest, rtrim)
 {
@@ -114,6 +87,137 @@ TEST(StringUtilsTest, rtrim)
     {
         std::string s("test\t\t\t");
         EXPECT_EQ(rtrim(s, '\t'), "test");
+    }
+}
+
+TEST(StringUtilsTest, ltrim)
+{
+    using megacmd::ltrim;
+
+    G_SUBTEST << "Basic cases";
+    {
+        std::string s("123456");
+        EXPECT_EQ(ltrim(s, '2'), "123456");
+        EXPECT_EQ(ltrim(s, '1'), "23456");
+    }
+
+    G_SUBTEST << "Empty string";
+    {
+        std::string s("");
+        EXPECT_EQ(ltrim(s, ' '), "");
+    }
+
+    G_SUBTEST << "Only trim character";
+    {
+        std::string s("   ");
+        EXPECT_EQ(ltrim(s, ' '), "");
+    }
+
+    G_SUBTEST << "Multiple consecutive";
+    {
+        std::string s("1111222333");
+        EXPECT_EQ(ltrim(s, '1'), "222333");
+    }
+
+    G_SUBTEST << "Character not at the beginning";
+    {
+        std::string s("abc123");
+        EXPECT_EQ(ltrim(s, 'a'), "bc123");
+        std::string s2("abc123");
+        EXPECT_EQ(ltrim(s2, 'b'), "abc123");
+    }
+
+    G_SUBTEST << "Unicode characters";
+    {
+        std::string s("   \xD0\x9C\xD0\x95\xD0\x93\xD0\x90");
+        EXPECT_TRUE(megacmd::isValidUtf8(s));
+        std::string result = ltrim(s, ' ');
+        EXPECT_TRUE(megacmd::isValidUtf8(result));
+        EXPECT_EQ(result, "\xD0\x9C\xD0\x95\xD0\x93\xD0\x90");
+    }
+
+    G_SUBTEST << "Very long string";
+    {
+        std::string s(10000, '1');
+        s += "test";
+        std::string result = ltrim(s, '1');
+        EXPECT_EQ(result, "test");
+    }
+
+    G_SUBTEST << "Single character string with trim character";
+    {
+        std::string s("X");
+        EXPECT_EQ(ltrim(s, 'X'), "");
+    }
+
+    G_SUBTEST << "Single character string with no trim characters";
+    {
+        std::string s("X");
+        EXPECT_EQ(ltrim(s, 'Y'), "X");
+    }
+
+    G_SUBTEST << "Mixed characters at start";
+    {
+        std::string s("XXYXXtest");
+        EXPECT_EQ(ltrim(s, 'X'), "YXXtest");
+    }
+
+    G_SUBTEST << "Special characters";
+    {
+        std::string s("\t\t\ttest");
+        EXPECT_EQ(ltrim(s, '\t'), "test");
+    }
+
+    G_SUBTEST << "string_view overload";
+    {
+        std::string_view sv("   test");
+        std::string_view result = ltrim(sv, ' ');
+        EXPECT_EQ(result, "test");
+        EXPECT_EQ(sv, "   test");
+    }
+
+    G_SUBTEST << "Empty string_view";
+    {
+        std::string_view sv;
+        std::string_view result = ltrim(sv, ' ');
+        EXPECT_EQ(result.length(), 0);
+    }
+
+    G_SUBTEST << "string_view with multiple characters";
+    {
+        std::string_view sv("XXXtest");
+        std::string_view result = ltrim(sv, 'X');
+        EXPECT_EQ(result, "test");
+    }
+
+    G_SUBTEST << "string_view with only trim characters";
+    {
+        std::string_view sv("   ");
+        std::string_view result = ltrim(sv, ' ');
+        EXPECT_EQ(result.length(), 0);
+    }
+
+    G_SUBTEST << "string_view with no trim characters";
+    {
+        std::string_view sv("test");
+        std::string_view result = ltrim(sv, ' ');
+        EXPECT_EQ(result, "test");
+    }
+
+    G_SUBTEST << "string_view with a single character";
+    {
+        std::string_view sv("X");
+        std::string_view result = ltrim(sv, 'X');
+        EXPECT_EQ(result.length(), 0);
+    }
+
+    G_SUBTEST << "string_view from string";
+    {
+        std::string str("   test");
+        std::string_view sv(str);
+        std::string_view result = ltrim(sv, ' ');
+        EXPECT_EQ(result, "test");
+        EXPECT_EQ(str, "   test");
     }
 }
 
