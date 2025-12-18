@@ -1166,11 +1166,25 @@ void sleepMilliSeconds(long milliseconds)
 #endif
 }
 
-bool isValidEmail(string email)
+bool isValidEmail(const string &email)
 {
-    return !( (email.find("@") == string::npos)
-                    || (email.find_last_of(".") == string::npos)
-                    || (email.find("@") > email.find_last_of(".")));
+    if (email.size() < 5) // At least "a@b.c"
+    {
+        return false;
+    }
+
+    size_t atPos = email.find("@");
+    if (atPos == string::npos || atPos == 0 || atPos + 1 >= email.length() || email.at(atPos + 1) == '.')
+    {
+        return false;
+    }
+
+    if (size_t dotPos = email.find(".", atPos + 1); dotPos == string::npos || dotPos == email.length() - 1)
+    {
+        return false;
+    }
+
+    return true;
 }
 
 #ifdef __linux__
