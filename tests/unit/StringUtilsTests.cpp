@@ -712,3 +712,197 @@ TEST(StringUtilsTest, isValidEmail)
         EXPECT_FALSE(isValidEmail(""));
     }
 }
+
+TEST(StringUtilsTest, removeTrailingSeparators)
+{
+    using megacmd::removeTrailingSeparators;
+
+    G_SUBTEST << "Empty string";
+    {
+        std::string path;
+        std::string result = removeTrailingSeparators(path);
+        EXPECT_EQ(result, "");
+    }
+
+    G_SUBTEST << "Root path";
+    {
+        std::string path = "/";
+        std::string result = removeTrailingSeparators(path);
+        EXPECT_EQ(result, "/");
+    }
+
+    G_SUBTEST << "Two slashes only";
+    {
+        std::string path = "//";
+        std::string result = removeTrailingSeparators(path);
+        EXPECT_EQ(result, "/");
+    }
+
+    G_SUBTEST << "Windows backslash only";
+    {
+        std::string path = R"(\)";
+        std::string result = removeTrailingSeparators(path);
+        EXPECT_EQ(result, "");
+    }
+
+    G_SUBTEST << "Path with only backslashes";
+    {
+        std::string path = R"(\\)";
+        std::string result = removeTrailingSeparators(path);
+        EXPECT_EQ(result, "");
+    }
+
+    G_SUBTEST << "Unix path without trailing separator";
+    {
+        std::string path = "/path/to/dir";
+        std::string result = removeTrailingSeparators(path);
+        EXPECT_EQ(result, "/path/to/dir");
+    }
+
+    G_SUBTEST << "Unix path with trailing separator";
+    {
+        std::string path = "/path/to/dir/";
+        std::string result = removeTrailingSeparators(path);
+        EXPECT_EQ(result, "/path/to/dir");
+    }
+
+    G_SUBTEST << "Unix path with multiple trailing separators";
+    {
+        std::string path = "/path/to/dir///";
+        std::string result = removeTrailingSeparators(path);
+        EXPECT_EQ(result, "/path/to/dir");
+    }
+
+    G_SUBTEST << "Unix path with file in middle";
+    {
+        std::string path = "/path/to/dir/file.txt";
+        std::string result = removeTrailingSeparators(path);
+        EXPECT_EQ(result, "/path/to/dir/file.txt");
+    }
+
+    G_SUBTEST << "Windows path without trailing separator";
+    {
+        std::string path = R"(C:\path\to\dir)";
+        std::string result = removeTrailingSeparators(path);
+        EXPECT_EQ(result, R"(C:\path\to\dir)");
+    }
+
+    G_SUBTEST << "Windows path with trailing backslash";
+    {
+        std::string path = R"(C:\path\to\dir\)";
+        std::string result = removeTrailingSeparators(path);
+        EXPECT_EQ(result, R"(C:\path\to\dir)");
+    }
+
+    G_SUBTEST << "Windows path with multiple trailing backslashes";
+    {
+        std::string path = R"(C:\path\to\dir\\)";
+        std::string result = removeTrailingSeparators(path);
+        EXPECT_EQ(result, R"(C:\path\to\dir)");
+    }
+
+    G_SUBTEST << "Windows root path C:\\";
+    {
+        std::string path = R"(C:\\)";
+        std::string result = removeTrailingSeparators(path);
+        EXPECT_EQ(result, "C:");
+    }
+
+    G_SUBTEST << "Windows root path C:";
+    {
+        std::string path = R"(C:\)";
+        std::string result = removeTrailingSeparators(path);
+        EXPECT_EQ(result, "C:");
+    }
+
+    G_SUBTEST << "Windows path with file in middle";
+    {
+        std::string path = R"(C:\path\to\dir\file.txt)";
+        std::string result = removeTrailingSeparators(path);
+        EXPECT_EQ(result, R"(C:\path\to\dir\file.txt)");
+    }
+
+    G_SUBTEST << "Windows path ending with file extension";
+    {
+        std::string path = R"(C:\path\file.txt\)";
+        std::string result = removeTrailingSeparators(path);
+        EXPECT_EQ(result, R"(C:\path\file.txt)");
+    }
+
+    G_SUBTEST << "Mixed trailing separators - forward then back";
+    {
+        std::string path = R"(/path/to/dir/\)";
+        std::string result = removeTrailingSeparators(path);
+        EXPECT_EQ(result, "/path/to/dir/");
+    }
+
+    G_SUBTEST << "Mixed trailing separators - back then forward";
+    {
+        std::string path = R"(C:\path\to\dir\/)";
+        std::string result = removeTrailingSeparators(path);
+        EXPECT_EQ(result, R"(C:\path\to\dir)");
+    }
+
+    G_SUBTEST << "Complex mixed trailing separators - not fully removed";
+    {
+        std::string path = R"(/path/to/dir/\/\)";
+        std::string result = removeTrailingSeparators(path);
+        EXPECT_EQ(result, R"(/path/to/dir/\/)");
+    }
+
+    G_SUBTEST << "Mixed separators in middle and trailing";
+    {
+        std::string path = R"(C:\path/to\dir/)";
+        std::string result = removeTrailingSeparators(path);
+        EXPECT_EQ(result, R"(C:\path/to\dir)");
+    }
+
+    G_SUBTEST << "Single character path without separator";
+    {
+        std::string path = "a";
+        std::string result = removeTrailingSeparators(path);
+        EXPECT_EQ(result, "a");
+    }
+
+    G_SUBTEST << "Single character path with forward slash";
+    {
+        std::string path = "a/";
+        std::string result = removeTrailingSeparators(path);
+        EXPECT_EQ(result, "a");
+    }
+
+    G_SUBTEST << "Single character path with backslash";
+    {
+        std::string path = R"(a\)";
+        std::string result = removeTrailingSeparators(path);
+        EXPECT_EQ(result, "a");
+    }
+
+    G_SUBTEST << "UNC path with trailing backslash";
+    {
+        std::string path = R"(\\server\share\)";
+        std::string result = removeTrailingSeparators(path);
+        EXPECT_EQ(result, R"(\\server\share)");
+    }
+
+    G_SUBTEST << "UNC path with multiple trailing backslashes";
+    {
+        std::string path = R"(\\server\share\\)";
+        std::string result = removeTrailingSeparators(path);
+        EXPECT_EQ(result, R"(\\server\share)");
+    }
+
+    G_SUBTEST << "Relative path with trailing separator";
+    {
+        std::string path = R"(relative\path\)";
+        std::string result = removeTrailingSeparators(path);
+        EXPECT_EQ(result, R"(relative\path)");
+    }
+
+    G_SUBTEST << "Relative path without trailing separator";
+    {
+        std::string path = R"(relative\path)";
+        std::string result = removeTrailingSeparators(path);
+        EXPECT_EQ(result, R"(relative\path)");
+    }
+}
