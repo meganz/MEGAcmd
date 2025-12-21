@@ -930,14 +930,28 @@ int getintOption(const map<string, string> *cloptions, const char * optname, int
 std::optional<int> getIntOptional(const std::map<std::string, std::string>& cloptions, const char* optName)
 {
     auto it = cloptions.find(optName);
-    if (it == cloptions.end())
+    if (it == cloptions.end() || it->second.empty())
     {
         return std::nullopt;
     }
 
     try
     {
-        return std::stoi(it->second);
+        size_t pos = 0;
+        const std::string &str = it->second;
+        long long value = std::stoll(str, &pos);
+
+        if (pos != str.length())
+        {
+            return std::nullopt;
+        }
+
+        if (value < INT_MIN || value > INT_MAX)
+        {
+            return std::nullopt;
+        }
+
+        return static_cast<int>(value);
     }
     catch (...)
     {
