@@ -13,6 +13,7 @@
  * program.
  */
 
+#include <climits>
 #include <map>
 #include <string>
 #include <vector>
@@ -250,10 +251,28 @@ TEST(OptionsFlagsUtilsTest, getintOption)
         EXPECT_EQ(getintOption(&options, "value"), 0);
     }
 
-    G_SUBTEST << "Large integer";
+    G_SUBTEST << "INT_MAX value";
     {
         std::map<std::string, std::string> options = {{"value", "2147483647"}};
-        EXPECT_EQ(getintOption(&options, "value"), 2147483647);
+        EXPECT_EQ(getintOption(&options, "value"), INT_MAX);
+    }
+
+    G_SUBTEST << "INT_MIN value";
+    {
+        std::map<std::string, std::string> options = {{"value", "-2147483648"}};
+        EXPECT_EQ(getintOption(&options, "value"), INT_MIN);
+    }
+
+    G_SUBTEST << "Number exceeding INT_MAX";
+    {
+        std::map<std::string, std::string> options = {{"value", "2147483648"}};
+        EXPECT_EQ(getintOption(&options, "value"), 0);
+    }
+
+    G_SUBTEST << "Number below INT_MIN";
+    {
+        std::map<std::string, std::string> options = {{"value", "-2147483649"}};
+        EXPECT_EQ(getintOption(&options, "value"), 0);
     }
 
     G_SUBTEST << "Integer with leading spaces";
@@ -265,6 +284,12 @@ TEST(OptionsFlagsUtilsTest, getintOption)
     G_SUBTEST << "Integer with trailing spaces";
     {
         std::map<std::string, std::string> options = {{"value", "123  "}};
+        EXPECT_EQ(getintOption(&options, "value"), 123);
+    }
+
+    G_SUBTEST << "Integer with spaces on both sides";
+    {
+        std::map<std::string, std::string> options = {{"value", "  123  "}};
         EXPECT_EQ(getintOption(&options, "value"), 123);
     }
 
@@ -289,7 +314,49 @@ TEST(OptionsFlagsUtilsTest, getintOption)
     G_SUBTEST << "Custom default with invalid option";
     {
         std::map<std::string, std::string> options = {{"value", "invalid"}};
-        EXPECT_EQ(getintOption(&options, "value", 99), 0);
+        EXPECT_EQ(getintOption(&options, "value", 99), 99);
+    }
+
+    G_SUBTEST << "Custom default with empty string";
+    {
+        std::map<std::string, std::string> options = {{"value", ""}};
+        EXPECT_EQ(getintOption(&options, "value", 99), 99);
+    }
+
+    G_SUBTEST << "Custom default with spaces";
+    {
+        std::map<std::string, std::string> options = {{"value", "  123  "}};
+        EXPECT_EQ(getintOption(&options, "value", 99), 123);
+    }
+
+    G_SUBTEST << "Very large int number string";
+    {
+        std::map<std::string, std::string> options = {{"value", "999999999999999999999"}};
+        EXPECT_EQ(getintOption(&options, "value"), 0);
+    }
+
+    G_SUBTEST << "Very large negative int number string";
+    {
+        std::map<std::string, std::string> options = {{"value", "-999999999999999999999"}};
+        EXPECT_EQ(getintOption(&options, "value"), 0);
+    }
+
+    G_SUBTEST << "String with only spaces";
+    {
+        std::map<std::string, std::string> options = {{"value", "   "}};
+        EXPECT_EQ(getintOption(&options, "value"), 0);
+    }
+
+    G_SUBTEST << "String starting with non-digit";
+    {
+        std::map<std::string, std::string> options = {{"value", "abc123"}};
+        EXPECT_EQ(getintOption(&options, "value"), 0);
+    }
+
+    G_SUBTEST << "String with special characters";
+    {
+        std::map<std::string, std::string> options = {{"value", "12@34"}};
+        EXPECT_EQ(getintOption(&options, "value"), 12);
     }
 }
 
@@ -299,10 +366,13 @@ TEST(OptionsFlagsUtilsTest, getIntOptional)
 
     G_SUBTEST << "Basic case";
     {
-        std::map<std::string, std::string> options = {{"timeout", "30"}};
+        std::map<std::string, std::string> options = {{"timeout", "30"}, {"port", "8080"}};
         auto result = getIntOptional(options, "timeout");
         ASSERT_TRUE(result.has_value());
         EXPECT_EQ(*result, 30);
+        result = getIntOptional(options, "port");
+        ASSERT_TRUE(result.has_value());
+        EXPECT_EQ(*result, 8080);
     }
 
     G_SUBTEST << "Invalid integer option";
@@ -342,19 +412,42 @@ TEST(OptionsFlagsUtilsTest, getIntOptional)
         EXPECT_EQ(*result, 0);
     }
 
-    G_SUBTEST << "Large integer";
+    G_SUBTEST << "INT_MAX value";
     {
         std::map<std::string, std::string> options = {{"value", "2147483647"}};
         auto result = getIntOptional(options, "value");
         ASSERT_TRUE(result.has_value());
-        EXPECT_EQ(*result, 2147483647);
+        EXPECT_EQ(*result, INT_MAX);
+    }
+
+    G_SUBTEST << "INT_MIN value";
+    {
+        std::map<std::string, std::string> options = {{"value", "-2147483648"}};
+        auto result = getIntOptional(options, "value");
+        ASSERT_TRUE(result.has_value());
+        EXPECT_EQ(*result, INT_MIN);
+    }
+
+    G_SUBTEST << "Number exceeding INT_MAX";
+    {
+        std::map<std::string, std::string> options = {{"value", "2147483648"}};
+        auto result = getIntOptional(options, "value");
+        EXPECT_FALSE(result.has_value());
+    }
+
+    G_SUBTEST << "Number below INT_MIN";
+    {
+        std::map<std::string, std::string> options = {{"value", "-2147483649"}};
+        auto result = getIntOptional(options, "value");
+        EXPECT_FALSE(result.has_value());
     }
 
     G_SUBTEST << "Partial integer string";
     {
         std::map<std::string, std::string> options = {{"value", "123abc"}};
         auto result = getIntOptional(options, "value");
-        EXPECT_FALSE(result.has_value());
+        ASSERT_TRUE(result.has_value());
+        EXPECT_EQ(*result, 123);
     }
 
     G_SUBTEST << "Empty string";
@@ -364,11 +457,28 @@ TEST(OptionsFlagsUtilsTest, getIntOptional)
         EXPECT_FALSE(result.has_value());
     }
 
-    G_SUBTEST << "Integer with spaces";
+    G_SUBTEST << "Integer with leading spaces";
+    {
+        std::map<std::string, std::string> options = {{"value", "  123"}};
+        auto result = getIntOptional(options, "value");
+        ASSERT_TRUE(result.has_value());
+        EXPECT_EQ(*result, 123);
+    }
+
+    G_SUBTEST << "Integer with trailing spaces";
+    {
+        std::map<std::string, std::string> options = {{"value", "123  "}};
+        auto result = getIntOptional(options, "value");
+        ASSERT_TRUE(result.has_value());
+        EXPECT_EQ(*result, 123);
+    }
+
+    G_SUBTEST << "Integer with spaces on both sides";
     {
         std::map<std::string, std::string> options = {{"value", "  123  "}};
         auto result = getIntOptional(options, "value");
-        EXPECT_FALSE(result.has_value());
+        ASSERT_TRUE(result.has_value());
+        EXPECT_EQ(*result, 123);
     }
 
     G_SUBTEST << "Very large number string";
@@ -376,6 +486,67 @@ TEST(OptionsFlagsUtilsTest, getIntOptional)
         std::map<std::string, std::string> options = {{"value", "999999999999999999999"}};
         auto result = getIntOptional(options, "value");
         EXPECT_FALSE(result.has_value());
+    }
+
+    G_SUBTEST << "Very large negative number string";
+    {
+        std::map<std::string, std::string> options = {{"value", "-999999999999999999999"}};
+        auto result = getIntOptional(options, "value");
+        EXPECT_FALSE(result.has_value());
+    }
+
+    G_SUBTEST << "String with only spaces";
+    {
+        std::map<std::string, std::string> options = {{"value", "   "}};
+        auto result = getIntOptional(options, "value");
+        EXPECT_FALSE(result.has_value());
+    }
+
+    G_SUBTEST << "String starting with non-digit";
+    {
+        std::map<std::string, std::string> options = {{"value", "abc123"}};
+        auto result = getIntOptional(options, "value");
+        EXPECT_FALSE(result.has_value());
+    }
+
+    G_SUBTEST << "String with special characters";
+    {
+        std::map<std::string, std::string> options = {{"value", "12@34"}};
+        auto result = getIntOptional(options, "value");
+        ASSERT_TRUE(result.has_value());
+        EXPECT_EQ(*result, 12);
+    }
+
+    G_SUBTEST << "Positive number with plus sign";
+    {
+        std::map<std::string, std::string> options = {{"value", "+123"}};
+        auto result = getIntOptional(options, "value");
+        ASSERT_TRUE(result.has_value());
+        EXPECT_EQ(*result, 123);
+    }
+
+    G_SUBTEST << "Single digit";
+    {
+        std::map<std::string, std::string> options = {{"value", "5"}};
+        auto result = getIntOptional(options, "value");
+        ASSERT_TRUE(result.has_value());
+        EXPECT_EQ(*result, 5);
+    }
+
+    G_SUBTEST << "Large positive number within range";
+    {
+        std::map<std::string, std::string> options = {{"value", "1000000"}};
+        auto result = getIntOptional(options, "value");
+        ASSERT_TRUE(result.has_value());
+        EXPECT_EQ(*result, 1000000);
+    }
+
+    G_SUBTEST << "Large negative number within range";
+    {
+        std::map<std::string, std::string> options = {{"value", "-1000000"}};
+        auto result = getIntOptional(options, "value");
+        ASSERT_TRUE(result.has_value());
+        EXPECT_EQ(*result, -1000000);
     }
 }
 

@@ -917,41 +917,21 @@ std::optional<string> getOptionAsOptional(const map<string, string>& cloptions, 
 
 int getintOption(const map<string, string> *cloptions, const char * optname, int defaultValue)
 {
-    auto i = cloptions->find(optname);
-
-    auto result = defaultValue;
-
-    if (i != cloptions->end())
-        istringstream(i->second) >> result;
-
-    return result;
+    auto optionalInt = getIntOptional(*cloptions, optname);
+    return optionalInt.value_or(defaultValue);
 }
 
 std::optional<int> getIntOptional(const std::map<std::string, std::string>& cloptions, const char* optName)
 {
     auto it = cloptions.find(optName);
-    if (it == cloptions.end() || it->second.empty())
+    if (it == cloptions.end())
     {
         return std::nullopt;
     }
 
     try
     {
-        size_t pos = 0;
-        const std::string &str = it->second;
-        long long value = std::stoll(str, &pos);
-
-        if (pos != str.length())
-        {
-            return std::nullopt;
-        }
-
-        if (value < INT_MIN || value > INT_MAX)
-        {
-            return std::nullopt;
-        }
-
-        return static_cast<int>(value);
+        return std::stoi(it->second);
     }
     catch (...)
     {
