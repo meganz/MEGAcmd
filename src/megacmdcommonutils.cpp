@@ -917,14 +917,8 @@ std::optional<string> getOptionAsOptional(const map<string, string>& cloptions, 
 
 int getintOption(const map<string, string> *cloptions, const char * optname, int defaultValue)
 {
-    auto i = cloptions->find(optname);
-
-    auto result = defaultValue;
-
-    if (i != cloptions->end())
-        istringstream(i->second) >> result;
-
-    return result;
+    auto optionalInt = getIntOptional(*cloptions, optname);
+    return optionalInt.value_or(defaultValue);
 }
 
 std::optional<int> getIntOptional(const std::map<std::string, std::string>& cloptions, const char* optName)
