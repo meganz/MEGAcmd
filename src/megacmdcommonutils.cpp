@@ -33,17 +33,17 @@
 #include <unistd.h>
 #endif
 
-#include <cstring>
-#include <iomanip>
-#include <fstream>
-#include <string.h>
 #include <algorithm>
-#include <sstream>
-#include <limits.h>
+#include <cerrno>
+#include <climits>
+#include <cstdlib>
+#include <cstring>
+#include <fstream>
+#include <iomanip>
 #include <iterator>
-
-#include <regex> //split
 #include <random>
+#include <regex> //split
+#include <sstream>
 
 namespace megacmd {
 using namespace std;
@@ -531,21 +531,18 @@ void replaceAll(std::string& str, const std::string& from, const std::string& to
     }
 }
 
-int toInteger(string what, int failValue)
+int toInteger(const string &str, int failValue)
 {
-    if (what.empty())
-    {
-        return failValue;
-    }
-    if (!isdigit(what[0]) && !( what[0] != '-' ) && ( what[0] != '+' ))
+    if (str.empty())
     {
         return failValue;
     }
 
-    char * p;
-    long l = strtol(what.c_str(), &p, 10);
+    errno = 0;
+    char *p;
+    long long l = strtoll(str.c_str(), &p, 10);
 
-    if (*p != 0)
+    if (p == str.c_str() || *p != '\0' || errno != 0)
     {
         return failValue;
     }
@@ -917,14 +914,8 @@ std::optional<string> getOptionAsOptional(const map<string, string>& cloptions, 
 
 int getintOption(const map<string, string> *cloptions, const char * optname, int defaultValue)
 {
-    auto i = cloptions->find(optname);
-
-    auto result = defaultValue;
-
-    if (i != cloptions->end())
-        istringstream(i->second) >> result;
-
-    return result;
+    auto optionalInt = getIntOptional(*cloptions, optname);
+    return optionalInt.value_or(defaultValue);
 }
 
 std::optional<int> getIntOptional(const std::map<std::string, std::string>& cloptions, const char* optName)
@@ -1169,11 +1160,25 @@ void sleepMilliSeconds(long milliseconds)
 #endif
 }
 
-bool isValidEmail(string email)
+bool isValidEmail(const string &email)
 {
-    return !( (email.find("@") == string::npos)
-                    || (email.find_last_of(".") == string::npos)
-                    || (email.find("@") > email.find_last_of(".")));
+    if (email.size() < 5) // At least "a@b.c"
+    {
+        return false;
+    }
+
+    size_t atPos = email.find("@");
+    if (atPos == string::npos || atPos == 0 || atPos + 1 >= email.length() || email.at(atPos + 1) == '.')
+    {
+        return false;
+    }
+
+    if (size_t dotPos = email.find(".", atPos + 1); dotPos == string::npos || dotPos == email.length() - 1)
+    {
+        return false;
+    }
+
+    return true;
 }
 
 #ifdef __linux__

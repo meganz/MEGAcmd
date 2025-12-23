@@ -207,7 +207,17 @@ bool replace(std::string& str, const std::string& from, const std::string& to);
 
 void replaceAll(std::string& str, const std::string& from, const std::string& to);
 
-int toInteger(std::string what, int failValue = -1);
+/**
+ * @brief Converts a string to an integer.
+ *
+ * Parses the string as a base-10 integer. Must contain only digits with
+ * optional leading sign ('+' or '-'). No whitespace allowed.
+ *
+ * @param str The string to convert.
+ * @param failValue Return value on conversion failure.
+ * @return Converted integer or failValue if invalid/out of range.
+ */
+int toInteger(const std::string &str, int failValue = -1);
 
 std::string joinStrings(const std::vector<std::string>& vec, const char* delim = " ", bool quoted=true);
 
@@ -316,7 +326,14 @@ unsigned int getNumberOfCols(unsigned int defaultwidth = 90);
 void sleepSeconds(int seconds);
 void sleepMilliSeconds(long microseconds);
 
-bool isValidEmail(std::string email);
+/**
+ * @brief Validates email address format using basic checks.
+ * @param email Email address to validate
+ * @return true if email passes basic format validation, false otherwise
+ *
+ * This function performs just minimal validations, it's not a full RFC-compliant validator.
+ */
+bool isValidEmail(const std::string &email);
 
 #ifdef __linux__
 std::string getCurrentExecPath();
@@ -430,17 +447,6 @@ public:
      */
     virtual fs::path configDirPath() = 0;
 };
-
-template <typename T> size_t numberOfDigits(T num)
-{
-    size_t digits = num < 0 ? 1 : 0;
-    while (num != 0)
-    {
-        digits++;
-        num /= 10;
-    }
-    return digits;
-}
 
 #ifdef _WIN32
 class WindowsDirectories : public PlatformDirectories

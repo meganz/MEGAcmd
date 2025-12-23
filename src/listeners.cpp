@@ -936,6 +936,11 @@ void MegaCmdMultiTransferListener::onTransferStart(MegaApi* api, MegaTransfer *t
     onTransferUpdate(api,transfer);
 
     LOG_verbose << "onTransferStart Transfer->getType(): " << transfer->getType();
+
+    if (mOnTransferStartCb)
+    {
+        mOnTransferStartCb(transfer);
+    }
 }
 
 void MegaCmdMultiTransferListener::doOnTransferFinish(MegaApi* api, MegaTransfer *transfer, MegaError* e)

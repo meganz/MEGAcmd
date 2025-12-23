@@ -138,6 +138,9 @@ class MEGAcmdGetTest(unittest.TestCase):
     def tearDownClass(cls):
         clean_all()
 
+    def setUp(self):
+        print(f"\n=== Running test: {self._testMethodName} ===")
+
     def tearDown(self):
         clear_dls()
         cmd_ef(CD+" /")

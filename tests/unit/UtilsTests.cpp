@@ -13,9 +13,9 @@
  * program.
  */
 
-#include "megacmdutils.h"
-#include <cstring>
+#include <cctype>
 #include <cerrno>
+#include <cstring>
 #ifdef _WIN32
 #include <direct.h>
 #include <windows.h>
@@ -28,30 +28,6 @@
 
 #include "TestUtils.h"
 #include "megacmdcommonutils.h"
-
-namespace UtilsTest
-{
-    static void numberOfDigits()
-    {
-        {
-            G_SUBTEST << "Positive integers";
-            ASSERT_EQ(megacmd::numberOfDigits(1), 1);
-            ASSERT_EQ(megacmd::numberOfDigits(10), 2);
-            ASSERT_EQ(megacmd::numberOfDigits(100), 3);
-        }
-        {
-            G_SUBTEST << "Negative integers";
-            ASSERT_EQ(megacmd::numberOfDigits(-1), 2);
-            ASSERT_EQ(megacmd::numberOfDigits(-10), 3);
-            ASSERT_EQ(megacmd::numberOfDigits(-100), 4);
-        }
-    }
-}
-
-TEST(UtilsTest, numberOfDigits)
-{
-    UtilsTest::numberOfDigits();
-}
 
 TEST(UtilsTest, nonAsciiConsolePrint)
 {
@@ -101,4 +77,43 @@ TEST(UtilsTest, nonAsciiConsolePrint)
     std::cout << megacmd::utf16ToUtf8(wstr) << std::endl;
     std::cerr << megacmd::utf16ToUtf8(wstr) << std::endl;
 #endif
+}
+
+TEST(StringUtilsTest, generateRandomAlphaNumericString)
+{
+    using megacmd::generateRandomAlphaNumericString;
+
+    G_SUBTEST << "Generate string of specific length";
+    {
+        std::string result = generateRandomAlphaNumericString(10);
+        EXPECT_EQ(result.length(), 10);
+    }
+
+    G_SUBTEST << "Generate empty string";
+    {
+        std::string result = generateRandomAlphaNumericString(0);
+        EXPECT_EQ(result.length(), 0);
+    }
+
+    G_SUBTEST << "Generate long string";
+    {
+        std::string result = generateRandomAlphaNumericString(100);
+        EXPECT_EQ(result.length(), 100);
+    }
+
+    G_SUBTEST << "Generated strings are different";
+    {
+        std::string result1 = generateRandomAlphaNumericString(20);
+        std::string result2 = generateRandomAlphaNumericString(20);
+        EXPECT_NE(result1, result2);
+    }
+
+    G_SUBTEST << "Generated string contains alphanumeric characters";
+    {
+        std::string result = generateRandomAlphaNumericString(1000);
+        for (char c : result)
+        {
+            EXPECT_TRUE(std::isalnum(c));
+        }
+    }
 }
