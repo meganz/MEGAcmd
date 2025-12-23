@@ -207,7 +207,17 @@ bool replace(std::string& str, const std::string& from, const std::string& to);
 
 void replaceAll(std::string& str, const std::string& from, const std::string& to);
 
-int toInteger(std::string what, int failValue = -1);
+/**
+ * @brief Converts a string to an integer.
+ *
+ * Parses the string as a base-10 integer. Must contain only digits with
+ * optional leading sign ('+' or '-'). No whitespace allowed.
+ *
+ * @param str The string to convert.
+ * @param failValue Return value on conversion failure.
+ * @return Converted integer or failValue if invalid/out of range.
+ */
+int toInteger(const std::string &str, int failValue = -1);
 
 std::string joinStrings(const std::vector<std::string>& vec, const char* delim = " ", bool quoted=true);
 

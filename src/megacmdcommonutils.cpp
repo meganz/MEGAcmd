@@ -33,17 +33,17 @@
 #include <unistd.h>
 #endif
 
-#include <cstring>
-#include <iomanip>
-#include <fstream>
-#include <string.h>
 #include <algorithm>
-#include <sstream>
-#include <limits.h>
+#include <cerrno>
+#include <climits>
+#include <cstdlib>
+#include <cstring>
+#include <fstream>
+#include <iomanip>
 #include <iterator>
-
-#include <regex> //split
 #include <random>
+#include <regex> //split
+#include <sstream>
 
 namespace megacmd {
 using namespace std;
@@ -531,21 +531,18 @@ void replaceAll(std::string& str, const std::string& from, const std::string& to
     }
 }
 
-int toInteger(string what, int failValue)
+int toInteger(const string &str, int failValue)
 {
-    if (what.empty())
-    {
-        return failValue;
-    }
-    if (!isdigit(what[0]) && !( what[0] != '-' ) && ( what[0] != '+' ))
+    if (str.empty())
     {
         return failValue;
     }
 
-    char * p;
-    long l = strtol(what.c_str(), &p, 10);
+    errno = 0;
+    char *p;
+    long long l = strtoll(str.c_str(), &p, 10);
 
-    if (*p != 0)
+    if (p == str.c_str() || *p != '\0' || errno != 0)
     {
         return failValue;
     }
