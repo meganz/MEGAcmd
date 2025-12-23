@@ -783,15 +783,15 @@ TEST(StringUtilsTest, getListOfWords)
         EXPECT_THAT(words, testing::ElementsAre("mega-share", "-a", "--with=some-email@mega.co.nz", "some_dir/some_file.txt"));
     }
 
-    G_SUBTEST << "Double quotes";
+    G_SUBTEST << "Quotes";
     {
         {
             std::vector<std::string> words = getlistOfWords("mkdir \"some dir\" \"another dir\"");
             EXPECT_THAT(words, testing::ElementsAre("mkdir", "some dir", "another dir"));
         }
         {
-            std::vector<std::string> words = getlistOfWords("command \"text\\\"quoted\"");
-            EXPECT_THAT(words, testing::ElementsAre("command", "text\\", "quoted\""));
+            std::vector<std::string> words = getlistOfWords("mkdir 'some dir' 'another dir'");
+            EXPECT_THAT(words, testing::ElementsAre("mkdir", "some dir", "another dir"));
         }
         {
             std::vector<std::string> words = getlistOfWords("some \"case\" here");
@@ -813,9 +813,13 @@ TEST(StringUtilsTest, getListOfWords)
             std::vector<std::string> words = getlistOfWords("--arg1=\"a b\" word --arg2=\"c d\"");
             EXPECT_THAT(words, testing::ElementsAre("--arg1=\"a b\"", "word", "--arg2=\"c d\""));
         }
+        {
+            std::vector<std::string> words = getlistOfWords(R"(command "text\"quoted")");
+            EXPECT_THAT(words, testing::ElementsAre("command", R"(text\)", R"(quoted")"));
+        }
     }
 
-    G_SUBTEST << "Double quotes without matching";
+    G_SUBTEST << "Unmatched quotes";
     {
         {
             std::vector<std::string> words = getlistOfWords("find \"something with quotes\" odd/file\"01.txt");
@@ -825,47 +829,67 @@ TEST(StringUtilsTest, getListOfWords)
             std::vector<std::string> words = getlistOfWords("--something=\"quote missing");
             EXPECT_THAT(words, testing::ElementsAre("--something=\"quote missing"));
         }
+        {
+            std::vector<std::string> words = getlistOfWords("find 'something with quotes' odd/file'01.txt");
+            EXPECT_THAT(words, testing::ElementsAre("find", "something with quotes", "odd/file'01.txt"));
+        }
+        {
+            std::vector<std::string> words = getlistOfWords("--something='quote missing");
+            EXPECT_THAT(words, testing::ElementsAre("--something='quote", "missing"));
+        }
+        {
+            std::vector<std::string> words = getlistOfWords("command 'unclosed quote");
+            EXPECT_THAT(words, testing::ElementsAre("command", "unclosed quote"));
+        }
     }
 
-    G_SUBTEST << "Single quotes";
+    G_SUBTEST << "Completion mode and flags";
     {
-        std::vector<std::string> words = getlistOfWords("mkdir 'some dir' 'another dir'");
-        EXPECT_THAT(words, testing::ElementsAre("mkdir", "some dir", "another dir"));
-    }
+        {
+            constexpr const char* str = R"(get root_dir\some_dir\some_file.jpg another_file.txt)";
+            constexpr const char* completion_str = R"(completion get root_dir\some_dir\some_file.jpg another_file.txt)";
 
-    G_SUBTEST << "Single quotes without matching";
-    {
-        std::vector<std::string> words = getlistOfWords("find 'something with quotes' odd/file'01.txt");
-        EXPECT_THAT(words, testing::ElementsAre("find", "something with quotes", "odd/file'01.txt"));
-    }
+            std::vector<std::string> words = getlistOfWords(str, true);
+            EXPECT_THAT(words, testing::ElementsAre("get", R"(root_dir\some_dir\some_file.jpg)", "another_file.txt"));
 
-    G_SUBTEST << "Escape backslash in completion";
-    {
-        const char* str = "get root_dir\\some_dir\\some_file.jpg another_file.txt";
-        const char* completion_str = "completion get root_dir\\some_dir\\some_file.jpg another_file.txt";
+            words = getlistOfWords(completion_str, true);
+            EXPECT_THAT(words, testing::ElementsAre("completion", "get", R"(root_dir\\some_dir\\some_file.jpg)", "another_file.txt"));
 
-        // '\\' won't be replaced since the first word is not `completion`
-        std::vector<std::string> words = getlistOfWords(str, true);
-        EXPECT_THAT(words, testing::ElementsAre("get", "root_dir\\some_dir\\some_file.jpg", "another_file.txt"));
-
-        // '\\' will be replaced with '\\\\' since the first word is `completion`
-        words = getlistOfWords(completion_str, true);
-        EXPECT_THAT(words, testing::ElementsAre("completion", "get", "root_dir\\\\some_dir\\\\some_file.jpg", "another_file.txt"));
-
-        // '\\' won't be replaced since we're setting `escapeBackSlashInCompletion=false`
-        words = getlistOfWords(str, false);
-        EXPECT_THAT(words, testing::ElementsAre("get", "root_dir\\some_dir\\some_file.jpg", "another_file.txt"));
-    }
-
-    G_SUBTEST << "Ignore trailing spaces";
-    {
-        constexpr const char* str = "export -f --writable some_dir/some_file.txt    ";
-
-        std::vector<std::string> words = getlistOfWords(str, false, false);
-        EXPECT_THAT(words, testing::ElementsAre("export", "-f", "--writable", "some_dir/some_file.txt", ""));
-
-        words = getlistOfWords(str, false, true);
-        EXPECT_THAT(words, testing::ElementsAre("export", "-f", "--writable", "some_dir/some_file.txt"));
+            words = getlistOfWords(str, false);
+            EXPECT_THAT(words, testing::ElementsAre("get", R"(root_dir\some_dir\some_file.jpg)", "another_file.txt"));
+        }
+        {
+            std::vector<std::string> words = getlistOfWords("completion", true);
+            EXPECT_THAT(words, testing::ElementsAre("completion"));
+        }
+        {
+            std::vector<std::string> words = getlistOfWords("completion   ", true, true);
+            EXPECT_THAT(words, testing::ElementsAre("completion"));
+        }
+        {
+            std::vector<std::string> words = getlistOfWords(R"(notcompletion path\file.txt)", true);
+            EXPECT_THAT(words, testing::ElementsAre("notcompletion", R"(path\file.txt)"));
+        }
+        {
+            constexpr const char* str = R"(completion get path\file.txt    )";
+            std::vector<std::string> words = getlistOfWords(str, true, false);
+            EXPECT_THAT(words, testing::ElementsAre("completion", "get", R"(path\\file.txt)", ""));
+        }
+        {
+            constexpr const char* str = R"(completion get path\file.txt    )";
+            std::vector<std::string> words = getlistOfWords(str, true, true);
+            EXPECT_THAT(words, testing::ElementsAre("completion", "get", R"(path\\file.txt)"));
+        }
+        {
+            constexpr const char* str = "completion arg    ";
+            std::vector<std::string> words = getlistOfWords(str, true, true);
+            EXPECT_THAT(words, testing::ElementsAre("completion", "arg"));
+        }
+        {
+            constexpr const char* str = "  completion arg  ";
+            std::vector<std::string> words = getlistOfWords(str, true, true);
+            EXPECT_THAT(words, testing::ElementsAre("completion", "arg"));
+        }
     }
 
     G_SUBTEST << "Very long strings";
@@ -875,20 +899,14 @@ TEST(StringUtilsTest, getListOfWords)
             longString += std::string(10000, 'a');
             longString += " argument";
             std::vector<std::string> words = getlistOfWords(longString.c_str());
-            EXPECT_EQ(words.size(), 3);
-            EXPECT_EQ(words[0], "command");
-            EXPECT_EQ(words[1].size(), 10000);
-            EXPECT_EQ(words[2], "argument");
+            EXPECT_THAT(words, testing::ElementsAre("command", testing::SizeIs(10000), "argument"));
         }
         {
             std::string longQuotedString = "command \"";
             longQuotedString += std::string(5000, 'b');
             longQuotedString += "\" argument";
             std::vector<std::string> words = getlistOfWords(longQuotedString.c_str());
-            EXPECT_EQ(words.size(), 3);
-            EXPECT_EQ(words[0], "command");
-            EXPECT_EQ(words[1].size(), 5000);
-            EXPECT_EQ(words[2], "argument");
+            EXPECT_THAT(words, testing::ElementsAre("command", testing::SizeIs(5000), "argument"));
         }
     }
 
@@ -908,20 +926,56 @@ TEST(StringUtilsTest, getListOfWords)
         }
     }
 
-    G_SUBTEST << "Special characters and escape sequences";
+    G_SUBTEST << "Backslash handling";
     {
         {
-            std::vector<std::string> words = getlistOfWords("command \"text\\nnewline\" \"text\\ttab\"");
-            EXPECT_THAT(words, testing::ElementsAre("command", "text\\nnewline", "text\\ttab"));
+            std::vector<std::string> words = getlistOfWords(R"(command "text\nnewline" "text\ttab")");
+            EXPECT_THAT(words, testing::ElementsAre("command", R"(text\nnewline)", R"(text\ttab)"));
         }
         {
-            std::vector<std::string> words = getlistOfWords("command 'text\\nnewline' 'text\\ttab'");
-            EXPECT_THAT(words, testing::ElementsAre("command", "text\\nnewline", "text\\ttab"));
+            std::vector<std::string> words = getlistOfWords(R"(command 'text\nnewline' 'text\ttab')");
+            EXPECT_THAT(words, testing::ElementsAre("command", R"(text\nnewline)", R"(text\ttab)"));
         }
         {
-            std::vector<std::string> words = getlistOfWords("command \"path\\\\to\\\\file\"");
-            EXPECT_THAT(words, testing::ElementsAre("command", "path\\\\to\\\\file"));
+            std::vector<std::string> words = getlistOfWords(R"(command "path\\to\\file")");
+            EXPECT_THAT(words, testing::ElementsAre("command", R"(path\\to\\file)"));
         }
+        {
+            std::vector<std::string> words = getlistOfWords(R"(command "path\\\\to\\\\file")");
+            EXPECT_THAT(words, testing::ElementsAre("command", R"(path\\\\to\\\\file)"));
+        }
+        {
+            std::vector<std::string> words = getlistOfWords(R"(completion get path\\\\file.txt)", true);
+            EXPECT_THAT(words, testing::ElementsAre("completion", "get", R"(path\\\\\\\\file.txt)"));
+        }
+        {
+            std::vector<std::string> words = getlistOfWords(R"(cmd path\\\\\file)");
+            EXPECT_THAT(words, testing::ElementsAre("cmd", R"(path\\\\\file)"));
+        }
+        {
+            std::vector<std::string> words = getlistOfWords(R"(command "text\" arg)");
+            EXPECT_THAT(words, testing::ElementsAre("command", R"(text\)", "arg"));
+        }
+        {
+            std::vector<std::string> words = getlistOfWords(R"(command 'text\' arg)");
+            EXPECT_THAT(words, testing::ElementsAre("command", R"(text\)", "arg"));
+        }
+        {
+            std::vector<std::string> words = getlistOfWords(R"(command path\)");
+            EXPECT_THAT(words, testing::ElementsAre("command", R"(path\)"));
+        }
+        {
+            std::vector<std::string> words = getlistOfWords(R"(command path\ with\ spaces)");
+            EXPECT_THAT(words, testing::ElementsAre("command", R"(path\ with\ spaces)"));
+        }
+        {
+            std::vector<std::string> words = getlistOfWords(R"(cmd file\ name)");
+            EXPECT_THAT(words, testing::ElementsAre("cmd", R"(file\ name)"));
+        }
+    }
+
+    G_SUBTEST << "Special characters";
+    {
         {
             std::vector<std::string> words = getlistOfWords("command file@name#123$test%value");
             EXPECT_THAT(words, testing::ElementsAre("command", "file@name#123$test%value"));
@@ -931,9 +985,17 @@ TEST(StringUtilsTest, getListOfWords)
             std::vector<std::string> words = getlistOfWords(unicodeStr.c_str());
             EXPECT_THAT(words, testing::ElementsAre("command", "\xD0\x9C\xD0\x95\xD0\x93\xD0\x90"));
         }
+        {
+            std::vector<std::string> words = getlistOfWords("command \"text\1bell\"");
+            EXPECT_THAT(words, testing::ElementsAre("command", "text\1bell"));
+        }
+        {
+            std::vector<std::string> words = getlistOfWords("cmd\1arg1\2arg2");
+            EXPECT_THAT(words, testing::ElementsAre("cmd\1arg1\2arg2"));
+        }
     }
 
-    G_SUBTEST << "Empty arguments";
+    G_SUBTEST << "Whitespace and empty strings";
     {
         {
             std::vector<std::string> words = getlistOfWords("");
@@ -948,6 +1010,41 @@ TEST(StringUtilsTest, getListOfWords)
             EXPECT_THAT(words, testing::ElementsAre(""));
         }
         {
+            constexpr const char* str = "export -f --writable some_dir/some_file.txt    ";
+            std::vector<std::string> words = getlistOfWords(str, false, false);
+            EXPECT_THAT(words, testing::ElementsAre("export", "-f", "--writable", "some_dir/some_file.txt", ""));
+            words = getlistOfWords(str, false, true);
+            EXPECT_THAT(words, testing::ElementsAre("export", "-f", "--writable", "some_dir/some_file.txt"));
+        }
+        {
+            std::vector<std::string> words = getlistOfWords("   command arg", false, false);
+            EXPECT_THAT(words, testing::ElementsAre("command", "arg"));
+        }
+        {
+            std::vector<std::string> words = getlistOfWords("   command arg", false, true);
+            EXPECT_THAT(words, testing::ElementsAre("command", "arg"));
+        }
+        {
+            std::vector<std::string> words = getlistOfWords("\t\tcommand\targ", false, true);
+            EXPECT_THAT(words, testing::ElementsAre("command\targ"));
+        }
+        {
+            std::vector<std::string> words = getlistOfWords("command\targ1\targ2");
+            EXPECT_THAT(words, testing::ElementsAre("command\targ1\targ2"));
+        }
+        {
+            std::vector<std::string> words = getlistOfWords("  \t  command  \t  arg  \t  ");
+            EXPECT_THAT(words, testing::ElementsAre("command", "arg", ""));
+        }
+        {
+            std::vector<std::string> words = getlistOfWords("command \"text\twith\ttabs\"");
+            EXPECT_THAT(words, testing::ElementsAre("command", "text\twith\ttabs"));
+        }
+        {
+            std::vector<std::string> words = getlistOfWords("command\narg1\narg2");
+            EXPECT_THAT(words, testing::ElementsAre("command\narg1\narg2"));
+        }
+        {
             std::vector<std::string> words = getlistOfWords("command \"\" \"\"");
             EXPECT_THAT(words, testing::ElementsAre("command", "", ""));
         }
@@ -959,9 +1056,47 @@ TEST(StringUtilsTest, getListOfWords)
             std::vector<std::string> words = getlistOfWords("command    ", false, false);
             EXPECT_THAT(words, testing::ElementsAre("command", ""));
         }
+    }
+
+    G_SUBTEST << "Unquoted text with embedded quotes";
+    {
         {
-            std::vector<std::string> words = getlistOfWords("--nothing=\"");
-            EXPECT_THAT(words, testing::ElementsAre("--nothing=\""));
+            std::vector<std::string> words = getlistOfWords("command path\"with\"quote");
+            EXPECT_THAT(words, testing::ElementsAre("command", "path\"with\"quote"));
+        }
+        {
+            std::vector<std::string> words = getlistOfWords("cmd file\"name.txt");
+            EXPECT_THAT(words, testing::ElementsAre("cmd", "file\"name.txt"));
+        }
+        {
+            std::vector<std::string> words = getlistOfWords("cmd file'name.txt");
+            EXPECT_THAT(words, testing::ElementsAre("cmd", "file'name.txt"));
+        }
+        {
+            std::vector<std::string> words = getlistOfWords("cmd \"quoted\"and\"more\"");
+            EXPECT_THAT(words, testing::ElementsAre("cmd", "quoted", "and\"more\""));
+        }
+    }
+
+    G_SUBTEST << "Invalid UTF-8 sequences";
+    {
+        {
+            // Invalid UTF-8: continuation byte without start byte
+            constexpr const char* invalidUtf8 = "command \x80\x81\x82";
+            std::vector<std::string> words = getlistOfWords(invalidUtf8);
+            EXPECT_THAT(words, testing::ElementsAre("command", "\x80\x81\x82"));
+        }
+        {
+            // Invalid UTF-8: incomplete sequence
+            constexpr const char* invalidUtf8 = "cmd \"\xC2\"";
+            std::vector<std::string> words = getlistOfWords(invalidUtf8);
+            EXPECT_THAT(words, testing::ElementsAre("cmd", "\xC2"));
+        }
+        {
+            // Invalid UTF-8: overlong encoding
+            constexpr const char* invalidUtf8 = "command \xC0\x80";
+            std::vector<std::string> words = getlistOfWords(invalidUtf8);
+            EXPECT_THAT(words, testing::ElementsAre("command", "\xC0\x80"));
         }
     }
 }
