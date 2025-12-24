@@ -822,23 +822,23 @@ TEST(StringUtilsTest, getListOfWords)
     G_SUBTEST << "Unmatched quotes";
     {
         {
-            std::vector<std::string> words = getlistOfWords("find \"something with quotes\" odd/file\"01.txt");
-            EXPECT_THAT(words, testing::ElementsAre("find", "something with quotes", "odd/file\"01.txt"));
+            std::vector<std::string> words = getlistOfWords(R"(find "something with quotes" odd/file"01.txt)");
+            EXPECT_THAT(words, testing::ElementsAre("find", "something with quotes", R"(odd/file"01.txt)"));
         }
         {
-            std::vector<std::string> words = getlistOfWords("--something=\"quote missing");
-            EXPECT_THAT(words, testing::ElementsAre("--something=\"quote missing"));
+            std::vector<std::string> words = getlistOfWords(R"(--something="quote missing)");
+            EXPECT_THAT(words, testing::ElementsAre(R"(--something="quote missing)"));
         }
         {
-            std::vector<std::string> words = getlistOfWords("find 'something with quotes' odd/file'01.txt");
-            EXPECT_THAT(words, testing::ElementsAre("find", "something with quotes", "odd/file'01.txt"));
+            std::vector<std::string> words = getlistOfWords(R"(find 'something with quotes' odd/file'01.txt)");
+            EXPECT_THAT(words, testing::ElementsAre("find", "something with quotes", R"(odd/file'01.txt)"));
         }
         {
-            std::vector<std::string> words = getlistOfWords("--something='quote missing");
-            EXPECT_THAT(words, testing::ElementsAre("--something='quote", "missing"));
+            std::vector<std::string> words = getlistOfWords(R"(--something='quote missing)");
+            EXPECT_THAT(words, testing::ElementsAre(R"(--something='quote)", "missing"));
         }
         {
-            std::vector<std::string> words = getlistOfWords("command 'unclosed quote");
+            std::vector<std::string> words = getlistOfWords(R"(command 'unclosed quote)");
             EXPECT_THAT(words, testing::ElementsAre("command", "unclosed quote"));
         }
     }
