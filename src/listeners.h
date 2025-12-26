@@ -148,6 +148,8 @@ private:
     std::condition_variable mStartedConditionVariable;
     unsigned mStartedTransfersCount = 0;
 
+    std::function<void(mega::MegaTransfer*)> mOnTransferStartCb;
+
 public:
     MegaCmdMultiTransferListener(mega::MegaApi *megaApi, MegaCmdSandbox * sandboxCMD, mega::MegaTransferListener *listener = NULL, int clientID=-1);
     virtual ~MegaCmdMultiTransferListener();
@@ -173,6 +175,12 @@ public:
     long long getTotalbytes() const;
 
     bool getProgressinformed() const;
+
+    template <typename Cb>
+    void setOnTransferStartCb(Cb &&cb)
+    {
+        mOnTransferStartCb = std::forward<Cb>(cb);
+    }
 
 protected:
     mega::MegaTransferListener *listener;

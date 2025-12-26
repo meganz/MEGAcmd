@@ -109,6 +109,9 @@ class MEGAcmdFindTest(unittest.TestCase):
         if not VERBOSE:
             clean_all()
 
+    def setUp(self):
+        print(f"\n=== Running test: {self._testMethodName} ===")
+
     def compare_find(self, what, localFindPrefix='localUPs'):
         if not isinstance(what, list):
             what = [what]

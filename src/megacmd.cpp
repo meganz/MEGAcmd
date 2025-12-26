@@ -762,7 +762,8 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     {
         validParams->insert("c");
         validParams->insert("q");
-        validParams->insert("ignore-quota-warn");
+        validParams->insert("print-tag-at-start");
+        validParams->insert("ignore-quota-warn"); //deprecated: no use
         validOptValues->insert("clientID");
     }
     else if ("get" == thecommand)
@@ -1707,7 +1708,7 @@ const char * getUsageStr(const char *command, const HelpFlags& flags)
     }
     if (!strcmp(command, "put"))
     {
-        return "put  [-c] [-q] [--ignore-quota-warn] localfile [localfile2 localfile3 ...] [dstremotepath]";
+        return "put  [-c] [-q] [--print-tag-at-start] localfile [localfile2 localfile3 ...] [dstremotepath]";
     }
     if (!strcmp(command, "putq"))
     {
@@ -2406,8 +2407,7 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << "Options:" << endl;
         os << " -c" << "\t" << "Creates remote folder destination in case of not existing." << endl;
         os << " -q" << "\t" << "queue upload: execute in the background. Don't wait for it to end" << endl;
-        os << " --ignore-quota-warn" << "\t" << "ignore quota surpassing warning." << endl;
-        os << "                    " << "\t" << "  The upload will be attempted anyway." << endl;
+        os << " --print-tag-at-start" << "\t" << "Prints start message including transfer TAG, even when using -q." << endl;
 
         os << endl;
         os << "Notice that the dstremotepath can only be omitted when only one local path is provided." << endl;
@@ -5480,7 +5480,11 @@ int executeServer(int argc, char* argv[],
     }
 
     api->setLanguage(localecode.c_str());
-    api->setLogJSONContent(logConfig.mJsonLogs);
+    if (logConfig.mJsonLogs)
+    {
+        MegaApi::setLogJSON(MegaApi::JSON_LOG_CHUNK_RECEIVED | MegaApi::JSON_LOG_CHUNK_CONSUMED | MegaApi::JSON_LOG_SENDING | MegaApi::JSON_LOG_NONCHUNK_RECEIVED);
+        MegaApi::setMaxPayloadLogSize(0); // Max size
+    }
     LOG_debug << "Language set to: " << localecode;
 
     sandboxCMD = new MegaCmdSandbox();
@@ -5499,8 +5503,6 @@ int executeServer(int argc, char* argv[],
 
         MegaApi *apiFolder = new MegaApi("BdARkQSQ", apiFolderStrUtf8.c_str(), userAgent);
         apiFolder->setLanguage(localecode.c_str());
-        apiFolder->setLogLevel(MegaApi::LOG_LEVEL_MAX);
-        apiFolder->setLogJSONContent(logConfig.mJsonLogs);
         apiFolder->addGlobalListener(cmdFatalErrorListener.get());
 
         apiFolders.push(apiFolder);

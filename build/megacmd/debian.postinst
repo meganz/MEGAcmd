@@ -5,7 +5,9 @@ distro="@DISTRO@"
 #ver=$(lsb_release -rs)
 ver="@VERSION@"
 
-if [[ $distro = "Raspbian GNU/Linux 12"* ]]; then
+if [[ $distro = "Raspbian GNU/Linux 13"* ]]; then
+    str="Raspbian_13"
+elif [[ $distro = "Raspbian GNU/Linux 12"* ]]; then
     str="Raspbian_12"
 elif [[ $distro = "Raspbian GNU/Linux 11"* ]]; then
     str="Raspbian_11"
