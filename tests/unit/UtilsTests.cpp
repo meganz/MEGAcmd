@@ -319,7 +319,12 @@ TEST(UtilsTest, canWrite)
         std::string utf8DirName = u8"\u041f\u0440\u0438\u0432\u0456\u0442"; // Ukrainian
         fs::path utf8Path = tmpFolder.path() / utf8DirName;
         fs::create_directory(utf8Path);
-        EXPECT_TRUE(canWrite(utf8Path.string()));
+#ifdef _WIN32
+        std::string utf8PathStr = megacmd::pathAsUtf8(utf8Path);
+#else
+        std::string utf8PathStr = utf8Path.string();
+#endif
+        EXPECT_TRUE(canWrite(utf8PathStr));
     }
 
     G_SUBTEST << "Nested directory with UTF-8 characters";
@@ -328,6 +333,11 @@ TEST(UtilsTest, canWrite)
         std::string utf8DirName = u8"\u4e2d\u6587"; // Chinese
         fs::path utf8Path = tmpFolder.path() / utf8DirName / "subdir";
         fs::create_directories(utf8Path);
-        EXPECT_TRUE(canWrite(utf8Path.string()));
+#ifdef _WIN32
+        std::string utf8PathStr = megacmd::pathAsUtf8(utf8Path);
+#else
+        std::string utf8PathStr = utf8Path.string();
+#endif
+        EXPECT_TRUE(canWrite(utf8PathStr));
     }
 }
