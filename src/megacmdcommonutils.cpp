@@ -57,16 +57,7 @@ std::string errorCodeStr(const std::error_code& ec)
 bool canWrite(const string &path)
 {
 #ifdef _WIN32
-    if (path.empty())
-    {
-        return false;
-    }
-
     std::wstring wpath = utf8StringToUtf16WString(path.c_str());
-    if (wpath.empty())
-    {
-        return false;
-    }
 
     if (DWORD attrs = GetFileAttributesW(wpath.c_str()); attrs != INVALID_FILE_ATTRIBUTES)
     {
