@@ -117,3 +117,33 @@ TEST(StringUtilsTest, generateRandomAlphaNumericString)
         }
     }
 }
+
+TEST(UtilsTest, getNumberOfCols)
+{
+    using megacmd::getNumberOfCols;
+
+    G_SUBTEST << "Base case";
+    {
+        auto cols = getNumberOfCols();
+        EXPECT_GT(cols, 0u);
+    }
+
+    G_SUBTEST << "With default value";
+    {
+        auto cols = getNumberOfCols(80);
+        EXPECT_GT(cols, 0u);
+    }
+
+    G_SUBTEST << "Multiple calls return consistent results";
+    {
+        auto cols1 = getNumberOfCols(80);
+        auto cols2 = getNumberOfCols(80);
+        EXPECT_EQ(cols1, cols2);
+    }
+
+    G_SUBTEST << "Result is reasonable size";
+    {
+        unsigned int cols = getNumberOfCols();
+        EXPECT_LE(cols, 10000u);
+    }
+}
