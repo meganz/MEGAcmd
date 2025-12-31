@@ -23,6 +23,7 @@
 #include <Shellapi.h> //CommandLineToArgvW
 #include <windows.h> //GetUserName
 #include <Lmcons.h> //UNLEN
+#include <io.h> //_waccess
 #else
 #include <sys/ioctl.h> // console size
 #include <sys/socket.h>
@@ -53,17 +54,23 @@ std::string errorCodeStr(const std::error_code& ec)
     return ec ? "(error: " + ec.message() + ")" : "";
 }
 
-bool canWrite(string path)
+bool canWrite(const string &path)
 {
 #ifdef _WIN32
-    // TODO: Check permissions
-    return true;
-#else
-    if (access(path.c_str(), W_OK) == 0)
+    if (path.empty())
     {
-        return true;
+        return false;
     }
-    return false;
+
+    std::wstring wpath = utf8StringToUtf16WString(path.c_str());
+    if (wpath.empty() && !path.empty())
+    {
+        return false;
+    }
+
+    return _waccess(wpath.c_str(), 02) == 0; // 02 = write permission
+#else
+    return access(path.c_str(), W_OK) == 0;
 #endif
 }
 

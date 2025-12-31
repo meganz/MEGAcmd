@@ -168,7 +168,7 @@ std::string errorCodeStr(const std::error_code& ec);
 /* Files and folders */
 
 //tests if a path is writable  //TODO: move to fsAccess
-bool canWrite(std::string path);
+bool canWrite(const std::string &path);
 
 bool isPublicLink(const std::string &link);
 
