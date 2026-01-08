@@ -158,6 +158,25 @@ std::unique_ptr<CmdPetition> getPetitionAfterSend(ComunicationsManagerFileSocket
     return nullptr;
 }
 
+#ifdef __MACH__
+// On macOS, MSG_NOSIGNAL doesn't work, so we need to ignore SIGPIPE
+// to prevent the process from being killed when writing to closed socket
+struct sigaction ignoreSigpipeAndGetOldHandler()
+{
+    struct sigaction sa, oldSa;
+    sa.sa_handler = SIG_IGN;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = 0;
+    sigaction(SIGPIPE, &sa, &oldSa);
+    return oldSa;
+}
+
+void restoreSigpipeHandler(const struct sigaction& oldSa)
+{
+    sigaction(SIGPIPE, &oldSa, nullptr);
+}
+#endif
+
 class ComunicationsManagerFileSocketsTest : public ::testing::Test
 {
 protected:
@@ -289,13 +308,7 @@ TEST_F(ComunicationsManagerFileSocketsWithClientTest, SendPartialOutputHandlesEP
     client->closeConnection();
 
 #ifdef __MACH__
-    // On macOS, MSG_NOSIGNAL doesn't work, so we need to ignore SIGPIPE
-    // to prevent the process from being killed when writing to closed socket
-    struct sigaction sa, oldSa;
-    sa.sa_handler = SIG_IGN;
-    sigemptyset(&sa.sa_mask);
-    sa.sa_flags = 0;
-    sigaction(SIGPIPE, &sa, &oldSa);
+    auto oldSa = ignoreSigpipeAndGetOldHandler();
 #endif
 
     std::string data = "test data";
@@ -304,7 +317,7 @@ TEST_F(ComunicationsManagerFileSocketsWithClientTest, SendPartialOutputHandlesEP
     EXPECT_TRUE(petition->clientDisconnected);
 
 #ifdef __MACH__
-    sigaction(SIGPIPE, &oldSa, nullptr);
+    restoreSigpipeHandler(oldSa);
 #endif
 }
 
@@ -363,10 +376,18 @@ TEST_F(ComunicationsManagerFileSocketsWithClientTest, InformStateListenerHandles
 
     client->closeConnection();
 
+#ifdef __MACH__
+    auto oldSa = ignoreSigpipeAndGetOldHandler();
+#endif
+
     std::string message = "state update";
     int result = manager.informStateListener(listener, message);
 
     EXPECT_EQ(result, -1);
+
+#ifdef __MACH__
+    restoreSigpipeHandler(oldSa);
+#endif
 }
 
 TEST_F(ComunicationsManagerFileSocketsWithClientTest, InformStateListenerValidatesUTF8)
