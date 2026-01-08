@@ -18,6 +18,7 @@
 #include <gtest/gtest.h>
 
 #include <atomic>
+#include <csignal>
 #include <cstring>
 #include <future>
 #include <sys/ioctl.h>
@@ -287,10 +288,24 @@ TEST_F(ComunicationsManagerFileSocketsWithClientTest, SendPartialOutputHandlesEP
 
     client->closeConnection();
 
+#ifdef __MACH__
+    // On macOS, MSG_NOSIGNAL doesn't work, so we need to ignore SIGPIPE
+    // to prevent the process from being killed when writing to closed socket
+    struct sigaction sa, oldSa;
+    sa.sa_handler = SIG_IGN;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = 0;
+    sigaction(SIGPIPE, &sa, &oldSa);
+#endif
+
     std::string data = "test data";
     manager.sendPartialOutput(petition.get(), data.data(), data.size(), false);
 
     EXPECT_TRUE(petition->clientDisconnected);
+
+#ifdef __MACH__
+    sigaction(SIGPIPE, &oldSa, nullptr);
+#endif
 }
 
 TEST_F(ComunicationsManagerFileSocketsWithClientTest, SendPartialOutputValidatesUTF8)
