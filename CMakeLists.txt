@@ -353,6 +353,7 @@ if (ENABLE_MEGACMD_TESTS)
     #Unit tests:
     add_executable(mega-cmd-tests-unit ${executablesType})
     add_source_and_corresponding_header_to_target(mega-cmd-tests-unit PRIVATE
+        "${ProjectDir}/tests/unit/ComunicationsManagerFileSocketsTests.cpp"
         "${ProjectDir}/tests/unit/OptionsFlagsUtilsTests.cpp"
         "${ProjectDir}/tests/unit/PlatformDirectoriesTests.cpp"
         "${ProjectDir}/tests/unit/StringUtilsTests.cpp"
