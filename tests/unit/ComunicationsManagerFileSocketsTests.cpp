@@ -17,7 +17,9 @@
 
 #include <gtest/gtest.h>
 
+#include <atomic>
 #include <cstring>
+#include <future>
 #include <sys/ioctl.h>
 #include <sys/resource.h>
 #include <sys/select.h>
@@ -26,7 +28,6 @@
 #include <thread>
 #include <unistd.h>
 #include <vector>
-#include <atomic>
 
 #include "Instruments.h"
 #include "comunicationsmanagerfilesockets.h"
@@ -123,28 +124,37 @@ std::unique_ptr<CmdPetition> getPetitionAfterSend(ComunicationsManagerFileSocket
                                                     TestSocketClient &client,
                                                     const std::string &data)
 {
-    std::thread waitThread([&manager]() {
+    std::promise<void> waitStarted;
+    auto waitStartedFuture = waitStarted.get_future();
+    std::thread waitThread([&manager, &waitStarted]() {
+        waitStarted.set_value();
         manager.waitForPetition();
     });
-    waitThread.detach();
 
-    usleep(50000);
+    // Wait for waitForPetition to start
+    waitStartedFuture.wait();
 
     if (!client.sendData(data))
     {
+        waitThread.join();
         return nullptr;
     }
 
-    usleep(150000);
+    // Poll for petition availability instead of fixed sleep
+    constexpr int maxAttempts = 10;
+    for (int i = 0; i < maxAttempts; i++)
+    {
+        if (manager.receivedPetition())
+        {
+            auto petition = manager.getPetition();
+            waitThread.join();
+            return petition;
+        }
+        usleep(10000);
+    }
 
-    if (manager.receivedPetition())
-    {
-        return manager.getPetition();
-    }
-    else
-    {
-        return nullptr;
-    }
+    waitThread.join();
+    return nullptr;
 }
 
 class ComunicationsManagerFileSocketsTest : public ::testing::Test
@@ -461,8 +471,6 @@ TEST_F(ComunicationsManagerFileSocketsTest, StressMultipleConcurrentClients)
     });
     waitThread.detach();
 
-    usleep(50000);
-
     for (int i = 0; i < numClients; i++)
     {
         threads.emplace_back([&manager, &clients, i, &successCount]() {
@@ -477,14 +485,13 @@ TEST_F(ComunicationsManagerFileSocketsTest, StressMultipleConcurrentClients)
         });
     }
 
-    usleep(200000);
-
     for (auto& t : threads)
     {
         t.join();
     }
 
-    for (int i = 0; i < 20; i++)
+    constexpr int maxAttempts = 50;
+    for (int i = 0; i < maxAttempts; i++)
     {
         if (manager.receivedPetition())
         {
@@ -493,6 +500,10 @@ TEST_F(ComunicationsManagerFileSocketsTest, StressMultipleConcurrentClients)
             {
                 successCount++;
             }
+        }
+        if (successCount.load() >= numClients)
+        {
+            break;
         }
         usleep(10000);
     }
@@ -522,21 +533,18 @@ TEST_F(ComunicationsManagerFileSocketsTest, StressMaxStateListeners)
     });
     waitThread.detach();
 
-    usleep(50000);
-
     for (int i = 0; i < testListeners; i++)
     {
         clients.push_back(std::make_unique<TestSocketClient>());
         if (clients.back()->isConnected())
         {
             clients.back()->sendData("test");
-            usleep(5000);
         }
     }
 
-    usleep(200000);
-
-    for (int i = 0; i < testListeners; i++)
+    // Poll for petitions with timeout
+    constexpr int maxAttempts = 50;
+    for (int attempt = 0; attempt < maxAttempts; attempt++)
     {
         if (manager.receivedPetition())
         {
@@ -551,7 +559,11 @@ TEST_F(ComunicationsManagerFileSocketsTest, StressMaxStateListeners)
                 }
             }
         }
-        usleep(5000);
+        if (registeredCount >= testListeners)
+        {
+            break;
+        }
+        usleep(10000);
     }
 
     EXPECT_LE(registeredCount, maxListeners);
@@ -581,8 +593,6 @@ TEST_F(ComunicationsManagerFileSocketsTest, StressConcurrentPartialOutputs)
     });
     waitThread.detach();
 
-    usleep(50000);
-
     for (int i = 0; i < numClients; i++)
     {
         if (clients[i]->isConnected())
@@ -591,17 +601,20 @@ TEST_F(ComunicationsManagerFileSocketsTest, StressConcurrentPartialOutputs)
         }
     }
 
-    usleep(200000);
-
-    for (int i = 0; i < numClients; i++)
+    // Poll for petitions with timeout
+    constexpr int maxAttempts = 50;
+    for (int attempt = 0; attempt < maxAttempts; attempt++)
     {
         if (manager.receivedPetition())
         {
-            auto petition = manager.getPetition();
-            if (petition != nullptr)
-            {
-                petitions.push_back(std::move(petition));
-            }
+          if (auto petition = manager.getPetition(); petition != nullptr)
+          {
+              petitions.push_back(std::move(petition));
+          }
+        }
+        if (static_cast<int>(petitions.size()) >= numClients)
+        {
+            break;
         }
         usleep(10000);
     }
@@ -609,7 +622,7 @@ TEST_F(ComunicationsManagerFileSocketsTest, StressConcurrentPartialOutputs)
     EXPECT_GT(petitions.size(), 0);
 
     std::vector<std::thread> threads;
-    std::atomic<int> successCount(0);
+    std::atomic<int> successCount{0};
 
     for (size_t i = 0; i < petitions.size(); i++)
     {
@@ -642,7 +655,8 @@ TEST_F(ComunicationsManagerFileSocketsTest, StressRapidConnectDisconnect)
     });
     waitThread.detach();
 
-    usleep(50000);
+    // Small delay to ensure waitThread is running
+    usleep(10000);
 
     for (int i = 0; i < 30; i++)
     {
@@ -650,24 +664,26 @@ TEST_F(ComunicationsManagerFileSocketsTest, StressRapidConnectDisconnect)
         if (client.isConnected())
         {
             client.sendData("test " + std::to_string(i));
-            usleep(1000);
             client.closeConnection();
         }
         usleep(2000);
     }
 
-    usleep(200000);
-
+    // Poll for petitions with timeout
     int receivedCount = 0;
-    for (int i = 0; i < 30; i++)
+    constexpr int maxAttempts = 50;
+    for (int attempt = 0; attempt < maxAttempts; ++attempt)
     {
         if (manager.receivedPetition())
         {
-            auto petition = manager.getPetition();
-            if (petition != nullptr)
-            {
-                receivedCount++;
-            }
+          if (auto petition = manager.getPetition(); petition != nullptr)
+          {
+            receivedCount++;
+          }
+        }
+        if (receivedCount >= 30)
+        {
+            break;
         }
         usleep(10000);
     }
@@ -697,8 +713,6 @@ TEST_F(ComunicationsManagerFileSocketsTest, StressLargeDataMultipleClients)
     });
     waitThread.detach();
 
-    usleep(50000);
-
     for (int i = 0; i < numClients; i++)
     {
         if (clients[i]->isConnected())
@@ -708,22 +722,31 @@ TEST_F(ComunicationsManagerFileSocketsTest, StressLargeDataMultipleClients)
         }
     }
 
-    usleep(300000);
-
+    // Poll for petitions with timeout (larger timeout for large data)
     int successCount = 0;
-    for (int i = 0; i < numClients; i++)
+    constexpr int maxAttempts = 150;
+    for (int attempt = 0; attempt < maxAttempts; attempt++)
     {
         if (manager.receivedPetition())
         {
             auto petition = manager.getPetition();
             if (petition != nullptr)
             {
-                std::string expected(5000, static_cast<char>('A' + i));
-                if (petition->getLine() == expected)
+                // Try to match with expected data
+                for (int i = 0; i < numClients; i++)
                 {
-                    successCount++;
+                    std::string expected(5000, static_cast<char>('A' + i));
+                    if (petition->getLine() == expected)
+                    {
+                        successCount++;
+                        break;
+                    }
                 }
             }
+        }
+        if (successCount >= numClients)
+        {
+            break;
         }
         usleep(10000);
     }
