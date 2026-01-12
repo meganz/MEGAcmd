@@ -48,6 +48,7 @@ class ComunicationsManagerFileSockets : public ComunicationsManager
 {
 private:
     fd_set fds;
+    std::mutex fdsMutex;
 
     // sockets and asociated variables
     int sockfd;

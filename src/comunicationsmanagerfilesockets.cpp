@@ -104,17 +104,19 @@ int ComunicationsManagerFileSockets::initialize()
 
 bool ComunicationsManagerFileSockets::receivedPetition()
 {
+    std::lock_guard<std::mutex> lock(fdsMutex);
     return FD_ISSET(sockfd, &fds);
 }
 
 int ComunicationsManagerFileSockets::waitForPetition()
 {
-    FD_ZERO(&fds);
+    fd_set local_fds;
+    FD_ZERO(&local_fds);
     if (sockfd)
     {
-        FD_SET(sockfd, &fds);
+        FD_SET(sockfd, &local_fds);
     }
-    int rc = select(FD_SETSIZE, &fds, NULL, NULL, NULL);
+    int rc = select(FD_SETSIZE, &local_fds, NULL, NULL, NULL);
     if (rc < 0)
     {
         if (errno != EINTR)  //syscall
@@ -123,6 +125,10 @@ int ComunicationsManagerFileSockets::waitForPetition()
             return errno;
         }
     }
+
+    std::lock_guard<std::mutex> lock(fdsMutex);
+    fds = local_fds;
+
     return 0;
 }
 
