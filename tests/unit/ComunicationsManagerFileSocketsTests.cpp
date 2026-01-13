@@ -38,12 +38,10 @@ using namespace megacmd;
 
 class TestSocketClient
 {
-private:
     int mSocket;
-    bool mConnected;
 
 public:
-    TestSocketClient() : mSocket(-1), mConnected(false)
+    TestSocketClient() : mSocket(-1)
     {
         if (mSocket = socket(AF_UNIX, SOCK_STREAM, 0); mSocket >= 0)
         {
@@ -54,9 +52,10 @@ public:
             auto socketPath = getOrCreateSocketPath(false);
             strncpy(addr.sun_path, socketPath.c_str(), sizeof(addr.sun_path) - 1);
 
-            if (connect(mSocket, (struct sockaddr*)&addr, sizeof(addr)) == 0)
+            if (connect(mSocket, (struct sockaddr*)&addr, sizeof(addr)) != 0)
             {
-                mConnected = true;
+                ::close(mSocket);
+                mSocket = -1;
             }
         }
     }
@@ -68,7 +67,7 @@ public:
 
     bool isConnected() const
     {
-        return mConnected;
+        return mSocket >= 0;
     }
 
     bool send(const std::string& data)
@@ -104,7 +103,6 @@ public:
         {
             ::close(mSocket);
             mSocket = -1;
-            mConnected = false;
         }
     }
 
