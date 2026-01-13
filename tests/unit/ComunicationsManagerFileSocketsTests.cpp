@@ -45,8 +45,7 @@ private:
 public:
     TestSocketClient() : mSocket(-1), mConnected(false)
     {
-        mSocket = socket(AF_UNIX, SOCK_STREAM, 0);
-        if (mSocket >= 0)
+        if (mSocket = socket(AF_UNIX, SOCK_STREAM, 0); mSocket >= 0)
         {
             struct sockaddr_un addr;
             memset(&addr, 0, sizeof(addr));
@@ -64,10 +63,7 @@ public:
 
     ~TestSocketClient()
     {
-        if (mSocket >= 0)
-        {
-            close(mSocket);
-        }
+        close();
     }
 
     bool isConnected() const
@@ -75,27 +71,22 @@ public:
         return mConnected;
     }
 
-    int getSocket() const
-    {
-        return mSocket;
-    }
-
-    bool sendData(const std::string& data)
+    bool send(const std::string& data)
     {
         if (!isConnected())
         {
             return false;
         }
-        return send(mSocket, data.c_str(), data.size(), 0) >= 0;
+        return ::send(mSocket, data.c_str(), data.size(), 0) >= 0;
     }
 
-    bool sendRaw(const void* data, size_t size)
+    bool send(const void* data, size_t size)
     {
         if (!isConnected())
         {
             return false;
         }
-        return send(mSocket, data, size, 0) >= 0;
+        return ::send(mSocket, data, size, 0) >= 0;
     }
 
     ssize_t receive(void* buffer, size_t size, int flags = 0)
@@ -107,11 +98,11 @@ public:
         return recv(mSocket, buffer, size, flags);
     }
 
-    void closeConnection()
+    void close()
     {
         if (mSocket >= 0)
         {
-            close(mSocket);
+            ::close(mSocket);
             mSocket = -1;
             mConnected = false;
         }
@@ -135,7 +126,7 @@ std::unique_ptr<CmdPetition> getPetitionAfterSend(ComunicationsManagerFileSocket
     // Wait for waitForPetition to start
     waitStartedFuture.wait();
 
-    if (!client.sendData(data))
+    if (!client.send(data))
     {
         waitThread.join();
         return nullptr;
@@ -305,7 +296,7 @@ TEST_F(ComunicationsManagerFileSocketsWithClientTest, SendPartialOutputHandlesEP
     auto petition = getPetitionAfterSend(manager, *client, "test");
     ASSERT_NE(petition, nullptr);
 
-    client->closeConnection();
+    client->close();
 
 #ifdef __MACH__
     auto oldSa = ignoreSigpipeAndGetOldHandler();
@@ -374,7 +365,7 @@ TEST_F(ComunicationsManagerFileSocketsWithClientTest, InformStateListenerHandles
 
     auto listener = manager.registerStateListener(std::move(petition));
 
-    client->closeConnection();
+    client->close();
 
 #ifdef __MACH__
     auto oldSa = ignoreSigpipeAndGetOldHandler();
@@ -415,7 +406,7 @@ TEST_F(ComunicationsManagerFileSocketsWithClientTest, GetConfirmation)
         client->receive(buffer, sizeof(buffer) - 1);
 
         int response = 1;
-        client->sendRaw(&response, sizeof(response));
+        client->send(&response, sizeof(response));
     });
 
     std::string message = "Confirm action?";
@@ -440,7 +431,7 @@ TEST_F(ComunicationsManagerFileSocketsWithClientTest, GetUserResponse)
         client->receive(buffer, sizeof(buffer) - 1);
 
         std::string response = "user input";
-        client->sendData(response);
+        client->send(response);
     });
 
     std::string message = "Enter value:";
@@ -465,7 +456,7 @@ TEST_F(ComunicationsManagerFileSocketsWithClientTest, GetUserResponseLargeData)
         client->receive(buffer, sizeof(buffer) - 1);
 
         std::string largeResponse(3000, 'A');
-        client->sendData(largeResponse);
+        client->send(largeResponse);
     });
 
     std::string message = "Enter value:";
@@ -517,7 +508,7 @@ TEST_F(ComunicationsManagerFileSocketsTest, StressMultipleConcurrentClients)
             }
 
             std::string testData = "test command " + std::to_string(i);
-            client->sendData(testData);
+            client->send(testData);
         });
     }
 
@@ -574,7 +565,7 @@ TEST_F(ComunicationsManagerFileSocketsTest, StressMaxStateListeners)
         clients.push_back(std::make_unique<TestSocketClient>());
         if (clients.back()->isConnected())
         {
-            clients.back()->sendData("test");
+            clients.back()->send("test");
         }
     }
 
@@ -633,7 +624,7 @@ TEST_F(ComunicationsManagerFileSocketsTest, StressConcurrentPartialOutputs)
     {
         if (clients[i]->isConnected())
         {
-            clients[i]->sendData("test");
+            clients[i]->send("test");
         }
     }
 
@@ -699,8 +690,8 @@ TEST_F(ComunicationsManagerFileSocketsTest, StressRapidConnectDisconnect)
         TestSocketClient client;
         if (client.isConnected())
         {
-            client.sendData("test " + std::to_string(i));
-            client.closeConnection();
+            client.send("test " + std::to_string(i));
+            client.close();
         }
         usleep(2000);
     }
@@ -754,7 +745,7 @@ TEST_F(ComunicationsManagerFileSocketsTest, StressLargeDataMultipleClients)
         if (clients[i]->isConnected())
         {
             std::string largeData(5000, static_cast<char>('A' + i));
-            clients[i]->sendData(largeData);
+            clients[i]->send(largeData);
         }
     }
 
