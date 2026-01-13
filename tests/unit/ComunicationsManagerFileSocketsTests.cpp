@@ -15,8 +15,6 @@
 
 #ifndef _WIN32
 
-#include <gtest/gtest.h>
-
 #include <atomic>
 #include <csignal>
 #include <cstring>
@@ -29,6 +27,8 @@
 #include <thread>
 #include <unistd.h>
 #include <vector>
+
+#include <gtest/gtest.h>
 
 #include "Instruments.h"
 #include "comunicationsmanagerfilesockets.h"
