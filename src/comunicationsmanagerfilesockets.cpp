@@ -22,6 +22,7 @@
 #include "megacmdutils.h"
 #include <sys/ioctl.h>
 #include <sys/resource.h>
+#include <errno.h>
 
 #ifdef __MACH__
 #define MSG_NOSIGNAL 0
@@ -61,6 +62,7 @@ int ComunicationsManagerFileSockets::initialize()
     if (sockfd < 0)
     {
         LOG_fatal << "ERROR opening socket";
+        return errno;
     }
     if (fcntl(sockfd, F_SETFD, FD_CLOEXEC) == -1)
     {
@@ -96,6 +98,7 @@ int ComunicationsManagerFileSockets::initialize()
         {
             LOG_fatal << "ERROR on listen socket initializing communications manager: " << socketPath << ": " << strerror(errno);
             close(sockfd);
+            sockfd = -1;
             return errno;
         }
     }
@@ -110,12 +113,15 @@ bool ComunicationsManagerFileSockets::receivedPetition()
 
 int ComunicationsManagerFileSockets::waitForPetition()
 {
+    if (sockfd < 0 || sockfd >= FD_SETSIZE)
+    {
+        LOG_fatal << "Invalid socket descriptor: " << sockfd;
+        return EBADF;
+    }
+
     fd_set local_fds;
     FD_ZERO(&local_fds);
-    if (sockfd)
-    {
-        FD_SET(sockfd, &local_fds);
-    }
+    FD_SET(sockfd, &local_fds);
     int rc = select(FD_SETSIZE, &local_fds, NULL, NULL, NULL);
     if (rc < 0)
     {
