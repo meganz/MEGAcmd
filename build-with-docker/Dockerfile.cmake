@@ -58,7 +58,6 @@ ARG BUILD_CORES
 
 COPY --from=src /usr/src/megacmd /usr/src/megacmd
 
-
 #We don't wont a potential config coming from host machine to meddle with the build:
 RUN rm ./sdk/include/mega/config.h || true
 
