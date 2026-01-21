@@ -105,7 +105,8 @@ pipeline {
         stage("Clone vcpkg") {
             steps {
                 sh """
-                    if [ ! -x "${WORKSPACE}/vcpkg/vcpkg" ]; then
+                    if [ ! -x "${WORKSPACE}/vcpkg/bootstrap-vcpkg.sh" ]; then
+                        rm -rf ${WORKSPACE}/vcpkg
                         ${WORKSPACE}/build/clone_vcpkg_from_baseline.sh ${WORKSPACE}/vcpkg
                     fi
                 """
