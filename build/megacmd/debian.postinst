@@ -69,8 +69,7 @@ fi
 apt-key del 03C3AD3A7F068E5D &>/dev/null || :
 apt-key del 1A664B787094A482 &>/dev/null || :
 
-mkdir -p /etc/apt/keyrings
-chmod 0755 /etc/apt/keyrings
+mkdir -m 0755 -p /etc/apt/keyrings
 
 echo "
 -----BEGIN PGP PUBLIC KEY BLOCK-----
@@ -136,7 +135,7 @@ Suites: ./
 Signed-By: /etc/apt/keyrings/meganz-archive-keyring.gpg
 EOF
 
-    rm -f /etc/apt/sources.list.d/megasync.list || true
+    rm -f /etc/apt/sources.list.d/megasync.list 2>/dev/null || true
 fi
 
 sysctl -p /etc/sysctl.d/99-megacmd-inotify-limit.conf || true
