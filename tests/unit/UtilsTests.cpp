@@ -49,28 +49,51 @@ std::vector<std::string> pathVariants(const std::string& path)
     bool isKernelWithUnc = pathView.size() >= 8 && pathView.substr(0, 8) == R"(\\?\UNC\)";
     bool isUnc = pathView.size() >= 2 && pathView.substr(0, 2) == R"(\\)" && !isKernel;
 
-    if (!isKernel)
-    {
-        if (isUnc)
-        {
-            std::string kernelUncPath = R"(\\?\UNC\)" + path.substr(2);
-            variants.push_back(kernelUncPath);
-        }
-        else
-        {
-            std::string kernelPath = R"(\\?\)" + path;
-            variants.push_back(kernelPath);
-        }
-    }
-
     if (isKernelWithUnc)
     {
-        std::string uncPath = R"(\\)" + path.substr(8);
+        std::string uncPath = R"(\\)" + std::string(pathView.substr(8));
         variants.push_back(uncPath);
+        variants.push_back(path);
     }
     else if (isUnc)
     {
-        // Already UNC format
+        std::string kernelUncPath = R"(\\?\UNC\)" + std::string(pathView.substr(2));
+        variants.push_back(kernelUncPath);
+        variants.push_back(path);
+    }
+    else if (isKernel)
+    {
+        std::string localPath = std::string(pathView.substr(4));
+        variants.push_back(localPath);
+
+        if (localPath.size() >= 2 && localPath[1] == ':')
+        {
+            std::string uncPath = R"(\\localhost\)" + localPath.substr(0, 1) + R"($\)" + localPath.substr(3);
+            variants.push_back(uncPath);
+        }
+        else
+        {
+            variants.push_back(path);
+        }
+    }
+    else
+    {
+        std::string kernelPath = R"(\\?\)" + path;
+        variants.push_back(kernelPath);
+
+        if (pathView.size() >= 2 && pathView[1] == ':')
+        {
+            std::string uncPath = R"(\\localhost\)" + path.substr(0, 1) + R"($\)";
+            if (path.size() > 3)
+            {
+                uncPath += path.substr(3);
+            }
+            variants.push_back(uncPath);
+        }
+        else
+        {
+            variants.push_back(kernelPath); // duplicate
+        }
     }
 #endif
 
