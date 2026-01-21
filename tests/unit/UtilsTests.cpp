@@ -83,7 +83,7 @@ std::vector<std::string> pathVariants(const std::string& path)
 
         if (pathView.size() >= 2 && pathView[1] == ':')
         {
-            std::string uncPath = R"(\\localhost\)" + pathView.substr(0, 1) + R"($\)";
+            std::string uncPath = R"(\\localhost\)" + path.substr(0, 1) + R"($\)";
             if (pathView.size() > 3)
             {
                 uncPath += pathView.substr(3);
