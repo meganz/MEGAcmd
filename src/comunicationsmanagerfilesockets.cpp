@@ -39,6 +39,7 @@ namespace megacmd {
 ComunicationsManagerFileSockets::ComunicationsManagerFileSockets()
 {
     count = 0;
+    mHasPetition = false;
     initialize();
 }
 
@@ -108,8 +109,7 @@ int ComunicationsManagerFileSockets::initialize()
 
 bool ComunicationsManagerFileSockets::receivedPetition()
 {
-    std::lock_guard<std::mutex> lock(fdsMutex);
-    return FD_ISSET(sockfd, &fds);
+    return mHasPetition;
 }
 
 int ComunicationsManagerFileSockets::waitForPetition()
@@ -133,8 +133,7 @@ int ComunicationsManagerFileSockets::waitForPetition()
         }
     }
 
-    std::lock_guard<std::mutex> lock(fdsMutex);
-    fds = local_fds;
+    mHasPetition.store(FD_ISSET(sockfd, &local_fds) != 0);
 
     return 0;
 }
