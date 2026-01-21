@@ -1363,7 +1363,7 @@ TEST(StringUtilsTest, joinStrings)
     {
         std::vector<std::string> vec = {"a", "b", "c"};
         std::string result = joinStrings(vec);
-        EXPECT_EQ(result, "\"a\" \"b\" \"c\"");
+        EXPECT_EQ(result, R"("a" "b" "c")");
     }
 
     G_SUBTEST << "Empty vector";
@@ -1375,9 +1375,26 @@ TEST(StringUtilsTest, joinStrings)
 
     G_SUBTEST << "Single element";
     {
-        std::vector<std::string> vec = {"a"};
-        std::string result = joinStrings(vec);
-        EXPECT_EQ(result, "\"a\"");
+        {
+            std::vector<std::string> vec = {"a"};
+            std::string result = joinStrings(vec);
+            EXPECT_EQ(result, R"("a")");
+        }
+        {
+            std::vector<std::string> vec = {"a"};
+            std::string result = joinStrings(vec, " ", false);
+            EXPECT_EQ(result, "a");
+        }
+        {
+            std::vector<std::string> vec = {"a"};
+            std::string result = joinStrings(vec, ",", true);
+            EXPECT_EQ(result, R"("a")");
+        }
+        {
+            std::vector<std::string> vec = {"a"};
+            std::string result = joinStrings(vec, "/", false);
+            EXPECT_EQ(result, "a");
+        }
     }
 
     G_SUBTEST << "With quotes";
@@ -1385,17 +1402,17 @@ TEST(StringUtilsTest, joinStrings)
         {
             std::vector<std::string> vec = {"a", "b", "c"};
             std::string result = joinStrings(vec, "/", true);
-            EXPECT_EQ(result, "\"a\"/\"b\"/\"c\"");
+            EXPECT_EQ(result, R"("a"/"b"/"c")");
         }
         {
             std::vector<std::string> vec = {"a", "", "c"};
             std::string result = joinStrings(vec, ",", true);
-            EXPECT_EQ(result, "\"a\",\"\",\"c\"");
+            EXPECT_EQ(result, R"("a","","c")");
         }
         {
             std::vector<std::string> vec = {"a", "b", ""};
             std::string result = joinStrings(vec, ",", true);
-            EXPECT_EQ(result, "\"a\",\"b\",\"\"");
+            EXPECT_EQ(result, R"("a","b","")");
         }
     }
 
@@ -1412,6 +1429,11 @@ TEST(StringUtilsTest, joinStrings)
             EXPECT_EQ(result, "a  c");
         }
         {
+            std::vector<std::string> vec = {"", "a", "b"};
+            std::string result = joinStrings(vec, " ", false);
+            EXPECT_EQ(result, " a b");
+        }
+        {
             std::vector<std::string> vec = {"a", "b", ""};
             std::string result = joinStrings(vec, " ", false);
             EXPECT_EQ(result, "a b ");
@@ -1421,24 +1443,19 @@ TEST(StringUtilsTest, joinStrings)
     G_SUBTEST << "Strings containing quotes";
     {
         {
-            std::vector<std::string> vec = {"a\"b", "c\"d", "e"};
+            std::vector<std::string> vec = {R"(a"b)", R"(c"d)", "e"};
             std::string result = joinStrings(vec, " ", true);
-            EXPECT_EQ(result, "\"a\"b\" \"c\"d\" \"e\"");
+            EXPECT_EQ(result, R"("a"b" "c"d" "e")");
         }
         {
-            std::vector<std::string> vec = {"\"quoted\"", "normal", "\"another\""};
+            std::vector<std::string> vec = {R"("quoted")", "normal", R"("another")"};
             std::string result = joinStrings(vec, ",", true);
-            EXPECT_EQ(result, "\"\"quoted\"\",\"normal\",\"\"another\"\"");
+            EXPECT_EQ(result, R"(""quoted"","normal",""another"")");
         }
     }
 
     G_SUBTEST << "Strings containing delimiter";
     {
-        {
-            std::vector<std::string> vec = {"a b", "c d", "e"};
-            std::string result = joinStrings(vec, " ", false);
-            EXPECT_EQ(result, "a b c d e");
-        }
         {
             std::vector<std::string> vec = {"a,b", "c,d", "e"};
             std::string result = joinStrings(vec, ",", false);
@@ -1447,7 +1464,12 @@ TEST(StringUtilsTest, joinStrings)
         {
             std::vector<std::string> vec = {"a/b", "c/d", "e"};
             std::string result = joinStrings(vec, "/", true);
-            EXPECT_EQ(result, "\"a/b\"/\"c/d\"/\"e\"");
+            EXPECT_EQ(result, R"("a/b"/"c/d"/"e")");
+        }
+        {
+            std::vector<std::string> vec = {"a::b", "c::d", "e"};
+            std::string result = joinStrings(vec, "::", false);
+            EXPECT_EQ(result, "a::b::c::d::e");
         }
     }
 
@@ -1488,7 +1510,7 @@ TEST(StringUtilsTest, joinStrings)
         {
             std::vector<std::string> vec = {"a", "b", "c"};
             std::string result = joinStrings(vec, "", true);
-            EXPECT_EQ(result, "\"a\"\"b\"\"c\"");
+            EXPECT_EQ(result, R"("a""b""c")");
         }
         {
             std::vector<std::string> vec = {"a", "b", "c"};
@@ -1502,7 +1524,7 @@ TEST(StringUtilsTest, joinStrings)
         {
             std::vector<std::string> vec = {"a", "b", "c"};
             std::string result = joinStrings(vec, "---", true);
-            EXPECT_EQ(result, "\"a\"---\"b\"---\"c\"");
+            EXPECT_EQ(result, R"("a"---"b"---"c")");
         }
         {
             std::vector<std::string> vec = {"a", "b", "c"};
@@ -1515,9 +1537,19 @@ TEST(StringUtilsTest, joinStrings)
     G_SUBTEST << "Multiple consecutive empty strings";
     {
         {
+            std::vector<std::string> vec = {""};
+            std::string result = joinStrings(vec, ",", true);
+            EXPECT_EQ(result, R"("")");
+        }
+        {
+            std::vector<std::string> vec = {""};
+            std::string result = joinStrings(vec, " ", false);
+            EXPECT_EQ(result, "");
+        }
+        {
             std::vector<std::string> vec = {"", "", ""};
             std::string result = joinStrings(vec, ",", true);
-            EXPECT_EQ(result, "\"\",\"\",\"\"");
+            EXPECT_EQ(result, R"("","","")");
         }
         {
             std::vector<std::string> vec = {"", "", ""};
@@ -1525,23 +1557,28 @@ TEST(StringUtilsTest, joinStrings)
             EXPECT_EQ(result, "  ");
         }
         {
+            std::vector<std::string> vec = {"", "a", "b"};
+            std::string result = joinStrings(vec, ",", true);
+            EXPECT_EQ(result, R"("","a","b")");
+        }
+        {
             std::vector<std::string> vec = {"a", "", "", "b"};
             std::string result = joinStrings(vec, ",", true);
-            EXPECT_EQ(result, "\"a\",\"\",\"\",\"b\"");
+            EXPECT_EQ(result, R"("a","","","b")");
         }
     }
 
     G_SUBTEST << "Strings with spaces and space delimiter";
     {
         {
-            std::vector<std::string> vec = {"a b", "c d", "e f"};
-            std::string result = joinStrings(vec, " ", false);
-            EXPECT_EQ(result, "a b c d e f");
+            std::vector<std::string> vec = {"  a  ", "  b  ", "  c  "};
+            std::string result = joinStrings(vec, " ", true);
+            EXPECT_EQ(result, R"("  a  " "  b  " "  c  ")");
         }
         {
             std::vector<std::string> vec = {"  a  ", "  b  ", "  c  "};
-            std::string result = joinStrings(vec, " ", true);
-            EXPECT_EQ(result, "\"  a  \" \"  b  \" \"  c  \"");
+            std::string result = joinStrings(vec, " ", false);
+            EXPECT_EQ(result, "  a     b     c  ");
         }
     }
 
@@ -1551,9 +1588,9 @@ TEST(StringUtilsTest, joinStrings)
         std::vector<std::string> vec = {longStr, "b", longStr};
         std::string result = joinStrings(vec, " ", true);
         EXPECT_EQ(result.length(), (longStr.length() + 2) * 2 + /* "b" */ 3 + /* 2 separators */ 2);
-        EXPECT_EQ(result.substr(0, 1), "\"");
+        EXPECT_EQ(result.substr(0, 1), R"(")");
         EXPECT_EQ(result.substr(1, longStr.length()), longStr);
-        EXPECT_EQ(result.substr(longStr.length() + 1, 2), "\" ");
-        EXPECT_EQ(result.substr(longStr.length() + 3, 3), "\"b\"");
+        EXPECT_EQ(result.substr(longStr.length() + 1, 2), R"(" )");
+        EXPECT_EQ(result.substr(longStr.length() + 3, 3), R"("b")");
     }
 }
