@@ -27,8 +27,6 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     libfuse-dev libtool
 
 COPY vcpkg.json ./vcpkg.json
-COPY build/clone_vcpkg_from_baseline.sh ./clone_vcpkg_from_baseline.sh
-RUN /clone_vcpkg_from_baseline.sh /vcpkg
 
 FROM scratch as src
 
@@ -64,9 +62,15 @@ COPY --from=src /usr/src/megacmd /usr/src/megacmd
 #We don't wont a potential config coming from host machine to meddle with the build:
 RUN rm ./sdk/include/mega/config.h || true
 
+# Check vcpkg
+RUN --mount=type=bind,source=.,target=/build-context,rw \
+    [ -x "/build-context/vcpkg/vcpkg" ] || \
+    { echo "vcpkg not found. It should be cloned before Docker build." >&2; exit 1; }
+
 RUN --mount=type=cache,target=/tmp/ccache \
     --mount=type=cache,target=/tmp/vcpkgcache \
     --mount=type=tmpfs,target=/tmp/build \
+    --mount=type=bind,source=./vcpkg,target=/vcpkg,rw \
      VCPKG_MAX_CONCURRENCY=${BUILD_CORES:-$(nproc)} \
      cmake -B /tmp/build \
     -DVCPKG_ROOT=/vcpkg \

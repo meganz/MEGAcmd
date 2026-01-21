@@ -38,6 +38,16 @@ pipeline {
             }
         }
 
+        stage("Clone vcpkg") {
+            steps {
+                sh """
+                    if [ ! -x "${WORKSPACE}/vcpkg/vcpkg" ]; then
+                        ${WORKSPACE}/build/clone_vcpkg_from_baseline.sh ${WORKSPACE}/vcpkg
+                    fi
+                """
+            }
+        }
+
         stage("Build and test MEGAcmd") {
             matrix {
                 axes {
