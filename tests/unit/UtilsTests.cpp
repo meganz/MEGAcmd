@@ -320,7 +320,7 @@ TEST(UtilsTest, canWrite)
     G_SUBTEST << "Path with special characters";
     {
         SelfDeletingTmpFolder tmpFolder;
-        fs::path specialPath = tmpFolder.path() / "test@#$%^&()_+-=[]{};',";
+        fs::path specialPath = tmpFolder.path() / "test@#$%^&()_+-=[]{};'.,";
         EXPECT_TRUE(fs::create_directory(specialPath));
         testCanWriteAllPathVariants(specialPath.string(), true);
     }
