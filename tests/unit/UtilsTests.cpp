@@ -113,7 +113,7 @@ void testCanWriteAllPathVariants(const std::string& path, bool expectedResult)
 
     for (const auto& variant : variants)
     {
-        EXPECT_EQ(canWrite(variant), expectedResult);
+        EXPECT_EQ(canWrite(variant), expectedResult) << "Path: " << variant << " Expected: " << expectedResult;
     }
 }
 
