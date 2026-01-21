@@ -17,6 +17,8 @@
 #include <cerrno>
 #include <cstring>
 #include <fstream>
+#include <string_view>
+#include <vector>
 #ifdef _WIN32
 #include <direct.h>
 #include <windows.h>
@@ -30,6 +32,67 @@
 
 #include "TestUtils.h"
 #include "megacmdcommonutils.h"
+
+namespace fs = std::filesystem;
+
+// Returns a list of path variants for testing:
+// 1. Original path
+// 2. Kernel format (\\?\ prefix) on Windows
+// 3. UNC format on Windows
+std::vector<std::string> pathVariants(const std::string& path)
+{
+    std::vector<std::string> variants{path};
+
+#ifdef _WIN32
+    std::string_view pathView{path};
+    bool isKernel = pathView.size() >= 4 && pathView.substr(0, 4) == R"(\\?\)";
+    bool isKernelWithUnc = pathView.size() >= 8 && pathView.substr(0, 8) == R"(\\?\UNC\)";
+    bool isUnc = pathView.size() >= 2 && pathView.substr(0, 2) == R"(\\)" && !isKernel;
+
+    if (!isKernel)
+    {
+        if (isUnc)
+        {
+            std::string kernelUncPath = R"(\\?\UNC\)" + path.substr(2);
+            variants.push_back(kernelUncPath);
+        }
+        else
+        {
+            std::string kernelPath = R"(\\?\)" + path;
+            variants.push_back(kernelPath);
+        }
+    }
+
+    if (isKernelWithUnc)
+    {
+        std::string uncPath = R"(\\)" + path.substr(8);
+        variants.push_back(uncPath);
+    }
+    else if (isUnc)
+    {
+        // Already UNC format
+    }
+#endif
+
+    return variants;
+}
+
+void testCanWriteAllPathVariants(const std::string& path, bool expectedResult)
+{
+    using megacmd::canWrite;
+    auto variants = pathVariants(path);
+
+#ifdef _WIN32
+    ASSERT_EQ(variants.size(), 3);
+#else
+    ASSERT_EQ(variants.size(), 1);
+#endif
+
+    for (const auto& variant : variants)
+    {
+        EXPECT_EQ(canWrite(variant), expectedResult);
+    }
+}
 
 TEST(UtilsTest, nonAsciiConsolePrint)
 {
@@ -157,17 +220,21 @@ TEST(UtilsTest, canWrite)
     G_SUBTEST << "Writable directory";
     {
         SelfDeletingTmpFolder tmpFolder;
-        EXPECT_TRUE(canWrite(tmpFolder.string()));
+        testCanWriteAllPathVariants(tmpFolder.string(), true);
     }
 
     G_SUBTEST << "Non-existent path";
     {
-        EXPECT_FALSE(canWrite("/non/existent/path/12345"));
+#ifdef _WIN32
+        testCanWriteAllPathVariants(R"(C:\non\existent\path\12345)", false);
+#else
+        testCanWriteAllPathVariants("/non/existent/path/12345", false);
+#endif
     }
 
     G_SUBTEST << "Empty string";
     {
-        EXPECT_FALSE(canWrite(""));
+        testCanWriteAllPathVariants("", false);
     }
 
     G_SUBTEST << "File path";
@@ -177,14 +244,23 @@ TEST(UtilsTest, canWrite)
         std::ofstream file(filePath);
         file << "test";
         file.close();
-        EXPECT_TRUE(canWrite(filePath.string()));
+#ifdef _WIN32
+        std::string pathStr = filePath.string();
+#else
+        std::string pathStr = filePath.string();
+#endif
+        testCanWriteAllPathVariants(pathStr, true);
     }
 
     G_SUBTEST << "Path with trailing slash";
     {
         SelfDeletingTmpFolder tmpFolder;
+#ifdef _WIN32
+        std::string pathWithSlash = tmpFolder.string() + R"(\)";
+#else
         std::string pathWithSlash = tmpFolder.string() + "/";
-        EXPECT_TRUE(canWrite(pathWithSlash));
+#endif
+        testCanWriteAllPathVariants(pathWithSlash, true);
     }
 
     G_SUBTEST << "Path with multiple slashes";
@@ -192,8 +268,12 @@ TEST(UtilsTest, canWrite)
         SelfDeletingTmpFolder tmpFolder;
         fs::path testDir = tmpFolder.path() / "test";
         fs::create_directory(testDir);
+#ifdef _WIN32
+        std::string pathWithMultipleSlashes = tmpFolder.string() + R"(\\)" + "test" + R"(\\)";
+#else
         std::string pathWithMultipleSlashes = tmpFolder.string() + "//test//";
-        EXPECT_TRUE(canWrite(pathWithMultipleSlashes));
+#endif
+        testCanWriteAllPathVariants(pathWithMultipleSlashes, true);
     }
 
     G_SUBTEST << "Path with relative components";
@@ -202,19 +282,19 @@ TEST(UtilsTest, canWrite)
         fs::path subDir = tmpFolder.path() / "subdir";
         fs::create_directory(subDir);
         std::string relativePath = (subDir / ".." / "subdir").string();
-        EXPECT_TRUE(canWrite(relativePath));
+        testCanWriteAllPathVariants(relativePath, true);
     }
 
     G_SUBTEST << "Path with only spaces";
     {
-        EXPECT_FALSE(canWrite("   "));
+        testCanWriteAllPathVariants("   ", false);
     }
 
     G_SUBTEST << "Path with single dot";
     {
         SelfDeletingTmpFolder tmpFolder;
         fs::path dotPath = tmpFolder.path() / ".";
-        EXPECT_TRUE(canWrite(dotPath.string()));
+        testCanWriteAllPathVariants(dotPath.string(), true);
     }
 
     G_SUBTEST << "Path with double dots";
@@ -223,25 +303,33 @@ TEST(UtilsTest, canWrite)
         fs::path subDir = tmpFolder.path() / "subdir";
         fs::create_directory(subDir);
         fs::path doubleDotPath = subDir / "..";
-        EXPECT_TRUE(canWrite(doubleDotPath.string()));
+        testCanWriteAllPathVariants(doubleDotPath.string(), true);
     }
 
     G_SUBTEST << "Very long path";
     {
         SelfDeletingTmpFolder tmpFolder;
         std::string longPath = tmpFolder.string();
+#ifdef _WIN32
+        longPath += R"(\)" + std::string(200, 'a');
+#else
         longPath += "/" + std::string(200, 'a');
+#endif
         fs::create_directories(longPath);
-        EXPECT_TRUE(canWrite(longPath));
+        testCanWriteAllPathVariants(longPath, true);
     }
 
     G_SUBTEST << "Very long path exceeding 255 characters and MAX_PATH";
     {
         SelfDeletingTmpFolder tmpFolder;
         std::string longPath = tmpFolder.string();
+#ifdef _WIN32
+        longPath += R"(\)" + std::string(300, 'a');
+#else
         longPath += "/" + std::string(300, 'a');
+#endif
         EXPECT_THROW(fs::create_directories(longPath), std::filesystem::filesystem_error);
-        EXPECT_FALSE(canWrite(longPath));
+        testCanWriteAllPathVariants(longPath, false);
     }
 
     G_SUBTEST << "Path with special characters";
@@ -249,7 +337,7 @@ TEST(UtilsTest, canWrite)
         SelfDeletingTmpFolder tmpFolder;
         fs::path specialPath = tmpFolder.path() / "test@#$%^&()_+-=[]{};',.";
         fs::create_directory(specialPath);
-        EXPECT_TRUE(canWrite(specialPath.string()));
+        testCanWriteAllPathVariants(specialPath.string(), true);
     }
 
     G_SUBTEST << "Read-only directory";
@@ -261,11 +349,11 @@ TEST(UtilsTest, canWrite)
         std::wstring wpath = readOnlyDir.wstring();
         DWORD oldAttrs = GetFileAttributesW(wpath.c_str());
         SetFileAttributesW(wpath.c_str(), FILE_ATTRIBUTE_READONLY);
-        EXPECT_FALSE(canWrite(readOnlyDir.string()));
+        testCanWriteAllPathVariants(readOnlyDir.string(), false);
         SetFileAttributesW(wpath.c_str(), oldAttrs);
 #else
         chmod(readOnlyDir.c_str(), 0555);
-        EXPECT_FALSE(canWrite(readOnlyDir.string()));
+        testCanWriteAllPathVariants(readOnlyDir.string(), false);
         chmod(readOnlyDir.c_str(), 0755);
 #endif
     }
@@ -281,11 +369,11 @@ TEST(UtilsTest, canWrite)
         std::wstring wpath = readOnlyFile.wstring();
         DWORD oldAttrs = GetFileAttributesW(wpath.c_str());
         SetFileAttributesW(wpath.c_str(), FILE_ATTRIBUTE_READONLY);
-        EXPECT_FALSE(canWrite(readOnlyFile.string()));
+        testCanWriteAllPathVariants(readOnlyFile.string(), false);
         SetFileAttributesW(wpath.c_str(), oldAttrs);
 #else
         chmod(readOnlyFile.c_str(), 0444);
-        EXPECT_FALSE(canWrite(readOnlyFile.string()));
+        testCanWriteAllPathVariants(readOnlyFile.string(), false);
         chmod(readOnlyFile.c_str(), 0644);
 #endif
     }
@@ -297,7 +385,7 @@ TEST(UtilsTest, canWrite)
         fs::create_directory(targetDir);
         fs::path symlinkPath = tmpFolder.path() / "symlink";
         fs::create_symlink(targetDir, symlinkPath);
-        EXPECT_TRUE(canWrite(symlinkPath.string()));
+        testCanWriteAllPathVariants(symlinkPath.string(), true);
     }
 
     G_SUBTEST << "Symlink to read-only directory";
@@ -309,7 +397,7 @@ TEST(UtilsTest, canWrite)
         chmod(targetDir.c_str(), 0555);
         fs::path symlinkPath = tmpFolder.path() / "symlink";
         fs::create_symlink(targetDir, symlinkPath);
-        EXPECT_FALSE(canWrite(symlinkPath.string()));
+        testCanWriteAllPathVariants(symlinkPath.string(), false);
         chmod(targetDir.c_str(), 0755);
 #endif
     }
@@ -319,7 +407,7 @@ TEST(UtilsTest, canWrite)
         SelfDeletingTmpFolder tmpFolder;
         fs::path nestedPath = tmpFolder.path() / "level1" / "level2" / "level3";
         fs::create_directories(nestedPath);
-        EXPECT_TRUE(canWrite(nestedPath.string()));
+        testCanWriteAllPathVariants(nestedPath.string(), true);
     }
 
     G_SUBTEST << "Directory with UTF-8 characters";
@@ -333,7 +421,7 @@ TEST(UtilsTest, canWrite)
 #else
         std::string utf8PathStr = utf8Path.string();
 #endif
-        EXPECT_TRUE(canWrite(utf8PathStr));
+        testCanWriteAllPathVariants(utf8PathStr, true);
     }
 
     G_SUBTEST << "Nested directory with UTF-8 characters";
@@ -347,6 +435,6 @@ TEST(UtilsTest, canWrite)
 #else
         std::string utf8PathStr = utf8Path.string();
 #endif
-        EXPECT_TRUE(canWrite(utf8PathStr));
+        testCanWriteAllPathVariants(utf8PathStr, true);
     }
 }
