@@ -107,7 +107,7 @@ void ConfigurationManager::createFolderIfNotExisting(const fs::path &folder)
 
 #ifndef WIN32
     fs::permissions(folder, fs::perms::owner_all, fs::perm_options::replace, ec);
-    if (!ec)
+    if (ec)
     {
         LOG_warn << "Failed to set permissions on new folder " << folder << ": " << errorCodeStr(ec);
     }
