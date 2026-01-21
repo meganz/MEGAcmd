@@ -58,11 +58,12 @@ int ComunicationsManagerFileSockets::initialize()
     }
 
     sockfd = socket(AF_UNIX, SOCK_STREAM, 0);
+    int errno_saved = errno;
 
     if (sockfd < 0)
     {
         LOG_fatal << "ERROR opening socket";
-        return errno;
+        return errno_saved;
     }
     if (fcntl(sockfd, F_SETFD, FD_CLOEXEC) == -1)
     {
