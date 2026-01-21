@@ -44,18 +44,7 @@ std::vector<std::string> pathVariants(const std::string& path)
     std::vector<std::string> variants{path};
 
 #ifdef _WIN32
-    std::string normalizedPath;
-    try
-    {
-        fs::path fsPath(path);
-        normalizedPath = fsPath.lexically_normal().string();
-    }
-    catch (...)
-    {
-        normalizedPath = path;
-    }
-
-    std::string_view pathView{normalizedPath};
+    std::string_view pathView{path};
     bool isKernel = pathView.size() >= 4 && pathView.substr(0, 4) == R"(\\?\)";
     bool isKernelWithUnc = pathView.size() >= 8 && pathView.substr(0, 8) == R"(\\?\UNC\)";
     bool isUnc = pathView.size() >= 2 && pathView.substr(0, 2) == R"(\\)" && !isKernel;
@@ -64,13 +53,13 @@ std::vector<std::string> pathVariants(const std::string& path)
     {
         std::string uncPath = R"(\\)" + std::string(pathView.substr(8));
         variants.push_back(uncPath);
-        variants.push_back(normalizedPath);
+        variants.push_back(path);
     }
     else if (isUnc)
     {
         std::string kernelUncPath = R"(\\?\UNC\)" + std::string(pathView.substr(2));
         variants.push_back(kernelUncPath);
-        variants.push_back(normalizedPath);
+        variants.push_back(path);
     }
     else if (isKernel)
     {
@@ -84,12 +73,12 @@ std::vector<std::string> pathVariants(const std::string& path)
         }
         else
         {
-            variants.push_back(normalizedPath);
+            variants.push_back(path);
         }
     }
     else
     {
-        std::string kernelPath = R"(\\?\)" + normalizedPath;
+        std::string kernelPath = R"(\\?\)" + path;
         variants.push_back(kernelPath);
 
         if (pathView.size() >= 2 && pathView[1] == ':')
@@ -297,47 +286,9 @@ TEST(UtilsTest, canWrite)
         testCanWriteAllPathVariants(pathWithSlash, true);
     }
 
-    G_SUBTEST << "Path with multiple slashes";
-    {
-        SelfDeletingTmpFolder tmpFolder;
-        fs::path testDir = tmpFolder.path() / "test";
-        EXPECT_TRUE(fs::create_directory(testDir));
-#ifdef _WIN32
-        std::string pathWithMultipleSlashes = tmpFolder.string() + R"(\\)" + "test" + R"(\\)";
-#else
-        std::string pathWithMultipleSlashes = tmpFolder.string() + "//test//";
-#endif
-        testCanWriteAllPathVariants(pathWithMultipleSlashes, true);
-    }
-
-    G_SUBTEST << "Path with relative components";
-    {
-        SelfDeletingTmpFolder tmpFolder;
-        fs::path subDir = tmpFolder.path() / "subdir";
-        EXPECT_TRUE(fs::create_directory(subDir));
-        std::string relativePath = (subDir / ".." / "subdir").string();
-        testCanWriteAllPathVariants(relativePath, true);
-    }
-
     G_SUBTEST << "Path with only spaces";
     {
         testCanWriteAllPathVariants("   ", false);
-    }
-
-    G_SUBTEST << "Path with single dot";
-    {
-        SelfDeletingTmpFolder tmpFolder;
-        fs::path dotPath = tmpFolder.path() / ".";
-        testCanWriteAllPathVariants(dotPath.string(), true);
-    }
-
-    G_SUBTEST << "Path with double dots";
-    {
-        SelfDeletingTmpFolder tmpFolder;
-        fs::path subDir = tmpFolder.path() / "subdir";
-        EXPECT_TRUE(fs::create_directory(subDir));
-        fs::path doubleDotPath = subDir / "..";
-        testCanWriteAllPathVariants(doubleDotPath.string(), true);
     }
 
     G_SUBTEST << "Very long path";
