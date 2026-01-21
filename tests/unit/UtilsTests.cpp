@@ -44,7 +44,18 @@ std::vector<std::string> pathVariants(const std::string& path)
     std::vector<std::string> variants{path};
 
 #ifdef _WIN32
-    std::string_view pathView{path};
+    std::string normalizedPath;
+    try
+    {
+        fs::path fsPath(path);
+        normalizedPath = fsPath.lexically_normal().string();
+    }
+    catch (...)
+    {
+        normalizedPath = path;
+    }
+
+    std::string_view pathView{normalizedPath};
     bool isKernel = pathView.size() >= 4 && pathView.substr(0, 4) == R"(\\?\)";
     bool isKernelWithUnc = pathView.size() >= 8 && pathView.substr(0, 8) == R"(\\?\UNC\)";
     bool isUnc = pathView.size() >= 2 && pathView.substr(0, 2) == R"(\\)" && !isKernel;
@@ -53,13 +64,13 @@ std::vector<std::string> pathVariants(const std::string& path)
     {
         std::string uncPath = R"(\\)" + std::string(pathView.substr(8));
         variants.push_back(uncPath);
-        variants.push_back(path);
+        variants.push_back(normalizedPath);
     }
     else if (isUnc)
     {
         std::string kernelUncPath = R"(\\?\UNC\)" + std::string(pathView.substr(2));
         variants.push_back(kernelUncPath);
-        variants.push_back(path);
+        variants.push_back(normalizedPath);
     }
     else if (isKernel)
     {
@@ -73,20 +84,20 @@ std::vector<std::string> pathVariants(const std::string& path)
         }
         else
         {
-            variants.push_back(path);
+            variants.push_back(normalizedPath);
         }
     }
     else
     {
-        std::string kernelPath = R"(\\?\)" + path;
+        std::string kernelPath = R"(\\?\)" + normalizedPath;
         variants.push_back(kernelPath);
 
         if (pathView.size() >= 2 && pathView[1] == ':')
         {
-            std::string uncPath = R"(\\localhost\)" + path.substr(0, 1) + R"($\)";
-            if (path.size() > 3)
+            std::string uncPath = R"(\\localhost\)" + pathView.substr(0, 1) + R"($\)";
+            if (pathView.size() > 3)
             {
-                uncPath += path.substr(3);
+                uncPath += pathView.substr(3);
             }
             variants.push_back(uncPath);
         }
