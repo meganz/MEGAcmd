@@ -235,6 +235,15 @@ TEST(UtilsTest, canWrite)
         EXPECT_TRUE(canWrite(longPath));
     }
 
+    G_SUBTEST << "Very long path exceeding 255 characters and MAX_PATH";
+    {
+        SelfDeletingTmpFolder tmpFolder;
+        std::string longPath = tmpFolder.string();
+        longPath += "/" + std::string(300, 'a');
+        EXPECT_THROW(fs::create_directories(longPath), std::filesystem::filesystem_error);
+        EXPECT_FALSE(canWrite(longPath));
+    }
+
     G_SUBTEST << "Path with special characters";
     {
         SelfDeletingTmpFolder tmpFolder;
