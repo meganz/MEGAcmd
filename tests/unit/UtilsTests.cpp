@@ -301,7 +301,7 @@ TEST(UtilsTest, canWrite)
     {
         SelfDeletingTmpFolder tmpFolder;
         fs::path testDir = tmpFolder.path() / "test";
-        fs::create_directory(testDir);
+        EXPECT_TRUE(fs::create_directory(testDir));
 #ifdef _WIN32
         std::string pathWithMultipleSlashes = tmpFolder.string() + R"(\\)" + "test" + R"(\\)";
 #else
@@ -314,7 +314,7 @@ TEST(UtilsTest, canWrite)
     {
         SelfDeletingTmpFolder tmpFolder;
         fs::path subDir = tmpFolder.path() / "subdir";
-        fs::create_directory(subDir);
+        EXPECT_TRUE(fs::create_directory(subDir));
         std::string relativePath = (subDir / ".." / "subdir").string();
         testCanWriteAllPathVariants(relativePath, true);
     }
@@ -335,7 +335,7 @@ TEST(UtilsTest, canWrite)
     {
         SelfDeletingTmpFolder tmpFolder;
         fs::path subDir = tmpFolder.path() / "subdir";
-        fs::create_directory(subDir);
+        EXPECT_TRUE(fs::create_directory(subDir));
         fs::path doubleDotPath = subDir / "..";
         testCanWriteAllPathVariants(doubleDotPath.string(), true);
     }
@@ -349,7 +349,7 @@ TEST(UtilsTest, canWrite)
 #else
         longPath += "/" + std::string(200, 'a');
 #endif
-        fs::create_directories(longPath);
+        EXPECT_TRUE(fs::create_directories(longPath));
         testCanWriteAllPathVariants(longPath, true);
     }
 
@@ -370,7 +370,7 @@ TEST(UtilsTest, canWrite)
     {
         SelfDeletingTmpFolder tmpFolder;
         fs::path specialPath = tmpFolder.path() / "test@#$%^&()_+-=[]{};',.";
-        fs::create_directory(specialPath);
+        EXPECT_TRUE(fs::create_directory(specialPath));
         testCanWriteAllPathVariants(specialPath.string(), true);
     }
 
@@ -378,7 +378,7 @@ TEST(UtilsTest, canWrite)
     {
         SelfDeletingTmpFolder tmpFolder;
         fs::path readOnlyDir = tmpFolder.path() / "readonly";
-        fs::create_directory(readOnlyDir);
+        EXPECT_TRUE(fs::create_directory(readOnlyDir));
 #ifdef _WIN32
         std::wstring wpath = readOnlyDir.wstring();
         DWORD oldAttrs = GetFileAttributesW(wpath.c_str());
@@ -416,7 +416,7 @@ TEST(UtilsTest, canWrite)
     {
         SelfDeletingTmpFolder tmpFolder;
         fs::path targetDir = tmpFolder.path() / "target";
-        fs::create_directory(targetDir);
+        EXPECT_TRUE(fs::create_directory(targetDir));
         fs::path symlinkPath = tmpFolder.path() / "symlink";
         fs::create_symlink(targetDir, symlinkPath);
         testCanWriteAllPathVariants(symlinkPath.string(), true);
@@ -426,7 +426,7 @@ TEST(UtilsTest, canWrite)
     {
         SelfDeletingTmpFolder tmpFolder;
         fs::path targetDir = tmpFolder.path() / "target";
-        fs::create_directory(targetDir);
+        EXPECT_TRUE(fs::create_directory(targetDir));
 #ifndef _WIN32
         chmod(targetDir.c_str(), 0555);
         fs::path symlinkPath = tmpFolder.path() / "symlink";
@@ -440,7 +440,7 @@ TEST(UtilsTest, canWrite)
     {
         SelfDeletingTmpFolder tmpFolder;
         fs::path nestedPath = tmpFolder.path() / "level1" / "level2" / "level3";
-        fs::create_directories(nestedPath);
+        EXPECT_TRUE(fs::create_directories(nestedPath));
         testCanWriteAllPathVariants(nestedPath.string(), true);
     }
 
@@ -449,7 +449,7 @@ TEST(UtilsTest, canWrite)
         SelfDeletingTmpFolder tmpFolder;
         std::string utf8DirName = u8"\u041f\u0440\u0438\u0432\u0456\u0442"; // Ukrainian
         fs::path utf8Path = tmpFolder.path() / utf8DirName;
-        fs::create_directory(utf8Path);
+        EXPECT_TRUE(fs::create_directory(utf8Path));
 #ifdef _WIN32
         std::string utf8PathStr = megacmd::pathAsUtf8(utf8Path);
 #else
@@ -463,7 +463,7 @@ TEST(UtilsTest, canWrite)
         SelfDeletingTmpFolder tmpFolder;
         std::string utf8DirName = u8"\u4e2d\u6587"; // Chinese
         fs::path utf8Path = tmpFolder.path() / utf8DirName / "subdir";
-        fs::create_directories(utf8Path);
+        EXPECT_TRUE(fs::create_directories(utf8Path));
 #ifdef _WIN32
         std::string utf8PathStr = megacmd::pathAsUtf8(utf8Path);
 #else
