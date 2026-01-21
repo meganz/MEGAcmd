@@ -120,10 +120,10 @@ int ComunicationsManagerFileSockets::waitForPetition()
         return EBADF;
     }
 
-    fd_set local_fds;
-    FD_ZERO(&local_fds);
-    FD_SET(sockfd, &local_fds);
-    int rc = select(FD_SETSIZE, &local_fds, NULL, NULL, NULL);
+    fd_set fds;
+    FD_ZERO(&fds);
+    FD_SET(sockfd, &fds);
+    int rc = select(FD_SETSIZE, &fds, NULL, NULL, NULL);
     if (rc < 0)
     {
         if (errno != EINTR)  //syscall
@@ -133,7 +133,7 @@ int ComunicationsManagerFileSockets::waitForPetition()
         }
     }
 
-    mHasPetition.store(FD_ISSET(sockfd, &local_fds) != 0);
+    mHasPetition.store(FD_ISSET(sockfd, &fds) != 0);
 
     return 0;
 }
