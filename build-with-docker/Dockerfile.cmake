@@ -64,7 +64,7 @@ RUN rm ./sdk/include/mega/config.h || true
 
 # Check vcpkg
 RUN --mount=type=bind,source=.,target=/build-context,rw \
-    [ -x "/build-context/vcpkg/vcpkg" ] || \
+    [ -x "/build-context/vcpkg/bootstrap-vcpkg.sh" ] || \
     { echo "vcpkg not found. It should be cloned before Docker build." >&2; exit 1; }
 
 RUN --mount=type=cache,target=/tmp/ccache \
