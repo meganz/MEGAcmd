@@ -57,6 +57,15 @@ std::string errorCodeStr(const std::error_code& ec)
 bool canWrite(const string &path)
 {
 #ifdef _WIN32
+    static const std::string bypassCanWrite = []() {
+        const char *val = getenv("MEGACMD_BYPASS_CAN_WRITE");
+        return val ? std::string(val) : std::string();
+    }();
+    if (bypassCanWrite == "1")
+    {
+        return true;
+    }
+
     std::wstring wpath = utf8StringToUtf16WString(path.c_str());
 
     if (DWORD attrs = GetFileAttributesW(wpath.c_str()); attrs != INVALID_FILE_ATTRIBUTES)
