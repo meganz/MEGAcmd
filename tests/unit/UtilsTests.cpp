@@ -32,6 +32,7 @@
 
 #include "TestUtils.h"
 #include "megacmdcommonutils.h"
+#include "Instruments.h"
 
 namespace fs = std::filesystem;
 
@@ -423,3 +424,90 @@ TEST(UtilsTest, canWrite)
         testCanWriteAllPathVariants(utf8PathStr, true);
     }
 }
+
+#ifdef _WIN32
+TEST(UtilsTest, canWriteWithBypassEnvVar)
+{
+    using megacmd::canWrite;
+
+    G_SUBTEST << "MEGACMD_BYPASS_CAN_WRITE=1 makes canWrite always return true";
+    {
+        TestInstrumentsEnvVarGuard bypassGuard("MEGACMD_BYPASS_CAN_WRITE", "1");
+
+        G_SUBSUBTEST << "Non-existent path should return true";
+        {
+            EXPECT_TRUE(canWrite(R"(C:\non\existent\path\12345)"));
+        }
+
+        G_SUBSUBTEST << "Empty string should return true";
+        {
+            EXPECT_TRUE(canWrite(""));
+        }
+
+        G_SUBSUBTEST << "Read-only directory should return true";
+        {
+            SelfDeletingTmpFolder tmpFolder;
+            fs::path readOnlyDir = tmpFolder.path() / "readonly";
+            EXPECT_TRUE(fs::create_directory(readOnlyDir));
+            std::wstring wpath = readOnlyDir.wstring();
+            SetFileAttributesW(wpath.c_str(), FILE_ATTRIBUTE_READONLY);
+            EXPECT_TRUE(canWrite(readOnlyDir.string()));
+        }
+
+        G_SUBSUBTEST << "Read-only file should return true";
+        {
+            SelfDeletingTmpFolder tmpFolder;
+            fs::path readOnlyFile = tmpFolder.path() / "readonly.txt";
+            std::ofstream file(readOnlyFile);
+            file << "test";
+            file.close();
+            std::wstring wpath = readOnlyFile.wstring();
+            SetFileAttributesW(wpath.c_str(), FILE_ATTRIBUTE_READONLY);
+            EXPECT_TRUE(canWrite(readOnlyFile.string()));
+        }
+
+        G_SUBSUBTEST << "Writable directory should return true";
+        {
+            SelfDeletingTmpFolder tmpFolder;
+            EXPECT_TRUE(canWrite(tmpFolder.string()));
+        }
+    }
+
+    G_SUBTEST << "MEGACMD_BYPASS_CAN_WRITE not set or not equal to 1 should work normally";
+    {
+        TestInstrumentsUnsetEnvVarGuard unsetGuard("MEGACMD_BYPASS_CAN_WRITE");
+
+        G_SUBSUBTEST << "Non-existent path should return false";
+        {
+            EXPECT_FALSE(canWrite(R"(C:\non\existent\path\12345)"));
+        }
+
+        G_SUBSUBTEST << "Empty string should return false";
+        {
+            EXPECT_FALSE(canWrite(""));
+        }
+
+        G_SUBSUBTEST << "Writable directory should return true";
+        {
+            SelfDeletingTmpFolder tmpFolder;
+            EXPECT_TRUE(canWrite(tmpFolder.string()));
+        }
+    }
+
+    G_SUBTEST << "MEGACMD_BYPASS_CAN_WRITE set to value other than 1 should work normally";
+    {
+        TestInstrumentsEnvVarGuard bypassGuard("MEGACMD_BYPASS_CAN_WRITE", "0");
+
+        G_SUBSUBTEST << "Non-existent path should return false";
+        {
+            EXPECT_FALSE(canWrite(R"(C:\non\existent\path\12345)"));
+        }
+
+        G_SUBSUBTEST << "Writable directory should return true";
+        {
+            SelfDeletingTmpFolder tmpFolder;
+            EXPECT_TRUE(canWrite(tmpFolder.string()));
+        }
+    }
+}
+#endif
