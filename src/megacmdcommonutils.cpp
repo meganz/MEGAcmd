@@ -57,10 +57,8 @@ std::string errorCodeStr(const std::error_code& ec)
 bool canWrite(const string &path)
 {
 #ifdef _WIN32
-    static const std::string bypassCanWrite = []() {
-        const char *val = getenv("MEGACMD_BYPASS_CAN_WRITE");
-        return val ? std::string(val) : std::string();
-    }();
+    const char *bypassCanWriteEnv = getenv("MEGACMD_BYPASS_CAN_WRITE");
+    const std::string bypassCanWrite = bypassCanWriteEnv ? bypassCanWriteEnv : std::string{};
     if (bypassCanWrite == "1")
     {
         return true;
