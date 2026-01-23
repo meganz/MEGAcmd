@@ -128,7 +128,7 @@ sAdVa6xer/c=
 chmod 0644 /etc/apt/keyrings/meganz-archive-keyring.gpg
 
 if [ -d /etc/apt/sources.list.d ]; then
-    cat >/etc/apt/sources.list.d/megasync.sources <<EOF
+    cat >/etc/apt/sources.list.d/megaio.sources <<EOF
 Types: deb
 URIs: https://mega.nz/linux/repo/$str/
 Suites: ./
