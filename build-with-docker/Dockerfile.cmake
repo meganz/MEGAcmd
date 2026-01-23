@@ -1,5 +1,4 @@
 # syntax=docker/dockerfile:1
-ARG BUILD_CORES
 
 FROM debian:12-slim as base
 
@@ -57,6 +56,7 @@ ARG ENABLE_asan=OFF
 ARG ENABLE_ubsan=OFF
 ARG ENABLE_tsan=OFF
 ARG ENABLE_MEGACMD_TESTS=ON
+ARG BUILD_CORES
 
 COPY --from=src /usr/src/megacmd /usr/src/megacmd
 
@@ -67,6 +67,7 @@ RUN rm ./sdk/include/mega/config.h || true
 RUN --mount=type=cache,target=/tmp/ccache \
     --mount=type=cache,target=/tmp/vcpkgcache \
     --mount=type=tmpfs,target=/tmp/build \
+     VCPKG_MAX_CONCURRENCY=${BUILD_CORES:-$(nproc)} \
      cmake -B /tmp/build \
     -DVCPKG_ROOT=/vcpkg \
     -DCMAKE_CXX_COMPILER=g++ \
