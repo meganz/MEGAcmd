@@ -38,17 +38,6 @@ pipeline {
             }
         }
 
-        stage("Clone vcpkg") {
-            steps {
-                sh """
-                    if [ ! -x "${WORKSPACE}/vcpkg/bootstrap-vcpkg.sh" ]; then
-                        rm -rf ${WORKSPACE}/vcpkg
-                        git clone https://github.com/microsoft/vcpkg ${WORKSPACE}/vcpkg
-                    fi
-                """
-            }
-        }
-
         stage("Build and test MEGAcmd") {
             matrix {
                 axes {

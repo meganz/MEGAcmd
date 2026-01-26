@@ -27,6 +27,8 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     libfuse-dev libtool
 
 COPY vcpkg.json ./vcpkg.json
+COPY build/clone_vcpkg_from_baseline.sh ./clone_vcpkg_from_baseline.sh
+RUN /clone_vcpkg_from_baseline.sh /vcpkg
 
 FROM scratch as src
 
@@ -50,6 +52,7 @@ WORKDIR /usr/src/megacmd
 #ENV CXX "ccache g++-12"
 ENV CCACHE_DIR /tmp/ccache
 ENV VCPKG_DEFAULT_BINARY_CACHE /tmp/vcpkgcache
+ENV VCPKG_BINARY_SOURCES "clear;files,/tmp/vcpkgcache,readwrite"
 ARG ENABLE_asan=OFF
 ARG ENABLE_ubsan=OFF
 ARG ENABLE_tsan=OFF
@@ -61,16 +64,11 @@ COPY --from=src /usr/src/megacmd /usr/src/megacmd
 #We don't wont a potential config coming from host machine to meddle with the build:
 RUN rm ./sdk/include/mega/config.h || true
 
-# Check vcpkg
-RUN --mount=type=bind,source=./vcpkg,target=/build-context/vcpkg,ro \
-    [ -x "/build-context/vcpkg/bootstrap-vcpkg.sh" ] || \
-    { echo "vcpkg not found. It should be cloned before Docker build." >&2; exit 1; }
-
 RUN --mount=type=cache,target=/tmp/ccache \
     --mount=type=cache,target=/tmp/vcpkgcache \
     --mount=type=tmpfs,target=/tmp/build \
-    --mount=type=bind,source=./vcpkg,target=/vcpkg,rw \
      VCPKG_MAX_CONCURRENCY=${BUILD_CORES:-$(nproc)} \
+     flock -w 7200 /tmp/vcpkgcache/.vcpkg-install.lock \
      cmake -B /tmp/build \
     -DVCPKG_ROOT=/vcpkg \
     -DCMAKE_CXX_COMPILER=g++ \
