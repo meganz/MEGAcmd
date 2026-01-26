@@ -1100,3 +1100,257 @@ TEST(StringUtilsTest, getListOfWords)
         }
     }
 }
+
+TEST(StringUtilsTest, replace)
+{
+    using megacmd::replace;
+
+    G_SUBTEST << "Basic case";
+    {
+        std::string str("hello world");
+        EXPECT_TRUE(replace(str, "world", "mega"));
+        EXPECT_EQ(str, "hello mega");
+    }
+
+    G_SUBTEST << "Replace not found";
+    {
+        std::string str("test string");
+        EXPECT_FALSE(replace(str, "xyz", "mega"));
+        EXPECT_EQ(str, "test string");
+    }
+
+    G_SUBTEST << "Replace empty string";
+    {
+        std::string str("hello");
+        EXPECT_TRUE(replace(str, "", "test"));
+        EXPECT_EQ(str, "testhello");
+    }
+
+    G_SUBTEST << "Replace with empty string";
+    {
+        std::string str("remove this");
+        EXPECT_TRUE(replace(str, "this", ""));
+        EXPECT_EQ(str, "remove ");
+    }
+
+    G_SUBTEST << "Multiple occurrences with only first replaced";
+    {
+        std::string str("hello hello");
+        EXPECT_TRUE(replace(str, "hello", "hi"));
+        EXPECT_EQ(str, "hi hello");
+    }
+
+    G_SUBTEST << "Replace at beginning";
+    {
+        std::string str("start end");
+        EXPECT_TRUE(replace(str, "start", "begin"));
+        EXPECT_EQ(str, "begin end");
+    }
+
+    G_SUBTEST << "Replace at end";
+    {
+        std::string str("begin end");
+        EXPECT_TRUE(replace(str, "end", "finish"));
+        EXPECT_EQ(str, "begin finish");
+    }
+
+    G_SUBTEST << "Empty input string";
+    {
+        std::string str;
+        EXPECT_FALSE(replace(str, "test", "mega"));
+        EXPECT_EQ(str, "");
+    }
+
+    G_SUBTEST << "Self-replacement";
+    {
+        std::string str("test");
+        EXPECT_TRUE(replace(str, "test", "test"));
+        EXPECT_EQ(str, "test");
+    }
+
+    G_SUBTEST << "Pattern longer than string";
+    {
+        std::string str("short");
+        EXPECT_FALSE(replace(str, "very long pattern", "mega"));
+        EXPECT_EQ(str, "short");
+    }
+
+    G_SUBTEST << "Unicode characters";
+    {
+        std::string str("\xD0\x9C\xD0\x95\xD0\x93\xD0\x90");
+        EXPECT_TRUE(replace(str, "\xD0\x9C\xD0\x95\xD0\x93\xD0\x90", "MEGA"));
+        EXPECT_EQ(str, "MEGA");
+    }
+
+    G_SUBTEST << "Special characters";
+    {
+        std::string str("test\ttest");
+        EXPECT_TRUE(replace(str, "\t", " "));
+        EXPECT_EQ(str, "test test");
+    }
+
+    G_SUBTEST << "Pattern is substring of replacement";
+    {
+        std::string str("a");
+        EXPECT_TRUE(replace(str, "a", "ab"));
+        EXPECT_EQ(str, "ab");
+    }
+
+    G_SUBTEST << "Very long string";
+    {
+        std::string str(10000, 'a');
+        str += "test";
+        EXPECT_TRUE(replace(str, "test", "mega"));
+        EXPECT_EQ(str, std::string(10000, 'a') + "mega");
+    }
+
+    G_SUBTEST << "Replace entire string";
+    {
+        std::string str("full");
+        EXPECT_TRUE(replace(str, "full", "empty"));
+        EXPECT_EQ(str, "empty");
+    }
+
+    G_SUBTEST << "Single character string";
+    {
+        std::string str("a");
+        EXPECT_TRUE(replace(str, "a", "b"));
+        EXPECT_EQ(str, "b");
+    }
+
+    G_SUBTEST << "Pattern at multiple positions but only first replaced";
+    {
+        std::string str("abcabcabc");
+        EXPECT_TRUE(replace(str, "abc", "x"));
+        EXPECT_EQ(str, "xabcabc");
+    }
+}
+
+TEST(StringUtilsTest, replaceAll)
+{
+    using megacmd::replaceAll;
+
+    G_SUBTEST << "Basic replaceAll";
+    {
+        std::string str("hello world world");
+        replaceAll(str, "world", "mega");
+        EXPECT_EQ(str, "hello mega mega");
+    }
+
+    G_SUBTEST << "No occurrences";
+    {
+        std::string str("test string");
+        replaceAll(str, "xyz", "mega");
+        EXPECT_EQ(str, "test string");
+    }
+
+    G_SUBTEST << "Multiple occurrences";
+    {
+        std::string str("a b a b a");
+        replaceAll(str, "a", "x");
+        EXPECT_EQ(str, "x b x b x");
+    }
+
+    G_SUBTEST << "Replace with empty string";
+    {
+        std::string str("remove this");
+        replaceAll(str, "this", "");
+        EXPECT_EQ(str, "remove ");
+    }
+
+    G_SUBTEST << "Overlapping patterns";
+    {
+        std::string str("aaa");
+        replaceAll(str, "aa", "b");
+        EXPECT_EQ(str, "ba");
+        replaceAll(str, "a", "b");
+        EXPECT_EQ(str, "bb");
+    }
+
+    G_SUBTEST << "Empty input string";
+    {
+        std::string str;
+        replaceAll(str, "test", "mega");
+        EXPECT_EQ(str, "");
+    }
+
+    G_SUBTEST << "Empty pattern";
+    {
+        std::string str("test string");
+        replaceAll(str, "", "mega");
+        EXPECT_EQ(str, "test string");
+    }
+
+    G_SUBTEST << "Self-replacement";
+    {
+        std::string str("test test");
+        replaceAll(str, "test", "test");
+        EXPECT_EQ(str, "test test");
+    }
+
+    G_SUBTEST << "Pattern longer than string";
+    {
+        std::string str("short");
+        replaceAll(str, "very long pattern", "mega");
+        EXPECT_EQ(str, "short");
+    }
+
+    G_SUBTEST << "Unicode characters";
+    {
+        std::string str("\xD0\x9C\xD0\x95\xD0\x93\xD0\x90 \xD0\x9C\xD0\x95\xD0\x93\xD0\x90");
+        replaceAll(str, "\xD0\x9C\xD0\x95\xD0\x93\xD0\x90", "MEGA");
+        EXPECT_EQ(str, "MEGA MEGA");
+    }
+
+    G_SUBTEST << "Special characters";
+    {
+        std::string str("test\ttest\ntest");
+        replaceAll(str, "\t", " ");
+        EXPECT_EQ(str, "test test\ntest");
+        replaceAll(str, "\n", " ");
+        EXPECT_EQ(str, "test test test");
+    }
+
+    G_SUBTEST << "Adjacent occurrences";
+    {
+        std::string str("abcabc");
+        replaceAll(str, "ab", "x");
+        EXPECT_EQ(str, "xcxc");
+    }
+
+    G_SUBTEST << "Pattern at beginning and end";
+    {
+        std::string str("test content test");
+        replaceAll(str, "test", "start");
+        EXPECT_EQ(str, "start content start");
+    }
+
+    G_SUBTEST << "Pattern is substring of replacement";
+    {
+        std::string str("a a a");
+        replaceAll(str, "a", "ab");
+        EXPECT_EQ(str, "ab ab ab");
+    }
+
+    G_SUBTEST << "Very long string";
+    {
+        std::string str(10000, 'a');
+        str += "test" + std::string(10000, 'a');
+        replaceAll(str, "test", "mega");
+        EXPECT_EQ(str, std::string(10000, 'a') + "mega" + std::string(10000, 'a'));
+    }
+
+    G_SUBTEST << "Replace entire string";
+    {
+        std::string str("full");
+        replaceAll(str, "full", "empty");
+        EXPECT_EQ(str, "empty");
+    }
+
+    G_SUBTEST << "Single character string";
+    {
+        std::string str("a");
+        replaceAll(str, "a", "b");
+        EXPECT_EQ(str, "b");
+    }
+}
