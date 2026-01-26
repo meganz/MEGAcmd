@@ -98,7 +98,7 @@ def initialize_contents():
 
     cmd_ef(LOGOUT)
     cmd_ef(LOGIN+" " +osvar("MEGA_EMAIL")+" "+osvar("MEGA_PWD"))
-    cmd_ec(IPC+" -a "+osvar("MEGA_EMAIL_AUX"))
+    cmd_ef(IPC+" -a "+osvar("MEGA_EMAIL_AUX"))
 
     cmd_ef(PUT+' foreign /')
 
@@ -383,7 +383,7 @@ class MEGAcmdGetTest(unittest.TestCase):
 
     def test_38_download_file_from_inshare(self):
         """get from //from/XXX"""
-        cmd_ex(GET+' //from/'+osvar('MEGA_EMAIL_AUX')+':foreign/sub02/fileatsub02.txt '+ABSMEGADLFOLDER+'')
+        cmd_ef(GET+' //from/'+osvar('MEGA_EMAIL_AUX')+':foreign/sub02/fileatsub02.txt '+ABSMEGADLFOLDER+'')
         shutil.copy2('origin/foreign/sub02/fileatsub02.txt','localDls/')
         self.compare()
 
