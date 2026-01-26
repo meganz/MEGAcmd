@@ -50,8 +50,9 @@ WORKDIR /usr/src/megacmd
 # setting ccache as env variables breaks latest vcpkg libsodium compilation
 #ENV CC "ccache gcc-12"
 #ENV CXX "ccache g++-12"
-ENV CCACHE_DIR /tmp/ccache
-ENV VCPKG_DEFAULT_BINARY_CACHE /tmp/vcpkgcache
+ENV CCACHE_DIR=/tmp/ccache
+ENV VCPKG_DEFAULT_BINARY_CACHE=/tmp/vcpkgcache
+ENV VCPKG_BINARY_SOURCES="clear;files,/tmp/vcpkgcache,readwrite"
 ARG ENABLE_asan=OFF
 ARG ENABLE_ubsan=OFF
 ARG ENABLE_tsan=OFF
@@ -60,7 +61,6 @@ ARG BUILD_CORES
 
 COPY --from=src /usr/src/megacmd /usr/src/megacmd
 
-
 #We don't wont a potential config coming from host machine to meddle with the build:
 RUN rm ./sdk/include/mega/config.h || true
 
@@ -68,6 +68,7 @@ RUN --mount=type=cache,target=/tmp/ccache \
     --mount=type=cache,target=/tmp/vcpkgcache \
     --mount=type=tmpfs,target=/tmp/build \
      VCPKG_MAX_CONCURRENCY=${BUILD_CORES:-$(nproc)} \
+     flock -w 7200 /tmp/vcpkgcache/.vcpkg-install.lock \
      cmake -B /tmp/build \
     -DVCPKG_ROOT=/vcpkg \
     -DCMAKE_CXX_COMPILER=g++ \
