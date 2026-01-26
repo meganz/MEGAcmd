@@ -50,9 +50,9 @@ WORKDIR /usr/src/megacmd
 # setting ccache as env variables breaks latest vcpkg libsodium compilation
 #ENV CC "ccache gcc-12"
 #ENV CXX "ccache g++-12"
-ENV CCACHE_DIR /tmp/ccache
-ENV VCPKG_DEFAULT_BINARY_CACHE /tmp/vcpkgcache
-ENV VCPKG_BINARY_SOURCES "clear;files,/tmp/vcpkgcache,readwrite"
+ENV CCACHE_DIR=/tmp/ccache
+ENV VCPKG_DEFAULT_BINARY_CACHE=/tmp/vcpkgcache
+ENV VCPKG_BINARY_SOURCES="clear;files,/tmp/vcpkgcache,readwrite"
 ARG ENABLE_asan=OFF
 ARG ENABLE_ubsan=OFF
 ARG ENABLE_tsan=OFF
