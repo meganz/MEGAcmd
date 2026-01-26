@@ -68,6 +68,7 @@ RUN --mount=type=cache,target=/tmp/ccache \
     --mount=type=cache,target=/tmp/vcpkgcache \
     --mount=type=tmpfs,target=/tmp/build \
      VCPKG_MAX_CONCURRENCY=${BUILD_CORES:-$(nproc)} \
+     flock -w 7200 /tmp/vcpkgcache/.vcpkg-install.lock \
      cmake -B /tmp/build \
     -DVCPKG_ROOT=/vcpkg \
     -DCMAKE_CXX_COMPILER=g++ \
