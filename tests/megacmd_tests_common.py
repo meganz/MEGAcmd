@@ -126,10 +126,10 @@ def cmdshell_ec(what):
         out = '\n'.join(lines[start+1:end]).strip()
     except pexpect.EOF:
         print('Shell session ended')
-        return '', -1
+        return '', -1, ''
     except pexpect.TIMEOUT:
         print('Timed out waiting for output')
-        return '', -1
+        return '', -1, ''
     finally:
         child.close()
 

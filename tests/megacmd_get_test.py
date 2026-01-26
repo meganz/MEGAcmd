@@ -98,7 +98,7 @@ def initialize_contents():
 
     cmd_ef(LOGOUT)
     cmd_ef(LOGIN+" " +osvar("MEGA_EMAIL")+" "+osvar("MEGA_PWD"))
-    cmd_ef(IPC+" -a "+osvar("MEGA_EMAIL_AUX"))
+    cmd_ec(IPC+" -a "+osvar("MEGA_EMAIL_AUX"))
 
     cmd_ef(PUT+' foreign /')
 
