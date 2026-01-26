@@ -77,7 +77,30 @@ bool canWrite(const string &path)
         }
     }
 
-    return _waccess(wpath.c_str(), 02) == 0; // 02 = write permission
+    if (_waccess(wpath.c_str(), 02) == 0) // 02 = write permission
+    {
+        return true;
+    }
+    else if (errno == EACCES)
+    {
+        return false; // explicitly not writable
+    }
+    else if (errno == ENOENT && wpath.size() > 0 && (wpath.back() == L'.' || wpath.back() == L' '))
+    {
+        // Ignore ENOENT errors for files ending with a period or a space. CMD/SDK is able to sync these files.
+        //
+        // See: https://learn.microsoft.com/en-us/windows/win32/fileio/naming-a-file#naming-conventions
+        // Quote:
+        //   > The following fundamental rules enable applications to create and process valid names
+        //   > for files and directories, regardless of the file system:
+        //   > ...
+        //   > Do not end a file or directory name with a space or a period.
+        return true;
+    }
+    else
+    {
+        return false;
+    }
 #else
     return access(path.c_str(), W_OK) == 0;
 #endif

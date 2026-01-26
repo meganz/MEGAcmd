@@ -289,7 +289,11 @@ TEST(UtilsTest, canWrite)
 
     G_SUBTEST << "Path with only spaces";
     {
+#ifdef _WIN32
+        testCanWriteAllPathVariants("   ", true); // Edge case on Windows, see canWrite() implementation
+#else
         testCanWriteAllPathVariants("   ", false);
+#endif
     }
 
     G_SUBTEST << "Very long path";
@@ -321,7 +325,7 @@ TEST(UtilsTest, canWrite)
     G_SUBTEST << "Path with special characters";
     {
         SelfDeletingTmpFolder tmpFolder;
-        fs::path specialPath = tmpFolder.path() / "test@#$%^&()_+-=[]{};'.,";
+        fs::path specialPath = tmpFolder.path() / "test@#$%^&()_+-=[]{};',.";
         EXPECT_TRUE(fs::create_directory(specialPath));
         testCanWriteAllPathVariants(specialPath.string(), true);
     }
