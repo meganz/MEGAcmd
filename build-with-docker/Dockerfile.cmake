@@ -62,7 +62,7 @@ COPY --from=src /usr/src/megacmd /usr/src/megacmd
 RUN rm ./sdk/include/mega/config.h || true
 
 # Check vcpkg
-RUN --mount=type=bind,source=.,target=/build-context,rw \
+RUN --mount=type=bind,source=./vcpkg,target=/build-context/vcpkg,ro \
     [ -x "/build-context/vcpkg/bootstrap-vcpkg.sh" ] || \
     { echo "vcpkg not found. It should be cloned before Docker build." >&2; exit 1; }
 
