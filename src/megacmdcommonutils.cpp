@@ -23,6 +23,7 @@
 #include <Shellapi.h> //CommandLineToArgvW
 #include <windows.h> //GetUserName
 #include <Lmcons.h> //UNLEN
+#include <io.h> //_waccess
 #else
 #include <sys/ioctl.h> // console size
 #include <sys/socket.h>
@@ -53,17 +54,55 @@ std::string errorCodeStr(const std::error_code& ec)
     return ec ? "(error: " + ec.message() + ")" : "";
 }
 
-bool canWrite(string path)
+bool canWrite(const string &path)
 {
 #ifdef _WIN32
-    // TODO: Check permissions
-    return true;
-#else
-    if (access(path.c_str(), W_OK) == 0)
+    auto bypassCanWrite = []() {
+        const char *bypassCanWriteEnv = getenv("MEGACMD_BYPASS_CAN_WRITE");
+        const std::string bypassCanWriteString = bypassCanWriteEnv ? bypassCanWriteEnv : std::string{};
+        return bypassCanWriteString == "1";
+    };
+    if (bypassCanWrite())
     {
         return true;
     }
-    return false;
+
+    std::wstring wpath = utf8StringToUtf16WString(path.c_str());
+
+    if (DWORD attrs = GetFileAttributesW(wpath.c_str()); attrs != INVALID_FILE_ATTRIBUTES)
+    {
+        if (attrs & FILE_ATTRIBUTE_READONLY)
+        {
+            return false;
+        }
+    }
+
+    if (_waccess(wpath.c_str(), 02) == 0) // 02 = write permission
+    {
+        return true;
+    }
+    else if (errno == EACCES)
+    {
+        return false; // explicitly not writable
+    }
+    else if (errno == ENOENT && wpath.size() > 0 && (wpath.back() == L'.' || wpath.back() == L' '))
+    {
+        // Ignore ENOENT errors for files ending with a period or a space. CMD/SDK is able to sync these files.
+        //
+        // See: https://learn.microsoft.com/en-us/windows/win32/fileio/naming-a-file#naming-conventions
+        // Quote:
+        //   > The following fundamental rules enable applications to create and process valid names
+        //   > for files and directories, regardless of the file system:
+        //   > ...
+        //   > Do not end a file or directory name with a space or a period.
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+#else
+    return access(path.c_str(), W_OK) == 0;
 #endif
 }
 
