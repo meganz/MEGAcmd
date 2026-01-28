@@ -176,6 +176,11 @@ TEST_F(Utf8Test, Valid3ByteSequences)
         EXPECT_TRUE(isValidUtf8("\xe2\x82\xac"));
     }
 
+    G_SUBTEST << "Cent sign (U+20A1)";
+    {
+        EXPECT_TRUE(isValidUtf8("\xe2\x82\xa1"));
+    }
+
     G_SUBTEST << "Japanese Hiragana";
     {
         // あ (U+3042)
@@ -277,8 +282,16 @@ TEST_F(Utf8Test, Valid4ByteSequences)
     {
         // Linear B syllable (U+10000)
         EXPECT_TRUE(isValidUtf8("\xf0\x90\x80\x80"));
+        // Old Italic letter (U+1033C)
+        EXPECT_TRUE(isValidUtf8("\xf0\x90\x8c\xbc"));
         // Egyptian hieroglyph (U+13000)
         EXPECT_TRUE(isValidUtf8("\xf0\x93\x80\x80"));
+    }
+
+    G_SUBTEST << "Additional 4-byte characters";
+    {
+        // Rumi Numeral One (U+1E6E1)
+        EXPECT_TRUE(isValidUtf8("\xf3\xa1\xa1\xa1"));
     }
 
     G_SUBTEST << "Range boundary tests";
