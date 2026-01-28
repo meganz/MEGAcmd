@@ -356,6 +356,7 @@ if (ENABLE_MEGACMD_TESTS)
         "${ProjectDir}/tests/unit/OptionsFlagsUtilsTests.cpp"
         "${ProjectDir}/tests/unit/PlatformDirectoriesTests.cpp"
         "${ProjectDir}/tests/unit/StringUtilsTests.cpp"
+        "${ProjectDir}/tests/unit/Utf8Tests.cpp"
         "${ProjectDir}/tests/unit/UtilsTests.cpp"
         "${ProjectDir}/tests/unit/main.cpp"
     )
