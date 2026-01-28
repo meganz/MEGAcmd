@@ -1062,7 +1062,7 @@ TEST(NonMaxPathLimitedTest, PathPrefixing)
 
 #endif // _WIN32
 
-TEST(Utf8Test, InvalidUtf8Incidences)
+TEST_F(Utf8Test, InvalidUtf8Incidences)
 {
     using megacmd::isValidUtf8;
     using megacmd::sInvalidUtf8Incidences;
@@ -1091,7 +1091,7 @@ TEST(Utf8Test, InvalidUtf8Incidences)
     }
 }
 
-TEST(Utf8Test, StressLargeValidStrings)
+TEST_F(Utf8Test, StressLargeValidStrings)
 {
     using megacmd::isValidUtf8;
 
@@ -1130,7 +1130,7 @@ TEST(Utf8Test, StressLargeValidStrings)
     }
 }
 
-TEST(Utf8Test, StressManySmallValidations)
+TEST_F(Utf8Test, StressManySmallValidations)
 {
     using megacmd::isValidUtf8;
 
@@ -1157,7 +1157,7 @@ TEST(Utf8Test, StressManySmallValidations)
 }
 
 #ifdef _WIN32
-TEST(Utf8Test, StressLargeConversions)
+TEST_F(Utf8Test, StressLargeConversions)
 {
     using megacmd::utf8StringToUtf16WString;
     using megacmd::utf16ToUtf8;
