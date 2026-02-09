@@ -189,7 +189,11 @@ std::string pathAsUtf8(const fs::path& path)
 
 bool isValidUtf8(const char* data, size_t size)
 {
+#ifdef MEGACMD_TESTING_CODE
+    bool disableUTF8Valiations = getenv("MEGACMD_DISABLE_UTF8_VALIDATIONS");
+#else
     static bool disableUTF8Valiations = getenv("MEGACMD_DISABLE_UTF8_VALIDATIONS");
+#endif
     if (disableUTF8Valiations)
     {
         return true;
