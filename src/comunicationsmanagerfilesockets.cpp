@@ -117,6 +117,7 @@ int ComunicationsManagerFileSockets::waitForPetition()
     if (sockfd < 0 || sockfd >= FD_SETSIZE)
     {
         LOG_fatal << "Invalid socket descriptor: " << sockfd;
+        mHasPetition = false;
         return EBADF;
     }
 
@@ -129,6 +130,7 @@ int ComunicationsManagerFileSockets::waitForPetition()
         if (errno != EINTR)  //syscall
         {
             LOG_fatal << "Error at select: " << errno;
+            mHasPetition = false;
             return errno;
         }
     }
