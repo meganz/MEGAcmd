@@ -16,11 +16,15 @@
 #include <cctype>
 #include <cerrno>
 #include <cstring>
+#include <fstream>
+#include <string_view>
+#include <vector>
 #ifdef _WIN32
 #include <direct.h>
 #include <windows.h>
 #else
 #include <unistd.h>
+#include <sys/stat.h>
 #endif
 
 #include <gtest/gtest.h>
@@ -28,6 +32,91 @@
 
 #include "TestUtils.h"
 #include "megacmdcommonutils.h"
+#include "Instruments.h"
+
+namespace fs = std::filesystem;
+
+// Returns a list of path variants for testing:
+// 1. Original path
+// 2. Kernel format (\\?\ prefix) on Windows
+// 3. UNC format on Windows
+std::vector<std::string> pathVariants(const std::string& path)
+{
+    std::vector<std::string> variants{path};
+
+#ifdef _WIN32
+    std::string_view pathView{path};
+    bool isKernel = pathView.size() >= 4 && pathView.substr(0, 4) == R"(\\?\)";
+    bool isKernelWithUnc = pathView.size() >= 8 && pathView.substr(0, 8) == R"(\\?\UNC\)";
+    bool isUnc = pathView.size() >= 2 && pathView.substr(0, 2) == R"(\\)" && !isKernel;
+
+    if (isKernelWithUnc)
+    {
+        std::string uncPath = R"(\\)" + std::string(pathView.substr(8));
+        variants.push_back(uncPath);
+        variants.push_back(path);
+    }
+    else if (isUnc)
+    {
+        std::string kernelUncPath = R"(\\?\UNC\)" + std::string(pathView.substr(2));
+        variants.push_back(kernelUncPath);
+        variants.push_back(path);
+    }
+    else if (isKernel)
+    {
+        std::string localPath = std::string(pathView.substr(4));
+        variants.push_back(localPath);
+
+        if (localPath.size() >= 2 && localPath[1] == ':')
+        {
+            std::string uncPath = R"(\\localhost\)" + localPath.substr(0, 1) + R"($\)" + localPath.substr(3);
+            variants.push_back(uncPath);
+        }
+        else
+        {
+            variants.push_back(path);
+        }
+    }
+    else
+    {
+        std::string kernelPath = R"(\\?\)" + path;
+        variants.push_back(kernelPath);
+
+        if (pathView.size() >= 2 && pathView[1] == ':')
+        {
+            std::string uncPath = R"(\\localhost\)" + path.substr(0, 1) + R"($\)";
+            if (pathView.size() > 3)
+            {
+                uncPath += pathView.substr(3);
+            }
+            variants.push_back(uncPath);
+        }
+        else
+        {
+            variants.push_back(kernelPath); // duplicate
+        }
+    }
+#endif
+
+    return variants;
+}
+
+void testCanWriteAllPathVariants(const std::string& path, bool expectedResult)
+{
+    using megacmd::canWrite;
+    auto variants = pathVariants(path);
+
+#ifdef _WIN32
+    ASSERT_EQ(variants.size(), 3);
+#else
+    ASSERT_EQ(variants.size(), 1);
+#endif
+
+    for (const auto& variant : variants)
+    {
+        EXPECT_EQ(canWrite(variant), expectedResult) << "Path: " << variant;
+    }
+}
 
 TEST(UtilsTest, nonAsciiConsolePrint)
 {
@@ -117,3 +206,312 @@ TEST(StringUtilsTest, generateRandomAlphaNumericString)
         }
     }
 }
+
+TEST(UtilsTest, getNumberOfCols)
+{
+    using megacmd::getNumberOfCols;
+
+    G_SUBTEST << "Base case";
+    {
+        auto cols = getNumberOfCols();
+        EXPECT_GT(cols, 0u);
+    }
+
+    G_SUBTEST << "With default value";
+    {
+        auto cols = getNumberOfCols(80);
+        EXPECT_GT(cols, 0u);
+    }
+
+    G_SUBTEST << "Multiple calls return consistent results";
+    {
+        auto cols1 = getNumberOfCols(80);
+        auto cols2 = getNumberOfCols(80);
+        EXPECT_EQ(cols1, cols2);
+    }
+
+    G_SUBTEST << "Result is reasonable size";
+    {
+        unsigned int cols = getNumberOfCols();
+        EXPECT_LE(cols, 10000u);
+    }
+}
+
+TEST(UtilsTest, canWrite)
+{
+    using megacmd::canWrite;
+
+    G_SUBTEST << "Writable directory";
+    {
+        SelfDeletingTmpFolder tmpFolder;
+        testCanWriteAllPathVariants(tmpFolder.string(), true);
+    }
+
+    G_SUBTEST << "Non-existent path";
+    {
+#ifdef _WIN32
+        testCanWriteAllPathVariants(R"(C:\non\existent\path\12345)", false);
+#else
+        testCanWriteAllPathVariants("/non/existent/path/12345", false);
+#endif
+    }
+
+    G_SUBTEST << "Empty string";
+    {
+        testCanWriteAllPathVariants("", false);
+    }
+
+    G_SUBTEST << "File path";
+    {
+        SelfDeletingTmpFolder tmpFolder;
+        fs::path filePath = tmpFolder.path() / "test.txt";
+        std::ofstream file(filePath);
+        file << "test";
+        file.close();
+#ifdef _WIN32
+        std::string pathStr = filePath.string();
+#else
+        std::string pathStr = filePath.string();
+#endif
+        testCanWriteAllPathVariants(pathStr, true);
+    }
+
+    G_SUBTEST << "Path with trailing slash";
+    {
+        SelfDeletingTmpFolder tmpFolder;
+#ifdef _WIN32
+        std::string pathWithSlash = tmpFolder.string() + R"(\)";
+#else
+        std::string pathWithSlash = tmpFolder.string() + "/";
+#endif
+        testCanWriteAllPathVariants(pathWithSlash, true);
+    }
+
+    G_SUBTEST << "Path with only spaces";
+    {
+#ifdef _WIN32
+        testCanWriteAllPathVariants("   ", true); // Edge case on Windows, see canWrite() implementation
+#else
+        testCanWriteAllPathVariants("   ", false);
+#endif
+    }
+
+    G_SUBTEST << "Very long path";
+    {
+        SelfDeletingTmpFolder tmpFolder;
+        std::string longPath = tmpFolder.string();
+#ifdef _WIN32
+        longPath += R"(\)" + std::string(200, 'a');
+#else
+        longPath += "/" + std::string(200, 'a');
+#endif
+        EXPECT_TRUE(fs::create_directories(longPath));
+        testCanWriteAllPathVariants(longPath, true);
+    }
+
+    G_SUBTEST << "Very long path exceeding 255 characters and MAX_PATH";
+    {
+        SelfDeletingTmpFolder tmpFolder;
+        std::string longPath = tmpFolder.string();
+#ifdef _WIN32
+        longPath += R"(\)" + std::string(300, 'a');
+#else
+        longPath += "/" + std::string(300, 'a');
+#endif
+        EXPECT_THROW(fs::create_directories(longPath), std::filesystem::filesystem_error);
+        testCanWriteAllPathVariants(longPath, false);
+    }
+
+    G_SUBTEST << "Path with special characters";
+    {
+        SelfDeletingTmpFolder tmpFolder;
+        fs::path specialPath = tmpFolder.path() / "test@#$%^&()_+-=[]{};',.";
+        EXPECT_TRUE(fs::create_directory(specialPath));
+        testCanWriteAllPathVariants(specialPath.string(), true);
+    }
+
+    G_SUBTEST << "Read-only directory";
+    {
+        SelfDeletingTmpFolder tmpFolder;
+        fs::path readOnlyDir = tmpFolder.path() / "readonly";
+        EXPECT_TRUE(fs::create_directory(readOnlyDir));
+#ifdef _WIN32
+        std::wstring wpath = readOnlyDir.wstring();
+        DWORD oldAttrs = GetFileAttributesW(wpath.c_str());
+        SetFileAttributesW(wpath.c_str(), FILE_ATTRIBUTE_READONLY);
+        testCanWriteAllPathVariants(readOnlyDir.string(), false);
+        SetFileAttributesW(wpath.c_str(), oldAttrs);
+#else
+        chmod(readOnlyDir.c_str(), 0555);
+        testCanWriteAllPathVariants(readOnlyDir.string(), false);
+        chmod(readOnlyDir.c_str(), 0755);
+#endif
+    }
+
+    G_SUBTEST << "Read-only file";
+    {
+        SelfDeletingTmpFolder tmpFolder;
+        fs::path readOnlyFile = tmpFolder.path() / "readonly.txt";
+        std::ofstream file(readOnlyFile);
+        file << "test";
+        file.close();
+#ifdef _WIN32
+        std::wstring wpath = readOnlyFile.wstring();
+        DWORD oldAttrs = GetFileAttributesW(wpath.c_str());
+        SetFileAttributesW(wpath.c_str(), FILE_ATTRIBUTE_READONLY);
+        testCanWriteAllPathVariants(readOnlyFile.string(), false);
+        SetFileAttributesW(wpath.c_str(), oldAttrs);
+#else
+        chmod(readOnlyFile.c_str(), 0444);
+        testCanWriteAllPathVariants(readOnlyFile.string(), false);
+        chmod(readOnlyFile.c_str(), 0644);
+#endif
+    }
+
+    G_SUBTEST << "Symlink to writable directory";
+    {
+        SelfDeletingTmpFolder tmpFolder;
+        fs::path targetDir = tmpFolder.path() / "target";
+        EXPECT_TRUE(fs::create_directory(targetDir));
+        fs::path symlinkPath = tmpFolder.path() / "symlink";
+        fs::create_symlink(targetDir, symlinkPath);
+        testCanWriteAllPathVariants(symlinkPath.string(), true);
+    }
+
+    G_SUBTEST << "Symlink to read-only directory";
+    {
+        SelfDeletingTmpFolder tmpFolder;
+        fs::path targetDir = tmpFolder.path() / "target";
+        EXPECT_TRUE(fs::create_directory(targetDir));
+#ifndef _WIN32
+        chmod(targetDir.c_str(), 0555);
+        fs::path symlinkPath = tmpFolder.path() / "symlink";
+        fs::create_symlink(targetDir, symlinkPath);
+        testCanWriteAllPathVariants(symlinkPath.string(), false);
+        chmod(targetDir.c_str(), 0755);
+#endif
+    }
+
+    G_SUBTEST << "Nested directory structure";
+    {
+        SelfDeletingTmpFolder tmpFolder;
+        fs::path nestedPath = tmpFolder.path() / "level1" / "level2" / "level3";
+        EXPECT_TRUE(fs::create_directories(nestedPath));
+        testCanWriteAllPathVariants(nestedPath.string(), true);
+    }
+
+    G_SUBTEST << "Directory with UTF-8 characters";
+    {
+        SelfDeletingTmpFolder tmpFolder;
+        std::string utf8DirName = u8"\u041f\u0440\u0438\u0432\u0456\u0442"; // Ukrainian
+        fs::path utf8Path = tmpFolder.path() / utf8DirName;
+        EXPECT_TRUE(fs::create_directory(utf8Path));
+#ifdef _WIN32
+        std::string utf8PathStr = megacmd::pathAsUtf8(utf8Path);
+#else
+        std::string utf8PathStr = utf8Path.string();
+#endif
+        testCanWriteAllPathVariants(utf8PathStr, true);
+    }
+
+    G_SUBTEST << "Nested directory with UTF-8 characters";
+    {
+        SelfDeletingTmpFolder tmpFolder;
+        std::string utf8DirName = u8"\u4e2d\u6587"; // Chinese
+        fs::path utf8Path = tmpFolder.path() / utf8DirName / "subdir";
+        EXPECT_TRUE(fs::create_directories(utf8Path));
+#ifdef _WIN32
+        std::string utf8PathStr = megacmd::pathAsUtf8(utf8Path);
+#else
+        std::string utf8PathStr = utf8Path.string();
+#endif
+        testCanWriteAllPathVariants(utf8PathStr, true);
+    }
+}
+
+#ifdef _WIN32
+TEST(UtilsTest, canWriteWithBypassEnvVar)
+{
+    using megacmd::canWrite;
+
+    G_SUBTEST << "MEGACMD_BYPASS_CAN_WRITE=1 makes canWrite always return true";
+    {
+        TestInstrumentsEnvVarGuard bypassGuard("MEGACMD_BYPASS_CAN_WRITE", "1");
+
+        G_SUBSUBTEST << "Non-existent path should return true";
+        {
+            EXPECT_TRUE(canWrite(R"(C:\non\existent\path\12345)"));
+        }
+
+        G_SUBSUBTEST << "Empty string should return true";
+        {
+            EXPECT_TRUE(canWrite(""));
+        }
+
+        G_SUBSUBTEST << "Read-only directory should return true";
+        {
+            SelfDeletingTmpFolder tmpFolder;
+            fs::path readOnlyDir = tmpFolder.path() / "readonly";
+            EXPECT_TRUE(fs::create_directory(readOnlyDir));
+            std::wstring wpath = readOnlyDir.wstring();
+            SetFileAttributesW(wpath.c_str(), FILE_ATTRIBUTE_READONLY);
+            EXPECT_TRUE(canWrite(readOnlyDir.string()));
+        }
+
+        G_SUBSUBTEST << "Read-only file should return true";
+        {
+            SelfDeletingTmpFolder tmpFolder;
+            fs::path readOnlyFile = tmpFolder.path() / "readonly.txt";
+            std::ofstream file(readOnlyFile);
+            file << "test";
+            file.close();
+            std::wstring wpath = readOnlyFile.wstring();
+            SetFileAttributesW(wpath.c_str(), FILE_ATTRIBUTE_READONLY);
+            EXPECT_TRUE(canWrite(readOnlyFile.string()));
+        }
+
+        G_SUBSUBTEST << "Writable directory should return true";
+        {
+            SelfDeletingTmpFolder tmpFolder;
+            EXPECT_TRUE(canWrite(tmpFolder.string()));
+        }
+    }
+
+    G_SUBTEST << "MEGACMD_BYPASS_CAN_WRITE not set or not equal to 1 should work normally";
+    {
+        TestInstrumentsUnsetEnvVarGuard unsetGuard("MEGACMD_BYPASS_CAN_WRITE");
+
+        G_SUBSUBTEST << "Non-existent path should return false";
+        {
+            EXPECT_FALSE(canWrite(R"(C:\non\existent\path\12345)"));
+        }
+
+        G_SUBSUBTEST << "Empty string should return false";
+        {
+            EXPECT_FALSE(canWrite(""));
+        }
+
+        G_SUBSUBTEST << "Writable directory should return true";
+        {
+            SelfDeletingTmpFolder tmpFolder;
+            EXPECT_TRUE(canWrite(tmpFolder.string()));
+        }
+    }
+
+    G_SUBTEST << "MEGACMD_BYPASS_CAN_WRITE set to value other than 1 should work normally";
+    {
+        TestInstrumentsEnvVarGuard bypassGuard("MEGACMD_BYPASS_CAN_WRITE", "0");
+
+        G_SUBSUBTEST << "Non-existent path should return false";
+        {
+            EXPECT_FALSE(canWrite(R"(C:\non\existent\path\12345)"));
+        }
+
+        G_SUBSUBTEST << "Writable directory should return true";
+        {
+            SelfDeletingTmpFolder tmpFolder;
+            EXPECT_TRUE(canWrite(tmpFolder.string()));
+        }
+    }
+}
+#endif
