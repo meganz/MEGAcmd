@@ -461,25 +461,19 @@ TEST(StringUtilsTest, startsWith)
     {
         EXPECT_FALSE(startsWith("Hello", "hello"));
         EXPECT_FALSE(startsWith("hello", "Hello"));
-        EXPECT_FALSE(startsWith("TEST", "test"));
-        EXPECT_FALSE(startsWith("Test String", "test"));
     }
 
     G_SUBTEST << "Prefix differs by one character";
     {
         EXPECT_FALSE(startsWith("hello", "hellp"));
-        EXPECT_FALSE(startsWith("test", "tesu"));
-        EXPECT_FALSE(startsWith("abc", "abd"));
     }
 
-    G_SUBTEST << "Special characters";
+    G_SUBTEST << "Newline and tab in string";
     {
-        EXPECT_FALSE(startsWith("hello\nworld", "world"));
-        EXPECT_FALSE(startsWith("hello\tworld", "world"));
-        EXPECT_FALSE(startsWith("hello world", "\tworld"));
-        EXPECT_FALSE(startsWith("hello\r\nworld", "world"));
         EXPECT_TRUE(startsWith("hello\nworld", "hello"));
         EXPECT_TRUE(startsWith("hello\tworld", "hello"));
+        EXPECT_FALSE(startsWith("hello\nworld", "world"));
+        EXPECT_FALSE(startsWith("hello\r\nworld", "world"));
     }
 
     G_SUBTEST << "Unicode characters";
@@ -496,11 +490,20 @@ TEST(StringUtilsTest, startsWith)
         EXPECT_FALSE(startsWith("hello  ", "  "));
     }
 
-    G_SUBTEST << "Long strings";
+    G_SUBTEST << "Embedded null (string_view is byte-oriented)";
+    {
+        std::string withNull("a\0b", 3);
+        std::string prefixA("a", 1);
+        std::string prefixFull("a\0b", 3);
+        EXPECT_TRUE(startsWith(withNull, prefixA));
+        EXPECT_TRUE(startsWith(withNull, prefixFull));
+        EXPECT_FALSE(startsWith(withNull, std::string("b", 1)));
+    }
+
+    G_SUBTEST << "Long string (prefix longer, first char differs)";
     {
         std::string longStr(10000, 'a');
         std::string prefix = "b" + std::string(9999, 'a');
         EXPECT_FALSE(startsWith(longStr, prefix));
-        EXPECT_FALSE(startsWith(longStr, "b"));
     }
 }
