@@ -32,6 +32,9 @@ on:
           - rtd1296
           - rtd1619b
           - v1000
+  push:
+    tags:
+      - 'v*'
 
 jobs:
   build:
@@ -39,6 +42,19 @@ jobs:
     permissions:
       contents: write
     steps:
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          # this might remove tools that are actually needed,
+          # if set to "true" but usually it's fine for C++ builds
+          tool-cache: true
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: true
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -50,7 +66,7 @@ jobs:
 
       - name: Build Synology Package
         env:
-          PLATFORM: ${{ github.event.inputs.platform }}
+          PLATFORM: ${{ github.event.inputs.platform || 'geminilake' }}
           DOCKER_CUSTOM_BUILDER: ${{ steps.buildx.outputs.name }}
         run: |
           chmod +x build/SynologyNAS/generate_pkg.sh
@@ -59,13 +75,13 @@ jobs:
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: megacmd-synology-${{ github.event.inputs.platform }}
-          path: build/SynologyNAS/packages/${{ github.event.inputs.platform }}/*.spk
+          name: megacmd-synology-${{ github.event.inputs.platform || 'geminilake' }}
+          path: build/SynologyNAS/packages/${{ github.event.inputs.platform || 'geminilake' }}/*.spk
 
       - name: Upload to Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: build/SynologyNAS/packages/${{ github.event.inputs.platform }}/*.spk
+          files: build/SynologyNAS/packages/${{ github.event.inputs.platform || 'geminilake' }}/*.spk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

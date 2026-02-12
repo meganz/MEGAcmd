@@ -82,6 +82,7 @@ RUN --mount=type=cache,target=/tmp/ccache \
         -DCMAKE_VERBOSE_MAKEFILE=ON \
         -DWITH_FUSE=OFF \
         -DVCPKG_CHAINLOAD_TOOLCHAIN_FILE=/mega/${PLATFORM}.toolchain.cmake \
+        -DX_VCPKG_POST_INSTALL_CLEAN_BUILDTREES=ON \
         -DVCPKG_OVERLAY_TRIPLETS=/mega \
         -DVCPKG_ROOT=/mega/vcpkg \
         -DVCPKG_TARGET_TRIPLET=${PLATFORM} && \
