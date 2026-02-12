@@ -9,12 +9,16 @@ RUN apt-get --quiet=2 update && DEBCONF_NOWARNINGS=yes apt-get --quiet=2 install
     aria2 \
     autoconf \
     autoconf-archive \
+    automake \
     build-essential \
     ccache \
     cmake \
     curl \
     fakeroot \
+    g++ \
     git \
+    libtool \
+    make \
     nasm \
     pkg-config \
     python3 \
