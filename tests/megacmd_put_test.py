@@ -247,7 +247,6 @@ class MEGAcmdPutTests(unittest.TestCase):
         copyfolder('localtmp/le01','localUPs/01/s01')
         self.compare_and_clear()
 
-
     def test_spaces(self):
         #Test 16 #spaced stuff
         if CMDSHELL: #TODO: think about this again
@@ -255,6 +254,19 @@ class MEGAcmdPutTests(unittest.TestCase):
         else:
             cmd_ef(PUT+' '+'"localtmp/ls 01"')
         copyfolder('localtmp/ls 01','localUPs')
+        self.compare_and_clear()
+
+    def test_put_create_flag_absolute_dest_path(self):
+        """put -c with absolute destination path when cwd is in subfolder.
+        Regression: cd / -> mkdir /put_test -> cd /put_test -> put -c file /put_test/newfile/
+        Path must resolve from root, not from cwd."""
+        # Test 17 #put -c with absolute path
+        cmd_ef(MKDIR+' /put_abs_dest')
+        cmd_ef(CD+' /put_abs_dest')
+        cmd_ef(PUT+' -c '+'localtmp/file01.txt /put_abs_dest/newfile/')
+        cmd_ef(CD+' /')
+        makedir('localUPs/put_abs_dest/newfile')
+        shutil.copy2('localtmp/file01.txt', 'localUPs/put_abs_dest/newfile/')
         self.compare_and_clear()
 
 if __name__ == '__main__':
