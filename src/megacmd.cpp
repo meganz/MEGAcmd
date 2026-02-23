@@ -1736,7 +1736,7 @@ const char * getUsageStr(const char *command, const HelpFlags& flags)
     }
     if (!strcmp(command, "attr"))
     {
-        return "attr remotepath [--force-non-officialficial] [-s attribute value|-d attribute [--print-only-value]";
+        return "attr remotepath [--force-non-official] [-s attribute value|-d attribute [--print-only-value]";
     }
     if (!strcmp(command, "userattr"))
     {
