@@ -9192,6 +9192,11 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 }
                 delete megaCmdListener;
             }
+            else
+            {
+                setCurrentThreadOutCode(MCMD_NOTFOUND);
+                LOG_err << nodepath << ": No such file or directory";
+            }
         }
         else
         {
@@ -9232,6 +9237,11 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     OUTSTREAM << "Preview for " << nodepath << ( setting ? " loaded from " : " saved in " ) << megaCmdListener->getRequest()->getFile() << endl;
                 }
                 delete megaCmdListener;
+            }
+            else
+            {
+                setCurrentThreadOutCode(MCMD_NOTFOUND);
+                LOG_err << nodepath << ": No such file or directory";
             }
         }
         else
