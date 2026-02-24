@@ -16,6 +16,7 @@
 #ifndef _WIN32
 
 #include <atomic>
+#include <chrono>
 #include <csignal>
 #include <cstring>
 #include <future>
@@ -35,6 +36,7 @@
 #include "megacmdcommonutils.h"
 
 using namespace megacmd;
+using namespace std::chrono_literals;
 
 class TestSocketClient
 {
@@ -110,9 +112,9 @@ public:
     TestSocketClient& operator=(const TestSocketClient&) = delete;
 };
 
-std::unique_ptr<CmdPetition> getPetitionAfterSend(ComunicationsManagerFileSockets &manager,
-                                                    TestSocketClient &client,
-                                                    const std::string &data)
+std::unique_ptr<CmdPetition> sendPetition(ComunicationsManagerFileSockets &manager,
+                                            TestSocketClient &client,
+                                            const std::string &data)
 {
     std::promise<void> waitStarted;
     auto waitStartedFuture = waitStarted.get_future();
@@ -140,7 +142,7 @@ std::unique_ptr<CmdPetition> getPetitionAfterSend(ComunicationsManagerFileSocket
             waitThread.join();
             return petition;
         }
-        usleep(10000);
+        std::this_thread::sleep_for(10ms);
     }
 
     waitThread.join();
@@ -183,17 +185,14 @@ protected:
 class ComunicationsManagerFileSocketsWithClientTest : public ComunicationsManagerFileSocketsTest
 {
 protected:
-    ComunicationsManagerFileSockets manager;
-    std::unique_ptr<TestSocketClient> client;
+    ComunicationsManagerFileSockets mManager;
+    std::unique_ptr<TestSocketClient> mClient;
 
     void SetUp() override
     {
         ComunicationsManagerFileSocketsTest::SetUp();
-        int result = manager.initialize();
-        ASSERT_EQ(result, 0);
-
-        client = std::make_unique<TestSocketClient>();
-        ASSERT_TRUE(client->isConnected());
+        mClient = std::make_unique<TestSocketClient>();
+        ASSERT_TRUE(mClient->isConnected());
     }
 };
 
@@ -206,18 +205,18 @@ TEST_F(ComunicationsManagerFileSocketsTest, InitializeSuccess)
 
 TEST_F(ComunicationsManagerFileSocketsTest, InitializeWithLongSocketPath)
 {
-    std::string longName(200, 'a');
+    std::string longName(300, 'a');
     auto guard = TestInstrumentsEnvVarGuard("MEGACMD_SOCKET_NAME", longName);
 
     ComunicationsManagerFileSockets manager;
     int result = manager.initialize();
-    EXPECT_TRUE(result == 0 || result == -1);
+    EXPECT_EQ(result, -1);
 }
 
 TEST_F(ComunicationsManagerFileSocketsWithClientTest, GetPetitionReadsData)
 {
     std::string testData = "test command";
-    auto petition = getPetitionAfterSend(manager, *client, testData);
+    auto petition = sendPetition(mManager, *mClient, testData);
 
     ASSERT_NE(petition, nullptr);
     EXPECT_EQ(petition->getLine(), testData);
@@ -226,7 +225,7 @@ TEST_F(ComunicationsManagerFileSocketsWithClientTest, GetPetitionReadsData)
 TEST_F(ComunicationsManagerFileSocketsWithClientTest, GetPetitionReadsLargeData)
 {
     std::string largeData(2048, 'A');
-    auto petition = getPetitionAfterSend(manager, *client, largeData);
+    auto petition = sendPetition(mManager, *mClient, largeData);
 
     ASSERT_NE(petition, nullptr);
     EXPECT_EQ(petition->getLine(), largeData);
@@ -234,43 +233,62 @@ TEST_F(ComunicationsManagerFileSocketsWithClientTest, GetPetitionReadsLargeData)
 
 TEST_F(ComunicationsManagerFileSocketsWithClientTest, ReturnAndClosePetitionSendsData)
 {
-    auto petition = getPetitionAfterSend(manager, *client, "test");
+    auto petition = sendPetition(mManager, *mClient, "test");
     ASSERT_NE(petition, nullptr);
 
     OUTSTRINGSTREAM response;
     response << "response data";
-    manager.returnAndClosePetition(std::move(petition), &response, 0);
+    mManager.returnAndClosePetition(std::move(petition), &response, 0);
 
-    int outCode;
-    ssize_t n = client->receive(&outCode, sizeof(outCode));
+    int outCode = MCMD_OK;
+    ssize_t n = mClient->receive(&outCode, sizeof(outCode));
     ASSERT_GT(n, 0);
     EXPECT_EQ(outCode, 0);
 
     char buffer[1024];
-    n = client->receive(buffer, sizeof(buffer) - 1);
+    n = mClient->receive(buffer, sizeof(buffer) - 1);
     ASSERT_GT(n, 0);
     buffer[n] = '\0';
     EXPECT_STREQ(buffer, "response data");
 }
 
+TEST_F(ComunicationsManagerFileSocketsWithClientTest, ReturnAndClosePetitionWithEmptyResponse)
+{
+    auto petition = sendPetition(mManager, *mClient, "test");
+    ASSERT_NE(petition, nullptr);
+
+    OUTSTRINGSTREAM response;
+    response << "";
+    mManager.returnAndClosePetition(std::move(petition), &response, 42);
+
+    int outCode = MCMD_OK;
+    ssize_t n = mClient->receive(&outCode, sizeof(outCode));
+    ASSERT_GT(n, 0);
+    EXPECT_EQ(outCode, 42);
+
+    char buffer[64];
+    n = mClient->receive(buffer, sizeof(buffer), MSG_DONTWAIT);
+    EXPECT_LE(n, 0);
+}
+
 TEST_F(ComunicationsManagerFileSocketsWithClientTest, SendPartialOutput)
 {
-    auto petition = getPetitionAfterSend(manager, *client, "test");
+    auto petition = sendPetition(mManager, *mClient, "test");
     ASSERT_NE(petition, nullptr);
 
     std::string partialData = "partial output";
-    manager.sendPartialOutput(petition.get(), partialData.data(), partialData.size(), false);
+    mManager.sendPartialOutput(petition.get(), partialData.data(), partialData.size(), false);
 
-    int outCode;
-    client->receive(&outCode, sizeof(outCode));
+    int outCode = MCMD_OK;
+    mClient->receive(&outCode, sizeof(outCode));
     EXPECT_EQ(outCode, MCMD_PARTIALOUT);
 
-    size_t size;
-    client->receive(&size, sizeof(size));
+    size_t size = 0;
+    mClient->receive(&size, sizeof(size));
     EXPECT_EQ(size, partialData.size());
 
     char buffer[1024];
-    ssize_t n = client->receive(buffer, size);
+    ssize_t n = mClient->receive(buffer, size);
     ASSERT_GT(n, 0);
     buffer[size] = '\0';
     EXPECT_STREQ(buffer, partialData.c_str());
@@ -278,30 +296,30 @@ TEST_F(ComunicationsManagerFileSocketsWithClientTest, SendPartialOutput)
 
 TEST_F(ComunicationsManagerFileSocketsWithClientTest, SendPartialError)
 {
-    auto petition = getPetitionAfterSend(manager, *client, "test");
+    auto petition = sendPetition(mManager, *mClient, "test");
     ASSERT_NE(petition, nullptr);
 
     std::string errorData = "error message";
-    manager.sendPartialError(petition.get(), errorData.data(), errorData.size(), false);
+    mManager.sendPartialError(petition.get(), errorData.data(), errorData.size(), false);
 
-    int outCode;
-    client->receive(&outCode, sizeof(outCode));
+    int outCode = MCMD_OK;
+    mClient->receive(&outCode, sizeof(outCode));
     EXPECT_EQ(outCode, MCMD_PARTIALERR);
 }
 
 TEST_F(ComunicationsManagerFileSocketsWithClientTest, SendPartialOutputHandlesEPIPE)
 {
-    auto petition = getPetitionAfterSend(manager, *client, "test");
+    auto petition = sendPetition(mManager, *mClient, "test");
     ASSERT_NE(petition, nullptr);
 
-    client->close();
+    mClient->close();
 
 #ifdef __MACH__
     auto oldSa = ignoreSigpipeAndGetOldHandler();
 #endif
 
     std::string data = "test data";
-    manager.sendPartialOutput(petition.get(), data.data(), data.size(), false);
+    mManager.sendPartialOutput(petition.get(), data.data(), data.size(), false);
 
     EXPECT_TRUE(petition->clientDisconnected);
 
@@ -312,19 +330,24 @@ TEST_F(ComunicationsManagerFileSocketsWithClientTest, SendPartialOutputHandlesEP
 
 TEST_F(ComunicationsManagerFileSocketsWithClientTest, SendPartialOutputValidatesUTF8)
 {
-    auto petition = getPetitionAfterSend(manager, *client, "test");
+    auto petition = sendPetition(mManager, *mClient, "test");
     ASSERT_NE(petition, nullptr);
 
     char invalidUtf8[] = "\xC0\x80";
-    manager.sendPartialOutput(petition.get(), invalidUtf8, 2, false);
+    mManager.sendPartialOutput(petition.get(), invalidUtf8, 2, false);
+
+    // Invalid UTF-8 must not be sent.
+    char buffer[64];
+    ssize_t n = mClient->receive(buffer, sizeof(buffer), MSG_DONTWAIT);
+    EXPECT_LE(n, 0);
 }
 
 TEST_F(ComunicationsManagerFileSocketsWithClientTest, RegisterStateListener)
 {
-    auto petition = getPetitionAfterSend(manager, *client, "test");
+    auto petition = sendPetition(mManager, *mClient, "test");
     ASSERT_NE(petition, nullptr);
 
-    auto listener = manager.registerStateListener(std::move(petition));
+    auto listener = mManager.registerStateListener(std::move(petition));
     EXPECT_NE(listener, nullptr);
 }
 
@@ -338,19 +361,19 @@ TEST_F(ComunicationsManagerFileSocketsTest, GetMaxStateListeners)
 
 TEST_F(ComunicationsManagerFileSocketsWithClientTest, InformStateListener)
 {
-    auto petition = getPetitionAfterSend(manager, *client, "test");
+    auto petition = sendPetition(mManager, *mClient, "test");
     ASSERT_NE(petition, nullptr);
 
-    auto listener = manager.registerStateListener(std::move(petition));
+    auto listener = mManager.registerStateListener(std::move(petition));
     ASSERT_NE(listener, nullptr);
 
     std::string message = "state update";
-    int result = manager.informStateListener(listener, message);
+    int result = mManager.informStateListener(listener, message);
 
     EXPECT_EQ(result, 0);
 
     char buffer[1024];
-    ssize_t n = client->receive(buffer, sizeof(buffer) - 1, MSG_DONTWAIT);
+    ssize_t n = mClient->receive(buffer, sizeof(buffer) - 1, MSG_DONTWAIT);
     EXPECT_GT(n, 0);
     buffer[n] = '\0';
     EXPECT_STREQ(buffer, message.c_str());
@@ -358,19 +381,19 @@ TEST_F(ComunicationsManagerFileSocketsWithClientTest, InformStateListener)
 
 TEST_F(ComunicationsManagerFileSocketsWithClientTest, InformStateListenerHandlesEPIPE)
 {
-    auto petition = getPetitionAfterSend(manager, *client, "test");
+    auto petition = sendPetition(mManager, *mClient, "test");
     ASSERT_NE(petition, nullptr);
 
-    auto listener = manager.registerStateListener(std::move(petition));
+    auto listener = mManager.registerStateListener(std::move(petition));
 
-    client->close();
+    mClient->close();
 
 #ifdef __MACH__
     auto oldSa = ignoreSigpipeAndGetOldHandler();
 #endif
 
     std::string message = "state update";
-    int result = manager.informStateListener(listener, message);
+    int result = mManager.informStateListener(listener, message);
 
     EXPECT_EQ(result, -1);
 
@@ -381,34 +404,35 @@ TEST_F(ComunicationsManagerFileSocketsWithClientTest, InformStateListenerHandles
 
 TEST_F(ComunicationsManagerFileSocketsWithClientTest, InformStateListenerValidatesUTF8)
 {
-    auto petition = getPetitionAfterSend(manager, *client, "test");
+    auto petition = sendPetition(mManager, *mClient, "test");
     ASSERT_NE(petition, nullptr);
 
-    auto listener = manager.registerStateListener(std::move(petition));
+    auto listener = mManager.registerStateListener(std::move(petition));
 
     std::string invalidUtf8 = "\xC0\x80";
-    int result = manager.informStateListener(listener, invalidUtf8);
+    int result = mManager.informStateListener(listener, invalidUtf8);
+    EXPECT_EQ(result, 0);
 }
 
 TEST_F(ComunicationsManagerFileSocketsWithClientTest, GetConfirmation)
 {
-    auto petition = getPetitionAfterSend(manager, *client, "test");
+    auto petition = sendPetition(mManager, *mClient, "test");
     ASSERT_NE(petition, nullptr);
 
     std::thread responseThread([this]() {
-        int outCode;
-        client->receive(&outCode, sizeof(outCode));
+        int outCode = MCMD_OK;
+        mClient->receive(&outCode, sizeof(outCode));
         EXPECT_EQ(outCode, MCMD_REQCONFIRM);
 
         char buffer[1024];
-        client->receive(buffer, sizeof(buffer) - 1);
+        mClient->receive(buffer, sizeof(buffer) - 1);
 
         int response = 1;
-        client->send(&response, sizeof(response));
+        mClient->send(&response, sizeof(response));
     });
 
     std::string message = "Confirm action?";
-    int result = manager.getConfirmation(petition.get(), message);
+    int result = mManager.getConfirmation(petition.get(), message);
 
     responseThread.join();
 
@@ -417,23 +441,23 @@ TEST_F(ComunicationsManagerFileSocketsWithClientTest, GetConfirmation)
 
 TEST_F(ComunicationsManagerFileSocketsWithClientTest, GetUserResponse)
 {
-    auto petition = getPetitionAfterSend(manager, *client, "test");
+    auto petition = sendPetition(mManager, *mClient, "test");
     ASSERT_NE(petition, nullptr);
 
     std::thread responseThread([this]() {
-        int outCode;
-        client->receive(&outCode, sizeof(outCode));
+        int outCode = MCMD_OK;
+        mClient->receive(&outCode, sizeof(outCode));
         EXPECT_EQ(outCode, MCMD_REQSTRING);
 
         char buffer[1024];
-        client->receive(buffer, sizeof(buffer) - 1);
+        mClient->receive(buffer, sizeof(buffer) - 1);
 
         std::string response = "user input";
-        client->send(response);
+        mClient->send(response);
     });
 
     std::string message = "Enter value:";
-    std::string result = manager.getUserResponse(petition.get(), message);
+    std::string result = mManager.getUserResponse(petition.get(), message);
 
     responseThread.join();
 
@@ -442,23 +466,23 @@ TEST_F(ComunicationsManagerFileSocketsWithClientTest, GetUserResponse)
 
 TEST_F(ComunicationsManagerFileSocketsWithClientTest, GetUserResponseLargeData)
 {
-    auto petition = getPetitionAfterSend(manager, *client, "test");
+    auto petition = sendPetition(mManager, *mClient, "test");
     ASSERT_NE(petition, nullptr);
 
     std::thread responseThread([this]() {
-        int outCode;
-        client->receive(&outCode, sizeof(outCode));
+        int outCode = MCMD_OK;
+        mClient->receive(&outCode, sizeof(outCode));
         EXPECT_EQ(outCode, MCMD_REQSTRING);
 
         char buffer[1024];
-        client->receive(buffer, sizeof(buffer) - 1);
+        mClient->receive(buffer, sizeof(buffer) - 1);
 
         std::string largeResponse(3000, 'A');
-        client->send(largeResponse);
+        mClient->send(largeResponse);
     });
 
     std::string message = "Enter value:";
-    std::string result = manager.getUserResponse(petition.get(), message);
+    std::string result = mManager.getUserResponse(petition.get(), message);
 
     responseThread.join();
 
@@ -468,45 +492,38 @@ TEST_F(ComunicationsManagerFileSocketsWithClientTest, GetUserResponseLargeData)
 TEST_F(ComunicationsManagerFileSocketsTest, StopWaiting)
 {
     ComunicationsManagerFileSockets manager;
-    manager.initialize();
     manager.stopWaiting();
 }
 
 TEST_F(ComunicationsManagerFileSocketsTest, StressMultipleConcurrentClients)
 {
     ComunicationsManagerFileSockets manager;
-    manager.initialize();
 
     constexpr int numClients = 20;
     std::vector<std::unique_ptr<TestSocketClient>> clients;
     std::vector<std::thread> threads;
-    std::atomic<int> successCount(0);
+    std::atomic<int> successCount{0};
 
     for (int i = 0; i < numClients; i++)
     {
         clients.push_back(std::make_unique<TestSocketClient>());
+        ASSERT_TRUE(clients.back()->isConnected());
     }
 
     std::thread waitThread([&manager]() {
         for (int i = 0; i < 20; i++)
         {
             manager.waitForPetition();
-            usleep(10000);
+            std::this_thread::sleep_for(10ms);
         }
     });
     waitThread.detach();
 
     for (int i = 0; i < numClients; i++)
     {
-        threads.emplace_back([&manager, &clients, i, &successCount]() {
-            auto& client = clients[i];
-            if (!client->isConnected())
-            {
-                return;
-            }
-
+        threads.emplace_back([&clients, i]() {
             std::string testData = "test command " + std::to_string(i);
-            client->send(testData);
+            clients[i]->send(testData);
         });
     }
 
@@ -516,7 +533,7 @@ TEST_F(ComunicationsManagerFileSocketsTest, StressMultipleConcurrentClients)
     }
 
     constexpr int maxAttempts = 50;
-    for (int i = 0; i < maxAttempts; i++)
+    for (int i = 0; i < maxAttempts && successCount < numClients; i++)
     {
         if (manager.receivedPetition())
         {
@@ -526,20 +543,15 @@ TEST_F(ComunicationsManagerFileSocketsTest, StressMultipleConcurrentClients)
                 successCount++;
             }
         }
-        if (successCount.load() >= numClients)
-        {
-            break;
-        }
-        usleep(10000);
+        std::this_thread::sleep_for(10ms);
     }
 
-    EXPECT_GT(successCount.load(), 0);
+    EXPECT_EQ(successCount.load(), numClients);
 }
 
 TEST_F(ComunicationsManagerFileSocketsTest, StressMaxStateListeners)
 {
     ComunicationsManagerFileSockets manager;
-    manager.initialize();
 
     int maxListeners = manager.getMaxStateListeners();
     EXPECT_GT(maxListeners, 0);
@@ -553,7 +565,7 @@ TEST_F(ComunicationsManagerFileSocketsTest, StressMaxStateListeners)
         for (int i = 0; i < testListeners; i++)
         {
             manager.waitForPetition();
-            usleep(5000);
+            std::this_thread::sleep_for(5ms);
         }
     });
     waitThread.detach();
@@ -561,44 +573,34 @@ TEST_F(ComunicationsManagerFileSocketsTest, StressMaxStateListeners)
     for (int i = 0; i < testListeners; i++)
     {
         clients.push_back(std::make_unique<TestSocketClient>());
-        if (clients.back()->isConnected())
-        {
-            clients.back()->send("test");
-        }
+        ASSERT_TRUE(clients.back()->isConnected());
+        clients.back()->send("test");
     }
 
     // Poll for petitions with timeout
     constexpr int maxAttempts = 50;
-    for (int attempt = 0; attempt < maxAttempts; attempt++)
+    for (int attempt = 0; attempt < maxAttempts && registeredCount < testListeners; attempt++)
     {
         if (manager.receivedPetition())
         {
-            auto petition = manager.getPetition();
-            if (petition != nullptr)
+            if (auto petition = manager.getPetition(); petition != nullptr)
             {
-                auto listener = manager.registerStateListener(std::move(petition));
-                if (listener != nullptr)
+                if (auto listener = manager.registerStateListener(std::move(petition)); listener != nullptr)
                 {
                     listeners.push_back(listener);
                     registeredCount++;
                 }
             }
         }
-        if (registeredCount >= testListeners)
-        {
-            break;
-        }
-        usleep(10000);
+        std::this_thread::sleep_for(10ms);
     }
 
-    EXPECT_LE(registeredCount, maxListeners);
-    EXPECT_GT(registeredCount, 0);
+    EXPECT_EQ(registeredCount, testListeners);
 }
 
 TEST_F(ComunicationsManagerFileSocketsTest, StressConcurrentPartialOutputs)
 {
     ComunicationsManagerFileSockets manager;
-    manager.initialize();
 
     constexpr int numClients = 20;
     std::vector<std::unique_ptr<TestSocketClient>> clients;
@@ -613,38 +615,32 @@ TEST_F(ComunicationsManagerFileSocketsTest, StressConcurrentPartialOutputs)
         for (int i = 0; i < numClients; i++)
         {
             manager.waitForPetition();
-            usleep(10000);
+            std::this_thread::sleep_for(10ms);
         }
     });
     waitThread.detach();
 
     for (int i = 0; i < numClients; i++)
     {
-        if (clients[i]->isConnected())
-        {
-            clients[i]->send("test");
-        }
+        ASSERT_TRUE(clients[i]->isConnected());
+        clients[i]->send("test");
     }
 
     // Poll for petitions with timeout
     constexpr int maxAttempts = 50;
-    for (int attempt = 0; attempt < maxAttempts; attempt++)
+    for (int attempt = 0; attempt < maxAttempts && petitions.size() < numClients; attempt++)
     {
         if (manager.receivedPetition())
         {
-          if (auto petition = manager.getPetition(); petition != nullptr)
-          {
-              petitions.push_back(std::move(petition));
-          }
+            if (auto petition = manager.getPetition(); petition != nullptr)
+            {
+                petitions.push_back(std::move(petition));
+            }
         }
-        if (static_cast<int>(petitions.size()) >= numClients)
-        {
-            break;
-        }
-        usleep(10000);
+        std::this_thread::sleep_for(10ms);
     }
 
-    EXPECT_GT(petitions.size(), 0);
+    EXPECT_EQ(petitions.size(), numClients);
 
     std::vector<std::thread> threads;
     std::atomic<int> successCount{0};
@@ -668,58 +664,52 @@ TEST_F(ComunicationsManagerFileSocketsTest, StressConcurrentPartialOutputs)
 
 TEST_F(ComunicationsManagerFileSocketsTest, StressRapidConnectDisconnect)
 {
-    ComunicationsManagerFileSockets manager;
-    manager.initialize();
+    constexpr int expectedPetitionCount = 30;
 
-    std::thread waitThread([&manager]() {
-        for (int i = 0; i < 30; i++)
+    ComunicationsManagerFileSockets manager;
+
+    std::thread waitThread([&manager, expectedPetitionCount]() {
+        for (int i = 0; i < expectedPetitionCount; i++)
         {
             manager.waitForPetition();
-            usleep(5000);
+            std::this_thread::sleep_for(5ms);
         }
     });
     waitThread.detach();
 
     // Small delay to ensure waitThread is running
-    usleep(10000);
+    std::this_thread::sleep_for(10ms);
 
-    for (int i = 0; i < 30; i++)
+    for (int i = 0; i < expectedPetitionCount; i++)
     {
         TestSocketClient client;
-        if (client.isConnected())
-        {
-            client.send("test " + std::to_string(i));
-            client.close();
-        }
-        usleep(2000);
+        ASSERT_TRUE(client.isConnected());
+        client.send("test " + std::to_string(i));
+        client.close();
+        std::this_thread::sleep_for(5ms);
     }
 
     // Poll for petitions with timeout
     int receivedCount = 0;
     constexpr int maxAttempts = 50;
-    for (int attempt = 0; attempt < maxAttempts; ++attempt)
+    for (int attempt = 0; attempt < maxAttempts && receivedCount < expectedPetitionCount; attempt++)
     {
         if (manager.receivedPetition())
         {
-          if (auto petition = manager.getPetition(); petition != nullptr)
-          {
-            receivedCount++;
-          }
+            if (auto petition = manager.getPetition(); petition != nullptr)
+            {
+                receivedCount++;
+            }
         }
-        if (receivedCount >= 30)
-        {
-            break;
-        }
-        usleep(10000);
+        std::this_thread::sleep_for(10ms);
     }
 
-    EXPECT_GT(receivedCount, 0);
+    EXPECT_EQ(receivedCount, expectedPetitionCount);
 }
 
 TEST_F(ComunicationsManagerFileSocketsTest, StressLargeDataMultipleClients)
 {
     ComunicationsManagerFileSockets manager;
-    manager.initialize();
 
     constexpr int numClients = 10;
     std::vector<std::unique_ptr<TestSocketClient>> clients;
@@ -733,29 +723,26 @@ TEST_F(ComunicationsManagerFileSocketsTest, StressLargeDataMultipleClients)
         for (int i = 0; i < numClients; i++)
         {
             manager.waitForPetition();
-            usleep(10000);
+            std::this_thread::sleep_for(10ms);
         }
     });
     waitThread.detach();
 
     for (int i = 0; i < numClients; i++)
     {
-        if (clients[i]->isConnected())
-        {
-            std::string largeData(5000, static_cast<char>('A' + i));
-            clients[i]->send(largeData);
-        }
+        ASSERT_TRUE(clients[i]->isConnected());
+        std::string largeData(5000, static_cast<char>('A' + i));
+        clients[i]->send(largeData);
     }
 
     // Poll for petitions with timeout (larger timeout for large data)
     int successCount = 0;
     constexpr int maxAttempts = 150;
-    for (int attempt = 0; attempt < maxAttempts; attempt++)
+    for (int attempt = 0; attempt < maxAttempts && successCount < numClients; attempt++)
     {
         if (manager.receivedPetition())
         {
-            auto petition = manager.getPetition();
-            if (petition != nullptr)
+            if (auto petition = manager.getPetition(); petition != nullptr)
             {
                 // Try to match with expected data
                 for (int i = 0; i < numClients; i++)
@@ -769,14 +756,10 @@ TEST_F(ComunicationsManagerFileSocketsTest, StressLargeDataMultipleClients)
                 }
             }
         }
-        if (successCount >= numClients)
-        {
-            break;
-        }
-        usleep(10000);
+        std::this_thread::sleep_for(10ms);
     }
 
-    EXPECT_GT(successCount, 0);
+    EXPECT_EQ(successCount, numClients);
 }
 
 #endif // _WIN32
