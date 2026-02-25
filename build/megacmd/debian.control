@@ -7,7 +7,7 @@ Build-Depends:  debhelper,
                 libtool,
                 dh-autoreconf,
                 cdbs,
-                libfuse-dev,
+                libfuse-dev | libfuse3-dev,
                 autoconf, autoconf-archive, nasm, cmake
 
 Package: megacmd

@@ -22,6 +22,7 @@
 #include "megacmdutils.h"
 #include <sys/ioctl.h>
 #include <sys/resource.h>
+#include <errno.h>
 
 #ifdef __MACH__
 #define MSG_NOSIGNAL 0
@@ -38,6 +39,7 @@ namespace megacmd {
 ComunicationsManagerFileSockets::ComunicationsManagerFileSockets()
 {
     count = 0;
+    mHasPetition = false;
     initialize();
 }
 
@@ -57,10 +59,12 @@ int ComunicationsManagerFileSockets::initialize()
     }
 
     sockfd = socket(AF_UNIX, SOCK_STREAM, 0);
+    int errno_saved = errno;
 
     if (sockfd < 0)
     {
         LOG_fatal << "ERROR opening socket";
+        return errno_saved;
     }
     if (fcntl(sockfd, F_SETFD, FD_CLOEXEC) == -1)
     {
@@ -96,6 +100,7 @@ int ComunicationsManagerFileSockets::initialize()
         {
             LOG_fatal << "ERROR on listen socket initializing communications manager: " << socketPath << ": " << strerror(errno);
             close(sockfd);
+            sockfd = -1;
             return errno;
         }
     }
@@ -104,25 +109,34 @@ int ComunicationsManagerFileSockets::initialize()
 
 bool ComunicationsManagerFileSockets::receivedPetition()
 {
-    return FD_ISSET(sockfd, &fds);
+    return mHasPetition;
 }
 
 int ComunicationsManagerFileSockets::waitForPetition()
 {
-    FD_ZERO(&fds);
-    if (sockfd)
+    if (sockfd < 0 || sockfd >= FD_SETSIZE)
     {
-        FD_SET(sockfd, &fds);
+        LOG_fatal << "Invalid socket descriptor: " << sockfd;
+        mHasPetition = false;
+        return EBADF;
     }
+
+    fd_set fds;
+    FD_ZERO(&fds);
+    FD_SET(sockfd, &fds);
     int rc = select(FD_SETSIZE, &fds, NULL, NULL, NULL);
     if (rc < 0)
     {
         if (errno != EINTR)  //syscall
         {
             LOG_fatal << "Error at select: " << errno;
+            mHasPetition = false;
             return errno;
         }
     }
+
+    mHasPetition.store(FD_ISSET(sockfd, &fds) != 0);
+
     return 0;
 }
 
