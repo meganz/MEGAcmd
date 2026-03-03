@@ -12,6 +12,8 @@ elif [[ $distro = "Raspbian GNU/Linux 12"* ]]; then
 elif [[ $distro = "Raspbian GNU/Linux 11"* ]]; then
     str="Raspbian_11"
 # Ubuntu
+elif [[ $ver = "26.04" ]]; then
+    str="xUbuntu_26.04"
 elif [[ $ver = "25.10" ]]; then
     str="xUbuntu_25.10"
 elif [[ $ver = "25.04" ]]; then
