@@ -1786,6 +1786,11 @@ void readloop()
                 // this is not 100% guaranteed to happen
                 sleepSeconds(0);
             }
+            else
+            {
+                // Empty line (user pressed Enter with no input): show new prompt like bash
+                requirepromptinstall = true;
+            }
             free(g_line);
             g_line = NULL;
         }
