@@ -7029,7 +7029,9 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 ? std::unique_ptr<MegaNode>(api->getRootNode())
                 : std::unique_ptr<MegaNode>(api->getNodeByHandle(cwd));
             if (makedir(destinationfolder, true, baseNode.get()) == MCMD_OK)
+            {
                 n = nodebypath(destinationfolder.c_str());
+            }
         }
 
         if (!n)
