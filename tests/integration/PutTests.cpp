@@ -258,10 +258,8 @@ TEST_F(PutTests, UploadWithCreateFlag)
 
 TEST_F(PutTests, UploadWithCreateFlagAndAbsoluteDestinationPath)
 {
-    // Regression: when cwd is in a subfolder (e.g. /put_test_xxx) and put -c uses an absolute
+    // When cwd is in a subfolder (e.g. /put_test_xxx) and put -c uses an absolute
     // destination path, the path must be resolved from root, not from cwd.
-    // Mirrors Python test_put_create_flag_absolute_dest_path:
-    // Steps: cd / -> mkdir /put_abs_dest -> cd /put_abs_dest -> put -c file01.txt /put_abs_dest/newfile/
     const std::string filename = "file01.txt";
 
     createLocalFile(filename);

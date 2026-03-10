@@ -257,9 +257,10 @@ class MEGAcmdPutTests(unittest.TestCase):
         self.compare_and_clear()
 
     def test_put_create_flag_absolute_dest_path(self):
-        """put -c with absolute destination path when cwd is in subfolder.
-        Regression: cd / -> mkdir /put_test -> cd /put_test -> put -c file /put_test/newfile/
-        Path must resolve from root, not from cwd."""
+        """
+        When cwd is in a subfolder (e.g. /put_test_xxx) and put -c uses an absolute
+        destination path, the path must be resolved from root, not from cwd.
+        """
         # Test 17 #put -c with absolute path
         cmd_ef(MKDIR+' /put_abs_dest')
         cmd_ef(CD+' /put_abs_dest')
