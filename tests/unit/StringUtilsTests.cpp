@@ -737,7 +737,7 @@ TEST(StringUtilsTest, removeTrailingSeparators)
         EXPECT_EQ(result, "/path/to/dir");
     }
 
-    G_SUBTEST << "Unix path with file in middle";
+    G_SUBTEST << "Unix path with file";
     {
         std::string path = "/path/to/dir/file.txt";
         std::string result = removeTrailingSeparators(path);
@@ -765,21 +765,21 @@ TEST(StringUtilsTest, removeTrailingSeparators)
         EXPECT_EQ(result, R"(C:\path\to\dir)");
     }
 
-    G_SUBTEST << "Windows root path C:\\";
+    G_SUBTEST << "Windows root path C:\\\\";
     {
         std::string path = R"(C:\\)";
         std::string result = removeTrailingSeparators(path);
         EXPECT_EQ(result, "C:");
     }
 
-    G_SUBTEST << "Windows root path C:";
+    G_SUBTEST << "Windows root path C:\\";
     {
         std::string path = R"(C:\)";
         std::string result = removeTrailingSeparators(path);
         EXPECT_EQ(result, "C:");
     }
 
-    G_SUBTEST << "Windows path with file in middle";
+    G_SUBTEST << "Windows path with file";
     {
         std::string path = R"(C:\path\to\dir\file.txt)";
         std::string result = removeTrailingSeparators(path);
@@ -793,21 +793,21 @@ TEST(StringUtilsTest, removeTrailingSeparators)
         EXPECT_EQ(result, R"(C:\path\file.txt)");
     }
 
-    G_SUBTEST << "Mixed trailing separators - forward then back";
+    G_SUBTEST << "Simple mixed trailing separators";
     {
-        std::string path = R"(/path/to/dir/\)";
-        std::string result = removeTrailingSeparators(path);
-        EXPECT_EQ(result, "/path/to/dir/");
+        {
+            std::string path = R"(/path/to/dir/\)";
+            std::string result = removeTrailingSeparators(path);
+            EXPECT_EQ(result, "/path/to/dir/");
+        }
+        {
+            std::string path = R"(C:\path\to\dir/\)";
+            std::string result = removeTrailingSeparators(path);
+            EXPECT_EQ(result, R"(C:\path\to\dir)");
+        }
     }
 
-    G_SUBTEST << "Mixed trailing separators - back then forward";
-    {
-        std::string path = R"(C:\path\to\dir\/)";
-        std::string result = removeTrailingSeparators(path);
-        EXPECT_EQ(result, R"(C:\path\to\dir)");
-    }
-
-    G_SUBTEST << "Complex mixed trailing separators - not fully removed";
+    G_SUBTEST << "Complex mixed trailing separators (not fully removed)";
     {
         std::string path = R"(/path/to/dir/\/\)";
         std::string result = removeTrailingSeparators(path);
