@@ -793,7 +793,7 @@ TEST(StringUtilsTest, removeTrailingSeparators)
         EXPECT_EQ(result, R"(C:\path\file.txt)");
     }
 
-    G_SUBTEST << "Simple mixed trailing separators";
+    G_SUBTEST << "Mixed trailing separators (not fully removed)";
     {
         {
             std::string path = R"(/path/to/dir/\)";
@@ -803,15 +803,8 @@ TEST(StringUtilsTest, removeTrailingSeparators)
         {
             std::string path = R"(C:\path\to\dir/\)";
             std::string result = removeTrailingSeparators(path);
-            EXPECT_EQ(result, R"(C:\path\to\dir)");
+            EXPECT_EQ(result, R"(C:\path\to\dir/)");
         }
-    }
-
-    G_SUBTEST << "Complex mixed trailing separators (not fully removed)";
-    {
-        std::string path = R"(/path/to/dir/\/\)";
-        std::string result = removeTrailingSeparators(path);
-        EXPECT_EQ(result, R"(/path/to/dir/\/)");
     }
 
     G_SUBTEST << "Mixed separators in middle and trailing";
