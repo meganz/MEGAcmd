@@ -1652,3 +1652,87 @@ TEST(StringUtilsTest, startsWith)
         EXPECT_FALSE(startsWith(longStr, prefix));
     }
 }
+
+TEST(StringUtilsTest, toLower)
+{
+    using megacmd::toLower;
+
+    G_SUBTEST << "Basic case";
+    {
+        EXPECT_EQ(toLower("HELLO"), "hello");
+        EXPECT_EQ(toLower("Hello"), "hello");
+        EXPECT_EQ(toLower("hElLo"), "hello");
+    }
+
+    G_SUBTEST << "Already lowercase";
+    {
+        EXPECT_EQ(toLower("hello"), "hello");
+        EXPECT_EQ(toLower("hello world"), "hello world");
+    }
+
+    G_SUBTEST << "Empty string";
+    {
+        EXPECT_EQ(toLower(""), "");
+    }
+
+    G_SUBTEST << "Special characters";
+    {
+        EXPECT_EQ(toLower("HELLO@WORLD"), "hello@world");
+        EXPECT_EQ(toLower("TEST#123$"), "test#123$");
+        EXPECT_EQ(toLower("A-B_C.D"), "a-b_c.d");
+        EXPECT_EQ(toLower("@#$%"), "@#$%");
+    }
+
+    G_SUBTEST << "Strings with spaces";
+    {
+        EXPECT_EQ(toLower("HELLo WORLD"), "hello world");
+        EXPECT_EQ(toLower("  TEST  "), "  test  ");
+        EXPECT_EQ(toLower("A B C"), "a b c");
+    }
+
+    G_SUBTEST << "Numbers only";
+    {
+        EXPECT_EQ(toLower("123456"), "123456");
+        EXPECT_EQ(toLower("0"), "0");
+    }
+
+    G_SUBTEST << "Newlines, tabs, and control characters";
+    {
+        EXPECT_EQ(toLower("HELLO\nWORLD"), "hello\nworld");
+        EXPECT_EQ(toLower("HELLO\tWORLD"), "hello\tworld");
+        EXPECT_EQ(toLower("HELLO\r\nWORLD"), "hello\r\nworld");
+        EXPECT_EQ(toLower("\n\t\r"), "\n\t\r");
+    }
+
+    G_SUBTEST << "Whitespace-only";
+    {
+        EXPECT_EQ(toLower(" "), " ");
+        EXPECT_EQ(toLower("   "), "   ");
+        EXPECT_EQ(toLower("\t\t"), "\t\t");
+        EXPECT_EQ(toLower(" \t \n "), " \t \n ");
+    }
+
+    G_SUBTEST << "Long strings";
+    {
+        std::string longStr(10000, 'A');
+        std::string result = toLower(longStr);
+        EXPECT_EQ(result.length(), 10000);
+        EXPECT_EQ(result, std::string(10000, 'a'));
+    }
+
+    G_SUBTEST << "Single character";
+    {
+        EXPECT_EQ(toLower("A"), "a");
+        EXPECT_EQ(toLower("Z"), "z");
+        EXPECT_EQ(toLower("a"), "a");
+        EXPECT_EQ(toLower("1"), "1");
+    }
+
+    G_SUBTEST << "Original string is not modified";
+    {
+        const std::string original = "HELLO";
+        std::string result = toLower(original);
+        EXPECT_EQ(result, "hello");
+        EXPECT_EQ(original, "HELLO");
+    }
+}
