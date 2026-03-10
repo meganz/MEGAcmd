@@ -2230,7 +2230,7 @@ void MegaCmdExecuter::changePassword(const char *newpassword, string pin2fa)
         {
             OUTSTREAM << "Password changed successfully" << endl;
         }
-
+        delete megaCmdListener2;
     }
     else if (!checkNoErrors(megaCmdListener->getError(), "change password"))
     {
