@@ -256,6 +256,24 @@ TEST_F(PutTests, UploadWithCreateFlag)
     EXPECT_EQ(content, stripTrailingNewlines(result.out()));
 }
 
+TEST_F(PutTests, UploadWithCreateFlagAndAbsoluteDestinationPath)
+{
+    // When cwd is in a subfolder (e.g. /put_test_xxx) and put -c uses an absolute
+    // destination path, the path must be resolved from root, not from cwd.
+    const std::string filename = "file01.txt";
+
+    createLocalFile(filename);
+
+    const std::string absoluteDestFolder = "/" + remoteBase() + "/newfile/";
+    auto result = executeInClient({"put", "-c", (localPath() / filename).string(), absoluteDestFolder});
+    ASSERT_TRUE(result.ok()) << result.err();
+
+    const std::string absoluteRemotePath = absoluteDestFolder + filename;
+    result = executeInClient({"cat", absoluteRemotePath});
+    ASSERT_TRUE(result.ok()) << result.err();
+    EXPECT_EQ("", stripTrailingNewlines(result.out()));
+}
+
 TEST_F(PutTests, UploadNonAsciiFilename)
 {
 #ifdef _WIN32

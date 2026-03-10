@@ -7020,9 +7020,13 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             const auto posLastSeparator = destination.find_last_of("/");
             string destinationfolder(destination, 0, posLastSeparator);
             newname = string(destination, posLastSeparator + 1, destination.size());
-            std::unique_ptr<MegaNode> cwdNode(api->getNodeByHandle(cwd));
-            makedir(destinationfolder, true, cwdNode.get());
-            n = nodebypath(destinationfolder.c_str());
+            auto baseNode = (destinationfolder.size() > 0 && destinationfolder.front() == '/')
+                ? std::unique_ptr<MegaNode>(api->getRootNode())
+                : std::unique_ptr<MegaNode>(api->getNodeByHandle(cwd));
+            if (makedir(destinationfolder, true, baseNode.get()) == MCMD_OK)
+            {
+                n = nodebypath(destinationfolder.c_str());
+            }
         }
 
         if (!n)
