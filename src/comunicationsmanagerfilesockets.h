@@ -25,6 +25,8 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 
+#include <atomic>
+
 namespace megacmd {
 struct CmdPetitionPosixSockets: public CmdPetition
 {
@@ -47,7 +49,7 @@ OUTSTREAMTYPE &operator<<(OUTSTREAMTYPE &os, CmdPetitionPosixSockets &p);
 class ComunicationsManagerFileSockets : public ComunicationsManager
 {
 private:
-    fd_set fds;
+    std::atomic<bool> mHasPetition;
 
     // sockets and asociated variables
     int sockfd;

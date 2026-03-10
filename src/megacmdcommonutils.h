@@ -168,14 +168,13 @@ std::string errorCodeStr(const std::error_code& ec);
 /* Files and folders */
 
 //tests if a path is writable  //TODO: move to fsAccess
-bool canWrite(std::string path);
+bool canWrite(const std::string &path);
 
 bool isPublicLink(const std::string &link);
 
 bool isEncryptedLink(std::string link);
 
 std::string getPublicLinkHandle(const std::string &link);
-std::string getPublicLinkObjectId(const std::string &link);
 
 bool hasWildCards(std::string &what);
 
@@ -214,7 +213,17 @@ bool replace(std::string& str, const std::string& from, const std::string& to);
 
 void replaceAll(std::string& str, const std::string& from, const std::string& to);
 
-int toInteger(std::string what, int failValue = -1);
+/**
+ * @brief Converts a string to an integer.
+ *
+ * Parses the string as a base-10 integer. Must contain only digits with
+ * optional leading sign ('+' or '-'). No whitespace allowed.
+ *
+ * @param str The string to convert.
+ * @param failValue Return value on conversion failure.
+ * @return Converted integer or failValue if invalid/out of range.
+ */
+int toInteger(const std::string &str, int failValue = -1);
 
 std::string joinStrings(const std::vector<std::string>& vec, const char* delim = " ", bool quoted=true);
 
@@ -444,17 +453,6 @@ public:
      */
     virtual fs::path configDirPath() = 0;
 };
-
-template <typename T> size_t numberOfDigits(T num)
-{
-    size_t digits = num < 0 ? 1 : 0;
-    while (num != 0)
-    {
-        digits++;
-        num /= 10;
-    }
-    return digits;
-}
 
 #ifdef _WIN32
 class WindowsDirectories : public PlatformDirectories

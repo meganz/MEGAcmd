@@ -243,7 +243,12 @@ void statechangehandle(string statestring, MegaCmdShellCommunications &comsManag
                 printCenteredContentsCerr(string("MEGAcmd Server is still trying to log in. Still, some commands are available.\n"
                              "Type \"help\", to list them.").c_str(), width);
             }
-            changeprompt(newstate.substr(strlen("prompt:")).c_str(),true);
+            // When main thread is executing a command (procesingline), do not redisplay here.
+            // The state listener runs concurrently with command output; redisplay would use
+            // readline (\r, control chars) and interleave with stdout.
+            // The main loop will show the prompt after process_line returns.
+            const bool redisplay = !procesingline;
+            changeprompt(newstate.substr(strlen("prompt:")).c_str(), redisplay);
 
             comsManager.markServerReady();
             promtpReceivedBool = true;
@@ -1780,6 +1785,11 @@ void readloop()
                 // sleep, so that in case there was a changeprompt waiting, gets executed before relooping
                 // this is not 100% guaranteed to happen
                 sleepSeconds(0);
+            }
+            else
+            {
+                // Empty line (user pressed Enter with no input): show new prompt like bash
+                requirepromptinstall = true;
             }
             free(g_line);
             g_line = NULL;

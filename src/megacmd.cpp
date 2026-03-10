@@ -16,6 +16,7 @@
  * program.
  */
 
+#include "mega/log_level.h"
 #include "megacmdcommonutils.h"
 #include "megacmd.h"
 
@@ -1735,7 +1736,7 @@ const char * getUsageStr(const char *command, const HelpFlags& flags)
     }
     if (!strcmp(command, "attr"))
     {
-        return "attr remotepath [--force-non-officialficial] [-s attribute value|-d attribute [--print-only-value]";
+        return "attr remotepath [--force-non-official] [-s attribute value|-d attribute [--print-only-value]";
     }
     if (!strcmp(command, "userattr"))
     {
@@ -5378,19 +5379,19 @@ void setFuseLogLevel(MegaApi& api, const std::string& fuseLogLevelStr)
     std::unique_ptr<MegaFuseFlags> fuseFlags(api.getFUSEFlags());
     assert(fuseFlags);
 
-    int fuseLogLevel = fuseFlags->getLogLevel();
+    int sdkLogLevel = fuseFlags->getLogLevel();
     try
     {
-        fuseLogLevel = std::stoi(fuseLogLevelStr);
+        sdkLogLevel = std::stoi(fuseLogLevelStr);
     }
     catch (...) {}
 
-    fuseLogLevel = std::clamp(fuseLogLevel, (int) MegaFuseFlags::LOG_LEVEL_ERROR, (int) MegaFuseFlags::LOG_LEVEL_DEBUG);
+    sdkLogLevel = std::clamp(sdkLogLevel, (int) ::mega::LogLevel::logError, (int) ::mega::LogLevel::logVerbose);
 
-    fuseFlags->setLogLevel(fuseLogLevel);
+    fuseFlags->setLogLevel(sdkLogLevel);
     api.setFUSEFlags(fuseFlags.get());
 
-    LOG_debug << "FUSE log level set to " << fuseLogLevel;
+    LOG_debug << "FUSE log level set to " << sdkLogLevel;
 }
 
 void disableFuseExplorerListView(MegaApi& api)
