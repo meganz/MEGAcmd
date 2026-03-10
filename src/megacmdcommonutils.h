@@ -178,6 +178,13 @@ std::string getPublicLinkHandle(const std::string &link);
 
 bool hasWildCards(std::string &what);
 
+/**
+ * @brief Removes trailing path separators from the path.
+ * @param path Path string to process (modified in place)
+ * @return Path with trailing separators removed
+ *
+ * Handles simple cases: removes trailing '/' and '\' characters.
+ */
 std::string removeTrailingSeparators(std::string &path);
 
 

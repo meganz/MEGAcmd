@@ -281,6 +281,15 @@ std::string &rtrim(std::string &s, const char &c)
 
 string removeTrailingSeparators(string &path)
 {
+    if (path.empty())
+    {
+        return path;
+    }
+    if (path.find_first_not_of('/') == string::npos)
+    {
+        return "/";
+    }
+
     return rtrim(rtrim(path,'/'),'\\');
 }
 
