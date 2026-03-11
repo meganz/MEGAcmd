@@ -1,3 +1,17 @@
+megacmd (2.5.0) stable; urgency=low
+
+  * Shell UX improvements: empty Enter shows a new prompt; no duplicate prompt while command is executing
+  * put: Fixed -c (autocreate) not working when destination is an absolute path
+  * share: Return success (exit code 0) when no shares exist below the current folder
+  * mediainfo: Fixed audio file duration not being displayed
+  * thumbnail/preview: Print error when the requested file does not exist
+  * Stability fixes: memory corruption and memory leak fixes
+  * Path and string handling fixes (trailing separators, trimming)
+  * Expanded unit test coverage
+  * Typos and other improvements
+
+ -- MEGA Team <linux@mega.co.nz>  Wed, 11 Mar 2026 10:36:46 +0000
+
 megacmd (2.4.0) stable; urgency=low
 
   * Improvements in uploads UX/UI: put now supports printing tag. Fixes in transfers table

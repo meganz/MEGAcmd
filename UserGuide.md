@@ -1,6 +1,6 @@
 # MEGAcmd User Guide
 
-This document relates to MEGAcmd version 2.4.0.  It contains introductory information and the [Command Summary](#command-summary), with links to detailed command descriptions.
+This document relates to MEGAcmd version 2.5.0.  It contains introductory information and the [Command Summary](#command-summary), with links to detailed command descriptions.
 
 ### What is it
 A command line tool to work with your MEGA account and files.  The intent is to offer all the MEGA account functionality via command line.  You can run it in [interactive](#interactive) mode where it processes all commands directly, or you can run its [scriptable](#scriptable) commands from your favourite Linux or Mac shell such as bash, or you can even run its commands in a Windows command prompt. And of course you can write scripts using those scriptable commands.
@@ -205,7 +205,7 @@ Verbosity: You can increase the amount of information given by any command by pa
 * [`ls`](contrib/docs/commands/ls.md)`[-halRr] [--show-handles] [--tree] [--versions] [remotepath] [--use-pcre] [--show-creation-time] [--time-format=FORMAT]` Lists files in a remote path
 * [`pwd`](contrib/docs/commands/pwd.md) Prints the current remote folder
 * [`lpwd`](contrib/docs/commands/lpwd.md) Prints the current local folder for the interactive console
-* [`attr`](contrib/docs/commands/attr.md)`remotepath [--force-non-officialficial] [-s attribute value|-d attribute [--print-only-value]` Lists/updates node attributes.
+* [`attr`](contrib/docs/commands/attr.md)`remotepath [--force-non-official] [-s attribute value|-d attribute [--print-only-value]` Lists/updates node attributes.
 * [`du`](contrib/docs/commands/du.md)`[-h] [--versions] [remotepath remotepath2 remotepath3 ... ] [--use-pcre]` Prints size used by files/folders
 * [`find`](contrib/docs/commands/find.md)`[remotepath] [-l] [--pattern=PATTERN] [--type=d|f] [--mtime=TIMECONSTRAIN] [--size=SIZECONSTRAIN] [--use-pcre] [--time-format=FORMAT] [--show-handles|--print-only-handles]` Find nodes matching a pattern
 * [`mount`](contrib/docs/commands/mount.md) Lists all the root nodes
@@ -259,8 +259,8 @@ Verbosity: You can increase the amount of information given by any command by pa
 * [`graphics`](contrib/docs/commands/graphics.md)`[on|off]` Shows if special features related to images and videos are enabled.
 * [`help`](contrib/docs/commands/help.md)`[-f|-ff|--non-interactive|--upgrade|--paths] [--show-all-options]` Prints list of commands
 * [`https`](contrib/docs/commands/https.md)`[on|off]` Shows if HTTPS is used for transfers. Use "https on" to enable it.
-* [`media-info`](contrib/docs/commands/mediainfo.md)`remotepath1 remotepath2 ...` Prints media info of remote files
 * [`log`](contrib/docs/commands/log.md)`[-sc] level` Prints/Modifies the log level
+* [`mediainfo`](contrib/docs/commands/mediainfo.md)`remotepath1 remotepath2 ...` Prints media info of remote files
 * [`permissions`](contrib/docs/commands/permissions.md)`[(--files|--folders) [-s XXX]]` Shows/Establish default permissions for files and folders created by MEGAcmd.
 * [`proxy`](contrib/docs/commands/proxy.md)`[URL|--auto|--none] [--username=USERNAME --password=PASSWORD]` Show or sets proxy configuration
 * [`psa`](contrib/docs/commands/psa.md)`[--discard]` Shows the next available Public Service Announcement (PSA)

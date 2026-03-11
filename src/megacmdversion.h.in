@@ -25,17 +25,17 @@
 namespace megacmd {
 
 const char * const megacmdchangelog =
-        "Improvements in uploads UX/UI: put now supports printing tag. Fixes in transfers table""\n"
-        "Stability improvements: crashes fixes, FUSE deadlocks, ...""\n"
-        "Performance boosts: lockless download URL retrievals, removed CPU bottlenecks for large accounts processing, db operations improvements, transfers improvements ...""\n"
-        "Typos and other improvements"
-#ifndef WIN32
-        "FUSE (beta): Added fuse commands on Windows to allow your MEGA folders to be directly mounted to your local drive""\n"
-        "New command \"configure\" to allow configuring some settings""\n"
-        "Support setting max number of nodes in memory""\n"
-        "Support setting number of SDK instances used for login in folders to download/import""\n"
-        "Other fixes and improvements to enhance reliability and performance"
-#endif
+        "Shell UX improvements: empty Enter shows a new prompt; no duplicate prompt while command is executing""\n"
+        "Sync engine improvements: prevent re-uploading data when local drive fingerprint has changed""\n"
+        "put: Fixed -c (autocreate) not working when destination is an absolute path""\n"
+        "mediainfo: Fixed audio file duration not being displayed""\n"
+        "Transfers: prevent failures on resumption""\n"
+        "thumbnail/preview: Print error when the requested file does not exist""\n"
+        "share: Return success (exit code 0) when no shares exist below the current folder""\n"
+        "passwd: fixes issues when 2FA is enabled""\n"
+        "Path and string handling fixes (trailing separators, trimming)""\n"
+        "Expanded unit test coverage""\n"
+        "Stability, memory, typos and other improvements"
         ;
 }//end namespace
 #endif // VERSION_H
