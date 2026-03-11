@@ -5,7 +5,7 @@ Usage: `find [remotepath] [-l] [--pattern=PATTERN] [--type=d|f] [--mtime=TIMECON
 <pre>
 Options:
  --pattern=PATTERN	Pattern to match (Perl Compatible Regular Expressions with "--use-pcre"
-   or wildcarded expresions with ? or * like f*00?.txt)
+   or wildcarded expressions with ? or * like f*00?.txt)
  --type=d|f           	Determines type. (d) for folder, f for files
  --mtime=TIMECONSTRAIN	Determines time constrains, in the form: [+-]TIMEVALUE
                       	  TIMEVALUE may include hours(h), days(d), minutes(M),

@@ -4,7 +4,7 @@ Lists files in a remote path
 Usage: `ls [-halRr] [--show-handles] [--tree] [--versions] [remotepath] [--use-pcre] [--show-creation-time] [--time-format=FORMAT]`
 <pre>
 remotepath can be a pattern (Perl Compatible Regular Expressions with "--use-pcre"
-   or wildcarded expresions with ? or * like f*00?.txt)
+   or wildcarded expressions with ? or * like f*00?.txt)
  Also, constructions like /PATTERN1/PATTERN2/PATTERN3 are allowed
 
 Options:
@@ -17,7 +17,7 @@ Options:
    	     xxxx
    	     |||+---- Sharing status: (s)hared, (i)n share or not shared(-)
    	     ||+----- if exported, whether it is (p)ermanent or (t)temporal
-   	     |+------ e/- wheter node is (e)xported
+   	     |+------ e/- whether node is (e)xported
    	     +-------- Type(d=folder,-=file,r=root,i=inbox,b=rubbish,x=unsupported)
    	   VERS: Number of versions in a file
    	   SIZE: Size of the file in bytes:

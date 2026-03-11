@@ -1,5 +1,5 @@
 ### autocomplete
-Modifes how tab completion operates.
+Modifies how tab completion operates.
 
 Usage: `autocomplete [dos | unix]`
 <pre>

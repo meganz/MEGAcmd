@@ -1,6 +1,6 @@
 # MEGAcmd User Guide
 
-This document relates to MEGAcmd version 2.3.0.  It contains introductory information and the [Command Summary](#command-summary), with links to detailed command descriptions.
+This document relates to MEGAcmd version 2.4.0.  It contains introductory information and the [Command Summary](#command-summary), with links to detailed command descriptions.
 
 ### What is it
 A command line tool to work with your MEGA account and files.  The intent is to offer all the MEGA account functionality via command line.  You can run it in [interactive](#interactive) mode where it processes all commands directly, or you can run its [scriptable](#scriptable) commands from your favourite Linux or Mac shell such as bash, or you can even run its commands in a Windows command prompt. And of course you can write scripts using those scriptable commands.
@@ -34,9 +34,9 @@ done
 
 In addition to running commands on request, MEGAcmd can also be configured to [synchronise](#synchronisation-configurations) folders between your local device and your MEGA account, or perform regular [backups](#backup-configurations) from your device to your MEGA account.
 
-In order to enable synchronisation and backup features, and for efficiency running commands, MEGAcmd runs a server process in the background which the MEGAcmd shell or the script commands forward requests to.   The server keeps running in the background until it is told to close with the [`quit`](#quit) command.   If you want it to keep running when you quit the interactive shell (to keep sync and backup running for example), use `quit --only-shell`.
+In order to enable synchronisation and backup features, and for efficiency running commands, MEGAcmd runs a server process in the background which the MEGAcmd shell or the script commands forward requests to.   The server keeps running in the background until it is told to close with the [`quit`](#misc) command.   If you want it to keep running when you quit the interactive shell (to keep sync and backup running for example), use `quit --only-shell`.
 
-Working with your MEGA account requires signing in with your email and password using the [`login`](#login) command, though you can download public links or upload to public folders without logging in.  Logging in with your username and password starts a [Session](#session), and causes some of your account such as the folder structure to be downloaded to your [Local Cache](#local-cache).
+Working with your MEGA account requires signing in with your email and password using the [`login`](#login-logout) command, though you can download public links or upload to public folders without logging in.  Logging in with your username and password starts a [Session](#session), and causes some of your account such as the folder structure to be downloaded to your [Local Cache](#local-cache).
 
 ### Where can you get it
 For Linux, Mac, or Windows: Download it from the MEGA.nz website: https://mega.nz/cmd <p>
@@ -46,9 +46,9 @@ We are also building it for some NAS systems, please check your provider's App S
 The major features are
 * Move files around inside your MEGA account or between MEGA and your PC using command line tools.
 * Use those same commands in scripts to manage your files.
-* Set up synchronization or a backup schedule between a folder on your machine, and a folder on your MEGA account.   (use the [`sync`](#sync) or [`backup`](#backup) commands).
+* Set up synchronization or a backup schedule between a folder on your machine, and a folder on your MEGA account.   (use the [`sync`](#moving-copying-files) or [`backup`](#moving-copying-files) commands).
 * Set up WebDAV access to files in your MEGA account (use the [`webdav`](#webdav) command).
-* [Linux only] Set up a FUSE mount point to seamlessly access files in your MEGA account (use the [`fuse-add`](#fuse-add) command).
+* [Linux only] Set up a FUSE mount point to seamlessly access files in your MEGA account (use the [`fuse-add`](#fuse-mount-your-cloud-folder-to-the-local-system) command).
 
 See our Help Centre pages for the basics of getting started, and friendly examples of common usages with plenty of pictures:  https://mega.nz/help
 
@@ -81,7 +81,7 @@ This refers to a file or a folder stored in your MEGA account, or a publicly ava
 
 Some MEGAcmd commands allow the use of regular expressions in remote paths.  You can check if the command supports those by using the `--help` flag with the command.  If you use these in the [scriptable](#scriptable) way, you need to escape characters that would otherwise be intercepted and interpreted by the shell.
 
-Paths to folders shared to you from another person start with their email and a : character, see the example at ([example](#shared-folders-example))
+Paths to folders shared to you from another person start with their email and a : character, see the example at ([example](#shared-folders))
 
 ### Local Path
 This refers to a file or folder on the PC or device that MEGAcmd is running in.
@@ -93,7 +93,7 @@ When you log in with your email and MEGA account password, that creates a sessio
 Logging in with MEGAcmd creates your Local Cache, a subfolder of your home folder.  MEGAcmd downloads and stores some data in your Local Cache relating to your account, such as folder structure and contacts, for performance reasons.  The MEGAcmd background server keeps the local cache up to date when changes to your account occur from other clients.  The cache does contain a way for MEGAcmd to access your MEGA account when it starts up again if you have not specifically logged out.  The Local Cache also contains information from your Session, including sync, backup, and webdav configurations.  Logging out cleans the Local Cache, but also closes your session and the sync, backup, and webdav configurations are wiped.
 
 ### Synchronisation configurations
-MEGAcmd can set up a synchronisation between a folder on your local machine and a folder in your MEGA account, using the [`sync`](#sync) command.   This is the same mechanism that MEGAsync uses.  The synchronisation is two-way: the folders you nominate to be synced will mirror any action!  Whatever you add or delete in your sync folder on your device gets added or deleted in your sync folder in your MEGA account.  And additions or deletions in your synced folder in your MEGA account will similarly be applied to your local synced folder.  Files that are removed from sync folders are moved to a hidden local folder (Rubbish/.debris inside your local sync folder, or SyncDebris folder in the Rubbish Bin of your MEGA account).
+MEGAcmd can set up a synchronisation between a folder on your local machine and a folder in your MEGA account, using the [sync](#syncing) command.   This is the same mechanism that MEGAsync uses.  The synchronisation is two-way: the folders you nominate to be synced will mirror any action!  Whatever you add or delete in your sync folder on your device gets added or deleted in your sync folder in your MEGA account.  And additions or deletions in your synced folder in your MEGA account will similarly be applied to your local synced folder.  Files that are removed from sync folders are moved to a hidden local folder (Rubbish/.debris inside your local sync folder, or SyncDebris folder in the Rubbish Bin of your MEGA account).
 
 Here is a very simple example of setting up a synchronisation with MEGAcmd: <p>
 ```
@@ -105,22 +105,22 @@ You can set up more than one pair or folders to be synced, and you can also set 
 Additional information about synchronising folders is available in our Help Centre:  https://mega.nz/help/client/megasync/syncing
 
 ### Backup configurations
-MEGAcmd can set up a periodic copy of a local folder to your MEGA account using the [`backup`](#backup) command.  Here is a simple example that will back up a folder immediately and then at 4am each day, keeping the 10 most recent backups: <p>
+MEGAcmd can set up a periodic copy of a local folder to your MEGA account using the [`backup`](#backups) command.  Here is a simple example that will back up a folder immediately and then at 4am each day, keeping the 10 most recent backups: <p>
 ```
 backup /path/mega/folder /remote/path --period="0 0 4 * * *" --num-backups=10
 ```
 
-For further information on backups, please see the [`backup`](#backup) command and the [tutorial](contrib/docs/BACKUPS.md).
+For further information on backups, please see the [`backup`](#backups) command and the [tutorial](BACKUPS.md).
 
 ### WebDAV configurations
 MEGAcmd can set up access to folders or files in your MEGA account as if they were local folders and files on your device using the [`webdav`](#webdav) command.  For example making the folder appear like a local drive on your PC, or providing a hyperlink a browser can access, where the hyperlink is to your PC.
 
-For further information on WebDAV, please see the [`webdav`](#webdav) command and the [tutorial](contrib/docs/WEBDAV.md
+For further information on WebDAV, please see the [`webdav`](#webdav) command and the [tutorial](WEBDAV.md
 
 ### FUSE mount point
-If you use Linux, MEGAcmd can set up access to folders or files in your MEGA account as if they were local folders and files on your device using Filesystem in User Space via [`fuse-add`](#fuse-add) command.
+If you use Linux, MEGAcmd can set up access to folders or files in your MEGA account as if they were local folders and files on your device using Filesystem in User Space via [`fuse-add`](#fuse-mount-your-cloud-folder-to-the-local-system) command.
 
-For further information on FUSE, please see the [`fuse-add`](#fuse-add) command and the [tutorial](contrib/docs/FUSE.md).
+For further information on FUSE, please see the [`fuse-add`](#fuse-mount-your-cloud-folder-to-the-local-system) command and the [tutorial](FUSE.md).
 
 ### Linux
 On Linux, MEGAcmd commands are installed at /usr/bin and so will already be on your PATH.  The interactive shell is `mega-cmd` and the background server is `mega-cmd-server`, which will be automatically started on demand.  The various scriptable commands are installed at the same location, and invoke `mega-exec` to send the command to `mega-cmd-server`.
@@ -213,7 +213,7 @@ Verbosity: You can increase the amount of information given by any command by pa
 ### Moving / Copying files
 * [`mkdir`](contrib/docs/commands/mkdir.md)`[-p] remotepath` Creates a directory or a directories hierarchy
 * [`cp`](contrib/docs/commands/cp.md)`[--use-pcre] srcremotepath [srcremotepath2 srcremotepath3 ..] dstremotepath|dstemail` : Copies files/folders into a new location (all remotes)
-* [`put`](contrib/docs/commands/put.md)`[-c] [-q] [--ignore-quota-warn] localfile [localfile2 localfile3 ...] [dstremotepath]` Uploads files/folders to a remote folder
+* [`put`](contrib/docs/commands/put.md)`[-c] [-q] [--print-tag-at-start] localfile [localfile2 localfile3 ...] [dstremotepath]` Uploads files/folders to a remote folder
 * [`get`](contrib/docs/commands/get.md)`[-m] [-q] [--ignore-quota-warn] [--use-pcre] [--password=PASSWORD] exportedlink|remotepath [localpath]` Downloads a remote file/folder or a public link
 * [`preview`](contrib/docs/commands/preview.md)`[-s] remotepath localpath` To download/upload the preview of a file.
 * [`thumbnail`](contrib/docs/commands/thumbnail.md)`[-s] remotepath localpath` To download/upload the thumbnail of a file.
@@ -243,7 +243,7 @@ Verbosity: You can increase the amount of information given by any command by pa
 * [`fuse-config`](contrib/docs/commands/fuse-config.md)`[--name=name] [--enable-at-startup=yes|no] [--persistent=yes|no] [--read-only=yes|no] (name|localPath)` Modifies the specified FUSE mount configuration.
 
 ### Misc.
-* [`autocomplete`](contrib/docs/commands/autocomplete.md)`[dos | unix]` Modifes how tab completion operates.
+* [`autocomplete`](contrib/docs/commands/autocomplete.md)`[dos | unix]` Modifies how tab completion operates.
 * [`cancel`](contrib/docs/commands/cancel.md) Cancels your MEGA account
 * [`cat`](contrib/docs/commands/cat.md)`remotepath1 remotepath2 ...` Prints the contents of remote files
 * [`clear`](contrib/docs/commands/clear.md) Clear screen
@@ -259,7 +259,7 @@ Verbosity: You can increase the amount of information given by any command by pa
 * [`graphics`](contrib/docs/commands/graphics.md)`[on|off]` Shows if special features related to images and videos are enabled.
 * [`help`](contrib/docs/commands/help.md)`[-f|-ff|--non-interactive|--upgrade|--paths] [--show-all-options]` Prints list of commands
 * [`https`](contrib/docs/commands/https.md)`[on|off]` Shows if HTTPS is used for transfers. Use "https on" to enable it.
-* [`info`](contrib/docs/commands/info.md)`remotepath1 remotepath2 ...` Prints media info of remote files
+* [`media-info`](contrib/docs/commands/mediainfo.md)`remotepath1 remotepath2 ...` Prints media info of remote files
 * [`log`](contrib/docs/commands/log.md)`[-sc] level` Prints/Modifies the log level
 * [`permissions`](contrib/docs/commands/permissions.md)`[(--files|--folders) [-s XXX]]` Shows/Establish default permissions for files and folders created by MEGAcmd.
 * [`proxy`](contrib/docs/commands/proxy.md)`[URL|--auto|--none] [--username=USERNAME --password=PASSWORD]` Show or sets proxy configuration

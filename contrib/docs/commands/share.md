@@ -9,7 +9,7 @@ Options:
  --with=email	Determines the email of the user to [no longer] share with
  -d	Stop sharing with the selected user
  -a	Adds a share (or modifies it if existing)
- --level=LEVEL	Level of acces given to the user
+ --level=LEVEL	Level of access given to the user
               	0: Read access
               	1: Read and write
               	2: Full access

@@ -1,3 +1,11 @@
+Tue Dec 16 17:14:02 CET 2025 - linux@mega.co.nz
+- Update to version 2.4.0:
+  * Improvements in uploads UX/UI: put now supports printing tag. Fixes in transfers table
+  * Stability improvements: crashes fixes, FUSE deadlocks, ...
+  * Performance boosts: lockless download URL retrievals, removed CPU bottlenecks for large accounts processing, db operations improvements, transfers improvements ...
+  * Typos and other improvements
+
+-------------------------------------------------------------------
 Tue Sep 2 16:43:10 CEST 2025 - linux@mega.co.nz
 - Update to version 2.3.0:
   * FUSE (beta): Added fuse commands on Windows to allow your MEGA folders to be directly mounted to your local drive

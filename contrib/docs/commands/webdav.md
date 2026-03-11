@@ -12,8 +12,8 @@ Options:
  --public   	*Allow access from outside localhost
  --port=PORT	*Port to serve. DEFAULT= 4443
  --tls      	*Serve with TLS (HTTPS)
- --certificate=/path/to/certificate.pem	*Path to PEM formated certificate
- --key=/path/to/certificate.key	*Path to PEM formated key
+ --certificate=/path/to/certificate.pem	*Path to PEM formatted certificate
+ --key=/path/to/certificate.key	*Path to PEM formatted key
  --use-pcre	use PCRE expressions
 
 *If you serve more than one location, these parameters will be ignored and use those of the first location served.

@@ -1,13 +1,12 @@
 ### put
 Uploads files/folders to a remote folder
 
-Usage: `put  [-c] [-q] [--ignore-quota-warn] localfile [localfile2 localfile3 ...] [dstremotepath]`
+Usage: `put  [-c] [-q] [--print-tag-at-start] localfile [localfile2 localfile3 ...] [dstremotepath]`
 <pre>
 Options:
  -c	Creates remote folder destination in case of not existing.
  -q	queue upload: execute in the background. Don't wait for it to end
- --ignore-quota-warn	ignore quota surpassing warning.
-                    	  The upload will be attempted anyway.
+ --print-tag-at-start	Prints start message including transfer TAG, even when using -q.
 
 Notice that the dstremotepath can only be omitted when only one local path is provided.
  In such case, the current remote working dir will be the destination for the upload.
