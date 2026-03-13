@@ -3970,7 +3970,8 @@ bool restartServer()
         }
 
         argv[j++] = "--wait-for";
-        argv[j++] = std::to_string(childid).c_str();
+        string childidstr = std::to_string(childid);
+        argv[j++] = childidstr.c_str();
         argv[j++] = NULL;
         LOG_debug << "Restarting the server : <" << argv[0] << ">";
         execv(argv[0], const_cast<char* const*>(argv));
