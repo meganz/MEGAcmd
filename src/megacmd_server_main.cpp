@@ -164,7 +164,12 @@ void waitIfRequired(std::vector<const char*> &args)
 
         pid_t processId = atoi(shandletowait.c_str());
 
-        while (is_pid_running(processId))
+        if (processId <= 0)
+        {
+            cerr << "Invalid --wait-for pid. Waiting a 10 seconds instead." << endl;
+            sleep(10);
+        }
+        else while (is_pid_running(processId))
         {
             cerr << "Waiting for former MEGAcmd server to end:  " << processId << endl;
             sleep(1);
