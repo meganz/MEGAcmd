@@ -1,14 +1,16 @@
 Wed Mar 11 10:36:46 AM UTC 2026 - linux@mega.co.nz
 - Update to version 2.5.0:
   * Shell UX improvements: empty Enter shows a new prompt; no duplicate prompt while command is executing
+  * Sync engine improvements: prevent re-uploading data when local drive fingerprint has changed
   * put: Fixed -c (autocreate) not working when destination is an absolute path
-  * share: Return success (exit code 0) when no shares exist below the current folder
   * mediainfo: Fixed audio file duration not being displayed
+  * Transfers: prevent failures on resumption
   * thumbnail/preview: Print error when the requested file does not exist
-  * Stability fixes: memory corruption and memory leak fixes
+  * share: Return success (exit code 0) when no shares exist below the current folder
+  * passwd: fixes issues when 2FA is enabled
   * Path and string handling fixes (trailing separators, trimming)
   * Expanded unit test coverage
-  * Typos and other improvements
+  * Stability, memory, typos and other improvements
 
 -------------------------------------------------------------------
 Tue Dec 16 17:14:02 CET 2025 - linux@mega.co.nz
