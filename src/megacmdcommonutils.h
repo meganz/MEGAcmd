@@ -168,6 +168,12 @@ std::string errorCodeStr(const std::error_code& ec);
 /* Files and folders */
 
 //tests if a path is writable  //TODO: move to fsAccess
+
+/**
+ * @brief tests if a path is writable.
+ * @param path utf-8 path
+ * @return true if writable or couldn't say.
+ */
 bool canWrite(const std::string &path);
 
 bool isPublicLink(const std::string &link);
