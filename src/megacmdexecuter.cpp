@@ -1925,7 +1925,7 @@ bool MegaCmdExecuter::TestCanWriteOnContainingFolder(string path)
         return false;
     }
 
-    if (!canWrite(containingFolder.platformEncoded()))
+    if (!canWrite(containingFolder.toPath(false)))
     {
         setCurrentThreadOutCode(MCMD_NOTPERMITTED);
         LOG_err << "Write not allowed in " << containingFolder.toPath(false);
