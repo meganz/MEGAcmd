@@ -336,10 +336,14 @@ TEST(UtilsTest, canWrite)
         fs::path readOnlyDir = tmpFolder.path() / "readonly";
         EXPECT_TRUE(fs::create_directory(readOnlyDir));
 #ifdef _WIN32
+        // On Windows, FILE_ATTRIBUTE_READONLY on directories is an Explorer
+        // folder-customization signal (desktop.ini), not an access control flag.
+        // canWrite must ignore it and rely on _waccess() / ACLs instead.
+        // See Microsoft KB326549.
         std::wstring wpath = readOnlyDir.wstring();
         DWORD oldAttrs = GetFileAttributesW(wpath.c_str());
-        SetFileAttributesW(wpath.c_str(), FILE_ATTRIBUTE_READONLY);
-        testCanWriteAllPathVariants(readOnlyDir.string(), false);
+        SetFileAttributesW(wpath.c_str(), oldAttrs | FILE_ATTRIBUTE_READONLY);
+        testCanWriteAllPathVariants(readOnlyDir.string(), true);
         SetFileAttributesW(wpath.c_str(), oldAttrs);
 #else
         chmod(readOnlyDir.c_str(), 0555);
@@ -428,6 +432,73 @@ TEST(UtilsTest, canWrite)
         testCanWriteAllPathVariants(utf8PathStr, true);
     }
 }
+
+#ifdef _WIN32
+// Regression: FILE_ATTRIBUTE_READONLY on directories is an Explorer
+// folder-customization hint (desktop.ini), not an access restriction.
+// canWrite() used to check this attribute and return false for directories
+// that were perfectly writable. See Microsoft KB326549.
+TEST(UtilsTest, canWriteIgnoresReadOnlyAttributeOnDirectories)
+{
+    using megacmd::canWrite;
+
+    G_SUBTEST << "Directory with FILE_ATTRIBUTE_READONLY is still writable";
+    {
+        SelfDeletingTmpFolder tmpFolder;
+        fs::path dir = tmpFolder.path() / "customized_folder";
+        EXPECT_TRUE(fs::create_directory(dir));
+
+        std::wstring wpath = dir.wstring();
+        DWORD oldAttrs = GetFileAttributesW(wpath.c_str());
+
+        // Simulate what Explorer does for folder customization
+        SetFileAttributesW(wpath.c_str(), oldAttrs | FILE_ATTRIBUTE_READONLY);
+
+        // Verify the attribute is actually set
+        DWORD newAttrs = GetFileAttributesW(wpath.c_str());
+        EXPECT_TRUE(newAttrs & FILE_ATTRIBUTE_READONLY);
+
+        // canWrite must return true — the directory is writable despite the attribute
+        testCanWriteAllPathVariants(dir.string(), true);
+
+        SetFileAttributesW(wpath.c_str(), oldAttrs);
+    }
+
+    G_SUBTEST << "Directory with FILE_ATTRIBUTE_READONLY and trailing separator";
+    {
+        SelfDeletingTmpFolder tmpFolder;
+        fs::path dir = tmpFolder.path() / "customized_folder2";
+        EXPECT_TRUE(fs::create_directory(dir));
+
+        std::wstring wpath = dir.wstring();
+        DWORD oldAttrs = GetFileAttributesW(wpath.c_str());
+        SetFileAttributesW(wpath.c_str(), oldAttrs | FILE_ATTRIBUTE_READONLY);
+
+        testCanWriteAllPathVariants(dir.string() + R"(\)", true);
+
+        SetFileAttributesW(wpath.c_str(), oldAttrs);
+    }
+
+    G_SUBTEST << "Read-only file is still correctly rejected";
+    {
+        SelfDeletingTmpFolder tmpFolder;
+        fs::path file = tmpFolder.path() / "readonly.txt";
+        std::ofstream ofs(file);
+        ofs << "test";
+        ofs.close();
+
+        std::wstring wpath = file.wstring();
+        DWORD oldAttrs = GetFileAttributesW(wpath.c_str());
+        SetFileAttributesW(wpath.c_str(), oldAttrs | FILE_ATTRIBUTE_READONLY);
+
+        // For files, FILE_ATTRIBUTE_READONLY *does* mean read-only,
+        // and _waccess should return EACCES
+        EXPECT_FALSE(canWrite(file.string()));
+
+        SetFileAttributesW(wpath.c_str(), oldAttrs);
+    }
+}
+#endif
 
 #ifdef _WIN32
 TEST(UtilsTest, canWriteWithBypassEnvVar)

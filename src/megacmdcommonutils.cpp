@@ -69,13 +69,6 @@ bool canWrite(const string &path)
 
     std::wstring wpath = utf8StringToUtf16WString(path.c_str());
 
-    if (DWORD attrs = GetFileAttributesW(wpath.c_str()); attrs != INVALID_FILE_ATTRIBUTES)
-    {
-        if (attrs & FILE_ATTRIBUTE_READONLY)
-        {
-            return false;
-        }
-    }
 
     if (_waccess(wpath.c_str(), 02) == 0) // 02 = write permission
     {
