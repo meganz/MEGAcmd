@@ -3941,7 +3941,12 @@ bool restartServer()
         }
 #else
     pid_t childid = fork();
-    if ( childid ) //parent
+    if (childid == -1)
+    {
+        LOG_err << "fork() failed: " << strerror(errno);
+        return false;
+    }
+    if (childid == 0) // child → execv to become the new server
     {
         const char **argv = new const char*[mcmdMainArgc+3];
         int i = 0, j = 0;
@@ -3970,12 +3975,16 @@ bool restartServer()
         }
 
         argv[j++] = "--wait-for";
-        string childidstr = std::to_string(childid);
-        argv[j++] = childidstr.c_str();
+        string parentpidstr = std::to_string(getppid());
+        argv[j++] = parentpidstr.c_str();
         argv[j++] = NULL;
         LOG_debug << "Restarting the server : <" << argv[0] << ">";
         execv(argv[0], const_cast<char* const*>(argv));
+
+        // execv failed — child has no threads, skip C++ teardown
+        _exit(1);
     }
+    // parent falls through — all threads intact
 #endif
 
     LOG_debug << "Server restarted, indicating the shell to restart also";
@@ -4443,7 +4452,9 @@ void finalize(bool waitForRestartSignal_param)
         }
     }
 #endif
-    delete cm; //this needs to go after restartServer();
+    delete cm; // closes the socket; must happen after restartServer() so clients
+               // are notified, and before exit so the new server can bind it
+
     LOG_debug << "resources have been cleaned ...";
     LOG_info << "----------------------------- program end -------------------------------";
 
