@@ -10,6 +10,7 @@ megacmd (2.5.0) stable; urgency=low
   * passwd: fixes issues when 2FA is enabled
   * Path and string handling fixes (trailing separators, trimming)
   * Expanded unit test coverage
+  * Fix: Improved restart-after-update reliability on POSIX (server PID changes after update)
   * Stability, memory, typos and other improvements
 
  -- MEGA Team <linux@mega.co.nz>  Wed, 11 Mar 2026 10:36:46 +0000

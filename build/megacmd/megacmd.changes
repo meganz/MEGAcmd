@@ -10,6 +10,7 @@ Wed Mar 11 10:36:46 AM UTC 2026 - linux@mega.co.nz
   * passwd: fixes issues when 2FA is enabled
   * Path and string handling fixes (trailing separators, trimming)
   * Expanded unit test coverage
+  * Fix: Improved restart-after-update reliability on POSIX (server PID changes after update)
   * Stability, memory, typos and other improvements
 
 -------------------------------------------------------------------
