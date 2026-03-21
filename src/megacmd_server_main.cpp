@@ -166,13 +166,24 @@ void waitIfRequired(std::vector<const char*> &args)
 
         if (processId <= 0)
         {
-            cerr << "Invalid --wait-for pid. Waiting a 10 seconds instead." << endl;
-            sleep(10);
+            cerr << "Invalid --wait-for pid. Waiting 3 seconds instead." << endl;
+            sleep(3);
         }
-        else while (is_pid_running(processId))
+        else
         {
-            cerr << "Waiting for former MEGAcmd server to end:  " << processId << endl;
-            sleep(1);
+            const int maxWaitSeconds = 5;
+            int waited = 0;
+            while (is_pid_running(processId) && waited < maxWaitSeconds)
+            {
+                cerr << "Waiting for former MEGAcmd server to end:  " << processId << endl;
+                sleep(1);
+                ++waited;
+            }
+            if (waited >= maxWaitSeconds)
+            {
+                cerr << "Former server (pid " << processId << ") still alive after "
+                     << maxWaitSeconds << "s, giving up waiting." << endl;
+            }
         }
 #endif
     }
