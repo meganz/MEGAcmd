@@ -1925,7 +1925,7 @@ bool MegaCmdExecuter::TestCanWriteOnContainingFolder(string path)
         return false;
     }
 
-    if (!canWrite(containingFolder.platformEncoded()))
+    if (!canWrite(containingFolder.toPath(false)))
     {
         setCurrentThreadOutCode(MCMD_NOTPERMITTED);
         LOG_err << "Write not allowed in " << containingFolder.toPath(false);
@@ -2142,11 +2142,6 @@ void MegaCmdExecuter::dumpListOfShared(MegaNode* n_param, string givenPath)
 {
     vector<MegaNode *> listOfShared;
     processTree(n_param, includeIfIsShared, (void*)&listOfShared);
-    if (!listOfShared.size())
-    {
-        setCurrentThreadOutCode(MCMD_NOTFOUND);
-        LOG_err << "No shared found for given path: " << givenPath;
-    }
     for (std::vector< MegaNode * >::iterator it = listOfShared.begin(); it != listOfShared.end(); ++it)
     {
         MegaNode * n = *it;
@@ -2235,7 +2230,7 @@ void MegaCmdExecuter::changePassword(const char *newpassword, string pin2fa)
         {
             OUTSTREAM << "Password changed successfully" << endl;
         }
-
+        delete megaCmdListener2;
     }
     else if (!checkNoErrors(megaCmdListener->getError(), "change password"))
     {
@@ -5448,7 +5443,7 @@ void MegaCmdExecuter::printInfoFile(MegaNode *n, bool &firstone, int PATHSIZE)
         MediaProperties mp = MediaProperties::decodeMediaPropertiesAttributes(fattrs, (uint32_t*)(n->getNodeKey()->data() + FILENODEKEYLENGTH / 2) );
         OUTSTREAM << getFixLengthString( (mp.fps == 0) ? "---" : SSTR(mp.fps) , 3) << " ";
     }
-    OUTSTREAM << getFixLengthString( (n->getHeight() == -1) ? "---" : getReadablePeriod(n->getDuration()) , 10) << " ";
+    OUTSTREAM << getFixLengthString( (n->getDuration() == -1) ? "---" : getReadablePeriod(n->getDuration()) , 10) << " ";
 
     OUTSTREAM << endl;
 }
@@ -7025,9 +7020,13 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             const auto posLastSeparator = destination.find_last_of("/");
             string destinationfolder(destination, 0, posLastSeparator);
             newname = string(destination, posLastSeparator + 1, destination.size());
-            std::unique_ptr<MegaNode> cwdNode(api->getNodeByHandle(cwd));
-            makedir(destinationfolder, true, cwdNode.get());
-            n = nodebypath(destinationfolder.c_str());
+            auto baseNode = (destinationfolder.size() > 0 && destinationfolder.front() == '/')
+                ? std::unique_ptr<MegaNode>(api->getRootNode())
+                : std::unique_ptr<MegaNode>(api->getNodeByHandle(cwd));
+            if (makedir(destinationfolder, true, baseNode.get()) == MCMD_OK)
+            {
+                n = nodebypath(destinationfolder.c_str());
+            }
         }
 
         if (!n)
@@ -9192,6 +9191,11 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 }
                 delete megaCmdListener;
             }
+            else
+            {
+                setCurrentThreadOutCode(MCMD_NOTFOUND);
+                LOG_err << nodepath << ": No such file or directory";
+            }
         }
         else
         {
@@ -9232,6 +9236,11 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     OUTSTREAM << "Preview for " << nodepath << ( setting ? " loaded from " : " saved in " ) << megaCmdListener->getRequest()->getFile() << endl;
                 }
                 delete megaCmdListener;
+            }
+            else
+            {
+                setCurrentThreadOutCode(MCMD_NOTFOUND);
+                LOG_err << nodepath << ": No such file or directory";
             }
         }
         else

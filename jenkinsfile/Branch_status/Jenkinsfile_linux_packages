@@ -123,7 +123,7 @@ pipeline {
                     }
                     axis {
                         name 'DISTRO';
-                        values  'xUbuntu_25.10','xUbuntu_25.04','xUbuntu_24.04','xUbuntu_22.04',
+                        values  'xUbuntu_26.04','xUbuntu_25.10','xUbuntu_25.04','xUbuntu_24.04','xUbuntu_22.04',
                                 'Debian_11','Debian_12','Debian_13','Debian_testing',
                                 'DEB_Arch_Extra',
                                 'Raspbian_12',
@@ -139,7 +139,7 @@ pipeline {
                         } 
                         axis { 
                             name 'DISTRO'; 
-                            values  'xUbuntu_25.10','xUbuntu_25.04','xUbuntu_24.04', 'xUbuntu_22.04',
+                            values  'xUbuntu_26.04','xUbuntu_25.10','xUbuntu_25.04','xUbuntu_24.04','xUbuntu_22.04',
                                     'Debian_11','Debian_12','Debian_13','Debian_testing',
                                     'DEB_Arch_Extra',
                                     'Fedora_42','Fedora_43',

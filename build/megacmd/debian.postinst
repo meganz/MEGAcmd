@@ -6,18 +6,14 @@ distro="@DISTRO@"
 ver="@VERSION@"
 
 if [[ $distro = "Raspbian GNU/Linux 13"* ]]; then
-    str="Raspbian_13"
+    str="Debian_13"
 elif [[ $distro = "Raspbian GNU/Linux 12"* ]]; then
     str="Raspbian_12"
 elif [[ $distro = "Raspbian GNU/Linux 11"* ]]; then
     str="Raspbian_11"
-elif [[ $distro = "Raspbian GNU/Linux 10"* ]]; then
-    str="Raspbian_10.0"
-elif [[ $distro = "Raspbian GNU/Linux 9"* ]]; then
-    str="Raspbian_9.0"
-elif [[ $distro = "Raspbian GNU/Linux 8"* ]]; then
-    str="Raspbian_8.0"
 # Ubuntu
+elif [[ $ver = "26.04" ]]; then
+    str="xUbuntu_26.04"
 elif [[ $ver = "25.10" ]]; then
     str="xUbuntu_25.10"
 elif [[ $ver = "25.04" ]]; then
@@ -34,51 +30,7 @@ elif [[ $ver = "22.10" ]]; then
     str="xUbuntu_22.10"
 elif [[ $ver = "22.04" ]]; then
     str="xUbuntu_22.04"
-elif [[ $ver = "21.10" ]]; then
-    str="xUbuntu_21.10"
-elif [[ $ver = "21.04" ]]; then
-    str="xUbuntu_21.04"
-elif [[ $ver = "20.10" ]]; then
-    str="xUbuntu_20.10"
-elif [[ $ver = "20.04" ]]; then
-    str="xUbuntu_20.04"
-elif [[ $ver = "19.10" ]]; then
-    str="xUbuntu_19.10"
-elif [[ $ver = "19.04" ]]; then
-    str="xUbuntu_19.04"
-elif [[ $ver = "18.10" ]]; then
-    str="xUbuntu_18.10"
-elif [[ $ver = "18.04" ]]; then
-    str="xUbuntu_18.04"
-elif [[ $ver = "17.10" ]]; then
-    str="xUbuntu_17.10"
-elif [[ $ver = "17.04" ]]; then
-    str="xUbuntu_17.04"
-elif [[ $ver = "16.10" ]]; then
-    str="xUbuntu_16.10"
-elif [[ $ver = "16.04" ]]; then
-    str="xUbuntu_16.04"
-elif [[ $ver = "15.10" ]]; then
-    str="xUbuntu_15.10"
-elif [[ $ver = "15.04" ]]; then
-    str="xUbuntu_15.04"
-elif [[ $ver = "14.10" ]]; then
-    str="xUbuntu_14.10"
-elif [[ $ver = "14.04" ]]; then
-    str="xUbuntu_14.04"
-elif [[ $ver = "13.10" ]]; then
-    str="xUbuntu_13.10"
-elif [[ $ver = "12.10" ]]; then
-    str="xUbuntu_12.10"
-elif [[ $ver = "12.04" ]]; then
-    str="xUbuntu_12.04"
 # Debian
-elif [[ $ver == 8.* ]]; then
-    str="Debian_8.0"
-elif [[ $ver == 9.* ]]; then
-    str="Debian_9.0"
-elif [[ $ver = 10* ]]; then
-    str="Debian_10.0"
 elif [[ $ver = 11* ]]; then
     str="Debian_11"
 elif [[ $ver = 12* ]]; then
@@ -88,28 +40,12 @@ elif [[ $ver = 13* ]]; then
 elif [[ $ver = "testing" ]]; then
     str="Debian_testing"
 # Elementary OS Freya Ubuntu 14.04 LTS
-elif [[ $distro = "elementary OS Freya" ]]; then
-    str="xUbuntu_14.04"
-elif [[ $distro = "elementary OS Loki" ]]; then
-    str="xUbuntu_16.04"
-elif [[ $distro = "elementary OS Juno" ]]; then
-    str="xUbuntu_18.04"
 elif [[ $distro = "elementary OS Odin" ]]; then
     str="xUbuntu_20.04"
 elif [[ $distro = "elementary OS Horus" ]]; then
     str="xUbuntu_22.04"
 elif [[ $distro = "elementary OS Circe" ]]; then
     str="xUbuntu_24.04"
-elif [[ $distro = "Linux Mint 17.1 Rebecca" ]]; then
-    str="xUbuntu_14.04"
-elif [[ $distro = "Linux Mint 17.1 Rafaela" ]]; then
-    str="xUbuntu_14.04"
-elif [[ $distro = "Linux Mint 18 Sarah" ]]; then
-    str="xUbuntu_16.04"
-elif [[ $distro = "Linux Mint 19 Tara" ]]; then
-    str="xUbuntu_18.04"
-elif [[ $distro = "Linux Mint 20 Ulyina" ]]; then
-    str="xUbuntu_20.04"
 elif [[ $distro = "Linux Mint 21 Vanessa" ]]; then
     str="xUbuntu_22.04"
 elif [[ $distro = "Linux Mint 21.1 Vera" ]]; then
@@ -122,20 +58,20 @@ elif [[ $distro = "Linux Mint 22 Wilma" ]]; then
     str="xUbuntu_24.04"
 elif [[ $distro = "Linux Mint 22.1 Xia" ]]; then
     str="xUbuntu_24.04"
+elif [[ $distro = "Linux Mint 22.2 Zara" ]]; then
+    str="xUbuntu_24.04"
+elif [[ $distro = "Linux Mint 22.3 Zena" ]]; then
+    str="xUbuntu_24.04"
 # fallback to LTS version, unsupported
 else
-    str="xUbuntu_18.04"
-fi
-
-if [ -d /etc/apt/sources.list.d ]; then
-cat >/etc/apt/sources.list.d/megasync.list <<EOF
-deb [signed-by=/usr/share/keyrings/meganz-archive-keyring.gpg] https://mega.nz/linux/repo/$str/ ./
-EOF
+    str="xUbuntu_22.04"
 fi
 
 ## Remove keys from main keyring
 apt-key del 03C3AD3A7F068E5D &>/dev/null || :
 apt-key del 1A664B787094A482 &>/dev/null || :
+
+mkdir -m 0755 -p /etc/apt/keyrings
 
 echo "
 -----BEGIN PGP PUBLIC KEY BLOCK-----
@@ -190,13 +126,21 @@ cqHV7UnrSsJ2fzCOSOWULzW1ZhAGCP1I/kldxm1t5uzr0msZ9VFGlHYSkIAwBcys
 sAdVa6xer/c=
 =F8S0
 -----END PGP PUBLIC KEY BLOCK-----
-" | gpg --dearmor > /usr/share/keyrings/meganz-archive-keyring.gpg
+" | gpg --dearmor > /etc/apt/keyrings/meganz-archive-keyring.gpg
+chmod 0644 /etc/apt/keyrings/meganz-archive-keyring.gpg
+
+if [ -d /etc/apt/sources.list.d ]; then
+    cat >/etc/apt/sources.list.d/megaio.sources <<EOF
+Types: deb
+URIs: https://mega.nz/linux/repo/$str/
+Suites: ./
+Signed-By: /etc/apt/keyrings/meganz-archive-keyring.gpg
+EOF
+
+    rm -f /etc/apt/sources.list.d/megasync.list 2>/dev/null || true
+fi
 
 sysctl -p /etc/sysctl.d/99-megacmd-inotify-limit.conf || true
-
-if [[ $str == "Debian_10.0" ]]; then
-sed -i "s#Buster#Debian_10#g" /var/lib/apt/lists/mega.nz_linux_MEGAsync_Debian%5f10.0_._InRelease 2>/dev/null || true
-fi
 
 pkill --signal SIGUSR2 mega-cmd-server 2> /dev/null || true
 

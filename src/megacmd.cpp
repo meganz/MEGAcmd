@@ -16,6 +16,7 @@
  * program.
  */
 
+#include "mega/log_level.h"
 #include "megacmdcommonutils.h"
 #include "megacmd.h"
 
@@ -1735,7 +1736,7 @@ const char * getUsageStr(const char *command, const HelpFlags& flags)
     }
     if (!strcmp(command, "attr"))
     {
-        return "attr remotepath [--force-non-officialficial] [-s attribute value|-d attribute [--print-only-value]";
+        return "attr remotepath [--force-non-official] [-s attribute value|-d attribute [--print-only-value]";
     }
     if (!strcmp(command, "userattr"))
     {
@@ -1923,7 +1924,7 @@ const char * getUsageStr(const char *command, const HelpFlags& flags)
     }
     if (!strcmp(command, "mediainfo"))
     {
-        return "info remotepath1 remotepath2 ...";
+        return "mediainfo remotepath1 remotepath2 ...";
     }
     if (!strcmp(command, "passwd"))
     {
@@ -3940,7 +3941,12 @@ bool restartServer()
         }
 #else
     pid_t childid = fork();
-    if ( childid ) //parent
+    if (childid == -1)
+    {
+        LOG_err << "fork() failed: " << strerror(errno);
+        return false;
+    }
+    if (childid == 0) // child → execv to become the new server
     {
         const char **argv = new const char*[mcmdMainArgc+3];
         int i = 0, j = 0;
@@ -3969,11 +3975,16 @@ bool restartServer()
         }
 
         argv[j++] = "--wait-for";
-        argv[j++] = std::to_string(childid).c_str();
+        string parentpidstr = std::to_string(getppid());
+        argv[j++] = parentpidstr.c_str();
         argv[j++] = NULL;
         LOG_debug << "Restarting the server : <" << argv[0] << ">";
         execv(argv[0], const_cast<char* const*>(argv));
+
+        // execv failed — child has no threads, skip C++ teardown
+        _exit(1);
     }
+    // parent falls through — all threads intact
 #endif
 
     LOG_debug << "Server restarted, indicating the shell to restart also";
@@ -4441,7 +4452,9 @@ void finalize(bool waitForRestartSignal_param)
         }
     }
 #endif
-    delete cm; //this needs to go after restartServer();
+    delete cm; // closes the socket; must happen after restartServer() so clients
+               // are notified, and before exit so the new server can bind it
+
     LOG_debug << "resources have been cleaned ...";
     LOG_info << "----------------------------- program end -------------------------------";
 
@@ -5378,19 +5391,19 @@ void setFuseLogLevel(MegaApi& api, const std::string& fuseLogLevelStr)
     std::unique_ptr<MegaFuseFlags> fuseFlags(api.getFUSEFlags());
     assert(fuseFlags);
 
-    int fuseLogLevel = fuseFlags->getLogLevel();
+    int sdkLogLevel = fuseFlags->getLogLevel();
     try
     {
-        fuseLogLevel = std::stoi(fuseLogLevelStr);
+        sdkLogLevel = std::stoi(fuseLogLevelStr);
     }
     catch (...) {}
 
-    fuseLogLevel = std::clamp(fuseLogLevel, (int) MegaFuseFlags::LOG_LEVEL_ERROR, (int) MegaFuseFlags::LOG_LEVEL_DEBUG);
+    sdkLogLevel = std::clamp(sdkLogLevel, (int) ::mega::LogLevel::logError, (int) ::mega::LogLevel::logVerbose);
 
-    fuseFlags->setLogLevel(fuseLogLevel);
+    fuseFlags->setLogLevel(sdkLogLevel);
     api.setFUSEFlags(fuseFlags.get());
 
-    LOG_debug << "FUSE log level set to " << fuseLogLevel;
+    LOG_debug << "FUSE log level set to " << sdkLogLevel;
 }
 
 void disableFuseExplorerListView(MegaApi& api)
