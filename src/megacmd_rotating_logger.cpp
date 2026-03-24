@@ -526,9 +526,10 @@ void FileRotatingLoggedStream::setForceRenew(bool forceRenew)
 
 void FileRotatingLoggedStream::writeToBuffer(const char* msg, size_t size) const
 {
-    if (shouldExit())
+    std::lock_guard lock(mWriteMtx);
+    if (mExit)
     {
-        std::cerr << msg;
+        std::cerr.write(msg, size);
         return;
     }
 
@@ -769,10 +770,12 @@ const LoggedStream& FileRotatingLoggedStream::operator<<(std::wstring wstr) cons
 
 void FileRotatingLoggedStream::flush()
 {
+    std::lock_guard lock(mWriteMtx);
+    if (mExit)
     {
-        std::lock_guard lock(mWriteMtx);
-        mFlush = true;
+        return;
     }
+    mFlush = true;
     mWriteCV.notify_one();
 }
 

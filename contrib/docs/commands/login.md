@@ -13,7 +13,7 @@ Logging into a MEGA folder link (an exported/public folder):
 Options:
 	--password=PASSWORD: If the link is a password protected link, then this option can be used to pass in the password for that link.
 	--auth-key=AUTHKEY: If the link is a writable folder link, then this option allows you to log in with write privileges. Without this option, you will log into the link with read access only.
-	--resume: A convenience option to try to resume from cache. When login into a folder, contrary to what occurs with login into a user account, MEGAcmd will not try to load anything from cache: loading everything from scratch. This option changes that. Note, login using a session string, will of course, try to load from cache. This option may be convinient, for instance, if you previously logged out using --keep-session.
+	--resume: A convenience option to try to resume from cache. When login into a folder, contrary to what occurs with login into a user account, MEGAcmd will not try to load anything from cache: loading everything from scratch. This option changes that. Note, login using a session string, will of course, try to load from cache. This option may be convenient, for instance, if you previously logged out using --keep-session.
 
 For more information about MEGA folder links, see "mega-export --help".
 </pre>

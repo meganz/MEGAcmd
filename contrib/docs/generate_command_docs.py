@@ -2,13 +2,18 @@
 
 import re
 import subprocess
+import os
+
+MEGA_EXEC_PATH = os.environ.get('MEGA_EXEC_PATH', 'mega-exec')
 
 def get_help_output(detail):
     det = '-ff' if detail else '-f'
-    return subprocess.run(['mega-exec', 'help', det, '--show-all-options'], capture_output=True, text=True).stdout
+    return subprocess.run([MEGA_EXEC_PATH, 'help', det, '--show-all-options'],
+                          capture_output=True, text=True).stdout
 
 def get_version():
-    out = subprocess.run(['mega-exec', 'version'], capture_output=True, text=True).stdout
+    out = subprocess.run([MEGA_EXEC_PATH, 'version'],
+                         capture_output=True, text=True).stdout
     return re.search(r'MEGAcmd version: (\d+\.\d+\.\d+)', out).group(1)
 
 class CommandSummary:
@@ -49,6 +54,10 @@ class CommandTable:
             args = command_line[1]
 
         command_name = command_name.strip()
+
+        # Skip debug commands
+        if command_name == 'echo':
+            return
 
         self.command_summaries[command_name] = CommandSummary(
             name=command_name,

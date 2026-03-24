@@ -1,0 +1,2 @@
+#This is apparently not supported by g++. if ever using clang
+#heap-buffer-overflow:asan_bug

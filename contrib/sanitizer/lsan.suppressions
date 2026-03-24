@@ -1,0 +1,2 @@
+leak:libfuse3.so
+leak:libfuse.so.2

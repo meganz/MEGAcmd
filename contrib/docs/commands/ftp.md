@@ -13,8 +13,8 @@ Options:
  --port=PORT	*Port to serve. DEFAULT=4990
  --data-ports=BEGIN-END	*Ports range used for data channel (in passive mode). DEFAULT=1500-1600
  --tls      	*Serve with TLS (FTPs)
- --certificate=/path/to/certificate.pem	*Path to PEM formated certificate
- --key=/path/to/certificate.key	*Path to PEM formated key
+ --certificate=/path/to/certificate.pem	*Path to PEM formatted certificate
+ --key=/path/to/certificate.key	*Path to PEM formatted key
  --use-pcre	use PCRE expressions
 
 *If you serve more than one location, these parameters will be ignored and used those of the first location served.

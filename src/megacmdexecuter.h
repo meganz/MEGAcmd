@@ -36,7 +36,7 @@ private:
     mega::MegaApi *api;
     mega::handle cwd;
     std::unique_ptr<char[]> session;
-    mega::MegaFileSystemAccess *fsAccessCMD;
+    std::unique_ptr<mega::FileSystemAccess> mFsAccessCMD;
     MegaCmdLogger *loggerCMD;
     MegaCmdSandbox *sandboxCMD;
     MegaCmdGlobalTransferListener *globalTransferListener;
@@ -128,7 +128,7 @@ public:
     void dumpNodeSummary(mega::MegaNode* n, const char *timeFormat, std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions, bool humanreadable = false, const char* title = NULL);
     void dumpTreeSummary(mega::MegaNode* n, const char *timeFormat, std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions, int recurse, bool show_versions, int depth = 0, bool humanreadable = false, std::string pathRelativeTo = "NULL");
     std::unique_ptr<mega::MegaContactRequest> getPcrByContact(std::string contactEmail);
-    bool TestCanWriteOnContainingFolder(std::string *path);
+    bool TestCanWriteOnContainingFolder(std::string path);
     std::string getDisplayPath(std::string givenPath, mega::MegaNode* n);
     int dumpListOfExported(mega::MegaNode* n, const char *timeFormat, std::map<std::string, int> *clflags, std::map<std::string, std::string> *cloptions, std::string givenPath);
     void listnodeshares(mega::MegaNode* n, std::string name, bool listPending, bool onlyPending);
@@ -151,7 +151,7 @@ public:
     int deleteNode(const std::unique_ptr<mega::MegaNode>& nodeToDelete, mega::MegaApi* api, int recursive, int force = 0);
     int deleteNodeVersions(const std::unique_ptr<mega::MegaNode>& nodeToDelete, mega::MegaApi* api, int force = 0);
     void downloadNode(std::string source, std::string localPath, mega::MegaApi* api, mega::MegaNode *node, bool background, bool ignorequotawar, int clientID, std::shared_ptr<MegaCmdMultiTransferListener> listener);
-    void uploadNode(std::string localPath, mega::MegaApi* api, mega::MegaNode *node, std::string newname, bool background, bool ignorequotawarn, int clientID, MegaCmdMultiTransferListener *multiTransferListener = NULL);
+    void uploadNode(const std::map<std::string, int> &clflags, const std::map<std::string, std::string> &cloptions, const std::string &receivedPath, mega::MegaApi* api, mega::MegaNode *node, const std::string &newname, MegaCmdMultiTransferListener *multiTransferListener = NULL);
     void exportNode(mega::MegaNode *n, int64_t expireTime, const std::optional<std::string>& password = {},
                     std::map<std::string, int> *clflags = nullptr, std::map<std::string, std::string> *cloptions = nullptr);
     void disableExport(mega::MegaNode *n);

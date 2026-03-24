@@ -24,7 +24,9 @@ namespace fs = std::filesystem;
 class FuseTests : public NOINTERACTIVELoggedInTest
 {
     SelfDeletingTmpFolder mTmpDir;
-
+#ifdef _WIN32
+    TestInstrumentsEnvVarGuard mEnvGuard{"MEGACMD_FUSE_ALLOW_LOCAL_PATHS", "1"};
+#endif
     void SetUp() override
     {
         NOINTERACTIVELoggedInTest::SetUp();
@@ -34,6 +36,7 @@ class FuseTests : public NOINTERACTIVELoggedInTest
         ASSERT_TRUE(result);
 
         result = fs::create_directory(mountDirLocal());
+
         ASSERT_TRUE(result);
     }
 
@@ -69,9 +72,14 @@ protected:
         }
     }
 
+    fs::path mountDirLocalPath() const
+    {
+        return mTmpDir.path() / "tests_integration_mount_dir";
+    }
+
     std::string mountDirLocal() const
     {
-        return mTmpDir.string() + "/tests_integration_mount_dir";
+        return mountDirLocalPath().string();
     }
 
     std::string mountDirCloud() const
@@ -94,6 +102,10 @@ TEST_F(FuseTests, NoMounts)
 
 TEST_F(FuseTests, AddAndRemoveMount)
 {
+#ifdef WIN32
+    // Windows expects mount dir to not exist
+    fs::remove_all(mountDirLocal());
+#endif
     auto result = executeInClient({"fuse-add", "--disabled", mountDirLocal(), mountDirCloud()});
     ASSERT_TRUE(result.ok());
     EXPECT_THAT(result.out(), testing::HasSubstr("Added a new mount from " + qw(mountDirLocal()) + " to " + qw(mountDirCloud())));
@@ -120,6 +132,10 @@ TEST_F(FuseTests, AddAndRemoveMount)
 
 TEST_F(FuseTests, AddMountEnabled)
 {
+#ifdef WIN32
+    // Windows expects mount dir to not exist
+    fs::remove_all(mountDirLocal());
+#endif
     auto result = executeInClient({"fuse-add", mountDirLocal(), mountDirCloud()});
     ASSERT_TRUE(result.ok());
     EXPECT_THAT(result.out(), testing::HasSubstr("Added a new mount from " + qw(mountDirLocal()) + " to " + qw(mountDirCloud())));
@@ -142,10 +158,12 @@ TEST_F(FuseTests, AddMountEnabled)
 
 TEST_F(FuseTests, EnsureUniqueId)
 {
-    const std::string dir1 = mountDirLocal() + "/dir1";
-    const std::string dir2 = mountDirLocal() + "/dir2";
+    const std::string dir1 = (mountDirLocalPath() / "dir1").string();
+    const std::string dir2 = (mountDirLocalPath() / "dir2").string();
+#ifndef WIN32
     fs::create_directory(dir1);
     fs::create_directory(dir2);
+#endif
 
     auto result = executeInClient({"fuse-add", dir1, mountDirCloud(), "--name=name1"});
     ASSERT_TRUE(result.ok());

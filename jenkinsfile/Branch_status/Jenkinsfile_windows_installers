@@ -67,7 +67,7 @@ pipeline {
         stage ('Build Windows installers'){
             environment{
                 MEGA_VCPKGPATH  = "${windows_sources_workspace}\\..\\vcpkg_cmdins"
-                MEGA_WIN_KITVER = "10.0.19041.0"
+                MEGA_WIN_KITVER = "10.0.22621.0"
             }
             steps {
                 dir(windows_sources_workspace + '\\build'){

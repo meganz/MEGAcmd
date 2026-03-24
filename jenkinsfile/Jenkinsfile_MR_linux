@@ -121,9 +121,18 @@ pipeline {
                         }
                         environment {
                             DOCKER_BUILDKIT=1
+                            BUILD_CORES=4
                         }
                         steps {
-                            sh "docker build -t meganz/megacmd-${BUILD_SYSTEM}-${SANITIZERS}:${env.BUILD_NUMBER} -f ${megacmd_sources_workspace}/build-with-docker/Dockerfile.${BUILD_SYSTEM} --build-arg=ENABLE_${SANITIZERS}=ON --ulimit=core=-1 --cpuset-cpus=0,1 -- ${megacmd_sources_workspace}"
+                            sh """
+                                docker build -t meganz/megacmd-${BUILD_SYSTEM}-${SANITIZERS}:${env.BUILD_NUMBER} \
+                                  -f ${megacmd_sources_workspace}/build-with-docker/Dockerfile.${BUILD_SYSTEM} \
+                                  --build-arg=ENABLE_${SANITIZERS}=ON \
+                                  --build-arg=BUILD_CORES \
+                                  --ulimit=core=-1 \
+                                  --cpuset-cpus=0,1 \
+                                  -- ${megacmd_sources_workspace}
+                            """
                         }
                     }
                     stage("MEGAcmd unit tests") {
@@ -138,9 +147,10 @@ pipeline {
                             timeout(time: 10, unit: 'MINUTES')
                         }
                         environment {
-                            ASAN_OPTIONS="print_stats=1,log_path=${megacmd_sources_workspace}/test-dir-${SANITIZERS}/results/unit-asan-report.log"
-                            TSAN_OPTIONS="log_path=${megacmd_sources_workspace}/test-dir-${SANITIZERS}/results/unit-tsan-report.log"
+                            ASAN_OPTIONS="print_stats=1,log_path=${megacmd_sources_workspace}/test-dir-${SANITIZERS}/results/unit-asan-report.log,suppressions=${megacmd_sources_workspace}/contrib/sanitizer/asan.suppressions"
+                            TSAN_OPTIONS="log_path=${megacmd_sources_workspace}/test-dir-${SANITIZERS}/results/unit-tsan-report.log,suppressions=${megacmd_sources_workspace}/contrib/sanitizer/tsan.suppressions"
                             UBSAN_OPTIONS="log_path=${megacmd_sources_workspace}/test-dir-${SANITIZERS}/results/unit-ubsan-report.log"
+                            LSAN_OPTIONS="suppressions=${megacmd_sources_workspace}/contrib/sanitizer/lsan.suppressions"
                             HOME="${megacmd_sources_workspace}/test-dir-${SANITIZERS}"
                         }
                         steps {
@@ -175,7 +185,7 @@ pipeline {
                             docker {
                                 image "meganz/megacmd-${BUILD_SYSTEM}-${SANITIZERS}:${env.BUILD_NUMBER}"
                                 reuseNode true
-                                args "--name megacmd-${BUILD_SYSTEM}-${SANITIZERS}-${env.BUILD_NUMBER}"
+                                args "--name megacmd-${BUILD_SYSTEM}-${SANITIZERS}-${env.BUILD_NUMBER} --cap-add SYS_ADMIN --device /dev/fuse --security-opt apparmor:unconfined"
                             }
                         }
                         options {
@@ -184,9 +194,10 @@ pipeline {
                         environment {
                             MEGACMD_TEST_USER=''
                             MEGACMD_TEST_PASS=credentials('MEGACMD_TESTS_PASSWORD')
-                            ASAN_OPTIONS="print_stats=1,log_path=${megacmd_sources_workspace}/test-dir-${SANITIZERS}/results/integration-asan-report.log"
-                            TSAN_OPTIONS="log_path=${megacmd_sources_workspace}/test-dir-${SANITIZERS}/results/integration-tsan-report.log"
+                            ASAN_OPTIONS="print_stats=1,log_path=${megacmd_sources_workspace}/test-dir-${SANITIZERS}/results/integration-asan-report.log,suppressions=${megacmd_sources_workspace}/contrib/sanitizer/asan.suppressions"
+                            TSAN_OPTIONS="log_path=${megacmd_sources_workspace}/test-dir-${SANITIZERS}/results/integration-tsan-report.log,suppressions=${megacmd_sources_workspace}/contrib/sanitizer/tsan.suppressions"
                             UBSAN_OPTIONS="log_path=${megacmd_sources_workspace}/test-dir-${SANITIZERS}/results/integration-ubsan-report.log"
+                            LSAN_OPTIONS="suppressions=${megacmd_sources_workspace}/contrib/sanitizer/lsan.suppressions"
                             HOME="${megacmd_sources_workspace}/test-dir-${SANITIZERS}"
                         }
                         steps {
@@ -198,7 +209,6 @@ pipeline {
                                         timeout -s 11 3500 /usr/bin/mega-cmd-tests-integration \
                                             --gtest_output=xml:${megacmd_sources_workspace}/test-dir-${SANITIZERS}/results/mega-cmd-tests-integration.xml \
                                             --gtest_shuffle \
-                                            --gtest_filter=-FuseTests.*
                                     """
                                 }
                             }
@@ -234,9 +244,10 @@ pipeline {
                             MEGA_EMAILS=''
                             MEGA_PWD=credentials('MEGACMD_TESTS_PASSWORD')
                             MEGA_PWD_AUX=credentials('MEGACMD_TESTS_PASSWORD')
-                            ASAN_OPTIONS="print_stats=1,log_path=${megacmd_sources_workspace}/pytest-dir-${SANITIZERS}/results/pyserver-asan-report.log"
-                            TSAN_OPTIONS="log_path=${megacmd_sources_workspace}/pytest-dir-${SANITIZERS}/results/pyserver-tsan-report.log"
+                            ASAN_OPTIONS="print_stats=1,log_path=${megacmd_sources_workspace}/pytest-dir-${SANITIZERS}/results/pyserver-asan-report.log,suppressions=${megacmd_sources_workspace}/contrib/sanitizer/asan.suppressions"
+                            TSAN_OPTIONS="log_path=${megacmd_sources_workspace}/pytest-dir-${SANITIZERS}/results/pyserver-tsan-report.log,suppressions=${megacmd_sources_workspace}/contrib/sanitizer/tsan.suppressions"
                             UBSAN_OPTIONS="log_path=${megacmd_sources_workspace}/pytest-dir-${SANITIZERS}/results/pyserver-ubsan-report.log"
+                            LSAN_OPTIONS="suppressions=${megacmd_sources_workspace}/contrib/sanitizer/lsan.suppressions"
                             HOME="${megacmd_sources_workspace}/pytest-dir-${SANITIZERS}"
                             YES_I_KNOW_THIS_WILL_CLEAR_MY_MEGA_ACCOUNT=1
                             VERBOSE=1
@@ -280,10 +291,11 @@ pipeline {
                                                     try {
                                                         dir("pytest-dir-${SANITIZERS}/working-dir") {
                                                             sh """
-                                                                # Execute with a timeout lower than Jenkins stage timeout, enforcing a SIGSEGV to ensure core dumping
+                                                                # Note: to detect client side issues, we could execute with a timeout lower than Jenkins stage timeout, enforcing a SIGSEGV to ensure core dumping
                                                                 # In this case, splitting the timeout between all test cases
-                                                                ulimit -c unlimited;
-                                                                ${envStr}timeout -s 11 710 /usr/local/bin/megacmd_${test}_test.py
+                                                                #ulimit -c unlimited;
+                                                                #${envStr}timeout -s 11 710 /usr/local/bin/megacmd_${test}_test.py
+                                                                ${envStr} /usr/local/bin/megacmd_${test}_test.py
                                                             """
                                                         }
                                                         junit "${testDir}/TEST-*.xml"

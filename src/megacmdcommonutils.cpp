@@ -23,6 +23,7 @@
 #include <Shellapi.h> //CommandLineToArgvW
 #include <windows.h> //GetUserName
 #include <Lmcons.h> //UNLEN
+#include <io.h> //_waccess
 #else
 #include <sys/ioctl.h> // console size
 #include <sys/socket.h>
@@ -33,17 +34,17 @@
 #include <unistd.h>
 #endif
 
-#include <cstring>
-#include <iomanip>
-#include <fstream>
-#include <string.h>
 #include <algorithm>
-#include <sstream>
-#include <limits.h>
+#include <cerrno>
+#include <climits>
+#include <cstdlib>
+#include <cstring>
+#include <fstream>
+#include <iomanip>
 #include <iterator>
-
-#include <regex> //split
 #include <random>
+#include <regex> //split
+#include <sstream>
 
 namespace megacmd {
 using namespace std;
@@ -53,17 +54,48 @@ std::string errorCodeStr(const std::error_code& ec)
     return ec ? "(error: " + ec.message() + ")" : "";
 }
 
-bool canWrite(string path)
+bool canWrite(const string &path)
 {
 #ifdef _WIN32
-    // TODO: Check permissions
-    return true;
-#else
-    if (access(path.c_str(), W_OK) == 0)
+    auto bypassCanWrite = []() {
+        const char *bypassCanWriteEnv = getenv("MEGACMD_BYPASS_CAN_WRITE");
+        const std::string bypassCanWriteString = bypassCanWriteEnv ? bypassCanWriteEnv : std::string{};
+        return bypassCanWriteString == "1";
+    };
+    if (bypassCanWrite())
     {
         return true;
     }
-    return false;
+
+    std::wstring wpath = utf8StringToUtf16WString(path.c_str());
+
+
+    if (_waccess(wpath.c_str(), 02) == 0) // 02 = write permission
+    {
+        return true;
+    }
+    else if (errno == EACCES)
+    {
+        return false; // explicitly not writable
+    }
+    else if (errno == ENOENT && wpath.size() > 0 && (wpath.back() == L'.' || wpath.back() == L' '))
+    {
+        // Ignore ENOENT errors for files ending with a period or a space. CMD/SDK is able to sync these files.
+        //
+        // See: https://learn.microsoft.com/en-us/windows/win32/fileio/naming-a-file#naming-conventions
+        // Quote:
+        //   > The following fundamental rules enable applications to create and process valid names
+        //   > for files and directories, regardless of the file system:
+        //   > ...
+        //   > Do not end a file or directory name with a space or a period.
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+#else
+    return access(path.c_str(), W_OK) == 0;
 #endif
 }
 
@@ -155,139 +187,6 @@ string getPublicLinkHandle(const string &link)
     }
 }
 
-string getPublicLinkObjectId(const string &link)
-{
-//    current format:
-//    https://mega.nz/#!ph!key
-//    https://mega.nz/#F!ph!key
-//    https://mega.nz/#F!ph!key!handle (folder inside a folder link)
-//    https://mega.nz/#F!ph!key?handle (file inside a folder link)
-
-//    new format:
-//    https://mega.nz/file/ph#key
-//    https://mega.nz/folder/ph#key
-//    https://mega.nz/folder/ph#key/folder/handle (folder inside a folder link)
-//    https://mega.nz/folder/ph#key/file/handle (file inside a folder link)
-
-
-    size_t postBeginingOfPH = string::npos;
-    string remmaining;
-    const char *sep;
-
-    enum typeOfSeparator { NEWFOLDER, NEWFILE, OLDFOLDER, OLDFILE };
-    auto separators = {"/folder/", "/file/", "#F!", "#!"};
-    int iSeparator = 0;
-    for (auto &w : separators)
-    {
-        postBeginingOfPH = link.find(w);
-        if (postBeginingOfPH != string::npos)
-        {
-            postBeginingOfPH += strlen(w);
-            sep = w;
-
-            break;
-        }
-        iSeparator++;
-    }
-    if (postBeginingOfPH == string::npos)
-    {
-        return string();
-    }
-
-    remmaining = link.substr(postBeginingOfPH);
-
-    size_t postEndOfPH = string::npos;
-    for (auto &w : {"#", "/", "!"})
-    {
-        postEndOfPH = remmaining.find(w);
-        if (postEndOfPH != string::npos)
-        {
-            postEndOfPH += strlen(w);
-            sep = w;
-            break;
-        }
-    }
-
-    if (postEndOfPH == string::npos || postEndOfPH == 0)
-    {
-        return remmaining;
-    }
-
-
-    string ph = remmaining.substr(0, postEndOfPH - 1);
-
-    string handle;
-
-    if (postEndOfPH >= remmaining.size())
-    {
-        return ph;
-    }
-
-    remmaining = remmaining.substr(postEndOfPH - 1);
-
-
-    size_t postBeginingOfHandle = string::npos;
-    if (iSeparator == NEWFOLDER || iSeparator == NEWFILE)
-    {
-
-        for (auto &w : {"/folder/", "/file/"})
-        {
-            postBeginingOfHandle = remmaining.find(w);
-            if (postBeginingOfHandle != string::npos)
-            {
-                postBeginingOfHandle += strlen(w);
-                handle = remmaining.substr(postBeginingOfHandle);
-                break;
-            }
-        }
-    }
-    else //old style
-    {
-        //  remmaining could be:
-        //  !key!handle (folder inside a folder link)
-        //  !key?handle (file inside a folder link)
-        size_t posLastSep = remmaining.rfind("?"); //for folder handles we just check for ? presence
-
-        if (posLastSep == string::npos ) // for file handles, we ensure there are 2 extra !
-        {
-            string rest = remmaining;
-            int count = 0;
-            size_t posExc = rest.find("!");
-            while ( posExc != string::npos && (posExc +1) < rest.size())
-            {
-                count++;
-                if (count <= 2 )
-                {
-                    posLastSep += posExc + 1;
-                }
-
-                rest = rest.substr(posExc + 1);
-                posExc = rest.find("!");
-            }
-
-            if (count != 2)
-            {
-                posLastSep = string::npos;
-            }
-        }
-
-        if (( posLastSep != string::npos ) && ( posLastSep + 1 < remmaining.size()))
-        {
-            handle = remmaining.substr(posLastSep+1);
-
-        }
-    }
-
-
-    if (handle.empty())
-    {
-        return ph;
-    }
-    else
-    {
-        return ph.append("_").append(handle);
-    }
-}
 bool hasWildCards(string &what)
 {
     return what.find('*') != string::npos || what.find('?') != string::npos;
@@ -368,22 +267,22 @@ std::string_view ltrim(const std::string_view s, const char &c)
 
 std::string &rtrim(std::string &s, const char &c)
 {
-    size_t pos = s.find_last_of(c);
-    size_t last = pos == string::npos ? s.length() : pos;
-    if (last + 1 < s.length())
-    {
-        if (s.at(last + 1) != c)
-        {
-            last = s.length();
-        }
-    }
-
-    s = s.substr(0, last);
+    size_t pos = s.find_last_not_of(c);
+    s.resize(pos == std::string::npos ? 0 : pos + 1);
     return s;
 }
 
 string removeTrailingSeparators(string &path)
 {
+    if (path.empty())
+    {
+        return path;
+    }
+    if (path.find_first_not_of('/') == string::npos)
+    {
+        return "/";
+    }
+
     return rtrim(rtrim(path,'/'),'\\');
 }
 
@@ -540,21 +439,18 @@ void replaceAll(std::string& str, const std::string& from, const std::string& to
     }
 }
 
-int toInteger(string what, int failValue)
+int toInteger(const string &str, int failValue)
 {
-    if (what.empty())
-    {
-        return failValue;
-    }
-    if (!isdigit(what[0]) && !( what[0] != '-' ) && ( what[0] != '+' ))
+    if (str.empty())
     {
         return failValue;
     }
 
-    char * p;
-    long l = strtol(what.c_str(), &p, 10);
+    errno = 0;
+    char *p;
+    long long l = strtoll(str.c_str(), &p, 10);
 
-    if (*p != 0)
+    if (p == str.c_str() || *p != '\0' || errno != 0)
     {
         return failValue;
     }
@@ -580,7 +476,7 @@ string joinStrings(const vector<string>& vec, const char* delim, bool quoted)
             res << "\"" << *i << "\"" << delim;
         }
     }
-    if (vec.size()>1)
+    if (vec.size() > 0)
     {
         string toret = res.str();
         return toret.substr(0,toret.size()-strlen(delim));
@@ -863,6 +759,38 @@ void printPercentageLineCerr(const char *title, long long completed, long long t
     }
 }
 
+std::string wrapText(const std::string &input, std::size_t maxWidth, int indentSpaces)
+{
+    const std::string indent(indentSpaces, ' ');
+    std::istringstream iss(input);
+    std::ostringstream oss;
+    std::string word, line = indent;
+
+    while (iss >> word)
+    {
+        if (line.size() + word.size() + 1 > maxWidth)
+        {
+            oss << line << '\n';
+            line = indent + word;
+        }
+        else
+        {
+            if (line != indent)
+            {
+                line += ' ';
+            }
+            line += word;
+        }
+    }
+    if (!line.empty())
+    {
+        oss << line;
+    }
+
+    return oss.str();
+}
+
+
 int getFlag(const map<string, int> *flags, const char * optname)
 {
     auto i = flags->find(optname);
@@ -894,14 +822,8 @@ std::optional<string> getOptionAsOptional(const map<string, string>& cloptions, 
 
 int getintOption(const map<string, string> *cloptions, const char * optname, int defaultValue)
 {
-    auto i = cloptions->find(optname);
-
-    auto result = defaultValue;
-
-    if (i != cloptions->end())
-        istringstream(i->second) >> result;
-
-    return result;
+    auto optionalInt = getIntOptional(*cloptions, optname);
+    return optionalInt.value_or(defaultValue);
 }
 
 std::optional<int> getIntOptional(const std::map<std::string, std::string>& cloptions, const char* optName)
@@ -1146,11 +1068,25 @@ void sleepMilliSeconds(long milliseconds)
 #endif
 }
 
-bool isValidEmail(string email)
+bool isValidEmail(const string &email)
 {
-    return !( (email.find("@") == string::npos)
-                    || (email.find_last_of(".") == string::npos)
-                    || (email.find("@") > email.find_last_of(".")));
+    if (email.size() < 5) // At least "a@b.c"
+    {
+        return false;
+    }
+
+    size_t atPos = email.find("@");
+    if (atPos == string::npos || atPos == 0 || atPos + 1 >= email.length() || email.at(atPos + 1) == '.')
+    {
+        return false;
+    }
+
+    if (size_t dotPos = email.find(".", atPos + 1); dotPos == string::npos || dotPos == email.length() - 1)
+    {
+        return false;
+    }
+
+    return true;
 }
 
 #if defined(__linux__) || defined(__FreeBSD__) || defined(__OpenBSD__) || \
@@ -1662,5 +1598,6 @@ std::string getOrCreateSocketPath(bool createDirectory)
 
     return (socketFolder / sockname).string();
 }
+
 #endif // ifdef(_WIN32) else
 } //end namespace

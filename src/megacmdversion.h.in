@@ -25,13 +25,18 @@
 namespace megacmd {
 
 const char * const megacmdchangelog =
-        "FUSE (beta): Added fuse commands on Linux to allow your MEGA folders to be directly mounted to your local drive""\n"
-        "Delayed sync uploads: Introduced a mechanism to delay to frequently changed sync uploads, and the sync-config command""\n"
-        "Logging: Messages are now printed in standard error, the rotating logger is now configurable and more verbose by default, passwords are now redacted from the logs, and other fixes and refinements""\n"
-        "Fixed a crash when auto-completing a local folder that doesn't exist""\n"
-        "Fixed the confirmcancel command incorrectly reporting failure on success""\n"
-        "Extended speedlimit command to allow increasing max connections""\n"
-        "Other fixes and improvements to enhance reliability and performance"
+        "Shell UX improvements: empty Enter shows a new prompt; no duplicate prompt while command is executing""\n"
+        "Sync engine improvements: prevent re-uploading data when local drive fingerprint has changed""\n"
+        "put: Fixed -c (autocreate) not working when destination is an absolute path""\n"
+        "mediainfo: Fixed audio file duration not being displayed""\n"
+        "Transfers: prevent failures on resumption""\n"
+        "thumbnail/preview: Print error when the requested file does not exist""\n"
+        "share: Return success (exit code 0) when no shares exist below the current folder""\n"
+        "passwd: fixes issues when 2FA is enabled""\n"
+        "Path and string handling fixes (trailing separators, trimming)""\n"
+        "Expanded unit test coverage""\n"
+        "Fix: Improved restart-after-update reliability on POSIX (server PID changes after update)""\n"
+        "Stability, memory, typos and other improvements"
         ;
 }//end namespace
 #endif // VERSION_H

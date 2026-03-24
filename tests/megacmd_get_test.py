@@ -138,6 +138,9 @@ class MEGAcmdGetTest(unittest.TestCase):
     def tearDownClass(cls):
         clean_all()
 
+    def setUp(self):
+        print(f"\n=== Running test: {self._testMethodName} ===")
+
     def tearDown(self):
         clear_dls()
         cmd_ef(CD+" /")
@@ -380,7 +383,7 @@ class MEGAcmdGetTest(unittest.TestCase):
 
     def test_38_download_file_from_inshare(self):
         """get from //from/XXX"""
-        cmd_ex(GET+' //from/'+osvar('MEGA_EMAIL_AUX')+':foreign/sub02/fileatsub02.txt '+ABSMEGADLFOLDER+'')
+        cmd_ef(GET+' //from/'+osvar('MEGA_EMAIL_AUX')+':foreign/sub02/fileatsub02.txt '+ABSMEGADLFOLDER+'')
         shutil.copy2('origin/foreign/sub02/fileatsub02.txt','localDls/')
         self.compare()
 

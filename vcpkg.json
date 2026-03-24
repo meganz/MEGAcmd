@@ -4,6 +4,10 @@
     "homepage" : "https://github.com/meganz/megacmd",
     "features" :
     {
+        "megacmd-enable-tests": {
+           "description": "Compile MEGAcmd tests",
+           "dependencies": [ "gtest" ]
+        },
         "use-openssl":
         {
             "description": "OpenSSL library",
@@ -16,17 +20,10 @@
         "use-freeimage": {
             "description": "FreeImage library",
             "dependencies": [
-                {
-                    "name": "freeimage",
-                    "version>=" : "3.18.0#27"
-                },
+                "freeimage",
                 {
                     "name": "jasper",
                     "default-features": false
-                },
-                {
-                    "name": "tiff",
-                    "version>=": "4.7.0"
                 }
             ]
         },
@@ -35,7 +32,6 @@
             "dependencies": [
                 {
                     "name": "ffmpeg",
-                    "version>=": "5.1.2#10",
                     "default-features": false,
                     "features": ["avcodec", "avformat", "swresample", "swscale"]
                 }
@@ -57,33 +53,38 @@
             "description": "gtests library for the integration and unit tests",
             "dependencies": [ "gtest" ]
         },
-        "megacmd-enable-tests": {
-           "description": "Compile MEGAcmd tests",
-           "dependencies": [ "gtest" ]
+        "c-ares-backend-curl": {
+            "description": "Enable c-ares backend for curl",
+            "dependencies": [
+                {
+                    "name": "curl",
+                    "features": [
+                        "c-ares"
+                    ]
+                }
+            ]
         }
     },
     "dependencies": [
+        "pcre",
+        "cryptopp",
         {
-            "name": "cryptopp",
-            "version>=": "8.9.0"
-        },
-        {
-            "name": "curl",
-            "version>=": "8.6.0"
+          "name": "curl",
+          "features": [ "zstd" ]
         },
         "icu",
         "libsodium",
-        {
-            "name": "sqlite3",
-            "version>=": "3.46.0#1"
-        },
-        "pcre"
+        "sqlite3"
     ],
-    "builtin-baseline" : "7476f0d4e77d3333fbb249657df8251c28c4faae",
+    "builtin-baseline": "ef7dbf94b9198bc58f45951adcf1f041fcbc5ea0",
     "overrides": [
         {
-            "name" : "libuv",
-            "version": "1.44.2"
+            "name": "icu",
+            "version": "74.2#4"
+        },
+        {
+            "name": "libuv",
+            "version": "1.49.2"
         }
     ]
 }

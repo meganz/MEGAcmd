@@ -3,10 +3,10 @@ This is a brief tutorial on how to configure and manage [FUSE](https://en.wikipe
 
 Configuring a FUSE mount will let you access your MEGA files as if they were located in your computer. After enabling a FUSE mount, you can use your favourite tools to browse, play, and edit your MEGA files.
 
-Note: this functionality is in beta, and only supported on Linux.
+Note: this functionality is in beta, and not supported on macOS.
 
 ## Local cache
-MEGAcmd will use a cache to place files while working with mount points. This cache will be used to store both files downloaded from MEGA, and files being uploaded to MEGA. It will be created automatically in `$HOME/.megaCmd/fuse-cache`.
+MEGAcmd will use a cache to place files while working with mount points. This cache will be used to store both files downloaded from MEGA, and files being uploaded to MEGA. It will be created automatically in `$HOME/.megaCmd/fuse-cache` (`%LOCALAPPDATA%\MEGAcmd\.megaCmd\fuse-cache` in Windows).
 
 Bear in mind that this cache is fundamental to be able to work with FUSE mounts. Cache files are removed automatically. Restarting the MEGAcmd Server may help reduce the space used by the cache.
 
@@ -84,7 +84,7 @@ $ fuse-remove <NAME|LOCAL_PATH>
 Note: mounts must be disabled before they can be removed.
 
 ## Issues
-Occasionally, you may encounter issues in FUSE mounts that cannot be directly resolved within MEGAcmd (for example, if the MEGAcmd server was closed abruptly). The most common one is: "Error: cannot access '/local/path/to/fuse/mountpoint': Transport endpoint is not connected". To fix them you might need to use the `fusermount` command like so:
+Occasionally, you may encounter issues in FUSE mounts that cannot be directly resolved within MEGAcmd (for example, if the MEGAcmd server was closed abruptly). The most common one is: "Error: cannot access '/local/path/to/fuse/mountpoint': Transport endpoint is not connected". To fix them, in Linux, you might need to use the `fusermount` command like so:
 ```
 fusermount -u /local/path/to/fuse/mountpoint
 ```

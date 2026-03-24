@@ -14,5 +14,5 @@ Options:
  --temporarily   Specifies whether the mount should be enabled only until the server is restarted.
                  Has no effect on transient mounts, since any action on them is always temporary.
 
-Note: FUSE commands are in early BETA. They're only available on Linux. If you experience any issues, please contact support@mega.nz.
+Note: FUSE commands are in early BETA. They are not available in macOS. If you experience any issues, please contact support@mega.nz.
 </pre>

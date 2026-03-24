@@ -35,6 +35,7 @@
 #include <limits>
 #include <string>
 #include <ctime>
+#include <functional>
 #include <set>
 
 #include <signal.h>
@@ -189,6 +190,7 @@ void MegaCmdExecuter::updateprompt(MegaApi *api)
 
 MegaCmdExecuter::MegaCmdExecuter(MegaApi *api, MegaCmdLogger *loggerCMD, MegaCmdSandbox *sandboxCMD) :
     // Give a few seconds in order for key sharing to happen
+    mFsAccessCMD(::mega::createFSA()),
     mDeferredSharedFoldersVerifier(std::chrono::seconds(5)),
     mSyncIssuesManager(api)
 {
@@ -202,13 +204,12 @@ MegaCmdExecuter::MegaCmdExecuter(MegaApi *api, MegaCmdLogger *loggerCMD, MegaCmd
     api->addTransferListener(globalTransferListener);
     api->addGlobalListener(mSyncIssuesManager.getGlobalListener());
     cwd = UNDEF;
-    fsAccessCMD = new MegaFileSystemAccess();
     session = NULL;
+
 }
 
 MegaCmdExecuter::~MegaCmdExecuter()
 {
-    delete fsAccessCMD;
     delete globalTransferListener;
 }
 
@@ -1587,7 +1588,7 @@ void MegaCmdExecuter::dumpNodeSummary(MegaNode *n, const char *timeFormat, std::
 void MegaCmdExecuter::createOrModifyBackup(string local, string remote, string speriod, int numBackups)
 {
     LocalPath locallocal = LocalPath::fromAbsolutePath(local);
-    std::unique_ptr<FileAccess> fa = fsAccessCMD->newfileaccess();
+    std::unique_ptr<FileAccess> fa = mFsAccessCMD->newfileaccess();
     if (!fa->isfolder(locallocal))
     {
         setCurrentThreadOutCode(MCMD_NOTFOUND);
@@ -1904,29 +1905,19 @@ void MegaCmdExecuter::dumpTreeSummary(MegaNode *n, const char *timeFormat, std::
  * @param path
  * @return
  */
-bool MegaCmdExecuter::TestCanWriteOnContainingFolder(string *path)
+bool MegaCmdExecuter::TestCanWriteOnContainingFolder(string path)
 {
 #ifdef _WIN32
-    replaceAll(*path,"/","\\");
+    replaceAll(path, "/", "\\");
 #endif
 
-    auto containingFolder = LocalPath::fromAbsolutePath(*path);
-
-    // Where does our name begin?
-    auto index = containingFolder.getLeafnameByteIndex();
-
-    // We have a parent.
-    if (index)
+    auto containingFolder = LocalPath::fromAbsolutePath(path);
+    if (!containingFolder.isRootPath())
     {
-        // Remove the current leaf name.
-        containingFolder.truncate(index);
-    }
-    else
-    {
-        containingFolder = LocalPath::fromAbsolutePath(".");
+        containingFolder = containingFolder.parentPath();
     }
 
-    std::unique_ptr<FileAccess> fa = fsAccessCMD->newfileaccess();
+    std::unique_ptr<FileAccess> fa = mFsAccessCMD->newfileaccess();
     if (!fa->isfolder(containingFolder))
     {
         setCurrentThreadOutCode(MCMD_INVALIDTYPE);
@@ -1934,7 +1925,7 @@ bool MegaCmdExecuter::TestCanWriteOnContainingFolder(string *path)
         return false;
     }
 
-    if (!canWrite(containingFolder.platformEncoded()))
+    if (!canWrite(containingFolder.toPath(false)))
     {
         setCurrentThreadOutCode(MCMD_NOTPERMITTED);
         LOG_err << "Write not allowed in " << containingFolder.toPath(false);
@@ -2151,11 +2142,6 @@ void MegaCmdExecuter::dumpListOfShared(MegaNode* n_param, string givenPath)
 {
     vector<MegaNode *> listOfShared;
     processTree(n_param, includeIfIsShared, (void*)&listOfShared);
-    if (!listOfShared.size())
-    {
-        setCurrentThreadOutCode(MCMD_NOTFOUND);
-        LOG_err << "No shared found for given path: " << givenPath;
-    }
     for (std::vector< MegaNode * >::iterator it = listOfShared.begin(); it != listOfShared.end(); ++it)
     {
         MegaNode * n = *it;
@@ -2242,9 +2228,9 @@ void MegaCmdExecuter::changePassword(const char *newpassword, string pin2fa)
         }
         else if (checkNoErrors(megaCmdListener2->getError(), "change password with auth code"))
         {
-            OUTSTREAM << "Password changed succesfully" << endl;
+            OUTSTREAM << "Password changed successfully" << endl;
         }
-
+        delete megaCmdListener2;
     }
     else if (!checkNoErrors(megaCmdListener->getError(), "change password"))
     {
@@ -2252,7 +2238,7 @@ void MegaCmdExecuter::changePassword(const char *newpassword, string pin2fa)
     }
     else
     {
-        OUTSTREAM << "Password changed succesfully" << endl;
+        OUTSTREAM << "Password changed successfully" << endl;
     }
     delete megaCmdListener;
 }
@@ -2504,7 +2490,7 @@ bool MegaCmdExecuter::actUponFetchNodes(MegaApi *api, SynchronousRequestListener
 
     if (srl->getError()->getErrorCode() == MegaError::API_EBLOCKED)
     {
-        LOG_verbose << " EBLOCKED after fetch nodes. quering for reason...";
+        LOG_verbose << " EBLOCKED after fetch nodes. querying for reason...";
 
         MegaCmdListener *megaCmdListener = new MegaCmdListener(api, NULL);
         api->whyAmIBlocked(megaCmdListener); //This shall cause event that sets reasonblocked
@@ -2652,6 +2638,27 @@ int MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
                 {
                     LOG_err << "Failed to change max " << (up ? "upload" : "download") << " connections: "
                             << megaCmdListener->getError()->getErrorString();
+                }
+            }
+        }
+
+        for (auto &vc : Instance<ConfiguratorMegaApiHelper>::Get().getConfigurators())
+        {
+            auto name = vc.mKey.c_str();
+            auto newValueOpt = vc.mGetter(api, name);
+            if (newValueOpt)
+            {
+                if (vc.mValidator && !vc.mValidator.value()(newValueOpt->data()))
+                {
+                    LOG_err << "Failed to change " << vc.mKey << " (" << vc.mDescription << ") after login. Invalid value in configuration";
+                    continue;
+                }
+
+                auto previousErrorCode = getCurrentThreadOutCode();
+                if (!vc.mSetter(api, std::string(name), newValueOpt->data()))
+                {
+                    LOG_err << "Failed to change " << vc.mKey << " (" << vc.mDescription << ") after login. Setting failed";
+                    setCurrentThreadOutCode(previousErrorCode); //Do not consider this a a failure on login ...
                 }
             }
         }
@@ -2815,7 +2822,7 @@ void MegaCmdExecuter::fetchNodes(MegaApi *api, int clientID)
             {
                 thebackup->failed = false;
                 const char *nodepath = api->getNodePath(node);
-                LOG_debug << "Succesfully resumed backup: " << thebackup->localpath << " to " << nodepath;
+                LOG_debug << "Successfully resumed backup: " << thebackup->localpath << " to " << nodepath;
                 delete []nodepath;
             }
             else
@@ -3278,7 +3285,7 @@ void MegaCmdExecuter::downloadNode(string source, string path, MegaApi* api, Meg
         // in order to speedup and not flood the server we only ask for the details every 1 minute or after account changes
         if (!sandboxCMD->temporalbandwidth || (ts - sandboxCMD->lastQuerytemporalBandwith ) > 60 )
         {
-            LOG_verbose << " Updating temporal bandwith ";
+            LOG_verbose << " Updating temporal bandwidth ";
             sandboxCMD->lastQuerytemporalBandwith = ts;
 
             MegaCmdListener *megaCmdListener = new MegaCmdListener(api, NULL);
@@ -3307,7 +3314,7 @@ void MegaCmdExecuter::downloadNode(string source, string path, MegaApi* api, Meg
         }
         else
         {
-            OUTSTREAM << "You have reached your bandwith quota";
+            OUTSTREAM << "You have reached your bandwidth quota";
         }
         OUTSTREAM << ". To circumvent this limit, "
                   "you can upgrade to Pro, which will give you your own bandwidth "
@@ -3327,7 +3334,7 @@ void MegaCmdExecuter::downloadNode(string source, string path, MegaApi* api, Meg
         {
             if (megaCmdListener->getRequest() && megaCmdListener->getRequest()->getFlag() )
             {
-                OUTSTREAM << "Transfer not started: proceding will exceed transfer quota. "
+                OUTSTREAM << "Transfer not started: proceeding will exceed transfer quota. "
                              "Use --ignore-quota-warn to initiate nevertheless" << endl;
                 return;
             }
@@ -3356,24 +3363,36 @@ void MegaCmdExecuter::downloadNode(string source, string path, MegaApi* api, Meg
      );
 }
 
-void MegaCmdExecuter::uploadNode(string path, MegaApi* api, MegaNode *node, string newname,
-                                 bool background, bool ignorequotawarn, int clientID, MegaCmdMultiTransferListener *multiTransferListener)
+
+
+class SelfDestructingTransferStartCallbackListener: public MegaTransferListener
 {
-    if (!ignorequotawarn)
-    { //TODO: reenable this if ever queryBandwidthQuota applies to uploads as well
-//        MegaCmdListener *megaCmdListener = new MegaCmdListener(api, NULL);
-//        api->queryBandwidthQuota(node->getSize(),megaCmdListener);
-//        megaCmdListener->wait();
-//        if (checkNoErrors(megaCmdListener->getError(), "query bandwidth quota"))
-//        {
-//            if (megaCmdListener->getRequest() && megaCmdListener->getRequest()->getFlag() )
-//            {
-//                OUTSTREAM << "Transfer not started: proceding will exceed bandwith quota. "
-//                             "Use --ignore-quota-warn to initiate nevertheless" << endl;
-//                return;
-//            }
-//        }
+    std::function<void(MegaTransfer*)> mOnTransferStart;
+public:
+
+    template <typename Cb>
+    SelfDestructingTransferStartCallbackListener(Cb &&cb)
+        : mOnTransferStart(std::forward<Cb>(cb))
+    {}
+    void onTransferStart(MegaApi *api, MegaTransfer *transfer) override
+    {
+        mOnTransferStart(transfer);
     }
+
+public:
+    void onTransferFinish(MegaApi *api, MegaTransfer *transfer, MegaError *error) override
+    {
+        delete this;
+    }
+};
+
+void MegaCmdExecuter::uploadNode(const std::map<std::string, int> &clflags, const std::map<std::string, std::string> &cloptions,
+                                 const std::string &receivedPath, MegaApi* api, MegaNode *node, const string &newname,
+                                 MegaCmdMultiTransferListener *multiTransferListener)
+{
+    bool printTag = getFlag(&clflags,"print-tag-at-start");
+
+    std::string path = receivedPath;
     unescapeifRequired(path);
 
     if (!pathExists(path))
@@ -3383,24 +3402,31 @@ void MegaCmdExecuter::uploadNode(string path, MegaApi* api, MegaNode *node, stri
         return;
     }
 
-    MegaTransferListener *thelistener = nullptr;
-    std::unique_ptr<MegaCmdTransferListener> singleNonBackgroundTransferListener;
-    if (!background)
+    MegaTransferListener *thelistener = multiTransferListener;
+
+    std::optional<std::promise<std::pair<int/*tag*/, std::string/*path*/>>> promiseStarted;
+    if (printTag)
     {
-        if (!multiTransferListener)
+        promiseStarted.emplace();
+        auto onTransferStartCb = [&promiseStarted](MegaTransfer *transfer)
         {
-            singleNonBackgroundTransferListener.reset(new MegaCmdTransferListener(api, sandboxCMD, nullptr, clientID));
-            thelistener = singleNonBackgroundTransferListener.get();
+            promiseStarted->set_value({transfer->getTag(), transfer->getPath()});
+        };
+
+        if (multiTransferListener)
+        {
+            multiTransferListener->setOnTransferStartCb(std::move(onTransferStartCb));
         }
         else
         {
-            multiTransferListener->onNewTransfer();
-            thelistener = multiTransferListener;
+            // create a listener for the shake of printing the tag.
+            thelistener = new SelfDestructingTransferStartCallbackListener(std::move(onTransferStartCb));
         }
     }
-    else
+
+    if (multiTransferListener)
     {
-        thelistener = nullptr;
+        multiTransferListener->onNewTransfer();
     }
 
 #ifdef _WIN32
@@ -3420,24 +3446,10 @@ void MegaCmdExecuter::uploadNode(string path, MegaApi* api, MegaNode *node, stri
                 nullptr,//MegaCancelToken *cancelToken,
                 thelistener);
 
-    if (singleNonBackgroundTransferListener)
+    if (promiseStarted)
     {
-        assert(!background);
-        singleNonBackgroundTransferListener->wait();
-#ifdef _WIN32
-            Sleep(100); //give a while to print end of transfer
-#endif
-        if (singleNonBackgroundTransferListener->getError()->getErrorCode() == API_EREAD)
-        {
-            setCurrentThreadOutCode(MCMD_NOTFOUND);
-            LOG_err << "Could not find local path: " << path;
-        }
-        else if (checkNoErrors(singleNonBackgroundTransferListener->getError(), "Upload node"))
-        {
-            char * destinyPath = api->getNodePath(node);
-            LOG_info << "Upload complete: " << path << " to " << destinyPath << newname;
-            delete []destinyPath;
-        }
+        auto [tag, path] = promiseStarted->get_future().get();
+        OUTSTREAM << "Upload started: Tag = " << tag << ". Source = " << path << std::endl;
     }
 }
 
@@ -4189,13 +4201,13 @@ void MegaCmdExecuter::signup(string name, string passwd, string email)
         return;
     }
 
-    OUTSTREAM << "Singinup up. name=" << firstname << ". surname=" << lastname<< endl;
+    OUTSTREAM << "Signing up. name=" << firstname << ". surname=" << lastname<< endl;
 
     api->createAccount(email.c_str(), passwd.c_str(), firstname.c_str(), lastname.c_str(), megaCmdListener);
     megaCmdListener->wait();
     if (checkNoErrors(megaCmdListener->getError(), "create account <" + email + ">"))
     {
-        OUTSTREAM << "Account <" << email << "> created succesfully. You will receive a confirmation link. Use \"confirm\" with the provided link to confirm that account" << endl;
+        OUTSTREAM << "Account <" << email << "> created successfully. You will receive a confirmation link. Use \"confirm\" with the provided link to confirm that account" << endl;
     }
 
     delete megaCmdListener;
@@ -4223,7 +4235,7 @@ void MegaCmdExecuter::confirm(string passwd, string email, string link)
     }
     else if (checkNoErrors(megaCmdListener2->getError(), "confirm account"))
     {
-        OUTSTREAM << "Account " << email << " confirmed succesfully. You can login with it now" << endl;
+        OUTSTREAM << "Account " << email << " confirmed successfully. You can login with it now" << endl;
     }
 
     delete megaCmdListener2;
@@ -4237,7 +4249,7 @@ void MegaCmdExecuter::confirmWithPassword(string passwd)
 bool MegaCmdExecuter::pathExists(const std::string &path)
 {
     LocalPath localPath = LocalPath::fromAbsolutePath(path);
-    std::unique_ptr<FileAccess> fa(fsAccessCMD->newfileaccess());
+    std::unique_ptr<FileAccess> fa(mFsAccessCMD->newfileaccess());
     return fa->isfolder(localPath) || fa->isfile(localPath);
 }
 
@@ -4247,7 +4259,7 @@ bool MegaCmdExecuter::IsFolder(string path)
     replaceAll(path,"/","\\");
 #endif
     LocalPath localpath = LocalPath::fromAbsolutePath(path);
-    std::unique_ptr<FileAccess> fa = fsAccessCMD->newfileaccess();
+    std::unique_ptr<FileAccess> fa = mFsAccessCMD->newfileaccess();
     return fa->isfolder(localpath);
 }
 
@@ -4434,20 +4446,35 @@ void MegaCmdExecuter::printTransferColumnDisplayer(ColumnDisplayer *cd, MegaTran
     else
     {
         //source
-        string source(transfer->getParentPath()?transfer->getParentPath():"");
-        source.append(transfer->getFileName());
+
+        string source(transfer->getPath() ? transfer->getPath() : "");
+        if (source.empty()) //fallback to use parent + filename
+        {
+            source = (transfer->getParentPath() ? transfer->getParentPath() : "");
+            if (transfer->getFileName())
+            {
+                source.append(transfer->getFileName()); //Notice, this may differ from name of the source file
+            }
+        }
 
         cd->addValue("SOURCEPATH",source);
 
         //destination
-        MegaNode * parentNode = api->getNodeByHandle(transfer->getParentHandle());
+        std::unique_ptr<MegaNode> parentNode(api->getNodeByHandle(transfer->getParentHandle()));
         if (parentNode)
         {
-            char * parentnodepath = api->getNodePath(parentNode);
-            cd->addValue("DESTINYPATH",parentnodepath);
-            delete []parentnodepath;
+            std::unique_ptr<char []> parentNodePath{api->getNodePath(parentNode.get())};
+            std::string parentnodepathS(parentNodePath ? parentNodePath.get() : "<lost_node>");
+            if (transfer->getFileName())
+            {
+                if (!parentnodepathS.empty() && parentnodepathS.back() != '/')
+                {
+                    parentnodepathS.append("/");
+                }
+                parentnodepathS.append(transfer->getFileName());
+            }
 
-            delete parentNode;
+            cd->addValue("DESTINYPATH", parentnodepathS);
         }
         else
         {
@@ -4681,7 +4708,7 @@ void MegaCmdExecuter::printBackup(backup_struct *backupstruct, const char *timeF
     }
     else
     { //merely print configuration
-        printBackupSummary(backupstruct->tag, backupstruct->localpath.c_str(),"UNKOWN"," FAILED", PATHSIZE);
+        printBackupSummary(backupstruct->tag, backupstruct->localpath.c_str(),"UNKNOWN"," FAILED", PATHSIZE);
         if (extendedinfo)
         {
             string speriod = (backupstruct->period == -1)?backupstruct->speriod:getReadablePeriod(backupstruct->period/10);
@@ -4761,7 +4788,7 @@ string MegaCmdExecuter::getLPWD()
     string relativePath = ".";
     LocalPath localRelativePath = LocalPath::fromRelativePath(relativePath);
     LocalPath localAbsolutePath;
-    if (!fsAccessCMD->expanselocalpath(localRelativePath, localAbsolutePath))
+    if (!mFsAccessCMD->expanselocalpath(localRelativePath, localAbsolutePath))
     {
         LOG_err << " Unable to expanse local path . ";
         return "UNKNOWN";
@@ -5057,7 +5084,7 @@ bool MegaCmdExecuter::establishBackup(string pathToBackup, MegaNode *n, int64_t 
     static int backupcounter = 0;
     LocalPath localAbsolutePath = LocalPath::fromAbsolutePath(pathToBackup); //this one would converts it to absolute if it's relative
     LocalPath expansedAbsolutePath;
-    if (!fsAccessCMD->expanselocalpath(localAbsolutePath, expansedAbsolutePath))
+    if (!mFsAccessCMD->expanselocalpath(localAbsolutePath, expansedAbsolutePath))
     {
         setCurrentThreadOutCode(MCMD_NOTFOUND);
         LOG_err << " Failed to expanse path";
@@ -5171,7 +5198,7 @@ void MegaCmdExecuter::confirmCancel(const char* confirmlink, const char* pass)
     else if (megaCmdListener->getError()->getErrorCode() == MegaError::API_ESID ||
              checkNoErrors(megaCmdListener->getError(), "confirm cancel account"))
     {
-        OUTSTREAM << "CONFIRM Account cancelled succesfully" << endl;
+        OUTSTREAM << "CONFIRM Account cancelled successfully" << endl;
 
         megaCmdListener = std::make_unique<MegaCmdListener>(nullptr);
         api->localLogout(megaCmdListener.get());
@@ -5416,7 +5443,7 @@ void MegaCmdExecuter::printInfoFile(MegaNode *n, bool &firstone, int PATHSIZE)
         MediaProperties mp = MediaProperties::decodeMediaPropertiesAttributes(fattrs, (uint32_t*)(n->getNodeKey()->data() + FILENODEKEYLENGTH / 2) );
         OUTSTREAM << getFixLengthString( (mp.fps == 0) ? "---" : SSTR(mp.fps) , 3) << " ";
     }
-    OUTSTREAM << getFixLengthString( (n->getHeight() == -1) ? "---" : getReadablePeriod(n->getDuration()) , 10) << " ";
+    OUTSTREAM << getFixLengthString( (n->getDuration() == -1) ? "---" : getReadablePeriod(n->getDuration()) , 10) << " ";
 
     OUTSTREAM << endl;
 }
@@ -6439,7 +6466,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         }
                         else
                         {
-                            if (!TestCanWriteOnContainingFolder(&path))
+                            if (!TestCanWriteOnContainingFolder(path))
                             {
                                 return;
                             }
@@ -6522,6 +6549,12 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     }
 
                     MegaApi* apiFolder = getFreeApiFolder();
+                    if (!apiFolder)
+                    {
+                        setCurrentThreadOutCode(MCMD_NOTFOUND);
+                        LOG_err << "No available Api folder. Use configure to increase exported_folders_sdks";
+                        return;
+                    }
                     char *accountAuth = api->getAccountAuth();
                     apiFolder->setAccountAuth(accountAuth);
                     delete []accountAuth;
@@ -6648,7 +6681,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                         }
                         else //destiny non existing or a file
                         {
-                            if (!TestCanWriteOnContainingFolder(&path))
+                            if (!TestCanWriteOnContainingFolder(path))
                             {
                                 return;
                             }
@@ -6706,7 +6739,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                                 }
                                 else
                                 {
-                                    if (!TestCanWriteOnContainingFolder(&path))
+                                    if (!TestCanWriteOnContainingFolder(path))
                                     {
                                         return;
                                     }
@@ -6951,8 +6984,6 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
     }
     else if (words[0] == "put")
     {
-        int clientID = getintOption(cloptions, "clientID", -1);
-
         if (!api->isFilesystemAvailable())
         {
             setCurrentThreadOutCode(MCMD_NOTLOGGEDIN);
@@ -6961,127 +6992,128 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         }
 
         bool background = getFlag(clflags,"q");
-        if (background)
-        {
-            clientID = -1;
-        }
+        bool autocreate = getFlag(clflags, "c");
 
-        MegaCmdMultiTransferListener *megaCmdMultiTransferListener = new MegaCmdMultiTransferListener(api, sandboxCMD, NULL, clientID);
+        int clientID = getintOption(cloptions, "clientID", -1);
 
-        bool ignorequotawarn = getFlag(clflags,"ignore-quota-warn");
-
-        if (words.size() > 1)
-        {
-            string targetuser;
-            string newname = "";
-            string destination = "";
-
-            std::unique_ptr<MegaNode> n;
-
-            if (words.size() > 2)
-            {
-                destination = words[words.size() - 1];
-                n = nodebypath(destination.c_str(), &targetuser, &newname);
-
-                if (!n && getFlag(clflags,"c"))
-                {
-                    string destinationfolder(destination,0,destination.find_last_of("/"));
-                    newname=string(destination,destination.find_last_of("/")+1,destination.size());
-                    MegaNode *cwdNode = api->getNodeByHandle(cwd);
-                    makedir(destinationfolder,true,cwdNode);
-                    n = nodebypath(destinationfolder.c_str());
-                    delete cwdNode;
-                }
-            }
-            else
-            {
-                n.reset(api->getNodeByHandle(cwd));
-                words.push_back(".");
-            }
-
-            if (n)
-            {
-                if (n->getType() != MegaNode::TYPE_FILE)
-                {
-                    for (int i = 1; i < max(1, (int)words.size() - 1); i++)
-                    {
-                        if (words[i] == ".")
-                        {
-                            words[i] = getLPWD();
-                        }
-
-#ifdef HAVE_GLOB_H
-                        if (!newname.size() && !fs::exists(words[i]) && hasWildCards(words[i]))
-                        {
-                            auto paths = resolvewildcard(words[i]);
-                            if (!paths.size())
-                            {
-                                setCurrentThreadOutCode(MCMD_NOTFOUND);
-                                LOG_err << words[i] << " not found";
-                            }
-                            for (auto path : paths)
-                            {
-                                uploadNode(path, api, n.get(), newname, background, ignorequotawarn, clientID, megaCmdMultiTransferListener);
-                            }
-                        }
-                        else
-#endif
-                        {
-                            uploadNode(words[i], api, n.get(), newname, background, ignorequotawarn, clientID, megaCmdMultiTransferListener);
-                        }
-                    }
-                }
-                else if (words.size() == 3 && !IsFolder(words[1])) //replace file
-                {
-                    unique_ptr<MegaNode> pn(api->getNodeByHandle(n->getParentHandle()));
-                    if (pn)
-                    {
-#ifdef HAVE_GLOB_H
-                        if (!fs::exists(words[1]) && hasWildCards(words[1]))
-                        {
-                            LOG_err << "Invalid target for wildcard expression: " << words[1] << ". Folder expected";
-                            setCurrentThreadOutCode(MCMD_INVALIDTYPE);
-                        }
-                        else
-#endif
-                        {
-                            uploadNode(words[1], api, pn.get(), n->getName(), background, ignorequotawarn, clientID, megaCmdMultiTransferListener);
-                        }
-                    }
-                    else
-                    {
-                        setCurrentThreadOutCode(MCMD_NOTFOUND);
-                        LOG_err << "Destination is not valid. Parent folder cannot be found";
-                    }
-                }
-                else
-                {
-                    setCurrentThreadOutCode(MCMD_INVALIDTYPE);
-                    LOG_err << "Destination is not valid (expected folder or alike)";
-                }
-
-                megaCmdMultiTransferListener->waitMultiEnd();
-
-                checkNoErrors(megaCmdMultiTransferListener->getFinalerror(), "upload");
-
-                if (megaCmdMultiTransferListener->getProgressinformed() || getCurrentThreadOutCode() == MCMD_OK )
-                {
-                    informProgressUpdate(PROGRESS_COMPLETE, megaCmdMultiTransferListener->getTotalbytes(), clientID);
-                }
-                delete megaCmdMultiTransferListener;
-            }
-            else
-            {
-                setCurrentThreadOutCode(MCMD_NOTFOUND);
-                LOG_err << "Couln't find destination folder: " << destination << ". Use -c to create folder structure";
-            }
-        }
-        else
+        if (words.size() < 2)
         {
             setCurrentThreadOutCode(MCMD_EARGS);
             LOG_err << "      " << getUsageStr("put");
+            return;
         }
 
+        string targetuser;
+        string newname = "";
+
+        bool explicitRemotePath =  words.size() > 2;
+        std::size_t numberOfLocalPaths = explicitRemotePath ? words.size() - 2ul : 1;
+
+        const std::string &destination = explicitRemotePath ? words.back() : "";
+
+        std::unique_ptr<MegaNode> n = explicitRemotePath ?
+                    nodebypath(destination.c_str(), &targetuser, &newname)
+                  : std::unique_ptr<MegaNode>(api->getNodeByHandle(cwd));
+
+        if (explicitRemotePath && !n && autocreate)
+        {
+            const auto posLastSeparator = destination.find_last_of("/");
+            string destinationfolder(destination, 0, posLastSeparator);
+            newname = string(destination, posLastSeparator + 1, destination.size());
+            auto baseNode = (destinationfolder.size() > 0 && destinationfolder.front() == '/')
+                ? std::unique_ptr<MegaNode>(api->getRootNode())
+                : std::unique_ptr<MegaNode>(api->getNodeByHandle(cwd));
+            if (makedir(destinationfolder, true, baseNode.get()) == MCMD_OK)
+            {
+                n = nodebypath(destinationfolder.c_str());
+            }
+        }
+
+        if (!n)
+        {
+            setCurrentThreadOutCode(MCMD_NOTFOUND);
+            LOG_err << "Couldn't find destination folder: " << destination << ". Use -c to create folder structure";
+            return;
+        }
+
+        std::optional<MegaCmdMultiTransferListener> foregroundMultiTransfersListener;
+        auto mayCreateForegroundListener = [&]() -> MegaCmdMultiTransferListener *
+        {
+            if (background)
+            {
+                return nullptr;
+            }
+            if (!foregroundMultiTransfersListener)
+            {
+                foregroundMultiTransfersListener.emplace(api, sandboxCMD, nullptr, clientID);
+            }
+            return &foregroundMultiTransfersListener.value();
+        };
+
+        ScopeGuard g([&]
+        {
+            if (foregroundMultiTransfersListener)
+            {
+                foregroundMultiTransfersListener->waitMultiEnd();
+                checkNoErrors(foregroundMultiTransfersListener->getFinalerror(), "upload");
+
+                if (foregroundMultiTransfersListener->getProgressinformed() || getCurrentThreadOutCode() == MCMD_OK )
+                {
+                    informProgressUpdate(PROGRESS_COMPLETE, foregroundMultiTransfersListener->getTotalbytes(), clientID);
+                }
+            }
+        });
+
+        if (n->getType() == MegaNode::TYPE_FILE)
+        {
+            bool replacing = words.size() == 3 && !IsFolder(words[1]);
+            if (!replacing)
+            {
+                setCurrentThreadOutCode(MCMD_INVALIDTYPE);
+                LOG_err << "Destination is not valid (expected folder or alike)";
+                return;
+            }
+            unique_ptr<MegaNode> pn(api->getNodeByHandle(n->getParentHandle()));
+            if (!pn)
+            {
+                setCurrentThreadOutCode(MCMD_NOTFOUND);
+                LOG_err << "Destination is not valid. Parent folder cannot be found";
+                return;
+            }
+
+            auto &localPath = words[1];
+#ifdef HAVE_GLOB_H
+            if (!fs::exists(localPath) && hasWildCards(localPath))
+            {
+                LOG_err << "Invalid target for wildcard expression: " << localPath << ". Folder expected";
+                setCurrentThreadOutCode(MCMD_INVALIDTYPE);
+                return;
+            }
+#endif
+            uploadNode(*clflags, *cloptions, localPath, api, pn.get(), n->getName(), mayCreateForegroundListener());
+            return;
+        }
+
+        assert(n->getType() != MegaNode::TYPE_FILE);
+        for (std::size_t i = 1; i <= numberOfLocalPaths; i++)
+        {
+            std::vector<std::string> paths{words[i] == "." ? getLPWD() : words[i]};
+#ifdef HAVE_GLOB_H
+            if (!newname.size() && !fs::exists(words[i]) && hasWildCards(words[i]))
+            {
+                paths = resolvewildcard(words[i]);
+                if (!paths.size())
+                {
+                    setCurrentThreadOutCode(MCMD_NOTFOUND);
+                    LOG_err << words[i] << " not found";
+                }
+            }
+#endif
+            for (auto &path : paths)
+            {
+                uploadNode(*clflags, *cloptions, path, api, n.get(), newname, mayCreateForegroundListener());
+            }
+        }
         return;
     }
     else if (words[0] == "log")
@@ -7125,7 +7157,16 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             {
                 const bool jsonLogs = (newLogLevel == MegaApi::LOG_LEVEL_MAX);
                 loggerCMD->setSdkLoggerLevel(newLogLevel);
-                api->setLogJSONContent(jsonLogs);
+                if (jsonLogs)
+                {
+                    MegaApi::setLogJSON(MegaApi::JSON_LOG_CHUNK_RECEIVED | MegaApi::JSON_LOG_CHUNK_CONSUMED | MegaApi::JSON_LOG_SENDING | MegaApi::JSON_LOG_NONCHUNK_RECEIVED);
+                    MegaApi::setMaxPayloadLogSize(0); // Max size
+                }
+                else // revert to defaults
+                {
+                    MegaApi::setLogJSON(MegaApi::JSON_LOG_CHUNK_CONSUMED | MegaApi::JSON_LOG_SENDING | MegaApi::JSON_LOG_NONCHUNK_RECEIVED);
+                    MegaApi::setMaxPayloadLogSize(10240/*PAYLOAD_LOG_DEFAULT_SIZE*/); // Default
+                }
 
                 ConfigurationManager::savePropertyValue("sdkLogLevel", newLogLevel);
                 ConfigurationManager::savePropertyValue("jsonLogs", jsonLogs);
@@ -7153,7 +7194,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         if (words.size() > 1)
         {
             LocalPath localpath = LocalPath::fromAbsolutePath(words[1]);
-            if (fsAccessCMD->chdirlocal(localpath)) // maybe this is already checked in chdir
+            if (mFsAccessCMD->chdirlocal(localpath)) // maybe this is already checked in chdir
             {
                 LOG_debug << "Local folder changed to: " << words[1];
             }
@@ -7204,7 +7245,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             else if (getFlag(clflags, "i"))
             {
                 action = MegaContactRequest::REPLY_ACTION_IGNORE;
-                saction = "Ignore";
+                saction = "Ignor";
             }
             else
             {
@@ -7397,7 +7438,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 megaCmdListener->wait();
                 if (checkNoErrors(megaCmdListener->getError(), "remove all versions"))
                 {
-                    OUTSTREAM << "File versions deleted succesfully. Please note that the current files were not deleted, just their history." << endl;
+                    OUTSTREAM << "File versions deleted successfully. Please note that the current files were not deleted, just their history." << endl;
                 }
                 delete megaCmdListener;
             }
@@ -7982,6 +8023,74 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         }
     }
 #endif
+    else if (words[0] == "configure")
+    {
+        std::optional<std::string_view> key;
+        std::optional<std::string_view> value;
+        if (words.size() > 1)
+        {
+            key = words[1];
+        }
+        if (words.size() > 2)
+        {
+            value= words[2];
+        }
+
+        bool found = false;
+
+        for (auto &vc : Instance<ConfiguratorMegaApiHelper>::Get().getConfigurators())
+        {
+            auto name = vc.mKey.c_str();
+            if (key && *key != name) continue;
+
+            found = true;
+
+            if (value)
+            {
+                if (vc.mValidator && !vc.mValidator.value()(value->data()))
+                {
+                    LOG_err << "Failed to set " << vc.mKey << " (" << vc.mDescription << "). Invalid value";
+                    setCurrentThreadOutCode(MCMD_EARGS);
+                    return;
+                }
+
+                if (!vc.mSetter(api, std::string(name), value->data()))
+                {
+                    if (getCurrentThreadOutCode() == MCMD_OK) // presuming error would be logged otherwise
+                    {
+                        LOG_err << "Failed to set " << vc.mKey << " (" << vc.mDescription << "). Setting failed";
+                        setCurrentThreadOutCode(MCMD_EARGS);
+                    }
+                    return;
+                }
+                ConfigurationManager::saveProperty(name, value->data());
+            }
+
+            auto &getter = vc.mMegaApiGetter ? *vc.mMegaApiGetter : vc.mGetter;
+
+            auto newValueOpt = getter(api, name);
+            if (newValueOpt)
+            {
+                OUTSTREAM << name << " = " << *newValueOpt << std::endl;
+                if (value && *value != *newValueOpt)
+                {
+                    LOG_warn << "Setting " << vc.mKey << " resulted in a value different than the one intended. " << *value <<
+                                " vs " << *newValueOpt;
+                }
+            }
+            else if (key)
+            {
+                LOG_err << "Configuration value is unset: " << *key;
+                setCurrentThreadOutCode(MCMD_NOTFOUND);
+            }
+        }
+
+        if (!found)
+        {
+            LOG_err << "Provided configuration key does not exist: " << *key;
+            setCurrentThreadOutCode(MCMD_EARGS);
+        }
+    }
     else if (words[0] == "cancel")
     {
         MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
@@ -7989,7 +8098,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         megaCmdListener->wait();
         if (checkNoErrors(megaCmdListener->getError(), "cancel account"))
         {
-            OUTSTREAM << "Account pendind cancel confirmation. You will receive a confirmation link. Use \"confirmcancel\" with the provided link to confirm the cancelation" << endl;
+            OUTSTREAM << "Account pending cancel confirmation. You will receive a confirmation link. Use \"confirmcancel\" with the provided link to confirm the cancellation" << endl;
         }
         delete megaCmdListener;
     }
@@ -8528,7 +8637,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     megaCmdListener->wait();
                     if (checkNoErrors(megaCmdListener->getError(), "delete contact"))
                     {
-                        OUTSTREAM << "Contact " << words[1] << " removed succesfully" << endl;
+                        OUTSTREAM << "Contact " << words[1] << " removed successfully" << endl;
                     }
                     delete megaCmdListener;
                 }
@@ -9082,6 +9191,11 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 }
                 delete megaCmdListener;
             }
+            else
+            {
+                setCurrentThreadOutCode(MCMD_NOTFOUND);
+                LOG_err << nodepath << ": No such file or directory";
+            }
         }
         else
         {
@@ -9122,6 +9236,11 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     OUTSTREAM << "Preview for " << nodepath << ( setting ? " loaded from " : " saved in " ) << megaCmdListener->getRequest()->getFile() << endl;
                 }
                 delete megaCmdListener;
+            }
+            else
+            {
+                setCurrentThreadOutCode(MCMD_NOTFOUND);
+                LOG_err << nodepath << ": No such file or directory";
             }
         }
         else
@@ -9403,7 +9522,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         if (api->isLoggedIn())
         {
             setCurrentThreadOutCode(MCMD_INVALIDSTATE);
-            LOG_err << "Please loggout first ";
+            LOG_err << "Please logout first ";
         }
         else if (words.size() > 1)
         {
@@ -9813,6 +9932,12 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     else if (getLinkType(publicLink) == MegaNode::TYPE_FOLDER)
                     {
                         MegaApi* apiFolder = getFreeApiFolder();
+                        if (!apiFolder)
+                        {
+                            setCurrentThreadOutCode(MCMD_NOTFOUND);
+                            LOG_err << "No available Api folder. Use configure to increase exported_folders_sdks";
+                            return;
+                        }
                         char *accountAuth = api->getAccountAuth();
                         apiFolder->setAccountAuth(accountAuth);
                         delete []accountAuth;
@@ -9996,7 +10121,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             {
                 if (megaCmdListener->getRequest()->getFlag())
                 {
-                    OUTSTREAM << "Account " << email << " confirmed succesfully. You can login with it now" << endl;
+                    OUTSTREAM << "Account " << email << " confirmed successfully. You can login with it now" << endl;
                 }
                 else if (megaCmdListener->getRequest()->getEmail() && email == megaCmdListener->getRequest()->getEmail())
                 {
@@ -10390,7 +10515,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     }
                     else
                     {
-                        LOG_err << "Coul not find transfer with tag: " << words[i];
+                        LOG_err << "Could not find transfer with tag: " << words[i];
                         setCurrentThreadOutCode(MCMD_NOTFOUND);
                     }
                 }
@@ -10459,7 +10584,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                     }
                     else
                     {
-                        LOG_err << "Coul not find transfer with tag: " << words[i];
+                        LOG_err << "Could not find transfer with tag: " << words[i];
                         setCurrentThreadOutCode(MCMD_NOTFOUND);
                     }
                 }
@@ -10797,17 +10922,27 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             return;
         }
 
+#ifdef WIN32
+        if (words.size() != 2 && (!getenv("MEGACMD_FUSE_ALLOW_LOCAL_PATHS") || words.size() != 3))
+#else
         if (words.size() != 3)
+#endif
         {
             setCurrentThreadOutCode(MCMD_EARGS);
             LOG_err << getUsageStr("fuse-add");
             return;
         }
 
-        const std::string& localPathStr = words[1];
-        const std::string& remotePathStr = words[2];
+        bool remoteIsFirstArg(words.size() == 2);
 
-        if (localPathStr.empty() || remotePathStr.empty())
+        const std::string& localPathStr = remoteIsFirstArg ? std::string("") : words[1];
+        const std::string& remotePathStr = remoteIsFirstArg ? words[1] : words[2];
+
+        if (remotePathStr.empty()
+#ifndef WIN32
+            || localPathStr.empty()
+#endif
+            )
         {
             setCurrentThreadOutCode(MCMD_EARGS);
             LOG_err << "Path cannot be empty";
@@ -10816,12 +10951,14 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         }
 
         const fs::path localPath = localPathStr;
+#ifndef WIN32
         if (std::error_code ec; !fs::exists(localPath, ec) || ec)
         {
             setCurrentThreadOutCode(MCMD_NOTFOUND);
             LOG_err << "Local path " << localPath << " does not exist";
             return;
         }
+#endif
 
         std::unique_ptr<MegaNode> node = nodebypath(remotePathStr.c_str());
         if (node == nullptr)

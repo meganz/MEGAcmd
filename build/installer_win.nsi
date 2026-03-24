@@ -79,6 +79,8 @@ VIAddVersionKey "ProductVersion" "${Expv_1}.${Expv_2}.${Expv_3}.${Expv_4}"
 !define MULTIUSER_EXECUTIONLEVEL_ALLUSERS
 !define MULTIUSER_INSTALLMODE_DEFAULT_CURRENTUSER
 
+!define WinFspInstaller "winfsp-installer.msi"
+
 !define MEGA_DATA "mega.ini"
 !define UNINSTALLER_NAME "uninst.exe"
 
@@ -123,11 +125,13 @@ var ALL_USERS_INSTDIR
 !insertmacro MUI_PAGE_LICENSE "installer\terms.txt"
 !insertmacro MUI_PAGE_STARTMENU Application $ICONS_GROUP
 !insertmacro MUI_PAGE_INSTFILES
+Page Custom WinFspPage WinFspPageLeave
 !insertmacro MUI_PAGE_FINISH
 
 ; Uninstaller pages
 !insertmacro MUI_UNPAGE_CONFIRM
 !insertmacro MUI_UNPAGE_INSTFILES
+UninstPage Custom un.WinFspUninstall un.WinFspUninstallLeave
 !insertmacro MUI_UNPAGE_FINISH
 
 ; Language files (the ones available in MEGAsync (not MEGAcmd), with locale code)
@@ -215,7 +219,7 @@ OutFile "UninstallerGenerator.exe"
 !pragma warning disable 6020 ; Disable warning: Uninstaller script code found but WriteUninstaller never used - no uninstaller will be created
 !ifdef BUILD_X64_VERSION
 OutFile "MEGAcmdSetup64.exe"
-!else 
+!else
 OutFile "MEGAcmdSetup32.exe"
 !endif
 !endif
@@ -234,6 +238,74 @@ Function RunMegaCmd
   Sleep 2000
 FunctionEnd
 
+Var Dialog
+Var WinFspCheckbox
+Var WinFspCheckboxState
+Var UninstallWinFspCheckbox
+Var WinFspAlreadyInstalled
+Var KeepWinFspAtUninstall
+Var WinFspGuid
+Var WinFspVer
+
+Function WinFspPage
+    ${If} $WinFspAlreadyInstalled == "True"
+        WriteRegStr ${PRODUCT_UNINST_ROOT_KEY} "${PRODUCT_UNINST_KEY}" "KeepWinFspAtUninstall" "True"
+        Abort
+    ${EndIf}
+
+    nsDialogs::Create 1018
+    Pop $Dialog
+
+    ${If} $Dialog == error
+            Abort
+    ${EndIf}
+
+    ${NSD_CreateLabel} 0 10u 100% 12u "${PRODUCT_NAME} includes a feature feature called FUSE."
+    ${NSD_CreateLabel} 0 22u 100% 24u "FUSE allows you to view the content of your MEGA folders on your computer without the need to download them. In order for FUSE to work, you need to install WinFSP."
+
+    ${NSD_CreateCheckbox} 0 54u 100% 12u "Install WinFSP"
+    Pop $WinFspCheckbox
+
+    ${NSD_CreateLabel} 0 74u 100% 24u "If you don't install WinFSP now, you won't be able to establish FUSE mounts."
+    ${NSD_CreateLabel} 0 98u 100% 24u "Please, tick above checkbox to install it in your system."
+
+    ${NSD_SetState} $WinFspCheckbox $WinFspCheckboxState
+
+    nsDialogs::Show
+FunctionEnd
+
+Var PREVIOUS_OUTPATH
+
+Function WinFspPageLeave
+    ${NSD_GetState} $WinFspCheckbox $WinFspCheckboxState
+
+    ReadRegStr $0 ${PRODUCT_UNINST_ROOT_KEY} "${PRODUCT_UNINST_KEY}" "KeepWinFspAtUninstall"
+    ${If} $0 == ""
+        ${If} $WinFspCheckboxState == ${BST_CHECKED}
+          StrCpy $KeepWinFspAtUninstall "False"
+        ${Else}
+          StrCpy $KeepWinFspAtUninstall "True"
+        ${EndIf}
+    ${Else}
+      ; In case MEGAcmd was already installed, don't override WinFSP initial installation value
+      StrCpy $KeepWinFspAtUninstall "$0"
+    ${EndIf}
+
+    WriteRegStr ${PRODUCT_UNINST_ROOT_KEY} "${PRODUCT_UNINST_KEY}" "KeepWinFspAtUninstall" "$KeepWinFspAtUninstall"
+
+    ${If} $WinFspCheckboxState == ${BST_CHECKED}
+      strCpy $PREVIOUS_OUTPATH GetOutPath
+      SetOutPath "$TEMP"
+
+      File "${WinFspInstaller}"
+      SetOutPath $PREVIOUS_OUTPATH
+
+      ExecWait 'msiexec /i "$TEMP\\${WinFspInstaller}" /qb'
+
+      Delete "$TEMP\\${WinFspInstaller}"
+    ${EndIf}
+FunctionEnd
+
 Function .onInit
   !insertmacro MULTIUSER_INIT
   StrCpy $APP_NAME "${PRODUCT_NAME} ${PRODUCT_VERSION}"
@@ -246,6 +318,15 @@ Function .onInit
   ;!insertmacro MUI_UNGETLANGUAGE
   !insertmacro MUI_LANGDLL_DISPLAY
 
+  ${NSD_SetState} $WinFspCheckbox ${BST_CHECKED}
+  StrCpy $WinFspCheckboxState ${BST_CHECKED}
+  ReadRegStr $0 HKLM "SOFTWARE\Classes\Installer\Dependencies\WinFsp" ""
+  ${If} $0 == ""
+    StrCpy $WinFspAlreadyInstalled "False"
+  ${Else}
+    StrCpy $WinFspAlreadyInstalled "True"
+  ${EndIf}
+
 
 !ifdef BUILD_X64_VERSION
   ${If} ${RunningX64}
@@ -256,8 +337,8 @@ Function .onInit
 !endif
 
 
-${IfNot} ${AtLeastWin7}
-  MessageBox MB_OK "This MEGAcmd installer is for Windows 7 or above"
+${IfNot} ${AtLeastWin8}
+  MessageBox MB_OK "This MEGAcmd installer is for Windows 8 or above"
   Quit
 ${EndIf}
 
@@ -497,18 +578,23 @@ modeselected:
   !insertmacro Install3264DLL "${SRCDIR_MEGACMD}\MEGAcmdShell.exe" "$INSTDIR\MEGAcmdShell.exe"
   !insertmacro Install3264DLL "${SRCDIR_MEGACMD}\MEGAcmdUpdater.exe" "$INSTDIR\MEGAcmdUpdater.exe" 
 
-  !insertmacro Install3264DLL "${SRCDIR_MEGACMD}\avcodec-59.dll" "$INSTDIR\avcodec-59.dll"
-  !insertmacro Install3264DLL "${SRCDIR_MEGACMD}\avformat-59.dll" "$INSTDIR\avformat-59.dll"
-  !insertmacro Install3264DLL "${SRCDIR_MEGACMD}\avutil-57.dll" "$INSTDIR\avutil-57.dll"
-  !insertmacro Install3264DLL "${SRCDIR_MEGACMD}\swscale-6.dll" "$INSTDIR\swscale-6.dll"
-  !insertmacro Install3264DLL "${SRCDIR_MEGACMD}\swresample-4.dll" "$INSTDIR\swresample-4.dll"
-  
+  !insertmacro Install3264DLL "${SRCDIR_MEGACMD}\avcodec-61.dll" "$INSTDIR\avcodec-61.dll"
+  !insertmacro Install3264DLL "${SRCDIR_MEGACMD}\avformat-61.dll" "$INSTDIR\avformat-61.dll"
+  !insertmacro Install3264DLL "${SRCDIR_MEGACMD}\avutil-59.dll" "$INSTDIR\avutil-59.dll"
+  !insertmacro Install3264DLL "${SRCDIR_MEGACMD}\swscale-8.dll" "$INSTDIR\swscale-8.dll"
+  !insertmacro Install3264DLL "${SRCDIR_MEGACMD}\swresample-5.dll" "$INSTDIR\swresample-5.dll"
+
   ;remove old DLLs that we no longer use (some became static; some have later version number)
   Delete "$INSTDIR\avcodec-57.dll"
+  Delete "$INSTDIR\avcodec-59.dll"
   Delete "$INSTDIR\avformat-57.dll"
+  Delete "$INSTDIR\avformat-59.dll"
   Delete "$INSTDIR\avutil-55.dll"
+  Delete "$INSTDIR\avutil-57.dll"
   Delete "$INSTDIR\swscale-4.dll"
+  Delete "$INSTDIR\swscale-6.dll"
   Delete "$INSTDIR\swresample-2.dll"
+  Delete "$INSTDIR\swresample-4.dll"
   Delete "$INSTDIR\libsodium.dll"
   Delete "$INSTDIR\pdfium.dll"
   Delete "$INSTDIR\FreeImage.dll"
@@ -659,6 +745,44 @@ Function un.UninstallCmd
   ExecDos::exec "$INSTDIR\MEGAcmdServer.exe --uninstall"
 FunctionEnd
 
+Function un.WinFspUninstall
+    !insertmacro MUI_HEADER_TEXT "Uninstallation complete" "${PRODUCT_NAME} was uninstalled successfully"
+
+    ${If} $KeepWinFspAtUninstall == "True"
+            Abort
+    ${EndIf}
+
+    ReadRegStr $WinFspGuid HKLM "SOFTWARE\Classes\Installer\Dependencies\WinFsp" ""
+    ${If} $WinFspGuid == ""
+            Abort
+    ${EndIf}
+    ReadRegStr $WinFspVer HKLM "SOFTWARE\Classes\Installer\Dependencies\WinFsp" "Version"
+    ; TODO: improvement abort in case Version differs from the one installed by MEGAcmd
+    nsDialogs::Create 1018
+    Pop $Dialog
+
+    ${If} $Dialog == error
+            Abort
+    ${EndIf}
+
+    ${NSD_CreateLabel} 0 10u 100% 12u "WinFsp $WinFspVer was installed by ${PRODUCT_NAME} to support some features."
+    ${NSD_CreateLabel} 0 22u 100% 24u "Do you also want to uninstall WinFsp?"
+
+    ${NSD_CreateCheckbox} 0 54u 100% 12u "Uninstall WinFsp"
+    Pop $UninstallWinFspCheckbox
+
+    ${NSD_SetState} $UninstallWinFspCheckbox ${BST_CHECKED}
+
+    nsDialogs::Show
+FunctionEnd
+
+Function un.WinFspUninstallLeave
+    ${NSD_GetState} $UninstallWinFspCheckbox $WinFspCheckboxState
+    ${If} $WinFspCheckboxState == ${BST_CHECKED}
+      ExecWait 'msiexec /uninstall $WinFspGuid /qb'
+    ${EndIf}
+FunctionEnd
+
 
 Section Uninstall
   ExecDos::exec /DETAILED "taskkill /f /IM MEGAcmdShell.exe"
@@ -740,11 +864,11 @@ Section Uninstall
   Delete "$INSTDIR\cares.dll"
   Delete "$INSTDIR\libuv.dll"
   Delete "$INSTDIR\NSIS.Library.RegTool*.exe"
-  Delete "$INSTDIR\avcodec-59.dll"
-  Delete "$INSTDIR\avformat-59.dll"
-  Delete "$INSTDIR\avutil-57.dll"
-  Delete "$INSTDIR\swscale-6.dll"
-  Delete "$INSTDIR\swresample-4.dll"
+  Delete "$INSTDIR\avcodec-61.dll"
+  Delete "$INSTDIR\avformat-61.dll"
+  Delete "$INSTDIR\avutil-59.dll"
+  Delete "$INSTDIR\swscale-8.dll"
+  Delete "$INSTDIR\swresample-5.dll"
 ;!ifdef BUILD_X64_VERSION
   Delete "$INSTDIR\libssl-3-x64.dll"
   Delete "$INSTDIR\libcrypto-3-x64.dll"
@@ -771,6 +895,11 @@ Section Uninstall
   Delete "$INSTDIR\avutil-56.dll"
   Delete "$INSTDIR\swscale-5.dll"
   Delete "$INSTDIR\swresample-3.dll"
+  Delete "$INSTDIR\avcodec-59.dll"
+  Delete "$INSTDIR\avformat-59.dll"
+  Delete "$INSTDIR\avutil-57.dll"
+  Delete "$INSTDIR\swscale-6.dll"
+  Delete "$INSTDIR\swresample-4.dll"
 
 
   ; BAT files
@@ -835,6 +964,8 @@ Section Uninstall
 
   ; Cache
   RMDir /r "$INSTDIR\.megaCmd"
+
+  ReadRegStr $KeepWinFspAtUninstall ${PRODUCT_UNINST_ROOT_KEY} "${PRODUCT_UNINST_KEY}" "KeepWinFspAtUninstall"
   
   SetShellVarContext current
   Delete "$SMPROGRAMS\$ICONS_GROUP\Uninstall MEGAcmd.lnk"

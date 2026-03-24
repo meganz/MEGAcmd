@@ -469,14 +469,8 @@ int MegaCmdShellCommunicationsPosix::executeCommand(string command, std::string 
             }
             else // MCMD_REQSTRING
             {
-                string response = "FAILED";
-
-                if (readresponse != NULL)
-                {
-                    response = readresponse(confirmQuestion.c_str());
-                }
-
-                n = send(thesock, (const char *) response.data(), sizeof(response), MSG_NOSIGNAL);
+                string response = (readresponse != NULL) ? readresponse(confirmQuestion.c_str()) : "FAILED";
+                n = send(thesock, response.data(), response.size(), MSG_NOSIGNAL);
             }
             if (n == SOCKET_ERROR)
             {

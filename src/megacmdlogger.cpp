@@ -18,6 +18,7 @@
 
 #include "megacmdlogger.h"
 #include "megacmdcommonutils.h"
+#include "megacmdutils.h"
 #include "megacmd_src_file_list.h"
 
 #include <map>
@@ -147,7 +148,7 @@ bool checkNoErrors(MegaError *error, const std::string &message, SyncError syncE
     auto logErrMessage = std::string("Failed to ").append(message).append(": ");
     if (auto mountResult = error->getMountResult(); mountResult != MegaMount::SUCCESS) //if there is mount error, prefer this one for log message
     {
-        logErrMessage.append(MegaMount::getResultDescription(mountResult));
+        logErrMessage.append(getMountResultStr(mountResult));
     }
     else
     {

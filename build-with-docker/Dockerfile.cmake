@@ -1,4 +1,5 @@
 # syntax=docker/dockerfile:1
+
 FROM debian:12-slim as base
 
 RUN rm -f /etc/apt/apt.conf.d/docker-clean; \
@@ -23,7 +24,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     && apt-get install -y --no-install-recommends \
     ccache jq \
     cmake zip pkg-config curl python3 autoconf-archive nasm libgtest-dev libgmock-dev git g++ make unzip autoconf  ca-certificates automake ninja-build \
-    libfuse-dev
+    libfuse-dev libtool
 
 COPY vcpkg.json ./vcpkg.json
 COPY build/clone_vcpkg_from_baseline.sh ./clone_vcpkg_from_baseline.sh
@@ -49,15 +50,16 @@ WORKDIR /usr/src/megacmd
 # setting ccache as env variables breaks latest vcpkg libsodium compilation
 #ENV CC "ccache gcc-12"
 #ENV CXX "ccache g++-12"
-ENV CCACHE_DIR /tmp/ccache
-ENV VCPKG_DEFAULT_BINARY_CACHE /tmp/vcpkgcache
+ENV CCACHE_DIR=/tmp/ccache
+ENV VCPKG_DEFAULT_BINARY_CACHE=/tmp/vcpkgcache
+ENV VCPKG_BINARY_SOURCES="clear;files,/tmp/vcpkgcache,readwrite"
 ARG ENABLE_asan=OFF
 ARG ENABLE_ubsan=OFF
 ARG ENABLE_tsan=OFF
 ARG ENABLE_MEGACMD_TESTS=ON
+ARG BUILD_CORES
 
 COPY --from=src /usr/src/megacmd /usr/src/megacmd
-
 
 #We don't wont a potential config coming from host machine to meddle with the build:
 RUN rm ./sdk/include/mega/config.h || true
@@ -65,6 +67,8 @@ RUN rm ./sdk/include/mega/config.h || true
 RUN --mount=type=cache,target=/tmp/ccache \
     --mount=type=cache,target=/tmp/vcpkgcache \
     --mount=type=tmpfs,target=/tmp/build \
+     VCPKG_MAX_CONCURRENCY=${BUILD_CORES:-$(nproc)} \
+     flock -w 7200 /tmp/vcpkgcache/.vcpkg-install.lock \
      cmake -B /tmp/build \
     -DVCPKG_ROOT=/vcpkg \
     -DCMAKE_CXX_COMPILER=g++ \
@@ -78,7 +82,7 @@ RUN --mount=type=cache,target=/tmp/ccache \
     -DENABLE_TSAN=${ENABLE_tsan} \
     -DENABLE_MEGACMD_TESTS=${ENABLE_MEGACMD_TESTS} \
     -DWITH_FUSE=ON \
-    && cmake --build /tmp/build -j$(nproc) --target mega-cmd mega-cmd-server mega-exec \
+    && cmake --build /tmp/build -j${BUILD_CORES:-$(nproc)} --target mega-cmd mega-cmd-server mega-exec \
     mega-cmd-updater mega-cmd-tests-integration mega-cmd-tests-unit \
     && cmake --install /tmp/build #|| mkdir /inspectme && mv /tmp/build/* /vcpkg  /inspectme
 
@@ -88,3 +92,6 @@ COPY --from=build /usr/bin/mega* /usr/bin/
 COPY --from=build /opt/megacmd /opt/megacmd
 COPY --chmod=555 tests/*.py /usr/local/bin/
 #COPY --from=build /inspectme /inspectme
+
+# Integration tests that use fuse will requiere uid and gid 1001
+RUN groupadd -g 1001 jenkins && useradd jenkins -u 1001 -g 1001 -m -s /bin/bash

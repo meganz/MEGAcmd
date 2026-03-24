@@ -30,7 +30,7 @@ Display Options:
   	  will be carried out nevertheless.
   	If MEGAcmd server is not running when a backup is scheduled and the time for the next one has already arrived,
   	 an empty BACKUP will be created with state SKIPPED
-  	If a backup(1) is ONGOING and the time for the next backup(2) arrives, it won't start untill the previous one(1)
+  	If a backup(1) is ONGOING and the time for the next backup(2) arrives, it won't start until the previous one(1)
   	 is completed, and if by the time the first one(1) ends the time for the next one(3) has already arrived,
   	 an empty BACKUP(2) will be created with state SKIPPED
  --path-display-size=N	Use a fixed size of N characters for paths
@@ -64,8 +64,8 @@ Configuration Options:
                        	   e.g. "1m12d3h" indicates 1 month, 12 days and 3 hours
                        	  Notice that this is an uncertain measure since not all months
                        	  last the same and Daylight saving time changes are not considered
-                       	  If possible use a cron like expresion
-                       	Notice: regardless of the period expresion, the first time you establish a backup,
+                       	  If possible use a cron like expression
+                       	Notice: regardless of the period expression, the first time you establish a backup,
                        	 it will be created immediately
 --num-backups=N	Maximum number of backups to store
                  	 After creating the backup (N+1) the oldest one will be deleted

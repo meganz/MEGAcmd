@@ -1,3 +1,42 @@
+Wed Mar 11 10:36:46 AM UTC 2026 - linux@mega.co.nz
+- Update to version 2.5.0:
+  * Shell UX improvements: empty Enter shows a new prompt; no duplicate prompt while command is executing
+  * Sync engine improvements: prevent re-uploading data when local drive fingerprint has changed
+  * put: Fixed -c (autocreate) not working when destination is an absolute path
+  * mediainfo: Fixed audio file duration not being displayed
+  * Transfers: prevent failures on resumption
+  * thumbnail/preview: Print error when the requested file does not exist
+  * share: Return success (exit code 0) when no shares exist below the current folder
+  * passwd: fixes issues when 2FA is enabled
+  * Path and string handling fixes (trailing separators, trimming)
+  * Expanded unit test coverage
+  * Fix: Improved restart-after-update reliability on POSIX (server PID changes after update)
+  * Stability, memory, typos and other improvements
+
+-------------------------------------------------------------------
+Tue Dec 16 17:14:02 CET 2025 - linux@mega.co.nz
+- Update to version 2.4.0:
+  * Improvements in uploads UX/UI: put now supports printing tag. Fixes in transfers table
+  * Stability improvements: crashes fixes, FUSE deadlocks, ...
+  * Performance boosts: lockless download URL retrievals, removed CPU bottlenecks for large accounts processing, db operations improvements, transfers improvements ...
+  * Typos and other improvements
+
+-------------------------------------------------------------------
+Tue Sep 2 16:43:10 CEST 2025 - linux@mega.co.nz
+- Update to version 2.3.0:
+  * FUSE (beta): Added fuse commands on Windows to allow your MEGA folders to be directly mounted to your local drive
+  * Other fixes and improvements to enhance reliability and performance
+
+-------------------------------------------------------------------
+Tue Jun 3 23:20:12 CEST 2025 - linux@mega.co.nz
+- Update to version 2.2.0:
+  * Support building for ARM64 in linux
+  * New command "configure" to allow configuring some settings
+  * Support setting max number of nodes in memory
+  * Support setting number of SDK instances used for login in folders to download/import
+  * Other fixes and improvements to enhance reliability and performance
+
+-------------------------------------------------------------------
 Wed Apr 2 11:08:20 CEST 2025 - linux@mega.co.nz
 - Update to version 2.1.1:
   * FUSE (beta): Added fuse commands on Linux to allow your MEGA folders to be directly mounted to your local drive

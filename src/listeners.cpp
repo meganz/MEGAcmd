@@ -583,8 +583,8 @@ void MegaCmdMegaListener::onMountEvent(std::string_view pastTense, std::string_v
     {
         std::ostringstream oss;
         oss << "Failed to " << presentTense << " mount \"" << path << "\" "
-            << "due to error:\n" << MegaMount::getResultDescription(result);
-        assert(MegaMount::getResultDescription(result) != "Mount was successful");
+            << "due to error:\n" << getMountResultStr(result);
+        assert(getMountResultStr(result) != "Mount was successful");
 
         const std::string msg = oss.str();
 
@@ -936,6 +936,11 @@ void MegaCmdMultiTransferListener::onTransferStart(MegaApi* api, MegaTransfer *t
     onTransferUpdate(api,transfer);
 
     LOG_verbose << "onTransferStart Transfer->getType(): " << transfer->getType();
+
+    if (mOnTransferStartCb)
+    {
+        mOnTransferStartCb(transfer);
+    }
 }
 
 void MegaCmdMultiTransferListener::doOnTransferFinish(MegaApi* api, MegaTransfer *transfer, MegaError* e)

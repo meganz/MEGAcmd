@@ -129,7 +129,7 @@ string visibilityToString(int visibility)
     }
     if (visibility == MegaUser::VISIBILITY_UNKNOWN)
     {
-        return "Unkown visibility";
+        return "Unknown visibility";
     }
     if (visibility == MegaUser::VISIBILITY_INACTIVE)
     {
@@ -161,7 +161,7 @@ const char * getMCMDErrorString(int errorCode)
     case MCMD_NOTPERMITTED:
         return "Operation not allowed";
     case MCMD_NOTLOGGEDIN:
-        return "Needs loging in";
+        return "Needs logging in";
     case MCMD_NOFETCH:
         return "Nodes not fetched";
     case MCMD_EUNEXPECTED:
@@ -180,6 +180,19 @@ const char * getErrorCodeStr(MegaError *e)
         return MegaError::getErrorString(e->getErrorCode());
     }
     return "NullError";
+}
+
+const char * getMountResultStr(int mountResult)
+{
+#ifdef WIN32
+    if (mountResult == mega::MegaMount::BACKEND_UNAVAILABLE)
+    {
+        return "WinFSP is not installed. It needs to be installed for the operation to succeed. You can get it "
+               "from https://github.com/winfsp/winfsp/releases/download/v2.1/winfsp-2.1.25156.msi";
+    }
+#endif
+
+    return MegaMount::getResultDescription(mountResult);
 }
 
 const char * getLogLevelStr(int loglevel)

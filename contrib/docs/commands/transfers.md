@@ -3,7 +3,7 @@ List or operate with transfers
 
 Usage: `transfers [-c TAG|-a] | [-r TAG|-a]  | [-p TAG|-a] [--only-downloads | --only-uploads] [SHOWOPTIONS]`
 <pre>
-If executed without option it will list the first 10 tranfers
+If executed without option it will list the first 10 transfers
 Options:
  -c (TAG|-a)	Cancel transfer with TAG (or all with -a)
  -p (TAG|-a)	Pause transfer with TAG (or all with -a)
