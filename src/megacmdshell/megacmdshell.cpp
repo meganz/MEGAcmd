@@ -1289,7 +1289,7 @@ void process_line(const char * line)
                         doExit = true;
                     }
                 }
-#if defined(_WIN32) || defined(__APPLE__)
+#ifdef ENABLE_UPDATER
                 else if (words[0] == "update")
                 {
                     comms->markServerIsUpdating();
