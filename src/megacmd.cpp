@@ -1924,7 +1924,7 @@ const char * getUsageStr(const char *command, const HelpFlags& flags)
     }
     if (!strcmp(command, "mediainfo"))
     {
-        return "info remotepath1 remotepath2 ...";
+        return "mediainfo remotepath1 remotepath2 ...";
     }
     if (!strcmp(command, "passwd"))
     {
