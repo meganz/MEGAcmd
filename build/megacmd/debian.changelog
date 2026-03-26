@@ -1,3 +1,10 @@
+megacmd (2.5.1) stable; urgency=low
+
+  * Fixed syncrhonizing updated empty files
+  * WSL bash completion speedup
+
+ -- MEGA Team <linux@mega.co.nz>  Tue, 24 Mar 2026 09:36:34 +0100
+
 megacmd (2.5.0) stable; urgency=low
 
   * Shell UX improvements: empty Enter shows a new prompt; no duplicate prompt while command is executing

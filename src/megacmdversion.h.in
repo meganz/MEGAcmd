@@ -28,6 +28,8 @@ const char * const megacmdchangelog =
         "Shell UX improvements: empty Enter shows a new prompt; no duplicate prompt while command is executing""\n"
         "Sync engine improvements: prevent re-uploading data when local drive fingerprint has changed""\n"
         "put: Fixed -c (autocreate) not working when destination is an absolute path""\n"
+        "Fixed syncrhonizing updated empty files (on top of 2.5.0)""\n"
+        "WSL bash completion speedup""\n"
         "mediainfo: Fixed audio file duration not being displayed""\n"
         "Transfers: prevent failures on resumption""\n"
         "thumbnail/preview: Print error when the requested file does not exist""\n"
