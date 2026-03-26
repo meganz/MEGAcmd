@@ -1,3 +1,9 @@
+Tue Mar 24 09:36:34 CET 2026 - linux@mega.co.nz
+- Update to version 2.5.1:
+  * Fixed syncrhonizing updated empty files
+  * WSL bash completion speedup
+
+-------------------------------------------------------------------
 Wed Mar 11 10:36:46 AM UTC 2026 - linux@mega.co.nz
 - Update to version 2.5.0:
   * Shell UX improvements: empty Enter shows a new prompt; no duplicate prompt while command is executing
