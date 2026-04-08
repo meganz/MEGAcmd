@@ -1,3 +1,8 @@
+Wed Apr 08 12:00:00 CEST 2026 - linux@mega.co.nz
+- Update to version 2.5.2:
+  * Fix: address potential loop in sync engine with mtime changes within 2 seconds
+
+-------------------------------------------------------------------
 Tue Mar 24 09:36:34 CET 2026 - linux@mega.co.nz
 - Update to version 2.5.1:
   * Fixed syncrhonizing updated empty files
