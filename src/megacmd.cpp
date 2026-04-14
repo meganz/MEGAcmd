@@ -830,7 +830,7 @@ void insertValidParamsPerCommand(set<string> *validParams, string thecommand, se
     {
         validParams->insert("only-shell");
     }
-#if defined(_WIN32) || defined(__APPLE__)
+#ifdef ENABLE_UPDATER
     else if ("update" == thecommand)
     {
         validOptValues->insert("auto");
@@ -4211,7 +4211,7 @@ static bool process_line(const std::string_view line)
                 break;
             }
 
-#if defined(_WIN32) || defined(__APPLE__)
+#ifdef ENABLE_UPDATER
             else if (isBareCommand(l, "update")) //if extra args are received, it'll be processed by executer
             {
                 string confirmationQuery("This might require restarting MEGAcmd. Are you sure to continue");
@@ -4684,7 +4684,7 @@ void megacmd()
 
                 std::string s;
 
-#if defined(_WIN32) || defined(__APPLE__)
+#ifdef ENABLE_UPDATER
                 ostringstream os;
                 auto updatMsgOpt = lookForAvailableNewerVersions(api);
                 //TODO: have this executed in worker thread instead (see MegaCmdExecuter::mayExecutePendingStuffInWorkerThread)

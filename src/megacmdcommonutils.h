@@ -120,7 +120,7 @@ static std::vector<std::string> loginInValidCommands { "log", "debug", "speedlim
 #elif defined(_WIN32)
                              , "unicode"
 #endif
-#if defined(_WIN32) || defined(__APPLE__)
+#ifdef ENABLE_UPDATER
                              , "update"
 #endif
                            };
@@ -144,7 +144,7 @@ static std::vector<std::string> allValidCommands { "login", "signup", "confirm",
 #else
                              , "permissions"
 #endif
-#if defined(_WIN32) || defined(__APPLE__)
+#ifdef ENABLE_UPDATER
                              , "update"
 #endif
 #ifdef WITH_FUSE
