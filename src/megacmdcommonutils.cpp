@@ -1089,7 +1089,8 @@ bool isValidEmail(const string &email)
     return true;
 }
 
-#ifdef __linux__
+#if defined(__linux__) || defined(__FreeBSD__) || defined(__OpenBSD__) || \
+    defined(__NetBSD__) || defined(__DragonFly__)
 std::string getCurrentExecPath()
 {
     std::string path = ".";
