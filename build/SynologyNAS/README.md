@@ -2,7 +2,7 @@
 
 We use docker to cross-compile MEGAcmd for Synology. To build for a specific platform, run:
 ```
-docker build -t megacmd-dms-build-env -f $PWD/build/SynologyNAS/synology-cross-build.dockerfile $PWD --build-arg PLATFORM=<platform>
+docker build -t megacmd-dms-build-env -f $PWD/build/SynologyNAS/dockerfile/synology-cross-build.dockerfile $PWD --build-arg PLATFORM=<platform>
 ```
 The `-t` argument tags the container with a name, whereas `-f` specifies the dockerfile. Note that the working directory has to be the MEGAcmd repository.
 
