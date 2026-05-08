@@ -10950,16 +10950,6 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             return;
         }
 
-        const fs::path localPath = localPathStr;
-#ifndef WIN32
-        if (std::error_code ec; !fs::exists(localPath, ec) || ec)
-        {
-            setCurrentThreadOutCode(MCMD_NOTFOUND);
-            LOG_err << "Local path " << localPath << " does not exist";
-            return;
-        }
-#endif
-
         std::unique_ptr<MegaNode> node = nodebypath(remotePathStr.c_str());
         if (node == nullptr)
         {
@@ -10973,7 +10963,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         const bool transient = getFlag(clflags, "transient");
         const bool readOnly = getFlag(clflags, "read-only");
 
-        FuseCommand::addMount(*api, localPath, *node, disabled, transient, readOnly, name);
+        FuseCommand::addMount(*api, localPathStr, *node, disabled, transient, readOnly, name);
     }
     else if (words[0] == "fuse-remove")
     {
