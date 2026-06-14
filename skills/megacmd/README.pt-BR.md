@@ -142,7 +142,7 @@ mega-help              # Deve listar os comandos
 
 ### Ativação
 
-A skill é ativada **automaticamente** pelo agente quando o contexto da conversa corresponder ao `description`. Para forçar a ativação, mencione "MEGAcmd", "MEGA.nz", "sync com MEGA", "upload para MEGA" ou similar.
+A skill é ativada **automaticamente** pelo agente quando o contexto da conversa corresponder ao `description`. Para forçar a ativação, mencione "MEGAcmd", "MEGA.nz", "upload para MEGA", "download do MEGA", "sync com MEGA", "backup para MEGA", ou "link do MEGA".
 
 ### Estrutura de Arquivos
 
@@ -178,6 +178,11 @@ mega-put ~/documento.pdf /Documentos/
 mega-get /remoto/arquivo.pdf ~/Downloads/
 ```
 
+> ⚠️ **Aviso de Segurança — Exposição de Credenciais**
+> O exemplo de login acima passa a senha como argumento da linha de comando, expondo-a ao histórico do shell, listas de processos e logs. Em ambientes compartilhados ou automatizados, prefira `mega-login` sem o argumento da senha.
+> **Recomendação:** Use `mega-login` interativamente quando possível. Sempre habilite 2FA. Evite hardcodar credenciais em scripts.
+
+
 ### Interativo (shell do MEGAcmd)
 
 Comandos sem prefixo dentro do shell:
@@ -194,6 +199,10 @@ MEGA CMD> get arquivo.pdf
 ---
 
 ## Exemplos Rápidos
+
+> ⚠️ **Aviso de Segurança — Exposição de Credenciais**
+> O exemplo `mega-login` abaixo passa sua senha como argumento da linha de comando. Isso expõe credenciais ao histórico do shell, listas de processos, logs de auditoria e telemetria do agente.
+> **Recomendação:** Use `mega-login` interativamente (sem a senha) quando possível. Sempre habilite 2FA. Nunca inclua credenciais em scripts ou versionamento.
 
 ```bash
 # Login
@@ -216,6 +225,10 @@ mega-backup ~/Fotos /Backups --period="0 0 4 * * *" --num-backups=10
 
 # WebDAV
 mega-webdav /Videos --public --port=8080
+> ⚠️ **Aviso de Segurança — Exposição de Rede**
+> Iniciar o WebDAV expõe seu conteúdo do MEGA pela rede. Sem TLS, o tráfego não é criptografado. A opção `--public` torna o serviço acessível além de localhost.
+> **Recomendação:** Use `--tls` com certificados válidos. Evite `--public` a menos que necessário. Pare os serviços quando não estiver em uso com `mega-webdav -d`.
+
 
 # Verificar status
 mega-whoami -l

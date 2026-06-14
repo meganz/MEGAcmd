@@ -1,9 +1,11 @@
 ---
 name: megacmd
 description: >-
-  CLI para serviços MEGA.nz. Use para upload/download, sync bidirecional,
-  backups, servidores WebDAV/FTP, montagem FUSE (Linux),
-  compartilhar links públicos, e gerenciar conta MEGA.
+  Agente CLI para MEGA.nz. Ative quando o usuário pedir para enviar arquivos ao
+  MEGA, baixar do MEGA, sincronizar pastas locais com a nuvem MEGA, agendar
+  backups para o MEGA, compartilhar arquivos via links públicos do MEGA, montar
+  MEGA como pasta local (FUSE no Linux), servir arquivos via WebDAV/FTP do
+  MEGA, ou gerenciar configurações da conta MEGA.
 license: MIT-0
 metadata:
   version: "1.0.0"
@@ -39,6 +41,11 @@ Instruções para agentes usarem o **MEGAcmd**, a interface CLI oficial do MEGA.
 - O usuário quer acessar arquivos via MEGA Desktop App (não CLI)
 
 ---
+
+> ⚠️ **Visão Geral de Segurança**
+> Este skill pode realizar operações poderosas na sua conta MEGA, incluindo gerenciamento de arquivos, sync bidirecional, backups agendados, compartilhamento de links públicos e serviços de rede (WebDAV/FTP).
+> **Cuidado para o agente:** Exija confirmação explícita do usuário antes de fazer login, excluir arquivos, sincronizar pastas, criar backups, exportar links, compartilhar pastas, alterar configurações da conta, montar FUSE ou iniciar WebDAV/FTP.
+> **Segurança de credenciais:** Evite colocar senhas, IDs de sessão, credenciais de proxy ou chaves de recuperação diretamente em comandos ou logs visíveis no chat. Prefira login interativo ou mecanismos protegidos de secrets.
 
 ## Pré-requisitos
 
@@ -95,6 +102,10 @@ MEGA CMD> put ~/arquivo.pdf /Destino/
 
 ---
 
+> ⚠️ **Aviso de Segurança — Exposição de Credenciais**
+> Executar mega-login com senha inline expõe credenciais ao histórico do shell, listas de processos, logs de auditoria e telemetria do agente. Em ambientes compartilhados ou automatizados, prefira métodos de login que não passem a senha como argumento da linha de comando.
+> **Recomendação:** Use `mega-login` interativamente (sem o argumento da senha) quando possível. Sempre habilite 2FA para proteção da conta. Evite incluir credenciais em scripts ou saída de automação.
+
 ## Comandos Essenciais
 
 ### Login e Conta
@@ -108,6 +119,15 @@ MEGA CMD> put ~/arquivo.pdf /Destino/
 | `mega-passwd [-f] [--auth-code=XXXX] nova-senha` | Alterar senha |
 | `mega-session` | Mostrar session ID |
 | `mega-killsession -a` | Matar todas outras sessões |
+
+
+> ⚠️ **Aviso de Segurança — Chave de Recuperação**
+> A chave mestre (chave de recuperação) é essencial para a recuperação de dados. Se perdida, você não pode recuperar seus dados sem a senha. Se exposta, um invasor ganha acesso durável à sua conta.
+> **Recomendação:** Salve a chave mestre em armazenamento criptografado (gerenciador de senhas, USB criptografado). Armazene com permissões de arquivo restritas (ex.: `chmod 600`). Não sincronize o arquivo de texto puro para a nuvem.
+
+> ⚠️ **Aviso de Segurança — Token de Sessão**
+> O session ID é uma credencial do tipo bearer. Se exposto, qualquer pessoa pode se passar pela sua sessão até que ela expire ou seja revogada.
+> **Recomendação:** Não compartilhe a saída do comando `mega-session` em logs, capturas de tela, scripts ou relatórios automatizados.
 
 ### Navegação e Listagem
 | Comando | Descrição |
@@ -129,6 +149,9 @@ MEGA CMD> put ~/arquivo.pdf /Destino/
 | `mega-get "link#key" ./dir` | Download de link público |
 | `mega-cat caminho` | Exibir conteúdo de arquivo texto |
 
+> ⚠️ **Aviso de Segurança — Exposição de Dados**
+> Criar links públicos expõe seus dados na nuvem para qualquer pessoa com o link. Links com `--writable` concedem acesso de escrita à pasta compartilhada.
+> **Recomendação:** Use `--password` para proteger arquivos sensíveis. Defina `--expire` para acesso com prazo limitado. Revise e remova periodicamente links de exportação não utilizados.
 ### Gerenciamento de Arquivos
 | Comando | Descrição |
 |---|---|
@@ -140,6 +163,10 @@ MEGA CMD> put ~/arquivo.pdf /Destino/
 | `mega-export -d caminho` | Remover link |
 | `mega-export -a caminho --password="x" --expire="30d"` | Link com senha (PRO) |
 | `mega-import link [destino]` | Importar link para nuvem |
+
+> ⚠️ **Aviso de Segurança — Compartilhamento de Pastas**
+> Compartilhar pastas dá acesso a usuários externos ao seu conteúdo do MEGA. Os níveis de permissão variam de Leitura (0) a Proprietário (3). Compartilhar em excesso ou conceder permissões excessivas pode expor dados sensíveis.
+> **Recomendação:** Conceda o nível mínimo de permissão necessário. Remova o compartilhamento quando não for mais necessário. Revise pastas compartilhadas periodicamente.
 
 ### Compartilhamento
 | Comando | Descrição |
@@ -206,6 +233,10 @@ Padrão de armazenamento: `/remoto/pasta_bk_TIMESTAMP`
 
 > BETA. Apenas um servidor por vez. Configuração da primeira localização vale para todas.
 
+> ⚠️ **Aviso de Segurança — Exposição de Rede**
+> Iniciar o WebDAV expõe seu conteúdo do MEGA pela rede. Sem TLS, o tráfego não é criptografado. A opção `--public` torna o serviço acessível além de localhost.
+> **Recomendação:** Use `--tls` com certificados válidos. Evite `--public` a menos que necessário. Pare os serviços quando não estiver em uso com `mega-webdav -d`.
+
 ### WebDAV
 ```bash
 mega-webdav /Videos                            # Servir pasta (porta 4443)
@@ -215,6 +246,10 @@ mega-webdav /Publico --public --port=8080      # Público
 mega-webdav -d /Videos                         # Parar
 mega-webdav -d --all                           # Parar tudo
 ```
+
+> ⚠️ **Aviso de Segurança — Exposição de Rede**
+> Iniciar o FTP expõe seu conteúdo da MEGA via FTP não criptografado. Sem `--tls`, credenciais e dados são enviados em texto puro. Por padrão, o servidor é local; use `--public` para permitir acesso remoto.
+> **Recomendação:** Use `--tls` com certificados válidos para FTP seguro. Evite servir conteúdo sensível via FTP simples. Pare os serviços quando não estiver em uso com `mega-ftp -d`.
 
 ### FTP
 ```bash
@@ -272,6 +307,7 @@ mega-permissions --files -s 600          # Unix apenas
 mega-log -c DEBUG                        # Ajustar nível de log MEGAcmd
 mega-log -s INFO                         # Ajustar nível de log SDK
 ```
+> ⚠️ Ao usar autenticação de proxy, evite passar credenciais na linha de comando, pois elas podem ser capturadas pelo histórico do shell ou por listagens de processos. Prefira usar variáveis de ambiente ou um arquivo de configuração.
 
 ---
 
@@ -334,6 +370,8 @@ mega-df -h
 | "quota" no log | Cota de armazenamento excedida | `mega-df -h`, liberar espaço |
 | LOG cheio de "Can't find" | Arquivos deletados/movidos | Normalmente resolvido sozinho após rescaneamento |
 
+> ⚠️ Os comandos a seguir excluem arquivos locais sem confirmação. Verifique se os caminhos estão corretos antes de executar.
+
 ### Plano de ação quando sync está travado
 
 ```bash
@@ -377,10 +415,10 @@ sleep 10 && mega-sync && mega-transfers --summary
 
 1. **Sempre verifique exit code**: `mega-comando || echo "FALHOU ($?)"`
 2. **Escape `!` em links**: `mega-get https://mega.nz/#F\!ABcD\!Key ./dir`
-3. **Master Key é ESSENCIAL**: `mega-masterkey ./recuperacao.txt` — sem ela, perder senha = perder tudo
+3. **Master Key é ESSENCIAL**: `mega-masterkey ./recuperacao.txt` — sem ela, perder senha = perder tudo. Armazene em um local criptografado e com acesso restrito.
 4. **Faça logout** em máquinas compartilhadas
 5. **`logout --keep-session`** em máquina pessoal (mantém cache, retoma sessão)
-6. **Links `--writable` expõem a conta** — use com cautela
+6. **Links `--writable` expõem a pasta compartilhada** — qualquer pessoa com o link pode enviar, modificar ou excluir arquivos nessa pasta. Compartilhe links graváveis apenas com pessoas de confiança.
 7. **Use `-q` (queue)** para operações grandes em background
 8. **Em syncs, exclua `node_modules`, `.git`, `*.tmp`** com `mega-sync-ignore`
 9. **Primeiro sync é mais lento** — 100k+ arquivos podem levar horas para escanear

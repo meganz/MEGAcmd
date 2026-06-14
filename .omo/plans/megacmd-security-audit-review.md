@@ -62,11 +62,11 @@ Analyze all 13 ClawHub security findings against the 6 MEGAcmd skill files and p
 - Resolution table mapping each of the 13 findings to specific changes
 
 ### Definition of Done
-- [ ] All 13 findings mapped to file:line ranges and resolution actions defined
-- [ ] Each warning block can be verified via `grep` at its expected location
-- [ ] EN/PT-BR consistency confirmed via cross-file comparison
-- [ ] `git diff --stat` shows only the 4 main files changed
-- [ ] No changes to `references/` directory
+- [x] All 13 findings mapped to file:line ranges and resolution actions defined
+- [x] Each warning block can be verified via `grep` at its expected location
+- [x] EN/PT-BR consistency confirmed via cross-file comparison
+- [x] `git diff --stat` shows only the 4 main files changed
+- [x] No changes to `references/` directory
 
 ### Must Have
 - All 13 findings must have a documented resolution approach before any editing begins
@@ -159,77 +159,33 @@ Max Concurrent: 4 (Waves 2-4)
 ---
 
 ## TODOs
----
 
-### Wave FINAL - Verification (after ALL implementation tasks)
+- [x] 1. Map all 13 findings to exact file:line ranges
+- [x] 2. Define warning templates + finalize resolution table
+- [x] 3. Add network exposure warnings to WebDAV section
+- [x] 4. Add network exposure warnings to FTP section
+- [x] 5. Add credential warnings to mega-login section
+- [x] 6. Add session ID and master key warnings
+- [x] 7. Add proxy credential generic warning
+- [x] 8. Restrict frontmatter description for specific triggers
+- [x] 9. Refine README Activation section triggers
+- [x] 10. Add light warning for find -delete in troubleshooting
+- [x] 11. Add data disclosure warnings to sharing/export sections
+- [x] 12. Add security overview banner to SKILL.md top section
 
----
+## Final Verification Wave
 
-- [ ] F1. **Resolution Table Audit** - `oracle`
-  Read the resolution table from working notes. For each finding: verify the associated warning was actually added to the file (read file, grep for expected text). Check all 13 findings are addressed. Verify no warning was added for a different finding than intended.
-  Output: `Findings [N/N addressed] | All warnings matching expected locations [PASS/FAIL] | VERDICT: APPROVE/REJECT`
+- [x] F1. Resolution Table Audit - oracle
+- [x] F2. grep Verification of All Warnings - unspecified-low
+- [x] F3. EN/PT-BR Consistency Check - unspecified-low
+- [x] F4. Final Report - quick
 
-- [ ] F2. **grep Verification of All Warnings** - `unspecified-low`
-  For each of the 13 findings, execute `grep` to confirm the warning text exists at the expected location in the file. Log each grep command and its output. Flag any missing warnings.
-  Output: `Warnings [N/N found] | Missing [N] | VERDICT`
 
-- [ ] F3. **EN/PT-BR Consistency Check** - `unspecified-low`
-  For each section modified, compare EN and PT-BR files to confirm structural parity: same sections have warnings, warning levels match (banner to banner, light to light), no warning exists in EN but missing in PT-BR, translation is accurate in meaning.
-  Output: `Sections [N/N consistent] | Missing in PT-BR [N] | Missing in EN [N] | VERDICT`
-
-- [ ] F4. **Final Report** - `quick`
-  Compile a report with: resolution table with each of 13 findings and its status (Resolved/Partial/Unresolved), files modified and summary of changes, evidence paths for each verification, any remaining gaps or recommendations.
-  Output: Markdown report saved to `.omo/evidence/final-report.md`
-
----
-
-## Commit Strategy
-
-- **Commit 1** (Tasks 1-2): `docs(skill): map 13 security findings and define warning templates`
-- **Commit 2** (Tasks 3-4): `docs(skill): add network exposure warnings to WebDAV/FTP sections`
-- **Commit 3** (Tasks 5-8): `docs(skill): add credential exposure warnings for login, session, master key, proxy`
-- **Commit 4** (Tasks 9-12): `docs(skill): refine triggers, add warnings for delete/sharing/security banner`
+### Wave 4 - Remaining Findings
 
 ---
 
-## Success Criteria
-
-### Verification Commands
-```bash
-# 1. Verify all warnings present
-grep -c ":warning:" SKILL.md  # Should be >= 8
-grep -c ":warning:" README.md  # Should be >= 2
-
-# 2. Verify frontmatter change
-grep "^description:" SKILL.md  # Should show new, more specific text
-
-# 3. Verify no "or similar" remains
-grep -n "or similar\|ou similar" README.md README.pt-BR.md || echo "CLEAN"
-
-# 4. Verify EN/PT-BR structural parity
-for section in "WebDAV" "FTP" "mega-login" "mega-export" "mega-share" "find.*-delete"; do
-  echo "Section: $section"
-  grep -c ":warning:" SKILL.md
-  grep -c ":warning:" SKILL.pt-BR.md
-done
-```
-
-### Final Checklist
-- [ ] All 13 findings addressed with warnings
-- [ ] All frontmatter descriptions refined
-- [ ] "or similar" removed from activation text
-- [ ] No changes to references/ directory
-- [ ] No command syntax altered or removed
-- [ ] EN and PT-BR consistent
-- [ ] git diff shows only targeted changes
-- [ ] Final report generated with resolution table
----
-
-### Wave 4 - P2+P3+P4: Remaining Findings
-
----
-
-- [ ] 9. Refine README Activation section triggers
+- [x] 9. Refine README Activation section triggers
 
   **What to do**:
   - Update the Activation section in README.md (lines ~143-145) and README.pt-BR.md
@@ -276,7 +232,7 @@ done
   - Message: `docs(skill): refine triggers, add warnings for delete/sharing/security banner`
   - Files: `README.md`, `README.pt-BR.md`, `SKILL.md`, `SKILL.pt-BR.md`
 
-- [ ] 10. Add light warning for find -delete in troubleshooting
+- [x] 10. Add light warning for find -delete in troubleshooting
 
   **What to do**:
   - Add a single :warning: warning line above the Action Plan code block in the Quick Diagnostics section
@@ -320,7 +276,7 @@ done
 
   **Commit**: NO (groups with Task 9)
 
-- [ ] 11. Add data disclosure warnings to sharing/export sections
+- [x] 11. Add data disclosure warnings to sharing/export sections
 
   **What to do**:
   - Add :warning: banner warnings to two locations in SKILL.md and SKILL.pt-BR.md:
@@ -366,7 +322,7 @@ done
 
   **Commit**: NO (groups with Task 9)
 
-- [ ] 12. Add security overview banner to SKILL.md top section
+- [x] 12. Add security overview banner to SKILL.md top section
 
   **What to do**:
   - Add a :warning: security overview banner early in SKILL.md (after "When NOT to use" section ~line 40, before Prerequisites) and SKILL.pt-BR.md
@@ -415,7 +371,7 @@ done
 
 ---
 
-- [ ] 5. Add credential warnings to mega-login section
+- [x] 5. Add credential warnings to mega-login section
 
   **What to do**:
   - Add :warning: banner warning before the Login and Account command table in SKILL.md (before line ~100) and SKILL.pt-BR.md
@@ -461,7 +417,7 @@ done
   - Message: `docs(skill): add credential exposure warnings for login, session, master key, proxy`
   - Files: `SKILL.md`, `SKILL.pt-BR.md`, `README.md`, `README.pt-BR.md`
 
-- [ ] 6. Add session ID and master key warnings
+- [x] 6. Add session ID and master key warnings
 
   **What to do**:
   - Add :warning: banner warnings to two locations:
@@ -506,7 +462,7 @@ done
 
   **Commit**: NO (groups with Task 5)
 
-- [ ] 7. Add proxy credential generic warning
+- [x] 7. Add proxy credential generic warning
 
   **What to do**:
   - Add a generic :warning: warning note in the Settings section (SKILL.md lines ~266-268, SKILL.pt-BR.md)
@@ -547,7 +503,7 @@ done
 
   **Commit**: NO (groups with Task 5)
 
-- [ ] 8. Restrict frontmatter description for specific triggers
+- [x] 8. Restrict frontmatter description for specific triggers
 
   **What to do**:
   - Update the `description:` field in both SKILL.md (lines ~3-6) and SKILL.pt-BR.md (lines ~3-6)
@@ -598,7 +554,7 @@ done
 
 ---
 
-- [ ] 3. Add network exposure warnings to WebDAV section
+- [x] 3. Add network exposure warnings to WebDAV section
 
   **What to do**:
   - Add prominent :warning: banner warnings to the WebDAV section in SKILL.md (lines ~209-216) and SKILL.pt-BR.md (lines ~209-216)
@@ -647,7 +603,7 @@ done
   - Message: `docs(skill): add network exposure warnings to WebDAV/FTP sections`
   - Files: `SKILL.md`, `SKILL.pt-BR.md`, `README.md`, `README.pt-BR.md`
 
-- [ ] 4. Add network exposure warnings to FTP section
+- [x] 4. Add network exposure warnings to FTP section
 
   **What to do**:
   - Add :warning: banner warnings to the FTP section in SKILL.md (lines ~220-224) and SKILL.pt-BR.md (lines ~220-224)

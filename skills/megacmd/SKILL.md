@@ -1,9 +1,10 @@
 ---
 name: megacmd
 description: >-
-  CLI for MEGA.nz cloud services. Use for upload, download, bidirectional sync,
-  backups, WebDAV/FTP servers, FUSE mount (Linux),
-  public link sharing, and MEGA account management.
+  CLI agent for MEGA.nz. Activate when the user asks to upload files to MEGA,
+  download from MEGA, sync local folders with MEGA cloud, schedule backups to
+  MEGA, share files via MEGA public links, mount MEGA as a local folder (FUSE on
+  Linux), serve files via MEGA WebDAV/FTP, or manage MEGA account settings.
 license: MIT-0
 metadata:
   version: "1.0.0"
@@ -39,6 +40,11 @@ Instructions for agents to use **MEGAcmd**, the official CLI interface for MEGA.
 - The user wants to access files via the MEGA Desktop App (not CLI)
 
 ---
+
+> ⚠️ **Security Overview**
+> This skill can perform powerful operations on your MEGA account, including file management, bidirectional sync, scheduled backups, public link sharing, and network services (WebDAV/FTP).
+> **Agent caution:** Require explicit user confirmation before login, deleting files, syncing folders, creating backups, exporting links, sharing folders, changing account settings, mounting FUSE, or starting WebDAV/FTP.
+> **Credential safety:** Avoid putting passwords, session IDs, proxy credentials, or recovery keys directly in commands or chat-visible logs. Prefer interactive login or protected secrets mechanisms.
 
 ## Prerequisites
 
@@ -97,6 +103,10 @@ MEGA CMD> put ~/file.pdf /Destination/
 
 ## Essential Commands
 
+> ⚠️ **Security Warning — Credential Exposure**
+> Running mega-login with an inline password exposes credentials to shell history, process listings, audit logs, and agent telemetry. In shared or automated environments, prefer login methods that do not pass the password as a command-line argument.
+> **Recommendation:** Use `mega-login` interactively (without the password argument) when possible. Always enable 2FA for account protection. Avoid including credentials in scripts or automation output.
+
 ### Login & Account
 | Command | Description |
 |---|---|
@@ -108,6 +118,15 @@ MEGA CMD> put ~/file.pdf /Destination/
 | `mega-passwd [-f] [--auth-code=XXXX] new-password` | Change password |
 | `mega-session` | Show session ID |
 | `mega-killsession -a` | Kill all other sessions |
+
+
+> ⚠️ **Security Warning — Recovery Key**
+> The master key (recovery key) is essential for data recovery. If lost, you cannot recover your data without the password. If exposed, an attacker gains durable access to your account.
+> **Recommendation:** Save the master key to encrypted storage (password manager, encrypted USB). Store it with restricted file permissions (e.g., `chmod 600`). Do NOT sync the plaintext file to cloud storage.
+
+> ⚠️ **Security Warning — Session Token**
+> The session ID is a bearer credential. If exposed, anyone can impersonate your session until it expires or is revoked.
+> **Recommendation:** Do not share the session output in logs, screenshots, scripts, or automated reports.
 
 ### Navigation & Listing
 | Command | Description |
@@ -129,6 +148,9 @@ MEGA CMD> put ~/file.pdf /Destination/
 | `mega-get "link#key" ./dir` | Download from public link |
 | `mega-cat path` | Display text file contents |
 
+> ⚠️ **Security Warning — Data Disclosure**
+> Creating public links exposes your cloud data to anyone with the link. Links with `--writable` grant write access to the shared folder.
+> **Recommendation:** Use `--password` to protect sensitive files. Set `--expire` dates for time-limited access. Periodically review and remove unused export links.
 ### File Management
 | Command | Description |
 |---|---|
@@ -140,6 +162,10 @@ MEGA CMD> put ~/file.pdf /Destination/
 | `mega-export -d path` | Remove link |
 | `mega-export -a path --password="x" --expire="30d"` | Password-protected link (PRO) |
 | `mega-import link [destination]` | Import link to cloud |
+
+> ⚠️ **Security Warning — Folder Sharing**
+> Sharing folders gives external users access to your MEGA content. Permission levels range from Read (0) to Owner (3). Over-sharing or granting excessive permissions can expose sensitive data.
+> **Recommendation:** Grant the minimum permission level needed. Remove sharing when no longer required. Review shared folders periodically.
 
 ### Sharing
 | Command | Description |
@@ -206,6 +232,10 @@ Storage pattern: `/remote/folder_bk_TIMESTAMP`
 
 > BETA. Only one server at a time. First location's configuration applies to all.
 
+> ⚠️ **Security Warning — Network Exposure**
+> Starting WebDAV exposes your MEGA content over the network. Without TLS, traffic is unencrypted. The `--public` flag makes the service accessible beyond localhost.
+> **Recommendation:** Use `--tls` with valid certificates. Avoid `--public` unless necessary. Stop services when not in use with `mega-webdav -d`.
+
 ### WebDAV
 ```bash
 mega-webdav /Videos                            # Serve folder (port 4443)
@@ -215,6 +245,10 @@ mega-webdav /Public --public --port=8080       # Public
 mega-webdav -d /Videos                         # Stop
 mega-webdav -d --all                           # Stop all
 ```
+
+> ⚠️ **Security Warning — Network Exposure**
+> Starting FTP exposes your MEGA content via unencrypted FTP. Without `--tls`, credentials and data are sent in plain text. By default the server is local-only; use `--public` to allow remote access.
+> **Recommendation:** Use `--tls` with valid certificates for secure FTP. Avoid serving sensitive content over plain FTP. Stop services when not in use with `mega-ftp -d`.
 
 ### FTP
 ```bash
@@ -272,6 +306,7 @@ mega-permissions --files -s 600          # Unix only
 mega-log -c DEBUG                        # Adjust MEGAcmd log level
 mega-log -s INFO                         # Adjust SDK log level
 ```
+> ⚠️ If using proxy authentication, avoid passing credentials on the command line where they may be captured by shell history or process listings. Prefer environment variables or a configuration file instead.
 
 ---
 
@@ -334,6 +369,8 @@ mega-df -h
 | "quota" in log | Storage quota exceeded | `mega-df -h`, free up space |
 | LOG full of "Can't find" | Deleted/moved files | Usually resolves itself after rescan |
 
+> ⚠️ The following commands delete local files without confirmation. Verify paths are correct before running.
+
 ### Action plan for stuck sync
 
 ```bash
@@ -377,10 +414,10 @@ sleep 10 && mega-sync && mega-transfers --summary
 
 1. **Always check exit code**: `mega-command || echo "FAILED ($?)"`
 2. **Escape `!` in links**: `mega-get https://mega.nz/#F\!ABcD\!Key ./dir`
-3. **Master Key is ESSENTIAL**: `mega-masterkey ./recovery.txt` — without it, losing your password means losing everything
+3. **Master Key is ESSENTIAL**: `mega-masterkey ./recovery.txt` — without it, losing your password means losing everything. Store it in an encrypted, access-restricted location.
 4. **Logout** on shared machines
 5. **`logout --keep-session`** on personal machines (preserves cache, resumes session)
-6. **`--writable` links expose your account** — use with caution
+6. **`--writable` links expose the shared folder** — anyone with the link can upload, modify, or delete files in that folder. Only share writable links with trusted parties.
 7. **Use `-q` (queue)** for large operations in background
 8. **In syncs, exclude `node_modules`, `.git`, `*.tmp`** with `mega-sync-ignore`
 9. **First sync is slower** — 100k+ files can take hours to scan

@@ -142,7 +142,7 @@ mega-help              # Should list commands
 
 ### Activation
 
-The skill is **automatically** activated by the agent when the conversation context matches the `description`. To force activation, mention "MEGAcmd", "MEGA.nz", "sync with MEGA", "upload to MEGA", or similar.
+The skill is **automatically** activated by the agent when the conversation context matches the `description`. To force activation, mention "MEGAcmd", "MEGA.nz", "upload to MEGA", "download from MEGA", "sync with MEGA", "backup to MEGA", or "MEGA link".
 
 ### File Structure
 
@@ -178,6 +178,11 @@ mega-put ~/document.pdf /Documents/
 mega-get /remote/file.pdf ~/Downloads/
 ```
 
+> ⚠️ **Security Warning — Credential Exposure**
+> The login example above passes the password as a command-line argument, exposing it to shell history, process listings, and logs. In shared or automated environments, prefer `mega-login` without the password argument.
+> **Recommendation:** Use `mega-login` interactively when possible. Always enable 2FA. Avoid hardcoding credentials in scripts.
+
+
 ### Interactive (MEGAcmd shell)
 
 Commands without prefix inside the shell:
@@ -194,6 +199,10 @@ MEGA CMD> get file.pdf
 ---
 
 ## Quick Examples
+
+> ⚠️ **Security Warning — Credential Exposure**
+> The `mega-login` example below passes your password as a command-line argument. This exposes credentials to shell history, process listings, audit logs, and agent telemetry.
+> **Recommendation:** Use `mega-login` interactively (without the password) when possible. Always enable 2FA. Never commit credentials to scripts or version control.
 
 ```bash
 # Login
@@ -216,6 +225,10 @@ mega-backup ~/Photos /Backups --period="0 0 4 * * *" --num-backups=10
 
 # WebDAV
 mega-webdav /Videos --public --port=8080
+> ⚠️ **Security Warning — Network Exposure**
+> Starting WebDAV exposes your MEGA content over the network. Without TLS, traffic is unencrypted. The `--public` flag makes the service accessible beyond localhost.
+> **Recommendation:** Use `--tls` with valid certificates. Avoid `--public` unless necessary. Stop services when not in use with `mega-webdav -d`.
+
 
 # Check status
 mega-whoami -l
