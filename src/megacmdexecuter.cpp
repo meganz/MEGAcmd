@@ -3142,7 +3142,7 @@ int MegaCmdExecuter::deleteNodeVersions(const std::unique_ptr<MegaNode>& nodeToD
 
     if (nodeToDelete->getType() != MegaNode::TYPE_FILE)
     {
-        string confirmationQuery("Are you sure todelete the version histories of files within ");
+        string confirmationQuery("Are you sure you want to delete the version histories of files within ");
         confirmationQuery += nodeToDelete->getName();
         confirmationQuery += "? (Yes/No): ";
 
@@ -3165,7 +3165,7 @@ int MegaCmdExecuter::deleteNodeVersions(const std::unique_ptr<MegaNode>& nodeToD
     else
     {
 
-        string confirmationQuery("Are you sure todelete the version histories of ");
+        string confirmationQuery("Are you sure you want to delete the version histories of ");
         confirmationQuery += nodeToDelete->getName();
         confirmationQuery += "? (Yes/No): ";
         confirmationResponse = force?MCMDCONFIRM_ALL:askforConfirmation(confirmationQuery);
@@ -7422,7 +7422,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         }
         if (deleteall)
         {
-            string confirmationQuery("Are you sure todelete the version histories of all files? (Yes/No): ");
+            string confirmationQuery("Are you sure you want to delete the version histories of all files? (Yes/No): ");
 
             int confirmationResponse = forcedelete?MCMDCONFIRM_YES:askforConfirmation(confirmationQuery);
 
