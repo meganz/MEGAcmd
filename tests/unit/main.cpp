@@ -18,10 +18,15 @@
 #include "megaapi.h"
 #include <gtest/gtest.h>
 
+#include "CrashCapture.h"
 #include "TestUtils.h"
 
 int main (int argc, char *argv[])
 {
+    // First thing, so that a crash produces a dump and a stack instead of a
+    // process that simply disappears.
+    megacmd::test::installCrashCapture();
+
     mega::MegaApi::setLogToConsole(true);
     mega::MegaApi::setLogLevel(mega::MegaApi::LOG_LEVEL_MAX);
 
