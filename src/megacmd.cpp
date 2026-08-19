@@ -4469,15 +4469,11 @@ void finalize(bool waitForRestartSignal_param)
     alreadyfinalized = true;
     LOG_info << "closing application ...";
 
-    // The updater thread reaches into the api, the comunications manager and the
-    // petition list, so it has to be gone before any of them are.
+    // Ask the updater thread to stop, but do not wait for it. executeUpdater
+    // blocks on the updater child process with no timeout, so a thread caught in
+    // there cannot be joined in any bounded time. The thread is left for process
+    // exit to reap, which is what happened before anyway.
     stopCheckingforUpdaters = true;
-    if (threadCheckUpdates)
-    {
-        threadCheckUpdates->join();
-        delete threadCheckUpdates;
-        threadCheckUpdates = nullptr;
-    }
 
     delete_finished_threads();
     if (!consoleFailed)
@@ -4590,8 +4586,8 @@ void stopcheckingForUpdates()
 }
 
 namespace {
-// Waits in short slices, so a shutdown does not have to sit through a long one
-// before the updater notices it has been asked to stop.
+// Waits in short slices, so that "update --auto=off" takes effect promptly
+// instead of after up to two seconds.
 void sleepUnlessAskedToStopCheckingForUpdates(int seconds)
 {
     constexpr int sliceMs = 200;
