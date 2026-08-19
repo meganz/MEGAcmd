@@ -124,6 +124,7 @@ std::mutex mutexEndedPetitionThreads;
 std::vector<std::unique_ptr<MegaThread>> petitionThreads;
 std::vector<MegaThread *> endedPetitionThreads;
 MegaThread *threadRetryConnections;
+MegaThread *threadCheckUpdates = nullptr;
 
 std::mutex greetingsmsgsMutex;
 std::deque<std::string> greetingsFirstClientMsgs; // to be given on first client to register as state listener
@@ -4468,6 +4469,16 @@ void finalize(bool waitForRestartSignal_param)
     alreadyfinalized = true;
     LOG_info << "closing application ...";
 
+    // The updater thread reaches into the api, the comunications manager and the
+    // petition list, so it has to be gone before any of them are.
+    stopCheckingforUpdaters = true;
+    if (threadCheckUpdates)
+    {
+        threadCheckUpdates->join();
+        delete threadCheckUpdates;
+        threadCheckUpdates = nullptr;
+    }
+
     delete_finished_threads();
     if (!consoleFailed)
     {
@@ -4557,8 +4568,17 @@ void startcheckingForUpdates()
     {
         alreadyCheckingForUpdates = true;
         LOG_info << "Starting autoupdate check mechanism";
-        MegaThread *checkupdatesThread = new MegaThread();
-        checkupdatesThread->start(checkForUpdates, checkupdatesThread);
+
+        // A previous run leaves its thread object behind now that the thread no
+        // longer destroys itself, so collect it before starting another.
+        if (threadCheckUpdates)
+        {
+            threadCheckUpdates->join();
+            delete threadCheckUpdates;
+        }
+
+        threadCheckUpdates = new MegaThread();
+        threadCheckUpdates->start(checkForUpdates, nullptr);
     }
 }
 
@@ -4569,17 +4589,27 @@ void stopcheckingForUpdates()
     stopCheckingforUpdaters = true;
 }
 
-void* checkForUpdates(void *param)
+namespace {
+// Waits in short slices, so a shutdown does not have to sit through a long one
+// before the updater notices it has been asked to stop.
+void sleepUnlessAskedToStopCheckingForUpdates(int seconds)
+{
+    constexpr int sliceMs = 200;
+    for (int remainingMs = seconds * 1000;
+         remainingMs > 0 && !stopCheckingforUpdaters;
+         remainingMs -= sliceMs)
+    {
+        sleepMilliSeconds(sliceMs);
+    }
+}
+}
+
+void* checkForUpdates(void *)
 {
     stopCheckingforUpdaters = false;
     LOG_debug << "Initiating recurrent checkForUpdates";
 
-    int secstosleep = 60;
-    while (secstosleep > 0 && !stopCheckingforUpdaters)
-    {
-        sleepSeconds(2);
-        secstosleep -= 2;
-    }
+    sleepUnlessAskedToStopCheckingForUpdates(60);
 
     while (!doExit && !stopCheckingforUpdaters)
     {
@@ -4593,12 +4623,7 @@ void* checkForUpdates(void *param)
             LOG_info << " There is a pending update. Will be applied in a few seconds";
 
             broadcastMessage("A new update has been downloaded. It will be performed in 60 seconds");
-            int secstosleep = 57;
-            while (secstosleep > 0 && !stopCheckingforUpdaters)
-            {
-                sleepSeconds(2);
-                secstosleep -= 2;
-            }
+            sleepUnlessAskedToStopCheckingForUpdates(57);
             if (stopCheckingforUpdaters) break;
             broadcastMessage("  Executing update in 3");
             sleepSeconds(1);
@@ -4645,17 +4670,10 @@ void* checkForUpdates(void *param)
             break;
         }
 
-        int secstosleep = 7200;
-        while (secstosleep > 0 && !stopCheckingforUpdaters)
-        {
-            sleepSeconds(2);
-            secstosleep -= 2;
-        }
+        sleepUnlessAskedToStopCheckingForUpdates(7200);
     }
 
     alreadyCheckingForUpdates = false;
-
-    delete (MegaThread *)param;
     return NULL;
 }
 
