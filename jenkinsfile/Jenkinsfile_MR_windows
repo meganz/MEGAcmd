@@ -1,3 +1,18 @@
+// Upper bound on TEST_REPEATS. The integration run takes a few minutes and holds
+// a lock on one of the shared test accounts, so a mistyped trigger phrase must not
+// be able to occupy either for the whole stage timeout.
+MAX_TEST_REPEATS = 40
+
+// Passed to the test binary. "mini" keeps the artefact small, which is what the
+// default single run wants; "rich" adds the memory the stacks point at and "full"
+// the whole heap, either of which is worth asking for while investigating.
+TEST_DUMP_TYPE = 'mini'
+
+// How long the test binary waits for its own shutdown before deciding it is stuck,
+// capturing every thread and giving up. A normal teardown is a fraction of a
+// second; this only has to be below the stage timeout.
+SHUTDOWN_WATCHDOG_SECS = 300
+
 pipeline {
     agent { label "windows && amd64" }
 
@@ -6,6 +21,7 @@ pipeline {
     }
 
     options {
+        // artifactNumToKeepStr matters here: a failing run archives minidumps.
         buildDiscarder(logRotator(numToKeepStr: '135', daysToKeepStr: '21'))
         gitLabConnection('GitLabConnectionJenkins')
         timestamps() // Add timestamps to all console output
@@ -41,6 +57,22 @@ pipeline {
                                     addGitLabMRComment(comment: ":red_circle: ${env.JOB_NAME} FAILURE when getting the additional build parameters :worried:<br/>Build results: [Jenkins [${env.JOB_NAME} ${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>Commit: ${env.GIT_COMMIT}" )
                                 }
                             }
+                        }
+                    }
+                }
+
+                stage('Get test repeats'){
+                    steps {
+                        script{
+                            // One run unless a trigger phrase asks for more, e.g.
+                            // "TEST_REPEATS=20" when chasing an intermittent failure.
+                            // head -1 matters: grep -o prints one line per match, and two
+                            // of them would make the value unparseable further down.
+                            env.TEST_REPEATS = sh(script: 'echo "$gitlabTriggerPhrase" | grep -o "TEST_REPEATS=[0-9]\\+" | head -1 | cut -d= -f2 || true', returnStdout: true).trim()
+                            if (env.TEST_REPEATS == "") {
+                                env.TEST_REPEATS = "1"
+                            }
+                            println "integration test runs: ${env.TEST_REPEATS}"
                         }
                     }
                 }
@@ -156,6 +188,10 @@ pipeline {
             post {
                 always {
                     archiveArtifacts artifacts: "cmdbuild\\Debug\\.megaCmd\\megacmdserver.log*", allowEmptyArchive: true
+                    // The unit binary installs the same crash handler, and writes
+                    // its artefacts into this stage's working directory. The
+                    // workspace is wiped at the end of the build, so take them now.
+                    archiveArtifacts artifacts: "unit-test-dir/**/crash-*", allowEmptyArchive: true
                     junit "unit-test-dir\\mega-cmd-tests.xml"
                     bat "rmdir ${INSTALL_DIR}\\.megaCmd /s /q"
                 }
@@ -173,33 +209,20 @@ pipeline {
             }
             steps {
                 lock(label: 'testing_accounts_megacmd', variable: 'MEGACMD_TEST_USER', quantity: 1, resource: null) {
-                    dir('integration-test-dir') {
-                        echo "Running tests"
-                        script {
-                            def status = bat script: "${INSTALL_DIR}\\mega-cmd-tests-integration.exe --gtest_shuffle --gtest_output=xml:${megacmd_sources_workspace}\\integration-test-dir\\mega-cmd-tests.xml", returnStatus: true
-
-                            // There is an unresolved issue on Windows that results in an incorrect status code being returned
-                            // from the process above; so we use a file to get the actual value
-                            if (fileExists("exit_code.txt")) {
-                                def exitCode = readFile("exit_code.txt").trim().toInteger()
-                                if (status != exitCode) {
-                                    echo "Incorrect status code detected (expected: ${exitCode} actual: ${status})"
-                                }
-                                if (exitCode != 0) {
-                                    error "Integration tests failed with exit code ${exitCode}"
-                                }
-                            } else {
-                                unstable "Exit code file does not exist"
-                            }
-                        }
+                    script {
+                        runIntegrationTests()
                     }
                 }
             }
             post {
                 always {
-                    archiveArtifacts "cmdbuild\\Debug\\.megaCmd\\megacmdserver.log*"
-                    junit "integration-test-dir\\mega-cmd-tests.xml"
-                    bat "rmdir ${INSTALL_DIR}\\.megaCmd /s /q"
+                    // Everything a run left behind: the gtest report, the server log
+                    // moved out of the shared config dir, and any compressed dump.
+                    archiveArtifacts artifacts: "integration-test-dir/run-*/**", allowEmptyArchive: true
+                    // A safety net in case the per-run move did not happen.
+                    archiveArtifacts artifacts: "cmdbuild\\Debug\\.megaCmd\\megacmdserver.log*", allowEmptyArchive: true
+                    junit "integration-test-dir/run-*/mega-cmd-tests.xml"
+                    bat returnStatus: true, script: "if exist \"${INSTALL_DIR}\\.megaCmd\" rmdir \"${INSTALL_DIR}\\.megaCmd\" /s /q"
                 }
             }
         }
@@ -228,4 +251,282 @@ pipeline {
             deleteDir()
         }
     }
+}
+
+
+// ---------------------------------------------------------------------------
+// Running the integration tests, once by default
+//
+// A run that dies without writing exit_code.txt used to leave nothing behind but
+// "Exit code file does not exist". These helpers keep the evidence instead: the
+// raw process exit status, the server log for that run, the minidump the test
+// binary writes for itself, and cdb's reading of it when cdb is installed.
+// ---------------------------------------------------------------------------
+
+// cmd.exe is particular about line endings, and a batch file written with Unix
+// ones can fail to find a label. This file is LF only, so every batch goes out
+// through here.
+def runBat(String script) {
+    return bat(returnStatus: true,
+               script: script.replace('\r\n', '\n').replace('\n', '\r\n'))
+}
+
+def runIntegrationTests() {
+    // Capped, so that a mistyped trigger phrase cannot sit on the shared test
+    // account until the stage timeout.
+    int repeats = 1
+    try {
+        repeats = (env.TEST_REPEATS ?: '1') as int
+    } catch (NumberFormatException ignored) {
+        echo "TEST_REPEATS is not a number, running once"
+        repeats = 1
+    }
+    if (repeats < 1) {
+        repeats = 1
+    }
+    if (repeats > MAX_TEST_REPEATS) {
+        echo "TEST_REPEATS of ${repeats} is above the cap, running ${MAX_TEST_REPEATS} times"
+        repeats = MAX_TEST_REPEATS
+    }
+    String exe = "${env.INSTALL_DIR}\\mega-cmd-tests-integration.exe"
+    String serverLogDir = "${env.INSTALL_DIR}\\.megaCmd"
+
+    List failures = []      // runs whose tests failed
+    List incomplete = []    // runs that never wrote exit_code.txt
+
+    for (int run = 1; run <= repeats; run++) {
+        String label = run < 10 ? "run-0${run}" : "run-${run}"
+        String relative = "integration-test-dir/${label}"
+        String absolute = "${env.WORKSPACE}\\integration-test-dir\\${label}"
+
+        if (repeats > 1) {
+            echo "---- ${label} of ${repeats} ----"
+        }
+
+        runBat("""@echo off
+if exist "${absolute}" rmdir /s /q "${absolute}"
+mkdir "${absolute}"
+exit /b 0
+""")
+
+        int status = 0
+        dir(relative) {
+            echo "Running tests"
+            status = runBat("""@echo off
+setlocal
+set "MEGACMD_PIPE_SUFFIX=${env.BUILD_ID}_${run}"
+set "MEGACMD_TEST_DUMP_DIR=${absolute}"
+set "MEGACMD_TEST_DUMP_TYPE=${TEST_DUMP_TYPE}"
+set "MEGACMD_TEST_SHUTDOWN_WATCHDOG_SECS=${SHUTDOWN_WATCHDOG_SECS}"
+"${exe}" --gtest_shuffle --gtest_output=xml:"${absolute}\\mega-cmd-tests.xml"
+set "RC=%ERRORLEVEL%"
+(echo %RC%)> "${absolute}\\raw_status.txt"
+echo raw process exit status: %RC%
+exit /b %RC%
+""")
+        }
+
+        if (repeats > 1) {
+            // Before the log is moved, not after: a survivor still holding the
+            // file open would make the move fail silently and the next run would
+            // append to it. Matched on path, case insensitively, so a concurrent
+            // build on this node is left alone.
+            runBat("""@echo off
+powershell -NoProfile -Command "Get-Process -Name mega-cmd-tests-integration -ErrorAction SilentlyContinue | Where-Object { \$_.Path -and \$_.Path.StartsWith('${env.WORKSPACE}', [StringComparison]::OrdinalIgnoreCase) } | Stop-Process -Force"
+exit /b 0
+""")
+        }
+
+        // The log stream appends, so it has to be moved out or a second run
+        // continues the same file and the two become indistinguishable.
+        runBat("""@echo off
+if not exist "${serverLogDir}\\megacmdserver.log*" exit /b 0
+mkdir "${absolute}\\megaCmd" 2>nul
+move /Y "${serverLogDir}\\megacmdserver.log*" "${absolute}\\megaCmd\\" >nul
+if errorlevel 1 echo the server log could not be moved out of the config directory, so a later run may append to it
+exit /b 0
+""")
+
+        String rawStatus = fileExists("${relative}/raw_status.txt")
+            ? readFile("${relative}/raw_status.txt").trim()
+            : "${status}"
+
+        // There is an unresolved issue on Windows that results in an incorrect
+        // status code being returned from the process above; so we use a file to
+        // get the actual value.
+        if (fileExists("${relative}/exit_code.txt")) {
+            int exitCode = readFile("${relative}/exit_code.txt").trim().toInteger()
+            if (status != exitCode) {
+                echo "Incorrect status code detected (expected: ${exitCode} actual: ${status})"
+            }
+            if (exitCode != 0) {
+                echo "${label}: the tests failed with exit code ${exitCode}"
+                failures.add("${label} (exit code ${exitCode})")
+                // Not a crash: the binary ran to the end and reported a failure.
+                // Only pick anything up if it happened to leave some behind.
+                collectCrashEvidence(absolute, false)
+            }
+        } else {
+            boolean testsFinished = fileExists("${relative}/tests_done.txt")
+            echo """
+================ ${label} did not write exit_code.txt ================
+${testsFinished ? 'The tests finished and the process then died during shutdown.' : 'The process died before the tests finished.'}
+raw process exit status: ${rawStatus}${describeExitStatus(rawStatus)}
+"""
+            incomplete.add(label)
+            collectCrashEvidence(absolute, true)
+        }
+    }
+
+    if (repeats > 1) {
+        echo "${repeats} runs: ${failures.size()} with failing tests, " +
+             "${incomplete.size()} that never wrote exit_code.txt"
+    }
+
+    // Same verdicts as a single run has always produced, just aggregated.
+    if (!failures.isEmpty()) {
+        error "Integration tests failed in ${failures.join(', ')}"
+    }
+    if (!incomplete.isEmpty()) {
+        unstable "Exit code file does not exist (${incomplete.join(', ')})"
+    }
+}
+
+// Whatever the test binary's own crash handler left, plus cdb's reading of the
+// dump. @p died says whether the process failed to reach the end of main: only
+// then is the absence of a crash report worth remarking on, since a run that
+// merely failed its tests was never expected to leave one.
+def collectCrashEvidence(String absolute, boolean died) {
+    // Only a run that failed to reach the end of main was expected to leave a
+    // capture behind, so only then is its absence worth remarking on.
+    String nothingCaptured = died
+        ? "if not exist \"${absolute}\\*-report.txt\" if not exist \"${absolute}\\*.dmp.partial\" " +
+          "echo nothing was captured, so the process was killed by something the handler cannot " +
+          "intercept, such as a fail fast on heap corruption"
+        : "rem the tests reported a failure rather than dying, so no capture was expected"
+
+    runBat("""@echo off
+for %%S in ("${absolute}\\*-summary.txt") do (
+    echo ---- %%~nxS ----
+    type "%%~fS"
+)
+for %%R in ("${absolute}\\*-report.txt") do (
+    echo ---- %%~nxR ----
+    type "%%~fR"
+)
+if exist "${absolute}\\*.dmp.partial" echo a crash capture started and was killed before it could finish writing its dump
+${nothingCaptured}
+exit /b 0
+""")
+    analyseDumps(absolute, died)
+    compressDumps(absolute)
+}
+
+def analyseDumps(String absolute, boolean died) {
+    String noDump = died
+        ? "echo there is no complete minidump to analyse"
+        : "rem nothing to analyse, and nothing was expected"
+
+    runBat("""@echo off
+if not exist "${absolute}\\*.dmp" (
+    ${noDump}
+    exit /b 0
+)
+
+set "CDB="
+if not defined CDB if exist "C:\\Program Files (x86)\\Windows Kits\\10\\Debuggers\\x64\\cdb.exe" set "CDB=C:\\Program Files (x86)\\Windows Kits\\10\\Debuggers\\x64\\cdb.exe"
+if not defined CDB if exist "C:\\Program Files\\Windows Kits\\10\\Debuggers\\x64\\cdb.exe" set "CDB=C:\\Program Files\\Windows Kits\\10\\Debuggers\\x64\\cdb.exe"
+rem 'where' prints one line per hit and the first is the one on PATH first, so
+rem guard inside the loop or a 32 bit cdb could win over the 64 bit one.
+if not defined CDB for /f "delims=" %%C in ('where cdb.exe 2^>nul') do if not defined CDB set "CDB=%%C"
+
+if not defined CDB (
+    echo cdb.exe is not installed on this node, so the minidump is archived without analysis
+    echo the stack above came from the in-process handler and says the same thing
+    exit /b 0
+)
+echo analysing with %CDB%
+
+rem Symbols stay local. A symbol server round trip would stall the job, and the
+rem MEGAcmd and SDK frames are all in the pdb next to the binary.
+set "_NT_SYMBOL_PATH=${env.INSTALL_DIR}"
+
+> "${absolute}\\cdb-commands.txt" (
+    echo .reload /f
+    echo .ecxr
+    echo !analyze -v
+    echo kv
+    echo ~*kv
+    echo lmv
+    echo q
+)
+
+for %%D in ("${absolute}\\*.dmp") do (
+    echo ======== cdb analysis of %%~nxD ========
+    "%CDB%" -z "%%~fD" -y "${env.INSTALL_DIR}" -i "${env.INSTALL_DIR}" -lines -cf "${absolute}\\cdb-commands.txt" > "${absolute}\\%%~nD-analysis.txt" 2>&1
+    type "${absolute}\\%%~nD-analysis.txt"
+)
+exit /b 0
+""")
+}
+
+def compressDumps(String absolute) {
+    // Inlined rather than a 'call :label' subroutine, because cmd's label lookup
+    // is unreliable in a batch file that did not arrive with CRLF endings. Both
+    // archivers are checked by exit status AND by the archive existing before the
+    // only copy of the dump is deleted: tar creates its output before it can fail,
+    // and a failing Compress-Archive still exits zero.
+    runBat("""@echo off
+if not exist "${absolute}\\*.dmp" exit /b 0
+
+set "TAR="
+where tar.exe >nul 2>&1
+if not errorlevel 1 set "TAR=tar.exe"
+
+for %%D in ("${absolute}\\*.dmp") do (
+    set "DONE="
+    if defined TAR (
+        "%TAR%" -c -z -f "%%~dpnD.tgz" -C "${absolute}" "%%~nxD"
+        if not errorlevel 1 if exist "%%~dpnD.tgz" (
+            del /q "%%~fD"
+            echo compressed %%~nxD into %%~nD.tgz
+            set "DONE=yes"
+        )
+    )
+    if not defined DONE (
+        powershell -NoProfile -Command "Compress-Archive -LiteralPath '%%~fD' -DestinationPath '%%~dpnD.zip' -Force -ErrorAction Stop"
+        if not errorlevel 1 if exist "%%~dpnD.zip" (
+            del /q "%%~fD"
+            echo compressed %%~nxD into %%~nD.zip
+        )
+    )
+    if exist "%%~fD" echo %%~nxD could not be compressed, archiving it as it is
+)
+exit /b 0
+""")
+}
+
+// The status names the killer, which is the one thing the old "Exit code file does
+// not exist" message never said. Windows reports these through cmd as signed
+// 32 bit values.
+def describeExitStatus(String rawStatus) {
+    Map known = [
+        '-1073741819': '0xC0000005, an access violation',
+        '-1073740940': '0xC0000374, heap corruption',
+        '-1073740791': '0xC0000409, a fail fast such as a stack buffer overrun',
+        '-1073741571': '0xC00000FD, a stack overflow',
+        '-1073741795': '0xC000001D, an illegal instruction',
+        '-1073741676': '0xC0000094, an integer division by zero',
+        '3'          : 'an abort(), so an assertion or a std::terminate',
+        '-536870655' : '0xE0000101, an uncaught C++ exception, named by the in-process handler',
+        '-536870654' : '0xE0000102, a pure virtual call on a partly destroyed object',
+        '-536870653' : '0xE0000103, an invalid CRT parameter',
+        '-536870652' : '0xE0000104, a debug assertion',
+        '-536870651' : '0xE0000105, an abort() caught by the in-process handler',
+        '-536870650' : '0xE0000106, the crash capture itself ran out of time',
+        '-536870649' : '0xE0000107, the shutdown stalled and the watchdog killed it',
+    ]
+
+    String meaning = known[rawStatus]
+    return meaning ? " (${meaning})" : ''
 }
