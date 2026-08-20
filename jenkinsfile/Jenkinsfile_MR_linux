@@ -298,8 +298,12 @@ pipeline {
                                                                 ${envStr} /usr/local/bin/megacmd_${test}_test.py
                                                             """
                                                         }
-                                                        junit "${testDir}/TEST-*.xml"
                                                     } finally {
+                                                        // In the finally: a suite that fails is the one
+                                                        // whose results are worth reading, and publishing
+                                                        // on the success path only dropped them.
+                                                        junit allowEmptyResults: true, testResults: "${testDir}/TEST-*.xml"
+                                                        archiveArtifacts artifacts: "${testDir}/TEST-*.xml", allowEmptyArchive: true
                                                         archiveArtifacts artifacts: "${testDir}/py-*-report.log.*", allowEmptyArchive: true
                                                         dir("pytest-dir-${SANITIZERS}") {
                                                             sh "find . -name core -exec zstd -z --fast=3 {} -o core_client_${cmdshell}${test}.zstd \\; -exec rm {} \\; || true"
