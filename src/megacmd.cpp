@@ -4574,9 +4574,12 @@ private:
     // Returns false if a stop was requested before the wait was over.
     bool waitFor(std::chrono::seconds duration);
 
-    std::mutex mMutex;
-    std::condition_variable mCv;
-    std::atomic_bool mRunning{false};
+    // A detached check outlives this object, so what it touches has to outlive
+    // it too. Instance<UpdateChecker> keeps there being only one of these.
+    inline static std::mutex sMutex;
+    inline static std::condition_variable sCv;
+    inline static std::atomic_bool sRunning{false};
+
     std::future<void> mLoopReturned;
     std::thread mThread;
 };
@@ -4603,7 +4606,7 @@ void stopAndJoinUpdateCheck()
 
 void UpdateChecker::start()
 {
-    if (mRunning.exchange(true))
+    if (sRunning.exchange(true))
     {
         return;
     }
@@ -4615,7 +4618,7 @@ void UpdateChecker::start()
     }
 
     {
-        std::lock_guard<std::mutex> lock(mMutex);
+        std::lock_guard<std::mutex> lock(sMutex);
         stopCheckingforUpdaters = false;
     }
 
@@ -4627,10 +4630,10 @@ void UpdateChecker::start()
 void UpdateChecker::stop()
 {
     {
-        std::lock_guard<std::mutex> lock(mMutex); // so the notification cannot be missed
+        std::lock_guard<std::mutex> lock(sMutex); // so the notification cannot be missed
         stopCheckingforUpdaters = true;
     }
-    mCv.notify_all();
+    sCv.notify_all();
 }
 
 void UpdateChecker::stopAndJoin()
@@ -4656,13 +4659,13 @@ void UpdateChecker::stopAndJoin()
 
 bool UpdateChecker::waitFor(std::chrono::seconds duration)
 {
-    std::unique_lock<std::mutex> lock(mMutex);
-    return !mCv.wait_for(lock, duration, [] { return stopCheckingforUpdaters.load(); });
+    std::unique_lock<std::mutex> lock(sMutex);
+    return !sCv.wait_for(lock, duration, [] { return stopCheckingforUpdaters.load(); });
 }
 
 void UpdateChecker::loop()
 {
-    ScopeGuard notRunning([this] { mRunning = false; });
+    ScopeGuard notRunning([] { sRunning = false; });
 
     LOG_debug << "Initiating recurrent update check";
 
@@ -4674,7 +4677,13 @@ void UpdateChecker::loop()
     while (!doExit && !stopCheckingforUpdaters)
     {
         bool restartRequired = false;
-        if (!executeUpdater(&restartRequired, true)) //only download & check
+        const bool checked = executeUpdater(&restartRequired, true); //only download & check
+        if (stopCheckingforUpdaters)
+        {
+            return; // the shutdown is already tearing down what the rest of the loop uses
+        }
+
+        if (!checked)
         {
             LOG_err << " Failed to execute updater";
         }
