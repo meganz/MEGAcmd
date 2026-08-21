@@ -4570,7 +4570,9 @@ public:
 
 private:
     void loop();
-    void waitFor(std::chrono::seconds duration);
+
+    // Returns false if a stop was requested before the wait was over.
+    bool waitFor(std::chrono::seconds duration);
 
     std::mutex mMutex;
     std::condition_variable mCv;
@@ -4652,17 +4654,22 @@ void UpdateChecker::stopAndJoin()
     }
 }
 
-void UpdateChecker::waitFor(std::chrono::seconds duration)
+bool UpdateChecker::waitFor(std::chrono::seconds duration)
 {
     std::unique_lock<std::mutex> lock(mMutex);
-    mCv.wait_for(lock, duration, [] { return stopCheckingforUpdaters.load(); });
+    return !mCv.wait_for(lock, duration, [] { return stopCheckingforUpdaters.load(); });
 }
 
 void UpdateChecker::loop()
 {
+    ScopeGuard notRunning([this] { mRunning = false; });
+
     LOG_debug << "Initiating recurrent update check";
 
-    waitFor(std::chrono::minutes(1));
+    if (!waitFor(std::chrono::minutes(1)))
+    {
+        return;
+    }
 
     while (!doExit && !stopCheckingforUpdaters)
     {
@@ -4676,26 +4683,29 @@ void UpdateChecker::loop()
             LOG_info << " There is a pending update. Will be applied in a few seconds";
 
             broadcastMessage("A new update has been downloaded. It will be performed in 60 seconds");
-            waitFor(std::chrono::seconds(57));
-            if (stopCheckingforUpdaters) break;
-            broadcastMessage("  Executing update in 3");
-            sleepSeconds(1);
-            if (stopCheckingforUpdaters) break;
-            broadcastMessage("  Executing update in 2");
-            sleepSeconds(1);
-            if (stopCheckingforUpdaters) break;
-            broadcastMessage("  Executing update in 1");
-            sleepSeconds(1);
-            if (stopCheckingforUpdaters) break;
-
-            while(petitionThreads.size() && !stopCheckingforUpdaters)
+            if (!waitFor(std::chrono::seconds(57)))
             {
-                LOG_fatal << " waiting for petitions to end to initiate upload " << petitionThreads.size() << petitionThreads.at(0).get();
-                sleepSeconds(2);
-                delete_finished_threads();
+                return;
             }
 
-            if (stopCheckingforUpdaters) break;
+            for (int countdown = 3; countdown > 0; --countdown)
+            {
+                broadcastMessage("  Executing update in " + std::to_string(countdown));
+                if (!waitFor(std::chrono::seconds(1)))
+                {
+                    return;
+                }
+            }
+
+            while (!petitionThreads.empty())
+            {
+                LOG_fatal << " waiting for petitions to end to initiate upload " << petitionThreads.size() << petitionThreads.at(0).get();
+                if (!waitFor(std::chrono::seconds(2)))
+                {
+                    return;
+                }
+                delete_finished_threads();
+            }
 
             sendEvent(StatsManager::MegacmdEvent::UPDATE_START, api);
 
@@ -4708,11 +4718,15 @@ void UpdateChecker::loop()
             LOG_verbose << " There is no pending update";
         }
 
-        if (stopCheckingforUpdaters) break;
+        if (stopCheckingforUpdaters)
+        {
+            return;
+        }
+
         if (restartRequired && restartServer())
         {
             int attempts = 20; //give a while for ingoin petitions to end before killing the server
-            while(petitionThreads.size() && --attempts)
+            while (!petitionThreads.empty() && --attempts)
             {
                 sleepSeconds(20 - attempts);
                 delete_finished_threads();
@@ -4720,13 +4734,14 @@ void UpdateChecker::loop()
 
             doExit = true;
             cm->stopWaiting();
-            break;
+            return;
         }
 
-        waitFor(std::chrono::hours(2));
+        if (!waitFor(std::chrono::hours(2)))
+        {
+            return;
+        }
     }
-
-    mRunning = false;
 }
 
 void processCommandInPetitionQueues(std::unique_ptr<CmdPetition> inf)
