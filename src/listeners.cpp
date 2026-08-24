@@ -464,9 +464,14 @@ MegaCmdMegaListener::MegaCmdMegaListener(MegaApi *megaApi, MegaListener *parent,
 MegaCmdMegaListener::~MegaCmdMegaListener()
 {
     this->listener = NULL;
-    if (megaApi)
+    detachFromApi();
+}
+
+void MegaCmdMegaListener::detachFromApi()
+{
+    if (MegaApi *apiToLeave = std::exchange(megaApi, nullptr))
     {
-        megaApi->removeListener(this);
+        apiToLeave->removeListener(this);
     }
 }
 

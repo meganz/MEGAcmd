@@ -4487,8 +4487,11 @@ void finalize(bool waitForRestartSignal_param)
     {
         cmdexecuter->stopDeferredWork();
     }
+    if (megaCmdMegaListener)
+    {
+        megaCmdMegaListener->detachFromApi();
+    }
 
-    delete megaCmdMegaListener;
     if (threadRetryConnections)
     {
         threadRetryConnections->join();
@@ -4509,7 +4512,10 @@ void finalize(bool waitForRestartSignal_param)
 
     occupiedapiFolders.clear();
 
+    // Every api is gone, and their destructors joined the threads that dispatch
+    // callbacks, so no callback can still be running in the listeners.
     delete megaCmdGlobalListener;
+    delete megaCmdMegaListener;
     delete cmdexecuter;
 
 #ifdef __linux__
