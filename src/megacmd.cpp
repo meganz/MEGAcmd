@@ -4481,6 +4481,13 @@ void finalize(bool waitForRestartSignal_param)
         delete console;
     }
 
+    // Nothing may reach the api once it is deleted, so stop what still could
+    // while it is alive.
+    if (cmdexecuter)
+    {
+        cmdexecuter->stopDeferredWork();
+    }
+
     delete megaCmdMegaListener;
     if (threadRetryConnections)
     {

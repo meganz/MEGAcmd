@@ -213,6 +213,11 @@ MegaCmdExecuter::~MegaCmdExecuter()
     delete globalTransferListener;
 }
 
+void MegaCmdExecuter::stopDeferredWork()
+{
+    mDeferredSharedFoldersVerifier.stop();
+}
+
 // list available top-level nodes and contacts/incoming shares
 void MegaCmdExecuter::listtrees()
 {
