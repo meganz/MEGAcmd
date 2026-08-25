@@ -90,38 +90,34 @@ pipeline {
                     expression { params.IS_RELEASE_CANDIDATE == true}
                 }
             }
-            environment{
-                JF_PATH  = "${windows_sources_workspace}\\.."
-            }
             steps {
                 dir(windows_sources_workspace + '\\build'){
                     script {
-                        def windows_artifactory_upload = { String ART_UPLOAD_PATH, String buildDir, String arch ->
+                        def windows_nexus_upload = { String UPLOAD_PATH, String buildDir, String arch ->
 
-                            withCredentials([string(credentialsId: 'MEGACMD_ARTIFACTORY_TOKEN', variable: 'MEGACMD_ARTIFACTORY_TOKEN')]) {
+                            withCredentials([usernamePassword(credentialsId: 'MEGACMD_NEXUS_CREDENTIALS', usernameVariable: 'NEXUS_USERNAME', passwordVariable: 'NEXUS_PASSWORD')]) {
                                 powershell """
-                                    ${JF_PATH}\\jf rt del --url ${REPO_URL} --access-token $MEGACMD_ARTIFACTORY_TOKEN ${ART_UPLOAD_PATH}
-                                    ${JF_PATH}\\jf rt upload --url ${REPO_URL} --access-token $MEGACMD_ARTIFACTORY_TOKEN MEGAcmdSetup${arch}_unsigned.exe ${ART_UPLOAD_PATH}
+                                    curl.exe -sSf -u "\${env:NEXUS_USERNAME}:\${env:NEXUS_PASSWORD}" -T MEGAcmdSetup${arch}_unsigned.exe "${NEXUS_REPO_URL}/${UPLOAD_PATH}MEGAcmdSetup${arch}_unsigned.exe"
+                                    if (\$LASTEXITCODE -ne 0) { exit \$LASTEXITCODE }
                                     cd ${buildDir}
-                                    ${JF_PATH}\\jf rt upload --url ${REPO_URL} --access-token $MEGACMD_ARTIFACTORY_TOKEN legacy.pdb ${ART_UPLOAD_PATH}
-                                    ${JF_PATH}\\jf rt upload --url ${REPO_URL} --access-token $MEGACMD_ARTIFACTORY_TOKEN LMegacmdClient.pdb ${ART_UPLOAD_PATH}
-                                    ${JF_PATH}\\jf rt upload --url ${REPO_URL} --access-token $MEGACMD_ARTIFACTORY_TOKEN LMegacmdServer.pdb ${ART_UPLOAD_PATH}
-                                    ${JF_PATH}\\jf rt upload --url ${REPO_URL} --access-token $MEGACMD_ARTIFACTORY_TOKEN MegacmdServer.pdb ${ART_UPLOAD_PATH}
-                                    ${JF_PATH}\\jf rt upload --url ${REPO_URL} --access-token $MEGACMD_ARTIFACTORY_TOKEN Mega.pdb ${ART_UPLOAD_PATH}
-                                    ${JF_PATH}\\jf rt upload --url ${REPO_URL} --access-token $MEGACMD_ARTIFACTORY_TOKEN MEGAclient.exe ${ART_UPLOAD_PATH}
-                                    ${JF_PATH}\\jf rt upload --url ${REPO_URL} --access-token $MEGACMD_ARTIFACTORY_TOKEN MEGAcmdServer.exe ${ART_UPLOAD_PATH}
-                                    ${JF_PATH}\\jf rt upload --url ${REPO_URL} --access-token $MEGACMD_ARTIFACTORY_TOKEN MEGAcmdShell.exe ${ART_UPLOAD_PATH}
-                                    ${JF_PATH}\\jf rt upload --url ${REPO_URL} --access-token $MEGACMD_ARTIFACTORY_TOKEN MEGAcmdUpdater.exe ${ART_UPLOAD_PATH}
+                                    foreach (\$f in @('legacy.pdb','LMegacmdClient.pdb','LMegacmdServer.pdb','MegacmdServer.pdb','Mega.pdb','MEGAclient.exe','MEGAcmdServer.exe','MEGAcmdShell.exe','MEGAcmdUpdater.exe')) {
+                                        if (-not (Test-Path \$f)) {
+                                            Write-Host "Skipping \$f (not present in ${buildDir})"
+                                            continue
+                                        }
+                                        curl.exe -sSf -u "\${env:NEXUS_USERNAME}:\${env:NEXUS_PASSWORD}" -T \$f "${NEXUS_REPO_URL}/${UPLOAD_PATH}\$f"
+                                        if (\$LASTEXITCODE -ne 0) { exit \$LASTEXITCODE }
+                                    }
                                 """
                             }
                         }
                         MEGACMD_VERSION = getVersionFromHeader("../src/megacmdversion.h")
                         sh "echo $MEGACMD_VERSION > version.txt"
                         if (params.ARCHITECTURE == "64") {
-                            windows_artifactory_upload("MEGAcmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/windows/", "built64", "64")
+                            windows_nexus_upload("megacmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/windows/", "built64", "64")
                         } else if (params.ARCHITECTURE == "32/64") {
-                            windows_artifactory_upload("MEGAcmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/windows/built64/", "built64", "64")
-                            windows_artifactory_upload("MEGAcmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/windows/built32/", "built32", "32")
+                            windows_nexus_upload("megacmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/windows/built64/", "built64", "64")
+                            windows_nexus_upload("megacmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/windows/built32/", "built32", "32")
                         }
                     }
                     archiveArtifacts artifacts: 'version.txt', onlyIfSuccessful: true
@@ -130,7 +126,7 @@ pipeline {
             post {
                 success {
                     script {
-                        echo "Installers successfully uploaded. URL: [${env.REPO_URL}/MEGAcmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/windows]"
+                        echo "Installers successfully uploaded. URL: [https://nexus.developers.mega.co.nz/service/rest/repository/browse/megacmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/windows/]"
                     }
                 }
             }

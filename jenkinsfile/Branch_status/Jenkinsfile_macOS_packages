@@ -95,13 +95,7 @@ pipeline {
                             returnStdout: true
                         ).trim()
                         sh "echo $MEGACMD_VERSION > version.txt"
-                        withCredentials([string(credentialsId: 'MEGACMD_ARTIFACTORY_TOKEN', variable: 'MEGACMD_ARTIFACTORY_TOKEN')]) {
-                            sh """
-                                jf rt del \
-                                  --url ${REPO_URL} \
-                                  --access-token ${MEGACMD_ARTIFACTORY_TOKEN} \
-                                  MEGAcmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/macOS/
-                            """
+                        withCredentials([usernamePassword(credentialsId: 'MEGACMD_NEXUS_CREDENTIALS', usernameVariable: 'NEXUS_USERNAME', passwordVariable: 'NEXUS_PASSWORD')]) {
                             // arm64 files
                             sh """
                                 cd build/Release_arm64
@@ -109,11 +103,10 @@ pipeline {
                                 zip -r MEGAcmdUpdater.dSYM.zip MEGAcmdUpdater.dSYM
                                 zip -r mega-exec.dSYM.zip mega-exec.dSYM
                                 zip -r MEGAcmdShell.dSYM.zip MEGAcmdShell.dSYM
-                                jf rt upload \
-                                    --url ${REPO_URL} \
-                                    --access-token ${MEGACMD_ARTIFACTORY_TOKEN} \
-                                    --regexp '(MEGAcmd.*dmg|.*zip)' \
-                                    MEGAcmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/macOS/arm64/
+                                ls | grep -E 'MEGAcmd.*dmg\$|\\.zip\$' | while read -r f; do
+                                    curl -sSf -u "\$NEXUS_USERNAME:\$NEXUS_PASSWORD" -T "\$f" \
+                                        "$NEXUS_REPO_URL/megacmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/macOS/arm64/\$f"
+                                done
                             """
                             // x86_64 files
                             sh """
@@ -122,20 +115,16 @@ pipeline {
                                 zip -r MEGAcmdUpdater.dSYM.zip MEGAcmdUpdater.dSYM
                                 zip -r mega-exec.dSYM.zip mega-exec.dSYM
                                 zip -r MEGAcmdShell.dSYM.zip MEGAcmdShell.dSYM
-                                jf rt upload \
-                                    --url ${REPO_URL} \
-                                    --access-token ${MEGACMD_ARTIFACTORY_TOKEN} \
-                                    --regexp '(MEGAcmd.*dmg|.*zip)' \
-                                    MEGAcmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/macOS/x86_64/
+                                ls | grep -E 'MEGAcmd.*dmg\$|\\.zip\$' | while read -r f; do
+                                    curl -sSf -u "\$NEXUS_USERNAME:\$NEXUS_PASSWORD" -T "\$f" \
+                                        "$NEXUS_REPO_URL/megacmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/macOS/x86_64/\$f"
+                                done
                             """
                             // universal files
                             sh """
                                 cd build/Release_universal
-                                jf rt upload \
-                                    --url ${REPO_URL} \
-                                    --access-token ${MEGACMD_ARTIFACTORY_TOKEN} \
-                                    MEGAcmd.dmg \
-                                    MEGAcmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/macOS/universal/
+                                curl -sSf -u "\$NEXUS_USERNAME:\$NEXUS_PASSWORD" -T MEGAcmd.dmg \
+                                    "$NEXUS_REPO_URL/megacmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/macOS/universal/MEGAcmd.dmg"
                             """
                         }
                     }
@@ -145,7 +134,7 @@ pipeline {
             post {
                 success {
                     script {
-                        echo "Installers successfully uploaded. URL: [${env.REPO_URL}/MEGAcmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/macOS]"
+                        echo "Installers successfully uploaded. URL: [https://nexus.developers.mega.co.nz/service/rest/repository/browse/megacmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/macOS/]"
                     }
                 }
             }
