@@ -24,6 +24,8 @@
     <string>True</string>
     <key>LSMinimumSystemVersion</key>
     <string>10.15</string>
+    <key>LSRequiresNativeExecution</key>
+    <true/>
     <key>NSAppTransportSecurity</key>
     <dict>
         <key>NSAllowsArbitraryLoads</key>
