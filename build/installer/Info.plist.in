@@ -18,12 +18,12 @@
     <string>1</string>
     <key>CFBundleIdentifier</key>
     <string>megacmd.mac</string>
-    <key>CFBundleShortVersionString</key>
-    <string></string>
     <key>NSHighResolutionCapable</key>
     <string>True</string>
     <key>LSMinimumSystemVersion</key>
     <string>10.15</string>
+    <key>LSRequiresNativeExecution</key>
+    <true/>
     <key>NSAppTransportSecurity</key>
     <dict>
         <key>NSAllowsArbitraryLoads</key>
