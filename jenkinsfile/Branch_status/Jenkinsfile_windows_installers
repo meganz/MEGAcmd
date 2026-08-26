@@ -97,7 +97,7 @@ pipeline {
 
                             withCredentials([usernamePassword(credentialsId: 'MEGACMD_NEXUS_CREDENTIALS', usernameVariable: 'NEXUS_USERNAME', passwordVariable: 'NEXUS_PASSWORD')]) {
                                 powershell """
-                                    curl.exe -sSf -u "\${env:NEXUS_USERNAME}:\${env:NEXUS_PASSWORD}" -T MEGAcmdSetup${arch}_unsigned.exe "${NEXUS_REPO_URL}/${UPLOAD_PATH}MEGAcmdSetup${arch}_unsigned.exe"
+                                    curl.exe -sSf -u "\${env:NEXUS_USERNAME}:\${env:NEXUS_PASSWORD}" -T MEGAcmdSetup${arch}_unsigned.exe "${NEXUS_URL}/repository/${UPLOAD_PATH}MEGAcmdSetup${arch}_unsigned.exe"
                                     if (\$LASTEXITCODE -ne 0) { exit \$LASTEXITCODE }
                                     cd ${buildDir}
                                     foreach (\$f in @('legacy.pdb','LMegacmdClient.pdb','LMegacmdServer.pdb','MegacmdServer.pdb','Mega.pdb','MEGAclient.exe','MEGAcmdServer.exe','MEGAcmdShell.exe','MEGAcmdUpdater.exe')) {
@@ -105,7 +105,7 @@ pipeline {
                                             Write-Host "Skipping \$f (not present in ${buildDir})"
                                             continue
                                         }
-                                        curl.exe -sSf -u "\${env:NEXUS_USERNAME}:\${env:NEXUS_PASSWORD}" -T \$f "${NEXUS_REPO_URL}/${UPLOAD_PATH}\$f"
+                                        curl.exe -sSf -u "\${env:NEXUS_USERNAME}:\${env:NEXUS_PASSWORD}" -T \$f "${NEXUS_URL}/repository/${UPLOAD_PATH}\$f"
                                         if (\$LASTEXITCODE -ne 0) { exit \$LASTEXITCODE }
                                     }
                                 """
@@ -114,7 +114,7 @@ pipeline {
                         MEGACMD_VERSION = getVersionFromHeader("../src/megacmdversion.h")
                         sh "echo $MEGACMD_VERSION > version.txt"
                         if (params.ARCHITECTURE == "64") {
-                            windows_nexus_upload("megacmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/windows/", "built64", "64")
+                            windows_nexus_upload("megacmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/windows/built64/", "built64", "64")
                         } else if (params.ARCHITECTURE == "32/64") {
                             windows_nexus_upload("megacmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/windows/built64/", "built64", "64")
                             windows_nexus_upload("megacmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/windows/built32/", "built32", "32")
@@ -126,7 +126,7 @@ pipeline {
             post {
                 success {
                     script {
-                        echo "Installers successfully uploaded. URL: [https://nexus.developers.mega.co.nz/service/rest/repository/browse/megacmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/windows/]"
+                        echo "Installers successfully uploaded. URL: [$NEXUS_URL/service/rest/repository/browse/megacmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/windows/]"
                     }
                 }
             }

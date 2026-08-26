@@ -95,12 +95,12 @@ pipeline {
                                         -regex '\\./($ARCH_REGEX)/megacmd.*(deb|rpm|\\.pkg\\.tar\\.zst|\\.pkg\\.tar\\.xz)\$' \
                                         | while read -r pkg; do
                                             curl -sSf -u "\$NEXUS_USERNAME:\$NEXUS_PASSWORD" -T "\$pkg" \
-                                                "$NEXUS_REPO_URL/megacmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/linux/$DISTRO_TO_BUILD/\${pkg#./}"
+                                                "$NEXUS_URL/repository/megacmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/linux/$DISTRO_TO_BUILD/\${pkg#./}"
                                         done
                                     """
                                 }
                             }
-                            echo "Packages successfully uploaded. URL: [https://nexus.developers.mega.co.nz/service/rest/repository/browse/megacmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/linux/$DISTRO_TO_BUILD/]"
+                            echo "Packages successfully uploaded. URL: [$NEXUS_URL/service/rest/repository/browse/megacmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/linux/$DISTRO_TO_BUILD/]"
                         }
                     }
                 }
@@ -193,11 +193,11 @@ pipeline {
                                             -regex '\\./($ARCH_REGEX)/megacmd.*(deb|rpm|\\.pkg\\.tar\\.zst|\\.pkg\\.tar\\.xz)\$' \
                                             | while read -r pkg; do
                                                 curl -sSf -u "\$NEXUS_USERNAME:\$NEXUS_PASSWORD" -T "\$pkg" \
-                                                    "$NEXUS_REPO_URL/megacmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/linux/$DISTRO/\${pkg#./}"
+                                                    "$NEXUS_URL/repository/megacmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/linux/$DISTRO/\${pkg#./}"
                                             done
                                         """
                                     }
-                                    echo "Packages successfully uploaded. URL: [https://nexus.developers.mega.co.nz/service/rest/repository/browse/megacmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/linux/$DISTRO/]"
+                                    echo "Packages successfully uploaded. URL: [$NEXUS_URL/service/rest/repository/browse/megacmd-releases/$MEGACMD_VERSION/$RELEASE_CANDIDATE_NAME/linux/$DISTRO/]"
                                 }
                             }
                         }

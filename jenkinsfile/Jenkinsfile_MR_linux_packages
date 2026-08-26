@@ -147,7 +147,7 @@ pipeline {
                                                 -regex '\\./($ARCH_REGEX)/megacmd.*(deb|\\.pkg\\.tar\\.zst|\\.pkg\\.tar\\.xz)\$|\\./($ARCH_REGEX)/($ARCH_REGEX)/megacmd.*rpm\$' \
                                                 | while read -r pkg; do
                                                     curl -sSf -u "\$NEXUS_USERNAME:\$NEXUS_PASSWORD" -T "\$pkg" \
-                                                        "$NEXUS_REPO_URL/megacmd-sprints/${env.gitlabMergeRequestIid}/linux/$DISTRIBUTION/\${pkg#./}"
+                                                        "$NEXUS_URL/repository/megacmd-sprints/${env.gitlabMergeRequestIid}/linux/$DISTRIBUTION/\${pkg#./}"
                                                 done
                                         """
                                     }
@@ -167,7 +167,7 @@ pipeline {
         always {
             script {
                 if (currentBuild.currentResult == 'SUCCESS') {
-                    addGitLabMRComment(comment: ":white_check_mark: ${currentBuild.projectName} :penguin: <b>LINUX</b>  SUCCEEDED :muscle:<br/>Build results: [Jenkins [${currentBuild.displayName}]](${currentBuild.absoluteUrl})<br/>Commit: ${env.GIT_COMMIT}<br/>Packages URL: [https://nexus.developers.mega.co.nz/service/rest/repository/browse/megacmd-sprints/${env.gitlabMergeRequestIid}/linux/$DISTRIBUTION/]" )
+                    addGitLabMRComment(comment: ":white_check_mark: ${currentBuild.projectName} :penguin: <b>LINUX</b>  SUCCEEDED :muscle:<br/>Build results: [Jenkins [${currentBuild.displayName}]](${currentBuild.absoluteUrl})<br/>Commit: ${env.GIT_COMMIT}<br/>Packages URL: [$NEXUS_URL/service/rest/repository/browse/megacmd-sprints/${env.gitlabMergeRequestIid}/linux/$DISTRIBUTION/]" )
                     updateGitlabCommitStatus(name: 'Build linux packages', state: 'success')
                 }
                 if (currentBuild.currentResult == 'FAILURE') {
