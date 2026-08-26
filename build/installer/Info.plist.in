@@ -18,8 +18,6 @@
     <string>1</string>
     <key>CFBundleIdentifier</key>
     <string>megacmd.mac</string>
-    <key>CFBundleShortVersionString</key>
-    <string></string>
     <key>NSHighResolutionCapable</key>
     <string>True</string>
     <key>LSMinimumSystemVersion</key>
