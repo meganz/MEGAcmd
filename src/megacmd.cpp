@@ -47,10 +47,12 @@
 #include <string>
 #include <deque>
 #include <atomic>
-
-#ifdef __linux__
+#include <chrono>
 #include <condition_variable>
-#endif
+#include <future>
+#include <mutex>
+#include <thread>
+
 #ifndef _WIN32
 #include "signal.h"
 #include <sys/wait.h>
@@ -149,7 +151,6 @@ string newpasswd;
 
 std::atomic_bool doExit = false;
 bool consoleFailed = false;
-bool alreadyCheckingForUpdates = false;
 std::atomic_bool stopCheckingforUpdaters = false;
 
 string dynamicprompt = "MEGA CMD> ";
@@ -178,6 +179,8 @@ int mcmdMainArgc;
 void printWelcomeMsg();
 
 void delete_finished_threads();
+
+void stopAndJoinUpdateCheck();
 
 void appendGreetingStatusFirstListener(const std::string &msj)
 {
@@ -4469,6 +4472,9 @@ void finalize(bool waitForRestartSignal_param)
     alreadyfinalized = true;
     LOG_info << "closing application ...";
 
+    // Stop the update check before anything it reaches into is destroyed.
+    stopAndJoinUpdateCheck();
+
     delete_finished_threads();
     if (!consoleFailed)
     {
@@ -4550,42 +4556,135 @@ void * retryConnections(void *pointer)
 }
 
 
+namespace {
+// Owns the recurrent update check and the thread that runs it.
+class UpdateChecker
+{
+public:
+    ~UpdateChecker() { stopAndJoin(); }
+
+    void start();
+    void stop();
+
+    // Stops the check and lets go of its thread.
+    void stopAndJoin();
+
+private:
+    void loop();
+
+    // Returns false if a stop was requested before the wait was over.
+    bool waitFor(std::chrono::seconds duration);
+
+    // A detached check outlives this object, so what it touches has to outlive
+    // it too. Instance<UpdateChecker> keeps there being only one of these.
+    inline static std::mutex sMutex;
+    inline static std::condition_variable sCv;
+    inline static std::atomic_bool sRunning{false};
+
+    std::future<void> mLoopReturned;
+    std::thread mThread;
+};
+} // namespace
+
 void startcheckingForUpdates()
 {
     ConfigurationManager::savePropertyValue("autoupdate", 1);
 
-    if (!alreadyCheckingForUpdates)
-    {
-        alreadyCheckingForUpdates = true;
-        LOG_info << "Starting autoupdate check mechanism";
-        MegaThread *checkupdatesThread = new MegaThread();
-        checkupdatesThread->start(checkForUpdates, checkupdatesThread);
-    }
+    Instance<UpdateChecker>::Get().start();
 }
 
 void stopcheckingForUpdates()
 {
     ConfigurationManager::savePropertyValue("autoupdate", 0);
 
-    stopCheckingforUpdaters = true;
+    Instance<UpdateChecker>::Get().stop();
 }
 
-void* checkForUpdates(void *param)
+void stopAndJoinUpdateCheck()
 {
-    stopCheckingforUpdaters = false;
-    LOG_debug << "Initiating recurrent checkForUpdates";
+    Instance<UpdateChecker>::Get().stopAndJoin();
+}
 
-    int secstosleep = 60;
-    while (secstosleep > 0 && !stopCheckingforUpdaters)
+void UpdateChecker::start()
+{
+    if (sRunning.exchange(true))
     {
-        sleepSeconds(2);
-        secstosleep -= 2;
+        return;
+    }
+    LOG_info << "Starting autoupdate check mechanism";
+
+    if (mThread.joinable()) // the thread of a previous loop, already returned
+    {
+        mThread.join();
+    }
+
+    {
+        std::lock_guard<std::mutex> lock(sMutex);
+        stopCheckingforUpdaters = false;
+    }
+
+    std::packaged_task<void()> task([this] { loop(); });
+    mLoopReturned = task.get_future();
+    mThread = std::thread(std::move(task));
+}
+
+void UpdateChecker::stop()
+{
+    {
+        std::lock_guard<std::mutex> lock(sMutex); // so the notification cannot be missed
+        stopCheckingforUpdaters = true;
+    }
+    sCv.notify_all();
+}
+
+void UpdateChecker::stopAndJoin()
+{
+    stop();
+    if (!mThread.joinable())
+    {
+        return;
+    }
+
+    // executeUpdater waits for the updater process with no timeout, so a check
+    // that got that far cannot be stopped.
+    if (mLoopReturned.wait_for(std::chrono::seconds(5)) == std::future_status::ready)
+    {
+        mThread.join();
+    }
+    else
+    {
+        LOG_warn << "Update check still running at shutdown. Detaching its thread";
+        mThread.detach();
+    }
+}
+
+bool UpdateChecker::waitFor(std::chrono::seconds duration)
+{
+    std::unique_lock<std::mutex> lock(sMutex);
+    return !sCv.wait_for(lock, duration, [] { return stopCheckingforUpdaters.load(); });
+}
+
+void UpdateChecker::loop()
+{
+    ScopeGuard notRunning([] { sRunning = false; });
+
+    LOG_debug << "Initiating recurrent update check";
+
+    if (!waitFor(std::chrono::minutes(1)))
+    {
+        return;
     }
 
     while (!doExit && !stopCheckingforUpdaters)
     {
         bool restartRequired = false;
-        if (!executeUpdater(&restartRequired, true)) //only download & check
+        const bool checked = executeUpdater(&restartRequired, true); //only download & check
+        if (stopCheckingforUpdaters)
+        {
+            return; // the shutdown is already tearing down what the rest of the loop uses
+        }
+
+        if (!checked)
         {
             LOG_err << " Failed to execute updater";
         }
@@ -4594,31 +4693,29 @@ void* checkForUpdates(void *param)
             LOG_info << " There is a pending update. Will be applied in a few seconds";
 
             broadcastMessage("A new update has been downloaded. It will be performed in 60 seconds");
-            int secstosleep = 57;
-            while (secstosleep > 0 && !stopCheckingforUpdaters)
+            if (!waitFor(std::chrono::seconds(57)))
             {
-                sleepSeconds(2);
-                secstosleep -= 2;
+                return;
             }
-            if (stopCheckingforUpdaters) break;
-            broadcastMessage("  Executing update in 3");
-            sleepSeconds(1);
-            if (stopCheckingforUpdaters) break;
-            broadcastMessage("  Executing update in 2");
-            sleepSeconds(1);
-            if (stopCheckingforUpdaters) break;
-            broadcastMessage("  Executing update in 1");
-            sleepSeconds(1);
-            if (stopCheckingforUpdaters) break;
 
-            while(petitionThreads.size() && !stopCheckingforUpdaters)
+            for (int countdown = 3; countdown > 0; --countdown)
+            {
+                broadcastMessage("  Executing update in " + std::to_string(countdown));
+                if (!waitFor(std::chrono::seconds(1)))
+                {
+                    return;
+                }
+            }
+
+            while (!petitionThreads.empty())
             {
                 LOG_fatal << " waiting for petitions to end to initiate upload " << petitionThreads.size() << petitionThreads.at(0).get();
-                sleepSeconds(2);
+                if (!waitFor(std::chrono::seconds(2)))
+                {
+                    return;
+                }
                 delete_finished_threads();
             }
-
-            if (stopCheckingforUpdaters) break;
 
             sendEvent(StatsManager::MegacmdEvent::UPDATE_START, api);
 
@@ -4631,11 +4728,15 @@ void* checkForUpdates(void *param)
             LOG_verbose << " There is no pending update";
         }
 
-        if (stopCheckingforUpdaters) break;
+        if (stopCheckingforUpdaters)
+        {
+            return;
+        }
+
         if (restartRequired && restartServer())
         {
             int attempts = 20; //give a while for ingoin petitions to end before killing the server
-            while(petitionThreads.size() && --attempts)
+            while (!petitionThreads.empty() && --attempts)
             {
                 sleepSeconds(20 - attempts);
                 delete_finished_threads();
@@ -4643,21 +4744,14 @@ void* checkForUpdates(void *param)
 
             doExit = true;
             cm->stopWaiting();
-            break;
+            return;
         }
 
-        int secstosleep = 7200;
-        while (secstosleep > 0 && !stopCheckingforUpdaters)
+        if (!waitFor(std::chrono::hours(2)))
         {
-            sleepSeconds(2);
-            secstosleep -= 2;
+            return;
         }
     }
-
-    alreadyCheckingForUpdates = false;
-
-    delete (MegaThread *)param;
-    return NULL;
 }
 
 void processCommandInPetitionQueues(std::unique_ptr<CmdPetition> inf)
@@ -5486,6 +5580,7 @@ int executeServer(int argc, char* argv[],
     // Own global server instances here
     Instance<DefaultLoggedStream> sDefaultLoggedStream;
     Instance<ConfiguratorMegaApiHelper> sConfiguratorHelper;
+    Instance<UpdateChecker> sUpdateChecker;
 
 #ifdef __linux__
     // Ensure interesting signals are unblocked.

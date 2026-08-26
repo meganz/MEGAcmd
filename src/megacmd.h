@@ -177,8 +177,6 @@ bool booleanAskForConfirmation(std::string messageHeading);
 
 std::string askforUserResponse(std::string message);
 
-void* checkForUpdates(void *param);
-
 void stopcheckingForUpdates();
 void startcheckingForUpdates();
 
