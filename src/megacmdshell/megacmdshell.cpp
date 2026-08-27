@@ -267,13 +267,19 @@ void statechangehandle(string statestring, MegaCmdShellCommunications &comsManag
                 }
                 os << (isdown?"Download":"Upload") << " finished: " << path << endl;
 
+                // This runs on the state listener thread, so it competes for the
+                // terminal with the thread printing the output of whatever command
+                // is running. Every other writer holds this mutex, and on Windows
+                // the guard below already does; without it here a transfer notice
+                // can land in the middle of a line someone else is writing.
 #ifdef _WIN32
                 wstring wbuffer;
                 stringtolocalw((const char*)os.str().data(),&wbuffer);
                 WindowsUtf8StdoutGuard utf8Guard;
                 OUTSTREAM << wbuffer << flush;
 #else
-                OUTSTREAM << os.str();
+                StdoutMutexGuard stdoutGuard;
+                OUTSTREAM << os.str() << flush;
 #endif
             }
         }
