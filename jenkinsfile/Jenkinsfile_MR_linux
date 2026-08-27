@@ -302,7 +302,6 @@ pipeline {
                                                         // In the finally: a suite that fails is the one
                                                         // whose results are worth reading, and publishing
                                                         // on the success path only dropped them.
-                                                        junit allowEmptyResults: true, testResults: "${testDir}/TEST-*.xml"
                                                         archiveArtifacts artifacts: "${testDir}/TEST-*.xml", allowEmptyArchive: true
                                                         archiveArtifacts artifacts: "${testDir}/py-*-report.log.*", allowEmptyArchive: true
                                                         dir("pytest-dir-${SANITIZERS}") {
@@ -311,6 +310,10 @@ pipeline {
                                                         dir("pytest-dir-${SANITIZERS}/working-dir") {
                                                             deleteDir()
                                                         }
+                                                        // Last, because a report truncated by a crashing
+                                                        // test process makes junit throw, and anything
+                                                        // after it would then be skipped.
+                                                        junit allowEmptyResults: true, testResults: "${testDir}/TEST-*.xml"
                                                     }
                                                 }
                                             }
