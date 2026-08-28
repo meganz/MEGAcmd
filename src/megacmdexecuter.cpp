@@ -2695,7 +2695,7 @@ int MegaCmdExecuter::actUponLogin(SynchronousRequestListener *srl, int timeout)
         fetchNodes(api, clientID);
     }
 
-#if defined(_WIN32) || defined(__APPLE__)
+#ifdef ENABLE_UPDATER
 
     MegaCmdListener *megaCmdListener = new MegaCmdListener(NULL);
     srl->getApi()->getLastAvailableVersion("BdARkQSQ",megaCmdListener);
@@ -5839,7 +5839,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             }
         }
     }
-#if defined(_WIN32) || defined(__APPLE__)
+#ifdef ENABLE_UPDATER
     else if (words[0] == "update")
     {
         string sauto = getOption(cloptions, "auto", "");

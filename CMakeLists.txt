@@ -88,6 +88,12 @@ endif()
 include(megacmd_options) #Load first MEGAcmd's options (that we have prevalescence over SDK (e.g libuv)
 include(sdklib_options) #load default sdk's
 
+if (WIN32 OR APPLE)
+    option(ENABLE_UPDATER "Enable updater" ON)
+else()
+    option(ENABLE_UPDATER "Enable updater" OFF)
+endif()
+
 if (EXISTS ${CMAKE_CURRENT_LIST_DIR}/sdk/include/mega/config.h)
     file(RENAME ${CMAKE_CURRENT_LIST_DIR}/sdk/include/mega/config.h ${CMAKE_CURRENT_LIST_DIR}/sdk/include/mega/config.h_non_cmake_bk)
 endif()
@@ -221,6 +227,10 @@ target_compile_definitions(LMegacmdServer
     PUBLIC
     $<$<BOOL:${USE_PCRE}>:USE_PCRE>
 )
+
+if (ENABLE_UPDATER)
+    target_compile_definitions(LMegacmdServer PUBLIC ENABLE_UPDATER)
+endif()
 
 if (NOT WIN32)
     if (ENABLE_ASAN)
