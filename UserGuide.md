@@ -1,6 +1,6 @@
 # MEGAcmd User Guide
 
-This document relates to MEGAcmd version 2.5.0.  It contains introductory information and the [Command Summary](#command-summary), with links to detailed command descriptions.
+This document relates to MEGAcmd version 2.6.0.  It contains introductory information and the [Command Summary](#command-summary), with links to detailed command descriptions.
 
 ### What is it
 A command line tool to work with your MEGA account and files.  The intent is to offer all the MEGA account functionality via command line.  You can run it in [interactive](#interactive) mode where it processes all commands directly, or you can run its [scriptable](#scriptable) commands from your favourite Linux or Mac shell such as bash, or you can even run its commands in a Windows command prompt. And of course you can write scripts using those scriptable commands.
@@ -48,7 +48,7 @@ The major features are
 * Use those same commands in scripts to manage your files.
 * Set up synchronization or a backup schedule between a folder on your machine, and a folder on your MEGA account.   (use the [`sync`](#moving-copying-files) or [`backup`](#moving-copying-files) commands).
 * Set up WebDAV access to files in your MEGA account (use the [`webdav`](#webdav) command).
-* [Linux only] Set up a FUSE mount point to seamlessly access files in your MEGA account (use the [`fuse-add`](#fuse-mount-your-cloud-folder-to-the-local-system) command).
+* [Linux and Windows] Set up a FUSE mount point to seamlessly access files in your MEGA account (use the [`fuse-add`](#fuse-mount-your-cloud-folder-to-the-local-system) command).
 
 See our Help Centre pages for the basics of getting started, and friendly examples of common usages with plenty of pictures:  https://mega.nz/help
 
@@ -118,7 +118,7 @@ MEGAcmd can set up access to folders or files in your MEGA account as if they we
 For further information on WebDAV, please see the [`webdav`](#webdav) command and the [tutorial](WEBDAV.md
 
 ### FUSE mount point
-If you use Linux, MEGAcmd can set up access to folders or files in your MEGA account as if they were local folders and files on your device using Filesystem in User Space via [`fuse-add`](#fuse-mount-your-cloud-folder-to-the-local-system) command.
+On Linux and Windows, MEGAcmd can set up access to folders or files in your MEGA account as if they were local folders and files on your device using Filesystem in User Space via [`fuse-add`](#fuse-mount-your-cloud-folder-to-the-local-system) command. It is not available on macOS.
 
 For further information on FUSE, please see the [`fuse-add`](#fuse-mount-your-cloud-folder-to-the-local-system) command and the [tutorial](FUSE.md).
 
@@ -257,7 +257,7 @@ Verbosity: You can increase the amount of information given by any command by pa
 * [`exit`](contrib/docs/commands/exit.md)`[--only-shell]` Quits MEGAcmd
 * [`ftp`](contrib/docs/commands/ftp.md)`[-d ( --all | remotepath ) ] [ remotepath [--port=PORT] [--data-ports=BEGIN-END] [--public] [--tls --certificate=/path/to/certificate.pem --key=/path/to/certificate.key]] [--use-pcre]` Configures a FTP server to serve a location in MEGA
 * [`graphics`](contrib/docs/commands/graphics.md)`[on|off]` Shows if special features related to images and videos are enabled.
-* [`help`](contrib/docs/commands/help.md)`[-f|-ff|--non-interactive|--upgrade|--paths] [--show-all-options]` Prints list of commands
+* [`help`](contrib/docs/commands/help.md)`[-f|-ff|--non-interactive|--upgrade|--paths|--streaming] [--show-all-options]` Prints list of commands
 * [`https`](contrib/docs/commands/https.md)`[on]` Shows that file transfers use HTTPS.
 * [`log`](contrib/docs/commands/log.md)`[-sc] level` Prints/Modifies the log level
 * [`mediainfo`](contrib/docs/commands/mediainfo.md)`remotepath1 remotepath2 ...` Prints media info of remote files

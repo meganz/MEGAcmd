@@ -25,21 +25,20 @@
 namespace megacmd {
 
 const char * const megacmdchangelog =
-        "Fix: address potential loop in sync engine with mtime changes within 2 seconds""\n"
-        "Shell UX improvements: empty Enter shows a new prompt; no duplicate prompt while command is executing""\n"
-        "Sync engine improvements: prevent re-uploading data when local drive fingerprint has changed""\n"
-        "put: Fixed -c (autocreate) not working when destination is an absolute path""\n"
-        "Fixed syncrhonizing updated empty files (on top of 2.5.0)""\n"
-        "WSL bash completion speedup""\n"
-        "mediainfo: Fixed audio file duration not being displayed""\n"
-        "Transfers: prevent failures on resumption""\n"
-        "thumbnail/preview: Print error when the requested file does not exist""\n"
-        "share: Return success (exit code 0) when no shares exist below the current folder""\n"
-        "passwd: fixes issues when 2FA is enabled""\n"
-        "Path and string handling fixes (trailing separators, trimming)""\n"
-        "Expanded unit test coverage""\n"
-        "Fix: Improved restart-after-update reliability on POSIX (server PID changes after update)""\n"
-        "Stability, memory, typos and other improvements"
+        "webdav: streaming now keeps what it already fetched on disk, so seeking back or replaying a part you have watched is instant and is not downloaded again""\n"
+        "webdav: that cache is cleaned up on its own, and the file_service_reclaim_* settings of \"configure\" let you bound it. See \"help --streaming\"""\n"
+        "The http_proxy and https_proxy environment variables are now used on Linux and macOS when no proxy is set""\n"
+        "File transfers now always use HTTPS: \"https on\" does nothing and \"https off\" is rejected""\n"
+        "Faster path lookups in folders holding many thousands of files""\n"
+        "webdav: less memory used while serving a file""\n"
+        "transfers: downloads keep their order across restarts""\n"
+        "transfers: fixed a crash listing completed transfers while the buffer was being trimmed""\n"
+        "Hardened handling of malformed keys and share keys""\n"
+        "sync: a rename that only changes capitalisation is now applied on Windows and macOS""\n"
+        "webdav: better handling of names with special characters in folder listings""\n"
+        "mv: fixed a file in a folder shared with you being deleted when moved into the folder it was already in""\n"
+        "Stability, memory, typos and other improvements, including in the Windows updater"
+
         ;
 }//end namespace
 #endif // VERSION_H

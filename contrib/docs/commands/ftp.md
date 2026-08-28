@@ -4,6 +4,7 @@ Configures a FTP server to serve a location in MEGA
 Usage: `ftp [-d ( --all | remotepath ) ] [ remotepath [--port=PORT] [--data-ports=BEGIN-END] [--public] [--tls --certificate=/path/to/certificate.pem --key=/path/to/certificate.key]] [--use-pcre]`
 <pre>
 This can also be used for streaming files. The server will be running as long as MEGAcmd Server is.
+See "mega-help --streaming" for how streaming uses memory and disk.
 If no argument is given, it will list the ftp enabled locations.
 
 Options:

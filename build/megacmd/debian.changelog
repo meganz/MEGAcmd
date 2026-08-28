@@ -1,3 +1,21 @@
+megacmd (2.6.0) stable; urgency=low
+
+  * webdav: streaming now keeps what it already fetched on disk, so seeking back or replaying a part you have watched is instant and is not downloaded again
+  * webdav: that cache is cleaned up on its own, and the file_service_reclaim_* settings of "configure" let you bound it. See "help --streaming"
+  * The http_proxy and https_proxy environment variables are now used on Linux and macOS when no proxy is set
+  * File transfers now always use HTTPS: "https on" does nothing and "https off" is rejected
+  * Faster path lookups in folders holding many thousands of files
+  * webdav: less memory used while serving a file
+  * transfers: downloads keep their order across restarts
+  * transfers: fixed a crash listing completed transfers while the buffer was being trimmed
+  * Hardened handling of malformed keys and share keys
+  * sync: a rename that only changes capitalisation is now applied on Windows and macOS
+  * webdav: better handling of names with special characters in folder listings
+  * mv: fixed a file in a folder shared with you being deleted when moved into the folder it was already in
+  * Stability, memory, typos and other improvements, including in the Windows updater
+
+ -- MEGA Team <linux@mega.co.nz>  Wed, 19 Aug 2026 10:27:08 +0000
+
 megacmd (2.5.2) stable; urgency=low
 
   * Fix: address potential loop in sync engine with mtime changes within 2 seconds
