@@ -1,0 +1,148 @@
+{
+  "description": "Resolution table mapping all 13 ClawHub security audit findings to exact file:line locations in MEGAcmd skill files",
+  "findings": [
+    {
+      "id": "F1",
+      "category": "Vague Triggers",
+      "severity": "Medium",
+      "confidence": 88,
+      "file": "SKILL.md",
+      "lines": "3-6 (frontmatter description)",
+      "current_text": "CLI for MEGA.nz cloud services. Use for upload, download, bidirectional sync, backups, WebDAV/FTP servers, FUSE mount (Linux), public link sharing, and MEGA account management.",
+      "proposed_change": "Refine description to be more specific and action-oriented. Remove 'or similar' patterns. Keep all capabilities but phrase concretely.",
+      "prority": "P2"
+    },
+    {
+      "id": "F2",
+      "category": "Missing User Warnings (General)",
+      "severity": "Medium",
+      "confidence": 84,
+      "file": "SKILL.md",
+      "lines": "22-40 (When to use / When NOT to use sections)",
+      "current_text": "No security overview banner exists near the top of the skill file",
+      "proposed_change": "Add security overview banner between 'When NOT to use' (L33) and 'Prerequisites' (L43) sections. Warn about powerful operations, confirmation requirement, credential safety.",
+      "prority": "P4"
+    },
+    {
+      "id": "F3",
+      "category": "Vague Triggers",
+      "severity": "Medium",
+      "confidence": 94,
+      "file": "SKILL.pt-BR.md",
+      "lines": "3-6 (frontmatter description)",
+      "current_text": "CLI para serviços MEGA.nz. Use para upload/download, sync bidirecional, backups, servidores WebDAV/FTP, montagem FUSE (Linux), compartilhar links públicos, e gerenciar conta MEGA.",
+      "proposed_change": "Same as F1 but translated to PT-BR. Refine description to be more specific.",
+      "prority": "P2"
+    },
+    {
+      "id": "F4",
+      "category": "Missing User Warnings (General PT)",
+      "severity": "Medium",
+      "confidence": 91,
+      "file": "SKILL.pt-BR.md",
+      "lines": "22-40 (Quando usar / Quando NÃO usar sections)",
+      "current_text": "No security overview banner exists near the top of the PT-BR skill file",
+      "proposed_change": "Same as F2 but translated to PT-BR. Add security overview banner between sections.",
+      "prority": "P4"
+    },
+    {
+      "id": "F5",
+      "category": "Missing User Warnings (Login credentials)",
+      "severity": "Medium",
+      "confidence": 97,
+      "file": "SKILL.md (+ README.md)",
+      "lines": "L59 (prerequisites login), L81 (scriptable mode), L100-103 (Login table), README L175-179 (interaction modes)",
+      "current_text": "mega-login email password shown directly in examples without warnings about credential exposure",
+      "proposed_change": "Add banner warning before Login section (before L100) covering risks of inline credentials: shell history, process listings, agent telemetry. Note that syntax is shown for reference. Also warn in README where login examples appear.",
+      "prority": "P1"
+    },
+    {
+      "id": "F6",
+      "category": "Missing User Warnings (Public link sharing)",
+      "severity": "Medium",
+      "confidence": 83,
+      "file": "SKILL.md",
+      "lines": "L139-141 (export commands), L147-148 (share commands), L383 (--writable rule)",
+      "current_text": "mega-export and mega-share commands shown without warnings about data disclosure. --writable link warning exists but buried in Important Rules.",
+      "proposed_change": "Add banner warnings before export and sharing sections. Strengthen --writable rule to be more prominent. Cover accidental data disclosure, permission level awareness.",
+      "prority": "P3"
+    },
+    {
+      "id": "F7",
+      "category": "Missing User Warnings (WebDAV/FTP network) **HIGH**",
+      "severity": "High",
+      "confidence": 95,
+      "file": "SKILL.md (+ README.md)",
+      "lines": "L209-217 (WebDAV section), L219-224 (FTP section), README.md L218 (Quick Example webdav --public)",
+      "current_text": "WebDAV and FTP commands ready-to-run without warnings about network exposure, public access, or unauthorized access risks",
+      "proposed_change": "Add prominent banner warnings before WebDAV and FTP sections. Cover: MEGA content exposure over network, localhost vs --public distinction, unattended service risks, TLS recommendation, plain FTP insecurity.",
+      "prority": "P0"
+    },
+    {
+      "id": "F8",
+      "category": "Missing User Warnings (Login PT)",
+      "severity": "Medium",
+      "confidence": 95,
+      "file": "SKILL.pt-BR.md (+ README.pt-BR.md)",
+      "lines": "L59, L81, L100-103 (same structure as F5 but in PT-BR)",
+      "current_text": "Same issue as F5 but in Portuguese - mega-login email password shown directly",
+      "proposed_change": "Same as F5 but translated to PT-BR.",
+      "prority": "P1"
+    },
+    {
+      "id": "F9",
+      "category": "Missing User Warnings (find -delete)",
+      "severity": "Medium",
+      "confidence": 91,
+      "file": "SKILL.md (+ SKILL.pt-BR.md)",
+      "lines": "L337-354 (Action plan for stuck sync - find commands with -delete)",
+      "current_text": "find ~/sync-folder -name \"*:Zone.Identifier\" -delete 2>/dev/null runs automatic file deletion without warnings",
+      "proposed_change": "Add light single-line warning before the Action Plan block (before L337). One line only: '> :warning: The following commands delete local files without confirmation. Verify paths.'",
+      "prority": "P3"
+    },
+    {
+      "id": "F10",
+      "category": "Missing User Warnings (Session ID)",
+      "severity": "Medium",
+      "confidence": 92,
+      "file": "SKILL.md",
+      "lines": "L109 (mega-session command in table)",
+      "current_text": "mega-session shown with 'Show session ID' description without warning about bearer token exposure",
+      "proposed_change": "Add warning near mega-session: session tokens are bearer credentials, exposure enables account takeover. Recommend not sharing session output.",
+      "prority": "P1"
+    },
+    {
+      "id": "F11",
+      "category": "Missing User Warnings (Master Key)",
+      "severity": "Medium",
+      "confidence": 95,
+      "file": "SKILL.md",
+      "lines": "L107 (mega-masterkey command), L380-381 (Important Rules #3)",
+      "current_text": "mega-masterkey shown with 'Save recovery key' description. Rule #3 mentions it's essential but no handling guidance.",
+      "proposed_change": "Add warning near mega-masterkey: master key is a recovery secret. Recommend encrypted storage, restricted file permissions. Strengthen Rule #3 with handling guidance.",
+      "prority": "P1"
+    },
+    {
+      "id": "F12",
+      "category": "Missing User Warnings (Proxy credentials)",
+      "severity": "Medium",
+      "confidence": 90,
+      "file": "SKILL.md",
+      "lines": "L268 (mega-proxy command in Settings section)",
+      "current_text": "mega-proxy URL|--auto|--none shown without inline credentials, but command inherently supports credentials on command line",
+      "proposed_change": "Add generic warning note near proxy command: avoid passing credentials inline on command line, prefer environment variables or config files.",
+      "prority": "P1"
+    },
+    {
+      "id": "F13",
+      "category": "Missing User Warnings (FTP/WebDAV public exposure)",
+      "severity": "Medium",
+      "confidence": 94,
+      "file": "SKILL.md",
+      "lines": "L209-224 (WebDAV + FTP sections), L214 (--public flag)",
+      "current_text": "mega-webdav /Public --public --port=8080 and mega-ftp commands shown without warning about remote attack surface",
+      "proposed_change": "Covered by F7 (WebDAV/FTP section). Add warning about public exposure enabling remote attack surface. Recommend TLS and caution with --public flag.",
+      "prority": "P0"
+    }
+  ]
+}

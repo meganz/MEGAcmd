@@ -1,0 +1,101 @@
+{
+  "schema_version": 2,
+  "active_work_id": "megacmd-skill-compatibility-verification-f6876d52",
+  "works": {
+    "megacmd-security-audit-review-81114c3c": {
+      "work_id": "megacmd-security-audit-review-81114c3c",
+      "active_plan": "/home/alefsander/documents/Drive/Projetos/MEGAcmd/.omo/plans/megacmd-security-audit-review.md",
+      "plan_name": "megacmd-security-audit-review",
+      "status": "completed",
+      "started_at": "2026-06-14T03:03:45.207Z",
+      "ended_at": "2026-06-14T04:00:00.000Z",
+      "updated_at": "2026-06-14T03:17:52.563Z",
+      "session_ids": [
+        "opencode:ses_13c06846dffeJkXdwMEym8XzrM"
+      ],
+      "session_origins": {
+        "opencode:ses_13c06846dffeJkXdwMEym8XzrM": "direct"
+      },
+      "agent": "atlas",
+      "task_sessions": {},
+      "elapsed_ms": 847355
+    },
+    "megacmd-skill-compatibility-verification-f6876d52": {
+      "work_id": "megacmd-skill-compatibility-verification-f6876d52",
+      "active_plan": "/home/alefsander/documents/Drive/Projetos/MEGAcmd/.omo/plans/megacmd-skill-compatibility-verification.md",
+      "plan_name": "megacmd-skill-compatibility-verification",
+      "status": "completed",
+      "started_at": "2026-06-14T03:26:16.205Z",
+      "updated_at": "2026-06-14T03:33:41.330Z",
+      "session_ids": [
+        "opencode:ses_13c06846dffeJkXdwMEym8XzrM"
+      ],
+      "session_origins": {
+        "opencode:ses_13c06846dffeJkXdwMEym8XzrM": "direct"
+      },
+      "agent": "atlas",
+      "task_sessions": {
+        "todo:1": {
+          "task_key": "todo:1",
+          "task_label": "1",
+          "task_title": "**Verify Essential Commands** — Check all 35 commands from the skill's Essential Commands section against their official docs at `contrib/docs/commands/`. Verify syntax, flags, descriptions.",
+          "session_id": "opencode:ses_13bd52b80ffePw5xVP7tBkkXoi",
+          "agent": "Sisyphus-Junior",
+          "category": "quick",
+          "updated_at": "2026-06-14T03:28:53.856Z",
+          "started_at": "2026-06-14T03:28:53.856Z",
+          "status": "running"
+        },
+        "final-wave:f1": {
+          "task_key": "final-wave:f1",
+          "task_label": "F1",
+          "task_title": "**Report Review** — `oracle`",
+          "session_id": "opencode:ses_13bd15d38ffehiAC8m3vPaIdia",
+          "agent": "oracle",
+          "updated_at": "2026-06-14T03:32:11.000Z",
+          "started_at": "2026-06-14T03:32:11.000Z",
+          "status": "running"
+        }
+      },
+      "ended_at": "2026-06-14T03:33:41.330Z",
+      "elapsed_ms": 445125
+    }
+  },
+  "active_plan": "/home/alefsander/documents/Drive/Projetos/MEGAcmd/.omo/plans/megacmd-skill-compatibility-verification.md",
+  "started_at": "2026-06-14T03:26:16.205Z",
+  "status": "completed",
+  "updated_at": "2026-06-14T03:33:41.330Z",
+  "session_ids": [
+    "opencode:ses_13c06846dffeJkXdwMEym8XzrM"
+  ],
+  "session_origins": {
+    "opencode:ses_13c06846dffeJkXdwMEym8XzrM": "direct"
+  },
+  "plan_name": "megacmd-skill-compatibility-verification",
+  "task_sessions": {
+    "todo:1": {
+      "task_key": "todo:1",
+      "task_label": "1",
+      "task_title": "**Verify Essential Commands** — Check all 35 commands from the skill's Essential Commands section against their official docs at `contrib/docs/commands/`. Verify syntax, flags, descriptions.",
+      "session_id": "opencode:ses_13bd52b80ffePw5xVP7tBkkXoi",
+      "agent": "Sisyphus-Junior",
+      "category": "quick",
+      "updated_at": "2026-06-14T03:28:53.856Z",
+      "started_at": "2026-06-14T03:28:53.856Z",
+      "status": "running"
+    },
+    "final-wave:f1": {
+      "task_key": "final-wave:f1",
+      "task_label": "F1",
+      "task_title": "**Report Review** — `oracle`",
+      "session_id": "opencode:ses_13bd15d38ffehiAC8m3vPaIdia",
+      "agent": "oracle",
+      "updated_at": "2026-06-14T03:32:11.000Z",
+      "started_at": "2026-06-14T03:32:11.000Z",
+      "status": "running"
+    }
+  },
+  "agent": "atlas",
+  "ended_at": "2026-06-14T03:33:41.330Z",
+  "elapsed_ms": 445125
+}
