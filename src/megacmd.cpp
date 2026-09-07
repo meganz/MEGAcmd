@@ -4433,6 +4433,47 @@ void delete_finished_threads()
     endedPetitionThreads.clear();
 }
 
+static size_t ongoingPetitions(MegaThread *except)
+{
+    std::unique_lock<std::mutex> lock(mutexEndedPetitionThreads);
+
+    size_t count = 0;
+    for (auto &pt : petitionThreads)
+    {
+        if (pt.get() != except)
+        {
+            ++count;
+        }
+    }
+    return count;
+}
+
+// Petitions run commands that use the api, so let them finish before anything is
+// torn down. With a limit: one could be sitting on a prompt or on a slow transfer,
+// and quitting should not hang on that.
+static void waitForOngoingPetitions()
+{
+    MegaThread *self = nullptr;
+    if (CmdPetition *inf = getCurrentThreadCmdPetition())
+    {
+        self = inf->getPetitionThread(); // a petition cannot join itself
+    }
+
+    int attempts = 250; // 5 seconds
+    delete_finished_threads();
+
+    while (ongoingPetitions(self) && attempts--)
+    {
+        sleepMilliSeconds(20);
+        delete_finished_threads();
+    }
+
+    if (size_t left = ongoingPetitions(self))
+    {
+        LOG_warn << "quitting with " << left << " ongoing petitions";
+    }
+}
+
 void processCommandInPetitionQueues(CmdPetition *inf);
 void processCommandLinePetitionQueues(std::string what);
 
@@ -4475,7 +4516,7 @@ void finalize(bool waitForRestartSignal_param)
     // Stop the update check before anything it reaches into is destroyed.
     stopAndJoinUpdateCheck();
 
-    delete_finished_threads();
+    waitForOngoingPetitions();
     if (!consoleFailed)
     {
         delete console;
