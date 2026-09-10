@@ -237,6 +237,85 @@ TEST(UtilsTest, getNumberOfCols)
     }
 }
 
+TEST(UtilsTest, buildProgressBarLine)
+{
+    using megacmd::buildProgressBarLine;
+
+    const char *title = "TRANSFERRING ||";
+    const char *suffix = "||(512/1024 KB:  50.00 %) ";
+    const size_t titleLen = strlen(title);
+    const size_t suffixLen = strlen(suffix);
+
+    G_SUBTEST << "Normal terminal width";
+    {
+        const auto line = buildProgressBarLine(title, suffix, 50.0f, 80);
+        EXPECT_EQ(line.size(), 80u);
+        EXPECT_EQ(line.compare(0, titleLen, title), 0);
+        EXPECT_EQ(line.compare(80 - suffixLen, suffixLen, suffix), 0);
+        EXPECT_NE(line.find('#'), std::string::npos);
+    }
+
+    G_SUBTEST << "Zero percent draws no bar";
+    {
+        const auto line = buildProgressBarLine(title, suffix, 0.0f, 80);
+        EXPECT_EQ(line.size(), 80u);
+        EXPECT_EQ(line.find('#'), std::string::npos);
+    }
+
+    G_SUBTEST << "Percentages outside [0, 100] are clamped";
+    {
+        const auto full  = buildProgressBarLine(title, suffix, 100.0f, 80);
+        const auto over  = buildProgressBarLine(title, suffix, 1000.0f, 80);
+        const auto under = buildProgressBarLine(title, suffix, -50.0f, 80);
+        EXPECT_EQ(full, over);
+        EXPECT_EQ(under.find('#'), std::string::npos);
+    }
+
+    G_SUBTEST << "A full bar does not encroach on the suffix";
+    {
+        // The old loop bound was inclusive, so at 100% it wrote one cell past the
+        // bar and clobbered the first character of the suffix.
+        const auto line = buildProgressBarLine(title, suffix, 100.0f, 80);
+        EXPECT_EQ(line.compare(80 - suffixLen, suffixLen, suffix), 0);
+        EXPECT_EQ(line.find('#'), titleLen);
+        EXPECT_EQ(line.rfind('#'), 80 - suffixLen - 1);
+    }
+
+    G_SUBTEST << "CMD-894: terminals narrower than title and suffix";
+    {
+        // getNumberOfCols() returns ws_col - 2, so a 3 column terminal yields 1.
+        // Every one of these used to write outside the buffer.
+        for (unsigned int cols : {0u, 1u, 2u, 3u, 5u, 10u, 15u, 20u, 38u})
+        {
+            const auto line = buildProgressBarLine(title, suffix, 50.0f, cols);
+            EXPECT_EQ(line.size(), cols) << "cols=" << cols;
+        }
+    }
+
+    G_SUBTEST << "A too-narrow line keeps the tail of the suffix";
+    {
+        const auto line = buildProgressBarLine(title, suffix, 50.0f, 4);
+        EXPECT_EQ(line.size(), 4u);
+        EXPECT_EQ(line, std::string(suffix).substr(suffixLen - 4));
+    }
+
+    G_SUBTEST << "Exactly enough room for title and suffix leaves no bar";
+    {
+        const unsigned int cols = static_cast<unsigned int>(titleLen + suffixLen);
+        const auto line = buildProgressBarLine(title, suffix, 100.0f, cols);
+        EXPECT_EQ(line.size(), cols);
+        EXPECT_EQ(line, std::string(title) + suffix);
+    }
+
+    G_SUBTEST << "Empty title and suffix";
+    {
+        // With neither title nor suffix the whole width is available to the bar.
+        const auto line = buildProgressBarLine("", "", 50.0f, 10);
+        EXPECT_EQ(line.size(), 10u);
+        EXPECT_EQ(line, "#####.....");
+    }
+}
+
 TEST(UtilsTest, canWrite)
 {
     using megacmd::canWrite;

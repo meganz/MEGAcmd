@@ -706,41 +706,51 @@ void printCenteredContentsCerr(string msj, unsigned int width, bool encapsulated
     CERR << os.str();
 }
 
-void printPercentageLineCerr(const char *title, long long completed, long long total, float percentDowloaded, bool cleanLineAfter)
+std::string buildProgressBarLine(std::string_view title, std::string_view suffix, float percent, std::size_t cols)
 {
-    int cols = getNumberOfCols(80);
-
-    string outputString;
-    outputString.resize(cols + 1);
-    for (int i = 0; i < cols; i++)
+    std::string line(cols, '.');
+    if (cols == 0)
     {
-        outputString[i] = '.';
+        return line;
     }
 
-    outputString[cols] = '\0';
-    char *ptr = (char *)outputString.c_str();
-    sprintf(ptr, "%s%s", title, " ||");
-    ptr += strlen(title);
-    ptr += strlen(" ||");
-    *ptr = '.'; //replace \0 char
+    // Left: the title, truncated when the terminal cannot hold it.
+    const size_t titleLen = std::min(title.size(), cols);
+    line.replace(0, titleLen, title.data(), titleLen);
+
+    // Middle: the bar, only when anything is left between title and suffix.
+    if (cols > title.size() + suffix.size())
+    {
+        const float clamped = std::clamp(percent, 0.0f, 100.0f);
+        const size_t room = cols - title.size() - suffix.size();
+        const size_t filled = static_cast<size_t>(room * clamped / 100.0f);
+        std::fill_n(line.begin() + title.size(), filled, '#');
+    }
+
+    // Right: the suffix, right aligned. Keep its tail rather than its head when
+    // it does not fit, so the percentage survives on a narrow terminal.
+    const size_t suffixLen = std::min(suffix.size(), cols);
+    line.replace(cols - suffixLen, suffixLen, suffix.data() + (suffix.size() - suffixLen), suffixLen);
+
+    return line;
+}
+
+void printPercentageLineCerr(const char *title, long long completed, long long total, float percentDowloaded, bool cleanLineAfter)
+{
+    const unsigned int cols = getNumberOfCols(80);
 
     char aux[41];
-
     if (total < 1048576)
     {
-        sprintf(aux,"||(%lld/%lld KB: %6.2f %%) ", completed / 1024, total / 1024, percentDowloaded);
+        snprintf(aux, sizeof(aux), "||(%lld/%lld KB: %6.2f %%) ", completed / 1024, total / 1024, percentDowloaded);
     }
     else
     {
-        sprintf(aux,"||(%lld/%lld MB: %6.2f %%) ", completed / 1024 / 1024, total / 1024 / 1024, percentDowloaded);
+        snprintf(aux, sizeof(aux), "||(%lld/%lld MB: %6.2f %%) ", completed / 1024 / 1024, total / 1024 / 1024, percentDowloaded);
     }
 
-
-    sprintf((char *)outputString.c_str() + cols - strlen(aux), "%s",                         aux);
-    for (int i = 0; i < ( cols - (strlen(title) + strlen(" ||")) - strlen(aux)) * 1.0 * min(100.0f,percentDowloaded) / 100.0; i++)
-    {
-        *ptr++ = '#';
-    }
+    const std::string barTitle = std::string(title ? title : "") + " ||";
+    const std::string outputString = buildProgressBarLine(barTitle, aux, percentDowloaded, cols);
 
 #ifdef _WIN32
     WindowsUtf8StdoutGuard utf8Guard;
