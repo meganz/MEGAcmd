@@ -85,8 +85,11 @@ void broadcastMessage(std::string message, bool keepIfNoListeners = false);
 void informStateListeners(std::string s);
 
 
-void removeDelayedBroadcastMatching(const std::string &toMatch);
 void broadcastDelayedMessage(std::string message, bool keepIfNoListeners);
+
+// Stops the delayed broadcast and joins its thread. Must run before whatever
+// the handover reaches into is destroyed.
+void stopAndJoinDelayedBroadcast();
 
 void appendGreetingStatusFirstListener(const std::string &msj);
 void removeGreetingStatusFirstListener(const std::string &msj);

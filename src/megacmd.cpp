@@ -132,9 +132,6 @@ std::deque<std::string> greetingsFirstClientMsgs; // to be given on first client
 std::deque<std::string> greetingsAllClientMsgs; // to be given on all clients when registering as state listener
 
 
-std::mutex delayedBroadcastMutex;
-std::deque<std::string> delayedBroadCastMessages; // messages to be brodcasted in a while
-
 //Comunications Manager
 ComunicationsManager * cm;
 
@@ -356,20 +353,142 @@ void broadcastMessage(string message, bool keepIfNoListeners)
 }
 
 
-void removeDelayedBroadcastMatching(const string &toMatch)
+namespace {
+// Collects messages and hands them over together once a quiet window has
+// elapsed, so that a burst of related notices (several syncs failing at once,
+// say) reaches the clients as one batch, and so that a client that is still
+// connecting has a chance to register before the first one goes out.
+//
+// Owns the thread that does the waiting. Unlike UpdateChecker, the wait is on a
+// condition variable this class controls, so a stop always returns promptly and
+// the thread is always joinable: it cannot outlive what it reaches into.
+class DelayedBroadcaster
 {
-    std::lock_guard<std::mutex> g(delayedBroadcastMutex);
-    for (auto it = delayedBroadCastMessages.begin(); it != delayedBroadCastMessages.end(); )
+public:
+    ~DelayedBroadcaster() { stopAndJoin(); }
+
+    // Queues a message for the next batch, starting the wait if it is not running.
+    void enqueue(std::string message, bool keepIfNoListeners);
+
+    // Drops every queued message containing toMatch, before it is broadcast.
+    void removeMatching(const std::string &toMatch);
+
+    // Wakes the wait, discards whatever is still queued and joins the thread.
+    void stopAndJoin();
+
+private:
+    void loop();
+
+    // Returns false if a stop was requested before the window was over.
+    bool waitForWindow();
+
+    static constexpr std::chrono::seconds sWindow{4};
+
+    std::mutex mMutex;
+    std::condition_variable mCv;
+    std::deque<std::pair<std::string, bool>> mMessages;
+    bool mStop = false;
+    bool mRunning = false;
+    std::thread mThread;
+};
+} // namespace
+
+void DelayedBroadcaster::enqueue(std::string message, bool keepIfNoListeners)
+{
+    std::thread previous;
     {
-        if ((*it).find(toMatch) != string::npos)
+        std::lock_guard<std::mutex> lock(mMutex);
+        if (mStop)
         {
-            it = delayedBroadCastMessages.erase(it);
+            return;
+        }
+
+        // The flag travels with its own message: a batch can mix messages that
+        // must be kept for a future client with messages that must not.
+        mMessages.emplace_back(std::move(message), keepIfNoListeners);
+        if (mRunning)
+        {
+            return;
+        }
+
+        mRunning = true;
+        previous = std::move(mThread); // the thread of a previous batch, already returned
+        mThread = std::thread([this] { loop(); });
+    }
+
+    if (previous.joinable())
+    {
+        previous.join();
+    }
+}
+
+void DelayedBroadcaster::removeMatching(const string &toMatch)
+{
+    std::lock_guard<std::mutex> lock(mMutex);
+    for (auto it = mMessages.begin(); it != mMessages.end(); )
+    {
+        if (it->first.find(toMatch) != string::npos)
+        {
+            it = mMessages.erase(it);
         }
         else
         {
             ++it;
         }
     }
+}
+
+void DelayedBroadcaster::stopAndJoin()
+{
+    std::thread worker;
+    {
+        std::lock_guard<std::mutex> lock(mMutex); // so the notification cannot be missed
+        mStop = true;
+        worker = std::move(mThread);
+    }
+    mCv.notify_all();
+
+    if (worker.joinable())
+    {
+        worker.join();
+    }
+}
+
+bool DelayedBroadcaster::waitForWindow()
+{
+    std::unique_lock<std::mutex> lock(mMutex);
+    return !mCv.wait_for(lock, sWindow, [this] { return mStop; });
+}
+
+void DelayedBroadcaster::loop()
+{
+    if (!waitForWindow())
+    {
+        // Shutting down. Whatever is still queued is dropped rather than
+        // broadcast, which is what happened anyway when the process exited
+        // inside the window, only without reaching into what teardown destroys.
+        std::lock_guard<std::mutex> lock(mMutex);
+        mRunning = false;
+        return;
+    }
+
+    std::unique_lock<std::mutex> lock(mMutex);
+    while (!mMessages.empty() && !mStop)
+    {
+        auto [message, keepIfNoListeners] = std::move(mMessages.front());
+        mMessages.pop_front();
+
+        lock.unlock();
+        broadcastMessage(message, keepIfNoListeners); // broadcast without mutex locked
+        lock.lock();
+    }
+
+    mRunning = false;
+}
+
+void removeDelayedBroadcastMatching(const string &toMatch)
+{
+    Instance<DelayedBroadcaster>::Get().removeMatching(toMatch);
 }
 
 void removeGreetingMatching(const string &toMatch)
@@ -390,30 +509,12 @@ void removeGreetingMatching(const string &toMatch)
 
 void broadcastDelayedMessage(string message, bool keepIfNoListeners)
 {
-    static bool ongoing = false;
+    Instance<DelayedBroadcaster>::Get().enqueue(std::move(message), keepIfNoListeners);
+}
 
-    std::lock_guard<std::mutex> g(delayedBroadcastMutex);
-    delayedBroadCastMessages.push_back(message);
-    if (!ongoing)
-    {
-        ongoing = true;
-        std::thread([keepIfNoListeners]()
-        {
-            sleepSeconds(4);
-            std::unique_lock<std::mutex> g(delayedBroadcastMutex);
-            while (!delayedBroadCastMessages.empty())
-            {
-                auto msg = std::move(delayedBroadCastMessages.front());
-                delayedBroadCastMessages.pop_front();
-                g.unlock();
-                // Broadcast without mutex locked
-                broadcastMessage(msg, keepIfNoListeners);
-                g.lock();
-            }
-
-            ongoing = false;
-        }).detach();
-    }
+void stopAndJoinDelayedBroadcast()
+{
+    Instance<DelayedBroadcaster>::Get().stopAndJoin();
 }
 
 void informTransferUpdate(MegaTransfer *transfer, int clientID)
@@ -4528,6 +4629,9 @@ void finalize(bool waitForRestartSignal_param)
     // Stop the update check before anything it reaches into is destroyed.
     stopAndJoinUpdateCheck();
 
+    // Likewise the delayed broadcast: it hands messages to cm, deleted below.
+    stopAndJoinDelayedBroadcast();
+
     waitForOngoingPetitions();
     if (!consoleFailed)
     {
@@ -5633,6 +5737,7 @@ int executeServer(int argc, char* argv[],
     Instance<DefaultLoggedStream> sDefaultLoggedStream;
     Instance<ConfiguratorMegaApiHelper> sConfiguratorHelper;
     Instance<UpdateChecker> sUpdateChecker;
+    Instance<DelayedBroadcaster> sDelayedBroadcaster;
 
 #ifdef __linux__
     // Ensure interesting signals are unblocked.
