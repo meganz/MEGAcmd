@@ -2,8 +2,22 @@
 
 source /mega/pkgscripts/include/pkg_util.sh
 
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+MEGACMD_ROOT="${SCRIPT_DIR}/../../../../.."
+
+# Single-source the version from CMakeLists.txt, so it cannot drift from the one
+# the binaries report. The trailing component is the Synology package revision,
+# which is independent of the MEGAcmd version and is bumped by hand.
+megacmd_version=$(grep -Po "(set\(MEGACMD_MAJOR_VERSION \K\d+|set\(MEGACMD_MINOR_VERSION \K\d+|set\(MEGACMD_MICRO_VERSION \K\d+)" \
+    "${MEGACMD_ROOT}/CMakeLists.txt" | paste -sd '.' -)
+
+if [ -z "$megacmd_version" ]; then
+    echo "INFO.sh: could not read the MEGAcmd version from ${MEGACMD_ROOT}/CMakeLists.txt" >&2
+    exit 1
+fi
+
 package="megacmdpkg"
-version="2.2.0-0001"
+version="${megacmd_version}-0001"
 displayname="MEGAcmd"
 maintainer="Mega NZ"
 arch="$PLATFORM"
