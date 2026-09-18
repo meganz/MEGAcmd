@@ -2233,7 +2233,7 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << " --non-interactive" << "  " << "Display information on how to use MEGAcmd with scripts" << endl;
         os << " --upgrade" << "          " << "Display information on PRO plans" << endl;
         os << " --paths" << "            " << "Show caveats of local and remote paths" << endl;
-        os << " --streaming" << "        " << "Explain how streaming and FUSE mounts use memory and disk" << endl;
+        os << " --streaming" << "        " << "Explain how streaming (webdav/ftp) and FUSE mounts use memory and disk" << endl;
         os << " --show-all-options" << " " << "Display all options regardless of platform" << endl;
     }
     else if (!strcmp(command, "history"))
