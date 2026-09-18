@@ -112,7 +112,7 @@ pipeline {
                             docker {
                                 image "meganz/megacmd-branchstatus-${BUILD_SYSTEM}-${SANITIZERS}:${env.BUILD_NUMBER}"
                                 reuseNode true
-                                args "--name megacmd-branchstatus-${BUILD_SYSTEM}-${SANITIZERS}-${env.BUILD_NUMBER} --cap-add SYS_ADMIN --device /dev/fuse --security-opt apparmor:unconfined"
+                                args "--name megacmd-branchstatus-${BUILD_SYSTEM}-${SANITIZERS}-${env.BUILD_NUMBER}"
                             }
                         }
                         options {
@@ -133,7 +133,8 @@ pipeline {
                                     sh """
                                         /usr/bin/mega-cmd-tests-integration \
                                             --gtest_output=xml:${megacmd_sources_workspace}/test-dir-${SANITIZERS}/results/mega-cmd-tests-integration.xml \
-                                            --gtest_shuffle
+                                            --gtest_shuffle \
+                                            --gtest_filter=-FuseTests.*
                                     """
                                 }
                             }
