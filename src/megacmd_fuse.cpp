@@ -46,6 +46,7 @@ std::string_view getIdentifierParameter()
 
 #include "listeners.h"
 #include "megacmdlogger.h"
+#include "megacmdutils.h"
 #include "configurationmanager.h"
 
 using namespace mega;
@@ -155,29 +156,6 @@ std::unique_ptr<MegaMount> createMount(const fs::path& localPath, MegaNode& node
     mountFlags->setPersistent(!transient);
 
     return mount;
-}
-
-// Size of the local cache that backs mounts. It is shared with webdav streaming, so this is not
-// a per-mount figure. Passing no reclaim options makes the SDK use the ones currently in force,
-// which are the file_service_reclaim_* values of "configure".
-// The line is printed even when the size cannot be read, so the output keeps the same shape.
-void printCacheUsage(MegaApi& api)
-{
-    std::unique_ptr<MegaFileServiceStorageInfo> storageInfo(api.fileServiceGetStorageInfo(nullptr));
-
-    std::string used;
-    if (storageInfo)
-    {
-        used = sizeToText(storageInfo->getAllocatedSize(), false);
-    }
-    else
-    {
-        LOG_warn << "Failed to retrieve the size of the local cache";
-        used = "<unknown>";
-    }
-
-    OUTSTREAM << "Local cache: " << used << " used, shared with webdav streaming. See \""
-              << getCommandPrefixBasedOnMode() << "help --streaming\"." << endl;
 }
 
 void printFirstMountMessage()
@@ -404,7 +382,7 @@ void printAllMounts(mega::MegaApi& api, ColumnDisplayer& cd, bool onlyEnabled, b
         OUTSTREAM << "Note: showing " << rowCountLimit << " out of " << mounts->size() << " mounts. "
                   << "Use \"" << getCommandPrefixBasedOnMode() << "fuse-show --limit=0\" to see all of them." << endl;
     }
-    printCacheUsage(api);
+    printLocalCacheUsage(api);
     OUTSTREAM << "Use \"" << getCommandPrefixBasedOnMode() << "fuse-show <NAME|LOCAL_PATH>\" to get further details on a specific mount." << endl;
 }
 

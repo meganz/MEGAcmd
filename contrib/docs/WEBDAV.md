@@ -36,6 +36,9 @@ not use it; that path is served through memory.
 The cache belongs to the session. Logging out removes it; `logout --keep-session` and restarting the
 MEGAcmd Server keep it.
 
+Running `webdav` with no arguments reports how much the cache is using, under the list of served
+locations.
+
 The cache is cleaned up automatically, and you can tune it through the `file_service_reclaim_*` keys
 of the `configure` command. `configure --help` describes each key, and `help --streaming` explains
 the mechanism from within MEGAcmd.
