@@ -179,7 +179,7 @@ TEST_F(FuseTests, EnsureUniqueId)
     ASSERT_TRUE(result.ok());
 
     auto lines = splitByNewline(result.out());
-    ASSERT_EQ(lines.size(), 5); // Column names + 2 mounts + newline + detail usage
+    ASSERT_EQ(lines.size(), 6); // Column names + 2 mounts + newline + cache size + detail usage
 
     const std::string firstMountId = megacmd::split(lines[1], " ")[0];
     const std::string secondMountId = megacmd::split(lines[2], " ")[0];
@@ -196,7 +196,7 @@ TEST_F(FuseTests, EnsureUniqueId)
         ASSERT_TRUE(result.ok());
 
         auto lines = splitByNewline(result.out());
-        ASSERT_EQ(lines.size(), 5); // Column names + 2 mounts + newline + detail usage
+        ASSERT_EQ(lines.size(), 6); // Column names + 2 mounts + newline + cache size + detail usage
 
         const std::string secondMountId = megacmd::split(lines[2], " ")[0];
         EXPECT_EQ(secondMountId, "name3");
