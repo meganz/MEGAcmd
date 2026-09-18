@@ -9,6 +9,6 @@ Options:
  --non-interactive  Display information on how to use MEGAcmd with scripts
  --upgrade          Display information on PRO plans
  --paths            Show caveats of local and remote paths
- --streaming        Explain how webdav/ftp streaming uses memory and disk
+ --streaming        Explain how streaming and FUSE mounts use memory and disk
  --show-all-options Display all options regardless of platform
 </pre>

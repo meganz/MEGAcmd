@@ -18,16 +18,20 @@ namespace FuseCommand {
 std::string_view getDisclaimer()
 {
     return "Disclaimer:\n"
-           "    - Streaming is not supported; entire files need to be downloaded completely before being opened.\n"
-           "    - FUSE uses a local cache located in the MEGAcmd configuration folder. Make sure you have enough available space "
-           "in your hard drive to accommodate new files. Restarting MEGAcmd server can help discard old files.\n"
-           "    - File writes might be deferred. When files are updated in the local mount point, a transfer will be initiated. "
-           "Your files will be available in MEGA only after pending transfers finish.";
+           "    - Files are downloaded as you read them. A file does not have to be complete before it can be opened, "
+           "and only the parts you read are kept on disk.\n"
+           "    - That content is kept in a local cache in the MEGAcmd configuration folder, shared with webdav streaming. "
+           "Make sure you have enough available space in your hard drive. The cache is cleaned up on a timer: see the "
+           "file_service_reclaim_* keys of \"configure\" and \"help --streaming\".\n"
+           "    - File writes are deferred. A file you write in the mount point starts uploading at least 30 seconds after "
+           "your last write to it, and is in MEGA only once that upload finishes.\n"
+           "    - Stopping the MEGAcmd server is safe, pending uploads resume on the next start. Logging out is not: "
+           "anything not uploaded yet is discarded.";
 }
 
 std::string_view getBetaMsg()
 {
-    return "FUSE commands are in early BETA. They are not available in macOS. If you experience any issues, please contact support@mega.nz.";
+    return "FUSE commands are in early BETA. They are not available in macOS. If you experience any issues, please contact support@mega.io.";
 }
 
 std::string_view getIdentifierParameter()
@@ -151,6 +155,23 @@ std::unique_ptr<MegaMount> createMount(const fs::path& localPath, MegaNode& node
     mountFlags->setPersistent(!transient);
 
     return mount;
+}
+
+// Size of the local cache that backs mounts. It is shared with webdav streaming, so this is not
+// a per-mount figure. Passing no reclaim options makes the SDK use the ones currently in force,
+// which are the file_service_reclaim_* values of "configure".
+void printCacheUsage(MegaApi& api)
+{
+    std::unique_ptr<MegaFileServiceStorageInfo> storageInfo(api.fileServiceGetStorageInfo(nullptr));
+    if (!storageInfo)
+    {
+        LOG_warn << "Failed to retrieve the size of the local cache";
+        return;
+    }
+
+    OUTSTREAM << "Local cache: " << sizeToText(storageInfo->getAllocatedSize(), false)
+              << " used, shared with webdav streaming. See \"" << getCommandPrefixBasedOnMode()
+              << "help --streaming\"." << endl;
 }
 
 void printFirstMountMessage()
@@ -377,6 +398,7 @@ void printAllMounts(mega::MegaApi& api, ColumnDisplayer& cd, bool onlyEnabled, b
         OUTSTREAM << "Note: showing " << rowCountLimit << " out of " << mounts->size() << " mounts. "
                   << "Use \"" << getCommandPrefixBasedOnMode() << "fuse-show --limit=0\" to see all of them." << endl;
     }
+    printCacheUsage(api);
     OUTSTREAM << "Use \"" << getCommandPrefixBasedOnMode() << "fuse-show <NAME|LOCAL_PATH>\" to get further details on a specific mount." << endl;
 }
 
@@ -435,6 +457,20 @@ void changeConfig(mega::MegaApi& api, const mega::MegaMount& mount, const Config
               << "  Enable at startup:  " << (flags->getEnableAtStartup() ? "YES" : "NO") << "\n"
               << "  Persistent:         " << (flags->getPersistent() ? "YES" : "NO") << "\n"
               << "  Read-only:          " << (flags->getReadOnly() ? "YES" : "NO") << "\n";
+}
+
+void setLogLevel(MegaApi& api, int logLevel)
+{
+    std::unique_ptr<MegaFuseFlags> fuseFlags(api.getFUSEFlags());
+    assert(fuseFlags);
+
+    // The SDK reads this field as a ::mega::LogLevel, which is the same scale as MegaApi::LOG_LEVEL_*.
+    const int clamped = std::clamp(logLevel, (int) ::mega::LogLevel::logError, (int) ::mega::LogLevel::logVerbose);
+
+    fuseFlags->setLogLevel(clamped);
+    api.setFUSEFlags(fuseFlags.get());
+
+    LOG_debug << "FUSE log level set to " << clamped;
 }
 }
 
