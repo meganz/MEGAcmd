@@ -28,6 +28,7 @@ Disclaimer:
     - That content is kept in a local cache in the MEGAcmd configuration folder, shared with webdav streaming. Make sure you have enough available space in your hard drive. The cache is cleaned up on a timer: see the file_service_reclaim_* keys of "configure" and "help --streaming".
     - File writes are deferred. A file you write in the mount point starts uploading at least 30 seconds after your last write to it, and is in MEGA only once that upload finishes.
     - Stopping the MEGAcmd server is safe, pending uploads resume on the next start. Logging out is not: anything not uploaded yet is discarded.
+    - A file read through a mount is not checked against the whole-file checksum the way "get" checks a download, because that check needs the whole file and a mount reads only the parts you use. Before you run or install something, fetch it with "get" instead. See "help --streaming".
 
 FUSE commands are in early BETA. They are not available in macOS. If you experience any issues, please contact support@mega.io.
 </pre>

@@ -13,6 +13,16 @@ forward while you keep reading. Only the parts you read are kept on disk.
 A file you modify is the exception. The rest of it is downloaded before the new version can be
 uploaded.
 
+### What a mount cannot check
+When you download a file with [`get`](commands/get.md), MEGAcmd checks the whole file against the
+checksum held in its key, and the download fails if they do not match. That check needs every byte,
+so it cannot be done while reading through a mount, which fetches only the parts you use. Reads are
+still encrypted in transit and decrypted with your key; what a mount cannot tell you is whether the
+bytes are the ones that were uploaded.
+
+The same is true of [webdav and ftp](WEBDAV.md) streaming. Before you run or install something,
+fetch it with `get` and use that copy.
+
 ## Local cache
 The content read or written through a mount is kept on disk, in the `file-service` folder of the
 MEGAcmd configuration folder: `$HOME/.megaCmd/file-service` (`%LOCALAPPDATA%\MEGAcmd\.megaCmd\file-service`

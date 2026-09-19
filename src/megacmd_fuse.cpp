@@ -26,7 +26,10 @@ std::string_view getDisclaimer()
            "    - File writes are deferred. A file you write in the mount point starts uploading at least 30 seconds after "
            "your last write to it, and is in MEGA only once that upload finishes.\n"
            "    - Stopping the MEGAcmd server is safe, pending uploads resume on the next start. Logging out is not: "
-           "anything not uploaded yet is discarded.";
+           "anything not uploaded yet is discarded.\n"
+           "    - A file read through a mount is not checked against the whole-file checksum the way \"get\" checks a "
+           "download, because that check needs the whole file and a mount reads only the parts you use. Before you run "
+           "or install something, fetch it with \"get\" instead. See \"help --streaming\".";
 }
 
 std::string_view getBetaMsg()

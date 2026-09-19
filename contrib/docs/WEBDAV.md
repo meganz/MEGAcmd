@@ -39,6 +39,17 @@ MEGAcmd Server keep it.
 Running `webdav` with no arguments reports how much the cache is using, under the list of served
 locations.
 
+### What streaming cannot check
+
+When you download a file with `get`, MEGAcmd checks the whole file against the checksum held in its
+key, and the download fails if they do not match. That check needs every byte, so it cannot be done
+while streaming, which reads only the parts that are asked for. Streaming is still encrypted in
+transit and decrypted with your key; what it cannot tell you is whether the bytes are the ones that
+were uploaded.
+
+This applies to webdav, [ftp](FTP.md) and [FUSE mounts](FUSE.md) alike. Before running or installing
+something, fetch it with `get` and use that copy.
+
 The cache is cleaned up automatically, and you can tune it through the `file_service_reclaim_*` keys
 of the `configure` command. `configure --help` describes each key, and `help --streaming` explains
 the mechanism from within MEGAcmd.

@@ -3688,6 +3688,15 @@ void executecommand(const char* ptr)
             OUTSTREAM << " The cache belongs to the session. Logging out removes it; \"" << prefix << "logout --keep-session\"" << endl;
             OUTSTREAM << " and restarting the server keep it." << endl;
             OUTSTREAM << endl;
+            OUTSTREAM << "What is checked:" << endl;
+            OUTSTREAM << " When you download a file with \"" << prefix << "get\", MEGAcmd checks the whole file against the" << endl;
+            OUTSTREAM << " checksum held in its key, and the download fails if they do not match. That check needs every" << endl;
+            OUTSTREAM << " byte of the file, so it cannot be done while streaming, which reads only the parts you ask for." << endl;
+            OUTSTREAM << " Streaming still encrypts in transit and decrypts with your key; what it cannot tell you is" << endl;
+            OUTSTREAM << " whether the bytes are the ones that were uploaded." << endl;
+            OUTSTREAM << " This applies to webdav, ftp and FUSE mounts alike. For anything you are going to run or" << endl;
+            OUTSTREAM << " install, fetch it with \"" << prefix << "get\" and use that copy." << endl;
+            OUTSTREAM << endl;
             OUTSTREAM << "How the disk cache is cleaned up:" << endl;
             OUTSTREAM << " A cleanup runs on a timer. The first one runs file_service_reclaim_delay seconds after login," << endl;
             OUTSTREAM << " or after any file_service_reclaim_* value is changed, and further ones every" << endl;
