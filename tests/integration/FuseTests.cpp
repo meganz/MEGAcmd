@@ -54,9 +54,10 @@ protected:
         auto lines = splitByNewline(result.out());
         for (size_t i = 1; i < lines.size(); ++i)
         {
-            if (lines[i].empty() || megacmd::startsWith(lines[i], "Use " /* skip detail usage line */))
+            if (lines[i].empty())
             {
-                continue;
+                // The table ends at the blank line. The cache size and the usage hint follow it.
+                break;
             }
 
             auto words = megacmd::split(lines[i], " ");
