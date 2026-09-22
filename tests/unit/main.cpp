@@ -43,5 +43,12 @@ int main (int argc, char *argv[])
     listeners.Append(customListener);
 #endif
 
-    return RUN_ALL_TESTS();
+    const int exitCode = RUN_ALL_TESTS();
+
+    // If some other thread died while the tests ran, its capture must finish and
+    // take the process with it. Returning from here first would report a clean
+    // run for a process that crashed.
+    megacmd::test::waitForCrashCaptureToFinish();
+
+    return exitCode;
 }
