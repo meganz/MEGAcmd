@@ -4,8 +4,9 @@
 MAX_TEST_REPEATS = 40
 
 // Passed to the test binary. "mini" keeps the artefact small, which is what the
-// default single run wants; "rich" adds the memory the stacks point at and "full"
-// the whole heap, either of which is worth asking for while investigating.
+// default single run wants. "full" takes the whole heap, and anything else the
+// binary does not know falls back to a middle type that keeps the memory the
+// stacks point at. Either is worth asking for while investigating.
 TEST_DUMP_TYPE = 'mini'
 
 // How long the test binary waits for its own shutdown before deciding it is stuck,
@@ -21,7 +22,8 @@ pipeline {
     }
 
     options {
-        // artifactNumToKeepStr matters here: a failing run archives minidumps.
+        // A failing run archives minidumps, and nothing here expires them ahead
+        // of the build itself, so they are kept small at the source instead.
         buildDiscarder(logRotator(numToKeepStr: '135', daysToKeepStr: '21'))
         gitLabConnection('GitLabConnectionJenkins')
         timestamps() // Add timestamps to all console output
@@ -175,6 +177,10 @@ pipeline {
             environment {
                 INSTALL_DIR = "${megacmd_sources_workspace}\\cmdbuild\\Debug"
                 MEGACMD_PIPE_SUFFIX = "${env.BUILD_ID}"
+                // The same dump type the integration run uses. Without it the
+                // unit binary falls back to the richest type the capture offers,
+                // which is a far larger file for no more insight here.
+                MEGACMD_TEST_DUMP_TYPE = "${TEST_DUMP_TYPE}"
             }
             options {
                 timeout(time: 3, unit: 'HOURS')
@@ -190,7 +196,11 @@ pipeline {
                     archiveArtifacts artifacts: "cmdbuild\\Debug\\.megaCmd\\megacmdserver.log*", allowEmptyArchive: true
                     // The unit binary installs the same crash handler, and writes
                     // its artefacts into this stage's working directory. The
-                    // workspace is wiped at the end of the build, so take them now.
+                    // workspace is wiped at the end of the build, so take them now,
+                    // and compress the dump first as the integration run does.
+                    script {
+                        compressDumps("${megacmd_sources_workspace}\\unit-test-dir")
+                    }
                     archiveArtifacts artifacts: "unit-test-dir/**/crash-*", allowEmptyArchive: true
                     junit "unit-test-dir\\mega-cmd-tests.xml"
                     bat "rmdir ${INSTALL_DIR}\\.megaCmd /s /q"
@@ -293,6 +303,7 @@ def runIntegrationTests() {
 
     List failures = []      // runs whose tests failed
     List incomplete = []    // runs that never wrote exit_code.txt
+    List diedAtTheEnd = []  // runs that wrote a zero exit code and then died
 
     for (int run = 1; run <= repeats; run++) {
         String label = run < 10 ? "run-0${run}" : "run-${run}"
@@ -347,7 +358,11 @@ if errorlevel 1 echo the server log could not be moved out of the config directo
 exit /b 0
 """)
 
-        String rawStatus = fileExists("${relative}/raw_status.txt")
+        // The status the bat step returns is the one that cannot be trusted, so
+        // the two are kept apart: the file is the real status, and the step's
+        // value is only a fallback for the message.
+        boolean rawStatusKnown = fileExists("${relative}/raw_status.txt")
+        String rawStatus = rawStatusKnown
             ? readFile("${relative}/raw_status.txt").trim()
             : "${status}"
 
@@ -365,6 +380,19 @@ exit /b 0
                 // Not a crash: the binary ran to the end and reported a failure.
                 // Only pick anything up if it happened to leave some behind.
                 collectCrashEvidence(absolute, false)
+            } else if (rawStatusKnown && rawStatus != '0') {
+                // The file is written just before main returns, so a death in
+                // what runs after it (the static destructors of the SDK, curl
+                // and OpenSSL, and the atexit handlers) leaves a zero in the
+                // file and a killer in the status. Without this the run passes
+                // and the capture it left is never looked at.
+                echo """
+================ ${label} died after the tests passed ================
+The tests passed and the process then died on its way out, after main returned.
+raw process exit status: ${rawStatus}${describeExitStatus(rawStatus)}
+"""
+                diedAtTheEnd.add(label)
+                collectCrashEvidence(absolute, true)
             }
         } else {
             boolean testsFinished = fileExists("${relative}/tests_done.txt")
@@ -380,15 +408,21 @@ raw process exit status: ${rawStatus}${describeExitStatus(rawStatus)}
 
     if (repeats > 1) {
         echo "${repeats} runs: ${failures.size()} with failing tests, " +
-             "${incomplete.size()} that never wrote exit_code.txt"
+             "${incomplete.size()} that never wrote exit_code.txt, " +
+             "${diedAtTheEnd.size()} that died after the tests passed"
     }
 
-    // Same verdicts as a single run has always produced, just aggregated.
+    // Same verdicts as a single run has always produced, just aggregated. A run
+    // that died on its way out joins the ones that never wrote the file: the
+    // tests themselves did not fail, but the run cannot be called a pass.
     if (!failures.isEmpty()) {
         error "Integration tests failed in ${failures.join(', ')}"
     }
     if (!incomplete.isEmpty()) {
         unstable "Exit code file does not exist (${incomplete.join(', ')})"
+    }
+    if (!diedAtTheEnd.isEmpty()) {
+        unstable "The process died after the tests passed (${diedAtTheEnd.join(', ')})"
     }
 }
 
