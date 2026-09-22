@@ -4,6 +4,9 @@ Configures a WEBDAV server to serve a location in MEGA
 Usage: `webdav [-d (--all | remotepath ) ] [ remotepath [--port=PORT] [--public] [--tls --certificate=/path/to/certificate.pem --key=/path/to/certificate.key]] [--use-pcre]`
 <pre>
 This can also be used for streaming files. The server will be running as long as MEGAcmd Server is.
+Streaming over webdav caches file content on disk. See "mega-help --streaming" for how that cache is
+cleaned up and how to keep it within a disk budget, or the tutorial at
+https://github.com/meganz/MEGAcmd/blob/master/contrib/docs/WEBDAV.md
 If no argument is given, it will list the webdav enabled locations.
 
 Options:

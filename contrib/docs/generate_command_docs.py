@@ -113,6 +113,9 @@ class CommandTable:
     def parse_commands_detail(self):
         output = get_help_output(detail=True)
 
+        # Drop the preamble, so the first chunk starts at the first command
+        output = re.split(r'Commands:\n', output, 1)[-1]
+
         min_cols = 10
         commands = re.split(fr'-{{{min_cols},}}\n', output.strip())
 

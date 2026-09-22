@@ -3,6 +3,8 @@
 
 import sys, os, subprocess, shutil, re, platform
 import fnmatch
+import io
+import uuid
 import pexpect
 
 VERBOSE = 'VERBOSE' in os.environ
@@ -86,6 +88,11 @@ def ef(what):
         exit(code)
     return out
 
+# A line that is nothing but a shell prompt, possibly with the padding the shell
+# writes when it redisplays one.
+PROMPT_ONLY = re.compile(r'^\s*(?:.*:.*\$|MEGA CMD>)\s*$')
+
+
 def cmdshell_ec(what):
     what = re.sub('^mega-', '', what)
     if VERBOSE:
@@ -94,9 +101,22 @@ def cmdshell_ec(what):
     # We must ensure there are enough columns so long commands don't get truncated
     child = pexpect.spawn(MEGACMDSHELL, encoding='utf-8', dimensions=(32, 256), timeout=None)
 
+    # Keep the whole session, not just what arrived since the last expect, so that
+    # a failure to parse can be reported with the text it failed on.
+    transcript = io.StringIO()
+    child.logfile_read = transcript
+
     quit_command = 'quit --only-shell'
 
-    def has_prompt(s, command): return any(f'{p} {command}' in s for p in ['$', 'MEGA CMD>'])
+    # Bracket the command with markers the shell prints itself, through `echo`.
+    # The prompt cannot serve as a boundary: the shell redisplays it with bare
+    # carriage returns and no newline, so a prompt, the echo of a command and the
+    # command's own output can all share one physical line. Splitting such a line
+    # on '\n' puts the output outside the window, and the carriage-return cleanup
+    # below then deletes it, which reads as a command that printed nothing.
+    token = uuid.uuid4().hex
+    begin, end = f'CMDSHELLBEGIN{token}', f'CMDSHELLEND{token}'
+
     def wait_shell_prompt(): child.expect([r'(?=.+:.+\$ )', r'(?=MEGA CMD> )'])
 
     try:
@@ -106,24 +126,43 @@ def cmdshell_ec(what):
         if not what.startswith('lcd'):
             child.sendline(f'lcd {os.getcwd()}')
 
+        child.sendline(f'echo {begin}')
         child.sendline(what)
-        wait_shell_prompt()
+        child.sendline(f'echo {end}')
+
+        # Each marker reaches us twice: once as the echoed command line, once as
+        # the output of that echo. Waiting for the second occurrence of the
+        # closing one is what guarantees the command under test has finished; the
+        # prompt does not, because the shell redisplays it while a command runs.
+        child.expect_exact(end)
+        child.expect_exact(end)
 
         # Stop the shell and wait for end-of-file
         child.sendline(quit_command)
         child.expect(pexpect.EOF)
 
-        # The whole output of the shell split by newlines
-        lines = child.before.replace('\r\n', '\n').split('\n')
+        raw = transcript.getvalue().replace('\r\n', '\n')
 
-        # Find the start of our command
-        start = next(i for i, s in enumerate(lines) if has_prompt(s, what))
+        # Cut on the marker strings rather than on line boundaries, so output that
+        # shares a line with a marker survives. After the closing marker's echoed
+        # command line, and after the opening marker's output, which is its second
+        # occurrence.
+        if raw.count(begin) < 2 or end not in raw:
+            print(f'Could not bracket the output of {what!r} in the shell session:\n{raw!r}',
+                  file=sys.stderr)
+            return b'', -1, b''
+        # The opening marker arrives twice, so the last occurrence is the one the
+        # shell printed; the closing one is cut at its echoed command line, which
+        # leaves only a prompt behind for the filter below to drop.
+        out = raw.split(begin)[-1].split(f'echo {end}')[0]
 
-        # Find the end of our shell by searching for the quit command
-        end = next(i for i, s in enumerate(lines[start+1:], start+1) if quit_command in s)
-
-        # The output of our command is the string in-between the start and end indices
-        out = '\n'.join(lines[start+1:end]).strip()
+        # Drop the echo of the command itself, keeping anything printed after it
+        # on the same line. A command long enough to be wrapped will not be found
+        # verbatim, so fall back to dropping the line it started on.
+        pos = out.find(what)
+        out = out[pos + len(what):] if pos >= 0 else out.split('\n', 1)[-1]
+        out = out.strip()
+        bracketed = out
     except pexpect.EOF:
         print('Shell session ended')
         return '', -1, ''
@@ -135,6 +174,23 @@ def cmdshell_ec(what):
 
     out = re.sub(r'.*\x1b\[K','', out) # erase line controls
     out = re.sub(r'.*\r', '', out) # erase non printable stuff
+
+    # Whatever prompts were redisplayed while the command ran are not output.
+    out = '\n'.join(l for l in out.split('\n') if not PROMPT_ONLY.match(l)).strip()
+
+    # A command that printed something we then cleaned away is indistinguishable
+    # from one that printed nothing, and the assertions in these tests read the
+    # output rather than the exit code. Say so, with the text it happened on.
+    # Prompts and the padding around them do not count as output, so a command
+    # that is simply quiet stays quiet here.
+    if not out:
+        residue = re.sub(r'\r *', '', bracketed)
+        residue = re.sub(r'\x1b\[[0-9;]*[A-Za-z]', '', residue)
+        residue = '\n'.join(l for l in residue.split('\n')
+                            if not PROMPT_ONLY.match(l)).strip()
+        if residue:
+            print(f'Nothing left of the output of {what!r} after cleaning it up. '
+                  f'Between the markers was:\n{bracketed!r}', file=sys.stderr)
 
     # extract log lines as stderr output. This is subideal: but pexpect.spawn does not seem to support providing separated stderr
     stderr_pattern = r'\[\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.\d{6} (sdk|cmd)'
