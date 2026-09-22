@@ -252,6 +252,11 @@ public:
     MegaCmdMegaListener(mega::MegaApi *megaApi, mega::MegaListener *parent=NULL, MegaCmdSandbox *sandboxCMD = NULL);
     virtual ~MegaCmdMegaListener();
 
+    // Unregisters from the api and forgets it, so that nothing here calls into
+    // the api afterwards. Unregistering does not wait for a callback already
+    // being dispatched, so the listener must outlive the api.
+    void detachFromApi();
+
     virtual void onRequestFinish(mega::MegaApi* api, mega::MegaRequest *request, mega::MegaError* e);
 
 #ifdef ENABLE_CHAT

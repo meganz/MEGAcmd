@@ -356,6 +356,7 @@ if (ENABLE_MEGACMD_TESTS)
         "${ProjectDir}/tests/unit/CompletedTransfersTests.cpp"
         "${ProjectDir}/tests/unit/ComunicationsManagerFileSocketsTests.cpp"
         "${ProjectDir}/tests/unit/ConfigurationManagerTests.cpp"
+        "${ProjectDir}/tests/unit/DeferredSingleTriggerTests.cpp"
         "${ProjectDir}/tests/unit/OptionsFlagsUtilsTests.cpp"
         "${ProjectDir}/tests/unit/PlatformDirectoriesTests.cpp"
         "${ProjectDir}/tests/unit/StringUtilsTests.cpp"
