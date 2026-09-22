@@ -718,11 +718,11 @@ LONG WINAPI onUnhandledException(EXCEPTION_POINTERS* pointers)
 // exception on any other thread therefore reaches the CRT's own default handler,
 // which calls abort() and leaves nothing but "abort() has been called". Asking
 // for the exception in flight recovers the one thing that message throws away.
-size_t describeExceptionInFlight(char* into, size_t room)
+void describeExceptionInFlight(char* into, size_t room)
 {
     if (!std::current_exception())
     {
-        return 0;
+        return;
     }
 
     try
@@ -731,15 +731,15 @@ size_t describeExceptionInFlight(char* into, size_t room)
     }
     catch (const std::exception& exception)
     {
-        return static_cast<size_t>(snprintf(into, room,
+        snprintf(into, room,
             ", with an uncaught C++ exception in flight on this thread: %s: %s",
-            typeid(exception).name(), exception.what()));
+            typeid(exception).name(), exception.what());
     }
     catch (...)
     {
-        return static_cast<size_t>(snprintf(into, room,
+        snprintf(into, room,
             ", with an uncaught C++ exception in flight on this thread, of a type "
-            "that does not derive from std::exception"));
+            "that does not derive from std::exception");
     }
 }
 
@@ -813,9 +813,14 @@ int onDebugReport(int reportType, char* message, int* returnValue)
     }
 
     static char what[1024];
-    int used = snprintf(what, sizeof(what), "debug %s: %s",
-                        reportType == _CRT_ASSERT ? "assertion" : "error",
-                        message ? message : "(no message)");
+    snprintf(what, sizeof(what), "debug %s: %s",
+             reportType == _CRT_ASSERT ? "assertion" : "error",
+             message ? message : "(no message)");
+
+    // Read the length back off the buffer. The snprintf return is the length it
+    // would have written, which for a long assertion message points past the end.
+    what[sizeof(what) - 1] = '\0';
+    size_t used = strlen(what);
 
     // Trim the newline the CRT puts on its abort message, so the addition below
     // reads as one sentence.
@@ -824,9 +829,9 @@ int onDebugReport(int reportType, char* message, int* returnValue)
         what[--used] = '\0';
     }
 
-    if (used > 0 && static_cast<size_t>(used) < sizeof(what))
+    if (used > 0)
     {
-        describeExceptionInFlight(what + used, sizeof(what) - static_cast<size_t>(used));
+        describeExceptionInFlight(what + used, sizeof(what) - used);
     }
 
     if (returnValue)
