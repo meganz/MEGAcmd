@@ -21,6 +21,7 @@
 #include "megacmdversion.h"
 #include "megacmdutils.h"
 #include "listeners.h"
+#include "megacmd_fuse.h"
 #include "updater/Preferences.h"
 #include "sync_ignore.h"
 
@@ -1125,13 +1126,13 @@ ConfiguratorMegaApiHelper::ConfiguratorMegaApiHelper()
                                 std::nullopt/*megaApiGetter*/,
                                 validatorULL(0, 20));
 
-    // File-service cache reclaim options. These tune the on-disk cache that backs streaming
-    // (ftp/webdav) and, in the future, FUSE. MEGAcmd deliberately pushes these defaults to the
-    // SDK on every login (see the login-apply loop in MegaCmdExecuter::actUponLogin): the SDK
-    // ships with reclamation disabled, so forcing a threshold here is what bounds the cache out
-    // of the box. The six values are the ones MEGAsync installs, so both desktop apps bound the
-    // cache the same way; age/batch/delay/period also match the SDK's own defaults, while
-    // threshold (SDK: disabled) and target (SDK: 0) are deliberate choices.
+    // File-service cache reclaim options. These tune the on-disk cache that backs webdav streaming
+    // and FUSE mounts. MEGAcmd deliberately pushes these defaults to the SDK on every login (see
+    // the login-apply loop in MegaCmdExecuter::actUponLogin): the SDK ships with reclamation
+    // disabled, so forcing a threshold here is what bounds the cache out of the box. The six
+    // values are the ones MEGAsync installs, so both desktop apps bound the cache the same way;
+    // age/batch/delay/period also match the SDK's own defaults, while threshold (SDK: disabled)
+    // and target (SDK: 0) are deliberate choices.
     mConfigurators.emplace_back("file_service_reclaim_age_threshold", "File-service cache cleanup: minimum file age in minutes",
                                 std::string("A cached file is only removed after going unaccessed for this many minutes, so this is what "
                                 "decides how much a cleanup can actually free. Default ") +
@@ -1183,6 +1184,27 @@ ConfiguratorMegaApiHelper::ConfiguratorMegaApiHelper()
                                 confGetterOr(defaultReclaimTarget),
                                 std::nullopt/*megaApiGetter*/,
                                 validatorULL(0));
+
+#ifdef WITH_FUSE
+    mConfigurators.emplace_back("fuse_log_level", "Log level of the SDK's FUSE component",
+                                "Takes the same values as the \"log\" command: a name (ERROR, WARNING, INFO, DEBUG, "
+                                "VERBOSE) or its number. The new level applies to mounts that are already enabled. "
+                                "FUSE messages also go through the SDK logger, so \"log -s DEBUG\" is needed for them "
+                                "to reach the log file. Default INFO.",
+                                [](MegaApi *api, const std::string &/*name*/, const char *value)
+                                {
+                                    auto logLevel = getLogLevelNum(value);
+                                    if (!logLevel)
+                                    {
+                                        return false;
+                                    }
+                                    FuseCommand::setLogLevel(*api, *logLevel);
+                                    return true;
+                                },
+                                confGetter,
+                                std::nullopt/*megaApiGetter*/,
+                                [](const char *value){ return getLogLevelNum(value).has_value(); });
+#endif
 }
 
 const std::vector<ConfiguratorMegaApiHelper::ValueConfigurator> & ConfiguratorMegaApiHelper::getConfigurators()

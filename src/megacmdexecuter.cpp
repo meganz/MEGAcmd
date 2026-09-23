@@ -7535,6 +7535,10 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 {
                     OUTSTREAM << "No webdav links found" << endl;
                 }
+                else
+                {
+                    printLocalCacheUsage(*api);
+                }
 
                 delete webdavnodes;
 
