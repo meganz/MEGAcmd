@@ -27,6 +27,7 @@
 #include <unistd.h>
 #endif
 #include <string>
+#include <string_view>
 #include <vector>
 #include <iomanip>
 #include <map>
@@ -303,6 +304,9 @@ bool onlyZeroOf(Bools... args)
 {
     return (args + ...) == 0;
 }
+
+[[nodiscard]] std::string buildProgressBarLine(std::string_view title, std::string_view suffix,
+                                               float percent, std::size_t cols);
 
 void printPercentageLineCerr(const char *title, long long completed, long long total, float percentDowloaded, bool cleanLineAfter = true);
 

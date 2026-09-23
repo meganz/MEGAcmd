@@ -659,80 +659,56 @@ void MegaCmdListener::onRequestUpdate(MegaApi* api, MegaRequest *request)
 #ifdef MEGACMD_TESTING_CODE
         TestInstruments::Instance().fireEvent(TestInstruments::Event::FETCH_NODES_REQ_UPDATE);
 #endif
-            unsigned int cols = getNumberOfCols(80);
-            string outputString;
-            outputString.resize(cols+1);
-            for (unsigned int i = 0; i < cols; i++)
-            {
-                outputString[i] = '.';
-            }
+        float oldpercent = percentFetchnodes;
+        if (request->getTotalBytes() == 0) {
+          percentFetchnodes = 0;
+        } else {
+          percentFetchnodes = float(request->getTransferredBytes() * 1.0 /
+                                    request->getTotalBytes() * 100.0);
+        }
+        if (alreadyFinished ||
+            ((percentFetchnodes == oldpercent) && (oldpercent != 0))) {
+          return;
+        }
+        if (percentFetchnodes < 0) {
+          percentFetchnodes = 0;
+        }
 
-            outputString[cols] = '\0';
-            char *ptr = (char *)outputString.c_str();
-            sprintf(ptr, "%s", "Fetching nodes ||");
-            ptr += strlen("Fetching nodes ||");
-            *ptr = '.'; //replace \0 char
+        char aux[40];
+        if (request->getTotalBytes() < 0) {
+          return; // after a 100% this happens
+        }
+        if (request->getTransferredBytes() < 0.001 * request->getTotalBytes()) {
+          return; // after a 100% this happens
+        }
 
+        if (request->getTotalBytes() < 1048576) {
+          snprintf(aux, sizeof(aux), "||(%lld/%lld KB: %.2f %%) ",
+                   request->getTransferredBytes() / 1024,
+                   request->getTotalBytes() / 1024, percentFetchnodes);
+        } else {
+          snprintf(aux, sizeof(aux), "||(%lld/%lld MB: %.2f %%) ",
+                   request->getTransferredBytes() / 1024 / 1024,
+                   request->getTotalBytes() / 1024 / 1024, percentFetchnodes);
+        }
 
-            float oldpercent = percentFetchnodes;
-            if (request->getTotalBytes() == 0)
-            {
-                percentFetchnodes = 0;
-            }
-            else
-            {
-                percentFetchnodes = float(request->getTransferredBytes() * 1.0 / request->getTotalBytes() * 100.0);
-            }
-            if (alreadyFinished || ( ( percentFetchnodes == oldpercent ) && ( oldpercent != 0 )) )
-            {
-                return;
-            }
-            if (percentFetchnodes < 0)
-            {
-                percentFetchnodes = 0;
-            }
+        const string outputString = buildProgressBarLine(
+            "Fetching nodes ||", aux, percentFetchnodes, getNumberOfCols(80));
 
-            char aux[40];
-            if (request->getTotalBytes() < 0)
-            {
-                return;                         // after a 100% this happens
-            }
-            if (request->getTransferredBytes() < 0.001 * request->getTotalBytes())
-            {
-                return;                                                            // after a 100% this happens
-            }
+        if (percentFetchnodes == 100 && !alreadyFinished) {
+          alreadyFinished = true;
+          // cout << outputString << endl;
+          LOG_debug << outputString;
+        } else {
+          LOG_debug << outputString;
+          // cout << outputString << '\r' << flush;
+        }
 
-            if (request->getTotalBytes() < 1048576)
-            {
-                sprintf(aux,"||(%lld/%lld KB: %.2f %%) ", request->getTransferredBytes() / 1024, request->getTotalBytes() / 1024, percentFetchnodes);
-            }
-            else
-            {
-                sprintf(aux,"||(%lld/%lld MB: %.2f %%) ", request->getTransferredBytes() / 1024 / 1024, request->getTotalBytes() / 1024 / 1024, percentFetchnodes);
-            }
+        informProgressUpdate(request->getTransferredBytes(),
+                             request->getTotalBytes(), this->clientID,
+                             "Fetching nodes");
 
-            sprintf((char *)outputString.c_str() + cols - strlen(aux), "%s",                         aux);
-            for (int i = 0; i <= ( cols - strlen("Fetching nodes ||") - strlen(aux)) * 1.0 * percentFetchnodes / 100.0; i++)
-            {
-                *ptr++ = '#';
-            }
-
-            if (percentFetchnodes == 100 && !alreadyFinished)
-            {
-                alreadyFinished = true;
-                //cout << outputString << endl;
-                LOG_debug << outputString;
-            }
-            else
-            {
-                LOG_debug << outputString;
-                //cout << outputString << '\r' << flush;
-            }
-
-            informProgressUpdate(request->getTransferredBytes(), request->getTotalBytes(), this->clientID, "Fetching nodes");
-
-
-            break;
+        break;
         }
 
         default:
@@ -810,22 +786,6 @@ void MegaCmdTransferListener::onTransferUpdate(MegaApi* api, MegaTransfer *trans
         return;
     }
 
-    unsigned int cols = getNumberOfCols(80);
-
-    string outputString;
-    outputString.resize(cols + 1);
-    for (unsigned int i = 0; i < cols; i++)
-    {
-        outputString[i] = '.';
-    }
-
-    outputString[cols] = '\0';
-    char *ptr = (char *)outputString.c_str();
-    sprintf(ptr, "%s", "TRANSFERRING ||");
-    ptr += strlen("TRANSFERRING ||");
-    *ptr = '.'; //replace \0 char
-
-
     float oldpercent = percentDownloaded;
     if (transfer->getTotalBytes() == 0)
     {
@@ -856,18 +816,15 @@ void MegaCmdTransferListener::onTransferUpdate(MegaApi* api, MegaTransfer *trans
 
     if (transfer->getTotalBytes() < 1048576)
     {
-        sprintf(aux,"||(%lld/%lld KB: %.2f %%) ", (long long)(transfer->getTransferredBytes() / 1024), (long long)(transfer->getTotalBytes() / 1024), (float)percentDownloaded);
+        snprintf(aux, sizeof(aux), "||(%lld/%lld KB: %.2f %%) ", (long long)(transfer->getTransferredBytes() / 1024), (long long)(transfer->getTotalBytes() / 1024), (float)percentDownloaded);
 
     }
     else
     {
-        sprintf(aux,"||(%lld/%lld MB: %.2f %%) ", (long long)(transfer->getTransferredBytes() / 1024 / 1024), (long long)(transfer->getTotalBytes() / 1024 / 1024), (float)percentDownloaded);
+        snprintf(aux, sizeof(aux), "||(%lld/%lld MB: %.2f %%) ", (long long)(transfer->getTransferredBytes() / 1024 / 1024), (long long)(transfer->getTotalBytes() / 1024 / 1024), (float)percentDownloaded);
     }
-    sprintf((char *)outputString.c_str() + cols - strlen(aux), "%s",                         aux);
-    for (int i = 0; i <= ( cols - strlen("TRANSFERRING ||") - strlen(aux)) * 1.0 * percentDownloaded / 100.0; i++)
-    {
-        *ptr++ = '#';
-    }
+    const string outputString = buildProgressBarLine(
+        "TRANSFERRING ||", aux, percentDownloaded, getNumberOfCols(80));
 
     if (percentDownloaded == 100 && !alreadyFinished)
     {
@@ -1029,22 +986,6 @@ void MegaCmdMultiTransferListener::onTransferUpdate(MegaApi* api, MegaTransfer *
     ongoingtransferredbytes[transfer->getTag()] = transfer->getTransferredBytes();
     ongoingtotalbytes[transfer->getTag()] = transfer->getTotalBytes();
 
-    unsigned int cols = getNumberOfCols(80);
-
-    string outputString;
-    outputString.resize(cols + 1);
-    for (unsigned int i = 0; i < cols; i++)
-    {
-        outputString[i] = '.';
-    }
-
-    outputString[cols] = '\0';
-    char *ptr = (char *)outputString.c_str();
-    sprintf(ptr, "%s", "TRANSFERRING ||");
-    ptr += strlen("TRANSFERRING ||");
-    *ptr = '.'; //replace \0 char
-
-
     float oldpercent = percentDownloaded;
     if ((totalbytes + getOngoingTotalBytes() ) == 0)
     {
@@ -1075,17 +1016,14 @@ void MegaCmdMultiTransferListener::onTransferUpdate(MegaApi* api, MegaTransfer *
     }
     if (totalbytes + getOngoingTotalBytes() < 1048576)
     {
-        sprintf(aux,"||(%lld/%lld KB: %.2f %%) ", (transferredbytes + getOngoingTransferredBytes()) / 1024, (totalbytes + getOngoingTotalBytes() ) / 1024, percentDownloaded);
+        snprintf(aux, sizeof(aux), "||(%lld/%lld KB: %.2f %%) ", (transferredbytes + getOngoingTransferredBytes()) / 1024, (totalbytes + getOngoingTotalBytes() ) / 1024, percentDownloaded);
     }
     else
     {
-        sprintf(aux,"||(%lld/%lld MB: %.2f %%) ", (transferredbytes + getOngoingTransferredBytes()) / 1024 / 1024, (totalbytes + getOngoingTotalBytes() ) / 1024 / 1024, percentDownloaded);
+        snprintf(aux, sizeof(aux), "||(%lld/%lld MB: %.2f %%) ", (transferredbytes + getOngoingTransferredBytes()) / 1024 / 1024, (totalbytes + getOngoingTotalBytes() ) / 1024 / 1024, percentDownloaded);
     }
-    sprintf((char *)outputString.c_str() + cols - strlen(aux), "%s",                         aux);
-    for (int i = 0; i <= ( cols - strlen("TRANSFERRING ||") - strlen(aux)) * 1.0 * min (100.0f, percentDownloaded) / 100.0; i++)
-    {
-        *ptr++ = '#';
-    }
+    const string outputString = buildProgressBarLine(
+        "TRANSFERRING ||", aux, percentDownloaded, getNumberOfCols(80));
 
     if (percentDownloaded == 100 && !alreadyFinished)
     {
