@@ -721,10 +721,12 @@ std::string buildProgressBarLine(std::string_view title, std::string_view suffix
     // Middle: the bar, only when anything is left between title and suffix.
     if (cols > title.size() + suffix.size())
     {
-        const float clamped = std::clamp(percent, 0.0f, 100.0f);
-        const size_t room = cols - title.size() - suffix.size();
-        const size_t filled = static_cast<size_t>(room * clamped / 100.0f);
-        std::fill_n(line.begin() + title.size(), filled, '#');
+      // Not std::clamp: that propagates NaN, and the cast below would then be
+      // undefined. NaN compares false here, so it falls through to no bar.
+      const float clamped = (percent > 0.0f) ? std::min(percent, 100.0f) : 0.0f;
+      const size_t room = cols - title.size() - suffix.size();
+      const size_t filled = static_cast<size_t>(room * clamped / 100.0f);
+      std::fill_n(line.begin() + title.size(), filled, '#');
     }
 
     // Right: the suffix, right aligned. Keep its tail rather than its head when
