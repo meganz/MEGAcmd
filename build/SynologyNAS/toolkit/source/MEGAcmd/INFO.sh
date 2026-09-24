@@ -16,11 +16,26 @@ if [ -z "$megacmd_version" ]; then
     exit 1
 fi
 
+# SPK_ARCH=family (the default) lets the package install on every platform of its
+# CPU family; SPK_ARCH=platform limits it to the platform it was built for.
+case "${SPK_ARCH:-family}" in
+    family)
+        package_arch=$(plat_to_family "$PLATFORM") || exit 1
+        ;;
+    platform)
+        package_arch="$PLATFORM"
+        ;;
+    *)
+        echo "INFO.sh: unknown SPK_ARCH '${SPK_ARCH}', expected family or platform" >&2
+        exit 1
+        ;;
+esac
+
 package="megacmdpkg"
 version="${megacmd_version}-0001"
 displayname="MEGAcmd"
 maintainer="Mega NZ"
-arch="$PLATFORM"
+arch="$package_arch"
 description="MEGAcmd command line tool.  Access your MEGA.nz secure cloud storage account and upload/download files, use its commands in scripts, automatically synchronise folders between your MEGA.nz account and your Synology NAS.  Connect to your NAS via ssh or Putty to use the MEGAcmd commands.  Run mega-help from the command line for documentation, or see our User Guide online."
 os_min_ver="7.0-40000"
 maintainer="Mega Ltd."

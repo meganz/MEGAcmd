@@ -84,5 +84,8 @@ RUN --mount=type=cache,target=/tmp/ccache \
         -DVCPKG_TARGET_TRIPLET=${PLATFORM} && \
     cmake --build buildDMS
 
+# family or platform, see INFO.sh. Declared here so changing it only redoes the packaging
+ARG SPK_ARCH=family
+
 # spk_install.sh carries on past errors, so fail here if it produced no package
-RUN export PLATFORM=${PLATFORM} && /mega/spk_install.sh && ls /image/${PLATFORM}/*.spk
+RUN export PLATFORM=${PLATFORM} SPK_ARCH=${SPK_ARCH} && /mega/spk_install.sh && ls /image/${PLATFORM}/*.spk
