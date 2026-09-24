@@ -55,6 +55,14 @@ static const char* rootnodepaths[] = { "/", "//in", "//bin" };
 #define SSTR( x ) static_cast< const std::ostringstream & >( \
         ( std::ostringstream() << std::dec << x ) ).str()
 
+namespace {
+// "." and ".." navigate a path. They are never valid names for a new node,
+// so anything that turns a path segment into a node name must reject them.
+bool isPathNavigation(const string& name)
+{
+    return name == "." || name == "..";
+}
+} // namespace
 
 #ifdef HAVE_GLOB_H
 std::vector<std::string> resolvewildcard(const std::string& pattern) {
@@ -3782,6 +3790,16 @@ void MegaCmdExecuter::disableShare(MegaNode *n, string with)
 
 int MegaCmdExecuter::makedir(string remotepath, bool recursive, MegaNode *parentnode)
 {
+    // Check the whole path first, so a "." or ".." fails before any folder is created
+    for (const auto& name : split(remotepath, "/"))
+    {
+        if (isPathNavigation(name))
+        {
+            LOG_err << "Invalid folder name: " << name;
+            return MCMD_INVALIDSTATE;
+        }
+    }
+
     MegaNode *currentnode;
     if (parentnode)
     {
@@ -7046,6 +7064,12 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             const auto posLastSeparator = destination.find_last_of("/");
             string destinationfolder(destination, 0, posLastSeparator);
             newname = string(destination, posLastSeparator + 1, destination.size());
+            if (isPathNavigation(newname))
+            {
+                setCurrentThreadOutCode(MCMD_INVALIDSTATE);
+                LOG_err << "Invalid destination name: " << newname;
+                return;
+            }
             auto baseNode = (destinationfolder.size() > 0 && destinationfolder.front() == '/')
                 ? std::unique_ptr<MegaNode>(api->getRootNode())
                 : std::unique_ptr<MegaNode>(api->getNodeByHandle(cwd));
