@@ -84,4 +84,5 @@ RUN --mount=type=cache,target=/tmp/ccache \
         -DVCPKG_TARGET_TRIPLET=${PLATFORM} && \
     cmake --build buildDMS
 
-RUN export PLATFORM=${PLATFORM} && /mega/spk_install.sh
+# spk_install.sh carries on past errors, so fail here if it produced no package
+RUN export PLATFORM=${PLATFORM} && /mega/spk_install.sh && ls /image/${PLATFORM}/*.spk
