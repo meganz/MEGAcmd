@@ -449,6 +449,10 @@ std::unique_ptr<MegaNode> MegaCmdExecuter::nodebypath(const char* ptr, string* u
             if (curName == "..")
             {
                 nextNode.reset(api->getParentNode(baseNode.get()));
+                if (nextNode == nullptr) // Such as "/.."
+                {
+                   return nullptr;
+                }
             }
             else
             {

@@ -17,6 +17,7 @@
 #include <cerrno>
 #include <cstring>
 #include <fstream>
+#include <sstream>
 #include <string_view>
 #include <vector>
 #ifdef _WIN32
@@ -665,3 +666,138 @@ TEST(UtilsTest, canWriteWithBypassEnvVar)
     }
 }
 #endif
+
+namespace
+{
+void writeUtf8File(const fs::path& filePath, const std::string& utf8Content)
+{
+    std::ofstream f(filePath, std::ios::binary);
+    ASSERT_TRUE(f.is_open());
+    f.write(utf8Content.data(), static_cast<std::streamsize>(utf8Content.size()));
+    ASSERT_TRUE(f.good());
+}
+}
+
+TEST(PropertyFileTest, getPropertyFromFileScenarios)
+{
+    using megacmd::getPropertyFromFile;
+
+    G_SUBTEST << "Missing file returns empty";
+    {
+        SelfDeletingTmpFolder tmp;
+        const fs::path missing = tmp.path() / "nope.cfg";
+        EXPECT_TRUE(getPropertyFromFile(missing, "key").empty());
+    }
+
+    G_SUBTEST << "Key value and trimmed value";
+    {
+        SelfDeletingTmpFolder tmp;
+        const fs::path cfg = tmp.path() / "a.cfg";
+        writeUtf8File(cfg, "alpha =  hello  \n");
+        EXPECT_EQ(getPropertyFromFile(cfg, "alpha"), "hello");
+    }
+
+    G_SUBTEST << "Comment and blank lines skipped before match";
+    {
+        SelfDeletingTmpFolder tmp;
+        const fs::path cfg = tmp.path() / "b.cfg";
+        writeUtf8File(cfg, "# ignored\n\nbeta=y\n");
+        EXPECT_EQ(getPropertyFromFile(cfg, "beta"), "y");
+    }
+
+    G_SUBTEST << "Empty property name returns first non comment line trimmed";
+    {
+        SelfDeletingTmpFolder tmp;
+        const fs::path cfg = tmp.path() / "c.cfg";
+        writeUtf8File(cfg, "# x\n  first  \n");
+        EXPECT_EQ(getPropertyFromFile(cfg, ""), "first");
+    }
+
+    G_SUBTEST << "Quoted value trimmed";
+    {
+        SelfDeletingTmpFolder tmp;
+        const fs::path cfg = tmp.path() / "d.cfg";
+        writeUtf8File(cfg, "q=\"quoted\"\n");
+        EXPECT_EQ(getPropertyFromFile(cfg, "q"), "quoted");
+    }
+
+    G_SUBTEST << "First occurrence wins";
+    {
+        SelfDeletingTmpFolder tmp;
+        const fs::path cfg = tmp.path() / "e.cfg";
+        writeUtf8File(cfg, "k=1\nk=2\n");
+        EXPECT_EQ(getPropertyFromFile(cfg, "k"), "1");
+    }
+
+    G_SUBTEST << "Unknown key returns empty";
+    {
+        SelfDeletingTmpFolder tmp;
+        const fs::path cfg = tmp.path() / "f.cfg";
+        writeUtf8File(cfg, "only=here\n");
+        EXPECT_TRUE(getPropertyFromFile(cfg, "missing").empty());
+    }
+
+    G_SUBTEST << "Line without equals is ignored for named lookup";
+    {
+        SelfDeletingTmpFolder tmp;
+        const fs::path cfg = tmp.path() / "g.cfg";
+        writeUtf8File(cfg, "not_a_pair\nkey=ok\n");
+        EXPECT_EQ(getPropertyFromFile(cfg, "key"), "ok");
+    }
+}
+
+TEST(PropertyFileTest, getValueFromFileScenarios)
+{
+    using megacmd::getValueFromFile;
+
+    G_SUBTEST << "Integer parsed";
+    {
+        SelfDeletingTmpFolder tmp;
+        const fs::path cfg = tmp.path() / "i.cfg";
+        writeUtf8File(cfg, "n=42\n");
+        EXPECT_EQ(getValueFromFile(cfg, "n", -1), 42);
+    }
+
+    G_SUBTEST << "Integer default when missing";
+    {
+        SelfDeletingTmpFolder tmp;
+        const fs::path cfg = tmp.path() / "j.cfg";
+        writeUtf8File(cfg, "other=1\n");
+        EXPECT_EQ(getValueFromFile(cfg, "n", 99), 99);
+    }
+
+    G_SUBTEST << "Double parsed";
+    {
+        SelfDeletingTmpFolder tmp;
+        const fs::path cfg = tmp.path() / "k.cfg";
+        writeUtf8File(cfg, "x=3.5\n");
+        EXPECT_DOUBLE_EQ(getValueFromFile(cfg, "x", 0.0), 3.5);
+    }
+
+    G_SUBTEST << "Default when property empty";
+    {
+        SelfDeletingTmpFolder tmp;
+        const fs::path cfg = tmp.path() / "l.cfg";
+        writeUtf8File(cfg, "e=  \n");
+        EXPECT_EQ(getValueFromFile(cfg, "e", 7), 7);
+    }
+}
+
+TEST(PropertyFileTest, StressTestManyLinesBeforeKey)
+{
+    using megacmd::getPropertyFromFile;
+
+    G_SUBTEST << "Scan until key near end";
+    {
+        SelfDeletingTmpFolder tmp;
+        const fs::path cfg = tmp.path() / "big.cfg";
+        std::ostringstream body;
+        for (int i = 0; i < 4000; i++)
+        {
+            body << "pad=" << i << "\n";
+        }
+        body << "target=found\n";
+        writeUtf8File(cfg, body.str());
+        EXPECT_EQ(getPropertyFromFile(cfg, "target"), "found");
+    }
+}
