@@ -24,12 +24,27 @@
     #include "../tests/common/Instruments.h"
 #endif
 
+#include <algorithm>
 #include <utility>
 
 using namespace mega;
 
 
 namespace megacmd {
+namespace {
+std::string uploadWaitingForStorageMessage(bool foreign)
+{
+    if (foreign)
+    {
+        return "An upload to a folder shared with you is waiting: the file does not fit in the available storage of the folder's owner.\n"
+               "It will resume once the owner's account has room.";
+    }
+    return "An upload is waiting: the file does not fit in your available storage.\n"
+           "It will resume once there is room. You can free up space or change your account plan to increase your quota limit.\n"
+           "See \"help --upgrade\" for further details.";
+}
+}
+
 #ifdef ENABLE_CHAT
 void MegaCmdGlobalListener::onChatsUpdate(MegaApi*, MegaTextChatList*)
 {
@@ -1208,11 +1223,92 @@ void MegaCmdGlobalTransferListener::onTransferFinish(MegaApi* api, MegaTransfer 
     }
 
     addCompletedTransfer(std::unique_ptr<MegaTransfer>(transfer->copy()), nodePath);
+
+    onUploadNotWaitingForStorage(transfer->getTag());
+}
+
+void MegaCmdGlobalTransferListener::onTransferUpdate(MegaApi* api, MegaTransfer *transfer)
+{
+    if (transfer && transfer->getState() != MegaTransfer::STATE_RETRYING)
+    {
+        onUploadNotWaitingForStorage(transfer->getTag());
+    }
+}
+
+void MegaCmdGlobalTransferListener::onUploadWaitingForStorage(const MegaTransfer &transfer)
+{
+    auto message = uploadWaitingForStorageMessage(transfer.isForeignOverquota());
+    LOG_debug << "Upload waiting for storage: " << transfer.getFileName();
+
+    bool firstWithThisMessage = false;
+    {
+        std::lock_guard<std::mutex> g(mUploadsWaitingForStorageMutex);
+        firstWithThisMessage = std::none_of(mUploadsWaitingForStorage.begin(), mUploadsWaitingForStorage.end(),
+                                            [&message](const auto &waiting) { return waiting.second == message; });
+        mUploadsWaitingForStorage[transfer.getTag()] = message;
+        if (firstWithThisMessage)
+        {
+            appendGreetingStatusAllListener(std::string("message:") + message);
+        }
+    }
+
+    if (firstWithThisMessage)
+    {
+        LOG_warn << message;
+        broadcastMessage(message);
+#ifdef MEGACMD_TESTING_CODE
+        TestInstruments::Instance().setTestValue(TestInstruments::TestValue::UPLOAD_WAITING_FOR_STORAGE_MESSAGE, message);
+        TestInstruments::Instance().fireEvent(TestInstruments::Event::UPLOAD_WAITING_FOR_STORAGE_MESSAGE_SHOWN);
+#endif
+    }
+}
+
+void MegaCmdGlobalTransferListener::onUploadNotWaitingForStorage(int tag)
+{
+    bool lastWithThisMessage = false;
+    {
+        std::lock_guard<std::mutex> g(mUploadsWaitingForStorageMutex);
+        auto it = mUploadsWaitingForStorage.find(tag);
+        if (it == mUploadsWaitingForStorage.end())
+        {
+            return;
+        }
+        auto message = std::move(it->second);
+        mUploadsWaitingForStorage.erase(it);
+
+        lastWithThisMessage = std::none_of(mUploadsWaitingForStorage.begin(), mUploadsWaitingForStorage.end(),
+                                           [&message](const auto &waiting) { return waiting.second == message; });
+        if (lastWithThisMessage)
+        {
+            removeGreetingStatusAllListener(std::string("message:") + message);
+        }
+    }
+
+    if (lastWithThisMessage)
+    {
+        LOG_debug << "No upload is waiting for storage any more";
+#ifdef MEGACMD_TESTING_CODE
+        TestInstruments::Instance().fireEvent(TestInstruments::Event::UPLOAD_WAITING_FOR_STORAGE_MESSAGE_REMOVED);
+#endif
+    }
+}
+
+void MegaCmdGlobalTransferListener::forgetUploadsWaitingForStorage()
+{
+    std::lock_guard<std::mutex> g(mUploadsWaitingForStorageMutex);
+    mUploadsWaitingForStorage.clear();
 }
 
 void MegaCmdGlobalTransferListener::onTransferTemporaryError(MegaApi *api, MegaTransfer *transfer, MegaError* e)
 {
-    if (e && e->getErrorCode() == MegaError::API_EOVERQUOTA && e->getValue())
+    if (e && transfer && e->getErrorCode() == MegaError::API_EOVERQUOTA && !e->getValue()
+            && transfer->getType() == MegaTransfer::TYPE_UPLOAD)
+    {
+        // A value of 0 is storage, not transfer quota: the account is full, or the upload
+        // does not fit in what is left of it. Either way the SDK keeps the upload waiting.
+        onUploadWaitingForStorage(*transfer);
+    }
+    else if (e && e->getErrorCode() == MegaError::API_EOVERQUOTA && e->getValue())
     {
         if (!sandboxCMD->isOverquota())
         {

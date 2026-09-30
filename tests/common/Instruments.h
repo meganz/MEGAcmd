@@ -67,6 +67,8 @@ public:
         SERVER_ABOUT_TO_START_WAITING_FOR_PETITIONS,
         SYNC_ISSUES_LIST_UPDATED,
         FETCH_NODES_REQ_UPDATE,
+        UPLOAD_WAITING_FOR_STORAGE_MESSAGE_SHOWN,
+        UPLOAD_WAITING_FOR_STORAGE_MESSAGE_REMOVED,
     };
 
     typedef std::function<void()> EventCallback;
@@ -87,6 +89,7 @@ public:
         SYNC_ISSUES_LIST_SIZE,
         SYNC_ISSUE_ENFORCE_PATH_PROBLEM,
         SYNC_ISSUE_ENFORCE_REASON_TYPE,
+        UPLOAD_WAITING_FOR_STORAGE_MESSAGE,
     };
 
     using TestValue_t = std::variant<
