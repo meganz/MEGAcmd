@@ -4816,7 +4816,7 @@ void MegaCmdExecuter::moveToDestination(const std::unique_ptr<MegaNode>& n, stri
     // we have four situations:
     // 1. target path does not exist - fail
     // 2. target node exists and is folder - move
-    // 3. target node exists and is file - delete and rename (unless same)
+    // 3. target node exists and is file - delete and rename (unless same), only if source is a file too
     // 4. target path exists, but filename does not - rename
     if (tn)
     {
@@ -4860,6 +4860,13 @@ void MegaCmdExecuter::moveToDestination(const std::unique_ptr<MegaNode>& n, stri
             {
                 if (tn->getType() == MegaNode::TYPE_FILE) //move & remove old & rename new
                 {
+                    if (n->getType() != MegaNode::TYPE_FILE)
+                    {
+                        setCurrentThreadOutCode(MCMD_INVALIDTYPE);
+                        LOG_err << "Cannot overwrite file with folder";
+                        return;
+                    }
+
                     // (there should never be any orphaned filenodes)
                     std::unique_ptr<MegaNode> tnParentNode(api->getNodeByHandle(tn->getParentHandle()));
                     if (tnParentNode)
