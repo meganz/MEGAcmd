@@ -107,6 +107,9 @@ public:
 
     void updateprompt(mega::MegaApi *api = nullptr);
 
+    // The transfer quota message for a client connecting now, while downloads wait for it.
+    std::optional<std::string> getTransferQuotaGreeting();
+
     // nodes browsing
     void listtrees();
     static bool includeIfIsExported(mega::MegaApi* api, mega::MegaNode * n, void *arg);

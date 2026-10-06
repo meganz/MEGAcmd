@@ -188,6 +188,11 @@ void MegaCmdExecuter::updateprompt(MegaApi *api)
     changeprompt(newprompt.c_str());
 }
 
+std::optional<std::string> MegaCmdExecuter::getTransferQuotaGreeting()
+{
+    return globalTransferListener->transferQuotaGreeting();
+}
+
 MegaCmdExecuter::MegaCmdExecuter(MegaApi *api, MegaCmdLogger *loggerCMD, MegaCmdSandbox *sandboxCMD) :
     // Give a few seconds in order for key sharing to happen
     mFsAccessCMD(::mega::createFSA()),
@@ -2988,7 +2993,7 @@ void MegaCmdExecuter::actUponLogout(MegaApi& api, MegaError* e, bool keptSession
         // clear greetings (asuming they are account-related)
         clearGreetingStatusAllListener();
         clearGreetingStatusFirstListener();
-        globalTransferListener->forgetUploadsWaitingForStorage();
+        globalTransferListener->forgetWaitingTransfers();
     }
     updateprompt(&api);
 }

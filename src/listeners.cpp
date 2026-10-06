@@ -55,6 +55,18 @@ std::string uploadWaitingForStorageMessage(MegaApi &api, const MegaTransfer &tra
 }
 }
 
+std::optional<std::string> transferQuotaWaitMessage(m_time_t secondsLeft)
+{
+    if (secondsLeft <= 0)
+    {
+        return std::nullopt;
+    }
+    return "Transfer quota exceeded. You can't continue downloading as you've used all of the transfer quota available to you.\n"
+           "Upgrade your account to get more transfer quota or you can wait for " + secondsToText(secondsLeft) +
+           " until more free quota becomes available for you.\n"
+           "See \"help --upgrade\" for further details.";
+}
+
 #ifdef ENABLE_CHAT
 void MegaCmdGlobalListener::onChatsUpdate(MegaApi*, MegaTextChatList*)
 {
@@ -1235,6 +1247,7 @@ void MegaCmdGlobalTransferListener::onTransferFinish(MegaApi* api, MegaTransfer 
     addCompletedTransfer(std::unique_ptr<MegaTransfer>(transfer->copy()), nodePath);
 
     onUploadNotWaitingForStorage(transfer->getTag());
+    onDownloadNotWaitingForTransferQuota(transfer->getTag());
 }
 
 void MegaCmdGlobalTransferListener::onTransferUpdate(MegaApi* api, MegaTransfer *transfer)
@@ -1242,6 +1255,7 @@ void MegaCmdGlobalTransferListener::onTransferUpdate(MegaApi* api, MegaTransfer 
     if (transfer && transfer->getState() != MegaTransfer::STATE_RETRYING)
     {
         onUploadNotWaitingForStorage(transfer->getTag());
+        onDownloadNotWaitingForTransferQuota(transfer->getTag());
     }
 }
 
@@ -1296,10 +1310,59 @@ void MegaCmdGlobalTransferListener::onUploadNotWaitingForStorage(int tag)
     }
 }
 
-void MegaCmdGlobalTransferListener::forgetUploadsWaitingForStorage()
+void MegaCmdGlobalTransferListener::onDownloadWaitingForTransferQuota(int tag, m_time_t seconds)
 {
-    std::lock_guard<std::mutex> g(mUploadsWaitingForStorageMutex);
-    mUploadsWaitingForStorage.clear();
+    const auto now = m_time();
+    bool newWait = false;
+    {
+        std::lock_guard<std::mutex> g(mDownloadsWaitingForTransferQuotaMutex);
+        // Every download gets the error when the quota runs out: announce the wait once,
+        // and again only if the quota runs out again after that wait is over.
+        newWait = mDownloadsWaitingForTransferQuota.empty() || now >= mTransferQuotaWaitEnd;
+        mDownloadsWaitingForTransferQuota.insert(tag);
+        mTransferQuotaWaitEnd = now + seconds;
+    }
+
+    if (newWait)
+    {
+        if (auto message = transferQuotaWaitMessage(seconds))
+        {
+            LOG_warn << *message;
+            broadcastMessage(*message);
+        }
+    }
+}
+
+void MegaCmdGlobalTransferListener::onDownloadNotWaitingForTransferQuota(int tag)
+{
+    std::lock_guard<std::mutex> g(mDownloadsWaitingForTransferQuotaMutex);
+    if (mDownloadsWaitingForTransferQuota.erase(tag) && mDownloadsWaitingForTransferQuota.empty())
+    {
+        LOG_debug << "No download is waiting for transfer quota any more";
+    }
+}
+
+std::optional<std::string> MegaCmdGlobalTransferListener::transferQuotaGreeting()
+{
+    std::lock_guard<std::mutex> g(mDownloadsWaitingForTransferQuotaMutex);
+    if (mDownloadsWaitingForTransferQuota.empty())
+    {
+        return std::nullopt;
+    }
+    return transferQuotaWaitMessage(mTransferQuotaWaitEnd - m_time());
+}
+
+void MegaCmdGlobalTransferListener::forgetWaitingTransfers()
+{
+    {
+        std::lock_guard<std::mutex> g(mUploadsWaitingForStorageMutex);
+        mUploadsWaitingForStorage.clear();
+    }
+    {
+        std::lock_guard<std::mutex> g(mDownloadsWaitingForTransferQuotaMutex);
+        mDownloadsWaitingForTransferQuota.clear();
+        mTransferQuotaWaitEnd = 0;
+    }
 }
 
 void MegaCmdGlobalTransferListener::onTransferTemporaryError(MegaApi *api, MegaTransfer *transfer, MegaError* e)
@@ -1324,6 +1387,11 @@ void MegaCmdGlobalTransferListener::onTransferTemporaryError(MegaApi *api, MegaT
         sandboxCMD->setOverquota(true);
         sandboxCMD->timeOfOverquota = m_time(NULL);
         sandboxCMD->secondsOverQuota=e->getValue();
+
+        if (transfer && transfer->getType() != MegaTransfer::TYPE_UPLOAD)
+        {
+            onDownloadWaitingForTransferQuota(transfer->getTag(), e->getValue());
+        }
     }
 }
 

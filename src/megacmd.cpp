@@ -5050,6 +5050,12 @@ void megacmd()
                     }
                 }
 
+                // Built now rather than stored, so that its time left is current
+                if (auto transferQuotaMessage = cmdexecuter->getTransferQuotaGreeting())
+                {
+                    cm->informStateListener(inf, std::string("message:").append(*transferQuotaMessage).append(1, (char)0x1F));
+                }
+
                 // if server resuming session, lets give him a litle while before returning a prompt to the early clients
                 // This will block the server from responging any commands in the meantime, but that assumable, it will only happen
                 // the first time the server is initiated.
