@@ -52,7 +52,7 @@ private:
     std::atomic<bool> mHasPetition;
 
     // sockets and asociated variables
-    int sockfd;
+    int sockfd = -1;
     char buffer[1024];
     struct sockaddr_in serv_addr, cli_addr;
 
