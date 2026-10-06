@@ -1549,7 +1549,19 @@ string PosixDirectories::getOrCreateFallbackFolder()
     std::string folder = noHomeFallbackFolder();
     if (std::string error; !createOrCheckPrivateFolder(folder, error))
     {
-        std::cerr << "ERROR: Cannot use " << folder << " for MEGAcmd files: " << error << std::endl;
+        // Called on every path lookup, so report the problem once
+        static std::once_flag reported;
+        std::call_once(reported, [&folder, &error]
+        {
+            std::cerr << "ERROR: Cannot use " << folder << " for MEGAcmd files: " << error << std::endl;
+            std::cerr << "This folder is used when HOME is missing or too long for the socket path.";
+            if (struct stat info = {}; lstat(folder.c_str(), &info) == 0)
+            {
+                std::cerr << " It must belong to you and be accessible only by you: run \"chmod 700 " << folder
+                          << "\" if it is yours, or ask an administrator to remove it.";
+            }
+            std::cerr << std::endl;
+        });
         return std::string();
     }
     return folder;
