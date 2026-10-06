@@ -2,7 +2,7 @@
 
 We use docker to cross-compile MEGAcmd for Synology. To build for a specific platform, run:
 ```
-docker build -t megacmd-dms-build-env -f $PWD/build/SynologyNAS/synology-cross-build.dockerfile $PWD --build-arg PLATFORM=<platform>
+docker build -t megacmd-dms-build-env -f $PWD/build/SynologyNAS/dockerfile/synology-cross-build.dockerfile $PWD --build-arg PLATFORM=<platform>
 ```
 The `-t` argument tags the container with a name, whereas `-f` specifies the dockerfile. Note that the working directory has to be the MEGAcmd repository.
 
@@ -10,6 +10,18 @@ The possible platforms are:
 ```
 alpine alpine4k apollolake armada37xx armada38x avoton broadwell broadwellnk broadwellnkv2 broadwellntbap bromolow braswell denverton epyc7002 geminilake grantley kvmx64 monaco purley r1000 rtd1296 rtd1619b v1000
 ```
+
+Each package declares its CPU family in its `INFO` file, so DSM installs it on every platform of that family. Building one platform per family covers every model:
+
+| Platform to build | Package | Installs on |
+|---|---|---|
+| `avoton` | `megacmdpkg-x86_64-*.spk` | every Intel and AMD platform |
+| `rtd1296` | `megacmdpkg-armv8-*.spk` | armada37xx, rtd1296, rtd1619b |
+| `alpine` | `megacmdpkg-armv7-*.spk` | alpine, alpine4k |
+| `armada38x` | `megacmdpkg-armada38x-*.spk` | armada38x |
+| `monaco` | `megacmdpkg-monaco-*.spk` | monaco |
+
+Each family is built on the platform whose toolchain has the oldest kernel headers. To get packages that only install on the platform they were built for, build every platform with `SPK_ARCH=platform` set in the environment of `generate_pkg.sh`.
 
 After building successfully, we need to run the container so we can extract the generated package. To do so, run:
 ```
@@ -26,7 +38,7 @@ docker rm -f megacmd-dms
 
 The script `build/SynologyNAS/generate_pkg.sh` automates all of these steps, creating the necessary docker container, extracting the package from it, and deleting it afterwards. In this case, the package will be extracted to `build/SynologyNAS/packages`.
 
-To install the package on your NAS device, login using the web interface. Navigate to the Package Manager, and click Manual Install. This will open up a menu which lets you choose a local file. Select your generated .pkg file, and install.
+To install the package on your NAS device, login using the web interface. Navigate to the Package Center, and click Manual Install. This will open up a menu which lets you choose a local file. Select your generated .spk file, and install.
 
 To actually run MEGAcmd, you'll need to enable a telnet or SSH connection in the Synology NAS, and run a remote terminal on it. Executables are available at `/volume1/@appstore/megacmdpkg`.
 
