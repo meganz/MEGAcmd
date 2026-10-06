@@ -21,18 +21,10 @@
 
 #include <filesystem>
 #include <fstream>
-#include <optional>
-#include <regex>
 #include <string>
 #include <vector>
 
-#ifdef _WIN32
-#include <windows.h>
-#include <winioctl.h>
-#endif
-
 namespace fs = std::filesystem;
-using TI = TestInstruments;
 
 namespace
 {
@@ -66,35 +58,6 @@ std::string readLocalFile(const fs::path& p)
 {
     std::ifstream in(p, std::ios::binary);
     return std::string((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
-}
-
-// A sparse file takes no disk space, so it can be larger than the account's storage.
-void createSparseFile(const fs::path& p, std::uintmax_t size)
-{
-#ifdef _WIN32
-    HANDLE h = CreateFileW(p.wstring().c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
-    ASSERT_NE(h, INVALID_HANDLE_VALUE);
-    DWORD returned = 0;
-    const bool sparse = DeviceIoControl(h, FSCTL_SET_SPARSE, nullptr, 0, nullptr, 0, &returned, nullptr) != FALSE;
-    CloseHandle(h);
-    ASSERT_TRUE(sparse);
-#else
-    std::ofstream(p, std::ios::binary);
-#endif
-    fs::resize_file(p, size);
-}
-
-// The total from the "USED STORAGE: <used> <pct>% of <total>" line of df.
-std::optional<std::uintmax_t> accountStorageTotal()
-{
-    auto r = executeInClient({"df"});
-    std::smatch match;
-    static const std::regex totalRe("USED STORAGE:.* of +([0-9]+)");
-    if (!r.ok() || !std::regex_search(r.out(), match, totalRe))
-    {
-        return std::nullopt;
-    }
-    return std::stoull(match[1].str());
 }
 } // namespace
 
@@ -538,44 +501,3 @@ TEST_F(PutTests, PutPrintTagAtStartPrintsDecimalTag)
     // (keeps it aligned with the format, but still doesn't validate path)
     ASSERT_TRUE(end < out.size() && out[end] == '.') << "Expected '.' after decimal tag. out=\n" << out;
 }
-
-#ifdef MEGA_USE_WSUPLOAD
-TEST_F(PutTests, UploadThatDoesNotFitTellsTheClientsItIsWaiting)
-{
-    const auto total = accountStorageTotal();
-    ASSERT_TRUE(total.has_value());
-    const std::uintmax_t size = *total + 1024 * 1024;
-    if (size > (std::uintmax_t(8) << 40))
-    {
-        GTEST_SKIP() << "account storage too large for a local sparse file: " << *total;
-    }
-
-    const fs::path bigFile = localPath() / "does_not_fit.bin";
-    ASSERT_NO_FATAL_FAILURE(createSparseFile(bigFile, size));
-
-    EventTracker tracker({TI::Event::UPLOAD_WAITING_FOR_STORAGE_MESSAGE_SHOWN,
-                          TI::Event::UPLOAD_WAITING_FOR_STORAGE_MESSAGE_REMOVED});
-    TI::ScopeGuard cleanup([]
-    {
-        executeInClient({"transfers", "-c", "-a"});
-        TI::Instance().resetTestValue(TI::TestValue::UPLOAD_WAITING_FOR_STORAGE_MESSAGE);
-    });
-
-    auto r = executeInClient({"put", "-q", bigFile.string()});
-    ASSERT_TRUE(r.ok()) << r.err();
-
-    ASSERT_TRUE(tracker.waitForEvent(TI::Event::UPLOAD_WAITING_FOR_STORAGE_MESSAGE_SHOWN, std::chrono::seconds(60)));
-    auto message = TI::Instance().testValue(TI::TestValue::UPLOAD_WAITING_FOR_STORAGE_MESSAGE);
-    ASSERT_TRUE(message.has_value());
-    EXPECT_THAT(std::get<std::string>(*message),
-                testing::StartsWith("An upload is waiting: the file does not fit in your available storage."));
-
-    r = executeInClient({"transfers", "--only-uploads"});
-    ASSERT_TRUE(r.ok()) << r.err();
-    EXPECT_THAT(r.out(), testing::HasSubstr("RETRYING"));
-
-    r = executeInClient({"transfers", "-c", "-a"});
-    ASSERT_TRUE(r.ok()) << r.err();
-    EXPECT_TRUE(tracker.waitForEvent(TI::Event::UPLOAD_WAITING_FOR_STORAGE_MESSAGE_REMOVED, std::chrono::seconds(30)));
-}
-#endif

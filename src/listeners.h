@@ -302,7 +302,7 @@ private:
     std::mutex mUploadsWaitingForStorageMutex;
     std::map<int, std::string> mUploadsWaitingForStorage;
 
-    void onUploadWaitingForStorage(const mega::MegaTransfer &transfer);
+    void onUploadWaitingForStorage(mega::MegaApi &api, const mega::MegaTransfer &transfer);
     void onUploadNotWaitingForStorage(int tag);
 
 public:

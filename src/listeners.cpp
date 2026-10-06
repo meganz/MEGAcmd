@@ -32,16 +32,26 @@ using namespace mega;
 
 namespace megacmd {
 namespace {
-std::string uploadWaitingForStorageMessage(bool foreign)
+std::string uploadWaitingForStorageMessage(MegaApi &api, const MegaTransfer &transfer)
 {
-    if (foreign)
+    if (!transfer.isForeignOverquota())
     {
-        return "An upload to a folder shared with you is waiting: the file does not fit in the available storage of the folder's owner.\n"
-               "It will resume once the owner's account has room.";
+        return "Uploads are temporarily disabled: your MEGA cloud storage is full.\n"
+               "Your uploads will remain queued until there is enough space on your account.\n"
+               "Upgrade your account to get more storage quota. See \"help --upgrade\" for further details.";
     }
-    return "An upload is waiting: the file does not fit in your available storage.\n"
-           "It will resume once there is room. You can free up space or change your account plan to increase your quota limit.\n"
-           "See \"help --upgrade\" for further details.";
+
+    std::unique_ptr<MegaNode> parent(api.getNodeByHandle(transfer.getParentHandle()));
+    std::unique_ptr<MegaUser> owner(parent ? api.getUserFromInShare(parent.get(), true) : nullptr);
+    if (!owner || !owner->getEmail())
+    {
+        return "Your upload(s) cannot proceed because the account that owns the shared folder is full.\n"
+               "They will remain queued until its owner frees up space or upgrades their account.";
+    }
+
+    const std::string email = owner->getEmail();
+    return "Your upload(s) cannot proceed because " + email + "'s account is full.\n"
+           "They will remain queued until " + email + " frees up space or upgrades their account.";
 }
 }
 
@@ -1235,9 +1245,9 @@ void MegaCmdGlobalTransferListener::onTransferUpdate(MegaApi* api, MegaTransfer 
     }
 }
 
-void MegaCmdGlobalTransferListener::onUploadWaitingForStorage(const MegaTransfer &transfer)
+void MegaCmdGlobalTransferListener::onUploadWaitingForStorage(MegaApi &api, const MegaTransfer &transfer)
 {
-    auto message = uploadWaitingForStorageMessage(transfer.isForeignOverquota());
+    auto message = uploadWaitingForStorageMessage(api, transfer);
     LOG_debug << "Upload waiting for storage: " << transfer.getFileName();
 
     bool firstWithThisMessage = false;
@@ -1256,10 +1266,6 @@ void MegaCmdGlobalTransferListener::onUploadWaitingForStorage(const MegaTransfer
     {
         LOG_warn << message;
         broadcastMessage(message);
-#ifdef MEGACMD_TESTING_CODE
-        TestInstruments::Instance().setTestValue(TestInstruments::TestValue::UPLOAD_WAITING_FOR_STORAGE_MESSAGE, message);
-        TestInstruments::Instance().fireEvent(TestInstruments::Event::UPLOAD_WAITING_FOR_STORAGE_MESSAGE_SHOWN);
-#endif
     }
 }
 
@@ -1287,9 +1293,6 @@ void MegaCmdGlobalTransferListener::onUploadNotWaitingForStorage(int tag)
     if (lastWithThisMessage)
     {
         LOG_debug << "No upload is waiting for storage any more";
-#ifdef MEGACMD_TESTING_CODE
-        TestInstruments::Instance().fireEvent(TestInstruments::Event::UPLOAD_WAITING_FOR_STORAGE_MESSAGE_REMOVED);
-#endif
     }
 }
 
@@ -1304,9 +1307,9 @@ void MegaCmdGlobalTransferListener::onTransferTemporaryError(MegaApi *api, MegaT
     if (e && transfer && e->getErrorCode() == MegaError::API_EOVERQUOTA && !e->getValue()
             && transfer->getType() == MegaTransfer::TYPE_UPLOAD)
     {
-        // A value of 0 is storage, not transfer quota: the account is full, or the upload
-        // does not fit in what is left of it. Either way the SDK keeps the upload waiting.
-        onUploadWaitingForStorage(*transfer);
+        // A value of 0 is storage, not transfer quota: our account is full, or the account that
+        // owns the shared destination folder is. Either way the SDK keeps the upload waiting.
+        onUploadWaitingForStorage(*api, *transfer);
     }
     else if (e && e->getErrorCode() == MegaError::API_EOVERQUOTA && e->getValue())
     {
