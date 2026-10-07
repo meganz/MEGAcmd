@@ -228,15 +228,6 @@ void MegaCmdGlobalListener::onNodesUpdate(MegaApi *api, MegaNodeList *nodes)
     }
 }
 
-void MegaCmdGlobalListener::onAccountUpdate(MegaApi *api)
-{
-    if (!api->getBandwidthOverquotaDelay())
-    {
-        sandboxCMD->setOverquota(false);
-    }
-    sandboxCMD->temporalbandwidth = 0; //This will cause account details to be queried again
-}
-
 void MegaCmdGlobalListener::onEvent(MegaApi *api, MegaEvent *event)
 {
     if (event->getType() == MegaEvent::EVENT_ACCOUNT_BLOCKED)
@@ -1374,24 +1365,11 @@ void MegaCmdGlobalTransferListener::onTransferTemporaryError(MegaApi *api, MegaT
         // owns the shared destination folder is. Either way the SDK keeps the upload waiting.
         onUploadWaitingForStorage(*api, *transfer);
     }
-    else if (e && e->getErrorCode() == MegaError::API_EOVERQUOTA && e->getValue())
+    else if (e && transfer && e->getErrorCode() == MegaError::API_EOVERQUOTA && e->getValue()
+             && transfer->getType() != MegaTransfer::TYPE_UPLOAD)
     {
-        if (!sandboxCMD->isOverquota())
-        {
-            LOG_warn  << "Reached bandwidth quota. Your download could not proceed "
-                         "because it would take you over the current free transfer allowance for your IP address. "
-                         "This limit is dynamic and depends on the amount of unused bandwidth we have available. "
-                         "You can change your account plan to increase such bandwidth. "
-                         "See \"help --upgrade\" for further details";
-        }
-        sandboxCMD->setOverquota(true);
-        sandboxCMD->timeOfOverquota = m_time(NULL);
-        sandboxCMD->secondsOverQuota=e->getValue();
-
-        if (transfer && transfer->getType() != MegaTransfer::TYPE_UPLOAD)
-        {
-            onDownloadWaitingForTransferQuota(transfer->getTag(), e->getValue());
-        }
+        // A value is transfer quota: the seconds the SDK keeps downloads waiting.
+        onDownloadWaitingForTransferQuota(transfer->getTag(), e->getValue());
     }
 }
 
