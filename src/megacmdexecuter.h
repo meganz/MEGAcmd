@@ -107,7 +107,7 @@ public:
 
     void updateprompt(mega::MegaApi *api = nullptr);
 
-    // The transfer quota message for a client connecting now, while downloads wait for it.
+    // The transfer quota message for a client connecting now, while the SDK waits for quota.
     std::optional<std::string> getTransferQuotaGreeting();
 
     // nodes browsing

@@ -67,6 +67,43 @@ std::optional<std::string> transferQuotaWaitMessage(m_time_t secondsLeft)
            "See \"help --upgrade\" for further details.";
 }
 
+bool TransferQuotaWaitNotice::onWait(m_time_t seconds)
+{
+    const auto now = m_time();
+    {
+        std::lock_guard<std::mutex> g(mMutex);
+        // Every download and streaming read gets the error when the quota runs out: announce the
+        // wait once, and again only if the quota runs out again after that wait is over.
+        const bool newWait = now >= mWaitEnd;
+        mWaitEnd = std::max(mWaitEnd, now + seconds);
+        if (!newWait)
+        {
+            return false;
+        }
+    }
+
+    auto message = transferQuotaWaitMessage(seconds);
+    if (!message)
+    {
+        return false;
+    }
+    LOG_warn << *message;
+    broadcastMessage(*message);
+    return true;
+}
+
+void TransferQuotaWaitNotice::forget()
+{
+    std::lock_guard<std::mutex> g(mMutex);
+    mWaitEnd = 0;
+}
+
+TransferQuotaWaitNotice &transferQuotaWaitNotice()
+{
+    static TransferQuotaWaitNotice notice;
+    return notice;
+}
+
 #ifdef ENABLE_CHAT
 void MegaCmdGlobalListener::onChatsUpdate(MegaApi*, MegaTextChatList*)
 {
@@ -422,6 +459,12 @@ void MegaCmdGlobalListener::onEvent(MegaApi *api, MegaEvent *event)
     else if (event->getType() == MegaEvent::EVENT_NODES_CURRENT)
     {
         sandboxCMD->mNodesCurrentPromise.fulfil();
+    }
+    else if (event->getType() == MegaEvent::EVENT_STREAM_OVERQUOTA)
+    {
+        // Streaming reads, such as the ones for FUSE, are not transfers: no temporary error
+        // reaches the transfer listener, the SDK reports their wait here instead.
+        transferQuotaWaitNotice().onWait(event->getNumber());
     }
 }
 
@@ -1238,7 +1281,6 @@ void MegaCmdGlobalTransferListener::onTransferFinish(MegaApi* api, MegaTransfer 
     addCompletedTransfer(std::unique_ptr<MegaTransfer>(transfer->copy()), nodePath);
 
     onUploadNotWaitingForStorage(transfer->getTag());
-    onDownloadNotWaitingForTransferQuota(transfer->getTag());
 }
 
 void MegaCmdGlobalTransferListener::onTransferUpdate(MegaApi* api, MegaTransfer *transfer)
@@ -1246,7 +1288,6 @@ void MegaCmdGlobalTransferListener::onTransferUpdate(MegaApi* api, MegaTransfer 
     if (transfer && transfer->getState() != MegaTransfer::STATE_RETRYING)
     {
         onUploadNotWaitingForStorage(transfer->getTag());
-        onDownloadNotWaitingForTransferQuota(transfer->getTag());
     }
 }
 
@@ -1301,59 +1342,10 @@ void MegaCmdGlobalTransferListener::onUploadNotWaitingForStorage(int tag)
     }
 }
 
-void MegaCmdGlobalTransferListener::onDownloadWaitingForTransferQuota(int tag, m_time_t seconds)
+void MegaCmdGlobalTransferListener::forgetUploadsWaitingForStorage()
 {
-    const auto now = m_time();
-    bool newWait = false;
-    {
-        std::lock_guard<std::mutex> g(mDownloadsWaitingForTransferQuotaMutex);
-        // Every download gets the error when the quota runs out: announce the wait once,
-        // and again only if the quota runs out again after that wait is over.
-        newWait = mDownloadsWaitingForTransferQuota.empty() || now >= mTransferQuotaWaitEnd;
-        mDownloadsWaitingForTransferQuota.insert(tag);
-        mTransferQuotaWaitEnd = now + seconds;
-    }
-
-    if (newWait)
-    {
-        if (auto message = transferQuotaWaitMessage(seconds))
-        {
-            LOG_warn << *message;
-            broadcastMessage(*message);
-        }
-    }
-}
-
-void MegaCmdGlobalTransferListener::onDownloadNotWaitingForTransferQuota(int tag)
-{
-    std::lock_guard<std::mutex> g(mDownloadsWaitingForTransferQuotaMutex);
-    if (mDownloadsWaitingForTransferQuota.erase(tag) && mDownloadsWaitingForTransferQuota.empty())
-    {
-        LOG_debug << "No download is waiting for transfer quota any more";
-    }
-}
-
-std::optional<std::string> MegaCmdGlobalTransferListener::transferQuotaGreeting()
-{
-    std::lock_guard<std::mutex> g(mDownloadsWaitingForTransferQuotaMutex);
-    if (mDownloadsWaitingForTransferQuota.empty())
-    {
-        return std::nullopt;
-    }
-    return transferQuotaWaitMessage(mTransferQuotaWaitEnd - m_time());
-}
-
-void MegaCmdGlobalTransferListener::forgetWaitingTransfers()
-{
-    {
-        std::lock_guard<std::mutex> g(mUploadsWaitingForStorageMutex);
-        mUploadsWaitingForStorage.clear();
-    }
-    {
-        std::lock_guard<std::mutex> g(mDownloadsWaitingForTransferQuotaMutex);
-        mDownloadsWaitingForTransferQuota.clear();
-        mTransferQuotaWaitEnd = 0;
-    }
+    std::lock_guard<std::mutex> g(mUploadsWaitingForStorageMutex);
+    mUploadsWaitingForStorage.clear();
 }
 
 void MegaCmdGlobalTransferListener::onTransferTemporaryError(MegaApi *api, MegaTransfer *transfer, MegaError* e)
@@ -1369,7 +1361,7 @@ void MegaCmdGlobalTransferListener::onTransferTemporaryError(MegaApi *api, MegaT
              && transfer->getType() != MegaTransfer::TYPE_UPLOAD)
     {
         // A value is transfer quota: the seconds the SDK keeps downloads waiting.
-        onDownloadWaitingForTransferQuota(transfer->getTag(), e->getValue());
+        transferQuotaWaitNotice().onWait(e->getValue());
     }
 }
 

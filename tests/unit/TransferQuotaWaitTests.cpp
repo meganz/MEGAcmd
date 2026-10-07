@@ -16,17 +16,24 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
+#include <chrono>
+#include <thread>
+
 #include "comunicationsmanager.h"
 #include "listeners.h"
 #include "megacmdsandbox.h"
 
 using mega::MegaError;
 using mega::MegaErrorPrivate;
+using mega::MegaEvent;
+using mega::MegaEventPrivate;
 using mega::MegaTransfer;
 using megacmd::ComunicationsManager;
+using megacmd::MegaCmdGlobalListener;
 using megacmd::MegaCmdGlobalTransferListener;
 using megacmd::MegaCmdSandbox;
 using megacmd::transferQuotaWaitMessage;
+using megacmd::transferQuotaWaitNotice;
 using testing::HasSubstr;
 using testing::StartsWith;
 
@@ -62,28 +69,40 @@ public:
     void sendPartialError(megacmd::CmdPetition *, char *, size_t, bool) override {}
 };
 
+// The notice is shared by the whole server, so every test starts and ends with no wait known.
 class TransferQuotaWait : public testing::Test
 {
     NoClientsManager mManager;
 
 protected:
     MegaCmdSandbox mSandbox;
-    MegaCmdGlobalTransferListener mListener{nullptr, &mSandbox};
+    MegaCmdGlobalTransferListener mTransferListener{nullptr, &mSandbox};
+    MegaCmdGlobalListener mGlobalListener{nullptr, &mSandbox};
 
-    void SetUp() override { megacmd::cm = &mManager; }
-    void TearDown() override { megacmd::cm = nullptr; }
-
-    void transferQuotaRunsOut(int type, int tag, long long seconds)
+    void SetUp() override
     {
-        FakeTransfer transfer(type, tag, MegaTransfer::STATE_RETRYING);
-        MegaErrorPrivate overquota(MegaError::API_EOVERQUOTA, seconds);
-        mListener.onTransferTemporaryError(nullptr, &transfer, &overquota);
+        megacmd::cm = &mManager;
+        transferQuotaWaitNotice().forget();
     }
 
-    void downloadMovesAgain(int tag)
+    void TearDown() override
     {
-        FakeTransfer transfer(MegaTransfer::TYPE_DOWNLOAD, tag, MegaTransfer::STATE_ACTIVE);
-        mListener.onTransferUpdate(nullptr, &transfer);
+        transferQuotaWaitNotice().forget();
+        megacmd::cm = nullptr;
+    }
+
+    void transferQuotaRunsOut(int type, long long seconds)
+    {
+        FakeTransfer transfer(type, 7, MegaTransfer::STATE_RETRYING);
+        MegaErrorPrivate overquota(MegaError::API_EOVERQUOTA, seconds);
+        mTransferListener.onTransferTemporaryError(nullptr, &transfer, &overquota);
+    }
+
+    void streamingReadRunsOut(long long seconds)
+    {
+        MegaEventPrivate event(MegaEvent::EVENT_STREAM_OVERQUOTA);
+        event.setNumber(seconds);
+        mGlobalListener.onEvent(nullptr, &event);
     }
 };
 
@@ -103,42 +122,45 @@ TEST(TransferQuotaWaitMessage, isNothingOnceTheWaitIsOver)
     EXPECT_FALSE(transferQuotaWaitMessage(-30).has_value());
 }
 
-TEST_F(TransferQuotaWait, greetingShowsTheWaitWhileADownloadWaits)
+TEST_F(TransferQuotaWait, announcesAWaitOnce)
 {
-    EXPECT_FALSE(mListener.transferQuotaGreeting().has_value());
-
-    // 630 seconds reads as 10 minutes even if a second passes before the greeting
-    transferQuotaRunsOut(MegaTransfer::TYPE_DOWNLOAD, 7, 630);
-
-    auto greeting = mListener.transferQuotaGreeting();
-    ASSERT_TRUE(greeting.has_value());
-    EXPECT_THAT(*greeting, HasSubstr("wait for 10 minutes"));
+    EXPECT_TRUE(transferQuotaWaitNotice().onWait(630));
+    EXPECT_FALSE(transferQuotaWaitNotice().onWait(630));
 }
 
-TEST_F(TransferQuotaWait, greetingStaysUntilTheLastWaitingDownloadMovesAgain)
+TEST_F(TransferQuotaWait, announcesAgainWhenTheQuotaRunsOutAfterTheWait)
 {
-    transferQuotaRunsOut(MegaTransfer::TYPE_DOWNLOAD, 7, 630);
-    transferQuotaRunsOut(MegaTransfer::TYPE_DOWNLOAD, 8, 630);
-
-    downloadMovesAgain(7);
-    EXPECT_TRUE(mListener.transferQuotaGreeting().has_value());
-
-    downloadMovesAgain(8);
-    EXPECT_FALSE(mListener.transferQuotaGreeting().has_value());
+    EXPECT_TRUE(transferQuotaWaitNotice().onWait(1));
+    std::this_thread::sleep_for(std::chrono::milliseconds(2100));
+    EXPECT_TRUE(transferQuotaWaitNotice().onWait(1));
 }
 
-TEST_F(TransferQuotaWait, logoutForgetsTheWaitingDownloads)
+TEST_F(TransferQuotaWait, aDownloadThatRunsOutAnnouncesTheWait)
 {
-    transferQuotaRunsOut(MegaTransfer::TYPE_DOWNLOAD, 7, 630);
+    transferQuotaRunsOut(MegaTransfer::TYPE_DOWNLOAD, 630);
 
-    mListener.forgetWaitingTransfers();
-
-    EXPECT_FALSE(mListener.transferQuotaGreeting().has_value());
+    EXPECT_FALSE(transferQuotaWaitNotice().onWait(630));
 }
 
-TEST_F(TransferQuotaWait, onlyDownloadsWaitForTransferQuota)
+TEST_F(TransferQuotaWait, aStreamingReadThatRunsOutAnnouncesTheWait)
 {
-    transferQuotaRunsOut(MegaTransfer::TYPE_UPLOAD, 9, 630);
+    streamingReadRunsOut(630);
 
-    EXPECT_FALSE(mListener.transferQuotaGreeting().has_value());
+    EXPECT_FALSE(transferQuotaWaitNotice().onWait(630));
+}
+
+TEST_F(TransferQuotaWait, onlyDownloadsAnnounceATransferQuotaWait)
+{
+    transferQuotaRunsOut(MegaTransfer::TYPE_UPLOAD, 630);
+
+    EXPECT_TRUE(transferQuotaWaitNotice().onWait(630));
+}
+
+TEST_F(TransferQuotaWait, logoutForgetsTheWait)
+{
+    EXPECT_TRUE(transferQuotaWaitNotice().onWait(630));
+
+    transferQuotaWaitNotice().forget();
+
+    EXPECT_TRUE(transferQuotaWaitNotice().onWait(630));
 }

@@ -190,7 +190,8 @@ void MegaCmdExecuter::updateprompt(MegaApi *api)
 
 std::optional<std::string> MegaCmdExecuter::getTransferQuotaGreeting()
 {
-    return globalTransferListener->transferQuotaGreeting();
+    // The SDK's own wait ends early on an upgrade, and on logout: the greeting never outlives it.
+    return transferQuotaWaitMessage(api->getBandwidthOverquotaDelay());
 }
 
 MegaCmdExecuter::MegaCmdExecuter(MegaApi *api, MegaCmdLogger *loggerCMD, MegaCmdSandbox *sandboxCMD) :
@@ -2993,7 +2994,8 @@ void MegaCmdExecuter::actUponLogout(MegaApi& api, MegaError* e, bool keptSession
         // clear greetings (asuming they are account-related)
         clearGreetingStatusAllListener();
         clearGreetingStatusFirstListener();
-        globalTransferListener->forgetWaitingTransfers();
+        globalTransferListener->forgetUploadsWaitingForStorage();
+        transferQuotaWaitNotice().forget();
     }
     updateprompt(&api);
 }
