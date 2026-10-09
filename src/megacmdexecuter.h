@@ -25,6 +25,8 @@
 #include "deferred_single_trigger.h"
 #include "sync_issues.h"
 
+#include <optional>
+
 namespace megacmd {
 class MegaCmdGlobalTransferListener;
 class MegaCmdMultiTransferListener;
@@ -220,7 +222,8 @@ public:
     // decrypt a link if it's encrypted. Returns false in case of error
     bool decryptLinkIfEncrypted(mega::MegaApi *api, std::string &publicLink, std::map<std::string, std::string> *cloptions);
 
-    bool checkAndInformPSA(CmdPetition *inf, bool enforce = false);
+    // Shows a new PSA to the state listener with that client id, or to every one if none
+    bool checkAndInformPSA(std::optional<int> clientID, bool enforce = false);
 
     // Provide a helpful error message for the provided error, setting the current error code in case of an error.
     std::string formatErrorAndMaySetErrorCode(const mega::MegaError &error);
