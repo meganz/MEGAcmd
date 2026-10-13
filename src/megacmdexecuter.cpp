@@ -2996,6 +2996,7 @@ void MegaCmdExecuter::actUponLogout(MegaApi& api, MegaError* e, bool keptSession
         // clear greetings (asuming they are account-related)
         clearGreetingStatusAllListener();
         clearGreetingStatusFirstListener();
+        globalTransferListener->forgetUploadsWaitingForStorage();
     }
     updateprompt(&api);
 }
