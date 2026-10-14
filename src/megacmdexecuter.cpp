@@ -196,6 +196,12 @@ void MegaCmdExecuter::updateprompt(MegaApi *api)
     changeprompt(newprompt.c_str());
 }
 
+std::optional<std::string> MegaCmdExecuter::getTransferQuotaGreeting()
+{
+    // The SDK's own wait ends early on an upgrade, and on logout: the greeting never outlives it.
+    return transferQuotaWaitMessage(api->getBandwidthOverquotaDelay());
+}
+
 MegaCmdExecuter::MegaCmdExecuter(MegaApi *api, MegaCmdLogger *loggerCMD, MegaCmdSandbox *sandboxCMD) :
     // Give a few seconds in order for key sharing to happen
     mFsAccessCMD(::mega::createFSA()),
@@ -2997,6 +3003,7 @@ void MegaCmdExecuter::actUponLogout(MegaApi& api, MegaError* e, bool keptSession
         clearGreetingStatusAllListener();
         clearGreetingStatusFirstListener();
         globalTransferListener->forgetUploadsWaitingForStorage();
+        transferQuotaWaitNotice().forget();
     }
     updateprompt(&api);
 }
@@ -3294,69 +3301,16 @@ int MegaCmdExecuter::deleteNode(const std::unique_ptr<MegaNode>& nodeToDelete, M
 void MegaCmdExecuter::downloadNode(string source, string path, MegaApi* api, MegaNode *node, bool background, bool ignorequotawarn,
                                    int clientID, std::shared_ptr<MegaCmdMultiTransferListener> multiTransferListener)
 {
-
-
-    if (sandboxCMD->isOverquota() && !ignorequotawarn)
+    // The SDK of the api that downloads knows how long it keeps downloads stopped after a
+    // bandwidth overquota. Folder links download through their own api: the API may serve them
+    // from the quota the folder's owner reserves, so our own wait does not apply to them.
+    const long long secondsLeft = api->getBandwidthOverquotaDelay();
+    if (secondsLeft > 0 && !ignorequotawarn)
     {
-        m_time_t ts = m_time();
-        // in order to speedup and not flood the server we only ask for the details every 1 minute or after account changes
-        if (!sandboxCMD->temporalbandwidth || (ts - sandboxCMD->lastQuerytemporalBandwith ) > 60 )
-        {
-            LOG_verbose << " Updating temporal bandwidth ";
-            sandboxCMD->lastQuerytemporalBandwith = ts;
-
-            MegaCmdListener *megaCmdListener = new MegaCmdListener(api, NULL);
-            api->getExtendedAccountDetails(false, false, false, megaCmdListener);
-            megaCmdListener->wait();
-
-            if (checkNoErrors(megaCmdListener->getError(), "get account details"))
-            {
-                MegaAccountDetails *details = megaCmdListener->getRequest()->getMegaAccountDetails();
-                sandboxCMD->istemporalbandwidthvalid = details->isTemporalBandwidthValid();
-                if (details && details->isTemporalBandwidthValid())
-                {
-                    sandboxCMD->temporalbandwidth = details->getTemporalBandwidth();
-                    sandboxCMD->temporalbandwithinterval = details->getTemporalBandwidthInterval();
-                }
-            }
-            delete megaCmdListener;
-        }
-
-        OUTSTREAM << "Transfer not started. " << endl;
-        if (sandboxCMD->istemporalbandwidthvalid)
-        {
-            OUTSTREAM << "You have utilized " << sizeToText(sandboxCMD->temporalbandwidth) << " of data transfer in the last "
-                      << sandboxCMD->temporalbandwithinterval << " hours, "
-                      "which took you over our current limit";
-        }
-        else
-        {
-            OUTSTREAM << "You have reached your bandwidth quota";
-        }
-        OUTSTREAM << ". To circumvent this limit, "
-                  "you can upgrade to Pro, which will give you your own bandwidth "
-                  "package and also ample extra storage space. "
-                     "Alternatively, you can try again in " << secondsToText(sandboxCMD->secondsOverQuota-(ts-sandboxCMD->timeOfOverquota)) <<
-                     "." << endl << "See \"help --upgrade\" for further details" << endl;
+        setCurrentThreadOutCode(MegaError::API_EOVERQUOTA);
+        OUTSTREAM << "Transfer not started. " << transferQuotaWaitMessage(secondsLeft).value() << endl;
         OUTSTREAM << "Use --ignore-quota-warn to initiate nevertheless" << endl;
         return;
-    }
-
-    if (!ignorequotawarn)
-    {
-        MegaCmdListener *megaCmdListener = new MegaCmdListener(api, NULL);
-        api->queryTransferQuota(node->getSize(),megaCmdListener);
-        megaCmdListener->wait();
-        if (checkNoErrors(megaCmdListener->getError(), "query transfer quota"))
-        {
-            if (megaCmdListener->getRequest() && megaCmdListener->getRequest()->getFlag() )
-            {
-                OUTSTREAM << "Transfer not started: proceeding will exceed transfer quota. "
-                             "Use --ignore-quota-warn to initiate nevertheless" << endl;
-                return;
-            }
-        }
-        delete megaCmdListener;
     }
 
     multiTransferListener->onNewTransfer();

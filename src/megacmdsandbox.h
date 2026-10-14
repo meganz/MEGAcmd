@@ -89,7 +89,6 @@ public:
 class MegaCmdSandbox
 {
 private:
-    bool overquota;
     std::mutex reasonBlockedMutex;
     std::string reasonblocked;
     bool reasonPending = false;
@@ -99,13 +98,6 @@ private:
 
 public:
     NodesCurrentPromise mNodesCurrentPromise;
-
-    bool istemporalbandwidthvalid;
-    long long temporalbandwidth;
-    long long temporalbandwithinterval;
-    ::mega::m_time_t lastQuerytemporalBandwith;
-    ::mega::m_time_t timeOfOverquota;
-    ::mega::m_time_t secondsOverQuota;
 
     ::mega::m_time_t timeOfPSACheck;
     int lastPSAnumreceived;
@@ -118,8 +110,6 @@ public:
 
 public:
     MegaCmdSandbox();
-    bool isOverquota() const;
-    void setOverquota(bool value);
     void resetSandBox();
 
     std::string getReasonblocked();
