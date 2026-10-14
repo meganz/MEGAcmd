@@ -1530,18 +1530,85 @@ fs::path PosixDirectories::configDirPath()
     std::string home = homeDirPath();
     if (home.empty())
     {
-        return noHomeFallbackFolder();
+        return getOrCreateFallbackFolder();
     }
 
     struct stat path_stat = {};
     bool exists = !stat(home.c_str(), &path_stat) && S_ISDIR(path_stat.st_mode);
 
-    return exists ? home.append("/.megaCmd") : noHomeFallbackFolder();
+    return exists ? home.append("/.megaCmd") : getOrCreateFallbackFolder();
 }
 
 string PosixDirectories::noHomeFallbackFolder()
 {
     return std::string("/tmp/megacmd-").append(std::to_string(getuid()));
+}
+
+string PosixDirectories::getOrCreateFallbackFolder()
+{
+    std::string folder = noHomeFallbackFolder();
+    if (std::string error; !createOrCheckPrivateFolder(folder, error))
+    {
+        // Called on every path lookup, so report the problem once
+        static std::once_flag reported;
+        std::call_once(reported, [&folder, &error]
+        {
+            std::cerr << "ERROR: Cannot use " << folder << " for MEGAcmd files: " << error << std::endl;
+            std::cerr << "This folder is used when HOME is missing or too long for the socket path.";
+            if (struct stat info = {}; lstat(folder.c_str(), &info) == 0)
+            {
+                std::cerr << " It must belong to you and be accessible only by you: run \"chmod 700 " << folder
+                          << "\" if it is yours, or ask an administrator to remove it.";
+            }
+            std::cerr << std::endl;
+        });
+        return std::string();
+    }
+    return folder;
+}
+
+bool createOrCheckPrivateFolder(const std::string& folder, std::string& error)
+{
+    if (mkdir(folder.c_str(), S_IRWXU) == 0)
+    {
+        return true;
+    }
+
+    if (errno != EEXIST)
+    {
+        error = std::strerror(errno);
+        return false;
+    }
+
+    // lstat, not stat: the owner of a symbolic link can point it somewhere else at any time
+    struct stat info = {};
+    if (lstat(folder.c_str(), &info) != 0)
+    {
+        error = std::strerror(errno);
+        return false;
+    }
+
+    if (!S_ISDIR(info.st_mode))
+    {
+        error = "it is not a folder";
+        return false;
+    }
+
+    if (info.st_uid != geteuid())
+    {
+        error = "it belongs to another user (uid " + std::to_string(info.st_uid) + ")";
+        return false;
+    }
+
+    if (info.st_mode & (S_IRWXG | S_IRWXO))
+    {
+        std::ostringstream os;
+        os << "other users have access to it (permissions " << std::oct << (info.st_mode & 0777) << ")";
+        error = os.str();
+        return false;
+    }
+
+    return true;
 }
 
 #ifdef __APPLE__
@@ -1558,7 +1625,7 @@ fs::path MacOSDirectories::runtimeDirPath()
     struct stat path_stat = {};
     bool exists = !stat(cachesPath.c_str(), &path_stat) && S_ISDIR(path_stat.st_mode);
 
-    return exists ? cachesPath.append("/megacmd.mac") : noHomeFallbackFolder();
+    return exists ? cachesPath.append("/megacmd.mac") : getOrCreateFallbackFolder();
 }
 #endif // !defined(__APPLE__)
 
@@ -1569,7 +1636,7 @@ std::string getOrCreateSocketPath(bool createDirectory)
     if (socketFolder.empty())
     {
         std::cerr << "FATAL: Could not get runtime folder for socket path" << std::endl;
-        throw std::runtime_error("Could not get runtime folder for socket path");
+        return std::string();
     }
 
     const char *sockname_c = getenv("MEGACMD_SOCKET_NAME");
@@ -1583,7 +1650,11 @@ std::string getOrCreateSocketPath(bool createDirectory)
         {
             std::cerr << "WARN: socket path in runtime dir would exceed max size. Falling back to /tmp" << std::endl;
         }
-        socketFolder = PosixDirectories::noHomeFallbackFolder();
+        socketFolder = PosixDirectories::getOrCreateFallbackFolder();
+        if (socketFolder.empty())
+        {
+            return std::string();
+        }
     }
 
     struct stat path_stat = {};

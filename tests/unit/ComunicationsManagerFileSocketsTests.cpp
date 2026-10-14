@@ -32,6 +32,7 @@
 #include <gtest/gtest.h>
 
 #include "Instruments.h"
+#include "TestUtils.h"
 #include "comunicationsmanagerfilesockets.h"
 #include "megacmdcommonutils.h"
 
@@ -243,6 +244,21 @@ TEST_F(ComunicationsManagerFileSocketsTest, InitializeWithLongSocketPath)
     ComunicationsManagerFileSockets manager;
     int result = manager.initialize();
     EXPECT_EQ(result, -1);
+}
+
+TEST_F(ComunicationsManagerFileSocketsTest, InitializeWithUnusableFallbackFolder)
+{
+    // Long enough for the socket to fall back to /tmp
+    SelfDeletingTmpFolder tmpFolder("this_is_a_very_very_very_lengthy_folder_name_meant_to_make_socket_path_exceed_max_unix_socket_path_allowance");
+#ifdef __APPLE__
+    fs::create_directories(tmpFolder.path() / "Library" / "Caches");
+#endif
+    auto homeGuard = TestInstrumentsEnvVarGuard("HOME", tmpFolder.string());
+    UnusableFallbackFolderGuard fallbackGuard;
+
+    ComunicationsManagerFileSockets manager;
+    EXPECT_EQ(manager.initialize(), -1);
+    EXPECT_EQ(manager.waitForPetition(), EBADF);
 }
 
 TEST_F(ComunicationsManagerFileSocketsWithClientTest, GetPetitionReadsData)

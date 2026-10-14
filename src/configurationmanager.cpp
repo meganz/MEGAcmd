@@ -28,6 +28,7 @@
 #include <fstream>
 #include <algorithm>
 #include <cctype>
+#include <cstring>
 #include <limits>
 #include <memory>
 #include <mutex>
@@ -49,6 +50,8 @@
 #else
 #include <pwd.h>  //getpwuid_r
 #include <sys/file.h> //flock
+#include <sys/stat.h> //fchmod
+#include <fcntl.h>
 #endif
 
 #ifdef _WIN32
@@ -183,6 +186,19 @@ void ConfigurationManager::saveSession(const char*session)
 
     const fs::path sessionFilePath = configDir / "session";
     LOG_debug << "Session file: " << sessionFilePath;
+
+#ifndef WIN32
+    // The session gives access to the account: only its owner may read it, also when the file
+    // was created by an older version. Set that before the session is written into it.
+    if (int fd = open(sessionFilePath.c_str(), O_WRONLY | O_CREAT | O_CLOEXEC, S_IRUSR | S_IWUSR); fd >= 0)
+    {
+        if (fchmod(fd, S_IRUSR | S_IWUSR) != 0)
+        {
+            LOG_err << "Failed to restrict permissions of session file " << sessionFilePath << ": " << strerror(errno);
+        }
+        close(fd);
+    }
+#endif
 
     ofstream fo(sessionFilePath, ios::out);
     if (fo.is_open())

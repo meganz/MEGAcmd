@@ -50,7 +50,9 @@ int ComunicationsManagerFileSockets::initialize()
 
     if (socketPath.empty())
     {
-        LOG_fatal  << "Could not create runtime directory for socket file: " << strerror(errno);
+        // Binding an empty path on Linux creates an abstract socket, which any local user can connect to
+        LOG_fatal  << "Could not get a usable folder for the socket file";
+        return -1;
     }
     if (socketPath.size() >= (ARRAYSIZE(addr.sun_path) - 1))
     {

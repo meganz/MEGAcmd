@@ -5657,6 +5657,16 @@ int executeServer(int argc, char* argv[],
     mcmdMainArgv = argv;
     mcmdMainArgc = argc;
 
+#ifndef _WIN32
+    // Empty when there is no folder the server can safely use: an unsafe /tmp fallback (see PlatformDirectories),
+    // or one it cannot create. Checked before the lock, which would report that as another running instance.
+    if (ConfigurationManager::getConfigFolder().empty() || getOrCreateSocketPath(true).empty())
+    {
+        cerr << "MEGAcmd Server cannot start: no usable folder for its session and socket" << endl;
+        return -3;
+    }
+#endif
+
     ConfigurationManager::loadConfiguration(logConfig.mCmdLogLevel >= MegaApi::LOG_LEVEL_DEBUG);
     if (!ConfigurationManager::lockExecution() && !skiplockcheck)
     {
