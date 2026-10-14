@@ -439,7 +439,8 @@ void MegaCmdGlobalListener::onEvent(MegaApi *api, MegaEvent *event)
     else if (event->getType() == MegaEvent::EVENT_SYNCS_DISABLED)
     {
         std::unique_ptr<const char[]> megaSyncErrorCode {MegaSync::getMegaSyncErrorCode(int(event->getNumber()))};
-        removeDelayedBroadcastMatching("Your sync has been disabled");
+        // drop the per-sync notices onSyncStateChanged queued for this same reason
+        removeDelayedBroadcastMatching(std::string(". ErrorCode: ").append(megaSyncErrorCode.get()));
         broadcastMessage(std::string("Your syncs have been disabled. Reason: ")
                          .append(megaSyncErrorCode.get()), true);
     }
