@@ -22,7 +22,19 @@
 #include "megacmd.h"
 #include "megacmdcommonutils.h"
 
+#include <chrono>
+
 namespace megacmd {
+
+// How long quitting waits for petitions still running before tearing down around them.
+constexpr std::chrono::seconds QUIT_ONGOING_PETITIONS_WAIT{5};
+
+// A write to a state listener gives up after this long: listeners are written to while
+// holding mStateListenersMutex, so a client that stopped reading cannot be waited for.
+// Shorter than the quit wait, so a petition stuck in such a write ends before cm is deleted.
+constexpr std::chrono::seconds STATE_LISTENER_SEND_TIMEOUT = QUIT_ONGOING_PETITIONS_WAIT - std::chrono::seconds{1};
+static_assert(STATE_LISTENER_SEND_TIMEOUT > std::chrono::seconds::zero());
+
 class CmdPetition
 {
     std::string mLine;

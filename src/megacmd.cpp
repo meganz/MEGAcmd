@@ -360,8 +360,10 @@ namespace {
 // connecting has a chance to register before the first one goes out.
 //
 // Owns the thread that does the waiting. Unlike UpdateChecker, the wait is on a
-// condition variable this class controls, so a stop always returns promptly and
-// the thread is always joinable: it cannot outlive what it reaches into.
+// condition variable this class controls, and writes to state listeners time out
+// (STATE_LISTENER_SEND_TIMEOUT), so a stop returns once a broadcast in progress
+// has been written or has timed out, and the thread is always joined: it cannot
+// outlive what it reaches into.
 class DelayedBroadcaster
 {
 public:
@@ -4572,12 +4574,13 @@ static void waitForOngoingPetitions()
         self = inf->getPetitionThread(); // a petition cannot join itself
     }
 
-    int attempts = 250; // 5 seconds
+    constexpr auto step = std::chrono::milliseconds(20);
+    auto attempts = QUIT_ONGOING_PETITIONS_WAIT / step;
     delete_finished_threads();
 
     while (ongoingPetitions(self) && attempts--)
     {
-        sleepMilliSeconds(20);
+        sleepMilliSeconds(step.count());
         delete_finished_threads();
     }
 
