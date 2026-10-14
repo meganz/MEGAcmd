@@ -309,6 +309,7 @@ class MegaCmdLogger : public mega::MegaLogger
     int mSdkLoggerLevel;
     int mCmdLoggerLevel;
     int mFlushOnLevel;
+    bool mLogThreadId;
 
 protected:
     static bool isMegaCmdSource(const std::string &source);
@@ -325,10 +326,12 @@ public:
     void setSdkLoggerLevel(int sdkLoggerLevel) { mSdkLoggerLevel = sdkLoggerLevel; }
     void setCmdLoggerLevel(int cmdLoggerLevel) { mCmdLoggerLevel = cmdLoggerLevel; }
     void setFlushOnLevel(int flushOnLevel)     { mFlushOnLevel = flushOnLevel; }
+    void setLogThreadId(bool logThreadId)      { mLogThreadId = logThreadId; }
 
     int getSdkLoggerLevel() const { return mSdkLoggerLevel; }
     int getCmdLoggerLevel() const { return mCmdLoggerLevel; }
     int getFlushOnLevel()   const { return mFlushOnLevel; }
+    bool getLogThreadId()   const { return mLogThreadId; }
 
     virtual int getMaxLogLevel() const { return std::max(mSdkLoggerLevel, mCmdLoggerLevel); }
 

@@ -208,6 +208,14 @@ struct LogConfig
     int mCmdLogLevel = mega::MegaApi::LOG_LEVEL_DEBUG;
     bool mLogToCout = true;
     bool mJsonLogs = false;
+    // Records at this level or worse ask the logging stream to drain. Note that
+    // the file stream drains on a writer thread, so this brings the write
+    // forward but does not guarantee the record is on disk before the next
+    // statement runs.
+    int mFlushOnLevel = mega::MegaApi::LOG_LEVEL_WARNING;
+    // Prefix every record with the id of the thread that emitted it. Off by
+    // default because the same formatter feeds the output a client sees.
+    bool mLogThreadId = false;
 };
 
 class LoggedStream; // forward delaration

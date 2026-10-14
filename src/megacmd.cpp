@@ -4621,6 +4621,67 @@ void LinuxSignalHandler(int signum)
 }
 #endif
 
+namespace {
+
+// The logging stream hands records to a writer thread, so the last few records
+// before a process dies can be missing from the file. When MEGACMD_TRACE_TEARDOWN
+// is set, each step is also written straight to the standard error handle, which
+// is ordered, unbuffered, and ends up in the console of whatever ran the process.
+void teardownNote(const char* what, int ordinal = -1)
+{
+    static const bool wanted = getenv("MEGACMD_TRACE_TEARDOWN") != nullptr;
+    if (!wanted)
+    {
+        return;
+    }
+
+    char line[256];
+    int length = 0;
+    if (ordinal >= 0)
+    {
+        length = snprintf(line, sizeof(line), "teardown: %s %d\n", what, ordinal);
+    }
+    else
+    {
+        length = snprintf(line, sizeof(line), "teardown: %s\n", what);
+    }
+    if (length <= 0)
+    {
+        return;
+    }
+
+#ifdef _WIN32
+    // Not fprintf: the integration tests put stderr into UTF-16 mode, where a
+    // narrow write is misread and an odd length trips the CRT's invalid parameter
+    // handler. Writing to the handle avoids the text mode entirely.
+    DWORD written = 0;
+    WriteFile(GetStdHandle(STD_ERROR_HANDLE), line,
+              static_cast<DWORD>(length), &written, NULL);
+#else
+    fwrite(line, 1, static_cast<size_t>(length), stderr);
+    fflush(stderr);
+#endif
+}
+
+// Names the step about to run, so that a process which dies mid-teardown can be
+// placed. Debug level, since this is only of interest when something is wrong and
+// that is when logging is raised anyway.
+void teardownStep(const char* what, int ordinal = -1)
+{
+    if (ordinal >= 0)
+    {
+        LOG_debug << "teardown: " << what << " " << ordinal;
+    }
+    else
+    {
+        LOG_debug << "teardown: " << what;
+    }
+
+    teardownNote(what, ordinal);
+}
+
+} // namespace
+
 void finalize(bool waitForRestartSignal_param)
 {
     static bool alreadyfinalized = false;
@@ -4629,15 +4690,24 @@ void finalize(bool waitForRestartSignal_param)
     alreadyfinalized = true;
     LOG_info << "closing application ...";
 
+    // The teardown destroys objects that SDK threads may still be calling into,
+    // and it takes a couple of hundred milliseconds, so each step announces itself
+    // first. That is what makes it possible to say which step a process was in
+    // when it died.
+
     // Stop the update check before anything it reaches into is destroyed.
+    teardownStep("stopping the update check");
     stopAndJoinUpdateCheck();
 
     // Likewise the delayed broadcast: it hands messages to cm, deleted below.
+    teardownStep("stopping the delayed broadcast");
     stopAndJoinDelayedBroadcast();
 
+    teardownStep("waiting for ongoing petitions");
     waitForOngoingPetitions();
     if (!consoleFailed)
     {
+        teardownStep("deleting the console");
         delete console;
     }
 
@@ -4645,28 +4715,36 @@ void finalize(bool waitForRestartSignal_param)
     // while it is alive.
     if (cmdexecuter)
     {
+        teardownStep("stopping the deferred work of cmdexecuter");
         cmdexecuter->stopDeferredWork();
     }
     if (megaCmdMegaListener)
     {
+        teardownStep("detaching megaCmdMegaListener from the api");
         megaCmdMegaListener->detachFromApi();
     }
 
     if (threadRetryConnections)
     {
+        teardownStep("joining the retryConnections thread");
         threadRetryConnections->join();
     }
+    teardownStep("deleting the retryConnections thread object");
     delete threadRetryConnections;
+    teardownStep("deleting the main api");
     delete api;
 
+    int apiFolderOrdinal = 0;
     while (!apiFolders.empty())
     {
+        teardownStep("deleting free apiFolder", apiFolderOrdinal++);
         delete apiFolders.front();
         apiFolders.pop();
     }
 
     for (std::vector< MegaApi * >::iterator it = occupiedapiFolders.begin(); it != occupiedapiFolders.end(); ++it)
     {
+        teardownStep("deleting occupied apiFolder", apiFolderOrdinal++);
         delete ( *it );
     }
 
@@ -4674,8 +4752,11 @@ void finalize(bool waitForRestartSignal_param)
 
     // Every api is gone, and their destructors joined the threads that dispatch
     // callbacks, so no callback can still be running in the listeners.
+    teardownStep("deleting megaCmdGlobalListener");
     delete megaCmdGlobalListener;
+    teardownStep("deleting megaCmdMegaListener");
     delete megaCmdMegaListener;
+    teardownStep("deleting cmdexecuter");
     delete cmdexecuter;
 
 #ifdef __linux__
@@ -4693,16 +4774,24 @@ void finalize(bool waitForRestartSignal_param)
         }
     }
 #endif
+    teardownStep("deleting the communications manager");
     delete cm; // closes the socket; must happen after restartServer() so clients
                // are notified, and before exit so the new server can bind it
 
     LOG_debug << "resources have been cleaned ...";
     LOG_info << "----------------------------- program end -------------------------------";
 
+    // The last step that can still be logged. Anything past the logger being
+    // destroyed can only be traced through the standard error handle, since going
+    // through the logger would use the object just freed.
+    teardownStep("unregistering and deleting the logger");
     MegaApi::removeLoggerObject(loggerCMD);
     delete loggerCMD;
+
+    teardownNote("unlocking and unloading the configuration");
     ConfigurationManager::unlockExecution();
     ConfigurationManager::unloadConfiguration();
+    teardownNote("finalize is done");
 
 }
 void finalize()
@@ -5799,6 +5888,8 @@ int executeServer(int argc, char* argv[],
     MegaApi::setLogLevel(MegaApi::LOG_LEVEL_MAX); // do not filter anything here, log level checking is done by loggerCMD
 
     loggerCMD = new MegaCmdSimpleLogger(logConfig.mLogToCout, logConfig.mSdkLogLevel, logConfig.mCmdLogLevel);
+    loggerCMD->setFlushOnLevel(logConfig.mFlushOnLevel);
+    loggerCMD->setLogThreadId(logConfig.mLogThreadId);
 
     MegaApi::addLoggerObject(loggerCMD);
 

@@ -327,9 +327,16 @@ if (ENABLE_MEGACMD_TESTS)
     #Test Common:
     add_library(LMegacmdTestsCommon STATIC)
     add_source_and_corresponding_header_to_target(LMegacmdTestsCommon PRIVATE
+        "${ProjectDir}/tests/common/CrashCapture.cpp"
         "${ProjectDir}/tests/common/Instruments.cpp"
         "${ProjectDir}/tests/common/TestUtils.cpp"
     )
+    if (WIN32)
+        # Symbolising a stack and writing a minidump both come from DbgHelp.
+        # PRIVATE, so consumers still get it on their link line without inheriting
+        # it as a usage requirement.
+        target_link_libraries(LMegacmdTestsCommon PRIVATE dbghelp)
+    endif()
 
     #Integration tests:
     add_executable(mega-cmd-tests-integration ${executablesType})
