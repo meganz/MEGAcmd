@@ -157,3 +157,25 @@ TEST(ConfiguratorMegaApiHelperTest, reclaimNonNegativeValidatorsRejectNegativesA
     });
     EXPECT_TRUE(foundAge);
 }
+
+#ifdef WITH_FUSE
+TEST(ConfiguratorMegaApiHelperTest, fuseLogLevelValidatorTakesNamesAndNumbers)
+{
+    ConfiguratorMegaApiHelper helper;
+
+    const bool found = withConfigurator(helper, "fuse_log_level", [](const auto& configurator)
+    {
+        const auto& validate = configurator.mValidator.value();
+
+        // The same names and numbers the "log" command takes.
+        EXPECT_TRUE(validate("ERROR"));
+        EXPECT_TRUE(validate("debug"));
+        EXPECT_TRUE(validate("VERBOSE"));
+        EXPECT_TRUE(validate("4"));
+
+        EXPECT_FALSE(validate("NONSENSE"));
+        EXPECT_FALSE(validate(""));
+    });
+    EXPECT_TRUE(found);
+}
+#endif

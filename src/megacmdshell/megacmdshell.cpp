@@ -1926,7 +1926,7 @@ void printWelcomeMsg(unsigned int width)
     oss << endl;
     printCenteredLine(oss, "Welcome to MEGAcmd! A Command Line Interactive and Scriptable",width);
     printCenteredLine(oss, "Application to interact with your MEGA account.",width);
-    printCenteredLine(oss, "Please write to support@mega.nz if you find any issue or",width);
+    printCenteredLine(oss, "Please write to support@mega.io if you find any issue or",width);
     printCenteredLine(oss, "have any suggestion concerning its functionalities.",width);
     printCenteredLine(oss, "Enter \"help --non-interactive\" to learn how to use MEGAcmd with scripts.",width);
     printCenteredLine(oss, "Enter \"help\" for basic info and a list of available commands.",width);

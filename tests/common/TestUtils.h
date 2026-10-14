@@ -21,6 +21,7 @@
 #ifdef _WIN32
 #include <io.h>
 #else
+#include <sys/stat.h>
 #include <unistd.h>
 #endif
 
@@ -185,6 +186,31 @@ public:
         return mTempDir;
     }
 };
+
+#ifndef _WIN32
+// Gives other users access to the /tmp fallback folder, so that it cannot be used,
+// and makes it private again on destruction
+class UnusableFallbackFolderGuard
+{
+    const std::string mFolder = megacmd::PosixDirectories::noHomeFallbackFolder();
+
+public:
+    UnusableFallbackFolderGuard()
+    {
+        std::string error;
+        megacmd::createOrCheckPrivateFolder(mFolder, error);
+        chmod(mFolder.c_str(), 0755);
+    }
+
+    ~UnusableFallbackFolderGuard()
+    {
+        chmod(mFolder.c_str(), 0700);
+    }
+
+    UnusableFallbackFolderGuard(const UnusableFallbackFolderGuard&) = delete;
+    UnusableFallbackFolderGuard& operator=(const UnusableFallbackFolderGuard&) = delete;
+};
+#endif
 
 #ifdef WIN32
 /**

@@ -24,9 +24,11 @@ Options:
               If this option is passed, the mount will not be automatically enabled at startup.
 
 Disclaimer:
-    - Streaming is not supported; entire files need to be downloaded completely before being opened.
-    - FUSE uses a local cache located in the MEGAcmd configuration folder. Make sure you have enough available space in your hard drive to accommodate new files. Restarting MEGAcmd server can help discard old files.
-    - File writes might be deferred. When files are updated in the local mount point, a transfer will be initiated. Your files will be available in MEGA only after pending transfers finish.
+    - Files are downloaded as you read them. A file does not have to be complete before it can be opened, and only the parts you read are kept on disk.
+    - That content is kept in a local cache in the MEGAcmd configuration folder, shared with webdav streaming. Make sure you have enough available space in your hard drive. The cache is cleaned up on a timer: see the file_service_reclaim_* keys of "configure" and "help --streaming".
+    - File writes are deferred. A file you write in the mount point starts uploading at least 30 seconds after your last write to it, and is in MEGA only once that upload finishes.
+    - Stopping the MEGAcmd server is safe, pending uploads resume on the next start. Logging out is not: anything not uploaded yet is discarded.
+    - A file read through a mount is not checked against the whole-file checksum the way "get" checks a download, because that check needs the whole file and a mount reads only the parts you use. Before you run or install something, fetch it with "get" instead. See "help --streaming".
 
-FUSE commands are in early BETA. They are not available in macOS. If you experience any issues, please contact support@mega.nz.
+FUSE commands are in early BETA. They are not available in macOS. If you experience any issues, please contact support@mega.io.
 </pre>

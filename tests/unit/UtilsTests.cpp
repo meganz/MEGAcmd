@@ -17,6 +17,7 @@
 #include <cerrno>
 #include <cstring>
 #include <fstream>
+#include <sstream>
 #include <string_view>
 #include <vector>
 #ifdef _WIN32
@@ -234,6 +235,85 @@ TEST(UtilsTest, getNumberOfCols)
     {
         unsigned int cols = getNumberOfCols();
         EXPECT_LE(cols, 10000u);
+    }
+}
+
+TEST(UtilsTest, buildProgressBarLine)
+{
+    using megacmd::buildProgressBarLine;
+
+    const char *title = "TRANSFERRING ||";
+    const char *suffix = "||(512/1024 KB:  50.00 %) ";
+    const size_t titleLen = strlen(title);
+    const size_t suffixLen = strlen(suffix);
+
+    G_SUBTEST << "Normal terminal width";
+    {
+        const auto line = buildProgressBarLine(title, suffix, 50.0f, 80);
+        EXPECT_EQ(line.size(), 80u);
+        EXPECT_EQ(line.compare(0, titleLen, title), 0);
+        EXPECT_EQ(line.compare(80 - suffixLen, suffixLen, suffix), 0);
+        EXPECT_NE(line.find('#'), std::string::npos);
+    }
+
+    G_SUBTEST << "Zero percent draws no bar";
+    {
+        const auto line = buildProgressBarLine(title, suffix, 0.0f, 80);
+        EXPECT_EQ(line.size(), 80u);
+        EXPECT_EQ(line.find('#'), std::string::npos);
+    }
+
+    G_SUBTEST << "Percentages outside [0, 100] are clamped";
+    {
+        const auto full  = buildProgressBarLine(title, suffix, 100.0f, 80);
+        const auto over  = buildProgressBarLine(title, suffix, 1000.0f, 80);
+        const auto under = buildProgressBarLine(title, suffix, -50.0f, 80);
+        EXPECT_EQ(full, over);
+        EXPECT_EQ(under.find('#'), std::string::npos);
+    }
+
+    G_SUBTEST << "A full bar does not encroach on the suffix";
+    {
+        // The old loop bound was inclusive, so at 100% it wrote one cell past the
+        // bar and clobbered the first character of the suffix.
+        const auto line = buildProgressBarLine(title, suffix, 100.0f, 80);
+        EXPECT_EQ(line.compare(80 - suffixLen, suffixLen, suffix), 0);
+        EXPECT_EQ(line.find('#'), titleLen);
+        EXPECT_EQ(line.rfind('#'), 80 - suffixLen - 1);
+    }
+
+    G_SUBTEST << "CMD-894: terminals narrower than title and suffix";
+    {
+        // getNumberOfCols() returns ws_col - 2, so a 3 column terminal yields 1.
+        // Every one of these used to write outside the buffer.
+        for (unsigned int cols : {0u, 1u, 2u, 3u, 5u, 10u, 15u, 20u, 38u})
+        {
+            const auto line = buildProgressBarLine(title, suffix, 50.0f, cols);
+            EXPECT_EQ(line.size(), cols) << "cols=" << cols;
+        }
+    }
+
+    G_SUBTEST << "A too-narrow line keeps the tail of the suffix";
+    {
+        const auto line = buildProgressBarLine(title, suffix, 50.0f, 4);
+        EXPECT_EQ(line.size(), 4u);
+        EXPECT_EQ(line, std::string(suffix).substr(suffixLen - 4));
+    }
+
+    G_SUBTEST << "Exactly enough room for title and suffix leaves no bar";
+    {
+        const unsigned int cols = static_cast<unsigned int>(titleLen + suffixLen);
+        const auto line = buildProgressBarLine(title, suffix, 100.0f, cols);
+        EXPECT_EQ(line.size(), cols);
+        EXPECT_EQ(line, std::string(title) + suffix);
+    }
+
+    G_SUBTEST << "Empty title and suffix";
+    {
+        // With neither title nor suffix the whole width is available to the bar.
+        const auto line = buildProgressBarLine("", "", 50.0f, 10);
+        EXPECT_EQ(line.size(), 10u);
+        EXPECT_EQ(line, "#####.....");
     }
 }
 
@@ -586,3 +666,138 @@ TEST(UtilsTest, canWriteWithBypassEnvVar)
     }
 }
 #endif
+
+namespace
+{
+void writeUtf8File(const fs::path& filePath, const std::string& utf8Content)
+{
+    std::ofstream f(filePath, std::ios::binary);
+    ASSERT_TRUE(f.is_open());
+    f.write(utf8Content.data(), static_cast<std::streamsize>(utf8Content.size()));
+    ASSERT_TRUE(f.good());
+}
+}
+
+TEST(PropertyFileTest, getPropertyFromFileScenarios)
+{
+    using megacmd::getPropertyFromFile;
+
+    G_SUBTEST << "Missing file returns empty";
+    {
+        SelfDeletingTmpFolder tmp;
+        const fs::path missing = tmp.path() / "nope.cfg";
+        EXPECT_TRUE(getPropertyFromFile(missing, "key").empty());
+    }
+
+    G_SUBTEST << "Key value and trimmed value";
+    {
+        SelfDeletingTmpFolder tmp;
+        const fs::path cfg = tmp.path() / "a.cfg";
+        writeUtf8File(cfg, "alpha =  hello  \n");
+        EXPECT_EQ(getPropertyFromFile(cfg, "alpha"), "hello");
+    }
+
+    G_SUBTEST << "Comment and blank lines skipped before match";
+    {
+        SelfDeletingTmpFolder tmp;
+        const fs::path cfg = tmp.path() / "b.cfg";
+        writeUtf8File(cfg, "# ignored\n\nbeta=y\n");
+        EXPECT_EQ(getPropertyFromFile(cfg, "beta"), "y");
+    }
+
+    G_SUBTEST << "Empty property name returns first non comment line trimmed";
+    {
+        SelfDeletingTmpFolder tmp;
+        const fs::path cfg = tmp.path() / "c.cfg";
+        writeUtf8File(cfg, "# x\n  first  \n");
+        EXPECT_EQ(getPropertyFromFile(cfg, ""), "first");
+    }
+
+    G_SUBTEST << "Quoted value trimmed";
+    {
+        SelfDeletingTmpFolder tmp;
+        const fs::path cfg = tmp.path() / "d.cfg";
+        writeUtf8File(cfg, "q=\"quoted\"\n");
+        EXPECT_EQ(getPropertyFromFile(cfg, "q"), "quoted");
+    }
+
+    G_SUBTEST << "First occurrence wins";
+    {
+        SelfDeletingTmpFolder tmp;
+        const fs::path cfg = tmp.path() / "e.cfg";
+        writeUtf8File(cfg, "k=1\nk=2\n");
+        EXPECT_EQ(getPropertyFromFile(cfg, "k"), "1");
+    }
+
+    G_SUBTEST << "Unknown key returns empty";
+    {
+        SelfDeletingTmpFolder tmp;
+        const fs::path cfg = tmp.path() / "f.cfg";
+        writeUtf8File(cfg, "only=here\n");
+        EXPECT_TRUE(getPropertyFromFile(cfg, "missing").empty());
+    }
+
+    G_SUBTEST << "Line without equals is ignored for named lookup";
+    {
+        SelfDeletingTmpFolder tmp;
+        const fs::path cfg = tmp.path() / "g.cfg";
+        writeUtf8File(cfg, "not_a_pair\nkey=ok\n");
+        EXPECT_EQ(getPropertyFromFile(cfg, "key"), "ok");
+    }
+}
+
+TEST(PropertyFileTest, getValueFromFileScenarios)
+{
+    using megacmd::getValueFromFile;
+
+    G_SUBTEST << "Integer parsed";
+    {
+        SelfDeletingTmpFolder tmp;
+        const fs::path cfg = tmp.path() / "i.cfg";
+        writeUtf8File(cfg, "n=42\n");
+        EXPECT_EQ(getValueFromFile(cfg, "n", -1), 42);
+    }
+
+    G_SUBTEST << "Integer default when missing";
+    {
+        SelfDeletingTmpFolder tmp;
+        const fs::path cfg = tmp.path() / "j.cfg";
+        writeUtf8File(cfg, "other=1\n");
+        EXPECT_EQ(getValueFromFile(cfg, "n", 99), 99);
+    }
+
+    G_SUBTEST << "Double parsed";
+    {
+        SelfDeletingTmpFolder tmp;
+        const fs::path cfg = tmp.path() / "k.cfg";
+        writeUtf8File(cfg, "x=3.5\n");
+        EXPECT_DOUBLE_EQ(getValueFromFile(cfg, "x", 0.0), 3.5);
+    }
+
+    G_SUBTEST << "Default when property empty";
+    {
+        SelfDeletingTmpFolder tmp;
+        const fs::path cfg = tmp.path() / "l.cfg";
+        writeUtf8File(cfg, "e=  \n");
+        EXPECT_EQ(getValueFromFile(cfg, "e", 7), 7);
+    }
+}
+
+TEST(PropertyFileTest, StressTestManyLinesBeforeKey)
+{
+    using megacmd::getPropertyFromFile;
+
+    G_SUBTEST << "Scan until key near end";
+    {
+        SelfDeletingTmpFolder tmp;
+        const fs::path cfg = tmp.path() / "big.cfg";
+        std::ostringstream body;
+        for (int i = 0; i < 4000; i++)
+        {
+            body << "pad=" << i << "\n";
+        }
+        body << "target=found\n";
+        writeUtf8File(cfg, body.str());
+        EXPECT_EQ(getPropertyFromFile(cfg, "target"), "found");
+    }
+}

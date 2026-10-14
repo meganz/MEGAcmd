@@ -252,6 +252,11 @@ public:
     MegaCmdMegaListener(mega::MegaApi *megaApi, mega::MegaListener *parent=NULL, MegaCmdSandbox *sandboxCMD = NULL);
     virtual ~MegaCmdMegaListener();
 
+    // Unregisters from the api and forgets it, so that nothing here calls into
+    // the api afterwards. Unregistering does not wait for a callback already
+    // being dispatched, so the listener must outlive the api.
+    void detachFromApi();
+
     virtual void onRequestFinish(mega::MegaApi* api, mega::MegaRequest *request, mega::MegaError* e);
 
 #ifdef ENABLE_CHAT
@@ -292,6 +297,14 @@ private:
     std::deque<std::unique_ptr<mega::MegaTransfer>> completedTransfers;
     std::map<mega::MegaHandle,std::string> completedPathsByHandle;
 
+    // Uploads the SDK keeps waiting because they do not fit in the free storage,
+    // by tag, with the message shown to the clients while they wait.
+    std::mutex mUploadsWaitingForStorageMutex;
+    std::map<int, std::string> mUploadsWaitingForStorage;
+
+    void onUploadWaitingForStorage(mega::MegaApi &api, const mega::MegaTransfer &transfer);
+    void onUploadNotWaitingForStorage(int tag);
+
 public:
     MegaCmdGlobalTransferListener(mega::MegaApi *megaApi, MegaCmdSandbox *sandboxCMD, mega::MegaTransferListener *parent = NULL);
     ~MegaCmdGlobalTransferListener() override = default;
@@ -308,8 +321,12 @@ public:
 
     std::string getCompletedPath(mega::MegaHandle handle);
 
+    // Drops the waiting uploads without touching the greetings, which a logout clears.
+    void forgetUploadsWaitingForStorage();
+
     //Transfer callbacks
     void onTransferFinish(mega::MegaApi* api, mega::MegaTransfer *transfer, mega::MegaError* error);
+    void onTransferUpdate(mega::MegaApi* api, mega::MegaTransfer *transfer);
     void onTransferTemporaryError(mega::MegaApi *api, mega::MegaTransfer *transfer, mega::MegaError* e);
     bool onTransferData(mega::MegaApi *api, mega::MegaTransfer *transfer, char *buffer, size_t size);
 

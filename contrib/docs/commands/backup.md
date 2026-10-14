@@ -78,5 +78,5 @@ Management Options:
                 	 Folders created by backup won't be deleted
 -a TAG|localpath	Aborts ongoing backup
 
-Caveat: This functionality is in BETA state. If you experience any issue with this, please contact: support@mega.nz
+Caveat: This functionality is in BETA state. If you experience any issue with this, please contact: support@mega.io
 </pre>

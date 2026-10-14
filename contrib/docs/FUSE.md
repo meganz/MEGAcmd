@@ -5,16 +5,50 @@ Configuring a FUSE mount will let you access your MEGA files as if they were loc
 
 Note: this functionality is in beta, and not supported on macOS.
 
-## Local cache
-MEGAcmd will use a cache to place files while working with mount points. This cache will be used to store both files downloaded from MEGA, and files being uploaded to MEGA. It will be created automatically in `$HOME/.megaCmd/fuse-cache` (`%LOCALAPPDATA%\MEGAcmd\.megaCmd\fuse-cache` in Windows).
+## Reading files
+Files are downloaded as you read them. Opening a file does not download it first: a read returns as
+soon as the bytes it asked for have arrived, and reading from one point keeps the download going
+forward while you keep reading. Only the parts you read are kept on disk.
 
-Bear in mind that this cache is fundamental to be able to work with FUSE mounts. Cache files are removed automatically. Restarting the MEGAcmd Server may help reduce the space used by the cache.
+A file you modify is the exception. The rest of it is downloaded before the new version can be
+uploaded.
+
+### What a mount cannot check
+When you download a file with [`get`](commands/get.md), MEGAcmd checks the whole file against the
+checksum held in its key, and the download fails if they do not match. That check needs every byte,
+so it cannot be done while reading through a mount, which fetches only the parts you use. Reads are
+still encrypted in transit and decrypted with your key; what a mount cannot tell you is whether the
+bytes are the ones that were uploaded.
+
+The same is true of [webdav and ftp](WEBDAV.md) streaming. Before you run or install something,
+fetch it with `get` and use that copy.
+
+## Local cache
+The content read or written through a mount is kept on disk, in the `file-service` folder of the
+MEGAcmd configuration folder: `$HOME/.megaCmd/file-service` (`%LOCALAPPDATA%\MEGAcmd\.megaCmd\file-service`
+in Windows), under a subfolder named after your session. [Webdav streaming](WEBDAV.md) uses the same
+cache.
+
+The cache is required for mounts to work. It is cleaned up on a timer, and the
+`file_service_reclaim_*` keys of the [`configure`](commands/configure.md) command set the limits; see
+`help --streaming`. To free space sooner, lower `file_service_reclaim_age_threshold` and
+`file_service_reclaim_period`. A cleanup only drops content that is already in your cloud, so it
+never loses a file you have just written.
+
+A full `logout` also removes the cached content. `logout --keep-session` and restarting the MEGAcmd
+Server keep it: the session is resumed and the same cache is used again.
+
+If you used a FUSE mount with an earlier MEGAcmd, the `fuse-cache` folder beside it is left over
+from that version. Nothing uses it any more and it can be deleted.
 
 ### Important caveats
-Files and folders created locally may not be immediately available in your MEGA cloud: the mount engine will transfer them transparently in the background. Note that the MEGAcmd Server needs to be running in order for these actions to complete.
+Files and folders created locally may not be immediately available in your MEGA cloud: the mount
+engine will transfer them transparently in the background. A file you write starts uploading at
+least 30 seconds after your last write to it, and longer for large files. Closing the file does not
+start the upload; `fsync` does.
 
-## Streaming
-Currently, streaming is not directly supported. In order to open files in a FUSE mount point, they need to be downloaded completely to the local cache folder. You will need space in your hard drive to accomodate for these files.
+The MEGAcmd Server needs to be running for these uploads to complete. Stopping it is safe, they
+resume on the next start. Logging out is not: anything not uploaded yet is discarded.
 
 ## Usage
 ### Creating a new mount

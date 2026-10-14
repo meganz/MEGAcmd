@@ -55,6 +55,14 @@ static const char* rootnodepaths[] = { "/", "//in", "//bin" };
 #define SSTR( x ) static_cast< const std::ostringstream & >( \
         ( std::ostringstream() << std::dec << x ) ).str()
 
+namespace {
+// "." and ".." navigate a path. They are never valid names for a new node,
+// so anything that turns a path segment into a node name must reject them.
+bool isPathNavigation(const string& name)
+{
+    return name == "." || name == "..";
+}
+} // namespace
 
 #ifdef HAVE_GLOB_H
 std::vector<std::string> resolvewildcard(const std::string& pattern) {
@@ -211,6 +219,11 @@ MegaCmdExecuter::MegaCmdExecuter(MegaApi *api, MegaCmdLogger *loggerCMD, MegaCmd
 MegaCmdExecuter::~MegaCmdExecuter()
 {
     delete globalTransferListener;
+}
+
+void MegaCmdExecuter::stopDeferredWork()
+{
+    mDeferredSharedFoldersVerifier.stop();
 }
 
 // list available top-level nodes and contacts/incoming shares
@@ -444,6 +457,10 @@ std::unique_ptr<MegaNode> MegaCmdExecuter::nodebypath(const char* ptr, string* u
             if (curName == "..")
             {
                 nextNode.reset(api->getParentNode(baseNode.get()));
+                if (nextNode == nullptr) // Such as "/.."
+                {
+                   return nullptr;
+                }
             }
             else
             {
@@ -2979,6 +2996,7 @@ void MegaCmdExecuter::actUponLogout(MegaApi& api, MegaError* e, bool keptSession
         // clear greetings (asuming they are account-related)
         clearGreetingStatusAllListener();
         clearGreetingStatusFirstListener();
+        globalTransferListener->forgetUploadsWaitingForStorage();
     }
     updateprompt(&api);
 }
@@ -3773,6 +3791,16 @@ void MegaCmdExecuter::disableShare(MegaNode *n, string with)
 
 int MegaCmdExecuter::makedir(string remotepath, bool recursive, MegaNode *parentnode)
 {
+    // Check the whole path first, so a "." or ".." fails before any folder is created
+    for (const auto& name : split(remotepath, "/"))
+    {
+        if (isPathNavigation(name))
+        {
+            LOG_err << "Invalid folder name: " << name;
+            return MCMD_INVALIDSTATE;
+        }
+    }
+
     MegaNode *currentnode;
     if (parentnode)
     {
@@ -4807,7 +4835,7 @@ void MegaCmdExecuter::moveToDestination(const std::unique_ptr<MegaNode>& n, stri
     // we have four situations:
     // 1. target path does not exist - fail
     // 2. target node exists and is folder - move
-    // 3. target node exists and is file - delete and rename (unless same)
+    // 3. target node exists and is file - delete and rename (unless same), only if source is a file too
     // 4. target path exists, but filename does not - rename
     if (tn)
     {
@@ -4851,6 +4879,13 @@ void MegaCmdExecuter::moveToDestination(const std::unique_ptr<MegaNode>& n, stri
             {
                 if (tn->getType() == MegaNode::TYPE_FILE) //move & remove old & rename new
                 {
+                    if (n->getType() != MegaNode::TYPE_FILE)
+                    {
+                        setCurrentThreadOutCode(MCMD_INVALIDTYPE);
+                        LOG_err << "Cannot overwrite file with folder";
+                        return;
+                    }
+
                     // (there should never be any orphaned filenodes)
                     std::unique_ptr<MegaNode> tnParentNode(api->getNodeByHandle(tn->getParentHandle()));
                     if (tnParentNode)
@@ -7030,6 +7065,12 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             const auto posLastSeparator = destination.find_last_of("/");
             string destinationfolder(destination, 0, posLastSeparator);
             newname = string(destination, posLastSeparator + 1, destination.size());
+            if (isPathNavigation(newname))
+            {
+                setCurrentThreadOutCode(MCMD_INVALIDSTATE);
+                LOG_err << "Invalid destination name: " << newname;
+                return;
+            }
             auto baseNode = (destinationfolder.size() > 0 && destinationfolder.front() == '/')
                 ? std::unique_ptr<MegaNode>(api->getRootNode())
                 : std::unique_ptr<MegaNode>(api->getNodeByHandle(cwd));
@@ -7529,6 +7570,10 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 if(!found)
                 {
                     OUTSTREAM << "No webdav links found" << endl;
+                }
+                else
+                {
+                    printLocalCacheUsage(*api);
                 }
 
                 delete webdavnodes;
@@ -10942,16 +10987,6 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             return;
         }
 
-        const fs::path localPath = localPathStr;
-#ifndef WIN32
-        if (std::error_code ec; !fs::exists(localPath, ec) || ec)
-        {
-            setCurrentThreadOutCode(MCMD_NOTFOUND);
-            LOG_err << "Local path " << localPath << " does not exist";
-            return;
-        }
-#endif
-
         std::unique_ptr<MegaNode> node = nodebypath(remotePathStr.c_str());
         if (node == nullptr)
         {
@@ -10965,7 +11000,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         const bool transient = getFlag(clflags, "transient");
         const bool readOnly = getFlag(clflags, "read-only");
 
-        FuseCommand::addMount(*api, localPath, *node, disabled, transient, readOnly, name);
+        FuseCommand::addMount(*api, localPathStr, *node, disabled, transient, readOnly, name);
     }
     else if (words[0] == "fuse-remove")
     {

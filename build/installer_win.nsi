@@ -449,11 +449,11 @@ modeselected:
 
 
   !insertmacro DEBUG_MSG "Closing MEGAcmd"
-  ExecDos::exec /DETAILED /DISABLEFSR "taskkill /f /IM MEGAcmdShell.exe"
-  ExecDos::exec /DETAILED /DISABLEFSR "taskkill /f /IM MEGAcmd.exe"
-  ExecDos::exec /DETAILED /DISABLEFSR "taskkill /f /IM MEGAcmdServer.exe"
-  ExecDos::exec /DETAILED /DISABLEFSR "taskkill /f /IM MEGAclient.exe"
-  ExecDos::exec /DETAILED /DISABLEFSR "taskkill /f /IM MEGAcmdUpdater.exe"
+  ExecDos::exec /DETAILED /DISABLEFSR "$WINDIR\System32\taskkill.exe /f /IM MEGAcmdShell.exe"
+  ExecDos::exec /DETAILED /DISABLEFSR "$WINDIR\System32\taskkill.exe /f /IM MEGAcmd.exe"
+  ExecDos::exec /DETAILED /DISABLEFSR "$WINDIR\System32\taskkill.exe /f /IM MEGAcmdServer.exe"
+  ExecDos::exec /DETAILED /DISABLEFSR "$WINDIR\System32\taskkill.exe /f /IM MEGAclient.exe"
+  ExecDos::exec /DETAILED /DISABLEFSR "$WINDIR\System32\taskkill.exe /f /IM MEGAcmdUpdater.exe"
   Sleep 1000
 
 
@@ -792,11 +792,11 @@ FunctionEnd
 
 
 Section Uninstall
-  ExecDos::exec /DETAILED "taskkill /f /IM MEGAcmdShell.exe"
-  ExecDos::exec /DETAILED "taskkill /f /IM MEGAclient.exe"
-  ExecDos::exec /DETAILED "taskkill /f /IM MEGAcmd.exe"
-  ExecDos::exec /DETAILED "taskkill /f /IM MEGAcmdServer.exe"
-  ExecDos::exec /DETAILED "taskkill /f /IM MEGAcmdUpdater.exe"
+  ExecDos::exec /DETAILED "$WINDIR\System32\taskkill.exe /f /IM MEGAcmdShell.exe"
+  ExecDos::exec /DETAILED "$WINDIR\System32\taskkill.exe /f /IM MEGAclient.exe"
+  ExecDos::exec /DETAILED "$WINDIR\System32\taskkill.exe /f /IM MEGAcmd.exe"
+  ExecDos::exec /DETAILED "$WINDIR\System32\taskkill.exe /f /IM MEGAcmdServer.exe"
+  ExecDos::exec /DETAILED "$WINDIR\System32\taskkill.exe /f /IM MEGAcmdUpdater.exe"
   Sleep 1000
   ${UAC.CallFunctionAsUser} un.UninstallCmd
   Sleep 1000

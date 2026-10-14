@@ -2233,7 +2233,7 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << " --non-interactive" << "  " << "Display information on how to use MEGAcmd with scripts" << endl;
         os << " --upgrade" << "          " << "Display information on PRO plans" << endl;
         os << " --paths" << "            " << "Show caveats of local and remote paths" << endl;
-        os << " --streaming" << "        " << "Explain how webdav/ftp streaming uses memory and disk" << endl;
+        os << " --streaming" << "        " << "Explain how streaming (webdav/ftp) and FUSE mounts use memory and disk" << endl;
         os << " --show-all-options" << " " << "Display all options regardless of platform" << endl;
     }
     else if (!strcmp(command, "history"))
@@ -2603,7 +2603,7 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << " If you want to change those parameters, you need to stop serving all locations and configure them again." << endl;
         os << "Note: WEBDAV settings and locations will be saved for the next time you open MEGAcmd, but will be removed if you logout." << endl;
         os << endl;
-        os << "Caveat: This functionality is in BETA state. It might not be available on all platforms. If you experience any issue with this, please contact: support@mega.nz" << endl;
+        os << "Caveat: This functionality is in BETA state. It might not be available on all platforms. If you experience any issue with this, please contact: support@mega.io" << endl;
         os << endl;
     }
     else if ((flags.haveLibuv || flags.showAll) && !strcmp(command, "ftp"))
@@ -2634,7 +2634,7 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << " If you want to change those parameters, you need to stop serving all locations and configure them again." << endl;
         os << "Note: FTP settings and locations will be saved for the next time you open MEGAcmd, but will be removed if you logout." << endl;
         os << endl;
-        os << "Caveat: This functionality is in BETA state. It might not be available on all platforms. If you experience any issue with this, please contact: support@mega.nz" << endl;
+        os << "Caveat: This functionality is in BETA state. It might not be available on all platforms. If you experience any issue with this, please contact: support@mega.io" << endl;
         os << endl;
     }
     else if (!strcmp(command, "exclude"))
@@ -2802,8 +2802,8 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         }
         os << endl;
         os << "The file_service_reclaim_* keys control the automatic cleanup of the on-disk cache that webdav" << endl;
-        os << "streaming writes to. Cleanups run on a timer, and each one only does something while the cache is" << endl;
-        os << "above file_service_reclaim_threshold, so that threshold bounds nothing on its own." << endl;
+        os << "streaming and FUSE mounts write to. Cleanups run on a timer, and each one only does something" << endl;
+        os << "while the cache is above file_service_reclaim_threshold, so that threshold bounds nothing on its own." << endl;
         os << "Changes take effect immediately and are re-applied on each login." << endl;
         os << "For how the cleanup works and for values that keep heavy streaming within a disk budget, see \"" << getCommandPrefixBasedOnMode() << "help --streaming\"." << endl;
     }
@@ -2879,7 +2879,7 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << "                \t" << " Folders created by backup won't be deleted" << endl;
         os << "-a TAG|localpath\t" << "Aborts ongoing backup" << endl;
         os << endl;
-        os << "Caveat: This functionality is in BETA state. If you experience any issue with this, please contact: support@mega.nz" << endl;
+        os << "Caveat: This functionality is in BETA state. If you experience any issue with this, please contact: support@mega.io" << endl;
     }
     else if (!strcmp(command, "export"))
     {
@@ -3677,13 +3677,25 @@ void executecommand(const char* ptr)
             const auto prefix = getCommandPrefixBasedOnMode();
 
             OUTSTREAM << "MEGAcmd can stream files straight from your cloud through the webdav and ftp servers" << endl;
-            OUTSTREAM << " (see \"" << prefix << "webdav --help\" and \"" << prefix << "ftp --help\")." << endl;
+            OUTSTREAM << " (see \"" << prefix << "webdav --help\" and \"" << prefix << "ftp --help\"), and through FUSE mounts" << endl;
+            OUTSTREAM << " (see \"" << prefix << "fuse-add --help\")." << endl;
             OUTSTREAM << endl;
             OUTSTREAM << "Where the data goes:" << endl;
             OUTSTREAM << " - webdav: file content is cached on disk, so seeking back or replaying is fast. That cache" << endl;
             OUTSTREAM << "    is what the file_service_reclaim_* keys of \"" << prefix << "configure\" control." << endl;
             OUTSTREAM << " - ftp: served through memory, with no on-disk cache." << endl;
-            OUTSTREAM << " The cache lives with the session: it is removed when you log out." << endl;
+            OUTSTREAM << " FUSE mounts read the same on-disk cache as webdav, so the same keys bound both." << endl;
+            OUTSTREAM << " The cache belongs to the session. Logging out removes it; \"" << prefix << "logout --keep-session\"" << endl;
+            OUTSTREAM << " and restarting the server keep it." << endl;
+            OUTSTREAM << endl;
+            OUTSTREAM << "What is checked:" << endl;
+            OUTSTREAM << " When you download a file with \"" << prefix << "get\", MEGAcmd checks the whole file against the" << endl;
+            OUTSTREAM << " checksum held in its key, and the download fails if they do not match. That check needs every" << endl;
+            OUTSTREAM << " byte of the file, so it cannot be done while streaming, which reads only the parts you ask for." << endl;
+            OUTSTREAM << " Streaming still encrypts in transit and decrypts with your key; what it cannot tell you is" << endl;
+            OUTSTREAM << " whether the bytes are the ones that were uploaded." << endl;
+            OUTSTREAM << " This applies to webdav, ftp and FUSE mounts alike. For anything you are going to run or" << endl;
+            OUTSTREAM << " install, fetch it with \"" << prefix << "get\" and use that copy." << endl;
             OUTSTREAM << endl;
             OUTSTREAM << "How the disk cache is cleaned up:" << endl;
             OUTSTREAM << " A cleanup runs on a timer. The first one runs file_service_reclaim_delay seconds after login," << endl;
@@ -4433,6 +4445,47 @@ void delete_finished_threads()
     endedPetitionThreads.clear();
 }
 
+static size_t ongoingPetitions(MegaThread *except)
+{
+    std::unique_lock<std::mutex> lock(mutexEndedPetitionThreads);
+
+    size_t count = 0;
+    for (auto &pt : petitionThreads)
+    {
+        if (pt.get() != except)
+        {
+            ++count;
+        }
+    }
+    return count;
+}
+
+// Petitions run commands that use the api, so let them finish before anything is
+// torn down. With a limit: one could be sitting on a prompt or on a slow transfer,
+// and quitting should not hang on that.
+static void waitForOngoingPetitions()
+{
+    MegaThread *self = nullptr;
+    if (CmdPetition *inf = getCurrentThreadCmdPetition())
+    {
+        self = inf->getPetitionThread(); // a petition cannot join itself
+    }
+
+    int attempts = 250; // 5 seconds
+    delete_finished_threads();
+
+    while (ongoingPetitions(self) && attempts--)
+    {
+        sleepMilliSeconds(20);
+        delete_finished_threads();
+    }
+
+    if (size_t left = ongoingPetitions(self))
+    {
+        LOG_warn << "quitting with " << left << " ongoing petitions";
+    }
+}
+
 void processCommandInPetitionQueues(CmdPetition *inf);
 void processCommandLinePetitionQueues(std::string what);
 
@@ -4542,16 +4595,27 @@ void finalize(bool waitForRestartSignal_param)
     teardownStep("stopping the update check");
     stopAndJoinUpdateCheck();
 
-    teardownStep("joining finished petition threads");
-    delete_finished_threads();
+    teardownStep("waiting for ongoing petitions");
+    waitForOngoingPetitions();
     if (!consoleFailed)
     {
         teardownStep("deleting the console");
         delete console;
     }
 
-    teardownStep("deleting megaCmdMegaListener");
-    delete megaCmdMegaListener;
+    // Nothing may reach the api once it is deleted, so stop what still could
+    // while it is alive.
+    if (cmdexecuter)
+    {
+        teardownStep("stopping the deferred work of cmdexecuter");
+        cmdexecuter->stopDeferredWork();
+    }
+    if (megaCmdMegaListener)
+    {
+        teardownStep("detaching megaCmdMegaListener from the api");
+        megaCmdMegaListener->detachFromApi();
+    }
+
     if (threadRetryConnections)
     {
         teardownStep("joining the retryConnections thread");
@@ -4578,8 +4642,12 @@ void finalize(bool waitForRestartSignal_param)
 
     occupiedapiFolders.clear();
 
+    // Every api is gone, and their destructors joined the threads that dispatch
+    // callbacks, so no callback can still be running in the listeners.
     teardownStep("deleting megaCmdGlobalListener");
     delete megaCmdGlobalListener;
+    teardownStep("deleting megaCmdMegaListener");
+    delete megaCmdMegaListener;
     teardownStep("deleting cmdexecuter");
     delete cmdexecuter;
 
@@ -5628,26 +5696,6 @@ void uninstall()
 
 #endif
 
-void setFuseLogLevel(MegaApi& api, const std::string& fuseLogLevelStr)
-{
-    std::unique_ptr<MegaFuseFlags> fuseFlags(api.getFUSEFlags());
-    assert(fuseFlags);
-
-    int sdkLogLevel = fuseFlags->getLogLevel();
-    try
-    {
-        sdkLogLevel = std::stoi(fuseLogLevelStr);
-    }
-    catch (...) {}
-
-    sdkLogLevel = std::clamp(sdkLogLevel, (int) ::mega::LogLevel::logError, (int) ::mega::LogLevel::logVerbose);
-
-    fuseFlags->setLogLevel(sdkLogLevel);
-    api.setFUSEFlags(fuseFlags.get());
-
-    LOG_debug << "FUSE log level set to " << sdkLogLevel;
-}
-
 void disableFuseExplorerListView(MegaApi& api)
 {
     std::unique_ptr<MegaFuseFlags> fuseFlags(api.getFUSEFlags());
@@ -5696,6 +5744,16 @@ int executeServer(int argc, char* argv[],
     // keep a copy of argc & argv in order to allow restarts
     mcmdMainArgv = argv;
     mcmdMainArgc = argc;
+
+#ifndef _WIN32
+    // Empty when there is no folder the server can safely use: an unsafe /tmp fallback (see PlatformDirectories),
+    // or one it cannot create. Checked before the lock, which would report that as another running instance.
+    if (ConfigurationManager::getConfigFolder().empty() || getOrCreateSocketPath(true).empty())
+    {
+        cerr << "MEGAcmd Server cannot start: no usable folder for its session and socket" << endl;
+        return -3;
+    }
+#endif
 
     ConfigurationManager::loadConfiguration(logConfig.mCmdLogLevel >= MegaApi::LOG_LEVEL_DEBUG);
     if (!ConfigurationManager::lockExecution() && !skiplockcheck)
@@ -5772,10 +5830,19 @@ int executeServer(int argc, char* argv[],
         semaphoreClients.release();
     }
 
+#ifdef WITH_FUSE
     if (const char* fuseLogLevelStr = getenv("MEGACMD_FUSE_LOG_LEVEL"); fuseLogLevelStr)
     {
-        setFuseLogLevel(*api, fuseLogLevelStr);
+        if (auto logLevel = getLogLevelNum(fuseLogLevelStr))
+        {
+            FuseCommand::setLogLevel(*api, *logLevel);
+        }
+        else
+        {
+            LOG_err << "Invalid MEGACMD_FUSE_LOG_LEVEL: " << fuseLogLevelStr;
+        }
     }
+#endif
 
     if (getenv("MEGACMD_FUSE_DISABLE_LIST_VIEW"))
     {
