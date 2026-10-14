@@ -30,6 +30,25 @@
 namespace megacmd {
 class MegaCmdSandbox;
 
+// The message for downloads waiting for transfer quota, with the time left.
+// Nothing once that time is over.
+std::optional<std::string> transferQuotaWaitMessage(::mega::m_time_t secondsLeft);
+
+// Tells the connected clients when downloads or streaming reads wait for transfer quota, once
+// per wait. Clients connecting later are told from the SDK's own wait instead.
+class TransferQuotaWaitNotice
+{
+    std::mutex mMutex;
+    ::mega::m_time_t mWaitEnd = 0;
+
+public:
+    // Something could not go on for `seconds`. Returns whether this announced a new wait.
+    bool onWait(::mega::m_time_t seconds);
+    void forget();
+};
+
+TransferQuotaWaitNotice &transferQuotaWaitNotice();
+
 class MegaCmdListener : public mega::SynchronousRequestListener
 {
 private:
@@ -227,7 +246,6 @@ public:
 
     void onNodesUpdate(mega::MegaApi* api, mega::MegaNodeList *nodes);
     void onUsersUpdate(mega::MegaApi* api, mega::MegaUserList *users);
-    void onAccountUpdate(mega::MegaApi *api);
     void onEvent(mega::MegaApi *api, mega::MegaEvent *event);
 #ifdef ENABLE_CHAT
     void onChatsUpdate(mega::MegaApi*, mega::MegaTextChatList*);
