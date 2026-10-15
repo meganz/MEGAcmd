@@ -27,6 +27,7 @@
 #include <unistd.h>
 #endif
 #include <string>
+#include <string_view>
 #include <vector>
 #include <iomanip>
 #include <map>
@@ -304,6 +305,9 @@ bool onlyZeroOf(Bools... args)
     return (args + ...) == 0;
 }
 
+[[nodiscard]] std::string buildProgressBarLine(std::string_view title, std::string_view suffix,
+                                               float percent, std::size_t cols);
+
 void printPercentageLineCerr(const char *title, long long completed, long long total, float percentDowloaded, bool cleanLineAfter = true);
 
 std::string wrapText(const std::string& input, std::size_t maxWidth, int indentSpaces = 0);
@@ -431,9 +435,13 @@ private:
  * 	+---------------------------------------------------------------------------------------------------------------------+
  * 	| DirPath | Windows              | Linux          | macOS                            | Linux/macOS (no HOME fallback) |
  * 	|---------|----------------------|----------------|----------------------------------|--------------------------------|
- * 	| runtime | $EXECFOLDER/.megaCmd | $HOME/.megaCmd | $HOME/Library/Caches/megacmd.mac | /tmp/megacmd-UID/.megacmd      |
- * 	| config  | $EXECFOLDER/.megaCmd | $HOME/.megaCmd | $HOME/.megaCmd                   | /tmp/megacmd-UID/.megacmd      |
+ * 	| runtime | $EXECFOLDER/.megaCmd | $HOME/.megaCmd | $HOME/Library/Caches/megacmd.mac | /tmp/megacmd-UID               |
+ * 	| config  | $EXECFOLDER/.megaCmd | $HOME/.megaCmd | $HOME/.megaCmd                   | /tmp/megacmd-UID               |
  * 	+---------------------------------------------------------------------------------------------------------------------+
+ *
+ * Any user can create /tmp/megacmd-UID first, so an existing one is only used if it is a folder
+ * owned by the current user, with no permissions for group or others (see createOrCheckPrivateFolder).
+ * Otherwise, the paths that would use it are empty.
  *
  */
 class PlatformDirectories
@@ -475,6 +483,12 @@ public:
 
     static std::string noHomeFallbackFolder();
 
+    /**
+     * @brief Returns noHomeFallbackFolder(), after creating it or checking the existing one with
+     * createOrCheckPrivateFolder.
+     * @return the folder, or an empty string if it cannot be used.
+     */
+    static std::string getOrCreateFallbackFolder();
 };
 #ifdef __APPLE__
 class MacOSDirectories : public PosixDirectories
@@ -482,6 +496,15 @@ class MacOSDirectories : public PosixDirectories
     fs::path runtimeDirPath() override;
 };
 #endif // defined(__APPLE__)
+
+/**
+ * @brief Creates folder with 0700 permissions. If it already exists, checks that it is a folder
+ * (not a symbolic link) owned by the current user, with no permissions for group or others.
+ * @param error is set to the reason why the folder cannot be used.
+ * @return whether the folder can be used.
+ */
+bool createOrCheckPrivateFolder(const std::string& folder, std::string& error);
+
 std::string getOrCreateSocketPath(bool createDirectory);
 #endif // _WIN32
 

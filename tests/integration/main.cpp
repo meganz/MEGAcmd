@@ -20,6 +20,7 @@
 #include "megacmd_rotating_logger.h"
 #include "Instruments.h"
 
+#include "CrashCapture.h"
 #include "TestUtils.h"
 
 #ifdef __linux__
@@ -29,6 +30,7 @@
 
 #include <chrono>
 #include <cassert>
+#include <fstream>
 
 #ifndef UNUSED
     #define UNUSED(x) (void)(x)
@@ -47,6 +49,9 @@ static void setUpUnixSignals()
 
 int main (int argc, char *argv[])
 {
+    // First thing, so that every later failure produces a dump and a stack
+    // instead of a process that simply disappears.
+    megacmd::test::installCrashCapture();
 
 #ifdef __linux__
     if (getenv("MEGA_INTEGRATION_TEST_ENFORCE_SINGLE_CPU"))
@@ -98,6 +103,19 @@ int main (int argc, char *argv[])
         logConfig.mLogToCout = false;
         logConfig.mJsonLogs = true;
 
+        // Which thread wrote each record. Cheap, and the only way to read a
+        // teardown that races an SDK thread.
+        logConfig.mLogThreadId = true;
+
+        // Draining on every record costs a lock and a notify per record from
+        // every SDK thread, which is itself capable of moving the timing of a
+        // race. Opt in, so a run meant to be comparable with a normal one can
+        // leave it alone.
+        if (getenv("MEGACMD_TEST_FLUSH_EVERY_RECORD"))
+        {
+            logConfig.mFlushOnLevel = mega::MegaApi::LOG_LEVEL_MAX;
+        }
+
         auto createDefaultStream = [] { return new megacmd::FileRotatingLoggedStream(megacmd::MegaCmdLogger::getDefaultFilePath()); };
         megacmd::executeServer(1, args.data(), createDefaultStream, logConfig);
     });
@@ -108,8 +126,25 @@ int main (int argc, char *argv[])
 
     auto exitCode = RUN_ALL_TESTS();
 
+#ifdef _WIN32
+    // Written before the shutdown, so that a run whose tests all passed but
+    // whose teardown died can be told apart from a run that failed its tests.
+    std::ofstream("tests_done.txt") << exitCode;
+#endif
+
+    // Zero picks the built-in default, and MEGACMD_TEST_SHUTDOWN_WATCHDOG_SECS
+    // overrides both, so the pipeline can retune this without a rebuild.
+    megacmd::test::armShutdownWatchdog(0);
+
     megacmd::stopServer();
     serverThread.join();
+
+    megacmd::test::disarmShutdownWatchdog();
+
+    // If some other thread died during the shutdown, its capture must finish and
+    // take the process with it. Writing the success marker first would report a
+    // clean run for a process that crashed.
+    megacmd::test::waitForCrashCaptureToFinish();
 
 #ifdef _WIN32
     // We use a file to pass the exit code to Jenkins,

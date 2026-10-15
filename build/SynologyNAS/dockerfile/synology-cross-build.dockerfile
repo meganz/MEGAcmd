@@ -9,12 +9,14 @@ RUN apt-get --quiet=2 update && DEBCONF_NOWARNINGS=yes apt-get --quiet=2 install
     aria2 \
     autoconf \
     autoconf-archive \
+    automake \
     build-essential \
     ccache \
     cmake \
     curl \
     fakeroot \
     git \
+    libtool \
     nasm \
     pkg-config \
     python3 \
@@ -27,9 +29,6 @@ RUN apt-get --quiet=2 update && DEBCONF_NOWARNINGS=yes apt-get --quiet=2 install
 
 ENV CCACHE_DIR=/tmp/ccache
 ENV VCPKG_DEFAULT_BINARY_CACHE=/tmp/vcpkgcache
-
-# We don't wont a potential config coming from host machine to meddle with the build
-RUN rm sdk/include/mega/config.h || true
 
 WORKDIR /mega
 RUN chmod 777 /mega
@@ -51,6 +50,8 @@ RUN /mega/clone_vcpkg_from_baseline.sh /mega/vcpkg
 
 WORKDIR /mega/megacmd
 COPY sdk ./sdk
+# We don't want a potential config coming from host machine to meddle with the build
+RUN rm -f sdk/include/mega/config.h
 COPY src ./src
 COPY build ./build
 COPY contrib ./contrib
@@ -83,4 +84,8 @@ RUN --mount=type=cache,target=/tmp/ccache \
         -DVCPKG_TARGET_TRIPLET=${PLATFORM} && \
     cmake --build buildDMS
 
-RUN export PLATFORM=${PLATFORM} && /mega/spk_install.sh
+# family or platform, see INFO.sh. Declared here so changing it only redoes the packaging
+ARG SPK_ARCH=family
+
+# spk_install.sh carries on past errors, so fail here if it produced no package
+RUN export PLATFORM=${PLATFORM} SPK_ARCH=${SPK_ARCH} && /mega/spk_install.sh && ls /image/${PLATFORM}/*.spk

@@ -140,20 +140,15 @@ pipeline {
                                     default:
                                         ARCH_REGEX = ARCHITECTURE
                                 }
-                                withCredentials([string(credentialsId: 'MEGACMD_ARTIFACTORY_TOKEN', variable: 'MEGACMD_ARTIFACTORY_TOKEN')]) {
-                                    sh """
-                                        jf rt del \
-                                            --url ${REPO_URL} \
-                                            --access-token \${MEGACMD_ARTIFACTORY_TOKEN} \
-                                            MEGAcmd-sprints/${env.gitlabMergeRequestIid}/linux/$DISTRIBUTION
-                                    """
+                                withCredentials([usernamePassword(credentialsId: 'MEGACMD_NEXUS_CREDENTIALS', usernameVariable: 'NEXUS_USERNAME', passwordVariable: 'NEXUS_PASSWORD')]) {
                                     dir("/srv/repo/private/$DISTRIBUTION"){
                                         sh """
-                                            jf rt upload \
-                                                --url ${REPO_URL} \
-                                                --access-token \${MEGACMD_ARTIFACTORY_TOKEN} \
-                                                --regexp '(($ARCH_REGEX)/megacmd.*deb\$|($ARCH_REGEX)/($ARCH_REGEX)/megacmd.*rpm\$|($ARCH_REGEX)/megacmd.*\\.pkg\\.tar\\.zst\$|($ARCH_REGEX)/megacmd.*\\.pkg\\.tar\\.xz\$)' \
-                                                MEGAcmd-sprints/${env.gitlabMergeRequestIid}/linux/$DISTRIBUTION/
+                                            find . -regextype posix-extended \
+                                                -regex '\\./($ARCH_REGEX)/megacmd.*(deb|\\.pkg\\.tar\\.zst|\\.pkg\\.tar\\.xz)\$|\\./($ARCH_REGEX)/($ARCH_REGEX)/megacmd.*rpm\$' \
+                                                | while read -r pkg; do
+                                                    curl -sSf -u "\$NEXUS_USERNAME:\$NEXUS_PASSWORD" -T "\$pkg" \
+                                                        "$NEXUS_URL/repository/megacmd-sprints/${env.gitlabMergeRequestIid}/linux/$DISTRIBUTION/\${pkg#./}"
+                                                done
                                         """
                                     }
                                 }
@@ -172,7 +167,7 @@ pipeline {
         always {
             script {
                 if (currentBuild.currentResult == 'SUCCESS') {
-                    addGitLabMRComment(comment: ":white_check_mark: ${currentBuild.projectName} :penguin: <b>LINUX</b>  SUCCEEDED :muscle:<br/>Build results: [Jenkins [${currentBuild.displayName}]](${currentBuild.absoluteUrl})<br/>Commit: ${env.GIT_COMMIT}<br/>Packages URL: [${env.REPO_URL}/MEGAcmd-sprints/${env.gitlabMergeRequestIid}/linux/$DISTRIBUTION]" )
+                    addGitLabMRComment(comment: ":white_check_mark: ${currentBuild.projectName} :penguin: <b>LINUX</b>  SUCCEEDED :muscle:<br/>Build results: [Jenkins [${currentBuild.displayName}]](${currentBuild.absoluteUrl})<br/>Commit: ${env.GIT_COMMIT}<br/>Packages URL: [$NEXUS_URL/service/rest/repository/browse/megacmd-sprints/${env.gitlabMergeRequestIid}/linux/$DISTRIBUTION/]" )
                     updateGitlabCommitStatus(name: 'Build linux packages', state: 'success')
                 }
                 if (currentBuild.currentResult == 'FAILURE') {

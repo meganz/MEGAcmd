@@ -327,9 +327,16 @@ if (ENABLE_MEGACMD_TESTS)
     #Test Common:
     add_library(LMegacmdTestsCommon STATIC)
     add_source_and_corresponding_header_to_target(LMegacmdTestsCommon PRIVATE
+        "${ProjectDir}/tests/common/CrashCapture.cpp"
         "${ProjectDir}/tests/common/Instruments.cpp"
         "${ProjectDir}/tests/common/TestUtils.cpp"
     )
+    if (WIN32)
+        # Symbolising a stack and writing a minidump both come from DbgHelp.
+        # PRIVATE, so consumers still get it on their link line without inheriting
+        # it as a usage requirement.
+        target_link_libraries(LMegacmdTestsCommon PRIVATE dbghelp)
+    endif()
 
     #Integration tests:
     add_executable(mega-cmd-tests-integration ${executablesType})
@@ -337,7 +344,9 @@ if (ENABLE_MEGACMD_TESTS)
         "${ProjectDir}/tests/integration/BasicTests.cpp"
         "${ProjectDir}/tests/integration/CatTests.cpp"
         "${ProjectDir}/tests/integration/ExportTests.cpp"
+        "${ProjectDir}/tests/integration/MoveTests.cpp"
         "${ProjectDir}/tests/integration/PutTests.cpp"
+        "${ProjectDir}/tests/integration/RemotePathTests.cpp"
         "${ProjectDir}/tests/integration/SyncIssuesTests.cpp"
         "${ProjectDir}/tests/integration/SyncIgnoreTests.cpp"
         "${ProjectDir}/tests/integration/FuseTests.cpp"
@@ -356,9 +365,11 @@ if (ENABLE_MEGACMD_TESTS)
         "${ProjectDir}/tests/unit/CompletedTransfersTests.cpp"
         "${ProjectDir}/tests/unit/ComunicationsManagerFileSocketsTests.cpp"
         "${ProjectDir}/tests/unit/ConfigurationManagerTests.cpp"
+        "${ProjectDir}/tests/unit/DeferredSingleTriggerTests.cpp"
         "${ProjectDir}/tests/unit/OptionsFlagsUtilsTests.cpp"
         "${ProjectDir}/tests/unit/PlatformDirectoriesTests.cpp"
         "${ProjectDir}/tests/unit/StringUtilsTests.cpp"
+        "${ProjectDir}/tests/unit/TransferQuotaWaitTests.cpp"
         "${ProjectDir}/tests/unit/Utf8Tests.cpp"
         "${ProjectDir}/tests/unit/UtilsTests.cpp"
         "${ProjectDir}/tests/unit/main.cpp"

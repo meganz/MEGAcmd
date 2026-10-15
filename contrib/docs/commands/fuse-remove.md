@@ -8,5 +8,5 @@ Parameters:
                    Name: the user-friendly name of the mount, specified when it was added or by fuse-config.
                    Local path: The local mount point in the filesystem.
 
-Note: FUSE commands are in early BETA. They are not available in macOS. If you experience any issues, please contact support@mega.nz.
+Note: FUSE commands are in early BETA. They are not available in macOS. If you experience any issues, please contact support@mega.io.
 </pre>

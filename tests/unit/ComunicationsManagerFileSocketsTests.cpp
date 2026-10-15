@@ -32,6 +32,7 @@
 #include <gtest/gtest.h>
 
 #include "Instruments.h"
+#include "TestUtils.h"
 #include "comunicationsmanagerfilesockets.h"
 #include "megacmdcommonutils.h"
 
@@ -110,6 +111,38 @@ public:
 
     TestSocketClient(const TestSocketClient&) = delete;
     TestSocketClient& operator=(const TestSocketClient&) = delete;
+};
+
+// Runs waitForPetition() beside the test body for a fixed number of rounds.
+// waitForPetition() sits in select() with no timeout, so the thread is woken with
+// stopWaiting(), the same wake-up the server uses, and joined before the manager
+// it refers to goes out of scope.
+class PetitionWaiter
+{
+    ComunicationsManagerFileSockets& mManager;
+    std::thread mThread;
+
+public:
+    PetitionWaiter(ComunicationsManagerFileSockets& manager, int rounds, std::chrono::milliseconds pause):
+        mManager(manager),
+        mThread([&manager, rounds, pause]() {
+            for (int i = 0; i < rounds; i++)
+            {
+                manager.waitForPetition();
+                std::this_thread::sleep_for(pause);
+            }
+        })
+    {
+    }
+
+    ~PetitionWaiter()
+    {
+        mManager.stopWaiting();
+        mThread.join();
+    }
+
+    PetitionWaiter(const PetitionWaiter&) = delete;
+    PetitionWaiter& operator=(const PetitionWaiter&) = delete;
 };
 
 std::unique_ptr<CmdPetition> sendPetition(ComunicationsManagerFileSockets &manager,
@@ -211,6 +244,21 @@ TEST_F(ComunicationsManagerFileSocketsTest, InitializeWithLongSocketPath)
     ComunicationsManagerFileSockets manager;
     int result = manager.initialize();
     EXPECT_EQ(result, -1);
+}
+
+TEST_F(ComunicationsManagerFileSocketsTest, InitializeWithUnusableFallbackFolder)
+{
+    // Long enough for the socket to fall back to /tmp
+    SelfDeletingTmpFolder tmpFolder("this_is_a_very_very_very_lengthy_folder_name_meant_to_make_socket_path_exceed_max_unix_socket_path_allowance");
+#ifdef __APPLE__
+    fs::create_directories(tmpFolder.path() / "Library" / "Caches");
+#endif
+    auto homeGuard = TestInstrumentsEnvVarGuard("HOME", tmpFolder.string());
+    UnusableFallbackFolderGuard fallbackGuard;
+
+    ComunicationsManagerFileSockets manager;
+    EXPECT_EQ(manager.initialize(), -1);
+    EXPECT_EQ(manager.waitForPetition(), EBADF);
 }
 
 TEST_F(ComunicationsManagerFileSocketsWithClientTest, GetPetitionReadsData)
@@ -510,14 +558,7 @@ TEST_F(ComunicationsManagerFileSocketsTest, StressMultipleConcurrentClients)
         ASSERT_TRUE(clients.back()->isConnected());
     }
 
-    std::thread waitThread([&manager]() {
-        for (int i = 0; i < 20; i++)
-        {
-            manager.waitForPetition();
-            std::this_thread::sleep_for(10ms);
-        }
-    });
-    waitThread.detach();
+    PetitionWaiter waiter(manager, numClients, 10ms);
 
     for (int i = 0; i < numClients; i++)
     {
@@ -561,14 +602,7 @@ TEST_F(ComunicationsManagerFileSocketsTest, StressMaxStateListeners)
     std::vector<CmdPetition*> listeners;
     int registeredCount = 0;
 
-    std::thread waitThread([&manager]() {
-        for (int i = 0; i < testListeners; i++)
-        {
-            manager.waitForPetition();
-            std::this_thread::sleep_for(5ms);
-        }
-    });
-    waitThread.detach();
+    PetitionWaiter waiter(manager, testListeners, 5ms);
 
     for (int i = 0; i < testListeners; i++)
     {
@@ -611,14 +645,7 @@ TEST_F(ComunicationsManagerFileSocketsTest, StressConcurrentPartialOutputs)
         clients.push_back(std::make_unique<TestSocketClient>());
     }
 
-    std::thread waitThread([&manager]() {
-        for (int i = 0; i < numClients; i++)
-        {
-            manager.waitForPetition();
-            std::this_thread::sleep_for(10ms);
-        }
-    });
-    waitThread.detach();
+    PetitionWaiter waiter(manager, numClients, 10ms);
 
     for (int i = 0; i < numClients; i++)
     {
@@ -668,16 +695,9 @@ TEST_F(ComunicationsManagerFileSocketsTest, StressRapidConnectDisconnect)
 
     ComunicationsManagerFileSockets manager;
 
-    std::thread waitThread([&manager, expectedPetitionCount]() {
-        for (int i = 0; i < expectedPetitionCount; i++)
-        {
-            manager.waitForPetition();
-            std::this_thread::sleep_for(5ms);
-        }
-    });
-    waitThread.detach();
+    PetitionWaiter waiter(manager, expectedPetitionCount, 5ms);
 
-    // Small delay to ensure waitThread is running
+    // Small delay to ensure the waiter thread is running
     std::this_thread::sleep_for(10ms);
 
     for (int i = 0; i < expectedPetitionCount; i++)
@@ -719,14 +739,7 @@ TEST_F(ComunicationsManagerFileSocketsTest, StressLargeDataMultipleClients)
         clients.push_back(std::make_unique<TestSocketClient>());
     }
 
-    std::thread waitThread([&manager]() {
-        for (int i = 0; i < numClients; i++)
-        {
-            manager.waitForPetition();
-            std::this_thread::sleep_for(10ms);
-        }
-    });
-    waitThread.detach();
+    PetitionWaiter waiter(manager, numClients, 10ms);
 
     for (int i = 0; i < numClients; i++)
     {

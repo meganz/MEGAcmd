@@ -101,7 +101,14 @@ public:
     MegaCmdExecuter(mega::MegaApi *api, MegaCmdLogger *loggerCMD, MegaCmdSandbox *sandboxCMD);
     ~MegaCmdExecuter();
 
+    // Stops the work deferred to its own thread, waiting for it if it is already
+    // running. It must be called while the api those callbacks use is still alive.
+    void stopDeferredWork();
+
     void updateprompt(mega::MegaApi *api = nullptr);
+
+    // The transfer quota message for a client connecting now, while the SDK waits for quota.
+    std::optional<std::string> getTransferQuotaGreeting();
 
     // nodes browsing
     void listtrees();

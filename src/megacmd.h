@@ -85,8 +85,11 @@ void broadcastMessage(std::string message, bool keepIfNoListeners = false);
 void informStateListeners(std::string s);
 
 
-void removeDelayedBroadcastMatching(const std::string &toMatch);
 void broadcastDelayedMessage(std::string message, bool keepIfNoListeners);
+
+// Stops the delayed broadcast and joins its thread. Must run before whatever
+// the handover reaches into is destroyed.
+void stopAndJoinDelayedBroadcast();
 
 void appendGreetingStatusFirstListener(const std::string &msj);
 void removeGreetingStatusFirstListener(const std::string &msj);
@@ -177,8 +180,6 @@ bool booleanAskForConfirmation(std::string messageHeading);
 
 std::string askforUserResponse(std::string message);
 
-void* checkForUpdates(void *param);
-
 void stopcheckingForUpdates();
 void startcheckingForUpdates();
 
@@ -207,6 +208,14 @@ struct LogConfig
     int mCmdLogLevel = mega::MegaApi::LOG_LEVEL_DEBUG;
     bool mLogToCout = true;
     bool mJsonLogs = false;
+    // Records at this level or worse ask the logging stream to drain. Note that
+    // the file stream drains on a writer thread, so this brings the write
+    // forward but does not guarantee the record is on disk before the next
+    // statement runs.
+    int mFlushOnLevel = mega::MegaApi::LOG_LEVEL_WARNING;
+    // Prefix every record with the id of the thread that emitted it. Off by
+    // default because the same formatter feeds the output a client sees.
+    bool mLogThreadId = false;
 };
 
 class LoggedStream; // forward delaration

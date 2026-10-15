@@ -215,6 +215,40 @@ TEST(PlatformDirectoriesTest, configDirPath)
         EXPECT_EQ(configPath.string(), megacmd::PosixDirectories::noHomeFallbackFolder());
     }
 
+    G_SUBTEST << "With alternative NON existing HOME and a fallback folder other users can access";
+    {
+        auto homeGuard = TestInstrumentsEnvVarGuard("HOME", "/non-existent-dir");
+        UnusableFallbackFolderGuard fallbackGuard;
+        EXPECT_TRUE(dirs->configDirPath().empty());
+        EXPECT_TRUE(dirs->runtimeDirPath().empty());
+    }
+
+    G_SUBTEST << "Session file permissions";
+    {
+        SelfDeletingTmpFolder tmpFolder;
+        auto homeGuard = TestInstrumentsEnvVarGuard("HOME", tmpFolder.string());
+        const fs::path sessionFile = dirs->configDirPath() / "session";
+
+        auto sessionFilePerms = [&sessionFile]
+        {
+            struct stat info = {};
+            stat(sessionFile.c_str(), &info);
+            return static_cast<mode_t>(info.st_mode & 0777);
+        };
+
+        ConfigurationManager::saveSession("test_session_data");
+        EXPECT_EQ(sessionFilePerms(), mode_t{0600});
+
+        // As left by older versions
+        ASSERT_EQ(chmod(sessionFile.c_str(), 0644), 0);
+        ConfigurationManager::saveSession("new_test_session_data");
+        EXPECT_EQ(sessionFilePerms(), mode_t{0600});
+
+        std::string content;
+        std::getline(std::ifstream(sessionFile), content);
+        EXPECT_EQ(content, "new_test_session_data");
+    }
+
     G_SUBTEST << "Correct 0700 permissions";
     {
         using megacmd::ConfigurationManager;
@@ -493,6 +527,85 @@ TEST(PlatformDirectoriesTest, getOrCreateSocketPath)
         fs::path socketDir = fs::path(socketPath).parent_path();
         EXPECT_TRUE(fs::is_directory(socketDir));
         EXPECT_EQ(socketDir.string(), megacmd::PosixDirectories::noHomeFallbackFolder());
+    }
+
+    G_SUBTEST << "Long path and a fallback folder other users can access";
+    {
+        SelfDeletingTmpFolder tmpFolder("this_is_a_very_very_very_lengthy_folder_name_meant_to_make_socket_path_exceed_max_unix_socket_path_allowance");
+#ifdef __APPLE__
+        fs::create_directories(tmpFolder.path() / "Library" / "Caches");
+#endif
+        auto homeGuard = TestInstrumentsEnvVarGuard("HOME", tmpFolder.string());
+        UnusableFallbackFolderGuard fallbackGuard;
+        EXPECT_TRUE(getOrCreateSocketPath(false).empty());
+        EXPECT_TRUE(getOrCreateSocketPath(true).empty());
+    }
+}
+
+TEST(PlatformDirectoriesTest, createOrCheckPrivateFolder)
+{
+    using megacmd::createOrCheckPrivateFolder;
+
+    SelfDeletingTmpFolder tmpFolder;
+    std::string error;
+
+    G_SUBTEST << "Missing folder";
+    {
+        const fs::path folder = tmpFolder.path() / "missing";
+        EXPECT_TRUE(createOrCheckPrivateFolder(folder.string(), error)) << error;
+
+        struct stat info = {};
+        ASSERT_EQ(lstat(folder.c_str(), &info), 0);
+        EXPECT_TRUE(S_ISDIR(info.st_mode));
+        EXPECT_EQ(static_cast<mode_t>(info.st_mode & 0777), mode_t{0700});
+    }
+
+    G_SUBTEST << "Private folder";
+    {
+        const fs::path folder = tmpFolder.path() / "private";
+        ASSERT_EQ(mkdir(folder.c_str(), 0700), 0);
+        EXPECT_TRUE(createOrCheckPrivateFolder(folder.string(), error)) << error;
+    }
+
+    G_SUBTEST << "Folder other users can access";
+    {
+        const fs::path folder = tmpFolder.path() / "shared";
+        ASSERT_EQ(mkdir(folder.c_str(), 0700), 0);
+        ASSERT_EQ(chmod(folder.c_str(), 0750), 0);
+        EXPECT_FALSE(createOrCheckPrivateFolder(folder.string(), error));
+        EXPECT_EQ(error, "other users have access to it (permissions 750)");
+    }
+
+    G_SUBTEST << "Symbolic link to a private folder";
+    {
+        const fs::path target = tmpFolder.path() / "target";
+        const fs::path link = tmpFolder.path() / "link";
+        ASSERT_EQ(mkdir(target.c_str(), 0700), 0);
+        fs::create_directory_symlink(target, link);
+        EXPECT_FALSE(createOrCheckPrivateFolder(link.string(), error));
+        EXPECT_EQ(error, "it is not a folder");
+    }
+
+    G_SUBTEST << "File";
+    {
+        const fs::path file = tmpFolder.path() / "file";
+        std::ofstream(file) << "not a folder";
+        EXPECT_FALSE(createOrCheckPrivateFolder(file.string(), error));
+        EXPECT_EQ(error, "it is not a folder");
+    }
+
+    G_SUBTEST << "Folder of another user";
+    {
+        // Only root can give a folder to another user. Anyone else gets one of root's.
+        fs::path folder = "/usr";
+        if (geteuid() == 0)
+        {
+            folder = tmpFolder.path() / "nobody";
+            ASSERT_EQ(mkdir(folder.c_str(), 0700), 0);
+            ASSERT_EQ(chown(folder.c_str(), 65534, 65534), 0);
+        }
+        EXPECT_FALSE(createOrCheckPrivateFolder(folder.string(), error));
+        EXPECT_THAT(error, testing::StartsWith("it belongs to another user"));
     }
 }
 #else

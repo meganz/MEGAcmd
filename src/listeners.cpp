@@ -24,12 +24,86 @@
     #include "../tests/common/Instruments.h"
 #endif
 
+#include <algorithm>
 #include <utility>
 
 using namespace mega;
 
 
 namespace megacmd {
+namespace {
+std::string uploadWaitingForStorageMessage(MegaApi &api, const MegaTransfer &transfer)
+{
+    if (!transfer.isForeignOverquota())
+    {
+        return "Uploads are temporarily disabled: your MEGA cloud storage is full.\n"
+               "Your uploads will remain queued until there is enough space on your account.\n"
+               "Upgrade your account to get more storage quota. See \"help --upgrade\" for further details.";
+    }
+
+    std::unique_ptr<MegaNode> parent(api.getNodeByHandle(transfer.getParentHandle()));
+    std::unique_ptr<MegaUser> owner(parent ? api.getUserFromInShare(parent.get(), true) : nullptr);
+    if (!owner || !owner->getEmail())
+    {
+        return "Your upload(s) cannot proceed because the account that owns the shared folder is full.\n"
+               "They will remain queued until its owner frees up space or upgrades their account.";
+    }
+
+    const std::string email = owner->getEmail();
+    return "Your upload(s) cannot proceed because " + email + "'s account is full.\n"
+           "They will remain queued until " + email + " frees up space or upgrades their account.";
+}
+}
+
+std::optional<std::string> transferQuotaWaitMessage(m_time_t secondsLeft)
+{
+    if (secondsLeft <= 0)
+    {
+        return std::nullopt;
+    }
+    return "Transfer quota exceeded. You can't continue downloading as you've used all of the transfer quota available to you.\n"
+           "Upgrade your account to get more transfer quota or you can wait for " + secondsToText(secondsLeft) +
+           " until more free quota becomes available for you.\n"
+           "See \"help --upgrade\" for further details.";
+}
+
+bool TransferQuotaWaitNotice::onWait(m_time_t seconds)
+{
+    const auto now = m_time();
+    {
+        std::lock_guard<std::mutex> g(mMutex);
+        // Every download and streaming read gets the error when the quota runs out: announce the
+        // wait once, and again only if the quota runs out again after that wait is over.
+        const bool newWait = now >= mWaitEnd;
+        mWaitEnd = std::max(mWaitEnd, now + seconds);
+        if (!newWait)
+        {
+            return false;
+        }
+    }
+
+    auto message = transferQuotaWaitMessage(seconds);
+    if (!message)
+    {
+        return false;
+    }
+    LOG_warn << *message;
+    broadcastMessage(*message);
+    return true;
+}
+
+void TransferQuotaWaitNotice::forget()
+{
+    std::lock_guard<std::mutex> g(mMutex);
+    mWaitEnd = 0;
+}
+
+TransferQuotaWaitNotice &transferQuotaWaitNotice()
+{
+    static TransferQuotaWaitNotice notice;
+    return notice;
+}
+
 #ifdef ENABLE_CHAT
 void MegaCmdGlobalListener::onChatsUpdate(MegaApi*, MegaTextChatList*)
 {
@@ -189,15 +263,6 @@ void MegaCmdGlobalListener::onNodesUpdate(MegaApi *api, MegaNodeList *nodes)
         LOG_debug << rfiles << " files "
                   << "removed";
     }
-}
-
-void MegaCmdGlobalListener::onAccountUpdate(MegaApi *api)
-{
-    if (!api->getBandwidthOverquotaDelay())
-    {
-        sandboxCMD->setOverquota(false);
-    }
-    sandboxCMD->temporalbandwidth = 0; //This will cause account details to be queried again
 }
 
 void MegaCmdGlobalListener::onEvent(MegaApi *api, MegaEvent *event)
@@ -374,7 +439,8 @@ void MegaCmdGlobalListener::onEvent(MegaApi *api, MegaEvent *event)
     else if (event->getType() == MegaEvent::EVENT_SYNCS_DISABLED)
     {
         std::unique_ptr<const char[]> megaSyncErrorCode {MegaSync::getMegaSyncErrorCode(int(event->getNumber()))};
-        removeDelayedBroadcastMatching("Your sync has been disabled");
+        // drop the per-sync notices onSyncStateChanged queued for this same reason
+        removeDelayedBroadcastMatching(std::string(". ErrorCode: ").append(megaSyncErrorCode.get()));
         broadcastMessage(std::string("Your syncs have been disabled. Reason: ")
                          .append(megaSyncErrorCode.get()), true);
     }
@@ -394,6 +460,12 @@ void MegaCmdGlobalListener::onEvent(MegaApi *api, MegaEvent *event)
     else if (event->getType() == MegaEvent::EVENT_NODES_CURRENT)
     {
         sandboxCMD->mNodesCurrentPromise.fulfil();
+    }
+    else if (event->getType() == MegaEvent::EVENT_STREAM_OVERQUOTA)
+    {
+        // Streaming reads, such as the ones for FUSE, are not transfers: no temporary error
+        // reaches the transfer listener, the SDK reports their wait here instead.
+        transferQuotaWaitNotice().onWait(event->getNumber());
     }
 }
 
@@ -464,9 +536,14 @@ MegaCmdMegaListener::MegaCmdMegaListener(MegaApi *megaApi, MegaListener *parent,
 MegaCmdMegaListener::~MegaCmdMegaListener()
 {
     this->listener = NULL;
-    if (megaApi)
+    detachFromApi();
+}
+
+void MegaCmdMegaListener::detachFromApi()
+{
+    if (MegaApi *apiToLeave = std::exchange(megaApi, nullptr))
     {
-        megaApi->removeListener(this);
+        apiToLeave->removeListener(this);
     }
 }
 
@@ -654,80 +731,56 @@ void MegaCmdListener::onRequestUpdate(MegaApi* api, MegaRequest *request)
 #ifdef MEGACMD_TESTING_CODE
         TestInstruments::Instance().fireEvent(TestInstruments::Event::FETCH_NODES_REQ_UPDATE);
 #endif
-            unsigned int cols = getNumberOfCols(80);
-            string outputString;
-            outputString.resize(cols+1);
-            for (unsigned int i = 0; i < cols; i++)
-            {
-                outputString[i] = '.';
-            }
+        float oldpercent = percentFetchnodes;
+        if (request->getTotalBytes() == 0) {
+          percentFetchnodes = 0;
+        } else {
+          percentFetchnodes = float(request->getTransferredBytes() * 1.0 /
+                                    request->getTotalBytes() * 100.0);
+        }
+        if (alreadyFinished ||
+            ((percentFetchnodes == oldpercent) && (oldpercent != 0))) {
+          return;
+        }
+        if (percentFetchnodes < 0) {
+          percentFetchnodes = 0;
+        }
 
-            outputString[cols] = '\0';
-            char *ptr = (char *)outputString.c_str();
-            sprintf(ptr, "%s", "Fetching nodes ||");
-            ptr += strlen("Fetching nodes ||");
-            *ptr = '.'; //replace \0 char
+        char aux[40];
+        if (request->getTotalBytes() < 0) {
+          return; // after a 100% this happens
+        }
+        if (request->getTransferredBytes() < 0.001 * request->getTotalBytes()) {
+          return; // after a 100% this happens
+        }
 
+        if (request->getTotalBytes() < 1048576) {
+          snprintf(aux, sizeof(aux), "||(%lld/%lld KB: %.2f %%) ",
+                   request->getTransferredBytes() / 1024,
+                   request->getTotalBytes() / 1024, percentFetchnodes);
+        } else {
+          snprintf(aux, sizeof(aux), "||(%lld/%lld MB: %.2f %%) ",
+                   request->getTransferredBytes() / 1024 / 1024,
+                   request->getTotalBytes() / 1024 / 1024, percentFetchnodes);
+        }
 
-            float oldpercent = percentFetchnodes;
-            if (request->getTotalBytes() == 0)
-            {
-                percentFetchnodes = 0;
-            }
-            else
-            {
-                percentFetchnodes = float(request->getTransferredBytes() * 1.0 / request->getTotalBytes() * 100.0);
-            }
-            if (alreadyFinished || ( ( percentFetchnodes == oldpercent ) && ( oldpercent != 0 )) )
-            {
-                return;
-            }
-            if (percentFetchnodes < 0)
-            {
-                percentFetchnodes = 0;
-            }
+        const string outputString = buildProgressBarLine(
+            "Fetching nodes ||", aux, percentFetchnodes, getNumberOfCols(80));
 
-            char aux[40];
-            if (request->getTotalBytes() < 0)
-            {
-                return;                         // after a 100% this happens
-            }
-            if (request->getTransferredBytes() < 0.001 * request->getTotalBytes())
-            {
-                return;                                                            // after a 100% this happens
-            }
+        if (percentFetchnodes == 100 && !alreadyFinished) {
+          alreadyFinished = true;
+          // cout << outputString << endl;
+          LOG_debug << outputString;
+        } else {
+          LOG_debug << outputString;
+          // cout << outputString << '\r' << flush;
+        }
 
-            if (request->getTotalBytes() < 1048576)
-            {
-                sprintf(aux,"||(%lld/%lld KB: %.2f %%) ", request->getTransferredBytes() / 1024, request->getTotalBytes() / 1024, percentFetchnodes);
-            }
-            else
-            {
-                sprintf(aux,"||(%lld/%lld MB: %.2f %%) ", request->getTransferredBytes() / 1024 / 1024, request->getTotalBytes() / 1024 / 1024, percentFetchnodes);
-            }
+        informProgressUpdate(request->getTransferredBytes(),
+                             request->getTotalBytes(), this->clientID,
+                             "Fetching nodes");
 
-            sprintf((char *)outputString.c_str() + cols - strlen(aux), "%s",                         aux);
-            for (int i = 0; i <= ( cols - strlen("Fetching nodes ||") - strlen(aux)) * 1.0 * percentFetchnodes / 100.0; i++)
-            {
-                *ptr++ = '#';
-            }
-
-            if (percentFetchnodes == 100 && !alreadyFinished)
-            {
-                alreadyFinished = true;
-                //cout << outputString << endl;
-                LOG_debug << outputString;
-            }
-            else
-            {
-                LOG_debug << outputString;
-                //cout << outputString << '\r' << flush;
-            }
-
-            informProgressUpdate(request->getTransferredBytes(), request->getTotalBytes(), this->clientID, "Fetching nodes");
-
-
-            break;
+        break;
         }
 
         default:
@@ -805,22 +858,6 @@ void MegaCmdTransferListener::onTransferUpdate(MegaApi* api, MegaTransfer *trans
         return;
     }
 
-    unsigned int cols = getNumberOfCols(80);
-
-    string outputString;
-    outputString.resize(cols + 1);
-    for (unsigned int i = 0; i < cols; i++)
-    {
-        outputString[i] = '.';
-    }
-
-    outputString[cols] = '\0';
-    char *ptr = (char *)outputString.c_str();
-    sprintf(ptr, "%s", "TRANSFERRING ||");
-    ptr += strlen("TRANSFERRING ||");
-    *ptr = '.'; //replace \0 char
-
-
     float oldpercent = percentDownloaded;
     if (transfer->getTotalBytes() == 0)
     {
@@ -851,18 +888,15 @@ void MegaCmdTransferListener::onTransferUpdate(MegaApi* api, MegaTransfer *trans
 
     if (transfer->getTotalBytes() < 1048576)
     {
-        sprintf(aux,"||(%lld/%lld KB: %.2f %%) ", (long long)(transfer->getTransferredBytes() / 1024), (long long)(transfer->getTotalBytes() / 1024), (float)percentDownloaded);
+        snprintf(aux, sizeof(aux), "||(%lld/%lld KB: %.2f %%) ", (long long)(transfer->getTransferredBytes() / 1024), (long long)(transfer->getTotalBytes() / 1024), (float)percentDownloaded);
 
     }
     else
     {
-        sprintf(aux,"||(%lld/%lld MB: %.2f %%) ", (long long)(transfer->getTransferredBytes() / 1024 / 1024), (long long)(transfer->getTotalBytes() / 1024 / 1024), (float)percentDownloaded);
+        snprintf(aux, sizeof(aux), "||(%lld/%lld MB: %.2f %%) ", (long long)(transfer->getTransferredBytes() / 1024 / 1024), (long long)(transfer->getTotalBytes() / 1024 / 1024), (float)percentDownloaded);
     }
-    sprintf((char *)outputString.c_str() + cols - strlen(aux), "%s",                         aux);
-    for (int i = 0; i <= ( cols - strlen("TRANSFERRING ||") - strlen(aux)) * 1.0 * percentDownloaded / 100.0; i++)
-    {
-        *ptr++ = '#';
-    }
+    const string outputString = buildProgressBarLine(
+        "TRANSFERRING ||", aux, percentDownloaded, getNumberOfCols(80));
 
     if (percentDownloaded == 100 && !alreadyFinished)
     {
@@ -1024,22 +1058,6 @@ void MegaCmdMultiTransferListener::onTransferUpdate(MegaApi* api, MegaTransfer *
     ongoingtransferredbytes[transfer->getTag()] = transfer->getTransferredBytes();
     ongoingtotalbytes[transfer->getTag()] = transfer->getTotalBytes();
 
-    unsigned int cols = getNumberOfCols(80);
-
-    string outputString;
-    outputString.resize(cols + 1);
-    for (unsigned int i = 0; i < cols; i++)
-    {
-        outputString[i] = '.';
-    }
-
-    outputString[cols] = '\0';
-    char *ptr = (char *)outputString.c_str();
-    sprintf(ptr, "%s", "TRANSFERRING ||");
-    ptr += strlen("TRANSFERRING ||");
-    *ptr = '.'; //replace \0 char
-
-
     float oldpercent = percentDownloaded;
     if ((totalbytes + getOngoingTotalBytes() ) == 0)
     {
@@ -1070,17 +1088,14 @@ void MegaCmdMultiTransferListener::onTransferUpdate(MegaApi* api, MegaTransfer *
     }
     if (totalbytes + getOngoingTotalBytes() < 1048576)
     {
-        sprintf(aux,"||(%lld/%lld KB: %.2f %%) ", (transferredbytes + getOngoingTransferredBytes()) / 1024, (totalbytes + getOngoingTotalBytes() ) / 1024, percentDownloaded);
+        snprintf(aux, sizeof(aux), "||(%lld/%lld KB: %.2f %%) ", (transferredbytes + getOngoingTransferredBytes()) / 1024, (totalbytes + getOngoingTotalBytes() ) / 1024, percentDownloaded);
     }
     else
     {
-        sprintf(aux,"||(%lld/%lld MB: %.2f %%) ", (transferredbytes + getOngoingTransferredBytes()) / 1024 / 1024, (totalbytes + getOngoingTotalBytes() ) / 1024 / 1024, percentDownloaded);
+        snprintf(aux, sizeof(aux), "||(%lld/%lld MB: %.2f %%) ", (transferredbytes + getOngoingTransferredBytes()) / 1024 / 1024, (totalbytes + getOngoingTotalBytes() ) / 1024 / 1024, percentDownloaded);
     }
-    sprintf((char *)outputString.c_str() + cols - strlen(aux), "%s",                         aux);
-    for (int i = 0; i <= ( cols - strlen("TRANSFERRING ||") - strlen(aux)) * 1.0 * min (100.0f, percentDownloaded) / 100.0; i++)
-    {
-        *ptr++ = '#';
-    }
+    const string outputString = buildProgressBarLine(
+        "TRANSFERRING ||", aux, percentDownloaded, getNumberOfCols(80));
 
     if (percentDownloaded == 100 && !alreadyFinished)
     {
@@ -1265,23 +1280,89 @@ void MegaCmdGlobalTransferListener::onTransferFinish(MegaApi* api, MegaTransfer 
     }
 
     addCompletedTransfer(std::unique_ptr<MegaTransfer>(transfer->copy()), nodePath);
+
+    onUploadNotWaitingForStorage(transfer->getTag());
+}
+
+void MegaCmdGlobalTransferListener::onTransferUpdate(MegaApi* api, MegaTransfer *transfer)
+{
+    if (transfer && transfer->getState() != MegaTransfer::STATE_RETRYING)
+    {
+        onUploadNotWaitingForStorage(transfer->getTag());
+    }
+}
+
+void MegaCmdGlobalTransferListener::onUploadWaitingForStorage(MegaApi &api, const MegaTransfer &transfer)
+{
+    auto message = uploadWaitingForStorageMessage(api, transfer);
+    LOG_debug << "Upload waiting for storage: " << transfer.getFileName();
+
+    bool firstWithThisMessage = false;
+    {
+        std::lock_guard<std::mutex> g(mUploadsWaitingForStorageMutex);
+        firstWithThisMessage = std::none_of(mUploadsWaitingForStorage.begin(), mUploadsWaitingForStorage.end(),
+                                            [&message](const auto &waiting) { return waiting.second == message; });
+        mUploadsWaitingForStorage[transfer.getTag()] = message;
+        if (firstWithThisMessage)
+        {
+            appendGreetingStatusAllListener(std::string("message:") + message);
+        }
+    }
+
+    if (firstWithThisMessage)
+    {
+        LOG_warn << message;
+        broadcastMessage(message);
+    }
+}
+
+void MegaCmdGlobalTransferListener::onUploadNotWaitingForStorage(int tag)
+{
+    bool lastWithThisMessage = false;
+    {
+        std::lock_guard<std::mutex> g(mUploadsWaitingForStorageMutex);
+        auto it = mUploadsWaitingForStorage.find(tag);
+        if (it == mUploadsWaitingForStorage.end())
+        {
+            return;
+        }
+        auto message = std::move(it->second);
+        mUploadsWaitingForStorage.erase(it);
+
+        lastWithThisMessage = std::none_of(mUploadsWaitingForStorage.begin(), mUploadsWaitingForStorage.end(),
+                                           [&message](const auto &waiting) { return waiting.second == message; });
+        if (lastWithThisMessage)
+        {
+            removeGreetingStatusAllListener(std::string("message:") + message);
+        }
+    }
+
+    if (lastWithThisMessage)
+    {
+        LOG_debug << "No upload is waiting for storage any more";
+    }
+}
+
+void MegaCmdGlobalTransferListener::forgetUploadsWaitingForStorage()
+{
+    std::lock_guard<std::mutex> g(mUploadsWaitingForStorageMutex);
+    mUploadsWaitingForStorage.clear();
 }
 
 void MegaCmdGlobalTransferListener::onTransferTemporaryError(MegaApi *api, MegaTransfer *transfer, MegaError* e)
 {
-    if (e && e->getErrorCode() == MegaError::API_EOVERQUOTA && e->getValue())
+    if (e && transfer && e->getErrorCode() == MegaError::API_EOVERQUOTA && !e->getValue()
+            && transfer->getType() == MegaTransfer::TYPE_UPLOAD)
     {
-        if (!sandboxCMD->isOverquota())
-        {
-            LOG_warn  << "Reached bandwidth quota. Your download could not proceed "
-                         "because it would take you over the current free transfer allowance for your IP address. "
-                         "This limit is dynamic and depends on the amount of unused bandwidth we have available. "
-                         "You can change your account plan to increase such bandwidth. "
-                         "See \"help --upgrade\" for further details";
-        }
-        sandboxCMD->setOverquota(true);
-        sandboxCMD->timeOfOverquota = m_time(NULL);
-        sandboxCMD->secondsOverQuota=e->getValue();
+        // A value of 0 is storage, not transfer quota: our account is full, or the account that
+        // owns the shared destination folder is. Either way the SDK keeps the upload waiting.
+        onUploadWaitingForStorage(*api, *transfer);
+    }
+    else if (e && transfer && e->getErrorCode() == MegaError::API_EOVERQUOTA && e->getValue()
+             && transfer->getType() != MegaTransfer::TYPE_UPLOAD)
+    {
+        // A value is transfer quota: the seconds the SDK keeps downloads waiting.
+        transferQuotaWaitNotice().onWait(e->getValue());
     }
 }
 

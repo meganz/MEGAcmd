@@ -71,6 +71,11 @@ const char * getErrorCodeStr(mega::MegaError *e);
 
 const char * getMountResultStr(int mountResult);
 
+// Size of the local file-service cache, which backs webdav streaming and FUSE mounts.
+// It is one store for both, so the figure is never per mount or per served location.
+// The line is printed even when the size cannot be read, so callers keep a fixed output shape.
+void printLocalCacheUsage(mega::MegaApi& api);
+
 const char * getLogLevelStr(int loglevel);
 
 std::optional<int> getLogLevelNum(const char* level);
