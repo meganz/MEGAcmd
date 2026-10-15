@@ -1,3 +1,16 @@
+megacmd (2.7.0) stable; urgency=low
+
+  * Faster uploads, especially of many small files
+  * FUSE: mounts now stream files, so they open at once instead of after a full download
+  * FUSE: reads through a mount skip the integrity check a full download does. Use "get" for files meant to be run or installed. See "help --streaming"
+  * Transfers and streaming now indicate when they wait for transfer quota or for free storage
+  * mv: moving a folder onto a file no longer deletes the file
+  * mkdir, put, mv and cp no longer create items named "." or ".."
+  * Hardened webdav, ftp and local session file handling
+  * Stability, memory, typos and other improvements
+
+ -- MEGA Team <linux@mega.co.nz>  Thu, 15 Oct 2026 14:34:44 +0000
+
 megacmd (2.6.0) stable; urgency=low
 
   * webdav: streaming now keeps what it already fetched on disk, so seeking back or replaying a part you have watched is instant and is not downloaded again
