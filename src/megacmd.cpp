@@ -5039,6 +5039,186 @@ void processCommandLinePetitionQueues(std::string what)
     processCommandInPetitionQueues(std::move(inf));
 }
 
+// Sends a new state listener its client id, the pending messages and the prompt. It only gets the
+// client id: once registered, the listener belongs to cm, and another thread drops it as soon as a
+// write to it fails (the client hung up).
+void greetStateListener(int clientID)
+{
+    // Communicate client ID
+    cm->informStateListenerByClientId("clientID:" + std::to_string(clientID), clientID);
+
+    std::string s;
+
+#if defined(_WIN32) || defined(__APPLE__)
+    ostringstream os;
+    auto updatMsgOpt = lookForAvailableNewerVersions(api);
+    //TODO: have this executed in worker thread instead (see MegaCmdExecuter::mayExecutePendingStuffInWorkerThread)
+    // still store the update message to be consumed here
+    if (updatMsgOpt)
+    {
+        os << *updatMsgOpt;
+    }
+
+    int autoupdate = ConfigurationManager::getConfigurationValue("autoupdate", -1);
+    if (autoupdate == -1 || autoupdate == 2)
+    {
+        os << "ENABLING AUTOUPDATE BY DEFAULT. You can disable it with \"update --auto=off\"" << endl;
+        autoupdate = 1;
+    }
+
+    if (autoupdate == 1)
+    {
+        startcheckingForUpdates();
+    }
+
+    auto message = os.str();
+    if (message.size())
+    {
+        s += "message:";
+        s += message;
+        s += (char) 0x1F;
+    }
+#endif
+
+    bool isOSdeprecated = false;
+#ifdef MEGACMD_DEPRECATED_OS
+    isOSdeprecated = true;
+#endif
+
+
+#ifdef _WIN32
+    OSVERSIONINFOEX osvi;
+    ZeroMemory(&osvi, sizeof(OSVERSIONINFOEX));
+    osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEX);
+#pragma warning(disable: 4996) //  warning C4996: 'GetVersionExW': was declared deprecated
+    if (GetVersionEx((OSVERSIONINFO*)&osvi) && osvi.dwMajorVersion < 6)
+    {
+        isOSdeprecated = true;
+    }
+#endif
+    if (isOSdeprecated)
+    {
+        s += "message:";
+        s += "Your Operative System is too old.\n";
+        s += "You might not receive new updates for this application.\n";
+        s += "We strongly recommend you to update to a new version.\n";
+        s += (char) 0x1F;
+    }
+
+    if (sandboxCMD->storageStatus != MegaApi::STORAGE_STATE_GREEN)
+    {
+        s += "message:";
+
+        if (sandboxCMD->storageStatus == MegaApi::STORAGE_STATE_PAYWALL)
+        {
+            std::unique_ptr<char[]> myEmail(api->getMyEmail());
+            std::unique_ptr<MegaIntegerList> warningsList(api->getOverquotaWarningsTs());
+            s += "We have contacted you by email to " + string(myEmail.get()) + " on ";
+            s += getReadableTime(warningsList->get(0),"%b %e %Y");
+            if (warningsList->size() > 1)
+            {
+                for (int i = 1; i < warningsList->size() - 1; i++)
+                {
+                    s += ", " + getReadableTime(warningsList->get(i),"%b %e %Y");
+                }
+                s += " and " + getReadableTime(warningsList->get(warningsList->size() - 1),"%b %e %Y");
+            }
+            std::unique_ptr<MegaNode> rootNode(api->getRootNode());
+            auto listener = std::make_unique<SynchronousRequestListener>();
+            api->getFolderInfo(rootNode.get(), listener.get());
+            listener->wait();
+            auto error = listener->getError();
+            assert(error != nullptr);
+            if (error->getErrorCode() == MegaError::API_OK)
+            {
+                long long totalFiles = 0;
+
+                auto info = listener->getRequest()->getMegaFolderInfo();
+                if (info != nullptr)
+                {
+                    totalFiles += info->getNumFolders();
+                }
+                s += ", but you still have " + std::to_string(totalFiles) + " files taking up " + sizeToText(sandboxCMD->receivedStorageSum);
+            }
+            else
+            {
+                s += ", but you still have files taking up" + sizeToText(sandboxCMD->receivedStorageSum);
+            }
+
+            s += " in your MEGA account, which requires you to upgrade your account.\n\n";
+            long long daysLeft = (api->getOverquotaDeadlineTs() - m_time(NULL)) / 86400;
+            if (daysLeft > 0)
+            {
+                 s += "You have " + std::to_string(daysLeft) + " days left to upgrade. ";
+                 s += "After that, your data is subject to deletion.\n";
+            }
+            else
+            {
+                 s += "You must act immediately to save your data. From now on, your data is subject to deletion.\n";
+            }
+        }
+        else if (sandboxCMD->storageStatus == MegaApi::STORAGE_STATE_RED)
+        {
+            s += "You have exeeded your available storage.\n";
+            s += "You can change your account plan to increase your quota limit.\n";
+        }
+        else
+        {
+            s += "You are running out of available storage.\n";
+            s += "You can change your account plan to increase your quota limit.\n";
+        }
+        s += "See \"help --upgrade\" for further details.\n";
+        s += (char) 0x1F;
+    }
+
+    // if server resuming session, lets give him a very litle while before sending greeting message to the early clients
+    // (to aovid "Resuming session..." being printed fast resumed session)
+    while (getloginInAtStartup() && ((m_time(nullptr) - timeLoginStarted() < RESUME_SESSION_TIMEOUT * 0.3)))
+    {
+        sleepMilliSeconds(300);
+    }
+
+    {
+        std::lock_guard<std::mutex> g(greetingsmsgsMutex);
+
+        while(greetingsFirstClientMsgs.size())
+        {
+            cm->informStateListenerByClientId(greetingsFirstClientMsgs.front(), clientID);
+            greetingsFirstClientMsgs.pop_front();
+        }
+
+        for (const auto &m: greetingsAllClientMsgs)
+        {
+            cm->informStateListenerByClientId(m, clientID);
+        }
+    }
+
+    // Built now rather than stored, so that its time left is current
+    if (auto transferQuotaMessage = cmdexecuter->getTransferQuotaGreeting())
+    {
+        cm->informStateListenerByClientId("message:" + *transferQuotaMessage, clientID);
+    }
+
+    // if server resuming session, lets give him a litle while before returning a prompt to the early clients
+    // This will block the server from responging any commands in the meantime, but that assumable, it will only happen
+    // the first time the server is initiated.
+    while (getloginInAtStartup() && ((m_time(nullptr) - timeLoginStarted() < RESUME_SESSION_TIMEOUT * 0.7)))
+    {
+        sleepMilliSeconds(300);
+    }
+
+    // communicate status info
+    s +=  "prompt:";
+    s += dynamicprompt;
+
+    if (!sandboxCMD->getReasonblocked().size())
+    {
+        cmdexecuter->checkAndInformPSA(clientID);
+    }
+
+    cm->informStateListenerByClientId(s, clientID); // adds the last frame's terminator
+}
+
 // main loop
 void megacmd()
 {
@@ -5067,215 +5247,36 @@ void megacmd()
             return;
         }
 
-        if (cm->receivedPetition())
+        if (!cm->receivedPetition())
         {
-            LOG_verbose << "Client connected ";
+            continue;
+        }
 
-            auto infOwned = cm->getPetition();
-            assert(infOwned);
+        LOG_verbose << "Client connected ";
 
-            CmdPetition* inf = infOwned.get();
+        auto inf = cm->getPetition();
+        assert(inf);
 
-            LOG_verbose << "petition registered: " << inf->getRedactedLine();
-            delete_finished_threads();
+        LOG_verbose << "petition registered: " << inf->getRedactedLine();
+        delete_finished_threads();
 
-            if (inf->getUniformLine() == "ERROR")
-            {
-                LOG_warn << "Petition couldn't be registered. Dismissing it.";
-            }
-            // if state register petition
-            else if (startsWith(inf->getUniformLine(), "registerstatelistener"))
-            {
-                inf = cm->registerStateListener(std::move(infOwned));
-                if (!inf)
-                {
-                    continue;
-                }
+        if (inf->getUniformLine() == "ERROR")
+        {
+            LOG_warn << "Petition couldn't be registered. Dismissing it.";
+            continue;
+        }
 
-                {
-                    // Communicate client ID
-                    string clientIdStr = "clientID:" + std::to_string(currentclientID) + (char) 0x1F;
-                    inf->clientID = currentclientID;
-                    currentclientID++;
-                    cm->informStateListener(inf, clientIdStr);
-                }
+        if (!startsWith(inf->getUniformLine(), "registerstatelistener"))
+        {
+            processCommandInPetitionQueues(std::move(inf));
+            continue;
+        }
 
-                std::string s;
-
-#if defined(_WIN32) || defined(__APPLE__)
-                ostringstream os;
-                auto updatMsgOpt = lookForAvailableNewerVersions(api);
-                //TODO: have this executed in worker thread instead (see MegaCmdExecuter::mayExecutePendingStuffInWorkerThread)
-                // still store the update message to be consumed here
-                if (updatMsgOpt)
-                {
-                    os << *updatMsgOpt;
-                }
-
-                int autoupdate = ConfigurationManager::getConfigurationValue("autoupdate", -1);
-                if (autoupdate == -1 || autoupdate == 2)
-                {
-                    os << "ENABLING AUTOUPDATE BY DEFAULT. You can disable it with \"update --auto=off\"" << endl;
-                    autoupdate = 1;
-                }
-
-                if (autoupdate == 1)
-                {
-                    startcheckingForUpdates();
-                }
-
-                auto message = os.str();
-                if (message.size())
-                {
-                    s += "message:";
-                    s += message;
-                    s += (char) 0x1F;
-                }
-#endif
-
-                bool isOSdeprecated = false;
-#ifdef MEGACMD_DEPRECATED_OS
-                isOSdeprecated = true;
-#endif
-
-
-#ifdef _WIN32
-                OSVERSIONINFOEX osvi;
-                ZeroMemory(&osvi, sizeof(OSVERSIONINFOEX));
-                osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEX);
-#pragma warning(disable: 4996) //  warning C4996: 'GetVersionExW': was declared deprecated
-                if (GetVersionEx((OSVERSIONINFO*)&osvi) && osvi.dwMajorVersion < 6)
-                {
-                    isOSdeprecated = true;
-                }
-#endif
-                if (isOSdeprecated)
-                {
-                    s += "message:";
-                    s += "Your Operative System is too old.\n";
-                    s += "You might not receive new updates for this application.\n";
-                    s += "We strongly recommend you to update to a new version.\n";
-                    s += (char) 0x1F;
-                }
-
-                if (sandboxCMD->storageStatus != MegaApi::STORAGE_STATE_GREEN)
-                {
-                    s += "message:";
-
-                    if (sandboxCMD->storageStatus == MegaApi::STORAGE_STATE_PAYWALL)
-                    {
-                        std::unique_ptr<char[]> myEmail(api->getMyEmail());
-                        std::unique_ptr<MegaIntegerList> warningsList(api->getOverquotaWarningsTs());
-                        s += "We have contacted you by email to " + string(myEmail.get()) + " on ";
-                        s += getReadableTime(warningsList->get(0),"%b %e %Y");
-                        if (warningsList->size() > 1)
-                        {
-                            for (int i = 1; i < warningsList->size() - 1; i++)
-                            {
-                                s += ", " + getReadableTime(warningsList->get(i),"%b %e %Y");
-                            }
-                            s += " and " + getReadableTime(warningsList->get(warningsList->size() - 1),"%b %e %Y");
-                        }
-                        std::unique_ptr<MegaNode> rootNode(api->getRootNode());
-                        auto listener = std::make_unique<SynchronousRequestListener>();
-                        api->getFolderInfo(rootNode.get(), listener.get());
-                        listener->wait();
-                        auto error = listener->getError();
-                        assert(error != nullptr);
-                        if (error->getErrorCode() == MegaError::API_OK)
-                        {
-                            long long totalFiles = 0;
-
-                            auto info = listener->getRequest()->getMegaFolderInfo();
-                            if (info != nullptr)
-                            {
-                                totalFiles += info->getNumFolders();
-                            }
-                            s += ", but you still have " + std::to_string(totalFiles) + " files taking up " + sizeToText(sandboxCMD->receivedStorageSum);
-                        }
-                        else
-                        {
-                            s += ", but you still have files taking up" + sizeToText(sandboxCMD->receivedStorageSum);
-                        }
-
-                        s += " in your MEGA account, which requires you to upgrade your account.\n\n";
-                        long long daysLeft = (api->getOverquotaDeadlineTs() - m_time(NULL)) / 86400;
-                        if (daysLeft > 0)
-                        {
-                             s += "You have " + std::to_string(daysLeft) + " days left to upgrade. ";
-                             s += "After that, your data is subject to deletion.\n";
-                        }
-                        else
-                        {
-                             s += "You must act immediately to save your data. From now on, your data is subject to deletion.\n";
-                        }
-                    }
-                    else if (sandboxCMD->storageStatus == MegaApi::STORAGE_STATE_RED)
-                    {
-                        s += "You have exeeded your available storage.\n";
-                        s += "You can change your account plan to increase your quota limit.\n";
-                    }
-                    else
-                    {
-                        s += "You are running out of available storage.\n";
-                        s += "You can change your account plan to increase your quota limit.\n";
-                    }
-                    s += "See \"help --upgrade\" for further details.\n";
-                    s += (char) 0x1F;
-                }
-
-                // if server resuming session, lets give him a very litle while before sending greeting message to the early clients
-                // (to aovid "Resuming session..." being printed fast resumed session)
-                while (getloginInAtStartup() && ((m_time(nullptr) - timeLoginStarted() < RESUME_SESSION_TIMEOUT * 0.3)))
-                {
-                    sleepMilliSeconds(300);
-                }
-
-                {
-                    std::lock_guard<std::mutex> g(greetingsmsgsMutex);
-
-                    while(greetingsFirstClientMsgs.size())
-                    {
-                        cm->informStateListener(inf,greetingsFirstClientMsgs.front().append(1, (char)0x1F));
-                        greetingsFirstClientMsgs.pop_front();
-                    }
-
-                    for (auto m: greetingsAllClientMsgs)
-                    {
-                        cm->informStateListener(inf, m.append(1, (char)0x1F));
-                    }
-                }
-
-                // Built now rather than stored, so that its time left is current
-                if (auto transferQuotaMessage = cmdexecuter->getTransferQuotaGreeting())
-                {
-                    cm->informStateListener(inf, std::string("message:").append(*transferQuotaMessage).append(1, (char)0x1F));
-                }
-
-                // if server resuming session, lets give him a litle while before returning a prompt to the early clients
-                // This will block the server from responging any commands in the meantime, but that assumable, it will only happen
-                // the first time the server is initiated.
-                while (getloginInAtStartup() && ((m_time(nullptr) - timeLoginStarted() < RESUME_SESSION_TIMEOUT * 0.7)))
-                {
-                    sleepMilliSeconds(300);
-                }
-
-                // communicate status info
-                s +=  "prompt:";
-                s += dynamicprompt;
-                s += (char) 0x1F;
-
-                if (!sandboxCMD->getReasonblocked().size())
-                {
-                    cmdexecuter->checkAndInformPSA(inf);
-                }
-
-                cm->informStateListener(inf, s);
-            }
-            else
-            { // normal petition
-                processCommandInPetitionQueues(std::move(infOwned));
-            }
+        const int clientID = currentclientID++;
+        inf->clientID = clientID;
+        if (cm->registerStateListener(std::move(inf)))
+        {
+            greetStateListener(clientID);
         }
     }
 }

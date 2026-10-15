@@ -1034,7 +1034,7 @@ bool MegaCmdExecuter::decryptLinkIfEncrypted(MegaApi *api, std::string &publicLi
     return true;
 }
 
-bool MegaCmdExecuter::checkAndInformPSA(CmdPetition *inf, bool enforce)
+bool MegaCmdExecuter::checkAndInformPSA(std::optional<int> clientID, bool enforce)
 {
     bool toret = false;
     m_time_t now = m_time();
@@ -1088,9 +1088,9 @@ bool MegaCmdExecuter::checkAndInformPSA(CmdPetition *inf, bool enforce)
 
             oss << endl << " Execute \"psa --discard\" to stop seeing this message";
 
-            if (inf)
+            if (clientID)
             {
-                informStateListener(oss.str(), inf->clientID);
+                informStateListener(oss.str(), *clientID);
             }
             else
             {
@@ -2826,7 +2826,7 @@ void MegaCmdExecuter::fetchNodes(MegaApi *api, int clientID)
         // if we were green, don't need to ask: if there are changes they will be received via action packet indicating STATE_CHANGE
     }
 
-    checkAndInformPSA(NULL); // this needs broacasting in case there's another Shell running.
+    checkAndInformPSA(std::nullopt); // this needs broacasting in case there's another Shell running.
     // no need to enforce, because time since last check should has been restored
 
     mtxBackupsMap.lock();
@@ -8259,7 +8259,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             delete megaCmdListener;
         }
 
-        if (!checkAndInformPSA(NULL, true) && !discard) // even when discarded: we need to read the next
+        if (!checkAndInformPSA(std::nullopt, true) && !discard) // even when discarded: we need to read the next
         {
             OUTSTREAM << "No PSA available" << endl;
             setCurrentThreadOutCode(MCMD_NOTFOUND);
