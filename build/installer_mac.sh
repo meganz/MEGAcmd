@@ -21,12 +21,6 @@ VOLUME_NAME="Install MEGAcmd"
 MOUNTDIR=tmp
 RESOURCES=installer/resourcesDMG
 
-SERVER_PREFIX=MEGAcmdServer/
-CLIENT_PREFIX=MEGAcmdClient/
-SHELL_PREFIX=MEGAcmdShell/
-LOADER_PREFIX=MEGAcmdLoader/
-UPDATER_PREFIX=MEGAcmdUpdater/
-
 host_arch=`uname -m`
 target_arch=${host_arch}
 full_pkg=0
@@ -120,11 +114,6 @@ if [ ${build} -eq 1 ]; then
     cmake -B build-cmake-Release_${build_arch} -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_VERBOSE_MAKEFILE=ON ${VCPKG_ROOT_ARGUMENT} ${CMAKE_EXTRA} -S ../../
     cmake --build build-cmake-Release_${build_arch} -j $(sysctl -n hw.ncpu)
     cmake --install build-cmake-Release_${build_arch} --prefix ./
-    SERVER_PREFIX=""
-    CLIENT_PREFIX=""
-    SHELL_PREFIX=""
-    LOADER_PREFIX=""
-    UPDATER_PREFIX=""
 
     # main bundle:
     # place (and strip) executables
@@ -144,7 +133,8 @@ if [ ${build} -eq 1 ]; then
          # have dylibs use relative paths:
     done
 
-    # copy initialize script (it will simple launch MEGAcmdLoader in a terminal) as the new main executable: MEGAcmd
+    # copy the launcher script as the bundle's main executable (CFBundleExecutable=MEGAcmd):
+    # it starts the server (mega-cmd) in the background and opens MEGAcmdShell in Terminal
     cp ../installer/MEGAcmd.sh ${APP_NAME}.app/Contents/MacOS/MEGAcmd
 
     # place commands and completion scripts
@@ -153,7 +143,6 @@ if [ ${build} -eq 1 ]; then
 
     otool -L ${APP_NAME}.app/Contents/MacOS/mega-cmd
     otool -L ${APP_NAME}.app/Contents/MacOS/mega-exec
-    otool -L ${APP_NAME}.app/Contents/MacOS/MEGAcmdLoader || true
     otool -L ${APP_NAME}.app/Contents/MacOS/MEGAcmdUpdater
     otool -L ${APP_NAME}.app/Contents/MacOS/MEGAcmdShell
 
