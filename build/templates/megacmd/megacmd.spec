@@ -212,6 +212,10 @@ DATA
         %define reponame openSUSE_Leap_16.0
     %endif
 
+    %if 0%{?sle_version} == 160100
+        %define reponame openSUSE_Leap_16.1
+    %endif
+
     %if 0%{?sle_version} == 0 && 0%{?suse_version} >= 1550
         %define reponame openSUSE_Tumbleweed
     %endif
