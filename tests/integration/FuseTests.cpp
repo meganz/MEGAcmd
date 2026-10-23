@@ -54,9 +54,10 @@ protected:
         auto lines = splitByNewline(result.out());
         for (size_t i = 1; i < lines.size(); ++i)
         {
-            if (lines[i].empty() || megacmd::startsWith(lines[i], "Use " /* skip detail usage line */))
+            if (lines[i].empty())
             {
-                continue;
+                // The table ends at the blank line. The cache size and the usage hint follow it.
+                break;
             }
 
             auto words = megacmd::split(lines[i], " ");
@@ -179,7 +180,7 @@ TEST_F(FuseTests, EnsureUniqueId)
     ASSERT_TRUE(result.ok());
 
     auto lines = splitByNewline(result.out());
-    ASSERT_EQ(lines.size(), 5); // Column names + 2 mounts + newline + detail usage
+    ASSERT_EQ(lines.size(), 6); // Column names + 2 mounts + newline + cache size + detail usage
 
     const std::string firstMountId = megacmd::split(lines[1], " ")[0];
     const std::string secondMountId = megacmd::split(lines[2], " ")[0];
@@ -196,7 +197,7 @@ TEST_F(FuseTests, EnsureUniqueId)
         ASSERT_TRUE(result.ok());
 
         auto lines = splitByNewline(result.out());
-        ASSERT_EQ(lines.size(), 5); // Column names + 2 mounts + newline + detail usage
+        ASSERT_EQ(lines.size(), 6); // Column names + 2 mounts + newline + cache size + detail usage
 
         const std::string secondMountId = megacmd::split(lines[2], " ")[0];
         EXPECT_EQ(secondMountId, "name3");

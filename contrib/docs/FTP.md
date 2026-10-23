@@ -33,7 +33,7 @@ In FileZilla, default 20 seconds timeout (Edit -> Preferences -> Connection) wil
 
 In Linux, using gvfsd-dav (Gnome's default ftp client), we have seen problems when trying to reproduce videos within an FTP served location. Recommended alternative: Use VLC. Open it, and drag & drop the file into VLC window. This will open the FTP URL and start streaming you video.
 
-If you find any more issues, don't hesitate to write to support@mega.nz, explaining what the problem is and how to reproduce it.
+If you find any more issues, don't hesitate to write to support@mega.io, explaining what the problem is and how to reproduce it.
 
 ## Listing 
 

@@ -17,6 +17,7 @@
  */
 
 #include "megacmdutils.h"
+#include "megacmdlogger.h"
 #include "mega/types.h"
 
 #ifdef USE_PCRE
@@ -188,11 +189,33 @@ const char * getMountResultStr(int mountResult)
     if (mountResult == mega::MegaMount::BACKEND_UNAVAILABLE)
     {
         return "WinFSP is not installed. It needs to be installed for the operation to succeed. You can get it "
-               "from https://github.com/winfsp/winfsp/releases/download/v2.1/winfsp-2.1.25156.msi";
+               "from https://github.com/winfsp/winfsp/releases. Use version 2.2 or newer: earlier ones are "
+               "affected by CVE-2026-3006.";
     }
 #endif
 
     return MegaMount::getResultDescription(mountResult);
+}
+
+void printLocalCacheUsage(MegaApi& api)
+{
+    // Passing no reclaim options makes the SDK use the ones currently in force,
+    // which are the file_service_reclaim_* values of "configure".
+    std::unique_ptr<MegaFileServiceStorageInfo> storageInfo(api.fileServiceGetStorageInfo(nullptr));
+
+    std::string used;
+    if (storageInfo)
+    {
+        used = sizeToText(storageInfo->getAllocatedSize(), false);
+    }
+    else
+    {
+        LOG_warn << "Failed to retrieve the size of the local cache";
+        used = "<unknown>";
+    }
+
+    OUTSTREAM << "Local cache: " << used << " used in total. See \""
+              << getCommandPrefixBasedOnMode() << "help --streaming\"." << endl;
 }
 
 const char * getLogLevelStr(int loglevel)

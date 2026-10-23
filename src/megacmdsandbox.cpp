@@ -21,25 +21,8 @@
 using namespace mega;
 
 namespace megacmd {
-bool MegaCmdSandbox::isOverquota() const
-{
-    return overquota;
-}
-
-void MegaCmdSandbox::setOverquota(bool value)
-{
-    overquota = value;
-}
-
 void MegaCmdSandbox::resetSandBox()
 {
-    this->overquota = false;
-    this->istemporalbandwidthvalid = false;
-    this->temporalbandwidth = 0;
-    this->temporalbandwithinterval = 0;
-    this->lastQuerytemporalBandwith = m_time();
-    this->timeOfOverquota = m_time();
-    this->secondsOverQuota = 0;
     this->storageStatus = 0;
     this->receivedStorageSum = 0;
     this->totalStorage = 0;
@@ -104,13 +87,6 @@ void MegaCmdSandbox::setPromisedReasonblocked(const std::string &value)
 
 MegaCmdSandbox::MegaCmdSandbox()
 {
-    this->overquota = false;
-    this->istemporalbandwidthvalid = false;
-    this->temporalbandwidth = 0;
-    this->temporalbandwithinterval = 0;
-    this->lastQuerytemporalBandwith = m_time();
-    this->timeOfOverquota = m_time();
-    this->secondsOverQuota = 0;
     this->storageStatus = 0;
     this->receivedStorageSum = 0;
     this->totalStorage = 0;

@@ -267,13 +267,19 @@ void statechangehandle(string statestring, MegaCmdShellCommunications &comsManag
                 }
                 os << (isdown?"Download":"Upload") << " finished: " << path << endl;
 
+                // This runs on the state listener thread, so it competes for the
+                // terminal with the thread printing the output of whatever command
+                // is running. Every other writer holds this mutex, and on Windows
+                // the guard below already does; without it here a transfer notice
+                // can land in the middle of a line someone else is writing.
 #ifdef _WIN32
                 wstring wbuffer;
                 stringtolocalw((const char*)os.str().data(),&wbuffer);
                 WindowsUtf8StdoutGuard utf8Guard;
                 OUTSTREAM << wbuffer << flush;
 #else
-                OUTSTREAM << os.str();
+                StdoutMutexGuard stdoutGuard;
+                OUTSTREAM << os.str() << flush;
 #endif
             }
         }
@@ -1920,7 +1926,7 @@ void printWelcomeMsg(unsigned int width)
     oss << endl;
     printCenteredLine(oss, "Welcome to MEGAcmd! A Command Line Interactive and Scriptable",width);
     printCenteredLine(oss, "Application to interact with your MEGA account.",width);
-    printCenteredLine(oss, "Please write to support@mega.nz if you find any issue or",width);
+    printCenteredLine(oss, "Please write to support@mega.io if you find any issue or",width);
     printCenteredLine(oss, "have any suggestion concerning its functionalities.",width);
     printCenteredLine(oss, "Enter \"help --non-interactive\" to learn how to use MEGAcmd with scripts.",width);
     printCenteredLine(oss, "Enter \"help\" for basic info and a list of available commands.",width);

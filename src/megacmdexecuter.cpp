@@ -55,6 +55,14 @@ static const char* rootnodepaths[] = { "/", "//in", "//bin" };
 #define SSTR( x ) static_cast< const std::ostringstream & >( \
         ( std::ostringstream() << std::dec << x ) ).str()
 
+namespace {
+// "." and ".." navigate a path. They are never valid names for a new node,
+// so anything that turns a path segment into a node name must reject them.
+bool isPathNavigation(const string& name)
+{
+    return name == "." || name == "..";
+}
+} // namespace
 
 #ifdef HAVE_GLOB_H
 std::vector<std::string> resolvewildcard(const std::string& pattern) {
@@ -188,6 +196,12 @@ void MegaCmdExecuter::updateprompt(MegaApi *api)
     changeprompt(newprompt.c_str());
 }
 
+std::optional<std::string> MegaCmdExecuter::getTransferQuotaGreeting()
+{
+    // The SDK's own wait ends early on an upgrade, and on logout: the greeting never outlives it.
+    return transferQuotaWaitMessage(api->getBandwidthOverquotaDelay());
+}
+
 MegaCmdExecuter::MegaCmdExecuter(MegaApi *api, MegaCmdLogger *loggerCMD, MegaCmdSandbox *sandboxCMD) :
     // Give a few seconds in order for key sharing to happen
     mFsAccessCMD(::mega::createFSA()),
@@ -211,6 +225,11 @@ MegaCmdExecuter::MegaCmdExecuter(MegaApi *api, MegaCmdLogger *loggerCMD, MegaCmd
 MegaCmdExecuter::~MegaCmdExecuter()
 {
     delete globalTransferListener;
+}
+
+void MegaCmdExecuter::stopDeferredWork()
+{
+    mDeferredSharedFoldersVerifier.stop();
 }
 
 // list available top-level nodes and contacts/incoming shares
@@ -444,6 +463,10 @@ std::unique_ptr<MegaNode> MegaCmdExecuter::nodebypath(const char* ptr, string* u
             if (curName == "..")
             {
                 nextNode.reset(api->getParentNode(baseNode.get()));
+                if (nextNode == nullptr) // Such as "/.."
+                {
+                   return nullptr;
+                }
             }
             else
             {
@@ -1011,7 +1034,7 @@ bool MegaCmdExecuter::decryptLinkIfEncrypted(MegaApi *api, std::string &publicLi
     return true;
 }
 
-bool MegaCmdExecuter::checkAndInformPSA(CmdPetition *inf, bool enforce)
+bool MegaCmdExecuter::checkAndInformPSA(std::optional<int> clientID, bool enforce)
 {
     bool toret = false;
     m_time_t now = m_time();
@@ -1065,9 +1088,9 @@ bool MegaCmdExecuter::checkAndInformPSA(CmdPetition *inf, bool enforce)
 
             oss << endl << " Execute \"psa --discard\" to stop seeing this message";
 
-            if (inf)
+            if (clientID)
             {
-                informStateListener(oss.str(), inf->clientID);
+                informStateListener(oss.str(), *clientID);
             }
             else
             {
@@ -2803,7 +2826,7 @@ void MegaCmdExecuter::fetchNodes(MegaApi *api, int clientID)
         // if we were green, don't need to ask: if there are changes they will be received via action packet indicating STATE_CHANGE
     }
 
-    checkAndInformPSA(NULL); // this needs broacasting in case there's another Shell running.
+    checkAndInformPSA(std::nullopt); // this needs broacasting in case there's another Shell running.
     // no need to enforce, because time since last check should has been restored
 
     mtxBackupsMap.lock();
@@ -2979,6 +3002,8 @@ void MegaCmdExecuter::actUponLogout(MegaApi& api, MegaError* e, bool keptSession
         // clear greetings (asuming they are account-related)
         clearGreetingStatusAllListener();
         clearGreetingStatusFirstListener();
+        globalTransferListener->forgetUploadsWaitingForStorage();
+        transferQuotaWaitNotice().forget();
     }
     updateprompt(&api);
 }
@@ -3276,69 +3301,16 @@ int MegaCmdExecuter::deleteNode(const std::unique_ptr<MegaNode>& nodeToDelete, M
 void MegaCmdExecuter::downloadNode(string source, string path, MegaApi* api, MegaNode *node, bool background, bool ignorequotawarn,
                                    int clientID, std::shared_ptr<MegaCmdMultiTransferListener> multiTransferListener)
 {
-
-
-    if (sandboxCMD->isOverquota() && !ignorequotawarn)
+    // The SDK of the api that downloads knows how long it keeps downloads stopped after a
+    // bandwidth overquota. Folder links download through their own api: the API may serve them
+    // from the quota the folder's owner reserves, so our own wait does not apply to them.
+    const long long secondsLeft = api->getBandwidthOverquotaDelay();
+    if (secondsLeft > 0 && !ignorequotawarn)
     {
-        m_time_t ts = m_time();
-        // in order to speedup and not flood the server we only ask for the details every 1 minute or after account changes
-        if (!sandboxCMD->temporalbandwidth || (ts - sandboxCMD->lastQuerytemporalBandwith ) > 60 )
-        {
-            LOG_verbose << " Updating temporal bandwidth ";
-            sandboxCMD->lastQuerytemporalBandwith = ts;
-
-            MegaCmdListener *megaCmdListener = new MegaCmdListener(api, NULL);
-            api->getExtendedAccountDetails(false, false, false, megaCmdListener);
-            megaCmdListener->wait();
-
-            if (checkNoErrors(megaCmdListener->getError(), "get account details"))
-            {
-                MegaAccountDetails *details = megaCmdListener->getRequest()->getMegaAccountDetails();
-                sandboxCMD->istemporalbandwidthvalid = details->isTemporalBandwidthValid();
-                if (details && details->isTemporalBandwidthValid())
-                {
-                    sandboxCMD->temporalbandwidth = details->getTemporalBandwidth();
-                    sandboxCMD->temporalbandwithinterval = details->getTemporalBandwidthInterval();
-                }
-            }
-            delete megaCmdListener;
-        }
-
-        OUTSTREAM << "Transfer not started. " << endl;
-        if (sandboxCMD->istemporalbandwidthvalid)
-        {
-            OUTSTREAM << "You have utilized " << sizeToText(sandboxCMD->temporalbandwidth) << " of data transfer in the last "
-                      << sandboxCMD->temporalbandwithinterval << " hours, "
-                      "which took you over our current limit";
-        }
-        else
-        {
-            OUTSTREAM << "You have reached your bandwidth quota";
-        }
-        OUTSTREAM << ". To circumvent this limit, "
-                  "you can upgrade to Pro, which will give you your own bandwidth "
-                  "package and also ample extra storage space. "
-                     "Alternatively, you can try again in " << secondsToText(sandboxCMD->secondsOverQuota-(ts-sandboxCMD->timeOfOverquota)) <<
-                     "." << endl << "See \"help --upgrade\" for further details" << endl;
+        setCurrentThreadOutCode(MegaError::API_EOVERQUOTA);
+        OUTSTREAM << "Transfer not started. " << transferQuotaWaitMessage(secondsLeft).value() << endl;
         OUTSTREAM << "Use --ignore-quota-warn to initiate nevertheless" << endl;
         return;
-    }
-
-    if (!ignorequotawarn)
-    {
-        MegaCmdListener *megaCmdListener = new MegaCmdListener(api, NULL);
-        api->queryTransferQuota(node->getSize(),megaCmdListener);
-        megaCmdListener->wait();
-        if (checkNoErrors(megaCmdListener->getError(), "query transfer quota"))
-        {
-            if (megaCmdListener->getRequest() && megaCmdListener->getRequest()->getFlag() )
-            {
-                OUTSTREAM << "Transfer not started: proceeding will exceed transfer quota. "
-                             "Use --ignore-quota-warn to initiate nevertheless" << endl;
-                return;
-            }
-        }
-        delete megaCmdListener;
     }
 
     multiTransferListener->onNewTransfer();
@@ -3773,6 +3745,16 @@ void MegaCmdExecuter::disableShare(MegaNode *n, string with)
 
 int MegaCmdExecuter::makedir(string remotepath, bool recursive, MegaNode *parentnode)
 {
+    // Check the whole path first, so a "." or ".." fails before any folder is created
+    for (const auto& name : split(remotepath, "/"))
+    {
+        if (isPathNavigation(name))
+        {
+            LOG_err << "Invalid folder name: " << name;
+            return MCMD_INVALIDSTATE;
+        }
+    }
+
     MegaNode *currentnode;
     if (parentnode)
     {
@@ -4807,7 +4789,7 @@ void MegaCmdExecuter::moveToDestination(const std::unique_ptr<MegaNode>& n, stri
     // we have four situations:
     // 1. target path does not exist - fail
     // 2. target node exists and is folder - move
-    // 3. target node exists and is file - delete and rename (unless same)
+    // 3. target node exists and is file - delete and rename (unless same), only if source is a file too
     // 4. target path exists, but filename does not - rename
     if (tn)
     {
@@ -4851,6 +4833,13 @@ void MegaCmdExecuter::moveToDestination(const std::unique_ptr<MegaNode>& n, stri
             {
                 if (tn->getType() == MegaNode::TYPE_FILE) //move & remove old & rename new
                 {
+                    if (n->getType() != MegaNode::TYPE_FILE)
+                    {
+                        setCurrentThreadOutCode(MCMD_INVALIDTYPE);
+                        LOG_err << "Cannot overwrite file with folder";
+                        return;
+                    }
+
                     // (there should never be any orphaned filenodes)
                     std::unique_ptr<MegaNode> tnParentNode(api->getNodeByHandle(tn->getParentHandle()));
                     if (tnParentNode)
@@ -7030,6 +7019,12 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             const auto posLastSeparator = destination.find_last_of("/");
             string destinationfolder(destination, 0, posLastSeparator);
             newname = string(destination, posLastSeparator + 1, destination.size());
+            if (isPathNavigation(newname))
+            {
+                setCurrentThreadOutCode(MCMD_INVALIDSTATE);
+                LOG_err << "Invalid destination name: " << newname;
+                return;
+            }
             auto baseNode = (destinationfolder.size() > 0 && destinationfolder.front() == '/')
                 ? std::unique_ptr<MegaNode>(api->getRootNode())
                 : std::unique_ptr<MegaNode>(api->getNodeByHandle(cwd));
@@ -7529,6 +7524,10 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
                 if(!found)
                 {
                     OUTSTREAM << "No webdav links found" << endl;
+                }
+                else
+                {
+                    printLocalCacheUsage(*api);
                 }
 
                 delete webdavnodes;
@@ -8260,7 +8259,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             delete megaCmdListener;
         }
 
-        if (!checkAndInformPSA(NULL, true) && !discard) // even when discarded: we need to read the next
+        if (!checkAndInformPSA(std::nullopt, true) && !discard) // even when discarded: we need to read the next
         {
             OUTSTREAM << "No PSA available" << endl;
             setCurrentThreadOutCode(MCMD_NOTFOUND);
@@ -10942,16 +10941,6 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
             return;
         }
 
-        const fs::path localPath = localPathStr;
-#ifndef WIN32
-        if (std::error_code ec; !fs::exists(localPath, ec) || ec)
-        {
-            setCurrentThreadOutCode(MCMD_NOTFOUND);
-            LOG_err << "Local path " << localPath << " does not exist";
-            return;
-        }
-#endif
-
         std::unique_ptr<MegaNode> node = nodebypath(remotePathStr.c_str());
         if (node == nullptr)
         {
@@ -10965,7 +10954,7 @@ void MegaCmdExecuter::executecommand(vector<string> words, map<string, int> *clf
         const bool transient = getFlag(clflags, "transient");
         const bool readOnly = getFlag(clflags, "read-only");
 
-        FuseCommand::addMount(*api, localPath, *node, disabled, transient, readOnly, name);
+        FuseCommand::addMount(*api, localPathStr, *node, disabled, transient, readOnly, name);
     }
     else if (words[0] == "fuse-remove")
     {

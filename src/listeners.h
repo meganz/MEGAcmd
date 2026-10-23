@@ -30,6 +30,25 @@
 namespace megacmd {
 class MegaCmdSandbox;
 
+// The message for downloads waiting for transfer quota, with the time left.
+// Nothing once that time is over.
+std::optional<std::string> transferQuotaWaitMessage(::mega::m_time_t secondsLeft);
+
+// Tells the connected clients when downloads or streaming reads wait for transfer quota, once
+// per wait. Clients connecting later are told from the SDK's own wait instead.
+class TransferQuotaWaitNotice
+{
+    std::mutex mMutex;
+    ::mega::m_time_t mWaitEnd = 0;
+
+public:
+    // Something could not go on for `seconds`. Returns whether this announced a new wait.
+    bool onWait(::mega::m_time_t seconds);
+    void forget();
+};
+
+TransferQuotaWaitNotice &transferQuotaWaitNotice();
+
 class MegaCmdListener : public mega::SynchronousRequestListener
 {
 private:
@@ -227,7 +246,6 @@ public:
 
     void onNodesUpdate(mega::MegaApi* api, mega::MegaNodeList *nodes);
     void onUsersUpdate(mega::MegaApi* api, mega::MegaUserList *users);
-    void onAccountUpdate(mega::MegaApi *api);
     void onEvent(mega::MegaApi *api, mega::MegaEvent *event);
 #ifdef ENABLE_CHAT
     void onChatsUpdate(mega::MegaApi*, mega::MegaTextChatList*);
@@ -251,6 +269,11 @@ class MegaCmdMegaListener : public mega::MegaListener
 public:
     MegaCmdMegaListener(mega::MegaApi *megaApi, mega::MegaListener *parent=NULL, MegaCmdSandbox *sandboxCMD = NULL);
     virtual ~MegaCmdMegaListener();
+
+    // Unregisters from the api and forgets it, so that nothing here calls into
+    // the api afterwards. Unregistering does not wait for a callback already
+    // being dispatched, so the listener must outlive the api.
+    void detachFromApi();
 
     virtual void onRequestFinish(mega::MegaApi* api, mega::MegaRequest *request, mega::MegaError* e);
 
@@ -292,6 +315,14 @@ private:
     std::deque<std::unique_ptr<mega::MegaTransfer>> completedTransfers;
     std::map<mega::MegaHandle,std::string> completedPathsByHandle;
 
+    // Uploads the SDK keeps waiting because they do not fit in the free storage,
+    // by tag, with the message shown to the clients while they wait.
+    std::mutex mUploadsWaitingForStorageMutex;
+    std::map<int, std::string> mUploadsWaitingForStorage;
+
+    void onUploadWaitingForStorage(mega::MegaApi &api, const mega::MegaTransfer &transfer);
+    void onUploadNotWaitingForStorage(int tag);
+
 public:
     MegaCmdGlobalTransferListener(mega::MegaApi *megaApi, MegaCmdSandbox *sandboxCMD, mega::MegaTransferListener *parent = NULL);
     ~MegaCmdGlobalTransferListener() override = default;
@@ -308,8 +339,12 @@ public:
 
     std::string getCompletedPath(mega::MegaHandle handle);
 
+    // Drops the waiting uploads without touching the greetings, which a logout clears.
+    void forgetUploadsWaitingForStorage();
+
     //Transfer callbacks
     void onTransferFinish(mega::MegaApi* api, mega::MegaTransfer *transfer, mega::MegaError* error);
+    void onTransferUpdate(mega::MegaApi* api, mega::MegaTransfer *transfer);
     void onTransferTemporaryError(mega::MegaApi *api, mega::MegaTransfer *transfer, mega::MegaError* e);
     bool onTransferData(mega::MegaApi *api, mega::MegaTransfer *transfer, char *buffer, size_t size);
 

@@ -89,6 +89,28 @@ bool is_pid_running(pid_t pid) {
 
     return 0;
 }
+
+// The user the process at the other end of the socket runs as
+static std::optional<uid_t> getPeerUid(SOCKET socket)
+{
+#ifdef SO_PEERCRED
+    struct ucred cred = {};
+    socklen_t len = sizeof(cred);
+    if (getsockopt(socket, SOL_SOCKET, SO_PEERCRED, &cred, &len) != 0)
+    {
+        return std::nullopt;
+    }
+    return cred.uid;
+#else
+    uid_t uid = 0;
+    gid_t gid = 0;
+    if (getpeereid(socket, &uid, &gid) != 0)
+    {
+        return std::nullopt;
+    }
+    return uid;
+#endif
+}
 #endif
 
 #ifndef _WIN32
@@ -122,7 +144,7 @@ SOCKET MegaCmdShellCommunicationsPosix::createSocket(int number, bool initialize
     std::string socketPath = getOrCreateSocketPath(false);
     if (socketPath.empty())
     {
-        std::cerr << "Error creating runtime directory for socket file: " << strerror(errno) << std::endl;
+        std::cerr << "Could not get a usable folder for the socket file" << std::endl;
         return INVALID_SOCKET;
     }
     struct sockaddr_un addr;
@@ -249,6 +271,15 @@ SOCKET MegaCmdShellCommunicationsPosix::createSocket(int number, bool initialize
             return INVALID_SOCKET;
         }
     }
+
+    // Commands, passwords included, go to whoever listens on the socket.
+    // Like the Windows client does with the owner of the pipe, check it is the current user.
+    if (getPeerUid(thesock) != geteuid())
+    {
+        cerr << "ERROR: The MEGAcmd server at " << socketPath << " does not run as the current user" << endl;
+        return INVALID_SOCKET;
+    }
+
     ok = true;
     return thesock;
 }

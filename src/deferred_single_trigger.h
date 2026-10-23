@@ -29,7 +29,7 @@ class DeferredSingleTrigger
     std::condition_variable mConditionVariable;
     std::mutex mConditionVariableMutex;
     std::mutex mThreadMutex;
-    bool mDestroyed;
+    bool mStopped;
     size_t mCounter;
     std::chrono::seconds mSecondsToWait;
 
@@ -40,19 +40,18 @@ class DeferredSingleTrigger
         return ++mCounter;
     }
 
-    void destroy()
+    void markStopped()
     {
-        // Since the destroyed flag is used in the CV predicate, it must be protected with the CV mutex
+        // Since the stopped flag is used in the CV predicate, it must be protected with the CV mutex
         std::unique_lock<std::mutex> lock(mConditionVariableMutex);
-        assert(!mDestroyed);
-        mDestroyed = true;
+        mStopped = true;
     }
 
-    bool isDestroyed()
+    bool isStopped()
     {
-        // Since the destroyed flag is used in the CV predicate, it must be protected with the CV mutex
+        // Since the stopped flag is used in the CV predicate, it must be protected with the CV mutex
         std::unique_lock<std::mutex> lock(mConditionVariableMutex);
-        return mDestroyed;
+        return mStopped;
     }
 
     std::unique_lock<std::mutex> ensureThreadIsStopped()
@@ -69,13 +68,21 @@ class DeferredSingleTrigger
 
 public:
     DeferredSingleTrigger(std::chrono::seconds secondsToWait) :
-        mDestroyed(false),
+        mStopped(false),
         mCounter(0),
         mSecondsToWait(secondsToWait) {}
 
     ~DeferredSingleTrigger()
     {
-        destroy();
+        stop();
+    }
+
+    // Cancels a pending shot and waits for one already running. Later triggers
+    // are ignored, so whatever the callbacks reach into can be destroyed after
+    // this returns.
+    void stop()
+    {
+        markStopped();
         ensureThreadIsStopped();
     }
 
@@ -85,10 +92,10 @@ public:
         const size_t id = incrementCounter();
         std::unique_lock<std::mutex> lock = ensureThreadIsStopped();
 
-        if (isDestroyed())
+        if (isStopped())
         {
-            // Without this check, we might spawn a new thread after the destructor is done
-            // (i.e., if the lock above is waiting on the destructor's lock)
+            // Without this check, we might spawn a new thread after stop() is done
+            // (i.e., if the lock above is waiting on stop()'s lock)
             return;
         }
 
@@ -98,7 +105,7 @@ public:
             bool cancelled = mConditionVariable.wait_for(lock, mSecondsToWait, [this, id]
             {
                 assert(mCounter >= id);
-                return mDestroyed || id != mCounter;
+                return mStopped || id != mCounter;
             });
 
             if (!cancelled)

@@ -22,6 +22,7 @@
 #include "megacmd_src_file_list.h"
 
 #include <map>
+#include <thread>
 
 #include <sys/types.h>
 
@@ -36,6 +37,18 @@ namespace {
     std::string getNowTimeStr()
     {
         return timestampToString(std::chrono::system_clock::now());
+    }
+
+    // The number the debugger, a minidump and the crash report all use for a
+    // thread, so a log record can be lined up against a stack.
+    long long unsigned int currentThreadId()
+    {
+#ifdef _WIN32
+        return static_cast<long long unsigned int>(GetCurrentThreadId());
+#else
+        return static_cast<long long unsigned int>(
+            std::hash<std::thread::id>{}(std::this_thread::get_id()));
+#endif
     }
 }
 
@@ -227,7 +240,8 @@ std::string timestampToString(std::chrono::time_point<std::chrono::system_clock>
 MegaCmdLogger::MegaCmdLogger() :
     mSdkLoggerLevel(mega::MegaApi::LOG_LEVEL_ERROR),
     mCmdLoggerLevel(mega::MegaApi::LOG_LEVEL_ERROR),
-    mFlushOnLevel(mega::MegaApi::LOG_LEVEL_WARNING)
+    mFlushOnLevel(mega::MegaApi::LOG_LEVEL_WARNING),
+    mLogThreadId(false)
 {
 }
 
@@ -273,6 +287,14 @@ void MegaCmdLogger::formatLogToStream(LoggedStream &stream, std::string_view tim
         stream << "[";
     }
     stream << time;
+    if (mLogThreadId && !surround)
+    {
+        // Without this, a teardown racing an SDK thread reads as one interleaved
+        // stream with no way to tell the two apart. Only on the file and console
+        // sinks: surround marks the copy that is shipped to a client, and that
+        // one has to keep the shape the tests and users expect.
+        stream << ' ' << currentThreadId();
+    }
     if (!isMegaCmdSource(source))
     {
         stream << " sdk ";

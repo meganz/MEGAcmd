@@ -25,6 +25,8 @@
 #include "deferred_single_trigger.h"
 #include "sync_issues.h"
 
+#include <optional>
+
 namespace megacmd {
 class MegaCmdGlobalTransferListener;
 class MegaCmdMultiTransferListener;
@@ -101,7 +103,14 @@ public:
     MegaCmdExecuter(mega::MegaApi *api, MegaCmdLogger *loggerCMD, MegaCmdSandbox *sandboxCMD);
     ~MegaCmdExecuter();
 
+    // Stops the work deferred to its own thread, waiting for it if it is already
+    // running. It must be called while the api those callbacks use is still alive.
+    void stopDeferredWork();
+
     void updateprompt(mega::MegaApi *api = nullptr);
+
+    // The transfer quota message for a client connecting now, while the SDK waits for quota.
+    std::optional<std::string> getTransferQuotaGreeting();
 
     // nodes browsing
     void listtrees();
@@ -213,7 +222,8 @@ public:
     // decrypt a link if it's encrypted. Returns false in case of error
     bool decryptLinkIfEncrypted(mega::MegaApi *api, std::string &publicLink, std::map<std::string, std::string> *cloptions);
 
-    bool checkAndInformPSA(CmdPetition *inf, bool enforce = false);
+    // Shows a new PSA to the state listener with that client id, or to every one if none
+    bool checkAndInformPSA(std::optional<int> clientID, bool enforce = false);
 
     // Provide a helpful error message for the provided error, setting the current error code in case of an error.
     std::string formatErrorAndMaySetErrorCode(const mega::MegaError &error);

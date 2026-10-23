@@ -9,6 +9,7 @@ if [ "$#" -ne 1 ]; then
 fi
 
 PLATFORM="$1"
+SPK_ARCH="${SPK_ARCH:-family}"
 CONTAINER="megacmd-${PLATFORM}-build-env"
 
 cleanup() {
@@ -17,7 +18,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-echo "Starting build for '${PLATFORM}'..."
+echo "Starting build for '${PLATFORM}' (SPK_ARCH=${SPK_ARCH})..."
 
 BUILDER_PARAMETER="${DOCKER_CUSTOM_BUILDER:+--builder $DOCKER_CUSTOM_BUILDER --load}"
 MEGACMD_FOLDER="${SOURCE_PATH:-${SCRIPT_DIR}/../..}"
@@ -26,7 +27,8 @@ OUTPUT_FOLDER="${OUTPUT_PATH:-${SCRIPT_DIR}/packages}"
 docker buildx build $BUILDER_PARAMETER -t $CONTAINER \
   -f "$SCRIPT_DIR/dockerfile/synology-cross-build.dockerfile" \
   "${MEGACMD_FOLDER}" \
-  --build-arg PLATFORM="$PLATFORM"
+  --build-arg PLATFORM="$PLATFORM" \
+  --build-arg SPK_ARCH="$SPK_ARCH"
 
 CONTAINER_ID=$(docker create $CONTAINER)
 mkdir -p "$OUTPUT_FOLDER"

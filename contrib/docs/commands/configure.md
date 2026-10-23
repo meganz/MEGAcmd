@@ -49,10 +49,18 @@ Possible keys:
                                       The cache size (in bytes) a cleanup shrinks
                                       the cache down to. Default 1073741824 (1
                                       GiB).
+ - fuse_log_level                     Log level of the SDK's FUSE component.
+                                      Takes the same values as the "log" command:
+                                      a name (ERROR, WARNING, INFO, DEBUG,
+                                      VERBOSE) or its number. The new level
+                                      applies to mounts that are already enabled.
+                                      FUSE messages also go through the SDK
+                                      logger, so "log -s DEBUG" is needed for
+                                      them to reach the log file. Default INFO.
 
 The file_service_reclaim_* keys control the automatic cleanup of the on-disk cache that webdav
-streaming writes to. Cleanups run on a timer, and each one only does something while the cache is
-above file_service_reclaim_threshold, so that threshold bounds nothing on its own.
+streaming and FUSE mounts write to. Cleanups run on a timer, and each one only does something
+while the cache is above file_service_reclaim_threshold, so that threshold bounds nothing on its own.
 Changes take effect immediately and are re-applied on each login.
 For how the cleanup works and for values that keep heavy streaming within a disk budget, see "mega-help --streaming".
 </pre>

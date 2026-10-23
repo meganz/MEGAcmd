@@ -28,9 +28,27 @@ You will receive an URL that you can use in your favourite video player.
 ## Streaming cache
 
 Content fetched while streaming over webdav is cached on disk, so seeking backwards or replaying a
-part you already watched is fast and does not download it again. The cache lives with the session:
-it is removed when you log out. Streaming over [ftp](FTP.md) does not use it; that path is served
-through memory.
+part you already watched is fast and does not download it again. Streaming over [ftp](FTP.md) does
+not use it; that path is served through memory.
+
+[FUSE mounts](FUSE.md) read and write the same cache, so the settings below bound both.
+
+The cache belongs to the session. Logging out removes it; `logout --keep-session` and restarting the
+MEGAcmd Server keep it.
+
+Running `webdav` with no arguments reports how much the cache is using, under the list of served
+locations.
+
+### What streaming cannot check
+
+When you download a file with `get`, MEGAcmd checks the whole file against the checksum held in its
+key, and the download fails if they do not match. That check needs every byte, so it cannot be done
+while streaming, which reads only the parts that are asked for. Streaming is still encrypted in
+transit and decrypted with your key; what it cannot tell you is whether the bytes are the ones that
+were uploaded.
+
+This applies to webdav, [ftp](FTP.md) and [FUSE mounts](FUSE.md) alike. Before running or installing
+something, fetch it with `get` and use that copy.
 
 The cache is cleaned up automatically, and you can tune it through the `file_service_reclaim_*` keys
 of the `configure` command. `configure --help` describes each key, and `help --streaming` explains
@@ -49,6 +67,9 @@ minutes are removed, least recently used first, until the cache is down to
 
 The defaults are the same ones MEGAsync uses: a cleanup every 2 hours, triggered above 10 GiB,
 shrinking to 1 GiB, and only touching files unaccessed for 3 days.
+
+A cleanup only drops content that is already in your cloud. A file you wrote through a FUSE mount is
+uploaded first, and a file you are reading right now counts as accessed, so it is not touched.
 
 ### The threshold is not a hard limit
 
@@ -93,7 +114,7 @@ This is due to that gvfsd-dav tries to retrieve a URL different to the actual UR
 
 In Windows XP, copying a file from a MEGA webdav location, and pasting in a local folder does nothing.
 
-If you find any more issues, don't hesitate to write to support@mega.nz, explaining what the problem is and how to reproduce it.
+If you find any more issues, don't hesitate to write to support@mega.io, explaining what the problem is and how to reproduce it.
 
 ## Listing 
 

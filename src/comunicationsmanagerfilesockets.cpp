@@ -50,7 +50,9 @@ int ComunicationsManagerFileSockets::initialize()
 
     if (socketPath.empty())
     {
-        LOG_fatal  << "Could not create runtime directory for socket file: " << strerror(errno);
+        // Binding an empty path on Linux creates an abstract socket, which any local user can connect to
+        LOG_fatal  << "Could not get a usable folder for the socket file";
+        return -1;
     }
     if (socketPath.size() >= (ARRAYSIZE(addr.sun_path) - 1))
     {
@@ -202,14 +204,12 @@ CmdPetition* ComunicationsManagerFileSockets::registerStateListener(std::unique_
     const int socket = ((CmdPetitionPosixSockets*) inf.get())->outSocket;
     LOG_debug << "Registering state listener petition with socket: " << socket;
 
-#ifndef NDEBUG
     // let's not be gentle with state listener sockets to prevent frozen clients from stopping the server
-    const timeval timeout { .tv_sec = 10, .tv_usec = 0};
+    const timeval timeout { .tv_sec = static_cast<decltype(timeval::tv_sec)>(STATE_LISTENER_SEND_TIMEOUT.count()), .tv_usec = 0 };
     if (setsockopt(socket, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout)) < 0)
     {
         LOG_err << "ERROR setting state listener socket timeout: " << errno;
     }
-#endif
     return ComunicationsManager::registerStateListener(std::move(inf));
 }
 
@@ -384,6 +384,11 @@ int ComunicationsManagerFileSockets::informStateListener(CmdPetition *inf, const
         {
             LOG_err << "ERROR writing to socket: " << errno;
         }
+    }
+    else if (static_cast<size_t>(n) != s.size()) // timed out mid-message: the client cannot find the next one
+    {
+        LOG_warn << "Unregistering timed out listening client after a partial write. Original petition: " << inf->getRedactedLine();
+        return -1;
     }
 
     return 0;

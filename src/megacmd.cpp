@@ -47,10 +47,12 @@
 #include <string>
 #include <deque>
 #include <atomic>
-
-#ifdef __linux__
+#include <chrono>
 #include <condition_variable>
-#endif
+#include <future>
+#include <mutex>
+#include <thread>
+
 #ifndef _WIN32
 #include "signal.h"
 #include <sys/wait.h>
@@ -130,9 +132,6 @@ std::deque<std::string> greetingsFirstClientMsgs; // to be given on first client
 std::deque<std::string> greetingsAllClientMsgs; // to be given on all clients when registering as state listener
 
 
-std::mutex delayedBroadcastMutex;
-std::deque<std::string> delayedBroadCastMessages; // messages to be brodcasted in a while
-
 //Comunications Manager
 ComunicationsManager * cm;
 
@@ -149,7 +148,6 @@ string newpasswd;
 
 std::atomic_bool doExit = false;
 bool consoleFailed = false;
-bool alreadyCheckingForUpdates = false;
 std::atomic_bool stopCheckingforUpdaters = false;
 
 string dynamicprompt = "MEGA CMD> ";
@@ -178,6 +176,8 @@ int mcmdMainArgc;
 void printWelcomeMsg();
 
 void delete_finished_threads();
+
+void stopAndJoinUpdateCheck();
 
 void appendGreetingStatusFirstListener(const std::string &msj)
 {
@@ -353,20 +353,144 @@ void broadcastMessage(string message, bool keepIfNoListeners)
 }
 
 
-void removeDelayedBroadcastMatching(const string &toMatch)
+namespace {
+// Collects messages and hands them over together once a quiet window has
+// elapsed, so that a burst of related notices (several syncs failing at once,
+// say) reaches the clients as one batch, and so that a client that is still
+// connecting has a chance to register before the first one goes out.
+//
+// Owns the thread that does the waiting. Unlike UpdateChecker, the wait is on a
+// condition variable this class controls, and writes to state listeners time out
+// (STATE_LISTENER_SEND_TIMEOUT), so a stop returns once a broadcast in progress
+// has been written or has timed out, and the thread is always joined: it cannot
+// outlive what it reaches into.
+class DelayedBroadcaster
 {
-    std::lock_guard<std::mutex> g(delayedBroadcastMutex);
-    for (auto it = delayedBroadCastMessages.begin(); it != delayedBroadCastMessages.end(); )
+public:
+    ~DelayedBroadcaster() { stopAndJoin(); }
+
+    // Queues a message for the next batch, starting the wait if it is not running.
+    void enqueue(std::string message, bool keepIfNoListeners);
+
+    // Drops every queued message containing toMatch, before it is broadcast.
+    void removeMatching(const std::string &toMatch);
+
+    // Wakes the wait, discards whatever is still queued and joins the thread.
+    void stopAndJoin();
+
+private:
+    void loop();
+
+    // Returns false if a stop was requested before the window was over.
+    bool waitForWindow();
+
+    static constexpr std::chrono::seconds sWindow{4};
+
+    std::mutex mMutex;
+    std::condition_variable mCv;
+    std::deque<std::pair<std::string, bool>> mMessages;
+    bool mStop = false;
+    bool mRunning = false;
+    std::thread mThread;
+};
+} // namespace
+
+void DelayedBroadcaster::enqueue(std::string message, bool keepIfNoListeners)
+{
+    std::thread previous;
     {
-        if ((*it).find(toMatch) != string::npos)
+        std::lock_guard<std::mutex> lock(mMutex);
+        if (mStop)
         {
-            it = delayedBroadCastMessages.erase(it);
+            return;
+        }
+
+        // The flag travels with its own message: a batch can mix messages that
+        // must be kept for a future client with messages that must not.
+        mMessages.emplace_back(std::move(message), keepIfNoListeners);
+        if (mRunning)
+        {
+            return;
+        }
+
+        mRunning = true;
+        previous = std::move(mThread); // the thread of a previous batch, already returned
+        mThread = std::thread([this] { loop(); });
+    }
+
+    if (previous.joinable())
+    {
+        previous.join();
+    }
+}
+
+void DelayedBroadcaster::removeMatching(const string &toMatch)
+{
+    std::lock_guard<std::mutex> lock(mMutex);
+    for (auto it = mMessages.begin(); it != mMessages.end(); )
+    {
+        if (it->first.find(toMatch) != string::npos)
+        {
+            it = mMessages.erase(it);
         }
         else
         {
             ++it;
         }
     }
+}
+
+void DelayedBroadcaster::stopAndJoin()
+{
+    std::thread worker;
+    {
+        std::lock_guard<std::mutex> lock(mMutex); // so the notification cannot be missed
+        mStop = true;
+        worker = std::move(mThread);
+    }
+    mCv.notify_all();
+
+    if (worker.joinable())
+    {
+        worker.join();
+    }
+}
+
+bool DelayedBroadcaster::waitForWindow()
+{
+    std::unique_lock<std::mutex> lock(mMutex);
+    return !mCv.wait_for(lock, sWindow, [this] { return mStop; });
+}
+
+void DelayedBroadcaster::loop()
+{
+    if (!waitForWindow())
+    {
+        // Shutting down. Whatever is still queued is dropped rather than
+        // broadcast, which is what happened anyway when the process exited
+        // inside the window, only without reaching into what teardown destroys.
+        std::lock_guard<std::mutex> lock(mMutex);
+        mRunning = false;
+        return;
+    }
+
+    std::unique_lock<std::mutex> lock(mMutex);
+    while (!mMessages.empty() && !mStop)
+    {
+        auto [message, keepIfNoListeners] = std::move(mMessages.front());
+        mMessages.pop_front();
+
+        lock.unlock();
+        broadcastMessage(message, keepIfNoListeners); // broadcast without mutex locked
+        lock.lock();
+    }
+
+    mRunning = false;
+}
+
+void removeDelayedBroadcastMatching(const string &toMatch)
+{
+    Instance<DelayedBroadcaster>::Get().removeMatching(toMatch);
 }
 
 void removeGreetingMatching(const string &toMatch)
@@ -387,30 +511,12 @@ void removeGreetingMatching(const string &toMatch)
 
 void broadcastDelayedMessage(string message, bool keepIfNoListeners)
 {
-    static bool ongoing = false;
+    Instance<DelayedBroadcaster>::Get().enqueue(std::move(message), keepIfNoListeners);
+}
 
-    std::lock_guard<std::mutex> g(delayedBroadcastMutex);
-    delayedBroadCastMessages.push_back(message);
-    if (!ongoing)
-    {
-        ongoing = true;
-        std::thread([keepIfNoListeners]()
-        {
-            sleepSeconds(4);
-            std::unique_lock<std::mutex> g(delayedBroadcastMutex);
-            while (!delayedBroadCastMessages.empty())
-            {
-                auto msg = std::move(delayedBroadCastMessages.front());
-                delayedBroadCastMessages.pop_front();
-                g.unlock();
-                // Broadcast without mutex locked
-                broadcastMessage(msg, keepIfNoListeners);
-                g.lock();
-            }
-
-            ongoing = false;
-        }).detach();
-    }
+void stopAndJoinDelayedBroadcast()
+{
+    Instance<DelayedBroadcaster>::Get().stopAndJoin();
 }
 
 void informTransferUpdate(MegaTransfer *transfer, int clientID)
@@ -2230,7 +2336,7 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << " --non-interactive" << "  " << "Display information on how to use MEGAcmd with scripts" << endl;
         os << " --upgrade" << "          " << "Display information on PRO plans" << endl;
         os << " --paths" << "            " << "Show caveats of local and remote paths" << endl;
-        os << " --streaming" << "        " << "Explain how webdav/ftp streaming uses memory and disk" << endl;
+        os << " --streaming" << "        " << "Explain how streaming (webdav/ftp) and FUSE mounts use memory and disk" << endl;
         os << " --show-all-options" << " " << "Display all options regardless of platform" << endl;
     }
     else if (!strcmp(command, "history"))
@@ -2600,7 +2706,7 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << " If you want to change those parameters, you need to stop serving all locations and configure them again." << endl;
         os << "Note: WEBDAV settings and locations will be saved for the next time you open MEGAcmd, but will be removed if you logout." << endl;
         os << endl;
-        os << "Caveat: This functionality is in BETA state. It might not be available on all platforms. If you experience any issue with this, please contact: support@mega.nz" << endl;
+        os << "Caveat: This functionality is in BETA state. It might not be available on all platforms. If you experience any issue with this, please contact: support@mega.io" << endl;
         os << endl;
     }
     else if ((flags.haveLibuv || flags.showAll) && !strcmp(command, "ftp"))
@@ -2631,7 +2737,7 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << " If you want to change those parameters, you need to stop serving all locations and configure them again." << endl;
         os << "Note: FTP settings and locations will be saved for the next time you open MEGAcmd, but will be removed if you logout." << endl;
         os << endl;
-        os << "Caveat: This functionality is in BETA state. It might not be available on all platforms. If you experience any issue with this, please contact: support@mega.nz" << endl;
+        os << "Caveat: This functionality is in BETA state. It might not be available on all platforms. If you experience any issue with this, please contact: support@mega.io" << endl;
         os << endl;
     }
     else if (!strcmp(command, "exclude"))
@@ -2799,8 +2905,8 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         }
         os << endl;
         os << "The file_service_reclaim_* keys control the automatic cleanup of the on-disk cache that webdav" << endl;
-        os << "streaming writes to. Cleanups run on a timer, and each one only does something while the cache is" << endl;
-        os << "above file_service_reclaim_threshold, so that threshold bounds nothing on its own." << endl;
+        os << "streaming and FUSE mounts write to. Cleanups run on a timer, and each one only does something" << endl;
+        os << "while the cache is above file_service_reclaim_threshold, so that threshold bounds nothing on its own." << endl;
         os << "Changes take effect immediately and are re-applied on each login." << endl;
         os << "For how the cleanup works and for values that keep heavy streaming within a disk budget, see \"" << getCommandPrefixBasedOnMode() << "help --streaming\"." << endl;
     }
@@ -2876,7 +2982,7 @@ string getHelpStr(const char *command, const HelpFlags& flags = {})
         os << "                \t" << " Folders created by backup won't be deleted" << endl;
         os << "-a TAG|localpath\t" << "Aborts ongoing backup" << endl;
         os << endl;
-        os << "Caveat: This functionality is in BETA state. If you experience any issue with this, please contact: support@mega.nz" << endl;
+        os << "Caveat: This functionality is in BETA state. If you experience any issue with this, please contact: support@mega.io" << endl;
     }
     else if (!strcmp(command, "export"))
     {
@@ -3674,13 +3780,25 @@ void executecommand(const char* ptr)
             const auto prefix = getCommandPrefixBasedOnMode();
 
             OUTSTREAM << "MEGAcmd can stream files straight from your cloud through the webdav and ftp servers" << endl;
-            OUTSTREAM << " (see \"" << prefix << "webdav --help\" and \"" << prefix << "ftp --help\")." << endl;
+            OUTSTREAM << " (see \"" << prefix << "webdav --help\" and \"" << prefix << "ftp --help\"), and through FUSE mounts" << endl;
+            OUTSTREAM << " (see \"" << prefix << "fuse-add --help\")." << endl;
             OUTSTREAM << endl;
             OUTSTREAM << "Where the data goes:" << endl;
             OUTSTREAM << " - webdav: file content is cached on disk, so seeking back or replaying is fast. That cache" << endl;
             OUTSTREAM << "    is what the file_service_reclaim_* keys of \"" << prefix << "configure\" control." << endl;
             OUTSTREAM << " - ftp: served through memory, with no on-disk cache." << endl;
-            OUTSTREAM << " The cache lives with the session: it is removed when you log out." << endl;
+            OUTSTREAM << " FUSE mounts read the same on-disk cache as webdav, so the same keys bound both." << endl;
+            OUTSTREAM << " The cache belongs to the session. Logging out removes it; \"" << prefix << "logout --keep-session\"" << endl;
+            OUTSTREAM << " and restarting the server keep it." << endl;
+            OUTSTREAM << endl;
+            OUTSTREAM << "What is checked:" << endl;
+            OUTSTREAM << " When you download a file with \"" << prefix << "get\", MEGAcmd checks the whole file against the" << endl;
+            OUTSTREAM << " checksum held in its key, and the download fails if they do not match. That check needs every" << endl;
+            OUTSTREAM << " byte of the file, so it cannot be done while streaming, which reads only the parts you ask for." << endl;
+            OUTSTREAM << " Streaming still encrypts in transit and decrypts with your key; what it cannot tell you is" << endl;
+            OUTSTREAM << " whether the bytes are the ones that were uploaded." << endl;
+            OUTSTREAM << " This applies to webdav, ftp and FUSE mounts alike. For anything you are going to run or" << endl;
+            OUTSTREAM << " install, fetch it with \"" << prefix << "get\" and use that copy." << endl;
             OUTSTREAM << endl;
             OUTSTREAM << "How the disk cache is cleaned up:" << endl;
             OUTSTREAM << " A cleanup runs on a timer. The first one runs file_service_reclaim_delay seconds after login," << endl;
@@ -4430,6 +4548,48 @@ void delete_finished_threads()
     endedPetitionThreads.clear();
 }
 
+static size_t ongoingPetitions(MegaThread *except)
+{
+    std::unique_lock<std::mutex> lock(mutexEndedPetitionThreads);
+
+    size_t count = 0;
+    for (auto &pt : petitionThreads)
+    {
+        if (pt.get() != except)
+        {
+            ++count;
+        }
+    }
+    return count;
+}
+
+// Petitions run commands that use the api, so let them finish before anything is
+// torn down. With a limit: one could be sitting on a prompt or on a slow transfer,
+// and quitting should not hang on that.
+static void waitForOngoingPetitions()
+{
+    MegaThread *self = nullptr;
+    if (CmdPetition *inf = getCurrentThreadCmdPetition())
+    {
+        self = inf->getPetitionThread(); // a petition cannot join itself
+    }
+
+    constexpr auto step = std::chrono::milliseconds(20);
+    auto attempts = QUIT_ONGOING_PETITIONS_WAIT / step;
+    delete_finished_threads();
+
+    while (ongoingPetitions(self) && attempts--)
+    {
+        sleepMilliSeconds(step.count());
+        delete_finished_threads();
+    }
+
+    if (size_t left = ongoingPetitions(self))
+    {
+        LOG_warn << "quitting with " << left << " ongoing petitions";
+    }
+}
+
 void processCommandInPetitionQueues(CmdPetition *inf);
 void processCommandLinePetitionQueues(std::string what);
 
@@ -4461,6 +4621,67 @@ void LinuxSignalHandler(int signum)
 }
 #endif
 
+namespace {
+
+// The logging stream hands records to a writer thread, so the last few records
+// before a process dies can be missing from the file. When MEGACMD_TRACE_TEARDOWN
+// is set, each step is also written straight to the standard error handle, which
+// is ordered, unbuffered, and ends up in the console of whatever ran the process.
+void teardownNote(const char* what, int ordinal = -1)
+{
+    static const bool wanted = getenv("MEGACMD_TRACE_TEARDOWN") != nullptr;
+    if (!wanted)
+    {
+        return;
+    }
+
+    char line[256];
+    int length = 0;
+    if (ordinal >= 0)
+    {
+        length = snprintf(line, sizeof(line), "teardown: %s %d\n", what, ordinal);
+    }
+    else
+    {
+        length = snprintf(line, sizeof(line), "teardown: %s\n", what);
+    }
+    if (length <= 0)
+    {
+        return;
+    }
+
+#ifdef _WIN32
+    // Not fprintf: the integration tests put stderr into UTF-16 mode, where a
+    // narrow write is misread and an odd length trips the CRT's invalid parameter
+    // handler. Writing to the handle avoids the text mode entirely.
+    DWORD written = 0;
+    WriteFile(GetStdHandle(STD_ERROR_HANDLE), line,
+              static_cast<DWORD>(length), &written, NULL);
+#else
+    fwrite(line, 1, static_cast<size_t>(length), stderr);
+    fflush(stderr);
+#endif
+}
+
+// Names the step about to run, so that a process which dies mid-teardown can be
+// placed. Debug level, since this is only of interest when something is wrong and
+// that is when logging is raised anyway.
+void teardownStep(const char* what, int ordinal = -1)
+{
+    if (ordinal >= 0)
+    {
+        LOG_debug << "teardown: " << what << " " << ordinal;
+    }
+    else
+    {
+        LOG_debug << "teardown: " << what;
+    }
+
+    teardownNote(what, ordinal);
+}
+
+} // namespace
+
 void finalize(bool waitForRestartSignal_param)
 {
     static bool alreadyfinalized = false;
@@ -4469,34 +4690,73 @@ void finalize(bool waitForRestartSignal_param)
     alreadyfinalized = true;
     LOG_info << "closing application ...";
 
-    delete_finished_threads();
+    // The teardown destroys objects that SDK threads may still be calling into,
+    // and it takes a couple of hundred milliseconds, so each step announces itself
+    // first. That is what makes it possible to say which step a process was in
+    // when it died.
+
+    // Stop the update check before anything it reaches into is destroyed.
+    teardownStep("stopping the update check");
+    stopAndJoinUpdateCheck();
+
+    // Likewise the delayed broadcast: it hands messages to cm, deleted below.
+    teardownStep("stopping the delayed broadcast");
+    stopAndJoinDelayedBroadcast();
+
+    teardownStep("waiting for ongoing petitions");
+    waitForOngoingPetitions();
     if (!consoleFailed)
     {
+        teardownStep("deleting the console");
         delete console;
     }
 
-    delete megaCmdMegaListener;
+    // Nothing may reach the api once it is deleted, so stop what still could
+    // while it is alive.
+    if (cmdexecuter)
+    {
+        teardownStep("stopping the deferred work of cmdexecuter");
+        cmdexecuter->stopDeferredWork();
+    }
+    if (megaCmdMegaListener)
+    {
+        teardownStep("detaching megaCmdMegaListener from the api");
+        megaCmdMegaListener->detachFromApi();
+    }
+
     if (threadRetryConnections)
     {
+        teardownStep("joining the retryConnections thread");
         threadRetryConnections->join();
     }
+    teardownStep("deleting the retryConnections thread object");
     delete threadRetryConnections;
+    teardownStep("deleting the main api");
     delete api;
 
+    int apiFolderOrdinal = 0;
     while (!apiFolders.empty())
     {
+        teardownStep("deleting free apiFolder", apiFolderOrdinal++);
         delete apiFolders.front();
         apiFolders.pop();
     }
 
     for (std::vector< MegaApi * >::iterator it = occupiedapiFolders.begin(); it != occupiedapiFolders.end(); ++it)
     {
+        teardownStep("deleting occupied apiFolder", apiFolderOrdinal++);
         delete ( *it );
     }
 
     occupiedapiFolders.clear();
 
+    // Every api is gone, and their destructors joined the threads that dispatch
+    // callbacks, so no callback can still be running in the listeners.
+    teardownStep("deleting megaCmdGlobalListener");
     delete megaCmdGlobalListener;
+    teardownStep("deleting megaCmdMegaListener");
+    delete megaCmdMegaListener;
+    teardownStep("deleting cmdexecuter");
     delete cmdexecuter;
 
 #ifdef __linux__
@@ -4514,16 +4774,24 @@ void finalize(bool waitForRestartSignal_param)
         }
     }
 #endif
+    teardownStep("deleting the communications manager");
     delete cm; // closes the socket; must happen after restartServer() so clients
                // are notified, and before exit so the new server can bind it
 
     LOG_debug << "resources have been cleaned ...";
     LOG_info << "----------------------------- program end -------------------------------";
 
+    // The last step that can still be logged. Anything past the logger being
+    // destroyed can only be traced through the standard error handle, since going
+    // through the logger would use the object just freed.
+    teardownStep("unregistering and deleting the logger");
     MegaApi::removeLoggerObject(loggerCMD);
     delete loggerCMD;
+
+    teardownNote("unlocking and unloading the configuration");
     ConfigurationManager::unlockExecution();
     ConfigurationManager::unloadConfiguration();
+    teardownNote("finalize is done");
 
 }
 void finalize()
@@ -4550,42 +4818,135 @@ void * retryConnections(void *pointer)
 }
 
 
+namespace {
+// Owns the recurrent update check and the thread that runs it.
+class UpdateChecker
+{
+public:
+    ~UpdateChecker() { stopAndJoin(); }
+
+    void start();
+    void stop();
+
+    // Stops the check and lets go of its thread.
+    void stopAndJoin();
+
+private:
+    void loop();
+
+    // Returns false if a stop was requested before the wait was over.
+    bool waitFor(std::chrono::seconds duration);
+
+    // A detached check outlives this object, so what it touches has to outlive
+    // it too. Instance<UpdateChecker> keeps there being only one of these.
+    inline static std::mutex sMutex;
+    inline static std::condition_variable sCv;
+    inline static std::atomic_bool sRunning{false};
+
+    std::future<void> mLoopReturned;
+    std::thread mThread;
+};
+} // namespace
+
 void startcheckingForUpdates()
 {
     ConfigurationManager::savePropertyValue("autoupdate", 1);
 
-    if (!alreadyCheckingForUpdates)
-    {
-        alreadyCheckingForUpdates = true;
-        LOG_info << "Starting autoupdate check mechanism";
-        MegaThread *checkupdatesThread = new MegaThread();
-        checkupdatesThread->start(checkForUpdates, checkupdatesThread);
-    }
+    Instance<UpdateChecker>::Get().start();
 }
 
 void stopcheckingForUpdates()
 {
     ConfigurationManager::savePropertyValue("autoupdate", 0);
 
-    stopCheckingforUpdaters = true;
+    Instance<UpdateChecker>::Get().stop();
 }
 
-void* checkForUpdates(void *param)
+void stopAndJoinUpdateCheck()
 {
-    stopCheckingforUpdaters = false;
-    LOG_debug << "Initiating recurrent checkForUpdates";
+    Instance<UpdateChecker>::Get().stopAndJoin();
+}
 
-    int secstosleep = 60;
-    while (secstosleep > 0 && !stopCheckingforUpdaters)
+void UpdateChecker::start()
+{
+    if (sRunning.exchange(true))
     {
-        sleepSeconds(2);
-        secstosleep -= 2;
+        return;
+    }
+    LOG_info << "Starting autoupdate check mechanism";
+
+    if (mThread.joinable()) // the thread of a previous loop, already returned
+    {
+        mThread.join();
+    }
+
+    {
+        std::lock_guard<std::mutex> lock(sMutex);
+        stopCheckingforUpdaters = false;
+    }
+
+    std::packaged_task<void()> task([this] { loop(); });
+    mLoopReturned = task.get_future();
+    mThread = std::thread(std::move(task));
+}
+
+void UpdateChecker::stop()
+{
+    {
+        std::lock_guard<std::mutex> lock(sMutex); // so the notification cannot be missed
+        stopCheckingforUpdaters = true;
+    }
+    sCv.notify_all();
+}
+
+void UpdateChecker::stopAndJoin()
+{
+    stop();
+    if (!mThread.joinable())
+    {
+        return;
+    }
+
+    // executeUpdater waits for the updater process with no timeout, so a check
+    // that got that far cannot be stopped.
+    if (mLoopReturned.wait_for(std::chrono::seconds(5)) == std::future_status::ready)
+    {
+        mThread.join();
+    }
+    else
+    {
+        LOG_warn << "Update check still running at shutdown. Detaching its thread";
+        mThread.detach();
+    }
+}
+
+bool UpdateChecker::waitFor(std::chrono::seconds duration)
+{
+    std::unique_lock<std::mutex> lock(sMutex);
+    return !sCv.wait_for(lock, duration, [] { return stopCheckingforUpdaters.load(); });
+}
+
+void UpdateChecker::loop()
+{
+    ScopeGuard notRunning([] { sRunning = false; });
+
+    LOG_debug << "Initiating recurrent update check";
+
+    if (!waitFor(std::chrono::minutes(1)))
+    {
+        return;
     }
 
     while (!doExit && !stopCheckingforUpdaters)
     {
         bool restartRequired = false;
-        if (!executeUpdater(&restartRequired, true)) //only download & check
+        const bool checked = executeUpdater(&restartRequired, true); //only download & check
+        if (stopCheckingforUpdaters)
+        {
+            return; // the shutdown is already tearing down what the rest of the loop uses
+        }
+
+        if (!checked)
         {
             LOG_err << " Failed to execute updater";
         }
@@ -4594,31 +4955,29 @@ void* checkForUpdates(void *param)
             LOG_info << " There is a pending update. Will be applied in a few seconds";
 
             broadcastMessage("A new update has been downloaded. It will be performed in 60 seconds");
-            int secstosleep = 57;
-            while (secstosleep > 0 && !stopCheckingforUpdaters)
+            if (!waitFor(std::chrono::seconds(57)))
             {
-                sleepSeconds(2);
-                secstosleep -= 2;
+                return;
             }
-            if (stopCheckingforUpdaters) break;
-            broadcastMessage("  Executing update in 3");
-            sleepSeconds(1);
-            if (stopCheckingforUpdaters) break;
-            broadcastMessage("  Executing update in 2");
-            sleepSeconds(1);
-            if (stopCheckingforUpdaters) break;
-            broadcastMessage("  Executing update in 1");
-            sleepSeconds(1);
-            if (stopCheckingforUpdaters) break;
 
-            while(petitionThreads.size() && !stopCheckingforUpdaters)
+            for (int countdown = 3; countdown > 0; --countdown)
+            {
+                broadcastMessage("  Executing update in " + std::to_string(countdown));
+                if (!waitFor(std::chrono::seconds(1)))
+                {
+                    return;
+                }
+            }
+
+            while (!petitionThreads.empty())
             {
                 LOG_fatal << " waiting for petitions to end to initiate upload " << petitionThreads.size() << petitionThreads.at(0).get();
-                sleepSeconds(2);
+                if (!waitFor(std::chrono::seconds(2)))
+                {
+                    return;
+                }
                 delete_finished_threads();
             }
-
-            if (stopCheckingforUpdaters) break;
 
             sendEvent(StatsManager::MegacmdEvent::UPDATE_START, api);
 
@@ -4631,11 +4990,15 @@ void* checkForUpdates(void *param)
             LOG_verbose << " There is no pending update";
         }
 
-        if (stopCheckingforUpdaters) break;
+        if (stopCheckingforUpdaters)
+        {
+            return;
+        }
+
         if (restartRequired && restartServer())
         {
             int attempts = 20; //give a while for ingoin petitions to end before killing the server
-            while(petitionThreads.size() && --attempts)
+            while (!petitionThreads.empty() && --attempts)
             {
                 sleepSeconds(20 - attempts);
                 delete_finished_threads();
@@ -4643,21 +5006,14 @@ void* checkForUpdates(void *param)
 
             doExit = true;
             cm->stopWaiting();
-            break;
+            return;
         }
 
-        int secstosleep = 7200;
-        while (secstosleep > 0 && !stopCheckingforUpdaters)
+        if (!waitFor(std::chrono::hours(2)))
         {
-            sleepSeconds(2);
-            secstosleep -= 2;
+            return;
         }
     }
-
-    alreadyCheckingForUpdates = false;
-
-    delete (MegaThread *)param;
-    return NULL;
 }
 
 void processCommandInPetitionQueues(std::unique_ptr<CmdPetition> inf)
@@ -4681,6 +5037,186 @@ void processCommandLinePetitionQueues(std::string what)
     inf->clientDisconnected = true; // There's no actual client
     inf->clientID = -3;
     processCommandInPetitionQueues(std::move(inf));
+}
+
+// Sends a new state listener its client id, the pending messages and the prompt. It only gets the
+// client id: once registered, the listener belongs to cm, and another thread drops it as soon as a
+// write to it fails (the client hung up).
+void greetStateListener(int clientID)
+{
+    // Communicate client ID
+    cm->informStateListenerByClientId("clientID:" + std::to_string(clientID), clientID);
+
+    std::string s;
+
+#if defined(_WIN32) || defined(__APPLE__)
+    ostringstream os;
+    auto updatMsgOpt = lookForAvailableNewerVersions(api);
+    //TODO: have this executed in worker thread instead (see MegaCmdExecuter::mayExecutePendingStuffInWorkerThread)
+    // still store the update message to be consumed here
+    if (updatMsgOpt)
+    {
+        os << *updatMsgOpt;
+    }
+
+    int autoupdate = ConfigurationManager::getConfigurationValue("autoupdate", -1);
+    if (autoupdate == -1 || autoupdate == 2)
+    {
+        os << "ENABLING AUTOUPDATE BY DEFAULT. You can disable it with \"update --auto=off\"" << endl;
+        autoupdate = 1;
+    }
+
+    if (autoupdate == 1)
+    {
+        startcheckingForUpdates();
+    }
+
+    auto message = os.str();
+    if (message.size())
+    {
+        s += "message:";
+        s += message;
+        s += (char) 0x1F;
+    }
+#endif
+
+    bool isOSdeprecated = false;
+#ifdef MEGACMD_DEPRECATED_OS
+    isOSdeprecated = true;
+#endif
+
+
+#ifdef _WIN32
+    OSVERSIONINFOEX osvi;
+    ZeroMemory(&osvi, sizeof(OSVERSIONINFOEX));
+    osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEX);
+#pragma warning(disable: 4996) //  warning C4996: 'GetVersionExW': was declared deprecated
+    if (GetVersionEx((OSVERSIONINFO*)&osvi) && osvi.dwMajorVersion < 6)
+    {
+        isOSdeprecated = true;
+    }
+#endif
+    if (isOSdeprecated)
+    {
+        s += "message:";
+        s += "Your Operative System is too old.\n";
+        s += "You might not receive new updates for this application.\n";
+        s += "We strongly recommend you to update to a new version.\n";
+        s += (char) 0x1F;
+    }
+
+    if (sandboxCMD->storageStatus != MegaApi::STORAGE_STATE_GREEN)
+    {
+        s += "message:";
+
+        if (sandboxCMD->storageStatus == MegaApi::STORAGE_STATE_PAYWALL)
+        {
+            std::unique_ptr<char[]> myEmail(api->getMyEmail());
+            std::unique_ptr<MegaIntegerList> warningsList(api->getOverquotaWarningsTs());
+            s += "We have contacted you by email to " + string(myEmail.get()) + " on ";
+            s += getReadableTime(warningsList->get(0),"%b %e %Y");
+            if (warningsList->size() > 1)
+            {
+                for (int i = 1; i < warningsList->size() - 1; i++)
+                {
+                    s += ", " + getReadableTime(warningsList->get(i),"%b %e %Y");
+                }
+                s += " and " + getReadableTime(warningsList->get(warningsList->size() - 1),"%b %e %Y");
+            }
+            std::unique_ptr<MegaNode> rootNode(api->getRootNode());
+            auto listener = std::make_unique<SynchronousRequestListener>();
+            api->getFolderInfo(rootNode.get(), listener.get());
+            listener->wait();
+            auto error = listener->getError();
+            assert(error != nullptr);
+            if (error->getErrorCode() == MegaError::API_OK)
+            {
+                long long totalFiles = 0;
+
+                auto info = listener->getRequest()->getMegaFolderInfo();
+                if (info != nullptr)
+                {
+                    totalFiles += info->getNumFolders();
+                }
+                s += ", but you still have " + std::to_string(totalFiles) + " files taking up " + sizeToText(sandboxCMD->receivedStorageSum);
+            }
+            else
+            {
+                s += ", but you still have files taking up" + sizeToText(sandboxCMD->receivedStorageSum);
+            }
+
+            s += " in your MEGA account, which requires you to upgrade your account.\n\n";
+            long long daysLeft = (api->getOverquotaDeadlineTs() - m_time(NULL)) / 86400;
+            if (daysLeft > 0)
+            {
+                 s += "You have " + std::to_string(daysLeft) + " days left to upgrade. ";
+                 s += "After that, your data is subject to deletion.\n";
+            }
+            else
+            {
+                 s += "You must act immediately to save your data. From now on, your data is subject to deletion.\n";
+            }
+        }
+        else if (sandboxCMD->storageStatus == MegaApi::STORAGE_STATE_RED)
+        {
+            s += "You have exeeded your available storage.\n";
+            s += "You can change your account plan to increase your quota limit.\n";
+        }
+        else
+        {
+            s += "You are running out of available storage.\n";
+            s += "You can change your account plan to increase your quota limit.\n";
+        }
+        s += "See \"help --upgrade\" for further details.\n";
+        s += (char) 0x1F;
+    }
+
+    // if server resuming session, lets give him a very litle while before sending greeting message to the early clients
+    // (to aovid "Resuming session..." being printed fast resumed session)
+    while (getloginInAtStartup() && ((m_time(nullptr) - timeLoginStarted() < RESUME_SESSION_TIMEOUT * 0.3)))
+    {
+        sleepMilliSeconds(300);
+    }
+
+    {
+        std::lock_guard<std::mutex> g(greetingsmsgsMutex);
+
+        while(greetingsFirstClientMsgs.size())
+        {
+            cm->informStateListenerByClientId(greetingsFirstClientMsgs.front(), clientID);
+            greetingsFirstClientMsgs.pop_front();
+        }
+
+        for (const auto &m: greetingsAllClientMsgs)
+        {
+            cm->informStateListenerByClientId(m, clientID);
+        }
+    }
+
+    // Built now rather than stored, so that its time left is current
+    if (auto transferQuotaMessage = cmdexecuter->getTransferQuotaGreeting())
+    {
+        cm->informStateListenerByClientId("message:" + *transferQuotaMessage, clientID);
+    }
+
+    // if server resuming session, lets give him a litle while before returning a prompt to the early clients
+    // This will block the server from responging any commands in the meantime, but that assumable, it will only happen
+    // the first time the server is initiated.
+    while (getloginInAtStartup() && ((m_time(nullptr) - timeLoginStarted() < RESUME_SESSION_TIMEOUT * 0.7)))
+    {
+        sleepMilliSeconds(300);
+    }
+
+    // communicate status info
+    s +=  "prompt:";
+    s += dynamicprompt;
+
+    if (!sandboxCMD->getReasonblocked().size())
+    {
+        cmdexecuter->checkAndInformPSA(clientID);
+    }
+
+    cm->informStateListenerByClientId(s, clientID); // adds the last frame's terminator
 }
 
 // main loop
@@ -4711,209 +5247,36 @@ void megacmd()
             return;
         }
 
-        if (cm->receivedPetition())
+        if (!cm->receivedPetition())
         {
-            LOG_verbose << "Client connected ";
+            continue;
+        }
 
-            auto infOwned = cm->getPetition();
-            assert(infOwned);
+        LOG_verbose << "Client connected ";
 
-            CmdPetition* inf = infOwned.get();
+        auto inf = cm->getPetition();
+        assert(inf);
 
-            LOG_verbose << "petition registered: " << inf->getRedactedLine();
-            delete_finished_threads();
+        LOG_verbose << "petition registered: " << inf->getRedactedLine();
+        delete_finished_threads();
 
-            if (inf->getUniformLine() == "ERROR")
-            {
-                LOG_warn << "Petition couldn't be registered. Dismissing it.";
-            }
-            // if state register petition
-            else if (startsWith(inf->getUniformLine(), "registerstatelistener"))
-            {
-                inf = cm->registerStateListener(std::move(infOwned));
-                if (!inf)
-                {
-                    continue;
-                }
+        if (inf->getUniformLine() == "ERROR")
+        {
+            LOG_warn << "Petition couldn't be registered. Dismissing it.";
+            continue;
+        }
 
-                {
-                    // Communicate client ID
-                    string clientIdStr = "clientID:" + std::to_string(currentclientID) + (char) 0x1F;
-                    inf->clientID = currentclientID;
-                    currentclientID++;
-                    cm->informStateListener(inf, clientIdStr);
-                }
+        if (!startsWith(inf->getUniformLine(), "registerstatelistener"))
+        {
+            processCommandInPetitionQueues(std::move(inf));
+            continue;
+        }
 
-                std::string s;
-
-#if defined(_WIN32) || defined(__APPLE__)
-                ostringstream os;
-                auto updatMsgOpt = lookForAvailableNewerVersions(api);
-                //TODO: have this executed in worker thread instead (see MegaCmdExecuter::mayExecutePendingStuffInWorkerThread)
-                // still store the update message to be consumed here
-                if (updatMsgOpt)
-                {
-                    os << *updatMsgOpt;
-                }
-
-                int autoupdate = ConfigurationManager::getConfigurationValue("autoupdate", -1);
-                if (autoupdate == -1 || autoupdate == 2)
-                {
-                    os << "ENABLING AUTOUPDATE BY DEFAULT. You can disable it with \"update --auto=off\"" << endl;
-                    autoupdate = 1;
-                }
-
-                if (autoupdate == 1)
-                {
-                    startcheckingForUpdates();
-                }
-
-                auto message = os.str();
-                if (message.size())
-                {
-                    s += "message:";
-                    s += message;
-                    s += (char) 0x1F;
-                }
-#endif
-
-                bool isOSdeprecated = false;
-#ifdef MEGACMD_DEPRECATED_OS
-                isOSdeprecated = true;
-#endif
-
-
-#ifdef _WIN32
-                OSVERSIONINFOEX osvi;
-                ZeroMemory(&osvi, sizeof(OSVERSIONINFOEX));
-                osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEX);
-#pragma warning(disable: 4996) //  warning C4996: 'GetVersionExW': was declared deprecated
-                if (GetVersionEx((OSVERSIONINFO*)&osvi) && osvi.dwMajorVersion < 6)
-                {
-                    isOSdeprecated = true;
-                }
-#endif
-                if (isOSdeprecated)
-                {
-                    s += "message:";
-                    s += "Your Operative System is too old.\n";
-                    s += "You might not receive new updates for this application.\n";
-                    s += "We strongly recommend you to update to a new version.\n";
-                    s += (char) 0x1F;
-                }
-
-                if (sandboxCMD->storageStatus != MegaApi::STORAGE_STATE_GREEN)
-                {
-                    s += "message:";
-
-                    if (sandboxCMD->storageStatus == MegaApi::STORAGE_STATE_PAYWALL)
-                    {
-                        std::unique_ptr<char[]> myEmail(api->getMyEmail());
-                        std::unique_ptr<MegaIntegerList> warningsList(api->getOverquotaWarningsTs());
-                        s += "We have contacted you by email to " + string(myEmail.get()) + " on ";
-                        s += getReadableTime(warningsList->get(0),"%b %e %Y");
-                        if (warningsList->size() > 1)
-                        {
-                            for (int i = 1; i < warningsList->size() - 1; i++)
-                            {
-                                s += ", " + getReadableTime(warningsList->get(i),"%b %e %Y");
-                            }
-                            s += " and " + getReadableTime(warningsList->get(warningsList->size() - 1),"%b %e %Y");
-                        }
-                        std::unique_ptr<MegaNode> rootNode(api->getRootNode());
-                        auto listener = std::make_unique<SynchronousRequestListener>();
-                        api->getFolderInfo(rootNode.get(), listener.get());
-                        listener->wait();
-                        auto error = listener->getError();
-                        assert(error != nullptr);
-                        if (error->getErrorCode() == MegaError::API_OK)
-                        {
-                            long long totalFiles = 0;
-
-                            auto info = listener->getRequest()->getMegaFolderInfo();
-                            if (info != nullptr)
-                            {
-                                totalFiles += info->getNumFolders();
-                            }
-                            s += ", but you still have " + std::to_string(totalFiles) + " files taking up " + sizeToText(sandboxCMD->receivedStorageSum);
-                        }
-                        else
-                        {
-                            s += ", but you still have files taking up" + sizeToText(sandboxCMD->receivedStorageSum);
-                        }
-
-                        s += " in your MEGA account, which requires you to upgrade your account.\n\n";
-                        long long daysLeft = (api->getOverquotaDeadlineTs() - m_time(NULL)) / 86400;
-                        if (daysLeft > 0)
-                        {
-                             s += "You have " + std::to_string(daysLeft) + " days left to upgrade. ";
-                             s += "After that, your data is subject to deletion.\n";
-                        }
-                        else
-                        {
-                             s += "You must act immediately to save your data. From now on, your data is subject to deletion.\n";
-                        }
-                    }
-                    else if (sandboxCMD->storageStatus == MegaApi::STORAGE_STATE_RED)
-                    {
-                        s += "You have exeeded your available storage.\n";
-                        s += "You can change your account plan to increase your quota limit.\n";
-                    }
-                    else
-                    {
-                        s += "You are running out of available storage.\n";
-                        s += "You can change your account plan to increase your quota limit.\n";
-                    }
-                    s += "See \"help --upgrade\" for further details.\n";
-                    s += (char) 0x1F;
-                }
-
-                // if server resuming session, lets give him a very litle while before sending greeting message to the early clients
-                // (to aovid "Resuming session..." being printed fast resumed session)
-                while (getloginInAtStartup() && ((m_time(nullptr) - timeLoginStarted() < RESUME_SESSION_TIMEOUT * 0.3)))
-                {
-                    sleepMilliSeconds(300);
-                }
-
-                {
-                    std::lock_guard<std::mutex> g(greetingsmsgsMutex);
-
-                    while(greetingsFirstClientMsgs.size())
-                    {
-                        cm->informStateListener(inf,greetingsFirstClientMsgs.front().append(1, (char)0x1F));
-                        greetingsFirstClientMsgs.pop_front();
-                    }
-
-                    for (auto m: greetingsAllClientMsgs)
-                    {
-                        cm->informStateListener(inf, m.append(1, (char)0x1F));
-                    }
-                }
-
-                // if server resuming session, lets give him a litle while before returning a prompt to the early clients
-                // This will block the server from responging any commands in the meantime, but that assumable, it will only happen
-                // the first time the server is initiated.
-                while (getloginInAtStartup() && ((m_time(nullptr) - timeLoginStarted() < RESUME_SESSION_TIMEOUT * 0.7)))
-                {
-                    sleepMilliSeconds(300);
-                }
-
-                // communicate status info
-                s +=  "prompt:";
-                s += dynamicprompt;
-                s += (char) 0x1F;
-
-                if (!sandboxCMD->getReasonblocked().size())
-                {
-                    cmdexecuter->checkAndInformPSA(inf);
-                }
-
-                cm->informStateListener(inf, s);
-            }
-            else
-            { // normal petition
-                processCommandInPetitionQueues(std::move(infOwned));
-            }
+        const int clientID = currentclientID++;
+        inf->clientID = clientID;
+        if (cm->registerStateListener(std::move(inf)))
+        {
+            greetStateListener(clientID);
         }
     }
 }
@@ -5448,26 +5811,6 @@ void uninstall()
 
 #endif
 
-void setFuseLogLevel(MegaApi& api, const std::string& fuseLogLevelStr)
-{
-    std::unique_ptr<MegaFuseFlags> fuseFlags(api.getFUSEFlags());
-    assert(fuseFlags);
-
-    int sdkLogLevel = fuseFlags->getLogLevel();
-    try
-    {
-        sdkLogLevel = std::stoi(fuseLogLevelStr);
-    }
-    catch (...) {}
-
-    sdkLogLevel = std::clamp(sdkLogLevel, (int) ::mega::LogLevel::logError, (int) ::mega::LogLevel::logVerbose);
-
-    fuseFlags->setLogLevel(sdkLogLevel);
-    api.setFUSEFlags(fuseFlags.get());
-
-    LOG_debug << "FUSE log level set to " << sdkLogLevel;
-}
-
 void disableFuseExplorerListView(MegaApi& api)
 {
     std::unique_ptr<MegaFuseFlags> fuseFlags(api.getFUSEFlags());
@@ -5486,6 +5829,8 @@ int executeServer(int argc, char* argv[],
     // Own global server instances here
     Instance<DefaultLoggedStream> sDefaultLoggedStream;
     Instance<ConfiguratorMegaApiHelper> sConfiguratorHelper;
+    Instance<UpdateChecker> sUpdateChecker;
+    Instance<DelayedBroadcaster> sDelayedBroadcaster;
 
 #ifdef __linux__
     // Ensure interesting signals are unblocked.
@@ -5516,6 +5861,16 @@ int executeServer(int argc, char* argv[],
     mcmdMainArgv = argv;
     mcmdMainArgc = argc;
 
+#ifndef _WIN32
+    // Empty when there is no folder the server can safely use: an unsafe /tmp fallback (see PlatformDirectories),
+    // or one it cannot create. Checked before the lock, which would report that as another running instance.
+    if (ConfigurationManager::getConfigFolder().empty() || getOrCreateSocketPath(true).empty())
+    {
+        cerr << "MEGAcmd Server cannot start: no usable folder for its session and socket" << endl;
+        return -3;
+    }
+#endif
+
     ConfigurationManager::loadConfiguration(logConfig.mCmdLogLevel >= MegaApi::LOG_LEVEL_DEBUG);
     if (!ConfigurationManager::lockExecution() && !skiplockcheck)
     {
@@ -5534,6 +5889,8 @@ int executeServer(int argc, char* argv[],
     MegaApi::setLogLevel(MegaApi::LOG_LEVEL_MAX); // do not filter anything here, log level checking is done by loggerCMD
 
     loggerCMD = new MegaCmdSimpleLogger(logConfig.mLogToCout, logConfig.mSdkLogLevel, logConfig.mCmdLogLevel);
+    loggerCMD->setFlushOnLevel(logConfig.mFlushOnLevel);
+    loggerCMD->setLogThreadId(logConfig.mLogThreadId);
 
     MegaApi::addLoggerObject(loggerCMD);
 
@@ -5589,10 +5946,19 @@ int executeServer(int argc, char* argv[],
         semaphoreClients.release();
     }
 
+#ifdef WITH_FUSE
     if (const char* fuseLogLevelStr = getenv("MEGACMD_FUSE_LOG_LEVEL"); fuseLogLevelStr)
     {
-        setFuseLogLevel(*api, fuseLogLevelStr);
+        if (auto logLevel = getLogLevelNum(fuseLogLevelStr))
+        {
+            FuseCommand::setLogLevel(*api, *logLevel);
+        }
+        else
+        {
+            LOG_err << "Invalid MEGACMD_FUSE_LOG_LEVEL: " << fuseLogLevelStr;
+        }
     }
+#endif
 
     if (getenv("MEGACMD_FUSE_DISABLE_LIST_VIEW"))
     {

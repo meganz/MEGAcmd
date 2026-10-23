@@ -706,41 +706,53 @@ void printCenteredContentsCerr(string msj, unsigned int width, bool encapsulated
     CERR << os.str();
 }
 
-void printPercentageLineCerr(const char *title, long long completed, long long total, float percentDowloaded, bool cleanLineAfter)
+std::string buildProgressBarLine(std::string_view title, std::string_view suffix, float percent, std::size_t cols)
 {
-    int cols = getNumberOfCols(80);
-
-    string outputString;
-    outputString.resize(cols + 1);
-    for (int i = 0; i < cols; i++)
+    std::string line(cols, '.');
+    if (cols == 0)
     {
-        outputString[i] = '.';
+        return line;
     }
 
-    outputString[cols] = '\0';
-    char *ptr = (char *)outputString.c_str();
-    sprintf(ptr, "%s%s", title, " ||");
-    ptr += strlen(title);
-    ptr += strlen(" ||");
-    *ptr = '.'; //replace \0 char
+    // Left: the title, truncated when the terminal cannot hold it.
+    const size_t titleLen = std::min(title.size(), cols);
+    line.replace(0, titleLen, title.data(), titleLen);
+
+    // Middle: the bar, only when anything is left between title and suffix.
+    if (cols > title.size() + suffix.size())
+    {
+      // Not std::clamp: that propagates NaN, and the cast below would then be
+      // undefined. NaN compares false here, so it falls through to no bar.
+      const float clamped = (percent > 0.0f) ? std::min(percent, 100.0f) : 0.0f;
+      const size_t room = cols - title.size() - suffix.size();
+      const size_t filled = static_cast<size_t>(room * clamped / 100.0f);
+      std::fill_n(line.begin() + title.size(), filled, '#');
+    }
+
+    // Right: the suffix, right aligned. Keep its tail rather than its head when
+    // it does not fit, so the percentage survives on a narrow terminal.
+    const size_t suffixLen = std::min(suffix.size(), cols);
+    line.replace(cols - suffixLen, suffixLen, suffix.data() + (suffix.size() - suffixLen), suffixLen);
+
+    return line;
+}
+
+void printPercentageLineCerr(const char *title, long long completed, long long total, float percentDowloaded, bool cleanLineAfter)
+{
+    const unsigned int cols = getNumberOfCols(80);
 
     char aux[41];
-
     if (total < 1048576)
     {
-        sprintf(aux,"||(%lld/%lld KB: %6.2f %%) ", completed / 1024, total / 1024, percentDowloaded);
+        snprintf(aux, sizeof(aux), "||(%lld/%lld KB: %6.2f %%) ", completed / 1024, total / 1024, percentDowloaded);
     }
     else
     {
-        sprintf(aux,"||(%lld/%lld MB: %6.2f %%) ", completed / 1024 / 1024, total / 1024 / 1024, percentDowloaded);
+        snprintf(aux, sizeof(aux), "||(%lld/%lld MB: %6.2f %%) ", completed / 1024 / 1024, total / 1024 / 1024, percentDowloaded);
     }
 
-
-    sprintf((char *)outputString.c_str() + cols - strlen(aux), "%s",                         aux);
-    for (int i = 0; i < ( cols - (strlen(title) + strlen(" ||")) - strlen(aux)) * 1.0 * min(100.0f,percentDowloaded) / 100.0; i++)
-    {
-        *ptr++ = '#';
-    }
+    const std::string barTitle = std::string(title ? title : "") + " ||";
+    const std::string outputString = buildProgressBarLine(barTitle, aux, percentDowloaded, cols);
 
 #ifdef _WIN32
     WindowsUtf8StdoutGuard utf8Guard;
@@ -1518,18 +1530,85 @@ fs::path PosixDirectories::configDirPath()
     std::string home = homeDirPath();
     if (home.empty())
     {
-        return noHomeFallbackFolder();
+        return getOrCreateFallbackFolder();
     }
 
     struct stat path_stat = {};
     bool exists = !stat(home.c_str(), &path_stat) && S_ISDIR(path_stat.st_mode);
 
-    return exists ? home.append("/.megaCmd") : noHomeFallbackFolder();
+    return exists ? home.append("/.megaCmd") : getOrCreateFallbackFolder();
 }
 
 string PosixDirectories::noHomeFallbackFolder()
 {
     return std::string("/tmp/megacmd-").append(std::to_string(getuid()));
+}
+
+string PosixDirectories::getOrCreateFallbackFolder()
+{
+    std::string folder = noHomeFallbackFolder();
+    if (std::string error; !createOrCheckPrivateFolder(folder, error))
+    {
+        // Called on every path lookup, so report the problem once
+        static std::once_flag reported;
+        std::call_once(reported, [&folder, &error]
+        {
+            std::cerr << "ERROR: Cannot use " << folder << " for MEGAcmd files: " << error << std::endl;
+            std::cerr << "This folder is used when HOME is missing or too long for the socket path.";
+            if (struct stat info = {}; lstat(folder.c_str(), &info) == 0)
+            {
+                std::cerr << " It must belong to you and be accessible only by you: run \"chmod 700 " << folder
+                          << "\" if it is yours, or ask an administrator to remove it.";
+            }
+            std::cerr << std::endl;
+        });
+        return std::string();
+    }
+    return folder;
+}
+
+bool createOrCheckPrivateFolder(const std::string& folder, std::string& error)
+{
+    if (mkdir(folder.c_str(), S_IRWXU) == 0)
+    {
+        return true;
+    }
+
+    if (errno != EEXIST)
+    {
+        error = std::strerror(errno);
+        return false;
+    }
+
+    // lstat, not stat: the owner of a symbolic link can point it somewhere else at any time
+    struct stat info = {};
+    if (lstat(folder.c_str(), &info) != 0)
+    {
+        error = std::strerror(errno);
+        return false;
+    }
+
+    if (!S_ISDIR(info.st_mode))
+    {
+        error = "it is not a folder";
+        return false;
+    }
+
+    if (info.st_uid != geteuid())
+    {
+        error = "it belongs to another user (uid " + std::to_string(info.st_uid) + ")";
+        return false;
+    }
+
+    if (info.st_mode & (S_IRWXG | S_IRWXO))
+    {
+        std::ostringstream os;
+        os << "other users have access to it (permissions " << std::oct << (info.st_mode & 0777) << ")";
+        error = os.str();
+        return false;
+    }
+
+    return true;
 }
 
 #ifdef __APPLE__
@@ -1546,7 +1625,7 @@ fs::path MacOSDirectories::runtimeDirPath()
     struct stat path_stat = {};
     bool exists = !stat(cachesPath.c_str(), &path_stat) && S_ISDIR(path_stat.st_mode);
 
-    return exists ? cachesPath.append("/megacmd.mac") : noHomeFallbackFolder();
+    return exists ? cachesPath.append("/megacmd.mac") : getOrCreateFallbackFolder();
 }
 #endif // !defined(__APPLE__)
 
@@ -1557,7 +1636,7 @@ std::string getOrCreateSocketPath(bool createDirectory)
     if (socketFolder.empty())
     {
         std::cerr << "FATAL: Could not get runtime folder for socket path" << std::endl;
-        throw std::runtime_error("Could not get runtime folder for socket path");
+        return std::string();
     }
 
     const char *sockname_c = getenv("MEGACMD_SOCKET_NAME");
@@ -1571,7 +1650,11 @@ std::string getOrCreateSocketPath(bool createDirectory)
         {
             std::cerr << "WARN: socket path in runtime dir would exceed max size. Falling back to /tmp" << std::endl;
         }
-        socketFolder = PosixDirectories::noHomeFallbackFolder();
+        socketFolder = PosixDirectories::getOrCreateFallbackFolder();
+        if (socketFolder.empty())
+        {
+            return std::string();
+        }
     }
 
     struct stat path_stat = {};

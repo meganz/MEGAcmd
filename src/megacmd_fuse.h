@@ -42,6 +42,9 @@ namespace FuseCommand
     void printMount(mega::MegaApi& api, const mega::MegaMount& mount);
     void printAllMounts(mega::MegaApi& api, megacmd::ColumnDisplayer& cd, bool onlyEnabled, bool disablePathCollapse, int rowCountLimit);
 
+    // logLevel is on the MegaApi::LOG_LEVEL_* scale, as returned by getLogLevelNum.
+    void setLogLevel(mega::MegaApi& api, int logLevel);
+
     struct ConfigDelta
     {
         std::optional<bool> mEnableAtStartup;

@@ -1,11 +1,11 @@
 @echo off
 setlocal
 
-set "WINFSP_VERSION=2.1.25156"
-set "WINFSP_VERSION_SHORT=2.1"
-set "EXPECTED_HASH=073a70e00f77423e34bed98b86e600def93393ba5822204fac57a29324db9f7a"
+set "WINFSP_VERSION=2.2.26215"
+set "WINFSP_TAG=v2.2B4"
+set "EXPECTED_HASH=2ecb5c89405488a95bbd8a01875e02c48534fd37bbdfd84488f7590464d65944"
 set "FILENAME=winfsp-installer.msi"
-set "URL=https://github.com/winfsp/winfsp/releases/download/v%WINFSP_VERSION_SHORT%/winfsp-%WINFSP_VERSION%.msi"
+set "URL=https://github.com/winfsp/winfsp/releases/download/%WINFSP_TAG%/winfsp-%WINFSP_VERSION%.msi"
 
 echo Downloading: %URL%
 curl -L -o "%FILENAME%" "%URL%"
