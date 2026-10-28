@@ -1,0 +1,3 @@
+Task 1 complete: Sun Jun 14 00:05:31 -03 2026
+Resolution table saved to .omo/evidence/task-1-mapping-table.json
+All 13 findings mapped to file:line locations
