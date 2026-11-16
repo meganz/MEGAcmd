@@ -25,6 +25,7 @@
 namespace megacmd {
 
 const char * const megacmdchangelog =
+        "Strengthened upload handling""\n"
         "Faster uploads, especially of many small files""\n"
         "FUSE: mounts now stream files, so they open at once instead of after a full download""\n"
         "FUSE: reads through a mount skip the integrity check a full download does. Use \"get\" for files meant to be run or installed. See \"help --streaming\"""\n"
