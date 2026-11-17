@@ -1,3 +1,9 @@
+megacmd (2.7.1) stable; urgency=low
+
+  * Strengthened upload handling
+
+ -- MEGA Team <linux@mega.co.nz>  Mon, 16 Nov 2026 11:09:58 +0000
+
 megacmd (2.7.0) stable; urgency=low
 
   * Faster uploads, especially of many small files

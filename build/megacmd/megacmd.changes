@@ -1,3 +1,8 @@
+Mon Nov 16 11:09:58 AM UTC 2026 - linux@mega.co.nz
+- Update to version 2.7.1:
+  * Strengthened upload handling
+
+-------------------------------------------------------------------
 Thu Oct 15 02:34:44 PM UTC 2026 - linux@mega.co.nz
 - Update to version 2.7.0:
   * Faster uploads, especially of many small files
